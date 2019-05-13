@@ -21,8 +21,8 @@ package cmd
 import (
 	"fmt"
 	"os"
-
 	"strconv"
+	"strings"
 
 	"github.com/apcera/termtables"
 	"github.com/goodrain/rainbond/grctl/clients"
@@ -186,7 +186,7 @@ func handleRoleAndStatus(list []map[string]string) bool {
 		if v["role"] == "manage" && v["status"] == "running" {
 			manageFlag = true
 		}
-		if (v["role"] == "compute,manage" || v["role"] == "manage,compute") && v["status"] == "running" {
+		if (strings.HasPrefix(v["role"], "compute,manage") || strings.HasPrefix(v["role"], "manage,compute")) && v["status"] == "running" {
 			computeFlag = true
 			manageFlag = true
 		}

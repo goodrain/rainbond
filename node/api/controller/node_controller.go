@@ -131,7 +131,13 @@ func getKubeletMessage(v *client.HostNode) string {
 //GetRuleNodes 获取分角色节点
 func GetRuleNodes(w http.ResponseWriter, r *http.Request) {
 	rule := chi.URLParam(r, "rule")
-	if rule != "compute" && rule != "manage" && rule != "storage" {
+	allowRule := map[string]struct{}{
+		"compute": struct{}{},
+		"manage": struct{}{},
+		"storage": struct{}{},
+		"gateway": struct{}{},
+	}
+	if _, ok := allowRule[rule]; !ok {
 		httputil.ReturnError(r, w, 400, rule+" rule is not define")
 		return
 	}

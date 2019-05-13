@@ -206,7 +206,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			v.NodeStatus.CurrentScheduleStatus = !k8sNode.Spec.Unschedulable
 		}
 	}
-	if v.Role.HasRule("manage") && !v.Role.HasRule("compute") { //manage install_success == runnint
+	if (v.Role.HasRule("manage") || v.Role.HasRule("gateway")) && !v.Role.HasRule("compute") { //manage install_success == runnint
 		v.AvailableCPU = v.NodeStatus.NodeInfo.NumCPU
 		v.AvailableMemory = int64(v.NodeStatus.NodeInfo.MemorySize)
 	}
