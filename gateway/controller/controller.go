@@ -262,9 +262,21 @@ func (gwc *GWController) updateRbdPools(edps map[string][]string) {
 
 	if h != nil {
 		//merge app pool
-		h = append(h, gwc.rhp...)
+		for _, rbd := range h {
+			exist := false
+			for idx := range gwc.rhp {
+				item := gwc.rhp[idx]
+				if rbd.Name == item.Name {
+					gwc.rhp[idx] = rbd
+					exist = true
+				}
+			}
+			if !exist {
+				gwc.rhp = append(gwc.rhp, rbd)
+			}
+		}
 	}
-	if err := gwc.GWS.UpdatePools(h, t); err != nil {
+	if err := gwc.GWS.UpdatePools(gwc.rhp, t); err != nil {
 		logrus.Errorf("update rainbond pools failure %s", err.Error())
 	}
 }
@@ -374,7 +386,6 @@ func (gwc *GWController) listRbdEndpoints() (map[string][]string, int64) {
 
 		var d []string
 		for _, dat := range data {
-			logrus.Debugf("dat: %s", dat)
 			s := strings.Split(dat, ":")
 			if len(s) != 2 || strings.Replace(s[0], " ", "", -1) == "" {
 				logrus.Warningf("wrong endpoint: %s", dat)
