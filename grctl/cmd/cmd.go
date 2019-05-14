@@ -43,7 +43,7 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdAlerting())
 	cmds = append(cmds, NewCmdNotificationEvent())
 	cmds = append(cmds, NewCmdReset())
-
+	cmds = append(cmds, NewCmdOp())
 	//task相关命令
 	//cmds = append(cmds, NewCmdTasks())
 	//数据中心配置相关命令
