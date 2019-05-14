@@ -23,12 +23,11 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/goodrain/rainbond/builder"
-
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
-	v1 "k8s.io/api/apps/v1"
+	"k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 )
@@ -553,11 +552,15 @@ func (a *AppService) String() string {
 
 //TenantResource tenant resource statistical models
 type TenantResource struct {
-	TenantID      string `json:"tenant_id,omitempty"`
-	CPURequest    int64  `json:"cpu_request,omitempty"`
-	CPULimit      int64  `json:"cpu_limit,omitempty"`
-	MemoryRequest int64  `json:"memory_request,omitempty"`
-	MemoryLimit   int64  `json:"memory_limit,omitempty"`
+	TenantID         string `json:"tenant_id,omitempty"`
+	CPURequest       int64  `json:"cpu_request,omitempty"`
+	CPULimit         int64  `json:"cpu_limit,omitempty"`
+	MemoryRequest    int64  `json:"memory_request,omitempty"`
+	MemoryLimit      int64  `json:"memory_limit,omitempty"`
+	UnscdCPUReq      int64  `json:"unscd_cpu_req,omitempty"`
+	UnscdCPULimit    int64  `json:"unscd_cpu_limit,omitempty"`
+	UnscdMemoryReq   int64  `json:"unscd_memory_req,omitempty"`
+	UnscdMemoryLimit int64  `json:"unscd_memory_limit,omitempty"`
 }
 
 // K8sResources holds kubernetes resources(svc, sercert, ep, ing).

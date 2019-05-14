@@ -21,8 +21,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/db/model"
-	corev1 "k8s.io/api/core/v1"
 	"net"
 	"strings"
 	"time"
@@ -30,6 +28,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
+	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/store"
@@ -38,6 +37,7 @@ import (
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	corev1 "k8s.io/api/core/v1"
 )
 
 //RuntimeServer app runtime grpc server
@@ -115,6 +115,10 @@ func (r *RuntimeServer) GetTenantResource(ctx context.Context, re *pb.TenantRequ
 	tr.CpuRequest = res.CPURequest
 	tr.MemoryLimit = res.MemoryLimit / 1024 / 1024
 	tr.MemoryRequest = res.MemoryRequest / 1024 / 1024
+	tr.UnscdCpuLimit = res.UnscdCPULimit
+	tr.UnscdCpuReq = res.UnscdCPUReq
+	tr.UnscdMemoryLimit = res.UnscdMemoryLimit / 1024 / 1024
+	tr.UnscdMemoryReq = res.UnscdMemoryReq / 1024 / 1024
 	return &tr, nil
 }
 

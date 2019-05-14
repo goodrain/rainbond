@@ -16,23 +16,31 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package store
+package test
 
 import (
-	appsv1 "k8s.io/client-go/listers/apps/v1"
-	corev1 "k8s.io/client-go/listers/core/v1"
-	"k8s.io/client-go/listers/extensions/v1beta1"
+	"testing"
+	"time"
+
+	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/node/kubecache"
 )
 
-//Lister kube-api client cache
-type Lister struct {
-	Ingress     v1beta1.IngressLister
-	Service     corev1.ServiceLister
-	Secret      corev1.SecretLister
-	StatefulSet appsv1.StatefulSetLister
-	Deployment  appsv1.DeploymentLister
-	Pod         corev1.PodLister
-	ConfigMap   corev1.ConfigMapLister
-	Endpoints   corev1.EndpointsLister
-	Nodes       corev1.NodeLister
+func TestGetCluster(t *testing.T) {
+	c := &option.Conf{
+		K8SConfPath:     "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig",
+		MinResyncPeriod: 10 * time.Second,
+	}
+	kubecli, err := kubecache.NewKubeClient(c)
+	if err != nil {
+		t.Fatalf("error creating kube client: %v", err)
+	}
+	defer kubecli.Stop()
+
+	nodes, err := kubecli.GetNodes()
+	if err != nil {
+		t.Errorf("error getting nodes: %v", err)
+	}
+	t.Log(nodes)
+	t.Error("")
 }

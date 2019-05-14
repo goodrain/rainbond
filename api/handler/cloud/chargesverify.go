@@ -25,14 +25,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/db"
-
-	"github.com/pquerna/ffjson/ffjson"
-
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/pquerna/ffjson/ffjson"
 )
 
 //PubChargeSverify service Charge Sverify
@@ -91,7 +89,8 @@ func PriChargeSverify(tenant *model.Tenants, quantity int) *util.APIHandleError 
 		return util.CreateAPIHandleError(200, fmt.Errorf("cluster_lack_of_memory"))
 	}
 	tenantStas, err := handler.GetTenantManager().GetTenantResource(tenant.UUID)
-	availMem := int64(t.LimitMemory) - tenantStas.MemoryRequest
+	// TODO: it should be limit, not request
+	availMem := int64(t.LimitMemory) - (tenantStas.MemoryRequest + tenantStas.UnscdMemoryReq)
 	if availMem >= int64(quantity) {
 		return util.CreateAPIHandleError(200, fmt.Errorf("success"))
 	}

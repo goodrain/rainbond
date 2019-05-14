@@ -155,6 +155,9 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.Endpoints = infFactory.Core().V1().Endpoints().Informer()
 	store.listers.Endpoints = infFactory.Core().V1().Endpoints().Lister()
 
+	store.informers.Nodes = infFactory.Core().V1().Nodes().Informer()
+	store.listers.Nodes = infFactory.Core().V1().Nodes().Lister()
+
 	isThirdParty := func(ep *corev1.Endpoints) bool {
 		return ep.Labels["service-kind"] == model.ServiceKindThirdParty.String()
 	}
@@ -245,6 +248,7 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.ConfigMap.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.ReplicaSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Endpoints.AddEventHandlerWithResyncPeriod(epEventHandler, time.Second*10)
+	store.informers.Nodes.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	return store
 }
 
@@ -522,6 +526,9 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 				return
 			}
 		}
+	}
+	if node, ok := obj.(*corev1.Node); ok {
+		logrus.Debugf("Node: %s", node.Name)
 	}
 }
 
@@ -918,41 +925,70 @@ func (a *appRuntimeStore) GetPodLister() listcorev1.PodLister {
 
 //GetTenantResource get tenant resource
 func (a *appRuntimeStore) GetTenantResource(tenantID string) *v1.TenantResource {
+	nodes, err := a.listers.Nodes.List(labels.Everything())
+	if err != nil {
+		logrus.Errorf("error listing nodes: %v", err)
+		return nil
+	}
+	nodeStatus := make(map[string]bool, len(nodes))
+	for _, node := range nodes {
+		nodeStatus[node.Name] = node.Spec.Unschedulable
+	}
 	pods, err := a.listers.Pod.Pods(tenantID).List(labels.Everything())
 	if err != nil {
 		logrus.Errorf("list namespace %s pod failure %s", tenantID, err.Error())
 		return nil
 	}
-	var resource v1.TenantResource
-	for _, pod := range pods {
+
+	calculateResourcesfunc := func(pod *corev1.Pod, res map[string]int64) {
 		for _, container := range pod.Spec.Containers {
 			cpulimit := container.Resources.Limits.Cpu()
 			memorylimit := container.Resources.Limits.Memory()
 			cpurequest := container.Resources.Requests.Cpu()
 			memoryrequest := container.Resources.Requests.Memory()
 			if cpulimit != nil {
-				resource.CPULimit += cpulimit.MilliValue()
+				res["cpulimit"] += cpulimit.MilliValue()
 			}
 			if memorylimit != nil {
 				if ml, ok := memorylimit.AsInt64(); ok {
-					resource.MemoryLimit += ml
+					res["memlimit"] += ml
 				} else {
-					resource.MemoryLimit += memorylimit.Value()
+					res["memlimit"] += memorylimit.Value()
 				}
 			}
 			if cpurequest != nil {
-				resource.CPURequest += cpurequest.MilliValue()
+				res["cpureq"] += cpurequest.MilliValue()
 			}
 			if memoryrequest != nil {
 				if mr, ok := memoryrequest.AsInt64(); ok {
-					resource.MemoryRequest += mr
+					res["memreq"] += mr
 				} else {
-					resource.MemoryRequest += memoryrequest.Value()
+					res["memreq"] += memoryrequest.Value()
 				}
 			}
 		}
 	}
-	return &resource
+	resource := &v1.TenantResource{}
+	// schedulable resources
+	sres := make(map[string]int64)
+	// unschedulable resources
+	ures := make(map[string]int64)
+	for _, pod := range pods {
+		if nodeStatus[pod.Spec.NodeName] {
+			calculateResourcesfunc(pod, ures)
+			continue
+		}
+		calculateResourcesfunc(pod, sres)
+	}
+	resource.CPULimit = sres["cpulimit"]
+	resource.CPURequest = sres["cpureq"]
+	resource.MemoryLimit = sres["memlimit"]
+	resource.MemoryRequest = sres["memreq"]
+	resource.UnscdCPULimit = ures["cpulimit"]
+	resource.UnscdCPUReq = ures["cpureq"]
+	resource.UnscdMemoryLimit = ures["memlimit"]
+	resource.UnscdMemoryReq = ures["memreq"]
+	return resource
 }
 
 //GetTenantRunningApp get running app by tenant
