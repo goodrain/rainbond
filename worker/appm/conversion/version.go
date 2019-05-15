@@ -230,9 +230,16 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	if err != nil {
 		return nil, err
 	}
+
+	minContainerPort := 65535
+	var minPort *dbmodel.TenantServicesPort
 	if ports != nil && len(ports) > 0 {
 		var portStr string
 		for i, port := range ports {
+			if port.ContainerPort < minContainerPort {
+				minContainerPort = port.ContainerPort
+				minPort = port
+			}
 			if i == 0 {
 				envs = append(envs, corev1.EnvVar{Name: "PORT", Value: strconv.Itoa(ports[0].ContainerPort)})
 				envs = append(envs, corev1.EnvVar{Name: "PROTOCOL", Value: ports[0].Protocol})
@@ -244,6 +251,14 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			if port.IsOuterService && (port.Protocol == "http" || port.Protocol == "https") {
 				envs = append(envs, corev1.EnvVar{Name: "DEFAULT_DOMAIN", Value: createDefaultDomain(as.TenantName, as.ServiceAlias, port.ContainerPort)})
 			}
+			renvs := convertRulesToEnvs(as, dbmanager, port, true)
+			if envs != nil && len(envs) > 0 {
+				envs = append(envs, renvs...)
+			}
+		}
+		menvs := convertRulesToEnvs(as, dbmanager, minPort, false)
+		if envs != nil && len(envs) > 0 {
+			envs = append(envs, menvs...)
 		}
 		envs = append(envs, corev1.EnvVar{Name: "MONITOR_PORT", Value: portStr})
 	}
@@ -292,6 +307,52 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		envs[i].Value = util.ParseVariable(env.Value, config)
 	}
 	return &envs, nil
+}
+
+func convertRulesToEnvs(as *v1.AppService, dbmanager db.Manager, port *dbmodel.TenantServicesPort, usePort bool) []corev1.EnvVar {
+	if !port.IsOuterService {
+		return nil
+	}
+
+	defDomain := createDefaultDomain(as.TenantName, as.ServiceAlias, port.ContainerPort)
+	var values []string
+	if port.Protocol == "http" || port.Protocol == "https" {
+		httpRules, err := dbmanager.HTTPRuleDao().GetHTTPRuleByServiceIDAndContainerPort(as.ServiceID, port.ContainerPort)
+		if err == nil {
+			for _, rule := range httpRules {
+				if rule.Domain == defDomain {
+					continue
+				}
+				values = append(values, rule.Domain)
+			}
+		}
+	} else { // TODO: enable tcp rules
+		// tcpRules, err := dbmanager.TCPRuleDao().GetTCPRuleByServiceIDAndContainerPort(as.ServiceID, port.ContainerPort)
+		// if err == nil {
+		// 	for _, rule := range tcpRules {
+		// 		if rule.IP == "" {
+		// 			values = append(values, "0.0.0.0")
+		// 			continue
+		// 		}
+		// 		values = append(values, rule.IP)
+		// 	}
+		// }
+	}
+
+	var envs []corev1.EnvVar
+	for idx, value := range values {
+		en := func(idx int) string {
+			if !usePort {
+				return "DOMAIN"
+			}
+			if idx == 0 {
+				return fmt.Sprintf("DOMAIN_%d", port.ContainerPort)
+			}
+			return fmt.Sprintf("DOMAIN_%d_%d", port.ContainerPort, idx)
+		}(idx)
+		envs = append(envs, corev1.EnvVar{Name: en, Value: value})
+	}
+	return envs
 }
 
 func getMemoryType(memorySize int) string {
