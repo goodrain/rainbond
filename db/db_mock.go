@@ -4,8 +4,8 @@
 package db
 
 import (
-	dao "github.com/goodrain/rainbond/db/dao"
 	gorm "github.com/jinzhu/gorm"
+	dao "github.com/goodrain/rainbond/db/dao"
 	gomock "github.com/rafrombrc/gomock/gomock"
 )
 
@@ -718,6 +718,26 @@ func (_m *MockManager) IPPoolDao() dao.IPPoolDao {
 
 func (_mr *_MockManagerRecorder) IPPoolDao() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "IPPoolDao")
+}
+
+func (_m *MockManager) GwRuleConfigDao() dao.GwRuleConfigDao {
+	ret := _m.ctrl.Call(_m, "GwRuleConfigDao")
+	ret0, _ := ret[0].(dao.GwRuleConfigDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) GwRuleConfigDao() *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GwRuleConfigDao")
+}
+
+func (_m *MockManager) GwRuleConfigDaoTransactions(db *gorm.DB) dao.GwRuleConfigDao {
+	ret := _m.ctrl.Call(_m, "GwRuleConfigDaoTransactions", db)
+	ret0, _ := ret[0].(dao.GwRuleConfigDao)
+	return ret0
+}
+
+func (_mr *_MockManagerRecorder) GwRuleConfigDaoTransactions(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "GwRuleConfigDaoTransactions", arg0)
 }
 
 func (_m *MockManager) EndpointsDao() dao.EndpointsDao {

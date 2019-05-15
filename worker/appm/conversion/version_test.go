@@ -21,10 +21,44 @@ package conversion
 import (
 	"testing"
 
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/model"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/rafrombrc/gomock/gomock"
+	"github.com/goodrain/rainbond/db/dao"
 )
 
 func TestTenantServiceVersion(t *testing.T) {
 	var as v1.AppService
 	TenantServiceVersion(&as, nil)
+}
+
+func TestConvertRulesToEnvs(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	dbmanager := db.NewMockManager(ctrl)
+
+	as := &v1.AppService{}
+	as.ServiceID = "dummy service id"
+	as.TenantName = "dummy tenant name"
+	as.ServiceAlias = "dummy service alias"
+
+	httpRuleDao := dao.NewMockHTTPRuleDao(ctrl)
+	httpRuleDao.EXPECT().GetHTTPRuleByServiceIDAndContainerPort(as.ServiceID, 0).Return(nil, nil)
+	dbmanager.EXPECT().HTTPRuleDao().Return(httpRuleDao)
+
+	port := &model.TenantServicesPort{
+		TenantID:       "dummy tenant id",
+		ServiceID:      as.ServiceID,
+		ContainerPort:  0,
+		Protocol:       "http",
+		PortAlias:      "GRD835895000",
+		IsInnerService: false,
+		IsOuterService: true,
+	}
+
+	renvs := convertRulesToEnvs(as, dbmanager, port, true)
+	if len(renvs) > 0 {
+		t.Errorf("Expected 0 for the length rule envs, but return %d", len(renvs))
+	}
 }
