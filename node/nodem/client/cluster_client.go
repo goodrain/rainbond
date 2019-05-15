@@ -46,6 +46,7 @@ type ClusterClient interface {
 	GetOptions() *option.Conf
 	GetEndpoints(key string) []string
 	SetEndpoints(key string, value []string)
+	DelEndpoints(key string)
 }
 
 //NewClusterClient new cluster client
@@ -124,7 +125,6 @@ func (e *etcdClusterClient) GetEndpoints(key string) (result []string) {
 
 func (e *etcdClusterClient) SetEndpoints(key string, value []string) {
 	key = "/rainbond/endpoint/" + key
-	logrus.Infof("Put endpoints %s => %v", key, value)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -138,6 +138,19 @@ func (e *etcdClusterClient) SetEndpoints(key string, value []string) {
 	_, err = e.conf.EtcdCli.Put(ctx, key, string(jsonStr))
 	if err != nil {
 		logrus.Errorf("Failed to put endpoint for %s: %v", key, err)
+	}
+}
+
+func (e *etcdClusterClient) DelEndpoints(key string) {
+	key = "/rainbond/endpoint/" + key
+	logrus.Infof("Delete endpoints: %s", key)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, err := e.conf.EtcdCli.Delete(ctx, key)
+	if err != nil {
+		logrus.Errorf("Failed to put endpoint for %s: %v", key, Error)
 	}
 }
 

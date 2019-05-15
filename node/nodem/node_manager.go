@@ -236,7 +236,9 @@ func (n *NodeManager) heartbeat() {
 		if err := n.cluster.UpdateStatus(n.currentNode, n.getInitLable(n.currentNode)); err != nil {
 			logrus.Errorf("update node status error %s", err.Error())
 		}
-		logrus.Infof("Send node %s heartbeat to master:%s ", n.currentNode.ID, n.currentNode.NodeStatus.Status)
+		if n.currentNode.NodeStatus.Status != "running" {
+			logrus.Infof("Send node %s heartbeat to master:%s ", n.currentNode.ID, n.currentNode.NodeStatus.Status)
+		}
 		return nil
 	}, time.Second*time.Duration(n.cfg.TTL))
 }
