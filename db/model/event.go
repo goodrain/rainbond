@@ -28,7 +28,7 @@ type ServiceEvent struct {
 	ServiceID   string `gorm:"column:service_id;size:40"`
 	UserName    string `gorm:"column:user_name;size:40"`
 	StartTime   string `gorm:"column:start_time;size:40"`
-	EndTime     string `gorm:"column:end_time;size:40"`
+	EndTime     string `gorm:"column:end_time;size:255"`
 	OptType     string `gorm:"column:opt_type;size:40"`
 	Status      string `gorm:"column:status;size:40"`
 	FinalStatus string `gorm:"column:final_status;size:40"`
