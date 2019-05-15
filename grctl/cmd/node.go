@@ -587,7 +587,7 @@ func NewCmdNode() cli.Command {
 					},
 					cli.StringFlag{
 						Name:  "role,r",
-						Usage: "The option is required, the allowed values are: [manage|compute]",
+						Usage: "The option is required, the allowed values are: [manage|compute|gateway]",
 					},
 					cli.StringFlag{
 						Name:  "podCIDR,cidr",
@@ -610,8 +610,8 @@ func NewCmdNode() cli.Command {
 					if c.String("root-pass") != "" && c.String("private-key") != "" {
 						showError("Options private-key and root-pass are conflicting")
 					}
-					if c.String("role") != "compute" && c.String("role") != "manage" {
-						showError("node role only support `compute` and `manage`")
+					if c.String("role") != "compute" && c.String("role") != "manage" && c.String("role") != "gateway" {
+						showError("node role only support `compute`, `manage` and `gateway`")
 					}
 					var node client.APIHostNode
 					node.Role = c.String("role")

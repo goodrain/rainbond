@@ -63,9 +63,6 @@ func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *util
 	if node.Role == "" {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node role must not null"))
 	}
-	if node.Role != "manage" && node.Role != "compute" {
-		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node role %s not support", node.Role))
-	}
 	if node.ID == "" {
 		node.ID = uuid.NewV4().String()
 	}

@@ -43,7 +43,7 @@ func NewCmdInit() cli.Command {
 			cli.StringFlag{
 				Name:  "role",
 				Usage: "Node identity property",
-				Value: "manage,compute",
+				Value: "manage,compute,gateway",
 			},
 			cli.StringFlag{
 				Name:  "work_dir",
