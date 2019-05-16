@@ -21,6 +21,7 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/db/errors"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -1071,6 +1072,10 @@ func (t *TenantStruct) AddEnv(w http.ResponseWriter, r *http.Request) {
 	envD.Name = envM.Name
 	envD.Scope = envM.Scope
 	if err := handler.GetServiceManager().EnvAttr("add", &envD); err != nil {
+		if err == errors.ErrRecordAlreadyExist {
+			httputil.ReturnError(r, w, 400, fmt.Sprintf("%v", err))
+			return
+		}
 		logrus.Errorf("Add env error, %v", err)
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Add env error, %v", err))
 		return
