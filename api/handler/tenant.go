@@ -25,11 +25,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/goodrain/rainbond/cmd/api/option"
-
 	"github.com/Sirupsen/logrus"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
@@ -243,12 +242,16 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 
 //TenantResourceStats tenant resource stats
 type TenantResourceStats struct {
-	TenantID      string `json:"tenant_id,omitempty"`
-	CPURequest    int64  `json:"cpu_request,omitempty"`
-	CPULimit      int64  `json:"cpu_limit,omitempty"`
-	MemoryRequest int64  `json:"memory_request,omitempty"`
-	MemoryLimit   int64  `json:"memory_limit,omitempty"`
-	RunningAppNum int64  `json:"running_app_num"`
+	TenantID         string `json:"tenant_id,omitempty"`
+	CPURequest       int64  `json:"cpu_request,omitempty"`
+	CPULimit         int64  `json:"cpu_limit,omitempty"`
+	MemoryRequest    int64  `json:"memory_request,omitempty"`
+	MemoryLimit      int64  `json:"memory_limit,omitempty"`
+	RunningAppNum    int64  `json:"running_app_num"`
+	UnscdCPUReq      int64  `json:"unscd_cpu_req,omitempty"`
+	UnscdCPULimit    int64  `json:"unscd_cpu_limit,omitempty"`
+	UnscdMemoryReq   int64  `json:"unscd_memory_req,omitempty"`
+	UnscdMemoryLimit int64  `json:"unscd_memory_limit,omitempty"`
 }
 
 //GetTenantResource get tenant resource

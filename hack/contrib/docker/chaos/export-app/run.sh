@@ -22,7 +22,6 @@ check::dependency(){
     }
     
     iprint 'successful install docker!'
-    return 0
   }
 
   which docker-compose &> /dev/null || {
@@ -34,20 +33,21 @@ check::dependency(){
     }
 
     iprint 'successful install docker-compose!'
-    return 0
   }
+  
+  return 0
 }
 
 install::docker(){
-  wget -O /etc/yum.repos.d/docker-ce.repo https://download.docker.com/linux/centos/docker-ce.repo &&
-  yum install -y docker-ce &&
+  curl -fsSL https://get.docker.com -o get-docker.sh &&
+  sh get-docker.sh &&
   which docker &>/dev/null &&
   systemctl start docker &&
   systemctl enable docker
 }
 
 install::docker-compose(){
-  curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+  curl -L "https://github.com/docker/compose/releases/download/1.24.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
   chmod +x /usr/local/bin/docker-compose
   which docker-compose &>/dev/null
 }

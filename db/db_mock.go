@@ -4,8 +4,8 @@
 package db
 
 import (
-	gorm "github.com/jinzhu/gorm"
 	dao "github.com/goodrain/rainbond/db/dao"
+	gorm "github.com/jinzhu/gorm"
 	gomock "github.com/rafrombrc/gomock/gomock"
 )
 

@@ -322,24 +322,24 @@ type ServiceStruct struct {
 	// in: body
 	// required: false
 	ServiceOrigin string `json:"service_origin" validate:"service_origin"`
-	Kind          string `json:"kind" validate:"in:internal, third_party"`
+	Kind          string `json:"kind" validate:"kind|in:internal,third_party"`
 
-	ServiceLabel   string                               `json:"service_label"  validate:"service_label"`
+	ServiceLabel   string                               `json:"service_label"  validate:"service_label|in:StatelessServiceType,StatefulServiceType"`
 	NodeLabel      string                               `json:"node_label"  validate:"node_label"`
 	Operator       string                               `json:"operator"  validate:"operator"`
 	RepoURL        string                               `json:"repo_url" validate:"repo_url"`
-	DependIDs      []dbmodel.TenantServiceRelation      `json:"depend_ids"`
-	VolumesInfo    []TenantServiceVolumeStruct          `json:"volumes_info"`
-	DepVolumesInfo []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info"`
-	EnvsInfo       []dbmodel.TenantServiceEnvVar        `json:"envs_info"`
-	PortsInfo      []dbmodel.TenantServicesPort         `json:"ports_info"`
-	Endpoints      *Endpoints                           `json:"endpoints"`
+	DependIDs      []dbmodel.TenantServiceRelation      `json:"depend_ids" validate:"depend_ids"`
+	VolumesInfo    []TenantServiceVolumeStruct          `json:"volumes_info" validate:"volumes_info"`
+	DepVolumesInfo []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info" validate:"dep_volumes_info"`
+	EnvsInfo       []dbmodel.TenantServiceEnvVar        `json:"envs_info" validate:"envs_info"`
+	PortsInfo      []dbmodel.TenantServicesPort         `json:"ports_info" validate:"ports_info"`
+	Endpoints      *Endpoints                           `json:"endpoints" validate:"endpoints"`
 }
 
 // Endpoints holds third-party service endpoints or configuraion to get endpoints.
 type Endpoints struct {
-	Static    string `json:"static"`
-	Discovery string `json:"discovery"`
+	Static    string `json:"static" validate:"static"`
+	Discovery string `json:"discovery" validate:"discovery"`
 }
 
 //TenantServiceVolumeStruct -

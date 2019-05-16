@@ -42,6 +42,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/goodrain/rainbond/builder/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/builder"
 )
 
 //ImagePull 拉取镜像
@@ -199,6 +200,13 @@ func ImageNameWithNamespaceHandle(imageName string) *model.ImageName {
 		}
 	}
 	return &i
+}
+
+// GenSaveImageName generates the final name of the image, which is the name of
+// the image in the exported tar package.
+func GenSaveImageName(name string) string {
+	imageName := ImageNameWithNamespaceHandle(name)
+	return fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, imageName.Name, imageName.Tag)
 }
 
 //ImagePush 推送镜像

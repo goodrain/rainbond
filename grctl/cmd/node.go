@@ -59,30 +59,38 @@ func showSuccessMsg(m string) {
 func NewCmdShow() cli.Command {
 	c := cli.Command{
 		Name:  "show",
-		Usage: "Display region api address after installation",
+		Usage: "Display region info",
 		Action: func(c *cli.Context) error {
 			Common(c)
 			manageHosts, err := clients.RegionClient.Nodes().GetNodeByRule("manage")
 			handleErr(err)
-			ips := getExternalIP("/opt/rainbond/envs/.exip", manageHosts)
-			fmt.Println("Manage your apps with webui：")
+			ips := getExternalIP("/opt/rainbond/.init/.ip", manageHosts)
+			fmt.Println("Manage your apps with webui:\n-------------------------------")
 			for _, v := range ips {
 				url := v + ":7070"
 				fmt.Print(url + "  ")
 			}
-			fmt.Println()
-			fmt.Println("The webui use websocket to provide more feture：")
-			for _, v := range ips {
-				url := v + ":6060"
-				fmt.Print(url + "  ")
+			fmt.Println("\n")
+			//fmt.Println("The webui use websocket to provide more feture：")
+			//for _, v := range ips {
+			//	url := v + ":6060"
+			//	fmt.Print(url + "  ")
+			//}
+			//fmt.Println()
+			//fmt.Println("Your web apps use nginx for reverse proxy:")
+			//for _, v := range ips {
+			//	url := v + ":80"
+			//	fmt.Print(url + "  ")
+			//}
+			//fmt.Println()
+			if fileExist("/opt/rainbond/.init/.regioninfo") {
+				regionInfo, err := ioutil.ReadFile("/opt/rainbond/.init/.regioninfo")
+				if err != nil {
+					return nil
+				}
+				fmt.Println("Current data center information:\n-------------------------------")
+				fmt.Println(string(regionInfo))
 			}
-			fmt.Println()
-			fmt.Println("Your web apps use nginx for reverse proxy:")
-			for _, v := range ips {
-				url := v + ":80"
-				fmt.Print(url + "  ")
-			}
-			fmt.Println()
 			return nil
 		},
 	}

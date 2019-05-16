@@ -181,6 +181,33 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 					},
 				},
+				&AlertingNameConfig{
+
+					Name: "ClusterHealth",
+					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:       "cluster_unhealth",
+							Expr:        "rainbond_cluster_node_health != 0",
+							For:         "3m",
+							Labels:      map[string]string{"service": "cluster_health"},
+							Annotations: map[string]string{"summary": "!!!Dangerous, the current cluster is in an unhealthy state."},
+						},
+						&RulesConfig{
+							Alert:       "monitoring_component_status_unhealth",
+							Expr:        "rainbond_cluster_component_health != 0",
+							For:         "3m",
+							Labels:      map[string]string{"service": "component_unhealth"},
+							Annotations: map[string]string{"description": "The monitoring component '{{ $labels.component }}' is down.", "summary": "MONITORING COMPONENT UNHEALTHY WARNING:NODE '{{ $labels.node_ip }}'"},
+						},
+						&RulesConfig{
+							Alert:       "rainbond_cluster_collector_duration_seconds_timeout",
+							Expr:        "rainbond_cluster_collector_duration_seconds > 10",
+							For:         "3m",
+							Labels:      map[string]string{"service": "cluster_collector"},
+							Annotations: map[string]string{"summary": "Cluster collector '{{ $labels.instance }}' more than 10s"},
+						},
+					},
+				},
 			},
 		},
 		config: config,

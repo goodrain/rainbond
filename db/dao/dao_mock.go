@@ -4,8 +4,9 @@
 package dao
 
 import (
-	model "github.com/goodrain/rainbond/db/model"
 	time "time"
+
+	model "github.com/goodrain/rainbond/db/model"
 	gomock "github.com/rafrombrc/gomock/gomock"
 )
 
@@ -1852,16 +1853,6 @@ func (_m *MockTenantServiceVolumeDao) GetVolumeByID(id int) (*model.TenantServic
 
 func (_mr *_MockTenantServiceVolumeDaoRecorder) GetVolumeByID(arg0 interface{}) *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "GetVolumeByID", arg0)
-}
-
-func (_m *MockTenantServiceVolumeDao) DelShareableBySID(sid string) error {
-	ret := _m.ctrl.Call(_m, "DelShareableBySID", sid)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockTenantServiceVolumeDaoRecorder) DelShareableBySID(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "DelShareableBySID", arg0)
 }
 
 // Mock of TenantServiceConfigFileDao interface

@@ -33,6 +33,7 @@ type Informer struct {
 	ConfigMap   cache.SharedIndexInformer
 	ReplicaSet  cache.SharedIndexInformer
 	Endpoints   cache.SharedIndexInformer
+	Nodes       cache.SharedIndexInformer
 }
 
 //Start statrt
@@ -46,13 +47,14 @@ func (i *Informer) Start(stop chan struct{}) {
 	go i.ConfigMap.Run(stop)
 	go i.ReplicaSet.Run(stop)
 	go i.Endpoints.Run(stop)
+	go i.Nodes.Run(stop)
 }
 
 //Ready if all kube informers is syncd, store is ready
 func (i *Informer) Ready() bool {
 	if i.Ingress.HasSynced() && i.Service.HasSynced() && i.Secret.HasSynced() &&
 		i.StatefulSet.HasSynced() && i.Deployment.HasSynced() && i.Pod.HasSynced() &&
-		i.ConfigMap.HasSynced() {
+		i.ConfigMap.HasSynced() && i.Nodes.HasSynced() {
 		return true
 	}
 	return false

@@ -136,6 +136,11 @@ func NewCmdInit() cli.Command {
 				Value: "/opt/rainbond/rainbond-ansible/scripts/installer/global.sh",
 			},
 			cli.StringFlag{
+				Name:  "token",
+				Usage: "Region Token",
+				Value: "",
+			},
+			cli.StringFlag{
 				Name:  "enable-exdb",
 				Usage: "default disable external database",
 				Value: "",
@@ -295,7 +300,7 @@ func getConfig(c *cli.Context) map[string]string {
 	configs["EIP"] = c.String("eip")
 	configs["VIP"] = c.String("vip")
 	configs["VERSION"] = c.String("rainbond-version")
-	// configs["rainbond-repo"] = c.String("rainbond-repo")
+	configs["INSTALL_TOKEN"] = c.String("token")
 	configs["INSTALL_TYPE"] = c.String("install-type")
 	configs["DEPLOY_TYPE"] = c.String("deploy-type")
 	configs["DOMAIN"] = c.String("domain")

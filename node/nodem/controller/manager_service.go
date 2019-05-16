@@ -35,6 +35,7 @@ import (
 )
 
 var (
+	// ArgsReg -
 	ArgsReg = regexp.MustCompile(`\$\{(\w+)\|{0,1}(.{0,1})\}`)
 )
 
@@ -103,6 +104,7 @@ func (m *ManagerService) Stop() error {
 func (m *ManagerService) Online() error {
 	logrus.Info("Doing node online by node controller manager")
 	if ok := m.ctr.CheckBeforeStart(); !ok {
+		logrus.Debug("check before starting: false")
 		return nil
 	}
 	go m.StartServices()
@@ -158,16 +160,22 @@ func (m *ManagerService) Offline() error {
 
 //DownOneServiceEndpoint down service endpoint
 func (m *ManagerService) DownOneServiceEndpoint(s *service.Service) {
-	HostIP := m.cluster.GetOptions().HostIP
+	hostIP := m.cluster.GetOptions().HostIP
 	for _, end := range s.Endpoints {
 		logrus.Debug("Anti-registry endpoint: ", end.Name)
-		endpoint := toEndpoint(end, HostIP)
-		oldEndpoints := m.cluster.GetEndpoints(end.Name)
+		key := end.Name + "/" + hostIP
+		endpoint := toEndpoint(end, hostIP)
+		oldEndpoints := m.cluster.GetEndpoints(key)
 		if exist := isExistEndpoint(oldEndpoints, endpoint); exist {
-			m.cluster.SetEndpoints(end.Name, rmEndpointFrom(oldEndpoints, endpoint))
+			endpoints := rmEndpointFrom(oldEndpoints, endpoint)
+			if len(endpoints) > 0 {
+				m.cluster.SetEndpoints(key, endpoints)
+				continue
+			}
+			m.cluster.DelEndpoints(key)
 		}
 	}
-	logrus.Infof("node %s down service %s endpoints", HostIP, s.Name)
+	logrus.Infof("node %s down service %s endpoints", hostIP, s.Name)
 }
 
 //UpOneServiceEndpoint up service endpoint
@@ -186,11 +194,11 @@ func (m *ManagerService) UpOneServiceEndpoint(s *service.Service) {
 		endpoint := toEndpoint(end, hostIP)
 		m.cluster.SetEndpoints(key, []string{endpoint})
 	}
-	logrus.Infof("node %s up service %s endpoints", hostIP, s.Name)
 }
 
 //SyncServiceStatusController synchronize all service status to as we expect
 func (m *ManagerService) SyncServiceStatusController() {
+	logrus.Debug("run SyncServiceStatusController")
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	if m.autoStatusController != nil && len(m.autoStatusController) > 0 {
@@ -263,6 +271,7 @@ type statusController struct {
 }
 
 func (s *statusController) Run() {
+	logrus.Info("run status controller")
 	s.healthyManager.EnableWatcher(s.service.Name, s.watcher.GetID())
 	defer s.watcher.Close()
 	defer s.healthyManager.DisableWatcher(s.service.Name, s.watcher.GetID())
@@ -295,6 +304,7 @@ func (s *statusController) Stop() {
 	s.cancel()
 }
 
+// StopSyncService -
 func (m *ManagerService) StopSyncService() {
 	if m.syncCtx != nil {
 		m.syncCancel()
@@ -323,6 +333,7 @@ func (m *ManagerService) WaitStart(name string, duration time.Duration) bool {
 	}
 }
 
+// ReLoadServices -
 /*
 1. reload services info from local file system
 2. regenerate systemd config file and restart with config changes
