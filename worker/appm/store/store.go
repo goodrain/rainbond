@@ -527,9 +527,6 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 		}
 	}
-	if node, ok := obj.(*corev1.Node); ok {
-		logrus.Debugf("Node: %s", node.Name)
-	}
 }
 
 //getAppService if  creater is true, will create new app service where not found in store
