@@ -20,14 +20,14 @@ package model
 
 // AddEndpiontsReq is one of the Endpoints in the request to add the endpints.
 type AddEndpiontsReq struct {
-	IP       string `json:"ip" validate:"required|ip_v4"`
+	Address  string `json:"address" validate:"address|required"`
 	IsOnline bool   `json:"is_online" validate:"required"`
 }
 
 // UpdEndpiontsReq is one of the Endpoints in the request to update the endpints.
 type UpdEndpiontsReq struct {
 	EpID     string `json:"ep_id" validate:"required|len:32"`
-	IP       string `json:"ip" validate:"ip_v4"`
+	Address  string `json:"address"`
 	IsOnline bool   `json:"is_online" validate:"required"`
 }
 
@@ -40,7 +40,7 @@ type DelEndpiontsReq struct {
 // update or delete the endpints.
 type EndpointResp struct {
 	EpID     string `json:"ep_id"`
-	IP       string `json:"ip"`
+	Address  string `json:"address"`
 	Status   string `json:"status"`
 	IsOnline bool   `json:"is_online"`
 	IsStatic bool   `json:"is_static"`

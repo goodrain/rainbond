@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/db/errors"
 	"github.com/jinzhu/gorm"
 )
 
@@ -44,7 +45,7 @@ func (e *EndpointDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("Endpoint exists based on servicd_id(%s) and ip(%s)", ep.ServiceID, ep.IP)
+		return errors.ErrRecordAlreadyExist
 	}
 	return nil
 }
