@@ -20,23 +20,21 @@ package conversion
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/gateway/annotations/parser"
+	"strconv"
+	"testing"
+	"time"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/rafrombrc/gomock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/tools/clientcmd"
-
-	"strconv"
-	"testing"
-	"time"
-
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 const (
@@ -114,8 +112,8 @@ func TestApplyTcpRule(t *testing.T) {
 		ContainerPort:  containerPort,
 		Protocol:       "http",
 		PortAlias:      "GRD835895000",
-		IsInnerService: false,
-		IsOuterService: true,
+		IsInnerService: func() *bool { b := false; return &b }(),
+		IsOuterService: func() *bool { b := true; return &b }(),
 	}
 
 	service := &corev1.Service{
@@ -337,8 +335,8 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 		ContainerPort:  containerPort,
 		MappingPort:    containerPort,
 		Protocol:       "http",
-		IsInnerService: false,
-		IsOuterService: true,
+		IsInnerService: func() *bool { b := false; return &b }(),
+		IsOuterService: func() *bool { b := true; return &b }(),
 	}
 
 	service := &corev1.Service{
@@ -499,8 +497,8 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 		ContainerPort:  containerPort,
 		MappingPort:    containerPort,
 		Protocol:       "http",
-		IsInnerService: false,
-		IsOuterService: true,
+		IsInnerService: func() *bool { b := false; return &b }(),
+		IsOuterService: func() *bool { b := true; return &b }(),
 	}
 
 	service := &corev1.Service{

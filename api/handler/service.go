@@ -928,9 +928,8 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 			var vpD dbmodel.TenantServicesPort
 			vpD.ServiceID = serviceID
 			vpD.TenantID = tenantID
-			//默认不打开
-			vpD.IsInnerService = false
-			vpD.IsOuterService = false
+			vpD.IsInnerService = &vp.IsInnerService
+			vpD.IsOuterService = &vp.IsOuterService
 			vpD.ContainerPort = vp.ContainerPort
 			vpD.MappingPort = vp.MappingPort
 			vpD.Protocol = vp.Protocol
@@ -968,8 +967,8 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 			}
 			vpD.ServiceID = serviceID
 			vpD.TenantID = tenantID
-			vpD.IsInnerService = vp.IsInnerService
-			vpD.IsOuterService = vp.IsOuterService
+			vpD.IsInnerService = &vp.IsInnerService
+			vpD.IsOuterService = &vp.IsOuterService
 			vpD.ContainerPort = vp.ContainerPort
 			vpD.MappingPort = vp.MappingPort
 			vpD.Protocol = vp.Protocol
@@ -1036,8 +1035,9 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 	vsPort := &dbmodel.TenantServiceLBMappingPort{}
 	switch servicePort.Body.Operation {
 	case "close":
-		if p.IsOuterService { //如果端口已经开了对外
-			p.IsOuterService = false
+		if *p.IsOuterService { //如果端口已经开了对外
+			falsev := false
+			p.IsOuterService = &falsev
 			tx := db.GetManager().Begin()
 			if err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(p); err != nil {
 				tx.Rollback()
@@ -1058,7 +1058,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 					tx.Rollback()
 					return nil, "", fmt.Errorf("outer, get plugin mapping port error:(%s)", err)
 				}
-				if p.IsInnerService {
+				if *p.IsInnerService {
 					//发现内网未关闭则不删除该映射
 					logrus.Debugf("outer, close outer, but plugin inner port (%d) is exist, do not need delete", containerPort)
 					goto OUTERCLOSEPASS
@@ -1083,7 +1083,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 		}
 
 	case "open":
-		if p.IsOuterService {
+		if *p.IsOuterService {
 			if p.Protocol != "http" && p.Protocol != "https" && servicePort.Body.IfCreateExPort {
 				vsPort, err = s.createVSPort(serviceID, p.ContainerPort)
 				if vsPort == nil {
@@ -1092,7 +1092,8 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 				return vsPort, p.Protocol, nil
 			}
 		}
-		p.IsOuterService = true
+		truev := true
+		p.IsOuterService = &truev
 		tx := db.GetManager().Begin()
 		if err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(p); err != nil {
 			tx.Rollback()
@@ -1171,8 +1172,9 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 	tx := db.GetManager().Begin()
 	switch operation {
 	case "close":
-		if p.IsInnerService { //如果端口已经开了对内
-			p.IsInnerService = false
+		if *p.IsInnerService { //如果端口已经开了对内
+			falsev := false
+			p.IsInnerService = &falsev
 			if err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(p); err != nil {
 				tx.Rollback()
 				return fmt.Errorf("update service port error: %s", err.Error())
@@ -1191,7 +1193,7 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 					tx.Rollback()
 					return fmt.Errorf("inner, get plugin mapping port error:(%s)", err)
 				}
-				if p.IsOuterService {
+				if *p.IsOuterService {
 					logrus.Debugf("inner, close inner, but plugin outerport (%d) is exist, do not need delete", port)
 					goto INNERCLOSEPASS
 				}
@@ -1211,11 +1213,12 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 			return fmt.Errorf("already close")
 		}
 	case "open":
-		if p.IsInnerService {
+		if *p.IsInnerService {
 			tx.Rollback()
 			return fmt.Errorf("already open")
 		}
-		p.IsInnerService = true
+		truv := true
+		p.IsInnerService = &truv
 		if err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(p); err != nil {
 			tx.Rollback()
 			return err

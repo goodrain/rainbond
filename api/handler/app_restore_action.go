@@ -69,8 +69,8 @@ func (a *AppRestoreAction) RestorePorts(tenantID, serviceID string, req *apimode
 		port.ContainerPort = item.ContainerPort
 		port.Protocol = item.Protocol
 		port.PortAlias = item.PortAlias
-		port.IsInnerService = item.IsInnerService
-		port.IsOuterService = item.IsOuterService
+		port.IsInnerService = &item.IsInnerService
+		port.IsOuterService = &item.IsOuterService
 		if err := db.GetManager().TenantServicesPortDaoTransactions(tx).AddModel(port); err != nil {
 			if err == errors.ErrRecordAlreadyExist {
 				// ignore record already exist
