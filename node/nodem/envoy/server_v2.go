@@ -25,22 +25,19 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"k8s.io/apimachinery/pkg/labels"
-
-	"github.com/goodrain/rainbond/node/nodem/envoy/conver"
-
-	api_model "github.com/goodrain/rainbond/api/model"
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/Sirupsen/logrus"
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/cache"
 	"github.com/envoyproxy/go-control-plane/pkg/server"
+	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/kubecache"
+	"github.com/goodrain/rainbond/node/nodem/envoy/conver"
 	"google.golang.org/grpc"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 //DiscoverServerManager envoy discover server
@@ -144,10 +141,11 @@ func createNodeID(namespace, pluginID, serviceAlias string) string {
 
 //GetDependService get depend service
 func (d *DiscoverServerManager) GetDependService(namespace, depServiceAlias string) ([]*corev1.Service, []*corev1.Endpoints) {
+	logrus.Debugf("dep service alias: %s", depServiceAlias)
 	labelname := fmt.Sprintf("name=%sService", depServiceAlias)
 	selector, err := labels.Parse(labelname)
 	if err != nil {
-		logrus.Errorf("parse label name failure %s", err.Error())
+		logrus.Errorf("label name: %s; parse label name failure %s", labelname, err.Error())
 		return nil, nil
 	}
 	services, err := d.kubecli.GetServices(namespace, selector)
@@ -168,7 +166,7 @@ func (d *DiscoverServerManager) GetSelfService(namespace, serviceAlias string) (
 	labelname := fmt.Sprintf("name=%sServiceOUT", serviceAlias)
 	selector, err := labels.Parse(labelname)
 	if err != nil {
-		logrus.Errorf("parse label name failure %s", err.Error())
+		logrus.Errorf("label name: %s; parse label name failure %s", labelname, err.Error())
 		return nil, nil
 	}
 	services, err := d.kubecli.GetServices(namespace, selector)
@@ -186,7 +184,8 @@ func (d *DiscoverServerManager) GetSelfService(namespace, serviceAlias string) (
 
 //NewNodeConfig new NodeConfig
 func (d *DiscoverServerManager) NewNodeConfig(config *corev1.ConfigMap) (*NodeConfig, error) {
-	servicaAlias := config.Labels["service_alias"]
+	logrus.Debugf("cm name: %s; plugin-config: %s", config.GetName(), config.Data["plugin-config"])
+	servicaAlias := config.Labels["service_alias"]           
 	namespace := config.Namespace
 	configs, pluginID, err := conver.GetPluginConfigs(config)
 	if err != nil {
@@ -232,6 +231,9 @@ func (d *DiscoverServerManager) UpdateNodeConfig(nc *NodeConfig) error {
 		nc.clusters = clusters
 	}
 	clusterLoadAssignment := conver.OneNodeClusterLoadAssignment(nc.serviceAlias, nc.namespace, endpoint, services)
+	if len(clusterLoadAssignment) == 0 {
+		logrus.Warningf("configmap name: %s; plugin-config: %s; empty clusterLoadAssignment", nc.config.Name, nc.config.Data["plugin-config"])
+	}
 	if err != nil {
 		logrus.Errorf("create envoy endpoints failure %s", err.Error())
 	} else {
@@ -242,7 +244,7 @@ func (d *DiscoverServerManager) UpdateNodeConfig(nc *NodeConfig) error {
 
 func (d *DiscoverServerManager) setSnapshot(nc *NodeConfig) error {
 	if len(nc.clusters) < 1 || len(nc.listeners) < 1 {
-		logrus.Warn("node config cluster length is zero or listener length is zero,not set snapshot")
+		logrus.Warningf("node id: %s; node config cluster length is zero or listener length is zero,not set snapshot", nc.GetID())
 		return nil
 	}
 	snapshot := cache.NewSnapshot(nc.GetVersion(), nc.endpoints, nc.clusters, nil, nc.listeners)

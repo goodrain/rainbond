@@ -71,7 +71,7 @@ func OneNodeListerner(serviceAlias, namespace string, configs *corev1.ConfigMap,
 		}
 	}
 	if len(listener) == 0 {
-		logrus.Warn("create listener zero length")
+		logrus.Warningf("configmap name: %s; plugin-config: %s; create listener zero length", configs.Name, configs.Data["plugin-config"])
 	}
 	return listener, nil
 }

@@ -106,7 +106,7 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 			return nil, util.CreateAPIHandleErrorFromDBError("get ports by service id", err)
 		}
 		for _, p := range ports {
-			if p.IsInnerService || p.IsOuterService {
+			if *p.IsInnerService || *p.IsOuterService {
 				openPorts[p.ContainerPort] = true
 			}
 		}

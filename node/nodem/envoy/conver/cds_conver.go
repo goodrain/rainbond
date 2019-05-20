@@ -56,7 +56,7 @@ func OneNodeCluster(serviceAlias, namespace string, configs *corev1.ConfigMap, s
 		}
 	}
 	if len(clusters) == 0 {
-		logrus.Warn("create clusters zero length")
+		logrus.Warningf("configmap name: %s; plugin-config: %s; create clusters zero length", configs.Name, configs.Data["plugin-config"])
 	}
 	return clusters, nil
 }
