@@ -345,7 +345,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			}
 		}
 
-		if rbdfileConfig != nil {
+		if rbdfileConfig != nil && d.isMulti {
 			rbdfileConfig.Envs = nil
 			rbdfileConfig.Ports = nil
 		}
