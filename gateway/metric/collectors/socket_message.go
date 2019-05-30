@@ -297,7 +297,6 @@ func (sc *SocketCollector) Start() {
 			continue
 		}
 		go handleMessages(conn, sc.handleMessage)
-		logrus.Infof("Start socket collector for metric")
 	}
 }
 
