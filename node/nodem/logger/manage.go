@@ -20,14 +20,12 @@ package logger
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/docker/docker/pkg/pubsub"
 
 	"github.com/Sirupsen/logrus"
 
@@ -70,6 +68,7 @@ func (c *ContainerLogManage) Start() error {
 	}()
 	go c.handleLogger()
 	go c.listAndWatchContainer(errchan)
+	go c.loollist()
 	logrus.Infof("start container log manage success")
 	return nil
 }
@@ -85,78 +84,6 @@ func (c *ContainerLogManage) Stop() {
 
 func (c *ContainerLogManage) getContainerLogByFile(info types.ContainerJSON) (*LogFile, error) {
 	return nil, nil
-}
-
-// LogFile is Logger implementation for default Docker logging.
-type LogFile struct {
-	mu              sync.RWMutex // protects the logfile access
-	f               *os.File     // store for closing
-	closed          bool
-	rotateMu        sync.Mutex // blocks the next rotation until the current rotation is completed
-	capacity        int64      // maximum size of each file
-	currentSize     int64      // current size of the latest file
-	maxFiles        int        // maximum number of files
-	compress        bool       // whether old versions of log files are compressed
-	lastTimestamp   time.Time  // timestamp of the last log
-	filesRefCounter refCounter // keep reference-counted of decompressed files
-	notifyRotate    *pubsub.Publisher
-	createDecoder   makeDecoderFunc
-	getTailReader   GetTailReaderFunc
-	perms           os.FileMode
-}
-
-//Close file close
-func (w *LogFile) Close() error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if w.closed {
-		return nil
-	}
-	if err := w.f.Close(); err != nil {
-		return err
-	}
-	w.closed = true
-	return nil
-}
-
-type ReadConfig struct {
-	Since  time.Time
-	Until  time.Time
-	Tail   int
-	Follow bool
-}
-
-// SizeReaderAt defines a ReaderAt that also reports its size.
-// This is used for tailing log files.
-type SizeReaderAt interface {
-	io.ReaderAt
-	Size() int64
-}
-
-// NewLogFile creates new LogFile
-func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, decodeFunc makeDecoderFunc, perms os.FileMode, getTailReader GetTailReaderFunc) (*LogFile, error) {
-	log, err := os.OpenFile(logPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, perms)
-	if err != nil {
-		return nil, err
-	}
-
-	size, err := log.Seek(0, os.SEEK_END)
-	if err != nil {
-		return nil, err
-	}
-
-	return &LogFile{
-		f:               log,
-		capacity:        capacity,
-		currentSize:     size,
-		maxFiles:        maxFiles,
-		compress:        compress,
-		filesRefCounter: refCounter{counter: make(map[string]int)},
-		notifyRotate:    pubsub.NewPublisher(0, 1),
-		createDecoder:   decodeFunc,
-		perms:           perms,
-		getTailReader:   getTailReader,
-	}, nil
 }
 
 func (c *ContainerLogManage) getContainerLogReader(ctx context.Context, containerID string) (io.ReadCloser, io.ReadCloser, error) {
@@ -185,37 +112,62 @@ func (c *ContainerLogManage) handleLogger() {
 			return
 		case cevent := <-c.cchan:
 			switch cevent.Action {
-			case "create", "start":
+			case "start":
 				loggerType := cevent.Container.HostConfig.LogConfig.Type
 				if loggerType != "json-file" && loggerType != "syslog" {
 					continue
 				}
-				if _, ok := c.containerLogs.Load(cevent.Container.ID); !ok {
-					clog := createContainerLog(c.ctx, cevent.Container)
-					stdout, stderr, err := c.getContainerLogReader(clog.ctx, cevent.Container.ID)
-					if err != nil {
-						logrus.Errorf("start container logger failure %s", err.Error())
-						continue
+				if logger, ok := c.containerLogs.Load(cevent.Container.ID); ok {
+					clog, okf := logger.(*ContainerLog)
+					if okf {
+						clog.Restart()
+						logrus.Infof("restart copy container log for container %s", cevent.Container.Name)
 					}
-					err = clog.startLogging(stdout, stderr)
-					if err != nil {
-						if err == ErrNeglectedContainer {
-							clog.Stop()
-							continue
+				} else {
+					go func() {
+						retry := 0
+						for retry < maxJSONDecodeRetry {
+							retry++
+							reader, err := NewLogFile(cevent.Container.LogPath, 3, false, decodeFunc, 0640, getTailReader)
+							if err != nil {
+								logrus.Errorf("create logger failure %s", err.Error())
+								time.Sleep(time.Second * 1)
+								continue
+							}
+							clog := createContainerLog(c.ctx, cevent.Container, reader)
+							if err := clog.StartLogging(); err != nil {
+								clog.Stop()
+								if err == ErrNeglectedContainer {
+									return
+								}
+								logrus.Errorf("start copy docker log failure %s", err.Error())
+								time.Sleep(time.Second * 1)
+								//retry get container inspect info
+								cevent.Container, _ = c.getContainer(cevent.Container.ID)
+								continue
+							}
+							c.containerLogs.Store(cevent.Container.ID, clog)
+							logrus.Infof("start copy container log for container %s", cevent.Container.Name)
+							return
 						}
-						logrus.Errorf("start container logger failure %s", err.Error())
-						continue
-					}
-					logrus.Infof("start copy container log for container %s", cevent.Container.Name)
-					c.containerLogs.Store(cevent.Container.ID, clog)
+					}()
 				}
-			case "stop", "die":
+			case "stop":
+				if logger, ok := c.containerLogs.Load(cevent.Container.ID); ok {
+					clog, okf := logger.(*ContainerLog)
+					if okf {
+						clog.Stop()
+						logrus.Infof("stop copy container log for container %s", cevent.Container.Name)
+					}
+				}
+			case "die":
 				if logger, ok := c.containerLogs.Load(cevent.Container.ID); ok {
 					clog, okf := logger.(*ContainerLog)
 					if okf {
 						clog.Stop()
 					}
 					c.containerLogs.Delete(cevent.Container.ID)
+					logrus.Infof("remove copy container log for container %s", cevent.Container.Name)
 				}
 			}
 		}
@@ -234,14 +186,41 @@ func (c *ContainerLogManage) cacheContainer(cs ...ContainerEvent) {
 		c.cchan <- container
 	}
 }
-func (c *ContainerLogManage) listAndWatchContainer(errchan chan error) {
-	lictctx, cancel := context.WithTimeout(c.ctx, time.Second*20)
+func (c *ContainerLogManage) listContainer() []types.Container {
+	lictctx, cancel := context.WithTimeout(c.ctx, time.Second*60)
+	defer cancel()
 	containers, err := c.conf.DockerCli.ContainerList(lictctx, types.ContainerListOptions{})
 	if err != nil {
 		logrus.Errorf("list containers failure.%s", err.Error())
 		containers, _ = c.conf.DockerCli.ContainerList(lictctx, types.ContainerListOptions{})
 	}
-	cancel()
+	return containers
+}
+
+func (c *ContainerLogManage) loollist() {
+	ticker := time.NewTicker(time.Minute * 10)
+	for {
+		select {
+		case <-c.ctx.Done():
+			ticker.Stop()
+			return
+		case <-ticker.C:
+			for _, container := range c.listContainer() {
+				cj, _ := c.getContainer(container.ID)
+				loggerType := cj.HostConfig.LogConfig.Type
+				if loggerType != "json-file" && loggerType != "syslog" {
+					continue
+				}
+				if _, exist := c.containerLogs.Load(container.ID); !exist {
+					c.cacheContainer(ContainerEvent{Action: "start", Container: cj})
+				}
+			}
+		}
+	}
+}
+
+func (c *ContainerLogManage) listAndWatchContainer(errchan chan error) {
+	containers := c.listContainer()
 	for _, con := range containers {
 		container, err := c.getContainer(con.ID)
 		if err != nil {
@@ -296,7 +275,7 @@ func (c *ContainerLogManage) getContainer(containerID string) (types.ContainerJS
 	return c.conf.DockerCli.ContainerInspect(ctx, containerID)
 }
 
-var handleAction = []string{"create", "start", "stop", "die"}
+var handleAction = []string{"start", "stop", "die"}
 
 func checkEventAction(action string) bool {
 	for _, enable := range handleAction {
@@ -307,12 +286,13 @@ func checkEventAction(action string) bool {
 	return false
 }
 
-func createContainerLog(ctx context.Context, container types.ContainerJSON) *ContainerLog {
+func createContainerLog(ctx context.Context, container types.ContainerJSON, reader *LogFile) *ContainerLog {
 	cctx, cancel := context.WithCancel(ctx)
 	return &ContainerLog{
 		ctx:           cctx,
 		cancel:        cancel,
 		ContainerJSON: container,
+		reader:        reader,
 	}
 }
 
@@ -321,74 +301,110 @@ type ContainerLog struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	types.ContainerJSON
-	LogCopier      *Copier
-	LogDriver      Logger
-	stdout, stderr io.ReadCloser
+	LogCopier *Copier
+	LogDriver []Logger
+	reader    *LogFile
+	since     time.Time
+	stoped    *bool
 }
 
-func (container *ContainerLog) startLogging(stdout, stderr io.ReadCloser) error {
-	container.stdout = stdout
-	container.stderr = stderr
-	l, err := container.StartLogger()
+//StartLogging start copy log
+func (container *ContainerLog) StartLogging() error {
+	loggers, err := container.startLogger()
 	if err != nil {
 		if err == ErrNeglectedContainer {
-			logrus.Debugf("find a container %s that do not define rainbond logger.", container.Name)
+			logrus.Warnf("find a container %s that do not define rainbond logger.", container.Name)
 			return ErrNeglectedContainer
 		}
 		return fmt.Errorf("failed to initialize logging driver: %v", err)
 	}
-	copier := NewCopier(map[string]io.Reader{"stdout": stdout, "stderr": stderr}, l)
+	copier := NewCopier(container.reader, loggers, container.since)
 	container.LogCopier = copier
 	copier.Run()
-	container.LogDriver = l
+	container.LogDriver = loggers
 	return nil
 }
-func getLoggerConfig(envs []string) (string, map[string]string) {
-	config := make(map[string]string)
-	var name string
+
+//ContainerLoggerConfig logger config
+type ContainerLoggerConfig struct {
+	Name    string
+	Options map[string]string
+}
+
+func getLoggerConfig(envs []string) []*ContainerLoggerConfig {
+	var configs = make(map[string]*ContainerLoggerConfig)
+	var envMap = make(map[string]string, len(envs))
 	for _, v := range envs {
-		if strings.HasPrefix(v, "LOGGER_DRIVER_NAME=") {
-			name = v[19:]
-		}
-		if strings.HasPrefix(v, "LOGGER_DRIVER_OPT_") {
-			envmap := strings.SplitN(v, "=", 2)
-			config[envmap[0][18:]] = envmap[1]
+		info := strings.SplitN(v, "=", 2)
+		if len(info) > 1 {
+			envMap[strings.ToLower(info[0])] = info[1]
+			if strings.HasPrefix(info[0], "LOGGER_DRIVER_NAME") {
+				if _, exist := configs[info[1]]; !exist {
+					configs[info[1]] = &ContainerLoggerConfig{
+						Name: info[1],
+					}
+				}
+			}
 		}
 	}
-	return name, config
+	var re []*ContainerLoggerConfig
+	for i, c := range configs {
+		if config, ok := envMap[strings.ToLower("LOGGER_DRIVER_OPT_"+c.Name)]; ok {
+			var options = make(map[string]string)
+			json.Unmarshal([]byte(config), &options)
+			configs[i].Options = options
+		}
+		re = append(re, configs[i])
+	}
+	return re
 }
 
 //ErrNeglectedContainer not define logger name
 var ErrNeglectedContainer = fmt.Errorf("Neglected container")
 
-// StartLogger starts a new logger driver for the container.
-func (container *ContainerLog) StartLogger() (Logger, error) {
-	loggerName, config := getLoggerConfig(container.Config.Env)
-	if loggerName == "" {
+// startLogger starts a new logger driver for the container.
+func (container *ContainerLog) startLogger() ([]Logger, error) {
+	configs := getLoggerConfig(container.Config.Env)
+	var loggers []Logger
+	for _, config := range configs {
+		initDriver, err := GetLogDriver(config.Name)
+		if err != nil {
+			logrus.Warnf("get container log driver failure %s", err.Error())
+			continue
+		}
+		createTime, _ := time.Parse(RFC3339NanoFixed, container.Created)
+		info := Info{
+			Config:              config.Options,
+			ContainerID:         container.ID,
+			ContainerName:       container.Name,
+			ContainerEntrypoint: container.Path,
+			ContainerArgs:       container.Args,
+			ContainerImageName:  container.Config.Image,
+			ContainerCreated:    createTime,
+			ContainerEnv:        container.Config.Env,
+			ContainerLabels:     container.Config.Labels,
+			DaemonName:          "docker",
+		}
+		l, err := initDriver(info)
+		if err != nil {
+			logrus.Warnf("init container log driver failure %s", err.Error())
+			continue
+		}
+		loggers = append(loggers, l)
+	}
+	if len(loggers) == 0 {
 		return nil, ErrNeglectedContainer
 	}
-	initDriver, err := GetLogDriver(loggerName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get logging factory: %v", err)
+	return loggers, nil
+}
+
+//Restart restart
+func (container *ContainerLog) Restart() {
+	if *container.stoped {
+		copier := NewCopier(container.reader, container.LogDriver, container.since)
+		container.LogCopier = copier
+		copier.Run()
 	}
-	createTime, _ := time.Parse(RFC3339NanoFixed, container.Created)
-	info := Info{
-		Config:              config,
-		ContainerID:         container.ID,
-		ContainerName:       container.Name,
-		ContainerEntrypoint: container.Path,
-		ContainerArgs:       container.Args,
-		ContainerImageName:  container.Config.Image,
-		ContainerCreated:    createTime,
-		ContainerEnv:        container.Config.Env,
-		ContainerLabels:     container.Config.Labels,
-		DaemonName:          "docker",
-	}
-	l, err := initDriver(info)
-	if err != nil {
-		return nil, err
-	}
-	return l, nil
 }
 
 //Stop stop copy container log
@@ -396,17 +412,17 @@ func (container *ContainerLog) Stop() {
 	if container.LogCopier != nil {
 		container.LogCopier.Close()
 	}
-	if container.LogDriver != nil {
-		if err := container.LogDriver.Close(); err != nil {
-			logrus.Errorf("close log driver failure %s", container.Name)
-		}
-	}
-	if container.stdout != nil {
-		container.stdout.Close()
-	}
-	if container.stderr != nil {
-		container.stderr.Close()
+	container.since = time.Now()
+	var containerLogStop = true
+	container.stoped = &containerLogStop
+	logrus.Debugf("rainbond logger stop for container %s", container.Name)
+}
+
+//Close close
+func (container *ContainerLog) Close() {
+	if container.LogCopier != nil {
+		container.LogCopier.Close()
 	}
 	container.cancel()
-	logrus.Debugf("rainbond logger stop for container %s", container.Name)
+	logrus.Debugf("rainbond logger close for container %s", container.Name)
 }

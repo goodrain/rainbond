@@ -30,6 +30,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/pkg/pubsub"
+
 	"github.com/docker/docker/pkg/filenotify"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/fsnotify/fsnotify"
@@ -561,4 +563,76 @@ func watchFile(name string) (filenotify.FileWatcher, error) {
 	}
 
 	return fileWatcher, nil
+}
+
+// LogFile is Logger implementation for default Docker logging.
+type LogFile struct {
+	mu              sync.RWMutex // protects the logfile access
+	f               *os.File     // store for closing
+	closed          bool
+	rotateMu        sync.Mutex // blocks the next rotation until the current rotation is completed
+	capacity        int64      // maximum size of each file
+	currentSize     int64      // current size of the latest file
+	maxFiles        int        // maximum number of files
+	compress        bool       // whether old versions of log files are compressed
+	lastTimestamp   time.Time  // timestamp of the last log
+	filesRefCounter refCounter // keep reference-counted of decompressed files
+	notifyRotate    *pubsub.Publisher
+	createDecoder   makeDecoderFunc
+	getTailReader   GetTailReaderFunc
+	perms           os.FileMode
+}
+
+//Close file close
+func (w *LogFile) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
+		return nil
+	}
+	if err := w.f.Close(); err != nil {
+		return err
+	}
+	w.closed = true
+	return nil
+}
+
+//ReadConfig read log config
+type ReadConfig struct {
+	Since  time.Time
+	Until  time.Time
+	Tail   int
+	Follow bool
+}
+
+// SizeReaderAt defines a ReaderAt that also reports its size.
+// This is used for tailing log files.
+type SizeReaderAt interface {
+	io.ReaderAt
+	Size() int64
+}
+
+// NewLogFile creates new LogFile
+func NewLogFile(logPath string, maxFiles int, compress bool, decodeFunc makeDecoderFunc, perms os.FileMode, getTailReader GetTailReaderFunc) (*LogFile, error) {
+	log, err := os.OpenFile(logPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, perms)
+	if err != nil {
+		return nil, err
+	}
+
+	size, err := log.Seek(0, os.SEEK_END)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LogFile{
+		f:               log,
+		currentSize:     size,
+		maxFiles:        maxFiles,
+		compress:        compress,
+		filesRefCounter: refCounter{counter: make(map[string]int)},
+		notifyRotate:    pubsub.NewPublisher(0, 1),
+		createDecoder:   decodeFunc,
+		perms:           perms,
+		getTailReader:   getTailReader,
+	}, nil
 }
