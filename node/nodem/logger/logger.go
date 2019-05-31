@@ -79,6 +79,10 @@ type LogWatcher struct {
 	Err           chan error
 	closeOnce     sync.Once
 	closeNotifier chan struct{}
+	consumerGone  chan struct{}
+	consumerOnce  sync.Once
+	producerOnce  sync.Once
+	producerGone  chan struct{}
 }
 
 // NewLogWatcher returns a new LogWatcher.
@@ -87,6 +91,8 @@ func NewLogWatcher() *LogWatcher {
 		Msg:           make(chan *Message, logWatcherBufferSize),
 		Err:           make(chan error, 1),
 		closeNotifier: make(chan struct{}),
+		producerGone:  make(chan struct{}),
+		consumerGone:  make(chan struct{}),
 	}
 }
 
@@ -98,11 +104,40 @@ func (w *LogWatcher) Close() {
 	})
 }
 
+// WatchConsumerGone returns a channel receiver that receives notification
+// when the log watcher consumer is gone.
+func (w *LogWatcher) WatchConsumerGone() <-chan struct{} {
+	return w.consumerGone
+}
+
+// ConsumerGone notifies that the logs consumer is gone.
+func (w *LogWatcher) ConsumerGone() {
+	// only close if not already closed
+	w.consumerOnce.Do(func() {
+		close(w.consumerGone)
+	})
+}
+
 // WatchClose returns a channel receiver that receives notification
 // when the watcher has been closed. This should only be called from
 // one goroutine.
 func (w *LogWatcher) WatchClose() <-chan struct{} {
 	return w.closeNotifier
+}
+
+// ProducerGone notifies the underlying log reader that
+// the logs producer (a container) is gone.
+func (w *LogWatcher) ProducerGone() {
+	// only close if not already closed
+	w.producerOnce.Do(func() {
+		close(w.producerGone)
+	})
+}
+
+// WatchProducerGone returns a channel receiver that receives notification
+// once the logs producer (a container) is gone.
+func (w *LogWatcher) WatchProducerGone() <-chan struct{} {
+	return w.producerGone
 }
 
 // Logger is the interface for docker logging drivers.
