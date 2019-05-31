@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/goodrain/rainbond/event"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 )
@@ -81,6 +83,14 @@ func TestImageSave(t *testing.T) {
 func TestImageImport(t *testing.T) {
 	dc, _ := client.NewEnvClient()
 	if err := ImageImport(dc, "hub.goodrain.com/zengqg-test/etcd:v2.2.0", "/tmp/testsaveimage.tar", nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestImagePull(t *testing.T) {
+	dc, _ := client.NewEnvClient()
+	_, err := ImagePull(dc, "barnett/collabora:190422", "", "", event.GetTestLogger(), 60)
+	if err != nil {
 		t.Fatal(err)
 	}
 }
