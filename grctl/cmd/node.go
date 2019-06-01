@@ -618,6 +618,9 @@ func NewCmdNode() cli.Command {
 					if c.String("root-pass") != "" && c.String("private-key") != "" {
 						showError("Options private-key and root-pass are conflicting")
 					}
+					if c.String("root-pass") == "" && c.String("private-key") == "" {
+						showError("Options private-key and root-pass must set one")
+					}
 					if c.String("role") != "compute" && c.String("role") != "manage" && c.String("role") != "gateway" {
 						showError("node role only support `compute`, `manage` and `gateway`")
 					}
