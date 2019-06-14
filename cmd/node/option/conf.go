@@ -95,8 +95,10 @@ type Conf struct {
 	ServiceManager  string
 	EnableInitStart bool
 	AutoRegistNode  bool
-	DockerCli       *dockercli.Client
-	EtcdCli         *client.Client
+	//enable collect docker container log
+	EnableCollectLog bool
+	DockerCli        *dockercli.Client
+	EtcdCli          *client.Client
 }
 
 //StatsdConfig StatsdConfig
@@ -144,6 +146,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&a.EnableInitStart, "enable-init-start", false, "Whether the node daemon launches docker and etcd service")
 	fs.BoolVar(&a.AutoRegistNode, "auto-registnode", true, "Whether auto regist node info to cluster where node is not found")
 	fs.BoolVar(&a.AutoScheduler, "auto-scheduler", true, "Whether auto set node unscheduler where current node is unhealth")
+	fs.BoolVar(&a.EnableCollectLog, "enabel-collect-log", true, "Whether to collect container logs")
 	fs.DurationVar(&a.AutoUnschedulerUnHealthDuration, "autounscheduler-unhealthy-dura", 5*time.Minute, "Node unhealthy duration, after the automatic offline,if set 0,disable auto handle unscheduler.default is 5 Minute")
 }
 

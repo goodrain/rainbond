@@ -64,7 +64,7 @@ func (s *ServiceAction) TenantServiceDeletePluginRelation(tenantID, serviceID, p
 		return util.CreateAPIHandleErrorFromDBError("delete service plugin config failure", err)
 	}
 	plugin, _ := db.GetManager().TenantPluginDao().GetPluginByID(pluginID, tenantID)
-	if plugin != nil && plugin.PluginModel == dbmodel.UpNetPlugin {
+	if plugin != nil && checkPluginHaveInbound(plugin.PluginModel) {
 		if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteAllPluginMappingPortByServiceID(serviceID); err != nil {
 			if err != gorm.ErrRecordNotFound {
 				tx.Rollback()
@@ -100,7 +100,7 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 		return nil, util.CreateAPIHandleErrorFromDBError("plugin version get error ", err)
 	}
 	var openPorts = make(map[int]bool)
-	if plugin.PluginModel == dbmodel.UpNetPlugin {
+	if checkPluginHaveInbound(plugin.PluginModel) {
 		ports, err := db.GetManager().TenantServicesPortDao().GetPortsByServiceID(serviceID)
 		if err != nil {
 			return nil, util.CreateAPIHandleErrorFromDBError("get ports by service id", err)
@@ -113,12 +113,12 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 	}
 	tx := db.GetManager().Begin()
 	if configs := pss.Body.ConfigEnvs.ComplexEnvs; configs != nil {
-		if configs.BasePorts != nil && plugin.PluginModel == dbmodel.UpNetPlugin {
+		if configs.BasePorts != nil && checkPluginHaveInbound(plugin.PluginModel) {
 			for _, p := range configs.BasePorts {
 				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).SetPluginMappingPort(
 					tenantID,
 					serviceID,
-					dbmodel.UpNetPlugin,
+					dbmodel.InBoundNetPlugin,
 					p.Port,
 				)
 				if err != nil {
@@ -197,6 +197,9 @@ func (s *ServiceAction) normalEnvs(tx *gorm.DB, serviceID, pluginID string, envs
 	}
 	return nil
 }
+func checkPluginHaveInbound(model string) bool {
+	return model == dbmodel.InBoundNetPlugin || model == dbmodel.InBoundAndOutBoundNetPlugin
+}
 
 //UpdateVersionEnv UpdateVersionEnv
 func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError {
@@ -212,12 +215,12 @@ func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.API
 		}
 	}
 	if uve.Body.ConfigEnvs.ComplexEnvs != nil {
-		if uve.Body.ConfigEnvs.ComplexEnvs.BasePorts != nil && plugin.PluginModel == dbmodel.UpNetPlugin {
+		if uve.Body.ConfigEnvs.ComplexEnvs.BasePorts != nil && checkPluginHaveInbound(plugin.PluginModel) {
 			for _, p := range uve.Body.ConfigEnvs.ComplexEnvs.BasePorts {
 				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).SetPluginMappingPort(
 					uve.Body.TenantID,
 					uve.Body.ServiceID,
-					dbmodel.UpNetPlugin,
+					dbmodel.InBoundNetPlugin,
 					p.Port,
 				)
 				if err != nil {

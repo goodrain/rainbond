@@ -20,6 +20,7 @@ package conver
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/pquerna/ffjson/ffjson"
@@ -57,6 +58,7 @@ func OneNodeListerner(serviceAlias, namespace string, configs *corev1.ConfigMap,
 			if err := l.Validate(); err != nil {
 				logrus.Errorf("listener validate failure %s", err.Error())
 			} else {
+				logrus.Debugf("create listener %s for service %s", l.Name, serviceAlias)
 				listener = append(listener, l)
 			}
 		}
@@ -66,12 +68,13 @@ func OneNodeListerner(serviceAlias, namespace string, configs *corev1.ConfigMap,
 			if err := l.Validate(); err != nil {
 				logrus.Errorf("listener validate failure %s", err.Error())
 			} else {
+				logrus.Debugf("create listener %s for service %s", l.Name, serviceAlias)
 				listener = append(listener, l)
 			}
 		}
 	}
 	if len(listener) == 0 {
-		logrus.Warn("create listener zero length")
+		logrus.Warnf("create listener zero length for service %s", serviceAlias)
 	}
 	return listener, nil
 }
@@ -93,15 +96,29 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 			continue
 		}
 		port := service.Spec.Ports[0].Port
+		var ListenPort = port
+		//listener real port
+		if value, ok := service.Labels["origin_port"]; ok {
+			origin, _ := strconv.Atoi(value)
+			if origin != 0 {
+				ListenPort = int32(origin)
+			}
+		}
 		clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port)
-		destService := ListennerConfig[clusterName]
+		listennerName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), ListenPort)
+		destService := ListennerConfig[listennerName]
 		statPrefix := fmt.Sprintf("%s_%s", serviceAlias, GetServiceAliasByService(service))
 		// Unique by listen port
-		if _, ok := portMap[port]; !ok {
+		if _, ok := portMap[ListenPort]; !ok {
 			listenerName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
-			plds := envoyv2.CreateTCPListener(listenerName, clusterName, "127.0.0.1", statPrefix, uint32(port))
-			ldsL = append(ldsL, plds)
-			portMap[port] = len(ldsL) - 1
+			listenner := envoyv2.CreateTCPListener(listenerName, clusterName, envoyv2.DefaultLocalhostListenerAddress, statPrefix, uint32(ListenPort))
+			if listenner != nil {
+				ldsL = append(ldsL, listenner)
+			} else {
+				logrus.Warningf("create tcp listenner %s failure", listenerName)
+				continue
+			}
+			portMap[ListenPort] = len(ldsL) - 1
 		}
 		portProtocol, _ := service.Labels["port_protocol"]
 		if destService != nil && destService.Protocol != "" {
@@ -114,6 +131,8 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 				var options envoyv2.RainbondPluginOptions
 				if destService != nil {
 					options = envoyv2.GetOptionValues(destService.Options)
+				} else {
+					logrus.Warningf("destService is nil for service %s", serviceAlias)
 				}
 				hashKey := options.RouteBasicHash()
 				if oldroute, ok := uniqRoute[hashKey]; ok {
@@ -135,7 +154,7 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 					route := envoyv2.CreateRoute(clusterName, options.Prefix, headerMatchers, options.Weight)
 					if route != nil {
 						pvh := envoyv2.CreateRouteVirtualHost(fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias,
-							GetServiceAliasByService(service), port), options.Domains, *route)
+							GetServiceAliasByService(service), port), options.Domains, nil, *route)
 						if pvh != nil {
 							newVHL = append(newVHL, *pvh)
 							uniqRoute[hashKey] = route
@@ -154,8 +173,12 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 			ldsL = append(ldsL[:i], ldsL[i+1:]...)
 		}
 		statsPrefix := fmt.Sprintf("%s_80", serviceAlias)
-		plds := envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias), "127.0.0.1", statsPrefix, 80, newVHL...)
-		ldsL = append(ldsL, plds)
+		plds := envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias), envoyv2.DefaultLocalhostListenerAddress, statsPrefix, 80, nil, newVHL...)
+		if plds != nil {
+			ldsL = append(ldsL, plds)
+		} else {
+			logrus.Warnf("create listenner %s failure", fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias))
+		}
 	}
 	return
 }
@@ -170,8 +193,50 @@ func downstreamListener(serviceAlias, namespace string, ports []*api_model.BaseP
 		listenerName := clusterName
 		statsPrefix := fmt.Sprintf("%s_%d", serviceAlias, port)
 		if _, ok := portMap[port]; !ok {
-			listener := envoyv2.CreateTCPListener(listenerName, clusterName, "0.0.0.0", statsPrefix, uint32(p.ListenPort))
-			ls = append(ls, listener)
+			inboundConfig := envoyv2.GetRainbondInboundPluginOptions(p.Options)
+			if p.Protocol == "http" || p.Protocol == "https" {
+				var limit []*route.RateLimit
+				if inboundConfig.OpenLimit {
+					limit = []*route.RateLimit{
+						&route.RateLimit{
+							Actions: []*route.RateLimit_Action{
+								&route.RateLimit_Action{
+									ActionSpecifier: &route.RateLimit_Action_RemoteAddress_{
+										RemoteAddress: &route.RateLimit_Action_RemoteAddress{},
+									},
+								},
+							},
+						},
+					}
+				}
+				route := envoyv2.CreateRoute(clusterName, "/", nil, 100)
+				if route == nil {
+					logrus.Warning("create route cirtual route failure")
+					continue
+				}
+				virtuals := envoyv2.CreateRouteVirtualHost(listenerName, []string{"*"}, limit, *route)
+				if virtuals == nil {
+					logrus.Warning("create route cirtual failure")
+					continue
+				}
+				listener := envoyv2.CreateHTTPListener(listenerName, "0.0.0.0", statsPrefix, uint32(p.ListenPort), &envoyv2.RateLimitOptions{
+					Enable:                inboundConfig.OpenLimit,
+					Domain:                inboundConfig.LimitDomain,
+					RateServerClusterName: envoyv2.DefaultRateLimitServerClusterName,
+					Stage:                 0,
+				}, *virtuals)
+				if listener != nil {
+					ls = append(ls, listener)
+				}
+			} else {
+				listener := envoyv2.CreateTCPListener(listenerName, clusterName, "0.0.0.0", statsPrefix, uint32(p.ListenPort))
+				if listener != nil {
+					ls = append(ls, listener)
+				} else {
+					logrus.Warningf("create tcp listener %s failure", listenerName)
+					continue
+				}
+			}
 			portMap[port] = 1
 		}
 	}

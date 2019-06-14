@@ -120,12 +120,13 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if err := n.controller.Online(); err != nil {
 		return err
 	}
-	if n.currentNode.Role.HasRule(client.ComputeNode) {
+	if n.currentNode.Role.HasRule(client.ComputeNode) && n.cfg.EnableCollectLog {
+		logrus.Infof("this node is %s node and enable collect conatiner log", n.currentNode.Role)
 		if err := n.clm.Start(); err != nil {
 			return err
 		}
 	} else {
-		logrus.Debug("this node is not compute node ,do not start container log manage")
+		logrus.Infof("this node(%s) is not compute node or disable collect container log ,do not start container log manage", n.currentNode.Role)
 	}
 	go n.monitor.Start(errchan)
 	go n.heartbeat()
@@ -145,7 +146,7 @@ func (n *NodeManager) Stop() {
 	if n.healthy != nil {
 		n.healthy.Stop()
 	}
-	if n.clm != nil {
+	if n.clm != nil && n.currentNode.Role.HasRule(client.ComputeNode) && n.cfg.EnableCollectLog {
 		n.clm.Stop()
 	}
 }

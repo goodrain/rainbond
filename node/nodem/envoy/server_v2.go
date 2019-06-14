@@ -350,7 +350,8 @@ func (d *DiscoverServerManager) OnAdd(obj interface{}) {
 	d.eventChan <- event
 }
 func checkIsHandleResource(configMap *corev1.ConfigMap) bool {
-	if value, ok := configMap.Data["plugin-model"]; ok && (value == "net-plugin:down" || value == "net-plugin:up") {
+	if value, ok := configMap.Data["plugin-model"]; ok &&
+		(value == "net-plugin:up" || value == "net-plugin:down" || value == "net-plugin:in-and-out") {
 		return true
 	}
 	return false

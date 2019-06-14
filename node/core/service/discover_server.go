@@ -106,11 +106,6 @@ func (d *DiscoverAction) DiscoverService(serviceInfo string) (*envoyv1.SDSHost, 
 		if len(addressList) == 0 {
 			addressList = item.Subsets[0].NotReadyAddresses
 		}
-		// rainbond create service only one port,so do not verify the port
-		// port := item.Subsets[0].Ports[0].Port
-		// if dPort != fmt.Sprintf("%d", port) {
-		// 	continue
-		// }
 		toport := int(services[key].Spec.Ports[0].Port)
 		if serviceAlias == destServiceAlias {
 			if originPort, ok := services[key].Labels["origin_port"]; ok {

@@ -28,6 +28,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util"
@@ -730,9 +731,18 @@ func createResources(as *v1.AppService) corev1.ResourceRequirements {
 }
 
 func checkUpstreamPluginRelation(serviceID string, dbmanager db.Manager) (bool, error) {
+	inBoundOK, err := dbmanager.TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
+		serviceID,
+		model.InBoundNetPlugin)
+	if err != nil {
+		return false, err
+	}
+	if inBoundOK {
+		return inBoundOK, nil
+	}
 	return dbmanager.TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
 		serviceID,
-		dbmodel.UpNetPlugin)
+		model.InBoundAndOutBoundNetPlugin)
 }
 func createUpstreamPluginMappingPort(
 	ports []*dbmodel.TenantServicesPort,
@@ -762,9 +772,7 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 		}
 		if crt {
 			pluginPorts, err := dbmanager.TenantServicesStreamPluginPortDao().GetPluginMappingPorts(
-				as.ServiceID,
-				dbmodel.UpNetPlugin,
-			)
+				as.ServiceID)
 			if err != nil {
 				logrus.Warningf("find upstream plugin mapping port error, %s", err.Error())
 				return

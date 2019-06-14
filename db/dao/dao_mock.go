@@ -1491,8 +1491,8 @@ func (_mr *_MockTenantServicesStreamPluginPortDaoRecorder) UpdateModel(arg0 inte
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "UpdateModel", arg0)
 }
 
-func (_m *MockTenantServicesStreamPluginPortDao) GetPluginMappingPorts(serviceID string, pluginModel string) ([]*model.TenantServicesStreamPluginPort, error) {
-	ret := _m.ctrl.Call(_m, "GetPluginMappingPorts", serviceID, pluginModel)
+func (_m *MockTenantServicesStreamPluginPortDao) GetPluginMappingPorts(serviceID string) ([]*model.TenantServicesStreamPluginPort, error) {
+	ret := _m.ctrl.Call(_m, "GetPluginMappingPorts", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServicesStreamPluginPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1

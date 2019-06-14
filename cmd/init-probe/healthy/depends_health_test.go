@@ -33,9 +33,9 @@ import (
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 )
 
-var testClusterID = "5dbea040f5cb437c82e3bf02943fb02e_c5618104b2aa4c508390e4f18f316500_gr439125"
+var testClusterID = "2bf54c5a0b5a48a890e2dda8635cb507_aff929446a7e48bea94c75447ed40b09_grc9e8e3"
 
-var testXDSHost = "39.96.17.249:6101"
+var testXDSHost = "192.168.195.1:6101"
 
 // var testClusterID = "6ab5725e1ca34cfba7762b7ac10c0dee_9d379258e0bc4fc581331780b0541ac6_grc69d9c"
 //var testXDSHost = "127.0.0.1:6101"
