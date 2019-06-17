@@ -110,7 +110,8 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 		statPrefix := fmt.Sprintf("%s_%s", serviceAlias, GetServiceAliasByService(service))
 		// Unique by listen port
 		if _, ok := portMap[ListenPort]; !ok {
-			listenerName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, port)
+			//listener name depend listner port
+			listenerName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, ListenPort)
 			listenner := envoyv2.CreateTCPListener(listenerName, clusterName, envoyv2.DefaultLocalhostListenerAddress, statPrefix, uint32(ListenPort))
 			if listenner != nil {
 				ldsL = append(ldsL, listenner)

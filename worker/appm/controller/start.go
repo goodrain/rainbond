@@ -154,8 +154,15 @@ func (s *startController) WaitingReady(app v1.AppService) error {
 	storeAppService := s.manager.store.GetAppService(app.ServiceID)
 	var initTime int32
 	if podt := app.GetPodTemplate(); podt != nil {
-		if probe := podt.Spec.Containers[0].ReadinessProbe; probe != nil {
-			initTime = probe.InitialDelaySeconds
+		for _, c := range podt.Spec.Containers {
+			if c.ReadinessProbe != nil {
+				initTime = c.ReadinessProbe.InitialDelaySeconds
+				break
+			}
+			if c.LivenessProbe != nil {
+				initTime = c.LivenessProbe.InitialDelaySeconds
+				break
+			}
 		}
 	}
 	//at least waiting time is 40 second

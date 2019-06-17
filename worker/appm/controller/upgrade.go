@@ -20,12 +20,13 @@ package controller
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/worker/appm/f"
 	"sync"
 	"time"
 
+	"github.com/goodrain/rainbond/worker/appm/f"
+
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -185,8 +186,15 @@ func (s *upgradeController) WaitingReady(app v1.AppService) error {
 	storeAppService := s.manager.store.GetAppService(app.ServiceID)
 	var initTime int32
 	if podt := app.GetPodTemplate(); podt != nil {
-		if probe := podt.Spec.Containers[0].ReadinessProbe; probe != nil {
-			initTime = probe.InitialDelaySeconds
+		for _, c := range podt.Spec.Containers {
+			if c.ReadinessProbe != nil {
+				initTime = c.ReadinessProbe.InitialDelaySeconds
+				break
+			}
+			if c.LivenessProbe != nil {
+				initTime = c.LivenessProbe.InitialDelaySeconds
+				break
+			}
 		}
 	}
 	//at least waiting time is 40 second
