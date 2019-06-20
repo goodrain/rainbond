@@ -21,12 +21,13 @@ package db
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	dbconfig "github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
 	"github.com/testcontainers/testcontainers-go"
-	"testing"
-	"time"
 )
 
 func TestTenantServicesDao_GetOpenedPort(t *testing.T) {
@@ -81,12 +82,14 @@ func TestTenantServicesDao_GetOpenedPort(t *testing.T) {
 	}
 
 	sid := util.NewUUID()
+	trueVal := true
+	falseVal := true
 	err = GetManager().TenantServicesPortDao().AddModel(&model.TenantServicesPort{
 		ServiceID:      sid,
 		ContainerPort:  1111,
 		MappingPort:    1111,
-		IsInnerService: false,
-		IsOuterService: true,
+		IsInnerService: &falseVal,
+		IsOuterService: &trueVal,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -95,8 +98,8 @@ func TestTenantServicesDao_GetOpenedPort(t *testing.T) {
 		ServiceID:      sid,
 		ContainerPort:  2222,
 		MappingPort:    2222,
-		IsInnerService: true,
-		IsOuterService: false,
+		IsInnerService: &trueVal,
+		IsOuterService: &falseVal,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -105,8 +108,8 @@ func TestTenantServicesDao_GetOpenedPort(t *testing.T) {
 		ServiceID:      sid,
 		ContainerPort:  3333,
 		MappingPort:    3333,
-		IsInnerService: false,
-		IsOuterService: false,
+		IsInnerService: &falseVal,
+		IsOuterService: &falseVal,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -115,8 +118,8 @@ func TestTenantServicesDao_GetOpenedPort(t *testing.T) {
 		ServiceID:      sid,
 		ContainerPort:  5555,
 		MappingPort:    5555,
-		IsInnerService: true,
-		IsOuterService: true,
+		IsInnerService: &trueVal,
+		IsOuterService: &trueVal,
 	})
 	if err != nil {
 		t.Fatal(err)
