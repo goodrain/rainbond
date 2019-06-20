@@ -89,6 +89,12 @@ func (p *PluginAction) UpdatePluginAct(pluginID, tenantID string, cps *api_model
 //DeletePluginAct DeletePluginAct
 func (p *PluginAction) DeletePluginAct(pluginID, tenantID string) *util.APIHandleError {
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	//step1: delete service plugin relation
 	err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteALLRelationByPluginID(pluginID)
 	if err != nil {
@@ -126,6 +132,12 @@ func (p *PluginAction) GetPlugins(tenantID string) ([]*dbmodel.TenantPlugin, *ut
 //AddDefaultEnv AddDefaultEnv
 func (p *PluginAction) AddDefaultEnv(est *api_model.ENVStruct) *util.APIHandleError {
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	for _, env := range est.Body.EVNInfo {
 		vis := &dbmodel.TenantPluginDefaultENV{
 			PluginID:  est.PluginID,
@@ -347,6 +359,12 @@ func (p *PluginAction) GetPluginBuildVersion(pluginID, versionID string) (*dbmod
 func (p *PluginAction) DeletePluginBuildVersion(pluginID, versionID string) *util.APIHandleError {
 
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).DeleteBuildVersionByVersionID(versionID)
 	if err != nil {
 		tx.Rollback()
