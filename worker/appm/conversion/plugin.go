@@ -34,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 	typesv1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/jinzhu/gorm"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -177,8 +178,13 @@ func createUDPDefaultPluginContainer(serviceID string, envs []v1.EnvVar) v1.Cont
 
 func createTCPDefaultPluginContainer(serviceID, pluginID string, envs []v1.EnvVar) v1.Container {
 	envs = append(envs, v1.EnvVar{Name: "PLUGIN_ID", Value: pluginID})
-	dockerBridgeIP, xdsHostPort := getXDSHostIPAndPort()
-	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", Value: dockerBridgeIP})
+	_, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
+	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
+		FieldRef: &corev1.ObjectFieldSelector{
+			FieldPath: "status.hostIP",
+		},
+	}})
+	envs = append(envs, v1.EnvVar{Name: "API_HOST_PORT", Value: apiHostPort})
 	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_PORT", Value: xdsHostPort})
 	return v1.Container{
 		Name:      "default-tcpmesh-" + serviceID[len(serviceID)-20:],
@@ -190,8 +196,13 @@ func createTCPDefaultPluginContainer(serviceID, pluginID string, envs []v1.EnvVa
 
 func createProbeMeshInitContainer(serviceID, pluginID, serviceAlias string, envs []v1.EnvVar) v1.Container {
 	envs = append(envs, v1.EnvVar{Name: "PLUGIN_ID", Value: pluginID})
-	dockerBridgeIP, xdsHostPort := getXDSHostIPAndPort()
-	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", Value: dockerBridgeIP})
+	_, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
+	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
+		FieldRef: &corev1.ObjectFieldSelector{
+			FieldPath: "status.hostIP",
+		},
+	}})
+	envs = append(envs, v1.EnvVar{Name: "API_HOST_PORT", Value: apiHostPort})
 	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_PORT", Value: xdsHostPort})
 	return v1.Container{
 		Name:      "probe-mesh-" + serviceID[len(serviceID)-20:],
@@ -315,9 +326,10 @@ func createPluginArgs(cmd string, envs []v1.EnvVar) ([]string, error) {
 	}
 	return strings.Split(util.ParseVariable(cmd, configs), " "), nil
 }
-func getXDSHostIPAndPort() (string, string) {
+func getXDSHostIPAndPort() (string, string, string) {
 	dockerBridgeIP := "172.30.42.1"
 	xdsHostPort := "6101"
+	apiHostPort := "6100"
 	if os.Getenv("DOCKER_BRIDGE_IP") != "" {
 		dockerBridgeIP = os.Getenv("DOCKER_BRIDGE_IP")
 	}
@@ -327,7 +339,10 @@ func getXDSHostIPAndPort() (string, string) {
 	if os.Getenv("XDS_HOST_PORT") != "" {
 		xdsHostPort = os.Getenv("XDS_HOST_PORT")
 	}
-	return dockerBridgeIP, xdsHostPort
+	if os.Getenv("API_HOST_PORT") != "" {
+		apiHostPort = os.Getenv("API_HOST_PORT")
+	}
+	return dockerBridgeIP, xdsHostPort, apiHostPort
 }
 
 //container envs
@@ -344,8 +359,13 @@ func createPluginEnvs(pluginID, tenantID, serviceAlias string, mainEnvs []v1.Env
 	for _, e := range versionEnvs {
 		envs = append(envs, v1.EnvVar{Name: e.EnvName, Value: e.EnvValue})
 	}
-	dockerBridgeIP, xdsHostPort := getXDSHostIPAndPort()
-	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", Value: dockerBridgeIP})
+	dockerBridgeIP, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
+	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
+		FieldRef: &corev1.ObjectFieldSelector{
+			FieldPath: "status.hostIP",
+		},
+	}})
+	envs = append(envs, v1.EnvVar{Name: "API_HOST_PORT", Value: apiHostPort})
 	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_PORT", Value: xdsHostPort})
 	discoverURL := fmt.Sprintf(
 		"http://%s:6100/v1/resources/%s/%s/%s",
