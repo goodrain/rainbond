@@ -19,6 +19,8 @@
 package model
 
 import (
+	"fmt"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 )
@@ -67,6 +69,6 @@ func (t *VersionInfo) CreateShareImage(hubURL, namespace, appVersion string) (st
 	if namespace != "" {
 		image.Namespace = namespace
 	}
-	image.Name = image.Name + "_" + appVersion
+	image.Name = fmt.Sprintf("%s:%s", t.ServiceID, t.BuildVersion)
 	return image.String(), nil
 }
