@@ -28,7 +28,6 @@ import (
 	"os"
 
 	"github.com/Sirupsen/logrus"
-
 	jsoniter "github.com/json-iterator/go"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -209,7 +208,7 @@ func (sc *SocketCollector) handleMessage(msg []byte) {
 		return
 	}
 	for _, stats := range statsBatch {
-		if !sc.hosts.Has(stats.Host) {
+		if !sc.hosts.HasAny(stats.Host, "tls"+stats.Host) {
 			logrus.Infof("skiping metric for host %v that is not being served", stats.Host)
 			continue
 		}
