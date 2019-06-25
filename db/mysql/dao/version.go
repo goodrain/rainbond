@@ -144,7 +144,8 @@ func (c *VersionInfoDaoImpl) DeleteFailureVersionInfo(timePoint time.Time, statu
 //SearchVersionInfo query version count >5
 func (c *VersionInfoDaoImpl) SearchVersionInfo() ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
-	if err := c.DB.Table("version_info").Select("service_id").Group("service_id").Having("count(ID) > ?", 5).Scan(&result).Error; err != nil {
+	versionInfo := &model.VersionInfo{}
+	if err := c.DB.Table(versionInfo.TableName()).Select("service_id").Group("service_id").Having("count(ID) > ?", 5).Scan(&result).Error; err != nil {
 		return nil, err
 	}
 	return result, nil
