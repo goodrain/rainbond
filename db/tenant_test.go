@@ -164,10 +164,12 @@ func TestTenantServicesPortDao_HasOpenPort(t *testing.T) {
 			t.Error("Expected false for hasOpenPort, but returned true")
 		}
 	})
+	trueVal := true
+	falseVal := true
 	t.Run("outer service", func(t *testing.T) {
 		port := &model.TenantServicesPort{
 			ServiceID:      util.NewUUID(),
-			IsOuterService: true,
+			IsOuterService: &trueVal,
 		}
 		if err := GetManager().TenantServicesPortDao().AddModel(port); err != nil {
 			t.Fatalf("error creating TenantServicesPort: %v", err)
@@ -180,7 +182,7 @@ func TestTenantServicesPortDao_HasOpenPort(t *testing.T) {
 	t.Run("inner service", func(t *testing.T) {
 		port := &model.TenantServicesPort{
 			ServiceID:      util.NewUUID(),
-			IsInnerService: true,
+			IsInnerService: &trueVal,
 		}
 		if err := GetManager().TenantServicesPortDao().AddModel(port); err != nil {
 			t.Fatalf("error creating TenantServicesPort: %v", err)
@@ -193,8 +195,8 @@ func TestTenantServicesPortDao_HasOpenPort(t *testing.T) {
 	t.Run("not inner or outer service", func(t *testing.T) {
 		port := &model.TenantServicesPort{
 			ServiceID:      util.NewUUID(),
-			IsInnerService: false,
-			IsOuterService: false,
+			IsInnerService: &falseVal,
+			IsOuterService: &falseVal,
 		}
 		if err := GetManager().TenantServicesPortDao().AddModel(port); err != nil {
 			t.Fatalf("error creating TenantServicesPort: %v", err)

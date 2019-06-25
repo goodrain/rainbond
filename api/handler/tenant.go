@@ -380,6 +380,12 @@ func (t *TenantAction) TransPlugins(tenantID, tenantName, fromTenant string, plu
 	}
 	goodrainID := tenantInfo.UUID
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	for _, p := range pluginList {
 		pluginInfo, err := db.GetManager().TenantPluginDao().GetPluginByID(p, goodrainID)
 		if err != nil {

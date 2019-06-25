@@ -20,6 +20,12 @@ type AppRestoreAction struct {
 func (a *AppRestoreAction) RestoreEnvs(tenantID, serviceID string, req *apimodel.RestoreEnvsReq) error {
 	// delete existing env
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).DelByServiceIDAndScope(serviceID, req.Scope); err != nil {
 		tx.Rollback()
 		return err
@@ -55,6 +61,12 @@ func (a *AppRestoreAction) RestoreEnvs(tenantID, serviceID string, req *apimodel
 func (a *AppRestoreAction) RestorePorts(tenantID, serviceID string, req *apimodel.RestorePortsReq) error {
 	// delete existing ports
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DelByServiceID(serviceID); err != nil {
 		tx.Rollback()
 		return err
@@ -89,6 +101,12 @@ func (a *AppRestoreAction) RestorePorts(tenantID, serviceID string, req *apimode
 func (a *AppRestoreAction) RestoreVolumes(tenantID, serviceID string, req *apimodel.RestoreVolumesReq) error {
 	// delete existing volumes
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DelShareableBySID(serviceID); err != nil {
 		tx.Rollback()
 		return err
@@ -135,6 +153,12 @@ func (a *AppRestoreAction) RestoreVolumes(tenantID, serviceID string, req *apimo
 // RestoreProbe restores service probe.
 func (a *AppRestoreAction) RestoreProbe(serviceID string, req *apimodel.ServiceProbe) error {
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	if err := db.GetManager().ServiceProbeDaoTransactions(tx).DelByServiceID(serviceID); err != nil {
 		tx.Rollback()
 		return err
@@ -199,6 +223,12 @@ func (a *AppRestoreAction) RestoreDeps(tenantID, serviceID string, req *apimodel
 // RestoreDepVols restores service dependent volumes.
 func (a *AppRestoreAction) RestoreDepVols(tenantID, serviceID string, req *apimodel.RestoreDepVolsReq) error {
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	if err := db.GetManager().TenantServiceMountRelationDaoTransactions(tx).DELTenantServiceMountRelationByServiceID(serviceID); err != nil {
 		tx.Rollback()
 		return err
