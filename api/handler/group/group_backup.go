@@ -26,26 +26,18 @@ import (
 	"strings"
 	"time"
 
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
-
-	"github.com/coreos/etcd/clientv3"
-
-	"github.com/goodrain/rainbond/event"
-
 	"github.com/Sirupsen/logrus"
-
-	"github.com/goodrain/rainbond/worker/client"
-
-	mqclient "github.com/goodrain/rainbond/mq/client"
-
-	"github.com/jinzhu/gorm"
-
-	"github.com/pquerna/ffjson/ffjson"
-
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/event"
+	mqclient "github.com/goodrain/rainbond/mq/client"
 	core_util "github.com/goodrain/rainbond/util"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/client"
+	"github.com/jinzhu/gorm"
+	"github.com/pquerna/ffjson/ffjson"
 )
 
 //Backup GroupBackup
@@ -276,11 +268,11 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
 			return fmt.Errorf("Get service(%s) ports error %s", id, err)
 		}
 		data.ServicePort = servicePorts
-		versions, err := db.GetManager().VersionInfoDao().GetVersionByServiceID(id)
-		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+		version, err := db.GetManager().VersionInfoDao().GetLatestScsVersion(id)
+		if err != nil && err != gorm.ErrRecordNotFound {
 			return fmt.Errorf("Get service(%s) build versions error %s", id, err)
 		}
-		data.Versions = versions
+		data.Versions = []*dbmodel.VersionInfo{version}
 		pluginConfigs, err := db.GetManager().TenantPluginVersionConfigDao().GetPluginConfigs(id)
 		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 			return fmt.Errorf("Get service(%s) plugin configs error %s", id, err)
