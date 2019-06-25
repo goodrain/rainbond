@@ -230,7 +230,7 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 		}
 		for _, loc := range vs.Locations {
 			location := &model.Location{
-				DisableAccessLog: true,
+				DisableAccessLog: false,
 				EnableMetrics:    true,
 				Path:             loc.Path,
 				NameCondition:    loc.NameCondition,
