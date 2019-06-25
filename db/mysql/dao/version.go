@@ -105,6 +105,15 @@ func (c *VersionInfoDaoImpl) GetVersionByServiceID(serviceID string) ([]*model.V
 	return result, nil
 }
 
+// GetLatestScsVersion returns the latest versoin that the final_status is 'success'.
+func (c *VersionInfoDaoImpl) GetLatestScsVersion(sid string) (*model.VersionInfo, error) {
+	var result model.VersionInfo
+	if err := c.DB.Where("service_id=? and final_status='success'", sid).Last(&result).Error; err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 //GetAllVersionByServiceID get all versions by service id, not only successful
 func (c *VersionInfoDaoImpl) GetAllVersionByServiceID(serviceID string) ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
@@ -144,7 +153,8 @@ func (c *VersionInfoDaoImpl) DeleteFailureVersionInfo(timePoint time.Time, statu
 //SearchVersionInfo query version count >5
 func (c *VersionInfoDaoImpl) SearchVersionInfo() ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
-	if err := c.DB.Table("version_info").Select("service_id").Group("service_id").Having("count(ID) > ?", 5).Scan(&result).Error; err != nil {
+	versionInfo := &model.VersionInfo{}
+	if err := c.DB.Table(versionInfo.TableName()).Select("service_id").Group("service_id").Having("count(ID) > ?", 5).Scan(&result).Error; err != nil {
 		return nil, err
 	}
 	return result, nil

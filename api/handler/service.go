@@ -235,6 +235,12 @@ func (s *ServiceAction) isWindowsService(serviceID string) bool {
 //AddLabel add labels
 func (s *ServiceAction) AddLabel(l *api_model.LabelsStruct, serviceID string) error {
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	for _, label := range l.Labels {
 		var labelModel dbmodel.TenantServiceLable
 		switch label.LabelKey {
@@ -262,6 +268,12 @@ func (s *ServiceAction) AddLabel(l *api_model.LabelsStruct, serviceID string) er
 //UpdateLabel updates labels
 func (s *ServiceAction) UpdateLabel(l *api_model.LabelsStruct, serviceID string) error {
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	for _, label := range l.Labels {
 		// delete old labels
 		err := db.GetManager().TenantServiceLabelDaoTransactions(tx).
@@ -300,6 +312,12 @@ func (s *ServiceAction) UpdateLabel(l *api_model.LabelsStruct, serviceID string)
 //DeleteLabel deletes label
 func (s *ServiceAction) DeleteLabel(l *api_model.LabelsStruct, serviceID string) error {
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	for _, label := range l.Labels {
 		err := db.GetManager().TenantServiceLabelDaoTransactions(tx).
 			DelTenantServiceLabelsByServiceIDKeyValue(serviceID, label.LabelKey, label.LabelValue)
@@ -476,6 +494,12 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	dependIds := sc.DependIDs
 	ts.DeployVersion = ""
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	//create app
 	if err := db.GetManager().TenantServiceDaoTransactions(tx).AddModel(&ts); err != nil {
 		logrus.Errorf("add service error, %v", err)
@@ -607,6 +631,9 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	// sc.Endpoints can't be nil
 	// sc.Endpoints.Discovery or sc.Endpoints.Static can't be nil
 	if sc.Kind == dbmodel.ServiceKindThirdParty.String() { // TODO: validate request data
+		if sc.Endpoints == nil {
+			return fmt.Errorf("endpoints can not be empty for third-party service")
+		}
 		if config := strings.Replace(sc.Endpoints.Discovery, " ", "", -1); config != "" {
 			var cfg dCfg
 			err := json.Unmarshal([]byte(config), &cfg)
@@ -941,6 +968,12 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 		}
 	case "delete":
 		tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 		for _, vp := range vps.Port {
 			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DeleteModel(serviceID, vp.ContainerPort); err != nil {
 				logrus.Errorf("delete port var error, %v", err)
@@ -955,6 +988,12 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 		}
 	case "update":
 		tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 		for _, vp := range vps.Port {
 			//port更新单个请求
 			if oldPort == 0 {
@@ -1039,6 +1078,12 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 			falsev := false
 			p.IsOuterService = &falsev
 			tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 			if err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(p); err != nil {
 				tx.Rollback()
 				return nil, "", err
@@ -1095,6 +1140,12 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 		truev := true
 		p.IsOuterService = &truev
 		tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 		if err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(p); err != nil {
 			tx.Rollback()
 			return nil, "", err
@@ -1170,6 +1221,12 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 		return fmt.Errorf("get plugin relations error: %s", err.Error())
 	}
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	switch operation {
 	case "close":
 		if *p.IsInnerService { //如果端口已经开了对内
@@ -1278,6 +1335,12 @@ func (s *ServiceAction) ChangeLBPort(tenantID, serviceID string, containerPort, 
 	oldmapport.Port = mapport.Port
 	mapport.Port = port
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	if err := db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).DELServiceLBMappingPortByServiceIDAndPort(oldmapport.ServiceID, port); err != nil {
 		tx.Rollback()
 		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
@@ -1333,6 +1396,12 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 		}
 		// begin transaction
 		tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 		if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(tsv); err != nil {
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("add volume", err)
@@ -1356,6 +1425,12 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 	case "delete":
 		// begin transaction
 		tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 		if tsv.VolumeName != "" {
 			err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteModel(tsv.ServiceID, tsv.VolumeName)
 			if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
@@ -1384,6 +1459,12 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 // UpdVolume updates service volume.
 func (s *ServiceAction) UpdVolume(sid string, req *api_model.UpdVolumeReq) error {
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	switch req.VolumeType {
 	case "config-file":
 		if req.VolumePath != "" {
@@ -1572,6 +1653,12 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants) error {
 		return fmt.Errorf("tenant name %s is exist", t.Name)
 	}
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	if err := db.GetManager().TenantDaoTransactions(tx).AddModel(t); err != nil {
 		if !strings.HasSuffix(err.Error(), "is exist") {
 			tx.Rollback()
@@ -1717,6 +1804,12 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 		}
 	}
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	delService := service.ChangeDelete()
 	delService.ID = 0
 	if err := db.GetManager().TenantServiceDeleteDaoTransactions(tx).AddModel(delService); err != nil {
