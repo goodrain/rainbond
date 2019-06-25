@@ -110,6 +110,11 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 		logrus.Debugf("service config is %v, container name is %s", sc, sc.ContainerName)
 		ports := make(map[int]*types.Port)
 
+		if sc.Image == "" {
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("ComposeFile解析错误"), SolveAdvice(fmt.Sprintf("Service %s has no image specified", kev), fmt.Sprintf("请为%s指定一个镜像", kev))))
+			continue
+		}
+
 		for _, p := range sc.Port {
 			pro := string(p.Protocol)
 			if pro != "udp" {

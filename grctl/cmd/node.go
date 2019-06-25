@@ -150,7 +150,12 @@ func getStatusShow(v *client.HostNode) (status string) {
 		nss.message = append(nss.message, "unhealth")
 		nss.color = color.FgRed
 	}
-	return nss.String()
+
+	result := nss.String() 
+	if strings.Contains(result, "unknown") {
+		result = "unknown"
+	}
+	return result
 }
 func handleStatus(serviceTable *termtables.Table, v *client.HostNode) {
 	serviceTable.AddRow(v.ID, v.InternalIP, v.HostName, v.Role.String(), getStatusShow(v))

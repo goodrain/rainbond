@@ -205,6 +205,7 @@ func CreateCircuitBreaker(options RainbondPluginOptions) *cluster.CircuitBreaker
 	circuitBreakers := &cluster.CircuitBreakers{
 		Thresholds: []*cluster.CircuitBreakers_Thresholds{
 			&cluster.CircuitBreakers_Thresholds{
+				Priority:           core.RoutingPriority_DEFAULT,
 				MaxConnections:     ConversionUInt32(uint32(options.MaxConnections)),
 				MaxRequests:        ConversionUInt32(uint32(options.MaxRequests)),
 				MaxRetries:         ConversionUInt32(uint32(options.MaxActiveRetries)),
@@ -270,6 +271,7 @@ func CreateRoute(clusterName, prefix string, headers []*route.HeaderMatcher, wei
 						},
 					},
 				},
+				Priority: core.RoutingPriority_DEFAULT,
 			},
 		},
 	}

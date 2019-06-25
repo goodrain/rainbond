@@ -46,6 +46,12 @@ func (s *ServiceAction) GetTenantServicePluginRelation(serviceID string) ([]*dbm
 //TenantServiceDeletePluginRelation uninstall plugin for app
 func (s *ServiceAction) TenantServiceDeletePluginRelation(tenantID, serviceID, pluginID string) *util.APIHandleError {
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	deleteFunclist := []func(serviceID, pluginID string) error{
 		db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteRelationByServiceIDAndPluginID,
 		db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByPluginID,
@@ -106,12 +112,18 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 			return nil, util.CreateAPIHandleErrorFromDBError("get ports by service id", err)
 		}
 		for _, p := range ports {
-			if p.IsInnerService || p.IsOuterService {
+			if *p.IsInnerService || *p.IsOuterService {
 				openPorts[p.ContainerPort] = true
 			}
 		}
 	}
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	if configs := pss.Body.ConfigEnvs.ComplexEnvs; configs != nil {
 		if configs.BasePorts != nil && checkPluginHaveInbound(plugin.PluginModel) {
 			for _, p := range configs.BasePorts {
@@ -208,6 +220,12 @@ func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.API
 		return util.CreateAPIHandleErrorFromDBError("get plugin by plugin id", err)
 	}
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	if len(uve.Body.ConfigEnvs.NormalEnvs) != 0 {
 		if err := s.upNormalEnvs(tx, uve); err != nil {
 			tx.Rollback()
@@ -275,6 +293,12 @@ func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *api
 		return util.CreateAPIHandleError(500, err)
 	}
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).AddModel(&dbmodel.TenantPluginVersionDiscoverConfig{
 		PluginID:  pluginID,
 		ServiceID: serviceID,

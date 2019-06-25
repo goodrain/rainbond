@@ -600,7 +600,6 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	ss.TenantID = tenantID
-	logrus.Debugf("begin to create service %s", ss.ServiceAlias)
 	if err := handler.GetServiceManager().ServiceCreate(&ss); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("create service error, %v", err))
 		return

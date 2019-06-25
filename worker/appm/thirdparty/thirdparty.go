@@ -201,11 +201,11 @@ func (t *thirdparty) k8sEndpoints(as *v1.AppService, epinfo []*v1.RbdEndpoint) (
 	p := ports[0]
 
 	var res []*corev1.Endpoints
-	if p.IsInnerService {
+	if *p.IsInnerService {
 		ep := &corev1.Endpoints{}
 		ep.Namespace = as.TenantID
 		// inner or outer
-		if p.IsInnerService {
+		if *p.IsInnerService {
 			ep.Name = fmt.Sprintf("service-%d-%d", p.ID, p.ContainerPort)
 			ep.Labels = as.GetCommonLabels(map[string]string{
 				"name":         as.ServiceAlias + "Service",
@@ -214,11 +214,11 @@ func (t *thirdparty) k8sEndpoints(as *v1.AppService, epinfo []*v1.RbdEndpoint) (
 		}
 		res = append(res, ep)
 	}
-	if p.IsOuterService {
+	if *p.IsOuterService {
 		ep := &corev1.Endpoints{}
 		ep.Namespace = as.TenantID
 		// inner or outer
-		if p.IsOuterService {
+		if *p.IsOuterService {
 			ep.Name = fmt.Sprintf("service-%d-%dout", p.ID, p.ContainerPort)
 			ep.Labels = as.GetCommonLabels(map[string]string{
 				"name":         as.ServiceAlias + "ServiceOUT",

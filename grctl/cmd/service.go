@@ -36,6 +36,7 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
 	//conf "github.com/goodrain/rainbond/cmd/grctl/option"
 )
 
@@ -507,16 +508,9 @@ func showServiceDeployInfo(c *cli.Context) error {
 			containerTable := termtables.CreateTable()
 			containerTable.AddHeaders("ID", "Name", "Image", "State")
 			for j := 0; j < len(pod.Status.ContainerStatuses); j++ {
-				var t string
-				con := pod.Status.ContainerStatuses[j]
-				if con.State.Running != nil {
-					t = con.State.Running.StartedAt.Format(time.RFC3339)
-				}
-				var conID string
-				if con.ContainerID != "" {
-					conID = con.ContainerID[9:21]
-				}
-				containerTable.AddRow(conID, con.Name, con.Image, t)
+				cstatus := pod.Status.ContainerStatuses[j]
+				cid, s := getContainerIDAndState(cstatus)
+				containerTable.AddRow(cid, cstatus.Name, cstatus.Image, s)
 			}
 			fmt.Println(containerTable.Render())
 		} else {
@@ -527,6 +521,23 @@ func showServiceDeployInfo(c *cli.Context) error {
 		}
 	}
 	return nil
+}
+
+func getContainerIDAndState(status corev1.ContainerStatus) (cid, s string) {
+	state := status.State
+	containerID := status.ContainerID
+	if state.Running != nil {
+		s = "Running"
+	}
+	if state.Waiting != nil {
+		s = "Waiting"
+	}
+	if state.Terminated != nil {
+		s = "Terminated"
+		containerID = state.Terminated.ContainerID
+	}
+	cid = containerID[9:21]
+	return
 }
 
 func showTenantServices(ctx *cli.Context) error {

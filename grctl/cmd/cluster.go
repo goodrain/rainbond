@@ -176,28 +176,6 @@ func summaryResult(list []map[string]string) (status string, errMessage string) 
 	return
 }
 
-func handleRoleAndStatus(list []map[string]string) bool {
-	var computeFlag bool
-	var manageFlag bool
-	for _, v := range list {
-		if v["role"] == "compute" && v["status"] == "running" {
-			computeFlag = true
-		}
-		if v["role"] == "manage" && v["status"] == "running" {
-			manageFlag = true
-		}
-		if (strings.HasPrefix(v["role"], "compute,manage") || strings.HasPrefix(v["role"], "manage,compute")) && v["status"] == "running" {
-			computeFlag = true
-			manageFlag = true
-		}
-	}
-	if computeFlag && manageFlag {
-		return true
-	}
-	return false
-
-}
-
 func handleNodeReady(list []map[string]string) bool {
 	trueNum := 0
 	for _, v := range list {
@@ -215,7 +193,6 @@ func clusterStatus(roleList []map[string]string, ReadyList []map[string]string) 
 	var clusterStatus string
 	var errMessage string
 	readyStatus := handleNodeReady(ReadyList)
-	roleStatus := handleRoleAndStatus(roleList)
 	if readyStatus {
 		clusterStatus = "\033[0;32;32mhealthy\033[0m"
 		errMessage = ""
@@ -223,9 +200,31 @@ func clusterStatus(roleList []map[string]string, ReadyList []map[string]string) 
 		clusterStatus = "\033[0;31;31munhealthy\033[0m"
 		errMessage = "There is a service exception in the cluster"
 	}
-	if !roleStatus {
+	var computeFlag bool
+	var manageFlag bool
+	var gatewayFlag bool
+	for _, v := range roleList {
+		if strings.Contains(v["role"], "compute") && v["status"] == "running" {
+			computeFlag = true
+		}
+		if strings.Contains(v["role"], "manage") && v["status"] == "running" {
+			manageFlag = true
+		}
+		if strings.Contains(v["role"], "gateway") && v["status"] == "running" {
+			manageFlag = true
+		}
+	}
+	if !manageFlag {
 		clusterStatus = "\033[0;33;33munavailable\033[0m"
-		errMessage = "No compute nodes or management nodes are available in the cluster"
+		errMessage = "No management nodes are available in the cluster"
+	}
+	if !computeFlag {
+		clusterStatus = "\033[0;33;33munavailable\033[0m"
+		errMessage = "No compute nodes are available in the cluster"
+	}
+	if !gatewayFlag {
+		clusterStatus = "\033[0;33;33munavailable\033[0m"
+		errMessage = "No gateway nodes are available in the cluster"
 	}
 	return clusterStatus, errMessage
 }

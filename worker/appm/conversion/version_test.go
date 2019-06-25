@@ -22,10 +22,10 @@ import (
 	"testing"
 
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/model"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/rafrombrc/gomock/gomock"
-	"github.com/goodrain/rainbond/db/dao"
 )
 
 func TestTenantServiceVersion(t *testing.T) {
@@ -53,8 +53,8 @@ func TestConvertRulesToEnvs(t *testing.T) {
 		ContainerPort:  0,
 		Protocol:       "http",
 		PortAlias:      "GRD835895000",
-		IsInnerService: false,
-		IsOuterService: true,
+		IsInnerService: func() *bool { b := false; return &b }(),
+		IsOuterService: func() *bool { b := true; return &b }(),
 	}
 
 	renvs := convertRulesToEnvs(as, dbmanager, port, true)

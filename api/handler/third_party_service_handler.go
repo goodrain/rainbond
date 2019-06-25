@@ -20,6 +20,9 @@ package handler
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
@@ -44,11 +47,12 @@ func Create3rdPartySvcHandler(dbmanager db.Manager, statusCli *client.AppRuntime
 
 // AddEndpoints adds endpoints for third-party service.
 func (t *ThirdPartyServiceHanlder) AddEndpoints(sid string, d *model.AddEndpiontsReq) error {
+	address, port := convertAddressPort(d.Address)
 	ep := &dbmodel.Endpoint{
 		UUID:      util.NewUUID(),
 		ServiceID: sid,
-		IP:        d.IP,
-		Port:      0,
+		IP:        address,
+		Port:      port,
 		IsOnline:  &d.IsOnline,
 	}
 	if err := t.dbmanager.EndpointsDao().AddModel(ep); err != nil {
@@ -66,8 +70,10 @@ func (t *ThirdPartyServiceHanlder) UpdEndpoints(d *model.UpdEndpiontsReq) error 
 		logrus.Warningf("EpID: %s; error getting endpoints: %v", d.EpID, err)
 		return err
 	}
-	if d.IP != "" {
-		ep.IP = d.IP
+	if d.Address != "" {
+		address, port := convertAddressPort(d.Address)
+		ep.IP = address
+		ep.Port = port
 	}
 	ep.IsOnline = &d.IsOnline
 	if err := t.dbmanager.EndpointsDao().UpdateModel(ep); err != nil {
@@ -77,6 +83,22 @@ func (t *ThirdPartyServiceHanlder) UpdEndpoints(d *model.UpdEndpiontsReq) error 
 	t.statusCli.UpdThirdPartyEndpoint(ep)
 
 	return nil
+}
+
+func convertAddressPort(s string) (address string, port int) {
+	addressport := strings.Split(s, ":")
+	// compatible with ipv6
+	addressSli := addressport[:func() int {
+		if len(addressport) == 2 {
+			return len(addressport) - 1
+		}
+		return len(addressport)
+	}()]
+	address = strings.Join(addressSli, ":")
+	if len(addressport) == 2 {
+		port, _ = strconv.Atoi(addressport[1])
+	}
+	return address, port
 }
 
 // DelEndpoints deletes endpoints for third-party service.
@@ -100,7 +122,7 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 	for _, item := range endpoints {
 		m[item.UUID] = &model.EndpointResp{
 			EpID: item.UUID,
-			IP: func(ip string, p int) string {
+			Address: func(ip string, p int) string {
 				if p != 0 {
 					return fmt.Sprintf("%s:%d", ip, p)
 				}
@@ -127,7 +149,7 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 			}
 			m[item.Uuid] = &model.EndpointResp{
 				EpID:     item.Uuid,
-				IP:       item.Ip,
+				Address:  item.Ip,
 				Status:   item.Status,
 				IsOnline: true,
 				IsStatic: false,

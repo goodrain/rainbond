@@ -262,7 +262,7 @@ func (c *ContainerLogManage) watchContainer() error {
 					if !strings.Contains(err.Error(), "No such container") {
 						logrus.Errorf("get container detail info failure %s", err.Error())
 					}
-					container.ID = event.ID
+					break
 				}
 				c.cacheContainer(ContainerEvent{Action: event.Action, Container: container})
 			}

@@ -40,10 +40,16 @@ import (
 	//"github.com/docker/docker/client"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/model"
 	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/builder"
 )
+
+//ErrorNoAuth error no auth
+var ErrorNoAuth = fmt.Errorf("pull image require docker login")
+
+//ErrorNoImage error no image
+var ErrorNoImage = fmt.Errorf("image not exist")
 
 //ImagePull 拉取镜像
 //timeout 分钟为单位
@@ -79,7 +85,7 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 	defer cancel()
 	//TODO: 使用1.12版本api的bug “repository name must be canonical”，使用rf.String()完整的镜像地址
 	readcloser, err := dockerCli.ImagePull(ctx, rf.String(), pullipo)
-	logger.Info(fmt.Sprintf("成功获取镜像：%s", image), map[string]string{"step": "pullimage"})
+	logger.Info(fmt.Sprintf("Success Pull Image：%s", image), map[string]string{"step": "pullimage"})
 	if err != nil {
 		logrus.Debugf("image name: %s readcloser error: %v", image, err.Error())
 		if strings.HasSuffix(err.Error(), "does not exist or no pull access") {

@@ -20,13 +20,15 @@ package controller
 
 import (
 	"encoding/json"
-	"github.com/Sirupsen/logrus"
 	"net/http"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/api/controller/validation"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/db/errors"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -52,16 +54,20 @@ func (t *ThirdPartyServiceController) addEndpoints(w http.ResponseWriter, r *htt
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &data, nil) {
 		return
 	}
-	values := make(map[string][]string)
-	if strings.Contains(data.IP, "127.0.0.1") {
-		values["ip"] = []string{"The ip field is can't contains '127.0.0.1'"}
-	}
-	if len(values) != 0 {
+	ipAddress := strings.Split(data.Address, ":")[0]
+	if err := validation.ValidateEndpointIP(ipAddress); len(err) > 0 {
+		values := make(map[string][]string, 1)
+		values["ip"] = err
 		httputil.ReturnValidationError(r, w, values)
 		return
 	}
+
 	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	if err := handler.Get3rdPartySvcHandler().AddEndpoints(sid, &data); err != nil {
+		if err == errors.ErrRecordAlreadyExist {
+			httputil.ReturnError(r, w, 400, err.Error())
+			return
+		}
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
@@ -73,14 +79,16 @@ func (t *ThirdPartyServiceController) updEndpoints(w http.ResponseWriter, r *htt
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &data, nil) {
 		return
 	}
-	values := make(map[string][]string)
-	if strings.Contains(data.IP, "127.0.0.1") {
-		values["ip"] = []string{"The ip field is can't contains '127.0.0.1'"}
+	if data.Address != "" {
+		ipAddress := strings.Split(data.Address, ":")[0]
+		if err := validation.ValidateEndpointIP(ipAddress); len(err) > 0 {
+			values := make(map[string][]string, 1)
+			values["address"] = err
+			httputil.ReturnValidationError(r, w, values)
+			return
+		}
 	}
-	if len(values) != 0 {
-		httputil.ReturnValidationError(r, w, values)
-		return
-	}
+
 	if err := handler.Get3rdPartySvcHandler().UpdEndpoints(&data); err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return

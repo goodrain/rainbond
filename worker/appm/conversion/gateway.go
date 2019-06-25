@@ -147,10 +147,10 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 	if ports != nil && len(ports) > 0 {
 		for i := range ports {
 			port := ports[i]
-			if port.IsInnerService {
+			if *port.IsInnerService {
 				services = append(services, a.createInnerService(port))
 			}
-			if port.IsOuterService {
+			if *port.IsOuterService {
 				service := a.createOuterService(port)
 				services = append(services, service)
 				relContainerPort := pp[int32(port.ContainerPort)]
@@ -427,10 +427,10 @@ func (a *AppServiceBuild) BuildOnPort(p int, isOut bool) (*corev1.Service, error
 		return nil, fmt.Errorf("find service port from db error %s", err.Error())
 	}
 	if port != nil {
-		if !isOut && port.IsInnerService {
+		if !isOut && *port.IsInnerService {
 			return a.createInnerService(port), nil
 		}
-		if isOut && port.IsOuterService {
+		if isOut && *port.IsOuterService {
 			return a.createOuterService(port), nil
 		}
 	}

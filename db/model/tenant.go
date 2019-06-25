@@ -227,8 +227,8 @@ type TenantServicesPort struct {
 	MappingPort    int    `gorm:"column:mapping_port" validate:"mapping_port|required|numeric_between:1,65535" json:"mapping_port"`
 	Protocol       string `gorm:"column:protocol" validate:"protocol|required|in:http,https,tcp,grpc,udp,mysql" json:"protocol"`
 	PortAlias      string `gorm:"column:port_alias" validate:"port_alias|required|alpha_dash" json:"port_alias"`
-	IsInnerService bool   `gorm:"column:is_inner_service" validate:"is_inner_service|bool" json:"is_inner_service"`
-	IsOuterService bool   `gorm:"column:is_outer_service" validate:"is_outer_service|bool" json:"is_outer_service"`
+	IsInnerService *bool  `gorm:"column:is_inner_service" validate:"is_inner_service|bool" json:"is_inner_service"`
+	IsOuterService *bool  `gorm:"column:is_outer_service" validate:"is_outer_service|bool" json:"is_outer_service"`
 }
 
 //TableName 表名

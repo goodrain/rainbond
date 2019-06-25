@@ -249,7 +249,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 				portStr += ":"
 			}
 			portStr += fmt.Sprintf("%d", port.ContainerPort)
-			if port.IsOuterService && (port.Protocol == "http" || port.Protocol == "https") {
+			if *port.IsOuterService && (port.Protocol == "http" || port.Protocol == "https") {
 				envs = append(envs, corev1.EnvVar{Name: "DEFAULT_DOMAIN", Value: createDefaultDomain(as.TenantName, as.ServiceAlias, port.ContainerPort)})
 			}
 			renvs := convertRulesToEnvs(as, dbmanager, port, true)
@@ -311,7 +311,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 }
 
 func convertRulesToEnvs(as *v1.AppService, dbmanager db.Manager, port *dbmodel.TenantServicesPort, usePort bool) []corev1.EnvVar {
-	if !port.IsOuterService {
+	if !*port.IsOuterService {
 		return nil
 	}
 
