@@ -122,7 +122,7 @@ build::image() {
 }
 
 build::all(){
-	local build_items=(api chaos gateway monitor mq webcli worker eventlog init-probe mesh_data_panel)
+	local build_items=(api chaos gateway monitor mq webcli worker eventlog init-probe mesh-data-panel)
 	for item in ${build_items[@]}
 	do
 		build::image $item $1
