@@ -104,8 +104,8 @@ build::image() {
 			docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -extldflags '-static' -X github.com/goodrain/rainbond/cmd.version=${release_desc}" -tags 'netgo static_build' -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 		elif [ "$1" = "gateway" ];then
 			docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GATEWAY_GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
-		elif [ "$1" = "mesh_data_panel" ];then
-			echo "mesh_data_panel not need build";
+		elif [ "$1" = "mesh-data-panel" ];then
+			echo "mesh-data-panel not need build";
 		else
 			docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 		fi
