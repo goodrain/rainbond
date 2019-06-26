@@ -27,7 +27,7 @@ import (
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
-	"k8s.io/api/apps/v1"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 )
@@ -575,7 +575,7 @@ func GetTCPMeshImageName() string {
 	if d := os.Getenv("TCPMESH_DEFAULT_IMAGE_NAME"); d != "" {
 		return d
 	}
-	return builder.REGISTRYDOMAIN + "/mesh_plugin"
+	return builder.REGISTRYDOMAIN + "/mesh-data-panel"
 }
 
 //GetProbeMeshImageName get probe init mesh image name
