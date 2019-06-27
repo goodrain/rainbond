@@ -266,7 +266,6 @@ func (n *NodeManager) init() error {
 			return fmt.Errorf("find node %s from cluster failure %s", n.currentNode.ID, err.Error())
 		}
 	}
-	n.setNodeLabels(node)
 	if node.NodeStatus.NodeInfo.OperatingSystem == "" {
 		node.NodeStatus.NodeInfo = info.GetSystemInfo()
 	}
@@ -278,6 +277,10 @@ func (n *NodeManager) init() error {
 	}
 	//update node mode
 	node.Mode = n.cfg.RunMode
+	//update node rule
+	node.Role = strings.Split(n.cfg.NodeRule, ",")
+	//set node labels
+	n.setNodeLabels(node)
 	*(n.currentNode) = *node
 	return nil
 }
@@ -287,12 +290,21 @@ func (n *NodeManager) setNodeLabels(node *client.HostNode) {
 		node.Labels = n.getInitLable(node)
 		return
 	}
-	for k, v := range n.getInitLable(node) {
-		node.Labels[k] = v
+	var newLabels = map[string]string{}
+	//remove node rule labels
+	for k, v := range node.Labels {
+		if !strings.HasPrefix(k, "rainbond_node_rule_") {
+			newLabels[k] = v
+		}
 	}
+	for k, v := range n.getInitLable(node) {
+		newLabels[k] = v
+	}
+	node.Labels = newLabels
 }
+
+//getInitLable update node role and return new lables
 func (n *NodeManager) getInitLable(node *client.HostNode) map[string]string {
-	node.Role = strings.Split(n.cfg.NodeRule, ",")
 	lables := map[string]string{}
 	for _, rule := range node.Role {
 		lables["rainbond_node_rule_"+rule] = "true"
