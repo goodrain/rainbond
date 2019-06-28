@@ -35,8 +35,8 @@ import (
 	"github.com/gosuri/uitable"
 	"github.com/tidwall/gjson"
 	"github.com/urfave/cli"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	//conf "github.com/goodrain/rainbond/cmd/grctl/option"
 )
 
@@ -536,7 +536,9 @@ func getContainerIDAndState(status corev1.ContainerStatus) (cid, s string) {
 		s = "Terminated"
 		containerID = state.Terminated.ContainerID
 	}
-	cid = containerID[9:21]
+	if containerID != "" {
+		cid = containerID[9:21]
+	}
 	return
 }
 
