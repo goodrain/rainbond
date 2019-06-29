@@ -669,7 +669,7 @@ func MergeDir(fromdir, todir string) error {
 //CreateVersionByTime create version number
 func CreateVersionByTime() string {
 	now := time.Now()
-	re := fmt.Sprintf("%d%d%d%d%d%d%d", now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), now.Nanosecond())
+	re := fmt.Sprintf("%d%d%d%d%d%d", now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
 	return re
 }
 
