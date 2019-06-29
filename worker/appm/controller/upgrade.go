@@ -113,7 +113,6 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 	for _, new := range newService {
 		if nowConfig, ok := nowServiceMaps[new.Name]; ok {
 			new.UID = nowConfig.UID
-			new.Spec.ClusterIP = nowConfig.Spec.ClusterIP
 			new.ResourceVersion = nowConfig.ResourceVersion
 			newc, err := s.manager.client.CoreV1().Services(nowApp.TenantID).Update(new)
 			if err != nil {
@@ -123,11 +122,11 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 			nowServiceMaps[new.Name] = nil
 			logrus.Debugf("update service %s for service %s", new.Name, newapp.ServiceID)
 		} else {
-			newc, err := s.manager.client.CoreV1().Services(nowApp.TenantID).Create(new)
+			err := CreateKubeService(s.manager.client, nowApp.TenantID, new)
 			if err != nil {
 				logrus.Errorf("update service failure %s", err.Error())
 			}
-			nowApp.SetService(newc)
+			nowApp.SetService(new)
 			logrus.Debugf("create service %s for service %s", new.Name, newapp.ServiceID)
 		}
 	}
