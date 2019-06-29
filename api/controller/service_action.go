@@ -25,7 +25,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/goodrain/rainbond/db/errors"
 	validator "github.com/thedevsaddam/govalidator"
 
 	"github.com/Sirupsen/logrus"
@@ -483,53 +482,19 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
-	var build api_model.BuildServiceStruct
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build.Body, nil)
+	var build api_model.BuildInfoRequestStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build, nil)
 	if !ok {
 		return
 	}
-	if len(build.Body.DeployVersion) == 0 {
-		httputil.ReturnError(r, w, 400, "deploy version can not be empty.")
-		return
-	}
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
-	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
-	build.Body.TenantName = tenantName
-	build.Body.ServiceAlias = serviceAlias
-
-	sEvent, status, err := createEvent(build.Body.EventID, serviceID, "build", tenantID, build.Body.DeployVersion)
-	handleStatus(status, err, w, r)
-	if status != 0 {
-		return
+	build.TenantName = tenantName
+	if build.ServiceID != serviceID {
+		httputil.ReturnError(r, w, 400, "build service id is failure")
 	}
-	version := dbmodel.VersionInfo{
-		EventID:      sEvent.EventID,
-		ServiceID:    serviceID,
-		RepoURL:      build.Body.RepoURL,
-		Kind:         build.Body.Kind,
-		BuildVersion: build.Body.DeployVersion,
-		Cmd:          build.Body.Cmd,
-	}
-	err = db.GetManager().VersionInfoDao().AddModel(&version)
-	if err != nil {
-		if err == errors.ErrRecordAlreadyExist {
-			httputil.ReturnError(r, w, 400,
-				fmt.Sprintf("service id: %s; build version: %s; version already exists", serviceID, build.Body.DeployVersion))
-			return
-		}
-		logrus.Infof("error add version %v ,details %s", version, err.Error())
-		httputil.ReturnError(r, w, 500, "create service version error.")
-		return
-	}
-	build.Body.EventID = sEvent.EventID
-	if err := handler.GetServiceManager().ServiceBuild(tenantID, serviceID, &build); err != nil {
-		logrus.Error("build service error", err.Error())
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("build service error, %v", err))
-		return
-	}
-	httputil.ReturnSuccess(r, w, sEvent)
+	re := handler.GetOperationHandler().Build(build)
+	httputil.ReturnSuccess(r, w, re)
 }
 
 //BuildList BuildList
@@ -701,19 +666,12 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 		logrus.Errorf("start operation validate request body failure")
 		return
 	}
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	sEvent, status, err := createEvent(upgradeRequest.EventID, serviceID, "update", tenantID, upgradeRequest.UpgradeVersion)
-	handleStatus(status, err, w, r)
-	if status != 0 {
+	if upgradeRequest.ServiceID != serviceID {
+		httputil.ReturnError(r, w, 400, "upgrade service id failure")
 		return
 	}
-	eventID := sEvent.EventID
-	upgradeRequest.EventID = eventID
-	logger := event.GetManager().GetLogger(eventID)
-	defer event.CloseManager()
 	re := handler.GetOperationHandler().Upgrade(upgradeRequest)
-	logger.Info("The application upgrade task was sent successfully", map[string]string{"step": "upgrade-service", "status": "starting"})
 	httputil.ReturnSuccess(r, w, re)
 }
 
