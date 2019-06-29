@@ -74,7 +74,7 @@ func (e *exectorManager) pluginDockerfileBuild(task *pb.TaskMessage) {
 	if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
 		logrus.Errorf("update version error, %v", err)
 	}
-	ErrorNum += 1
+	ErrorNum++
 	logger.Error("dockerfile构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 }
 

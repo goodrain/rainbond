@@ -53,8 +53,7 @@ func NewTaskManager(c option.Config, client client.MQClient, exec exector.Manage
 	healthStatus["status"] = "health"
 	healthStatus["info"] = "builder service health"
 	callbackChan := make(chan *pb.TaskMessage, 100)
-	exec.SetReturnTaskChan(callbackChan)
-	return &TaskManager{
+	taskManager := &TaskManager{
 		discoverCtx:    discoverCtx,
 		discoverCancel: discoverCancel,
 		ctx:            ctx,
@@ -64,44 +63,27 @@ func NewTaskManager(c option.Config, client client.MQClient, exec exector.Manage
 		exec:           exec,
 		callbackChan:   callbackChan,
 	}
+	exec.SetReturnTaskChan(taskManager.callback)
+	return taskManager
 }
 
 //Start 启动
 func (t *TaskManager) Start() error {
-	go t.HandleCallback()
 	go t.Do()
 	logrus.Info("start discover success.")
 	return nil
 }
 func (t *TaskManager) callback(task *pb.TaskMessage) {
 	ctx, cancel := context.WithCancel(t.ctx)
-	reply, err := t.client.Enqueue(ctx, &pb.EnqueueRequest{
+	defer cancel()
+	_, err := t.client.Enqueue(ctx, &pb.EnqueueRequest{
 		Topic:   client.BuilderTopic,
 		Message: task,
 	})
 	if err != nil {
 		logrus.Errorf("callback task to mq failure %s", err.Error())
 	}
-	cancel()
-	logrus.Warningf("retry send task to mq ,reply is %v", reply)
-	if err != nil {
-		logrus.Errorf("enqueue task %v to mq topic %v Error", task, client.BuilderTopic)
-		return
-	}
-	//if handle is waiting, sleep 2 second
-	time.Sleep(time.Second * 2)
-}
-
-//HandleCallback handle call back
-func (t *TaskManager) HandleCallback() {
-	for {
-		select {
-		case <-t.ctx.Done():
-			return
-		case task := <-t.callbackChan:
-			t.callback(task)
-		}
-	}
+	logrus.Infof("The build controller returns an indigestible task(%s) to the messaging system", task.TaskId)
 }
 
 //Do do

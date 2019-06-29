@@ -50,7 +50,7 @@ var ErrorNum float64
 //Manager 任务执行管理器
 type Manager interface {
 	AddTask(*pb.TaskMessage) error
-	SetReturnTaskChan(chan *pb.TaskMessage)
+	SetReturnTaskChan(func(*pb.TaskMessage))
 	Start() error
 	Stop() error
 }
@@ -86,7 +86,7 @@ type exectorManager struct {
 	DockerClient      *client.Client
 	EtcdCli           *clientv3.Client
 	tasks             chan *pb.TaskMessage
-	callback          chan *pb.TaskMessage
+	callback          func(*pb.TaskMessage)
 	maxConcurrentTask int
 	mqClient          mqclient.MQClient
 	ctx               context.Context
@@ -114,7 +114,7 @@ func RegisterWorker(name string, fun func([]byte, *exectorManager) (TaskWorker, 
 //ErrCallback do not handle this task
 var ErrCallback = fmt.Errorf("callback task to mq")
 
-func (e *exectorManager) SetReturnTaskChan(re chan *pb.TaskMessage) {
+func (e *exectorManager) SetReturnTaskChan(re func(*pb.TaskMessage)) {
 	e.callback = re
 }
 
@@ -131,57 +131,64 @@ func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 	select {
 	case e.tasks <- task:
 		TaskNum++
+		e.RunTask(task)
 		return nil
 	default:
 		logrus.Infof("The current number of parallel builds exceeds the maximum")
 		if e.callback != nil {
-			e.callback <- task
+			e.callback(task)
+			//Wait a while
+			//It's best to wait until the current controller can continue adding tasks
+			for len(e.tasks) >= e.maxConcurrentTask {
+				time.Sleep(time.Second * 2)
+			}
 			return nil
 		}
 		return ErrCallback
 	}
 }
 func (e *exectorManager) runTask(f func(task *pb.TaskMessage), task *pb.TaskMessage) {
+	logrus.Infof("Build task %s in progress", task.TaskId)
 	e.runningTask.LoadOrStore(task.TaskId, task)
 	f(task)
+	//Remove a task that is being executed, not necessarily a task that is currently completed
+	<-e.tasks
 	e.runningTask.Delete(task.TaskId)
+	logrus.Infof("Build task %s is completed", task.TaskId)
 }
 func (e *exectorManager) runTaskWithErr(f func(task *pb.TaskMessage) error, task *pb.TaskMessage) {
+	logrus.Infof("Build task %s in progress", task.TaskId)
 	e.runningTask.LoadOrStore(task.TaskId, task)
 	if err := f(task); err != nil {
 		logrus.Errorf("run builder task failure %s", err.Error())
 	}
+	//Remove a task that is being executed, not necessarily a task that is currently completed
+	<-e.tasks
 	e.runningTask.Delete(task.TaskId)
+	logrus.Infof("Build task %s is completed", task.TaskId)
 }
-func (e *exectorManager) RunTask() {
-	for {
-		select {
-		case <-e.ctx.Done():
-			return
-		case task := <-e.tasks:
-			switch task.TaskType {
-			case "build_from_image":
-				go e.runTask(e.buildFromImage, task)
-			case "build_from_source_code":
-				go e.runTask(e.buildFromSourceCode, task)
-			case "build_from_market_slug":
-				//deprecated
-				e.buildFromMarketSlug(task)
-			case "service_check":
-				go e.runTask(e.serviceCheck, task)
-			case "plugin_image_build":
-				go e.runTask(e.pluginImageBuild, task)
-			case "plugin_dockerfile_build":
-				go e.runTask(e.pluginDockerfileBuild, task)
-			case "share-slug":
-				//deprecated
-				e.slugShare(task)
-			case "share-image":
-				go e.runTask(e.imageShare, task)
-			default:
-				go e.runTaskWithErr(e.exec, task)
-			}
-		}
+func (e *exectorManager) RunTask(task *pb.TaskMessage) {
+	switch task.TaskType {
+	case "build_from_image":
+		go e.runTask(e.buildFromImage, task)
+	case "build_from_source_code":
+		go e.runTask(e.buildFromSourceCode, task)
+	case "build_from_market_slug":
+		//deprecated
+		e.buildFromMarketSlug(task)
+	case "service_check":
+		go e.runTask(e.serviceCheck, task)
+	case "plugin_image_build":
+		go e.runTask(e.pluginImageBuild, task)
+	case "plugin_dockerfile_build":
+		go e.runTask(e.pluginDockerfileBuild, task)
+	case "share-slug":
+		//deprecated
+		e.slugShare(task)
+	case "share-image":
+		go e.runTask(e.imageShare, task)
+	default:
+		go e.runTaskWithErr(e.exec, task)
 	}
 }
 
@@ -216,7 +223,6 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 	i := NewImageBuildItem(task.TaskBody)
 	i.DockerClient = e.DockerClient
 	i.Logger.Info("Start with the image build application task", map[string]string{"step": "builder-exector", "status": "starting"})
-	logrus.Debugf("start build from image worker")
 	defer event.GetManager().ReleaseLogger(i.Logger)
 	defer func() {
 		if r := recover(); r != nil {
@@ -263,8 +269,6 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	i.DockerClient = e.DockerClient
 	i.Logger.Info("Build app version from source code start", map[string]string{"step": "builder-exector", "status": "starting"})
 	start := time.Now()
-
-	logrus.Debugf("start build from source code")
 	defer event.GetManager().ReleaseLogger(i.Logger)
 	defer func() {
 		if r := recover(); r != nil {
@@ -462,39 +466,17 @@ func (e *exectorManager) imageShare(task *pb.TaskMessage) {
 }
 
 func (e *exectorManager) Start() error {
-	go e.RunTask()
 	return nil
 }
 func (e *exectorManager) Stop() error {
 	e.cancel()
-	for task := range e.tasks {
-		if e.callback != nil {
-			e.callback <- task
-		}
-	}
 	logrus.Info("Waiting for all threads to exit.")
-	i := 0
-	timer := time.NewTimer(time.Second * 2)
-	defer timer.Stop()
-	for {
-		if i >= 15 {
-			logrus.Errorf("There are %d tasks not completed", len(e.tasks))
-			return fmt.Errorf("There are %d tasks not completed ", len(e.tasks))
-		}
-		runningTaskSum := 0
-		e.runningTask.Range(func(k, v interface{}) bool {
-			runningTaskSum++
-			return true
-		})
-		if runningTaskSum == 0 {
-			break
-		}
-		select {
-		case <-timer.C:
-			i++
-			timer.Reset(time.Second * 2)
-		}
-	}
+	//Recycle all ongoing tasks
+	e.runningTask.Range(func(k, v interface{}) bool {
+		task := v.(*pb.TaskMessage)
+		e.callback(task)
+		return true
+	})
 	logrus.Info("All threads is exited.")
 	return nil
 }

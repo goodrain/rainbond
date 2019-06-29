@@ -66,7 +66,7 @@ func (e *exectorManager) pluginImageBuild(task *pb.TaskMessage) {
 	if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
 		logrus.Errorf("update version error, %v", err)
 	}
-	ErrorNum += 1
+	ErrorNum++
 	logger.Info("镜像构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 }
 
