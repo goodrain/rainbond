@@ -38,32 +38,70 @@ var healthStatus = make(map[string]string, 1)
 
 //TaskManager task
 type TaskManager struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	config option.Config
-	client client.MQClient
-	exec   exector.Manager
+	ctx, discoverCtx       context.Context
+	cancel, discoverCancel context.CancelFunc
+	config                 option.Config
+	client                 client.MQClient
+	exec                   exector.Manager
+	callbackChan           chan *pb.TaskMessage
 }
 
 //NewTaskManager return *TaskManager
 func NewTaskManager(c option.Config, client client.MQClient, exec exector.Manager) *TaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
+	discoverCtx, discoverCancel := context.WithCancel(ctx)
 	healthStatus["status"] = "health"
 	healthStatus["info"] = "builder service health"
+	callbackChan := make(chan *pb.TaskMessage, 100)
+	exec.SetReturnTaskChan(callbackChan)
 	return &TaskManager{
-		ctx:    ctx,
-		cancel: cancel,
-		config: c,
-		client: client,
-		exec:   exec,
+		discoverCtx:    discoverCtx,
+		discoverCancel: discoverCancel,
+		ctx:            ctx,
+		cancel:         cancel,
+		config:         c,
+		client:         client,
+		exec:           exec,
+		callbackChan:   callbackChan,
 	}
 }
 
 //Start 启动
 func (t *TaskManager) Start() error {
+	go t.HandleCallback()
 	go t.Do()
 	logrus.Info("start discover success.")
 	return nil
+}
+func (t *TaskManager) callback(task *pb.TaskMessage) {
+	ctx, cancel := context.WithCancel(t.ctx)
+	reply, err := t.client.Enqueue(ctx, &pb.EnqueueRequest{
+		Topic:   client.BuilderTopic,
+		Message: task,
+	})
+	if err != nil {
+		logrus.Errorf("callback task to mq failure %s", err.Error())
+	}
+	cancel()
+	logrus.Warningf("retry send task to mq ,reply is %v", reply)
+	if err != nil {
+		logrus.Errorf("enqueue task %v to mq topic %v Error", task, client.BuilderTopic)
+		return
+	}
+	//if handle is waiting, sleep 2 second
+	time.Sleep(time.Second * 2)
+}
+
+//HandleCallback handle call back
+func (t *TaskManager) HandleCallback() {
+	for {
+		select {
+		case <-t.ctx.Done():
+			return
+		case task := <-t.callbackChan:
+			t.callback(task)
+		}
+	}
 }
 
 //Do do
@@ -71,10 +109,10 @@ func (t *TaskManager) Do() {
 	hostName, _ := os.Hostname()
 	for {
 		select {
-		case <-t.ctx.Done():
+		case <-t.discoverCtx.Done():
 			return
 		default:
-			ctx, cancel := context.WithCancel(t.ctx)
+			ctx, cancel := context.WithCancel(t.discoverCtx)
 			data, err := t.client.Dequeue(ctx, &pb.DequeueRequest{Topic: t.config.Topic, ClientHost: hostName + "-builder"})
 			cancel()
 			if err != nil {
@@ -98,6 +136,7 @@ func (t *TaskManager) Do() {
 			}
 			err = t.exec.AddTask(data)
 			if err != nil {
+				t.callbackChan <- data
 				logrus.Error("add task error:", err.Error())
 			}
 		}
@@ -106,6 +145,14 @@ func (t *TaskManager) Do() {
 
 //Stop 停止
 func (t *TaskManager) Stop() error {
+	t.discoverCancel()
+	if err := t.exec.Stop(); err != nil {
+		logrus.Errorf("stop task exec manager failure %s", err.Error())
+	}
+	for len(t.callbackChan) > 0 {
+		logrus.Infof("waiting callback chan empty")
+		time.Sleep(time.Second * 2)
+	}
 	logrus.Info("discover manager is stoping.")
 	t.cancel()
 	if t.client != nil {

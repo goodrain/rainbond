@@ -21,6 +21,8 @@ package server
 import (
 	"fmt"
 
+	"github.com/goodrain/rainbond/util"
+
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/mq/api/mq"
 
@@ -39,6 +41,9 @@ type mqServer struct {
 func (s *mqServer) Enqueue(ctx context.Context, in *pb.EnqueueRequest) (*pb.TaskReply, error) {
 	if in.Topic == "" || !s.actionMQ.TopicIsExist(in.Topic) {
 		return nil, fmt.Errorf("topic %s is not support", in.Topic)
+	}
+	if in.Message.TaskId == "" {
+		in.Message.TaskId = util.NewUUID()
 	}
 	message, err := proto.Marshal(in.Message)
 	if err != nil {

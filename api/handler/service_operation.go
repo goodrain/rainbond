@@ -76,9 +76,7 @@ func (o *OperationHandler) Build(buildInfo model.BuildInfoRequestStruct) (re Ope
 	buildInfo.EventID = eventBody.EventID
 	logger := event.GetManager().GetLogger(buildInfo.EventID)
 	defer event.CloseManager()
-	if buildInfo.DeployVersion == "" {
-		buildInfo.DeployVersion = util.CreateVersionByTime()
-	}
+	buildInfo.DeployVersion = util.CreateVersionByTime()
 	re.DeployVersion = buildInfo.DeployVersion
 	version := dbmodel.VersionInfo{
 		EventID:      buildInfo.EventID,

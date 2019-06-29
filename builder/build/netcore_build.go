@@ -150,6 +150,9 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 		return nil, err
 	}
 	re.Logger.Info("镜像推送镜像至仓库成功", map[string]string{"step": "builder-exector"})
+	if err := sources.ImageRemove(re.DockerClient, d.imageName); err != nil {
+		logrus.Errorf("remove image %s failure %s", d.imageName, err.Error())
+	}
 	return d.createResponse(), nil
 }
 func (d *netcoreBuild) writeBuildDockerfile(sourceDir string, envs map[string]string) error {

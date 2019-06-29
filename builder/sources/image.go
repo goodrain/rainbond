@@ -357,8 +357,14 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 
 //ImageBuild ImageBuild
 func ImageBuild(dockerCli *client.Client, contextDir string, options types.ImageBuildOptions, logger event.Logger, timeout int) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
-	defer cancel()
+	var ctx context.Context
+	if timeout != 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
+		defer cancel()
+	} else {
+		ctx = context.Background()
+	}
 	buildCtx, err := archive.TarWithOptions(contextDir, &archive.TarOptions{
 		Compression:     archive.Uncompressed,
 		ExcludePatterns: []string{""},
@@ -535,8 +541,8 @@ func CopyToFile(outfile string, r io.Reader) error {
 
 //ImageRemove remove image
 func ImageRemove(dockerCli *client.Client, image string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	_, err := dockerCli.ImageRemove(ctx, image, types.ImageRemoveOptions{})
+	_, err := dockerCli.ImageRemove(ctx, image, types.ImageRemoveOptions{Force: true})
 	return err
 }

@@ -19,13 +19,14 @@
 package exector
 
 import (
+	"context"
 	"fmt"
+	"runtime"
 	"runtime/debug"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-
-	"sync"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
@@ -49,6 +50,7 @@ var ErrorNum float64
 //Manager 任务执行管理器
 type Manager interface {
 	AddTask(*pb.TaskMessage) error
+	SetReturnTaskChan(chan *pb.TaskMessage)
 	Start() error
 	Stop() error
 }
@@ -66,20 +68,30 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
+	maxConcurrentTask := runtime.NumCPU() * 2
+	ctx, cancel := context.WithCancel(context.Background())
+	logrus.Infof("The maximum number of concurrent build tasks supported by the current node is %d", maxConcurrentTask)
 	return &exectorManager{
-		DockerClient: dockerClient,
-		EtcdCli:      etcdCli,
-		mqClient:     mqc,
-		tasks:        make(map[*pb.TaskMessage][]byte),
+		DockerClient:      dockerClient,
+		EtcdCli:           etcdCli,
+		mqClient:          mqc,
+		tasks:             make(chan *pb.TaskMessage, maxConcurrentTask),
+		maxConcurrentTask: maxConcurrentTask,
+		ctx:               ctx,
+		cancel:            cancel,
 	}, nil
 }
 
 type exectorManager struct {
-	DockerClient *client.Client
-	EtcdCli      *clientv3.Client
-	tasks        map[*pb.TaskMessage][]byte
-	taskLock     sync.RWMutex
-	mqClient     mqclient.MQClient
+	DockerClient      *client.Client
+	EtcdCli           *clientv3.Client
+	tasks             chan *pb.TaskMessage
+	callback          chan *pb.TaskMessage
+	maxConcurrentTask int
+	mqClient          mqclient.MQClient
+	ctx               context.Context
+	cancel            context.CancelFunc
+	runningTask       sync.Map
 }
 
 //TaskWorker worker interface
@@ -99,6 +111,13 @@ func RegisterWorker(name string, fun func([]byte, *exectorManager) (TaskWorker, 
 	workerCreaterList[name] = fun
 }
 
+//ErrCallback do not handle this task
+var ErrCallback = fmt.Errorf("callback task to mq")
+
+func (e *exectorManager) SetReturnTaskChan(re chan *pb.TaskMessage) {
+	e.callback = re
+}
+
 //TaskType:
 //build_from_image build app from docker image
 //build_from_source_code build app from source code
@@ -109,30 +128,61 @@ func RegisterWorker(name string, fun func([]byte, *exectorManager) (TaskWorker, 
 //share-slug share app with slug
 //share-image share app with image
 func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
-	e.tasks[task] = task.TaskBody
-	TaskNum++
-	switch task.TaskType {
-	case "build_from_image":
-		e.buildFromImage(task)
-	case "build_from_source_code":
-		e.buildFromSourceCode(task)
-	case "build_from_market_slug":
-		e.buildFromMarketSlug(task)
-	case "service_check":
-		go e.serviceCheck(task)
-	case "plugin_image_build":
-		e.pluginImageBuild(task)
-	case "plugin_dockerfile_build":
-		e.pluginDockerfileBuild(task)
-	case "share-slug":
-		e.slugShare(task)
-	case "share-image":
-		e.imageShare(task)
+	select {
+	case e.tasks <- task:
+		TaskNum++
+		return nil
 	default:
-		return e.exec(task)
+		logrus.Infof("The current number of parallel builds exceeds the maximum")
+		if e.callback != nil {
+			e.callback <- task
+			return nil
+		}
+		return ErrCallback
 	}
-
-	return nil
+}
+func (e *exectorManager) runTask(f func(task *pb.TaskMessage), task *pb.TaskMessage) {
+	e.runningTask.LoadOrStore(task.TaskId, task)
+	f(task)
+	e.runningTask.Delete(task.TaskId)
+}
+func (e *exectorManager) runTaskWithErr(f func(task *pb.TaskMessage) error, task *pb.TaskMessage) {
+	e.runningTask.LoadOrStore(task.TaskId, task)
+	if err := f(task); err != nil {
+		logrus.Errorf("run builder task failure %s", err.Error())
+	}
+	e.runningTask.Delete(task.TaskId)
+}
+func (e *exectorManager) RunTask() {
+	for {
+		select {
+		case <-e.ctx.Done():
+			return
+		case task := <-e.tasks:
+			switch task.TaskType {
+			case "build_from_image":
+				go e.runTask(e.buildFromImage, task)
+			case "build_from_source_code":
+				go e.runTask(e.buildFromSourceCode, task)
+			case "build_from_market_slug":
+				//deprecated
+				e.buildFromMarketSlug(task)
+			case "service_check":
+				go e.runTask(e.serviceCheck, task)
+			case "plugin_image_build":
+				go e.runTask(e.pluginImageBuild, task)
+			case "plugin_dockerfile_build":
+				go e.runTask(e.pluginDockerfileBuild, task)
+			case "share-slug":
+				//deprecated
+				e.slugShare(task)
+			case "share-image":
+				go e.runTask(e.imageShare, task)
+			default:
+				go e.runTaskWithErr(e.exec, task)
+			}
+		}
+	}
 }
 
 func (e *exectorManager) exec(task *pb.TaskMessage) error {
@@ -145,22 +195,19 @@ func (e *exectorManager) exec(task *pb.TaskMessage) error {
 		logrus.Errorf("create worker for builder error.%s", err)
 		return err
 	}
-	go func() {
-		defer e.removeTask(task)
-		defer event.GetManager().ReleaseLogger(worker.GetLogger())
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Println(r)
-				debug.PrintStack()
-				worker.GetLogger().Error(util.Translation("Please try again or contact customer service"), map[string]string{"step": "callback", "status": "failure"})
-				worker.ErrorCallBack(fmt.Errorf("%s", r))
-			}
-		}()
-		if err := worker.Run(time.Minute * 10); err != nil {
-			ErrorNum++
-			worker.ErrorCallBack(err)
+	defer event.GetManager().ReleaseLogger(worker.GetLogger())
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println(r)
+			debug.PrintStack()
+			worker.GetLogger().Error(util.Translation("Please try again or contact customer service"), map[string]string{"step": "callback", "status": "failure"})
+			worker.ErrorCallBack(fmt.Errorf("%s", r))
 		}
 	}()
+	if err := worker.Run(time.Minute * 10); err != nil {
+		ErrorNum++
+		worker.ErrorCallBack(err)
+	}
 	return nil
 }
 
@@ -169,83 +216,31 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 	i := NewImageBuildItem(task.TaskBody)
 	i.DockerClient = e.DockerClient
 	i.Logger.Info("Start with the image build application task", map[string]string{"step": "builder-exector", "status": "starting"})
-	go func() {
-		start := time.Now()
-		defer e.removeTask(task)
-		logrus.Debugf("start build from image worker")
-		defer event.GetManager().ReleaseLogger(i.Logger)
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Println(r)
-				debug.PrintStack()
-				i.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "callback", "status": "failure"})
-			}
-		}()
-		defer func() {
-			logrus.Debugf("complete build from source code, consuming time %s", time.Now().Sub(start).String())
-		}()
-		for n := 0; n < 2; n++ {
-			err := i.Run(time.Minute * 30)
-			if err != nil {
-				logrus.Errorf("build from image error: %s", err.Error())
-				if n < 1 {
-					i.Logger.Error("The application task to build from the mirror failed to execute，will try", map[string]string{"step": "build-exector", "status": "failure"})
-				} else {
-					ErrorNum++
-					i.Logger.Error("The application task to build from the image failed to execute", map[string]string{"step": "callback", "status": "failure"})
-					if err := i.UpdateVersionInfo("failure"); err != nil {
-						logrus.Debugf("update version Info error: %s", err.Error())
-					}
-				}
-			} else {
-				var configs = make(map[string]string, len(i.Configs))
-				for k, v := range i.Configs {
-					configs[k] = v.String()
-				}
-				err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, configs, i.Logger)
-				if err != nil {
-					i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
-				}
-				break
-			}
+	logrus.Debugf("start build from image worker")
+	defer event.GetManager().ReleaseLogger(i.Logger)
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println(r)
+			debug.PrintStack()
+			i.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
-}
-
-//buildFromSourceCode build app from source code
-//support git repository
-func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
-	i := NewSouceCodeBuildItem(task.TaskBody)
-	i.DockerClient = e.DockerClient
-	i.Logger.Info("Build app version from source code start", map[string]string{"step": "builder-exector", "status": "starting"})
-	go func() {
-		start := time.Now()
-		e.removeTask(task)
-		logrus.Debugf("start build from source code")
-		defer event.GetManager().ReleaseLogger(i.Logger)
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Println(r)
-				debug.PrintStack()
-				i.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "callback", "status": "failure"})
-			}
-		}()
-		defer func() {
-			logrus.Debugf("Complete build from source code, consuming time %s", time.Now().Sub(start).String())
-		}()
+	start := time.Now()
+	defer func() {
+		logrus.Debugf("complete build from source code, consuming time %s", time.Now().Sub(start).String())
+	}()
+	for n := 0; n < 2; n++ {
 		err := i.Run(time.Minute * 30)
 		if err != nil {
-			logrus.Errorf("build from source code error: %s", err.Error())
-			i.Logger.Error("Build app version from source code failure", map[string]string{"step": "callback", "status": "failure"})
-			vi := &dbmodel.VersionInfo{
-				FinalStatus: "failure",
-				EventID:     i.EventID,
-				CodeVersion: i.commit.Hash,
-				CommitMsg:   i.commit.Message,
-				Author:      i.commit.Author,
-			}
-			if err := i.UpdateVersionInfo(vi); err != nil {
-				logrus.Debugf("update version Info error: %s", err.Error())
+			logrus.Errorf("build from image error: %s", err.Error())
+			if n < 1 {
+				i.Logger.Error("The application task to build from the mirror failed to execute，will try", map[string]string{"step": "build-exector", "status": "failure"})
+			} else {
+				ErrorNum++
+				i.Logger.Error("The application task to build from the image failed to execute", map[string]string{"step": "callback", "status": "failure"})
+				if err := i.UpdateVersionInfo("failure"); err != nil {
+					logrus.Debugf("update version Info error: %s", err.Error())
+				}
 			}
 		} else {
 			var configs = make(map[string]string, len(i.Configs))
@@ -256,8 +251,55 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 			if err != nil {
 				i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
 			}
+			break
+		}
+	}
+}
+
+//buildFromSourceCode build app from source code
+//support git repository
+func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
+	i := NewSouceCodeBuildItem(task.TaskBody)
+	i.DockerClient = e.DockerClient
+	i.Logger.Info("Build app version from source code start", map[string]string{"step": "builder-exector", "status": "starting"})
+	start := time.Now()
+
+	logrus.Debugf("start build from source code")
+	defer event.GetManager().ReleaseLogger(i.Logger)
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println(r)
+			debug.PrintStack()
+			i.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
+	defer func() {
+		logrus.Debugf("Complete build from source code, consuming time %s", time.Now().Sub(start).String())
+	}()
+	err := i.Run(time.Minute * 30)
+	if err != nil {
+		logrus.Errorf("build from source code error: %s", err.Error())
+		i.Logger.Error("Build app version from source code failure", map[string]string{"step": "callback", "status": "failure"})
+		vi := &dbmodel.VersionInfo{
+			FinalStatus: "failure",
+			EventID:     i.EventID,
+			CodeVersion: i.commit.Hash,
+			CommitMsg:   i.commit.Message,
+			Author:      i.commit.Author,
+		}
+		if err := i.UpdateVersionInfo(vi); err != nil {
+			logrus.Debugf("update version Info error: %s", err.Error())
+		}
+	} else {
+		var configs = make(map[string]string, len(i.Configs))
+		for k, v := range i.Configs {
+			configs[k] = v.String()
+		}
+		err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, configs, i.Logger)
+		if err != nil {
+			i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
+		}
+	}
 }
 
 //buildFromMarketSlug build app from market slug
@@ -272,7 +314,6 @@ func (e *exectorManager) buildFromMarketSlug(task *pb.TaskMessage) {
 	}
 	go func() {
 		start := time.Now()
-		e.removeTask(task)
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
 			if r := recover(); r != nil {
@@ -352,7 +393,6 @@ func (e *exectorManager) slugShare(task *pb.TaskMessage) {
 	i.Logger.Info("开始分享应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
 	go func() {
-		defer e.removeTask(task)
 		defer event.GetManager().ReleaseLogger(i.Logger)
 		defer func() {
 			if r := recover(); r != nil {
@@ -392,42 +432,46 @@ func (e *exectorManager) imageShare(task *pb.TaskMessage) {
 	}
 	i.Logger.Info("开始分享应用", map[string]string{"step": "builder-exector", "status": "starting"})
 	status := "success"
-	go func() {
-		e.removeTask(task)
-		defer event.GetManager().ReleaseLogger(i.Logger)
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Println(r)
-				debug.PrintStack()
-				i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
-			}
-		}()
-		for n := 0; n < 2; n++ {
-			err := i.ShareService()
-			if err != nil {
-				logrus.Errorf("image share error: %s", err.Error())
-				if n < 1 {
-					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
-				} else {
-					ErrorNum++
-					i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
-					status = "failure"
-				}
-			} else {
-				status = "success"
-				break
-			}
-		}
-		if err := i.UpdateShareStatus(status); err != nil {
-			logrus.Debugf("Add image share result error: %s", err.Error())
+	defer event.GetManager().ReleaseLogger(i.Logger)
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println(r)
+			debug.PrintStack()
+			i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
+	for n := 0; n < 2; n++ {
+		err := i.ShareService()
+		if err != nil {
+			logrus.Errorf("image share error: %s", err.Error())
+			if n < 1 {
+				i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
+			} else {
+				ErrorNum++
+				i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
+				status = "failure"
+			}
+		} else {
+			status = "success"
+			break
+		}
+	}
+	if err := i.UpdateShareStatus(status); err != nil {
+		logrus.Debugf("Add image share result error: %s", err.Error())
+	}
 }
 
 func (e *exectorManager) Start() error {
+	go e.RunTask()
 	return nil
 }
 func (e *exectorManager) Stop() error {
+	e.cancel()
+	for task := range e.tasks {
+		if e.callback != nil {
+			e.callback <- task
+		}
+	}
 	logrus.Info("Waiting for all threads to exit.")
 	i := 0
 	timer := time.NewTimer(time.Second * 2)
@@ -437,7 +481,12 @@ func (e *exectorManager) Stop() error {
 			logrus.Errorf("There are %d tasks not completed", len(e.tasks))
 			return fmt.Errorf("There are %d tasks not completed ", len(e.tasks))
 		}
-		if len(e.tasks) == 0 {
+		runningTaskSum := 0
+		e.runningTask.Range(func(k, v interface{}) bool {
+			runningTaskSum++
+			return true
+		})
+		if runningTaskSum == 0 {
 			break
 		}
 		select {
@@ -448,10 +497,4 @@ func (e *exectorManager) Stop() error {
 	}
 	logrus.Info("All threads is exited.")
 	return nil
-}
-
-func (e *exectorManager) removeTask(task *pb.TaskMessage) {
-	e.taskLock.Lock()
-	defer e.taskLock.Unlock()
-	delete(e.tasks, task)
 }

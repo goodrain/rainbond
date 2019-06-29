@@ -24,10 +24,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/fsnotify/fsnotify"
 	"github.com/goodrain/rainbond/builder"
@@ -45,11 +48,13 @@ type slugBuild struct {
 	tgzDir        string
 	buildCacheDir string
 	sourceDir     string
+	re            *Request
 }
 
 func (s *slugBuild) Build(re *Request) (*Response, error) {
 	re.Logger.Info(util.Translation("Start compiling the source code"), map[string]string{"step": "build-exector"})
 	s.tgzDir = re.TGZDir
+	s.re = re
 	s.buildCacheDir = re.CacheDir
 	packageName := fmt.Sprintf("%s/%s.tgz", s.tgzDir, re.DeployVersion)
 	if err := s.runBuildContainer(re); err != nil {
@@ -68,12 +73,83 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 			map[string]string{"step": "build-code", "status": "failure"})
 		return nil, fmt.Errorf("build package failure")
 	}
+	//After 5.1.5 version, wrap slug pacage in the runner image
+	imageName, err := s.buildRunnerImage(packageName)
+	if err != nil {
+		re.Logger.Error(util.Translation("Build runner image failure"),
+			map[string]string{"step": "build-code", "status": "failure"})
+		return nil, fmt.Errorf("build runner image failure")
+	}
 	re.Logger.Info(util.Translation("Compiling the source code SUCCESS"), map[string]string{"step": "build-code", "status": "success"})
 	res := &Response{
-		MediumType: "slug",
-		MediumPath: packageName,
+		MediumType: ImageMediumType,
+		MediumPath: imageName,
 	}
 	return res, nil
+}
+func (s *slugBuild) writeRunDockerfile(sourceDir, packageName string, envs map[string]string) error {
+	runDockerfile := `
+	 FROM %s
+	 COPY %s /tmp/slug/slug.tgz
+	 RUN chown rain:rain /tmp/slug/slug.tgz
+	`
+	result := util.ParseVariable(string(fmt.Sprintf(runDockerfile, builder.RUNNERIMAGENAME, packageName)), envs)
+	return ioutil.WriteFile(path.Join(sourceDir, "Dockerfile"), []byte(result), 0755)
+}
+
+//buildRunnerImage Wrap slug in the runner image
+func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
+	imageName := fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, s.re.ServiceID, s.re.DeployVersion)
+	cacheDir := path.Join(path.Dir(slugPackage), "."+s.re.DeployVersion)
+	if err := util.CheckAndCreateDir(cacheDir); err != nil {
+		return "", fmt.Errorf("create cache package dir failure %s", err.Error())
+	}
+	packageName := path.Base(slugPackage)
+	if err := util.Rename(slugPackage, path.Join(cacheDir, packageName)); err != nil {
+		return "", fmt.Errorf("move code package failure %s", err.Error())
+	}
+	//write default runtime dockerfile
+	if err := s.writeRunDockerfile(cacheDir, packageName, s.re.BuildEnvs); err != nil {
+		return "", fmt.Errorf("write default runtime dockerfile error:%s", err.Error())
+	}
+	//build runtime image
+	runbuildOptions := types.ImageBuildOptions{
+		Tags:   []string{imageName},
+		Remove: true,
+	}
+	if _, ok := s.re.BuildEnvs["NO_CACHE"]; ok {
+		runbuildOptions.NoCache = true
+	} else {
+		runbuildOptions.NoCache = false
+	}
+	err := sources.ImageBuild(s.re.DockerClient, cacheDir, runbuildOptions, s.re.Logger, 30)
+	if err != nil {
+		s.re.Logger.Error(fmt.Sprintf("build image %s of new version failure", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
+		logrus.Errorf("build image error: %s", err.Error())
+		return "", err
+	}
+	// check build image exist
+	_, err = sources.ImageInspectWithRaw(s.re.DockerClient, imageName)
+	if err != nil {
+		s.re.Logger.Error(fmt.Sprintf("build image %s of service version failure", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
+		logrus.Errorf("get image inspect error: %s", err.Error())
+		return "", err
+	}
+	s.re.Logger.Info("build image of new version success, will push to local registry", map[string]string{"step": "builder-exector"})
+	err = sources.ImagePush(s.re.DockerClient, imageName, builder.REGISTRYUSER, builder.REGISTRYPASS, s.re.Logger, 10)
+	if err != nil {
+		s.re.Logger.Error("push image failure", map[string]string{"step": "builder-exector"})
+		logrus.Errorf("push image error: %s", err.Error())
+		return "", err
+	}
+	s.re.Logger.Info("push image of new version success", map[string]string{"step": "builder-exector"})
+	if err := sources.ImageRemove(s.re.DockerClient, imageName); err != nil {
+		logrus.Errorf("remove image %s failure %s", imageName, err.Error())
+	}
+	if err := os.RemoveAll(cacheDir); err != nil {
+		logrus.Errorf("remove cache dir %s failure %s", cacheDir, err.Error())
+	}
+	return imageName, nil
 }
 
 func (s *slugBuild) readLogFile(logfile string, logger event.Logger, closed chan struct{}) {
@@ -228,7 +304,6 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 	statuschan := containerService.WaitExitOrRemoved(containerID, true)
 	//start the container
 	if err := containerService.StartContainer(containerID); err != nil {
-
 		containerService.RemoveContainer(containerID)
 		return fmt.Errorf("start builder container error:%s", err.Error())
 	}

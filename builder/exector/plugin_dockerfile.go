@@ -54,31 +54,28 @@ func (e *exectorManager) pluginDockerfileBuild(task *pb.TaskMessage) {
 	eventID := tb.EventID
 	logger := event.GetManager().GetLogger(eventID)
 	logger.Info("从dockerfile构建插件任务开始执行", map[string]string{"step": "builder-exector", "status": "starting"})
-	go func() {
-		logrus.Info("start exec build plugin from image worker")
-		defer e.removeTask(task)
-		defer event.GetManager().ReleaseLogger(logger)
-		for retry := 0; retry < 2; retry++ {
-			err := e.runD(&tb, logger)
-			if err != nil {
-				logrus.Errorf("exec plugin build from dockerfile error:%s", err.Error())
-				logger.Info("dockerfile构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
-			} else {
-				return
-			}
-		}
-		version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByDeployVersion(tb.PluginID, tb.VersionID, tb.DeployVersion)
+	logrus.Info("start exec build plugin from image worker")
+	defer event.GetManager().ReleaseLogger(logger)
+	for retry := 0; retry < 2; retry++ {
+		err := e.runD(&tb, logger)
 		if err != nil {
-			logrus.Errorf("get version error, %v", err)
+			logrus.Errorf("exec plugin build from dockerfile error:%s", err.Error())
+			logger.Info("dockerfile构建插件任务执行失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
+		} else {
 			return
 		}
-		version.Status = "failure"
-		if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
-			logrus.Errorf("update version error, %v", err)
-		}
-		ErrorNum += 1
-		logger.Error("dockerfile构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
-	}()
+	}
+	version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByDeployVersion(tb.PluginID, tb.VersionID, tb.DeployVersion)
+	if err != nil {
+		logrus.Errorf("get version error, %v", err)
+		return
+	}
+	version.Status = "failure"
+	if err := db.GetManager().TenantPluginBuildVersionDao().UpdateModel(version); err != nil {
+		logrus.Errorf("update version error, %v", err)
+	}
+	ErrorNum += 1
+	logger.Error("dockerfile构建插件任务执行失败", map[string]string{"step": "callback", "status": "failure"})
 }
 
 func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger) error {
