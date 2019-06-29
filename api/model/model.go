@@ -1471,7 +1471,6 @@ type BuildInfoRequestStruct struct {
 	EventID string `json:"event_id"`
 	// 部署的版本号
 	// in: body
-	// required: true
 	DeployVersion string `json:"deploy_version" validate:"deploy_version"`
 	//build form image
 	ImageInfo BuildImageInfo `json:"image_info,omitempty"`
