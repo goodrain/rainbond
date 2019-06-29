@@ -248,6 +248,10 @@ func (o *OperationHandler) Upgrade(ru model.UpgradeInfoRequestStruct) (re Operat
 		}
 	}
 	re.EventID = eventBody.EventID
+	// By default, the same version is updated
+	if ru.UpgradeVersion == "" {
+		ru.UpgradeVersion = services.DeployVersion
+	}
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(ru.UpgradeVersion, ru.ServiceID)
 	if err != nil {
 		logrus.Errorf("get service version by id %s version %s error, %s", ru.ServiceID, ru.UpgradeVersion, err.Error())

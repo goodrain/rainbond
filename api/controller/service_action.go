@@ -20,11 +20,13 @@ package controller
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/db/errors"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/goodrain/rainbond/db/errors"
+	validator "github.com/thedevsaddam/govalidator"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
@@ -39,7 +41,6 @@ import (
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
-	"github.com/thedevsaddam/govalidator"
 )
 
 //TIMELAYOUT timelayout
@@ -694,40 +695,26 @@ func (t *TenantStruct) DeployService(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
-	rules := validator.MapData{
-		"deploy_version": []string{"required"},
-	}
-	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
+	var upgradeRequest api_model.UpgradeInfoRequestStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &upgradeRequest, nil)
 	if !ok {
+		logrus.Errorf("start operation validate request body failure")
 		return
 	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-
-	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "update", tenantID, data["deploy_version"].(string))
+	sEvent, status, err := createEvent(upgradeRequest.EventID, serviceID, "update", tenantID, upgradeRequest.UpgradeVersion)
 	handleStatus(status, err, w, r)
 	if status != 0 {
 		return
 	}
-
 	eventID := sEvent.EventID
+	upgradeRequest.EventID = eventID
 	logger := event.GetManager().GetLogger(eventID)
 	defer event.CloseManager()
-	newDeployVersion := data["deploy_version"].(string)
-	//两个deploy version
-	upgradeTask := &model.RollingUpgradeTaskBody{
-		TenantID:         tenantID,
-		ServiceID:        serviceID,
-		NewDeployVersion: newDeployVersion,
-		EventID:          eventID,
-	}
-	if err := handler.GetServiceManager().ServiceUpgrade(upgradeTask); err != nil {
-		logger.Error("应用升级任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("service upgrade error, %v", err))
-		return
-	}
-	logger.Info("应用升级任务发送成功 ", map[string]string{"step": "upgrade-service", "status": "starting"})
-	httputil.ReturnSuccess(r, w, sEvent)
+	re := handler.GetOperationHandler().Upgrade(upgradeRequest)
+	logger.Info("The application upgrade task was sent successfully", map[string]string{"step": "upgrade-service", "status": "starting"})
+	httputil.ReturnSuccess(r, w, re)
 }
 
 //CheckCode CheckCode

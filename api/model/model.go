@@ -1488,6 +1488,7 @@ type BuildInfoRequestStruct struct {
 //UpgradeInfoRequestStruct -
 type UpgradeInfoRequestStruct struct {
 	//UpgradeVersion The target version of the upgrade
+	//If empty, the same version is upgraded
 	UpgradeVersion string `json:"upgrade_version"`
 	//Event trace ID
 	EventID   string            `json:"event_id"`
