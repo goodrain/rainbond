@@ -31,7 +31,7 @@ func TestGetARGs(t *testing.T) {
 	if v := buildEnvs["ARG_TEST"]; *args["TEST"] != v {
 		t.Errorf("Expected %s for arg[\"%s\"], but returned %s", buildEnvs["ARG_TEST"], "ARG_TEST", *args["TEST"])
 	}
-	if PROC_ENV := args["PROC_ENV"]; PROC_ENV != nil {
-		t.Errorf("Expected nil for  args[\"PROC_ENV\"], but returned %v", PROC_ENV)
+	if procEnv := args["PROC_ENV"]; procEnv != nil {
+		t.Errorf("Expected nil for  args[\"PROC_ENV\"], but returned %v", procEnv)
 	}
 }
