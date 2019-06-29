@@ -669,8 +669,7 @@ func MergeDir(fromdir, todir string) error {
 //CreateVersionByTime create version number
 func CreateVersionByTime() string {
 	now := time.Now()
-	re := fmt.Sprintf("%d%d%d%d%d%d", now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
-	return re
+	return now.Format("20060102150405")
 }
 
 // GetDirList get all lower level dir
