@@ -110,11 +110,13 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 	for i, now := range nowServices {
 		nowServiceMaps[now.Name] = nowServices[i]
 	}
-	for _, new := range newService {
+	for i := range newService {
+		new := newService[i]
 		if nowConfig, ok := nowServiceMaps[new.Name]; ok {
-			new.UID = nowConfig.UID
-			new.ResourceVersion = nowConfig.ResourceVersion
-			newc, err := s.manager.client.CoreV1().Services(nowApp.TenantID).Update(new)
+			nowConfig.Spec.Ports = new.Spec.Ports
+			nowConfig.Spec.Type = new.Spec.Type
+			nowConfig.Labels = new.Labels
+			newc, err := s.manager.client.CoreV1().Services(nowApp.TenantID).Update(nowConfig)
 			if err != nil {
 				logrus.Errorf("update service failure %s", err.Error())
 			}
