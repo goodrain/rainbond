@@ -92,8 +92,9 @@ func (s *slugBuild) writeRunDockerfile(sourceDir, packageName string, envs map[s
 	 FROM %s
 	 COPY %s /tmp/slug/slug.tgz
 	 RUN chown rain:rain /tmp/slug/slug.tgz
+	 ENV VERSION=%s
 	`
-	result := util.ParseVariable(string(fmt.Sprintf(runDockerfile, builder.RUNNERIMAGENAME, packageName)), envs)
+	result := util.ParseVariable(fmt.Sprintf(runDockerfile, builder.RUNNERIMAGENAME, packageName, s.re.DeployVersion), envs)
 	return ioutil.WriteFile(path.Join(sourceDir, "Dockerfile"), []byte(result), 0755)
 }
 
