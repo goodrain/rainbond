@@ -85,6 +85,7 @@ func (o *OperationHandler) Build(buildInfo model.BuildInfoRequestStruct) (re Ope
 		Kind:         buildInfo.Kind,
 		BuildVersion: buildInfo.DeployVersion,
 		Cmd:          buildInfo.ImageInfo.Cmd,
+		Author:       buildInfo.Operator,
 	}
 	serviceID := buildInfo.ServiceID
 	err = db.GetManager().VersionInfoDao().AddModel(&version)
