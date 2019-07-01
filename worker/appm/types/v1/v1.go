@@ -575,7 +575,7 @@ func GetTCPMeshImageName() string {
 	if d := os.Getenv("TCPMESH_DEFAULT_IMAGE_NAME"); d != "" {
 		return d
 	}
-	return builder.REGISTRYDOMAIN + "/mesh-data-panel"
+	return builder.REGISTRYDOMAIN + "/rbd-mesh-data-panel"
 }
 
 //GetProbeMeshImageName get probe init mesh image name
