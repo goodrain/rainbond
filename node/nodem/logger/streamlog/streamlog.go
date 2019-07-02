@@ -291,9 +291,7 @@ func (s *StreamLog) Log(msg *logger.Message) error {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString(s.containerID[0:12] + ",")
 	buf.WriteString(s.serviceID)
-	if len(msg.Line) > 8 {
-		buf.Write(msg.Line[8:])
-	}
+	buf.Write(msg.Line)
 	s.cache(buf.String())
 	return nil
 }
