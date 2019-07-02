@@ -28,6 +28,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -290,8 +291,15 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 			// Retry
 			containerID, err = containerService.CreateContainer(containerConfig)
 		}
+		//The container already exists.
+		if err != nil && strings.Contains(err.Error(), "is already in use by container") {
+			//remove exist container
+			containerService.RemoveContainer(containerID)
+			// Retry
+			containerID, err = containerService.CreateContainer(containerConfig)
+		}
 		if err != nil {
-			return fmt.Errorf("create builder container error:%s", err.Error())
+			return fmt.Errorf("create builder container failure %s", err.Error())
 		}
 	}
 	errchan := make(chan error, 1)

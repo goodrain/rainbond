@@ -20,11 +20,12 @@ package dao
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/db/dao"
 	"os"
 	"reflect"
 	"strconv"
 	"time"
+
+	"github.com/goodrain/rainbond/db/dao"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/errors"
@@ -740,10 +741,14 @@ func (t *TenantServiceEnvVarDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel 更新应用环境变量,只能更新环境变量值
+//UpdateModel update env support attr_value\is_change\scope
 func (t *TenantServiceEnvVarDaoImpl) UpdateModel(mo model.Interface) error {
 	env := mo.(*model.TenantServiceEnvVar)
-	return t.DB.Table(env.TableName()).Where("service_id=? and attr_name = ?", env.ServiceID, env.AttrName).Update("attr_value", env.AttrValue).Error
+	return t.DB.Table(env.TableName()).Where("service_id=? and attr_name = ?", env.ServiceID, env.AttrName).Update(map[string]interface{}{
+		"attr_value": env.AttrValue,
+		"is_change":  env.IsChange,
+		"scope":      env.Scope,
+	}).Error
 }
 
 //DeleteModel 删除env
