@@ -527,7 +527,7 @@ func getContainerIDAndState(status corev1.ContainerStatus) (cid, s string) {
 	state := status.State
 	containerID := status.ContainerID
 	if state.Running != nil {
-		s = "Running"
+		s = fmt.Sprintf("Running(%s)", state.Running.StartedAt.Format(time.RFC3339))
 	}
 	if state.Waiting != nil {
 		s = "Waiting"
