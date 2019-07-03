@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -320,6 +321,19 @@ func (i *ExportApp) exportSlug(serviceDir string, app gjson.Result) error {
 	return nil
 }
 
+func (i *ExportApp) exportConfigFile(serviceDir string, v gjson.Result) error {
+	if v.Get("volume_type").String() != "config-file" {
+		return nil
+	}
+	serviceDir = strings.TrimRight(serviceDir, "/")
+	fc := v.Get("file_content").String()
+	vp := v.Get("volume_path").String()
+	filename := fmt.Sprintf("%s%s", serviceDir, vp)
+	dir := path.Dir(filename)
+	os.MkdirAll(dir, 0755)
+	return ioutil.WriteFile(filename, []byte(fc), 0644)
+}
+
 func (i *ExportApp) savePlugins() error {
 	i.Logger.Info("Parsing plugin information", map[string]string{"step": "export-plugins", "status": "success"})
 
@@ -386,6 +400,17 @@ func (i *ExportApp) saveApps() error {
 		logrus.Debug("Create directory for export app: ", serviceDir)
 		shareSlugPath := app.Get("share_slug_path").String()
 		shareImage := app.Get("share_image").String()
+
+		volumes := app.Get("service_volume_map_list").Array()
+		if volumes != nil && len(volumes) > 0 {
+			for _, v := range volumes {
+				err := i.exportConfigFile(serviceDir, v)
+				if err != nil {
+					logrus.Errorf("error exporting config file: %v", err)
+					return err
+				}
+			}
+		}
 		if shareSlugPath != "" {
 			// app is slug type
 			if err := i.exportSlug(serviceDir, app); err != nil {
@@ -537,9 +562,13 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 			volumeName := item.Get("volume_name").String()
 			volumeName = buildToLinuxFileName(volumeName)
 			volumePath := item.Get("volume_path").String()
-
-			y.Volumes[volumeName] = ""
-			volumes = append(volumes, fmt.Sprintf("%s:%s", volumeName, volumePath))
+			if item.Get("volume_type").String() == "config-file" {
+				volume := fmt.Sprintf("__GROUP_DIR__/%s/%s:%s", appName, volumePath, volumePath)
+				volumes = append(volumes, volume)
+			} else {
+				y.Volumes[volumeName] = ""
+				volumes = append(volumes, fmt.Sprintf("%s:%s", volumeName, volumePath))
+			}
 		}
 
 		lang := app.Get("language").String()
