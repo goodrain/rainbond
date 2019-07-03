@@ -95,23 +95,38 @@ const (
 	KeyBaseEjectionTimeMS string = "BaseEjectionTimeMS"
 	//KeyMaxEjectionPercent MaxEjectionPercent key
 	KeyMaxEjectionPercent string = "MaxEjectionPercent"
+	// KeyMaxRequestsPerConnection Optional maximum requests for a single upstream connection. This parameter
+	// is respected by both the HTTP/1.1 and HTTP/2 connection pool
+	// implementations. If not specified, there is no limit. Setting this
+	// parameter to 1 will effectively disable keep alive.
+	KeyMaxRequestsPerConnection string = "MaxRequestsPerConnection"
+	// KeyHealthyPanicThreshold default 50,More than 50% of hosts are ejected and go into panic mode
+	// Panic mode will send traffic back to the failed host
+	KeyHealthyPanicThreshold string = "HealthyPanicThreshold"
 )
 
 //RainbondPluginOptions rainbond plugin config struct
 type RainbondPluginOptions struct {
-	Prefix             string
-	MaxConnections     int
-	MaxRequests        int
-	MaxPendingRequests int
-	MaxActiveRetries   int
-	Headers            v1.Headers
-	Domains            []string
-	Weight             uint32
-	//second
-	Interval           int64
-	ConsecutiveErrors  int
-	BaseEjectionTimeMS int64
-	MaxEjectionPercent int
+	Prefix                   string
+	MaxConnections           int
+	MaxRequests              int
+	MaxPendingRequests       int
+	MaxActiveRetries         int
+	Headers                  v1.Headers
+	Domains                  []string
+	Weight                   uint32
+	Interval                 int64
+	ConsecutiveErrors        int
+	BaseEjectionTimeMS       int64
+	MaxEjectionPercent       int
+	MaxRequestsPerConnection *uint32
+	HealthyPanicThreshold    int64
+}
+
+//RainbondInboundPluginOptions rainbond inbound plugin options
+type RainbondInboundPluginOptions struct {
+	OpenLimit   bool
+	LimitDomain string
 }
 
 //RouteBasicHash get basic hash for weight
@@ -130,17 +145,18 @@ func (r RainbondPluginOptions) RouteBasicHash() string {
 //if not exist,return default value
 func GetOptionValues(sr map[string]interface{}) RainbondPluginOptions {
 	rpo := RainbondPluginOptions{
-		Prefix:             "/",
-		MaxConnections:     1024,
-		MaxRequests:        1024,
-		MaxPendingRequests: 1024,
-		MaxActiveRetries:   3,
-		Domains:            []string{"*"},
-		Weight:             100,
-		Interval:           10,
-		ConsecutiveErrors:  5,
-		BaseEjectionTimeMS: 30000,
-		MaxEjectionPercent: 10,
+		Prefix:                "/",
+		MaxConnections:        1024,
+		MaxRequests:           1024,
+		MaxPendingRequests:    1024,
+		MaxActiveRetries:      3,
+		Domains:               []string{"*"},
+		Weight:                100,
+		Interval:              10,
+		ConsecutiveErrors:     5,
+		BaseEjectionTimeMS:    30000,
+		MaxEjectionPercent:    10,
+		HealthyPanicThreshold: 50,
 	}
 	if sr == nil {
 		return rpo
@@ -204,11 +220,43 @@ func GetOptionValues(sr map[string]interface{}) RainbondPluginOptions {
 			}
 		case KeyMaxEjectionPercent:
 			if i, err := strconv.Atoi(v.(string)); err == nil && i != 0 {
-				rpo.MaxEjectionPercent = i
+				if i > 100 {
+					rpo.MaxEjectionPercent = 100
+				} else {
+					rpo.MaxEjectionPercent = i
+				}
+			}
+		case KeyMaxRequestsPerConnection:
+			if i, err := strconv.Atoi(v.(string)); err == nil && i != 0 {
+				value := uint32(i)
+				rpo.MaxRequestsPerConnection = &value
+			}
+		case KeyHealthyPanicThreshold:
+			if i, err := strconv.Atoi(v.(string)); err == nil && i != 0 {
+				if i > 100 {
+					rpo.HealthyPanicThreshold = 100
+				} else {
+					rpo.HealthyPanicThreshold = int64(i)
+				}
 			}
 		}
 	}
 	return rpo
+}
+
+//GetRainbondInboundPluginOptions get rainbond inbound plugin options
+func GetRainbondInboundPluginOptions(sr map[string]interface{}) (r RainbondInboundPluginOptions) {
+	for k, v := range sr {
+		switch k {
+		case "OPEN_LIMIT":
+			if strings.ToLower(v.(string)) == "yes" || strings.ToLower(v.(string)) == "true" {
+				r.OpenLimit = true
+			}
+		case "LIMIT_DOMAIN":
+			r.LimitDomain = v.(string)
+		}
+	}
+	return
 }
 
 //ParseLocalityLbEndpointsResource parse envoy xds server response ParseLocalityLbEndpointsResource

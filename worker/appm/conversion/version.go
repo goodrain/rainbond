@@ -22,12 +22,14 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util"
@@ -230,16 +232,9 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	if err != nil {
 		return nil, err
 	}
-
-	minContainerPort := 65535
-	var minPort *dbmodel.TenantServicesPort
 	if ports != nil && len(ports) > 0 {
 		var portStr string
 		for i, port := range ports {
-			if port.ContainerPort < minContainerPort {
-				minContainerPort = port.ContainerPort
-				minPort = port
-			}
 			if i == 0 {
 				envs = append(envs, corev1.EnvVar{Name: "PORT", Value: strconv.Itoa(ports[0].ContainerPort)})
 				envs = append(envs, corev1.EnvVar{Name: "PROTOCOL", Value: ports[0].Protocol})
@@ -248,15 +243,8 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 				portStr += ":"
 			}
 			portStr += fmt.Sprintf("%d", port.ContainerPort)
-			if *port.IsOuterService && (port.Protocol == "http" || port.Protocol == "https") {
-				envs = append(envs, corev1.EnvVar{Name: "DEFAULT_DOMAIN", Value: createDefaultDomain(as.TenantName, as.ServiceAlias, port.ContainerPort)})
-			}
-			renvs := convertRulesToEnvs(as, dbmanager, port, true)
-			if envs != nil && len(envs) > 0 {
-				envs = append(envs, renvs...)
-			}
 		}
-		menvs := convertRulesToEnvs(as, dbmanager, minPort, false)
+		menvs := convertRulesToEnvs(as, dbmanager, ports)
 		if envs != nil && len(envs) > 0 {
 			envs = append(envs, menvs...)
 		}
@@ -309,50 +297,85 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	return &envs, nil
 }
 
-func convertRulesToEnvs(as *v1.AppService, dbmanager db.Manager, port *dbmodel.TenantServicesPort, usePort bool) []corev1.EnvVar {
-	if !*port.IsOuterService {
-		return nil
-	}
-
-	defDomain := createDefaultDomain(as.TenantName, as.ServiceAlias, port.ContainerPort)
-	var values []string
-	if port.Protocol == "http" || port.Protocol == "https" {
-		httpRules, err := dbmanager.HTTPRuleDao().GetHTTPRuleByServiceIDAndContainerPort(as.ServiceID, port.ContainerPort)
-		if err == nil {
-			for _, rule := range httpRules {
-				if rule.Domain == defDomain {
-					continue
+func convertRulesToEnvs(as *v1.AppService, dbmanager db.Manager, ports []*dbmodel.TenantServicesPort) (re []corev1.EnvVar) {
+	defDomain := fmt.Sprintf(".%s.%s.", as.ServiceAlias, as.TenantName)
+	httpRules, _ := dbmanager.HTTPRuleDao().ListByServiceID(as.ServiceID)
+	portDomainEnv := make(map[int][]corev1.EnvVar)
+	portProtocolEnv := make(map[int][]corev1.EnvVar)
+	for i := range httpRules {
+		rule := httpRules[i]
+		portDomainEnv[rule.ContainerPort] = append(portDomainEnv[rule.ContainerPort], corev1.EnvVar{
+			Name:  fmt.Sprintf("DOMAIN_%d", rule.ContainerPort),
+			Value: rule.Domain,
+		})
+		portProtocolEnv[rule.ContainerPort] = append(portProtocolEnv[rule.ContainerPort], corev1.EnvVar{
+			Name: fmt.Sprintf("DOMAIN_PROTOCOL_%d", rule.ContainerPort),
+			Value: func() string {
+				if rule.CertificateID != "" {
+					return "https"
 				}
-				values = append(values, rule.Domain)
+				return "http"
+			}(),
+		})
+	}
+	var portInts []int
+	for _, port := range ports {
+		if *port.IsOuterService {
+			portInts = append(portInts, port.ContainerPort)
+		}
+	}
+	sort.Ints(portInts)
+	var gloalDomain, gloalDomainProcotol string
+	var firstDomain, firstDomainProcotol string
+	for _, p := range portInts {
+		if len(portDomainEnv[p]) == 0 {
+			continue
+		}
+		var portDomain, portDomainProcotol string
+		for i, renv := range portDomainEnv[p] {
+			//custom http rule
+			if !strings.Contains(renv.Value, defDomain) {
+				if gloalDomain == "" {
+					gloalDomain = renv.Value
+					gloalDomainProcotol = portProtocolEnv[p][i].Value
+				}
+				portDomain = renv.Value
+				portDomainProcotol = portProtocolEnv[p][i].Value
+				break
+			}
+			if firstDomain == "" {
+				firstDomain = renv.Value
+				firstDomainProcotol = portProtocolEnv[p][i].Value
 			}
 		}
-	} else { // TODO: enable tcp rules
-		// tcpRules, err := dbmanager.TCPRuleDao().GetTCPRuleByServiceIDAndContainerPort(as.ServiceID, port.ContainerPort)
-		// if err == nil {
-		// 	for _, rule := range tcpRules {
-		// 		if rule.IP == "" {
-		// 			values = append(values, "0.0.0.0")
-		// 			continue
-		// 		}
-		// 		values = append(values, rule.IP)
-		// 	}
-		// }
+		if portDomain == "" {
+			portDomain = portDomainEnv[p][0].Value
+			portDomainProcotol = portProtocolEnv[p][0].Value
+		}
+		re = append(re, corev1.EnvVar{
+			Name:  fmt.Sprintf("DOMAIN_%d", p),
+			Value: portDomain,
+		})
+		re = append(re, corev1.EnvVar{
+			Name:  fmt.Sprintf("DOMAIN_PROTOCOL_%d", p),
+			Value: portDomainProcotol,
+		})
 	}
-
-	var envs []corev1.EnvVar
-	for idx, value := range values {
-		en := func(idx int) string {
-			if !usePort {
-				return "DOMAIN"
-			}
-			if idx == 0 {
-				return fmt.Sprintf("DOMAIN_%d", port.ContainerPort)
-			}
-			return fmt.Sprintf("DOMAIN_%d_%d", port.ContainerPort, idx)
-		}(idx)
-		envs = append(envs, corev1.EnvVar{Name: en, Value: value})
+	if gloalDomain == "" {
+		gloalDomain = firstDomain
+		gloalDomainProcotol = firstDomainProcotol
 	}
-	return envs
+	if gloalDomain != "" {
+		re = append(re, corev1.EnvVar{
+			Name:  "DOMAIN",
+			Value: gloalDomain,
+		})
+		re = append(re, corev1.EnvVar{
+			Name:  "DOMAIN_PROTOCOL",
+			Value: gloalDomainProcotol,
+		})
+	}
+	return
 }
 
 func getMemoryType(memorySize int) string {
@@ -730,9 +753,18 @@ func createResources(as *v1.AppService) corev1.ResourceRequirements {
 }
 
 func checkUpstreamPluginRelation(serviceID string, dbmanager db.Manager) (bool, error) {
+	inBoundOK, err := dbmanager.TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
+		serviceID,
+		model.InBoundNetPlugin)
+	if err != nil {
+		return false, err
+	}
+	if inBoundOK {
+		return inBoundOK, nil
+	}
 	return dbmanager.TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
 		serviceID,
-		dbmodel.UpNetPlugin)
+		model.InBoundAndOutBoundNetPlugin)
 }
 func createUpstreamPluginMappingPort(
 	ports []*dbmodel.TenantServicesPort,
@@ -762,9 +794,7 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 		}
 		if crt {
 			pluginPorts, err := dbmanager.TenantServicesStreamPluginPortDao().GetPluginMappingPorts(
-				as.ServiceID,
-				dbmodel.UpNetPlugin,
-			)
+				as.ServiceID)
 			if err != nil {
 				logrus.Warningf("find upstream plugin mapping port error, %s", err.Error())
 				return

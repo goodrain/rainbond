@@ -34,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 	typesv1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/jinzhu/gorm"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,13 +71,12 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 	if as.GetPodTemplate() != nil && len(as.GetPodTemplate().Spec.Containers) > 0 {
 		mainContainer = as.GetPodTemplate().Spec.Containers[0]
 	}
+	var inBoundPlugin *model.TenantServicePluginRelation
 	for _, pluginR := range appPlugins {
 		//if plugin not enable,ignore it
 		if pluginR.Switch == false {
 			continue
 		}
-		//apply plugin dynamic config
-		ApplyPluginConfig(as, pluginR, dbmanager)
 		versionInfo, err := dbmanager.TenantPluginBuildVersionDao().GetLastBuildVersionByVersionID(pluginR.PluginID, pluginR.VersionID)
 		if err != nil {
 			return nil, nil, fmt.Errorf("do not found available plugin versions")
@@ -107,7 +107,10 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 		if err != nil {
 			return nil, nil, fmt.Errorf("get plugin model info failure %s", err.Error())
 		}
-		if pluginModel == model.DownNetPlugin {
+		if pluginModel == model.InBoundAndOutBoundNetPlugin || pluginModel == model.InBoundNetPlugin {
+			inBoundPlugin = pluginR
+		}
+		if pluginModel == model.OutBoundNetPlugin || pluginModel == model.InBoundAndOutBoundNetPlugin {
 			netPlugin = true
 			meshPluginID = pluginR.PluginID
 		}
@@ -116,6 +119,23 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 		} else {
 			containers = append(containers, pc)
 		}
+	}
+	var inboundPluginConfig *api_model.ResourceSpec
+	//apply plugin dynamic config
+	if inBoundPlugin != nil {
+		config, err := dbmanager.TenantPluginVersionConfigDao().GetPluginConfig(inBoundPlugin.ServiceID,
+			inBoundPlugin.PluginID)
+		if err != nil && err != gorm.ErrRecordNotFound {
+			logrus.Errorf("get service plugin config from db failure %s", err.Error())
+		}
+		var resourceConfig api_model.ResourceSpec
+		if err := json.Unmarshal([]byte(config.ConfigStr), &resourceConfig); err == nil {
+			inboundPluginConfig = &resourceConfig
+		}
+	}
+	//create plugin config to configmap
+	for i := range appPlugins {
+		ApplyPluginConfig(as, appPlugins[i], dbmanager, inboundPluginConfig)
 	}
 	var udpDep bool
 	//if need proxy but not install net plugin
@@ -158,8 +178,13 @@ func createUDPDefaultPluginContainer(serviceID string, envs []v1.EnvVar) v1.Cont
 
 func createTCPDefaultPluginContainer(serviceID, pluginID string, envs []v1.EnvVar) v1.Container {
 	envs = append(envs, v1.EnvVar{Name: "PLUGIN_ID", Value: pluginID})
-	dockerBridgeIP, xdsHostPort := getXDSHostIPAndPort()
-	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", Value: dockerBridgeIP})
+	_, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
+	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
+		FieldRef: &corev1.ObjectFieldSelector{
+			FieldPath: "status.hostIP",
+		},
+	}})
+	envs = append(envs, v1.EnvVar{Name: "API_HOST_PORT", Value: apiHostPort})
 	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_PORT", Value: xdsHostPort})
 	return v1.Container{
 		Name:      "default-tcpmesh-" + serviceID[len(serviceID)-20:],
@@ -171,8 +196,13 @@ func createTCPDefaultPluginContainer(serviceID, pluginID string, envs []v1.EnvVa
 
 func createProbeMeshInitContainer(serviceID, pluginID, serviceAlias string, envs []v1.EnvVar) v1.Container {
 	envs = append(envs, v1.EnvVar{Name: "PLUGIN_ID", Value: pluginID})
-	dockerBridgeIP, xdsHostPort := getXDSHostIPAndPort()
-	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", Value: dockerBridgeIP})
+	_, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
+	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
+		FieldRef: &corev1.ObjectFieldSelector{
+			FieldPath: "status.hostIP",
+		},
+	}})
+	envs = append(envs, v1.EnvVar{Name: "API_HOST_PORT", Value: apiHostPort})
 	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_PORT", Value: xdsHostPort})
 	return v1.Container{
 		Name:      "probe-mesh-" + serviceID[len(serviceID)-20:],
@@ -183,12 +213,31 @@ func createProbeMeshInitContainer(serviceID, pluginID, serviceAlias string, envs
 }
 
 //ApplyPluginConfig applyPluginConfig
-func ApplyPluginConfig(as *typesv1.AppService, servicePluginRelation *model.TenantServicePluginRelation, dbmanager db.Manager) {
-	config, err := dbmanager.TenantPluginVersionConfigDao().GetPluginConfig(servicePluginRelation.ServiceID, servicePluginRelation.PluginID)
+func ApplyPluginConfig(as *typesv1.AppService, servicePluginRelation *model.TenantServicePluginRelation,
+	dbmanager db.Manager, inboundPluginConfig *api_model.ResourceSpec) {
+	config, err := dbmanager.TenantPluginVersionConfigDao().GetPluginConfig(servicePluginRelation.ServiceID,
+		servicePluginRelation.PluginID)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		logrus.Errorf("get service plugin config from db failure %s", err.Error())
 	}
 	if config != nil {
+		configStr := config.ConfigStr
+		//if have inbound plugin,will Propagate its listner port to other plug-ins
+		if inboundPluginConfig != nil {
+			var oldConfig api_model.ResourceSpec
+			if err := json.Unmarshal([]byte(configStr), &oldConfig); err == nil {
+				for i := range oldConfig.BasePorts {
+					for j := range inboundPluginConfig.BasePorts {
+						if oldConfig.BasePorts[i].Port == inboundPluginConfig.BasePorts[j].Port {
+							oldConfig.BasePorts[i].ListenPort = inboundPluginConfig.BasePorts[j].ListenPort
+						}
+					}
+				}
+				if newConfig, err := json.Marshal(&oldConfig); err == nil {
+					configStr = string(newConfig)
+				}
+			}
+		}
 		cm := &v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: fmt.Sprintf("config-%s-%s", config.ServiceID, config.PluginID),
@@ -198,7 +247,7 @@ func ApplyPluginConfig(as *typesv1.AppService, servicePluginRelation *model.Tena
 				}),
 			},
 			Data: map[string]string{
-				"plugin-config": config.ConfigStr,
+				"plugin-config": configStr,
 				"plugin-model":  servicePluginRelation.PluginModel,
 			},
 		}
@@ -252,7 +301,7 @@ func applyDefaultMeshPluginConfig(as *typesv1.AppService, dbmanager db.Manager) 
 		},
 		Data: map[string]string{
 			"plugin-config": string(resJSON),
-			"plugin-model":  model.DownNetPlugin,
+			"plugin-model":  model.OutBoundNetPlugin,
 		},
 	}
 	as.SetConfigMap(cm)
@@ -277,9 +326,10 @@ func createPluginArgs(cmd string, envs []v1.EnvVar) ([]string, error) {
 	}
 	return strings.Split(util.ParseVariable(cmd, configs), " "), nil
 }
-func getXDSHostIPAndPort() (string, string) {
+func getXDSHostIPAndPort() (string, string, string) {
 	dockerBridgeIP := "172.30.42.1"
 	xdsHostPort := "6101"
+	apiHostPort := "6100"
 	if os.Getenv("DOCKER_BRIDGE_IP") != "" {
 		dockerBridgeIP = os.Getenv("DOCKER_BRIDGE_IP")
 	}
@@ -289,7 +339,10 @@ func getXDSHostIPAndPort() (string, string) {
 	if os.Getenv("XDS_HOST_PORT") != "" {
 		xdsHostPort = os.Getenv("XDS_HOST_PORT")
 	}
-	return dockerBridgeIP, xdsHostPort
+	if os.Getenv("API_HOST_PORT") != "" {
+		apiHostPort = os.Getenv("API_HOST_PORT")
+	}
+	return dockerBridgeIP, xdsHostPort, apiHostPort
 }
 
 //container envs
@@ -306,8 +359,13 @@ func createPluginEnvs(pluginID, tenantID, serviceAlias string, mainEnvs []v1.Env
 	for _, e := range versionEnvs {
 		envs = append(envs, v1.EnvVar{Name: e.EnvName, Value: e.EnvValue})
 	}
-	dockerBridgeIP, xdsHostPort := getXDSHostIPAndPort()
-	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", Value: dockerBridgeIP})
+	dockerBridgeIP, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
+	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
+		FieldRef: &corev1.ObjectFieldSelector{
+			FieldPath: "status.hostIP",
+		},
+	}})
+	envs = append(envs, v1.EnvVar{Name: "API_HOST_PORT", Value: apiHostPort})
 	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_PORT", Value: xdsHostPort})
 	discoverURL := fmt.Sprintf(
 		"http://%s:6100/v1/resources/%s/%s/%s",
@@ -334,9 +392,9 @@ func createPluginEnvs(pluginID, tenantID, serviceAlias string, mainEnvs []v1.Env
 
 func pluginWeight(pluginModel string) int {
 	switch pluginModel {
-	case model.UpNetPlugin:
+	case model.InBoundNetPlugin:
 		return 9
-	case model.DownNetPlugin:
+	case model.OutBoundNetPlugin:
 		return 8
 	case model.GeneralPlugin:
 		return 1

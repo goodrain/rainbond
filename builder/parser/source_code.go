@@ -399,7 +399,7 @@ func getRecommendedMemory(lang code.Lang) int {
 	if lang == code.PHP {
 		return 512
 	}
-	return 128
+	return 512
 }
 
 func (d *SourceCodeParse) errappend(pe ParseError) {

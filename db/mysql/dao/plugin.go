@@ -559,10 +559,9 @@ func (t *TenantServicesStreamPluginPortDaoImpl) UpdateModel(mo model.Interface) 
 
 //GetPluginMappingPorts GetPluginMappingPorts  降序排列
 func (t *TenantServicesStreamPluginPortDaoImpl) GetPluginMappingPorts(
-	serviceID string, pluginModel string) ([]*model.TenantServicesStreamPluginPort, error) {
+	serviceID string) ([]*model.TenantServicesStreamPluginPort, error) {
 	var ports []*model.TenantServicesStreamPluginPort
-	if err := t.DB.Where("service_id=? and plugin_model=?",
-		serviceID, pluginModel).Order("plugin_port asc").Find(&ports).Error; err != nil {
+	if err := t.DB.Where("service_id=?", serviceID).Order("plugin_port asc").Find(&ports).Error; err != nil {
 		return nil, err
 	}
 	return ports, nil
@@ -592,7 +591,7 @@ func (t *TenantServicesStreamPluginPortDaoImpl) SetPluginMappingPort(
 	serviceID string,
 	pluginModel string,
 	containerPort int) (int, error) {
-	ports, err := t.GetPluginMappingPorts(serviceID, pluginModel)
+	ports, err := t.GetPluginMappingPorts(serviceID)
 	if err != nil {
 		return 0, err
 	}

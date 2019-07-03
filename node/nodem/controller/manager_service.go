@@ -185,8 +185,7 @@ func (m *ManagerService) UpOneServiceEndpoint(s *service.Service) {
 	}
 	hostIP := m.cluster.GetOptions().HostIP
 	for _, end := range s.Endpoints {
-		if strings.Replace(end.Port, " ", "", -1) == "" {
-			logrus.Warningf("ignore wrong endpoint: %v", end)
+		if end.Name == "" || strings.Replace(end.Port, " ", "", -1) == "" {
 			continue
 		}
 		key := end.Name + "/" + hostIP

@@ -8,10 +8,11 @@ service TaskQueue {
 }
 
 message TaskMessage {
-  string task_type = 1;
-  bytes task_body = 2;
-  string create_time = 3;
-  string user = 4;
+  string task_id = 1;
+  string task_type = 2;
+  bytes task_body = 3;
+  string create_time = 4;
+  string user = 5;
 }
 
 message EnqueueRequest {

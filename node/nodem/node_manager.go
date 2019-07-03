@@ -120,12 +120,13 @@ func (n *NodeManager) Start(errchan chan error) error {
 	if err := n.controller.Online(); err != nil {
 		return err
 	}
-	if n.currentNode.Role.HasRule(client.ComputeNode) {
+	if n.currentNode.Role.HasRule(client.ComputeNode) && n.cfg.EnableCollectLog {
+		logrus.Infof("this node is %s node and enable collect conatiner log", n.currentNode.Role)
 		if err := n.clm.Start(); err != nil {
 			return err
 		}
 	} else {
-		logrus.Debug("this node is not compute node ,do not start container log manage")
+		logrus.Infof("this node(%s) is not compute node or disable collect container log ,do not start container log manage", n.currentNode.Role)
 	}
 	go n.monitor.Start(errchan)
 	go n.heartbeat()
@@ -145,7 +146,7 @@ func (n *NodeManager) Stop() {
 	if n.healthy != nil {
 		n.healthy.Stop()
 	}
-	if n.clm != nil {
+	if n.clm != nil && n.currentNode.Role.HasRule(client.ComputeNode) && n.cfg.EnableCollectLog {
 		n.clm.Stop()
 	}
 }
@@ -265,7 +266,6 @@ func (n *NodeManager) init() error {
 			return fmt.Errorf("find node %s from cluster failure %s", n.currentNode.ID, err.Error())
 		}
 	}
-	n.setNodeLabels(node)
 	if node.NodeStatus.NodeInfo.OperatingSystem == "" {
 		node.NodeStatus.NodeInfo = info.GetSystemInfo()
 	}
@@ -277,6 +277,10 @@ func (n *NodeManager) init() error {
 	}
 	//update node mode
 	node.Mode = n.cfg.RunMode
+	//update node rule
+	node.Role = strings.Split(n.cfg.NodeRule, ",")
+	//set node labels
+	n.setNodeLabels(node)
 	*(n.currentNode) = *node
 	return nil
 }
@@ -286,12 +290,21 @@ func (n *NodeManager) setNodeLabels(node *client.HostNode) {
 		node.Labels = n.getInitLable(node)
 		return
 	}
-	for k, v := range n.getInitLable(node) {
-		node.Labels[k] = v
+	var newLabels = map[string]string{}
+	//remove node rule labels
+	for k, v := range node.Labels {
+		if !strings.HasPrefix(k, "rainbond_node_rule_") {
+			newLabels[k] = v
+		}
 	}
+	for k, v := range n.getInitLable(node) {
+		newLabels[k] = v
+	}
+	node.Labels = newLabels
 }
+
+//getInitLable update node role and return new lables
 func (n *NodeManager) getInitLable(node *client.HostNode) map[string]string {
-	node.Role = strings.Split(n.cfg.NodeRule, ",")
 	lables := map[string]string{}
 	for _, rule := range node.Role {
 		lables["rainbond_node_rule_"+rule] = "true"

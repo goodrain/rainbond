@@ -20,11 +20,12 @@ package controller
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/db/errors"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
+
+	validator "github.com/thedevsaddam/govalidator"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
@@ -39,7 +40,6 @@ import (
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
-	"github.com/thedevsaddam/govalidator"
 )
 
 //TIMELAYOUT timelayout
@@ -482,53 +482,19 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
-	var build api_model.BuildServiceStruct
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build.Body, nil)
+	var build api_model.BuildInfoRequestStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build, nil)
 	if !ok {
 		return
 	}
-	if len(build.Body.DeployVersion) == 0 {
-		httputil.ReturnError(r, w, 400, "deploy version can not be empty.")
-		return
-	}
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
-	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
-	build.Body.TenantName = tenantName
-	build.Body.ServiceAlias = serviceAlias
-
-	sEvent, status, err := createEvent(build.Body.EventID, serviceID, "build", tenantID, build.Body.DeployVersion)
-	handleStatus(status, err, w, r)
-	if status != 0 {
-		return
+	build.TenantName = tenantName
+	if build.ServiceID != serviceID {
+		httputil.ReturnError(r, w, 400, "build service id is failure")
 	}
-	version := dbmodel.VersionInfo{
-		EventID:      sEvent.EventID,
-		ServiceID:    serviceID,
-		RepoURL:      build.Body.RepoURL,
-		Kind:         build.Body.Kind,
-		BuildVersion: build.Body.DeployVersion,
-		Cmd:          build.Body.Cmd,
-	}
-	err = db.GetManager().VersionInfoDao().AddModel(&version)
-	if err != nil {
-		if err == errors.ErrRecordAlreadyExist {
-			httputil.ReturnError(r, w, 400,
-				fmt.Sprintf("service id: %s; build version: %s; version already exists", serviceID, build.Body.DeployVersion))
-			return
-		}
-		logrus.Infof("error add version %v ,details %s", version, err.Error())
-		httputil.ReturnError(r, w, 500, "create service version error.")
-		return
-	}
-	build.Body.EventID = sEvent.EventID
-	if err := handler.GetServiceManager().ServiceBuild(tenantID, serviceID, &build); err != nil {
-		logrus.Error("build service error", err.Error())
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("build service error, %v", err))
-		return
-	}
-	httputil.ReturnSuccess(r, w, sEvent)
+	re := handler.GetOperationHandler().Build(build)
+	httputil.ReturnSuccess(r, w, re)
 }
 
 //BuildList BuildList
@@ -694,40 +660,19 @@ func (t *TenantStruct) DeployService(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
-	rules := validator.MapData{
-		"deploy_version": []string{"required"},
-	}
-	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
+	var upgradeRequest api_model.UpgradeInfoRequestStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &upgradeRequest, nil)
 	if !ok {
+		logrus.Errorf("start operation validate request body failure")
 		return
 	}
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-
-	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "update", tenantID, data["deploy_version"].(string))
-	handleStatus(status, err, w, r)
-	if status != 0 {
+	if upgradeRequest.ServiceID != serviceID {
+		httputil.ReturnError(r, w, 400, "upgrade service id failure")
 		return
 	}
-
-	eventID := sEvent.EventID
-	logger := event.GetManager().GetLogger(eventID)
-	defer event.CloseManager()
-	newDeployVersion := data["deploy_version"].(string)
-	//两个deploy version
-	upgradeTask := &model.RollingUpgradeTaskBody{
-		TenantID:         tenantID,
-		ServiceID:        serviceID,
-		NewDeployVersion: newDeployVersion,
-		EventID:          eventID,
-	}
-	if err := handler.GetServiceManager().ServiceUpgrade(upgradeTask); err != nil {
-		logger.Error("应用升级任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("service upgrade error, %v", err))
-		return
-	}
-	logger.Info("应用升级任务发送成功 ", map[string]string{"step": "upgrade-service", "status": "starting"})
-	httputil.ReturnSuccess(r, w, sEvent)
+	re := handler.GetOperationHandler().Upgrade(upgradeRequest)
+	httputil.ReturnSuccess(r, w, re)
 }
 
 //CheckCode CheckCode
@@ -792,42 +737,19 @@ func (t *TenantStruct) CheckCode(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
-	rules := validator.MapData{
-		"deploy_version": []string{"required"},
-		"operator":       []string{},
-	}
-	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
+	var rollbackRequest api_model.RollbackInfoRequestStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &rollbackRequest, nil)
 	if !ok {
+		logrus.Errorf("start operation validate request body failure")
 		return
 	}
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "rollback", tenantID, data["deploy_version"].(string))
-	handleStatus(status, err, w, r)
-	if status != 0 {
+	if rollbackRequest.ServiceID != serviceID {
+		httputil.ReturnError(r, w, 400, "rollback service id failure")
 		return
 	}
-	eventID := sEvent.EventID
-	logger := event.GetManager().GetLogger(eventID)
-	defer event.CloseManager()
-	rs := &api_model.RollbackStruct{
-		TenantID:  tenantID,
-		ServiceID: serviceID,
-		EventID:   eventID,
-		//todo
-		DeployVersion: data["deploy_version"].(string),
-	}
-	if _, ok := data["operator"]; ok {
-		rs.Operator = data["operator"].(string)
-	}
-
-	if err := handler.GetServiceManager().RollBack(rs); err != nil {
-		logger.Error("应用回滚任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("check deploy version error, %v", err))
-		return
-	}
-	logger.Info("应用回滚任务发送成功 ", map[string]string{"step": "rollback-service", "status": "starting"})
-	httputil.ReturnSuccess(r, w, sEvent)
+	re := handler.GetOperationHandler().RollBack(rollbackRequest)
+	httputil.ReturnSuccess(r, w, re)
 	return
 }
 

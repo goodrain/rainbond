@@ -27,17 +27,22 @@ import (
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	listener "github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
 	route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
+	http_rate_limit "github.com/envoyproxy/go-control-plane/envoy/config/filter/http/rate_limit/v2"
 	http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	tcp_proxy "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
+	configratelimit "github.com/envoyproxy/go-control-plane/envoy/config/ratelimit/v2"
+	_type "github.com/envoyproxy/go-control-plane/envoy/type"
+	"github.com/envoyproxy/go-control-plane/pkg/util"
 	v1 "github.com/goodrain/rainbond/node/core/envoy/v1"
 )
 
-var defaultListenerAddress = "127.0.0.1"
+//DefaultLocalhostListenerAddress -
+var DefaultLocalhostListenerAddress = "127.0.0.1"
 
 //CreateTCPListener listener builder
 func CreateTCPListener(name, clusterName, address, statPrefix string, port uint32) *apiv2.Listener {
 	if address == "" {
-		address = defaultListenerAddress
+		address = DefaultLocalhostListenerAddress
 	}
 	tcpProxy := &tcp_proxy.TcpProxy{
 		StatPrefix: statPrefix,
@@ -53,7 +58,7 @@ func CreateTCPListener(name, clusterName, address, statPrefix string, port uint3
 			listener.FilterChain{
 				Filters: []listener.Filter{
 					listener.Filter{
-						Name: "envoy.tcp_proxy",
+						Name: util.TCPProxy,
 						ConfigType: &listener.Filter_Config{
 							Config: MessageToStruct(tcpProxy),
 						},
@@ -69,8 +74,54 @@ func CreateTCPListener(name, clusterName, address, statPrefix string, port uint3
 	return listener
 }
 
-//CreateHTTPListener create http manager listener
-func CreateHTTPListener(name, address, statPrefix string, port uint32, routes ...route.VirtualHost) *apiv2.Listener {
+//RateLimitOptions rate limit options
+type RateLimitOptions struct {
+	Enable                bool
+	Domain                string
+	RateServerClusterName string
+	Stage                 uint32
+}
+
+//DefaultRateLimitServerClusterName default rate limit server cluster name
+var DefaultRateLimitServerClusterName = "rate_limit_service_cluster"
+
+//CreateHTTPRateLimit create http rate limit
+func CreateHTTPRateLimit(option RateLimitOptions) *http_rate_limit.RateLimit {
+	httpRateLimit := &http_rate_limit.RateLimit{
+		Domain: option.Domain,
+		Stage:  option.Stage,
+		RateLimitService: &configratelimit.RateLimitServiceConfig{
+			GrpcService: &core.GrpcService{
+				TargetSpecifier: &core.GrpcService_EnvoyGrpc_{
+					EnvoyGrpc: &core.GrpcService_EnvoyGrpc{
+						ClusterName: option.RateServerClusterName,
+					},
+				},
+			},
+		},
+	}
+	if err := httpRateLimit.Validate(); err != nil {
+		logrus.Errorf("create http rate limit failure %s", err.Error())
+		return nil
+	}
+	logrus.Debugf("service http rate limit for domain %s", httpRateLimit.Domain)
+	return httpRateLimit
+}
+
+//CreateHTTPConnectionManager create http connection manager
+func CreateHTTPConnectionManager(name, statPrefix string, rateOpt *RateLimitOptions, routes ...route.VirtualHost) *http_connection_manager.HttpConnectionManager {
+	var httpFilters []*http_connection_manager.HttpFilter
+	if rateOpt != nil && rateOpt.Enable {
+		httpFilters = append(httpFilters, &http_connection_manager.HttpFilter{
+			Name: util.HTTPRateLimit,
+			ConfigType: &http_connection_manager.HttpFilter_Config{
+				Config: MessageToStruct(CreateHTTPRateLimit(*rateOpt)),
+			},
+		})
+	}
+	httpFilters = append(httpFilters, &http_connection_manager.HttpFilter{
+		Name: util.Router,
+	})
 	hcm := &http_connection_manager.HttpConnectionManager{
 		StatPrefix: statPrefix,
 		RouteSpecifier: &http_connection_manager.HttpConnectionManager_RouteConfig{
@@ -79,14 +130,20 @@ func CreateHTTPListener(name, address, statPrefix string, port uint32, routes ..
 				VirtualHosts: routes,
 			},
 		},
-		HttpFilters: []*http_connection_manager.HttpFilter{
-			&http_connection_manager.HttpFilter{
-				Name: "envoy.router",
-			},
-		},
+		HttpFilters: httpFilters,
 	}
 	if err := hcm.Validate(); err != nil {
 		logrus.Errorf("validate http connertion manager config failure %s", err.Error())
+		return nil
+	}
+	return hcm
+}
+
+//CreateHTTPListener create http manager listener
+func CreateHTTPListener(name, address, statPrefix string, port uint32, rateOpt *RateLimitOptions, routes ...route.VirtualHost) *apiv2.Listener {
+	hcm := CreateHTTPConnectionManager(name, statPrefix, rateOpt, routes...)
+	if hcm == nil {
+		logrus.Warningf("create http connection manager failure %s", name)
 		return nil
 	}
 	listener := &apiv2.Listener{
@@ -95,7 +152,7 @@ func CreateHTTPListener(name, address, statPrefix string, port uint32, routes ..
 			Address: &core.Address_SocketAddress{
 				SocketAddress: &core.SocketAddress{
 					Protocol: core.TCP,
-					Address:  defaultListenerAddress,
+					Address:  address,
 					PortSpecifier: &core.SocketAddress_PortValue{
 						PortValue: port,
 					},
@@ -107,7 +164,7 @@ func CreateHTTPListener(name, address, statPrefix string, port uint32, routes ..
 			listener.FilterChain{
 				Filters: []listener.Filter{
 					listener.Filter{
-						Name: "envoy.http_connection_manager",
+						Name: util.HTTPConnectionManager,
 						ConfigType: &listener.Filter_Config{
 							Config: MessageToStruct(hcm),
 						},
@@ -179,14 +236,15 @@ func CreatOutlierDetection(options RainbondPluginOptions) *cluster.OutlierDetect
 }
 
 //CreateRouteVirtualHost create route virtual host
-func CreateRouteVirtualHost(name string, domains []string, routes ...route.Route) *route.VirtualHost {
+func CreateRouteVirtualHost(name string, domains []string, rateLimits []*route.RateLimit, routes ...route.Route) *route.VirtualHost {
 	pvh := &route.VirtualHost{
-		Name:    name,
-		Domains: domains,
-		Routes:  routes,
+		Name:       name,
+		Domains:    domains,
+		Routes:     routes,
+		RateLimits: rateLimits,
 	}
 	if err := pvh.Validate(); err != nil {
-		logrus.Errorf("route virtualhost config validate failure %s", err.Error())
+		logrus.Errorf("route virtualhost config validate failure %s domains %s", err.Error(), domains)
 		return nil
 	}
 	return pvh
@@ -270,28 +328,43 @@ func CreateEDSClusterConfig(serviceName string) *apiv2.Cluster_EdsClusterConfig 
 	return edsClusterConfig
 }
 
+//ClusterOptions cluster options
+type ClusterOptions struct {
+	Name                     string
+	ServiceName              string
+	ClusterType              apiv2.Cluster_DiscoveryType
+	MaxRequestsPerConnection *uint32
+	OutlierDetection         *cluster.OutlierDetection
+	CircuitBreakers          *cluster.CircuitBreakers
+	Hosts                    []*core.Address
+	HealthyPanicThreshold    int64
+}
+
 //CreateCluster create cluster config
-func CreateCluster(name, serviceName string, clusterType apiv2.Cluster_DiscoveryType,
-	outlierDetection *cluster.OutlierDetection,
-	circuitBreakers *cluster.CircuitBreakers,
-	hosts []*core.Address) *apiv2.Cluster {
+func CreateCluster(options ClusterOptions) *apiv2.Cluster {
 	var edsClusterConfig *apiv2.Cluster_EdsClusterConfig
-	if clusterType == apiv2.Cluster_EDS {
-		edsClusterConfig = CreateEDSClusterConfig(serviceName)
+	if options.ClusterType == apiv2.Cluster_EDS {
+		edsClusterConfig = CreateEDSClusterConfig(options.ServiceName)
 		if edsClusterConfig == nil {
 			logrus.Errorf("create eds cluster config failure")
 			return nil
 		}
 	}
 	cluster := &apiv2.Cluster{
-		Name:             name,
-		Type:             clusterType,
+		Name:             options.Name,
+		Type:             options.ClusterType,
 		ConnectTimeout:   time.Second * 250,
 		LbPolicy:         apiv2.Cluster_ROUND_ROBIN,
 		EdsClusterConfig: edsClusterConfig,
-		Hosts:            hosts,
-		OutlierDetection: outlierDetection,
-		CircuitBreakers:  circuitBreakers,
+		Hosts:            options.Hosts,
+		OutlierDetection: options.OutlierDetection,
+		CircuitBreakers:  options.CircuitBreakers,
+		CommonLbConfig: &apiv2.Cluster_CommonLbConfig{
+			HealthyPanicThreshold: &_type.Percent{Value: float64(options.HealthyPanicThreshold) / 100},
+		},
+	}
+	if options.MaxRequestsPerConnection != nil {
+		cluster.MaxRequestsPerConnection = ConversionUInt32(*options.MaxRequestsPerConnection)
 	}
 	if err := cluster.Validate(); err != nil {
 		logrus.Errorf("validate cluster config failure %s", err.Error())

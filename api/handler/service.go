@@ -944,7 +944,7 @@ func (s *ServiceAction) EnvAttr(action string, at *dbmodel.TenantServiceEnvVar) 
 func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_model.ServicePorts, oldPort int) error {
 	crt, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
 		serviceID,
-		dbmodel.UpNetPlugin,
+		dbmodel.InBoundNetPlugin,
 	)
 	if err != nil {
 		return err
@@ -1020,7 +1020,7 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 			if crt {
 				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
 					serviceID,
-					dbmodel.UpNetPlugin,
+					dbmodel.InBoundNetPlugin,
 					oldPort,
 				)
 				goon := true
@@ -1065,7 +1065,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 	}
 	hasUpStream, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
 		serviceID,
-		dbmodel.UpNetPlugin,
+		dbmodel.InBoundNetPlugin,
 	)
 	if err != nil {
 		return nil, "", fmt.Errorf("get plugin relations error: %s", err.Error())
@@ -1092,7 +1092,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 			if hasUpStream {
 				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
 					serviceID,
-					dbmodel.UpNetPlugin,
+					dbmodel.InBoundNetPlugin,
 					containerPort,
 				)
 				if err != nil {
@@ -1110,7 +1110,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 				}
 				if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeletePluginMappingPortByContainerPort(
 					serviceID,
-					dbmodel.UpNetPlugin,
+					dbmodel.InBoundNetPlugin,
 					containerPort,
 				); err != nil {
 					tx.Rollback()
@@ -1160,7 +1160,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 		if hasUpStream {
 			pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
 				serviceID,
-				dbmodel.UpNetPlugin,
+				dbmodel.InBoundNetPlugin,
 				containerPort,
 			)
 			var pPort int
@@ -1169,7 +1169,7 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 					ppPort, err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).SetPluginMappingPort(
 						p.TenantID,
 						serviceID,
-						dbmodel.UpNetPlugin,
+						dbmodel.InBoundNetPlugin,
 						containerPort,
 					)
 					if err != nil {
@@ -1215,7 +1215,7 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 	}
 	hasUpStream, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
 		serviceID,
-		dbmodel.UpNetPlugin,
+		dbmodel.InBoundNetPlugin,
 	)
 	if err != nil {
 		return fmt.Errorf("get plugin relations error: %s", err.Error())
@@ -1239,7 +1239,7 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 			if hasUpStream {
 				pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
 					serviceID,
-					dbmodel.UpNetPlugin,
+					dbmodel.InBoundNetPlugin,
 					port,
 				)
 				if err != nil {
@@ -1256,7 +1256,7 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 				}
 				if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeletePluginMappingPortByContainerPort(
 					serviceID,
-					dbmodel.UpNetPlugin,
+					dbmodel.InBoundNetPlugin,
 					port,
 				); err != nil {
 					tx.Rollback()
@@ -1283,7 +1283,7 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 		if hasUpStream {
 			pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
 				serviceID,
-				dbmodel.UpNetPlugin,
+				dbmodel.InBoundNetPlugin,
 				port,
 			)
 			var pPort int
@@ -1292,7 +1292,7 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 					ppPort, err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).SetPluginMappingPort(
 						p.TenantID,
 						serviceID,
-						dbmodel.UpNetPlugin,
+						dbmodel.InBoundNetPlugin,
 						port,
 					)
 					if err != nil {

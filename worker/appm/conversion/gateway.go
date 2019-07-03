@@ -28,7 +28,7 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -125,16 +125,14 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 	if err != nil {
 		return nil, fmt.Errorf("find service port from db error %s", err.Error())
 	}
-	crt, err := a.checkUpstreamPluginRelation()
+	crt, err := checkUpstreamPluginRelation(a.serviceID, a.dbmanager)
 	if err != nil {
 		return nil, fmt.Errorf("get service upstream plugin relation error, %s", err.Error())
 	}
 	pp := make(map[int32]int)
 	if crt {
 		pluginPorts, err := a.dbmanager.TenantServicesStreamPluginPortDao().GetPluginMappingPorts(
-			a.serviceID,
-			model.UpNetPlugin,
-		)
+			a.serviceID)
 		if err != nil {
 			return nil, fmt.Errorf("find upstream plugin mapping port error, %s", err.Error())
 		}
@@ -155,9 +153,13 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 			if *port.IsOuterService {
 				service := a.createOuterService(port)
 				services = append(services, service)
-				ings, secrs, err := a.ApplyRules(port, service)
+				relContainerPort := pp[int32(port.ContainerPort)]
+				if relContainerPort == 0 {
+					relContainerPort = port.ContainerPort
+				}
+				ings, secrs, err := a.ApplyRules(port.ServiceID, relContainerPort, port.ContainerPort, service)
 				if err != nil {
-					logrus.Debugf("error applying rules: %s", err.Error())
+					logrus.Errorf("error applying rules: %s", err.Error())
 					return nil, err
 				}
 				ingresses = append(ingresses, ings...)
@@ -184,34 +186,34 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 }
 
 // ApplyRules applies http rules and tcp rules
-func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
+func (a AppServiceBuild) ApplyRules(serviceID string, containerPort, pluginContainerPort int,
 	service *corev1.Service) ([]*extensions.Ingress, []*corev1.Secret, error) {
 	var ingresses []*extensions.Ingress
 	var secrets []*corev1.Secret
-	httpRules, err := a.dbmanager.HTTPRuleDao().GetHTTPRuleByServiceIDAndContainerPort(port.ServiceID,
-		port.ContainerPort)
+	httpRules, err := a.dbmanager.HTTPRuleDao().GetHTTPRuleByServiceIDAndContainerPort(serviceID, containerPort)
 	if err != nil {
-		logrus.Infof("Can't get HTTPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
+		logrus.Infof("Can't get HTTPRule corresponding to ServiceID(%s): %v", serviceID, err)
 	}
 	// create http ingresses
+	logrus.Debugf("find %d count http rule", len(httpRules))
 	if httpRules != nil && len(httpRules) > 0 {
 		for _, httpRule := range httpRules {
-			ing, sec, err := a.applyHTTPRule(httpRule, port, service)
+			ing, sec, err := a.applyHTTPRule(httpRule, containerPort, pluginContainerPort, service)
 			if err != nil {
 				logrus.Errorf("Unexpected error occurred while applying http rule: %v", err)
 				// skip the failed rule
 				continue
 			}
+			logrus.Debugf("create ingress %s", ing.Name)
 			ingresses = append(ingresses, ing)
 			secrets = append(secrets, sec)
 		}
 	}
 
 	// create tcp ingresses
-	tcpRules, err := a.dbmanager.TCPRuleDao().GetTCPRuleByServiceIDAndContainerPort(port.ServiceID,
-		port.ContainerPort)
+	tcpRules, err := a.dbmanager.TCPRuleDao().GetTCPRuleByServiceIDAndContainerPort(serviceID, containerPort)
 	if err != nil {
-		logrus.Infof("Can't get TCPRule corresponding to ServiceID(%s): %v", port.ServiceID, err)
+		logrus.Infof("Can't get TCPRule corresponding to ServiceID(%s): %v", serviceID, err)
 	}
 	if tcpRules != nil && len(tcpRules) > 0 {
 		for _, tcpRule := range tcpRules {
@@ -229,7 +231,7 @@ func (a AppServiceBuild) ApplyRules(port *model.TenantServicesPort,
 }
 
 // applyTCPRule applies stream rule into ingress
-func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.TenantServicesPort,
+func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, containerPort, pluginContainerPort int,
 	service *corev1.Service) (ing *extensions.Ingress, sec *corev1.Secret, err error) {
 	// deal with empty path and domain
 	path := strings.Replace(rule.Path, " ", "", -1)
@@ -238,7 +240,7 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 	}
 	domain := strings.Replace(rule.Domain, " ", "", -1)
 	if domain == "" {
-		domain = createDefaultDomain(a.tenant.Name, a.service.ServiceAlias, port.ContainerPort)
+		domain = createDefaultDomain(a.tenant.Name, a.service.ServiceAlias, containerPort)
 	}
 
 	// create ingress
@@ -259,7 +261,7 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, port *model.Tenant
 									Path: path,
 									Backend: extensions.IngressBackend{
 										ServiceName: service.Name,
-										ServicePort: intstr.FromInt(port.ContainerPort),
+										ServicePort: intstr.FromInt(pluginContainerPort),
 									},
 								},
 							},
@@ -380,12 +382,6 @@ func (a *AppServiceBuild) applyTCPRule(rule *model.TCPRule, service *corev1.Serv
 	ing.SetAnnotations(annos)
 
 	return ing, nil
-}
-
-func (a *AppServiceBuild) checkUpstreamPluginRelation() (bool, error) {
-	return a.dbmanager.TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
-		a.serviceID,
-		model.UpNetPlugin)
 }
 
 //CreateUpstreamPluginMappingPort 检查是否存在upstream插件，接管入口网络

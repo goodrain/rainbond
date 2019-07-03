@@ -27,13 +27,19 @@ import (
 //CreateKubeService create kube service
 func CreateKubeService(client *kubernetes.Clientset, namespace string, services ...*corev1.Service) error {
 	var retryService []*corev1.Service
-	for i, service := range services {
-		_, err := client.CoreV1().Services(namespace).Create(service)
-		if err != nil {
-			if errors.IsAlreadyExists(err) {
+	for i := range services {
+		createService := services[i]
+		if _, err := client.CoreV1().Services(namespace).Create(createService); err != nil {
+			// Ignore if the Service is invalid with this error message:
+			// 	Service "kube-dns" is invalid: spec.clusterIP: Invalid value: "10.96.0.10": provided IP is already allocated
+			if !errors.IsAlreadyExists(err) && !errors.IsInvalid(err) {
+				retryService = append(retryService, createService)
 				continue
 			}
-			retryService = append(retryService, services[i])
+			if _, err := client.CoreV1().Services(namespace).Update(createService); err != nil {
+				retryService = append(retryService, createService)
+				continue
+			}
 		}
 	}
 	//second attempt

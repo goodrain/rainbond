@@ -89,7 +89,6 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		return
 	}
 	logger := event.GetManager().GetLogger(input.EventID)
-	defer e.removeTask(task)
 	defer event.GetManager().ReleaseLogger(logger)
 	defer func() {
 		if r := recover(); r != nil {

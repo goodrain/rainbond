@@ -110,12 +110,13 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 	for i, now := range nowServices {
 		nowServiceMaps[now.Name] = nowServices[i]
 	}
-	for _, new := range newService {
+	for i := range newService {
+		new := newService[i]
 		if nowConfig, ok := nowServiceMaps[new.Name]; ok {
-			new.UID = nowConfig.UID
-			new.Spec.ClusterIP = nowConfig.Spec.ClusterIP
-			new.ResourceVersion = nowConfig.ResourceVersion
-			newc, err := s.manager.client.CoreV1().Services(nowApp.TenantID).Update(new)
+			nowConfig.Spec.Ports = new.Spec.Ports
+			nowConfig.Spec.Type = new.Spec.Type
+			nowConfig.Labels = new.Labels
+			newc, err := s.manager.client.CoreV1().Services(nowApp.TenantID).Update(nowConfig)
 			if err != nil {
 				logrus.Errorf("update service failure %s", err.Error())
 			}
@@ -123,11 +124,11 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 			nowServiceMaps[new.Name] = nil
 			logrus.Debugf("update service %s for service %s", new.Name, newapp.ServiceID)
 		} else {
-			newc, err := s.manager.client.CoreV1().Services(nowApp.TenantID).Create(new)
+			err := CreateKubeService(s.manager.client, nowApp.TenantID, new)
 			if err != nil {
 				logrus.Errorf("update service failure %s", err.Error())
 			}
-			nowApp.SetService(newc)
+			nowApp.SetService(new)
 			logrus.Debugf("create service %s for service %s", new.Name, newapp.ServiceID)
 		}
 	}
@@ -186,8 +187,15 @@ func (s *upgradeController) WaitingReady(app v1.AppService) error {
 	storeAppService := s.manager.store.GetAppService(app.ServiceID)
 	var initTime int32
 	if podt := app.GetPodTemplate(); podt != nil {
-		if probe := podt.Spec.Containers[0].ReadinessProbe; probe != nil {
-			initTime = probe.InitialDelaySeconds
+		for _, c := range podt.Spec.Containers {
+			if c.ReadinessProbe != nil {
+				initTime = c.ReadinessProbe.InitialDelaySeconds
+				break
+			}
+			if c.LivenessProbe != nil {
+				initTime = c.LivenessProbe.InitialDelaySeconds
+				break
+			}
 		}
 	}
 	//at least waiting time is 40 second

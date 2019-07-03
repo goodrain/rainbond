@@ -20,6 +20,7 @@ package conver
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/Sirupsen/logrus"
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
@@ -77,18 +78,25 @@ func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_mod
 			continue
 		}
 		getOptions := func() (d envoyv2.RainbondPluginOptions) {
-			depServiceIndex := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port.TargetPort.IntVal)
+			relPort, _ := strconv.Atoi(service.Labels["origin_port"])
+			if relPort == 0 {
+				relPort = int(port.TargetPort.IntVal)
+			}
+			depServiceIndex := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), relPort)
 			if _, ok := clusterConfig[depServiceIndex]; ok {
 				return envoyv2.GetOptionValues(clusterConfig[depServiceIndex].Options)
 			}
 			return envoyv2.GetOptionValues(nil)
 		}
-		clusterName := fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, GetServiceAliasByService(service), port.Port)
+		var clusterOption envoyv2.ClusterOptions
+		clusterOption.Name = fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, GetServiceAliasByService(service), port.Port)
 		options := getOptions()
-		outlierDetaction := envoyv2.CreatOutlierDetection(options)
-		circuitBreaker := envoyv2.CreateCircuitBreaker(options)
-		serviceName := fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port)
-		cluster := envoyv2.CreateCluster(clusterName, serviceName, v2.Cluster_EDS, outlierDetaction, circuitBreaker, nil)
+		clusterOption.OutlierDetection = envoyv2.CreatOutlierDetection(options)
+		clusterOption.CircuitBreakers = envoyv2.CreateCircuitBreaker(options)
+		clusterOption.ServiceName = fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port)
+		clusterOption.ClusterType = v2.Cluster_EDS
+		clusterOption.HealthyPanicThreshold = options.HealthyPanicThreshold
+		cluster := envoyv2.CreateCluster(clusterOption)
 		if cluster != nil {
 			cdsClusters = append(cdsClusters, cluster)
 		}
@@ -103,8 +111,17 @@ func downstreamClusters(serviceAlias, namespace string, ports []*api_model.BaseP
 		port := ports[i]
 		address := envoyv2.CreateSocketAddress(port.Protocol, "127.0.0.1", uint32(port.Port))
 		clusterName := fmt.Sprintf("%s_%s_%v", namespace, serviceAlias, port.Port)
-		cluster := envoyv2.CreateCluster(clusterName, "", v2.Cluster_STATIC, nil,
-			envoyv2.CreateCircuitBreaker(envoyv2.GetOptionValues(port.Options)), []*core.Address{&address})
+		option := envoyv2.GetOptionValues(port.Options)
+		cluster := envoyv2.CreateCluster(envoyv2.ClusterOptions{
+			Name:                     clusterName,
+			ServiceName:              "",
+			ClusterType:              v2.Cluster_STATIC,
+			CircuitBreakers:          envoyv2.CreateCircuitBreaker(option),
+			OutlierDetection:         envoyv2.CreatOutlierDetection(option),
+			MaxRequestsPerConnection: option.MaxRequestsPerConnection,
+			Hosts:                    []*core.Address{&address},
+			HealthyPanicThreshold:    option.HealthyPanicThreshold,
+		})
 		if cluster != nil {
 			cdsClusters = append(cdsClusters, cluster)
 		}

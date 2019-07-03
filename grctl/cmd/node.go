@@ -328,6 +328,7 @@ func NewCmdNode() cli.Command {
 					}
 					err := clients.RegionClient.Nodes().Up(id)
 					handleErr(err)
+					fmt.Printf("up node %s  success\n", id)
 					return nil
 				},
 			},
@@ -343,6 +344,7 @@ func NewCmdNode() cli.Command {
 					}
 					err := clients.RegionClient.Nodes().Down(id)
 					handleErr(err)
+					fmt.Printf("down node %s  success\n", id)
 					return nil
 				},
 			},
@@ -364,6 +366,7 @@ func NewCmdNode() cli.Command {
 					}
 					err = clients.RegionClient.Nodes().UnSchedulable(id)
 					handleErr(err)
+					fmt.Printf("cordon node %s  success\n", id)
 					return nil
 				},
 			},
@@ -385,6 +388,7 @@ func NewCmdNode() cli.Command {
 					}
 					err = clients.RegionClient.Nodes().ReSchedulable(id)
 					handleErr(err)
+					fmt.Printf("uncordon node %s  success\n", id)
 					return nil
 				},
 			},
@@ -400,6 +404,7 @@ func NewCmdNode() cli.Command {
 					}
 					err := clients.RegionClient.Nodes().Delete(id)
 					handleErr(err)
+					fmt.Printf("delete node %s  success\n", id)
 					return nil
 				},
 			},
@@ -480,26 +485,10 @@ func NewCmdNode() cli.Command {
 						},
 					},
 					cli.Command{
-						Name:  "list",
-						Usage: "list the label of the specified node",
-						Flags: []cli.Flag{},
-						Action: func(c *cli.Context) error {
-							Common(c)
-							hostID := c.Args().First()
-							if hostID == "" {
-								logrus.Errorf("need hostID")
-								return nil
-							}
-							labels, err := clients.RegionClient.Nodes().Label(hostID).List()
-							handleErr(err)
-							labelTable := termtables.CreateTable()
-							labelTable.AddHeaders("LableKey", "LableValue")
-							for k, v := range labels {
-								labelTable.AddRow(k, v)
-							}
-							fmt.Print(labelTable.Render())
-							return nil
-						},
+						Name:   "list",
+						Usage:  "list the label of the specified node",
+						Flags:  []cli.Flag{},
+						Action: listNodeLabelsCommand,
 					},
 				},
 			},
@@ -550,28 +539,6 @@ func NewCmdNode() cli.Command {
 							return nil
 						},
 					},
-					cli.Command{
-						Name:  "list",
-						Usage: "list the label of the specified node",
-						Flags: []cli.Flag{},
-						Action: func(c *cli.Context) error {
-							Common(c)
-							hostID := c.Args().First()
-							if hostID == "" {
-								logrus.Errorf("need hostID")
-								return nil
-							}
-							labels, err := clients.RegionClient.Nodes().Label(hostID).List()
-							handleErr(err)
-							labelTable := termtables.CreateTable()
-							labelTable.AddHeaders("LableKey", "LableValue")
-							for k, v := range labels {
-								labelTable.AddRow(k, v)
-							}
-							fmt.Print(labelTable.Render())
-							return nil
-						},
-					},
 				},
 			},
 			{
@@ -615,54 +582,14 @@ func NewCmdNode() cli.Command {
 						Usage: "Automatic installation after addition",
 					},
 				},
-				Action: func(c *cli.Context) error {
-					Common(c)
-					if !c.IsSet("role") {
-						showError("role must not null")
-					}
-					if c.String("root-pass") != "" && c.String("private-key") != "" {
-						showError("Options private-key and root-pass are conflicting")
-					}
-					if c.String("role") != "compute" && c.String("role") != "manage" && c.String("role") != "gateway" {
-						showError("node role only support `compute`, `manage` and `gateway`")
-					}
-					var node client.APIHostNode
-					node.Role = c.String("role")
-					node.HostName = c.String("hostname")
-					node.RootPass = c.String("root-pass")
-					node.InternalIP = c.String("internal-ip")
-					node.ExternalIP = c.String("external-ip")
-					node.PodCIDR = c.String("podCIDR")
-					node.Privatekey = c.String("private-key")
-					node.AutoInstall = false
-					node.ID = c.String("id")
-					renode, err := clients.RegionClient.Nodes().Add(&node)
-					handleErr(err)
-					if c.Bool("install") {
-						handleErr(err)
-						installNode(renode)
-					} else {
-						fmt.Println("success add node, you install it by running: grctl node install <nodeID>")
-					}
-					return nil
-				},
+				Action: addNodeCommand,
 			},
 			{
 
-				Name:  "install",
-				Usage: "Install a exist node into the cluster",
-				Flags: []cli.Flag{},
-				Action: func(c *cli.Context) error {
-					Common(c)
-					nodeID := c.Args().First()
-					if nodeID == "" {
-						showError("node id can not be empty")
-					}
-					node, err := clients.RegionClient.Nodes().Get(nodeID)
-					handleErr(err)
-					installNode(node)
-					return nil
-				},
+				Name:   "install",
+				Usage:  "Install a exist node into the cluster",
+				Flags:  []cli.Flag{},
+				Action: installNodeCommand,
 			},
 		},
 	}
@@ -711,5 +638,74 @@ func installNode(node *client.HostNode) {
 	if _, err := clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.InstallSuccess); err != nil {
 		logrus.Errorf("update node %s status failure %s", node.ID, err.Error())
 	}
-	logrus.Infof("Install node %s successful", node.ID)
+	fmt.Println("------------------------------------")
+	fmt.Printf("Install node %s successful \n", node.ID)
+	if node.Role.HasRule("compute") {
+		fmt.Printf("You can do 'grctl node up %s' to get this compute node to join the cluster workload \n", node.ID)
+	}
+}
+
+func addNodeCommand(c *cli.Context) error {
+	Common(c)
+	if !c.IsSet("role") {
+		showError("role must not null")
+	}
+	if c.String("root-pass") != "" && c.String("private-key") != "" {
+		showError("Options private-key and root-pass are conflicting")
+	}
+	if c.String("root-pass") == "" && c.String("private-key") == "" {
+		showError("Options private-key and root-pass must set one")
+	}
+	if c.String("role") != "compute" && c.String("role") != "manage" && c.String("role") != "gateway" {
+		showError("node role only support `compute`, `manage` and `gateway`")
+	}
+	var node client.APIHostNode
+	node.Role = c.String("role")
+	node.HostName = c.String("hostname")
+	node.RootPass = c.String("root-pass")
+	node.InternalIP = c.String("internal-ip")
+	node.ExternalIP = c.String("external-ip")
+	node.PodCIDR = c.String("podCIDR")
+	node.Privatekey = c.String("private-key")
+	node.AutoInstall = false
+	node.ID = c.String("id")
+	renode, err := clients.RegionClient.Nodes().Add(&node)
+	handleErr(err)
+	if c.Bool("install") {
+		handleErr(err)
+		installNode(renode)
+	} else {
+		fmt.Printf("success add %s node %s \n you install it by running: grctl node install %s \n", renode.Role, renode.ID, renode.ID)
+	}
+	return nil
+}
+
+func installNodeCommand(c *cli.Context) error {
+	Common(c)
+	nodeID := c.Args().First()
+	if nodeID == "" {
+		showError("node id can not be empty")
+	}
+	node, err := clients.RegionClient.Nodes().Get(nodeID)
+	handleErr(err)
+	installNode(node)
+	return nil
+}
+
+func listNodeLabelsCommand(c *cli.Context) error {
+	Common(c)
+	hostID := c.Args().First()
+	if hostID == "" {
+		logrus.Errorf("need hostID")
+		return nil
+	}
+	labels, err := clients.RegionClient.Nodes().Label(hostID).List()
+	handleErr(err)
+	labelTable := termtables.CreateTable()
+	labelTable.AddHeaders("LableKey", "LableValue")
+	for k, v := range labels {
+		labelTable.AddRow(k, v)
+	}
+	fmt.Print(labelTable.Render())
+	return nil
 }

@@ -80,7 +80,9 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 		return nil, err
 	}
 	re.Logger.Info("The image is pushed to the warehouse successfully", map[string]string{"step": "builder-exector"})
-
+	if err := sources.ImageRemove(re.DockerClient, buildImageName); err != nil {
+		logrus.Errorf("remove image %s failure %s", buildImageName, err.Error())
+	}
 	return &Response{
 		MediumPath: buildImageName,
 		MediumType: ImageMediumType,

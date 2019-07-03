@@ -61,12 +61,21 @@ func (s *restartController) restartOne(app v1.AppService) error {
 		waiting: time.Minute * 5,
 	}
 	if err := stopController.stopOne(app); err != nil {
-		app.Logger.Error("(Restart)Stop app failure %s,you could waiting stoped and manual start it", GetCallbackLoggerOption())
-		return err
+		if err != ErrWaitTimeOut {
+			app.Logger.Error("(Restart)Stop app failure %s,you could waiting stoped and manual start it", GetCallbackLoggerOption())
+			return err
+		}
+		//waiting app closed,max wait 40 second
+		var waiting = 20
+		for waiting > 0 {
+			storeAppService := s.manager.store.GetAppService(app.ServiceID)
+			if storeAppService == nil || storeAppService.IsClosed() {
+				break
+			}
+			waiting--
+			time.Sleep(time.Second * 2)
+		}
 	}
-	//sleep 3 secode
-	time.Sleep(time.Second * 3)
-
 	startController := startController{
 		manager: s.manager,
 	}
@@ -80,8 +89,9 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	//regist new app service
 	s.manager.store.RegistAppService(newAppService)
 	if err := startController.startOne(*newAppService); err != nil {
-		app.Logger.Error(fmt.Sprintf("(Restart)Start app failure %s,you could waiting it start success.or manual stop it", newAppService.ServiceAlias), GetCallbackLoggerOption())
-		return err
+		if err != ErrWaitTimeOut {
+			return err
+		}
 	}
 	return nil
 }

@@ -76,9 +76,7 @@ func (o *OperationHandler) Build(buildInfo model.BuildInfoRequestStruct) (re Ope
 	buildInfo.EventID = eventBody.EventID
 	logger := event.GetManager().GetLogger(buildInfo.EventID)
 	defer event.CloseManager()
-	if buildInfo.DeployVersion == "" {
-		buildInfo.DeployVersion = util.CreateVersionByTime()
-	}
+	buildInfo.DeployVersion = util.CreateVersionByTime()
 	re.DeployVersion = buildInfo.DeployVersion
 	version := dbmodel.VersionInfo{
 		EventID:      buildInfo.EventID,
@@ -87,6 +85,7 @@ func (o *OperationHandler) Build(buildInfo model.BuildInfoRequestStruct) (re Ope
 		Kind:         buildInfo.Kind,
 		BuildVersion: buildInfo.DeployVersion,
 		Cmd:          buildInfo.ImageInfo.Cmd,
+		Author:       buildInfo.Operator,
 	}
 	serviceID := buildInfo.ServiceID
 	err = db.GetManager().VersionInfoDao().AddModel(&version)
@@ -250,6 +249,10 @@ func (o *OperationHandler) Upgrade(ru model.UpgradeInfoRequestStruct) (re Operat
 		}
 	}
 	re.EventID = eventBody.EventID
+	// By default, the same version is updated
+	if ru.UpgradeVersion == "" {
+		ru.UpgradeVersion = services.DeployVersion
+	}
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(ru.UpgradeVersion, ru.ServiceID)
 	if err != nil {
 		logrus.Errorf("get service version by id %s version %s error, %s", ru.ServiceID, ru.UpgradeVersion, err.Error())

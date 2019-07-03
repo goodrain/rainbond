@@ -20,8 +20,9 @@ package dao
 
 import (
 	"errors"
-	"github.com/goodrain/rainbond/db/model"
 	"time"
+
+	"github.com/goodrain/rainbond/db/model"
 )
 
 var (
@@ -188,7 +189,7 @@ type TenantServiceRelationDao interface {
 //TenantServicesStreamPluginPortDao TenantServicesStreamPluginPortDao
 type TenantServicesStreamPluginPortDao interface {
 	Dao
-	GetPluginMappingPorts(serviceID string, pluginModel string) ([]*model.TenantServicesStreamPluginPort, error)
+	GetPluginMappingPorts(serviceID string) ([]*model.TenantServicesStreamPluginPort, error)
 	SetPluginMappingPort(
 		tenantID string,
 		serviceID string,
