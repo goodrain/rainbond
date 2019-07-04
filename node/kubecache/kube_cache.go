@@ -24,8 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/client-go/tools/cache"
-
 	"github.com/pquerna/ffjson/ffjson"
 
 	conf "github.com/goodrain/rainbond/cmd/node/option"
@@ -55,6 +53,7 @@ const (
 
 //KubeClient KubeClient
 type KubeClient interface {
+	GetKubeClient() kubernetes.Interface
 	UpK8sNode(*client.HostNode) (*v1.Node, error)
 	DownK8sNode(nodename string) error
 	GetAllPods() (pods []*v1.Pod, err error)
@@ -69,7 +68,6 @@ type KubeClient interface {
 	GetEndpoints(namespace string, selector labels.Selector) ([]*v1.Endpoints, error)
 	GetServices(namespace string, selector labels.Selector) ([]*v1.Service, error)
 	GetConfig(namespace string, selector labels.Selector) ([]*v1.ConfigMap, error)
-	AddEventWatch(eventtype string, handler cache.ResourceEventHandler)
 	Stop()
 }
 
@@ -90,23 +88,15 @@ func NewKubeClient(cfg *conf.Conf) (KubeClient, error) {
 		func(options *metav1.ListOptions) {
 			//options.LabelSelector = "creater=Rainbond"
 		})
-	serviceInformers := sharedInformers.Core().V1().Services().Informer()
-	go serviceInformers.Run(stop)
-	endpointInformers := sharedInformers.Core().V1().Endpoints().Informer()
-	go endpointInformers.Run(stop)
-	configmapInformers := sharedInformers.Core().V1().ConfigMaps().Informer()
-	go configmapInformers.Run(stop)
+	sharedInformers.Core().V1().Services().Informer()
+	sharedInformers.Core().V1().Endpoints().Informer()
+	sharedInformers.Core().V1().ConfigMaps().Informer()
 	sharedInformers.Core().V1().Nodes().Informer()
 	sharedInformers.Core().V1().Pods().Informer()
 	sharedInformers.Start(stop)
 	return &kubeClient{
-		kubeclient: cli,
-		stop:       stop,
-		watchInformers: map[string]cache.SharedIndexInformer{
-			"service":   serviceInformers,
-			"configmap": configmapInformers,
-			"endpoint":  endpointInformers,
-		},
+		kubeclient:      cli,
+		stop:            stop,
 		sharedInformers: sharedInformers,
 	}, nil
 }
@@ -114,7 +104,6 @@ func NewKubeClient(cfg *conf.Conf) (KubeClient, error) {
 type kubeClient struct {
 	kubeclient      *kubernetes.Clientset
 	sharedInformers informers.SharedInformerFactory
-	watchInformers  map[string]cache.SharedIndexInformer
 	stop            chan struct{}
 }
 
@@ -124,18 +113,9 @@ func (k *kubeClient) Stop() {
 	}
 }
 
-//AddEventWatch add event watch handler
-// if eventtype is "" or "all" ,means watch all
-func (k *kubeClient) AddEventWatch(eventtype string, handler cache.ResourceEventHandler) {
-	if eventtype == "all" || eventtype == "" {
-		for _, watch := range k.watchInformers {
-			watch.AddEventHandler(handler)
-		}
-	} else {
-		if watch, ok := k.watchInformers[eventtype]; ok && watch != nil {
-			watch.AddEventHandler(handler)
-		}
-	}
+//GetKubeClient get kube client
+func (k *kubeClient) GetKubeClient() kubernetes.Interface {
+	return k.kubeclient
 }
 
 //GetNodeByName get node

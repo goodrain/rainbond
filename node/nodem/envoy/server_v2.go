@@ -22,8 +22,14 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"reflect"
 	"sync"
 	"sync/atomic"
+	"time"
+
+	"github.com/goodrain/rainbond/node/kubecache"
+
+	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/Sirupsen/logrus"
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
@@ -33,11 +39,13 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/server"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/nodem/envoy/conver"
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	kcache "k8s.io/client-go/tools/cache"
 )
 
 //DiscoverServerManager envoy discover server
@@ -47,17 +55,15 @@ type DiscoverServerManager struct {
 	grpcServer      *grpc.Server
 	cacheManager    cache.SnapshotCache
 	cacheNodeConfig []*NodeConfig
-	kubecli         kubecache.KubeClient
+	kubecli         kubernetes.Interface
 	eventChan       chan *Event
 	pool            *sync.Pool
 	ctx             context.Context
 	cancel          context.CancelFunc
-}
-
-//Event event
-type Event struct {
-	MethodType string
-	Source     interface{}
+	services        cacheHandler
+	endpoints       cacheHandler
+	configmaps      cacheHandler
+	queue           Queue
 }
 
 // Hasher returns node ID as an ID
@@ -108,19 +114,6 @@ func (n *NodeConfig) TryUpdate(obj interface{}) (needUpdate bool) {
 			return true
 		}
 	}
-	if configMap, ok := obj.(*corev1.ConfigMap); ok {
-		if v, ok := configMap.Labels["creater"]; !ok || v != "Rainbond" {
-			return false
-		}
-		if configMap.Name == n.config.Name {
-			n.config = configMap
-			return true
-		}
-	}
-	if secret, ok := obj.(*corev1.Secret); ok {
-		//do not support
-		logrus.Debugf("add secret %s", secret.Name)
-	}
 	return false
 }
 
@@ -139,53 +132,26 @@ func createNodeID(namespace, pluginID, serviceAlias string) string {
 	return fmt.Sprintf("%s_%s_%s", namespace, pluginID, serviceAlias)
 }
 
-//GetDependService get depend service
-func (d *DiscoverServerManager) GetDependService(namespace, depServiceAlias string) ([]*corev1.Service, []*corev1.Endpoints) {
-	logrus.Debugf("dep service alias: %s", depServiceAlias)
-	labelname := fmt.Sprintf("name=%sService", depServiceAlias)
-	selector, err := labels.Parse(labelname)
-	if err != nil {
-		logrus.Errorf("label name: %s; parse label name failure %s", labelname, err.Error())
-		return nil, nil
-	}
-	services, err := d.kubecli.GetServices(namespace, selector)
-	if err != nil {
-		logrus.Errorf("get depend service failure %s", err.Error())
-		return nil, nil
-	}
-	endpoints, err := d.kubecli.GetEndpoints(namespace, selector)
-	if err != nil {
-		logrus.Errorf("get depend service endpoints failure %s", err.Error())
-		return nil, nil
-	}
-	return services, endpoints
+type cacheHandler struct {
+	informer kcache.SharedIndexInformer
+	handler  *ChainHandler
 }
 
-//GetSelfService get self service
-func (d *DiscoverServerManager) GetSelfService(namespace, serviceAlias string) ([]*corev1.Service, []*corev1.Endpoints) {
-	labelname := fmt.Sprintf("name=%sServiceOUT", serviceAlias)
-	selector, err := labels.Parse(labelname)
-	if err != nil {
-		logrus.Errorf("label name: %s; parse label name failure %s", labelname, err.Error())
-		return nil, nil
-	}
-	services, err := d.kubecli.GetServices(namespace, selector)
-	if err != nil {
-		logrus.Errorf("get self service failure %s", err.Error())
-		return nil, nil
-	}
-	endpoints, err := d.kubecli.GetEndpoints(namespace, selector)
-	if err != nil {
-		logrus.Errorf("get self service endpoints failure %s", err.Error())
-		return nil, nil
-	}
-	return services, endpoints
+//GetServicesAndEndpoints get service and endpoint
+func (d *DiscoverServerManager) GetServicesAndEndpoints(namespace string, labelSelector labels.Selector) (ret []*corev1.Service, eret []*corev1.Endpoints) {
+	kcache.ListAllByNamespace(d.services.informer.GetIndexer(), namespace, labelSelector, func(s interface{}) {
+		ret = append(ret, s.(*corev1.Service))
+	})
+	kcache.ListAllByNamespace(d.endpoints.informer.GetIndexer(), namespace, labelSelector, func(s interface{}) {
+		eret = append(eret, s.(*corev1.Endpoints))
+	})
+	return
 }
 
 //NewNodeConfig new NodeConfig
 func (d *DiscoverServerManager) NewNodeConfig(config *corev1.ConfigMap) (*NodeConfig, error) {
 	logrus.Debugf("cm name: %s; plugin-config: %s", config.GetName(), config.Data["plugin-config"])
-	servicaAlias := config.Labels["service_alias"]           
+	servicaAlias := config.Labels["service_alias"]
 	namespace := config.Namespace
 	configs, pluginID, err := conver.GetPluginConfigs(config)
 	if err != nil {
@@ -195,12 +161,12 @@ func (d *DiscoverServerManager) NewNodeConfig(config *corev1.ConfigMap) (*NodeCo
 		nodeID:         createNodeID(namespace, pluginID, servicaAlias),
 		serviceAlias:   servicaAlias,
 		namespace:      namespace,
-		version:        1,
+		version:        0,
 		config:         config,
 		configModel:    configs,
 		dependServices: sync.Map{},
 	}
-	return nc, d.UpdateNodeConfig(nc)
+	return nc, nil
 }
 
 //UpdateNodeConfig update node config
@@ -209,12 +175,16 @@ func (d *DiscoverServerManager) UpdateNodeConfig(nc *NodeConfig) error {
 	var endpoint []*corev1.Endpoints
 	for _, dep := range nc.configModel.BaseServices {
 		nc.dependServices.Store(dep.DependServiceID, true)
-		upServices, upEndpoints := d.GetDependService(nc.namespace, dep.DependServiceAlias)
+		labelname := fmt.Sprintf("name=%sService", dep.DependServiceAlias)
+		selector, _ := labels.Parse(labelname)
+		upServices, upEndpoints := d.GetServicesAndEndpoints(nc.namespace, selector)
 		services = append(services, upServices...)
 		endpoint = append(endpoint, upEndpoints...)
 	}
 	if nc.configModel.BasePorts != nil && len(nc.configModel.BasePorts) > 0 {
-		downService, downEndpoint := d.GetSelfService(nc.namespace, nc.serviceAlias)
+		labelname := fmt.Sprintf("name=%sServiceOUT", nc.serviceAlias)
+		selector, _ := labels.Parse(labelname)
+		downService, downEndpoint := d.GetServicesAndEndpoints(nc.namespace, selector)
 		services = append(services, downService...)
 		endpoint = append(endpoint, downEndpoint...)
 	}
@@ -252,31 +222,41 @@ func (d *DiscoverServerManager) setSnapshot(nc *NodeConfig) error {
 	if err != nil {
 		return err
 	}
-	logrus.Debugf("cache envoy node %s config,version: %s", nc.GetID(), nc.GetVersion())
-	//TODO: If the resource has not changed, there is no need to cache the new version
-	nc.VersionUpdate()
+	logrus.Infof("cache envoy node %s config,version: %s", nc.GetID(), nc.GetVersion())
 	return nil
 }
 
 //CreateDiscoverServerManager create discover server manager
-func CreateDiscoverServerManager(kubecli kubecache.KubeClient, conf option.Conf) (*DiscoverServerManager, error) {
+func CreateDiscoverServerManager(client kubecache.KubeClient, conf option.Conf) (*DiscoverServerManager, error) {
 	configcache := cache.NewSnapshotCache(false, Hasher{}, logrus.WithField("module", "config-cache"))
 	ctx, cancel := context.WithCancel(context.Background())
 	dsm := &DiscoverServerManager{
 		server:       server.NewServer(configcache, nil),
 		cacheManager: configcache,
-		kubecli:      kubecli,
+		kubecli:      client.GetKubeClient(),
 		conf:         conf,
 		eventChan:    make(chan *Event, 100),
 		pool: &sync.Pool{
 			New: func() interface{} {
-				return &Event{}
+				return &Task{}
 			},
 		},
 		ctx:    ctx,
 		cancel: cancel,
+		queue:  NewQueue(1 * time.Second),
 	}
-	kubecli.AddEventWatch("all", dsm)
+	sharedInformers := informers.NewFilteredSharedInformerFactory(dsm.kubecli, time.Second*10, corev1.NamespaceAll, func(options *meta_v1.ListOptions) {
+		options.LabelSelector = "creater=Rainbond"
+	})
+	svcInformer := sharedInformers.Core().V1().Services().Informer()
+	dsm.services = dsm.createCacheHandler(svcInformer, "Services")
+	epInformer := sharedInformers.Core().V1().Endpoints().Informer()
+	dsm.endpoints = dsm.createEDSCacheHandler(epInformer, "Endpoints")
+	configsInformer := sharedInformers.Core().V1().ConfigMaps().Informer()
+	dsm.configmaps = dsm.createCacheHandler(configsInformer, "ConfigMaps")
+	dsm.configmaps.handler.Append(dsm.configHandle)
+	dsm.endpoints.handler.Append(dsm.resourceSimpleHandle)
+	dsm.services.handler.Append(dsm.resourceSimpleHandle)
 	return dsm, nil
 }
 
@@ -284,25 +264,30 @@ const grpcMaxConcurrentStreams = 1000000
 
 //Start server start
 func (d *DiscoverServerManager) Start(errch chan error) error {
-
-	// start handle event
-	go d.handleEvent()
-
-	// gRPC golang library sets a very small upper bound for the number gRPC/h2
-	// streams over a single TCP connection. If a proxy multiplexes requests over
-	// a single connection to the management server, then it might lead to
-	// availability problems.
-	var grpcOptions []grpc.ServerOption
-	grpcOptions = append(grpcOptions, grpc.MaxConcurrentStreams(grpcMaxConcurrentStreams))
-	d.grpcServer = grpc.NewServer(grpcOptions...)
-	// register services
-	discovery.RegisterAggregatedDiscoveryServiceServer(d.grpcServer, d.server)
-	v2.RegisterEndpointDiscoveryServiceServer(d.grpcServer, d.server)
-	v2.RegisterClusterDiscoveryServiceServer(d.grpcServer, d.server)
-	v2.RegisterRouteDiscoveryServiceServer(d.grpcServer, d.server)
-	v2.RegisterListenerDiscoveryServiceServer(d.grpcServer, d.server)
-	discovery.RegisterSecretDiscoveryServiceServer(d.grpcServer, d.server)
 	go func() {
+		go d.queue.Run(d.ctx.Done())
+		go d.services.informer.Run(d.ctx.Done())
+		go d.endpoints.informer.Run(d.ctx.Done())
+		//waiting service and endpoint resource loading is complete
+		logrus.Infof("waiting kube service and endpoint resource loading")
+		kcache.WaitForCacheSync(d.ctx.Done(), d.services.informer.HasSynced, d.endpoints.informer.HasSynced)
+		logrus.Infof("kube service and endpoint resource loading success")
+		//loading rule config resource
+		go d.configmaps.informer.Run(d.ctx.Done())
+		// gRPC golang library sets a very small upper bound for the number gRPC/h2
+		// streams over a single TCP connection. If a proxy multiplexes requests over
+		// a single connection to the management server, then it might lead to
+		// availability problems.
+		var grpcOptions []grpc.ServerOption
+		grpcOptions = append(grpcOptions, grpc.MaxConcurrentStreams(grpcMaxConcurrentStreams))
+		d.grpcServer = grpc.NewServer(grpcOptions...)
+		// register services
+		discovery.RegisterAggregatedDiscoveryServiceServer(d.grpcServer, d.server)
+		v2.RegisterEndpointDiscoveryServiceServer(d.grpcServer, d.server)
+		v2.RegisterClusterDiscoveryServiceServer(d.grpcServer, d.server)
+		v2.RegisterRouteDiscoveryServiceServer(d.grpcServer, d.server)
+		v2.RegisterListenerDiscoveryServiceServer(d.grpcServer, d.server)
+		discovery.RegisterSecretDiscoveryServiceServer(d.grpcServer, d.server)
 		logrus.Infof("envoy grpc management server listening %s", d.conf.GrpcAPIAddr)
 		lis, err := net.Listen("tcp", d.conf.GrpcAPIAddr)
 		if err != nil {
@@ -321,17 +306,76 @@ func (d *DiscoverServerManager) Stop() {
 	//d.grpcServer.GracefulStop()
 	d.cancel()
 }
+func (d *DiscoverServerManager) createCacheHandler(informer kcache.SharedIndexInformer, otype string) cacheHandler {
+	handler := &ChainHandler{funcs: []Handler{}}
+
+	informer.AddEventHandler(
+		kcache.ResourceEventHandlerFuncs{
+			// TODO: filtering functions to skip over un-referenced resources (perf)
+			AddFunc: func(obj interface{}) {
+				d.queue.Push(Task{handler: handler.Apply, obj: obj, event: EventAdd})
+			},
+			UpdateFunc: func(old, cur interface{}) {
+				if !reflect.DeepEqual(old, cur) {
+					d.queue.Push(Task{handler: handler.Apply, obj: cur, event: EventUpdate})
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				d.queue.Push(Task{handler: handler.Apply, obj: obj, event: EventDelete})
+			},
+		})
+
+	return cacheHandler{informer: informer, handler: handler}
+}
+func (d *DiscoverServerManager) createEDSCacheHandler(informer kcache.SharedIndexInformer, otype string) cacheHandler {
+	handler := &ChainHandler{funcs: []Handler{}}
+
+	informer.AddEventHandler(
+		kcache.ResourceEventHandlerFuncs{
+			// TODO: filtering functions to skip over un-referenced resources (perf)
+			AddFunc: func(obj interface{}) {
+				d.queue.Push(Task{handler: handler.Apply, obj: obj, event: EventAdd})
+			},
+			UpdateFunc: func(old, cur interface{}) {
+				// Avoid pushes if only resource version changed (kube-scheduller, cluster-autoscaller, etc)
+				oldE := old.(*corev1.Endpoints)
+				curE := cur.(*corev1.Endpoints)
+
+				if !reflect.DeepEqual(oldE.Subsets, curE.Subsets) {
+					d.queue.Push(Task{handler: handler.Apply, obj: cur, event: EventUpdate})
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				// Deleting the endpoints results in an empty set from EDS perspective - only
+				// deleting the service should delete the resources. The full sync replaces the
+				// maps.
+				// c.updateEDS(obj.(*v1.Endpoints))
+				d.queue.Push(Task{handler: handler.Apply, obj: obj, event: EventDelete})
+			},
+		})
+
+	return cacheHandler{informer: informer, handler: handler}
+}
 
 //AddNodeConfig add node config cache
 func (d *DiscoverServerManager) AddNodeConfig(nc *NodeConfig) {
+	var exist bool
 	for i, existNC := range d.cacheNodeConfig {
 		if existNC.nodeID == nc.nodeID {
 			nc.version = existNC.version
 			d.cacheNodeConfig[i] = nc
-			return
+			exist = true
+			break
 		}
 	}
-	d.cacheNodeConfig = append(d.cacheNodeConfig, nc)
+	if !exist {
+		d.cacheNodeConfig = append(d.cacheNodeConfig, nc)
+	}
+	//Fill the configuration information and inject envoy
+	nc.VersionUpdate()
+	if err := d.UpdateNodeConfig(nc); err != nil {
+		logrus.Errorf("update envoy node(%s) config failue %s", nc.GetID(), err.Error())
+	}
 }
 
 //DeleteNodeConfig delete node config cache
@@ -344,13 +388,6 @@ func (d *DiscoverServerManager) DeleteNodeConfig(nodeID string) {
 	}
 }
 
-//OnAdd on add for k8s
-func (d *DiscoverServerManager) OnAdd(obj interface{}) {
-	event := d.pool.Get().(*Event)
-	event.MethodType = "update"
-	event.Source = obj
-	d.eventChan <- event
-}
 func checkIsHandleResource(configMap *corev1.ConfigMap) bool {
 	if value, ok := configMap.Data["plugin-model"]; ok &&
 		(value == "net-plugin:up" || value == "net-plugin:down" || value == "net-plugin:in-and-out") {
@@ -359,9 +396,13 @@ func checkIsHandleResource(configMap *corev1.ConfigMap) bool {
 	return false
 }
 
-//OnAdd on add resource
-func (d *DiscoverServerManager) onAdd(obj interface{}) {
-	if configMap, ok := obj.(*corev1.ConfigMap); ok {
+func (d *DiscoverServerManager) configHandle(obj interface{}, event Event) error {
+	configMap, ok := obj.(*corev1.ConfigMap)
+	if !ok {
+		return fmt.Errorf("Illegal resources")
+	}
+	switch event {
+	case EventAdd, EventUpdate:
 		if checkIsHandleResource(configMap) {
 			nc, err := d.NewNodeConfig(configMap)
 			if err != nil {
@@ -371,63 +412,27 @@ func (d *DiscoverServerManager) onAdd(obj interface{}) {
 				d.AddNodeConfig(nc)
 			}
 		}
-		return
-	}
-	for i, nodeConfig := range d.cacheNodeConfig {
-		if nodeConfig.TryUpdate(obj) {
-			err := d.UpdateNodeConfig(d.cacheNodeConfig[i])
-			if err != nil {
-				logrus.Errorf("update envoy node config failure %s", err.Error())
-			}
-		}
-	}
-}
-
-func (d *DiscoverServerManager) handleEvent() {
-	for {
-		select {
-		case event := <-d.eventChan:
-			switch event.MethodType {
-			case "update":
-				d.onAdd(event.Source)
-			case "delete":
-				d.onDelete(event.Source)
-			}
-			d.pool.Put(event)
-		case <-d.ctx.Done():
-			return
-		}
-	}
-}
-
-//OnUpdate on update resource
-func (d *DiscoverServerManager) OnUpdate(oldObj, newObj interface{}) {
-	d.OnAdd(newObj)
-}
-
-//OnDelete on delete resource
-func (d *DiscoverServerManager) OnDelete(obj interface{}) {
-	event := d.pool.Get().(*Event)
-	event.MethodType = "delete"
-	event.Source = obj
-	d.eventChan <- event
-}
-
-//OnDelete on delete resource
-func (d *DiscoverServerManager) onDelete(obj interface{}) {
-	if configMap, ok := obj.(*corev1.ConfigMap); ok {
+	case EventDelete:
 		if checkIsHandleResource(configMap) {
 			nodeID := createNodeID(configMap.Namespace, configMap.Labels["plugin_id"], configMap.Labels["service_alias"])
 			d.DeleteNodeConfig(nodeID)
 		}
-		return
+		return nil
 	}
-	for i, nodeConfig := range d.cacheNodeConfig {
-		if nodeConfig.TryUpdate(obj) {
-			err := d.UpdateNodeConfig(d.cacheNodeConfig[i])
-			if err != nil {
-				logrus.Errorf("update envoy node config failure %s", err.Error())
+	return nil
+}
+
+func (d *DiscoverServerManager) resourceSimpleHandle(obj interface{}, event Event) error {
+	switch event {
+	case EventAdd, EventUpdate, EventDelete:
+		for i, nodeConfig := range d.cacheNodeConfig {
+			if nodeConfig.TryUpdate(obj) {
+				err := d.UpdateNodeConfig(d.cacheNodeConfig[i])
+				if err != nil {
+					logrus.Errorf("update envoy node config failure %s", err.Error())
+				}
 			}
 		}
 	}
+	return nil
 }

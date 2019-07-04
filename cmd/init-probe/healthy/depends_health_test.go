@@ -33,11 +33,11 @@ import (
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 )
 
-var testClusterID = "2bf54c5a0b5a48a890e2dda8635cb507_aff929446a7e48bea94c75447ed40b09_grc9e8e3"
+var testClusterID = "2bf54c5a0b5a48a890e2dda8635cb507_2591d9904fc4480c9c012037697f98c6_grc9e8e3"
 
 var testXDSHost = "192.168.195.1:6101"
 
-// var testClusterID = "6ab5725e1ca34cfba7762b7ac10c0dee_9d379258e0bc4fc581331780b0541ac6_grc69d9c"
+// var testClusterID = "2bf54c5a0b5a48a890e2dda8635cb507_tcpmeshed6827c0afdda50599b4108105c9e8e3_grc9e8e3"
 //var testXDSHost = "127.0.0.1:6101"
 
 func TestClientListener(t *testing.T) {
