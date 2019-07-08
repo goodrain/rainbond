@@ -211,7 +211,7 @@ func clusterStatus(roleList []map[string]string, ReadyList []map[string]string) 
 			manageFlag = true
 		}
 		if strings.Contains(v["role"], "gateway") && v["status"] == "running" {
-			manageFlag = true
+			gatewayFlag = true
 		}
 	}
 	if !manageFlag {
