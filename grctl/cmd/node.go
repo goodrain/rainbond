@@ -151,7 +151,7 @@ func getStatusShow(v *client.HostNode) (status string) {
 		nss.color = color.FgRed
 	}
 
-	result := nss.String() 
+	result := nss.String()
 	if strings.Contains(result, "unknown") {
 		result = "unknown"
 	}
@@ -649,6 +649,9 @@ func addNodeCommand(c *cli.Context) error {
 	Common(c)
 	if !c.IsSet("role") {
 		showError("role must not null")
+	}
+	if c.String("hostname") == "" {
+		showError("node hostname must be set")
 	}
 	if c.String("root-pass") != "" && c.String("private-key") != "" {
 		showError("Options private-key and root-pass are conflicting")
