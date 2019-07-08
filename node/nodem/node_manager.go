@@ -234,7 +234,7 @@ func (n *NodeManager) heartbeat() {
 			n.currentNode.NodeStatus.AdviceAction = []string{"scheduler"}
 		}
 		n.currentNode.NodeStatus.Status = "running"
-		if err := n.cluster.UpdateStatus(n.currentNode, n.getInitLable(n.currentNode)); err != nil {
+		if err := n.cluster.UpdateStatus(n.currentNode); err != nil {
 			logrus.Errorf("update node status error %s", err.Error())
 		}
 		if n.currentNode.NodeStatus.Status != "running" {
