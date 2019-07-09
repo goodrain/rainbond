@@ -60,8 +60,8 @@ func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *util
 	if n.nodecluster == nil {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
 	}
-	if node.Role == "" {
-		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node role must not null"))
+	if err := node.Role.Validation(); err != nil {
+		return nil, utils.CreateAPIHandleError(400, err)
 	}
 	if node.ID == "" {
 		node.ID = uuid.NewV4().String()

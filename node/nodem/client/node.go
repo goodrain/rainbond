@@ -19,10 +19,13 @@
 package client
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
-	"k8s.io/api/core/v1"
+	"github.com/goodrain/rainbond/util"
+
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
@@ -43,7 +46,7 @@ type APIHostNode struct {
 	ExternalIP  string            `json:"external_ip" validate:"external_ip|ip"`
 	RootPass    string            `json:"root_pass,omitempty"`
 	Privatekey  string            `json:"private_key,omitempty"`
-	Role        string            `json:"role" validate:"role|required|in:manage,compute,gateway"`
+	Role        HostRule          `json:"role" validate:"role|required"`
 	PodCIDR     string            `json:"podCIDR"`
 	AutoInstall bool              `json:"auto_install"`
 	Labels      map[string]string `json:"labels"`
@@ -58,7 +61,7 @@ func (a APIHostNode) Clone() *HostNode {
 		ExternalIP: a.ExternalIP,
 		RootPass:   a.RootPass,
 		KeyPath:    a.Privatekey,
-		Role:       []string{a.Role},
+		Role:       a.Role,
 		Labels:     map[string]string{"rainbond_node_hostname": a.HostName},
 		NodeStatus: NodeStatus{Status: "not_installed", Conditions: make([]NodeCondition, 0)},
 		Status:     "not_installed",
@@ -81,7 +84,7 @@ type HostNode struct {
 	AvailableMemory int64             `json:"available_memory"`
 	AvailableCPU    int64             `json:"available_cpu"`
 	Mode            string            `json:"mode"`
-	Role            HostRule          `json:"role"` //compute, manage, storage,loadbalance
+	Role            HostRule          `json:"role"` //compute, manage, storage, gateway
 	Status          string            `json:"status"`
 	Labels          map[string]string `json:"labels"`        //节点标签 内置标签+用户自定义标签
 	Unschedulable   bool              `json:"unschedulable"` //设置值
@@ -349,6 +352,9 @@ func (n *HostNode) UpdataCondition(conditions ...NodeCondition) {
 //HostRule 节点角色
 type HostRule []string
 
+//SupportNodeRule -
+var SupportNodeRule = []string{ComputeNode, ManageNode, StorageNode, GatewayNode}
+
 //ComputeNode 计算节点
 var ComputeNode = "compute"
 
@@ -358,8 +364,8 @@ var ManageNode = "manage"
 //StorageNode 存储节点
 var StorageNode = "storage"
 
-//LBNode 边缘负载均衡节点
-var LBNode = "loadbalance"
+//GatewayNode 边缘负载均衡节点
+var GatewayNode = "gateway"
 
 //HasRule 是否具有什么角色
 func (h HostRule) HasRule(rule string) bool {
@@ -372,6 +378,28 @@ func (h HostRule) HasRule(rule string) bool {
 }
 func (h HostRule) String() string {
 	return strings.Join(h, ",")
+}
+
+//Add add role
+func (h *HostRule) Add(role ...string) {
+	for _, r := range role {
+		if !util.StringArrayContains(*h, r) {
+			*h = append(*h, r)
+		}
+	}
+}
+
+//Validation host rule validation
+func (h HostRule) Validation() error {
+	if len(h) == 0 {
+		return fmt.Errorf("node rule must be seted")
+	}
+	for _, role := range h {
+		if !util.StringArrayContains(SupportNodeRule, role) {
+			return fmt.Errorf("node role %s can not be supported", role)
+		}
+	}
+	return nil
 }
 
 //NodeConditionType NodeConditionType

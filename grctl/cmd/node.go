@@ -151,7 +151,7 @@ func getStatusShow(v *client.HostNode) (status string) {
 		nss.color = color.FgRed
 	}
 
-	result := nss.String() 
+	result := nss.String()
 	if strings.Contains(result, "unknown") {
 		result = "unknown"
 	}
@@ -565,7 +565,7 @@ func NewCmdNode() cli.Command {
 						Name:  "private-key,key",
 						Usage: "Specify the private key file for login, this option conflicts with root-pass",
 					},
-					cli.StringFlag{
+					cli.StringSliceFlag{
 						Name:  "role,r",
 						Usage: "The option is required, the allowed values are: [manage|compute|gateway]",
 					},
@@ -656,11 +656,19 @@ func addNodeCommand(c *cli.Context) error {
 	if c.String("root-pass") == "" && c.String("private-key") == "" {
 		showError("Options private-key and root-pass must set one")
 	}
-	if c.String("role") != "compute" && c.String("role") != "manage" && c.String("role") != "gateway" {
-		showError("node role only support `compute`, `manage` and `gateway`")
-	}
 	var node client.APIHostNode
-	node.Role = c.String("role")
+	role := c.StringSlice("role")
+	for _, r := range role {
+		if strings.Contains(r, ",") {
+			node.Role.Add(strings.Split(r, ",")...)
+			continue
+		}
+		node.Role.Add(r)
+	}
+	if err := node.Role.Validation(); err != nil {
+		showError(err.Error())
+	}
+	fmt.Println(node.Role)
 	node.HostName = c.String("hostname")
 	node.RootPass = c.String("root-pass")
 	node.InternalIP = c.String("internal-ip")
