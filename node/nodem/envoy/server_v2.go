@@ -176,17 +176,27 @@ func (d *DiscoverServerManager) UpdateNodeConfig(nc *NodeConfig) error {
 	for _, dep := range nc.configModel.BaseServices {
 		nc.dependServices.Store(dep.DependServiceID, true)
 		labelname := fmt.Sprintf("name=%sService", dep.DependServiceAlias)
-		selector, _ := labels.Parse(labelname)
-		upServices, upEndpoints := d.GetServicesAndEndpoints(nc.namespace, selector)
-		services = append(services, upServices...)
-		endpoint = append(endpoint, upEndpoints...)
+		selector, err := labels.Parse(labelname)
+		if err != nil {
+			logrus.Errorf("parse selector %s failure %s", labelname, err.Error())
+		}
+		if selector != nil {
+			upServices, upEndpoints := d.GetServicesAndEndpoints(nc.namespace, selector)
+			services = append(services, upServices...)
+			endpoint = append(endpoint, upEndpoints...)
+		}
 	}
 	if nc.configModel.BasePorts != nil && len(nc.configModel.BasePorts) > 0 {
 		labelname := fmt.Sprintf("name=%sServiceOUT", nc.serviceAlias)
-		selector, _ := labels.Parse(labelname)
-		downService, downEndpoint := d.GetServicesAndEndpoints(nc.namespace, selector)
-		services = append(services, downService...)
-		endpoint = append(endpoint, downEndpoint...)
+		selector, err := labels.Parse(labelname)
+		if err != nil {
+			logrus.Errorf("parse selector %s failure %s", labelname, err.Error())
+		}
+		if selector != nil {
+			downService, downEndpoint := d.GetServicesAndEndpoints(nc.namespace, selector)
+			services = append(services, downService...)
+			endpoint = append(endpoint, downEndpoint...)
+		}
 	}
 	listeners, err := conver.OneNodeListerner(nc.serviceAlias, nc.namespace, nc.config, services)
 	if err != nil {
