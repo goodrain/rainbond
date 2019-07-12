@@ -76,7 +76,7 @@ func NewImageShareItem(in []byte, DockerClient *client.Client, EtcdCli *clientv3
 
 //ShareService ShareService
 func (i *ImageShareItem) ShareService() error {
-	_, err := sources.ImagePull(i.DockerClient, i.LocalImageName, "", "", i.Logger, 10)
+	_, err := sources.ImagePull(i.DockerClient, i.LocalImageName, "", "", i.Logger, 20)
 	if err != nil {
 		logrus.Errorf("pull image %s error: %s", i.LocalImageName, err.Error())
 		i.Logger.Error(fmt.Sprintf("拉取应用镜像: %s失败", i.LocalImageName), map[string]string{"step": "builder-exector", "status": "failure"})
@@ -88,9 +88,9 @@ func (i *ImageShareItem) ShareService() error {
 		return err
 	}
 	if i.ShareInfo.ImageInfo.IsTrust {
-		err = sources.TrustedImagePush(i.DockerClient, i.ImageName, i.ShareInfo.ImageInfo.HubUser, i.ShareInfo.ImageInfo.HubPassword, i.Logger, 8)
+		err = sources.TrustedImagePush(i.DockerClient, i.ImageName, i.ShareInfo.ImageInfo.HubUser, i.ShareInfo.ImageInfo.HubPassword, i.Logger, 30)
 	} else {
-		err = sources.ImagePush(i.DockerClient, i.ImageName, i.ShareInfo.ImageInfo.HubUser, i.ShareInfo.ImageInfo.HubPassword, i.Logger, 8)
+		err = sources.ImagePush(i.DockerClient, i.ImageName, i.ShareInfo.ImageInfo.HubUser, i.ShareInfo.ImageInfo.HubPassword, i.Logger, 30)
 	}
 	if err != nil {
 		if err.Error() == "authentication required" {

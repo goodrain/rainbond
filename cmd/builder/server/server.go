@@ -102,7 +102,7 @@ func Run(s *option.Builder) error {
 	}
 	defer keepalive.Stop()
 
-	exporter := monitor.NewExporter()
+	exporter := monitor.NewExporter(exec)
 	prometheus.MustRegister(exporter)
 	r := api.APIServer()
 	r.Handle(s.Config.PrometheusMetricPath, promhttp.Handler())

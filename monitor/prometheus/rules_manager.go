@@ -53,10 +53,10 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 						&RulesConfig{
 							Alert:       "BuilderTaskError",
-							Expr:        "builder_exporter_builder_task_error > 30",
-							For:         "3m",
+							Expr:        "builder_exporter_builder_current_concurrent_task == builder_exporter_builder_max_concurrent_task",
+							For:         "20s",
 							Labels:      map[string]string{},
-							Annotations: map[string]string{"summary": "Builder execution task error number is greater than 30"},
+							Annotations: map[string]string{"summary": "The build service is performing a maximum number of tasks"},
 						},
 					},
 				},
