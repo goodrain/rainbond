@@ -188,7 +188,7 @@ func (e *exectorManager) RunTask(task *pb.TaskMessage) {
 		go e.runTask(e.buildFromSourceCode, task, true)
 	case "build_from_market_slug":
 		//deprecated
-		e.buildFromMarketSlug(task)
+		go e.runTask(e.buildFromMarketSlug, task, false)
 	case "service_check":
 		go e.runTask(e.serviceCheck, task, true)
 	case "plugin_image_build":
@@ -197,7 +197,7 @@ func (e *exectorManager) RunTask(task *pb.TaskMessage) {
 		go e.runTask(e.pluginDockerfileBuild, task, true)
 	case "share-slug":
 		//deprecated
-		e.slugShare(task)
+		go e.runTask(e.slugShare, task, false)
 	case "share-image":
 		go e.runTask(e.imageShare, task, false)
 	default:
