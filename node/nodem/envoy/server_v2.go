@@ -219,6 +219,8 @@ func (d *DiscoverServerManager) UpdateNodeConfig(nc *NodeConfig) error {
 	} else {
 		nc.endpoints = clusterLoadAssignment
 	}
+	//Fill the configuration information and inject envoy
+	nc.VersionUpdate()
 	return d.setSnapshot(nc)
 }
 
@@ -381,8 +383,6 @@ func (d *DiscoverServerManager) AddNodeConfig(nc *NodeConfig) {
 	if !exist {
 		d.cacheNodeConfig = append(d.cacheNodeConfig, nc)
 	}
-	//Fill the configuration information and inject envoy
-	nc.VersionUpdate()
 	if err := d.UpdateNodeConfig(nc); err != nil {
 		logrus.Errorf("update envoy node(%s) config failue %s", nc.GetID(), err.Error())
 	}
