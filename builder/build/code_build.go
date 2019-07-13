@@ -206,7 +206,7 @@ func (s *slugBuild) readLogFile(logfile string, logger event.Logger, closed chan
 
 func (s *slugBuild) getSourceCodeTarFile(re *Request) (*os.File, error) {
 	var cmd []string
-	sourceTarFile := fmt.Sprintf("%s/%s.tar", util.GetParentDirectory(re.SourceDir), re.DeployVersion)
+	sourceTarFile := fmt.Sprintf("%s/%s-%s.tar", util.GetParentDirectory(re.SourceDir), re.ServiceID, re.DeployVersion)
 	if re.ServerType == "svn" {
 		cmd = append(cmd, "tar", "-cf", sourceTarFile, "--exclude=.svn", "./")
 	}
