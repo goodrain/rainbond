@@ -227,7 +227,8 @@ func (c *ContainerLogManage) listAndWatchContainer(errchan chan error) {
 			if !strings.Contains(err.Error(), "No such container") {
 				logrus.Errorf("get container detail info failure %s", err.Error())
 			}
-			container.ID = con.ID
+			// The log path cannot be obtained if the container details cannot be obtained
+			continue
 		}
 		c.cacheContainer(ContainerEvent{Action: "start", Container: container})
 	}
