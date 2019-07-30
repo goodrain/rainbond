@@ -80,7 +80,7 @@ type AnsibleHost struct {
 }
 
 func (a *AnsibleHost) String() string {
-	return fmt.Sprintf("id=%s ansible_host=%s ansible_port=%d ip=%s port=%d role=%s", a.HostID, a.AnsibleHostIP, a.AnsibleHostPort, a.AnsibleHostIP, a.AnsibleHostPort, a.Role)
+	return fmt.Sprintf("%s ansible_host=%s ansible_port=%d ip=%s port=%d role=%s", a.HostID, a.AnsibleHostIP, a.AnsibleHostPort, a.AnsibleHostIP, a.AnsibleHostPort, a.Role)
 }
 
 //AnsibleHostGroup ansible host group config
@@ -102,8 +102,13 @@ func (a *AnsibleHostGroup) String() string {
 	rebuffer := bytes.NewBuffer(nil)
 	rebuffer.WriteString(fmt.Sprintf("[%s]\n", a.Name))
 	for i := range a.HostList {
-		rebuffer.WriteString(a.HostList[i].String() + "\n")
+		if a.Name == "all" {
+			rebuffer.WriteString(a.HostList[i].String() + "\n")
+		} else {
+			rebuffer.WriteString(a.HostList[i].HostID + "\n")
+		}
 	}
+	rebuffer.WriteString("\n")
 	return rebuffer.String()
 }
 
