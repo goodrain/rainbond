@@ -70,19 +70,6 @@ func NewCmdShow() cli.Command {
 				url := v + ":7070"
 				fmt.Print(url + "  ")
 			}
-			fmt.Println("\n")
-			//fmt.Println("The webui use websocket to provide more feture：")
-			//for _, v := range ips {
-			//	url := v + ":6060"
-			//	fmt.Print(url + "  ")
-			//}
-			//fmt.Println()
-			//fmt.Println("Your web apps use nginx for reverse proxy:")
-			//for _, v := range ips {
-			//	url := v + ":80"
-			//	fmt.Print(url + "  ")
-			//}
-			//fmt.Println()
 			if fileExist("/opt/rainbond/.init/.regioninfo") {
 				regionInfo, err := ioutil.ReadFile("/opt/rainbond/.init/.regioninfo")
 				if err != nil {
@@ -681,6 +668,8 @@ func addNodeCommand(c *cli.Context) error {
 	handleErr(err)
 	if c.Bool("install") {
 		handleErr(err)
+		//write ansible hosts file
+		WriteHostsFile(c)
 		installNode(renode)
 	} else {
 		fmt.Printf("success add %s node %s \n you install it by running: grctl node install %s \n", renode.Role, renode.ID, renode.ID)
@@ -696,6 +685,8 @@ func installNodeCommand(c *cli.Context) error {
 	}
 	node, err := clients.RegionClient.Nodes().Get(nodeID)
 	handleErr(err)
+	//write ansible hosts file
+	WriteHostsFile(c)
 	installNode(node)
 	return nil
 }

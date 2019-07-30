@@ -33,7 +33,6 @@ import (
 func GetCmds() []cli.Command {
 	cmds := []cli.Command{}
 	cmds = append(cmds, NewCmdService())
-
 	cmds = append(cmds, NewCmdTenant())
 	cmds = append(cmds, NewCmdNode())
 	cmds = append(cmds, NewCmdCluster())
@@ -44,28 +43,10 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdNotificationEvent())
 	cmds = append(cmds, NewCmdReset())
 	cmds = append(cmds, NewCmdOp())
-	//task相关命令
-	//cmds = append(cmds, NewCmdTasks())
-	//数据中心配置相关命令
 	cmds = append(cmds, NewCmdConfigs())
-
-	//cmds = append(cmds, NewCmdComputeGroup())
-	//cmds = append(cmds, NewCmdInstall())
-	//cmds = append(cmds, NewCmdInstallStatus())
-
 	cmds = append(cmds, NewCmdDomain())
-	// source build test
 	cmds = append(cmds, NewSourceBuildCmd())
-
-	//cmds = append(cmds, NewCmdBaseManageGroup())
-	//cmds = append(cmds, NewCmdManageGroup())
-
-	//cmds = append(cmds, NewCmdSources())
-	//cmds = append(cmds, NewCmdCloudAuth())
-	//cmds = append(cmds, NewCmdRegionNode())
-	//cmds = append(cmds, NewCmdTest())
-	//cmds = append(cmds, NewCmdPlugin())
-	//todo
+	cmds = append(cmds, NewCmdAnsible())
 	return cmds
 }
 
