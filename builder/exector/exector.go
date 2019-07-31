@@ -41,14 +41,19 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-//TaskNum task number
-var TaskNum float64
+//MetricTaskNum task number
+var MetricTaskNum float64
 
-//ErrorNum error run task number
-var ErrorNum float64
+//MetricErrorTaskNum error run task number
+var MetricErrorTaskNum float64
+
+//MetricBackTaskNum back task number
+var MetricBackTaskNum float64
 
 //Manager 任务执行管理器
 type Manager interface {
+	GetMaxConcurrentTask() float64
+	GetCurrentConcurrentTask() float64
 	AddTask(*pb.TaskMessage) error
 	SetReturnTaskChan(func(*pb.TaskMessage))
 	Start() error
@@ -130,7 +135,7 @@ func (e *exectorManager) SetReturnTaskChan(re func(*pb.TaskMessage)) {
 func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 	select {
 	case e.tasks <- task:
-		TaskNum++
+		MetricTaskNum++
 		e.RunTask(task)
 		return nil
 	default:
@@ -142,53 +147,61 @@ func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 			for len(e.tasks) >= e.maxConcurrentTask {
 				time.Sleep(time.Second * 2)
 			}
+			MetricBackTaskNum++
 			return nil
 		}
 		return ErrCallback
 	}
 }
-func (e *exectorManager) runTask(f func(task *pb.TaskMessage), task *pb.TaskMessage) {
+func (e *exectorManager) runTask(f func(task *pb.TaskMessage), task *pb.TaskMessage, concurrencyControl bool) {
 	logrus.Infof("Build task %s in progress", task.TaskId)
 	e.runningTask.LoadOrStore(task.TaskId, task)
+	if !concurrencyControl {
+		<-e.tasks
+	} else {
+		defer func() { <-e.tasks }()
+	}
 	f(task)
-	//Remove a task that is being executed, not necessarily a task that is currently completed
-	<-e.tasks
 	e.runningTask.Delete(task.TaskId)
 	logrus.Infof("Build task %s is completed", task.TaskId)
 }
-func (e *exectorManager) runTaskWithErr(f func(task *pb.TaskMessage) error, task *pb.TaskMessage) {
+func (e *exectorManager) runTaskWithErr(f func(task *pb.TaskMessage) error, task *pb.TaskMessage, concurrencyControl bool) {
 	logrus.Infof("Build task %s in progress", task.TaskId)
 	e.runningTask.LoadOrStore(task.TaskId, task)
+	//Remove a task that is being executed, not necessarily a task that is currently completed
+	if !concurrencyControl {
+		<-e.tasks
+	} else {
+		defer func() { <-e.tasks }()
+	}
 	if err := f(task); err != nil {
 		logrus.Errorf("run builder task failure %s", err.Error())
 	}
-	//Remove a task that is being executed, not necessarily a task that is currently completed
-	<-e.tasks
 	e.runningTask.Delete(task.TaskId)
 	logrus.Infof("Build task %s is completed", task.TaskId)
 }
 func (e *exectorManager) RunTask(task *pb.TaskMessage) {
 	switch task.TaskType {
 	case "build_from_image":
-		go e.runTask(e.buildFromImage, task)
+		go e.runTask(e.buildFromImage, task, false)
 	case "build_from_source_code":
-		go e.runTask(e.buildFromSourceCode, task)
+		go e.runTask(e.buildFromSourceCode, task, true)
 	case "build_from_market_slug":
 		//deprecated
-		e.buildFromMarketSlug(task)
+		go e.runTask(e.buildFromMarketSlug, task, false)
 	case "service_check":
-		go e.runTask(e.serviceCheck, task)
+		go e.runTask(e.serviceCheck, task, true)
 	case "plugin_image_build":
-		go e.runTask(e.pluginImageBuild, task)
+		go e.runTask(e.pluginImageBuild, task, false)
 	case "plugin_dockerfile_build":
-		go e.runTask(e.pluginDockerfileBuild, task)
+		go e.runTask(e.pluginDockerfileBuild, task, true)
 	case "share-slug":
 		//deprecated
-		e.slugShare(task)
+		go e.runTask(e.slugShare, task, false)
 	case "share-image":
-		go e.runTask(e.imageShare, task)
+		go e.runTask(e.imageShare, task, false)
 	default:
-		go e.runTaskWithErr(e.exec, task)
+		go e.runTaskWithErr(e.exec, task, false)
 	}
 }
 
@@ -212,7 +225,7 @@ func (e *exectorManager) exec(task *pb.TaskMessage) error {
 		}
 	}()
 	if err := worker.Run(time.Minute * 10); err != nil {
-		ErrorNum++
+		MetricErrorTaskNum++
 		worker.ErrorCallBack(err)
 	}
 	return nil
@@ -242,7 +255,7 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 			if n < 1 {
 				i.Logger.Error("The application task to build from the mirror failed to execute，will try", map[string]string{"step": "build-exector", "status": "failure"})
 			} else {
-				ErrorNum++
+				MetricErrorTaskNum++
 				i.Logger.Error("The application task to build from the image failed to execute", map[string]string{"step": "callback", "status": "failure"})
 				if err := i.UpdateVersionInfo("failure"); err != nil {
 					logrus.Debugf("update version Info error: %s", err.Error())
@@ -336,7 +349,7 @@ func (e *exectorManager) buildFromMarketSlug(task *pb.TaskMessage) {
 				if n < 1 {
 					i.Logger.Error("Build app version from market slug failure, will try", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
-					ErrorNum++
+					MetricErrorTaskNum++
 					i.Logger.Error("Build app version from market slug failure", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
@@ -412,7 +425,7 @@ func (e *exectorManager) slugShare(task *pb.TaskMessage) {
 				if n < 1 {
 					i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
-					ErrorNum++
+					MetricErrorTaskNum++
 					i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
 					status = "failure"
 				}
@@ -451,7 +464,7 @@ func (e *exectorManager) imageShare(task *pb.TaskMessage) {
 			if n < 1 {
 				i.Logger.Error("应用分享失败，开始重试", map[string]string{"step": "builder-exector", "status": "failure"})
 			} else {
-				ErrorNum++
+				MetricErrorTaskNum++
 				i.Logger.Error("分享应用任务执行失败", map[string]string{"step": "builder-exector", "status": "failure"})
 				status = "failure"
 			}
@@ -479,4 +492,11 @@ func (e *exectorManager) Stop() error {
 	})
 	logrus.Info("All threads is exited.")
 	return nil
+}
+
+func (e *exectorManager) GetMaxConcurrentTask() float64 {
+	return float64(e.maxConcurrentTask)
+}
+func (e *exectorManager) GetCurrentConcurrentTask() float64 {
+	return float64(len(e.tasks))
 }

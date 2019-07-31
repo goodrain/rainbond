@@ -637,6 +637,9 @@ func addNodeCommand(c *cli.Context) error {
 	if !c.IsSet("role") {
 		showError("role must not null")
 	}
+	if c.String("hostname") == "" {
+		showError("node hostname must be set")
+	}
 	if c.String("root-pass") != "" && c.String("private-key") != "" {
 		showError("Options private-key and root-pass are conflicting")
 	}

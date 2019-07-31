@@ -21,6 +21,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/cmd"
@@ -37,7 +38,7 @@ import (
 
 //ClusterClient ClusterClient
 type ClusterClient interface {
-	UpdateStatus(*HostNode, map[string]string) error
+	UpdateStatus(*HostNode) error
 	DownNode(*HostNode) error
 	GetMasters() ([]*HostNode, error)
 	GetNode(nodeID string) (*HostNode, error)
@@ -61,7 +62,7 @@ type etcdClusterClient struct {
 	onlineLes clientv3.LeaseID
 }
 
-func (e *etcdClusterClient) UpdateStatus(n *HostNode, initLable map[string]string) error {
+func (e *etcdClusterClient) UpdateStatus(n *HostNode) error {
 	existNode, err := e.GetNode(n.ID)
 	if err != nil {
 		return fmt.Errorf("get node %s failure where update node %s", n.ID, err.Error())
@@ -79,9 +80,13 @@ func (e *etcdClusterClient) UpdateStatus(n *HostNode, initLable map[string]strin
 	if existNode.NodeStatus.NodeInfo.OperatingSystem == "" {
 		existNode.NodeStatus.NodeInfo = n.NodeStatus.NodeInfo
 	}
-	for k, v := range initLable {
-		existNode.Labels[k] = v
+	newLabels := n.Labels
+	for k, v := range existNode.Labels {
+		if !strings.HasPrefix(k, "rainbond_node_rule_") {
+			newLabels[k] = v
+		}
 	}
+	existNode.Labels = newLabels
 	existNode.UpdataCondition(n.NodeStatus.Conditions...)
 	return e.Update(existNode)
 }
