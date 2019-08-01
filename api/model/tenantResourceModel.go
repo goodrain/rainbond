@@ -93,13 +93,13 @@ func (list TenantList) Len() int {
 }
 
 func (list TenantList) Less(i, j int) bool {
-	if list[i].MemoryRequest < list[j].MemoryRequest {
+	if list[i].Tenants.LimitMemory < list[j].Tenants.LimitMemory {
 		return true
 	}
 	if list[i].RunningAppNum < list[j].RunningAppNum {
 		return true
 	}
-	if list[i].Tenants.LimitMemory < list[j].Tenants.LimitMemory {
+	if list[i].MemoryRequest < list[j].MemoryRequest {
 		return true
 	}
 	return false

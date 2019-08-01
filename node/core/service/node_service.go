@@ -239,21 +239,47 @@ func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHa
 }
 
 //PutNodeLabel update node label
-func (n *NodeService) PutNodeLabel(nodeID string, labels map[string]string) *utils.APIHandleError {
+func (n *NodeService) PutNodeLabel(nodeID string, labels map[string]string) (map[string]string, *utils.APIHandleError) {
 	hostNode, apierr := n.GetNode(nodeID)
 	if apierr != nil {
-		return apierr
+		return nil, apierr
+	}
+	for k, v := range labels {
+		hostNode.Labels[k] = v
 	}
 	if hostNode.Role.HasRule(client.ComputeNode) {
-		node, err := n.kubecli.UpdateLabels(nodeID, labels)
+		node, err := n.kubecli.UpdateLabels(nodeID, hostNode.Labels)
 		if err != nil {
-			return utils.CreateAPIHandleError(500, fmt.Errorf("update k8s node labels error,%s", err.Error()))
+			return nil, utils.CreateAPIHandleError(500, fmt.Errorf("update k8s node labels error,%s", err.Error()))
 		}
 		hostNode.UpdateK8sNodeStatus(*node)
 	}
-	hostNode.Labels = labels
 	n.nodecluster.UpdateNode(hostNode)
-	return nil
+	return hostNode.Labels, nil
+}
+
+//DeleteNodeLabel delete node label
+func (n *NodeService) DeleteNodeLabel(nodeID string, labels map[string]string) (map[string]string, *utils.APIHandleError) {
+	hostNode, apierr := n.GetNode(nodeID)
+	if apierr != nil {
+		return nil, apierr
+	}
+	newLabels := make(map[string]string)
+	for k, v := range hostNode.Labels {
+		if _, ok := labels[k]; !ok {
+			newLabels[k] = v
+		}
+	}
+	hostNode.Labels = newLabels
+	if hostNode.Role.HasRule(client.ComputeNode) {
+		node, err := n.kubecli.UpdateLabels(nodeID, hostNode.Labels)
+		if err != nil {
+			return nil, utils.CreateAPIHandleError(500, fmt.Errorf("update k8s node labels error,%s", err.Error()))
+		}
+		hostNode.UpdateK8sNodeStatus(*node)
+	}
+	n.nodecluster.UpdateNode(hostNode)
+	return hostNode.Labels, nil
 }
 
 //DownNode down node

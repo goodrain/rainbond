@@ -133,7 +133,7 @@ func GetRuleNodes(w http.ResponseWriter, r *http.Request) {
 	rule := chi.URLParam(r, "rule")
 	allowRule := map[string]struct{}{
 		"compute": struct{}{},
-		"manage": struct{}{},
+		"manage":  struct{}{},
 		"storage": struct{}{},
 		"gateway": struct{}{},
 	}
@@ -278,12 +278,34 @@ func PutLabel(w http.ResponseWriter, r *http.Request) {
 		logrus.Errorf("error unmarshal labels  ,details %s", error.Error())
 		return
 	}
-	err := nodeService.PutNodeLabel(nodeUID, label)
+	labels, err := nodeService.PutNodeLabel(nodeUID, label)
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	httputil.ReturnSuccess(r, w, nil)
+	httputil.ReturnSuccess(r, w, labels)
+}
+
+//DeleteLabel delete node label
+func DeleteLabel(w http.ResponseWriter, r *http.Request) {
+	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
+	var label = make(map[string]string)
+	in, error := ioutil.ReadAll(r.Body)
+	if error != nil {
+		logrus.Errorf("error read from request ,details %s", error.Error())
+		return
+	}
+	error = json.Unmarshal(in, &label)
+	if error != nil {
+		logrus.Errorf("error unmarshal labels  ,details %s", error.Error())
+		return
+	}
+	labels, err := nodeService.DeleteNodeLabel(nodeUID, label)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, labels)
 }
 
 //GetLabel get node label
