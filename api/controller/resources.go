@@ -21,13 +21,15 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/db/errors"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/goodrain/rainbond/db/errors"
+	validator "github.com/thedevsaddam/govalidator"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
@@ -41,7 +43,6 @@ import (
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/jinzhu/gorm"
 	"github.com/renstorm/fuzzysearch/fuzzy"
-	"github.com/thedevsaddam/govalidator"
 )
 
 //V2Routes v2Routes
@@ -109,7 +110,7 @@ type TenantStruct struct {
 
 //AllTenantResources GetResources
 func (t *TenantStruct) AllTenantResources(w http.ResponseWriter, r *http.Request) {
-	tenants, err := handler.GetTenantManager().GetTenants()
+	tenants, err := handler.GetTenantManager().GetTenants("")
 	if err != nil {
 		msg := httputil.ResponseBody{
 			Msg: fmt.Sprintf("get tenant error, %v", err),
@@ -379,8 +380,20 @@ func (t *TenantStruct) SumTenants(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, rc)
 }
 
-//Tenant Tenant
+//Tenant one tenant controller
 func (t *TenantStruct) Tenant(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		t.GetTenant(w, r)
+	case "DELETE":
+		t.DeleteTenant(w, r)
+	case "PUT":
+		t.UpdateTenant(w, r)
+	}
+}
+
+//Tenants Tenant
+func (t *TenantStruct) Tenants(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
 		t.AddTenant(w, r)
@@ -438,6 +451,7 @@ func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 			dbts.UUID = ts.Body.TenantID
 			id = ts.Body.TenantID
 		}
+		dbts.LimitMemory = ts.Body.LimitMemory
 		if err := handler.GetServiceManager().CreateTenant(&dbts); err != nil {
 			if strings.HasSuffix(err.Error(), "is exist") {
 				httputil.ReturnError(r, w, 400, err.Error())
@@ -499,33 +513,62 @@ func (t *TenantStruct) GetTenants(w http.ResponseWriter, r *http.Request) {
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 	value := r.FormValue("eid")
-	id := len(value)
-	if id == 0 {
-		tenants, err := handler.GetTenantManager().GetTenants()
+	page, _ := strconv.Atoi(r.FormValue("page"))
+	if page == 0 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(r.FormValue("pageSize"))
+	if pageSize == 0 {
+		pageSize = 10
+	}
+	queryName := r.FormValue("query")
+	var tenants []*dbmodel.Tenants
+	var err error
+	if len(value) == 0 {
+		tenants, err = handler.GetTenantManager().GetTenants(queryName)
 		if err != nil {
 			httputil.ReturnError(r, w, 500, "get tenant error")
 			return
 		}
-		httputil.ReturnSuccess(r, w, tenants)
-		return
+	} else {
+		tenants, err = handler.GetTenantManager().GetTenantsByEid(value, queryName)
+		if err != nil {
+			httputil.ReturnError(r, w, 500, "get tenant error")
+			return
+		}
 	}
-
-	tenants, err := handler.GetTenantManager().GetTenantsByEid(value)
-	if err != nil {
-		httputil.ReturnError(r, w, 500, "get tenant error")
-		return
-	}
-	httputil.ReturnSuccess(r, w, tenants)
+	list := handler.GetTenantManager().BindTenantsResource(tenants)
+	re := list.Paging(page, pageSize)
+	httputil.ReturnSuccess(r, w, re)
 }
 
 //DeleteTenant DeleteTenant
 func (t *TenantStruct) DeleteTenant(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("delete tenant"))
+	httputil.ReturnError(r, w, 400, "this rainbond version can not support delete tenant")
 }
 
 //UpdateTenant UpdateTenant
+//support update tenant limit memory
 func (t *TenantStruct) UpdateTenant(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("update tenant"))
+	var ts api_model.UpdateTenantStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ts.Body, nil)
+	if !ok {
+		return
+	}
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	tenant.LimitMemory = ts.Body.LimitMemory
+	if err := handler.GetTenantManager().UpdateTenant(tenant); err != nil {
+		httputil.ReturnError(r, w, 500, "update tenant error")
+		return
+	}
+	httputil.ReturnSuccess(r, w, tenant)
+}
+
+//GetTenant get one tenant
+func (t *TenantStruct) GetTenant(w http.ResponseWriter, r *http.Request) {
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	list := handler.GetTenantManager().BindTenantsResource([]*dbmodel.Tenants{tenant})
+	httputil.ReturnSuccess(r, w, list[0])
 }
 
 //ServicesCount Get all apps and status

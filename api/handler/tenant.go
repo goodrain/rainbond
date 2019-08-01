@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -53,9 +54,34 @@ func CreateTenManager(MQClient pb.TaskQueueClient, statusCli *client.AppRuntimeS
 	}
 }
 
+//BindTenantsResource query tenant resource used and sort
+func (t *TenantAction) BindTenantsResource(source []*dbmodel.Tenants) api_model.TenantList {
+	var list api_model.TenantList
+	for i, ten := range source {
+		re, _ := t.statusCli.GetTenantResource(ten.UUID)
+		var item = &api_model.TenantAndResource{
+			Tenants: *source[i],
+		}
+		if re != nil {
+			item.CPULimit = re.CpuLimit
+			item.CPURequest = re.CpuRequest
+			item.MemoryLimit = re.MemoryLimit
+			item.MemoryRequest = re.MemoryRequest
+			item.UnscdCPULimit = re.UnscdCpuLimit
+			item.UnscdCPUReq = re.UnscdCpuReq
+			item.UnscdMemoryLimit = re.UnscdMemoryLimit
+			item.UnscdMemoryReq = re.UnscdMemoryReq
+			item.RunningAppNum = re.RunningAppNum
+		}
+		list.Add(item)
+	}
+	sort.Sort(sort.Reverse(list))
+	return list
+}
+
 //GetTenants get tenants
-func (t *TenantAction) GetTenants() ([]*dbmodel.Tenants, error) {
-	tenants, err := db.GetManager().TenantDao().GetALLTenants()
+func (t *TenantAction) GetTenants(query string) ([]*dbmodel.Tenants, error) {
+	tenants, err := db.GetManager().TenantDao().GetALLTenants(query)
 	if err != nil {
 		return nil, err
 	}
@@ -63,21 +89,17 @@ func (t *TenantAction) GetTenants() ([]*dbmodel.Tenants, error) {
 }
 
 //GetTenantsByEid GetTenantsByEid
-func (t *TenantAction) GetTenantsByEid(eid string) ([]*dbmodel.Tenants, error) {
-	tenants, err := db.GetManager().TenantDao().GetTenantByEid(eid)
+func (t *TenantAction) GetTenantsByEid(eid, query string) ([]*dbmodel.Tenants, error) {
+	tenants, err := db.GetManager().TenantDao().GetTenantByEid(eid, query)
 	if err != nil {
 		return nil, err
 	}
 	return tenants, err
 }
 
-//GetTenantsPaged GetTenantsPaged
-func (t *TenantAction) GetTenantsPaged(offset, len int) ([]*dbmodel.Tenants, error) {
-	tenants, err := db.GetManager().TenantDao().GetALLTenants()
-	if err != nil {
-		return nil, err
-	}
-	return tenants, err
+//UpdateTenant update tenant info
+func (t *TenantAction) UpdateTenant(tenant *dbmodel.Tenants) error {
+	return db.GetManager().TenantDao().UpdateModel(tenant)
 }
 
 //TotalMemCPU StatsMemCPU
@@ -98,7 +120,7 @@ func (t *TenantAction) TotalMemCPU(services []*dbmodel.TenantServices) (*api_mod
 
 //GetTenantsName get tenants name
 func (t *TenantAction) GetTenantsName() ([]string, error) {
-	tenants, err := db.GetManager().TenantDao().GetALLTenants()
+	tenants, err := db.GetManager().TenantDao().GetALLTenants("")
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +137,6 @@ func (t *TenantAction) GetTenantsByName(name string) (*dbmodel.Tenants, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return tenant, err
 }
 
@@ -356,7 +377,7 @@ func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re
 
 //TenantsSum TenantsSum
 func (t *TenantAction) TenantsSum() (int, error) {
-	s, err := db.GetManager().TenantDao().GetALLTenants()
+	s, err := db.GetManager().TenantDao().GetALLTenants("")
 	if err != nil {
 		return 0, err
 	}

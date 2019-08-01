@@ -88,19 +88,31 @@ func (t *TenantDaoImpl) GetTenantIDByName(name string) (*model.Tenants, error) {
 }
 
 //GetALLTenants GetALLTenants
-func (t *TenantDaoImpl) GetALLTenants() ([]*model.Tenants, error) {
+func (t *TenantDaoImpl) GetALLTenants(query string) ([]*model.Tenants, error) {
 	var tenants []*model.Tenants
-	if err := t.DB.Find(&tenants).Error; err != nil {
-		return nil, err
+	if query != "" {
+		if err := t.DB.Where("name like '%?%'", query).Find(&tenants).Error; err != nil {
+			return nil, err
+		}
+	} else {
+		if err := t.DB.Find(&tenants).Error; err != nil {
+			return nil, err
+		}
 	}
 	return tenants, nil
 }
 
-//GetTenantsByEid
-func (t *TenantDaoImpl) GetTenantByEid(eid string) ([]*model.Tenants, error) {
+//GetTenantByEid get tenants by eid
+func (t *TenantDaoImpl) GetTenantByEid(eid, query string) ([]*model.Tenants, error) {
 	var tenants []*model.Tenants
-	if err := t.DB.Where("eid = ?", eid).Find(&tenants).Error; err != nil {
-		return nil, err
+	if query != "" {
+		if err := t.DB.Where("eid = ? and name like '%?%'", query).Find(&tenants).Error; err != nil {
+			return nil, err
+		}
+	} else {
+		if err := t.DB.Where("eid = ?", query).Find(&tenants).Error; err != nil {
+			return nil, err
+		}
 	}
 	return tenants, nil
 }

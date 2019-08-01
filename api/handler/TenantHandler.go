@@ -26,10 +26,9 @@ import (
 
 //TenantHandler tenant handler
 type TenantHandler interface {
-	GetTenants() ([]*dbmodel.Tenants, error)
-	GetTenantsPaged(offset, len int) ([]*dbmodel.Tenants, error)
+	GetTenants(query string) ([]*dbmodel.Tenants, error)
 	GetTenantsByName(name string) (*dbmodel.Tenants, error)
-	GetTenantsByEid(eid string) ([]*dbmodel.Tenants, error)
+	GetTenantsByEid(eid, query string) ([]*dbmodel.Tenants, error)
 	GetTenantsByUUID(uuid string) (*dbmodel.Tenants, error)
 	GetTenantsName() ([]string, error)
 	StatsMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)
@@ -43,4 +42,6 @@ type TenantHandler interface {
 	TransPlugins(tenantID, tenantName, fromTenant string, pluginList []string) *util.APIHandleError
 	GetServicesStatus(ids string) map[string]string
 	IsClosedStatus(status string) bool
+	BindTenantsResource(source []*dbmodel.Tenants) api_model.TenantList
+	UpdateTenant(*dbmodel.Tenants) error
 }

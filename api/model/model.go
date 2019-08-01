@@ -552,8 +552,21 @@ type AddTenantStruct struct {
 		// the eid
 		// in : body
 		// required: false
-		Eid   string `json:"eid" validata:"eid"`
-		Token string `json:"token" validate:"token"`
+		Eid         string `json:"eid" validata:"eid"`
+		Token       string `json:"token" validate:"token"`
+		LimitMemory int    `json:"limit_memory" validate:"limit_memory"`
+	}
+}
+
+// UpdateTenantStruct UpdateTenantStruct
+// swagger:parameters updateTenant
+type UpdateTenantStruct struct {
+	//in: body
+	Body struct {
+		// the eid
+		// in : body
+		// required: false
+		LimitMemory int `json:"limit_memory" validate:"limit_memory"`
 	}
 }
 

@@ -49,9 +49,9 @@ func (v2 *V2) Routes() chi.Router {
 
 func (v2 *V2) tenantRouter() chi.Router {
 	r := chi.NewRouter()
-	r.Post("/", controller.GetManager().Tenant)
+	r.Post("/", controller.GetManager().Tenants)
 	r.Mount("/{tenant_name}", v2.tenantNameRouter())
-	r.Get("/", controller.GetManager().Tenant)
+	r.Get("/", controller.GetManager().Tenants)
 	r.Get("/services-count", controller.GetManager().ServicesCount)
 	return r
 }
