@@ -128,9 +128,11 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 		if err != nil && err != gorm.ErrRecordNotFound {
 			logrus.Errorf("get service plugin config from db failure %s", err.Error())
 		}
-		var resourceConfig api_model.ResourceSpec
-		if err := json.Unmarshal([]byte(config.ConfigStr), &resourceConfig); err == nil {
-			inboundPluginConfig = &resourceConfig
+		if config != nil {
+			var resourceConfig api_model.ResourceSpec
+			if err := json.Unmarshal([]byte(config.ConfigStr), &resourceConfig); err == nil {
+				inboundPluginConfig = &resourceConfig
+			}
 		}
 	}
 	//create plugin config to configmap
