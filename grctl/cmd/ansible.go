@@ -51,7 +51,9 @@ func NewCmdAnsible() cli.Command {
 				},
 				Action: func(c *cli.Context) error {
 					Common(c)
-					return WriteHostsFile(c)
+					hosts, err := clients.RegionClient.Nodes().List()
+					handleErr(err)
+					return WriteHostsFile(c.String("p"), hosts)
 				},
 			},
 		},
@@ -60,10 +62,8 @@ func NewCmdAnsible() cli.Command {
 }
 
 //WriteHostsFile write hosts file
-func WriteHostsFile(c *cli.Context) error {
-	hosts, err := clients.RegionClient.Nodes().List()
-	handleErr(err)
-	config := GetAnsibleHostConfig(c.String("p"))
+func WriteHostsFile(filePath string, hosts []*client.HostNode) error {
+	config := GetAnsibleHostConfig(filePath)
 	for i := range hosts {
 		config.AddHost(hosts[i])
 	}

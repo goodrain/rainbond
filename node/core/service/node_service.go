@@ -27,6 +27,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/goodrain/rainbond/event"
+
 	"github.com/goodrain/rainbond/util"
 
 	"github.com/Sirupsen/logrus"
@@ -48,6 +50,11 @@ type NodeService struct {
 
 //CreateNodeService create
 func CreateNodeService(c *option.Conf, nodecluster *node.Cluster, kubecli kubecache.KubeClient) *NodeService {
+	if err := event.NewManager(event.EventConfig{
+		DiscoverAddress: c.Etcd.Endpoints,
+	}); err != nil {
+		logrus.Errorf("create event manager faliure")
+	}
 	return &NodeService{
 		c:           c,
 		nodecluster: nodecluster,
@@ -117,13 +124,23 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 	if node.KeyPath != "" {
 		linkModel = "key"
 	}
+	if err := event.NewManager(event.EventConfig{
+		DiscoverAddress: n.c.Etcd.Endpoints,
+	}); err != nil {
+		logrus.Errorf("create event manager faliure")
+	}
+	//TODO: write log to event log
+	//logger := event.GetManager().GetLogger(node.ID + "-insatll")
 	// start add node script
 	logrus.Infof("Begin install node %s", node.ID)
+	// TODO: write ansible hosts file
 	line := fmt.Sprintf("./node.sh %s %s %s %s %s %s %s", node.Role[0], node.HostName,
 		node.InternalIP, linkModel, node.RootPass, node.KeyPath, node.ID)
 	fileName := node.HostName + ".log"
 	cmd := exec.Command("bash", "-c", line)
-	util.CheckAndCreateDir("/grdata/downloads/log/")
+	if err := util.CheckAndCreateDir("/grdata/downloads/log/"); err != nil {
+		logrus.Errorf("check and create log dir failure %s", err.Error())
+	}
 	f, err := os.OpenFile("/grdata/downloads/log/"+fileName, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0755)
 	if err != nil {
 		logrus.Errorf("open log file %s failure %s", "/grdata/downloads/log/"+fileName, err.Error())
@@ -138,7 +155,9 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 	cmd.Stderr = f
 	err = cmd.Run()
 	if err != nil {
-		f.Write([]byte(err.Error()))
+		if _, err := f.Write([]byte(err.Error())); err != nil {
+			logrus.Errorf("Error write file %s", err.Error())
+		}
 		logrus.Errorf("Error executing shell script,View log file：/grdata/downloads/log/" + fileName)
 		node.Status = client.InstallFailed
 		node.NodeStatus.Status = client.InstallFailed
@@ -220,11 +239,7 @@ func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHa
 	if !hostNode.Role.HasRule(client.ComputeNode) {
 		return utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
 	}
-	k8snode, err := n.kubecli.GetNode(hostNode.ID)
-	if err != nil {
-		logrus.Errorf("get k8s node(%s) error %s", hostNode.ID, err.Error())
-		return utils.CreateAPIHandleError(500, fmt.Errorf("get k8s node(%s) error %s", hostNode.ID, err.Error()))
-	}
+	k8snode := hostNode.NodeStatus.KubeNode
 	hostNode.Unschedulable = unschedulable
 	//update k8s node unshcedulable status
 	if k8snode != nil {
@@ -247,7 +262,7 @@ func (n *NodeService) PutNodeLabel(nodeID string, labels map[string]string) (map
 	for k, v := range labels {
 		hostNode.Labels[k] = v
 	}
-	if hostNode.Role.HasRule(client.ComputeNode) {
+	if hostNode.Role.HasRule(client.ComputeNode) && hostNode.NodeStatus.KubeNode != nil {
 		node, err := n.kubecli.UpdateLabels(nodeID, hostNode.Labels)
 		if err != nil {
 			return nil, utils.CreateAPIHandleError(500, fmt.Errorf("update k8s node labels error,%s", err.Error()))
@@ -271,7 +286,7 @@ func (n *NodeService) DeleteNodeLabel(nodeID string, labels map[string]string) (
 		}
 	}
 	hostNode.Labels = newLabels
-	if hostNode.Role.HasRule(client.ComputeNode) {
+	if hostNode.Role.HasRule(client.ComputeNode) && hostNode.NodeStatus.KubeNode != nil {
 		node, err := n.kubecli.UpdateLabels(nodeID, hostNode.Labels)
 		if err != nil {
 			return nil, utils.CreateAPIHandleError(500, fmt.Errorf("update k8s node labels error,%s", err.Error()))
@@ -289,7 +304,7 @@ func (n *NodeService) DownNode(nodeID string) (*client.HostNode, *utils.APIHandl
 		return nil, apierr
 	}
 	// add the node from k8s if type is compute
-	if hostNode.Role.HasRule(client.ComputeNode) {
+	if hostNode.Role.HasRule(client.ComputeNode) && hostNode.NodeStatus.KubeNode != nil {
 		err := n.kubecli.DownK8sNode(hostNode.ID)
 		if err != nil {
 			logrus.Error("Failed to down node: ", err)
@@ -446,27 +461,4 @@ func (n *NodeService) DeleteNodeCondition(nodeUID string, condition client.NodeC
 	node.DeleteCondition(condition)
 	n.nodecluster.UpdateNode(node)
 	return node, nil
-}
-
-func dealNext(task *model.ExecedTask, tasks []*model.Task) {
-	for _, v := range tasks {
-		if v.Temp.Depends != nil {
-			for _, dep := range v.Temp.Depends {
-				if dep.DependTaskID == task.ID {
-					task.Next = append(task.Next, v.ID)
-				}
-			}
-		}
-	}
-}
-
-func dealDepend(result *model.ExecedTask, task *model.Task) {
-	if task.Temp.Depends != nil {
-
-		for _, v := range task.Temp.Depends {
-			if v.DetermineStrategy == "SameNode" {
-				result.Depends = append(result.Depends, v.DependTaskID)
-			}
-		}
-	}
 }

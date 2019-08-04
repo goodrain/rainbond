@@ -165,6 +165,4 @@ func (m *Manager) CheckTable() {
 	})
 }
 
-func (m *Manager) patchTable() {
-
-}
+func (m *Manager) patchTable() {}

@@ -537,6 +537,11 @@ func NewCmdNode() cli.Command {
 						Usage: "The option is required",
 					},
 					cli.StringFlag{
+						Name:  "hosts-file-path,p",
+						Usage: "hosts file path",
+						Value: "/opt/rainbond/rainbond-ansible/inventory/hosts",
+					},
+					cli.StringFlag{
 						Name:  "internal-ip,iip",
 						Usage: "The option is required",
 					},
@@ -573,9 +578,15 @@ func NewCmdNode() cli.Command {
 			},
 			{
 
-				Name:   "install",
-				Usage:  "Install a exist node into the cluster",
-				Flags:  []cli.Flag{},
+				Name:  "install",
+				Usage: "Install a exist node into the cluster",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "hosts-file-path,p",
+						Usage: "hosts file path",
+						Value: "/opt/rainbond/rainbond-ansible/inventory/hosts",
+					},
+				},
 				Action: installNodeCommand,
 			},
 		},
@@ -671,8 +682,6 @@ func addNodeCommand(c *cli.Context) error {
 	handleErr(err)
 	if c.Bool("install") {
 		handleErr(err)
-		//write ansible hosts file
-		WriteHostsFile(c)
 		installNode(renode)
 	} else {
 		fmt.Printf("success add %s node %s \n you install it by running: grctl node install %s \n", renode.Role, renode.ID, renode.ID)
@@ -688,8 +697,10 @@ func installNodeCommand(c *cli.Context) error {
 	}
 	node, err := clients.RegionClient.Nodes().Get(nodeID)
 	handleErr(err)
+	nodes, err := clients.RegionClient.Nodes().List()
+	handleErr(err)
 	//write ansible hosts file
-	WriteHostsFile(c)
+	WriteHostsFile(c.String("p"), nodes)
 	installNode(node)
 	return nil
 }
