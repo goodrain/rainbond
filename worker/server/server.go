@@ -33,7 +33,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -110,7 +110,16 @@ func (r *RuntimeServer) GetTenantResource(ctx context.Context, re *pb.TenantRequ
 	if res == nil {
 		return &tr, nil
 	}
-	tr.RunningAppNum = int64(len(r.store.GetTenantRunningApp(re.TenantId)))
+	// tr.RunningAppNum = int64(len(r.store.GetTenantRunningApp(re.TenantId)))
+	runningApps := r.store.GetTenantRunningApp(re.TenantId)
+	for _, app := range runningApps {
+		if app.ServiceKind == model.ServiceKindThirdParty {
+			tr.RunningAppThirdNum += 1
+		} else if app.ServiceKind == model.ServiceKindInternal {
+			tr.RunningAppInternalNum += 1
+		}
+	}
+	tr.RunningAppNum = int64(len(runningApps))
 	tr.CpuLimit = res.CPULimit
 	tr.CpuRequest = res.CPURequest
 	tr.MemoryLimit = res.MemoryLimit / 1024 / 1024

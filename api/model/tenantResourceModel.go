@@ -70,15 +70,17 @@ func (list TenantResList) Swap(i, j int) {
 //TenantAndResource tenant and resource strcut
 type TenantAndResource struct {
 	dbmodel.Tenants
-	CPURequest       int64 `json:"cpu_request"`
-	CPULimit         int64 `json:"cpu_limit"`
-	MemoryRequest    int64 `json:"memory_request"`
-	MemoryLimit      int64 `json:"memory_limit"`
-	UnscdCPUReq      int64 `json:"unscd_cpu_req"`
-	UnscdCPULimit    int64 `json:"unscd_cpu_limit"`
-	UnscdMemoryReq   int64 `json:"unscd_memory_req"`
-	UnscdMemoryLimit int64 `json:"unscd_memory_limit"`
-	RunningAppNum    int64 `json:"running_app_num"`
+	CPURequest            int64 `json:"cpu_request"`
+	CPULimit              int64 `json:"cpu_limit"`
+	MemoryRequest         int64 `json:"memory_request"`
+	MemoryLimit           int64 `json:"memory_limit"`
+	UnscdCPUReq           int64 `json:"unscd_cpu_req"`
+	UnscdCPULimit         int64 `json:"unscd_cpu_limit"`
+	UnscdMemoryReq        int64 `json:"unscd_memory_req"`
+	UnscdMemoryLimit      int64 `json:"unscd_memory_limit"`
+	RunningAppInternalNum int64 `json:"running_app_internal_num"`
+	RunningAppThirdNum    int64 `json:"running_app_third_num"`
+	RunningAppNum         int64 `json:"running_app_num"`
 }
 
 //TenantList Tenant list struct
