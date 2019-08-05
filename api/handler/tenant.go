@@ -72,6 +72,8 @@ func (t *TenantAction) BindTenantsResource(source []*dbmodel.Tenants) api_model.
 			item.UnscdMemoryLimit = re.UnscdMemoryLimit
 			item.UnscdMemoryReq = re.UnscdMemoryReq
 			item.RunningAppNum = re.RunningAppNum
+			item.RunningAppInternalNum = re.RunningAppInternalNum
+			item.RunningAppThirdNum = re.RunningAppThirdNum
 		}
 		list.Add(item)
 	}
