@@ -37,13 +37,7 @@ type AnsibleHost struct {
 }
 
 func (a *AnsibleHost) String() string {
-	if a.Role.HasRule("all") {
-		return fmt.Sprintf("%s ansible_host=%s ansible_port=%d ip=%s port=%d role=%s", a.HostID, a.AnsibleHostIP, a.AnsibleHostPort, a.AnsibleHostIP, a.AnsibleHostPort, a.Role)
-	} else if a.Role.HasRule("etcd") {
-		return fmt.Sprintf("%s ansible_host=%s NODE_NAME=etcd1", a.HostID, a.AnsibleHostIP)
-	} else {
-		return fmt.Sprintf("%s ansible_host=%s", a.HostID, a.AnsibleHostIP)
-	}
+	return fmt.Sprintf("%s ansible_host=%s ansible_port=%d ip=%s port=%d role=%s", a.HostID, a.AnsibleHostIP, a.AnsibleHostPort, a.AnsibleHostIP, a.AnsibleHostPort, a.Role)
 }
 
 type HostsList []*AnsibleHost
@@ -82,6 +76,8 @@ func (a *AnsibleHostGroup) String() string {
 	for i := range a.HostList {
 		if a.Name == "all" {
 			rebuffer.WriteString(a.HostList[i].String() + "\n")
+		} else if a.Name == "etcd" {
+			rebuffer.WriteString(a.HostList[i].HostID + " NODE_NAME=etcd1" + "\n")
 		} else {
 			rebuffer.WriteString(a.HostList[i].HostID + "\n")
 		}
@@ -108,6 +104,7 @@ func GetAnsibleHostConfig(name string) *AnsibleHostConfig {
 			"new-gateway": &AnsibleHostGroup{Name: "new-gateway"},
 			"compute":     &AnsibleHostGroup{Name: "compute"},
 			"new-compute": &AnsibleHostGroup{Name: "new-compute"},
+			"etcd":        &AnsibleHostGroup{Name: "etcd"},
 		},
 	}
 }

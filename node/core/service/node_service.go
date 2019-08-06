@@ -134,8 +134,16 @@ func (n *NodeService) writeHostsFile() error {
 	if err != nil {
 		return err.Err
 	}
-	// use default hosts file path and default install config file path
-	erro := ansibleUtil.WriteHostsFile("/opt/rainbond/rainbond-ansible/inventory/hosts", "/opt/rainbond/rainbond-ansible/scripts/installer/global.sh", hosts)
+	// use the value of environment if it is empty use default value
+	hostsFilePath := os.Getenv("HOSTS_FILE_PATH")
+	if hostsFilePath == "" {
+		hostsFilePath = "/opt/rainbond/rainbond-ansible/inventory/hosts"
+	}
+	installConfPath := os.Getenv("INSTALL_CONF_PATH")
+	if installConfPath == "" {
+		installConfPath = "/opt/rainbond/rainbond-ansible/scripts/installer/global.sh"
+	}
+	erro := ansibleUtil.WriteHostsFile(hostsFilePath, installConfPath, hosts)
 	if erro != nil {
 		return err
 	}
