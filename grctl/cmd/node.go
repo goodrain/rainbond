@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 
@@ -582,7 +581,7 @@ func NewCmdNode() cli.Command {
 				Usage: "Install a exist node into the cluster",
 				Flags: []cli.Flag{
 					cli.StringFlag{
-						Name:  "hosts-file-path,p",
+						Name:  "hosts-file-path",
 						Usage: "hosts file path",
 						Value: "/opt/rainbond/rainbond-ansible/inventory/hosts",
 					},
@@ -616,16 +615,28 @@ func installNode(node *client.HostNode) {
 		logrus.Errorf("install node scripts is not found")
 		return
 	}
-	line := fmt.Sprintf("/opt/rainbond/rainbond-ansible/scripts/node.sh %s %s %s %s %s %s %s", node.Role[0], node.HostName,
-		node.InternalIP, linkModel, node.RootPass, node.KeyPath, node.ID)
-	cmd := exec.Command("bash", "-c", line)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
+
+	// node stauts: installing
 	if _, err := clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.Installing); err != nil {
 		logrus.Errorf("update node %s status failure %s", node.ID, err.Error())
 	}
-	err := cmd.Run()
+
+	// install node
+	option := coreutil.NodeInstallOption{
+		HostRole:   node.Role[0],
+		HostName:   node.HostName,
+		InternalIP: node.InternalIP,
+		LinkModel:  linkModel,
+		RootPass:   node.RootPass,
+		KeyPath:    node.KeyPath,
+		NodeID:     node.ID,
+		Stdin:      os.Stdin,
+		Stderr:     os.Stderr,
+	}
+	err := coreutil.RunNodeInstallCmd(option, func(line string) {
+		// run log func
+		fmt.Fprint(os.Stdout, line) // write log to os.Stdout
+	})
 	if err != nil {
 		logrus.Errorf("Error executing shell script %s", err.Error())
 		if _, err := clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.InstallFailed); err != nil {
@@ -633,6 +644,8 @@ func installNode(node *client.HostNode) {
 		}
 		return
 	}
+
+	// node status success
 	if _, err := clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.InstallSuccess); err != nil {
 		logrus.Errorf("update node %s status failure %s", node.ID, err.Error())
 	}
@@ -700,7 +713,7 @@ func installNodeCommand(c *cli.Context) error {
 	nodes, err := clients.RegionClient.Nodes().List()
 	handleErr(err)
 	//write ansible hosts file
-	WriteHostsFile(c.String("p"), nodes)
+	WriteHostsFile(c.String("hosts-file-path"), nodes)
 	installNode(node)
 	return nil
 }

@@ -200,6 +200,11 @@ func NewCmdInit() cli.Command {
 				Usage:  "use test shell",
 				Hidden: true,
 			},
+			cli.StringFlag{
+				Name:  "install_ssh_port",
+				Usage: "new node ssh port",
+				Value: "22",
+			},
 		},
 		Usage: "grctl init cluster",
 		Action: func(c *cli.Context) error {
@@ -322,6 +327,7 @@ func getConfig(c *cli.Context) map[string]string {
 	configs["EXCSDB_PORT"] = c.String("excsdb-port")
 	configs["EXCSDB_USER"] = c.String("excsdb-user")
 	configs["EXDB_TYPE"] = c.String("exdb-type")
+	configs["INSTALL_SSH_PORT"] = c.String("install_ssh_port")
 	return configs
 }
 func initCluster(c *cli.Context) {
