@@ -585,6 +585,11 @@ func NewCmdNode() cli.Command {
 						Usage: "hosts file path",
 						Value: "/opt/rainbond/rainbond-ansible/inventory/hosts",
 					},
+					cli.StringFlag{
+						Name:  "config-file-path",
+						Usage: "install config path",
+						Value: "/opt/rainbond/rainbond-ansible/scripts/installer/global.sh",
+					},
 				},
 				Action: installNodeCommand,
 			},
@@ -713,7 +718,7 @@ func installNodeCommand(c *cli.Context) error {
 	nodes, err := clients.RegionClient.Nodes().List()
 	handleErr(err)
 	//write ansible hosts file
-	WriteHostsFile(c.String("hosts-file-path"), nodes)
+	WriteHostsFile(c.String("hosts-file-path"), c.String("config-file-path"), nodes)
 	installNode(node)
 	return nil
 }
