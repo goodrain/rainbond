@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -38,12 +39,16 @@ type NodeInstallOption struct {
 	KeyPath    string
 	NodeID     string
 	Stdin      *os.File
-	Stderr     *os.File
 }
 
-func RunNodeInstallCmd(option NodeInstallOption, runLog func(line string)) (err error) {
+func RunNodeInstallCmd(option NodeInstallOption, logChan chan string) (err error) {
+	installNodeShellPath := os.Getenv("INSTALL_NODE_SHELL_PATH")
+	if installNodeShellPath == "" {
+		installNodeShellPath = "/opt/rainbond/rainbond-ansible/scripts/node.sh"
+	}
+
 	// ansible file must exists
-	if ok, _ := FileExists("/opt/rainbond/rainbond-ansible/scripts/node.sh"); !ok {
+	if ok, _ := FileExists(installNodeShellPath); !ok {
 		err = fmt.Errorf("install node scripts is not found")
 		logrus.Error(err)
 		return err
@@ -54,21 +59,28 @@ func RunNodeInstallCmd(option NodeInstallOption, runLog func(line string)) (err 
 		return
 	}
 
-	line := fmt.Sprintf("/opt/rainbond/rainbond-ansible/scripts/node.sh %s %s %s %s %s %s %s",
+	line := fmt.Sprintf(installNodeShellPath+" %s %s %s %s %s %s %s",
 		option.HostRole, option.HostName, option.InternalIP, option.LinkModel, option.RootPass, option.KeyPath, option.NodeID)
 
 	cmd := exec.Command("bash", "-c", line)
-	cmd.Stderr = option.Stderr
 	cmd.Stdin = option.Stdin
 
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		logrus.Errorf("install node failed")
+		return err
+	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		logrus.Errorf("install node failed")
 		return err
 	}
 
+	wg := sync.WaitGroup{}
+
 	// for another log
 	reader := bufio.NewReader(stdout)
+	wg.Add(1)
 	go func() {
 		for {
 			line, err := reader.ReadString('\n')
@@ -80,10 +92,26 @@ func RunNodeInstallCmd(option NodeInstallOption, runLog func(line string)) (err 
 				return
 			}
 
-			if runLog != nil {
-				runLog(line)
-			}
+			logChan <- line
 		}
+		wg.Done()
+	}()
+
+	readerStderr := bufio.NewReader(stderr)
+	wg.Add(1)
+	go func() {
+		for {
+			line, err := readerStderr.ReadString('\n')
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				logrus.Error("install node failed")
+				return
+			}
+			logChan <- line
+		}
+		wg.Done()
 	}()
 
 	err = cmd.Start()
@@ -96,6 +124,9 @@ func RunNodeInstallCmd(option NodeInstallOption, runLog func(line string)) (err 
 	if err != nil {
 		logrus.Errorf("install node finished with error : %v", err.Error())
 	}
+	// wait clse logChan
+	wg.Wait()
+	close(logChan)
 	return
 }
 
@@ -126,11 +157,12 @@ func preCheckNodeInstall(option NodeInstallOption) (err error) {
 		logrus.Error(err)
 		return
 	}
-	if strings.TrimSpace(option.KeyPath) == "" {
-		err = fmt.Errorf("install node failed, install scripts needs param keyPath")
-		logrus.Error(err)
-		return
-	}
+	// if rootPass is not empty then keyPath can be empty
+	// if strings.TrimSpace(option.KeyPath) == "" {
+	// 	err = fmt.Errorf("install node failed, install scripts needs param keyPath")
+	// 	logrus.Error(err)
+	// 	return
+	// }
 	if strings.TrimSpace(option.NodeID) == "" {
 		err = fmt.Errorf("install node failed, install scripts needs param nodeID")
 		logrus.Error(err)

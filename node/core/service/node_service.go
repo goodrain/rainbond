@@ -24,6 +24,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/goodrain/rainbond/event"
@@ -210,21 +211,30 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 		KeyPath:    node.KeyPath,
 		NodeID:     node.ID,
 		Stdin:      nil,
-		Stderr:     f,
 	}
 
 	// write log to event log
 	logger := event.GetManager().GetLogger(node.ID + "-insatll")
-	err = coreutil.RunNodeInstallCmd(option, func(line string) {
-		// run log func
-		logger.Info(line, map[string]string{"step": "node-install", "status": "installing"}) // write log to eventLog
-		_, err = f.WriteString(line)                                                         // write log to file
-		if err != nil {
-			logrus.Error(err)
-			return
+
+	logChan := make(chan string, 10)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		// write log
+		for line := range logChan {
+			logger.Info(line, map[string]string{"step": "node-install", "status": "installing"}) // write log to eventLog
+			_, err = f.WriteString(line)                                                         // write log to file
+			if err != nil {
+				logrus.Error(err)
+				return
+			}
+			// fmt.Fprint(os.Stdout, line)                                                          //write os.Stdout
 		}
-		// fmt.Fprint(os.Stdout, line)                                                          //write os.Stdout
-	})
+		wg.Done()
+	}()
+
+	err = coreutil.RunNodeInstallCmd(option, logChan)
+
 	if err != nil {
 		if _, err := f.Write([]byte(err.Error())); err != nil {
 			logrus.Errorf("Error write file %s", err.Error())
@@ -235,6 +245,9 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 		n.nodecluster.UpdateNode(node)
 		return
 	}
+
+	// wait log write finish
+	wg.Wait()
 
 	logrus.Infof("Install node %s successful", node.ID)
 
