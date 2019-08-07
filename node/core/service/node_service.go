@@ -22,14 +22,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"sort"
 	"strconv"
 	"time"
 
 	"github.com/goodrain/rainbond/event"
 
-	"github.com/goodrain/rainbond/util"
+	ansibleUtil "github.com/goodrain/rainbond/util/ansible"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
@@ -38,6 +37,7 @@ import (
 	"github.com/goodrain/rainbond/node/masterserver/node"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/utils"
+	coreutil "github.com/goodrain/rainbond/util"
 	"github.com/twinj/uuid"
 )
 
@@ -99,7 +99,53 @@ func (n *NodeService) InstallNode(node *client.HostNode) *utils.APIHandleError {
 	node.Status = client.Installing
 	node.NodeStatus.Status = client.Installing
 	n.nodecluster.UpdateNode(node)
+
+	// prepare install scripts
+	flag, err := n.beforeInstall()
+	if err != nil {
+		return utils.CreateAPIHandleError(400, err)
+	}
+
+	if !flag {
+		return nil
+	}
+
 	go n.AsynchronousInstall(node)
+	return nil
+}
+
+// check install scripts exists or not, if more than one master node has install scripts, choose one master node do it
+func (n *NodeService) beforeInstall() (flag bool, err error) {
+	// ansible file must exists
+	// if ok, _ := util.FileExists("/opt/rainbond/rainbond-ansible/scripts/node.sh"); !ok {
+	// 	// TODO 通过etcd创建任务？
+	// 	return false, nil
+	// }
+
+	// TODO 存在任务则加锁（etcd全局锁），让自己能够执行，加锁失败则不让执行
+
+	return true, nil
+}
+
+// write ansible hosts file
+func (n *NodeService) writeHostsFile() error {
+	hosts, err := n.GetAllNode()
+	if err != nil {
+		return err.Err
+	}
+	// use the value of environment if it is empty use default value
+	hostsFilePath := os.Getenv("HOSTS_FILE_PATH")
+	if hostsFilePath == "" {
+		hostsFilePath = "/opt/rainbond/rainbond-ansible/inventory/hosts"
+	}
+	installConfPath := os.Getenv("INSTALL_CONF_PATH")
+	if installConfPath == "" {
+		installConfPath = "/opt/rainbond/rainbond-ansible/scripts/installer/global.sh"
+	}
+	erro := ansibleUtil.WriteHostsFile(hostsFilePath, installConfPath, hosts)
+	if erro != nil {
+		return err
+	}
 	return nil
 }
 
@@ -120,6 +166,12 @@ func (n *NodeService) UpdateNodeStatus(nodeID, status string) *utils.APIHandleEr
 
 //AsynchronousInstall AsynchronousInstall
 func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
+	// write ansible hosts file
+	err := n.writeHostsFile()
+	if err != nil {
+		logrus.Error("write hosts file error ", err.Error())
+		return
+	}
 	linkModel := "pass"
 	if node.KeyPath != "" {
 		linkModel = "key"
@@ -129,44 +181,41 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 	}); err != nil {
 		logrus.Errorf("create event manager faliure")
 	}
-	//TODO: write log to event log
-	//logger := event.GetManager().GetLogger(node.ID + "-insatll")
+
 	// start add node script
 	logrus.Infof("Begin install node %s", node.ID)
-	// TODO: write ansible hosts file
-	line := fmt.Sprintf("./node.sh %s %s %s %s %s %s %s", node.Role[0], node.HostName,
-		node.InternalIP, linkModel, node.RootPass, node.KeyPath, node.ID)
-	fileName := node.HostName + ".log"
-	cmd := exec.Command("bash", "-c", line)
-	if err := util.CheckAndCreateDir("/grdata/downloads/log/"); err != nil {
-		logrus.Errorf("check and create log dir failure %s", err.Error())
+
+	// write log to event log
+	logger := event.GetManager().GetLogger(node.ID + "-insatll")
+
+	option := coreutil.NodeInstallOption{
+		HostRole:   node.Role[0],
+		HostName:   node.HostName,
+		InternalIP: node.InternalIP,
+		LinkModel:  linkModel,
+		RootPass:   node.RootPass,
+		KeyPath:    node.KeyPath,
+		NodeID:     node.ID,
+		Stdin:      nil,
+		Stdout:     logger.GetWriter("node-install", "info"),
+		Stderr:     logger.GetWriter("node-install", "err"),
 	}
-	f, err := os.OpenFile("/grdata/downloads/log/"+fileName, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0755)
+
+	err = coreutil.RunNodeInstallCmd(option)
+
 	if err != nil {
-		logrus.Errorf("open log file %s failure %s", "/grdata/downloads/log/"+fileName, err.Error())
+		logrus.Error("Error executing shell script", err)
 		node.Status = client.InstallFailed
 		node.NodeStatus.Status = client.InstallFailed
 		n.nodecluster.UpdateNode(node)
 		return
 	}
-	defer f.Close()
-	cmd.Stdout = f
-	cmd.Dir = "/opt/rainbond/rainbond-ansible/scripts"
-	cmd.Stderr = f
-	err = cmd.Run()
-	if err != nil {
-		if _, err := f.Write([]byte(err.Error())); err != nil {
-			logrus.Errorf("Error write file %s", err.Error())
-		}
-		logrus.Errorf("Error executing shell script,View log file：/grdata/downloads/log/" + fileName)
-		node.Status = client.InstallFailed
-		node.NodeStatus.Status = client.InstallFailed
-		n.nodecluster.UpdateNode(node)
-		return
-	}
+
 	logrus.Infof("Install node %s successful", node.ID)
+
 	node.Status = client.InstallSuccess
 	node.NodeStatus.Status = client.InstallSuccess
+
 	n.nodecluster.UpdateNode(node)
 }
 
