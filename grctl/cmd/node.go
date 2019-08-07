@@ -25,7 +25,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/fatih/color"
 
@@ -637,20 +636,11 @@ func installNode(node *client.HostNode) {
 		KeyPath:    node.KeyPath,
 		NodeID:     node.ID,
 		Stdin:      os.Stdin,
+		Stdout:     os.Stdout,
+		Stderr:     os.Stderr,
 	}
 
-	logChan := make(chan string, 10)
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		// write log
-		for line := range logChan {
-			fmt.Fprint(os.Stdout, line) // write log to os.Stdout
-		}
-		wg.Done()
-	}()
-
-	err := coreutil.RunNodeInstallCmd(option, logChan)
+	err := coreutil.RunNodeInstallCmd(option)
 
 	if err != nil {
 		logrus.Errorf("Error executing shell script %s", err.Error())
@@ -659,9 +649,6 @@ func installNode(node *client.HostNode) {
 		}
 		return
 	}
-
-	// wait log write finish
-	wg.Wait()
 
 	// node status success
 	if _, err := clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.InstallSuccess); err != nil {

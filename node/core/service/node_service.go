@@ -24,12 +24,10 @@ import (
 	"os"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/goodrain/rainbond/event"
 
-	"github.com/goodrain/rainbond/util"
 	ansibleUtil "github.com/goodrain/rainbond/util/ansible"
 
 	"github.com/Sirupsen/logrus"
@@ -187,20 +185,8 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 	// start add node script
 	logrus.Infof("Begin install node %s", node.ID)
 
-	if err := util.CheckAndCreateDir("/grdata/downloads/log/"); err != nil {
-		logrus.Errorf("check and create log dir failure %s", err.Error())
-	}
-
-	fileName := node.HostName + ".log"
-	f, err := os.OpenFile("/grdata/downloads/log/"+fileName, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0755)
-	if err != nil {
-		logrus.Errorf("open log file %s failure %s", "/grdata/downloads/log/"+fileName, err.Error())
-		node.Status = client.InstallFailed
-		node.NodeStatus.Status = client.InstallFailed
-		n.nodecluster.UpdateNode(node)
-		return
-	}
-	defer f.Close()
+	// write log to event log
+	logger := event.GetManager().GetLogger(node.ID + "-insatll")
 
 	option := coreutil.NodeInstallOption{
 		HostRole:   node.Role[0],
@@ -211,43 +197,19 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 		KeyPath:    node.KeyPath,
 		NodeID:     node.ID,
 		Stdin:      nil,
+		Stdout:     logger.GetWriter("node-install", "info"),
+		Stderr:     logger.GetWriter("node-install", "err"),
 	}
 
-	// write log to event log
-	logger := event.GetManager().GetLogger(node.ID + "-insatll")
-
-	logChan := make(chan string, 10)
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		// write log
-		for line := range logChan {
-			logger.Info(line, map[string]string{"step": "node-install", "status": "installing"}) // write log to eventLog
-			_, err = f.WriteString(line)                                                         // write log to file
-			if err != nil {
-				logrus.Error(err)
-				return
-			}
-			// fmt.Fprint(os.Stdout, line)                                                          //write os.Stdout
-		}
-		wg.Done()
-	}()
-
-	err = coreutil.RunNodeInstallCmd(option, logChan)
+	err = coreutil.RunNodeInstallCmd(option)
 
 	if err != nil {
-		if _, err := f.Write([]byte(err.Error())); err != nil {
-			logrus.Errorf("Error write file %s", err.Error())
-		}
-		logrus.Errorf("Error executing shell script,View log file：/grdata/downloads/log/" + fileName)
+		logrus.Error("Error executing shell script", err)
 		node.Status = client.InstallFailed
 		node.NodeStatus.Status = client.InstallFailed
 		n.nodecluster.UpdateNode(node)
 		return
 	}
-
-	// wait log write finish
-	wg.Wait()
 
 	logrus.Infof("Install node %s successful", node.ID)
 
