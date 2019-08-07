@@ -26,6 +26,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/goodrain/rainbond/util/ansible"
+
 	"github.com/fatih/color"
 
 	"github.com/Sirupsen/logrus"
@@ -622,7 +624,7 @@ func installNode(node *client.HostNode) {
 		logrus.Errorf("update node %s status failure %s", node.ID, err.Error())
 	}
 	// install node
-	option := coreutil.NodeInstallOption{
+	option := ansible.NodeInstallOption{
 		HostRole:   node.Role.String(),
 		HostName:   node.HostName,
 		InternalIP: node.InternalIP,
@@ -634,7 +636,7 @@ func installNode(node *client.HostNode) {
 		Stderr:     os.Stderr,
 	}
 
-	err := coreutil.RunNodeInstallCmd(option)
+	err := ansible.RunNodeInstallCmd(option)
 
 	if err != nil {
 		logrus.Errorf("Error executing shell script %s", err.Error())
@@ -660,8 +662,8 @@ func addNodeCommand(c *cli.Context) error {
 	if !c.IsSet("role") {
 		showError("role must not null")
 	}
-	if c.String("hostname") == "" {
-		showError("node hostname must be set")
+	if c.String("internal-ip") == "" || !coreutil.CheckIP(c.String("internal-ip")) {
+		showError(fmt.Sprintf("internal ip(%s) is invalid", c.String("internal-ip")))
 	}
 	if c.String("root-pass") != "" && c.String("private-key") != "" {
 		showError("Options private-key and root-pass are conflicting")

@@ -61,5 +61,13 @@ func NewCmdAnsible() cli.Command {
 
 //WriteHostsFile write hosts file
 func WriteHostsFile(filePath, installConfPath string, hosts []*client.HostNode) error {
+	//get node list from api without condition list.
+	//so will get condition
+	for i := range hosts {
+		nodeWithCondition, _ := clients.RegionClient.Nodes().Get(hosts[i].ID)
+		if nodeWithCondition != nil {
+			hosts[i] = nodeWithCondition
+		}
+	}
 	return ansibleUtil.WriteHostsFile(filePath, installConfPath, hosts)
 }

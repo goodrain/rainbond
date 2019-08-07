@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package util
+package ansible
 
 import (
 	"fmt"
@@ -24,6 +24,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/goodrain/rainbond/util"
 )
 
 //NodeInstallOption node install option
@@ -47,19 +49,16 @@ func RunNodeInstallCmd(option NodeInstallOption) (err error) {
 	if installNodeShellPath == "" {
 		installNodeShellPath = "/opt/rainbond/rainbond-ansible/scripts/node.sh"
 	}
-
 	// ansible file must exists
-	if ok, _ := FileExists(installNodeShellPath); !ok {
+	if ok, _ := util.FileExists(installNodeShellPath); !ok {
 		return fmt.Errorf("install node scripts is not found")
 	}
-	fmt.Println(option)
 	// ansible's param can't send nil nor empty string
 	if err := preCheckNodeInstall(&option); err != nil {
 		return err
 	}
-	line := fmt.Sprintf(installNodeShellPath+" %s %s %s %s %s %s",
-		option.HostRole, option.HostName, option.InternalIP, option.linkModel, option.loginValue, option.NodeID)
-	fmt.Println(line)
+	line := fmt.Sprintf("%s -r %s -i %s -t %s -k %s -u %s",
+		installNodeShellPath, option.HostRole, option.InternalIP, option.linkModel, option.loginValue, option.NodeID)
 	cmd := exec.Command("bash", "-c", line)
 	cmd.Stdin = option.Stdin
 	cmd.Stdout = option.Stdout
@@ -72,13 +71,9 @@ func preCheckNodeInstall(option *NodeInstallOption) error {
 	if strings.TrimSpace(option.HostRole) == "" {
 		return fmt.Errorf("install node failed, install scripts needs param hostRole")
 	}
-	if strings.TrimSpace(option.HostName) == "" {
-		return fmt.Errorf("install node failed, install scripts needs param hostName")
-	}
 	if strings.TrimSpace(option.InternalIP) == "" {
 		return fmt.Errorf("install node failed, install scripts needs param internalIP")
 	}
-
 	//login key path first, and then rootPass, so keyPath and RootPass can't all be empty
 	if strings.TrimSpace(option.KeyPath) == "" {
 		if strings.TrimSpace(option.RootPass) == "" {
@@ -90,7 +85,6 @@ func preCheckNodeInstall(option *NodeInstallOption) error {
 		option.loginValue = strings.TrimSpace(option.KeyPath)
 		option.linkModel = "key"
 	}
-
 	if strings.TrimSpace(option.NodeID) == "" {
 		return fmt.Errorf("install node failed, install scripts needs param nodeID")
 	}

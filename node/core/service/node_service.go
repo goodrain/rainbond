@@ -37,7 +37,6 @@ import (
 	"github.com/goodrain/rainbond/node/masterserver/node"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/utils"
-	coreutil "github.com/goodrain/rainbond/util"
 	"github.com/twinj/uuid"
 )
 
@@ -75,9 +74,6 @@ func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *util
 	}
 	if node.InternalIP == "" {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node internal ip can not be empty"))
-	}
-	if node.HostName == "" {
-		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("node hostname can not be empty"))
 	}
 	if node.RootPass != "" && node.Privatekey != "" {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("options private-key and root-pass are conflicting"))
@@ -184,7 +180,7 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 	// write log to event log
 	logger := event.GetManager().GetLogger(node.ID + "-insatll")
 
-	option := coreutil.NodeInstallOption{
+	option := ansibleUtil.NodeInstallOption{
 		HostRole:   node.Role.String(),
 		HostName:   node.HostName,
 		InternalIP: node.InternalIP,
@@ -196,7 +192,7 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 		Stderr:     logger.GetWriter("node-install", "err"),
 	}
 
-	err = coreutil.RunNodeInstallCmd(option)
+	err = ansibleUtil.RunNodeInstallCmd(option)
 
 	if err != nil {
 		logrus.Error("Error executing shell script", err)
