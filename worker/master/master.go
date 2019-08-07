@@ -162,4 +162,5 @@ func (m *Controller) Scrape(ch chan<- prometheus.Metric, scrapeDurationDesc *pro
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.fs")
 	m.fsUse.Collect(ch)
 	m.memoryUse.Collect(ch)
+	logrus.Infof("success collect app disk and memory used metric")
 }

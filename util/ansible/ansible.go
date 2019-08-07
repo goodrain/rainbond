@@ -26,7 +26,7 @@ func WriteHostsFile(filePath, installConfPath string, hosts []*client.HostNode) 
 	return config.WriteFile()
 }
 
-//AnsibleHost  ansible host config
+//AnsibleHost ansible host config
 type AnsibleHost struct {
 	AnsibleHostIP net.IP
 	//ssh port
@@ -77,7 +77,7 @@ func (a *AnsibleHostGroup) String() string {
 		if a.Name == "all" {
 			rebuffer.WriteString(a.HostList[i].String() + "\n")
 		} else if a.Name == "etcd" {
-			rebuffer.WriteString(a.HostList[i].HostID + " NODE_NAME=etcd1" + "\n")
+			rebuffer.WriteString(a.HostList[i].HostID + "\n")
 		} else {
 			rebuffer.WriteString(a.HostList[i].HostID + "\n")
 		}

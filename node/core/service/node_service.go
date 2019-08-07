@@ -172,10 +172,6 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 		logrus.Error("write hosts file error ", err.Error())
 		return
 	}
-	linkModel := "pass"
-	if node.KeyPath != "" {
-		linkModel = "key"
-	}
 	if err := event.NewManager(event.EventConfig{
 		DiscoverAddress: n.c.Etcd.Endpoints,
 	}); err != nil {
@@ -189,10 +185,9 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 	logger := event.GetManager().GetLogger(node.ID + "-insatll")
 
 	option := coreutil.NodeInstallOption{
-		HostRole:   node.Role[0],
+		HostRole:   node.Role.String(),
 		HostName:   node.HostName,
 		InternalIP: node.InternalIP,
-		LinkModel:  linkModel,
 		RootPass:   node.RootPass,
 		KeyPath:    node.KeyPath,
 		NodeID:     node.ID,

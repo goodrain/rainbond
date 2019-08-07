@@ -26,6 +26,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/goodrain/rainbond/node/nodem/client"
+
 	"github.com/goodrain/rainbond/util"
 
 	"github.com/Sirupsen/logrus"
@@ -196,6 +198,10 @@ func NewCmdInit() cli.Command {
 				Value: "",
 			},
 			cli.BoolFlag{
+				Name:  "not-install-ui",
+				Usage: "Whether or not to install the UI, normally no UI is installed when installing a second data center",
+			},
+			cli.BoolFlag{
 				Name:   "test",
 				Usage:  "use test shell",
 				Hidden: true,
@@ -240,7 +246,6 @@ func NewCmdInstallStatus() cli.Command {
 							//Status(v.ID)
 							return nil
 						}
-
 					}
 				}
 			} else {
@@ -251,8 +256,8 @@ func NewCmdInstallStatus() cli.Command {
 	}
 	return c
 }
-func updateConfigFile(path string, config map[string]string) error {
-	initConfig := make(map[string]string)
+func updateConfigFile(path string, config map[string]interface{}) error {
+	initConfig := make(map[string]interface{})
 	var file *os.File
 	var err error
 	if ok, _ := util.FileExists(path); ok {
@@ -289,16 +294,23 @@ func updateConfigFile(path string, config map[string]string) error {
 		if k == "" {
 			continue
 		}
-		if v == "" {
-			file.WriteString(fmt.Sprintf("%s=\"\"\n", k))
-		} else {
-			file.WriteString(fmt.Sprintf("%s=\"%s\"\n", k, v))
+		switch v.(type) {
+		case string:
+			if v == "" {
+				file.WriteString(fmt.Sprintf("%s=\"\"\n", k))
+			} else {
+				file.WriteString(fmt.Sprintf("%s=\"%s\"\n", k, v))
+			}
+		case bool:
+			file.WriteString(fmt.Sprintf("%s=%t\n", k, v))
+		default:
+			continue
 		}
 	}
 	return nil
 }
-func getConfig(c *cli.Context) map[string]string {
-	configs := make(map[string]string)
+func getConfig(c *cli.Context) map[string]interface{} {
+	configs := make(map[string]interface{})
 	configs["ROLE"] = c.String("role")
 	//configs["work_dir"] = c.String("work_dir")
 	configs["IIP"] = c.String("iip")
@@ -328,6 +340,7 @@ func getConfig(c *cli.Context) map[string]string {
 	configs["EXCSDB_USER"] = c.String("excsdb-user")
 	configs["EXDB_TYPE"] = c.String("exdb-type")
 	configs["INSTALL_SSH_PORT"] = c.String("install_ssh_port")
+	configs["INSTALL_UI"] = !c.Bool("not-install-ui")
 	return configs
 }
 func initCluster(c *cli.Context) {
@@ -336,6 +349,16 @@ func initCluster(c *cli.Context) {
 	_, err := os.Stat("/opt/rainbond/.rainbond.success")
 	if err == nil {
 		println("Rainbond is already installed, if you want reinstall, then please delete the file: /opt/rainbond/.rainbond.success")
+		return
+	}
+	role := c.String("role")
+	roles := client.HostRule(strings.Split(role, ","))
+	if err := roles.Validation(); err != nil {
+		println(err.Error())
+		return
+	}
+	if !roles.HasRule("manage") || !roles.HasRule("gateway") {
+		println("first node must have manage and gateway role")
 		return
 	}
 	// download source code from github if in online model
@@ -353,29 +376,20 @@ func initCluster(c *cli.Context) {
 			return
 		}
 	}
-
 	if err := updateConfigFile(c.String("config-file"), getConfig(c)); err != nil {
 		showError("update config file failure " + err.Error())
 	}
-
-	//storage file
-	//fmt.Println("Check storage type")
-	//ioutil.WriteFile("/tmp/.storage.value", []byte(c.String("storage-args")), 0644)
-
 	// start setup script to install rainbond
 	fmt.Println("Initializes the installation of the first node...")
 	cmd := exec.Command("bash", "-c", fmt.Sprintf("cd %s ; ./setup.sh", c.String("work_dir")))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-
 	err = cmd.Run()
 	if err != nil {
 		println(err.Error())
 		return
 	}
-
 	ioutil.WriteFile("/opt/rainbond/.rainbond.success", []byte(c.String("rainbond-version")), 0644)
-
 	return
 }

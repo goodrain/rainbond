@@ -24,15 +24,13 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-
-	"github.com/Sirupsen/logrus"
 )
 
+//NodeInstallOption node install option
 type NodeInstallOption struct {
 	HostRole   string
 	HostName   string
 	InternalIP string
-	LinkModel  string
 	RootPass   string // ssh login password
 	KeyPath    string // ssh login key path
 	NodeID     string
@@ -40,8 +38,10 @@ type NodeInstallOption struct {
 	Stdout     io.Writer
 	Stderr     io.Writer
 	loginValue string
+	linkModel  string
 }
 
+//RunNodeInstallCmd install node
 func RunNodeInstallCmd(option NodeInstallOption) (err error) {
 	installNodeShellPath := os.Getenv("INSTALL_NODE_SHELL_PATH")
 	if installNodeShellPath == "" {
@@ -50,76 +50,49 @@ func RunNodeInstallCmd(option NodeInstallOption) (err error) {
 
 	// ansible file must exists
 	if ok, _ := FileExists(installNodeShellPath); !ok {
-		err = fmt.Errorf("install node scripts is not found")
-		logrus.Error(err)
+		return fmt.Errorf("install node scripts is not found")
+	}
+	fmt.Println(option)
+	// ansible's param can't send nil nor empty string
+	if err := preCheckNodeInstall(&option); err != nil {
 		return err
 	}
-
-	// ansible's param can't send nil nor empty string
-	if err = preCheckNodeInstall(option); err != nil {
-		return
-	}
-
 	line := fmt.Sprintf(installNodeShellPath+" %s %s %s %s %s %s",
-		option.HostRole, option.HostName, option.InternalIP, option.LinkModel, option.loginValue, option.NodeID)
-
+		option.HostRole, option.HostName, option.InternalIP, option.linkModel, option.loginValue, option.NodeID)
+	fmt.Println(line)
 	cmd := exec.Command("bash", "-c", line)
 	cmd.Stdin = option.Stdin
 	cmd.Stdout = option.Stdout
 	cmd.Stderr = option.Stderr
-
-	err = cmd.Start()
-	if err != nil {
-		logrus.Errorf("install node failed")
-		return err
-	}
-
-	err = cmd.Wait()
-	if err != nil {
-		logrus.Errorf("install node finished with error : %v", err.Error())
-	}
-
-	return
+	return cmd.Run()
 }
 
 // check param
-func preCheckNodeInstall(option NodeInstallOption) (err error) {
+func preCheckNodeInstall(option *NodeInstallOption) error {
 	if strings.TrimSpace(option.HostRole) == "" {
-		err = fmt.Errorf("install node failed, install scripts needs param hostRole")
-		logrus.Error(err)
-		return
+		return fmt.Errorf("install node failed, install scripts needs param hostRole")
 	}
 	if strings.TrimSpace(option.HostName) == "" {
-		err = fmt.Errorf("install node failed, install scripts needs param hostName")
-		logrus.Error(err)
-		return
+		return fmt.Errorf("install node failed, install scripts needs param hostName")
 	}
 	if strings.TrimSpace(option.InternalIP) == "" {
-		err = fmt.Errorf("install node failed, install scripts needs param internalIP")
-		logrus.Error(err)
-		return
-	}
-	if strings.TrimSpace(option.LinkModel) == "" {
-		err = fmt.Errorf("install node failed, install scripts needs param linkModel")
-		logrus.Error(err)
-		return
+		return fmt.Errorf("install node failed, install scripts needs param internalIP")
 	}
 
 	//login key path first, and then rootPass, so keyPath and RootPass can't all be empty
 	if strings.TrimSpace(option.KeyPath) == "" {
 		if strings.TrimSpace(option.RootPass) == "" {
-			err = fmt.Errorf("install node failed, install scripts needs login key path or login password")
-			logrus.Error(err)
-			return
+			return fmt.Errorf("install node failed, install scripts needs login key path or login password")
 		}
 		option.loginValue = strings.TrimSpace(option.RootPass)
+		option.linkModel = "pass"
+	} else {
+		option.loginValue = strings.TrimSpace(option.KeyPath)
+		option.linkModel = "key"
 	}
-	option.loginValue = strings.TrimSpace(option.KeyPath)
 
 	if strings.TrimSpace(option.NodeID) == "" {
-		err = fmt.Errorf("install node failed, install scripts needs param nodeID")
-		logrus.Error(err)
-		return
+		return fmt.Errorf("install node failed, install scripts needs param nodeID")
 	}
-	return
+	return nil
 }

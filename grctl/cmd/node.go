@@ -40,7 +40,7 @@ import (
 
 func handleErr(err *util.APIHandleError) {
 	if err != nil && err.Err != nil {
-		fmt.Printf("Code %d, Msg:%v\n", err.Code, err.String())
+		fmt.Printf(err.String())
 		os.Exit(1)
 	}
 }
@@ -536,9 +536,14 @@ func NewCmdNode() cli.Command {
 						Usage: "The option is required",
 					},
 					cli.StringFlag{
-						Name:  "hosts-file-path,p",
+						Name:  "hosts-file-path",
 						Usage: "hosts file path",
 						Value: "/opt/rainbond/rainbond-ansible/inventory/hosts",
+					},
+					cli.StringFlag{
+						Name:  "config-file-path",
+						Usage: "ansible global config file path",
+						Value: "/opt/rainbond/rainbond-ansible/scripts/installer/global.sh",
 					},
 					cli.StringFlag{
 						Name:  "internal-ip,iip",
@@ -587,7 +592,7 @@ func NewCmdNode() cli.Command {
 					},
 					cli.StringFlag{
 						Name:  "config-file-path",
-						Usage: "install config path",
+						Usage: "ansible global config file path",
 						Value: "/opt/rainbond/rainbond-ansible/scripts/installer/global.sh",
 					},
 				},
@@ -610,28 +615,17 @@ func isNodeReady(node *client.HostNode) bool {
 }
 
 func installNode(node *client.HostNode) {
-	linkModel := "pass"
-	if node.KeyPath != "" {
-		linkModel = "key"
-	}
 	// start add node script
 	logrus.Infof("Begin install node %s", node.ID)
-	if ok, _ := coreutil.FileExists("/opt/rainbond/rainbond-ansible/scripts/node.sh"); !ok {
-		logrus.Errorf("install node scripts is not found")
-		return
-	}
-
 	// node stauts: installing
 	if _, err := clients.RegionClient.Nodes().UpdateNodeStatus(node.ID, client.Installing); err != nil {
 		logrus.Errorf("update node %s status failure %s", node.ID, err.Error())
 	}
-
 	// install node
 	option := coreutil.NodeInstallOption{
-		HostRole:   node.Role[0],
+		HostRole:   node.Role.String(),
 		HostName:   node.HostName,
 		InternalIP: node.InternalIP,
-		LinkModel:  linkModel,
 		RootPass:   node.RootPass,
 		KeyPath:    node.KeyPath,
 		NodeID:     node.ID,
@@ -687,7 +681,6 @@ func addNodeCommand(c *cli.Context) error {
 	if err := node.Role.Validation(); err != nil {
 		showError(err.Error())
 	}
-	fmt.Println(node.Role)
 	node.HostName = c.String("hostname")
 	node.RootPass = c.String("root-pass")
 	node.InternalIP = c.String("internal-ip")
@@ -699,7 +692,10 @@ func addNodeCommand(c *cli.Context) error {
 	renode, err := clients.RegionClient.Nodes().Add(&node)
 	handleErr(err)
 	if c.Bool("install") {
+		nodes, err := clients.RegionClient.Nodes().List()
 		handleErr(err)
+		//write ansible hosts file
+		WriteHostsFile(c.String("hosts-file-path"), c.String("config-file-path"), nodes)
 		installNode(renode)
 	} else {
 		fmt.Printf("success add %s node %s \n you install it by running: grctl node install %s \n", renode.Role, renode.ID, renode.ID)

@@ -47,26 +47,26 @@ func TestAnsibleHostConfig(t *testing.T) {
 	}
 	ansibleConfig := &AnsibleHostConfig{
 		FileName: "/tmp/hosts",
-		GroupList: []*AnsibleHostGroup{
-			&AnsibleHostGroup{
+		GroupList: map[string]*AnsibleHostGroup{
+			"all": &AnsibleHostGroup{
 				Name: "all",
 				HostList: []*AnsibleHost{
 					h1, h2, h3,
 				},
 			},
-			&AnsibleHostGroup{
+			"manage": &AnsibleHostGroup{
 				Name: "manage",
 				HostList: []*AnsibleHost{
 					h1, h2, h3,
 				},
 			},
-			&AnsibleHostGroup{
+			"gateway": &AnsibleHostGroup{
 				Name: "gateway",
 				HostList: []*AnsibleHost{
 					h3,
 				},
 			},
-			&AnsibleHostGroup{
+			"compute": &AnsibleHostGroup{
 				Name: "compute",
 				HostList: []*AnsibleHost{
 					h2,

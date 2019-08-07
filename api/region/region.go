@@ -258,7 +258,7 @@ func (r *resourcesTenant) Get() (*model.TenantResource, *util.APIHandleError) {
 
 func handleAPIResult(code int, res utilhttp.ResponseBody) *util.APIHandleError {
 	if code >= 300 {
-		return util.CreateAPIHandleErrorf(code, res.Msg)
+		return util.CreateAPIHandleErrorf(code, "msg:%s validation_error %+v", res.Msg, res.ValidationError)
 	}
 	return nil
 }
