@@ -26,21 +26,27 @@ func WriteHostsFile(filePath, installConfPath string, hosts []*client.HostNode) 
 	return config.WriteFile()
 }
 
-//AnsibleHost ansible host config
-type AnsibleHost struct {
+//Host ansible host config
+type Host struct {
 	AnsibleHostIP net.IP
 	//ssh port
-	AnsibleHostPort int
-	HostID          string
-	Role            client.HostRule
-	CreateTime      time.Time
+	AnsibleHostPort          int
+	HostID                   string
+	Role                     client.HostRule
+	CreateTime               time.Time
+	AnsibleSSHPrivateKeyFile string
 }
 
-func (a *AnsibleHost) String() string {
-	return fmt.Sprintf("%s ansible_host=%s ansible_port=%d ip=%s port=%d role=%s", a.HostID, a.AnsibleHostIP, a.AnsibleHostPort, a.AnsibleHostIP, a.AnsibleHostPort, a.Role)
+// String reutrn Host string
+func (a *Host) String() string {
+	if strings.TrimSpace(a.AnsibleSSHPrivateKeyFile) == "" {
+		return fmt.Sprintf("%s ansible_host=%s ansible_port=%d ip=%s port=%d role=%s", a.HostID, a.AnsibleHostIP, a.AnsibleHostPort, a.AnsibleHostIP, a.AnsibleHostPort, a.Role)
+	}
+	return fmt.Sprintf("%s ansible_host=%s ansible_port=%d ip=%s port=%d role=%s ansible_ssh_private_key_file=%s", a.HostID, a.AnsibleHostIP, a.AnsibleHostPort, a.AnsibleHostIP, a.AnsibleHostPort, a.Role, a.AnsibleSSHPrivateKeyFile)
 }
 
-type HostsList []*AnsibleHost
+// HostsList hosts list
+type HostsList []*Host
 
 func (list HostsList) Len() int {
 	return len(list)
@@ -54,14 +60,14 @@ func (list HostsList) Swap(i, j int) {
 	list[i], list[j] = list[j], list[i]
 }
 
-//AnsibleHostGroup ansible host group config
-type AnsibleHostGroup struct {
+//HostGroup ansible host group config
+type HostGroup struct {
 	Name     string
 	HostList HostsList
 }
 
 //AddHost add host
-func (a *AnsibleHostGroup) AddHost(h *AnsibleHost) {
+func (a *HostGroup) AddHost(h *Host) {
 	for _, old := range a.HostList {
 		if old.AnsibleHostIP.String() == h.AnsibleHostIP.String() {
 			return
@@ -70,14 +76,14 @@ func (a *AnsibleHostGroup) AddHost(h *AnsibleHost) {
 	a.HostList = append(a.HostList, h)
 
 }
-func (a *AnsibleHostGroup) String() string {
+
+// String return HostList string
+func (a *HostGroup) String() string {
 	rebuffer := bytes.NewBuffer(nil)
 	rebuffer.WriteString(fmt.Sprintf("[%s]\n", a.Name))
 	for i := range a.HostList {
 		if a.Name == "all" {
 			rebuffer.WriteString(a.HostList[i].String() + "\n")
-		} else if a.Name == "etcd" {
-			rebuffer.WriteString(a.HostList[i].HostID + "\n")
 		} else {
 			rebuffer.WriteString(a.HostList[i].HostID + "\n")
 		}
@@ -86,36 +92,36 @@ func (a *AnsibleHostGroup) String() string {
 	return rebuffer.String()
 }
 
-//AnsibleHostConfig ansible hosts config
-type AnsibleHostConfig struct {
+//HostConfig ansible hosts config
+type HostConfig struct {
 	FileName  string
-	GroupList map[string]*AnsibleHostGroup
+	GroupList map[string]*HostGroup
 }
 
 //GetAnsibleHostConfig get config
-func GetAnsibleHostConfig(name string) *AnsibleHostConfig {
-	return &AnsibleHostConfig{
+func GetAnsibleHostConfig(name string) *HostConfig {
+	return &HostConfig{
 		FileName: name,
-		GroupList: map[string]*AnsibleHostGroup{
-			"all":         &AnsibleHostGroup{Name: "all"},
-			"manage":      &AnsibleHostGroup{Name: "manage"},
-			"new-manage":  &AnsibleHostGroup{Name: "new-manage"},
-			"gateway":     &AnsibleHostGroup{Name: "gateway"},
-			"new-gateway": &AnsibleHostGroup{Name: "new-gateway"},
-			"compute":     &AnsibleHostGroup{Name: "compute"},
-			"new-compute": &AnsibleHostGroup{Name: "new-compute"},
-			"etcd":        &AnsibleHostGroup{Name: "etcd"},
+		GroupList: map[string]*HostGroup{
+			"all":         &HostGroup{Name: "all"},
+			"manage":      &HostGroup{Name: "manage"},
+			"new-manage":  &HostGroup{Name: "new-manage"},
+			"gateway":     &HostGroup{Name: "gateway"},
+			"new-gateway": &HostGroup{Name: "new-gateway"},
+			"compute":     &HostGroup{Name: "compute"},
+			"new-compute": &HostGroup{Name: "new-compute"},
+			"etcd":        &HostGroup{Name: "etcd"},
 		},
 	}
 }
 
 //Content return config file content
-func (c *AnsibleHostConfig) Content() string {
+func (c *HostConfig) Content() string {
 	return c.ContentBuffer().String()
 }
 
 //ContentBuffer content buffer
-func (c *AnsibleHostConfig) ContentBuffer() *bytes.Buffer {
+func (c *HostConfig) ContentBuffer() *bytes.Buffer {
 	rebuffer := bytes.NewBuffer(nil)
 	for i := range c.GroupList {
 		sort.Sort(c.GroupList[i].HostList) // sort host by createTime
@@ -125,7 +131,7 @@ func (c *AnsibleHostConfig) ContentBuffer() *bytes.Buffer {
 }
 
 //WriteFile write config file
-func (c *AnsibleHostConfig) WriteFile() error {
+func (c *HostConfig) WriteFile() error {
 	if c.FileName == "" {
 		return fmt.Errorf("config file name can not be empty")
 	}
@@ -162,9 +168,8 @@ func getSSHPort(configFile string) int {
 				port, err := strconv.Atoi(keyvalue[1])
 				if err != nil {
 					return 22
-				} else {
-					return port
 				}
+				return port
 			}
 		}
 	}
@@ -172,15 +177,16 @@ func getSSHPort(configFile string) int {
 }
 
 //AddHost add host
-func (c *AnsibleHostConfig) AddHost(h *client.HostNode, installConfPath string) {
+func (c *HostConfig) AddHost(h *client.HostNode, installConfPath string) {
 	//check role
 	//check status
-	ansibleHost := &AnsibleHost{
-		AnsibleHostIP:   net.ParseIP(h.InternalIP),
-		AnsibleHostPort: getSSHPort(installConfPath),
-		HostID:          h.ID,
-		Role:            h.Role,
-		CreateTime:      h.CreateTime,
+	ansibleHost := &Host{
+		AnsibleHostIP:            net.ParseIP(h.InternalIP),
+		AnsibleHostPort:          getSSHPort(installConfPath),
+		HostID:                   h.ID,
+		Role:                     h.Role,
+		CreateTime:               h.CreateTime,
+		AnsibleSSHPrivateKeyFile: h.KeyPath,
 	}
 	c.GroupList["all"].AddHost(ansibleHost)
 	if h.Role.HasRule("manage") {
