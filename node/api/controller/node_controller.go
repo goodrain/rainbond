@@ -52,7 +52,6 @@ func InstallNode(w http.ResponseWriter, r *http.Request) {
 		err.Handle(r, w)
 		return
 	}
-
 	if err := nodeService.InstallNode(node); err != nil {
 		err.Handle(r, w)
 		return

@@ -19,6 +19,9 @@ import (
 
 //WriteHostsFile write hosts file
 func WriteHostsFile(filePath, installConfPath string, hosts []*client.HostNode) error {
+	if os.Getenv("NOT_WRITE_ANSIBLE_HOSTS") != "" {
+		return nil
+	}
 	config := GetAnsibleHostConfig(filePath)
 	for i := range hosts {
 		config.AddHost(hosts[i], installConfPath)
@@ -194,6 +197,9 @@ func (c *HostConfig) AddHost(h *client.HostNode, installConfPath string) {
 			c.GroupList["new-manage"].AddHost(ansibleHost)
 		} else {
 			c.GroupList["manage"].AddHost(ansibleHost)
+		}
+		if _, ok := h.Labels["noinstall_etcd"]; !ok {
+			c.GroupList["etcd"].AddHost(ansibleHost)
 		}
 	}
 	if h.Role.HasRule("compute") {

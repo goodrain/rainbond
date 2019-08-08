@@ -37,6 +37,7 @@ import (
 	"github.com/goodrain/rainbond/node/masterserver/node"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/utils"
+	"github.com/goodrain/rainbond/util"
 	"github.com/twinj/uuid"
 )
 
@@ -94,19 +95,9 @@ func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *util
 func (n *NodeService) InstallNode(node *client.HostNode) *utils.APIHandleError {
 	node.Status = client.Installing
 	node.NodeStatus.Status = client.Installing
+	node.Labels["event_id"] = util.NewUUID()
 	n.nodecluster.UpdateNode(node)
-
-	// prepare install scripts
-	flag, err := n.beforeInstall()
-	if err != nil {
-		return utils.CreateAPIHandleError(400, err)
-	}
-
-	if !flag {
-		return nil
-	}
-
-	go n.AsynchronousInstall(node)
+	go n.AsynchronousInstall(node, node.Labels["event_id"])
 	return nil
 }
 
@@ -161,7 +152,7 @@ func (n *NodeService) UpdateNodeStatus(nodeID, status string) *utils.APIHandleEr
 }
 
 //AsynchronousInstall AsynchronousInstall
-func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
+func (n *NodeService) AsynchronousInstall(node *client.HostNode, eventID string) {
 	// write ansible hosts file
 	err := n.writeHostsFile()
 	if err != nil {
@@ -173,13 +164,10 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 	}); err != nil {
 		logrus.Errorf("create event manager faliure")
 	}
-
 	// start add node script
 	logrus.Infof("Begin install node %s", node.ID)
-
 	// write log to event log
-	logger := event.GetManager().GetLogger(node.ID + "-insatll")
-
+	logger := event.GetManager().GetLogger(eventID)
 	option := ansibleUtil.NodeInstallOption{
 		HostRole:   node.Role.String(),
 		HostName:   node.HostName,
@@ -191,9 +179,7 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 		Stdout:     logger.GetWriter("node-install", "info"),
 		Stderr:     logger.GetWriter("node-install", "err"),
 	}
-
 	err = ansibleUtil.RunNodeInstallCmd(option)
-
 	if err != nil {
 		logrus.Error("Error executing shell script", err)
 		node.Status = client.InstallFailed
@@ -201,13 +187,10 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode) {
 		n.nodecluster.UpdateNode(node)
 		return
 	}
-
-	logrus.Infof("Install node %s successful", node.ID)
-
 	node.Status = client.InstallSuccess
 	node.NodeStatus.Status = client.InstallSuccess
-
 	n.nodecluster.UpdateNode(node)
+	logrus.Infof("Install node %s successful", node.ID)
 }
 
 //DeleteNode delete node
