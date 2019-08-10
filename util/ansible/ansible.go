@@ -192,8 +192,11 @@ func (c *HostConfig) AddHost(h *client.HostNode, installConfPath string) {
 		AnsibleSSHPrivateKeyFile: h.KeyPath,
 	}
 	c.GroupList["all"].AddHost(ansibleHost)
+	checkNeedInstall := func(h *client.HostNode) bool {
+		return h.Status == client.NotInstalled || h.Status == client.InstallFailed || h.Status == client.Installing
+	}
 	if h.Role.HasRule("manage") {
-		if h.Status == client.NotInstalled || h.Status == client.InstallFailed {
+		if checkNeedInstall(h) {
 			c.GroupList["new-manage"].AddHost(ansibleHost)
 		} else {
 			c.GroupList["manage"].AddHost(ansibleHost)
@@ -203,14 +206,14 @@ func (c *HostConfig) AddHost(h *client.HostNode, installConfPath string) {
 		}
 	}
 	if h.Role.HasRule("compute") {
-		if h.Status == client.NotInstalled || h.Status == client.InstallFailed {
+		if checkNeedInstall(h) {
 			c.GroupList["new-compute"].AddHost(ansibleHost)
 		} else {
 			c.GroupList["compute"].AddHost(ansibleHost)
 		}
 	}
 	if h.Role.HasRule("gateway") {
-		if h.Status == client.NotInstalled || h.Status == client.InstallFailed {
+		if checkNeedInstall(h) {
 			c.GroupList["new-gateway"].AddHost(ansibleHost)
 		} else {
 			c.GroupList["gateway"].AddHost(ansibleHost)
