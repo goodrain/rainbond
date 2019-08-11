@@ -50,7 +50,25 @@ func TestDetermineDeployType(t *testing.T) {
 }
 
 func TestReadmemory(t *testing.T) {
-	t.Log(readmemory("10G"))
-	t.Log(readmemory("300m"))
-	t.Log(readmemory("300M"))
+	testcases := []struct {
+		mem string
+		exp int
+	}{
+		{mem: "", exp: 512},
+		{mem: "2Gi", exp: 2 * 1024},
+		{mem: "2G", exp: 2 * 1024},
+		{mem: "300Mi", exp: 300},
+		{mem: "300m", exp: 300},
+		{mem: "1024Ki", exp: 1024 / 1024},
+		{mem: "1024k", exp: 1024 / 1024},
+		{mem: "1024K", exp: 1024 / 1024},
+		{mem: "1048576Bi", exp: 512},
+		{mem: "abc", exp: 512},
+	}
+	for _, tc := range testcases {
+		mem := readmemory(tc.mem)
+		if mem != tc.exp {
+			t.Errorf("mem: %s; Expected %d, but returned %d", tc.mem, tc.exp, mem)
+		}
+	}
 }
