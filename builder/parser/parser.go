@@ -239,32 +239,50 @@ func DetermineDeployType(imageName Image) string {
 //10k 128
 //10b 128
 func readmemory(s string) int {
+	def := 512
 	s = strings.ToLower(s)
 	// <binarySI>        ::= Ki | Mi | Gi | Ti | Pi | Ei
-	unit := map[string]string{
-		"gi": "Gi", "g": "Gi",
-		"mi": "Mi", "m": "Mi",
-		"ki": "Ki", "k": "Ki",
+	isValid := false
+	validUnits := map[string]string{
+		"gi": "Gi", "mi": "Mi", "ki": "Ki",
 	}
-	u := ""
-	for k, v := range unit {
+	for k, v := range validUnits {
 		if strings.Contains(s, k) {
-			u = k
+			isValid = true
 			s = strings.Replace(s, k, v, 1)
+			break
 		}
 	}
-	if u == "" {
-		return 512
+	if !isValid {
+		validUnits := map[string]string{
+			"g": "Gi", "m": "Mi", "k": "Ki",
+		}
+		for k, v := range validUnits {
+			if strings.Contains(s, k) {
+				isValid = true
+				s = strings.Replace(s, k, v, 1)
+				break
+			}
+		}
+	}
+	if !isValid {
+		logrus.Warningf("s: %s; invalid unit", s)
+		return def
 	}
 	q, err := resource.ParseQuantity(s)
 	if err != nil {
-		return 512
+		logrus.Warningf("s: %s; failed to parse quantity: %v", s, err)
+		return def
 	}
-	re, _ := q.AsInt64()
+	re, ok := q.AsInt64()
+	if !ok {
+		logrus.Warningf("failed to int64: %d", re)
+		return def
+	}
 	if re != 0 {
 		return int(re) / (1024 * 1024)
 	}
-	return 512
+	return def
 }
 
 //ParseImageName parse image name
