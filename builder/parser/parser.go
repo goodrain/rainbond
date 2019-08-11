@@ -239,13 +239,30 @@ func DetermineDeployType(imageName Image) string {
 //10k 128
 //10b 128
 func readmemory(s string) int {
-	q, err := resource.ParseQuantity(strings.ToUpper(s))
+	s = strings.ToLower(s)
+	// <binarySI>        ::= Ki | Mi | Gi | Ti | Pi | Ei
+	unit := map[string]string{
+		"gi": "Gi", "g": "Gi",
+		"mi": "Mi", "m": "Mi",
+		"ki": "Ki", "k": "Ki",
+	}
+	u := ""
+	for k, v := range unit {
+		if strings.Contains(s, k) {
+			u = k
+			s = strings.Replace(s, k, v, 1)
+		}
+	}
+	if u == "" {
+		return 512
+	}
+	q, err := resource.ParseQuantity(s)
 	if err != nil {
 		return 512
 	}
 	re, _ := q.AsInt64()
 	if re != 0 {
-		return int(re) / (1000 * 1000)
+		return int(re) / (1024 * 1024)
 	}
 	return 512
 }
