@@ -938,7 +938,17 @@ func (a *appRuntimeStore) GetTenantResource(tenantID string) *v1.TenantResource 
 	}
 
 	calculateResourcesfunc := func(pod *corev1.Pod, res map[string]int64) {
+		runningC := make(map[string]struct{})
+		cstatus := append(pod.Status.ContainerStatuses, pod.Status.InitContainerStatuses...)
+		for _, c := range cstatus {
+			if c.State.Running != nil {
+				runningC[c.Name] = struct{}{}
+			}
+		}
 		for _, container := range pod.Spec.Containers {
+			if _, ok := runningC[container.Name]; !ok {
+				continue
+			}
 			cpulimit := container.Resources.Limits.Cpu()
 			memorylimit := container.Resources.Limits.Memory()
 			cpurequest := container.Resources.Requests.Cpu()
