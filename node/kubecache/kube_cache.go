@@ -30,8 +30,8 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 
 	"github.com/Sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
-	v1beta1 "k8s.io/api/policy/v1beta1"
+	"k8s.io/api/core/v1"
+	"k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -435,10 +435,11 @@ func (k *kubeClient) UpK8sNode(rainbondNode *client.HostNode) (*v1.Node, error) 
 	capacity := make(v1.ResourceList)
 	capacity[v1.ResourceCPU] = *resource.NewQuantity(rainbondNode.AvailableCPU, resource.BinarySI)
 	capacity[v1.ResourceMemory] = *resource.NewQuantity(rainbondNode.AvailableMemory, resource.BinarySI)
+	lbs := rainbondNode.MergeLabels()
 	node := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   strings.ToLower(rainbondNode.ID),
-			Labels: rainbondNode.Labels,
+			Labels: lbs,
 		},
 		Spec: v1.NodeSpec{
 			Unschedulable: rainbondNode.Unschedulable,

@@ -20,18 +20,16 @@ package model
 
 import (
 	//"github.com/Sirupsen/logrus"
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	url2 "net/url"
+	"strings"
 
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/pquerna/ffjson/ffjson"
-	"k8s.io/api/core/v1"
-
-	//"github.com/Sirupsen/logrus"
-	"fmt"
-	url2 "net/url"
-	"strings"
+	"k8s.io/api/core/v1" //"github.com/Sirupsen/logrus"
 )
 
 //Resource 资源
@@ -39,10 +37,14 @@ type Resource struct {
 	CpuR int `json:"cpu"`
 	MemR int `json:"mem"`
 }
+
+// NodePodResource -
 type NodePodResource struct {
 	AllocatedResources `json:"allocatedresources"`
 	Resource           `json:"allocatable"`
 }
+
+// AllocatedResources -
 type AllocatedResources struct {
 	CPURequests     int64
 	CPULimits       int64
@@ -53,17 +55,22 @@ type AllocatedResources struct {
 	CPURequestsR    string
 	CPULimitsR      string
 }
+
+// InitStatus -
 type InitStatus struct {
 	Status   int    `json:"status"`
 	StatusCN string `json:"cn"`
 	HostID   string `json:"uuid"`
 }
+
+// InstallStatus -
 type InstallStatus struct {
 	Status   int           `json:"status"`
 	StatusCN string        `json:"cn"`
 	Tasks    []*ExecedTask `json:"tasks"`
 }
 
+// ExecedTask -
 type ExecedTask struct {
 	ID             string   `json:"id"`
 	Seq            int      `json:"seq"`
@@ -74,22 +81,27 @@ type ExecedTask struct {
 	Depends        []string `json:"dep"`
 	Next           []string `json:"next"`
 }
+
+// Prome -
 type Prome struct {
 	Status string    `json:"status"`
 	Data   PromeData `json:"data"`
 }
+
+// PromeData -
 type PromeData struct {
 	ResultType string             `json:"resultType"`
 	Result     []*PromeResultCore `json:"result"`
 }
 
+// PromeResultCore -
 type PromeResultCore struct {
 	Metric map[string]string `json:"metric"`
 	Value  []interface{}     `json:"value"`
 	Values []interface{}     `json:"values"`
 }
 
-//swagger:parameters createToken
+// Expr swagger:parameters createToken
 type Expr struct {
 	Body struct {
 		// expr
@@ -99,16 +111,24 @@ type Expr struct {
 	}
 }
 
+// LabelsResp -
+type LabelsResp struct {
+	SysLabels    map[string]string `json:"sys_labels"`
+	CustomLabels map[string]string `json:"custom_labels"`
+}
+
+// PrometheusInterface -
 type PrometheusInterface interface {
 	Query(query string) *Prome
 	QueryRange(query string, start, end, step string) *Prome
 }
 
+// PrometheusAPI -
 type PrometheusAPI struct {
 	API string
 }
 
-//Get Get
+//Query Get
 func (s *PrometheusAPI) Query(query string) (*Prome, *utils.APIHandleError) {
 	resp, code, err := DoRequest(s.API, query, "query", "GET", nil)
 	if err != nil {
@@ -131,7 +151,7 @@ func (s *PrometheusAPI) Query(query string) (*Prome, *utils.APIHandleError) {
 	return &prome, nil
 }
 
-//Get Get
+//QueryRange Get
 func (s *PrometheusAPI) QueryRange(query string, start, end, step string) (*Prome, *utils.APIHandleError) {
 	//logrus.Infof("prometheus api is %s",s.API)
 	uri := fmt.Sprintf("%v&start=%v&end=%v&step=%v", query, start, end, step)
@@ -155,6 +175,8 @@ func (s *PrometheusAPI) QueryRange(query string, start, end, step string) (*Prom
 	}
 	return &prome, nil
 }
+
+// DoRequest -
 func DoRequest(baseAPI, query, queryType, method string, body []byte) ([]byte, int, error) {
 	api := baseAPI + "/api/v1/" + queryType + "?"
 	query = "query=" + query
@@ -196,7 +218,7 @@ type ClusterResource struct {
 	ReqDisk      uint64  `json:"req_disk"`
 }
 
-//node 资源
+//NodeResource 资源
 type NodeResource struct {
 	CapCPU int     `json:"cap_cpu"`
 	CapMem int     `json:"cap_mem"`
@@ -204,6 +226,7 @@ type NodeResource struct {
 	ReqMem int     `json:"req_mem"`
 }
 
+// FirstConfig -
 type FirstConfig struct {
 	StorageMode     string `json:"storage_mode"`
 	StorageHost     string `json:"storage_host,omitempty"`
@@ -220,6 +243,7 @@ type FirstConfig struct {
 	EtcdIP      string `json:"etcd_ip,omitempty"`
 }
 
+// Config -
 type Config struct {
 	Cn    string `json:"cn_name"`
 	Name  string `json:"name"`
@@ -394,27 +418,36 @@ func CreateGlobalConfig(kvs []*mvccpb.KeyValue) (*GlobalConfig, error) {
 	return dgc, nil
 }
 
+// LoginResult -
 type LoginResult struct {
 	HostPort  string `json:"hostport"`
 	LoginType bool   `json:"type"`
 	Result    string `json:"result"`
 }
+
+// Login -
 type Login struct {
 	HostPort  string `json:"hostport"`
 	LoginType bool   `json:"type"`
 	HostType  string `json:"hosttype"`
 	RootPwd   string `json:"pwd,omitempty"`
 }
+
+// Body -
 type Body struct {
 	List interface{} `json:"list"`
 	Bean interface{} `json:"bean,omitempty"`
 }
+
+// ResponseBody -
 type ResponseBody struct {
 	Code  int    `json:"code"`
 	Msg   string `json:"msg"`
 	MsgCN string `json:"msgcn"`
 	Body  Body   `json:"body,omitempty"`
 }
+
+// Pods -
 type Pods struct {
 	Namespace       string `json:"namespace"`
 	Id              string `json:"id"`
@@ -449,15 +482,18 @@ type NodeDetails struct {
 	Events             map[string][]string `json:"events"`
 }
 
+// AlertingRulesConfig -
 type AlertingRulesConfig struct {
 	Groups []*AlertingNameConfig `yaml:"groups" json:"groups"`
 }
 
+// AlertingNameConfig -
 type AlertingNameConfig struct {
 	Name  string         `yaml:"name" json:"name"`
 	Rules []*RulesConfig `yaml:"rules" json:"rules"`
 }
 
+// RulesConfig -
 type RulesConfig struct {
 	Alert       string            `yaml:"alert" json:"alert"`
 	Expr        string            `yaml:"expr" json:"expr"`
