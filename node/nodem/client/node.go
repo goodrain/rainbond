@@ -23,16 +23,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/util"
-
-	v1 "k8s.io/api/core/v1"
-
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	conf "github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/core/store"
+	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
+	"k8s.io/api/core/v1"
 )
 
 //LabelOS node label about os
@@ -55,17 +53,18 @@ type APIHostNode struct {
 //Clone Clone
 func (a APIHostNode) Clone() *HostNode {
 	hn := &HostNode{
-		ID:         a.ID,
-		HostName:   a.HostName,
-		InternalIP: a.InternalIP,
-		ExternalIP: a.ExternalIP,
-		RootPass:   a.RootPass,
-		KeyPath:    a.Privatekey,
-		Role:       a.Role,
-		Labels:     map[string]string{"rainbond_node_hostname": a.HostName},
-		NodeStatus: NodeStatus{Status: "not_installed", Conditions: make([]NodeCondition, 0)},
-		Status:     "not_installed",
-		PodCIDR:    a.PodCIDR,
+		ID:           a.ID,
+		HostName:     a.HostName,
+		InternalIP:   a.InternalIP,
+		ExternalIP:   a.ExternalIP,
+		RootPass:     a.RootPass,
+		KeyPath:      a.Privatekey,
+		Role:         a.Role,
+		Labels:       map[string]string{"rainbond_node_hostname": a.HostName},
+		CustomLabels: map[string]string{},
+		NodeStatus:   NodeStatus{Status: "not_installed", Conditions: make([]NodeCondition, 0)},
+		Status:       "not_installed",
+		PodCIDR:      a.PodCIDR,
 		//node default unscheduler
 		Unschedulable: true,
 	}
@@ -86,8 +85,9 @@ type HostNode struct {
 	Mode            string            `json:"mode"`
 	Role            HostRule          `json:"role"` //compute, manage, storage, gateway
 	Status          string            `json:"status"`
-	Labels          map[string]string `json:"labels"`        //节点标签 内置标签+用户自定义标签
-	Unschedulable   bool              `json:"unschedulable"` //设置值
+	Labels          map[string]string `json:"labels"`        // system labels
+	CustomLabels    map[string]string `json:"custom_labels"` // custom labels
+	Unschedulable   bool              `json:"unschedulable"` // 设置值
 	PodCIDR         string            `json:"podCIDR"`
 	NodeStatus      NodeStatus        `json:"node_status"`
 }
@@ -97,10 +97,14 @@ type Resource struct {
 	CpuR int `json:"cpu"`
 	MemR int `json:"mem"`
 }
+
+// NodePodResource -
 type NodePodResource struct {
 	AllocatedResources `json:"allocatedresources"`
 	Resource           `json:"allocatable"`
 }
+
+// AllocatedResources -
 type AllocatedResources struct {
 	CPURequests     int64
 	CPULimits       int64
@@ -153,6 +157,22 @@ func (n *HostNode) UpdateK8sNodeStatus(k8sNode v1.Node) {
 		ContainerRuntimeVersion: status.NodeInfo.ContainerRuntimeVersion,
 		Architecture:            status.NodeInfo.Architecture,
 	}
+}
+
+// MergeLabels merges custom lables into labels.
+func (n *HostNode) MergeLabels() map[string]string {
+	// TODO: Parallel
+	labels := make(map[string]string, len(n.Labels)+len(n.CustomLabels))
+	// copy labels
+	for k, v := range n.Labels {
+		labels[k] = v
+	}
+	for k, v := range n.CustomLabels {
+		if _, ok := n.Labels[k]; !ok {
+			labels[k] = v
+		}
+	}
+	return labels
 }
 
 // NodeSystemInfo is a set of ids/uuids to uniquely identify the node.

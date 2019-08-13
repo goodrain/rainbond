@@ -286,9 +286,13 @@ func (n *NodeManager) init() error {
 }
 
 func (n *NodeManager) setNodeLabels(node *client.HostNode) {
+	// node info comes from etcd
 	if node.Labels == nil {
-		node.Labels = n.getInitLable(node)
+		node.Labels = n.getInitLabel(node)
 		return
+	}
+	if node.CustomLabels == nil {
+		node.CustomLabels = make(map[string]string)
 	}
 	var newLabels = map[string]string{}
 	//remove node rule labels
@@ -297,26 +301,26 @@ func (n *NodeManager) setNodeLabels(node *client.HostNode) {
 			newLabels[k] = v
 		}
 	}
-	for k, v := range n.getInitLable(node) {
+	for k, v := range n.getInitLabel(node) {
 		newLabels[k] = v
 	}
 	node.Labels = newLabels
 }
 
-//getInitLable update node role and return new lables
-func (n *NodeManager) getInitLable(node *client.HostNode) map[string]string {
-	lables := map[string]string{}
+//getInitLabel update node role and return new lables
+func (n *NodeManager) getInitLabel(node *client.HostNode) map[string]string {
+	labels := map[string]string{}
 	for _, rule := range node.Role {
-		lables["rainbond_node_rule_"+rule] = "true"
+		labels["rainbond_node_rule_"+rule] = "true"
 	}
-	lables[client.LabelOS] = runtime.GOOS
+	labels[client.LabelOS] = runtime.GOOS
 	hostname, _ := os.Hostname()
 	if node.HostName != hostname && hostname != "" {
 		node.HostName = hostname
 	}
-	lables["rainbond_node_hostname"] = node.HostName
-	lables["rainbond_node_ip"] = node.InternalIP
-	return lables
+	labels["rainbond_node_hostname"] = node.HostName
+	labels["rainbond_node_ip"] = node.InternalIP
+	return labels
 }
 
 //getCurrentNode get current node info

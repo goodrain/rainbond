@@ -26,18 +26,16 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/goodrain/rainbond/event"
-
-	ansibleUtil "github.com/goodrain/rainbond/util/ansible"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/node/api/model"
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/masterserver/node"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/goodrain/rainbond/util"
+	ansibleUtil "github.com/goodrain/rainbond/util/ansible"
 	"github.com/twinj/uuid"
 )
 
@@ -276,24 +274,42 @@ func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHa
 	return nil
 }
 
+// GetNodeLabels returns node labels, including system labels and custom labels
+func (n *NodeService) GetNodeLabels(nodeID string) (*model.LabelsResp, *utils.APIHandleError) {
+	node, err := n.GetNode(nodeID)
+	if err != nil {
+		return nil, err
+	}
+	labels := &model.LabelsResp{
+		SysLabels:    node.Labels,
+		CustomLabels: node.CustomLabels,
+	}
+	return labels, nil
+}
+
 //PutNodeLabel update node label
 func (n *NodeService) PutNodeLabel(nodeID string, labels map[string]string) (map[string]string, *utils.APIHandleError) {
 	hostNode, apierr := n.GetNode(nodeID)
 	if apierr != nil {
 		return nil, apierr
 	}
+	// api can only upate or create custom labels
+	if hostNode.CustomLabels == nil {
+		hostNode.CustomLabels = make(map[string]string)
+	}
 	for k, v := range labels {
-		hostNode.Labels[k] = v
+		hostNode.CustomLabels[k] = v
 	}
 	if hostNode.Role.HasRule(client.ComputeNode) && hostNode.NodeStatus.KubeNode != nil {
-		node, err := n.kubecli.UpdateLabels(nodeID, hostNode.Labels)
+		labels := hostNode.MergeLabels()
+		node, err := n.kubecli.UpdateLabels(nodeID, labels)
 		if err != nil {
 			return nil, utils.CreateAPIHandleError(500, fmt.Errorf("update k8s node labels error,%s", err.Error()))
 		}
 		hostNode.UpdateK8sNodeStatus(*node)
 	}
 	n.nodecluster.UpdateNode(hostNode)
-	return hostNode.Labels, nil
+	return hostNode.CustomLabels, nil
 }
 
 //DeleteNodeLabel delete node label
@@ -302,22 +318,24 @@ func (n *NodeService) DeleteNodeLabel(nodeID string, labels map[string]string) (
 	if apierr != nil {
 		return nil, apierr
 	}
+
 	newLabels := make(map[string]string)
-	for k, v := range hostNode.Labels {
+	for k, v := range hostNode.CustomLabels {
 		if _, ok := labels[k]; !ok {
 			newLabels[k] = v
 		}
 	}
-	hostNode.Labels = newLabels
+	hostNode.CustomLabels = newLabels
 	if hostNode.Role.HasRule(client.ComputeNode) && hostNode.NodeStatus.KubeNode != nil {
-		node, err := n.kubecli.UpdateLabels(nodeID, hostNode.Labels)
+		labels := hostNode.MergeLabels()
+		node, err := n.kubecli.UpdateLabels(nodeID, labels)
 		if err != nil {
 			return nil, utils.CreateAPIHandleError(500, fmt.Errorf("update k8s node labels error,%s", err.Error()))
 		}
 		hostNode.UpdateK8sNodeStatus(*node)
 	}
 	n.nodecluster.UpdateNode(hostNode)
-	return hostNode.Labels, nil
+	return hostNode.CustomLabels, nil
 }
 
 //DownNode down node

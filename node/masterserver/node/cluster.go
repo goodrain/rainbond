@@ -279,16 +279,17 @@ func (n *Cluster) RemoveNode(nodeID string) {
 func (n *Cluster) GetLabelsNode(labels map[string]string) []string {
 	var nodes []string
 	for _, node := range n.nodes {
-		if checkLables(node, labels) {
+		if checkLabels(node, labels) {
 			nodes = append(nodes, node.ID)
 		}
 	}
 	return nodes
 }
 
-func checkLables(node *client.HostNode, labels map[string]string) bool {
+func checkLabels(node *client.HostNode, labels map[string]string) bool {
+	existLabels := node.MergeLabels()
 	for k, v := range labels {
-		if nodev := node.Labels[k]; nodev != v {
+		if nodev := existLabels[k]; nodev != v {
 			return false
 		}
 	}
