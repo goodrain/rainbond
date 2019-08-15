@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/cmd/builder/option"
@@ -303,9 +302,11 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 			CodeVersion: i.commit.Hash,
 			CommitMsg:   i.commit.Message,
 			Author:      i.commit.Author,
+			FinishTime:  time.Now(),
 		}
 		if err := i.UpdateVersionInfo(vi); err != nil {
-			logrus.Debugf("update version Info error: %s", err.Error())
+			logrus.Errorf("update version Info error: %s", err.Error())
+			// TODO(huangrh 20190816): use logger
 		}
 	} else {
 		var configs = make(map[string]string, len(i.Configs))
@@ -387,7 +388,7 @@ func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, ac
 		}
 		if err := e.mqClient.SendBuilderTopic(mqclient.TaskStruct{
 			Topic:    mqclient.WorkerTopic,
-			TaskType: "rolling_upgrade",
+			TaskType: "rolling_upgrade", // TODO(huangrh 20190816): Separate from build
 			TaskBody: body,
 		}); err != nil {
 			return err

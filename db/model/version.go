@@ -20,6 +20,7 @@ package model
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
@@ -47,7 +48,8 @@ type VersionInfo struct {
 	//success: version available
 	//failure: build failure
 	//lost: there is no delivered
-	FinalStatus string `gorm:"column:final_status;size:40"`
+	FinalStatus string    `gorm:"column:final_status;size:40"`
+	FinishTime  time.Time `gorm:"column:finish_time;"`
 }
 
 //TableName 表名

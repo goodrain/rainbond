@@ -20,9 +20,9 @@ package handler
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/Sirupsen/logrus"
-
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -86,6 +86,7 @@ func (o *OperationHandler) Build(buildInfo model.BuildInfoRequestStruct) (re Ope
 		BuildVersion: buildInfo.DeployVersion,
 		Cmd:          buildInfo.ImageInfo.Cmd,
 		Author:       buildInfo.Operator,
+		FinishTime:   time.Now(),
 	}
 	serviceID := buildInfo.ServiceID
 	err = db.GetManager().VersionInfoDao().AddModel(&version)
