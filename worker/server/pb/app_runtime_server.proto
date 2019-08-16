@@ -10,6 +10,7 @@ service AppRuntimeSync {
   rpc AddThirdPartyEndpoint (AddThirdPartyEndpointsReq) returns (Empty) {}
   rpc UpdThirdPartyEndpoint (UpdThirdPartyEndpointsReq) returns (Empty) {}
   rpc DelThirdPartyEndpoint (DelThirdPartyEndpointsReq) returns (Empty) {}
+  rpc ListPodsBySID(ListPodsBySIDReq) returns (Empty) {}
 }
 
 message Empty {}
@@ -33,8 +34,10 @@ message DiskMessage {
 }
 
 message ServiceAppPodList {
-  repeated ServiceAppPod pods = 1;
+  repeated ServiceAppPod oldPods = 1;
+  repeated ServiceAppPod newPods = 2;
 }
+
 message ServiceAppPod {
   string service_id = 1;
   string deploy_id = 2;
@@ -109,4 +112,8 @@ message ThirdPartyEndpoint {
 
 message ThirdPartyEndpoints {
   repeated ThirdPartyEndpoint obj = 1;
+}
+
+message ListPodsBySIDReq {
+  string sid = 1;
 }

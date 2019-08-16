@@ -191,6 +191,20 @@ func (a *AppService) GetReplicaSets() []*v1.ReplicaSet {
 	return a.replicasets
 }
 
+// GetNewestReplicaSet returns the newest replica set.
+func (a *AppService) GetNewestReplicaSet() (newest *v1.ReplicaSet) {
+	if len(a.replicasets) == 0 {
+		return
+	}
+	newest = a.replicasets[0]
+	for _, rs := range a.replicasets {
+		if newest.ObjectMeta.CreationTimestamp.Before(&rs.ObjectMeta.CreationTimestamp) {
+			newest = rs
+		}
+	}
+	return
+}
+
 //GetReplicaSetVersion get rs version
 func GetReplicaSetVersion(rs *v1.ReplicaSet) int {
 	if version, ok := rs.Annotations["deployment.kubernetes.io/revision"]; ok {
@@ -512,6 +526,13 @@ func (a *AppService) SetDeletedResources(old *AppService) {
 			a.delServices = append(a.delServices, o)
 		}
 	}
+}
+
+// DistinguishPod uses replica set to distinguish between old and new pods
+// true: new pod; false: old pod.
+func (a *AppService) DistinguishPod(pod *corev1.Pod) bool {
+	rss := a.GetNewestReplicaSet()
+	return !pod.ObjectMeta.CreationTimestamp.Before(&rss.ObjectMeta.CreationTimestamp)
 }
 
 func (a *AppService) String() string {

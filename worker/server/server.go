@@ -134,23 +134,14 @@ func (r *RuntimeServer) GetTenantResource(ctx context.Context, re *pb.TenantRequ
 
 //GetAppPods get app pod list
 func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (*pb.ServiceAppPodList, error) {
-	var Pods []*pb.ServiceAppPod
 	app := r.store.GetAppService(re.ServiceId)
 	if app == nil {
-		return &pb.ServiceAppPodList{
-			Pods: Pods,
-		}, nil
+		// TODO: make sure that '*pb.ServiceAppPodList' can be nil.
+		return nil, nil
 	}
-	var deployType, deployID string
-	if deployment := app.GetDeployment(); deployment != nil {
-		deployType = "deployment"
-		deployID = deployment.Name
-	}
-	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		deployType = "statefulset"
-		deployID = statefulset.Name
-	}
+
 	pods := app.GetPods()
+	var oldpods, newpods []*pb.ServiceAppPod
 	for _, pod := range pods {
 		var containers = make(map[string]*pb.Container, len(pod.Spec.Containers))
 		for _, container := range pod.Spec.Containers {
@@ -159,19 +150,22 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 				MemoryLimit:   container.Resources.Limits.Memory().Value(),
 			}
 		}
-		Pods = append(Pods, &pb.ServiceAppPod{
-			ServiceId:  app.ServiceID,
-			DeployId:   deployID,
-			DeployType: deployType,
-			PodIp:      pod.Status.PodIP,
-			PodName:    pod.Name,
-			PodStatus:  string(pod.Status.Phase),
+		sapod := &pb.ServiceAppPod{
+			PodIp:     pod.Status.PodIP,
+			PodName:   pod.Name,
+			PodStatus: string(pod.Status.Phase),
 			Containers: containers,
-		})
+		}
+		if app.DistinguishPod(pod) {
+			newpods = append(newpods, sapod)
+		} else {
+			oldpods = append(oldpods, sapod)
+		}
 	}
 
 	return &pb.ServiceAppPodList{
-		Pods: Pods,
+		OldPods: oldpods,
+		NewPods: newpods,
 	}, nil
 }
 
@@ -372,5 +366,10 @@ func (r *RuntimeServer) DelThirdPartyEndpoint(ctx context.Context, re *pb.DelThi
 			Sid:  re.Sid,
 		},
 	}
+	return new(pb.Empty), nil
+}
+
+// ListPodsBySID lists information of pods based on the given service id.
+func (r *RuntimeServer) ListPodsBySID(ctx context.Context, in *pb.ListPodsBySIDReq) (*pb.Empty, error) {
 	return new(pb.Empty), nil
 }
