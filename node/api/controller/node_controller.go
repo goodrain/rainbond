@@ -20,24 +20,21 @@ package controller
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/node/api/model"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/utils"
+	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/version"
-
-	"github.com/goodrain/rainbond/node/api/model"
-
-	"errors"
-	"io/ioutil"
-	"strconv"
-
-	httputil "github.com/goodrain/rainbond/util/http"
 )
 
 func init() {
@@ -310,12 +307,12 @@ func DeleteLabel(w http.ResponseWriter, r *http.Request) {
 //GetLabel get node label
 func GetLabel(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
-	node, err := nodeService.GetNode(nodeUID)
+	labels, err := nodeService.GetNodeLabels(nodeUID)
 	if err != nil {
 		err.Handle(r, w)
 		return
 	}
-	httputil.ReturnSuccess(r, w, node.Labels)
+	httputil.ReturnSuccess(r, w, labels)
 }
 
 //ListNodeCondition list node condition

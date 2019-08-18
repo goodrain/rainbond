@@ -20,20 +20,17 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/cmd"
-
-	"k8s.io/apimachinery/pkg/api/errors"
-
-	"encoding/json"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
+	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/core/config"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 //ClusterClient ClusterClient
@@ -80,6 +77,7 @@ func (e *etcdClusterClient) UpdateStatus(n *HostNode) error {
 	if existNode.NodeStatus.NodeInfo.OperatingSystem == "" {
 		existNode.NodeStatus.NodeInfo = n.NodeStatus.NodeInfo
 	}
+	// only update system labels
 	newLabels := n.Labels
 	for k, v := range existNode.Labels {
 		if !strings.HasPrefix(k, "rainbond_node_rule_") {

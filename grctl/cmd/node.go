@@ -242,6 +242,7 @@ func NewCmdNode() cli.Command {
 					fmt.Println(table)
 					fmt.Printf("-------------------Node Labels-----------------------\n")
 					labeltable := uitable.New()
+					// TODO: distinguish system labels and custom labels
 					for k, v := range v.Labels {
 						labeltable.AddRow(k, v)
 					}
