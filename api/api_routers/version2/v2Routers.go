@@ -44,6 +44,7 @@ func (v2 *V2) Routes() chi.Router {
 	r.Post("/alertmanager-webhook", controller.GetManager().AlertManagerWebHook)
 	r.Get("/version", controller.GetManager().Version)
 	r.Mount("/port", v2.portRouter())
+	r.Get("/event-log", controller.GetManager().LogByAction)
 	return r
 }
 
