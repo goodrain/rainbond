@@ -49,6 +49,8 @@ type Manager interface {
 	Close() error
 	ReleaseLogger(Logger)
 }
+
+// EventConfig event config struct
 type EventConfig struct {
 	EventLogServers []string
 	DiscoverAddress []string
@@ -263,6 +265,7 @@ func (m *manager) getLBChan() chan []byte {
 		m.qos = atomic.AddInt32(&(m.qos), 1)
 		server := m.eventServer[index]
 		if _, ok := m.abnormalServer[server]; ok {
+			logrus.Warnf("server[%s] is abnormal, skip it", server)
 			continue
 		}
 		if h, ok := m.handles[server]; ok {
@@ -431,6 +434,7 @@ func (l *loggerWriter) Write(b []byte) (n int, err error) {
 		if l.fmt != "" {
 			message = fmt.Sprintf(l.fmt, message)
 		}
+		logrus.Debugf("step: %s, level: %s;write message : %v", l.step, l.level, message)
 		l.l.send(message, map[string]string{"step": l.step, "level": l.level})
 	}
 	return len(b), nil

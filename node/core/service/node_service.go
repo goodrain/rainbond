@@ -50,6 +50,7 @@ type NodeService struct {
 func CreateNodeService(c *option.Conf, nodecluster *node.Cluster, kubecli kubecache.KubeClient) *NodeService {
 	if err := event.NewManager(event.EventConfig{
 		DiscoverAddress: c.Etcd.Endpoints,
+		EventLogServers: c.EventLogServer,
 	}); err != nil {
 		logrus.Errorf("create event manager faliure")
 	}
@@ -157,11 +158,6 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode, eventID string)
 		logrus.Error("write hosts file error ", err.Error())
 		return
 	}
-	if err := event.NewManager(event.EventConfig{
-		DiscoverAddress: n.c.Etcd.Endpoints,
-	}); err != nil {
-		logrus.Errorf("create event manager faliure")
-	}
 	// start add node script
 	logrus.Infof("Begin install node %s", node.ID)
 	// write log to event log
@@ -177,9 +173,10 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode, eventID string)
 		Stdout:     logger.GetWriter("node-install", "info"),
 		Stderr:     logger.GetWriter("node-install", "err"),
 	}
+
 	err = ansibleUtil.RunNodeInstallCmd(option)
 	if err != nil {
-		logrus.Error("Error executing shell script", err)
+		logrus.Error("Error executing shell script : ", err)
 		node.Status = client.InstallFailed
 		node.NodeStatus.Status = client.InstallFailed
 		n.nodecluster.UpdateNode(node)
