@@ -496,3 +496,25 @@ func (n *HostNode) Update() (*client.PutResponse, error) {
 func (n *HostNode) DeleteNode() (*client.DeleteResponse, error) {
 	return store.DefalutClient.Delete(conf.Config.NodePath + "/" + n.ID)
 }
+
+// DelEndpoints -
+func (n *HostNode) DelEndpoints() {
+	keys := n.listEndpointKeys()
+	for _, key := range keys {
+		key = key + n.InternalIP
+		res, err := store.DefalutClient.Delete(key)
+		if err != nil {
+			logrus.Warnf("key: %s; error delete endpoints: %v", key, err)
+		}
+		fmt.Printf("key: %s; response of deleting endpoints: %+v\n", key, res)
+	}
+}
+
+func (n *HostNode) listEndpointKeys() []string {
+	// TODO: need improvement, not hard code
+	return []string{
+		"/rainbond/endpoint/APISERVER_ENDPOINTS/",
+		"/rainbond/endpoint/HUB_ENDPOINTS/",
+		"/rainbond/endpoint/REPO_ENDPOINTS/",
+	}
+}
