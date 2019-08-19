@@ -21,7 +21,6 @@ package discover
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -50,13 +49,6 @@ func CreateKeepAlive(EtcdEndpoint []string, ServerName string, HostName string, 
 	if ServerName == "" || Port == 0 {
 		return nil, fmt.Errorf("servername or serverport can not be empty")
 	}
-	if HostName == "" {
-		var err error
-		HostName, err = os.Hostname()
-		if err != nil {
-			return nil, err
-		}
-	}
 	if HostIP == "" {
 		ip, err := util.LocalIP()
 		if err != nil {
@@ -65,6 +57,7 @@ func CreateKeepAlive(EtcdEndpoint []string, ServerName string, HostName string, 
 		}
 		HostIP = ip.String()
 	}
+	HostName = HostIP
 	return &KeepAlive{
 		EtcdEndpoint: EtcdEndpoint,
 		ServerName:   ServerName,
