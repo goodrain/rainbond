@@ -25,8 +25,8 @@ import (
 
 func TestLogger(t *testing.T) {
 	err := NewManager(EventConfig{
-		EventLogServers: []string{"127.0.0.1:6368"},
-		DiscoverAddress: []string{"127.0.0.1:2379"},
+		EventLogServers: []string{"192.168.195.1:6366"},
+		DiscoverAddress: []string{"192.168.195.1:2379"},
 	})
 	if err != nil {
 		t.Fatal(err)
