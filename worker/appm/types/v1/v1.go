@@ -474,6 +474,16 @@ func (a *AppService) GetPods() []*corev1.Pod {
 	return a.pods
 }
 
+// GetPodsByName returns the pod based on podname.
+func (a *AppService) GetPodsByName(podname string) *corev1.Pod {
+	for _, pod := range a.pods {
+		if pod.ObjectMeta.Name == podname {
+			return pod
+		}
+	}
+	return nil
+}
+
 //SetTenant set tenant
 func (a *AppService) SetTenant(d *corev1.Namespace) {
 	a.tenant = d

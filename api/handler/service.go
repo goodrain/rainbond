@@ -1682,11 +1682,14 @@ func (s *ServiceAction) CreateTenandIDAndName(eid string) (string, string, error
 	return uid, name, nil
 }
 
+//K8sPodInfos -
+type K8sPodInfos struct {
+	NewPods []*K8sPodInfo `json:"new_pods"`
+	OldPods []*K8sPodInfo `json:"old_pods"`
+}
+
 //K8sPodInfo for api
 type K8sPodInfo struct {
-	ServiceID  string                       `json:"service_id"`
-	DeployID   string                       `json:"deploy_id"`
-	DeployType string                       `json:"deploy_type"`
 	PodName    string                       `json:"pod_name"`
 	PodIP      string                       `json:"pod_ip"`
 	PodStatus  string                       `json:"pod_status"`
@@ -1694,42 +1697,47 @@ type K8sPodInfo struct {
 }
 
 //GetPods get pods
-func (s *ServiceAction) GetPods(serviceID string) ([]*K8sPodInfo, error) {
-	var podsInfoList []*K8sPodInfo
+func (s *ServiceAction) GetPods(serviceID string) (*K8sPodInfos, error) {
 	pods, err := s.statusCli.GetServicePods(serviceID)
 	if err != nil {
 		logrus.Error("GetPodByService Error:", err)
 		return nil, err
 	}
-	var podNames []string
-	for _, v := range pods.Pods {
-		var podInfo K8sPodInfo
-		containerInfos := make(map[string]map[string]string, 10)
-		podInfo.ServiceID = v.ServiceId
-		podInfo.DeployID = v.DeployId
-		podInfo.DeployType = v.DeployType
-		podInfo.PodName = v.PodName
-		podInfo.PodIP = v.PodIp
-		podInfo.PodStatus = v.PodStatus
-		for _, container := range v.Containers {
-			containerInfos[container.ContainerName] = map[string]string{
-				"memory_limit": fmt.Sprintf("%d", container.MemoryLimit),
-				"memory_usage": "0",
+	convpod := func(pods []*pb.ServiceAppPod) []*K8sPodInfo {
+		var podsInfoList []*K8sPodInfo
+		var podNames []string
+		for _, v := range pods {
+			var podInfo K8sPodInfo
+			podInfo.PodName = v.PodName
+			podInfo.PodIP = v.PodIp
+			podInfo.PodStatus = v.PodStatus
+			containerInfos := make(map[string]map[string]string, 10)
+			for _, container := range v.Containers {
+				containerInfos[container.ContainerName] = map[string]string{
+					"memory_limit": fmt.Sprintf("%d", container.MemoryLimit),
+					"memory_usage": "0",
+				}
+			}
+			podInfo.Container = containerInfos
+			podNames = append(podNames, v.PodName)
+			podsInfoList = append(podsInfoList, &podInfo)
+		}
+		containerMemInfo, _ := s.GetPodContainerMemory(podNames)
+		for _, c := range podsInfoList {
+			for k := range c.Container {
+				if info, exist := containerMemInfo[c.PodName][k]; exist {
+					c.Container[k]["memory_usage"] = info
+				}
 			}
 		}
-		podInfo.Container = containerInfos
-		podNames = append(podNames, v.PodName)
-		podsInfoList = append(podsInfoList, &podInfo)
+		return podsInfoList
 	}
-	containerMemInfo, _ := s.GetPodContainerMemory(podNames)
-	for _, c := range podsInfoList {
-		for k := range c.Container {
-			if info, exist := containerMemInfo[c.PodName][k]; exist {
-				c.Container[k]["memory_usage"] = info
-			}
-		}
-	}
-	return podsInfoList, nil
+	newpods := convpod(pods.NewPods)
+	oldpods := convpod(pods.OldPods)
+	return &K8sPodInfos{
+		NewPods: newpods,
+		OldPods: oldpods,
+	}, nil
 }
 
 //GetPodContainerMemory Use Prometheus to query memory resources

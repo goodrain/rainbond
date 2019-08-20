@@ -117,3 +117,20 @@ message ThirdPartyEndpoints {
 message ListPodsBySIDReq {
   string sid = 1;
 }
+
+message GetPodEventsReq {
+  string sid = 1;
+  string podName = 2;
+}
+
+message GetPodEventsResp {
+  repeated PodEvent evnets = 1;
+}
+
+message PodEvent {
+  string type = 1;
+  string reason = 2;
+  string age = 3;
+  string from = 4;
+  string message = 5;
+}

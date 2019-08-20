@@ -15,6 +15,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 func getReplicaSet() *appsv1.ReplicaSet {
@@ -124,4 +126,35 @@ func TestRuntimeServer_GetAppPods(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestListEvents(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	storer := store.NewMockStorer(ctrl)
+	c, err := clientcmd.BuildConfigFromFlags("", "/Users/abe/go/src/github.com/goodrain/rainbond/test/admin.kubeconfig")
+	if err != nil {
+		t.Fatalf("read kube config file error: %v", err)
+	}
+	clientset, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		t.Fatalf("create kube api client error: %v", err)
+	}
+	rserver := &RuntimeServer{
+		store:     storer,
+		clientset: clientset,
+	}
+	as := &v1.AppService{}
+	as.TenantID = "c1a29fe4d7b0413993dc859430cf743d"
+	storer.EXPECT().GetAppService("sid").Return(as)
+
+	podEvents, err := rserver.GetPodEvents(context.Background(), &pb.GetPodEventsReq{
+		Sid:     "sid",
+		PodName: "88d8c4c55657217522f3bb86cfbded7e-deployment-647b84b467-kd6zc",
+	})
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	t.Logf("pod events: %v", podEvents)
 }

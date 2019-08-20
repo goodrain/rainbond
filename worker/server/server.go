@@ -38,6 +38,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/duration"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/reference"
 )
 
 //RuntimeServer app runtime grpc server
@@ -49,23 +55,25 @@ type RuntimeServer struct {
 	server    *grpc.Server
 	hostIP    string
 	keepalive *discover.KeepAlive
-
-	updateCh *channels.RingChannel
+	clientset kubernetes.Interface
+	updateCh  *channels.RingChannel
 }
 
 //CreaterRuntimeServer create a runtime grpc server
 func CreaterRuntimeServer(conf option.Config,
 	store store.Storer,
+	clientset kubernetes.Interface,
 	updateCh *channels.RingChannel) *RuntimeServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	rs := &RuntimeServer{
-		conf:     conf,
-		ctx:      ctx,
-		cancel:   cancel,
-		server:   grpc.NewServer(),
-		hostIP:   conf.HostIP,
-		store:    store,
-		updateCh: updateCh,
+		conf:      conf,
+		ctx:       ctx,
+		cancel:    cancel,
+		server:    grpc.NewServer(),
+		hostIP:    conf.HostIP,
+		store:     store,
+		clientset: clientset,
+		updateCh:  updateCh,
 	}
 	pb.RegisterAppRuntimeSyncServer(rs.server, rs)
 	// Register reflection service on gRPC server.
@@ -151,9 +159,9 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 			}
 		}
 		sapod := &pb.ServiceAppPod{
-			PodIp:     pod.Status.PodIP,
-			PodName:   pod.Name,
-			PodStatus: string(pod.Status.Phase),
+			PodIp:      pod.Status.PodIP,
+			PodName:    pod.Name,
+			PodStatus:  string(pod.Status.Phase),
 			Containers: containers,
 		}
 		if app.DistinguishPod(pod) {
@@ -167,6 +175,94 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 		OldPods: oldpods,
 		NewPods: newpods,
 	}, nil
+}
+
+// GetPodEvents -
+func (r *RuntimeServer) GetPodEvents(ctx context.Context, req *pb.GetPodEventsReq) (*pb.GetPodEventsResp, error) {
+	app := r.store.GetAppService(req.Sid)
+	if app == nil {
+		return nil, nil // TODO: grpc allow return nil?
+	}
+	name := req.PodName
+	namespace := app.TenantID
+	pod := app.GetPodsByName(name)
+	if pod == nil {
+		eventsInterface := r.clientset.CoreV1().Events(namespace)
+		selector := eventsInterface.GetFieldSelector(&name, &namespace, nil, nil)
+		options := metav1.ListOptions{FieldSelector: selector.String()}
+		events, err := eventsInterface.List(options)
+		if err == nil && len(events.Items) > 0 {
+			podEvents := DescribeEvents(events)
+			result := &pb.GetPodEventsResp{
+				Evnets: podEvents,
+			}
+			return result, nil
+		}
+		return nil, err
+	}
+
+	var events *corev1.EventList
+	if ref, err := reference.GetReference(scheme.Scheme, pod); err != nil {
+		logrus.Errorf("Unable to construct reference to '%#v': %v", pod, err)
+	} else {
+		ref.Kind = ""
+		if _, isMirrorPod := pod.Annotations[corev1.MirrorPodAnnotationKey]; isMirrorPod {
+			ref.UID = types.UID(pod.Annotations[corev1.MirrorPodAnnotationKey])
+		}
+		events, _ = r.clientset.CoreV1().Events(namespace).Search(scheme.Scheme, ref)
+	}
+	podEvents := DescribeEvents(events)
+	result := &pb.GetPodEventsResp{
+		Evnets: podEvents,
+	}
+	return result, nil
+}
+
+func GetPodDetail()
+
+// translateTimestampSince returns the elapsed time since timestamp in
+// human-readable approximation.
+func translateTimestampSince(timestamp metav1.Time) string {
+	if timestamp.IsZero() {
+		return "<unknown>"
+	}
+
+	return duration.HumanDuration(time.Since(timestamp.Time))
+}
+
+// formatEventSource formats EventSource as a comma separated string excluding Host when empty
+func formatEventSource(es corev1.EventSource) string {
+	EventSourceString := []string{es.Component}
+	if len(es.Host) > 0 {
+		EventSourceString = append(EventSourceString, es.Host)
+	}
+	return strings.Join(EventSourceString, ", ")
+}
+
+// DescribeEvents -
+func DescribeEvents(el *corev1.EventList) []*pb.PodEvent {
+	if len(el.Items) == 0 {
+		return nil
+	}
+	// sort.Sort(event.SortableEvents(el.Items)) TODO
+	var podEvents []*pb.PodEvent
+	for _, e := range el.Items {
+		var interval string
+		if e.Count > 1 {
+			interval = fmt.Sprintf("%s (x%d over %s)", translateTimestampSince(e.LastTimestamp), e.Count, translateTimestampSince(e.FirstTimestamp))
+		} else {
+			interval = translateTimestampSince(e.FirstTimestamp)
+		}
+		podEvent := &pb.PodEvent{
+			Type:    e.Type,
+			Reason:  e.Reason,
+			Age:     interval,
+			From:    formatEventSource(e.Source),
+			Message: strings.TrimSpace(e.Message),
+		}
+		podEvents = append(podEvents, podEvent)
+	}
+	return podEvents
 }
 
 //GetDeployInfo get deploy info
