@@ -146,15 +146,10 @@ func TestListEvents(t *testing.T) {
 		clientset: clientset,
 	}
 	as := &v1.AppService{}
-	as.TenantID = "c1a29fe4d7b0413993dc859430cf743d"
 	storer.EXPECT().GetAppService("sid").Return(as)
 
-	podEvents, err := rserver.GetPodEvents(context.Background(), &pb.GetPodEventsReq{
-		Sid:     "sid",
-		PodName: "88d8c4c55657217522f3bb86cfbded7e-deployment-647b84b467-kd6zc",
-	})
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
+	name := "88d8c4c55657217522f3bb86cfbded7e-deployment-647b84b467-kd6zc"
+	namespace := "c1a29fe4d7b0413993dc859430cf743d"
+	podEvents := rserver.listPodEventsByName(name, namespace)
 	t.Logf("pod events: %v", podEvents)
 }

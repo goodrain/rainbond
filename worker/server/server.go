@@ -39,11 +39,8 @@ import (
 	"google.golang.org/grpc/reflection"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/reference"
 )
 
 //RuntimeServer app runtime grpc server
@@ -123,9 +120,9 @@ func (r *RuntimeServer) GetTenantResource(ctx context.Context, re *pb.TenantRequ
 	runningApps := r.store.GetTenantRunningApp(re.TenantId)
 	for _, app := range runningApps {
 		if app.ServiceKind == model.ServiceKindThirdParty {
-			tr.RunningAppThirdNum += 1
+			tr.RunningAppThirdNum++
 		} else if app.ServiceKind == model.ServiceKindInternal {
-			tr.RunningAppInternalNum += 1
+			tr.RunningAppInternalNum++
 		}
 	}
 	tr.RunningAppNum = int64(len(runningApps))
@@ -177,49 +174,6 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 	}, nil
 }
 
-// GetPodEvents -
-func (r *RuntimeServer) GetPodEvents(ctx context.Context, req *pb.GetPodEventsReq) (*pb.GetPodEventsResp, error) {
-	app := r.store.GetAppService(req.Sid)
-	if app == nil {
-		return nil, nil // TODO: grpc allow return nil?
-	}
-	name := req.PodName
-	namespace := app.TenantID
-	pod := app.GetPodsByName(name)
-	if pod == nil {
-		eventsInterface := r.clientset.CoreV1().Events(namespace)
-		selector := eventsInterface.GetFieldSelector(&name, &namespace, nil, nil)
-		options := metav1.ListOptions{FieldSelector: selector.String()}
-		events, err := eventsInterface.List(options)
-		if err == nil && len(events.Items) > 0 {
-			podEvents := DescribeEvents(events)
-			result := &pb.GetPodEventsResp{
-				Evnets: podEvents,
-			}
-			return result, nil
-		}
-		return nil, err
-	}
-
-	var events *corev1.EventList
-	if ref, err := reference.GetReference(scheme.Scheme, pod); err != nil {
-		logrus.Errorf("Unable to construct reference to '%#v': %v", pod, err)
-	} else {
-		ref.Kind = ""
-		if _, isMirrorPod := pod.Annotations[corev1.MirrorPodAnnotationKey]; isMirrorPod {
-			ref.UID = types.UID(pod.Annotations[corev1.MirrorPodAnnotationKey])
-		}
-		events, _ = r.clientset.CoreV1().Events(namespace).Search(scheme.Scheme, ref)
-	}
-	podEvents := DescribeEvents(events)
-	result := &pb.GetPodEventsResp{
-		Evnets: podEvents,
-	}
-	return result, nil
-}
-
-func GetPodDetail()
-
 // translateTimestampSince returns the elapsed time since timestamp in
 // human-readable approximation.
 func translateTimestampSince(timestamp metav1.Time) string {
@@ -257,7 +211,6 @@ func DescribeEvents(el *corev1.EventList) []*pb.PodEvent {
 			Type:    e.Type,
 			Reason:  e.Reason,
 			Age:     interval,
-			From:    formatEventSource(e.Source),
 			Message: strings.TrimSpace(e.Message),
 		}
 		podEvents = append(podEvents, podEvent)
@@ -462,10 +415,5 @@ func (r *RuntimeServer) DelThirdPartyEndpoint(ctx context.Context, re *pb.DelThi
 			Sid:  re.Sid,
 		},
 	}
-	return new(pb.Empty), nil
-}
-
-// ListPodsBySID lists information of pods based on the given service id.
-func (r *RuntimeServer) ListPodsBySID(ctx context.Context, in *pb.ListPodsBySIDReq) (*pb.Empty, error) {
 	return new(pb.Empty), nil
 }
