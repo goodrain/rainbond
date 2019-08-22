@@ -132,6 +132,15 @@ func (c *EventDaoImpl) DelEventByServiceID(serviceID string) error {
 	return nil
 }
 
+// GetBySIDAndType -
+func (c *EventDaoImpl) GetBySIDAndType(serviceID, optType string) (*model.ServiceEvent, error) {
+	var result model.ServiceEvent
+	if err := c.DB.Where("service_id=? and opt_type=?", serviceID, optType).Order("start_time DESC").First(&result).Error; err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 //NotificationEventDaoImpl NotificationEventDaoImpl
 type NotificationEventDaoImpl struct {
 	DB *gorm.DB

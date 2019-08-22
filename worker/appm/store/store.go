@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/worker/server/pb"
 	"sync"
 	"time"
 
@@ -997,11 +998,6 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandler {
 					a.analyzePodStatus(pod)
 					return
 				}
-				// TODO
-				// eventID := createSystemEvent(tenantID, "create pod", "create pod; error creating event: %v")
-				// logger := event.GetManager().GetLogger(eventID)
-				// defer event.GetManager().ReleaseLogger(logger)
-				// logger.Info(fmt.Sprintf("create pod %s", pod.GetName()), wutil.GetLastLoggerOption())
 			}
 		},
 		UpdateFunc: func(old, new interface{}) {
@@ -1018,21 +1014,31 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandler {
 					a.analyzePodStatus(npod)
 					return
 				}
-				if opod.Status.Phase != npod.Status.Phase {
-					eventID := createSystemEvent(tenantID, "instance changed", "pod changed; error creating event: %v")
-					logger := event.GetManager().GetLogger(eventID)
-					defer event.GetManager().ReleaseLogger(logger)
-					logger.Info(fmt.Sprintf("instance changed; old instance: %s; new instance: %s", opod.GetName(), npod.GetName()), wutil.GetLastLoggerOption())
+				oldPodStatus, newPodStatus := &pb.PodStatus{}, &pb.PodStatus{}
+				wutil.DescribePodStatus(opod, oldPodStatus)
+				wutil.DescribePodStatus(npod, newPodStatus)
+				if oldPodStatus.Type != newPodStatus.Type && checkActionFinish(serviceID, "upgrade") {
+					{
+						eventID := createSystemEvent(tenantID, "instance changed", "instance changed; error creating event: %v")
+						logger := event.GetManager().GetLogger(eventID)
+						defer event.GetManager().ReleaseLogger(logger)
+						logrus.Debugf(fmt.Sprintf("instance changed; old instance: %s; new instance: %s", opod.GetName(), npod.GetName()))
+						logger.Info(fmt.Sprintf("instance changed; old instance: %s; new instance: %s", opod.GetName(), npod.GetName()), nil)
+						logger.Info(fmt.Sprintf("instance changed; old status: %s; new status: %s", oldPodStatus.Type.String(), newPodStatus.Type.String()), wutil.GetLastLoggerOption())
+					}
 				}
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			pod := obj.(*corev1.Pod)
 			tenantID, serviceID, version, creatorID := parseLabels(pod.GetLabels())
-			eventID := createSystemEvent(tenantID, "instance deleted", "instance deleted; error creating event: %v")
-			logger := event.GetManager().GetLogger(eventID)
-			defer event.GetManager().ReleaseLogger(logger)
-			logger.Info(fmt.Sprintf("instance deleted %s", pod.GetName()), wutil.GetLastLoggerOption())
+			if checkActionFinish(serviceID, "stop") {
+				eventID := createSystemEvent(tenantID, "instance deleted", "instance deleted; error creating event: %v")
+				logger := event.GetManager().GetLogger(eventID)
+				defer event.GetManager().ReleaseLogger(logger)
+				logrus.Debugf(fmt.Sprintf("instance deleted %s", pod.GetName()))
+				logger.Info(fmt.Sprintf("instance deleted %s", pod.GetName()), wutil.GetLastLoggerOption())
+			}
 			if serviceID != "" && version != "" && creatorID != "" {
 				appservice, _ := a.getAppService(serviceID, version, creatorID, false)
 				if appservice != nil {
@@ -1061,6 +1067,22 @@ func createSystemEvent(tenantID, optType, msgFormat string) string {
 		eventID = ""
 	}
 	return eventID
+}
+
+func checkActionFinish(serviceID, optType string) bool {
+	// TODO: use new opt_type
+	evt, err := db.GetManager().ServiceEventDao().GetBySIDAndType(serviceID, optType)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return true
+		}
+		logrus.Warningf("check if action finish: error getting event: %v", err)
+		return false
+	}
+	if evt.FinalStatus == "complete" {
+		return true
+	}
+	return false
 }
 
 func parseLabels(labels map[string]string) (string, string, string, string) {

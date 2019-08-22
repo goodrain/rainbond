@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/worker/util"
 	"sort"
 	"time"
 
@@ -16,19 +17,18 @@ import (
 )
 
 // GetPodDetail returns detail information of the pod based on pod name.
-func (r *RuntimeServer) GetPodDetail(ctx context.Context, req *pb.GetPodDetailReq) (*pb.PodDetail, error) {
+func (r *RuntimeServer) GetPodDetail(ctx context.Context, req *pb.GetPodDetailReq) (podDetail *pb.PodDetail, err error) {
 	pod, err := r.getPodByName(req.Sid, req.PodName)
 	if err != nil {
 		logrus.Errorf("name: %s; error getting pod: %v", req.PodName, err)
-		return nil, err
+		return
 	}
 	if pod == nil {
-		// TODO: return ErrNotFound ?
-		return nil, nil
+		return
 	}
 
 	// describe pod
-	podDetail := &pb.PodDetail{
+	podDetail = &pb.PodDetail{
 		Name:           pod.Name,
 		StartTime:      pod.Status.StartTime.Time.Format(time.RFC3339),
 		Status:         &pb.PodStatus{},
@@ -55,7 +55,7 @@ func (r *RuntimeServer) GetPodDetail(ctx context.Context, req *pb.GetPodDetailRe
 	}
 	describeContainers(pod.Spec.Containers, pod.Status.ContainerStatuses, &podDetail.Containers)
 
-	describePodStatus(pod, podDetail.Status)
+	util.DescribePodStatus(pod, podDetail.Status)
 
 	return podDetail, nil
 }
@@ -205,44 +205,4 @@ func SortedResourceNames(list corev1.ResourceList) []corev1.ResourceName {
 	}
 	sort.Sort(SortableResourceNames(resources))
 	return resources
-}
-
-var podStatusTbl = map[string]pb.PodStatus_Type{
-	string(corev1.PodPending):     pb.PodStatus_PENDING,
-	string(corev1.PodRunning):     pb.PodStatus_RUNNING,
-	string(corev1.PodSucceeded):   pb.PodStatus_SUCCEEDED,
-	string(corev1.PodFailed):      pb.PodStatus_FAILED,
-	string(corev1.PodUnknown):     pb.PodStatus_UNKNOWN,
-	string(corev1.PodReady):       pb.PodStatus_ABNORMAL,
-	string(corev1.PodInitialized): pb.PodStatus_INITIATING,
-	string(corev1.PodScheduled):   pb.PodStatus_SCHEDULING,
-}
-
-func describePodStatus(pod *corev1.Pod, podStatus *pb.PodStatus) {
-	if pod.DeletionTimestamp != nil {
-		podStatus.Type = pb.PodStatus_TEMINATING
-		podStatus.Message = fmt.Sprintf("Termination Grace Period:\t%ds", *pod.DeletionGracePeriodSeconds)
-	} else if len(pod.Status.Conditions) == 0 {
-		podStatus.Type = podStatusTbl[string(pod.Status.Phase)]
-		if len(pod.Status.Reason) > 0 {
-			podStatus.Reason = pod.Status.Reason
-		}
-		if len(pod.Status.Message) > 0 {
-			podStatus.Message = pod.Status.Message
-		}
-		// TODO: advice
-	} else {
-		// schedule, ready, init
-		podStatus.Type = pb.PodStatus_RUNNING
-		// TODO: sort important.
-		for _, condition := range pod.Status.Conditions {
-			if condition.Status == corev1.ConditionTrue {
-				continue
-			}
-			podStatus.Type = podStatusTbl[string(condition.Type)]
-			podStatus.Reason = condition.Reason
-			podStatus.Message = condition.Message
-		}
-		// TODO: advice
-	}
 }
