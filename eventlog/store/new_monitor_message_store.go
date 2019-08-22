@@ -81,7 +81,6 @@ func (h *newMonitorMessageStore) InsertMessage(message *db.EventLogMessage) {
 	if message == nil {
 		return
 	}
-	//h.log.Debug("Receive a monitor message:" + string(message.Content))
 	h.size++
 	h.allLogCount++
 	mm, ok := h.insertMessage(message)
@@ -138,12 +137,15 @@ func (h *newMonitorMessageStore) Gc() {
 		}
 		var gcEvent []string
 		for k, v := range h.barrels {
-			if v.UpdateTime.Add(time.Minute * 3).Before(time.Now()) { // barrel 超时未收到消息
-				gcEvent = append(gcEvent, k)
+			if len(v.subSocketChan) == 0 {
+				if v.UpdateTime.Add(time.Minute * 3).Before(time.Now()) { // barrel 超时未收到消息
+					gcEvent = append(gcEvent, k)
+				}
 			}
 		}
 		if gcEvent != nil && len(gcEvent) > 0 {
 			for _, id := range gcEvent {
+				h.log.Infof("monitor message barrel %s will be gc", id)
 				barrel := h.barrels[id]
 				barrel.empty()
 				delete(h.barrels, id)
@@ -285,11 +287,12 @@ func (c *CacheMonitorMessageList) addSubChan(subID string) chan *db.EventLogMess
 	return ch
 }
 
-//删除socket订阅
+//delSubChan delete socket sub chan
 func (c *CacheMonitorMessageList) delSubChan(subID string) {
 	c.subLock.Lock()
 	defer c.subLock.Unlock()
-	if _, ok := c.subSocketChan[subID]; ok {
+	if ch, ok := c.subSocketChan[subID]; ok {
+		close(ch)
 		delete(c.subSocketChan, subID)
 	}
 }
@@ -319,11 +322,8 @@ func merge(source, addsource MonitorMessageList) (result MonitorMessageList) {
 		if oldmm, ok := cache[mm.Key]; ok {
 			oldmm.Count += mm.Count
 			oldmm.AbnormalCount += mm.AbnormalCount
-			//平均时间
 			oldmm.AverageTime = Round((oldmm.AverageTime+mm.AverageTime)/2, 2)
-			//�����积���间
 			oldmm.CumulativeTime = Round(oldmm.CumulativeTime+mm.CumulativeTime, 2)
-			//最大时间
 			if mm.MaxTime > oldmm.MaxTime {
 				oldmm.MaxTime = mm.MaxTime
 			}

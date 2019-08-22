@@ -7,15 +7,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/goodrain/rainbond/node/nodem/logger"
+
 	"fmt"
 
-	"github.com/docker/docker/daemon/logger"
 	"github.com/pborman/uuid"
 )
 
 func TestStreamLogBeak(t *testing.T) {
 
-	log, err := New(logger.Context{
+	log, err := New(logger.Info{
 		ContainerID:  uuid.New(),
 		ContainerEnv: []string{"TENANT_ID=" + uuid.New(), "SERVICE_ID=" + uuid.New()},
 		Config:       map[string]string{"stream-server": "127.0.0.1:6362"},
@@ -51,7 +52,7 @@ func TestStreamLogBeak(t *testing.T) {
 
 func TestStreamLog(t *testing.T) {
 
-	log, err := New(logger.Context{
+	log, err := New(logger.Info{
 		ContainerID:  uuid.New(),
 		ContainerEnv: []string{"TENANT_ID=" + uuid.New(), "SERVICE_ID=" + uuid.New()},
 		Config:       map[string]string{"stream-server": "127.0.0.1:6362"},
@@ -76,7 +77,7 @@ func TestStreamLog(t *testing.T) {
 }
 
 func BenchmarkStreamLog(t *testing.B) {
-	log, err := New(logger.Context{
+	log, err := New(logger.Info{
 		ContainerID:  uuid.New(),
 		ContainerEnv: []string{"TENANT_ID=" + uuid.New(), "SERVICE_ID=" + uuid.New()},
 		Config:       map[string]string{"stream-server": "127.0.0.1:5031"},

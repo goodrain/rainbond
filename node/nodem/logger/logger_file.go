@@ -139,14 +139,11 @@ func decodeFunc(rdr io.Reader) func() (*Message, error) {
 			if err == nil || err == io.EOF {
 				break
 			}
-
-			logrus.WithError(err).WithField("retries", retries).Warn("got error while decoding json")
 			// try again, could be due to a an incomplete json object as we read
 			if _, ok := err.(*json.SyntaxError); ok {
 				dec = json.NewDecoder(rdr)
 				continue
 			}
-
 			// io.ErrUnexpectedEOF is returned from json.Decoder when there is
 			// remaining data in the parser's buffer while an io.EOF occurs.
 			// If the json logger writes a partial json log entry to the disk
@@ -156,6 +153,7 @@ func decodeFunc(rdr io.Reader) func() (*Message, error) {
 				dec = json.NewDecoder(reader)
 				continue
 			}
+			logrus.WithError(err).WithField("retries", retries).Warn("got error while decoding json")
 		}
 		return msg, err
 	}
@@ -205,7 +203,6 @@ func (w *LogFile) ReadLogs(config ReadConfig, watcher *LogWatcher) {
 			watcher.Err <- err
 			return
 		}
-
 		closeFiles := func() {
 			for _, f := range files {
 				f.Close()
@@ -218,7 +215,6 @@ func (w *LogFile) ReadLogs(config ReadConfig, watcher *LogWatcher) {
 				}
 			}
 		}
-
 		readers := make([]SizeReaderAt, 0, len(files)+1)
 		for _, f := range files {
 			stat, err := f.Stat()
@@ -244,10 +240,7 @@ func (w *LogFile) ReadLogs(config ReadConfig, watcher *LogWatcher) {
 		return
 	}
 	w.mu.RUnlock()
-
-	notifyRotate := w.notifyRotate.Subscribe()
-	defer w.notifyRotate.Evict(notifyRotate)
-	followLogs(currentFile, watcher, notifyRotate, w.createDecoder, config.Since, config.Until)
+	followLogs(currentFile, watcher, w.createDecoder, config.Since, config.Until)
 }
 
 func tailFiles(files []SizeReaderAt, watcher *LogWatcher, createDecoder makeDecoderFunc, getTailReader GetTailReaderFunc, config ReadConfig) {
@@ -398,7 +391,7 @@ func decompressfile(fileName, destFileName string, since time.Time) (*os.File, e
 
 	return rs, nil
 }
-func followLogs(f *os.File, logWatcher *LogWatcher, notifyRotate chan interface{}, createDecoder makeDecoderFunc, since, until time.Time) {
+func followLogs(f *os.File, logWatcher *LogWatcher, createDecoder makeDecoderFunc, since, until time.Time) {
 	decodeLogLine := createDecoder(f)
 
 	name := f.Name()
@@ -445,11 +438,11 @@ func followLogs(f *os.File, logWatcher *LogWatcher, notifyRotate chan interface{
 				return nil
 			case fsnotify.Rename, fsnotify.Remove:
 				select {
-				case <-notifyRotate:
 				case <-logWatcher.WatchProducerGone():
 					return errDone
 				case <-logWatcher.WatchConsumerGone():
 					return errDone
+				default:
 				}
 				if err := handleRotate(); err != nil {
 					return err
@@ -510,7 +503,6 @@ func followLogs(f *os.File, logWatcher *LogWatcher, notifyRotate chan interface{
 			// ready to try again
 			continue
 		}
-
 		retries = 0 // reset retries since we've succeeded
 		if !since.IsZero() && msg.Timestamp.Before(since) {
 			continue

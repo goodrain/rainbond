@@ -32,6 +32,7 @@ func Routes() chi.Router {
 	r.Get("/monitor_message", controller.GetMonitorMessage().Get)
 	r.Get("/new_monitor_message", controller.GetMonitorMessage().Get)
 	r.Get("/event_log", controller.GetEventLog().Get)
+	r.Get("/services/{serviceID}/pubsub", controller.GetPubSubControll().Get)
 	return r
 }
 
@@ -43,7 +44,7 @@ func LogRoutes() chi.Router {
 	return r
 }
 
-//LogRoutes 应用导出包下载路由
+//AppRoutes 应用导出包下载路由
 func AppRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/download/{format}/{fileName}", controller.GetManager().Download)
