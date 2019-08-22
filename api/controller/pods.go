@@ -21,6 +21,7 @@ package controller
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/worker/server"
 	"net/http"
 
 	"github.com/go-chi/chi"
@@ -66,6 +67,10 @@ func (p *PodController) PodDetail(w http.ResponseWriter, r *http.Request) {
 	pd, err := handler.GetPodHandler().PodDetail(serviceID, podName)
 	if err != nil {
 		logrus.Errorf("error getting pod detail: %v", err)
+		if err == server.ErrPodNotFound {
+			httputil.ReturnError(r, w, 404, fmt.Sprintf("error getting pod detail: %v", err))
+			return
+		}
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("error getting pod detail: %v", err))
 		return
 	}

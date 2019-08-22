@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/goodrain/rainbond/worker/util"
 	"sort"
@@ -16,6 +17,13 @@ import (
 	"k8s.io/client-go/tools/reference"
 )
 
+var (
+	// ErrAppServiceNotFound app service not found error, happens when haven't find any matched data when looking up with a service id
+	ErrAppServiceNotFound = errors.New("app service not found")
+	// ErrPodNotFound pod not found error, happens when haven't find any matched data when looking up with a pod name
+	ErrPodNotFound = errors.New("pod not found")
+)
+
 // GetPodDetail returns detail information of the pod based on pod name.
 func (r *RuntimeServer) GetPodDetail(ctx context.Context, req *pb.GetPodDetailReq) (podDetail *pb.PodDetail, err error) {
 	pod, err := r.getPodByName(req.Sid, req.PodName)
@@ -24,18 +32,17 @@ func (r *RuntimeServer) GetPodDetail(ctx context.Context, req *pb.GetPodDetailRe
 		return
 	}
 	if pod == nil {
+		err = ErrPodNotFound
 		return
 	}
 
 	// describe pod
-	podDetail = &pb.PodDetail{
-		Name:           pod.Name,
-		StartTime:      pod.Status.StartTime.Time.Format(time.RFC3339),
-		Status:         &pb.PodStatus{},
-		InitContainers: make([]*pb.PodContainer, len(pod.Spec.InitContainers)),
-		Containers:     make([]*pb.PodContainer, len(pod.Spec.Containers)),
-		Events:         []*pb.PodEvent{},
-	}
+	podDetail = &pb.PodDetail{}
+	podDetail.Name = pod.Name
+	podDetail.StartTime = pod.Status.StartTime.Time.Format(time.RFC3339)
+	podDetail.InitContainers = make([]*pb.PodContainer, len(pod.Spec.InitContainers))
+	podDetail.Containers = make([]*pb.PodContainer, len(pod.Spec.Containers))
+	podDetail.Events = []*pb.PodEvent{}
 
 	if pod.Spec.NodeName != "" {
 		podDetail.Node = pod.Spec.NodeName
@@ -63,7 +70,7 @@ func (r *RuntimeServer) GetPodDetail(ctx context.Context, req *pb.GetPodDetailRe
 func (r *RuntimeServer) getPodByName(sid, name string) (*corev1.Pod, error) {
 	app := r.store.GetAppService(sid)
 	if app == nil {
-		return nil, nil // TODO: grpc allow return nil?
+		return nil, ErrAppServiceNotFound
 	}
 	return app.GetPodsByName(name), nil
 }

@@ -28,8 +28,6 @@ type PodContainer struct {
 	Started       string `json:"started,omitempty"`
 	LimitMemory   string `json:"limit_memory,omitempty"`
 	LimitCPU      string `json:"limit_cpu,omitempty"`
-	RequestMemory string `json:"request_memory,omitempty"`
-	RequestCPU    string `json:"request_cpu,omitempty"`
 }
 
 // PodEvent -
