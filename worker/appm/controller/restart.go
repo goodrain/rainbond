@@ -23,11 +23,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
-
-	"github.com/Sirupsen/logrus"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/util"
 )
 
 type restartController struct {
@@ -43,11 +43,11 @@ func (s *restartController) Begin() {
 		go func(service v1.AppService) {
 			wait.Add(1)
 			defer wait.Done()
-			service.Logger.Info("App runtime begin restart app service "+service.ServiceAlias, getLoggerOption("starting"))
+			service.Logger.Info("App runtime begin restart app service "+service.ServiceAlias, util.GetLoggerOption("starting"))
 			if err := s.restartOne(service); err != nil {
 				logrus.Errorf("restart service %s failure %s", service.ServiceAlias, err.Error())
 			} else {
-				service.Logger.Info(fmt.Sprintf("restart service %s success", service.ServiceAlias), GetLastLoggerOption())
+				service.Logger.Info(fmt.Sprintf("restart service %s success", service.ServiceAlias), util.GetLastLoggerOption())
 			}
 		}(service)
 	}
@@ -62,7 +62,7 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	}
 	if err := stopController.stopOne(app); err != nil {
 		if err != ErrWaitTimeOut {
-			app.Logger.Error("(Restart)Stop app failure %s,you could waiting stoped and manual start it", GetCallbackLoggerOption())
+			app.Logger.Error("(Restart)Stop app failure %s,you could waiting stoped and manual start it", util.GetCallbackLoggerOption())
 			return err
 		}
 		//waiting app closed,max wait 40 second
@@ -82,7 +82,7 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	newAppService, err := conversion.InitAppService(db.GetManager(), app.ServiceID, app.ExtensionSet)
 	if err != nil {
 		logrus.Errorf("Application model init create failure:%s", err.Error())
-		app.Logger.Error("Application model init create failure", GetCallbackLoggerOption())
+		app.Logger.Error("Application model init create failure", util.GetCallbackLoggerOption())
 		return fmt.Errorf("Application model init create failure,%s", err.Error())
 	}
 	newAppService.Logger = app.Logger

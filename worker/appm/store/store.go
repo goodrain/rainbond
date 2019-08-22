@@ -30,9 +30,12 @@ import (
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/goodrain/rainbond/worker/appm/f"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	wutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -241,7 +244,7 @@ func NewStore(clientset *kubernetes.Clientset,
 
 	store.informers.Deployment.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.StatefulSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Pod.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.Pod.AddEventHandlerWithResyncPeriod(store.podEventHandler(), time.Second*10)
 	store.informers.Secret.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Service.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Ingress.AddEventHandlerWithResyncPeriod(store, time.Second*10)
@@ -451,22 +454,6 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 		}
 	}
-	if pod, ok := obj.(*corev1.Pod); ok {
-		serviceID := pod.Labels["service_id"]
-		version := pod.Labels["version"]
-		createrID := pod.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
-			appservice, err := a.getAppService(serviceID, version, createrID, true)
-			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{})
-			}
-			if appservice != nil {
-				appservice.SetPods(pod)
-				a.analyzePodStatus(pod)
-				return
-			}
-		}
-	}
 	if secret, ok := obj.(*corev1.Secret); ok {
 		serviceID := secret.Labels["service_id"]
 		version := secret.Labels["version"]
@@ -586,21 +573,6 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 			appservice, _ := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeleteReplicaSet(replicaset)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
-				}
-				return
-			}
-		}
-	}
-	if pod, ok := obj.(*corev1.Pod); ok {
-		serviceID := pod.Labels["service_id"]
-		version := pod.Labels["version"]
-		createrID := pod.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeletePods(pod)
 				if appservice.IsClosed() {
 					a.DeleteAppService(appservice)
 				}
@@ -1008,4 +980,89 @@ func (a *appRuntimeStore) GetTenantRunningApp(tenantID string) (list []*v1.AppSe
 		return true
 	})
 	return
+}
+
+func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandler {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			pod := obj.(*corev1.Pod)
+			_, serviceID, version, creatorID := parseLabels(pod.GetLabels())
+			if serviceID != "" && version != "" && creatorID != "" {
+				appservice, err := a.getAppService(serviceID, version, creatorID, true)
+				if err == conversion.ErrServiceNotFound {
+					a.conf.KubeClient.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{})
+				}
+				if appservice != nil {
+					appservice.SetPods(pod)
+					a.analyzePodStatus(pod)
+					return
+				}
+				// TODO
+				// eventID := createSystemEvent(tenantID, "create pod", "create pod; error creating event: %v")
+				// logger := event.GetManager().GetLogger(eventID)
+				// defer event.GetManager().ReleaseLogger(logger)
+				// logger.Info(fmt.Sprintf("create pod %s", pod.GetName()), wutil.GetLastLoggerOption())
+			}
+		},
+		UpdateFunc: func(old, new interface{}) {
+			opod := old.(*corev1.Pod)
+			npod := new.(*corev1.Pod)
+			tenantID, serviceID, version, creatorID := parseLabels(npod.GetLabels())
+			if serviceID != "" && version != "" && creatorID != "" {
+				appservice, err := a.getAppService(serviceID, version, creatorID, true)
+				if err == conversion.ErrServiceNotFound {
+					a.conf.KubeClient.CoreV1().Pods(npod.Namespace).Delete(npod.Name, &metav1.DeleteOptions{})
+				}
+				if appservice != nil {
+					appservice.SetPods(npod)
+					a.analyzePodStatus(npod)
+					return
+				}
+				if opod.Status.Phase != npod.Status.Phase {
+					eventID := createSystemEvent(tenantID, "instance changed", "pod changed; error creating event: %v")
+					logger := event.GetManager().GetLogger(eventID)
+					defer event.GetManager().ReleaseLogger(logger)
+					logger.Info(fmt.Sprintf("instance changed; old instance: %s; new instance: %s", opod.GetName(), npod.GetName()), wutil.GetLastLoggerOption())
+				}
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			pod := obj.(*corev1.Pod)
+			tenantID, serviceID, version, creatorID := parseLabels(pod.GetLabels())
+			eventID := createSystemEvent(tenantID, "instance deleted", "instance deleted; error creating event: %v")
+			logger := event.GetManager().GetLogger(eventID)
+			defer event.GetManager().ReleaseLogger(logger)
+			logger.Info(fmt.Sprintf("instance deleted %s", pod.GetName()), wutil.GetLastLoggerOption())
+			if serviceID != "" && version != "" && creatorID != "" {
+				appservice, _ := a.getAppService(serviceID, version, creatorID, false)
+				if appservice != nil {
+					appservice.DeletePods(pod)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
+				}
+			}
+		},
+	}
+}
+
+func createSystemEvent(tenantID, optType, msgFormat string) string {
+	eventID := util.NewUUID()
+	et := &model.ServiceEvent{
+		EventID:   eventID,
+		TenantID:  tenantID,
+		UserName:  "system",
+		StartTime: time.Now().Format(time.RFC3339),
+		OptType:   optType,
+	}
+	if err := db.GetManager().ServiceEventDao().AddModel(et); err != nil {
+		logrus.Warningf(msgFormat, err)
+		eventID = ""
+	}
+	return eventID
+}
+
+func parseLabels(labels map[string]string) (string, string, string, string) {
+	return labels["tenant_id"], labels["service_id"], labels["version"], labels["creatrt_id"]
 }

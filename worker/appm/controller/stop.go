@@ -20,6 +20,7 @@ package controller
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/worker/util"
 	"sync"
 	"time"
 
@@ -44,16 +45,16 @@ func (s *stopController) Begin() {
 		go func(service v1.AppService) {
 			wait.Add(1)
 			defer wait.Done()
-			service.Logger.Info("App runtime begin stop app service "+service.ServiceAlias, getLoggerOption("starting"))
+			service.Logger.Info("App runtime begin stop app service "+service.ServiceAlias, util.GetLoggerOption("starting"))
 			if err := s.stopOne(service); err != nil {
 				if err != ErrWaitTimeOut {
-					service.Logger.Error(fmt.Sprintf("stop service %s failure %s", service.ServiceAlias, err.Error()), GetCallbackLoggerOption())
+					service.Logger.Error(fmt.Sprintf("stop service %s failure %s", service.ServiceAlias, err.Error()), util.GetCallbackLoggerOption())
 					logrus.Errorf("stop service %s failure %s", service.ServiceAlias, err.Error())
 				} else {
-					service.Logger.Error(fmt.Sprintf("stop service timeout,please waiting it closed"), GetTimeoutLoggerOption())
+					service.Logger.Error(fmt.Sprintf("stop service timeout,please waiting it closed"), util.GetTimeoutLoggerOption())
 				}
 			} else {
-				service.Logger.Info(fmt.Sprintf("stop service %s success", service.ServiceAlias), GetLastLoggerOption())
+				service.Logger.Info(fmt.Sprintf("stop service %s success", service.ServiceAlias), util.GetLastLoggerOption())
 			}
 		}(service)
 	}
@@ -139,7 +140,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 	}
 	//step 7: waiting endpoint ready
-	app.Logger.Info("Delete all app model success, will waiting app closed", getLoggerOption("running"))
+	app.Logger.Info("Delete all app model success, will waiting app closed", util.GetLoggerOption("running"))
 	return s.WaitingReady(app)
 }
 func (s *stopController) Stop() error {
