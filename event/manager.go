@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -424,10 +423,6 @@ func (l *loggerWriter) SetFormat(f string) {
 func (l *loggerWriter) Write(b []byte) (n int, err error) {
 	if b != nil && len(b) > 0 {
 		message := string(b)
-		message = strings.Replace(message, "\r", "", -1)
-		message = strings.Replace(message, "\n", "", -1)
-		message = strings.Replace(message, "\u0000", "", -1)
-		message = strings.Replace(message, "\"", "", -1)
 		if l.fmt != "" {
 			message = fmt.Sprintf(l.fmt, message)
 		}
