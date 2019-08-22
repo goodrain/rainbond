@@ -97,6 +97,8 @@ type LogInterface interface {
 	LogSocket(w http.ResponseWriter, r *http.Request)
 	LogByAction(w http.ResponseWriter, r *http.Request)
 	TenantLogByAction(w http.ResponseWriter, r *http.Request)
+	EventsByTarget(w http.ResponseWriter, r *http.Request)
+	EventLogByEventID(w http.ResponseWriter, r *http.Request)
 }
 
 //PluginInterface plugin interface

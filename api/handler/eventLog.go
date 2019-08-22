@@ -27,6 +27,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/util"
 
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -54,6 +55,41 @@ func CreateLogManager(etcdEndpoint []string) *LogAction {
 			HomePath: "/grdata/logs/",
 		},
 	}
+}
+
+// GetTargetEvents get target logs
+func (l *LogAction) GetTargetEvents(target, targetID string, pageNum, pageSize int) (api_model.EventsList, error) {
+	result, err := db.GetManager().ServiceEventDao().GetEventPageByTarget(target, targetID, ((pageNum - 1) * pageSize), pageSize)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("result .len ", len(result))
+	var list api_model.EventsList
+	for i := range result {
+		list.Add(result[i])
+		fmt.Println("test")
+	}
+
+	return list, nil
+}
+
+// GetEventLog get target logs
+func (l *LogAction) GetEventLog(eventID string) (string, error) {
+	result, err := db.GetManager().ServiceEventDao().GetEventByEventID(eventID)
+	if err != nil {
+		return "", err
+	}
+	if result != nil {
+		downLoadDIR := "/grdata/downloads/log/eventlog"
+		fullPath := fmt.Sprintf("%s/%s.log", downLoadDIR, eventID)
+		_, err := os.Stat(fullPath)
+		fmt.Println(err)
+		if os.IsNotExist(err) {
+			return "", err
+		}
+		return fullPath, nil
+	}
+	return "", nil
 }
 
 //GetLogList get log list

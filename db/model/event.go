@@ -26,22 +26,17 @@ type ServiceEvent struct {
 	EventID     string `gorm:"column:event_id;size:40"`
 	TenantID    string `gorm:"column:tenant_id;size:40"`
 	ServiceID   string `gorm:"column:service_id;size:40"`
+	Target      string `gorm:"column:target;size:40"`
+	TargetID    string `gorm:"column:target_id;size:40"`
+	RequestBody string `gorm:"column:request_body;255"`
 	UserName    string `gorm:"column:user_name;size:40"`
 	StartTime   string `gorm:"column:start_time;size:40"`
-	EndTime     string `gorm:"column:end_time;size:255"`
+	EndTime     string `gorm:"column:end_time;size:1024"`
 	OptType     string `gorm:"column:opt_type;size:40"`
+	SynType     int    `gorm:"column:syn_type;size:1"`
 	Status      string `gorm:"column:status;size:40"`
 	FinalStatus string `gorm:"column:final_status;size:40"`
 	Message     string `gorm:"column:message"`
-
-	//abandoned
-	DeployVersion string `gorm:"column:deploy_version;size:40"`
-	//abandoned
-	OldDeployVersion string `gorm:"column:old_deploy_version;size:40"`
-	//abandoned
-	CodeVersion string `gorm:"column:code_version;size:200"`
-	//abandoned
-	OldCodeVersion string `gorm:"column:old_code_version;size:200"`
 }
 
 //TableName 表名

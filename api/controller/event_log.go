@@ -19,6 +19,8 @@
 package controller
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -238,5 +240,69 @@ func (e *EventLogStruct) TenantLogByAction(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	httputil.ReturnSuccess(r, w, dl.Data)
+	return
+}
+
+//EventsByTarget get log by target
+func (e *EventLogStruct) EventsByTarget(w http.ResponseWriter, r *http.Request) {
+	target := chi.URLParam(r, "target")
+	if strings.TrimSpace(target) == "" {
+		httputil.ReturnError(r, w, 400, "target is request")
+		return
+	}
+
+	targetID := chi.URLParam(r, "targetID")
+	if strings.TrimSpace(targetID) == "" {
+		httputil.ReturnError(r, w, 400, "targetID is request")
+		return
+	}
+
+	body, _ := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+
+	var rbm map[string]int
+	if err := json.Unmarshal(body, &rbm); err != nil {
+		logrus.Error("parse page param error")
+		httputil.ReturnError(r, w, 400, "server parse page param error")
+		return
+	}
+
+	logrus.Debugf("get event page param[page:%d, page_size:%d]", rbm["page"], rbm["page_size"])
+
+	pageNum := 1
+	pageSize := 6
+	if rbm["page"] > 0 {
+		pageNum = rbm["page"]
+	}
+	if rbm["page_size"] > 0 {
+		pageSize = rbm["page_size"]
+	}
+
+	ses, err := handler.GetEventHandler().GetTargetEvents(target, targetID, pageNum, pageSize)
+	if err != nil {
+		logrus.Errorf("get event log error, %v", err)
+		httputil.ReturnError(r, w, 500, "get log error")
+		return
+	}
+	logrus.Debugf("get event logs len is : %d", ses.Len())
+	re := ses.Paging(pageNum, pageSize)
+	httputil.ReturnSuccess(r, w, re)
+	return
+}
+
+//EventLogByEventID get event log by eventID
+func (e *EventLogStruct) EventLogByEventID(w http.ResponseWriter, r *http.Request) {
+	eventID := chi.URLParam(r, "eventID")
+	if strings.TrimSpace(eventID) == "" {
+		httputil.ReturnError(r, w, 400, "eventID is request")
+		return
+	}
+	ses, err := handler.GetEventHandler().GetEventLog(eventID)
+	if err != nil {
+		logrus.Errorf("get event log error, %v", err)
+		httputil.ReturnError(r, w, 500, "get log error")
+		return
+	}
+	httputil.ReturnSuccess(r, w, ses)
 	return
 }

@@ -58,13 +58,9 @@ func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 func finalUpdateEvent(target *model.ServiceEvent, old *model.ServiceEvent) {
-	if target.CodeVersion != "" {
-		old.CodeVersion = target.CodeVersion
-	}
 	if target.OptType != "" {
 		old.OptType = target.OptType
 	}
-
 	if target.Status != "" {
 		old.Status = target.Status
 	}
@@ -76,9 +72,6 @@ func finalUpdateEvent(target *model.ServiceEvent, old *model.ServiceEvent) {
 		old.FinalStatus = target.FinalStatus
 	}
 	old.EndTime = time.Now().String()
-	if old.Status == "failure" && old.OptType == "callback" {
-		old.DeployVersion = old.OldDeployVersion
-	}
 }
 
 //EventDaoImpl EventLogMessageDaoImpl
@@ -119,7 +112,7 @@ func (c *EventDaoImpl) GetEventByServiceID(serviceID string) ([]*model.ServiceEv
 	return result, nil
 }
 
-//GetEventByServiceID delete event log
+//DelEventByServiceID delete event log
 func (c *EventDaoImpl) DelEventByServiceID(serviceID string) error {
 	var result []*model.ServiceEvent
 	isNoteExist := c.DB.Where("service_id=?", serviceID).Find(&result).RecordNotFound()
@@ -130,6 +123,30 @@ func (c *EventDaoImpl) DelEventByServiceID(serviceID string) error {
 		return err
 	}
 	return nil
+}
+
+// GetEventByTargetID get event log by targetID
+func (c *EventDaoImpl) GetEventByTargetID(targetID string) ([]*model.ServiceEvent, error) {
+	var result []*model.ServiceEvent
+	if err := c.DB.Where("target_id=?", targetID).Order("start_time DESC").Find(&result).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return result, nil
+		}
+		return nil, err
+	}
+	return result, nil
+}
+
+// GetEventPageByTarget get event by target with page
+func (c *EventDaoImpl) GetEventPageByTarget(target, targetID string, offset, len int) ([]*model.ServiceEvent, error) {
+	var result []*model.ServiceEvent
+	if err := c.DB.Where("target=? and target_id=?", target, targetID).Offset(offset).Limit(len).Order("start_time DESC").Find(&result).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return result, nil
+		}
+		return nil, err
+	}
+	return result, nil
 }
 
 //NotificationEventDaoImpl NotificationEventDaoImpl
