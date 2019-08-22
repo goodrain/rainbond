@@ -27,8 +27,8 @@ import (
 
 //Model 默认字段
 type Model struct {
-	ID        uint      `gorm:"column:ID;primary_key"`
-	CreatedAt time.Time `gorm:"column:create_time"`
+	ID        uint      `gorm:"column:ID;primary_key" json:"id"`
+	CreatedAt time.Time `gorm:"column:create_time" json:"create_time"`
 }
 
 //IDModel 默认ID字段

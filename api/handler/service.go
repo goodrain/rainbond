@@ -29,6 +29,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
+	"github.com/docker/distribution/reference"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/api/util"
@@ -968,12 +969,12 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 		}
 	case "delete":
 		tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
-		}
-	}()
+		defer func() {
+			if r := recover(); r != nil {
+				logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+				tx.Rollback()
+			}
+		}()
 		for _, vp := range vps.Port {
 			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DeleteModel(serviceID, vp.ContainerPort); err != nil {
 				logrus.Errorf("delete port var error, %v", err)
@@ -988,12 +989,12 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 		}
 	case "update":
 		tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
-		}
-	}()
+		defer func() {
+			if r := recover(); r != nil {
+				logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+				tx.Rollback()
+			}
+		}()
 		for _, vp := range vps.Port {
 			//port更新单个请求
 			if oldPort == 0 {
@@ -1078,12 +1079,12 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 			falsev := false
 			p.IsOuterService = &falsev
 			tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
-		}
-	}()
+			defer func() {
+				if r := recover(); r != nil {
+					logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+					tx.Rollback()
+				}
+			}()
 			if err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(p); err != nil {
 				tx.Rollback()
 				return nil, "", err
@@ -1140,12 +1141,12 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 		truev := true
 		p.IsOuterService = &truev
 		tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
-		}
-	}()
+		defer func() {
+			if r := recover(); r != nil {
+				logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+				tx.Rollback()
+			}
+		}()
 		if err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(p); err != nil {
 			tx.Rollback()
 			return nil, "", err
@@ -1396,12 +1397,12 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 		}
 		// begin transaction
 		tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
-		}
-	}()
+		defer func() {
+			if r := recover(); r != nil {
+				logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+				tx.Rollback()
+			}
+		}()
 		if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(tsv); err != nil {
 			tx.Rollback()
 			return util.CreateAPIHandleErrorFromDBError("add volume", err)
@@ -1425,12 +1426,12 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 	case "delete":
 		// begin transaction
 		tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
-		}
-	}()
+		defer func() {
+			if r := recover(); r != nil {
+				logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+				tx.Rollback()
+			}
+		}()
 		if tsv.VolumeName != "" {
 			err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteModel(tsv.ServiceID, tsv.VolumeName)
 			if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
@@ -1880,9 +1881,36 @@ func (s *ServiceAction) ListVersionInfo(serviceID string) (*api_model.BuildListR
 		logrus.Errorf("error getting service by uuid: %v", err)
 		return nil, fmt.Errorf("error getting service by uuid: %v", err)
 	}
+	b, err := json.Marshal(versionInfos)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling version infos: %v", err)
+	}
+	var bversions []*api_model.BuildVersion
+	if err := json.Unmarshal(b, &bversions); err != nil {
+		return nil, fmt.Errorf("error unmarshaling version infos: %v", err)
+	}
+	for idx := range bversions {
+		bv := bversions[idx]
+		if bv.Kind == "build_from_image" || bv.Kind == "build_from_market_image" {
+			repo, err := reference.Parse(bv.RepoURL)
+			if err != nil {
+				logrus.Warningf("repo url: %s; error paring image repo url: %v", bv.RepoURL, err)
+				continue
+			}
+			if named, ok := repo.(reference.Named); ok {
+				bv.ImageRepo = named.Name()
+				domain, _ := reference.SplitHostname(named)
+				bv.ImageDomain = domain
+			}
+			tagged, ok := repo.(reference.Tagged)
+			if ok {
+				bv.ImageTag = tagged.Tag()
+			}
+		}
+	}
 	result := &api_model.BuildListRespVO{
 		DeployVersion: svc.DeployVersion,
-		List:          versionInfos,
+		List:          bversions,
 	}
 	return result, nil
 }
