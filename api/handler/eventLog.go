@@ -71,10 +71,10 @@ func (l *LogAction) GetTargetEvents(target, targetID string) (api_model.EventsLi
 }
 
 // GetEventLog get target logs
-func (l *LogAction) GetEventLog(eventID string) (string, error) {
+func (l *LogAction) GetEventLog(eventID string) (*os.File, error) {
 	result, err := db.GetManager().ServiceEventDao().GetEventByEventID(eventID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if result != nil {
 		downLoadDIR := "/grdata/downloads/log/eventlog"
@@ -82,11 +82,16 @@ func (l *LogAction) GetEventLog(eventID string) (string, error) {
 		_, err := os.Stat(fullPath)
 		fmt.Println(err)
 		if os.IsNotExist(err) {
-			return "", err
+			return nil, err
 		}
-		return fullPath, nil
+
+		file, err := os.OpenFile(fullPath, os.O_RDONLY, 0644)
+		if err != nil {
+			return nil, err
+		}
+		return file, nil
 	}
-	return "", nil
+	return nil, fmt.Errorf("do not ound event log file by eventID")
 }
 
 //GetLogList get log list

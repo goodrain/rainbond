@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"bufio"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -296,12 +297,21 @@ func (e *EventLogStruct) EventLogByEventID(w http.ResponseWriter, r *http.Reques
 		httputil.ReturnError(r, w, 400, "eventID is request")
 		return
 	}
-	ses, err := handler.GetEventHandler().GetEventLog(eventID)
+	file, err := handler.GetEventHandler().GetEventLog(eventID)
 	if err != nil {
 		logrus.Errorf("get event log error, %v", err)
 		httputil.ReturnError(r, w, 500, "get log error")
 		return
 	}
-	httputil.ReturnSuccess(r, w, ses)
+
+	reader := bufio.NewReader(file)
+	bs, err := ioutil.ReadAll(reader)
+	if err != nil {
+		logrus.Errorf("get event log error, %v", err)
+		httputil.ReturnError(r, w, 500, "read event log file error: "+err.Error())
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, string(bs))
 	return
 }

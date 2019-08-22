@@ -19,6 +19,8 @@
 package handler
 
 import (
+	"os"
+
 	api_model "github.com/goodrain/rainbond/api/model"
 )
 
@@ -30,5 +32,5 @@ type EventHandler interface {
 	GetLevelLog(eventID string, level string) (*api_model.DataLog, error)
 	GetLogFile(serviceAlias, fileName string) (string, string, error)
 	GetTargetEvents(target, targetID string) (api_model.EventsList, error)
-	GetEventLog(eventID string) (string, error)
+	GetEventLog(eventID string) (*os.File, error)
 }
