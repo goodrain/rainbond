@@ -278,13 +278,12 @@ func (e *EventLogStruct) EventsByTarget(w http.ResponseWriter, r *http.Request) 
 		pageSize = rbm["page_size"]
 	}
 
-	ses, err := handler.GetEventHandler().GetTargetEvents(target, targetID, pageNum, pageSize)
+	ses, err := handler.GetEventHandler().GetTargetEvents(target, targetID)
 	if err != nil {
 		logrus.Errorf("get event log error, %v", err)
 		httputil.ReturnError(r, w, 500, "get log error")
 		return
 	}
-	logrus.Debugf("get event logs len is : %d", ses.Len())
 	re := ses.Paging(pageNum, pageSize)
 	httputil.ReturnSuccess(r, w, re)
 	return

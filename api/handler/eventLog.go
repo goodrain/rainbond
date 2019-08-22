@@ -58,18 +58,15 @@ func CreateLogManager(etcdEndpoint []string) *LogAction {
 }
 
 // GetTargetEvents get target logs
-func (l *LogAction) GetTargetEvents(target, targetID string, pageNum, pageSize int) (api_model.EventsList, error) {
-	result, err := db.GetManager().ServiceEventDao().GetEventPageByTarget(target, targetID, ((pageNum - 1) * pageSize), pageSize)
+func (l *LogAction) GetTargetEvents(target, targetID string) (api_model.EventsList, error) {
+	result, err := db.GetManager().ServiceEventDao().GetEventPageByTarget(target, targetID)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("result .len ", len(result))
 	var list api_model.EventsList
 	for i := range result {
 		list.Add(result[i])
-		fmt.Println("test")
 	}
-
 	return list, nil
 }
 

@@ -138,9 +138,9 @@ func (c *EventDaoImpl) GetEventByTargetID(targetID string) ([]*model.ServiceEven
 }
 
 // GetEventPageByTarget get event by target with page
-func (c *EventDaoImpl) GetEventPageByTarget(target, targetID string, offset, len int) ([]*model.ServiceEvent, error) {
+func (c *EventDaoImpl) GetEventPageByTarget(target, targetID string) ([]*model.ServiceEvent, error) {
 	var result []*model.ServiceEvent
-	if err := c.DB.Where("target=? and target_id=?", target, targetID).Offset(offset).Limit(len).Order("start_time DESC").Find(&result).Error; err != nil {
+	if err := c.DB.Where("target=? and target_id=?", target, targetID).Order("start_time DESC").Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, nil
 		}
