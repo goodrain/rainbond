@@ -71,7 +71,7 @@ func finalUpdateEvent(target *model.ServiceEvent, old *model.ServiceEvent) {
 	if target.FinalStatus != "" {
 		old.FinalStatus = target.FinalStatus
 	}
-	old.EndTime = time.Now().String()
+	old.EndTime = time.Now().Format(time.RFC3339)
 }
 
 //EventDaoImpl EventLogMessageDaoImpl
