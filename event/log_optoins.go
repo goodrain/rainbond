@@ -1,4 +1,4 @@
-package util
+package event
 
 // GetLoggerOption -
 func GetLoggerOption(status string) map[string]string {

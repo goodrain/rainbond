@@ -1021,7 +1021,7 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandler {
 						defer event.GetManager().ReleaseLogger(logger)
 						logrus.Debugf(fmt.Sprintf("instance changed; old instance: %s; new instance: %s", opod.GetName(), npod.GetName()))
 						logger.Info(fmt.Sprintf("instance changed; old instance: %s; new instance: %s", opod.GetName(), npod.GetName()), nil)
-						logger.Info(fmt.Sprintf("instance changed; old status: %s; new status: %s", oldPodStatus.Type.String(), newPodStatus.Type.String()), wutil.GetLastLoggerOption())
+						logger.Info(fmt.Sprintf("instance changed; old status: %s; new status: %s", oldPodStatus.Type.String(), newPodStatus.Type.String()), event.GetLastLoggerOption())
 					}
 					return
 				}
@@ -1035,7 +1035,7 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandler {
 				logger := event.GetManager().GetLogger(eventID)
 				defer event.GetManager().ReleaseLogger(logger)
 				logrus.Debugf(fmt.Sprintf("instance deleted %s", pod.GetName()))
-				logger.Info(fmt.Sprintf("instance deleted %s", pod.GetName()), wutil.GetLastLoggerOption())
+				logger.Info(fmt.Sprintf("instance deleted %s", pod.GetName()), event.GetLastLoggerOption())
 			}
 			if serviceID != "" && version != "" && creatorID != "" {
 				appservice, _ := a.getAppService(serviceID, version, creatorID, false)

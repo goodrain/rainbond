@@ -20,15 +20,13 @@ package controller
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/worker/util"
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/event"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
-
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -56,19 +54,19 @@ func (s *startController) Begin() {
 				wait.Add(1)
 				defer wait.Done()
 				logrus.Debugf("App runtime begin start app service(%s)", service.ServiceAlias)
-				service.Logger.Info("App runtime begin start app service "+service.ServiceAlias, util.GetLoggerOption("starting"))
+				service.Logger.Info("App runtime begin start app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 				if err := s.startOne(service); err != nil {
 					if err != ErrWaitTimeOut {
-						service.Logger.Error(fmt.Sprintf("Start service %s failure %s", service.ServiceAlias, err.Error()), util.GetCallbackLoggerOption())
+						service.Logger.Error(fmt.Sprintf("Start service %s failure %s", service.ServiceAlias, err.Error()), event.GetCallbackLoggerOption())
 						logrus.Errorf("start service %s failure %s", service.ServiceAlias, err.Error())
 						s.errorCallback(service)
 					} else {
 						logrus.Debugf("Start service %s timeout, please wait or read service log.", service.ServiceAlias)
-						service.Logger.Error(fmt.Sprintf("Start service %s timeout,please wait or read service log.", service.ServiceAlias), util.GetTimeoutLoggerOption())
+						service.Logger.Error(fmt.Sprintf("Start service %s timeout,please wait or read service log.", service.ServiceAlias), event.GetTimeoutLoggerOption())
 					}
 				} else {
 					logrus.Debugf("Start service %s success", service.ServiceAlias)
-					service.Logger.Info(fmt.Sprintf("Start service %s success", service.ServiceAlias), util.GetLastLoggerOption())
+					service.Logger.Info(fmt.Sprintf("Start service %s success", service.ServiceAlias), event.GetLastLoggerOption())
 				}
 			}(*service)
 		}
@@ -77,13 +75,13 @@ func (s *startController) Begin() {
 	}
 }
 func (s *startController) errorCallback(app v1.AppService) error {
-	app.Logger.Info("Begin clean resources that have been created", util.GetLoggerOption("starting"))
+	app.Logger.Info("Begin clean resources that have been created", event.GetLoggerOption("starting"))
 	stopController := stopController{
 		manager: s.manager,
 	}
 	if err := stopController.stopOne(app); err != nil {
 		logrus.Errorf("stop app failure after start failure. %s", err.Error())
-		app.Logger.Error(fmt.Sprintf("Stop app failure %s", app.ServiceAlias), util.GetLoggerOption("failure"))
+		app.Logger.Error(fmt.Sprintf("Stop app failure %s", app.ServiceAlias), event.GetLoggerOption("failure"))
 		return err
 	}
 	return nil
@@ -146,7 +144,7 @@ func (s *startController) startOne(app v1.AppService) error {
 		}
 	}
 	//step 6: waiting endpoint ready
-	app.Logger.Info("Create all app model success, will waiting app ready", util.GetLoggerOption("running"))
+	app.Logger.Info("Create all app model success, will waiting app ready", event.GetLoggerOption("running"))
 	return s.WaitingReady(app)
 }
 
