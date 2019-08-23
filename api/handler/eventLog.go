@@ -28,6 +28,7 @@ import (
 	"os"
 
 	"github.com/goodrain/rainbond/db"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
 
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -58,40 +59,8 @@ func CreateLogManager(etcdEndpoint []string) *LogAction {
 }
 
 // GetTargetEvents get target logs
-func (l *LogAction) GetTargetEvents(target, targetID string) (api_model.EventsList, error) {
-	result, err := db.GetManager().ServiceEventDao().GetEventPageByTarget(target, targetID)
-	if err != nil {
-		return nil, err
-	}
-	var list api_model.EventsList
-	for i := range result {
-		list.Add(result[i])
-	}
-	return list, nil
-}
-
-// GetEventLog get target logs
-func (l *LogAction) GetEventLog(eventID string) (*os.File, error) {
-	result, err := db.GetManager().ServiceEventDao().GetEventByEventID(eventID)
-	if err != nil {
-		return nil, err
-	}
-	if result != nil {
-		downLoadDIR := "/grdata/downloads/log/eventlog"
-		fullPath := fmt.Sprintf("%s/%s.log", downLoadDIR, eventID)
-		_, err := os.Stat(fullPath)
-		fmt.Println(err)
-		if os.IsNotExist(err) {
-			return nil, err
-		}
-
-		file, err := os.OpenFile(fullPath, os.O_RDONLY, 0644)
-		if err != nil {
-			return nil, err
-		}
-		return file, nil
-	}
-	return nil, fmt.Errorf("do not ound event log file by eventID")
+func (l *LogAction) GetTargetEvents(target, targetID string, page, size int) ([]*dbmodel.ServiceEvent, int, error) {
+	return db.GetManager().ServiceEventDao().GetEventPageByTarget(target, targetID, (page-1)*size, size)
 }
 
 //GetLogList get log list

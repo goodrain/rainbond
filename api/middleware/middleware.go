@@ -303,7 +303,7 @@ const ST = "service"
 const TT = "tenant"
 
 func canDoEvent(targetID string) bool {
-	events, err := db.GetManager().ServiceEventDao().GetEventByTargetID(targetID)
+	events, err := db.GetManager().ServiceEventDao().GetEventByTargetID(targetID, 0, 10)
 	if err != nil {
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
 			logrus.Debug("record notfound:", err)

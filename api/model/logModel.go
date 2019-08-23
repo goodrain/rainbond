@@ -19,7 +19,6 @@
 package model
 
 import (
-	"github.com/goodrain/rainbond/db/model"
 	eventdb "github.com/goodrain/rainbond/eventlog/db"
 )
 
@@ -132,50 +131,5 @@ type LastLinesStruct struct {
 		// in: body
 		// required: true
 		Lines int `json:"lines" validate:"lines"`
-	}
-}
-
-// EventsList events list
-type EventsList []*model.ServiceEvent
-
-//Add add
-func (list *EventsList) Add(tr *model.ServiceEvent) {
-	*list = append(*list, tr)
-}
-
-// Len sort len
-func (list EventsList) Len() int {
-	return len(list)
-}
-
-// Less sort less
-func (list EventsList) Less(i, j int) bool {
-	if list[i].ID < list[j].ID {
-		return true
-	}
-	return false
-}
-
-// Swap sort swap
-func (list EventsList) Swap(i, j int) {
-	list[i], list[j] = list[j], list[i]
-}
-
-//Paging paging
-func (list EventsList) Paging(page, pageSize int) map[string]interface{} {
-	startIndex := (page - 1) * pageSize
-	endIndex := page * pageSize
-	var relist EventsList
-	if startIndex < len(list) && endIndex < len(list) {
-		relist = list[startIndex:endIndex]
-	}
-	if startIndex < len(list) && endIndex >= len(list) {
-		relist = list[startIndex:]
-	}
-	return map[string]interface{}{
-		"list":     relist,
-		"page":     page,
-		"pageSize": pageSize,
-		"total":    len(list),
 	}
 }

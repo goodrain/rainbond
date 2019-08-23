@@ -19,11 +19,10 @@
 package controller
 
 import (
-	"bufio"
-	"encoding/json"
-	"io/ioutil"
+	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -258,34 +257,43 @@ func (e *EventLogStruct) EventsByTarget(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	body, _ := ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
+	sizeStr := strings.TrimSpace(chi.URLParam(r, "size"))
+	pageStr := strings.TrimSpace(chi.URLParam(r, "page"))
 
-	var rbm map[string]int
-	if err := json.Unmarshal(body, &rbm); err != nil {
-		logrus.Error("parse page param error")
-		httputil.ReturnError(r, w, 400, "server parse page param error")
+	size, err := strconv.Atoi(sizeStr)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
+		return
+	}
+	page, err := strconv.Atoi(pageStr)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
 		return
 	}
 
-	logrus.Debugf("get event page param[page:%d, page_size:%d]", rbm["page"], rbm["page_size"])
+	logrus.Debugf("get event page param[page:%d, page_size:%d]", page, size)
 
-	pageNum := 1
-	pageSize := 6
-	if rbm["page"] > 0 {
-		pageNum = rbm["page"]
-	}
-	if rbm["page_size"] > 0 {
-		pageSize = rbm["page_size"]
+	if page <= 0 {
+		page = 1
 	}
 
-	ses, err := handler.GetEventHandler().GetTargetEvents(target, targetID)
+	if size <= 0 {
+		size = 6
+	}
+
+	list, total, err := handler.GetEventHandler().GetTargetEvents(target, targetID, page, size)
 	if err != nil {
 		logrus.Errorf("get event log error, %v", err)
 		httputil.ReturnError(r, w, 500, "get log error")
 		return
 	}
-	re := ses.Paging(pageNum, pageSize)
+	re := map[string]interface{}{
+		"list":  list,
+		"page":  page,
+		"size":  size,
+		"total": total,
+	}
+
 	httputil.ReturnSuccess(r, w, re)
 	return
 }
@@ -297,21 +305,19 @@ func (e *EventLogStruct) EventLogByEventID(w http.ResponseWriter, r *http.Reques
 		httputil.ReturnError(r, w, 400, "eventID is request")
 		return
 	}
-	file, err := handler.GetEventHandler().GetEventLog(eventID)
+	level := chi.URLParam(r, "level")
+	if level != "info" && level != "debug" && level != "error" {
+		level = "info"
+	}
+
+	logrus.Debug("level : ", level)
+	dl, err := handler.GetEventHandler().GetLevelLog(eventID, level)
 	if err != nil {
 		logrus.Errorf("get event log error, %v", err)
-		httputil.ReturnError(r, w, 500, "get log error")
+		httputil.ReturnError(r, w, 500, "read event log error: "+err.Error())
 		return
 	}
 
-	reader := bufio.NewReader(file)
-	bs, err := ioutil.ReadAll(reader)
-	if err != nil {
-		logrus.Errorf("get event log error, %v", err)
-		httputil.ReturnError(r, w, 500, "read event log file error: "+err.Error())
-		return
-	}
-
-	httputil.ReturnSuccess(r, w, string(bs))
+	httputil.ReturnSuccess(r, w, dl.Data)
 	return
 }

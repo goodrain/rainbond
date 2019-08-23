@@ -126,9 +126,9 @@ func (c *EventDaoImpl) DelEventByServiceID(serviceID string) error {
 }
 
 // GetEventByTargetID get event log by targetID
-func (c *EventDaoImpl) GetEventByTargetID(targetID string) ([]*model.ServiceEvent, error) {
+func (c *EventDaoImpl) GetEventByTargetID(targetID string, offset, limit int) ([]*model.ServiceEvent, error) {
 	var result []*model.ServiceEvent
-	if err := c.DB.Where("target_id=?", targetID).Order("start_time DESC").Find(&result).Error; err != nil {
+	if err := c.DB.Where("target_id=?", targetID).Order("start_time DESC").Offset(offset).Limit(limit).Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, nil
 		}
@@ -138,15 +138,20 @@ func (c *EventDaoImpl) GetEventByTargetID(targetID string) ([]*model.ServiceEven
 }
 
 // GetEventPageByTarget get event by target with page
-func (c *EventDaoImpl) GetEventPageByTarget(target, targetID string) ([]*model.ServiceEvent, error) {
+func (c *EventDaoImpl) GetEventPageByTarget(target, targetID string, offset, limit int) ([]*model.ServiceEvent, int, error) {
 	var result []*model.ServiceEvent
-	if err := c.DB.Where("target=? and target_id=?", target, targetID).Order("start_time DESC").Find(&result).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return result, nil
-		}
-		return nil, err
+	var total int
+	if err := c.DB.Where("target=? and target_id=?", target, targetID).Find(&result).Count(&total).Error; err != nil {
+		return nil, 0, err
 	}
-	return result, nil
+
+	if err := c.DB.Where("target=? and target_id=?", target, targetID).Offset(offset).Limit(limit).Order("start_time DESC").Find(&result).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return result, 0, nil
+		}
+		return nil, 0, err
+	}
+	return result, total, nil
 }
 
 //NotificationEventDaoImpl NotificationEventDaoImpl
