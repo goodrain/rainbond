@@ -128,7 +128,7 @@ func (c *ContainerLogManage) handleLogger() {
 						retry := 0
 						for retry < maxJSONDecodeRetry {
 							retry++
-							reader, err := NewLogFile(cevent.Container.LogPath, 3, false, decodeFunc, 0640, getTailReader)
+							reader, err := NewLogFile(cevent.Container.LogPath, 2, false, decodeFunc, 0640, getTailReader)
 							if err != nil {
 								logrus.Errorf("create logger failure %s", err.Error())
 								time.Sleep(time.Second * 1)

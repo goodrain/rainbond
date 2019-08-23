@@ -19,7 +19,6 @@
 package store
 
 import (
-	"strings"
 	"sync"
 	"time"
 
@@ -114,7 +113,6 @@ func (h *handleMessageStore) Gc() {
 	}
 }
 func (h *handleMessageStore) gcRun() {
-	//h.log.Debugf("runGC %d", time.Now().UnixNano())
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	t := time.Now()
@@ -123,7 +121,7 @@ func (h *handleMessageStore) gcRun() {
 	}
 	var gcEvent []string
 	for k, v := range h.barrels {
-		if v.updateTime.Add(time.Second * 30).Before(time.Now()) { // barrel 超时未收到消息
+		if v.updateTime.Add(time.Second * 30).Before(time.Now()) {
 			h.saveBeforeGc(v)
 			gcEvent = append(gcEvent, k)
 		}
@@ -132,7 +130,7 @@ func (h *handleMessageStore) gcRun() {
 		for _, id := range gcEvent {
 			barrel := h.barrels[id]
 			barrel.empty()
-			h.pool.Put(barrel) //放回对象池
+			h.pool.Put(barrel)
 			delete(h.barrels, id)
 		}
 	}
@@ -240,7 +238,6 @@ func (h *handleMessageStore) saveGarbageMessage() {
 	}
 	err := util.AppendToFile(h.conf.GarbageMessageFile, content)
 	if err != nil {
-		//h.log.Error("Save garbage message to file error.context :\n " + content)
 		h.log.Error("Save garbage message to file error.context", err.Error())
 	} else {
 		h.log.Info("Save the garbage message to file.")
@@ -294,16 +291,6 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					if err := cdb.GetManager().ServiceEventDao().UpdateModel(&event); err != nil {
 						logrus.Errorf("update event status failure %s", err.Error())
 					}
-				}
-			}
-			if event[0] == "code-version" { //代码版本
-				if len(event) == 3 {
-					eventID := event[1]
-					codeVersion := strings.TrimSpace(event[2])
-					event := model.ServiceEvent{}
-					event.EventID = eventID
-					cdb.GetManager().ServiceEventDao().UpdateModel(&event)
-					h.log.Infof("run web hook update code version .event_id %s code_version %s", eventID, codeVersion)
 				}
 			}
 		case <-h.ctx.Done():

@@ -19,15 +19,15 @@
 package controller
 
 import (
+	"context"
 	"net/http"
 	"os"
 
-	"github.com/goodrain/rainbond/api/discover"
-	"github.com/goodrain/rainbond/api/proxy"
-
 	"github.com/Sirupsen/logrus"
-
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/api/discover"
+	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/api/proxy"
 )
 
 //DockerConsole docker console
@@ -174,4 +174,33 @@ func (d LogFile) GetInstallLog(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.WriteHeader(404)
 	}
+}
+
+var pubSubControll *PubSubControll
+
+//PubSubControll service pub sub
+type PubSubControll struct {
+	socketproxy proxy.Proxy
+}
+
+//GetPubSubControll get service pub sub controller
+func GetPubSubControll() *PubSubControll {
+	if pubSubControll == nil {
+		pubSubControll = &PubSubControll{
+			socketproxy: proxy.CreateProxy("dockerlog", "websocket", defaultEventLogEndpoints),
+		}
+		discover.GetEndpointDiscover(defaultEtcdEndpoints).AddProject("event_log_event_http", pubSubControll.socketproxy)
+	}
+	return pubSubControll
+}
+
+//Get get
+func (d PubSubControll) Get(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "serviceID")
+	name, _ := handler.GetEventHandler().GetLogInstance(serviceID)
+	if name != "" {
+		r.URL.Query().Add("host_id", name)
+		r = r.WithContext(context.WithValue(r.Context(), proxy.ContextKey("host_id"), name))
+	}
+	d.socketproxy.Proxy(w, r)
 }
