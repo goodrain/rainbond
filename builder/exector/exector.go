@@ -373,16 +373,32 @@ type rollingUpgradeTaskBody struct {
 }
 
 func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, actionType string, configs map[string]string, logger event.Logger) error {
+	// update build event complete status
+	logger.Info("Build success", map[string]string{"step": "last", "status": "running"})
 	switch actionType {
 	case "upgrade":
+		//add upgrade event
+		event := &dbmodel.ServiceEvent{
+			EventID:   util.NewUUID(),
+			TenantID:  tenantID,
+			ServiceID: serviceID,
+			StartTime: time.Now().Format(time.RFC3339),
+			OptType:   "upgrade",
+			Status:    "running",
+		}
+		if err := db.GetManager().ServiceEventDao().AddModel(event); err != nil {
+			logrus.Errorf("create upgrade event failure %s, service %s do not auto upgrade", err.Error(), serviceID)
+			return nil
+		}
 		if err := db.GetManager().TenantServiceDao().UpdateDeployVersion(serviceID, newVersion); err != nil {
-			return fmt.Errorf("Update app service deploy version failure.Please try the upgrade again")
+			logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), serviceID)
+			return nil
 		}
 		body := workermodel.RollingUpgradeTaskBody{
 			TenantID:         tenantID,
 			ServiceID:        serviceID,
 			NewDeployVersion: newVersion,
-			EventID:          eventID,
+			EventID:          event.EventID,
 			Configs:          configs,
 		}
 		if err := e.mqClient.SendBuilderTopic(mqclient.TaskStruct{
@@ -392,10 +408,9 @@ func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, ac
 		}); err != nil {
 			return err
 		}
-		logger.Info("Build success,start upgrade app service", map[string]string{"step": "builder", "status": "running"})
+		logger.Info("Build success", map[string]string{"step": "last", "status": "running"})
 		return nil
 	default:
-		logger.Info("Build success,do not other action", map[string]string{"step": "last", "status": "success"})
 	}
 	return nil
 }
