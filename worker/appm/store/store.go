@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/worker/server/pb"
 	"sync"
 	"time"
 
@@ -36,6 +35,7 @@ import (
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/goodrain/rainbond/worker/appm/f"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/server/pb"
 	wutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
@@ -1012,13 +1012,10 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandler {
 				if appservice != nil {
 					appservice.SetPods(npod)
 					a.analyzePodStatus(npod)
-					return
-				}
-				oldPodStatus, newPodStatus := &pb.PodStatus{}, &pb.PodStatus{}
-				wutil.DescribePodStatus(opod, oldPodStatus)
-				wutil.DescribePodStatus(npod, newPodStatus)
-				if oldPodStatus.Type != newPodStatus.Type && checkActionFinish(serviceID, "upgrade") {
-					{
+					oldPodStatus, newPodStatus := &pb.PodStatus{}, &pb.PodStatus{}
+					wutil.DescribePodStatus(opod, oldPodStatus)
+					wutil.DescribePodStatus(npod, newPodStatus)
+					if checkActionFinish(serviceID, "upgrade", "stop", "start", "build") && oldPodStatus.Type != newPodStatus.Type {
 						eventID := createSystemEvent(tenantID, "instance changed", "instance changed; error creating event: %v")
 						logger := event.GetManager().GetLogger(eventID)
 						defer event.GetManager().ReleaseLogger(logger)
@@ -1026,6 +1023,7 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandler {
 						logger.Info(fmt.Sprintf("instance changed; old instance: %s; new instance: %s", opod.GetName(), npod.GetName()), nil)
 						logger.Info(fmt.Sprintf("instance changed; old status: %s; new status: %s", oldPodStatus.Type.String(), newPodStatus.Type.String()), wutil.GetLastLoggerOption())
 					}
+					return
 				}
 			}
 		},
@@ -1069,9 +1067,9 @@ func createSystemEvent(tenantID, optType, msgFormat string) string {
 	return eventID
 }
 
-func checkActionFinish(serviceID, optType string) bool {
+func checkActionFinish(serviceID string, optTypes ...string) bool {
 	// TODO: use new opt_type
-	evt, err := db.GetManager().ServiceEventDao().GetBySIDAndType(serviceID, optType)
+	evt, err := db.GetManager().ServiceEventDao().GetBySIDAndType(serviceID, optTypes...)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return true
@@ -1079,12 +1077,13 @@ func checkActionFinish(serviceID, optType string) bool {
 		logrus.Warningf("check if action finish: error getting event: %v", err)
 		return false
 	}
-	if evt.FinalStatus == "complete" {
-		return true
+
+	if evt.FinalStatus != "complete" {
+		return false
 	}
-	return false
+	return true
 }
 
 func parseLabels(labels map[string]string) (string, string, string, string) {
-	return labels["tenant_id"], labels["service_id"], labels["version"], labels["creatrt_id"]
+	return labels["tenant_id"], labels["service_id"], labels["version"], labels["creater_id"]
 }

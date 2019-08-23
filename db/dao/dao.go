@@ -310,7 +310,7 @@ type EventDao interface {
 	GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEvent, error)
 	GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error)
 	DelEventByServiceID(serviceID string) error
-	GetBySIDAndType(serviceID, optType string) (*model.ServiceEvent, error)
+	GetBySIDAndType(serviceID string, optTypes ...string) (*model.ServiceEvent, error)
 }
 
 //VersionInfoDao VersionInfoDao

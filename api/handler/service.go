@@ -1630,6 +1630,12 @@ func (s *ServiceAction) GetStatus(serviceID string) (*api_model.StatusList, erro
 		sl.CurStatus = status
 		sl.StatusCN = TransStatus(status)
 	}
+	di, err := s.statusCli.GetServiceDeployInfo(serviceID)
+	if err != nil {
+		logrus.Warningf("service id: %s; failed to get deploy info: %v", serviceID, err)
+	} else {
+		sl.StartTime = di.GetStartTime()
+	}
 	return sl, nil
 }
 

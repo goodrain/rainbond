@@ -141,8 +141,7 @@ func (r *RuntimeServer) GetTenantResource(ctx context.Context, re *pb.TenantRequ
 func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (*pb.ServiceAppPodList, error) {
 	app := r.store.GetAppService(re.ServiceId)
 	if app == nil {
-		// TODO: make sure that '*pb.ServiceAppPodList' can be nil.
-		return nil, nil
+		return nil, ErrAppServiceNotFound
 	}
 
 	pods := app.GetPods()
@@ -226,9 +225,11 @@ func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest
 		deployinfo.Namespace = appService.TenantID
 		if appService.GetStatefulSet() != nil {
 			deployinfo.Statefuleset = appService.GetStatefulSet().Name
+			deployinfo.StartTime = appService.GetStatefulSet().ObjectMeta.CreationTimestamp.Format(time.RFC3339)
 		}
 		if appService.GetDeployment() != nil {
 			deployinfo.Deployment = appService.GetDeployment().Name
+			deployinfo.StartTime = appService.GetDeployment().ObjectMeta.CreationTimestamp.Format(time.RFC3339)
 		}
 		if services := appService.GetServices(); services != nil {
 			service := make(map[string]string, len(services))
