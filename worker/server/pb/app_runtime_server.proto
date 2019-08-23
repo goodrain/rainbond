@@ -159,6 +159,7 @@ message PodStatus {
   string reason = 2;
   string message = 3;
   string advice = 4;
+  string type_str = 5;
 }
 
 message PodContainer {
