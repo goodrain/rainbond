@@ -143,7 +143,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&a.StatsdConfig.ReadBuffer, "statsd.read-buffer", 0, "Size (in bytes) of the operating system's transmit read buffer associated with the UDP connection. Please make sure the kernel parameters net.core.rmem_max is set to a value greater than the value specified.")
 	fs.DurationVar(&a.MinResyncPeriod, "min-resync-period", time.Second*15, "The resync period in reflectors will be random between MinResyncPeriod and 2*MinResyncPeriod")
 	fs.StringVar(&a.ServiceListFile, "service-list-file", "/opt/rainbond/conf/", "Specifies the configuration file, which can be a directory, that configures the service running on the current node")
-	fs.BoolVar(&a.EnableInitStart, "enable-init-start", false, "Whether the node daemon launches docker and etcd service")
+	fs.BoolVar(&a.EnableInitStart, "enable-init-start", false, "Enable dependency - free initialization starts for services that support initialization starts")
 	fs.BoolVar(&a.AutoRegistNode, "auto-registnode", true, "Whether auto regist node info to cluster where node is not found")
 	fs.BoolVar(&a.AutoScheduler, "auto-scheduler", true, "Whether auto set node unscheduler where current node is unhealth")
 	fs.BoolVar(&a.EnableCollectLog, "enabel-collect-log", true, "Whether to collect container logs")
