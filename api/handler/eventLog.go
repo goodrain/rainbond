@@ -58,9 +58,12 @@ func CreateLogManager(etcdEndpoint []string) *LogAction {
 	}
 }
 
-// GetTargetEvents get target logs
-func (l *LogAction) GetTargetEvents(target, targetID string, page, size int) ([]*dbmodel.ServiceEvent, int, error) {
-	return db.GetManager().ServiceEventDao().GetEventPageByTarget(target, targetID, (page-1)*size, size)
+// GetEvents get target logs
+func (l *LogAction) GetEvents(target, targetID string, page, size int) ([]*dbmodel.ServiceEvent, int, error) {
+	if target == "tenant" {
+		return db.GetManager().ServiceEventDao().GetEventsByTenantID(targetID, (page-1)*size, size)
+	}
+	return db.GetManager().ServiceEventDao().GetEventsByTarget(target, targetID, (page-1)*size, size)
 }
 
 //GetLogList get log list
@@ -139,6 +142,10 @@ func (l *LogAction) GetLogInstance(serviceID string) (string, error) {
 
 //GetLevelLog 获取指定操作的操作日志
 func (l *LogAction) GetLevelLog(eventID string, level string) (*api_model.DataLog, error) {
+	_, err := db.GetManager().ServiceEventDao().GetEventByEventID(eventID)
+	if err != nil {
+		return nil, err
+	}
 	messageList, err := l.eventdb.GetMessages(eventID, level)
 	if err != nil {
 		return nil, err

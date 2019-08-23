@@ -20,6 +20,7 @@ package dao
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -105,7 +106,7 @@ func (c *EventDaoImpl) GetEventByServiceID(serviceID string) ([]*model.ServiceEv
 	var result []*model.ServiceEvent
 	if err := c.DB.Where("service_id=?", serviceID).Find(&result).Order("start_time DESC").Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			//return messageRaw, nil
+			return result, nil
 		}
 		return nil, err
 	}
@@ -125,33 +126,48 @@ func (c *EventDaoImpl) DelEventByServiceID(serviceID string) error {
 	return nil
 }
 
-// GetEventByTargetID get event log by targetID
-func (c *EventDaoImpl) GetEventByTargetID(targetID string, offset, limit int) ([]*model.ServiceEvent, error) {
-	var result []*model.ServiceEvent
-	if err := c.DB.Where("target_id=?", targetID).Order("start_time DESC").Offset(offset).Limit(limit).Find(&result).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return result, nil
-		}
-		return nil, err
-	}
-	return result, nil
-}
-
-// GetEventPageByTarget get event by target with page
-func (c *EventDaoImpl) GetEventPageByTarget(target, targetID string, offset, limit int) ([]*model.ServiceEvent, int, error) {
+// GetEventsByTarget get event by target with page
+func (c *EventDaoImpl) GetEventsByTarget(target, targetID string, offset, limit int) ([]*model.ServiceEvent, int, error) {
 	var result []*model.ServiceEvent
 	var total int
-	if err := c.DB.Where("target=? and target_id=?", target, targetID).Find(&result).Count(&total).Error; err != nil {
+	db := c.DB
+	if strings.TrimSpace(target) != "" {
+		db = db.Where("target=?", strings.TrimSpace(target))
+	}
+	if strings.TrimSpace(targetID) != "" {
+		db = db.Where("target_id=?", targetID)
+	}
+	if err := db.Order("start_time DESC").Find(&result).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-
-	if err := c.DB.Where("target=? and target_id=?", target, targetID).Offset(offset).Limit(limit).Order("start_time DESC").Find(&result).Error; err != nil {
+	if err := db.Offset(offset).Limit(limit).Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, 0, nil
 		}
 		return nil, 0, err
 	}
+
 	return result, total, nil
+}
+
+// GetEventsByTenantID get event by tenantID
+func (c *EventDaoImpl) GetEventsByTenantID(tenantID string, offset, limit int) ([]*model.ServiceEvent, int, error) {
+	var result []*model.ServiceEvent
+	var total int
+	db := c.DB.Where("tenant_id=?", tenantID)
+
+	if err := db.Find(&result).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := db.Offset(offset).Limit(limit).Order("start_time DESC").Find(&result).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return result, 0, nil
+		}
+		return nil, 0, err
+	}
+
+	return result, total, nil
+}
 
 // GetBySIDAndType -
 func (c *EventDaoImpl) GetBySIDAndType(serviceID string, optTypes ...string) (*model.ServiceEvent, error) {

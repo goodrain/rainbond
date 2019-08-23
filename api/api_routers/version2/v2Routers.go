@@ -51,9 +51,9 @@ func (v2 *V2) Routes() chi.Router {
 func (v2 *V2) eventsRouter() chi.Router {
 	r := chi.NewRouter()
 	// get target's event list with page
-	r.Get("/event-list/{target}/{targetID}/{page}/{size}", controller.GetManager().EventsByTarget)
-	// get target's event log
-	r.Get("/event-content/{eventID}/{level}/log", controller.GetManager().EventLogByEventID)
+	r.Get("/", controller.GetManager().Events)
+	// get target's event content
+	r.Get("/{eventID}/log", controller.GetManager().EventLog)
 	return r
 }
 

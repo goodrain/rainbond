@@ -19,7 +19,6 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -243,75 +242,40 @@ func (e *EventLogStruct) TenantLogByAction(w http.ResponseWriter, r *http.Reques
 	return
 }
 
-//EventsByTarget get log by target
-func (e *EventLogStruct) EventsByTarget(w http.ResponseWriter, r *http.Request) {
-	target := chi.URLParam(r, "target")
-	if strings.TrimSpace(target) == "" {
-		httputil.ReturnError(r, w, 400, "target is request")
-		return
+//Events get log by target
+func (e *EventLogStruct) Events(w http.ResponseWriter, r *http.Request) {
+	target := r.FormValue("target")
+	targetID := r.FormValue("target-id")
+	var page, size int
+	var err error
+	if page, err = strconv.Atoi(r.FormValue("page")); err != nil || page <= 0 {
+		page = 1
 	}
-
-	targetID := chi.URLParam(r, "targetID")
-	if strings.TrimSpace(targetID) == "" {
-		httputil.ReturnError(r, w, 400, "targetID is request")
-		return
-	}
-
-	sizeStr := strings.TrimSpace(chi.URLParam(r, "size"))
-	pageStr := strings.TrimSpace(chi.URLParam(r, "page"))
-
-	size, err := strconv.Atoi(sizeStr)
-	if err != nil {
-		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
-		return
-	}
-	page, err := strconv.Atoi(pageStr)
-	if err != nil {
-		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
-		return
+	if size, err = strconv.Atoi(r.FormValue("size")); err != nil || size <= 0 {
+		size = 10
 	}
 
 	logrus.Debugf("get event page param[page:%d, page_size:%d]", page, size)
 
-	if page <= 0 {
-		page = 1
-	}
-
-	if size <= 0 {
-		size = 6
-	}
-
-	list, total, err := handler.GetEventHandler().GetTargetEvents(target, targetID, page, size)
+	list, total, err := handler.GetEventHandler().GetEvents(target, targetID, page, size)
 	if err != nil {
 		logrus.Errorf("get event log error, %v", err)
 		httputil.ReturnError(r, w, 500, "get log error")
 		return
 	}
-	re := map[string]interface{}{
-		"list":  list,
-		"page":  page,
-		"size":  size,
-		"total": total,
-	}
-
-	httputil.ReturnSuccess(r, w, re)
+	httputil.ReturnList(r, w, total, page, list)
 	return
 }
 
-//EventLogByEventID get event log by eventID
-func (e *EventLogStruct) EventLogByEventID(w http.ResponseWriter, r *http.Request) {
+//EventLog get event log by eventID
+func (e *EventLogStruct) EventLog(w http.ResponseWriter, r *http.Request) {
 	eventID := chi.URLParam(r, "eventID")
 	if strings.TrimSpace(eventID) == "" {
 		httputil.ReturnError(r, w, 400, "eventID is request")
 		return
 	}
-	level := chi.URLParam(r, "level")
-	if level != "info" && level != "debug" && level != "error" {
-		level = "info"
-	}
 
-	logrus.Debug("level : ", level)
-	dl, err := handler.GetEventHandler().GetLevelLog(eventID, level)
+	dl, err := handler.GetEventHandler().GetLevelLog(eventID, "debug")
 	if err != nil {
 		logrus.Errorf("get event log error, %v", err)
 		httputil.ReturnError(r, w, 500, "read event log error: "+err.Error())

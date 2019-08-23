@@ -243,10 +243,10 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 
 			logrus.Debugf("path: %s", r.RequestURI)
 
-			ctx := r.Context()
+			var ctx context.Context
 
 			//eventLog check the latest event
-			if !canDoEvent(targetID) {
+			if !canDoEvent(target, targetID) {
 				httputil.ReturnError(r, w, 400, "操作过于频繁，请稍后再试")
 				return
 			}
@@ -302,8 +302,8 @@ const ST = "service"
 // TT tenant target
 const TT = "tenant"
 
-func canDoEvent(targetID string) bool {
-	events, err := db.GetManager().ServiceEventDao().GetEventByTargetID(targetID, 0, 10)
+func canDoEvent(target, targetID string) bool {
+	events, _, err := db.GetManager().ServiceEventDao().GetEventsByTarget(target, targetID, 0, 10)
 	if err != nil {
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
 			logrus.Debug("record notfound:", err)
@@ -424,8 +424,12 @@ func createEvent(target, optType, targetID, tenantID, reqBody, userName string, 
 
 func updateEvent(eventID string, statusCode int) {
 	event, err := db.GetManager().ServiceEventDao().GetEventByEventID(eventID)
-	if err != nil {
+	if err != nil && err != gorm.ErrRecordNotFound {
 		logrus.Errorf("find event by eventID error : %s", err.Error())
+		return
+	}
+	if err == gorm.ErrRecordNotFound {
+		logrus.Errorf("do not found event by eventID %s", eventID)
 		return
 	}
 	if statusCode == 200 {
@@ -445,5 +449,4 @@ func updateEvent(eventID string, statusCode int) {
 			}
 		}
 	}
-	return
 }
