@@ -319,8 +319,13 @@ func canDoEvent(targetID string) bool {
 
 	var event *dbmodel.ServiceEvent // the latest asyn event
 	for i := range events {
+		if events[i].SynType == SYNEVENTTYPE && events[i].Status != "success" {
+			// syn event do not finish successfully, can not process on
+			return false
+		}
 		if events[i].SynType == ASYNEVENTTYPE {
 			event = events[i]
+			break
 		}
 	}
 
