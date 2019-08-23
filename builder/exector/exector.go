@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/cmd/builder/option"
@@ -303,9 +302,11 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 			CodeVersion: i.commit.Hash,
 			CommitMsg:   i.commit.Message,
 			Author:      i.commit.Author,
+			FinishTime:  time.Now(),
 		}
 		if err := i.UpdateVersionInfo(vi); err != nil {
-			logrus.Debugf("update version Info error: %s", err.Error())
+			logrus.Errorf("update version Info error: %s", err.Error())
+			// TODO(huangrh 20190816): use logger
 		}
 	} else {
 		var configs = make(map[string]string, len(i.Configs))
@@ -373,29 +374,44 @@ type rollingUpgradeTaskBody struct {
 }
 
 func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, actionType string, configs map[string]string, logger event.Logger) error {
+	// update build event complete status
+	logger.Info("Build success", map[string]string{"step": "last", "status": "running"})
 	switch actionType {
 	case "upgrade":
+		//add upgrade event
+		event := &dbmodel.ServiceEvent{
+			EventID:   util.NewUUID(),
+			TenantID:  tenantID,
+			ServiceID: serviceID,
+			StartTime: time.Now().Format(time.RFC3339),
+			OptType:   "upgrade",
+			Status:    "running",
+		}
+		if err := db.GetManager().ServiceEventDao().AddModel(event); err != nil {
+			logrus.Errorf("create upgrade event failure %s, service %s do not auto upgrade", err.Error(), serviceID)
+			return nil
+		}
 		if err := db.GetManager().TenantServiceDao().UpdateDeployVersion(serviceID, newVersion); err != nil {
-			return fmt.Errorf("Update app service deploy version failure.Please try the upgrade again")
+			logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), serviceID)
+			return nil
 		}
 		body := workermodel.RollingUpgradeTaskBody{
 			TenantID:         tenantID,
 			ServiceID:        serviceID,
 			NewDeployVersion: newVersion,
-			EventID:          eventID,
+			EventID:          event.EventID,
 			Configs:          configs,
 		}
 		if err := e.mqClient.SendBuilderTopic(mqclient.TaskStruct{
 			Topic:    mqclient.WorkerTopic,
-			TaskType: "rolling_upgrade",
+			TaskType: "rolling_upgrade", // TODO(huangrh 20190816): Separate from build
 			TaskBody: body,
 		}); err != nil {
 			return err
 		}
-		logger.Info("Build success,start upgrade app service", map[string]string{"step": "builder", "status": "running"})
+		logger.Info("Build success", map[string]string{"step": "last", "status": "running"})
 		return nil
 	default:
-		logger.Info("Build success,do not other action", map[string]string{"step": "last", "status": "success"})
 	}
 	return nil
 }

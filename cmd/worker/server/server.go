@@ -112,7 +112,7 @@ func Run(s *option.Worker) error {
 	}
 	defer taskManager.Stop()
 	//step 7: start app runtimer server
-	runtimeServer := server.CreaterRuntimeServer(s.Config, cachestore, updateCh)
+	runtimeServer := server.CreaterRuntimeServer(s.Config, cachestore, clientset, updateCh)
 	runtimeServer.Start(errChan)
 	//step 8: create application use resource exporter.
 	exporterManager := monitor.NewManager(s.Config, masterCon)

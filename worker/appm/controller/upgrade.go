@@ -23,9 +23,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/goodrain/rainbond/worker/appm/f"
-
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/worker/appm/f"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -46,16 +46,16 @@ func (s *upgradeController) Begin() {
 		go func(service v1.AppService) {
 			wait.Add(1)
 			defer wait.Done()
-			service.Logger.Info("App runtime begin upgrade app service "+service.ServiceAlias, getLoggerOption("starting"))
+			service.Logger.Info("App runtime begin upgrade app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 			if err := s.upgradeOne(service); err != nil {
 				if err != ErrWaitTimeOut {
-					service.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", service.ServiceAlias, err.Error()), GetCallbackLoggerOption())
+					service.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", service.ServiceAlias, err.Error()), event.GetCallbackLoggerOption())
 					logrus.Errorf("upgrade service %s failure %s", service.ServiceAlias, err.Error())
 				} else {
-					service.Logger.Error(fmt.Sprintf("upgrade service timeout,please waiting it complete"), GetTimeoutLoggerOption())
+					service.Logger.Error(fmt.Sprintf("upgrade service timeout,please waiting it complete"), event.GetTimeoutLoggerOption())
 				}
 			} else {
-				service.Logger.Info(fmt.Sprintf("upgrade service %s success", service.ServiceAlias), GetLastLoggerOption())
+				service.Logger.Info(fmt.Sprintf("upgrade service %s success", service.ServiceAlias), event.GetLastLoggerOption())
 			}
 		}(service)
 	}
@@ -157,14 +157,14 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	if deployment := app.GetDeployment(); deployment != nil {
 		_, err := s.manager.client.AppsV1().Deployments(deployment.Namespace).Patch(deployment.Name, types.MergePatchType, app.UpgradePatch["deployment"])
 		if err != nil {
-			app.Logger.Error(fmt.Sprintf("upgrade deployment %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
+			app.Logger.Error(fmt.Sprintf("upgrade deployment %s failure %s", app.ServiceAlias, err.Error()), event.GetLoggerOption("failure"))
 			return fmt.Errorf("upgrade deployment %s failure %s", app.ServiceAlias, err.Error())
 		}
 	}
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
 		_, err := s.manager.client.AppsV1().StatefulSets(statefulset.Namespace).Patch(statefulset.Name, types.MergePatchType, app.UpgradePatch["statefulset"])
 		if err != nil {
-			app.Logger.Error(fmt.Sprintf("upgrade statefulset %s failure %s", app.ServiceAlias, err.Error()), getLoggerOption("failure"))
+			app.Logger.Error(fmt.Sprintf("upgrade statefulset %s failure %s", app.ServiceAlias, err.Error()), event.GetLoggerOption("failure"))
 			return fmt.Errorf("upgrade statefulset %s failure %s", app.ServiceAlias, err.Error())
 		}
 	}

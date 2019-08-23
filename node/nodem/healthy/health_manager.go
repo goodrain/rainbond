@@ -227,11 +227,6 @@ func (p *probeManager) EnableWatcher(serviceName, watcherID string) {
 	if s, ok := p.watches[serviceName]; ok {
 		if w, ok := s[watcherID]; ok {
 			w.enable = true
-			// only health can set errornum is 0
-			// if h, ok := p.status[serviceName]; ok {
-			// 	h.ErrorNumber = 0
-			// 	h.ErrorTime = 0
-			// }
 		}
 	} else {
 		logrus.Error("Can not enable the watcher: Not found service: ", serviceName)
@@ -281,7 +276,6 @@ func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.He
 					Info:   statusMap["info"],
 				}
 				return result, nil
-
 			}
 			if v.ServiceHealth.Model == "cmd" {
 				statusMap := probe.GetShellHealth(v.ServiceHealth.Address)

@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/event"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	types "k8s.io/apimachinery/pkg/types"
 )
@@ -43,16 +44,16 @@ func (s *scalingController) Begin() {
 		go func(service v1.AppService) {
 			wait.Add(1)
 			defer wait.Done()
-			service.Logger.Info("App runtime begin horizontal scaling app service "+service.ServiceAlias, getLoggerOption("starting"))
+			service.Logger.Info("App runtime begin horizontal scaling app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 			if err := s.scalingOne(service); err != nil {
 				if err != ErrWaitTimeOut {
-					service.Logger.Error(fmt.Sprintf("horizontal scaling service %s failure %s", service.ServiceAlias, err.Error()), GetCallbackLoggerOption())
+					service.Logger.Error(fmt.Sprintf("horizontal scaling service %s failure %s", service.ServiceAlias, err.Error()), event.GetCallbackLoggerOption())
 					logrus.Errorf("horizontal scaling service %s failure %s", service.ServiceAlias, err.Error())
 				} else {
-					service.Logger.Error(fmt.Sprintf("horizontal scaling service timeout,please waiting it complete"), GetTimeoutLoggerOption())
+					service.Logger.Error(fmt.Sprintf("horizontal scaling service timeout,please waiting it complete"), event.GetTimeoutLoggerOption())
 				}
 			} else {
-				service.Logger.Info(fmt.Sprintf("horizontal scaling service %s success", service.ServiceAlias), GetLastLoggerOption())
+				service.Logger.Info(fmt.Sprintf("horizontal scaling service %s success", service.ServiceAlias), event.GetLastLoggerOption())
 			}
 		}(service)
 	}

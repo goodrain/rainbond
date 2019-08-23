@@ -50,6 +50,7 @@ type V2Manager interface {
 	api.ThirdPartyServicer
 	api.Labeler
 	api.AppRestoreInterface
+	api.PodInterface
 }
 
 var defaultV2Manager V2Manager

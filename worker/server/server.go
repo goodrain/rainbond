@@ -38,6 +38,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/duration"
+	"k8s.io/client-go/kubernetes"
 )
 
 //RuntimeServer app runtime grpc server
@@ -49,23 +52,25 @@ type RuntimeServer struct {
 	server    *grpc.Server
 	hostIP    string
 	keepalive *discover.KeepAlive
-
-	updateCh *channels.RingChannel
+	clientset kubernetes.Interface
+	updateCh  *channels.RingChannel
 }
 
 //CreaterRuntimeServer create a runtime grpc server
 func CreaterRuntimeServer(conf option.Config,
 	store store.Storer,
+	clientset kubernetes.Interface,
 	updateCh *channels.RingChannel) *RuntimeServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	rs := &RuntimeServer{
-		conf:     conf,
-		ctx:      ctx,
-		cancel:   cancel,
-		server:   grpc.NewServer(),
-		hostIP:   conf.HostIP,
-		store:    store,
-		updateCh: updateCh,
+		conf:      conf,
+		ctx:       ctx,
+		cancel:    cancel,
+		server:    grpc.NewServer(),
+		hostIP:    conf.HostIP,
+		store:     store,
+		clientset: clientset,
+		updateCh:  updateCh,
 	}
 	pb.RegisterAppRuntimeSyncServer(rs.server, rs)
 	// Register reflection service on gRPC server.
@@ -115,9 +120,9 @@ func (r *RuntimeServer) GetTenantResource(ctx context.Context, re *pb.TenantRequ
 	runningApps := r.store.GetTenantRunningApp(re.TenantId)
 	for _, app := range runningApps {
 		if app.ServiceKind == model.ServiceKindThirdParty {
-			tr.RunningAppThirdNum += 1
+			tr.RunningAppThirdNum++
 		} else if app.ServiceKind == model.ServiceKindInternal {
-			tr.RunningAppInternalNum += 1
+			tr.RunningAppInternalNum++
 		}
 	}
 	tr.RunningAppNum = int64(len(runningApps))
@@ -134,23 +139,13 @@ func (r *RuntimeServer) GetTenantResource(ctx context.Context, re *pb.TenantRequ
 
 //GetAppPods get app pod list
 func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (*pb.ServiceAppPodList, error) {
-	var Pods []*pb.ServiceAppPod
 	app := r.store.GetAppService(re.ServiceId)
 	if app == nil {
-		return &pb.ServiceAppPodList{
-			Pods: Pods,
-		}, nil
+		return nil, ErrAppServiceNotFound
 	}
-	var deployType, deployID string
-	if deployment := app.GetDeployment(); deployment != nil {
-		deployType = "deployment"
-		deployID = deployment.Name
-	}
-	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		deployType = "statefulset"
-		deployID = statefulset.Name
-	}
+
 	pods := app.GetPods()
+	var oldpods, newpods []*pb.ServiceAppPod
 	for _, pod := range pods {
 		var containers = make(map[string]*pb.Container, len(pod.Spec.Containers))
 		for _, container := range pod.Spec.Containers {
@@ -159,20 +154,67 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 				MemoryLimit:   container.Resources.Limits.Memory().Value(),
 			}
 		}
-		Pods = append(Pods, &pb.ServiceAppPod{
-			ServiceId:  app.ServiceID,
-			DeployId:   deployID,
-			DeployType: deployType,
+		sapod := &pb.ServiceAppPod{
 			PodIp:      pod.Status.PodIP,
 			PodName:    pod.Name,
 			PodStatus:  string(pod.Status.Phase),
 			Containers: containers,
-		})
+		}
+		if app.DistinguishPod(pod) {
+			newpods = append(newpods, sapod)
+		} else {
+			oldpods = append(oldpods, sapod)
+		}
 	}
 
 	return &pb.ServiceAppPodList{
-		Pods: Pods,
+		OldPods: oldpods,
+		NewPods: newpods,
 	}, nil
+}
+
+// translateTimestampSince returns the elapsed time since timestamp in
+// human-readable approximation.
+func translateTimestampSince(timestamp metav1.Time) string {
+	if timestamp.IsZero() {
+		return "<unknown>"
+	}
+
+	return duration.HumanDuration(time.Since(timestamp.Time))
+}
+
+// formatEventSource formats EventSource as a comma separated string excluding Host when empty
+func formatEventSource(es corev1.EventSource) string {
+	EventSourceString := []string{es.Component}
+	if len(es.Host) > 0 {
+		EventSourceString = append(EventSourceString, es.Host)
+	}
+	return strings.Join(EventSourceString, ", ")
+}
+
+// DescribeEvents -
+func DescribeEvents(el *corev1.EventList) []*pb.PodEvent {
+	if len(el.Items) == 0 {
+		return nil
+	}
+	// sort.Sort(event.SortableEvents(el.Items)) TODO
+	var podEvents []*pb.PodEvent
+	for _, e := range el.Items {
+		var interval string
+		if e.Count > 1 {
+			interval = fmt.Sprintf("%s (x%d over %s)", translateTimestampSince(e.LastTimestamp), e.Count, translateTimestampSince(e.FirstTimestamp))
+		} else {
+			interval = translateTimestampSince(e.FirstTimestamp)
+		}
+		podEvent := &pb.PodEvent{
+			Type:    e.Type,
+			Reason:  e.Reason,
+			Age:     interval,
+			Message: strings.TrimSpace(e.Message),
+		}
+		podEvents = append(podEvents, podEvent)
+	}
+	return podEvents
 }
 
 //GetDeployInfo get deploy info
@@ -183,9 +225,11 @@ func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest
 		deployinfo.Namespace = appService.TenantID
 		if appService.GetStatefulSet() != nil {
 			deployinfo.Statefuleset = appService.GetStatefulSet().Name
+			deployinfo.StartTime = appService.GetStatefulSet().ObjectMeta.CreationTimestamp.Format(time.RFC3339)
 		}
 		if appService.GetDeployment() != nil {
 			deployinfo.Deployment = appService.GetDeployment().Name
+			deployinfo.StartTime = appService.GetDeployment().ObjectMeta.CreationTimestamp.Format(time.RFC3339)
 		}
 		if services := appService.GetServices(); services != nil {
 			service := make(map[string]string, len(services))
