@@ -131,7 +131,7 @@ func (h *dockerLogStore) GetMonitorData() *db.MonitorData {
 	return data
 }
 func (h *dockerLogStore) Gc() {
-	tiker := time.NewTicker(time.Minute * 1)
+	tiker := time.NewTicker(time.Second * 30)
 	for {
 		select {
 		case <-tiker.C:
@@ -151,14 +151,15 @@ func (h *dockerLogStore) handle() []string {
 	}
 	var gcEvent []string
 	for k, v := range h.barrels {
-		if v.updateTime.Add(time.Minute * 1).Before(time.Now()) { // barrel 超时未收到消息
+		if v.updateTime.Add(time.Minute * 1).Before(time.Now()) {
 			//gc without client link
 			if v.GetSubChanLength() == 0 {
 				h.saveBeforeGc(k, v)
 				gcEvent = append(gcEvent, k)
 			}
 		}
-		if v.persistenceTime.Add(time.Minute * 2).Before(time.Now()) { //超过2分钟未持久化 间隔需要大于1分钟。以分钟为单位
+		//The interval not persisted for more than 1 minute should be more than 30 seconds
+		if v.persistenceTime.Add(time.Minute * 1).Before(time.Now()) {
 			if len(v.barrel) > 0 {
 				v.persistence()
 			}
