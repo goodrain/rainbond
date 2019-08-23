@@ -35,6 +35,7 @@ import (
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
+	wutil "github.com/goodrain/rainbond/worker/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	corev1 "k8s.io/api/core/v1"
@@ -157,9 +158,11 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 		sapod := &pb.ServiceAppPod{
 			PodIp:      pod.Status.PodIP,
 			PodName:    pod.Name,
-			PodStatus:  string(pod.Status.Phase),
 			Containers: containers,
 		}
+		podStatus := &pb.PodStatus{}
+		wutil.DescribePodStatus(pod, podStatus)
+		sapod.PodStatus = podStatus.Type.String()
 		if app.DistinguishPod(pod) {
 			newpods = append(newpods, sapod)
 		} else {

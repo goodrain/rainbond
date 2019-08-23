@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/goodrain/rainbond/worker/server/pb"
 	corev1 "k8s.io/api/core/v1"
@@ -18,6 +19,7 @@ var podStatusTbl = map[string]pb.PodStatus_Type{
 	string(corev1.PodScheduled):   pb.PodStatus_SCHEDULING,
 }
 
+// DescribePodStatus -
 func DescribePodStatus(pod *corev1.Pod, podStatus *pb.PodStatus) {
 	if pod.DeletionTimestamp != nil {
 		podStatus.Type = pb.PodStatus_TEMINATING
@@ -34,7 +36,7 @@ func DescribePodStatus(pod *corev1.Pod, podStatus *pb.PodStatus) {
 	} else {
 		// schedule, ready, init
 		podStatus.Type = pb.PodStatus_RUNNING
-		// TODO: sort important.
+		sort.Sort(SortableConditionType(pod.Status.Conditions))
 		for _, condition := range pod.Status.Conditions {
 			if condition.Status == corev1.ConditionTrue {
 				continue
@@ -46,4 +48,25 @@ func DescribePodStatus(pod *corev1.Pod, podStatus *pb.PodStatus) {
 		// TODO: advice
 	}
 	podStatus.TypeStr = podStatus.Type.String()
+}
+
+// SortableConditionType implements sort.Interface for []PodCondition based on
+// the Type field.
+type SortableConditionType []corev1.PodCondition
+
+var podConditionTbl = map[corev1.PodConditionType]int{
+	corev1.PodScheduled:   0,
+	corev1.PodInitialized: 1,
+	corev1.PodReady:       2,
+}
+
+func (s SortableConditionType) Len() int {
+	return len(s)
+}
+func (s SortableConditionType) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s SortableConditionType) Less(i, j int) bool {
+	return podConditionTbl[s[i].Type] > podConditionTbl[s[j].Type]
 }
