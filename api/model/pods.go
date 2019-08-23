@@ -14,7 +14,8 @@ type PodDetail struct {
 
 // PodStatus -
 type PodStatus struct {
-	Type    string `json:"type,omitempty"`
+	Type    int    `json:"type,omitempty"`
+	TypeStr string `json:"type_str,omitempty"`
 	Reason  string `json:"reason,omitempty"`
 	Message string `json:"message,omitempty"`
 	Advice  string `json:"advice,omitempty"`

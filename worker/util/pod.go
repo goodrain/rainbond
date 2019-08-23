@@ -45,4 +45,5 @@ func DescribePodStatus(pod *corev1.Pod, podStatus *pb.PodStatus) {
 		}
 		// TODO: advice
 	}
+	podStatus.TypeStr = podStatus.Type.String()
 }
