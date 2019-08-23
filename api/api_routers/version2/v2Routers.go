@@ -225,6 +225,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Post("/app-restore/depvols", controller.GetManager().RestoreDepVols)
 	r.Post("/app-restore/plugins", controller.GetManager().RestorePlugins)
 
+	r.Get("/pods/{pod_name}/detail", controller.GetManager().PodDetail)
+
 	return r
 }
 

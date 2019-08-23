@@ -164,3 +164,8 @@ type AppRestoreInterface interface {
 	RestoreDepVols(w http.ResponseWriter, r *http.Request)
 	RestorePlugins(w http.ResponseWriter, r *http.Request)
 }
+
+// PodInterface defines api methods about k8s pods.
+type PodInterface interface {
+	PodDetail(w http.ResponseWriter, r *http.Request)
+}

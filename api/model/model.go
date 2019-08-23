@@ -499,6 +499,7 @@ type StatusList struct {
 	CurStatus     string     `json:"cur_status"`
 	ContainerCPU  int        `json:"container_cpu"`
 	StatusCN      string     `json:"status_cn"`
+	StartTime     string     `json:"start_time"`
 	PodList       []PodsList `json:"pod_list"`
 }
 

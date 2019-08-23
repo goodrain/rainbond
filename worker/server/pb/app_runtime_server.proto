@@ -10,6 +10,7 @@ service AppRuntimeSync {
   rpc AddThirdPartyEndpoint (AddThirdPartyEndpointsReq) returns (Empty) {}
   rpc UpdThirdPartyEndpoint (UpdThirdPartyEndpointsReq) returns (Empty) {}
   rpc DelThirdPartyEndpoint (DelThirdPartyEndpointsReq) returns (Empty) {}
+  rpc GetPodDetail(GetPodDetailReq) returns (PodDetail) {}
 }
 
 message Empty {}
@@ -33,8 +34,10 @@ message DiskMessage {
 }
 
 message ServiceAppPodList {
-  repeated ServiceAppPod pods = 1;
+  repeated ServiceAppPod oldPods = 1;
+  repeated ServiceAppPod newPods = 2;
 }
+
 message ServiceAppPod {
   string service_id = 1;
   string deploy_id = 2;
@@ -54,13 +57,14 @@ message DeployInfo {
   string namespace = 1;
   string statefuleset = 2;
   string deployment = 3;
-  map<string, string> pods = 4;
-  map<string, string> services = 5;
-  map<string, string> endpoints = 6;
-  map<string, string> secrets = 7;
-  map<string, string> ingresses = 8;
-  map<string, string> replicatset = 9;
-  string status = 10;
+  string start_time = 4;
+  map<string, string> pods = 5;
+  map<string, string> services = 6;
+  map<string, string> endpoints = 7;
+  map<string, string> secrets = 8;
+  map<string, string> ingresses = 9;
+  map<string, string> replicatset = 10;
+  string status = 11;
 }
 
 message TenantResource {
@@ -109,4 +113,72 @@ message ThirdPartyEndpoint {
 
 message ThirdPartyEndpoints {
   repeated ThirdPartyEndpoint obj = 1;
+}
+
+message ListPodsBySIDReq {
+  string sid = 1;
+}
+
+message GetPodDetailReq {
+  string sid = 1;
+  string pod_name = 2;
+}
+
+message PodEvent {
+  string type = 1;
+  string reason = 2;
+  string age = 3;
+  string message = 5;
+}
+
+message PodStatus {
+  enum Type {
+    // PENDING means the pod has been accepted by the system, but one or more of the containers
+    // has not been started. This includes time before being bound to a node, as well as time spent
+    // pulling images onto the host.
+    PENDING = 0;
+    // RUNNING means the pod has been bound to a node and all of the containers have been started.
+    // At least one container is still running or is in the process of being restarted.
+    RUNNING = 1;
+    // SUCCEEDED means that all containers in the pod have voluntarily terminated
+    // with a container exit code of 0, and the system is not going to restart any of these containers.
+    SUCCEEDED = 2;
+    // FAILED means that all containers in the pod have terminated, and at least one container has
+    // terminated in a failure (exited with a non-zero exit code or was stopped by the system).
+    FAILED = 3;
+    // UNKNOWN means that for some reason the state of the pod could not be obtained, typically due
+    // to an error in communicating with the host of the pod.
+    UNKNOWN = 4;
+    TEMINATING = 5;
+    ABNORMAL = 6;
+    INITIATING = 7;
+    SCHEDULING = 8;
+  }
+
+  Type type = 1;
+  string reason = 2;
+  string message = 3;
+  string advice = 4;
+}
+
+message PodContainer {
+  string image = 1;
+  string state = 2;
+  string reason = 3;
+  string started = 4;
+  string limit_memory = 5;
+  string limit_cpu = 6;
+  string request_memory = 7;
+  string request_cpu = 8;
+}
+
+message PodDetail {
+  string name = 1;
+  string node = 2;
+  string start_time = 3;
+  PodStatus status = 4;
+  string ip = 5;
+  repeated PodContainer init_containers = 6;
+  repeated PodContainer containers = 7;
+  repeated PodEvent events = 8;
 }
