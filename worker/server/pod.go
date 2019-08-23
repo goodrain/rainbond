@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/goodrain/rainbond/worker/util"
 	"sort"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/goodrain/rainbond/worker/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -42,6 +42,7 @@ func (r *RuntimeServer) GetPodDetail(ctx context.Context, req *pb.GetPodDetailRe
 	podDetail.StartTime = pod.Status.StartTime.Time.Format(time.RFC3339)
 	podDetail.InitContainers = make([]*pb.PodContainer, len(pod.Spec.InitContainers))
 	podDetail.Containers = make([]*pb.PodContainer, len(pod.Spec.Containers))
+	podDetail.Status = &pb.PodStatus{}
 	podDetail.Events = []*pb.PodEvent{}
 
 	if pod.Spec.NodeName != "" {

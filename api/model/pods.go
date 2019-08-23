@@ -14,7 +14,8 @@ type PodDetail struct {
 
 // PodStatus -
 type PodStatus struct {
-	Type    string `json:"type,omitempty"`
+	Type    int    `json:"type,omitempty"`
+	TypeStr string `json:"type_str,omitempty"`
 	Reason  string `json:"reason,omitempty"`
 	Message string `json:"message,omitempty"`
 	Advice  string `json:"advice,omitempty"`
@@ -22,12 +23,12 @@ type PodStatus struct {
 
 // PodContainer -
 type PodContainer struct {
-	Image         string `json:"image,omitempty"`
-	State         string `json:"state,omitempty"`
-	Reason        string `json:"reason,omitempty"`
-	Started       string `json:"started,omitempty"`
-	LimitMemory   string `json:"limit_memory,omitempty"`
-	LimitCPU      string `json:"limit_cpu,omitempty"`
+	Image       string `json:"image,omitempty"`
+	State       string `json:"state,omitempty"`
+	Reason      string `json:"reason,omitempty"`
+	Started     string `json:"started,omitempty"`
+	LimitMemory string `json:"limit_memory,omitempty"`
+	LimitCPU    string `json:"limit_cpu,omitempty"`
 }
 
 // PodEvent -
