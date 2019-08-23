@@ -396,7 +396,6 @@ func (b *Exporter) GCollector() {
 		oldGauges := len(b.Gauges.Elements)
 		oldHistograms := len(b.Histograms.Elements)
 		oldSummaries := len(b.Summaries.Elements)
-
 		for k, v := range b.Counters.Elements {
 			oldTime := v.GetTimestamp()
 			if (currentTime - oldTime) > HP {
@@ -404,7 +403,6 @@ func (b *Exporter) GCollector() {
 				b.Counters.Register.Unregister(v)
 			}
 		}
-
 		for k, v := range b.Gauges.Elements {
 			oldTime := v.GetTimestamp()
 			if (currentTime - oldTime) > HP {
@@ -412,7 +410,6 @@ func (b *Exporter) GCollector() {
 				b.Gauges.Register.Unregister(v)
 			}
 		}
-
 		for k, v := range b.Histograms.Elements {
 			oldTime := v.GetTimestamp()
 			if (currentTime - oldTime) > HP {
@@ -420,7 +417,6 @@ func (b *Exporter) GCollector() {
 				b.Histograms.Register.Unregister(v)
 			}
 		}
-
 		for k, v := range b.Summaries.Elements {
 			oldTime := v.GetTimestamp()
 			if (currentTime - oldTime) > HP {
@@ -428,12 +424,10 @@ func (b *Exporter) GCollector() {
 				b.Summaries.Register.Unregister(v)
 			}
 		}
-
 		logrus.Debugf("current amount for Counters: %v => %v", oldCounters, len(b.Counters.Elements))
 		logrus.Debugf("current amount for Gauges: %v => %v", oldGauges, len(b.Gauges.Elements))
 		logrus.Debugf("current amount for Histograms: %v => %v", oldHistograms, len(b.Histograms.Elements))
 		logrus.Debugf("current amount for Summaries: %v => %v", oldSummaries, len(b.Summaries.Elements))
-		logrus.Info("clean exporter data complete")
 	}
 }
 

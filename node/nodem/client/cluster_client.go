@@ -105,15 +105,13 @@ func (e *etcdClusterClient) GetOptions() *option.Conf {
 
 func (e *etcdClusterClient) GetEndpoints(key string) (result []string) {
 	key = "/rainbond/endpoint/" + key
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-
 	resp, err := e.conf.EtcdCli.Get(ctx, key, clientv3.WithPrefix())
 	if err != nil || len(resp.Kvs) < 1 {
 		logrus.Errorf("Can not get endpoints of the key %s", key)
 		return
 	}
-
 	for _, kv := range resp.Kvs {
 		var res []string
 		err = json.Unmarshal(kv.Value, &res)
@@ -123,23 +121,19 @@ func (e *etcdClusterClient) GetEndpoints(key string) (result []string) {
 		}
 		result = append(result, res...)
 	}
-
 	logrus.Infof("Get endpoints %s => %v", key, result)
 	return
 }
 
 func (e *etcdClusterClient) SetEndpoints(key string, value []string) {
 	key = "/rainbond/endpoint/" + key
-
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-
 	jsonStr, err := json.Marshal(value)
 	if err != nil {
 		logrus.Errorf("Can not marshal %s endpoints to json.", key)
 		return
 	}
-
 	_, err = e.conf.EtcdCli.Put(ctx, key, string(jsonStr))
 	if err != nil {
 		logrus.Errorf("Failed to put endpoint for %s: %v", key, err)
@@ -148,22 +142,20 @@ func (e *etcdClusterClient) SetEndpoints(key string, value []string) {
 
 func (e *etcdClusterClient) DelEndpoints(key string) {
 	key = "/rainbond/endpoint/" + key
-	logrus.Infof("Delete endpoints: %s", key)
-
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-
 	_, err := e.conf.EtcdCli.Delete(ctx, key)
 	if err != nil {
 		logrus.Errorf("Failed to put endpoint for %s: %v", key, Error)
 	}
+	logrus.Infof("Delete endpoints: %s", key)
 }
 
 //ErrorNotFound node not found.
 var ErrorNotFound = fmt.Errorf("node not found")
 
 func (e *etcdClusterClient) GetNode(nodeID string) (*HostNode, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*8)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	res, err := e.conf.EtcdCli.Get(ctx, fmt.Sprintf("%s/%s", e.conf.NodePath, nodeID))
 	if err != nil {

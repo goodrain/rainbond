@@ -20,31 +20,27 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/go-chi/chi"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/eventlog/cluster"
 	"github.com/goodrain/rainbond/eventlog/cluster/discover"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/exit/monitor"
 	"github.com/goodrain/rainbond/eventlog/store"
-
-	"golang.org/x/net/context"
-
-	"fmt"
-
-	"strings"
-
-	_ "net/http/pprof"
-
-	"github.com/Sirupsen/logrus"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
 	"github.com/twinj/uuid"
+	"golang.org/x/net/context"
 )
 
 //SocketServer socket 服务
@@ -438,15 +434,16 @@ func (s *SocketServer) Run() error {
 	return nil
 }
 func (s *SocketServer) listen() {
-	http.HandleFunc("/event_log", s.pushEventMessage)
-	http.HandleFunc("/docker_log", s.pushDockerLog)
-	http.HandleFunc("/monitor_message", s.pushMonitorMessage)
-	http.HandleFunc("/new_monitor_message", s.pushNewMonitorMessage)
-	http.HandleFunc("/monitor", func(w http.ResponseWriter, r *http.Request) {
+	r := chi.NewRouter()
+	r.Get("/event_log", s.pushEventMessage)
+	r.Get("/docker_log", s.pushDockerLog)
+	r.Get("/monitor_message", s.pushMonitorMessage)
+	r.Get("/new_monitor_message", s.pushNewMonitorMessage)
+	r.Get("/monitor", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("ok"))
 	})
-	http.HandleFunc("/docker-instance", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/docker-instance", func(w http.ResponseWriter, r *http.Request) {
 		ServiceID := r.FormValue("service_id")
 		if ServiceID == "" {
 			w.WriteHeader(412)
@@ -466,21 +463,22 @@ func (s *SocketServer) listen() {
 		url := fmt.Sprintf("tcp://%s:%d", instance.HostIP, instance.DockerLogPort)
 		w.Write([]byte(`{"host":"` + url + `","status":"success"}`))
 	})
-	http.HandleFunc("/event_push", s.receiveEventMessage)
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/event_push", s.receiveEventMessage)
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		if s.healthInfo["status"] != "health" {
 			httputil.ReturnError(r, w, 400, "eventlog service unusual")
 		}
 		httputil.ReturnSuccess(r, w, s.healthInfo)
 	})
+	// new websocket pubsub
+	r.Get("/services/{serviceID}/pubsub", s.pubsub)
 	//monitor setting
-	s.prometheus()
-
+	s.prometheus(r)
 	if s.conf.SSL {
 		go func() {
 			addr := fmt.Sprintf("%s:%d", s.conf.BindIP, s.conf.SSLBindPort)
 			s.log.Infof("web socket ssl server listen %s", addr)
-			err := http.ListenAndServeTLS(addr, s.conf.CertFile, s.conf.KeyFile, nil)
+			err := http.ListenAndServeTLS(addr, s.conf.CertFile, s.conf.KeyFile, r)
 			if err != nil {
 				s.log.Error("websocket listen error.", err.Error())
 				s.listenErr <- err
@@ -489,7 +487,7 @@ func (s *SocketServer) listen() {
 	}
 	addr := fmt.Sprintf("%s:%d", s.conf.BindIP, s.conf.BindPort)
 	s.log.Infof("web socket server listen %s", addr)
-	err := http.ListenAndServe(addr, nil)
+	err := http.ListenAndServe(addr, r)
 	if err != nil {
 		s.log.Error("websocket listen error.", err.Error())
 		s.listenErr <- err
@@ -554,11 +552,11 @@ func (s *SocketServer) receiveEventMessage(w http.ResponseWriter, r *http.Reques
 	return
 }
 
-func (s *SocketServer) prometheus() {
+func (s *SocketServer) prometheus(r *chi.Mux) {
 	prometheus.MustRegister(version.NewCollector("event_log"))
 	exporter := monitor.NewExporter(s.storemanager, s.cluster)
 	prometheus.MustRegister(exporter)
-	http.Handle(s.conf.PrometheusMetricPath, promhttp.Handler())
+	r.Handle(s.conf.PrometheusMetricPath, promhttp.Handler())
 }
 
 //ResponseType 返回内容

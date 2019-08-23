@@ -28,7 +28,6 @@ import (
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/entry"
 	"github.com/goodrain/rainbond/eventlog/exit/web"
-	"github.com/goodrain/rainbond/eventlog/exit/webhook"
 	"github.com/goodrain/rainbond/eventlog/store"
 
 	"os"
@@ -82,7 +81,7 @@ func (s *LogServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&s.Conf.EventStore.GarbageMessageFile, "message.garbage.file", "/var/log/envent_garbage_message.log", "save garbage message file path when save type is file")
 	fs.Int64Var(&s.Conf.EventStore.PeerEventMaxLogNumber, "message.max.number", 100000, "the max number log message for peer event")
 	fs.IntVar(&s.Conf.EventStore.PeerEventMaxCacheLogNumber, "message.cache.number", 256, "Maintain log the largest number in the memory peer event")
-	fs.Int64Var(&s.Conf.EventStore.PeerDockerMaxCacheLogNumber, "dockermessage.cache.number", 512, "Maintain log the largest number in the memory peer docker service")
+	fs.Int64Var(&s.Conf.EventStore.PeerDockerMaxCacheLogNumber, "dockermessage.cache.number", 128, "Maintain log the largest number in the memory peer docker service")
 	fs.IntVar(&s.Conf.EventStore.HandleMessageCoreNumber, "message.handle.core.number", 2, "The number of concurrent processing receive log data.")
 	fs.IntVar(&s.Conf.EventStore.HandleSubMessageCoreNumber, "message.sub.handle.core.number", 3, "The number of concurrent processing receive log data. more than message.handle.core.number")
 	fs.IntVar(&s.Conf.EventStore.HandleDockerLogCoreNumber, "message.dockerlog.handle.core.number", 2, "The number of concurrent processing receive log data. more than message.handle.core.number")
@@ -106,8 +105,6 @@ func (s *LogServer) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&s.Conf.EventStore.DB.PoolSize, "db.pool.size", 3, "Data persistence db pool init size.")
 	fs.IntVar(&s.Conf.EventStore.DB.PoolMaxSize, "db.pool.maxsize", 10, "Data persistence db pool max size.")
 	fs.StringVar(&s.Conf.EventStore.DB.HomePath, "docker.log.homepath", "/grdata/logs/", "container log persistent home path")
-	fs.StringVar(&s.Conf.WebHook.ConsoleURL, "webhook.console.url", "http://console.goodrain.me", "console web api url")
-	fs.StringVar(&s.Conf.WebHook.ConsoleToken, "webhook.console.token", "", "console web api token")
 	fs.StringVar(&s.Conf.Entry.NewMonitorMessageServerConf.ListenerHost, "monitor.udp.host", "0.0.0.0", "receive new monitor udp server host")
 	fs.IntVar(&s.Conf.Entry.NewMonitorMessageServerConf.ListenerPort, "monitor.udp.port", 6166, "receive new monitor udp server port")
 	fs.StringVar(&s.Conf.Cluster.Discover.NodeIDFile, "nodeid-file", "/opt/rainbond/etc/node/node_host_uuid.conf", "the unique ID for this node. Just specify, don't modify")
@@ -173,19 +170,12 @@ func (s *LogServer) InitConf() {
 	if os.Getenv("CLUSTER_BIND_IP") != "" {
 		s.Conf.Cluster.PubSub.PubBindIP = os.Getenv("CLUSTER_BIND_IP")
 	}
-	if os.Getenv("CONSOLE_TOKEN") != "" {
-		s.Conf.WebHook.ConsoleToken = os.Getenv("CONSOLE_TOKEN")
-	}
 }
 
 //Run 执行
 func (s *LogServer) Run() error {
 	s.Logger.Debug("Start run server.")
 	log := s.Logger
-
-	if err := webhook.InitManager(s.Conf.WebHook, log.WithField("module", "WebHook")); err != nil {
-		return err
-	}
 
 	//init new db
 	if err := db.CreateDBManager(s.Conf.EventStore.DB); err != nil {
