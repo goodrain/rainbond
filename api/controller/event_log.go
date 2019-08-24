@@ -254,17 +254,20 @@ func (e *EventLogStruct) Events(w http.ResponseWriter, r *http.Request) {
 	if size, err = strconv.Atoi(r.FormValue("size")); err != nil || size <= 0 {
 		size = 10
 	}
-
-	logrus.Debugf("get event page param[page:%d, page_size:%d]", page, size)
-
+	logrus.Debugf("get event page param[target:%s id:%s page:%d, page_size:%d]", target, targetID, page, size)
 	list, total, err := handler.GetEventHandler().GetEvents(target, targetID, page, size)
 	if err != nil {
 		logrus.Errorf("get event log error, %v", err)
 		httputil.ReturnError(r, w, 500, "get log error")
 		return
 	}
+	// format start and end time
+	for i := range list {
+		if list[i].EndTime != "" && len(list[i].EndTime) > 20 {
+			list[i].EndTime = strings.Replace(list[i].EndTime[0:19]+"+08:00", " ", "T", 1)
+		}
+	}
 	httputil.ReturnList(r, w, total, page, list)
-	return
 }
 
 //EventLog get event log by eventID

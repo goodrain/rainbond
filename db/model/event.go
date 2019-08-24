@@ -20,6 +20,18 @@ package model
 
 import "time"
 
+// ASYNEVENTTYPE asyn event type
+const ASYNEVENTTYPE = 0
+
+// SYNEVENTTYPE syn event type
+const SYNEVENTTYPE = 1
+
+// TargetTypeService service target
+const TargetTypeService = "service"
+
+// TargetTypeTenant tenant target
+const TargetTypeTenant = "tenant"
+
 //ServiceEvent event struct
 type ServiceEvent struct {
 	Model

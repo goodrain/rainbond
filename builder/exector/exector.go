@@ -375,7 +375,7 @@ type rollingUpgradeTaskBody struct {
 
 func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, actionType string, configs map[string]string, logger event.Logger) error {
 	// update build event complete status
-	logger.Info("Build success", map[string]string{"step": "last", "status": "running"})
+	logger.Info("Build success", map[string]string{"step": "last", "status": "success"})
 	switch actionType {
 	case "upgrade":
 		//add upgrade event
@@ -388,7 +388,7 @@ func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, ac
 			Target:    "service",
 			TargetID:  serviceID,
 			UserName:  "system",
-			SynType:   1,
+			SynType:   dbmodel.ASYNEVENTTYPE,
 		}
 		if err := db.GetManager().ServiceEventDao().AddModel(event); err != nil {
 			logrus.Errorf("create upgrade event failure %s, service %s do not auto upgrade", err.Error(), serviceID)
@@ -412,7 +412,6 @@ func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, ac
 		}); err != nil {
 			return err
 		}
-		logger.Info("Build success", map[string]string{"step": "last", "status": "running"})
 		return nil
 	default:
 	}

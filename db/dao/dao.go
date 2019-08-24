@@ -313,6 +313,7 @@ type EventDao interface {
 	GetEventsByTarget(target, targetID string, offset, liimt int) ([]*model.ServiceEvent, int, error)
 	GetEventsByTenantID(tenantID string, offset, limit int) ([]*model.ServiceEvent, int, error)
 	GetBySIDAndType(serviceID string, optTypes ...string) (*model.ServiceEvent, error)
+	GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error)
 }
 
 //VersionInfoDao VersionInfoDao

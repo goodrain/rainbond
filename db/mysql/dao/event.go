@@ -19,7 +19,6 @@
 package dao
 
 import (
-	"encoding/json"
 	"strings"
 	"time"
 
@@ -45,34 +44,15 @@ func (c *EventDaoImpl) AddModel(mo model.Interface) error {
 
 //UpdateModel UpdateModel
 func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
-	result := mo.(*model.ServiceEvent)
-
+	update := mo.(*model.ServiceEvent)
 	var oldResult model.ServiceEvent
-	if ok := c.DB.Where("event_id=?", result.EventID).Find(&oldResult).RecordNotFound(); !ok {
-		finalUpdateEvent(result, &oldResult)
-		oldB, _ := json.Marshal(oldResult)
-		logrus.Infof("update event to %s", string(oldB))
-		if err := c.DB.Save(&oldResult).Error; err != nil {
+	if ok := c.DB.Where("event_id=?", update.EventID).Find(&oldResult).RecordNotFound(); !ok {
+		update.ID = oldResult.ID
+		if err := c.DB.Save(&update).Error; err != nil {
 			return err
 		}
 	}
 	return nil
-}
-func finalUpdateEvent(target *model.ServiceEvent, old *model.ServiceEvent) {
-	if target.OptType != "" {
-		old.OptType = target.OptType
-	}
-	if target.Status != "" {
-		old.Status = target.Status
-	}
-	if target.Message != "" {
-		old.Message = target.Message
-	}
-	old.FinalStatus = "complete"
-	if target.FinalStatus != "" {
-		old.FinalStatus = target.FinalStatus
-	}
-	old.EndTime = time.Now().Format(time.RFC3339)
 }
 
 //EventDaoImpl EventLogMessageDaoImpl
@@ -131,11 +111,13 @@ func (c *EventDaoImpl) GetEventsByTarget(target, targetID string, offset, limit 
 	var result []*model.ServiceEvent
 	var total int
 	db := c.DB
-	if strings.TrimSpace(target) != "" {
-		db = db.Where("target=?", strings.TrimSpace(target))
-	}
-	if strings.TrimSpace(targetID) != "" {
-		db = db.Where("target_id=?", strings.TrimSpace(targetID))
+	if target != "" && targetID != "" {
+		// Compatible with previous 5.1.7 data, with null target and targetid
+		if strings.TrimSpace(target) == "service" {
+			db = db.Where("service_id=? or (target=? and target_id=?) ", strings.TrimSpace(targetID), strings.TrimSpace(target), strings.TrimSpace(targetID))
+		} else {
+			db = db.Where("target=? and target_id=?", strings.TrimSpace(target), strings.TrimSpace(targetID))
+		}
 	}
 	if err := db.Find(&result).Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -155,7 +137,6 @@ func (c *EventDaoImpl) GetEventsByTenantID(tenantID string, offset, limit int) (
 	var result []*model.ServiceEvent
 	var total int
 	db := c.DB.Where("tenant_id=?", tenantID)
-
 	if err := db.Find(&result).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -165,7 +146,6 @@ func (c *EventDaoImpl) GetEventsByTenantID(tenantID string, offset, limit int) (
 		}
 		return nil, 0, err
 	}
-
 	return result, total, nil
 }
 
@@ -176,7 +156,15 @@ func (c *EventDaoImpl) GetBySIDAndType(serviceID string, optTypes ...string) (*m
 		return nil, err
 	}
 	return &result, nil
+}
 
+//GetLastASyncEvent get last sync event
+func (c *EventDaoImpl) GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error) {
+	var result model.ServiceEvent
+	if err := c.DB.Where("target=? and target_id=? and syn_type=0", target, targetID).Last(&result).Error; err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 //NotificationEventDaoImpl NotificationEventDaoImpl

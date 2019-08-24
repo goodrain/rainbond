@@ -237,112 +237,70 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 				httputil.ReturnError(r, w, 400, "操作对象未指定")
 				return
 			}
-
-			// tenantID can not null
-			tenantID := r.Context().Value(ContextKey("tenant_id")).(string)
-
-			logrus.Debugf("path: %s", r.RequestURI)
-
-			var ctx context.Context
-
 			//eventLog check the latest event
-			if !canDoEvent(target, targetID) {
+			if !canDoEvent(optType, synType, target, targetID) {
 				httputil.ReturnError(r, w, 400, "操作过于频繁，请稍后再试")
 				return
 			}
-
+			// tenantID can not null
+			tenantID := r.Context().Value(ContextKey("tenant_id")).(string)
+			var ctx context.Context
 			// check resource is enough or not
 			if err := checkResource(optType, r); err != nil {
 				httputil.ReturnError(r, w, 400, err.Error())
 				return
 			}
-
 			body, err := ioutil.ReadAll(r.Body)
-
 			if err != nil {
 				logrus.Warningf("error reading request body: %v", err)
 			} else {
 				logrus.Debugf("method: %s; uri: %s; body: %s", r.Method, r.RequestURI, string(body))
 			}
-
 			// set a new body, which will simulate the same data we read
 			r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
-
 			event, err := createEvent(target, optType, targetID, tenantID, string(body), "system", synType) // TODO username
 			if err != nil {
 				logrus.Error("create event error : ", err)
 				httputil.ReturnError(r, w, 500, "操作失败")
 				return
 			}
-
 			ctx = context.WithValue(r.Context(), ContextKey("event"), event)
 			ctx = context.WithValue(ctx, ContextKey("event_id"), event.EventID)
-
 			rw := &resWriter{origWriter: w}
 			f(rw, r.WithContext(ctx))
-			if synType == SYNEVENTTYPE || (synType == ASYNEVENTTYPE && rw.statusCode != 200) {
+			if synType == dbmodel.SYNEVENTTYPE || (synType == dbmodel.ASYNEVENTTYPE && rw.statusCode != 200) {
 				updateEvent(event.EventID, rw.statusCode)
 			}
 		}
 	}
 }
 
-//TIMELAYOUT timelayout
-const TIMELAYOUT = "2006-01-02T15:04:05"
-
-// ASYNEVENTTYPE asyn event type
-const ASYNEVENTTYPE = 0
-
-// SYNEVENTTYPE syn event type
-const SYNEVENTTYPE = 1
-
-// ST service target
-const ST = "service"
-
-// TT tenant target
-const TT = "tenant"
-
-func canDoEvent(target, targetID string) bool {
-	events, _, err := db.GetManager().ServiceEventDao().GetEventsByTarget(target, targetID, 0, 10)
+func canDoEvent(optType string, synType int, target, targetID string) bool {
+	if synType == dbmodel.SYNEVENTTYPE {
+		return true
+	}
+	event, err := db.GetManager().ServiceEventDao().GetLastASyncEvent(target, targetID)
 	if err != nil {
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
-			logrus.Debug("record notfound:", err)
 			return true
 		}
 		logrus.Error("get event by targetID error:", err)
 		return false
 	}
-
-	if len(events) == 0 {
+	if event == nil || event.FinalStatus != "" {
 		return true
 	}
-
-	var event *dbmodel.ServiceEvent // the latest asyn event
-	for i := range events {
-		if events[i].SynType == SYNEVENTTYPE && events[i].Status != "success" {
-			// syn event do not finish successfully, can not process on
-			return false
-		}
-		if events[i].SynType == ASYNEVENTTYPE {
-			event = events[i]
-			break
-		}
+	if !checkTimeout(event) {
+		return false
 	}
-
-	if event != nil {
-		if !checkTimeout(event) {
-			return false
-		}
-	}
-
 	return true
 }
 
 func checkTimeout(event *dbmodel.ServiceEvent) bool {
-	if event.SynType == ASYNEVENTTYPE {
+	if event.SynType == dbmodel.ASYNEVENTTYPE {
 		if event.FinalStatus == "" {
 			startTime := event.StartTime
-			start, err := time.ParseInLocation(TIMELAYOUT, startTime, time.Local)
+			start, err := time.ParseInLocation(time.RFC3339, startTime, time.Local)
 			if err != nil {
 				return false
 			}
@@ -372,12 +330,10 @@ func checkResource(optType string, r *http.Request) error {
 	if optType == "start-service" || optType == "restart-service" || optType == "deploy-service" || optType == "horizontal-service" || optType == "vertical-service" || optType == "upgrade-service" {
 		if publicCloud := os.Getenv("PUBLIC_CLOUD"); publicCloud != "true" {
 			tenant := r.Context().Value(ContextKey("tenant")).(*model.Tenants)
-
 			if service, ok := r.Context().Value(ContextKey("service")).(*model.TenantServices); ok {
 				return priChargeSverify(tenant, service.ContainerMemory*service.Replicas)
 			}
 		}
-
 	}
 	return nil
 }
@@ -414,7 +370,7 @@ func createEvent(target, optType, targetID, tenantID, reqBody, userName string, 
 		TargetID:    targetID,
 		RequestBody: reqBody,
 		UserName:    userName,
-		StartTime:   time.Now().Format(TIMELAYOUT),
+		StartTime:   time.Now().Format(time.RFC3339),
 		SynType:     synType,
 		OptType:     optType,
 	}
@@ -432,15 +388,17 @@ func updateEvent(eventID string, statusCode int) {
 		logrus.Errorf("do not found event by eventID %s", eventID)
 		return
 	}
+	event.FinalStatus = "complete"
+	event.EndTime = time.Now().Format(time.RFC3339)
 	if statusCode == 200 {
 		event.Status = "success"
 	} else {
 		event.Status = "failure"
 	}
-
 	err = db.GetManager().ServiceEventDao().UpdateModel(event)
 	if err != nil {
-		retry := 3
+		logrus.Errorf("update event status failure %s", err.Error())
+		retry := 2
 		for retry > 0 {
 			if err = db.GetManager().ServiceEventDao().UpdateModel(event); err != nil {
 				retry--
