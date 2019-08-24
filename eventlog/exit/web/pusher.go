@@ -155,7 +155,7 @@ func (p *PubContext) handleSubscribe(wm WebsocketMessage) {
 			p.createChan(channel, "newmonitor", channelInfo[1])
 		}
 		if channelInfo[0] == "e" {
-			p.createChan(channel, "newmonitor", channelInfo[1])
+			p.createChan(channel, "event", channelInfo[1])
 		}
 	}
 }
