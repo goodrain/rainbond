@@ -135,12 +135,12 @@ func (c *EventDaoImpl) GetEventsByTarget(target, targetID string, offset, limit 
 		db = db.Where("target=?", strings.TrimSpace(target))
 	}
 	if strings.TrimSpace(targetID) != "" {
-		db = db.Where("target_id=?", targetID)
+		db = db.Where("target_id=?", strings.TrimSpace(targetID))
 	}
-	if err := db.Order("start_time DESC").Find(&result).Count(&total).Error; err != nil {
+	if err := db.Find(&result).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := db.Offset(offset).Limit(limit).Find(&result).Error; err != nil {
+	if err := db.Offset(offset).Limit(limit).Order("start_time DESC").Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, 0, nil
 		}
