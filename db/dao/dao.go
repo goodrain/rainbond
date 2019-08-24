@@ -310,6 +310,8 @@ type EventDao interface {
 	GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEvent, error)
 	GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error)
 	DelEventByServiceID(serviceID string) error
+	GetEventsByTarget(target, targetID string, offset, liimt int) ([]*model.ServiceEvent, int, error)
+	GetEventsByTenantID(tenantID string, offset, limit int) ([]*model.ServiceEvent, int, error)
 	GetBySIDAndType(serviceID string, optTypes ...string) (*model.ServiceEvent, error)
 }
 

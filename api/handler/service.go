@@ -1696,10 +1696,10 @@ type K8sPodInfos struct {
 
 //K8sPodInfo for api
 type K8sPodInfo struct {
-	PodName    string                       `json:"pod_name"`
-	PodIP      string                       `json:"pod_ip"`
-	PodStatus  string                       `json:"pod_status"`
-	Container  map[string]map[string]string `json:"container"`
+	PodName   string                       `json:"pod_name"`
+	PodIP     string                       `json:"pod_ip"`
+	PodStatus string                       `json:"pod_status"`
+	Container map[string]map[string]string `json:"container"`
 }
 
 //GetPods get pods

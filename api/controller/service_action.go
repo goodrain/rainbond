@@ -23,7 +23,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"time"
 
 	validator "github.com/thedevsaddam/govalidator"
 
@@ -35,133 +34,11 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
-	tutil "github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
 )
-
-//TIMELAYOUT timelayout
-const TIMELAYOUT = "2006-01-02T15:04:05"
-
-func createEvent(eventID, serviceID, optType, tenantID, deployVersion string) (*dbmodel.ServiceEvent, int, error) {
-	if eventID == "" {
-		eventID = tutil.NewUUID()
-	}
-	event := dbmodel.ServiceEvent{}
-	event.EventID = eventID
-	event.ServiceID = serviceID
-	event.OptType = optType
-	event.TenantID = tenantID
-	now := time.Now()
-	timeNow := now.Format(TIMELAYOUT)
-	event.StartTime = timeNow
-	event.UserName = "system"
-	version := deployVersion
-	oldDeployVersion := ""
-	if deployVersion == "" {
-		service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
-		if err != nil {
-			return nil, 3, nil
-		}
-		version = service.DeployVersion
-	}
-	events, err := db.GetManager().ServiceEventDao().GetEventByServiceID(serviceID)
-	if err != nil {
-
-	}
-	if len(events) != 0 {
-		latestEvent := events[0]
-		oldDeployVersion = latestEvent.DeployVersion
-	}
-
-	event.DeployVersion = version
-	event.OldDeployVersion = oldDeployVersion
-
-	status, err := checkCanAddEvent(serviceID, event.EventID)
-	if err != nil {
-		logrus.Errorf("error check event %s", err.Error())
-		return nil, status, nil
-	}
-	if status == 0 {
-		db.GetManager().ServiceEventDao().AddModel(&event)
-		return &event, status, nil
-	}
-	return nil, status, nil
-}
-
-func checkCanAddEvent(s, eventID string) (int, error) {
-	events, err := db.GetManager().ServiceEventDao().GetEventByServiceID(s)
-	if err != nil {
-		return 3, err
-	}
-	if len(events) == 0 {
-		//service 首个event
-		return 0, nil
-	}
-	latestEvent := events[0]
-	if latestEvent.EventID == eventID {
-		return 0, nil
-	}
-	if latestEvent.FinalStatus == "" {
-		//未完成
-		timeOut, err := checkEventTimeOut(latestEvent)
-		if err != nil {
-			return 3, err
-		}
-		logrus.Debugf("event %s timeOut %v", latestEvent.EventID, timeOut)
-		if timeOut {
-			//未完成，超时
-			return 0, nil
-		}
-		//未完成，未超时
-		return 2, nil
-	}
-	//已完成
-	return 0, nil
-}
-func getOrNilEventID(data map[string]interface{}) string {
-	if eventID, ok := data["event_id"]; ok {
-		return eventID.(string)
-	}
-	return ""
-}
-func checkEventTimeOut(event *dbmodel.ServiceEvent) (bool, error) {
-	startTime := event.StartTime
-	start, err := time.ParseInLocation(TIMELAYOUT, startTime, time.Local)
-	if err != nil {
-		return true, err
-	}
-	if event.OptType == "deploy" || event.OptType == "create" || event.OptType == "build" {
-		end := start.Add(3 * time.Minute)
-		if time.Now().After(end) {
-			event.FinalStatus = "timeout"
-			err = db.GetManager().ServiceEventDao().UpdateModel(event)
-			return true, err
-		}
-	} else {
-		end := start.Add(30 * time.Second)
-		if time.Now().After(end) {
-			event.FinalStatus = "timeout"
-			err = db.GetManager().ServiceEventDao().UpdateModel(event)
-			return true, err
-		}
-	}
-	return false, nil
-}
-
-func handleStatus(status int, err error, w http.ResponseWriter, r *http.Request) {
-	if status != 0 {
-		//logrus.Error("应用启动任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
-		if status == 2 {
-			httputil.ReturnError(r, w, 400, "last event unfinish.")
-			return
-		}
-		httputil.ReturnError(r, w, 400, "create event info error.")
-		return
-	}
-}
 
 //StartService StartService
 // swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/start  v2 startService
@@ -185,45 +62,19 @@ func handleStatus(status int, err error, w http.ResponseWriter, r *http.Request)
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
-	rules := validator.MapData{
-		"event_id": []string{},
-	}
-	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
-	if !ok {
-		return
-	}
-	// TODO:
-	// if os.Getenv("PUBLIC_CLOUD") == "true" {
-	// 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
-	// 	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
-	// 	if err := cloud.ChargeSverify(tenant, service.ContainerMemory*service.Replicas, "start"); err != nil {
-	// 		err.Handle(r, w)
-	// 		return
-	// 	}
-	// }
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-
-	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "start", tenantID, "")
-	handleStatus(status, err, w, r)
-	if status != 0 {
-		return
-	}
-	eventID := sEvent.EventID
-	logger := event.GetManager().GetLogger(eventID)
-	defer event.CloseManager()
+	sEvent := r.Context().Value(middleware.ContextKey("event")).(*dbmodel.ServiceEvent)
 	startStopStruct := &api_model.StartStopStruct{
 		TenantID:  tenantID,
 		ServiceID: serviceID,
-		EventID:   eventID,
+		EventID:   sEvent.EventID,
 		TaskType:  "start",
 	}
 	if err := handler.GetServiceManager().StartStopService(startStopStruct); err != nil {
-		logger.Error("应用启动任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 		httputil.ReturnError(r, w, 500, "get service info error.")
 		return
 	}
-	logger.Info("应用启动任务发送成功 ", map[string]string{"step": "start-service", "status": "starting"})
 	httputil.ReturnSuccess(r, w, sEvent)
 	return
 }
@@ -250,36 +101,21 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
-	rules := validator.MapData{
-		"event_id": []string{},
-	}
-	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
-	if !ok {
-		return
-	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "stop", tenantID, "")
-	handleStatus(status, err, w, r)
-	if status != 0 {
-		return
-	}
+	sEvent := r.Context().Value(middleware.ContextKey("event")).(*dbmodel.ServiceEvent)
 	//save event
-	eventID := sEvent.EventID
-	logger := event.GetManager().GetLogger(eventID)
 	defer event.CloseManager()
 	startStopStruct := &api_model.StartStopStruct{
 		TenantID:  tenantID,
 		ServiceID: serviceID,
-		EventID:   eventID,
+		EventID:   sEvent.EventID,
 		TaskType:  "stop",
 	}
 	if err := handler.GetServiceManager().StartStopService(startStopStruct); err != nil {
-		logger.Error("应用停止任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 		httputil.ReturnError(r, w, 500, "get service info error.")
 		return
 	}
-	logger.Info("应用停止任务发送成功 ", map[string]string{"step": "stop-service", "status": "starting"})
 	httputil.ReturnSuccess(r, w, sEvent)
 }
 
@@ -305,28 +141,14 @@ func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
-	rules := validator.MapData{
-		"event_id": []string{},
-	}
-	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
-	if !ok {
-		return
-	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "restart", tenantID, "")
-	handleStatus(status, err, w, r)
-	if status != 0 {
-		return
-	}
-	//save event
-	eventID := sEvent.EventID
-	logger := event.GetManager().GetLogger(eventID)
+	sEvent := r.Context().Value(middleware.ContextKey("event")).(*dbmodel.ServiceEvent)
 	defer event.CloseManager()
 	startStopStruct := &api_model.StartStopStruct{
 		TenantID:  tenantID,
 		ServiceID: serviceID,
-		EventID:   eventID,
+		EventID:   sEvent.EventID,
 		TaskType:  "restart",
 	}
 
@@ -335,11 +157,9 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 		startStopStruct.TaskType = "start"
 	}
 	if err := handler.GetServiceManager().StartStopService(startStopStruct); err != nil {
-		logger.Error("应用重启任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 		httputil.ReturnError(r, w, 500, "get service info error.")
 		return
 	}
-	logger.Info("应用重启任务发送成功 ", map[string]string{"step": "restart-service", "status": "starting"})
 	httputil.ReturnSuccess(r, w, sEvent)
 	return
 }
@@ -367,7 +187,6 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 //     description: 统一返回格式
 func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 	rules := validator.MapData{
-		"event_id":         []string{},
 		"container_cpu":    []string{"required"},
 		"container_memory": []string{"required"},
 	}
@@ -377,29 +196,20 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "update", tenantID, "")
-	handleStatus(status, err, w, r)
-	if status != 0 {
-		return
-	}
-	eventID := sEvent.EventID
-	logger := event.GetManager().GetLogger(eventID)
-	defer event.CloseManager()
+	sEvent := r.Context().Value(middleware.ContextKey("event")).(*dbmodel.ServiceEvent)
 	cpu := int(data["container_cpu"].(float64))
 	mem := int(data["container_memory"].(float64))
 	verticalTask := &model.VerticalScalingTaskBody{
 		TenantID:        tenantID,
 		ServiceID:       serviceID,
-		EventID:         eventID,
+		EventID:         sEvent.EventID,
 		ContainerCPU:    cpu,
 		ContainerMemory: mem,
 	}
 	if err := handler.GetServiceManager().ServiceVertical(verticalTask); err != nil {
-		logger.Error("应用垂直升级任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("service vertical error. %v", err))
 		return
 	}
-	logger.Info("应用垂直升级任务发送成功 ", map[string]string{"step": "vertical-service", "status": "starting"})
 	httputil.ReturnSuccess(r, w, sEvent)
 }
 
@@ -434,29 +244,19 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 	}
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	sEvent, status, err := createEvent(getOrNilEventID(data), serviceID, "update", tenantID, "")
-	handleStatus(status, err, w, r)
-	if status != 0 {
-		return
-	}
-	//save event
-	eventID := sEvent.EventID
-	logger := event.GetManager().GetLogger(eventID)
-	defer event.CloseManager()
+	sEvent := r.Context().Value(middleware.ContextKey("event")).(*dbmodel.ServiceEvent)
 	replicas := int32(data["node_num"].(float64))
 	horizontalTask := &model.HorizontalScalingTaskBody{
 		TenantID:  tenantID,
 		ServiceID: serviceID,
-		EventID:   eventID,
+		EventID:   sEvent.EventID,
 		Replicas:  replicas,
 	}
 
 	if err := handler.GetServiceManager().ServiceHorizontal(horizontalTask); err != nil {
-		logger.Error("应用水平升级任务发送失败 "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("service horizontal error. %v", err))
 		return
 	}
-	logger.Info("应用水平升级任务发送成功 ", map[string]string{"step": "horizontal-service", "status": "starting"})
 	httputil.ReturnSuccess(r, w, sEvent)
 }
 
@@ -490,10 +290,16 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
 	build.TenantName = tenantName
+	build.EventID = r.Context().Value(middleware.ContextKey("event_id")).(string)
 	if build.ServiceID != serviceID {
 		httputil.ReturnError(r, w, 400, "build service id is failure")
+		return
 	}
 	re := handler.GetOperationHandler().Build(build)
+	if re.ErrMsg != "" {
+		httputil.ReturnError(r, w, 500, "build server error: "+re.ErrMsg)
+		return
+	}
 	httputil.ReturnSuccess(r, w, re)
 }
 
@@ -666,6 +472,7 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 		logrus.Errorf("start operation validate request body failure")
 		return
 	}
+	upgradeRequest.EventID = r.Context().Value(middleware.ContextKey("event_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	if upgradeRequest.ServiceID != serviceID {
 		httputil.ReturnError(r, w, 400, "upgrade service id failure")
@@ -748,6 +555,8 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 400, "rollback service id failure")
 		return
 	}
+	rollbackRequest.EventID = r.Context().Value(middleware.ContextKey("event_id")).(string)
+
 	re := handler.GetOperationHandler().RollBack(rollbackRequest)
 	httputil.ReturnSuccess(r, w, re)
 	return
@@ -759,9 +568,9 @@ type limitMemory struct {
 
 //LimitTenantMemory -
 func (t *TenantStruct) LimitTenantMemory(w http.ResponseWriter, r *http.Request) {
-
 	var lm limitMemory
 	body, err := ioutil.ReadAll(r.Body)
+
 	if err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
@@ -793,8 +602,8 @@ type SourcesInfo struct {
 	Status          bool   `json:"status"`
 	MemTotal        int    `json:"mem_total"`
 	MemUsed         int    `json:"mem_used"`
-	CpuTotal        int    `json:"cpu_total"`
-	CpuUsed         int    `json:"cpu_used"`
+	CPUTotal        int    `json:"cpu_total"`
+	CPUUsed         int    `json:"cpu_used"`
 }
 
 //TenantResourcesStatus tenant resources status
@@ -825,8 +634,8 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 			Status:          true,
 			MemTotal:        tenant.LimitMemory,
 			MemUsed:         statsInfo.MEM,
-			CpuTotal:        0,
-			CpuUsed:         statsInfo.CPU,
+			CPUTotal:        0,
+			CPUUsed:         statsInfo.CPU,
 		}
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 		return
@@ -838,8 +647,8 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 			Status:          false,
 			MemTotal:        tenant.LimitMemory,
 			MemUsed:         statsInfo.MEM,
-			CpuTotal:        tenant.LimitMemory / 4,
-			CpuUsed:         statsInfo.CPU,
+			CPUTotal:        tenant.LimitMemory / 4,
+			CPUUsed:         statsInfo.CPU,
 		}
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 	} else {
@@ -849,8 +658,8 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 			Status:          true,
 			MemTotal:        tenant.LimitMemory,
 			MemUsed:         statsInfo.MEM,
-			CpuTotal:        tenant.LimitMemory / 4,
-			CpuUsed:         statsInfo.CPU,
+			CPUTotal:        tenant.LimitMemory / 4,
+			CPUUsed:         statsInfo.CPU,
 		}
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 	}

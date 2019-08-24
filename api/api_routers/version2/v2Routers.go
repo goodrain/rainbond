@@ -44,6 +44,16 @@ func (v2 *V2) Routes() chi.Router {
 	r.Post("/alertmanager-webhook", controller.GetManager().AlertManagerWebHook)
 	r.Get("/version", controller.GetManager().Version)
 	r.Mount("/port", v2.portRouter())
+	r.Mount("/events", v2.eventsRouter())
+	return r
+}
+
+func (v2 *V2) eventsRouter() chi.Router {
+	r := chi.NewRouter()
+	// get target's event list with page
+	r.Get("/", controller.GetManager().Events)
+	// get target's event content
+	r.Get("/{eventID}/log", controller.GetManager().EventLog)
 	return r
 }
 
@@ -120,23 +130,23 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Use(middleware.InitService)
 	//应用部署(act)
 	//r.Post("/deploy", controller.GetManager().DeployService)
-	r.Put("/", controller.GetManager().UpdateService)
+	r.Put("/", middleware.WrapEL(controller.GetManager().UpdateService, middleware.ST, "update-service", middleware.SYNEVENTTYPE))
 	//应用构建(act)
-	r.Post("/build", controller.GetManager().BuildService)
+	r.Post("/build", middleware.WrapEL(controller.GetManager().BuildService, middleware.ST, "build-service", middleware.ASYNEVENTTYPE))
 	//应用起停
-	r.Post("/start", controller.GetManager().StartService)
-	r.Post("/stop", controller.GetManager().StopService)
-	r.Post("/restart", controller.GetManager().RestartService)
+	r.Post("/start", middleware.WrapEL(controller.GetManager().StartService, middleware.ST, "start-service", middleware.ASYNEVENTTYPE))
+	r.Post("/stop", middleware.WrapEL(controller.GetManager().StopService, middleware.ST, "stop-service", middleware.ASYNEVENTTYPE))
+	r.Post("/restart", middleware.WrapEL(controller.GetManager().RestartService, middleware.ST, "restart-service", middleware.ASYNEVENTTYPE))
 	//应用伸缩
-	r.Put("/vertical", controller.GetManager().VerticalService)
-	r.Put("/horizontal", controller.GetManager().HorizontalService)
+	r.Put("/vertical", middleware.WrapEL(controller.GetManager().VerticalService, middleware.ST, "vertical-service", middleware.ASYNEVENTTYPE))
+	r.Put("/horizontal", middleware.WrapEL(controller.GetManager().HorizontalService, middleware.ST, "horizontal-service", middleware.ASYNEVENTTYPE))
 	//设置应用语言(act)
-	r.Post("/language", controller.GetManager().SetLanguage)
+	r.Post("/language", middleware.WrapEL(controller.GetManager().SetLanguage, middleware.ST, "set-language", middleware.SYNEVENTTYPE))
 	//应用信息获取修改与删除(source)
 	r.Get("/", controller.GetManager().SingleServiceInfo)
-	r.Delete("/", controller.GetManager().SingleServiceInfo)
+	r.Delete("/", middleware.WrapEL(controller.GetManager().SingleServiceInfo, middleware.ST, "delete-service", middleware.SYNEVENTTYPE))
 	//应用升级(act)
-	r.Post("/upgrade", controller.GetManager().UpgradeService)
+	r.Post("/upgrade", middleware.WrapEL(controller.GetManager().UpgradeService, middleware.ST, "upgrade-service", middleware.SYNEVENTTYPE))
 	//应用状态获取(act)
 	r.Get("/status", controller.GetManager().StatusService)
 	//构建版本列表
@@ -144,9 +154,9 @@ func (v2 *V2) serviceRouter() chi.Router {
 	//构建版本操作
 	r.Get("/build-version/{build_version}", controller.GetManager().BuildVersionInfo)
 	r.Get("/deployversion", controller.GetManager().GetDeployVersion)
-	r.Delete("/build-version/{build_version}", controller.GetManager().BuildVersionInfo)
+	r.Delete("/build-version/{build_version}", middleware.WrapEL(controller.GetManager().BuildVersionInfo, middleware.ST, "delete-buildversion", middleware.SYNEVENTTYPE))
 	//应用分享
-	r.Post("/share", controller.GetManager().Share)
+	r.Post("/share", middleware.WrapEL(controller.GetManager().Share, middleware.ST, "share-service", middleware.ASYNEVENTTYPE))
 	r.Get("/share/{share_id}", controller.GetManager().ShareResult)
 	//应用日志相关
 	r.Post("/log", controller.GetManager().Logs)
@@ -156,49 +166,49 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Post("/event-log", controller.GetManager().LogByAction)
 
 	//应用依赖关系增加与删除(source)
-	r.Post("/dependency", controller.GetManager().Dependency)
-	r.Delete("/dependency", controller.GetManager().Dependency)
+	r.Post("/dependency", middleware.WrapEL(controller.GetManager().Dependency, middleware.ST, "add-service-dependency", middleware.SYNEVENTTYPE))
+	r.Delete("/dependency", middleware.WrapEL(controller.GetManager().Dependency, middleware.ST, "delete-service-dependency", middleware.SYNEVENTTYPE))
 	//环境变量增删改(source)
-	r.Post("/env", controller.GetManager().Env)
-	r.Put("/env", controller.GetManager().Env)
-	r.Delete("/env", controller.GetManager().Env)
+	r.Post("/env", middleware.WrapEL(controller.GetManager().Env, middleware.ST, "add-service-env", middleware.SYNEVENTTYPE))
+	r.Put("/env", middleware.WrapEL(controller.GetManager().Env, middleware.ST, "update-service-env", middleware.SYNEVENTTYPE))
+	r.Delete("/env", middleware.WrapEL(controller.GetManager().Env, middleware.ST, "delete-service-env", middleware.SYNEVENTTYPE))
 	//端口变量增删改(source)
-	r.Post("/ports", controller.GetManager().Ports)
-	r.Put("/ports", controller.GetManager().PutPorts)
-	r.Put("/ports/{port}", controller.GetManager().Ports)
-	r.Delete("/ports/{port}", controller.GetManager().Ports)
-	r.Put("/ports/{port}/outer", controller.GetManager().PortOuterController)
-	r.Put("/ports/{port}/inner", controller.GetManager().PortInnerController)
-	r.Put("/ports/{port}/changelbport", controller.GetManager().ChangeLBPort)
+	r.Post("/ports", middleware.WrapEL(controller.GetManager().Ports, middleware.ST, "add-service-port", middleware.SYNEVENTTYPE))
+	r.Put("/ports", middleware.WrapEL(controller.GetManager().PutPorts, middleware.ST, "update-service-port-old", middleware.SYNEVENTTYPE))
+	r.Put("/ports/{port}", middleware.WrapEL(controller.GetManager().Ports, middleware.ST, "update-service-port", middleware.SYNEVENTTYPE))
+	r.Delete("/ports/{port}", middleware.WrapEL(controller.GetManager().Ports, middleware.ST, "delete-service-port", middleware.SYNEVENTTYPE))
+	r.Put("/ports/{port}/outer", middleware.WrapEL(controller.GetManager().PortOuterController, middleware.ST, "handle-service-outerport", middleware.SYNEVENTTYPE))
+	r.Put("/ports/{port}/inner", middleware.WrapEL(controller.GetManager().PortInnerController, middleware.ST, "handle-service-innerport", middleware.SYNEVENTTYPE))
+	r.Put("/ports/{port}/changelbport", middleware.WrapEL(controller.GetManager().ChangeLBPort, middleware.ST, "change-service-lbport", middleware.SYNEVENTTYPE))
 
 	//应用版本回滚(act)
-	r.Post("/rollback", controller.GetManager().RollBack)
+	r.Post("/rollback", middleware.WrapEL(controller.GetManager().RollBack, middleware.ST, "rollback-service", middleware.ASYNEVENTTYPE))
 
 	//持久化信息API v2.1 支持多种持久化格式
-	r.Post("/volumes", controller.AddVolume)
-	r.Put("/volumes", controller.GetManager().UpdVolume)
+	r.Post("/volumes", middleware.WrapEL(controller.AddVolume, middleware.ST, "add-service-volume", middleware.SYNEVENTTYPE))
+	r.Put("/volumes", middleware.WrapEL(controller.GetManager().UpdVolume, middleware.ST, "update-service-volume", middleware.SYNEVENTTYPE))
 	r.Get("/volumes", controller.GetVolume)
-	r.Delete("/volumes/{volume_name}", controller.DeleteVolume)
-	r.Post("/depvolumes", controller.AddVolumeDependency)
-	r.Delete("/depvolumes", controller.DeleteVolumeDependency)
+	r.Delete("/volumes/{volume_name}", middleware.WrapEL(controller.DeleteVolume, middleware.ST, "delete-service-volume", middleware.SYNEVENTTYPE))
+	r.Post("/depvolumes", middleware.WrapEL(controller.AddVolumeDependency, middleware.ST, "add-service-depvolume", middleware.SYNEVENTTYPE))
+	r.Delete("/depvolumes", middleware.WrapEL(controller.DeleteVolumeDependency, middleware.ST, "delete-service-depvolume", middleware.SYNEVENTTYPE))
 	r.Get("/depvolumes", controller.GetDepVolume)
 	//持久化信息API v2
-	r.Post("/volume-dependency", controller.GetManager().VolumeDependency)
-	r.Delete("/volume-dependency", controller.GetManager().VolumeDependency)
-	r.Post("/volume", controller.GetManager().AddVolume)
-	r.Delete("/volume", controller.GetManager().DeleteVolume)
+	r.Post("/volume-dependency", middleware.WrapEL(controller.GetManager().VolumeDependency, middleware.ST, "add-service-depvolume", middleware.SYNEVENTTYPE))
+	r.Delete("/volume-dependency", middleware.WrapEL(controller.GetManager().VolumeDependency, middleware.ST, "delete-service-depvolume", middleware.SYNEVENTTYPE))
+	r.Post("/volume", middleware.WrapEL(controller.GetManager().AddVolume, middleware.ST, "add-service-volume", middleware.SYNEVENTTYPE))
+	r.Delete("/volume", middleware.WrapEL(controller.GetManager().DeleteVolume, middleware.ST, "delete-service-volume", middleware.SYNEVENTTYPE))
 
 	//获取应用实例情况(source)
 	r.Get("/pods", controller.GetManager().Pods)
 
 	//应用探针 增 删 改(surce)
-	r.Post("/probe", controller.GetManager().Probe)
-	r.Put("/probe", controller.GetManager().Probe)
-	r.Delete("/probe", controller.GetManager().Probe)
+	r.Post("/probe", middleware.WrapEL(controller.GetManager().Probe, middleware.ST, "add-service-probe", middleware.SYNEVENTTYPE))
+	r.Put("/probe", middleware.WrapEL(controller.GetManager().Probe, middleware.ST, "update-service-probe", middleware.SYNEVENTTYPE))
+	r.Delete("/probe", middleware.WrapEL(controller.GetManager().Probe, middleware.ST, "delete-service-probe", middleware.SYNEVENTTYPE))
 
-	r.Post("/label", controller.GetManager().Label)
-	r.Put("/label", controller.GetManager().Label)
-	r.Delete("/label", controller.GetManager().Label)
+	r.Post("/label", middleware.WrapEL(controller.GetManager().Label, middleware.ST, "add-service-label", middleware.SYNEVENTTYPE))
+	r.Put("/label", middleware.WrapEL(controller.GetManager().Label, middleware.ST, "update-service-label", middleware.SYNEVENTTYPE))
+	r.Delete("/label", middleware.WrapEL(controller.GetManager().Label, middleware.ST, "delete-service-label", middleware.SYNEVENTTYPE))
 
 	//插件
 	r.Mount("/plugin", v2.serviceRelatePluginRouter())
@@ -208,22 +218,22 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Get("/deploy-info", controller.GetServiceDeployInfo)
 
 	// third-party service
-	r.Post("/endpoints", controller.GetManager().Endpoints)
-	r.Put("/endpoints", controller.GetManager().Endpoints)
-	r.Delete("/endpoints", controller.GetManager().Endpoints)
+	r.Post("/endpoints", middleware.WrapEL(controller.GetManager().Endpoints, middleware.ST, "add-thirdpart-service", middleware.ASYNEVENTTYPE))
+	r.Put("/endpoints", middleware.WrapEL(controller.GetManager().Endpoints, middleware.ST, "update-thirdpart-service", middleware.ASYNEVENTTYPE))
+	r.Delete("/endpoints", middleware.WrapEL(controller.GetManager().Endpoints, middleware.ST, "delete-thirdpart-service", middleware.ASYNEVENTTYPE))
 	r.Get("/endpoints", controller.GetManager().Endpoints)
 
 	// gateway
-	r.Put("/rule-config", controller.GetManager().RuleConfig)
+	r.Put("/rule-config", middleware.WrapEL(controller.GetManager().RuleConfig, middleware.ST, "update-service-gateway-rule", middleware.ASYNEVENTTYPE))
 
 	// app restore
-	r.Post("/app-restore/envs", controller.GetManager().RestoreEnvs)
-	r.Post("/app-restore/ports", controller.GetManager().RestorePorts)
-	r.Post("/app-restore/volumes", controller.GetManager().RestoreVolumes)
-	r.Post("/app-restore/probe", controller.GetManager().RestoreProbe)
-	r.Post("/app-restore/deps", controller.GetManager().RestoreDeps)
-	r.Post("/app-restore/depvols", controller.GetManager().RestoreDepVols)
-	r.Post("/app-restore/plugins", controller.GetManager().RestorePlugins)
+	r.Post("/app-restore/envs", middleware.WrapEL(controller.GetManager().RestoreEnvs, middleware.ST, "app-restore-envs", middleware.SYNEVENTTYPE))
+	r.Post("/app-restore/ports", middleware.WrapEL(controller.GetManager().RestorePorts, middleware.ST, "app-restore-ports", middleware.SYNEVENTTYPE))
+	r.Post("/app-restore/volumes", middleware.WrapEL(controller.GetManager().RestoreVolumes, middleware.ST, "app-restore-volumes", middleware.SYNEVENTTYPE))
+	r.Post("/app-restore/probe", middleware.WrapEL(controller.GetManager().RestoreProbe, middleware.ST, "app-restore-probe", middleware.SYNEVENTTYPE))
+	r.Post("/app-restore/deps", middleware.WrapEL(controller.GetManager().RestoreDeps, middleware.ST, "app-restore-deps", middleware.SYNEVENTTYPE))
+	r.Post("/app-restore/depvols", middleware.WrapEL(controller.GetManager().RestoreDepVols, middleware.ST, "app-restore-depvols", middleware.SYNEVENTTYPE))
+	r.Post("/app-restore/plugins", middleware.WrapEL(controller.GetManager().RestorePlugins, middleware.ST, "app-restore-plugins", middleware.SYNEVENTTYPE))
 
 	r.Get("/pods/{pod_name}/detail", controller.GetManager().PodDetail)
 
