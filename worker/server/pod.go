@@ -39,7 +39,9 @@ func (r *RuntimeServer) GetPodDetail(ctx context.Context, req *pb.GetPodDetailRe
 	// describe pod
 	podDetail = &pb.PodDetail{}
 	podDetail.Name = pod.Name
-	podDetail.StartTime = pod.Status.StartTime.Time.Format(time.RFC3339)
+	if pod.Status.StartTime != nil {
+		podDetail.StartTime = pod.Status.StartTime.Time.Format(time.RFC3339)
+	}
 	podDetail.InitContainers = make([]*pb.PodContainer, len(pod.Spec.InitContainers))
 	podDetail.Containers = make([]*pb.PodContainer, len(pod.Spec.Containers))
 	podDetail.Status = &pb.PodStatus{}

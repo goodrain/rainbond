@@ -1087,3 +1087,7 @@ func checkActionFinish(serviceID string, optTypes ...string) bool {
 func parseLabels(labels map[string]string) (string, string, string, string) {
 	return labels["tenant_id"], labels["service_id"], labels["version"], labels["creater_id"]
 }
+
+func recordUpdateEvent(old, new *corev1.Pod) {
+	
+}
