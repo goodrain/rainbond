@@ -26,17 +26,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
-	"github.com/goodrain/rainbond/util"
-
-	"github.com/pquerna/ffjson/ffjson"
-
-	"github.com/Sirupsen/logrus"
-
 	eventclient "github.com/goodrain/rainbond/eventlog/entry/grpc/client"
 	eventpb "github.com/goodrain/rainbond/eventlog/entry/grpc/pb"
-
+	"github.com/goodrain/rainbond/util"
+	"github.com/pquerna/ffjson/ffjson"
 	"golang.org/x/net/context"
 )
 
@@ -103,6 +99,11 @@ func NewManager(conf EventConfig) error {
 //GetManager 获取日志服务
 func GetManager() Manager {
 	return defaultManager
+}
+
+// SetManager -
+func SetManager(m Manager) {
+	defaultManager = m
 }
 
 //CloseManager 关闭日志服务
@@ -217,11 +218,7 @@ func (m *manager) GetLogger(eventID string) Logger {
 	if l, ok := m.loggers[eventID]; ok {
 		return l
 	}
-	l := &logger{
-		event:      eventID,
-		sendChan:   m.getLBChan(),
-		createTime: time.Now(),
-	}
+	l := NewLogger(eventID, m.getLBChan())
 	m.loggers[eventID] = l
 	return l
 }
@@ -348,6 +345,15 @@ type Logger interface {
 	GetChan() chan []byte
 	SetChan(chan []byte)
 	GetWriter(step, level string) LoggerWriter
+}
+
+// NewLogger creates a new Logger.
+func NewLogger(eventID string, sendCh chan []byte) Logger {
+	return &logger{
+		event:      eventID,
+		sendChan:   sendCh,
+		createTime: time.Now(),
+	}
 }
 
 type logger struct {

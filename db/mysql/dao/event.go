@@ -149,10 +149,19 @@ func (c *EventDaoImpl) GetEventsByTenantID(tenantID string, offset, limit int) (
 	return result, total, nil
 }
 
-// GetBySIDAndType -
-func (c *EventDaoImpl) GetBySIDAndType(serviceID string, optTypes ...string) (*model.ServiceEvent, error) {
+// GetByTargetIDTypeUser -
+func (c *EventDaoImpl) GetByTargetIDTypeUser(targetID, optType, username string) (*model.ServiceEvent, error) {
 	var result model.ServiceEvent
-	if err := c.DB.Where("service_id=? and opt_type in (?)", serviceID, optTypes).Last(&result).Error; err != nil {
+	if err := c.DB.Where("target_id=? and opt_type=? and user_name=?", targetID, optType, username).Last(&result).Error; err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// GetByTargetIDAndType -
+func (c *EventDaoImpl) GetByTargetIDAndType(targetID string, optTypes ...string) (*model.ServiceEvent, error) {
+	var result model.ServiceEvent
+	if err := c.DB.Where("target_id=? and opt_type in (?)", targetID, optTypes).Last(&result).Error; err != nil {
 		return nil, err
 	}
 	return &result, nil

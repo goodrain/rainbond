@@ -79,6 +79,17 @@ const (
 	DeleteEvent EventType = "DELETE"
 )
 
+// PodEventType -
+type PodEventType string
+
+// String -
+func (p PodEventType) String() string {
+	return string(p)
+}
+
+// PodEventTypeOOMKilled -
+var PodEventTypeOOMKilled PodEventType = "OOMKilled"
+
 // Event holds the context of an event.
 type Event struct {
 	Type EventType
@@ -1003,7 +1014,7 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandler {
 		UpdateFunc: func(old, new interface{}) {
 			opod := old.(*corev1.Pod)
 			npod := new.(*corev1.Pod)
-			tenantID, serviceID, version, creatorID := parseLabels(npod.GetLabels())
+			_, serviceID, version, creatorID := parseLabels(npod.GetLabels())
 			if serviceID != "" && version != "" && creatorID != "" {
 				appservice, err := a.getAppService(serviceID, version, creatorID, true)
 				if err == conversion.ErrServiceNotFound {
@@ -1011,17 +1022,8 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandler {
 				}
 				if appservice != nil {
 					appservice.SetPods(npod)
-					a.analyzePodStatus(npod)
-					oldPodStatus, newPodStatus := &pb.PodStatus{}, &pb.PodStatus{}
-					wutil.DescribePodStatus(opod, oldPodStatus)
-					wutil.DescribePodStatus(npod, newPodStatus)
-					if checkActionFinish(serviceID, "upgrade", "stop", "start", "build") && oldPodStatus.Type != newPodStatus.Type {
-						eventID := createSystemEvent(tenantID, "instance changed", "instance changed; error creating event: %v")
-						logger := event.GetManager().GetLogger(eventID)
-						defer event.GetManager().ReleaseLogger(logger)
-						logrus.Debugf(fmt.Sprintf("instance changed; old instance: %s; new instance: %s", opod.GetName(), npod.GetName()))
-						logger.Info(fmt.Sprintf("instance changed; old instance: %s; new instance: %s", opod.GetName(), npod.GetName()), nil)
-						logger.Info(fmt.Sprintf("instance changed; old status: %s; new status: %s", oldPodStatus.Type.String(), newPodStatus.Type.String()), event.GetLastLoggerOption())
+					if checkActionFinish(serviceID, "upgrade", "stop", "start", "build") {
+						recordUpdateEvent(opod, npod)
 					}
 					return
 				}
@@ -1029,14 +1031,7 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandler {
 		},
 		DeleteFunc: func(obj interface{}) {
 			pod := obj.(*corev1.Pod)
-			tenantID, serviceID, version, creatorID := parseLabels(pod.GetLabels())
-			if checkActionFinish(serviceID, "stop") {
-				eventID := createSystemEvent(tenantID, "instance deleted", "instance deleted; error creating event: %v")
-				logger := event.GetManager().GetLogger(eventID)
-				defer event.GetManager().ReleaseLogger(logger)
-				logrus.Debugf(fmt.Sprintf("instance deleted %s", pod.GetName()))
-				logger.Info(fmt.Sprintf("instance deleted %s", pod.GetName()), event.GetLastLoggerOption())
-			}
+			_, serviceID, version, creatorID := parseLabels(pod.GetLabels())
 			if serviceID != "" && version != "" && creatorID != "" {
 				appservice, _ := a.getAppService(serviceID, version, creatorID, false)
 				if appservice != nil {
@@ -1051,14 +1046,16 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandler {
 	}
 }
 
-func createSystemEvent(tenantID, optType, msgFormat string) string {
+func createSystemEvent(tenantID, targetID, msgFormat string, optType PodEventType) string {
 	eventID := util.NewUUID()
 	et := &model.ServiceEvent{
 		EventID:   eventID,
 		TenantID:  tenantID,
+		Target:    model.TargetTypeService,
+		TargetID:  targetID,
 		UserName:  "system",
 		StartTime: time.Now().Format(time.RFC3339),
-		OptType:   optType,
+		OptType:   optType.String(),
 	}
 	if err := db.GetManager().ServiceEventDao().AddModel(et); err != nil {
 		logrus.Warningf(msgFormat, err)
@@ -1069,7 +1066,7 @@ func createSystemEvent(tenantID, optType, msgFormat string) string {
 
 func checkActionFinish(serviceID string, optTypes ...string) bool {
 	// TODO: use new opt_type
-	evt, err := db.GetManager().ServiceEventDao().GetBySIDAndType(serviceID, optTypes...)
+	evt, err := db.GetManager().ServiceEventDao().GetByTargetIDAndType(serviceID, optTypes...)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return true
@@ -1086,4 +1083,66 @@ func checkActionFinish(serviceID string, optTypes ...string) bool {
 
 func parseLabels(labels map[string]string) (string, string, string, string) {
 	return labels["tenant_id"], labels["service_id"], labels["version"], labels["creater_id"]
+}
+
+func recordUpdateEvent(old, new *corev1.Pod) {
+	// judge the state of the event
+	oldStatus, newStatus := &pb.PodStatus{}, &pb.PodStatus{}
+	wutil.DescribePodStatus(old, oldStatus)
+	wutil.DescribePodStatus(new, newStatus)
+	if oldStatus.Type == newStatus.Type {
+		return
+	}
+
+	tenantID, serviceID, _, _ := parseLabels(new.GetLabels())
+	// the pod in the pending status has no start time and container statuses
+	for _, cs := range new.Status.ContainerStatuses {
+		state := cs.State
+		if state.Terminated != nil {
+			if state.Terminated.Reason != PodEventTypeOOMKilled.String() {
+				continue
+			}
+			// get last 'OOMKilled' event
+			evt, err := db.GetManager().ServiceEventDao().GetByTargetIDTypeUser(serviceID, PodEventTypeOOMKilled.String(), model.UsernameSystem)
+			if err != nil && err != gorm.ErrRecordNotFound {
+				logrus.Warningf("record update event; error getting event: %v", err)
+				continue
+			}
+			eventID := ""
+			msg := fmt.Sprintf("Instance changed from %s to %s; Reason: %s.", oldStatus.Type.String(), newStatus.Type.String(), state.Terminated.Reason)
+			if err == gorm.ErrRecordNotFound || evt.FinalStatus == model.EventFinalStatusComplete.String() {
+				// create new event
+				eventID = createSystemEvent(tenantID, serviceID, msg, PodEventTypeOOMKilled)
+			} else {
+				eventID = evt.EventID
+			}
+
+			logger := event.GetManager().GetLogger(eventID)
+			defer event.GetManager().ReleaseLogger(logger)
+			logrus.Debugf("Service id: %s; %s.", serviceID, msg)
+			logger.Error(msg, event.GetLoggerOption("failure"))
+		}
+		if state.Running != nil {
+			evt, err := db.GetManager().ServiceEventDao().GetByTargetIDTypeUser(serviceID, PodEventTypeOOMKilled.String(), model.UsernameSystem)
+			if err != nil && err != gorm.ErrRecordNotFound {
+				logrus.Warningf("record update event; error getting event: %v", err)
+				continue
+			}
+			if err == gorm.ErrRecordNotFound || evt.FinalStatus == model.EventFinalStatusComplete.String() {
+				continue
+			}
+			opt := map[string]string{}
+			if time.Now().Sub(state.Running.StartedAt.Time) > 5*time.Minute {
+				opt = event.GetLastLoggerOption()
+			} else {
+				opt = event.GetLoggerOption("failure")
+			}
+			msg := fmt.Sprintf("Instance changed from %s to %s; Started at: %s.", oldStatus.Type.String(), newStatus.Type.String(), state.Running.StartedAt)
+			logger := event.GetManager().GetLogger(evt.EventID)
+			defer event.GetManager().ReleaseLogger(logger)
+			logrus.Debugf("Service id: %s; %s.", serviceID, msg)
+			logger.Error(msg, opt)
+		}
+
+	}
 }

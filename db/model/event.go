@@ -32,6 +32,26 @@ const TargetTypeService = "service"
 // TargetTypeTenant tenant target
 const TargetTypeTenant = "tenant"
 
+// UsernameSystem -
+const UsernameSystem = "system"
+
+// EventFinalStatus -
+type EventFinalStatus string
+
+// String -
+func (e EventFinalStatus) String() string {
+	return string(e)
+}
+
+// EventFinalStatusComplete -
+var EventFinalStatusComplete EventFinalStatus = "complete"
+
+// EventFinalStatusFailure -
+var EventFinalStatusFailure EventFinalStatus = "failure"
+
+// EventFinalStatusRunning -
+var EventFinalStatusRunning EventFinalStatus = "running"
+
 //ServiceEvent event struct
 type ServiceEvent struct {
 	Model
