@@ -26,7 +26,6 @@ import (
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/event"
 	gclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
 	dmodel "github.com/goodrain/rainbond/worker/discover/model"
@@ -66,16 +65,6 @@ func (o *OperationHandler) Build(buildInfo model.BuildInfoRequestStruct) (re Ope
 		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", buildInfo.ServiceID)
 		return
 	}
-	eventBody, err := createEvent(buildInfo.EventID, buildInfo.ServiceID, "build", service.TenantID)
-	if err != nil {
-		if err == ErrEventIsRuning {
-			re.ErrMsg = fmt.Sprintf("service %s last event is running", buildInfo.ServiceID)
-			return
-		}
-	}
-	buildInfo.EventID = eventBody.EventID
-	logger := event.GetManager().GetLogger(buildInfo.EventID)
-	defer event.CloseManager()
 	buildInfo.DeployVersion = util.CreateVersionByTime()
 	re.DeployVersion = buildInfo.DeployVersion
 	version := dbmodel.VersionInfo{
@@ -102,33 +91,25 @@ func (o *OperationHandler) Build(buildInfo model.BuildInfoRequestStruct) (re Ope
 	switch buildInfo.Kind {
 	case model.FromImageBuildKing:
 		if err := o.buildFromImage(buildInfo, service); err != nil {
-			logger.Error("The image build application task failed to send: "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)
 			return
 		}
-		logger.Info("The mirror build application task successed to send ", map[string]string{"step": "image-service", "status": "starting"})
 	case model.FromCodeBuildKing:
 		if err := o.buildFromSourceCode(buildInfo, service); err != nil {
-			logger.Error("The source code build application task failed to send "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)
 			return
 		}
-		logger.Info("The source code build application task successed to send ", map[string]string{"step": "source-service", "status": "starting"})
 	case model.FromMarketImageBuildKing:
 		if err := o.buildFromImage(buildInfo, service); err != nil {
-			logger.Error("The cloud image build application task failed to send "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)
 			return
 		}
-		logger.Info("The cloud image build application task successed to send ", map[string]string{"step": "image-service", "status": "starting"})
 
 	case model.FromMarketSlugBuildKing:
 		if err := o.buildFromMarketSlug(buildInfo, service); err != nil {
-			logger.Error("The cloud slug build application task failed to send "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)
 			return
 		}
-		logger.Info("The cloud slug build application task successed to send ", map[string]string{"step": "image-service", "status": "starting"})
 	default:
 		re.ErrMsg = fmt.Sprintf("build service %s failure,kind %s is unsupport", serviceID, buildInfo.Kind)
 		return
@@ -153,14 +134,6 @@ func (o *OperationHandler) Stop(stopInfo model.StartOrStopInfoRequestStruct) (re
 		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", stopInfo.ServiceID)
 		return
 	}
-	event, err := createEvent(stopInfo.EventID, stopInfo.ServiceID, "stop", service.TenantID)
-	if err != nil {
-		if err == ErrEventIsRuning {
-			re.ErrMsg = fmt.Sprintf("service %s last event is running", stopInfo.ServiceID)
-			return
-		}
-	}
-	re.EventID = event.EventID
 	TaskBody := dmodel.StopTaskBody{
 		TenantID:      service.TenantID,
 		ServiceID:     service.ServiceID,
@@ -197,14 +170,6 @@ func (o *OperationHandler) Start(startInfo model.StartOrStopInfoRequestStruct) (
 		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", startInfo.ServiceID)
 		return
 	}
-	eventBody, err := createEvent(startInfo.EventID, startInfo.ServiceID, "start", service.TenantID)
-	if err != nil {
-		if err == ErrEventIsRuning {
-			re.ErrMsg = fmt.Sprintf("service %s last event is running", startInfo.ServiceID)
-			return
-		}
-	}
-	startInfo.EventID = eventBody.EventID
 	re.EventID = startInfo.EventID
 	TaskBody := dmodel.StartTaskBody{
 		TenantID:      service.TenantID,
@@ -231,6 +196,7 @@ func (o *OperationHandler) Start(startInfo model.StartOrStopInfoRequestStruct) (
 func (o *OperationHandler) Upgrade(ru model.UpgradeInfoRequestStruct) (re OperationResult) {
 	re.Operation = "upgrade"
 	re.ServiceID = ru.ServiceID
+	re.EventID = ru.EventID
 	re.Status = "failure"
 	services, err := db.GetManager().TenantServiceDao().GetServiceByID(ru.ServiceID)
 	if err != nil {
@@ -242,14 +208,7 @@ func (o *OperationHandler) Upgrade(ru model.UpgradeInfoRequestStruct) (re Operat
 		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", ru.ServiceID)
 		return
 	}
-	eventBody, err := createEvent(ru.EventID, ru.ServiceID, "upgrade", services.TenantID)
-	if err != nil {
-		if err == ErrEventIsRuning {
-			re.ErrMsg = fmt.Sprintf("service %s last event is running", ru.ServiceID)
-			return
-		}
-	}
-	re.EventID = eventBody.EventID
+
 	// By default, the same version is updated
 	if ru.UpgradeVersion == "" {
 		ru.UpgradeVersion = services.DeployVersion
@@ -295,6 +254,7 @@ func (o *OperationHandler) Upgrade(ru model.UpgradeInfoRequestStruct) (re Operat
 func (o *OperationHandler) RollBack(rollback model.RollbackInfoRequestStruct) (re OperationResult) {
 	re.Operation = "rollback"
 	re.ServiceID = rollback.ServiceID
+	re.EventID = rollback.EventID
 	re.Status = "failure"
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(rollback.ServiceID)
 	if err != nil {
@@ -306,14 +266,7 @@ func (o *OperationHandler) RollBack(rollback model.RollbackInfoRequestStruct) (r
 		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", rollback.ServiceID)
 		return
 	}
-	eventBody, err := createEvent(rollback.EventID, rollback.ServiceID, "upgrade", service.TenantID)
-	if err != nil {
-		if err == ErrEventIsRuning {
-			re.ErrMsg = fmt.Sprintf("service %s last event is running", rollback.ServiceID)
-			return
-		}
-	}
-	re.EventID = eventBody.EventID
+
 	if service.DeployVersion == rollback.RollBackVersion {
 		logrus.Warningf("rollback version is same of current version")
 	}

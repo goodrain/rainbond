@@ -23,7 +23,6 @@ import (
 	"time"
 
 	cdb "github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/eventlog/util"
@@ -283,14 +282,21 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					eventID := event[1]
 					status := event[2]
 					message := event[3]
-					event := model.ServiceEvent{}
-					event.EventID = eventID
-					event.Status = status
-					event.Message = message
-					logrus.Infof("updating event %s's status: %s", eventID, status)
-					if err := cdb.GetManager().ServiceEventDao().UpdateModel(&event); err != nil {
-						logrus.Errorf("update event status failure %s", err.Error())
+					event, err := cdb.GetManager().ServiceEventDao().GetEventByEventID(eventID)
+					if err != nil {
+						logrus.Errorf("get event by event id %s failure %s", eventID, err.Error())
+
+					} else {
+						event.Status = status
+						event.FinalStatus = "complete"
+						event.Message = message
+						event.EndTime = time.Now().Format(time.RFC3339)
+						logrus.Infof("updating event %s's status: %s", eventID, status)
+						if err := cdb.GetManager().ServiceEventDao().UpdateModel(event); err != nil {
+							logrus.Errorf("update event status failure %s", err.Error())
+						}
 					}
+
 				}
 			}
 		case <-h.ctx.Done():

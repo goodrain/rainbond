@@ -83,7 +83,7 @@ type RestorePluginsReq struct {
 
 // RestorePlugin holds infomations of service dependenct volume.
 type RestorePlugin struct {
-	PluginID     string     `json:"plugin_id" validate:"plugin_id"`
-	VersionID    string     `json:"version_id" validate:"version_id"`
-	Switch       bool       `json:"switch" validate:"switch|bool"`
+	PluginID  string `json:"plugin_id" validate:"plugin_id"`
+	VersionID string `json:"version_id" validate:"version_id"`
+	Switch    bool   `json:"switch" validate:"switch|bool"`
 }

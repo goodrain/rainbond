@@ -60,7 +60,7 @@ func (r *RuntimeServer) GetPodDetail(ctx context.Context, req *pb.GetPodDetailRe
 		podDetail.Events = append(podDetail.Events, events...)
 	}
 
-	if len(pod.Spec.InitContainers) == 0 {
+	if len(pod.Spec.InitContainers) != 0 {
 		describeContainers(pod.Spec.InitContainers, pod.Status.InitContainerStatuses, &podDetail.InitContainers)
 	}
 	describeContainers(pod.Spec.Containers, pod.Status.ContainerStatuses, &podDetail.Containers)
@@ -128,8 +128,7 @@ func describeContainers(containers []corev1.Container, containerStatuses []corev
 		statuses[status.Name] = status
 	}
 
-	var pcs []*pb.PodContainer
-	for _, container := range containers {
+	for idx, container := range containers {
 		status, ok := statuses[container.Name]
 		pc := &pb.PodContainer{
 			Image: container.Image,
@@ -138,9 +137,9 @@ func describeContainers(containers []corev1.Container, containerStatuses []corev
 			describeContainerState(status, pc)
 		}
 		describeContainerResource(container, pc)
-		pcs = append(pcs, pc)
+		pcs := *podContainers
+		pcs[idx] = pc
 	}
-	*podContainers = pcs
 }
 
 func describeContainerState(status corev1.ContainerStatus, podContainer *pb.PodContainer) {

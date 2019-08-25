@@ -97,7 +97,7 @@ func checkEventTimeOut(event *dbmodel.ServiceEvent) (bool, error) {
 		return true, err
 	}
 	if event.OptType == "deploy" || event.OptType == "create" || event.OptType == "build" || event.OptType == "upgrade" {
-		end := start.Add(2 * time.Minute)
+		end := start.Add(3 * time.Minute)
 		if time.Now().After(end) {
 			event.FinalStatus = "timeout"
 			err = db.GetManager().ServiceEventDao().UpdateModel(event)
