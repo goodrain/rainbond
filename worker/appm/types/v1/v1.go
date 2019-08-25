@@ -542,6 +542,9 @@ func (a *AppService) SetDeletedResources(old *AppService) {
 // true: new pod; false: old pod.
 func (a *AppService) DistinguishPod(pod *corev1.Pod) bool {
 	rss := a.GetNewestReplicaSet()
+	if rss == nil {
+		return true
+	}
 	return !pod.ObjectMeta.CreationTimestamp.Before(&rss.ObjectMeta.CreationTimestamp)
 }
 
