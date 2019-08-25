@@ -42,6 +42,7 @@ import (
 	core_util "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/discover/model"
+	"github.com/goodrain/rainbond/worker/server"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
@@ -1696,18 +1697,22 @@ type K8sPodInfos struct {
 
 //K8sPodInfo for api
 type K8sPodInfo struct {
-	PodName    string                       `json:"pod_name"`
-	PodIP      string                       `json:"pod_ip"`
-	PodStatus  string                       `json:"pod_status"`
-	Container  map[string]map[string]string `json:"container"`
+	PodName   string                       `json:"pod_name"`
+	PodIP     string                       `json:"pod_ip"`
+	PodStatus string                       `json:"pod_status"`
+	Container map[string]map[string]string `json:"container"`
 }
 
 //GetPods get pods
 func (s *ServiceAction) GetPods(serviceID string) (*K8sPodInfos, error) {
 	pods, err := s.statusCli.GetServicePods(serviceID)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), server.ErrAppServiceNotFound.Error()) &&
+		!strings.Contains(err.Error(), server.ErrPodNotFound.Error()) {
 		logrus.Error("GetPodByService Error:", err)
 		return nil, err
+	}
+	if pods == nil {
+		return nil, nil
 	}
 	convpod := func(pods []*pb.ServiceAppPod) []*K8sPodInfo {
 		var podsInfoList []*K8sPodInfo

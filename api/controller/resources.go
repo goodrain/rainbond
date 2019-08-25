@@ -28,21 +28,20 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/goodrain/rainbond/db/errors"
-	validator "github.com/thedevsaddam/govalidator"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/cmd"
+	"github.com/goodrain/rainbond/db/errors"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/jinzhu/gorm"
 	"github.com/renstorm/fuzzysearch/fuzzy"
+	validator "github.com/thedevsaddam/govalidator"
 )
 
 //V2Routes v2Routes
@@ -1579,7 +1578,7 @@ func (t *TenantStruct) Pods(w http.ResponseWriter, r *http.Request) {
 	pods, err := handler.GetServiceManager().GetPods(serviceID)
 	if err != nil {
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
-			logrus.Error("record notfound:", err)
+			logrus.Error("record not found:", err)
 			httputil.ReturnError(r, w, 404, fmt.Sprintf("get pods error, %v", err))
 			return
 		}
