@@ -169,7 +169,7 @@ func describeStatus(state corev1.ContainerState, podContainer *pb.PodContainer) 
 	case state.Terminated != nil:
 		podContainer.State = "Terminated"
 		if state.Terminated.Reason != "" {
-			podContainer.Reason = state.Waiting.Reason
+			podContainer.Reason = state.Terminated.Reason
 		}
 	default:
 		podContainer.State = "Waiting"
