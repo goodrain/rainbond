@@ -39,6 +39,13 @@ func (r *RuntimeServer) GetPodDetail(ctx context.Context, req *pb.GetPodDetailRe
 	// describe pod
 	podDetail = &pb.PodDetail{}
 	podDetail.Name = pod.Name
+	podDetail.Version = func() string {
+		labels := pod.GetLabels()
+		if labels == nil {
+			return ""
+		}
+		return labels["version"]
+	}()
 	if pod.Status.StartTime != nil {
 		podDetail.StartTime = pod.Status.StartTime.Time.Format(time.RFC3339)
 	}
@@ -162,7 +169,7 @@ func describeStatus(state corev1.ContainerState, podContainer *pb.PodContainer) 
 	case state.Terminated != nil:
 		podContainer.State = "Terminated"
 		if state.Terminated.Reason != "" {
-			podContainer.Reason = state.Waiting.Reason
+			podContainer.Reason = state.Terminated.Reason
 		}
 	default:
 		podContainer.State = "Waiting"
