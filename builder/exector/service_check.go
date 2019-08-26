@@ -109,7 +109,7 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 			yamlbyte, err := yaml.JSONToYAML([]byte(input.SourceBody))
 			if err != nil {
 				logrus.Errorf("json bytes format is error, %s", input.SourceBody)
-				logger.Error("The dockercompose file is not in the correct format", map[string]string{"step": "callback", "status": "failure"})
+				logger.Error("dockercompse 文件内容格式不正确", map[string]string{"step": "callback", "status": "failure"})
 				return
 			}
 			yamlbody = string(yamlbyte)

@@ -62,7 +62,7 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	}
 	if err := stopController.stopOne(app); err != nil {
 		if err != ErrWaitTimeOut {
-			app.Logger.Error("(Restart)Stop app failure %s,you could waiting stoped and manual start it", event.GetCallbackLoggerOption())
+			app.Logger.Error(fmt.Sprintf("(重启)停止服务 %s 失败,可以等待其停止然后手动启动, %s ", app.ServiceAlias, err.Error()), event.GetCallbackLoggerOption())
 			return err
 		}
 		//waiting app closed,max wait 40 second
@@ -82,7 +82,7 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	newAppService, err := conversion.InitAppService(db.GetManager(), app.ServiceID, app.ExtensionSet)
 	if err != nil {
 		logrus.Errorf("Application model init create failure:%s", err.Error())
-		app.Logger.Error("Application model init create failure", event.GetCallbackLoggerOption())
+		app.Logger.Error(fmt.Sprintf("初始化服务元数据模型失败, %s", err.Error()), event.GetCallbackLoggerOption())
 		return fmt.Errorf("Application model init create failure,%s", err.Error())
 	}
 	newAppService.Logger = app.Logger

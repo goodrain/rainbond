@@ -240,7 +240,7 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 		if r := recover(); r != nil {
 			fmt.Println(r)
 			debug.PrintStack()
-			i.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "callback", "status": "failure"})
+			i.Logger.Error("后端服务异常,请查看rbd-chaos日志", map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
 	start := time.Now()
@@ -255,7 +255,7 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 				i.Logger.Error("The application task to build from the mirror failed to execute，will try", map[string]string{"step": "build-exector", "status": "failure"})
 			} else {
 				MetricErrorTaskNum++
-				i.Logger.Error("The application task to build from the image failed to execute", map[string]string{"step": "callback", "status": "failure"})
+				i.Logger.Error(fmt.Sprintf("镜像构建应用任务执行失败, %s", err.Error()), map[string]string{"step": "callback", "status": "failure"})
 				if err := i.UpdateVersionInfo("failure"); err != nil {
 					logrus.Debugf("update version Info error: %s", err.Error())
 				}
@@ -267,7 +267,7 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 			}
 			err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, configs, i.Logger)
 			if err != nil {
-				i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
+				i.Logger.Error(fmt.Sprintf("发送升级动作失败, %s", err.Error()), map[string]string{"step": "callback", "status": "failure"})
 			}
 			break
 		}
@@ -286,7 +286,7 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 		if r := recover(); r != nil {
 			fmt.Println(r)
 			debug.PrintStack()
-			i.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "callback", "status": "failure"})
+			i.Logger.Error("后端服务异常,请查看rbd-chaos日志", map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
 	defer func() {
@@ -295,7 +295,7 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	err := i.Run(time.Minute * 30)
 	if err != nil {
 		logrus.Errorf("build from source code error: %s", err.Error())
-		i.Logger.Error("Build app version from source code failure", map[string]string{"step": "callback", "status": "failure"})
+		i.Logger.Error(fmt.Sprintf("源码构建应用任务执行失败, %s", err.Error()), map[string]string{"step": "callback", "status": "failure"})
 		vi := &dbmodel.VersionInfo{
 			FinalStatus: "failure",
 			EventID:     i.EventID,
@@ -315,7 +315,7 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 		}
 		err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, configs, i.Logger)
 		if err != nil {
-			i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
+			i.Logger.Error(fmt.Sprintf("发送升级动作失败, %s", err.Error()), map[string]string{"step": "callback", "status": "failure"})
 		}
 	}
 }
@@ -337,7 +337,7 @@ func (e *exectorManager) buildFromMarketSlug(task *pb.TaskMessage) {
 			if r := recover(); r != nil {
 				fmt.Println(r)
 				debug.PrintStack()
-				i.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "callback", "status": "failure"})
+				i.Logger.Error("后端服务异常,请查看rbd-chaos日志", map[string]string{"step": "callback", "status": "failure"})
 			}
 		}()
 		defer func() {
@@ -351,12 +351,12 @@ func (e *exectorManager) buildFromMarketSlug(task *pb.TaskMessage) {
 					i.Logger.Error("Build app version from market slug failure, will try", map[string]string{"step": "builder-exector", "status": "failure"})
 				} else {
 					MetricErrorTaskNum++
-					i.Logger.Error("Build app version from market slug failure", map[string]string{"step": "callback", "status": "failure"})
+					i.Logger.Error(fmt.Sprintf("市场应用代码包构建应用任务执行失败, %s", err.Error()), map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
 				err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, i.Configs, i.Logger)
 				if err != nil {
-					i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
+					i.Logger.Error(fmt.Sprintf("发送升级动作失败, %s", err.Error()), map[string]string{"step": "callback", "status": "failure"})
 				}
 				break
 			}

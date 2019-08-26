@@ -49,10 +49,10 @@ func (s *upgradeController) Begin() {
 			service.Logger.Info("App runtime begin upgrade app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 			if err := s.upgradeOne(service); err != nil {
 				if err != ErrWaitTimeOut {
-					service.Logger.Error(fmt.Sprintf("upgrade service %s failure %s", service.ServiceAlias, err.Error()), event.GetCallbackLoggerOption())
+					service.Logger.Error(fmt.Sprintf("更新服务 %s 失败, %s", service.ServiceAlias, err.Error()), event.GetCallbackLoggerOption())
 					logrus.Errorf("upgrade service %s failure %s", service.ServiceAlias, err.Error())
 				} else {
-					service.Logger.Error(fmt.Sprintf("upgrade service timeout,please waiting it complete"), event.GetTimeoutLoggerOption())
+					service.Logger.Error(fmt.Sprintf("更新服务 %s 超时,请等待其完成", service.ServiceAlias), event.GetTimeoutLoggerOption())
 				}
 			} else {
 				service.Logger.Info(fmt.Sprintf("upgrade service %s success", service.ServiceAlias), event.GetLastLoggerOption())

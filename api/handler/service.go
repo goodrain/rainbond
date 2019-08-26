@@ -92,28 +92,28 @@ func (s *ServiceAction) ServiceBuild(tenantID, serviceID string, r *api_model.Bu
 	switch r.Body.Kind {
 	case "build_from_image":
 		if err := s.buildFromImage(r, service); err != nil {
-			logger.Error("The image build application task failed to send: "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
+			logger.Error("镜像构建应用任务发送失败: "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
 		}
 		logger.Info("The mirror build application task successed to send ", map[string]string{"step": "image-service", "status": "starting"})
 		return nil
 	case "build_from_source_code":
 		if err := s.buildFromSourceCode(r, service); err != nil {
-			logger.Error("The source code build application task failed to send "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
+			logger.Error("源码构建应用任务发送失败: "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
 		}
 		logger.Info("The source code build application task successed to send ", map[string]string{"step": "source-service", "status": "starting"})
 		return nil
 	case "build_from_market_image":
 		if err := s.buildFromImage(r, service); err != nil {
-			logger.Error("The cloud image build application task failed to send "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
+			logger.Error("市场应用镜像构建应用任务发送失败: "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
 		}
 		logger.Info("The cloud image build application task successed to send ", map[string]string{"step": "image-service", "status": "starting"})
 		return nil
 	case "build_from_market_slug":
 		if err := s.buildFromMarketSlug(r, service); err != nil {
-			logger.Error("The cloud slug build application task failed to send "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
+			logger.Error("市场应用代码包构建构建应用任务发送失败: "+err.Error(), map[string]string{"step": "callback", "status": "failure"})
 			return err
 		}
 		logger.Info("The cloud slug build application task successed to send ", map[string]string{"step": "image-service", "status": "starting"})
