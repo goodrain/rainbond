@@ -20,13 +20,13 @@ package controller
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/api/middleware"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/mq/client"
@@ -365,6 +365,8 @@ func (g *GatewayStruct) RuleConfig(w http.ResponseWriter, r *http.Request) {
 		"action":     "update-rule-config",
 	}); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
+		httputil.ReturnError(r, w, 500, "update rule config error: "+err.Error())
+		return
 	}
 
 	httputil.ReturnSuccess(r, w, "success")

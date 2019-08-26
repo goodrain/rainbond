@@ -1,5 +1,6 @@
 package model
 
+// AppStatus app status
 type AppStatus struct {
 	EventID     string `gorm:"column:event_id;size:32;primary_key" json:"event_id"`
 	Format      string `gorm:"column:format;size:32" json:"format"` // only rainbond-app/docker-compose
