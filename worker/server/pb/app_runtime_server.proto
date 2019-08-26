@@ -179,7 +179,8 @@ message PodDetail {
   string start_time = 3;
   PodStatus status = 4;
   string ip = 5;
-  repeated PodContainer init_containers = 6;
-  repeated PodContainer containers = 7;
-  repeated PodEvent events = 8;
+  string version = 6;
+  repeated PodContainer init_containers = 7;
+  repeated PodContainer containers = 8;
+  repeated PodEvent events = 9;
 }

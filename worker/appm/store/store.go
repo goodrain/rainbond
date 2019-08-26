@@ -30,13 +30,10 @@ import (
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/goodrain/rainbond/worker/appm/f"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
-	"github.com/goodrain/rainbond/worker/server/pb"
-	wutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -1001,9 +998,8 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandler {
 			}
 		},
 		UpdateFunc: func(old, new interface{}) {
-			opod := old.(*corev1.Pod)
 			npod := new.(*corev1.Pod)
-			tenantID, serviceID, version, creatorID := parseLabels(npod.GetLabels())
+			_, serviceID, version, creatorID := parseLabels(npod.GetLabels())
 			if serviceID != "" && version != "" && creatorID != "" {
 				appservice, err := a.getAppService(serviceID, version, creatorID, true)
 				if err == conversion.ErrServiceNotFound {
@@ -1012,31 +1008,13 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandler {
 				if appservice != nil {
 					appservice.SetPods(npod)
 					a.analyzePodStatus(npod)
-					oldPodStatus, newPodStatus := &pb.PodStatus{}, &pb.PodStatus{}
-					wutil.DescribePodStatus(opod, oldPodStatus)
-					wutil.DescribePodStatus(npod, newPodStatus)
-					if checkActionFinish(serviceID, "upgrade", "stop", "start", "build") && oldPodStatus.Type != newPodStatus.Type {
-						eventID := createSystemEvent(tenantID, "instance changed", "instance changed; error creating event: %v")
-						logger := event.GetManager().GetLogger(eventID)
-						defer event.GetManager().ReleaseLogger(logger)
-						logrus.Debugf(fmt.Sprintf("instance changed; old instance: %s; new instance: %s", opod.GetName(), npod.GetName()))
-						logger.Info(fmt.Sprintf("instance changed; old instance: %s; new instance: %s", opod.GetName(), npod.GetName()), nil)
-						logger.Info(fmt.Sprintf("instance changed; old status: %s; new status: %s", oldPodStatus.Type.String(), newPodStatus.Type.String()), event.GetLastLoggerOption())
-					}
 					return
 				}
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			pod := obj.(*corev1.Pod)
-			tenantID, serviceID, version, creatorID := parseLabels(pod.GetLabels())
-			if checkActionFinish(serviceID, "stop") {
-				eventID := createSystemEvent(tenantID, "instance deleted", "instance deleted; error creating event: %v")
-				logger := event.GetManager().GetLogger(eventID)
-				defer event.GetManager().ReleaseLogger(logger)
-				logrus.Debugf(fmt.Sprintf("instance deleted %s", pod.GetName()))
-				logger.Info(fmt.Sprintf("instance deleted %s", pod.GetName()), event.GetLastLoggerOption())
-			}
+			_, serviceID, version, creatorID := parseLabels(pod.GetLabels())
 			if serviceID != "" && version != "" && creatorID != "" {
 				appservice, _ := a.getAppService(serviceID, version, creatorID, false)
 				if appservice != nil {
