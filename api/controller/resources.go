@@ -1649,6 +1649,7 @@ func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("add service probe error, %v", err))
 		return
 	}
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 //UpdateProbe update probe
@@ -1702,6 +1703,7 @@ func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("update service probe error, %v", err))
 		return
 	}
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 //DeleteProbe delete probe
@@ -1743,6 +1745,7 @@ func (t *TenantStruct) DeleteProbe(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete service probe error, %v", err))
 		return
 	}
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 //Port Port
