@@ -25,6 +25,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,12 +58,12 @@ func (s *startController) Begin() {
 				service.Logger.Info("App runtime begin start app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 				if err := s.startOne(service); err != nil {
 					if err != ErrWaitTimeOut {
-						service.Logger.Error(fmt.Sprintf("Start service %s failure %s", service.ServiceAlias, err.Error()), event.GetCallbackLoggerOption())
+						service.Logger.Error(util.Translation("start service error"), event.GetCallbackLoggerOption())
 						logrus.Errorf("start service %s failure %s", service.ServiceAlias, err.Error())
 						s.errorCallback(service)
 					} else {
 						logrus.Debugf("Start service %s timeout, please wait or read service log.", service.ServiceAlias)
-						service.Logger.Error(fmt.Sprintf("Start service %s timeout,please wait or read service log.", service.ServiceAlias), event.GetTimeoutLoggerOption())
+						service.Logger.Error(util.Translation("start service timeout"), event.GetTimeoutLoggerOption())
 					}
 				} else {
 					logrus.Debugf("Start service %s success", service.ServiceAlias)
