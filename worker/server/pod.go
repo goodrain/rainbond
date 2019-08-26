@@ -39,6 +39,13 @@ func (r *RuntimeServer) GetPodDetail(ctx context.Context, req *pb.GetPodDetailRe
 	// describe pod
 	podDetail = &pb.PodDetail{}
 	podDetail.Name = pod.Name
+	podDetail.Version = func() string {
+		labels := pod.GetLabels()
+		if labels == nil {
+			return ""
+		}
+		return labels["version"]
+	}()
 	if pod.Status.StartTime != nil {
 		podDetail.StartTime = pod.Status.StartTime.Time.Format(time.RFC3339)
 	}
