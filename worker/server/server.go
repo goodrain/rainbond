@@ -205,9 +205,9 @@ func DescribeEvents(el *corev1.EventList) []*pb.PodEvent {
 	for _, e := range el.Items {
 		var interval string
 		if e.Count > 1 {
-			interval = fmt.Sprintf("%s (x%d over %s)", translateTimestampSince(e.LastTimestamp), e.Count, translateTimestampSince(e.FirstTimestamp))
+			interval = fmt.Sprintf("%s ago (x%d over %s)", translateTimestampSince(e.LastTimestamp), e.Count, translateTimestampSince(e.FirstTimestamp))
 		} else {
-			interval = translateTimestampSince(e.FirstTimestamp)
+			interval = translateTimestampSince(e.FirstTimestamp) + " ago"
 		}
 		podEvent := &pb.PodEvent{
 			Type:    e.Type,
