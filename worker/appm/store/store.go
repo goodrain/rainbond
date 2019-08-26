@@ -30,10 +30,13 @@ import (
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/goodrain/rainbond/worker/appm/f"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/server/pb"
+	wutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -1009,6 +1012,7 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandler {
 			}
 		},
 		UpdateFunc: func(old, new interface{}) {
+			opod := old.(*corev1.Pod)
 			npod := new.(*corev1.Pod)
 			_, serviceID, version, creatorID := parseLabels(npod.GetLabels())
 			if serviceID != "" && version != "" && creatorID != "" {
