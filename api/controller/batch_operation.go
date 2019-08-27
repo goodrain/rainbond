@@ -19,26 +19,23 @@
 package controller
 
 import (
-	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
+	"github.com/goodrain/rainbond/api/util"
 
 	"github.com/goodrain/rainbond/api/model"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
 //BatchOperation batch operation for tenant
 //support operation is : start,build,stop,update
 func BatchOperation(w http.ResponseWriter, r *http.Request) {
-	body, _ := ioutil.ReadAll(r.Body)
-	r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
-
 	var build model.BeatchOperationRequestStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build.Body, nil)
 	if !ok {
@@ -49,22 +46,66 @@ func BatchOperation(w http.ResponseWriter, r *http.Request) {
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 
+	// create event for each operation
+	eventRe := createBatchEvents(&build, tenantID)
+
 	var re handler.BatchOperationResult
 	switch build.Body.Operation {
 	case "build":
 		for i := range build.Body.BuildInfos {
 			build.Body.BuildInfos[i].TenantName = tenantName
 		}
-		re = handler.GetBatchOperationHandler().Build(build.Body.BuildInfos, tenantID, string(body))
+		re = handler.GetBatchOperationHandler().Build(build.Body.BuildInfos)
 	case "start":
-		re = handler.GetBatchOperationHandler().Start(build.Body.StartInfos, tenantID, string(body))
+		re = handler.GetBatchOperationHandler().Start(build.Body.StartInfos)
 	case "stop":
-		re = handler.GetBatchOperationHandler().Stop(build.Body.StopInfos, tenantID, string(body))
+		re = handler.GetBatchOperationHandler().Stop(build.Body.StopInfos)
 	case "upgrade":
-		re = handler.GetBatchOperationHandler().Upgrade(build.Body.UpgradeInfos, tenantID, string(body))
+		re = handler.GetBatchOperationHandler().Upgrade(build.Body.UpgradeInfos)
 	default:
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("operation %s do not support batch", build.Body.Operation))
 		return
 	}
+
+	// append every create event result to re and then return
+	re.BatchResult = append(re.BatchResult, eventRe.BatchResult...)
 	httputil.ReturnSuccess(r, w, re)
+}
+
+func createBatchEvents(build *model.BeatchOperationRequestStruct, tenantID string) (re handler.BatchOperationResult) {
+	for i := range build.Body.BuildInfos {
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "batch-build-service", build.Body.BuildInfos[i].ServiceID, tenantID, "", "system", dbmodel.ASYNEVENTTYPE)
+		if err != nil {
+			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.BuildInfos[i].ServiceID})
+			continue
+		}
+		build.Body.BuildInfos[i].EventID = event.EventID
+
+	}
+	for i := range build.Body.StartInfos {
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "batch-start-service", build.Body.StartInfos[i].ServiceID, tenantID, "", "system", dbmodel.ASYNEVENTTYPE)
+		if err != nil {
+			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.StartInfos[i].ServiceID})
+			continue
+		}
+		build.Body.StartInfos[i].EventID = event.EventID
+	}
+	for i := range build.Body.StopInfos {
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "batch-stop-service", build.Body.StopInfos[i].ServiceID, tenantID, "", "system", dbmodel.ASYNEVENTTYPE)
+		if err != nil {
+			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.StopInfos[i].ServiceID})
+			continue
+		}
+		build.Body.StopInfos[i].EventID = event.EventID
+	}
+	for i := range build.Body.UpgradeInfos {
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "batch-build-service", build.Body.UpgradeInfos[i].ServiceID, tenantID, "", "system", dbmodel.ASYNEVENTTYPE)
+		if err != nil {
+			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.UpgradeInfos[i].ServiceID})
+			continue
+		}
+		build.Body.UpgradeInfos[i].EventID = event.EventID
+	}
+
+	return
 }
