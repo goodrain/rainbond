@@ -285,7 +285,7 @@ func (i *SourceCodeBuildItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
 	version.CommitMsg = vi.CommitMsg
 	version.Author = vi.Author
 	version.CodeVersion = vi.CodeVersion
-	logrus.Debugf("update app version %+v", *version)
+	version.CodeBranch = vi.CodeBranch
 	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
 		return err
 	}
@@ -300,10 +300,11 @@ func (i *SourceCodeBuildItem) UpdateBuildVersionInfo(res *build.Response) error 
 		EventID:       i.EventID,
 		ImageName:     builder.RUNNERIMAGENAME,
 		FinalStatus:   "success",
+		CodeBranch:    i.CodeSouceInfo.Branch,
 		CodeVersion:   i.commit.Hash,
 		CommitMsg:     i.commit.Message,
 		Author:        i.commit.Author,
-		FinishTime:    time.Now(), // TODO(huangrh 20190816): do it in dao
+		FinishTime:    time.Now(),
 	}
 	if err := i.UpdateVersionInfo(vi); err != nil {
 		logrus.Errorf("update version info error: %s", err.Error())
