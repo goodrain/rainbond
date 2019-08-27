@@ -42,6 +42,7 @@ type VersionInfo struct {
 	Cmd           string `gorm:"column:cmd;size:200" json:"cmd"`                       //启动命令
 	RepoURL       string `gorm:"column:repo_url;size:100" json:"repo_url"`
 	CodeVersion   string `gorm:"column:code_version;size:40" json:"code_version"`
+	CodeBranch    string `gorm:"column:code_branch;size:40" json:"code_branch"`
 	CommitMsg     string `gorm:"column:code_commit_msg;size:200" json:"code_commit_msg"`
 	Author        string `gorm:"column:code_commit_author;size:40" json:"code_commit_author"`
 	//FinalStatus app version status
