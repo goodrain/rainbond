@@ -19,7 +19,9 @@
 package controller
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
@@ -34,26 +36,32 @@ import (
 //BatchOperation batch operation for tenant
 //support operation is : start,build,stop,update
 func BatchOperation(w http.ResponseWriter, r *http.Request) {
+	body, _ := ioutil.ReadAll(r.Body)
+	r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+
 	var build model.BeatchOperationRequestStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build.Body, nil)
 	if !ok {
 		logrus.Errorf("start batch operation validate request body failure")
 		return
 	}
+
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+
 	var re handler.BatchOperationResult
 	switch build.Body.Operation {
 	case "build":
 		for i := range build.Body.BuildInfos {
 			build.Body.BuildInfos[i].TenantName = tenantName
 		}
-		re = handler.GetBatchOperationHandler().Build(build.Body.BuildInfos)
+		re = handler.GetBatchOperationHandler().Build(build.Body.BuildInfos, tenantID, string(body))
 	case "start":
-		re = handler.GetBatchOperationHandler().Start(build.Body.StartInfos)
+		re = handler.GetBatchOperationHandler().Start(build.Body.StartInfos, tenantID, string(body))
 	case "stop":
-		re = handler.GetBatchOperationHandler().Stop(build.Body.StopInfos)
+		re = handler.GetBatchOperationHandler().Stop(build.Body.StopInfos, tenantID, string(body))
 	case "upgrade":
-		re = handler.GetBatchOperationHandler().Upgrade(build.Body.UpgradeInfos)
+		re = handler.GetBatchOperationHandler().Upgrade(build.Body.UpgradeInfos, tenantID, string(body))
 	default:
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("operation %s do not support batch", build.Body.Operation))
 		return

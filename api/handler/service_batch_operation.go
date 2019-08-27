@@ -20,6 +20,8 @@ package handler
 
 import (
 	"github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	gclient "github.com/goodrain/rainbond/mq/client"
 )
 
@@ -51,9 +53,16 @@ func setStartupSequenceConfig(configs map[string]string) map[string]string {
 }
 
 //Build build
-func (b *BatchOperationHandler) Build(buildInfos []model.BuildInfoRequestStruct) (re BatchOperationResult) {
+func (b *BatchOperationHandler) Build(buildInfos []model.BuildInfoRequestStruct, tenantID, reqBody string) (re BatchOperationResult) {
 	var retrys []model.BuildInfoRequestStruct
+
 	for _, buildInfo := range buildInfos {
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "build-service", buildInfo.ServiceID, tenantID, reqBody, "system", dbmodel.ASYNEVENTTYPE)
+		if err != nil {
+			re.BatchResult = append(re.BatchResult, OperationResult{ErrMsg: "create event failure"})
+			continue
+		}
+		buildInfo.EventID = event.EventID
 		buildInfo.Configs = setStartupSequenceConfig(buildInfo.Configs)
 		buildre := b.operationHandler.Build(buildInfo)
 		if buildre.Status != "success" {
@@ -69,9 +78,15 @@ func (b *BatchOperationHandler) Build(buildInfos []model.BuildInfoRequestStruct)
 }
 
 //Start batch start
-func (b *BatchOperationHandler) Start(startInfos []model.StartOrStopInfoRequestStruct) (re BatchOperationResult) {
+func (b *BatchOperationHandler) Start(startInfos []model.StartOrStopInfoRequestStruct, tenantID, reqBody string) (re BatchOperationResult) {
 	var retrys []model.StartOrStopInfoRequestStruct
 	for _, startInfo := range startInfos {
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "build-service", startInfo.ServiceID, tenantID, reqBody, "system", dbmodel.ASYNEVENTTYPE)
+		if err != nil {
+			re.BatchResult = append(re.BatchResult, OperationResult{ErrMsg: "create event failure"})
+			continue
+		}
+		startInfo.EventID = event.EventID
 		startInfo.Configs = setStartupSequenceConfig(startInfo.Configs)
 		startre := b.operationHandler.Start(startInfo)
 		if startre.Status != "success" {
@@ -87,9 +102,15 @@ func (b *BatchOperationHandler) Start(startInfos []model.StartOrStopInfoRequestS
 }
 
 //Stop batch stop
-func (b *BatchOperationHandler) Stop(stopInfos []model.StartOrStopInfoRequestStruct) (re BatchOperationResult) {
+func (b *BatchOperationHandler) Stop(stopInfos []model.StartOrStopInfoRequestStruct, tenantID, reqBody string) (re BatchOperationResult) {
 	var retrys []model.StartOrStopInfoRequestStruct
 	for _, stopInfo := range stopInfos {
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "build-service", stopInfo.ServiceID, tenantID, reqBody, "system", dbmodel.ASYNEVENTTYPE)
+		if err != nil {
+			re.BatchResult = append(re.BatchResult, OperationResult{ErrMsg: "create event failure"})
+			continue
+		}
+		stopInfo.EventID = event.EventID
 		stopInfo.Configs = setStartupSequenceConfig(stopInfo.Configs)
 		stopre := b.operationHandler.Stop(stopInfo)
 		if stopre.Status != "success" {
@@ -105,9 +126,15 @@ func (b *BatchOperationHandler) Stop(stopInfos []model.StartOrStopInfoRequestStr
 }
 
 //Upgrade batch upgrade
-func (b *BatchOperationHandler) Upgrade(upgradeInfos []model.UpgradeInfoRequestStruct) (re BatchOperationResult) {
+func (b *BatchOperationHandler) Upgrade(upgradeInfos []model.UpgradeInfoRequestStruct, tenantID, reqbody string) (re BatchOperationResult) {
 	var retrys []model.UpgradeInfoRequestStruct
 	for _, upgradeInfo := range upgradeInfos {
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "build-service", upgradeInfo.ServiceID, tenantID, reqbody, "system", dbmodel.ASYNEVENTTYPE)
+		if err != nil {
+			re.BatchResult = append(re.BatchResult, OperationResult{ErrMsg: "create event failure"})
+			continue
+		}
+		upgradeInfo.EventID = event.EventID
 		upgradeInfo.Configs = setStartupSequenceConfig(upgradeInfo.Configs)
 		stopre := b.operationHandler.Upgrade(upgradeInfo)
 		if stopre.Status != "success" {

@@ -21,15 +21,15 @@ package middleware
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/api/util"
 
 	"github.com/jinzhu/gorm"
 
@@ -231,14 +231,30 @@ func (w *resWriter) WriteHeader(statusCode int) {
 func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
+			body, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				logrus.Warningf("error reading request body: %v", err)
+			} else {
+				logrus.Debugf("method: %s; uri: %s; body: %s", r.Method, r.RequestURI, string(body))
+			}
+			// set a new body, which will simulate the same data we read
+			r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 			var targetID string
 			var ok bool
 			if targetID, ok = r.Context().Value(ContextKey("service_id")).(string); !ok {
-				httputil.ReturnError(r, w, 400, "操作对象未指定")
-				return
+				var reqDataMap map[string]interface{}
+				if err = json.Unmarshal(body, &reqDataMap); err != nil {
+					httputil.ReturnError(r, w, 400, "操作对象未指定")
+					return
+				}
+
+				if targetID, ok = reqDataMap["service_id"].(string); !ok {
+					httputil.ReturnError(r, w, 400, "操作对象未指定")
+					return
+				}
 			}
 			//eventLog check the latest event
-			if !canDoEvent(optType, synType, target, targetID) {
+			if !util.CanDoEvent(optType, synType, target, targetID) {
 				httputil.ReturnError(r, w, 400, "操作过于频繁，请稍后再试")
 				return
 			}
@@ -250,15 +266,8 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 				httputil.ReturnError(r, w, 400, err.Error())
 				return
 			}
-			body, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				logrus.Warningf("error reading request body: %v", err)
-			} else {
-				logrus.Debugf("method: %s; uri: %s; body: %s", r.Method, r.RequestURI, string(body))
-			}
-			// set a new body, which will simulate the same data we read
-			r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
-			event, err := createEvent(target, optType, targetID, tenantID, string(body), "system", synType) // TODO username
+
+			event, err := util.CreateEvent(target, optType, targetID, tenantID, string(body), "system", synType) // TODO username
 			if err != nil {
 				logrus.Error("create event error : ", err)
 				httputil.ReturnError(r, w, 500, "操作失败")
@@ -269,61 +278,10 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 			rw := &resWriter{origWriter: w}
 			f(rw, r.WithContext(ctx))
 			if synType == dbmodel.SYNEVENTTYPE || (synType == dbmodel.ASYNEVENTTYPE && rw.statusCode >= 400) { // status code 2XX/3XX all equal to success
-				updateEvent(event.EventID, rw.statusCode)
+				util.UpdateEvent(event.EventID, rw.statusCode)
 			}
 		}
 	}
-}
-
-func canDoEvent(optType string, synType int, target, targetID string) bool {
-	if synType == dbmodel.SYNEVENTTYPE {
-		return true
-	}
-	event, err := db.GetManager().ServiceEventDao().GetLastASyncEvent(target, targetID)
-	if err != nil {
-		if err.Error() == gorm.ErrRecordNotFound.Error() {
-			return true
-		}
-		logrus.Error("get event by targetID error:", err)
-		return false
-	}
-	if event == nil || event.FinalStatus != "" {
-		return true
-	}
-	if !checkTimeout(event) {
-		return false
-	}
-	return true
-}
-
-func checkTimeout(event *dbmodel.ServiceEvent) bool {
-	if event.SynType == dbmodel.ASYNEVENTTYPE {
-		if event.FinalStatus == "" {
-			startTime := event.StartTime
-			start, err := time.ParseInLocation(time.RFC3339, startTime, time.Local)
-			if err != nil {
-				return false
-			}
-			var end time.Time
-			if event.OptType == "deploy-service" || event.OptType == "create-service" || event.OptType == "build-service" {
-				end = start.Add(10 * time.Minute)
-			} else {
-				end = start.Add(3 * time.Minute)
-			}
-			if time.Now().After(end) {
-				event.FinalStatus = "timeout"
-				err = db.GetManager().ServiceEventDao().UpdateModel(event)
-				if err != nil {
-					logrus.Error("check event timeout error : ", err.Error())
-					return false
-				}
-				return true
-			}
-			// latest event is still processing on
-			return false
-		}
-	}
-	return true
 }
 
 func checkResource(optType string, r *http.Request) error {
@@ -360,51 +318,4 @@ func priChargeSverify(t *model.Tenants, quantity int) error {
 		return nil
 	}
 	return fmt.Errorf("lack_of_memory")
-}
-
-func createEvent(target, optType, targetID, tenantID, reqBody, userName string, synType int) (*dbmodel.ServiceEvent, error) {
-	event := dbmodel.ServiceEvent{
-		EventID:     util.NewUUID(),
-		TenantID:    tenantID,
-		Target:      target,
-		TargetID:    targetID,
-		RequestBody: reqBody,
-		UserName:    userName,
-		StartTime:   time.Now().Format(time.RFC3339),
-		SynType:     synType,
-		OptType:     optType,
-	}
-	err := db.GetManager().ServiceEventDao().AddModel(&event)
-	return &event, err
-}
-
-func updateEvent(eventID string, statusCode int) {
-	event, err := db.GetManager().ServiceEventDao().GetEventByEventID(eventID)
-	if err != nil && err != gorm.ErrRecordNotFound {
-		logrus.Errorf("find event by eventID error : %s", err.Error())
-		return
-	}
-	if err == gorm.ErrRecordNotFound {
-		logrus.Errorf("do not found event by eventID %s", eventID)
-		return
-	}
-	event.FinalStatus = "complete"
-	event.EndTime = time.Now().Format(time.RFC3339)
-	if statusCode < 400 { // status code 2XX/3XX all equal to success
-		event.Status = "success"
-	} else {
-		event.Status = "failure"
-	}
-	err = db.GetManager().ServiceEventDao().UpdateModel(event)
-	if err != nil {
-		logrus.Errorf("update event status failure %s", err.Error())
-		retry := 2
-		for retry > 0 {
-			if err = db.GetManager().ServiceEventDao().UpdateModel(event); err != nil {
-				retry--
-			} else {
-				break
-			}
-		}
-	}
 }
