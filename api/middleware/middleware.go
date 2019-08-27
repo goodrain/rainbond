@@ -239,7 +239,7 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 			}
 			//eventLog check the latest event
 			if !canDoEvent(optType, synType, target, targetID) {
-				httputil.ReturnError(r, w, 400, "操作过于频繁，请稍后再试")
+				httputil.ReturnError(r, w, 409, "操作过于频繁，请稍后再试") // status code 409 conflict
 				return
 			}
 			// tenantID can not null
