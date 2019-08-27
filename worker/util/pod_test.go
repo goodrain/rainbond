@@ -15,8 +15,10 @@ func TestDescribePodStatus(t *testing.T) {
 		expstatus pb.PodStatus_Type
 	}{
 		{filename: "testdata/insufficient-memory.json", expstatus: pb.PodStatus_SCHEDULING},
-		{filename: "testdata/abnormal.json", expstatus: pb.PodStatus_ABNORMAL},
+		{filename: "testdata/containercreating.json", expstatus: pb.PodStatus_NOTREADY},
+		{filename: "testdata/crashloopbackoff.json", expstatus: pb.PodStatus_ABNORMAL},
 		{filename: "testdata/initiating.json", expstatus: pb.PodStatus_INITIATING},
+		{filename: "testdata/abnormal.json", expstatus: pb.PodStatus_ABNORMAL},
 	}
 	for idx := range tests {
 		tc := tests[idx]
