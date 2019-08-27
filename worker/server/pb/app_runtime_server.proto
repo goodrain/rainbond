@@ -153,6 +153,7 @@ message PodStatus {
     ABNORMAL = 6;
     INITIATING = 7;
     SCHEDULING = 8;
+    NOTREADY = 9;
   }
 
   Type type = 1;

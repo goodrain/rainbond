@@ -299,6 +299,7 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 		vi := &dbmodel.VersionInfo{
 			FinalStatus: "failure",
 			EventID:     i.EventID,
+			CodeBranch:  i.CodeSouceInfo.Branch,
 			CodeVersion: i.commit.Hash,
 			CommitMsg:   i.commit.Message,
 			Author:      i.commit.Author,
@@ -306,7 +307,7 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 		}
 		if err := i.UpdateVersionInfo(vi); err != nil {
 			logrus.Errorf("update version Info error: %s", err.Error())
-			// TODO(huangrh 20190816): use logger
+			i.Logger.Error(fmt.Sprintf("error updating version info: %v", err), event.GetCallbackLoggerOption())
 		}
 	} else {
 		var configs = make(map[string]string, len(i.Configs))
