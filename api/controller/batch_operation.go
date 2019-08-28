@@ -19,10 +19,7 @@
 package controller
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
@@ -39,9 +36,6 @@ import (
 //BatchOperation batch operation for tenant
 //support operation is : start,build,stop,update
 func BatchOperation(w http.ResponseWriter, r *http.Request) {
-	body, _ := ioutil.ReadAll(r.Body)
-	r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
-
 	var build model.BeatchOperationRequestStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build.Body, nil)
 	if !ok {
@@ -49,19 +43,11 @@ func BatchOperation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var operator string
-	var reqData map[string]interface{}
-	if err := json.Unmarshal(body, &reqData); err == nil {
-		if operatorI, ok := reqData["operator"]; ok {
-			operator = operatorI.(string)
-		}
-	}
-
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 
 	// create event for each operation
-	eventRe := createBatchEvents(&build, tenantID, operator)
+	eventRe := createBatchEvents(&build, tenantID, build.Operator)
 
 	var re handler.BatchOperationResult
 	switch build.Body.Operation {
