@@ -97,10 +97,6 @@ func (m *maven) ListModules(path string) ([]*types.Service, error) {
 				Value: item.MavenCustomGoals,
 			},
 			{
-				Name:  "BUILD_MAVEN_JAVA_OPTS",
-				Value: item.MavenJavaOpts,
-			},
-			{
 				Name:  "BUILD_PROCFILE",
 				Value: item.Procfile,
 			},
@@ -149,9 +145,8 @@ func listModules(prefix, topPref, finalName string) ([]*module, error) {
 				}
 				return "jar"
 			}(),
-			MavenCustomOpts:  fmt.Sprintf("clean install -pl %s -am", name),
-			MavenCustomGoals: fmt.Sprintf("-DskipTests"),
-			MavenJavaOpts:    fmt.Sprintf("-Xmx1024m"),
+			MavenCustomOpts:  fmt.Sprintf("-DskipTests"),
+			MavenCustomGoals: fmt.Sprintf("clean dependency:list install -pl %s -am", name),
 			Procfile: func() string {
 				if pom.Packaging == "war" {
 					return fmt.Sprintf("web: java $JAVA_OPTS -jar /opt/webapp-runner.jar "+
