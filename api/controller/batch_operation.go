@@ -99,7 +99,7 @@ func createBatchEvents(build *model.BeatchOperationRequestStruct, tenantID strin
 		build.Body.StopInfos[i].EventID = event.EventID
 	}
 	for i := range build.Body.UpgradeInfos {
-		event, err := util.CreateEvent(dbmodel.TargetTypeService, "batch-build-service", build.Body.UpgradeInfos[i].ServiceID, tenantID, "", "system", dbmodel.ASYNEVENTTYPE)
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "batch-upgrade-service", build.Body.UpgradeInfos[i].ServiceID, tenantID, "", "system", dbmodel.ASYNEVENTTYPE)
 		if err != nil {
 			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.UpgradeInfos[i].ServiceID})
 			continue
