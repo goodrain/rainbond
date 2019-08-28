@@ -239,7 +239,7 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 			}
 			//eventLog check the latest event
 			if !canDoEvent(optType, synType, target, targetID) {
-				httputil.ReturnError(r, w, 400, "操作过于频繁，请稍后再试")
+				httputil.ReturnError(r, w, 409, "操作过于频繁，请稍后再试") // status code 409 conflict
 				return
 			}
 			// tenantID can not null
@@ -268,7 +268,7 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 			ctx = context.WithValue(ctx, ContextKey("event_id"), event.EventID)
 			rw := &resWriter{origWriter: w}
 			f(rw, r.WithContext(ctx))
-			if synType == dbmodel.SYNEVENTTYPE || (synType == dbmodel.ASYNEVENTTYPE && rw.statusCode != 200) {
+			if synType == dbmodel.SYNEVENTTYPE || (synType == dbmodel.ASYNEVENTTYPE && rw.statusCode >= 400) { // status code 2XX/3XX all equal to success
 				updateEvent(event.EventID, rw.statusCode)
 			}
 		}
@@ -390,7 +390,7 @@ func updateEvent(eventID string, statusCode int) {
 	}
 	event.FinalStatus = "complete"
 	event.EndTime = time.Now().Format(time.RFC3339)
-	if statusCode == 200 {
+	if statusCode < 400 { // status code 2XX/3XX all equal to success
 		event.Status = "success"
 	} else {
 		event.Status = "failure"

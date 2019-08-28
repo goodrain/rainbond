@@ -26,6 +26,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
@@ -62,7 +63,7 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	}
 	if err := stopController.stopOne(app); err != nil {
 		if err != ErrWaitTimeOut {
-			app.Logger.Error("(Restart)Stop app failure %s,you could waiting stoped and manual start it", event.GetCallbackLoggerOption())
+			app.Logger.Error(util.Translation("(restart)stop service error"), event.GetCallbackLoggerOption())
 			return err
 		}
 		//waiting app closed,max wait 40 second
@@ -82,7 +83,7 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	newAppService, err := conversion.InitAppService(db.GetManager(), app.ServiceID, app.ExtensionSet)
 	if err != nil {
 		logrus.Errorf("Application model init create failure:%s", err.Error())
-		app.Logger.Error("Application model init create failure", event.GetCallbackLoggerOption())
+		app.Logger.Error(util.Translation("(restart)Application model init create failure"), event.GetCallbackLoggerOption())
 		return fmt.Errorf("Application model init create failure,%s", err.Error())
 	}
 	newAppService.Logger = app.Logger
@@ -90,6 +91,7 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	s.manager.store.RegistAppService(newAppService)
 	if err := startController.startOne(*newAppService); err != nil {
 		if err != ErrWaitTimeOut {
+			app.Logger.Error(util.Translation("start service error"), event.GetCallbackLoggerOption())
 			return err
 		}
 	}

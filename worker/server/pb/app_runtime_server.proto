@@ -153,6 +153,7 @@ message PodStatus {
     ABNORMAL = 6;
     INITIATING = 7;
     SCHEDULING = 8;
+    NOTREADY = 9;
   }
 
   Type type = 1;
@@ -179,7 +180,9 @@ message PodDetail {
   string start_time = 3;
   PodStatus status = 4;
   string ip = 5;
-  repeated PodContainer init_containers = 6;
-  repeated PodContainer containers = 7;
-  repeated PodEvent events = 8;
+  string node_ip = 6;
+  string version = 7;
+  repeated PodContainer init_containers = 8;
+  repeated PodContainer containers = 9;
+  repeated PodEvent events = 10;
 }

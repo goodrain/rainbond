@@ -147,7 +147,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Get("/", controller.GetManager().SingleServiceInfo)
 	r.Delete("/", middleware.WrapEL(controller.GetManager().SingleServiceInfo, dbmodel.TargetTypeService, "delete-service", dbmodel.SYNEVENTTYPE))
 	//应用升级(act)
-	r.Post("/upgrade", middleware.WrapEL(controller.GetManager().UpgradeService, dbmodel.TargetTypeService, "upgrade-service", dbmodel.SYNEVENTTYPE))
+	r.Post("/upgrade", middleware.WrapEL(controller.GetManager().UpgradeService, dbmodel.TargetTypeService, "upgrade-service", dbmodel.ASYNEVENTTYPE))
 	//应用状态获取(act)
 	r.Get("/status", controller.GetManager().StatusService)
 	//构建版本列表
@@ -220,8 +220,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 
 	// third-party service
 	r.Post("/endpoints", middleware.WrapEL(controller.GetManager().Endpoints, dbmodel.TargetTypeService, "add-thirdpart-service", dbmodel.ASYNEVENTTYPE))
-	r.Put("/endpoints", middleware.WrapEL(controller.GetManager().Endpoints, dbmodel.TargetTypeService, "update-thirdpart-service", dbmodel.ASYNEVENTTYPE))
-	r.Delete("/endpoints", middleware.WrapEL(controller.GetManager().Endpoints, dbmodel.TargetTypeService, "delete-thirdpart-service", dbmodel.ASYNEVENTTYPE))
+	r.Put("/endpoints", middleware.WrapEL(controller.GetManager().Endpoints, dbmodel.TargetTypeService, "update-thirdpart-service", dbmodel.SYNEVENTTYPE))
+	r.Delete("/endpoints", middleware.WrapEL(controller.GetManager().Endpoints, dbmodel.TargetTypeService, "delete-thirdpart-service", dbmodel.SYNEVENTTYPE))
 	r.Get("/endpoints", controller.GetManager().Endpoints)
 
 	// gateway

@@ -14,7 +14,7 @@ var podStatusTbl = map[string]pb.PodStatus_Type{
 	string(corev1.PodSucceeded):   pb.PodStatus_SUCCEEDED,
 	string(corev1.PodFailed):      pb.PodStatus_FAILED,
 	string(corev1.PodUnknown):     pb.PodStatus_UNKNOWN,
-	string(corev1.PodReady):       pb.PodStatus_ABNORMAL,
+	string(corev1.PodReady):       pb.PodStatus_NOTREADY,
 	string(corev1.PodInitialized): pb.PodStatus_INITIATING,
 	string(corev1.PodScheduled):   pb.PodStatus_SCHEDULING,
 }
@@ -32,7 +32,6 @@ func DescribePodStatus(pod *corev1.Pod, podStatus *pb.PodStatus) {
 		if len(pod.Status.Message) > 0 {
 			podStatus.Message = pod.Status.Message
 		}
-		// TODO: advice
 	} else {
 		// schedule, ready, init
 		podStatus.Type = pb.PodStatus_RUNNING
@@ -45,7 +44,21 @@ func DescribePodStatus(pod *corev1.Pod, podStatus *pb.PodStatus) {
 			podStatus.Reason = condition.Reason
 			podStatus.Message = condition.Message
 		}
-		// TODO: advice
+	}
+	if podStatus.Type == pb.PodStatus_NOTREADY {
+		for _, cstatus := range pod.Status.ContainerStatuses {
+			if !cstatus.Ready && cstatus.State.Terminated != nil {
+				podStatus.Type = pb.PodStatus_ABNORMAL
+				break
+			}
+			if !cstatus.Ready && cstatus.State.Waiting != nil {
+				w := cstatus.State.Waiting
+				if w.Reason != "PodInitializing" && w.Reason != "ContainerCreating" {
+					podStatus.Type = pb.PodStatus_ABNORMAL
+					break
+				}
+			}
+		}
 	}
 	podStatus.TypeStr = podStatus.Type.String()
 }

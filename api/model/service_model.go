@@ -40,6 +40,7 @@ type BuildVersion struct {
 	Cmd           string `json:"cmd"`            //启动命令
 	RepoURL       string `json:"repo_url"`       // source image name or source code url
 
+	CodeBranch  string `json:"code_branch"`
 	CodeVersion string `json:"code_version"`
 	CommitMsg   string `json:"code_commit_msg"`
 	Author      string `json:"code_commit_author"`
