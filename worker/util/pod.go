@@ -47,11 +47,12 @@ func DescribePodStatus(pod *corev1.Pod, podStatus *pb.PodStatus) {
 	}
 	if podStatus.Type == pb.PodStatus_NOTREADY {
 		for _, cstatus := range pod.Status.ContainerStatuses {
-			if !cstatus.Ready && cstatus.State.Waiting == nil {
+			if !cstatus.Ready && cstatus.State.Terminated != nil {
 				podStatus.Type = pb.PodStatus_ABNORMAL
 				break
 			}
-			if w := cstatus.State.Waiting; w != nil {
+			if !cstatus.Ready && cstatus.State.Waiting != nil {
+				w := cstatus.State.Waiting
 				if w.Reason != "PodInitializing" && w.Reason != "ContainerCreating" {
 					podStatus.Type = pb.PodStatus_ABNORMAL
 					break
