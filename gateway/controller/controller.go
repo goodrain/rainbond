@@ -34,7 +34,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/controller/openresty"
 	"github.com/goodrain/rainbond/gateway/metric"
 	"github.com/goodrain/rainbond/gateway/store"
-	"github.com/goodrain/rainbond/gateway/v1"
+	v1 "github.com/goodrain/rainbond/gateway/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/ingress-nginx/task"
@@ -84,7 +84,9 @@ func (gwc *GWController) Start(errCh chan error) error {
 	}
 
 	// start plugin(eg: nginx, zeus and etc)
-	gwc.GWS.Start(errCh)
+	if err := gwc.GWS.Start(errCh); err != nil {
+		return err
+	}
 	// start informer
 	gwc.store.Run(gwc.stopCh)
 
@@ -141,9 +143,9 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 	if gwc.syncQueue.IsShuttingDown() {
 		return nil
 	}
-
 	l7sv, l4sv := gwc.store.ListVirtualService()
 	httpPools, tcpPools := gwc.store.ListPool()
+
 	currentConfig := &v1.Config{
 		HTTPPools: httpPools,
 		TCPPools:  tcpPools,
@@ -364,7 +366,6 @@ func (gwc *GWController) listRbdEndpoints() (map[string][]string, int64) {
 		logrus.Errorf("get rainbond service endpoint from etcd error %s", err.Error())
 		return nil, 0
 	}
-
 	rbdEdps := make(map[string][]string)
 	for _, kv := range resp.Kvs {
 		key := strings.Replace(string(kv.Key), gwc.ocfg.RbdEndpointsKey, "", -1)
@@ -399,7 +400,6 @@ func (gwc *GWController) listRbdEndpoints() (map[string][]string, int64) {
 		}
 		rbdEdps[key] = append(rbdEdps[key], d...)
 	}
-
 	if resp.Header != nil {
 		return rbdEdps, resp.Header.Revision
 	}
@@ -445,7 +445,6 @@ func convIntoRbdPools(data []string, names ...string) []*v1.Pool {
 			nodes = append(nodes, n)
 		}
 	}
-
 	var pools []*v1.Pool
 	// make sure every pool has nodes
 	if nodes != nil && len(nodes) > 0 {
@@ -460,7 +459,6 @@ func convIntoRbdPools(data []string, names ...string) []*v1.Pool {
 			pools = append(pools, pool)
 		}
 	}
-
 	return pools
 }
 

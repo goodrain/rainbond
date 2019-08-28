@@ -1,50 +1,48 @@
-{{ $http_port := .Set.ListenPorts.HTTP }}
-{{ range $srv := .Servers }}
 server {
-    {{ if $srv.Listen }}listen    {{$srv.Listen}};{{ end }}
-    {{ if $srv.Root }}root    {{$srv.Root}};{{ end }}
-    {{ if $srv.ServerName }}server_name    {{$srv.ServerName}};{{end}}
-	{{ if $srv.DefaultType }}default_type    {{$srv.DefaultType}};{{end}}
-    {{ if $srv.Charset }}charset   {{$srv.Charset}};{{end}}
-
-    {{ if gt $srv.KeepaliveTimeout.Num 0 }}
-    keepalive_timeout {{$srv.KeepaliveTimeout.Num}}{{$srv.KeepaliveTimeout.Unit}};
+    {{ if .Server.Listen }}listen    {{.Server.Listen}};{{ end }}
+    {{ if .Server.Root }}root    {{.Server.Root}};{{ end }}
+    {{ if .Server.ServerName }}server_name    {{.Server.ServerName}};{{end}}
+	{{ if .Server.DefaultType }}default_type    {{.Server.DefaultType}};{{end}}
+    {{ if .Server.Charset }}charset   {{.Server.Charset}};{{end}}
+    access_log off;
+    {{ if gt .Server.KeepaliveTimeout.Num 0 }}
+    keepalive_timeout {{.Server.KeepaliveTimeout.Num}}{{.Server.KeepaliveTimeout.Unit}};
     {{ end }}
 
-    {{ if $srv.ServerTokens }}server_tokens on;{{ end }}
+    {{ if .Server.ServerTokens }}server_tokens on;{{ end }}
 
-    {{ if $srv.SSLCertificate }}
+    {{ if .Server.SSLCertificate }}
     # ssl
-    ssl_certificate {{$srv.SSLCertificate}};
+    ssl_certificate {{.Server.SSLCertificate}};
     {{ end }}
-    {{ if $srv.SSLCertificateKey }}ssl_certificate_key {{$srv.SSLCertificateKey}};{{ end }}
+    {{ if .Server.SSLCertificateKey }}ssl_certificate_key {{.Server.SSLCertificateKey}};{{ end }}
 
-    {{ if $srv.ClientMaxBodySize.Unit }}
-    client_max_body_size {{$srv.ClientMaxBodySize.Num}}{{$srv.ClientMaxBodySize.Unit}};
+    {{ if .Server.ClientMaxBodySize.Unit }}
+    client_max_body_size {{.Server.ClientMaxBodySize.Num}}{{.Server.ClientMaxBodySize.Unit}};
     {{ end }}
-    {{ if $srv.ChunkedTransferEncoding }}
+    {{ if .Server.ChunkedTransferEncoding }}
     chunked_transfer_encoding on;
     {{ end }}
 
-    {{ range $rewrite := $srv.Rewrites }}
+    {{ range $rewrite := .Server.Rewrites }}
     rewrite {{$rewrite.Regex}} {{$rewrite.Replacement}}{{if $rewrite.Flag }} {{$rewrite.Flag}}{{ end }};
     {{ end }}
 
-    {{ if ne $srv.Return.Code 0 }}
-    return {{ $srv.Return.Code }} {{ if $srv.Return.Text}} "{{ $srv.Return.Text }}" {{ else if $srv.Return.URL }} {{$srv.Return.URL}} {{ end }};
+    {{ if ne .Server.Return.Code 0 }}
+    return {{ .Server.Return.Code }} {{ if .Server.Return.Text}} "{{ .Server.Return.Text }}" {{ else if .Server.Return.URL }} {{.Server.Return.URL}} {{ end }};
     {{ end }}
 
-    {{ if gt $srv.ProxyConnectTimeout.Num 0 }}
-    proxy_connect_timeout   {{$srv.ProxyConnectTimeout.Num}}{{$srv.ProxyConnectTimeout.Unit}};
+    {{ if gt .Server.ProxyConnectTimeout.Num 0 }}
+    proxy_connect_timeout   {{.Server.ProxyConnectTimeout.Num}}{{.Server.ProxyConnectTimeout.Unit}};
     {{ end }}
-    {{ if gt $srv.ProxyTimeout.Num 0 }}
-    proxy_timeout   {{$srv.ProxyTimeout.Num}}{{$srv.ProxyTimeout.Unit}};
+    {{ if gt .Server.ProxyTimeout.Num 0 }}
+    proxy_timeout   {{.Server.ProxyTimeout.Num}}{{.Server.ProxyTimeout.Unit}};
     {{ end }}
-    {{ if $srv.ProxyPass }}
-    proxy_pass {{$srv.ProxyPass}};
+    {{ if .Server.ProxyPass }}
+    proxy_pass {{.Server.ProxyPass}};
     {{ end }}
 
-    {{ range $loc := $srv.Locations }}
+    {{ range $loc := .Server.Locations }}
     location {{$loc.Path}} {
         {{ range $rewrite := $loc.Rewrite.Rewrites }}
         rewrite {{$rewrite.Regex}} {{$rewrite.Replacement}}{{if $rewrite.Flag }} {{$rewrite.Flag}}{{ end }};
@@ -71,6 +69,8 @@ server {
 
         {{ if $loc.DisableAccessLog }}
         access_log off;
+        {{ else if $loc.AccessLogPath }}
+        access_log $loc.AccessLogPath porxy;
         {{ end }}
         
         {{ if $loc.ProxyRedirect }}
@@ -78,8 +78,8 @@ server {
         {{ end }}
         {{ if not $loc.DisableProxyPass }}
             set $target 'default';
-            {{ if $srv.OptionValue }}
-                {{range $i, $v := $srv.OptionValue}}
+            {{ if $.Server.OptionValue }}
+                {{range $i, $v := $.Server.OptionValue}}
                     set ${{$i}} '{{$v}}';
                 {{end}}
             {{ end }}
@@ -102,4 +102,3 @@ server {
     }
     {{ end }}
 }
-{{ end }}
