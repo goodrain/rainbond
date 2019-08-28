@@ -97,7 +97,7 @@ func (m *maven) ListModules(path string) ([]*types.Service, error) {
 				Value: item.MavenCustomGoals,
 			},
 			{
-				Name:  "MAVEN_JAVA_OPTS",
+				Name:  "BUILD_MAVEN_JAVA_OPTS",
 				Value: item.MavenJavaOpts,
 			},
 			{
