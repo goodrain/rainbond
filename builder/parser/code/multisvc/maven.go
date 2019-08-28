@@ -70,11 +70,13 @@ type pom struct {
 
 // module represents a maven module
 type module struct {
-	ID              string
-	Name            string
-	MavenCustomOpts string
-	Packaging       string
-	Procfile        string
+	ID               string
+	Name             string
+	MavenCustomOpts  string
+	MavenCustomGoals string
+	MavenJavaOpts    string
+	Packaging        string
+	Procfile         string
 }
 
 // ListModules lists all maven modules from pom.xml
@@ -89,6 +91,14 @@ func (m *maven) ListModules(path string) ([]*types.Service, error) {
 			{
 				Name:  "BUILD_MAVEN_CUSTOM_OPTS",
 				Value: item.MavenCustomOpts,
+			},
+			{
+				Name:  "BUILD_MAVEN_CUSTOM_GOALS",
+				Value: item.MavenCustomGoals,
+			},
+			{
+				Name:  "MAVEN_JAVA_OPTS",
+				Value: item.MavenJavaOpts,
 			},
 			{
 				Name:  "BUILD_PROCFILE",
@@ -139,7 +149,9 @@ func listModules(prefix, topPref, finalName string) ([]*module, error) {
 				}
 				return "jar"
 			}(),
-			MavenCustomOpts: fmt.Sprintf("clean install -pl %s -am", name),
+			MavenCustomOpts:  fmt.Sprintf("clean install -pl %s -am", name),
+			MavenCustomGoals: fmt.Sprintf("-DskipTests"),
+			MavenJavaOpts:    fmt.Sprintf("-Xmx1024m"),
 			Procfile: func() string {
 				if pom.Packaging == "war" {
 					return fmt.Sprintf("web: java $JAVA_OPTS -jar /opt/webapp-runner.jar "+
@@ -197,7 +209,7 @@ func (p *pom) getExecuteFilename(finalName string) string {
 			for _, plugin := range p.Build.Plugins.Plugin {
 				if plugin.ArtifactID == "spring-boot-maven-plugin" && plugin.GroupID == "org.springframework.boot" &&
 					plugin.FinalName != "" {
-						finalName = plugin.FinalName
+					finalName = plugin.FinalName
 					break
 				}
 			}
