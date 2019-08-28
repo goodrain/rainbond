@@ -256,7 +256,7 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 			//eventLog check the latest event
 
 			if !util.CanDoEvent(optType, synType, target, targetID) {
-				httputil.ReturnError(r, w, 409, "操作过于频繁，请稍后再试")// status code 409 conflict
+				httputil.ReturnError(r, w, 409, "操作过于频繁，请稍后再试") // status code 409 conflict
 				return
 			}
 			// tenantID can not null
@@ -268,7 +268,16 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 				return
 			}
 
-			event, err := util.CreateEvent(target, optType, targetID, tenantID, string(body), "system", synType) // TODO username
+			// handle operator
+			var operator string
+			var reqData map[string]interface{}
+			if err = json.Unmarshal(body, &reqData); err == nil {
+				if operatorI, ok := reqData["operator"]; ok {
+					operator = operatorI.(string)
+				}
+			}
+
+			event, err := util.CreateEvent(target, optType, targetID, tenantID, string(body), operator, synType)
 			if err != nil {
 				logrus.Error("create event error : ", err)
 				httputil.ReturnError(r, w, 500, "操作失败")

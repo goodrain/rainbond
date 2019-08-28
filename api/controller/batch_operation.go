@@ -19,7 +19,10 @@
 package controller
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
@@ -36,6 +39,9 @@ import (
 //BatchOperation batch operation for tenant
 //support operation is : start,build,stop,update
 func BatchOperation(w http.ResponseWriter, r *http.Request) {
+	body, _ := ioutil.ReadAll(r.Body)
+	r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+
 	var build model.BeatchOperationRequestStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build.Body, nil)
 	if !ok {
@@ -43,11 +49,19 @@ func BatchOperation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var operator string
+	var reqData map[string]interface{}
+	if err := json.Unmarshal(body, &reqData); err == nil {
+		if operatorI, ok := reqData["operator"]; ok {
+			operator = operatorI.(string)
+		}
+	}
+
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 
 	// create event for each operation
-	eventRe := createBatchEvents(&build, tenantID)
+	eventRe := createBatchEvents(&build, tenantID, operator)
 
 	var re handler.BatchOperationResult
 	switch build.Body.Operation {
@@ -72,9 +86,9 @@ func BatchOperation(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, re)
 }
 
-func createBatchEvents(build *model.BeatchOperationRequestStruct, tenantID string) (re handler.BatchOperationResult) {
+func createBatchEvents(build *model.BeatchOperationRequestStruct, tenantID, operator string) (re handler.BatchOperationResult) {
 	for i := range build.Body.BuildInfos {
-		event, err := util.CreateEvent(dbmodel.TargetTypeService, "build-service", build.Body.BuildInfos[i].ServiceID, tenantID, "", "system", dbmodel.ASYNEVENTTYPE)
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "build-service", build.Body.BuildInfos[i].ServiceID, tenantID, "", operator, dbmodel.ASYNEVENTTYPE)
 		if err != nil {
 			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.BuildInfos[i].ServiceID})
 			continue
@@ -83,7 +97,7 @@ func createBatchEvents(build *model.BeatchOperationRequestStruct, tenantID strin
 
 	}
 	for i := range build.Body.StartInfos {
-		event, err := util.CreateEvent(dbmodel.TargetTypeService, "start-service", build.Body.StartInfos[i].ServiceID, tenantID, "", "system", dbmodel.ASYNEVENTTYPE)
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "start-service", build.Body.StartInfos[i].ServiceID, tenantID, "", operator, dbmodel.ASYNEVENTTYPE)
 		if err != nil {
 			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.StartInfos[i].ServiceID})
 			continue
@@ -91,7 +105,7 @@ func createBatchEvents(build *model.BeatchOperationRequestStruct, tenantID strin
 		build.Body.StartInfos[i].EventID = event.EventID
 	}
 	for i := range build.Body.StopInfos {
-		event, err := util.CreateEvent(dbmodel.TargetTypeService, "stop-service", build.Body.StopInfos[i].ServiceID, tenantID, "", "system", dbmodel.ASYNEVENTTYPE)
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "stop-service", build.Body.StopInfos[i].ServiceID, tenantID, "", operator, dbmodel.ASYNEVENTTYPE)
 		if err != nil {
 			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.StopInfos[i].ServiceID})
 			continue
@@ -99,7 +113,7 @@ func createBatchEvents(build *model.BeatchOperationRequestStruct, tenantID strin
 		build.Body.StopInfos[i].EventID = event.EventID
 	}
 	for i := range build.Body.UpgradeInfos {
-		event, err := util.CreateEvent(dbmodel.TargetTypeService, "upgrade-service", build.Body.UpgradeInfos[i].ServiceID, tenantID, "", "system", dbmodel.ASYNEVENTTYPE)
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "upgrade-service", build.Body.UpgradeInfos[i].ServiceID, tenantID, "", operator, dbmodel.ASYNEVENTTYPE)
 		if err != nil {
 			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.UpgradeInfos[i].ServiceID})
 			continue
