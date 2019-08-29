@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -429,6 +430,8 @@ func (l *loggerWriter) Write(b []byte) (n int, err error) {
 		if l.fmt != "" {
 			message = fmt.Sprintf(l.fmt, message)
 		}
+		message = strings.Replace(message, "\n", "", -1)
+		message = strings.Replace(message, "\r", "", -1)
 		logrus.Debugf("step: %s, level: %s;write message : %v", l.step, l.level, message)
 		l.l.send(message, map[string]string{"step": l.step, "level": l.level})
 	}
