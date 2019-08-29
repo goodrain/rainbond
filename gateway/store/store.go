@@ -38,7 +38,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/controller/config"
 	"github.com/goodrain/rainbond/gateway/defaults"
 	"github.com/goodrain/rainbond/gateway/util"
-	"github.com/goodrain/rainbond/gateway/v1"
+	v1 "github.com/goodrain/rainbond/gateway/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -379,7 +379,6 @@ func (s *k8sStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 	l4Pools := make(map[string]*v1.Pool)
 	for _, item := range s.listers.Endpoint.List() {
 		ep := item.(*corev1.Endpoints)
-
 		if ep.Subsets != nil || len(ep.Subsets) != 0 {
 			epn := ep.ObjectMeta.Name
 			// l7
@@ -391,6 +390,8 @@ func (s *k8sStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 						Nodes: []*v1.Node{},
 					}
 					pool.Name = backend.name
+					// TODO: The tenant isolation
+					pool.Namespace = "default"
 					pool.UpstreamHashBy = backend.hashBy
 					l7Pools[backend.name] = pool
 				}
@@ -420,6 +421,8 @@ func (s *k8sStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 					pool = &v1.Pool{
 						Nodes: []*v1.Node{},
 					}
+					// TODO: The tenant isolation
+					pool.Namespace = "default"
 					pool.Name = backend.name
 					l4Pools[backend.name] = pool
 				}

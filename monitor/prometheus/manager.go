@@ -22,11 +22,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/cmd/monitor/option"
-	"github.com/goodrain/rainbond/discover"
-	"github.com/prometheus/common/model"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -34,6 +29,12 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/cmd/monitor/option"
+	"github.com/goodrain/rainbond/discover"
+	"github.com/prometheus/common/model"
+	yaml "gopkg.in/yaml.v2"
 )
 
 const (
@@ -203,10 +204,8 @@ func (p *Manager) SaveConfig() error {
 
 func (p *Manager) UpdateScrape(scrape *ScrapeConfig) {
 	logrus.Debugf("update scrape: %+v", scrape)
-
 	p.l.Lock()
 	defer p.l.Unlock()
-
 	exist := false
 	for i, s := range p.Config.ScrapeConfigs {
 		if s.JobName == scrape.JobName {
@@ -215,11 +214,9 @@ func (p *Manager) UpdateScrape(scrape *ScrapeConfig) {
 			break
 		}
 	}
-
 	if !exist {
 		p.Config.ScrapeConfigs = append(p.Config.ScrapeConfigs, scrape)
 	}
-
 	p.SaveConfig()
 	p.RestartDaemon()
 }
