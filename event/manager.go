@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -403,7 +402,7 @@ func (l *logger) send(message string, info map[string]string) {
 //LoggerWriter logger writer
 type LoggerWriter interface {
 	io.Writer
-	SetFormat(string)
+	SetFormat(map[string]interface{})
 }
 
 func (l *logger) GetWriter(step, level string) LoggerWriter {
@@ -418,20 +417,29 @@ type loggerWriter struct {
 	l     *logger
 	step  string
 	level string
-	fmt   string
+	fmt   map[string]interface{}
 }
 
-func (l *loggerWriter) SetFormat(f string) {
+func (l *loggerWriter) SetFormat(f map[string]interface{}) {
 	l.fmt = f
 }
 func (l *loggerWriter) Write(b []byte) (n int, err error) {
 	if b != nil && len(b) > 0 {
 		message := string(b)
-		if l.fmt != "" {
-			message = fmt.Sprintf(l.fmt, message)
+		// if loggerWriter has format, and then use it format message
+		if len(l.fmt) > 0 {
+			newLineMap := make(map[string]interface{}, len(l.fmt))
+			for k, v := range l.fmt {
+				if v == "%s" {
+					newLineMap[k] = fmt.Sprintf(v.(string), message)
+				} else {
+					newLineMap[k] = v
+				}
+			}
+			messageb, _ := ffjson.Marshal(newLineMap)
+			message = string(messageb)
 		}
-		message = strings.Replace(message, "\n", "", -1)
-		message = strings.Replace(message, "\r", "", -1)
+
 		logrus.Debugf("step: %s, level: %s;write message : %v", l.step, l.level, message)
 		l.l.send(message, map[string]string{"step": l.step, "level": l.level})
 	}
@@ -471,7 +479,7 @@ func (l *testLogger) Debug(message string, info map[string]string) {
 type testLoggerWriter struct {
 }
 
-func (l *testLoggerWriter) SetFormat(f string) {
+func (l *testLoggerWriter) SetFormat(f map[string]interface{}) {
 
 }
 func (l *testLoggerWriter) Write(b []byte) (n int, err error) {
