@@ -388,7 +388,7 @@ func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, ac
 			OptType:   "upgrade",
 			Target:    "service",
 			TargetID:  serviceID,
-			UserName:  "system",
+			UserName:  "",
 			SynType:   dbmodel.ASYNEVENTTYPE,
 		}
 		if err := db.GetManager().ServiceEventDao().AddModel(event); err != nil {
