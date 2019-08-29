@@ -124,6 +124,7 @@ func (n *NginxConfigFileTemplete) WriteServer(c option.Config, configtype, tenan
 	n.writeLocks[tenant].Lock()
 	defer n.writeLocks[tenant].Unlock()
 	serverConfigFile := path.Join(n.configFileDirPath, configtype, tenant, "servers.conf")
+	first := true
 	for i, server := range servers {
 		body, err := n.serverTmpl.Write(&NginxServerContext{
 			Server: servers[i],
@@ -133,7 +134,7 @@ func (n *NginxConfigFileTemplete) WriteServer(c option.Config, configtype, tenan
 			logrus.Errorf("create server config by templete failure %s", err.Error())
 			continue
 		}
-		if err := n.writeFile(i == 0, body, serverConfigFile); err != nil {
+		if err := n.writeFile(first, body, serverConfigFile); err != nil {
 			if err == nginxcmd.ErrorCheck {
 				logrus.Errorf("server %s config error, will ignore it", func() string {
 					if server.ServerName != "" {
@@ -144,6 +145,8 @@ func (n *NginxConfigFileTemplete) WriteServer(c option.Config, configtype, tenan
 			} else {
 				logrus.Errorf("writer server config failure %s", err.Error())
 			}
+		} else {
+			first = false
 		}
 	}
 	return nil
@@ -162,6 +165,7 @@ func (n *NginxConfigFileTemplete) writeFile(first bool, configBody []byte, confi
 		}
 		noOldConfig = true
 	}
+	newbody := configBody
 	if !noOldConfig {
 		if err := os.Rename(configFile, configFile+".bak"); err != nil {
 			logrus.Errorf("rename server config file failure %s", err.Error())
@@ -190,10 +194,13 @@ func (n *NginxConfigFileTemplete) writeFile(first bool, configBody []byte, confi
 	//test
 	if err := nginxcmd.CheckConfig(); err != nil {
 		//rollback if error
-		if err := os.Rename(configFile+".bak", configFile); err != nil {
-			logrus.Warningf("rollback config file failre %s", err.Error())
+		if !noOldConfig {
+			if err := os.Rename(configFile+".bak", configFile); err != nil {
+				logrus.Warningf("rollback config file failre %s", err.Error())
+			}
 		}
-		fmt.Println(string(configBody))
+		fmt.Println("failure config body:")
+		fmt.Println(string(newbody))
 		return err
 	}
 	//success
@@ -226,6 +233,7 @@ func (n *NginxConfigFileTemplete) WriteUpstream(set option.Config, tenant string
 	n.writeLocks[tenant].Lock()
 	defer n.writeLocks[tenant].Unlock()
 	upstreamConfigFile := path.Join(n.configFileDirPath, "stream", tenant, "upstreams.conf")
+	first := true
 	for i, upstream := range upstrems {
 		body, err := n.tcpUpstreamTmpl.Write(&NginxUpstreamContext{
 			Upstream: upstrems[i],
@@ -235,12 +243,14 @@ func (n *NginxConfigFileTemplete) WriteUpstream(set option.Config, tenant string
 			logrus.Errorf("create upstream config by templete failure %s", err.Error())
 			continue
 		}
-		if err := n.writeFile(i == 0, body, upstreamConfigFile); err != nil {
+		if err := n.writeFile(first, body, upstreamConfigFile); err != nil {
 			if err == nginxcmd.ErrorCheck {
 				logrus.Errorf("upstream %s config error, will ignore it", upstream.Name)
 			} else {
 				logrus.Errorf("writer upstream config failure %s", err.Error())
 			}
+		} else {
+			first = false
 		}
 	}
 	return nil

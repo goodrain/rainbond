@@ -103,7 +103,7 @@ func Reload() error {
 	updateCount.Inc()
 	if err := ExecNginxCommand("-s", "reload"); err != nil {
 		errUpdateCount.Inc()
-		return ErrorCheck
+		return err
 	}
 	return nil
 }
