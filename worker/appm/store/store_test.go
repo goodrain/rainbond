@@ -19,20 +19,12 @@
 package store
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"testing"
 
 	"github.com/eapache/channels"
-	"github.com/golang/mock/gomock"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
-	"github.com/goodrain/rainbond/db/dao"
-	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/event"
-	"github.com/jinzhu/gorm"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -78,154 +70,4 @@ func TestAppRuntimeStore_GetTenantResource(t *testing.T) {
 	tenantID := "d22797956503441abce65e40705aac29"
 	resource := store.GetTenantResource(tenantID)
 	t.Logf("%+v", resource)
-}
-
-func podFromJSONFile(t *testing.T, filename string) *corev1.Pod {
-	jsonfile, err := ioutil.ReadFile(filename)
-	if err != nil {
-		t.Fatalf("failed to read file '%s': %v", filename, err)
-	}
-
-	var pod corev1.Pod
-	if err := json.Unmarshal(jsonfile, &pod); err != nil {
-		t.Fatalf("file: %s; failed to unmarshalling json: %v", filename, err)
-	}
-
-	return &pod
-}
-
-func TestRecordUpdateEvent(t *testing.T) {
-	tests := []struct {
-		name, oldPodFile, newPodFile                   string
-		eventID, tenantID, targetID, optType, username string
-		finalStatus                                    model.EventFinalStatus
-		eventErr                                       error
-		explevel, expstatus                            string
-	}{
-		{
-			name:        "OOMkilled",
-			oldPodFile:  "testdata/pod-pending.json",
-			newPodFile:  "testdata/pod-oom-killed.json",
-			eventID:     "event id",
-			tenantID:    "6e22adb70c114b1d9a46d17d8146ba37",
-			targetID:    "135c3e10e3be34337bde752449a07e4c",
-			optType:     "OOMKilled",
-			username:    model.UsernameSystem,
-			finalStatus: model.EventFinalStatusRunning,
-			eventErr:    gorm.ErrRecordNotFound,
-			explevel:    "error",
-			expstatus:   "failure",
-		},
-		{
-			name:        "duplicated OOMkilled",
-			oldPodFile:  "testdata/pod-pending.json",
-			newPodFile:  "testdata/pod-oom-killed.json",
-			eventID:     "event id",
-			tenantID:    "6e22adb70c114b1d9a46d17d8146ba37",
-			targetID:    "135c3e10e3be34337bde752449a07e4c",
-			optType:     "OOMKilled",
-			username:    model.UsernameSystem,
-			finalStatus: model.EventFinalStatusRunning,
-			eventErr:    nil,
-			explevel:    "error",
-			expstatus:   "failure",
-		},
-		{
-			name:       "running temporarily",
-			oldPodFile: "testdata/pod-oom-killed.json",
-			newPodFile: "testdata/pod-running-temporarily.json",
-			eventID:    "event id",
-			tenantID:   "6e22adb70c114b1d9a46d17d8146ba37",
-			targetID:   "135c3e10e3be34337bde752449a07e4c",
-			optType:    "OOMKilled",
-			username:   model.UsernameSystem,
-			eventErr:   nil,
-			explevel:   "error",
-			expstatus:  "failure",
-		},
-		{
-			name:       "running",
-			oldPodFile: "testdata/pod-oom-killed.json",
-			newPodFile: "testdata/pod-running.json",
-			eventID:    "event id",
-			tenantID:   "6e22adb70c114b1d9a46d17d8146ba37",
-			targetID:   "135c3e10e3be34337bde752449a07e4c",
-			optType:    "OOMKilled",
-			username:   model.UsernameSystem,
-			eventErr:   nil,
-			explevel:   "error",
-			expstatus:  "success",
-		},
-	}
-
-	for idx := range tests {
-		tc := tests[idx]
-		t.Run(tc.name, func(t *testing.T) {
-			stopCh := make(chan struct{})
-
-			old := podFromJSONFile(t, tc.oldPodFile)
-			new := podFromJSONFile(t, tc.newPodFile)
-
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-
-			// mock db
-			dbmanager := db.NewMockManager(ctrl)
-			db.SetManager(dbmanager)
-			serviceEventDao := dao.NewMockEventDao(ctrl)
-			dbmanager.EXPECT().ServiceEventDao().AnyTimes().Return(serviceEventDao)
-			var evt *model.ServiceEvent
-			if tc.eventErr == nil {
-				evt = &model.ServiceEvent{
-					EventID:     tc.eventID,
-					TenantID:    tc.tenantID,
-					TargetID:    tc.targetID,
-					UserName:    tc.username,
-					OptType:     tc.optType,
-					FinalStatus: model.EventFinalStatusRunning.String(),
-				}
-				evt.CreatedAt = new.Status.StartTime.Time
-			}
-			serviceEventDao.EXPECT().AddModel(gomock.Any()).AnyTimes().Return(nil)
-			serviceEventDao.EXPECT().GetByTargetIDTypeUser(tc.targetID, tc.optType, tc.username).Return(evt, tc.eventErr)
-
-			// mock event manager
-			lm := event.NewMockManager(ctrl)
-			event.SetManager(lm)
-			sendCh := make(chan []byte)
-			l := event.NewLogger(tc.eventID, sendCh)
-			lm.EXPECT().GetLogger(gomock.Any()).Return(l).AnyTimes()
-			lm.EXPECT().ReleaseLogger(l)
-
-			// receive message from logger
-			go func(sendCh chan []byte) {
-				for {
-					select {
-					case msg := <-sendCh:
-						var data map[string]string
-						if err := json.Unmarshal(msg, &data); err != nil {
-							t.Logf("Recevied message: %s", string(msg))
-						}
-						level := data["level"]
-						status := data["status"]
-						if level == "" || status == "" {
-							t.Errorf("Recevied wrong message: %s; expected field 'level' and 'status'", string(msg))
-						} else {
-							if level != tc.explevel {
-								t.Errorf("Expected %s for level, but returned %s", tc.explevel, level)
-							}
-							if status != tc.expstatus {
-								t.Errorf("Expected %s for status, but returned %s\n", tc.expstatus, status)
-							}
-						}
-
-						close(stopCh)
-					}
-				}
-			}(sendCh)
-
-			recordUpdateEvent(old, new)
-			<-stopCh
-		})
-	}
 }

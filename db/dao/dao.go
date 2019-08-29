@@ -312,9 +312,9 @@ type EventDao interface {
 	DelEventByServiceID(serviceID string) error
 	GetEventsByTarget(target, targetID string, offset, liimt int) ([]*model.ServiceEvent, int, error)
 	GetEventsByTenantID(tenantID string, offset, limit int) ([]*model.ServiceEvent, int, error)
-	GetByTargetIDTypeUser(targetID, optType, username string) (*model.ServiceEvent, error)
-	GetByTargetIDAndType(targetID string, optTypes ...string) (*model.ServiceEvent, error)
 	GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error)
+	UnfinishedEvents(target, targetID string, optTypes ...string) ([]*model.ServiceEvent, error)
+	LatestFailurePodEvent(podName string) (*model.ServiceEvent, error)
 }
 
 //VersionInfoDao VersionInfoDao

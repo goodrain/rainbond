@@ -149,24 +149,6 @@ func (c *EventDaoImpl) GetEventsByTenantID(tenantID string, offset, limit int) (
 	return result, total, nil
 }
 
-// GetByTargetIDTypeUser -
-func (c *EventDaoImpl) GetByTargetIDTypeUser(targetID, optType, username string) (*model.ServiceEvent, error) {
-	var result model.ServiceEvent
-	if err := c.DB.Where("target_id=? and opt_type=? and user_name=?", targetID, optType, username).Last(&result).Error; err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-// GetByTargetIDAndType -
-func (c *EventDaoImpl) GetByTargetIDAndType(targetID string, optTypes ...string) (*model.ServiceEvent, error) {
-	var result model.ServiceEvent
-	if err := c.DB.Where("target_id=? and opt_type in (?)", targetID, optTypes).Last(&result).Error; err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
 //GetLastASyncEvent get last sync event
 func (c *EventDaoImpl) GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error) {
 	var result model.ServiceEvent
@@ -174,6 +156,26 @@ func (c *EventDaoImpl) GetLastASyncEvent(target, targetID string) (*model.Servic
 		return nil, err
 	}
 	return &result, nil
+}
+
+// UnfinishedEvents returns unfinished events.
+func (c *EventDaoImpl) UnfinishedEvents(target, targetID string, optTypes ...string) ([]*model.ServiceEvent, error) {
+	var result []*model.ServiceEvent
+	if err := c.DB.Where("target=? and target_id=? and status=? and opt_type in (?)", target, targetID, model.EventStatusFailure.String(), optTypes).
+		Find(&result).Error; err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// LatestFailurePodEvent returns the latest failure pod event.
+func (c *EventDaoImpl) LatestFailurePodEvent(podName string) (*model.ServiceEvent, error) {
+	var event model.ServiceEvent
+	if err := c.DB.Where("target=? and target_id=? and status=?", model.TargetTypePod, podName, model.EventStatusFailure.String()).
+		Last(&event).Error; err != nil {
+		return nil, err
+	}
+	return &event, nil
 }
 
 //NotificationEventDaoImpl NotificationEventDaoImpl

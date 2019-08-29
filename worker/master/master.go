@@ -25,18 +25,16 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/worker/master/volumes/provider"
-
+	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/util/leader"
+	"github.com/goodrain/rainbond/worker/appm/store"
+	mstore "github.com/goodrain/rainbond/worker/master/store"
+	"github.com/goodrain/rainbond/worker/master/volumes/provider"
+	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
 	"github.com/goodrain/rainbond/worker/master/volumes/statistical"
 	"github.com/prometheus/client_golang/prometheus"
-
-	"github.com/goodrain/rainbond/worker/appm/store"
-
-	"github.com/goodrain/rainbond/cmd/worker/option"
-	"github.com/goodrain/rainbond/util/leader"
-	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
 )
 
 //Controller app runtime master controller
@@ -45,12 +43,15 @@ type Controller struct {
 	cancel    context.CancelFunc
 	conf      option.Config
 	store     store.Storer
+	mstore    mstore.Storer
 	dbmanager db.Manager
 	memoryUse *prometheus.GaugeVec
 	fsUse     *prometheus.GaugeVec
 	diskCache *statistical.DiskCache
 	pc        *controller.ProvisionController
 	isLeader  bool
+
+	stopCh chan struct{}
 }
 
 //NewMasterController new master controller
@@ -81,6 +82,8 @@ func NewMasterController(conf option.Config, store store.Storer) (*Controller, e
 		conf:      conf,
 		pc:        pc,
 		store:     store,
+		mstore:    mstore.New(conf.KubeClient),
+		stopCh:    make(chan struct{}),
 		cancel:    cancel,
 		ctx:       ctx,
 		dbmanager: db.GetManager(),
@@ -128,12 +131,15 @@ func (m *Controller) Start() error {
 	// Name of config map with leader election lock
 	lockName := "rainbond-appruntime-worker-leader"
 	go leader.RunAsLeader(m.conf.KubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {})
+
+	// watch pod
+	m.mstore.Run(m.stopCh)
 	return nil
 }
 
 //Stop stop
 func (m *Controller) Stop() {
-
+	close(m.stopCh)
 }
 
 //Scrape scrape app runtime

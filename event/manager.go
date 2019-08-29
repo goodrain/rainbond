@@ -101,8 +101,8 @@ func GetManager() Manager {
 	return defaultManager
 }
 
-// SetManager -
-func SetManager(m Manager) {
+// NewTestManager -
+func NewTestManager(m Manager) {
 	defaultManager = m
 }
 

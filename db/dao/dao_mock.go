@@ -3347,41 +3347,6 @@ func (mr *MockEventDaoMockRecorder) GetEventsByTenantID(tenantID, offset, limit 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventsByTenantID", reflect.TypeOf((*MockEventDao)(nil).GetEventsByTenantID), tenantID, offset, limit)
 }
 
-// GetByTargetIDTypeUser mocks base method
-func (m *MockEventDao) GetByTargetIDTypeUser(targetID, optType, username string) (*model.ServiceEvent, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetByTargetIDTypeUser", targetID, optType, username)
-	ret0, _ := ret[0].(*model.ServiceEvent)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetByTargetIDTypeUser indicates an expected call of GetByTargetIDTypeUser
-func (mr *MockEventDaoMockRecorder) GetByTargetIDTypeUser(targetID, optType, username interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByTargetIDTypeUser", reflect.TypeOf((*MockEventDao)(nil).GetByTargetIDTypeUser), targetID, optType, username)
-}
-
-// GetByTargetIDAndType mocks base method
-func (m *MockEventDao) GetByTargetIDAndType(targetID string, optTypes ...string) (*model.ServiceEvent, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{targetID}
-	for _, a := range optTypes {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "GetByTargetIDAndType", varargs...)
-	ret0, _ := ret[0].(*model.ServiceEvent)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetByTargetIDAndType indicates an expected call of GetByTargetIDAndType
-func (mr *MockEventDaoMockRecorder) GetByTargetIDAndType(targetID interface{}, optTypes ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{targetID}, optTypes...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByTargetIDAndType", reflect.TypeOf((*MockEventDao)(nil).GetByTargetIDAndType), varargs...)
-}
-
 // GetLastASyncEvent mocks base method
 func (m *MockEventDao) GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error) {
 	m.ctrl.T.Helper()
@@ -3395,6 +3360,41 @@ func (m *MockEventDao) GetLastASyncEvent(target, targetID string) (*model.Servic
 func (mr *MockEventDaoMockRecorder) GetLastASyncEvent(target, targetID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastASyncEvent", reflect.TypeOf((*MockEventDao)(nil).GetLastASyncEvent), target, targetID)
+}
+
+// UnfinishedEvents mocks base method
+func (m *MockEventDao) UnfinishedEvents(target, targetID string, optTypes ...string) ([]*model.ServiceEvent, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{target, targetID}
+	for _, a := range optTypes {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "UnfinishedEvents", varargs...)
+	ret0, _ := ret[0].([]*model.ServiceEvent)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UnfinishedEvents indicates an expected call of UnfinishedEvents
+func (mr *MockEventDaoMockRecorder) UnfinishedEvents(target, targetID interface{}, optTypes ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{target, targetID}, optTypes...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnfinishedEvents", reflect.TypeOf((*MockEventDao)(nil).UnfinishedEvents), varargs...)
+}
+
+// LatestUnfinishedPodEvent mocks base method
+func (m *MockEventDao) LatestUnfinishedPodEvent(podName string) (*model.ServiceEvent, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LatestUnfinishedPodEvent", podName)
+	ret0, _ := ret[0].(*model.ServiceEvent)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LatestUnfinishedPodEvent indicates an expected call of LatestUnfinishedPodEvent
+func (mr *MockEventDaoMockRecorder) LatestUnfinishedPodEvent(podName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestUnfinishedPodEvent", reflect.TypeOf((*MockEventDao)(nil).LatestUnfinishedPodEvent), podName)
 }
 
 // MockVersionInfoDao is a mock of VersionInfoDao interface
