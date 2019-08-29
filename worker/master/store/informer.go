@@ -30,6 +30,11 @@ type Informer struct {
 	Pod cache.SharedIndexInformer
 }
 
+// Lister contains object listers (stores).
+type Lister struct {
+	Pod PodLister
+}
+
 // Run initiates the synchronization of the informers against the API server.
 func (i *Informer) Run(stopCh chan struct{}) {
 	go i.Pod.Run(stopCh)

@@ -33,7 +33,7 @@ func NewClientset(kubecfg string) (kubernetes.Interface, error) {
 func NewRainbondFilteredSharedInformerFactory(clientset kubernetes.Interface) informers.SharedInformerFactory {
 	return informers.NewFilteredSharedInformerFactory(
 		clientset, 30*time.Second, corev1.NamespaceAll, func(options *metav1.ListOptions) {
-			options.LabelSelector = "service_id=81f86ea23bb22c37385b8e7edf36f4a9"
+			options.LabelSelector = "creater=Rainbond"
 		},
 	)
 }

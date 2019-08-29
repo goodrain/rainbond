@@ -82,7 +82,7 @@ func NewMasterController(conf option.Config, store store.Storer) (*Controller, e
 		conf:      conf,
 		pc:        pc,
 		store:     store,
-		mstore:    mstore.New(conf.KubeClient),
+		mstore:    mstore.New(conf.KubeClient, store),
 		stopCh:    make(chan struct{}),
 		cancel:    cancel,
 		ctx:       ctx,

@@ -139,7 +139,7 @@ func TestRecordUpdateEvent(t *testing.T) {
 
 			// mock db
 			dbmanager := db.NewMockManager(ctrl)
-			db.SetManager(dbmanager)
+			db.SetTestManager(dbmanager)
 			serviceEventDao := dao.NewMockEventDao(ctrl)
 			dbmanager.EXPECT().ServiceEventDao().AnyTimes().Return(serviceEventDao)
 			var evt *model.ServiceEvent
@@ -254,7 +254,7 @@ func TestK8sStore_Run(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating k8s clientset: %s", err.Error())
 	}
-	store := New(clientset)
+	store := New(clientset, nil)
 	stop := make(chan struct{})
 	store.Run(stop)
 

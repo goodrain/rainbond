@@ -144,7 +144,7 @@ func GetManager() Manager {
 	return defaultManager
 }
 
-// SetManager sets the default manager, usally for unit test
-func SetManager(m Manager) {
+// SetTestManager sets the default manager for unit test
+func SetTestManager(m Manager) {
 	defaultManager = m
 }
