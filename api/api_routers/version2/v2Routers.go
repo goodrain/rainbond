@@ -225,7 +225,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Get("/endpoints", controller.GetManager().Endpoints)
 
 	// gateway
-	r.Put("/rule-config", middleware.WrapEL(controller.GetManager().RuleConfig, dbmodel.TargetTypeService, "update-service-gateway-rule", dbmodel.ASYNEVENTTYPE))
+	r.Put("/rule-config", middleware.WrapEL(controller.GetManager().RuleConfig, dbmodel.TargetTypeService, "update-service-gateway-rule", dbmodel.SYNEVENTTYPE))
 
 	// app restore
 	r.Post("/app-restore/envs", middleware.WrapEL(controller.GetManager().RestoreEnvs, dbmodel.TargetTypeService, "app-restore-envs", dbmodel.SYNEVENTTYPE))
