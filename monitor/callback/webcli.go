@@ -78,7 +78,6 @@ func (w *Webcli) toScrape() *prometheus.ScrapeConfig {
 	for _, end := range w.sortedEndpoints {
 		ts = append(ts, end)
 	}
-
 	return &prometheus.ScrapeConfig{
 		JobName:        w.Name(),
 		ScrapeInterval: model.Duration(time.Minute),

@@ -261,7 +261,6 @@ func (gwc *GWController) initRbdEndpoints(errCh chan<- error) {
 // updateRbdPools updates rainbond pools
 func (gwc *GWController) updateRbdPools(edps map[string][]string) {
 	h, t := gwc.getRbdPools(edps)
-
 	if h != nil {
 		//merge app pool
 		for _, rbd := range h {
@@ -287,7 +286,6 @@ func (gwc *GWController) updateRbdPools(edps map[string][]string) {
 func (gwc *GWController) getRbdPools(edps map[string][]string) ([]*v1.Pool, []*v1.Pool) {
 	var hpools []*v1.Pool // http pools
 	var tpools []*v1.Pool // tcp pools
-
 	if gwc.ocfg.EnableKApiServer {
 		pools := convIntoRbdPools(edps["APISERVER_ENDPOINTS"], "kube_apiserver")
 		if pools != nil && len(pools) > 0 {
@@ -451,7 +449,8 @@ func convIntoRbdPools(data []string, names ...string) []*v1.Pool {
 		for _, name := range names {
 			pool := &v1.Pool{
 				Meta: v1.Meta{
-					Name: name,
+					Name:      name,
+					Namespace: "rainbond",
 				},
 				LoadBalancingType: v1.RoundRobin,
 			}
