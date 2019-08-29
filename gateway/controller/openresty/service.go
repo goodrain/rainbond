@@ -110,7 +110,6 @@ func (o *OrService) Start(errCh chan error) error {
 		logrus.Errorf("init openresty config failure %s", err.Error())
 		return err
 	}
-	logrus.Infof("init openresty config success")
 	if o.ocfg.EnableRbdEndpoints {
 		if err := o.newRbdServers(); err != nil {
 			showErr := fmt.Errorf("create rainbond default server config failure %s", err.Error())
@@ -118,6 +117,7 @@ func (o *OrService) Start(errCh chan error) error {
 			return showErr
 		}
 	}
+	logrus.Infof("init openresty config success")
 	go func() {
 		for {
 			logrus.Infof("start openresty progress")
@@ -153,7 +153,7 @@ func (o *OrService) Stop() error {
 // PersistConfig persists ocfg
 func (o *OrService) PersistConfig(conf *v1.Config) error {
 	//stream upstream
-	if err := o.persistUpstreams("", conf.TCPPools); err != nil {
+	if err := o.persistUpstreams(conf.TCPPools); err != nil {
 		logrus.Errorf("fail to persist tcp upstreams.conf")
 	}
 	l7srv, l4srv := getNgxServer(conf)
@@ -171,8 +171,8 @@ func (o *OrService) PersistConfig(conf *v1.Config) error {
 }
 
 // persistUpstreams persists upstreams
-func (o *OrService) persistUpstreams(tenant string, pools []*v1.Pool) error {
-	var upstreams []*model.Upstream
+func (o *OrService) persistUpstreams(pools []*v1.Pool) error {
+	var upstreams = make(map[string][]*model.Upstream)
 	for _, pool := range pools {
 		upstream := &model.Upstream{}
 		upstream.Name = pool.Name
@@ -190,11 +190,13 @@ func (o *OrService) persistUpstreams(tenant string, pools []*v1.Pool) error {
 			servers = append(servers, server)
 		}
 		upstream.Servers = servers
-		upstreams = append(upstreams, upstream)
+		upstreams[pool.Namespace] = append(upstreams[pool.Namespace], upstream)
 	}
-	if err := o.configManage.WriteUpstream(*o.ocfg, tenant, upstreams...); err != nil {
-		logrus.Errorf("Fail to new nginx Upstream ocfg file: %v", err)
-		return err
+	for tenant, tupstreams := range upstreams {
+		if err := o.configManage.WriteUpstream(*o.ocfg, tenant, tupstreams...); err != nil {
+			logrus.Errorf("Fail to new nginx Upstream ocfg file: %v", err)
+			return err
+		}
 	}
 	return nil
 }
@@ -251,7 +253,7 @@ func (o *OrService) UpdatePools(hpools []*v1.Pool, tpools []*v1.Pool) error {
 	lock.Lock()
 	defer lock.Unlock()
 	if len(tpools) > 0 {
-		err := o.persistUpstreams("", tpools)
+		err := o.persistUpstreams(tpools)
 		if err != nil {
 			logrus.Warningf("error updating upstream.default.tcp.conf")
 		}
@@ -329,11 +331,6 @@ func (o *OrService) newRbdServers() error {
 		return err
 	}
 	if o.ocfg.EnableKApiServer {
-		ksrv := kubeApiserver(o.ocfg.KApiServerIP)
-		if err := o.configManage.WriteServer(*o.ocfg, "stream", "rainbond", ksrv); err != nil {
-			logrus.Errorf("write kube api config server failure %s", err.Error())
-			return err
-		}
 		dummyUpstream := &model.Upstream{
 			Name: "kube_apiserver",
 			Servers: []model.UServer{
@@ -347,6 +344,11 @@ func (o *OrService) newRbdServers() error {
 		}
 		if err := o.configManage.WriteUpstream(*o.ocfg, "rainbond", dummyUpstream); err != nil {
 			logrus.Errorf("write kube api config upstream failure %s", err.Error())
+			return err
+		}
+		ksrv := kubeApiserver(o.ocfg.KApiServerIP)
+		if err := o.configManage.WriteServer(*o.ocfg, "stream", "rainbond", ksrv); err != nil {
+			logrus.Errorf("write kube api config server failure %s", err.Error())
 			return err
 		}
 	}

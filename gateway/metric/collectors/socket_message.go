@@ -338,14 +338,14 @@ func (sc *SocketCollector) RemoveMetrics(hosts []string, registry prometheus.Gat
 			if ok {
 				removed := h.Delete(labels)
 				if !removed {
-					logrus.Infof("metric %v for host %v with labels not removed: %v", metricName, ingKey, labels)
+					logrus.Debugf("metric %v for host %v with labels not removed: %v", metricName, ingKey, labels)
 				}
 			}
 			s, ok := metric.(*prometheus.SummaryVec)
 			if ok {
 				removed := s.Delete(labels)
 				if !removed {
-					logrus.Infof("metric %v for host %v with labels not removed: %v", metricName, ingKey, labels)
+					logrus.Debugf("metric %v for host %v with labels not removed: %v", metricName, ingKey, labels)
 				}
 			}
 		}
