@@ -53,6 +53,7 @@ func setStartupSequenceConfig(configs map[string]string) map[string]string {
 //Build build
 func (b *BatchOperationHandler) Build(buildInfos []model.BuildInfoRequestStruct) (re BatchOperationResult) {
 	var retrys []model.BuildInfoRequestStruct
+
 	for _, buildInfo := range buildInfos {
 		buildInfo.Configs = setStartupSequenceConfig(buildInfo.Configs)
 		buildre := b.operationHandler.Build(buildInfo)
