@@ -360,9 +360,11 @@ func (g *GatewayStruct) RuleConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	eventID := r.Context().Value(middleware.ContextKey("event_id")).(string)
 	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
 		"service_id": sid,
 		"action":     "update-rule-config",
+		"event_id":   eventID,
 	}); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 		httputil.ReturnError(r, w, 500, "update rule config error: "+err.Error())
