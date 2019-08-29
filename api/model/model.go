@@ -1402,6 +1402,7 @@ type ExportAppStruct struct {
 
 //BeatchOperationRequestStruct beatch operation request body
 type BeatchOperationRequestStruct struct {
+	Operator   string `json:"operator"`
 	TenantName string `json:"tenant_name"`
 	Body       struct {
 		Operation    string                         `json:"operation" validate:"operation|required|in:start,stop,build,upgrade"`

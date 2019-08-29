@@ -18,12 +18,11 @@
 
 package controller
 
-import (
-	"github.com/goodrain/rainbond/gateway/v1"
-)
+import v1 "github.com/goodrain/rainbond/gateway/v1"
 
+//GWServicer -
 type GWServicer interface {
-	Start(errCh chan error)
+	Start(errCh chan error) error
 	Stop() error
 	Check() error
 	PersistConfig(conf *v1.Config) error

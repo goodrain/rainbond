@@ -86,7 +86,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/resources", controller.GetManager().SingleTenantResources)
 	r.Get("/services", controller.GetManager().ServicesInfo)
 	//创建应用
-	r.Post("/services", controller.GetManager().CreateService)
+	r.Post("/services", middleware.WrapEL(controller.GetManager().CreateService, dbmodel.TargetTypeService, "create-service", dbmodel.SYNEVENTTYPE))
 	r.Post("/plugin", controller.GetManager().PluginAction)
 	r.Post("/plugins/{plugin_id}/share", controller.GetManager().SharePlugin)
 	r.Get("/plugins/{plugin_id}/share/{share_id}", controller.GetManager().SharePluginResult)
@@ -220,8 +220,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 
 	// third-party service
 	r.Post("/endpoints", middleware.WrapEL(controller.GetManager().Endpoints, dbmodel.TargetTypeService, "add-thirdpart-service", dbmodel.ASYNEVENTTYPE))
-	r.Put("/endpoints", middleware.WrapEL(controller.GetManager().Endpoints, dbmodel.TargetTypeService, "update-thirdpart-service", dbmodel.ASYNEVENTTYPE))
-	r.Delete("/endpoints", middleware.WrapEL(controller.GetManager().Endpoints, dbmodel.TargetTypeService, "delete-thirdpart-service", dbmodel.ASYNEVENTTYPE))
+	r.Put("/endpoints", middleware.WrapEL(controller.GetManager().Endpoints, dbmodel.TargetTypeService, "update-thirdpart-service", dbmodel.SYNEVENTTYPE))
+	r.Delete("/endpoints", middleware.WrapEL(controller.GetManager().Endpoints, dbmodel.TargetTypeService, "delete-thirdpart-service", dbmodel.SYNEVENTTYPE))
 	r.Get("/endpoints", controller.GetManager().Endpoints)
 
 	// gateway
