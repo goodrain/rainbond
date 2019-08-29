@@ -29,8 +29,48 @@ const SYNEVENTTYPE = 1
 // TargetTypeService service target
 const TargetTypeService = "service"
 
+// TargetTypePod -
+const TargetTypePod = "pod"
+
 // TargetTypeTenant tenant target
 const TargetTypeTenant = "tenant"
+
+// UsernameSystem -
+const UsernameSystem = "system"
+
+// EventFinalStatus -
+type EventFinalStatus string
+
+// String -
+func (e EventFinalStatus) String() string {
+	return string(e)
+}
+
+// EventFinalStatusComplete -
+var EventFinalStatusComplete EventFinalStatus = "complete"
+
+// EventFinalStatusFailure -
+var EventFinalStatusFailure EventFinalStatus = "failure"
+
+// EventFinalStatusRunning -
+var EventFinalStatusRunning EventFinalStatus = "running"
+
+// EventFinalStatusEmpty -
+var EventFinalStatusEmpty EventFinalStatus = "empty"
+
+// EventFinalStatus -
+type EventStatus string
+
+// String -
+func (e EventStatus) String() string {
+	return string(e)
+}
+
+// EventStatusSuccess -
+var EventStatusSuccess EventStatus = "success"
+
+// EventStatusFailure
+var EventStatusFailure EventStatus = "failure"
 
 //ServiceEvent event struct
 type ServiceEvent struct {
@@ -39,7 +79,7 @@ type ServiceEvent struct {
 	TenantID    string `gorm:"column:tenant_id;size:40"`
 	ServiceID   string `gorm:"column:service_id;size:40"`
 	Target      string `gorm:"column:target;size:40"`
-	TargetID    string `gorm:"column:target_id;size:40"`
+	TargetID    string `gorm:"column:target_id;size:255"`
 	RequestBody string `gorm:"column:request_body;1024"`
 	UserName    string `gorm:"column:user_name;size:40"`
 	StartTime   string `gorm:"column:start_time;size:40"`

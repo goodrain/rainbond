@@ -19,13 +19,14 @@
 package store
 
 import (
+	"testing"
+
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"testing"
 )
 
 func TestAppRuntimeStore_GetTenantResource(t *testing.T) {
@@ -68,6 +69,5 @@ func TestAppRuntimeStore_GetTenantResource(t *testing.T) {
 
 	tenantID := "d22797956503441abce65e40705aac29"
 	resource := store.GetTenantResource(tenantID)
-	t.Logf("%+v",resource)
-	//t.Error("")
+	t.Logf("%+v", resource)
 }
