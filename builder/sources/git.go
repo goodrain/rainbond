@@ -120,7 +120,7 @@ Loop:
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
 	writer := logger.GetWriter("progress", "debug")
-	writer.SetFormat(`{"progress":"%s","id":"Clone:"}`)
+	writer.SetFormat(map[string]interface{}{"progress": "%s", "id": "Clone:"})
 	opts := &git.CloneOptions{
 		URL:               csi.RepositoryURL,
 		Progress:          writer,
@@ -256,7 +256,7 @@ Loop:
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
 	writer := logger.GetWriter("progress", "debug")
-	writer.SetFormat(`{"progress":"%s","id":"Pull:"}`)
+	writer.SetFormat(map[string]interface{}{"progress": "%s", "id": "Pull:"})
 	opts := &git.PullOptions{
 		Progress:     writer,
 		SingleBranch: true,

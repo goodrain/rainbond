@@ -17,3 +17,12 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package collectors
+
+import (
+	"github.com/goodrain/rainbond/gateway/controller/openresty/nginxcmd"
+	"github.com/prometheus/client_golang/prometheus"
+)
+
+func nginxDescribe(ch chan<- *prometheus.Desc) {
+	nginxcmd.PromethesuScrape(ch)
+}

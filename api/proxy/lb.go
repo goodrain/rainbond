@@ -22,7 +22,12 @@ import (
 	"net/http"
 	"strings"
 	"sync/atomic"
+
+	"github.com/Sirupsen/logrus"
 )
+
+//ContextKey context key
+type ContextKey string
 
 // RoundRobin round robin loadBalance impl
 type RoundRobin struct {
@@ -170,7 +175,14 @@ func (s *SelectBalance) Select(r *http.Request, endpoints EndpointList) Endpoint
 
 	if r.URL != nil {
 		hostID := r.URL.Query().Get("host_id")
+		if hostID == "" {
+			hostIDFromContext := r.Context().Value(ContextKey("host_id"))
+			if hostIDFromContext != nil {
+				hostID = hostIDFromContext.(string)
+			}
+		}
 		if e, ok := id2ip[hostID]; ok {
+			logrus.Debugf("[lb selelct] find host %s from name %s success", e, hostID)
 			return Endpoint(e)
 		}
 	}

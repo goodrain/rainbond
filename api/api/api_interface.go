@@ -97,6 +97,8 @@ type LogInterface interface {
 	LogSocket(w http.ResponseWriter, r *http.Request)
 	LogByAction(w http.ResponseWriter, r *http.Request)
 	TenantLogByAction(w http.ResponseWriter, r *http.Request)
+	Events(w http.ResponseWriter, r *http.Request)
+	EventLog(w http.ResponseWriter, r *http.Request)
 }
 
 //PluginInterface plugin interface
@@ -163,4 +165,9 @@ type AppRestoreInterface interface {
 	RestoreDeps(w http.ResponseWriter, r *http.Request)
 	RestoreDepVols(w http.ResponseWriter, r *http.Request)
 	RestorePlugins(w http.ResponseWriter, r *http.Request)
+}
+
+// PodInterface defines api methods about k8s pods.
+type PodInterface interface {
+	PodDetail(w http.ResponseWriter, r *http.Request)
 }

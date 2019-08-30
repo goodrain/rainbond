@@ -71,6 +71,7 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 	operationHandler = CreateOperationHandler(mqClient)
 	batchOperationHandler = CreateBatchOperationHandler(mqClient, operationHandler)
 	defaultAppRestoreHandler = NewAppRestoreHandler()
+	defPodHandler = NewPodHandler(statusCli)
 
 	return nil
 }
@@ -176,4 +177,11 @@ var defaultAppRestoreHandler AppRestoreHandler
 // GetAppRestoreHandler returns a default AppRestoreHandler
 func GetAppRestoreHandler() AppRestoreHandler {
 	return defaultAppRestoreHandler
+}
+
+var defPodHandler PodHandler
+
+// GetPodHandler returns the defalut PodHandler
+func GetPodHandler() PodHandler {
+	return defPodHandler
 }

@@ -19,12 +19,10 @@
 package store
 
 import (
-	"strings"
 	"sync"
 	"time"
 
 	cdb "github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/eventlog/util"
@@ -114,7 +112,6 @@ func (h *handleMessageStore) Gc() {
 	}
 }
 func (h *handleMessageStore) gcRun() {
-	//h.log.Debugf("runGC %d", time.Now().UnixNano())
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	t := time.Now()
@@ -123,7 +120,7 @@ func (h *handleMessageStore) gcRun() {
 	}
 	var gcEvent []string
 	for k, v := range h.barrels {
-		if v.updateTime.Add(time.Second * 30).Before(time.Now()) { // barrel 超时未收到消息
+		if v.updateTime.Add(time.Second * 30).Before(time.Now()) {
 			h.saveBeforeGc(v)
 			gcEvent = append(gcEvent, k)
 		}
@@ -132,7 +129,7 @@ func (h *handleMessageStore) gcRun() {
 		for _, id := range gcEvent {
 			barrel := h.barrels[id]
 			barrel.empty()
-			h.pool.Put(barrel) //放回对象池
+			h.pool.Put(barrel)
 			delete(h.barrels, id)
 		}
 	}
@@ -240,7 +237,6 @@ func (h *handleMessageStore) saveGarbageMessage() {
 	}
 	err := util.AppendToFile(h.conf.GarbageMessageFile, content)
 	if err != nil {
-		//h.log.Error("Save garbage message to file error.context :\n " + content)
 		h.log.Error("Save garbage message to file error.context", err.Error())
 	} else {
 		h.log.Info("Save the garbage message to file.")
@@ -286,25 +282,21 @@ func (h *handleMessageStore) handleBarrelEvent() {
 					eventID := event[1]
 					status := event[2]
 					message := event[3]
-					event := model.ServiceEvent{}
-					event.EventID = eventID
-					event.Status = status
-					event.Message = message
-					logrus.Infof("updating event %s's status: %s", eventID, status)
-					if err := cdb.GetManager().ServiceEventDao().UpdateModel(&event); err != nil {
-						logrus.Errorf("update event status failure %s", err.Error())
+					event, err := cdb.GetManager().ServiceEventDao().GetEventByEventID(eventID)
+					if err != nil {
+						logrus.Errorf("get event by event id %s failure %s", eventID, err.Error())
+
+					} else {
+						event.Status = status
+						event.FinalStatus = "complete"
+						event.Message = message
+						event.EndTime = time.Now().Format(time.RFC3339)
+						logrus.Infof("updating event %s's status: %s", eventID, status)
+						if err := cdb.GetManager().ServiceEventDao().UpdateModel(event); err != nil {
+							logrus.Errorf("update event status failure %s", err.Error())
+						}
 					}
-				}
-			}
-			if event[0] == "code-version" { //代码版本
-				if len(event) == 3 {
-					eventID := event[1]
-					codeVersion := strings.TrimSpace(event[2])
-					event := model.ServiceEvent{}
-					event.EventID = eventID
-					event.CodeVersion = codeVersion
-					cdb.GetManager().ServiceEventDao().UpdateModel(&event)
-					h.log.Infof("run web hook update code version .event_id %s code_version %s", eventID, codeVersion)
+
 				}
 			}
 		case <-h.ctx.Done():

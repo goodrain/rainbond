@@ -28,17 +28,36 @@ import (
 
 func TestGetAppStatus(t *testing.T) {
 	client, err := NewClient(context.Background(), AppRuntimeSyncClientConf{
-		EtcdEndpoints: []string{"127.0.0.1:2379"},
+		EtcdEndpoints: []string{"192.168.3.252:2379"},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(3 * time.Second)
-	status, err := client.GetAppStatus(context.Background(), &pb.StatusRequest{
+	status, err := client.GetAppStatus(context.Background(), &pb.ServicesRequest{
 		ServiceIds: "43eaae441859eda35b02075d37d83589",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(status)
+}
+
+func TestGetPodDetail(t *testing.T) {
+	client, err := NewClient(context.Background(), AppRuntimeSyncClientConf{
+		EtcdEndpoints: []string{"127.0.0.1:2379"},
+	})
+	if err != nil {
+		t.Fatalf("error creating grpc client: %v", err)
+	}
+
+	time.Sleep(3 * time.Second)
+
+	sid := "bc2e153243e4917acaf0c6088789fa12"
+	podname := "bc2e153243e4917acaf0c6088789fa12-deployment-6cc445949b-2dh25"
+	detail, err := client.GetPodDetail(sid, podname)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	t.Logf("pod detail: %+v", detail)
 }

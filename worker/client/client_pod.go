@@ -31,3 +31,13 @@ func (a *AppRuntimeSyncClient) GetServicePods(serviceID string) (*pb.ServiceAppP
 	defer cancel()
 	return a.AppRuntimeSyncClient.GetAppPods(ctx, &pb.ServiceRequest{ServiceId: serviceID})
 }
+
+// GetPodDetail -
+func (a *AppRuntimeSyncClient) GetPodDetail(sid, name string) (*pb.PodDetail, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return a.AppRuntimeSyncClient.GetPodDetail(ctx, &pb.GetPodDetailReq{
+		Sid:     sid,
+		PodName: name,
+	})
+}

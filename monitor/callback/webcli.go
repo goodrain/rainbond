@@ -27,7 +27,6 @@ import (
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
-	"github.com/tidwall/gjson"
 )
 
 //Webcli webcli
@@ -39,18 +38,7 @@ type Webcli struct {
 
 //UpdateEndpoints update endpoints
 func (w *Webcli) UpdateEndpoints(endpoints ...*config.Endpoint) {
-	// 用v3 API注册，返回json格试，所以要提前处理一下
-	newEndpoints := make([]*config.Endpoint, 0, len(endpoints))
-	for _, end := range endpoints {
-		newEnd := *end
-		newEndpoints = append(newEndpoints, &newEnd)
-	}
-
-	for i, end := range endpoints {
-		newEndpoints[i].URL = gjson.Get(end.URL, "Addr").String()
-	}
-
-	newArr := utils.TrimAndSort(newEndpoints)
+	newArr := utils.TrimAndSort(endpoints)
 
 	if utils.ArrCompare(w.sortedEndpoints, newArr) {
 		logrus.Debugf("The endpoints is not modify: %s", w.Name())
@@ -78,7 +66,6 @@ func (w *Webcli) toScrape() *prometheus.ScrapeConfig {
 	for _, end := range w.sortedEndpoints {
 		ts = append(ts, end)
 	}
-
 	return &prometheus.ScrapeConfig{
 		JobName:        w.Name(),
 		ScrapeInterval: model.Duration(time.Minute),

@@ -16,35 +16,25 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package openresty
+package rs
 
 import (
-	"os"
-	"os/exec"
-	"path"
+	"testing"
 
-	"github.com/goodrain/rainbond/gateway/controller/openresty/template"
+	"github.com/goodrain/rainbond/gateway/controller"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	nginxBinary      = "nginx"
-	defaultNginxConf = "/run/nginx/conf/nginx.conf"
-)
+func TestReplicaSetTimestamp(t *testing.T) {
+	clientset, err := controller.NewClientSet("/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig")
+	if err != nil {
+		t.Errorf("can't create Kubernetes's client: %v", err)
+	}
 
-func init() {
-	nginxBinary = path.Join(os.Getenv("OPENRESTY_HOME"), "/nginx/sbin/nginx")
-	ngx := os.Getenv("NGINX_BINARY")
-	if ngx != "" {
-		nginxBinary = ngx
+	ns := "c1a29fe4d7b0413993dc859430cf743d"
+	rs, err := clientset.ExtensionsV1beta1().ReplicaSets(ns).Get("88d8c4c55657217522f3bb86cfbded7e-deployment-7545b75dbd", metav1.GetOptions{})
+	if err != nil {
+		t.Errorf("Unexpected error: %+v", err)
 	}
-	customConfig := os.Getenv("NGINX_CUSTOM_CONFIG")
-	if customConfig != "" {
-		template.CustomConfigPath = customConfig
-	}
-}
-func nginxExecCommand(args ...string) *exec.Cmd {
-	var cmdArgs []string
-	cmdArgs = append(cmdArgs, "-c", defaultNginxConf)
-	cmdArgs = append(cmdArgs, args...)
-	return exec.Command(nginxBinary, cmdArgs...)
+	t.Logf("%+v", rs)
 }

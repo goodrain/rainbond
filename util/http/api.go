@@ -141,10 +141,10 @@ func ReturnSuccess(r *http.Request, w http.ResponseWriter, datas interface{}) {
 	return
 }
 
-//ReturnList 返回列表
-func ReturnList(r *http.Request, w http.ResponseWriter, listAllNumber, page int, datas ...interface{}) {
+//ReturnList return list with page and count
+func ReturnList(r *http.Request, w http.ResponseWriter, listAllNumber, page int, list interface{}) {
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, http.StatusOK))
-	render.DefaultResponder(w, r, ResponseBody{List: datas, ListAllNumber: listAllNumber, Page: page})
+	render.DefaultResponder(w, r, ResponseBody{List: list, ListAllNumber: listAllNumber, Page: page})
 }
 
 //ReturnError 返回错误信息

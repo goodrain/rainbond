@@ -48,7 +48,7 @@ import (
 //Run start run
 func Run(s *option.GWServer) error {
 	logrus.Info("start gateway...")
-	errCh := make(chan error)
+	errCh := make(chan error, 1)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	//create cluster node manage

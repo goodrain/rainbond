@@ -23,10 +23,11 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -44,16 +45,16 @@ func (s *stopController) Begin() {
 		go func(service v1.AppService) {
 			wait.Add(1)
 			defer wait.Done()
-			service.Logger.Info("App runtime begin stop app service "+service.ServiceAlias, getLoggerOption("starting"))
+			service.Logger.Info("App runtime begin stop app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 			if err := s.stopOne(service); err != nil {
 				if err != ErrWaitTimeOut {
-					service.Logger.Error(fmt.Sprintf("stop service %s failure %s", service.ServiceAlias, err.Error()), GetCallbackLoggerOption())
+					service.Logger.Error(util.Translation("stop service error"), event.GetCallbackLoggerOption())
 					logrus.Errorf("stop service %s failure %s", service.ServiceAlias, err.Error())
 				} else {
-					service.Logger.Error(fmt.Sprintf("stop service timeout,please waiting it closed"), GetTimeoutLoggerOption())
+					service.Logger.Error(util.Translation("stop service timeout"), event.GetTimeoutLoggerOption())
 				}
 			} else {
-				service.Logger.Info(fmt.Sprintf("stop service %s success", service.ServiceAlias), GetLastLoggerOption())
+				service.Logger.Info(fmt.Sprintf("stop service %s success", service.ServiceAlias), event.GetLastLoggerOption())
 			}
 		}(service)
 	}
@@ -139,7 +140,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 	}
 	//step 7: waiting endpoint ready
-	app.Logger.Info("Delete all app model success, will waiting app closed", getLoggerOption("running"))
+	app.Logger.Info("Delete all app model success, will waiting app closed", event.GetLoggerOption("running"))
 	return s.WaitingReady(app)
 }
 func (s *stopController) Stop() error {
