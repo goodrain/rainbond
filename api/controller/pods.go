@@ -19,15 +19,19 @@
 package controller
 
 import (
+	"fmt"
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/worker/server"
 	"net/http"
-	"strings"
 
+	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
+
+// PodController is an implementation of PodInterface
+type PodController struct{}
 
 //Pods get some service pods
 // swagger:operation GET /v2/tenants/{tenant_name}/pods v2/tenants pods
@@ -51,18 +55,24 @@ import (
 //       "$ref": "#/responses/commandResponse"
 //     description: get some service pods
 func Pods(w http.ResponseWriter, r *http.Request) {
-	serviceIDs := strings.Split(r.FormValue("service_ids"), ",")
-	if serviceIDs == nil || len(serviceIDs) == 0 {
-		tenant := r.Context().Value(middleware.ContextKey("tenant")).(*model.Tenants)
-		services, _ := db.GetManager().TenantServiceDao().GetServicesByTenantID(tenant.UUID)
-		for _, s := range services {
-			serviceIDs = append(serviceIDs, s.ServiceID)
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	pods, _ := handler.GetServiceManager().GetPods(serviceID)
+	httputil.ReturnSuccess(r, w, pods)
+}
+
+// PodDetail -
+func (p *PodController) PodDetail(w http.ResponseWriter, r *http.Request) {
+	podName := chi.URLParam(r, "pod_name")
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	pd, err := handler.GetPodHandler().PodDetail(serviceID, podName)
+	if err != nil {
+		logrus.Errorf("error getting pod detail: %v", err)
+		if err == server.ErrPodNotFound {
+			httputil.ReturnError(r, w, 404, fmt.Sprintf("error getting pod detail: %v", err))
+			return
 		}
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("error getting pod detail: %v", err))
+		return
 	}
-	var allpods []*handler.K8sPodInfo
-	for _, serviceID := range serviceIDs {
-		pods, _ := handler.GetServiceManager().GetPods(serviceID)
-		allpods = append(allpods, pods...)
-	}
-	httputil.ReturnSuccess(r, w, allpods)
+	httputil.ReturnSuccess(r, w, pd)
 }

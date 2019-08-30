@@ -22,22 +22,17 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
-	"github.com/goodrain/rainbond/util"
-
-	"github.com/pquerna/ffjson/ffjson"
-
-	"github.com/Sirupsen/logrus"
-
 	eventclient "github.com/goodrain/rainbond/eventlog/entry/grpc/client"
 	eventpb "github.com/goodrain/rainbond/eventlog/entry/grpc/pb"
-
+	"github.com/goodrain/rainbond/util"
+	"github.com/pquerna/ffjson/ffjson"
 	"golang.org/x/net/context"
 )
 
@@ -104,6 +99,11 @@ func NewManager(conf EventConfig) error {
 //GetManager 获取日志服务
 func GetManager() Manager {
 	return defaultManager
+}
+
+// NewTestManager -
+func NewTestManager(m Manager) {
+	defaultManager = m
 }
 
 //CloseManager 关闭日志服务
@@ -218,11 +218,7 @@ func (m *manager) GetLogger(eventID string) Logger {
 	if l, ok := m.loggers[eventID]; ok {
 		return l
 	}
-	l := &logger{
-		event:      eventID,
-		sendChan:   m.getLBChan(),
-		createTime: time.Now(),
-	}
+	l := NewLogger(eventID, m.getLBChan())
 	m.loggers[eventID] = l
 	return l
 }
@@ -351,6 +347,15 @@ type Logger interface {
 	GetWriter(step, level string) LoggerWriter
 }
 
+// NewLogger creates a new Logger.
+func NewLogger(eventID string, sendCh chan []byte) Logger {
+	return &logger{
+		event:      eventID,
+		sendChan:   sendCh,
+		createTime: time.Now(),
+	}
+}
+
 type logger struct {
 	event      string
 	sendChan   chan []byte
@@ -403,7 +408,7 @@ func (l *logger) send(message string, info map[string]string) {
 //LoggerWriter logger writer
 type LoggerWriter interface {
 	io.Writer
-	SetFormat(string)
+	SetFormat(map[string]interface{})
 }
 
 func (l *logger) GetWriter(step, level string) LoggerWriter {
@@ -418,22 +423,29 @@ type loggerWriter struct {
 	l     *logger
 	step  string
 	level string
-	fmt   string
+	fmt   map[string]interface{}
 }
 
-func (l *loggerWriter) SetFormat(f string) {
+func (l *loggerWriter) SetFormat(f map[string]interface{}) {
 	l.fmt = f
 }
 func (l *loggerWriter) Write(b []byte) (n int, err error) {
 	if b != nil && len(b) > 0 {
 		message := string(b)
-		message = strings.Replace(message, "\r", "", -1)
-		message = strings.Replace(message, "\n", "", -1)
-		message = strings.Replace(message, "\u0000", "", -1)
-		message = strings.Replace(message, "\"", "", -1)
-		if l.fmt != "" {
-			message = fmt.Sprintf(l.fmt, message)
+		// if loggerWriter has format, and then use it format message
+		if len(l.fmt) > 0 {
+			newLineMap := make(map[string]interface{}, len(l.fmt))
+			for k, v := range l.fmt {
+				if v == "%s" {
+					newLineMap[k] = fmt.Sprintf(v.(string), message)
+				} else {
+					newLineMap[k] = v
+				}
+			}
+			messageb, _ := ffjson.Marshal(newLineMap)
+			message = string(messageb)
 		}
+
 		logrus.Debugf("step: %s, level: %s;write message : %v", l.step, l.level, message)
 		l.l.send(message, map[string]string{"step": l.step, "level": l.level})
 	}
@@ -473,7 +485,7 @@ func (l *testLogger) Debug(message string, info map[string]string) {
 type testLoggerWriter struct {
 }
 
-func (l *testLoggerWriter) SetFormat(f string) {
+func (l *testLoggerWriter) SetFormat(f map[string]interface{}) {
 
 }
 func (l *testLoggerWriter) Write(b []byte) (n int, err error) {

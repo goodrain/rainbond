@@ -16,4 +16,34 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package openresty
+package store
+
+import (
+	"fmt"
+
+	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/tools/cache"
+)
+
+// Informer defines the required SharedIndexInformers that interact with the API server.
+type Informer struct {
+	Pod cache.SharedIndexInformer
+}
+
+// Lister contains object listers (stores).
+type Lister struct {
+	Pod PodLister
+}
+
+// Run initiates the synchronization of the informers against the API server.
+func (i *Informer) Run(stopCh chan struct{}) {
+	go i.Pod.Run(stopCh)
+
+	// wait for all involved caches to be synced before processing items
+	// from the queue
+	if !cache.WaitForCacheSync(stopCh,
+		i.Pod.HasSynced,
+	) {
+		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
+	}
+}

@@ -18,8 +18,43 @@
 
 package model
 
+import "time"
+
 // BuildListRespVO is the response value object for build-list api.
 type BuildListRespVO struct {
 	DeployVersion string      `json:"deploy_version"`
 	List          interface{} `json:"list"`
+}
+
+// BuildVersion -
+type BuildVersion struct {
+	BuildVersion string `json:"build_version"` //唯一
+	EventID      string `json:"event_id"`
+	ServiceID    string `json:"service_id"`
+	Kind         string `json:"kind"` //kind
+	//DeliveredType app version delivered type
+	//image: this is a docker image
+	//slug: this is a source code tar file
+	DeliveredType string `json:"delivered_type"` //kind
+	DeliveredPath string `json:"delivered_path"` //交付物path
+	Cmd           string `json:"cmd"`            //启动命令
+	RepoURL       string `json:"repo_url"`       // source image name or source code url
+
+	CodeBranch  string `json:"code_branch"`
+	CodeVersion string `json:"code_version"`
+	CommitMsg   string `json:"code_commit_msg"`
+	Author      string `json:"code_commit_author"`
+
+	ImageName   string `json:"image_name"` // runtime image name
+	ImageRepo   string `json:"image_repo"`
+	ImageDomain string `json:"image_domain"`
+	ImageTag    string `json:"image_tag"`
+
+	//FinalStatus app version status
+	//success: version available
+	//failure: build failure
+	//lost: there is no delivered
+	CreateTime  string    `json:"create_time"`
+	FinalStatus string    `json:"final_status"`
+	FinishTime  time.Time `json:"finish_time"`
 }

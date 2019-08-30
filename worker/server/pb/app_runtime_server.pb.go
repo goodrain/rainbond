@@ -3,13 +3,12 @@
 
 package pb
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-
 import (
-	context "golang.org/x/net/context"
+	context "context"
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -23,6 +22,66 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
+type PodStatus_Type int32
+
+const (
+	// PENDING means the pod has been accepted by the system, but one or more of the containers
+	// has not been started. This includes time before being bound to a node, as well as time spent
+	// pulling images onto the host.
+	PodStatus_PENDING PodStatus_Type = 0
+	// RUNNING means the pod has been bound to a node and all of the containers have been started.
+	// At least one container is still running or is in the process of being restarted.
+	PodStatus_RUNNING PodStatus_Type = 1
+	// SUCCEEDED means that all containers in the pod have voluntarily terminated
+	// with a container exit code of 0, and the system is not going to restart any of these containers.
+	PodStatus_SUCCEEDED PodStatus_Type = 2
+	// FAILED means that all containers in the pod have terminated, and at least one container has
+	// terminated in a failure (exited with a non-zero exit code or was stopped by the system).
+	PodStatus_FAILED PodStatus_Type = 3
+	// UNKNOWN means that for some reason the state of the pod could not be obtained, typically due
+	// to an error in communicating with the host of the pod.
+	PodStatus_UNKNOWN    PodStatus_Type = 4
+	PodStatus_TEMINATING PodStatus_Type = 5
+	PodStatus_ABNORMAL   PodStatus_Type = 6
+	PodStatus_INITIATING PodStatus_Type = 7
+	PodStatus_SCHEDULING PodStatus_Type = 8
+	PodStatus_NOTREADY   PodStatus_Type = 9
+)
+
+var PodStatus_Type_name = map[int32]string{
+	0: "PENDING",
+	1: "RUNNING",
+	2: "SUCCEEDED",
+	3: "FAILED",
+	4: "UNKNOWN",
+	5: "TEMINATING",
+	6: "ABNORMAL",
+	7: "INITIATING",
+	8: "SCHEDULING",
+	9: "NOTREADY",
+}
+
+var PodStatus_Type_value = map[string]int32{
+	"PENDING":    0,
+	"RUNNING":    1,
+	"SUCCEEDED":  2,
+	"FAILED":     3,
+	"UNKNOWN":    4,
+	"TEMINATING": 5,
+	"ABNORMAL":   6,
+	"INITIATING": 7,
+	"SCHEDULING": 8,
+	"NOTREADY":   9,
+}
+
+func (x PodStatus_Type) String() string {
+	return proto.EnumName(PodStatus_Type_name, int32(x))
+}
+
+func (PodStatus_Type) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_f94cf1a886c479d6, []int{19, 0}
+}
+
 type Empty struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -33,16 +92,17 @@ func (m *Empty) Reset()         { *m = Empty{} }
 func (m *Empty) String() string { return proto.CompactTextString(m) }
 func (*Empty) ProtoMessage()    {}
 func (*Empty) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{0}
+	return fileDescriptor_f94cf1a886c479d6, []int{0}
 }
+
 func (m *Empty) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Empty.Unmarshal(m, b)
 }
 func (m *Empty) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Empty.Marshal(b, m, deterministic)
 }
-func (dst *Empty) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Empty.Merge(dst, src)
+func (m *Empty) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Empty.Merge(m, src)
 }
 func (m *Empty) XXX_Size() int {
 	return xxx_messageInfo_Empty.Size(m)
@@ -64,16 +124,17 @@ func (m *ServiceRequest) Reset()         { *m = ServiceRequest{} }
 func (m *ServiceRequest) String() string { return proto.CompactTextString(m) }
 func (*ServiceRequest) ProtoMessage()    {}
 func (*ServiceRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{1}
+	return fileDescriptor_f94cf1a886c479d6, []int{1}
 }
+
 func (m *ServiceRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ServiceRequest.Unmarshal(m, b)
 }
 func (m *ServiceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ServiceRequest.Marshal(b, m, deterministic)
 }
-func (dst *ServiceRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ServiceRequest.Merge(dst, src)
+func (m *ServiceRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ServiceRequest.Merge(m, src)
 }
 func (m *ServiceRequest) XXX_Size() int {
 	return xxx_messageInfo_ServiceRequest.Size(m)
@@ -102,16 +163,17 @@ func (m *ServicesRequest) Reset()         { *m = ServicesRequest{} }
 func (m *ServicesRequest) String() string { return proto.CompactTextString(m) }
 func (*ServicesRequest) ProtoMessage()    {}
 func (*ServicesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{2}
+	return fileDescriptor_f94cf1a886c479d6, []int{2}
 }
+
 func (m *ServicesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ServicesRequest.Unmarshal(m, b)
 }
 func (m *ServicesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ServicesRequest.Marshal(b, m, deterministic)
 }
-func (dst *ServicesRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ServicesRequest.Merge(dst, src)
+func (m *ServicesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ServicesRequest.Merge(m, src)
 }
 func (m *ServicesRequest) XXX_Size() int {
 	return xxx_messageInfo_ServicesRequest.Size(m)
@@ -140,16 +202,17 @@ func (m *TenantRequest) Reset()         { *m = TenantRequest{} }
 func (m *TenantRequest) String() string { return proto.CompactTextString(m) }
 func (*TenantRequest) ProtoMessage()    {}
 func (*TenantRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{3}
+	return fileDescriptor_f94cf1a886c479d6, []int{3}
 }
+
 func (m *TenantRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TenantRequest.Unmarshal(m, b)
 }
 func (m *TenantRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_TenantRequest.Marshal(b, m, deterministic)
 }
-func (dst *TenantRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_TenantRequest.Merge(dst, src)
+func (m *TenantRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TenantRequest.Merge(m, src)
 }
 func (m *TenantRequest) XXX_Size() int {
 	return xxx_messageInfo_TenantRequest.Size(m)
@@ -178,16 +241,17 @@ func (m *StatusMessage) Reset()         { *m = StatusMessage{} }
 func (m *StatusMessage) String() string { return proto.CompactTextString(m) }
 func (*StatusMessage) ProtoMessage()    {}
 func (*StatusMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{4}
+	return fileDescriptor_f94cf1a886c479d6, []int{4}
 }
+
 func (m *StatusMessage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_StatusMessage.Unmarshal(m, b)
 }
 func (m *StatusMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_StatusMessage.Marshal(b, m, deterministic)
 }
-func (dst *StatusMessage) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_StatusMessage.Merge(dst, src)
+func (m *StatusMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StatusMessage.Merge(m, src)
 }
 func (m *StatusMessage) XXX_Size() int {
 	return xxx_messageInfo_StatusMessage.Size(m)
@@ -216,16 +280,17 @@ func (m *DiskMessage) Reset()         { *m = DiskMessage{} }
 func (m *DiskMessage) String() string { return proto.CompactTextString(m) }
 func (*DiskMessage) ProtoMessage()    {}
 func (*DiskMessage) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{5}
+	return fileDescriptor_f94cf1a886c479d6, []int{5}
 }
+
 func (m *DiskMessage) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DiskMessage.Unmarshal(m, b)
 }
 func (m *DiskMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DiskMessage.Marshal(b, m, deterministic)
 }
-func (dst *DiskMessage) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DiskMessage.Merge(dst, src)
+func (m *DiskMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DiskMessage.Merge(m, src)
 }
 func (m *DiskMessage) XXX_Size() int {
 	return xxx_messageInfo_DiskMessage.Size(m)
@@ -244,7 +309,8 @@ func (m *DiskMessage) GetDisks() map[string]float64 {
 }
 
 type ServiceAppPodList struct {
-	Pods                 []*ServiceAppPod `protobuf:"bytes,1,rep,name=pods,proto3" json:"pods,omitempty"`
+	OldPods              []*ServiceAppPod `protobuf:"bytes,1,rep,name=oldPods,proto3" json:"oldPods,omitempty"`
+	NewPods              []*ServiceAppPod `protobuf:"bytes,2,rep,name=newPods,proto3" json:"newPods,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
 	XXX_unrecognized     []byte           `json:"-"`
 	XXX_sizecache        int32            `json:"-"`
@@ -254,16 +320,17 @@ func (m *ServiceAppPodList) Reset()         { *m = ServiceAppPodList{} }
 func (m *ServiceAppPodList) String() string { return proto.CompactTextString(m) }
 func (*ServiceAppPodList) ProtoMessage()    {}
 func (*ServiceAppPodList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{6}
+	return fileDescriptor_f94cf1a886c479d6, []int{6}
 }
+
 func (m *ServiceAppPodList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ServiceAppPodList.Unmarshal(m, b)
 }
 func (m *ServiceAppPodList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ServiceAppPodList.Marshal(b, m, deterministic)
 }
-func (dst *ServiceAppPodList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ServiceAppPodList.Merge(dst, src)
+func (m *ServiceAppPodList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ServiceAppPodList.Merge(m, src)
 }
 func (m *ServiceAppPodList) XXX_Size() int {
 	return xxx_messageInfo_ServiceAppPodList.Size(m)
@@ -274,9 +341,16 @@ func (m *ServiceAppPodList) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ServiceAppPodList proto.InternalMessageInfo
 
-func (m *ServiceAppPodList) GetPods() []*ServiceAppPod {
+func (m *ServiceAppPodList) GetOldPods() []*ServiceAppPod {
 	if m != nil {
-		return m.Pods
+		return m.OldPods
+	}
+	return nil
+}
+
+func (m *ServiceAppPodList) GetNewPods() []*ServiceAppPod {
+	if m != nil {
+		return m.NewPods
 	}
 	return nil
 }
@@ -298,16 +372,17 @@ func (m *ServiceAppPod) Reset()         { *m = ServiceAppPod{} }
 func (m *ServiceAppPod) String() string { return proto.CompactTextString(m) }
 func (*ServiceAppPod) ProtoMessage()    {}
 func (*ServiceAppPod) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{7}
+	return fileDescriptor_f94cf1a886c479d6, []int{7}
 }
+
 func (m *ServiceAppPod) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ServiceAppPod.Unmarshal(m, b)
 }
 func (m *ServiceAppPod) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ServiceAppPod.Marshal(b, m, deterministic)
 }
-func (dst *ServiceAppPod) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ServiceAppPod.Merge(dst, src)
+func (m *ServiceAppPod) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ServiceAppPod.Merge(m, src)
 }
 func (m *ServiceAppPod) XXX_Size() int {
 	return xxx_messageInfo_ServiceAppPod.Size(m)
@@ -379,16 +454,17 @@ func (m *Container) Reset()         { *m = Container{} }
 func (m *Container) String() string { return proto.CompactTextString(m) }
 func (*Container) ProtoMessage()    {}
 func (*Container) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{8}
+	return fileDescriptor_f94cf1a886c479d6, []int{8}
 }
+
 func (m *Container) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Container.Unmarshal(m, b)
 }
 func (m *Container) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Container.Marshal(b, m, deterministic)
 }
-func (dst *Container) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Container.Merge(dst, src)
+func (m *Container) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Container.Merge(m, src)
 }
 func (m *Container) XXX_Size() int {
 	return xxx_messageInfo_Container.Size(m)
@@ -417,13 +493,14 @@ type DeployInfo struct {
 	Namespace            string            `protobuf:"bytes,1,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	Statefuleset         string            `protobuf:"bytes,2,opt,name=statefuleset,proto3" json:"statefuleset,omitempty"`
 	Deployment           string            `protobuf:"bytes,3,opt,name=deployment,proto3" json:"deployment,omitempty"`
-	Pods                 map[string]string `protobuf:"bytes,4,rep,name=pods,proto3" json:"pods,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	Services             map[string]string `protobuf:"bytes,5,rep,name=services,proto3" json:"services,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	Endpoints            map[string]string `protobuf:"bytes,6,rep,name=endpoints,proto3" json:"endpoints,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	Secrets              map[string]string `protobuf:"bytes,7,rep,name=secrets,proto3" json:"secrets,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	Ingresses            map[string]string `protobuf:"bytes,8,rep,name=ingresses,proto3" json:"ingresses,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	Replicatset          map[string]string `protobuf:"bytes,9,rep,name=replicatset,proto3" json:"replicatset,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	Status               string            `protobuf:"bytes,10,opt,name=status,proto3" json:"status,omitempty"`
+	StartTime            string            `protobuf:"bytes,4,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	Pods                 map[string]string `protobuf:"bytes,5,rep,name=pods,proto3" json:"pods,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Services             map[string]string `protobuf:"bytes,6,rep,name=services,proto3" json:"services,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Endpoints            map[string]string `protobuf:"bytes,7,rep,name=endpoints,proto3" json:"endpoints,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Secrets              map[string]string `protobuf:"bytes,8,rep,name=secrets,proto3" json:"secrets,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Ingresses            map[string]string `protobuf:"bytes,9,rep,name=ingresses,proto3" json:"ingresses,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Replicatset          map[string]string `protobuf:"bytes,10,rep,name=replicatset,proto3" json:"replicatset,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Status               string            `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
 	XXX_unrecognized     []byte            `json:"-"`
 	XXX_sizecache        int32             `json:"-"`
@@ -433,16 +510,17 @@ func (m *DeployInfo) Reset()         { *m = DeployInfo{} }
 func (m *DeployInfo) String() string { return proto.CompactTextString(m) }
 func (*DeployInfo) ProtoMessage()    {}
 func (*DeployInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{9}
+	return fileDescriptor_f94cf1a886c479d6, []int{9}
 }
+
 func (m *DeployInfo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DeployInfo.Unmarshal(m, b)
 }
 func (m *DeployInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DeployInfo.Marshal(b, m, deterministic)
 }
-func (dst *DeployInfo) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DeployInfo.Merge(dst, src)
+func (m *DeployInfo) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeployInfo.Merge(m, src)
 }
 func (m *DeployInfo) XXX_Size() int {
 	return xxx_messageInfo_DeployInfo.Size(m)
@@ -470,6 +548,13 @@ func (m *DeployInfo) GetStatefuleset() string {
 func (m *DeployInfo) GetDeployment() string {
 	if m != nil {
 		return m.Deployment
+	}
+	return ""
+}
+
+func (m *DeployInfo) GetStartTime() string {
+	if m != nil {
+		return m.StartTime
 	}
 	return ""
 }
@@ -544,16 +629,17 @@ func (m *TenantResource) Reset()         { *m = TenantResource{} }
 func (m *TenantResource) String() string { return proto.CompactTextString(m) }
 func (*TenantResource) ProtoMessage()    {}
 func (*TenantResource) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{10}
+	return fileDescriptor_f94cf1a886c479d6, []int{10}
 }
+
 func (m *TenantResource) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TenantResource.Unmarshal(m, b)
 }
 func (m *TenantResource) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_TenantResource.Marshal(b, m, deterministic)
 }
-func (dst *TenantResource) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_TenantResource.Merge(dst, src)
+func (m *TenantResource) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TenantResource.Merge(m, src)
 }
 func (m *TenantResource) XXX_Size() int {
 	return xxx_messageInfo_TenantResource.Size(m)
@@ -656,16 +742,17 @@ func (m *AddThirdPartyEndpointsReq) Reset()         { *m = AddThirdPartyEndpoint
 func (m *AddThirdPartyEndpointsReq) String() string { return proto.CompactTextString(m) }
 func (*AddThirdPartyEndpointsReq) ProtoMessage()    {}
 func (*AddThirdPartyEndpointsReq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{11}
+	return fileDescriptor_f94cf1a886c479d6, []int{11}
 }
+
 func (m *AddThirdPartyEndpointsReq) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddThirdPartyEndpointsReq.Unmarshal(m, b)
 }
 func (m *AddThirdPartyEndpointsReq) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_AddThirdPartyEndpointsReq.Marshal(b, m, deterministic)
 }
-func (dst *AddThirdPartyEndpointsReq) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AddThirdPartyEndpointsReq.Merge(dst, src)
+func (m *AddThirdPartyEndpointsReq) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AddThirdPartyEndpointsReq.Merge(m, src)
 }
 func (m *AddThirdPartyEndpointsReq) XXX_Size() int {
 	return xxx_messageInfo_AddThirdPartyEndpointsReq.Size(m)
@@ -726,16 +813,17 @@ func (m *UpdThirdPartyEndpointsReq) Reset()         { *m = UpdThirdPartyEndpoint
 func (m *UpdThirdPartyEndpointsReq) String() string { return proto.CompactTextString(m) }
 func (*UpdThirdPartyEndpointsReq) ProtoMessage()    {}
 func (*UpdThirdPartyEndpointsReq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{12}
+	return fileDescriptor_f94cf1a886c479d6, []int{12}
 }
+
 func (m *UpdThirdPartyEndpointsReq) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_UpdThirdPartyEndpointsReq.Unmarshal(m, b)
 }
 func (m *UpdThirdPartyEndpointsReq) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_UpdThirdPartyEndpointsReq.Marshal(b, m, deterministic)
 }
-func (dst *UpdThirdPartyEndpointsReq) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_UpdThirdPartyEndpointsReq.Merge(dst, src)
+func (m *UpdThirdPartyEndpointsReq) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_UpdThirdPartyEndpointsReq.Merge(m, src)
 }
 func (m *UpdThirdPartyEndpointsReq) XXX_Size() int {
 	return xxx_messageInfo_UpdThirdPartyEndpointsReq.Size(m)
@@ -793,16 +881,17 @@ func (m *DelThirdPartyEndpointsReq) Reset()         { *m = DelThirdPartyEndpoint
 func (m *DelThirdPartyEndpointsReq) String() string { return proto.CompactTextString(m) }
 func (*DelThirdPartyEndpointsReq) ProtoMessage()    {}
 func (*DelThirdPartyEndpointsReq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{13}
+	return fileDescriptor_f94cf1a886c479d6, []int{13}
 }
+
 func (m *DelThirdPartyEndpointsReq) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DelThirdPartyEndpointsReq.Unmarshal(m, b)
 }
 func (m *DelThirdPartyEndpointsReq) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DelThirdPartyEndpointsReq.Marshal(b, m, deterministic)
 }
-func (dst *DelThirdPartyEndpointsReq) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DelThirdPartyEndpointsReq.Merge(dst, src)
+func (m *DelThirdPartyEndpointsReq) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DelThirdPartyEndpointsReq.Merge(m, src)
 }
 func (m *DelThirdPartyEndpointsReq) XXX_Size() int {
 	return xxx_messageInfo_DelThirdPartyEndpointsReq.Size(m)
@@ -843,16 +932,17 @@ func (m *ThirdPartyEndpoint) Reset()         { *m = ThirdPartyEndpoint{} }
 func (m *ThirdPartyEndpoint) String() string { return proto.CompactTextString(m) }
 func (*ThirdPartyEndpoint) ProtoMessage()    {}
 func (*ThirdPartyEndpoint) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{14}
+	return fileDescriptor_f94cf1a886c479d6, []int{14}
 }
+
 func (m *ThirdPartyEndpoint) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ThirdPartyEndpoint.Unmarshal(m, b)
 }
 func (m *ThirdPartyEndpoint) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ThirdPartyEndpoint.Marshal(b, m, deterministic)
 }
-func (dst *ThirdPartyEndpoint) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ThirdPartyEndpoint.Merge(dst, src)
+func (m *ThirdPartyEndpoint) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ThirdPartyEndpoint.Merge(m, src)
 }
 func (m *ThirdPartyEndpoint) XXX_Size() int {
 	return xxx_messageInfo_ThirdPartyEndpoint.Size(m)
@@ -916,16 +1006,17 @@ func (m *ThirdPartyEndpoints) Reset()         { *m = ThirdPartyEndpoints{} }
 func (m *ThirdPartyEndpoints) String() string { return proto.CompactTextString(m) }
 func (*ThirdPartyEndpoints) ProtoMessage()    {}
 func (*ThirdPartyEndpoints) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_runtime_server_52464b0f7eb03240, []int{15}
+	return fileDescriptor_f94cf1a886c479d6, []int{15}
 }
+
 func (m *ThirdPartyEndpoints) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ThirdPartyEndpoints.Unmarshal(m, b)
 }
 func (m *ThirdPartyEndpoints) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ThirdPartyEndpoints.Marshal(b, m, deterministic)
 }
-func (dst *ThirdPartyEndpoints) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ThirdPartyEndpoints.Merge(dst, src)
+func (m *ThirdPartyEndpoints) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ThirdPartyEndpoints.Merge(m, src)
 }
 func (m *ThirdPartyEndpoints) XXX_Size() int {
 	return xxx_messageInfo_ThirdPartyEndpoints.Size(m)
@@ -943,7 +1034,434 @@ func (m *ThirdPartyEndpoints) GetObj() []*ThirdPartyEndpoint {
 	return nil
 }
 
+type ListPodsBySIDReq struct {
+	Sid                  string   `protobuf:"bytes,1,opt,name=sid,proto3" json:"sid,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ListPodsBySIDReq) Reset()         { *m = ListPodsBySIDReq{} }
+func (m *ListPodsBySIDReq) String() string { return proto.CompactTextString(m) }
+func (*ListPodsBySIDReq) ProtoMessage()    {}
+func (*ListPodsBySIDReq) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f94cf1a886c479d6, []int{16}
+}
+
+func (m *ListPodsBySIDReq) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListPodsBySIDReq.Unmarshal(m, b)
+}
+func (m *ListPodsBySIDReq) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListPodsBySIDReq.Marshal(b, m, deterministic)
+}
+func (m *ListPodsBySIDReq) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListPodsBySIDReq.Merge(m, src)
+}
+func (m *ListPodsBySIDReq) XXX_Size() int {
+	return xxx_messageInfo_ListPodsBySIDReq.Size(m)
+}
+func (m *ListPodsBySIDReq) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListPodsBySIDReq.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListPodsBySIDReq proto.InternalMessageInfo
+
+func (m *ListPodsBySIDReq) GetSid() string {
+	if m != nil {
+		return m.Sid
+	}
+	return ""
+}
+
+type GetPodDetailReq struct {
+	Sid                  string   `protobuf:"bytes,1,opt,name=sid,proto3" json:"sid,omitempty"`
+	PodName              string   `protobuf:"bytes,2,opt,name=pod_name,json=podName,proto3" json:"pod_name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetPodDetailReq) Reset()         { *m = GetPodDetailReq{} }
+func (m *GetPodDetailReq) String() string { return proto.CompactTextString(m) }
+func (*GetPodDetailReq) ProtoMessage()    {}
+func (*GetPodDetailReq) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f94cf1a886c479d6, []int{17}
+}
+
+func (m *GetPodDetailReq) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetPodDetailReq.Unmarshal(m, b)
+}
+func (m *GetPodDetailReq) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetPodDetailReq.Marshal(b, m, deterministic)
+}
+func (m *GetPodDetailReq) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetPodDetailReq.Merge(m, src)
+}
+func (m *GetPodDetailReq) XXX_Size() int {
+	return xxx_messageInfo_GetPodDetailReq.Size(m)
+}
+func (m *GetPodDetailReq) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetPodDetailReq.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetPodDetailReq proto.InternalMessageInfo
+
+func (m *GetPodDetailReq) GetSid() string {
+	if m != nil {
+		return m.Sid
+	}
+	return ""
+}
+
+func (m *GetPodDetailReq) GetPodName() string {
+	if m != nil {
+		return m.PodName
+	}
+	return ""
+}
+
+type PodEvent struct {
+	Type                 string   `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Reason               string   `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	Age                  string   `protobuf:"bytes,3,opt,name=age,proto3" json:"age,omitempty"`
+	Message              string   `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *PodEvent) Reset()         { *m = PodEvent{} }
+func (m *PodEvent) String() string { return proto.CompactTextString(m) }
+func (*PodEvent) ProtoMessage()    {}
+func (*PodEvent) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f94cf1a886c479d6, []int{18}
+}
+
+func (m *PodEvent) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PodEvent.Unmarshal(m, b)
+}
+func (m *PodEvent) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PodEvent.Marshal(b, m, deterministic)
+}
+func (m *PodEvent) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PodEvent.Merge(m, src)
+}
+func (m *PodEvent) XXX_Size() int {
+	return xxx_messageInfo_PodEvent.Size(m)
+}
+func (m *PodEvent) XXX_DiscardUnknown() {
+	xxx_messageInfo_PodEvent.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PodEvent proto.InternalMessageInfo
+
+func (m *PodEvent) GetType() string {
+	if m != nil {
+		return m.Type
+	}
+	return ""
+}
+
+func (m *PodEvent) GetReason() string {
+	if m != nil {
+		return m.Reason
+	}
+	return ""
+}
+
+func (m *PodEvent) GetAge() string {
+	if m != nil {
+		return m.Age
+	}
+	return ""
+}
+
+func (m *PodEvent) GetMessage() string {
+	if m != nil {
+		return m.Message
+	}
+	return ""
+}
+
+type PodStatus struct {
+	Type                 PodStatus_Type `protobuf:"varint,1,opt,name=type,proto3,enum=pb.PodStatus_Type" json:"type,omitempty"`
+	Reason               string         `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	Message              string         `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Advice               string         `protobuf:"bytes,4,opt,name=advice,proto3" json:"advice,omitempty"`
+	TypeStr              string         `protobuf:"bytes,5,opt,name=type_str,json=typeStr,proto3" json:"type_str,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
+}
+
+func (m *PodStatus) Reset()         { *m = PodStatus{} }
+func (m *PodStatus) String() string { return proto.CompactTextString(m) }
+func (*PodStatus) ProtoMessage()    {}
+func (*PodStatus) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f94cf1a886c479d6, []int{19}
+}
+
+func (m *PodStatus) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PodStatus.Unmarshal(m, b)
+}
+func (m *PodStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PodStatus.Marshal(b, m, deterministic)
+}
+func (m *PodStatus) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PodStatus.Merge(m, src)
+}
+func (m *PodStatus) XXX_Size() int {
+	return xxx_messageInfo_PodStatus.Size(m)
+}
+func (m *PodStatus) XXX_DiscardUnknown() {
+	xxx_messageInfo_PodStatus.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PodStatus proto.InternalMessageInfo
+
+func (m *PodStatus) GetType() PodStatus_Type {
+	if m != nil {
+		return m.Type
+	}
+	return PodStatus_PENDING
+}
+
+func (m *PodStatus) GetReason() string {
+	if m != nil {
+		return m.Reason
+	}
+	return ""
+}
+
+func (m *PodStatus) GetMessage() string {
+	if m != nil {
+		return m.Message
+	}
+	return ""
+}
+
+func (m *PodStatus) GetAdvice() string {
+	if m != nil {
+		return m.Advice
+	}
+	return ""
+}
+
+func (m *PodStatus) GetTypeStr() string {
+	if m != nil {
+		return m.TypeStr
+	}
+	return ""
+}
+
+type PodContainer struct {
+	Image                string   `protobuf:"bytes,1,opt,name=image,proto3" json:"image,omitempty"`
+	State                string   `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	Reason               string   `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	Started              string   `protobuf:"bytes,4,opt,name=started,proto3" json:"started,omitempty"`
+	LimitMemory          string   `protobuf:"bytes,5,opt,name=limit_memory,json=limitMemory,proto3" json:"limit_memory,omitempty"`
+	LimitCpu             string   `protobuf:"bytes,6,opt,name=limit_cpu,json=limitCpu,proto3" json:"limit_cpu,omitempty"`
+	RequestMemory        string   `protobuf:"bytes,7,opt,name=request_memory,json=requestMemory,proto3" json:"request_memory,omitempty"`
+	RequestCpu           string   `protobuf:"bytes,8,opt,name=request_cpu,json=requestCpu,proto3" json:"request_cpu,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *PodContainer) Reset()         { *m = PodContainer{} }
+func (m *PodContainer) String() string { return proto.CompactTextString(m) }
+func (*PodContainer) ProtoMessage()    {}
+func (*PodContainer) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f94cf1a886c479d6, []int{20}
+}
+
+func (m *PodContainer) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PodContainer.Unmarshal(m, b)
+}
+func (m *PodContainer) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PodContainer.Marshal(b, m, deterministic)
+}
+func (m *PodContainer) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PodContainer.Merge(m, src)
+}
+func (m *PodContainer) XXX_Size() int {
+	return xxx_messageInfo_PodContainer.Size(m)
+}
+func (m *PodContainer) XXX_DiscardUnknown() {
+	xxx_messageInfo_PodContainer.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PodContainer proto.InternalMessageInfo
+
+func (m *PodContainer) GetImage() string {
+	if m != nil {
+		return m.Image
+	}
+	return ""
+}
+
+func (m *PodContainer) GetState() string {
+	if m != nil {
+		return m.State
+	}
+	return ""
+}
+
+func (m *PodContainer) GetReason() string {
+	if m != nil {
+		return m.Reason
+	}
+	return ""
+}
+
+func (m *PodContainer) GetStarted() string {
+	if m != nil {
+		return m.Started
+	}
+	return ""
+}
+
+func (m *PodContainer) GetLimitMemory() string {
+	if m != nil {
+		return m.LimitMemory
+	}
+	return ""
+}
+
+func (m *PodContainer) GetLimitCpu() string {
+	if m != nil {
+		return m.LimitCpu
+	}
+	return ""
+}
+
+func (m *PodContainer) GetRequestMemory() string {
+	if m != nil {
+		return m.RequestMemory
+	}
+	return ""
+}
+
+func (m *PodContainer) GetRequestCpu() string {
+	if m != nil {
+		return m.RequestCpu
+	}
+	return ""
+}
+
+type PodDetail struct {
+	Name                 string          `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Node                 string          `protobuf:"bytes,2,opt,name=node,proto3" json:"node,omitempty"`
+	StartTime            string          `protobuf:"bytes,3,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	Status               *PodStatus      `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Ip                   string          `protobuf:"bytes,5,opt,name=ip,proto3" json:"ip,omitempty"`
+	NodeIp               string          `protobuf:"bytes,6,opt,name=node_ip,json=nodeIp,proto3" json:"node_ip,omitempty"`
+	Version              string          `protobuf:"bytes,7,opt,name=version,proto3" json:"version,omitempty"`
+	InitContainers       []*PodContainer `protobuf:"bytes,8,rep,name=init_containers,json=initContainers,proto3" json:"init_containers,omitempty"`
+	Containers           []*PodContainer `protobuf:"bytes,9,rep,name=containers,proto3" json:"containers,omitempty"`
+	Events               []*PodEvent     `protobuf:"bytes,10,rep,name=events,proto3" json:"events,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
+	XXX_unrecognized     []byte          `json:"-"`
+	XXX_sizecache        int32           `json:"-"`
+}
+
+func (m *PodDetail) Reset()         { *m = PodDetail{} }
+func (m *PodDetail) String() string { return proto.CompactTextString(m) }
+func (*PodDetail) ProtoMessage()    {}
+func (*PodDetail) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f94cf1a886c479d6, []int{21}
+}
+
+func (m *PodDetail) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PodDetail.Unmarshal(m, b)
+}
+func (m *PodDetail) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PodDetail.Marshal(b, m, deterministic)
+}
+func (m *PodDetail) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PodDetail.Merge(m, src)
+}
+func (m *PodDetail) XXX_Size() int {
+	return xxx_messageInfo_PodDetail.Size(m)
+}
+func (m *PodDetail) XXX_DiscardUnknown() {
+	xxx_messageInfo_PodDetail.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PodDetail proto.InternalMessageInfo
+
+func (m *PodDetail) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *PodDetail) GetNode() string {
+	if m != nil {
+		return m.Node
+	}
+	return ""
+}
+
+func (m *PodDetail) GetStartTime() string {
+	if m != nil {
+		return m.StartTime
+	}
+	return ""
+}
+
+func (m *PodDetail) GetStatus() *PodStatus {
+	if m != nil {
+		return m.Status
+	}
+	return nil
+}
+
+func (m *PodDetail) GetIp() string {
+	if m != nil {
+		return m.Ip
+	}
+	return ""
+}
+
+func (m *PodDetail) GetNodeIp() string {
+	if m != nil {
+		return m.NodeIp
+	}
+	return ""
+}
+
+func (m *PodDetail) GetVersion() string {
+	if m != nil {
+		return m.Version
+	}
+	return ""
+}
+
+func (m *PodDetail) GetInitContainers() []*PodContainer {
+	if m != nil {
+		return m.InitContainers
+	}
+	return nil
+}
+
+func (m *PodDetail) GetContainers() []*PodContainer {
+	if m != nil {
+		return m.Containers
+	}
+	return nil
+}
+
+func (m *PodDetail) GetEvents() []*PodEvent {
+	if m != nil {
+		return m.Events
+	}
+	return nil
+}
+
 func init() {
+	proto.RegisterEnum("pb.PodStatus_Type", PodStatus_Type_name, PodStatus_Type_value)
 	proto.RegisterType((*Empty)(nil), "pb.Empty")
 	proto.RegisterType((*ServiceRequest)(nil), "pb.ServiceRequest")
 	proto.RegisterType((*ServicesRequest)(nil), "pb.ServicesRequest")
@@ -969,6 +1487,122 @@ func init() {
 	proto.RegisterType((*DelThirdPartyEndpointsReq)(nil), "pb.DelThirdPartyEndpointsReq")
 	proto.RegisterType((*ThirdPartyEndpoint)(nil), "pb.ThirdPartyEndpoint")
 	proto.RegisterType((*ThirdPartyEndpoints)(nil), "pb.ThirdPartyEndpoints")
+	proto.RegisterType((*ListPodsBySIDReq)(nil), "pb.ListPodsBySIDReq")
+	proto.RegisterType((*GetPodDetailReq)(nil), "pb.GetPodDetailReq")
+	proto.RegisterType((*PodEvent)(nil), "pb.PodEvent")
+	proto.RegisterType((*PodStatus)(nil), "pb.PodStatus")
+	proto.RegisterType((*PodContainer)(nil), "pb.PodContainer")
+	proto.RegisterType((*PodDetail)(nil), "pb.PodDetail")
+}
+
+func init() { proto.RegisterFile("app_runtime_server.proto", fileDescriptor_f94cf1a886c479d6) }
+
+var fileDescriptor_f94cf1a886c479d6 = []byte{
+	// 1655 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x58, 0xdb, 0x6e, 0x1b, 0x47,
+	0x12, 0x15, 0xef, 0x64, 0x51, 0xa4, 0xa8, 0xb6, 0x65, 0xd3, 0xb4, 0xbd, 0xb6, 0x67, 0x6d, 0x43,
+	0xc0, 0x1a, 0x5a, 0xaf, 0x76, 0x0d, 0xcb, 0x17, 0x78, 0x41, 0x93, 0x5c, 0x99, 0x58, 0x89, 0x12,
+	0x46, 0x14, 0x82, 0x3c, 0x11, 0x23, 0x4e, 0x5b, 0x99, 0x98, 0x9c, 0xe9, 0x4c, 0xcf, 0x28, 0xe0,
+	0x63, 0xf2, 0x0b, 0xc9, 0x7f, 0xe4, 0x3b, 0xf2, 0x92, 0xe4, 0x4f, 0xf2, 0x92, 0x0f, 0x08, 0xaa,
+	0xba, 0xe7, 0xc2, 0x8b, 0xe0, 0x28, 0x09, 0x90, 0xb7, 0xe9, 0xea, 0x73, 0xaa, 0xba, 0xaa, 0xbb,
+	0xab, 0xaa, 0x07, 0x9a, 0x96, 0x10, 0x23, 0x3f, 0x74, 0x03, 0x67, 0xca, 0x47, 0x92, 0xfb, 0x17,
+	0xdc, 0xdf, 0x11, 0xbe, 0x17, 0x78, 0x2c, 0x2b, 0xce, 0x8c, 0x12, 0x14, 0x7a, 0x53, 0x11, 0xcc,
+	0x8c, 0x7f, 0x42, 0xfd, 0x84, 0xfb, 0x17, 0xce, 0x98, 0x9b, 0xfc, 0x8b, 0x90, 0xcb, 0x80, 0xdd,
+	0x05, 0x90, 0x4a, 0x32, 0x72, 0xec, 0x66, 0xe6, 0x7e, 0x66, 0xbb, 0x62, 0x56, 0xb4, 0xa4, 0x6f,
+	0x1b, 0xbb, 0xb0, 0xa1, 0x09, 0x32, 0x62, 0xdc, 0x83, 0x6a, 0xc2, 0x90, 0x9a, 0x02, 0x31, 0x45,
+	0x1a, 0x4f, 0xa0, 0x36, 0xe4, 0xae, 0xe5, 0x06, 0x11, 0xe3, 0x36, 0x54, 0x02, 0x12, 0x24, 0x26,
+	0xca, 0x4a, 0xd0, 0xb7, 0x8d, 0xaf, 0x32, 0x50, 0x3b, 0x09, 0xac, 0x20, 0x94, 0x87, 0x5c, 0x4a,
+	0xeb, 0x9c, 0xb3, 0x67, 0x50, 0x94, 0x24, 0x68, 0x66, 0xee, 0xe7, 0xb6, 0xab, 0xbb, 0x77, 0x77,
+	0xc4, 0xd9, 0xce, 0x1c, 0x44, 0x8f, 0x7a, 0x6e, 0xe0, 0xcf, 0x4c, 0x0d, 0x6e, 0xbd, 0x80, 0x6a,
+	0x4a, 0xcc, 0x1a, 0x90, 0xfb, 0xc0, 0x67, 0xda, 0x1c, 0x7e, 0xb2, 0xeb, 0x50, 0xb8, 0xb0, 0x26,
+	0x21, 0x6f, 0x66, 0x49, 0xa6, 0x06, 0x2f, 0xb3, 0x7b, 0x19, 0x63, 0x06, 0xd5, 0xae, 0x23, 0x3f,
+	0x44, 0x0b, 0x78, 0x0a, 0x05, 0xdb, 0x91, 0x1f, 0x22, 0xfb, 0x2d, 0xb4, 0x9f, 0x9a, 0xa7, 0x6f,
+	0x6d, 0x5c, 0x01, 0x5b, 0x7b, 0x00, 0x89, 0xf0, 0x63, 0xa6, 0x33, 0x69, 0xd3, 0x53, 0xd8, 0xd4,
+	0x01, 0x6e, 0x0b, 0x71, 0xec, 0xd9, 0x07, 0x8e, 0x0c, 0xd8, 0x3f, 0xa0, 0xe4, 0x4d, 0xec, 0x63,
+	0xcf, 0x8e, 0x96, 0xb0, 0x49, 0x21, 0x48, 0xe3, 0xcc, 0x08, 0x81, 0x60, 0x97, 0x7f, 0x49, 0xe0,
+	0xec, 0xa5, 0x60, 0x8d, 0x30, 0x7e, 0xc8, 0x42, 0x6d, 0x6e, 0xea, 0x23, 0x07, 0x00, 0xf7, 0xce,
+	0xe6, 0x62, 0xe2, 0xcd, 0x70, 0x56, 0x05, 0xae, 0xac, 0x04, 0x7d, 0x1b, 0x8f, 0x82, 0x9e, 0x0c,
+	0x66, 0x82, 0x37, 0x73, 0xea, 0x28, 0x28, 0xd1, 0x70, 0x26, 0x38, 0xbb, 0x05, 0x65, 0xe1, 0xd9,
+	0x23, 0xd7, 0x9a, 0xf2, 0x66, 0x9e, 0x66, 0x4b, 0xc2, 0xb3, 0x07, 0xd6, 0x94, 0xb3, 0x2d, 0x28,
+	0xe2, 0x94, 0x23, 0x9a, 0x05, 0xb5, 0x1d, 0xc2, 0xb3, 0xfb, 0x02, 0x97, 0x83, 0x62, 0x7d, 0x00,
+	0x8a, 0x6a, 0x39, 0xc2, 0xb3, 0xd5, 0xd6, 0xb2, 0x36, 0xc0, 0xd8, 0x73, 0x03, 0xcb, 0x71, 0xb9,
+	0x2f, 0x9b, 0x25, 0xf2, 0xf7, 0xc1, 0x92, 0xbf, 0x3b, 0x9d, 0x18, 0xa3, 0xb6, 0x29, 0x45, 0x6a,
+	0x1d, 0xc0, 0xc6, 0xc2, 0xf4, 0x8a, 0x0d, 0xfb, 0x7b, 0x7a, 0xc3, 0xaa, 0xbb, 0x35, 0x34, 0x11,
+	0xb3, 0xd2, 0xfb, 0x77, 0x0a, 0x95, 0x58, 0xce, 0x1e, 0x41, 0x3d, 0x36, 0xa4, 0x9c, 0x56, 0x2a,
+	0x6b, 0xb1, 0x94, 0x5c, 0x7f, 0x00, 0xeb, 0x53, 0x3e, 0xf5, 0xfc, 0xd9, 0x68, 0xe2, 0x4c, 0x9d,
+	0x80, 0x6c, 0xe4, 0xcc, 0xaa, 0x92, 0x1d, 0xa0, 0xc8, 0xf8, 0xb9, 0x08, 0xd0, 0x55, 0x61, 0x76,
+	0xdf, 0x7b, 0xec, 0x0e, 0x54, 0x50, 0x9d, 0x14, 0xd6, 0x38, 0xd2, 0x99, 0x08, 0x98, 0x01, 0xeb,
+	0x18, 0x2f, 0xfe, 0x3e, 0x9c, 0x70, 0xc9, 0x03, 0xbd, 0x4d, 0x73, 0x32, 0xf6, 0x37, 0xd0, 0xfb,
+	0x32, 0xe5, 0x6e, 0x30, 0xbf, 0x53, 0x28, 0xa1, 0x63, 0x10, 0x58, 0x7e, 0x30, 0xc2, 0x0c, 0xa2,
+	0xf7, 0xaa, 0x42, 0x92, 0xa1, 0x33, 0xe5, 0xec, 0x09, 0xe4, 0x05, 0x9e, 0xb0, 0x02, 0x45, 0xbc,
+	0x49, 0x37, 0x22, 0x5e, 0xde, 0x0e, 0x1e, 0x2d, 0x15, 0x68, 0x42, 0xb1, 0x3d, 0x28, 0xeb, 0x13,
+	0x84, 0x5b, 0x88, 0x8c, 0x3b, 0x0b, 0x8c, 0x28, 0xa9, 0x28, 0x56, 0x8c, 0x66, 0xaf, 0xa0, 0xc2,
+	0x5d, 0x5b, 0x78, 0x8e, 0x1b, 0x44, 0xdb, 0x7b, 0x77, 0x81, 0xda, 0x8b, 0xe6, 0x15, 0x37, 0xc1,
+	0xb3, 0x67, 0x50, 0x92, 0x7c, 0xec, 0xf3, 0x40, 0x36, 0xcb, 0x44, 0xbd, 0xbd, 0x64, 0x95, 0x66,
+	0x15, 0x31, 0xc2, 0xa2, 0x4d, 0xc7, 0x3d, 0xf7, 0xb9, 0x94, 0x5c, 0x36, 0x2b, 0x2b, 0x6d, 0xf6,
+	0xa3, 0x79, 0x6d, 0x33, 0xc6, 0xb3, 0x36, 0x54, 0x7d, 0x2e, 0x26, 0xce, 0xd8, 0x0a, 0x30, 0xf4,
+	0x40, 0xf4, 0x7b, 0x0b, 0x74, 0x33, 0x41, 0x28, 0x05, 0x69, 0x0e, 0xbb, 0x11, 0xe7, 0xbb, 0x2a,
+	0x85, 0x3d, 0x4a, 0x68, 0xcf, 0xa1, 0x12, 0x07, 0xf6, 0x2a, 0xe9, 0xac, 0xf5, 0x2a, 0xbe, 0xe3,
+	0xbf, 0x83, 0xfc, 0x1a, 0xea, 0xf3, 0x11, 0xbe, 0x12, 0xfb, 0x25, 0xac, 0xa7, 0x83, 0x7c, 0x55,
+	0xcb, 0xf3, 0x71, 0xbe, 0x12, 0xfb, 0x0d, 0x34, 0x16, 0xc3, 0x7c, 0xa5, 0x1a, 0xf0, 0x53, 0x0e,
+	0xea, 0x51, 0xd9, 0x92, 0x5e, 0xe8, 0x8f, 0x39, 0xa6, 0xb7, 0xb1, 0x08, 0x47, 0xbe, 0x2a, 0x63,
+	0xa4, 0x26, 0x67, 0xc2, 0x58, 0x84, 0xa9, 0xc2, 0x86, 0x80, 0xf4, 0x2d, 0x2e, 0x8f, 0x45, 0x48,
+	0x57, 0x18, 0x93, 0x81, 0xbe, 0xe5, 0x91, 0x82, 0x1c, 0x21, 0x6a, 0x4a, 0x1a, 0xe9, 0x58, 0x4c,
+	0x06, 0xf9, 0xa5, 0x64, 0xc0, 0x1e, 0xc3, 0x86, 0x1f, 0xba, 0xae, 0xe3, 0x9e, 0x8f, 0xb0, 0xcc,
+	0xbb, 0xe1, 0x94, 0x72, 0x66, 0xce, 0xac, 0x69, 0x71, 0x5b, 0x88, 0x41, 0x38, 0x65, 0x06, 0xd4,
+	0x42, 0x57, 0x8e, 0xed, 0x91, 0x5e, 0x35, 0xa5, 0xcf, 0x9c, 0x59, 0x25, 0x61, 0x87, 0x96, 0x8d,
+	0xba, 0x12, 0x8c, 0xb2, 0x58, 0x52, 0xba, 0x22, 0x94, 0xb2, 0xb9, 0x0d, 0x0d, 0x85, 0x4b, 0x7c,
+	0x68, 0x96, 0x09, 0x58, 0x27, 0xf9, 0x61, 0xe4, 0x04, 0x7b, 0x02, 0x6c, 0x0e, 0xa9, 0x94, 0x56,
+	0x08, 0xdb, 0x48, 0x61, 0x95, 0xde, 0x7f, 0xc1, 0x56, 0xda, 0x97, 0xe0, 0x33, 0xc7, 0xb7, 0xc9,
+	0x23, 0x20, 0x02, 0x4b, 0x3c, 0x1a, 0xe2, 0x14, 0xba, 0xf5, 0x1c, 0x9a, 0x69, 0x8a, 0xe3, 0x06,
+	0xdc, 0x77, 0xad, 0x09, 0xb1, 0xaa, 0xc4, 0xda, 0x4a, 0x58, 0x7d, 0x3d, 0x3b, 0x08, 0xa7, 0xc6,
+	0xd7, 0x19, 0xb8, 0xd5, 0xb6, 0x6d, 0x52, 0x74, 0x6c, 0xf9, 0xc1, 0x2c, 0x3e, 0xd8, 0xb8, 0x6e,
+	0x06, 0xf9, 0x30, 0x8c, 0x4b, 0x1e, 0x7d, 0xe3, 0x81, 0x91, 0x71, 0x9d, 0xc3, 0x4f, 0x56, 0x87,
+	0xac, 0x23, 0x74, 0xbe, 0xcc, 0x3a, 0x02, 0x59, 0xc2, 0xf3, 0xd5, 0x36, 0x15, 0x4c, 0xfa, 0xc6,
+	0x63, 0xe0, 0xc8, 0x91, 0xe7, 0x4e, 0x1c, 0x97, 0xd3, 0xce, 0x94, 0xcd, 0xb2, 0x23, 0x8f, 0x68,
+	0x4c, 0x8b, 0x38, 0x15, 0x7f, 0xf1, 0x22, 0xda, 0x70, 0xab, 0xcb, 0x27, 0x7f, 0x64, 0x0d, 0xc6,
+	0x37, 0x19, 0x60, 0xcb, 0x0a, 0xfe, 0x44, 0x07, 0x92, 0x34, 0x58, 0x48, 0xa7, 0xc1, 0x79, 0xc7,
+	0x8a, 0x0b, 0x8e, 0xfd, 0x17, 0xae, 0xad, 0xf0, 0x8a, 0x6d, 0x43, 0xce, 0x3b, 0xfb, 0x5c, 0x37,
+	0x4f, 0x37, 0x30, 0x1b, 0x2f, 0xa3, 0x4c, 0x84, 0x18, 0x0f, 0xa1, 0x81, 0x2d, 0x17, 0x26, 0xda,
+	0xb7, 0xb3, 0x93, 0x7e, 0x17, 0x03, 0xa2, 0xd7, 0x9f, 0x49, 0x9c, 0x7f, 0x03, 0x1b, 0xfb, 0x1c,
+	0x41, 0x5d, 0x1e, 0x58, 0xce, 0x64, 0x25, 0x68, 0xae, 0xd9, 0xc9, 0xce, 0x35, 0x3b, 0xc6, 0x19,
+	0x94, 0x8f, 0x3d, 0xbb, 0x77, 0xc1, 0x55, 0xc4, 0xa8, 0x5b, 0xd2, 0x11, 0xc3, 0x6f, 0xf4, 0xdd,
+	0xe7, 0x96, 0xf4, 0x5c, 0x4d, 0xd4, 0x23, 0x34, 0x62, 0x9d, 0x47, 0x8d, 0x15, 0x7e, 0xb2, 0x26,
+	0x94, 0xa6, 0xaa, 0x0d, 0xd5, 0x61, 0x8a, 0x86, 0xc6, 0x77, 0x59, 0xaa, 0x17, 0xba, 0x51, 0x7a,
+	0x9c, 0xb2, 0x52, 0xdf, 0x65, 0x18, 0x82, 0x78, 0x72, 0x07, 0x7b, 0xb3, 0x8f, 0x58, 0x4e, 0xd9,
+	0xc9, 0xcd, 0xd9, 0x41, 0x86, 0x65, 0x63, 0x71, 0xd1, 0x5d, 0x82, 0x1e, 0xa1, 0xfb, 0xa8, 0x71,
+	0x24, 0x03, 0x3f, 0x5a, 0x1a, 0x8e, 0x4f, 0x02, 0xdf, 0xf8, 0x36, 0x03, 0x79, 0xea, 0x07, 0xab,
+	0x50, 0x3a, 0xee, 0x0d, 0xba, 0xfd, 0xc1, 0x7e, 0x63, 0x0d, 0x07, 0xe6, 0xe9, 0x60, 0x80, 0x83,
+	0x0c, 0xab, 0x41, 0xe5, 0xe4, 0xb4, 0xd3, 0xe9, 0xf5, 0xba, 0xbd, 0x6e, 0x23, 0xcb, 0x00, 0x8a,
+	0xff, 0x6b, 0xf7, 0x0f, 0x7a, 0xdd, 0x46, 0x0e, 0x71, 0xa7, 0x83, 0xff, 0x0f, 0x8e, 0x3e, 0x19,
+	0x34, 0xf2, 0xac, 0x0e, 0x30, 0xec, 0x1d, 0xf6, 0x07, 0xed, 0x21, 0xf2, 0x0a, 0x6c, 0x1d, 0xca,
+	0xed, 0xb7, 0x83, 0x23, 0xf3, 0xb0, 0x7d, 0xd0, 0x28, 0xe2, 0x6c, 0x7f, 0xd0, 0x1f, 0xf6, 0xd5,
+	0x6c, 0x09, 0xc7, 0x27, 0x9d, 0x77, 0xbd, 0xee, 0xe9, 0x01, 0x8e, 0xcb, 0x88, 0x1e, 0x1c, 0x0d,
+	0xcd, 0x5e, 0xbb, 0xfb, 0x69, 0xa3, 0x62, 0xfc, 0x92, 0x81, 0xf5, 0x63, 0xcf, 0x4e, 0xfa, 0xb7,
+	0xeb, 0x50, 0x70, 0xa6, 0xe8, 0xb2, 0xda, 0x1b, 0x35, 0x40, 0x29, 0xb5, 0x52, 0x51, 0xcd, 0xa0,
+	0x41, 0x2a, 0x70, 0xb9, 0xc5, 0xc0, 0x51, 0xdb, 0xc4, 0xed, 0xa8, 0xe3, 0xd5, 0x43, 0xcc, 0xf4,
+	0x94, 0x1b, 0x75, 0xa2, 0xd4, 0x41, 0xaa, 0x92, 0x4c, 0xa5, 0x48, 0x3c, 0xeb, 0x0a, 0x32, 0x16,
+	0xa1, 0x6e, 0x7e, 0xcb, 0x24, 0xe8, 0x88, 0x10, 0x0b, 0x8a, 0xae, 0x24, 0x91, 0x86, 0x92, 0xea,
+	0x2e, 0xb5, 0x54, 0xeb, 0xb8, 0x87, 0x1d, 0x89, 0x82, 0xa1, 0x96, 0xb2, 0x6a, 0xf5, 0xb4, 0xa8,
+	0x23, 0x42, 0xe3, 0x47, 0x75, 0x50, 0xd4, 0x51, 0xc6, 0xe3, 0x98, 0xea, 0x54, 0xe9, 0x9b, 0x64,
+	0x9e, 0x1d, 0x39, 0x4c, 0xdf, 0x0b, 0x0d, 0x62, 0x6e, 0xb1, 0x41, 0x7c, 0x14, 0xdf, 0xde, 0x7c,
+	0xd2, 0x31, 0xc7, 0x27, 0x2e, 0xbe, 0xcc, 0x2a, 0x11, 0x14, 0xe2, 0x44, 0x70, 0x13, 0x4a, 0xa8,
+	0x1d, 0x9f, 0x01, 0xca, 0xdd, 0x22, 0x0e, 0xfb, 0x02, 0xc3, 0x78, 0xc1, 0x7d, 0xe9, 0x78, 0xae,
+	0xf6, 0x32, 0x1a, 0xb2, 0x17, 0xb0, 0xe1, 0xb8, 0x18, 0xa2, 0xe4, 0x1d, 0xa0, 0xba, 0xbd, 0x86,
+	0x36, 0x99, 0xf4, 0xe9, 0x75, 0x04, 0x26, 0xcd, 0x3e, 0x7b, 0x3a, 0xf7, 0x7a, 0xa8, 0x5c, 0xc2,
+	0x4a, 0x61, 0xd8, 0x43, 0x28, 0x72, 0xbc, 0xb5, 0x52, 0x77, 0x76, 0xeb, 0x1a, 0x4d, 0x57, 0xd9,
+	0xd4, 0x73, 0xbb, 0xdf, 0xe7, 0xa1, 0xde, 0x16, 0xc2, 0x54, 0xef, 0xef, 0x93, 0x99, 0x3b, 0x66,
+	0x7b, 0xb0, 0xbe, 0xcf, 0x83, 0xb6, 0x10, 0xfa, 0x3e, 0x5e, 0x4b, 0x3d, 0x52, 0xa2, 0xa7, 0x74,
+	0x6b, 0x73, 0xe9, 0x65, 0x6b, 0xac, 0xb1, 0x17, 0x00, 0x8a, 0x49, 0xaf, 0x3b, 0x96, 0xe2, 0x45,
+	0xb4, 0xad, 0xa5, 0x07, 0x0f, 0xa6, 0x30, 0x63, 0x8d, 0x3d, 0x83, 0xda, 0x3e, 0x0f, 0x52, 0xef,
+	0x86, 0x55, 0xec, 0xfa, 0x7c, 0x73, 0x6a, 0xac, 0xb1, 0xd7, 0xb0, 0xb9, 0xcf, 0x83, 0x85, 0xe6,
+	0x87, 0xd6, 0x36, 0xf7, 0x8e, 0x6f, 0xb1, 0xb4, 0x48, 0xc1, 0x8c, 0x35, 0xf6, 0x0e, 0x6e, 0xa2,
+	0xf9, 0x55, 0x69, 0x78, 0x95, 0xf9, 0x9b, 0xab, 0xb3, 0xb1, 0x34, 0xd6, 0x58, 0x07, 0xb6, 0x56,
+	0x96, 0x6b, 0x46, 0xed, 0xf8, 0xa5, 0x95, 0xbc, 0x55, 0xc1, 0x69, 0xf5, 0x83, 0x83, 0x94, 0xac,
+	0x2c, 0xb7, 0x4a, 0xc9, 0xa5, 0x95, 0x78, 0x49, 0xc9, 0xca, 0x7a, 0xc9, 0xf4, 0xc3, 0x60, 0xf2,
+	0x5b, 0x94, 0xfc, 0x87, 0x8e, 0x40, 0x72, 0xd3, 0xe8, 0x08, 0x2c, 0x94, 0x91, 0x56, 0x74, 0x4f,
+	0x94, 0xc4, 0x58, 0x3b, 0x2b, 0xd2, 0x6f, 0x9b, 0x7f, 0xff, 0x1a, 0x00, 0x00, 0xff, 0xff, 0x8b,
+	0x8b, 0xd5, 0x60, 0xd2, 0x11, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -991,6 +1625,7 @@ type AppRuntimeSyncClient interface {
 	AddThirdPartyEndpoint(ctx context.Context, in *AddThirdPartyEndpointsReq, opts ...grpc.CallOption) (*Empty, error)
 	UpdThirdPartyEndpoint(ctx context.Context, in *UpdThirdPartyEndpointsReq, opts ...grpc.CallOption) (*Empty, error)
 	DelThirdPartyEndpoint(ctx context.Context, in *DelThirdPartyEndpointsReq, opts ...grpc.CallOption) (*Empty, error)
+	GetPodDetail(ctx context.Context, in *GetPodDetailReq, opts ...grpc.CallOption) (*PodDetail, error)
 }
 
 type appRuntimeSyncClient struct {
@@ -1073,6 +1708,15 @@ func (c *appRuntimeSyncClient) DelThirdPartyEndpoint(ctx context.Context, in *De
 	return out, nil
 }
 
+func (c *appRuntimeSyncClient) GetPodDetail(ctx context.Context, in *GetPodDetailReq, opts ...grpc.CallOption) (*PodDetail, error) {
+	out := new(PodDetail)
+	err := c.cc.Invoke(ctx, "/pb.AppRuntimeSync/GetPodDetail", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AppRuntimeSyncServer is the server API for AppRuntimeSync service.
 type AppRuntimeSyncServer interface {
 	GetAppStatus(context.Context, *ServicesRequest) (*StatusMessage, error)
@@ -1083,6 +1727,7 @@ type AppRuntimeSyncServer interface {
 	AddThirdPartyEndpoint(context.Context, *AddThirdPartyEndpointsReq) (*Empty, error)
 	UpdThirdPartyEndpoint(context.Context, *UpdThirdPartyEndpointsReq) (*Empty, error)
 	DelThirdPartyEndpoint(context.Context, *DelThirdPartyEndpointsReq) (*Empty, error)
+	GetPodDetail(context.Context, *GetPodDetailReq) (*PodDetail, error)
 }
 
 func RegisterAppRuntimeSyncServer(s *grpc.Server, srv AppRuntimeSyncServer) {
@@ -1233,6 +1878,24 @@ func _AppRuntimeSync_DelThirdPartyEndpoint_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AppRuntimeSync_GetPodDetail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPodDetailReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AppRuntimeSyncServer).GetPodDetail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pb.AppRuntimeSync/GetPodDetail",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AppRuntimeSyncServer).GetPodDetail(ctx, req.(*GetPodDetailReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _AppRuntimeSync_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "pb.AppRuntimeSync",
 	HandlerType: (*AppRuntimeSyncServer)(nil),
@@ -1269,87 +1932,11 @@ var _AppRuntimeSync_serviceDesc = grpc.ServiceDesc{
 			MethodName: "DelThirdPartyEndpoint",
 			Handler:    _AppRuntimeSync_DelThirdPartyEndpoint_Handler,
 		},
+		{
+			MethodName: "GetPodDetail",
+			Handler:    _AppRuntimeSync_GetPodDetail_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "app_runtime_server.proto",
-}
-
-func init() {
-	proto.RegisterFile("app_runtime_server.proto", fileDescriptor_app_runtime_server_52464b0f7eb03240)
-}
-
-var fileDescriptor_app_runtime_server_52464b0f7eb03240 = []byte{
-	// 1141 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x57, 0xdb, 0x6e, 0x1b, 0x37,
-	0x10, 0xb5, 0xae, 0x96, 0x46, 0x96, 0x62, 0x33, 0x75, 0xb2, 0x56, 0x92, 0x26, 0xd9, 0x22, 0x85,
-	0x1f, 0x0c, 0xb7, 0x75, 0x61, 0xc4, 0x71, 0x82, 0x16, 0x82, 0x6d, 0xb8, 0x02, 0x1c, 0xd7, 0x58,
-	0x3b, 0xcf, 0xc2, 0x7a, 0x97, 0x71, 0x59, 0x6b, 0xb9, 0xec, 0x92, 0x6b, 0x40, 0x8f, 0xed, 0x2f,
-	0xe4, 0xbf, 0x8a, 0x7c, 0x52, 0xc1, 0x21, 0xf7, 0xa2, 0x4b, 0x90, 0xaa, 0x2d, 0xd0, 0xb7, 0xd5,
-	0x99, 0x73, 0x66, 0x38, 0x33, 0xe4, 0x90, 0x02, 0xc7, 0x17, 0x62, 0x94, 0xa4, 0x5c, 0xb1, 0x88,
-	0x8e, 0x24, 0x4d, 0xee, 0x68, 0xb2, 0x2b, 0x92, 0x58, 0xc5, 0xa4, 0x2a, 0xae, 0xdd, 0x55, 0x68,
-	0x9c, 0x44, 0x42, 0x4d, 0xdc, 0x6f, 0xa0, 0x77, 0x49, 0x93, 0x3b, 0x16, 0x50, 0x8f, 0xfe, 0x96,
-	0x52, 0xa9, 0xc8, 0x13, 0x00, 0x69, 0x90, 0x11, 0x0b, 0x9d, 0xca, 0xb3, 0xca, 0x76, 0xdb, 0x6b,
-	0x5b, 0x64, 0x18, 0xba, 0x7b, 0x70, 0xcf, 0x0a, 0x64, 0xa6, 0x78, 0x0a, 0x9d, 0x42, 0x21, 0xad,
-	0x04, 0x72, 0x89, 0x74, 0x77, 0xa0, 0x7b, 0x45, 0xb9, 0xcf, 0x55, 0xa6, 0x78, 0x04, 0x6d, 0x85,
-	0x40, 0x11, 0xa2, 0x65, 0x80, 0x61, 0xe8, 0xfe, 0x5e, 0x81, 0xee, 0xa5, 0xf2, 0x55, 0x2a, 0xdf,
-	0x52, 0x29, 0xfd, 0x1b, 0x4a, 0xf6, 0xa1, 0x29, 0x11, 0x70, 0x2a, 0xcf, 0x6a, 0xdb, 0x9d, 0xbd,
-	0x27, 0xbb, 0xe2, 0x7a, 0x77, 0x8a, 0x62, 0x7f, 0x9d, 0x70, 0x95, 0x4c, 0x3c, 0x4b, 0xee, 0xbf,
-	0x82, 0x4e, 0x09, 0x26, 0xeb, 0x50, 0xbb, 0xa5, 0x13, 0x1b, 0x4e, 0x7f, 0x92, 0x2f, 0xa0, 0x71,
-	0xe7, 0x8f, 0x53, 0xea, 0x54, 0x11, 0x33, 0x3f, 0x0e, 0xab, 0x07, 0x15, 0x77, 0x02, 0x9d, 0x63,
-	0x26, 0x6f, 0xb3, 0x05, 0x7c, 0x0b, 0x8d, 0x90, 0xc9, 0xdb, 0x2c, 0x7e, 0x5f, 0xc7, 0x2f, 0xd9,
-	0xf1, 0xdb, 0x06, 0x37, 0xc4, 0xfe, 0x01, 0x40, 0x01, 0x7e, 0x2e, 0x74, 0xa5, 0x1c, 0xfa, 0x10,
-	0x36, 0x6c, 0x81, 0x07, 0x42, 0x5c, 0xc4, 0xe1, 0x19, 0x93, 0x8a, 0xbc, 0x80, 0xba, 0x88, 0xc3,
-	0x2c, 0xfe, 0x06, 0xe6, 0x5f, 0x26, 0x79, 0x68, 0x76, 0xff, 0xac, 0x42, 0x77, 0x0a, 0xff, 0x4c,
-	0x37, 0x75, 0x23, 0x42, 0x2a, 0xc6, 0xf1, 0x44, 0x5b, 0x4d, 0x15, 0x5a, 0x06, 0x18, 0x86, 0xba,
-	0xaf, 0xd6, 0xa8, 0x26, 0x82, 0x3a, 0x35, 0xd3, 0x57, 0x03, 0x5d, 0x4d, 0x04, 0x25, 0x5b, 0xd0,
-	0x12, 0x71, 0x38, 0xe2, 0x7e, 0x44, 0x9d, 0x3a, 0x5a, 0x57, 0x45, 0x1c, 0x9e, 0xfb, 0x11, 0x25,
-	0x9b, 0xd0, 0xd4, 0x26, 0x26, 0x9c, 0x86, 0xa9, 0xad, 0x88, 0xc3, 0xa1, 0xd0, 0xcb, 0xd1, 0xb0,
-	0xed, 0x66, 0xd3, 0x2c, 0x47, 0xc4, 0xa1, 0xe9, 0x13, 0x19, 0x00, 0x04, 0x31, 0x57, 0x3e, 0xe3,
-	0x34, 0x91, 0xce, 0x2a, 0x26, 0xfb, 0x7c, 0x2e, 0xd9, 0xdd, 0xa3, 0x9c, 0x63, 0x6a, 0x5e, 0x12,
-	0xf5, 0xcf, 0xe0, 0xde, 0x8c, 0x79, 0x41, 0xf5, 0xbf, 0x2a, 0x57, 0xbf, 0xb3, 0xd7, 0xd5, 0x21,
-	0x72, 0x55, 0xb9, 0x19, 0xef, 0xa0, 0x9d, 0xe3, 0xe4, 0x05, 0xf4, 0xf2, 0x40, 0x26, 0x69, 0xe3,
-	0xb2, 0x9b, 0xa3, 0x98, 0xfa, 0x73, 0x58, 0x8b, 0x68, 0x14, 0x27, 0x93, 0xd1, 0x98, 0x45, 0x4c,
-	0x61, 0x8c, 0x9a, 0xd7, 0x31, 0xd8, 0x99, 0x86, 0xdc, 0x8f, 0x4d, 0x80, 0x63, 0x53, 0x66, 0xfe,
-	0x3e, 0x26, 0x8f, 0xa1, 0xad, 0xdd, 0x49, 0xe1, 0x07, 0x99, 0xcf, 0x02, 0x20, 0x2e, 0xac, 0xe9,
-	0x7a, 0xd1, 0xf7, 0xe9, 0x98, 0x4a, 0xaa, 0x6c, 0x9b, 0xa6, 0x30, 0xf2, 0x25, 0xd8, 0xbe, 0x44,
-	0x94, 0xab, 0xe9, 0x4e, 0x69, 0x84, 0xec, 0xd8, 0xfd, 0x53, 0xc7, 0x92, 0x3a, 0xb8, 0x7f, 0xf3,
-	0xf8, 0xbb, 0x17, 0x71, 0x68, 0x2b, 0x89, 0x2c, 0x72, 0x00, 0x2d, 0xbb, 0x45, 0xa4, 0xd3, 0x40,
-	0xc5, 0xe3, 0x19, 0x45, 0x36, 0x02, 0x8c, 0x2a, 0x67, 0x93, 0xd7, 0xd0, 0xa6, 0x3c, 0x14, 0x31,
-	0xe3, 0x4a, 0xb7, 0x37, 0x3f, 0xac, 0x25, 0xe9, 0x49, 0x66, 0x37, 0xda, 0x82, 0x4f, 0xf6, 0x61,
-	0x55, 0xd2, 0x20, 0xa1, 0x2a, 0x6b, 0xfd, 0xa3, 0xb9, 0xa8, 0x68, 0x35, 0xc2, 0x8c, 0xab, 0x63,
-	0x32, 0x7e, 0x93, 0x50, 0x29, 0xa9, 0x74, 0x5a, 0x0b, 0x63, 0x0e, 0x33, 0xbb, 0x8d, 0x99, 0xf3,
-	0xc9, 0x00, 0x3a, 0x09, 0x15, 0x63, 0x16, 0xf8, 0x4a, 0xd7, 0xb6, 0x8d, 0xf2, 0xa7, 0x33, 0x72,
-	0xaf, 0x60, 0x18, 0x07, 0x65, 0x0d, 0x79, 0x90, 0x4f, 0x27, 0xc0, 0xba, 0x67, 0xe3, 0xe7, 0x25,
-	0xb4, 0xf3, 0xc2, 0x2e, 0x33, 0x7c, 0xfa, 0xaf, 0xf3, 0x43, 0xfc, 0x0f, 0xc4, 0x6f, 0xa0, 0x37,
-	0x5d, 0xe1, 0xa5, 0xd4, 0x87, 0xb0, 0x56, 0x2e, 0xf2, 0xb2, 0x91, 0xa7, 0xeb, 0xbc, 0x94, 0xfa,
-	0x07, 0x58, 0x9f, 0x2d, 0xf3, 0x52, 0x13, 0xfb, 0x63, 0x0d, 0x7a, 0xd9, 0x25, 0x23, 0xe3, 0x34,
-	0x09, 0xa8, 0x9e, 0x5f, 0x81, 0x48, 0x47, 0x89, 0xb9, 0x74, 0xd0, 0x4d, 0xcd, 0x83, 0x40, 0xa4,
-	0xa5, 0x6b, 0x48, 0x13, 0xca, 0xc7, 0xb4, 0x15, 0x88, 0x14, 0xcf, 0xa8, 0x3e, 0xed, 0xf6, 0x18,
-	0x67, 0x0e, 0x6a, 0xc8, 0xe8, 0x1a, 0x34, 0xf3, 0x31, 0x7b, 0xda, 0xeb, 0x73, 0xa7, 0x9d, 0x7c,
-	0x0d, 0xf7, 0x92, 0x94, 0x73, 0xc6, 0x6f, 0x46, 0xfa, 0x52, 0xe6, 0x69, 0x84, 0x43, 0xb1, 0xe6,
-	0x75, 0x2d, 0x3c, 0x10, 0xe2, 0x3c, 0x8d, 0x88, 0x0b, 0xdd, 0x94, 0xcb, 0x20, 0x1c, 0xd9, 0x55,
-	0xe3, 0x7c, 0xac, 0x79, 0x1d, 0x04, 0x8f, 0x70, 0xd9, 0xda, 0x57, 0xc1, 0x31, 0x11, 0x57, 0x8d,
-	0xaf, 0x8c, 0x65, 0x62, 0x6e, 0xc3, 0xba, 0xe1, 0x15, 0x39, 0x38, 0x2d, 0x24, 0xf6, 0x10, 0x7f,
-	0x9b, 0x25, 0x41, 0x76, 0x80, 0x4c, 0x31, 0x8d, 0xd3, 0x36, 0x72, 0xd7, 0x4b, 0x5c, 0xe3, 0xf7,
-	0x3b, 0xd8, 0x2c, 0xe7, 0xa2, 0x7e, 0x61, 0x49, 0x88, 0x19, 0x01, 0x0a, 0x48, 0x91, 0xd1, 0x95,
-	0x36, 0xe9, 0xb4, 0x5e, 0x82, 0x53, 0x96, 0x30, 0xae, 0x68, 0xc2, 0xfd, 0x31, 0xaa, 0x3a, 0xa8,
-	0xda, 0x2c, 0x54, 0x43, 0x6b, 0x3d, 0x4f, 0x23, 0xf7, 0x8f, 0x0a, 0x6c, 0x0d, 0xc2, 0x10, 0x1d,
-	0x5d, 0xf8, 0x89, 0x9a, 0xe4, 0x1b, 0x5b, 0xaf, 0x9b, 0x40, 0x3d, 0x4d, 0xf3, 0x3b, 0x0d, 0xbf,
-	0xf5, 0x86, 0x91, 0xf9, 0x45, 0xa6, 0x3f, 0x49, 0x0f, 0xaa, 0x4c, 0xd8, 0x81, 0x58, 0x65, 0x42,
-	0xab, 0x44, 0x9c, 0x98, 0x36, 0x35, 0x3c, 0xfc, 0xd6, 0xdb, 0x80, 0xc9, 0x51, 0xcc, 0xc7, 0x8c,
-	0x53, 0xec, 0x4c, 0xcb, 0x6b, 0x31, 0xf9, 0x33, 0xfe, 0xc6, 0x45, 0xbc, 0x13, 0xff, 0xf3, 0x22,
-	0x06, 0xb0, 0x75, 0x4c, 0xc7, 0xff, 0x66, 0x0d, 0xee, 0x87, 0x0a, 0x90, 0x79, 0x07, 0xff, 0x61,
-	0x02, 0xc5, 0x18, 0x6c, 0x94, 0xc7, 0xe0, 0x74, 0x62, 0xcd, 0x99, 0xc4, 0x7e, 0x84, 0xfb, 0x0b,
-	0xb2, 0x22, 0xdb, 0x50, 0x8b, 0xaf, 0x7f, 0xb5, 0xaf, 0x9d, 0x07, 0x7a, 0x1a, 0xcf, 0xb3, 0x3c,
-	0x4d, 0xd9, 0xfb, 0x50, 0x87, 0xde, 0x40, 0x08, 0xcf, 0x3c, 0x74, 0x2f, 0x27, 0x3c, 0x20, 0x07,
-	0xb0, 0x76, 0x4a, 0xd5, 0x40, 0x08, 0xfb, 0xa8, 0xb8, 0x5f, 0x7a, 0x40, 0x64, 0x6f, 0xd6, 0xfe,
-	0xc6, 0xdc, 0x13, 0xd2, 0x5d, 0x21, 0xaf, 0x00, 0x8c, 0x52, 0xcf, 0x6d, 0x42, 0x4a, 0xba, 0x4c,
-	0xb6, 0x39, 0xf7, 0x18, 0xd1, 0xcf, 0x33, 0x77, 0x85, 0xec, 0x43, 0xf7, 0x94, 0xaa, 0xd2, 0x9d,
-	0xbe, 0x48, 0xdd, 0x9b, 0xbe, 0x57, 0xdc, 0x15, 0xf2, 0x06, 0x36, 0x4e, 0xa9, 0x9a, 0x99, 0x5b,
-	0xb8, 0xb6, 0xa9, 0x07, 0x73, 0x9f, 0x94, 0x21, 0x43, 0x73, 0x57, 0xc8, 0x4f, 0xf0, 0x50, 0x87,
-	0x5f, 0x54, 0xc1, 0x45, 0xe1, 0x1f, 0x2e, 0x2e, 0xa4, 0x74, 0x57, 0xc8, 0x11, 0x6c, 0x2e, 0x3c,
-	0x69, 0x04, 0x6f, 0xd2, 0x4f, 0x1e, 0xc2, 0x7e, 0x5b, 0x9b, 0xcd, 0x3f, 0x09, 0x74, 0xb2, 0xf0,
-	0xa4, 0x18, 0x27, 0x9f, 0x3c, 0x44, 0x73, 0x4e, 0x16, 0x6e, 0x75, 0x62, 0xef, 0xf4, 0xf1, 0xdf,
-	0x70, 0x72, 0xdd, 0xc4, 0x7f, 0x3a, 0xdf, 0xff, 0x15, 0x00, 0x00, 0xff, 0xff, 0x2c, 0x9a, 0x6a,
-	0xed, 0x05, 0x0d, 0x00, 0x00,
 }

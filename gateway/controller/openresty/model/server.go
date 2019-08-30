@@ -3,7 +3,7 @@ package model
 import (
 	"github.com/goodrain/rainbond/gateway/annotations/proxy"
 	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
-	"github.com/goodrain/rainbond/gateway/v1"
+	v1 "github.com/goodrain/rainbond/gateway/v1"
 )
 
 // Server sets configuration for a virtual server...
@@ -62,6 +62,8 @@ type Location struct {
 
 	EnableMetrics    bool //Enables or disables monitor
 	DisableAccessLog bool //disable or enables access log
+	AccessLogPath    string
+	ErrorLogPath     string
 	DisableProxyPass bool
 	//PathRewrite if true, path will not passed to the upstream
 	PathRewrite   bool

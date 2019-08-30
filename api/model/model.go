@@ -499,6 +499,7 @@ type StatusList struct {
 	CurStatus     string     `json:"cur_status"`
 	ContainerCPU  int        `json:"container_cpu"`
 	StatusCN      string     `json:"status_cn"`
+	StartTime     string     `json:"start_time"`
 	PodList       []PodsList `json:"pod_list"`
 }
 
@@ -1401,6 +1402,7 @@ type ExportAppStruct struct {
 
 //BeatchOperationRequestStruct beatch operation request body
 type BeatchOperationRequestStruct struct {
+	Operator   string `json:"operator"`
 	TenantName string `json:"tenant_name"`
 	Body       struct {
 		Operation    string                         `json:"operation" validate:"operation|required|in:start,stop,build,upgrade"`

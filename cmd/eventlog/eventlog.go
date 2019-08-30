@@ -21,9 +21,10 @@ package main
 import (
 	"os"
 
+	_ "net/http/pprof"
+
 	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/eventlog/server"
-
 	"github.com/spf13/pflag"
 )
 

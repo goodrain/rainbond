@@ -27,12 +27,12 @@ import (
 )
 
 func TestReadFile(t *testing.T) {
-	reader, err := NewLogFile("/Users/qingguo/gopath/src/github.com/goodrain/rainbond/test/dockerlog/tes.log", 3, false, decodeFunc, 0640, getTailReader)
+	reader, err := NewLogFile("../../../test/dockerlog/tes.log", 3, false, decodeFunc, 0640, getTailReader)
 	if err != nil {
 		t.Fatal(err)
 	}
 	watch := NewLogWatcher()
-	reader.ReadLogs(ReadConfig{Follow: true, Tail: 10, Since: time.Now()}, watch)
+	reader.ReadLogs(ReadConfig{Follow: true, Tail: 0, Since: time.Now()}, watch)
 	defer watch.ConsumerGone()
 LogLoop:
 	for {

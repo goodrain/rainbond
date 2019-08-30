@@ -105,7 +105,7 @@ func (m *Manager) Start(errChan chan error) error {
 				return fmt.Errorf("get the api port info error.%s", err.Error())
 			}
 		}
-		keepalive, err := discover.CreateKeepAlive(m.conf.Etcd.Endpoints, "acp_node", m.node.HostName, m.node.InternalIP, port)
+		keepalive, err := discover.CreateKeepAlive(m.conf.Etcd.Endpoints, "acp_node", m.node.InternalIP, m.node.InternalIP, port)
 		if err != nil {
 			return err
 		}

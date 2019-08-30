@@ -25,25 +25,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/builder"
-	"github.com/goodrain/rainbond/util"
-
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/client"
+	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/build"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/builder/parser/code"
-	"github.com/goodrain/rainbond/event"
-	"github.com/pquerna/ffjson/ffjson"
-	"github.com/tidwall/gjson"
-
-	//"github.com/docker/docker/api/types"
-
-	//"github.com/docker/docker/client"
-
-	"github.com/docker/docker/client"
-	"github.com/goodrain/rainbond/builder/build"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
+	"github.com/pquerna/ffjson/ffjson"
+	"github.com/tidwall/gjson" //"github.com/docker/docker/api/types"
+	//"github.com/docker/docker/client"
 )
 
 //SourceCodeBuildItem SouceCodeBuildItem
@@ -120,7 +115,6 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 
 //Run Run
 func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
-	//TODO:
 	// 1.clone
 	// 2.check dockerfile/ source_code
 	// 3.build
@@ -291,7 +285,7 @@ func (i *SourceCodeBuildItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
 	version.CommitMsg = vi.CommitMsg
 	version.Author = vi.Author
 	version.CodeVersion = vi.CodeVersion
-	logrus.Debugf("update app version %+v", *version)
+	version.CodeBranch = vi.CodeBranch
 	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
 		return err
 	}
@@ -306,9 +300,11 @@ func (i *SourceCodeBuildItem) UpdateBuildVersionInfo(res *build.Response) error 
 		EventID:       i.EventID,
 		ImageName:     builder.RUNNERIMAGENAME,
 		FinalStatus:   "success",
+		CodeBranch:    i.CodeSouceInfo.Branch,
 		CodeVersion:   i.commit.Hash,
 		CommitMsg:     i.commit.Message,
 		Author:        i.commit.Author,
+		FinishTime:    time.Now(),
 	}
 	if err := i.UpdateVersionInfo(vi); err != nil {
 		logrus.Errorf("update version info error: %s", err.Error())

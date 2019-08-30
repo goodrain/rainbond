@@ -21,6 +21,7 @@ package controller
 import (
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -237,6 +238,53 @@ func (e *EventLogStruct) TenantLogByAction(w http.ResponseWriter, r *http.Reques
 		httputil.ReturnError(r, w, 200, "success")
 		return
 	}
+	httputil.ReturnSuccess(r, w, dl.Data)
+	return
+}
+
+//Events get log by target
+func (e *EventLogStruct) Events(w http.ResponseWriter, r *http.Request) {
+	target := r.FormValue("target")
+	targetID := r.FormValue("target-id")
+	var page, size int
+	var err error
+	if page, err = strconv.Atoi(r.FormValue("page")); err != nil || page <= 0 {
+		page = 1
+	}
+	if size, err = strconv.Atoi(r.FormValue("size")); err != nil || size <= 0 {
+		size = 10
+	}
+	logrus.Debugf("get event page param[target:%s id:%s page:%d, page_size:%d]", target, targetID, page, size)
+	list, total, err := handler.GetEventHandler().GetEvents(target, targetID, page, size)
+	if err != nil {
+		logrus.Errorf("get event log error, %v", err)
+		httputil.ReturnError(r, w, 500, "get log error")
+		return
+	}
+	// format start and end time
+	for i := range list {
+		if list[i].EndTime != "" && len(list[i].EndTime) > 20 {
+			list[i].EndTime = strings.Replace(list[i].EndTime[0:19]+"+08:00", " ", "T", 1)
+		}
+	}
+	httputil.ReturnList(r, w, total, page, list)
+}
+
+//EventLog get event log by eventID
+func (e *EventLogStruct) EventLog(w http.ResponseWriter, r *http.Request) {
+	eventID := chi.URLParam(r, "eventID")
+	if strings.TrimSpace(eventID) == "" {
+		httputil.ReturnError(r, w, 400, "eventID is request")
+		return
+	}
+
+	dl, err := handler.GetEventHandler().GetLevelLog(eventID, "debug")
+	if err != nil {
+		logrus.Errorf("get event log error, %v", err)
+		httputil.ReturnError(r, w, 500, "read event log error: "+err.Error())
+		return
+	}
+
 	httputil.ReturnSuccess(r, w, dl.Data)
 	return
 }

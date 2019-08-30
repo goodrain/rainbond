@@ -22,19 +22,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/goodrain/rainbond/builder"
-
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/event"
-	"github.com/tidwall/gjson"
-
-	//"github.com/docker/docker/api/types"
-
-	//"github.com/docker/docker/client"
-
 	"github.com/docker/docker/client"
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/event"
+	"github.com/tidwall/gjson" //"github.com/docker/docker/api/types"
+	//"github.com/docker/docker/client"
 )
 
 //ImageBuildItem ImageBuildItem
@@ -122,6 +117,7 @@ func (i *ImageBuildItem) StorageVersionInfo(imageURL string) error {
 	version.ImageName = imageURL
 	version.RepoURL = i.Image
 	version.FinalStatus = "success"
+	version.FinishTime = time.Now()
 	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
 		return err
 	}
@@ -136,6 +132,7 @@ func (i *ImageBuildItem) UpdateVersionInfo(status string) error {
 	}
 	version.FinalStatus = status
 	version.RepoURL = i.Image
+	version.FinishTime = time.Now()
 	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
 		return err
 	}

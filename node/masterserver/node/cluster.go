@@ -23,17 +23,14 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-
-	"github.com/goodrain/rainbond/util/watch"
-
 	"github.com/Sirupsen/logrus"
-
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/core/config"
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/util/watch"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 //Cluster  node  controller
@@ -132,50 +129,51 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			Message:            "Node lost connection, state unknown",
 		}
 		v.UpdataCondition(r)
-		return
-	}
-	r := client.NodeCondition{
-		Type:               client.NodeUp,
-		Status:             client.ConditionTrue,
-		LastHeartbeatTime:  time.Now(),
-		LastTransitionTime: time.Now(),
-		Message:            "Node lost connection, state unknown",
-	}
-	v.UpdataCondition(r)
-	v.NodeStatus.CurrentScheduleStatus = !v.Unschedulable
-	if v.Role.HasRule("compute") {
-		k8sNode, err := n.kubecli.GetNode(v.ID)
-		if err != nil && !errors.IsNotFound(err) {
-			logrus.Errorf("get kube node %s failure %s", v.ID, err.Error())
+		v.NodeStatus.AdviceAction = append(v.NodeStatus.AdviceAction, "offline")
+	} else {
+		r := client.NodeCondition{
+			Type:               client.NodeUp,
+			Status:             client.ConditionTrue,
+			LastHeartbeatTime:  time.Now(),
+			LastTransitionTime: time.Now(),
+			Message:            "Node lost connection, state unknown",
 		}
-		// Update k8s node status to node status
-		if k8sNode != nil {
-			v.UpdataK8sCondition(k8sNode.Status.Conditions)
-			if v.AvailableCPU == 0 {
-				v.AvailableCPU = k8sNode.Status.Capacity.Cpu().Value()
+		v.UpdataCondition(r)
+		v.NodeStatus.CurrentScheduleStatus = !v.Unschedulable
+		if v.Role.HasRule("compute") {
+			k8sNode, err := n.kubecli.GetNode(v.ID)
+			if err != nil && !errors.IsNotFound(err) {
+				logrus.Errorf("get kube node %s failure %s", v.ID, err.Error())
 			}
-			if v.AvailableMemory == 0 {
-				v.AvailableMemory = k8sNode.Status.Capacity.Memory().Value()
+			// Update k8s node status to node status
+			if k8sNode != nil {
+				v.UpdataK8sCondition(k8sNode.Status.Conditions)
+				if v.AvailableCPU == 0 {
+					v.AvailableCPU = k8sNode.Status.Capacity.Cpu().Value()
+				}
+				if v.AvailableMemory == 0 {
+					v.AvailableMemory = k8sNode.Status.Capacity.Memory().Value()
+				}
+				v.NodeStatus.KubeNode = k8sNode
+				v.NodeStatus.KubeUpdateTime = time.Now()
+				v.NodeStatus.CurrentScheduleStatus = !k8sNode.Spec.Unschedulable
+				v.NodeStatus.NodeInfo.ContainerRuntimeVersion = k8sNode.Status.NodeInfo.ContainerRuntimeVersion
 			}
-			v.NodeStatus.KubeNode = k8sNode
-			v.NodeStatus.KubeUpdateTime = time.Now()
-			v.NodeStatus.CurrentScheduleStatus = !k8sNode.Spec.Unschedulable
-			v.NodeStatus.NodeInfo.ContainerRuntimeVersion = k8sNode.Status.NodeInfo.ContainerRuntimeVersion
 		}
-	}
-	if (v.Role.HasRule("manage") || v.Role.HasRule("gateway")) && !v.Role.HasRule("compute") { //manage install_success == runnint
-		v.AvailableCPU = v.NodeStatus.NodeInfo.NumCPU
-		v.AvailableMemory = int64(v.NodeStatus.NodeInfo.MemorySize)
-	}
-	//handle status
-	v.Status = v.NodeStatus.Status
-	if v.Role.HasRule("compute") && v.NodeStatus.KubeNode == nil {
-		v.Status = "offline"
-	}
-	for _, con := range v.NodeStatus.Conditions {
-		if con.Type == client.NodeReady {
-			v.NodeStatus.NodeHealth = con.Status == client.ConditionTrue
-			break
+		if (v.Role.HasRule("manage") || v.Role.HasRule("gateway")) && !v.Role.HasRule("compute") { //manage install_success == runnint
+			v.AvailableCPU = v.NodeStatus.NodeInfo.NumCPU
+			v.AvailableMemory = int64(v.NodeStatus.NodeInfo.MemorySize)
+		}
+		//handle status
+		v.Status = v.NodeStatus.Status
+		if v.Role.HasRule("compute") && v.NodeStatus.KubeNode == nil {
+			v.Status = "offline"
+		}
+		for _, con := range v.NodeStatus.Conditions {
+			if con.Type == client.NodeReady {
+				v.NodeStatus.NodeHealth = con.Status == client.ConditionTrue
+				break
+			}
 		}
 	}
 	if v.NodeStatus.AdviceAction != nil {
@@ -205,7 +203,9 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			}
 			if action == "offline" {
 				logrus.Warningf("node %s is advice set offline", v.ID)
-				//TODO
+				// k8s will offline node itself.
+				// remove the endpoints associated with the node from etcd
+				v.DelEndpoints()
 			}
 		}
 	}

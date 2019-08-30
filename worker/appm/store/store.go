@@ -462,7 +462,6 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 			if appservice != nil {
 				appservice.SetPods(pod)
-				a.analyzePodStatus(pod)
 				return
 			}
 		}

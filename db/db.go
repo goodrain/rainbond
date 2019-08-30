@@ -25,7 +25,6 @@ import (
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/mysql"
-
 	"github.com/jinzhu/gorm"
 )
 
@@ -143,4 +142,9 @@ func CloseManager() error {
 //GetManager get db manager
 func GetManager() Manager {
 	return defaultManager
+}
+
+// SetTestManager sets the default manager for unit test
+func SetTestManager(m Manager) {
+	defaultManager = m
 }

@@ -52,7 +52,7 @@ func NewCopier(logfile *LogFile, dst []Logger, since time.Time) *Copier {
 // Run starts logs copying
 func (c *Copier) Run() {
 	c.closed = make(chan struct{})
-	go c.logfile.ReadLogs(ReadConfig{Follow: true, Since: c.since}, c.reader)
+	go c.logfile.ReadLogs(ReadConfig{Follow: true, Since: c.since, Tail: 0}, c.reader)
 	go c.copySrc()
 }
 
@@ -63,6 +63,13 @@ lool:
 		select {
 		case <-c.closed:
 			return
+		case err := <-c.reader.Err:
+			logrus.Errorf("read container log file error %s, will retry after 5 seconds", err.Error())
+			//If there is an error in the collection log process,
+			//the collection should be restarted and not stopped
+			time.Sleep(time.Second * 5)
+			go c.logfile.ReadLogs(ReadConfig{Follow: true, Since: c.since, Tail: 0}, c.reader)
+			continue
 		case msg, ok := <-c.reader.Msg:
 			if !ok {
 				break lool

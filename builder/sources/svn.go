@@ -299,7 +299,7 @@ func (c *svnclient) runWithLogger(args ...string) ([]byte, error) {
 	}
 	cmd.Dir = c.svnDir
 	writer := c.logger.GetWriter("progress", "debug")
-	writer.SetFormat(`{"progress":"%s","id":"SVN:"}`)
+	writer.SetFormat(map[string]interface{}{"progress": "%s", "id": "SVN:"})
 	cmd.Stdout = writer
 	errorWriter := bytes.NewBuffer(nil)
 	cmd.Stderr = errorWriter

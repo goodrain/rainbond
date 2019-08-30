@@ -26,8 +26,10 @@ import (
 
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
+	"github.com/goodrain/rainbond/api/util"
 
 	"github.com/goodrain/rainbond/api/model"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -40,7 +42,13 @@ func BatchOperation(w http.ResponseWriter, r *http.Request) {
 		logrus.Errorf("start batch operation validate request body failure")
 		return
 	}
+
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+
+	// create event for each operation
+	eventRe := createBatchEvents(&build, tenantID, build.Operator)
+
 	var re handler.BatchOperationResult
 	switch build.Body.Operation {
 	case "build":
@@ -58,5 +66,46 @@ func BatchOperation(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("operation %s do not support batch", build.Body.Operation))
 		return
 	}
+
+	// append every create event result to re and then return
+	re.BatchResult = append(re.BatchResult, eventRe.BatchResult...)
 	httputil.ReturnSuccess(r, w, re)
+}
+
+func createBatchEvents(build *model.BeatchOperationRequestStruct, tenantID, operator string) (re handler.BatchOperationResult) {
+	for i := range build.Body.BuildInfos {
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "build-service", build.Body.BuildInfos[i].ServiceID, tenantID, "", operator, dbmodel.ASYNEVENTTYPE)
+		if err != nil {
+			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.BuildInfos[i].ServiceID})
+			continue
+		}
+		build.Body.BuildInfos[i].EventID = event.EventID
+
+	}
+	for i := range build.Body.StartInfos {
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "start-service", build.Body.StartInfos[i].ServiceID, tenantID, "", operator, dbmodel.ASYNEVENTTYPE)
+		if err != nil {
+			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.StartInfos[i].ServiceID})
+			continue
+		}
+		build.Body.StartInfos[i].EventID = event.EventID
+	}
+	for i := range build.Body.StopInfos {
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "stop-service", build.Body.StopInfos[i].ServiceID, tenantID, "", operator, dbmodel.ASYNEVENTTYPE)
+		if err != nil {
+			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.StopInfos[i].ServiceID})
+			continue
+		}
+		build.Body.StopInfos[i].EventID = event.EventID
+	}
+	for i := range build.Body.UpgradeInfos {
+		event, err := util.CreateEvent(dbmodel.TargetTypeService, "upgrade-service", build.Body.UpgradeInfos[i].ServiceID, tenantID, "", operator, dbmodel.ASYNEVENTTYPE)
+		if err != nil {
+			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.UpgradeInfos[i].ServiceID})
+			continue
+		}
+		build.Body.UpgradeInfos[i].EventID = event.EventID
+	}
+
+	return
 }
