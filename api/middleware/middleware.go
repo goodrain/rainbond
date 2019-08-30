@@ -22,10 +22,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/goodrain/rainbond/api/handler"
@@ -34,7 +32,6 @@ import (
 	"github.com/jinzhu/gorm"
 
 	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 
@@ -272,11 +269,6 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 			// tenantID can not null
 			tenantID := r.Context().Value(ContextKey("tenant_id")).(string)
 			var ctx context.Context
-			// check resource is enough or not
-			if err := checkResource(optType, reqData, r); err != nil {
-				httputil.ReturnError(r, w, 400, err.Error())
-				return
-			}
 
 			event, err := util.CreateEvent(target, optType, targetID, tenantID, string(body), operator, synType)
 			if err != nil {
@@ -293,57 +285,4 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 			}
 		}
 	}
-}
-
-func checkResource(optType string, reqData map[string]interface{}, r *http.Request) error {
-	if optType == "start-service" || optType == "restart-service" || optType == "deploy-service" || optType == "horizontal-service" || optType == "vertical-service" || optType == "upgrade-service" {
-		if publicCloud := os.Getenv("PUBLIC_CLOUD"); publicCloud != "true" {
-			tenant := r.Context().Value(ContextKey("tenant")).(*model.Tenants)
-			if service, ok := r.Context().Value(ContextKey("service")).(*model.TenantServices); ok {
-				var containerMemory, replicas = service.ContainerMemory, service.Replicas
-				logrus.Debugf("service memory: %d, replicas: %d", containerMemory, replicas)
-				if optType == "horizontal-service" {
-					if replicasI, ok := reqData["node_num"]; ok {
-						if replicasF, ok := replicasI.(float64); ok {
-							replicas = int(replicasF)
-						}
-					}
-				} else if optType == "vertical-service" {
-					if ContainerMemoryI, ok := reqData["container_memory"]; ok {
-						if containerMemoryF, ok := ContainerMemoryI.(float64); ok {
-							containerMemory = int(containerMemoryF)
-						}
-					}
-				}
-				logrus.Debugf("service per memory: %d, replicas: %d, all memory: %d", containerMemory, replicas, containerMemory*replicas)
-				return priChargeSverify(tenant, containerMemory*replicas)
-			}
-		}
-	}
-	return nil
-}
-
-func priChargeSverify(t *model.Tenants, quantity int) error {
-	if t.LimitMemory == 0 {
-		clusterStats, err := handler.GetTenantManager().GetAllocatableResources()
-		if err != nil {
-			return fmt.Errorf("error getting allocatable resources: %v", err)
-		}
-		availMem := clusterStats.AllMemory - clusterStats.RequestMemory
-		logrus.Debugf("cluster allMemory: %d, requestMemory: %d, availMemory: %d", clusterStats.AllMemory, clusterStats.RequestMemory, clusterStats.AllMemory-clusterStats.RequestMemory)
-		if availMem >= int64(quantity) {
-			return nil
-		}
-		return fmt.Errorf("cluster_lack_of_memory")
-	}
-	tenantStas, err := handler.GetTenantManager().GetTenantResource(t.UUID)
-	if err != nil {
-		return fmt.Errorf("error getting tenant resource: %v", err)
-	}
-	// TODO: it should be limit, not request
-	availMem := int64(t.LimitMemory) - (tenantStas.MemoryRequest + tenantStas.UnscdMemoryReq)
-	if availMem >= int64(quantity) {
-		return nil
-	}
-	return fmt.Errorf("lack_of_memory")
 }
