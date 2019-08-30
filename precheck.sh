@@ -1,6 +1,6 @@
 #!/bin/sh
 
-STAGED_GO_FILES=$(git diff --cached --name-only | grep ".go$")
+STAGED_GO_FILES=$(git diff  --name-only | grep ".go$")
 
 if [[ "$STAGED_GO_FILES" = "" ]]; then
   exit 0

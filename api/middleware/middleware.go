@@ -259,14 +259,6 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 				httputil.ReturnError(r, w, 409, "操作过于频繁，请稍后再试") // status code 409 conflict
 				return
 			}
-			// tenantID can not null
-			tenantID := r.Context().Value(ContextKey("tenant_id")).(string)
-			var ctx context.Context
-			// check resource is enough or not
-			if err := checkResource(optType, r); err != nil {
-				httputil.ReturnError(r, w, 400, err.Error())
-				return
-			}
 
 			// handle operator
 			var operator string
@@ -275,6 +267,15 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 				if operatorI, ok := reqData["operator"]; ok {
 					operator = operatorI.(string)
 				}
+			}
+
+			// tenantID can not null
+			tenantID := r.Context().Value(ContextKey("tenant_id")).(string)
+			var ctx context.Context
+			// check resource is enough or not
+			if err := checkResource(optType, reqData, r); err != nil {
+				httputil.ReturnError(r, w, 400, err.Error())
+				return
 			}
 
 			event, err := util.CreateEvent(target, optType, targetID, tenantID, string(body), operator, synType)
@@ -294,12 +295,28 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 	}
 }
 
-func checkResource(optType string, r *http.Request) error {
+func checkResource(optType string, reqData map[string]interface{}, r *http.Request) error {
 	if optType == "start-service" || optType == "restart-service" || optType == "deploy-service" || optType == "horizontal-service" || optType == "vertical-service" || optType == "upgrade-service" {
 		if publicCloud := os.Getenv("PUBLIC_CLOUD"); publicCloud != "true" {
 			tenant := r.Context().Value(ContextKey("tenant")).(*model.Tenants)
 			if service, ok := r.Context().Value(ContextKey("service")).(*model.TenantServices); ok {
-				return priChargeSverify(tenant, service.ContainerMemory*service.Replicas)
+				var containerMemory, replicas = service.ContainerMemory, service.Replicas
+				logrus.Debugf("service memory: %d, replicas: %d", containerMemory, replicas)
+				if optType == "horizontal-service" {
+					if replicasI, ok := reqData["node_num"]; ok {
+						if replicasF, ok := replicasI.(float64); ok {
+							replicas = int(replicasF)
+						}
+					}
+				} else if optType == "vertical-service" {
+					if ContainerMemoryI, ok := reqData["container_memory"]; ok {
+						if containerMemoryF, ok := ContainerMemoryI.(float64); ok {
+							containerMemory = int(containerMemoryF)
+						}
+					}
+				}
+				logrus.Debugf("service per memory: %d, replicas: %d, all memory: %d", containerMemory, replicas, containerMemory*replicas)
+				return priChargeSverify(tenant, containerMemory*replicas)
 			}
 		}
 	}
@@ -313,6 +330,7 @@ func priChargeSverify(t *model.Tenants, quantity int) error {
 			return fmt.Errorf("error getting allocatable resources: %v", err)
 		}
 		availMem := clusterStats.AllMemory - clusterStats.RequestMemory
+		logrus.Debugf("cluster allMemory: %d, requestMemory: %d, availMemory: %d", clusterStats.AllMemory, clusterStats.RequestMemory, clusterStats.AllMemory-clusterStats.RequestMemory)
 		if availMem >= int64(quantity) {
 			return nil
 		}
