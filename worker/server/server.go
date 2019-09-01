@@ -31,6 +31,7 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -161,7 +162,7 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 			Containers: containers,
 		}
 		podStatus := &pb.PodStatus{}
-		wutil.DescribePodStatus(pod, podStatus)
+		wutil.DescribePodStatus(r.clientset, pod, podStatus, k8s.DefListEventsByPod)
 		sapod.PodStatus = podStatus.Type.String()
 		if app.DistinguishPod(pod) {
 			newpods = append(newpods, sapod)

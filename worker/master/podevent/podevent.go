@@ -84,12 +84,12 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 		return
 	}
 	podstatus := new(pb.PodStatus)
-	wutil.DescribePodStatus(pod, podstatus)
+	wutil.DescribePodStatus(clientset, pod, podstatus, k8sutil.DefListEventsByPod)
 	tenantID, serviceID, _, _ := k8sutil.ExtractLabels(pod.GetLabels())
 	// the pod in the pending status has no start time and container statuses
 	for _, cs := range pod.Status.ContainerStatuses {
 		state := cs.State
-		if podstatus.Type == pb.PodStatus_ABNORMAL || podstatus.Type == pb.PodStatus_NOTREADY { // TODO: not ready
+		if podstatus.Type == pb.PodStatus_ABNORMAL || podstatus.Type == pb.PodStatus_NOTREADY || podstatus.Type == pb.PodStatus_UNHEALTHY {
 			var eventID string
 			optType, message := f(clientset, pod, &state, k8sutil.DefListEventsByPod)
 			if optType == "" {
@@ -121,7 +121,7 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 			logrus.Debugf("Service id: %s; %s.", serviceID, msg)
 			loggerOpt := event.GetLoggerOption("failure")
 			if time.Now().Sub(state.Running.StartedAt.Time) > 2*time.Minute {
-				loggerOpt = event.GetLastLoggerOption() // TODO
+				loggerOpt = event.GetCallbackLoggerOption()
 				_, err := createSystemEvent(tenantID, serviceID, pod.GetName(), PodEventTypeAbnormalRecovery.String(), model.EventStatusSuccess.String())
 				if err != nil {
 					logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), PodEventTypeAbnormalRecovery.String(), err)

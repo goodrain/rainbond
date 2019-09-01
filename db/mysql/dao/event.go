@@ -122,7 +122,7 @@ func (c *EventDaoImpl) GetEventsByTarget(target, targetID string, offset, limit 
 	if err := db.Find(&result).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := db.Offset(offset).Limit(limit).Order("start_time DESC, id DESC").Find(&result).Error; err != nil {
+	if err := db.Offset(offset).Limit(limit).Order("create_time DESC, id DESC").Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, 0, nil
 		}
@@ -171,7 +171,7 @@ func (c *EventDaoImpl) UnfinishedEvents(target, targetID string, optTypes ...str
 // LatestFailurePodEvent returns the latest failure pod event.
 func (c *EventDaoImpl) LatestFailurePodEvent(podName string) (*model.ServiceEvent, error) {
 	var event model.ServiceEvent
-	if err := c.DB.Where("target=? and target_id=? and status=?", model.TargetTypePod, podName, model.EventStatusFailure.String()).
+	if err := c.DB.Where("target=? and target_id=? and status=? and final_status<>?", model.TargetTypePod, podName, model.EventStatusFailure.String(), model.EventFinalStatusEmptyComplete.String()).
 		Last(&event).Error; err != nil {
 		return nil, err
 	}

@@ -19,19 +19,18 @@
 package store
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	cdb "github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/eventlog/util"
-	"golang.org/x/net/context"
-
-	"fmt"
-
-	"github.com/Sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/net/context"
 )
 
 type handleMessageStore struct {
@@ -288,7 +287,11 @@ func (h *handleMessageStore) handleBarrelEvent() {
 
 					} else {
 						event.Status = status
-						event.FinalStatus = "complete"
+						if event.FinalStatus == "empty" {
+							event.FinalStatus = model.EventFinalStatusEmptyComplete.String()
+						} else {
+							event.FinalStatus = "complete"
+						}
 						event.Message = message
 						event.EndTime = time.Now().Format(time.RFC3339)
 						logrus.Infof("updating event %s's status: %s", eventID, status)
