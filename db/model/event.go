@@ -58,7 +58,10 @@ var EventFinalStatusRunning EventFinalStatus = "running"
 // EventFinalStatusEmpty -
 var EventFinalStatusEmpty EventFinalStatus = "empty"
 
-// EventFinalStatus -
+// EventFinalStatusEmptyComplete -
+var EventFinalStatusEmptyComplete EventFinalStatus = "emptycomplete"
+
+// EventStatus -
 type EventStatus string
 
 // String -

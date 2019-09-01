@@ -113,25 +113,10 @@ func podEventHandler(clientset kubernetes.Interface, store Storer) cache.Resourc
 		AddFunc: func(obj interface{}) {
 		},
 		DeleteFunc: func(obj interface{}) {
-			pod := obj.(*corev1.Pod)
-			tenantID, serviceID, _, _ := k8sutil.ExtractLabels(pod.GetLabels())
-			if hasUnfinishedUserActions(serviceID) {
-				return
-			}
-
-			if store.IsSvcClosed(serviceID) {
-				return
-			}
-
-			_, err := createSystemEvent(tenantID, serviceID, pod.GetName(), PodEventTypeAbnormalShtdown.String(), model.EventStatusSuccess.String())
-			if err != nil {
-				logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), PodEventTypeAbnormalShtdown.String(), err)
-				return
-			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			cpod := cur.(*corev1.Pod)
-
+			
 			recordUpdateEvent(clientset, cpod, defDetermineOptType)
 		},
 	}
@@ -161,7 +146,7 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 	// the pod in the pending status has no start time and container statuses
 	for _, cs := range pod.Status.ContainerStatuses {
 		state := cs.State
-		if podstatus.Type == pb.PodStatus_ABNORMAL || podstatus.Type == pb.PodStatus_NOTREADY { // TODO: not ready
+		if podstatus.Type == pb.PodStatus_ABNORMAL || podstatus.Type == pb.PodStatus_NOTREADY {
 			var eventID string
 			optType, message := f(clientset, pod, &state, k8sutil.DefListEventsByPod)
 			if optType == "" {
@@ -193,7 +178,7 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 			logrus.Debugf("Service id: %s; %s.", serviceID, msg)
 			loggerOpt := event.GetLoggerOption("failure")
 			if time.Now().Sub(state.Running.StartedAt.Time) > 2*time.Minute {
-				loggerOpt = event.GetLastLoggerOption() // TODO
+				loggerOpt = event.GetCallbackLoggerOption()
 				_, err := createSystemEvent(tenantID, serviceID, pod.GetName(), PodEventTypeAbnormalRecovery.String(), model.EventStatusSuccess.String())
 				if err != nil {
 					logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), PodEventTypeAbnormalRecovery.String(), err)
