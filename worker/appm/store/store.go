@@ -30,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/goodrain/rainbond/worker/appm/f"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -102,8 +103,9 @@ type appRuntimeStore struct {
 	dbmanager   db.Manager
 	conf        option.Config
 
-	startCh *channels.RingChannel
-	stopch  chan struct{}
+	startCh    *channels.RingChannel
+	stopch     chan struct{}
+	podEventCh []chan *corev1.Pod
 }
 
 //NewStore new app runtime store
@@ -111,7 +113,8 @@ func NewStore(clientset *kubernetes.Clientset,
 	dbmanager db.Manager,
 	conf option.Config,
 	startCh *channels.RingChannel,
-	probeCh *channels.RingChannel) Storer {
+	probeCh *channels.RingChannel,
+	podEventCh []chan *corev1.Pod) Storer {
 	ctx, cancel := context.WithCancel(context.Background())
 	store := &appRuntimeStore{
 		clientset:   clientset,
@@ -123,6 +126,7 @@ func NewStore(clientset *kubernetes.Clientset,
 		conf:        conf,
 		dbmanager:   dbmanager,
 		startCh:     startCh,
+		podEventCh:  podEventCh,
 	}
 	// create informers factory, enable and assign required informers
 	infFactory := informers.NewFilteredSharedInformerFactory(conf.KubeClient, time.Second, corev1.NamespaceAll,
@@ -241,7 +245,7 @@ func NewStore(clientset *kubernetes.Clientset,
 
 	store.informers.Deployment.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.StatefulSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Pod.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.Pod.AddEventHandlerWithResyncPeriod(store.podEventHandler(), time.Second*10)
 	store.informers.Secret.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Service.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Ingress.AddEventHandlerWithResyncPeriod(store, time.Second*10)
@@ -451,21 +455,6 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 		}
 	}
-	if pod, ok := obj.(*corev1.Pod); ok {
-		serviceID := pod.Labels["service_id"]
-		version := pod.Labels["version"]
-		createrID := pod.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
-			appservice, err := a.getAppService(serviceID, version, createrID, true)
-			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{})
-			}
-			if appservice != nil {
-				appservice.SetPods(pod)
-				return
-			}
-		}
-	}
 	if secret, ok := obj.(*corev1.Secret); ok {
 		serviceID := secret.Labels["service_id"]
 		version := secret.Labels["version"]
@@ -585,21 +574,6 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 			appservice, _ := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeleteReplicaSet(replicaset)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
-				}
-				return
-			}
-		}
-	}
-	if pod, ok := obj.(*corev1.Pod); ok {
-		serviceID := pod.Labels["service_id"]
-		version := pod.Labels["version"]
-		createrID := pod.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeletePods(pod)
 				if appservice.IsClosed() {
 					a.DeleteAppService(appservice)
 				}
@@ -1007,4 +981,54 @@ func (a *appRuntimeStore) GetTenantRunningApp(tenantID string) (list []*v1.AppSe
 		return true
 	})
 	return
+}
+
+func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			pod := obj.(*corev1.Pod)
+			_, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, err := a.getAppService(serviceID, version, createrID, true)
+				if err == conversion.ErrServiceNotFound {
+					a.conf.KubeClient.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{})
+				}
+				if appservice != nil {
+					appservice.SetPods(pod)
+				}
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			pod := obj.(*corev1.Pod)
+			_, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeletePods(pod)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+				}
+			}
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			pod := cur.(*corev1.Pod)
+			_, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, err := a.getAppService(serviceID, version, createrID, true)
+				if err == conversion.ErrServiceNotFound {
+					a.conf.KubeClient.CoreV1().Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{})
+				}
+				if appservice != nil {
+					appservice.SetPods(pod)
+				}
+			}
+
+			if a.podEventCh != nil {
+				for _, pech := range a.podEventCh {
+					pech <- pod // todo block
+				}
+			}
+		},
+	}
 }

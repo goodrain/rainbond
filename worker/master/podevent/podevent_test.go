@@ -1,9 +1,8 @@
-package store
+package podevent
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/db/config"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -228,35 +227,4 @@ func TestDetermineOptType(t *testing.T) {
 			t.Errorf("Expected %s for opt type, but returned %s", tc.podEventType.String(), optType.String())
 		}
 	}
-}
-
-func TestK8sStore_Run(t *testing.T) {
-	dbconfig := config.Config{
-		DBType:              "mysql",
-		MysqlConnectionInfo: "cie5iB:aik8EpeW@tcp(192.168.2.202:3306)/region",
-	}
-	if err := db.CreateManager(dbconfig); err != nil {
-		t.Fatalf("error creating db manager: %v", err)
-	}
-	defer db.CloseManager()
-
-	err := event.NewManager(event.EventConfig{
-		EventLogServers: []string{"192.168.2.202:6366"},
-		DiscoverAddress: []string{"192.168.2.202:2379"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer event.GetManager().Close()
-	time.Sleep(time.Second * 3)
-
-	clientset, err := k8sutil.NewClientset("/opt/rainbond/etc/kubernetes/kubecfg/192.168.2.202/admin.kubeconfig")
-	if err != nil {
-		t.Fatalf("error creating k8s clientset: %s", err.Error())
-	}
-	store := New(clientset, nil)
-	stop := make(chan struct{})
-	store.Run(stop)
-
-	<-stop
 }
