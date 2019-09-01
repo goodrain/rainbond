@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/goodrain/rainbond/worker/util"
 	corev1 "k8s.io/api/core/v1"
@@ -73,7 +74,7 @@ func (r *RuntimeServer) GetPodDetail(ctx context.Context, req *pb.GetPodDetailRe
 	}
 	describeContainers(pod.Spec.Containers, pod.Status.ContainerStatuses, &podDetail.Containers)
 
-	util.DescribePodStatus(pod, podDetail.Status)
+	util.DescribePodStatus(r.clientset, pod, podDetail.Status, k8sutil.DefListEventsByPod)
 
 	return podDetail, nil
 }
