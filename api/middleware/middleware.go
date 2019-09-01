@@ -22,10 +22,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/goodrain/rainbond/api/handler"
@@ -34,7 +32,6 @@ import (
 	"github.com/jinzhu/gorm"
 
 	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 
@@ -259,14 +256,6 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 				httputil.ReturnError(r, w, 409, "操作过于频繁，请稍后再试") // status code 409 conflict
 				return
 			}
-			// tenantID can not null
-			tenantID := r.Context().Value(ContextKey("tenant_id")).(string)
-			var ctx context.Context
-			// check resource is enough or not
-			if err := checkResource(optType, r); err != nil {
-				httputil.ReturnError(r, w, 400, err.Error())
-				return
-			}
 
 			// handle operator
 			var operator string
@@ -276,6 +265,10 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 					operator = operatorI.(string)
 				}
 			}
+
+			// tenantID can not null
+			tenantID := r.Context().Value(ContextKey("tenant_id")).(string)
+			var ctx context.Context
 
 			event, err := util.CreateEvent(target, optType, targetID, tenantID, string(body), operator, synType)
 			if err != nil {
@@ -292,40 +285,4 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 			}
 		}
 	}
-}
-
-func checkResource(optType string, r *http.Request) error {
-	if optType == "start-service" || optType == "restart-service" || optType == "deploy-service" || optType == "horizontal-service" || optType == "vertical-service" || optType == "upgrade-service" {
-		if publicCloud := os.Getenv("PUBLIC_CLOUD"); publicCloud != "true" {
-			tenant := r.Context().Value(ContextKey("tenant")).(*model.Tenants)
-			if service, ok := r.Context().Value(ContextKey("service")).(*model.TenantServices); ok {
-				return priChargeSverify(tenant, service.ContainerMemory*service.Replicas)
-			}
-		}
-	}
-	return nil
-}
-
-func priChargeSverify(t *model.Tenants, quantity int) error {
-	if t.LimitMemory == 0 {
-		clusterStats, err := handler.GetTenantManager().GetAllocatableResources()
-		if err != nil {
-			return fmt.Errorf("error getting allocatable resources: %v", err)
-		}
-		availMem := clusterStats.AllMemory - clusterStats.RequestMemory
-		if availMem >= int64(quantity) {
-			return nil
-		}
-		return fmt.Errorf("cluster_lack_of_memory")
-	}
-	tenantStas, err := handler.GetTenantManager().GetTenantResource(t.UUID)
-	if err != nil {
-		return fmt.Errorf("error getting tenant resource: %v", err)
-	}
-	// TODO: it should be limit, not request
-	availMem := int64(t.LimitMemory) - (tenantStas.MemoryRequest + tenantStas.UnscdMemoryReq)
-	if availMem >= int64(quantity) {
-		return nil
-	}
-	return fmt.Errorf("lack_of_memory")
 }

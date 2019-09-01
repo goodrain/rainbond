@@ -141,12 +141,12 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 		return
 	}
 	podstatus := new(pb.PodStatus)
-	wutil.DescribePodStatus(pod, podstatus)
+	wutil.DescribePodStatus(clientset, pod, podstatus, k8sutil.DefListEventsByPod)
 	tenantID, serviceID, _, _ := k8sutil.ExtractLabels(pod.GetLabels())
 	// the pod in the pending status has no start time and container statuses
 	for _, cs := range pod.Status.ContainerStatuses {
 		state := cs.State
-		if podstatus.Type == pb.PodStatus_ABNORMAL || podstatus.Type == pb.PodStatus_NOTREADY {
+		if podstatus.Type == pb.PodStatus_ABNORMAL || podstatus.Type == pb.PodStatus_NOTREADY || podstatus.Type == pb.PodStatus_UNHEALTHY {
 			var eventID string
 			optType, message := f(clientset, pod, &state, k8sutil.DefListEventsByPod)
 			if optType == "" {

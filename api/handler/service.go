@@ -1712,6 +1712,7 @@ type K8sPodInfo struct {
 	PodName   string                       `json:"pod_name"`
 	PodIP     string                       `json:"pod_ip"`
 	PodStatus string                       `json:"pod_status"`
+	ServiceID string                       `json:"service_id"`
 	Container map[string]map[string]string `json:"container"`
 }
 
@@ -1734,6 +1735,7 @@ func (s *ServiceAction) GetPods(serviceID string) (*K8sPodInfos, error) {
 			podInfo.PodName = v.PodName
 			podInfo.PodIP = v.PodIp
 			podInfo.PodStatus = v.PodStatus
+			podInfo.ServiceID = serviceID
 			containerInfos := make(map[string]map[string]string, 10)
 			for _, container := range v.Containers {
 				containerInfos[container.ContainerName] = map[string]string{
