@@ -1,4 +1,4 @@
-package store
+package podevent
 
 import (
 	"encoding/json"
@@ -12,16 +12,11 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
-	astore "github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	wutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/jinzhu/gorm"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 )
 
 // PodEventType -
@@ -47,106 +42,39 @@ var PodEventTypeAbnormalRecovery PodEventType = "AbnormalRecovery"
 // PodEventTypeAbnormalShtdown -
 var PodEventTypeAbnormalShtdown PodEventType = "AbnormalShtdown"
 
-//Storer is the interface that wraps the required methods to gather information
-type Storer interface {
-	// Run initiates the synchronization of the controllers
-	Run(stopCh chan struct{})
-
-	ListPodsBySID(sid string) ([]*corev1.Pod, error)
-
-	IsSvcClosed(sid string) bool
+// PodEvent -
+type PodEvent struct {
+	clientset   kubernetes.Interface
+	podEventChs []chan *corev1.Pod
+	stopCh      chan struct{}
+	podEventCh  chan *corev1.Pod
 }
 
-type k8sStore struct {
-	// informer contains the cache Informers
-	informers *Informer
-	// Lister contains object listers (stores).
-	listers        *Lister
-	sharedInformer informers.SharedInformerFactory
-
-	appmstore astore.Storer
-}
-
-// New creates a new Storer
-func New(clientset kubernetes.Interface, appmstore astore.Storer) Storer {
-	store := &k8sStore{
-		informers: &Informer{},
-		appmstore: appmstore,
-	}
-
-	// create informers factory, enable and assign required informers
-	store.sharedInformer = k8sutil.NewRainbondFilteredSharedInformerFactory(clientset)
-
-	store.informers.Pod = store.sharedInformer.Core().V1().Pods().Informer()
-
-	store.informers.Pod.AddEventHandler(podEventHandler(clientset, store))
-
-	return store
-}
-
-// Run initiates the synchronization of the informers.
-func (s *k8sStore) Run(stopCh chan struct{}) {
-	// start informers
-	s.informers.Run(stopCh)
-}
-
-func (s *k8sStore) ListPodsBySID(sid string) ([]*corev1.Pod, error) {
-	seletor := labels.NewSelector()
-	rm, err := labels.NewRequirement("service_id", selection.Equals, []string{sid})
-	if err != nil {
-		return nil, err
-	}
-	seletor.Add(*rm)
-	return s.sharedInformer.Core().V1().Pods().Lister().List(seletor)
-}
-
-func (s *k8sStore) IsSvcClosed(sid string) bool {
-	appservice := s.appmstore.GetAppService(sid)
-	if appservice == nil {
-		return true
-	}
-	return appservice.IsClosed()
-}
-
-func podEventHandler(clientset kubernetes.Interface, store Storer) cache.ResourceEventHandlerFuncs {
-	return cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-		},
-		DeleteFunc: func(obj interface{}) {
-			pod := obj.(*corev1.Pod)
-			tenantID, serviceID, _, _ := k8sutil.ExtractLabels(pod.GetLabels())
-			if hasUnfinishedUserActions(serviceID) {
-				return
-			}
-
-			if store.IsSvcClosed(serviceID) {
-				return
-			}
-
-			_, err := createSystemEvent(tenantID, serviceID, pod.GetName(), PodEventTypeAbnormalShtdown.String(), model.EventStatusSuccess.String())
-			if err != nil {
-				logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), PodEventTypeAbnormalShtdown.String(), err)
-				return
-			}
-		},
-		UpdateFunc: func(old, cur interface{}) {
-			cpod := cur.(*corev1.Pod)
-
-			recordUpdateEvent(clientset, cpod, defDetermineOptType)
-		},
+// New create a new PodEvent
+func New(clientset kubernetes.Interface, stopCh chan struct{}, podEventChs []chan *corev1.Pod) *PodEvent {
+	return &PodEvent{
+		clientset:   clientset,
+		podEventChs: podEventChs,
+		stopCh:      stopCh,
 	}
 }
 
-func hasUnfinishedUserActions(serviceID string) bool {
-	usrActs := []string{
-		"rollback-service", "build-service", "update-service", "start-service", "stop-service",
-		"restart-service", "vertical-service", "horizontal-service", "upgrade-service",
+// Register -
+func (p *PodEvent) Register() {
+	p.podEventCh = make(chan *corev1.Pod)
+	p.podEventChs[0] = p.podEventCh
+}
+
+// Handle -
+func (p *PodEvent) Handle() {
+	for {
+		select {
+		case pod := <-p.podEventCh:
+			recordUpdateEvent(p.clientset, pod, defDetermineOptType)
+		case <-p.stopCh:
+			return
+		}
 	}
-	events, err := db.GetManager().ServiceEventDao().UnfinishedEvents(model.TargetTypeService, serviceID, usrActs...)
-	if err != nil {
-		logrus.Warningf("error listing unfinished events: %v", err)
-	}
-	return len(events) > 0
 }
 
 func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determineOptType) {
@@ -205,25 +133,6 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 	}
 }
 
-func createSystemEvent(tenantID, serviceID, targetID, optType, status string) (eventID string, err error) {
-	eventID = util.NewUUID()
-	et := &model.ServiceEvent{
-		EventID:     eventID,
-		TenantID:    tenantID,
-		ServiceID:   serviceID,
-		Target:      model.TargetTypePod,
-		TargetID:    targetID,
-		UserName:    model.UsernameSystem,
-		OptType:     optType,
-		Status:      status,
-		FinalStatus: model.EventFinalStatusEmpty.String(),
-	}
-	if err = db.GetManager().ServiceEventDao().AddModel(et); err != nil {
-		return
-	}
-	return
-}
-
 // determine the type of exception
 type determineOptType func(clientset kubernetes.Interface, pod *corev1.Pod, state *corev1.ContainerState, f k8sutil.ListEventsByPod) (PodEventType, string)
 
@@ -244,4 +153,23 @@ func defDetermineOptType(clientset kubernetes.Interface, pod *corev1.Pod, state 
 	b, _ := json.Marshal(pod)
 	logrus.Debugf("unrecognized operation type; pod info: %s", string(b))
 	return "", ""
+}
+
+func createSystemEvent(tenantID, serviceID, targetID, optType, status string) (eventID string, err error) {
+	eventID = util.NewUUID()
+	et := &model.ServiceEvent{
+		EventID:     eventID,
+		TenantID:    tenantID,
+		ServiceID:   serviceID,
+		Target:      model.TargetTypePod,
+		TargetID:    targetID,
+		UserName:    model.UsernameSystem,
+		OptType:     optType,
+		Status:      status,
+		FinalStatus: model.EventFinalStatusEmpty.String(),
+	}
+	if err = db.GetManager().ServiceEventDao().AddModel(et); err != nil {
+		return
+	}
+	return
 }

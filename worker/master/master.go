@@ -30,11 +30,12 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util/leader"
 	"github.com/goodrain/rainbond/worker/appm/store"
-	mstore "github.com/goodrain/rainbond/worker/master/store"
+	"github.com/goodrain/rainbond/worker/master/podevent"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
 	"github.com/goodrain/rainbond/worker/master/volumes/statistical"
 	"github.com/prometheus/client_golang/prometheus"
+	corev1 "k8s.io/api/core/v1"
 )
 
 //Controller app runtime master controller
@@ -43,7 +44,6 @@ type Controller struct {
 	cancel    context.CancelFunc
 	conf      option.Config
 	store     store.Storer
-	mstore    mstore.Storer
 	dbmanager db.Manager
 	memoryUse *prometheus.GaugeVec
 	fsUse     *prometheus.GaugeVec
@@ -51,11 +51,13 @@ type Controller struct {
 	pc        *controller.ProvisionController
 	isLeader  bool
 
-	stopCh chan struct{}
+	stopCh      chan struct{}
+	podEventChs []chan *corev1.Pod
+	podEvent    *podevent.PodEvent
 }
 
 //NewMasterController new master controller
-func NewMasterController(conf option.Config, store store.Storer) (*Controller, error) {
+func NewMasterController(conf option.Config, store store.Storer, podEventChs []chan *corev1.Pod) (*Controller, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	// The controller needs to know what the server version is because out-of-tree
 	// provisioners aren't officially supported until 1.5
@@ -78,12 +80,12 @@ func NewMasterController(conf option.Config, store store.Storer) (*Controller, e
 		rainbondssscProvisioner.Name(): rainbondssscProvisioner,
 		rainbondsslcProvisioner.Name(): rainbondsslcProvisioner,
 	}, serverVersion.GitVersion)
+	stopCh := make(chan struct{})
 	return &Controller{
 		conf:      conf,
 		pc:        pc,
 		store:     store,
-		mstore:    mstore.New(conf.KubeClient, store),
-		stopCh:    make(chan struct{}),
+		stopCh:    stopCh,
 		cancel:    cancel,
 		ctx:       ctx,
 		dbmanager: db.GetManager(),
@@ -98,6 +100,7 @@ func NewMasterController(conf option.Config, store store.Storer) (*Controller, e
 			Help:      "tenant service fs used.",
 		}, []string{"tenant_id", "service_id", "volume_type"}),
 		diskCache: statistical.CreatDiskCache(ctx),
+		podEvent:  podevent.New(conf.KubeClient, stopCh, podEventChs),
 	}, nil
 }
 
@@ -116,6 +119,8 @@ func (m *Controller) Start() error {
 		go m.diskCache.Start()
 		defer m.diskCache.Stop()
 		go m.pc.Run(stop)
+		m.podEvent.Register()
+		go m.podEvent.Handle()
 		<-stop
 	}
 	// Leader election was requested.
@@ -132,8 +137,6 @@ func (m *Controller) Start() error {
 	lockName := "rainbond-appruntime-worker-leader"
 	go leader.RunAsLeader(m.conf.KubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {})
 
-	// watch pod
-	m.mstore.Run(m.stopCh)
 	return nil
 }
 
