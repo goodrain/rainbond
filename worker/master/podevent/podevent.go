@@ -19,28 +19,28 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// PodEventType -
-type PodEventType string
+// EventType -
+type EventType string
 
 // String -
-func (p PodEventType) String() string {
+func (p EventType) String() string {
 	return string(p)
 }
 
-// PodEventTypeOOMKilled -
-var PodEventTypeOOMKilled PodEventType = "OOMKilled"
+// EventTypeOOMKilled -
+var EventTypeOOMKilled EventType = "OOMKilled"
 
-// PodEventTypeLivenessProbeFailed -
-var PodEventTypeLivenessProbeFailed PodEventType = "LivenessProbeFailed"
+// EventTypeAbnormalExited container exits abnormally
+var EventTypeAbnormalExited EventType = "AbnormalExited"
 
-// PodEventTypeReadinessProbeFailed -
-var PodEventTypeReadinessProbeFailed PodEventType = "ReadinessProbeFailed"
+// EventTypeLivenessProbeFailed -
+var EventTypeLivenessProbeFailed EventType = "LivenessProbeFailed"
 
-// PodEventTypeAbnormalRecovery -
-var PodEventTypeAbnormalRecovery PodEventType = "AbnormalRecovery"
+// EventTypeReadinessProbeFailed -
+var EventTypeReadinessProbeFailed EventType = "ReadinessProbeFailed"
 
-// PodEventTypeAbnormalShtdown -
-var PodEventTypeAbnormalShtdown PodEventType = "AbnormalShtdown"
+// EventTypeAbnormalRecovery -
+var EventTypeAbnormalRecovery EventType = "AbnormalRecovery"
 
 // PodEvent -
 type PodEvent struct {
@@ -122,9 +122,9 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 			loggerOpt := event.GetLoggerOption("failure")
 			if time.Now().Sub(state.Running.StartedAt.Time) > 2*time.Minute {
 				loggerOpt = event.GetCallbackLoggerOption()
-				_, err := createSystemEvent(tenantID, serviceID, pod.GetName(), PodEventTypeAbnormalRecovery.String(), model.EventStatusSuccess.String())
+				_, err := createSystemEvent(tenantID, serviceID, pod.GetName(), EventTypeAbnormalRecovery.String(), model.EventStatusSuccess.String())
 				if err != nil {
-					logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), PodEventTypeAbnormalRecovery.String(), err)
+					logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), EventTypeAbnormalRecovery.String(), err)
 					continue
 				}
 			}
@@ -134,19 +134,24 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 }
 
 // determine the type of exception
-type determineOptType func(clientset kubernetes.Interface, pod *corev1.Pod, state *corev1.ContainerState, f k8sutil.ListEventsByPod) (PodEventType, string)
+type determineOptType func(clientset kubernetes.Interface, pod *corev1.Pod, state *corev1.ContainerState, f k8sutil.ListEventsByPod) (EventType, string)
 
-func defDetermineOptType(clientset kubernetes.Interface, pod *corev1.Pod, state *corev1.ContainerState, f k8sutil.ListEventsByPod) (PodEventType, string) {
-	if state.Terminated != nil && state.Terminated.Reason == PodEventTypeOOMKilled.String() {
-		return PodEventTypeOOMKilled, state.Terminated.Reason
+func defDetermineOptType(clientset kubernetes.Interface, pod *corev1.Pod, state *corev1.ContainerState, f k8sutil.ListEventsByPod) (EventType, string) {
+	if state.Terminated != nil {
+		if state.Terminated.Reason == EventTypeOOMKilled.String() {
+			return EventTypeOOMKilled, state.Terminated.Reason
+		}
+		if state.Terminated.ExitCode != 0 {
+			return EventTypeAbnormalExited, state.Terminated.Reason
+		}
 	}
 	events := f(clientset, pod)
 	for _, evt := range events.Items {
 		if strings.Contains(evt.Message, "Liveness probe failed") && state.Waiting != nil {
-			return PodEventTypeLivenessProbeFailed, evt.Message
+			return EventTypeLivenessProbeFailed, evt.Message
 		}
 		if strings.Contains(evt.Message, "Readiness probe failed") {
-			return PodEventTypeReadinessProbeFailed, evt.Message
+			return EventTypeReadinessProbeFailed, evt.Message
 		}
 	}
 
