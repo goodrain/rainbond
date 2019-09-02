@@ -11,6 +11,23 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// PodStatusAdvice -
+type PodStatusAdvice string
+
+// String converts PodStatusAdvice to string
+func (p PodStatusAdvice) String() string {
+	return string(p)
+}
+
+// PodStatusAdviceOOM -
+var PodStatusAdviceOOM PodStatusAdvice = "OutOfMemory"
+
+// PodStatusAdviceUnhealthy -
+var PodStatusAdviceUnhealthy PodStatusAdvice = "Unhealthy"
+
+// PodStatusAdviceInitiating -
+var PodStatusAdviceInitiating PodStatusAdvice = "Initiating"
+
 var podStatusTbl = map[string]pb.PodStatus_Type{
 	string(corev1.PodPending):     pb.PodStatus_PENDING,
 	string(corev1.PodRunning):     pb.PodStatus_RUNNING,
@@ -51,12 +68,16 @@ func DescribePodStatus(clientset kubernetes.Interface, pod *corev1.Pod, podStatu
 			podStatus.Message = condition.Message
 		}
 	}
+	if podStatus.Type == pb.PodStatus_INITIATING {
+		podStatus.Advice = PodStatusAdviceInitiating.String()
+		return
+	}
 	if podStatus.Type == pb.PodStatus_NOTREADY {
 		for _, cstatus := range pod.Status.ContainerStatuses {
 			if !cstatus.Ready && cstatus.State.Terminated != nil {
 				podStatus.Type = pb.PodStatus_ABNORMAL
 				if cstatus.State.Terminated.Reason == "OOMKilled" {
-					podStatus.Advice = "Out of memory, it is recommended to allocate more memory to the program, check whether the program uses memory reasonably."
+					podStatus.Advice = PodStatusAdviceOOM.String()
 				}
 				return
 			}
@@ -66,7 +87,7 @@ func DescribePodStatus(clientset kubernetes.Interface, pod *corev1.Pod, podStatu
 					for _, evt := range events.Items {
 						if strings.Contains(evt.Message, "Liveness probe failed") || strings.Contains(evt.Message, "Readiness probe failed") {
 							podStatus.Type = pb.PodStatus_UNHEALTHY
-							podStatus.Advice = "The health check failed, please check if the port of the program is available, and the health check configuration is correct."
+							podStatus.Advice = PodStatusAdviceUnhealthy.String()
 							return
 						}
 					}
