@@ -21,9 +21,11 @@ package region
 import (
 	"path"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	utilhttp "github.com/goodrain/rainbond/util/http"
+	"github.com/mitchellh/mapstructure"
 )
 
 type tenant struct {
@@ -57,11 +59,26 @@ func (t *tenant) List() ([]*dbmodel.Tenants, *util.APIHandleError) {
 		return nil, util.CreateAPIHandleErrorf(400, "tenant name must be empty in this api")
 	}
 	var decode utilhttp.ResponseBody
-	var tenants []*dbmodel.Tenants
-	decode.List = &tenants
 	code, err := t.DoRequest(t.prefix, "GET", nil, &decode)
 	if err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
+	}
+	if decode.Bean == nil {
+		return nil, nil
+	}
+	bean, ok := decode.Bean.(map[string]interface{})
+	if !ok {
+		logrus.Warningf("list tenants; wrong data: %v", decode.Bean)
+		return nil, nil
+	}
+	list, ok := bean["list"]
+	if !ok {
+		return nil, nil
+	}
+	var tenants []*dbmodel.Tenants
+	if err := mapstructure.Decode(list, &tenants); err != nil {
+		logrus.Errorf("map: %+v; error decoding to map to []*dbmodel.Tenants: %v", list, err)
+		return nil, util.CreateAPIHandleError(500, err)
 	}
 	return tenants, nil
 }
