@@ -42,6 +42,12 @@ func TestParseImageName(t *testing.T) {
 	t.Logf("repostory %s", image3.GetRepostory())
 	t.Logf("name %s", image3.GetSimpleName())
 	t.Logf("tag %s", image3.GetTag())
+	image4 := ParseImageName("abewang/foobar")
+	t.Logf("string %s", image4.String())
+	t.Logf("domain %s", image4.GetDomain())
+	t.Logf("repostory %s", image4.GetRepostory())
+	t.Logf("name %s", image4.GetSimpleName())
+	t.Logf("tag %s", image4.GetTag())
 }
 func TestDetermineDeployType(t *testing.T) {
 	t.Log(DetermineDeployType(ParseImageName("barnett/zookeeper:3.2")))
