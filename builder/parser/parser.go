@@ -105,6 +105,9 @@ type Image struct {
 
 //String -
 func (i Image) String() string {
+	if i.name == nil {
+		return ""
+	}
 	return i.name.String()
 }
 
@@ -115,11 +118,17 @@ func (i Image) GetTag() string {
 
 //GetRepostory get repostory
 func (i Image) GetRepostory() string {
+	if i.name == nil {
+		return ""
+	}
 	return reference.Path(i.name)
 }
 
 //GetDomain get image registry domain
 func (i Image) GetDomain() string {
+	if i.name == nil {
+		return ""
+	}
 	domain := reference.Domain(i.name)
 	if domain == "docker.io" {
 		domain = "registry-1.docker.io"
@@ -289,7 +298,7 @@ func readmemory(s string) int {
 func ParseImageName(s string) (i Image) {
 	ref, err := reference.ParseAnyReference(s)
 	if err != nil {
-		logrus.Errorf("parse image failure %s", err.Error())
+		logrus.Errorf("image name: %s; parse image failure %s", s, err.Error())
 		return i
 	}
 	name, err := reference.ParseNamed(ref.String())
