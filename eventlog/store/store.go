@@ -20,6 +20,7 @@ package store
 
 import (
 	"sync"
+	"time"
 
 	"github.com/goodrain/rainbond/eventlog/db"
 
@@ -113,9 +114,10 @@ func NewStore(storeType string, manager *storeManager) MessageStore {
 		docker.pool = &sync.Pool{
 			New: func() interface{} {
 				reb := &dockerLogEventBarrel{
-					subSocketChan: make(map[string]chan *db.EventLogMessage, 0),
-					cacheSize:     manager.conf.PeerDockerMaxCacheLogNumber,
-					barrelEvent:   docker.barrelEvent,
+					subSocketChan:   make(map[string]chan *db.EventLogMessage, 0),
+					cacheSize:       manager.conf.PeerDockerMaxCacheLogNumber,
+					barrelEvent:     docker.barrelEvent,
+					persistenceTime: time.Now(),
 				}
 				return reb
 			},
