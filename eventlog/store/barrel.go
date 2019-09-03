@@ -200,6 +200,9 @@ func (r *dockerLogEventBarrel) insertMessage(message *db.EventLogMessage) {
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
 	r.barrel = append(r.barrel, message)
+	if r.name == "" {
+		r.name = message.EventID
+	}
 	r.updateTime = time.Now()
 	for _, v := range r.subSocketChan { //向订阅的通道发送消息
 		select {
@@ -252,7 +255,7 @@ func (r *dockerLogEventBarrel) persistence() {
 	case r.barrelEvent <- []string{"persistence", r.name}: //发出持久化命令
 		r.persistenceTime = time.Now()
 	default:
-		logrus.Debug("docker log persistence delay")
+		logrus.Errorln("docker log persistence delay")
 	}
 }
 

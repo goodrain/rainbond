@@ -19,15 +19,17 @@
 package db
 
 import (
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/eventlog/conf"
-	"time"
 )
 
+//CreateDBManager -
 func CreateDBManager(conf conf.DBConf) error {
-	logrus.Infof("creating dbmanager ,details %s", conf)
+	logrus.Infof("creating dbmanager ,details %v", conf)
 	var tryTime time.Duration
 	tryTime = 0
 	var err error

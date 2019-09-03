@@ -21,7 +21,7 @@ package db
 import "testing"
 
 func TestGetServiceAliasID(t *testing.T) {
-	t.Log(GetServiceAliasID("qwertyuiopasdfghjkl"))
+	t.Log(GetServiceAliasID(""))
 }
 
 func TestFileSaveMessage(t *testing.T) {

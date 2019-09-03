@@ -109,7 +109,6 @@ func (s *EventLogRPCServer) Log(stream pb.EventLog_LogServer) error {
 			}
 			return err
 		}
-		s.log.Debug(string(log.Log))
 		select {
 		case s.messageChan <- log.Log:
 		default:

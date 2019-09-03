@@ -120,7 +120,7 @@ func (h *handleMessageStore) gcRun() {
 	var gcEvent []string
 	for k, v := range h.barrels {
 		if v.updateTime.Add(time.Second * 30).Before(time.Now()) {
-			h.saveBeforeGc(v)
+			h.saveBeforeGc(h.barrels[k])
 			gcEvent = append(gcEvent, k)
 		}
 	}
