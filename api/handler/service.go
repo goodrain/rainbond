@@ -29,10 +29,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
-	"github.com/docker/distribution/reference"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	core_model "github.com/goodrain/rainbond/db/model"
@@ -1925,20 +1925,10 @@ func (s *ServiceAction) ListVersionInfo(serviceID string) (*api_model.BuildListR
 	for idx := range bversions {
 		bv := bversions[idx]
 		if bv.Kind == "build_from_image" || bv.Kind == "build_from_market_image" {
-			repo, err := reference.Parse(bv.RepoURL)
-			if err != nil {
-				logrus.Warningf("repo url: %s; error paring image repo url: %v", bv.RepoURL, err)
-				continue
-			}
-			if named, ok := repo.(reference.Named); ok {
-				bv.ImageRepo = named.Name()
-				domain, _ := reference.SplitHostname(named)
-				bv.ImageDomain = domain
-			}
-			tagged, ok := repo.(reference.Tagged)
-			if ok {
-				bv.ImageTag = tagged.Tag()
-			}
+			image := parser.ParseImageName(bv.RepoURL)
+			bv.ImageDomain = image.GetDomain()
+			bv.ImageRepo = image.GetRepostory()
+			bv.ImageTag = image.GetTag()
 		}
 	}
 	result := &api_model.BuildListRespVO{
