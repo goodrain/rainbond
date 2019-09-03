@@ -36,6 +36,7 @@ import (
 	"github.com/goodrain/rainbond/worker/master"
 	"github.com/goodrain/rainbond/worker/monitor"
 	"github.com/goodrain/rainbond/worker/server"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -78,10 +79,11 @@ func Run(s *option.Worker) error {
 	//etcdCli, err := client.New(client.Config{})
 
 	//step 3: create resource store
-	startCh := channels.NewRingChannel(1024) // TODO: why 1024?
+	startCh := channels.NewRingChannel(1024)
 	updateCh := channels.NewRingChannel(1024)
 	probeCh := channels.NewRingChannel(1024)
-	cachestore := store.NewStore(clientset, db.GetManager(), s.Config, startCh, probeCh)
+	pobEventChs := make([]chan *corev1.Pod, 1)
+	cachestore := store.NewStore(clientset, db.GetManager(), s.Config, startCh, probeCh, pobEventChs)
 	appmController := appm.NewAPPMController(clientset, cachestore, startCh, updateCh, probeCh)
 	if err := appmController.Start(); err != nil {
 		logrus.Errorf("error starting appm controller: %v", err)
@@ -97,7 +99,7 @@ func Run(s *option.Worker) error {
 	defer controllerManager.Stop()
 
 	//step 5 : start runtime master
-	masterCon, err := master.NewMasterController(s.Config, cachestore)
+	masterCon, err := master.NewMasterController(s.Config, cachestore, pobEventChs)
 	if err != nil {
 		return err
 	}

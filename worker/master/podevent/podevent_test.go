@@ -1,9 +1,8 @@
-package store
+package podevent
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/db/config"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -54,7 +53,7 @@ func TestRecordUpdateEvent(t *testing.T) {
 		finalStatus                  model.EventFinalStatus
 		eventErr                     error
 		explevel, expstatus, message string
-		optType                      PodEventType
+		optType                      EventType
 		startTime                    time.Time
 	}{
 		{
@@ -84,7 +83,7 @@ func TestRecordUpdateEvent(t *testing.T) {
 			eventID:    "event id",
 			tenantID:   "6e22adb70c114b1d9a46d17d8146ba37",
 			serviceID:  "135c3e10e3be34337bde752449a07e4c",
-			optType:    PodEventTypeOOMKilled,
+			optType:    EventTypeOOMKilled,
 			eventErr:   nil,
 			explevel:   "error",
 			expstatus:  "failure",
@@ -96,7 +95,7 @@ func TestRecordUpdateEvent(t *testing.T) {
 			eventID:    "event id",
 			tenantID:   "6e22adb70c114b1d9a46d17d8146ba37",
 			serviceID:  "135c3e10e3be34337bde752449a07e4c",
-			optType:    PodEventTypeOOMKilled,
+			optType:    EventTypeOOMKilled,
 			eventErr:   gorm.ErrRecordNotFound,
 			explevel:   "error",
 			expstatus:  "failure",
@@ -107,7 +106,7 @@ func TestRecordUpdateEvent(t *testing.T) {
 			eventID:    "event id",
 			tenantID:   "f614a5eddea546c2bbaeb67d381599ee",
 			serviceID:  "fa9c83c9198bfee9325804d3b4e7ff06",
-			optType:    PodEventTypeLivenessProbeFailed,
+			optType:    EventTypeLivenessProbeFailed,
 			eventErr:   nil,
 			explevel:   "error",
 			expstatus:  "failure",
@@ -118,7 +117,7 @@ func TestRecordUpdateEvent(t *testing.T) {
 			eventID:    "event id",
 			tenantID:   "f614a5eddea546c2bbaeb67d381599ee",
 			serviceID:  "0c3a85977aab7adcc8b3451472d3ee94",
-			optType:    PodEventTypeReadinessProbeFailed,
+			optType:    EventTypeReadinessProbeFailed,
 			eventErr:   nil,
 			explevel:   "error",
 			expstatus:  "failure",
@@ -193,7 +192,7 @@ func TestRecordUpdateEvent(t *testing.T) {
 				}
 			}(sendCh)
 
-			testDetermineOptType := func(clientset kubernetes.Interface, pod *corev1.Pod, state *corev1.ContainerState, f k8sutil.ListEventsByPod) (PodEventType, string) {
+			testDetermineOptType := func(clientset kubernetes.Interface, pod *corev1.Pod, state *corev1.ContainerState, f k8sutil.ListEventsByPod) (EventType, string) {
 				return tc.optType, tc.message
 			}
 
@@ -213,11 +212,11 @@ func TestDetermineOptType(t *testing.T) {
 	}
 	tests := []struct {
 		podfile      string
-		podEventType PodEventType
+		podEventType EventType
 	}{
-		{"testdata/pod-readiness.json", PodEventTypeReadinessProbeFailed},
-		{"testdata/pod-liveness.json", PodEventTypeLivenessProbeFailed},
-		{"testdata/pod-oom-killed.json", PodEventTypeOOMKilled},
+		{"testdata/pod-readiness.json", EventTypeReadinessProbeFailed},
+		{"testdata/pod-liveness.json", EventTypeLivenessProbeFailed},
+		{"testdata/pod-oom-killed.json", EventTypeOOMKilled},
 	}
 	for idx := range tests {
 		tc := tests[idx]
@@ -228,35 +227,4 @@ func TestDetermineOptType(t *testing.T) {
 			t.Errorf("Expected %s for opt type, but returned %s", tc.podEventType.String(), optType.String())
 		}
 	}
-}
-
-func TestK8sStore_Run(t *testing.T) {
-	dbconfig := config.Config{
-		DBType:              "mysql",
-		MysqlConnectionInfo: "cie5iB:aik8EpeW@tcp(192.168.2.202:3306)/region",
-	}
-	if err := db.CreateManager(dbconfig); err != nil {
-		t.Fatalf("error creating db manager: %v", err)
-	}
-	defer db.CloseManager()
-
-	err := event.NewManager(event.EventConfig{
-		EventLogServers: []string{"192.168.2.202:6366"},
-		DiscoverAddress: []string{"192.168.2.202:2379"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer event.GetManager().Close()
-	time.Sleep(time.Second * 3)
-
-	clientset, err := k8sutil.NewClientset("/opt/rainbond/etc/kubernetes/kubecfg/192.168.2.202/admin.kubeconfig")
-	if err != nil {
-		t.Fatalf("error creating k8s clientset: %s", err.Error())
-	}
-	store := New(clientset, nil)
-	stop := make(chan struct{})
-	store.Run(stop)
-
-	<-stop
 }

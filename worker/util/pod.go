@@ -3,10 +3,30 @@ package util
 import (
 	"fmt"
 	"sort"
+	"strings"
 
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
+
+// PodStatusAdvice -
+type PodStatusAdvice string
+
+// String converts PodStatusAdvice to string
+func (p PodStatusAdvice) String() string {
+	return string(p)
+}
+
+// PodStatusAdviceOOM -
+var PodStatusAdviceOOM PodStatusAdvice = "OutOfMemory"
+
+// PodStatusAdviceUnhealthy -
+var PodStatusAdviceUnhealthy PodStatusAdvice = "Unhealthy"
+
+// PodStatusAdviceInitiating -
+var PodStatusAdviceInitiating PodStatusAdvice = "Initiating"
 
 var podStatusTbl = map[string]pb.PodStatus_Type{
 	string(corev1.PodPending):     pb.PodStatus_PENDING,
@@ -20,7 +40,10 @@ var podStatusTbl = map[string]pb.PodStatus_Type{
 }
 
 // DescribePodStatus -
-func DescribePodStatus(pod *corev1.Pod, podStatus *pb.PodStatus) {
+func DescribePodStatus(clientset kubernetes.Interface, pod *corev1.Pod, podStatus *pb.PodStatus, f k8sutil.ListEventsByPod) {
+	defer func() {
+		podStatus.TypeStr = podStatus.Type.String()
+	}()
 	if pod.DeletionTimestamp != nil {
 		podStatus.Type = pb.PodStatus_TEMINATING
 		podStatus.Message = fmt.Sprintf("Termination Grace Period:\t%ds", *pod.DeletionGracePeriodSeconds)
@@ -45,22 +68,40 @@ func DescribePodStatus(pod *corev1.Pod, podStatus *pb.PodStatus) {
 			podStatus.Message = condition.Message
 		}
 	}
+	if podStatus.Type == pb.PodStatus_INITIATING {
+		podStatus.Advice = PodStatusAdviceInitiating.String()
+		return
+	}
 	if podStatus.Type == pb.PodStatus_NOTREADY {
 		for _, cstatus := range pod.Status.ContainerStatuses {
 			if !cstatus.Ready && cstatus.State.Terminated != nil {
 				podStatus.Type = pb.PodStatus_ABNORMAL
-				break
+				if cstatus.State.Terminated.Reason == "OOMKilled" {
+					podStatus.Advice = PodStatusAdviceOOM.String()
+				}
+				return
+			}
+			if !cstatus.Ready {
+				events := f(clientset, pod)
+				if events != nil {
+					for _, evt := range events.Items {
+						if strings.Contains(evt.Message, "Liveness probe failed") || strings.Contains(evt.Message, "Readiness probe failed") {
+							podStatus.Type = pb.PodStatus_UNHEALTHY
+							podStatus.Advice = PodStatusAdviceUnhealthy.String()
+							return
+						}
+					}
+				}
 			}
 			if !cstatus.Ready && cstatus.State.Waiting != nil {
 				w := cstatus.State.Waiting
 				if w.Reason != "PodInitializing" && w.Reason != "ContainerCreating" {
 					podStatus.Type = pb.PodStatus_ABNORMAL
-					break
+					return
 				}
 			}
 		}
 	}
-	podStatus.TypeStr = podStatus.Type.String()
 }
 
 // SortableConditionType implements sort.Interface for []PodCondition based on

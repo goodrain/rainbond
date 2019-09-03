@@ -227,10 +227,10 @@ func (e *etcdDiscover) removeProject(name string) {
 }
 
 func (e *etcdDiscover) discover(name string, callback CallbackUpdate) {
-	defer e.removeProject(name)
 	watchChan, err := e.watcher.WatchList(e.ctx, fmt.Sprintf("%s/backends/%s/servers", e.prefix, name), "")
 	if err != nil {
 		callback.Error(err)
+		e.removeProject(name)
 		return
 	}
 	defer watchChan.Stop()
@@ -271,6 +271,10 @@ func (e *etcdDiscover) discover(name string, callback CallbackUpdate) {
 			}
 		case watch.Error:
 			callback.Error(event.Error)
+			logrus.Debugf("monitor discover get watch error: %s, remove this watch target first, and then sleep 10 sec, we will re-watch it", event.Error.Error())
+			e.removeProject(name)
+			time.Sleep(10 * time.Second)
+			e.AddUpdateProject(name, callback)
 			return
 		}
 	}

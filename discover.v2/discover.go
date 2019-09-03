@@ -225,7 +225,6 @@ func (e *etcdDiscover) removeProject(name string) {
 func (e *etcdDiscover) discover(name string, callback CallbackUpdate) {
 	ctx, cancel := context.WithCancel(e.ctx)
 	defer cancel()
-	defer e.removeProject(name)
 	endpoints := e.list(name)
 	if endpoints != nil && len(endpoints) > 0 {
 		callback.UpdateEndpoints(config.SYNC, endpoints...)
@@ -238,6 +237,10 @@ func (e *etcdDiscover) discover(name string, callback CallbackUpdate) {
 		case res := <-watch:
 			if err := res.Err(); err != nil {
 				callback.Error(err)
+				logrus.Debugf("monitor discover get watch error: %s, remove this watch target first, and then sleep 10 sec, we will re-watch it", err.Error())
+				e.removeProject(name)
+				time.Sleep(10 * time.Second)
+				e.AddUpdateProject(name, callback)
 				return
 			}
 			for _, event := range res.Events {

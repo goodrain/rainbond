@@ -21,8 +21,11 @@ package controller
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/server"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
@@ -55,9 +58,23 @@ type PodController struct{}
 //       "$ref": "#/responses/commandResponse"
 //     description: get some service pods
 func Pods(w http.ResponseWriter, r *http.Request) {
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	pods, _ := handler.GetServiceManager().GetPods(serviceID)
-	httputil.ReturnSuccess(r, w, pods)
+	serviceIDs := strings.Split(r.FormValue("service_ids"), ",")
+	if serviceIDs == nil || len(serviceIDs) == 0 {
+		tenant := r.Context().Value(middleware.ContextKey("tenant")).(*model.Tenants)
+		services, _ := db.GetManager().TenantServiceDao().GetServicesByTenantID(tenant.UUID)
+		for _, s := range services {
+			serviceIDs = append(serviceIDs, s.ServiceID)
+		}
+	}
+	var allpods []*handler.K8sPodInfo
+	for _, serviceID := range serviceIDs {
+		podinfo, _ := handler.GetServiceManager().GetPods(serviceID)
+		ps := append(podinfo.NewPods, podinfo.OldPods...)
+		for _, pod := range ps {
+			allpods = append(allpods, pod)
+		}
+	}
+	httputil.ReturnSuccess(r, w, allpods)
 }
 
 // PodDetail -

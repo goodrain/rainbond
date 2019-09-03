@@ -154,6 +154,7 @@ message PodStatus {
     INITIATING = 7;
     SCHEDULING = 8;
     NOTREADY = 9;
+    UNHEALTHY = 10;
   }
 
   Type type = 1;
