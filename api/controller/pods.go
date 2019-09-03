@@ -20,17 +20,17 @@ package controller
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/worker/server"
 	"net/http"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/goodrain/rainbond/worker/server"
 )
 
 // PodController is an implementation of PodInterface
@@ -69,8 +69,13 @@ func Pods(w http.ResponseWriter, r *http.Request) {
 	var allpods []*handler.K8sPodInfo
 	for _, serviceID := range serviceIDs {
 		podinfo, _ := handler.GetServiceManager().GetPods(serviceID)
-		ps := append(podinfo.NewPods, podinfo.OldPods...)
-		for _, pod := range ps {
+		var pods []*handler.K8sPodInfo
+		if podinfo.OldPods != nil {
+			pods = append(podinfo.NewPods, podinfo.OldPods...)
+		} else {
+			pods = podinfo.NewPods
+		}
+		for _, pod := range pods {
 			allpods = append(allpods, pod)
 		}
 	}
