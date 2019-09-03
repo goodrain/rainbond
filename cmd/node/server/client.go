@@ -25,9 +25,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/goodrain/rainbond/util"
+
 	"github.com/Sirupsen/logrus"
 
-	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/event"
 
 	"github.com/goodrain/rainbond/builder/parser"
@@ -96,7 +97,7 @@ func ParseClientCommnad(args []string) {
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:  "config-dir,c",
-							Value: "/opt/rainbond/config",
+							Value: "/opt/rainbond/conf",
 							Usage: "service config file dir",
 						},
 						cli.StringFlag{
@@ -108,6 +109,11 @@ func ParseClientCommnad(args []string) {
 							Name:  "image-prefix,p",
 							Value: "goodrain.me",
 							Usage: "",
+						},
+						cli.StringSliceFlag{
+							Name:  "services,s",
+							Value: &cli.StringSlice{"rbd-gateway", "rbd-api", "rbd-chaos", "rbd-mq", "rbd-webcli", "rbd-worker", "rbd-eventlog", "rbd-monitor", "rbd-app-ui"},
+							Usage: "Enable supported services",
 						},
 					},
 					Action: upgradeImages,
@@ -129,15 +135,12 @@ func ParseClientCommnad(args []string) {
 
 //upgrade image name
 func upgradeImages(ctx *cli.Context) error {
-	dockerClient, err := client.NewEnvClient()
-	if err != nil {
-		return err
-	}
 	services := service.LoadServicesWithFileFromLocal(ctx.String("c"))
 	for i, serviceList := range services {
 		for j, service := range serviceList.Services {
-			if service.Start != "" && !service.OnlyHealthCheck {
-				par := parser.CreateDockerRunOrImageParse("", "", service.Start, dockerClient, event.GetTestLogger())
+			if util.StringArrayContains(ctx.StringSlice("s"), service.Name) &&
+				service.Start != "" && !service.OnlyHealthCheck {
+				par := parser.CreateDockerRunOrImageParse("", "", service.Start, nil, event.GetTestLogger())
 				par.ParseDockerun(strings.Split(service.Start, " "))
 				image := par.GetImage()
 				if image.Name == "" {
