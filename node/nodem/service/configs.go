@@ -28,7 +28,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 
 	"github.com/Sirupsen/logrus"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 //LoadServicesFromLocal load all service config from config file
@@ -45,7 +45,7 @@ func LoadServicesFromLocal(serviceListFile string) []*Service {
 			logrus.Errorf("read service config file %s error,%s", serviceListFile, err.Error())
 			return nil
 		}
-		return services
+		return services.Services
 	}
 	filepath.Walk(serviceListFile, func(path string, info os.FileInfo, err error) error {
 		if strings.HasSuffix(path, "yaml") && !info.IsDir() {
@@ -54,13 +54,84 @@ func LoadServicesFromLocal(serviceListFile string) []*Service {
 				logrus.Errorf("read service config file %s error,%s", path, err.Error())
 				return nil
 			}
-			serviceList = append(serviceList, services...)
+			serviceList = append(serviceList, services.Services...)
 		}
 		return nil
 	})
 	result := removeRepByLoop(serviceList)
 	logrus.Infof("load service config file success. load %d service", len(result))
 	return result
+}
+
+//LoadServicesWithFileFromLocal load service with file
+func LoadServicesWithFileFromLocal(serviceListFile string) []*Services {
+	var serviceList []*Services
+	ok, err := util.IsDir(serviceListFile)
+	if err != nil {
+		logrus.Errorf("read service config file error,%s", err.Error())
+		return nil
+	}
+	if !ok {
+		services, err := loadServicesFromFile(serviceListFile)
+		if err != nil {
+			logrus.Errorf("read service config file %s error,%s", serviceListFile, err.Error())
+			return nil
+		}
+		serviceList = append(serviceList, services)
+		return serviceList
+	}
+	filepath.Walk(serviceListFile, func(path string, info os.FileInfo, err error) error {
+		if strings.HasSuffix(path, "yaml") && !info.IsDir() {
+			services, err := loadServicesFromFile(path)
+			if err != nil {
+				logrus.Errorf("read service config file %s error,%s", path, err.Error())
+				return nil
+			}
+			serviceList = append(serviceList, services)
+		}
+		return nil
+	})
+	return serviceList
+}
+
+//WriteServicesWithFile write services config file
+func WriteServicesWithFile(serviceLists ...*Services) error {
+	for _, serviceList := range serviceLists {
+		if serviceList.FromFile != "" {
+			write := func() error {
+				success := false
+				if ok, _ := util.FileExists(serviceList.FromFile); ok {
+					if err := os.Rename(serviceList.FromFile, serviceList.FromFile+".bak"); err == nil {
+						defer func() {
+							if success {
+								os.Remove(serviceList.FromFile + ".bak")
+							} else {
+								os.Rename(serviceList.FromFile+".bak", serviceList.FromFile)
+							}
+						}()
+					}
+				}
+				file, err := os.OpenFile(serviceList.FromFile, os.O_CREATE|os.O_RDWR, 0755)
+				if err != nil {
+					return err
+				}
+				defer file.Close()
+				filebody, err := yaml.Marshal(serviceList)
+				if err != nil {
+					return err
+				}
+				if _, err := file.Write(filebody); err != nil {
+					return err
+				}
+				success = true
+				return nil
+			}
+			if err := write(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func removeRepByLoop(source []*Service) (target []*Service) {
@@ -78,7 +149,8 @@ func removeRepByLoop(source []*Service) (target []*Service) {
 	}
 	return
 }
-func loadServicesFromFile(serviceListFile string) ([]*Service, error) {
+
+func loadServicesFromFile(serviceListFile string) (*Services, error) {
 	// load default-configs.yaml
 	content, err := ioutil.ReadFile(serviceListFile)
 	if err != nil {
@@ -91,5 +163,6 @@ func loadServicesFromFile(serviceListFile string) ([]*Service, error) {
 		logrus.Error("Failed to parse default configs yaml file: ", err)
 		return nil, err
 	}
-	return defaultConfigs.Services, nil
+	defaultConfigs.FromFile = serviceListFile
+	return &defaultConfigs, nil
 }

@@ -48,7 +48,7 @@ type DockerRunOrImageParse struct {
 }
 
 //CreateDockerRunOrImageParse create parser
-func CreateDockerRunOrImageParse(user, pass, source string, dockerclient *client.Client, logger event.Logger) Parser {
+func CreateDockerRunOrImageParse(user, pass, source string, dockerclient *client.Client, logger event.Logger) *DockerRunOrImageParse {
 	source = strings.TrimLeft(source, " ")
 	source = strings.Replace(source, "\n", "", -1)
 	source = strings.Replace(source, "\\", "", -1)
@@ -74,7 +74,7 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 	}
 	//docker run
 	if strings.HasPrefix(d.source, "docker") {
-		d.dockerun(strings.Split(d.source, " "))
+		d.ParseDockerun(strings.Split(d.source, " "))
 		if d.image.String() == "" || d.image.String() == ":" {
 			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称识别失败"), SolveAdvice("modify_image", "请确认输入DockerRun命令是否正确")))
 			return d.errors
@@ -137,7 +137,8 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 	return d.errors
 }
 
-func (d *DockerRunOrImageParse) dockerun(source []string) {
+//ParseDockerun parse docker run command
+func (d *DockerRunOrImageParse) ParseDockerun(source []string) {
 	var name string
 	source = util.RemoveSpaces(source)
 	for i, s := range source {

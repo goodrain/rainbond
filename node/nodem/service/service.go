@@ -70,6 +70,7 @@ func (s *Service) Equal(e *Service) bool {
 type Services struct {
 	Version  string     `yaml:"version"`
 	Services []*Service `yaml:"services"`
+	FromFile string     `yaml:"-"`
 }
 
 //Endpoint endpoint

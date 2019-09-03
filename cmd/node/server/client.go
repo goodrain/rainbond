@@ -22,9 +22,22 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
+	"strings"
+
+	"github.com/Sirupsen/logrus"
+
+	"github.com/docker/docker/client"
+	"github.com/goodrain/rainbond/event"
+
+	"github.com/goodrain/rainbond/builder/parser"
+
+	"github.com/goodrain/rainbond/node/nodem/service"
 
 	"github.com/goodrain/rainbond/cmd"
+
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/urfave/cli"
 )
 
 //ParseClientCommnad parse client command
@@ -32,6 +45,7 @@ import (
 // node reg : Register the daemon configuration for node
 // node run: daemon start node server
 func ParseClientCommnad(args []string) {
+
 	if len(args) > 1 {
 		switch args[1] {
 		case "version":
@@ -73,12 +87,75 @@ func ParseClientCommnad(args []string) {
 					os.Exit(0)
 				}
 			}
-		case "reg":
-
+		case "upgrade":
+			App := cli.NewApp()
+			App.Version = "0.1"
+			App.Commands = []cli.Command{
+				cli.Command{
+					Name: "upgrade",
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "config-dir,c",
+							Value: "/opt/rainbond/config",
+							Usage: "service config file dir",
+						},
+						cli.StringFlag{
+							Name:  "new-version,v",
+							Value: "",
+							Usage: "upgrade target version",
+						},
+						cli.StringFlag{
+							Name:  "image-prefix,p",
+							Value: "goodrain.me",
+							Usage: "",
+						},
+					},
+					Action: upgradeImages,
+				},
+			}
+			sort.Sort(cli.FlagsByName(App.Flags))
+			sort.Sort(cli.CommandsByName(App.Commands))
+			if err := App.Run(os.Args); err != nil {
+				logrus.Errorf("upgrade failure %s", err.Error())
+				os.Exit(1)
+			}
+			logrus.Info("upgrade success")
+			os.Exit(0)
 		case "run":
 
 		}
 	}
+}
+
+//upgrade image name
+func upgradeImages(ctx *cli.Context) error {
+	dockerClient, err := client.NewEnvClient()
+	if err != nil {
+		return err
+	}
+	services := service.LoadServicesWithFileFromLocal(ctx.String("c"))
+	for i, serviceList := range services {
+		for j, service := range serviceList.Services {
+			if service.Start != "" && !service.OnlyHealthCheck {
+				par := parser.CreateDockerRunOrImageParse("", "", service.Start, dockerClient, event.GetTestLogger())
+				par.ParseDockerun(strings.Split(service.Start, " "))
+				image := par.GetImage()
+				if image.Name == "" {
+					continue
+				}
+				newImage := ctx.String("p") + "/" + service.Name + ":" + ctx.String("v")
+				oldImage := func() string {
+					if image.IsOfficial() {
+						return image.GetRepostory() + ":" + image.GetTag()
+					}
+					return image.String()
+				}()
+				services[i].Services[j].Start = strings.Replace(services[i].Services[j].Start, oldImage, newImage, 1)
+				logrus.Infof("upgrade %s image from %s to %s", service.Name, oldImage, newImage)
+			}
+		}
+	}
+	return service.WriteServicesWithFile(services...)
 }
 
 type controllerServiceClient struct {
