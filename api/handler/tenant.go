@@ -340,9 +340,14 @@ func (t *TenantAction) GetAllocatableResources() (*ClusterResourceStats, error) 
 			}
 		}
 	}
-	ts, _ := t.statusCli.GetTenantResource("")
-	crs.RequestCPU = ts.CpuRequest
-	crs.RequestMemory = ts.MemoryRequest
+	ts, err := t.statusCli.GetTenantResource("")
+	if err != nil {
+		logrus.Errorf("get tenant resource failure %s", err.Error())
+	}
+	if ts != nil {
+		crs.RequestCPU = ts.CpuRequest
+		crs.RequestMemory = ts.MemoryRequest
+	}
 	return &crs, nil
 }
 
