@@ -70,6 +70,11 @@ func (p *PodEvent) Handle() {
 	for {
 		select {
 		case pod := <-p.podEventCh:
+			// do not record events that occur 10 minutes after startup
+			if time.Now().Sub(pod.CreationTimestamp.Time) > 10 * time.Minute {
+				continue
+			}
+
 			recordUpdateEvent(p.clientset, pod, defDetermineOptType)
 		case <-p.stopCh:
 			return
