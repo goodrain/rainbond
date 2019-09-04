@@ -57,7 +57,7 @@ type Controller struct {
 }
 
 //NewMasterController new master controller
-func NewMasterController(conf option.Config, store store.Storer, podEventChs []chan *corev1.Pod) (*Controller, error) {
+func NewMasterController(conf option.Config, store store.Storer) (*Controller, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	// The controller needs to know what the server version is because out-of-tree
 	// provisioners aren't officially supported until 1.5
@@ -100,7 +100,7 @@ func NewMasterController(conf option.Config, store store.Storer, podEventChs []c
 			Help:      "tenant service fs used.",
 		}, []string{"tenant_id", "service_id", "volume_type"}),
 		diskCache: statistical.CreatDiskCache(ctx),
-		podEvent:  podevent.New(conf.KubeClient, stopCh, podEventChs),
+		podEvent:  podevent.New(conf.KubeClient, stopCh),
 	}, nil
 }
 
@@ -119,7 +119,8 @@ func (m *Controller) Start() error {
 		go m.diskCache.Start()
 		defer m.diskCache.Stop()
 		go m.pc.Run(stop)
-		m.podEvent.Register()
+		m.store.RegistPodUpdateListener("podEvent", m.podEvent.GetChan())
+		defer m.store.UnRegistPodUpdateListener("podEvent")
 		go m.podEvent.Handle()
 		<-stop
 	}

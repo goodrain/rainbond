@@ -62,6 +62,8 @@ type Storer interface {
 	GetNeedBillingStatus(serviceIDs []string) map[string]string
 	OnDelete(obj interface{})
 	GetPodLister() listcorev1.PodLister
+	RegistPodUpdateListener(string, chan<- *corev1.Pod)
+	UnRegistPodUpdateListener(string)
 }
 
 // EventType type of event associated with an informer
@@ -93,19 +95,19 @@ type ProbeInfo struct {
 //appRuntimeStore app runtime store
 //cache all kubernetes object and appservice
 type appRuntimeStore struct {
-	clientset   *kubernetes.Clientset
-	ctx         context.Context
-	cancel      context.CancelFunc
-	informers   *Informer
-	listers     *Lister
-	appServices sync.Map
-	appCount    int32
-	dbmanager   db.Manager
-	conf        option.Config
-
-	startCh    *channels.RingChannel
-	stopch     chan struct{}
-	podEventCh []chan *corev1.Pod
+	clientset             *kubernetes.Clientset
+	ctx                   context.Context
+	cancel                context.CancelFunc
+	informers             *Informer
+	listers               *Lister
+	appServices           sync.Map
+	appCount              int32
+	dbmanager             db.Manager
+	conf                  option.Config
+	startCh               *channels.RingChannel
+	stopch                chan struct{}
+	podUpdateListeners    map[string]chan<- *corev1.Pod
+	podUpdateListenerLock sync.Mutex
 }
 
 //NewStore new app runtime store
@@ -113,20 +115,19 @@ func NewStore(clientset *kubernetes.Clientset,
 	dbmanager db.Manager,
 	conf option.Config,
 	startCh *channels.RingChannel,
-	probeCh *channels.RingChannel,
-	podEventCh []chan *corev1.Pod) Storer {
+	probeCh *channels.RingChannel) Storer {
 	ctx, cancel := context.WithCancel(context.Background())
 	store := &appRuntimeStore{
-		clientset:   clientset,
-		ctx:         ctx,
-		cancel:      cancel,
-		informers:   &Informer{},
-		listers:     &Lister{},
-		appServices: sync.Map{},
-		conf:        conf,
-		dbmanager:   dbmanager,
-		startCh:     startCh,
-		podEventCh:  podEventCh,
+		clientset:          clientset,
+		ctx:                ctx,
+		cancel:             cancel,
+		informers:          &Informer{},
+		listers:            &Lister{},
+		appServices:        sync.Map{},
+		conf:               conf,
+		dbmanager:          dbmanager,
+		startCh:            startCh,
+		podUpdateListeners: make(map[string]chan<- *corev1.Pod, 1),
 	}
 	// create informers factory, enable and assign required informers
 	infFactory := informers.NewFilteredSharedInformerFactory(conf.KubeClient, time.Second, corev1.NamespaceAll,
@@ -1023,12 +1024,23 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 					appservice.SetPods(pod)
 				}
 			}
-
-			if a.podEventCh != nil {
-				for _, pech := range a.podEventCh {
-					pech <- pod // todo block
+			for _, pech := range a.podUpdateListeners {
+				select {
+				case pech <- pod:
+				default:
 				}
 			}
 		},
 	}
+}
+
+func (a *appRuntimeStore) RegistPodUpdateListener(name string, ch chan<- *corev1.Pod) {
+	a.podUpdateListenerLock.Lock()
+	defer a.podUpdateListenerLock.Unlock()
+	a.podUpdateListeners[name] = ch
+}
+func (a *appRuntimeStore) UnRegistPodUpdateListener(name string) {
+	a.podUpdateListenerLock.Lock()
+	defer a.podUpdateListenerLock.Unlock()
+	delete(a.podUpdateListeners, name)
 }
