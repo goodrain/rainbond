@@ -66,6 +66,12 @@ func PromethesuScrape(ch chan<- *prometheus.Desc) {
 	errUpdateCount.Describe(ch)
 }
 
+//PrometheusCollect prometheus collect
+func PrometheusCollect(ch chan<- prometheus.Metric) {
+	updateCount.Collect(ch)
+	errUpdateCount.Collect(ch)
+}
+
 //CreateNginxCommand create nginx command
 func CreateNginxCommand(args ...string) *exec.Cmd {
 	var cmdArgs []string
@@ -105,5 +111,6 @@ func Reload() error {
 		errUpdateCount.Inc()
 		return err
 	}
+	logrus.Infof("nginx config reload success")
 	return nil
 }

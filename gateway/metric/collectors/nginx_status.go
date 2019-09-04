@@ -23,6 +23,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func nginxDescribe(ch chan<- *prometheus.Desc) {
+//NginxCmdMetric -
+type NginxCmdMetric struct {
+}
+
+//Describe -
+func (n *NginxCmdMetric) Describe(ch chan<- *prometheus.Desc) {
 	nginxcmd.PromethesuScrape(ch)
+}
+
+//Collect -
+func (n *NginxCmdMetric) Collect(ch chan<- prometheus.Metric) {
+	nginxcmd.PrometheusCollect(ch)
 }

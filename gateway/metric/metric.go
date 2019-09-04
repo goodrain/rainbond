@@ -40,6 +40,7 @@ type collector struct {
 	registry          *prometheus.Registry
 	socket            *collectors.SocketCollector
 	gatewayController *collectors.Controller
+	nginxCmd          *collectors.NginxCmdMetric
 }
 
 // NewCollector creates a new metric collector the for ingress controller
@@ -53,18 +54,21 @@ func NewCollector(gatewayHost string, registry *prometheus.Registry) (Collector,
 		gatewayController: ic,
 		socket:            socketCollector,
 		registry:          registry,
+		nginxCmd:          &collectors.NginxCmdMetric{},
 	}), nil
 }
 
 func (c *collector) Start() {
 	c.registry.MustRegister(c.gatewayController)
 	c.registry.MustRegister(c.socket)
+	c.registry.MustRegister(c.nginxCmd)
 	go c.socket.Start()
 }
 
 func (c *collector) Stop() {
 	c.registry.Unregister(c.gatewayController)
 	c.registry.Unregister(c.socket)
+	c.registry.Unregister(c.nginxCmd)
 }
 
 func (c *collector) SetServerNum(httpNum, tcpNum int) {

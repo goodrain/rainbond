@@ -261,6 +261,7 @@ func (gwc *GWController) initRbdEndpoints(errCh chan<- error) {
 // updateRbdPools updates rainbond pools
 func (gwc *GWController) updateRbdPools(edps map[string][]string) {
 	h, t := gwc.getRbdPools(edps)
+	//http pool merge to all http pool
 	if h != nil {
 		//merge app pool
 		for _, rbd := range h {
@@ -277,8 +278,12 @@ func (gwc *GWController) updateRbdPools(edps map[string][]string) {
 			}
 		}
 	}
-	if err := gwc.GWS.UpdatePools(gwc.rhp, t); err != nil {
-		logrus.Errorf("update rainbond pools failure %s", err.Error())
+	if t != nil {
+		//UpdatePools only update rainbond tenant tcp pools to config file
+		//http pools must full quantity update
+		if err := gwc.GWS.UpdatePools(gwc.rhp, t); err != nil {
+			logrus.Errorf("update rainbond pools failure %s", err.Error())
+		}
 	}
 }
 
@@ -328,13 +333,14 @@ func (gwc *GWController) getRbdPools(edps map[string][]string) ([]*v1.Pool, []*v
 			logrus.Debugf("there is no endpoints for %s", "maven.goodrain.me")
 		}
 	}
-
-	if !rrbdpEqual(hpools, gwc.rrbdp) {
-		gwc.rrbdp = hpools
+	// The current pools are for rainbond TCP and HTTP pools
+	// Updates are returned when changes occur
+	rbdpools := append(hpools, tpools...)
+	if !rrbdpEqual(rbdpools, gwc.rrbdp) {
+		gwc.rrbdp = rbdpools
 		return hpools, tpools
 	}
-
-	return nil, tpools
+	return nil, nil
 }
 
 func rrbdpEqual(a []*v1.Pool, b []*v1.Pool) bool {
