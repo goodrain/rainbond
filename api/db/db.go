@@ -22,18 +22,17 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/Sirupsen/logrus"
+	tsdbClient "github.com/bluebreezecf/opentsdb-goclient/client"
+	tsdbConfig "github.com/bluebreezecf/opentsdb-goclient/config"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
+	dbModel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/worker/discover/model"
-
-	"github.com/Sirupsen/logrus"
-	tsdbClient "github.com/bluebreezecf/opentsdb-goclient/client"
-	tsdbConfig "github.com/bluebreezecf/opentsdb-goclient/config"
-	dbModel "github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 )
 
@@ -176,6 +175,7 @@ func dbInit() error {
 				"/v2/app":        "server_source",
 				"/v2/port":       "server_source",
 				"/api/v1":        "server_source",
+				"/v2/events":     "server_source",
 				"/v2/nodes":      "node_manager",
 				"/v2/job":        "node_manager",
 				"/v2/tasks":      "node_manager",
