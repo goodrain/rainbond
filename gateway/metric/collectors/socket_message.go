@@ -314,7 +314,7 @@ func (sc *SocketCollector) RemoveMetrics(hosts []string, registry prometheus.Gat
 		return
 	}
 	// 1. remove metrics of removed hosts
-	logrus.Infof("removing host %v from metrics", hosts)
+	logrus.Debugf("removing host %v from metrics", hosts)
 	for _, mf := range mfs {
 		metricName := mf.GetName()
 		metric, ok := sc.metricMapping[metricName]

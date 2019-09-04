@@ -689,7 +689,7 @@ func (s *k8sStore) ingressIsValid(ing *extensions.Ingress) bool {
 		return false
 	}
 	if !exists {
-		logrus.Warningf("Endpoint \"%s\" does not exist.", endpointKey)
+		logrus.Debugf("Endpoint %s does not exist.", endpointKey)
 		return false
 	}
 	endpoint, ok := item.(*corev1.Endpoints)
@@ -698,12 +698,12 @@ func (s *k8sStore) ingressIsValid(ing *extensions.Ingress) bool {
 		return false
 	}
 	if endpoint.Subsets == nil || len(endpoint.Subsets) == 0 {
-		logrus.Warningf("Endpoints(%s) is empty, ignore it", endpointKey)
+		logrus.Debugf("Endpoints(%s) is empty, ignore it", endpointKey)
 		return false
 	}
 	for _, ep := range endpoint.Subsets {
 		if (ep.Addresses == nil || len(ep.Addresses) == 0) && (ep.NotReadyAddresses == nil || len(ep.NotReadyAddresses) == 0) {
-			logrus.Warningf("Endpoints(%s) is empty, ignore it", endpointKey)
+			logrus.Debugf("Endpoints(%s) is empty, ignore it", endpointKey)
 			return false
 		}
 	}

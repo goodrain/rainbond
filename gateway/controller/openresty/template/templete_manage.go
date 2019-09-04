@@ -233,8 +233,8 @@ func (n *NginxConfigFileTemplete) WriteUpstream(set option.Config, tenant string
 	n.writeLocks[tenant].Lock()
 	defer n.writeLocks[tenant].Unlock()
 	upstreamConfigFile := path.Join(n.configFileDirPath, "stream", tenant, "upstreams.conf")
-	first := true
-	for i, upstream := range upstrems {
+	var allBody []byte
+	for i := range upstrems {
 		body, err := n.tcpUpstreamTmpl.Write(&NginxUpstreamContext{
 			Upstream: upstrems[i],
 			Set:      set,
@@ -243,14 +243,14 @@ func (n *NginxConfigFileTemplete) WriteUpstream(set option.Config, tenant string
 			logrus.Errorf("create upstream config by templete failure %s", err.Error())
 			continue
 		}
-		if err := n.writeFile(first, body, upstreamConfigFile); err != nil {
-			if err == nginxcmd.ErrorCheck {
-				logrus.Errorf("upstream %s config error, will ignore it", upstream.Name)
-			} else {
-				logrus.Errorf("writer upstream config failure %s", err.Error())
-			}
+		allBody = append(allBody, body...)
+		allBody = append(allBody, '\n')
+	}
+	if err := n.writeFile(true, allBody, upstreamConfigFile); err != nil {
+		if err == nginxcmd.ErrorCheck {
+			logrus.Errorf("upstream config check error")
 		} else {
-			first = false
+			logrus.Errorf("writer upstream config failure %s", err.Error())
 		}
 	}
 	return nil

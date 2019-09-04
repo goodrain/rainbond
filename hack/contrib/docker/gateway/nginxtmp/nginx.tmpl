@@ -164,5 +164,6 @@ http {
 }
 
 stream {
-    include stream/*/*.conf;
+    include stream/*/upstreams.conf;
+    include stream/*/servers.conf;
 }
