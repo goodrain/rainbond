@@ -44,25 +44,18 @@ var EventTypeAbnormalRecovery EventType = "AbnormalRecovery"
 
 // PodEvent -
 type PodEvent struct {
-	clientset   kubernetes.Interface
-	podEventChs []chan *corev1.Pod
-	stopCh      chan struct{}
-	podEventCh  chan *corev1.Pod
+	clientset  kubernetes.Interface
+	stopCh     chan struct{}
+	podEventCh chan *corev1.Pod
 }
 
 // New create a new PodEvent
-func New(clientset kubernetes.Interface, stopCh chan struct{}, podEventChs []chan *corev1.Pod) *PodEvent {
+func New(clientset kubernetes.Interface, stopCh chan struct{}) *PodEvent {
 	return &PodEvent{
-		clientset:   clientset,
-		podEventChs: podEventChs,
-		stopCh:      stopCh,
+		clientset:  clientset,
+		stopCh:     stopCh,
+		podEventCh: make(chan *corev1.Pod, 100),
 	}
-}
-
-// Register -
-func (p *PodEvent) Register() {
-	p.podEventCh = make(chan *corev1.Pod)
-	p.podEventChs[0] = p.podEventCh
 }
 
 // Handle -
@@ -77,6 +70,10 @@ func (p *PodEvent) Handle() {
 	}
 }
 
+//GetChan get pod update chan
+func (p *PodEvent) GetChan() chan<- *corev1.Pod {
+	return p.podEventCh
+}
 func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determineOptType) {
 	evt, err := db.GetManager().ServiceEventDao().LatestFailurePodEvent(pod.GetName())
 	if err != nil && err != gorm.ErrRecordNotFound {
