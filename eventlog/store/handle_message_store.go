@@ -20,6 +20,7 @@ package store
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -287,7 +288,7 @@ func (h *handleMessageStore) handleBarrelEvent() {
 
 					} else {
 						event.Status = status
-						if event.FinalStatus == "empty" {
+						if strings.Contains(event.FinalStatus, "empty") {
 							event.FinalStatus = model.EventFinalStatusEmptyComplete.String()
 						} else {
 							event.FinalStatus = "complete"

@@ -3,6 +3,7 @@ package podevent
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -42,6 +43,34 @@ var EventTypeReadinessProbeFailed EventType = "ReadinessProbeFailed"
 // EventTypeAbnormalRecovery -
 var EventTypeAbnormalRecovery EventType = "AbnormalRecovery"
 
+// SortableEventType implements sort.Interface for []EventType
+type SortableEventType []EventType
+
+var eventTypeTbl = map[EventType]int{
+	EventTypeLivenessProbeFailed:  0,
+	EventTypeReadinessProbeFailed: 1,
+	EventTypeOOMKilled:            2,
+	EventTypeAbnormalExited:       3,
+}
+
+func (s SortableEventType) Len() int {
+	return len(s)
+}
+func (s SortableEventType) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s SortableEventType) Less(i, j int) bool {
+	return eventTypeTbl[s[i]] > eventTypeTbl[s[j]]
+}
+
+type optType struct {
+	eventType   EventType
+	containerID string
+	image       string
+	message     string
+}
+
 // PodEvent -
 type PodEvent struct {
 	clientset  kubernetes.Interface
@@ -64,11 +93,9 @@ func (p *PodEvent) Handle() {
 		select {
 		case pod := <-p.podEventCh:
 			// do not record events that occur 10 minutes after startup
-			if time.Now().Sub(pod.CreationTimestamp.Time) > 10 * time.Minute {
-				continue
+			if time.Now().Sub(pod.CreationTimestamp.Time) > 10*time.Minute {
+				recordUpdateEvent(p.clientset, pod, defDetermineOptType)
 			}
-
-			recordUpdateEvent(p.clientset, pod, defDetermineOptType)
 		case <-p.stopCh:
 			return
 		}
@@ -89,77 +116,124 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 	wutil.DescribePodStatus(clientset, pod, podstatus, k8sutil.DefListEventsByPod)
 	tenantID, serviceID, _, _ := k8sutil.ExtractLabels(pod.GetLabels())
 	// the pod in the pending status has no start time and container statuses
-	for _, cs := range pod.Status.ContainerStatuses {
-		state := cs.State
-		if podstatus.Type == pb.PodStatus_ABNORMAL || podstatus.Type == pb.PodStatus_NOTREADY || podstatus.Type == pb.PodStatus_UNHEALTHY {
-			var eventID string
-			optType, message := f(clientset, pod, &state, k8sutil.DefListEventsByPod)
-			if optType == "" {
-				continue
-			}
-			if evt == nil { // create event
-				eventID, err = createSystemEvent(tenantID, serviceID, pod.GetName(), optType.String(), model.EventStatusFailure.String())
-				if err != nil {
-					logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), optType.String(), err)
-					continue
-				}
-			} else {
-				eventID = evt.EventID
-			}
+	if podstatus.Type == pb.PodStatus_ABNORMAL || podstatus.Type == pb.PodStatus_NOTREADY || podstatus.Type == pb.PodStatus_UNHEALTHY {
+		var eventID string
+		// determine the type of exception event that occurs by the state of multiple containers
+		optType := f(clientset, pod, k8sutil.DefListEventsByPod)
+		if optType == nil {
+			return
+		}
 
-			msg := fmt.Sprintf("container: %s; state: %s; mesage: %s", cs.Name, optType.String(), message)
-			logger := event.GetManager().GetLogger(eventID)
-			defer event.GetManager().ReleaseLogger(logger)
-			logrus.Debugf("Service id: %s; %s.", serviceID, msg)
-			logger.Error(msg, event.GetLoggerOption("failure"))
-		} else if podstatus.Type == pb.PodStatus_RUNNING {
-			if evt == nil {
+		if evt == nil { // create event
+			eventID, err = createSystemEvent(tenantID, serviceID, pod.GetName(), optType.eventType.String(), model.EventStatusFailure.String())
+			if err != nil {
+				logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), optType.eventType.String(), err)
+				return
+			}
+		} else {
+			eventID = evt.EventID
+		}
+
+		msg := fmt.Sprintf("image: %s; container: %s; state: %s; mesage: %s", optType.image, optType.containerID, optType.eventType.String(), optType.message)
+		logger := event.GetManager().GetLogger(eventID)
+		defer event.GetManager().ReleaseLogger(logger)
+		logrus.Debugf("Service id: %s; %s.", serviceID, msg)
+		logger.Error(msg, event.GetLoggerOption("failure"))
+	} else if podstatus.Type == pb.PodStatus_RUNNING {
+		if evt == nil {
+			return
+		}
+
+		// running time
+		var rtime time.Time
+		for _, condition := range pod.Status.Conditions {
+			if condition.Type != corev1.PodReady || condition.Status != corev1.ConditionTrue {
 				continue
 			}
-			// the container state of the pod in the PodStatus_Running must be running
-			msg := fmt.Sprintf("container: %s; state: running; started at: %s", cs.Name, state.Running.StartedAt.Time.Format(time.RFC3339))
-			logger := event.GetManager().GetLogger(evt.EventID)
-			defer event.GetManager().ReleaseLogger(logger)
-			logrus.Debugf("Service id: %s; %s.", serviceID, msg)
-			loggerOpt := event.GetLoggerOption("failure")
-			if time.Now().Sub(state.Running.StartedAt.Time) > 2*time.Minute {
+			rtime = condition.LastTransitionTime.Time
+		}
+
+		// the container state of the pod in the PodStatus_Running must be running
+		msg := fmt.Sprintf("state: running; started at: %s", rtime.Format(time.RFC3339))
+		logger := event.GetManager().GetLogger(evt.EventID)
+		defer event.GetManager().ReleaseLogger(logger)
+		logrus.Debugf("Service id: %s; %s.", serviceID, msg)
+		loggerOpt := event.GetLoggerOption("failure")
+
+		if !rtime.IsZero() && time.Now().Sub(rtime) > 2*time.Minute {
+			evt.FinalStatus = model.EventFinalStatusEmptyComplete.String()
+			if err := db.GetManager().ServiceEventDao().UpdateModel(evt); err != nil {
+				logrus.Warningf("event id: %s; failed to update service event: %v", evt.EventID, err)
+			} else {
 				loggerOpt = event.GetCallbackLoggerOption()
 				_, err := createSystemEvent(tenantID, serviceID, pod.GetName(), EventTypeAbnormalRecovery.String(), model.EventStatusSuccess.String())
 				if err != nil {
 					logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), EventTypeAbnormalRecovery.String(), err)
-					continue
+					return
 				}
 			}
-			logger.Info(msg, loggerOpt)
 		}
+		logger.Info(msg, loggerOpt)
 	}
 }
 
 // determine the type of exception
-type determineOptType func(clientset kubernetes.Interface, pod *corev1.Pod, state *corev1.ContainerState, f k8sutil.ListEventsByPod) (EventType, string)
+type determineOptType func(clientset kubernetes.Interface, pod *corev1.Pod, f k8sutil.ListEventsByPod) *optType
 
-func defDetermineOptType(clientset kubernetes.Interface, pod *corev1.Pod, state *corev1.ContainerState, f k8sutil.ListEventsByPod) (EventType, string) {
-	if state.Terminated != nil {
-		if state.Terminated.Reason == EventTypeOOMKilled.String() {
-			return EventTypeOOMKilled, state.Terminated.Reason
+func defDetermineOptType(clientset kubernetes.Interface, pod *corev1.Pod, f k8sutil.ListEventsByPod) *optType {
+	oneContainerOptType := func(state corev1.ContainerState) (EventType, string) {
+		if state.Terminated != nil {
+			if state.Terminated.Reason == EventTypeOOMKilled.String() {
+				return EventTypeOOMKilled, state.Terminated.Reason
+			}
+			if state.Terminated.ExitCode != 0 {
+				return EventTypeAbnormalExited, state.Terminated.Reason
+			}
 		}
-		if state.Terminated.ExitCode != 0 {
-			return EventTypeAbnormalExited, state.Terminated.Reason
+		events := f(clientset, pod)
+		for _, evt := range events.Items {
+			if strings.Contains(evt.Message, "Liveness probe failed") && state.Waiting != nil {
+				return EventTypeLivenessProbeFailed, evt.Message
+			}
+			if strings.Contains(evt.Message, "Readiness probe failed") {
+				return EventTypeReadinessProbeFailed, evt.Message
+			}
 		}
-	}
-	events := f(clientset, pod)
-	for _, evt := range events.Items {
-		if strings.Contains(evt.Message, "Liveness probe failed") && state.Waiting != nil {
-			return EventTypeLivenessProbeFailed, evt.Message
-		}
-		if strings.Contains(evt.Message, "Readiness probe failed") {
-			return EventTypeReadinessProbeFailed, evt.Message
-		}
+
+		b, _ := json.Marshal(pod)
+		logrus.Debugf("unrecognized operation type; pod info: %s", string(b))
+		return "", ""
 	}
 
-	b, _ := json.Marshal(pod)
-	logrus.Debugf("unrecognized operation type; pod info: %s", string(b))
-	return "", ""
+	var optTypes []*optType
+	for _, cs := range pod.Status.ContainerStatuses {
+		eventType, reason := oneContainerOptType(cs.State)
+		if eventType == "" {
+			continue
+		}
+		optTypes = append(optTypes, &optType{
+			eventType:   eventType,
+			containerID: cs.ContainerID,
+			image:       cs.Image,
+			message:     reason,
+		})
+	}
+
+	if len(optTypes) == 0 {
+		return nil
+	}
+
+	// sorts data
+	keys := make([]EventType, 0, len(optTypes))
+	optTypeMap := make(map[EventType]*optType)
+	for _, optType := range optTypes {
+		keys = append(keys, optType.eventType)
+		// conflict with same event type
+		optTypeMap[optType.eventType] = optType
+	}
+	sort.Sort(SortableEventType(keys))
+
+	return optTypeMap[keys[0]]
 }
 
 func createSystemEvent(tenantID, serviceID, targetID, optType, status string) (eventID string, err error) {
