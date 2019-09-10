@@ -22,6 +22,7 @@ package license
 
 // LicInfo license information
 type LicInfo struct {
+	LicKey     string   `json:"license_key"`
 	Code       string   `json:"code"`
 	Company    string   `json:"company"`
 	Node       int64    `json:"node"`
