@@ -82,6 +82,9 @@ func checkTimeout(event *dbmodel.ServiceEvent) bool {
 
 // CreateEvent save event
 func CreateEvent(target, optType, targetID, tenantID, reqBody, userName string, synType int) (*dbmodel.ServiceEvent, error) {
+	if len(reqBody) > 255 {
+		reqBody = reqBody[0:255]
+	}
 	event := dbmodel.ServiceEvent{
 		EventID:     util.NewUUID(),
 		TenantID:    tenantID,
