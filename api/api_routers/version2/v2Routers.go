@@ -22,15 +22,20 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/controller"
 	"github.com/goodrain/rainbond/api/middleware"
+	"github.com/goodrain/rainbond/cmd/api/option"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
 //V2 v2
-type V2 struct{}
+type V2 struct {
+	Cfg *option.Config
+}
 
 //Routes routes
 func (v2 *V2) Routes() chi.Router {
 	r := chi.NewRouter()
+	license := middleware.NewLicense(v2.Cfg)
+	r.Use(license.Verify)
 	r.Get("/show", controller.GetManager().Show)
 	r.Post("/show", controller.GetManager().Show)
 	r.Mount("/tenants", v2.tenantRouter())
