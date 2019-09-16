@@ -45,3 +45,13 @@ func TestVerifyNodes(t *testing.T) {
 		})
 	}
 }
+
+func TestGetLicInfo(t *testing.T) {
+	licPath := "testdata/ok_license.yb"
+	licSoPath := "/opt/rainbond/etc/license/license.so"
+	licInfo, err := GetLicInfo(licPath, licSoPath)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%+v", licInfo)
+}

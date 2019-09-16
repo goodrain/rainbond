@@ -21,6 +21,8 @@
 package license
 
 import (
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"plugin"
@@ -94,4 +96,31 @@ func VerifyNodes(licPath, licSoPath string, nodeNums int) bool {
 		return false
 	}
 	return f.(func(string, int) bool)(lic, nodeNums)
+}
+
+// GetLicInfo -
+func GetLicInfo(licPath, licSoPath string) (*LicInfo, error) {
+	lic, err := readFromFile(licPath)
+	if err != nil {
+		logrus.Errorf("failed to read license from file: %v", err)
+		return nil, fmt.Errorf("failed to read license from file: %v", err)
+	}
+	p, err := plugin.Open(licSoPath)
+	if err != nil {
+		logrus.Errorf("license.so path: %s; error opening license.so: %v", licSoPath, err)
+		return nil, fmt.Errorf("license.so path: %s; error opening license.so: %v", licSoPath, err)
+	}
+
+	f, err := p.Lookup("Decrypt")
+	if err != nil {
+		logrus.Errorf("method 'Decrypt'; error looking up func: %v", err)
+		return nil, fmt.Errorf("method 'Decrypt'; error looking up func: %v", err)
+	}
+	bytes, err := f.(func(string) ([]byte, error))(lic)
+	var licInfo LicInfo
+	if err := json.Unmarshal(bytes, &licInfo); err != nil {
+		logrus.Errorf("error unmarshalling license: %v", err)
+		return nil, fmt.Errorf("error unmarshalling license: %v", err)
+	}
+	return &licInfo, nil
 }

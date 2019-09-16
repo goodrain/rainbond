@@ -20,6 +20,20 @@
 
 package license
 
+// LicInfo license information
+type LicInfo struct {
+	Code       string   `json:"code"`
+	Company    string   `json:"company"`
+	Node       int64    `json:"node"`
+	CPU        int64    `json:"cpu"`
+	Memory     int64    `json:"memory"`
+	Tenant     int64    `json:"tenant"`
+	EndTime    string   `json:"end_time"`
+	StartTime  string   `json:"start_time"`
+	DataCenter int64    `json:"data_center"`
+	ModuleList []string `json:"module_list"`
+}
+
 // VerifyTime verifies the time in the license.
 func VerifyTime(licPath, licSoPath string) bool {
 	return true
@@ -28,4 +42,9 @@ func VerifyTime(licPath, licSoPath string) bool {
 // VerifyNodes verifies the number of the nodes in the license.
 func VerifyNodes(licPath, licSoPath string, nodeNums int) bool {
 	return true
+}
+
+// GetLicInfo -
+func GetLicInfo(licPath, licSoPath string) (*LicInfo, error) {
+	return nil, nil
 }
