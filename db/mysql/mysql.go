@@ -133,6 +133,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.Endpoint{})
 	m.models = append(m.models, &model.ThirdPartySvcDiscoveryCfg{})
 	m.models = append(m.models, &model.GwRuleConfig{})
+	m.models = append(m.models, &model.GwcIP{})
 }
 
 //CheckTable check and create tables

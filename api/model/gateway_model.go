@@ -82,6 +82,11 @@ type DeleteTCPRuleStruct struct {
 	TCPRuleID string `json:"tcp_rule_id" validate:"tcp_rule_id|required"`
 }
 
+type CheckTCPRuleStruct struct {
+	IP   string `json:"ip" validate:"ip|required`
+	Port int    `json:"port" validate:"port|required`
+}
+
 // RuleExtensionStruct represents rule extensions for http rule or tcp rule
 type RuleExtensionStruct struct {
 	Key   string `json:"key"`
@@ -146,4 +151,8 @@ type Rewrite struct {
 	Regex       string `json:"regex"`
 	Replacement string `json:"replacement"`
 	Flag        string `json:"flag" validate:"flag|in:last,break,redirect,permanent"`
+}
+
+type GwcIpStruct struct {
+	IP string `json:"ip" validate:"ip|required"`
 }

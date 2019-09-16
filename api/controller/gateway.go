@@ -204,7 +204,23 @@ func (g *GatewayStruct) TCPRule(w http.ResponseWriter, r *http.Request) {
 		g.updateTCPRule(w, r)
 	case "DELETE":
 		g.deleteTCPRule(w, r)
+	case "GET":
+		g.CheckTCPRuleAvailable(w, r)
 	}
+}
+
+func (g *GatewayStruct) CheckTCPRuleAvailable(w http.ResponseWriter, r *http.Request) {
+	var req api_model.CheckTCPRuleStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	h := handler.GetGatewayHandler()
+	avail, err := h.CheckTcpRuleAvailable(&req)
+	if err != nil {
+		fmt.Println(err)
+	}
+	httputil.ReturnSuccess(r, w, avail)
 }
 
 // AddTCPRule adds a tcp rule
@@ -347,6 +363,24 @@ func (g *GatewayStruct) GetAvailablePort(w http.ResponseWriter, r *http.Request)
 	httputil.ReturnSuccess(r, w, res)
 }
 
+//get gwc ip and relative available port
+func (g *GatewayStruct) GetIpAvailablePort(w http.ResponseWriter, r *http.Request) {
+	h := handler.GetGatewayHandler()
+	res, err := h.ListGwcIps()
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
+			"getting available port: %v", err))
+	}
+	var ip_port map[string]int
+	for _, ip := range res {
+		port, err := h.GetAvailablePortByIp(ip)
+		if err == nil {
+			ip_port[ip] = port
+		}
+	}
+	httputil.ReturnSuccess(r, w, ip_port)
+}
+
 // RuleConfig is used to add, update or delete rule config.
 func (g *GatewayStruct) RuleConfig(w http.ResponseWriter, r *http.Request) {
 	var req api_model.RuleConfigReq
@@ -368,6 +402,58 @@ func (g *GatewayStruct) RuleConfig(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 		httputil.ReturnError(r, w, 500, "update rule config error: "+err.Error())
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, "success")
+}
+
+//GetAvailableIps return the available ips of the gateway cluster
+func (g *GatewayStruct) ListGwcIps(w http.ResponseWriter, r *http.Request) {
+	h := handler.GetGatewayHandler()
+	res, err := h.ListGwcIps()
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
+			"getting available port: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, res)
+}
+
+func (g *GatewayStruct) GwcIp(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		g.addGwcIp(w, r)
+	case "DELETE":
+		g.deleteGwcIp(w, r)
+	}
+}
+
+func (g *GatewayStruct) addGwcIp(w http.ResponseWriter, r *http.Request) {
+	var req api_model.GwcIpStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+
+	err := handler.GatewayHandler().AddGwcIp(&req)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("gwc ip : %s; error add gwc ip: %v", req.IP, err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, "success")
+}
+
+func (g *GatewayStruct) deleteGwcIp(w http.ResponseWriter, r *http.Request) {
+	var req api_model.GwcIpStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+
+	err := handler.GetGatewayHandler().DelGwcIp(&req)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("gwc ip : %s; error del gwc ip: %v", req.IP, err))
 		return
 	}
 

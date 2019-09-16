@@ -38,6 +38,7 @@ type GatewayHandler interface {
 	UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort int) (string, error)
 	DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) (string, error)
 	DeleteTCPRuleByServiceIDWithTransaction(sid string, tx *gorm.DB) error
+	CheckTcpRuleAvailable(req *apimodel.CheckTCPRuleStruct) (bool, error)
 
 	AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct, tx *gorm.DB) error
 
@@ -48,4 +49,8 @@ type GatewayHandler interface {
 	AddIPPool(req *apimodel.IPPoolStruct) error
 
 	RuleConfig(req *apimodel.RuleConfigReq) error
+	GetAvailablePortByIp(ip string) (int, error)
+	ListGwcIps() ([]string, error)
+	AddGwcIp(req *apimodel.GwcIpStruct) error
+	DelGwcIp(rep *apimodel.GwcIpStruct) error
 }

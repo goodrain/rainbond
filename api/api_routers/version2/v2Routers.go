@@ -45,6 +45,7 @@ func (v2 *V2) Routes() chi.Router {
 	r.Post("/alertmanager-webhook", controller.GetManager().AlertManagerWebHook)
 	r.Get("/version", controller.GetManager().Version)
 	r.Mount("/port", v2.portRouter())
+	r.Mount("/gwcip", v2.gwcIpRouter())
 	// deprecated, use /events/<event_id>/log
 	r.Get("/event-log", controller.GetManager().LogByAction)
 	r.Mount("/events", v2.eventsRouter())
@@ -120,6 +121,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/tcp-rule", controller.GetManager().TCPRule)
 	r.Delete("/tcp-rule", controller.GetManager().TCPRule)
 	r.Put("/tcp-rule", controller.GetManager().TCPRule)
+	r.Get("/tcp-rule", controller.GetManager().TCPRule)
 
 	//batch operation
 	r.Post("/batchoperation", controller.BatchOperation)
@@ -296,6 +298,14 @@ func (v2 *V2) notificationEventRouter() chi.Router {
 
 func (v2 *V2) portRouter() chi.Router {
 	r := chi.NewRouter()
-	r.Get("/avail-port", controller.GetManager().GetAvailablePort)
+	// r.Get("/avail-port", controller.GetManager().GetAvailablePort)
+	r.Get("/avail-port", controller.GetManager().GetIpAvailablePort)
+	return r
+}
+
+func (v2 *V2) gwcIpRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Post("/gwc-ip", controller.GetManager().GwcIp)
+	r.Delete("/gwc-ip", controller.GetManager().GwcIp)
 	return r
 }

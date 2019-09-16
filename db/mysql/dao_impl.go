@@ -534,3 +534,15 @@ func (m *Manager) GwRuleConfigDaoTransactions(db *gorm.DB) dao.GwRuleConfigDao {
 		DB: db,
 	}
 }
+
+func (m *Manager) GwcIpsDao() dao.GwcIpsDao {
+	return &mysqldao.GwcIpsDaoImpl{
+		DB: m.db,
+	}
+}
+
+func (m *Manager) GwcIpsDaoTransactions(db *gorm.DB) dao.GwcIpsDao {
+	return &mysqldao.GwcIpsDaoImpl{
+		DB: db,
+	}
+}

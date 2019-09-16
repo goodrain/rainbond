@@ -27,7 +27,7 @@ import (
 
 func TestListTenant(t *testing.T) {
 	region, _ := NewRegion(APIConf{
-		Endpoints: []string{"http://kubeapi.goodrain.me:8888"},
+		Endpoints: []string{"http://192.168.2.97:8443"},
 	})
 	tenants, err := region.Tenants("").List()
 	if err != nil {

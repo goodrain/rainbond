@@ -110,6 +110,7 @@ type Manager interface {
 	IPPoolDao() dao.IPPoolDao
 	GwRuleConfigDao() dao.GwRuleConfigDao
 	GwRuleConfigDaoTransactions(db *gorm.DB) dao.GwRuleConfigDao
+	GwcIpsDao() dao.GwcIpsDao
 
 	// third-party service
 	EndpointsDao() dao.EndpointsDao

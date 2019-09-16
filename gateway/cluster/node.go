@@ -48,6 +48,7 @@ func CreateNodeManager(config option.Config) (*NodeManager, error) {
 	if ok := nm.checkGatewayPort(); !ok {
 		return nil, fmt.Errorf("Check gateway node port failure")
 	}
+	nm.StartCheckIps()
 	return nm, nil
 }
 
@@ -115,4 +116,8 @@ func (n *NodeManager) CheckPortAvailable(protocol string, ports ...uint32) bool 
 //GetLocalV4IPs get current host all available IP
 func (n *NodeManager) GetLocalV4IPs() []net.IP {
 	return n.localV4Hosts
+}
+
+func (n *NodeManager) StartCheckIps() {
+	startLoop()
 }

@@ -312,6 +312,34 @@ func (t *TCPRuleDaoTmpl) ListByServiceID(serviceID string) ([]*model.TCPRule, er
 	return rules, nil
 }
 
+func (t *TCPRuleDaoTmpl) GetUsedPortsASCByIp(ip string) ([]*model.TCPRule, error) {
+	var ports []*model.TCPRule
+	if ip == "0.0.0.0" || ip == "" {
+		if err := t.DB.Group("port").Order("port asc").Find(&ports).Error; err != nil {
+			return nil, fmt.Errorf("select all exist port error,%s", err.Error())
+		}
+	} else {
+		if err := t.DB.Where("ip=? or ip = '0.0.0.0'", ip).Group("port").Order("port asc").Find(&ports).Error; err != nil {
+			return nil, fmt.Errorf("select all exist port error,%s", err.Error())
+		}
+	}
+	return ports, nil
+}
+
+func (t *TCPRuleDaoTmpl) GetTCPRuleByIpPort(ip string, port int) ([]*model.TCPRule, error) {
+	var rules []*model.TCPRule
+	if ip == "0.0.0.0" || ip == "" {
+		if err := t.DB.Where("port=?", port).Find(&rules).Error; err != nil {
+			return nil, fmt.Errorf("select all tcp rules by ip and port error,%s", err.Error())
+		}
+	} else {
+		if err := t.DB.Where("(ip=? or ip = '0.0.0.0') and port=?", ip, port).Find(&rules).Error; err != nil {
+			return nil, fmt.Errorf("select all tcp rules by ip and port error,%s", err.Error())
+		}
+	}
+	return rules, nil
+}
+
 // IPPortImpl is an implementation of dao.IPPortDao
 type IPPortImpl struct {
 	DB *gorm.DB
@@ -447,6 +475,46 @@ func (t *GwRuleConfigDaoImpl) DeleteByRuleID(rid string) error {
 func (t *GwRuleConfigDaoImpl) ListByRuleID(rid string) ([]*model.GwRuleConfig, error) {
 	var res []*model.GwRuleConfig
 	err := t.DB.Where("rule_id = ?", rid).Find(&res).Error
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// GwRuleConfigDaoImpl is a implementation of GwRuleConfigDao.
+type GwcIpsDaoImpl struct {
+	DB *gorm.DB
+}
+
+func (t *GwcIpsDaoImpl) AddModel(mo model.Interface) error {
+	gwcIp := mo.(*model.GwcIP)
+	var old model.GwcIP
+	err := t.DB.Where("ip=?", gwcIp.IP).Find(&old).Error
+	if err == gorm.ErrRecordNotFound {
+		if err := t.DB.Create(gwcIp).Error; err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("GwcIp: %s; %v", gwcIp.IP, err)
+	}
+	return nil
+}
+
+func (t *GwcIpsDaoImpl) UpdateModel(mo model.Interface) error {
+	return nil
+}
+
+func (t *GwcIpsDaoImpl) DeleteIp(ip string) error {
+	return t.DB.Where("ip=?", ip).Delete(&model.GwcIP{}).Error
+}
+func (t *GwcIpsDaoImpl) AddIp(ip string) error {
+	var new model.GwcIP = model.GwcIP{IP: ip}
+	return t.AddModel(new)
+}
+
+func (t *GwcIpsDaoImpl) ListGwcIps() ([]*model.GwcIP, error) {
+	var res []*model.GwcIP
+	err := t.DB.Find(&res).Error
 	if err != nil {
 		return nil, err
 	}

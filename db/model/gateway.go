@@ -138,3 +138,14 @@ type GwRuleConfig struct {
 func (GwRuleConfig) TableName() string {
 	return "gateway_rule_config"
 }
+
+//GwcIp is used to save the ip address of the node which gateway on
+type GwcIP struct {
+	Model
+	IP string `gorm:"column:ip"`
+}
+
+//TableName return table name of GwcIp
+func (GwcIP) TableName() string {
+	return "gateway_ips"
+}

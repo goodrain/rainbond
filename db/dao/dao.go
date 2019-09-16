@@ -415,6 +415,8 @@ type TCPRuleDao interface {
 	DeleteByID(uuid string) error
 	DeleteTCPRuleByServiceID(serviceID string) error
 	ListByServiceID(serviceID string) ([]*model.TCPRule, error)
+	GetUsedPortsASCByIp(ip string) ([]*model.TCPRule, error)
+	GetTCPRuleByIpPort(ip string, port int) ([]*model.TCPRule, error)
 }
 
 // IPPortDao -
@@ -456,4 +458,11 @@ type GwRuleConfigDao interface {
 	Dao
 	DeleteByRuleID(rid string) error
 	ListByRuleID(rid string) ([]*model.GwRuleConfig, error)
+}
+
+type GwcIpsDao interface {
+	Dao
+	ListGwcIps() ([]*model.GwcIP, error)
+	AddIp(ip string) error
+	DeleteIp(ip string) error
 }

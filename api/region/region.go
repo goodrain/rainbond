@@ -54,6 +54,7 @@ type Region interface {
 	Version() string
 	Monitor() MonitorInterface
 	Notification() NotificationInterface
+	Gateway() GatewayInterface
 	DoRequest(path, method string, body io.Reader, decode *utilhttp.ResponseBody) (int, error)
 }
 

@@ -495,6 +495,18 @@ func (g *GatewayAction) DeleteTCPRuleByServiceIDWithTransaction(sid string, tx *
 	return nil
 }
 
+func (g *GatewayAction) CheckTcpRuleAvailable(req *apimodel.CheckTCPRuleStruct) (bool, error) {
+	tx := db.GetManager().Begin()
+	rules, err := db.GetManager().TCPRuleDaoTransactions(tx).GetTCPRuleByIpPort(req.IP, req.Port)
+	if err != nil {
+		return false, err
+	}
+	if len(rules) > 0 {
+		return false, err
+	}
+	return true, nil
+}
+
 // AddRuleExtensions adds rule extensions to db if any of they doesn't exists
 func (g *GatewayAction) AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct,
 	tx *gorm.DB) error {
@@ -557,6 +569,39 @@ func (g *GatewayAction) GetAvailablePort() (int, error) {
 		return selectPort, nil
 	}
 	return 0, fmt.Errorf("no more lb port can be use,max port is %d", maxPort)
+}
+
+func (g *GatewayAction) GetAvailablePortByIp(ip string) (int, error) {
+	ipPorts, err := g.dbmanager.TCPRuleDao().GetUsedPortsASCByIp(ip)
+	if err != nil {
+		return -1, err
+	}
+	var ports []int
+	for _, data := range ipPorts {
+		ports = append(ports, data.Port)
+	}
+	return getAvaildPort(ports)
+}
+
+func (g *GatewayAction) ListGwcIps() ([]string, error) {
+	gwcIpModel, err := g.dbmanager.GwcIpsDao().ListGwcIps()
+	if err != nil {
+		return nil, err
+	}
+	var ips []string
+	ips = append(ips, "0.0.0.0")
+	for _, data := range gwcIpModel {
+		ips = append(ips, data.IP)
+	}
+	return ips, nil
+}
+
+func (g *GatewayAction) AddGwcIp(req *apimodel.GwcIpStruct) error {
+	return g.dbmanager.GwcIpsDao().AddIp(req.IP)
+}
+
+func (g *GatewayAction) DelGwcIp(req *apimodel.GwcIpStruct) error {
+	return g.dbmanager.GwcIpsDao().DeleteIp(req.IP)
 }
 
 // PortExists returns if the port exists
@@ -693,4 +738,43 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 	}
 	tx.Commit()
 	return nil
+}
+
+func getAvaildPort(ports []int) (int, error) {
+	maxPort, _ := strconv.Atoi(os.Getenv("MIN_LB_PORT"))
+	minPort, _ := strconv.Atoi(os.Getenv("MAX_LB_PORT"))
+	if minPort == 0 {
+		minPort = 20001
+	}
+	if maxPort == 0 {
+		maxPort = 35000
+	}
+	var maxUsePort int
+	if len(ports) > 0 {
+		maxUsePort = ports[len(ports)-1]
+	} else {
+		maxUsePort = 20001
+	}
+	//顺序分配端口
+	selectPort := maxUsePort + 1
+	if selectPort <= maxPort {
+		return selectPort, nil
+	}
+	//捡漏以前端口
+	selectPort = minPort
+	for _, p := range ports {
+		if p == selectPort {
+			selectPort = selectPort + 1
+			continue
+		}
+		if p > selectPort {
+			return selectPort, nil
+		}
+		selectPort = selectPort + 1
+	}
+	if selectPort <= maxPort {
+		return selectPort, nil
+	}
+	logrus.Errorf("no more lb port can be use,max port is %d", maxPort)
+	return -1, fmt.Errorf("no more lb port can be use,max port is %d", maxPort)
 }

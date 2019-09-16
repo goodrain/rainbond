@@ -143,6 +143,8 @@ type Gatewayer interface {
 	TCPRule(w http.ResponseWriter, r *http.Request)
 	GetAvailablePort(w http.ResponseWriter, r *http.Request)
 	RuleConfig(w http.ResponseWriter, r *http.Request)
+	GetIpAvailablePort(w http.ResponseWriter, r *http.Request)
+	GwcIp(w http.ResponseWriter, r *http.Request)
 }
 
 // ThirdPartyServicer is an interface for defining methods for third-party service.

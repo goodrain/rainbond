@@ -35,6 +35,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/annotations"
 	"github.com/goodrain/rainbond/gateway/annotations/l4"
 	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
+	"github.com/goodrain/rainbond/gateway/cluster"
 	"github.com/goodrain/rainbond/gateway/controller/config"
 	"github.com/goodrain/rainbond/gateway/defaults"
 	"github.com/goodrain/rainbond/gateway/util"
@@ -181,6 +182,9 @@ func New(client kubernetes.Interface,
 		AddFunc: func(obj interface{}) {
 			ing := obj.(*extensions.Ingress)
 			logrus.Debugf("Received ingress: %v", ing)
+			if !store.checkIngressAvailable(ing) {
+				return
+			}
 
 			// updating annotations information for ingress
 			store.extractAnnotations(ing)
@@ -203,12 +207,15 @@ func New(client kubernetes.Interface,
 		UpdateFunc: func(old, cur interface{}) {
 			oldIng := old.(*extensions.Ingress)
 			curIng := cur.(*extensions.Ingress)
+
 			// ignore the same secret as the old one
 			if oldIng.ResourceVersion == curIng.ResourceVersion || reflect.DeepEqual(oldIng, curIng) {
 				return
 			}
 			logrus.Debugf("Received ingress: %v", curIng)
-
+			if !store.checkIngressAvailable(curIng) {
+				return
+			}
 			store.extractAnnotations(curIng)
 			store.secretIngressMap.update(curIng)
 			store.syncSecrets(curIng)
@@ -355,6 +362,32 @@ func (s *k8sStore) checkIngress(ing *extensions.Ingress) bool {
 	}
 
 	return true
+}
+
+func (s *k8sStore) checkIngressAvailable(ing *extensions.Ingress) bool {
+	i, err := l4.NewParser(s).Parse(ing)
+	if err != nil {
+		logrus.Warningf("Uxpected error with ingress: %v", err)
+		return false
+	}
+
+	cfg := i.(*l4.Config)
+	if cfg.L4Enable {
+		l4ip := cluster.IP(cfg.L4Host)
+		hostIps := cluster.GetHostIps()
+		for _, ip := range hostIps {
+			if ip == l4ip {
+				_, err := net.Dial("tcp", fmt.Sprintf("%s:%d", cfg.L4Host, cfg.L4Port))
+				if err == nil {
+					logrus.Warningf("%s, in Ingress(%v), is already in use.",
+						fmt.Sprintf("%s:%d", cfg.L4Host, cfg.L4Port), ing)
+					return false
+				}
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // extractAnnotations parses ingress annotations converting the value of the
