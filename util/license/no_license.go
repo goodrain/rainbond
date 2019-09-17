@@ -48,3 +48,8 @@ func VerifyNodes(licPath, licSoPath string, nodeNums int) bool {
 func GetLicInfo(licPath, licSoPath string) (*LicInfo, error) {
 	return nil, nil
 }
+
+// GenLicKey -
+func GenLicKey(licSoPath string) (string, error) {
+	return "", nil
+}

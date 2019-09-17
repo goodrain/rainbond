@@ -32,6 +32,7 @@ import (
 
 // LicInfo license information
 type LicInfo struct {
+	LicKey     string   `json:"license_key"`
 	Code       string   `json:"code"`
 	Company    string   `json:"company"`
 	Node       int64    `json:"node"`
@@ -123,4 +124,20 @@ func GetLicInfo(licPath, licSoPath string) (*LicInfo, error) {
 		return nil, fmt.Errorf("error unmarshalling license: %v", err)
 	}
 	return &licInfo, nil
+}
+
+// GenLicKey -
+func GenLicKey(licSoPath string) (string, error) {
+	p, err := plugin.Open(licSoPath)
+	if err != nil {
+		logrus.Errorf("license.so path: %s; error opening license.so: %v", licSoPath, err)
+		return "", fmt.Errorf("license.so path: %s; error opening license.so: %v", licSoPath, err)
+	}
+
+	f, err := p.Lookup("GenLicKey")
+	if err != nil {
+		logrus.Errorf("method 'GenLicKey'; error looking up func: %v", err)
+		return "", fmt.Errorf("method 'GenLicKey'; error looking up func: %v", err)
+	}
+	return f.(func() (string, error))()
 }
