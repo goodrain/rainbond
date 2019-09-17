@@ -212,7 +212,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	}
 
 	//read rainbondfile
-	rbdfileConfig, err := code.ReadRainbondFile(buildInfo.GetCodeHome())
+	rbdfileConfig, err := code.ReadRainbondFile(buildInfo.GetCodeSubDir())
 	if err != nil {
 		if err == code.ErrRainbondFileNotFound {
 			d.errappend(ErrorAndSolve(NegligibleError, "rainbondfile未定义", "可以参考文档说明配置此文件定义应用属性"))
@@ -290,10 +290,10 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	m := multi.NewMultiServiceI(lang.String())
 	if m != nil {
 		logrus.Infof("Lang: %s; start listing multi modules", lang.String())
-		services, err := m.ListModules(buildInfo.GetCodeHome())
+		services, err := m.ListModules(buildInfo.GetCodeSubDir())
 		if err != nil {
 			d.logger.Error("解析多模块项目失败", map[string]string{"step": "parse"})
-			d.errappend(ErrorAndSolve(FatalError, "error listing modules", "check source code for multi-modules"))
+			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("error listing modules: %v", err), "check source code for multi-modules"))
 			return d.errors
 		}
 		if services != nil && len(services) > 1 {
@@ -369,7 +369,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 
 //ReadRbdConfigAndLang read rainbondfile  and lang
 func ReadRbdConfigAndLang(buildInfo *sources.RepostoryBuildInfo) (*code.RainbondFileConfig, code.Lang, error) {
-	rbdfileConfig, err := code.ReadRainbondFile(buildInfo.GetCodeHome())
+	rbdfileConfig, err := code.ReadRainbondFile(buildInfo.GetCodeSubDir())
 	if err != nil {
 		return nil, code.NO, err
 	}

@@ -24,9 +24,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-
 	"github.com/goodrain/rainbond/util"
-
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 )
 
@@ -37,6 +35,7 @@ type RepostoryBuildInfo struct {
 	BuildBranch      string
 	BuildPath        string
 	CodeHome         string
+	CodeSubDir       string
 	ep               *transport.Endpoint
 }
 
@@ -80,6 +79,14 @@ func (r *RepostoryBuildInfo) GetCodeBuildPath() string {
 	return r.BuildPath
 }
 
+// GetCodeSubDir -
+func (r *RepostoryBuildInfo) GetCodeSubDir() string {
+	if r.CodeSubDir == "" {
+		return r.GetCodeHome()
+	}
+	return path.Join(r.GetCodeHome(), r.CodeSubDir)
+}
+
 //GetProtocol 获取协议
 func (r *RepostoryBuildInfo) GetProtocol() string {
 	if r.ep != nil {
@@ -111,6 +118,7 @@ func CreateRepostoryBuildInfo(repoURL, repoType, branch, tenantID string, Servic
 		rbi.BuildPath = repoURL[index+5:]
 		rbi.CodeHome = GetCodeSourceDir(repoURL[:index], branch, tenantID, ServiceID)
 		rbi.RepostoryURL = repoURL[:index]
+		rbi.CodeSubDir = repoURL[index+5:]
 	}
 	rbi.CodeHome = GetCodeSourceDir(repoURL, branch, tenantID, ServiceID)
 	logrus.Infof("cache code dir is %s for service %s", rbi.CodeHome, ServiceID)
