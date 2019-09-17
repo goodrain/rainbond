@@ -27,6 +27,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goodrain/rainbond/api/controller/validation"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -671,17 +673,41 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 					UUID:      core_util.NewUUID(),
 					IsOnline:  &trueValue,
 				}
-				s := strings.Split(o, ":")
-				ep.IP = s[0]
-				if len(s) == 2 {
-					port, err := strconv.Atoi(s[1])
-					if err != nil {
-						logrus.Warningf("string:%s, error parsing string to int", s[1])
-						continue
-					} else {
-						ep.Port = port
+				if errs := validation.ValidateEndpointIP(o); len(errs) > 0 {
+					logrus.Debugf("parse domain address: %s", o)
+					ep.IP = o
+					address := o
+					if strings.HasPrefix(address, "https://") {
+						address = strings.Split(address, "https://")[1]
+					}
+					if strings.HasPrefix(address, "https://") {
+						address = strings.Split(address, "https://")[1]
+					}
+					s := strings.Split(address, ":")
+					if len(s) == 2 {
+						port, err := strconv.Atoi(s[1])
+						if err != nil {
+							logrus.Warningf("string:%s, error parsing string to int", s[1])
+						} else {
+							ep.Port = port
+						}
+					}
+				} else {
+					s := strings.Split(o, ":")
+					ep.IP = s[0]
+					if len(s) == 2 {
+						port, err := strconv.Atoi(s[1])
+						if err != nil {
+							logrus.Warningf("string:%s, error parsing string to int", s[1])
+							continue
+						} else {
+							ep.Port = port
+						}
 					}
 				}
+
+				logrus.Debugf("add new endpoint: %v", ep)
+
 				if err := db.GetManager().EndpointsDaoTransactions(tx).AddModel(ep); err != nil {
 					tx.Rollback()
 					logrus.Errorf("error saving o endpoint: %v", err)

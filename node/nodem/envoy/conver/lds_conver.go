@@ -123,7 +123,13 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 		}
 		portProtocol, _ := service.Labels["port_protocol"]
 		if destService != nil && destService.Protocol != "" {
+			logrus.Debugf("use destService.Protocol is : %s", destService.Protocol)
 			portProtocol = destService.Protocol
+		}
+
+		if domain, ok := service.Annotations["domain"]; ok && domain != "" {
+			logrus.Debugf("use domain service protocol: %s", service.Labels["port_protocol"])
+			portProtocol = service.Labels["port_protocol"]
 		}
 		if portProtocol != "" {
 			//TODO: support more protocol
@@ -152,7 +158,12 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 							headerMatchers = append(headerMatchers, headerMatcher)
 						}
 					}
-					route := envoyv2.CreateRoute(clusterName, options.Prefix, headerMatchers, options.Weight)
+
+					host := ""
+					if domain, ok := service.Annotations["domain"]; ok && domain != "" {
+						host = domain
+					}
+					route := envoyv2.CreateRoute(host, clusterName, options.Prefix, headerMatchers, options.Weight)
 					if route != nil {
 						pvh := envoyv2.CreateRouteVirtualHost(fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias,
 							GetServiceAliasByService(service), port), options.Domains, nil, *route)
@@ -167,6 +178,7 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 			}
 		}
 	}
+	logrus.Debugf("virtual host is : %v", newVHL)
 	// create common http listener
 	if len(newVHL) > 0 {
 		//remove 80 tcp listener is exist
@@ -176,6 +188,7 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 		statsPrefix := fmt.Sprintf("%s_80", serviceAlias)
 		plds := envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias), envoyv2.DefaultLocalhostListenerAddress, statsPrefix, 80, nil, newVHL...)
 		if plds != nil {
+			logrus.Debugf("create listener successfully, %v", plds)
 			ldsL = append(ldsL, plds)
 		} else {
 			logrus.Warnf("create listenner %s failure", fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias))
@@ -210,7 +223,7 @@ func downstreamListener(serviceAlias, namespace string, ports []*api_model.BaseP
 						},
 					}
 				}
-				route := envoyv2.CreateRoute(clusterName, "/", nil, 100)
+				route := envoyv2.CreateRoute("", clusterName, "/", nil, 100)
 				if route == nil {
 					logrus.Warning("create route cirtual route failure")
 					continue

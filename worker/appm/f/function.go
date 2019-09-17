@@ -20,8 +20,9 @@ package f
 
 import (
 	"fmt"
+
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -92,7 +93,7 @@ func ensureService(new *corev1.Service, clientSet kubernetes.Interface) {
 	old, err := clientSet.CoreV1().Services(new.Namespace).Get(new.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			_, err := clientSet.CoreV1().Services(new.Namespace).Create(new)
+			_, err = clientSet.CoreV1().Services(new.Namespace).Create(new)
 			if err != nil {
 				logrus.Warningf("error creating service %+v: %v", new, err)
 			}
@@ -153,6 +154,11 @@ func EnsureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) {
 		}
 		logrus.Warningf("error updating endpoints %+v: %v", ep, err)
 	}
+}
+
+// EnsureService ensure service
+func EnsureService(new *corev1.Service, clientSet kubernetes.Interface) {
+	ensureService(new, clientSet)
 }
 
 // UpgradeIngress is used to update *extensions.Ingress.

@@ -34,6 +34,10 @@ import (
 //OneNodeClusterLoadAssignment one envoy node endpoints
 func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*corev1.Endpoints, services []*corev1.Service) (clusterLoadAssignment []cache.Resource) {
 	for i := range services {
+		if domain, ok := services[i].Annotations["domain"]; ok && domain != "" {
+			logrus.Warnf("service[sid: %s] endpoint id domain endpoint[domain: %s], use dns cluster type, do not create eds", services[i].GetUID(), domain)
+			return
+		}
 		service := services[i]
 		destServiceAlias := GetServiceAliasByService(service)
 		if destServiceAlias == "" {

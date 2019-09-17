@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/api/controller/validation"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -59,6 +60,7 @@ func (t *ThirdPartyServiceHanlder) AddEndpoints(sid string, d *model.AddEndpiont
 		return err
 	}
 
+	logrus.Debugf("add new endpoint[address: %s, port: %d]", address, port)
 	t.statusCli.AddThirdPartyEndpoint(ep)
 	return nil
 }
@@ -86,6 +88,15 @@ func (t *ThirdPartyServiceHanlder) UpdEndpoints(d *model.UpdEndpiontsReq) error 
 }
 
 func convertAddressPort(s string) (address string, port int) {
+	if errs := validation.ValidateEndpointIP(s); len(errs) > 0 {
+		// domain address
+		address = s
+		addressport := strings.Split(s, ":")
+		if len(addressport) == 3 {
+			port, _ = strconv.Atoi(addressport[2])
+		}
+		return address, port
+	}
 	addressport := strings.Split(s, ":")
 	// compatible with ipv6
 	addressSli := addressport[:func() int {

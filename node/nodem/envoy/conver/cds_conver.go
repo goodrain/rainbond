@@ -21,9 +21,11 @@ package conver
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/go-control-plane/pkg/cache"
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -32,14 +34,14 @@ import (
 )
 
 //OneNodeCluster conver cluster of on envoy node
-func OneNodeCluster(serviceAlias, namespace string, configs *corev1.ConfigMap, services []*corev1.Service) ([]cache.Resource, error) {
+func OneNodeCluster(serviceAlias, namespace string, configs *corev1.ConfigMap, services []*corev1.Service, endpoints []*corev1.Endpoints) ([]cache.Resource, error) {
 	resources, _, err := GetPluginConfigs(configs)
 	if err != nil {
 		return nil, err
 	}
 	var clusters []cache.Resource
 	if resources.BaseServices != nil && len(resources.BaseServices) > 0 {
-		for _, cl := range upstreamClusters(serviceAlias, namespace, resources.BaseServices, services) {
+		for _, cl := range upstreamClusters(serviceAlias, namespace, resources.BaseServices, services, endpoints) {
 			if err := cl.Validate(); err != nil {
 				logrus.Errorf("cluster validate failure %s", err.Error())
 			} else {
@@ -64,7 +66,7 @@ func OneNodeCluster(serviceAlias, namespace string, configs *corev1.ConfigMap, s
 
 // upstreamClusters handle upstream app cluster
 // handle kubernetes inner service
-func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_model.BaseService, services []*corev1.Service) (cdsClusters []*v2.Cluster) {
+func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_model.BaseService, services []*corev1.Service, endpoints []*corev1.Endpoints) (cdsClusters []*v2.Cluster) {
 	var clusterConfig = make(map[string]*api_model.BaseService, len(dependsServices))
 	for i, dService := range dependsServices {
 		depServiceIndex := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, dService.DependServiceAlias, dService.Port)
@@ -94,10 +96,24 @@ func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_mod
 		clusterOption.OutlierDetection = envoyv2.CreatOutlierDetection(options)
 		clusterOption.CircuitBreakers = envoyv2.CreateCircuitBreaker(options)
 		clusterOption.ServiceName = fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port)
-		clusterOption.ClusterType = v2.Cluster_EDS
+		if domain, ok := service.Annotations["domain"]; ok && domain != "" {
+			logrus.Debugf("domain endpoint[%s], create logical_dns cluster: ", domain)
+			clusterOption.ClusterType = v2.Cluster_LOGICAL_DNS
+			clusterOption.LoadAssignment = envoyv2.CreateDNSLoadAssignment(serviceAlias, namespace, endpoints, service)
+			if strings.HasPrefix(domain, "https://") {
+				splitDomain := strings.Split(domain, "https://")
+				if len(splitDomain) == 2 {
+					logrus.Debugf("https domain tlsContext: %s", splitDomain[1])
+					clusterOption.TLSContext = &auth.UpstreamTlsContext{Sni: splitDomain[1]}
+				}
+			}
+		} else {
+			clusterOption.ClusterType = v2.Cluster_EDS
+		}
 		clusterOption.HealthyPanicThreshold = options.HealthyPanicThreshold
 		cluster := envoyv2.CreateCluster(clusterOption)
 		if cluster != nil {
+			logrus.Debugf("cluster is : %v", cluster)
 			cdsClusters = append(cdsClusters, cluster)
 		}
 	}

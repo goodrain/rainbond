@@ -20,6 +20,8 @@ package probe
 
 import (
 	"context"
+	"crypto/tls"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -28,7 +30,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/node/nodem/service"
-	"github.com/goodrain/rainbond/util/prober/types/v1"
+	v1 "github.com/goodrain/rainbond/util/prober/types/v1"
 )
 
 // HTTPProbe probes through the http protocol
@@ -61,6 +63,7 @@ func (h *HTTPProbe) HTTPCheck() {
 	defer timer.Stop()
 	for {
 		HealthMap := GetHTTPHealth(h.Address)
+		fmt.Println(HealthMap)
 		result := &v1.HealthStatus{
 			Name:   h.Name,
 			Status: HealthMap["status"],
@@ -95,6 +98,11 @@ func GetHTTPHealth(address string) map[string]string {
 	}
 	if !strings.HasPrefix(address, "http") {
 		address = "http://" + address
+	}
+	if strings.HasPrefix(address, "https://") {
+		c.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
 	}
 	addr, err := url.Parse(address)
 	if err != nil {
