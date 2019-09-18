@@ -105,9 +105,6 @@ type Manager interface {
 	HTTPRuleDaoTransactions(db *gorm.DB) dao.HTTPRuleDao
 	TCPRuleDao() dao.TCPRuleDao
 	TCPRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao
-	IPPortDao() dao.IPPortDao
-	IPPortDaoTransactions(db *gorm.DB) dao.IPPortDao
-	IPPoolDao() dao.IPPoolDao
 	GwRuleConfigDao() dao.GwRuleConfigDao
 	GwRuleConfigDaoTransactions(db *gorm.DB) dao.GwRuleConfigDao
 

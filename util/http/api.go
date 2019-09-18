@@ -120,7 +120,7 @@ func ParseResponseBody(red io.ReadCloser, dataType string) (re ResponseBody, err
 
 //ReturnValidationError 参数错误返回
 func ReturnValidationError(r *http.Request, w http.ResponseWriter, err url.Values) {
-	logrus.Debugf("validation error, uri: %s; msg: %s", r.RequestURI, ResponseBody{ValidationError: err})
+	logrus.Debugf("validation error, uri: %s; msg: %v", r.RequestURI, ResponseBody{ValidationError: err})
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, http.StatusBadRequest))
 	render.DefaultResponder(w, r, ResponseBody{ValidationError: err})
 }

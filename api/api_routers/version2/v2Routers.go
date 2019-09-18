@@ -44,10 +44,13 @@ func (v2 *V2) Routes() chi.Router {
 	r.Get("/health", controller.GetManager().Health)
 	r.Post("/alertmanager-webhook", controller.GetManager().AlertManagerWebHook)
 	r.Get("/version", controller.GetManager().Version)
+	// deprecated use /gateway/ports
 	r.Mount("/port", v2.portRouter())
 	// deprecated, use /events/<event_id>/log
 	r.Get("/event-log", controller.GetManager().LogByAction)
 	r.Mount("/events", v2.eventsRouter())
+	r.Get("/gateway/ips", controller.GetGatewayIPs)
+	r.Get("/gateway/ports", controller.GetManager().GetAvailablePort)
 	return r
 }
 
@@ -182,7 +185,6 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Delete("/ports/{port}", middleware.WrapEL(controller.GetManager().Ports, dbmodel.TargetTypeService, "delete-service-port", dbmodel.SYNEVENTTYPE))
 	r.Put("/ports/{port}/outer", middleware.WrapEL(controller.GetManager().PortOuterController, dbmodel.TargetTypeService, "handle-service-outerport", dbmodel.SYNEVENTTYPE))
 	r.Put("/ports/{port}/inner", middleware.WrapEL(controller.GetManager().PortInnerController, dbmodel.TargetTypeService, "handle-service-innerport", dbmodel.SYNEVENTTYPE))
-	r.Put("/ports/{port}/changelbport", middleware.WrapEL(controller.GetManager().ChangeLBPort, dbmodel.TargetTypeService, "change-service-lbport", dbmodel.SYNEVENTTYPE))
 
 	//应用版本回滚(act)
 	r.Post("/rollback", middleware.WrapEL(controller.GetManager().RollBack, dbmodel.TargetTypeService, "rollback-service", dbmodel.ASYNEVENTTYPE))

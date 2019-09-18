@@ -1130,15 +1130,6 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 		}
 
 	case "open":
-		if *p.IsOuterService {
-			if p.Protocol != "http" && p.Protocol != "https" && servicePort.Body.IfCreateExPort {
-				vsPort, err = s.createVSPort(serviceID, p.ContainerPort)
-				if vsPort == nil {
-					return nil, "", fmt.Errorf("port already open but can not get lb mapping port,%s", err.Error())
-				}
-				return vsPort, p.Protocol, nil
-			}
-		}
 		truev := true
 		p.IsOuterService = &truev
 		tx := db.GetManager().Begin()
@@ -1151,13 +1142,6 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 		if err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(p); err != nil {
 			tx.Rollback()
 			return nil, "", err
-		}
-		if p.Protocol != "http" && p.Protocol != "https" && servicePort.Body.IfCreateExPort {
-			vsPort, err = s.createVSPort(serviceID, p.ContainerPort)
-			if vsPort == nil {
-				tx.Rollback()
-				return nil, "", fmt.Errorf("create or get vs map port for service error,%s", err.Error())
-			}
 		}
 		if hasUpStream {
 			pluginPort, err := db.GetManager().TenantServicesStreamPluginPortDao().GetPluginMappingPortByServiceIDAndContainerPort(
@@ -1195,13 +1179,6 @@ func (s *ServiceAction) PortOuter(tenantName, serviceID string, containerPort in
 		}
 	}
 	return vsPort, p.Protocol, nil
-}
-func (s *ServiceAction) createVSPort(serviceID string, containerPort int) (*dbmodel.TenantServiceLBMappingPort, error) {
-	vsPort, err := db.GetManager().TenantServiceLBMappingPortDao().CreateTenantServiceLBMappingPort(serviceID, containerPort)
-	if err != nil {
-		return nil, fmt.Errorf("create vs map port for service error,%s", err.Error())
-	}
-	return vsPort, nil
 }
 
 //PortInner 端口对内服务操作
@@ -1318,48 +1295,6 @@ func (s *ServiceAction) PortInner(tenantName, serviceID, operation string, port 
 		return err
 	}
 	return nil
-}
-
-//ChangeLBPort change lb mapping port
-//only support change to existing port in this tenants
-func (s *ServiceAction) ChangeLBPort(tenantID, serviceID string, containerPort, changelbPort int) (*dbmodel.TenantServiceLBMappingPort, *util.APIHandleError) {
-	oldmapport, err := db.GetManager().TenantServiceLBMappingPortDao().GetLBPortByTenantAndPort(tenantID, changelbPort)
-	if err != nil {
-		logrus.Errorf("change lb port check error, %s", err.Error())
-		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
-	}
-	mapport, err := db.GetManager().TenantServiceLBMappingPortDao().GetTenantServiceLBMappingPort(serviceID, containerPort)
-	if err != nil {
-		logrus.Errorf("change lb port get error, %s", err.Error())
-		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
-	}
-	port := oldmapport.Port
-	oldmapport.Port = mapport.Port
-	mapport.Port = port
-	tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
-		}
-	}()
-	if err := db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).DELServiceLBMappingPortByServiceIDAndPort(oldmapport.ServiceID, port); err != nil {
-		tx.Rollback()
-		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
-	}
-	if err := db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).UpdateModel(mapport); err != nil {
-		tx.Rollback()
-		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
-	}
-	if err := db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).AddModel(oldmapport); err != nil {
-		tx.Rollback()
-		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
-	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return nil, util.CreateAPIHandleErrorFromDBError("change lb port", err)
-	}
-	return mapport, nil
 }
 
 //VolumnVar var volumn

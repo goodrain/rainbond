@@ -52,7 +52,7 @@ func Run(s *option.GWServer) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	//create cluster node manage
-	_, err := cluster.CreateNodeManager(s.Config)
+	node, err := cluster.CreateNodeManager(s.Config)
 	if err != nil {
 		return fmt.Errorf("create gateway node manage failure %s", err.Error())
 	}
@@ -67,7 +67,7 @@ func Run(s *option.GWServer) error {
 		}
 	}
 	mc.Start()
-	gwc, err := controller.NewGWController(ctx, &s.Config, mc)
+	gwc, err := controller.NewGWController(ctx, &s.Config, mc, node)
 	if err != nil {
 		return err
 	}

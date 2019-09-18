@@ -19,13 +19,15 @@
 package cluster
 
 import (
+	"net"
 	"testing"
+	"time"
 
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 )
 
-func TestCreateNodeManager(t *testing.T) {
-	nm, err := CreateNodeManager(option.Config{
+func TestCreateIPManager(t *testing.T) {
+	i, err := CreateIPManager(option.Config{
 		ListenPorts: option.ListenPorts{
 			HTTP: 80,
 		},
@@ -34,9 +36,9 @@ func TestCreateNodeManager(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ok := nm.checkGatewayPort(); !ok {
-		t.Log("port check is not pass")
-	} else {
-		t.Log("port check is passed")
+	if err := i.Start(); err != nil {
+		t.Fatal(err)
 	}
+	t.Log(i.IPInCurrentHost(net.ParseIP("192.168.2.15")))
+	time.Sleep(time.Second * 10)
 }

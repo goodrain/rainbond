@@ -695,6 +695,7 @@ func GetDirList(dirpath string, level int) ([]string, error) {
 	return dirlist, nil
 }
 
+//GetFileList -
 func GetFileList(dirpath string, level int) ([]string, error) {
 	var dirlist []string
 	list, err := ioutil.ReadDir(dirpath)
