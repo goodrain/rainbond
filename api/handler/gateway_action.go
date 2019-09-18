@@ -493,7 +493,6 @@ func (g *GatewayAction) GetAvailablePort(ip string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	logrus.Infof("ip %s roles %v", ip, roles)
 	var ports []int
 	for _, p := range roles {
 		ports = append(ports, p.Port)
