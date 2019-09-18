@@ -192,8 +192,11 @@ func TestRecordUpdateEvent(t *testing.T) {
 				}
 			}(sendCh)
 
-			testDetermineOptType := func(clientset kubernetes.Interface, pod *corev1.Pod, state *corev1.ContainerState, f k8sutil.ListEventsByPod) (EventType, string) {
-				return tc.optType, tc.message
+			testDetermineOptType := func(clientset kubernetes.Interface, pod *corev1.Pod, f k8sutil.ListEventsByPod) *optType {
+				return &optType{
+					eventType: tc.optType,
+					message:   tc.message,
+				}
 			}
 
 			recordUpdateEvent(nil, pod, testDetermineOptType)
@@ -221,10 +224,9 @@ func TestDetermineOptType(t *testing.T) {
 	for idx := range tests {
 		tc := tests[idx]
 		pod := podFromJSONFile(t, tc.podfile)
-		state := &pod.Status.ContainerStatuses[0].State
-		optType, _ := defDetermineOptType(nil, pod, state, listEventsByPod)
-		if optType != tc.podEventType {
-			t.Errorf("Expected %s for opt type, but returned %s", tc.podEventType.String(), optType.String())
+		optType := defDetermineOptType(nil, pod, listEventsByPod)
+		if optType.eventType != tc.podEventType {
+			t.Errorf("Expected %s for opt type, but returned %s", tc.podEventType.String(), optType.eventType.String())
 		}
 	}
 }

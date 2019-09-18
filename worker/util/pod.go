@@ -29,14 +29,15 @@ var PodStatusAdviceUnhealthy PodStatusAdvice = "Unhealthy"
 var PodStatusAdviceInitiating PodStatusAdvice = "Initiating"
 
 var podStatusTbl = map[string]pb.PodStatus_Type{
-	string(corev1.PodPending):     pb.PodStatus_PENDING,
-	string(corev1.PodRunning):     pb.PodStatus_RUNNING,
-	string(corev1.PodSucceeded):   pb.PodStatus_SUCCEEDED,
-	string(corev1.PodFailed):      pb.PodStatus_FAILED,
-	string(corev1.PodUnknown):     pb.PodStatus_UNKNOWN,
-	string(corev1.PodReady):       pb.PodStatus_NOTREADY,
-	string(corev1.PodInitialized): pb.PodStatus_INITIATING,
-	string(corev1.PodScheduled):   pb.PodStatus_SCHEDULING,
+	string(corev1.PodPending):             pb.PodStatus_INITIATING,
+	string(corev1.PodRunning):             pb.PodStatus_RUNNING,
+	string(corev1.PodSucceeded):           pb.PodStatus_ABNORMAL,
+	string(corev1.PodFailed):              pb.PodStatus_ABNORMAL,
+	string(corev1.PodUnknown):             pb.PodStatus_UNKNOWN,
+	string(corev1.PodReady):               pb.PodStatus_NOTREADY,
+	string(corev1.PodInitialized):         pb.PodStatus_INITIATING,
+	string(corev1.PodScheduled):           pb.PodStatus_SCHEDULING,
+	string(corev1.ContainersReady):        pb.PodStatus_NOTREADY,
 }
 
 // DescribePodStatus -
@@ -109,9 +110,10 @@ func DescribePodStatus(clientset kubernetes.Interface, pod *corev1.Pod, podStatu
 type SortableConditionType []corev1.PodCondition
 
 var podConditionTbl = map[corev1.PodConditionType]int{
-	corev1.PodScheduled:   0,
-	corev1.PodInitialized: 1,
-	corev1.PodReady:       2,
+	corev1.PodScheduled:    0,
+	corev1.PodInitialized:  1,
+	corev1.PodReady:        2,
+	corev1.ContainersReady: 3,
 }
 
 func (s SortableConditionType) Len() int {
