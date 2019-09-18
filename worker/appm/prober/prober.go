@@ -24,7 +24,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
-	"github.com/goodrain/rainbond/api/controller/validation"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	uitlprober "github.com/goodrain/rainbond/util/prober"
@@ -234,11 +233,7 @@ func (t *tpProbe) createServices(probeInfo *store.ProbeInfo) (*v1.Service, *mode
 	service.Name = probeInfo.UUID
 	service.ServiceHealth.Port = int(probeInfo.Port)
 	service.ServiceHealth.Name = service.Name
-	address := fmt.Sprintf("%s:%d", probeInfo.IP, probeInfo.Port)
-	if errs := validation.ValidateEndpointIP(probeInfo.IP); len(errs) > 0 {
-		address = probeInfo.IP
-	}
-	service.ServiceHealth.Address = address
+	service.ServiceHealth.Address = fmt.Sprintf("%s:%d", probeInfo.IP, probeInfo.Port)
 	return service, tsp
 }
 
