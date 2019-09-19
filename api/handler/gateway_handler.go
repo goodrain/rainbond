@@ -38,14 +38,10 @@ type GatewayHandler interface {
 	UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort int) (string, error)
 	DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) (string, error)
 	DeleteTCPRuleByServiceIDWithTransaction(sid string, tx *gorm.DB) error
-
 	AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct, tx *gorm.DB) error
-
-	GetAvailablePort() (int, error)
-	PortExists(port int) bool
+	GetAvailablePort(ip string) (int, error)
+	TCPIPPortExists(ip string, port int) bool
 	SendTask(in map[string]interface{}) error
-	TCPAvailable(ip string, port int, ruleID string) bool
-	AddIPPool(req *apimodel.IPPoolStruct) error
-
 	RuleConfig(req *apimodel.RuleConfigReq) error
+	GetGatewayIPs() []IPAndAvailablePort
 }

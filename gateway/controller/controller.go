@@ -27,6 +27,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/goodrain/rainbond/gateway/cluster"
+
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/eapache/channels"
@@ -211,7 +213,7 @@ func (gwc *GWController) getDelUpdPools(updPools []*v1.Pool) ([]*v1.Pool, []*v1.
 }
 
 //NewGWController new Gateway controller
-func NewGWController(ctx context.Context, cfg *option.Config, mc metric.Collector) (*GWController, error) {
+func NewGWController(ctx context.Context, cfg *option.Config, mc metric.Collector, node *cluster.NodeManager) (*GWController, error) {
 	gwc := &GWController{
 		updateCh:        channels.NewRingChannel(1024),
 		stopLock:        &sync.Mutex{},
@@ -241,7 +243,7 @@ func NewGWController(ctx context.Context, cfg *option.Config, mc metric.Collecto
 	gwc.store = store.New(
 		clientSet,
 		gwc.updateCh,
-		cfg)
+		cfg, node)
 	gwc.syncQueue = task.NewTaskQueue(gwc.syncGateway)
 
 	return gwc, nil

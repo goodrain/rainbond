@@ -59,7 +59,6 @@ type ServiceInterface interface {
 	PutPorts(w http.ResponseWriter, r *http.Request)
 	PortOuterController(w http.ResponseWriter, r *http.Request)
 	PortInnerController(w http.ResponseWriter, r *http.Request)
-	ChangeLBPort(w http.ResponseWriter, r *http.Request)
 	RollBack(w http.ResponseWriter, r *http.Request)
 	AddVolume(w http.ResponseWriter, r *http.Request)
 	UpdVolume(w http.ResponseWriter, r *http.Request)

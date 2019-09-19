@@ -415,20 +415,7 @@ type TCPRuleDao interface {
 	DeleteByID(uuid string) error
 	DeleteTCPRuleByServiceID(serviceID string) error
 	ListByServiceID(serviceID string) ([]*model.TCPRule, error)
-}
-
-// IPPortDao -
-type IPPortDao interface {
-	Dao
-	DeleteByIPAndPort(ip string, port int) error
-	GetIPByPort(port int) ([]*model.IPPort, error)
-	GetIPPortByIPAndPort(ip string, port int) (*model.IPPort, error)
-}
-
-//IPPoolDao ip pool dao interface
-type IPPoolDao interface {
-	Dao
-	GetIPPoolByEID(eid string) (*model.IPPool, error)
+	GetUsedPortsByIP(ip string) ([]*model.TCPRule, error)
 }
 
 // EndpointsDao is an interface for defining method
