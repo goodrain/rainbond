@@ -83,7 +83,7 @@ type ServiceEvent struct {
 	ServiceID   string `gorm:"column:service_id;size:40"`
 	Target      string `gorm:"column:target;size:40"`
 	TargetID    string `gorm:"column:target_id;size:255"`
-	RequestBody string `gorm:"column:request_body;1024"`
+	RequestBody string `gorm:"column:request_body;size:1024"`
 	UserName    string `gorm:"column:user_name;size:40"`
 	StartTime   string `gorm:"column:start_time;size:40"`
 	EndTime     string `gorm:"column:end_time;size:40"`

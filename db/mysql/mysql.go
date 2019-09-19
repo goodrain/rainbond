@@ -170,4 +170,8 @@ func (m *Manager) patchTable() {
 	if err := m.db.Exec("alter table tenant_services_envs modify column attr_value varchar(1024);").Error; err != nil {
 		logrus.Errorf("alter table tenant_services_envs error %s", err.Error())
 	}
+
+	if err := m.db.Exec("alter table tenant_services_event modify column request_body varchar(1024);").Error; err != nil {
+		logrus.Errorf("alter table tenant_services_envent error %s", err.Error())
+	}
 }
