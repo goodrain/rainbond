@@ -24,60 +24,11 @@ import (
 	"testing"
 	"time"
 
-	testcontainers "github.com/testcontainers/testcontainers-go"
-
 	dbconfig "github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
+	"github.com/testcontainers/testcontainers-go"
 )
-
-func TestHTTPRuleImpl_ListByServiceID(t *testing.T) {
-	if err := CreateManager(dbconfig.Config{
-		DBType: "sqlite3",
-	}); err != nil {
-		t.Fatal(err)
-	}
-	tx := GetManager().Begin()
-	tx.Delete(model.HTTPRule{})
-	tx.Commit()
-
-	rules, err := GetManager().HTTPRuleDao().ListByServiceID("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rules) != 0 {
-		t.Errorf("Expected 0 for len(rules), but returned %v", len(rules))
-	}
-
-	serviceID := util.NewUUID()
-	rules = []*model.HTTPRule{
-		{
-			UUID:      util.NewUUID(),
-			ServiceID: serviceID,
-		},
-		{
-			UUID:      util.NewUUID(),
-			ServiceID: serviceID,
-		},
-		{
-			UUID:      util.NewUUID(),
-			ServiceID: serviceID,
-		},
-	}
-	for _, rule := range rules {
-		err := GetManager().HTTPRuleDao().AddModel(rule)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	rules, err = GetManager().HTTPRuleDao().ListByServiceID(serviceID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rules) != 3 {
-		t.Errorf("Expected 3 for len(rules), but returned %v", len(rules))
-	}
-}
 
 func TestGwRuleConfig(t *testing.T) {
 	dbm, err := CreateTestManager()

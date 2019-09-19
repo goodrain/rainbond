@@ -51,6 +51,8 @@ type Config struct {
 	EnableFeature     []string
 	Debug             bool
 	MinExtPort        int // minimum external port
+	LicensePath       string
+	LicSoPath         string
 }
 
 //APIServer  apiserver server
@@ -93,6 +95,8 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&a.Debug, "debug", false, "open debug will enable pprof")
 	fs.IntVar(&a.MinExtPort, "min-ext-port", 0, "minimum external port")
 	fs.StringArrayVar(&a.EnableFeature, "enable-feature", []string{}, "List of special features supported, such as `windows`")
+	fs.StringVar(&a.LicensePath, "license-path", "/opt/rainbond/etc/license/license.yb", "the license path of the enterprise version.")
+	fs.StringVar(&a.LicSoPath, "license-so-path", "/opt/rainbond/etc/license/license.so", "Dynamic library file path for parsing the license.")
 }
 
 //SetLog 设置log

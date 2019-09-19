@@ -38,7 +38,7 @@ build::node() {
 	case $1 in
 		node)
 			echo "build node"
-			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/node ./cmd/node
+			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}" -tags license  -o $releasedir/dist/usr/local/bin/node ./cmd/node
 		;;
 		grctl)	
 			echo "build grctl"
@@ -50,7 +50,7 @@ build::node() {
 		;;
 		*)
 			echo "build node"
-			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/node ./cmd/node
+			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}" -tags license  -o $releasedir/dist/usr/local/bin/node ./cmd/node
 			echo "build grctl"
 			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/grctl ./cmd/grctl
 			echo "build certutil"
@@ -86,7 +86,11 @@ build::binary() {
 	elif [ "$1" = "gateway" ];then
 		docker run --rm -e GOOS=${GOOS} -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GATEWAY_GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${OUTPATH} ./cmd/$1
 	else
-		docker run --rm -e GOOS=${GOOS} -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${OUTPATH} ./cmd/$1
+		if [ "${ENTERPRISE}" = "true" ];then
+			docker run --rm -e GOOS=${GOOS} -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}" -tags license  -o ${OUTPATH} ./cmd/$1
+		else
+			docker run --rm -e GOOS=${GOOS} -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${OUTPATH} ./cmd/$1
+		fi
 	fi
 	if [ "$GOOS" = "windows" ];then
 	    mv $OUTPATH  ${OUTPATH}.exe
@@ -110,7 +114,7 @@ build::image() {
 		elif [ "$1" = "mesh-data-panel" ];then
 			echo "mesh-data-panel not need build";
 		else
-			docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
+			docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}" -tags 'license'  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 		fi
 		echo "---> build image:$1"
 		sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release

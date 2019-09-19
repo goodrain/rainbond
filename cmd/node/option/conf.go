@@ -26,14 +26,11 @@ import (
 	"path"
 	"time"
 
-	"github.com/goodrain/rainbond/util"
-
-	dockercli "github.com/docker/docker/client"
-
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
+	dockercli "github.com/docker/docker/client"
 	"github.com/fsnotify/fsnotify"
-
+	"github.com/goodrain/rainbond/util"
 	"github.com/spf13/pflag"
 )
 
@@ -99,6 +96,9 @@ type Conf struct {
 	EnableCollectLog bool
 	DockerCli        *dockercli.Client
 	EtcdCli          *client.Client
+
+	LicPath   string
+	LicSoPath string
 }
 
 //StatsdConfig StatsdConfig
@@ -148,6 +148,8 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&a.AutoScheduler, "auto-scheduler", true, "Whether auto set node unscheduler where current node is unhealth")
 	fs.BoolVar(&a.EnableCollectLog, "enabel-collect-log", true, "Whether to collect container logs")
 	fs.DurationVar(&a.AutoUnschedulerUnHealthDuration, "autounscheduler-unhealthy-dura", 5*time.Minute, "Node unhealthy duration, after the automatic offline,if set 0,disable auto handle unscheduler.default is 5 Minute")
+	fs.StringVar(&a.LicPath, "lic-path", "/opt/rainbond/etc/license/license.yb", "the license path of the enterprise version.")
+	fs.StringVar(&a.LicSoPath, "lic-so-path", "/opt/rainbond/etc/license/license.so", "Dynamic library file path for parsing the license.")
 }
 
 //SetLog 设置log

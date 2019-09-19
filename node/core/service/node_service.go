@@ -36,6 +36,7 @@ import (
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/goodrain/rainbond/util"
 	ansibleUtil "github.com/goodrain/rainbond/util/ansible"
+	licutil "github.com/goodrain/rainbond/util/license"
 	"github.com/twinj/uuid"
 )
 
@@ -66,6 +67,15 @@ func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *util
 	if n.nodecluster == nil {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
 	}
+
+	nodes, err := n.GetAllNode()
+	if err != nil {
+		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("error listing all nodes: %v", err))
+	}
+	if !licutil.VerifyNodes(n.c.LicPath, n.c.LicSoPath, len(nodes)) {
+		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("invalid license"))
+	}
+
 	if err := node.Role.Validation(); err != nil {
 		return nil, utils.CreateAPIHandleError(400, err)
 	}

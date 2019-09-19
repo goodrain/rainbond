@@ -119,7 +119,7 @@ var defaultManager Manager
 
 //CreateManager 创建manager
 func CreateManager(config config.Config) (err error) {
-	if config.DBType == "mysql" || config.DBType == "cockroachdb" || config.DBType == "sqlite3" { // TODO: remove sqlite3
+	if config.DBType == "mysql" || config.DBType == "cockroachdb" {
 		defaultManager, err = mysql.CreateManager(config)
 		return err
 	}

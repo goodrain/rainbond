@@ -139,7 +139,9 @@ func (m *Manager) Stop() error {
 //Run run
 func (m *Manager) Run() {
 
-	v2R := &version2.V2{}
+	v2R := &version2.V2{
+		Cfg: &m.conf,
+	}
 	m.r.Mount("/v2", v2R.Routes())
 	m.r.Mount("/cloud", cloud.Routes())
 	m.r.Mount("/", doc.Routes())
