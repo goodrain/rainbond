@@ -30,7 +30,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
-	"github.com/goodrain/rainbond/api/controller/validation"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -39,6 +38,7 @@ import (
 	"github.com/goodrain/rainbond/db/errors"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
+	validation "github.com/goodrain/rainbond/util/endpoint"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/jinzhu/gorm"
@@ -1434,7 +1434,8 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		for _, ep := range endpoints {
-			if errs := validation.ValidateEndpointIP(ep.IP); len(errs) > 0 {
+			address := validation.SplitEndpointAddress(ep.IP)
+			if errs := validation.ValidateEndpointIP(address); len(errs) > 0 {
 				httputil.ReturnError(r, w, 400, "do not allow operate outer port for thirdpart domain endpoints")
 				return
 			}

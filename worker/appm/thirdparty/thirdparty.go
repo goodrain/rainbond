@@ -25,9 +25,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
-	"github.com/goodrain/rainbond/api/controller/validation"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	validation "github.com/goodrain/rainbond/util/endpoint"
 	"github.com/goodrain/rainbond/worker/appm/f"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
@@ -194,6 +194,24 @@ func deleteSubset(as *v1.AppService, rbdep *v1.RbdEndpoint) {
 				ep.Subsets[idx] = ep.Subsets[len(ep.Subsets)-1]
 				ep.Subsets = ep.Subsets[:len(ep.Subsets)-1]
 			}
+			isDomain := false
+			for _, addr := range item.Addresses {
+				if addr.IP == "8.8.8.8" {
+					isDomain = true
+				}
+			}
+			for _, addr := range item.NotReadyAddresses {
+				if addr.IP == "8.8.8.8" {
+					isDomain = true
+				}
+			}
+			if isDomain {
+				for _, service := range as.GetServices() {
+					if service.Annotations != nil {
+						delete(service.Annotations, "domain")
+					}
+				}
+			}
 		}
 	}
 }
@@ -240,7 +258,8 @@ func (t *thirdparty) k8sEndpoints(as *v1.AppService, epinfo []*v1.RbdEndpoint) (
 	var subsets []corev1.EndpointSubset
 	for _, epi := range epinfo {
 		logrus.Debugf("make endpoints[address: %s] subset", epi.IP)
-		if errs := validation.ValidateEndpointIP(epi.IP); len(errs) > 0 {
+		address := validation.SplitEndpointAddress(epi.IP)
+		if errs := validation.ValidateEndpointIP(address); len(errs) > 0 {
 			logrus.Debug("domain endpoint")
 			if len(as.GetServices()) > 0 {
 				annotations := as.GetServices()[0].Annotations
@@ -271,12 +290,6 @@ func (t *thirdparty) k8sEndpoints(as *v1.AppService, epinfo []*v1.RbdEndpoint) (
 			}}
 			for _, item := range res {
 				item.Subsets = subsets
-				annotations := item.Annotations
-				if annotations == nil {
-					annotations = make(map[string]string)
-				}
-				annotations["domain"] = epi.IP
-				item.Annotations = annotations
 			}
 			return res, nil
 		}
@@ -319,7 +332,8 @@ func updateSubset(as *v1.AppService, rbdep *v1.RbdEndpoint) error {
 	}
 	p := ports[0]
 	ipAddress := rbdep.IP
-	if errs := validation.ValidateEndpointIP(rbdep.IP); len(errs) > 0 {
+	address := validation.SplitEndpointAddress(rbdep.IP)
+	if errs := validation.ValidateEndpointIP(address); len(errs) > 0 {
 		ipAddress = "8.8.8.8"
 		if len(as.GetServices()) > 0 {
 			annotations := as.GetServices()[0].Annotations
@@ -328,14 +342,6 @@ func updateSubset(as *v1.AppService, rbdep *v1.RbdEndpoint) error {
 			}
 			annotations["domain"] = rbdep.IP
 			as.GetServices()[0].Annotations = annotations
-		}
-		if len(as.GetEndpoints()) > 0 {
-			annotations := as.GetEndpoints()[0].Annotations
-			if annotations == nil {
-				annotations = make(map[string]string)
-			}
-			annotations["domain"] = rbdep.IP
-			as.GetEndpoints()[0].Annotations = annotations
 		}
 	}
 	subset := corev1.EndpointSubset{
@@ -384,25 +390,15 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 				for idx, subset := range ep.Subsets {
 					if subset.Ports[0].Name == rbdep.UUID && condition(subset) {
 						logrus.Debugf("Executed; health: %v; msg: %s", ready, msg)
-						if errs := validation.ValidateEndpointIP(rbdep.IP); len(errs) > 0 {
-							annotations := ep.Annotations
-							if annotations == nil {
-								annotations = make(map[string]string)
-							}
-							annotations["domain"] = rbdep.IP
-							ep.Annotations = annotations
-							if len(as.GetServices()) > 0 {
-								annotations := as.GetServices()[0].Annotations
-								if annotations == nil {
-									annotations = make(map[string]string)
-								}
-								annotations["domain"] = rbdep.IP
-								as.GetServices()[0].Annotations = annotations
-							}
+						address := validation.SplitEndpointAddress(rbdep.IP)
+						if errs := validation.ValidateEndpointIP(address); len(errs) > 0 {
 							rbdep.IP = "8.8.8.8"
 						}
 						ep.Subsets[idx] = createSubset(rbdep, ready)
-						f.UpdateEndpoints(ep, t.clientset)
+						f.UpgradeEndpoints(t.clientset, as, as.GetEndpoints(), []*corev1.Endpoints{ep}, func(msg string, err error) error {
+							logrus.Errorf("update endpoint[%+v] failure: %+v",ep, err)
+							return err
+						})
 					}
 				}
 			}
@@ -437,18 +433,17 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 			f.EnsureService(service, t.clientset)
 		}
 
-		newEndpoints, err := t.k8sEndpoints(as, []*v1.RbdEndpoint{rbdep})
-		if err != nil {
-			logrus.Warnf("update endpoint error: %v", err.Error())
-			return
-		}
-
-		for _, ep := range newEndpoints {
-			f.EnsureEndpoints(ep, t.clientset)
-		}
+		_ = f.UpgradeEndpoints(t.clientset, as, as.GetEndpoints(), as.GetEndpoints(),
+			func(msg string, err error) error {
+				logrus.Warning(msg)
+				return nil
+			})
 	case discovery.DeleteEvent:
 		logrus.Debug(msg)
 		deleteSubset(as, rbdep)
+		for _, service := range as.GetServices() {
+			f.EnsureService(service, t.clientset)
+		}
 		eps := as.GetEndpoints()
 		_ = f.UpgradeEndpoints(t.clientset, as, as.GetEndpoints(), eps,
 			func(msg string, err error) error {

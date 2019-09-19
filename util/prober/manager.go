@@ -193,6 +193,7 @@ func (p *probeManager) handleStatus() {
 }
 
 func (p *probeManager) updateServiceStatus(status *v1.HealthStatus) {
+	logrus.Debugf("who: %s, status; %s, info: %s", status.Name, status.Status, status.Info)
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	exist, ok := p.status[status.Name]

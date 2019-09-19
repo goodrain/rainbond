@@ -20,9 +20,8 @@ package f
 
 import (
 	"fmt"
-
 	"github.com/Sirupsen/logrus"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -140,18 +139,23 @@ func ensureSecret(secret *corev1.Secret, clientSet kubernetes.Interface) {
 		logrus.Warningf("error updating secret %+v: %v", secret, err)
 	}
 }
-
 // EnsureEndpoints creates or updates endpoints.
 func EnsureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) {
-	_, err := clientSet.CoreV1().Endpoints(ep.Namespace).Update(ep)
+	oldEP, err := clientSet.CoreV1().Endpoints(ep.Namespace).Get(ep.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			_, err := clientSet.CoreV1().Endpoints(ep.Namespace).Create(ep)
+			_, err = clientSet.CoreV1().Endpoints(ep.Namespace).Create(ep)
 			if err != nil {
-				logrus.Warningf("error creating endpoints %+v: %v", ep, err)
+				logrus.Warningf("error createing endpoint %+v: %v", ep, err)
 			}
 			return
 		}
+		logrus.Errorf("error getting endpoint(%s): %v", fmt.Sprintf("%s:%s", ep.Namespace, ep.Name), err)
+		return
+	}
+	ep.ResourceVersion = oldEP.ResourceVersion
+	_, err = clientSet.CoreV1().Endpoints(ep.Namespace).Update(ep)
+	if err != nil {
 		logrus.Warningf("error updating endpoints %+v: %v", ep, err)
 	}
 }
@@ -276,6 +280,23 @@ func UpgradeEndpoints(clientset *kubernetes.Clientset,
 	}
 	for _, n := range new {
 		if o, ok := oldMap[n.Name]; ok {
+			oldEndpoint, err := clientset.CoreV1().Endpoints(n.Namespace).Get(n.Name,metav1.GetOptions{})
+			if err != nil {
+				if k8sErrors.IsNotFound(err){
+					_, err := clientset.CoreV1().Endpoints(n.Namespace).Create(n)
+					if err != nil {
+						if err := handleErr(fmt.Sprintf("error creating endpoints: %+v: err: %v",
+							n, err), err); err != nil {
+							return err
+						}
+						continue
+					}
+				}
+				if e := handleErr(fmt.Sprintf("err get endpoint[%s:%s], err: %+v", n.Namespace, n.Name, err), err); err != nil{
+					return e
+				}
+			}
+			n.ResourceVersion = oldEndpoint.ResourceVersion
 			ep, err := clientset.CoreV1().Endpoints(n.Namespace).Update(n)
 			if err != nil {
 				if e := handleErr(fmt.Sprintf("error updating endpoints: %+v: err: %v",
@@ -315,12 +336,3 @@ func UpgradeEndpoints(clientset *kubernetes.Clientset,
 	return nil
 }
 
-// UpdateEndpoints uses clientset to update the given Endpoints.
-func UpdateEndpoints(ep *corev1.Endpoints, clientSet *kubernetes.Clientset) {
-	_, err := clientSet.CoreV1().Endpoints(ep.Namespace).Update(ep)
-	if err != nil {
-		logrus.Warningf("error updating endpoints: %+v; err: %v", ep, err)
-		return
-	}
-	logrus.Debugf("Key: %s/%s; Successfully update endpoints", ep.GetNamespace(), ep.GetName())
-}

@@ -21,15 +21,14 @@ package controller
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/api/controller/validation"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/errors"
+	validation "github.com/goodrain/rainbond/util/endpoint"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -56,17 +55,19 @@ func (t *ThirdPartyServiceController) addEndpoints(w http.ResponseWriter, r *htt
 		return
 	}
 	// if address is not ip, and then it is domain
-	ipAddress := strings.Split(data.Address, ":")[0]
+	address := validation.SplitEndpointAddress(data.Address)
 	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := validation.ValidateEndpointIP(ipAddress); len(err) > 0 {
+	if err := validation.ValidateEndpointIP(address); len(err) > 0 {
 		// handle domain, check can add new endpoint or not
-		if !canAddDomainEndpoint(sid) {
+		if !canAddDomainEndpoint(sid, true) {
+			logrus.Warningf("new endpoint addres[%s] is domian", address)
 			httputil.ReturnError(r, w, 400, "do not support multi domain endpoints")
 			return
 		}
 	}
-	if !canAddDomainEndpoint(sid) {
+	if !canAddDomainEndpoint(sid, false) {
 		// handle ip, check can add new endpoint or not
+		logrus.Warningf("new endpoint address[%s] is ip, but already has domain endpoint", address)
 		httputil.ReturnError(r, w, 400, "do not support multi domain endpoints")
 		return
 	}
@@ -82,15 +83,23 @@ func (t *ThirdPartyServiceController) addEndpoints(w http.ResponseWriter, r *htt
 	httputil.ReturnSuccess(r, w, "success")
 }
 
-func canAddDomainEndpoint(sid string) bool {
+func canAddDomainEndpoint(sid string, isDomain bool) bool {
 	endpoints, err := db.GetManager().EndpointsDao().List(sid)
 	if err != nil {
 		logrus.Errorf("find endpoints by sid[%s], error: %s", sid, err.Error())
 		return false
 	}
 
-	if len(endpoints) > 0 {
+	if len(endpoints) > 0 && isDomain {
 		return false
+	}
+	if !isDomain {
+		for _, ep := range endpoints {
+			address := validation.SplitEndpointAddress(ep.IP)
+			if err := validation.ValidateEndpointIP(address); len(err) > 0 {
+				return false
+			}
+		}
 	}
 	return true
 }

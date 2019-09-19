@@ -24,11 +24,11 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/api/controller/validation"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
+
 	"github.com/goodrain/rainbond/worker/client"
 )
 
@@ -88,27 +88,24 @@ func (t *ThirdPartyServiceHanlder) UpdEndpoints(d *model.UpdEndpiontsReq) error 
 }
 
 func convertAddressPort(s string) (address string, port int) {
-	if errs := validation.ValidateEndpointIP(s); len(errs) > 0 {
-		// domain address
-		address = s
-		addressport := strings.Split(s, ":")
-		if len(addressport) == 3 {
-			port, _ = strconv.Atoi(addressport[2])
-		}
-		return address, port
+	prefix := ""
+	if strings.HasPrefix(s, "https://") {
+		s = strings.Split(s, "https://")[1]
+		prefix = "https://"
 	}
-	addressport := strings.Split(s, ":")
-	// compatible with ipv6
-	addressSli := addressport[:func() int {
-		if len(addressport) == 2 {
-			return len(addressport) - 1
-		}
-		return len(addressport)
-	}()]
-	address = strings.Join(addressSli, ":")
-	if len(addressport) == 2 {
-		port, _ = strconv.Atoi(addressport[1])
+	if strings.HasPrefix(s, "http://") {
+		s = strings.Split(s, "http://")[1]
+		prefix = "http://"
 	}
+
+	if strings.Contains(s, ":") {
+		sp := strings.Split(s, ":")
+		address = prefix + sp[0]
+		port, _ = strconv.Atoi(sp[1])
+	} else {
+		address = prefix + s
+	}
+
 	return address, port
 }
 

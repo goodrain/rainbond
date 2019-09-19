@@ -21,13 +21,12 @@ package prober
 import (
 	"context"
 	"fmt"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	uitlprober "github.com/goodrain/rainbond/util/prober"
-	v1 "github.com/goodrain/rainbond/util/prober/types/v1"
+	"github.com/goodrain/rainbond/util/prober/types/v1"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
 	appmv1 "github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -219,6 +218,21 @@ func (t *tpProbe) GetProbeInfo(sid string) (*model.TenantServiceProbe, error) {
 }
 
 func (t *tpProbe) createServices(probeInfo *store.ProbeInfo) (*v1.Service, *model.TenantServiceProbe) {
+	if probeInfo.IP == "8.8.8.8"{
+		app := t.store.GetAppService(probeInfo.Sid)
+		if len(app.GetServices()) >= 1 {
+			appService := app.GetServices()[0]
+			if appService.Annotations != nil && appService.Annotations["domain"] != ""{
+				probeInfo.IP = appService.Annotations["domain"]
+				logrus.Debugf("domain address is : %s", probeInfo.IP)
+			}
+		}
+		if probeInfo.IP == "8.8.8.8"{
+			logrus.Warningf("serviceID: %s, is a domain thirdpart endpoint, but do not found domain info", probeInfo.Sid)
+			return nil, nil
+		}
+	}
+	logrus.Debugf("create probe[sid: %s, address: %s, port: %d]", probeInfo.Sid, probeInfo.IP, probeInfo.Port)
 	tsp, err := t.GetProbeInfo(probeInfo.Sid)
 	if err != nil {
 		logrus.Warningf("ServiceID: %s; Unexpected error occurred, ignore the creation of "+

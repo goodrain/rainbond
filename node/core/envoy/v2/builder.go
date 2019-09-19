@@ -20,26 +20,25 @@ package v2
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	apiv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/cluster"
-	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
-	listener "github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
-	route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
 	http_rate_limit "github.com/envoyproxy/go-control-plane/envoy/config/filter/http/rate_limit/v2"
 	http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	tcp_proxy "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
 	configratelimit "github.com/envoyproxy/go-control-plane/envoy/config/ratelimit/v2"
 	_type "github.com/envoyproxy/go-control-plane/envoy/type"
 	"github.com/envoyproxy/go-control-plane/pkg/util"
-	v1 "github.com/goodrain/rainbond/node/core/envoy/v1"
+	"github.com/goodrain/rainbond/node/core/envoy/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -459,74 +458,29 @@ func getEndpointsByLables(endpoints []*corev1.Endpoints, slabels map[string]stri
 }
 
 //CreateDNSLoadAssignment create dns loadAssignment
-func CreateDNSLoadAssignment(serviceAlias, namespace string, endpoints []*corev1.Endpoints, service *corev1.Service) *v2.ClusterLoadAssignment {
+func CreateDNSLoadAssignment(serviceAlias, namespace, domain string, service *corev1.Service) *v2.ClusterLoadAssignment {
 	destServiceAlias := GetServiceAliasByService(service)
 	if destServiceAlias == "" {
 		logrus.Errorf("service alias is empty in k8s service %s", service.Name)
 		return nil
 	}
 
-	var domain string
-	var ok bool
-	if domain, ok = service.Annotations["domain"]; !ok || domain == "" {
-		logrus.Warnf("service[sid: %s] is not domain endpoint", service.GetUID())
-		return nil
-	}
-
 	clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, service.Spec.Ports[0].Port)
-	name := fmt.Sprintf("%sService", destServiceAlias)
-	if destServiceAlias == serviceAlias {
-		name = fmt.Sprintf("%sServiceOUT", destServiceAlias)
-	}
-	selectEndpoint := getEndpointsByLables(endpoints, map[string]string{"name": name})
 	var lendpoints []endpoint.LocalityLbEndpoints
-	logrus.Debugf("select endpoints : ", selectEndpoint)
-	if len(selectEndpoint) > 0 {
-		ep := selectEndpoint[0]
-		if len(ep.Subsets) > 0 {
-			subset := ep.Subsets[0]
-			toport := int(subset.Ports[0].Port)
-			if (len(service.Spec.Ports) == 0 || service.Spec.Ports[0].TargetPort.IntVal != int32(toport)) && ep.Labels["service_kind"] != "third_party" {
-				return nil
-			}
-			if serviceAlias == destServiceAlias {
-				if originPort, ok := service.Labels["origin_port"]; ok {
-					origin, err := strconv.Atoi(originPort)
-					if err == nil {
-						toport = origin
-					}
-				}
-			}
-			protocol := string(subset.Ports[0].Protocol)
-			addressList := subset.Addresses
-			var notready bool
-			if len(addressList) == 0 {
-				notready = true
-				addressList = subset.NotReadyAddresses
-			}
-			getHealty := func() *endpoint.Endpoint_HealthCheckConfig {
-				if notready {
-					return nil
-				}
-				return &endpoint.Endpoint_HealthCheckConfig{
-					PortValue: uint32(toport),
-				}
-			}
-			var lbe []endpoint.LbEndpoint
-			logrus.Debugf("len(ep.SubSets: %d, ", ep.Subsets[0], protocol)
-			envoyAddress := CreateSocketAddress(protocol, domain, uint32(toport))
-			logrus.Debugf("envoyAddress is : ", envoyAddress)
-			lbe = append(lbe, endpoint.LbEndpoint{
-				HostIdentifier: &endpoint.LbEndpoint_Endpoint{
-					Endpoint: &endpoint.Endpoint{
-						Address:           &envoyAddress,
-						HealthCheckConfig: getHealty(),
-					},
-				},
-			})
-			lendpoints = append(lendpoints, endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
-		}
-	}
+	protocol, _ := service.Labels["port_protocol"]
+	port := service.Spec.Ports[0].Port
+	var lbe []endpoint.LbEndpoint
+	envoyAddress := CreateSocketAddress(protocol, domain, uint32(port))
+	logrus.Debugf("envoyAddress is : ", envoyAddress)
+	lbe = append(lbe, endpoint.LbEndpoint{
+		HostIdentifier: &endpoint.LbEndpoint_Endpoint{
+			Endpoint: &endpoint.Endpoint{
+				Address:           &envoyAddress,
+				HealthCheckConfig: &endpoint.Endpoint_HealthCheckConfig{PortValue:uint32(port)},
+			},
+		},
+	})
+	lendpoints = append(lendpoints, endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
 	cla := &v2.ClusterLoadAssignment{
 		ClusterName: clusterName,
 		Endpoints:   lendpoints,

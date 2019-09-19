@@ -204,7 +204,7 @@ func (d *DiscoverServerManager) UpdateNodeConfig(nc *NodeConfig) error {
 	} else {
 		nc.listeners = listeners
 	}
-	clusters, err := conver.OneNodeCluster(nc.serviceAlias, nc.namespace, nc.config, services, endpoint)
+	clusters, err := conver.OneNodeCluster(nc.serviceAlias, nc.namespace, nc.config, services)
 	if err != nil {
 		logrus.Errorf("create envoy clusters failure %s", err.Error())
 	} else {
