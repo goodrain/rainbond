@@ -96,9 +96,6 @@ func GetHTTPHealth(address string) map[string]string {
 	c := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	if !strings.HasPrefix(address, "http") {
-		address = "http://" + address
-	}
 	if strings.HasPrefix(address, "https://") {
 		c.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
