@@ -16,8 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-//+build license
-
 package license
 
 import (
@@ -26,9 +24,12 @@ import (
 	"io/ioutil"
 	"os"
 	"plugin"
+	"strconv"
 
 	"github.com/Sirupsen/logrus"
 )
+
+var enterprise string
 
 // LicInfo license information
 type LicInfo struct {
@@ -43,6 +44,14 @@ type LicInfo struct {
 	StartTime  string   `json:"start_time"`
 	DataCenter int64    `json:"data_center"`
 	ModuleList []string `json:"module_list"`
+}
+
+func isEnterprise() bool {
+	res, err := strconv.ParseBool(enterprise)
+	if err != nil {
+		logrus.Warningf("enterprise: %s; error parsing 'string' to 'bool': %v", enterprise, err)
+	}
+	return res
 }
 
 func readFromFile(lfile string) (string, error) {
@@ -61,6 +70,9 @@ func readFromFile(lfile string) (string, error) {
 
 // VerifyTime verifies the time in the license.
 func VerifyTime(licPath, licSoPath string) bool {
+	if !isEnterprise() {
+		return true
+	}
 	lic, err := readFromFile(licPath)
 	if err != nil {
 		logrus.Errorf("failed to read license from file: %v", err)
@@ -81,6 +93,9 @@ func VerifyTime(licPath, licSoPath string) bool {
 
 // VerifyNodes verifies the number of the nodes in the license.
 func VerifyNodes(licPath, licSoPath string, nodeNums int) bool {
+	if !isEnterprise() {
+		return true
+	}
 	lic, err := readFromFile(licPath)
 	if err != nil {
 		logrus.Errorf("failed to read license from file: %v", err)
@@ -101,6 +116,9 @@ func VerifyNodes(licPath, licSoPath string, nodeNums int) bool {
 
 // GetLicInfo -
 func GetLicInfo(licPath, licSoPath string) (*LicInfo, error) {
+	if !isEnterprise() {
+		return nil, nil
+	}
 	lic, err := readFromFile(licPath)
 	if err != nil {
 		logrus.Errorf("failed to read license from file: %v", err)
@@ -128,6 +146,9 @@ func GetLicInfo(licPath, licSoPath string) (*LicInfo, error) {
 
 // GenLicKey -
 func GenLicKey(licSoPath string) (string, error) {
+	if !isEnterprise() {
+		return "", nil
+	}
 	p, err := plugin.Open(licSoPath)
 	if err != nil {
 		logrus.Errorf("license.so path: %s; error opening license.so: %v", licSoPath, err)
