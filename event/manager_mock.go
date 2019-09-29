@@ -35,7 +35,6 @@ func (m *MockManager) EXPECT() *MockManagerMockRecorder {
 
 // GetLogger mocks base method
 func (m *MockManager) GetLogger(eventID string) Logger {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLogger", eventID)
 	ret0, _ := ret[0].(Logger)
 	return ret0
@@ -43,13 +42,11 @@ func (m *MockManager) GetLogger(eventID string) Logger {
 
 // GetLogger indicates an expected call of GetLogger
 func (mr *MockManagerMockRecorder) GetLogger(eventID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLogger", reflect.TypeOf((*MockManager)(nil).GetLogger), eventID)
 }
 
 // Start mocks base method
 func (m *MockManager) Start() error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Start")
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -57,13 +54,11 @@ func (m *MockManager) Start() error {
 
 // Start indicates an expected call of Start
 func (mr *MockManagerMockRecorder) Start() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockManager)(nil).Start))
 }
 
 // Close mocks base method
 func (m *MockManager) Close() error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Close")
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -71,19 +66,16 @@ func (m *MockManager) Close() error {
 
 // Close indicates an expected call of Close
 func (mr *MockManagerMockRecorder) Close() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockManager)(nil).Close))
 }
 
 // ReleaseLogger mocks base method
 func (m *MockManager) ReleaseLogger(arg0 Logger) {
-	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "ReleaseLogger", arg0)
 }
 
 // ReleaseLogger indicates an expected call of ReleaseLogger
 func (mr *MockManagerMockRecorder) ReleaseLogger(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReleaseLogger", reflect.TypeOf((*MockManager)(nil).ReleaseLogger), arg0)
 }
 
@@ -112,43 +104,36 @@ func (m *MockLogger) EXPECT() *MockLoggerMockRecorder {
 
 // Info mocks base method
 func (m *MockLogger) Info(arg0 string, arg1 map[string]string) {
-	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Info", arg0, arg1)
 }
 
 // Info indicates an expected call of Info
 func (mr *MockLoggerMockRecorder) Info(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Info", reflect.TypeOf((*MockLogger)(nil).Info), arg0, arg1)
 }
 
 // Error mocks base method
 func (m *MockLogger) Error(arg0 string, arg1 map[string]string) {
-	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Error", arg0, arg1)
 }
 
 // Error indicates an expected call of Error
 func (mr *MockLoggerMockRecorder) Error(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Error", reflect.TypeOf((*MockLogger)(nil).Error), arg0, arg1)
 }
 
 // Debug mocks base method
 func (m *MockLogger) Debug(arg0 string, arg1 map[string]string) {
-	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Debug", arg0, arg1)
 }
 
 // Debug indicates an expected call of Debug
 func (mr *MockLoggerMockRecorder) Debug(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Debug", reflect.TypeOf((*MockLogger)(nil).Debug), arg0, arg1)
 }
 
 // Event mocks base method
 func (m *MockLogger) Event() string {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Event")
 	ret0, _ := ret[0].(string)
 	return ret0
@@ -156,13 +141,11 @@ func (m *MockLogger) Event() string {
 
 // Event indicates an expected call of Event
 func (mr *MockLoggerMockRecorder) Event() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Event", reflect.TypeOf((*MockLogger)(nil).Event))
 }
 
 // CreateTime mocks base method
 func (m *MockLogger) CreateTime() time.Time {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateTime")
 	ret0, _ := ret[0].(time.Time)
 	return ret0
@@ -170,13 +153,11 @@ func (m *MockLogger) CreateTime() time.Time {
 
 // CreateTime indicates an expected call of CreateTime
 func (mr *MockLoggerMockRecorder) CreateTime() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTime", reflect.TypeOf((*MockLogger)(nil).CreateTime))
 }
 
 // GetChan mocks base method
 func (m *MockLogger) GetChan() chan []byte {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetChan")
 	ret0, _ := ret[0].(chan []byte)
 	return ret0
@@ -184,25 +165,21 @@ func (m *MockLogger) GetChan() chan []byte {
 
 // GetChan indicates an expected call of GetChan
 func (mr *MockLoggerMockRecorder) GetChan() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChan", reflect.TypeOf((*MockLogger)(nil).GetChan))
 }
 
 // SetChan mocks base method
 func (m *MockLogger) SetChan(arg0 chan []byte) {
-	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetChan", arg0)
 }
 
 // SetChan indicates an expected call of SetChan
 func (mr *MockLoggerMockRecorder) SetChan(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetChan", reflect.TypeOf((*MockLogger)(nil).SetChan), arg0)
 }
 
 // GetWriter mocks base method
 func (m *MockLogger) GetWriter(step, level string) LoggerWriter {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetWriter", step, level)
 	ret0, _ := ret[0].(LoggerWriter)
 	return ret0
@@ -210,7 +187,6 @@ func (m *MockLogger) GetWriter(step, level string) LoggerWriter {
 
 // GetWriter indicates an expected call of GetWriter
 func (mr *MockLoggerMockRecorder) GetWriter(step, level interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWriter", reflect.TypeOf((*MockLogger)(nil).GetWriter), step, level)
 }
 
@@ -239,7 +215,6 @@ func (m *MockLoggerWriter) EXPECT() *MockLoggerWriterMockRecorder {
 
 // Write mocks base method
 func (m *MockLoggerWriter) Write(p []byte) (int, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Write", p)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
@@ -248,18 +223,15 @@ func (m *MockLoggerWriter) Write(p []byte) (int, error) {
 
 // Write indicates an expected call of Write
 func (mr *MockLoggerWriterMockRecorder) Write(p interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockLoggerWriter)(nil).Write), p)
 }
 
 // SetFormat mocks base method
-func (m *MockLoggerWriter) SetFormat(arg0 string) {
-	m.ctrl.T.Helper()
+func (m *MockLoggerWriter) SetFormat(arg0 map[string]interface{}) {
 	m.ctrl.Call(m, "SetFormat", arg0)
 }
 
 // SetFormat indicates an expected call of SetFormat
 func (mr *MockLoggerWriterMockRecorder) SetFormat(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetFormat", reflect.TypeOf((*MockLoggerWriter)(nil).SetFormat), arg0)
 }
