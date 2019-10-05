@@ -182,25 +182,12 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 	// create common http listener
 	if len(newVHL) > 0 {
 		//remove 80 tcp listener is exist
-		var statsPrefix string
-		var name string
-		var port uint32
 		if i, ok := portMap[80]; ok {
 			ldsL = append(ldsL[:i], ldsL[i+1:]...)
-			statsPrefix = fmt.Sprintf("%s_80", serviceAlias)
-			name = fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias)
-			port = 80
 		}
-		if i, ok := portMap[443]; ok {
-			ldsL = append(ldsL[:i], ldsL[i+1:]...)
-			statsPrefix = fmt.Sprintf("%s_443", serviceAlias)
-			name = fmt.Sprintf("%s_%s_http_443", namespace, serviceAlias)
-			port = 443
-		}
-
-		plds := envoyv2.CreateHTTPListener(name, envoyv2.DefaultLocalhostListenerAddress, statsPrefix, port, nil, newVHL...)
+		statsPrefix := fmt.Sprintf("%s_80", serviceAlias)
+		plds := envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias), envoyv2.DefaultLocalhostListenerAddress, statsPrefix, 80, nil, newVHL...)
 		if plds != nil {
-			logrus.Debugf("create listener successfully, %v", plds)
 			ldsL = append(ldsL, plds)
 		} else {
 			logrus.Warnf("create listenner %s failure", fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias))
