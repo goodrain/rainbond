@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	apiv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/cluster"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -38,7 +38,7 @@ import (
 	configratelimit "github.com/envoyproxy/go-control-plane/envoy/config/ratelimit/v2"
 	_type "github.com/envoyproxy/go-control-plane/envoy/type"
 	"github.com/envoyproxy/go-control-plane/pkg/util"
-	"github.com/goodrain/rainbond/node/core/envoy/v1"
+	v1 "github.com/goodrain/rainbond/node/core/envoy/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -262,8 +262,8 @@ func CreateRouteVirtualHost(name string, domains []string, rateLimits []*route.R
 	return pvh
 }
 
-//CreateRoute create http route
-func CreateRoute(host, clusterName, prefix string, headers []*route.HeaderMatcher, weight uint32) *route.Route {
+//CreateRouteWithHostRewrite create route with hostRewrite
+func CreateRouteWithHostRewrite(host, clusterName, prefix string, headers []*route.HeaderMatcher, weight uint32) *route.Route {
 	var rout *route.Route
 	if host != "" {
 		var hostRewriteSpecifier *route.RouteAction_HostRewrite
@@ -295,30 +295,40 @@ func CreateRoute(host, clusterName, prefix string, headers []*route.HeaderMatche
 				},
 			},
 		}
-	} else {
-		rout = &route.Route{
-			Match: route.RouteMatch{
-				PathSpecifier: &route.RouteMatch_Prefix{
-					Prefix: prefix,
-				},
-				Headers: headers,
+		if err := rout.Validate(); err != nil {
+			logrus.Errorf("route http route config validate failure %s", err.Error())
+			return nil
+		}
+
+	}
+	return rout
+}
+
+//CreateRoute create http route
+func CreateRoute(clusterName, prefix string, headers []*route.HeaderMatcher, weight uint32) *route.Route {
+	var rout *route.Route
+	rout = &route.Route{
+		Match: route.RouteMatch{
+			PathSpecifier: &route.RouteMatch_Prefix{
+				Prefix: prefix,
 			},
-			Action: &route.Route_Route{
-				Route: &route.RouteAction{
-					ClusterSpecifier: &route.RouteAction_WeightedClusters{
-						WeightedClusters: &route.WeightedCluster{
-							Clusters: []*route.WeightedCluster_ClusterWeight{
-								&route.WeightedCluster_ClusterWeight{
-									Name:   clusterName,
-									Weight: ConversionUInt32(weight),
-								},
+			Headers: headers,
+		},
+		Action: &route.Route_Route{
+			Route: &route.RouteAction{
+				ClusterSpecifier: &route.RouteAction_WeightedClusters{
+					WeightedClusters: &route.WeightedCluster{
+						Clusters: []*route.WeightedCluster_ClusterWeight{
+							&route.WeightedCluster_ClusterWeight{
+								Name:   clusterName,
+								Weight: ConversionUInt32(weight),
 							},
 						},
 					},
-					Priority: core.RoutingPriority_DEFAULT,
 				},
+				Priority: core.RoutingPriority_DEFAULT,
 			},
-		}
+		},
 	}
 
 	if err := rout.Validate(); err != nil {
@@ -476,7 +486,7 @@ func CreateDNSLoadAssignment(serviceAlias, namespace, domain string, service *co
 		HostIdentifier: &endpoint.LbEndpoint_Endpoint{
 			Endpoint: &endpoint.Endpoint{
 				Address:           &envoyAddress,
-				HealthCheckConfig: &endpoint.Endpoint_HealthCheckConfig{PortValue:uint32(port)},
+				HealthCheckConfig: &endpoint.Endpoint_HealthCheckConfig{PortValue: uint32(port)},
 			},
 		},
 	})
