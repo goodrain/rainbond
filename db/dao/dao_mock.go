@@ -5,11 +5,10 @@
 package dao
 
 import (
-	reflect "reflect"
-	time "time"
-
 	gomock "github.com/golang/mock/gomock"
 	model "github.com/goodrain/rainbond/db/model"
+	reflect "reflect"
+	time "time"
 )
 
 // MockDao is a mock of Dao interface
@@ -4106,157 +4105,12 @@ func (mr *MockTCPRuleDaoMockRecorder) ListByServiceID(serviceID interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockTCPRuleDao)(nil).ListByServiceID), serviceID)
 }
 
-// MockIPPortDao is a mock of IPPortDao interface
-type MockIPPortDao struct {
-	ctrl     *gomock.Controller
-	recorder *MockIPPortDaoMockRecorder
-}
-
-// MockIPPortDaoMockRecorder is the mock recorder for MockIPPortDao
-type MockIPPortDaoMockRecorder struct {
-	mock *MockIPPortDao
-}
-
-// NewMockIPPortDao creates a new mock instance
-func NewMockIPPortDao(ctrl *gomock.Controller) *MockIPPortDao {
-	mock := &MockIPPortDao{ctrl: ctrl}
-	mock.recorder = &MockIPPortDaoMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use
-func (m *MockIPPortDao) EXPECT() *MockIPPortDaoMockRecorder {
-	return m.recorder
-}
-
-// AddModel mocks base method
-func (m *MockIPPortDao) AddModel(arg0 model.Interface) error {
-	ret := m.ctrl.Call(m, "AddModel", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddModel indicates an expected call of AddModel
-func (mr *MockIPPortDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockIPPortDao)(nil).AddModel), arg0)
-}
-
-// UpdateModel mocks base method
-func (m *MockIPPortDao) UpdateModel(arg0 model.Interface) error {
-	ret := m.ctrl.Call(m, "UpdateModel", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// UpdateModel indicates an expected call of UpdateModel
-func (mr *MockIPPortDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockIPPortDao)(nil).UpdateModel), arg0)
-}
-
-// DeleteByIPAndPort mocks base method
-func (m *MockIPPortDao) DeleteByIPAndPort(ip string, port int) error {
-	ret := m.ctrl.Call(m, "DeleteByIPAndPort", ip, port)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeleteByIPAndPort indicates an expected call of DeleteByIPAndPort
-func (mr *MockIPPortDaoMockRecorder) DeleteByIPAndPort(ip, port interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByIPAndPort", reflect.TypeOf((*MockIPPortDao)(nil).DeleteByIPAndPort), ip, port)
-}
-
-// GetIPByPort mocks base method
-func (m *MockIPPortDao) GetIPByPort(port int) ([]*model.IPPort, error) {
-	ret := m.ctrl.Call(m, "GetIPByPort", port)
-	ret0, _ := ret[0].([]*model.IPPort)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetIPByPort indicates an expected call of GetIPByPort
-func (mr *MockIPPortDaoMockRecorder) GetIPByPort(port interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIPByPort", reflect.TypeOf((*MockIPPortDao)(nil).GetIPByPort), port)
-}
-
-// GetIPPortByIPAndPort mocks base method
-func (m *MockIPPortDao) GetIPPortByIPAndPort(ip string, port int) (*model.IPPort, error) {
-	ret := m.ctrl.Call(m, "GetIPPortByIPAndPort", ip, port)
-	ret0, _ := ret[0].(*model.IPPort)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetIPPortByIPAndPort indicates an expected call of GetIPPortByIPAndPort
-func (mr *MockIPPortDaoMockRecorder) GetIPPortByIPAndPort(ip, port interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIPPortByIPAndPort", reflect.TypeOf((*MockIPPortDao)(nil).GetIPPortByIPAndPort), ip, port)
-}
-
-// MockIPPoolDao is a mock of IPPoolDao interface
-type MockIPPoolDao struct {
-	ctrl     *gomock.Controller
-	recorder *MockIPPoolDaoMockRecorder
-}
-
-// MockIPPoolDaoMockRecorder is the mock recorder for MockIPPoolDao
-type MockIPPoolDaoMockRecorder struct {
-	mock *MockIPPoolDao
-}
-
-// NewMockIPPoolDao creates a new mock instance
-func NewMockIPPoolDao(ctrl *gomock.Controller) *MockIPPoolDao {
-	mock := &MockIPPoolDao{ctrl: ctrl}
-	mock.recorder = &MockIPPoolDaoMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use
-func (m *MockIPPoolDao) EXPECT() *MockIPPoolDaoMockRecorder {
-	return m.recorder
-}
-
-// AddModel mocks base method
-func (m *MockIPPoolDao) AddModel(arg0 model.Interface) error {
-	ret := m.ctrl.Call(m, "AddModel", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddModel indicates an expected call of AddModel
-func (mr *MockIPPoolDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockIPPoolDao)(nil).AddModel), arg0)
-}
-
-// UpdateModel mocks base method
-func (m *MockIPPoolDao) UpdateModel(arg0 model.Interface) error {
-	ret := m.ctrl.Call(m, "UpdateModel", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// UpdateModel indicates an expected call of UpdateModel
-func (mr *MockIPPoolDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockIPPoolDao)(nil).UpdateModel), arg0)
-}
-
-// GetIPPoolByEID mocks base method
-func (m *MockIPPoolDao) GetIPPoolByEID(eid string) (*model.IPPool, error) {
-	ret := m.ctrl.Call(m, "GetIPPoolByEID", eid)
-	ret0, _ := ret[0].(*model.IPPool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
 // GetUsedPortsByIP mocks base method
 func (m *MockTCPRuleDao) GetUsedPortsByIP(ip string) ([]*model.TCPRule, error) {
 	ret := m.ctrl.Call(m, "GetUsedPortsByIP", ip)
 	ret0, _ := ret[0].([]*model.TCPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
-}
-
-// GetIPPoolByEID indicates an expected call of GetIPPoolByEID
-func (mr *MockIPPoolDaoMockRecorder) GetIPPoolByEID(eid interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIPPoolByEID", reflect.TypeOf((*MockIPPoolDao)(nil).GetIPPoolByEID), eid)
 }
 
 // GetUsedPortsByIP indicates an expected call of GetUsedPortsByIP
