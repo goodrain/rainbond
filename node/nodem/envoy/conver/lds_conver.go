@@ -109,36 +109,27 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 		destService := ListennerConfig[listennerName]
 		statPrefix := fmt.Sprintf("%s_%s", serviceAlias, GetServiceAliasByService(service))
 
-		if domain, ok := service.Annotations["domain"]; ok && domain != "" {
-			protocol := service.Labels["port_protocol"]
-			if protocol == "https" || protocol == "http" {
-				logrus.Debugf("create domain listener, domain service protocol: %s", service.Labels["port_protocol"])
-				host := service.Annotations["domain"]
-				route := envoyv2.CreateRouteWithHostRewrite(host, clusterName, "/", nil, 0)
-				if route != nil {
-					pvh := envoyv2.CreateRouteVirtualHost(fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port), []string{"*"}, nil, *route)
-					if pvh != nil {
-						plds := envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port), envoyv2.DefaultLocalhostListenerAddress, fmt.Sprintf("%s_%d", serviceAlias, port), uint32(port), nil, *pvh)
-						if plds != nil {
-							ldsL = append(ldsL, plds)
-						} else {
-							logrus.Warnf("create listenner %s failure", fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port))
-						}
-					} else {
-						logrus.Warnf("create route virtual host of domain listener %s failure", fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port))
-					}
-				}
-				continue
-			}
-		}
-
 		// Unique by listen port
 		if _, ok := portMap[ListenPort]; !ok {
 			//listener name depend listner port
 			listenerName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, ListenPort)
-			listenner := envoyv2.CreateTCPListener(listenerName, clusterName, envoyv2.DefaultLocalhostListenerAddress, statPrefix, uint32(ListenPort))
-			if listenner != nil {
-				ldsL = append(ldsL, listenner)
+			var listener *v2.Listener
+			protocol := service.Labels["port_protocol"]
+			if domain, ok := service.Annotations["domain"]; ok && domain != "" && (protocol == "https" || protocol == "http") {
+				route := envoyv2.CreateRouteWithHostRewrite(domain, clusterName, "/", nil, 0)
+				if route != nil {
+					pvh := envoyv2.CreateRouteVirtualHost(fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port), []string{"*"}, nil, *route)
+					if pvh != nil {
+						listener = envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port), envoyv2.DefaultLocalhostListenerAddress, fmt.Sprintf("%s_%d", serviceAlias, port), uint32(port), nil, *pvh)
+					} else {
+						logrus.Warnf("create route virtual host of domain listener %s failure", fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port))
+					}
+				}
+			} else {
+				listener = envoyv2.CreateTCPListener(listenerName, clusterName, envoyv2.DefaultLocalhostListenerAddress, statPrefix, uint32(ListenPort))
+			}
+			if listener != nil {
+				ldsL = append(ldsL, listener)
 			} else {
 				logrus.Warningf("create tcp listenner %s failure", listenerName)
 				continue
@@ -178,8 +169,13 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 							headerMatchers = append(headerMatchers, headerMatcher)
 						}
 					}
+					var route *route.Route
+					if domain, ok := service.Annotations["domain"]; ok && domain != "" {
+						route = envoyv2.CreateRouteWithHostRewrite(domain, clusterName, options.Prefix, headerMatchers, options.Weight)
+					} else {
+						route = envoyv2.CreateRoute(clusterName, options.Prefix, headerMatchers, options.Weight)
+					}
 
-					route := envoyv2.CreateRoute(clusterName, options.Prefix, headerMatchers, options.Weight)
 					if route != nil {
 						pvh := envoyv2.CreateRouteVirtualHost(fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias,
 							GetServiceAliasByService(service), port), options.Domains, nil, *route)
