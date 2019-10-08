@@ -29,6 +29,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/goodrain/rainbond/gateway/cluster"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
@@ -137,12 +139,14 @@ type k8sStore struct {
 
 	// backendConfigMu protects against simultaneous read/write of backendConfig
 	backendConfigMu *sync.RWMutex
+	// Node controller to get the available IP address of the current node
+	node *cluster.NodeManager
 }
 
 // New creates a new Storer
 func New(client kubernetes.Interface,
 	updateCh *channels.RingChannel,
-	conf *option.Config) Storer {
+	conf *option.Config, node *cluster.NodeManager) Storer {
 	store := &k8sStore{
 		client:    client,
 		informers: &Informer{},
@@ -154,6 +158,7 @@ func New(client kubernetes.Interface,
 		conf:            conf,
 		backendConfigMu: &sync.RWMutex{},
 		backendConfig:   config.NewDefault(),
+		node:            node,
 	}
 
 	store.annotations = annotations.NewAnnotationExtractor(store)
@@ -469,7 +474,6 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 		if !s.ingressIsValid(ing) {
 			continue
 		}
-
 		ingKey := k8s.MetaNamespaceKey(ing)
 		anns, err := s.GetIngressAnnotations(ingKey)
 		if err != nil {
@@ -478,28 +482,50 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 		if anns.L4.L4Enable && anns.L4.L4Port != 0 {
 			// region l4
 			host := strings.Replace(anns.L4.L4Host, " ", "", -1)
-			if host == "" {
-				host = s.conf.IP
+			if host == "" || host == "0.0.0.0" {
+				host = "0.0.0.0"
+			} else {
+				//Determines whether the current node is in effect
+				ip := net.ParseIP(host)
+				if ip == nil {
+					logrus.Warningf("ingress %s (Namespace:%s) l4 host config is invalid", ing.Name, ing.Namespace)
+					continue
+				}
+				if !s.node.IPManager().IPInCurrentHost(ip) {
+					logrus.Debugf("ingress %s (Namespace:%s) l4 host %s does not belong to the current node", ing.Name, ing.Namespace, host)
+					continue
+				}
 			}
-			host = s.conf.IP
 			svcKey := fmt.Sprintf("%v/%v", ing.Namespace, ing.Spec.Backend.ServiceName)
 			protocol := s.GetServiceProtocol(svcKey, ing.Spec.Backend.ServicePort.IntVal)
 			listening := fmt.Sprintf("%s:%v", host, anns.L4.L4Port)
 			if string(protocol) == string(v1.ProtocolUDP) {
 				listening = fmt.Sprintf("%s %s", listening, "udp")
 			}
-
-			backendName := util.BackendName(listening, ing.Namespace)
-			vs := l4vsMap[listening]
-			if vs == nil {
-				vs = &v1.VirtualService{
-					Listening: []string{listening},
-					PoolName:  backendName,
-				}
-				vs.Namespace = anns.Namespace
-				vs.ServiceID = anns.Labels["service_id"]
+			//Detect if the IP and port are in conflict
+			//This is based on the order of the judgment, if the conflict, the latter discarded
+			if anns.L4.L4Port == s.conf.ListenPorts.HTTP || anns.L4.L4Port == s.conf.ListenPorts.HTTPS ||
+				anns.L4.L4Port == s.conf.ListenPorts.Health || anns.L4.L4Port == s.conf.ListenPorts.Status {
+				logrus.Warningf("ingress %s (Namespace:%s) l4 host repeat listening will be ignored", ing.Name, ing.Namespace)
+				continue
 			}
-
+			conflictkey := []string{
+				listening, strings.Replace(listening, host, "0.0.0.0", 1),
+			}
+			for _, key := range conflictkey {
+				vs := l4vsMap[key]
+				if vs != nil {
+					logrus.Warningf("ingress %s (Namespace:%s) l4 host repeat listening will be ignored", ing.Name, ing.Namespace)
+					continue
+				}
+			}
+			backendName := util.BackendName(listening, ing.Namespace)
+			vs := &v1.VirtualService{
+				Listening: []string{listening},
+				PoolName:  backendName,
+			}
+			vs.Namespace = anns.Namespace
+			vs.ServiceID = anns.Labels["service_id"]
 			l4PoolMap[ing.Spec.Backend.ServiceName] = struct{}{}
 			l4vsMap[listening] = vs
 			l4vs = append(l4vs, vs)

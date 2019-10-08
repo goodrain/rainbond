@@ -16,27 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package cluster
+package handler
 
-import (
-	"testing"
+import "testing"
 
-	"github.com/goodrain/rainbond/cmd/gateway/option"
-)
-
-func TestCreateNodeManager(t *testing.T) {
-	nm, err := CreateNodeManager(option.Config{
-		ListenPorts: option.ListenPorts{
-			HTTP: 80,
-		},
-		EtcdEndpoint: []string{"http://127.0.0.1:2379"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ok := nm.checkGatewayPort(); !ok {
-		t.Log("port check is not pass")
-	} else {
-		t.Log("port check is passed")
-	}
+func TestSelectAvailablePort(t *testing.T) {
+	t.Log(selectAvailablePort([]int{}))
+	t.Log(selectAvailablePort([]int{1000}))
+	t.Log(selectAvailablePort([]int{10002, 10001}))
 }

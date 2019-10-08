@@ -66,7 +66,7 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 		logrus.Errorf("create token identification mannager error, %v", err)
 		return err
 	}
-	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient)
+	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, etcdCli)
 	def3rdPartySvcHandler = Create3rdPartySvcHandler(dbmanager, statusCli)
 	operationHandler = CreateOperationHandler(mqClient)
 	batchOperationHandler = CreateBatchOperationHandler(mqClient, operationHandler)

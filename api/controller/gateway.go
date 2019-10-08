@@ -227,8 +227,8 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 		values["port"] = []string{fmt.Sprintf("The port field should be greater than %d", g.cfg.MinExtPort)}
 	} else {
 		// check if the port exists
-		if h.PortExists(req.Port) {
-			values["port"] = []string{fmt.Sprintf("The port(%v) already exists", req.Port)}
+		if h.TCPIPPortExists(req.IP, req.Port) {
+			values["port"] = []string{fmt.Sprintf("The ip %s port(%v) already exists", req.IP, req.Port)}
 		}
 	}
 	if len(req.RuleExtensions) > 0 {
@@ -253,7 +253,6 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 			"adding tcp rule: %v", err))
 		return
 	}
-
 	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
 		"service_id": sid,
 		"action":     "add-tcp-rule",
@@ -338,7 +337,7 @@ func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
 // GetAvailablePort returns a available port
 func (g *GatewayStruct) GetAvailablePort(w http.ResponseWriter, r *http.Request) {
 	h := handler.GetGatewayHandler()
-	res, err := h.GetAvailablePort()
+	res, err := h.GetAvailablePort("0.0.0.0")
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"getting available port: %v", err))
@@ -372,4 +371,10 @@ func (g *GatewayStruct) RuleConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.ReturnSuccess(r, w, "success")
+}
+
+//GetGatewayIPs get gateway ips
+func GetGatewayIPs(w http.ResponseWriter, r *http.Request) {
+	ips := handler.GetGatewayHandler().GetGatewayIPs()
+	httputil.ReturnSuccess(r, w, ips)
 }

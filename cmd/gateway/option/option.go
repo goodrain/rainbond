@@ -58,7 +58,6 @@ type Config struct {
 	KeepaliveTimeout  int
 	KeepaliveRequests int
 	NginxUser         string
-	IP                string
 	ResyncPeriod      time.Duration
 	// health check
 	HealthPath         string
@@ -80,7 +79,7 @@ type Config struct {
 	RepoGrMeIP         string
 	NodeName           string
 	HostIP             string
-	EnableInterface    []string
+	IgnoreInterface    []string
 }
 
 // ListenPorts describe the ports required to run the gateway controller
@@ -105,7 +104,6 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.NginxUser, "nginx-user", "root", "nginx user name")
 	fs.IntVar(&g.KeepaliveRequests, "keepalive-requests", 10000, "Number of requests a client can make over the keep-alive connection. ")
 	fs.IntVar(&g.KeepaliveTimeout, "keepalive-timeout", 30, "Timeout for keep-alive connections. Server will close connections after this time.")
-	fs.StringVar(&g.IP, "ip", "0.0.0.0", "Node ip.") // TODO: more detail
 	fs.DurationVar(&g.ResyncPeriod, "resync-period", 10*time.Second, "the default resync period for any handlers added via AddEventHandler and how frequently the listener wants a full resync from the shared informer")
 	// etcd
 	fs.StringSliceVar(&g.EtcdEndpoint, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd cluster endpoints.")
@@ -133,7 +131,7 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.NodeName, "node-name", "", "this gateway node host name")
 	fs.StringVar(&g.HostIP, "node-ip", "", "this gateway node ip")
 	fs.BoolVar(&g.Debug, "debug", false, "enable pprof debug")
-	fs.StringArrayVar(&g.EnableInterface, "enable-interface", nil, "The network interface name that support listening and managing by gateway")
+	fs.StringArrayVar(&g.IgnoreInterface, "ignore-interface", []string{"docker0", "tunl0"}, "The network interface name that ignore by gateway")
 }
 
 // SetLog sets log

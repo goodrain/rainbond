@@ -28,7 +28,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
 	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
 	"github.com/goodrain/rainbond/gateway/annotations/upstreamhashby"
-	"github.com/goodrain/rainbond/gateway/annotations/wight"
+	weight "github.com/goodrain/rainbond/gateway/annotations/wight"
 	"github.com/imdario/mergo"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -79,7 +79,7 @@ func (e Extractor) Extract(ing *extensions.Ingress) *Ingress {
 	data := make(map[string]interface{})
 	for name, annotationParser := range e.annotations {
 		val, err := annotationParser.Parse(ing)
-		logrus.Infof("annotation %v in Ingress %v/%v: %v", name, ing.GetNamespace(), ing.GetName(), val)
+		logrus.Debugf("annotation %v in Ingress %v/%v: %v", name, ing.GetNamespace(), ing.GetName(), val)
 		if err != nil {
 			if errors.IsMissingAnnotations(err) {
 				continue

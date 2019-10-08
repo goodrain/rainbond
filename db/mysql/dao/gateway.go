@@ -303,6 +303,22 @@ func (t *TCPRuleDaoTmpl) DeleteTCPRuleByServiceID(serviceID string) error {
 	return t.DB.Where("service_id = ?", serviceID).Delete(tcpRule).Error
 }
 
+//GetUsedPortsByIP get used port by ip
+//sort by port
+func (t *TCPRuleDaoTmpl) GetUsedPortsByIP(ip string) ([]*model.TCPRule, error) {
+	var rules []*model.TCPRule
+	if ip == "0.0.0.0" {
+		if err := t.DB.Order("port asc").Find(&rules).Error; err != nil {
+			return nil, err
+		}
+		return rules, nil
+	}
+	if err := t.DB.Where("ip = ? or ip = ?", ip, "0.0.0.0").Order("port asc").Find(&rules).Error; err != nil {
+		return nil, err
+	}
+	return rules, nil
+}
+
 // ListByServiceID lists all TCPRules matching serviceID
 func (t *TCPRuleDaoTmpl) ListByServiceID(serviceID string) ([]*model.TCPRule, error) {
 	var rules []*model.TCPRule
@@ -310,107 +326,6 @@ func (t *TCPRuleDaoTmpl) ListByServiceID(serviceID string) ([]*model.TCPRule, er
 		return nil, err
 	}
 	return rules, nil
-}
-
-// IPPortImpl is an implementation of dao.IPPortDao
-type IPPortImpl struct {
-	DB *gorm.DB
-}
-
-// AddModel adds model.IPPort
-func (i *IPPortImpl) AddModel(mo model.Interface) error {
-	ipport := mo.(*model.IPPort)
-	var old model.TCPRule
-	if ok := i.DB.Where("ip = ? and port = ?", ipport.IP, ipport.Port).Find(&old).RecordNotFound(); ok {
-		if err := i.DB.Create(ipport).Error; err != nil {
-			return err
-		}
-	} else {
-		return fmt.Errorf("IPPort already exists(ip=%s, port=%d)", ipport.IP, ipport.Port)
-	}
-	return nil
-}
-
-// UpdateModel updates model.IPPort
-func (i *IPPortImpl) UpdateModel(mo model.Interface) error {
-	ipport, ok := mo.(*model.IPPort)
-	if !ok {
-		return fmt.Errorf("Failed to convert %s to *model.IPPort", reflect.TypeOf(mo).String())
-	}
-
-	return i.DB.Table(ipport.TableName()).
-		Where("uuid = ?", ipport.UUID).
-		Update(ipport).Error
-}
-
-// DeleteByIPAndPort deletes an IPPort that matches ip and port
-func (i *IPPortImpl) DeleteByIPAndPort(ip string, port int) error {
-	return i.DB.Where("ip = ? and port = ?", ip, port).Delete(model.IPPort{}).Error
-}
-
-// GetIPByPort returns an array of ip by port
-func (i *IPPortImpl) GetIPByPort(port int) ([]*model.IPPort, error) {
-	var result []*model.IPPort
-	if err := i.DB.Where("port = ?", port).Find(&result).Error; err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-// GetIPPortByIPAndPort returns an IPPort that matches ip and port
-func (i *IPPortImpl) GetIPPortByIPAndPort(ip string, port int) (*model.IPPort, error) {
-	var result model.IPPort
-	if err := i.DB.Where("ip = ? and port = ?", ip, port).Find(&result).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &result, nil
-}
-
-// IPPoolImpl is an implementation of dao.IPPoolDao
-type IPPoolImpl struct {
-	DB *gorm.DB
-}
-
-// AddModel adds model.IPPool
-func (i *IPPoolImpl) AddModel(mo model.Interface) error {
-	ippool, ok := mo.(*model.IPPool)
-	if !ok {
-		return fmt.Errorf("Can't not convert %s to *model.IPPool", reflect.TypeOf(mo).String())
-	}
-	if ok = i.DB.Where("eid = ?", ippool.EID).Find(&model.IPPool{}).RecordNotFound(); ok {
-		if err := i.DB.Create(ippool).Error; err != nil {
-			return err
-		}
-	} else {
-		return fmt.Errorf("IPPool for EID(%s) exists", ippool.EID)
-	}
-	return nil
-}
-
-// UpdateModel updates model.IPPool
-func (i *IPPoolImpl) UpdateModel(mo model.Interface) error {
-	ippool, ok := mo.(*model.IPPool)
-	if !ok {
-		return fmt.Errorf("Can't not convert %s to *model.IPPool", reflect.TypeOf(mo).String())
-	}
-	return i.DB.Table(ippool.TableName()).
-		Where("eid = ?", ippool.EID).
-		Update(ippool).Error
-}
-
-// GetIPPoolByEID returns model.IPPool that matches eid.
-func (i *IPPoolImpl) GetIPPoolByEID(eid string) (*model.IPPool, error) {
-	var result model.IPPool
-	if err := i.DB.Where("eid = ?", eid).Find(&result).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &result, nil
 }
 
 // GwRuleConfigDaoImpl is a implementation of GwRuleConfigDao.

@@ -57,7 +57,7 @@ func NewClient(cfg *conf.Conf) (err error) {
 		Client:     cli,
 		reqTimeout: time.Duration(cfg.ReqTimeout) * time.Second,
 	}
-	logrus.Infof("init etcd client, endpoint is:%+x", cfg.Etcd.Endpoints)
+	logrus.Infof("init etcd client, endpoint is:%v", cfg.Etcd.Endpoints)
 	DefalutClient = c
 	return
 }
