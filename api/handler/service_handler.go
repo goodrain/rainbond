@@ -50,7 +50,6 @@ type ServiceHandler interface {
 	PortVar(action string, tenantID, serviceID string, vp *api_model.ServicePorts, oldPort int) error
 	PortOuter(tenantName, serviceID string, containerPort int, servicePort *api_model.ServicePortInnerOrOuter) (*dbmodel.TenantServiceLBMappingPort, string, error)
 	PortInner(tenantName, serviceID, operation string, port int) error
-	ChangeLBPort(tenantID, serviceID string, containerPort, changelbPort int) (*dbmodel.TenantServiceLBMappingPort, *util.APIHandleError)
 	VolumnVar(avs *dbmodel.TenantServiceVolume, tenantID, fileContent, action string) *util.APIHandleError
 	UpdVolume(sid string, req *api_model.UpdVolumeReq) error
 	VolumeDependency(tsr *dbmodel.TenantServiceMountRelation, action string) *util.APIHandleError

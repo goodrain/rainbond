@@ -472,27 +472,6 @@ func (m *Manager) TCPRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao {
 	}
 }
 
-//IPPortDao IPPortDao
-func (m *Manager) IPPortDao() dao.IPPortDao {
-	return &mysqldao.IPPortImpl{
-		DB: m.db,
-	}
-}
-
-//IPPortDaoTransactions IPPortDaoTransactions
-func (m *Manager) IPPortDaoTransactions(db *gorm.DB) dao.IPPortDao {
-	return &mysqldao.IPPortImpl{
-		DB: db,
-	}
-}
-
-//IPPoolDao IPPoolDao
-func (m *Manager) IPPoolDao() dao.IPPoolDao {
-	return &mysqldao.IPPoolImpl{
-		DB: m.db,
-	}
-}
-
 // EndpointsDao returns a new EndpointDaoImpl with default *gorm.DB.
 func (m *Manager) EndpointsDao() dao.EndpointsDao {
 	return &mysqldao.EndpointDaoImpl{

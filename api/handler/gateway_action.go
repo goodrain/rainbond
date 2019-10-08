@@ -19,12 +19,16 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/coreos/etcd/clientv3"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -37,13 +41,15 @@ import (
 type GatewayAction struct {
 	dbmanager db.Manager
 	mqclient  client.MQClient
+	etcdCli   *clientv3.Client
 }
 
 //CreateGatewayManager creates gateway manager.
-func CreateGatewayManager(dbmanager db.Manager, mqclient client.MQClient) *GatewayAction {
+func CreateGatewayManager(dbmanager db.Manager, mqclient client.MQClient, etcdCli *clientv3.Client) *GatewayAction {
 	return &GatewayAction{
 		dbmanager: dbmanager,
 		mqclient:  mqclient,
+		etcdCli:   etcdCli,
 	}
 }
 
@@ -310,17 +316,6 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) (string, erro
 			tx.Rollback()
 		}
 	}()
-	// add port
-	port := &model.TenantServiceLBMappingPort{
-		ServiceID:     req.ServiceID,
-		Port:          req.Port,
-		ContainerPort: req.ContainerPort,
-	}
-	err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).AddModel(port)
-	if err != nil {
-		tx.Rollback()
-		return "", err
-	}
 	// add tcp rule
 	tcpRule := &model.TCPRule{
 		UUID:          req.TCPRuleID,
@@ -398,27 +393,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 	if req.IP != "" {
 		tcpRule.IP = req.IP
 	}
-	if req.Port > minPort {
-		// get old port
-		port, err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).GetLBMappingPortByServiceIDAndPort(
-			tcpRule.ServiceID, tcpRule.Port)
-		if err != nil {
-			logrus.Debugf("TCP rule id: %s;error getting lb mapping port: %v", tcpRule.UUID, err)
-			tx.Rollback()
-			return "", err
-		}
-		// check
-		// update port
-		port.Port = req.Port
-		if err := g.dbmanager.TenantServiceLBMappingPortDaoTransactions(tx).UpdateModel(port); err != nil {
-			logrus.Debugf("TCP rule id: %s;error update lb mapping port: %v", tcpRule.UUID, err)
-			tx.Rollback()
-			return "", err
-		}
-		tcpRule.Port = req.Port
-	} else {
-		logrus.Warningf("Expected external port > %d, but got %d", minPort, req.Port)
-	}
+	tcpRule.Port = req.Port
 	if req.ServiceID != "" {
 		tcpRule.ServiceID = req.ServiceID
 	}
@@ -513,55 +488,70 @@ func (g *GatewayAction) AddRuleExtensions(ruleID string, ruleExtensions []*apimo
 }
 
 // GetAvailablePort returns a available port
-func (g *GatewayAction) GetAvailablePort() (int, error) {
-	mapPorts, err := g.dbmanager.TenantServiceLBMappingPortDao().GetLBPortsASC()
+func (g *GatewayAction) GetAvailablePort(ip string) (int, error) {
+	roles, err := g.dbmanager.TCPRuleDao().GetUsedPortsByIP(ip)
 	if err != nil {
 		return 0, err
 	}
 	var ports []int
-	for _, p := range mapPorts {
+	for _, p := range roles {
 		ports = append(ports, p.Port)
 	}
+	port := selectAvailablePort(ports)
+	if port != 0 {
+		return port, nil
+	}
+	return 0, fmt.Errorf("no more lb port can be use with ip %s", ip)
+}
+
+func selectAvailablePort(used []int) int {
+	sort.Ints(used)
 	maxPort, _ := strconv.Atoi(os.Getenv("MAX_LB_PORT"))
 	minPort, _ := strconv.Atoi(os.Getenv("MIN_LB_PORT"))
 	if minPort == 0 {
-		minPort = 20001
+		minPort = 10000
 	}
 	if maxPort == 0 {
-		maxPort = 35000
+		maxPort = 65535
 	}
 	var maxUsePort int
-	if len(ports) > 0 && ports[len(ports)-1] > minPort {
-		maxUsePort = ports[len(ports)-1]
+	if len(used) > 0 && used[len(used)-1] > minPort {
+		maxUsePort = used[len(used)-1]
 	} else {
-		maxUsePort = 20001
+		maxUsePort = minPort - 1
 	}
 	//顺序分配端口
 	selectPort := maxUsePort + 1
 	if selectPort <= maxPort {
-		return selectPort, nil
+		return selectPort
 	}
 	//捡漏以前端口
 	selectPort = minPort
-	for _, p := range ports {
+	for _, p := range used {
 		if p == selectPort {
 			selectPort = selectPort + 1
 			continue
 		}
 		if p > selectPort {
-			return selectPort, nil
+			return selectPort
 		}
 		selectPort = selectPort + 1
 	}
 	if selectPort <= maxPort {
-		return selectPort, nil
+		return selectPort
 	}
-	return 0, fmt.Errorf("no more lb port can be use,max port is %d", maxPort)
+	return 0
 }
 
-// PortExists returns if the port exists
-func (g *GatewayAction) PortExists(port int) bool {
-	return g.dbmanager.TenantServiceLBMappingPortDao().PortExists(port)
+// TCPIPPortExists returns if the port exists
+func (g *GatewayAction) TCPIPPortExists(host string, port int) bool {
+	roles, _ := db.GetManager().TCPRuleDao().GetUsedPortsByIP(host)
+	for _, role := range roles {
+		if role.Port == port {
+			return true
+		}
+	}
+	return false
 }
 
 // SendTask sends apply rules task
@@ -583,50 +573,6 @@ func (g *GatewayAction) SendTask(in map[string]interface{}) error {
 	})
 	if err != nil {
 		return fmt.Errorf("Unexpected error occurred while sending task: %v", err)
-	}
-	return nil
-}
-
-// TCPAvailable checks if the ip and port for TCP is available.
-func (g *GatewayAction) TCPAvailable(ip string, port int, ruleID string) bool {
-	rule, err := g.dbmanager.TCPRuleDao().GetTCPRuleByID(ruleID)
-	if err != nil {
-		logrus.Warningf("error getting TCPRule by UUID(%s)", ruleID)
-		return false
-	}
-
-	if rule == nil || (rule.IP != ip && rule.Port != port) {
-		ipport, err := g.dbmanager.IPPortDao().GetIPPortByIPAndPort(ip, port)
-		if err != nil {
-			logrus.Warningf("error getting IPPort(ip=%s, port=%d)", ip, port)
-			return false
-		}
-		if ipport != nil {
-			return false
-		}
-	}
-
-	if rule == nil || rule.IP != "0.0.0.0" {
-		ipport, err := g.dbmanager.IPPortDao().GetIPPortByIPAndPort("0.0.0.0", port)
-		if err != nil {
-			logrus.Warningf("error getting IPPort(ip=%s, port=%d)", "0.0.0.0", port)
-			return false
-		}
-		if ipport != nil {
-			return false
-		}
-	}
-	return true
-}
-
-// AddIPPool adds AddIPPool
-func (g *GatewayAction) AddIPPool(req *apimodel.IPPoolStruct) error {
-	ippool := &model.IPPool{
-		EID:  req.EID,
-		CIDR: req.CIDR,
-	}
-	if err := g.dbmanager.IPPoolDao().AddModel(ippool); err != nil {
-		return err
 	}
 	return nil
 }
@@ -693,4 +639,38 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 	}
 	tx.Commit()
 	return nil
+}
+
+//IPAndAvailablePort ip and advice available port
+type IPAndAvailablePort struct {
+	IP            string `json:"ip"`
+	AvailablePort int    `json:"available_port"`
+}
+
+//GetGatewayIPs get all gateway node ips
+func (g *GatewayAction) GetGatewayIPs() []IPAndAvailablePort {
+	defaultAvailablePort, _ := g.GetAvailablePort("0.0.0.0")
+	defaultIps := []IPAndAvailablePort{IPAndAvailablePort{
+		IP:            "0.0.0.0",
+		AvailablePort: defaultAvailablePort,
+	}}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	res, err := clientv3.NewKV(g.etcdCli).Get(ctx, "/rainbond/gateway/ips", clientv3.WithPrefix())
+	if err != nil {
+		return defaultIps
+	}
+	gatewayIps := []string{}
+	for _, v := range res.Kvs {
+		gatewayIps = append(gatewayIps, string(v.Value))
+	}
+	sort.Strings(gatewayIps)
+	for _, v := range gatewayIps {
+		availablePort, _ := g.GetAvailablePort(v)
+		defaultIps = append(defaultIps, IPAndAvailablePort{
+			IP:            v,
+			AvailablePort: availablePort,
+		})
+	}
+	return defaultIps
 }
