@@ -26,9 +26,9 @@ import (
 
 func TestSvnCheckout(t *testing.T) {
 	client := NewClient(CodeSourceInfo{
-		Branch:        "trunk",
-		RepositoryURL: "svn://ali-sh-s1.goodrain.net:21097/testrepo",
-	}, "/tmp/svn/testrepo", event.GetTestLogger())
+		Branch:        "docker",
+		RepositoryURL: "svn://139.196.72.60:21495/runoob01/src",
+	}, "/tmp/svn/docker", event.GetTestLogger())
 
 	info, err := client.Checkout()
 	if err != nil {
