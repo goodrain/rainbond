@@ -41,7 +41,7 @@ build::node() {
 	case $1 in
 		node)
 			echo "build node"
-			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}" --ldflags "-w -s -X github.com/goodrain/rainbond/util/license.enterprise=${ENTERPRISE}"  -o $releasedir/dist/usr/local/bin/node ./cmd/node
+			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc} -X github.com/goodrain/rainbond/util/license.enterprise=${ENTERPRISE}"  -o $releasedir/dist/usr/local/bin/node ./cmd/node
 		;;
 		grctl)	
 			echo "build grctl"
@@ -53,7 +53,7 @@ build::node() {
 		;;
 		*)
 			echo "build node"
-			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}" --ldflags "-w -s -X github.com/goodrain/rainbond/util/license.enterprise=${ENTERPRISE}"  -o $releasedir/dist/usr/local/bin/node ./cmd/node
+			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc} -X github.com/goodrain/rainbond/util/license.enterprise=${ENTERPRISE}"  -o $releasedir/dist/usr/local/bin/node ./cmd/node
 			echo "build grctl"
 			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/grctl ./cmd/grctl
 			echo "build certutil"
@@ -91,7 +91,7 @@ build::binary() {
 	else
 		if [ "${ENTERPRISE}" = "true" ];then	
 			echo "---> ENTERPRISE:${ENTERPRISE}"
-			docker run --rm -e GOOS=${GOOS} -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}" --ldflags "-w -s -X github.com/goodrain/rainbond/util/license.enterprise=${ENTERPRISE}"  -o ${OUTPATH} ./cmd/$1
+			docker run --rm -e GOOS=${GOOS} -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc} -X github.com/goodrain/rainbond/util/license.enterprise=${ENTERPRISE}"  -o ${OUTPATH} ./cmd/$1
 		else
 			docker run --rm -e GOOS=${GOOS} -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${OUTPATH} ./cmd/$1
 		fi
@@ -120,7 +120,7 @@ build::image() {
 		else
 			if [ "${ENTERPRISE}" = "true" ];then
 				echo "---> ENTERPRISE:${ENTERPRISE}"
-				docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}" --ldflags "-w -s -X github.com/goodrain/rainbond/util/license.enterprise=${ENTERPRISE}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
+				docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc} -X github.com/goodrain/rainbond/util/license.enterprise=${ENTERPRISE}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 			else
 				docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 			fi
