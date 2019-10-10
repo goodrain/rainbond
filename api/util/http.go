@@ -20,12 +20,14 @@ package util
 
 import "net/http"
 
+// CloseResponse close response
 func CloseResponse(res *http.Response) {
 	if res != nil && res.Body != nil {
 		res.Body.Close()
 	}
 }
 
+// CloseRequest close request
 func CloseRequest(req *http.Request) {
 	if req != nil && req.Body != nil {
 		req.Body.Close()

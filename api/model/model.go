@@ -1445,6 +1445,8 @@ type BuildCodeInfo struct {
 	Runtime    string `json:"runtime"`
 	User       string `json:"user" validate:"user"`
 	Password   string `json:"password" validate:"password"`
+	//for .netcore source type, need cmd
+	Cmd string `json:"cmd"`
 }
 
 //BuildSlugInfo -

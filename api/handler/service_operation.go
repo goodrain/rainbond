@@ -77,6 +77,9 @@ func (o *OperationHandler) Build(buildInfo model.BuildInfoRequestStruct) (re Ope
 		Author:       buildInfo.Operator,
 		FinishTime:   time.Now(),
 	}
+	if buildInfo.CodeInfo.Cmd != "" {
+		version.Cmd = buildInfo.CodeInfo.Cmd
+	}
 	serviceID := buildInfo.ServiceID
 	err = db.GetManager().VersionInfoDao().AddModel(&version)
 	if err != nil {

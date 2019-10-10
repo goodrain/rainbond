@@ -64,6 +64,14 @@ import (
 func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
+	if err := handler.CheckTenantResource(tenant, service.Replicas*service.ContainerMemory); err != nil {
+		httputil.ReturnResNotEnough(r, w, err.Error())
+		return
+	}
+
 	sEvent := r.Context().Value(middleware.ContextKey("event")).(*dbmodel.ServiceEvent)
 	startStopStruct := &api_model.StartStopStruct{
 		TenantID:  tenantID,
@@ -156,6 +164,14 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 	if curStatus == "closed" {
 		startStopStruct.TaskType = "start"
 	}
+
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
+	if err := handler.CheckTenantResource(tenant, service.Replicas*service.ContainerMemory); err != nil {
+		httputil.ReturnResNotEnough(r, w, err.Error())
+		return
+	}
+
 	if err := handler.GetServiceManager().StartStopService(startStopStruct); err != nil {
 		httputil.ReturnError(r, w, 500, "get service info error.")
 		return
@@ -199,6 +215,14 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 	sEvent := r.Context().Value(middleware.ContextKey("event")).(*dbmodel.ServiceEvent)
 	cpu := int(data["container_cpu"].(float64))
 	mem := int(data["container_memory"].(float64))
+
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
+	if err := handler.CheckTenantResource(tenant, service.Replicas*mem); err != nil {
+		httputil.ReturnResNotEnough(r, w, err.Error())
+		return
+	}
+
 	verticalTask := &model.VerticalScalingTaskBody{
 		TenantID:        tenantID,
 		ServiceID:       serviceID,
@@ -246,6 +270,14 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	sEvent := r.Context().Value(middleware.ContextKey("event")).(*dbmodel.ServiceEvent)
 	replicas := int32(data["node_num"].(float64))
+
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
+	if err := handler.CheckTenantResource(tenant, service.ContainerMemory*int(replicas)); err != nil {
+		httputil.ReturnResNotEnough(r, w, err.Error())
+		return
+	}
+
 	horizontalTask := &model.HorizontalScalingTaskBody{
 		TenantID:  tenantID,
 		ServiceID: serviceID,
@@ -295,6 +327,14 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 400, "build service id is failure")
 		return
 	}
+
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
+	if err := handler.CheckTenantResource(tenant, service.Replicas*service.ContainerMemory); err != nil {
+		httputil.ReturnResNotEnough(r, w, err.Error())
+		return
+	}
+
 	re := handler.GetOperationHandler().Build(build)
 	if re.ErrMsg != "" {
 		httputil.ReturnError(r, w, 500, "build server error: "+re.ErrMsg)
@@ -478,6 +518,14 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 400, "upgrade service id failure")
 		return
 	}
+
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
+	if err := handler.CheckTenantResource(tenant, service.Replicas*service.ContainerMemory); err != nil {
+		httputil.ReturnResNotEnough(r, w, err.Error())
+		return
+	}
+
 	re := handler.GetOperationHandler().Upgrade(upgradeRequest)
 	httputil.ReturnSuccess(r, w, re)
 }
@@ -556,6 +604,13 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rollbackRequest.EventID = r.Context().Value(middleware.ContextKey("event_id")).(string)
+
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
+	if err := handler.CheckTenantResource(tenant, service.Replicas*service.ContainerMemory); err != nil {
+		httputil.ReturnResNotEnough(r, w, err.Error())
+		return
+	}
 
 	re := handler.GetOperationHandler().RollBack(rollbackRequest)
 	httputil.ReturnSuccess(r, w, re)

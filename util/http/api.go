@@ -165,3 +165,10 @@ func ReturnNoFomart(r *http.Request, w http.ResponseWriter, code int, reb interf
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, code))
 	render.DefaultResponder(w, r, reb)
 }
+
+//ReturnResNotEnough http return node resource not enough, http code = 412
+func ReturnResNotEnough(r *http.Request, w http.ResponseWriter, msg string) {
+	logrus.Debugf("resource not enough, msg: %s", msg)
+	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, 412))
+	render.DefaultResponder(w, r, ResponseBody{Msg: msg})
+}

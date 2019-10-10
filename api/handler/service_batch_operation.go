@@ -19,7 +19,9 @@
 package handler
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/db"
 	gclient "github.com/goodrain/rainbond/mq/client"
 )
 
@@ -50,11 +52,37 @@ func setStartupSequenceConfig(configs map[string]string) map[string]string {
 	return configs
 }
 
+func checkResourceEnough(serviceID string) error {
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if err != nil {
+		logrus.Errorf("get service by id error, %v", err)
+		return err
+	}
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(service.TenantID)
+	if err != nil {
+		logrus.Errorf("get tenant by id error: %v", err)
+		return err
+	}
+
+	return CheckTenantResource(tenant, service.ContainerMemory*service.Replicas)
+}
+
 //Build build
 func (b *BatchOperationHandler) Build(buildInfos []model.BuildInfoRequestStruct) (re BatchOperationResult) {
 	var retrys []model.BuildInfoRequestStruct
 
 	for _, buildInfo := range buildInfos {
+		if err := checkResourceEnough(buildInfo.ServiceID); err != nil {
+			re.BatchResult = append(re.BatchResult, OperationResult{
+				ServiceID:     buildInfo.ServiceID,
+				Operation:     "build",
+				EventID:       buildInfo.EventID,
+				Status:        "failure",
+				ErrMsg:        err.Error(),
+				DeployVersion: "",
+			})
+			continue
+		}
 		buildInfo.Configs = setStartupSequenceConfig(buildInfo.Configs)
 		buildre := b.operationHandler.Build(buildInfo)
 		if buildre.Status != "success" {
@@ -73,6 +101,17 @@ func (b *BatchOperationHandler) Build(buildInfos []model.BuildInfoRequestStruct)
 func (b *BatchOperationHandler) Start(startInfos []model.StartOrStopInfoRequestStruct) (re BatchOperationResult) {
 	var retrys []model.StartOrStopInfoRequestStruct
 	for _, startInfo := range startInfos {
+		if err := checkResourceEnough(startInfo.ServiceID); err != nil {
+			re.BatchResult = append(re.BatchResult, OperationResult{
+				ServiceID:     startInfo.ServiceID,
+				Operation:     "start",
+				EventID:       startInfo.EventID,
+				Status:        "failure",
+				ErrMsg:        err.Error(),
+				DeployVersion: "",
+			})
+			continue
+		}
 		startInfo.Configs = setStartupSequenceConfig(startInfo.Configs)
 		startre := b.operationHandler.Start(startInfo)
 		if startre.Status != "success" {
@@ -109,6 +148,17 @@ func (b *BatchOperationHandler) Stop(stopInfos []model.StartOrStopInfoRequestStr
 func (b *BatchOperationHandler) Upgrade(upgradeInfos []model.UpgradeInfoRequestStruct) (re BatchOperationResult) {
 	var retrys []model.UpgradeInfoRequestStruct
 	for _, upgradeInfo := range upgradeInfos {
+		if err := checkResourceEnough(upgradeInfo.ServiceID); err != nil {
+			re.BatchResult = append(re.BatchResult, OperationResult{
+				ServiceID:     upgradeInfo.ServiceID,
+				Operation:     "upgrade",
+				EventID:       upgradeInfo.EventID,
+				Status:        "failure",
+				ErrMsg:        err.Error(),
+				DeployVersion: "",
+			})
+			continue
+		}
 		upgradeInfo.Configs = setStartupSequenceConfig(upgradeInfo.Configs)
 		stopre := b.operationHandler.Upgrade(upgradeInfo)
 		if stopre.Status != "success" {
