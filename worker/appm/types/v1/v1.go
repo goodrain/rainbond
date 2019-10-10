@@ -143,6 +143,7 @@ func (a *AppService) SetDeployment(d *v1.Deployment) {
 	if v, ok := d.Spec.Template.Labels["version"]; ok && v != "" {
 		a.DeployVersion = v
 	}
+	a.Replicas = int(*d.Spec.Replicas)
 }
 
 //DeleteDeployment delete kubernetes deployment model
@@ -161,6 +162,7 @@ func (a *AppService) SetStatefulSet(d *v1.StatefulSet) {
 	if v, ok := d.Spec.Template.Labels["version"]; ok && v != "" {
 		a.DeployVersion = v
 	}
+	a.Replicas = int(*d.Spec.Replicas)
 }
 
 //SetReplicaSets set kubernetes replicaset
