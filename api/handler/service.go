@@ -603,6 +603,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				tx.Rollback()
 				return fmt.Errorf("find volume %s error %s", depVolume.VolumeName, err.Error())
 			}
+			depVolume.VolumeType = volume.VolumeType
 			depVolume.HostPath = volume.HostPath
 			if err := db.GetManager().TenantServiceMountRelationDaoTransactions(tx).AddModel(&depVolume); err != nil {
 				tx.Rollback()
