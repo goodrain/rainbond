@@ -29,7 +29,7 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-var enterprise string
+var enterprise = "false"
 
 // LicInfo license information
 type LicInfo struct {

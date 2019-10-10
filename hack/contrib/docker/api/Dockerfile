@@ -1,9 +1,10 @@
 FROM goodrainapps/alpine:3.4
-MAINTAINER zengqg@goodrain.com
+LABEL author=zengqg@goodrain.com
 
 ADD rainbond-api /run/rainbond-api
 ADD entrypoint.sh /run/entrypoint.sh
 ADD html /run/html
+ADD zoneinfo.zip /usr/local/go/lib/time/zoneinfo.zip
 WORKDIR /run
 ENV CUR_NET=midonet
 ENV EX_DOMAIN=
