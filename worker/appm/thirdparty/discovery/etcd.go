@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -30,7 +31,7 @@ import (
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 type etcd struct {
@@ -45,6 +46,7 @@ type etcd struct {
 
 	updateCh *channels.RingChannel
 	stopCh   chan struct{}
+	records  map[string]*v1.RbdEndpoint
 }
 
 // NewEtcd creates a new Discorvery which implemeted by etcd.
@@ -60,6 +62,7 @@ func NewEtcd(cfg *model.ThirdPartySvcDiscoveryCfg,
 		password:  cfg.Password,
 		updateCh:  updateCh,
 		stopCh:    stopCh,
+		records:   make(map[string]*v1.RbdEndpoint),
 	}
 }
 
@@ -150,6 +153,11 @@ func (e *etcd) Watch() { // todo: separate stop
 						UUID: strings.Replace(string(event.Kv.Key), e.key+"/", "", -1),
 						Sid:  e.sid,
 					}
+					ep, ok := e.records[string(event.Kv.Key)]
+					if ok {
+						obj.IP = ep.IP
+					}
+					delete(e.records, string(event.Kv.Key))
 					e.updateCh.In() <- Event{
 						Type: DeleteEvent,
 						Obj:  obj,
@@ -164,6 +172,24 @@ func (e *etcd) Watch() { // todo: separate stop
 					if err := json.Unmarshal(event.Kv.Value, &foo); err != nil {
 						logrus.Warningf("error getting endpoints from etcd: %v", err)
 						continue
+					}
+					endpointList, err := e.Fetch()
+					if err != nil {
+						logrus.Errorf("error fatch endpoints: %v", err)
+						continue
+					}
+					for _, ep := range endpointList {
+						e.records[string(event.Kv.Key)] = ep
+					}
+					for _, ep := range endpointList {
+						// validation.Validate
+						ip := net.ParseIP(ep.IP)
+						if ip == nil {
+							logrus.Debugf("etcd found domain endpoints: %s", ep.IP)
+							foo.IP = ep.IP
+							foo.Port = ep.Port
+							break
+						}
 					}
 					obj := &v1.RbdEndpoint{
 						UUID:     strings.Replace(string(event.Kv.Key), e.key+"/", "", -1),

@@ -208,7 +208,9 @@ func deleteSubset(as *v1.AppService, rbdep *v1.RbdEndpoint) {
 			if isDomain {
 				for _, service := range as.GetServices() {
 					if service.Annotations != nil {
-						delete(service.Annotations, "domain")
+						if rbdep.IP == service.Annotations["domain"] {
+							delete(service.Annotations, "domain")
+						}
 					}
 				}
 			}
@@ -396,7 +398,7 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 						}
 						ep.Subsets[idx] = createSubset(rbdep, ready)
 						f.UpgradeEndpoints(t.clientset, as, as.GetEndpoints(), []*corev1.Endpoints{ep}, func(msg string, err error) error {
-							logrus.Errorf("update endpoint[%+v] failure: %+v",ep, err)
+							logrus.Errorf("update endpoint[%+v] failure: %+v", ep, err)
 							return err
 						})
 					}
@@ -440,6 +442,7 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 			})
 	case discovery.DeleteEvent:
 		logrus.Debug(msg)
+		// rbdep.IP==
 		deleteSubset(as, rbdep)
 		for _, service := range as.GetServices() {
 			f.EnsureService(service, t.clientset)
