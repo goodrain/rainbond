@@ -108,12 +108,23 @@ func (e *etcd) Fetch() ([]*v1.RbdEndpoint, error) {
 		if err := json.Unmarshal(kv.Value, &ep); err != nil {
 			return nil, fmt.Errorf("error getting data from etcd: %v", err)
 		}
-		res = append(res, &v1.RbdEndpoint{
+		endpoint := &v1.RbdEndpoint{
 			UUID:     strings.Replace(string(kv.Key), e.key+"/", "", -1),
 			IP:       ep.IP,
 			Port:     ep.Port,
+			Sid:      e.sid,
 			IsOnline: true,
-		})
+		}
+		ip := net.ParseIP(ep.IP)
+		if ip == nil {
+			// domain endpoint
+			res = []*v1.RbdEndpoint{endpoint}
+			e.records = make(map[string]*v1.RbdEndpoint)
+			e.records[string(kv.Key)] = endpoint
+			break
+		}
+		res = append(res, endpoint)
+		e.records[string(kv.Key)] = endpoint
 	}
 	if resp.Header != nil {
 		e.version = resp.Header.GetRevision()
@@ -173,30 +184,29 @@ func (e *etcd) Watch() { // todo: separate stop
 						logrus.Warningf("error getting endpoints from etcd: %v", err)
 						continue
 					}
-					endpointList, err := e.Fetch()
-					if err != nil {
-						logrus.Errorf("error fatch endpoints: %v", err)
-						continue
-					}
-					for _, ep := range endpointList {
-						e.records[string(event.Kv.Key)] = ep
-					}
-					for _, ep := range endpointList {
-						// validation.Validate
-						ip := net.ParseIP(ep.IP)
-						if ip == nil {
-							logrus.Debugf("etcd found domain endpoints: %s", ep.IP)
-							foo.IP = ep.IP
-							foo.Port = ep.Port
-							break
-						}
-					}
 					obj := &v1.RbdEndpoint{
 						UUID:     strings.Replace(string(event.Kv.Key), e.key+"/", "", -1),
 						Sid:      e.sid,
 						IP:       foo.IP,
 						Port:     foo.Port,
 						IsOnline: true,
+					}
+					endpointList, err := e.Fetch()
+					if err != nil {
+						logrus.Errorf("error fatch endpoints: %v", err)
+						continue
+					}
+					for _, ep := range endpointList {
+						ip := net.ParseIP(ep.IP)
+						if ip == nil {
+							logrus.Debugf("etcd found domain endpoints: %s", ep.IP)
+							obj.IP = ep.IP
+							obj.Port = ep.Port
+							obj.UUID = ep.UUID
+							obj.Sid = ep.Sid
+							obj.IsOnline = ep.IsOnline
+							break
+						}
 					}
 					if event.IsCreate() {
 						e.updateCh.In() <- Event{

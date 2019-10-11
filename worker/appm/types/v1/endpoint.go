@@ -34,6 +34,7 @@ type RbdEndpoint struct {
 	Status   string `json:"status"`
 	IsOnline bool   `json:"is_online"`
 	Action   string `json:"action"`
+	//isDomain bool  `json:"is_domain"` TODO use is parameter specifiy endpoint is domain or ip, instead of checking domain every time
 }
 
 // Equal tests for equality between two RbdEndpoint types

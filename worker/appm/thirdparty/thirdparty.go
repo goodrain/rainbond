@@ -442,7 +442,6 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 			})
 	case discovery.DeleteEvent:
 		logrus.Debug(msg)
-		// rbdep.IP==
 		deleteSubset(as, rbdep)
 		for _, service := range as.GetServices() {
 			f.EnsureService(service, t.clientset)
