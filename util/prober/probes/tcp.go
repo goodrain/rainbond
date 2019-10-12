@@ -56,6 +56,7 @@ func (h *TCPProbe) TCPCheck() {
 func GetTCPHealth(address string) map[string]string {
 	conn, err := net.DialTimeout("tcp", address, 5*time.Second)
 	if err != nil {
+		logrus.Warningf("%s connection failure", address)
 		return map[string]string{"status": v1.StatDeath,
 			"info": fmt.Sprintf("Address: %s; Tcp connection error", address)}
 	}

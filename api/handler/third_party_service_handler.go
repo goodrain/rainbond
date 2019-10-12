@@ -28,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
+
 	"github.com/goodrain/rainbond/worker/client"
 )
 
@@ -59,6 +60,7 @@ func (t *ThirdPartyServiceHanlder) AddEndpoints(sid string, d *model.AddEndpiont
 		return err
 	}
 
+	logrus.Debugf("add new endpoint[address: %s, port: %d]", address, port)
 	t.statusCli.AddThirdPartyEndpoint(ep)
 	return nil
 }
@@ -86,18 +88,24 @@ func (t *ThirdPartyServiceHanlder) UpdEndpoints(d *model.UpdEndpiontsReq) error 
 }
 
 func convertAddressPort(s string) (address string, port int) {
-	addressport := strings.Split(s, ":")
-	// compatible with ipv6
-	addressSli := addressport[:func() int {
-		if len(addressport) == 2 {
-			return len(addressport) - 1
-		}
-		return len(addressport)
-	}()]
-	address = strings.Join(addressSli, ":")
-	if len(addressport) == 2 {
-		port, _ = strconv.Atoi(addressport[1])
+	prefix := ""
+	if strings.HasPrefix(s, "https://") {
+		s = strings.Split(s, "https://")[1]
+		prefix = "https://"
 	}
+	if strings.HasPrefix(s, "http://") {
+		s = strings.Split(s, "http://")[1]
+		prefix = "http://"
+	}
+
+	if strings.Contains(s, ":") {
+		sp := strings.Split(s, ":")
+		address = prefix + sp[0]
+		port, _ = strconv.Atoi(sp[1])
+	} else {
+		address = prefix + s
+	}
+
 	return address, port
 }
 

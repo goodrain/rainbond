@@ -108,23 +108,40 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 		listennerName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), ListenPort)
 		destService := ListennerConfig[listennerName]
 		statPrefix := fmt.Sprintf("%s_%s", serviceAlias, GetServiceAliasByService(service))
+
 		// Unique by listen port
 		if _, ok := portMap[ListenPort]; !ok {
 			//listener name depend listner port
 			listenerName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, ListenPort)
-			listenner := envoyv2.CreateTCPListener(listenerName, clusterName, envoyv2.DefaultLocalhostListenerAddress, statPrefix, uint32(ListenPort))
-			if listenner != nil {
-				ldsL = append(ldsL, listenner)
+			var listener *v2.Listener
+			protocol := service.Labels["port_protocol"]
+			if domain, ok := service.Annotations["domain"]; ok && domain != "" && (protocol == "https" || protocol == "http") {
+				route := envoyv2.CreateRouteWithHostRewrite(domain, clusterName, "/", nil, 0)
+				if route != nil {
+					pvh := envoyv2.CreateRouteVirtualHost(fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port), []string{"*"}, nil, *route)
+					if pvh != nil {
+						listener = envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port), envoyv2.DefaultLocalhostListenerAddress, fmt.Sprintf("%s_%d", serviceAlias, port), uint32(port), nil, *pvh)
+					} else {
+						logrus.Warnf("create route virtual host of domain listener %s failure", fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port))
+					}
+				}
+			} else {
+				listener = envoyv2.CreateTCPListener(listenerName, clusterName, envoyv2.DefaultLocalhostListenerAddress, statPrefix, uint32(ListenPort))
+			}
+			if listener != nil {
+				ldsL = append(ldsL, listener)
 			} else {
 				logrus.Warningf("create tcp listenner %s failure", listenerName)
 				continue
 			}
 			portMap[ListenPort] = len(ldsL) - 1
 		}
+
 		portProtocol, _ := service.Labels["port_protocol"]
 		if destService != nil && destService.Protocol != "" {
 			portProtocol = destService.Protocol
 		}
+
 		if portProtocol != "" {
 			//TODO: support more protocol
 			switch portProtocol {
@@ -152,7 +169,13 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 							headerMatchers = append(headerMatchers, headerMatcher)
 						}
 					}
-					route := envoyv2.CreateRoute(clusterName, options.Prefix, headerMatchers, options.Weight)
+					var route *route.Route
+					if domain, ok := service.Annotations["domain"]; ok && domain != "" {
+						route = envoyv2.CreateRouteWithHostRewrite(domain, clusterName, options.Prefix, headerMatchers, options.Weight)
+					} else {
+						route = envoyv2.CreateRoute(clusterName, options.Prefix, headerMatchers, options.Weight)
+					}
+
 					if route != nil {
 						pvh := envoyv2.CreateRouteVirtualHost(fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias,
 							GetServiceAliasByService(service), port), options.Domains, nil, *route)
@@ -167,6 +190,7 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 			}
 		}
 	}
+	logrus.Debugf("virtual host is : %v", newVHL)
 	// create common http listener
 	if len(newVHL) > 0 {
 		//remove 80 tcp listener is exist

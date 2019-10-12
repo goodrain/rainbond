@@ -337,6 +337,10 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 				logrus.Debugf("Key: %s; Index: %d; IP not found", fmt.Sprintf("%s/%s", ep.Namespace, ep.Name), idx)
 				continue
 			}
+			if ip == "8.8.8.8" {
+				ip = as.GetServices()[0].Annotations["domain"]
+				logrus.Debugf("domain address is : ", ip)
+			}
 			exists[subset.Ports[0].Name] = true
 			pbep := &pb.ThirdPartyEndpoint{
 				Uuid: subset.Ports[0].Name,

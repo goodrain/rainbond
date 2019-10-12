@@ -21,6 +21,8 @@ package prober
 import (
 	"context"
 	"fmt"
+	"net"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
@@ -219,6 +221,21 @@ func (t *tpProbe) GetProbeInfo(sid string) (*model.TenantServiceProbe, error) {
 }
 
 func (t *tpProbe) createServices(probeInfo *store.ProbeInfo) (*v1.Service, *model.TenantServiceProbe) {
+	if probeInfo.IP == "8.8.8.8" {
+		app := t.store.GetAppService(probeInfo.Sid)
+		if len(app.GetServices()) >= 1 {
+			appService := app.GetServices()[0]
+			if appService.Annotations != nil && appService.Annotations["domain"] != "" {
+				probeInfo.IP = appService.Annotations["domain"]
+				logrus.Debugf("domain address is : %s", probeInfo.IP)
+			}
+		}
+		if probeInfo.IP == "8.8.8.8" {
+			logrus.Warningf("serviceID: %s, is a domain thirdpart endpoint, but do not found domain info", probeInfo.Sid)
+			return nil, nil
+		}
+	}
+	logrus.Debugf("create probe[sid: %s, address: %s, port: %d]", probeInfo.Sid, probeInfo.IP, probeInfo.Port)
 	tsp, err := t.GetProbeInfo(probeInfo.Sid)
 	if err != nil {
 		logrus.Warningf("ServiceID: %s; Unexpected error occurred, ignore the creation of "+
@@ -233,10 +250,38 @@ func (t *tpProbe) createServices(probeInfo *store.ProbeInfo) (*v1.Service, *mode
 	service.Name = probeInfo.UUID
 	service.ServiceHealth.Port = int(probeInfo.Port)
 	service.ServiceHealth.Name = service.Name
-	service.ServiceHealth.Address = fmt.Sprintf("%s:%d", probeInfo.IP, probeInfo.Port)
+	address := fmt.Sprintf("%s:%d", probeInfo.IP, probeInfo.Port)
+	if service.ServiceHealth.Model == "tcp" {
+		address = parseTCPHostAddress(probeInfo.IP, probeInfo.Port)
+	}
+	service.ServiceHealth.Address = address
 	return service, tsp
 }
 
 func (t *tpProbe) createServiceNames(ep *corev1.Endpoints) string {
 	return ep.GetLabels()["uuid"]
+}
+
+func parseTCPHostAddress(address string, port int32) string {
+	logrus.Debugf("tcp probe address=%s, port=%d", address, port)
+	if strings.HasPrefix(address, "https://") {
+		address = strings.Split(address, "https://")[1]
+	}
+	if strings.HasPrefix(address, "http://") {
+		address = strings.Split(address, "http://")[1]
+	}
+	if strings.Contains(address, ":") {
+		address = strings.Split(address, ":")[0]
+	}
+
+	ns, err := net.LookupHost(address)
+	if err != nil || len(ns) == 0 {
+		return address
+	}
+
+	address = ns[0]
+
+	address = fmt.Sprintf("%s:%d", address, port)
+	logrus.Debugf("parse tcp probe address = %s", address)
+	return address
 }

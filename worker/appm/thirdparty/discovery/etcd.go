@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -30,7 +31,7 @@ import (
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 type etcd struct {
@@ -45,6 +46,7 @@ type etcd struct {
 
 	updateCh *channels.RingChannel
 	stopCh   chan struct{}
+	records  map[string]*v1.RbdEndpoint
 }
 
 // NewEtcd creates a new Discorvery which implemeted by etcd.
@@ -60,6 +62,7 @@ func NewEtcd(cfg *model.ThirdPartySvcDiscoveryCfg,
 		password:  cfg.Password,
 		updateCh:  updateCh,
 		stopCh:    stopCh,
+		records:   make(map[string]*v1.RbdEndpoint),
 	}
 }
 
@@ -105,12 +108,23 @@ func (e *etcd) Fetch() ([]*v1.RbdEndpoint, error) {
 		if err := json.Unmarshal(kv.Value, &ep); err != nil {
 			return nil, fmt.Errorf("error getting data from etcd: %v", err)
 		}
-		res = append(res, &v1.RbdEndpoint{
+		endpoint := &v1.RbdEndpoint{
 			UUID:     strings.Replace(string(kv.Key), e.key+"/", "", -1),
 			IP:       ep.IP,
 			Port:     ep.Port,
+			Sid:      e.sid,
 			IsOnline: true,
-		})
+		}
+		ip := net.ParseIP(ep.IP)
+		if ip == nil {
+			// domain endpoint
+			res = []*v1.RbdEndpoint{endpoint}
+			e.records = make(map[string]*v1.RbdEndpoint)
+			e.records[string(kv.Key)] = endpoint
+			break
+		}
+		res = append(res, endpoint)
+		e.records[string(kv.Key)] = endpoint
 	}
 	if resp.Header != nil {
 		e.version = resp.Header.GetRevision()
@@ -150,6 +164,11 @@ func (e *etcd) Watch() { // todo: separate stop
 						UUID: strings.Replace(string(event.Kv.Key), e.key+"/", "", -1),
 						Sid:  e.sid,
 					}
+					ep, ok := e.records[string(event.Kv.Key)]
+					if ok {
+						obj.IP = ep.IP
+					}
+					delete(e.records, string(event.Kv.Key))
 					e.updateCh.In() <- Event{
 						Type: DeleteEvent,
 						Obj:  obj,
@@ -171,6 +190,23 @@ func (e *etcd) Watch() { // todo: separate stop
 						IP:       foo.IP,
 						Port:     foo.Port,
 						IsOnline: true,
+					}
+					endpointList, err := e.Fetch()
+					if err != nil {
+						logrus.Errorf("error fatch endpoints: %v", err)
+						continue
+					}
+					for _, ep := range endpointList {
+						ip := net.ParseIP(ep.IP)
+						if ip == nil {
+							logrus.Debugf("etcd found domain endpoints: %s", ep.IP)
+							obj.IP = ep.IP
+							obj.Port = ep.Port
+							obj.UUID = ep.UUID
+							obj.Sid = ep.Sid
+							obj.IsOnline = ep.IsOnline
+							break
+						}
 					}
 					if event.IsCreate() {
 						e.updateCh.In() <- Event{

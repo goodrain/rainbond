@@ -5,11 +5,10 @@
 package dao
 
 import (
-	reflect "reflect"
-	time "time"
-
 	gomock "github.com/golang/mock/gomock"
 	model "github.com/goodrain/rainbond/db/model"
+	reflect "reflect"
+	time "time"
 )
 
 // MockDao is a mock of Dao interface

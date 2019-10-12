@@ -34,6 +34,10 @@ import (
 //OneNodeClusterLoadAssignment one envoy node endpoints
 func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*corev1.Endpoints, services []*corev1.Service) (clusterLoadAssignment []cache.Resource) {
 	for i := range services {
+		if domain, ok := services[i].Annotations["domain"]; ok && domain != "" {
+			logrus.Warnf("service[sid: %s] endpoint id domain endpoint[domain: %s], use dns cluster type, do not create eds", services[i].GetUID(), domain)
+			return
+		}
 		service := services[i]
 		destServiceAlias := GetServiceAliasByService(service)
 		if destServiceAlias == "" {
@@ -46,9 +50,11 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 			name = fmt.Sprintf("%sServiceOUT", destServiceAlias)
 		}
 		selectEndpoint := getEndpointsByLables(endpoints, map[string]string{"name": name})
-		var lendpoints []endpoint.LocalityLbEndpoints
-		for _, en := range selectEndpoint {
-			for _, subset := range en.Subsets {
+		var lendpoints []endpoint.LocalityLbEndpoints // localityLbEndpoints just support only one content
+		if len(selectEndpoint) > 0 {
+			en := selectEndpoint[0]
+			if len(en.Subsets) > 0 {
+				subset := en.Subsets[0]
 				if len(subset.Ports) < 1 {
 					continue
 				}
@@ -81,9 +87,10 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 						PortValue: uint32(toport),
 					}
 				}
-				var lbe []endpoint.LbEndpoint
-				for _, address := range addressList {
-					envoyAddress := envoyv2.CreateSocketAddress(protocol, address.IP, uint32(toport))
+				var lbe []endpoint.LbEndpoint // just support one content
+				if len(addressList) > 0 {
+					envoyAddress := envoyv2.CreateSocketAddress(protocol, addressList[0].IP, uint32(toport))
+
 					lbe = append(lbe, endpoint.LbEndpoint{
 						HostIdentifier: &endpoint.LbEndpoint_Endpoint{
 							Endpoint: &endpoint.Endpoint{
@@ -96,6 +103,7 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 				lendpoints = append(lendpoints, endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
 			}
 		}
+
 		cla := &v2.ClusterLoadAssignment{
 			ClusterName: clusterName,
 			Endpoints:   lendpoints,
