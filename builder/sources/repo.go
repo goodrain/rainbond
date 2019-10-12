@@ -24,9 +24,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-
 	"github.com/goodrain/rainbond/util"
-
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 )
 
