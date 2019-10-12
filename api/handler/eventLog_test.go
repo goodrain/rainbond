@@ -20,12 +20,13 @@ package handler
 
 import (
 	"fmt"
-	api_db "github.com/goodrain/rainbond/api/db"
-	api_model "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/cmd/api/option"
 	"os/exec"
 	"testing"
 	"time"
+
+	api_db "github.com/goodrain/rainbond/api/db"
+	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/cmd/api/option"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -42,6 +43,15 @@ func TestEmessage(t *testing.T) {
 	}
 	getLevelLog("dd09a25eb9744afa9b3ad5f5541013e7", "info")
 	fmt.Printf("end.\n")
+}
+
+func TestGetLevelLog(t *testing.T) {
+	l := CreateLogManager([]string{"http://192.168.2.172:2379"})
+	messageList, err := l.eventdb.GetMessages("df07f2b579364cf791137d33aceb89be", "debug")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(messageList)
 }
 
 func getLevelLog(eventID string, level string) (*api_model.DataLog, error) {
