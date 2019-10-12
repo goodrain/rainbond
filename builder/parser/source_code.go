@@ -358,6 +358,12 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		}
 		//handle profile port
 		for _, port := range rbdfileConfig.Ports {
+			if port.Port == 0 {
+				continue
+			}
+			if port.Protocol == "" {
+				port.Protocol = GetPortProtocol(port.Port)
+			}
 			d.ports[port.Port] = &types.Port{ContainerPort: port.Port, Protocol: port.Protocol}
 		}
 		if rbdfileConfig.Cmd != "" {
