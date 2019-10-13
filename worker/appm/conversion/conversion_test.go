@@ -19,12 +19,12 @@
 package conversion
 
 import (
+	gomock "github.com/golang/mock/gomock"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
-	"github.com/rafrombrc/gomock/gomock"
 	"testing"
 )
 

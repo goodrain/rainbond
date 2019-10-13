@@ -118,6 +118,7 @@ type TenantPluginDao interface {
 	GetPluginByID(pluginID, tenantID string) (*model.TenantPlugin, error)
 	DeletePluginByID(pluginID, tenantID string) error
 	GetPluginsByTenantID(tenantID string) ([]*model.TenantPlugin, error)
+	ListByIDs(ids []string) ([]*model.TenantPlugin, error)
 }
 
 //TenantPluginDefaultENVDao TenantPluginDefaultENVDao
@@ -142,6 +143,7 @@ type TenantPluginBuildVersionDao interface {
 	GetBuildVersionByVersionID(pluginID, versionID string) (*model.TenantPluginBuildVersion, error)
 	GetLastBuildVersionByVersionID(pluginID, versionID string) (*model.TenantPluginBuildVersion, error)
 	GetBuildVersionByDeployVersion(pluginID, versionID, deployVersion string) (*model.TenantPluginBuildVersion, error)
+	ListSuccessfulOnesByPluginIDs(pluginIDs []string) ([]*model.TenantPluginBuildVersion, error)
 }
 
 //TenantPluginVersionEnvDao TenantPluginVersionEnvDao
@@ -151,6 +153,7 @@ type TenantPluginVersionEnvDao interface {
 	DeleteEnvByPluginID(serviceID, pluginID string) error
 	DeleteEnvByServiceID(serviceID string) error
 	GetVersionEnvByServiceID(serviceID string, pluginID string) ([]*model.TenantPluginVersionEnv, error)
+	ListByServiceID(serviceID string) ([]*model.TenantPluginVersionEnv, error)
 	GetVersionEnvByEnvName(serviceID, pluginID, envName string) (*model.TenantPluginVersionEnv, error)
 }
 
@@ -207,6 +210,7 @@ type TenantServicesStreamPluginPortDao interface {
 		pluginModel string,
 		containerPort int,
 	) (*model.TenantServicesStreamPluginPort, error)
+	ListByServiceID(sid string) ([]*model.TenantServicesStreamPluginPort, error)
 }
 
 //TenantServiceEnvVarDao TenantServiceEnvVarDao

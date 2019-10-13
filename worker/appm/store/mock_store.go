@@ -7,7 +7,8 @@ package store
 import (
 	gomock "github.com/golang/mock/gomock"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
-	v10 "k8s.io/client-go/listers/core/v1"
+	v10 "k8s.io/api/core/v1"
+	v11 "k8s.io/client-go/listers/core/v1"
 	reflect "reflect"
 )
 
@@ -199,10 +200,10 @@ func (mr *MockStorerMockRecorder) OnDelete(obj interface{}) *gomock.Call {
 }
 
 // GetPodLister mocks base method
-func (m *MockStorer) GetPodLister() v10.PodLister {
+func (m *MockStorer) GetPodLister() v11.PodLister {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPodLister")
-	ret0, _ := ret[0].(v10.PodLister)
+	ret0, _ := ret[0].(v11.PodLister)
 	return ret0
 }
 
@@ -210,4 +211,28 @@ func (m *MockStorer) GetPodLister() v10.PodLister {
 func (mr *MockStorerMockRecorder) GetPodLister() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPodLister", reflect.TypeOf((*MockStorer)(nil).GetPodLister))
+}
+
+// RegistPodUpdateListener mocks base method
+func (m *MockStorer) RegistPodUpdateListener(arg0 string, arg1 chan<- *v10.Pod) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "RegistPodUpdateListener", arg0, arg1)
+}
+
+// RegistPodUpdateListener indicates an expected call of RegistPodUpdateListener
+func (mr *MockStorerMockRecorder) RegistPodUpdateListener(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegistPodUpdateListener", reflect.TypeOf((*MockStorer)(nil).RegistPodUpdateListener), arg0, arg1)
+}
+
+// UnRegistPodUpdateListener mocks base method
+func (m *MockStorer) UnRegistPodUpdateListener(arg0 string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "UnRegistPodUpdateListener", arg0)
+}
+
+// UnRegistPodUpdateListener indicates an expected call of UnRegistPodUpdateListener
+func (mr *MockStorerMockRecorder) UnRegistPodUpdateListener(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnRegistPodUpdateListener", reflect.TypeOf((*MockStorer)(nil).UnRegistPodUpdateListener), arg0)
 }

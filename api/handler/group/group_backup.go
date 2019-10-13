@@ -180,6 +180,13 @@ func (h *BackupHandle) GetBackupByGroupID(groupID string) ([]*dbmodel.AppBackup,
 	return backups, nil
 }
 
+// AppSnapshot holds a snapshot of your app
+type AppSnapshot struct {
+	Services            []*RegionServiceSnapshot
+	Plugins             []*dbmodel.TenantPlugin
+	PluginBuildVersions []*dbmodel.TenantPluginBuildVersion
+}
+
 //RegionServiceSnapshot RegionServiceSnapshot
 type RegionServiceSnapshot struct {
 	ServiceID          string
@@ -189,18 +196,22 @@ type RegionServiceSnapshot struct {
 	ServiceEnv         []*dbmodel.TenantServiceEnvVar
 	ServiceLabel       []*dbmodel.TenantServiceLable
 	ServiceMntRelation []*dbmodel.TenantServiceMountRelation
-	PluginRelation     []*dbmodel.TenantServicePluginRelation
 	ServiceRelation    []*dbmodel.TenantServiceRelation
 	ServiceStatus      string
 	ServiceVolume      []*dbmodel.TenantServiceVolume
 	ServicePort        []*dbmodel.TenantServicesPort
 	Versions           []*dbmodel.VersionInfo
-	PluginConfigs      []*dbmodel.TenantPluginVersionDiscoverConfig
+
+	PluginRelation    []*dbmodel.TenantServicePluginRelation
+	PluginConfigs     []*dbmodel.TenantPluginVersionDiscoverConfig
+	PluginEnvs        []*dbmodel.TenantPluginVersionEnv
+	PluginStreamPorts []*dbmodel.TenantServicesStreamPluginPort
 }
 
 //snapshot
 func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
-	var datas []RegionServiceSnapshot
+	var pluginIDs []string
+	var services []*RegionServiceSnapshot
 	for _, id := range ids {
 		service, err := db.GetManager().TenantServiceDao().GetServiceByID(id)
 		if err != nil {
@@ -210,7 +221,7 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
 			//TODO: support thirdpart service backup and restore
 			continue
 		}
-		var data = RegionServiceSnapshot{
+		data := &RegionServiceSnapshot{
 			ServiceID: id,
 		}
 		status := h.statusCli.GetStatus(id)
@@ -248,11 +259,6 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
 			return fmt.Errorf("Get service(%s) mnt relations error %s", id, err)
 		}
 		data.ServiceMntRelation = serviceMntRelations
-		servicePlugins, err := db.GetManager().TenantServicePluginRelationDao().GetALLRelationByServiceID(id)
-		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
-			return fmt.Errorf("Get service(%s) plugins error %s", id, err)
-		}
-		data.PluginRelation = servicePlugins
 		serviceRelations, err := db.GetManager().TenantServiceRelationDao().GetTenantServiceRelations(id)
 		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 			return fmt.Errorf("Get service(%s) relations error %s", id, err)
@@ -273,14 +279,53 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
 			return fmt.Errorf("Get service(%s) build versions error %s", id, err)
 		}
 		data.Versions = []*dbmodel.VersionInfo{version}
+
+		pluginReations, err := db.GetManager().TenantServicePluginRelationDao().GetALLRelationByServiceID(id)
+		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+			return fmt.Errorf("Get service(%s) plugins error %s", id, err)
+		}
+		data.PluginRelation = pluginReations
+		for _, pr := range pluginReations {
+			pluginIDs = append(pluginIDs, pr.PluginID)
+		}
 		pluginConfigs, err := db.GetManager().TenantPluginVersionConfigDao().GetPluginConfigs(id)
 		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 			return fmt.Errorf("Get service(%s) plugin configs error %s", id, err)
 		}
 		data.PluginConfigs = pluginConfigs
-		datas = append(datas, data)
+		pluginEnvs, err := db.GetManager().TenantPluginVersionENVDao().ListByServiceID(id)
+		if err != nil {
+			return fmt.Errorf("service id: %s; failed to list plugin envs: %v", id, err)
+		}
+		data.PluginEnvs = pluginEnvs
+		pluginStreamPorts, err := db.GetManager().TenantServicesStreamPluginPortDao().ListByServiceID(id)
+		if err != nil {
+			return fmt.Errorf("service id: %s; failed to list stream plugin ports: %v", id, err)
+		}
+		data.PluginStreamPorts = pluginStreamPorts
+
+		services = append(services, data)
 	}
-	body, err := ffjson.Marshal(datas)
+	logrus.Debug("service information ok.")
+
+	appSnapshot := &AppSnapshot{
+		Services: services,
+	}
+	// plugin
+	plugins, err := db.GetManager().TenantPluginDao().ListByIDs(pluginIDs)
+	if err != nil {
+		return fmt.Errorf("failed to list plugins: %v", err)
+	}
+	appSnapshot.Plugins = plugins
+	logrus.Debug("plugins ok.")
+	pluginVersions, err := db.GetManager().TenantPluginBuildVersionDao().ListSuccessfulOnesByPluginIDs(pluginIDs)
+	if err != nil {
+		return fmt.Errorf("failed to list successful plugin build versions: %v", err)
+	}
+	appSnapshot.PluginBuildVersions = pluginVersions
+	logrus.Debug("plugin versions ok.")
+
+	body, err := ffjson.Marshal(appSnapshot)
 	if err != nil {
 		return err
 	}

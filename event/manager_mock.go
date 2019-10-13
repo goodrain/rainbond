@@ -253,7 +253,7 @@ func (mr *MockLoggerWriterMockRecorder) Write(p interface{}) *gomock.Call {
 }
 
 // SetFormat mocks base method
-func (m *MockLoggerWriter) SetFormat(arg0 string) {
+func (m *MockLoggerWriter) SetFormat(arg0 map[string]interface{}) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetFormat", arg0)
 }

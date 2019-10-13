@@ -98,17 +98,17 @@ type RegionServiceSnapshot struct {
 	ServiceID          string
 	Service            *dbmodel.TenantServices
 	ServiceProbe       []*dbmodel.TenantServiceProbe
-	LBMappingPort      []*dbmodel.TenantServiceLBMappingPort
 	ServiceEnv         []*dbmodel.TenantServiceEnvVar
 	ServiceLabel       []*dbmodel.TenantServiceLable
 	ServiceMntRelation []*dbmodel.TenantServiceMountRelation
-	PluginRelation     []*dbmodel.TenantServicePluginRelation
 	ServiceRelation    []*dbmodel.TenantServiceRelation
-	PluginConfigs      []*dbmodel.TenantPluginVersionDiscoverConfig
 	ServiceStatus      string
 	ServiceVolume      []*dbmodel.TenantServiceVolume
 	ServicePort        []*dbmodel.TenantServicesPort
 	Versions           []*dbmodel.VersionInfo
+
+	PluginRelation []*dbmodel.TenantServicePluginRelation
+	PluginConfigs  []*dbmodel.TenantPluginVersionDiscoverConfig
 }
 
 //Run Run

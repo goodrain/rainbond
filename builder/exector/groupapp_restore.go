@@ -142,8 +142,9 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 		return err
 	}
 	b.Logger.Info("恢复备份元数据完成", map[string]string{"step": "restore_builder", "status": "success"})
+
 	//If the following error occurs, delete the data from the database
-	//restore all app all builde version and data
+	//restore all app all build version and data
 	if err := b.restoreVersionAndData(backup, appSnapshots); err != nil {
 		return err
 	}
@@ -170,67 +171,73 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 			}
 		}
 		b.Logger.Info(fmt.Sprintf("完成恢复应用(%s)运行环境", app.Service.ServiceAlias), map[string]string{"step": "restore_builder", "status": "success"})
+
 		b.Logger.Info(fmt.Sprintf("开始恢复应用(%s)持久化数据", app.Service.ServiceAlias), map[string]string{"step": "restore_builder", "status": "starting"})
 		//restore app data
 		for _, volume := range app.ServiceVolume {
-			if volume.HostPath != "" {
-				dstDir := fmt.Sprintf("%s/data_%s/%s.zip", b.cacheDir, b.getOldServiceID(app.ServiceID), strings.Replace(volume.VolumeName, "/", "", -1))
-				tmpDir := fmt.Sprintf("/grdata/tmp/%s_%d", volume.ServiceID, volume.ID)
-				if err := util.Unzip(dstDir, tmpDir); err != nil {
-					if !strings.Contains(err.Error(), "no such file") {
-						logrus.Errorf("restore service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
-						return err
-					}
-					//backup data is not exist because dir is empty.
-					//so create host path and continue
-					os.MkdirAll(volume.HostPath, 0777)
-					continue
-				}
-				//if app type is statefulset, change pod hostpath
-				if GetServiceType(app.ServiceLabel) == util.StatefulServiceType {
-					//Next two level directory
-					list, err := util.GetDirList(tmpDir, 2)
-					if err != nil {
-						logrus.Errorf("restore statefulset service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
-						return err
-					}
-					for _, path := range list {
-						newNameTmp := strings.Split(filepath.Base(path), "-")
-						newNameTmp[0] = b.serviceChange[b.getOldServiceID(app.ServiceID)].ServiceAlias
-						newName := strings.Join(newNameTmp, "-")
-						newpath := filepath.Join(util.GetParentDirectory(path), newName)
-						err := util.Rename(path, newpath)
-						if err != nil {
-							if strings.Contains(err.Error(), "file exists") {
-								if err := util.MergeDir(path, newpath); err != nil {
-									return err
-								}
-							} else {
-								return err
-							}
-						}
-						if err := os.Chmod(newpath, 0777); err != nil {
-							return err
-						}
-					}
-				}
-				err := util.Rename(tmpDir, util.GetParentDirectory(volume.HostPath))
-				if err != nil {
-					if strings.Contains(err.Error(), "file exists") {
-						if err := util.MergeDir(tmpDir, util.GetParentDirectory(volume.HostPath)); err != nil {
-							return err
-						}
-					} else {
-						return err
-					}
-				}
-				if err := os.Chmod(volume.HostPath, 0777); err != nil {
+			if volume.HostPath == "" {
+				continue
+			}
+
+			dstDir := fmt.Sprintf("%s/data_%s/%s.zip", b.cacheDir, b.getOldServiceID(app.ServiceID), strings.Replace(volume.VolumeName, "/", "", -1))
+			tmpDir := fmt.Sprintf("/grdata/tmp/%s_%d", volume.ServiceID, volume.ID)
+			if err := util.Unzip(dstDir, tmpDir); err != nil {
+				if !strings.Contains(err.Error(), "no such file") {
+					logrus.Errorf("restore service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
 					return err
 				}
+				//backup data is not exist because dir is empty.
+				//so create host path and continue
+				os.MkdirAll(volume.HostPath, 0777)
+				continue
+			}
+			//if app type is statefulset, change pod hostpath
+			if GetServiceType(app.ServiceLabel) == util.StatefulServiceType {
+				//Next two level directory
+				list, err := util.GetDirList(tmpDir, 2)
+				if err != nil {
+					logrus.Errorf("restore statefulset service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
+					return err
+				}
+				for _, path := range list {
+					newNameTmp := strings.Split(filepath.Base(path), "-")
+					newNameTmp[0] = b.serviceChange[b.getOldServiceID(app.ServiceID)].ServiceAlias
+					newName := strings.Join(newNameTmp, "-")
+					newpath := filepath.Join(util.GetParentDirectory(path), newName)
+					err := util.Rename(path, newpath)
+					if err != nil {
+						if strings.Contains(err.Error(), "file exists") {
+							if err := util.MergeDir(path, newpath); err != nil {
+								return err
+							}
+						} else {
+							return err
+						}
+					}
+					if err := os.Chmod(newpath, 0777); err != nil {
+						return err
+					}
+				}
+			}
+			err := util.Rename(tmpDir, util.GetParentDirectory(volume.HostPath))
+			if err != nil {
+				if strings.Contains(err.Error(), "file exists") {
+					if err := util.MergeDir(tmpDir, util.GetParentDirectory(volume.HostPath)); err != nil {
+						return err
+					}
+				} else {
+					return err
+				}
+			}
+			if err := os.Chmod(volume.HostPath, 0777); err != nil {
+				return err
 			}
 		}
 		b.Logger.Info(fmt.Sprintf("完成恢复应用(%s)持久化数据", app.Service.ServiceAlias), map[string]string{"step": "restore_builder", "status": "success"})
 		//TODO:relation relation volume data?
+
+		// plugin
+		b.Logger.Info(fmt.Sprintf("开始恢复插件"), map[string]string{"step": "restore_builder", "status": "starting"})
 	}
 	return nil
 }
@@ -345,9 +352,6 @@ func (b *BackupAPPRestore) modify(appSnapshots []*RegionServiceSnapshot) error {
 		for _, a := range app.ServiceProbe {
 			a.ServiceID = newServiceID
 		}
-		for _, a := range app.LBMappingPort {
-			a.ServiceID = newServiceID
-		}
 		for _, a := range app.ServiceEnv {
 			a.ServiceID = newServiceID
 		}
@@ -416,31 +420,6 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshots []*RegionServiceSnapshot
 				return fmt.Errorf("create app probe when restore backup error. %s", err.Error())
 			}
 		}
-		for _, a := range app.LBMappingPort {
-			a.ID = 0
-			if err := db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).AddModel(a); err != nil {
-				if strings.Contains(err.Error(), "is exist ") {
-					//modify the lb port
-					maport, err := db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).CreateTenantServiceLBMappingPort(a.ServiceID, a.ContainerPort)
-					if err != nil {
-						tx.Rollback()
-						return fmt.Errorf("create new app lb port when restore backup error. %s", err.Error())
-					}
-					info := b.serviceChange[b.getOldServiceID(app.ServiceID)]
-					if info == nil {
-						continue
-					}
-					if info.LBPorts == nil {
-						info.LBPorts = map[int]int{maport.ContainerPort: maport.Port}
-					} else {
-						info.LBPorts[maport.ContainerPort] = maport.Port
-					}
-				} else {
-					tx.Rollback()
-					return fmt.Errorf("create app probe when restore backup error. %s", err.Error())
-				}
-			}
-		}
 		for _, a := range app.ServiceEnv {
 			a.ID = 0
 			if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).AddModel(a); err != nil {
@@ -462,14 +441,6 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshots []*RegionServiceSnapshot
 				return fmt.Errorf("create app mount relation when restore backup error. %s", err.Error())
 			}
 		}
-		//TODO: support service plugin backup and restore
-		// for _, a := range app.PluginRelation {
-		// 	a.ID = 0
-		// 	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).AddModel(a); err != nil {
-		// 		tx.Rollback()
-		// 		return fmt.Errorf("create app plugin when restore backup error. %s", err.Error())
-		// 	}
-		// }
 		for _, a := range app.ServiceRelation {
 			a.ID = 0
 			if err := db.GetManager().TenantServiceRelationDaoTransactions(tx).AddModel(a); err != nil {
@@ -505,6 +476,14 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshots []*RegionServiceSnapshot
 			if err := db.GetManager().VersionInfoDaoTransactions(tx).AddModel(a); err != nil {
 				tx.Rollback()
 				return fmt.Errorf("create app versions when restore backup error. %s", err.Error())
+			}
+		}
+		//TODO: support service plugin backup and restore
+		for _, a := range app.PluginRelation {
+			a.ID = 0
+			if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).AddModel(a); err != nil {
+				tx.Rollback()
+				return fmt.Errorf("create app plugin when restore backup error. %s", err.Error())
 			}
 		}
 	}
