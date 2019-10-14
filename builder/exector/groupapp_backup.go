@@ -41,6 +41,13 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+const (
+	// OldMetadata identify older versions of metadata
+	OldMetadata = "OldMetadata"
+	// NewMetadata identify new version of metadata
+	NewMetadata = "NewMetadata"
+)
+
 //maxBackupVersionSize Maximum number of backup versions per service
 var maxBackupVersionSize = 3
 
@@ -93,11 +100,19 @@ func BackupAPPNewCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	return backupNew, nil
 }
 
+// AppSnapshot holds a snapshot of your app
+type AppSnapshot struct {
+	Services            []*RegionServiceSnapshot
+	Plugins             []*dbmodel.TenantPlugin
+	PluginBuildVersions []*dbmodel.TenantPluginBuildVersion
+}
+
 //RegionServiceSnapshot RegionServiceSnapshot
 type RegionServiceSnapshot struct {
 	ServiceID          string
 	Service            *dbmodel.TenantServices
 	ServiceProbe       []*dbmodel.TenantServiceProbe
+	LBMappingPort      []*dbmodel.TenantServiceLBMappingPort
 	ServiceEnv         []*dbmodel.TenantServiceEnvVar
 	ServiceLabel       []*dbmodel.TenantServiceLable
 	ServiceMntRelation []*dbmodel.TenantServiceMountRelation
@@ -107,8 +122,10 @@ type RegionServiceSnapshot struct {
 	ServicePort        []*dbmodel.TenantServicesPort
 	Versions           []*dbmodel.VersionInfo
 
-	PluginRelation []*dbmodel.TenantServicePluginRelation
-	PluginConfigs  []*dbmodel.TenantPluginVersionDiscoverConfig
+	PluginRelation    []*dbmodel.TenantServicePluginRelation
+	PluginConfigs     []*dbmodel.TenantPluginVersionDiscoverConfig
+	PluginEnvs        []*dbmodel.TenantPluginVersionEnv
+	PluginStreamPorts []*dbmodel.TenantServicesStreamPluginPort
 }
 
 //Run Run
@@ -118,11 +135,91 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 	if err != nil {
 		return err
 	}
-	var appSnapshots []*RegionServiceSnapshot
-	if err := ffjson.Unmarshal(metadata, &appSnapshots); err != nil {
+
+	metaVersion, err := b.judgeMetadataVersion(metadata)
+	if err != nil {
+		b.Logger.Info(fmt.Sprintf("Failed to judge the version of metadata"), map[string]string{"step": "backup_builder", "status": "failure"})
 		return err
 	}
-	for _, app := range appSnapshots {
+	if metaVersion == OldMetadata {
+		var svcSnapshot []*RegionServiceSnapshot
+		if err := ffjson.Unmarshal(metadata, &svcSnapshot); err != nil {
+			b.Logger.Info(fmt.Sprintf("Failed to unmarshal metadata into RegionServiceSnapshot"), map[string]string{"step": "backup_builder", "status": "failure"})
+			return err
+		}
+		if err := b.backupServiceInfo(svcSnapshot); err != nil {
+			b.Logger.Info(fmt.Sprintf("Failed to backup metadata service info"), map[string]string{"step": "backup_builder", "status": "failure"})
+			return err
+		}
+	} else {
+		var appSnapshot AppSnapshot
+		if err := ffjson.Unmarshal(metadata, &appSnapshot); err != nil {
+			b.Logger.Info(fmt.Sprintf("Failed to unmarshal metadata into AppSnapshot"), map[string]string{"step": "backup_builder", "status": "failure"})
+			return err
+		}
+		if err := b.backupServiceInfo(appSnapshot.Services); err != nil {
+			b.Logger.Info(fmt.Sprintf("Failed to backup metadata service info"), map[string]string{"step": "backup_builder", "status": "failure"})
+			return err
+		}
+		if err := b.backupPluginInfo(&appSnapshot); err != nil {
+			b.Logger.Info(fmt.Sprintf("Failed to backup metadata plugin info"), map[string]string{"step": "backup_builder", "status": "failure"})
+			return err
+		}
+	}
+
+	if strings.HasSuffix(b.SourceDir, "/") {
+		b.SourceDir = b.SourceDir[:len(b.SourceDir)-2]
+	}
+	if err := util.Zip(b.SourceDir, fmt.Sprintf("%s.zip", b.SourceDir)); err != nil {
+		b.Logger.Info(fmt.Sprintf("Compressed backup metadata failed"), map[string]string{"step": "backup_builder", "status": "starting"})
+		return err
+	}
+	b.BackupSize += util.GetFileSize(fmt.Sprintf("%s.zip", b.SourceDir))
+	os.RemoveAll(b.SourceDir)
+	b.SourceDir = fmt.Sprintf("%s.zip", b.SourceDir)
+	//upload app backup data to online server(sftp) if mode is full-online
+	if b.Mode == "full-online" && b.SlugInfo.FTPHost != "" && b.SlugInfo.FTPPort != "" {
+		b.Logger.Info(fmt.Sprintf("Start uploading backup metadata to the cloud"), map[string]string{"step": "backup_builder", "status": "starting"})
+		sFTPClient, err := sources.NewSFTPClient(b.SlugInfo.FTPUser, b.SlugInfo.FTPPassword, b.SlugInfo.FTPHost, b.SlugInfo.FTPPort)
+		if err != nil {
+			b.Logger.Error(util.Translation("create ftp client error"), map[string]string{"step": "backup_builder", "status": "failure"})
+			return err
+		}
+		defer sFTPClient.Close()
+		dstDir := fmt.Sprintf("%s/backup/%s_%s/metadata_data.zip", b.SlugInfo.Namespace, b.GroupID, b.Version)
+		if err := sFTPClient.PushFile(b.SourceDir, dstDir, b.Logger); err != nil {
+			b.Logger.Error(util.Translation("push slug file to sftp server error"), map[string]string{"step": "backup_builder", "status": "failure"})
+			logrus.Errorf("push  slug file error when backup app , %s", err.Error())
+			return err
+		}
+		//Statistical backup size
+		os.Remove(b.SourceDir)
+		b.SourceDir = dstDir
+		b.SourceType = "sftp"
+	}
+	if err := b.updateBackupStatu("success"); err != nil {
+		return err
+	}
+	return nil
+}
+
+// judging whether the metadata structure is old or new, the new version is v5.1.8 and later
+func (b *BackupAPPNew) judgeMetadataVersion(metadata []byte) (string, error) {
+	var appSnapshot AppSnapshot
+	if err := ffjson.Unmarshal(metadata, &appSnapshot); err == nil {
+		return NewMetadata, nil
+	}
+
+	var svcSnapshot []*RegionServiceSnapshot
+	if err := ffjson.Unmarshal(metadata, &svcSnapshot); err == nil {
+		return "", err
+	}
+
+	return OldMetadata, nil
+}
+
+func (b *BackupAPPNew) backupServiceInfo(serviceInfos []*RegionServiceSnapshot) error {
+	for _, app := range serviceInfos {
 		//backup app image or code slug file
 		b.Logger.Info(fmt.Sprintf("Start backup Application(%s) runtime", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
 		var backupVersionSize int
@@ -184,41 +281,28 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 		}
 		b.Logger.Info(fmt.Sprintf("Complete backup application(%s) persistent data", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
 	}
-	if strings.HasSuffix(b.SourceDir, "/") {
-		b.SourceDir = b.SourceDir[:len(b.SourceDir)-2]
-	}
-	if err := util.Zip(b.SourceDir, fmt.Sprintf("%s.zip", b.SourceDir)); err != nil {
-		b.Logger.Info(fmt.Sprintf("Compressed backup metadata failed"), map[string]string{"step": "backup_builder", "status": "starting"})
-		return err
-	}
-	b.BackupSize += util.GetFileSize(fmt.Sprintf("%s.zip", b.SourceDir))
-	os.RemoveAll(b.SourceDir)
-	b.SourceDir = fmt.Sprintf("%s.zip", b.SourceDir)
-	//upload app backup data to online server(sftp) if mode is full-online
-	if b.Mode == "full-online" && b.SlugInfo.FTPHost != "" && b.SlugInfo.FTPPort != "" {
-		b.Logger.Info(fmt.Sprintf("Start uploading backup metadata to the cloud"), map[string]string{"step": "backup_builder", "status": "starting"})
-		sFTPClient, err := sources.NewSFTPClient(b.SlugInfo.FTPUser, b.SlugInfo.FTPPassword, b.SlugInfo.FTPHost, b.SlugInfo.FTPPort)
-		if err != nil {
-			b.Logger.Error(util.Translation("create ftp client error"), map[string]string{"step": "backup_builder", "status": "failure"})
+	return nil
+}
+
+func (b *BackupAPPNew) backupPluginInfo(appSnapshot *AppSnapshot) error {
+	b.Logger.Info(fmt.Sprintf("Start backup plugin"), map[string]string{"step": "backup_builder", "status": "starting"})
+	for _, pv := range appSnapshot.PluginBuildVersions {
+		dstDir := fmt.Sprintf("%s/plugin_%s/image_%s.tar", b.SourceDir, pv.PluginID, pv.DeployVersion)
+		util.CheckAndCreateDir(filepath.Dir(dstDir))
+		if _, err := sources.ImagePull(b.DockerClient, pv.BuildLocalImage, "", "", b.Logger, 20); err != nil {
+			b.Logger.Error(fmt.Sprintf("plugin image: %s; failed to pull image", pv.BuildLocalImage), map[string]string{"step": "backup_builder", "status": "failure"})
+			logrus.Errorf("plugin image: %s; failed to pull image: %v", pv.BuildLocalImage, err)
 			return err
 		}
-		defer sFTPClient.Close()
-		dstDir := fmt.Sprintf("%s/backup/%s_%s/metadata_data.zip", b.SlugInfo.Namespace, b.GroupID, b.Version)
-		if err := sFTPClient.PushFile(b.SourceDir, dstDir, b.Logger); err != nil {
-			b.Logger.Error(util.Translation("push slug file to sftp server error"), map[string]string{"step": "backup_builder", "status": "failure"})
-			logrus.Errorf("push  slug file error when backup app , %s", err.Error())
+		if err := sources.ImageSave(b.DockerClient, pv.BuildLocalImage, dstDir, b.Logger); err != nil {
+			b.Logger.Error(util.Translation("save image to local dir error"), map[string]string{"step": "backup_builder", "status": "failure"})
+			logrus.Errorf("plugin image: %s; failed to save image: %v", pv.BuildLocalImage, err)
 			return err
 		}
-		//Statistical backup size
-		os.Remove(b.SourceDir)
-		b.SourceDir = dstDir
-		b.SourceType = "sftp"
-	}
-	if err := b.updateBackupStatu("success"); err != nil {
-		return err
 	}
 	return nil
 }
+
 func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, error) {
 	if version.DeliveredType == "image" {
 		imageInfo := sources.ImageNameHandle(version.DeliveredPath)
