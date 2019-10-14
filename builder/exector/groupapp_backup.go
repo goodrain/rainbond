@@ -136,7 +136,7 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 		return err
 	}
 
-	metaVersion, err := b.judgeMetadataVersion(metadata)
+	metaVersion, err := judgeMetadataVersion(metadata)
 	if err != nil {
 		b.Logger.Info(fmt.Sprintf("Failed to judge the version of metadata"), map[string]string{"step": "backup_builder", "status": "failure"})
 		return err
@@ -204,7 +204,7 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 }
 
 // judging whether the metadata structure is old or new, the new version is v5.1.8 and later
-func (b *BackupAPPNew) judgeMetadataVersion(metadata []byte) (string, error) {
+func judgeMetadataVersion(metadata []byte) (string, error) {
 	var appSnapshot AppSnapshot
 	if err := ffjson.Unmarshal(metadata, &appSnapshot); err == nil {
 		return NewMetadata, nil
@@ -389,6 +389,10 @@ func (b *BackupAPPNew) uploadImage(app *RegionServiceSnapshot, version *dbmodel.
 	} else {
 		dstDir := fmt.Sprintf("%s/app_%s/image_%s.tar", b.SourceDir, app.ServiceID, version.BuildVersion)
 		util.CheckAndCreateDir(filepath.Dir(dstDir))
+		if _, err := sources.ImagePull(b.DockerClient, version.DeliveredPath, "", "", b.Logger, 20); err != nil {
+			b.Logger.Error(util.Translation("error pulling image"), map[string]string{"step": "backup_builder", "status": "failure"})
+			logrus.Errorf(fmt.Sprintf("image: %s; error pulling image: %v", version.DeliveredPath, err), version.DeliveredPath, err.Error())
+		}
 		if err := sources.ImageSave(b.DockerClient, version.DeliveredPath, dstDir, b.Logger); err != nil {
 			b.Logger.Error(util.Translation("save image to local dir error"), map[string]string{"step": "backup_builder", "status": "failure"})
 			logrus.Errorf("save image(%s) to local dir error when backup app, %s", version.DeliveredPath, err.Error())

@@ -33,6 +33,7 @@ import (
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/errors"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
@@ -128,32 +129,52 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	if err != nil {
 		return err
 	}
-	var appSnapshots []*RegionServiceSnapshot
-	if err := ffjson.Unmarshal(metadata, &appSnapshots); err != nil {
+
+	metaVersion, err := judgeMetadataVersion(metadata)
+	if err != nil {
+		b.Logger.Info(fmt.Sprintf("Failed to judge the version of metadata"), map[string]string{"step": "backup_builder", "status": "failure"})
 		return err
 	}
-	b.Logger.Info("读取备份元数据完成", map[string]string{"step": "restore_builder", "status": "success"})
+
+	var appSnapshot AppSnapshot
+	var svcSnapshot []*RegionServiceSnapshot
+	if metaVersion == OldMetadata {
+		if err := ffjson.Unmarshal(metadata, &svcSnapshot); err != nil {
+			return err
+		}
+		appSnapshot = AppSnapshot{
+			Services: svcSnapshot,
+		}
+	} else {
+		if err := ffjson.Unmarshal(metadata, &appSnapshot); err != nil {
+			return err
+		}
+	}
+
+	b.Logger.Info("读取备份元数据完成", map[string]string{"step": "restore_builder", "status": "running"})
 	//modify the metadata
-	if err := b.modify(appSnapshots); err != nil {
+	if err := b.modify(&appSnapshot); err != nil {
 		return err
 	}
 	//restore metadata to db
-	if err := b.restoreMetadata(appSnapshots); err != nil {
+	if err := b.restoreMetadata(&appSnapshot); err != nil {
 		return err
 	}
 	b.Logger.Info("恢复备份元数据完成", map[string]string{"step": "restore_builder", "status": "success"})
-
 	//If the following error occurs, delete the data from the database
 	//restore all app all build version and data
-	if err := b.restoreVersionAndData(backup, appSnapshots); err != nil {
+	if err := b.restoreVersionAndData(backup, &appSnapshot); err != nil {
 		return err
 	}
+
 	//save result
 	b.saveResult("success", "")
+	b.Logger.Info("恢复成功", map[string]string{"step": "restore_builder", "status": "success"})
 	return nil
 }
-func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appSnapshots []*RegionServiceSnapshot) error {
-	for _, app := range appSnapshots {
+
+func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appSnapshot *AppSnapshot) error {
+	for _, app := range appSnapshot.Services {
 		//backup app image or code slug file
 		b.Logger.Info(fmt.Sprintf("开始恢复应用(%s)运行环境", app.Service.ServiceAlias), map[string]string{"step": "restore_builder", "status": "starting"})
 		for _, version := range app.Versions {
@@ -170,7 +191,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 				}
 			}
 		}
-		b.Logger.Info(fmt.Sprintf("完成恢复应用(%s)运行环境", app.Service.ServiceAlias), map[string]string{"step": "restore_builder", "status": "success"})
+		b.Logger.Info(fmt.Sprintf("完成恢复应用(%s)运行环境", app.Service.ServiceAlias), map[string]string{"step": "restore_builder", "status": "running"})
 
 		b.Logger.Info(fmt.Sprintf("开始恢复应用(%s)持久化数据", app.Service.ServiceAlias), map[string]string{"step": "restore_builder", "status": "starting"})
 		//restore app data
@@ -233,12 +254,25 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 				return err
 			}
 		}
-		b.Logger.Info(fmt.Sprintf("完成恢复应用(%s)持久化数据", app.Service.ServiceAlias), map[string]string{"step": "restore_builder", "status": "success"})
+		b.Logger.Info(fmt.Sprintf("完成恢复应用(%s)持久化数据", app.Service.ServiceAlias), map[string]string{"step": "restore_builder", "status": "running"})
 		//TODO:relation relation volume data?
-
-		// plugin
-		b.Logger.Info(fmt.Sprintf("开始恢复插件"), map[string]string{"step": "restore_builder", "status": "starting"})
 	}
+
+	if len(appSnapshot.PluginBuildVersions) == 0 {
+		return nil
+	}
+
+	// restore plugin image
+	for _, pb := range appSnapshot.PluginBuildVersions {
+		dstDir := fmt.Sprintf("%s/plugin_%s/image_%s.tar", b.cacheDir, pb.PluginID, pb.DeployVersion)
+		if err := sources.ImageLoad(b.DockerClient, dstDir, b.Logger); err != nil {
+			b.Logger.Error(util.Translation("load image to local hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
+			logrus.Errorf("dst: %s; failed to load plugin image: %v", dstDir, err)
+			return err
+		}
+	}
+	b.Logger.Info("完成恢复插件镜像", map[string]string{"step": "restore_builder", "status": "running"})
+
 	return nil
 }
 func (b *BackupAPPRestore) getOldServiceID(new string) string {
@@ -323,10 +357,9 @@ func (b *BackupAPPRestore) clear() {
 	//clear cache data
 	os.RemoveAll(b.cacheDir)
 }
-func (b *BackupAPPRestore) modify(appSnapshots []*RegionServiceSnapshot) error {
-	for _, app := range appSnapshots {
+func (b *BackupAPPRestore) modify(appSnapshot *AppSnapshot) error {
+	for _, app := range appSnapshot.Services {
 		oldServiceID := app.ServiceID
-		// if b.RestoreMode == "cdot" || b.RestoreMode == "od" {
 		//change tenant
 		app.Service.TenantID = b.TenantID
 		for _, port := range app.ServicePort {
@@ -361,9 +394,6 @@ func (b *BackupAPPRestore) modify(appSnapshots []*RegionServiceSnapshot) error {
 		for _, a := range app.ServiceMntRelation {
 			a.ServiceID = newServiceID
 		}
-		for _, a := range app.PluginRelation {
-			a.ServiceID = newServiceID
-		}
 		for _, a := range app.ServiceRelation {
 			a.ServiceID = newServiceID
 		}
@@ -376,6 +406,22 @@ func (b *BackupAPPRestore) modify(appSnapshots []*RegionServiceSnapshot) error {
 		for _, a := range app.Versions {
 			a.ServiceID = newServiceID
 		}
+
+		// plugin
+		for _, a := range app.PluginRelation {
+			a.ServiceID = newServiceID
+		}
+		for _, a := range app.PluginConfigs {
+			a.ServiceID = newServiceID
+		}
+		for _, a := range app.PluginEnvs {
+			a.ServiceID = newServiceID
+		}
+		for _, a := range app.PluginStreamPorts {
+			a.ServiceID = newServiceID
+		}
+		// TODO: change service info in plugin config
+
 		b.serviceChange[oldServiceID] = &Info{
 			ServiceID:    newServiceID,
 			ServiceAlias: newServiceAlias,
@@ -383,7 +429,7 @@ func (b *BackupAPPRestore) modify(appSnapshots []*RegionServiceSnapshot) error {
 		}
 	}
 	//modify relations
-	for _, app := range appSnapshots {
+	for _, app := range appSnapshot.Services {
 		for _, a := range app.ServiceMntRelation {
 			info := b.serviceChange[a.DependServiceID]
 			if info != nil {
@@ -397,9 +443,15 @@ func (b *BackupAPPRestore) modify(appSnapshots []*RegionServiceSnapshot) error {
 			}
 		}
 	}
+
+	// plugin
+	for _, p := range appSnapshot.Plugins {
+		p.TenantID = b.TenantID
+	}
+
 	return nil
 }
-func (b *BackupAPPRestore) restoreMetadata(appSnapshots []*RegionServiceSnapshot) error {
+func (b *BackupAPPRestore) restoreMetadata(appSnapshot *AppSnapshot) error {
 	tx := db.GetManager().Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -407,7 +459,7 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshots []*RegionServiceSnapshot
 			tx.Rollback()
 		}
 	}()
-	for _, app := range appSnapshots {
+	for _, app := range appSnapshot.Services {
 		app.Service.ID = 0
 		if err := db.GetManager().TenantServiceDaoTransactions(tx).AddModel(app.Service); err != nil {
 			tx.Rollback()
@@ -478,15 +530,58 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshots []*RegionServiceSnapshot
 				return fmt.Errorf("create app versions when restore backup error. %s", err.Error())
 			}
 		}
-		//TODO: support service plugin backup and restore
+		// plugin info
 		for _, a := range app.PluginRelation {
 			a.ID = 0
 			if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).AddModel(a); err != nil {
 				tx.Rollback()
-				return fmt.Errorf("create app plugin when restore backup error. %s", err.Error())
+				return fmt.Errorf("error creating plugin relation: %v", err)
+			}
+		}
+		for _, pc := range app.PluginConfigs {
+			pc.ID = 0
+			if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).AddModel(pc); err != nil {
+				tx.Rollback()
+				return fmt.Errorf("error creating plugin config: %v", err)
+			}
+		}
+		for _, pe := range app.PluginEnvs {
+			pe.ID = 0
+			if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).AddModel(pe); err != nil {
+				tx.Rollback()
+				return fmt.Errorf("error creating plugin version env: %v", err)
+			}
+		}
+		for _, psp := range app.PluginStreamPorts {
+			psp.ID = 0
+			if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).AddModel(psp); err != nil {
+				tx.Rollback()
+				return fmt.Errorf("error creating plugin stream port: %v", err)
 			}
 		}
 	}
+
+	for _, p := range appSnapshot.Plugins {
+		p.ID = 0
+		if err := db.GetManager().TenantPluginDaoTransactions(tx).AddModel(p); err != nil {
+			if err == errors.ErrRecordAlreadyExist {
+				continue
+			}
+			tx.Rollback()
+			return fmt.Errorf("error creating plugin: %v", err)
+		}
+	}
+	for _, p := range appSnapshot.PluginBuildVersions {
+		p.ID = 0
+		if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(p); err != nil {
+			if err == errors.ErrRecordAlreadyExist {
+				continue
+			}
+			tx.Rollback()
+			return fmt.Errorf("error creating plugin build version: %v", err)
+		}
+	}
+
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return err

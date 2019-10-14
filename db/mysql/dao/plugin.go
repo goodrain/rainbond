@@ -21,6 +21,7 @@ package dao
 import (
 	"fmt"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
@@ -40,7 +41,8 @@ func (t *PluginDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("plugin %s in tenant %s is exist", plugin.PluginName, plugin.TenantID)
+		logrus.Infof("plugin id: %s; tenant id: %s; tenant plugin already exist", plugin.PluginID, plugin.TenantID)
+		return errors.ErrRecordAlreadyExist
 	}
 	return nil
 }
@@ -211,7 +213,8 @@ func (t *PluginBuildVersionDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("plugin build version %s and deploy_verson %s is exist", version.VersionID, version.DeployVersion)
+		logrus.Infof("plugin id: %s; version_id: %s; deploy_version: %s; tenant plugin build versoin already exist", version.PluginID, version.VersionID, version.DeployVersion)
+		return errors.ErrRecordAlreadyExist
 	}
 	return nil
 }
