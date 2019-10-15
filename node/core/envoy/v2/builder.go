@@ -19,14 +19,19 @@
 package v2
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	apiv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/cluster"
-	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	listener "github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
-	route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
 	http_rate_limit "github.com/envoyproxy/go-control-plane/envoy/config/filter/http/rate_limit/v2"
 	http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	tcp_proxy "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
@@ -34,6 +39,7 @@ import (
 	_type "github.com/envoyproxy/go-control-plane/envoy/type"
 	"github.com/envoyproxy/go-control-plane/pkg/util"
 	v1 "github.com/goodrain/rainbond/node/core/envoy/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 //DefaultLocalhostListenerAddress -
@@ -182,6 +188,12 @@ func CreateHTTPListener(name, address, statPrefix string, port uint32, rateOpt *
 
 //CreateSocketAddress create socket address
 func CreateSocketAddress(protocol, address string, port uint32) core.Address {
+	if strings.HasPrefix(address, "https://") {
+		address = strings.Split(address, "https://")[1]
+	}
+	if strings.HasPrefix(address, "http://") {
+		address = strings.Split(address, "http://")[1]
+	}
 	return core.Address{
 		Address: &core.Address_SocketAddress{
 			SocketAddress: &core.SocketAddress{
@@ -250,9 +262,52 @@ func CreateRouteVirtualHost(name string, domains []string, rateLimits []*route.R
 	return pvh
 }
 
+//CreateRouteWithHostRewrite create route with hostRewrite
+func CreateRouteWithHostRewrite(host, clusterName, prefix string, headers []*route.HeaderMatcher, weight uint32) *route.Route {
+	var rout *route.Route
+	if host != "" {
+		var hostRewriteSpecifier *route.RouteAction_HostRewrite
+		var clusterSpecifier *route.RouteAction_Cluster
+		if strings.HasPrefix(host, "https://") {
+			host = strings.Split(host, "https://")[1]
+		}
+		if strings.HasPrefix(host, "http://") {
+			host = strings.Split(host, "http://")[1]
+		}
+		hostRewriteSpecifier = &route.RouteAction_HostRewrite{
+			HostRewrite: host,
+		}
+		clusterSpecifier = &route.RouteAction_Cluster{
+			Cluster: clusterName,
+		}
+		rout = &route.Route{
+			Match: route.RouteMatch{
+				PathSpecifier: &route.RouteMatch_Prefix{
+					Prefix: prefix,
+				},
+				Headers: headers,
+			},
+			Action: &route.Route_Route{
+				Route: &route.RouteAction{
+					ClusterSpecifier:     clusterSpecifier,
+					Priority:             core.RoutingPriority_DEFAULT,
+					HostRewriteSpecifier: hostRewriteSpecifier,
+				},
+			},
+		}
+		if err := rout.Validate(); err != nil {
+			logrus.Errorf("route http route config validate failure %s", err.Error())
+			return nil
+		}
+
+	}
+	return rout
+}
+
 //CreateRoute create http route
 func CreateRoute(clusterName, prefix string, headers []*route.HeaderMatcher, weight uint32) *route.Route {
-	route := &route.Route{
+	var rout *route.Route
+	rout = &route.Route{
 		Match: route.RouteMatch{
 			PathSpecifier: &route.RouteMatch_Prefix{
 				Prefix: prefix,
@@ -275,11 +330,12 @@ func CreateRoute(clusterName, prefix string, headers []*route.HeaderMatcher, wei
 			},
 		},
 	}
-	if err := route.Validate(); err != nil {
+
+	if err := rout.Validate(); err != nil {
 		logrus.Errorf("route http route config validate failure %s", err.Error())
 		return nil
 	}
-	return route
+	return rout
 }
 
 //CreateHeaderMatcher create http route config header matcher
@@ -338,6 +394,8 @@ type ClusterOptions struct {
 	CircuitBreakers          *cluster.CircuitBreakers
 	Hosts                    []*core.Address
 	HealthyPanicThreshold    int64
+	TLSContext               *auth.UpstreamTlsContext
+	LoadAssignment           *apiv2.ClusterLoadAssignment
 }
 
 //CreateCluster create cluster config
@@ -363,6 +421,13 @@ func CreateCluster(options ClusterOptions) *apiv2.Cluster {
 			HealthyPanicThreshold: &_type.Percent{Value: float64(options.HealthyPanicThreshold) / 100},
 		},
 	}
+	if options.TLSContext != nil {
+		cluster.TlsContext = options.TLSContext
+	}
+	if options.LoadAssignment != nil {
+		logrus.Debugf("loadAssignment is : ", options.LoadAssignment)
+		cluster.LoadAssignment = options.LoadAssignment
+	}
 	if options.MaxRequestsPerConnection != nil {
 		cluster.MaxRequestsPerConnection = ConversionUInt32(*options.MaxRequestsPerConnection)
 	}
@@ -371,4 +436,68 @@ func CreateCluster(options ClusterOptions) *apiv2.Cluster {
 		return nil
 	}
 	return cluster
+}
+
+//GetServiceAliasByService get service alias from k8s service
+func GetServiceAliasByService(service *corev1.Service) string {
+	//v5.1 and later
+	if serviceAlias, ok := service.Labels["service_alias"]; ok {
+		return serviceAlias
+	}
+	//version before v5.1
+	if serviceAlias, ok := service.Spec.Selector["name"]; ok {
+		return serviceAlias
+	}
+	return ""
+}
+
+func getEndpointsByLables(endpoints []*corev1.Endpoints, slabels map[string]string) (re []*corev1.Endpoints) {
+	for _, en := range endpoints {
+		existLength := 0
+		for k, v := range slabels {
+			v2, ok := en.Labels[k]
+			if ok && v == v2 {
+				existLength++
+			}
+		}
+		if existLength == len(slabels) {
+			re = append(re, en)
+		}
+	}
+	return
+}
+
+//CreateDNSLoadAssignment create dns loadAssignment
+func CreateDNSLoadAssignment(serviceAlias, namespace, domain string, service *corev1.Service) *v2.ClusterLoadAssignment {
+	destServiceAlias := GetServiceAliasByService(service)
+	if destServiceAlias == "" {
+		logrus.Errorf("service alias is empty in k8s service %s", service.Name)
+		return nil
+	}
+
+	clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, service.Spec.Ports[0].Port)
+	var lendpoints []endpoint.LocalityLbEndpoints
+	protocol, _ := service.Labels["port_protocol"]
+	port := service.Spec.Ports[0].Port
+	var lbe []endpoint.LbEndpoint
+	envoyAddress := CreateSocketAddress(protocol, domain, uint32(port))
+	logrus.Debugf("envoyAddress is : ", envoyAddress)
+	lbe = append(lbe, endpoint.LbEndpoint{
+		HostIdentifier: &endpoint.LbEndpoint_Endpoint{
+			Endpoint: &endpoint.Endpoint{
+				Address:           &envoyAddress,
+				HealthCheckConfig: &endpoint.Endpoint_HealthCheckConfig{PortValue: uint32(port)},
+			},
+		},
+	})
+	lendpoints = append(lendpoints, endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
+	cla := &v2.ClusterLoadAssignment{
+		ClusterName: clusterName,
+		Endpoints:   lendpoints,
+	}
+	if err := cla.Validate(); err != nil {
+		logrus.Errorf("endpoints discover validate failure %s", err.Error())
+	}
+
+	return cla
 }

@@ -64,6 +64,7 @@ type Storer interface {
 	GetPodLister() listcorev1.PodLister
 	RegistPodUpdateListener(string, chan<- *corev1.Pod)
 	UnRegistPodUpdateListener(string)
+	InitOneThirdPartService(service *model.TenantServices) error
 }
 
 // EventType type of event associated with an informer
@@ -262,6 +263,18 @@ func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {
 	for _, subset := range ep.Subsets {
 		uuid := subset.Ports[0].Name
 		port := subset.Ports[0].Port
+		if ep.Annotations != nil {
+			if domain, ok := ep.Annotations["domain"]; ok && domain != "" {
+				logrus.Debugf("thirdpart service[sid: %s] add domain endpoint[domain: %s] probe", sid, domain)
+				probeInfos = []*ProbeInfo{&ProbeInfo{
+					Sid:  sid,
+					UUID: uuid,
+					IP:   domain,
+					Port: port,
+				}}
+				return probeInfos
+			}
+		}
 		for _, address := range subset.NotReadyAddresses {
 			info := &ProbeInfo{
 				Sid:  sid,
@@ -363,27 +376,36 @@ func (a *appRuntimeStore) initThirdPartyService() error {
 		return err
 	}
 	for _, svc := range svcs {
-		// ignore service without open port.
-		if !a.dbmanager.TenantServicesPortDao().HasOpenPort(svc.ServiceID) {
-			continue
-		}
-
-		appService, err := conversion.InitCacheAppService(a.dbmanager, svc.ServiceID, "Rainbond")
-		if err != nil {
-			logrus.Errorf("error initializing cache app service: %v", err)
-			return err
-		}
-		a.RegistAppService(appService)
-		err = f.ApplyOne(a.clientset, appService)
-		if err != nil {
-			logrus.Errorf("error applying rule: %v", err)
+		if err = a.InitOneThirdPartService(svc); err != nil {
+			logrus.Errorf("init thridpart service error: %v", err)
 			return err
 		}
 
 		a.startCh.In() <- &v1.Event{
 			Type: v1.StartEvent, // TODO: no need to distinguish between event types.
-			Sid:  appService.ServiceID,
+			Sid:  svc.ServiceID,
 		}
+	}
+	return nil
+}
+
+// InitOneThirdPartService init one thridpart service
+func (a *appRuntimeStore) InitOneThirdPartService(service *model.TenantServices) error {
+	// ignore service without open port.
+	if !a.dbmanager.TenantServicesPortDao().HasOpenPort(service.ServiceID) {
+		return nil
+	}
+
+	appService, err := conversion.InitCacheAppService(a.dbmanager, service.ServiceID, "Rainbond")
+	if err != nil {
+		logrus.Errorf("error initializing cache app service: %v", err)
+		return err
+	}
+	a.RegistAppService(appService)
+	err = f.ApplyOne(a.clientset, appService)
+	if err != nil {
+		logrus.Errorf("error applying rule: %v", err)
+		return err
 	}
 	return nil
 }

@@ -21,14 +21,14 @@ package controller
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/api/controller/validation"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/errors"
+	validation "github.com/goodrain/rainbond/util/endpoint"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -54,15 +54,24 @@ func (t *ThirdPartyServiceController) addEndpoints(w http.ResponseWriter, r *htt
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &data, nil) {
 		return
 	}
-	ipAddress := strings.Split(data.Address, ":")[0]
-	if err := validation.ValidateEndpointIP(ipAddress); len(err) > 0 {
-		values := make(map[string][]string, 1)
-		values["ip"] = err
-		httputil.ReturnValidationError(r, w, values)
+	// if address is not ip, and then it is domain
+	address := validation.SplitEndpointAddress(data.Address)
+	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	if err := validation.ValidateEndpointIP(address); len(err) > 0 {
+		// handle domain, check can add new endpoint or not
+		if !canAddDomainEndpoint(sid, true) {
+			logrus.Warningf("new endpoint addres[%s] is domian", address)
+			httputil.ReturnError(r, w, 400, "do not support multi domain endpoints")
+			return
+		}
+	}
+	if !canAddDomainEndpoint(sid, false) {
+		// handle ip, check can add new endpoint or not
+		logrus.Warningf("new endpoint address[%s] is ip, but already has domain endpoint", address)
+		httputil.ReturnError(r, w, 400, "do not support multi domain endpoints")
 		return
 	}
 
-	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	if err := handler.Get3rdPartySvcHandler().AddEndpoints(sid, &data); err != nil {
 		if err == errors.ErrRecordAlreadyExist {
 			httputil.ReturnError(r, w, 400, err.Error())
@@ -74,19 +83,31 @@ func (t *ThirdPartyServiceController) addEndpoints(w http.ResponseWriter, r *htt
 	httputil.ReturnSuccess(r, w, "success")
 }
 
+func canAddDomainEndpoint(sid string, isDomain bool) bool {
+	endpoints, err := db.GetManager().EndpointsDao().List(sid)
+	if err != nil {
+		logrus.Errorf("find endpoints by sid[%s], error: %s", sid, err.Error())
+		return false
+	}
+
+	if len(endpoints) > 0 && isDomain {
+		return false
+	}
+	if !isDomain {
+		for _, ep := range endpoints {
+			address := validation.SplitEndpointAddress(ep.IP)
+			if err := validation.ValidateEndpointIP(address); len(err) > 0 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func (t *ThirdPartyServiceController) updEndpoints(w http.ResponseWriter, r *http.Request) {
 	var data model.UpdEndpiontsReq
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &data, nil) {
 		return
-	}
-	if data.Address != "" {
-		ipAddress := strings.Split(data.Address, ":")[0]
-		if err := validation.ValidateEndpointIP(ipAddress); len(err) > 0 {
-			values := make(map[string][]string, 1)
-			values["address"] = err
-			httputil.ReturnValidationError(r, w, values)
-			return
-		}
 	}
 
 	if err := handler.Get3rdPartySvcHandler().UpdEndpoints(&data); err != nil {

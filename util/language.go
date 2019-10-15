@@ -44,6 +44,7 @@ var translationMetadata = map[string]string{
 	"upgrade service timeout":                        "升级服务超时, 建议观察服务实例运行状态",
 	"Check for log location code errors":             "建议查看日志定位代码错误",
 	"Check for log location imgae source errors":     "建议查看日志定位镜像源错误",
+	"create share image task error":                  "分享任务失败，请检查服务信息或查看日志",
 }
 
 //Translation Translation English to Chinese

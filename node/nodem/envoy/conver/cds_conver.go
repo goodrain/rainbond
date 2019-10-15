@@ -21,9 +21,11 @@ package conver
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/go-control-plane/pkg/cache"
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -94,10 +96,24 @@ func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_mod
 		clusterOption.OutlierDetection = envoyv2.CreatOutlierDetection(options)
 		clusterOption.CircuitBreakers = envoyv2.CreateCircuitBreaker(options)
 		clusterOption.ServiceName = fmt.Sprintf("%s_%s_%s_%v", namespace, serviceAlias, destServiceAlias, port.Port)
-		clusterOption.ClusterType = v2.Cluster_EDS
+		if domain, ok := service.Annotations["domain"]; ok && domain != "" {
+			logrus.Debugf("domain endpoint[%s], create logical_dns cluster: ", domain)
+			clusterOption.ClusterType = v2.Cluster_LOGICAL_DNS
+			clusterOption.LoadAssignment = envoyv2.CreateDNSLoadAssignment(serviceAlias, namespace, domain, service)
+			if strings.HasPrefix(domain, "https://") {
+				splitDomain := strings.Split(domain, "https://")
+				if len(splitDomain) == 2 {
+					logrus.Debugf("https domain tlsContext: %s", splitDomain[1])
+					clusterOption.TLSContext = &auth.UpstreamTlsContext{Sni: splitDomain[1]}
+				}
+			}
+		} else {
+			clusterOption.ClusterType = v2.Cluster_EDS
+		}
 		clusterOption.HealthyPanicThreshold = options.HealthyPanicThreshold
 		cluster := envoyv2.CreateCluster(clusterOption)
 		if cluster != nil {
+			logrus.Debugf("cluster is : %v", cluster)
 			cdsClusters = append(cdsClusters, cluster)
 		}
 	}

@@ -384,6 +384,10 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		if oldAppService == nil {
 			m.store.RegistAppService(newAppService)
 		}
+		if err = m.store.InitOneThirdPartService(svc); err != nil {
+			logrus.Errorf("application apply service resource failure: %s", err.Error())
+			return fmt.Errorf("application apply service resource failure: %s", err.Error())
+		}
 		if body.Action == "port-open" {
 			m.startCh.In() <- &v1.Event{
 				Type:    v1.StartEvent,

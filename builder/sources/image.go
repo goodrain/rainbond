@@ -90,7 +90,7 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 		logrus.Debugf("image name: %s readcloser error: %v", image, err.Error())
 		if strings.HasSuffix(err.Error(), "does not exist or no pull access") {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("镜像：%s不存在或无权获取", image), map[string]string{"step": "pullimage"})
+				logger.Error(fmt.Sprintf("镜像：%s不存在或无权获取", image), map[string]string{"step": "pullimage", "status": "failure"})
 			}
 			return nil, fmt.Errorf("Image(%s) does not exist or no pull access", image)
 		}
@@ -119,7 +119,7 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 		if logger != nil {
 			logger.Debug(fmt.Sprintf(jm.JSONString()), map[string]string{"step": "progress"})
 		} else {
-			fmt.Println(jm.JSONString())
+			logrus.Debug(jm.JSONString())
 		}
 	}
 	logger.Debug("Get the image information and its raw representation", map[string]string{"step": "progress"})
@@ -256,7 +256,7 @@ func ImagePush(dockerCli *client.Client, image, user, pass string, logger event.
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("镜像：%s不存在，不能推送", image), map[string]string{"step": "pushimage"})
+				logger.Error(fmt.Sprintf("镜像：%s不存在，不能推送", image), map[string]string{"step": "pushimage", "status": "failure"})
 			}
 			return fmt.Errorf("Image(%s) does not exist", image)
 		}

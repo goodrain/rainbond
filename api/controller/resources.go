@@ -34,9 +34,11 @@ import (
 	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/cmd"
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/errors"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
+	validation "github.com/goodrain/rainbond/util/endpoint"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/jinzhu/gorm"
@@ -1423,6 +1425,23 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 	}
 
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
+	if dbmodel.ServiceKind(service.Kind) == dbmodel.ServiceKindThirdParty {
+		endpoints, err := db.GetManager().EndpointsDao().List(serviceID)
+		if err != nil {
+			logrus.Errorf("find endpoints by sid[%s], error: %s", serviceID, err.Error())
+			httputil.ReturnError(r, w, 500, "fund endpoints failure")
+			return
+		}
+		for _, ep := range endpoints {
+			address := validation.SplitEndpointAddress(ep.IP)
+			if errs := validation.ValidateEndpointIP(address); len(errs) > 0 {
+				httputil.ReturnError(r, w, 400, "do not allow operate outer port for thirdpart domain endpoints")
+				return
+			}
+		}
+	}
+
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
 	portStr := chi.URLParam(r, "port")
 	containerPort, err := strconv.Atoi(portStr)

@@ -142,10 +142,6 @@ func (l *LogAction) GetLogInstance(serviceID string) (string, error) {
 
 //GetLevelLog 获取指定操作的操作日志
 func (l *LogAction) GetLevelLog(eventID string, level string) (*api_model.DataLog, error) {
-	_, err := db.GetManager().ServiceEventDao().GetEventByEventID(eventID)
-	if err != nil {
-		return nil, err
-	}
 	messageList, err := l.eventdb.GetMessages(eventID, level)
 	if err != nil {
 		return nil, err
