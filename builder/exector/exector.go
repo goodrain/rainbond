@@ -464,6 +464,7 @@ func (e *exectorManager) imageShare(task *pb.TaskMessage) {
 	i, err := NewImageShareItem(task.TaskBody, e.DockerClient, e.EtcdCli)
 	if err != nil {
 		logrus.Error("create share image task error.", err.Error())
+		i.Logger.Error(util.Translation("create share image task error"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return
 	}
 	i.Logger.Info("开始分享应用", map[string]string{"step": "builder-exector", "status": "starting"})
@@ -471,7 +472,6 @@ func (e *exectorManager) imageShare(task *pb.TaskMessage) {
 	defer event.GetManager().ReleaseLogger(i.Logger)
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println(r)
 			debug.PrintStack()
 			i.Logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
 		}
