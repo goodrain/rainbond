@@ -161,8 +161,12 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			}
 		}
 		if (v.Role.HasRule("manage") || v.Role.HasRule("gateway")) && !v.Role.HasRule("compute") { //manage install_success == runnint
-			v.AvailableCPU = v.NodeStatus.NodeInfo.NumCPU
-			v.AvailableMemory = int64(v.NodeStatus.NodeInfo.MemorySize)
+			if v.AvailableCPU == 0 {
+				v.AvailableCPU = v.NodeStatus.NodeInfo.NumCPU
+			}
+			if v.AvailableMemory == 0 {
+				v.AvailableMemory = int64(v.NodeStatus.NodeInfo.MemorySize)
+			}
 		}
 		//handle status
 		v.Status = v.NodeStatus.Status
