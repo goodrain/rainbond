@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/util/disk"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 
 	api "github.com/goodrain/rainbond/util/http"
 
@@ -319,7 +320,7 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 	var capCPU int64
 	var capMem int64
 	for _, v := range nodes {
-		if v.Spec.Unschedulable == false {
+		if v.Spec.Unschedulable == false && k8sutil.IsNodeReady(v.Status.Conditions) {
 			capCPU += v.Status.Capacity.Cpu().Value()
 			capMem += v.Status.Capacity.Memory().Value()
 			usedNodeList = append(usedNodeList, v.Name)

@@ -63,3 +63,14 @@ func DefListEventsByPod(clientset kubernetes.Interface, pod *corev1.Pod) *corev1
 	events, _ := clientset.CoreV1().Events(pod.GetNamespace()).Search(scheme.Scheme, ref)
 	return events
 }
+
+// IsNodeReady checks if the node is ready.
+func IsNodeReady(condditions []corev1.NodeCondition) (ready bool) {
+	for _, c := range condditions {
+		if c.Type == corev1.NodeReady && c.Status == corev1.ConditionTrue {
+			ready = true
+			return
+		}
+	}
+	return
+}
