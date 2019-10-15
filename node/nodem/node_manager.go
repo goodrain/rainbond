@@ -176,6 +176,13 @@ func (n *NodeManager) heartbeat() {
 		//TODO:Judge state
 		allServiceHealth := n.healthy.GetServiceHealth()
 		allHealth := true
+		var err error
+		n.currentNode, err = n.getCurrentNode(n.currentNode.ID)
+		if n.currentNode == nil {
+			logrus.Warningf("get current node by id %s error: %v", n.currentNode.ID, err)
+			return err
+		}
+		n.currentNode.Role = strings.Split(n.cfg.NodeRule, ",")
 		n.currentNode.NodeStatus.AdviceAction = nil
 		n.currentNode.NodeStatus.Conditions = nil
 		for k, v := range allServiceHealth {
@@ -268,12 +275,6 @@ func (n *NodeManager) init() error {
 	}
 	if node.NodeStatus.NodeInfo.OperatingSystem == "" {
 		node.NodeStatus.NodeInfo = info.GetSystemInfo()
-	}
-	if node.AvailableMemory == 0 {
-		node.AvailableMemory = int64(node.NodeStatus.NodeInfo.MemorySize)
-	}
-	if node.AvailableCPU == 0 {
-		node.AvailableCPU = int64(runtime.NumCPU())
 	}
 	//update node mode
 	node.Mode = n.cfg.RunMode
