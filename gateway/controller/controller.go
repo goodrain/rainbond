@@ -154,6 +154,10 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 		L7VS:      l7sv,
 		L4VS:      l4sv,
 	}
+
+	logrus.Debugf("gwc.rcfig : %+v", gwc.rcfg)
+	logrus.Debugf("currentConfig: %+v", currentConfig)
+
 	if gwc.rcfg.Equals(currentConfig) {
 		logrus.Info("No need to update running configuration.")
 		// refresh http pools dynamically
