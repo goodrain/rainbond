@@ -109,9 +109,6 @@ func (n *NginxConfigFileTemplete) NewNginxTemplate(data *model.Nginx) error {
 
 //WriteServer write server config
 func (n *NginxConfigFileTemplete) WriteServer(c option.Config, configtype, tenant string, servers ...*model.Server) error {
-	if servers == nil || len(servers) < 1 {
-		return nil
-	}
 	if tenant == "" {
 		tenant = "default"
 	}
@@ -125,6 +122,10 @@ func (n *NginxConfigFileTemplete) WriteServer(c option.Config, configtype, tenan
 	defer n.writeLocks[tenant].Unlock()
 	serverConfigFile := path.Join(n.configFileDirPath, configtype, tenant, "servers.conf")
 	first := true
+	if servers == nil || len(servers) < 1 {
+		logrus.Warnf("%s proxy is empty, nginx server[%s] will clean up", tenant, serverConfigFile)
+		return n.writeFile(first, []byte{}, serverConfigFile)
+	}
 	for i, server := range servers {
 		body, err := n.serverTmpl.Write(&NginxServerContext{
 			Server: servers[i],
