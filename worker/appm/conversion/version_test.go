@@ -21,11 +21,11 @@ package conversion
 import (
 	"testing"
 
+	gomock "github.com/golang/mock/gomock"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/model"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
-	"github.com/rafrombrc/gomock/gomock"
 )
 
 func TestTenantServiceVersion(t *testing.T) {
@@ -57,7 +57,7 @@ func TestConvertRulesToEnvs(t *testing.T) {
 		IsOuterService: func() *bool { b := true; return &b }(),
 	}
 
-	renvs := convertRulesToEnvs(as, dbmanager, port, true)
+	renvs := convertRulesToEnvs(as, dbmanager, []*model.TenantServicesPort{port})
 	if len(renvs) > 0 {
 		t.Errorf("Expected 0 for the length rule envs, but return %d", len(renvs))
 	}

@@ -21,6 +21,7 @@ package dao
 import (
 	"fmt"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
@@ -40,7 +41,8 @@ func (t *PluginDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("plugin %s in tenant %s is exist", plugin.PluginName, plugin.TenantID)
+		logrus.Infof("plugin id: %s; tenant id: %s; tenant plugin already exist", plugin.PluginID, plugin.TenantID)
+		return errors.ErrRecordAlreadyExist
 	}
 	return nil
 }
@@ -61,6 +63,18 @@ func (t *PluginDaoImpl) GetPluginByID(id, tenantID string) (*model.TenantPlugin,
 		return nil, err
 	}
 	return &plugin, nil
+}
+
+// ListByIDs returns the list of plugins based on the given plugin ids.
+func (t *PluginDaoImpl) ListByIDs(ids []string) ([]*model.TenantPlugin, error) {
+	var plugins []*model.TenantPlugin
+	if err := t.DB.Where("plugin_id in (?)", ids).Find(&plugins).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return plugins, nil
 }
 
 //DeletePluginByID DeletePluginByID
@@ -199,7 +213,8 @@ func (t *PluginBuildVersionDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("plugin build version %s and deploy_verson %s is exist", version.VersionID, version.DeployVersion)
+		logrus.Infof("plugin id: %s; version_id: %s; deploy_version: %s; tenant plugin build versoin already exist", version.PluginID, version.VersionID, version.DeployVersion)
+		return errors.ErrRecordAlreadyExist
 	}
 	return nil
 }
@@ -264,6 +279,15 @@ func (t *PluginBuildVersionDaoImpl) GetBuildVersionByDeployVersion(pluginID, ver
 		return nil, err
 	}
 	return &version, nil
+}
+
+// ListSuccessfulOnesByPluginIDs returns the list of successful build versions,
+func (t *PluginBuildVersionDaoImpl) ListSuccessfulOnesByPluginIDs(pluginIDs []string) ([]*model.TenantPluginBuildVersion, error) {
+	var version []*model.TenantPluginBuildVersion
+	if err := t.DB.Where("ID in (?) ", t.DB.Table("tenant_plugin_build_version").Select("max(id)").Where("plugin_id in (?) and status=?", pluginIDs, "complete").Group("plugin_id").QueryExpr()).Find(&version).Error; err != nil {
+		return nil, err
+	}
+	return version, nil
 }
 
 //GetLastBuildVersionByVersionID get last success build version
@@ -349,6 +373,18 @@ func (t *PluginVersionEnvDaoImpl) GetVersionEnvByEnvName(serviceID, pluginID, en
 		return nil, err
 	}
 	return &env, nil
+}
+
+// ListByServiceID returns the list of environment variables for the plugin via serviceID
+func (t *PluginVersionEnvDaoImpl) ListByServiceID(serviceID string) ([]*model.TenantPluginVersionEnv, error) {
+	var envs []*model.TenantPluginVersionEnv
+	if err := t.DB.Where("service_id=?", serviceID).Find(&envs).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return envs, nil
 }
 
 //PluginVersionConfigDaoImpl PluginVersionEnvDaoImpl
@@ -670,4 +706,16 @@ func (t *TenantServicesStreamPluginPortDaoImpl) DeleteAllPluginMappingPortByServ
 		ServiceID: serviceID,
 	}
 	return t.DB.Where("service_id=?", serviceID).Delete(relation).Error
+}
+
+// ListByServiceID returns the list of environment variables for the plugin via serviceID
+func (t *TenantServicesStreamPluginPortDaoImpl) ListByServiceID(sid string) ([]*model.TenantServicesStreamPluginPort, error) {
+	var result []*model.TenantServicesStreamPluginPort
+	if err := t.DB.Where("service_id=?", sid).Find(&result).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return result, nil
 }
