@@ -107,6 +107,129 @@ func (n *NginxConfigFileTemplete) NewNginxTemplate(data *model.Nginx) error {
 	return nil
 }
 
+// WriteServerAndUpstream wriete server
+func (n *NginxConfigFileTemplete) WriteServerAndUpstream(first bool, c option.Config, configType, tenant string, server *model.Server, upstream *model.Upstream) error {
+	// write a new file just only have one server and and upstream
+	if tenant == "" {
+		tenant = "default"
+	}
+	if configType == "" {
+		configType = "http"
+	}
+	if _, ok := n.writeLocks[tenant]; !ok {
+		n.writeLocks[tenant] = &sync.Mutex{}
+	}
+	n.writeLocks[tenant].Lock()
+	defer n.writeLocks[tenant].Unlock()
+	serverConfigFile := path.Join(n.configFileDirPath, configType, tenant, "servers.conf")
+	upstreamConfigFile := path.Join(n.configFileDirPath, "stream", tenant, "upstreams.conf")
+	serverBody, err := n.serverTmpl.Write(&NginxServerContext{Server: server, Set: c})
+	if err != nil {
+		logrus.Errorf("create server config by templete failure %s, ignore it", err.Error())
+		return nil
+	}
+	upstreamBody, err := n.tcpUpstreamTmpl.Write(&NginxUpstreamContext{Upstream: upstream, Set: c})
+	if err != nil {
+		logrus.Errorf("create upstream config by templete failure %s, ignore it", err.Error())
+		return nil
+	}
+	hasOldServerConfig := false
+	hasOldUpstreamConfig := false
+	if hasOldUpstreamConfig, err = n.writeFileNotCheck(first, upstreamBody, upstreamConfigFile); err != nil {
+		if err == nginxcmd.ErrorCheck {
+			logrus.Errorf("upstream config check error")
+		} else {
+			logrus.Errorf("writer upstream config failure %s", err.Error())
+		}
+	}
+
+	if hasOldServerConfig, err = n.writeFileNotCheck(first, serverBody, serverConfigFile); err != nil {
+		if err == nginxcmd.ErrorCheck {
+			logrus.Errorf("server %s config error, will ignore it", func() string {
+				if server.ServerName != "" {
+					return server.ServerName
+				}
+				return server.Listen
+			}())
+		} else {
+			logrus.Errorf("writer server config failure %s", err.Error())
+		}
+	}
+
+	//test
+	if err := nginxcmd.CheckConfig(); err != nil {
+		//rollback if error
+		if hasOldServerConfig {
+			if err := os.Rename(serverConfigFile+".bak", serverConfigFile); err != nil {
+				logrus.Warningf("rollback config file failure %s", err.Error())
+			}
+		}
+		if hasOldUpstreamConfig {
+			if err := os.Rename(upstreamConfigFile+".bak", upstreamConfigFile); err != nil {
+				logrus.Warningf("rollback config file failure: %v", err.Error())
+			}
+		}
+		return err
+	}
+	if hasOldServerConfig {
+		if err := os.Remove(serverConfigFile + ".bak"); err != nil {
+			logrus.Warningf("remove old config file failure %s", err.Error())
+		}
+	}
+	if hasOldUpstreamConfig {
+		if err := os.Remove(upstreamConfigFile + ".bak"); err != nil {
+			logrus.Warningf("remove old config file failure %s", err.Error())
+		}
+	}
+	return nil
+}
+
+func (n *NginxConfigFileTemplete) writeFileNotCheck(first bool, configBody []byte, configFile string) (hasOldConfig bool, err error) {
+	if err := util.CheckAndCreateDir(path.Dir(configFile)); err != nil {
+		return false, fmt.Errorf("check or create dir %s failure %s", path.Dir(configFile), err.Error())
+	}
+	hasOldConfig = true
+	//backup
+	oldBody, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		if err != os.ErrNotExist && strings.Contains(err.Error(), "no such file or directory") && !os.IsNotExist(err) {
+			logrus.Errorf("read old server config file failure %s", err.Error())
+			return false, err
+		}
+		hasOldConfig = false
+	}
+
+	logrus.Debugf("has old config : %v", hasOldConfig)
+	logrus.Debugf("old config : %v", string(oldBody))
+
+	if hasOldConfig {
+		if err := os.Rename(configFile, configFile+".bak"); err != nil {
+			logrus.Errorf("rename server config file failure %s", err.Error())
+			return false, err
+		}
+		//write new body
+		if oldBody != nil && !first {
+			configBody = append(oldBody, configBody...)
+			configBody = append(configBody, []byte("\n")...)
+		}
+	}
+
+	logrus.Debugf("configBody is : %s", string(configBody))
+
+	cfile, err := os.OpenFile(configFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0755)
+	if err != nil {
+		logrus.Errorf("open server config file failure %s", err.Error())
+		return hasOldConfig, err
+	}
+	defer cfile.Close()
+	c, err := cfile.Write(configBody)
+	if c < len(configBody) {
+		_, err = cfile.Write(configBody[c:])
+	}
+
+	return hasOldConfig, err
+}
+
 //WriteServer write server config
 func (n *NginxConfigFileTemplete) WriteServer(c option.Config, configtype, tenant string, servers ...*model.Server) error {
 	if tenant == "" {
