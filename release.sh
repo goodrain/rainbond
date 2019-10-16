@@ -28,9 +28,6 @@ buildTime=$(date +%F-%H)
 git_commit=$(git log -n 1 --pretty --format=%h)
 
 release_desc=${VERSION}-${git_commit}-${buildTime}
-if [ "${ENTERPRISE}" = "true" ];then
-	release_desc=${VERSION}-enterprise-${git_commit}-${buildTime}
-fi
 
 build::node() {
 	local releasedir=./.release
@@ -139,11 +136,11 @@ build::image() {
 
 build::all(){
 	local build_items=(api chaos gateway monitor mq webcli worker eventlog init-probe mesh-data-panel)
-	for item in ${build_items[@]}
+	for item in "${build_items[@]}"
 	do
-		build::image $item $1
+		build::image "$item" "$1"
 	done
-	build::node $1
+	build::node "$1"
 }
 
 case $1 in
@@ -153,7 +150,7 @@ case $1 in
 	binary)
 	    if [ "$2" = "all" ];then
 			build_items=(chaos grctl node gateway monitor mq worker eventlog api init-probe)
-			for item in ${build_items[@]}
+			for item in "${build_items[@]}"
 			do
 				build::binary $item $1
 			done
