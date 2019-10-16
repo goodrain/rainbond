@@ -161,11 +161,28 @@ func (o *OrService) PersistConfig(conf *v1.Config) error {
 	o.configManage.WriteServer(*o.ocfg, "http", "", l7srv...)
 	// stream
 	o.configManage.WriteServer(*o.ocfg, "stream", "", l4srv...)
+
+	fileNames := make([]string, 0)
+	fileNames = append(fileNames, path.Join(o.configManage.GetConfigFileDirPath(), "http", "default", "servers.conf"))
+	fileNames = append(fileNames, path.Join(o.configManage.GetConfigFileDirPath(), "stream", "default", "servers.conf"))
+
+	for _, pool := range conf.TCPPools {
+		tenant := pool.Namespace
+		if tenant == "" {
+			tenant = "default"
+		}
+		fileNames = append(fileNames, path.Join(o.configManage.GetConfigFileDirPath(), "stream", tenant, "upstreams.conf"))
+	}
+
+	// check and delete old config file if check successful, or rollback old config
+	o.configManage.CheckConfig(fileNames)
+
 	// reload nginx
 	if err := nginxcmd.Reload(); err != nil {
 		logrus.Errorf("Nginx reloads falure %s", err.Error())
 		return err
 	}
+
 	logrus.Debug("Nginx reloads successfully.")
 	return nil
 }

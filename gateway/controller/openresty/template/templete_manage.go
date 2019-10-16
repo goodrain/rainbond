@@ -99,10 +99,34 @@ func (n *NginxConfigFileTemplete) NewNginxTemplate(data *model.Nginx) error {
 	}
 	nginxConfigFile := path.Join(n.configFileDirPath, "nginx.conf")
 	if err := n.writeFile(true, body, nginxConfigFile); err != nil {
+		logrus.Errorf("write nginx.conf error: %v", err.Error())
+		return err
+	}
+	if err := n.CheckConfig([]string{nginxConfigFile}); err != nil {
 		if err == nginxcmd.ErrorCheck {
 			return fmt.Errorf("nginx config check error")
 		}
-		return err
+	}
+	return nil
+}
+
+// CheckConfig check nginx config file and then rollback if check failure or delete old config file
+func (n *NginxConfigFileTemplete) CheckConfig(fileNames []string) error {
+	if err := nginxcmd.CheckConfig(); err != nil {
+		logrus.Errorf("nginx check error: %v", err.Error())
+		// rollback, need config file path
+		for _, fileName := range fileNames {
+			if err := os.Rename(fileName+".bak", fileName); err != nil {
+				logrus.Warningf("rollback config file failre %s", err.Error())
+			}
+			return err
+		}
+	}
+	// delete old config file, need config file path
+	for _, fileName := range fileNames {
+		if err := os.Remove(fileName + ".bak"); err != nil {
+			logrus.Warningf("delete old config file error %v", err.Error())
+		}
 	}
 	return nil
 }
@@ -126,7 +150,7 @@ func (n *NginxConfigFileTemplete) WriteServer(c option.Config, configtype, tenan
 		logrus.Warnf("%s proxy is empty, nginx server[%s] will clean up", tenant, serverConfigFile)
 		return n.writeFile(first, []byte{}, serverConfigFile)
 	}
-	for i, server := range servers {
+	for i := range servers {
 		body, err := n.serverTmpl.Write(&NginxServerContext{
 			Server: servers[i],
 			Set:    c,
@@ -136,16 +160,7 @@ func (n *NginxConfigFileTemplete) WriteServer(c option.Config, configtype, tenan
 			continue
 		}
 		if err := n.writeFile(first, body, serverConfigFile); err != nil {
-			if err == nginxcmd.ErrorCheck {
-				logrus.Errorf("server %s config error, will ignore it", func() string {
-					if server.ServerName != "" {
-						return server.ServerName
-					}
-					return server.Listen
-				}())
-			} else {
-				logrus.Errorf("writer server config failure %s", err.Error())
-			}
+			logrus.Errorf("writer server config failure %s", err.Error())
 		} else {
 			first = false
 		}
@@ -166,7 +181,6 @@ func (n *NginxConfigFileTemplete) writeFile(first bool, configBody []byte, confi
 		}
 		noOldConfig = true
 	}
-	newbody := configBody
 	if !noOldConfig {
 		if err := os.Rename(configFile, configFile+".bak"); err != nil {
 			logrus.Errorf("rename server config file failure %s", err.Error())
@@ -191,24 +205,6 @@ func (n *NginxConfigFileTemplete) writeFile(first bool, configBody []byte, confi
 	if err != nil {
 		logrus.Errorf("write server config file failure %s", err.Error())
 		return err
-	}
-	//test
-	if err := nginxcmd.CheckConfig(); err != nil {
-		//rollback if error
-		if !noOldConfig {
-			if err := os.Rename(configFile+".bak", configFile); err != nil {
-				logrus.Warningf("rollback config file failre %s", err.Error())
-			}
-		}
-		fmt.Println("failure config body:")
-		fmt.Println(string(newbody))
-		return err
-	}
-	//success
-	if !noOldConfig {
-		if err := os.Remove(configFile + ".bak"); err != nil {
-			logrus.Warningf("remove old config file failre %s", err.Error())
-		}
 	}
 	return nil
 }
@@ -235,6 +231,7 @@ func (n *NginxConfigFileTemplete) WriteUpstream(set option.Config, tenant string
 	defer n.writeLocks[tenant].Unlock()
 	upstreamConfigFile := path.Join(n.configFileDirPath, "stream", tenant, "upstreams.conf")
 	var allBody []byte
+	n.tcpUpstreamTmpl.Write(nil)
 	for i := range upstrems {
 		body, err := n.tcpUpstreamTmpl.Write(&NginxUpstreamContext{
 			Upstream: upstrems[i],
