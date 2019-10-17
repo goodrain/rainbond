@@ -152,7 +152,12 @@ func (o *OrService) Stop() error {
 
 func (o *OrService) persistServerAndPool(servers []*model.Server, pools []*v1.Pool) error {
 	if len(servers) == 0 {
-		o.configManage.WriteServer(*o.ocfg, "stream", "", nil)
+		logrus.Warn("empty proxy server info, clean server.conf")
+		if err := o.configManage.WriteServer(*o.ocfg, "stream", "", []*model.Server{}...); err != nil {
+			logrus.Errorf("write server config error: %v", err.Error())
+		}
+
+		return nil
 	}
 	first := true
 	for _, server := range servers {
