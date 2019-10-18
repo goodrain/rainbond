@@ -101,6 +101,10 @@ func GetHTTPHealth(address string) map[string]string {
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 	}
+	if !strings.HasPrefix(address, "http://") && !strings.HasPrefix(address, "https://") {
+		logrus.Warnf("address %s do not has scheme, auto add http scheme", address)
+		address = "http://" + address
+	}
 	addr, err := url.Parse(address)
 	if err != nil {
 		logrus.Errorf("%s is invalid %s", address, err.Error())
@@ -109,6 +113,7 @@ func GetHTTPHealth(address string) map[string]string {
 	if addr.Scheme == "" {
 		addr.Scheme = "http"
 	}
+	logrus.Debugf("http probe check address; %s", address)
 	resp, err := c.Get(addr.String())
 	if err != nil {
 		if isClientTimeout(err) {
@@ -120,7 +125,7 @@ func GetHTTPHealth(address string) map[string]string {
 	if resp.Body != nil {
 		defer resp.Body.Close()
 	}
-	if resp.StatusCode >= 500 {
+	if resp.StatusCode >= 400 {
 		logrus.Debugf("http probe check address %s return code %d", address, resp.StatusCode)
 		return map[string]string{"status": service.Stat_unhealthy, "info": "Service unhealthy"}
 	}
