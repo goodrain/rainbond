@@ -160,10 +160,10 @@ http {
             }
         }
     }
-    include http/*/*.conf;
+    include http/*/*_servers.conf;
 }
 
 stream {
     include stream/*/upstreams.conf;
-    include stream/*/servers.conf;
+    include stream/*/*_servers.conf;
 }
