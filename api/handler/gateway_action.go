@@ -505,7 +505,6 @@ func (g *GatewayAction) GetAvailablePort(ip string) (int, error) {
 }
 
 func selectAvailablePort(used []int) int {
-	sort.Ints(used)
 	maxPort, _ := strconv.Atoi(os.Getenv("MAX_LB_PORT"))
 	minPort, _ := strconv.Atoi(os.Getenv("MIN_LB_PORT"))
 	if minPort == 0 {
@@ -514,14 +513,16 @@ func selectAvailablePort(used []int) int {
 	if maxPort == 0 {
 		maxPort = 65535
 	}
-	var maxUsePort int
-	if len(used) > 0 && used[len(used)-1] > minPort {
-		maxUsePort = used[len(used)-1]
-	} else {
-		maxUsePort = minPort - 1
+	if len(used) == 0 {
+		return minPort
+	}
+
+	sort.Ints(used)
+	selectPort := used[len(used)-1] + 1
+	if selectPort < minPort {
+		selectPort = minPort
 	}
 	//顺序分配端口
-	selectPort := maxUsePort + 1
 	if selectPort <= maxPort {
 		return selectPort
 	}

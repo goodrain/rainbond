@@ -21,7 +21,9 @@ package handler
 import "testing"
 
 func TestSelectAvailablePort(t *testing.T) {
-	t.Log(selectAvailablePort([]int{}))
-	t.Log(selectAvailablePort([]int{1000}))
-	t.Log(selectAvailablePort([]int{10002, 10001}))
+	t.Log(selectAvailablePort([]int{9000}))         // less than minport
+	t.Log(selectAvailablePort([]int{10000}))        // equal to minport
+	t.Log(selectAvailablePort([]int{10003, 10001})) // more than minport and less than maxport
+	t.Log(selectAvailablePort([]int{65535}))        // equal to maxport
+	t.Log(selectAvailablePort([]int{10000, 65536})) // more than maxport
 }

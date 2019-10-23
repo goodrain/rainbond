@@ -243,7 +243,8 @@ func (n *NginxConfigFileTemplete) WriteServer(c option.Config, configtype, tenan
 	}
 	n.writeLocks[tenant].Lock()
 	defer n.writeLocks[tenant].Unlock()
-	serverConfigFile := path.Join(n.configFileDirPath, configtype, tenant, "servers.conf")
+	filename := fmt.Sprintf("%s_servers.conf", tenant)
+	serverConfigFile := path.Join(n.configFileDirPath, configtype, tenant, filename)
 	first := true
 	if servers == nil || len(servers) < 1 {
 		logrus.Warnf("%s proxy is empty, nginx server[%s] will clean up", tenant, serverConfigFile)

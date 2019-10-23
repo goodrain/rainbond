@@ -176,15 +176,12 @@ func (n *NodeManager) heartbeat() {
 		//TODO:Judge state
 		allServiceHealth := n.healthy.GetServiceHealth()
 		allHealth := true
-		var err error
-		n.currentNode, err = n.getCurrentNode(n.currentNode.ID)
+		currentNode, err := n.getCurrentNode(n.currentNode.ID)
 		if n.currentNode == nil {
 			logrus.Warningf("get current node by id %s error: %v", n.currentNode.ID, err)
 			return err
 		}
-		n.currentNode.Role = strings.Split(n.cfg.NodeRule, ",")
-		n.currentNode.NodeStatus.AdviceAction = nil
-		n.currentNode.NodeStatus.Conditions = nil
+		n.currentNode.NodeStatus.NodeInfo = currentNode.NodeStatus.NodeInfo
 		for k, v := range allServiceHealth {
 			if ser := n.controller.GetService(k); ser != nil {
 				if ser.ServiceHealth != nil {
