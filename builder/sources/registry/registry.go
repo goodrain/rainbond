@@ -64,7 +64,7 @@ type Registry struct {
  */
 func New(registryURL, username, password string) (*Registry, error) {
 	transport := http.DefaultTransport
-	return newFromTransport(registryURL, username, password, transport, Log)
+	return newFromTransportWithHTTP(registryURL, username, password, transport, Log)
 }
 
 //NewInsecure new insecure skip verify tls client
@@ -104,6 +104,27 @@ func WrapTransport(transport http.RoundTripper, url, username, password string) 
 		Transport: basicAuthTransport,
 	}
 	return errorTransport
+}
+
+func newFromTransportWithHTTP(registryURL, username, password string, transport http.RoundTripper, logf LogfCallback) (*Registry, error) {
+	url := strings.TrimSuffix(registryURL, "/")
+	if !strings.HasPrefix(url, "http") {
+		url = fmt.Sprintf("http://%s", registryURL)
+	}
+	transport = WrapTransport(transport, url, username, password)
+	registry := &Registry{
+		URL: url,
+		Client: &http.Client{
+			Transport: transport,
+		},
+		Logf: logf,
+	}
+
+	if err := registry.Ping(); err != nil {
+		return nil, err
+	}
+
+	return registry, nil
 }
 
 func newFromTransport(registryURL, username, password string, transport http.RoundTripper, logf LogfCallback) (*Registry, error) {

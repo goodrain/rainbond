@@ -31,7 +31,7 @@ func TestPublicImageExist(t *testing.T) {
 }
 
 func TestPrivateImageExist(t *testing.T) {
-	exist, err := ImageExist("barnett/collabora:190114", "barnett", "5258423Zqg")
+	exist, err := ImageExist("huajen.harbor.com/pds/erueka:V1.0", "admin", "Harbor12345")
 	if err != nil {
 		t.Fail()
 	}

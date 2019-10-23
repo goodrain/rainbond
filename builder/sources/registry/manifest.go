@@ -28,6 +28,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 )
 
+//Manifest request manfest v2
 func (registry *Registry) Manifest(repository, reference string) (*manifestV1.SignedManifest, error) {
 	url := registry.url("/v2/%s/manifests/%s", repository, reference)
 	registry.Logf("registry.manifest.get url=%s repository=%s reference=%s", url, repository, reference)
@@ -58,6 +59,7 @@ func (registry *Registry) Manifest(repository, reference string) (*manifestV1.Si
 	return signedManifest, nil
 }
 
+//ManifestV2 request manifest v2
 func (registry *Registry) ManifestV2(repository, reference string) (*manifestV2.DeserializedManifest, error) {
 	url := registry.url("/v2/%s/manifests/%s", repository, reference)
 	registry.Logf("registry.manifest.get url=%s repository=%s reference=%s", url, repository, reference)
@@ -87,6 +89,7 @@ func (registry *Registry) ManifestV2(repository, reference string) (*manifestV2.
 	return deserialized, nil
 }
 
+// ManifestDigest manifest digest
 func (registry *Registry) ManifestDigest(repository, reference string) (digest.Digest, error) {
 	url := registry.url("/v2/%s/manifests/%s", repository, reference)
 	registry.Logf("registry.manifest.head url=%s repository=%s reference=%s", url, repository, reference)
@@ -101,6 +104,7 @@ func (registry *Registry) ManifestDigest(repository, reference string) (digest.D
 	return digest.Parse(resp.Header.Get("Docker-Content-Digest"))
 }
 
+// DeleteManifest delete manifest
 func (registry *Registry) DeleteManifest(repository string, digest digest.Digest) error {
 	url := registry.url("/v2/%s/manifests/%s", repository, digest)
 	registry.Logf("registry.manifest.delete url=%s repository=%s reference=%s", url, repository, digest)
@@ -119,6 +123,7 @@ func (registry *Registry) DeleteManifest(repository string, digest digest.Digest
 	return nil
 }
 
+// PutManifest put manifest
 func (registry *Registry) PutManifest(repository, reference string, signedManifest *manifestV1.SignedManifest) error {
 	url := registry.url("/v2/%s/manifests/%s", repository, reference)
 	registry.Logf("registry.manifest.put url=%s repository=%s reference=%s", url, repository, reference)
