@@ -209,13 +209,7 @@ func (t *tpProbe) GetProbeInfo(sid string) (*model.TenantServiceProbe, error) {
 		if err != nil {
 			logrus.Warningf("ServiceID: %s; error getting probes: %v", sid, err)
 		}
-		// no defined probe, use default one
-		return &model.TenantServiceProbe{
-			Scheme:           "tcp",
-			PeriodSecond:     5,
-			FailureThreshold: 3,
-			FailureAction:    model.IgnoreFailureAction.String(),
-		}, nil
+		return nil, nil
 	}
 	return probes[0], nil
 }
@@ -240,6 +234,9 @@ func (t *tpProbe) createServices(probeInfo *store.ProbeInfo) (*v1.Service, *mode
 	if err != nil {
 		logrus.Warningf("ServiceID: %s; Unexpected error occurred, ignore the creation of "+
 			"probes: %s", probeInfo.Sid, err.Error())
+		return nil, nil
+	}
+	if tsp == nil {
 		return nil, nil
 	}
 	if tsp.Mode == "liveness" {
