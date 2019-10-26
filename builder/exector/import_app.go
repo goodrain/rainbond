@@ -339,10 +339,9 @@ func (i *ImportApp) importPlugins() error {
 			return image
 		}
 		if oldimage, ok := plugin.CheckGet("share_image"); ok {
-			oldImage, _ := oldimage.String()
-			newImage := getImageImage()
-			i.oldPluginPath[newImage] = oldImage
-			plugin.Set("share_image", newImage)
+			pluginID, _ := plugin.Get("plugin_id").String()
+			i.oldPluginPath[pluginID], _ = oldimage.String()
+			plugin.Set("share_image", getImageImage())
 		} else {
 			logrus.Warnf("plugin do not found share_image, skip it")
 		}
@@ -390,7 +389,7 @@ func (i *ImportApp) importPlugins() error {
 			user := plugin.Get("plugin_image.hub_user").String()
 			pass := plugin.Get("plugin_image.hub_password").String()
 			// 上传之前先要根据新的仓库地址修改镜像名
-			image := i.oldPluginPath[plugin.Get("share_image").String()]
+			image := i.oldPluginPath[plugin.Get("plugin_id").String()]
 			imageName := sources.ImageNameWithNamespaceHandle(image)
 			saveImageName := fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, imageName.Name, imageName.Tag)
 			newImageName := plugin.Get("share_image").String()
