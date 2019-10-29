@@ -305,6 +305,7 @@ type ServiceProbeDao interface {
 type CodeCheckResultDao interface {
 	Dao
 	GetCodeCheckResult(serviceID string) (*model.CodeCheckResult, error)
+	DeleteByServiceID(serviceID string) error
 }
 
 //EventDao EventDao

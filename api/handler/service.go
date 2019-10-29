@@ -20,6 +20,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -38,6 +39,7 @@ import (
 	core_model "github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	eventutil "github.com/goodrain/rainbond/eventlog/util"
 	gclient "github.com/goodrain/rainbond/mq/client"
 	core_util "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
@@ -48,6 +50,9 @@ import (
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/twinj/uuid"
 )
+
+// ErrServiceNotClosed -
+var ErrServiceNotClosed = errors.New("Service has not been closed")
 
 //ServiceAction service act
 type ServiceAction struct {
@@ -1773,6 +1778,22 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 
 //TransServieToDelete trans service info to delete table
 func (s *ServiceAction) TransServieToDelete(serviceID string) error {
+	if err := s.isServiceClosed(serviceID); err != nil {
+		return err
+	}
+
+	if err := s.delServiceMetadata(serviceID); err != nil {
+		return fmt.Errorf("delete service-related metadata: %v", err)
+	}
+
+	// let rbd-chaos remove related persistent data
+	logrus.Debug("let rbd-chaos remove related persistent data")
+
+	return nil
+}
+
+// isServiceClosed checks if the service has been closed according to the serviceID.
+func (s *ServiceAction) isServiceClosed(serviceID string) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
 		return err
@@ -1780,8 +1801,17 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	status := s.statusCli.GetStatus(serviceID)
 	if service.Kind != dbmodel.ServiceKindThirdParty.String() {
 		if !s.statusCli.IsClosedStatus(status) {
-			return fmt.Errorf("unclosed")
+			return ErrServiceNotClosed
 		}
+	}
+	return nil
+}
+
+// delServiceMetadata deletes service-related metadata in the database.
+func (s *ServiceAction) delServiceMetadata(serviceID string) error {
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if err != nil {
+		return err
 	}
 	tx := db.GetManager().Begin()
 	defer func() {
@@ -1797,24 +1827,23 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 		return err
 	}
 	var deleteServicePropertyFunc = []func(serviceID string) error{
-		db.GetManager().TenantServiceDaoTransactions(tx).DeleteServiceByServiceID,
-		db.GetManager().TenantServiceMountRelationDaoTransactions(tx).DELTenantServiceMountRelationByServiceID,
+		db.GetManager().CodeCheckResultDaoTransactions(tx).DeleteByServiceID,
 		db.GetManager().TenantServiceEnvVarDaoTransactions(tx).DELServiceEnvsByServiceID,
-		db.GetManager().TenantServicesPortDaoTransactions(tx).DELPortsByServiceID,
-		db.GetManager().TenantServiceRelationDaoTransactions(tx).DELRelationsByServiceID,
-		db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).DELServiceLBMappingPortByServiceID,
-		db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteTenantServiceVolumesByServiceID,
-		db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DelByServiceID,
-		db.GetManager().ServiceProbeDaoTransactions(tx).DELServiceProbesByServiceID,
+		db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).DeletePluginConfigByServiceID,
 		db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteALLRelationByServiceID,
 		db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteAllPluginMappingPortByServiceID,
-		db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByServiceID,
-		db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).DeletePluginConfigByServiceID,
-		db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteLabelByServiceID,
-		db.GetManager().HTTPRuleDaoTransactions(tx).DeleteHTTPRuleByServiceID,
-		db.GetManager().TCPRuleDaoTransactions(tx).DeleteTCPRuleByServiceID,
-		db.GetManager().ThirdPartySvcDiscoveryCfgDaoTransactions(tx).DeleteByServiceID,
+		db.GetManager().TenantServiceDaoTransactions(tx).DeleteServiceByServiceID,
+		db.GetManager().TenantServicesPortDaoTransactions(tx).DELPortsByServiceID,
+		db.GetManager().TenantServiceRelationDaoTransactions(tx).DELRelationsByServiceID,
+		db.GetManager().TenantServiceMountRelationDaoTransactions(tx).DELTenantServiceMountRelationByServiceID,
+		db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteTenantServiceVolumesByServiceID,
+		db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DelByServiceID,
 		db.GetManager().EndpointsDaoTransactions(tx).DeleteByServiceID,
+		db.GetManager().ThirdPartySvcDiscoveryCfgDaoTransactions(tx).DeleteByServiceID,
+		db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteLabelByServiceID,
+		db.GetManager().VersionInfoDaoTransactions(tx).DeleteVersionByServiceID, // TODO: 构建版本, 需要删除相应的镜像
+		db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByServiceID,
+		db.GetManager().ServiceProbeDaoTransactions(tx).DELServiceProbesByServiceID,
 	}
 	if err := GetGatewayHandler().DeleteTCPRuleByServiceIDWithTransaction(serviceID, tx); err != nil {
 		tx.Rollback()
@@ -1826,7 +1855,7 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	}
 	for _, del := range deleteServicePropertyFunc {
 		if err := del(serviceID); err != nil {
-			if err.Error() != gorm.ErrRecordNotFound.Error() {
+			if err != gorm.ErrRecordNotFound {
 				tx.Rollback()
 				return err
 			}
@@ -1835,6 +1864,24 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		return err
+	}
+	return nil
+}
+
+// delLogFile deletes persistent data related to the service based on serviceID.
+func (s *ServiceAction) delLogFile(serviceID string, eventIDs []string) error {
+	// log generated during service running
+	dockerLogPath := eventutil.DockerLogFilePath(s.conf.LogPath, serviceID)
+	if err := os.RemoveAll(dockerLogPath); err != nil {
+		logrus.Warningf("remove docker log files: %v", err)
+	}
+	// log generated by the service event
+	eventLogPath := eventutil.EventLogFilePath(s.conf.LogPath)
+	for _, eventID := range eventIDs {
+		eventLogFileName := eventutil.EventLogFileName(eventLogPath, eventID)
+		if err := os.RemoveAll(eventLogFileName); err != nil {
+			logrus.Warningf("file: %s; remove event log file: %v", eventLogFileName, err)
+		}
 	}
 	return nil
 }

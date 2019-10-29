@@ -21,13 +21,12 @@ package db
 import (
 	"archive/zip"
 	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
-	"path"
-	"strconv"
 	"time"
+
+	"github.com/goodrain/rainbond/eventlog/util"
 )
 
 type filePlugin struct {
@@ -40,11 +39,11 @@ func (m *filePlugin) SaveMessage(events []*EventLogMessage) error {
 	}
 	key := events[0].EventID
 	var logfile *os.File
-	apath := path.Join(m.homePath, GetServiceAliasID(key))
-	_, err := os.Stat(apath)
+	logPath := util.DockerLogFilePath(m.homePath, key)
+	_, err := os.Stat(logPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			err := os.MkdirAll(apath, 0755)
+			err := os.MkdirAll(logPath, 0755)
 			if err != nil {
 				return err
 			}
@@ -52,10 +51,11 @@ func (m *filePlugin) SaveMessage(events []*EventLogMessage) error {
 			return err
 		}
 	}
-	logFile, err := os.Stat(path.Join(apath, "stdout.log"))
+	dockerFileName := util.DockerLogFileName(logPath)
+	logFile, err := os.Stat(dockerFileName)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logfile, err = os.Create(path.Join(apath, "stdout.log"))
+			logfile, err = os.Create(dockerFileName)
 			if err != nil {
 				return err
 			}
@@ -65,14 +65,14 @@ func (m *filePlugin) SaveMessage(events []*EventLogMessage) error {
 		}
 	} else {
 		if logFile.ModTime().Day() != time.Now().Day() {
-			err := MvLogFile(fmt.Sprintf("%s/%d-%d-%d.log.gz", apath, logFile.ModTime().Year(), logFile.ModTime().Month(), logFile.ModTime().Day()), path.Join(apath, "stdout.log"))
+			err := MvLogFile(fmt.Sprintf("%s/%d-%d-%d.log.gz", dockerFileName, logFile.ModTime().Year(), logFile.ModTime().Month(), logFile.ModTime().Day()), dockerFileName)
 			if err != nil {
 				return err
 			}
 		}
 	}
 	if logfile == nil {
-		logfile, err = os.OpenFile(path.Join(apath, "stdout.log"), os.O_WRONLY|os.O_APPEND, 0666)
+		logfile, err = os.OpenFile(dockerFileName, os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
 			return err
 		}
@@ -92,20 +92,6 @@ func (m *filePlugin) SaveMessage(events []*EventLogMessage) error {
 
 func (m *filePlugin) Close() error {
 	return nil
-}
-
-//python:
-//new_word = str(ord(string[10])) + string + str(ord(string[3])) + 'log' + str(ord(string[2]) / 7)
-//new_id = hashlib.sha224(new_word).hexdigest()[0:16]
-//
-func GetServiceAliasID(ServiceID string) string {
-	if len(ServiceID) > 11 {
-		newWord := strconv.Itoa(int(ServiceID[10])) + ServiceID + strconv.Itoa(int(ServiceID[3])) + "log" + strconv.Itoa(int(ServiceID[2])/7)
-		ha := sha256.New224()
-		ha.Write([]byte(newWord))
-		return fmt.Sprintf("%x", ha.Sum(nil))[0:16]
-	}
-	return ServiceID
 }
 
 //MvLogFile 更改文件名称，压缩
