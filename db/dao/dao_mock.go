@@ -3389,6 +3389,21 @@ func (mr *MockEventDaoMockRecorder) DelEventByServiceID(serviceID interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelEventByServiceID", reflect.TypeOf((*MockEventDao)(nil).DelEventByServiceID), serviceID)
 }
 
+// ListByTargetID mocks base method
+func (m *MockEventDao) ListByTargetID(targetID string) ([]*model.ServiceEvent, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListByTargetID", targetID)
+	ret0, _ := ret[0].([]*model.ServiceEvent)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListByTargetID indicates an expected call of ListByTargetID
+func (mr *MockEventDaoMockRecorder) ListByTargetID(targetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByTargetID", reflect.TypeOf((*MockEventDao)(nil).ListByTargetID), targetID)
+}
+
 // GetEventsByTarget mocks base method
 func (m *MockEventDao) GetEventsByTarget(target, targetID string, offset, liimt int) ([]*model.ServiceEvent, int, error) {
 	m.ctrl.T.Helper()

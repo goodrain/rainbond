@@ -1777,9 +1777,14 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 }
 
 //TransServieToDelete trans service info to delete table
-func (s *ServiceAction) TransServieToDelete(serviceID string) error {
+func (s *ServiceAction) TransServieToDelete(tenantID, serviceID string) error {
 	if err := s.isServiceClosed(serviceID); err != nil {
 		return err
+	}
+
+	body, err := s.gcTaskBody(tenantID, serviceID)
+	if err != nil {
+		return fmt.Errorf("GC task body: %v", err)
 	}
 
 	if err := s.delServiceMetadata(serviceID); err != nil {
@@ -1787,7 +1792,15 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	}
 
 	// let rbd-chaos remove related persistent data
-	logrus.Debug("let rbd-chaos remove related persistent data")
+	logrus.Info("let rbd-chaos remove related persistent data")
+	topic := gclient.BuilderTopic
+	if err := s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+		Topic:    topic,
+		TaskType: "garbage-collection",
+		TaskBody: body,
+	}); err != nil {
+		logrus.Warningf("send gc task: %v", err)
+	}
 
 	return nil
 }
@@ -1869,7 +1882,7 @@ func (s *ServiceAction) delServiceMetadata(serviceID string) error {
 }
 
 // delLogFile deletes persistent data related to the service based on serviceID.
-func (s *ServiceAction) delLogFile(serviceID string, eventIDs []string) error {
+func (s *ServiceAction) delLogFile(serviceID string, eventIDs []string) {
 	// log generated during service running
 	dockerLogPath := eventutil.DockerLogFilePath(s.conf.LogPath, serviceID)
 	if err := os.RemoveAll(dockerLogPath); err != nil {
@@ -1883,7 +1896,23 @@ func (s *ServiceAction) delLogFile(serviceID string, eventIDs []string) error {
 			logrus.Warningf("file: %s; remove event log file: %v", eventLogFileName, err)
 		}
 	}
-	return nil
+}
+
+func (s *ServiceAction) gcTaskBody(tenantID, serviceID string) (map[string]interface{}, error) {
+	events, err := db.GetManager().ServiceEventDao().ListByTargetID(serviceID)
+	if err != nil {
+		logrus.Errorf("list events based on serviceID: %v", err)
+	}
+	var eventIDs []string
+	for _, event := range events {
+		eventIDs = append(eventIDs, event.EventID)
+	}
+
+	return map[string]interface{}{
+		"tenant_id":  tenantID,
+		"service_id": serviceID,
+		"event_ids":  eventIDs,
+	}, nil
 }
 
 //GetServiceDeployInfo get service deploy info

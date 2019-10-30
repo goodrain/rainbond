@@ -106,6 +106,15 @@ func (c *EventDaoImpl) DelEventByServiceID(serviceID string) error {
 	return nil
 }
 
+// ListByTargetID -
+func (c *EventDaoImpl) ListByTargetID(targetID string) ([]*model.ServiceEvent, error) {
+	var events []*model.ServiceEvent
+	if err := c.DB.Where("target_id=?", targetID).Find(&events).Error; err != nil {
+		return nil, err
+	}
+	return events, nil
+}
+
 // GetEventsByTarget get event by target with page
 func (c *EventDaoImpl) GetEventsByTarget(target, targetID string, offset, limit int) ([]*model.ServiceEvent, int, error) {
 	var result []*model.ServiceEvent

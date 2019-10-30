@@ -26,6 +26,8 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/envoy"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/node/api"
 	"github.com/goodrain/rainbond/node/api/controller"
 	"github.com/goodrain/rainbond/node/core/store"
@@ -48,15 +50,25 @@ func Run(c *option.Conf) error {
 		return nil
 	}
 	startfunc := func() error {
+		dbconfig := config.Config{
+			DBType:              c.DBType,
+			MysqlConnectionInfo: c.MysqlConnectionInfo,
+		}
+		if err := db.CreateManager(dbconfig); err != nil {
+			return err
+		}
+		defer db.CloseManager()
+
+		if err := c.ParseClient(); err != nil {
+			return fmt.Errorf("config parse error:%s", err.Error())
+		}
+
 		nodemanager, err := nodem.NewNodeManager(c)
 		if err != nil {
 			return fmt.Errorf("create node manager failed: %s", err)
 		}
 		if err := nodemanager.InitStart(); err != nil {
 			return err
-		}
-		if err := c.ParseClient(); err != nil {
-			return fmt.Errorf("config parse error:%s", err.Error())
 		}
 		errChan := make(chan error, 3)
 		err = eventLog.NewManager(eventLog.EventConfig{
