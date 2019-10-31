@@ -43,9 +43,9 @@ type Host struct {
 // String reutrn Host string
 func (a *Host) String() string {
 	if strings.TrimSpace(a.AnsibleSSHPrivateKeyFile) == "" {
-		return fmt.Sprintf("%s ansible_host=%s ansible_port=%d ip=%s port=%d role=%s", a.HostID, a.AnsibleHostIP, a.AnsibleHostPort, a.AnsibleHostIP, a.AnsibleHostPort, a.Role)
+		return fmt.Sprintf("%s ansible_host=%s ansible_port=%d ip=%s port=%d role=%s --ansible_python_interpreter=/usr/bin/python2.7", a.HostID, a.AnsibleHostIP, a.AnsibleHostPort, a.AnsibleHostIP, a.AnsibleHostPort, a.Role)
 	}
-	return fmt.Sprintf("%s ansible_host=%s ansible_port=%d ip=%s port=%d role=%s ansible_ssh_private_key_file=%s", a.HostID, a.AnsibleHostIP, a.AnsibleHostPort, a.AnsibleHostIP, a.AnsibleHostPort, a.Role, a.AnsibleSSHPrivateKeyFile)
+	return fmt.Sprintf("%s ansible_host=%s ansible_port=%d ip=%s port=%d role=%s ansible_ssh_private_key_file=%s --ansible_python_interpreter=/usr/bin/python2.7", a.HostID, a.AnsibleHostIP, a.AnsibleHostPort, a.AnsibleHostIP, a.AnsibleHostPort, a.Role, a.AnsibleSSHPrivateKeyFile)
 }
 
 // HostsList hosts list
