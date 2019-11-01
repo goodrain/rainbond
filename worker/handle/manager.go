@@ -119,6 +119,9 @@ func (m *Manager) AnalystToExec(task *model.Task) error {
 	case "service_gc":
 		logrus.Info("start the 'service_gc' task")
 		return m.ExecServiceGCTask(task)
+	case "volume_gc":
+		logrus.Info("start the 'volume_gc' task")
+		return m.ExecVolumeGCTask(task)
 	default:
 		logrus.Warning("task can not execute because no type is identified")
 		return nil
@@ -451,6 +454,19 @@ func (m *Manager) ExecServiceGCTask(task *model.Task) error {
 	m.garbageCollector.DelLogFile(serviceGCReq)
 	m.garbageCollector.DelVolumeData(serviceGCReq)
 	m.garbageCollector.DelPvPvcByServiceID(serviceGCReq)
+
+	return nil
+}
+
+// ExecVolumeGCTask executes the 'volume_gc' task
+func (m *Manager) ExecVolumeGCTask(task *model.Task) error {
+	volumeGCReq, ok := task.Body.(model.VolumeGCTaskBody)
+	if !ok {
+		return fmt.Errorf("can not convert the request body to 'VolumeGCTaskBody'")
+	}
+
+	m.garbageCollector.DelPvPvcByVolumeID(volumeGCReq)
+	m.garbageCollector.DelVolumeDataByVolumeID(volumeGCReq)
 
 	return nil
 }

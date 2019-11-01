@@ -1385,10 +1385,31 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			}
 		}()
 		if tsv.VolumeName != "" {
-			err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteModel(tsv.ServiceID, tsv.VolumeName)
-			if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+			volume, err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).GetVolumeByServiceIDAndName(tsv.ServiceID, tsv.VolumeName)
+			if err != nil {
+				tx.Rollback()
+				return util.CreateAPIHandleErrorFromDBError("find volume", err)
+			}
+
+			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteModel(tsv.ServiceID, tsv.VolumeName); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
+			}
+
+			err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+				Topic:    gclient.WorkerTopic,
+				TaskType: "volume_gc",
+				TaskBody: map[string]interface{}{
+					"tenant_id":   tenantID,
+					"service_id":  volume.ServiceID,
+					"volume_id":   volume.ID,
+					"volume_path": volume.VolumePath,
+				},
+			})
+			if err != nil {
+				logrus.Errorf("send 'volume_gc' task: %v", err)
+				tx.Rollback()
+				return util.CreateAPIHandleErrorFromDBError("send 'volume_gc' task", err)
 			}
 		} else {
 			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
