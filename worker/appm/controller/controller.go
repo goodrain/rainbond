@@ -23,11 +23,9 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
-
-	"github.com/goodrain/rainbond/util"
-
 	"k8s.io/client-go/kubernetes"
 )
 

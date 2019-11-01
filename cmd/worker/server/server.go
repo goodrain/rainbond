@@ -33,6 +33,7 @@ import (
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/discover"
+	"github.com/goodrain/rainbond/worker/gc"
 	"github.com/goodrain/rainbond/worker/master"
 	"github.com/goodrain/rainbond/worker/monitor"
 	"github.com/goodrain/rainbond/worker/server"
@@ -105,8 +106,10 @@ func Run(s *option.Worker) error {
 		return err
 	}
 	defer masterCon.Stop()
+
 	//step 6 : create discover module
-	taskManager := discover.NewTaskManager(s.Config, cachestore, controllerManager, startCh)
+	garbageCollector := gc.NewGarbageCollector(clientset)
+	taskManager := discover.NewTaskManager(s.Config, cachestore, controllerManager, garbageCollector, startCh)
 	if err := taskManager.Start(); err != nil {
 		return err
 	}

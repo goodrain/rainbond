@@ -144,6 +144,13 @@ func NewTaskBody(taskType string, body []byte) TaskBody {
 			return nil
 		}
 		return b
+	case "service_gc":
+		b := ServiceGCTaskBody{}
+		err := ffjson.Unmarshal(body, &b)
+		if err != nil {
+			return nil
+		}
+		return b
 	default:
 		return DefaultTaskBody{}
 	}
@@ -308,6 +315,13 @@ type GroupStopTaskBody struct {
 	//组关闭策略
 	//顺序关系，无序并发关闭
 	Strategy []string `json:"strategy"`
+}
+
+// ServiceGCTaskBody holds the request body to execute volume gc task.
+type ServiceGCTaskBody struct {
+	TenantID  string   `json:"tenant_id"`
+	ServiceID string   `json:"service_id"`
+	EventIDs  []string `json:"event_ids"`
 }
 
 //DefaultTaskBody 默认操作任务主体

@@ -38,5 +38,5 @@ func EventLogFilePath(homePath string) string {
 
 // EventLogFileName returns the file name of event log file.
 func EventLogFileName(filePath, key string) string {
-	return path.Join(filePath, key + ".log")
+	return path.Join(filePath, key+".log")
 }

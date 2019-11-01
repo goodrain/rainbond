@@ -1793,10 +1793,10 @@ func (s *ServiceAction) TransServieToDelete(tenantID, serviceID string) error {
 
 	// let rbd-chaos remove related persistent data
 	logrus.Info("let rbd-chaos remove related persistent data")
-	topic := gclient.BuilderTopic
+	topic := gclient.WorkerTopic
 	if err := s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		Topic:    topic,
-		TaskType: "garbage-collection",
+		TaskType: "service_gc",
 		TaskBody: body,
 	}); err != nil {
 		logrus.Warningf("send gc task: %v", err)
@@ -1854,9 +1854,10 @@ func (s *ServiceAction) delServiceMetadata(serviceID string) error {
 		db.GetManager().EndpointsDaoTransactions(tx).DeleteByServiceID,
 		db.GetManager().ThirdPartySvcDiscoveryCfgDaoTransactions(tx).DeleteByServiceID,
 		db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteLabelByServiceID,
-		db.GetManager().VersionInfoDaoTransactions(tx).DeleteVersionByServiceID, // TODO: 构建版本, 需要删除相应的镜像
+		db.GetManager().VersionInfoDaoTransactions(tx).DeleteVersionByServiceID,
 		db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByServiceID,
 		db.GetManager().ServiceProbeDaoTransactions(tx).DELServiceProbesByServiceID,
+		db.GetManager().ServiceEventDaoTransactions(tx).DelEventByServiceID,
 	}
 	if err := GetGatewayHandler().DeleteTCPRuleByServiceIDWithTransaction(serviceID, tx); err != nil {
 		tx.Rollback()

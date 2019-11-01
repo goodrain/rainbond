@@ -35,6 +35,7 @@ import (
 	"github.com/goodrain/rainbond/worker/appm/store"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/discover/model"
+	"github.com/goodrain/rainbond/worker/gc"
 )
 
 //Manager manager
@@ -44,6 +45,7 @@ type Manager struct {
 	store             store.Storer
 	dbmanager         db.Manager
 	controllerManager *controller.Manager
+	garbageCollector  *gc.GarbageCollector
 
 	startCh *channels.RingChannel
 }
@@ -53,6 +55,7 @@ func NewManager(ctx context.Context,
 	config option.Config,
 	store store.Storer,
 	controllerManager *controller.Manager,
+	garbageCollector *gc.GarbageCollector,
 	startCh *channels.RingChannel) *Manager {
 
 	return &Manager{
@@ -61,6 +64,7 @@ func NewManager(ctx context.Context,
 		dbmanager:         db.GetManager(),
 		store:             store,
 		controllerManager: controllerManager,
+		garbageCollector:  garbageCollector,
 		startCh:           startCh,
 	}
 }
@@ -112,6 +116,9 @@ func (m *Manager) AnalystToExec(task *model.Task) error {
 	case "apply_plugin_config":
 		logrus.Info("start a 'apply_plugin_config' task worker")
 		return m.applyPluginConfig(task)
+	case "service_gc":
+		logrus.Info("start the 'service_gc' task")
+		return m.ExecServiceGCTask(task)
 	default:
 		logrus.Warning("task can not execute because no type is identified")
 		return nil
@@ -431,5 +438,19 @@ func (m *Manager) applyPluginConfig(task *model.Task) error {
 		logrus.Errorf("Application apply plugin config controller failure:%s", err.Error())
 		return fmt.Errorf("Application apply plugin config controller failure:%s", err.Error())
 	}
+	return nil
+}
+
+// ExecServiceGCTask executes the 'service_gc' task
+func (m *Manager) ExecServiceGCTask(task *model.Task) error {
+	serviceGCReq, ok := task.Body.(model.ServiceGCTaskBody)
+	if !ok {
+		return fmt.Errorf("can not convert the request body to 'ServiceGCTaskBody'")
+	}
+
+	m.garbageCollector.DelLogFile(serviceGCReq)
+	m.garbageCollector.DelVolumeData(serviceGCReq)
+	m.garbageCollector.DelPvPvcByServiceID(serviceGCReq)
+
 	return nil
 }
