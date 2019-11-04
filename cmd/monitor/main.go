@@ -90,7 +90,7 @@ func main() {
 func monitorMysql(c *option.Config, p *prometheus.Manager) {
 	if strings.TrimSpace(c.MysqldExporter) != "" {
 		metrics := strings.TrimSpace(c.MysqldExporter)
-		logrus.Debugf("add mysql metrics[%s] into prometheus", metrics)
+		logrus.Infof("add mysql metrics[%s] into prometheus", metrics)
 		custom.AddMetrics(p, custom.Metrics{Name: "mysql", Path: "/metrics", Metrics: []string{metrics}, Interval: 30 * time.Second, Timeout: 15 * time.Second})
 	}
 }
@@ -98,7 +98,7 @@ func monitorMysql(c *option.Config, p *prometheus.Manager) {
 func monitorKSM(c *option.Config, p *prometheus.Manager) {
 	if strings.TrimSpace(c.KSMExporter) != "" {
 		metrics := strings.TrimSpace(c.KSMExporter)
-		logrus.Debugf("add kube-state-metrics[%s] into prometheus", metrics)
+		logrus.Infof("add kube-state-metrics[%s] into prometheus", metrics)
 		custom.AddMetrics(p, custom.Metrics{Name: "kubernetes", Path: "/metrics", Metrics: []string{metrics}, Interval: 30 * time.Second, Timeout: 10 * time.Second})
 	}
 }
