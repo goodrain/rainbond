@@ -91,7 +91,7 @@ func (t *TenantDaoImpl) GetTenantIDByName(name string) (*model.Tenants, error) {
 func (t *TenantDaoImpl) GetALLTenants(query string) ([]*model.Tenants, error) {
 	var tenants []*model.Tenants
 	if query != "" {
-		if err := t.DB.Where("name like '%?%'", query).Find(&tenants).Error; err != nil {
+		if err := t.DB.Where("name like ?", "%"+query+"%").Find(&tenants).Error; err != nil {
 			return nil, err
 		}
 	} else {
