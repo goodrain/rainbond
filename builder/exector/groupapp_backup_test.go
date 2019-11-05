@@ -19,6 +19,8 @@
 package exector
 
 import (
+	"fmt"
+	"github.com/goodrain/rainbond/util"
 	"testing"
 )
 
@@ -35,5 +37,25 @@ func TestUploadPkg(t *testing.T) {
 
 	if err := b.uploadPkg(); err != nil {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestUploadPkg2(t *testing.T) {
+	b := &BackupAPPRestore{}
+	b.S3Config.Provider = "alioss"
+	b.S3Config.Endpoint = "dummy"
+	b.S3Config.AccessKey = "dummy"
+	b.S3Config.SecretKey = "dummy"
+	b.S3Config.BucketName = "hrhtest"
+
+	cacheDir := fmt.Sprintf("/tmp/cache/tmp/%s/%s", "c6b05a2a6d664fda83dab8d3bcf1a941", util.NewUUID())
+	if err := util.CheckAndCreateDir(cacheDir); err != nil {
+		t.Errorf("create cache dir error %s", err.Error())
+	}
+	b.cacheDir = cacheDir
+
+	sourceDir := "/tmp/groupbackup/c6b05a2a6d664fda83dab8d3bcf1a941_20191024185643.zip"
+	if err := b.downloadFromS3(sourceDir); err != nil {
+		t.Error(err)
 	}
 }

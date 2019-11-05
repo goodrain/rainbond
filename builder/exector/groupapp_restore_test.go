@@ -19,36 +19,13 @@
 package exector
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/pquerna/ffjson/ffjson"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
-
-	"github.com/goodrain/rainbond/util"
 )
-
-func TestDownloadFromLocal(t *testing.T) {
-	var b = BackupAPPRestore{
-		BackupID: "test",
-		EventID:  "test",
-		Logger:   event.GetTestLogger(),
-	}
-	cacheDir := fmt.Sprintf("/tmp/%s/%s", b.BackupID, b.EventID)
-	if err := util.CheckAndCreateDir(cacheDir); err != nil {
-		t.Fatal("create cache dir error", err.Error())
-	}
-	b.cacheDir = cacheDir
-	if err := b.downloadFromFTP(&dbmodel.AppBackup{
-		EventID:  "test",
-		BackupID: "ccc",
-	}); err != nil {
-		t.Fatal("downloadFromLocal error", err.Error())
-	}
-	t.Log(b.cacheDir)
-}
 
 func TestModify(t *testing.T) {
 	var b = BackupAPPRestore{

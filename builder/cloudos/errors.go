@@ -2,6 +2,7 @@ package cloudos
 
 import "fmt"
 
+// S3SDKError -
 type S3SDKError struct {
 	Code       string // The error code returned from S3 to the caller
 	Message    string // The detail error message from S3

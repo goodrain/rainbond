@@ -13,10 +13,10 @@ var (
 type S3Provider string
 
 var (
-	// S3ProviderMinio -
-	S3ProviderMinio S3Provider = "Minio"
+	// S3ProviderS3 -
+	S3ProviderS3 S3Provider = "s3"
 	// S3ProviderAliOSS -
-	S3ProviderAliOSS S3Provider = "AliyunOSS"
+	S3ProviderAliOSS S3Provider = "alioss"
 )
 
 func (p S3Provider) String() string {
@@ -26,8 +26,8 @@ func (p S3Provider) String() string {
 // Str2S3Provider converts a string to S3Provider.
 func Str2S3Provider(value string) (S3Provider, error) {
 	switch value {
-	case S3ProviderMinio.String():
-		return S3ProviderMinio, nil
+	case S3ProviderS3.String():
+		return S3ProviderS3, nil
 	case S3ProviderAliOSS.String():
 		return S3ProviderAliOSS, nil
 	default:
@@ -39,6 +39,7 @@ func Str2S3Provider(value string) (S3Provider, error) {
 type CloudOSer interface {
 	PutObject(objkey, filepath string) error
 	GetObject(objectKey, filePath string) error
+	DeleteObject(objkey string) error
 }
 
 // New returns a new CloudOSer.

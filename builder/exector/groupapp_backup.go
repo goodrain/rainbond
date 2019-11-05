@@ -175,6 +175,10 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 	}
 	b.SourceDir = fmt.Sprintf("%s.zip", b.SourceDir)
 
+	if err := b.uploadPkg(); err != nil {
+		return fmt.Errorf("error upload backup package: %v", err)
+	}
+
 	if err := b.updateBackupStatu("success"); err != nil {
 		return err
 	}

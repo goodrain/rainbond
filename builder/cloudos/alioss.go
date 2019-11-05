@@ -59,6 +59,15 @@ func (a *aliOSS) GetObject(objectKey, filePath string) error {
 	return nil
 }
 
+func (a *aliOSS) DeleteObject(objkey string) error {
+	bucket, err := a.Bucket(a.BucketName)
+	if err != nil {
+		return fmt.Errorf("failed to gets the bucket instance: %v", err)
+	}
+
+	return bucket.DeleteObject(objkey)
+}
+
 func svcErrToS3SDKError(svcErr oss.ServiceError) S3SDKError {
 	return S3SDKError{
 		Code:       svcErr.Code,

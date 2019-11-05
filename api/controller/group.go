@@ -25,7 +25,7 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/handler/group"
 	"github.com/goodrain/rainbond/api/middleware"
-
+	"github.com/goodrain/rainbond/api/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -117,7 +117,17 @@ func GetBackup(w http.ResponseWriter, r *http.Request) {
 //DeleteBackup delete backup
 func DeleteBackup(w http.ResponseWriter, r *http.Request) {
 	backupID := chi.URLParam(r, "backup_id")
-	err := handler.GetAPPBackupHandler().DeleteBackup(backupID)
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+
+	var req model.DeleteBackupReq
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	req.TenantID = tenantID
+	req.BackupID = backupID
+
+	err := handler.GetAPPBackupHandler().DeleteBackup(&req)
 	if err != nil {
 		err.Handle(r, w)
 		return
