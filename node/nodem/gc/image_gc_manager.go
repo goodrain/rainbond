@@ -29,15 +29,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/goodrain/rainbond/db"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
-)
-
-const (
-	// ImageGCPeriod is the period for performing image garbage collection.
-	ImageGCPeriod = 5 * time.Minute
 )
 
 var (
@@ -70,6 +64,8 @@ func GetFsStats(path string) (*FsStats, error) {
 type ImageGCManager interface {
 	// Start async garbage collection of images.
 	Start()
+
+	SetServiceImages(seviceImages []string)
 }
 
 // ImageGCPolicy is a policy for garbage collecting images. Policy defines an allowed band in
@@ -85,6 +81,9 @@ type ImageGCPolicy struct {
 
 	// Minimum age at which an image can be garbage collected.
 	MinAge time.Duration
+
+	// ImageGCPeriod is the period for performing image garbage collection.
+	ImageGCPeriod time.Duration
 }
 
 type realImageGCManager struct {
@@ -101,7 +100,8 @@ type realImageGCManager struct {
 	initialized bool
 
 	// sandbox image exempted from GC
-	sandboxImage string
+	sandboxImage  string
+	serviceImages []string
 }
 
 // Information about the images we track.
@@ -140,6 +140,7 @@ func NewImageGCManager(dockerClient *client.Client, policy ImageGCPolicy, sandbo
 }
 
 func (im *realImageGCManager) Start() {
+	logrus.Info("start image gc manager")
 	go wait.Until(func() {
 		// Initial detection make detected time "unknown" in the past.
 		var ts time.Time
@@ -152,7 +153,7 @@ func (im *realImageGCManager) Start() {
 		} else {
 			im.initialized = true
 		}
-	}, 5*time.Minute, wait.NeverStop)
+	}, im.policy.ImageGCPeriod, wait.NeverStop)
 
 	prevImageGCFailed := false
 	go wait.Until(func() {
@@ -166,38 +167,33 @@ func (im *realImageGCManager) Start() {
 		} else {
 			logrus.Debug("Image garbage collection succeeded")
 		}
-	}, ImageGCPeriod, wait.NeverStop)
+	}, im.policy.ImageGCPeriod, wait.NeverStop)
+}
+
+func (im *realImageGCManager) SetServiceImages(serviceImages []string) {
+	logrus.Infof("set service images: %s", strings.Join(serviceImages, ","))
+	im.serviceImages = serviceImages
 }
 
 func (im *realImageGCManager) detectImages(detectTime time.Time) (sets.String, error) {
 	imagesInUse := sets.NewString()
 
+	// copy service images
+	serviceImages := make([]string, len(im.serviceImages))
+	copy(serviceImages, im.serviceImages)
+
 	// Always consider the container runtime pod sandbox image in use
-	imageRef, err := im.getImageRef(im.sandboxImage)
-	if err == nil && imageRef != "" {
-		imagesInUse.Insert(imageRef)
+	serviceImages = append(serviceImages, im.sandboxImage)
+	for _, image := range serviceImages {
+		imageRef, err := im.getImageRef(image)
+		if err == nil && imageRef != "" {
+			imagesInUse.Insert(imageRef)
+		}
 	}
 
 	images, err := im.listImages()
 	if err != nil {
 		return imagesInUse, err
-	}
-
-	// Make a set of images in use by services.
-	versoins, err := db.GetManager().VersionInfoDao().ListSuccessfulOnes()
-	if err != nil {
-		return imagesInUse, err
-	}
-	for _, version := range versoins {
-		logrus.Debugf("build version %s, service %s uses image %s", version.BuildVersion, version.ServiceID, version.ImageName)
-		imageRef, err := im.getImageRef(version.ImageName)
-		if err != nil {
-			logrus.Warningf("image ref: %v", err)
-			continue
-		}
-		if imageRef != "" {
-			imagesInUse.Insert(imageRef)
-		}
 	}
 
 	// Add new images and record those being used.
@@ -345,7 +341,7 @@ func (im *realImageGCManager) freeSpace(bytesToFree int64, freeTime time.Time) (
 	images := make([]evictionInfo, 0, len(im.imageRecords))
 	for image, record := range im.imageRecords {
 		if isImageUsed(image, imagesInUse) {
-			logrus.Infof("Image ID %s is being used", image)
+			logrus.Debugf("Image ID %s is being used", image)
 			continue
 		}
 		images = append(images, evictionInfo{
@@ -359,10 +355,10 @@ func (im *realImageGCManager) freeSpace(bytesToFree int64, freeTime time.Time) (
 	var deletionErrors []error
 	spaceFreed := int64(0)
 	for _, image := range images {
-		logrus.Infof("Evaluating image ID %s for possible garbage collection", image.id)
+		logrus.Debugf("Evaluating image ID %s for possible garbage collection", image.id)
 		// Images that are currently in used were given a newer lastUsed.
 		if image.lastUsed.Equal(freeTime) || image.lastUsed.After(freeTime) {
-			logrus.Infof("Image ID %s has lastUsed=%v which is >= freeTime=%v, not eligible for garbage collection", image.id, image.lastUsed, freeTime)
+			logrus.Debugf("Image ID %s has lastUsed=%v which is >= freeTime=%v, not eligible for garbage collection", image.id, image.lastUsed, freeTime)
 			continue
 		}
 
@@ -370,12 +366,12 @@ func (im *realImageGCManager) freeSpace(bytesToFree int64, freeTime time.Time) (
 		// In such a case, the image may have just been pulled down, and will be used by a container right away.
 
 		if freeTime.Sub(image.firstDetected) < im.policy.MinAge {
-			logrus.Infof("Image ID %s has age %v which is less than the policy's minAge of %v, not eligible for garbage collection", image.id, freeTime.Sub(image.firstDetected), im.policy.MinAge)
+			logrus.Debugf("Image ID %s has age %v which is less than the policy's minAge of %v, not eligible for garbage collection", image.id, freeTime.Sub(image.firstDetected), im.policy.MinAge)
 			continue
 		}
 
 		// Remove image. Continue despite errors.
-		logrus.Infof("[imageGCManager]: Removing image %q to free %d bytes", image.id, image.size)
+		logrus.Debugf("[imageGCManager]: Removing image %q to free %d bytes", image.id, image.size)
 		err := im.removeImage(image.id)
 		if err != nil {
 			deletionErrors = append(deletionErrors, err)

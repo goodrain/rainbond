@@ -61,16 +61,6 @@ type NodeManager struct {
 
 //NewNodeManager new a node manager
 func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
-	imageGCPolicy := gc.ImageGCPolicy{
-		MinAge:               conf.ImageMinimumGCAge,
-		HighThresholdPercent: int(conf.ImageGCHighThresholdPercent),
-		LowThresholdPercent:  int(conf.ImageGCLowThresholdPercent),
-	}
-	imageGCManager, err := gc.NewImageGCManager(conf.DockerCli, imageGCPolicy, sandboxImage)
-	if err != nil {
-		return nil, fmt.Errorf("create new imageGCManager: %v", err)
-	}
-
 	healthyManager := healthy.CreateManager()
 	cluster := client.NewClusterClient(conf)
 	monitor, err := monitor.CreateManager(conf)
@@ -83,6 +73,17 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Get host id error:%s", err.Error())
 	}
+
+	imageGCPolicy := gc.ImageGCPolicy{
+		MinAge:               conf.ImageMinimumGCAge,
+		HighThresholdPercent: int(conf.ImageGCHighThresholdPercent),
+		LowThresholdPercent:  int(conf.ImageGCLowThresholdPercent),
+	}
+	imageGCManager, err := gc.NewImageGCManager(conf.DockerCli, imageGCPolicy, sandboxImage)
+	if err != nil {
+		return nil, fmt.Errorf("create new imageGCManager: %v", err)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	nodem := &NodeManager{
 		cfg:            conf,
@@ -145,7 +146,11 @@ func (n *NodeManager) Start(errchan chan error) error {
 		logrus.Infof("this node(%s) is not compute node or disable collect container log ,do not start container log manage", n.currentNode.Role)
 	}
 
-	go n.imageGCManager.Start()
+	if n.currentNode.Role.HasRule(client.ManageNode) && !n.currentNode.Role.HasRule(client.ComputeNode) {
+		n.imageGCManager.SetServiceImages(n.controller.ListServiceImages())
+		go n.imageGCManager.Start()
+	}
+
 	go n.monitor.Start(errchan)
 	go n.heartbeat()
 	return nil
