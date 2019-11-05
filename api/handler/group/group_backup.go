@@ -51,24 +51,18 @@ type Backup struct {
 		GroupID    string   `json:"group_id" validate:"group_name|required"`
 		Metadata   string   `json:"metadata,omitempty" validate:"metadata|required"`
 		ServiceIDs []string `json:"service_ids" validate:"service_ids|required"`
-		Mode       string   `json:"mode" validate:"mode|required|in:full-online,full-offline"`
 		Version    string   `json:"version" validate:"version|required"`
-		SlugInfo   struct {
-			Namespace   string `json:"namespace"`
-			FTPHost     string `json:"ftp_host"`
-			FTPPort     string `json:"ftp_port"`
-			FTPUser     string `json:"ftp_username"`
-			FTPPassword string `json:"ftp_password"`
-		} `json:"slug_info,omitempty"`
-		ImageInfo struct {
-			HubURL      string `json:"hub_url"`
-			HubUser     string `json:"hub_user"`
-			HubPassword string `json:"hub_password"`
-			Namespace   string `json:"namespace"`
-			IsTrust     bool   `json:"is_trust,omitempty"`
-		} `json:"image_info,omitempty"`
-		SourceDir string `json:"source_dir"`
-		BackupID  string `json:"backup_id,omitempty"`
+		SourceDir  string   `json:"source_dir"`
+		BackupID   string   `json:"backup_id,omitempty"`
+
+		Mode string `json:"mode" validate:"mode|required|in:full-online,full-offline"`
+		S3Config struct {
+			Provider   string `json:"provider"`
+			Endpoint   string `json:"endpoint"`
+			AccessKey  string `json:"access_key"`
+			SecretKey  string `json:"secret_key"`
+			BucketName string `json:"bucket_name"`
+		} `json:"s3_config"`
 	}
 }
 
@@ -112,7 +106,9 @@ func (h *BackupHandle) NewBackup(b Backup) (*dbmodel.AppBackup, *util.APIHandleE
 	appBackup.SourceDir = sourceDir
 	//snapshot the app metadata of region and write
 	if err := h.snapshot(b.Body.ServiceIDs, sourceDir); err != nil {
-		os.RemoveAll(sourceDir)
+		if err := os.RemoveAll(sourceDir); err != nil {
+			logrus.Warningf("error removing %s: %v", sourceDir, err)
+		}
 		if strings.HasPrefix(err.Error(), "Statefulset app must be closed") {
 			return nil, util.CreateAPIHandleError(401, fmt.Errorf("snapshot group apps error,%s", err))
 		}
