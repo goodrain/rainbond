@@ -47,6 +47,8 @@ func New(cfg *Config) (CloudOSer, error) {
 	switch cfg.ProviderType {
 	case S3ProviderAliOSS:
 		return newAliOSS(cfg)
+	case S3ProviderS3:
+		return newS3(cfg)
 	default:
 		return nil, ErrUnsupportedS3Provider
 	}

@@ -77,6 +77,16 @@ func (m *Manager) Begin() *gorm.DB {
 	return m.db.Begin()
 }
 
+// EnsureEndTransactionFunc -
+func (m *Manager) EnsureEndTransactionFunc() func(tx *gorm.DB) {
+	return func(tx *gorm.DB) {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}
+}
+
 //Print Print
 func (m *Manager) Print(v ...interface{}) {
 	logrus.Info(v...)

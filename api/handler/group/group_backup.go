@@ -28,7 +28,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
-	"github.com/goodrain/rainbond/api/model"
+	"github.com/jinzhu/gorm"
+	"github.com/pquerna/ffjson/ffjson"
+
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -37,8 +39,6 @@ import (
 	core_util "github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/client"
-	"github.com/jinzhu/gorm"
-	"github.com/pquerna/ffjson/ffjson"
 )
 
 //Backup GroupBackup
@@ -151,33 +151,29 @@ func (h *BackupHandle) GetBackup(backupID string) (*dbmodel.AppBackup, *util.API
 }
 
 //DeleteBackup delete backup
-func (h *BackupHandle) DeleteBackup(backupReq *model.DeleteBackupReq) *util.APIHandleError {
-	backup, err := h.GetBackup(backupReq.BackupID)
+func (h *BackupHandle) DeleteBackup(backupID string) error {
+	backup, err := db.GetManager().AppBackupDao().GetAppBackup(backupID)
 	if err != nil {
 		return err
 	}
-	if backup.Status != "success" {
-		backup.Deleted = true
-		if er := db.GetManager().AppBackupDao().UpdateModel(backup); er != nil {
-			return util.CreateAPIHandleErrorFromDBError("delete backup error", er)
+
+	tx := db.GetManager().Begin()
+	defer db.GetManager().EnsureEndTransactionFunc()(tx)
+
+	if err := db.GetManager().AppBackupDaoTransactions(tx).DeleteAppBackup(backupID); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("delete backup error: %v", err)
+	}
+
+	if backup.BackupMode == "full-offline" {
+		logrus.Infof("delete from local: %s", backup.SourceDir)
+		if err := os.RemoveAll(backup.SourceDir); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("remove backup directory: %v", err)
 		}
-		return nil
 	}
 
-	if err := h.mqcli.SendBuilderTopic(mqclient.TaskStruct{
-		Topic:    mqclient.BuilderTopic,
-		TaskType: "delete_backup",
-		TaskBody: map[string]interface{}{
-			"backup_id": backup.BackupID,
-			"tenant_id": backupReq.TenantID,
-			"s3_config": backupReq.S3Config,
-		},
-	}); err != nil {
-		logrus.Errorf("send task 'delete_backup': %v", err)
-		return util.CreateAPIHandleError(500, fmt.Errorf("send task 'delete_backup': %v", err))
-	}
-
-	return nil
+	return tx.Commit().Error
 }
 
 //GetBackupByGroupID get some backup info by group id

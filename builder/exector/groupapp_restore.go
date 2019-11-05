@@ -121,6 +121,7 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	default:
 		b.downloadFromLocal(backup)
 	}
+
 	//read metadata file
 	metadata, err := ioutil.ReadFile(path.Join(b.cacheDir, "region_apps_metadata.json"))
 	if err != nil {
