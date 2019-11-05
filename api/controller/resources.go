@@ -546,7 +546,19 @@ func (t *TenantStruct) GetTenants(w http.ResponseWriter, r *http.Request) {
 
 //DeleteTenant DeleteTenant
 func (t *TenantStruct) DeleteTenant(w http.ResponseWriter, r *http.Request) {
-	httputil.ReturnError(r, w, 400, "this rainbond version can not support delete tenant")
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+
+	if err := handler.GetTenantManager().DeleteTenant(tenantID); err != nil {
+		if err == handler.ErrTenantStillHasServices || err == handler.ErrTenantStillHasPlugins {
+			httputil.ReturnError(r, w, 400, err.Error())
+			return
+		}
+
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete tenant: %v", err))
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 //UpdateTenant UpdateTenant

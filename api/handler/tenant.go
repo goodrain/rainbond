@@ -104,6 +104,31 @@ func (t *TenantAction) UpdateTenant(tenant *dbmodel.Tenants) error {
 	return db.GetManager().TenantDao().UpdateModel(tenant)
 }
 
+// DeleteTenant deletes tenant based on the given tenantID.
+//
+// tenant can only be deleted without service or plugin
+func (t *TenantAction) DeleteTenant(tenantID string) error {
+	// check if there are still services
+	services, err := db.GetManager().TenantServiceDao().ListServicesByTenantID(tenantID)
+	if err != nil {
+		return err
+	}
+	if len(services) > 0 {
+		return ErrTenantStillHasServices
+	}
+
+	// check if there are still plugins
+	plugins, err := db.GetManager().TenantPluginDao().ListByTenantID(tenantID)
+	if err != nil {
+		return err
+	}
+	if len(plugins) > 0 {
+		return ErrTenantStillHasPlugins
+	}
+
+	return db.GetManager().TenantDao().DelByTenantID(tenantID)
+}
+
 //TotalMemCPU StatsMemCPU
 func (t *TenantAction) TotalMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error) {
 	cpus := 0
