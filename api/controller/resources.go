@@ -553,6 +553,10 @@ func (t *TenantStruct) DeleteTenant(w http.ResponseWriter, r *http.Request) {
 			httputil.ReturnError(r, w, 400, err.Error())
 			return
 		}
+		if err == gorm.ErrRecordNotFound {
+			httputil.ReturnError(r, w, 404, err.Error())
+			return
+		}
 
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete tenant: %v", err))
 		return

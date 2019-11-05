@@ -32,23 +32,23 @@ import (
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	mqclient "github.com/goodrain/rainbond/mq/client"
 	cli "github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/worker/client"
 )
 
 //TenantAction tenant act
 type TenantAction struct {
-	MQClient  pb.TaskQueueClient
+	MQClient  mqclient.MQClient
 	statusCli *client.AppRuntimeSyncClient
 	OptCfg    *option.Config
 }
 
 //CreateTenManager create Manger
-func CreateTenManager(MQClient pb.TaskQueueClient, statusCli *client.AppRuntimeSyncClient,
+func CreateTenManager(mqc mqclient.MQClient, statusCli *client.AppRuntimeSyncClient,
 	optCfg *option.Config) *TenantAction {
 	return &TenantAction{
-		MQClient:  MQClient,
+		MQClient:  mqc,
 		statusCli: statusCli,
 		OptCfg:    optCfg,
 	}
@@ -126,7 +126,29 @@ func (t *TenantAction) DeleteTenant(tenantID string) error {
 		return ErrTenantStillHasPlugins
 	}
 
-	return db.GetManager().TenantDao().DelByTenantID(tenantID)
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
+	if err != nil {
+		return err
+	}
+	tenant.Status = dbmodel.TenantStatusDeleting.String()
+	if err := db.GetManager().TenantDao().UpdateModel(tenant); err != nil {
+		return err
+	}
+
+	// delete namespace in k8s
+	err = t.MQClient.SendBuilderTopic(mqclient.TaskStruct{
+		TaskType: "delete_tenant",
+		Topic:    mqclient.WorkerTopic,
+		TaskBody: map[string]string{
+			"tenant_id": tenantID,
+		},
+	})
+	if err != nil {
+		logrus.Error("send task 'delete tenant'", err)
+		return err
+	}
+
+	return nil
 }
 
 //TotalMemCPU StatsMemCPU
