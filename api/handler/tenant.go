@@ -32,23 +32,23 @@ import (
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	mqclient "github.com/goodrain/rainbond/mq/client"
 	cli "github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/worker/client"
 )
 
 //TenantAction tenant act
 type TenantAction struct {
-	MQClient  pb.TaskQueueClient
+	MQClient  mqclient.MQClient
 	statusCli *client.AppRuntimeSyncClient
 	OptCfg    *option.Config
 }
 
 //CreateTenManager create Manger
-func CreateTenManager(MQClient pb.TaskQueueClient, statusCli *client.AppRuntimeSyncClient,
+func CreateTenManager(mqc mqclient.MQClient, statusCli *client.AppRuntimeSyncClient,
 	optCfg *option.Config) *TenantAction {
 	return &TenantAction{
-		MQClient:  MQClient,
+		MQClient:  mqc,
 		statusCli: statusCli,
 		OptCfg:    optCfg,
 	}
@@ -102,6 +102,53 @@ func (t *TenantAction) GetTenantsByEid(eid, query string) ([]*dbmodel.Tenants, e
 //UpdateTenant update tenant info
 func (t *TenantAction) UpdateTenant(tenant *dbmodel.Tenants) error {
 	return db.GetManager().TenantDao().UpdateModel(tenant)
+}
+
+// DeleteTenant deletes tenant based on the given tenantID.
+//
+// tenant can only be deleted without service or plugin
+func (t *TenantAction) DeleteTenant(tenantID string) error {
+	// check if there are still services
+	services, err := db.GetManager().TenantServiceDao().ListServicesByTenantID(tenantID)
+	if err != nil {
+		return err
+	}
+	if len(services) > 0 {
+		return ErrTenantStillHasServices
+	}
+
+	// check if there are still plugins
+	plugins, err := db.GetManager().TenantPluginDao().ListByTenantID(tenantID)
+	if err != nil {
+		return err
+	}
+	if len(plugins) > 0 {
+		return ErrTenantStillHasPlugins
+	}
+
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
+	if err != nil {
+		return err
+	}
+	tenant.Status = dbmodel.TenantStatusDeleting.String()
+	if err := db.GetManager().TenantDao().UpdateModel(tenant); err != nil {
+		return err
+	}
+
+	// delete namespace in k8s
+	err = t.MQClient.SendBuilderTopic(mqclient.TaskStruct{
+		TaskType: "delete_tenant",
+		Topic:    mqclient.WorkerTopic,
+		TaskBody: map[string]string{
+			"tenant_id": tenantID,
+		},
+	})
+	if err != nil {
+		logrus.Error("send task 'delete tenant'", err)
+		return err
+	}
+
+	return nil
 }
 
 //TotalMemCPU StatsMemCPU

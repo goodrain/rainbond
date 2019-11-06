@@ -144,6 +144,13 @@ func NewTaskBody(taskType string, body []byte) TaskBody {
 			return nil
 		}
 		return b
+	case "delete_tenant":
+		b := &DeleteTenantTaskBody{}
+		err := ffjson.Unmarshal(body, &b)
+		if err != nil {
+			return nil
+		}
+		return b
 	default:
 		return DefaultTaskBody{}
 	}
@@ -172,6 +179,8 @@ func CreateTaskBody(taskType string) TaskBody {
 		return VerticalScalingTaskBody{}
 	case "apply_plugin_config":
 		return ApplyPluginConfigTaskBody{}
+	case "delete_tenant":
+		return DeleteTenantTaskBody{}
 	default:
 		return DefaultTaskBody{}
 	}
@@ -308,6 +317,11 @@ type GroupStopTaskBody struct {
 	//组关闭策略
 	//顺序关系，无序并发关闭
 	Strategy []string `json:"strategy"`
+}
+
+// DeleteTenantTaskBody -
+type DeleteTenantTaskBody struct {
+	TenantID string `json:"tenant_id"`
 }
 
 //DefaultTaskBody 默认操作任务主体

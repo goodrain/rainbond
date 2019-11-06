@@ -41,6 +41,22 @@ type Interface interface {
 	TableName() string
 }
 
+// TenantStatus -
+type TenantStatus string
+
+var (
+	// TenantStatusNormal -
+	TenantStatusNormal TenantStatus = "normal"
+	// TenantStatusDeleting -
+	TenantStatusDeleting TenantStatus = "deleting"
+	// TenantStatusDeleteFailed -
+	TenantStatusDeleteFailed TenantStatus = "delete_failed"
+)
+
+func (t TenantStatus) String() string {
+	return string(t)
+}
+
 //Tenants 租户信息
 type Tenants struct {
 	Model
@@ -48,6 +64,7 @@ type Tenants struct {
 	UUID        string `gorm:"column:uuid;size:33;unique_index"`
 	EID         string `gorm:"column:eid"`
 	LimitMemory int    `gorm:"column:limit_memory"`
+	Status      string `gorm:"column:status;default:'normal'"`
 }
 
 //TableName 返回租户表名称
