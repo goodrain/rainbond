@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	eventutil "github.com/goodrain/rainbond/eventlog/util"
@@ -74,7 +73,6 @@ func (g *GarbageCollector) DelVolumeData(serviceGCReq model.ServiceGCTaskBody) {
 		}
 	}
 	f("/grdata")
-	f("/grlocaldata")
 }
 
 // DelPvPvcByServiceID -
@@ -90,43 +88,5 @@ func (g *GarbageCollector) DelPvPvcByServiceID(serviceGCReq model.ServiceGCTaskB
 
 	if err := g.clientset.CoreV1().PersistentVolumeClaims(serviceGCReq.TenantID).DeleteCollection(deleteOpts, listOpts); err != nil {
 		logrus.Warningf("service id: %s; delete a collection fo PVC: %v", serviceGCReq.ServiceID, err)
-	}
-}
-
-// DelVolumeDataByVolumeID -
-func (g *GarbageCollector) DelVolumeDataByVolumeID(volumeGCReq model.VolumeGCTaskBody) {
-	f := func(prefix string) {
-		dir := path.Join(prefix, fmt.Sprintf("tenant/%s/service/%s", volumeGCReq.TenantID, volumeGCReq.ServiceID), volumeGCReq.VolumePath)
-		logrus.Infof("volume data. delete %s", dir)
-		if err := os.RemoveAll(dir); err != nil {
-			logrus.Warningf("dir: %s; remove volume data: %v", dir, err)
-		}
-	}
-	f("/grdata")
-	f("/grlocaldata")
-}
-
-// DelPvPvcByVolumeID -
-func (g *GarbageCollector) DelPvPvcByVolumeID(volumeGCReq model.VolumeGCTaskBody) {
-	logrus.Infof("volume id: %d; delete PV/PVC.", volumeGCReq.VolumeID)
-	listOpts := metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("service_id=%s", volumeGCReq.ServiceID),
-	}
-	pvs, err := g.clientset.CoreV1().PersistentVolumes().List(listOpts)
-	if err != nil {
-		logrus.Warningf("list pvc: %v", err)
-	}
-	namePrefix := fmt.Sprintf("manual%d", volumeGCReq.VolumeID)
-	for _, pv := range pvs.Items {
-		claimRef := pv.Spec.ClaimRef
-		if !strings.HasPrefix(claimRef.Name, namePrefix) {
-			continue
-		}
-		if err := g.clientset.CoreV1().PersistentVolumeClaims(volumeGCReq.TenantID).Delete(claimRef.Name, &metav1.DeleteOptions{}); err != nil {
-			logrus.Warningf("volume id: %d; delete pvc: %v", volumeGCReq.VolumeID, err)
-		}
-		if err := g.clientset.CoreV1().PersistentVolumes().Delete(pv.Name, &metav1.DeleteOptions{}); err != nil {
-			logrus.Warningf("volume id: %d; delete pv: %v", volumeGCReq.VolumeID, err)
-		}
 	}
 }

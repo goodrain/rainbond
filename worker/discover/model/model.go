@@ -151,13 +151,6 @@ func NewTaskBody(taskType string, body []byte) TaskBody {
 			return nil
 		}
 		return b
-	case "volume_gc":
-		b := VolumeGCTaskBody{}
-		err := ffjson.Unmarshal(body, &b)
-		if err != nil {
-			return nil
-		}
-		return b
 	default:
 		return DefaultTaskBody{}
 	}
@@ -329,14 +322,6 @@ type ServiceGCTaskBody struct {
 	TenantID  string   `json:"tenant_id"`
 	ServiceID string   `json:"service_id"`
 	EventIDs  []string `json:"event_ids"`
-}
-
-// VolumeGCTaskBody holds the request body to execute volume gc task.
-type VolumeGCTaskBody struct {
-	TenantID   string `json:"tenant_id"`
-	ServiceID  string `json:"service_id"`
-	VolumeID   int    `json:"volume_id"`
-	VolumePath string `json:"volume_path"`
 }
 
 //DefaultTaskBody 默认操作任务主体
