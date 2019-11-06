@@ -100,8 +100,8 @@ type Conf struct {
 	LicPath   string
 	LicSoPath string
 
-	MysqlConnectionInfo string
-	DBType              string
+	// EnableImageGC is the trigger of image garbage collection.
+	EnableImageGC bool
 	// imageMinimumGCAge is the minimum age for an unused image before it is
 	// garbage collected.
 	ImageMinimumGCAge time.Duration
@@ -166,10 +166,9 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&a.AutoUnschedulerUnHealthDuration, "autounscheduler-unhealthy-dura", 5*time.Minute, "Node unhealthy duration, after the automatic offline,if set 0,disable auto handle unscheduler.default is 5 Minute")
 	fs.StringVar(&a.LicPath, "lic-path", "/opt/rainbond/etc/license/license.yb", "the license path of the enterprise version.")
 	fs.StringVar(&a.LicSoPath, "lic-so-path", "/opt/rainbond/etc/license/license.so", "Dynamic library file path for parsing the license.")
-	fs.StringVar(&a.DBType, "db-type", "mysql", "db type")
-	fs.StringVar(&a.MysqlConnectionInfo, "mysql", "root:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
+	fs.BoolVar(&a.EnableImageGC, "enable-image-gc", true, "The trigger of image garbage collection.")
 	fs.DurationVar(&a.ImageMinimumGCAge, "minimum-image-ttl-duration", 2*time.Hour, "Minimum age for an unused image before it is garbage collected.  Examples: '300ms', '10s' or '2h45m'.")
-	fs.DurationVar(&a.ImageMinimumGCAge, "image-gc-period", 5*time.Minute, "ImageGCPeriod is the period for performing image garbage collection.  Examples: '10s', '5m' or '2h45m'.")
+	fs.DurationVar(&a.ImageGCPeriod, "image-gc-period", 5*time.Minute, "ImageGCPeriod is the period for performing image garbage collection.  Examples: '10s', '5m' or '2h45m'.")
 	fs.Int32Var(&a.ImageGCHighThresholdPercent, "image-gc-high-threshold", 90, "The percent of disk usage after which image garbage collection is always run. Values must be within the range [0, 100], To disable image garbage collection, set to 100. ")
 	fs.Int32Var(&a.ImageGCLowThresholdPercent, "image-gc-low-threshold", 75, "The percent of disk usage before which image garbage collection is never run. Lowest disk usage to garbage collect to. Values must be within the range [0, 100] and should not be larger than that of --image-gc-high-threshold.")
 }

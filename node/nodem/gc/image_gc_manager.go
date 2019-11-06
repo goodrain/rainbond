@@ -140,7 +140,7 @@ func NewImageGCManager(dockerClient *client.Client, policy ImageGCPolicy, sandbo
 }
 
 func (im *realImageGCManager) Start() {
-	logrus.Info("start image gc manager")
+	logrus.Infof("start image gc manager; image gc period: %f", im.policy.ImageGCPeriod.Seconds())
 	go wait.Until(func() {
 		// Initial detection make detected time "unknown" in the past.
 		var ts time.Time
@@ -280,13 +280,32 @@ func (im *realImageGCManager) removeImage(imageID string) error {
 	return nil
 }
 
+func (im *realImageGCManager) dockerRootDir() (string, error) {
+	ctx, cancel := getContextWithTimeout(3 * time.Second)
+	defer cancel()
+
+	dockerInfo, err := im.dockerClient.Info(ctx)
+	if err != nil {
+		return "", fmt.Errorf("docker info: %v", err)
+	}
+
+	return dockerInfo.DockerRootDir, nil
+}
+
 // getContextWithTimeout returns a context with timeout.
 func getContextWithTimeout(timeout time.Duration) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), timeout)
 }
 
 func (im *realImageGCManager) GarbageCollect() error {
-	fsStats, err := GetFsStats("/")
+	dockerRootDir, err := im.dockerRootDir()
+	if err != nil {
+		logrus.Errorf("failed to get docker root dir: %v; use '/'", err)
+		dockerRootDir = "/"
+	}
+
+	logrus.Infof("docker root dir: %s", dockerRootDir)
+	fsStats, err := GetFsStats(dockerRootDir)
 	if err != nil {
 		return err
 	}
@@ -374,7 +393,6 @@ func (im *realImageGCManager) freeSpace(bytesToFree int64, freeTime time.Time) (
 		logrus.Debugf("[imageGCManager]: Removing image %q to free %d bytes", image.id, image.size)
 		err := im.removeImage(image.id)
 		if err != nil {
-			deletionErrors = append(deletionErrors, err)
 			continue
 		}
 		delete(im.imageRecords, image.id)
