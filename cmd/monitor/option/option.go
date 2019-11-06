@@ -52,6 +52,8 @@ type Config struct {
 	QueryTimeout         string
 	QueryMaxConcurrency  string
 	CadvisorListenPort   int
+	MysqldExporter       string
+	KSMExporter          string
 }
 
 // Options for the web Handler.
@@ -133,6 +135,8 @@ func (c *Config) AddFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.AdvertiseAddr, "advertise-addr", c.AdvertiseAddr, "advertise address, and registry into etcd.")
 	cmd.IntVar(&c.CadvisorListenPort, "cadvisor-listen-port", c.CadvisorListenPort, "kubelet cadvisor listen port in all node")
 	cmd.StringSliceVar(&c.AlertManagerUrl, "alertmanager-address", c.AlertManagerUrl, "AlertManager url.")
+	cmd.StringVar(&c.MysqldExporter, "mysqld-exporter", c.MysqldExporter, "mysqld exporter address. eg: 127.0.0.1:9104")
+	cmd.StringVar(&c.KSMExporter, "kube-state-metrics", c.KSMExporter, "kube-state-metrics, current server's kube-state-metrics address")
 }
 
 //AddPrometheusFlag prometheus flag

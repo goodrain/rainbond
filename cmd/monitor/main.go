@@ -22,7 +22,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
+
+	"github.com/goodrain/rainbond/monitor/custom"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
@@ -45,6 +49,9 @@ func main() {
 	a := prometheus.NewRulesManager(c)
 	p := prometheus.NewManager(c, a)
 	controllerManager := controller.NewControllerManager(a, p)
+
+	monitorMysql(c, p)
+	monitorKSM(c, p)
 
 	errChan := make(chan error, 1)
 	defer close(errChan)
@@ -78,4 +85,20 @@ func main() {
 		}
 	}
 	logrus.Info("See you next time!")
+}
+
+func monitorMysql(c *option.Config, p *prometheus.Manager) {
+	if strings.TrimSpace(c.MysqldExporter) != "" {
+		metrics := strings.TrimSpace(c.MysqldExporter)
+		logrus.Infof("add mysql metrics[%s] into prometheus", metrics)
+		custom.AddMetrics(p, custom.Metrics{Name: "mysql", Path: "/metrics", Metrics: []string{metrics}, Interval: 30 * time.Second, Timeout: 15 * time.Second})
+	}
+}
+
+func monitorKSM(c *option.Config, p *prometheus.Manager) {
+	if strings.TrimSpace(c.KSMExporter) != "" {
+		metrics := strings.TrimSpace(c.KSMExporter)
+		logrus.Infof("add kube-state-metrics[%s] into prometheus", metrics)
+		custom.AddMetrics(p, custom.Metrics{Name: "kubernetes", Path: "/metrics", Metrics: []string{metrics}, Interval: 30 * time.Second, Timeout: 10 * time.Second})
+	}
 }
