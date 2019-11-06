@@ -121,7 +121,8 @@ func (n *NginxConfigFileTemplete) WriteServerAndUpstream(first bool, c option.Co
 	}
 	n.writeLocks[tenant].Lock()
 	defer n.writeLocks[tenant].Unlock()
-	serverConfigFile := path.Join(n.configFileDirPath, configType, tenant, "servers.conf")
+	filename := fmt.Sprintf("%s_servers.conf", tenant)
+	serverConfigFile := path.Join(n.configFileDirPath, configType, tenant, filename)
 	upstreamConfigFile := path.Join(n.configFileDirPath, "stream", tenant, "upstreams.conf")
 	serverBody, err := n.serverTmpl.Write(&NginxServerContext{Server: server, Set: c})
 	if err != nil {
