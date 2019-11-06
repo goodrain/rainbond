@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/util/disk"
+	v1 "k8s.io/api/core/v1"
 
 	api "github.com/goodrain/rainbond/util/http"
 
@@ -310,31 +311,55 @@ func CapRes(w http.ResponseWriter, r *http.Request) {
 
 //ClusterInfo ClusterInfo
 func ClusterInfo(w http.ResponseWriter, r *http.Request) {
-	usedNodeList := make([]string, 0, 10)
 	nodes, err := kubecli.GetNodes()
 	if err != nil {
 		api.ReturnError(r, w, 500, err.Error())
 		return
 	}
-	var capCPU int64
-	var capMem int64
+
+	type tmpNode struct {
+		Name   string
+		Health bool
+	}
+	var healthCapCPU int64
+	var healthCapMem int64
+	var unhealthCapCPU int64
+	var unhealthCapMem int64
+	usedNodeList := make([]tmpNode, 0, 10)
 	for _, v := range nodes {
+		nodeHealth := false
+		for _, con := range v.Status.Conditions {
+			if con.Type == v1.NodeReady {
+				nodeHealth = con.Status == v1.ConditionTrue
+				break
+			}
+		}
+		if nodeHealth {
+			healthCapCPU += v.Status.Allocatable.Cpu().Value()
+			healthCapMem += v.Status.Allocatable.Memory().Value()
+		} else {
+			unhealthCapCPU += v.Status.Allocatable.Cpu().Value()
+			unhealthCapMem += v.Status.Allocatable.Memory().Value()
+		}
 		if v.Spec.Unschedulable == false {
-			capCPU += v.Status.Capacity.Cpu().Value()
-			capMem += v.Status.Capacity.Memory().Value()
-			usedNodeList = append(usedNodeList, v.Name)
+			usedNodeList = append(usedNodeList, tmpNode{Name: v.Name, Health: nodeHealth})
 		}
 	}
-	var cpuR int64
-	var memR int64
+	var healthcpuR int64
+	var healthmemR int64
+	var unhealthCPUR int64
+	var unhealthMemR int64
 	for _, node := range usedNodeList {
-		pods, _ := kubecli.GetPodsByNodes(node)
+		pods, _ := kubecli.GetPodsByNodes(node.Name)
 		for _, pod := range pods {
 			for _, c := range pod.Spec.Containers {
-				rc := c.Resources.Requests.Cpu().MilliValue()
-				rm := c.Resources.Requests.Memory().Value()
-				cpuR += rc
-				memR += rm
+				if node.Health {
+					healthcpuR += c.Resources.Requests.Cpu().MilliValue()
+					healthmemR += c.Resources.Requests.Memory().Value()
+				} else {
+					unhealthCPUR += c.Resources.Requests.Cpu().MilliValue()
+					unhealthMemR += c.Resources.Requests.Memory().Value()
+				}
 			}
 		}
 	}
@@ -344,15 +369,22 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 	} else {
 		diskstauts = disk.DiskUsage(`z:\\`)
 	}
-	podMemRequestMB := memR / 1024 / 1024
 	result := &model.ClusterResource{
-		CapCPU:      int(capCPU),
-		CapMem:      int(capMem) / 1024 / 1024,
-		ReqCPU:      float32(cpuR) / 1000,
-		ReqMem:      int(podMemRequestMB),
-		ComputeNode: len(nodes),
-		CapDisk:     diskstauts.All,
-		ReqDisk:     diskstauts.Used,
+		CapCPU:         int(healthCapCPU + unhealthCapCPU),
+		CapMem:         int(healthCapMem+unhealthCapMem) / 1024 / 1024,
+		HealthCapCPU:   int(healthCapCPU),
+		HealthCapMem:   int(healthCapMem) / 1024 / 1024,
+		UnhealthCapCPU: int(unhealthCapCPU),
+		UnhealthCapMem: int(unhealthCapMem) / 1024 / 1024,
+		ReqCPU:         float32(healthcpuR+unhealthCPUR) / 1000,
+		ReqMem:         int(healthmemR+unhealthMemR) / 1024 / 1024,
+		HealthReqCPU:   float32(healthcpuR) / 1000,
+		HealthReqMem:   int(healthmemR) / 1024 / 1024,
+		UnhealthReqCPU: float32(unhealthCPUR) / 1000,
+		UnhealthReqMem: int(unhealthMemR) / 1024 / 1024,
+		ComputeNode:    len(nodes),
+		CapDisk:        diskstauts.All,
+		ReqDisk:        diskstauts.Used,
 	}
 	allnodes, _ := nodeService.GetAllNode()
 	result.AllNode = len(allnodes)
