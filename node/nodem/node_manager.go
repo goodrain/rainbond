@@ -76,6 +76,7 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 
 	imageGCPolicy := gc.ImageGCPolicy{
 		MinAge:               conf.ImageMinimumGCAge,
+		ImageGCPeriod:        conf.ImageGCPeriod,
 		HighThresholdPercent: int(conf.ImageGCHighThresholdPercent),
 		LowThresholdPercent:  int(conf.ImageGCLowThresholdPercent),
 	}
@@ -146,9 +147,11 @@ func (n *NodeManager) Start(errchan chan error) error {
 		logrus.Infof("this node(%s) is not compute node or disable collect container log ,do not start container log manage", n.currentNode.Role)
 	}
 
-	if n.currentNode.Role.HasRule(client.ManageNode) && !n.currentNode.Role.HasRule(client.ComputeNode) {
-		n.imageGCManager.SetServiceImages(n.controller.ListServiceImages())
-		go n.imageGCManager.Start()
+	if n.cfg.EnableImageGC {
+		if n.currentNode.Role.HasRule(client.ManageNode) && !n.currentNode.Role.HasRule(client.ComputeNode) {
+			n.imageGCManager.SetServiceImages(n.controller.ListServiceImages())
+			go n.imageGCManager.Start()
+		}
 	}
 
 	go n.monitor.Start(errchan)
