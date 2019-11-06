@@ -54,18 +54,18 @@ type TaskManager struct {
 }
 
 //NewTaskManager return *TaskManager
-func NewTaskManager(c option.Config,
+func NewTaskManager(cfg option.Config,
 	store store.Storer,
 	controllermanager *controller.Manager,
 	startCh *channels.RingChannel) *TaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
-	handleManager := handle.NewManager(ctx, c, store, controllermanager, startCh)
+	handleManager := handle.NewManager(ctx, cfg, store, controllermanager, startCh)
 	healthStatus["status"] = "health"
 	healthStatus["info"] = "worker service health"
 	return &TaskManager{
 		ctx:           ctx,
 		cancel:        cancel,
-		config:        c,
+		config:        cfg,
 		handleManager: handleManager,
 	}
 }
@@ -122,8 +122,10 @@ func (t *TaskManager) Do() {
 			}
 			rc := t.handleManager.AnalystToExec(transData)
 			if rc != nil && rc != handle.ErrCallback {
+				logrus.Errorf("analyst to exet: %v", rc)
 				TaskError++
 			} else if rc != nil && rc == handle.ErrCallback {
+				logrus.Errorf("err callback; analyst to exet: %v", rc)
 				ctx, cancel := context.WithCancel(t.ctx)
 				reply, err := t.client.Enqueue(ctx, &pb.EnqueueRequest{
 					Topic:   client.WorkerTopic,

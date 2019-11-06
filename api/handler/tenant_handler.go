@@ -44,4 +44,5 @@ type TenantHandler interface {
 	IsClosedStatus(status string) bool
 	BindTenantsResource(source []*dbmodel.Tenants) api_model.TenantList
 	UpdateTenant(*dbmodel.Tenants) error
+	DeleteTenant(tenantID string) error
 }

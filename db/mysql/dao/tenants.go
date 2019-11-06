@@ -149,14 +149,22 @@ func (t *TenantDaoImpl) GetTenantLimitsByNames(names []string) (limit map[string
 	return
 }
 
-//GetALLTenants GetALLTenants
+// GetPagedTenants -
 func (t *TenantDaoImpl) GetPagedTenants(offset, len int) ([]*model.Tenants, error) {
-
 	var tenants []*model.Tenants
 	if err := t.DB.Find(&tenants).Group("").Error; err != nil {
 		return nil, err
 	}
 	return tenants, nil
+}
+
+// DelByTenantID -
+func (t *TenantDaoImpl) DelByTenantID(tenantID string) error {
+	if err := t.DB.Where("uuid=?", tenantID).Delete(&model.Tenants{}).Error; err != nil {
+		return err
+	}
+
+	return nil
 }
 
 //TenantServicesDaoImpl 租户应用dao
@@ -173,6 +181,16 @@ func (t *TenantServicesDaoImpl) GetAllServicesID() ([]*model.TenantServices, err
 		}
 		return nil, err
 	}
+	return services, nil
+}
+
+// ListServicesByTenantID -
+func (t *TenantServicesDaoImpl) ListServicesByTenantID(tenantID string) ([]*model.TenantServices, error) {
+	var services []*model.TenantServices
+	if err := t.DB.Where("tenant_id=?", tenantID).Find(&services).Error; err != nil {
+		return nil, err
+	}
+
 	return services, nil
 }
 
@@ -216,7 +234,7 @@ func (t *TenantServicesDaoImpl) GetServiceByID(serviceID string) (*model.TenantS
 	return &service, nil
 }
 
-//GetServiceByID 获取服务通过服务别名
+//GetServiceByServiceAlias 获取服务通过服务别名
 func (t *TenantServicesDaoImpl) GetServiceByServiceAlias(serviceAlias string) (*model.TenantServices, error) {
 	var service model.TenantServices
 	if err := t.DB.Where("service_alias=?", serviceAlias).Find(&service).Error; err != nil {
@@ -441,7 +459,7 @@ func (t *TenantServicesDaoImpl) DeleteServiceByServiceID(serviceID string) error
 	return nil
 }
 
-// ListThirdPartyService lists all third party services
+// ListThirdPartyServices lists all third party services
 func (t *TenantServicesDaoImpl) ListThirdPartyServices() ([]*model.TenantServices, error) {
 	var res []*model.TenantServices
 	if err := t.DB.Where("kind=?", model.ServiceKindThirdParty.String()).Find(&res).Error; err != nil {
@@ -476,6 +494,7 @@ func (t *TenantServicesDeleteImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
+// GetTenantServicesDeleteByCreateTime -
 func (t *TenantServicesDeleteImpl) GetTenantServicesDeleteByCreateTime(createTime time.Time) ([]*model.TenantServicesDelete, error) {
 	var ServiceDel []*model.TenantServicesDelete
 	if err := t.DB.Where("create_time < ?", createTime).Find(&ServiceDel).Error; err != nil {
@@ -487,6 +506,7 @@ func (t *TenantServicesDeleteImpl) GetTenantServicesDeleteByCreateTime(createTim
 	return ServiceDel, nil
 }
 
+// DeleteTenantServicesDelete -
 func (t *TenantServicesDeleteImpl) DeleteTenantServicesDelete(record *model.TenantServicesDelete) error {
 	if err := t.DB.Delete(record).Error; err != nil {
 		return err
@@ -584,7 +604,7 @@ func (t *TenantServicesPortDaoImpl) GetPort(serviceID string, port int) (*model.
 	return &oldPort, nil
 }
 
-// GetEnablePort returns opened ports.
+// GetOpenedPorts returns opened ports.
 func (t *TenantServicesPortDaoImpl) GetOpenedPorts(serviceID string) ([]*model.TenantServicesPort, error) {
 	var ports []*model.TenantServicesPort
 	if err := t.DB.Where("service_id = ? and (is_inner_service=1 or is_outer_service=1)", serviceID).
@@ -1411,7 +1431,7 @@ func (t *ServiceLabelDaoImpl) GetTenantServiceTypeLabel(serviceID string) (*mode
 	return &label, nil
 }
 
-//DELTenantServiceLabelsByLabelvaluesAndServiceID DELTenantServiceLabelsByLabelvaluesAndServiceID
+//DelTenantServiceLabelsByLabelValuesAndServiceID DELTenantServiceLabelsByLabelvaluesAndServiceID
 func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByLabelValuesAndServiceID(serviceID string) error {
 	var label model.TenantServiceLable
 	if err := t.DB.Where("service_id=? and label_value=?", serviceID, model.LabelKeyNodeSelector).Delete(&label).Error; err != nil {
@@ -1420,7 +1440,7 @@ func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByLabelValuesAndServiceID(se
 	return nil
 }
 
-//DelTenantServiceLabels deletes labels
+//DelTenantServiceLabelsByServiceIDKeyValue deletes labels
 func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByServiceIDKeyValue(serviceID string, labelKey string,
 	labelValue string) error {
 	var label model.TenantServiceLable
