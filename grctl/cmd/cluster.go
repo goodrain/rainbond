@@ -60,7 +60,7 @@ func getClusterInfo(c *cli.Context) error {
 		os.Exit(1)
 	}
 	table := uitable.New()
-	table.AddRow("", "Used/Total", "Use of", "Health idle", "Unhealth idle")
+	table.AddRow("", "Used/Total", "Use of", "Health free", "Unhealth free")
 	table.AddRow("CPU", fmt.Sprintf("%.2f/%d", clusterInfo.ReqCPU, clusterInfo.CapCPU),
 		fmt.Sprintf("%d", func() int {
 			if clusterInfo.CapCPU == 0 {
