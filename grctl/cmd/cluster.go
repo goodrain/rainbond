@@ -72,7 +72,7 @@ func getClusterInfo(c *cli.Context) error {
 			}
 			return int(clusterInfo.ReqCPU * 100 / float32(clusterInfo.CapCPU))
 		}())+"%", "\033[0;32;32m"+healthCPUFree+"\033[0m \t\t", unhealthCPUFree)
-	table.AddRow("Memory(Mb)", fmt.Sprintf("%d/%d", clusterInfo.ReqMem, clusterInfo.CapMem), // TODO 单位
+	table.AddRow("Memory(Mb)", fmt.Sprintf("%d/%d", clusterInfo.ReqMem, clusterInfo.CapMem),
 		fmt.Sprintf("%d", func() int {
 			if clusterInfo.CapMem == 0 {
 				return 0
