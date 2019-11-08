@@ -26,10 +26,14 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/goodrain/rainbond/worker/appm/store"
@@ -40,7 +44,7 @@ import (
 //Manager manager
 type Manager struct {
 	ctx               context.Context
-	c                 option.Config
+	cfg               option.Config
 	store             store.Storer
 	dbmanager         db.Manager
 	controllerManager *controller.Manager
@@ -57,7 +61,7 @@ func NewManager(ctx context.Context,
 
 	return &Manager{
 		ctx:               ctx,
-		c:                 config,
+		cfg:               config,
 		dbmanager:         db.GetManager(),
 		store:             store,
 		controllerManager: controllerManager,
@@ -69,7 +73,7 @@ func NewManager(ctx context.Context,
 var ErrCallback = fmt.Errorf("callback task to mq")
 
 func (m *Manager) checkCount() bool {
-	if m.controllerManager.GetControllerSize() > m.c.MaxTasks {
+	if m.controllerManager.GetControllerSize() > m.cfg.MaxTasks {
 		return true
 	}
 	return false
@@ -112,6 +116,9 @@ func (m *Manager) AnalystToExec(task *model.Task) error {
 	case "apply_plugin_config":
 		logrus.Info("start a 'apply_plugin_config' task worker")
 		return m.applyPluginConfig(task)
+	case "delete_tenant":
+		logrus.Info("start a 'delete_tenant' task worker")
+		return m.deleteTenant(task)
 	default:
 		logrus.Warning("task can not execute because no type is identified")
 		return nil
@@ -432,4 +439,47 @@ func (m *Manager) applyPluginConfig(task *model.Task) error {
 		return fmt.Errorf("Application apply plugin config controller failure:%s", err.Error())
 	}
 	return nil
+}
+
+func (m *Manager) deleteTenant(task *model.Task) (err error) {
+	body, ok := task.Body.(*model.DeleteTenantTaskBody)
+	if !ok {
+		logrus.Errorf("can't convert %s to *model.DeleteTenantTaskBody", reflect.TypeOf(task.Body))
+		err = fmt.Errorf("can't convert %s to *model.DeleteTenantTaskBody", reflect.TypeOf(task.Body))
+		return
+	}
+
+	defer func() {
+		if err == nil {
+			return
+		}
+		logrus.Errorf("failed to delete tenant: %v", err)
+		var tenant *dbmodel.Tenants
+		tenant, err = db.GetManager().TenantDao().GetTenantByUUID(body.TenantID)
+		if err != nil {
+			err = fmt.Errorf("tenant id: %s; find tenant: %v", err)
+			return
+		}
+		tenant.Status = dbmodel.TenantStatusDeleteFailed.String()
+		err := db.GetManager().TenantDao().UpdateModel(tenant)
+		if err != nil {
+			err = fmt.Errorf("update tenant_status to '%s': %v", tenant.Status, err)
+			return
+		}
+	}()
+
+	if err = m.cfg.KubeClient.CoreV1().Namespaces().Delete(body.TenantID, &metav1.DeleteOptions{
+		GracePeriodSeconds: util.Int64(0),
+	}); err != nil && !k8sErrors.IsNotFound(err) {
+		err = fmt.Errorf("delete namespace: %v", err)
+		return
+	}
+
+	err = db.GetManager().TenantDao().DelByTenantID(body.TenantID)
+	if err != nil {
+		err = fmt.Errorf("delete tenant: %v", err)
+		return
+	}
+
+	return
 }

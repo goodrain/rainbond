@@ -36,7 +36,7 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 	for i := range services {
 		if domain, ok := services[i].Annotations["domain"]; ok && domain != "" {
 			logrus.Warnf("service[sid: %s] endpoint id domain endpoint[domain: %s], use dns cluster type, do not create eds", services[i].GetUID(), domain)
-			return
+			continue
 		}
 		service := services[i]
 		destServiceAlias := GetServiceAliasByService(service)

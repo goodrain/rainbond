@@ -148,12 +148,9 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			// Update k8s node status to node status
 			if k8sNode != nil {
 				v.UpdataK8sCondition(k8sNode.Status.Conditions)
-				if v.AvailableCPU == 0 {
-					v.AvailableCPU = k8sNode.Status.Capacity.Cpu().Value()
-				}
-				if v.AvailableMemory == 0 {
-					v.AvailableMemory = k8sNode.Status.Capacity.Memory().Value()
-				}
+				// 添加capacity属性，对应相关属性
+				v.AvailableCPU = k8sNode.Status.Allocatable.Cpu().Value()
+				v.AvailableMemory = k8sNode.Status.Allocatable.Memory().Value()
 				v.NodeStatus.KubeNode = k8sNode
 				v.NodeStatus.KubeUpdateTime = time.Now()
 				v.NodeStatus.CurrentScheduleStatus = !k8sNode.Spec.Unschedulable
@@ -161,12 +158,8 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			}
 		}
 		if (v.Role.HasRule("manage") || v.Role.HasRule("gateway")) && !v.Role.HasRule("compute") { //manage install_success == runnint
-			if v.AvailableCPU == 0 {
-				v.AvailableCPU = v.NodeStatus.NodeInfo.NumCPU
-			}
-			if v.AvailableMemory == 0 {
-				v.AvailableMemory = int64(v.NodeStatus.NodeInfo.MemorySize)
-			}
+			v.AvailableCPU = v.NodeStatus.NodeInfo.NumCPU
+			v.AvailableMemory = int64(v.NodeStatus.NodeInfo.MemorySize)
 		}
 		//handle status
 		v.Status = v.NodeStatus.Status
