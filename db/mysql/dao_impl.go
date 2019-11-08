@@ -409,6 +409,13 @@ func (m *Manager) AppBackupDao() dao.AppBackupDao {
 	}
 }
 
+// AppBackupDaoTransactions -
+func (m *Manager) AppBackupDaoTransactions(db *gorm.DB) dao.AppBackupDao {
+	return &mysqldao.AppBackupDaoImpl{
+		DB: db,
+	}
+}
+
 //ServiceSourceDao service source db impl
 func (m *Manager) ServiceSourceDao() dao.ServiceSourceDao {
 	return &mysqldao.ServiceSourceImpl{

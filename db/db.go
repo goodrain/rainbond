@@ -32,6 +32,7 @@ import (
 type Manager interface {
 	CloseManager() error
 	Begin() *gorm.DB
+	EnsureEndTransactionFunc() func(tx *gorm.DB)
 	LicenseDao() dao.LicenseDao
 	AppDao() dao.AppDao
 	TenantDao() dao.TenantDao
@@ -94,6 +95,7 @@ type Manager interface {
 
 	NotificationEventDao() dao.NotificationEventDao
 	AppBackupDao() dao.AppBackupDao
+	AppBackupDaoTransactions(db *gorm.DB) dao.AppBackupDao
 	ServiceSourceDao() dao.ServiceSourceDao
 
 	// gateway
