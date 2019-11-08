@@ -35,6 +35,7 @@ import (
 	"strconv"
 
 	"github.com/goodrain/rainbond/node/api/model"
+	"github.com/goodrain/rainbond/node/nodem/client"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -391,6 +392,14 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 	for _, n := range allnodes {
 		if n.Status != "running" {
 			result.NotReadyNode++
+		} else {
+			//node unhealth status
+			for _, condition := range n.NodeStatus.Conditions {
+				if condition.Status != client.ConditionTrue {
+					result.NotReadyNode++
+					break
+				}
+			}
 		}
 	}
 	api.ReturnSuccess(r, w, result)
