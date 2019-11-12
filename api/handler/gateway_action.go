@@ -134,7 +134,7 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (stri
 		tx.Rollback()
 		return "", err
 	}
-	if rule == nil {
+	if rule == nil || rule.UUID == "" { // rule won't be nil
 		tx.Rollback()
 		return "", fmt.Errorf("HTTPRule dosen't exist based on uuid(%s)", req.HTTPRuleID)
 	}
@@ -156,6 +156,13 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (stri
 			return "", err
 		}
 		rule.CertificateID = req.CertificateID
+	} else {
+		// if certificateID is '' means do not need https cetificate any more, so delete Certificate
+		if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(rule.CertificateID); err != nil {
+			tx.Rollback()
+			return "", err
+		}
+		rule.CertificateID = ""
 	}
 	if len(req.RuleExtensions) > 0 {
 		// delete old RuleExtensions
