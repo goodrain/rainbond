@@ -105,7 +105,7 @@ type PluginInterface interface {
 	PluginAction(w http.ResponseWriter, r *http.Request)
 	PluginDefaultENV(w http.ResponseWriter, r *http.Request)
 	PluginBuild(w http.ResponseWriter, r *http.Request)
-	GetAllPluginBuildVersons(w http.ResponseWriter, r *http.Request)
+	GetAllPluginBuildVersions(w http.ResponseWriter, r *http.Request)
 	GetPluginBuildVersion(w http.ResponseWriter, r *http.Request)
 	DeletePluginBuildVersion(w http.ResponseWriter, r *http.Request)
 	//plugin
