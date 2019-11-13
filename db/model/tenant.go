@@ -454,3 +454,34 @@ const (
 func (t *TenantServiceProbe) TableName() string {
 	return "tenant_services_probe"
 }
+
+// TenantServiceAutoscalerRules -
+type TenantServiceAutoscalerRules struct {
+	Model
+	RuleID      string `gorm:"column:rule_id;unique;size:32"`
+	ServiceID   string `gorm:"column:service_id;size:32"`
+	Enable      bool   `gorm:"column:enable"`
+	XPAType     string `gorm:"column:xpa_type;size:3"`
+	MinReplicas int    `gorm:"colume:min_replicas"`
+	MaxReplicas int    `gorm:"colume:max_replicas"`
+}
+
+// TableName -
+func (t *TenantServiceAutoscalerRules) TableName() string {
+	return "tenant_services_autoscaler_rules"
+}
+
+// TenantServiceAutoscalerRuleMetrics -
+type TenantServiceAutoscalerRuleMetrics struct {
+	Model
+	RuleID            string `gorm:"column:rule_id;size:32;not null"`
+	MetricsType       string `gorm:"column:metric_type;not null"`
+	MetricsName       string `gorm:"column:metric_name;not null"`
+	MetricTargetType  string `gorm:"column:metric_target_type;not null"`
+	MetricTargetValue int    `gorm:"column:metric_target_value;not null"`
+}
+
+// TableName -
+func (t *TenantServiceAutoscalerRuleMetrics) TableName() string {
+	return "tenant_services_autoscaler_rule_metrics"
+}

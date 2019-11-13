@@ -1884,6 +1884,105 @@ func (s *ServiceAction) ListVersionInfo(serviceID string) (*api_model.BuildListR
 	return result, nil
 }
 
+// AddAutoscalerRule -
+func (s *ServiceAction) AddAutoscalerRule(req *api_model.AutoscalerRuleReq) error {
+	tx := db.GetManager().Begin()
+	defer db.GetManager().EnsureEndTransactionFunc()
+
+	r := &dbmodel.TenantServiceAutoscalerRules{
+		RuleID:      req.RuleID,
+		ServiceID:   req.ServiceID,
+		Enable:      req.Enable,
+		XPAType:     req.XPAType,
+		MinReplicas: req.MinReplicas,
+		MaxReplicas: req.MaxReplicas,
+	}
+	if err := db.GetManager().TenantServceAutoscalerRulesDaoTransactions(tx).AddModel(r); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	for _, metric := range req.Metrics {
+		m := &dbmodel.TenantServiceAutoscalerRuleMetrics{
+			RuleID:            req.RuleID,
+			MetricsType:       metric.MetricsType,
+			MetricsName:       metric.MetricsName,
+			MetricTargetType:  metric.MetricTargetType,
+			MetricTargetValue: metric.MetricTargetValue,
+		}
+		if err := db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).AddModel(m); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit().Error
+}
+
+// UpdAutoscalerRule -
+func (s *ServiceAction) UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) error {
+	rule, err := db.GetManager().TenantServceAutoscalerRulesDao().GetByRuleID(req.RuleID)
+	if err != nil {
+		return err
+	}
+
+	rule.Enable = req.Enable
+	rule.XPAType = req.XPAType
+	rule.MinReplicas = req.MinReplicas
+	rule.MaxReplicas = req.MaxReplicas
+
+	tx := db.GetManager().Begin()
+	defer db.GetManager().EnsureEndTransactionFunc()
+
+	if err := db.GetManager().TenantServceAutoscalerRulesDaoTransactions(tx).UpdateModel(rule); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	for _, metric := range req.Metrics {
+		m := &dbmodel.TenantServiceAutoscalerRuleMetrics{
+			RuleID:            req.RuleID,
+			MetricsType:       metric.MetricsType,
+			MetricsName:       metric.MetricsName,
+			MetricTargetType:  metric.MetricTargetType,
+			MetricTargetValue: metric.MetricTargetValue,
+		}
+		if err := db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).UpdateOrCreate(m); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit().Error
+}
+
+// ListAutoscalerRulesByServiceID -
+func (s *ServiceAction) ListAutoscalerRulesByServiceID(serviceID string) ([]api_model.AutoscalerRuleResp, error) {
+	// rules, err := db.GetManager().TenantServceAutoscalerRulesDao().ListByServiceID(serviceID)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// var result []api_model.AutoscalerRuleResp
+	// for _, rule := range rules {
+	// 	metrics, err := db.GetManager().TenantServceAutoscalerRuleMetricsDao().ListByRuleID(rule.RuleID)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+
+	// 	item := api_model.AutoscalerRuleResp{
+	// 		RuleID: rule.RuleID,
+	// 		ServiceID: rule.ServiceID,
+	// 		Enable: rule.Enable,
+	// 		XPAType: rule.XPAType,
+
+	// 	}
+	// }
+
+	// return tx.Commit().Error
+	return nil, nil
+}
+
 //TransStatus trans service status
 func TransStatus(eStatus string) string {
 	switch eStatus {

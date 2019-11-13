@@ -115,6 +115,11 @@ type Manager interface {
 	EndpointsDaoTransactions(db *gorm.DB) dao.EndpointsDao
 	ThirdPartySvcDiscoveryCfgDao() dao.ThirdPartySvcDiscoveryCfgDao
 	ThirdPartySvcDiscoveryCfgDaoTransactions(db *gorm.DB) dao.ThirdPartySvcDiscoveryCfgDao
+
+	TenantServceAutoscalerRulesDao() dao.TenantServceAutoscalerRulesDao
+	TenantServceAutoscalerRulesDaoTransactions(db *gorm.DB) dao.TenantServceAutoscalerRulesDao
+	TenantServceAutoscalerRuleMetricsDao() dao.TenantServceAutoscalerRuleMetricsDao
+	TenantServceAutoscalerRuleMetricsDaoTransactions(db *gorm.DB) dao.TenantServceAutoscalerRuleMetricsDao
 }
 
 var defaultManager Manager

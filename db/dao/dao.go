@@ -451,3 +451,17 @@ type GwRuleConfigDao interface {
 	DeleteByRuleID(rid string) error
 	ListByRuleID(rid string) ([]*model.GwRuleConfig, error)
 }
+
+// TenantServceAutoscalerRulesDao -
+type TenantServceAutoscalerRulesDao interface {
+	Dao
+	GetByRuleID(ruleID string) (*model.TenantServiceAutoscalerRules, error)
+	ListByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error)
+}
+
+// TenantServceAutoscalerRuleMetricsDao -
+type TenantServceAutoscalerRuleMetricsDao interface {
+	Dao
+	UpdateOrCreate(metric *model.TenantServiceAutoscalerRuleMetrics) error
+	ListByRuleID(ruleID string) ([]*model.TenantServiceAutoscalerRuleMetrics, error)
+}

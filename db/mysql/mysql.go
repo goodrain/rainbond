@@ -132,6 +132,9 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.Endpoint{})
 	m.models = append(m.models, &model.ThirdPartySvcDiscoveryCfg{})
 	m.models = append(m.models, &model.GwRuleConfig{})
+	// pod autoscaler
+	m.models = append(m.models, &model.TenantServiceAutoscalerRules{})
+	m.models = append(m.models, &model.TenantServiceAutoscalerRuleMetrics{})
 }
 
 //CheckTable check and create tables

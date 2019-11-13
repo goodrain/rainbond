@@ -520,3 +520,31 @@ func (m *Manager) GwRuleConfigDaoTransactions(db *gorm.DB) dao.GwRuleConfigDao {
 		DB: db,
 	}
 }
+
+// TenantServceAutoscalerRulesDao -
+func (m *Manager) TenantServceAutoscalerRulesDao() dao.TenantServceAutoscalerRulesDao {
+	return &mysqldao.TenantServceAutoscalerRulesDaoImpl{
+		DB: m.db,
+	}
+}
+
+// TenantServceAutoscalerRulesDaoTransactions -
+func (m *Manager) TenantServceAutoscalerRulesDaoTransactions(db *gorm.DB) dao.TenantServceAutoscalerRulesDao {
+	return &mysqldao.TenantServceAutoscalerRulesDaoImpl{
+		DB: db,
+	}
+}
+
+// TenantServceAutoscalerRuleMetricsDao -
+func (m *Manager) TenantServceAutoscalerRuleMetricsDao() dao.TenantServceAutoscalerRuleMetricsDao {
+	return &mysqldao.TenantServceAutoscalerRuleMetricsDaoImpl{
+		DB: m.db,
+	}
+}
+
+// TenantServceAutoscalerRuleMetricsDaoTransactions -
+func (m *Manager) TenantServceAutoscalerRuleMetricsDaoTransactions(db *gorm.DB) dao.TenantServceAutoscalerRuleMetricsDao {
+	return &mysqldao.TenantServceAutoscalerRuleMetricsDaoImpl{
+		DB: db,
+	}
+}
