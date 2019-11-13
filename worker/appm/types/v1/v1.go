@@ -24,12 +24,14 @@ import (
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
+	v1 "k8s.io/api/apps/v1"
+	v2beta1 "k8s.io/api/autoscaling/v2beta1"
+	corev1 "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
+
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
-	v1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 )
 
 // EventType type of event
@@ -101,6 +103,7 @@ type AppService struct {
 	tenant       *corev1.Namespace
 	statefulset  *v1.StatefulSet
 	deployment   *v1.Deployment
+	hpas         []*v2beta1.HorizontalPodAutoscaler
 	replicasets  []*v1.ReplicaSet
 	services     []*corev1.Service
 	delServices  []*corev1.Service
@@ -548,6 +551,42 @@ func (a *AppService) DistinguishPod(pod *corev1.Pod) bool {
 		return true
 	}
 	return !pod.ObjectMeta.CreationTimestamp.Before(&rss.ObjectMeta.CreationTimestamp)
+}
+
+// SetHPAs -
+func (a *AppService) SetHPAs(hpas []*v2beta1.HorizontalPodAutoscaler) {
+	a.hpas = hpas
+}
+
+// SetHPA -
+func (a *AppService) SetHPA(hpa *v2beta1.HorizontalPodAutoscaler) {
+	if len(a.hpas) > 0 {
+		for i, old := range a.hpas {
+			if old.GetName() == hpa.GetName() {
+				a.hpas[i] = hpa
+				return
+			}
+		}
+	}
+	a.hpas = append(a.hpas, hpa)
+}
+
+// GetHPAs -
+func (a *AppService) GetHPAs() []*v2beta1.HorizontalPodAutoscaler {
+	return a.hpas
+}
+
+// DelHPA -
+func (a *AppService) DelHPA(hpa *v2beta1.HorizontalPodAutoscaler) {
+	if len(a.hpas) == 0 {
+		return
+	}
+	for i, old := range a.hpas {
+		if old.GetName() == hpa.GetName() {
+			a.hpas = append(a.hpas[0:i], a.hpas[i+1:]...)
+			return
+		}
+	}
 }
 
 func (a *AppService) String() string {

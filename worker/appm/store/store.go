@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	v2beta1 "k8s.io/api/autoscaling/v2beta1"
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
@@ -538,6 +539,21 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 		}
 	}
+	if hpa, ok := obj.(*v2beta1.HorizontalPodAutoscaler); ok {
+		serviceID := hpa.Labels["service_id"]
+		version := hpa.Labels["version"]
+		createrID := hpa.Labels["creater_id"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.AutoscalingV2beta1().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(hpa.GetName(), &metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetHPA(hpa)
+				return
+			}
+		}
+	}
 }
 
 //getAppService if  creater is true, will create new app service where not found in store
@@ -657,6 +673,21 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 			appservice, _ := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeleteConfigMaps(configmap)
+				if appservice.IsClosed() {
+					a.DeleteAppService(appservice)
+				}
+				return
+			}
+		}
+	}
+	if hpa, ok := obj.(*v2beta1.HorizontalPodAutoscaler); ok {
+		serviceID := hpa.Labels["service_id"]
+		version := hpa.Labels["version"]
+		createrID := hpa.Labels["creater_id"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, _ := a.getAppService(serviceID, version, createrID, false)
+			if appservice != nil {
+				appservice.DelHPA(hpa)
 				if appservice.IsClosed() {
 					a.DeleteAppService(appservice)
 				}

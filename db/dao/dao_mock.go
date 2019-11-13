@@ -274,6 +274,20 @@ func (mr *MockTenantDaoMockRecorder) GetTenantByUUIDIsExist(uuid interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantByUUIDIsExist", reflect.TypeOf((*MockTenantDao)(nil).GetTenantByUUIDIsExist), uuid)
 }
 
+// DelByTenantID mocks base method
+func (m *MockTenantDao) DelByTenantID(tenantID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DelByTenantID", tenantID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DelByTenantID indicates an expected call of DelByTenantID
+func (mr *MockTenantDaoMockRecorder) DelByTenantID(tenantID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByTenantID", reflect.TypeOf((*MockTenantDao)(nil).DelByTenantID), tenantID)
+}
+
 // MockAppDao is a mock of AppDao interface
 type MockAppDao struct {
 	ctrl     *gomock.Controller
@@ -709,6 +723,21 @@ func (mr *MockTenantServiceDaoMockRecorder) ListThirdPartyServices() *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListThirdPartyServices", reflect.TypeOf((*MockTenantServiceDao)(nil).ListThirdPartyServices))
 }
 
+// ListServicesByTenantID mocks base method
+func (m *MockTenantServiceDao) ListServicesByTenantID(tenantID string) ([]*model.TenantServices, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListServicesByTenantID", tenantID)
+	ret0, _ := ret[0].([]*model.TenantServices)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListServicesByTenantID indicates an expected call of ListServicesByTenantID
+func (mr *MockTenantServiceDaoMockRecorder) ListServicesByTenantID(tenantID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListServicesByTenantID", reflect.TypeOf((*MockTenantServiceDao)(nil).ListServicesByTenantID), tenantID)
+}
+
 // MockTenantServiceDeleteDao is a mock of TenantServiceDeleteDao interface
 type MockTenantServiceDeleteDao struct {
 	ctrl     *gomock.Controller
@@ -1099,6 +1128,21 @@ func (m *MockTenantPluginDao) ListByIDs(ids []string) ([]*model.TenantPlugin, er
 func (mr *MockTenantPluginDaoMockRecorder) ListByIDs(ids interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByIDs", reflect.TypeOf((*MockTenantPluginDao)(nil).ListByIDs), ids)
+}
+
+// ListByTenantID mocks base method
+func (m *MockTenantPluginDao) ListByTenantID(tenantID string) ([]*model.TenantPlugin, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListByTenantID", tenantID)
+	ret0, _ := ret[0].([]*model.TenantPlugin)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListByTenantID indicates an expected call of ListByTenantID
+func (mr *MockTenantPluginDaoMockRecorder) ListByTenantID(tenantID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByTenantID", reflect.TypeOf((*MockTenantPluginDao)(nil).ListByTenantID), tenantID)
 }
 
 // MockTenantPluginDefaultENVDao is a mock of TenantPluginDefaultENVDao interface
@@ -4976,4 +5020,165 @@ func (m *MockGwRuleConfigDao) ListByRuleID(rid string) ([]*model.GwRuleConfig, e
 func (mr *MockGwRuleConfigDaoMockRecorder) ListByRuleID(rid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByRuleID", reflect.TypeOf((*MockGwRuleConfigDao)(nil).ListByRuleID), rid)
+}
+
+// MockTenantServceAutoscalerRulesDao is a mock of TenantServceAutoscalerRulesDao interface
+type MockTenantServceAutoscalerRulesDao struct {
+	ctrl     *gomock.Controller
+	recorder *MockTenantServceAutoscalerRulesDaoMockRecorder
+}
+
+// MockTenantServceAutoscalerRulesDaoMockRecorder is the mock recorder for MockTenantServceAutoscalerRulesDao
+type MockTenantServceAutoscalerRulesDaoMockRecorder struct {
+	mock *MockTenantServceAutoscalerRulesDao
+}
+
+// NewMockTenantServceAutoscalerRulesDao creates a new mock instance
+func NewMockTenantServceAutoscalerRulesDao(ctrl *gomock.Controller) *MockTenantServceAutoscalerRulesDao {
+	mock := &MockTenantServceAutoscalerRulesDao{ctrl: ctrl}
+	mock.recorder = &MockTenantServceAutoscalerRulesDaoMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockTenantServceAutoscalerRulesDao) EXPECT() *MockTenantServceAutoscalerRulesDaoMockRecorder {
+	return m.recorder
+}
+
+// AddModel mocks base method
+func (m *MockTenantServceAutoscalerRulesDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddModel indicates an expected call of AddModel
+func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).AddModel), arg0)
+}
+
+// UpdateModel mocks base method
+func (m *MockTenantServceAutoscalerRulesDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateModel indicates an expected call of UpdateModel
+func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).UpdateModel), arg0)
+}
+
+// GetByRuleID mocks base method
+func (m *MockTenantServceAutoscalerRulesDao) GetByRuleID(ruleID string) (*model.TenantServiceAutoscalerRules, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByRuleID", ruleID)
+	ret0, _ := ret[0].(*model.TenantServiceAutoscalerRules)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByRuleID indicates an expected call of GetByRuleID
+func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) GetByRuleID(ruleID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByRuleID", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).GetByRuleID), ruleID)
+}
+
+// ListByServiceID mocks base method
+func (m *MockTenantServceAutoscalerRulesDao) ListByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListByServiceID", serviceID)
+	ret0, _ := ret[0].([]*model.TenantServiceAutoscalerRules)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListByServiceID indicates an expected call of ListByServiceID
+func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) ListByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).ListByServiceID), serviceID)
+}
+
+// MockTenantServceAutoscalerRuleMetricsDao is a mock of TenantServceAutoscalerRuleMetricsDao interface
+type MockTenantServceAutoscalerRuleMetricsDao struct {
+	ctrl     *gomock.Controller
+	recorder *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder
+}
+
+// MockTenantServceAutoscalerRuleMetricsDaoMockRecorder is the mock recorder for MockTenantServceAutoscalerRuleMetricsDao
+type MockTenantServceAutoscalerRuleMetricsDaoMockRecorder struct {
+	mock *MockTenantServceAutoscalerRuleMetricsDao
+}
+
+// NewMockTenantServceAutoscalerRuleMetricsDao creates a new mock instance
+func NewMockTenantServceAutoscalerRuleMetricsDao(ctrl *gomock.Controller) *MockTenantServceAutoscalerRuleMetricsDao {
+	mock := &MockTenantServceAutoscalerRuleMetricsDao{ctrl: ctrl}
+	mock.recorder = &MockTenantServceAutoscalerRuleMetricsDaoMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockTenantServceAutoscalerRuleMetricsDao) EXPECT() *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder {
+	return m.recorder
+}
+
+// AddModel mocks base method
+func (m *MockTenantServceAutoscalerRuleMetricsDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddModel indicates an expected call of AddModel
+func (mr *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServceAutoscalerRuleMetricsDao)(nil).AddModel), arg0)
+}
+
+// UpdateModel mocks base method
+func (m *MockTenantServceAutoscalerRuleMetricsDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateModel indicates an expected call of UpdateModel
+func (mr *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServceAutoscalerRuleMetricsDao)(nil).UpdateModel), arg0)
+}
+
+// UpdateOrCreate mocks base method
+func (m *MockTenantServceAutoscalerRuleMetricsDao) UpdateOrCreate(metric *model.TenantServiceAutoscalerRuleMetrics) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateOrCreate", metric)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateOrCreate indicates an expected call of UpdateOrCreate
+func (mr *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder) UpdateOrCreate(metric interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOrCreate", reflect.TypeOf((*MockTenantServceAutoscalerRuleMetricsDao)(nil).UpdateOrCreate), metric)
+}
+
+// ListByRuleID mocks base method
+func (m *MockTenantServceAutoscalerRuleMetricsDao) ListByRuleID(ruleID string) ([]*model.TenantServiceAutoscalerRuleMetrics, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListByRuleID", ruleID)
+	ret0, _ := ret[0].([]*model.TenantServiceAutoscalerRuleMetrics)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListByRuleID indicates an expected call of ListByRuleID
+func (mr *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder) ListByRuleID(ruleID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByRuleID", reflect.TypeOf((*MockTenantServceAutoscalerRuleMetricsDao)(nil).ListByRuleID), ruleID)
 }
