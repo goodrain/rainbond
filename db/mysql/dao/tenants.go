@@ -1506,6 +1506,15 @@ func (t *TenantServceAutoscalerRulesDaoImpl) ListByServiceID(serviceID string) (
 	return rules, nil
 }
 
+// ListEnableOnesByServiceID -
+func (t *TenantServceAutoscalerRulesDaoImpl) ListEnableOnesByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error) {
+	var rules []*model.TenantServiceAutoscalerRules
+	if err := t.DB.Where("service_id=? and enable=?", serviceID, true).Find(&rules).Error; err != nil {
+		return nil, err
+	}
+	return rules, nil
+}
+
 // TenantServceAutoscalerRuleMetricsDaoImpl -
 type TenantServceAutoscalerRuleMetricsDaoImpl struct {
 	DB *gorm.DB

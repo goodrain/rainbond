@@ -20,13 +20,16 @@ package f
 
 import (
 	"fmt"
+
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v2beta1 "k8s.io/api/autoscaling/v2beta1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 // ApplyOne applies one rule.
@@ -139,6 +142,7 @@ func ensureSecret(secret *corev1.Secret, clientSet kubernetes.Interface) {
 		logrus.Warningf("error updating secret %+v: %v", secret, err)
 	}
 }
+
 // EnsureEndpoints creates or updates endpoints.
 func EnsureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) {
 	oldEP, err := clientSet.CoreV1().Endpoints(ep.Namespace).Get(ep.Name, metav1.GetOptions{})
@@ -163,6 +167,27 @@ func EnsureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) {
 // EnsureService ensure service
 func EnsureService(new *corev1.Service, clientSet kubernetes.Interface) {
 	ensureService(new, clientSet)
+}
+
+// EnsureHPA -
+func EnsureHPA(new *v2beta1.HorizontalPodAutoscaler, clientSet kubernetes.Interface) {
+	_, err := clientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(new.Namespace).Get(new.Name, metav1.GetOptions{})
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			_, err = clientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(new.Namespace).Create(new)
+			if err != nil {
+				logrus.Warningf("error creating hpa %+v: %v", new, err)
+			}
+			return
+		}
+		logrus.Errorf("error getting hpa(%s): %v", fmt.Sprintf("%s/%s", new.Namespace, new.Name), err)
+		return
+	}
+	_, err = clientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(new.Namespace).Update(new)
+	if err != nil {
+		logrus.Warningf("error updating hpa %+v: %v", new, err)
+		return
+	}
 }
 
 // UpgradeIngress is used to update *extensions.Ingress.
@@ -280,9 +305,9 @@ func UpgradeEndpoints(clientset *kubernetes.Clientset,
 	}
 	for _, n := range new {
 		if o, ok := oldMap[n.Name]; ok {
-			oldEndpoint, err := clientset.CoreV1().Endpoints(n.Namespace).Get(n.Name,metav1.GetOptions{})
+			oldEndpoint, err := clientset.CoreV1().Endpoints(n.Namespace).Get(n.Name, metav1.GetOptions{})
 			if err != nil {
-				if k8sErrors.IsNotFound(err){
+				if k8sErrors.IsNotFound(err) {
 					_, err := clientset.CoreV1().Endpoints(n.Namespace).Create(n)
 					if err != nil {
 						if err := handleErr(fmt.Sprintf("error creating endpoints: %+v: err: %v",
@@ -292,7 +317,7 @@ func UpgradeEndpoints(clientset *kubernetes.Clientset,
 						continue
 					}
 				}
-				if e := handleErr(fmt.Sprintf("err get endpoint[%s:%s], err: %+v", n.Namespace, n.Name, err), err); err != nil{
+				if e := handleErr(fmt.Sprintf("err get endpoint[%s:%s], err: %+v", n.Namespace, n.Name, err), err); err != nil {
 					return e
 				}
 			}
@@ -335,4 +360,3 @@ func UpgradeEndpoints(clientset *kubernetes.Clientset,
 	}
 	return nil
 }
-

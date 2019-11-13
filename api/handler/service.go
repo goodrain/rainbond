@@ -1916,6 +1916,20 @@ func (s *ServiceAction) AddAutoscalerRule(req *api_model.AutoscalerRuleReq) erro
 		}
 	}
 
+	taskbody := map[string]interface{}{
+		"service_id": r.ServiceID,
+		"rule_id":    r.RuleID,
+	}
+	if err := s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+		TaskType: "refreshhpa",
+		TaskBody: taskbody,
+		Topic:    gclient.WorkerTopic,
+	}); err != nil {
+		logrus.Errorf("send 'refreshhpa' task: %v", err)
+		return err
+	}
+	logrus.Infof("rule id: %s; successfully send 'refreshhpa' task.", r.RuleID)
+
 	return tx.Commit().Error
 }
 
@@ -1952,6 +1966,20 @@ func (s *ServiceAction) UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) erro
 			return err
 		}
 	}
+
+	taskbody := map[string]interface{}{
+		"service_id": rule.ServiceID,
+		"rule_id":    rule.RuleID,
+	}
+	if err := s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+		TaskType: "refreshhpa",
+		TaskBody: taskbody,
+		Topic:    gclient.WorkerTopic,
+	}); err != nil {
+		logrus.Errorf("send 'refreshhpa' task: %v", err)
+		return err
+	}
+	logrus.Infof("rule id: %s; successfully send 'refreshhpa' task.", rule.RuleID)
 
 	return tx.Commit().Error
 }

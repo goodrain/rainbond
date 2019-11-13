@@ -104,6 +104,7 @@ type AppService struct {
 	statefulset  *v1.StatefulSet
 	deployment   *v1.Deployment
 	hpas         []*v2beta1.HorizontalPodAutoscaler
+	delHPAs      []*v2beta1.HorizontalPodAutoscaler
 	replicasets  []*v1.ReplicaSet
 	services     []*corev1.Service
 	delServices  []*corev1.Service
@@ -541,6 +542,18 @@ func (a *AppService) SetDeletedResources(old *AppService) {
 			a.delServices = append(a.delServices, o)
 		}
 	}
+	for _, o := range old.GetHPAs() {
+		del := true
+		for _, n := range a.GetHPAs() {
+			if o.Name == n.Name {
+				del = false
+				break
+			}
+		}
+		if del {
+			a.delHPAs = append(a.delHPAs, o)
+		}
+	}
 }
 
 // DistinguishPod uses replica set to distinguish between old and new pods
@@ -574,6 +587,11 @@ func (a *AppService) SetHPA(hpa *v2beta1.HorizontalPodAutoscaler) {
 // GetHPAs -
 func (a *AppService) GetHPAs() []*v2beta1.HorizontalPodAutoscaler {
 	return a.hpas
+}
+
+// GetDelHPAs -
+func (a *AppService) GetDelHPAs() []*v2beta1.HorizontalPodAutoscaler {
+	return a.delHPAs
 }
 
 // DelHPA -

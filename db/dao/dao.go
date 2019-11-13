@@ -457,6 +457,7 @@ type TenantServceAutoscalerRulesDao interface {
 	Dao
 	GetByRuleID(ruleID string) (*model.TenantServiceAutoscalerRules, error)
 	ListByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error)
+	ListEnableOnesByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error)
 }
 
 // TenantServceAutoscalerRuleMetricsDao -

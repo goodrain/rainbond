@@ -45,6 +45,7 @@ func TenantServiceAutoscaler(as *v1.AppService, dbmanager db.Manager) error {
 	if err != nil {
 		return fmt.Errorf("create HPAs: %v", err)
 	}
+	logrus.Debugf("the numbers of HPAs: %d", len(hpas))
 
 	as.SetHPAs(hpas)
 
@@ -52,7 +53,7 @@ func TenantServiceAutoscaler(as *v1.AppService, dbmanager db.Manager) error {
 }
 
 func newHPAs(as *v1.AppService, dbmanager db.Manager) ([]*v2beta1.HorizontalPodAutoscaler, error) {
-	xpaRules, err := dbmanager.TenantServceAutoscalerRulesDao().ListByServiceID(as.ServiceID)
+	xpaRules, err := dbmanager.TenantServceAutoscalerRulesDao().ListEnableOnesByServiceID(as.ServiceID)
 	if err != nil {
 		return nil, err
 	}
