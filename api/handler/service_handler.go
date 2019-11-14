@@ -76,4 +76,5 @@ type ServiceHandler interface {
 
 	AddAutoscalerRule(req *api_model.AutoscalerRuleReq) error
 	UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) error
+	ListScalingRecords(serviceID string, page, pageSize int) ([]*dbmodel.TenantServiceScalingRecords, int, error)
 }

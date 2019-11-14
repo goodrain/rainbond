@@ -250,6 +250,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	// autoscaler
 	r.Post("/xparules", middleware.WrapEL(controller.GetManager().AutoscalerRules, dbmodel.TargetTypeService, "app-autoscaler-rules", dbmodel.SYNEVENTTYPE))
 	r.Put("/xparules", middleware.WrapEL(controller.GetManager().AutoscalerRules, dbmodel.TargetTypeService, "app-autoscaler-rules", dbmodel.SYNEVENTTYPE))
+	r.Get("/xparecords", controller.GetManager().ScalingRecords)
 
 	return r
 }

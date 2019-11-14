@@ -23,7 +23,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	v2beta1 "k8s.io/api/autoscaling/v2beta1"
+	"k8s.io/api/autoscaling/v2beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -74,6 +74,7 @@ func newHPAs(as *v1.AppService, dbmanager db.Manager) ([]*v2beta1.HorizontalPodA
 
 		labels := as.GetCommonLabels(map[string]string{
 			"rule_id": rule.RuleID,
+			"version": as.DeployVersion,
 		})
 
 		hpa := newHPA(as.TenantID, kind, name, labels, rule, metrics)
@@ -132,9 +133,17 @@ func newHPA(namespace, kind, name string, labels map[string]string, rule *model.
 			logrus.Warningf("rule id:  %s; unsupported metric type: %s", rule.RuleID, metric.MetricsType)
 			continue
 		}
+		if metric.MetricTargetValue <= 0 {
+			// TODO: If the target value of cpu and memory is 0, it will not take effect.
+			// TODO: The target value of the custom indicator can be 0.
+			continue
+		}
 
 		ms := createResourceMetrics(metric)
 		spec.Metrics = append(spec.Metrics, ms)
+	}
+	if len(spec.Metrics) == 0 {
+		return nil
 	}
 	hpa.Spec = spec
 

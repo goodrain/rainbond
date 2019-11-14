@@ -1984,31 +1984,19 @@ func (s *ServiceAction) UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) erro
 	return tx.Commit().Error
 }
 
-// ListAutoscalerRulesByServiceID -
-func (s *ServiceAction) ListAutoscalerRulesByServiceID(serviceID string) ([]api_model.AutoscalerRuleResp, error) {
-	// rules, err := db.GetManager().TenantServceAutoscalerRulesDao().ListByServiceID(serviceID)
-	// if err != nil {
-	// 	return nil, err
-	// }
+// ListScalingRecords -
+func (s *ServiceAction) ListScalingRecords(serviceID string, page, pageSize int) ([]*dbmodel.TenantServiceScalingRecords, int, error) {
+	records, err := db.GetManager().TenantServiceScalingRecordsDao().ListByServiceID(serviceID, (page-1)*pageSize, pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
 
-	// var result []api_model.AutoscalerRuleResp
-	// for _, rule := range rules {
-	// 	metrics, err := db.GetManager().TenantServceAutoscalerRuleMetricsDao().ListByRuleID(rule.RuleID)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+	count, err := db.GetManager().TenantServiceScalingRecordsDao().CountByServiceID(serviceID)
+	if err != nil {
+		return nil, 0, err
+	}
 
-	// 	item := api_model.AutoscalerRuleResp{
-	// 		RuleID: rule.RuleID,
-	// 		ServiceID: rule.ServiceID,
-	// 		Enable: rule.Enable,
-	// 		XPAType: rule.XPAType,
-
-	// 	}
-	// }
-
-	// return tx.Commit().Error
-	return nil, nil
+	return records, count, nil
 }
 
 //TransStatus trans service status

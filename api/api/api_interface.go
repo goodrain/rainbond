@@ -72,6 +72,7 @@ type ServiceInterface interface {
 	BuildVersionInfo(w http.ResponseWriter, r *http.Request)
 	GetDeployVersion(w http.ResponseWriter, r *http.Request)
 	AutoscalerRules(w http.ResponseWriter, r *http.Request)
+	ScalingRecords(w http.ResponseWriter, r *http.Request)
 }
 
 //TenantInterfaceWithV1 funcs for both v2 and v1

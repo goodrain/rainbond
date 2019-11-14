@@ -20,6 +20,7 @@ package controller
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
@@ -38,8 +39,6 @@ func (t *TenantStruct) AutoscalerRules(w http.ResponseWriter, r *http.Request) {
 		t.addAutoscalerRule(w, r)
 	case "PUT":
 		t.updAutoscalerRule(w, r)
-	case "DELETE":
-		t.delAutoscalerRule(w, r)
 	}
 }
 
@@ -89,6 +88,43 @@ func (t *TenantStruct) updAutoscalerRule(w http.ResponseWriter, r *http.Request)
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-func (t *TenantStruct) delAutoscalerRule(w http.ResponseWriter, r *http.Request) {
+// ScalingRecords -
+func (t *TenantStruct) ScalingRecords(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		t.listScalingRecords(w, r)
+	}
+}
 
+func (t *TenantStruct) listScalingRecords(w http.ResponseWriter, r *http.Request) {
+	pageStr := r.URL.Query().Get("page")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil {
+		logrus.Warningf("convert '%s(pageStr)' to int: %v", pageStr, err)
+	}
+	if page <= 0 {
+		page = 1
+	}
+
+	pageSizeStr := r.URL.Query().Get("page_size")
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil {
+		logrus.Warningf("convert '%s(pageSizeStr)' to int: %v", pageSizeStr, err)
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	records, count, err := handler.GetServiceManager().ListScalingRecords(serviceID, page, pageSize)
+	if err != nil {
+		logrus.Errorf("list scaling rule: %v", err)
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, map[string]interface{}{
+		"total": count,
+		"data":  records,
+	})
 }

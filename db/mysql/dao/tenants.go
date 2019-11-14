@@ -25,12 +25,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/goodrain/rainbond/db/dao"
-
 	"github.com/Sirupsen/logrus"
+	"github.com/jinzhu/gorm"
+
+	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
-	"github.com/jinzhu/gorm"
 )
 
 //TenantDaoImpl 租户信息管理
@@ -1567,4 +1567,43 @@ func (t *TenantServceAutoscalerRuleMetricsDaoImpl) ListByRuleID(ruleID string) (
 		return nil, err
 	}
 	return metrics, nil
+}
+
+// TenantServiceScalingRecordsDaoImpl -
+type TenantServiceScalingRecordsDaoImpl struct {
+	DB *gorm.DB
+}
+
+// UpdateOrCreate -
+func (t *TenantServiceScalingRecordsDaoImpl) UpdateOrCreate(new *model.TenantServiceScalingRecords) error {
+	var old model.TenantServiceScalingRecords
+
+	if ok := t.DB.Where("event_name=?", new.EventName).Find(&old).RecordNotFound(); ok {
+		return t.DB.Create(new).Error
+	}
+
+	old.Count = new.Count
+	old.LastTime = new.LastTime
+	return t.DB.Save(&old).Error
+}
+
+// ListByServiceID -
+func (t *TenantServiceScalingRecordsDaoImpl) ListByServiceID(serviceID string, offset, limit int) ([]*model.TenantServiceScalingRecords, error) {
+	var records []*model.TenantServiceScalingRecords
+	if err := t.DB.Where("service_id=?", serviceID).Offset(offset).Limit(limit).Order("last_time desc").Find(&records).Error; err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
+
+// CountByServiceID -
+func (t *TenantServiceScalingRecordsDaoImpl) CountByServiceID(serviceID string) (int, error) {
+	record := model.TenantServiceScalingRecords{}
+	var count int
+	if err := t.DB.Table(record.TableName()).Where("service_id=?", serviceID).Count(&count).Error; err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }

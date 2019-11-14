@@ -466,3 +466,10 @@ type TenantServceAutoscalerRuleMetricsDao interface {
 	UpdateOrCreate(metric *model.TenantServiceAutoscalerRuleMetrics) error
 	ListByRuleID(ruleID string) ([]*model.TenantServiceAutoscalerRuleMetrics, error)
 }
+
+// TenantServiceScalingRecordsDao -
+type TenantServiceScalingRecordsDao interface {
+	UpdateOrCreate(new *model.TenantServiceScalingRecords) error
+	ListByServiceID(serviceID string, offset, limit int) ([]*model.TenantServiceScalingRecords, error)
+	CountByServiceID(serviceID string) (int, error)
+}

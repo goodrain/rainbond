@@ -135,6 +135,7 @@ func (m *Manager) RegisterTableModel() {
 	// pod autoscaler
 	m.models = append(m.models, &model.TenantServiceAutoscalerRules{})
 	m.models = append(m.models, &model.TenantServiceAutoscalerRuleMetrics{})
+	m.models = append(m.models, &model.TenantServiceScalingRecords{})
 }
 
 //CheckTable check and create tables

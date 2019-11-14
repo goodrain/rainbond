@@ -19,9 +19,10 @@
 package mysql
 
 import (
+	"github.com/jinzhu/gorm"
+
 	"github.com/goodrain/rainbond/db/dao"
 	mysqldao "github.com/goodrain/rainbond/db/mysql/dao"
-	"github.com/jinzhu/gorm"
 )
 
 //LicenseDao LicenseDao
@@ -545,6 +546,20 @@ func (m *Manager) TenantServceAutoscalerRuleMetricsDao() dao.TenantServceAutosca
 // TenantServceAutoscalerRuleMetricsDaoTransactions -
 func (m *Manager) TenantServceAutoscalerRuleMetricsDaoTransactions(db *gorm.DB) dao.TenantServceAutoscalerRuleMetricsDao {
 	return &mysqldao.TenantServceAutoscalerRuleMetricsDaoImpl{
+		DB: db,
+	}
+}
+
+// TenantServiceScalingRecordsDao -
+func (m *Manager) TenantServiceScalingRecordsDao() dao.TenantServiceScalingRecordsDao {
+	return &mysqldao.TenantServiceScalingRecordsDaoImpl{
+		DB: m.db,
+	}
+}
+
+// TenantServiceScalingRecordsDaoTransactions -
+func (m *Manager) TenantServiceScalingRecordsDaoTransactions(db *gorm.DB) dao.TenantServiceScalingRecordsDao {
+	return &mysqldao.TenantServiceScalingRecordsDaoImpl{
 		DB: db,
 	}
 }

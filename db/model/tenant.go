@@ -485,3 +485,21 @@ type TenantServiceAutoscalerRuleMetrics struct {
 func (t *TenantServiceAutoscalerRuleMetrics) TableName() string {
 	return "tenant_services_autoscaler_rule_metrics"
 }
+
+// TenantServiceScalingRecords -
+type TenantServiceScalingRecords struct {
+	Model
+	ServiceID   string    `gorm:"column:service_id" json:"_"`
+	RuleID      string    `gorm:"column:rule_id" json:"_"`
+	EventName   string    `gorm:"column:event_name;not null" json:"record_id"`
+	RecordType  string    `gorm:"column:record_type" json:"record_type"`
+	Reason      string    `gorm:"column:reason" json:"reason"`
+	Count       int32     `gorm:"column:count" json:"count"`
+	Description string    `gorm:"column:description" json:"description"`
+	LastTime    time.Time `gorm:"column:last_time" json:"last_time"`
+}
+
+// TableName -
+func (t *TenantServiceScalingRecords) TableName() string {
+	return "tenant_services_scaling_records"
+}
