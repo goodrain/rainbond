@@ -5103,6 +5103,21 @@ func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) ListByServiceID(servic
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).ListByServiceID), serviceID)
 }
 
+// ListEnableOnesByServiceID mocks base method
+func (m *MockTenantServceAutoscalerRulesDao) ListEnableOnesByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListEnableOnesByServiceID", serviceID)
+	ret0, _ := ret[0].([]*model.TenantServiceAutoscalerRules)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListEnableOnesByServiceID indicates an expected call of ListEnableOnesByServiceID
+func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) ListEnableOnesByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListEnableOnesByServiceID", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).ListEnableOnesByServiceID), serviceID)
+}
+
 // MockTenantServceAutoscalerRuleMetricsDao is a mock of TenantServceAutoscalerRuleMetricsDao interface
 type MockTenantServceAutoscalerRuleMetricsDao struct {
 	ctrl     *gomock.Controller
@@ -5181,4 +5196,71 @@ func (m *MockTenantServceAutoscalerRuleMetricsDao) ListByRuleID(ruleID string) (
 func (mr *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder) ListByRuleID(ruleID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByRuleID", reflect.TypeOf((*MockTenantServceAutoscalerRuleMetricsDao)(nil).ListByRuleID), ruleID)
+}
+
+// MockTenantServiceScalingRecordsDao is a mock of TenantServiceScalingRecordsDao interface
+type MockTenantServiceScalingRecordsDao struct {
+	ctrl     *gomock.Controller
+	recorder *MockTenantServiceScalingRecordsDaoMockRecorder
+}
+
+// MockTenantServiceScalingRecordsDaoMockRecorder is the mock recorder for MockTenantServiceScalingRecordsDao
+type MockTenantServiceScalingRecordsDaoMockRecorder struct {
+	mock *MockTenantServiceScalingRecordsDao
+}
+
+// NewMockTenantServiceScalingRecordsDao creates a new mock instance
+func NewMockTenantServiceScalingRecordsDao(ctrl *gomock.Controller) *MockTenantServiceScalingRecordsDao {
+	mock := &MockTenantServiceScalingRecordsDao{ctrl: ctrl}
+	mock.recorder = &MockTenantServiceScalingRecordsDaoMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockTenantServiceScalingRecordsDao) EXPECT() *MockTenantServiceScalingRecordsDaoMockRecorder {
+	return m.recorder
+}
+
+// UpdateOrCreate mocks base method
+func (m *MockTenantServiceScalingRecordsDao) UpdateOrCreate(new *model.TenantServiceScalingRecords) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateOrCreate", new)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateOrCreate indicates an expected call of UpdateOrCreate
+func (mr *MockTenantServiceScalingRecordsDaoMockRecorder) UpdateOrCreate(new interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOrCreate", reflect.TypeOf((*MockTenantServiceScalingRecordsDao)(nil).UpdateOrCreate), new)
+}
+
+// ListByServiceID mocks base method
+func (m *MockTenantServiceScalingRecordsDao) ListByServiceID(serviceID string, offset, limit int) ([]*model.TenantServiceScalingRecords, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListByServiceID", serviceID, offset, limit)
+	ret0, _ := ret[0].([]*model.TenantServiceScalingRecords)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListByServiceID indicates an expected call of ListByServiceID
+func (mr *MockTenantServiceScalingRecordsDaoMockRecorder) ListByServiceID(serviceID, offset, limit interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockTenantServiceScalingRecordsDao)(nil).ListByServiceID), serviceID, offset, limit)
+}
+
+// CountByServiceID mocks base method
+func (m *MockTenantServiceScalingRecordsDao) CountByServiceID(serviceID string) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountByServiceID", serviceID)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountByServiceID indicates an expected call of CountByServiceID
+func (mr *MockTenantServiceScalingRecordsDaoMockRecorder) CountByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountByServiceID", reflect.TypeOf((*MockTenantServiceScalingRecordsDao)(nil).CountByServiceID), serviceID)
 }

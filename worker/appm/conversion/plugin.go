@@ -405,17 +405,30 @@ func pluginWeight(pluginModel string) int {
 	}
 }
 func createPluginResources(memory int, cpu int) v1.ResourceRequirements {
+	base := int64(memory) / 128
+	if base <= 0 {
+		base = 1
+	}
+	var cpuRequest, cpuLimit int64
+	if memory < 512 {
+		cpuRequest, cpuLimit = base*30, base*80
+	} else if memory <= 1024 {
+		cpuRequest, cpuLimit = base*30, base*160
+	} else {
+		cpuRequest, cpuLimit = int64(memory)/128*30, ((int64(memory)-1024)/1024*500 + 1280)
+	}
+
 	limits := v1.ResourceList{}
-	// limits[v1.ResourceCPU] = *resource.NewMilliQuantity(
-	// 	int64(cpu*3),
-	// 	resource.DecimalSI)
+	limits[v1.ResourceCPU] = *resource.NewMilliQuantity(
+		cpuLimit,
+		resource.DecimalSI)
 	limits[v1.ResourceMemory] = *resource.NewQuantity(
 		int64(memory*1024*1024),
 		resource.BinarySI)
 	request := v1.ResourceList{}
-	// request[v1.ResourceCPU] = *resource.NewMilliQuantity(
-	// 	int64(cpu*2),
-	// 	resource.DecimalSI)
+	request[v1.ResourceCPU] = *resource.NewMilliQuantity(
+		cpuRequest,
+		resource.DecimalSI)
 	request[v1.ResourceMemory] = *resource.NewQuantity(
 		int64(memory*1024*1024),
 		resource.BinarySI)

@@ -1133,8 +1133,9 @@ func (a *appRuntimeStore) evtEventHandler() cache.ResourceEventHandlerFuncs {
 				RecordType:  recordType,
 				Count:       evt.Count,
 				Reason:      evt.Reason,
-				LastTime:    evt.LastTimestamp.Time,
 				Description: evt.Message,
+				Operator:    "system",
+				LastTime:    evt.LastTimestamp.Time,
 			}
 			logrus.Debugf("received add record: %#v", record)
 
