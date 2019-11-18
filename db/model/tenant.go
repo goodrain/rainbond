@@ -339,6 +339,9 @@ var MemoryFSVolumeType VolumeType = "memoryfs"
 //ConfigFileVolumeType configuration file volume type
 var ConfigFileVolumeType VolumeType = "config-file"
 
+// CephRBDVolumeType ceph rbd volume type
+var CephRBDVolumeType VolumeType = "ceph-rbd"
+
 func (vt VolumeType) String() string {
 	return string(vt)
 }
@@ -359,6 +362,18 @@ type TenantServiceVolume struct {
 	VolumePath string `gorm:"column:volume_path" json:"volume_path"`
 	//是否只读
 	IsReadOnly bool `gorm:"column:is_read_only;default:false" json:"is_read_only"`
+	// VolumeCapacity 存储大小
+	VolumeCapacity int64 `gorm:"column:volume_capacity" json:"volume_capacity"`
+	// AccessMode 读写模式
+	AccessMode string `gorm:"column:access_mode" json:"access_mode"`
+	// SharePolicy 共享模式
+	SharePolicy string `gorm:"column:share_policy" json:"share_policy"`
+	// BackupPolicy 备份策略
+	BackupPolicy string `gorm:"column:backup_policy" json:"backup_policy"`
+	// AllowExpansion 是否支持扩展
+	AllowExpansion bool `gorm:"column:allow_expansion" json:"allow_expansion"`
+	// VolumeAlias 使用的存储驱动别名
+	VolumeAlias string `gorm:"collumn:volume_alias" json:"volume_alias"`
 }
 
 //TableName 表名
