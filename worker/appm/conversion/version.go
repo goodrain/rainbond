@@ -420,9 +420,11 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 	if vs != nil && len(vs) > 0 {
 		for _, v := range vs {
 			vol := volume.NewVolumeManager(as, v, nil, version, dbmanager)
-			if err = vol.CreateVolume(define); err != nil {
-				logrus.Warningf("service: %s, create volume: %s, error: %+v \n skip it", version.ServiceID, v.VolumeName, err.Error())
-				continue
+			if vol != nil {
+				if err = vol.CreateVolume(define); err != nil {
+					logrus.Warningf("service: %s, create volume: %s, error: %+v \n skip it", version.ServiceID, v.VolumeName, err.Error())
+					continue
+				}
 			}
 		}
 	}
@@ -436,9 +438,11 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 	if vs != nil && len(tsmr) > 0 {
 		for _, t := range tsmr {
 			vol := volume.NewVolumeManager(as, nil, t, version, dbmanager)
-			if err = vol.CreateVolume(define); err != nil {
-				logrus.Warningf("service: %s, create volume: %s, error: %+v \n skip it", version.ServiceID, t.VolumeName, err.Error())
-				continue
+			if vol != nil {
+				if err = vol.CreateDependVolume(define); err != nil {
+					logrus.Warningf("service: %s, create volume: %s, error: %+v \n skip it", version.ServiceID, t.VolumeName, err.Error())
+					continue
+				}
 			}
 		}
 	}

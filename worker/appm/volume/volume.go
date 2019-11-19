@@ -40,15 +40,26 @@ import (
 
 // Volume volume function interface
 type Volume interface {
-	CreateVolume(define *Define) error
-	CreateDependVolume(define *Define) error
+	CreateVolume(define *Define) error       // use serviceVolume
+	CreateDependVolume(define *Define) error // use serviceMountR
 	setBaseInfo(as *v1.AppService, serviceVolume *model.TenantServiceVolume, serviceMountR *model.TenantServiceMountRelation, version *dbmodel.VersionInfo, dbmanager db.Manager)
 }
 
 // NewVolumeManager create volume
 func NewVolumeManager(as *v1.AppService, serviceVolume *model.TenantServiceVolume, serviceMountR *model.TenantServiceMountRelation, version *dbmodel.VersionInfo, dbmanager db.Manager) Volume {
 	var v Volume
-	switch serviceVolume.VolumeType {
+	volumeType := ""
+	if serviceVolume != nil {
+		volumeType = serviceVolume.VolumeType
+	}
+	if serviceMountR != nil {
+		volumeType = serviceMountR.VolumeType
+	}
+	if volumeType == "" {
+		logrus.Warn("unknown volume Type, can't create volume")
+		return nil
+	}
+	switch volumeType {
 	case dbmodel.ShareFileVolumeType.String():
 		v = new(ShareFileVolume)
 	case dbmodel.ConfigFileVolumeType.String():
@@ -57,8 +68,6 @@ func NewVolumeManager(as *v1.AppService, serviceVolume *model.TenantServiceVolum
 		v = new(MemoryFSVolume)
 	case dbmodel.LocalVolumeType.String():
 		v = new(LocalVolume)
-	default:
-		v = new(ShareFileVolume)
 	}
 	v.setBaseInfo(as, serviceVolume, serviceMountR, version, dbmanager)
 	return v
@@ -245,8 +254,8 @@ type MemoryFSVolume struct {
 
 // CreateVolume memory fs volume create volume
 func (v *MemoryFSVolume) CreateVolume(define *Define) error {
-	volumeMountName := fmt.Sprintf("mnt%d", v.smr.ID)
-	volumeMountPath := v.smr.VolumePath
+	volumeMountName := fmt.Sprintf("mnt%d", v.svm.ID)
+	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := false
 	if volumeMountPath != "" {
 		logrus.Warningf("service[%s]'s mount path is empty, skip it", v.version.ServiceID)
