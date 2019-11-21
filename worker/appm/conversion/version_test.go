@@ -21,11 +21,15 @@ package conversion
 import (
 	"testing"
 
-	gomock "github.com/golang/mock/gomock"
+	"github.com/golang/mock/gomock"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/model"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/volume"
+	appv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestTenantServiceVersion(t *testing.T) {
@@ -61,4 +65,30 @@ func TestConvertRulesToEnvs(t *testing.T) {
 	if len(renvs) > 0 {
 		t.Errorf("Expected 0 for the length rule envs, but return %d", len(renvs))
 	}
+}
+
+func TestCreateVolume(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	dbmanager := db.NewMockManager(ctrl)
+
+	as := &v1.AppService{}
+	as.ServiceID = "dummy service id"
+	as.TenantName = "dummy tenant name"
+	as.ServiceAlias = "dummy service alias"
+	var replicas int32
+	as.SetStatefulSet(&appv1.StatefulSet{Spec: appv1.StatefulSetSpec{Replicas: &replicas, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"version": "version"}}}}})
+
+	serviceVolume := &model.TenantServiceVolume{
+		VolumeType:     "ceph-rbd",
+		VolumePath:     "/tmp/cephrbd",
+		VolumeCapacity: 1,
+		VolumeAlias:    "test-storageclass",
+		IsReadOnly:     true,
+	}
+	version := &model.VersionInfo{}
+
+	vol := volume.NewVolumeManager(as, serviceVolume, nil, version, dbmanager)
+	var define = &volume.Define{}
+	vol.CreateVolume(define)
 }

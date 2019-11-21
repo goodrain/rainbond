@@ -68,6 +68,11 @@ func NewVolumeManager(as *v1.AppService, serviceVolume *model.TenantServiceVolum
 		v = new(MemoryFSVolume)
 	case dbmodel.LocalVolumeType.String():
 		v = new(LocalVolume)
+	case dbmodel.CephRBDVolumeType.String():
+		v = new(CephRBDVolume)
+	default:
+		logrus.Warnf("unknown service volume type: serviceID : %s", as.ServiceID)
+		return nil
 	}
 	v.setBaseInfo(as, serviceVolume, serviceMountR, version, dbmanager)
 	return v
@@ -165,6 +170,26 @@ func newVolumeClaim(name, volumePath string, capacity int64, labels map[string]s
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
 			StorageClassName: &v1.RainbondStatefuleShareStorageClass,
+			Resources: corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceStorage: resourceStorage,
+				},
+			},
+		},
+	}
+}
+
+func newVolumeClaim4RBD(name, volumePath, storageClassName string, capacity int64, labels map[string]string) *corev1.PersistentVolumeClaim {
+	// TODO use capacity as resroouceStorage
+	resourceStorage, _ := resource.ParseQuantity(fmt.Sprintf("%dMi", capacity))
+	return &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: labels,
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			StorageClassName: &storageClassName,
 			Resources: corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceStorage: resourceStorage,
@@ -367,6 +392,33 @@ type CephRBDVolume struct {
 
 // CreateVolume ceph rbd volume create volume
 func (v *CephRBDVolume) CreateVolume(define *Define) error {
+	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
+	volumeMountPath := v.svm.VolumePath
+	volumeReadOnly := v.svm.IsReadOnly
+	statefulset := v.as.GetStatefulSet() //有状态组件
+	labels := v.as.GetCommonLabels(map[string]string{"volume_name": volumeMountName, "volume_path": volumeMountPath})
+	claim := newVolumeClaim4RBD(volumeMountName, volumeMountPath, v.svm.VolumeAlias, v.svm.VolumeCapacity, labels)
+	claim.Annotations = map[string]string{
+		client.LabelOS: func() string {
+			if v.as.IsWindowsService {
+				return "windows"
+			}
+			return "linux"
+		}(),
+	}
+	statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
+
+	vm := corev1.VolumeMount{
+		Name:      volumeMountName,
+		MountPath: volumeMountPath,
+		ReadOnly:  volumeReadOnly,
+	}
+	define.volumeMounts = append(define.volumeMounts, vm)
+	return nil
+}
+
+// CreateDependVolume create depend volume
+func (v *CephRBDVolume) CreateDependVolume(define *Define) error {
 	return nil
 }
 
