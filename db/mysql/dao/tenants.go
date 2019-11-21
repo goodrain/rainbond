@@ -1574,6 +1574,29 @@ type TenantServiceScalingRecordsDaoImpl struct {
 	DB *gorm.DB
 }
 
+// AddModel -
+func (t *TenantServiceScalingRecordsDaoImpl) AddModel(mo model.Interface) error {
+	record := mo.(*model.TenantServiceScalingRecords)
+	var old model.TenantServiceScalingRecords
+	if ok := t.DB.Where("event_name=?", record.EventName).Find(&old).RecordNotFound(); ok {
+		if err := t.DB.Create(record).Error; err != nil {
+			return err
+		}
+	} else {
+		return errors.ErrRecordAlreadyExist
+	}
+	return nil
+}
+
+// UpdateModel -
+func (t *TenantServiceScalingRecordsDaoImpl) UpdateModel(mo model.Interface) error {
+	record := mo.(*model.TenantServiceScalingRecords)
+	if err := t.DB.Save(record).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
 // UpdateOrCreate -
 func (t *TenantServiceScalingRecordsDaoImpl) UpdateOrCreate(new *model.TenantServiceScalingRecords) error {
 	var old model.TenantServiceScalingRecords

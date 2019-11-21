@@ -411,7 +411,7 @@ func createPluginResources(memory int, cpu int) v1.ResourceRequirements {
 	}
 	var cpuRequest, cpuLimit int64
 	if memory < 512 {
-		cpuRequest, cpuLimit = base*30, base*80
+		cpuRequest, cpuLimit = 128, 256
 	} else if memory <= 1024 {
 		cpuRequest, cpuLimit = base*30, base*160
 	} else {

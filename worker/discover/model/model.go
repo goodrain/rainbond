@@ -222,6 +222,7 @@ type HorizontalScalingTaskBody struct {
 	ServiceID string `json:"service_id"`
 	Replicas  int32  `json:"replicas"`
 	EventID   string `json:"event_id"`
+	Username  string `json:"username"`
 }
 
 //VerticalScalingTaskBody 垂直伸缩操作任务主体
