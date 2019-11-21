@@ -1884,6 +1884,121 @@ func (s *ServiceAction) ListVersionInfo(serviceID string) (*api_model.BuildListR
 	return result, nil
 }
 
+// AddAutoscalerRule -
+func (s *ServiceAction) AddAutoscalerRule(req *api_model.AutoscalerRuleReq) error {
+	tx := db.GetManager().Begin()
+	defer db.GetManager().EnsureEndTransactionFunc()
+
+	r := &dbmodel.TenantServiceAutoscalerRules{
+		RuleID:      req.RuleID,
+		ServiceID:   req.ServiceID,
+		Enable:      req.Enable,
+		XPAType:     req.XPAType,
+		MinReplicas: req.MinReplicas,
+		MaxReplicas: req.MaxReplicas,
+	}
+	if err := db.GetManager().TenantServceAutoscalerRulesDaoTransactions(tx).AddModel(r); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	for _, metric := range req.Metrics {
+		m := &dbmodel.TenantServiceAutoscalerRuleMetrics{
+			RuleID:            req.RuleID,
+			MetricsType:       metric.MetricsType,
+			MetricsName:       metric.MetricsName,
+			MetricTargetType:  metric.MetricTargetType,
+			MetricTargetValue: metric.MetricTargetValue,
+		}
+		if err := db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).AddModel(m); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	taskbody := map[string]interface{}{
+		"service_id": r.ServiceID,
+		"rule_id":    r.RuleID,
+	}
+	if err := s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+		TaskType: "refreshhpa",
+		TaskBody: taskbody,
+		Topic:    gclient.WorkerTopic,
+	}); err != nil {
+		logrus.Errorf("send 'refreshhpa' task: %v", err)
+		return err
+	}
+	logrus.Infof("rule id: %s; successfully send 'refreshhpa' task.", r.RuleID)
+
+	return tx.Commit().Error
+}
+
+// UpdAutoscalerRule -
+func (s *ServiceAction) UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) error {
+	rule, err := db.GetManager().TenantServceAutoscalerRulesDao().GetByRuleID(req.RuleID)
+	if err != nil {
+		return err
+	}
+
+	rule.Enable = req.Enable
+	rule.XPAType = req.XPAType
+	rule.MinReplicas = req.MinReplicas
+	rule.MaxReplicas = req.MaxReplicas
+
+	tx := db.GetManager().Begin()
+	defer db.GetManager().EnsureEndTransactionFunc()
+
+	if err := db.GetManager().TenantServceAutoscalerRulesDaoTransactions(tx).UpdateModel(rule); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	for _, metric := range req.Metrics {
+		m := &dbmodel.TenantServiceAutoscalerRuleMetrics{
+			RuleID:            req.RuleID,
+			MetricsType:       metric.MetricsType,
+			MetricsName:       metric.MetricsName,
+			MetricTargetType:  metric.MetricTargetType,
+			MetricTargetValue: metric.MetricTargetValue,
+		}
+		if err := db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).UpdateOrCreate(m); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	taskbody := map[string]interface{}{
+		"service_id": rule.ServiceID,
+		"rule_id":    rule.RuleID,
+	}
+	if err := s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+		TaskType: "refreshhpa",
+		TaskBody: taskbody,
+		Topic:    gclient.WorkerTopic,
+	}); err != nil {
+		logrus.Errorf("send 'refreshhpa' task: %v", err)
+		return err
+	}
+	logrus.Infof("rule id: %s; successfully send 'refreshhpa' task.", rule.RuleID)
+
+	return tx.Commit().Error
+}
+
+// ListScalingRecords -
+func (s *ServiceAction) ListScalingRecords(serviceID string, page, pageSize int) ([]*dbmodel.TenantServiceScalingRecords, int, error) {
+	records, err := db.GetManager().TenantServiceScalingRecordsDao().ListByServiceID(serviceID, (page-1)*pageSize, pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	count, err := db.GetManager().TenantServiceScalingRecordsDao().CountByServiceID(serviceID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return records, count, nil
+}
+
 //TransStatus trans service status
 func TransStatus(eStatus string) string {
 	switch eStatus {

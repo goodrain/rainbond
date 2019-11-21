@@ -151,6 +151,13 @@ func NewTaskBody(taskType string, body []byte) TaskBody {
 			return nil
 		}
 		return b
+	case "refreshhpa":
+		b := &RefreshHPATaskBody{}
+		err := ffjson.Unmarshal(body, &b)
+		if err != nil {
+			return nil
+		}
+		return b
 	default:
 		return DefaultTaskBody{}
 	}
@@ -181,6 +188,8 @@ func CreateTaskBody(taskType string) TaskBody {
 		return ApplyPluginConfigTaskBody{}
 	case "delete_tenant":
 		return DeleteTenantTaskBody{}
+	case "refreshhpa":
+		return RefreshHPATaskBody{}
 	default:
 		return DefaultTaskBody{}
 	}
@@ -213,6 +222,7 @@ type HorizontalScalingTaskBody struct {
 	ServiceID string `json:"service_id"`
 	Replicas  int32  `json:"replicas"`
 	EventID   string `json:"event_id"`
+	Username  string `json:"username"`
 }
 
 //VerticalScalingTaskBody 垂直伸缩操作任务主体
@@ -322,6 +332,13 @@ type GroupStopTaskBody struct {
 // DeleteTenantTaskBody -
 type DeleteTenantTaskBody struct {
 	TenantID string `json:"tenant_id"`
+}
+
+// RefreshHPATaskBody -
+type RefreshHPATaskBody struct {
+	ServiceID string `json:"service_id"`
+	RuleID    string `json:"rule_id"`
+	EventID   string `json:"eventID"`
 }
 
 //DefaultTaskBody 默认操作任务主体

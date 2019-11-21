@@ -19,6 +19,7 @@
 package handle
 
 import (
+	"time"
 	"context"
 	"fmt"
 	"reflect"
@@ -119,6 +120,9 @@ func (m *Manager) AnalystToExec(task *model.Task) error {
 	case "delete_tenant":
 		logrus.Info("start a 'delete_tenant' task worker")
 		return m.deleteTenant(task)
+	case "refreshhpa":
+		logrus.Info("start a 'refreshhpa' task worker")
+		return m.ExecRefreshHPATask(task)
 	default:
 		logrus.Warning("task can not execute because no type is identified")
 		return nil
@@ -217,25 +221,54 @@ func (m *Manager) restartExec(task *model.Task) error {
 	return nil
 }
 
-func (m *Manager) horizontalScalingExec(task *model.Task) error {
+func (m *Manager) horizontalScalingExec(task *model.Task) (err error) {
 	body, ok := task.Body.(model.HorizontalScalingTaskBody)
 	if !ok {
 		logrus.Errorf("horizontal_scaling body convert to taskbody error")
-		return fmt.Errorf("a")
+		err = fmt.Errorf("a")
+		return
 	}
+
 	logger := event.GetManager().GetLogger(body.EventID)
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(body.ServiceID)
 	if err != nil {
 		logger.Error("Get app base info failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		logrus.Errorf("horizontal_scaling get rc error. %v", err)
-		return fmt.Errorf("a")
+		err = fmt.Errorf("a")
+		return
 	}
 	appService := m.store.GetAppService(body.ServiceID)
 	if appService == nil || appService.IsClosed() {
-		logger.Info("service is closed,no need handle", event.GetLastLoggerOption())
-		return nil
+		logger.Info("service is closed, no need handle", event.GetLastLoggerOption())
+		return
 	}
+	oldReplicas, newReplicas := appService.Replicas, service.Replicas
+
+	defer func() {
+		desc := "the replicas is scaling from %d to %d successfully"
+		desc = fmt.Sprintf(desc, oldReplicas, newReplicas)
+		reason := "SuccessfulRescale"
+		if err != nil {
+			desc = "the replicas is scaling from %d to %d: %v"
+			desc = fmt.Sprintf(desc, oldReplicas, newReplicas, err)
+			reason = "FailedRescale"
+		}
+		scalingRecord := &dbmodel.TenantServiceScalingRecords{
+			ServiceID:   body.ServiceID,
+			EventName:   util.NewUUID(),
+			RecordType:  "manual",
+			Reason:      reason,
+			Count:       1,
+			Description: desc,
+			Operator:    body.Username,
+			LastTime:    time.Now(),
+		}
+		if err := db.GetManager().TenantServiceScalingRecordsDao().AddModel(scalingRecord); err != nil {
+			logrus.Warningf("save scaling record: %v", err)
+		}
+	}()
+
 	appService.Logger = logger
 	appService.Replicas = service.Replicas
 	err = m.controllerManager.StartController(controller.TypeScalingController, *appService)
@@ -243,7 +276,7 @@ func (m *Manager) horizontalScalingExec(task *model.Task) error {
 		logrus.Errorf("Application run  scaling controller failure:%s", err.Error())
 		logger.Info("Application run scaling controller failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("Application scaling failure")
+		return
 	}
 	logrus.Infof("service(%s) %s working is running.", body.ServiceID, "scaling")
 	return nil
@@ -457,7 +490,7 @@ func (m *Manager) deleteTenant(task *model.Task) (err error) {
 		var tenant *dbmodel.Tenants
 		tenant, err = db.GetManager().TenantDao().GetTenantByUUID(body.TenantID)
 		if err != nil {
-			err = fmt.Errorf("tenant id: %s; find tenant: %v", err)
+			err = fmt.Errorf("tenant id: %s; find tenant: %v", body.TenantID, err)
 			return
 		}
 		tenant.Status = dbmodel.TenantStatusDeleteFailed.String()
@@ -482,4 +515,43 @@ func (m *Manager) deleteTenant(task *model.Task) (err error) {
 	}
 
 	return
+}
+
+// ExecRefreshHPATask executes a 'refresh hpa' task.
+func (m *Manager) ExecRefreshHPATask(task *model.Task) error {
+	body, ok := task.Body.(*model.RefreshHPATaskBody)
+	if !ok {
+		logrus.Errorf("exec task 'refreshhpa'; wrong type: %v", reflect.TypeOf(task))
+		return fmt.Errorf("exec task 'refreshhpa': wrong input")
+	}
+
+	logger := event.GetManager().GetLogger(body.EventID)
+
+	oldAppService := m.store.GetAppService(body.ServiceID)
+	if oldAppService != nil && oldAppService.IsClosed() {
+		logger.Info("application is closed, ignore task 'refreshhpa'", event.GetLastLoggerOption())
+		event.GetManager().ReleaseLogger(logger)
+		return nil
+	}
+
+	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID, nil)
+	if err != nil {
+		logrus.Errorf("Application init create failure:%s", err.Error())
+		logger.Error("Application init create failure", event.GetCallbackLoggerOption())
+		event.GetManager().ReleaseLogger(logger)
+		return fmt.Errorf("Application init create failure")
+	}
+	newAppService.Logger = logger
+	newAppService.SetDeletedResources(oldAppService)
+
+	err = m.controllerManager.StartController(controller.TypeControllerRefreshHPA, *newAppService)
+	if err != nil {
+		logrus.Errorf("Application run  refreshhpa controller failure: %s", err.Error())
+		logger.Error("Application run refreshhpa controller failure", event.GetCallbackLoggerOption())
+		event.GetManager().ReleaseLogger(logger)
+		return fmt.Errorf("refresh hpa: %v", err)
+	}
+
+	logrus.Infof("rule id: %s; successfully refresh hpa", body.RuleID)
+	return nil
 }

@@ -25,12 +25,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/goodrain/rainbond/db/dao"
-
 	"github.com/Sirupsen/logrus"
+	"github.com/jinzhu/gorm"
+
+	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
-	"github.com/jinzhu/gorm"
 )
 
 //TenantDaoImpl 租户信息管理
@@ -1458,4 +1458,175 @@ func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByServiceIDKey(serviceID str
 		return err
 	}
 	return nil
+}
+
+// TenantServceAutoscalerRulesDaoImpl -
+type TenantServceAutoscalerRulesDaoImpl struct {
+	DB *gorm.DB
+}
+
+// AddModel -
+func (t *TenantServceAutoscalerRulesDaoImpl) AddModel(mo model.Interface) error {
+	rule := mo.(*model.TenantServiceAutoscalerRules)
+	var old model.TenantServiceAutoscalerRules
+	if ok := t.DB.Where("rule_id = ?", rule.RuleID).Find(&old).RecordNotFound(); ok {
+		if err := t.DB.Create(rule).Error; err != nil {
+			return err
+		}
+	} else {
+		return errors.ErrRecordAlreadyExist
+	}
+	return nil
+}
+
+// UpdateModel -
+func (t *TenantServceAutoscalerRulesDaoImpl) UpdateModel(mo model.Interface) error {
+	rule := mo.(*model.TenantServiceAutoscalerRules)
+	if err := t.DB.Save(rule).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetByRuleID -
+func (t *TenantServceAutoscalerRulesDaoImpl) GetByRuleID(ruleID string) (*model.TenantServiceAutoscalerRules, error) {
+	var rule model.TenantServiceAutoscalerRules
+	if err := t.DB.Where("rule_id=?", ruleID).Find(&rule).Error; err != nil {
+		return nil, err
+	}
+	return &rule, nil
+}
+
+// ListByServiceID -
+func (t *TenantServceAutoscalerRulesDaoImpl) ListByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error) {
+	var rules []*model.TenantServiceAutoscalerRules
+	if err := t.DB.Where("service_id=?", serviceID).Find(&rules).Error; err != nil {
+		return nil, err
+	}
+	return rules, nil
+}
+
+// ListEnableOnesByServiceID -
+func (t *TenantServceAutoscalerRulesDaoImpl) ListEnableOnesByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error) {
+	var rules []*model.TenantServiceAutoscalerRules
+	if err := t.DB.Where("service_id=? and enable=?", serviceID, true).Find(&rules).Error; err != nil {
+		return nil, err
+	}
+	return rules, nil
+}
+
+// TenantServceAutoscalerRuleMetricsDaoImpl -
+type TenantServceAutoscalerRuleMetricsDaoImpl struct {
+	DB *gorm.DB
+}
+
+// AddModel -
+func (t *TenantServceAutoscalerRuleMetricsDaoImpl) AddModel(mo model.Interface) error {
+	metric := mo.(*model.TenantServiceAutoscalerRuleMetrics)
+	var old model.TenantServiceAutoscalerRuleMetrics
+	if ok := t.DB.Where("rule_id=? and metric_type=? and metric_name=?", metric.RuleID, metric.MetricsType, metric.MetricsName).Find(&old).RecordNotFound(); ok {
+		if err := t.DB.Create(metric).Error; err != nil {
+			return err
+		}
+	} else {
+		return errors.ErrRecordAlreadyExist
+	}
+	return nil
+}
+
+// UpdateModel -
+func (t *TenantServceAutoscalerRuleMetricsDaoImpl) UpdateModel(mo model.Interface) error {
+	metric := mo.(*model.TenantServiceAutoscalerRuleMetrics)
+	if err := t.DB.Save(metric).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// UpdateOrCreate -
+func (t *TenantServceAutoscalerRuleMetricsDaoImpl) UpdateOrCreate(metric *model.TenantServiceAutoscalerRuleMetrics) error {
+	var old model.TenantServiceAutoscalerRuleMetrics
+	if ok := t.DB.Where("rule_id=? and metric_type=? and metric_name=?", metric.RuleID, metric.MetricsType, metric.MetricsName).Find(&old).RecordNotFound(); ok {
+		if err := t.DB.Create(metric).Error; err != nil {
+			return err
+		}
+	} else {
+		old.MetricTargetType = metric.MetricTargetType
+		old.MetricTargetValue = metric.MetricTargetValue
+		if err := t.DB.Save(&old).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ListByRuleID -
+func (t *TenantServceAutoscalerRuleMetricsDaoImpl) ListByRuleID(ruleID string) ([]*model.TenantServiceAutoscalerRuleMetrics, error) {
+	var metrics []*model.TenantServiceAutoscalerRuleMetrics
+	if err := t.DB.Where("rule_id=?", ruleID).Find(&metrics).Error; err != nil {
+		return nil, err
+	}
+	return metrics, nil
+}
+
+// TenantServiceScalingRecordsDaoImpl -
+type TenantServiceScalingRecordsDaoImpl struct {
+	DB *gorm.DB
+}
+
+// AddModel -
+func (t *TenantServiceScalingRecordsDaoImpl) AddModel(mo model.Interface) error {
+	record := mo.(*model.TenantServiceScalingRecords)
+	var old model.TenantServiceScalingRecords
+	if ok := t.DB.Where("event_name=?", record.EventName).Find(&old).RecordNotFound(); ok {
+		if err := t.DB.Create(record).Error; err != nil {
+			return err
+		}
+	} else {
+		return errors.ErrRecordAlreadyExist
+	}
+	return nil
+}
+
+// UpdateModel -
+func (t *TenantServiceScalingRecordsDaoImpl) UpdateModel(mo model.Interface) error {
+	record := mo.(*model.TenantServiceScalingRecords)
+	if err := t.DB.Save(record).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// UpdateOrCreate -
+func (t *TenantServiceScalingRecordsDaoImpl) UpdateOrCreate(new *model.TenantServiceScalingRecords) error {
+	var old model.TenantServiceScalingRecords
+
+	if ok := t.DB.Where("event_name=?", new.EventName).Find(&old).RecordNotFound(); ok {
+		return t.DB.Create(new).Error
+	}
+
+	old.Count = new.Count
+	old.LastTime = new.LastTime
+	return t.DB.Save(&old).Error
+}
+
+// ListByServiceID -
+func (t *TenantServiceScalingRecordsDaoImpl) ListByServiceID(serviceID string, offset, limit int) ([]*model.TenantServiceScalingRecords, error) {
+	var records []*model.TenantServiceScalingRecords
+	if err := t.DB.Where("service_id=?", serviceID).Offset(offset).Limit(limit).Order("last_time desc").Find(&records).Error; err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
+
+// CountByServiceID -
+func (t *TenantServiceScalingRecordsDaoImpl) CountByServiceID(serviceID string) (int, error) {
+	record := model.TenantServiceScalingRecords{}
+	var count int
+	if err := t.DB.Table(record.TableName()).Where("service_id=?", serviceID).Count(&count).Error; err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }

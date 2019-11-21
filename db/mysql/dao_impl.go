@@ -19,9 +19,10 @@
 package mysql
 
 import (
+	"github.com/jinzhu/gorm"
+
 	"github.com/goodrain/rainbond/db/dao"
 	mysqldao "github.com/goodrain/rainbond/db/mysql/dao"
-	"github.com/jinzhu/gorm"
 )
 
 //LicenseDao LicenseDao
@@ -517,6 +518,48 @@ func (m *Manager) GwRuleConfigDao() dao.GwRuleConfigDao {
 // GwRuleConfigDaoTransactions creates a new dao.GwRuleConfigDao with special transaction.
 func (m *Manager) GwRuleConfigDaoTransactions(db *gorm.DB) dao.GwRuleConfigDao {
 	return &mysqldao.GwRuleConfigDaoImpl{
+		DB: db,
+	}
+}
+
+// TenantServceAutoscalerRulesDao -
+func (m *Manager) TenantServceAutoscalerRulesDao() dao.TenantServceAutoscalerRulesDao {
+	return &mysqldao.TenantServceAutoscalerRulesDaoImpl{
+		DB: m.db,
+	}
+}
+
+// TenantServceAutoscalerRulesDaoTransactions -
+func (m *Manager) TenantServceAutoscalerRulesDaoTransactions(db *gorm.DB) dao.TenantServceAutoscalerRulesDao {
+	return &mysqldao.TenantServceAutoscalerRulesDaoImpl{
+		DB: db,
+	}
+}
+
+// TenantServceAutoscalerRuleMetricsDao -
+func (m *Manager) TenantServceAutoscalerRuleMetricsDao() dao.TenantServceAutoscalerRuleMetricsDao {
+	return &mysqldao.TenantServceAutoscalerRuleMetricsDaoImpl{
+		DB: m.db,
+	}
+}
+
+// TenantServceAutoscalerRuleMetricsDaoTransactions -
+func (m *Manager) TenantServceAutoscalerRuleMetricsDaoTransactions(db *gorm.DB) dao.TenantServceAutoscalerRuleMetricsDao {
+	return &mysqldao.TenantServceAutoscalerRuleMetricsDaoImpl{
+		DB: db,
+	}
+}
+
+// TenantServiceScalingRecordsDao -
+func (m *Manager) TenantServiceScalingRecordsDao() dao.TenantServiceScalingRecordsDao {
+	return &mysqldao.TenantServiceScalingRecordsDaoImpl{
+		DB: m.db,
+	}
+}
+
+// TenantServiceScalingRecordsDaoTransactions -
+func (m *Manager) TenantServiceScalingRecordsDaoTransactions(db *gorm.DB) dao.TenantServiceScalingRecordsDao {
+	return &mysqldao.TenantServiceScalingRecordsDaoImpl{
 		DB: db,
 	}
 }
