@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/worker/appm/store"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -152,4 +153,46 @@ func TestListEvents(t *testing.T) {
 	namespace := "c1a29fe4d7b0413993dc859430cf743d"
 	podEvents := rserver.listPodEventsByName(name, namespace)
 	t.Logf("pod events: %v", podEvents)
+}
+
+func TestGetStorageClass(t *testing.T) {
+	c, err := clientcmd.BuildConfigFromFlags("", "/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig")
+	if err != nil {
+		t.Fatalf("read kube config file error: %v", err)
+	}
+	clientset, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		t.Fatalf("create kube api client error: %v", err)
+	}
+	s := store.NewStore(clientset, nil, option.Config{}, nil, nil)
+	stes := s.GetStorageClasses()
+	storageclasses := new(pb.StorageClasses)
+	if stes != nil {
+		for _, st := range stes {
+			var allowTopologies []*pb.TopologySelectorTerm
+			for _, topologySelectorTerm := range st.AllowedTopologies {
+				var expressions []*pb.TopologySelectorLabelRequirement
+				for _, value := range topologySelectorTerm.MatchLabelExpressions {
+					expressions = append(expressions, &pb.TopologySelectorLabelRequirement{Key: value.Key, Values: value.Values})
+				}
+				allowTopologies = append(allowTopologies, &pb.TopologySelectorTerm{MatchLabelExpressions: expressions})
+			}
+
+			var allowVolumeExpansion bool
+			if st.AllowVolumeExpansion == nil {
+				allowVolumeExpansion = false
+			} else {
+				allowVolumeExpansion = *st.AllowVolumeExpansion
+			}
+			storageclasses.List = append(storageclasses.List, &pb.StorageClassDetail{
+				Name:                 st.Name,
+				Provisioner:          st.Provisioner,
+				ReclaimPolicy:        st.ReclaimPolicy,
+				AllowVolumeExpansion: allowVolumeExpansion,
+				VolumeBindingMode:    st.VolumeBindingMode,
+				AllowedTopologies:    allowTopologies,
+			})
+			t.Logf("allowVolumeExpansion is : %v", allowVolumeExpansion)
+		}
+	}
 }

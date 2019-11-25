@@ -19,6 +19,7 @@
 package store
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/eapache/channels"
@@ -70,4 +71,22 @@ func TestAppRuntimeStore_GetTenantResource(t *testing.T) {
 	tenantID := "d22797956503441abce65e40705aac29"
 	resource := store.GetTenantResource(tenantID)
 	t.Logf("%+v", resource)
+}
+
+func TestGetStorageClass(t *testing.T) {
+	c, err := clientcmd.BuildConfigFromFlags("", "/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig")
+	if err != nil {
+		t.Fatalf("read kube config file error: %v", err)
+	}
+	clientset, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		t.Fatalf("create kube api client error: %v", err)
+	}
+	s := NewStore(clientset, nil, option.Config{}, nil, nil)
+	sces := s.GetStorageClasses()
+	t.Logf("len = %d", len(sces))
+	for _, sc := range sces {
+		fmt.Println("-------------")
+		t.Logf("%+v", sc.Parameters)
+	}
 }

@@ -18,6 +18,22 @@
 
 package model
 
+// VolumeProviderStruct volume provider struct
+type VolumeProviderStruct struct {
+	Kind        string                 `json:"kind"`
+	Provisioner []VolumeProviderDetail `json:"provisioner"`
+}
+
+// VolumeProviderDetail volume provider detail
+type VolumeProviderDetail struct {
+	Name                 string `json:"name"`
+	Provisioner          string `json:"provisioner"`
+	ReclaimPolicy        string `json:"reclaim_policy"`
+	VolumeBindingMode    string `json:"volume_binding_mode"`
+	AllowVolumeExpansion *bool  `json:"allow_volume_expansion"`
+	// TODO AccessMode
+}
+
 //AddVolumeStruct AddVolumeStruct
 //swagger:parameters addVolumes
 type AddVolumeStruct struct {
@@ -40,12 +56,25 @@ type AddVolumeStruct struct {
 		//存储类型（share,local,tmpfs）
 		// in: body
 		// required: true
-		VolumeType string `json:"volume_type" validate:"volume_type|required|in:share-file,local,memoryfs,config-file"`
+		VolumeType string `json:"volume_type" validate:"volume_type|required|in:share-file,local,memoryfs,config-file,ceph-rbd"`
 		// 存储名称(同一个应用唯一)
 		// in: body
 		// required: true
 		VolumeName  string `json:"volume_name" validate:"volume_name|required|max:50"`
 		FileContent string `json:"file_content"`
+		// 存储驱动别名（StorageClass别名）
+		VolumeProviderName string `json:"volume_provider_name"`
+		IsReadOnly         bool   `json:"is_read_only"`
+		// VolumeCapacity 存储大小
+		VolumeCapacity int64 `json:"volume_capacity"` // TODO 单位
+		// AccessMode 读写模式
+		AccessMode string `json:"access_mode"`
+		// SharePolicy 共享模式
+		SharePolicy string `json:"share_policy"`
+		// BackupPolicy 备份策略
+		BackupPolicy string `json:"backup_policy"`
+		// AllowExpansion 是否支持扩展
+		AllowExpansion bool `json:"allow_expansion"`
 	}
 }
 
@@ -139,6 +168,10 @@ type V2AddVolumeStruct struct {
 		// in: body
 		// required: true
 		HostPath string `json:"host_path" validate:"volume_path|required|regex:^/"`
+		//存储驱动名称
+		VolumeProviderName string `json:"volume_provider_name"`
+		// 存储大小
+		VolumeCapacity int64 `json:"volume_capacity" validate:"volume_capacity|required|min:1"` // 单位Mi
 	}
 }
 

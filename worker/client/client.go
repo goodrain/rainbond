@@ -198,3 +198,10 @@ func (a *AppRuntimeSyncClient) DelThirdPartyEndpoint(uuid, sid string) {
 		Sid:  sid,
 	})
 }
+
+// GetStorageClasses client GetStorageClasses
+func (a *AppRuntimeSyncClient) GetStorageClasses() (storageclasses *pb.StorageClasses, err error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return a.AppRuntimeSyncClient.GetStorageClasses(ctx, &pb.Empty{})
+}

@@ -392,12 +392,16 @@ type CephRBDVolume struct {
 
 // CreateVolume ceph rbd volume create volume
 func (v *CephRBDVolume) CreateVolume(define *Define) error {
+	if v.svm.VolumeCapacity <= 0 {
+		return fmt.Errorf("volume capcacity is %d, must be greater than zero", v.svm.VolumeCapacity)
+	}
 	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
 	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := v.svm.IsReadOnly
 	statefulset := v.as.GetStatefulSet() //有状态组件
 	labels := v.as.GetCommonLabels(map[string]string{"volume_name": volumeMountName, "volume_path": volumeMountPath})
-	claim := newVolumeClaim4RBD(volumeMountName, volumeMountPath, v.svm.VolumeAlias, v.svm.VolumeCapacity, labels)
+	claim := newVolumeClaim4RBD(volumeMountName, volumeMountPath, v.svm.VolumeProviderName, v.svm.VolumeCapacity, labels)
+	logrus.Debugf("storage class is : %s, claim value is : %s", v.svm.VolumeProviderName, claim.Spec.StorageClassName)
 	claim.Annotations = map[string]string{
 		client.LabelOS: func() string {
 			if v.as.IsWindowsService {

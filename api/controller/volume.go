@@ -28,9 +28,67 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
+
+// VolumeProvider list volume provider
+func (t *TenantStruct) VolumeProvider(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation POST /v2/tenants/{tenant_name}/volume-providers v2 volumeProvider
+	//
+	// 查询可用存储驱动模型列表 TODO 不应该放这里，至少路径不对
+	//
+	// get volume-providers
+	//
+	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//       "$ref": "#/responses/commandResponse" // TODO fix
+	//     description: 统一返回格式
+	storageClasses, err := t.StatusCli.GetStorageClasses()
+	if err != nil {
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	var providerList []api_model.VolumeProviderStruct
+	var providerMap = make(map[string][]api_model.VolumeProviderDetail)
+
+	for _, storageClass := range storageClasses.GetList() {
+		kind := util.ParseVolumeProviderKind(storageClass)
+		if kind == "" {
+			logrus.Debugf("not support storageclass: %+v", storageClass)
+			continue
+		}
+		if kind != dbmodel.ShareFileVolumeType.String() && kind != dbmodel.LocalVolumeType.String() {
+			detail := api_model.VolumeProviderDetail{
+				Name:                 storageClass.Name,
+				Provisioner:          storageClass.Provisioner,
+				ReclaimPolicy:        storageClass.ReclaimPolicy,
+				VolumeBindingMode:    storageClass.VolumeBindingMode,
+				AllowVolumeExpansion: &storageClass.AllowVolumeExpansion,
+			}
+			if _, ok := providerMap[kind]; ok {
+				providerMap[kind] = append(providerMap[kind], detail)
+			} else {
+				providerMap[kind] = []api_model.VolumeProviderDetail{detail}
+			}
+		}
+	}
+	for key, value := range providerMap {
+		providerList = append(providerList, api_model.VolumeProviderStruct{Kind: key, Provisioner: value})
+	}
+	httputil.ReturnSuccess(r, w, providerList)
+}
 
 //VolumeDependency VolumeDependency
 func (t *TenantStruct) VolumeDependency(w http.ResponseWriter, r *http.Request) {
@@ -157,11 +215,13 @@ func (t *TenantStruct) AddVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tsv := &dbmodel.TenantServiceVolume{
-		ServiceID:  serviceID,
-		VolumePath: avs.Body.VolumePath,
-		HostPath:   avs.Body.HostPath,
-		Category:   avs.Body.Category,
-		VolumeType: dbmodel.ShareFileVolumeType.String(),
+		ServiceID:          serviceID,
+		VolumePath:         avs.Body.VolumePath,
+		HostPath:           avs.Body.HostPath,
+		Category:           avs.Body.Category,
+		VolumeCapacity:     avs.Body.VolumeCapacity,
+		VolumeType:         dbmodel.ShareFileVolumeType.String(),
+		VolumeProviderName: avs.Body.VolumeProviderName,
 	}
 	if !strings.HasPrefix(tsv.VolumePath, "/") {
 		httputil.ReturnError(r, w, 400, "volume path is invalid,must begin with /")
@@ -352,11 +412,18 @@ func AddVolume(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("request uri: %s; request body: %v", r.RequestURI, string(bytes))
 
 	tsv := &dbmodel.TenantServiceVolume{
-		ServiceID:  serviceID,
-		VolumeName: avs.Body.VolumeName,
-		VolumePath: avs.Body.VolumePath,
-		VolumeType: avs.Body.VolumeType,
-		Category:   avs.Body.Category,
+		ServiceID:          serviceID,
+		VolumeName:         avs.Body.VolumeName,
+		VolumePath:         avs.Body.VolumePath,
+		VolumeType:         avs.Body.VolumeType,
+		Category:           avs.Body.Category,
+		VolumeProviderName: avs.Body.VolumeProviderName,
+		IsReadOnly:         avs.Body.IsReadOnly,
+		VolumeCapacity:     avs.Body.VolumeCapacity,
+		AccessMode:         avs.Body.AccessMode,
+		SharePolicy:        avs.Body.SharePolicy,
+		BackupPolicy:       avs.Body.BackupPolicy,
+		AllowExpansion:     avs.Body.AllowExpansion,
 	}
 
 	if !strings.HasPrefix(avs.Body.VolumePath, "/") {

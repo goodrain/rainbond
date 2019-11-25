@@ -23,6 +23,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/model"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -70,7 +71,8 @@ func TestConvertRulesToEnvs(t *testing.T) {
 func TestCreateVolume(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	dbmanager := db.NewMockManager(ctrl)
+	db.CreateManager(config.Config{DBType: "mysql", MysqlConnectionInfo: "oc6Poh:noot6Mea@tcp(192.168.2.203:3306)/region"})
+	dbmanager := db.GetManager()
 
 	as := &v1.AppService{}
 	as.ServiceID = "dummy service id"
@@ -79,12 +81,10 @@ func TestCreateVolume(t *testing.T) {
 	var replicas int32
 	as.SetStatefulSet(&appv1.StatefulSet{Spec: appv1.StatefulSetSpec{Replicas: &replicas, Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"version": "version"}}}}})
 
-	serviceVolume := &model.TenantServiceVolume{
-		VolumeType:     "ceph-rbd",
-		VolumePath:     "/tmp/cephrbd",
-		VolumeCapacity: 1,
-		VolumeAlias:    "test-storageclass",
-		IsReadOnly:     true,
+	serviceVolume, err := db.GetManager().TenantServiceVolumeDao().GetVolumeByID(25)
+	if err != nil {
+		t.Log(err)
+		return
 	}
 	version := &model.VersionInfo{}
 

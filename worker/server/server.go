@@ -339,7 +339,7 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 			}
 			if ip == "8.8.8.8" {
 				ip = as.GetServices()[0].Annotations["domain"]
-				logrus.Debugf("domain address is : ", ip)
+				logrus.Debugf("domain address is : %v", ip)
 			}
 			exists[subset.Ports[0].Name] = true
 			pbep := &pb.ThirdPartyEndpoint{
@@ -425,4 +425,40 @@ func (r *RuntimeServer) DelThirdPartyEndpoint(ctx context.Context, re *pb.DelThi
 		},
 	}
 	return new(pb.Empty), nil
+}
+
+// GetStorageClasses get storageclass list
+func (r *RuntimeServer) GetStorageClasses(ctx context.Context, re *pb.Empty) (*pb.StorageClasses, error) {
+	storageclasses := new(pb.StorageClasses)
+	stes := r.store.GetStorageClasses()
+
+	if stes != nil {
+		for _, st := range stes {
+			var allowTopologies []*pb.TopologySelectorTerm
+			for _, topologySelectorTerm := range st.AllowedTopologies {
+				var expressions []*pb.TopologySelectorLabelRequirement
+				for _, value := range topologySelectorTerm.MatchLabelExpressions {
+					expressions = append(expressions, &pb.TopologySelectorLabelRequirement{Key: value.Key, Values: value.Values})
+				}
+				allowTopologies = append(allowTopologies, &pb.TopologySelectorTerm{MatchLabelExpressions: expressions})
+			}
+
+			var allowVolumeExpansion bool
+			if st.AllowVolumeExpansion == nil {
+				allowVolumeExpansion = false
+			} else {
+				allowVolumeExpansion = *st.AllowVolumeExpansion
+			}
+			storageclasses.List = append(storageclasses.List, &pb.StorageClassDetail{
+				Name:                 st.Name,
+				Provisioner:          st.Provisioner,
+				Parameters:           st.Parameters,
+				ReclaimPolicy:        st.ReclaimPolicy,
+				AllowVolumeExpansion: allowVolumeExpansion,
+				VolumeBindingMode:    st.VolumeBindingMode,
+				AllowedTopologies:    allowTopologies,
+			})
+		}
+	}
+	return storageclasses, nil
 }

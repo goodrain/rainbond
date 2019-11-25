@@ -24,16 +24,17 @@ import (
 
 //Informer kube-api client cache
 type Informer struct {
-	Ingress     cache.SharedIndexInformer
-	Service     cache.SharedIndexInformer
-	Secret      cache.SharedIndexInformer
-	StatefulSet cache.SharedIndexInformer
-	Deployment  cache.SharedIndexInformer
-	Pod         cache.SharedIndexInformer
-	ConfigMap   cache.SharedIndexInformer
-	ReplicaSet  cache.SharedIndexInformer
-	Endpoints   cache.SharedIndexInformer
-	Nodes       cache.SharedIndexInformer
+	Ingress      cache.SharedIndexInformer
+	Service      cache.SharedIndexInformer
+	Secret       cache.SharedIndexInformer
+	StatefulSet  cache.SharedIndexInformer
+	Deployment   cache.SharedIndexInformer
+	Pod          cache.SharedIndexInformer
+	ConfigMap    cache.SharedIndexInformer
+	ReplicaSet   cache.SharedIndexInformer
+	Endpoints    cache.SharedIndexInformer
+	Nodes        cache.SharedIndexInformer
+	StorageClass cache.SharedIndexInformer
 }
 
 //Start statrt

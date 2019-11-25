@@ -40,6 +40,7 @@ import (
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -65,6 +66,7 @@ type Storer interface {
 	RegistPodUpdateListener(string, chan<- *corev1.Pod)
 	UnRegistPodUpdateListener(string)
 	InitOneThirdPartService(service *model.TenantServices) error
+	GetStorageClasses() []v1.StorageClass
 }
 
 // EventType type of event associated with an informer
@@ -164,6 +166,9 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.Nodes = infFactory.Core().V1().Nodes().Informer()
 	store.listers.Nodes = infFactory.Core().V1().Nodes().Lister()
 
+	store.informers.StorageClass = infFactory.Storage().V1().StorageClasses().Informer()
+	store.listers.StorageClass = infFactory.Storage().V1().StorageClasses().Lister()
+
 	isThirdParty := func(ep *corev1.Endpoints) bool {
 		return ep.Labels["service-kind"] == model.ServiceKindThirdParty.String()
 	}
@@ -255,6 +260,7 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.ReplicaSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Endpoints.AddEventHandlerWithResyncPeriod(epEventHandler, time.Second*10)
 	store.informers.Nodes.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.StorageClass.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	return store
 }
 
@@ -1063,4 +1069,24 @@ func (a *appRuntimeStore) UnRegistPodUpdateListener(name string) {
 	a.podUpdateListenerLock.Lock()
 	defer a.podUpdateListenerLock.Unlock()
 	delete(a.podUpdateListeners, name)
+}
+
+func (a *appRuntimeStore) GetStorageClasses() []v1.StorageClass {
+	storageClassList, err := a.clientset.StorageV1().StorageClasses().List(metav1.ListOptions{})
+	if err != nil {
+		return make([]v1.StorageClass, 0)
+	}
+	var sclist []v1.StorageClass
+	for _, item := range storageClassList.Items {
+		sc := v1.StorageClass{
+			Name:                 item.Name,
+			Provisioner:          item.Provisioner,
+			Parameters:           item.Parameters,
+			ReclaimPolicy:        fmt.Sprintf("%s", *item.ReclaimPolicy),
+			VolumeBindingMode:    fmt.Sprintf("%s", *item.VolumeBindingMode),
+			AllowVolumeExpansion: item.AllowVolumeExpansion,
+		}
+		sclist = append(sclist, sc)
+	}
+	return sclist
 }
