@@ -364,7 +364,7 @@ type TenantServiceVolume struct {
 	IsReadOnly bool `gorm:"column:is_read_only;default:false" json:"is_read_only"`
 	// VolumeCapacity 存储大小
 	VolumeCapacity int64 `gorm:"column:volume_capacity" json:"volume_capacity"`
-	// AccessMode 读写模式
+	// AccessMode 读写模式（Important! A volume can only be mounted using one access mode at a time, even if it supports many. For example, a GCEPersistentDisk can be mounted as ReadWriteOnce by a single node or ReadOnlyMany by many nodes, but not at the same time. #https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes）
 	AccessMode string `gorm:"column:access_mode" json:"access_mode"`
 	// SharePolicy 共享模式
 	SharePolicy string `gorm:"column:share_policy" json:"share_policy"`
@@ -372,8 +372,8 @@ type TenantServiceVolume struct {
 	BackupPolicy string `gorm:"column:backup_policy" json:"backup_policy"`
 	// AllowExpansion 是否支持扩展
 	AllowExpansion bool `gorm:"column:allow_expansion" json:"allow_expansion"`
-	// VolumeAlias 使用的存储驱动别名
-	VolumeAlias string `gorm:"collumn:volume_alias" json:"volume_alias"`
+	// VolumeProviderName 使用的存储驱动别名
+	VolumeProviderName string `gorm:"collumn:volume_provider_name" json:"volume_provider_name"`
 }
 
 //TableName 表名

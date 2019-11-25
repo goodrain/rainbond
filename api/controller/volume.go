@@ -53,8 +53,9 @@ func (t *TenantStruct) VolumeProvider(w http.ResponseWriter, r *http.Request) {
 	// responses:
 	//   default:
 	//     schema:
-	//       "$ref": "#/responses/commandResponse" // TODO fix
 	//     description: 统一返回格式
+
+	kindFilter := r.FormValue("kind")
 	storageClasses, err := t.StatusCli.GetStorageClasses()
 	if err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
@@ -67,6 +68,9 @@ func (t *TenantStruct) VolumeProvider(w http.ResponseWriter, r *http.Request) {
 		kind := util.ParseVolumeProviderKind(storageClass)
 		if kind == "" {
 			logrus.Debugf("not support storageclass: %+v", storageClass)
+			continue
+		}
+		if kindFilter != "" && kind != kindFilter {
 			continue
 		}
 		if kind != dbmodel.ShareFileVolumeType.String() && kind != dbmodel.LocalVolumeType.String() {

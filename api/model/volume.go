@@ -67,7 +67,7 @@ type AddVolumeStruct struct {
 		IsReadOnly         bool   `json:"is_read_only"`
 		// VolumeCapacity 存储大小
 		VolumeCapacity int64 `json:"volume_capacity"` // TODO 单位
-		// AccessMode 读写模式
+		// AccessMode 读写模式（Important! A volume can only be mounted using one access mode at a time, even if it supports many. For example, a GCEPersistentDisk can be mounted as ReadWriteOnce by a single node or ReadOnlyMany by many nodes, but not at the same time. #https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes）
 		AccessMode string `json:"access_mode"`
 		// SharePolicy 共享模式
 		SharePolicy string `json:"share_policy"`
