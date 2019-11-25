@@ -435,7 +435,7 @@ func (a *appRuntimeStore) checkReplicasetWhetherDelete(app *v1.AppService, rs *a
 		//delete old version
 		if v1.GetReplicaSetVersion(current) > v1.GetReplicaSetVersion(rs) {
 			if rs.Status.Replicas == 0 && rs.Status.ReadyReplicas == 0 && rs.Status.AvailableReplicas == 0 {
-				if err := a.conf.KubeClient.Apps().ReplicaSets(rs.Namespace).Delete(rs.Name, &metav1.DeleteOptions{}); err != nil && errors.IsNotFound(err) {
+				if err := a.conf.KubeClient.AppsV1().ReplicaSets(rs.Namespace).Delete(rs.Name, &metav1.DeleteOptions{}); err != nil && errors.IsNotFound(err) {
 					logrus.Errorf("delete old version replicaset failure %s", err.Error())
 				}
 			}
@@ -527,7 +527,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.Extensions().Ingresses(ingress.Namespace).Delete(ingress.Name, &metav1.DeleteOptions{})
+				a.conf.KubeClient.ExtensionsV1beta1().Ingresses(ingress.Namespace).Delete(ingress.Name, &metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetIngress(ingress)

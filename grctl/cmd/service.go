@@ -377,7 +377,7 @@ func showServiceDeployInfo(c *cli.Context) error {
 	serviceTable.AddHeaders("Name", "IP", "Port")
 	for serviceID := range deployInfo.Services {
 		if clients.K8SClient != nil {
-			service, _ := clients.K8SClient.Core().Services(tenantID).Get(serviceID, metav1.GetOptions{})
+			service, _ := clients.K8SClient.CoreV1().Services(tenantID).Get(serviceID, metav1.GetOptions{})
 			if service != nil {
 				var ports string
 				if service.Spec.Ports != nil && len(service.Spec.Ports) > 0 {
@@ -428,7 +428,7 @@ func showServiceDeployInfo(c *cli.Context) error {
 	ingressTable.AddHeaders("Name", "Host")
 	for ingressID := range deployInfo.Ingresses {
 		if clients.K8SClient != nil {
-			ingress, _ := clients.K8SClient.Extensions().Ingresses(tenantID).Get(ingressID, metav1.GetOptions{})
+			ingress, _ := clients.K8SClient.ExtensionsV1beta1().Ingresses(tenantID).Get(ingressID, metav1.GetOptions{})
 			if ingress != nil {
 				for _, rule := range ingress.Spec.Rules {
 					ingressTable.AddRow(ingress.Name, rule.Host)
@@ -445,7 +445,7 @@ func showServiceDeployInfo(c *cli.Context) error {
 	for podID := range deployInfo.Pods {
 		i++
 		if clients.K8SClient != nil {
-			pod, err := clients.K8SClient.Core().Pods(tenantID).Get(podID, metav1.GetOptions{})
+			pod, err := clients.K8SClient.CoreV1().Pods(tenantID).Get(podID, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
@@ -470,10 +470,10 @@ func showServiceDeployInfo(c *cli.Context) error {
 					}
 					if v.PersistentVolumeClaim != nil {
 						claimName := v.PersistentVolumeClaim.ClaimName
-						pvc, _ := clients.K8SClient.Core().PersistentVolumeClaims(tenantID).Get(claimName, metav1.GetOptions{})
+						pvc, _ := clients.K8SClient.CoreV1().PersistentVolumeClaims(tenantID).Get(claimName, metav1.GetOptions{})
 						if pvc != nil {
 							pvn := pvc.Spec.VolumeName
-							pv, _ := clients.K8SClient.Core().PersistentVolumes().Get(pvn, metav1.GetOptions{})
+							pv, _ := clients.K8SClient.CoreV1().PersistentVolumes().Get(pvn, metav1.GetOptions{})
 							if pv != nil {
 								if hostPath := pv.Spec.HostPath; hostPath != nil {
 									valueline += hostPath.Path

@@ -18,6 +18,7 @@ package workqueue
 
 import (
 	"container/heap"
+	"sync"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/clock"
@@ -45,7 +46,7 @@ func newDelayingQueue(clock clock.Clock, name string) DelayingInterface {
 	ret := &delayingType{
 		Interface:       NewNamed(name),
 		clock:           clock,
-		heartbeat:       clock.Tick(maxWait),
+		heartbeat:       clock.NewTicker(maxWait),
 		stopCh:          make(chan struct{}),
 		waitingForAddCh: make(chan *waitFor, 1000),
 		metrics:         newRetryMetrics(name),
@@ -65,12 +66,11 @@ type delayingType struct {
 
 	// stopCh lets us signal a shutdown to the waiting loop
 	stopCh chan struct{}
+	// stopOnce guarantees we only signal shutdown a single time
+	stopOnce sync.Once
 
 	// heartbeat ensures we wait no more than maxWait before firing
-	//
-	// TODO: replace with Ticker (and add to clock) so this can be cleaned up.
-	// clock.Tick will leak.
-	heartbeat <-chan time.Time
+	heartbeat clock.Ticker
 
 	// waitingForAddCh is a buffered channel that feeds waitingForAdd
 	waitingForAddCh chan *waitFor
@@ -134,10 +134,14 @@ func (pq waitForPriorityQueue) Peek() interface{} {
 	return pq[0]
 }
 
-// ShutDown gives a way to shut off this queue
+// ShutDown stops the queue. After the queue drains, the returned shutdown bool
+// on Get() will be true. This method may be invoked more than once.
 func (q *delayingType) ShutDown() {
-	q.Interface.ShutDown()
-	close(q.stopCh)
+	q.stopOnce.Do(func() {
+		q.Interface.ShutDown()
+		close(q.stopCh)
+		q.heartbeat.Stop()
+	})
 }
 
 // AddAfter adds the given item to the work queue after the given delay
@@ -209,7 +213,7 @@ func (q *delayingType) waitingLoop() {
 		case <-q.stopCh:
 			return
 
-		case <-q.heartbeat:
+		case <-q.heartbeat.C():
 			// continue the loop, which will add ready items
 
 		case <-nextReadyAt:

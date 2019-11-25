@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Kubernetes Authors.
+Copyright The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -43,9 +43,10 @@ func NewSimpleClientset(objects ...runtime.Object) *Clientset {
 		}
 	}
 
-	fakePtr := testing.Fake{}
-	fakePtr.AddReactor("*", "*", testing.ObjectReaction(o))
-	fakePtr.AddWatchReactor("*", func(action testing.Action) (handled bool, ret watch.Interface, err error) {
+	cs := &Clientset{tracker: o}
+	cs.discovery = &fakediscovery.FakeDiscovery{Fake: &cs.Fake}
+	cs.AddReactor("*", "*", testing.ObjectReaction(o))
+	cs.AddWatchReactor("*", func(action testing.Action) (handled bool, ret watch.Interface, err error) {
 		gvr := action.GetResource()
 		ns := action.GetNamespace()
 		watch, err := o.Watch(gvr, ns)
@@ -55,7 +56,7 @@ func NewSimpleClientset(objects ...runtime.Object) *Clientset {
 		return true, watch, nil
 	})
 
-	return &Clientset{fakePtr, &fakediscovery.FakeDiscovery{Fake: &fakePtr}}
+	return cs
 }
 
 // Clientset implements clientset.Interface. Meant to be embedded into a
@@ -64,10 +65,15 @@ func NewSimpleClientset(objects ...runtime.Object) *Clientset {
 type Clientset struct {
 	testing.Fake
 	discovery *fakediscovery.FakeDiscovery
+	tracker   testing.ObjectTracker
 }
 
 func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 	return c.discovery
+}
+
+func (c *Clientset) Tracker() testing.ObjectTracker {
+	return c.tracker
 }
 
 var _ clientset.Interface = &Clientset{}
@@ -79,10 +85,5 @@ func (c *Clientset) ApiregistrationV1beta1() apiregistrationv1beta1.Apiregistrat
 
 // ApiregistrationV1 retrieves the ApiregistrationV1Client
 func (c *Clientset) ApiregistrationV1() apiregistrationv1.ApiregistrationV1Interface {
-	return &fakeapiregistrationv1.FakeApiregistrationV1{Fake: &c.Fake}
-}
-
-// Apiregistration retrieves the ApiregistrationV1Client
-func (c *Clientset) Apiregistration() apiregistrationv1.ApiregistrationV1Interface {
 	return &fakeapiregistrationv1.FakeApiregistrationV1{Fake: &c.Fake}
 }

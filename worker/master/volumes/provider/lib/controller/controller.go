@@ -17,20 +17,22 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/db/dao"
 	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/goodrain/rainbond/db/dao"
+
 	"github.com/Sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller/metrics"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/util"
 	"golang.org/x/time/rate"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	storage "k8s.io/api/storage/v1"
 	storagebeta "k8s.io/api/storage/v1beta1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
@@ -548,12 +550,12 @@ func (ctrl *ProvisionController) forgetWork(queue workqueue.RateLimitingInterfac
 }
 
 // Run starts all of this controller's control loops
-func (ctrl *ProvisionController) Run(stop <-chan struct{}) {
+func (ctrl *ProvisionController) Run(ctx context.Context) {
 	// TODO: arg is as of 1.12 unused. Nothing can ever be cancelled. Should
 	// accept a context instead and use it instead of context.TODO(), but would
 	// break API. Not urgent: realistically, users are simply passing in
 	// wait.NeverStop() anyway.
-
+	stop := ctx.Done()
 	logrus.Infof("Starting provisioner controller %s!", ctrl.component)
 	defer utilruntime.HandleCrash()
 	defer ctrl.claimQueue.ShutDown()

@@ -19,13 +19,14 @@
 package leader
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -41,7 +42,7 @@ const (
 )
 
 // RunAsLeader starts this particular external attacher after becoming a leader.
-func RunAsLeader(clientset *kubernetes.Clientset, namespace string, identity string, lockName string, startFunc func(stop <-chan struct{}), stopFunc func()) {
+func RunAsLeader(ctx context.Context, clientset *kubernetes.Clientset, namespace string, identity string, lockName string, startFunc func(ctx context.Context), stopFunc func()) {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartRecordingToSink(&corev1.EventSinkImpl{Interface: clientset.CoreV1().Events(namespace)})
 	eventRecorder := broadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: fmt.Sprintf("%s %s", lockName, string(identity))})
@@ -50,7 +51,7 @@ func RunAsLeader(clientset *kubernetes.Clientset, namespace string, identity str
 		Identity:      identity,
 		EventRecorder: eventRecorder,
 	}
-	lock, err := resourcelock.New(resourcelock.ConfigMapsResourceLock, namespace, SanitizeDriverName(lockName), clientset.CoreV1(), rlConfig)
+	lock, err := resourcelock.New(resourcelock.ConfigMapsResourceLock, namespace, SanitizeDriverName(lockName), clientset.CoreV1(), clientset.CoordinationV1(), rlConfig)
 	if err != nil {
 		logrus.Error(err)
 		os.Exit(1)
@@ -62,9 +63,9 @@ func RunAsLeader(clientset *kubernetes.Clientset, namespace string, identity str
 		RenewDeadline: renewDeadline,
 		RetryPeriod:   retryPeriod,
 		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: func(stop <-chan struct{}) {
+			OnStartedLeading: func(ctx context.Context) {
 				logrus.Info("Became leader, starting")
-				startFunc(stop)
+				startFunc(ctx)
 			},
 			OnStoppedLeading: func() {
 				logrus.Fatal("Stopped leading")
@@ -76,7 +77,7 @@ func RunAsLeader(clientset *kubernetes.Clientset, namespace string, identity str
 		},
 	}
 
-	leaderelection.RunOrDie(leaderConfig)
+	leaderelection.RunOrDie(ctx, leaderConfig)
 }
 
 //SanitizeDriverName a DNS-1123 subdomain must consist of lower case alphanumeric characters,

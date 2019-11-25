@@ -85,6 +85,33 @@ func TestDeltaFIFO_basic(t *testing.T) {
 	}
 }
 
+// TestDeltaFIFO_replaceWithDeleteDeltaIn tests that a `Sync` delta for an
+// object `O` with ID `X` is added when .Replace is called and `O` is among the
+// replacement objects even if the DeltaFIFO already stores in terminal position
+// a delta of type `Delete` for ID `X`. Not adding the `Sync` delta causes
+// SharedIndexInformers to miss `O`'s create notification, see https://github.com/kubernetes/kubernetes/issues/83810
+// for more details.
+func TestDeltaFIFO_replaceWithDeleteDeltaIn(t *testing.T) {
+	oldObj := mkFifoObj("foo", 1)
+	newObj := mkFifoObj("foo", 2)
+
+	f := NewDeltaFIFO(testFifoObjectKeyFunc, keyLookupFunc(func() []testFifoObject {
+		return []testFifoObject{oldObj}
+	}))
+
+	f.Delete(oldObj)
+	f.Replace([]interface{}{newObj}, "")
+
+	actualDeltas := Pop(f)
+	expectedDeltas := Deltas{
+		Delta{Type: Deleted, Object: oldObj},
+		Delta{Type: Sync, Object: newObj},
+	}
+	if !reflect.DeepEqual(expectedDeltas, actualDeltas) {
+		t.Errorf("expected %#v, got %#v", expectedDeltas, actualDeltas)
+	}
+}
+
 func TestDeltaFIFO_requeueOnPop(t *testing.T) {
 	f := NewDeltaFIFO(testFifoObjectKeyFunc, nil)
 
@@ -338,6 +365,7 @@ func TestDeltaFIFO_HasSyncedCorrectOnDeletion(t *testing.T) {
 		// Since "bar" didn't have a delete event and wasn't in the Replace list
 		// it should get a tombstone key with the right Obj.
 		{{Deleted, DeletedFinalStateUnknown{Key: "bar", Obj: mkFifoObj("bar", 6)}}},
+		{{Deleted, DeletedFinalStateUnknown{Key: "baz", Obj: mkFifoObj("baz", 7)}}},
 	}
 
 	for _, expected := range expectedList {
@@ -349,7 +377,7 @@ func TestDeltaFIFO_HasSyncedCorrectOnDeletion(t *testing.T) {
 			t.Errorf("Expected %#v, got %#v", e, a)
 		}
 	}
-	if f.HasSynced() {
+	if !f.HasSynced() {
 		t.Errorf("Expected HasSynced to be true")
 	}
 }

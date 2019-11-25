@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	
+
 	"github.com/coreos/etcd/clientv3"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
@@ -129,18 +129,21 @@ func (m *Controller) IsLeader() bool {
 
 //Start start
 func (m *Controller) Start() error {
-	start := func(stop <-chan struct{}) {
+	start := func(ctx context.Context) {
 		m.isLeader = true
 		defer func() {
 			m.isLeader = false
 		}()
 		go m.diskCache.Start()
 		defer m.diskCache.Stop()
-		go m.pc.Run(stop)
+		go m.pc.Run(ctx)
 		m.store.RegistPodUpdateListener("podEvent", m.podEvent.GetChan())
 		defer m.store.UnRegistPodUpdateListener("podEvent")
 		go m.podEvent.Handle()
-		<-stop
+		select {
+		case <-ctx.Done():
+		case <-m.ctx.Done():
+		}
 	}
 	// Leader election was requested.
 	if m.conf.LeaderElectionNamespace == "" {
@@ -157,7 +160,7 @@ func (m *Controller) Start() error {
 	}
 	// Name of config map with leader election lock
 	lockName := "rainbond-appruntime-worker-leader"
-	go leader.RunAsLeader(m.conf.KubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {})
+	go leader.RunAsLeader(m.ctx, m.conf.KubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {})
 
 	return nil
 }

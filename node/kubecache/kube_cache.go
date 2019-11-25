@@ -168,7 +168,7 @@ func (k *kubeClient) DeleteOrEvictPodsSimple(nodeName string) error {
 	return nil
 }
 func (k *kubeClient) GetPodsByNodes(nodeName string) (pods []v1.Pod, err error) {
-	podList, err := k.kubeclient.Core().Pods(metav1.NamespaceAll).List(metav1.ListOptions{
+	podList, err := k.kubeclient.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName}).String()})
 	if err != nil {
 		return pods, err
@@ -182,14 +182,7 @@ func (k *kubeClient) GetPodsByNodes(nodeName string) (pods []v1.Pod, err error) 
 //evictPod 驱离POD
 func (k *kubeClient) evictPod(pod v1.Pod, policyGroupVersion string) error {
 	deleteOptions := &metav1.DeleteOptions{}
-	//if o.GracePeriodSeconds >= 0 {
-	//	gracePeriodSeconds := int64(o.GracePeriodSeconds)
-	//	deleteOptions.GracePeriodSeconds = &gracePeriodSeconds
-	//}
-
 	eviction := &v1beta1.Eviction{
-		///Users/goodrain/go/src/k8s.io/kubernetes/pkg/apis/policy/types.go
-		///Users/goodrain/go/src/k8s.io/apimachinery/pkg/apis/meta/v1/types.go
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: policyGroupVersion,
 			Kind:       EvictionKind,
@@ -201,7 +194,7 @@ func (k *kubeClient) evictPod(pod v1.Pod, policyGroupVersion string) error {
 		DeleteOptions: deleteOptions,
 	}
 	// Remember to change change the URL manipulation func when Evction's version change
-	return k.kubeclient.Policy().Evictions(eviction.Namespace).Evict(eviction)
+	return k.kubeclient.PolicyV1beta1().Evictions(eviction.Namespace).Evict(eviction)
 }
 
 // deleteOrEvictPods deletes or evicts the pods on the api server
@@ -218,11 +211,6 @@ func (k *kubeClient) deleteOrEvictPods(pods []v1.Pod) error {
 	}
 
 	return k.evictPods(pods, policyGroupVersion, getPodFn)
-	//if len(policyGroupVersion) > 0 {
-	//	//return evictPods(pods, policyGroupVersion, getPodFn)
-	//} else {
-	//	return deletePods(pods, getPodFn)
-	//}
 }
 
 func (k *kubeClient) deletePods(pods []v1.Pod, getPodFn func(namespace, name string) (*v1.Pod, error)) error {

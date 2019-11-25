@@ -48,10 +48,6 @@ func execContainer(c *cli.Context) error {
 	tenantID := ""
 
 	podName := c.Args().First()
-	//args := c.Args().Tail()
-	//tenantID, err := clients.FindNamespaceByPod(podID)
-
-	//clients.K8SClient.Core().Namespaces().Get("",metav1.GetOptions{}).
 
 	kubeCtrl, err := exec.LookPath("kubectl")
 	if err != nil {
@@ -61,7 +57,7 @@ func execContainer(c *cli.Context) error {
 	if len(args) == 0 {
 		args = []string{"bash"}
 	}
-	pl, err := clients.K8SClient.Core().Pods("").List(metav1.ListOptions{})
+	pl, err := clients.K8SClient.CoreV1().Pods("").List(metav1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("error get pods by nil namespace")
 		return err
