@@ -120,7 +120,7 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 	if v.as.GetStatefulSet() != nil {
 		statefulset := v.as.GetStatefulSet()
 		labels := v.as.GetCommonLabels(map[string]string{"volume_name": volumeMountName, "volume_path": volumeMountPath})
-		claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.VolumeCapacity, labels)
+		claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v.svm.VolumeCapacity, labels)
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
 
 		vm = &corev1.VolumeMount{
@@ -159,7 +159,7 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 	return nil
 }
 
-func newVolumeClaim(name, volumePath string, capacity int64, labels map[string]string) *corev1.PersistentVolumeClaim {
+func newVolumeClaim(name, volumePath, accessMode string, capacity int64, labels map[string]string) *corev1.PersistentVolumeClaim {
 	// TODO use capacity as resroouceStorage
 	resourceStorage, _ := resource.ParseQuantity("500Gi")
 	return &corev1.PersistentVolumeClaim{
@@ -168,7 +168,7 @@ func newVolumeClaim(name, volumePath string, capacity int64, labels map[string]s
 			Labels: labels,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+			AccessModes:      []corev1.PersistentVolumeAccessMode{parseAccessMode(accessMode)},
 			StorageClassName: &v1.RainbondStatefuleShareStorageClass,
 			Resources: corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
@@ -179,7 +179,26 @@ func newVolumeClaim(name, volumePath string, capacity int64, labels map[string]s
 	}
 }
 
-func newVolumeClaim4RBD(name, volumePath, storageClassName string, capacity int64, labels map[string]string) *corev1.PersistentVolumeClaim {
+/*
+	RWO - ReadWriteOnce
+	ROX - ReadOnlyMany
+	RWX - ReadWriteMany
+*/
+func parseAccessMode(accessMode string) corev1.PersistentVolumeAccessMode {
+	accessMode = strings.ToUpper(accessMode)
+	switch accessMode {
+	case "RWO":
+		return corev1.ReadWriteOnce
+	case "ROX":
+		return corev1.ReadOnlyMany
+	case "RWX":
+		return corev1.ReadWriteMany
+	default:
+		return corev1.ReadWriteOnce
+	}
+}
+
+func newVolumeClaim4RBD(name, volumePath, accessMode, storageClassName string, capacity int64, labels map[string]string) *corev1.PersistentVolumeClaim {
 	// TODO use capacity as resroouceStorage
 	resourceStorage, _ := resource.ParseQuantity(fmt.Sprintf("%dMi", capacity))
 	return &corev1.PersistentVolumeClaim{
@@ -188,7 +207,7 @@ func newVolumeClaim4RBD(name, volumePath, storageClassName string, capacity int6
 			Labels: labels,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			AccessModes:      []corev1.PersistentVolumeAccessMode{parseAccessMode(accessMode)},
 			StorageClassName: &storageClassName,
 			Resources: corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
@@ -247,7 +266,7 @@ func (v *LocalVolume) CreateVolume(define *Define) error {
 	volumeReadOnly := v.svm.IsReadOnly
 	statefulset := v.as.GetStatefulSet()
 	labels := v.as.GetCommonLabels(map[string]string{"volume_name": volumeMountName, "volume_path": volumeMountPath})
-	claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.VolumeCapacity, labels)
+	claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v.svm.VolumeCapacity, labels)
 	claim.Annotations = map[string]string{
 		client.LabelOS: func() string {
 			if v.as.IsWindowsService {
@@ -400,7 +419,7 @@ func (v *CephRBDVolume) CreateVolume(define *Define) error {
 	volumeReadOnly := v.svm.IsReadOnly
 	statefulset := v.as.GetStatefulSet() //有状态组件
 	labels := v.as.GetCommonLabels(map[string]string{"volume_name": volumeMountName, "volume_path": volumeMountPath})
-	claim := newVolumeClaim4RBD(volumeMountName, volumeMountPath, v.svm.VolumeProviderName, v.svm.VolumeCapacity, labels)
+	claim := newVolumeClaim4RBD(volumeMountName, volumeMountPath, v.svm.AccessMode, v.svm.VolumeProviderName, v.svm.VolumeCapacity, labels)
 	logrus.Debugf("storage class is : %s, claim value is : %s", v.svm.VolumeProviderName, claim.Spec.StorageClassName)
 	claim.Annotations = map[string]string{
 		client.LabelOS: func() string {

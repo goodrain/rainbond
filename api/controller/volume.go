@@ -37,7 +37,7 @@ import (
 func (t *TenantStruct) VolumeProvider(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/tenants/{tenant_name}/volume-providers v2 volumeProvider
 	//
-	// 查询可用存储驱动模型列表 TODO 不应该放这里，至少路径不对
+	// 查询可用存储驱动模型列表
 	//
 	// get volume-providers
 	//
@@ -81,6 +81,7 @@ func (t *TenantStruct) VolumeProvider(w http.ResponseWriter, r *http.Request) {
 				VolumeBindingMode:    storageClass.VolumeBindingMode,
 				AllowVolumeExpansion: &storageClass.AllowVolumeExpansion,
 			}
+			util.HackVolumeProviderDetail(kind, &detail)
 			if _, ok := providerMap[kind]; ok {
 				providerMap[kind] = append(providerMap[kind], detail)
 			} else {
@@ -226,6 +227,10 @@ func (t *TenantStruct) AddVolume(w http.ResponseWriter, r *http.Request) {
 		VolumeCapacity:     avs.Body.VolumeCapacity,
 		VolumeType:         dbmodel.ShareFileVolumeType.String(),
 		VolumeProviderName: avs.Body.VolumeProviderName,
+		AccessMode:         avs.Body.AccessMode,
+		SharePolicy:        avs.Body.SharePolicy,
+		BackupPolicy:       avs.Body.BackupPolicy,
+		ReclaimPolicy:      avs.Body.ReclaimPolicy,
 	}
 	if !strings.HasPrefix(tsv.VolumePath, "/") {
 		httputil.ReturnError(r, w, 400, "volume path is invalid,must begin with /")
@@ -427,8 +432,11 @@ func AddVolume(w http.ResponseWriter, r *http.Request) {
 		AccessMode:         avs.Body.AccessMode,
 		SharePolicy:        avs.Body.SharePolicy,
 		BackupPolicy:       avs.Body.BackupPolicy,
+		ReclaimPolicy:      avs.Body.ReclaimPolicy,
 		AllowExpansion:     avs.Body.AllowExpansion,
 	}
+
+	// TODO VolumeCapacity  AccessMode SharePolicy BackupPolicy ReclaimPolicy AllowExpansion 参数的校验
 
 	if !strings.HasPrefix(avs.Body.VolumePath, "/") {
 		httputil.ReturnError(r, w, 400, "volume path is invalid,must begin with /")

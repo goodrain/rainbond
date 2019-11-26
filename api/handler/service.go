@@ -1339,9 +1339,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				tsv.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, tenantID, tsv.ServiceID, tsv.VolumePath)
 			}
 		}
-		if tsv.VolumeName == "" {
-			tsv.VolumeName = uuid.NewV4().String()
-		}
+		util.SetVolumeDefaultValue(tsv)
 		// begin transaction
 		tx := db.GetManager().Begin()
 		defer func() {

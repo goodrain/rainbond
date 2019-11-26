@@ -25,13 +25,17 @@ type VolumeProviderStruct struct {
 }
 
 // VolumeProviderDetail volume provider detail
+// Attention accessMode/sharerPolicy/backupPolicy都是结合业务进行添加字段，需自己补充
+// Provisioner/reclaimPolicy/volumeBindingMode/allowVolumeExpansion为StorageClass内置参数
 type VolumeProviderDetail struct {
-	Name                 string `json:"name"`
-	Provisioner          string `json:"provisioner"`
-	ReclaimPolicy        string `json:"reclaim_policy"`
-	VolumeBindingMode    string `json:"volume_binding_mode"`
-	AllowVolumeExpansion *bool  `json:"allow_volume_expansion"`
-	// TODO AccessMode
+	Name                 string   `json:"name"`                   //StorageClass名字
+	Provisioner          string   `json:"provisioner"`            //提供者，如ceph.com/rbd、kubernetes.io/rbd
+	VolumeBindingMode    string   `json:"volume_binding_mode"`    // 绑定模式,Immediate,WaitForFirstConsumer
+	AllowVolumeExpansion *bool    `json:"allow_volume_expansion"` // 是否支持扩展
+	AccessMode           []string `json:"access_mode"`            // 读写模式（Important! A volume can only be mounted using one access mode at a time, even if it supports many. For example, a GCEPersistentDisk can be mounted as ReadWriteOnce by a single node or ReadOnlyMany by many nodes, but not at the same time. #https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes）
+	SharePolicy          []string `json:"share_policy"`           //共享模式
+	BackupPolicy         []string `json:"backup_policy"`          // 备份策略
+	ReclaimPolicy        string   `json:"reclaim_policy"`         // 回收策略,delete, retain, recyle
 }
 
 //AddVolumeStruct AddVolumeStruct
@@ -66,13 +70,15 @@ type AddVolumeStruct struct {
 		VolumeProviderName string `json:"volume_provider_name"`
 		IsReadOnly         bool   `json:"is_read_only"`
 		// VolumeCapacity 存储大小
-		VolumeCapacity int64 `json:"volume_capacity"` // TODO 单位
+		VolumeCapacity int64 `json:"volume_capacity"` // 单位: Mi
 		// AccessMode 读写模式（Important! A volume can only be mounted using one access mode at a time, even if it supports many. For example, a GCEPersistentDisk can be mounted as ReadWriteOnce by a single node or ReadOnlyMany by many nodes, but not at the same time. #https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes）
 		AccessMode string `json:"access_mode"`
 		// SharePolicy 共享模式
 		SharePolicy string `json:"share_policy"`
 		// BackupPolicy 备份策略
 		BackupPolicy string `json:"backup_policy"`
+		// ReclaimPolicy 回收策略
+		ReclaimPolicy string `json:"reclaim_policy"`
 		// AllowExpansion 是否支持扩展
 		AllowExpansion bool `json:"allow_expansion"`
 	}
@@ -172,6 +178,16 @@ type V2AddVolumeStruct struct {
 		VolumeProviderName string `json:"volume_provider_name"`
 		// 存储大小
 		VolumeCapacity int64 `json:"volume_capacity" validate:"volume_capacity|required|min:1"` // 单位Mi
+		// AccessMode 读写模式（Important! A volume can only be mounted using one access mode at a
+		AccessMode string `gorm:"column:access_mode" json:"access_mode"`
+		// SharePolicy 共享模式
+		SharePolicy string `gorm:"column:share_policy" json:"share_policy"`
+		// BackupPolicy 备份策略
+		BackupPolicy string `gorm:"column:backup_policy" json:"backup_policy"`
+		// ReclaimPolicy 回收策略
+		ReclaimPolicy string `json:"reclaim_policy"`
+		// AllowExpansion 是否支持扩展
+		AllowExpansion bool `gorm:"column:allow_expansion" json:"allow_expansion"`
 	}
 }
 
