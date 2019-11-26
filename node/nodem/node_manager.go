@@ -158,10 +158,10 @@ func (n *NodeManager) CheckNodeHealthy() (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("get all services error,%s", err.Error())
 	}
-	for _, v := range *services {
+	for _, v := range services {
 		result, ok := n.healthy.GetServiceHealthy(v.Name)
 		if ok {
-			if result.Status != service.Stat_healthy {
+			if result.Status != service.Stat_healthy && result.Status != service.Stat_Unknow {
 				return false, fmt.Errorf(result.Info)
 			}
 		} else {
@@ -173,15 +173,8 @@ func (n *NodeManager) CheckNodeHealthy() (bool, error) {
 
 func (n *NodeManager) heartbeat() {
 	util.Exec(n.ctx, func() error {
-		//TODO:Judge state
 		allServiceHealth := n.healthy.GetServiceHealth()
 		allHealth := true
-		currentNode, err := n.getCurrentNode(n.currentNode.ID)
-		if n.currentNode == nil {
-			logrus.Warningf("get current node by id %s error: %v", n.currentNode.ID, err)
-			return err
-		}
-		n.currentNode.NodeStatus.NodeInfo = currentNode.NodeStatus.NodeInfo
 		for k, v := range allServiceHealth {
 			if ser := n.controller.GetService(k); ser != nil {
 				status := client.ConditionTrue
@@ -192,7 +185,7 @@ func (n *NodeManager) heartbeat() {
 					if maxNum < 2 {
 						maxNum = 2
 					}
-					if v.Status != service.Stat_healthy && v.ErrorNumber > maxNum {
+					if v.Status != service.Stat_healthy && v.Status != service.Stat_Unknow && v.ErrorNumber > maxNum {
 						allHealth = false
 						status = client.ConditionFalse
 						message = v.Info
@@ -200,20 +193,32 @@ func (n *NodeManager) heartbeat() {
 					}
 				}
 				n.currentNode.GetAndUpdateCondition(client.NodeConditionType(ser.Name), status, reason, message)
-
 				if n.cfg.AutoUnschedulerUnHealthDuration == 0 {
 					continue
 				}
 				if v.ErrorDuration > n.cfg.AutoUnschedulerUnHealthDuration && n.cfg.AutoScheduler {
 					n.currentNode.NodeStatus.AdviceAction = []string{"unscheduler"}
+					logrus.Warningf("node unhealth more than %s, will send unscheduler advice action to master", n.cfg.AutoUnschedulerUnHealthDuration.String())
 				}
+			} else {
+				logrus.Errorf("can not find service %s", k)
 			}
 		}
+		//remove old condition
+		var deleteCondition []client.NodeConditionType
+		for _, con := range n.currentNode.NodeStatus.Conditions {
+			if n.controller.GetService(string(con.Type)) == nil && !client.IsMasterCondition(con.Type) {
+				deleteCondition = append(deleteCondition, con.Type)
+			}
+		}
+		//node ready condition update
+		n.currentNode.UpdateReadyStatus()
+
 		if allHealth && n.cfg.AutoScheduler {
 			n.currentNode.NodeStatus.AdviceAction = []string{"scheduler"}
 		}
 		n.currentNode.NodeStatus.Status = "running"
-		if err := n.cluster.UpdateStatus(n.currentNode); err != nil {
+		if err := n.cluster.UpdateStatus(n.currentNode, deleteCondition); err != nil {
 			logrus.Errorf("update node status error %s", err.Error())
 		}
 		if n.currentNode.NodeStatus.Status != "running" {
@@ -245,13 +250,14 @@ func (n *NodeManager) init() error {
 			return fmt.Errorf("find node %s from cluster failure %s", n.currentNode.ID, err.Error())
 		}
 	}
-	if node.NodeStatus.NodeInfo.OperatingSystem == "" {
-		node.NodeStatus.NodeInfo = info.GetSystemInfo()
-	}
 	//update node mode
 	node.Mode = n.cfg.RunMode
 	//update node rule
 	node.Role = strings.Split(n.cfg.NodeRule, ",")
+	//update system info
+	if !node.Role.HasRule("compute") {
+		node.NodeStatus.NodeInfo = info.GetSystemInfo()
+	}
 	//set node labels
 	n.setNodeLabels(node)
 	*(n.currentNode) = *node

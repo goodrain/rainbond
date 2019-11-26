@@ -35,7 +35,7 @@ import (
 
 //ClusterClient ClusterClient
 type ClusterClient interface {
-	UpdateStatus(*HostNode) error
+	UpdateStatus(*HostNode, []NodeConditionType) error
 	DownNode(*HostNode) error
 	GetMasters() ([]*HostNode, error)
 	GetNode(nodeID string) (*HostNode, error)
@@ -59,7 +59,7 @@ type etcdClusterClient struct {
 	onlineLes clientv3.LeaseID
 }
 
-func (e *etcdClusterClient) UpdateStatus(n *HostNode) error {
+func (e *etcdClusterClient) UpdateStatus(n *HostNode, deleteConditions []NodeConditionType) error {
 	existNode, err := e.GetNode(n.ID)
 	if err != nil {
 		return fmt.Errorf("get node %s failure where update node %s", n.ID, err.Error())
@@ -85,7 +85,12 @@ func (e *etcdClusterClient) UpdateStatus(n *HostNode) error {
 		}
 	}
 	existNode.Labels = newLabels
+	//update condition and delete old condition
 	existNode.UpdataCondition(n.NodeStatus.Conditions...)
+	for _, t := range deleteConditions {
+		existNode.DeleteCondition(t)
+		logrus.Infof("remove old condition %s", t)
+	}
 	return e.Update(existNode)
 }
 

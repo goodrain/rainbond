@@ -152,13 +152,20 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		if v.Role.HasRule("compute") && v.NodeStatus.KubeNode == nil {
 			v.Status = "offline"
 		}
-		for _, con := range v.NodeStatus.Conditions {
+		for i, con := range v.NodeStatus.Conditions {
 			if con.Type == client.NodeReady {
 				v.NodeStatus.NodeHealth = con.Status == client.ConditionTrue
-				break
+			}
+			if time.Since(con.LastHeartbeatTime) > time.Minute*1 {
+				// do not update time
+				v.NodeStatus.Conditions[i].Reason = "Condition not updated in more than 1 minute"
+				v.NodeStatus.Conditions[i].Message = "Condition not updated in more than 1 minute"
+				v.NodeStatus.Conditions[i].Status = client.ConditionUnknown
 			}
 		}
 	}
+	//node ready condition update
+	v.UpdateReadyStatus()
 	if v.NodeStatus.AdviceAction != nil {
 		for _, action := range v.NodeStatus.AdviceAction {
 			if action == "unscheduler" {

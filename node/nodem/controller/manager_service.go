@@ -50,21 +50,21 @@ type ManagerService struct {
 	ctr                  Controller
 	cluster              client.ClusterClient
 	healthyManager       healthy.Manager
-	services             *[]*service.Service
-	allservice           *[]*service.Service
+	services             []*service.Service
+	allservice           []*service.Service
 	etcdcli              *clientv3.Client
 	autoStatusController map[string]statusController
 	lock                 sync.Mutex
 }
 
 //GetAllService get all service
-func (m *ManagerService) GetAllService() (*[]*service.Service, error) {
+func (m *ManagerService) GetAllService() ([]*service.Service, error) {
 	return m.allservice, nil
 }
 
 //GetService get service
 func (m *ManagerService) GetService(serviceName string) *service.Service {
-	for _, s := range *m.allservice {
+	for _, s := range m.allservice {
 		if s.Name == serviceName {
 			return s
 		}
@@ -78,20 +78,20 @@ func (m *ManagerService) Start(node *client.HostNode) error {
 	m.loadServiceConfig()
 	m.node = node
 	if m.conf.EnableInitStart {
-		return m.ctr.InitStart(*m.services)
+		return m.ctr.InitStart(m.services)
 	}
 	return nil
 }
 
 func (m *ManagerService) loadServiceConfig() {
-	*m.allservice = service.LoadServicesFromLocal(m.conf.ServiceListFile)
+	m.allservice = service.LoadServicesFromLocal(m.conf.ServiceListFile)
 	var controllerServices []*service.Service
-	for _, s := range *m.allservice {
+	for _, s := range m.allservice {
 		if !s.OnlyHealthCheck && !s.Disable {
 			controllerServices = append(controllerServices, s)
 		}
 	}
-	*m.services = controllerServices
+	m.services = controllerServices
 }
 
 //Stop stop manager
@@ -110,7 +110,7 @@ func (m *ManagerService) Online() error {
 	go m.StartServices()
 	m.SyncServiceStatusController()
 	// registry local services endpoint into cluster manager
-	for _, s := range *m.services {
+	for _, s := range m.services {
 		m.UpOneServiceEndpoint(s)
 	}
 	return nil
@@ -122,14 +122,14 @@ func (m *ManagerService) SetEndpoints(hostIP string) {
 		logrus.Warningf("ignore wrong hostIP: %s", hostIP)
 		return
 	}
-	for _, s := range *m.services {
+	for _, s := range m.services {
 		m.UpOneServiceEndpoint(s)
 	}
 }
 
 //StartServices start services
 func (m *ManagerService) StartServices() {
-	for _, service := range *m.services {
+	for _, service := range m.services {
 		if !service.Disable {
 			logrus.Infof("Begin start service %s", service.Name)
 			if err := m.ctr.WriteConfig(service); err != nil {
@@ -148,11 +148,11 @@ func (m *ManagerService) StartServices() {
 func (m *ManagerService) Offline() error {
 	logrus.Info("Doing node offline by node controller manager")
 	services, _ := m.GetAllService()
-	for _, s := range *services {
+	for _, s := range services {
 		m.DownOneServiceEndpoint(s)
 	}
 	m.StopSyncService()
-	if err := m.ctr.StopList(*m.services); err != nil {
+	if err := m.ctr.StopList(m.services); err != nil {
 		return err
 	}
 	return nil
@@ -205,8 +205,8 @@ func (m *ManagerService) SyncServiceStatusController() {
 			v.Stop()
 		}
 	}
-	m.autoStatusController = make(map[string]statusController, len(*m.services))
-	for _, s := range *m.services {
+	m.autoStatusController = make(map[string]statusController, len(m.services))
+	for _, s := range m.services {
 		if s.ServiceHealth == nil {
 			continue
 		}
@@ -282,16 +282,16 @@ func (s *statusController) Run() {
 				if s.healthHandle != nil {
 					s.healthHandle(event, s.watcher)
 				}
-				logrus.Debugf("is [%s] of service %s.", event.Status, event.Name)
+				logrus.Debugf("service %s status is [%s]", event.Name, event.Status)
 			case service.Stat_unhealthy:
 				if s.service.ServiceHealth != nil {
 					if event.ErrorNumber > s.service.ServiceHealth.MaxErrorsNum {
-						logrus.Infof("is [%s] of service %s %d times and restart it.", event.Status, event.Name, event.ErrorNumber)
+						logrus.Warningf("service %s status is [%s] more than %d times and restart it.", event.Name, event.Status, s.service.ServiceHealth.MaxErrorsNum)
 						s.unhealthHandle(event, s.watcher)
 					}
 				}
 			case service.Stat_death:
-				logrus.Infof("is [%s] of service %s %d times and start it.", event.Status, event.Name, event.ErrorNumber)
+				logrus.Warningf("service %s status is [%s] will restart it.", event.Name, event.Status)
 				s.unhealthHandle(event, s.watcher)
 			}
 		case <-s.ctx.Done():
@@ -351,7 +351,7 @@ func (m *ManagerService) ReLoadServices() error {
 			controllerServices = append(controllerServices, ne)
 		}
 		exists := false
-		for _, old := range *m.services {
+		for _, old := range m.services {
 			if ne.Name == old.Name {
 				if ne.Disable {
 					m.ctr.StopService(ne.Name)
@@ -381,9 +381,9 @@ func (m *ManagerService) ReLoadServices() error {
 			}
 		}
 	}
-	*m.allservice = services
-	*m.services = controllerServices
-	m.healthyManager.AddServicesAndUpdate(m.services)
+	m.allservice = services
+	m.services = controllerServices
+	m.healthyManager.AddServicesAndUpdate(m.allservice)
 	m.SyncServiceStatusController()
 	logrus.Infof("load service config success, start or stop %d service and total %d service", restartCount, len(services))
 	return nil
@@ -391,7 +391,7 @@ func (m *ManagerService) ReLoadServices() error {
 
 //StartService start a service
 func (m *ManagerService) StartService(serviceName string) error {
-	for _, service := range *m.services {
+	for _, service := range m.services {
 		if service.Name == serviceName {
 			if !service.Disable {
 				return fmt.Errorf("service %s is running", serviceName)
@@ -404,12 +404,12 @@ func (m *ManagerService) StartService(serviceName string) error {
 
 //StopService start a service
 func (m *ManagerService) StopService(serviceName string) error {
-	for i, service := range *m.services {
+	for i, service := range m.services {
 		if service.Name == serviceName {
 			if service.Disable {
 				return fmt.Errorf("service %s is stoped", serviceName)
 			}
-			(*m.services)[i].Disable = true
+			(m.services)[i].Disable = true
 			m.lock.Lock()
 			defer m.lock.Unlock()
 			if controller, ok := m.autoStatusController[serviceName]; ok {
@@ -423,7 +423,7 @@ func (m *ManagerService) StopService(serviceName string) error {
 
 //WriteServices write services
 func (m *ManagerService) WriteServices() error {
-	for _, s := range *m.services {
+	for _, s := range m.services {
 		if s.OnlyHealthCheck {
 			continue
 		}
@@ -512,8 +512,6 @@ func NewManagerService(conf *option.Conf, healthyManager healthy.Manager, cluste
 		cluster:        cluster,
 		healthyManager: healthyManager,
 		etcdcli:        conf.EtcdCli,
-		services:       new([]*service.Service),
-		allservice:     new([]*service.Service),
 	}
 	manager.ctr = NewController(conf, manager)
 	return manager

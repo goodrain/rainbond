@@ -306,34 +306,14 @@ func (n *HostNode) UpdateReadyStatus() {
 	var Reason, Message string
 	for _, con := range n.NodeStatus.Conditions {
 		if con.Status != ConditionTrue && con.Type != "" && con.Type != NodeReady {
-			logrus.Debugf("because %s id false, will set node health is false", con.Type)
+			logrus.Debugf("because %s id false, will set node %s(%s) health is false", con.Type, n.ID, n.InternalIP)
 			status = ConditionFalse
 			Reason = con.Reason
 			Message = con.Message
 			break
 		}
 	}
-	for i, con := range n.NodeStatus.Conditions {
-		if con.Type.Compare(NodeReady) {
-			n.NodeStatus.Conditions[i].Reason = Reason
-			n.NodeStatus.Conditions[i].Message = Message
-			n.NodeStatus.Conditions[i].LastHeartbeatTime = time.Now()
-			if con.Status != status {
-				n.NodeStatus.Conditions[i].LastTransitionTime = time.Now()
-				n.NodeStatus.Conditions[i].Status = status
-			}
-			return
-		}
-	}
-	ready := NodeCondition{
-		Type:               NodeReady,
-		Status:             status,
-		LastHeartbeatTime:  time.Now(),
-		LastTransitionTime: time.Now(),
-		Reason:             Reason,
-		Message:            Message,
-	}
-	n.NodeStatus.Conditions = append(n.NodeStatus.Conditions, ready)
+	n.GetAndUpdateCondition(NodeReady, status, Reason, Message)
 }
 
 //GetCondition get condition
@@ -390,7 +370,6 @@ func (n *HostNode) UpdataCondition(conditions ...NodeCondition) {
 		if !update {
 			n.NodeStatus.Conditions = append(n.NodeStatus.Conditions, newcon)
 		}
-		n.UpdateReadyStatus()
 	}
 }
 
@@ -465,6 +444,18 @@ const (
 	DiskPressure   NodeConditionType = "DiskPressure"
 	PIDPressure    NodeConditionType = "PIDPressure"
 )
+
+var masterCondition = []NodeConditionType{NodeReady, KubeNodeReady, NodeUp, InstallNotReady, NodeInit, OutOfDisk, MemoryPressure, DiskPressure, PIDPressure}
+
+//IsMasterCondition Whether it is a preset condition of the system
+func IsMasterCondition(con NodeConditionType) bool {
+	for _, c := range masterCondition {
+		if c.Compare(con) {
+			return true
+		}
+	}
+	return false
+}
 
 //Compare 比较
 func (nt NodeConditionType) Compare(ent NodeConditionType) bool {
