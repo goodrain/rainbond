@@ -30,7 +30,7 @@ import (
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 //LabelOS node label about os
@@ -344,6 +344,31 @@ func (n *HostNode) GetCondition(ctype NodeConditionType) *NodeCondition {
 		}
 	}
 	return nil
+}
+
+// GetAndUpdateCondition get old condition and update it, if old condition is nil and then create it
+func (n *HostNode) GetAndUpdateCondition(condType NodeConditionType, status ConditionStatus, reason, message string) {
+	oldCond := n.GetCondition(condType)
+	now := time.Now()
+	var lastTransitionTime time.Time
+	if oldCond == nil {
+		lastTransitionTime = now
+	} else {
+		if oldCond.Status != status {
+			lastTransitionTime = now
+		} else {
+			lastTransitionTime = oldCond.LastTransitionTime
+		}
+	}
+	cond := NodeCondition{
+		Type:               condType,
+		Status:             status,
+		LastHeartbeatTime:  now,
+		LastTransitionTime: lastTransitionTime,
+		Reason:             reason,
+		Message:            message,
+	}
+	n.UpdataCondition(cond)
 }
 
 //UpdataCondition 更新状态
