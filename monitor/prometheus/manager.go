@@ -38,11 +38,15 @@ import (
 )
 
 const (
+	// STARTING starting
 	STARTING = iota
+	// STARTED started
 	STARTED
+	//STOPPED stoped
 	STOPPED
 )
 
+// Manager manage struct
 type Manager struct {
 	cancel     context.CancelFunc
 	ctx        context.Context
@@ -56,6 +60,7 @@ type Manager struct {
 	a          *AlertingRulesManager
 }
 
+// NewManager new manager
 func NewManager(config *option.Config, a *AlertingRulesManager) *Manager {
 	client := &http.Client{
 		Timeout: time.Second * 3,
@@ -103,6 +108,7 @@ func NewManager(config *option.Config, a *AlertingRulesManager) *Manager {
 	return m
 }
 
+// StartDaemon start prometheus daemon
 func (p *Manager) StartDaemon(errchan chan error) {
 	logrus.Info("Starting prometheus.")
 
@@ -147,6 +153,7 @@ func (p *Manager) StartDaemon(errchan chan error) {
 	}()
 }
 
+// StopDaemon stop daemon
 func (p *Manager) StopDaemon() {
 	if p.Status != STOPPED {
 		logrus.Info("Stopping prometheus daemon ...")
@@ -156,6 +163,7 @@ func (p *Manager) StopDaemon() {
 	}
 }
 
+// RestartDaemon restart daemon
 func (p *Manager) RestartDaemon() error {
 	if p.Status == STARTED {
 		logrus.Debug("Restart daemon for prometheus.")
@@ -167,6 +175,7 @@ func (p *Manager) RestartDaemon() error {
 	return nil
 }
 
+//LoadConfig load config
 func (p *Manager) LoadConfig() error {
 	logrus.Info("Load prometheus config file.")
 	content, err := ioutil.ReadFile(p.Opt.ConfigFile)
@@ -185,6 +194,7 @@ func (p *Manager) LoadConfig() error {
 	return nil
 }
 
+// SaveConfig save config
 func (p *Manager) SaveConfig() error {
 	logrus.Debug("Save prometheus config file.")
 	data, err := yaml.Marshal(p.Config)
@@ -202,6 +212,7 @@ func (p *Manager) SaveConfig() error {
 	return nil
 }
 
+// UpdateScrape update scrape
 func (p *Manager) UpdateScrape(scrape *ScrapeConfig) {
 	logrus.Debugf("update scrape: %+v", scrape)
 	p.l.Lock()

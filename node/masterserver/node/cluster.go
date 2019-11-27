@@ -121,24 +121,10 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 	if time.Since(v.NodeStatus.NodeUpdateTime) > time.Minute*1 {
 		v.Status = client.Unknown
 		v.NodeStatus.Status = client.Unknown
-		r := client.NodeCondition{
-			Type:               client.NodeUp,
-			Status:             client.ConditionFalse,
-			LastHeartbeatTime:  time.Now(),
-			LastTransitionTime: time.Now(),
-			Message:            "Node lost connection, state unknown",
-		}
-		v.UpdataCondition(r)
+		v.GetAndUpdateCondition(client.NodeUp, client.ConditionFalse, "", "Node lost connection, state unknown")
 		v.NodeStatus.AdviceAction = append(v.NodeStatus.AdviceAction, "offline")
 	} else {
-		r := client.NodeCondition{
-			Type:               client.NodeUp,
-			Status:             client.ConditionTrue,
-			LastHeartbeatTime:  time.Now(),
-			LastTransitionTime: time.Now(),
-			Message:            "Node lost connection, state unknown",
-		}
-		v.UpdataCondition(r)
+		v.GetAndUpdateCondition(client.NodeUp, client.ConditionTrue, "", "")
 		v.NodeStatus.CurrentScheduleStatus = !v.Unschedulable
 		if v.Role.HasRule("compute") {
 			k8sNode, err := n.kubecli.GetNode(v.ID)
