@@ -157,11 +157,6 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (stri
 		}
 		rule.CertificateID = req.CertificateID
 	} else {
-		// if certificateID is '' means do not need https cetificate any more, so delete Certificate
-		if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(rule.CertificateID); err != nil {
-			tx.Rollback()
-			return "", err
-		}
 		rule.CertificateID = ""
 	}
 	if len(req.RuleExtensions) > 0 {
