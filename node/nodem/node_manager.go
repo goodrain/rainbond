@@ -184,6 +184,9 @@ func (n *NodeManager) heartbeat() {
 		n.currentNode.NodeStatus.NodeInfo = currentNode.NodeStatus.NodeInfo
 		for k, v := range allServiceHealth {
 			if ser := n.controller.GetService(k); ser != nil {
+				status := client.ConditionTrue
+				message := ""
+				reason := ""
 				if ser.ServiceHealth != nil {
 					maxNum := ser.ServiceHealth.MaxErrorsNum
 					if maxNum < 2 {
@@ -191,46 +194,18 @@ func (n *NodeManager) heartbeat() {
 					}
 					if v.Status != service.Stat_healthy && v.ErrorNumber > maxNum {
 						allHealth = false
-						n.currentNode.UpdataCondition(
-							client.NodeCondition{
-								Type:               client.NodeConditionType(ser.Name),
-								Status:             client.ConditionFalse,
-								LastHeartbeatTime:  time.Now(),
-								LastTransitionTime: time.Now(),
-								Message:            v.Info,
-								Reason:             "NotHealth",
-							})
+						status = client.ConditionFalse
+						message = v.Info
+						reason = "NotHealth"
 					}
-					if v.Status == service.Stat_healthy {
-						old := n.currentNode.GetCondition(client.NodeConditionType(ser.Name))
-						if old == nil || old.Status == client.ConditionFalse {
-							n.currentNode.UpdataCondition(
-								client.NodeCondition{
-									Type:               client.NodeConditionType(ser.Name),
-									Status:             client.ConditionTrue,
-									LastHeartbeatTime:  time.Now(),
-									LastTransitionTime: time.Now(),
-									Reason:             "Health",
-								})
-						}
-					}
-					if n.cfg.AutoUnschedulerUnHealthDuration == 0 {
-						continue
-					}
-					if v.ErrorDuration > n.cfg.AutoUnschedulerUnHealthDuration && n.cfg.AutoScheduler {
-						n.currentNode.NodeStatus.AdviceAction = []string{"unscheduler"}
-					}
-				} else {
-					old := n.currentNode.GetCondition(client.NodeConditionType(ser.Name))
-					if old == nil {
-						n.currentNode.UpdataCondition(
-							client.NodeCondition{
-								Type:               client.NodeConditionType(ser.Name),
-								Status:             client.ConditionTrue,
-								LastHeartbeatTime:  time.Now(),
-								LastTransitionTime: time.Now(),
-							})
-					}
+				}
+				n.currentNode.GetAndUpdateCondition(client.NodeConditionType(ser.Name), status, reason, message)
+
+				if n.cfg.AutoUnschedulerUnHealthDuration == 0 {
+					continue
+				}
+				if v.ErrorDuration > n.cfg.AutoUnschedulerUnHealthDuration && n.cfg.AutoScheduler {
+					n.currentNode.NodeStatus.AdviceAction = []string{"unscheduler"}
 				}
 			}
 		}
@@ -333,12 +308,7 @@ func (n *NodeManager) getCurrentNode(uid string) (*client.HostNode, error) {
 	node := CreateNode(uid, n.cfg.HostIP)
 	n.setNodeLabels(&node)
 	node.NodeStatus.NodeInfo = info.GetSystemInfo()
-	node.UpdataCondition(client.NodeCondition{
-		Type:               client.NodeInit,
-		Status:             client.ConditionTrue,
-		LastHeartbeatTime:  time.Now(),
-		LastTransitionTime: time.Now(),
-	})
+	node.GetAndUpdateCondition(client.NodeInit, client.ConditionTrue, "", "")
 	node.Mode = n.cfg.RunMode
 	node.NodeStatus.Status = "running"
 	return &node, nil
