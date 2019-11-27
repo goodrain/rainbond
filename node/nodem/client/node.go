@@ -524,9 +524,12 @@ func (n *HostNode) DeleteNode() (*client.DeleteResponse, error) {
 
 // DelEndpoints -
 func (n *HostNode) DelEndpoints() {
-	keys := n.listEndpointKeys()
+	keys, err := n.listEndpointKeys()
+	if err != nil {
+		logrus.Warningf("error deleting endpoints: %v", err)
+		return
+	}
 	for _, key := range keys {
-		key = key + n.InternalIP
 		res, err := store.DefalutClient.Delete(key)
 		if err != nil {
 			logrus.Warnf("key: %s; error delete endpoints: %v", key, err)
@@ -535,11 +538,19 @@ func (n *HostNode) DelEndpoints() {
 	}
 }
 
-func (n *HostNode) listEndpointKeys() []string {
-	// TODO: need improvement, not hard code
-	return []string{
-		"/rainbond/endpoint/APISERVER_ENDPOINTS/",
-		"/rainbond/endpoint/HUB_ENDPOINTS/",
-		"/rainbond/endpoint/REPO_ENDPOINTS/",
+func (n *HostNode) listEndpointKeys() ([]string, error) {
+	resp, err := store.DefalutClient.Get(RainbondEndpointPrefix, client.WithPrefix())
+	if err != nil {
+		return nil, fmt.Errorf("prefix: %s; error list rainbond endpoint keys by prefix: %v", RainbondEndpointPrefix, err)
 	}
+
+	var res []string
+	for _, kv := range resp.Kvs {
+		key := string(kv.Key)
+		if strings.Contains(key, n.InternalIP) {
+			res = append(res, key)
+		}
+	}
+
+	return res, nil
 }
