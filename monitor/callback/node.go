@@ -136,7 +136,7 @@ func (e *Node) Modify(event *watch.Event) {
 //Delete delete
 func (e *Node) Delete(event *watch.Event) {
 	for i, end := range e.endpoints {
-		url := gjson.Get(event.GetValueString(), "internal_ip").String() + ":6100"
+		url := gjson.Get(event.GetPreValueString(), "internal_ip").String() + ":6100"
 		if end.URL == url {
 			e.endpoints = append(e.endpoints[:i], e.endpoints[i+1:]...)
 			e.UpdateEndpoints(e.endpoints...)

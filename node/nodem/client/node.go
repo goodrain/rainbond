@@ -30,7 +30,7 @@ import (
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 //LabelOS node label about os
@@ -346,6 +346,31 @@ func (n *HostNode) GetCondition(ctype NodeConditionType) *NodeCondition {
 	return nil
 }
 
+// GetAndUpdateCondition get old condition and update it, if old condition is nil and then create it
+func (n *HostNode) GetAndUpdateCondition(condType NodeConditionType, status ConditionStatus, reason, message string) {
+	oldCond := n.GetCondition(condType)
+	now := time.Now()
+	var lastTransitionTime time.Time
+	if oldCond == nil {
+		lastTransitionTime = now
+	} else {
+		if oldCond.Status != status {
+			lastTransitionTime = now
+		} else {
+			lastTransitionTime = oldCond.LastTransitionTime
+		}
+	}
+	cond := NodeCondition{
+		Type:               condType,
+		Status:             status,
+		LastHeartbeatTime:  now,
+		LastTransitionTime: lastTransitionTime,
+		Reason:             reason,
+		Message:            message,
+	}
+	n.UpdataCondition(cond)
+}
+
 //UpdataCondition 更新状态
 func (n *HostNode) UpdataCondition(conditions ...NodeCondition) {
 	for _, newcon := range conditions {
@@ -499,9 +524,12 @@ func (n *HostNode) DeleteNode() (*client.DeleteResponse, error) {
 
 // DelEndpoints -
 func (n *HostNode) DelEndpoints() {
-	keys := n.listEndpointKeys()
+	keys, err := n.listEndpointKeys()
+	if err != nil {
+		logrus.Warningf("error deleting endpoints: %v", err)
+		return
+	}
 	for _, key := range keys {
-		key = key + n.InternalIP
 		res, err := store.DefalutClient.Delete(key)
 		if err != nil {
 			logrus.Warnf("key: %s; error delete endpoints: %v", key, err)
@@ -510,11 +538,19 @@ func (n *HostNode) DelEndpoints() {
 	}
 }
 
-func (n *HostNode) listEndpointKeys() []string {
-	// TODO: need improvement, not hard code
-	return []string{
-		"/rainbond/endpoint/APISERVER_ENDPOINTS/",
-		"/rainbond/endpoint/HUB_ENDPOINTS/",
-		"/rainbond/endpoint/REPO_ENDPOINTS/",
+func (n *HostNode) listEndpointKeys() ([]string, error) {
+	resp, err := store.DefalutClient.Get(RainbondEndpointPrefix, client.WithPrefix())
+	if err != nil {
+		return nil, fmt.Errorf("prefix: %s; error list rainbond endpoint keys by prefix: %v", RainbondEndpointPrefix, err)
 	}
+
+	var res []string
+	for _, kv := range resp.Kvs {
+		key := string(kv.Key)
+		if strings.Contains(key, n.InternalIP) {
+			res = append(res, key)
+		}
+	}
+
+	return res, nil
 }

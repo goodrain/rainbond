@@ -24,6 +24,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/util"
 	"testing"
 	"time"
@@ -103,4 +104,27 @@ func TestEtcdClusterClient_GetEndpoints(t *testing.T) {
 			t.Fatalf("Can not find \"%s\" in %v", tc, edps)
 		}
 	}
+}
+
+func TestEtcdClusterClient_ListEndpointKeys(t *testing.T) {
+	cfg := &option.Conf{
+		Etcd: clientv3.Config{
+			Endpoints:   []string{"192.168.3.3:2379"},
+			DialTimeout: 5 * time.Second,
+		},
+	}
+
+	if err := store.NewClient(cfg); err != nil {
+		t.Fatalf("error create etcd client: %v", err)
+	}
+
+	hostNode := HostNode{
+		InternalIP: "192.168.2.76",
+	}
+
+	keys, err := hostNode.listEndpointKeys()
+	if err != nil {
+		t.Errorf("unexperted error: %v", err)
+	}
+	t.Logf("keys: %#v", keys)
 }
