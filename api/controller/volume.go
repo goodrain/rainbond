@@ -33,6 +33,87 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
+// VolumeBestSelector best volume by volume filter
+func (t *TenantStruct) VolumeBestSelector(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation POST /v2/tenants/{tenant_name}/volume-best v2 VolumeBest
+	//
+	// 查询可用存储驱动模型列表
+	//
+	// post volume-best
+	//
+	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//     description: 统一返回格式
+	var oldVolumeSelector api_model.VolumeBestReqStruct
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &oldVolumeSelector, nil); !ok {
+		return
+	}
+	if oldVolumeSelector.VolumeType == dbmodel.ShareFileVolumeType.String() || oldVolumeSelector.VolumeType == dbmodel.LocalVolumeType.String() {
+		ret := api_model.VolumeBestRespStruct{Changed: false}
+		httputil.ReturnSuccess(r, w, ret)
+		return
+	}
+	storageClasses, err := t.StatusCli.GetStorageClasses()
+	if err != nil {
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	var providerMap = make(map[string][]api_model.VolumeProviderDetail)
+	kindFilter := oldVolumeSelector.VolumeType
+	for _, storageClass := range storageClasses.GetList() {
+		kind := util.ParseVolumeProviderKind(storageClass)
+		if kind == "" {
+			logrus.Debugf("unknown storageclass: %+v", storageClass)
+			continue
+		}
+		if kindFilter != "" && kind != kindFilter {
+			continue
+		}
+		detail := api_model.VolumeProviderDetail{
+			Name:                 storageClass.Name,
+			Provisioner:          storageClass.Provisioner,
+			ReclaimPolicy:        storageClass.ReclaimPolicy,
+			VolumeBindingMode:    storageClass.VolumeBindingMode,
+			AllowVolumeExpansion: &storageClass.AllowVolumeExpansion,
+		}
+		util.HackVolumeProviderDetail(kind, &detail)
+		exists := false
+		for _, accessMode := range detail.AccessMode {
+			if strings.ToUpper(oldVolumeSelector.AccessMode) == accessMode {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			logrus.Warnf("not suitable select for volume[volumeType:%s, accessMode:%s] of kind(%s)", oldVolumeSelector.VolumeType, oldVolumeSelector.AccessMode, kind)
+			continue
+		} else {
+			providerMap[kind] = []api_model.VolumeProviderDetail{detail}
+			break
+		}
+
+	}
+	ret := api_model.VolumeBestRespStruct{}
+	if len(providerMap) > 0 {
+		ret.Changed = false
+	} else {
+		ret.Changed = true
+		ret.VolumeType = dbmodel.ShareFileVolumeType.String()
+	}
+
+	httputil.ReturnSuccess(r, w, ret)
+}
+
 // VolumeProvider list volume provider
 func (t *TenantStruct) VolumeProvider(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/tenants/{tenant_name}/volume-providers v2 volumeProvider
@@ -73,20 +154,18 @@ func (t *TenantStruct) VolumeProvider(w http.ResponseWriter, r *http.Request) {
 		if kindFilter != "" && kind != kindFilter {
 			continue
 		}
-		if kind != dbmodel.ShareFileVolumeType.String() && kind != dbmodel.LocalVolumeType.String() {
-			detail := api_model.VolumeProviderDetail{
-				Name:                 storageClass.Name,
-				Provisioner:          storageClass.Provisioner,
-				ReclaimPolicy:        storageClass.ReclaimPolicy,
-				VolumeBindingMode:    storageClass.VolumeBindingMode,
-				AllowVolumeExpansion: &storageClass.AllowVolumeExpansion,
-			}
-			util.HackVolumeProviderDetail(kind, &detail)
-			if _, ok := providerMap[kind]; ok {
-				providerMap[kind] = append(providerMap[kind], detail)
-			} else {
-				providerMap[kind] = []api_model.VolumeProviderDetail{detail}
-			}
+		detail := api_model.VolumeProviderDetail{
+			Name:                 storageClass.Name,
+			Provisioner:          storageClass.Provisioner,
+			ReclaimPolicy:        storageClass.ReclaimPolicy,
+			VolumeBindingMode:    storageClass.VolumeBindingMode,
+			AllowVolumeExpansion: &storageClass.AllowVolumeExpansion,
+		}
+		util.HackVolumeProviderDetail(kind, &detail)
+		if _, ok := providerMap[kind]; ok {
+			providerMap[kind] = append(providerMap[kind], detail)
+		} else {
+			providerMap[kind] = []api_model.VolumeProviderDetail{detail}
 		}
 	}
 	for key, value := range providerMap {

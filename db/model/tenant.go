@@ -370,6 +370,8 @@ type TenantServiceVolume struct {
 	SharePolicy string `gorm:"column:share_policy" json:"share_policy"`
 	// BackupPolicy 备份策略
 	BackupPolicy string `gorm:"column:backup_policy" json:"backup_policy"`
+	// ReclaimPolicy 回收策略
+	ReclaimPolicy string `json:"reclaim_policy"`
 	// AllowExpansion 是否支持扩展
 	AllowExpansion bool `gorm:"column:allow_expansion" json:"allow_expansion"`
 	// VolumeProviderName 使用的存储驱动别名

@@ -18,6 +18,20 @@
 
 package model
 
+// VolumeBestReqStruct request for volumebest
+type VolumeBestReqStruct struct {
+	VolumeType   string `json:"volume_type" validate:"volume_type|required|in:share-file,local,memoryfs,config-file,ceph-rbd"`
+	AccessMode   string `json:"access_mode"`
+	SharePolicy  string `json:"share_policy"`
+	BackupPolicy string `json:"backup_policy"`
+}
+
+// VolumeBestRespStruct response for volumebest
+type VolumeBestRespStruct struct {
+	Changed    bool   `json:"changed"`
+	VolumeType string `json:"volume_type"`
+}
+
 // VolumeProviderStruct volume provider struct
 type VolumeProviderStruct struct {
 	Kind        string                 `json:"kind"`

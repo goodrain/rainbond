@@ -133,6 +133,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/batchoperation", controller.BatchOperation)
 
 	r.Get("/volume-providers", controller.GetManager().VolumeProvider)
+	r.Post("/volume-best", controller.GetManager().VolumeBestSelector)
 
 	return r
 }
