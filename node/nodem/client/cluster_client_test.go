@@ -27,32 +27,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/node/utils"
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/util"
 )
-
-func TestNormalEndpoint(t *testing.T) {
-	value := []string{"http://192.168.2.37:9999", "192.168.2.203:8081", "http://:7171", ":7171"}
-
-	for _, ep := range value {
-		if !utils.FilterEndpoint(ep) {
-			continue
-		}
-
-		t.Logf("ep is : %s", ep)
-	}
-}
-
-func TestEmptyServieEndpoint(t *testing.T) {
-	keys := []string{"METRICS_ENDPOINTS/", "METRICS_ENDPOINTS/192.168.2.203", "MONITOR_ENDPOINTS/"}
-	for _, key := range keys {
-		if !utils.FilterEndpointKey(key) {
-			continue
-		}
-		t.Log(key)
-	}
-}
 
 func TestEtcdClusterClient_GetEndpoints(t *testing.T) {
 	cli, err := clientv3.New(clientv3.Config{
