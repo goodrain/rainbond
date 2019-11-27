@@ -184,9 +184,6 @@ func (m *ManagerService) UpOneServiceEndpoint(s *service.Service) {
 		return
 	}
 	hostIP := m.cluster.GetOptions().HostIP
-	if strings.TrimSpace(hostIP) == "" {
-		return
-	}
 	for _, end := range s.Endpoints {
 		if end.Name == "" || strings.Replace(end.Port, " ", "", -1) == "" {
 			continue
@@ -195,7 +192,6 @@ func (m *ManagerService) UpOneServiceEndpoint(s *service.Service) {
 		logrus.Debug("Discovery endpoints: ", key)
 		endpoint := toEndpoint(end, hostIP)
 		m.cluster.SetEndpoints(key, []string{endpoint})
-		m.cluster.DelEndpoints(end.Name + "/")
 	}
 }
 

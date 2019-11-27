@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -208,5 +209,8 @@ func (a *Conf) parse() error {
 		a.TTL = 10
 	}
 	a.LockPath = "/rainbond/lock"
+	if strings.TrimSpace(a.HostIP) == "" {
+		return fmt.Errorf("hostIP can't be null")
+	}
 	return nil
 }

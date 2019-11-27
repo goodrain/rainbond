@@ -31,7 +31,6 @@ import (
 	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/core/config"
-	"github.com/goodrain/rainbond/node/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -132,28 +131,10 @@ func (e *etcdClusterClient) SetEndpoints(key string, value []string) {
 	if key == "" || len(value) == 0 {
 		return
 	}
-
-	// a key has wrong hostIP can't put into etcd
-	if !utils.FilterEndpointKey(key) {
-		logrus.Warnf("wrong key: %s, delete it", key)
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-		defer cancel()
-		e.conf.EtcdCli.Delete(ctx, key)
-		return
-	}
-
-	var endpoints []string
-	for _, ep := range value {
-		if !utils.FilterEndpoint(ep) {
-			continue
-		}
-		endpoints = append(endpoints, ep)
-	}
-
 	key = path.Join(RainbondEndpointPrefix, key)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-	jsonStr, err := json.Marshal(endpoints)
+	jsonStr, err := json.Marshal(value)
 	if err != nil {
 		logrus.Errorf("Can not marshal %s endpoints to json.", key)
 		return
