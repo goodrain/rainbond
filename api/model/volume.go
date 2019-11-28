@@ -278,3 +278,10 @@ type UpdVolumeReq struct {
 	FileContent string `json:"file_content"`
 	VolumePath  string `json:"volume_path"`
 }
+
+// VolumeWithStatusResp volume status
+type VolumeWithStatusResp struct {
+	ServiceID string `json:"service_id"`
+	//存储名称
+	Status map[string]string `json:"status"`
+}

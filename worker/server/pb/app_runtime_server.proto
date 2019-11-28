@@ -12,6 +12,7 @@ service AppRuntimeSync {
   rpc DelThirdPartyEndpoint (DelThirdPartyEndpointsReq) returns (Empty) {}
   rpc GetPodDetail(GetPodDetailReq) returns (PodDetail) {}
   rpc GetStorageClasses(Empty) returns (StorageClasses) {}
+  rpc GetAppVolumeStatus(ServiceRequest) returns(ServiceVolumeStatusMessage){}
 }
 
 message Empty {}
@@ -210,4 +211,13 @@ repeated TopologySelectorLabelRequirement match_label_expressions = 1;
 message TopologySelectorLabelRequirement {
   string key = 1;
   repeated string values = 2;
+}
+
+enum ServiceVolumeStatus {
+    READY = 0;
+    NOT_READY = 1;
+}
+
+message ServiceVolumeStatusMessage {
+  map<string, ServiceVolumeStatus> status = 1;
 }

@@ -21,6 +21,7 @@ package store
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
@@ -89,4 +90,55 @@ func TestGetStorageClass(t *testing.T) {
 		fmt.Println("-------------")
 		t.Logf("%+v", sc.Parameters)
 	}
+}
+
+func TestGetAppVolumeStatus(t *testing.T) {
+	ocfg := option.Config{
+		DBType:                  "mysql",
+		MysqlConnectionInfo:     "oc6Poh:noot6Mea@tcp(192.168.2.203:3306)/region",
+		EtcdEndPoints:           []string{"http://192.168.2.203:2379"},
+		EtcdTimeout:             5,
+		KubeConfig:              "/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig",
+		LeaderElectionNamespace: "rainbond",
+	}
+
+	dbconfig := config.Config{
+		DBType:              ocfg.DBType,
+		MysqlConnectionInfo: ocfg.MysqlConnectionInfo,
+		EtcdEndPoints:       ocfg.EtcdEndPoints,
+		EtcdTimeout:         ocfg.EtcdTimeout,
+	}
+	//step 1:db manager init ,event log client init
+	if err := db.CreateManager(dbconfig); err != nil {
+		t.Fatalf("error creating db manager: %v", err)
+	}
+	defer db.CloseManager()
+
+	c, err := clientcmd.BuildConfigFromFlags("", ocfg.KubeConfig)
+	if err != nil {
+		t.Fatalf("read kube config file error: %v", err)
+	}
+	clientset, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		t.Fatalf("create kube api client error: %v", err)
+	}
+	startCh := channels.NewRingChannel(1024)
+	probeCh := channels.NewRingChannel(1024)
+	storer := NewStore(clientset, db.GetManager(), option.Config{LeaderElectionNamespace: ocfg.LeaderElectionNamespace, KubeClient: clientset}, startCh, probeCh)
+	if err := storer.Start(); err != nil {
+		t.Fatalf("error starting store: %v", err)
+	}
+	time.Sleep(10 * time.Second)
+	// serviceID := "69123df08744e36800c29c91574370d5"
+	apps := storer.GetAllAppServices()
+	for _, app := range apps {
+		if app != nil {
+			t.Logf("%+v", app.GetClaims())
+		} else {
+			t.Log("app is nil")
+		}
+	}
+	// app := storer.GetAppService(serviceID)
+
+	time.Sleep(20 * time.Second)
 }

@@ -169,6 +169,9 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.StorageClass = infFactory.Storage().V1().StorageClasses().Informer()
 	store.listers.StorageClass = infFactory.Storage().V1().StorageClasses().Lister()
 
+	store.informers.Claim = infFactory.Core().V1().PersistentVolumeClaims().Informer()
+	store.listers.Claim = infFactory.Core().V1().PersistentVolumeClaims().Lister()
+
 	isThirdParty := func(ep *corev1.Endpoints) bool {
 		return ep.Labels["service-kind"] == model.ServiceKindThirdParty.String()
 	}
@@ -261,6 +264,8 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.Endpoints.AddEventHandlerWithResyncPeriod(epEventHandler, time.Second*10)
 	store.informers.Nodes.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.StorageClass.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.Claim.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+
 	return store
 }
 
@@ -544,6 +549,21 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 		}
 	}
+	if claim, ok := obj.(*corev1.PersistentVolumeClaim); ok {
+		serviceID := claim.Labels["service_id"]
+		version := claim.Labels["version"]
+		createrID := claim.Labels["creater_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(claim.Name, &metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetClaim(claim)
+				return
+			}
+		}
+	}
 }
 
 //getAppService if  creater is true, will create new app service where not found in store
@@ -663,6 +683,22 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 			appservice, _ := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeleteConfigMaps(configmap)
+				if appservice.IsClosed() {
+					a.DeleteAppService(appservice)
+				}
+				return
+			}
+		}
+	}
+
+	if claim, ok := obj.(*corev1.PersistentVolumeClaim); ok {
+		serviceID := claim.Labels["service_id"]
+		version := claim.Labels["version"]
+		createrID := claim.Labels["creater_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, _ := a.getAppService(serviceID, version, createrID, false)
+			if appservice != nil {
+				appservice.DeleteClaim(claim)
 				if appservice.IsClosed() {
 					a.DeleteAppService(appservice)
 				}
@@ -1073,7 +1109,7 @@ func (a *appRuntimeStore) UnRegistPodUpdateListener(name string) {
 
 func (a *appRuntimeStore) GetStorageClasses() []v1.StorageClass {
 	storageClassList, err := a.clientset.StorageV1().StorageClasses().List(metav1.ListOptions{})
-	if err != nil {
+	if err != nil { // TODO 使用 store获取
 		return make([]v1.StorageClass, 0)
 	}
 	var sclist []v1.StorageClass

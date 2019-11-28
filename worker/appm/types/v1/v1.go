@@ -111,6 +111,7 @@ type AppService struct {
 	secrets      []*corev1.Secret
 	delSecrets   []*corev1.Secret // secrets which need to be deleted
 	pods         []*corev1.Pod
+	claims       []*corev1.PersistentVolumeClaim
 	status       AppServiceStatus
 	Logger       event.Logger
 	UpgradePatch map[string][]byte
@@ -548,6 +549,35 @@ func (a *AppService) DistinguishPod(pod *corev1.Pod) bool {
 		return true
 	}
 	return !pod.ObjectMeta.CreationTimestamp.Before(&rss.ObjectMeta.CreationTimestamp)
+}
+
+// GetClaims get claims
+func (a *AppService) GetClaims() []*corev1.PersistentVolumeClaim {
+	return a.claims
+}
+
+// SetClaim set claim
+func (a *AppService) SetClaim(claim *corev1.PersistentVolumeClaim) {
+	if len(a.claims) > 0 {
+		for i, cla := range a.configMaps {
+			if cla.GetName() == claim.GetName() {
+				a.claims[i] = claim
+				return
+			}
+		}
+	}
+	a.claims = append(a.claims, claim)
+	print(a.claims)
+}
+
+// DeleteClaim delete claim
+func (a *AppService) DeleteClaim(claim *corev1.PersistentVolumeClaim) {
+	for i, c := range a.claims {
+		if c.GetName() == claim.GetName() {
+			a.claims = append(a.claims[0:i], a.claims[i+1:]...)
+			return
+		}
+	}
 }
 
 func (a *AppService) String() string {

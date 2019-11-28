@@ -8,8 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eapache/channels"
 	"github.com/golang/mock/gomock"
 	"github.com/goodrain/rainbond/cmd/worker/option"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
@@ -195,4 +198,52 @@ func TestGetStorageClass(t *testing.T) {
 			t.Logf("allowVolumeExpansion is : %v", allowVolumeExpansion)
 		}
 	}
+}
+
+func TestGetAppVolumeStatus(t *testing.T) {
+	ocfg := option.Config{
+		DBType:                  "mysql",
+		MysqlConnectionInfo:     "oc6Poh:noot6Mea@tcp(192.168.2.203:3306)/region",
+		EtcdEndPoints:           []string{"http://192.168.2.203:2379"},
+		EtcdTimeout:             5,
+		KubeConfig:              "/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig",
+		LeaderElectionNamespace: "rainbond",
+	}
+
+	dbconfig := config.Config{
+		DBType:              ocfg.DBType,
+		MysqlConnectionInfo: ocfg.MysqlConnectionInfo,
+		EtcdEndPoints:       ocfg.EtcdEndPoints,
+		EtcdTimeout:         ocfg.EtcdTimeout,
+	}
+	//step 1:db manager init ,event log client init
+	if err := db.CreateManager(dbconfig); err != nil {
+		t.Fatalf("error creating db manager: %v", err)
+	}
+	defer db.CloseManager()
+
+	c, err := clientcmd.BuildConfigFromFlags("", ocfg.KubeConfig)
+	if err != nil {
+		t.Fatalf("read kube config file error: %v", err)
+	}
+	clientset, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		t.Fatalf("create kube api client error: %v", err)
+	}
+	startCh := channels.NewRingChannel(1024)
+	probeCh := channels.NewRingChannel(1024)
+	storer := store.NewStore(clientset, db.GetManager(), option.Config{LeaderElectionNamespace: ocfg.LeaderElectionNamespace, KubeClient: clientset}, startCh, probeCh)
+	if err := storer.Start(); err != nil {
+		t.Fatalf("error starting store: %v", err)
+	}
+	server := &RuntimeServer{
+		store:     storer,
+		clientset: clientset,
+	}
+	statusList, err := server.GetAppVolumeStatus(context.Background(), &pb.ServiceRequest{ServiceId: "69123df08744e36800c29c91574370d5"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(statusList.GetStatus())
+	time.Sleep(20 * time.Second) // db woulld close
 }

@@ -98,6 +98,16 @@ func (s *startController) startOne(app v1.AppService) error {
 			return fmt.Errorf("create or check namespace failure %s", err.Error())
 		}
 	}
+	// step 0: create claim
+	if claims := app.GetClaims(); claims != nil {
+		for _, claim := range claims {
+			logrus.Debugf("volume label is : %+v", claim.Labels)
+			_, err := s.manager.client.CoreV1().PersistentVolumeClaims(app.TenantID).Create(claim)
+			if err != nil && !errors.IsAlreadyExists(err) {
+				logrus.Debugf("create claim failure: %s, ignore this volume", err.Error())
+			}
+		}
+	}
 	//step 1: create configmap
 	if configs := app.GetConfigMaps(); configs != nil {
 		for _, config := range configs {

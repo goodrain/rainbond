@@ -35,6 +35,7 @@ type Informer struct {
 	Endpoints    cache.SharedIndexInformer
 	Nodes        cache.SharedIndexInformer
 	StorageClass cache.SharedIndexInformer
+	Claim        cache.SharedIndexInformer
 }
 
 //Start statrt
@@ -49,6 +50,8 @@ func (i *Informer) Start(stop chan struct{}) {
 	go i.ReplicaSet.Run(stop)
 	go i.Endpoints.Run(stop)
 	go i.Nodes.Run(stop)
+	go i.StorageClass.Run(stop)
+	go i.Claim.Run(stop)
 }
 
 //Ready if all kube informers is syncd, store is ready

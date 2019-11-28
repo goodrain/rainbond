@@ -31,7 +31,54 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/jinzhu/gorm"
 )
+
+// GetVolumesStatus getvolume status
+func (t *TenantStruct) GetVolumesStatus(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation POST /v2/tenants/{tenant_name}/volumes-status v2 GetVolumesStatus
+	//
+	// 查询组件存储状态
+	//
+	// post volumes-status
+	//
+	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//     description: 统一返回格式
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	volumes, handlerErr := handler.GetServiceManager().GetVolumes(serviceID)
+	if handlerErr != nil && handlerErr.Error() != gorm.ErrRecordNotFound.Error() {
+		httputil.ReturnError(r, w, 500, handlerErr.Error())
+		return
+	}
+	var err error
+	volumeStatusList, err := t.StatusCli.GetAppVolumeStatus(serviceID)
+	if err != nil {
+		logrus.Warnf("get volume status error: %s", err.Error())
+	}
+	ret := api_model.VolumeWithStatusResp{Status: make(map[string]string)}
+	if volumeStatusList != nil && volumeStatusList.GetStatus() != nil {
+		volumeStatus := volumeStatusList.GetStatus()
+		status := make(map[string]string)
+		for _, volume := range volumes {
+			if phrase, ok := volumeStatus[volume.VolumeName]; ok {
+				status[volume.VolumeName] = phrase.String()
+			}
+		}
+		ret.Status = status
+	}
+	httputil.ReturnSuccess(r, w, ret)
+}
 
 // VolumeBestSelector best volume by volume filter
 func (t *TenantStruct) VolumeBestSelector(w http.ResponseWriter, r *http.Request) {

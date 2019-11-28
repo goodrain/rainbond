@@ -37,4 +37,5 @@ type Lister struct {
 	Endpoints    corev1.EndpointsLister
 	Nodes        corev1.NodeLister
 	StorageClass storagev1.StorageClassLister
+	Claim        corev1.PersistentVolumeClaimLister
 }
