@@ -112,7 +112,7 @@ func (i *IPPool) LoopCheckIPs() {
 		}
 		i.lock.Lock()
 		defer i.lock.Unlock()
-		var newIP = make(map[string]net.IP, 2)
+		var newIP = make(map[string]net.IP)
 		for _, v := range ips {
 			if v.To4() == nil {
 				continue
@@ -131,6 +131,7 @@ func (i *IPPool) LoopCheckIPs() {
 				i.EventCh <- IPEVENT{Type: DEL, IP: v.To4()}
 			}
 		}
+		logrus.Debugf("loop watch ips from all interface, find %d ips", len(newIP))
 		i.HostIPs = newIP
 		i.startReady = true
 		return nil
