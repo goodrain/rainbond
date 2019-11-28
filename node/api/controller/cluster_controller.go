@@ -389,7 +389,7 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 	allnodes, _ := nodeService.GetAllNode()
 	result.AllNode = len(allnodes)
 	for _, n := range allnodes {
-		if n.Status != "running" {
+		if n.Status != "running" || !n.NodeStatus.NodeHealth { //node unhealth status
 			result.NotReadyNode++
 		}
 	}
