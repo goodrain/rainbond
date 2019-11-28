@@ -1953,6 +1953,12 @@ func (s *ServiceAction) UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) erro
 		return err
 	}
 
+	// delete metrics
+	if err := db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).DeleteByRuleID(req.RuleID); err != nil {
+		tx.Rollback()
+		return err
+	}
+
 	for _, metric := range req.Metrics {
 		m := &dbmodel.TenantServiceAutoscalerRuleMetrics{
 			RuleID:            req.RuleID,
@@ -1961,7 +1967,7 @@ func (s *ServiceAction) UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) erro
 			MetricTargetType:  metric.MetricTargetType,
 			MetricTargetValue: metric.MetricTargetValue,
 		}
-		if err := db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).UpdateOrCreate(m); err != nil {
+		if err := db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).AddModel(m); err != nil {
 			tx.Rollback()
 			return err
 		}
