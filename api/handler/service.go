@@ -35,6 +35,7 @@ import (
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/errors"
 	core_model "github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
@@ -514,9 +515,17 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			env.ServiceID = ts.ServiceID
 			env.TenantID = ts.TenantID
 			if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).AddModel(&env); err != nil {
-				logrus.Errorf("add env %v error, %v", env.AttrName, err)
-				tx.Rollback()
-				return err
+				logrus.Errorf("add env[name=%s] error, %v", env.AttrName, err)
+				if err != errors.ErrRecordAlreadyExist {
+					tx.Rollback()
+					return err
+				}
+				logrus.Warningf("recover env[name=%s]", env.AttrName)
+				// if env already exists, update it
+				if err = db.GetManager().TenantServiceEnvVarDaoTransactions(tx).UpdateModel(&env); err != nil {
+					tx.Rollback()
+					return err
+				}
 			}
 		}
 	}

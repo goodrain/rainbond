@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 
@@ -35,6 +36,9 @@ import (
 	"github.com/goodrain/rainbond/node/core/config"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
+
+// RainbondEndpointPrefix is the prefix of the key of the rainbond endpoints in etcd
+const RainbondEndpointPrefix = "/rainbond/endpoint"
 
 //ClusterClient ClusterClient
 type ClusterClient interface {
@@ -110,7 +114,7 @@ func (e *etcdClusterClient) GetOptions() *option.Conf {
 }
 
 func (e *etcdClusterClient) GetEndpoints(key string) (result []string) {
-	key = "/rainbond/endpoint/" + key
+	key = path.Join(RainbondEndpointPrefix, key)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	resp, err := e.conf.EtcdCli.Get(ctx, key, clientv3.WithPrefix())
@@ -158,7 +162,7 @@ func (e *etcdClusterClient) SetEndpoints(serviceName, hostIP string, value []str
 			continue
 		}
 	}
-	key := fmt.Sprintf("/rainbond/endpoint/%s/%s", serviceName, hostIP)
+	key := fmt.Sprintf("%s/%s/%s", RainbondEndpointPrefix, serviceName, hostIP)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	jsonStr, err := json.Marshal(value)
@@ -173,7 +177,7 @@ func (e *etcdClusterClient) SetEndpoints(serviceName, hostIP string, value []str
 }
 
 func (e *etcdClusterClient) DelEndpoints(key string) {
-	key = "/rainbond/endpoint/" + key
+	key = path.Join(RainbondEndpointPrefix, key)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	_, err := e.conf.EtcdCli.Delete(ctx, key)
