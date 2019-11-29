@@ -169,7 +169,7 @@ func (m *ManagerService) DownOneServiceEndpoint(s *service.Service) {
 		if exist := isExistEndpoint(oldEndpoints, endpoint); exist {
 			endpoints := rmEndpointFrom(oldEndpoints, endpoint)
 			if len(endpoints) > 0 {
-				m.cluster.SetEndpoints(key, endpoints)
+				m.cluster.SetEndpoints(end.Name, m.cluster.GetOptions().HostIP, endpoints)
 				continue
 			}
 			m.cluster.DelEndpoints(key)
@@ -188,16 +188,13 @@ func (m *ManagerService) UpOneServiceEndpoint(s *service.Service) {
 		if end.Name == "" || strings.Replace(end.Port, " ", "", -1) == "" {
 			continue
 		}
-		key := end.Name + "/" + hostIP
-		logrus.Debug("Discovery endpoints: ", key)
 		endpoint := toEndpoint(end, hostIP)
-		m.cluster.SetEndpoints(key, []string{endpoint})
+		m.cluster.SetEndpoints(end.Name, hostIP, []string{endpoint})
 	}
 }
 
 //SyncServiceStatusController synchronize all service status to as we expect
 func (m *ManagerService) SyncServiceStatusController() {
-	logrus.Debug("run SyncServiceStatusController")
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	if m.autoStatusController != nil && len(m.autoStatusController) > 0 {

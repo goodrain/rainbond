@@ -21,12 +21,13 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"testing"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/util"
-	"testing"
-	"time"
 )
 
 func TestEtcdClusterClient_GetEndpoints(t *testing.T) {
@@ -103,4 +104,30 @@ func TestEtcdClusterClient_GetEndpoints(t *testing.T) {
 			t.Fatalf("Can not find \"%s\" in %v", tc, edps)
 		}
 	}
+}
+
+func TestSetEndpoints(t *testing.T) {
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{"127.0.0.1:2379"},
+		DialTimeout: time.Duration(5) * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := NewClusterClient(&option.Conf{EtcdCli: cli})
+	c.SetEndpoints("etcd", "DSASD", []string{"http://:8080"})
+	c.SetEndpoints("etcd", "192.168.1.1", []string{"http://:8080"})
+	c.SetEndpoints("etcd", "192.168.1.1", []string{"http://192.168.1.1:8080"})
+}
+
+func TestGetEndpoints(t *testing.T) {
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{"127.0.0.1:2379"},
+		DialTimeout: time.Duration(5) * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := NewClusterClient(&option.Conf{EtcdCli: cli})
+	t.Log(c.GetEndpoints("/etcd/"))
 }

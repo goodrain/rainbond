@@ -45,7 +45,7 @@ var (
 	exitChan = make(chan struct{})
 )
 
-//Init  初始化
+//Init  init config
 func Init() error {
 	if initialized {
 		return nil
@@ -202,11 +202,17 @@ func (a *Conf) parse() error {
 	} else {
 		a.Etcd.DialTimeout = a.Etcd.DialTimeout * time.Second
 	}
-
 	a.Etcd.Context = context.Background()
 	if a.TTL <= 0 {
 		a.TTL = 10
 	}
 	a.LockPath = "/rainbond/lock"
+	if a.HostIP == "" || !util.CheckIP(a.HostIP) {
+		localIP, err := util.LocalIP()
+		if localIP == nil || err != nil {
+			return fmt.Errorf("can not find ip of this node")
+		}
+		a.HostIP = localIP.String()
+	}
 	return nil
 }

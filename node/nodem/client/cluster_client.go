@@ -22,8 +22,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/util"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
@@ -43,7 +46,7 @@ type ClusterClient interface {
 	GetDataCenterConfig() (*config.DataCenterConfig, error)
 	GetOptions() *option.Conf
 	GetEndpoints(key string) []string
-	SetEndpoints(key string, value []string)
+	SetEndpoints(serviceName, hostIP string, value []string)
 	DelEndpoints(key string)
 }
 
@@ -116,20 +119,46 @@ func (e *etcdClusterClient) GetEndpoints(key string) (result []string) {
 		return
 	}
 	for _, kv := range resp.Kvs {
+		keyInfo := strings.Split(string(kv.Key), "/")
+		if !util.CheckIP(keyInfo[len(keyInfo)-1]) {
+			e.conf.EtcdCli.Delete(ctx, string(kv.Key))
+			continue
+		}
 		var res []string
 		err = json.Unmarshal(kv.Value, &res)
 		if err != nil {
 			logrus.Errorf("Can unmarshal endpoints to array of the key %s", key)
 			return
 		}
-		result = append(result, res...)
+		//Return data check
+		for _, v := range res {
+			endpointURL, err := url.Parse(v)
+			if err != nil || endpointURL.Host == "" || endpointURL.Path != "" {
+				continue
+			}
+			result = append(result, v)
+		}
 	}
 	logrus.Infof("Get endpoints %s => %v", key, result)
 	return
 }
 
-func (e *etcdClusterClient) SetEndpoints(key string, value []string) {
-	key = "/rainbond/endpoint/" + key
+//SetEndpoints service name and hostip must set
+func (e *etcdClusterClient) SetEndpoints(serviceName, hostIP string, value []string) {
+	if serviceName == "" {
+		return
+	}
+	if !util.CheckIP(hostIP) {
+		return
+	}
+	for _, v := range value {
+		endpointURL, err := url.Parse(v)
+		if err != nil || endpointURL.Host == "" || endpointURL.Path != "" {
+			logrus.Warningf("%s service host %s endpoint value %s invalid", serviceName, hostIP, v)
+			continue
+		}
+	}
+	key := fmt.Sprintf("/rainbond/endpoint/%s/%s", serviceName, hostIP)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	jsonStr, err := json.Marshal(value)
