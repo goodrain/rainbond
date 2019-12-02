@@ -422,9 +422,10 @@ func (v *CephRBDVolume) CreateVolume(define *Define) error {
 	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
 	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := v.svm.IsReadOnly
-	labels := v.as.GetCommonLabels(map[string]string{"volume_name": v.svm.VolumeName, "volume_path": volumeMountPath, "version": v.as.DeployVersion})
+	labels := v.as.GetCommonLabels(map[string]string{"volume_name": v.svm.VolumeName, "version": v.as.DeployVersion})
 	annotations := map[string]string{"volume_name": v.svm.VolumeName}
 	annotations["reclaim_policy"] = v.svm.ReclaimPolicy
+	annotations["volume_path"] = volumeMountPath
 	claim := newVolumeClaim4RBD(volumeMountName, volumeMountPath, v.svm.AccessMode, v.svm.VolumeProviderName, v.svm.VolumeCapacity, labels, annotations)
 	logrus.Debugf("storage class is : %s, claim value is : %s", v.svm.VolumeProviderName, claim.GetName())
 	v.as.SetClaim(claim) // store claim to appService
@@ -474,9 +475,10 @@ func (v *AliCloudVolume) CreateVolume(define *Define) error {
 	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
 	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := v.svm.IsReadOnly
-	labels := v.as.GetCommonLabels(map[string]string{"volume_name": v.svm.VolumeName, "volume_path": volumeMountPath, "version": v.as.DeployVersion})
+	labels := v.as.GetCommonLabels(map[string]string{"volume_name": v.svm.VolumeName, "version": v.as.DeployVersion})
 	annotations := map[string]string{"volume_name": v.svm.VolumeName}
 	annotations["reclaim_policy"] = v.svm.ReclaimPolicy
+	annotations["volume_path"] = volumeMountPath
 	claim := newVolumeClaim4RBD(volumeMountName, volumeMountPath, v.svm.AccessMode, v.svm.VolumeProviderName, v.svm.VolumeCapacity, labels, annotations)
 	logrus.Debugf("storage class is : %s, claim value is : %s", v.svm.VolumeProviderName, claim.GetName())
 	v.as.SetClaim(claim) // store claim to appService
