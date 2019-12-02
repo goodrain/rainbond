@@ -70,6 +70,8 @@ func NewVolumeManager(as *v1.AppService, serviceVolume *model.TenantServiceVolum
 		v = new(LocalVolume)
 	case dbmodel.CephRBDVolumeType.String():
 		v = new(CephRBDVolume)
+	case dbmodel.AliCloudVolumeType.String():
+		v = new(AliCloudVolume)
 	default:
 		logrus.Warnf("unknown service volume type: serviceID : %s", as.ServiceID)
 		return nil
@@ -201,7 +203,7 @@ func parseAccessMode(accessMode string) corev1.PersistentVolumeAccessMode {
 }
 
 func newVolumeClaim4RBD(name, volumePath, accessMode, storageClassName string, capacity int64, labels, annotations map[string]string) *corev1.PersistentVolumeClaim {
-	resourceStorage, _ := resource.ParseQuantity(fmt.Sprintf("%dMi", capacity))
+	resourceStorage, _ := resource.ParseQuantity(fmt.Sprintf("%dGi", capacity)) // TODO 统一单位使用G
 	return &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
@@ -456,6 +458,58 @@ func (v *CephRBDVolume) CreateVolume(define *Define) error {
 
 // CreateDependVolume create depend volume
 func (v *CephRBDVolume) CreateDependVolume(define *Define) error {
+	return nil
+}
+
+// AliCloudVolume ali cloud volume struct
+type AliCloudVolume struct {
+	Base
+}
+
+// CreateVolume ceph rbd volume create volume
+func (v *AliCloudVolume) CreateVolume(define *Define) error {
+	if v.svm.VolumeCapacity <= 0 {
+		return fmt.Errorf("volume capcacity is %d, must be greater than zero", v.svm.VolumeCapacity)
+	}
+	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
+	volumeMountPath := v.svm.VolumePath
+	volumeReadOnly := v.svm.IsReadOnly
+	labels := v.as.GetCommonLabels(map[string]string{"volume_name": v.svm.VolumeName, "volume_path": volumeMountPath, "version": v.as.DeployVersion})
+	annotations := map[string]string{"volume_name": v.svm.VolumeName}
+	annotations["reclaim_policy"] = v.svm.ReclaimPolicy
+	claim := newVolumeClaim4RBD(volumeMountName, volumeMountPath, v.svm.AccessMode, v.svm.VolumeProviderName, v.svm.VolumeCapacity, labels, annotations)
+	logrus.Debugf("storage class is : %s, claim value is : %s", v.svm.VolumeProviderName, claim.GetName())
+	v.as.SetClaim(claim) // store claim to appService
+	claim.Annotations = map[string]string{
+		client.LabelOS: func() string {
+			if v.as.IsWindowsService {
+				return "windows"
+			}
+			return "linux"
+		}(),
+	}
+	statefulset := v.as.GetStatefulSet() //有状态组件
+	if statefulset != nil {
+		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
+	} else {
+		vo := corev1.Volume{Name: volumeMountName}
+		vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
+		define.volumes = append(define.volumes, vo)
+
+		logrus.Warnf("service[%s] is not stateful, mount volume by k8s volume.PersistenVolumeClaim[%s]", v.svm.ServiceID, claim.GetName())
+	}
+
+	vm := corev1.VolumeMount{
+		Name:      volumeMountName,
+		MountPath: volumeMountPath,
+		ReadOnly:  volumeReadOnly,
+	}
+	define.volumeMounts = append(define.volumeMounts, vm)
+	return nil
+}
+
+// CreateDependVolume create depend volume
+func (v *AliCloudVolume) CreateDependVolume(define *Define) error {
 	return nil
 }
 

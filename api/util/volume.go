@@ -57,6 +57,8 @@ func transferVolumeProviderName2Kind(name string, opts ...interface{}) *dbmodel.
 	return nil
 }
 
+// opts[0]: kind is storageClass's provisioner
+// opts[1]: parameters is storageClass's parameter
 func transferCustomVolumeProviderName2Kind(opts ...interface{}) *dbmodel.VolumeType {
 	if len(opts) != 2 {
 		return nil
@@ -68,6 +70,9 @@ func transferCustomVolumeProviderName2Kind(opts ...interface{}) *dbmodel.VolumeT
 				return &dbmodel.CephRBDVolumeType
 			}
 		}
+	}
+	if kind == "alicloud/disk" {
+		return &dbmodel.AliCloudVolumeType
 	}
 	return nil
 }
@@ -126,6 +131,8 @@ func hackVolumeProviderAccessMode(kind string) []string {
 		return []string{"ROX"}
 	case dbmodel.MemoryFSVolumeType:
 		return []string{"ROX"}
+	case dbmodel.AliCloudVolumeType:
+		return []string{"RWO"}
 	default:
 		return []string{"RWO"}
 	}

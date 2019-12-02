@@ -342,6 +342,9 @@ var ConfigFileVolumeType VolumeType = "config-file"
 // CephRBDVolumeType ceph rbd volume type
 var CephRBDVolumeType VolumeType = "ceph-rbd"
 
+// AliCloudVolumeType alicloud volume type
+var AliCloudVolumeType VolumeType = "alicloud-disk"
+
 func (vt VolumeType) String() string {
 	return string(vt)
 }

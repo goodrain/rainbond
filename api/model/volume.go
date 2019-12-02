@@ -74,7 +74,7 @@ type AddVolumeStruct struct {
 		//存储类型（share,local,tmpfs）
 		// in: body
 		// required: true
-		VolumeType string `json:"volume_type" validate:"volume_type|required|in:share-file,local,memoryfs,config-file,ceph-rbd"`
+		VolumeType string `json:"volume_type" validate:"volume_type|required|in:share-file,local,memoryfs,config-file,ceph-rbd,alicloud-disk"`
 		// 存储名称(同一个应用唯一)
 		// in: body
 		// required: true
@@ -274,7 +274,7 @@ type V2DelVolumeDependencyStruct struct {
 // UpdVolumeReq is a value struct holding request for updating volume.
 type UpdVolumeReq struct {
 	VolumeName  string `json:"volume_name" validate:"required"`
-	VolumeType  string `json:"volume_type" validate:"volume_type|required|in:share-file,local,memoryfs,config-file"`
+	VolumeType  string `json:"volume_type" validate:"volume_type|required|in:share-file,local,memoryfs,config-file,alicloud-disk"`
 	FileContent string `json:"file_content"`
 	VolumePath  string `json:"volume_path"`
 }
