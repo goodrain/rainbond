@@ -214,5 +214,9 @@ func (a *Conf) parse() error {
 		}
 		a.HostIP = localIP.String()
 	}
+	//init api listen port, can not custom
+	if a.APIAddr == "" {
+		a.APIAddr = ":6100"
+	}
 	return nil
 }
