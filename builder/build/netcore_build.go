@@ -93,17 +93,17 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 	} else {
 		buildOptions.NoCache = false
 	}
-	re.Logger.Info("开始编译源码", map[string]string{"step": "builder-exector"})
+	re.Logger.Info("start compiling the source code", map[string]string{"step": "builder-exector"})
 	err := sources.ImageBuild(re.DockerClient, re.SourceDir, buildOptions, re.Logger, 20)
 	if err != nil {
-		re.Logger.Error(fmt.Sprintf("构造编译镜像%s失败", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
+		re.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
 		return nil, err
 	}
 	// check build image exist
 	_, err = sources.ImageInspectWithRaw(re.DockerClient, d.buildImageName)
 	if err != nil {
-		re.Logger.Error(fmt.Sprintf("构造镜像%s失败,请查看Debug日志", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
+		re.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("get image inspect error: %s", err.Error())
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 	d.buildCacheDir = path.Join(re.CacheDir, re.DeployVersion)
 	err = d.copyBuildOut(d.buildCacheDir, d.buildImageName)
 	if err != nil {
-		re.Logger.Error(fmt.Sprintf("复制编译包失败"), map[string]string{"step": "builder-exector", "status": "failure"})
+		re.Logger.Error(fmt.Sprintf("copy compilation package failed, find log in rbd-chaos"), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("copy build output file error: %s", err.Error())
 		return nil, err
 	}
@@ -131,25 +131,25 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 	}
 	err = sources.ImageBuild(re.DockerClient, d.buildCacheDir, runbuildOptions, re.Logger, 20)
 	if err != nil {
-		re.Logger.Error(fmt.Sprintf("构造应用镜像%s失败", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
+		re.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
 		return nil, err
 	}
 	// check build image exist
 	_, err = sources.ImageInspectWithRaw(re.DockerClient, d.imageName)
 	if err != nil {
-		re.Logger.Error(fmt.Sprintf("构造镜像%s失败,请查看Debug日志", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
+		re.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("get image inspect error: %s", err.Error())
 		return nil, err
 	}
-	re.Logger.Info("镜像构建成功，开始推送镜像至仓库", map[string]string{"step": "builder-exector"})
+	re.Logger.Info("build image success, start to push local image registry", map[string]string{"step": "builder-exector"})
 	err = sources.ImagePush(re.DockerClient, d.imageName, builder.REGISTRYUSER, builder.REGISTRYPASS, re.Logger, 5)
 	if err != nil {
-		re.Logger.Error("推送镜像失败", map[string]string{"step": "builder-exector"})
+		re.Logger.Error("push image to local image registry faliure, find log in rbd-chaos", map[string]string{"step": "builder-exector"})
 		logrus.Errorf("push image error: %s", err.Error())
 		return nil, err
 	}
-	re.Logger.Info("镜像推送镜像至仓库成功", map[string]string{"step": "builder-exector"})
+	re.Logger.Info("push image to push local image registry success", map[string]string{"step": "builder-exector"})
 	if err := sources.ImageRemove(re.DockerClient, d.imageName); err != nil {
 		logrus.Errorf("remove image %s failure %s", d.imageName, err.Error())
 	}
