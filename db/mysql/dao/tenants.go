@@ -1569,6 +1569,15 @@ func (t *TenantServceAutoscalerRuleMetricsDaoImpl) ListByRuleID(ruleID string) (
 	return metrics, nil
 }
 
+// DeleteByRuleID -
+func (t *TenantServceAutoscalerRuleMetricsDaoImpl) DeleteByRuleID(ruldID string) error {
+	if err := t.DB.Where("rule_id=?", ruldID).Delete(&model.TenantServiceAutoscalerRuleMetrics{}).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // TenantServiceScalingRecordsDaoImpl -
 type TenantServiceScalingRecordsDaoImpl struct {
 	DB *gorm.DB
