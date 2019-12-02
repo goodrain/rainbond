@@ -23,7 +23,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"io"
 	"net"
+	"time"
 )
 
 type Packet interface {
@@ -87,6 +89,8 @@ func (m *MessageProtocol) isPing(s string) bool {
 	return s == "0x00ping"
 }
 
+const maxConsecutiveEmptyReads = 100
+
 //Decode 解码数据流
 func (m *MessageProtocol) Decode() (string, error) {
 	// 读取消息的长度
@@ -104,6 +108,7 @@ func (m *MessageProtocol) Decode() (string, error) {
 		return "", errClosed
 	}
 	if int32(m.reader.Buffered()) < length+4 {
+		var retry = 0
 		for m.cacheSize < int64(length+4) {
 			//read size must <= length+4
 			readSize := int64(length+4) - m.cacheSize
@@ -115,11 +120,22 @@ func (m *MessageProtocol) Decode() (string, error) {
 			if err != nil {
 				return "", err
 			}
-			if size == 0 {
-				return "", errClosed
+			//Two consecutive reads 0 bytes, return io.ErrNoProgress
+			//Read() will read up to len(p) into p, when possible.
+			//After a Read() call, n may be less then len(p).
+			//Upon error, Read() may still return n bytes in buffer p. For instance, reading from a TCP socket that is abruptly closed. Depending on your use, you may choose to keep the bytes in p or retry.
+			//When a Read() exhausts available data, a reader may return a non-zero n and err=io.EOF. However, depending on implementation, a reader may choose to return a non-zero n and err = nil at the end of stream. In that case, any subsequent reads must return n=0, err=io.EOF.
+			//Lastly, a call to Read() that returns n=0 and err=nil does not mean EOF as the next call to Read() may return more data.
+			if size <= 0 {
+				retry++
+				if retry > maxConsecutiveEmptyReads {
+					return "", io.ErrNoProgress
+				}
+				time.Sleep(time.Millisecond * 10)
+			} else {
+				m.cacheSize += int64(size)
+				m.cache.Write(buffer)
 			}
-			m.cacheSize += int64(size)
-			m.cache.Write(buffer)
 		}
 		result := m.cache.Bytes()[4:]
 		m.cache.Reset()
@@ -134,7 +150,7 @@ func (m *MessageProtocol) Decode() (string, error) {
 		return "", err
 	}
 	if size == 0 {
-		return "", errClosed
+		return "", io.ErrNoProgress
 	}
 	return string(pack[4:]), nil
 }

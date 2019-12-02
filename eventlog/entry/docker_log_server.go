@@ -20,11 +20,12 @@ package entry
 
 import (
 	"errors"
+	"net"
+	"time"
+
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/store"
 	"github.com/goodrain/rainbond/eventlog/util"
-	"net"
-	"time"
 
 	"golang.org/x/net/context"
 
@@ -122,7 +123,6 @@ func (s *DockerLogServer) OnConnect(c *util.Conn) bool {
 // OnMessage is called when the connection receives a packet,
 // If the return value of false is closed
 func (s *DockerLogServer) OnMessage(p util.Packet) bool {
-
 	if len(p.Serialize()) > 0 {
 		select {
 		case s.messageChan <- p.Serialize():
@@ -131,11 +131,9 @@ func (s *DockerLogServer) OnMessage(p util.Packet) bool {
 			//TODO: return false and receive exist
 			return true
 		}
-
 	} else {
 		logrus.Error("receive a null message")
 	}
-
 	return true
 }
 

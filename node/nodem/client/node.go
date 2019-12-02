@@ -521,11 +521,10 @@ func (n *HostNode) DelEndpoints() {
 		return
 	}
 	for _, key := range keys {
-		res, err := store.DefalutClient.Delete(key)
+		_, err := store.DefalutClient.Delete(key)
 		if err != nil {
 			logrus.Warnf("key: %s; error delete endpoints: %v", key, err)
 		}
-		fmt.Printf("key: %s; response of deleting endpoints: %+v\n", key, res)
 	}
 }
 
@@ -534,7 +533,6 @@ func (n *HostNode) listEndpointKeys() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("prefix: %s; error list rainbond endpoint keys by prefix: %v", RainbondEndpointPrefix, err)
 	}
-
 	var res []string
 	for _, kv := range resp.Kvs {
 		key := string(kv.Key)
@@ -542,6 +540,5 @@ func (n *HostNode) listEndpointKeys() ([]string, error) {
 			res = append(res, key)
 		}
 	}
-
 	return res, nil
 }

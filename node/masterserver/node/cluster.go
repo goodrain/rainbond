@@ -20,6 +20,8 @@ package node
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -118,11 +120,10 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			return
 		}
 	}
-	if time.Since(v.NodeStatus.NodeUpdateTime) > time.Minute*1 {
+	if time.Since(v.NodeStatus.NodeUpdateTime) > time.Minute*1 && getNodeHealth(v) {
 		v.Status = client.Unknown
 		v.NodeStatus.Status = client.Unknown
 		v.GetAndUpdateCondition(client.NodeUp, client.ConditionFalse, "", "Node lost connection, state unknown")
-		v.NodeStatus.AdviceAction = append(v.NodeStatus.AdviceAction, "offline")
 	} else {
 		v.GetAndUpdateCondition(client.NodeUp, client.ConditionTrue, "", "")
 		v.NodeStatus.CurrentScheduleStatus = !v.Unschedulable
@@ -284,4 +285,25 @@ func checkLabels(node *client.HostNode, labels map[string]string) bool {
 		}
 	}
 	return true
+}
+
+func getNodeHealth(node *client.HostNode) bool {
+	healthURL := fmt.Sprintf("http://%s:6100/v2/ping", node.InternalIP)
+	for i := 0; i < 3; i++ {
+		req, err := http.NewRequest("GET", healthURL, nil)
+		if err != nil {
+			logrus.Errorf("new node health check request failure %s", err.Error())
+			continue
+		}
+		client := http.DefaultClient
+		client.Timeout = time.Second * 2
+		res, err := client.Do(req)
+		if err != nil {
+			continue
+		}
+		if res != nil && res.StatusCode == 200 {
+			return true
+		}
+	}
+	return false
 }
