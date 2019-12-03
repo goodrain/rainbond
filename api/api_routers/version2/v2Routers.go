@@ -247,6 +247,11 @@ func (v2 *V2) serviceRouter() chi.Router {
 
 	r.Get("/pods/{pod_name}/detail", controller.GetManager().PodDetail)
 
+	// autoscaler
+	r.Post("/xparules", middleware.WrapEL(controller.GetManager().AutoscalerRules, dbmodel.TargetTypeService, "add-app-autoscaler-rule", dbmodel.SYNEVENTTYPE))
+	r.Put("/xparules", middleware.WrapEL(controller.GetManager().AutoscalerRules, dbmodel.TargetTypeService, "update-app-autoscaler-rule", dbmodel.SYNEVENTTYPE))
+	r.Get("/xparecords", controller.GetManager().ScalingRecords)
+
 	return r
 }
 

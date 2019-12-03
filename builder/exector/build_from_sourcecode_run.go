@@ -19,6 +19,7 @@
 package exector
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -196,7 +197,11 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 
 	res, err := i.codeBuild()
 	if err != nil {
-		i.Logger.Error("Build app version from source code failure,"+err.Error(), map[string]string{"step": "builder-exector", "status": "failure"})
+		if err.Error() == context.DeadlineExceeded.Error() {
+			i.Logger.Error("Build app version from source code timeout, the maximum time is 30 minutes", map[string]string{"step": "builder-exector", "status": "failure"})
+		} else {
+			i.Logger.Error("Build app version from source code failure,"+err.Error(), map[string]string{"step": "builder-exector", "status": "failure"})
+		}
 		return err
 	}
 	if err := i.UpdateBuildVersionInfo(res); err != nil {

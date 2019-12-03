@@ -95,6 +95,16 @@ func (t *PluginDaoImpl) GetPluginsByTenantID(tenantID string) ([]*model.TenantPl
 	return plugins, nil
 }
 
+// ListByTenantID -
+func (t *PluginDaoImpl) ListByTenantID(tenantID string) ([]*model.TenantPlugin, error) {
+	var plugins []*model.TenantPlugin
+	if err := t.DB.Where("tenant_id=?", tenantID).Find(&plugins).Error; err != nil {
+		return nil, err
+	}
+
+	return plugins, nil
+}
+
 //PluginDefaultENVDaoImpl PluginDefaultENVDaoImpl
 type PluginDefaultENVDaoImpl struct {
 	DB *gorm.DB

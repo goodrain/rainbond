@@ -114,21 +114,21 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 	} else {
 		buildOptions.NoCache = false
 	}
-	logger.Info("开始构建镜像", map[string]string{"step": "builder-exector"})
+	logger.Info("start build image", map[string]string{"step": "builder-exector"})
 	err := sources.ImageBuild(e.DockerClient, sourceDir, buildOptions, logger, 5)
 	if err != nil {
-		logger.Error(fmt.Sprintf("构造镜像%s失败: %s", buildImageName, err.Error()), map[string]string{"step": "builder-exector", "status": "failure"})
+		logger.Error(fmt.Sprintf("build image %s failure,find log in rbd-chaos", buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("[plugin]build image error: %s", err.Error())
 		return err
 	}
-	logger.Info("镜像构建成功，开始推送镜像至仓库", map[string]string{"step": "builder-exector"})
+	logger.Info("build image success, start to push image to local image registry", map[string]string{"step": "builder-exector"})
 	err = sources.ImagePush(e.DockerClient, buildImageName, builder.REGISTRYUSER, builder.REGISTRYPASS, logger, 2)
 	if err != nil {
-		logger.Error("推送镜像失败", map[string]string{"step": "builder-exector"})
+		logger.Error("push image failure, find log in rbd-chaos", map[string]string{"step": "builder-exector"})
 		logrus.Errorf("push image error: %s", err.Error())
 		return err
 	}
-	logger.Info("推送镜像完成", map[string]string{"step": "build-exector"})
+	logger.Info("push image success", map[string]string{"step": "build-exector"})
 	version, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByDeployVersion(t.PluginID, t.VersionID, t.DeployVersion)
 	if err != nil {
 		logrus.Errorf("get version error, %v", err)
@@ -140,7 +140,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 		logrus.Errorf("update version error, %v", err)
 		return err
 	}
-	logger.Info("从dockerfile构建插件完成", map[string]string{"step": "last", "status": "success"})
+	logger.Info("build plugin version by dockerfile success", map[string]string{"step": "last", "status": "success"})
 	return nil
 }
 

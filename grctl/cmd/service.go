@@ -359,8 +359,8 @@ func showServiceDeployInfo(c *cli.Context) error {
 
 	table := uitable.New()
 	table.Wrap = true // wrap columns
-	tenantID := service.TenantId
-	serviceID := service.ServiceId
+	tenantID := service.TenantID
+	serviceID := service.ServiceID
 	table.AddRow("Namespace:", tenantID)
 	table.AddRow("ServiceID:", serviceID)
 	if deployInfo.Deployment != "" {

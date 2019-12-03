@@ -147,12 +147,6 @@ func (s *LogServer) InitLog() {
 		}
 	}
 	log.Formatter = &logrus.TextFormatter{}
-	// hook, err := logrus_mail.NewMailHook("EventLog", "HOST", 25, "FROM", "TO")
-	// if err != nil {
-	// 	log.Error("Create mail hook for log error.", err.Error())
-	// } else {
-	// 	log.Hooks.Add(hook)
-	// }
 	s.Logger = log
 }
 

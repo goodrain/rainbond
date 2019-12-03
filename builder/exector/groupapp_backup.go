@@ -35,6 +35,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
+	"github.com/goodrain/rainbond/builder/cloudos"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/pquerna/ffjson/ffjson"
@@ -53,32 +54,26 @@ var maxBackupVersionSize = 3
 
 //BackupAPPNew backup group app new version
 type BackupAPPNew struct {
-	GroupID    string   `json:"group_id" `
-	ServiceIDs []string `json:"service_ids" `
-	//full-online,full-offline
-	Mode     string `json:"mode"`
-	Version  string `json:"version"`
-	EventID  string
-	SlugInfo struct {
-		Namespace   string `json:"namespace"`
-		FTPHost     string `json:"ftp_host"`
-		FTPPort     string `json:"ftp_port"`
-		FTPUser     string `json:"ftp_username"`
-		FTPPassword string `json:"ftp_password"`
-	} `json:"slug_info"`
-	ImageInfo struct {
-		HubURL      string `json:"hub_url"`
-		HubUser     string `json:"hub_user"`
-		HubPassword string `json:"hub_password"`
-		Namespace   string `json:"namespace"`
-		IsTrust     bool   `json:"is_trust,omitempty"`
-	} `json:"image_info,omitempty"`
+	GroupID      string   `json:"group_id" `
+	ServiceIDs   []string `json:"service_ids" `
+	Version      string   `json:"version"`
+	EventID      string
 	SourceDir    string `json:"source_dir"`
 	SourceType   string `json:"source_type"`
 	BackupID     string `json:"backup_id"`
 	BackupSize   int64
 	Logger       event.Logger
 	DockerClient *client.Client
+
+	//full-online,full-offline
+	Mode     string `json:"mode"`
+	S3Config struct {
+		Provider   string `json:"provider"`
+		Endpoint   string `json:"endpoint"`
+		AccessKey  string `json:"access_key"`
+		SecretKey  string `json:"secret_key"`
+		BucketName string `json:"bucket_name"`
+	} `json:"s3_config"`
 }
 
 func init() {
@@ -175,30 +170,50 @@ func (b *BackupAPPNew) Run(timeout time.Duration) error {
 		return err
 	}
 	b.BackupSize += util.GetFileSize(fmt.Sprintf("%s.zip", b.SourceDir))
-	os.RemoveAll(b.SourceDir)
-	b.SourceDir = fmt.Sprintf("%s.zip", b.SourceDir)
-	//upload app backup data to online server(sftp) if mode is full-online
-	if b.Mode == "full-online" && b.SlugInfo.FTPHost != "" && b.SlugInfo.FTPPort != "" {
-		b.Logger.Info(fmt.Sprintf("Start uploading backup metadata to the cloud"), map[string]string{"step": "backup_builder", "status": "starting"})
-		sFTPClient, err := sources.NewSFTPClient(b.SlugInfo.FTPUser, b.SlugInfo.FTPPassword, b.SlugInfo.FTPHost, b.SlugInfo.FTPPort)
-		if err != nil {
-			b.Logger.Error(util.Translation("create ftp client error"), map[string]string{"step": "backup_builder", "status": "failure"})
-			return err
-		}
-		defer sFTPClient.Close()
-		dstDir := fmt.Sprintf("%s/backup/%s_%s/metadata_data.zip", b.SlugInfo.Namespace, b.GroupID, b.Version)
-		if err := sFTPClient.PushFile(b.SourceDir, dstDir, b.Logger); err != nil {
-			b.Logger.Error(util.Translation("push slug file to sftp server error"), map[string]string{"step": "backup_builder", "status": "failure"})
-			logrus.Errorf("push  slug file error when backup app , %s", err.Error())
-			return err
-		}
-		//Statistical backup size
-		os.Remove(b.SourceDir)
-		b.SourceDir = dstDir
-		b.SourceType = "sftp"
+	if err := os.RemoveAll(b.SourceDir); err != nil {
+		logrus.Warningf("error removing temporary direcotry: %v", err)
 	}
+	b.SourceDir = fmt.Sprintf("%s.zip", b.SourceDir)
+
+	if err := b.uploadPkg(); err != nil {
+		return fmt.Errorf("error upload backup package: %v", err)
+	}
+
 	if err := b.updateBackupStatu("success"); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (b *BackupAPPNew) uploadPkg() error {
+	if b.Mode != "full-online" {
+		return nil
+	}
+
+	defer func() {
+		if err := os.Remove(b.SourceDir); err != nil {
+			logrus.Warningf("error removing temporary file: %v", err)
+		}
+	}()
+
+	s3Provider, err := cloudos.Str2S3Provider(b.S3Config.Provider)
+	if err != nil {
+		return err
+	}
+	cfg := &cloudos.Config{
+		ProviderType: s3Provider,
+		Endpoint:     b.S3Config.Endpoint,
+		AccessKey:    b.S3Config.AccessKey,
+		SecretKey:    b.S3Config.SecretKey,
+		BucketName:   b.S3Config.BucketName,
+	}
+	cloudoser, err := cloudos.New(cfg)
+	if err != nil {
+		return fmt.Errorf("error creating cloudoser: %v", err)
+	}
+	_, filename := filepath.Split(b.SourceDir)
+	if err := cloudoser.PutObject(filename, b.SourceDir); err != nil {
+		return fmt.Errorf("object key: %s; filepath: %s; error putting object: %v", filename, b.SourceDir, err)
 	}
 	return nil
 }
@@ -232,7 +247,7 @@ func (b *BackupAPPNew) backupServiceInfo(serviceInfos []*RegionServiceSnapshot) 
 					version.FinalStatus = "lost"
 					continue
 				}
-				if err := b.uploadSlug(app, version); err != nil {
+				if err := b.saveSlugPkg(app, version); err != nil {
 					logrus.Errorf("upload app %s version %s slug file error.%s", app.Service.ServiceName, version.BuildVersion, err.Error())
 				} else {
 					backupVersionSize++
@@ -243,7 +258,7 @@ func (b *BackupAPPNew) backupServiceInfo(serviceInfos []*RegionServiceSnapshot) 
 					version.FinalStatus = "lost"
 					continue
 				}
-				if err := b.uploadImage(app, version); err != nil {
+				if err := b.saveImagePkg(app, version); err != nil {
 					logrus.Errorf("upload app %s version %s image error.%s", app.Service.ServiceName, version.BuildVersion, err.Error())
 				} else {
 					backupVersionSize++
@@ -254,6 +269,7 @@ func (b *BackupAPPNew) backupServiceInfo(serviceInfos []*RegionServiceSnapshot) 
 			b.Logger.Error(fmt.Sprintf("Application(%s) Backup build version failure.", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
 			return fmt.Errorf("Application(%s) Backup build version failure", app.Service.ServiceAlias)
 		}
+
 		logrus.Infof("backup app %s %d version", app.Service.ServiceName, backupVersionSize)
 		b.Logger.Info(fmt.Sprintf("Complete backup application (%s) runtime %d version", app.Service.ServiceAlias, backupVersionSize), map[string]string{"step": "backup_builder", "status": "success"})
 		b.Logger.Info(fmt.Sprintf("Start backup application(%s) persistent data", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
@@ -332,72 +348,31 @@ func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, er
 	}
 	return false, fmt.Errorf("delivered type is invalid")
 }
-func (b *BackupAPPNew) uploadSlug(app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
-	if b.Mode == "full-online" && b.SlugInfo.FTPHost != "" && b.SlugInfo.FTPPort != "" {
-		sFTPClient, err := sources.NewSFTPClient(b.SlugInfo.FTPUser, b.SlugInfo.FTPPassword, b.SlugInfo.FTPHost, b.SlugInfo.FTPPort)
-		if err != nil {
-			b.Logger.Error(util.Translation("create ftp client error"), map[string]string{"step": "backup_builder", "status": "failure"})
-			return err
-		}
-		defer sFTPClient.Close()
-		dstDir := fmt.Sprintf("%s/backup/%s_%s/app_%s/%s.tgz", b.SlugInfo.Namespace, b.GroupID, b.Version, app.ServiceID, version.BuildVersion)
-		if err := sFTPClient.PushFile(version.DeliveredPath, dstDir, b.Logger); err != nil {
-			b.Logger.Error(util.Translation("push slug file to sftp server error"), map[string]string{"step": "backup_builder", "status": "failure"})
-			logrus.Errorf("push  slug file error when backup app , %s", err.Error())
-			return err
-		}
-		//Statistical backup size
-		b.BackupSize += util.GetFileSize(version.DeliveredPath)
-	} else {
-		dstDir := fmt.Sprintf("%s/app_%s/slug_%s.tgz", b.SourceDir, app.ServiceID, version.BuildVersion)
-		util.CheckAndCreateDir(filepath.Dir(dstDir))
-		if err := sources.CopyFileWithProgress(version.DeliveredPath, dstDir, b.Logger); err != nil {
-			b.Logger.Error(util.Translation("push slug file to local dir error"), map[string]string{"step": "backup_builder", "status": "failure"})
-			logrus.Errorf("copy slug file error when backup app, %s", err.Error())
-			return err
-		}
+
+// saveSlugPkg saves slug package on disk.
+func (b *BackupAPPNew) saveSlugPkg(app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
+	dstDir := fmt.Sprintf("%s/app_%s/slug_%s.tgz", b.SourceDir, app.ServiceID, version.BuildVersion)
+	util.CheckAndCreateDir(filepath.Dir(dstDir))
+	if err := sources.CopyFileWithProgress(version.DeliveredPath, dstDir, b.Logger); err != nil {
+		b.Logger.Error(util.Translation("push slug file to local dir error"), map[string]string{"step": "backup_builder", "status": "failure"})
+		logrus.Errorf("copy slug file error when backup app, %s", err.Error())
+		return err
 	}
 	return nil
 }
 
-func (b *BackupAPPNew) uploadImage(app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
-	if b.Mode == "full-online" && b.ImageInfo.HubURL != "" {
-		backupImage, err := version.CreateShareImage(b.ImageInfo.HubURL, b.ImageInfo.Namespace, fmt.Sprintf("%s_backup", b.Version))
-		if err != nil {
-			return fmt.Errorf("create backup image error %s", err)
-		}
-
-		info, err := sources.ImagePull(b.DockerClient, version.DeliveredPath, "", "", b.Logger, 10)
-		if err != nil {
-			return fmt.Errorf("pull image when backup error %s", err)
-		}
-		if err := sources.ImageTag(b.DockerClient, version.DeliveredPath, backupImage, b.Logger, 1); err != nil {
-			return fmt.Errorf("change  image tag when backup error %s", err)
-		}
-		if b.ImageInfo.IsTrust {
-			if err := sources.TrustedImagePush(b.DockerClient, backupImage, b.ImageInfo.HubUser, b.ImageInfo.HubPassword, b.Logger, 10); err != nil {
-				b.Logger.Error(util.Translation("save image to hub error"), map[string]string{"step": "backup_builder", "status": "failure"})
-				return fmt.Errorf("backup image push error %s", err)
-			}
-		} else {
-			if err := sources.ImagePush(b.DockerClient, backupImage, b.ImageInfo.HubUser, b.ImageInfo.HubPassword, b.Logger, 10); err != nil {
-				b.Logger.Error(util.Translation("save image to hub error"), map[string]string{"step": "backup_builder", "status": "failure"})
-				return fmt.Errorf("backup image push error %s", err)
-			}
-		}
-		b.BackupSize += info.Size
-	} else {
-		dstDir := fmt.Sprintf("%s/app_%s/image_%s.tar", b.SourceDir, app.ServiceID, version.BuildVersion)
-		util.CheckAndCreateDir(filepath.Dir(dstDir))
-		if _, err := sources.ImagePull(b.DockerClient, version.DeliveredPath, "", "", b.Logger, 20); err != nil {
-			b.Logger.Error(util.Translation("error pulling image"), map[string]string{"step": "backup_builder", "status": "failure"})
-			logrus.Errorf(fmt.Sprintf("image: %s; error pulling image: %v", version.DeliveredPath, err), version.DeliveredPath, err.Error())
-		}
-		if err := sources.ImageSave(b.DockerClient, version.DeliveredPath, dstDir, b.Logger); err != nil {
-			b.Logger.Error(util.Translation("save image to local dir error"), map[string]string{"step": "backup_builder", "status": "failure"})
-			logrus.Errorf("save image(%s) to local dir error when backup app, %s", version.DeliveredPath, err.Error())
-			return err
-		}
+// saveSlugPkg saves image package on disk.
+func (b *BackupAPPNew) saveImagePkg(app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
+	dstDir := fmt.Sprintf("%s/app_%s/image_%s.tar", b.SourceDir, app.ServiceID, version.BuildVersion)
+	util.CheckAndCreateDir(filepath.Dir(dstDir))
+	if _, err := sources.ImagePull(b.DockerClient, version.DeliveredPath, "", "", b.Logger, 20); err != nil {
+		b.Logger.Error(util.Translation("error pulling image"), map[string]string{"step": "backup_builder", "status": "failure"})
+		logrus.Errorf(fmt.Sprintf("image: %s; error pulling image: %v", version.DeliveredPath, err), version.DeliveredPath, err.Error())
+	}
+	if err := sources.ImageSave(b.DockerClient, version.DeliveredPath, dstDir, b.Logger); err != nil {
+		b.Logger.Error(util.Translation("save image to local dir error"), map[string]string{"step": "backup_builder", "status": "failure"})
+		logrus.Errorf("save image(%s) to local dir error when backup app, %s", version.DeliveredPath, err.Error())
+		return err
 	}
 	return nil
 }

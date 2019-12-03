@@ -24,16 +24,18 @@ import (
 
 //Informer kube-api client cache
 type Informer struct {
-	Ingress     cache.SharedIndexInformer
-	Service     cache.SharedIndexInformer
-	Secret      cache.SharedIndexInformer
-	StatefulSet cache.SharedIndexInformer
-	Deployment  cache.SharedIndexInformer
-	Pod         cache.SharedIndexInformer
-	ConfigMap   cache.SharedIndexInformer
-	ReplicaSet  cache.SharedIndexInformer
-	Endpoints   cache.SharedIndexInformer
-	Nodes       cache.SharedIndexInformer
+	Ingress                 cache.SharedIndexInformer
+	Service                 cache.SharedIndexInformer
+	Secret                  cache.SharedIndexInformer
+	StatefulSet             cache.SharedIndexInformer
+	Deployment              cache.SharedIndexInformer
+	Pod                     cache.SharedIndexInformer
+	ConfigMap               cache.SharedIndexInformer
+	ReplicaSet              cache.SharedIndexInformer
+	Endpoints               cache.SharedIndexInformer
+	Nodes                   cache.SharedIndexInformer
+	Events                  cache.SharedIndexInformer
+	HorizontalPodAutoscaler cache.SharedIndexInformer
 }
 
 //Start statrt
@@ -48,13 +50,15 @@ func (i *Informer) Start(stop chan struct{}) {
 	go i.ReplicaSet.Run(stop)
 	go i.Endpoints.Run(stop)
 	go i.Nodes.Run(stop)
+	go i.Events.Run(stop)
+	go i.HorizontalPodAutoscaler.Run(stop)
 }
 
 //Ready if all kube informers is syncd, store is ready
 func (i *Informer) Ready() bool {
 	if i.Ingress.HasSynced() && i.Service.HasSynced() && i.Secret.HasSynced() &&
 		i.StatefulSet.HasSynced() && i.Deployment.HasSynced() && i.Pod.HasSynced() &&
-		i.ConfigMap.HasSynced() && i.Nodes.HasSynced() {
+		i.ConfigMap.HasSynced() && i.Nodes.HasSynced() && i.Events.HasSynced() && i.HorizontalPodAutoscaler.HasSynced() {
 		return true
 	}
 	return false

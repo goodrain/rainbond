@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/cmd/node/option"
 )
@@ -60,4 +62,21 @@ func TestGetConatainerLogger(t *testing.T) {
 		}
 		fmt.Println(string(line))
 	}
+}
+
+func TestHostConfig(t *testing.T) {
+	cj := new(types.ContainerJSON)
+	if cj.ContainerJSONBase == nil || cj.HostConfig == nil || cj.HostConfig.LogConfig.Type == "" {
+		fmt.Println("jsonBase is nil")
+		cj.ContainerJSONBase = new(types.ContainerJSONBase)
+	}
+	if cj.ContainerJSONBase == nil || cj.HostConfig == nil || cj.HostConfig.LogConfig.Type == "" {
+		fmt.Println("hostConfig is nil")
+		cj.HostConfig = &container.HostConfig{}
+	}
+	if cj.ContainerJSONBase == nil || cj.HostConfig == nil || cj.HostConfig.LogConfig.Type == "" {
+		fmt.Println("logconfig is nil won't panic")
+		return
+	}
+
 }

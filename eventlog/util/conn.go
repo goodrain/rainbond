@@ -184,7 +184,6 @@ func (c *Conn) readLoop() {
 			return
 		default:
 		}
-		//c.conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 		p, err := c.pro.ReadPacket()
 		if err == io.EOF {
 			return
@@ -195,21 +194,18 @@ func (c *Conn) readLoop() {
 		if err == errClosed {
 			return
 		}
+		if err == io.ErrNoProgress {
+			return
+		}
 		if err != nil {
 			if strings.HasSuffix(err.Error(), "use of closed network connection") {
+				logrus.Error("use of closed network connection")
 				return
 			}
 			logrus.Error("read package error:", err.Error())
 			return
 		}
-		//如果收到0字节等待100ms
-		//经测试，以下情况返回空：
-		// 1. 一定时间未收到数据。
-		// 2. 网络缓冲区已满。次有待研究原因。
-		// 网上有说go返回0说明对方已关闭连接，需要关闭连接
 		if p.IsNull() {
-			// time.Sleep(time.Millisecond * 100)
-			// continue
 			return
 		}
 		if p.IsPing() {
@@ -219,7 +215,7 @@ func (c *Conn) readLoop() {
 			continue
 		}
 		if ok := c.srv.callback.OnMessage(p); !ok {
-			return
+			continue
 		}
 		if ok := c.timer.Reset(timeOut); !ok {
 			c.timer = time.NewTimer(timeOut)

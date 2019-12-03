@@ -282,6 +282,7 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 		TenantID:  tenantID,
 		ServiceID: serviceID,
 		EventID:   sEvent.EventID,
+		Username:  sEvent.UserName,
 		Replicas:  replicas,
 	}
 

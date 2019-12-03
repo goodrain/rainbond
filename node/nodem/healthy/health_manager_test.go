@@ -12,7 +12,7 @@ import (
 func TestProbeManager_Start(t *testing.T) {
 	m := CreateManager()
 
-	serviceList := make([]*service.Service, 0, 10)
+	var serviceList []*service.Service
 
 	h := &service.Service{
 		Name: "builder",
@@ -44,7 +44,7 @@ func TestProbeManager_Start(t *testing.T) {
 	serviceList = append(serviceList, h)
 	serviceList = append(serviceList, h2)
 	serviceList = append(serviceList, h3)
-	m.AddServices(&serviceList)
+	m.AddServices(serviceList)
 	watcher1 := m.WatchServiceHealthy("webcli")
 	watcher2 := m.WatchServiceHealthy("worker")
 	watcher3 := m.WatchServiceHealthy("builder")
