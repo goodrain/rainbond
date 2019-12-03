@@ -124,6 +124,8 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		v.Status = client.Unknown
 		v.NodeStatus.Status = client.Unknown
 		v.GetAndUpdateCondition(client.NodeUp, client.ConditionFalse, "", "Node lost connection, state unknown")
+		//node lost connection, advice offline action
+		v.NodeStatus.AdviceAction = append(v.NodeStatus.AdviceAction, "offline")
 	} else {
 		v.GetAndUpdateCondition(client.NodeUp, client.ConditionTrue, "", "")
 		v.NodeStatus.CurrentScheduleStatus = !v.Unschedulable
