@@ -173,6 +173,12 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 			Message: commit.Message,
 		}
 	}
+	defer func() {
+		if err := os.RemoveAll(rbi.GetCodeHome()); err != nil {
+			logrus.Warningf("remove source code: %v", err)
+		}
+	}()
+
 	hash := i.commit.Hash
 	if len(hash) >= 8 {
 		hash = i.commit.Hash[0:7]

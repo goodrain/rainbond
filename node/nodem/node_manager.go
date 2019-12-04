@@ -33,12 +33,15 @@ import (
 	"github.com/goodrain/rainbond/node/api"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/controller"
+	"github.com/goodrain/rainbond/node/nodem/gc"
 	"github.com/goodrain/rainbond/node/nodem/healthy"
 	"github.com/goodrain/rainbond/node/nodem/info"
 	"github.com/goodrain/rainbond/node/nodem/monitor"
 	"github.com/goodrain/rainbond/node/nodem/service"
 	"github.com/goodrain/rainbond/util"
 )
+
+var sandboxImage = "k8s.gcr.io/pause-amd64:latest"
 
 //NodeManager node manager
 type NodeManager struct {
@@ -52,6 +55,8 @@ type NodeManager struct {
 	cfg         *option.Conf
 	apim        *api.Manager
 	clm         *logger.ContainerLogManage
+
+	imageGCManager gc.ImageGCManager
 }
 
 //NewNodeManager new a node manager
@@ -68,17 +73,30 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Get host id error:%s", err.Error())
 	}
+
+	imageGCPolicy := gc.ImageGCPolicy{
+		MinAge:               conf.ImageMinimumGCAge,
+		ImageGCPeriod:        conf.ImageGCPeriod,
+		HighThresholdPercent: int(conf.ImageGCHighThresholdPercent),
+		LowThresholdPercent:  int(conf.ImageGCLowThresholdPercent),
+	}
+	imageGCManager, err := gc.NewImageGCManager(conf.DockerCli, imageGCPolicy, sandboxImage)
+	if err != nil {
+		return nil, fmt.Errorf("create new imageGCManager: %v", err)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	nodem := &NodeManager{
-		cfg:         conf,
-		ctx:         ctx,
-		cancel:      cancel,
-		cluster:     cluster,
-		monitor:     monitor,
-		healthy:     healthyManager,
-		controller:  controller,
-		clm:         clm,
-		currentNode: &client.HostNode{ID: uid},
+		cfg:            conf,
+		ctx:            ctx,
+		cancel:         cancel,
+		cluster:        cluster,
+		monitor:        monitor,
+		healthy:        healthyManager,
+		controller:     controller,
+		clm:            clm,
+		currentNode:    &client.HostNode{ID: uid},
+		imageGCManager: imageGCManager,
 	}
 	return nodem, nil
 }
@@ -128,6 +146,14 @@ func (n *NodeManager) Start(errchan chan error) error {
 	} else {
 		logrus.Infof("this node(%s) is not compute node or disable collect container log ,do not start container log manage", n.currentNode.Role)
 	}
+
+	if n.cfg.EnableImageGC {
+		if n.currentNode.Role.HasRule(client.ManageNode) && !n.currentNode.Role.HasRule(client.ComputeNode) {
+			n.imageGCManager.SetServiceImages(n.controller.ListServiceImages())
+			go n.imageGCManager.Start()
+		}
+	}
+
 	go n.monitor.Start(errchan)
 	go n.heartbeat()
 	return nil

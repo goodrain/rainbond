@@ -308,6 +308,7 @@ type ServiceProbeDao interface {
 type CodeCheckResultDao interface {
 	Dao
 	GetCodeCheckResult(serviceID string) (*model.CodeCheckResult, error)
+	DeleteByServiceID(serviceID string) error
 }
 
 //EventDao EventDao
@@ -317,6 +318,7 @@ type EventDao interface {
 	GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEvent, error)
 	GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error)
 	DelEventByServiceID(serviceID string) error
+	ListByTargetID(targetID string) ([]*model.ServiceEvent, error)
 	GetEventsByTarget(target, targetID string, offset, liimt int) ([]*model.ServiceEvent, int, error)
 	GetEventsByTenantID(tenantID string, offset, limit int) ([]*model.ServiceEvent, int, error)
 	GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error)
@@ -327,6 +329,7 @@ type EventDao interface {
 //VersionInfoDao VersionInfoDao
 type VersionInfoDao interface {
 	Dao
+	ListSuccessfulOnes() ([]*model.VersionInfo, error)
 	GetVersionByEventID(eventID string) (*model.VersionInfo, error)
 	GetVersionByDeployVersion(version, serviceID string) (*model.VersionInfo, error)
 	GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error)

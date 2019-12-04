@@ -99,3 +99,8 @@ func (c *CodeCheckResultDaoImpl) GetCodeCheckResult(serviceID string) (*model.Co
 	}
 	return &result, nil
 }
+
+// DeleteByServiceID deletes a CodeCheckResult base on serviceID.
+func (c *CodeCheckResultDaoImpl) DeleteByServiceID(serviceID string) error {
+	return c.DB.Where("service_id=?", serviceID).Delete(&model.CodeCheckResult{}).Error
+}

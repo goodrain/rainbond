@@ -28,7 +28,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
+	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/healthy"
 	"github.com/goodrain/rainbond/node/nodem/service"
@@ -497,6 +499,26 @@ func (m *ManagerService) InjectConfig(content string) string {
 		logrus.Debugf("inject args into service %s => %v", group[1], line)
 	}
 	return content
+}
+
+// ListServiceImages -
+func (m *ManagerService) ListServiceImages() []string {
+	var images []string
+	for _, svc := range m.services {
+		if svc.Start == "" || svc.OnlyHealthCheck {
+			continue
+		}
+
+		par := parser.CreateDockerRunOrImageParse("", "", svc.Start, nil, event.GetTestLogger())
+		par.ParseDockerun(strings.Split(svc.Start, " "))
+		logrus.Debugf("detect image: %s", par.GetImage().String())
+		if par.GetImage().String() == "" {
+			continue
+		}
+		images = append(images, par.GetImage().String())
+	}
+
+	return images
 }
 
 //NewManagerService new controller manager

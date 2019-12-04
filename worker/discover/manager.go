@@ -32,6 +32,7 @@ import (
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/discover/model"
+	"github.com/goodrain/rainbond/worker/gc"
 	"github.com/goodrain/rainbond/worker/handle"
 	grpc1 "google.golang.org/grpc"
 )
@@ -57,9 +58,11 @@ type TaskManager struct {
 func NewTaskManager(cfg option.Config,
 	store store.Storer,
 	controllermanager *controller.Manager,
+	garbageCollector *gc.GarbageCollector,
 	startCh *channels.RingChannel) *TaskManager {
+
 	ctx, cancel := context.WithCancel(context.Background())
-	handleManager := handle.NewManager(ctx, cfg, store, controllermanager, startCh)
+	handleManager := handle.NewManager(ctx, cfg, store, controllermanager, garbageCollector, startCh)
 	healthStatus["status"] = "health"
 	healthStatus["info"] = "worker service health"
 	return &TaskManager{
@@ -122,7 +125,7 @@ func (t *TaskManager) Do() {
 			}
 			rc := t.handleManager.AnalystToExec(transData)
 			if rc != nil && rc != handle.ErrCallback {
-				logrus.Errorf("analyst to exet: %v", rc)
+				logrus.Warningf("execute task: %v", rc)
 				TaskError++
 			} else if rc != nil && rc == handle.ErrCallback {
 				logrus.Errorf("err callback; analyst to exet: %v", rc)
