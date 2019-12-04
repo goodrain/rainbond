@@ -504,7 +504,7 @@ func (m *ManagerService) InjectConfig(content string) string {
 // ListServiceImages -
 func (m *ManagerService) ListServiceImages() []string {
 	var images []string
-	for _, svc := range *m.services {
+	for _, svc := range m.services {
 		if svc.Start == "" || svc.OnlyHealthCheck {
 			continue
 		}
