@@ -92,6 +92,7 @@ type TenantInterfaceWithV1 interface {
 
 //LogInterface log interface
 type LogInterface interface {
+	HistoryLogs(w http.ResponseWriter, r *http.Request)
 	LogList(w http.ResponseWriter, r *http.Request)
 	LogFile(w http.ResponseWriter, r *http.Request)
 	LogSocket(w http.ResponseWriter, r *http.Request)
