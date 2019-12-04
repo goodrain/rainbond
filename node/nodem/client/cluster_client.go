@@ -136,15 +136,23 @@ func (e *etcdClusterClient) GetEndpoints(key string) (result []string) {
 		}
 		//Return data check
 		for _, v := range res {
-			endpointURL, err := url.Parse(v)
-			if err != nil || endpointURL.Host == "" || endpointURL.Path != "" {
-				continue
+			if checkURL(v) {
+				result = append(result, v)
 			}
-			result = append(result, v)
 		}
 	}
 	logrus.Infof("Get endpoints %s => %v", key, result)
 	return
+}
+func checkURL(source string) bool {
+	endpointURL, err := url.Parse(source)
+	if err != nil && strings.Contains(err.Error(), "first path segment in URL cannot contain colon") {
+		endpointURL, err = url.Parse(fmt.Sprintf("tcp://%s", source))
+	}
+	if err != nil || endpointURL.Host == "" || endpointURL.Path != "" {
+		return false
+	}
+	return true
 }
 
 //SetEndpoints service name and hostip must set
@@ -156,8 +164,7 @@ func (e *etcdClusterClient) SetEndpoints(serviceName, hostIP string, value []str
 		return
 	}
 	for _, v := range value {
-		endpointURL, err := url.Parse(v)
-		if err != nil || endpointURL.Host == "" || endpointURL.Path != "" {
+		if !checkURL(v) {
 			logrus.Warningf("%s service host %s endpoint value %s invalid", serviceName, hostIP, v)
 			continue
 		}

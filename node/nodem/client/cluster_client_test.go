@@ -119,6 +119,8 @@ func TestSetEndpoints(t *testing.T) {
 	c.SetEndpoints("etcd", "DSASD", []string{"http://:8080"})
 	c.SetEndpoints("etcd", "192.168.1.1", []string{"http://:8080"})
 	c.SetEndpoints("etcd", "192.168.1.1", []string{"http://192.168.1.1:8080"})
+	c.SetEndpoints("node", "192.168.2.137", []string{"192.168.2.137:10252"})
+	t.Logf("check: %v", checkURL("192.168.2.137:10252"))
 }
 
 func TestGetEndpoints(t *testing.T) {
