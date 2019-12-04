@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	eventutil "github.com/goodrain/rainbond/eventlog/util"
 	"github.com/goodrain/rainbond/util"
 )
 
@@ -43,13 +44,12 @@ func (m *EventFilePlugin) SaveMessage(events []*EventLogMessage) error {
 	if len(events) == 0 {
 		return nil
 	}
-	key := events[0].EventID
-	dirpath := path.Join(m.HomePath, "eventlog")
-	if err := util.CheckAndCreateDir(dirpath); err != nil {
+	filePath := eventutil.EventLogFilePath(m.HomePath)
+	if err := util.CheckAndCreateDir(filePath); err != nil {
 		return err
 	}
-	apath := path.Join(m.HomePath, "eventlog", key+".log")
-	writeFile, err := os.OpenFile(apath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0755)
+	filename := eventutil.EventLogFileName(filePath, events[0].EventID)
+	writeFile, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0755)
 	if err != nil {
 		return err
 	}

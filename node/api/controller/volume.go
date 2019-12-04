@@ -65,3 +65,20 @@ func CreateLocalVolume(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, map[string]string{"path": volumeHostPath})
 }
+
+// DeleteLocalVolume delete local volume dir
+func DeleteLocalVolume(w http.ResponseWriter, r *http.Request) {
+	var requestopt = make(map[string]string)
+	if err := json.NewDecoder(r.Body).Decode(&requestopt); err != nil {
+		w.WriteHeader(400)
+		return
+	}
+	path := requestopt["path"]
+
+	if err := os.RemoveAll(path); err != nil {
+		logrus.Errorf("path: %s; remove pv path: %v", path, err)
+		w.WriteHeader(500)
+	}
+
+	httputil.ReturnSuccess(r, w, nil)
+}

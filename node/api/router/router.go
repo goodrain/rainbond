@@ -54,6 +54,7 @@ func Routers(mode string) *chi.Mux {
 		})
 		r.Route("/localvolumes", func(r chi.Router) {
 			r.Post("/create", controller.CreateLocalVolume)
+			r.Delete("/", controller.DeleteLocalVolume)
 		})
 		//以下只有管理节点具有的API
 		if mode == "master" {

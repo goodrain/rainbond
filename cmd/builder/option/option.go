@@ -44,6 +44,7 @@ type Config struct {
 	HostIP               string
 	CleanUp              bool
 	Topic                string
+	LogPath              string
 }
 
 //Builder  builder server
@@ -57,9 +58,6 @@ type Builder struct {
 func NewBuilder() *Builder {
 	return &Builder{}
 }
-
-//
-type NodeOSType string
 
 //AddFlags config
 func (a *Builder) AddFlags(fs *pflag.FlagSet) {
@@ -80,6 +78,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.HostIP, "hostIP", "", "Current node Intranet IP")
 	fs.BoolVar(&a.CleanUp, "clean-up", true, "Turn on build version cleanup")
 	fs.StringVar(&a.Topic, "topic", "builder", "Topic in mq,you coule choose `builder` or `windows_builder`")
+	fs.StringVar(&a.LogPath, "log-path", "/grdata/logs", "Where Docker log files and event log files are stored.")
 }
 
 //SetLog 设置log

@@ -36,4 +36,5 @@ type Manager interface {
 	StopService(serviceName string) error
 	SetAPIRoute(apim *api.Manager) error
 	GetService(serviceName string) *service.Service
+	ListServiceImages() []string
 }
