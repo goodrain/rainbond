@@ -340,7 +340,6 @@ func (n *NodeManager) getCurrentNode(uid string) (*client.HostNode, error) {
 	node := CreateNode(uid, n.cfg.HostIP)
 	n.setNodeLabels(&node)
 	node.NodeStatus.NodeInfo = info.GetSystemInfo()
-	node.GetAndUpdateCondition(client.NodeInit, client.ConditionTrue, "", "")
 	node.Mode = n.cfg.RunMode
 	node.NodeStatus.Status = "running"
 	return &node, nil

@@ -47,7 +47,7 @@ func handleErr(err *util.APIHandleError) {
 			fmt.Printf(err.String())
 			os.Exit(1)
 		} else {
-			fmt.Println("API return %d", err.Code)
+			fmt.Printf("API return %d", err.Code)
 		}
 	}
 }
@@ -310,7 +310,11 @@ func NewCmdNode() cli.Command {
 							handleErr(err)
 							CPURequests := strconv.FormatFloat(float64(nodeResource.CPURequests)/float64(1000), 'f', 2, 64)
 							CPULimits := strconv.FormatFloat(float64(nodeResource.CPULimits)/float64(1000), 'f', 2, 64)
-							serviceTable.AddRow(v.ID, v.HostName, nodeResource.CpuR, nodeResource.MemR, CPURequests, nodeResource.MemoryRequests, CPULimits, nodeResource.MemoryLimits, nodeResource.CPURequestsR, nodeResource.MemoryRequestsR)
+							serviceTable.AddRow(v.ID, v.HostName, nodeResource.CPU, nodeResource.MemR, CPURequests,
+								nodeResource.MemoryRequests, CPULimits,
+								nodeResource.MemoryLimits,
+								nodeResource.CPURequestsR,
+								nodeResource.MemoryRequestsR)
 						}
 					}
 					fmt.Println(serviceTable.Render())

@@ -282,7 +282,7 @@ func Resources(w http.ResponseWriter, r *http.Request) {
 			memR += convertMemoryToMBInt(rm, true)
 		}
 	}
-	result.CpuR = cpuR
+	result.CPU = cpuR
 	result.MemR = memR
 	logrus.Infof("get cpu %v and mem %v", cpuR, memR)
 	api.ReturnSuccess(r, w, result)
@@ -303,7 +303,7 @@ func CapRes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := new(model.Resource)
-	result.CpuR = int(capCPU)
+	result.CPU = int(capCPU)
 	result.MemR = int(capMem)
 	logrus.Infof("get cpu %v and mem %v", capCPU, capMem)
 	api.ReturnSuccess(r, w, result)
