@@ -62,7 +62,7 @@ func NewTaskManager(cfg option.Config,
 	startCh *channels.RingChannel) *TaskManager {
 
 	ctx, cancel := context.WithCancel(context.Background())
-	handleManager := handle.NewManager(ctx, c, store, controllermanager, garbageCollector, startCh)
+	handleManager := handle.NewManager(ctx, cfg, store, controllermanager, garbageCollector, startCh)
 	healthStatus["status"] = "health"
 	healthStatus["info"] = "worker service health"
 	return &TaskManager{
