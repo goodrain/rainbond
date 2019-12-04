@@ -76,13 +76,14 @@ func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2
 	v2r.TenantStruct.StatusCli = statusCli
 	v2r.TenantStruct.MQClient = mqClient
 	nodeProxy := proxy.CreateProxy("acp_node", "http", conf.NodeAPI)
-	discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_node", nodeProxy)
+	discover.GetEndpointDiscover().AddProject("acp_node", nodeProxy)
 	v2r.AcpNodeStruct.HTTPProxy = nodeProxy
 	logrus.Debugf("create node api proxy success")
-
 	v2r.GatewayStruct.MQClient = mqClient
 	v2r.GatewayStruct.cfg = &conf
-
 	v2r.LabelController.optconfig = &conf
+	eventServerProxy := proxy.CreateProxy("eventlog", "http", []string{"local=>127.0.0.1:6363"})
+	discover.GetEndpointDiscover().AddProject("event_log_event_http", eventServerProxy)
+	v2r.EventLogStruct.EventlogServerProxy = eventServerProxy
 	return &v2r, nil
 }

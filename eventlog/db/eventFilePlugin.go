@@ -86,7 +86,7 @@ func (a MessageDataList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a MessageDataList) Less(i, j int) bool { return a[i].Unixtime <= a[j].Unixtime }
 
 //GetMessages GetMessages
-func (m *EventFilePlugin) GetMessages(eventID, level string) (MessageDataList, error) {
+func (m *EventFilePlugin) GetMessages(eventID, level string, length int) (interface{}, error) {
 	apath := path.Join(m.HomePath, "eventlog", eventID+".log")
 	eventFile, err := os.Open(apath)
 	if err != nil {
@@ -117,6 +117,9 @@ func (m *EventFilePlugin) GetMessages(eventID, level string) (MessageDataList, e
 						Time:     tm.Format(time.RFC3339),
 					}
 					message = append(message, md)
+					if len(message) > length && length != 0 {
+						break
+					}
 				}
 			}
 		}

@@ -249,3 +249,22 @@ func (h *dockerLogStore) persistence(event []string) {
 		}
 	}
 }
+
+func (h *dockerLogStore) GetHistoryMessage(eventID string, length int) (re []string) {
+	h.rwLock.RLock()
+	defer h.rwLock.RUnlock()
+	if ba, ok := h.barrels[eventID]; ok {
+		for _, m := range ba.barrel {
+			re = append(re, string(m.Content))
+		}
+	}
+	if len(re) >= length {
+		return re[:length-1]
+	}
+	result, err := h.filePlugin.GetMessages(eventID, "", length-len(re))
+	if result == nil || err != nil {
+		return re
+	}
+	re = append(re, result.([]string)...)
+	return re
+}

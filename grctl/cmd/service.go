@@ -218,21 +218,20 @@ func getEventLog(c *cli.Context) error {
 		logdb := &eventdb.EventFilePlugin{
 			HomePath: "/grdata/downloads/log/",
 		}
-		list, err := logdb.GetMessages(eventID, "debug")
+		list, err := logdb.GetMessages(eventID, "debug", 0)
 		if err != nil {
 			return err
 		}
-		for _, l := range list {
-			fmt.Println(l.Time + ":" + l.Message)
+		if list != nil {
+			for _, l := range list.(eventdb.MessageDataList) {
+				fmt.Println(l.Time + ":" + l.Message)
+			}
 		}
 	}
 	return nil
 }
 
 func stopTenantService(c *cli.Context) error {
-	//GET /v2/tenants/{tenant_name}/services/{service_alias}
-	//POST /v2/tenants/{tenant_name}/services/{service_alias}/stop
-
 	tenantName := c.Args().First()
 	if tenantName == "" {
 		fmt.Println("Please provide tenant name")
