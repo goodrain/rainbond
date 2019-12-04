@@ -94,7 +94,7 @@ type HostNode struct {
 
 //Resource 资源
 type Resource struct {
-	CpuR int `json:"cpu"`
+	CPU  int `json:"cpu"`
 	MemR int `json:"mem"`
 }
 
@@ -437,15 +437,13 @@ const (
 	NodeUp        NodeConditionType = "NodeUp"
 	// InstallNotReady means  the installation task was not completed in this node.
 	InstallNotReady NodeConditionType = "InstallNotReady"
-	// NodeInit means node already install rainbond node and regist
-	NodeInit       NodeConditionType = "NodeInit"
-	OutOfDisk      NodeConditionType = "OutOfDisk"
-	MemoryPressure NodeConditionType = "MemoryPressure"
-	DiskPressure   NodeConditionType = "DiskPressure"
-	PIDPressure    NodeConditionType = "PIDPressure"
+	OutOfDisk       NodeConditionType = "OutOfDisk"
+	MemoryPressure  NodeConditionType = "MemoryPressure"
+	DiskPressure    NodeConditionType = "DiskPressure"
+	PIDPressure     NodeConditionType = "PIDPressure"
 )
 
-var masterCondition = []NodeConditionType{NodeReady, KubeNodeReady, NodeUp, InstallNotReady, NodeInit, OutOfDisk, MemoryPressure, DiskPressure, PIDPressure}
+var masterCondition = []NodeConditionType{NodeReady, KubeNodeReady, NodeUp, InstallNotReady, OutOfDisk, MemoryPressure, DiskPressure, PIDPressure}
 
 //IsMasterCondition Whether it is a preset condition of the system
 func IsMasterCondition(con NodeConditionType) bool {

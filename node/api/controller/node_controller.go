@@ -151,25 +151,6 @@ func GetRuleNodes(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, masternodes)
 }
 
-//InitStatus init status
-func InitStatus(w http.ResponseWriter, r *http.Request) {
-	nodeIP := strings.TrimSpace(chi.URLParam(r, "node_ip"))
-	if len(nodeIP) == 0 {
-		err := utils.APIHandleError{
-			Code: 404,
-			Err:  fmt.Errorf("can't find node by node_ip %s", nodeIP),
-		}
-		err.Handle(r, w)
-		return
-	}
-	status, err := nodeService.InitStatus(nodeIP)
-	if err != nil {
-		err.Handle(r, w)
-		return
-	}
-	httputil.ReturnSuccess(r, w, status)
-}
-
 //Resource -
 func Resource(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
