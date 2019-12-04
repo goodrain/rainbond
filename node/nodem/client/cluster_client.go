@@ -141,7 +141,7 @@ func (e *etcdClusterClient) GetEndpoints(key string) (result []string) {
 			}
 		}
 	}
-	logrus.Infof("Get endpoints %s => %v", key, result)
+	logrus.Debugf("Get endpoints %s => %v", key, result)
 	return
 }
 func checkURL(source string) bool {

@@ -92,7 +92,7 @@ func GetHTTPHealth(address string) map[string]string {
 		if isClientTimeout(err) {
 			return map[string]string{"status": service.Stat_death, "info": "Request service timeout"}
 		}
-		logrus.Errorf("http probe request error %s", err.Error())
+		logrus.Debugf("http probe request error %s", err.Error())
 		return map[string]string{"status": service.Stat_unhealthy, "info": err.Error()}
 	}
 	if resp.Body != nil {
