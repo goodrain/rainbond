@@ -36,7 +36,7 @@ func (v2 *V2) pluginRouter() chi.Router {
 	r.Delete("/", controller.GetManager().PluginAction)
 	r.Post("/build", controller.GetManager().PluginBuild)
 	//get this plugin all build version
-	r.Get("/build-version", controller.GetManager().GetAllPluginBuildVersons)
+	r.Get("/build-version", controller.GetManager().GetAllPluginBuildVersions)
 	r.Get("/build-version/{version_id}", controller.GetManager().GetPluginBuildVersion)
 	r.Delete("/build-version/{version_id}", controller.GetManager().DeletePluginBuildVersion)
 	return r

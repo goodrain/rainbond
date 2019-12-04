@@ -32,6 +32,7 @@ import (
 type Manager interface {
 	CloseManager() error
 	Begin() *gorm.DB
+	EnsureEndTransactionFunc() func(tx *gorm.DB)
 	LicenseDao() dao.LicenseDao
 	AppDao() dao.AppDao
 	TenantDao() dao.TenantDao
@@ -94,6 +95,7 @@ type Manager interface {
 
 	NotificationEventDao() dao.NotificationEventDao
 	AppBackupDao() dao.AppBackupDao
+	AppBackupDaoTransactions(db *gorm.DB) dao.AppBackupDao
 	ServiceSourceDao() dao.ServiceSourceDao
 
 	// gateway
@@ -113,6 +115,13 @@ type Manager interface {
 	EndpointsDaoTransactions(db *gorm.DB) dao.EndpointsDao
 	ThirdPartySvcDiscoveryCfgDao() dao.ThirdPartySvcDiscoveryCfgDao
 	ThirdPartySvcDiscoveryCfgDaoTransactions(db *gorm.DB) dao.ThirdPartySvcDiscoveryCfgDao
+
+	TenantServceAutoscalerRulesDao() dao.TenantServceAutoscalerRulesDao
+	TenantServceAutoscalerRulesDaoTransactions(db *gorm.DB) dao.TenantServceAutoscalerRulesDao
+	TenantServceAutoscalerRuleMetricsDao() dao.TenantServceAutoscalerRuleMetricsDao
+	TenantServceAutoscalerRuleMetricsDaoTransactions(db *gorm.DB) dao.TenantServceAutoscalerRuleMetricsDao
+	TenantServiceScalingRecordsDao() dao.TenantServiceScalingRecordsDao
+	TenantServiceScalingRecordsDaoTransactions(db *gorm.DB) dao.TenantServiceScalingRecordsDao
 }
 
 var defaultManager Manager

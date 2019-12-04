@@ -72,7 +72,12 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	maxConcurrentTask := runtime.NumCPU() * 2
+	var maxConcurrentTask int
+	if conf.MaxTasks == 0 {
+		maxConcurrentTask = runtime.NumCPU() * 2
+	} else {
+		maxConcurrentTask = conf.MaxTasks
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	logrus.Infof("The maximum number of concurrent build tasks supported by the current node is %d", maxConcurrentTask)
 	return &exectorManager{

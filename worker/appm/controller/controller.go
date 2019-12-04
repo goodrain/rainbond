@@ -59,6 +59,9 @@ var TypeApplyRuleController TypeController = "apply_rule"
 // TypeApplyConfigController -
 var TypeApplyConfigController TypeController = "apply_config"
 
+// TypeControllerRefreshHPA -
+var TypeControllerRefreshHPA TypeController = "refreshhpa"
+
 //Manager controller manager
 type Manager struct {
 	ctx         context.Context
@@ -145,6 +148,13 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 		controller = &applyConfigController{
 			controllerID: controllerID,
 			appService:   apps[0],
+			manager:      m,
+			stopChan:     make(chan struct{}),
+		}
+	case TypeControllerRefreshHPA:
+		controller = &refreshXPAController{
+			controllerID: controllerID,
+			appService:   apps,
 			manager:      m,
 			stopChan:     make(chan struct{}),
 		}

@@ -77,6 +77,16 @@ func (m *Manager) Begin() *gorm.DB {
 	return m.db.Begin()
 }
 
+// EnsureEndTransactionFunc -
+func (m *Manager) EnsureEndTransactionFunc() func(tx *gorm.DB) {
+	return func(tx *gorm.DB) {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}
+}
+
 //Print Print
 func (m *Manager) Print(v ...interface{}) {
 	logrus.Info(v...)
@@ -122,6 +132,10 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.Endpoint{})
 	m.models = append(m.models, &model.ThirdPartySvcDiscoveryCfg{})
 	m.models = append(m.models, &model.GwRuleConfig{})
+	// pod autoscaler
+	m.models = append(m.models, &model.TenantServiceAutoscalerRules{})
+	m.models = append(m.models, &model.TenantServiceAutoscalerRuleMetrics{})
+	m.models = append(m.models, &model.TenantServiceScalingRecords{})
 }
 
 //CheckTable check and create tables

@@ -52,6 +52,7 @@ type TenantDao interface {
 	GetTenantIDsByNames(names []string) ([]string, error)
 	GetTenantLimitsByNames(names []string) (map[string]int, error)
 	GetTenantByUUIDIsExist(uuid string) bool
+	DelByTenantID(tenantID string) error
 }
 
 //AppDao tenant dao
@@ -87,6 +88,7 @@ type TenantServiceDao interface {
 	GetAllServicesID() ([]*model.TenantServices, error)
 	UpdateDeployVersion(serviceID, deployversion string) error
 	ListThirdPartyServices() ([]*model.TenantServices, error)
+	ListServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
 }
 
 //TenantServiceDeleteDao TenantServiceDeleteDao
@@ -119,6 +121,7 @@ type TenantPluginDao interface {
 	DeletePluginByID(pluginID, tenantID string) error
 	GetPluginsByTenantID(tenantID string) ([]*model.TenantPlugin, error)
 	ListByIDs(ids []string) ([]*model.TenantPlugin, error)
+	ListByTenantID(tenantID string) ([]*model.TenantPlugin, error)
 }
 
 //TenantPluginDefaultENVDao TenantPluginDefaultENVDao
@@ -450,4 +453,28 @@ type GwRuleConfigDao interface {
 	Dao
 	DeleteByRuleID(rid string) error
 	ListByRuleID(rid string) ([]*model.GwRuleConfig, error)
+}
+
+// TenantServceAutoscalerRulesDao -
+type TenantServceAutoscalerRulesDao interface {
+	Dao
+	GetByRuleID(ruleID string) (*model.TenantServiceAutoscalerRules, error)
+	ListByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error)
+	ListEnableOnesByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error)
+}
+
+// TenantServceAutoscalerRuleMetricsDao -
+type TenantServceAutoscalerRuleMetricsDao interface {
+	Dao
+	UpdateOrCreate(metric *model.TenantServiceAutoscalerRuleMetrics) error
+	ListByRuleID(ruleID string) ([]*model.TenantServiceAutoscalerRuleMetrics, error)
+	DeleteByRuleID(ruldID string) error
+}
+
+// TenantServiceScalingRecordsDao -
+type TenantServiceScalingRecordsDao interface {
+	Dao
+	UpdateOrCreate(new *model.TenantServiceScalingRecords) error
+	ListByServiceID(serviceID string, offset, limit int) ([]*model.TenantServiceScalingRecords, error)
+	CountByServiceID(serviceID string) (int, error)
 }

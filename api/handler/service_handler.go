@@ -73,4 +73,8 @@ type ServiceHandler interface {
 	GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError)
 	GetServiceDeployInfo(tenantID, serviceID string) (*pb.DeployInfo, *util.APIHandleError)
 	ListVersionInfo(serviceID string) (*api_model.BuildListRespVO, error)
+
+	AddAutoscalerRule(req *api_model.AutoscalerRuleReq) error
+	UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) error
+	ListScalingRecords(serviceID string, page, pageSize int) ([]*dbmodel.TenantServiceScalingRecords, int, error)
 }

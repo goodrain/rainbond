@@ -28,7 +28,7 @@ import (
 type Manager interface {
 	Start(*client.HostNode) error
 	Stop() error
-	GetAllService() (*[]*service.Service, error)
+	GetAllService() ([]*service.Service, error)
 	Online() error
 	Offline() error
 	ReLoadServices() error

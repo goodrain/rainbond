@@ -21,16 +21,10 @@ package exector
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
-	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/cloudos"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/errors"
@@ -39,26 +33,18 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/tidwall/gjson"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+	"time"
 )
 
 //BackupAPPRestore restrore the  group app backup
 type BackupAPPRestore struct {
 	//full-online,full-offline
 	EventID  string
-	SlugInfo struct {
-		Namespace   string `json:"namespace"`
-		FTPHost     string `json:"ftp_host"`
-		FTPPort     string `json:"ftp_port"`
-		FTPUser     string `json:"ftp_username"`
-		FTPPassword string `json:"ftp_password"`
-	} `json:"slug_info"`
-	ImageInfo struct {
-		HubURL      string `json:"hub_url"`
-		HubUser     string `json:"hub_user"`
-		HubPassword string `json:"hub_password"`
-		Namespace   string `json:"namespace"`
-		IsTrust     bool   `json:"is_trust,omitempty"`
-	} `json:"image_info,omitempty"`
 	BackupID string `json:"backup_id"`
 	TenantID string `json:"tenant_id"`
 	Logger   event.Logger
@@ -72,6 +58,14 @@ type BackupAPPRestore struct {
 	//serviceChange  key: oldServiceID
 	serviceChange map[string]*Info
 	etcdcli       *clientv3.Client
+
+	S3Config struct {
+		Provider   string `json:"provider"`
+		Endpoint   string `json:"endpoint"`
+		AccessKey  string `json:"access_key"`
+		SecretKey  string `json:"secret_key"`
+		BucketName string `json:"bucket_name"`
+	} `json:"s3_config"`
 }
 
 //Info service cache info
@@ -110,24 +104,28 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	if err != nil {
 		return err
 	}
-	if backup.Status != "success" || backup.SourceDir == "" || backup.SourceType == "" {
+	if backup.Status != "success" || backup.SourceDir == "" || backup.BackupMode == "" {
 		return fmt.Errorf("backup can not be restore")
 	}
-	cacheDir := fmt.Sprintf("/grdata/cache/tmp/%s/%s", b.BackupID, b.EventID)
+
+	cacheDir := fmt.Sprintf("/grdata/cache/tmp/%s/%s", b.BackupID, util.NewUUID())
 	if err := util.CheckAndCreateDir(cacheDir); err != nil {
 		return fmt.Errorf("create cache dir error %s", err.Error())
 	}
 	b.cacheDir = cacheDir
-	switch backup.SourceType {
-	case "sftp":
-		b.downloadFromFTP(backup)
+	switch backup.BackupMode {
+	case "full-online":
+		if err := b.downloadFromS3(backup.SourceDir); err != nil {
+			return fmt.Errorf("error downloading file from s3: %v", err)
+		}
 	default:
 		b.downloadFromLocal(backup)
 	}
+
 	//read metadata file
-	metadata, err := ioutil.ReadFile(fmt.Sprintf("%s/region_apps_metadata.json", b.cacheDir))
+	metadata, err := ioutil.ReadFile(path.Join(b.cacheDir, "region_apps_metadata.json"))
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading file: %v", err)
 	}
 
 	metaVersion, err := judgeMetadataVersion(metadata)
@@ -152,6 +150,7 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	}
 
 	b.Logger.Info("读取备份元数据完成", map[string]string{"step": "restore_builder", "status": "running"})
+	logrus.Infof("backup id: %s; successfully read metadata.", b.BackupID)
 	//modify the metadata
 	if err := b.modify(&appSnapshot); err != nil {
 		return err
@@ -161,6 +160,7 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 		return err
 	}
 	b.Logger.Info("恢复备份元数据完成", map[string]string{"step": "restore_builder", "status": "success"})
+	logrus.Infof("backup id: %s; successfully restore metadata.", b.BackupID)
 	//If the following error occurs, delete the data from the database
 	//restore all app all build version and data
 	if err := b.restoreVersionAndData(backup, &appSnapshot); err != nil {
@@ -169,6 +169,7 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 
 	//save result
 	b.saveResult("success", "")
+	logrus.Infof("backup id: %s; successfully restore backup.", b.BackupID)
 	b.Logger.Info("恢复成功", map[string]string{"step": "restore_builder", "status": "success"})
 	return nil
 }
@@ -284,54 +285,21 @@ func (b *BackupAPPRestore) getOldServiceID(new string) string {
 	return ""
 }
 func (b *BackupAPPRestore) downloadSlug(backup *dbmodel.AppBackup, app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
-	if backup.BackupMode == "full-online" && b.SlugInfo.FTPHost != "" && b.SlugInfo.FTPPort != "" {
-		sFTPClient, err := sources.NewSFTPClient(b.SlugInfo.FTPUser, b.SlugInfo.FTPPassword, b.SlugInfo.FTPHost, b.SlugInfo.FTPPort)
-		if err != nil {
-			b.Logger.Error(util.Translation("create ftp client error"), map[string]string{"step": "restore_builder", "status": "failure"})
-			return err
-		}
-		defer sFTPClient.Close()
-		dstDir := fmt.Sprintf("%s/app_%s/%s.tgz", filepath.Dir(backup.SourceDir), b.getOldServiceID(app.ServiceID), version.BuildVersion)
-		if err := sFTPClient.DownloadFile(dstDir, version.DeliveredPath, b.Logger); err != nil {
-			b.Logger.Error(util.Translation("down slug file from sftp server error"), map[string]string{"step": "restore_builder", "status": "failure"})
-			logrus.Errorf("down %s slug file error when backup app , %s", dstDir, err.Error())
-			return err
-		}
-	} else {
-		dstDir := fmt.Sprintf("%s/app_%s/slug_%s.tgz", b.cacheDir, b.getOldServiceID(app.ServiceID), version.BuildVersion)
-		if err := sources.CopyFileWithProgress(dstDir, version.DeliveredPath, b.Logger); err != nil {
-			b.Logger.Error(util.Translation("down slug file from local dir error"), map[string]string{"step": "restore_builder", "status": "failure"})
-			logrus.Errorf("copy slug file error when backup app, %s", err.Error())
-			return err
-		}
+	dstDir := fmt.Sprintf("%s/app_%s/slug_%s.tgz", b.cacheDir, b.getOldServiceID(app.ServiceID), version.BuildVersion)
+	if err := sources.CopyFileWithProgress(dstDir, version.DeliveredPath, b.Logger); err != nil {
+		b.Logger.Error(util.Translation("down slug file from local dir error"), map[string]string{"step": "restore_builder", "status": "failure"})
+		logrus.Errorf("copy slug file error when backup app, %s", err.Error())
+		return err
 	}
 	return nil
 }
 
 func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
-	if backup.BackupMode == "full-online" && b.ImageInfo.HubURL != "" {
-		backupImage, err := version.CreateShareImage(b.ImageInfo.HubURL, b.ImageInfo.Namespace, fmt.Sprintf("%s_backup", backup.Version))
-		if err != nil {
-			return fmt.Errorf("create backup image error %s", err)
-		}
-		if _, err := sources.ImagePull(b.DockerClient, backupImage, b.ImageInfo.HubUser, b.ImageInfo.HubPassword, b.Logger, 10); err != nil {
-			b.Logger.Error(util.Translation("pull image from hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
-			return fmt.Errorf("restore backup image pull error %s", err)
-		}
-		if err := sources.ImageTag(b.DockerClient, backupImage, version.DeliveredPath, b.Logger, 1); err != nil {
-			return fmt.Errorf("change image tag when restore backup error %s", err)
-		}
-		err = sources.ImagePush(b.DockerClient, version.DeliveredPath, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 10)
-		if err != nil {
-			return fmt.Errorf("push image to local  when restore backup error %s", err)
-		}
-	} else {
-		dstDir := fmt.Sprintf("%s/app_%s/image_%s.tar", b.cacheDir, b.getOldServiceID(app.ServiceID), version.BuildVersion)
-		if err := sources.ImageLoad(b.DockerClient, dstDir, b.Logger); err != nil {
-			b.Logger.Error(util.Translation("load image to local hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
-			logrus.Errorf("load image to local hub error when restore backup app, %s", err.Error())
-			return err
-		}
+	dstDir := fmt.Sprintf("%s/app_%s/image_%s.tar", b.cacheDir, b.getOldServiceID(app.ServiceID), version.BuildVersion)
+	if err := sources.ImageLoad(b.DockerClient, dstDir, b.Logger); err != nil {
+		b.Logger.Error(util.Translation("load image to local hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
+		logrus.Errorf("load image to local hub error when restore backup app, %s", err.Error())
+		return err
 	}
 	return nil
 }
@@ -606,31 +574,44 @@ func (b *BackupAPPRestore) downloadFromLocal(backup *dbmodel.AppBackup) error {
 	return nil
 }
 
-func (b *BackupAPPRestore) downloadFromFTP(backup *dbmodel.AppBackup) error {
-	sourceDir := backup.SourceDir
-	sFTPClient, err := sources.NewSFTPClient(b.SlugInfo.FTPUser, b.SlugInfo.FTPPassword, b.SlugInfo.FTPHost, b.SlugInfo.FTPPort)
+func (b *BackupAPPRestore) downloadFromS3(sourceDir string) error {
+	s3Provider, err := cloudos.Str2S3Provider(b.S3Config.Provider)
 	if err != nil {
-		b.Logger.Error(util.Translation("create ftp client error"), map[string]string{"step": "backup_builder", "status": "failure"})
 		return err
 	}
-	defer sFTPClient.Close()
-	dstDir := fmt.Sprintf("%s/%s", b.cacheDir, filepath.Base(sourceDir))
-	if err := sFTPClient.DownloadFile(sourceDir, dstDir, b.Logger); err != nil {
-		b.Logger.Error(util.Translation("down slug file from sftp server error"), map[string]string{"step": "backup_builder", "status": "failure"})
-		logrus.Errorf("down  slug file error when restore backup app , %s", err.Error())
-		return err
+	cfg := &cloudos.Config{
+		ProviderType: s3Provider,
+		Endpoint:     b.S3Config.Endpoint,
+		AccessKey:    b.S3Config.AccessKey,
+		SecretKey:    b.S3Config.SecretKey,
+		BucketName:   b.S3Config.BucketName,
 	}
-	err = util.Unzip(dstDir, b.cacheDir)
+	cloudoser, err := cloudos.New(cfg)
 	if err != nil {
-		b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "backup_builder", "status": "failure"})
-		logrus.Errorf("unzip file error when restore backup app , %s", err.Error())
+		return fmt.Errorf("error creating cloudoser: %v", err)
+	}
+
+	_, objectKey := filepath.Split(sourceDir)
+	disDir := path.Join(b.cacheDir, objectKey)
+	logrus.Debugf("object key: %s; file path: %s; start downloading backup file.", objectKey, disDir)
+	if err := cloudoser.GetObject(objectKey, disDir); err != nil {
+		return fmt.Errorf("object key: %s; file path: %s; error downloading file for object storage: %v", objectKey, disDir, err)
+	}
+	logrus.Debugf("successfully downloading backup file: %s", disDir)
+
+	err = util.Unzip(disDir, b.cacheDir)
+	if err != nil {
+		// b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "backup_builder", "status": "failure"})
+		logrus.Errorf("error unzipping backup file: %v", err)
 		return err
 	}
+
 	dirs, err := util.GetDirNameList(b.cacheDir, 1)
 	if err != nil || len(dirs) < 1 {
-		b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "backup_builder", "status": "failure"})
+		// b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "backup_builder", "status": "failure"})
 		return fmt.Errorf("find metadata cache dir error after unzip file")
 	}
+
 	b.cacheDir = filepath.Join(b.cacheDir, dirs[0])
 	return nil
 }

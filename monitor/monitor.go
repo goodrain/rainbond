@@ -102,7 +102,7 @@ func (d *Monitor) discoverNodes(node *callback.Node, app *callback.App, done <-c
 			case watch.Deleted:
 				node.Delete(&event)
 
-				isSlave := gjson.Get(event.GetValueString(), "labels.rainbond_node_rule_compute").String()
+				isSlave := gjson.Get(event.GetPreValueString(), "labels.rainbond_node_rule_compute").String()
 				if isSlave == "true" {
 					app.Delete(&event)
 				}
@@ -148,7 +148,7 @@ func (d *Monitor) discoverCadvisor(c *callback.Cadvisor, done <-chan struct{}) {
 					c.Modify(&event)
 				}
 			case watch.Deleted:
-				isSlave := gjson.Get(event.GetValueString(), "labels.rainbond_node_rule_compute").String()
+				isSlave := gjson.Get(event.GetPreValueString(), "labels.rainbond_node_rule_compute").String()
 				if isSlave == "true" {
 					c.Delete(&event)
 				}
@@ -194,6 +194,7 @@ func (d *Monitor) discoverEtcd(e *callback.Etcd, done <-chan struct{}) {
 	}
 }
 
+// Stop stop monitor
 func (d *Monitor) Stop() {
 	logrus.Info("Stopping all child process for monitor")
 	d.cancel()
@@ -202,6 +203,7 @@ func (d *Monitor) Stop() {
 	d.client.Close()
 }
 
+// NewMonitor new monitor
 func NewMonitor(opt *option.Config, p *prometheus.Manager) *Monitor {
 	ctx, cancel := context.WithCancel(context.Background())
 	defaultTimeout := time.Second * 3

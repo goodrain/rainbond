@@ -20,6 +20,8 @@ package node
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -118,27 +120,14 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			return
 		}
 	}
-	if time.Since(v.NodeStatus.NodeUpdateTime) > time.Minute*1 {
+	if time.Since(v.NodeStatus.NodeUpdateTime) > time.Minute*1 && getNodeHealth(v) {
 		v.Status = client.Unknown
 		v.NodeStatus.Status = client.Unknown
-		r := client.NodeCondition{
-			Type:               client.NodeUp,
-			Status:             client.ConditionFalse,
-			LastHeartbeatTime:  time.Now(),
-			LastTransitionTime: time.Now(),
-			Message:            "Node lost connection, state unknown",
-		}
-		v.UpdataCondition(r)
+		v.GetAndUpdateCondition(client.NodeUp, client.ConditionFalse, "", "Node lost connection, state unknown")
+		//node lost connection, advice offline action
 		v.NodeStatus.AdviceAction = append(v.NodeStatus.AdviceAction, "offline")
 	} else {
-		r := client.NodeCondition{
-			Type:               client.NodeUp,
-			Status:             client.ConditionTrue,
-			LastHeartbeatTime:  time.Now(),
-			LastTransitionTime: time.Now(),
-			Message:            "Node lost connection, state unknown",
-		}
-		v.UpdataCondition(r)
+		v.GetAndUpdateCondition(client.NodeUp, client.ConditionTrue, "", "")
 		v.NodeStatus.CurrentScheduleStatus = !v.Unschedulable
 		if v.Role.HasRule("compute") {
 			k8sNode, err := n.kubecli.GetNode(v.ID)
@@ -148,12 +137,9 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			// Update k8s node status to node status
 			if k8sNode != nil {
 				v.UpdataK8sCondition(k8sNode.Status.Conditions)
-				if v.AvailableCPU == 0 {
-					v.AvailableCPU = k8sNode.Status.Capacity.Cpu().Value()
-				}
-				if v.AvailableMemory == 0 {
-					v.AvailableMemory = k8sNode.Status.Capacity.Memory().Value()
-				}
+				// 添加capacity属性，对应相关属性
+				v.AvailableCPU = k8sNode.Status.Allocatable.Cpu().Value()
+				v.AvailableMemory = k8sNode.Status.Allocatable.Memory().Value()
 				v.NodeStatus.KubeNode = k8sNode
 				v.NodeStatus.KubeUpdateTime = time.Now()
 				v.NodeStatus.CurrentScheduleStatus = !k8sNode.Spec.Unschedulable
@@ -161,25 +147,28 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			}
 		}
 		if (v.Role.HasRule("manage") || v.Role.HasRule("gateway")) && !v.Role.HasRule("compute") { //manage install_success == runnint
-			if v.AvailableCPU == 0 {
-				v.AvailableCPU = v.NodeStatus.NodeInfo.NumCPU
-			}
-			if v.AvailableMemory == 0 {
-				v.AvailableMemory = int64(v.NodeStatus.NodeInfo.MemorySize)
-			}
+			v.AvailableCPU = v.NodeStatus.NodeInfo.NumCPU
+			v.AvailableMemory = int64(v.NodeStatus.NodeInfo.MemorySize)
 		}
 		//handle status
 		v.Status = v.NodeStatus.Status
 		if v.Role.HasRule("compute") && v.NodeStatus.KubeNode == nil {
 			v.Status = "offline"
 		}
-		for _, con := range v.NodeStatus.Conditions {
+		for i, con := range v.NodeStatus.Conditions {
 			if con.Type == client.NodeReady {
 				v.NodeStatus.NodeHealth = con.Status == client.ConditionTrue
-				break
+			}
+			if time.Since(con.LastHeartbeatTime) > time.Minute*1 {
+				// do not update time
+				v.NodeStatus.Conditions[i].Reason = "Condition not updated in more than 1 minute"
+				v.NodeStatus.Conditions[i].Message = "Condition not updated in more than 1 minute"
+				v.NodeStatus.Conditions[i].Status = client.ConditionUnknown
 			}
 		}
 	}
+	//node ready condition update
+	v.UpdateReadyStatus()
 	if v.NodeStatus.AdviceAction != nil {
 		for _, action := range v.NodeStatus.AdviceAction {
 			if action == "unscheduler" {
@@ -298,4 +287,25 @@ func checkLabels(node *client.HostNode, labels map[string]string) bool {
 		}
 	}
 	return true
+}
+
+func getNodeHealth(node *client.HostNode) bool {
+	healthURL := fmt.Sprintf("http://%s:6100/v2/ping", node.InternalIP)
+	for i := 0; i < 3; i++ {
+		req, err := http.NewRequest("GET", healthURL, nil)
+		if err != nil {
+			logrus.Errorf("new node health check request failure %s", err.Error())
+			continue
+		}
+		client := http.DefaultClient
+		client.Timeout = time.Second * 2
+		res, err := client.Do(req)
+		if err != nil {
+			continue
+		}
+		if res != nil && res.StatusCode == 200 {
+			return true
+		}
+	}
+	return false
 }

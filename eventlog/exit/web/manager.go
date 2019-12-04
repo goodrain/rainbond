@@ -26,6 +26,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goodrain/rainbond/util"
+
 	"github.com/go-chi/chi"
 
 	"github.com/Sirupsen/logrus"
@@ -474,6 +476,9 @@ func (s *SocketServer) listen() {
 	r.Get("/services/{serviceID}/pubsub", s.pubsub)
 	//monitor setting
 	s.prometheus(r)
+	//pprof debug
+	util.ProfilerSetup(r)
+
 	if s.conf.SSL {
 		go func() {
 			addr := fmt.Sprintf("%s:%d", s.conf.BindIP, s.conf.SSLBindPort)

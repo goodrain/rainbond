@@ -28,6 +28,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
+	"github.com/jinzhu/gorm"
+	"github.com/pquerna/ffjson/ffjson"
+
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -36,8 +39,6 @@ import (
 	core_util "github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/client"
-	"github.com/jinzhu/gorm"
-	"github.com/pquerna/ffjson/ffjson"
 )
 
 //Backup GroupBackup
@@ -51,24 +52,18 @@ type Backup struct {
 		GroupID    string   `json:"group_id" validate:"group_name|required"`
 		Metadata   string   `json:"metadata,omitempty" validate:"metadata|required"`
 		ServiceIDs []string `json:"service_ids" validate:"service_ids|required"`
-		Mode       string   `json:"mode" validate:"mode|required|in:full-online,full-offline"`
 		Version    string   `json:"version" validate:"version|required"`
-		SlugInfo   struct {
-			Namespace   string `json:"namespace"`
-			FTPHost     string `json:"ftp_host"`
-			FTPPort     string `json:"ftp_port"`
-			FTPUser     string `json:"ftp_username"`
-			FTPPassword string `json:"ftp_password"`
-		} `json:"slug_info,omitempty"`
-		ImageInfo struct {
-			HubURL      string `json:"hub_url"`
-			HubUser     string `json:"hub_user"`
-			HubPassword string `json:"hub_password"`
-			Namespace   string `json:"namespace"`
-			IsTrust     bool   `json:"is_trust,omitempty"`
-		} `json:"image_info,omitempty"`
-		SourceDir string `json:"source_dir"`
-		BackupID  string `json:"backup_id,omitempty"`
+		SourceDir  string   `json:"source_dir"`
+		BackupID   string   `json:"backup_id,omitempty"`
+
+		Mode     string `json:"mode" validate:"mode|required|in:full-online,full-offline"`
+		S3Config struct {
+			Provider   string `json:"provider"`
+			Endpoint   string `json:"endpoint"`
+			AccessKey  string `json:"access_key"`
+			SecretKey  string `json:"secret_key"`
+			BucketName string `json:"bucket_name"`
+		} `json:"s3_config"`
 	}
 }
 
@@ -112,7 +107,9 @@ func (h *BackupHandle) NewBackup(b Backup) (*dbmodel.AppBackup, *util.APIHandleE
 	appBackup.SourceDir = sourceDir
 	//snapshot the app metadata of region and write
 	if err := h.snapshot(b.Body.ServiceIDs, sourceDir); err != nil {
-		os.RemoveAll(sourceDir)
+		if err := os.RemoveAll(sourceDir); err != nil {
+			logrus.Warningf("error removing %s: %v", sourceDir, err)
+		}
 		if strings.HasPrefix(err.Error(), "Statefulset app must be closed") {
 			return nil, util.CreateAPIHandleError(401, fmt.Errorf("snapshot group apps error,%s", err))
 		}
@@ -154,21 +151,29 @@ func (h *BackupHandle) GetBackup(backupID string) (*dbmodel.AppBackup, *util.API
 }
 
 //DeleteBackup delete backup
-func (h *BackupHandle) DeleteBackup(backupID string) *util.APIHandleError {
-	backup, err := h.GetBackup(backupID)
+func (h *BackupHandle) DeleteBackup(backupID string) error {
+	backup, err := db.GetManager().AppBackupDao().GetAppBackup(backupID)
 	if err != nil {
 		return err
 	}
-	//if status != success it could be deleted
-	//if status == success, backup mode must be offline could be deleted
-	if backup.Status != "success" || backup.BackupMode == "full-offline" {
-		backup.Deleted = true
-		if er := db.GetManager().AppBackupDao().UpdateModel(backup); er != nil {
-			return util.CreateAPIHandleErrorFromDBError("delete backup error", er)
-		}
-		return nil
+
+	tx := db.GetManager().Begin()
+	defer db.GetManager().EnsureEndTransactionFunc()(tx)
+
+	if err := db.GetManager().AppBackupDaoTransactions(tx).DeleteAppBackup(backupID); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("delete backup error: %v", err)
 	}
-	return util.CreateAPIHandleErrorf(400, "backup success do not support delete.")
+
+	if backup.BackupMode == "full-offline" {
+		logrus.Infof("delete from local: %s", backup.SourceDir)
+		if err := os.RemoveAll(backup.SourceDir); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("remove backup directory: %v", err)
+		}
+	}
+
+	return tx.Commit().Error
 }
 
 //GetBackupByGroupID get some backup info by group id
@@ -340,20 +345,6 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
 type BackupRestore struct {
 	BackupID string `json:"backup_id"`
 	Body     struct {
-		SlugInfo struct {
-			Namespace   string `json:"namespace"`
-			FTPHost     string `json:"ftp_host"`
-			FTPPort     string `json:"ftp_port"`
-			FTPUser     string `json:"ftp_username"`
-			FTPPassword string `json:"ftp_password"`
-		} `json:"slug_info,omitempty"`
-		ImageInfo struct {
-			HubURL      string `json:"hub_url"`
-			HubUser     string `json:"hub_user"`
-			HubPassword string `json:"hub_password"`
-			Namespace   string `json:"namespace"`
-			IsTrust     bool   `json:"is_trust,omitempty"`
-		} `json:"image_info,omitempty"`
 		EventID string `json:"event_id"`
 		//need restore target tenant id
 		TenantID string `json:"tenant_id"`
@@ -361,6 +352,14 @@ type BackupRestore struct {
 		//RestoreMode(cdot) current datacenter and other tenant
 		//RestoreMode(od)     other datacenter
 		RestoreMode string `json:"restore_mode"`
+
+		S3Config struct {
+			Provider   string `json:"provider"`
+			Endpoint   string `json:"endpoint"`
+			AccessKey  string `json:"access_key"`
+			SecretKey  string `json:"secret_key"`
+			BucketName string `json:"bucket_name"`
+		} `json:"s3_config"`
 	}
 }
 
@@ -403,12 +402,11 @@ func (h *BackupHandle) RestoreBackup(br BackupRestore) (*RestoreResult, *util.AP
 	}
 	restoreID = core_util.NewUUID()
 	var dataMap = map[string]interface{}{
-		"slug_info":    br.Body.SlugInfo,
-		"image_info":   br.Body.ImageInfo,
 		"backup_id":    backup.BackupID,
 		"tenant_id":    br.Body.TenantID,
 		"restore_id":   restoreID,
 		"restore_mode": br.Body.RestoreMode,
+		"s3_config":    br.Body.S3Config,
 	}
 	err := h.mqcli.SendBuilderTopic(mqclient.TaskStruct{
 		TaskBody: dataMap,

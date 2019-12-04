@@ -21,7 +21,7 @@ package conversion
 import (
 	"testing"
 
-	gomock "github.com/golang/mock/gomock"
+	"github.com/golang/mock/gomock"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/model"
@@ -61,4 +61,10 @@ func TestConvertRulesToEnvs(t *testing.T) {
 	if len(renvs) > 0 {
 		t.Errorf("Expected 0 for the length rule envs, but return %d", len(renvs))
 	}
+}
+
+func TestFoobar(t *testing.T) {
+	memory := 64
+	cpuRequest, cpuLimit := int64(memory)/128*30, int64(memory)/128*80
+	t.Errorf("request: %d; limit: %d", cpuRequest, cpuLimit)
 }

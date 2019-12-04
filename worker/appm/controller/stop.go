@@ -139,6 +139,17 @@ func (s *stopController) stopOne(app v1.AppService) error {
 			}
 		}
 	}
+
+	if hpas := app.GetHPAs(); len(hpas) != 0 {
+		for _, hpa := range hpas {
+			err := s.manager.client.AutoscalingV2beta1().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(hpa.GetName(), &metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("delete hpa: %v", err)
+			}
+			s.manager.store.OnDelete(hpa)
+		}
+	}
+
 	//step 7: waiting endpoint ready
 	app.Logger.Info("Delete all app model success, will waiting app closed", event.GetLoggerOption("running"))
 	return s.WaitingReady(app)

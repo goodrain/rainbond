@@ -55,7 +55,7 @@ type TaskManager struct {
 }
 
 //NewTaskManager return *TaskManager
-func NewTaskManager(c option.Config,
+func NewTaskManager(cfg option.Config,
 	store store.Storer,
 	controllermanager *controller.Manager,
 	garbageCollector *gc.GarbageCollector,
@@ -68,7 +68,7 @@ func NewTaskManager(c option.Config,
 	return &TaskManager{
 		ctx:           ctx,
 		cancel:        cancel,
-		config:        c,
+		config:        cfg,
 		handleManager: handleManager,
 	}
 }
@@ -128,6 +128,7 @@ func (t *TaskManager) Do() {
 				logrus.Warningf("execute task: %v", rc)
 				TaskError++
 			} else if rc != nil && rc == handle.ErrCallback {
+				logrus.Errorf("err callback; analyst to exet: %v", rc)
 				ctx, cancel := context.WithCancel(t.ctx)
 				reply, err := t.client.Enqueue(ctx, &pb.EnqueueRequest{
 					Topic:   client.WorkerTopic,

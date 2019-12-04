@@ -30,7 +30,7 @@ import (
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 //LabelOS node label about os
@@ -306,34 +306,14 @@ func (n *HostNode) UpdateReadyStatus() {
 	var Reason, Message string
 	for _, con := range n.NodeStatus.Conditions {
 		if con.Status != ConditionTrue && con.Type != "" && con.Type != NodeReady {
-			logrus.Debugf("because %s id false, will set node health is false", con.Type)
+			logrus.Debugf("because %s id false, will set node %s(%s) health is false", con.Type, n.ID, n.InternalIP)
 			status = ConditionFalse
 			Reason = con.Reason
 			Message = con.Message
 			break
 		}
 	}
-	for i, con := range n.NodeStatus.Conditions {
-		if con.Type.Compare(NodeReady) {
-			n.NodeStatus.Conditions[i].Reason = Reason
-			n.NodeStatus.Conditions[i].Message = Message
-			n.NodeStatus.Conditions[i].LastHeartbeatTime = time.Now()
-			if con.Status != status {
-				n.NodeStatus.Conditions[i].LastTransitionTime = time.Now()
-				n.NodeStatus.Conditions[i].Status = status
-			}
-			return
-		}
-	}
-	ready := NodeCondition{
-		Type:               NodeReady,
-		Status:             status,
-		LastHeartbeatTime:  time.Now(),
-		LastTransitionTime: time.Now(),
-		Reason:             Reason,
-		Message:            Message,
-	}
-	n.NodeStatus.Conditions = append(n.NodeStatus.Conditions, ready)
+	n.GetAndUpdateCondition(NodeReady, status, Reason, Message)
 }
 
 //GetCondition get condition
@@ -344,6 +324,31 @@ func (n *HostNode) GetCondition(ctype NodeConditionType) *NodeCondition {
 		}
 	}
 	return nil
+}
+
+// GetAndUpdateCondition get old condition and update it, if old condition is nil and then create it
+func (n *HostNode) GetAndUpdateCondition(condType NodeConditionType, status ConditionStatus, reason, message string) {
+	oldCond := n.GetCondition(condType)
+	now := time.Now()
+	var lastTransitionTime time.Time
+	if oldCond == nil {
+		lastTransitionTime = now
+	} else {
+		if oldCond.Status != status {
+			lastTransitionTime = now
+		} else {
+			lastTransitionTime = oldCond.LastTransitionTime
+		}
+	}
+	cond := NodeCondition{
+		Type:               condType,
+		Status:             status,
+		LastHeartbeatTime:  now,
+		LastTransitionTime: lastTransitionTime,
+		Reason:             reason,
+		Message:            message,
+	}
+	n.UpdataCondition(cond)
 }
 
 //UpdataCondition 更新状态
@@ -365,7 +370,6 @@ func (n *HostNode) UpdataCondition(conditions ...NodeCondition) {
 		if !update {
 			n.NodeStatus.Conditions = append(n.NodeStatus.Conditions, newcon)
 		}
-		n.UpdateReadyStatus()
 	}
 }
 
@@ -441,6 +445,18 @@ const (
 	PIDPressure    NodeConditionType = "PIDPressure"
 )
 
+var masterCondition = []NodeConditionType{NodeReady, KubeNodeReady, NodeUp, InstallNotReady, NodeInit, OutOfDisk, MemoryPressure, DiskPressure, PIDPressure}
+
+//IsMasterCondition Whether it is a preset condition of the system
+func IsMasterCondition(con NodeConditionType) bool {
+	for _, c := range masterCondition {
+		if c.Compare(con) {
+			return true
+		}
+	}
+	return false
+}
+
 //Compare 比较
 func (nt NodeConditionType) Compare(ent NodeConditionType) bool {
 	return string(nt) == string(ent)
@@ -499,22 +515,30 @@ func (n *HostNode) DeleteNode() (*client.DeleteResponse, error) {
 
 // DelEndpoints -
 func (n *HostNode) DelEndpoints() {
-	keys := n.listEndpointKeys()
+	keys, err := n.listEndpointKeys()
+	if err != nil {
+		logrus.Warningf("error deleting endpoints: %v", err)
+		return
+	}
 	for _, key := range keys {
-		key = key + n.InternalIP
-		res, err := store.DefalutClient.Delete(key)
+		_, err := store.DefalutClient.Delete(key)
 		if err != nil {
 			logrus.Warnf("key: %s; error delete endpoints: %v", key, err)
 		}
-		fmt.Printf("key: %s; response of deleting endpoints: %+v\n", key, res)
 	}
 }
 
-func (n *HostNode) listEndpointKeys() []string {
-	// TODO: need improvement, not hard code
-	return []string{
-		"/rainbond/endpoint/APISERVER_ENDPOINTS/",
-		"/rainbond/endpoint/HUB_ENDPOINTS/",
-		"/rainbond/endpoint/REPO_ENDPOINTS/",
+func (n *HostNode) listEndpointKeys() ([]string, error) {
+	resp, err := store.DefalutClient.Get(RainbondEndpointPrefix, client.WithPrefix())
+	if err != nil {
+		return nil, fmt.Errorf("prefix: %s; error list rainbond endpoint keys by prefix: %v", RainbondEndpointPrefix, err)
 	}
+	var res []string
+	for _, kv := range resp.Kvs {
+		key := string(kv.Key)
+		if strings.Contains(key, n.InternalIP) {
+			res = append(res, key)
+		}
+	}
+	return res, nil
 }

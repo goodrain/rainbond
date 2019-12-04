@@ -45,7 +45,7 @@ var (
 	exitChan = make(chan struct{})
 )
 
-//Init  初始化
+//Init  init config
 func Init() error {
 	if initialized {
 		return nil
@@ -147,7 +147,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&a.Etcd.DialTimeout, "etcd-dialTimeOut", 3, "etcd cluster dialTimeOut In seconds")
 	fs.IntVar(&a.ReqTimeout, "reqTimeOut", 2, "req TimeOut.")
 	fs.Int64Var(&a.TTL, "ttl", 10, "Frequency of node status reporting to master")
-	fs.StringVar(&a.APIAddr, "api-addr", ":6100", "The node api server listen address")
+	//fs.StringVar(&a.APIAddr, "api-addr", ":6100", "The node api server listen address")
 	fs.StringVar(&a.GrpcAPIAddr, "grpc-api-addr", ":6101", "The node grpc api server listen address")
 	fs.StringVar(&a.K8SConfPath, "kube-conf", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "absolute path to the kubeconfig file  ./kubeconfig")
 	fs.StringVar(&a.RunMode, "run-mode", "worker", "the acp_node run mode,could be 'worker' or 'master'")
@@ -223,11 +223,21 @@ func (a *Conf) parse() error {
 	} else {
 		a.Etcd.DialTimeout = a.Etcd.DialTimeout * time.Second
 	}
-
 	a.Etcd.Context = context.Background()
 	if a.TTL <= 0 {
 		a.TTL = 10
 	}
 	a.LockPath = "/rainbond/lock"
+	if a.HostIP == "" || !util.CheckIP(a.HostIP) {
+		localIP, err := util.LocalIP()
+		if localIP == nil || err != nil {
+			return fmt.Errorf("can not find ip of this node")
+		}
+		a.HostIP = localIP.String()
+	}
+	//init api listen port, can not custom
+	if a.APIAddr == "" {
+		a.APIAddr = ":6100"
+	}
 	return nil
 }

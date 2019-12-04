@@ -71,6 +71,8 @@ type ServiceInterface interface {
 	ShareResult(w http.ResponseWriter, r *http.Request)
 	BuildVersionInfo(w http.ResponseWriter, r *http.Request)
 	GetDeployVersion(w http.ResponseWriter, r *http.Request)
+	AutoscalerRules(w http.ResponseWriter, r *http.Request)
+	ScalingRecords(w http.ResponseWriter, r *http.Request)
 }
 
 //TenantInterfaceWithV1 funcs for both v2 and v1
@@ -105,7 +107,7 @@ type PluginInterface interface {
 	PluginAction(w http.ResponseWriter, r *http.Request)
 	PluginDefaultENV(w http.ResponseWriter, r *http.Request)
 	PluginBuild(w http.ResponseWriter, r *http.Request)
-	GetAllPluginBuildVersons(w http.ResponseWriter, r *http.Request)
+	GetAllPluginBuildVersions(w http.ResponseWriter, r *http.Request)
 	GetPluginBuildVersion(w http.ResponseWriter, r *http.Request)
 	DeletePluginBuildVersion(w http.ResponseWriter, r *http.Request)
 	//plugin

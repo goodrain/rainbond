@@ -22,10 +22,11 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi"
+	"github.com/jinzhu/gorm"
+
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/handler/group"
 	"github.com/goodrain/rainbond/api/middleware"
-
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -117,9 +118,14 @@ func GetBackup(w http.ResponseWriter, r *http.Request) {
 //DeleteBackup delete backup
 func DeleteBackup(w http.ResponseWriter, r *http.Request) {
 	backupID := chi.URLParam(r, "backup_id")
+
 	err := handler.GetAPPBackupHandler().DeleteBackup(backupID)
 	if err != nil {
-		err.Handle(r, w)
+		if err == gorm.ErrRecordNotFound {
+			httputil.ReturnError(r, w, 404, "not found")
+			return
+		}
+		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)

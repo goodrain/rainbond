@@ -20,6 +20,8 @@ package probe
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/service"
@@ -32,10 +34,12 @@ type Probe interface {
 }
 
 //CreateProbe create probe
-func CreateProbe(ctx context.Context, hostNode *client.HostNode, statusChan chan *service.HealthStatus, v *service.Service) Probe {
+func CreateProbe(ctx context.Context, hostNode *client.HostNode, statusChan chan *service.HealthStatus, v *service.Service) (Probe, error) {
 	ctx, cancel := context.WithCancel(ctx)
-	if v.ServiceHealth.Model == "http" {
-		h := &HttpProbe{
+	model := strings.ToLower(strings.TrimSpace(v.ServiceHealth.Model))
+	switch model {
+	case "http":
+		return &HttpProbe{
 			Name:         v.ServiceHealth.Name,
 			Address:      v.ServiceHealth.Address,
 			Ctx:          ctx,
@@ -44,11 +48,9 @@ func CreateProbe(ctx context.Context, hostNode *client.HostNode, statusChan chan
 			TimeInterval: v.ServiceHealth.TimeInterval,
 			HostNode:     hostNode,
 			MaxErrorsNum: v.ServiceHealth.MaxErrorsNum,
-		}
-		return h
-	}
-	if v.ServiceHealth.Model == "tcp" {
-		t := &TcpProbe{
+		}, nil
+	case "tcp":
+		return &TcpProbe{
 			Name:         v.ServiceHealth.Name,
 			Address:      v.ServiceHealth.Address,
 			Ctx:          ctx,
@@ -57,11 +59,9 @@ func CreateProbe(ctx context.Context, hostNode *client.HostNode, statusChan chan
 			TimeInterval: v.ServiceHealth.TimeInterval,
 			HostNode:     hostNode,
 			MaxErrorsNum: v.ServiceHealth.MaxErrorsNum,
-		}
-		return t
-	}
-	if v.ServiceHealth.Model == "cmd" {
-		s := &ShellProbe{
+		}, nil
+	case "cmd":
+		return &ShellProbe{
 			Name:         v.ServiceHealth.Name,
 			Address:      v.ServiceHealth.Address,
 			Ctx:          ctx,
@@ -70,9 +70,9 @@ func CreateProbe(ctx context.Context, hostNode *client.HostNode, statusChan chan
 			TimeInterval: v.ServiceHealth.TimeInterval,
 			HostNode:     hostNode,
 			MaxErrorsNum: v.ServiceHealth.MaxErrorsNum,
-		}
-		return s
+		}, nil
+	default:
+		cancel()
+		return nil, fmt.Errorf("service %s probe mode %s not support ", v.Name, model)
 	}
-	cancel()
-	return nil
 }

@@ -713,10 +713,15 @@ func (v *volumeDefine) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isRead
 func createResources(as *v1.AppService) corev1.ResourceRequirements {
 	var cpuRequest, cpuLimit int64
 	memory := as.ContainerMemory
+	base := int64(memory) / 128
+	if base <= 0 {
+		base = 1
+	}
 	if memory < 512 {
-		cpuRequest, cpuLimit = int64(memory)/128*30, int64(memory)/128*80
+		//cpuRequest, cpuLimit = int64(memory)/128*30, int64(memory)/128*80
+		cpuRequest, cpuLimit = base*30, base*80
 	} else if memory <= 1024 {
-		cpuRequest, cpuLimit = int64(memory)/128*30, int64(memory)/128*160
+		cpuRequest, cpuLimit = base*30, base*160
 	} else {
 		cpuRequest, cpuLimit = int64(memory)/128*30, ((int64(memory)-1024)/1024*500 + 1280)
 	}
@@ -732,20 +737,15 @@ func createResources(as *v1.AppService) corev1.ResourceRequirements {
 			cpuRequest = int64(requestint)
 		}
 	}
+
 	limits := corev1.ResourceList{}
-	limits[corev1.ResourceCPU] = *resource.NewMilliQuantity(
-		cpuLimit,
-		resource.DecimalSI)
-	limits[corev1.ResourceMemory] = *resource.NewQuantity(
-		int64(as.ContainerMemory*1024*1024),
-		resource.BinarySI)
+	limits[corev1.ResourceCPU] = *resource.NewMilliQuantity(cpuLimit, resource.DecimalSI)
+	limits[corev1.ResourceMemory] = *resource.NewQuantity(int64(as.ContainerMemory*1024*1024), resource.BinarySI)
+
 	request := corev1.ResourceList{}
-	request[corev1.ResourceCPU] = *resource.NewMilliQuantity(
-		cpuRequest,
-		resource.DecimalSI)
-	request[corev1.ResourceMemory] = *resource.NewQuantity(
-		int64(as.ContainerMemory*1024*1024),
-		resource.BinarySI)
+	request[corev1.ResourceCPU] = *resource.NewMilliQuantity(cpuRequest, resource.DecimalSI)
+	request[corev1.ResourceMemory] = *resource.NewQuantity(int64(as.ContainerMemory*1024*1024), resource.BinarySI)
+
 	return corev1.ResourceRequirements{
 		Limits:   limits,
 		Requests: request,

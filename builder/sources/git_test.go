@@ -103,3 +103,7 @@ func TestGetCodeCacheDir(t *testing.T) {
 	}
 	t.Log(csi.GetCodeSourceDir())
 }
+
+func TestGetShowURL(t *testing.T) {
+	t.Log(getShowURL("https://zsl1526:79890ffc74014b34b49040d42b95d5af@github.com:9090/zsl1549/python-demo.git"))
+}
