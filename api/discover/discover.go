@@ -57,8 +57,8 @@ func CreateEndpointDiscover(etcdEndpoints []string) (EndpointDiscover, error) {
 	return defaultEndpointDiscover, nil
 }
 
-//GetEndpointDiscover 获取endpointsdiscover
-func GetEndpointDiscover(etcdEndpoints []string) EndpointDiscover {
+//GetEndpointDiscover get endpoints discover
+func GetEndpointDiscover() EndpointDiscover {
 	return defaultEndpointDiscover
 }
 

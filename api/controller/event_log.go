@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"strconv"
@@ -32,46 +33,27 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/proxy"
 )
 
 //EventLogStruct eventlog struct
-type EventLogStruct struct{}
+type EventLogStruct struct {
+	EventlogServerProxy proxy.Proxy
+}
 
-//Logs GetLogs
-func (e *EventLogStruct) Logs(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST  /v2/tenants/{tenant_name}/services/{service_alias}/log v2 lastLinesLogs
-	//
-	// 获取最新指定数量条日志
-	//
-	// get last x lines logs
-	//
-	// ---
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//       "$ref": "#/responses/commandResponse"
-	//     description: 统一返回格式
+//HistoryLogs get service history logs
+//proxy
+func (e *EventLogStruct) HistoryLogs(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	var llines api_model.LastLinesStruct
-	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &llines.Body, nil)
-	if !ok {
-		return
+	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
+	name, _ := handler.GetEventHandler().GetLogInstance(serviceID)
+	if name != "" {
+		r.URL.Query().Add("host_id", name)
+		r = r.WithContext(context.WithValue(r.Context(), proxy.ContextKey("host_id"), name))
 	}
-	//logrus.Info(llines.Body.Lines)
-	if llines.Body.Lines == 0 {
-		llines.Body.Lines = 50
-	}
-	logs, err := handler.GetEventHandler().GetLinesLogs(GetServiceAliasID(serviceID), llines.Body.Lines)
-	if err != nil {
-		httputil.ReturnError(r, w, 500, err.Error())
-		return
-	}
-	rc := strings.Split(string(logs), "\n")
-	httputil.ReturnSuccess(r, w, rc)
+	//Replace service alias to service id in path
+	r.URL.Path = strings.Replace(r.URL.Path, serviceAlias, serviceID, 1)
+	e.EventlogServerProxy.Proxy(w, r)
 }
 
 //LogList GetLogList

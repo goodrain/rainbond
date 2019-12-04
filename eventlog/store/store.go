@@ -33,6 +33,7 @@ import (
 type MessageStore interface {
 	InsertMessage(*db.EventLogMessage)
 	InsertGarbageMessage(...*db.EventLogMessage)
+	GetHistoryMessage(eventID string, length int) []string
 	SubChan(eventID, subID string) chan *db.EventLogMessage
 	RealseSubChan(eventID, subID string)
 	GetMonitorData() *db.MonitorData

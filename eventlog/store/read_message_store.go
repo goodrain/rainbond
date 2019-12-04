@@ -115,3 +115,7 @@ func (h *readMessageStore) stop() {
 	h.cancel()
 }
 func (h *readMessageStore) InsertGarbageMessage(message ...*db.EventLogMessage) {}
+
+func (h *readMessageStore) GetHistoryMessage(eventID string, length int) (re []string) {
+	return nil
+}

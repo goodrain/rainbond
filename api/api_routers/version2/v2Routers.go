@@ -139,8 +139,6 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r := chi.NewRouter()
 	//初始化应用信息
 	r.Use(middleware.InitService)
-	//应用部署(act)
-	//r.Post("/deploy", controller.GetManager().DeployService)
 	r.Put("/", middleware.WrapEL(controller.GetManager().UpdateService, dbmodel.TargetTypeService, "update-service", dbmodel.SYNEVENTTYPE))
 	//应用构建(act)
 	r.Post("/build", middleware.WrapEL(controller.GetManager().BuildService, dbmodel.TargetTypeService, "build-service", dbmodel.ASYNEVENTTYPE))
@@ -169,10 +167,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 	//应用分享
 	r.Post("/share", middleware.WrapEL(controller.GetManager().Share, dbmodel.TargetTypeService, "share-service", dbmodel.ASYNEVENTTYPE))
 	r.Get("/share/{share_id}", controller.GetManager().ShareResult)
-	//应用日志相关
-	r.Post("/log", controller.GetManager().Logs)
+	r.Get("/logs", controller.GetManager().HistoryLogs)
 	r.Get("/log-file", controller.GetManager().LogList)
-	//r.Get("/log-file/{fileName}", controller.GetManager().LogFile)
 	r.Get("/log-instance", controller.GetManager().LogSocket)
 	r.Post("/event-log", controller.GetManager().LogByAction)
 

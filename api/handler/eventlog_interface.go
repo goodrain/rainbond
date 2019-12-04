@@ -25,7 +25,6 @@ import (
 
 //EventHandler event handler interface
 type EventHandler interface {
-	GetLinesLogs(alias string, n int) ([]byte, error)
 	GetLogList(serviceAlias string) ([]string, error)
 	GetLogInstance(serviceID string) (string, error)
 	GetLevelLog(eventID string, level string) (*api_model.DataLog, error)

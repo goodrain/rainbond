@@ -1,4 +1,4 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
+// Copyright (C) 2014-2019 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
 
 // This program is free software: you can redistribute it and/or modify
@@ -16,28 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package proxy
+package web
 
-import "net/http"
+import (
+	"net/http"
+	"strconv"
+	"strings"
 
-//Proxy proxy
-type Proxy interface {
-	Proxy(w http.ResponseWriter, r *http.Request)
-	Do(r *http.Request) (*http.Response, error)
-	UpdateEndpoints(endpoints ...string) // format: ["name=>ip:port", ...]
-}
+	"github.com/go-chi/chi"
+)
 
-//CreateProxy create proxy
-func CreateProxy(name string, mode string, endpoints []string) Proxy {
-	switch mode {
-	case "websocket":
-		return createWebSocketProxy(name, endpoints)
-	case "http":
-		if name == "eventlog" {
-			return createHTTPProxy(name, endpoints, NewSelectBalance())
-		}
-		return createHTTPProxy(name, endpoints, nil)
-	default:
-		return createHTTPProxy(name, endpoints, nil)
-	}
+//getDockerLogs get history docker logs
+func (s *SocketServer) getDockerLogs(w http.ResponseWriter, r *http.Request) {
+	rows, _ := strconv.Atoi(r.URL.Query().Get("rows"))
+	serviceID := chi.URLParam(r, "serviceID")
+	loglist := s.storemanager.GetDockerLogs(serviceID, rows)
+	content := strings.Join(loglist, "\n")
+	w.Write([]byte(content))
 }

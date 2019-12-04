@@ -33,19 +33,19 @@ var monitorProxy proxy.Proxy
 func InitProxy(conf option.Config) {
 	if nodeProxy == nil {
 		nodeProxy = proxy.CreateProxy("acp_node", "http", conf.NodeAPI)
-		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_node", nodeProxy)
+		discover.GetEndpointDiscover().AddProject("acp_node", nodeProxy)
 	}
 	if builderProxy == nil {
 		builderProxy = proxy.CreateProxy("builder", "http", conf.BuilderAPI)
-		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("builder", builderProxy)
+		discover.GetEndpointDiscover().AddProject("builder", builderProxy)
 	}
 	if prometheusProxy == nil {
 		prometheusProxy = proxy.CreateProxy("prometheus", "http", []string{"127.0.0.1:9999"})
-		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("prometheus", prometheusProxy)
+		discover.GetEndpointDiscover().AddProject("prometheus", prometheusProxy)
 	}
 	if monitorProxy == nil {
 		monitorProxy = proxy.CreateProxy("monitor", "http", []string{"127.0.0.1:3329"})
-		discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("monitor", monitorProxy)
+		discover.GetEndpointDiscover().AddProject("monitor", monitorProxy)
 	}
 }
 

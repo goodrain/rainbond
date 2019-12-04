@@ -28,6 +28,7 @@ import (
 type Manager interface {
 	SaveMessage([]*EventLogMessage) error
 	Close() error
+	GetMessages(id, level string, length int) (interface{}, error)
 }
 
 //NewManager 创建存储管理器
