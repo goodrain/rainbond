@@ -57,7 +57,7 @@ func RunNodeInstallCmd(option NodeInstallOption) (err error) {
 	if err := preCheckNodeInstall(&option); err != nil {
 		return err
 	}
-	line := fmt.Sprintf("%s -r %s -i %s -t %s -k %s -u %s",
+	line := fmt.Sprintf("'%s' -r '%s' -i '%s' -t '%s' -k '%s' -u '%s'",
 		installNodeShellPath, option.HostRole, option.InternalIP, option.linkModel, option.loginValue, option.NodeID)
 	cmd := exec.Command("bash", "-c", line)
 	cmd.Stdin = option.Stdin
