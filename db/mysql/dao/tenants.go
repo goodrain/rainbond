@@ -632,6 +632,16 @@ func (t *TenantServicesPortDaoImpl) DelByServiceID(sid string) error {
 	return t.DB.Where("service_id=?", sid).Delete(&model.TenantServicesPort{}).Error
 }
 
+// ListInnerPortsByServiceIDs -
+func (t *TenantServicesPortDaoImpl) ListInnerPortsByServiceIDs(serviceIDs []string) ([]*model.TenantServicesPort, error) {
+	var ports []*model.TenantServicesPort
+	if err := t.DB.Where("service_id in (?) and is_inner_service=?", serviceIDs, true).Find(&ports).Error; err != nil {
+		return nil, err
+	}
+
+	return ports, nil
+}
+
 //TenantServiceRelationDaoImpl TenantServiceRelationDaoImpl
 type TenantServiceRelationDaoImpl struct {
 	DB *gorm.DB

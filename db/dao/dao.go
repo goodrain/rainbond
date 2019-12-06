@@ -110,6 +110,7 @@ type TenantServicesPortDao interface {
 	DELPortsByServiceID(serviceID string) error
 	HasOpenPort(sid string) bool
 	DelByServiceID(sid string) error
+	ListInnerPortsByServiceIDs(serviceIDs []string) ([]*model.TenantServicesPort, error)
 }
 
 //TenantPluginDao TenantPluginDao

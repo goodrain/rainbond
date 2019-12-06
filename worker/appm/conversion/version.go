@@ -178,30 +178,49 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		}
 		//set service all dependces ids
 		as.Dependces = relationIDs
-		if len(relationIDs) > 0 {
-			es, err := dbmanager.TenantServiceEnvVarDao().GetDependServiceEnvs(relationIDs, []string{"outer", "both"})
-			if err != nil {
-				return nil, err
-			}
-			if es != nil {
-				envsAll = append(envsAll, es...)
-			}
-			serviceAliass, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
-			if err != nil {
-				return nil, err
-			}
-			var Depend string
-			for _, sa := range serviceAliass {
-				if Depend != "" {
-					Depend += ","
-				}
-				Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
-			}
-			envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: Depend})
-			envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliass))})
-			as.NeedProxy = true
+		es, err := dbmanager.TenantServiceEnvVarDao().GetDependServiceEnvs(relationIDs, []string{"outer", "both"})
+		if err != nil {
+			return nil, err
 		}
+		if es != nil {
+			envsAll = append(envsAll, es...)
+		}
+
+		serviceAliass, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
+		if err != nil {
+			return nil, err
+		}
+		var Depend string
+		for _, sa := range serviceAliass {
+			if Depend != "" {
+				Depend += ","
+			}
+			Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
+		}
+		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: Depend})
+		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliass))})
+
+		sid2alias := make(map[string]string, len(serviceAliass))
+		for _, alias := range serviceAliass {
+			sid2alias[alias.ServiceID] = alias.ServiceAlias
+		}
+		var clusterNames []string
+		ports, err := dbmanager.TenantServicesPortDao().ListInnerPortsByServiceIDs(relationIDs)
+		for _, port := range ports {
+			depServiceAlias, ok := sid2alias[port.ServiceID]
+			if !ok {
+				logrus.Warningf("service id: %s; service alias not found", port.ServiceID)
+				continue
+			}
+
+			clusterName := fmt.Sprintf("%s_%s_%s_%d", as.TenantID, as.ServiceAlias, depServiceAlias, port.ContainerPort)
+			clusterNames = append(clusterNames, clusterName)
+		}
+		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_CLUSTER_NAMES", Value: strings.Join(clusterNames, ",")})
+
+		as.NeedProxy = true
 	}
+
 	//set app relation env
 	relations, err = dbmanager.TenantServiceRelationDao().GetTenantServiceRelationsByDependServiceID(as.ServiceID)
 	if err != nil {
@@ -227,6 +246,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			envs = append(envs, corev1.EnvVar{Name: "REVERSE_DEPEND_SERVICE", Value: Depend})
 		}
 	}
+
 	//set app port and net env
 	ports, err := dbmanager.TenantServicesPortDao().GetPortsByServiceID(as.ServiceID)
 	if err != nil {
