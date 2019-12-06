@@ -19,6 +19,10 @@
 package handler
 
 import (
+	"fmt"
+	"strings"
+
+	"container/list"
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
@@ -44,11 +48,11 @@ func CreateBatchOperationHandler(mqCli gclient.MQClient, operationHandler *Opera
 	}
 }
 
-func setStartupSequenceConfig(configs map[string]string) map[string]string {
+func setStartupSequenceConfig(configs map[string]string, depsids []string) map[string]string {
 	if configs == nil {
 		configs = make(map[string]string, 1)
 	}
-	configs["startup_sequence"] = "true"
+	configs["boot_seq_dep_service_ids"] = strings.Join(depsids, ",")
 	return configs
 }
 
@@ -69,8 +73,18 @@ func checkResourceEnough(serviceID string) error {
 
 //Build build
 func (b *BatchOperationHandler) Build(buildInfos []model.BuildInfoRequestStruct) (re BatchOperationResult) {
-	var retrys []model.BuildInfoRequestStruct
+	var serviceIDs []string
+	for _, info := range buildInfos {
+		serviceIDs = append(serviceIDs, info.ServiceID)
+	}
+	sd, err := NewServiceDependency(serviceIDs)
+	if err != nil {
+		logrus.Warningf("create a new ServiceDependency: %v", err)
+	}
+	startupSeqConfigs := sd.serviceStartupSequence()
+	logrus.Debugf("build services; startup sequence configurations: %#v", startupSeqConfigs)
 
+	var retrys []model.BuildInfoRequestStruct
 	for _, buildInfo := range buildInfos {
 		if err := checkResourceEnough(buildInfo.ServiceID); err != nil {
 			re.BatchResult = append(re.BatchResult, OperationResult{
@@ -83,7 +97,7 @@ func (b *BatchOperationHandler) Build(buildInfos []model.BuildInfoRequestStruct)
 			})
 			continue
 		}
-		buildInfo.Configs = setStartupSequenceConfig(buildInfo.Configs)
+		buildInfo.Configs = setStartupSequenceConfig(buildInfo.Configs, startupSeqConfigs[buildInfo.ServiceID])
 		buildre := b.operationHandler.Build(buildInfo)
 		if buildre.Status != "success" {
 			retrys = append(retrys, buildInfo)
@@ -99,6 +113,17 @@ func (b *BatchOperationHandler) Build(buildInfos []model.BuildInfoRequestStruct)
 
 //Start batch start
 func (b *BatchOperationHandler) Start(startInfos []model.StartOrStopInfoRequestStruct) (re BatchOperationResult) {
+	var serviceIDs []string
+	for _, info := range startInfos {
+		serviceIDs = append(serviceIDs, info.ServiceID)
+	}
+	sd, err := NewServiceDependency(serviceIDs)
+	if err != nil {
+		logrus.Warningf("create a new ServiceDependency: %v", err)
+	}
+	startupSeqConfigs := sd.serviceStartupSequence()
+	logrus.Debugf("startup sequence configurations: %#v", startupSeqConfigs)
+
 	var retrys []model.StartOrStopInfoRequestStruct
 	for _, startInfo := range startInfos {
 		if err := checkResourceEnough(startInfo.ServiceID); err != nil {
@@ -112,7 +137,9 @@ func (b *BatchOperationHandler) Start(startInfos []model.StartOrStopInfoRequestS
 			})
 			continue
 		}
-		startInfo.Configs = setStartupSequenceConfig(startInfo.Configs)
+
+		// startup sequence
+		startInfo.Configs = setStartupSequenceConfig(startInfo.Configs, startupSeqConfigs[startInfo.ServiceID])
 		startre := b.operationHandler.Start(startInfo)
 		if startre.Status != "success" {
 			retrys = append(retrys, startInfo)
@@ -130,7 +157,6 @@ func (b *BatchOperationHandler) Start(startInfos []model.StartOrStopInfoRequestS
 func (b *BatchOperationHandler) Stop(stopInfos []model.StartOrStopInfoRequestStruct) (re BatchOperationResult) {
 	var retrys []model.StartOrStopInfoRequestStruct
 	for _, stopInfo := range stopInfos {
-		stopInfo.Configs = setStartupSequenceConfig(stopInfo.Configs)
 		stopre := b.operationHandler.Stop(stopInfo)
 		if stopre.Status != "success" {
 			retrys = append(retrys, stopInfo)
@@ -146,6 +172,17 @@ func (b *BatchOperationHandler) Stop(stopInfos []model.StartOrStopInfoRequestStr
 
 //Upgrade batch upgrade
 func (b *BatchOperationHandler) Upgrade(upgradeInfos []model.UpgradeInfoRequestStruct) (re BatchOperationResult) {
+	var serviceIDs []string
+	for _, info := range upgradeInfos {
+		serviceIDs = append(serviceIDs, info.ServiceID)
+	}
+	sd, err := NewServiceDependency(serviceIDs)
+	if err != nil {
+		logrus.Warningf("create a new ServiceDependency: %v", err)
+	}
+	startupSeqConfigs := sd.serviceStartupSequence()
+	logrus.Debugf("build services; startup sequence configurations: %#v", startupSeqConfigs)
+
 	var retrys []model.UpgradeInfoRequestStruct
 	for _, upgradeInfo := range upgradeInfos {
 		if err := checkResourceEnough(upgradeInfo.ServiceID); err != nil {
@@ -159,7 +196,7 @@ func (b *BatchOperationHandler) Upgrade(upgradeInfos []model.UpgradeInfoRequestS
 			})
 			continue
 		}
-		upgradeInfo.Configs = setStartupSequenceConfig(upgradeInfo.Configs)
+		upgradeInfo.Configs = setStartupSequenceConfig(upgradeInfo.Configs, startupSeqConfigs[upgradeInfo.ServiceID])
 		stopre := b.operationHandler.Upgrade(upgradeInfo)
 		if stopre.Status != "success" {
 			retrys = append(retrys, upgradeInfo)
@@ -171,4 +208,153 @@ func (b *BatchOperationHandler) Upgrade(upgradeInfos []model.UpgradeInfoRequestS
 		re.BatchResult = append(re.BatchResult, b.operationHandler.Upgrade(retry))
 	}
 	return
+}
+
+// ServiceDependency documents a set of services and their dependencies.
+// provides the ability to build linked lists of dependencies and find circular dependencies.
+type ServiceDependency struct {
+	serviceIDs  []string
+	sid2depsids map[string][]string
+	depsid2sids map[string][]string
+}
+
+// NewServiceDependency creates a new ServiceDependency.
+func NewServiceDependency(serviceIDs []string) (*ServiceDependency, error) {
+	relations, err := db.GetManager().TenantServiceRelationDao().ListByServiceIDs(serviceIDs)
+	if err != nil {
+		return nil, fmt.Errorf("list retions: %v", err)
+	}
+	sid2depsids := make(map[string][]string)
+	depsid2sids := make(map[string][]string)
+	for _, relation := range relations {
+		sid2depsids[relation.ServiceID] = append(sid2depsids[relation.ServiceID], relation.DependServiceID)
+		depsid2sids[relation.DependServiceID] = append(depsid2sids[relation.DependServiceID], relation.ServiceID)
+	}
+
+	logrus.Debugf("create a new ServiceDependency; sid2depsids: %#v; depsid2sids: %#v", sid2depsids, depsid2sids)
+	return &ServiceDependency{
+		serviceIDs:  serviceIDs,
+		sid2depsids: sid2depsids,
+		depsid2sids: depsid2sids,
+	}, nil
+}
+
+// The order in which services are started is determined by their dependencies. If interdependencies occur, one of them is ignored.
+func (s *ServiceDependency) serviceStartupSequence() map[string][]string {
+	headNodes := s.headNodes()
+	var lists []*list.List
+	for _, h := range headNodes {
+		l := list.New()
+		l.PushBack(h)
+		lists = append(lists, s.buildLinkListByHead(l)...)
+	}
+
+	result := make(map[string][]string)
+	for _, l := range lists {
+		cur := l.Front()
+		for cur != nil && cur.Next() != nil {
+			existingVals := result[cur.Value.(string)]
+			exists := false
+			for _, val := range existingVals {
+				if val == cur.Next().Value.(string) {
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				result[cur.Value.(string)] = append(result[cur.Value.(string)], cur.Next().Value.(string))
+			}
+			cur = cur.Next()
+		}
+	}
+
+	return result
+}
+
+// headNodes finds out the service ID of all head nodes. The head nodes are services that are not dependent on other services.
+func (s *ServiceDependency) headNodes() []string {
+	var headNodes []string
+	for _, sid := range s.serviceIDs {
+		if _, ok := s.depsid2sids[sid]; ok {
+			continue
+		}
+
+		headNodes = append(headNodes, sid)
+	}
+
+	// if there is no head node(i.e. a->b->c->d->a), then a node is randomly selected.
+	// however, this node cannot be a tail node
+	for _, sid := range s.serviceIDs {
+		// does not depend on other services, it is the tail node
+		if _, ok := s.sid2depsids[sid]; !ok {
+			continue
+		}
+
+		headNodes = append(headNodes, sid)
+		logrus.Debugf("randomly select '%s' as the head node", sid)
+		break
+	}
+
+	return headNodes
+}
+
+// buildLinkListByHead recursively creates linked lists of service dependencies.
+//
+// recursive end condition:
+// 1. nil or empty input
+// 2. no more children
+// 3. child node is already in the linked list
+func (s *ServiceDependency) buildLinkListByHead(l *list.List) []*list.List {
+	// nil or empty input
+	if l == nil || l.Len() == 0 {
+		return nil
+	}
+
+	// the last node is the head node of the new linked list
+	sid, _ := l.Back().Value.(string)
+	depsids, ok := s.sid2depsids[sid]
+	// no more children
+	if !ok {
+		copy := list.New()
+		copy.PushBackList(l)
+		return []*list.List{l}
+	}
+
+	var result []*list.List
+	for _, depsid := range depsids {
+		// child node is already in the linked list
+		if alreadyInLinkedList(l, depsid) {
+			copy := list.New()
+			copy.PushBackList(l)
+			result = append(result, copy)
+			continue
+		}
+		newl := list.New()
+		newl.PushBackList(l)
+		newl.PushBack(depsid)
+
+		sublists := s.buildLinkListByHead(newl)
+		if len(sublists) == 0 {
+			result = append(result, newl)
+		} else {
+			for _, sublist := range sublists {
+				result = append(result, sublist)
+			}
+		}
+	}
+
+	return result
+}
+
+func alreadyInLinkedList(l *list.List, depsid string) bool {
+	pre := l.Back()
+	for pre != nil {
+		val := pre.Value.(string)
+		if val == depsid {
+			return true
+		}
+		pre = pre.Prev()
+	}
+
+	return false
 }

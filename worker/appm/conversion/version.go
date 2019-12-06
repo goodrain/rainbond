@@ -171,6 +171,10 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	if err != nil {
 		return nil, err
 	}
+
+	bootSeqDepServiceIDs := as.ExtensionSet["boot_seq_dep_service_ids"]
+	logrus.Infof("boot sequence dep service ids: %s", bootSeqDepServiceIDs)
+
 	if relations != nil && len(relations) > 0 {
 		var relationIDs []string
 		for _, r := range relations {
@@ -213,8 +217,10 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 				continue
 			}
 
-			clusterName := fmt.Sprintf("%s_%s_%s_%d", as.TenantID, as.ServiceAlias, depServiceAlias, port.ContainerPort)
-			clusterNames = append(clusterNames, clusterName)
+			if bootSeqDepServiceIDs != "" && strings.Contains(bootSeqDepServiceIDs, port.ServiceID) {
+				clusterName := fmt.Sprintf("%s_%s_%s_%d", as.TenantID, as.ServiceAlias, depServiceAlias, port.ContainerPort)
+				clusterNames = append(clusterNames, clusterName)
+			}
 		}
 		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_CLUSTER_NAMES", Value: strings.Join(clusterNames, ",")})
 

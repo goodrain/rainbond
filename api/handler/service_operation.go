@@ -175,11 +175,12 @@ func (o *OperationHandler) Start(startInfo model.StartOrStopInfoRequestStruct) (
 	}
 	re.EventID = startInfo.EventID
 	TaskBody := dmodel.StartTaskBody{
-		TenantID:      service.TenantID,
-		ServiceID:     service.ServiceID,
-		DeployVersion: service.DeployVersion,
-		EventID:       startInfo.EventID,
-		Configs:       startInfo.Configs,
+		TenantID:              service.TenantID,
+		ServiceID:             service.ServiceID,
+		DeployVersion:         service.DeployVersion,
+		EventID:               startInfo.EventID,
+		Configs:               startInfo.Configs,
+		DepServiceIDInBootSeq: startInfo.DepServiceIDInBootSeq,
 	}
 	err = o.mqCli.SendBuilderTopic(gclient.TaskStruct{
 		TaskType: "start",

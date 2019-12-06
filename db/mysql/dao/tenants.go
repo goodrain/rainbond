@@ -711,6 +711,16 @@ func (t *TenantServiceRelationDaoImpl) GetTenantServiceRelations(serviceID strin
 	return oldRelation, nil
 }
 
+// ListByServiceIDs -
+func (t *TenantServiceRelationDaoImpl) ListByServiceIDs(serviceIDs []string) ([]*model.TenantServiceRelation, error) {
+	var relations []*model.TenantServiceRelation
+	if err := t.DB.Where("service_id in (?)", serviceIDs).Find(&relations).Error; err != nil {
+		return nil, err
+	}
+
+	return relations, nil
+}
+
 //HaveRelations 是否有依赖
 func (t *TenantServiceRelationDaoImpl) HaveRelations(serviceID string) bool {
 	var oldRelation []*model.TenantServiceRelation

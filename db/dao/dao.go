@@ -184,6 +184,7 @@ type TenantServiceRelationDao interface {
 	Dao
 	DelDao
 	GetTenantServiceRelations(serviceID string) ([]*model.TenantServiceRelation, error)
+	ListByServiceIDs(serviceIDs []string) ([]*model.TenantServiceRelation, error)
 	GetTenantServiceRelationsByDependServiceID(dependServiceID string) ([]*model.TenantServiceRelation, error)
 	HaveRelations(serviceID string) bool
 	DELRelationsByServiceID(serviceID string) error
