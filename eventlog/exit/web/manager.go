@@ -479,7 +479,7 @@ func (s *SocketServer) listen() {
 	})
 	// new websocket pubsub
 	r.Get("/services/{serviceID}/pubsub", s.pubsub)
-	r.Get("/tenants/{tenantName}/services/{serviceID}/dockerlogs", s.getDockerLogs)
+	r.Get("/tenants/{tenantName}/services/{serviceID}/logs", s.getDockerLogs)
 	//monitor setting
 	s.prometheus(r)
 	//pprof debug
