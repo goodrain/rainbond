@@ -58,6 +58,7 @@ func (t *ServiceProbeDaoImpl) UpdateModel(mo model.Interface) error {
 			return gorm.ErrRecordNotFound
 		}
 		probe.ID = oldProbe.ID
+		probe.CreatedAt = oldProbe.CreatedAt
 	}
 	return t.DB.Save(probe).Error
 }
