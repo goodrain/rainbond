@@ -39,6 +39,8 @@ type IPManager interface {
 	//Whether the IP address belongs to the current node
 	IPInCurrentHost(net.IP) bool
 	Start() error
+	//An IP pool change triggers a forced update of the gateway policy
+	NeedUpdateGatewayPolicy() <-chan util.IPEVENT
 }
 
 type ipManager struct {
@@ -47,6 +49,8 @@ type ipManager struct {
 	lock    sync.Mutex
 	etcdCli *clientv3.Client
 	config  option.Config
+	//An IP pool change triggers a forced update of the gateway policy
+	needUpdate chan util.IPEVENT
 }
 
 //CreateIPManager create ip manage
@@ -59,7 +63,17 @@ func CreateIPManager(config option.Config) (IPManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ipManager{IPPool: IPPool, config: config, etcdCli: etcdCli, ipLease: make(map[string]clientv3.LeaseID)}, nil
+	return &ipManager{
+		IPPool:     IPPool,
+		config:     config,
+		etcdCli:    etcdCli,
+		ipLease:    make(map[string]clientv3.LeaseID),
+		needUpdate: make(chan util.IPEVENT, 10),
+	}, nil
+}
+
+func (i *ipManager) NeedUpdateGatewayPolicy() <-chan util.IPEVENT {
+	return i.needUpdate
 }
 
 //IPInCurrentHost Whether the IP address belongs to the current node
@@ -90,6 +104,7 @@ func (i *ipManager) syncIP() {
 		case util.DEL:
 			i.deleteIP(ipevent.IP)
 		}
+		i.needUpdate <- ipevent
 	}
 }
 
