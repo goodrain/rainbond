@@ -258,7 +258,8 @@ func (h *dockerLogStore) GetHistoryMessage(eventID string, length int) (re []str
 			re = append(re, string(m.Content))
 		}
 	}
-	if len(re) >= length {
+	logrus.Debugf("want length: %d; the length of re: %d;", length, len(re))
+	if len(re) >= length && length > 0 {
 		return re[:length-1]
 	}
 	result, err := h.filePlugin.GetMessages(eventID, "", length-len(re))

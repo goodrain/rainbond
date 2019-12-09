@@ -53,6 +53,7 @@ func (e *EventLogStruct) HistoryLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	//Replace service alias to service id in path
 	r.URL.Path = strings.Replace(r.URL.Path, serviceAlias, serviceID, 1)
+	r.URL.Path = strings.Replace(r.URL.Path, "/v2/", "/", 1)
 	e.EventlogServerProxy.Proxy(w, r)
 }
 

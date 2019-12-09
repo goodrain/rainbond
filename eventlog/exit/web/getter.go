@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 )
 
@@ -30,6 +31,7 @@ import (
 func (s *SocketServer) getDockerLogs(w http.ResponseWriter, r *http.Request) {
 	rows, _ := strconv.Atoi(r.URL.Query().Get("rows"))
 	serviceID := chi.URLParam(r, "serviceID")
+	logrus.Debugf("service id: %s; retrieve docker logs.", serviceID)
 	loglist := s.storemanager.GetDockerLogs(serviceID, rows)
 	content := strings.Join(loglist, "\n")
 	w.Write([]byte(content))
