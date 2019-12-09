@@ -24,7 +24,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/goodrain/rainbond/util/disk"
+	"github.com/shirou/gopsutil/disk"
 	v1 "k8s.io/api/core/v1"
 
 	api "github.com/goodrain/rainbond/util/http"
@@ -363,11 +363,16 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	var diskstauts disk.Status
+	var diskstauts *disk.UsageStat
 	if runtime.GOOS != "windows" {
-		diskstauts = disk.DiskUsage("/grdata")
+		diskstauts, _ = disk.Usage("/grdata")
 	} else {
-		diskstauts = disk.DiskUsage(`z:\\`)
+		diskstauts, _ = disk.Usage(`z:\\`)
+	}
+	var diskCap, reqDisk uint64
+	if diskstauts != nil {
+		diskCap = diskstauts.Total
+		reqDisk = diskstauts.Used
 	}
 	result := &model.ClusterResource{
 		CapCPU:         int(healthCapCPU + unhealthCapCPU),
@@ -383,8 +388,8 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 		UnhealthReqCPU: float32(unhealthCPUR) / 1000,
 		UnhealthReqMem: int(unhealthMemR) / 1024 / 1024,
 		ComputeNode:    len(nodes),
-		CapDisk:        diskstauts.All,
-		ReqDisk:        diskstauts.Used,
+		CapDisk:        diskCap,
+		ReqDisk:        reqDisk,
 	}
 	allnodes, _ := nodeService.GetAllNode()
 	result.AllNode = len(allnodes)
