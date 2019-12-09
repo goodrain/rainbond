@@ -23,12 +23,12 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/shirou/gopsutil/disk"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -46,17 +46,8 @@ type FsStats struct {
 }
 
 // GetFsStats -
-func GetFsStats(path string) (*FsStats, error) {
-	var fs syscall.Statfs_t
-	err := syscall.Statfs(path, &fs)
-	if err != nil {
-		return nil, err
-	}
-	fsStats := &FsStats{
-		CapacityBytes:  fs.Blocks * uint64(fs.Bsize),
-		AvailableBytes: fs.Bfree * uint64(fs.Bsize),
-	}
-	return fsStats, nil
+func GetFsStats(path string) (*disk.UsageStat, error) {
+	return disk.Usage(path)
 }
 
 // ImageGCManager is an interface for managing lifecycle of all images.
@@ -300,8 +291,8 @@ func getContextWithTimeout(timeout time.Duration) (context.Context, context.Canc
 func (im *realImageGCManager) GarbageCollect() error {
 	dockerRootDir, err := im.dockerRootDir()
 	if err != nil {
-		logrus.Errorf("failed to get docker root dir: %v; use '/'", err)
-		dockerRootDir = "/"
+		logrus.Errorf("failed to get docker root dir: %v; use '/var/lib/docker'", err)
+		dockerRootDir = "/var/lib/docker"
 	}
 
 	logrus.Infof("docker root dir: %s", dockerRootDir)
@@ -310,8 +301,8 @@ func (im *realImageGCManager) GarbageCollect() error {
 		return err
 	}
 
-	available := fsStats.AvailableBytes
-	capacity := fsStats.CapacityBytes
+	available := fsStats.Free
+	capacity := fsStats.Total
 	if available > capacity {
 		logrus.Warningf("available %d is larger than capacity %d", available, capacity)
 		available = capacity
@@ -324,16 +315,18 @@ func (im *realImageGCManager) GarbageCollect() error {
 	}
 
 	// If over the max threshold, free enough to place us at the lower threshold.
-	usagePercent := 100 - int(available*100/capacity)
-	if usagePercent >= im.policy.HighThresholdPercent {
+	usagePercent := fsStats.UsedPercent
+	logrus.Infof("[imageGCManager]: available disk: %d bytes; capacity of disk: %d bytes; disk usage on image filesystem: %0.f%%; high threshold (%d%%).", available, capacity, usagePercent, im.policy.HighThresholdPercent)
+	if usagePercent >= float64(im.policy.HighThresholdPercent) {
 		amountToFree := int64(capacity)*int64(100-im.policy.LowThresholdPercent)/100 - int64(available)
-		logrus.Infof("[imageGCManager]: Disk usage on image filesystem is at %d%% which is over the high threshold (%d%%). Trying to free %d bytes down to the low threshold (%d%%).", usagePercent, im.policy.HighThresholdPercent, amountToFree, im.policy.LowThresholdPercent)
+		logrus.Infof("[imageGCManager]: Disk usage on image filesystem is at %0.f%% which is over the high threshold (%d%%). Trying to free %d bytes down to the low threshold (%d%%).", usagePercent, im.policy.HighThresholdPercent, amountToFree, im.policy.LowThresholdPercent)
 		freed, err := im.freeSpace(amountToFree, time.Now())
 		if err != nil {
 			return err
 		}
 
 		if freed < amountToFree {
+			logrus.Debugf("failed to garbage collect required amount of images. Wanted to free %d bytes, but freed %d bytes", amountToFree, freed)
 			return fmt.Errorf("failed to garbage collect required amount of images. Wanted to free %d bytes, but freed %d bytes", amountToFree, freed)
 		}
 	}
@@ -399,6 +392,7 @@ func (im *realImageGCManager) freeSpace(bytesToFree int64, freeTime time.Time) (
 		spaceFreed += image.size
 
 		if spaceFreed >= bytesToFree {
+			logrus.Debugf("spaceFreed(%f) is greater than bytesToFree(%f), stop free space")
 			break
 		}
 	}

@@ -15,16 +15,6 @@ func defaultContext() context.Context {
 	return ctx
 }
 
-func TestGetFsStats(t *testing.T) {
-	fs, err := GetFsStats("/")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Logf("capacity: %v", fs.CapacityBytes)
-	t.Logf("available: %v", fs.AvailableBytes)
-}
-
 func TestGetImageRef(t *testing.T) {
 	dockerCli, err := client.NewEnvClient()
 	if err != nil {
@@ -86,4 +76,9 @@ func TestDockerRootDir(t *testing.T) {
 	}
 
 	t.Logf("docker root dir: %s", dockerInfo.DockerRootDir)
+}
+
+func TestFoobar(t *testing.T) {
+	f := 62.123
+	t.Errorf("%0.f%%", f)
 }
