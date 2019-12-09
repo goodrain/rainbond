@@ -74,7 +74,7 @@ func TestController_GetDelUpdPools(t *testing.T) {
 func TestGWController_WatchRbdEndpoints(t *testing.T) {
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"localhost:2379"},
-		DialTimeout: 3 * time.Second,
+		DialTimeout: 10 * time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)

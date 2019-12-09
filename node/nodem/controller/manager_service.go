@@ -234,12 +234,16 @@ func (m *ManagerService) SyncServiceStatusController() {
 				// disable check healthy status of the service
 				logrus.Infof("service %s not healthy, will restart it", event.Name)
 				m.healthyManager.DisableWatcher(event.Name, w.GetID())
-				if err := m.ctr.RestartService(m.GetService(event.Name)); err != nil {
-					logrus.Errorf("restart service %s failure %s", event.Name, err.Error())
-				} else {
-					if !m.WaitStart(event.Name, time.Minute) {
-						logrus.Errorf("Timeout restart service: %s, will recheck health", event.Name)
+				if err := m.ctr.WriteConfig(service); err == nil {
+					if err := m.ctr.RestartService(service); err != nil {
+						logrus.Errorf("restart service %s failure %s", event.Name, err.Error())
+					} else {
+						if !m.WaitStart(event.Name, time.Minute) {
+							logrus.Errorf("Timeout restart service: %s, will recheck health", event.Name)
+						}
 					}
+				} else {
+					logrus.Errorf("update service %s systemctl config failure where restart it:%s", event.Name, err.Error())
 				}
 				// start check healthy status of the service
 				m.healthyManager.EnableWatcher(event.Name, w.GetID())

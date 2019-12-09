@@ -181,7 +181,8 @@ func (d *EtcdDiscoverManager) Run() error {
 	}
 	d.etcdAPI = api
 	d.etcdclientv3, err = clientv3.New(clientv3.Config{
-		Endpoints: d.conf.EtcdAddr,
+		Endpoints:   d.conf.EtcdAddr,
+		DialTimeout: 10 * time.Second,
 	})
 	if err != nil {
 		d.log.Error("Create etcd v3 client error.", err.Error())

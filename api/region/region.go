@@ -28,6 +28,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
@@ -97,7 +98,6 @@ func NewRegion(c APIConf) (Region, error) {
 				return nil, err
 			}
 			pool.AppendCertsFromPEM(caCrt)
-
 			cliCrt, err := tls.LoadX509KeyPair(c.Cert, c.CertKey)
 			if err != nil {
 				logrus.Errorf("Loadx509keypair err: %s", err)
@@ -111,6 +111,7 @@ func NewRegion(c APIConf) (Region, error) {
 			}
 			re.Client = &http.Client{
 				Transport: tr,
+				Timeout:   15 * time.Second,
 			}
 		} else {
 			re.Client = http.DefaultClient
