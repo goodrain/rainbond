@@ -32,7 +32,7 @@ import (
 func TestStoreETCD(t *testing.T) {
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"127.0.0.1:2379"},
-		DialTimeout: 5 * time.Second,
+		DialTimeout: 10 * time.Second,
 	})
 	if err != nil {
 		t.Error(err)
