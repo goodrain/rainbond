@@ -71,18 +71,23 @@ func checkResourceEnough(serviceID string) error {
 	return CheckTenantResource(tenant, service.ContainerMemory*service.Replicas)
 }
 
+func (b *BatchOperationHandler) serviceStartupSequence(serviceIDs []string) map[string][]string {
+	sd, err := NewServiceDependency(serviceIDs)
+	if err != nil {
+		logrus.Warningf("create a new ServiceDependency: %v", err)
+	}
+	startupSeqConfigs := sd.serviceStartupSequence()
+	logrus.Debugf("startup sequence configurations: %#v", startupSeqConfigs)
+	return startupSeqConfigs
+}
+
 //Build build
 func (b *BatchOperationHandler) Build(buildInfos []model.BuildInfoRequestStruct) (re BatchOperationResult) {
 	var serviceIDs []string
 	for _, info := range buildInfos {
 		serviceIDs = append(serviceIDs, info.ServiceID)
 	}
-	sd, err := NewServiceDependency(serviceIDs)
-	if err != nil {
-		logrus.Warningf("create a new ServiceDependency: %v", err)
-	}
-	startupSeqConfigs := sd.serviceStartupSequence()
-	logrus.Debugf("build services; startup sequence configurations: %#v", startupSeqConfigs)
+	startupSeqConfigs := b.serviceStartupSequence(serviceIDs)
 
 	var retrys []model.BuildInfoRequestStruct
 	for _, buildInfo := range buildInfos {
@@ -117,12 +122,7 @@ func (b *BatchOperationHandler) Start(startInfos []model.StartOrStopInfoRequestS
 	for _, info := range startInfos {
 		serviceIDs = append(serviceIDs, info.ServiceID)
 	}
-	sd, err := NewServiceDependency(serviceIDs)
-	if err != nil {
-		logrus.Warningf("create a new ServiceDependency: %v", err)
-	}
-	startupSeqConfigs := sd.serviceStartupSequence()
-	logrus.Debugf("startup sequence configurations: %#v", startupSeqConfigs)
+	startupSeqConfigs := b.serviceStartupSequence(serviceIDs)
 
 	var retrys []model.StartOrStopInfoRequestStruct
 	for _, startInfo := range startInfos {
@@ -176,12 +176,7 @@ func (b *BatchOperationHandler) Upgrade(upgradeInfos []model.UpgradeInfoRequestS
 	for _, info := range upgradeInfos {
 		serviceIDs = append(serviceIDs, info.ServiceID)
 	}
-	sd, err := NewServiceDependency(serviceIDs)
-	if err != nil {
-		logrus.Warningf("create a new ServiceDependency: %v", err)
-	}
-	startupSeqConfigs := sd.serviceStartupSequence()
-	logrus.Debugf("build services; startup sequence configurations: %#v", startupSeqConfigs)
+	startupSeqConfigs := b.serviceStartupSequence(serviceIDs)
 
 	var retrys []model.UpgradeInfoRequestStruct
 	for _, upgradeInfo := range upgradeInfos {
