@@ -194,7 +194,8 @@ func (m *Manager) Run() {
 //EventLogInstance 查询event server instance
 func (m *Manager) EventLogInstance(w http.ResponseWriter, r *http.Request) {
 	etcdclient, err := clientv3.New(clientv3.Config{
-		Endpoints: m.conf.EtcdEndpoint,
+		Endpoints:   m.conf.EtcdEndpoint,
+		DialTimeout: 10 * time.Second,
 	})
 	if err != nil {
 		w.WriteHeader(500)

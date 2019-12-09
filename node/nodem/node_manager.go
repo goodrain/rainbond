@@ -222,9 +222,9 @@ func (n *NodeManager) heartbeat() {
 				if n.cfg.AutoUnschedulerUnHealthDuration == 0 {
 					continue
 				}
-				if v.ErrorDuration > n.cfg.AutoUnschedulerUnHealthDuration && n.cfg.AutoScheduler {
+				if v.ErrorDuration > n.cfg.AutoUnschedulerUnHealthDuration && n.cfg.AutoScheduler && n.currentNode.Role.HasRule(client.ComputeNode) {
 					n.currentNode.NodeStatus.AdviceAction = []string{"unscheduler"}
-					logrus.Warningf("node unhealth more than %s, will send unscheduler advice action to master", n.cfg.AutoUnschedulerUnHealthDuration.String())
+					logrus.Warningf("node unhealth more than %s(service %s unhealth), will send unscheduler advice action to master", n.cfg.AutoUnschedulerUnHealthDuration.String(), ser.Name)
 				}
 			} else {
 				logrus.Errorf("can not find service %s", k)

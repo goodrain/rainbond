@@ -67,7 +67,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	}
 	etcdCli, err := clientv3.New(clientv3.Config{
 		Endpoints:   conf.EtcdEndPoints,
-		DialTimeout: 5 * time.Second,
+		DialTimeout: 10 * time.Second,
 	})
 	if err != nil {
 		return nil, err

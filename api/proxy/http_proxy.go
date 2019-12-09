@@ -34,7 +34,7 @@ type HTTPProxy struct {
 	lb        LoadBalance
 }
 
-//Proxy 代理
+//Proxy http proxy
 func (h *HTTPProxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	endpoint := h.lb.Select(r, h.endpoints)
 	endURL, err := url.Parse(endpoint.GetHTTPAddr())
