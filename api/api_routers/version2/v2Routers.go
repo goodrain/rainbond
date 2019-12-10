@@ -128,9 +128,17 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/tcp-rule", controller.GetManager().TCPRule)
 	r.Delete("/tcp-rule", controller.GetManager().TCPRule)
 	r.Put("/tcp-rule", controller.GetManager().TCPRule)
+	r.Mount("/gateway", v2.gatewayRouter())
 
 	//batch operation
 	r.Post("/batchoperation", controller.BatchOperation)
+
+	return r
+}
+
+func (v2 *V2) gatewayRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Put("/certificate", controller.GetManager().Certificate)
 
 	return r
 }

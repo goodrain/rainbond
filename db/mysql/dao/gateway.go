@@ -58,7 +58,7 @@ func (c *CertificateDaoImpl) UpdateModel(mo model.Interface) error {
 	}
 	return c.DB.Table(cert.TableName()).
 		Where("uuid = ?", cert.UUID).
-		Update(cert).Error
+		Save(cert).Error
 }
 
 //AddOrUpdate add or update Certificate
@@ -220,6 +220,15 @@ func (h *HTTPRuleDaoImpl) DeleteHTTPRuleByServiceID(serviceID string) error {
 func (h *HTTPRuleDaoImpl) ListByServiceID(serviceID string) ([]*model.HTTPRule, error) {
 	var rules []*model.HTTPRule
 	if err := h.DB.Where("service_id = ?", serviceID).Find(&rules).Error; err != nil {
+		return nil, err
+	}
+	return rules, nil
+}
+
+// ListByCertID lists all HTTPRules matching certificate id
+func (h *HTTPRuleDaoImpl) ListByCertID(certID string) ([]*model.HTTPRule, error) {
+	var rules []*model.HTTPRule
+	if err := h.DB.Where("certificate_id = ?", certID).Find(&rules).Error; err != nil {
 		return nil, err
 	}
 	return rules, nil
