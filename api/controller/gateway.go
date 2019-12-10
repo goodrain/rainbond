@@ -25,13 +25,16 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/jinzhu/gorm"
+	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
+
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/mq/client"
+	"github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
-	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 )
 
 // GatewayStruct -
@@ -371,6 +374,55 @@ func (g *GatewayStruct) RuleConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.ReturnSuccess(r, w, "success")
+}
+
+// Certificate -
+func (g *GatewayStruct) Certificate(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "PUT":
+		g.updCertificate(w, r)
+	}
+}
+
+//updCertificate updates certificate and refresh http rules based on certificate id
+func (g *GatewayStruct) updCertificate(w http.ResponseWriter, r *http.Request) {
+	var req api_model.UpdCertificateReq
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+
+	if err := handler.GetGatewayHandler().UpdCertificate(&req); err != nil {
+		logrus.Errorf("update certificate: %v", err)
+		if err == gorm.ErrRecordNotFound {
+			httputil.ReturnError(r, w, 404, err.Error())
+			return
+		}
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+
+	// list related http rules
+	rules, err := handler.GetGatewayHandler().ListHTTPRulesByCertID(req.CertificateID)
+	if err != nil {
+		msg := "certificate id: %s; list http rules: %v"
+		logrus.Errorf(msg, req.CertificateID, err)
+		httputil.ReturnError(r, w, 500, fmt.Sprintf(msg, req.CertificateID, err))
+		return
+	}
+
+	for _, rule := range rules {
+		eventID := util.NewUUID()
+		if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
+			"service_id": rule.ServiceID,
+			"action":     "update-rule-config",
+			"event_id":   eventID,
+		}); err != nil {
+			logrus.Warningf("send runtime message about gateway failure %v", err)
+		}
+	}
+
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 //GetGatewayIPs get gateway ips

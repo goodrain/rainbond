@@ -22,19 +22,15 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-
-	"google.golang.org/grpc"
-
+	"github.com/Sirupsen/logrus"
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	endpointapi "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
 	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
-
-	"github.com/Sirupsen/logrus"
+	"google.golang.org/grpc"
 )
 
 //DependServiceHealthController Detect the health of the dependent service
@@ -43,15 +39,16 @@ import (
 //------- cds: discover all dependent services
 //------- sds: every service has at least one Ready instance
 type DependServiceHealthController struct {
-	listeners            []v2.Listener
-	clusters             []v2.Cluster
-	sdsHost              []v2.ClusterLoadAssignment
-	interval             time.Duration
-	envoyDiscoverVersion string //only support v2
-	checkFunc            []func() bool
-	endpointClient       v2.EndpointDiscoveryServiceClient
-	dependServiceCount   int
-	clusterID            string
+	listeners                 []v2.Listener
+	clusters                  []v2.Cluster
+	sdsHost                   []v2.ClusterLoadAssignment
+	interval                  time.Duration
+	envoyDiscoverVersion      string //only support v2
+	checkFunc                 []func() bool
+	endpointClient            v2.EndpointDiscoveryServiceClient
+	dependServiceCount        int
+	clusterID                 string
+	dependServiceClusterNames []string
 }
 
 //NewDependServiceHealthController create a controller
@@ -79,13 +76,10 @@ func NewDependServiceHealthController() (*DependServiceHealthController, error) 
 	if err != nil {
 		return nil, err
 	}
-	if dependCount, err := strconv.Atoi(os.Getenv("DEPEND_SERVICE_COUNT")); err == nil {
-		dsc.dependServiceCount = dependCount
-	} else {
-		depServices := os.Getenv("DEPEND_SERVICE")
-		dsc.dependServiceCount = len(strings.Split(depServices, ","))
-	}
 	dsc.endpointClient = v2.NewEndpointDiscoveryServiceClient(cli)
+
+	dsc.dependServiceClusterNames = strings.Split(os.Getenv("DEPEND_SERVICE_CLUSTER_NAMES"), ",")
+
 	return &dsc, nil
 }
 
@@ -123,6 +117,7 @@ func (d *DependServiceHealthController) checkClusters() bool {
 func (d *DependServiceHealthController) checkEDS() bool {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	res, err := d.endpointClient.FetchEndpoints(ctx, &v2.DiscoveryRequest{
 		Node: &core.Node{
 			Cluster: d.clusterID,
@@ -133,21 +128,34 @@ func (d *DependServiceHealthController) checkEDS() bool {
 		logrus.Errorf("discover depend services endpoint failure %s", err.Error())
 		return false
 	}
-	endpoints := envoyv2.ParseLocalityLbEndpointsResource(res.Resources)
-	readyLength := 0
-	for _, endpoint := range endpoints {
-		if len(endpoint.Endpoints) > 0 && len(endpoint.Endpoints[0].LbEndpoints) > 0 {
-			//first LbEndpoints healthy is not nil. so endpoint is not notreadyaddress
-			if host, ok := endpoint.Endpoints[0].LbEndpoints[0].HostIdentifier.(*endpointapi.LbEndpoint_Endpoint); ok {
-				if host.Endpoint != nil && host.Endpoint.HealthCheckConfig != nil {
-					readyLength++
-					logrus.Infof("depend service (%s) start complete, need waiting service count %d", endpoint.ClusterName, d.dependServiceCount-readyLength)
+
+	clusterLoadAssignments := envoyv2.ParseLocalityLbEndpointsResource(res.Resources)
+	readyClusters := make(map[string]bool, len(clusterLoadAssignments))
+	for _, cla := range clusterLoadAssignments {
+		// clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, service.Spec.Ports[0].Port)
+		clusterName := cla.GetClusterName()
+		ready := func() bool {
+			if len(cla.Endpoints) > 0 && len(cla.Endpoints[0].LbEndpoints) > 0 {
+				// first LbEndpoints healthy is not nil. so endpoint is not notreadyaddress
+				if host, ok := cla.Endpoints[0].LbEndpoints[0].HostIdentifier.(*endpointapi.LbEndpoint_Endpoint); ok {
+					if host.Endpoint != nil && host.Endpoint.HealthCheckConfig != nil {
+						logrus.Infof("depend service (%s) start complete", cla.ClusterName)
+						return true
+					}
 				}
 			}
+			return false
+		}()
+		readyClusters[clusterName] = ready
+	}
+
+	for _, cn := range d.dependServiceClusterNames {
+		if _, ok := readyClusters[cn]; !ok {
+			return false
 		}
 	}
-	if readyLength >= d.dependServiceCount {
-		return true
-	}
-	return false
+
+	logrus.Info("all dependent services have been started.")
+
+	return true
 }

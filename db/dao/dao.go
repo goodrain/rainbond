@@ -112,6 +112,7 @@ type TenantServicesPortDao interface {
 	DELPortsByServiceID(serviceID string) error
 	HasOpenPort(sid string) bool
 	DelByServiceID(sid string) error
+	ListInnerPortsByServiceIDs(serviceIDs []string) ([]*model.TenantServicesPort, error)
 }
 
 //TenantPluginDao TenantPluginDao
@@ -186,6 +187,7 @@ type TenantServiceRelationDao interface {
 	Dao
 	DelDao
 	GetTenantServiceRelations(serviceID string) ([]*model.TenantServiceRelation, error)
+	ListByServiceIDs(serviceIDs []string) ([]*model.TenantServiceRelation, error)
 	GetTenantServiceRelationsByDependServiceID(dependServiceID string) ([]*model.TenantServiceRelation, error)
 	HaveRelations(serviceID string) bool
 	DELRelationsByServiceID(serviceID string) error
@@ -414,6 +416,7 @@ type HTTPRuleDao interface {
 	DeleteHTTPRuleByID(id string) error
 	DeleteHTTPRuleByServiceID(serviceID string) error
 	ListByServiceID(serviceID string) ([]*model.HTTPRule, error)
+	ListByCertID(certID string) ([]*model.HTTPRule, error)
 }
 
 // TCPRuleDao -
