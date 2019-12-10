@@ -410,6 +410,7 @@ type HTTPRuleDao interface {
 	DeleteHTTPRuleByID(id string) error
 	DeleteHTTPRuleByServiceID(serviceID string) error
 	ListByServiceID(serviceID string) ([]*model.HTTPRule, error)
+	ListByCertID(certID string) ([]*model.HTTPRule, error)
 }
 
 // TCPRuleDao -

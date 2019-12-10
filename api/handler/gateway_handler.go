@@ -43,5 +43,7 @@ type GatewayHandler interface {
 	TCPIPPortExists(ip string, port int) bool
 	SendTask(in map[string]interface{}) error
 	RuleConfig(req *apimodel.RuleConfigReq) error
+	UpdCertificate(req *apimodel.UpdCertificateReq) error
 	GetGatewayIPs() []IPAndAvailablePort
+	ListHTTPRulesByCertID(certID string) ([]*dbmodel.HTTPRule, error)
 }
