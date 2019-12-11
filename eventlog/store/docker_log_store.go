@@ -262,7 +262,13 @@ func (h *dockerLogStore) GetHistoryMessage(eventID string, length int) (re []str
 	if len(re) >= length && length > 0 {
 		return re[:length-1]
 	}
-	result, err := h.filePlugin.GetMessages(eventID, "", length-len(re))
+	filelength := func() int {
+		if length-len(re) > 0 {
+			return length - len(re)
+		}
+		return 0
+	}()
+	result, err := h.filePlugin.GetMessages(eventID, "", filelength)
 	if result == nil || err != nil {
 		return re
 	}

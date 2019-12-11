@@ -76,6 +76,10 @@ func (e *endpointDiscover) AddProject(name string, pro proxy.Proxy) {
 		e.dis.AddProject(name, e.projects[name])
 	} else {
 		def.proxys = append(def.proxys, pro)
+		// add proxy after update endpoint first,must initialize endpoint by cache data
+		if len(def.cacheEndpointURL) > 0 {
+			pro.UpdateEndpoints(def.cacheEndpointURL...)
+		}
 	}
 
 }
@@ -91,8 +95,9 @@ func (e *endpointDiscover) Stop() {
 }
 
 type defalt struct {
-	name   string
-	proxys []proxy.Proxy
+	name             string
+	proxys           []proxy.Proxy
+	cacheEndpointURL []string
 }
 
 func (e *defalt) Error(err error) {
@@ -111,6 +116,7 @@ func (e *defalt) UpdateEndpoints(endpoints ...*corediscoverconfig.Endpoint) {
 	for _, p := range e.proxys {
 		p.UpdateEndpoints(endStr...)
 	}
+	e.cacheEndpointURL = endStr
 }
 
 //when watch occurred error,will exec this method

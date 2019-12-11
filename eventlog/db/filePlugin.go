@@ -103,7 +103,7 @@ func (m *filePlugin) SaveMessage(events []*EventLogMessage) error {
 	return err
 }
 func (m *filePlugin) GetMessages(serviceID, level string, length int) (interface{}, error) {
-	if length == 0 {
+	if length <= 0 {
 		return nil, nil
 	}
 	filePathDir, err := m.getStdFilePath(serviceID)

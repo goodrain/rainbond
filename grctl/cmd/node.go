@@ -143,6 +143,10 @@ func getStatusShow(v *client.HostNode) (status string) {
 		nss.message = append(nss.message, "unhealth")
 		nss.color = color.FgRed
 	}
+	if v.NodeStatus.Status == client.Offline {
+		nss.message = append(nss.message, client.Offline)
+		nss.color = color.FgRed
+	}
 
 	result := nss.String()
 	if strings.Contains(result, "unknown") {
