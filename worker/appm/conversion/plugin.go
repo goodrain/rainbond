@@ -175,7 +175,7 @@ func createUDPDefaultPluginContainer(serviceID string, envs []v1.EnvVar) v1.Cont
 		Env:                    envs,
 		TerminationMessagePath: "",
 		Image:                  builder.REGISTRYDOMAIN + "/adapter",
-		Resources:              createAdapterResources(128, 500),
+		Resources:              createPluginResources(256, 500),
 	}
 }
 
@@ -193,7 +193,7 @@ func createTCPDefaultPluginContainer(serviceID, pluginID string, envs []v1.EnvVa
 		Name:      "default-tcpmesh-" + serviceID[len(serviceID)-20:],
 		Env:       envs,
 		Image:     typesv1.GetTCPMeshImageName(),
-		Resources: createAdapterResources(128, 500),
+		Resources: createPluginResources(256, 500),
 	}
 }
 
