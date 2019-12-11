@@ -19,10 +19,11 @@
 package metricsserv
 
 import (
-	"github.com/coreos/etcd/clientv3"
-	"k8s.io/client-go/kubernetes"
 	"testing"
 	"time"
+
+	"github.com/coreos/etcd/clientv3"
+	"k8s.io/client-go/kubernetes"
 
 	"k8s.io/client-go/tools/clientcmd"
 	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
@@ -47,7 +48,7 @@ func TestNewMetricsServerAPIServer(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	clientv3, err := clientv3.New(clientv3.Config{
-		Endpoints:        []string{"http://192.168.2.78:2379"},
+		Endpoints:        []string{"http://127.0.0.1:2379"},
 		AutoSyncInterval: time.Second * 30,
 		DialTimeout:      time.Second * 10,
 	})
@@ -55,7 +56,7 @@ func TestStart(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c, err := clientcmd.BuildConfigFromFlags("", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig")
+	c, err := clientcmd.BuildConfigFromFlags("", "../../../test/admin.kubeconfig")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,4 +77,21 @@ func TestStart(t *testing.T) {
 	}
 
 	select {}
+}
+
+func TestListMetricsServiceEndpoints(t *testing.T) {
+	clientv3, err := clientv3.New(clientv3.Config{
+		Endpoints:        []string{"http://127.0.0.1:2379"},
+		AutoSyncInterval: time.Second * 30,
+		DialTimeout:      time.Second * 10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	metricsServiceManager := New(nil, nil, clientv3)
+	e, err := metricsServiceManager.listMetricsServiceEndpoints()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(e)
 }
