@@ -466,7 +466,7 @@ func createTCPUDPMeshRecources(envs []v1.EnvVar) v1.ResourceRequirements {
 	var cpu int64 = 250
 	var memory int = 128
 	for _, env := range envs {
-		if env.Name == "RBD_TCPUDP_MESH_CPU" {
+		if env.Name == "ES_TCPUDP_MESH_CPU" {
 			c, err := strconv.Atoi(env.Value)
 			if err != nil {
 				logrus.Warningf("[RBD_TCPUDP_MESH_CPU] value: %s; convert type to int: %v", env.Value, err)
@@ -476,7 +476,7 @@ func createTCPUDPMeshRecources(envs []v1.EnvVar) v1.ResourceRequirements {
 				cpu = int64(c)
 			}
 		}
-		if env.Name == "RBD_TCPUDP_MESH_MEMORY" {
+		if env.Name == "ES_TCPUDP_MESH_MEMORY" {
 			m, err := strconv.Atoi(env.Value)
 			if err != nil {
 				logrus.Warningf("[RBD_TCPUDP_MESH_MEMORY] value: %s; convert type to int: %v", env.Value, err)
