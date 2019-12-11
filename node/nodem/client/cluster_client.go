@@ -76,6 +76,7 @@ func (e *etcdClusterClient) UpdateStatus(n *HostNode, deleteConditions []NodeCon
 	//The startup parameters shall prevail
 	existNode.Role = n.Role
 	existNode.HostName = n.HostName
+	existNode.Status = n.Status
 	existNode.NodeStatus.NodeHealth = n.NodeStatus.NodeHealth
 	existNode.NodeStatus.NodeUpdateTime = time.Now()
 	existNode.NodeStatus.Version = cmd.GetVersion()

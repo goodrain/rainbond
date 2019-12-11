@@ -139,27 +139,36 @@ func (m *ControllerSystemd) DisableService(serviceName string) error {
 }
 
 //WriteConfig write config
-func (m *ControllerSystemd) WriteConfig(s *service.Service) error {
+//The first parameter returned represents whether there has been a change
+//If I write it the first time, there is no change
+func (m *ControllerSystemd) WriteConfig(s *service.Service) (bool, error) {
+	var isChange = false
 	fileName := fmt.Sprintf("%s/%s.service", m.SysConfigDir, s.Name)
 	content := ToConfig(s)
 	content = m.manager.InjectConfig(content)
 	if content == "" {
 		err := fmt.Errorf("can not generate config for service %s", s.Name)
 		logrus.Error(err)
-		return err
+		return isChange, err
+	}
+	if old, err := ioutil.ReadFile(fileName); err == nil && old != nil {
+		if string(old) != content {
+			isChange = true
+		} else {
+			return isChange, nil
+		}
 	}
 	if err := ioutil.WriteFile(fileName, []byte(content), 0644); err != nil {
 		logrus.Errorf("Generate config file %s: %v", fileName, err)
-		return err
+		return isChange, err
 	}
 	logrus.Info("Reload config for systemd by daemon-reload.")
 	err := m.run("daemon-reload")
 	if err != nil {
 		logrus.Errorf("Reload config by systemd daemon-reload for %s: %v ", s.Name, err)
-		return err
+		return isChange, err
 	}
-
-	return nil
+	return isChange, nil
 }
 
 //RemoveConfig remove config
