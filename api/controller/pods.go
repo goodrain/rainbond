@@ -73,6 +73,9 @@ func Pods(w http.ResponseWriter, r *http.Request) {
 			logrus.Errorf("get service pod failure %s", err.Error())
 			continue
 		}
+		if podinfo == nil {
+			continue
+		}
 		var pods []*handler.K8sPodInfo
 		if podinfo.OldPods != nil {
 			pods = append(podinfo.NewPods, podinfo.OldPods...)
