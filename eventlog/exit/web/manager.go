@@ -29,6 +29,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 
 	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/eventlog/cluster"
@@ -437,6 +438,7 @@ func (s *SocketServer) Run() error {
 }
 func (s *SocketServer) listen() {
 	r := chi.NewRouter()
+	r.Use(middleware.Logger)
 	// deprecated
 	r.Get("/event_log", s.pushEventMessage)
 	// deprecated

@@ -63,7 +63,7 @@ func CreateKeepAlive(EtcdEndpoint []string, ServerName string, HostName string, 
 		ServerName:   ServerName,
 		HostName:     HostName,
 		Endpoint:     fmt.Sprintf("%s:%d", HostIP, Port),
-		TTL:          5,
+		TTL:          10,
 		Done:         make(chan struct{}),
 	}, nil
 }
@@ -87,7 +87,7 @@ func (k *KeepAlive) Start() error {
 			case <-timer.C:
 				if k.LID > 0 {
 					func() {
-						ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+						ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 						defer cancel()
 						_, err := k.etcdClient.KeepAliveOnce(ctx, k.LID)
 						if err == nil {
