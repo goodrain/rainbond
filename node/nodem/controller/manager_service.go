@@ -134,13 +134,21 @@ func (m *ManagerService) StartServices() {
 	for _, service := range m.services {
 		if !service.Disable {
 			logrus.Infof("Begin start service %s", service.Name)
-			if err := m.ctr.WriteConfig(service); err != nil {
+			update, err := m.ctr.WriteConfig(service)
+			if err != nil {
 				logrus.Errorf("write service config failure %s", err.Error())
 				continue
 			}
-			if err := m.ctr.StartService(service.Name); err != nil {
-				logrus.Errorf("start service failure %s", err.Error())
-				continue
+			if update {
+				if err := m.ctr.RestartService(service); err != nil {
+					logrus.Errorf("start service failure %s", err.Error())
+					continue
+				}
+			} else {
+				if err := m.ctr.StartService(service.Name); err != nil {
+					logrus.Errorf("start service failure %s", err.Error())
+					continue
+				}
 			}
 		}
 	}
@@ -234,7 +242,8 @@ func (m *ManagerService) SyncServiceStatusController() {
 				// disable check healthy status of the service
 				logrus.Infof("service %s not healthy, will restart it", event.Name)
 				m.healthyManager.DisableWatcher(event.Name, w.GetID())
-				if err := m.ctr.WriteConfig(service); err == nil {
+				_, err := m.ctr.WriteConfig(service)
+				if err == nil {
 					if err := m.ctr.RestartService(service); err != nil {
 						logrus.Errorf("restart service %s failure %s", event.Name, err.Error())
 					} else {
@@ -361,15 +370,16 @@ func (m *ManagerService) ReLoadServices() error {
 					m.ctr.DisableService(ne.Name)
 					restartCount++
 				}
-				if !ne.Equal(old) {
-					logrus.Infof("Recreate service [%s]", ne.Name)
-					if err := m.ctr.WriteConfig(ne); err == nil {
-						m.ctr.EnableService(ne.Name)
+				logrus.Infof("Recreate service [%s]", ne.Name)
+				update, err := m.ctr.WriteConfig(ne)
+				if err == nil {
+					m.ctr.EnableService(ne.Name)
+					if update {
 						m.ctr.RestartService(ne)
-						restartCount++
+					} else {
+						m.ctr.StartService(ne.Name)
 					}
-				} else {
-					logrus.Infof("Service %s config no change", ne.Name)
+					restartCount++
 				}
 				exists = true
 				break
@@ -377,9 +387,14 @@ func (m *ManagerService) ReLoadServices() error {
 		}
 		if !exists {
 			logrus.Infof("Create service [%s]", ne.Name)
-			if err := m.ctr.WriteConfig(ne); err == nil {
+			update, err := m.ctr.WriteConfig(ne)
+			if err == nil {
 				m.ctr.EnableService(ne.Name)
-				m.ctr.StartService(ne.Name)
+				if update {
+					m.ctr.RestartService(ne)
+				} else {
+					m.ctr.StartService(ne.Name)
+				}
 				restartCount++
 			}
 		}
@@ -433,7 +448,7 @@ func (m *ManagerService) WriteServices() error {
 		if s.Name == "docker" {
 			continue
 		}
-		err := m.ctr.WriteConfig(s)
+		_, err := m.ctr.WriteConfig(s)
 		if err != nil {
 			return err
 		}
