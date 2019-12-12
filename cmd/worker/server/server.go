@@ -25,6 +25,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
+	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
@@ -33,11 +37,10 @@ import (
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/discover"
+	"github.com/goodrain/rainbond/worker/gc"
 	"github.com/goodrain/rainbond/worker/master"
 	"github.com/goodrain/rainbond/worker/monitor"
 	"github.com/goodrain/rainbond/worker/server"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 //Run start run
@@ -75,7 +78,12 @@ func Run(s *option.Worker) error {
 		return err
 	}
 	s.Config.KubeClient = clientset
-	//etcdCli, err := client.New(client.Config{})
+
+	kubeaggregatorclientset, err := kubeaggregatorclientset.NewForConfig(c)
+	if err != nil {
+		logrus.Error("kube aggregator; read kube config file error.", err)
+		return err
+	}
 
 	//step 3: create resource store
 	startCh := channels.NewRingChannel(1024)
@@ -97,7 +105,7 @@ func Run(s *option.Worker) error {
 	defer controllerManager.Stop()
 
 	//step 5 : start runtime master
-	masterCon, err := master.NewMasterController(s.Config, cachestore)
+	masterCon, err := master.NewMasterController(s.Config, cachestore, kubeaggregatorclientset)
 	if err != nil {
 		return err
 	}
@@ -105,8 +113,10 @@ func Run(s *option.Worker) error {
 		return err
 	}
 	defer masterCon.Stop()
+
 	//step 6 : create discover module
-	taskManager := discover.NewTaskManager(s.Config, cachestore, controllerManager, startCh)
+	garbageCollector := gc.NewGarbageCollector(clientset)
+	taskManager := discover.NewTaskManager(s.Config, cachestore, controllerManager, garbageCollector, startCh)
 	if err := taskManager.Start(); err != nil {
 		return err
 	}

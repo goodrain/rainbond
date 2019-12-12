@@ -72,6 +72,8 @@ type ServiceInterface interface {
 	ShareResult(w http.ResponseWriter, r *http.Request)
 	BuildVersionInfo(w http.ResponseWriter, r *http.Request)
 	GetDeployVersion(w http.ResponseWriter, r *http.Request)
+	AutoscalerRules(w http.ResponseWriter, r *http.Request)
+	ScalingRecords(w http.ResponseWriter, r *http.Request)
 }
 
 //TenantInterfaceWithV1 funcs for both v2 and v1
@@ -91,7 +93,7 @@ type TenantInterfaceWithV1 interface {
 
 //LogInterface log interface
 type LogInterface interface {
-	Logs(w http.ResponseWriter, r *http.Request)
+	HistoryLogs(w http.ResponseWriter, r *http.Request)
 	LogList(w http.ResponseWriter, r *http.Request)
 	LogFile(w http.ResponseWriter, r *http.Request)
 	LogSocket(w http.ResponseWriter, r *http.Request)
@@ -106,7 +108,7 @@ type PluginInterface interface {
 	PluginAction(w http.ResponseWriter, r *http.Request)
 	PluginDefaultENV(w http.ResponseWriter, r *http.Request)
 	PluginBuild(w http.ResponseWriter, r *http.Request)
-	GetAllPluginBuildVersons(w http.ResponseWriter, r *http.Request)
+	GetAllPluginBuildVersions(w http.ResponseWriter, r *http.Request)
 	GetPluginBuildVersion(w http.ResponseWriter, r *http.Request)
 	DeletePluginBuildVersion(w http.ResponseWriter, r *http.Request)
 	//plugin
@@ -143,6 +145,7 @@ type Gatewayer interface {
 	TCPRule(w http.ResponseWriter, r *http.Request)
 	GetAvailablePort(w http.ResponseWriter, r *http.Request)
 	RuleConfig(w http.ResponseWriter, r *http.Request)
+	Certificate(w http.ResponseWriter, r *http.Request)
 }
 
 // ThirdPartyServicer is an interface for defining methods for third-party service.

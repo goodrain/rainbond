@@ -132,3 +132,87 @@ func TestTenantServicesDao_GetOpenedPort(t *testing.T) {
 		t.Errorf("Expected 3 for the length of ports, but return %d", len(ports))
 	}
 }
+
+func TestListInnerPorts(t *testing.T) {
+	dbname := "region"
+	rootpw := "rainbond"
+
+	ctx := context.Background()
+	req := testcontainers.ContainerRequest{
+		Image:        "mariadb",
+		ExposedPorts: []string{"3306/tcp"},
+		Env: map[string]string{
+			"MYSQL_ROOT_PASSWORD": rootpw,
+			"MYSQL_DATABASE":      dbname,
+		},
+		Cmd: "--character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci",
+	}
+	mariadb, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mariadb.Terminate(ctx)
+
+	host, err := mariadb.Host(ctx)
+	if err != nil {
+		t.Error(err)
+	}
+	port, err := mariadb.MappedPort(ctx, "3306")
+	if err != nil {
+		t.Error(err)
+	}
+
+	connInfo := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", "root",
+		rootpw, host, port.Int(), dbname)
+	tryTimes := 3
+	for {
+		if err := CreateManager(dbconfig.Config{
+			DBType:              "mysql",
+			MysqlConnectionInfo: connInfo,
+		}); err != nil {
+			if tryTimes == 0 {
+				t.Fatalf("Connect info: %s; error creating db manager: %v", connInfo, err)
+			} else {
+				tryTimes = tryTimes - 1
+				time.Sleep(10 * time.Second)
+				continue
+			}
+		}
+		break
+	}
+
+	sid := util.NewUUID()
+	trueVal := true
+	falseVal := false
+	err = GetManager().TenantServicesPortDao().AddModel(&model.TenantServicesPort{
+		ServiceID:      sid,
+		ContainerPort:  1111,
+		MappingPort:    1111,
+		IsInnerService: &trueVal,
+		IsOuterService: &trueVal,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = GetManager().TenantServicesPortDao().AddModel(&model.TenantServicesPort{
+		ServiceID:      sid,
+		ContainerPort:  2222,
+		MappingPort:    2222,
+		IsInnerService: &trueVal,
+		IsOuterService: &falseVal,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ports, err := GetManager().TenantServicesPortDao().ListInnerPortsByServiceIDs([]string{sid})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ports) != 2 {
+		t.Errorf("Expocted %d for ports, but got %d", 2, len(ports))
+	}
+}

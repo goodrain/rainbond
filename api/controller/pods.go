@@ -68,7 +68,14 @@ func Pods(w http.ResponseWriter, r *http.Request) {
 	}
 	var allpods []*handler.K8sPodInfo
 	for _, serviceID := range serviceIDs {
-		podinfo, _ := handler.GetServiceManager().GetPods(serviceID)
+		podinfo, err := handler.GetServiceManager().GetPods(serviceID)
+		if err != nil {
+			logrus.Errorf("get service pod failure %s", err.Error())
+			continue
+		}
+		if podinfo == nil {
+			continue
+		}
 		var pods []*handler.K8sPodInfo
 		if podinfo.OldPods != nil {
 			pods = append(podinfo.NewPods, podinfo.OldPods...)

@@ -23,11 +23,9 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/types/v1"
-
-	"github.com/goodrain/rainbond/util"
-
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -60,6 +58,9 @@ var TypeApplyRuleController TypeController = "apply_rule"
 
 // TypeApplyConfigController -
 var TypeApplyConfigController TypeController = "apply_config"
+
+// TypeControllerRefreshHPA -
+var TypeControllerRefreshHPA TypeController = "refreshhpa"
 
 //Manager controller manager
 type Manager struct {
@@ -147,6 +148,13 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 		controller = &applyConfigController{
 			controllerID: controllerID,
 			appService:   apps[0],
+			manager:      m,
+			stopChan:     make(chan struct{}),
+		}
+	case TypeControllerRefreshHPA:
+		controller = &refreshXPAController{
+			controllerID: controllerID,
+			appService:   apps,
 			manager:      m,
 			stopChan:     make(chan struct{}),
 		}

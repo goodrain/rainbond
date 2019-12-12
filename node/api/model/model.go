@@ -34,7 +34,7 @@ import (
 
 //Resource 资源
 type Resource struct {
-	CpuR int `json:"cpu"`
+	CPU  int `json:"cpu"`
 	MemR int `json:"mem"`
 }
 

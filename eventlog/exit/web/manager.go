@@ -26,7 +26,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goodrain/rainbond/util"
+
 	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/eventlog/cluster"
@@ -435,10 +438,16 @@ func (s *SocketServer) Run() error {
 }
 func (s *SocketServer) listen() {
 	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+	// deprecated
 	r.Get("/event_log", s.pushEventMessage)
+	// deprecated
 	r.Get("/docker_log", s.pushDockerLog)
+	// deprecated
 	r.Get("/monitor_message", s.pushMonitorMessage)
+	// deprecated
 	r.Get("/new_monitor_message", s.pushNewMonitorMessage)
+
 	r.Get("/monitor", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("ok"))
@@ -472,8 +481,12 @@ func (s *SocketServer) listen() {
 	})
 	// new websocket pubsub
 	r.Get("/services/{serviceID}/pubsub", s.pubsub)
+	r.Get("/tenants/{tenantName}/services/{serviceID}/logs", s.getDockerLogs)
 	//monitor setting
 	s.prometheus(r)
+	//pprof debug
+	util.ProfilerSetup(r)
+
 	if s.conf.SSL {
 		go func() {
 			addr := fmt.Sprintf("%s:%d", s.conf.BindIP, s.conf.SSLBindPort)

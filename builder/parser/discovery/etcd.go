@@ -53,7 +53,7 @@ func NewEtcd(info *Info) Discoverier {
 func (e *etcd) Connect() error {
 	cli, err := c.New(c.Config{
 		Endpoints:   e.endpoints,
-		DialTimeout: 5 * time.Second,
+		DialTimeout: 10 * time.Second,
 		Username:    e.username,
 		Password:    e.password,
 	})

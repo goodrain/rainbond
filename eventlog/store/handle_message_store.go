@@ -308,3 +308,14 @@ func (h *handleMessageStore) handleBarrelEvent() {
 		}
 	}
 }
+func (h *handleMessageStore) GetHistoryMessage(eventID string, length int) (re []string) {
+	h.lock.RLock()
+	defer h.lock.RUnlock()
+	for _, m := range h.barrels[eventID].barrel {
+		re = append(re, string(m.Content))
+	}
+	if len(re) > length && length != 0 {
+		return re[:length-1]
+	}
+	return re
+}

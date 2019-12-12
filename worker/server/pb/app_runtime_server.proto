@@ -48,6 +48,7 @@ message ServiceAppPod {
   string pod_ip = 5;
   string pod_status = 6;
   map<string, Container> containers = 7;
+  repeated string pod_volumes = 8;
 }
 
 message Container {

@@ -92,3 +92,8 @@ func TestCreateVolume(t *testing.T) {
 	var define = &volume.Define{}
 	vol.CreateVolume(define)
 }
+func TestFoobar(t *testing.T) {
+	memory := 64
+	cpuRequest, cpuLimit := int64(memory)/128*30, int64(memory)/128*80
+	t.Errorf("request: %d; limit: %d", cpuRequest, cpuLimit)
+}

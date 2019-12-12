@@ -27,14 +27,17 @@ type Proxy interface {
 	UpdateEndpoints(endpoints ...string) // format: ["name=>ip:port", ...]
 }
 
-//CreateProxy 创建代理
+//CreateProxy create proxy
 func CreateProxy(name string, mode string, endpoints []string) Proxy {
 	switch mode {
 	case "websocket":
 		return createWebSocketProxy(name, endpoints)
 	case "http":
-		return createHTTPProxy(name, endpoints)
+		if name == "eventlog" {
+			return createHTTPProxy(name, endpoints, NewSelectBalance())
+		}
+		return createHTTPProxy(name, endpoints, nil)
 	default:
-		return createHTTPProxy(name, endpoints)
+		return createHTTPProxy(name, endpoints, nil)
 	}
 }

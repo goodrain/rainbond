@@ -53,6 +53,7 @@ type Config struct {
 	MinExtPort        int // minimum external port
 	LicensePath       string
 	LicSoPath         string
+	LogPath           string
 }
 
 //APIServer  apiserver server
@@ -97,6 +98,7 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringArrayVar(&a.EnableFeature, "enable-feature", []string{}, "List of special features supported, such as `windows`")
 	fs.StringVar(&a.LicensePath, "license-path", "/opt/rainbond/etc/license/license.yb", "the license path of the enterprise version.")
 	fs.StringVar(&a.LicSoPath, "license-so-path", "/opt/rainbond/etc/license/license.so", "Dynamic library file path for parsing the license.")
+	fs.StringVar(&a.LogPath, "log-path", "/grdata/logs", "Where Docker log files and event log files are stored.")
 }
 
 //SetLog 设置log

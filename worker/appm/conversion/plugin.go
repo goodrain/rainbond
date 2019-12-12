@@ -22,22 +22,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
-	"github.com/goodrain/rainbond/builder"
-
 	"github.com/Sirupsen/logrus"
-
-	api_model "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/util"
-	typesv1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/jinzhu/gorm"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/util"
+	typesv1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 //TenantServicePlugin conv service all plugin
@@ -157,7 +157,8 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 			meshPluginID = pluginID
 		}
 	}
-	if as.NeedProxy && !udpDep && strings.ToLower(as.ExtensionSet["startup_sequence"]) == "true" {
+
+	if bootSeqDepServiceIds := as.ExtensionSet["boot_seq_dep_service_ids"]; as.NeedProxy && !udpDep && bootSeqDepServiceIds != "" {
 		initContainers = append(initContainers, createProbeMeshInitContainer(as.ServiceID, meshPluginID, as.ServiceAlias, mainContainer.Env))
 	}
 	return initContainers, containers, nil
@@ -174,7 +175,7 @@ func createUDPDefaultPluginContainer(serviceID string, envs []v1.EnvVar) v1.Cont
 		Env:                    envs,
 		TerminationMessagePath: "",
 		Image:                  builder.REGISTRYDOMAIN + "/adapter",
-		Resources:              createAdapterResources(128, 500),
+		Resources:              createTCPUDPMeshRecources(envs),
 	}
 }
 
@@ -188,11 +189,12 @@ func createTCPDefaultPluginContainer(serviceID, pluginID string, envs []v1.EnvVa
 	}})
 	envs = append(envs, v1.EnvVar{Name: "API_HOST_PORT", Value: apiHostPort})
 	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_PORT", Value: xdsHostPort})
+
 	return v1.Container{
 		Name:      "default-tcpmesh-" + serviceID[len(serviceID)-20:],
 		Env:       envs,
 		Image:     typesv1.GetTCPMeshImageName(),
-		Resources: createAdapterResources(128, 500),
+		Resources: createTCPUDPMeshRecources(envs),
 	}
 }
 
@@ -405,17 +407,30 @@ func pluginWeight(pluginModel string) int {
 	}
 }
 func createPluginResources(memory int, cpu int) v1.ResourceRequirements {
+	base := int64(memory) / 128
+	if base <= 0 {
+		base = 1
+	}
+	var cpuRequest, cpuLimit int64
+	if memory < 512 {
+		cpuRequest, cpuLimit = 128, 256
+	} else if memory <= 1024 {
+		cpuRequest, cpuLimit = base*30, base*160
+	} else {
+		cpuRequest, cpuLimit = int64(memory)/128*30, ((int64(memory)-1024)/1024*500 + 1280)
+	}
+
 	limits := v1.ResourceList{}
-	// limits[v1.ResourceCPU] = *resource.NewMilliQuantity(
-	// 	int64(cpu*3),
-	// 	resource.DecimalSI)
+	limits[v1.ResourceCPU] = *resource.NewMilliQuantity(
+		cpuLimit,
+		resource.DecimalSI)
 	limits[v1.ResourceMemory] = *resource.NewQuantity(
 		int64(memory*1024*1024),
 		resource.BinarySI)
 	request := v1.ResourceList{}
-	// request[v1.ResourceCPU] = *resource.NewMilliQuantity(
-	// 	int64(cpu*2),
-	// 	resource.DecimalSI)
+	request[v1.ResourceCPU] = *resource.NewMilliQuantity(
+		cpuRequest,
+		resource.DecimalSI)
 	request[v1.ResourceMemory] = *resource.NewQuantity(
 		int64(memory*1024*1024),
 		resource.BinarySI)
@@ -441,6 +456,45 @@ func createAdapterResources(memory int, cpu int) v1.ResourceRequirements {
 	//request[v1.ResourceMemory] = *resource.NewQuantity(
 	//	int64(memory*1024*1024),
 	//	resource.BinarySI)
+	return v1.ResourceRequirements{
+		Limits:   limits,
+		Requests: request,
+	}
+}
+
+func createTCPUDPMeshRecources(envs []v1.EnvVar) v1.ResourceRequirements {
+	var cpu int64 = 250
+	var memory int = 128
+	for _, env := range envs {
+		if env.Name == "ES_TCPUDP_MESH_CPU" {
+			c, err := strconv.Atoi(env.Value)
+			if err != nil {
+				logrus.Warningf("[RBD_TCPUDP_MESH_CPU] value: %s; convert type to int: %v", env.Value, err)
+				continue
+			}
+			if c > 0 {
+				cpu = int64(c)
+			}
+		}
+		if env.Name == "ES_TCPUDP_MESH_MEMORY" {
+			m, err := strconv.Atoi(env.Value)
+			if err != nil {
+				logrus.Warningf("[RBD_TCPUDP_MESH_MEMORY] value: %s; convert type to int: %v", env.Value, err)
+				continue
+			}
+			if m > 0 {
+				memory = m
+			}
+		}
+	}
+
+	limits := v1.ResourceList{}
+	limits[v1.ResourceCPU] = *resource.NewMilliQuantity(cpu, resource.DecimalSI)
+	limits[v1.ResourceMemory] = *resource.NewQuantity(int64(memory*1024*1024), resource.BinarySI)
+
+	request := v1.ResourceList{}
+	request[v1.ResourceCPU] = *resource.NewMilliQuantity(cpu, resource.DecimalSI)
+	request[v1.ResourceMemory] = *resource.NewQuantity(int64(memory*1024*1024), resource.BinarySI)
 	return v1.ResourceRequirements{
 		Limits:   limits,
 		Requests: request,

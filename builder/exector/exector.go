@@ -67,12 +67,17 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	}
 	etcdCli, err := clientv3.New(clientv3.Config{
 		Endpoints:   conf.EtcdEndPoints,
-		DialTimeout: 5 * time.Second,
+		DialTimeout: 10 * time.Second,
 	})
 	if err != nil {
 		return nil, err
 	}
-	maxConcurrentTask := runtime.NumCPU() * 2
+	var maxConcurrentTask int
+	if conf.MaxTasks == 0 {
+		maxConcurrentTask = runtime.NumCPU() * 2
+	} else {
+		maxConcurrentTask = conf.MaxTasks
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	logrus.Infof("The maximum number of concurrent build tasks supported by the current node is %d", maxConcurrentTask)
 	return &exectorManager{
@@ -83,6 +88,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 		maxConcurrentTask: maxConcurrentTask,
 		ctx:               ctx,
 		cancel:            cancel,
+		cfg:               conf,
 	}, nil
 }
 
@@ -96,6 +102,7 @@ type exectorManager struct {
 	ctx               context.Context
 	cancel            context.CancelFunc
 	runningTask       sync.Map
+	cfg               option.Config
 }
 
 //TaskWorker worker interface
@@ -199,6 +206,8 @@ func (e *exectorManager) RunTask(task *pb.TaskMessage) {
 		go e.runTask(e.slugShare, task, false)
 	case "share-image":
 		go e.runTask(e.imageShare, task, false)
+	case "garbage-collection":
+		go e.runTask(e.garbageCollection, task, false)
 	default:
 		go e.runTaskWithErr(e.exec, task, false)
 	}
@@ -495,6 +504,20 @@ func (e *exectorManager) imageShare(task *pb.TaskMessage) {
 	if err := i.UpdateShareStatus(status); err != nil {
 		logrus.Debugf("Add image share result error: %s", err.Error())
 	}
+}
+
+func (e *exectorManager) garbageCollection(task *pb.TaskMessage) {
+	gci, err := NewGarbageCollectionItem(e.cfg, task.TaskBody)
+	if err != nil {
+		logrus.Warningf("create a new GarbageCollectionItem: %v", err)
+	}
+
+	go func() {
+		// delete docker log file and event log file
+		gci.delLogFile()
+		// volume data
+		gci.delVolumeData()
+	}()
 }
 
 func (e *exectorManager) Start() error {

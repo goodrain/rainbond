@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -38,13 +39,18 @@ type IPManager interface {
 	//Whether the IP address belongs to the current node
 	IPInCurrentHost(net.IP) bool
 	Start() error
+	//An IP pool change triggers a forced update of the gateway policy
+	NeedUpdateGatewayPolicy() <-chan util.IPEVENT
 }
 
 type ipManager struct {
 	IPPool  *util.IPPool
 	ipLease map[string]clientv3.LeaseID
+	lock    sync.Mutex
 	etcdCli *clientv3.Client
 	config  option.Config
+	//An IP pool change triggers a forced update of the gateway policy
+	needUpdate chan util.IPEVENT
 }
 
 //CreateIPManager create ip manage
@@ -57,7 +63,17 @@ func CreateIPManager(config option.Config) (IPManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ipManager{IPPool: IPPool, config: config, etcdCli: etcdCli, ipLease: make(map[string]clientv3.LeaseID)}, nil
+	return &ipManager{
+		IPPool:     IPPool,
+		config:     config,
+		etcdCli:    etcdCli,
+		ipLease:    make(map[string]clientv3.LeaseID),
+		needUpdate: make(chan util.IPEVENT, 10),
+	}, nil
+}
+
+func (i *ipManager) NeedUpdateGatewayPolicy() <-chan util.IPEVENT {
+	return i.needUpdate
 }
 
 //IPInCurrentHost Whether the IP address belongs to the current node
@@ -88,32 +104,36 @@ func (i *ipManager) syncIP() {
 		case util.DEL:
 			i.deleteIP(ipevent.IP)
 		}
+		i.needUpdate <- ipevent
 	}
 }
 
 func (i *ipManager) updateIP(ips ...net.IP) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
-	lease := clientv3.NewLease(i.etcdCli)
+	i.lock.Lock()
+	defer i.lock.Unlock()
+	leaseClient := clientv3.NewLease(i.etcdCli)
 	for in := range ips {
 		ip := ips[in]
 		if id, ok := i.ipLease[ip.String()]; ok {
-			if _, err := lease.KeepAliveOnce(ctx, id); err == nil {
+			if _, err := leaseClient.KeepAliveOnce(ctx, id); err == nil {
 				continue
 			} else {
 				logrus.Warningf("keep alive ip key failure %s", err.Error())
 			}
 		}
-		res, err := lease.Grant(ctx, 10)
+		res, err := leaseClient.Grant(ctx, 10)
 		if err != nil {
 			logrus.Errorf("put gateway ip to etcd failure %s", err.Error())
-			return err
+			continue
 		}
 		_, err = i.etcdCli.Put(ctx, fmt.Sprintf("/rainbond/gateway/ips/%s", ip.String()), ip.String(), clientv3.WithLease(res.ID))
 		if err != nil {
 			logrus.Errorf("put gateway ip to etcd failure %s", err.Error())
+			continue
 		}
-		logrus.Infof("gateway init ip %s", ip.String())
+		logrus.Infof("gateway init add ip %s", ip.String())
 		i.ipLease[ip.String()] = res.ID
 	}
 	return nil
@@ -122,6 +142,8 @@ func (i *ipManager) updateIP(ips ...net.IP) error {
 func (i *ipManager) deleteIP(ips ...net.IP) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
+	i.lock.Lock()
+	defer i.lock.Unlock()
 	for _, ip := range ips {
 		_, err := i.etcdCli.Delete(ctx, fmt.Sprintf("/rainbond/gateway/ips/%s", ip.String()))
 		if err != nil {

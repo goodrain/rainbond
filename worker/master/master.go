@@ -24,18 +24,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/etcd/clientv3"
+	"github.com/prometheus/client_golang/prometheus"
+	corev1 "k8s.io/api/core/v1"
+	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util/leader"
 	"github.com/goodrain/rainbond/worker/appm/store"
+	"github.com/goodrain/rainbond/worker/master/metricsserv"
 	"github.com/goodrain/rainbond/worker/master/podevent"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
 	"github.com/goodrain/rainbond/worker/master/volumes/statistical"
-	"github.com/prometheus/client_golang/prometheus"
-	corev1 "k8s.io/api/core/v1"
 )
 
 //Controller app runtime master controller
@@ -54,10 +58,12 @@ type Controller struct {
 	stopCh      chan struct{}
 	podEventChs []chan *corev1.Pod
 	podEvent    *podevent.PodEvent
+
+	metricsServerManager *metricsserv.MetricsServiceManager
 }
 
 //NewMasterController new master controller
-func NewMasterController(conf option.Config, store store.Storer) (*Controller, error) {
+func NewMasterController(conf option.Config, store store.Storer, kubeaggregatorclientset kubeaggregatorclientset.Interface) (*Controller, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	// The controller needs to know what the server version is because out-of-tree
 	// provisioners aren't officially supported until 1.5
@@ -81,6 +87,17 @@ func NewMasterController(conf option.Config, store store.Storer) (*Controller, e
 		rainbondsslcProvisioner.Name(): rainbondsslcProvisioner,
 	}, serverVersion.GitVersion)
 	stopCh := make(chan struct{})
+
+	clientv3, err := clientv3.New(clientv3.Config{
+		Endpoints:        conf.EtcdEndPoints,
+		AutoSyncInterval: time.Second * 30,
+		DialTimeout:      time.Second * 10,
+	})
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
 	return &Controller{
 		conf:      conf,
 		pc:        pc,
@@ -99,8 +116,9 @@ func NewMasterController(conf option.Config, store store.Storer) (*Controller, e
 			Name:      "appfs",
 			Help:      "tenant service fs used.",
 		}, []string{"tenant_id", "service_id", "volume_type"}),
-		diskCache: statistical.CreatDiskCache(ctx),
-		podEvent:  podevent.New(conf.KubeClient, stopCh),
+		diskCache:            statistical.CreatDiskCache(ctx),
+		podEvent:             podevent.New(conf.KubeClient, stopCh),
+		metricsServerManager: metricsserv.New(conf.KubeClient, kubeaggregatorclientset, clientv3),
 	}, nil
 }
 
@@ -111,18 +129,21 @@ func (m *Controller) IsLeader() bool {
 
 //Start start
 func (m *Controller) Start() error {
-	start := func(stop <-chan struct{}) {
+	start := func(ctx context.Context) {
 		m.isLeader = true
 		defer func() {
 			m.isLeader = false
 		}()
 		go m.diskCache.Start()
 		defer m.diskCache.Stop()
-		go m.pc.Run(stop)
+		go m.pc.Run(ctx)
 		m.store.RegistPodUpdateListener("podEvent", m.podEvent.GetChan())
 		defer m.store.UnRegistPodUpdateListener("podEvent")
 		go m.podEvent.Handle()
-		<-stop
+		select {
+		case <-ctx.Done():
+		case <-m.ctx.Done():
+		}
 	}
 	// Leader election was requested.
 	if m.conf.LeaderElectionNamespace == "" {
@@ -134,9 +155,12 @@ func (m *Controller) Start() error {
 	if m.conf.LeaderElectionIdentity == "" {
 		return fmt.Errorf("-leader-election-identity must not be empty")
 	}
+	if err := m.metricsServerManager.Start(); err != nil {
+		return fmt.Errorf("start metrics-server manager: %v", err)
+	}
 	// Name of config map with leader election lock
 	lockName := "rainbond-appruntime-worker-leader"
-	go leader.RunAsLeader(m.conf.KubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {})
+	go leader.RunAsLeader(m.ctx, m.conf.KubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {})
 
 	return nil
 }

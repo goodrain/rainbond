@@ -129,7 +129,6 @@ func (k *KeepAlive) reg() error {
 	k.gRPCResolver = &etcdnaming.GRPCResolver{Client: k.etcdClient}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-
 	resp, err := k.etcdClient.Grant(ctx, k.TTL+3)
 	if err != nil {
 		return err

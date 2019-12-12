@@ -143,7 +143,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		for _, claim := range claims {
 			if claim != nil && claim.GetName() != "" {
 				// reclaim_policy can be delete, recyle, retain
-				if claim.Annotations != nil && claim.Annotations["reclaim_policy"] == "Delete" {
+				if claim.Labels != nil && claim.Labels["reclaim_policy"] == "Delete" {
 					err := s.manager.client.CoreV1().PersistentVolumeClaims(app.TenantID).Delete(claim.GetName(), &metav1.DeleteOptions{
 						GracePeriodSeconds: &gracePeriodSeconds,
 					})
@@ -155,6 +155,17 @@ func (s *stopController) stopOne(app v1.AppService) error {
 			}
 		}
 	}
+
+	if hpas := app.GetHPAs(); len(hpas) != 0 {
+		for _, hpa := range hpas {
+			err := s.manager.client.AutoscalingV2beta1().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(hpa.GetName(), &metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("delete hpa: %v", err)
+			}
+			s.manager.store.OnDelete(hpa)
+		}
+	}
+
 	//step 7: waiting endpoint ready
 	app.Logger.Info("Delete all app model success, will waiting app closed", event.GetLoggerOption("running"))
 	return s.WaitingReady(app)

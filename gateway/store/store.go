@@ -41,7 +41,9 @@ import (
 	"github.com/goodrain/rainbond/gateway/defaults"
 	"github.com/goodrain/rainbond/gateway/util"
 	v1 "github.com/goodrain/rainbond/gateway/v1"
+	coreutil "github.com/goodrain/rainbond/util"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
@@ -140,7 +142,8 @@ type k8sStore struct {
 	// backendConfigMu protects against simultaneous read/write of backendConfig
 	backendConfigMu *sync.RWMutex
 	// Node controller to get the available IP address of the current node
-	node *cluster.NodeManager
+	node     *cluster.NodeManager
+	updateCh *channels.RingChannel
 }
 
 // New creates a new Storer
@@ -159,6 +162,7 @@ func New(client kubernetes.Interface,
 		backendConfigMu: &sync.RWMutex{},
 		backendConfig:   config.NewDefault(),
 		node:            node,
+		updateCh:        updateCh,
 	}
 
 	store.annotations = annotations.NewAnnotationExtractor(store)
@@ -213,11 +217,9 @@ func New(client kubernetes.Interface,
 				return
 			}
 			logrus.Debugf("Received ingress: %v", curIng)
-
 			store.extractAnnotations(curIng)
 			store.secretIngressMap.update(curIng)
 			store.syncSecrets(curIng)
-
 			updateCh.In() <- Event{
 				Type: UpdateEvent,
 				Obj:  cur,
@@ -784,6 +786,7 @@ func (s k8sStore) GetIngressAnnotations(key string) (*annotations.Ingress, error
 func (s *k8sStore) Run(stopCh chan struct{}) {
 	// start informers
 	s.informers.Run(stopCh)
+	go s.loopUpdateIngress()
 }
 
 // syncSecrets synchronizes data from all Secrets referenced by the given
@@ -859,4 +862,33 @@ func (s *k8sStore) GetBackendConfiguration() config.Configuration {
 	defer s.backendConfigMu.RUnlock()
 
 	return s.backendConfig
+}
+
+func (s *k8sStore) loopUpdateIngress() {
+	for ipevent := range s.node.IPManager().NeedUpdateGatewayPolicy() {
+		ingress := s.listers.Ingress.List()
+		for i := range ingress {
+			curIng, ok := ingress[i].(*v1beta1.Ingress)
+			if ok && curIng != nil && s.annotations.Extract(curIng).L4.L4Host == ipevent.IP.String() {
+				s.extractAnnotations(curIng)
+				s.secretIngressMap.update(curIng)
+				s.syncSecrets(curIng)
+				s.updateCh.In() <- Event{
+					Type: func() EventType {
+						switch ipevent.Type {
+						case coreutil.ADD:
+							return CreateEvent
+						case coreutil.UPDATE:
+							return UpdateEvent
+						case coreutil.DEL:
+							return DeleteEvent
+						default:
+							return UpdateEvent
+						}
+					}(),
+					Obj: ingress[i],
+				}
+			}
+		}
+	}
 }

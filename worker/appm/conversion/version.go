@@ -171,6 +171,10 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	if err != nil {
 		return nil, err
 	}
+
+	bootSeqDepServiceIDs := as.ExtensionSet["boot_seq_dep_service_ids"]
+	logrus.Infof("boot sequence dep service ids: %s", bootSeqDepServiceIDs)
+
 	if relations != nil && len(relations) > 0 {
 		var relationIDs []string
 		for _, r := range relations {
@@ -178,30 +182,51 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		}
 		//set service all dependces ids
 		as.Dependces = relationIDs
-		if len(relationIDs) > 0 {
-			es, err := dbmanager.TenantServiceEnvVarDao().GetDependServiceEnvs(relationIDs, []string{"outer", "both"})
-			if err != nil {
-				return nil, err
-			}
-			if es != nil {
-				envsAll = append(envsAll, es...)
-			}
-			serviceAliass, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
-			if err != nil {
-				return nil, err
-			}
-			var Depend string
-			for _, sa := range serviceAliass {
-				if Depend != "" {
-					Depend += ","
-				}
-				Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
-			}
-			envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: Depend})
-			envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliass))})
-			as.NeedProxy = true
+		es, err := dbmanager.TenantServiceEnvVarDao().GetDependServiceEnvs(relationIDs, []string{"outer", "both"})
+		if err != nil {
+			return nil, err
 		}
+		if es != nil {
+			envsAll = append(envsAll, es...)
+		}
+
+		serviceAliass, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
+		if err != nil {
+			return nil, err
+		}
+		var Depend string
+		for _, sa := range serviceAliass {
+			if Depend != "" {
+				Depend += ","
+			}
+			Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
+		}
+		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: Depend})
+		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliass))})
+
+		sid2alias := make(map[string]string, len(serviceAliass))
+		for _, alias := range serviceAliass {
+			sid2alias[alias.ServiceID] = alias.ServiceAlias
+		}
+		var clusterNames []string
+		ports, err := dbmanager.TenantServicesPortDao().ListInnerPortsByServiceIDs(relationIDs)
+		for _, port := range ports {
+			depServiceAlias, ok := sid2alias[port.ServiceID]
+			if !ok {
+				logrus.Warningf("service id: %s; service alias not found", port.ServiceID)
+				continue
+			}
+
+			if bootSeqDepServiceIDs != "" && strings.Contains(bootSeqDepServiceIDs, port.ServiceID) {
+				clusterName := fmt.Sprintf("%s_%s_%s_%d", as.TenantID, as.ServiceAlias, depServiceAlias, port.ContainerPort)
+				clusterNames = append(clusterNames, clusterName)
+			}
+		}
+		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_CLUSTER_NAMES", Value: strings.Join(clusterNames, ",")})
+
+		as.NeedProxy = true
 	}
+
 	//set app relation env
 	relations, err = dbmanager.TenantServiceRelationDao().GetTenantServiceRelationsByDependServiceID(as.ServiceID)
 	if err != nil {
@@ -227,6 +252,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			envs = append(envs, corev1.EnvVar{Name: "REVERSE_DEPEND_SERVICE", Value: Depend})
 		}
 	}
+
 	//set app port and net env
 	ports, err := dbmanager.TenantServicesPortDao().GetPortsByServiceID(as.ServiceID)
 	if err != nil {
@@ -458,10 +484,15 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 func createResources(as *v1.AppService) corev1.ResourceRequirements {
 	var cpuRequest, cpuLimit int64
 	memory := as.ContainerMemory
+	base := int64(memory) / 128
+	if base <= 0 {
+		base = 1
+	}
 	if memory < 512 {
-		cpuRequest, cpuLimit = int64(memory)/128*30, int64(memory)/128*80
+		//cpuRequest, cpuLimit = int64(memory)/128*30, int64(memory)/128*80
+		cpuRequest, cpuLimit = base*30, base*80
 	} else if memory <= 1024 {
-		cpuRequest, cpuLimit = int64(memory)/128*30, int64(memory)/128*160
+		cpuRequest, cpuLimit = base*30, base*160
 	} else {
 		cpuRequest, cpuLimit = int64(memory)/128*30, ((int64(memory)-1024)/1024*500 + 1280)
 	}
@@ -477,20 +508,15 @@ func createResources(as *v1.AppService) corev1.ResourceRequirements {
 			cpuRequest = int64(requestint)
 		}
 	}
+
 	limits := corev1.ResourceList{}
-	limits[corev1.ResourceCPU] = *resource.NewMilliQuantity(
-		cpuLimit,
-		resource.DecimalSI)
-	limits[corev1.ResourceMemory] = *resource.NewQuantity(
-		int64(as.ContainerMemory*1024*1024),
-		resource.BinarySI)
+	limits[corev1.ResourceCPU] = *resource.NewMilliQuantity(cpuLimit, resource.DecimalSI)
+	limits[corev1.ResourceMemory] = *resource.NewQuantity(int64(as.ContainerMemory*1024*1024), resource.BinarySI)
+
 	request := corev1.ResourceList{}
-	request[corev1.ResourceCPU] = *resource.NewMilliQuantity(
-		cpuRequest,
-		resource.DecimalSI)
-	request[corev1.ResourceMemory] = *resource.NewQuantity(
-		int64(as.ContainerMemory*1024*1024),
-		resource.BinarySI)
+	request[corev1.ResourceCPU] = *resource.NewMilliQuantity(cpuRequest, resource.DecimalSI)
+	request[corev1.ResourceMemory] = *resource.NewQuantity(int64(as.ContainerMemory*1024*1024), resource.BinarySI)
+
 	return corev1.ResourceRequirements{
 		Limits:   limits,
 		Requests: request,

@@ -141,3 +141,11 @@ type Rewrite struct {
 	Replacement string `json:"replacement"`
 	Flag        string `json:"flag" validate:"flag|in:last,break,redirect,permanent"`
 }
+
+// UpdCertificateReq -
+type UpdCertificateReq struct {
+	CertificateID   string `json:"certificate_id"`
+	CertificateName string `json:"certificate_name"`
+	Certificate     string `json:"certificate"`
+	PrivateKey      string `json:"private_key"`
+}

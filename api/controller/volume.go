@@ -21,6 +21,7 @@ package controller
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -78,7 +79,7 @@ func VolumeOptions(w http.ResponseWriter, r *http.Request) {
 	for _, sc := range storageClasses {
 		vt := util.ParseVolumeOptionType(sc)
 		opt := api_model.VolumeOptionsStruct{}
-		opt.VolumeType = vt
+		opt.VolumeType = vt // volumeType is storageclass's name, but share-file/memoryfs/local
 		if dbvt, ok := volumeTypeMap[opt.VolumeType]; ok {
 			util.HackVolumeOptionDetailFromDB(&opt, dbvt)
 		} else {
@@ -131,7 +132,8 @@ func (t *TenantStruct) GetVolumesStatus(w http.ResponseWriter, r *http.Request) 
 		volumeStatus := volumeStatusList.GetStatus()
 		status := make(map[string]string)
 		for _, volume := range volumes {
-			if phrase, ok := volumeStatus[volume.VolumeName]; ok {
+			volumeID := strconv.FormatInt(int64(volume.ID), 10)
+			if phrase, ok := volumeStatus[volumeID]; ok {
 				status[volume.VolumeName] = phrase.String()
 			}
 		}

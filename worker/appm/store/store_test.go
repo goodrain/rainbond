@@ -24,11 +24,14 @@ import (
 	"time"
 
 	"github.com/eapache/channels"
+	v2beta1 "k8s.io/api/autoscaling/v2beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 func TestAppRuntimeStore_GetTenantResource(t *testing.T) {
@@ -141,4 +144,28 @@ func TestGetAppVolumeStatus(t *testing.T) {
 	// app := storer.GetAppService(serviceID)
 
 	time.Sleep(20 * time.Second)
+}
+func TestListHPAEvents(t *testing.T) {
+
+	c, err := clientcmd.BuildConfigFromFlags("", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig")
+	if err != nil {
+		t.Fatalf("read kube config file error: %v", err)
+	}
+	clientset, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		t.Fatalf("create kube api client error: %v", err)
+	}
+	a := appRuntimeStore{
+		clientset: clientset,
+	}
+
+	hpa := &v2beta1.HorizontalPodAutoscaler{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+			Namespace: "bab18e6b1c8640979b91f8dfdd211226",
+		},
+	}
+	if err := a.listHPAEvents(hpa); err != nil {
+		t.Fatal(err)
+	}
 }

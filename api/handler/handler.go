@@ -44,7 +44,7 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 	}
 	etcdCli, err := clientv3.New(clientv3.Config{
 		Endpoints:   conf.EtcdEndpoint,
-		DialTimeout: 5 * time.Second,
+		DialTimeout: 10 * time.Second,
 	})
 	if err != nil {
 		logrus.Errorf("create etcd client v3 error, %v", err)

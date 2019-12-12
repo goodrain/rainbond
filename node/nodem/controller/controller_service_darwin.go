@@ -49,8 +49,8 @@ func (t *testController) StopList(list []*service.Service) error {
 func (t *testController) RestartService(s *service.Service) error {
 	return nil
 }
-func (t *testController) WriteConfig(s *service.Service) error {
-	return nil
+func (t *testController) WriteConfig(s *service.Service) (bool, error) {
+	return false, nil
 }
 func (t *testController) RemoveConfig(name string) error {
 	return nil

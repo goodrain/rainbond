@@ -156,10 +156,15 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 				MemoryLimit:   container.Resources.Limits.Memory().Value(),
 			}
 		}
+		volumes := make([]string, 0)
+		for _, vo := range pod.Spec.Volumes {
+			volumes = append(volumes, vo.Name)
+		}
 		sapod := &pb.ServiceAppPod{
 			PodIp:      pod.Status.PodIP,
 			PodName:    pod.Name,
 			Containers: containers,
+			PodVolumes: volumes,
 		}
 		podStatus := &pb.PodStatus{}
 		wutil.DescribePodStatus(r.clientset, pod, podStatus, k8s.DefListEventsByPod)
@@ -471,27 +476,19 @@ func (r *RuntimeServer) GetAppVolumeStatus(ctx context.Context, re *pb.ServiceRe
 	if as == nil {
 		return ret, nil
 	}
-	claims := r.store.GetServiceClaims(as.TenantID, as.ServiceID)
-	if claims != nil {
-		for _, claim := range claims {
-			if claim.Annotations != nil && claim.Annotations["volume_name"] != "" {
-				if claim.Status.Phase != corev1.ClaimBound {
-					ret.Status[claim.Annotations["volume_name"]] = pb.ServiceVolumeStatus_NOT_READY
-				} else {
-					ret.Status[claim.Annotations["volume_name"]] = pb.ServiceVolumeStatus_READY
-				}
-			} else if claim.Labels != nil && claim.Labels["volume_name"] != "" {
-				logrus.Debug("can't get volume name from claim's annotation, test get volume from claim.label ")
-				if claim.Status.Phase != corev1.ClaimBound {
-					ret.Status[claim.Labels["volume_name"]] = pb.ServiceVolumeStatus_NOT_READY
-				} else {
-					ret.Status[claim.Labels["volume_name"]] = pb.ServiceVolumeStatus_READY
-				}
-			} else {
-				logrus.Warn("can't get volume status")
+	appPodList, err := r.GetAppPods(ctx, re)
+	if err != nil {
+		logrus.Warnf("get volume status error : %s", err.Error())
+		return ret, nil
+	}
+	for _, pod := range appPodList.GetNewPods() {
+		for _, volumeName := range pod.PodVolumes {
+			prefix := "manual"
+			if strings.HasPrefix(volumeName, prefix) {
+				volumeName = strings.TrimPrefix(volumeName, prefix)
+				ret.Status[volumeName] = pb.ServiceVolumeStatus_READY // volumeName tranfer to serviceVolume's id in db
 			}
 		}
 	}
-
 	return ret, nil
 }

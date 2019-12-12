@@ -63,6 +63,12 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 		logrus.Error("build slug in container error,", err.Error())
 		return nil, err
 	}
+	defer func() {
+		if err := os.Remove(packageName); err != nil {
+			logrus.Warningf("pkg name: %s; remove slug pkg: %v", packageName, err)
+		}
+	}()
+
 	fileInfo, err := os.Stat(packageName)
 	if err != nil {
 		re.Logger.Error(util.Translation("Check that the build result failure"), map[string]string{"step": "build-code", "status": "failure"})
@@ -106,6 +112,12 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 	if err := util.CheckAndCreateDir(cacheDir); err != nil {
 		return "", fmt.Errorf("create cache package dir failure %s", err.Error())
 	}
+	defer func() {
+		if err := os.RemoveAll(cacheDir); err != nil {
+			logrus.Errorf("remove cache dir %s failure %s", cacheDir, err.Error())
+		}
+	}()
+
 	packageName := path.Base(slugPackage)
 	if err := util.Rename(slugPackage, path.Join(cacheDir, packageName)); err != nil {
 		return "", fmt.Errorf("move code package failure %s", err.Error())
@@ -147,9 +159,6 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 	s.re.Logger.Info("push image of new version success", map[string]string{"step": "builder-exector"})
 	if err := sources.ImageRemove(s.re.DockerClient, imageName); err != nil {
 		logrus.Errorf("remove image %s failure %s", imageName, err.Error())
-	}
-	if err := os.RemoveAll(cacheDir); err != nil {
-		logrus.Errorf("remove cache dir %s failure %s", cacheDir, err.Error())
 	}
 	return imageName, nil
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/watch"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
@@ -65,7 +66,8 @@ func CreateCluster(kubecli kubecache.KubeClient, node *client.HostNode, datacent
 //Start 启动
 func (n *Cluster) Start(errchan chan error) error {
 	go n.loadAndWatchNodes(errchan)
-	go n.installWorker()
+	go n.installWorker(errchan)
+	go n.loopHandleNodeStatus(errchan)
 	return nil
 }
 
@@ -74,7 +76,7 @@ func (n *Cluster) Stop(i interface{}) {
 	n.cancel()
 }
 
-func (n *Cluster) installWorker() {
+func (n *Cluster) installWorker(errchan chan error) {
 	for {
 		select {
 		case <-n.ctx.Done():
@@ -101,7 +103,6 @@ func (n *Cluster) GetNode(id string) *client.HostNode {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	if node, ok := n.nodes[id]; ok {
-		n.handleNodeStatus(node)
 		return node
 	}
 	return nil
@@ -109,6 +110,20 @@ func (n *Cluster) GetNode(id string) *client.HostNode {
 func (n *Cluster) getKubeNodeCount() int {
 	kubeNodes, _ := n.kubecli.GetNodes()
 	return len(kubeNodes)
+}
+func (n *Cluster) loopHandleNodeStatus(errchan chan error) {
+	if err := util.Exec(n.ctx, func() error {
+		n.lock.Lock()
+		defer n.lock.Unlock()
+		for key, node := range n.nodes {
+			if time.Since(node.NodeStatus.NodeUpdateTime) > time.Minute*1 {
+				n.handleNodeStatus(n.nodes[key])
+			}
+		}
+		return nil
+	}, time.Second*10); err != nil {
+		errchan <- err
+	}
 }
 
 //handleNodeStatus Master integrates node status and kube node status
@@ -121,24 +136,11 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 	if time.Since(v.NodeStatus.NodeUpdateTime) > time.Minute*1 {
 		v.Status = client.Unknown
 		v.NodeStatus.Status = client.Unknown
-		r := client.NodeCondition{
-			Type:               client.NodeUp,
-			Status:             client.ConditionFalse,
-			LastHeartbeatTime:  time.Now(),
-			LastTransitionTime: time.Now(),
-			Message:            "Node lost connection, state unknown",
-		}
-		v.UpdataCondition(r)
+		v.GetAndUpdateCondition(client.NodeUp, client.ConditionFalse, "", "Node lost connection, state unknown")
+		//node lost connection, advice offline action
 		v.NodeStatus.AdviceAction = append(v.NodeStatus.AdviceAction, "offline")
 	} else {
-		r := client.NodeCondition{
-			Type:               client.NodeUp,
-			Status:             client.ConditionTrue,
-			LastHeartbeatTime:  time.Now(),
-			LastTransitionTime: time.Now(),
-			Message:            "Node lost connection, state unknown",
-		}
-		v.UpdataCondition(r)
+		v.GetAndUpdateCondition(client.NodeUp, client.ConditionTrue, "", "")
 		v.NodeStatus.CurrentScheduleStatus = !v.Unschedulable
 		if v.Role.HasRule("compute") {
 			k8sNode, err := n.kubecli.GetNode(v.ID)
@@ -166,11 +168,18 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		if v.Role.HasRule("compute") && v.NodeStatus.KubeNode == nil {
 			v.Status = "offline"
 		}
-		for _, con := range v.NodeStatus.Conditions {
-			if con.Type == client.NodeReady {
-				v.NodeStatus.NodeHealth = con.Status == client.ConditionTrue
-				break
-			}
+	}
+	//node ready condition update
+	v.UpdateReadyStatus()
+	for i, con := range v.NodeStatus.Conditions {
+		if con.Type == client.NodeReady {
+			v.NodeStatus.NodeHealth = v.NodeStatus.Conditions[i].Status == client.ConditionTrue
+		}
+		if time.Since(con.LastHeartbeatTime) > time.Minute*1 {
+			// do not update time
+			v.NodeStatus.Conditions[i].Reason = "Condition not updated in more than 1 minute"
+			v.NodeStatus.Conditions[i].Message = "Condition not updated in more than 1 minute"
+			v.NodeStatus.Conditions[i].Status = client.ConditionUnknown
 		}
 	}
 	if v.NodeStatus.AdviceAction != nil {
@@ -206,6 +215,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			}
 		}
 	}
+	//TODO:The latest data is stored back on the etcd, but you should avoid an endless loop
 }
 
 func (n *Cluster) loadAndWatchNodes(errChan chan error) {
@@ -244,18 +254,17 @@ func (n *Cluster) installNode(node *client.HostNode) {
 	//TODO:
 }
 
-//GetAllNode 获取全部节点
+//GetAllNode get all node info from local cache
 func (n *Cluster) GetAllNode() (nodes []*client.HostNode) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 	for _, v := range n.nodes {
-		n.handleNodeStatus(v)
 		nodes = append(nodes, v)
 	}
 	return
 }
 
-//CacheNode 添加节点到缓存
+//CacheNode add node to local cache
 func (n *Cluster) CacheNode(node *client.HostNode) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
@@ -263,7 +272,7 @@ func (n *Cluster) CacheNode(node *client.HostNode) {
 	n.nodes[node.ID] = node
 }
 
-//RemoveNode 从缓存移除节点
+//RemoveNode remove node from local cache
 func (n *Cluster) RemoveNode(nodeID string) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
@@ -272,7 +281,7 @@ func (n *Cluster) RemoveNode(nodeID string) {
 	}
 }
 
-//GetLabelsNode 返回匹配labels的节点ID
+//GetLabelsNode return node ids that matching labels
 func (n *Cluster) GetLabelsNode(labels map[string]string) []string {
 	var nodes []string
 	for _, node := range n.nodes {

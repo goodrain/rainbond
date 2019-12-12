@@ -49,7 +49,6 @@ import (
 //V2Routes v2Routes
 type V2Routes struct {
 	TenantStruct
-	AcpNodeStruct
 	EventLogStruct
 	AppStruct
 	GatewayStruct
@@ -973,8 +972,9 @@ func (t *TenantStruct) GetSingleServiceInfo(w http.ResponseWriter, r *http.Reque
 //     description: 统一返回格式
 func (t *TenantStruct) DeleteSingleServiceInfo(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := handler.GetServiceManager().TransServieToDelete(serviceID); err != nil {
-		if err == fmt.Errorf("unclosed") {
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	if err := handler.GetServiceManager().TransServieToDelete(tenantID, serviceID); err != nil {
+		if err == handler.ErrServiceNotClosed {
 			httputil.ReturnError(r, w, 400, fmt.Sprintf("Service must be closed"))
 			return
 		}

@@ -33,9 +33,6 @@ import (
 	utilhttp "github.com/goodrain/rainbond/util/http"
 )
 
-func (r *regionImpl) Tasks() TaskInterface {
-	return &task{regionImpl: *r, prefix: "/v2/tasks"}
-}
 func (r *regionImpl) Nodes() NodeInterface {
 	return &node{regionImpl: *r, prefix: "/v2/nodes"}
 }
@@ -166,18 +163,21 @@ func (nl *nodeLabelImpl) List() (map[string]string, *util.APIHandleError) {
 	var res utilhttp.ResponseBody
 	res.Bean = &decode
 	code, err := nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/labels", "GET", nil, &res)
-	if err != nil || code != 200 {
+	if err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
 	}
-	return decode, nil
+	return decode, handleAPIResult(code, res)
 }
 func (nl *nodeLabelImpl) Delete(k string) *util.APIHandleError {
 	var decode map[string]string
 	var res utilhttp.ResponseBody
 	res.Bean = &decode
 	code, err := nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/labels", "GET", nil, &res)
-	if err != nil || code != 200 {
+	if err != nil {
 		return util.CreateAPIHandleError(code, err)
+	}
+	if handleAPIResult(code, res) != nil {
+		return handleAPIResult(code, res)
 	}
 	delete(decode, k)
 	body, err := json.Marshal(decode)
@@ -185,18 +185,21 @@ func (nl *nodeLabelImpl) Delete(k string) *util.APIHandleError {
 		return util.CreateAPIHandleError(400, err)
 	}
 	code, err = nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/labels", "PUT", bytes.NewBuffer(body), &res)
-	if err != nil || code != 200 {
+	if err != nil {
 		return util.CreateAPIHandleError(code, err)
 	}
-	return nil
+	return handleAPIResult(code, res)
 }
 func (nl *nodeLabelImpl) Add(k, v string) *util.APIHandleError {
 	var decode map[string]string
 	var res utilhttp.ResponseBody
 	res.Bean = &decode
 	code, err := nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/labels", "GET", nil, &res)
-	if err != nil || code != 200 {
+	if err != nil {
 		return util.CreateAPIHandleError(code, err)
+	}
+	if handleAPIResult(code, res) != nil {
+		return handleAPIResult(code, res)
 	}
 	decode[k] = v
 	body, err := json.Marshal(decode)
@@ -204,10 +207,10 @@ func (nl *nodeLabelImpl) Add(k, v string) *util.APIHandleError {
 		return util.CreateAPIHandleError(400, err)
 	}
 	code, err = nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/labels", "PUT", bytes.NewBuffer(body), &res)
-	if err != nil || code != 200 {
+	if err != nil {
 		return util.CreateAPIHandleError(code, err)
 	}
-	return nil
+	return handleAPIResult(code, res)
 }
 
 type nodeConditionImpl struct {
@@ -220,67 +223,70 @@ func (nl *nodeConditionImpl) List() ([]client.NodeCondition, *util.APIHandleErro
 	var res utilhttp.ResponseBody
 	res.List = &decode
 	code, err := nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/conditions", "GET", nil, &res)
-	if err != nil || code != 200 {
+	if err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
 	}
-	return decode, nil
+	return decode, handleAPIResult(code, res)
 }
 func (nl *nodeConditionImpl) Delete(k client.NodeConditionType) ([]client.NodeCondition, *util.APIHandleError) {
 	var decode []client.NodeCondition
 	var res utilhttp.ResponseBody
 	res.List = &decode
 	code, err := nl.nodeImpl.DoRequest(nl.nodeImpl.prefix+"/"+nl.NodeID+"/conditions/"+string(k), "DELETE", nil, &res)
-	if err != nil || code != 200 {
+	if err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
 	}
-	return decode, nil
+	return decode, handleAPIResult(code, res)
 }
 
 func (n *node) Delete(nid string) *util.APIHandleError {
-	code, err := n.DoRequest(n.prefix+"/"+nid, "DELETE", nil, nil)
+	var res utilhttp.ResponseBody
+	code, err := n.DoRequest(n.prefix+"/"+nid, "DELETE", nil, &res)
 	if err != nil {
 		return util.CreateAPIHandleError(code, err)
 	}
-	if code != 200 {
-		return util.CreateAPIHandleError(code, fmt.Errorf("delete node error"))
-	}
-	return nil
+	return handleAPIResult(code, res)
 }
 
 func (n *node) Up(nid string) *util.APIHandleError {
-	code, err := n.DoRequest(n.prefix+"/"+nid+"/up", "POST", nil, nil)
+	var res utilhttp.ResponseBody
+	code, err := n.DoRequest(n.prefix+"/"+nid+"/up", "POST", nil, &res)
 	if err != nil {
 		return util.CreateAPIHandleError(code, err)
 	}
-	return nil
+	return handleAPIResult(code, res)
 }
 func (n *node) Down(nid string) *util.APIHandleError {
-	code, err := n.DoRequest(n.prefix+"/"+nid+"/down", "POST", nil, nil)
+	var res utilhttp.ResponseBody
+	code, err := n.DoRequest(n.prefix+"/"+nid+"/down", "POST", nil, &res)
 	if err != nil {
 		return util.CreateAPIHandleError(code, err)
 	}
-	return nil
+	return handleAPIResult(code, res)
 }
 func (n *node) UnSchedulable(nid string) *util.APIHandleError {
-	code, err := n.DoRequest(n.prefix+"/"+nid+"/unschedulable", "PUT", nil, nil)
+	var res utilhttp.ResponseBody
+	code, err := n.DoRequest(n.prefix+"/"+nid+"/unschedulable", "PUT", nil, &res)
 	if err != nil {
 		return util.CreateAPIHandleError(code, err)
 	}
-	return nil
+	return handleAPIResult(code, res)
 }
 func (n *node) ReSchedulable(nid string) *util.APIHandleError {
-	code, err := n.DoRequest(n.prefix+"/"+nid+"/reschedulable", "PUT", nil, nil)
+	var res utilhttp.ResponseBody
+	code, err := n.DoRequest(n.prefix+"/"+nid+"/reschedulable", "PUT", nil, &res)
 	if err != nil {
 		return util.CreateAPIHandleError(code, err)
 	}
-	return nil
+	return handleAPIResult(code, res)
 }
 func (n *node) Install(nid string) *util.APIHandleError {
-	code, err := n.DoRequest(n.prefix+"/"+nid+"/install", "POST", nil, nil)
+	var res utilhttp.ResponseBody
+	code, err := n.DoRequest(n.prefix+"/"+nid+"/install", "POST", nil, &res)
 	if err != nil {
 		return util.CreateAPIHandleError(code, err)
 	}
-	return nil
+	return handleAPIResult(code, res)
 }
 
 type configs struct {
@@ -298,10 +304,7 @@ func (c *configs) Get() (*model.GlobalConfig, *util.APIHandleError) {
 	if err != nil {
 		return nil, util.CreateAPIHandleError(code, err)
 	}
-	if code != 200 {
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("Get database center configs code %d", code))
-	}
-	return &gc, nil
+	return &gc, handleAPIResult(code, res)
 }
 
 func (c *configs) Put(gc *model.GlobalConfig) *util.APIHandleError {
@@ -309,14 +312,12 @@ func (c *configs) Put(gc *model.GlobalConfig) *util.APIHandleError {
 	if err != nil {
 		return util.CreateAPIHandleError(400, err)
 	}
-	code, err := c.DoRequest(c.prefix+"/datacenter", "PUT", bytes.NewBuffer(rebody), nil)
+	var res utilhttp.ResponseBody
+	code, err := c.DoRequest(c.prefix+"/datacenter", "PUT", bytes.NewBuffer(rebody), &res)
 	if err != nil {
 		return util.CreateAPIHandleError(code, err)
 	}
-	if code != 200 {
-		return util.CreateAPIHandleError(code, fmt.Errorf("Put database center configs code %d", code))
-	}
-	return nil
+	return handleAPIResult(code, res)
 }
 
 //TaskInterface task api
@@ -365,84 +366,4 @@ type NodeConditionInterface interface {
 type ConfigsInterface interface {
 	Get() (*model.GlobalConfig, *util.APIHandleError)
 	Put(*model.GlobalConfig) *util.APIHandleError
-}
-
-func (t *task) Get(id string) (*model.Task, *util.APIHandleError) {
-	var res utilhttp.ResponseBody
-	var gc model.Task
-	res.Bean = &gc
-	code, err := t.DoRequest(t.prefix+"/"+id, "GET", nil, &res)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(code, err)
-	}
-	if code != 200 {
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("get task with code %d", code))
-	}
-	return &gc, nil
-}
-
-//List list all task
-func (t *task) List() ([]*model.Task, *util.APIHandleError) {
-	var res utilhttp.ResponseBody
-	var gc []*model.Task
-	res.List = &gc
-	code, err := t.DoRequest(t.prefix, "GET", nil, &res)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(code, err)
-	}
-	if code != 200 {
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("get task with code %d", code))
-	}
-	return gc, nil
-}
-
-//Exec 执行任务
-func (t *task) Exec(taskID string, nodes []string) *util.APIHandleError {
-	var nodesBody struct {
-		Nodes []string `json:"nodes"`
-	}
-	nodesBody.Nodes = nodes
-	body, err := json.Marshal(nodesBody)
-	if err != nil {
-		return util.CreateAPIHandleError(400, err)
-	}
-	url := t.prefix + "/" + taskID + "/exec"
-	code, err := t.DoRequest(url, "POST", bytes.NewBuffer(body), nil)
-	if err != nil {
-		return util.CreateAPIHandleError(code, err)
-	}
-	return nil
-}
-func (t *task) Add(task *model.Task) *util.APIHandleError {
-
-	body, _ := json.Marshal(task)
-	url := t.prefix
-	code, err := t.DoRequest(url, "POST", bytes.NewBuffer(body), nil)
-	if err != nil {
-		return util.CreateAPIHandleError(code, err)
-	}
-	return nil
-}
-
-func (t *task) AddGroup(group *model.TaskGroup) *util.APIHandleError {
-	body, _ := json.Marshal(group)
-	url := "/v2/taskgroups"
-	code, err := t.DoRequest(url, "POST", bytes.NewBuffer(body), nil)
-	if err != nil {
-		return util.CreateAPIHandleError(code, err)
-	}
-	return nil
-}
-func (t *task) GetTaskStatus(task string) (map[string]*model.TaskStatus, *util.APIHandleError) {
-	var res utilhttp.ResponseBody
-	var gc = make(map[string]*model.TaskStatus)
-	res.Bean = &gc
-	code, err := t.DoRequest("/tasks/"+task+"/status", "GET", nil, &res)
-	if err != nil {
-		return nil, util.CreateAPIHandleError(code, err)
-	}
-	if code != 200 {
-		return nil, util.CreateAPIHandleError(code, fmt.Errorf("get task with code %d", code))
-	}
-	return gc, nil
 }

@@ -74,6 +74,16 @@ type VersionInfoDaoImpl struct {
 	DB *gorm.DB
 }
 
+// ListSuccessfulOnes r-
+func (c *VersionInfoDaoImpl) ListSuccessfulOnes() ([]*model.VersionInfo, error) {
+	// TODO: group by service id and limit each group
+	var versoins []*model.VersionInfo
+	if err := c.DB.Where("final_status=?", "success").Find(&versoins).Error; err != nil {
+		return nil, err
+	}
+	return versoins, nil
+}
+
 //GetVersionByEventID get version by event id
 func (c *VersionInfoDaoImpl) GetVersionByEventID(eventID string) (*model.VersionInfo, error) {
 	var result model.VersionInfo

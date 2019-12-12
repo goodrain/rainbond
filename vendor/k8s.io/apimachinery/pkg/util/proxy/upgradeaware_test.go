@@ -17,8 +17,10 @@ limitations under the License.
 package proxy
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -341,6 +343,7 @@ func TestProxyUpgrade(t *testing.T) {
 	if !localhostPool.AppendCertsFromPEM(localhostCert) {
 		t.Errorf("error setting up localhostCert pool")
 	}
+	var d net.Dialer
 
 	testcases := map[string]struct {
 		ServerFunc       func(http.Handler) *httptest.Server
@@ -395,7 +398,7 @@ func TestProxyUpgrade(t *testing.T) {
 				ts.StartTLS()
 				return ts
 			},
-			ProxyTransport: utilnet.SetTransportDefaults(&http.Transport{Dial: net.Dial, TLSClientConfig: &tls.Config{RootCAs: localhostPool}}),
+			ProxyTransport: utilnet.SetTransportDefaults(&http.Transport{DialContext: d.DialContext, TLSClientConfig: &tls.Config{RootCAs: localhostPool}}),
 		},
 		"https (valid hostname + RootCAs + custom dialer + bearer token)": {
 			ServerFunc: func(h http.Handler) *httptest.Server {
@@ -410,9 +413,9 @@ func TestProxyUpgrade(t *testing.T) {
 				ts.StartTLS()
 				return ts
 			},
-			ProxyTransport: utilnet.SetTransportDefaults(&http.Transport{Dial: net.Dial, TLSClientConfig: &tls.Config{RootCAs: localhostPool}}),
+			ProxyTransport: utilnet.SetTransportDefaults(&http.Transport{DialContext: d.DialContext, TLSClientConfig: &tls.Config{RootCAs: localhostPool}}),
 			UpgradeTransport: NewUpgradeRequestRoundTripper(
-				utilnet.SetOldTransportDefaults(&http.Transport{Dial: net.Dial, TLSClientConfig: &tls.Config{RootCAs: localhostPool}}),
+				utilnet.SetOldTransportDefaults(&http.Transport{DialContext: d.DialContext, TLSClientConfig: &tls.Config{RootCAs: localhostPool}}),
 				RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
 					req = utilnet.CloneRequest(req)
 					req.Header.Set("Authorization", "Bearer 1234")
@@ -496,9 +499,15 @@ func TestProxyUpgradeErrorResponse(t *testing.T) {
 		expectedErr = errors.New("EXPECTED")
 	)
 	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		transport := http.DefaultTransport.(*http.Transport)
-		transport.Dial = func(network, addr string) (net.Conn, error) {
-			return &fakeConn{err: expectedErr}, nil
+		transport := &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return &fakeConn{err: expectedErr}, nil
+			},
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
 		}
 		responder = &fakeResponder{t: t, w: w}
 		proxyHandler := NewUpgradeAwareHandler(
@@ -528,6 +537,68 @@ func TestProxyUpgradeErrorResponse(t *testing.T) {
 	msg, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(msg), expectedErr.Error())
+}
+
+func TestProxyUpgradeErrorResponseTerminates(t *testing.T) {
+	for _, intercept := range []bool{true, false} {
+		for _, code := range []int{200, 400, 500} {
+			t.Run(fmt.Sprintf("intercept=%v,code=%v", intercept, code), func(t *testing.T) {
+				// Set up a backend server
+				backend := http.NewServeMux()
+				backend.Handle("/hello", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(code)
+					w.Write([]byte(`some data`))
+				}))
+				backend.Handle("/there", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					t.Error("request to /there")
+				}))
+				backendServer := httptest.NewServer(backend)
+				defer backendServer.Close()
+				backendServerURL, _ := url.Parse(backendServer.URL)
+				backendServerURL.Path = "/hello"
+
+				// Set up a proxy pointing to a specific path on the backend
+				proxyHandler := NewUpgradeAwareHandler(backendServerURL, nil, false, false, &noErrorsAllowed{t: t})
+				proxyHandler.InterceptRedirects = intercept
+				proxy := httptest.NewServer(proxyHandler)
+				defer proxy.Close()
+				proxyURL, _ := url.Parse(proxy.URL)
+
+				conn, err := net.Dial("tcp", proxyURL.Host)
+				require.NoError(t, err)
+				bufferedReader := bufio.NewReader(conn)
+
+				// Send upgrade request resulting in a non-101 response from the backend
+				req, _ := http.NewRequest("GET", "/", nil)
+				req.Header.Set(httpstream.HeaderConnection, httpstream.HeaderUpgrade)
+				require.NoError(t, req.Write(conn))
+				// Verify we get the correct response and full message body content
+				resp, err := http.ReadResponse(bufferedReader, nil)
+				require.NoError(t, err)
+				data, err := ioutil.ReadAll(resp.Body)
+				require.NoError(t, err)
+				require.Equal(t, resp.StatusCode, code)
+				require.Equal(t, data, []byte(`some data`))
+				resp.Body.Close()
+
+				// try to read from the connection to verify it was closed
+				b := make([]byte, 1)
+				conn.SetReadDeadline(time.Now().Add(time.Second))
+				if _, err := conn.Read(b); err != io.EOF {
+					t.Errorf("expected EOF, got %v", err)
+				}
+
+				// Send another request to another endpoint to verify it is not received
+				req, _ = http.NewRequest("GET", "/there", nil)
+				req.Write(conn)
+				// wait to ensure the handler does not receive the request
+				time.Sleep(time.Second)
+
+				// clean up
+				conn.Close()
+			})
+		}
+	}
 }
 
 func TestDefaultProxyTransport(t *testing.T) {
@@ -794,25 +865,75 @@ func TestProxyRequestContentLengthAndTransferEncoding(t *testing.T) {
 	}
 }
 
+func TestFlushIntervalHeaders(t *testing.T) {
+	const expected = "hi"
+	stopCh := make(chan struct{})
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("MyHeader", expected)
+		w.WriteHeader(200)
+		w.(http.Flusher).Flush()
+		<-stopCh
+	}))
+	defer backend.Close()
+	defer close(stopCh)
+
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	proxyHandler := NewUpgradeAwareHandler(backendURL, nil, false, false, nil)
+
+	frontend := httptest.NewServer(proxyHandler)
+	defer frontend.Close()
+
+	req, _ := http.NewRequest("GET", frontend.URL, nil)
+	req.Close = true
+
+	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
+	defer cancel()
+	req = req.WithContext(ctx)
+
+	res, err := frontend.Client().Do(req)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	defer res.Body.Close()
+
+	if res.Header.Get("MyHeader") != expected {
+		t.Errorf("got header %q; expected %q", res.Header.Get("MyHeader"), expected)
+	}
+}
+
 // exampleCert was generated from crypto/tls/generate_cert.go with the following command:
-//    go run generate_cert.go  --rsa-bits 512 --host example.com --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
+//    go run generate_cert.go  --rsa-bits 1024 --host example.com --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
 var exampleCert = []byte(`-----BEGIN CERTIFICATE-----
-MIIBdzCCASGgAwIBAgIRAOVTAdPnfbS5V85mfS90TfIwDQYJKoZIhvcNAQELBQAw
-EjEQMA4GA1UEChMHQWNtZSBDbzAgFw03MDAxMDEwMDAwMDBaGA8yMDg0MDEyOTE2
-MDAwMFowEjEQMA4GA1UEChMHQWNtZSBDbzBcMA0GCSqGSIb3DQEBAQUAA0sAMEgC
-QQCoVSqeu8TBvF+70T7Jm4340YQNhds6IxjRoifenYodAO1dnKGrcbF266DJGunh
-nIjQH7B12tduhl0fLK4Ezf7/AgMBAAGjUDBOMA4GA1UdDwEB/wQEAwICpDATBgNV
-HSUEDDAKBggrBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MBYGA1UdEQQPMA2CC2V4
-YW1wbGUuY29tMA0GCSqGSIb3DQEBCwUAA0EAk1kVa5uZ/AzwYDVcS9bpM/czwjjV
-xq3VeSCfmNa2uNjbFvodmCRwZOHUvipAMGCUCV6j5vMrJ8eMj8tCQ36W9A==
+MIIB+zCCAWSgAwIBAgIQK+TtYrwiS4SZU43mEj44eDANBgkqhkiG9w0BAQsFADAS
+MRAwDgYDVQQKEwdBY21lIENvMCAXDTcwMDEwMTAwMDAwMFoYDzIwODQwMTI5MTYw
+MDAwWjASMRAwDgYDVQQKEwdBY21lIENvMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCB
+iQKBgQDGrjJJBajkyWUEMVwVadkNI54cKV7snXFV6ZRE2jPQUpY0/6a2RKqjGekB
++SKxN+ALY/WiPBkYCQVg7Bc1hFneHfR8T3oXlKpOv9VWMeKLH3vLmAKnrZHgBgZ3
+jVcXupQlVLobRzABzfOFhhzMcs89vzbMDcxw+tRK84XYB+MNbwIDAQABo1AwTjAO
+BgNVHQ8BAf8EBAMCAqQwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH/BAUw
+AwEB/zAWBgNVHREEDzANggtleGFtcGxlLmNvbTANBgkqhkiG9w0BAQsFAAOBgQCJ
+uqAiZIaaz5W2dbIUHnWJ3M47fuou8G2c4JzxPRfKxPGrOpBGZyk/I8v/MBZ50zdG
+ZCoFO0keiVr0q2fyMgKwcWNN4cwfRBgQWmk6SHJJR/jWHjnvnRDqhfPHzcqYqd90
+MtpcamlkHhSG616mBaUujb+EdjlrxCwiPTv/U+z7Ug==
 -----END CERTIFICATE-----`)
 
 var exampleKey = []byte(`-----BEGIN RSA PRIVATE KEY-----
-MIIBOgIBAAJBAKhVKp67xMG8X7vRPsmbjfjRhA2F2zojGNGiJ96dih0A7V2coatx
-sXbroMka6eGciNAfsHXa126GXR8srgTN/v8CAwEAAQJASdzdD7vKsUwMIejGCUb1
-fAnLTPfAY3lFCa+CmR89nE22dAoRDv+5RbnBsZ58BazPNJHrsVPRlfXB3OQmSQr0
-SQIhANoJhs+xOJE/i8nJv0uAbzKyiD1YkvRkta0GpUOULyAVAiEAxaQus3E/SuqD
-P7y5NeJnE7X6XkyC35zrsJRkz7orE8MCIHdDjsI8pjyNDeGqwUCDWE/a6DrmIDwe
-emHSqMN2YvChAiEAnxLCM9NWaenOsaIoP+J1rDuvw+4499nJKVqGuVrSCRkCIEqK
-4KSchPMc3x8M/uhw9oWTtKFmjA/PPh0FsWCdKrEy
+MIICeAIBADANBgkqhkiG9w0BAQEFAASCAmIwggJeAgEAAoGBAMauMkkFqOTJZQQx
+XBVp2Q0jnhwpXuydcVXplETaM9BSljT/prZEqqMZ6QH5IrE34Atj9aI8GRgJBWDs
+FzWEWd4d9HxPeheUqk6/1VYx4osfe8uYAqetkeAGBneNVxe6lCVUuhtHMAHN84WG
+HMxyzz2/NswNzHD61ErzhdgH4w1vAgMBAAECgYEAgv0GGi6pE23UM9d3JocKmycI
+bvi3pLiIqGO/ZUWXM5m/fmGuwCy1c6L5hFuFC+ISzG+y2qtUwAvyh9wf0SDZPfVK
+X+egWPJksBCPqphvPsxzolHNoi5FEvUhxXyDedkB3XuP2U3hniwEVtIA/rf1lHLt
+qMDEa/y4K1GT8QI0Y8ECQQDNl5Zu38BaroOLMpm7XBySlYVp8hs2q4TCnayxufAw
+wKZJpcTKTCiaZAqF00ZDu2YZ3m3dkDiYB6v3x2HIADVtAkEA92TIYjBy5Bx7+K2S
+X1YW+7P90UImxXGbPQeoODmghUD+/MfnBQyKM7AS7G2jO81hwzGfFiKk7AqF/nM5
+lx1wywJANjoTfa8ax1Bcdeyky9xh1PAHPoiTUPowjDyWflIy3kkSEz7cBxfLZd2Z
+QO8XC2p0ZcJbbCNMKh1r6HD4g446iQJBANOMKdHUzhoDxXrTqcu+SS75Lf0HzTGf
+QPkCGDXkCUCJYMH1irYFkBQ85yGnayMTMBsCzp/WBiMVqJj6HO/8q9sCQQCxtTUn
+rOjiKXcyl2aNL7bGLfWtexl+MT2Z/PrjYcN5XbK4wmy2TFUAA1BCyHhv1/1jUDzf
+Ibw/Lq9YIiqVrg6T
 -----END RSA PRIVATE KEY-----`)

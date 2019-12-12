@@ -154,6 +154,17 @@ func (s *startController) startOne(app v1.AppService) error {
 			}
 		}
 	}
+
+	if hpas := app.GetHPAs(); len(hpas) != 0 {
+		for _, hpa := range hpas {
+			_, err := s.manager.client.AutoscalingV2beta1().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(hpa)
+			if err != nil && !errors.IsAlreadyExists(err) {
+				logrus.Debugf("hpa: %#v", hpa)
+				return fmt.Errorf("create hpa: %v", err)
+			}
+		}
+	}
+
 	//step 6: waiting endpoint ready
 	app.Logger.Info("Create all app model success, will waiting app ready", event.GetLoggerOption("running"))
 	return s.WaitingReady(app)

@@ -11,6 +11,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/service"
 )
 
+//ShellProbe -
 type ShellProbe struct {
 	Name         string
 	Address      string
@@ -22,12 +23,17 @@ type ShellProbe struct {
 	MaxErrorsNum int
 }
 
+//Check -
 func (h *ShellProbe) Check() {
 	go h.ShellCheck()
 }
+
+//Stop -
 func (h *ShellProbe) Stop() {
 	h.Cancel()
 }
+
+//ShellCheck -
 func (h *ShellProbe) ShellCheck() {
 	timer := time.NewTimer(time.Second * time.Duration(h.TimeInterval))
 	defer timer.Stop()
@@ -48,10 +54,9 @@ func (h *ShellProbe) ShellCheck() {
 	}
 }
 
+// GetShellHealth get shell health
 func GetShellHealth(address string) map[string]string {
-
 	cmd := exec.Command("/bin/bash", "-c", address)
-
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

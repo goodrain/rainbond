@@ -101,7 +101,7 @@ func TestGetMessage(t *testing.T) {
 	eventFilePlugin := EventFilePlugin{
 		HomePath: "/tmp",
 	}
-	list, err := eventFilePlugin.GetMessages("eventidsadasd", "debug")
+	list, err := eventFilePlugin.GetMessages("eventidsadasd", "debug", 0)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -157,6 +157,9 @@ func (h *newMonitorMessageStore) stop() {
 	h.cancel()
 }
 func (h *newMonitorMessageStore) InsertGarbageMessage(message ...*db.EventLogMessage) {}
+func (h *newMonitorMessageStore) GetHistoryMessage(eventID string, length int) (re []string) {
+	return nil
+}
 
 //MonitorMessage 性能监控消息系统模型
 type MonitorMessage struct {

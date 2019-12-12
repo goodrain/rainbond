@@ -36,6 +36,7 @@ import (
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/api/autoscaling/v2beta1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -47,6 +48,12 @@ import (
 	listcorev1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 )
+
+var rc2RecordType = map[string]string{
+	"Deployment":              "mumaul",
+	"Statefulset":             "mumaul",
+	"HorizontalPodAutoscaler": "hpa",
+}
 
 //Storer app runtime store interface
 type Storer interface {
@@ -135,9 +142,7 @@ func NewStore(clientset *kubernetes.Clientset,
 	}
 	// create informers factory, enable and assign required informers
 	infFactory := informers.NewFilteredSharedInformerFactory(conf.KubeClient, time.Second, corev1.NamespaceAll,
-		func(options *metav1.ListOptions) {
-			options.LabelSelector = "creater=Rainbond"
-		})
+		func(options *metav1.ListOptions) {})
 	store.informers.Deployment = infFactory.Apps().V1().Deployments().Informer()
 	store.listers.Deployment = infFactory.Apps().V1().Deployments().Lister()
 
@@ -172,6 +177,10 @@ func NewStore(clientset *kubernetes.Clientset,
 
 	store.informers.Claim = infFactory.Core().V1().PersistentVolumeClaims().Informer()
 	store.listers.Claim = infFactory.Core().V1().PersistentVolumeClaims().Lister()
+	store.informers.Events = infFactory.Core().V1().Events().Informer()
+
+	store.informers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2beta1().HorizontalPodAutoscalers().Informer()
+	store.listers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2beta1().HorizontalPodAutoscalers().Lister()
 
 	isThirdParty := func(ep *corev1.Endpoints) bool {
 		return ep.Labels["service-kind"] == model.ServiceKindThirdParty.String()
@@ -267,6 +276,8 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.StorageClass.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Claim.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 
+	store.informers.Events.AddEventHandlerWithResyncPeriod(store.evtEventHandler(), time.Second*10)
+	store.informers.HorizontalPodAutoscaler.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	return store
 }
 
@@ -435,7 +446,7 @@ func (a *appRuntimeStore) checkReplicasetWhetherDelete(app *v1.AppService, rs *a
 		//delete old version
 		if v1.GetReplicaSetVersion(current) > v1.GetReplicaSetVersion(rs) {
 			if rs.Status.Replicas == 0 && rs.Status.ReadyReplicas == 0 && rs.Status.AvailableReplicas == 0 {
-				if err := a.conf.KubeClient.Apps().ReplicaSets(rs.Namespace).Delete(rs.Name, &metav1.DeleteOptions{}); err != nil && errors.IsNotFound(err) {
+				if err := a.conf.KubeClient.AppsV1().ReplicaSets(rs.Namespace).Delete(rs.Name, &metav1.DeleteOptions{}); err != nil && errors.IsNotFound(err) {
 					logrus.Errorf("delete old version replicaset failure %s", err.Error())
 				}
 			}
@@ -527,7 +538,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.Extensions().Ingresses(ingress.Namespace).Delete(ingress.Name, &metav1.DeleteOptions{})
+				a.conf.KubeClient.ExtensionsV1beta1().Ingresses(ingress.Namespace).Delete(ingress.Name, &metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetIngress(ingress)
@@ -565,6 +576,37 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 		}
 	}
+	if hpa, ok := obj.(*v2beta1.HorizontalPodAutoscaler); ok {
+		serviceID := hpa.Labels["service_id"]
+		version := hpa.Labels["version"]
+		createrID := hpa.Labels["creater_id"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.AutoscalingV2beta1().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(hpa.GetName(), &metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetHPA(hpa)
+			}
+
+			return
+		}
+	}
+}
+
+func (a *appRuntimeStore) listHPAEvents(hpa *v2beta1.HorizontalPodAutoscaler) error {
+	namespace, name := hpa.GetNamespace(), hpa.GetName()
+	eventsInterface := a.clientset.CoreV1().Events(hpa.GetNamespace())
+	selector := eventsInterface.GetFieldSelector(&name, &namespace, nil, nil)
+	options := metav1.ListOptions{FieldSelector: selector.String()}
+	events, err := eventsInterface.List(options)
+	if err != nil {
+		return err
+	}
+
+	_ = events
+
+	return nil
 }
 
 //getAppService if  creater is true, will create new app service where not found in store
@@ -700,6 +742,17 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 			appservice, _ := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DeleteClaim(claim)
+			}
+		}
+	}
+	if hpa, ok := obj.(*v2beta1.HorizontalPodAutoscaler); ok {
+		serviceID := hpa.Labels["service_id"]
+		version := hpa.Labels["version"]
+		createrID := hpa.Labels["creater_id"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, _ := a.getAppService(serviceID, version, createrID, false)
+			if appservice != nil {
+				appservice.DelHPA(hpa)
 				if appservice.IsClosed() {
 					a.DeleteAppService(appservice)
 				}
@@ -1095,6 +1148,107 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 			}
 		},
 	}
+}
+
+func (a *appRuntimeStore) evtEventHandler() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			evt := obj.(*corev1.Event)
+			recordType, ok := rc2RecordType[evt.InvolvedObject.Kind]
+			if !ok {
+				return
+			}
+
+			serviceID, ruleID := a.scalingRecordServiceAndRuleID(evt)
+			if serviceID == "" || ruleID == "" {
+				logrus.Warningf("empty service id or rule id")
+				return
+			}
+			record := &model.TenantServiceScalingRecords{
+				ServiceID:   serviceID,
+				RuleID:      ruleID,
+				EventName:   evt.GetName(),
+				RecordType:  recordType,
+				Count:       evt.Count,
+				Reason:      evt.Reason,
+				Description: evt.Message,
+				Operator:    "system",
+				LastTime:    evt.LastTimestamp.Time,
+			}
+			logrus.Debugf("received add record: %#v", record)
+
+			if err := db.GetManager().TenantServiceScalingRecordsDao().UpdateOrCreate(record); err != nil {
+				logrus.Warningf("update or create scaling record: %v", err)
+			}
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			oevt := old.(*corev1.Event)
+			cevt := cur.(*corev1.Event)
+
+			recordType, ok := rc2RecordType[cevt.InvolvedObject.Kind]
+			if !ok {
+				return
+			}
+			if oevt.ResourceVersion == cevt.ResourceVersion {
+				return
+			}
+
+			serviceID, ruleID := a.scalingRecordServiceAndRuleID(cevt)
+			if serviceID == "" || ruleID == "" {
+				logrus.Warningf("empty service id or rule id")
+				return
+			}
+			record := &model.TenantServiceScalingRecords{
+				ServiceID:   serviceID,
+				RuleID:      ruleID,
+				EventName:   cevt.GetName(),
+				RecordType:  recordType,
+				Count:       cevt.Count,
+				Reason:      cevt.Reason,
+				LastTime:    cevt.LastTimestamp.Time,
+				Description: cevt.Message,
+			}
+			logrus.Debugf("received update record: %#v", record)
+
+			if err := db.GetManager().TenantServiceScalingRecordsDao().UpdateOrCreate(record); err != nil {
+				logrus.Warningf("update or create scaling record: %v", err)
+			}
+		},
+	}
+}
+
+func (a *appRuntimeStore) scalingRecordServiceAndRuleID(evt *corev1.Event) (string, string) {
+	var ruleID, serviceID string
+	switch evt.InvolvedObject.Kind {
+	case "Deployment":
+		deploy, err := a.listers.Deployment.Deployments(evt.InvolvedObject.Namespace).Get(evt.InvolvedObject.Name)
+		if err != nil {
+			logrus.Warningf("retrieve deployment: %v", err)
+			return "", ""
+		}
+		serviceID = deploy.GetLabels()["service_id"]
+		ruleID = deploy.GetLabels()["rule_id"]
+	case "Statefulset":
+		statefulset, err := a.listers.StatefulSet.StatefulSets(evt.InvolvedObject.Namespace).Get(evt.InvolvedObject.Name)
+		if err != nil {
+			logrus.Warningf("retrieve statefulset: %v", err)
+			return "", ""
+		}
+		serviceID = statefulset.GetLabels()["service_id"]
+		ruleID = statefulset.GetLabels()["rule_id"]
+	case "HorizontalPodAutoscaler":
+		hpa, err := a.listers.HorizontalPodAutoscaler.HorizontalPodAutoscalers(evt.InvolvedObject.Namespace).Get(evt.InvolvedObject.Name)
+		if err != nil {
+			logrus.Warningf("retrieve statefulset: %v", err)
+			return "", ""
+		}
+		serviceID = hpa.GetLabels()["service_id"]
+		ruleID = hpa.GetLabels()["rule_id"]
+	default:
+		logrus.Warningf("unsupported object kind: %s", evt.InvolvedObject.Kind)
+	}
+
+	return serviceID, ruleID
 }
 
 func (a *appRuntimeStore) RegistPodUpdateListener(name string, ch chan<- *corev1.Pod) {

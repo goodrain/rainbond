@@ -290,7 +290,7 @@ func (t *TenantStruct) PluginBuild(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, pbv)
 }
 
-//GetAllPluginBuildVersons 获取该插件所有的构建版本
+//GetAllPluginBuildVersions 获取该插件所有的构建版本
 // swagger:operation GET /v2/tenants/{tenant_name}/plugin/{plugin_id}/build-version v2 allPluginVersions
 //
 // 获取所有的构建版本信息
@@ -311,7 +311,7 @@ func (t *TenantStruct) PluginBuild(w http.ResponseWriter, r *http.Request) {
 //     schema:
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
-func (t *TenantStruct) GetAllPluginBuildVersons(w http.ResponseWriter, r *http.Request) {
+func (t *TenantStruct) GetAllPluginBuildVersions(w http.ResponseWriter, r *http.Request) {
 	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
 	versions, err := handler.GetPluginManager().GetAllPluginBuildVersions(pluginID)
 	if err != nil {

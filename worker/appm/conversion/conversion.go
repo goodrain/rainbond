@@ -36,6 +36,7 @@ func init() {
 	RegistConversion("TenantServicePlugin", TenantServicePlugin)
 	//step5 conv service inner and outer regist
 	RegistConversion("TenantServiceRegist", TenantServiceRegist)
+	RegistConversion("TenantServiceAutoscaler", TenantServiceAutoscaler)
 }
 
 //Conversion conversion function

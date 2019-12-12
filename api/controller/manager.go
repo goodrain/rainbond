@@ -21,7 +21,6 @@ package controller
 import (
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/api"
 	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/proxy"
@@ -33,13 +32,9 @@ import (
 //V2Manager v2 manager
 type V2Manager interface {
 	Show(w http.ResponseWriter, r *http.Request)
-	Nodes(w http.ResponseWriter, r *http.Request)
-	Jobs(w http.ResponseWriter, r *http.Request)
-	Apps(w http.ResponseWriter, r *http.Request)
 	Health(w http.ResponseWriter, r *http.Request)
 	AlertManagerWebHook(w http.ResponseWriter, r *http.Request)
 	Version(w http.ResponseWriter, r *http.Request)
-
 	api.TenantInterface
 	api.ServiceInterface
 	api.LogInterface
@@ -75,14 +70,11 @@ func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2
 	var v2r V2Routes
 	v2r.TenantStruct.StatusCli = statusCli
 	v2r.TenantStruct.MQClient = mqClient
-	nodeProxy := proxy.CreateProxy("acp_node", "http", conf.NodeAPI)
-	discover.GetEndpointDiscover(conf.EtcdEndpoint).AddProject("acp_node", nodeProxy)
-	v2r.AcpNodeStruct.HTTPProxy = nodeProxy
-	logrus.Debugf("create node api proxy success")
-
 	v2r.GatewayStruct.MQClient = mqClient
 	v2r.GatewayStruct.cfg = &conf
-
 	v2r.LabelController.optconfig = &conf
+	eventServerProxy := proxy.CreateProxy("eventlog", "http", []string{"local=>127.0.0.1:6363"})
+	discover.GetEndpointDiscover().AddProject("event_log_event_http", eventServerProxy)
+	v2r.EventLogStruct.EventlogServerProxy = eventServerProxy
 	return &v2r, nil
 }

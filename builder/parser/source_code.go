@@ -210,6 +210,14 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			return err
 		}
 	}
+	// The source code is useless after the test is completed, and needs to be deleted.
+	defer func() {
+		if sources.CheckFileExist(buildInfo.GetCodeHome()) {
+			if err := sources.RemoveDir(buildInfo.GetCodeHome()); err != nil {
+				logrus.Warningf("remove source code: %v", err)
+			}
+		}
+	}()
 
 	//read rainbondfile
 	rbdfileConfig, err := code.ReadRainbondFile(buildInfo.GetCodeBuildAbsPath())

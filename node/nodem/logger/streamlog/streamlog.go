@@ -176,7 +176,7 @@ func New(ctx logger.Info) (logger.Logger, error) {
 		config:                         ctx.Config,
 		serverAddress:                  address,
 		reConnecting:                   make(chan bool, 1),
-		cacheQueue:                     make(chan string, 2000),
+		cacheQueue:                     make(chan string, 20000),
 		intervalSendMicrosecondTime:    1000 * 10,
 		minIntervalSendMicrosecondTime: 1000,
 		closedChan:                     make(chan struct{}),
@@ -244,7 +244,6 @@ func (s *StreamLog) send() {
 			s.sendMsg(msg)
 			break
 		case <-tike.C:
-			//每3秒发送健康消息
 			s.ping()
 		}
 	}
@@ -253,7 +252,7 @@ func (s *StreamLog) sendMsg(msg string) {
 	if !s.writer.IsClosed() {
 		err := s.writer.Write(msg)
 		if err != nil {
-			logrus.Error("send log message to stream server error.", err.Error())
+			logrus.Debug("send log message to stream server error.", err.Error())
 			s.cache(msg)
 			neterr, ok := err.(net.Error)
 			if ok && neterr.Timeout() {
@@ -262,13 +261,11 @@ func (s *StreamLog) sendMsg(msg string) {
 				s.reConect()
 			}
 		} else {
-			//如果发送正确无错误。加快发送速度
 			if s.intervalSendMicrosecondTime > s.minIntervalSendMicrosecondTime {
 				s.intervalSendMicrosecondTime -= 100
 			}
 		}
 	} else {
-		logrus.Error("the writer is closed.try reconect")
 		if len(s.reConnecting) < 1 {
 			s.reConect()
 		}

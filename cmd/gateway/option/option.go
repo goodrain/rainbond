@@ -107,7 +107,7 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&g.ResyncPeriod, "resync-period", 10*time.Second, "the default resync period for any handlers added via AddEventHandler and how frequently the listener wants a full resync from the shared informer")
 	// etcd
 	fs.StringSliceVar(&g.EtcdEndpoint, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd cluster endpoints.")
-	fs.IntVar(&g.EtcdTimeout, "etcd-timeout", 5, "etcd http timeout seconds")
+	fs.IntVar(&g.EtcdTimeout, "etcd-timeout", 10, "etcd http timeout seconds")
 	// health check
 	fs.StringVar(&g.HealthPath, "health-path", "/healthz", "absolute path to the kubeconfig file")
 	fs.DurationVar(&g.HealthCheckTimeout, "health-check-timeout", 10, `Time limit, in seconds, for a probe to health-check-path to succeed.`)
