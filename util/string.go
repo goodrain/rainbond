@@ -45,3 +45,11 @@ func StringArrayContains(list []string, source string) bool {
 	}
 	return false
 }
+
+//Reverse reverse sort string array
+func Reverse(source []string) []string {
+	for i := 0; i < len(source)/2; i++ {
+		source[i], source[len(source)-i-1] = source[len(source)-i-1], source[i]
+	}
+	return source
+}

@@ -20,14 +20,10 @@ package db
 
 import "testing"
 
-func TestGetServiceAliasID(t *testing.T) {
-	t.Log(GetServiceAliasID(""))
-}
-
 func TestFileSaveMessage(t *testing.T) {
 
 	f := filePlugin{
-		homePath: "/Users/qingguo/",
+		homePath: "./test",
 	}
 	m := &EventLogMessage{EventID: "qwertyuiopasdfghjkl"}
 	m.Content = []byte("do you under stand")
@@ -45,4 +41,20 @@ func TestFileSaveMessage(t *testing.T) {
 
 func TestMvLogFile(t *testing.T) {
 	MvLogFile("/Users/qingguo/7b3d5546bd54152d/stdout.log.gz", "/Users/qingguo/7b3d5546bd54152d/stdout.log")
+}
+
+func TestGetMessages(t *testing.T) {
+	f := filePlugin{
+		homePath: "./test",
+	}
+	logs, err := f.GetMessages("qwertyuiopasdfghjkl", "", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(logs)
+	logs, err = f.GetMessages("qwertyuiopasdfghjkl", "", -10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(logs)
 }

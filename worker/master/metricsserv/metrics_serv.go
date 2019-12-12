@@ -20,13 +20,13 @@ package metricsserv
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/pquerna/ffjson/ffjson"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"strconv"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
@@ -37,8 +37,6 @@ import (
 	"k8s.io/kube-aggregator/pkg/apis/apiregistration/v1beta1"
 	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 )
-
-var ErrEndpointsNotFound = errors.New("metrics-server endpoints not found")
 
 // MetricsServiceManager -
 type MetricsServiceManager struct {
@@ -54,6 +52,7 @@ type metricsServerEndpoint struct {
 	Port    int
 }
 
+//New new
 func New(clientset kubernetes.Interface, apiregistrationClientset kubeaggregatorclientset.Interface, clientv3 *clientv3.Client) *MetricsServiceManager {
 	msm := &MetricsServiceManager{
 		clientset:                clientset,
@@ -64,6 +63,7 @@ func New(clientset kubernetes.Interface, apiregistrationClientset kubeaggregator
 	return msm
 }
 
+//Start start
 func (m *MetricsServiceManager) Start() error {
 	if err := m.newMetricsServerAPIService(); err != nil {
 		return err
@@ -171,41 +171,30 @@ func (m *MetricsServiceManager) newMetricsServiceEndpoints() error {
 	}
 	ep := m.metricsServerEndpoint2CoreV1Endpoints(endpoints)
 	m.ensureEndpoints(ep)
-
 	go m.watchMetricsServiceEndpoints()
-
 	return nil
 }
 
 func (m *MetricsServiceManager) listMetricsServiceEndpoints() ([]metricsServerEndpoint, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
 	resp, err := m.clientv3.Get(ctx, "/rainbond/endpoint/METRICS_SERVER_ENDPOINTS", clientv3.WithPrefix())
 	if err != nil {
 		return nil, fmt.Errorf("list metrics-server endpoints: %v", err)
 	}
-
 	var endpoints []metricsServerEndpoint
 	for _, kv := range resp.Kvs {
 		eps := m.str2MetricsServerEndpoint(kv)
 		endpoints = append(endpoints, eps...)
 	}
-
-	if len(endpoints) == 0 {
-		return nil, ErrEndpointsNotFound
-	}
-
 	return endpoints, nil
 }
 
 func (m *MetricsServiceManager) watchMetricsServiceEndpoints() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
 	watchCh := m.clientv3.Watch(ctx, "/rainbond/endpoint/METRICS_SERVER_ENDPOINTS", clientv3.WithPrefix())
-
-	for  {
+	for {
 		select {
 		case resp := <-watchCh:
 			for _, event := range resp.Events {
@@ -213,11 +202,8 @@ func (m *MetricsServiceManager) watchMetricsServiceEndpoints() {
 				ep := m.metricsServerEndpoint2CoreV1Endpoints(eps)
 				m.ensureEndpoints(ep)
 			}
-		default:
-
 		}
 	}
-
 
 }
 

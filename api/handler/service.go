@@ -20,6 +20,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -35,9 +36,11 @@ import (
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
+	dberrors "github.com/goodrain/rainbond/db/errors"
 	core_model "github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	eventutil "github.com/goodrain/rainbond/eventlog/util"
 	gclient "github.com/goodrain/rainbond/mq/client"
 	core_util "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
@@ -48,6 +51,9 @@ import (
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/twinj/uuid"
 )
+
+// ErrServiceNotClosed -
+var ErrServiceNotClosed = errors.New("Service has not been closed")
 
 //ServiceAction service act
 type ServiceAction struct {
@@ -514,9 +520,17 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			env.ServiceID = ts.ServiceID
 			env.TenantID = ts.TenantID
 			if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).AddModel(&env); err != nil {
-				logrus.Errorf("add env %v error, %v", env.AttrName, err)
-				tx.Rollback()
-				return err
+				logrus.Errorf("add env[name=%s] error, %v", env.AttrName, err)
+				if err != dberrors.ErrRecordAlreadyExist {
+					tx.Rollback()
+					return err
+				}
+				logrus.Warningf("recover env[name=%s]", env.AttrName)
+				// if env already exists, update it
+				if err = db.GetManager().TenantServiceEnvVarDaoTransactions(tx).UpdateModel(&env); err != nil {
+					tx.Rollback()
+					return err
+				}
 			}
 		}
 	}
@@ -1380,10 +1394,31 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 			}
 		}()
 		if tsv.VolumeName != "" {
-			err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteModel(tsv.ServiceID, tsv.VolumeName)
-			if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
+			volume, err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).GetVolumeByServiceIDAndName(tsv.ServiceID, tsv.VolumeName)
+			if err != nil {
+				tx.Rollback()
+				return util.CreateAPIHandleErrorFromDBError("find volume", err)
+			}
+
+			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteModel(tsv.ServiceID, tsv.VolumeName); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 				tx.Rollback()
 				return util.CreateAPIHandleErrorFromDBError("delete volume", err)
+			}
+
+			err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+				Topic:    gclient.WorkerTopic,
+				TaskType: "volume_gc",
+				TaskBody: map[string]interface{}{
+					"tenant_id":   tenantID,
+					"service_id":  volume.ServiceID,
+					"volume_id":   volume.ID,
+					"volume_path": volume.VolumePath,
+				},
+			})
+			if err != nil {
+				logrus.Errorf("send 'volume_gc' task: %v", err)
+				tx.Rollback()
+				return util.CreateAPIHandleErrorFromDBError("send 'volume_gc' task", err)
 			}
 		} else {
 			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteByServiceIDAndVolumePath(tsv.ServiceID, tsv.VolumePath); err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
@@ -1772,7 +1807,36 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 }
 
 //TransServieToDelete trans service info to delete table
-func (s *ServiceAction) TransServieToDelete(serviceID string) error {
+func (s *ServiceAction) TransServieToDelete(tenantID, serviceID string) error {
+	if err := s.isServiceClosed(serviceID); err != nil {
+		return err
+	}
+
+	body, err := s.gcTaskBody(tenantID, serviceID)
+	if err != nil {
+		return fmt.Errorf("GC task body: %v", err)
+	}
+
+	if err := s.delServiceMetadata(serviceID); err != nil {
+		return fmt.Errorf("delete service-related metadata: %v", err)
+	}
+
+	// let rbd-chaos remove related persistent data
+	logrus.Info("let rbd-chaos remove related persistent data")
+	topic := gclient.WorkerTopic
+	if err := s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+		Topic:    topic,
+		TaskType: "service_gc",
+		TaskBody: body,
+	}); err != nil {
+		logrus.Warningf("send gc task: %v", err)
+	}
+
+	return nil
+}
+
+// isServiceClosed checks if the service has been closed according to the serviceID.
+func (s *ServiceAction) isServiceClosed(serviceID string) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
 		return err
@@ -1780,8 +1844,17 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	status := s.statusCli.GetStatus(serviceID)
 	if service.Kind != dbmodel.ServiceKindThirdParty.String() {
 		if !s.statusCli.IsClosedStatus(status) {
-			return fmt.Errorf("unclosed")
+			return ErrServiceNotClosed
 		}
+	}
+	return nil
+}
+
+// delServiceMetadata deletes service-related metadata in the database.
+func (s *ServiceAction) delServiceMetadata(serviceID string) error {
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if err != nil {
+		return err
 	}
 	tx := db.GetManager().Begin()
 	defer func() {
@@ -1797,24 +1870,24 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 		return err
 	}
 	var deleteServicePropertyFunc = []func(serviceID string) error{
-		db.GetManager().TenantServiceDaoTransactions(tx).DeleteServiceByServiceID,
-		db.GetManager().TenantServiceMountRelationDaoTransactions(tx).DELTenantServiceMountRelationByServiceID,
+		db.GetManager().CodeCheckResultDaoTransactions(tx).DeleteByServiceID,
 		db.GetManager().TenantServiceEnvVarDaoTransactions(tx).DELServiceEnvsByServiceID,
-		db.GetManager().TenantServicesPortDaoTransactions(tx).DELPortsByServiceID,
-		db.GetManager().TenantServiceRelationDaoTransactions(tx).DELRelationsByServiceID,
-		db.GetManager().TenantServiceLBMappingPortDaoTransactions(tx).DELServiceLBMappingPortByServiceID,
-		db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteTenantServiceVolumesByServiceID,
-		db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DelByServiceID,
-		db.GetManager().ServiceProbeDaoTransactions(tx).DELServiceProbesByServiceID,
+		db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).DeletePluginConfigByServiceID,
 		db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteALLRelationByServiceID,
 		db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteAllPluginMappingPortByServiceID,
-		db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByServiceID,
-		db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).DeletePluginConfigByServiceID,
-		db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteLabelByServiceID,
-		db.GetManager().HTTPRuleDaoTransactions(tx).DeleteHTTPRuleByServiceID,
-		db.GetManager().TCPRuleDaoTransactions(tx).DeleteTCPRuleByServiceID,
-		db.GetManager().ThirdPartySvcDiscoveryCfgDaoTransactions(tx).DeleteByServiceID,
+		db.GetManager().TenantServiceDaoTransactions(tx).DeleteServiceByServiceID,
+		db.GetManager().TenantServicesPortDaoTransactions(tx).DELPortsByServiceID,
+		db.GetManager().TenantServiceRelationDaoTransactions(tx).DELRelationsByServiceID,
+		db.GetManager().TenantServiceMountRelationDaoTransactions(tx).DELTenantServiceMountRelationByServiceID,
+		db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteTenantServiceVolumesByServiceID,
+		db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DelByServiceID,
 		db.GetManager().EndpointsDaoTransactions(tx).DeleteByServiceID,
+		db.GetManager().ThirdPartySvcDiscoveryCfgDaoTransactions(tx).DeleteByServiceID,
+		db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteLabelByServiceID,
+		db.GetManager().VersionInfoDaoTransactions(tx).DeleteVersionByServiceID,
+		db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByServiceID,
+		db.GetManager().ServiceProbeDaoTransactions(tx).DELServiceProbesByServiceID,
+		db.GetManager().ServiceEventDaoTransactions(tx).DelEventByServiceID,
 	}
 	if err := GetGatewayHandler().DeleteTCPRuleByServiceIDWithTransaction(serviceID, tx); err != nil {
 		tx.Rollback()
@@ -1826,7 +1899,7 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 	}
 	for _, del := range deleteServicePropertyFunc {
 		if err := del(serviceID); err != nil {
-			if err.Error() != gorm.ErrRecordNotFound.Error() {
+			if err != gorm.ErrRecordNotFound {
 				tx.Rollback()
 				return err
 			}
@@ -1837,6 +1910,40 @@ func (s *ServiceAction) TransServieToDelete(serviceID string) error {
 		return err
 	}
 	return nil
+}
+
+// delLogFile deletes persistent data related to the service based on serviceID.
+func (s *ServiceAction) delLogFile(serviceID string, eventIDs []string) {
+	// log generated during service running
+	dockerLogPath := eventutil.DockerLogFilePath(s.conf.LogPath, serviceID)
+	if err := os.RemoveAll(dockerLogPath); err != nil {
+		logrus.Warningf("remove docker log files: %v", err)
+	}
+	// log generated by the service event
+	eventLogPath := eventutil.EventLogFilePath(s.conf.LogPath)
+	for _, eventID := range eventIDs {
+		eventLogFileName := eventutil.EventLogFileName(eventLogPath, eventID)
+		if err := os.RemoveAll(eventLogFileName); err != nil {
+			logrus.Warningf("file: %s; remove event log file: %v", eventLogFileName, err)
+		}
+	}
+}
+
+func (s *ServiceAction) gcTaskBody(tenantID, serviceID string) (map[string]interface{}, error) {
+	events, err := db.GetManager().ServiceEventDao().ListByTargetID(serviceID)
+	if err != nil {
+		logrus.Errorf("list events based on serviceID: %v", err)
+	}
+	var eventIDs []string
+	for _, event := range events {
+		eventIDs = append(eventIDs, event.EventID)
+	}
+
+	return map[string]interface{}{
+		"tenant_id":  tenantID,
+		"service_id": serviceID,
+		"event_ids":  eventIDs,
+	}, nil
 }
 
 //GetServiceDeployInfo get service deploy info
@@ -1953,6 +2060,12 @@ func (s *ServiceAction) UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) erro
 		return err
 	}
 
+	// delete metrics
+	if err := db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).DeleteByRuleID(req.RuleID); err != nil {
+		tx.Rollback()
+		return err
+	}
+
 	for _, metric := range req.Metrics {
 		m := &dbmodel.TenantServiceAutoscalerRuleMetrics{
 			RuleID:            req.RuleID,
@@ -1961,7 +2074,7 @@ func (s *ServiceAction) UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) erro
 			MetricTargetType:  metric.MetricTargetType,
 			MetricTargetValue: metric.MetricTargetValue,
 		}
-		if err := db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).UpdateOrCreate(m); err != nil {
+		if err := db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).AddModel(m); err != nil {
 			tx.Rollback()
 			return err
 		}

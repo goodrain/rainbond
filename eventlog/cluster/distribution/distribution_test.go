@@ -36,11 +36,17 @@ func TestGetSuitableInstance(t *testing.T) {
 		cancel:       cancel,
 		context:      ctx,
 		discover:     dis,
-		monitorDatas: make(map[string]db.MonitorData),
 		updateTime:   make(map[string]time.Time),
 		abnormalNode: make(map[string]int),
 		log:          logrus.WithField("Module", "Test"),
 	}
-	d.monitorDatas = map[string]db.MonitorData{"a": db.MonitorData{InstanceID: "a", LogSizePeerM: 200}, "b": db.MonitorData{InstanceID: "b", LogSizePeerM: 150}}
-	d.GetSuitableInstance()
+	d.monitorDatas = map[string]*db.MonitorData{
+		"a": &db.MonitorData{
+			InstanceID: "a", LogSizePeerM: 200,
+		},
+		"b": &db.MonitorData{
+			InstanceID: "b", LogSizePeerM: 150,
+		},
+	}
+	d.GetSuitableInstance("todo service id")
 }

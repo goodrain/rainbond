@@ -1020,6 +1020,21 @@ func (mr *MockTenantServicesPortDaoMockRecorder) DelByServiceID(sid interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByServiceID", reflect.TypeOf((*MockTenantServicesPortDao)(nil).DelByServiceID), sid)
 }
 
+// ListInnerPortsByServiceIDs mocks base method
+func (m *MockTenantServicesPortDao) ListInnerPortsByServiceIDs(serviceIDs []string) ([]*model.TenantServicesPort, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListInnerPortsByServiceIDs", serviceIDs)
+	ret0, _ := ret[0].([]*model.TenantServicesPort)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListInnerPortsByServiceIDs indicates an expected call of ListInnerPortsByServiceIDs
+func (mr *MockTenantServicesPortDaoMockRecorder) ListInnerPortsByServiceIDs(serviceIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListInnerPortsByServiceIDs", reflect.TypeOf((*MockTenantServicesPortDao)(nil).ListInnerPortsByServiceIDs), serviceIDs)
+}
+
 // MockTenantPluginDao is a mock of TenantPluginDao interface
 type MockTenantPluginDao struct {
 	ctrl     *gomock.Controller
@@ -1935,6 +1950,21 @@ func (m *MockTenantServiceRelationDao) GetTenantServiceRelations(serviceID strin
 func (mr *MockTenantServiceRelationDaoMockRecorder) GetTenantServiceRelations(serviceID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceRelations", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).GetTenantServiceRelations), serviceID)
+}
+
+// ListByServiceIDs mocks base method
+func (m *MockTenantServiceRelationDao) ListByServiceIDs(serviceIDs []string) ([]*model.TenantServiceRelation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListByServiceIDs", serviceIDs)
+	ret0, _ := ret[0].([]*model.TenantServiceRelation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListByServiceIDs indicates an expected call of ListByServiceIDs
+func (mr *MockTenantServiceRelationDaoMockRecorder) ListByServiceIDs(serviceIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceIDs", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).ListByServiceIDs), serviceIDs)
 }
 
 // GetTenantServiceRelationsByDependServiceID mocks base method
@@ -3309,6 +3339,20 @@ func (mr *MockCodeCheckResultDaoMockRecorder) GetCodeCheckResult(serviceID inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCodeCheckResult", reflect.TypeOf((*MockCodeCheckResultDao)(nil).GetCodeCheckResult), serviceID)
 }
 
+// DeleteByServiceID mocks base method
+func (m *MockCodeCheckResultDao) DeleteByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteByServiceID", serviceID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteByServiceID indicates an expected call of DeleteByServiceID
+func (mr *MockCodeCheckResultDaoMockRecorder) DeleteByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByServiceID", reflect.TypeOf((*MockCodeCheckResultDao)(nil).DeleteByServiceID), serviceID)
+}
+
 // MockEventDao is a mock of EventDao interface
 type MockEventDao struct {
 	ctrl     *gomock.Controller
@@ -3417,6 +3461,21 @@ func (m *MockEventDao) DelEventByServiceID(serviceID string) error {
 func (mr *MockEventDaoMockRecorder) DelEventByServiceID(serviceID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelEventByServiceID", reflect.TypeOf((*MockEventDao)(nil).DelEventByServiceID), serviceID)
+}
+
+// ListByTargetID mocks base method
+func (m *MockEventDao) ListByTargetID(targetID string) ([]*model.ServiceEvent, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListByTargetID", targetID)
+	ret0, _ := ret[0].([]*model.ServiceEvent)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListByTargetID indicates an expected call of ListByTargetID
+func (mr *MockEventDaoMockRecorder) ListByTargetID(targetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByTargetID", reflect.TypeOf((*MockEventDao)(nil).ListByTargetID), targetID)
 }
 
 // GetEventsByTarget mocks base method
@@ -4582,6 +4641,21 @@ func (m *MockHTTPRuleDao) ListByServiceID(serviceID string) ([]*model.HTTPRule, 
 func (mr *MockHTTPRuleDaoMockRecorder) ListByServiceID(serviceID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockHTTPRuleDao)(nil).ListByServiceID), serviceID)
+}
+
+// ListByCertID mocks base method
+func (m *MockHTTPRuleDao) ListByCertID(certID string) ([]*model.HTTPRule, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListByCertID", certID)
+	ret0, _ := ret[0].([]*model.HTTPRule)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListByCertID indicates an expected call of ListByCertID
+func (mr *MockHTTPRuleDaoMockRecorder) ListByCertID(certID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByCertID", reflect.TypeOf((*MockHTTPRuleDao)(nil).ListByCertID), certID)
 }
 
 // MockTCPRuleDao is a mock of TCPRuleDao interface

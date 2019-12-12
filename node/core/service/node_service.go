@@ -388,60 +388,6 @@ func (n *NodeService) UpNode(nodeID string) (*client.HostNode, *utils.APIHandleE
 	return hostNode, nil
 }
 
-//InitStatus node init status
-func (n *NodeService) InitStatus(nodeIP string) (*model.InitStatus, *utils.APIHandleError) {
-	var hostnode client.HostNode
-	gotNode := false
-	var status model.InitStatus
-	i := 0
-	for !gotNode && i < 3 {
-		list, err := n.GetAllNode()
-		if err != nil {
-			return nil, err
-		}
-		for _, v := range list {
-			if nodeIP == v.InternalIP {
-				hostnode = *v
-				gotNode = true
-				i = 9
-				break
-			}
-		}
-		if i > 0 {
-			time.Sleep(time.Second)
-		}
-		i++
-	}
-	if i != 10 {
-		status.Status = 3
-		status.StatusCN = "等待节点加入集群中"
-		return &status, nil
-	}
-	nodeUID := hostnode.ID
-	node, err := n.GetNode(nodeUID)
-	if err != nil {
-		return nil, err
-	}
-	for _, val := range node.NodeStatus.Conditions {
-		if node.NodeStatus.Status == "running" || (val.Type == client.NodeInit && val.Status == client.ConditionTrue) {
-			status.Status = 0
-			status.StatusCN = "初始化成功"
-			status.HostID = node.ID
-		} else if val.Type == client.NodeInit && val.Status == client.ConditionFalse {
-			status.Status = 1
-			status.StatusCN = fmt.Sprintf("初始化失败,%s", val.Message)
-		} else {
-			status.Status = 2
-			status.StatusCN = "初始化中"
-		}
-	}
-	if len(node.NodeStatus.Conditions) == 0 {
-		status.Status = 2
-		status.StatusCN = "初始化中"
-	}
-	return &status, nil
-}
-
 //GetNodeResource get node resource
 func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *utils.APIHandleError) {
 	node, err := n.GetNode(nodeUID)
@@ -483,10 +429,10 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 	res.CPULimits = cpuLimit
 	//logrus.Infof("node %s cpu limit is %v",cpuLimit)
 	res.CPURequests = cpuRequest
-	res.CpuR = int(cpuTotal)
+	res.CPU = int(cpuTotal)
 	res.MemR = int(memTotal / 1024 / 1024)
-	res.CPULimitsR = strconv.FormatFloat(float64(res.CPULimits*100)/float64(res.CpuR*1000), 'f', 2, 64)
-	res.CPURequestsR = strconv.FormatFloat(float64(res.CPURequests*100)/float64(res.CpuR*1000), 'f', 2, 64)
+	res.CPULimitsR = strconv.FormatFloat(float64(res.CPULimits*100)/float64(res.CPU*1000), 'f', 2, 64)
+	res.CPURequestsR = strconv.FormatFloat(float64(res.CPURequests*100)/float64(res.CPU*1000), 'f', 2, 64)
 	res.MemoryLimits = memLimit / 1024 / 1024
 	res.MemoryLimitsR = strconv.FormatFloat(float64(res.MemoryLimits*100)/float64(res.MemR), 'f', 2, 64)
 	res.MemoryRequests = memRequest / 1024 / 1024

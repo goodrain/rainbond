@@ -10,12 +10,7 @@
 
 **Rainbond** 企业应用云操作系统
 
-Rainbond（云帮）是云原生下企业应用操作系统。 Rainbond支撑企业应用的开发、架构、交付和运维的全流程，通过“无侵入”架构，无缝衔接各类企业应用，底层资源可以对接和管理IaaS、虚拟机和物理服务器。
-
-```
-企业应用包括：
-各类信息系统、OA、CRM、ERP、数据库、大数据、物联网、互联网平台、微服务架构等运行在企业内部的各种系统。
-```
+Rainbond是以应用为中心，面向云原生的企业应用操作系统，将企业数字资产抽象为应用模型（Rainbond Application Model），并通过容器化环境、敏捷DevOps、微服务架构、组件制品库、serverless部署、底层资源自动化运维等核心技术，通过搭建数字中台、加速前台业务需求响应，帮助企业获得面向未来的创新能力和竞争力。
 
 <img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/Rainbond%E4%BA%A7%E5%93%81%E6%9E%B6%E6%9E%84.png" width="100%">
 
@@ -45,8 +40,12 @@ DevOps开发流水线、微服务架构、服务治理及各类技术工具“�
 | Serverless PaaS            | 以应用为核心，使用过程不需要了解服务器相关概念，简单灵活。通过对接行业应用，快速构建行业专有PaaS。 |
 | 应用网关                   | 基于HTTP、HTTPs、TCP、UDP等协议应用访问控制策略，轻松操作应用灰度发布、A/B测试。 |
 | 异构服务统一管理            | 支持集群内外不同架构服务统一管理、监控和通信治理。                              |
+| 应用描述模型              | 以应用为中心描述应用包含的组件特性，应用特性，部署运维特性，实现复杂应用的标准版交付   |
 
-更多功能特性详见： [Rainbond功能特性说明](https://www.rainbond.com/docs/quick-start/edition/)
+更多功能特性详见： 
+[Rainbond功能特性说明](https://www.rainbond.com/docs/quick-start/edition/)
+[Rainbond开发计划](https://www.rainbond.com/docs/quick-start/roadmap/)
+
 ## 快速开始
 
 1.  [快速安装 Rainbond 集群](https://www.rainbond.com/docs/quick-start/rainbond_install/)

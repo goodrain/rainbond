@@ -95,22 +95,6 @@ func TestABCService(t *testing.T) {
 	fmt.Printf("json is \n %v", s)
 }
 
-/*
-func TestPortOuter(t *testing.T) {
-	if err := db.CreateManager(dbconfig.Config{
-		MysqlConnectionInfo: "root:admin@tcp(127.0.0.1:3306)/region",
-		DBType:              "mysql",
-	}); err != nil {
-		t.Fatal(err)
-	}
-	sa := &ServiceAction{}
-	port, sche, err := sa.PortOuter("123", "257389e878258717abc6fa7c98660709", "close", 8080)
-	t.Log(port)
-	t.Log(sche)
-	t.Log(err)
-}
-*/
-
 func TestUUID(t *testing.T) {
 	id := fmt.Sprintf("%s", uuid.NewV4())
 	uid := strings.Replace(id, "-", "", -1)

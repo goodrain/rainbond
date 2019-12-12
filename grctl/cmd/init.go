@@ -30,10 +30,8 @@ import (
 
 	"github.com/goodrain/rainbond/util"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/urfave/cli" //"github.com/goodrain/rainbond/grctl/clients"
 )
 
@@ -221,41 +219,6 @@ func NewCmdInit() cli.Command {
 	return c
 }
 
-//NewCmdInstallStatus install status
-func NewCmdInstallStatus() cli.Command {
-	c := cli.Command{
-		Name: "install_status",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  "taskID",
-				Usage: "install_k8s,空则自动寻找",
-			},
-		},
-		Usage: "获取task执行状态。grctl install_status",
-		Action: func(c *cli.Context) error {
-			taskID := c.String("taskID")
-			if taskID == "" {
-				tasks, err := clients.RegionClient.Tasks().List()
-				if err != nil {
-					logrus.Errorf("error get task list,details %s", err.Error())
-					return nil
-				}
-				for _, v := range tasks {
-					for _, vs := range v.Status {
-						if vs.Status == "start" || vs.Status == "create" {
-							//Status(v.ID)
-							return nil
-						}
-					}
-				}
-			} else {
-				//Status(taskID)
-			}
-			return nil
-		},
-	}
-	return c
-}
 func updateConfigFile(path string, config map[string]interface{}) error {
 	initConfig := make(map[string]interface{})
 	var file *os.File

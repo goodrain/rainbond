@@ -112,6 +112,7 @@ type TenantServicesPortDao interface {
 	DELPortsByServiceID(serviceID string) error
 	HasOpenPort(sid string) bool
 	DelByServiceID(sid string) error
+	ListInnerPortsByServiceIDs(serviceIDs []string) ([]*model.TenantServicesPort, error)
 }
 
 //TenantPluginDao TenantPluginDao
@@ -186,6 +187,7 @@ type TenantServiceRelationDao interface {
 	Dao
 	DelDao
 	GetTenantServiceRelations(serviceID string) ([]*model.TenantServiceRelation, error)
+	ListByServiceIDs(serviceIDs []string) ([]*model.TenantServiceRelation, error)
 	GetTenantServiceRelationsByDependServiceID(dependServiceID string) ([]*model.TenantServiceRelation, error)
 	HaveRelations(serviceID string) bool
 	DELRelationsByServiceID(serviceID string) error
@@ -308,6 +310,7 @@ type ServiceProbeDao interface {
 type CodeCheckResultDao interface {
 	Dao
 	GetCodeCheckResult(serviceID string) (*model.CodeCheckResult, error)
+	DeleteByServiceID(serviceID string) error
 }
 
 //EventDao EventDao
@@ -317,6 +320,7 @@ type EventDao interface {
 	GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEvent, error)
 	GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error)
 	DelEventByServiceID(serviceID string) error
+	ListByTargetID(targetID string) ([]*model.ServiceEvent, error)
 	GetEventsByTarget(target, targetID string, offset, liimt int) ([]*model.ServiceEvent, int, error)
 	GetEventsByTenantID(tenantID string, offset, limit int) ([]*model.ServiceEvent, int, error)
 	GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error)
@@ -327,6 +331,7 @@ type EventDao interface {
 //VersionInfoDao VersionInfoDao
 type VersionInfoDao interface {
 	Dao
+	ListSuccessfulOnes() ([]*model.VersionInfo, error)
 	GetVersionByEventID(eventID string) (*model.VersionInfo, error)
 	GetVersionByDeployVersion(version, serviceID string) (*model.VersionInfo, error)
 	GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error)
@@ -411,6 +416,7 @@ type HTTPRuleDao interface {
 	DeleteHTTPRuleByID(id string) error
 	DeleteHTTPRuleByServiceID(serviceID string) error
 	ListByServiceID(serviceID string) ([]*model.HTTPRule, error)
+	ListByCertID(certID string) ([]*model.HTTPRule, error)
 }
 
 // TCPRuleDao -
@@ -465,6 +471,7 @@ type TenantServceAutoscalerRuleMetricsDao interface {
 	Dao
 	UpdateOrCreate(metric *model.TenantServiceAutoscalerRuleMetrics) error
 	ListByRuleID(ruleID string) ([]*model.TenantServiceAutoscalerRuleMetrics, error)
+	DeleteByRuleID(ruldID string) error
 }
 
 // TenantServiceScalingRecordsDao -

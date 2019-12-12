@@ -38,9 +38,9 @@ type Manager interface {
 	WatchServiceHealthy(serviceName string) Watcher
 	CloseWatch(serviceName string, id string) error
 	Start(hostNode *client.HostNode) error
-	AddServices(*[]*service.Service) error
+	AddServices([]*service.Service) error
 	GetServiceHealth() map[string]*service.HealthStatus
-	AddServicesAndUpdate(*[]*service.Service) error
+	AddServicesAndUpdate([]*service.Service) error
 	Stop() error
 	DisableWatcher(serviceName, watcherID string)
 	EnableWatcher(serviceName, watcherID string)
@@ -63,7 +63,7 @@ type watcher struct {
 }
 
 type probeManager struct {
-	services     *[]*service.Service
+	services     []*service.Service
 	serviceProbe map[string]probe.Probe
 	status       map[string]*service.HealthStatus
 	ctx          context.Context
@@ -91,11 +91,11 @@ func CreateManager() Manager {
 	return m
 }
 
-func (p *probeManager) AddServices(inner *[]*service.Service) error {
+func (p *probeManager) AddServices(inner []*service.Service) error {
 	p.services = inner
 	return nil
 }
-func (p *probeManager) AddServicesAndUpdate(inner *[]*service.Service) error {
+func (p *probeManager) AddServicesAndUpdate(inner []*service.Service) error {
 	p.services = inner
 	p.updateServiceProbe()
 	return nil
@@ -109,21 +109,30 @@ func (p *probeManager) Start(hostNode *client.HostNode) error {
 }
 
 func (p *probeManager) updateServiceProbe() {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	//stop all probe
 	for _, pro := range p.serviceProbe {
 		pro.Stop()
 	}
-	p.serviceProbe = make(map[string]probe.Probe, len(*p.services))
-	for _, v := range *p.services {
-		if v.ServiceHealth == nil {
+	//create new probe
+	p.serviceProbe = make(map[string]probe.Probe, len(p.services))
+	for i := range p.services {
+		service := p.services[i]
+		if service.ServiceHealth == nil {
 			continue
 		}
-		if v.Disable {
+		if service.Disable {
 			continue
 		}
-		serviceProbe := probe.CreateProbe(p.ctx, p.hostNode, p.statusChan, v)
+		serviceProbe, err := probe.CreateProbe(p.ctx, p.hostNode, p.statusChan, service)
+		if err != nil {
+			logrus.Warningf("create prose for service %s failure,%s", service.Name, err.Error())
+		}
 		if serviceProbe != nil {
-			p.serviceProbe[v.Name] = serviceProbe
+			p.serviceProbe[service.Name] = serviceProbe
 			serviceProbe.Check()
+			logrus.Infof("create probe for service %s", service.Name)
 		}
 	}
 }
@@ -154,20 +163,24 @@ func (p *probeManager) updateServiceStatus(status *service.HealthStatus) {
 		p.status[status.Name] = status
 	}
 }
+func (p *probeManager) updateWatcher(status *service.HealthStatus) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if watcherMap, ok := p.watches[status.Name]; ok {
+		for _, watcher := range watcherMap {
+			if watcher.enable {
+				watcher.statusChan <- status
+			}
+		}
+	}
+
+}
 func (p *probeManager) HandleStatus() {
 	for {
 		select {
 		case status := <-p.statusChan:
 			p.updateServiceStatus(status)
-			p.lock.Lock()
-			if watcherMap, ok := p.watches[status.Name]; ok {
-				for _, watcher := range watcherMap {
-					if watcher.enable {
-						watcher.statusChan <- status
-					}
-				}
-			}
-			p.lock.Unlock()
+			p.updateWatcher(status)
 		case <-p.ctx.Done():
 			return
 		}
@@ -254,10 +267,10 @@ func (p *probeManager) WatchServiceHealthy(serviceName string) Watcher {
 }
 
 func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.HealthStatus, error) {
-	if len(*p.services) == 0 {
+	if len(p.services) == 0 {
 		return nil, errors.New("services list is empty")
 	}
-	for _, v := range *p.services {
+	for _, v := range p.services {
 		if v.Name == serviceName {
 			if v.ServiceHealth.Model == "http" {
 				statusMap := probe.GetHTTPHealth(v.ServiceHealth.Address)
@@ -291,5 +304,20 @@ func (p *probeManager) GetCurrentServiceHealthy(serviceName string) (*service.He
 	return nil, errors.New("the service does not exist")
 }
 func (p *probeManager) GetServiceHealth() map[string]*service.HealthStatus {
-	return p.status
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	newstatus := make(map[string]*service.HealthStatus, len(p.services))
+	for _, s := range p.services {
+		if status, ok := p.status[s.Name]; ok {
+			newstatus[s.Name] = status
+		} else {
+			//before not have status set service status is health
+			newstatus[s.Name] = &service.HealthStatus{
+				Name:   s.Name,
+				Status: service.Stat_healthy,
+				Info:   "not have health probe or not have status",
+			}
+		}
+	}
+	return newstatus
 }

@@ -20,18 +20,39 @@ package db
 
 import (
 	"archive/zip"
+	"bufio"
 	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"strconv"
 	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/util"
 )
 
 type filePlugin struct {
 	homePath string
+}
+
+func (m *filePlugin) getStdFilePath(serviceID string) (string, error) {
+	apath := path.Join(m.homePath, GetServiceAliasID(serviceID))
+	_, err := os.Stat(apath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err := os.MkdirAll(apath, 0755)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			return "", err
+		}
+	}
+	return apath, nil
 }
 
 func (m *filePlugin) SaveMessage(events []*EventLogMessage) error {
@@ -40,22 +61,14 @@ func (m *filePlugin) SaveMessage(events []*EventLogMessage) error {
 	}
 	key := events[0].EventID
 	var logfile *os.File
-	apath := path.Join(m.homePath, GetServiceAliasID(key))
-	_, err := os.Stat(apath)
+	filePathDir, err := m.getStdFilePath(key)
 	if err != nil {
-		if os.IsNotExist(err) {
-			err := os.MkdirAll(apath, 0755)
-			if err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
+		return err
 	}
-	logFile, err := os.Stat(path.Join(apath, "stdout.log"))
+	logFile, err := os.Stat(path.Join(filePathDir, "stdout.log"))
 	if err != nil {
 		if os.IsNotExist(err) {
-			logfile, err = os.Create(path.Join(apath, "stdout.log"))
+			logfile, err = os.Create(path.Join(filePathDir, "stdout.log"))
 			if err != nil {
 				return err
 			}
@@ -65,14 +78,14 @@ func (m *filePlugin) SaveMessage(events []*EventLogMessage) error {
 		}
 	} else {
 		if logFile.ModTime().Day() != time.Now().Day() {
-			err := MvLogFile(fmt.Sprintf("%s/%d-%d-%d.log.gz", apath, logFile.ModTime().Year(), logFile.ModTime().Month(), logFile.ModTime().Day()), path.Join(apath, "stdout.log"))
+			err := MvLogFile(fmt.Sprintf("%s/%d-%d-%d.log.gz", filePathDir, logFile.ModTime().Year(), logFile.ModTime().Month(), logFile.ModTime().Day()), path.Join(filePathDir, "stdout.log"))
 			if err != nil {
 				return err
 			}
 		}
 	}
 	if logfile == nil {
-		logfile, err = os.OpenFile(path.Join(apath, "stdout.log"), os.O_WRONLY|os.O_APPEND, 0666)
+		logfile, err = os.OpenFile(path.Join(filePathDir, "stdout.log"), os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
 			return err
 		}
@@ -89,12 +102,42 @@ func (m *filePlugin) SaveMessage(events []*EventLogMessage) error {
 	_, err = logfile.Write(body)
 	return err
 }
+func (m *filePlugin) GetMessages(serviceID, level string, length int) (interface{}, error) {
+	if length <= 0 {
+		return nil, nil
+	}
+	filePathDir, err := m.getStdFilePath(serviceID)
+	if err != nil {
+		return nil, err
+	}
+	filePath := path.Join(filePathDir, "stdout.log")
+	if ok, err := util.FileExists(filePath); !ok {
+		if err != nil {
+			logrus.Errorf("check file exist error %s", err.Error())
+		}
+		return nil, nil
+	}
+	f, err := exec.Command("tail", "-n", fmt.Sprintf("%d", length), filePath).Output()
+	if err != nil {
+		return nil, err
+	}
+	reader := bufio.NewReader(bytes.NewBuffer(f))
+	var lines []string
+	for {
+		line, _, err := reader.ReadLine()
+		if err != nil {
+			break
+		}
+		lines = append(lines, string(line))
+	}
+	return lines, nil
+}
 
 func (m *filePlugin) Close() error {
 	return nil
 }
 
-//python:
+//GetServiceAliasID python:
 //new_word = str(ord(string[10])) + string + str(ord(string[3])) + 'log' + str(ord(string[2]) / 7)
 //new_id = hashlib.sha224(new_word).hexdigest()[0:16]
 //

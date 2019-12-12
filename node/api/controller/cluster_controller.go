@@ -24,7 +24,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/goodrain/rainbond/util/disk"
+	"github.com/shirou/gopsutil/disk"
 	v1 "k8s.io/api/core/v1"
 
 	api "github.com/goodrain/rainbond/util/http"
@@ -282,7 +282,7 @@ func Resources(w http.ResponseWriter, r *http.Request) {
 			memR += convertMemoryToMBInt(rm, true)
 		}
 	}
-	result.CpuR = cpuR
+	result.CPU = cpuR
 	result.MemR = memR
 	logrus.Infof("get cpu %v and mem %v", cpuR, memR)
 	api.ReturnSuccess(r, w, result)
@@ -303,7 +303,7 @@ func CapRes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := new(model.Resource)
-	result.CpuR = int(capCPU)
+	result.CPU = int(capCPU)
 	result.MemR = int(capMem)
 	logrus.Infof("get cpu %v and mem %v", capCPU, capMem)
 	api.ReturnSuccess(r, w, result)
@@ -363,11 +363,16 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	var diskstauts disk.Status
+	var diskstauts *disk.UsageStat
 	if runtime.GOOS != "windows" {
-		diskstauts = disk.DiskUsage("/grdata")
+		diskstauts, _ = disk.Usage("/grdata")
 	} else {
-		diskstauts = disk.DiskUsage(`z:\\`)
+		diskstauts, _ = disk.Usage(`z:\\`)
+	}
+	var diskCap, reqDisk uint64
+	if diskstauts != nil {
+		diskCap = diskstauts.Total
+		reqDisk = diskstauts.Used
 	}
 	result := &model.ClusterResource{
 		CapCPU:         int(healthCapCPU + unhealthCapCPU),
@@ -383,13 +388,13 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 		UnhealthReqCPU: float32(unhealthCPUR) / 1000,
 		UnhealthReqMem: int(unhealthMemR) / 1024 / 1024,
 		ComputeNode:    len(nodes),
-		CapDisk:        diskstauts.All,
-		ReqDisk:        diskstauts.Used,
+		CapDisk:        diskCap,
+		ReqDisk:        reqDisk,
 	}
 	allnodes, _ := nodeService.GetAllNode()
 	result.AllNode = len(allnodes)
 	for _, n := range allnodes {
-		if n.Status != "running" {
+		if n.Status != "running" || !n.NodeStatus.NodeHealth { //node unhealth status
 			result.NotReadyNode++
 		}
 	}

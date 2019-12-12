@@ -22,8 +22,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"path"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/util"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
@@ -33,9 +37,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
+// RainbondEndpointPrefix is the prefix of the key of the rainbond endpoints in etcd
+const RainbondEndpointPrefix = "/rainbond/endpoint"
+
 //ClusterClient ClusterClient
 type ClusterClient interface {
-	UpdateStatus(*HostNode) error
+	UpdateStatus(*HostNode, []NodeConditionType) error
 	DownNode(*HostNode) error
 	GetMasters() ([]*HostNode, error)
 	GetNode(nodeID string) (*HostNode, error)
@@ -43,7 +50,7 @@ type ClusterClient interface {
 	GetDataCenterConfig() (*config.DataCenterConfig, error)
 	GetOptions() *option.Conf
 	GetEndpoints(key string) []string
-	SetEndpoints(key string, value []string)
+	SetEndpoints(serviceName, hostIP string, value []string)
 	DelEndpoints(key string)
 }
 
@@ -59,7 +66,7 @@ type etcdClusterClient struct {
 	onlineLes clientv3.LeaseID
 }
 
-func (e *etcdClusterClient) UpdateStatus(n *HostNode) error {
+func (e *etcdClusterClient) UpdateStatus(n *HostNode, deleteConditions []NodeConditionType) error {
 	existNode, err := e.GetNode(n.ID)
 	if err != nil {
 		return fmt.Errorf("get node %s failure where update node %s", n.ID, err.Error())
@@ -69,6 +76,7 @@ func (e *etcdClusterClient) UpdateStatus(n *HostNode) error {
 	//The startup parameters shall prevail
 	existNode.Role = n.Role
 	existNode.HostName = n.HostName
+	existNode.Status = n.Status
 	existNode.NodeStatus.NodeHealth = n.NodeStatus.NodeHealth
 	existNode.NodeStatus.NodeUpdateTime = time.Now()
 	existNode.NodeStatus.Version = cmd.GetVersion()
@@ -85,7 +93,12 @@ func (e *etcdClusterClient) UpdateStatus(n *HostNode) error {
 		}
 	}
 	existNode.Labels = newLabels
+	//update condition and delete old condition
 	existNode.UpdataCondition(n.NodeStatus.Conditions...)
+	for _, t := range deleteConditions {
+		existNode.DeleteCondition(t)
+		logrus.Infof("remove old condition %s", t)
+	}
 	return e.Update(existNode)
 }
 
@@ -102,7 +115,7 @@ func (e *etcdClusterClient) GetOptions() *option.Conf {
 }
 
 func (e *etcdClusterClient) GetEndpoints(key string) (result []string) {
-	key = "/rainbond/endpoint/" + key
+	key = path.Join(RainbondEndpointPrefix, key)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	resp, err := e.conf.EtcdCli.Get(ctx, key, clientv3.WithPrefix())
@@ -111,20 +124,53 @@ func (e *etcdClusterClient) GetEndpoints(key string) (result []string) {
 		return
 	}
 	for _, kv := range resp.Kvs {
+		keyInfo := strings.Split(string(kv.Key), "/")
+		if !util.CheckIP(keyInfo[len(keyInfo)-1]) {
+			e.conf.EtcdCli.Delete(ctx, string(kv.Key))
+			continue
+		}
 		var res []string
 		err = json.Unmarshal(kv.Value, &res)
 		if err != nil {
 			logrus.Errorf("Can unmarshal endpoints to array of the key %s", key)
 			return
 		}
-		result = append(result, res...)
+		//Return data check
+		for _, v := range res {
+			if checkURL(v) {
+				result = append(result, v)
+			}
+		}
 	}
-	logrus.Infof("Get endpoints %s => %v", key, result)
+	logrus.Debugf("Get endpoints %s => %v", key, result)
 	return
 }
+func checkURL(source string) bool {
+	endpointURL, err := url.Parse(source)
+	if err != nil && strings.Contains(err.Error(), "first path segment in URL cannot contain colon") {
+		endpointURL, err = url.Parse(fmt.Sprintf("tcp://%s", source))
+	}
+	if err != nil || endpointURL.Host == "" || endpointURL.Path != "" {
+		return false
+	}
+	return true
+}
 
-func (e *etcdClusterClient) SetEndpoints(key string, value []string) {
-	key = "/rainbond/endpoint/" + key
+//SetEndpoints service name and hostip must set
+func (e *etcdClusterClient) SetEndpoints(serviceName, hostIP string, value []string) {
+	if serviceName == "" {
+		return
+	}
+	if !util.CheckIP(hostIP) {
+		return
+	}
+	for _, v := range value {
+		if !checkURL(v) {
+			logrus.Warningf("%s service host %s endpoint value %s invalid", serviceName, hostIP, v)
+			continue
+		}
+	}
+	key := fmt.Sprintf("%s/%s/%s", RainbondEndpointPrefix, serviceName, hostIP)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	jsonStr, err := json.Marshal(value)
@@ -139,7 +185,7 @@ func (e *etcdClusterClient) SetEndpoints(key string, value []string) {
 }
 
 func (e *etcdClusterClient) DelEndpoints(key string) {
-	key = "/rainbond/endpoint/" + key
+	key = path.Join(RainbondEndpointPrefix, key)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	_, err := e.conf.EtcdCli.Delete(ctx, key)

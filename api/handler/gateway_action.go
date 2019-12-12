@@ -134,7 +134,7 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (stri
 		tx.Rollback()
 		return "", err
 	}
-	if rule == nil {
+	if rule == nil || rule.UUID == "" { // rule won't be nil
 		tx.Rollback()
 		return "", fmt.Errorf("HTTPRule dosen't exist based on uuid(%s)", req.HTTPRuleID)
 	}
@@ -156,6 +156,8 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (stri
 			return "", err
 		}
 		rule.CertificateID = req.CertificateID
+	} else {
+		rule.CertificateID = ""
 	}
 	if len(req.RuleExtensions) > 0 {
 		// delete old RuleExtensions
@@ -640,6 +642,30 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 	}
 	tx.Commit()
 	return nil
+}
+
+// UpdCertificate -
+func (g *GatewayAction) UpdCertificate(req *apimodel.UpdCertificateReq) error {
+	cert, err := db.GetManager().CertificateDao().GetCertificateByID(req.CertificateID)
+	if err != nil {
+		msg := "retrieve certificate: %v"
+		return fmt.Errorf(msg, err)
+	}
+
+	cert.CertificateName = req.CertificateName
+	cert.Certificate = req.Certificate
+	cert.PrivateKey = req.PrivateKey
+	if err := db.GetManager().CertificateDao().UpdateModel(cert); err != nil {
+		msg := "update certificate: %v"
+		return fmt.Errorf(msg, err)
+	}
+
+	return nil
+}
+
+// ListHTTPRulesByCertID -
+func (g *GatewayAction) ListHTTPRulesByCertID(certID string) ([]*model.HTTPRule, error) {
+	return db.GetManager().HTTPRuleDao().ListByCertID(certID)
 }
 
 //IPAndAvailablePort ip and advice available port

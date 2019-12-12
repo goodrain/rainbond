@@ -39,9 +39,7 @@ func (v2 *V2) Routes() chi.Router {
 	r.Get("/show", controller.GetManager().Show)
 	r.Post("/show", controller.GetManager().Show)
 	r.Mount("/tenants", v2.tenantRouter())
-	r.Mount("/nodes", v2.nodesRouter())
 	r.Mount("/notificationEvent", v2.notificationEventRouter())
-	r.Mount("/cluster", v2.clusterRouter())
 	r.Mount("/resources", v2.resourcesRouter())
 	r.Mount("/prometheus", v2.prometheusRouter())
 	r.Get("/event", controller.GetManager().Event)
@@ -128,9 +126,17 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/tcp-rule", controller.GetManager().TCPRule)
 	r.Delete("/tcp-rule", controller.GetManager().TCPRule)
 	r.Put("/tcp-rule", controller.GetManager().TCPRule)
+	r.Mount("/gateway", v2.gatewayRouter())
 
 	//batch operation
 	r.Post("/batchoperation", controller.BatchOperation)
+
+	return r
+}
+
+func (v2 *V2) gatewayRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Put("/certificate", controller.GetManager().Certificate)
 
 	return r
 }
@@ -139,8 +145,6 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r := chi.NewRouter()
 	//初始化应用信息
 	r.Use(middleware.InitService)
-	//应用部署(act)
-	//r.Post("/deploy", controller.GetManager().DeployService)
 	r.Put("/", middleware.WrapEL(controller.GetManager().UpdateService, dbmodel.TargetTypeService, "update-service", dbmodel.SYNEVENTTYPE))
 	//应用构建(act)
 	r.Post("/build", middleware.WrapEL(controller.GetManager().BuildService, dbmodel.TargetTypeService, "build-service", dbmodel.ASYNEVENTTYPE))
@@ -169,10 +173,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 	//应用分享
 	r.Post("/share", middleware.WrapEL(controller.GetManager().Share, dbmodel.TargetTypeService, "share-service", dbmodel.ASYNEVENTTYPE))
 	r.Get("/share/{share_id}", controller.GetManager().ShareResult)
-	//应用日志相关
-	r.Post("/log", controller.GetManager().Logs)
+	r.Get("/logs", controller.GetManager().HistoryLogs)
 	r.Get("/log-file", controller.GetManager().LogList)
-	//r.Get("/log-file/{fileName}", controller.GetManager().LogFile)
 	r.Get("/log-instance", controller.GetManager().LogSocket)
 	r.Post("/event-log", controller.GetManager().LogByAction)
 
@@ -252,11 +254,6 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Put("/xparules", middleware.WrapEL(controller.GetManager().AutoscalerRules, dbmodel.TargetTypeService, "update-app-autoscaler-rule", dbmodel.SYNEVENTTYPE))
 	r.Get("/xparecords", controller.GetManager().ScalingRecords)
 
-	return r
-}
-
-func (v2 *V2) clusterRouter() chi.Router {
-	r := chi.NewRouter()
 	return r
 }
 

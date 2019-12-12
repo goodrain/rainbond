@@ -34,7 +34,7 @@ type HTTPProxy struct {
 	lb        LoadBalance
 }
 
-//Proxy 代理
+//Proxy http proxy
 func (h *HTTPProxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	endpoint := h.lb.Select(r, h.endpoints)
 	endURL, err := url.Parse(endpoint.GetHTTPAddr())
@@ -76,7 +76,7 @@ func (h *HTTPProxy) Do(r *http.Request) (*http.Response, error) {
 	return http.DefaultClient.Do(r)
 }
 
-func createHTTPProxy(name string, endpoints []string) *HTTPProxy {
+func createHTTPProxy(name string, endpoints []string, lb LoadBalance) *HTTPProxy {
 	ends := []string{}
 	for _, end := range endpoints {
 		if kv := strings.Split(end, "=>"); len(kv) > 1 {
@@ -85,5 +85,8 @@ func createHTTPProxy(name string, endpoints []string) *HTTPProxy {
 			ends = append(ends, end)
 		}
 	}
-	return &HTTPProxy{name, CreateEndpoints(ends), NewRoundRobin()}
+	if lb == nil {
+		lb = NewRoundRobin()
+	}
+	return &HTTPProxy{name, CreateEndpoints(ends), lb}
 }

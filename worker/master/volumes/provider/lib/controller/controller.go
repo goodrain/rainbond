@@ -17,9 +17,12 @@ limitations under the License.
 package controller
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -28,9 +31,6 @@ import (
 	"github.com/goodrain/rainbond/db/dao"
 
 	"github.com/Sirupsen/logrus"
-
-	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller/metrics"
-	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/util"
 	"golang.org/x/time/rate"
 	v1 "k8s.io/api/core/v1"
 	storage "k8s.io/api/storage/v1"
@@ -49,6 +49,10 @@ import (
 	ref "k8s.io/client-go/tools/reference"
 	"k8s.io/client-go/util/workqueue"
 	utilversion "k8s.io/kubernetes/pkg/util/version"
+
+	"github.com/goodrain/rainbond/db/dao"
+	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller/metrics"
+	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/util"
 )
 
 // annClass annotation represents the storage class associated with a resource:
@@ -493,7 +497,51 @@ func NewProvisionController(
 	volumeHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc:    func(obj interface{}) { controller.enqueueWork(controller.volumeQueue, obj) },
 		UpdateFunc: func(oldObj, newObj interface{}) { controller.enqueueWork(controller.volumeQueue, newObj) },
-		DeleteFunc: func(obj interface{}) { controller.forgetWork(controller.volumeQueue, obj) },
+		DeleteFunc: func(obj interface{}) {
+			controller.forgetWork(controller.volumeQueue, obj)
+
+			pv, ok := obj.(*v1.PersistentVolume)
+			if !ok {
+				logrus.Errorf("expected persistent volume but got %+v", obj)
+				return
+			}
+
+			// rainbondsssc
+			switch pv.Spec.StorageClassName {
+			case "rainbondsssc":
+				path := pv.Spec.PersistentVolumeSource.HostPath.Path
+				if err := os.RemoveAll(path); err != nil {
+					logrus.Errorf("path: %s; name: %s; remove pv hostpath: %v", path, pv.Name, err)
+				}
+				logrus.Infof("storage class: rainbondsssc; path: %s; successfully delete pv hsot path", path)
+			case "rainbondslsc":
+				nodeIP := func() string {
+					for _, me := range pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions {
+						if me.Key != "rainbond_node_ip" {
+							continue
+						}
+						return me.Values[0]
+					}
+					return ""
+				}()
+
+				if nodeIP == "" {
+					logrus.Errorf("storage class: rainbondslsc; name: %s; node ip not found", pv.Name)
+					return
+				}
+
+				path := pv.Spec.PersistentVolumeSource.HostPath.Path
+
+				if err := deletePath(nodeIP, path); err != nil {
+					logrus.Errorf("delete path: %v", err)
+					return
+				}
+
+				logrus.Infof("storage class: rainbondslsc; path: %s; successfully delete pv hsot path", path)
+			default:
+				logrus.Debugf("unsupported storage class: %s", pv.Spec.StorageClassName)
+			}
+		},
 	}
 
 	if controller.volumeInformer != nil {
@@ -1213,4 +1261,49 @@ func (ctrl *ProvisionController) supportsBlock(pr Provisioner) bool {
 		return blockProvisioner.SupportsBlock()
 	}
 	return false
+}
+
+func deletePath(nodeIP, path string) error {
+	logrus.Infof("node ip: %s; path: %s; delete pv hostpath", nodeIP, path)
+
+	reqOpts := map[string]string{
+		"path": path,
+	}
+
+	retry := 3
+	var err error
+	var statusCode int
+	for retry > 0 {
+		retry--
+		body := bytes.NewBuffer(nil)
+		if err := json.NewEncoder(body).Encode(reqOpts); err != nil {
+			return err
+		}
+
+		// create request
+		var req *http.Request
+		req, err = http.NewRequest("DELETE", fmt.Sprintf("http://%s:6100/v2/localvolumes", nodeIP), body)
+		if err != nil {
+			logrus.Warningf("remaining retry times: %d; path: %s; new request: %v", retry, path, err)
+			continue
+		}
+
+		var res *http.Response
+		res, err = http.DefaultClient.Do(req)
+		if err != nil {
+			logrus.Warningf("remaining retry times: %d; path: %s; do http request: %v", retry, path, err)
+			continue
+		}
+		defer res.Body.Close()
+
+		statusCode = res.StatusCode
+		if statusCode == 200 {
+			return nil
+		}
+
+		logrus.Warningf("remaining retry times: %d; path: %s; status code: %d; delete local volume", retry, path, res.StatusCode)
+		time.Sleep(1 * time.Second)
+	}
+
+	return fmt.Errorf("delete local path: %s; status code: %d; err: %v", path, statusCode, err)
 }

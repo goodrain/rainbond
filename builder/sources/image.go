@@ -31,18 +31,14 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-
 	"github.com/docker/distribution/reference"
-	"golang.org/x/net/context"
-
-	//"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types"
-	//"github.com/docker/docker/client"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/model"
 	"github.com/goodrain/rainbond/event"
+	"golang.org/x/net/context"
 )
 
 //ErrorNoAuth error no auth
@@ -51,19 +47,18 @@ var ErrorNoAuth = fmt.Errorf("pull image require docker login")
 //ErrorNoImage error no image
 var ErrorNoImage = fmt.Errorf("image not exist")
 
-//ImagePull 拉取镜像
-//timeout 分钟为单位
+//ImagePull pull docker image
+//timeout minutes of the unit
 func ImagePull(dockerCli *client.Client, image string, username, password string, logger event.Logger, timeout int) (*types.ImageInspect, error) {
 	if logger != nil {
-		//进度信息
-		logger.Info(fmt.Sprintf("开始获取镜像：%s", image), map[string]string{"step": "pullimage"})
+		logger.Info(fmt.Sprintf("start get image:%s", image), map[string]string{"step": "pullimage"})
 	}
 	var pullipo types.ImagePullOptions
 	if username != "" && password != "" {
 		auth, err := EncodeAuthToBase64(types.AuthConfig{Username: username, Password: password})
 		if err != nil {
 			logrus.Errorf("make auth base63 push image error: %s", err.Error())
-			logger.Error(fmt.Sprintf("生成获取镜像的Token失败"), map[string]string{"step": "builder-exector", "status": "failure"})
+			logger.Error(fmt.Sprintf("Failed to generate a Token to get the image"), map[string]string{"step": "builder-exector", "status": "failure"})
 			return nil, err
 		}
 		pullipo = types.ImagePullOptions{
@@ -90,7 +85,7 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 		logrus.Debugf("image name: %s readcloser error: %v", image, err.Error())
 		if strings.HasSuffix(err.Error(), "does not exist or no pull access") {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("镜像：%s不存在或无权获取", image), map[string]string{"step": "pullimage", "status": "failure"})
+				logger.Error(fmt.Sprintf("image: %s does not exist or is not available", image), map[string]string{"step": "pullimage", "status": "failure"})
 			}
 			return nil, fmt.Errorf("Image(%s) does not exist or no pull access", image)
 		}
@@ -131,11 +126,10 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 	return &ins, nil
 }
 
-//ImageTag 修改镜像tag
+//ImageTag change docker image tag
 func ImageTag(dockerCli *client.Client, source, target string, logger event.Logger, timeout int) error {
 	if logger != nil {
-		//进度信息
-		logger.Info(fmt.Sprintf("开始修改镜像tag：%s -> %s", source, target), map[string]string{"step": "changetag"})
+		logger.Info(fmt.Sprintf("change image tag：%s -> %s", source, target), map[string]string{"step": "changetag"})
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
@@ -144,7 +138,7 @@ func ImageTag(dockerCli *client.Client, source, target string, logger event.Logg
 		logrus.Debugf("image tag err: %s", err.Error())
 		return err
 	}
-	logger.Info("镜像tag修改完成", map[string]string{"step": "changetag"})
+	logger.Info("change image tag success", map[string]string{"step": "changetag"})
 	return nil
 }
 
@@ -215,14 +209,12 @@ func GenSaveImageName(name string) string {
 	return fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, imageName.Name, imageName.Tag)
 }
 
-//ImagePush 推送镜像
-//timeout 分钟为单位
+//ImagePush push image to registry
+//timeout minutes of the unit
 func ImagePush(dockerCli *client.Client, image, user, pass string, logger event.Logger, timeout int) error {
 	if logger != nil {
-		//进度信息
-		logger.Info(fmt.Sprintf("开始推送镜像：%s", image), map[string]string{"step": "pushimage"})
+		logger.Info(fmt.Sprintf("start push image：%s", image), map[string]string{"step": "pushimage"})
 	}
-	//最少一分钟
 	if timeout < 1 {
 		timeout = 1
 	}
@@ -245,7 +237,7 @@ func ImagePush(dockerCli *client.Client, image, user, pass string, logger event.
 	if err != nil {
 		logrus.Errorf("make auth base63 push image error: %s", err.Error())
 		if logger != nil {
-			logger.Error(fmt.Sprintf("生成获取镜像的Token失败"), map[string]string{"step": "builder-exector", "status": "failure"})
+			logger.Error(fmt.Sprintf("Failed to generate a token to get the image"), map[string]string{"step": "builder-exector", "status": "failure"})
 		}
 		return err
 	}
@@ -256,13 +248,13 @@ func ImagePush(dockerCli *client.Client, image, user, pass string, logger event.
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
 			if logger != nil {
-				logger.Error(fmt.Sprintf("镜像：%s不存在，不能推送", image), map[string]string{"step": "pushimage", "status": "failure"})
+				logger.Error(fmt.Sprintf("image %s does not exist, cannot be pushed", image), map[string]string{"step": "pushimage", "status": "failure"})
 			}
 			return fmt.Errorf("Image(%s) does not exist", image)
 		}
 		return err
 	}
-	logger.Info(fmt.Sprintf("成功推送镜像：%s", image), map[string]string{"step": "pushimage"})
+	logger.Info(fmt.Sprintf("success push image：%s", image), map[string]string{"step": "pushimage"})
 	if readcloser != nil {
 		defer readcloser.Close()
 		dec := json.NewDecoder(readcloser)

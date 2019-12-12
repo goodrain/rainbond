@@ -1531,6 +1531,8 @@ type StartOrStopInfoRequestStruct struct {
 	EventID   string            `json:"event_id"`
 	ServiceID string            `json:"service_id"`
 	Configs   map[string]string `json:"configs"`
+	// When determining the startup sequence of services, you need to know the services they depend on
+	DepServiceIDInBootSeq []string `json:"dep_service_ids_in_boot_seq"`
 }
 
 //BuildMQBodyFrom -

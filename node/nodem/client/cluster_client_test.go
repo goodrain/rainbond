@@ -21,12 +21,14 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"testing"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/util"
-	"testing"
-	"time"
 )
 
 func TestEtcdClusterClient_GetEndpoints(t *testing.T) {
@@ -103,4 +105,54 @@ func TestEtcdClusterClient_GetEndpoints(t *testing.T) {
 			t.Fatalf("Can not find \"%s\" in %v", tc, edps)
 		}
 	}
+}
+
+func TestSetEndpoints(t *testing.T) {
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{"127.0.0.1:2379"},
+		DialTimeout: time.Duration(5) * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := NewClusterClient(&option.Conf{EtcdCli: cli})
+	c.SetEndpoints("etcd", "DSASD", []string{"http://:8080"})
+	c.SetEndpoints("etcd", "192.168.1.1", []string{"http://:8080"})
+	c.SetEndpoints("etcd", "192.168.1.1", []string{"http://192.168.1.1:8080"})
+	c.SetEndpoints("node", "192.168.2.137", []string{"192.168.2.137:10252"})
+	t.Logf("check: %v", checkURL("192.168.2.137:10252"))
+}
+
+func TestGetEndpoints(t *testing.T) {
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{"127.0.0.1:2379"},
+		DialTimeout: time.Duration(5) * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := NewClusterClient(&option.Conf{EtcdCli: cli})
+	t.Log(c.GetEndpoints("/etcd/"))
+}
+func TestEtcdClusterClient_ListEndpointKeys(t *testing.T) {
+	cfg := &option.Conf{
+		Etcd: clientv3.Config{
+			Endpoints:   []string{"192.168.3.3:2379"},
+			DialTimeout: 5 * time.Second,
+		},
+	}
+
+	if err := store.NewClient(cfg); err != nil {
+		t.Fatalf("error create etcd client: %v", err)
+	}
+
+	hostNode := HostNode{
+		InternalIP: "192.168.2.76",
+	}
+
+	keys, err := hostNode.listEndpointKeys()
+	if err != nil {
+		t.Errorf("unexperted error: %v", err)
+	}
+	t.Logf("keys: %#v", keys)
 }

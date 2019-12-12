@@ -25,6 +25,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/goodrain/rainbond/util/ansible"
 
@@ -41,9 +42,13 @@ import (
 )
 
 func handleErr(err *util.APIHandleError) {
-	if err != nil && err.Err != nil {
-		fmt.Printf(err.String())
-		os.Exit(1)
+	if err != nil {
+		if err.Err != nil {
+			fmt.Printf(err.String())
+			os.Exit(1)
+		} else {
+			fmt.Printf("API return %d", err.Code)
+		}
 	}
 }
 func showError(m string) {
@@ -138,6 +143,10 @@ func getStatusShow(v *client.HostNode) (status string) {
 		nss.message = append(nss.message, "unhealth")
 		nss.color = color.FgRed
 	}
+	if v.NodeStatus.Status == client.Offline {
+		nss.message = append(nss.message, client.Offline)
+		nss.color = color.FgRed
+	}
 
 	result := nss.String()
 	if strings.Contains(result, "unknown") {
@@ -155,11 +164,11 @@ func handleConditionResult(serviceTable *termtables.Table, conditions []client.N
 			continue
 		}
 		var formatReady string
-		if v.Status == client.ConditionFalse {
+		if v.Status == client.ConditionFalse || v.Status == client.ConditionUnknown {
 			if v.Type == client.OutOfDisk || v.Type == client.MemoryPressure || v.Type == client.DiskPressure || v.Type == client.InstallNotReady {
 				formatReady = "\033[0;32;32m false \033[0m"
 			} else {
-				formatReady = "\033[0;31;31m false \033[0m"
+				formatReady = fmt.Sprintf("\033[0;31;31m %s \033[0m", v.Status)
 			}
 		} else {
 			if v.Type == client.OutOfDisk || v.Type == client.MemoryPressure || v.Type == client.DiskPressure || v.Type == client.InstallNotReady {
@@ -168,7 +177,11 @@ func handleConditionResult(serviceTable *termtables.Table, conditions []client.N
 				formatReady = "\033[0;32;32m true \033[0m"
 			}
 		}
-		serviceTable.AddRow(string(v.Type), formatReady, handleMessage(string(v.Status), v.Message))
+		serviceTable.AddRow(string(v.Type), formatReady,
+			v.LastHeartbeatTime.Format(time.RFC3339)[:19],
+			v.LastTransitionTime.Format(time.RFC3339)[:19],
+			handleMessage(string(v.Status), v.Message),
+		)
 	}
 }
 
@@ -181,7 +194,10 @@ func extractReady(serviceTable *termtables.Table, conditions []client.NodeCondit
 			} else {
 				formatReady = "\033[0;32;32m true \033[0m"
 			}
-			serviceTable.AddRow("\033[0;33;33m "+string(v.Type)+" \033[0m", formatReady, handleMessage(string(v.Status), v.Message))
+			serviceTable.AddRow("\033[0;33;33m "+string(v.Type)+" \033[0m", formatReady,
+				v.LastHeartbeatTime.Format(time.RFC3339)[:19],
+				v.LastTransitionTime.Format(time.RFC3339)[:19],
+				handleMessage(string(v.Status), v.Message))
 		}
 	}
 }
@@ -225,6 +241,7 @@ func NewCmdNode() cli.Command {
 					fmt.Printf("-------------------Node Information-----------------------\n")
 					table.AddRow("uuid", v.ID)
 					table.AddRow("host_name", v.HostName)
+					table.AddRow("health", v.NodeStatus.NodeHealth)
 					table.AddRow("create_time", v.CreateTime)
 					table.AddRow("internal_ip", v.InternalIP)
 					table.AddRow("external_ip", v.ExternalIP)
@@ -233,7 +250,6 @@ func NewCmdNode() cli.Command {
 					table.AddRow("available_memory", fmt.Sprintf("%d GB", v.AvailableMemory/1024/1024/1024))
 					table.AddRow("available_cpu", fmt.Sprintf("%d Core", v.AvailableCPU))
 					table.AddRow("status", v.Status)
-					table.AddRow("health", v.NodeStatus.NodeHealth)
 					table.AddRow("schedulable(set)", !v.Unschedulable)
 					table.AddRow("schedulable(current)", v.NodeStatus.CurrentScheduleStatus)
 					table.AddRow("version", v.NodeStatus.Version)
@@ -249,7 +265,7 @@ func NewCmdNode() cli.Command {
 					fmt.Println(labeltable)
 					fmt.Printf("-------------------Service health-----------------------\n")
 					serviceTable := termtables.CreateTable()
-					serviceTable.AddHeaders("Condition", "Result", "Message")
+					serviceTable.AddHeaders("Condition", "Health", "LastUpdateTime", "LastChangeTime", "Message")
 					extractReady(serviceTable, v.NodeStatus.Conditions, "Ready")
 					handleConditionResult(serviceTable, v.NodeStatus.Conditions)
 					fmt.Println(serviceTable.Render())
@@ -298,7 +314,11 @@ func NewCmdNode() cli.Command {
 							handleErr(err)
 							CPURequests := strconv.FormatFloat(float64(nodeResource.CPURequests)/float64(1000), 'f', 2, 64)
 							CPULimits := strconv.FormatFloat(float64(nodeResource.CPULimits)/float64(1000), 'f', 2, 64)
-							serviceTable.AddRow(v.ID, v.HostName, nodeResource.CpuR, nodeResource.MemR, CPURequests, nodeResource.MemoryRequests, CPULimits, nodeResource.MemoryLimits, nodeResource.CPURequestsR, nodeResource.MemoryRequestsR)
+							serviceTable.AddRow(v.ID, v.HostName, nodeResource.CPU, nodeResource.MemR, CPURequests,
+								nodeResource.MemoryRequests, CPULimits,
+								nodeResource.MemoryLimits,
+								nodeResource.CPURequestsR,
+								nodeResource.MemoryRequestsR)
 						}
 					}
 					fmt.Println(serviceTable.Render())
@@ -445,6 +465,10 @@ func NewCmdNode() cli.Command {
 							}
 							k := c.String("key")
 							v := c.String("val")
+							if k == "" || v == "" {
+								logrus.Errorf("label key or value can not be empty")
+								return nil
+							}
 							err := clients.RegionClient.Nodes().Label(hostID).Add(k, v)
 							handleErr(err)
 							return nil
@@ -522,7 +546,7 @@ func NewCmdNode() cli.Command {
 							conditions, err := clients.RegionClient.Nodes().Condition(hostID).List()
 							handleErr(err)
 							serviceTable := termtables.CreateTable()
-							serviceTable.AddHeaders("Condition", "Result", "Message")
+							serviceTable.AddHeaders("Condition", "Health", "LastUpdateTime", "LastChangeTime", "Message")
 							handleConditionResult(serviceTable, conditions)
 							fmt.Println(serviceTable.Render())
 							return nil

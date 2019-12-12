@@ -59,7 +59,7 @@ func NewMqClient(etcdendpoints []string, defaultserver string) (MQClient, error)
 	ctx, cancel := context.WithCancel(context.Background())
 	var conn *grpc.ClientConn
 	if etcdendpoints != nil && len(defaultserver) > 1 {
-		c, err := clientv3.New(clientv3.Config{Endpoints: etcdendpoints, Context: ctx})
+		c, err := clientv3.New(clientv3.Config{Endpoints: etcdendpoints, Context: ctx, DialTimeout: 10 * time.Second})
 		if err != nil {
 			return nil, err
 		}

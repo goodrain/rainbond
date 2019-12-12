@@ -52,6 +52,7 @@ type Manager interface {
 	SubMessageChan() chan [][]byte
 	PubMessageChan() chan [][]byte
 	DockerLogMessageChan() chan []byte
+	GetDockerLogs(serviceID string, length int) []string
 	MonitorMessageChan() chan [][]byte
 	WebSocketMessageChan(mode, eventID, subID string) chan *db.EventLogMessage
 	NewMonitorMessageChan() chan []byte
@@ -518,4 +519,9 @@ func (s *storeManager) Stop() {
 }
 func (s *storeManager) Error() chan error {
 	return s.errChan
+}
+
+//GetDockerLogs get history docker log
+func (s *storeManager) GetDockerLogs(serviceID string, length int) []string {
+	return s.dockerLogStore.GetHistoryMessage(serviceID, length)
 }

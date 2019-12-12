@@ -44,6 +44,7 @@ type Config struct {
 	HostIP               string
 	CleanUp              bool
 	Topic                string
+	LogPath              string
 }
 
 //Builder  builder server
@@ -58,9 +59,6 @@ func NewBuilder() *Builder {
 	return &Builder{}
 }
 
-//
-type NodeOSType string
-
 //AddFlags config
 func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the builder log level")
@@ -72,7 +70,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.MysqlConnectionInfo, "mysql", "root:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
 	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"127.0.0.1:6366"}, "event log server address. simple lb")
 	fs.StringVar(&a.KubeConfig, "kube-config", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "kubernetes api server config file")
-	fs.IntVar(&a.MaxTasks, "max-tasks", 50, "the max tasks for per node")
+	fs.IntVar(&a.MaxTasks, "max-tasks", 0, "Maximum number of simultaneous build tasks，If set to 0, the maximum limit is twice the number of CPU cores")
 	fs.IntVar(&a.APIPort, "api-port", 3228, "the port for api server")
 	fs.StringVar(&a.MQAPI, "mq-api", "127.0.0.1:6300", "acp_mq api")
 	fs.StringVar(&a.RunMode, "run", "sync", "sync data when worker start")
@@ -80,6 +78,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.HostIP, "hostIP", "", "Current node Intranet IP")
 	fs.BoolVar(&a.CleanUp, "clean-up", true, "Turn on build version cleanup")
 	fs.StringVar(&a.Topic, "topic", "builder", "Topic in mq,you coule choose `builder` or `windows_builder`")
+	fs.StringVar(&a.LogPath, "log-path", "/grdata/logs", "Where Docker log files and event log files are stored.")
 }
 
 //SetLog 设置log

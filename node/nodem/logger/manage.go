@@ -207,6 +207,9 @@ func (c *ContainerLogManage) loollist() {
 		case <-ticker.C:
 			for _, container := range c.listContainer() {
 				cj, _ := c.getContainer(container.ID)
+				if cj.ContainerJSONBase == nil || cj.HostConfig == nil || cj.HostConfig.LogConfig.Type == "" {
+					continue
+				}
 				loggerType := cj.HostConfig.LogConfig.Type
 				if loggerType != "json-file" && loggerType != "syslog" {
 					continue
