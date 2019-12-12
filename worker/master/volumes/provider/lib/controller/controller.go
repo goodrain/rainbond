@@ -28,8 +28,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/goodrain/rainbond/db/dao"
-
 	"github.com/Sirupsen/logrus"
 	"golang.org/x/time/rate"
 	v1 "k8s.io/api/core/v1"
