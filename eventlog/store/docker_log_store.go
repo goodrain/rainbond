@@ -255,7 +255,9 @@ func (h *dockerLogStore) GetHistoryMessage(eventID string, length int) (re []str
 	defer h.rwLock.RUnlock()
 	if ba, ok := h.barrels[eventID]; ok {
 		for _, m := range ba.barrel {
-			re = append(re, string(m.Content))
+			if len(m.Content) > 0 {
+				re = append(re, string(m.Content))
+			}
 		}
 	}
 	logrus.Debugf("want length: %d; the length of re: %d;", length, len(re))
@@ -272,6 +274,6 @@ func (h *dockerLogStore) GetHistoryMessage(eventID string, length int) (re []str
 	if result == nil || err != nil {
 		return re
 	}
-	re = append(re, result.([]string)...)
+	re = append(result.([]string), re...)
 	return re
 }

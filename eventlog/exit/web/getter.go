@@ -23,7 +23,6 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi"
-	util "github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -35,5 +34,5 @@ func (s *SocketServer) getDockerLogs(w http.ResponseWriter, r *http.Request) {
 		rows = 100
 	}
 	loglist := s.storemanager.GetDockerLogs(serviceID, rows)
-	httputil.ReturnSuccess(r, w, util.Reverse(loglist))
+	httputil.ReturnSuccess(r, w, loglist)
 }
