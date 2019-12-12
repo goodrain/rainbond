@@ -39,7 +39,7 @@ func (v *OtherVolume) CreateVolume(define *Define) error {
 	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
 	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := v.svm.IsReadOnly
-	labels := v.as.GetCommonLabels(map[string]string{"volume_name": v.svm.VolumeName, "version": v.as.DeployVersion, "reclaim_policy": v.svm.ReclaimPolicy, "volume_path": volumeMountPath})
+	labels := v.as.GetCommonLabels(map[string]string{"volume_name": v.svm.VolumeName, "version": v.as.DeployVersion, "reclaim_policy": v.svm.ReclaimPolicy})
 	annotations := map[string]string{"volume_name": v.svm.VolumeName}
 	// annotations["reclaim_policy"] = v.svm.ReclaimPolicy
 	// annotations["volume_path"] = volumeMountPath
