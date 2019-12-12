@@ -231,3 +231,15 @@ func (m *MockStorer) GetStorageClasses() []v1.StorageClass {
 func (mr *MockStorerMockRecorder) GetStorageClasses() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStorageClasses", reflect.TypeOf((*MockStorer)(nil).GetStorageClasses))
 }
+
+// GetServiceClaims mocks base method
+func (m *MockStorer) GetServiceClaims(tenantID, serviceID string) []v10.PersistentVolumeClaim {
+	ret := m.ctrl.Call(m, "GetServiceClaims", tenantID, serviceID)
+	ret0, _ := ret[0].([]v10.PersistentVolumeClaim)
+	return ret0
+}
+
+// GetServiceClaims indicates an expected call of GetServiceClaims
+func (mr *MockStorerMockRecorder) GetServiceClaims(tenantID, serviceID interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceClaims", reflect.TypeOf((*MockStorer)(nil).GetServiceClaims), tenantID, serviceID)
+}

@@ -56,6 +56,7 @@ func (v2 *V2) Routes() chi.Router {
 	r.Mount("/events", v2.eventsRouter())
 	r.Get("/gateway/ips", controller.GetGatewayIPs)
 	r.Get("/gateway/ports", controller.GetManager().GetAvailablePort)
+	r.Get("/volume-options", controller.VolumeOptions)
 	return r
 }
 
@@ -131,9 +132,6 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 
 	//batch operation
 	r.Post("/batchoperation", controller.BatchOperation)
-
-	r.Get("/volume-providers", controller.GetManager().VolumeProvider)
-	r.Post("/volume-best", controller.GetManager().VolumeBestSelector)
 
 	return r
 }

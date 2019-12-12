@@ -73,6 +73,8 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 	defaultAppRestoreHandler = NewAppRestoreHandler()
 	defPodHandler = NewPodHandler(statusCli)
 
+	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
+
 	return nil
 }
 

@@ -62,6 +62,13 @@ type AppDao interface {
 	DeleteModelByEventId(eventID string) error
 }
 
+// VolumeTypeDao volume type dao
+type VolumeTypeDao interface {
+	Dao
+	GetAllVolumeTypes() ([]*model.TenantServiceVolumeType, error)
+	GetVolumeTypeByType(vt string) (*model.TenantServiceVolumeType, error)
+}
+
 //LicenseDao LicenseDao
 type LicenseDao interface {
 	Dao

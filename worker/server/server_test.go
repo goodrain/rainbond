@@ -240,10 +240,11 @@ func TestGetAppVolumeStatus(t *testing.T) {
 		store:     storer,
 		clientset: clientset,
 	}
-	statusList, err := server.GetAppVolumeStatus(context.Background(), &pb.ServiceRequest{ServiceId: "69123df08744e36800c29c91574370d5"})
+	statusList, err := server.GetAppVolumeStatus(context.Background(), &pb.ServiceRequest{ServiceId: "c5802cd0276018209ff1f9b52bc04ec1"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(statusList.GetStatus())
+	t.Log("end")
 	time.Sleep(20 * time.Second) // db woulld close
 }

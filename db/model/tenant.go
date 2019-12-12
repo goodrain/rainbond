@@ -345,6 +345,11 @@ var CephRBDVolumeType VolumeType = "ceph-rbd"
 // AliCloudVolumeType alicloud volume type
 var AliCloudVolumeType VolumeType = "alicloud-disk"
 
+// MakeNewVolume make volumeType
+func MakeNewVolume(name string) VolumeType {
+	return VolumeType(name)
+}
+
 func (vt VolumeType) String() string {
 	return string(vt)
 }
@@ -356,7 +361,7 @@ type TenantServiceVolume struct {
 	//服务类型
 	Category string `gorm:"column:category;size:50" json:"category"`
 	//存储类型（share,local,tmpfs）
-	VolumeType string `gorm:"column:volume_type;size:20" json:"volume_type"`
+	VolumeType string `gorm:"column:volume_type;size:64" json:"volume_type"`
 	//存储名称
 	VolumeName string `gorm:"column:volume_name;size:40" json:"volume_name"`
 	//主机地址

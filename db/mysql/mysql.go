@@ -132,6 +132,9 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.Endpoint{})
 	m.models = append(m.models, &model.ThirdPartySvcDiscoveryCfg{})
 	m.models = append(m.models, &model.GwRuleConfig{})
+
+	// volumeType
+	m.models = append(m.models, &model.TenantServiceVolumeType{})
 }
 
 //CheckTable check and create tables

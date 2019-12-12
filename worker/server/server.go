@@ -471,19 +471,24 @@ func (r *RuntimeServer) GetAppVolumeStatus(ctx context.Context, re *pb.ServiceRe
 	if as == nil {
 		return ret, nil
 	}
-	// claims := as.GetClaims()// TODO 临时使用client直接获取PVC，后续换成store中获取
-	claimList, err := r.clientset.CoreV1().PersistentVolumeClaims(as.TenantID).List(metav1.ListOptions{LabelSelector: "service_id=69123df08744e36800c29c91574370d5"})
-	if err != nil {
-		return ret, err
-	}
-	if claimList != nil {
-		for _, claim := range claimList.Items {
-			if claim.Annotations != nil {
+	claims := r.store.GetServiceClaims(as.TenantID, as.ServiceID)
+	if claims != nil {
+		for _, claim := range claims {
+			if claim.Annotations != nil && claim.Annotations["volume_name"] != "" {
 				if claim.Status.Phase != corev1.ClaimBound {
 					ret.Status[claim.Annotations["volume_name"]] = pb.ServiceVolumeStatus_NOT_READY
 				} else {
 					ret.Status[claim.Annotations["volume_name"]] = pb.ServiceVolumeStatus_READY
 				}
+			} else if claim.Labels != nil && claim.Labels["volume_name"] != "" {
+				logrus.Debug("can't get volume name from claim's annotation, test get volume from claim.label ")
+				if claim.Status.Phase != corev1.ClaimBound {
+					ret.Status[claim.Labels["volume_name"]] = pb.ServiceVolumeStatus_NOT_READY
+				} else {
+					ret.Status[claim.Labels["volume_name"]] = pb.ServiceVolumeStatus_READY
+				}
+			} else {
+				logrus.Warn("can't get volume status")
 			}
 		}
 	}

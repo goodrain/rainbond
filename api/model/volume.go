@@ -32,10 +32,20 @@ type VolumeBestRespStruct struct {
 	VolumeType string `json:"volume_type"`
 }
 
-// VolumeProviderStruct volume provider struct
-type VolumeProviderStruct struct {
-	Kind        string                 `json:"kind"`
-	Provisioner []VolumeProviderDetail `json:"provisioner"`
+// VolumeOptionsStruct volume option struct
+type VolumeOptionsStruct struct {
+	VolumeType           string                 `json:"volume_type"`
+	NameShow             string                 `json:"name_show"`
+	VolumeProviderName   string                 `json:"volume_provider_name"`
+	CapacityValidation   map[string]interface{} `json:"capacity_validation"`
+	Description          string                 `json:"description"`
+	AccessMode           []string               `json:"access_mode"`
+	SharePolicy          []string               `json:"share_policy"`           //共享模式
+	BackupPolicy         []string               `json:"backup_policy"`          // 备份策略
+	ReclaimPolicy        string                 `json:"reclaim_policy"`         // 回收策略,delete, retain, recyle
+	VolumeBindingMode    string                 `json:"volume_binding_mode"`    // 绑定模式,Immediate,WaitForFirstConsumer
+	AllowVolumeExpansion *bool                  `json:"allow_volume_expansion"` // 是否支持扩展
+	Sort                 int                    `json:"sort"`                   // 排序
 }
 
 // VolumeProviderDetail volume provider detail
@@ -74,7 +84,7 @@ type AddVolumeStruct struct {
 		//存储类型（share,local,tmpfs）
 		// in: body
 		// required: true
-		VolumeType string `json:"volume_type" validate:"volume_type|required|in:share-file,local,memoryfs,config-file,ceph-rbd,alicloud-disk"`
+		VolumeType string `json:"volume_type" validate:"volume_type|required"`
 		// 存储名称(同一个应用唯一)
 		// in: body
 		// required: true

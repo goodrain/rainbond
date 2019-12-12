@@ -1,8 +1,10 @@
 package util
 
 import (
+	"github.com/Sirupsen/logrus"
 	"strings"
 
+	"encoding/json"
 	api_model "github.com/goodrain/rainbond/api/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -35,31 +37,30 @@ func SetVolumeDefaultValue(info *dbmodel.TenantServiceVolume) {
 	}
 }
 
-// ParseVolumeProviderKind parse volume provider kind
-func ParseVolumeProviderKind(detail *pb.StorageClassDetail) string {
-	volumeType := transferVolumeProviderName2Kind(detail.Name, detail.Provisioner, detail.Parameters)
+// ParseVolumeOptionType parse volume Option name show and volume type
+func ParseVolumeOptionType(detail *pb.StorageClassDetail) string {
+	volumeType := transferVolumeOptionType(detail.Name, detail.Provisioner, detail.Parameters)
 	if volumeType != nil {
 		return volumeType.String()
 	}
-	return ""
+
+	return "unknown"
 }
 
-func transferVolumeProviderName2Kind(name string, opts ...interface{}) *dbmodel.VolumeType {
+func transferVolumeOptionType(name string, opts ...interface{}) *dbmodel.VolumeType {
 	if name == v1.RainbondStatefuleShareStorageClass {
 		return &dbmodel.ShareFileVolumeType
 	}
 	if name == v1.RainbondStatefuleLocalStorageClass {
 		return &dbmodel.LocalVolumeType
 	}
-	if len(opts) > 0 {
-		return transferCustomVolumeProviderName2Kind(opts...)
-	}
-	return nil
+	vt := dbmodel.MakeNewVolume(name)
+	return &vt
 }
 
 // opts[0]: kind is storageClass's provisioner
 // opts[1]: parameters is storageClass's parameter
-func transferCustomVolumeProviderName2Kind(opts ...interface{}) *dbmodel.VolumeType {
+func transferCustomVolumeOptionName2Kind(opts ...interface{}) *dbmodel.VolumeType {
 	if len(opts) != 2 {
 		return nil
 	}
@@ -77,16 +78,98 @@ func transferCustomVolumeProviderName2Kind(opts ...interface{}) *dbmodel.VolumeT
 	return nil
 }
 
-// HackVolumeProviderDetail hack volume provider detail, like accessMode, sharePolicy, backupPolicy
-func HackVolumeProviderDetail(kind string, detail *api_model.VolumeProviderDetail) {
+// HackVolumeOptionDetailFromDB hack volumeOptionDetail from db
+func HackVolumeOptionDetailFromDB(detail *api_model.VolumeOptionsStruct, data *dbmodel.TenantServiceVolumeType) {
+	if data != nil {
+		detail.Description = data.Description
+		detail.NameShow = data.NameShow
+		detail.VolumeProviderName = data.VolumeProviderName
+		if err := json.Unmarshal([]byte(data.CapacityValidation), &detail.CapacityValidation); err != nil {
+			logrus.Warnf("unmarshal volumetype's capacityValidation error: %s, set capacityValidation to default", err.Error())
+			detail.CapacityValidation = defaultcapacityValidation
+		}
+		detail.AccessMode = strings.Split(data.AccessMode, ",")
+		detail.SharePolicy = strings.Split(data.SharePolicy, ",")
+		detail.BackupPolicy = strings.Split(data.BackupPolicy, ",")
+		detail.ReclaimPolicy = data.ReclaimPolicy
+		detail.VolumeBindingMode = data.VolumeBindingMode
+		detail.AllowVolumeExpansion = &data.AllowVolumeExpansion
+		detail.Sort = data.Sort
+	}
+}
+
+var defaultcapacityValidation map[string]interface{}
+
+func init() {
+	capacityValidation := make(map[string]interface{})
+	capacityValidation["min"] = 1
+	capacityValidation["required"] = false
+	capacityValidation["max"] = 999999999
+}
+
+// HackVolumeOptionDetail hack volume Option detail, like accessMode, sharePolicy, backupPolicy
+func HackVolumeOptionDetail(volumeType string, detail *api_model.VolumeOptionsStruct, more ...interface{}) {
 	/*
 		RWO - ReadWriteOnce
 		ROX - ReadOnlyMany
 		RWX - ReadWriteMany
 	*/
-	detail.AccessMode = append(detail.AccessMode, hackVolumeProviderAccessMode(kind)...)
-	detail.SharePolicy = append(detail.SharePolicy, hackVolumeProviderSharePolicy(kind)...)
-	detail.BackupPolicy = append(detail.BackupPolicy, hackVolumeProviderBackupPolicy(kind)...)
+	detail.AccessMode = append(detail.AccessMode, hackVolumeOptionAccessMode(volumeType)...)
+	detail.SharePolicy = append(detail.SharePolicy, hackVolumeOptionSharePolicy(volumeType)...)
+	detail.BackupPolicy = append(detail.BackupPolicy, hackVolumeOptionBackupPolicy(volumeType)...)
+	detail.CapacityValidation = hackVolumeOptionCapacityValidation(volumeType)
+	detail.Description = hackVolumeOptionDesc(volumeType)
+	detail.NameShow = hackVolumeOptionNameShow(volumeType)
+	if len(more) == 4 {
+		detail.VolumeProviderName = more[0].(string)
+		detail.ReclaimPolicy = more[1].(string)
+		detail.VolumeBindingMode = more[2].(string)
+		AllowVolumeExpansion := more[3].(bool)
+		detail.AllowVolumeExpansion = &AllowVolumeExpansion
+	}
+}
+
+func hackVolumeOptionNameShow(volumeType string) string {
+	nameShow := volumeType
+	if volumeType == "alicloud-disk-available" {
+		nameShow = "阿里云盘（智能选择）"
+	} else if volumeType == "alicloud-disk-common" {
+		nameShow = "阿里云盘（基础）"
+	} else if volumeType == "alicloud-disk-efficiency" {
+		nameShow = "阿里云盘（高效）"
+	} else if volumeType == "alicloud-disk-ssd" {
+		nameShow = "阿里云盘（SSD）"
+	}
+	return nameShow
+}
+
+func hackVolumeOptionDesc(vt string) string {
+	volumeType := dbmodel.VolumeType(vt)
+	switch volumeType {
+	case dbmodel.ShareFileVolumeType:
+		return "default分布式文件存储，可租户内共享挂载，适用于所有类型应用"
+	case dbmodel.LocalVolumeType:
+		return "default本地存储设备，适用于有状态数据库服务"
+	case dbmodel.MemoryFSVolumeType:
+		return "default基于内存的存储设备，容量由内存量限制。应用重启数据即丢失，适用于高速暂存数据"
+	default:
+		return ""
+	}
+}
+
+func hackVolumeOptionCapacityValidation(volumeType string) map[string]interface{} {
+	data := make(map[string]interface{})
+	data["required"] = true
+	data["default"] = 1
+	if strings.HasPrefix(volumeType, "alicloud-disk") {
+		data["min"] = 20
+		data["default"] = 20
+		data["max"] = 32768 // [ali-cloud-disk usage limit](https://help.aliyun.com/document_detail/25412.html?spm=5176.2020520101.0.0.41d84df5faliP4)
+	} else {
+		data["min"] = 1
+		data["max"] = 999999999
+	}
+	return data
 }
 
 /*
@@ -118,32 +201,28 @@ ScaleIO				| ✓					   | ✓						  | -
 StorageOS			| ✓					   | -						  | -
 
 */
-func hackVolumeProviderAccessMode(kind string) []string {
-	volumeType := dbmodel.VolumeType(kind)
+func hackVolumeOptionAccessMode(vt string) []string {
+	volumeType := dbmodel.VolumeType(vt)
 	switch volumeType {
 	case dbmodel.ShareFileVolumeType:
 		return []string{"RWO", "ROX", "RWX"}
 	case dbmodel.LocalVolumeType:
 		return []string{"RWO", "ROX", "RWX"}
-	case dbmodel.CephRBDVolumeType:
-		return []string{"RWO", "ROX"}
 	case dbmodel.ConfigFileVolumeType:
 		return []string{"ROX"}
 	case dbmodel.MemoryFSVolumeType:
 		return []string{"ROX"}
-	case dbmodel.AliCloudVolumeType:
-		return []string{"RWO"}
 	default:
 		return []string{"RWO"}
 	}
 }
 
 // TODO finish volume share policy
-func hackVolumeProviderSharePolicy(kind string) []string {
+func hackVolumeOptionSharePolicy(volumeType string) []string {
 	return []string{"exclusive"}
 }
 
 // TODO finish vollume backup policy
-func hackVolumeProviderBackupPolicy(kind string) []string {
+func hackVolumeOptionBackupPolicy(volumeType string) []string {
 	return []string{"exclusive"}
 }

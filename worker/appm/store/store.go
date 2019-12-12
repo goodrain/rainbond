@@ -67,6 +67,7 @@ type Storer interface {
 	UnRegistPodUpdateListener(string)
 	InitOneThirdPartService(service *model.TenantServices) error
 	GetStorageClasses() []v1.StorageClass
+	GetServiceClaims(tenantID, serviceID string) []corev1.PersistentVolumeClaim
 }
 
 // EventType type of event associated with an informer
@@ -1125,4 +1126,14 @@ func (a *appRuntimeStore) GetStorageClasses() []v1.StorageClass {
 		sclist = append(sclist, sc)
 	}
 	return sclist
+}
+
+func (a *appRuntimeStore) GetServiceClaims(tenantID, serviceID string) []corev1.PersistentVolumeClaim {
+	// claims := as.GetClaims()// TODO 临时使用client直接获取PVC，后续换成store中获取
+	claimList, err := a.clientset.CoreV1().PersistentVolumeClaims(tenantID).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("service_id=%s", serviceID)})
+	if err != nil {
+		logrus.Errorf("get claims error: %s", err.Error())
+		return nil
+	}
+	return claimList.Items
 }

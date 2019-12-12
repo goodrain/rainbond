@@ -34,6 +34,66 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+// VolumeOptions list volume option
+func VolumeOptions(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation POST /v2/volume-options v2 volumeOptions
+	//
+	// 查询可用存储驱动模型列表
+	//
+	// get volume-options
+	//
+	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//     description: 统一返回格式
+
+	storageClasses, err := handler.GetVolumeTypeHandler().GetAllStorageClasses()
+	if err != nil {
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	var optionList []api_model.VolumeOptionsStruct
+
+	volumeTypeMap := make(map[string]*dbmodel.TenantServiceVolumeType)
+	volumeTypes, err := handler.GetVolumeTypeHandler().GetAllVolumeTypes()
+	if err != nil {
+		logrus.Errorf("get all volumeTypes error: %s", err.Error())
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+
+	for _, vt := range volumeTypes {
+		volumeTypeMap[vt.VolumeType] = vt
+	}
+
+	for _, sc := range storageClasses {
+		vt := util.ParseVolumeOptionType(sc)
+		opt := api_model.VolumeOptionsStruct{}
+		opt.VolumeType = vt
+		if dbvt, ok := volumeTypeMap[opt.VolumeType]; ok {
+			util.HackVolumeOptionDetailFromDB(&opt, dbvt)
+		} else {
+			util.HackVolumeOptionDetail(vt, &opt, sc.GetName(), sc.GetReclaimPolicy(), sc.VolumeBindingMode, sc.AllowVolumeExpansion)
+		}
+
+		optionList = append(optionList, opt)
+	}
+	// TODO 管理后台支持自定义StorageClass，则内容与db中的数据进行融合，进行更多的业务逻辑
+	memoryVolumeType := api_model.VolumeOptionsStruct{VolumeType: dbmodel.MemoryFSVolumeType.String(), NameShow: "内存文件存储"}
+	util.HackVolumeOptionDetailFromDB(&memoryVolumeType, volumeTypeMap["memoryfs"])
+	optionList = append(optionList, memoryVolumeType)
+	httputil.ReturnSuccess(r, w, optionList)
+}
+
 // GetVolumesStatus getvolume status
 func (t *TenantStruct) GetVolumesStatus(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/tenants/{tenant_name}/volumes-status v2 GetVolumesStatus
@@ -78,147 +138,6 @@ func (t *TenantStruct) GetVolumesStatus(w http.ResponseWriter, r *http.Request) 
 		ret.Status = status
 	}
 	httputil.ReturnSuccess(r, w, ret)
-}
-
-// VolumeBestSelector best volume by volume filter
-func (t *TenantStruct) VolumeBestSelector(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/volume-best v2 VolumeBest
-	//
-	// 查询可用存储驱动模型列表
-	//
-	// post volume-best
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//     description: 统一返回格式
-	var oldVolumeSelector api_model.VolumeBestReqStruct
-	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &oldVolumeSelector, nil); !ok {
-		return
-	}
-	if oldVolumeSelector.VolumeType == dbmodel.ShareFileVolumeType.String() || oldVolumeSelector.VolumeType == dbmodel.LocalVolumeType.String() {
-		ret := api_model.VolumeBestRespStruct{Changed: false}
-		httputil.ReturnSuccess(r, w, ret)
-		return
-	}
-	storageClasses, err := t.StatusCli.GetStorageClasses()
-	if err != nil {
-		httputil.ReturnError(r, w, 500, err.Error())
-		return
-	}
-	var providerMap = make(map[string][]api_model.VolumeProviderDetail)
-	kindFilter := oldVolumeSelector.VolumeType
-	for _, storageClass := range storageClasses.GetList() {
-		kind := util.ParseVolumeProviderKind(storageClass)
-		if kind == "" {
-			logrus.Debugf("unknown storageclass: %+v", storageClass)
-			continue
-		}
-		if kindFilter != "" && kind != kindFilter {
-			continue
-		}
-		detail := api_model.VolumeProviderDetail{
-			Name:                 storageClass.Name,
-			Provisioner:          storageClass.Provisioner,
-			ReclaimPolicy:        storageClass.ReclaimPolicy,
-			VolumeBindingMode:    storageClass.VolumeBindingMode,
-			AllowVolumeExpansion: &storageClass.AllowVolumeExpansion,
-		}
-		util.HackVolumeProviderDetail(kind, &detail)
-		exists := false
-		for _, accessMode := range detail.AccessMode {
-			if strings.ToUpper(oldVolumeSelector.AccessMode) == accessMode {
-				exists = true
-				break
-			}
-		}
-		if !exists {
-			logrus.Warnf("not suitable select for volume[volumeType:%s, accessMode:%s] of kind(%s)", oldVolumeSelector.VolumeType, oldVolumeSelector.AccessMode, kind)
-			continue
-		} else {
-			providerMap[kind] = []api_model.VolumeProviderDetail{detail}
-			break
-		}
-
-	}
-	ret := api_model.VolumeBestRespStruct{}
-	if len(providerMap) > 0 {
-		ret.Changed = false
-	} else {
-		ret.Changed = true
-		ret.VolumeType = dbmodel.ShareFileVolumeType.String()
-	}
-
-	httputil.ReturnSuccess(r, w, ret)
-}
-
-// VolumeProvider list volume provider
-func (t *TenantStruct) VolumeProvider(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/volume-providers v2 volumeProvider
-	//
-	// 查询可用存储驱动模型列表
-	//
-	// get volume-providers
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//     description: 统一返回格式
-
-	kindFilter := r.FormValue("kind")
-	storageClasses, err := t.StatusCli.GetStorageClasses()
-	if err != nil {
-		httputil.ReturnError(r, w, 500, err.Error())
-		return
-	}
-	var providerList []api_model.VolumeProviderStruct
-	var providerMap = make(map[string][]api_model.VolumeProviderDetail)
-
-	for _, storageClass := range storageClasses.GetList() {
-		kind := util.ParseVolumeProviderKind(storageClass)
-		if kind == "" {
-			logrus.Debugf("not support storageclass: %+v", storageClass)
-			continue
-		}
-		if kindFilter != "" && kind != kindFilter {
-			continue
-		}
-		detail := api_model.VolumeProviderDetail{
-			Name:                 storageClass.Name,
-			Provisioner:          storageClass.Provisioner,
-			ReclaimPolicy:        storageClass.ReclaimPolicy,
-			VolumeBindingMode:    storageClass.VolumeBindingMode,
-			AllowVolumeExpansion: &storageClass.AllowVolumeExpansion,
-		}
-		util.HackVolumeProviderDetail(kind, &detail)
-		if _, ok := providerMap[kind]; ok {
-			providerMap[kind] = append(providerMap[kind], detail)
-		} else {
-			providerMap[kind] = []api_model.VolumeProviderDetail{detail}
-		}
-	}
-	for key, value := range providerMap {
-		providerList = append(providerList, api_model.VolumeProviderStruct{Kind: key, Provisioner: value})
-	}
-	httputil.ReturnSuccess(r, w, providerList)
 }
 
 //VolumeDependency VolumeDependency
