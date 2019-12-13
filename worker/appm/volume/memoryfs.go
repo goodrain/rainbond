@@ -32,21 +32,20 @@ type MemoryFSVolume struct {
 
 // CreateVolume memory fs volume create volume
 func (v *MemoryFSVolume) CreateVolume(define *Define) error {
-	volumeMountName := fmt.Sprintf("mnt%d", v.svm.ID)
+	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
 	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := false
-	if volumeMountPath != "" {
-		logrus.Warningf("service[%s]'s mount path is empty, skip it", v.version.ServiceID)
+	if volumeMountPath == "" {
+		logrus.Warningf("service[%s]'s mount path is empty, skip create memoryfs", v.version.ServiceID)
 		return nil
 	}
 	for _, m := range define.volumeMounts {
 		if m.MountPath == volumeMountPath {
-			logrus.Warningf("found the same mount path: %s, skip it", volumeMountPath)
+			logrus.Warningf("service[%s]'s found the same mount path: %s, skip create memoryfs", v.version.ServiceID, volumeMountPath)
 			return nil
 		}
 	}
-	name := fmt.Sprintf("manual%d", v.svm.ID)
-	vo := corev1.Volume{Name: name}
+	vo := corev1.Volume{Name: volumeMountName} // !!!: volumeMount name of k8s model must equal to volume name of k8s model
 	vo.EmptyDir = &corev1.EmptyDirVolumeSource{
 		Medium: corev1.StorageMediumMemory,
 	}

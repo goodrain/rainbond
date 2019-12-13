@@ -1446,49 +1446,27 @@ func (s *ServiceAction) UpdVolume(sid string, req *api_model.UpdVolumeReq) error
 			tx.Rollback()
 		}
 	}()
-	switch req.VolumeType {
-	case "config-file":
-		if req.VolumePath != "" {
-			v, err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).
-				GetVolumeByServiceIDAndName(sid, req.VolumeName)
-			if err != nil {
-				tx.Rollback()
-				return err
-			}
-			v.VolumePath = req.VolumePath
-			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).UpdateModel(v); err != nil {
-				tx.Rollback()
-				return err
-			}
-		}
-		if req.FileContent != "" {
-			configfile, err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).
-				GetByVolumeName(sid, req.VolumeName)
-			if err != nil {
-				tx.Rollback()
-				return err
-			}
-			configfile.FileContent = req.FileContent
-			if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).UpdateModel(configfile); err != nil {
-				tx.Rollback()
-				return err
-			}
-		}
-	case dbmodel.ShareFileVolumeType.String(), dbmodel.LocalVolumeType.String():
-		v, err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).
-			GetVolumeByServiceIDAndName(sid, req.VolumeName)
+	v, err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).GetVolumeByServiceIDAndName(sid, req.VolumeName)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	v.VolumePath = req.VolumePath
+	if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).UpdateModel(v); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if req.VolumeType == "config-file" {
+		configfile, err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).GetByVolumeName(sid, req.VolumeName)
 		if err != nil {
 			tx.Rollback()
 			return err
 		}
-		v.VolumePath = req.VolumePath
-		if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).UpdateModel(v); err != nil {
+		configfile.FileContent = req.FileContent
+		if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).UpdateModel(configfile); err != nil {
 			tx.Rollback()
 			return err
 		}
-	default:
-		tx.Rollback()
-		return fmt.Errorf("unsupported volume type")
 	}
 	tx.Commit()
 	return nil
