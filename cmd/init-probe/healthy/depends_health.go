@@ -85,6 +85,7 @@ func NewDependServiceHealthController() (*DependServiceHealthController, error) 
 
 //Check check all conditions
 func (d *DependServiceHealthController) Check() {
+	logrus.Info("start denpenent health check.")
 	ticker := time.NewTicker(d.interval)
 	defer ticker.Stop()
 	check := func() bool {
@@ -97,7 +98,7 @@ func (d *DependServiceHealthController) Check() {
 	}
 	for {
 		if check() {
-			logrus.Info("Depend services all check passed,will start service")
+			logrus.Info("Depend services all check passed, will start service")
 			return
 		}
 		select {
@@ -115,6 +116,8 @@ func (d *DependServiceHealthController) checkClusters() bool {
 }
 
 func (d *DependServiceHealthController) checkEDS() bool {
+	logrus.Infof("start checking eds; dependent service cluster names: %s", d.dependServiceClusterNames)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -131,6 +134,13 @@ func (d *DependServiceHealthController) checkEDS() bool {
 
 	clusterLoadAssignments := envoyv2.ParseLocalityLbEndpointsResource(res.Resources)
 	readyClusters := make(map[string]bool, len(clusterLoadAssignments))
+	logrus.Infof("received cluster load assignments; length: %v; names: %s", len(clusterLoadAssignments), func() string {
+		var clusternames []string
+		for _, cla := range clusterLoadAssignments {
+			clusternames = append(clusternames, cla.GetClusterName())
+		}
+		return strings.Join(clusternames, ",")
+	}())
 	for _, cla := range clusterLoadAssignments {
 		// clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, service.Spec.Ports[0].Port)
 		clusterName := cla.GetClusterName()
@@ -144,13 +154,16 @@ func (d *DependServiceHealthController) checkEDS() bool {
 					}
 				}
 			}
+
 			return false
 		}()
+		logrus.Infof("cluster name: %s; ready: %v", clusterName, ready)
 		readyClusters[clusterName] = ready
 	}
 
 	for _, cn := range d.dependServiceClusterNames {
-		if _, ok := readyClusters[cn]; !ok {
+		if ready := readyClusters[cn]; !ready {
+			logrus.Infof("%s not ready.", cn)
 			return false
 		}
 	}
