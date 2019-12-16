@@ -21,7 +21,6 @@ package controller
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -29,118 +28,9 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"github.com/jinzhu/gorm"
 )
-
-// VolumeOptions list volume option
-func VolumeOptions(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/volume-options v2 volumeOptions
-	//
-	// 查询可用存储驱动模型列表
-	//
-	// get volume-options
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//     description: 统一返回格式
-
-	storageClasses, err := handler.GetVolumeTypeHandler().GetAllStorageClasses()
-	if err != nil {
-		httputil.ReturnError(r, w, 500, err.Error())
-		return
-	}
-	var optionList []api_model.VolumeOptionsStruct
-
-	volumeTypeMap := make(map[string]*dbmodel.TenantServiceVolumeType)
-	volumeTypes, err := handler.GetVolumeTypeHandler().GetAllVolumeTypes()
-	if err != nil {
-		logrus.Errorf("get all volumeTypes error: %s", err.Error())
-		httputil.ReturnError(r, w, 500, err.Error())
-		return
-	}
-
-	for _, vt := range volumeTypes {
-		volumeTypeMap[vt.VolumeType] = vt
-	}
-
-	for _, sc := range storageClasses {
-		vt := util.ParseVolumeOptionType(sc)
-		opt := api_model.VolumeOptionsStruct{}
-		opt.VolumeType = vt // volumeType is storageclass's name, but share-file/memoryfs/local
-		if dbvt, ok := volumeTypeMap[opt.VolumeType]; ok {
-			util.HackVolumeOptionDetailFromDB(&opt, dbvt)
-		} else {
-			util.HackVolumeOptionDetail(vt, &opt, sc.GetName(), sc.GetReclaimPolicy(), sc.VolumeBindingMode, sc.AllowVolumeExpansion)
-		}
-
-		optionList = append(optionList, opt)
-	}
-	// TODO 管理后台支持自定义StorageClass，则内容与db中的数据进行融合，进行更多的业务逻辑
-	memoryVolumeType := api_model.VolumeOptionsStruct{VolumeType: dbmodel.MemoryFSVolumeType.String(), NameShow: "内存文件存储"}
-	util.HackVolumeOptionDetailFromDB(&memoryVolumeType, volumeTypeMap["memoryfs"])
-	optionList = append(optionList, memoryVolumeType)
-	httputil.ReturnSuccess(r, w, optionList)
-}
-
-// GetVolumesStatus getvolume status
-func (t *TenantStruct) GetVolumesStatus(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/tenants/{tenant_name}/volumes-status v2 GetVolumesStatus
-	//
-	// 查询组件存储状态
-	//
-	// post volumes-status
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//     description: 统一返回格式
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	volumes, handlerErr := handler.GetServiceManager().GetVolumes(serviceID)
-	if handlerErr != nil && handlerErr.Error() != gorm.ErrRecordNotFound.Error() {
-		httputil.ReturnError(r, w, 500, handlerErr.Error())
-		return
-	}
-	var err error
-	volumeStatusList, err := t.StatusCli.GetAppVolumeStatus(serviceID)
-	if err != nil {
-		logrus.Warnf("get volume status error: %s", err.Error())
-	}
-	ret := api_model.VolumeWithStatusResp{Status: make(map[string]string)}
-	if volumeStatusList != nil && volumeStatusList.GetStatus() != nil {
-		volumeStatus := volumeStatusList.GetStatus()
-		status := make(map[string]string)
-		for _, volume := range volumes {
-			volumeID := strconv.FormatInt(int64(volume.ID), 10)
-			if phrase, ok := volumeStatus[volumeID]; ok {
-				status[volume.VolumeName] = phrase.String()
-			}
-		}
-		ret.Status = status
-	}
-	httputil.ReturnSuccess(r, w, ret)
-}
 
 //VolumeDependency VolumeDependency
 func (t *TenantStruct) VolumeDependency(w http.ResponseWriter, r *http.Request) {

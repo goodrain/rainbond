@@ -1473,13 +1473,46 @@ func (s *ServiceAction) UpdVolume(sid string, req *api_model.UpdVolumeReq) error
 }
 
 //GetVolumes 获取应用全部存储
-func (s *ServiceAction) GetVolumes(serviceID string) ([]*dbmodel.TenantServiceVolume, *util.APIHandleError) {
-	dbManager := db.GetManager()
-	vs, err := dbManager.TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(serviceID)
+func (s *ServiceAction) GetVolumes(serviceID string) ([]*api_model.VolumeWithStatusStruct, *util.APIHandleError) {
+	volumeWithStatusList := make([]*api_model.VolumeWithStatusStruct, 0)
+	vs, err := db.GetManager().TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(serviceID)
 	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 		return nil, util.CreateAPIHandleErrorFromDBError("get volumes", err)
 	}
-	return vs, nil
+
+	volumeStatusList, err := s.statusCli.GetAppVolumeStatus(serviceID)
+	if err != nil {
+		logrus.Warnf("get volume status error: %s", err.Error())
+	}
+
+	if volumeStatusList != nil && volumeStatusList.GetStatus() != nil {
+		volumeStatus := volumeStatusList.GetStatus()
+		for _, volume := range vs {
+			vws := &api_model.VolumeWithStatusStruct{
+				ServiceID:          volume.ServiceID,
+				Category:           volume.Category,
+				VolumeType:         volume.VolumeType,
+				VolumeName:         volume.VolumeName,
+				HostPath:           volume.HostPath,
+				VolumePath:         volume.VolumePath,
+				IsReadOnly:         volume.IsReadOnly,
+				VolumeCapacity:     volume.VolumeCapacity,
+				AccessMode:         volume.AccessMode,
+				SharePolicy:        volume.SharePolicy,
+				BackupPolicy:       volume.BackupPolicy,
+				ReclaimPolicy:      volume.ReclaimPolicy,
+				AllowExpansion:     volume.AllowExpansion,
+				VolumeProviderName: volume.VolumeProviderName,
+			}
+			volumeID := strconv.FormatInt(int64(volume.ID), 10)
+			if phrase, ok := volumeStatus[volumeID]; ok {
+				vws.Status = phrase.String()
+			}
+			volumeWithStatusList = append(volumeWithStatusList, vws)
+		}
+	}
+
+	return volumeWithStatusList, nil
 }
 
 //VolumeDependency VolumeDependency

@@ -481,6 +481,8 @@ func (r *RuntimeServer) GetAppVolumeStatus(ctx context.Context, re *pb.ServiceRe
 		logrus.Warnf("get volume status error : %s", err.Error())
 		return ret, nil
 	}
+	// TODO 多个pod，正在更新中的pod
+	// TODO 不严谨，不应该单纯的使用volume确定挂载状态
 	for _, pod := range appPodList.GetNewPods() {
 		for _, volumeName := range pod.PodVolumes {
 			prefix := "manual"

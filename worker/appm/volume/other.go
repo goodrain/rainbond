@@ -33,10 +33,10 @@ type OtherVolume struct {
 
 // CreateVolume ceph rbd volume create volume
 func (v *OtherVolume) CreateVolume(define *Define) error {
-	if v.svm.VolumeCapacity <= 0 {
+	if v.svm.VolumeCapacity <= 0 { // TODO 文件类型 是否可以为不限制大小
 		return fmt.Errorf("volume capcacity is %d, must be greater than zero", v.svm.VolumeCapacity)
 	}
-	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
+	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID) // TODO 名字是否会重复
 	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := v.svm.IsReadOnly
 	labels := v.as.GetCommonLabels(map[string]string{"volume_name": v.svm.VolumeName, "version": v.as.DeployVersion, "reclaim_policy": v.svm.ReclaimPolicy})

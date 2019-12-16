@@ -37,9 +37,9 @@ func SetVolumeDefaultValue(info *dbmodel.TenantServiceVolume) {
 	}
 }
 
-// ParseVolumeOptionType parse volume Option name show and volume type
-func ParseVolumeOptionType(detail *pb.StorageClassDetail) string {
-	volumeType := transferVolumeOptionType(detail.Name, detail.Provisioner, detail.Parameters)
+// ParseVolumeTypeOption parse volume Option name show and volume type
+func ParseVolumeTypeOption(detail *pb.StorageClassDetail) string {
+	volumeType := transferVolumeTypeOption(detail.Name, detail.Provisioner, detail.Parameters)
 	if volumeType != nil {
 		return volumeType.String()
 	}
@@ -47,7 +47,7 @@ func ParseVolumeOptionType(detail *pb.StorageClassDetail) string {
 	return "unknown"
 }
 
-func transferVolumeOptionType(name string, opts ...interface{}) *dbmodel.VolumeType {
+func transferVolumeTypeOption(name string, opts ...interface{}) *dbmodel.VolumeType {
 	if name == v1.RainbondStatefuleShareStorageClass {
 		return &dbmodel.ShareFileVolumeType
 	}
@@ -79,7 +79,7 @@ func transferCustomVolumeOptionName2Kind(opts ...interface{}) *dbmodel.VolumeTyp
 }
 
 // HackVolumeOptionDetailFromDB hack volumeOptionDetail from db
-func HackVolumeOptionDetailFromDB(detail *api_model.VolumeOptionsStruct, data *dbmodel.TenantServiceVolumeType) {
+func HackVolumeOptionDetailFromDB(detail *api_model.VolumeTypeOptionsStruct, data *dbmodel.TenantServiceVolumeType) {
 	if data != nil {
 		detail.Description = data.Description
 		detail.NameShow = data.NameShow
@@ -108,7 +108,7 @@ func init() {
 }
 
 // HackVolumeOptionDetail hack volume Option detail, like accessMode, sharePolicy, backupPolicy
-func HackVolumeOptionDetail(volumeType string, detail *api_model.VolumeOptionsStruct, more ...interface{}) {
+func HackVolumeOptionDetail(volumeType string, detail *api_model.VolumeTypeOptionsStruct, more ...interface{}) {
 	/*
 		RWO - ReadWriteOnce
 		ROX - ReadOnlyMany

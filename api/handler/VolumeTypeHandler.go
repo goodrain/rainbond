@@ -20,6 +20,8 @@ package handler
 
 import (
 	"github.com/Sirupsen/logrus"
+	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/client"
@@ -30,9 +32,11 @@ import (
 //VolumeTypeHandler LicenseAction
 type VolumeTypeHandler interface {
 	VolumeTypeVar(action string, vtm *dbmodel.TenantServiceVolumeType) error
-	GetAllVolumeTypes() ([]*dbmodel.TenantServiceVolumeType, error)
+	GetAllVolumeTypes() ([]*api_model.VolumeTypeOptionsStruct, error)
 	GetVolumeTypeByType(volumeType string) (*dbmodel.TenantServiceVolumeType, error)
 	GetAllStorageClasses() ([]*pb.StorageClassDetail, error)
+	VolumeTypeAction(action, volumeTypeID string) error
+	DeleteVolumeType(volumeTypeID string) error
 }
 
 var defaultVolumeTypeHandler VolumeTypeHandler
@@ -64,8 +68,40 @@ func (vta *VolumeTypeAction) VolumeTypeVar(action string, vtm *dbmodel.TenantSer
 }
 
 // GetAllVolumeTypes get all volume types
-func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*dbmodel.TenantServiceVolumeType, error) {
-	return db.GetManager().VolumeTypeDao().GetAllVolumeTypes()
+func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*api_model.VolumeTypeOptionsStruct, error) {
+	storageClasses, err := vta.GetAllStorageClasses()
+	if err != nil {
+		return nil, err
+	}
+	var optionList []*api_model.VolumeTypeOptionsStruct
+	volumeTypeMap := make(map[string]*dbmodel.TenantServiceVolumeType)
+	volumeTypes, err := db.GetManager().VolumeTypeDao().GetAllVolumeTypes()
+	if err != nil {
+		logrus.Errorf("get all volumeTypes error: %s", err.Error())
+		return nil, err
+	}
+
+	for _, vt := range volumeTypes {
+		volumeTypeMap[vt.VolumeType] = vt
+	}
+
+	for _, sc := range storageClasses {
+		vt := util.ParseVolumeTypeOption(sc)
+		opt := &api_model.VolumeTypeOptionsStruct{}
+		opt.VolumeType = vt // volumeType is storageclass's name, but share-file/memoryfs/local
+		if dbvt, ok := volumeTypeMap[opt.VolumeType]; ok {
+			util.HackVolumeOptionDetailFromDB(opt, dbvt)
+		} else {
+			util.HackVolumeOptionDetail(vt, opt, sc.GetName(), sc.GetReclaimPolicy(), sc.VolumeBindingMode, sc.AllowVolumeExpansion)
+		}
+
+		optionList = append(optionList, opt)
+	}
+	// TODO 管理后台支持自定义StorageClass，则内容与db中的数据进行融合，进行更多的业务逻辑
+	memoryVolumeType := &api_model.VolumeTypeOptionsStruct{VolumeType: dbmodel.MemoryFSVolumeType.String(), NameShow: "内存文件存储"}
+	util.HackVolumeOptionDetailFromDB(memoryVolumeType, volumeTypeMap["memoryfs"])
+	optionList = append(optionList, memoryVolumeType)
+	return optionList, nil
 }
 
 // GetVolumeTypeByType get volume type by type
@@ -80,4 +116,15 @@ func (vta *VolumeTypeAction) GetAllStorageClasses() ([]*pb.StorageClassDetail, e
 		return nil, err
 	}
 	return sces.List, nil
+}
+
+// VolumeTypeAction open volme type or close it
+func (vta *VolumeTypeAction) VolumeTypeAction(action, volumeTypeID string) error {
+	// TODO 开启驱动或者关闭驱动，关闭之前需要确定该驱动是否可以因为已经绑定了存储而不能直接关闭
+	return nil
+}
+
+// DeleteVolumeType delte volume type
+func (vta *VolumeTypeAction) DeleteVolumeType(volumeTypeID string) error {
+	return nil
 }
