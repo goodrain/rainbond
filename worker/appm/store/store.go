@@ -34,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/goodrain/rainbond/worker/appm/f"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	workerutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/autoscaling/v2beta1"
@@ -74,7 +75,6 @@ type Storer interface {
 	RegistPodUpdateListener(string, chan<- *corev1.Pod)
 	UnRegistPodUpdateListener(string)
 	InitOneThirdPartService(service *model.TenantServices) error
-	GetStorageClasses() []v1.StorageClass
 	GetServiceClaims(tenantID, serviceID string) []corev1.PersistentVolumeClaim
 }
 
@@ -576,9 +576,9 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		}
 	}
 	if sc, ok := obj.(*storagev1.StorageClass); ok {
-		apps := a.GetAllAppServices()
-		for i := range apps {
-			apps[i].SetStorageClass(sc)
+		vt := workerutil.TransStorageClass2RBDVolumeType(sc)
+		if _, err := a.dbmanager.VolumeTypeDao().FindOrCreate(vt); err != nil {
+			return
 		}
 	}
 }
@@ -739,10 +739,9 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 	}
 
 	if sc, ok := obj.(*storagev1.StorageClass); ok {
-		for _, appservice := range a.GetAllAppServices() {
-			if appservice != nil {
-				appservice.DeleteStorageClass(sc)
-			}
+		if err := a.dbmanager.VolumeTypeDao().DeleteModelByVolumeTypes(sc.GetName()); err != nil {
+			logrus.Errorf("delete volumeType from db error: %s", err.Error())
+			return
 		}
 	}
 }
@@ -1245,26 +1244,6 @@ func (a *appRuntimeStore) UnRegistPodUpdateListener(name string) {
 	a.podUpdateListenerLock.Lock()
 	defer a.podUpdateListenerLock.Unlock()
 	delete(a.podUpdateListeners, name)
-}
-
-func (a *appRuntimeStore) GetStorageClasses() []v1.StorageClass {
-	storageClassList, err := a.clientset.StorageV1().StorageClasses().List(metav1.ListOptions{})
-	if err != nil { // TODO fanyangyang 20191218 使用 store获取
-		return make([]v1.StorageClass, 0)
-	}
-	var sclist []v1.StorageClass
-	for _, item := range storageClassList.Items {
-		sc := v1.StorageClass{
-			Name:                 item.Name,
-			Provisioner:          item.Provisioner,
-			Parameters:           item.Parameters,
-			ReclaimPolicy:        fmt.Sprintf("%s", *item.ReclaimPolicy),
-			VolumeBindingMode:    fmt.Sprintf("%s", *item.VolumeBindingMode),
-			AllowVolumeExpansion: item.AllowVolumeExpansion,
-		}
-		sclist = append(sclist, sc)
-	}
-	return sclist
 }
 
 func (a *appRuntimeStore) GetServiceClaims(tenantID, serviceID string) []corev1.PersistentVolumeClaim {

@@ -22,9 +22,10 @@ import (
 	"encoding/json"
 	"strings"
 
+	"fmt"
+
 	"github.com/Sirupsen/logrus"
 	api_model "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/client"
@@ -73,10 +74,7 @@ func (vta *VolumeTypeAction) VolumeTypeVar(action string, vtm *dbmodel.TenantSer
 
 // GetAllVolumeTypes get all volume types
 func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*api_model.VolumeTypeStruct, error) {
-	storageClasses, err := vta.GetAllStorageClasses()
-	if err != nil {
-		return nil, err
-	}
+
 	var optionList []*api_model.VolumeTypeStruct
 	volumeTypeMap := make(map[string]*dbmodel.TenantServiceVolumeType)
 	volumeTypes, err := db.GetManager().VolumeTypeDao().GetAllVolumeTypes()
@@ -87,24 +85,41 @@ func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*api_model.VolumeTypeStruct,
 
 	for _, vt := range volumeTypes {
 		volumeTypeMap[vt.VolumeType] = vt
-	}
-
-	for _, sc := range storageClasses {
-		vt := util.ParseVolumeTypeOption(sc)
-		opt := &api_model.VolumeTypeStruct{}
-		opt.VolumeType = vt // volumeType is storageclass's name, but share-file/memoryfs/local
-		if dbvt, ok := volumeTypeMap[opt.VolumeType]; ok {
-			util.HackVolumeOptionDetailFromDB(opt, dbvt)
-		} else {
-			util.HackVolumeOptionDetail(vt, opt, sc.GetName(), sc.GetReclaimPolicy(), sc.VolumeBindingMode, sc.AllowVolumeExpansion)
+		capacityValidation := make(map[string]interface{})
+		if vt.CapacityValidation != "" {
+			err := json.Unmarshal([]byte(vt.CapacityValidation), &capacityValidation)
+			if err != nil {
+				logrus.Error(err.Error())
+				return nil, fmt.Errorf("format volume type capacity validation error")
+			}
 		}
 
-		optionList = append(optionList, opt)
+		storageClassDetail := make(map[string]interface{})
+		if vt.StorageClassDetail != "" {
+			err := json.Unmarshal([]byte(vt.StorageClassDetail), &storageClassDetail)
+			if err != nil {
+				logrus.Error(err.Error())
+				return nil, fmt.Errorf("format storageclass detail error")
+			}
+		}
+		accessMode := strings.Split(vt.AccessMode, ",")
+		sharePolicy := strings.Split(vt.SharePolicy, ",")
+		backupPolicy := strings.Split(vt.BackupPolicy, ",")
+		optionList = append(optionList, &api_model.VolumeTypeStruct{
+			VolumeType:         vt.VolumeType,
+			NameShow:           vt.NameShow,
+			CapacityValidation: capacityValidation,
+			Description:        vt.Description,
+			AccessMode:         accessMode,
+			SharePolicy:        sharePolicy,
+			BackupPolicy:       backupPolicy,
+			ReclaimPolicy:      vt.ReclaimPolicy,
+			StorageClassDetail: storageClassDetail,
+			Sort:               vt.Sort,
+			Enable:             vt.Enable,
+		})
 	}
-	// TODO 管理后台支持自定义StorageClass，则内容与db中的数据进行融合，进行更多的业务逻辑
-	memoryVolumeType := &api_model.VolumeTypeStruct{VolumeType: dbmodel.MemoryFSVolumeType.String(), NameShow: "内存文件存储"}
-	util.HackVolumeOptionDetailFromDB(memoryVolumeType, volumeTypeMap["memoryfs"])
-	optionList = append(optionList, memoryVolumeType)
+
 	return optionList, nil
 }
 

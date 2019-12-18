@@ -31,6 +31,18 @@ type VolumeTypeDaoImpl struct {
 	DB *gorm.DB
 }
 
+// FindOrCreate find or create volumeType
+func (vtd *VolumeTypeDaoImpl) FindOrCreate(vt *model.TenantServiceVolumeType) (*model.TenantServiceVolumeType, error) {
+	volumeType, err := vtd.GetVolumeTypeByType(vt.VolumeType)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+	if err == gorm.ErrRecordNotFound || volumeType == nil {
+		return vt, vtd.AddModel(vt)
+	}
+	return volumeType, nil
+}
+
 //AddModel AddModel
 func (vtd *VolumeTypeDaoImpl) AddModel(mo model.Interface) error {
 	volumeType := mo.(*model.TenantServiceVolumeType)
@@ -65,7 +77,10 @@ func (vtd *VolumeTypeDaoImpl) GetVolumeTypeByType(vt string) (*model.TenantServi
 	if err := vtd.DB.Where("volume_type=?", vt).Find(&volumeTypes).Error; err != nil {
 		return nil, err
 	}
-	return volumeTypes[0], nil
+	if len(volumeTypes) > 0 {
+		return volumeTypes[0], nil
+	}
+	return nil, nil
 }
 
 // DeleteModelByVolumeTypes delete volume by type

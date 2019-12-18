@@ -416,8 +416,9 @@ func TestGetVolumeType(t *testing.T) {
 	for _, vt := range vts {
 		t.Logf("%+v", vt)
 	}
+	t.Logf("volume type len is : %v", len(vts))
 
-	vt, err := GetManager().VolumeTypeDao().GetVolumeTypeByType("alicloud-disk-common")
+	vt, err := GetManager().VolumeTypeDao().GetVolumeTypeByType("ceph-rbd")
 	if err != nil {
 		t.Fatal("get volumeType by type error: ", err.Error())
 	}

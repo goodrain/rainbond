@@ -37,7 +37,7 @@ type TenantServiceVolumeType struct {
 	ReclaimPolicy string `gorm:"column:reclaim_policy; size:20" json:"reclaim_policy"`
 	// 分享策略
 	SharePolicy        string `gorm:"share_policy; size:128" json:"share_policy"`
-	StorageClassDetail string `gorm:"storage_class_detail; size=2048" json:"storage_class_detail"`
+	StorageClassDetail string `gorm:"storage_class_detail; size:2048" json:"storage_class_detail"`
 	// 排序
 	Sort   int  `gorm:"sort; default:9999" json:"sort"`
 	Enable bool `gorm:"enable; default: false" json:"enable"`

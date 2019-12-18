@@ -379,6 +379,18 @@ func (mr *MockVolumeTypeDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockVolumeTypeDao)(nil).UpdateModel), arg0)
 }
 
+// DeleteModelByVolumeTypes mocks base method
+func (m *MockVolumeTypeDao) DeleteModelByVolumeTypes(volumeType string) error {
+	ret := m.ctrl.Call(m, "DeleteModelByVolumeTypes", volumeType)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteModelByVolumeTypes indicates an expected call of DeleteModelByVolumeTypes
+func (mr *MockVolumeTypeDaoMockRecorder) DeleteModelByVolumeTypes(volumeType interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModelByVolumeTypes", reflect.TypeOf((*MockVolumeTypeDao)(nil).DeleteModelByVolumeTypes), volumeType)
+}
+
 // GetAllVolumeTypes mocks base method
 func (m *MockVolumeTypeDao) GetAllVolumeTypes() ([]*model.TenantServiceVolumeType, error) {
 	ret := m.ctrl.Call(m, "GetAllVolumeTypes")
@@ -403,6 +415,19 @@ func (m *MockVolumeTypeDao) GetVolumeTypeByType(vt string) (*model.TenantService
 // GetVolumeTypeByType indicates an expected call of GetVolumeTypeByType
 func (mr *MockVolumeTypeDaoMockRecorder) GetVolumeTypeByType(vt interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVolumeTypeByType", reflect.TypeOf((*MockVolumeTypeDao)(nil).GetVolumeTypeByType), vt)
+}
+
+// FindOrCreate mocks base method
+func (m *MockVolumeTypeDao) FindOrCreate(vt *model.TenantServiceVolumeType) (*model.TenantServiceVolumeType, error) {
+	ret := m.ctrl.Call(m, "FindOrCreate", vt)
+	ret0, _ := ret[0].(*model.TenantServiceVolumeType)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindOrCreate indicates an expected call of FindOrCreate
+func (mr *MockVolumeTypeDaoMockRecorder) FindOrCreate(vt interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOrCreate", reflect.TypeOf((*MockVolumeTypeDao)(nil).FindOrCreate), vt)
 }
 
 // MockLicenseDao is a mock of LicenseDao interface

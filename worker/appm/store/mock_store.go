@@ -220,18 +220,6 @@ func (mr *MockStorerMockRecorder) InitOneThirdPartService(service interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InitOneThirdPartService", reflect.TypeOf((*MockStorer)(nil).InitOneThirdPartService), service)
 }
 
-// GetStorageClasses mocks base method
-func (m *MockStorer) GetStorageClasses() []v1.StorageClass {
-	ret := m.ctrl.Call(m, "GetStorageClasses")
-	ret0, _ := ret[0].([]v1.StorageClass)
-	return ret0
-}
-
-// GetStorageClasses indicates an expected call of GetStorageClasses
-func (mr *MockStorerMockRecorder) GetStorageClasses() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStorageClasses", reflect.TypeOf((*MockStorer)(nil).GetStorageClasses))
-}
-
 // GetServiceClaims mocks base method
 func (m *MockStorer) GetServiceClaims(tenantID, serviceID string) []v10.PersistentVolumeClaim {
 	ret := m.ctrl.Call(m, "GetServiceClaims", tenantID, serviceID)

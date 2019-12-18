@@ -737,16 +737,3 @@ func GetProbeMeshImageName() string {
 	}
 	return builder.REGISTRYDOMAIN + "/rbd-init-probe"
 }
-
-// StorageClass storage class
-type StorageClass struct {
-	Name                 string
-	Parameters           map[string]string
-	Provisioner          string
-	ReclaimPolicy        string
-	VolumeBindingMode    string
-	AllowVolumeExpansion *bool
-	AllowedTopologies    []corev1.TopologySelectorTerm
-	Claims               []*corev1.PersistentVolumeClaim
-	PervistentVolume     []*corev1.PersistentVolume
-}

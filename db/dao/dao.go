@@ -68,6 +68,7 @@ type VolumeTypeDao interface {
 	DeleteModelByVolumeTypes(volumeType string) error
 	GetAllVolumeTypes() ([]*model.TenantServiceVolumeType, error)
 	GetVolumeTypeByType(vt string) (*model.TenantServiceVolumeType, error)
+	FindOrCreate(vt *model.TenantServiceVolumeType) (*model.TenantServiceVolumeType, error)
 }
 
 //LicenseDao LicenseDao

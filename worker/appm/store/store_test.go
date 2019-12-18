@@ -19,7 +19,6 @@
 package store
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -78,21 +77,8 @@ func TestAppRuntimeStore_GetTenantResource(t *testing.T) {
 }
 
 func TestGetStorageClass(t *testing.T) {
-	c, err := clientcmd.BuildConfigFromFlags("", "/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig")
-	if err != nil {
-		t.Fatalf("read kube config file error: %v", err)
-	}
-	clientset, err := kubernetes.NewForConfig(c)
-	if err != nil {
-		t.Fatalf("create kube api client error: %v", err)
-	}
-	s := NewStore(clientset, nil, option.Config{}, nil, nil)
-	sces := s.GetStorageClasses()
-	t.Logf("len = %d", len(sces))
-	for _, sc := range sces {
-		fmt.Println("-------------")
-		t.Logf("%+v", sc.Parameters)
-	}
+	getStoreForTest(t)
+
 }
 
 func TestGetAppVolumeStatus(t *testing.T) {
@@ -170,7 +156,7 @@ func TestListHPAEvents(t *testing.T) {
 	}
 }
 
-func TestInitVolumeTypes(t *testing.T) {
+func getStoreForTest(t *testing.T) Storer {
 	ocfg := option.Config{
 		DBType:                  "mysql",
 		MysqlConnectionInfo:     "ieZoo9:Maigoed0@tcp(192.168.2.108:3306)/region",
@@ -206,5 +192,5 @@ func TestInitVolumeTypes(t *testing.T) {
 	if err := storer.Start(); err != nil {
 		t.Fatalf("error starting store: %v", err)
 	}
-	time.Sleep(10 * time.Second)
+	return storer
 }

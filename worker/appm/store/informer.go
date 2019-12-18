@@ -60,7 +60,8 @@ func (i *Informer) Start(stop chan struct{}) {
 func (i *Informer) Ready() bool {
 	if i.Ingress.HasSynced() && i.Service.HasSynced() && i.Secret.HasSynced() &&
 		i.StatefulSet.HasSynced() && i.Deployment.HasSynced() && i.Pod.HasSynced() &&
-		i.ConfigMap.HasSynced() && i.Nodes.HasSynced() && i.Events.HasSynced() && i.HorizontalPodAutoscaler.HasSynced() {
+		i.ConfigMap.HasSynced() && i.Nodes.HasSynced() && i.Events.HasSynced() &&
+		i.HorizontalPodAutoscaler.HasSynced() && i.StorageClass.HasSynced() {
 		return true
 	}
 	return false
