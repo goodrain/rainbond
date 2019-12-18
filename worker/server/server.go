@@ -150,16 +150,17 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 	var oldpods, newpods []*pb.ServiceAppPod
 	for _, pod := range pods {
 		var containers = make(map[string]*pb.Container, len(pod.Spec.Containers))
+		volumes := make([]string, 0)
 		for _, container := range pod.Spec.Containers {
 			containers[container.Name] = &pb.Container{
 				ContainerName: container.Name,
 				MemoryLimit:   container.Resources.Limits.Memory().Value(),
 			}
+			for _, vm := range container.VolumeMounts {
+				volumes = append(volumes, vm.Name)
+			}
 		}
-		volumes := make([]string, 0)
-		for _, vo := range pod.Spec.Volumes {
-			volumes = append(volumes, vo.Name)
-		}
+
 		sapod := &pb.ServiceAppPod{
 			PodIp:      pod.Status.PodIP,
 			PodName:    pod.Name,
@@ -481,16 +482,34 @@ func (r *RuntimeServer) GetAppVolumeStatus(ctx context.Context, re *pb.ServiceRe
 		logrus.Warnf("get volume status error : %s", err.Error())
 		return ret, nil
 	}
-	// TODO 多个pod，正在更新中的pod
-	// TODO 不严谨，不应该单纯的使用volume确定挂载状态
 	for _, pod := range appPodList.GetNewPods() {
 		for _, volumeName := range pod.PodVolumes {
 			prefix := "manual"
 			if strings.HasPrefix(volumeName, prefix) {
 				volumeName = strings.TrimPrefix(volumeName, prefix)
-				ret.Status[volumeName] = pb.ServiceVolumeStatus_READY // volumeName tranfer to serviceVolume's id in db
+				if pod.GetPodStatus() != pb.PodStatus_RUNNING.String() {
+					ret.Status[volumeName] = pb.ServiceVolumeStatus_NOT_READY // volumeName tranfer to serviceVolume's id in db
+				} else {
+					ret.Status[volumeName] = pb.ServiceVolumeStatus_READY // volumeName tranfer to serviceVolume's id in db
+				}
+
 			}
 		}
 	}
+
+	for _, pod := range appPodList.GetOldPods() {
+		for _, volumeName := range pod.PodVolumes {
+			prefix := "manual"
+			if strings.HasPrefix(volumeName, prefix) {
+				volumeName = strings.TrimPrefix(volumeName, prefix)
+				if pod.GetPodStatus() != pb.PodStatus_RUNNING.String() {
+					ret.Status[volumeName] = pb.ServiceVolumeStatus_NOT_READY // volumeName tranfer to serviceVolume's id in db
+				} else {
+					ret.Status[volumeName] = pb.ServiceVolumeStatus_READY // volumeName tranfer to serviceVolume's id in db
+				}
+			}
+		}
+	}
+
 	return ret, nil
 }

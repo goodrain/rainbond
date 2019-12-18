@@ -1484,32 +1484,34 @@ func (s *ServiceAction) GetVolumes(serviceID string) ([]*api_model.VolumeWithSta
 	if err != nil {
 		logrus.Warnf("get volume status error: %s", err.Error())
 	}
-
+	volumeStatus := make(map[string]pb.ServiceVolumeStatus)
 	if volumeStatusList != nil && volumeStatusList.GetStatus() != nil {
-		volumeStatus := volumeStatusList.GetStatus()
-		for _, volume := range vs {
-			vws := &api_model.VolumeWithStatusStruct{
-				ServiceID:          volume.ServiceID,
-				Category:           volume.Category,
-				VolumeType:         volume.VolumeType,
-				VolumeName:         volume.VolumeName,
-				HostPath:           volume.HostPath,
-				VolumePath:         volume.VolumePath,
-				IsReadOnly:         volume.IsReadOnly,
-				VolumeCapacity:     volume.VolumeCapacity,
-				AccessMode:         volume.AccessMode,
-				SharePolicy:        volume.SharePolicy,
-				BackupPolicy:       volume.BackupPolicy,
-				ReclaimPolicy:      volume.ReclaimPolicy,
-				AllowExpansion:     volume.AllowExpansion,
-				VolumeProviderName: volume.VolumeProviderName,
-			}
-			volumeID := strconv.FormatInt(int64(volume.ID), 10)
-			if phrase, ok := volumeStatus[volumeID]; ok {
-				vws.Status = phrase.String()
-			}
-			volumeWithStatusList = append(volumeWithStatusList, vws)
+		volumeStatus = volumeStatusList.GetStatus()
+	}
+	for _, volume := range vs {
+		vws := &api_model.VolumeWithStatusStruct{
+			ServiceID:          volume.ServiceID,
+			Category:           volume.Category,
+			VolumeType:         volume.VolumeType,
+			VolumeName:         volume.VolumeName,
+			HostPath:           volume.HostPath,
+			VolumePath:         volume.VolumePath,
+			IsReadOnly:         volume.IsReadOnly,
+			VolumeCapacity:     volume.VolumeCapacity,
+			AccessMode:         volume.AccessMode,
+			SharePolicy:        volume.SharePolicy,
+			BackupPolicy:       volume.BackupPolicy,
+			ReclaimPolicy:      volume.ReclaimPolicy,
+			AllowExpansion:     volume.AllowExpansion,
+			VolumeProviderName: volume.VolumeProviderName,
 		}
+		volumeID := strconv.FormatInt(int64(volume.ID), 10)
+		if phrase, ok := volumeStatus[volumeID]; ok {
+			vws.Status = phrase.String()
+		} else {
+			vws.Status = pb.ServiceVolumeStatus_NOT_READY.String()
+		}
+		volumeWithStatusList = append(volumeWithStatusList, vws)
 	}
 
 	return volumeWithStatusList, nil

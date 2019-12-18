@@ -169,3 +169,42 @@ func TestListHPAEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestInitVolumeTypes(t *testing.T) {
+	ocfg := option.Config{
+		DBType:                  "mysql",
+		MysqlConnectionInfo:     "ieZoo9:Maigoed0@tcp(192.168.2.108:3306)/region",
+		EtcdEndPoints:           []string{"http://192.168.2.108:2379"},
+		EtcdTimeout:             5,
+		KubeConfig:              "/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig",
+		LeaderElectionNamespace: "rainbond",
+	}
+
+	dbconfig := config.Config{
+		DBType:              ocfg.DBType,
+		MysqlConnectionInfo: ocfg.MysqlConnectionInfo,
+		EtcdEndPoints:       ocfg.EtcdEndPoints,
+		EtcdTimeout:         ocfg.EtcdTimeout,
+	}
+	//step 1:db manager init ,event log client init
+	if err := db.CreateManager(dbconfig); err != nil {
+		t.Fatalf("error creating db manager: %v", err)
+	}
+	defer db.CloseManager()
+
+	c, err := clientcmd.BuildConfigFromFlags("", ocfg.KubeConfig)
+	if err != nil {
+		t.Fatalf("read kube config file error: %v", err)
+	}
+	clientset, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		t.Fatalf("create kube api client error: %v", err)
+	}
+	startCh := channels.NewRingChannel(1024)
+	probeCh := channels.NewRingChannel(1024)
+	storer := NewStore(clientset, db.GetManager(), option.Config{LeaderElectionNamespace: ocfg.LeaderElectionNamespace, KubeClient: clientset}, startCh, probeCh)
+	if err := storer.Start(); err != nil {
+		t.Fatalf("error starting store: %v", err)
+	}
+	time.Sleep(10 * time.Second)
+}

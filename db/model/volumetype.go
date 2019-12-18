@@ -44,7 +44,8 @@ type TenantServiceVolumeType struct {
 	// 分享策略
 	SharePolicy string `gorm:"share_policy; size:128" json:"share_policy"`
 	// 排序
-	Sort int `gorm:"sort; default:9999" json:"sort"`
+	Sort   int  `gorm:"sort; default:9999" json:"sort"`
+	Enable bool `gorm:"enable; default: false" json:"enable"`
 }
 
 // TableName 表名

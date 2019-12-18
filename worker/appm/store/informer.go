@@ -35,7 +35,6 @@ type Informer struct {
 	Endpoints               cache.SharedIndexInformer
 	Nodes                   cache.SharedIndexInformer
 	StorageClass            cache.SharedIndexInformer
-	Claim                   cache.SharedIndexInformer
 	Events                  cache.SharedIndexInformer
 	HorizontalPodAutoscaler cache.SharedIndexInformer
 }
@@ -53,7 +52,6 @@ func (i *Informer) Start(stop chan struct{}) {
 	go i.Endpoints.Run(stop)
 	go i.Nodes.Run(stop)
 	go i.StorageClass.Run(stop)
-	go i.Claim.Run(stop)
 	go i.Events.Run(stop)
 	go i.HorizontalPodAutoscaler.Run(stop)
 }

@@ -29,7 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 // ApplyOne applies one rule.
@@ -290,6 +290,52 @@ func UpgradeSecrets(clientset *kubernetes.Clientset,
 				continue
 			}
 			logrus.Debugf("ServiceID: %s; successfully delete secret: %s", as.ServiceID, sec.Name)
+		}
+	}
+	return nil
+}
+
+// UpgradeClaims is used to update *corev1.PVC.
+func UpgradeClaims(clientset *kubernetes.Clientset, as *v1.AppService, old, new []*corev1.PersistentVolumeClaim, handleErr func(msg string, err error) error) error {
+	var oldMap = make(map[string]*corev1.PersistentVolumeClaim, len(old))
+	for i, item := range old {
+		oldMap[item.Name] = old[i]
+	}
+	for _, n := range new {
+		if o, ok := oldMap[n.Name]; ok {
+			n.UID = o.UID
+			n.ResourceVersion = o.ResourceVersion
+			claim, err := clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Update(n)
+			if err != nil {
+				if err := handleErr(fmt.Sprintf("error updating claim: %+v: err: %v", claim, err), err); err != nil {
+					return err
+				}
+				continue
+			}
+			as.SetClaim(claim)
+			delete(oldMap, o.Name)
+			logrus.Debugf("ServiceID: %s; successfully update claim: %s", as.ServiceID, claim.Name)
+		} else {
+			claim, err := clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Create(n)
+			if err != nil {
+				if err := handleErr(fmt.Sprintf("error creating claim: %+v: err: %v", claim, err), err); err != nil {
+					return err
+				}
+				continue
+			}
+			as.SetClaim(claim)
+			logrus.Debugf("ServiceID: %s; successfully create claim: %s", as.ServiceID, claim.Name)
+		}
+	}
+	for _, claim := range oldMap {
+		if claim != nil {
+			if err := clientset.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(claim.Name, &metav1.DeleteOptions{}); err != nil {
+				if err := handleErr(fmt.Sprintf("error deleting claim: %+v: err: %v", claim, err), err); err != nil {
+					return err
+				}
+				continue
+			}
+			logrus.Debugf("ServiceID: %s; successfully delete claim: %s", as.ServiceID, claim.Name)
 		}
 	}
 	return nil

@@ -39,6 +39,7 @@ import (
 	"k8s.io/api/autoscaling/v2beta1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -175,8 +176,6 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.StorageClass = infFactory.Storage().V1().StorageClasses().Informer()
 	store.listers.StorageClass = infFactory.Storage().V1().StorageClasses().Lister()
 
-	store.informers.Claim = infFactory.Core().V1().PersistentVolumeClaims().Informer()
-	store.listers.Claim = infFactory.Core().V1().PersistentVolumeClaims().Lister()
 	store.informers.Events = infFactory.Core().V1().Events().Informer()
 
 	store.informers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2beta1().HorizontalPodAutoscalers().Informer()
@@ -274,7 +273,6 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.Endpoints.AddEventHandlerWithResyncPeriod(epEventHandler, time.Second*10)
 	store.informers.Nodes.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.StorageClass.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.Claim.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 
 	store.informers.Events.AddEventHandlerWithResyncPeriod(store.evtEventHandler(), time.Second*10)
 	store.informers.HorizontalPodAutoscaler.AddEventHandlerWithResyncPeriod(store, time.Second*10)
@@ -561,21 +559,6 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 		}
 	}
-	if claim, ok := obj.(*corev1.PersistentVolumeClaim); ok {
-		serviceID := claim.Labels["service_id"]
-		version := claim.Labels["version"]
-		createrID := claim.Labels["creater_id"]
-		if serviceID != "" && createrID != "" {
-			appservice, err := a.getAppService(serviceID, version, createrID, true)
-			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(claim.Name, &metav1.DeleteOptions{})
-			}
-			if appservice != nil {
-				appservice.SetClaim(claim)
-				return
-			}
-		}
-	}
 	if hpa, ok := obj.(*v2beta1.HorizontalPodAutoscaler); ok {
 		serviceID := hpa.Labels["service_id"]
 		version := hpa.Labels["version"]
@@ -590,6 +573,12 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 
 			return
+		}
+	}
+	if sc, ok := obj.(*storagev1.StorageClass); ok {
+		apps := a.GetAllAppServices()
+		for i := range apps {
+			apps[i].SetStorageClass(sc)
 		}
 	}
 }
@@ -733,18 +722,6 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 			}
 		}
 	}
-
-	if claim, ok := obj.(*corev1.PersistentVolumeClaim); ok {
-		serviceID := claim.Labels["service_id"]
-		version := claim.Labels["version"]
-		createrID := claim.Labels["creater_id"]
-		if serviceID != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteClaim(claim)
-			}
-		}
-	}
 	if hpa, ok := obj.(*v2beta1.HorizontalPodAutoscaler); ok {
 		serviceID := hpa.Labels["service_id"]
 		version := hpa.Labels["version"]
@@ -757,6 +734,14 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 					a.DeleteAppService(appservice)
 				}
 				return
+			}
+		}
+	}
+
+	if sc, ok := obj.(*storagev1.StorageClass); ok {
+		for _, appservice := range a.GetAllAppServices() {
+			if appservice != nil {
+				appservice.DeleteStorageClass(sc)
 			}
 		}
 	}
@@ -1264,7 +1249,7 @@ func (a *appRuntimeStore) UnRegistPodUpdateListener(name string) {
 
 func (a *appRuntimeStore) GetStorageClasses() []v1.StorageClass {
 	storageClassList, err := a.clientset.StorageV1().StorageClasses().List(metav1.ListOptions{})
-	if err != nil { // TODO 使用 store获取
+	if err != nil { // TODO fanyangyang 20191218 使用 store获取
 		return make([]v1.StorageClass, 0)
 	}
 	var sclist []v1.StorageClass
@@ -1283,7 +1268,7 @@ func (a *appRuntimeStore) GetStorageClasses() []v1.StorageClass {
 }
 
 func (a *appRuntimeStore) GetServiceClaims(tenantID, serviceID string) []corev1.PersistentVolumeClaim {
-	// claims := as.GetClaims()// TODO 临时使用client直接获取PVC，后续换成store中获取
+	// claims := as.GetClaims()// TODO fanyangyang 20191218 临时使用client直接获取PVC，后续换成store中获取
 	claimList, err := a.clientset.CoreV1().PersistentVolumeClaims(tenantID).List(metav1.ListOptions{LabelSelector: fmt.Sprintf("service_id=%s", serviceID)})
 	if err != nil {
 		logrus.Errorf("get claims error: %s", err.Error())

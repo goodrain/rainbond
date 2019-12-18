@@ -179,6 +179,7 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	}
 	_ = f.UpgradeSecrets(s.manager.client, &app, oldApp.GetSecrets(), app.GetSecrets(), handleErr)
 	_ = f.UpgradeIngress(s.manager.client, &app, oldApp.GetIngress(), app.GetIngress(), handleErr)
+	_ = f.UpgradeClaims(s.manager.client, &app, oldApp.GetClaims(), app.GetClaims(), handleErr)
 
 	return s.WaitingReady(app)
 }

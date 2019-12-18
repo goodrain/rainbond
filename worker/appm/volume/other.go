@@ -33,19 +33,16 @@ type OtherVolume struct {
 
 // CreateVolume ceph rbd volume create volume
 func (v *OtherVolume) CreateVolume(define *Define) error {
-	if v.svm.VolumeCapacity <= 0 { // TODO 文件类型 是否可以为不限制大小
+	if v.svm.VolumeCapacity <= 0 { // TODO fanyangyang 文件系统是否支持0
 		return fmt.Errorf("volume capcacity is %d, must be greater than zero", v.svm.VolumeCapacity)
 	}
-	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID) // TODO 名字是否会重复
+	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
 	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := v.svm.IsReadOnly
 	labels := v.as.GetCommonLabels(map[string]string{"volume_name": v.svm.VolumeName, "version": v.as.DeployVersion, "reclaim_policy": v.svm.ReclaimPolicy})
 	annotations := map[string]string{"volume_name": v.svm.VolumeName}
-	// annotations["reclaim_policy"] = v.svm.ReclaimPolicy
-	// annotations["volume_path"] = volumeMountPath
 	claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v.svm.VolumeType, v.svm.VolumeCapacity, labels, annotations)
 	logrus.Debugf("storage class is : %s, claim value is : %s", v.svm.VolumeType, claim.GetName())
-	v.as.SetClaim(claim) // store claim to appService
 	claim.Annotations = map[string]string{
 		client.LabelOS: func() string {
 			if v.as.IsWindowsService {
@@ -58,6 +55,7 @@ func (v *OtherVolume) CreateVolume(define *Define) error {
 	if statefulset != nil {
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
 	} else {
+		v.as.SetClaim(claim) // store claim to appService
 		vo := corev1.Volume{Name: volumeMountName}
 		vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
 		define.volumes = append(define.volumes, vo)

@@ -139,22 +139,6 @@ func (s *stopController) stopOne(app v1.AppService) error {
 			}
 		}
 	}
-	if claims := app.GetClaims(); claims != nil {
-		for _, claim := range claims {
-			if claim != nil && claim.GetName() != "" {
-				// reclaim_policy can be delete, recyle, retain
-				if claim.Labels != nil && claim.Labels["reclaim_policy"] == "Delete" {
-					err := s.manager.client.CoreV1().PersistentVolumeClaims(app.TenantID).Delete(claim.GetName(), &metav1.DeleteOptions{
-						GracePeriodSeconds: &gracePeriodSeconds,
-					})
-					if err != nil && !errors.IsNotFound(err) {
-						return fmt.Errorf("delete claim failure: %s", err.Error())
-					}
-					s.manager.store.OnDelete(claim)
-				}
-			}
-		}
-	}
 
 	if hpas := app.GetHPAs(); len(hpas) != 0 {
 		for _, hpa := range hpas {

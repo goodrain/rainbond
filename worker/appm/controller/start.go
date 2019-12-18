@@ -101,10 +101,11 @@ func (s *startController) startOne(app v1.AppService) error {
 	// step 0: create claim
 	if claims := app.GetClaims(); claims != nil {
 		for _, claim := range claims {
-			logrus.Debugf("volume label is : %+v", claim.Labels)
+			logrus.Debugf("startcontroller create claim : %+v", claim)
 			_, err := s.manager.client.CoreV1().PersistentVolumeClaims(app.TenantID).Create(claim)
 			if err != nil && !errors.IsAlreadyExists(err) {
-				logrus.Debugf("create claim failure: %s, ignore this volume", err.Error())
+				logrus.Debugf("create claim failure: %s", err.Error())
+				return err
 			}
 		}
 	}
