@@ -124,3 +124,43 @@ func DeleteVolumeType(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
+
+// UpdateVolumeType delete volume option
+func UpdateVolumeType(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation POST /v2/volume-options v2 volumeOptions
+	//
+	// 可用更新存储驱动模型
+	//
+	// get volume-options
+	//
+	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//     description: 统一返回格式
+	volumeTypeID := chi.URLParam(r, "volume_type")
+	volumeType := api_model.VolumeTypeStruct{}
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &volumeType, nil); !ok {
+		return
+	}
+	volume, err := handler.GetVolumeTypeHandler().GetVolumeTypeByType(volumeTypeID)
+	if err == nil {
+		if volume == nil {
+			httputil.ReturnError(r, w, 404, "not found")
+			return
+		}
+		if updateErr := handler.GetVolumeTypeHandler().UpdateVolumeType(volume, &volumeType); updateErr != nil{
+			httputil.ReturnError(r, w, 500, err.Error())
+		}
+		httputil.ReturnSuccess(r, w, nil)
+	}
+	httputil.ReturnError(r, w, 500, err.Error())
+}

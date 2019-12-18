@@ -42,6 +42,7 @@ type VolumeTypeHandler interface {
 	VolumeTypeAction(action, volumeTypeID string) error
 	DeleteVolumeType(volumeTypeID string) error
 	SetVolumeType(vtm *api_model.VolumeTypeStruct) error
+	UpdateVolumeType(dbVolume *dbmodel.TenantServiceVolumeType, vol *api_model.VolumeTypeStruct) error
 }
 
 var defaultVolumeTypeHandler VolumeTypeHandler
@@ -154,7 +155,8 @@ func (vta *VolumeTypeAction) SetVolumeType(vol *api_model.VolumeTypeStruct) erro
 	var accessMode []string
 	var sharePolicy []string
 	var backupPolicy []string
-	jsonStr, _ := json.Marshal(vol.CapacityValidation)
+	jsonCapacityValidationStr, _ := json.Marshal(vol.CapacityValidation)
+	jsonStorageClassDetailStr, _ := json.Marshal(vol.StorageClassDetail)
 	if vol.AccessMode == nil {
 		accessMode[1] = "RWO"
 	} else {
@@ -175,15 +177,56 @@ func (vta *VolumeTypeAction) SetVolumeType(vol *api_model.VolumeTypeStruct) erro
 	dbVolume := dbmodel.TenantServiceVolumeType{}
 	dbVolume.VolumeType = vol.VolumeType
 	dbVolume.NameShow = vol.NameShow
-	dbVolume.CapacityValidation = string(jsonStr)
+	dbVolume.CapacityValidation = string(jsonCapacityValidationStr)
 	dbVolume.Description = vol.Description
 	dbVolume.AccessMode = strings.Join(accessMode, ",")
 	dbVolume.SharePolicy = strings.Join(sharePolicy, ",")
 	dbVolume.BackupPolicy = strings.Join(backupPolicy, ",")
 	dbVolume.ReclaimPolicy = vol.ReclaimPolicy
+	dbVolume.StorageClassDetail = string(jsonStorageClassDetailStr)
 	dbVolume.Sort = vol.Sort
 	dbVolume.Enable = vol.Enable
 
 	err := db.GetManager().VolumeTypeDao().AddModel(&dbVolume)
+	return err
+}
+
+// UpdateVolumeType update volume type
+func (vta *VolumeTypeAction) UpdateVolumeType(dbVolume *dbmodel.TenantServiceVolumeType, vol *api_model.VolumeTypeStruct) error {
+	var accessMode []string
+	var sharePolicy []string
+	var backupPolicy []string
+	jsonCapacityValidationStr, _ := json.Marshal(vol.CapacityValidation)
+	jsonStorageClassDetailStr, _ := json.Marshal(vol.StorageClassDetail)
+	if vol.AccessMode == nil {
+		accessMode[1] = "RWO"
+	} else {
+		accessMode = vol.AccessMode
+	}
+	if vol.SharePolicy == nil {
+		sharePolicy[1] = "exclusive"
+	} else {
+		sharePolicy = vol.SharePolicy
+	}
+
+	if vol.BackupPolicy == nil {
+		backupPolicy[1] = "exclusive"
+	} else {
+		backupPolicy = vol.BackupPolicy
+	}
+
+	dbVolume.VolumeType = vol.VolumeType
+	dbVolume.NameShow = vol.NameShow
+	dbVolume.CapacityValidation = string(jsonCapacityValidationStr)
+	dbVolume.Description = vol.Description
+	dbVolume.AccessMode = strings.Join(accessMode, ",")
+	dbVolume.SharePolicy = strings.Join(sharePolicy, ",")
+	dbVolume.BackupPolicy = strings.Join(backupPolicy, ",")
+	dbVolume.ReclaimPolicy = vol.ReclaimPolicy
+	dbVolume.StorageClassDetail = string(jsonStorageClassDetailStr)
+	dbVolume.Sort = vol.Sort
+	dbVolume.Enable = vol.Enable
+
+	err := db.GetManager().VolumeTypeDao().UpdateModel(dbVolume)
 	return err
 }
