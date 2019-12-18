@@ -19,7 +19,10 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
@@ -56,6 +59,55 @@ func VolumeOptions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, volumetypeOptions)
+}
+
+// ListVolumeType list volume type list
+func ListVolumeType(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation POST /v2/volume-options v2 volumeOptions
+	//
+	// 查询可用存储驱动模型列表
+	//
+	// get volume-options
+	//
+	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//     description: 统一返回格式
+	pageStr := strings.TrimSpace(chi.URLParam(r, "page"))
+	pageSizeCul := strings.TrimSpace(chi.URLParam(r, "pageSize"))
+	page, err := strconv.Atoi(pageStr)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
+		return
+	}
+	pageSize, err := strconv.Atoi(pageSizeCul)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("bad request, %v", err))
+		return
+	}
+	volumetypeOptions, er := handler.GetVolumeTypeHandler().GetAllVolumeTypes()
+	volumetypePageOptions, err := handler.GetVolumeTypeHandler().GetAllVolumeTypesByPage(page, pageSize)
+	if err != nil || er != nil {
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+
+	// httputil.ReturnSuccess(r, w, volumetypeOptions)
+	httputil.ReturnSuccess(r, w, map[string]interface{}{
+		"data":      volumetypePageOptions,
+		"page":      page,
+		"page_size": pageSize,
+		"count":     len(volumetypeOptions),
+	})
 }
 
 // VolumeSetVar set volume option
@@ -157,7 +209,7 @@ func UpdateVolumeType(w http.ResponseWriter, r *http.Request) {
 			httputil.ReturnError(r, w, 404, "not found")
 			return
 		}
-		if updateErr := handler.GetVolumeTypeHandler().UpdateVolumeType(volume, &volumeType); updateErr != nil{
+		if updateErr := handler.GetVolumeTypeHandler().UpdateVolumeType(volume, &volumeType); updateErr != nil {
 			httputil.ReturnError(r, w, 500, err.Error())
 		}
 		httputil.ReturnSuccess(r, w, nil)

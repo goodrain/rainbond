@@ -32,3 +32,12 @@ type VolumeTypeStruct struct {
 	Sort               int                    `json:"sort"`   // 排序
 	Enable             bool                   `json:"enable"` // 是否生效
 }
+
+// VolumeTypePageStruct volume option struct with page
+type VolumeTypePageStruct struct {
+	list		*VolumeTypeStruct
+	page  		int
+	pageSize 	int
+	count		int
+
+}
