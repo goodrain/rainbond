@@ -47,6 +47,10 @@ func (vtd *VolumeTypeDaoImpl) AddModel(mo model.Interface) error {
 
 // UpdateModel update model
 func (vtd *VolumeTypeDaoImpl) UpdateModel(mo model.Interface) error {
+	volumeType := mo.(*model.TenantServiceVolumeType)
+	if err := vtd.DB.Save(volumeType).Error; err != nil {
+		return err
+	}
 	return nil
 }
 
