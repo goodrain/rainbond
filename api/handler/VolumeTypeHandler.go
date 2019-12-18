@@ -21,8 +21,7 @@ package handler
 import (
 	"encoding/json"
 	"strings"
-	"fmt"
-
+	
 	"github.com/Sirupsen/logrus"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"

@@ -129,7 +129,7 @@ func DeleteVolumeType(w http.ResponseWriter, r *http.Request) {
 func UpdateVolumeType(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/volume-options v2 volumeOptions
 	//
-	// 删除可用存储驱动模型
+	// 可用更新存储驱动模型
 	//
 	// get volume-options
 	//
@@ -151,10 +151,16 @@ func UpdateVolumeType(w http.ResponseWriter, r *http.Request) {
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &volumeType, nil); !ok {
 		return
 	}
-	volume, _ := handler.GetVolumeTypeHandler().GetVolumeTypeByType(volumeTypeID)
-	if volume != nil {
-		handler.GetVolumeTypeHandler().UpdateVolumeType(volume, &volumeType)
+	volume, err := handler.GetVolumeTypeHandler().GetVolumeTypeByType(volumeTypeID)
+	if err == nil {
+		if volume == nil {
+			httputil.ReturnError(r, w, 404, "not found")
+			return
+		}
+		if updateErr := handler.GetVolumeTypeHandler().UpdateVolumeType(volume, &volumeType); updateErr != nil{
+			httputil.ReturnError(r, w, 500, err.Error())
+		}
+		httputil.ReturnSuccess(r, w, nil)
 	}
-	httputil.ReturnSuccess(r, w, nil)
+	httputil.ReturnError(r, w, 500, err.Error())
 }
-
