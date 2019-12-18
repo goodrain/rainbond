@@ -36,7 +36,7 @@ type TenantServiceVolumeType struct {
 	// 绑定模式
 	VolumeBindingMode string `gorm:"column:volume_binding_mode; size:20" json:"volume_binding_mode"`
 	// 是否可扩容
-	AllowVolumeExpansion bool `gorm:"column:allow_volume_expansion" json:"allow_volume_expansion"`
+	AllowVolumeExpansion bool `gorm:"column:allow_volume_expansion; default 0" json:"allow_volume_expansion"`
 	// 备份策略
 	BackupPolicy string `gorm:"column:backup_policy; size:128" json:"backup_policy"`
 	//读写模式

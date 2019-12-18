@@ -67,3 +67,11 @@ func (vtd *VolumeTypeDaoImpl) GetVolumeTypeByType(vt string) (*model.TenantServi
 	}
 	return volumeType, nil
 }
+
+// DeleteModelByVolumeTypes delete volume by type
+func (vtd *VolumeTypeDaoImpl) DeleteModelByVolumeTypes(volumeType string) error {
+	if err := vtd.DB.Where("volume_type=?", volumeType).Delete(&model.TenantServiceVolumeType{}).Error; err != nil {
+		return err
+	}
+	return nil
+}

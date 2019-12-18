@@ -65,6 +65,7 @@ type AppDao interface {
 // VolumeTypeDao volume type dao
 type VolumeTypeDao interface {
 	Dao
+	DeleteModelByVolumeTypes(volumeType string) error
 	GetAllVolumeTypes() ([]*model.TenantServiceVolumeType, error)
 	GetVolumeTypeByType(vt string) (*model.TenantServiceVolumeType, error)
 }

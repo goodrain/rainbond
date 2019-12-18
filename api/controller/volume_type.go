@@ -21,7 +21,10 @@ package controller
 import (
 	"net/http"
 
+	"github.com/jinzhu/gorm"
+	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
+	api_model "github.com/goodrain/rainbond/api/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -53,4 +56,71 @@ func VolumeOptions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, volumetypeOptions)
+}
+
+// VolumeSetVar set volume option
+func VolumeSetVar(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation POST /v2/volume-options v2 volumeOptions
+	//
+	// 创建可用存储驱动模型列表
+	//
+	// get volume-options
+	//
+	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//     description: 统一返回格式
+	volumeType := api_model.VolumeTypeOptionsStruct{}
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &volumeType, nil); !ok {
+		return
+	}
+	err := handler.GetVolumeTypeHandler().SetVolumeType(&volumeType)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+// DeleteVolumeType delete volume option
+func DeleteVolumeType(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation POST /v2/volume-options v2 volumeOptions
+	//
+	// 删除可用存储驱动模型
+	//
+	// get volume-options
+	//
+	// ---
+	// consumes:
+	// - application/json
+	// - application/x-protobuf
+	//
+	// produces:
+	// - application/json
+	// - application/xml
+	//
+	// responses:
+	//   default:
+	//     schema:
+	//     description: 统一返回格式
+	volumeType := chi.URLParam(r, "volume_type")
+	err := handler.GetVolumeTypeHandler().DeleteVolumeType(volumeType)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			httputil.ReturnError(r, w, 404, "not found")
+			return
+		}
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
 }
