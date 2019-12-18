@@ -47,6 +47,10 @@ func (vtd *VolumeTypeDaoImpl) AddModel(mo model.Interface) error {
 
 // UpdateModel update model
 func (vtd *VolumeTypeDaoImpl) UpdateModel(mo model.Interface) error {
+	volumeType := mo.(*model.TenantServiceVolumeType)
+	if err := vtd.DB.Save(volumeType).Error; err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -64,6 +68,9 @@ func (vtd *VolumeTypeDaoImpl) GetVolumeTypeByType(vt string) (*model.TenantServi
 	var volumeTypes []*model.TenantServiceVolumeType
 	if err := vtd.DB.Where("volume_type=?", vt).Find(&volumeTypes).Error; err != nil {
 		return nil, err
+	}
+	if len(volumeTypes) == 0{
+		return nil, nil
 	}
 	return volumeTypes[0], nil
 }
