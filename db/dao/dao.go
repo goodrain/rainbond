@@ -67,6 +67,7 @@ type VolumeTypeDao interface {
 	Dao
 	DeleteModelByVolumeTypes(volumeType string) error
 	GetAllVolumeTypes() ([]*model.TenantServiceVolumeType, error)
+	GetAllVolumeTypesByPage(page int, pageSize int) ([]*model.TenantServiceVolumeType, error)
 	GetVolumeTypeByType(vt string) (*model.TenantServiceVolumeType, error)
 	FindOrCreate(vt *model.TenantServiceVolumeType) (*model.TenantServiceVolumeType, error)
 }
