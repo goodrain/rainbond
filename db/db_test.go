@@ -304,13 +304,10 @@ var shareFileVolumeType = &model.TenantServiceVolumeType{
 	NameShow:    "共享存储（文件）",
 	Description: "分布式文件存储，可租户内共享挂载，适用于所有类型应用",
 	// CapacityValidation:   string(bs),
-	ReclaimPolicy:        "Retain",
-	VolumeProviderName:   "rainbondsssc",
-	VolumeBindingMode:    "Immediate",
-	AllowVolumeExpansion: false,
-	BackupPolicy:         "exclusive",
-	SharePolicy:          "exclusive",
-	AccessMode:           "RWO,ROX,RWX",
+	ReclaimPolicy: "Retain",
+	BackupPolicy:  "exclusive",
+	SharePolicy:   "exclusive",
+	AccessMode:    "RWO,ROX,RWX",
 }
 
 var localVolumeType = &model.TenantServiceVolumeType{
@@ -318,13 +315,10 @@ var localVolumeType = &model.TenantServiceVolumeType{
 	NameShow:    "本地存储",
 	Description: "本地存储设备，适用于有状态数据库服务",
 	// CapacityValidation:   string(bs),
-	ReclaimPolicy:        "Retain",
-	VolumeProviderName:   "rainbondslsc",
-	VolumeBindingMode:    "Immediate",
-	AllowVolumeExpansion: false,
-	BackupPolicy:         "exclusive",
-	SharePolicy:          "exclusive",
-	AccessMode:           "RWO,ROX,RWX",
+	ReclaimPolicy: "Retain",
+	BackupPolicy:  "exclusive",
+	SharePolicy:   "exclusive",
+	AccessMode:    "RWO,ROX,RWX",
 }
 
 var memoryFSVolumeType = &model.TenantServiceVolumeType{
@@ -332,13 +326,10 @@ var memoryFSVolumeType = &model.TenantServiceVolumeType{
 	NameShow:    "内存文件存储",
 	Description: "基于内存的存储设备，容量由内存量限制。应用重启数据即丢失，适用于高速暂存数据",
 	// CapacityValidation:   string(bs),
-	ReclaimPolicy:        "Retain",
-	VolumeProviderName:   "rainbondslsc",
-	VolumeBindingMode:    "Immediate",
-	AllowVolumeExpansion: false,
-	BackupPolicy:         "exclusive",
-	SharePolicy:          "exclusive",
-	AccessMode:           "RWO,ROX,RWX",
+	ReclaimPolicy: "Retain",
+	BackupPolicy:  "exclusive",
+	SharePolicy:   "exclusive",
+	AccessMode:    "RWO,ROX,RWX",
 }
 
 var alicloudDiskAvailableVolumeType = &model.TenantServiceVolumeType{
@@ -346,14 +337,11 @@ var alicloudDiskAvailableVolumeType = &model.TenantServiceVolumeType{
 	NameShow:    "阿里云盘（智能选择）",
 	Description: "阿里云智能选择云盘。会通过高效云盘、SSD、基础云盘的顺序依次尝试创建当前阿里云区域支持的云盘类型",
 	// CapacityValidation:   string(bs),
-	ReclaimPolicy:        "Delete",
-	VolumeProviderName:   "alicloud-disk-available",
-	VolumeBindingMode:    "Immediate",
-	AllowVolumeExpansion: false,
-	BackupPolicy:         "exclusive",
-	SharePolicy:          "exclusive",
-	AccessMode:           "RWO",
-	Sort:                 10,
+	ReclaimPolicy: "Delete",
+	BackupPolicy:  "exclusive",
+	SharePolicy:   "exclusive",
+	AccessMode:    "RWO",
+	Sort:          10,
 }
 
 var alicloudDiskcommonVolumeType = &model.TenantServiceVolumeType{
@@ -361,42 +349,33 @@ var alicloudDiskcommonVolumeType = &model.TenantServiceVolumeType{
 	NameShow:    "阿里云盘（基础）",
 	Description: "阿里云普通基础云盘。最小限额5G",
 	// CapacityValidation:   string(bs),
-	ReclaimPolicy:        "Delete",
-	VolumeProviderName:   "alicloud-disk-common",
-	VolumeBindingMode:    "Immediate",
-	AllowVolumeExpansion: false,
-	BackupPolicy:         "exclusive",
-	SharePolicy:          "exclusive",
-	AccessMode:           "RWO",
-	Sort:                 13,
+	ReclaimPolicy: "Delete",
+	BackupPolicy:  "exclusive",
+	SharePolicy:   "exclusive",
+	AccessMode:    "RWO",
+	Sort:          13,
 }
 var alicloudDiskEfficiencyVolumeType = &model.TenantServiceVolumeType{
 	VolumeType:  "alicloud-disk-efficiency",
 	NameShow:    "阿里云盘（高效）",
 	Description: "阿里云高效云盘。最小限额20G",
 	// CapacityValidation:   string(bs),
-	ReclaimPolicy:        "Delete",
-	VolumeProviderName:   "alicloud-disk-efficiency",
-	VolumeBindingMode:    "Immediate",
-	AllowVolumeExpansion: false,
-	BackupPolicy:         "exclusive",
-	SharePolicy:          "exclusive",
-	AccessMode:           "RWO",
-	Sort:                 11,
+	ReclaimPolicy: "Delete",
+	BackupPolicy:  "exclusive",
+	SharePolicy:   "exclusive",
+	AccessMode:    "RWO",
+	Sort:          11,
 }
 var alicloudDiskeSSDVolumeType = &model.TenantServiceVolumeType{
 	VolumeType:  "alicloud-disk-ssd",
 	NameShow:    "阿里云盘（SSD）",
 	Description: "阿里云SSD类型云盘。最小限额20G",
 	// CapacityValidation:   string(bs),
-	ReclaimPolicy:        "Delete",
-	VolumeProviderName:   "alicloud-disk-ssd",
-	VolumeBindingMode:    "Immediate",
-	AllowVolumeExpansion: false,
-	BackupPolicy:         "exclusive",
-	SharePolicy:          "exclusive",
-	AccessMode:           "RWO",
-	Sort:                 12,
+	ReclaimPolicy: "Delete",
+	BackupPolicy:  "exclusive",
+	SharePolicy:   "exclusive",
+	AccessMode:    "RWO",
+	Sort:          12,
 }
 
 func TestVolumeType(t *testing.T) {
@@ -412,7 +391,7 @@ func TestVolumeType(t *testing.T) {
 	memoryFSVolumeType.CapacityValidation = string(bs)
 	alicloudDiskeSSDVolumeType.CapacityValidation = string(bs)
 	if err := CreateManager(dbconfig.Config{
-		MysqlConnectionInfo: "oc6Poh:noot6Mea@tcp(192.168.2.203:3306)/region",
+		MysqlConnectionInfo: "ieZoo9:Maigoed0@tcp(192.168.2.108:3306)/region",
 		DBType:              "mysql",
 	}); err != nil {
 		t.Fatal(err)
@@ -422,4 +401,25 @@ func TestVolumeType(t *testing.T) {
 	} else {
 		t.Log("yes")
 	}
+}
+func TestGetVolumeType(t *testing.T) {
+	if err := CreateManager(dbconfig.Config{
+		MysqlConnectionInfo: "ieZoo9:Maigoed0@tcp(192.168.2.108:3306)/region",
+		DBType:              "mysql",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	vts, err := GetManager().VolumeTypeDao().GetAllVolumeTypes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, vt := range vts {
+		t.Logf("%+v", vt)
+	}
+
+	vt, err := GetManager().VolumeTypeDao().GetVolumeTypeByType("alicloud-disk-common")
+	if err != nil {
+		t.Fatal("get volumeType by type error: ", err.Error())
+	}
+	t.Logf("%+v", vt)
 }

@@ -61,11 +61,11 @@ func (vtd *VolumeTypeDaoImpl) GetAllVolumeTypes() ([]*model.TenantServiceVolumeT
 
 // GetVolumeTypeByType get volume type by type
 func (vtd *VolumeTypeDaoImpl) GetVolumeTypeByType(vt string) (*model.TenantServiceVolumeType, error) {
-	var volumeType *model.TenantServiceVolumeType
-	if err := vtd.DB.Where("volume_type=?", vt).Find(&volumeType).Error; err != nil {
+	var volumeTypes []*model.TenantServiceVolumeType
+	if err := vtd.DB.Where("volume_type=?", vt).Find(&volumeTypes).Error; err != nil {
 		return nil, err
 	}
-	return volumeType, nil
+	return volumeTypes[0], nil
 }
 
 // DeleteModelByVolumeTypes delete volume by type
