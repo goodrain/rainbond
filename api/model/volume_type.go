@@ -34,18 +34,19 @@ type VolumeBestRespStruct struct {
 
 // VolumeTypeOptionsStruct volume option struct
 type VolumeTypeOptionsStruct struct {
-	VolumeType           string                 `json:"volume_type"`
-	NameShow             string                 `json:"name_show"`
-	VolumeProviderName   string                 `json:"volume_provider_name"`
+	VolumeType           string                 `json:"volume_type" validate:"volume_type|required"`
+	NameShow             string                 `json:"name_show" validate:"string,max=64"`
+	VolumeProviderName   string                 `json:"volume_provider_name" validate:"string,max=64"`
 	CapacityValidation   map[string]interface{} `json:"capacity_validation"`
-	Description          string                 `json:"description"`
+	Description          string                 `json:"description" validate:"string,max=1024"`
 	AccessMode           []string               `json:"access_mode"`
 	SharePolicy          []string               `json:"share_policy"`           //共享模式
 	BackupPolicy         []string               `json:"backup_policy"`          // 备份策略
-	ReclaimPolicy        string                 `json:"reclaim_policy"`         // 回收策略,delete, retain, recyle
-	VolumeBindingMode    string                 `json:"volume_binding_mode"`    // 绑定模式,Immediate,WaitForFirstConsumer
+	ReclaimPolicy        string                 `json:"reclaim_policy" validate:"string,max=20"`         // 回收策略,delete, retain, recyle
+	VolumeBindingMode    string                 `json:"volume_binding_mode"  validate:"string,max=20"`    // 绑定模式,Immediate,WaitForFirstConsumer
 	AllowVolumeExpansion *bool                  `json:"allow_volume_expansion"` // 是否支持扩展
 	Sort                 int                    `json:"sort"`                   // 排序
+	Enable               bool                   `json:"enable"`                 // 是否生效
 }
 
 // VolumeProviderDetail volume provider detail

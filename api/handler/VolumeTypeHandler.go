@@ -19,6 +19,9 @@
 package handler
 
 import (
+	"strings"
+	"encoding/json"
+
 	"github.com/Sirupsen/logrus"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
@@ -37,6 +40,7 @@ type VolumeTypeHandler interface {
 	GetAllStorageClasses() ([]*pb.StorageClassDetail, error)
 	VolumeTypeAction(action, volumeTypeID string) error
 	DeleteVolumeType(volumeTypeID string) error
+	SetVolumeType(vtm *api_model.VolumeTypeOptionsStruct) error
 }
 
 var defaultVolumeTypeHandler VolumeTypeHandler
@@ -125,6 +129,49 @@ func (vta *VolumeTypeAction) VolumeTypeAction(action, volumeTypeID string) error
 }
 
 // DeleteVolumeType delte volume type
-func (vta *VolumeTypeAction) DeleteVolumeType(volumeTypeID string) error {
+func (vta *VolumeTypeAction) DeleteVolumeType(volumeType string) error {
+	db.GetManager().VolumeTypeDao().DeleteModelByVolumeTypes(volumeType)
 	return nil
+}
+
+// SetVolumeType set volume type
+func (vta *VolumeTypeAction) SetVolumeType(vol *api_model.VolumeTypeOptionsStruct) error {
+	var accessMode []string
+	var sharePolicy []string
+	var backupPolicy []string
+	jsonStr, _ := json.Marshal(vol.CapacityValidation)
+	if vol.AccessMode == nil{
+		accessMode[1] = "RWO"
+	}else {
+		accessMode = vol.AccessMode
+	}
+	if vol.SharePolicy == nil{
+		sharePolicy[1] = "exclusive"
+	}else {
+		sharePolicy = vol.SharePolicy
+	}
+
+	if vol.BackupPolicy == nil{
+		backupPolicy[1] = "exclusive"
+	}else {
+		backupPolicy = vol.BackupPolicy
+	}
+
+	dbVolume := dbmodel.TenantServiceVolumeType{}
+	dbVolume.VolumeType = vol.VolumeType
+	dbVolume.NameShow = vol.NameShow
+	dbVolume.VolumeProviderName = vol.VolumeProviderName
+	dbVolume.CapacityValidation = string(jsonStr)
+	dbVolume.Description = vol.Description
+	dbVolume.AccessMode = strings.Join(accessMode, ",")
+	dbVolume.SharePolicy = strings.Join(sharePolicy, ",")
+	dbVolume.BackupPolicy = strings.Join(backupPolicy, ",")
+	dbVolume.ReclaimPolicy = vol.ReclaimPolicy
+	dbVolume.VolumeBindingMode = vol.VolumeBindingMode
+	dbVolume.AllowVolumeExpansion = *vol.AllowVolumeExpansion
+	dbVolume.Sort = vol.Sort
+	dbVolume.Enable = vol.Enable
+
+	err := db.GetManager().VolumeTypeDao().AddModel(&dbVolume)
+	return err
 }

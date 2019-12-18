@@ -55,6 +55,8 @@ func (v2 *V2) Routes() chi.Router {
 	r.Get("/gateway/ips", controller.GetGatewayIPs)
 	r.Get("/gateway/ports", controller.GetManager().GetAvailablePort)
 	r.Get("/volume-options", controller.VolumeOptions)
+	r.Post("/volume-options", controller.VolumeSetVar)
+	r.Delete("/volume-options/{volume_type}", controller.DeleteVolumeType)
 	return r
 }
 
