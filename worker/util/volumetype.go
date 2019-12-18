@@ -64,3 +64,25 @@ func TransStorageClass2RBDVolumeType(sc *storagev1.StorageClass) *dbmodel.Tenant
 	}
 	return volumeType
 }
+
+// ValidateVolumeCapacity validate volume capacity
+func ValidateVolumeCapacity(validation string, capacity int64) error {
+	validator := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(validation), &validator); err != nil {
+		return err
+	}
+
+	if min, ok := validator["min"].(int64); ok {
+		if capacity < min {
+			return fmt.Errorf("volume capacity %v less than min value %v", capacity, min)
+		}
+	}
+
+	if max, ok := validator["max"].(int64); ok {
+		if capacity > max {
+			return fmt.Errorf("volume capacity %v more than max value %v", capacity, max)
+		}
+	}
+
+	return nil
+}

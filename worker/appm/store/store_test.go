@@ -159,8 +159,8 @@ func TestListHPAEvents(t *testing.T) {
 func getStoreForTest(t *testing.T) Storer {
 	ocfg := option.Config{
 		DBType:                  "mysql",
-		MysqlConnectionInfo:     "ieZoo9:Maigoed0@tcp(192.168.2.108:3306)/region",
-		EtcdEndPoints:           []string{"http://192.168.2.108:2379"},
+		MysqlConnectionInfo:     "oc6Poh:noot6Mea@tcp(192.168.2.203:3306)/region",
+		EtcdEndPoints:           []string{"http://192.168.2.203:2379"},
 		EtcdTimeout:             5,
 		KubeConfig:              "/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig",
 		LeaderElectionNamespace: "rainbond",

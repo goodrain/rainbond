@@ -140,7 +140,6 @@ func (vta *VolumeTypeAction) GetAllStorageClasses() ([]*pb.StorageClassDetail, e
 
 // VolumeTypeAction open volme type or close it
 func (vta *VolumeTypeAction) VolumeTypeAction(action, volumeTypeID string) error {
-	// TODO 开启驱动或者关闭驱动，关闭之前需要确定该驱动是否可以因为已经绑定了存储而不能直接关闭
 	return nil
 }
 

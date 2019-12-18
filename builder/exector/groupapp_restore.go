@@ -479,24 +479,15 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshot *AppSnapshot) error {
 			case dbmodel.LocalVolumeType.String():
 				a.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, b.TenantID, a.ServiceID, a.VolumePath)
 			}
-			allVolumeTypes, err := db.GetManager().VolumeTypeDao().GetAllVolumeTypes() // TODO fanyangyang 20191218 用一条查询
+			volumeType, err := db.GetManager().VolumeTypeDao().GetVolumeTypeByType(a.VolumeType)
 			if err != nil {
-				logrus.Warnf("get volumeTypes error : %s", err.Error())
-				// TODO fanyangyang 20191218 return
+				logrus.Warnf("get volumeType error : %s", err.Error())
+				return err
 			}
-			if allVolumeTypes != nil {
-				exist := false
-				for _, vt := range allVolumeTypes {
-					if vt.VolumeType == a.VolumeType {
-						exist = true
-						break
-					}
-				}
-				if !exist {
-					logrus.Warnf("service[%s] volumeType[%s] do not exists, use default volumeType[%s]", a.ServiceID, a.VolumeType, dbmodel.ShareFileVolumeType.String())
-					a.VolumeType = dbmodel.ShareFileVolumeType.String()
-					a.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, b.TenantID, a.ServiceID, a.VolumePath)
-				}
+			if volumeType == nil {
+				logrus.Warnf("service[%s] volumeType[%s] do not exists, use default volumeType[%s]", a.ServiceID, a.VolumeType, dbmodel.ShareFileVolumeType.String())
+				a.VolumeType = dbmodel.ShareFileVolumeType.String()
+				a.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, b.TenantID, a.ServiceID, a.VolumePath)
 			}
 			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(a); err != nil {
 				tx.Rollback()

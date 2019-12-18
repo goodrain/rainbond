@@ -22,7 +22,9 @@ import (
 	"fmt"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/node/nodem/client"
+	workerutil "github.com/goodrain/rainbond/worker/util"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -33,8 +35,14 @@ type OtherVolume struct {
 
 // CreateVolume ceph rbd volume create volume
 func (v *OtherVolume) CreateVolume(define *Define) error {
-	if v.svm.VolumeCapacity <= 0 { // TODO fanyangyang 文件系统是否支持0
-		return fmt.Errorf("volume capcacity is %d, must be greater than zero", v.svm.VolumeCapacity)
+	volumeType, err := db.GetManager().VolumeTypeDao().GetVolumeTypeByType(v.svm.VolumeType)
+	if err != nil {
+		logrus.Errorf("get volume type by type error: %s", err.Error())
+		return fmt.Errorf("validate volume capacity error")
+	}
+	if err := workerutil.ValidateVolumeCapacity(volumeType.CapacityValidation, v.svm.VolumeCapacity); err != nil {
+		logrus.Errorf("validate volume capacity[%v] error: %s", v.svm.VolumeCapacity, err.Error())
+		return err
 	}
 	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
 	volumeMountPath := v.svm.VolumePath

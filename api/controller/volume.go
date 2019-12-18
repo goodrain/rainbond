@@ -373,7 +373,7 @@ func AddVolume(w http.ResponseWriter, r *http.Request) {
 		AllowExpansion:     avs.Body.AllowExpansion,
 	}
 
-	// TODO VolumeCapacity  AccessMode SharePolicy BackupPolicy ReclaimPolicy AllowExpansion 参数的校验
+	// TODO fanyangyang validate VolumeCapacity  AccessMode SharePolicy BackupPolicy ReclaimPolicy AllowExpansion
 
 	if !strings.HasPrefix(avs.Body.VolumePath, "/") {
 		httputil.ReturnError(r, w, 400, "volume path is invalid,must begin with /")
