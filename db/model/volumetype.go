@@ -29,20 +29,15 @@ type TenantServiceVolumeType struct {
 	CapacityValidation string `gorm:"column:capacity_validation; size:1024" json:"capacity_validation"`
 	// 描述
 	Description string `gorm:"column:description; size:1024" json:"description"`
-	// 回收策略
-	ReclaimPolicy string `gorm:"column:reclaim_policy; size:20" json:"reclaim_policy"`
-	// 提供者名称
-	VolumeProviderName string `gorm:"column:volume_provider_name; size:64" json:"volume_provider_name"`
-	// 绑定模式
-	VolumeBindingMode string `gorm:"column:volume_binding_mode; size:20" json:"volume_binding_mode"`
-	// 是否可扩容
-	AllowVolumeExpansion bool `gorm:"column:allow_volume_expansion; default 0" json:"allow_volume_expansion"`
-	// 备份策略
-	BackupPolicy string `gorm:"column:backup_policy; size:128" json:"backup_policy"`
 	//读写模式
 	AccessMode string `gorm:"column:access_mode; size:128" json:"access_mode"`
+	// 备份策略
+	BackupPolicy string `gorm:"column:backup_policy; size:128" json:"backup_policy"`
+	// 回收策略
+	ReclaimPolicy string `gorm:"column:reclaim_policy; size:20" json:"reclaim_policy"`
 	// 分享策略
-	SharePolicy string `gorm:"share_policy; size:128" json:"share_policy"`
+	SharePolicy        string `gorm:"share_policy; size:128" json:"share_policy"`
+	StorageClassDetail string `gorm:"storage_class_detail; size=2048" json:"storage_class_detail"`
 	// 排序
 	Sort   int  `gorm:"sort; default:9999" json:"sort"`
 	Enable bool `gorm:"enable; default: false" json:"enable"`

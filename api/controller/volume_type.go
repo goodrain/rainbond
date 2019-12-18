@@ -21,11 +21,11 @@ package controller
 import (
 	"net/http"
 
-	"github.com/jinzhu/gorm"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	api_model "github.com/goodrain/rainbond/api/model"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/jinzhu/gorm"
 )
 
 // VolumeOptions list volume option
@@ -79,7 +79,7 @@ func VolumeSetVar(w http.ResponseWriter, r *http.Request) {
 	//   default:
 	//     schema:
 	//     description: 统一返回格式
-	volumeType := api_model.VolumeTypeOptionsStruct{}
+	volumeType := api_model.VolumeTypeStruct{}
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &volumeType, nil); !ok {
 		return
 	}

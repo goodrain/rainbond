@@ -19,8 +19,8 @@
 package handler
 
 import (
-	"strings"
 	"encoding/json"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -35,12 +35,12 @@ import (
 //VolumeTypeHandler LicenseAction
 type VolumeTypeHandler interface {
 	VolumeTypeVar(action string, vtm *dbmodel.TenantServiceVolumeType) error
-	GetAllVolumeTypes() ([]*api_model.VolumeTypeOptionsStruct, error)
+	GetAllVolumeTypes() ([]*api_model.VolumeTypeStruct, error)
 	GetVolumeTypeByType(volumeType string) (*dbmodel.TenantServiceVolumeType, error)
 	GetAllStorageClasses() ([]*pb.StorageClassDetail, error)
 	VolumeTypeAction(action, volumeTypeID string) error
 	DeleteVolumeType(volumeTypeID string) error
-	SetVolumeType(vtm *api_model.VolumeTypeOptionsStruct) error
+	SetVolumeType(vtm *api_model.VolumeTypeStruct) error
 }
 
 var defaultVolumeTypeHandler VolumeTypeHandler
@@ -72,12 +72,12 @@ func (vta *VolumeTypeAction) VolumeTypeVar(action string, vtm *dbmodel.TenantSer
 }
 
 // GetAllVolumeTypes get all volume types
-func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*api_model.VolumeTypeOptionsStruct, error) {
+func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*api_model.VolumeTypeStruct, error) {
 	storageClasses, err := vta.GetAllStorageClasses()
 	if err != nil {
 		return nil, err
 	}
-	var optionList []*api_model.VolumeTypeOptionsStruct
+	var optionList []*api_model.VolumeTypeStruct
 	volumeTypeMap := make(map[string]*dbmodel.TenantServiceVolumeType)
 	volumeTypes, err := db.GetManager().VolumeTypeDao().GetAllVolumeTypes()
 	if err != nil {
@@ -91,7 +91,7 @@ func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*api_model.VolumeTypeOptions
 
 	for _, sc := range storageClasses {
 		vt := util.ParseVolumeTypeOption(sc)
-		opt := &api_model.VolumeTypeOptionsStruct{}
+		opt := &api_model.VolumeTypeStruct{}
 		opt.VolumeType = vt // volumeType is storageclass's name, but share-file/memoryfs/local
 		if dbvt, ok := volumeTypeMap[opt.VolumeType]; ok {
 			util.HackVolumeOptionDetailFromDB(opt, dbvt)
@@ -102,7 +102,7 @@ func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*api_model.VolumeTypeOptions
 		optionList = append(optionList, opt)
 	}
 	// TODO 管理后台支持自定义StorageClass，则内容与db中的数据进行融合，进行更多的业务逻辑
-	memoryVolumeType := &api_model.VolumeTypeOptionsStruct{VolumeType: dbmodel.MemoryFSVolumeType.String(), NameShow: "内存文件存储"}
+	memoryVolumeType := &api_model.VolumeTypeStruct{VolumeType: dbmodel.MemoryFSVolumeType.String(), NameShow: "内存文件存储"}
 	util.HackVolumeOptionDetailFromDB(memoryVolumeType, volumeTypeMap["memoryfs"])
 	optionList = append(optionList, memoryVolumeType)
 	return optionList, nil
@@ -135,40 +135,37 @@ func (vta *VolumeTypeAction) DeleteVolumeType(volumeType string) error {
 }
 
 // SetVolumeType set volume type
-func (vta *VolumeTypeAction) SetVolumeType(vol *api_model.VolumeTypeOptionsStruct) error {
+func (vta *VolumeTypeAction) SetVolumeType(vol *api_model.VolumeTypeStruct) error {
 	var accessMode []string
 	var sharePolicy []string
 	var backupPolicy []string
 	jsonStr, _ := json.Marshal(vol.CapacityValidation)
-	if vol.AccessMode == nil{
+	if vol.AccessMode == nil {
 		accessMode[1] = "RWO"
-	}else {
+	} else {
 		accessMode = vol.AccessMode
 	}
-	if vol.SharePolicy == nil{
+	if vol.SharePolicy == nil {
 		sharePolicy[1] = "exclusive"
-	}else {
+	} else {
 		sharePolicy = vol.SharePolicy
 	}
 
-	if vol.BackupPolicy == nil{
+	if vol.BackupPolicy == nil {
 		backupPolicy[1] = "exclusive"
-	}else {
+	} else {
 		backupPolicy = vol.BackupPolicy
 	}
 
 	dbVolume := dbmodel.TenantServiceVolumeType{}
 	dbVolume.VolumeType = vol.VolumeType
 	dbVolume.NameShow = vol.NameShow
-	dbVolume.VolumeProviderName = vol.VolumeProviderName
 	dbVolume.CapacityValidation = string(jsonStr)
 	dbVolume.Description = vol.Description
 	dbVolume.AccessMode = strings.Join(accessMode, ",")
 	dbVolume.SharePolicy = strings.Join(sharePolicy, ",")
 	dbVolume.BackupPolicy = strings.Join(backupPolicy, ",")
 	dbVolume.ReclaimPolicy = vol.ReclaimPolicy
-	dbVolume.VolumeBindingMode = vol.VolumeBindingMode
-	dbVolume.AllowVolumeExpansion = *vol.AllowVolumeExpansion
 	dbVolume.Sort = vol.Sort
 	dbVolume.Enable = vol.Enable
 

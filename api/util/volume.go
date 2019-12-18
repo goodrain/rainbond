@@ -79,11 +79,10 @@ func transferCustomVolumeOptionName2Kind(opts ...interface{}) *dbmodel.VolumeTyp
 }
 
 // HackVolumeOptionDetailFromDB hack volumeOptionDetail from db
-func HackVolumeOptionDetailFromDB(detail *api_model.VolumeTypeOptionsStruct, data *dbmodel.TenantServiceVolumeType) {
+func HackVolumeOptionDetailFromDB(detail *api_model.VolumeTypeStruct, data *dbmodel.TenantServiceVolumeType) {
 	if data != nil {
 		detail.Description = data.Description
 		detail.NameShow = data.NameShow
-		detail.VolumeProviderName = data.VolumeProviderName
 		if err := json.Unmarshal([]byte(data.CapacityValidation), &detail.CapacityValidation); err != nil {
 			logrus.Warnf("unmarshal volumetype's capacityValidation error: %s, set capacityValidation to default", err.Error())
 			detail.CapacityValidation = defaultcapacityValidation
@@ -92,8 +91,6 @@ func HackVolumeOptionDetailFromDB(detail *api_model.VolumeTypeOptionsStruct, dat
 		detail.SharePolicy = strings.Split(data.SharePolicy, ",")
 		detail.BackupPolicy = strings.Split(data.BackupPolicy, ",")
 		detail.ReclaimPolicy = data.ReclaimPolicy
-		detail.VolumeBindingMode = data.VolumeBindingMode
-		detail.AllowVolumeExpansion = &data.AllowVolumeExpansion
 		detail.Sort = data.Sort
 	}
 }
@@ -108,7 +105,7 @@ func init() {
 }
 
 // HackVolumeOptionDetail hack volume Option detail, like accessMode, sharePolicy, backupPolicy
-func HackVolumeOptionDetail(volumeType string, detail *api_model.VolumeTypeOptionsStruct, more ...interface{}) {
+func HackVolumeOptionDetail(volumeType string, detail *api_model.VolumeTypeStruct, more ...interface{}) {
 	/*
 		RWO - ReadWriteOnce
 		ROX - ReadOnlyMany
@@ -121,11 +118,7 @@ func HackVolumeOptionDetail(volumeType string, detail *api_model.VolumeTypeOptio
 	detail.Description = hackVolumeOptionDesc(volumeType)
 	detail.NameShow = hackVolumeOptionNameShow(volumeType)
 	if len(more) == 4 {
-		detail.VolumeProviderName = more[0].(string)
 		detail.ReclaimPolicy = more[1].(string)
-		detail.VolumeBindingMode = more[2].(string)
-		AllowVolumeExpansion := more[3].(bool)
-		detail.AllowVolumeExpansion = &AllowVolumeExpansion
 	}
 }
 
