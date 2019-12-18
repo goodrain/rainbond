@@ -75,6 +75,15 @@ func (vtd *VolumeTypeDaoImpl) GetAllVolumeTypes() ([]*model.TenantServiceVolumeT
 	return volumeTypes, nil
 }
 
+// GetAllVolumeTypesByPage get all volumeTypes by page
+func (vtd *VolumeTypeDaoImpl) GetAllVolumeTypesByPage(page int, pageSize int) ([]*model.TenantServiceVolumeType, error) {
+	var volumeTypes []*model.TenantServiceVolumeType
+	if err := vtd.DB.Limit(pageSize).Offset((page-1)*pageSize).Find(&volumeTypes).Error; err != nil {
+		return nil, err
+	}
+	return volumeTypes, nil
+}
+
 // GetVolumeTypeByType get volume type by type
 func (vtd *VolumeTypeDaoImpl) GetVolumeTypeByType(vt string) (*model.TenantServiceVolumeType, error) {
 	var volumeTypes []*model.TenantServiceVolumeType

@@ -37,6 +37,7 @@ import (
 type VolumeTypeHandler interface {
 	VolumeTypeVar(action string, vtm *dbmodel.TenantServiceVolumeType) error
 	GetAllVolumeTypes() ([]*api_model.VolumeTypeStruct, error)
+	GetAllVolumeTypesByPage(page int, pageSize int) ([]*api_model.VolumeTypeStruct, error)
 	GetVolumeTypeByType(volumeType string) (*dbmodel.TenantServiceVolumeType, error)
 	GetAllStorageClasses() ([]*pb.StorageClassDetail, error)
 	VolumeTypeAction(action, volumeTypeID string) error
@@ -79,6 +80,57 @@ func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*api_model.VolumeTypeStruct,
 	var optionList []*api_model.VolumeTypeStruct
 	volumeTypeMap := make(map[string]*dbmodel.TenantServiceVolumeType)
 	volumeTypes, err := db.GetManager().VolumeTypeDao().GetAllVolumeTypes()
+	if err != nil {
+		logrus.Errorf("get all volumeTypes error: %s", err.Error())
+		return nil, err
+	}
+
+	for _, vt := range volumeTypes {
+		volumeTypeMap[vt.VolumeType] = vt
+		capacityValidation := make(map[string]interface{})
+		if vt.CapacityValidation != "" {
+			err := json.Unmarshal([]byte(vt.CapacityValidation), &capacityValidation)
+			if err != nil {
+				logrus.Error(err.Error())
+				return nil, fmt.Errorf("format volume type capacity validation error")
+			}
+		}
+
+		storageClassDetail := make(map[string]interface{})
+		if vt.StorageClassDetail != "" {
+			err := json.Unmarshal([]byte(vt.StorageClassDetail), &storageClassDetail)
+			if err != nil {
+				logrus.Error(err.Error())
+				return nil, fmt.Errorf("format storageclass detail error")
+			}
+		}
+		accessMode := strings.Split(vt.AccessMode, ",")
+		sharePolicy := strings.Split(vt.SharePolicy, ",")
+		backupPolicy := strings.Split(vt.BackupPolicy, ",")
+		optionList = append(optionList, &api_model.VolumeTypeStruct{
+			VolumeType:         vt.VolumeType,
+			NameShow:           vt.NameShow,
+			CapacityValidation: capacityValidation,
+			Description:        vt.Description,
+			AccessMode:         accessMode,
+			SharePolicy:        sharePolicy,
+			BackupPolicy:       backupPolicy,
+			ReclaimPolicy:      vt.ReclaimPolicy,
+			StorageClassDetail: storageClassDetail,
+			Sort:               vt.Sort,
+			Enable:             vt.Enable,
+		})
+	}
+
+	return optionList, nil
+}
+
+// GetAllVolumeTypesByPage get all volume types by page
+func (vta *VolumeTypeAction) GetAllVolumeTypesByPage(page int, pageSize int) ([]*api_model.VolumeTypeStruct, error) {
+
+	var optionList []*api_model.VolumeTypeStruct
+	volumeTypeMap := make(map[string]*dbmodel.TenantServiceVolumeType)
+	volumeTypes, err := db.GetManager().VolumeTypeDao().GetAllVolumeTypesByPage(page, pageSize)
 	if err != nil {
 		logrus.Errorf("get all volumeTypes error: %s", err.Error())
 		return nil, err
