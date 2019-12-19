@@ -59,17 +59,16 @@ func (v *OtherVolume) CreateVolume(define *Define) error {
 			return "linux"
 		}(),
 	}
+	v.as.SetClaim(claim)                 // store claim to appService
 	statefulset := v.as.GetStatefulSet() //有状态组件
+	vo := corev1.Volume{Name: volumeMountName}
 	if statefulset != nil {
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
 	} else {
-		v.as.SetClaim(claim) // store claim to appService
-		vo := corev1.Volume{Name: volumeMountName}
 		vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
-		define.volumes = append(define.volumes, vo)
-
 		logrus.Warnf("service[%s] is not stateful, mount volume by k8s volume.PersistenVolumeClaim[%s]", v.svm.ServiceID, claim.GetName())
 	}
+	define.volumes = append(define.volumes, vo)
 
 	vm := corev1.VolumeMount{
 		Name:      volumeMountName,

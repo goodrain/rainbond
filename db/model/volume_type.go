@@ -21,26 +21,18 @@ package model
 // TenantServiceVolumeType tenant service volume type
 type TenantServiceVolumeType struct {
 	Model
-	// 存储类型
-	VolumeType string `gorm:"column:volume_type; size:64" json:"volume_type"`
-	// 别名
-	NameShow string `gorm:"column:name_show; size:64" json:"name_show"`
-	// 存储大小校验条件
+	VolumeType         string `gorm:"column:volume_type; size:64" json:"volume_type"`
+	NameShow           string `gorm:"column:name_show; size:64" json:"name_show"`
 	CapacityValidation string `gorm:"column:capacity_validation; size:1024" json:"capacity_validation"`
-	// 描述
-	Description string `gorm:"column:description; size:1024" json:"description"`
-	//读写模式
-	AccessMode string `gorm:"column:access_mode; size:128" json:"access_mode"`
-	// 备份策略
-	BackupPolicy string `gorm:"column:backup_policy; size:128" json:"backup_policy"`
-	// 回收策略
-	ReclaimPolicy string `gorm:"column:reclaim_policy; size:20" json:"reclaim_policy"`
-	// 分享策略
+	Description        string `gorm:"column:description; size:1024" json:"description"`
+	AccessMode         string `gorm:"column:access_mode; size:128" json:"access_mode"`
+	BackupPolicy       string `gorm:"column:backup_policy; size:128" json:"backup_policy"`
+	ReclaimPolicy      string `gorm:"column:reclaim_policy; size:20" json:"reclaim_policy"`
 	SharePolicy        string `gorm:"share_policy; size:128" json:"share_policy"`
+	Provisioner        string `gorm:"provisioner; size:128" json:"provisioner"`
 	StorageClassDetail string `gorm:"storage_class_detail; size:2048" json:"storage_class_detail"`
-	// 排序
-	Sort   int  `gorm:"sort; default:9999" json:"sort"`
-	Enable bool `gorm:"enable; default: false" json:"enable"`
+	Sort               int    `gorm:"sort; default:9999" json:"sort"`
+	Enable             bool   `gorm:"enable" json:"enable"`
 }
 
 // TableName 表名

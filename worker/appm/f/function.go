@@ -316,15 +316,36 @@ func UpgradeClaims(clientset *kubernetes.Clientset, as *v1.AppService, old, new 
 			delete(oldMap, o.Name)
 			logrus.Debugf("ServiceID: %s; successfully update claim: %s", as.ServiceID, claim.Name)
 		} else {
-			claim, err := clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Create(n)
+			claim, err := clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Get(n.Name, metav1.GetOptions{})
 			if err != nil {
-				if err := handleErr(fmt.Sprintf("error creating claim: %+v: err: %v", claim, err), err); err != nil {
-					return err
+				if k8sErrors.IsNotFound(err) {
+					_, err := clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Create(n)
+					if err != nil {
+						if err := handleErr(fmt.Sprintf("error creating claim: %+v: err: %v",
+							n, err), err); err != nil {
+							return err
+						}
+						continue
+					}
+				} else {
+					if e := handleErr(fmt.Sprintf("err get claim[%s:%s], err: %+v", n.Namespace, n.Name, err), err); err != nil {
+						return e
+					}
 				}
-				continue
+			}
+			if claim != nil {
+				logrus.Infof("claim is exists, do not create again, and can't update it", claim.Name)
+			} else {
+				claim, err = clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Update(n)
+				if err != nil {
+					if err := handleErr(fmt.Sprintf("error update claim: %+v: err: %v", claim, err), err); err != nil {
+						return err
+					}
+					continue
+				}
+				logrus.Debugf("ServiceID: %s; successfully create claim: %s", as.ServiceID, claim.Name)
 			}
 			as.SetClaim(claim)
-			logrus.Debugf("ServiceID: %s; successfully create claim: %s", as.ServiceID, claim.Name)
 		}
 	}
 	for _, claim := range oldMap {

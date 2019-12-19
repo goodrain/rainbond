@@ -33,26 +33,6 @@ import (
 
 // VolumeOptions list volume option
 func VolumeOptions(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/volume-options v2 volumeOptions
-	//
-	// 查询可用存储驱动模型列表
-	//
-	// get volume-options
-	//
-	// ---
-	// consumes:
-	// - application/json
-	// - application/x-protobuf
-	//
-	// produces:
-	// - application/json
-	// - application/xml
-	//
-	// responses:
-	//   default:
-	//     schema:
-	//     description: 统一返回格式
-
 	volumetypeOptions, err := handler.GetVolumeTypeHandler().GetAllVolumeTypes()
 	if err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
@@ -63,7 +43,7 @@ func VolumeOptions(w http.ResponseWriter, r *http.Request) {
 
 // ListVolumeType list volume type list
 func ListVolumeType(w http.ResponseWriter, r *http.Request) {
-	// swagger:operation POST /v2/volume-options v2 volumeOptions
+	// swagger:operation POST /v2/volume-options v2 volumeOptions TODO fanyangyang delete it
 	//
 	// 查询可用存储驱动模型列表
 	//

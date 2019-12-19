@@ -402,13 +402,17 @@ func TestVolumeType(t *testing.T) {
 		t.Log("yes")
 	}
 }
-func TestGetVolumeType(t *testing.T) {
+
+func initDBManager(t *testing.T) {
 	if err := CreateManager(dbconfig.Config{
 		MysqlConnectionInfo: "ieZoo9:Maigoed0@tcp(192.168.2.108:3306)/region",
 		DBType:              "mysql",
 	}); err != nil {
 		t.Fatal(err)
 	}
+}
+func TestGetVolumeType(t *testing.T) {
+	initDBManager(t)
 	vts, err := GetManager().VolumeTypeDao().GetAllVolumeTypes()
 	if err != nil {
 		t.Fatal(err)
@@ -417,7 +421,10 @@ func TestGetVolumeType(t *testing.T) {
 		t.Logf("%+v", vt)
 	}
 	t.Logf("volume type len is : %v", len(vts))
+}
 
+func TestGetVolumeTypeByType(t *testing.T) {
+	initDBManager(t)
 	vt, err := GetManager().VolumeTypeDao().GetVolumeTypeByType("ceph-rbd")
 	if err != nil {
 		t.Fatal("get volumeType by type error: ", err.Error())

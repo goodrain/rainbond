@@ -28,6 +28,7 @@ type VolumeTypeStruct struct {
 	SharePolicy        []string               `json:"share_policy"`   //共享模式
 	BackupPolicy       []string               `json:"backup_policy"`  // 备份策略
 	ReclaimPolicy      string                 `json:"reclaim_policy"` // 回收策略,delete, retain, recyle
+	Provisioner        string                 `json:"provisioner"`    //存储提供方
 	StorageClassDetail map[string]interface{} `json:"storage_class_detail" validate:"storage_class_detail|required"`
 	Sort               int                    `json:"sort"`   // 排序
 	Enable             bool                   `json:"enable"` // 是否生效
@@ -35,9 +36,8 @@ type VolumeTypeStruct struct {
 
 // VolumeTypePageStruct volume option struct with page
 type VolumeTypePageStruct struct {
-	list		*VolumeTypeStruct
-	page  		int
-	pageSize 	int
-	count		int
-
+	list     *VolumeTypeStruct
+	page     int
+	pageSize int
+	count    int
 }

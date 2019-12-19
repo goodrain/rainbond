@@ -69,7 +69,7 @@ type VolumeTypeDao interface {
 	GetAllVolumeTypes() ([]*model.TenantServiceVolumeType, error)
 	GetAllVolumeTypesByPage(page int, pageSize int) ([]*model.TenantServiceVolumeType, error)
 	GetVolumeTypeByType(vt string) (*model.TenantServiceVolumeType, error)
-	FindOrCreate(vt *model.TenantServiceVolumeType) (*model.TenantServiceVolumeType, error)
+	CreateOrUpdateVolumeType(vt *model.TenantServiceVolumeType) (*model.TenantServiceVolumeType, error)
 }
 
 //LicenseDao LicenseDao

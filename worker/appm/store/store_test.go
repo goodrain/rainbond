@@ -19,12 +19,15 @@
 package store
 
 import (
+	"fmt"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"testing"
 	"time"
 
 	"github.com/eapache/channels"
 	v2beta1 "k8s.io/api/autoscaling/v2beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -193,4 +196,51 @@ func getStoreForTest(t *testing.T) Storer {
 		t.Fatalf("error starting store: %v", err)
 	}
 	return storer
+}
+
+func TestPatch(t *testing.T) {
+	ocfg := option.Config{
+		DBType:                  "mysql",
+		MysqlConnectionInfo:     "oc6Poh:noot6Mea@tcp(192.168.2.203:3306)/region",
+		EtcdEndPoints:           []string{"http://192.168.2.203:2379"},
+		EtcdTimeout:             5,
+		KubeConfig:              "/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig",
+		LeaderElectionNamespace: "rainbond",
+	}
+	storer := getStoreForTest(t)
+	c, err := clientcmd.BuildConfigFromFlags("", ocfg.KubeConfig)
+	if err != nil {
+		t.Fatalf("read kube config file error: %v", err)
+	}
+	clientset, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		t.Fatalf("create kube api client error: %v", err)
+	}
+	app := storer.GetAppService("f55f7e28ec441ce5765998259756cc09")
+	if app == nil {
+		t.Fatal("app is niil")
+	}
+	statefulset := app.GetStatefulSet()
+	if statefulset == nil {
+		t.Fatal("stateful iis nil")
+	}
+	t.Logf("s is : %+v", statefulset)
+	claims := statefulset.Spec.VolumeClaimTemplates
+	if claims != nil {
+		statefulset.Spec.VolumeClaimTemplates = nil
+		for _, claim := range claims {
+			if _, err = clientset.CoreV1().PersistentVolumeClaims(app.TenantID).Get(claim.Name, metav1.GetOptions{}); err != nil {
+				if k8sErrors.IsNotFound(err) {
+					clientset.CoreV1().PersistentVolumeClaims(app.TenantID).Create(&claim)
+				} else {
+					t.Fatal(err)
+				}
+			}
+		}
+	}
+	_, err = clientset.AppsV1().StatefulSets(statefulset.Namespace).Patch(statefulset.Name, types.MergePatchType, app.UpgradePatch["statefulset"])
+	if err != nil {
+		t.Fatal(fmt.Sprintf("upgrade statefulset %s failure %s", app.ServiceAlias, err.Error()), nil)
+	}
+	time.Sleep(30 * time.Second)
 }

@@ -76,7 +76,6 @@ func (vta *VolumeTypeAction) VolumeTypeVar(action string, vtm *dbmodel.TenantSer
 
 // GetAllVolumeTypes get all volume types
 func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*api_model.VolumeTypeStruct, error) {
-
 	var optionList []*api_model.VolumeTypeStruct
 	volumeTypeMap := make(map[string]*dbmodel.TenantServiceVolumeType)
 	volumeTypes, err := db.GetManager().VolumeTypeDao().GetAllVolumeTypes()
@@ -110,6 +109,7 @@ func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*api_model.VolumeTypeStruct,
 		optionList = append(optionList, &api_model.VolumeTypeStruct{
 			VolumeType:         vt.VolumeType,
 			NameShow:           vt.NameShow,
+			Provisioner:        vt.Provisioner,
 			CapacityValidation: capacityValidation,
 			Description:        vt.Description,
 			AccessMode:         accessMode,
@@ -234,7 +234,8 @@ func (vta *VolumeTypeAction) SetVolumeType(vol *api_model.VolumeTypeStruct) erro
 	dbVolume.SharePolicy = strings.Join(sharePolicy, ",")
 	dbVolume.BackupPolicy = strings.Join(backupPolicy, ",")
 	dbVolume.ReclaimPolicy = vol.ReclaimPolicy
-	dbVolume.StorageClassDetail = string(jsonStorageClassDetailStr)
+	dbVolume.StorageClassDetail = string(jsonStorageClassDetailStr) // TODO fanyangyang StorageClass规范性校验， 并返回正确的结构，将结构中的provisoner赋值
+	dbVolume.Provisioner = "provisioner"                            // TODO fanyangyang 根据StorageClass获取
 	dbVolume.Sort = vol.Sort
 	dbVolume.Enable = vol.Enable
 

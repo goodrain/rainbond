@@ -108,6 +108,7 @@ func newVolumeClaim(name, volumePath, accessMode, storageClassName string, capac
 			Name:        name,
 			Labels:      labels,
 			Annotations: annotations,
+			Namespace:   "string",
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes:      []corev1.PersistentVolumeAccessMode{parseAccessMode(accessMode)},

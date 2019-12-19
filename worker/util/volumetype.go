@@ -55,6 +55,7 @@ func TransStorageClass2RBDVolumeType(sc *storagev1.StorageClass) *dbmodel.Tenant
 		NameShow:           sc.GetName(),
 		CapacityValidation: string(cvbs),
 		StorageClassDetail: string(scbs),
+		Provisioner:        sc.Provisioner,
 		AccessMode:         strings.Join(defaultAccessMode, ","),
 		BackupPolicy:       strings.Join(defaultBackupPolicy, ","),
 		SharePolicy:        strings.Join(defaultSharePolicy, ","),

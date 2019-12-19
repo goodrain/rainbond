@@ -271,7 +271,7 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.ReplicaSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Endpoints.AddEventHandlerWithResyncPeriod(epEventHandler, time.Second*10)
 	store.informers.Nodes.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-	store.informers.StorageClass.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.StorageClass.AddEventHandlerWithResyncPeriod(store, time.Second*300)
 
 	store.informers.Events.AddEventHandlerWithResyncPeriod(store.evtEventHandler(), time.Second*10)
 	store.informers.HorizontalPodAutoscaler.AddEventHandlerWithResyncPeriod(store, time.Second*10)
@@ -576,8 +576,23 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 	}
 	if sc, ok := obj.(*storagev1.StorageClass); ok {
 		vt := workerutil.TransStorageClass2RBDVolumeType(sc)
-		if _, err := a.dbmanager.VolumeTypeDao().FindOrCreate(vt); err != nil {
-			return
+		if _, err := db.GetManager().VolumeTypeDao().CreateOrUpdateVolumeType(vt); err != nil { // TODO update 时处理
+			logrus.Errorf("sync storageclass error : %s, ignore it", err.Error())
+		}
+	}
+	if claim, ok := obj.(*corev1.PersistentVolumeClaim); ok {
+		serviceID := claim.Labels["service_id"]
+		version := claim.Labels["version"]
+		createrID := claim.Labels["creater_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(claim.Name, &metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetClaim(claim)
+				return
+			}
 		}
 	}
 }
@@ -741,6 +756,22 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 		if err := a.dbmanager.VolumeTypeDao().DeleteModelByVolumeTypes(sc.GetName()); err != nil {
 			logrus.Errorf("delete volumeType from db error: %s", err.Error())
 			return
+		}
+	}
+
+	if claim, ok := obj.(*corev1.PersistentVolumeClaim); ok {
+		serviceID := claim.Labels["service_id"]
+		version := claim.Labels["version"]
+		createrID := claim.Labels["creater_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, _ := a.getAppService(serviceID, version, createrID, false)
+			if appservice != nil {
+				appservice.DeleteClaim(claim)
+				if appservice.IsClosed() {
+					a.DeleteAppService(appservice)
+				}
+				return
+			}
 		}
 	}
 }

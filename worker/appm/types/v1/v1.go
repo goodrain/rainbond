@@ -576,6 +576,7 @@ func (a *AppService) GetClaims() []*corev1.PersistentVolumeClaim {
 
 // SetClaim set claim
 func (a *AppService) SetClaim(claim *corev1.PersistentVolumeClaim) {
+	claim.Namespace = a.TenantID
 	if len(a.claims) > 0 {
 		for i, c := range a.claims {
 			if c.GetName() == claim.GetName() {
