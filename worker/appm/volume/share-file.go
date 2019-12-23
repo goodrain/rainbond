@@ -48,11 +48,14 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 	var vm *corev1.VolumeMount
 	if v.as.GetStatefulSet() != nil {
 		statefulset := v.as.GetStatefulSet()
-		labels := v.as.GetCommonLabels(map[string]string{"volume_name": volumeMountName, "volume_path": volumeMountPath})
+		labels := v.as.GetCommonLabels(map[string]string{"volume_name": volumeMountName})
 		annotations := map[string]string{"volume_name": v.svm.VolumeName}
 		claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v1.RainbondStatefuleShareStorageClass, v.svm.VolumeCapacity, labels, annotations)
+		v.as.SetClaim(claim)
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
-
+		vo := corev1.Volume{Name: volumeMountName}
+		vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
+		define.volumes = append(define.volumes, vo)
 		vm = &corev1.VolumeMount{
 			Name:      volumeMountName,
 			MountPath: volumeMountPath,

@@ -30,7 +30,6 @@ import (
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -157,45 +156,20 @@ func (s *upgradeController) upgradeClaim(newapp v1.AppService) {
 			n.ResourceVersion = o.ResourceVersion
 			claim, err := s.manager.client.CoreV1().PersistentVolumeClaims(n.Namespace).Update(n)
 			if err != nil {
-				logrus.Errorf("error updating claim: %+v: err: %v", claim, err)
+				logrus.Errorf("update claim[%s] error: %s", n.GetName(), err.Error())
 				continue
 			}
 			nowApp.SetClaim(claim)
 			delete(nowClaimMaps, o.Name)
-			logrus.Debugf("ServiceID: %s; successfully update claim: %s", nowApp.ServiceID, claim.Name)
+			logrus.Debugf("ServiceID: %s; successfully update claim: %s", nowApp.ServiceID, n.Name)
 		} else {
-			claim, err := s.manager.client.CoreV1().PersistentVolumeClaims(n.Namespace).Get(n.Name, metav1.GetOptions{})
+			claim, err := s.manager.client.CoreV1().PersistentVolumeClaims(n.Namespace).Create(n)
 			if err != nil {
-				if k8sErrors.IsNotFound(err) {
-					_, err := s.manager.client.CoreV1().PersistentVolumeClaims(n.Namespace).Create(n)
-					if err != nil {
-						logrus.Errorf("error creating claim: %+v: err: %v", err)
-						continue
-					}
-				} else {
-					logrus.Errorf("err get claim[%s:%s], err: %+v", n.Namespace, n.Name, err)
-				}
-			}
-			if claim != nil {
-				logrus.Infof("claim is exists, do not create again, and can't update it", claim.Name)
-			} else {
-				claim, err = s.manager.client.CoreV1().PersistentVolumeClaims(n.Namespace).Update(n)
-				if err != nil {
-					logrus.Errorf("error update claim: %+v: err: %v", claim, err)
-					continue
-				}
-				logrus.Debugf("ServiceID: %s; successfully create claim: %s", nowApp.ServiceID, claim.Name)
-			}
-			nowApp.SetClaim(claim)
-		}
-	}
-	for _, claim := range nowClaimMaps {
-		if claim != nil {
-			if err := s.manager.client.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(claim.Name, &metav1.DeleteOptions{}); err != nil {
-				logrus.Errorf("error deleting claim: %+v: err: %v", claim, err)
+				logrus.Errorf("error create claim: %+v: err: %v", claim.GetName(), err)
 				continue
 			}
-			logrus.Debugf("ServiceID: %s; successfully delete claim: %s", nowApp.ServiceID, claim.Name)
+			logrus.Debugf("ServiceID: %s; successfully create claim: %s", nowApp.ServiceID, claim.Name)
+			nowApp.SetClaim(claim)
 		}
 	}
 }
@@ -212,7 +186,6 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 		}
 	}
 	s.upgradeConfigMap(app)
-	s.upgradeClaim(app)
 	if deployment := app.GetDeployment(); deployment != nil {
 		_, err := s.manager.client.AppsV1().Deployments(deployment.Namespace).Patch(deployment.Name, types.MergePatchType, app.UpgradePatch["deployment"])
 		if err != nil {

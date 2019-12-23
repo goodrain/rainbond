@@ -62,13 +62,12 @@ func (v *OtherVolume) CreateVolume(define *Define) error {
 	v.as.SetClaim(claim)                 // store claim to appService
 	statefulset := v.as.GetStatefulSet() //有状态组件
 	vo := corev1.Volume{Name: volumeMountName}
+	vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
+	define.volumes = append(define.volumes, vo)
 	if statefulset != nil {
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
-	} else {
-		vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
-		logrus.Warnf("service[%s] is not stateful, mount volume by k8s volume.PersistenVolumeClaim[%s]", v.svm.ServiceID, claim.GetName())
+		logrus.Debugf("stateset.Spec.VolumeClaimTemplates: %+v", statefulset.Spec.VolumeClaimTemplates)
 	}
-	define.volumes = append(define.volumes, vo)
 
 	vm := corev1.VolumeMount{
 		Name:      volumeMountName,

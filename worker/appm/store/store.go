@@ -175,6 +175,9 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.StorageClass = infFactory.Storage().V1().StorageClasses().Informer()
 	store.listers.StorageClass = infFactory.Storage().V1().StorageClasses().Lister()
 
+	store.informers.Claims = infFactory.Core().V1().PersistentVolumeClaims().Informer()
+	store.listers.Claims = infFactory.Core().V1().PersistentVolumeClaims().Lister()
+
 	store.informers.Events = infFactory.Core().V1().Events().Informer()
 
 	store.informers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2beta1().HorizontalPodAutoscalers().Informer()
@@ -272,6 +275,7 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.Endpoints.AddEventHandlerWithResyncPeriod(epEventHandler, time.Second*10)
 	store.informers.Nodes.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.StorageClass.AddEventHandlerWithResyncPeriod(store, time.Second*300)
+	store.informers.Claims.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 
 	store.informers.Events.AddEventHandlerWithResyncPeriod(store.evtEventHandler(), time.Second*10)
 	store.informers.HorizontalPodAutoscaler.AddEventHandlerWithResyncPeriod(store, time.Second*10)
@@ -576,7 +580,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 	}
 	if sc, ok := obj.(*storagev1.StorageClass); ok {
 		vt := workerutil.TransStorageClass2RBDVolumeType(sc)
-		if _, err := db.GetManager().VolumeTypeDao().CreateOrUpdateVolumeType(vt); err != nil { // TODO update 时处理
+		if _, err := db.GetManager().VolumeTypeDao().CreateOrUpdateVolumeType(vt); err != nil {
 			logrus.Errorf("sync storageclass error : %s, ignore it", err.Error())
 		}
 	}

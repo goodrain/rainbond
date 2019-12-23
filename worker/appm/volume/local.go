@@ -37,7 +37,7 @@ func (v *LocalVolume) CreateVolume(define *Define) error {
 	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := v.svm.IsReadOnly
 	statefulset := v.as.GetStatefulSet()
-	labels := v.as.GetCommonLabels(map[string]string{"volume_name": v.svm.VolumeName, "volume_path": volumeMountPath, "version": v.as.DeployVersion})
+	labels := v.as.GetCommonLabels(map[string]string{"volume_name": v.svm.VolumeName, "version": v.as.DeployVersion})
 	annotations := map[string]string{"volume_name": v.svm.VolumeName}
 	claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v1.RainbondStatefuleLocalStorageClass, v.svm.VolumeCapacity, labels, annotations)
 	claim.Annotations = map[string]string{
@@ -48,6 +48,10 @@ func (v *LocalVolume) CreateVolume(define *Define) error {
 			return "linux"
 		}(),
 	}
+	v.as.SetClaim(claim)
+	vo := corev1.Volume{Name: volumeMountName}
+	vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
+	define.volumes = append(define.volumes, vo)
 	statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
 
 	vm := corev1.VolumeMount{
