@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/model"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	corev1 "k8s.io/api/apps/v1"
 )
 
 func TestTenantServiceVersion(t *testing.T) {
@@ -67,4 +68,22 @@ func TestFoobar(t *testing.T) {
 	memory := 64
 	cpuRequest, cpuLimit := int64(memory)/128*30, int64(memory)/128*80
 	t.Errorf("request: %d; limit: %d", cpuRequest, cpuLimit)
+}
+
+func TestStatefulSetLabel(t *testing.T) {
+	as := v1.AppService{}
+	stateful := &corev1.StatefulSet{}
+	stateful.Namespace = as.TenantID
+	rc := func(i int) *int32 {
+		j := int32(i)
+		return &j
+	}(1)
+
+	stateful.Spec.Replicas = rc
+	// stateful.Spec = corev1.StatefulSetSpec{}
+	stateful.Spec.ServiceName = "service.ServiceName"
+	as.SetStatefulSet(stateful)
+	vd := volumeDefine{as: &as}
+	vd.SetPV(model.ShareFileVolumeType, "name string", "volumeName string", "mountPath string", false)
+	t.Logf("stateful's pvc template is : %+v", as.GetStatefulSet().Spec.VolumeClaimTemplates)
 }

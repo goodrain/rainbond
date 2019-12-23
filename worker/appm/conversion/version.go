@@ -594,7 +594,6 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, volumeName, mo
 						Name: name,
 						Labels: v.as.GetCommonLabels(map[string]string{
 							"volume_name": volumeName,
-							"volume_path": mountPath,
 						}),
 					},
 					Spec: corev1.PersistentVolumeClaimSpec{
@@ -633,7 +632,6 @@ func (v *volumeDefine) SetPV(VolumeType dbmodel.VolumeType, name, volumeName, mo
 						},
 						Labels: v.as.GetCommonLabels(map[string]string{
 							"volume_name": volumeName,
-							"volume_path": mountPath,
 						}),
 					},
 					Spec: corev1.PersistentVolumeClaimSpec{
