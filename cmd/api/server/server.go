@@ -31,6 +31,7 @@ import (
 	"github.com/goodrain/rainbond/api/server"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/event"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/worker/client"
 
 	"github.com/Sirupsen/logrus"
@@ -39,8 +40,14 @@ import (
 //Run start run
 func Run(s *option.APIServer) error {
 	errChan := make(chan error)
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints: s.Config.EtcdEndpoint,
+		CaFile:    s.Config.EtcdCaFile,
+		CertFile:  s.Config.EtcdCertFile,
+		KeyFile:   s.Config.EtcdKeyFile,
+	}
 	//启动服务发现
-	if _, err := discover.CreateEndpointDiscover(s.Config.EtcdEndpoint); err != nil {
+	if _, err := discover.CreateEndpointDiscover(etcdClientArgs); err != nil {
 		return err
 	}
 	//创建db manager
@@ -55,7 +62,7 @@ func Run(s *option.APIServer) error {
 
 	if err := event.NewManager(event.EventConfig{
 		EventLogServers: s.Config.EventLogServers,
-		DiscoverAddress: s.Config.EtcdEndpoint,
+		DiscoverArgs:    etcdClientArgs,
 	}); err != nil {
 		return err
 	}
@@ -65,6 +72,9 @@ func Run(s *option.APIServer) error {
 	defer cancel()
 	cli, err := client.NewClient(ctx, client.AppRuntimeSyncClientConf{
 		EtcdEndpoints: s.Config.EtcdEndpoint,
+		EtcdCaFile:    s.Config.EtcdCaFile,
+		EtcdCertFile:  s.Config.EtcdCertFile,
+		EtcdKeyFile:   s.Config.EtcdKeyFile,
 	})
 	if err != nil {
 		logrus.Errorf("create app status client error, %v", err)

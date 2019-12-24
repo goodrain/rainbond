@@ -45,19 +45,21 @@ import (
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/go-chi/chi"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
 //Manager api manager
 type Manager struct {
-	ctx       context.Context
-	cancel    context.CancelFunc
-	conf      option.Conf
-	router    *chi.Mux
-	node      *nodeclient.HostNode
-	lID       client.LeaseID // lease id
-	ms        *masterserver.MasterServer
-	keepalive *discover.KeepAlive
-	exporter  *statsd.Exporter
+	ctx            context.Context
+	cancel         context.CancelFunc
+	conf           option.Conf
+	router         *chi.Mux
+	node           *nodeclient.HostNode
+	lID            client.LeaseID // lease id
+	ms             *masterserver.MasterServer
+	keepalive      *discover.KeepAlive
+	exporter       *statsd.Exporter
+	etcdClientArgs *etcdutil.ClientArgs
 }
 
 //NewManager api manager
@@ -65,13 +67,21 @@ func NewManager(c option.Conf, node *nodeclient.HostNode, ms *masterserver.Maste
 	r := router.Routers(c.RunMode)
 	ctx, cancel := context.WithCancel(context.Background())
 	controller.Init(&c, ms, kubecli)
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints:   c.EtcdEndpoints,
+		CaFile:      c.EtcdCaFile,
+		CertFile:    c.EtcdCertFile,
+		KeyFile:     c.EtcdKeyFile,
+		DialTimeout: c.EtcdDialTimeout,
+	}
 	m := &Manager{
-		ctx:    ctx,
-		cancel: cancel,
-		conf:   c,
-		router: r,
-		node:   node,
-		ms:     ms,
+		ctx:            ctx,
+		cancel:         cancel,
+		conf:           c,
+		router:         r,
+		node:           node,
+		ms:             ms,
+		etcdClientArgs: etcdClientArgs,
 	}
 	// set node cluster monitor route
 	m.router.Get("/cluster/metrics", m.HandleClusterScrape)
@@ -105,7 +115,7 @@ func (m *Manager) Start(errChan chan error) error {
 				return fmt.Errorf("get the api port info error.%s", err.Error())
 			}
 		}
-		keepalive, err := discover.CreateKeepAlive(m.conf.Etcd.Endpoints, "acp_node", m.node.InternalIP, m.node.InternalIP, port)
+		keepalive, err := discover.CreateKeepAlive(m.etcdClientArgs, "acp_node", m.node.InternalIP, m.node.InternalIP, port)
 		if err != nil {
 			return err
 		}

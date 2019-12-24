@@ -31,6 +31,7 @@ import (
 	dockercli "github.com/docker/docker/client"
 	"github.com/fsnotify/fsnotify"
 	"github.com/goodrain/rainbond/util"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/spf13/pflag"
 )
 
@@ -77,9 +78,13 @@ type Conf struct {
 	EventLogServer                  []string //event server address list
 	ConfigStoragePath               string   //config storage path in etcd
 	LockPath                        string
-	TTL                             int64  // node heartbeat to master TTL
-	PodCIDR                         string //pod cidr, when master not set cidr,this parameter can take effect
-	Etcd                            client.Config
+	TTL                             int64         // node heartbeat to master TTL
+	PodCIDR                         string        //pod cidr, when master not set cidr,this parameter can take effect
+	EtcdEndpoints                   []string      // etcd endpoints
+	EtcdDialTimeout                 time.Duration // etcd dial timeout
+	EtcdCaFile                      string        // etcd ca file
+	EtcdCertFile                    string        // etcd cert file
+	EtcdKeyFile                     string        // etcd key file
 	StatsdConfig                    StatsdConfig
 	UDPMonitorConfig                UDPMonitorConfig
 	MinResyncPeriod                 time.Duration
@@ -143,8 +148,11 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&a.EventLogServer, "event-log-server", []string{"127.0.0.1:6366"}, "host:port slice of event log server")
 	fs.StringVar(&a.ConfigStoragePath, "config-path", "/rainbond/acp_configs", "the path of config to store(new)")
 	fs.StringVar(&a.Service, "servicePath", "/traefik/backends", "the path of service info to store")
-	fs.StringSliceVar(&a.Etcd.Endpoints, "etcd", []string{"http://127.0.0.1:2379"}, "the path of node in etcd")
-	fs.DurationVar(&a.Etcd.DialTimeout, "etcd-dialTimeOut", 3, "etcd cluster dialTimeOut In seconds")
+	fs.StringSliceVar(&a.EtcdEndpoints, "etcd", []string{"http://127.0.0.1:2379"}, "the path of node in etcd")
+	fs.StringVar(&a.EtcdCaFile, "etcd-ca", "", "verify etcd certificates of TLS-enabled secure servers using this CA bundle")
+	fs.StringVar(&a.EtcdCertFile, "etcd-cert", "", "identify secure etcd client using this TLS certificate file")
+	fs.StringVar(&a.EtcdKeyFile, "etcd-key", "", "identify secure etcd client using this TLS key file")
+	fs.DurationVar(&a.EtcdDialTimeout, "etcd-dialTimeOut", 3, "etcd cluster dialTimeOut In seconds")
 	fs.IntVar(&a.ReqTimeout, "reqTimeOut", 2, "req TimeOut.")
 	fs.Int64Var(&a.TTL, "ttl", 10, "Frequency of node status reporting to master")
 	//fs.StringVar(&a.APIAddr, "api-addr", ":6100", "The node api server listen address")
@@ -201,9 +209,19 @@ func (a *Conf) ParseClient() (err error) {
 	if err != nil {
 		return err
 	}
-	logrus.Infof("begin create etcd client: %s", a.Etcd.Endpoints)
+	logrus.Infof("begin create etcd client: %s", a.EtcdEndpoints)
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints:        a.EtcdEndpoints,
+		CaFile:           a.EtcdCaFile,
+		CertFile:         a.EtcdCertFile,
+		KeyFile:          a.EtcdKeyFile,
+		AutoSyncInterval: time.Second * 30,
+		DialTimeout:      a.EtcdDialTimeout,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	for {
-		a.EtcdCli, err = client.New(a.Etcd)
+		a.EtcdCli, err = etcdutil.NewClient(ctx, etcdClientArgs)
 		if err != nil {
 			logrus.Errorf("create etcd client failure %s, will retry after 3 second", err.Error())
 		}
@@ -218,12 +236,6 @@ func (a *Conf) ParseClient() (err error) {
 
 //parse parse
 func (a *Conf) parse() error {
-	if a.Etcd.DialTimeout < 3 {
-		a.Etcd.DialTimeout = time.Second * 3
-	} else {
-		a.Etcd.DialTimeout = a.Etcd.DialTimeout * time.Second
-	}
-	a.Etcd.Context = context.Background()
 	if a.TTL <= 0 {
 		a.TTL = 10
 	}

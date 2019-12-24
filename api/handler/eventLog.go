@@ -104,7 +104,7 @@ func (l *LogAction) GetLogFile(serviceAlias, fileName string) (string, string, e
 
 //GetLogInstance get log web socket instance
 func (l *LogAction) GetLogInstance(serviceID string) (string, error) {
-	etcdclient, err := client.New(client.Config{
+	etcdclient, err := client.New(client.Config{ // TODO fanyangyang etcd v2
 		Endpoints: l.EtcdEndpoints,
 	})
 	if err != nil {

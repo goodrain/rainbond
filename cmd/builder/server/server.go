@@ -39,6 +39,7 @@ import (
 	"github.com/goodrain/rainbond/builder/api"
 	"github.com/goodrain/rainbond/builder/clean"
 	discoverv2 "github.com/goodrain/rainbond/discover.v2"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -56,14 +57,20 @@ func Run(s *option.Builder) error {
 	if err := db.CreateManager(dbconfig); err != nil {
 		return err
 	}
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints: s.Config.EtcdEndPoints,
+		CaFile:    s.Config.EtcdCaFile,
+		CertFile:  s.Config.EtcdCertFile,
+		KeyFile:   s.Config.EtcdKeyFile,
+	}
 	if err := event.NewManager(event.EventConfig{
 		EventLogServers: s.Config.EventLogServers,
-		DiscoverAddress: s.Config.EtcdEndPoints,
+		DiscoverArgs:    etcdClientArgs,
 	}); err != nil {
 		return err
 	}
 	defer event.CloseManager()
-	client, err := client.NewMqClient(s.Config.EtcdEndPoints, s.Config.MQAPI)
+	client, err := client.NewMqClient(etcdClientArgs, s.Config.MQAPI)
 	if err != nil {
 		logrus.Errorf("new Mq client error, %v", err)
 		return err
@@ -92,7 +99,7 @@ func Run(s *option.Builder) error {
 		}
 		defer cle.Stop()
 	}
-	keepalive, err := discoverv2.CreateKeepAlive(s.Config.EtcdEndPoints, "builder",
+	keepalive, err := discoverv2.CreateKeepAlive(etcdClientArgs, "builder",
 		"", s.Config.HostIP, s.Config.APIPort)
 	if err != nil {
 		return err

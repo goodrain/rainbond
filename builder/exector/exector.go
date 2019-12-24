@@ -36,6 +36,7 @@ import (
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	workermodel "github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/tidwall/gjson"
 )
@@ -65,11 +66,14 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	etcdCli, err := clientv3.New(clientv3.Config{
+	etcdClientArgs := &etcdutil.ClientArgs{
 		Endpoints:   conf.EtcdEndPoints,
 		DialTimeout: 10 * time.Second,
-	})
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	etcdCli, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	var maxConcurrentTask int
@@ -78,7 +82,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	} else {
 		maxConcurrentTask = conf.MaxTasks
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+
 	logrus.Infof("The maximum number of concurrent build tasks supported by the current node is %d", maxConcurrentTask)
 	return &exectorManager{
 		DockerClient:      dockerClient,

@@ -46,6 +46,9 @@ type Config struct {
 	K8SConfPath  string
 	EtcdEndpoint []string
 	EtcdTimeout  int
+	EtcdCaFile   string
+	EtcdCertFile string
+	EtcdKeyFile  string
 	ListenPorts  ListenPorts
 	//This number should be, at maximum, the number of CPU cores on your system.
 	WorkerProcesses    int

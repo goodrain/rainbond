@@ -19,15 +19,18 @@
 package discover
 
 import (
-	"github.com/goodrain/rainbond/discover/config"
 	"testing"
+
+	"github.com/goodrain/rainbond/discover/config"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 
 	"github.com/Sirupsen/logrus"
 )
 
 func TestAddUpdateProject(t *testing.T) {
+	etcdClientArgs := &etcdutil.ClientArgs{Endpoints: []string{"127.0.0.1:2379"}}
 	discover, err := GetDiscover(config.DiscoverConfig{
-		EtcdClusterEndpoints: []string{"127.0.0.1:2379"},
+		EtcdClientArgs: etcdClientArgs,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -36,8 +39,9 @@ func TestAddUpdateProject(t *testing.T) {
 	discover.AddUpdateProject("test", callbackupdate{})
 }
 func TestAddProject(t *testing.T) {
+	etcdClientArgs := &etcdutil.ClientArgs{Endpoints: []string{"127.0.0.1:2379"}}
 	discover, err := GetDiscover(config.DiscoverConfig{
-		EtcdClusterEndpoints: []string{"127.0.0.1:2379"},
+		EtcdClientArgs: etcdClientArgs,
 	})
 	if err != nil {
 		t.Fatal(err)

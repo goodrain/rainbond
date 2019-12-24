@@ -34,10 +34,12 @@ type Queue struct {
 	keyPrefix string
 }
 
-func NewQueue(client *v3.Client, keyPrefix string, ctx context.Context) *Queue {
+// NewQueue new queue
+func NewQueue(ctx context.Context, client *v3.Client, keyPrefix string) *Queue {
 	return &Queue{client, ctx, keyPrefix}
 }
 
+// Enqueue en queue
 func (q *Queue) Enqueue(val string) error {
 	_, err := newUniqueKV(q.ctx, q.client, q.keyPrefix, val)
 	return err

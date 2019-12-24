@@ -38,6 +38,8 @@ import (
 	eventLog "github.com/goodrain/rainbond/event"
 
 	"os/signal"
+
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
 //Run start run
@@ -60,9 +62,16 @@ func Run(c *option.Conf) error {
 			return err
 		}
 		errChan := make(chan error, 3)
+		etcdClientArgs := &etcdutil.ClientArgs{
+			Endpoints:   c.EtcdEndpoints,
+			CaFile:      c.EtcdCaFile,
+			CertFile:    c.EtcdCertFile,
+			KeyFile:     c.EtcdKeyFile,
+			DialTimeout: c.EtcdDialTimeout,
+		}
 		err = eventLog.NewManager(eventLog.EventConfig{
 			EventLogServers: c.EventLogServer,
-			DiscoverAddress: c.Etcd.Endpoints,
+			DiscoverArgs:    etcdClientArgs,
 		})
 		if err != nil {
 			logrus.Errorf("error creating eventlog manager")
@@ -79,7 +88,7 @@ func Run(c *option.Conf) error {
 		logrus.Debug("create and start kube cache moudle success")
 		// init etcd client
 		if err = store.NewClient(c); err != nil {
-			return fmt.Errorf("Connect to ETCD %s failed: %s", c.Etcd.Endpoints, err)
+			return fmt.Errorf("Connect to ETCD %s failed: %s", c.EtcdEndpoints, err)
 		}
 		if err := nodemanager.Start(errChan); err != nil {
 			return fmt.Errorf("start node manager failed: %s", err)

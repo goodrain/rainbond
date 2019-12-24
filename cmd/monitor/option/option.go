@@ -29,18 +29,21 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// Config config
 type Config struct {
-	EtcdEndpointsLine string
-	EtcdEndpoints     []string
-	LogLevel          string
-	AdvertiseAddr     string
-	BindIp            string
-	Port              int
-
+	EtcdEndpointsLine    string
+	EtcdEndpoints        []string
+	EtcdCaFile           string
+	EtcdCertFile         string
+	EtcdKeyFile          string
+	LogLevel             string
+	AdvertiseAddr        string
+	BindIP               string
+	Port                 int
 	StartArgs            []string
 	ConfigFile           string
 	AlertingRulesFile    string
-	AlertManagerUrl      []string
+	AlertManagerURL      []string
 	LocalStoragePath     string
 	Web                  Web
 	Tsdb                 Tsdb
@@ -56,7 +59,7 @@ type Config struct {
 	KSMExporter          string
 }
 
-// Options for the web Handler.
+// Web Options for the web Handler.
 type Web struct {
 	ListenAddress        string
 	ReadTimeout          time.Duration
@@ -71,7 +74,7 @@ type Web struct {
 	EnableAdminAPI       bool
 }
 
-// Options of the DB storage.
+// Tsdb Options of the DB storage.
 type Tsdb struct {
 	// The interval at which the write ahead log is flushed to disc.
 	WALFlushInterval time.Duration
@@ -90,6 +93,7 @@ type Tsdb struct {
 	NoLockfile bool
 }
 
+// NewConfig new config
 func NewConfig() *Config {
 	host, _ := os.Hostname()
 
@@ -97,13 +101,13 @@ func NewConfig() *Config {
 		EtcdEndpointsLine: "http://127.0.0.1:2379",
 		EtcdEndpoints:     []string{},
 		AdvertiseAddr:     host + ":9999",
-		BindIp:            host,
+		BindIP:            host,
 		Port:              9999,
 		LogLevel:          "info",
 
 		ConfigFile:           "/etc/prometheus/prometheus.yml",
 		AlertingRulesFile:    "/etc/prometheus/rules.yml",
-		AlertManagerUrl:      []string{},
+		AlertManagerURL:      []string{},
 		LocalStoragePath:     "/prometheusdata",
 		WebTimeout:           "5m",
 		RemoteFlushDeadline:  "1m",
@@ -134,7 +138,7 @@ func (c *Config) AddFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.EtcdEndpointsLine, "etcd-endpoints", c.EtcdEndpointsLine, "etcd endpoints list.")
 	cmd.StringVar(&c.AdvertiseAddr, "advertise-addr", c.AdvertiseAddr, "advertise address, and registry into etcd.")
 	cmd.IntVar(&c.CadvisorListenPort, "cadvisor-listen-port", c.CadvisorListenPort, "kubelet cadvisor listen port in all node")
-	cmd.StringSliceVar(&c.AlertManagerUrl, "alertmanager-address", c.AlertManagerUrl, "AlertManager url.")
+	cmd.StringSliceVar(&c.AlertManagerURL, "alertmanager-address", c.AlertManagerURL, "AlertManager url.")
 	cmd.StringVar(&c.MysqldExporter, "mysqld-exporter", c.MysqldExporter, "mysqld exporter address. eg: 127.0.0.1:9104")
 	cmd.StringVar(&c.KSMExporter, "kube-state-metrics", c.KSMExporter, "kube-state-metrics, current server's kube-state-metrics address")
 }
@@ -191,6 +195,7 @@ func (c *Config) AddPrometheusFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.LogLevel, "log.level", c.LogLevel, "log level.")
 }
 
+// CompleteConfig complete config
 func (c *Config) CompleteConfig() {
 	// parse etcd urls line to array
 	for _, url := range strings.Split(c.EtcdEndpointsLine, ",") {
@@ -205,7 +210,7 @@ func (c *Config) CompleteConfig() {
 	// parse values from prometheus options to config
 	ipPort := strings.TrimLeft(c.AdvertiseAddr, "shttp://")
 	ipPortArr := strings.Split(ipPort, ":")
-	c.BindIp = ipPortArr[0]
+	c.BindIP = ipPortArr[0]
 	port, err := strconv.Atoi(ipPortArr[1])
 	if err == nil {
 		c.Port = port

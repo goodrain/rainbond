@@ -23,5 +23,8 @@ type Config struct {
 	MysqlConnectionInfo string
 	DBType              string
 	EtcdEndPoints       []string
+	EtcdCaFile          string // TODO db module do not use etcd at all
+	EtcdCertFile        string
+	EtcdKeyFile         string
 	EtcdTimeout         int
 }

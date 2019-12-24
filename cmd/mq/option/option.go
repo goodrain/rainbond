@@ -25,6 +25,9 @@ import "fmt"
 //Config config server
 type Config struct {
 	EtcdEndPoints        []string
+	EtcdCaFile           string
+	EtcdCertFile         string
+	EtcdKeyFile          string
 	EtcdTimeout          int
 	EtcdPrefix           string
 	ClusterName          string

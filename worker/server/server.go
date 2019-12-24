@@ -31,6 +31,7 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/util"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
@@ -296,7 +297,13 @@ func (r *RuntimeServer) registServer() error {
 		}, time.Second*3)
 	}
 	if r.keepalive == nil {
-		keepalive, err := discover.CreateKeepAlive(r.conf.EtcdEndPoints, "app_sync_runtime_server", "", r.conf.HostIP, r.conf.ServerPort)
+		etcdClientArgs := &etcdutil.ClientArgs{
+			Endpoints: r.conf.EtcdEndPoints,
+			CaFile:    r.conf.EtcdCaFile,
+			CertFile:  r.conf.EtcdCertFile,
+			KeyFile:   r.conf.EtcdKeyFile,
+		}
+		keepalive, err := discover.CreateKeepAlive(etcdClientArgs, "app_sync_runtime_server", "", r.conf.HostIP, r.conf.ServerPort)
 		if err != nil {
 			return fmt.Errorf("create app sync server keepalive error,%s", err.Error())
 		}

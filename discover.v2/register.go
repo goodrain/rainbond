@@ -29,28 +29,26 @@ import (
 	client "github.com/coreos/etcd/clientv3"
 	etcdnaming "github.com/coreos/etcd/clientv3/naming"
 	"github.com/goodrain/rainbond/util"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"google.golang.org/grpc/naming"
 )
 
 //KeepAlive 服务注册
 type KeepAlive struct {
-	EtcdEndpoint []string
-	ServerName   string
-	HostName     string
-	Endpoint     string
-	TTL          int64
-	LID          clientv3.LeaseID
-	Done         chan struct{}
-	etcdClient   *client.Client
-	gRPCResolver *etcdnaming.GRPCResolver
-	once         sync.Once
+	EtcdClientArgs *etcdutil.ClientArgs
+	ServerName     string
+	HostName       string
+	Endpoint       string
+	TTL            int64
+	LID            clientv3.LeaseID
+	Done           chan struct{}
+	etcdClient     *client.Client
+	gRPCResolver   *etcdnaming.GRPCResolver
+	once           sync.Once
 }
 
 //CreateKeepAlive create keepalive for server
-func CreateKeepAlive(EtcdEndpoint []string, ServerName string, Protocol string, HostIP string, Port int) (*KeepAlive, error) {
-	if len(EtcdEndpoint) == 0 {
-		EtcdEndpoint = []string{"127.0.0.1:2379"}
-	}
+func CreateKeepAlive(etcdClientArgs *etcdutil.ClientArgs, ServerName string, Protocol string, HostIP string, Port int) (*KeepAlive, error) {
 	if ServerName == "" || Port == 0 {
 		return nil, fmt.Errorf("servername or serverport can not be empty")
 	}
@@ -64,11 +62,11 @@ func CreateKeepAlive(EtcdEndpoint []string, ServerName string, Protocol string, 
 	}
 
 	k := &KeepAlive{
-		EtcdEndpoint: EtcdEndpoint,
-		ServerName:   ServerName,
-		Endpoint:     fmt.Sprintf("%s:%d", HostIP, Port),
-		TTL:          5,
-		Done:         make(chan struct{}),
+		EtcdClientArgs: etcdClientArgs,
+		ServerName:     ServerName,
+		Endpoint:       fmt.Sprintf("%s:%d", HostIP, Port),
+		TTL:            5,
+		Done:           make(chan struct{}),
 	}
 	if Protocol == "" {
 		k.Endpoint = fmt.Sprintf("%s:%d", HostIP, Port)
@@ -82,9 +80,9 @@ func CreateKeepAlive(EtcdEndpoint []string, ServerName string, Protocol string, 
 func (k *KeepAlive) Start() error {
 	duration := time.Duration(k.TTL) * time.Second
 	timer := time.NewTimer(duration)
-	etcdclient, err := client.New(client.Config{
-		Endpoints: k.EtcdEndpoint,
-	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	etcdclient, err := etcdutil.NewClient(ctx, k.EtcdClientArgs)
 	if err != nil {
 		return err
 	}

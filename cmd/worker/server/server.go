@@ -25,14 +25,15 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
-	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/worker/appm"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/store"
@@ -57,10 +58,10 @@ func Run(s *option.Worker) error {
 		return err
 	}
 	defer db.CloseManager()
-
+	etcdClientArgs := &etcdutil.ClientArgs{Endpoints: s.Config.EtcdEndPoints, CaFile: s.Config.EtcdCaFile, CertFile: s.Config.EtcdCertFile, KeyFile: s.Config.EtcdKeyFile}
 	if err := event.NewManager(event.EventConfig{
 		EventLogServers: s.Config.EventLogServers,
-		DiscoverAddress: s.Config.EtcdEndPoints,
+		DiscoverArgs:    etcdClientArgs,
 	}); err != nil {
 		return err
 	}

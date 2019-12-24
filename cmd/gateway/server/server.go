@@ -42,6 +42,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/controller"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"k8s.io/apiserver/pkg/server/healthz"
 )
 
@@ -86,8 +87,13 @@ func Run(s *option.GWServer) error {
 		util.ProfilerSetup(mux)
 	}
 	go startHTTPServer(s.ListenPorts.Health, mux)
-
-	keepalive, err := discover.CreateKeepAlive(s.Config.EtcdEndpoint, "gateway", s.Config.NodeName,
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints: s.Config.EtcdEndpoint,
+		CaFile:    s.Config.EtcdCaFile,
+		CertFile:  s.Config.EtcdCertFile,
+		KeyFile:   s.Config.EtcdKeyFile,
+	}
+	keepalive, err := discover.CreateKeepAlive(etcdClientArgs, "gateway", s.Config.NodeName,
 		s.Config.HostIP, s.ListenPorts.Health)
 	if err != nil {
 		return err
