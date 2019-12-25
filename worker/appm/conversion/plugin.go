@@ -428,10 +428,7 @@ func createPluginResources(memory int, cpu int) v1.ResourceRequirements {
 		int64(memory*1024*1024),
 		resource.BinarySI)
 	request := v1.ResourceList{}
-	cpuRequest = int64(memory) / 4
-	if cpuRequest <= 0 {
-		cpuRequest = 1
-	}
+	cpuRequest = restrictCPUByMemory(int64(memory))
 	request[v1.ResourceCPU] = *resource.NewMilliQuantity(
 		cpuRequest,
 		resource.DecimalSI)
@@ -494,17 +491,19 @@ func createTCPUDPMeshRecources(envs []v1.EnvVar) v1.ResourceRequirements {
 
 	limits := v1.ResourceList{}
 	limits[v1.ResourceCPU] = *resource.NewMilliQuantity(cpu, resource.DecimalSI)
-	limits[v1.ResourceMemory] = *resource.NewQuantity(int64(memory*1024*1024), resource.BinarySI)
+	limits[v1.ResourceMemory] = *resource.NewQuantity(memory*1024*1024, resource.BinarySI)
 
 	request := v1.ResourceList{}
-	cpu = memory / 4
-	if cpu <= 0 {
-		cpu = 1
-	}
+	cpu = restrictCPUByMemory(memory)
 	request[v1.ResourceCPU] = *resource.NewMilliQuantity(cpu, resource.DecimalSI)
-	request[v1.ResourceMemory] = *resource.NewQuantity(int64(memory*1024*1024), resource.BinarySI)
+	request[v1.ResourceMemory] = *resource.NewQuantity(memory*1024*1024, resource.BinarySI)
 	return v1.ResourceRequirements{
 		Limits:   limits,
 		Requests: request,
 	}
+}
+
+func restrictCPUByMemory(memory int64) int64 {
+	m := float64(memory)
+	return int64((m / 1024) * (1000 / 4))
 }
