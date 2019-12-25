@@ -428,6 +428,7 @@ func createPluginResources(memory int, cpu int) v1.ResourceRequirements {
 		int64(memory*1024*1024),
 		resource.BinarySI)
 	request := v1.ResourceList{}
+	cpuRequest = int64(memory) / 4
 	request[v1.ResourceCPU] = *resource.NewMilliQuantity(
 		cpuRequest,
 		resource.DecimalSI)
@@ -464,7 +465,7 @@ func createAdapterResources(memory int, cpu int) v1.ResourceRequirements {
 
 func createTCPUDPMeshRecources(envs []v1.EnvVar) v1.ResourceRequirements {
 	var cpu int64 = 250
-	var memory int = 128
+	var memory = 128
 	for _, env := range envs {
 		if env.Name == "ES_TCPUDP_MESH_CPU" {
 			c, err := strconv.Atoi(env.Value)
@@ -493,6 +494,7 @@ func createTCPUDPMeshRecources(envs []v1.EnvVar) v1.ResourceRequirements {
 	limits[v1.ResourceMemory] = *resource.NewQuantity(int64(memory*1024*1024), resource.BinarySI)
 
 	request := v1.ResourceList{}
+	cpu = int64(memory) / 4
 	request[v1.ResourceCPU] = *resource.NewMilliQuantity(cpu, resource.DecimalSI)
 	request[v1.ResourceMemory] = *resource.NewQuantity(int64(memory*1024*1024), resource.BinarySI)
 	return v1.ResourceRequirements{
