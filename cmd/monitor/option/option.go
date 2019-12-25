@@ -52,6 +52,9 @@ type Config struct {
 	QueryTimeout         string
 	QueryMaxConcurrency  string
 	CadvisorListenPort   int
+	CadvisorCaFile       string
+	CadvisorCertFile     string
+	CadvisorKeyFile      string
 	MysqldExporter       string
 	KSMExporter          string
 }
@@ -123,7 +126,10 @@ func NewConfig() *Config {
 			MinBlockDuration: "2h",
 			Retention:        "7d",
 		},
-		CadvisorListenPort: 4194,
+		CadvisorListenPort: 10250,
+		CadvisorCaFile:     "/opt/rainbond/etc/kubernetes/ssl/ca.pem",
+		CadvisorCertFile:   "/opt/rainbond/etc/kubernetes/ssl/admin.pem",
+		CadvisorKeyFile:    "/opt/rainbond/etc/kubernetes/ssl/admin-key.pem",
 	}
 
 	return config
@@ -134,6 +140,9 @@ func (c *Config) AddFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.EtcdEndpointsLine, "etcd-endpoints", c.EtcdEndpointsLine, "etcd endpoints list.")
 	cmd.StringVar(&c.AdvertiseAddr, "advertise-addr", c.AdvertiseAddr, "advertise address, and registry into etcd.")
 	cmd.IntVar(&c.CadvisorListenPort, "cadvisor-listen-port", c.CadvisorListenPort, "kubelet cadvisor listen port in all node")
+	cmd.StringVar(&c.CadvisorCaFile, "cadvisor-ca", c.CadvisorCaFile, "kubelet ca file")
+	cmd.StringVar(&c.CadvisorCertFile, "cadvisor-cert", c.CadvisorCertFile, "kubelet cert file")
+	cmd.StringVar(&c.CadvisorKeyFile, "cadvisor-key", c.CadvisorKeyFile, "kubelet cert key file")
 	cmd.StringSliceVar(&c.AlertManagerUrl, "alertmanager-address", c.AlertManagerUrl, "AlertManager url.")
 	cmd.StringVar(&c.MysqldExporter, "mysqld-exporter", c.MysqldExporter, "mysqld exporter address. eg: 127.0.0.1:9104")
 	cmd.StringVar(&c.KSMExporter, "kube-state-metrics", c.KSMExporter, "kube-state-metrics, current server's kube-state-metrics address")
