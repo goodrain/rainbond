@@ -208,22 +208,6 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		for _, alias := range serviceAliass {
 			sid2alias[alias.ServiceID] = alias.ServiceAlias
 		}
-		var clusterNames []string
-		ports, err := dbmanager.TenantServicesPortDao().ListInnerPortsByServiceIDs(relationIDs)
-		for _, port := range ports {
-			depServiceAlias, ok := sid2alias[port.ServiceID]
-			if !ok {
-				logrus.Warningf("service id: %s; service alias not found", port.ServiceID)
-				continue
-			}
-
-			if bootSeqDepServiceIDs != "" && strings.Contains(bootSeqDepServiceIDs, port.ServiceID) {
-				clusterName := fmt.Sprintf("%s_%s_%s_%d", as.TenantID, as.ServiceAlias, depServiceAlias, port.ContainerPort)
-				clusterNames = append(clusterNames, clusterName)
-			}
-		}
-		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_CLUSTER_NAMES", Value: strings.Join(clusterNames, ",")})
-
 		as.NeedProxy = true
 	}
 
@@ -738,19 +722,6 @@ func (v *volumeDefine) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isRead
 
 func createResources(as *v1.AppService) corev1.ResourceRequirements {
 	var cpuRequest, cpuLimit int64
-	memory := as.ContainerMemory
-	base := int64(memory) / 128
-	if base <= 0 {
-		base = 1
-	}
-	if memory < 512 {
-		//cpuRequest, cpuLimit = int64(memory)/128*30, int64(memory)/128*80
-		cpuRequest, cpuLimit = base*30, base*80
-	} else if memory <= 1024 {
-		cpuRequest, cpuLimit = base*30, base*160
-	} else {
-		cpuRequest, cpuLimit = int64(memory)/128*30, ((int64(memory)-1024)/1024*500 + 1280)
-	}
 	if limit, ok := as.ExtensionSet["cpulimit"]; ok {
 		limitint, _ := strconv.Atoi(limit)
 		if limitint > 0 {
@@ -763,19 +734,7 @@ func createResources(as *v1.AppService) corev1.ResourceRequirements {
 			cpuRequest = int64(requestint)
 		}
 	}
-
-	limits := corev1.ResourceList{}
-	limits[corev1.ResourceCPU] = *resource.NewMilliQuantity(cpuLimit, resource.DecimalSI)
-	limits[corev1.ResourceMemory] = *resource.NewQuantity(int64(as.ContainerMemory*1024*1024), resource.BinarySI)
-
-	request := corev1.ResourceList{}
-	request[corev1.ResourceCPU] = *resource.NewMilliQuantity(cpuRequest, resource.DecimalSI)
-	request[corev1.ResourceMemory] = *resource.NewQuantity(int64(as.ContainerMemory*1024*1024), resource.BinarySI)
-
-	return corev1.ResourceRequirements{
-		Limits:   limits,
-		Requests: request,
-	}
+	return createResourcesByDefaultCPU(as.ContainerMemory, cpuRequest, cpuLimit)
 }
 
 func checkUpstreamPluginRelation(serviceID string, dbmanager db.Manager) (bool, error) {

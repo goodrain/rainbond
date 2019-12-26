@@ -182,8 +182,19 @@ func (d *DiscoverServerManager) UpdateNodeConfig(nc *NodeConfig) error {
 		}
 		if selector != nil {
 			upServices, upEndpoints := d.GetServicesAndEndpoints(nc.namespace, selector)
-			services = append(services, upServices...)
-			endpoint = append(endpoint, upEndpoints...)
+			for i, service := range upServices {
+				if service.Spec.Ports[0].TargetPort.IntVal == int32(dep.Port) {
+					services = append(services, upServices[i])
+				}
+			}
+			for i, end := range upEndpoints {
+				if len(end.Subsets) == 0 || len(end.Subsets[0].Ports) == 0 {
+					continue
+				}
+				if end.Subsets[0].Ports[0].Port == int32(dep.Port) {
+					endpoint = append(endpoint, upEndpoints[i])
+				}
+			}
 		}
 	}
 	if nc.configModel.BasePorts != nil && len(nc.configModel.BasePorts) > 0 {
