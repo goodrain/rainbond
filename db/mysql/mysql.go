@@ -132,6 +132,9 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.Endpoint{})
 	m.models = append(m.models, &model.ThirdPartySvcDiscoveryCfg{})
 	m.models = append(m.models, &model.GwRuleConfig{})
+
+	// volumeType
+	m.models = append(m.models, &model.TenantServiceVolumeType{})
 	// pod autoscaler
 	m.models = append(m.models, &model.TenantServiceAutoscalerRules{})
 	m.models = append(m.models, &model.TenantServiceAutoscalerRuleMetrics{})
@@ -180,5 +183,8 @@ func (m *Manager) patchTable() {
 
 	if err := m.db.Exec("update gateway_tcp_rule set ip=? where ip=?", "0.0.0.0", "").Error; err != nil {
 		logrus.Errorf("update gateway_tcp_rule data error %s", err.Error())
+	}
+	if err := m.db.Exec("alter table tenant_services_volume modify column volume_type varchar(64);").Error; err != nil {
+		logrus.Errorf("alter table tenant_services_volume error: %s", err.Error())
 	}
 }

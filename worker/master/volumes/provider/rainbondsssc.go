@@ -123,11 +123,16 @@ func getPodNameByPVCName(pvcName string) string {
 }
 
 func getVolumeIDByPVCName(pvcName string) int {
+	logrus.Debug("parse volume id from pvc name", pvcName)
 	pvcNames := strings.SplitN(pvcName, "-", 2)
-	fmt.Println(pvcNames)
 	if len(pvcNames) == 2 {
 		idStr := pvcNames[0][6:]
 		fmt.Println(idStr)
+		id, _ := strconv.Atoi(idStr)
+		return id
+	}
+	if strings.HasPrefix(pvcName, "manual") {
+		idStr := strings.TrimPrefix(pvcName, "manual")
 		id, _ := strconv.Atoi(idStr)
 		return id
 	}

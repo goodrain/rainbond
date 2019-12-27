@@ -157,11 +157,17 @@ func (t *TenantStruct) AddVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tsv := &dbmodel.TenantServiceVolume{
-		ServiceID:  serviceID,
-		VolumePath: avs.Body.VolumePath,
-		HostPath:   avs.Body.HostPath,
-		Category:   avs.Body.Category,
-		VolumeType: dbmodel.ShareFileVolumeType.String(),
+		ServiceID:          serviceID,
+		VolumePath:         avs.Body.VolumePath,
+		HostPath:           avs.Body.HostPath,
+		Category:           avs.Body.Category,
+		VolumeCapacity:     avs.Body.VolumeCapacity,
+		VolumeType:         dbmodel.ShareFileVolumeType.String(),
+		VolumeProviderName: avs.Body.VolumeProviderName,
+		AccessMode:         avs.Body.AccessMode,
+		SharePolicy:        avs.Body.SharePolicy,
+		BackupPolicy:       avs.Body.BackupPolicy,
+		ReclaimPolicy:      avs.Body.ReclaimPolicy,
 	}
 	if !strings.HasPrefix(tsv.VolumePath, "/") {
 		httputil.ReturnError(r, w, 400, "volume path is invalid,must begin with /")
@@ -352,12 +358,22 @@ func AddVolume(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("request uri: %s; request body: %v", r.RequestURI, string(bytes))
 
 	tsv := &dbmodel.TenantServiceVolume{
-		ServiceID:  serviceID,
-		VolumeName: avs.Body.VolumeName,
-		VolumePath: avs.Body.VolumePath,
-		VolumeType: avs.Body.VolumeType,
-		Category:   avs.Body.Category,
+		ServiceID:          serviceID,
+		VolumeName:         avs.Body.VolumeName,
+		VolumePath:         avs.Body.VolumePath,
+		VolumeType:         avs.Body.VolumeType,
+		Category:           avs.Body.Category,
+		VolumeProviderName: avs.Body.VolumeProviderName,
+		IsReadOnly:         avs.Body.IsReadOnly,
+		VolumeCapacity:     avs.Body.VolumeCapacity,
+		AccessMode:         avs.Body.AccessMode,
+		SharePolicy:        avs.Body.SharePolicy,
+		BackupPolicy:       avs.Body.BackupPolicy,
+		ReclaimPolicy:      avs.Body.ReclaimPolicy,
+		AllowExpansion:     avs.Body.AllowExpansion,
 	}
+
+	// TODO fanyangyang validate VolumeCapacity  AccessMode SharePolicy BackupPolicy ReclaimPolicy AllowExpansion
 
 	if !strings.HasPrefix(avs.Body.VolumePath, "/") {
 		httputil.ReturnError(r, w, 400, "volume path is invalid,must begin with /")

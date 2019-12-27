@@ -54,7 +54,7 @@ type ServiceHandler interface {
 	UpdVolume(sid string, req *api_model.UpdVolumeReq) error
 	VolumeDependency(tsr *dbmodel.TenantServiceMountRelation, action string) *util.APIHandleError
 	GetDepVolumes(serviceID string) ([]*dbmodel.TenantServiceMountRelation, *util.APIHandleError)
-	GetVolumes(serviceID string) ([]*dbmodel.TenantServiceVolume, *util.APIHandleError)
+	GetVolumes(serviceID string) ([]*api_model.VolumeWithStatusStruct, *util.APIHandleError)
 	ServiceProbe(tsp *dbmodel.TenantServiceProbe, action string) error
 	RollBack(rs *api_model.RollbackStruct) error
 	GetStatus(serviceID string) (*api_model.StatusList, error)

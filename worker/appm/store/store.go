@@ -34,13 +34,16 @@ import (
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/goodrain/rainbond/worker/appm/f"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	workerutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/autoscaling/v2beta1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -169,6 +172,12 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.Nodes = infFactory.Core().V1().Nodes().Informer()
 	store.listers.Nodes = infFactory.Core().V1().Nodes().Lister()
 
+	store.informers.StorageClass = infFactory.Storage().V1().StorageClasses().Informer()
+	store.listers.StorageClass = infFactory.Storage().V1().StorageClasses().Lister()
+
+	store.informers.Claims = infFactory.Core().V1().PersistentVolumeClaims().Informer()
+	store.listers.Claims = infFactory.Core().V1().PersistentVolumeClaims().Lister()
+
 	store.informers.Events = infFactory.Core().V1().Events().Informer()
 
 	store.informers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2beta1().HorizontalPodAutoscalers().Informer()
@@ -265,6 +274,9 @@ func NewStore(clientset *kubernetes.Clientset,
 	store.informers.ReplicaSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Endpoints.AddEventHandlerWithResyncPeriod(epEventHandler, time.Second*10)
 	store.informers.Nodes.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.StorageClass.AddEventHandlerWithResyncPeriod(store, time.Second*300)
+	store.informers.Claims.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+
 	store.informers.Events.AddEventHandlerWithResyncPeriod(store.evtEventHandler(), time.Second*10)
 	store.informers.HorizontalPodAutoscaler.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	return store
@@ -566,6 +578,27 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			return
 		}
 	}
+	if sc, ok := obj.(*storagev1.StorageClass); ok {
+		vt := workerutil.TransStorageClass2RBDVolumeType(sc)
+		if _, err := db.GetManager().VolumeTypeDao().CreateOrUpdateVolumeType(vt); err != nil {
+			logrus.Errorf("sync storageclass error : %s, ignore it", err.Error())
+		}
+	}
+	if claim, ok := obj.(*corev1.PersistentVolumeClaim); ok {
+		serviceID := claim.Labels["service_id"]
+		version := claim.Labels["version"]
+		createrID := claim.Labels["creater_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(claim.Name, &metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetClaim(claim)
+				return
+			}
+		}
+	}
 }
 
 func (a *appRuntimeStore) listHPAEvents(hpa *v2beta1.HorizontalPodAutoscaler) error {
@@ -715,6 +748,29 @@ func (a *appRuntimeStore) OnDelete(obj interface{}) {
 			appservice, _ := a.getAppService(serviceID, version, createrID, false)
 			if appservice != nil {
 				appservice.DelHPA(hpa)
+				if appservice.IsClosed() {
+					a.DeleteAppService(appservice)
+				}
+				return
+			}
+		}
+	}
+
+	if sc, ok := obj.(*storagev1.StorageClass); ok {
+		if err := a.dbmanager.VolumeTypeDao().DeleteModelByVolumeTypes(sc.GetName()); err != nil {
+			logrus.Errorf("delete volumeType from db error: %s", err.Error())
+			return
+		}
+	}
+
+	if claim, ok := obj.(*corev1.PersistentVolumeClaim); ok {
+		serviceID := claim.Labels["service_id"]
+		version := claim.Labels["version"]
+		createrID := claim.Labels["creater_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, _ := a.getAppService(serviceID, version, createrID, false)
+			if appservice != nil {
+				appservice.DeleteClaim(claim)
 				if appservice.IsClosed() {
 					a.DeleteAppService(appservice)
 				}
