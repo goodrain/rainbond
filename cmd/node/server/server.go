@@ -23,6 +23,7 @@ import (
 	"os"
 	"syscall"
 
+	"github.com/goodrain/rainbond/node/nodem/docker"
 	"github.com/goodrain/rainbond/node/nodem/envoy"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
@@ -77,6 +78,13 @@ func Run(c *option.Conf) error {
 		defer kubecli.Stop()
 
 		logrus.Debug("create and start kube cache moudle success")
+
+		logrus.Debugf("rbd-namespace=%s; rbd-docker-secret=%s", os.Getenv("RBD_NAMESPACE"), os.Getenv("RBD_DOCKER_SECRET"))
+		// sync docker inscure registries cert info into all rainbond node
+		if err = docker.SyncDockerCertFromSecret(kubecli.GetKubeClient(), os.Getenv("RBD_NAMESPACE"), os.Getenv("RBD_DOCKER_SECRET")); err != nil { // TODO fanyangyang namespace secretname
+			return fmt.Errorf("sync docker cert from secret error: %s", err.Error())
+		}
+
 		// init etcd client
 		if err = store.NewClient(c); err != nil {
 			return fmt.Errorf("Connect to ETCD %s failed: %s", c.Etcd.Endpoints, err)
