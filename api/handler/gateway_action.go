@@ -652,6 +652,21 @@ func (g *GatewayAction) UpdCertificate(req *apimodel.UpdCertificateReq) error {
 		return fmt.Errorf(msg, err)
 	}
 
+	if cert == nil {
+		// cert do not exists in region db, create it
+		cert = &model.Certificate{
+			UUID:            req.CertificateID,
+			CertificateName: req.CertificateName,
+			Certificate:     req.Certificate,
+			PrivateKey:      req.PrivateKey,
+		}
+		if err := db.GetManager().CertificateDao().AddModel(cert); err != nil {
+			msg := "update cert error :%s"
+			return fmt.Errorf(msg, err.Error())
+		}
+		return nil
+	}
+
 	cert.CertificateName = req.CertificateName
 	cert.Certificate = req.Certificate
 	cert.PrivateKey = req.PrivateKey
