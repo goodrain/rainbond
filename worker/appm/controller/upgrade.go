@@ -28,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/f"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	workerutil "github.com/goodrain/rainbond/worker/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -187,14 +188,26 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	}
 	s.upgradeConfigMap(app)
 	if deployment := app.GetDeployment(); deployment != nil {
-		_, err := s.manager.client.AppsV1().Deployments(deployment.Namespace).Patch(deployment.Name, types.MergePatchType, app.UpgradePatch["deployment"])
+		podDNSConfig, err := workerutil.MakePodDNSConfig(s.manager.client, deployment.Namespace)
+		if err != nil {
+			return err
+		}
+		deployment.Spec.Template.Spec.DNSConfig = podDNSConfig
+		deployment.Spec.Template.Spec.DNSPolicy = "None"
+		_, err = s.manager.client.AppsV1().Deployments(deployment.Namespace).Patch(deployment.Name, types.MergePatchType, app.UpgradePatch["deployment"])
 		if err != nil {
 			app.Logger.Error(fmt.Sprintf("upgrade deployment %s failure %s", app.ServiceAlias, err.Error()), event.GetLoggerOption("failure"))
 			return fmt.Errorf("upgrade deployment %s failure %s", app.ServiceAlias, err.Error())
 		}
 	}
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		_, err := s.manager.client.AppsV1().StatefulSets(statefulset.Namespace).Patch(statefulset.Name, types.MergePatchType, app.UpgradePatch["statefulset"])
+		podDNSConfig, err := workerutil.MakePodDNSConfig(s.manager.client, statefulset.Namespace)
+		if err != nil {
+			return err
+		}
+		statefulset.Spec.Template.Spec.DNSConfig = podDNSConfig
+		statefulset.Spec.Template.Spec.DNSPolicy = "None"
+		_, err = s.manager.client.AppsV1().StatefulSets(statefulset.Namespace).Patch(statefulset.Name, types.MergePatchType, app.UpgradePatch["statefulset"])
 		if err != nil {
 			logrus.Errorf("patch statefulset error : %s", err.Error())
 			app.Logger.Error(fmt.Sprintf("upgrade statefulset %s failure %s", app.ServiceAlias, err.Error()), event.GetLoggerOption("failure"))

@@ -23,6 +23,8 @@ import (
 	"sync"
 	"time"
 
+	workerutil "github.com/goodrain/rainbond/worker/util"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
@@ -109,13 +111,25 @@ func (s *startController) startOne(app v1.AppService) error {
 	}
 	//step 2: create statefulset or deployment
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		_, err := s.manager.client.AppsV1().StatefulSets(app.TenantID).Create(statefulset)
+		podDNSConfig, err := workerutil.MakePodDNSConfig(s.manager.client, statefulset.Namespace)
+		if err != nil {
+			return err
+		}
+		statefulset.Spec.Template.Spec.DNSConfig = podDNSConfig
+		statefulset.Spec.Template.Spec.DNSPolicy = "None"
+		_, err = s.manager.client.AppsV1().StatefulSets(app.TenantID).Create(statefulset)
 		if err != nil {
 			return fmt.Errorf("create statefulset failure:%s", err.Error())
 		}
 	}
 	if deployment := app.GetDeployment(); deployment != nil {
-		_, err := s.manager.client.AppsV1().Deployments(app.TenantID).Create(deployment)
+		podDNSConfig, err := workerutil.MakePodDNSConfig(s.manager.client, deployment.Namespace)
+		if err != nil {
+			return err
+		}
+		deployment.Spec.Template.Spec.DNSConfig = podDNSConfig
+		deployment.Spec.Template.Spec.DNSPolicy = "None"
+		_, err = s.manager.client.AppsV1().Deployments(app.TenantID).Create(deployment)
 		if err != nil {
 			return fmt.Errorf("create deployment failure:%s;", err.Error())
 		}
