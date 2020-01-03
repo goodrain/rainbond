@@ -190,6 +190,7 @@ func NewStore(clientset *kubernetes.Clientset,
 	epEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			ep := obj.(*corev1.Endpoints)
+
 			serviceID := ep.Labels["service_id"]
 			version := ep.Labels["version"]
 			createrID := ep.Labels["creater_id"]
