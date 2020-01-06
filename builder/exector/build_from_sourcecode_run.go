@@ -21,6 +21,7 @@ package exector
 import (
 	"context"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path"
 	"strings"
@@ -39,6 +40,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/tidwall/gjson" //"github.com/docker/docker/api/types"
+	"k8s.io/client-go/kubernetes"
 	//"github.com/docker/docker/client"
 )
 
@@ -55,6 +57,9 @@ type SourceCodeBuildItem struct {
 	//SourceDir     string       `json:"source_dir"`
 	TGZDir        string `json:"tgz_dir"`
 	DockerClient  *client.Client
+	KubeClient    kubernetes.Interface
+	RbdNamespace  string
+	RbdRepoName   string
 	TenantID      string
 	ServiceID     string
 	DeployVersion string
@@ -217,6 +222,11 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		i.Logger.Error(util.Translation("No way of compiling to support this source type was found"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return nil, err
 	}
+	extraHosts, err := i.getExtraHosts()
+	if err != nil {
+		i.Logger.Error(util.Translation("get rbd-repo ip failure"), map[string]string{"step": "builder-exector", "status": "failure"})
+		return nil, err
+	}
 	buildReq := &build.Request{
 		SourceDir:     i.RepoInfo.GetCodeBuildAbsPath(),
 		CacheDir:      i.CacheDir,
@@ -234,9 +244,24 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		BuildEnvs:     i.BuildEnvs,
 		Logger:        i.Logger,
 		DockerClient:  i.DockerClient,
+		ExtraHosts:    extraHosts,
 	}
 	res, err := codeBuild.Build(buildReq)
 	return res, err
+}
+
+func (i *SourceCodeBuildItem) getExtraHosts() (extraHosts []string, err error) {
+	endpoints, err := i.KubeClient.CoreV1().Endpoints(i.RbdNamespace).Get(i.RbdRepoName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for _, subset := range endpoints.Subsets {
+		for _, addr := range subset.Addresses {
+			extraHosts = append(extraHosts, fmt.Sprintf("maven.goodrain.me:%s", addr.IP))
+			extraHosts = append(extraHosts, fmt.Sprintf("lang.goodrain.me:%s", addr.IP))
+		}
+	}
+	return
 }
 
 //IsDockerfile CheckDockerfile
