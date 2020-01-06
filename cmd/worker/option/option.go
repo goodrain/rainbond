@@ -49,6 +49,8 @@ type Config struct {
 	KubeClient              *kubernetes.Clientset
 	LeaderElectionNamespace string
 	LeaderElectionIdentity  string
+	RBDNamespace            string
+	RBDDNSName              string
 }
 
 //Worker  worker server
@@ -84,6 +86,8 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.NodeAPI, "node-api", "http://172.30.42.1:6100", "node discover api, node docker endpoints")
 	flag.StringVar(&a.LeaderElectionNamespace, "leader-election-namespace", "rainbond", "Namespace where this attacher runs.")
 	flag.StringVar(&a.LeaderElectionIdentity, "leader-election-identity", "", "Unique idenity of this attcher. Typically name of the pod where the attacher runs.")
+	flag.StringVar(&a.RBDNamespace, "rbd-system-namespace", "rbd-system", "rbd components kubernetes namespace")
+	flag.StringVar(&a.RBDDNSName, "rbd-dns", "rbd-dns", "rbd dns endpoint name")
 }
 
 //SetLog 设置log

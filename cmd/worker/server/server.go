@@ -25,9 +25,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
-	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
@@ -101,7 +101,7 @@ func Run(s *option.Worker) error {
 	}
 
 	//step 4: create controller manager
-	controllerManager := controller.NewManager(cachestore, clientset)
+	controllerManager := controller.NewManager(cachestore, clientset, s.Config.RBDNamespace, s.Config.RBDDNSName)
 	defer controllerManager.Stop()
 
 	//step 5 : start runtime master

@@ -64,23 +64,27 @@ var TypeControllerRefreshHPA TypeController = "refreshhpa"
 
 //Manager controller manager
 type Manager struct {
-	ctx         context.Context
-	cancel      context.CancelFunc
-	client      *kubernetes.Clientset
-	controllers map[string]Controller
-	store       store.Storer
-	lock        sync.Mutex
+	ctx          context.Context
+	cancel       context.CancelFunc
+	client       *kubernetes.Clientset
+	rbdNamespace string
+	rbdDNSName   string
+	controllers  map[string]Controller
+	store        store.Storer
+	lock         sync.Mutex
 }
 
 //NewManager new manager
-func NewManager(store store.Storer, client *kubernetes.Clientset) *Manager {
+func NewManager(store store.Storer, client *kubernetes.Clientset, rbdNamespace, rbdDNSName string) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
-		ctx:         ctx,
-		cancel:      cancel,
-		client:      client,
-		controllers: make(map[string]Controller),
-		store:       store,
+		ctx:          ctx,
+		cancel:       cancel,
+		client:       client,
+		controllers:  make(map[string]Controller),
+		store:        store,
+		rbdNamespace: rbdNamespace,
+		rbdDNSName:   rbdDNSName,
 	}
 }
 

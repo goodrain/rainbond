@@ -188,7 +188,8 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	}
 	s.upgradeConfigMap(app)
 	if deployment := app.GetDeployment(); deployment != nil {
-		podDNSConfig, err := workerutil.MakePodDNSConfig(s.manager.client, deployment.Namespace)
+
+		podDNSConfig, err := workerutil.MakePodDNSConfig(s.manager.client, deployment.Namespace, s.manager.rbdNamespace, s.manager.rbdDNSName)
 		if err != nil {
 			return err
 		}
@@ -201,7 +202,7 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 		}
 	}
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		podDNSConfig, err := workerutil.MakePodDNSConfig(s.manager.client, statefulset.Namespace)
+		podDNSConfig, err := workerutil.MakePodDNSConfig(s.manager.client, statefulset.Namespace, s.manager.rbdNamespace, s.manager.rbdDNSName)
 		if err != nil {
 			return err
 		}
