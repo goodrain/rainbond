@@ -151,16 +151,22 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 	var oldpods, newpods []*pb.ServiceAppPod
 	for _, pod := range pods {
 		var containers = make(map[string]*pb.Container, len(pod.Spec.Containers))
+		volumes := make([]string, 0)
 		for _, container := range pod.Spec.Containers {
 			containers[container.Name] = &pb.Container{
 				ContainerName: container.Name,
 				MemoryLimit:   container.Resources.Limits.Memory().Value(),
 			}
+			for _, vm := range container.VolumeMounts {
+				volumes = append(volumes, vm.Name)
+			}
 		}
+
 		sapod := &pb.ServiceAppPod{
 			PodIp:      pod.Status.PodIP,
 			PodName:    pod.Name,
 			Containers: containers,
+			PodVolumes: volumes,
 		}
 		podStatus := &pb.PodStatus{}
 		wutil.DescribePodStatus(r.clientset, pod, podStatus, k8s.DefListEventsByPod)
@@ -346,7 +352,7 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 			}
 			if ip == "8.8.8.8" {
 				ip = as.GetServices()[0].Annotations["domain"]
-				logrus.Debugf("domain address is : ", ip)
+				logrus.Debugf("domain address is : %v", ip)
 			}
 			exists[subset.Ports[0].Name] = true
 			pbep := &pb.ThirdPartyEndpoint{
@@ -432,4 +438,85 @@ func (r *RuntimeServer) DelThirdPartyEndpoint(ctx context.Context, re *pb.DelThi
 		},
 	}
 	return new(pb.Empty), nil
+}
+
+// GetStorageClasses get storageclass list
+func (r *RuntimeServer) GetStorageClasses(ctx context.Context, re *pb.Empty) (*pb.StorageClasses, error) {
+	storageclasses := new(pb.StorageClasses)
+	// stes := r.store.GetStorageClasses()
+
+	// if stes != nil {
+	// 	for _, st := range stes {
+	// 		var allowTopologies []*pb.TopologySelectorTerm
+	// 		for _, topologySelectorTerm := range st.AllowedTopologies {
+	// 			var expressions []*pb.TopologySelectorLabelRequirement
+	// 			for _, value := range topologySelectorTerm.MatchLabelExpressions {
+	// 				expressions = append(expressions, &pb.TopologySelectorLabelRequirement{Key: value.Key, Values: value.Values})
+	// 			}
+	// 			allowTopologies = append(allowTopologies, &pb.TopologySelectorTerm{MatchLabelExpressions: expressions})
+	// 		}
+
+	// 		var allowVolumeExpansion bool
+	// 		if st.AllowVolumeExpansion == nil {
+	// 			allowVolumeExpansion = false
+	// 		} else {
+	// 			allowVolumeExpansion = *st.AllowVolumeExpansion
+	// 		}
+	// 		storageclasses.List = append(storageclasses.List, &pb.StorageClassDetail{
+	// 			Name:                 st.Name,
+	// 			Provisioner:          st.Provisioner,
+	// 			Parameters:           st.Parameters,
+	// 			ReclaimPolicy:        st.ReclaimPolicy,
+	// 			AllowVolumeExpansion: allowVolumeExpansion,
+	// 			VolumeBindingMode:    st.VolumeBindingMode,
+	// 			AllowedTopologies:    allowTopologies,
+	// 		})
+	// 	}
+	// }
+	return storageclasses, nil
+}
+
+// GetAppVolumeStatus get app volume status
+func (r *RuntimeServer) GetAppVolumeStatus(ctx context.Context, re *pb.ServiceRequest) (*pb.ServiceVolumeStatusMessage, error) {
+	ret := new(pb.ServiceVolumeStatusMessage)
+	ret.Status = make(map[string]pb.ServiceVolumeStatus)
+	as := r.store.GetAppService(re.ServiceId)
+	if as == nil {
+		return ret, nil
+	}
+	appPodList, err := r.GetAppPods(ctx, re)
+	if err != nil {
+		logrus.Warnf("get volume status error : %s", err.Error())
+		return ret, nil
+	}
+	for _, pod := range appPodList.GetNewPods() {
+		for _, volumeName := range pod.PodVolumes {
+			prefix := "manual"
+			if strings.HasPrefix(volumeName, prefix) {
+				volumeName = strings.TrimPrefix(volumeName, prefix)
+				if pod.GetPodStatus() != pb.PodStatus_RUNNING.String() {
+					ret.Status[volumeName] = pb.ServiceVolumeStatus_NOT_READY // volumeName tranfer to serviceVolume's id in db
+				} else {
+					ret.Status[volumeName] = pb.ServiceVolumeStatus_READY // volumeName tranfer to serviceVolume's id in db
+				}
+
+			}
+		}
+	}
+
+	for _, pod := range appPodList.GetOldPods() {
+		for _, volumeName := range pod.PodVolumes {
+			prefix := "manual"
+			if strings.HasPrefix(volumeName, prefix) {
+				volumeName = strings.TrimPrefix(volumeName, prefix)
+				if pod.GetPodStatus() != pb.PodStatus_RUNNING.String() {
+					ret.Status[volumeName] = pb.ServiceVolumeStatus_NOT_READY // volumeName tranfer to serviceVolume's id in db
+				} else {
+					ret.Status[volumeName] = pb.ServiceVolumeStatus_READY // volumeName tranfer to serviceVolume's id in db
+				}
+			}
+		}
+	}
+
+	return ret, nil
 }

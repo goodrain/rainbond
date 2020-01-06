@@ -206,3 +206,17 @@ func (a *AppRuntimeSyncClient) DelThirdPartyEndpoint(uuid, sid string) {
 		Sid:  sid,
 	})
 }
+
+// GetStorageClasses client GetStorageClasses
+func (a *AppRuntimeSyncClient) GetStorageClasses() (storageclasses *pb.StorageClasses, err error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return a.AppRuntimeSyncClient.GetStorageClasses(ctx, &pb.Empty{})
+}
+
+// GetAppVolumeStatus get app volume status
+func (a *AppRuntimeSyncClient) GetAppVolumeStatus(serviceID string) (*pb.ServiceVolumeStatusMessage, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return a.AppRuntimeSyncClient.GetAppVolumeStatus(ctx, &pb.ServiceRequest{ServiceId: serviceID})
+}

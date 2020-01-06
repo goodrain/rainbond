@@ -1353,9 +1353,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				tsv.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, tenantID, tsv.ServiceID, tsv.VolumePath)
 			}
 		}
-		if tsv.VolumeName == "" {
-			tsv.VolumeName = uuid.NewV4().String()
-		}
+		util.SetVolumeDefaultValue(tsv)
 		// begin transaction
 		tx := db.GetManager().Begin()
 		defer func() {
@@ -1448,62 +1446,75 @@ func (s *ServiceAction) UpdVolume(sid string, req *api_model.UpdVolumeReq) error
 			tx.Rollback()
 		}
 	}()
-	switch req.VolumeType {
-	case "config-file":
-		if req.VolumePath != "" {
-			v, err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).
-				GetVolumeByServiceIDAndName(sid, req.VolumeName)
-			if err != nil {
-				tx.Rollback()
-				return err
-			}
-			v.VolumePath = req.VolumePath
-			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).UpdateModel(v); err != nil {
-				tx.Rollback()
-				return err
-			}
-		}
-		if req.FileContent != "" {
-			configfile, err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).
-				GetByVolumeName(sid, req.VolumeName)
-			if err != nil {
-				tx.Rollback()
-				return err
-			}
-			configfile.FileContent = req.FileContent
-			if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).UpdateModel(configfile); err != nil {
-				tx.Rollback()
-				return err
-			}
-		}
-	case dbmodel.ShareFileVolumeType.String(), dbmodel.LocalVolumeType.String():
-		v, err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).
-			GetVolumeByServiceIDAndName(sid, req.VolumeName)
+	v, err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).GetVolumeByServiceIDAndName(sid, req.VolumeName)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	v.VolumePath = req.VolumePath
+	if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).UpdateModel(v); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if req.VolumeType == "config-file" {
+		configfile, err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).GetByVolumeName(sid, req.VolumeName)
 		if err != nil {
 			tx.Rollback()
 			return err
 		}
-		v.VolumePath = req.VolumePath
-		if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).UpdateModel(v); err != nil {
+		configfile.FileContent = req.FileContent
+		if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).UpdateModel(configfile); err != nil {
 			tx.Rollback()
 			return err
 		}
-	default:
-		tx.Rollback()
-		return fmt.Errorf("unsupported volume type")
 	}
 	tx.Commit()
 	return nil
 }
 
 //GetVolumes 获取应用全部存储
-func (s *ServiceAction) GetVolumes(serviceID string) ([]*dbmodel.TenantServiceVolume, *util.APIHandleError) {
-	dbManager := db.GetManager()
-	vs, err := dbManager.TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(serviceID)
+func (s *ServiceAction) GetVolumes(serviceID string) ([]*api_model.VolumeWithStatusStruct, *util.APIHandleError) {
+	volumeWithStatusList := make([]*api_model.VolumeWithStatusStruct, 0)
+	vs, err := db.GetManager().TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(serviceID)
 	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 		return nil, util.CreateAPIHandleErrorFromDBError("get volumes", err)
 	}
-	return vs, nil
+
+	volumeStatusList, err := s.statusCli.GetAppVolumeStatus(serviceID)
+	if err != nil {
+		logrus.Warnf("get volume status error: %s", err.Error())
+	}
+	volumeStatus := make(map[string]pb.ServiceVolumeStatus)
+	if volumeStatusList != nil && volumeStatusList.GetStatus() != nil {
+		volumeStatus = volumeStatusList.GetStatus()
+	}
+	for _, volume := range vs {
+		vws := &api_model.VolumeWithStatusStruct{
+			ServiceID:          volume.ServiceID,
+			Category:           volume.Category,
+			VolumeType:         volume.VolumeType,
+			VolumeName:         volume.VolumeName,
+			HostPath:           volume.HostPath,
+			VolumePath:         volume.VolumePath,
+			IsReadOnly:         volume.IsReadOnly,
+			VolumeCapacity:     volume.VolumeCapacity,
+			AccessMode:         volume.AccessMode,
+			SharePolicy:        volume.SharePolicy,
+			BackupPolicy:       volume.BackupPolicy,
+			ReclaimPolicy:      volume.ReclaimPolicy,
+			AllowExpansion:     volume.AllowExpansion,
+			VolumeProviderName: volume.VolumeProviderName,
+		}
+		volumeID := strconv.FormatInt(int64(volume.ID), 10)
+		if phrase, ok := volumeStatus[volumeID]; ok {
+			vws.Status = phrase.String()
+		} else {
+			vws.Status = pb.ServiceVolumeStatus_NOT_READY.String()
+		}
+		volumeWithStatusList = append(volumeWithStatusList, vws)
+	}
+
+	return volumeWithStatusList, nil
 }
 
 //VolumeDependency VolumeDependency

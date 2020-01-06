@@ -22,21 +22,22 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/db/dao"
 	"net/http"
 	"time"
 
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/dao"
+	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/worker/appm/store"
+	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
 
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/Sirupsen/logrus"
 
-	"github.com/goodrain/rainbond/node/nodem/client"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
-	"k8s.io/api/core/v1"
+
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -135,7 +136,6 @@ func (p *rainbondsslcProvisioner) createPath(options controller.VolumeOptions) (
 			"service_id":  serviceID,
 			"pvcname":     options.PVC.Name,
 			"volume_name": volume.VolumeName,
-			"volume_path": volume.VolumePath,
 			"pod_name":    getPodNameByPVCName(options.PVC.Name),
 		}
 		var ip string

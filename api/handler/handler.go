@@ -79,6 +79,8 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 	batchOperationHandler = CreateBatchOperationHandler(mqClient, operationHandler)
 	defaultAppRestoreHandler = NewAppRestoreHandler()
 	defPodHandler = NewPodHandler(statusCli)
+	
+	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
 
 	return nil
 }

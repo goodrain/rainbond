@@ -25,6 +25,13 @@ import (
 	mysqldao "github.com/goodrain/rainbond/db/mysql/dao"
 )
 
+// VolumeTypeDao volumeTypeDao
+func (m *Manager) VolumeTypeDao() dao.VolumeTypeDao {
+	return &mysqldao.VolumeTypeDaoImpl{
+		DB: m.db,
+	}
+}
+
 //LicenseDao LicenseDao
 func (m *Manager) LicenseDao() dao.LicenseDao {
 	return &mysqldao.LicenseDaoImpl{

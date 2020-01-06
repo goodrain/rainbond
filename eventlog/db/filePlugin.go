@@ -128,6 +128,9 @@ func (m *filePlugin) GetMessages(serviceID, level string, length int) (interface
 		if err != nil {
 			break
 		}
+		if len(line) == 0 {
+			continue
+		}
 		lines = append(lines, string(line))
 	}
 	return lines, nil

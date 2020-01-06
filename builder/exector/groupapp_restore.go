@@ -479,6 +479,16 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshot *AppSnapshot) error {
 			case dbmodel.LocalVolumeType.String():
 				a.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, b.TenantID, a.ServiceID, a.VolumePath)
 			}
+			volumeType, err := db.GetManager().VolumeTypeDao().GetVolumeTypeByType(a.VolumeType)
+			if err != nil {
+				logrus.Warnf("get volumeType error : %s", err.Error())
+				return err
+			}
+			if volumeType == nil {
+				logrus.Warnf("service[%s] volumeType[%s] do not exists, use default volumeType[%s]", a.ServiceID, a.VolumeType, dbmodel.ShareFileVolumeType.String())
+				a.VolumeType = dbmodel.ShareFileVolumeType.String()
+				a.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, b.TenantID, a.ServiceID, a.VolumePath)
+			}
 			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(a); err != nil {
 				tx.Rollback()
 				return fmt.Errorf("create app volume when restore backup error. %s", err.Error())

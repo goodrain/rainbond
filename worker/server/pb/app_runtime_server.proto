@@ -11,6 +11,8 @@ service AppRuntimeSync {
   rpc UpdThirdPartyEndpoint (UpdThirdPartyEndpointsReq) returns (Empty) {}
   rpc DelThirdPartyEndpoint (DelThirdPartyEndpointsReq) returns (Empty) {}
   rpc GetPodDetail(GetPodDetailReq) returns (PodDetail) {}
+  rpc GetStorageClasses(Empty) returns (StorageClasses) {}
+  rpc GetAppVolumeStatus(ServiceRequest) returns(ServiceVolumeStatusMessage){}
 }
 
 message Empty {}
@@ -46,6 +48,7 @@ message ServiceAppPod {
   string pod_ip = 5;
   string pod_status = 6;
   map<string, Container> containers = 7;
+  repeated string pod_volumes = 8;
 }
 
 message Container {
@@ -186,4 +189,36 @@ message PodDetail {
   repeated PodContainer init_containers = 8;
   repeated PodContainer containers = 9;
   repeated PodEvent events = 10;
+}
+
+message StorageClasses {
+  repeated StorageClassDetail list = 1;
+}
+
+message StorageClassDetail{
+  string name = 1;
+  string provisioner = 2;
+  map<string, string> parameters = 3;
+  string reclaim_policy = 4;
+  bool allow_volume_expansion = 5;
+  string volume_binding_mode = 6;
+  repeated TopologySelectorTerm allowed_topologies = 7;
+}
+
+message TopologySelectorTerm {
+repeated TopologySelectorLabelRequirement match_label_expressions = 1;
+}
+
+message TopologySelectorLabelRequirement {
+  string key = 1;
+  repeated string values = 2;
+}
+
+enum ServiceVolumeStatus {
+    READY = 0;
+    NOT_READY = 1;
+}
+
+message ServiceVolumeStatusMessage {
+  map<string, ServiceVolumeStatus> status = 1;
 }
