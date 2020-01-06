@@ -32,25 +32,22 @@ func NewClientset(kubecfg string) (kubernetes.Interface, error) {
 	return clientset, nil
 }
 
+// NewClientsetOrDie new clientset or die
+// used for who just wants a kubernetes clientset
+func NewClientsetOrDie(kubecfg string) kubernetes.Interface {
+	restConfig, err := NewRestConfig(kubecfg)
+	if err != nil {
+		panic(err)
+	}
+	return kubernetes.NewForConfigOrDie(restConfig)
+}
+
 // NewRestConfig new rest config
 func NewRestConfig(kubecfg string) (restConfig *rest.Config, err error) {
 	if kubecfg == "" {
 		return InClusterConfig()
 	}
 	return clientcmd.BuildConfigFromFlags("", kubecfg)
-}
-
-// NewClientsetWithRestConfig new client with rest.config
-func NewClientsetWithRestConfig(restConfig *rest.Config) (kubernetes.Interface, error) {
-	if restConfig == nil {
-		var err error
-		restConfig, err = InClusterConfig()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return kubernetes.NewForConfigOrDie(restConfig), nil
 }
 
 // InClusterConfig in cluster config

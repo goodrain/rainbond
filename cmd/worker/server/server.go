@@ -25,6 +25,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
+	"k8s.io/client-go/kubernetes"
 	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 
 	"github.com/goodrain/rainbond/cmd/worker/option"
@@ -71,7 +72,7 @@ func Run(s *option.Worker) error {
 		logrus.Errorf("create kube rest config error: %s", err.Error())
 		return err
 	}
-	clientset, _ := k8sutil.NewClientsetWithRestConfig(restConfig)
+	clientset, _ := kubernetes.NewForConfig(restConfig)
 	s.Config.KubeClient = clientset
 
 	kubeaggregatorclientset, err := kubeaggregatorclientset.NewForConfig(restConfig)

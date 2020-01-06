@@ -80,7 +80,7 @@ func NewKubeClient(cfg *conf.Conf) (KubeClient, error) {
 	config.QPS = 50
 	config.Burst = 100
 
-	cli, _ := k8sutil.NewClientsetWithRestConfig(config)
+	cli, _ := kubernetes.NewForConfig(config)
 
 	stop := make(chan struct{})
 	sharedInformers := informers.NewFilteredSharedInformerFactory(cli, cfg.MinResyncPeriod, v1.NamespaceAll,

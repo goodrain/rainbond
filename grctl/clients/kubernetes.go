@@ -44,6 +44,6 @@ func InitClient(kubeconfig string) error {
 	config.QPS = 50
 	config.Burst = 100
 
-	K8SClient, _ = k8sutil.NewClientsetWithRestConfig(config)
+	K8SClient, _ = kubernetes.NewForConfig(config)
 	return nil
 }
