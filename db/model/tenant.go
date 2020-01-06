@@ -339,6 +339,17 @@ var MemoryFSVolumeType VolumeType = "memoryfs"
 //ConfigFileVolumeType configuration file volume type
 var ConfigFileVolumeType VolumeType = "config-file"
 
+// CephRBDVolumeType ceph rbd volume type
+var CephRBDVolumeType VolumeType = "ceph-rbd"
+
+// AliCloudVolumeType alicloud volume type
+var AliCloudVolumeType VolumeType = "alicloud-disk"
+
+// MakeNewVolume make volumeType
+func MakeNewVolume(name string) VolumeType {
+	return VolumeType(name)
+}
+
 func (vt VolumeType) String() string {
 	return string(vt)
 }
@@ -350,7 +361,7 @@ type TenantServiceVolume struct {
 	//服务类型
 	Category string `gorm:"column:category;size:50" json:"category"`
 	//存储类型（share,local,tmpfs）
-	VolumeType string `gorm:"column:volume_type;size:20" json:"volume_type"`
+	VolumeType string `gorm:"column:volume_type;size:64" json:"volume_type"`
 	//存储名称
 	VolumeName string `gorm:"column:volume_name;size:40" json:"volume_name"`
 	//主机地址
@@ -359,6 +370,20 @@ type TenantServiceVolume struct {
 	VolumePath string `gorm:"column:volume_path" json:"volume_path"`
 	//是否只读
 	IsReadOnly bool `gorm:"column:is_read_only;default:false" json:"is_read_only"`
+	// VolumeCapacity 存储大小
+	VolumeCapacity int64 `gorm:"column:volume_capacity" json:"volume_capacity"`
+	// AccessMode 读写模式（Important! A volume can only be mounted using one access mode at a time, even if it supports many. For example, a GCEPersistentDisk can be mounted as ReadWriteOnce by a single node or ReadOnlyMany by many nodes, but not at the same time. #https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes）
+	AccessMode string `gorm:"column:access_mode" json:"access_mode"`
+	// SharePolicy 共享模式
+	SharePolicy string `gorm:"column:share_policy" json:"share_policy"`
+	// BackupPolicy 备份策略
+	BackupPolicy string `gorm:"column:backup_policy" json:"backup_policy"`
+	// ReclaimPolicy 回收策略
+	ReclaimPolicy string `json:"reclaim_policy"`
+	// AllowExpansion 是否支持扩展
+	AllowExpansion bool `gorm:"column:allow_expansion" json:"allow_expansion"`
+	// VolumeProviderName 使用的存储驱动别名
+	VolumeProviderName string `gorm:"collumn:volume_provider_name" json:"volume_provider_name"`
 }
 
 //TableName 表名

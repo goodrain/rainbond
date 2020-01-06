@@ -33,6 +33,7 @@ type Manager interface {
 	CloseManager() error
 	Begin() *gorm.DB
 	EnsureEndTransactionFunc() func(tx *gorm.DB)
+	VolumeTypeDao() dao.VolumeTypeDao
 	LicenseDao() dao.LicenseDao
 	AppDao() dao.AppDao
 	TenantDao() dao.TenantDao

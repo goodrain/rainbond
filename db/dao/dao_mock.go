@@ -36,7 +36,6 @@ func (m *MockDao) EXPECT() *MockDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -44,13 +43,11 @@ func (m *MockDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -58,7 +55,6 @@ func (m *MockDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockDao)(nil).UpdateModel), arg0)
 }
 
@@ -87,7 +83,6 @@ func (m *MockDelDao) EXPECT() *MockDelDaoMockRecorder {
 
 // DeleteModel mocks base method
 func (m *MockDelDao) DeleteModel(serviceID string, arg ...interface{}) error {
-	m.ctrl.T.Helper()
 	varargs := []interface{}{serviceID}
 	for _, a := range arg {
 		varargs = append(varargs, a)
@@ -99,7 +94,6 @@ func (m *MockDelDao) DeleteModel(serviceID string, arg ...interface{}) error {
 
 // DeleteModel indicates an expected call of DeleteModel
 func (mr *MockDelDaoMockRecorder) DeleteModel(serviceID interface{}, arg ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{serviceID}, arg...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModel", reflect.TypeOf((*MockDelDao)(nil).DeleteModel), varargs...)
 }
@@ -129,7 +123,6 @@ func (m *MockTenantDao) EXPECT() *MockTenantDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockTenantDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -137,13 +130,11 @@ func (m *MockTenantDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -151,13 +142,11 @@ func (m *MockTenantDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantDao)(nil).UpdateModel), arg0)
 }
 
 // GetTenantByUUID mocks base method
 func (m *MockTenantDao) GetTenantByUUID(uuid string) (*model.Tenants, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantByUUID", uuid)
 	ret0, _ := ret[0].(*model.Tenants)
 	ret1, _ := ret[1].(error)
@@ -166,13 +155,11 @@ func (m *MockTenantDao) GetTenantByUUID(uuid string) (*model.Tenants, error) {
 
 // GetTenantByUUID indicates an expected call of GetTenantByUUID
 func (mr *MockTenantDaoMockRecorder) GetTenantByUUID(uuid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantByUUID", reflect.TypeOf((*MockTenantDao)(nil).GetTenantByUUID), uuid)
 }
 
 // GetTenantIDByName mocks base method
 func (m *MockTenantDao) GetTenantIDByName(tenantName string) (*model.Tenants, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantIDByName", tenantName)
 	ret0, _ := ret[0].(*model.Tenants)
 	ret1, _ := ret[1].(error)
@@ -181,13 +168,11 @@ func (m *MockTenantDao) GetTenantIDByName(tenantName string) (*model.Tenants, er
 
 // GetTenantIDByName indicates an expected call of GetTenantIDByName
 func (mr *MockTenantDaoMockRecorder) GetTenantIDByName(tenantName interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantIDByName", reflect.TypeOf((*MockTenantDao)(nil).GetTenantIDByName), tenantName)
 }
 
 // GetALLTenants mocks base method
 func (m *MockTenantDao) GetALLTenants(query string) ([]*model.Tenants, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetALLTenants", query)
 	ret0, _ := ret[0].([]*model.Tenants)
 	ret1, _ := ret[1].(error)
@@ -196,13 +181,11 @@ func (m *MockTenantDao) GetALLTenants(query string) ([]*model.Tenants, error) {
 
 // GetALLTenants indicates an expected call of GetALLTenants
 func (mr *MockTenantDaoMockRecorder) GetALLTenants(query interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetALLTenants", reflect.TypeOf((*MockTenantDao)(nil).GetALLTenants), query)
 }
 
 // GetTenantByEid mocks base method
 func (m *MockTenantDao) GetTenantByEid(eid, query string) ([]*model.Tenants, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantByEid", eid, query)
 	ret0, _ := ret[0].([]*model.Tenants)
 	ret1, _ := ret[1].(error)
@@ -211,13 +194,11 @@ func (m *MockTenantDao) GetTenantByEid(eid, query string) ([]*model.Tenants, err
 
 // GetTenantByEid indicates an expected call of GetTenantByEid
 func (mr *MockTenantDaoMockRecorder) GetTenantByEid(eid, query interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantByEid", reflect.TypeOf((*MockTenantDao)(nil).GetTenantByEid), eid, query)
 }
 
 // GetPagedTenants mocks base method
 func (m *MockTenantDao) GetPagedTenants(offset, len int) ([]*model.Tenants, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPagedTenants", offset, len)
 	ret0, _ := ret[0].([]*model.Tenants)
 	ret1, _ := ret[1].(error)
@@ -226,13 +207,11 @@ func (m *MockTenantDao) GetPagedTenants(offset, len int) ([]*model.Tenants, erro
 
 // GetPagedTenants indicates an expected call of GetPagedTenants
 func (mr *MockTenantDaoMockRecorder) GetPagedTenants(offset, len interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPagedTenants", reflect.TypeOf((*MockTenantDao)(nil).GetPagedTenants), offset, len)
 }
 
 // GetTenantIDsByNames mocks base method
 func (m *MockTenantDao) GetTenantIDsByNames(names []string) ([]string, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantIDsByNames", names)
 	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
@@ -241,13 +220,11 @@ func (m *MockTenantDao) GetTenantIDsByNames(names []string) ([]string, error) {
 
 // GetTenantIDsByNames indicates an expected call of GetTenantIDsByNames
 func (mr *MockTenantDaoMockRecorder) GetTenantIDsByNames(names interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantIDsByNames", reflect.TypeOf((*MockTenantDao)(nil).GetTenantIDsByNames), names)
 }
 
 // GetTenantLimitsByNames mocks base method
 func (m *MockTenantDao) GetTenantLimitsByNames(names []string) (map[string]int, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantLimitsByNames", names)
 	ret0, _ := ret[0].(map[string]int)
 	ret1, _ := ret[1].(error)
@@ -256,13 +233,11 @@ func (m *MockTenantDao) GetTenantLimitsByNames(names []string) (map[string]int, 
 
 // GetTenantLimitsByNames indicates an expected call of GetTenantLimitsByNames
 func (mr *MockTenantDaoMockRecorder) GetTenantLimitsByNames(names interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantLimitsByNames", reflect.TypeOf((*MockTenantDao)(nil).GetTenantLimitsByNames), names)
 }
 
 // GetTenantByUUIDIsExist mocks base method
 func (m *MockTenantDao) GetTenantByUUIDIsExist(uuid string) bool {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantByUUIDIsExist", uuid)
 	ret0, _ := ret[0].(bool)
 	return ret0
@@ -270,13 +245,11 @@ func (m *MockTenantDao) GetTenantByUUIDIsExist(uuid string) bool {
 
 // GetTenantByUUIDIsExist indicates an expected call of GetTenantByUUIDIsExist
 func (mr *MockTenantDaoMockRecorder) GetTenantByUUIDIsExist(uuid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantByUUIDIsExist", reflect.TypeOf((*MockTenantDao)(nil).GetTenantByUUIDIsExist), uuid)
 }
 
 // DelByTenantID mocks base method
 func (m *MockTenantDao) DelByTenantID(tenantID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelByTenantID", tenantID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -284,7 +257,6 @@ func (m *MockTenantDao) DelByTenantID(tenantID string) error {
 
 // DelByTenantID indicates an expected call of DelByTenantID
 func (mr *MockTenantDaoMockRecorder) DelByTenantID(tenantID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByTenantID", reflect.TypeOf((*MockTenantDao)(nil).DelByTenantID), tenantID)
 }
 
@@ -313,7 +285,6 @@ func (m *MockAppDao) EXPECT() *MockAppDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockAppDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -321,13 +292,11 @@ func (m *MockAppDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockAppDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockAppDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockAppDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -335,13 +304,11 @@ func (m *MockAppDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockAppDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockAppDao)(nil).UpdateModel), arg0)
 }
 
 // GetByEventId mocks base method
 func (m *MockAppDao) GetByEventId(eventID string) (*model.AppStatus, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByEventId", eventID)
 	ret0, _ := ret[0].(*model.AppStatus)
 	ret1, _ := ret[1].(error)
@@ -350,13 +317,11 @@ func (m *MockAppDao) GetByEventId(eventID string) (*model.AppStatus, error) {
 
 // GetByEventId indicates an expected call of GetByEventId
 func (mr *MockAppDaoMockRecorder) GetByEventId(eventID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByEventId", reflect.TypeOf((*MockAppDao)(nil).GetByEventId), eventID)
 }
 
 // DeleteModelByEventId mocks base method
 func (m *MockAppDao) DeleteModelByEventId(eventID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteModelByEventId", eventID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -364,8 +329,105 @@ func (m *MockAppDao) DeleteModelByEventId(eventID string) error {
 
 // DeleteModelByEventId indicates an expected call of DeleteModelByEventId
 func (mr *MockAppDaoMockRecorder) DeleteModelByEventId(eventID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModelByEventId", reflect.TypeOf((*MockAppDao)(nil).DeleteModelByEventId), eventID)
+}
+
+// MockVolumeTypeDao is a mock of VolumeTypeDao interface
+type MockVolumeTypeDao struct {
+	ctrl     *gomock.Controller
+	recorder *MockVolumeTypeDaoMockRecorder
+}
+
+// MockVolumeTypeDaoMockRecorder is the mock recorder for MockVolumeTypeDao
+type MockVolumeTypeDaoMockRecorder struct {
+	mock *MockVolumeTypeDao
+}
+
+// NewMockVolumeTypeDao creates a new mock instance
+func NewMockVolumeTypeDao(ctrl *gomock.Controller) *MockVolumeTypeDao {
+	mock := &MockVolumeTypeDao{ctrl: ctrl}
+	mock.recorder = &MockVolumeTypeDaoMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockVolumeTypeDao) EXPECT() *MockVolumeTypeDaoMockRecorder {
+	return m.recorder
+}
+
+// AddModel mocks base method
+func (m *MockVolumeTypeDao) AddModel(arg0 model.Interface) error {
+	ret := m.ctrl.Call(m, "AddModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddModel indicates an expected call of AddModel
+func (mr *MockVolumeTypeDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockVolumeTypeDao)(nil).AddModel), arg0)
+}
+
+// UpdateModel mocks base method
+func (m *MockVolumeTypeDao) UpdateModel(arg0 model.Interface) error {
+	ret := m.ctrl.Call(m, "UpdateModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateModel indicates an expected call of UpdateModel
+func (mr *MockVolumeTypeDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockVolumeTypeDao)(nil).UpdateModel), arg0)
+}
+
+// DeleteModelByVolumeTypes mocks base method
+func (m *MockVolumeTypeDao) DeleteModelByVolumeTypes(volumeType string) error {
+	ret := m.ctrl.Call(m, "DeleteModelByVolumeTypes", volumeType)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteModelByVolumeTypes indicates an expected call of DeleteModelByVolumeTypes
+func (mr *MockVolumeTypeDaoMockRecorder) DeleteModelByVolumeTypes(volumeType interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModelByVolumeTypes", reflect.TypeOf((*MockVolumeTypeDao)(nil).DeleteModelByVolumeTypes), volumeType)
+}
+
+// GetAllVolumeTypes mocks base method
+func (m *MockVolumeTypeDao) GetAllVolumeTypes() ([]*model.TenantServiceVolumeType, error) {
+	ret := m.ctrl.Call(m, "GetAllVolumeTypes")
+	ret0, _ := ret[0].([]*model.TenantServiceVolumeType)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAllVolumeTypes indicates an expected call of GetAllVolumeTypes
+func (mr *MockVolumeTypeDaoMockRecorder) GetAllVolumeTypes() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllVolumeTypes", reflect.TypeOf((*MockVolumeTypeDao)(nil).GetAllVolumeTypes))
+}
+
+// GetVolumeTypeByType mocks base method
+func (m *MockVolumeTypeDao) GetVolumeTypeByType(vt string) (*model.TenantServiceVolumeType, error) {
+	ret := m.ctrl.Call(m, "GetVolumeTypeByType", vt)
+	ret0, _ := ret[0].(*model.TenantServiceVolumeType)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetVolumeTypeByType indicates an expected call of GetVolumeTypeByType
+func (mr *MockVolumeTypeDaoMockRecorder) GetVolumeTypeByType(vt interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVolumeTypeByType", reflect.TypeOf((*MockVolumeTypeDao)(nil).GetVolumeTypeByType), vt)
+}
+
+// FindOrCreate mocks base method
+func (m *MockVolumeTypeDao) FindOrCreate(vt *model.TenantServiceVolumeType) (*model.TenantServiceVolumeType, error) {
+	ret := m.ctrl.Call(m, "FindOrCreate", vt)
+	ret0, _ := ret[0].(*model.TenantServiceVolumeType)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindOrCreate indicates an expected call of FindOrCreate
+func (mr *MockVolumeTypeDaoMockRecorder) FindOrCreate(vt interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOrCreate", reflect.TypeOf((*MockVolumeTypeDao)(nil).FindOrCreate), vt)
 }
 
 // MockLicenseDao is a mock of LicenseDao interface
@@ -393,7 +455,6 @@ func (m *MockLicenseDao) EXPECT() *MockLicenseDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockLicenseDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -401,13 +462,11 @@ func (m *MockLicenseDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockLicenseDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockLicenseDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockLicenseDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -415,13 +474,11 @@ func (m *MockLicenseDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockLicenseDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockLicenseDao)(nil).UpdateModel), arg0)
 }
 
 // ListLicenses mocks base method
 func (m *MockLicenseDao) ListLicenses() ([]*model.LicenseInfo, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListLicenses")
 	ret0, _ := ret[0].([]*model.LicenseInfo)
 	ret1, _ := ret[1].(error)
@@ -430,7 +487,6 @@ func (m *MockLicenseDao) ListLicenses() ([]*model.LicenseInfo, error) {
 
 // ListLicenses indicates an expected call of ListLicenses
 func (mr *MockLicenseDaoMockRecorder) ListLicenses() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListLicenses", reflect.TypeOf((*MockLicenseDao)(nil).ListLicenses))
 }
 
@@ -459,7 +515,6 @@ func (m *MockTenantServiceDao) EXPECT() *MockTenantServiceDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockTenantServiceDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -467,13 +522,11 @@ func (m *MockTenantServiceDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantServiceDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantServiceDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -481,13 +534,11 @@ func (m *MockTenantServiceDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantServiceDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceDao)(nil).UpdateModel), arg0)
 }
 
 // GetServiceByID mocks base method
 func (m *MockTenantServiceDao) GetServiceByID(serviceID string) (*model.TenantServices, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceByID", serviceID)
 	ret0, _ := ret[0].(*model.TenantServices)
 	ret1, _ := ret[1].(error)
@@ -496,13 +547,11 @@ func (m *MockTenantServiceDao) GetServiceByID(serviceID string) (*model.TenantSe
 
 // GetServiceByID indicates an expected call of GetServiceByID
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceByID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceByID", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceByID), serviceID)
 }
 
 // GetServiceByServiceAlias mocks base method
 func (m *MockTenantServiceDao) GetServiceByServiceAlias(serviceAlias string) (*model.TenantServices, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceByServiceAlias", serviceAlias)
 	ret0, _ := ret[0].(*model.TenantServices)
 	ret1, _ := ret[1].(error)
@@ -511,13 +560,11 @@ func (m *MockTenantServiceDao) GetServiceByServiceAlias(serviceAlias string) (*m
 
 // GetServiceByServiceAlias indicates an expected call of GetServiceByServiceAlias
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceByServiceAlias(serviceAlias interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceByServiceAlias", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceByServiceAlias), serviceAlias)
 }
 
 // GetServiceByIDs mocks base method
 func (m *MockTenantServiceDao) GetServiceByIDs(serviceIDs []string) ([]*model.TenantServices, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceByIDs", serviceIDs)
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
@@ -526,13 +573,11 @@ func (m *MockTenantServiceDao) GetServiceByIDs(serviceIDs []string) ([]*model.Te
 
 // GetServiceByIDs indicates an expected call of GetServiceByIDs
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceByIDs(serviceIDs interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceByIDs", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceByIDs), serviceIDs)
 }
 
 // GetServiceAliasByIDs mocks base method
 func (m *MockTenantServiceDao) GetServiceAliasByIDs(uids []string) ([]*model.TenantServices, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceAliasByIDs", uids)
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
@@ -541,13 +586,11 @@ func (m *MockTenantServiceDao) GetServiceAliasByIDs(uids []string) ([]*model.Ten
 
 // GetServiceAliasByIDs indicates an expected call of GetServiceAliasByIDs
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceAliasByIDs(uids interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceAliasByIDs", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceAliasByIDs), uids)
 }
 
 // GetServiceByTenantIDAndServiceAlias mocks base method
 func (m *MockTenantServiceDao) GetServiceByTenantIDAndServiceAlias(tenantID, serviceName string) (*model.TenantServices, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceByTenantIDAndServiceAlias", tenantID, serviceName)
 	ret0, _ := ret[0].(*model.TenantServices)
 	ret1, _ := ret[1].(error)
@@ -556,13 +599,11 @@ func (m *MockTenantServiceDao) GetServiceByTenantIDAndServiceAlias(tenantID, ser
 
 // GetServiceByTenantIDAndServiceAlias indicates an expected call of GetServiceByTenantIDAndServiceAlias
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceByTenantIDAndServiceAlias(tenantID, serviceName interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceByTenantIDAndServiceAlias", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceByTenantIDAndServiceAlias), tenantID, serviceName)
 }
 
 // SetTenantServiceStatus mocks base method
 func (m *MockTenantServiceDao) SetTenantServiceStatus(serviceID, status string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetTenantServiceStatus", serviceID, status)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -570,13 +611,11 @@ func (m *MockTenantServiceDao) SetTenantServiceStatus(serviceID, status string) 
 
 // SetTenantServiceStatus indicates an expected call of SetTenantServiceStatus
 func (mr *MockTenantServiceDaoMockRecorder) SetTenantServiceStatus(serviceID, status interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTenantServiceStatus", reflect.TypeOf((*MockTenantServiceDao)(nil).SetTenantServiceStatus), serviceID, status)
 }
 
 // GetServicesByTenantID mocks base method
 func (m *MockTenantServiceDao) GetServicesByTenantID(tenantID string) ([]*model.TenantServices, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServicesByTenantID", tenantID)
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
@@ -585,13 +624,11 @@ func (m *MockTenantServiceDao) GetServicesByTenantID(tenantID string) ([]*model.
 
 // GetServicesByTenantID indicates an expected call of GetServicesByTenantID
 func (mr *MockTenantServiceDaoMockRecorder) GetServicesByTenantID(tenantID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServicesByTenantID", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServicesByTenantID), tenantID)
 }
 
 // GetServicesByTenantIDs mocks base method
 func (m *MockTenantServiceDao) GetServicesByTenantIDs(tenantIDs []string) ([]*model.TenantServices, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServicesByTenantIDs", tenantIDs)
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
@@ -600,13 +637,11 @@ func (m *MockTenantServiceDao) GetServicesByTenantIDs(tenantIDs []string) ([]*mo
 
 // GetServicesByTenantIDs indicates an expected call of GetServicesByTenantIDs
 func (mr *MockTenantServiceDaoMockRecorder) GetServicesByTenantIDs(tenantIDs interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServicesByTenantIDs", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServicesByTenantIDs), tenantIDs)
 }
 
 // GetServicesAllInfoByTenantID mocks base method
 func (m *MockTenantServiceDao) GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServicesAllInfoByTenantID", tenantID)
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
@@ -615,13 +650,11 @@ func (m *MockTenantServiceDao) GetServicesAllInfoByTenantID(tenantID string) ([]
 
 // GetServicesAllInfoByTenantID indicates an expected call of GetServicesAllInfoByTenantID
 func (mr *MockTenantServiceDaoMockRecorder) GetServicesAllInfoByTenantID(tenantID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServicesAllInfoByTenantID", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServicesAllInfoByTenantID), tenantID)
 }
 
 // DeleteServiceByServiceID mocks base method
 func (m *MockTenantServiceDao) DeleteServiceByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteServiceByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -629,13 +662,11 @@ func (m *MockTenantServiceDao) DeleteServiceByServiceID(serviceID string) error 
 
 // DeleteServiceByServiceID indicates an expected call of DeleteServiceByServiceID
 func (mr *MockTenantServiceDaoMockRecorder) DeleteServiceByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteServiceByServiceID", reflect.TypeOf((*MockTenantServiceDao)(nil).DeleteServiceByServiceID), serviceID)
 }
 
 // GetServiceMemoryByTenantIDs mocks base method
 func (m *MockTenantServiceDao) GetServiceMemoryByTenantIDs(tenantIDs, serviceIDs []string) (map[string]map[string]interface{}, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceMemoryByTenantIDs", tenantIDs, serviceIDs)
 	ret0, _ := ret[0].(map[string]map[string]interface{})
 	ret1, _ := ret[1].(error)
@@ -644,13 +675,11 @@ func (m *MockTenantServiceDao) GetServiceMemoryByTenantIDs(tenantIDs, serviceIDs
 
 // GetServiceMemoryByTenantIDs indicates an expected call of GetServiceMemoryByTenantIDs
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceMemoryByTenantIDs(tenantIDs, serviceIDs interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceMemoryByTenantIDs", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceMemoryByTenantIDs), tenantIDs, serviceIDs)
 }
 
 // GetServiceMemoryByServiceIDs mocks base method
 func (m *MockTenantServiceDao) GetServiceMemoryByServiceIDs(serviceIDs []string) (map[string]map[string]interface{}, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceMemoryByServiceIDs", serviceIDs)
 	ret0, _ := ret[0].(map[string]map[string]interface{})
 	ret1, _ := ret[1].(error)
@@ -659,13 +688,11 @@ func (m *MockTenantServiceDao) GetServiceMemoryByServiceIDs(serviceIDs []string)
 
 // GetServiceMemoryByServiceIDs indicates an expected call of GetServiceMemoryByServiceIDs
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceMemoryByServiceIDs(serviceIDs interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceMemoryByServiceIDs", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceMemoryByServiceIDs), serviceIDs)
 }
 
 // GetPagedTenantService mocks base method
 func (m *MockTenantServiceDao) GetPagedTenantService(offset, len int, serviceIDs []string) ([]map[string]interface{}, int, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPagedTenantService", offset, len, serviceIDs)
 	ret0, _ := ret[0].([]map[string]interface{})
 	ret1, _ := ret[1].(int)
@@ -675,13 +702,11 @@ func (m *MockTenantServiceDao) GetPagedTenantService(offset, len int, serviceIDs
 
 // GetPagedTenantService indicates an expected call of GetPagedTenantService
 func (mr *MockTenantServiceDaoMockRecorder) GetPagedTenantService(offset, len, serviceIDs interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPagedTenantService", reflect.TypeOf((*MockTenantServiceDao)(nil).GetPagedTenantService), offset, len, serviceIDs)
 }
 
 // GetAllServicesID mocks base method
 func (m *MockTenantServiceDao) GetAllServicesID() ([]*model.TenantServices, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAllServicesID")
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
@@ -690,13 +715,11 @@ func (m *MockTenantServiceDao) GetAllServicesID() ([]*model.TenantServices, erro
 
 // GetAllServicesID indicates an expected call of GetAllServicesID
 func (mr *MockTenantServiceDaoMockRecorder) GetAllServicesID() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllServicesID", reflect.TypeOf((*MockTenantServiceDao)(nil).GetAllServicesID))
 }
 
 // UpdateDeployVersion mocks base method
 func (m *MockTenantServiceDao) UpdateDeployVersion(serviceID, deployversion string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateDeployVersion", serviceID, deployversion)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -704,13 +727,11 @@ func (m *MockTenantServiceDao) UpdateDeployVersion(serviceID, deployversion stri
 
 // UpdateDeployVersion indicates an expected call of UpdateDeployVersion
 func (mr *MockTenantServiceDaoMockRecorder) UpdateDeployVersion(serviceID, deployversion interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDeployVersion", reflect.TypeOf((*MockTenantServiceDao)(nil).UpdateDeployVersion), serviceID, deployversion)
 }
 
 // ListThirdPartyServices mocks base method
 func (m *MockTenantServiceDao) ListThirdPartyServices() ([]*model.TenantServices, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListThirdPartyServices")
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
@@ -719,13 +740,11 @@ func (m *MockTenantServiceDao) ListThirdPartyServices() ([]*model.TenantServices
 
 // ListThirdPartyServices indicates an expected call of ListThirdPartyServices
 func (mr *MockTenantServiceDaoMockRecorder) ListThirdPartyServices() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListThirdPartyServices", reflect.TypeOf((*MockTenantServiceDao)(nil).ListThirdPartyServices))
 }
 
 // ListServicesByTenantID mocks base method
 func (m *MockTenantServiceDao) ListServicesByTenantID(tenantID string) ([]*model.TenantServices, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListServicesByTenantID", tenantID)
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
@@ -734,7 +753,6 @@ func (m *MockTenantServiceDao) ListServicesByTenantID(tenantID string) ([]*model
 
 // ListServicesByTenantID indicates an expected call of ListServicesByTenantID
 func (mr *MockTenantServiceDaoMockRecorder) ListServicesByTenantID(tenantID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListServicesByTenantID", reflect.TypeOf((*MockTenantServiceDao)(nil).ListServicesByTenantID), tenantID)
 }
 
@@ -763,7 +781,6 @@ func (m *MockTenantServiceDeleteDao) EXPECT() *MockTenantServiceDeleteDaoMockRec
 
 // AddModel mocks base method
 func (m *MockTenantServiceDeleteDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -771,13 +788,11 @@ func (m *MockTenantServiceDeleteDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantServiceDeleteDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceDeleteDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantServiceDeleteDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -785,13 +800,11 @@ func (m *MockTenantServiceDeleteDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantServiceDeleteDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceDeleteDao)(nil).UpdateModel), arg0)
 }
 
 // GetTenantServicesDeleteByCreateTime mocks base method
 func (m *MockTenantServiceDeleteDao) GetTenantServicesDeleteByCreateTime(createTime time.Time) ([]*model.TenantServicesDelete, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServicesDeleteByCreateTime", createTime)
 	ret0, _ := ret[0].([]*model.TenantServicesDelete)
 	ret1, _ := ret[1].(error)
@@ -800,13 +813,11 @@ func (m *MockTenantServiceDeleteDao) GetTenantServicesDeleteByCreateTime(createT
 
 // GetTenantServicesDeleteByCreateTime indicates an expected call of GetTenantServicesDeleteByCreateTime
 func (mr *MockTenantServiceDeleteDaoMockRecorder) GetTenantServicesDeleteByCreateTime(createTime interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServicesDeleteByCreateTime", reflect.TypeOf((*MockTenantServiceDeleteDao)(nil).GetTenantServicesDeleteByCreateTime), createTime)
 }
 
 // DeleteTenantServicesDelete mocks base method
 func (m *MockTenantServiceDeleteDao) DeleteTenantServicesDelete(record *model.TenantServicesDelete) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteTenantServicesDelete", record)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -814,7 +825,6 @@ func (m *MockTenantServiceDeleteDao) DeleteTenantServicesDelete(record *model.Te
 
 // DeleteTenantServicesDelete indicates an expected call of DeleteTenantServicesDelete
 func (mr *MockTenantServiceDeleteDaoMockRecorder) DeleteTenantServicesDelete(record interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTenantServicesDelete", reflect.TypeOf((*MockTenantServiceDeleteDao)(nil).DeleteTenantServicesDelete), record)
 }
 
@@ -843,7 +853,6 @@ func (m *MockTenantServicesPortDao) EXPECT() *MockTenantServicesPortDaoMockRecor
 
 // AddModel mocks base method
 func (m *MockTenantServicesPortDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -851,13 +860,11 @@ func (m *MockTenantServicesPortDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantServicesPortDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServicesPortDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantServicesPortDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -865,13 +872,11 @@ func (m *MockTenantServicesPortDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantServicesPortDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServicesPortDao)(nil).UpdateModel), arg0)
 }
 
 // DeleteModel mocks base method
 func (m *MockTenantServicesPortDao) DeleteModel(serviceID string, arg ...interface{}) error {
-	m.ctrl.T.Helper()
 	varargs := []interface{}{serviceID}
 	for _, a := range arg {
 		varargs = append(varargs, a)
@@ -883,14 +888,12 @@ func (m *MockTenantServicesPortDao) DeleteModel(serviceID string, arg ...interfa
 
 // DeleteModel indicates an expected call of DeleteModel
 func (mr *MockTenantServicesPortDaoMockRecorder) DeleteModel(serviceID interface{}, arg ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{serviceID}, arg...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModel", reflect.TypeOf((*MockTenantServicesPortDao)(nil).DeleteModel), varargs...)
 }
 
 // GetPortsByServiceID mocks base method
 func (m *MockTenantServicesPortDao) GetPortsByServiceID(serviceID string) ([]*model.TenantServicesPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPortsByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServicesPort)
 	ret1, _ := ret[1].(error)
@@ -899,13 +902,11 @@ func (m *MockTenantServicesPortDao) GetPortsByServiceID(serviceID string) ([]*mo
 
 // GetPortsByServiceID indicates an expected call of GetPortsByServiceID
 func (mr *MockTenantServicesPortDaoMockRecorder) GetPortsByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPortsByServiceID", reflect.TypeOf((*MockTenantServicesPortDao)(nil).GetPortsByServiceID), serviceID)
 }
 
 // GetOuterPorts mocks base method
 func (m *MockTenantServicesPortDao) GetOuterPorts(serviceID string) ([]*model.TenantServicesPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOuterPorts", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServicesPort)
 	ret1, _ := ret[1].(error)
@@ -914,13 +915,11 @@ func (m *MockTenantServicesPortDao) GetOuterPorts(serviceID string) ([]*model.Te
 
 // GetOuterPorts indicates an expected call of GetOuterPorts
 func (mr *MockTenantServicesPortDaoMockRecorder) GetOuterPorts(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOuterPorts", reflect.TypeOf((*MockTenantServicesPortDao)(nil).GetOuterPorts), serviceID)
 }
 
 // GetInnerPorts mocks base method
 func (m *MockTenantServicesPortDao) GetInnerPorts(serviceID string) ([]*model.TenantServicesPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetInnerPorts", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServicesPort)
 	ret1, _ := ret[1].(error)
@@ -929,13 +928,11 @@ func (m *MockTenantServicesPortDao) GetInnerPorts(serviceID string) ([]*model.Te
 
 // GetInnerPorts indicates an expected call of GetInnerPorts
 func (mr *MockTenantServicesPortDaoMockRecorder) GetInnerPorts(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInnerPorts", reflect.TypeOf((*MockTenantServicesPortDao)(nil).GetInnerPorts), serviceID)
 }
 
 // GetPort mocks base method
 func (m *MockTenantServicesPortDao) GetPort(serviceID string, port int) (*model.TenantServicesPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPort", serviceID, port)
 	ret0, _ := ret[0].(*model.TenantServicesPort)
 	ret1, _ := ret[1].(error)
@@ -944,13 +941,11 @@ func (m *MockTenantServicesPortDao) GetPort(serviceID string, port int) (*model.
 
 // GetPort indicates an expected call of GetPort
 func (mr *MockTenantServicesPortDaoMockRecorder) GetPort(serviceID, port interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPort", reflect.TypeOf((*MockTenantServicesPortDao)(nil).GetPort), serviceID, port)
 }
 
 // GetOpenedPorts mocks base method
 func (m *MockTenantServicesPortDao) GetOpenedPorts(serviceID string) ([]*model.TenantServicesPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOpenedPorts", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServicesPort)
 	ret1, _ := ret[1].(error)
@@ -959,13 +954,11 @@ func (m *MockTenantServicesPortDao) GetOpenedPorts(serviceID string) ([]*model.T
 
 // GetOpenedPorts indicates an expected call of GetOpenedPorts
 func (mr *MockTenantServicesPortDaoMockRecorder) GetOpenedPorts(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOpenedPorts", reflect.TypeOf((*MockTenantServicesPortDao)(nil).GetOpenedPorts), serviceID)
 }
 
 // GetDepUDPPort mocks base method
 func (m *MockTenantServicesPortDao) GetDepUDPPort(serviceID string) ([]*model.TenantServicesPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDepUDPPort", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServicesPort)
 	ret1, _ := ret[1].(error)
@@ -974,13 +967,11 @@ func (m *MockTenantServicesPortDao) GetDepUDPPort(serviceID string) ([]*model.Te
 
 // GetDepUDPPort indicates an expected call of GetDepUDPPort
 func (mr *MockTenantServicesPortDaoMockRecorder) GetDepUDPPort(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDepUDPPort", reflect.TypeOf((*MockTenantServicesPortDao)(nil).GetDepUDPPort), serviceID)
 }
 
 // DELPortsByServiceID mocks base method
 func (m *MockTenantServicesPortDao) DELPortsByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DELPortsByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -988,13 +979,11 @@ func (m *MockTenantServicesPortDao) DELPortsByServiceID(serviceID string) error 
 
 // DELPortsByServiceID indicates an expected call of DELPortsByServiceID
 func (mr *MockTenantServicesPortDaoMockRecorder) DELPortsByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DELPortsByServiceID", reflect.TypeOf((*MockTenantServicesPortDao)(nil).DELPortsByServiceID), serviceID)
 }
 
 // HasOpenPort mocks base method
 func (m *MockTenantServicesPortDao) HasOpenPort(sid string) bool {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HasOpenPort", sid)
 	ret0, _ := ret[0].(bool)
 	return ret0
@@ -1002,13 +991,11 @@ func (m *MockTenantServicesPortDao) HasOpenPort(sid string) bool {
 
 // HasOpenPort indicates an expected call of HasOpenPort
 func (mr *MockTenantServicesPortDaoMockRecorder) HasOpenPort(sid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasOpenPort", reflect.TypeOf((*MockTenantServicesPortDao)(nil).HasOpenPort), sid)
 }
 
 // DelByServiceID mocks base method
 func (m *MockTenantServicesPortDao) DelByServiceID(sid string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelByServiceID", sid)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1016,13 +1003,11 @@ func (m *MockTenantServicesPortDao) DelByServiceID(sid string) error {
 
 // DelByServiceID indicates an expected call of DelByServiceID
 func (mr *MockTenantServicesPortDaoMockRecorder) DelByServiceID(sid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByServiceID", reflect.TypeOf((*MockTenantServicesPortDao)(nil).DelByServiceID), sid)
 }
 
 // ListInnerPortsByServiceIDs mocks base method
 func (m *MockTenantServicesPortDao) ListInnerPortsByServiceIDs(serviceIDs []string) ([]*model.TenantServicesPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListInnerPortsByServiceIDs", serviceIDs)
 	ret0, _ := ret[0].([]*model.TenantServicesPort)
 	ret1, _ := ret[1].(error)
@@ -1031,7 +1016,6 @@ func (m *MockTenantServicesPortDao) ListInnerPortsByServiceIDs(serviceIDs []stri
 
 // ListInnerPortsByServiceIDs indicates an expected call of ListInnerPortsByServiceIDs
 func (mr *MockTenantServicesPortDaoMockRecorder) ListInnerPortsByServiceIDs(serviceIDs interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListInnerPortsByServiceIDs", reflect.TypeOf((*MockTenantServicesPortDao)(nil).ListInnerPortsByServiceIDs), serviceIDs)
 }
 
@@ -1060,7 +1044,6 @@ func (m *MockTenantPluginDao) EXPECT() *MockTenantPluginDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockTenantPluginDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1068,13 +1051,11 @@ func (m *MockTenantPluginDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantPluginDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantPluginDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantPluginDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1082,13 +1063,11 @@ func (m *MockTenantPluginDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantPluginDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantPluginDao)(nil).UpdateModel), arg0)
 }
 
 // GetPluginByID mocks base method
 func (m *MockTenantPluginDao) GetPluginByID(pluginID, tenantID string) (*model.TenantPlugin, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPluginByID", pluginID, tenantID)
 	ret0, _ := ret[0].(*model.TenantPlugin)
 	ret1, _ := ret[1].(error)
@@ -1097,13 +1076,11 @@ func (m *MockTenantPluginDao) GetPluginByID(pluginID, tenantID string) (*model.T
 
 // GetPluginByID indicates an expected call of GetPluginByID
 func (mr *MockTenantPluginDaoMockRecorder) GetPluginByID(pluginID, tenantID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPluginByID", reflect.TypeOf((*MockTenantPluginDao)(nil).GetPluginByID), pluginID, tenantID)
 }
 
 // DeletePluginByID mocks base method
 func (m *MockTenantPluginDao) DeletePluginByID(pluginID, tenantID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeletePluginByID", pluginID, tenantID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1111,13 +1088,11 @@ func (m *MockTenantPluginDao) DeletePluginByID(pluginID, tenantID string) error 
 
 // DeletePluginByID indicates an expected call of DeletePluginByID
 func (mr *MockTenantPluginDaoMockRecorder) DeletePluginByID(pluginID, tenantID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePluginByID", reflect.TypeOf((*MockTenantPluginDao)(nil).DeletePluginByID), pluginID, tenantID)
 }
 
 // GetPluginsByTenantID mocks base method
 func (m *MockTenantPluginDao) GetPluginsByTenantID(tenantID string) ([]*model.TenantPlugin, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPluginsByTenantID", tenantID)
 	ret0, _ := ret[0].([]*model.TenantPlugin)
 	ret1, _ := ret[1].(error)
@@ -1126,13 +1101,11 @@ func (m *MockTenantPluginDao) GetPluginsByTenantID(tenantID string) ([]*model.Te
 
 // GetPluginsByTenantID indicates an expected call of GetPluginsByTenantID
 func (mr *MockTenantPluginDaoMockRecorder) GetPluginsByTenantID(tenantID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPluginsByTenantID", reflect.TypeOf((*MockTenantPluginDao)(nil).GetPluginsByTenantID), tenantID)
 }
 
 // ListByIDs mocks base method
 func (m *MockTenantPluginDao) ListByIDs(ids []string) ([]*model.TenantPlugin, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByIDs", ids)
 	ret0, _ := ret[0].([]*model.TenantPlugin)
 	ret1, _ := ret[1].(error)
@@ -1141,13 +1114,11 @@ func (m *MockTenantPluginDao) ListByIDs(ids []string) ([]*model.TenantPlugin, er
 
 // ListByIDs indicates an expected call of ListByIDs
 func (mr *MockTenantPluginDaoMockRecorder) ListByIDs(ids interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByIDs", reflect.TypeOf((*MockTenantPluginDao)(nil).ListByIDs), ids)
 }
 
 // ListByTenantID mocks base method
 func (m *MockTenantPluginDao) ListByTenantID(tenantID string) ([]*model.TenantPlugin, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByTenantID", tenantID)
 	ret0, _ := ret[0].([]*model.TenantPlugin)
 	ret1, _ := ret[1].(error)
@@ -1156,7 +1127,6 @@ func (m *MockTenantPluginDao) ListByTenantID(tenantID string) ([]*model.TenantPl
 
 // ListByTenantID indicates an expected call of ListByTenantID
 func (mr *MockTenantPluginDaoMockRecorder) ListByTenantID(tenantID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByTenantID", reflect.TypeOf((*MockTenantPluginDao)(nil).ListByTenantID), tenantID)
 }
 
@@ -1185,7 +1155,6 @@ func (m *MockTenantPluginDefaultENVDao) EXPECT() *MockTenantPluginDefaultENVDaoM
 
 // AddModel mocks base method
 func (m *MockTenantPluginDefaultENVDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1193,13 +1162,11 @@ func (m *MockTenantPluginDefaultENVDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantPluginDefaultENVDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1207,13 +1174,11 @@ func (m *MockTenantPluginDefaultENVDao) UpdateModel(arg0 model.Interface) error 
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).UpdateModel), arg0)
 }
 
 // GetDefaultENVByName mocks base method
 func (m *MockTenantPluginDefaultENVDao) GetDefaultENVByName(pluginID, name, versionID string) (*model.TenantPluginDefaultENV, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDefaultENVByName", pluginID, name, versionID)
 	ret0, _ := ret[0].(*model.TenantPluginDefaultENV)
 	ret1, _ := ret[1].(error)
@@ -1222,13 +1187,11 @@ func (m *MockTenantPluginDefaultENVDao) GetDefaultENVByName(pluginID, name, vers
 
 // GetDefaultENVByName indicates an expected call of GetDefaultENVByName
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) GetDefaultENVByName(pluginID, name, versionID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultENVByName", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).GetDefaultENVByName), pluginID, name, versionID)
 }
 
 // GetDefaultENVSByPluginID mocks base method
 func (m *MockTenantPluginDefaultENVDao) GetDefaultENVSByPluginID(pluginID, versionID string) ([]*model.TenantPluginDefaultENV, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDefaultENVSByPluginID", pluginID, versionID)
 	ret0, _ := ret[0].([]*model.TenantPluginDefaultENV)
 	ret1, _ := ret[1].(error)
@@ -1237,13 +1200,11 @@ func (m *MockTenantPluginDefaultENVDao) GetDefaultENVSByPluginID(pluginID, versi
 
 // GetDefaultENVSByPluginID indicates an expected call of GetDefaultENVSByPluginID
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) GetDefaultENVSByPluginID(pluginID, versionID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultENVSByPluginID", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).GetDefaultENVSByPluginID), pluginID, versionID)
 }
 
 // DeleteDefaultENVByName mocks base method
 func (m *MockTenantPluginDefaultENVDao) DeleteDefaultENVByName(pluginID, name, versionID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteDefaultENVByName", pluginID, name, versionID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1251,13 +1212,11 @@ func (m *MockTenantPluginDefaultENVDao) DeleteDefaultENVByName(pluginID, name, v
 
 // DeleteDefaultENVByName indicates an expected call of DeleteDefaultENVByName
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) DeleteDefaultENVByName(pluginID, name, versionID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteDefaultENVByName", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).DeleteDefaultENVByName), pluginID, name, versionID)
 }
 
 // DeleteAllDefaultENVByPluginID mocks base method
 func (m *MockTenantPluginDefaultENVDao) DeleteAllDefaultENVByPluginID(PluginID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteAllDefaultENVByPluginID", PluginID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1265,13 +1224,11 @@ func (m *MockTenantPluginDefaultENVDao) DeleteAllDefaultENVByPluginID(PluginID s
 
 // DeleteAllDefaultENVByPluginID indicates an expected call of DeleteAllDefaultENVByPluginID
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) DeleteAllDefaultENVByPluginID(PluginID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAllDefaultENVByPluginID", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).DeleteAllDefaultENVByPluginID), PluginID)
 }
 
 // DeleteDefaultENVByPluginIDAndVersionID mocks base method
 func (m *MockTenantPluginDefaultENVDao) DeleteDefaultENVByPluginIDAndVersionID(pluginID, versionID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteDefaultENVByPluginIDAndVersionID", pluginID, versionID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1279,13 +1236,11 @@ func (m *MockTenantPluginDefaultENVDao) DeleteDefaultENVByPluginIDAndVersionID(p
 
 // DeleteDefaultENVByPluginIDAndVersionID indicates an expected call of DeleteDefaultENVByPluginIDAndVersionID
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) DeleteDefaultENVByPluginIDAndVersionID(pluginID, versionID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteDefaultENVByPluginIDAndVersionID", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).DeleteDefaultENVByPluginIDAndVersionID), pluginID, versionID)
 }
 
 // GetALLMasterDefultENVs mocks base method
 func (m *MockTenantPluginDefaultENVDao) GetALLMasterDefultENVs(pluginID string) ([]*model.TenantPluginDefaultENV, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetALLMasterDefultENVs", pluginID)
 	ret0, _ := ret[0].([]*model.TenantPluginDefaultENV)
 	ret1, _ := ret[1].(error)
@@ -1294,13 +1249,11 @@ func (m *MockTenantPluginDefaultENVDao) GetALLMasterDefultENVs(pluginID string) 
 
 // GetALLMasterDefultENVs indicates an expected call of GetALLMasterDefultENVs
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) GetALLMasterDefultENVs(pluginID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetALLMasterDefultENVs", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).GetALLMasterDefultENVs), pluginID)
 }
 
 // GetDefaultEnvWhichCanBeSetByPluginID mocks base method
 func (m *MockTenantPluginDefaultENVDao) GetDefaultEnvWhichCanBeSetByPluginID(pluginID, versionID string) ([]*model.TenantPluginDefaultENV, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDefaultEnvWhichCanBeSetByPluginID", pluginID, versionID)
 	ret0, _ := ret[0].([]*model.TenantPluginDefaultENV)
 	ret1, _ := ret[1].(error)
@@ -1309,7 +1262,6 @@ func (m *MockTenantPluginDefaultENVDao) GetDefaultEnvWhichCanBeSetByPluginID(plu
 
 // GetDefaultEnvWhichCanBeSetByPluginID indicates an expected call of GetDefaultEnvWhichCanBeSetByPluginID
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) GetDefaultEnvWhichCanBeSetByPluginID(pluginID, versionID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultEnvWhichCanBeSetByPluginID", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).GetDefaultEnvWhichCanBeSetByPluginID), pluginID, versionID)
 }
 
@@ -1338,7 +1290,6 @@ func (m *MockTenantPluginBuildVersionDao) EXPECT() *MockTenantPluginBuildVersion
 
 // AddModel mocks base method
 func (m *MockTenantPluginBuildVersionDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1346,13 +1297,11 @@ func (m *MockTenantPluginBuildVersionDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantPluginBuildVersionDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1360,13 +1309,11 @@ func (m *MockTenantPluginBuildVersionDao) UpdateModel(arg0 model.Interface) erro
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).UpdateModel), arg0)
 }
 
 // DeleteBuildVersionByVersionID mocks base method
 func (m *MockTenantPluginBuildVersionDao) DeleteBuildVersionByVersionID(versionID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteBuildVersionByVersionID", versionID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1374,13 +1321,11 @@ func (m *MockTenantPluginBuildVersionDao) DeleteBuildVersionByVersionID(versionI
 
 // DeleteBuildVersionByVersionID indicates an expected call of DeleteBuildVersionByVersionID
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) DeleteBuildVersionByVersionID(versionID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBuildVersionByVersionID", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).DeleteBuildVersionByVersionID), versionID)
 }
 
 // DeleteBuildVersionByPluginID mocks base method
 func (m *MockTenantPluginBuildVersionDao) DeleteBuildVersionByPluginID(pluginID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteBuildVersionByPluginID", pluginID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1388,13 +1333,11 @@ func (m *MockTenantPluginBuildVersionDao) DeleteBuildVersionByPluginID(pluginID 
 
 // DeleteBuildVersionByPluginID indicates an expected call of DeleteBuildVersionByPluginID
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) DeleteBuildVersionByPluginID(pluginID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBuildVersionByPluginID", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).DeleteBuildVersionByPluginID), pluginID)
 }
 
 // GetBuildVersionByPluginID mocks base method
 func (m *MockTenantPluginBuildVersionDao) GetBuildVersionByPluginID(pluginID string) ([]*model.TenantPluginBuildVersion, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBuildVersionByPluginID", pluginID)
 	ret0, _ := ret[0].([]*model.TenantPluginBuildVersion)
 	ret1, _ := ret[1].(error)
@@ -1403,13 +1346,11 @@ func (m *MockTenantPluginBuildVersionDao) GetBuildVersionByPluginID(pluginID str
 
 // GetBuildVersionByPluginID indicates an expected call of GetBuildVersionByPluginID
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) GetBuildVersionByPluginID(pluginID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBuildVersionByPluginID", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).GetBuildVersionByPluginID), pluginID)
 }
 
 // GetBuildVersionByVersionID mocks base method
 func (m *MockTenantPluginBuildVersionDao) GetBuildVersionByVersionID(pluginID, versionID string) (*model.TenantPluginBuildVersion, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBuildVersionByVersionID", pluginID, versionID)
 	ret0, _ := ret[0].(*model.TenantPluginBuildVersion)
 	ret1, _ := ret[1].(error)
@@ -1418,13 +1359,11 @@ func (m *MockTenantPluginBuildVersionDao) GetBuildVersionByVersionID(pluginID, v
 
 // GetBuildVersionByVersionID indicates an expected call of GetBuildVersionByVersionID
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) GetBuildVersionByVersionID(pluginID, versionID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBuildVersionByVersionID", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).GetBuildVersionByVersionID), pluginID, versionID)
 }
 
 // GetLastBuildVersionByVersionID mocks base method
 func (m *MockTenantPluginBuildVersionDao) GetLastBuildVersionByVersionID(pluginID, versionID string) (*model.TenantPluginBuildVersion, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLastBuildVersionByVersionID", pluginID, versionID)
 	ret0, _ := ret[0].(*model.TenantPluginBuildVersion)
 	ret1, _ := ret[1].(error)
@@ -1433,13 +1372,11 @@ func (m *MockTenantPluginBuildVersionDao) GetLastBuildVersionByVersionID(pluginI
 
 // GetLastBuildVersionByVersionID indicates an expected call of GetLastBuildVersionByVersionID
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) GetLastBuildVersionByVersionID(pluginID, versionID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastBuildVersionByVersionID", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).GetLastBuildVersionByVersionID), pluginID, versionID)
 }
 
 // GetBuildVersionByDeployVersion mocks base method
 func (m *MockTenantPluginBuildVersionDao) GetBuildVersionByDeployVersion(pluginID, versionID, deployVersion string) (*model.TenantPluginBuildVersion, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBuildVersionByDeployVersion", pluginID, versionID, deployVersion)
 	ret0, _ := ret[0].(*model.TenantPluginBuildVersion)
 	ret1, _ := ret[1].(error)
@@ -1448,13 +1385,11 @@ func (m *MockTenantPluginBuildVersionDao) GetBuildVersionByDeployVersion(pluginI
 
 // GetBuildVersionByDeployVersion indicates an expected call of GetBuildVersionByDeployVersion
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) GetBuildVersionByDeployVersion(pluginID, versionID, deployVersion interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBuildVersionByDeployVersion", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).GetBuildVersionByDeployVersion), pluginID, versionID, deployVersion)
 }
 
 // ListSuccessfulOnesByPluginIDs mocks base method
 func (m *MockTenantPluginBuildVersionDao) ListSuccessfulOnesByPluginIDs(pluginIDs []string) ([]*model.TenantPluginBuildVersion, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListSuccessfulOnesByPluginIDs", pluginIDs)
 	ret0, _ := ret[0].([]*model.TenantPluginBuildVersion)
 	ret1, _ := ret[1].(error)
@@ -1463,7 +1398,6 @@ func (m *MockTenantPluginBuildVersionDao) ListSuccessfulOnesByPluginIDs(pluginID
 
 // ListSuccessfulOnesByPluginIDs indicates an expected call of ListSuccessfulOnesByPluginIDs
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) ListSuccessfulOnesByPluginIDs(pluginIDs interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSuccessfulOnesByPluginIDs", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).ListSuccessfulOnesByPluginIDs), pluginIDs)
 }
 
@@ -1492,7 +1426,6 @@ func (m *MockTenantPluginVersionEnvDao) EXPECT() *MockTenantPluginVersionEnvDaoM
 
 // AddModel mocks base method
 func (m *MockTenantPluginVersionEnvDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1500,13 +1433,11 @@ func (m *MockTenantPluginVersionEnvDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantPluginVersionEnvDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1514,13 +1445,11 @@ func (m *MockTenantPluginVersionEnvDao) UpdateModel(arg0 model.Interface) error 
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).UpdateModel), arg0)
 }
 
 // DeleteEnvByEnvName mocks base method
 func (m *MockTenantPluginVersionEnvDao) DeleteEnvByEnvName(envName, pluginID, serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteEnvByEnvName", envName, pluginID, serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1528,13 +1457,11 @@ func (m *MockTenantPluginVersionEnvDao) DeleteEnvByEnvName(envName, pluginID, se
 
 // DeleteEnvByEnvName indicates an expected call of DeleteEnvByEnvName
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) DeleteEnvByEnvName(envName, pluginID, serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEnvByEnvName", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).DeleteEnvByEnvName), envName, pluginID, serviceID)
 }
 
 // DeleteEnvByPluginID mocks base method
 func (m *MockTenantPluginVersionEnvDao) DeleteEnvByPluginID(serviceID, pluginID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteEnvByPluginID", serviceID, pluginID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1542,13 +1469,11 @@ func (m *MockTenantPluginVersionEnvDao) DeleteEnvByPluginID(serviceID, pluginID 
 
 // DeleteEnvByPluginID indicates an expected call of DeleteEnvByPluginID
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) DeleteEnvByPluginID(serviceID, pluginID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEnvByPluginID", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).DeleteEnvByPluginID), serviceID, pluginID)
 }
 
 // DeleteEnvByServiceID mocks base method
 func (m *MockTenantPluginVersionEnvDao) DeleteEnvByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteEnvByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1556,13 +1481,11 @@ func (m *MockTenantPluginVersionEnvDao) DeleteEnvByServiceID(serviceID string) e
 
 // DeleteEnvByServiceID indicates an expected call of DeleteEnvByServiceID
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) DeleteEnvByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEnvByServiceID", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).DeleteEnvByServiceID), serviceID)
 }
 
 // GetVersionEnvByServiceID mocks base method
 func (m *MockTenantPluginVersionEnvDao) GetVersionEnvByServiceID(serviceID, pluginID string) ([]*model.TenantPluginVersionEnv, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVersionEnvByServiceID", serviceID, pluginID)
 	ret0, _ := ret[0].([]*model.TenantPluginVersionEnv)
 	ret1, _ := ret[1].(error)
@@ -1571,13 +1494,11 @@ func (m *MockTenantPluginVersionEnvDao) GetVersionEnvByServiceID(serviceID, plug
 
 // GetVersionEnvByServiceID indicates an expected call of GetVersionEnvByServiceID
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) GetVersionEnvByServiceID(serviceID, pluginID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionEnvByServiceID", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).GetVersionEnvByServiceID), serviceID, pluginID)
 }
 
 // ListByServiceID mocks base method
 func (m *MockTenantPluginVersionEnvDao) ListByServiceID(serviceID string) ([]*model.TenantPluginVersionEnv, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.TenantPluginVersionEnv)
 	ret1, _ := ret[1].(error)
@@ -1586,13 +1507,11 @@ func (m *MockTenantPluginVersionEnvDao) ListByServiceID(serviceID string) ([]*mo
 
 // ListByServiceID indicates an expected call of ListByServiceID
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) ListByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).ListByServiceID), serviceID)
 }
 
 // GetVersionEnvByEnvName mocks base method
 func (m *MockTenantPluginVersionEnvDao) GetVersionEnvByEnvName(serviceID, pluginID, envName string) (*model.TenantPluginVersionEnv, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVersionEnvByEnvName", serviceID, pluginID, envName)
 	ret0, _ := ret[0].(*model.TenantPluginVersionEnv)
 	ret1, _ := ret[1].(error)
@@ -1601,7 +1520,6 @@ func (m *MockTenantPluginVersionEnvDao) GetVersionEnvByEnvName(serviceID, plugin
 
 // GetVersionEnvByEnvName indicates an expected call of GetVersionEnvByEnvName
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) GetVersionEnvByEnvName(serviceID, pluginID, envName interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionEnvByEnvName", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).GetVersionEnvByEnvName), serviceID, pluginID, envName)
 }
 
@@ -1630,7 +1548,6 @@ func (m *MockTenantPluginVersionConfigDao) EXPECT() *MockTenantPluginVersionConf
 
 // AddModel mocks base method
 func (m *MockTenantPluginVersionConfigDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1638,13 +1555,11 @@ func (m *MockTenantPluginVersionConfigDao) AddModel(arg0 model.Interface) error 
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantPluginVersionConfigDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantPluginVersionConfigDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantPluginVersionConfigDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1652,13 +1567,11 @@ func (m *MockTenantPluginVersionConfigDao) UpdateModel(arg0 model.Interface) err
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantPluginVersionConfigDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantPluginVersionConfigDao)(nil).UpdateModel), arg0)
 }
 
 // GetPluginConfig mocks base method
 func (m *MockTenantPluginVersionConfigDao) GetPluginConfig(serviceID, pluginID string) (*model.TenantPluginVersionDiscoverConfig, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPluginConfig", serviceID, pluginID)
 	ret0, _ := ret[0].(*model.TenantPluginVersionDiscoverConfig)
 	ret1, _ := ret[1].(error)
@@ -1667,13 +1580,11 @@ func (m *MockTenantPluginVersionConfigDao) GetPluginConfig(serviceID, pluginID s
 
 // GetPluginConfig indicates an expected call of GetPluginConfig
 func (mr *MockTenantPluginVersionConfigDaoMockRecorder) GetPluginConfig(serviceID, pluginID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPluginConfig", reflect.TypeOf((*MockTenantPluginVersionConfigDao)(nil).GetPluginConfig), serviceID, pluginID)
 }
 
 // GetPluginConfigs mocks base method
 func (m *MockTenantPluginVersionConfigDao) GetPluginConfigs(serviceID string) ([]*model.TenantPluginVersionDiscoverConfig, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPluginConfigs", serviceID)
 	ret0, _ := ret[0].([]*model.TenantPluginVersionDiscoverConfig)
 	ret1, _ := ret[1].(error)
@@ -1682,13 +1593,11 @@ func (m *MockTenantPluginVersionConfigDao) GetPluginConfigs(serviceID string) ([
 
 // GetPluginConfigs indicates an expected call of GetPluginConfigs
 func (mr *MockTenantPluginVersionConfigDaoMockRecorder) GetPluginConfigs(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPluginConfigs", reflect.TypeOf((*MockTenantPluginVersionConfigDao)(nil).GetPluginConfigs), serviceID)
 }
 
 // DeletePluginConfig mocks base method
 func (m *MockTenantPluginVersionConfigDao) DeletePluginConfig(serviceID, pluginID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeletePluginConfig", serviceID, pluginID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1696,13 +1605,11 @@ func (m *MockTenantPluginVersionConfigDao) DeletePluginConfig(serviceID, pluginI
 
 // DeletePluginConfig indicates an expected call of DeletePluginConfig
 func (mr *MockTenantPluginVersionConfigDaoMockRecorder) DeletePluginConfig(serviceID, pluginID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePluginConfig", reflect.TypeOf((*MockTenantPluginVersionConfigDao)(nil).DeletePluginConfig), serviceID, pluginID)
 }
 
 // DeletePluginConfigByServiceID mocks base method
 func (m *MockTenantPluginVersionConfigDao) DeletePluginConfigByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeletePluginConfigByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1710,7 +1617,6 @@ func (m *MockTenantPluginVersionConfigDao) DeletePluginConfigByServiceID(service
 
 // DeletePluginConfigByServiceID indicates an expected call of DeletePluginConfigByServiceID
 func (mr *MockTenantPluginVersionConfigDaoMockRecorder) DeletePluginConfigByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePluginConfigByServiceID", reflect.TypeOf((*MockTenantPluginVersionConfigDao)(nil).DeletePluginConfigByServiceID), serviceID)
 }
 
@@ -1739,7 +1645,6 @@ func (m *MockTenantServicePluginRelationDao) EXPECT() *MockTenantServicePluginRe
 
 // AddModel mocks base method
 func (m *MockTenantServicePluginRelationDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1747,13 +1652,11 @@ func (m *MockTenantServicePluginRelationDao) AddModel(arg0 model.Interface) erro
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantServicePluginRelationDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1761,13 +1664,11 @@ func (m *MockTenantServicePluginRelationDao) UpdateModel(arg0 model.Interface) e
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).UpdateModel), arg0)
 }
 
 // DeleteRelationByServiceIDAndPluginID mocks base method
 func (m *MockTenantServicePluginRelationDao) DeleteRelationByServiceIDAndPluginID(serviceID, pluginID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteRelationByServiceIDAndPluginID", serviceID, pluginID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1775,13 +1676,11 @@ func (m *MockTenantServicePluginRelationDao) DeleteRelationByServiceIDAndPluginI
 
 // DeleteRelationByServiceIDAndPluginID indicates an expected call of DeleteRelationByServiceIDAndPluginID
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) DeleteRelationByServiceIDAndPluginID(serviceID, pluginID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRelationByServiceIDAndPluginID", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).DeleteRelationByServiceIDAndPluginID), serviceID, pluginID)
 }
 
 // DeleteALLRelationByServiceID mocks base method
 func (m *MockTenantServicePluginRelationDao) DeleteALLRelationByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteALLRelationByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1789,13 +1688,11 @@ func (m *MockTenantServicePluginRelationDao) DeleteALLRelationByServiceID(servic
 
 // DeleteALLRelationByServiceID indicates an expected call of DeleteALLRelationByServiceID
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) DeleteALLRelationByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteALLRelationByServiceID", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).DeleteALLRelationByServiceID), serviceID)
 }
 
 // DeleteALLRelationByPluginID mocks base method
 func (m *MockTenantServicePluginRelationDao) DeleteALLRelationByPluginID(pluginID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteALLRelationByPluginID", pluginID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1803,13 +1700,11 @@ func (m *MockTenantServicePluginRelationDao) DeleteALLRelationByPluginID(pluginI
 
 // DeleteALLRelationByPluginID indicates an expected call of DeleteALLRelationByPluginID
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) DeleteALLRelationByPluginID(pluginID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteALLRelationByPluginID", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).DeleteALLRelationByPluginID), pluginID)
 }
 
 // GetALLRelationByServiceID mocks base method
 func (m *MockTenantServicePluginRelationDao) GetALLRelationByServiceID(serviceID string) ([]*model.TenantServicePluginRelation, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetALLRelationByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServicePluginRelation)
 	ret1, _ := ret[1].(error)
@@ -1818,13 +1713,11 @@ func (m *MockTenantServicePluginRelationDao) GetALLRelationByServiceID(serviceID
 
 // GetALLRelationByServiceID indicates an expected call of GetALLRelationByServiceID
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) GetALLRelationByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetALLRelationByServiceID", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).GetALLRelationByServiceID), serviceID)
 }
 
 // GetRelateionByServiceIDAndPluginID mocks base method
 func (m *MockTenantServicePluginRelationDao) GetRelateionByServiceIDAndPluginID(serviceID, pluginID string) (*model.TenantServicePluginRelation, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRelateionByServiceIDAndPluginID", serviceID, pluginID)
 	ret0, _ := ret[0].(*model.TenantServicePluginRelation)
 	ret1, _ := ret[1].(error)
@@ -1833,13 +1726,11 @@ func (m *MockTenantServicePluginRelationDao) GetRelateionByServiceIDAndPluginID(
 
 // GetRelateionByServiceIDAndPluginID indicates an expected call of GetRelateionByServiceIDAndPluginID
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) GetRelateionByServiceIDAndPluginID(serviceID, pluginID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRelateionByServiceIDAndPluginID", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).GetRelateionByServiceIDAndPluginID), serviceID, pluginID)
 }
 
 // CheckSomeModelPluginByServiceID mocks base method
 func (m *MockTenantServicePluginRelationDao) CheckSomeModelPluginByServiceID(serviceID, pluginModel string) (bool, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CheckSomeModelPluginByServiceID", serviceID, pluginModel)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
@@ -1848,13 +1739,11 @@ func (m *MockTenantServicePluginRelationDao) CheckSomeModelPluginByServiceID(ser
 
 // CheckSomeModelPluginByServiceID indicates an expected call of CheckSomeModelPluginByServiceID
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) CheckSomeModelPluginByServiceID(serviceID, pluginModel interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckSomeModelPluginByServiceID", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).CheckSomeModelPluginByServiceID), serviceID, pluginModel)
 }
 
 // CheckSomeModelLikePluginByServiceID mocks base method
 func (m *MockTenantServicePluginRelationDao) CheckSomeModelLikePluginByServiceID(serviceID, pluginModel string) (bool, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CheckSomeModelLikePluginByServiceID", serviceID, pluginModel)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
@@ -1863,7 +1752,6 @@ func (m *MockTenantServicePluginRelationDao) CheckSomeModelLikePluginByServiceID
 
 // CheckSomeModelLikePluginByServiceID indicates an expected call of CheckSomeModelLikePluginByServiceID
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) CheckSomeModelLikePluginByServiceID(serviceID, pluginModel interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckSomeModelLikePluginByServiceID", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).CheckSomeModelLikePluginByServiceID), serviceID, pluginModel)
 }
 
@@ -1892,7 +1780,6 @@ func (m *MockTenantServiceRelationDao) EXPECT() *MockTenantServiceRelationDaoMoc
 
 // AddModel mocks base method
 func (m *MockTenantServiceRelationDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1900,13 +1787,11 @@ func (m *MockTenantServiceRelationDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantServiceRelationDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantServiceRelationDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -1914,13 +1799,11 @@ func (m *MockTenantServiceRelationDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantServiceRelationDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).UpdateModel), arg0)
 }
 
 // DeleteModel mocks base method
 func (m *MockTenantServiceRelationDao) DeleteModel(serviceID string, arg ...interface{}) error {
-	m.ctrl.T.Helper()
 	varargs := []interface{}{serviceID}
 	for _, a := range arg {
 		varargs = append(varargs, a)
@@ -1932,14 +1815,12 @@ func (m *MockTenantServiceRelationDao) DeleteModel(serviceID string, arg ...inte
 
 // DeleteModel indicates an expected call of DeleteModel
 func (mr *MockTenantServiceRelationDaoMockRecorder) DeleteModel(serviceID interface{}, arg ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{serviceID}, arg...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModel", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).DeleteModel), varargs...)
 }
 
 // GetTenantServiceRelations mocks base method
 func (m *MockTenantServiceRelationDao) GetTenantServiceRelations(serviceID string) ([]*model.TenantServiceRelation, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceRelations", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceRelation)
 	ret1, _ := ret[1].(error)
@@ -1948,13 +1829,11 @@ func (m *MockTenantServiceRelationDao) GetTenantServiceRelations(serviceID strin
 
 // GetTenantServiceRelations indicates an expected call of GetTenantServiceRelations
 func (mr *MockTenantServiceRelationDaoMockRecorder) GetTenantServiceRelations(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceRelations", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).GetTenantServiceRelations), serviceID)
 }
 
 // ListByServiceIDs mocks base method
 func (m *MockTenantServiceRelationDao) ListByServiceIDs(serviceIDs []string) ([]*model.TenantServiceRelation, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByServiceIDs", serviceIDs)
 	ret0, _ := ret[0].([]*model.TenantServiceRelation)
 	ret1, _ := ret[1].(error)
@@ -1963,13 +1842,11 @@ func (m *MockTenantServiceRelationDao) ListByServiceIDs(serviceIDs []string) ([]
 
 // ListByServiceIDs indicates an expected call of ListByServiceIDs
 func (mr *MockTenantServiceRelationDaoMockRecorder) ListByServiceIDs(serviceIDs interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceIDs", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).ListByServiceIDs), serviceIDs)
 }
 
 // GetTenantServiceRelationsByDependServiceID mocks base method
 func (m *MockTenantServiceRelationDao) GetTenantServiceRelationsByDependServiceID(dependServiceID string) ([]*model.TenantServiceRelation, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceRelationsByDependServiceID", dependServiceID)
 	ret0, _ := ret[0].([]*model.TenantServiceRelation)
 	ret1, _ := ret[1].(error)
@@ -1978,13 +1855,11 @@ func (m *MockTenantServiceRelationDao) GetTenantServiceRelationsByDependServiceI
 
 // GetTenantServiceRelationsByDependServiceID indicates an expected call of GetTenantServiceRelationsByDependServiceID
 func (mr *MockTenantServiceRelationDaoMockRecorder) GetTenantServiceRelationsByDependServiceID(dependServiceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceRelationsByDependServiceID", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).GetTenantServiceRelationsByDependServiceID), dependServiceID)
 }
 
 // HaveRelations mocks base method
 func (m *MockTenantServiceRelationDao) HaveRelations(serviceID string) bool {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HaveRelations", serviceID)
 	ret0, _ := ret[0].(bool)
 	return ret0
@@ -1992,13 +1867,11 @@ func (m *MockTenantServiceRelationDao) HaveRelations(serviceID string) bool {
 
 // HaveRelations indicates an expected call of HaveRelations
 func (mr *MockTenantServiceRelationDaoMockRecorder) HaveRelations(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HaveRelations", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).HaveRelations), serviceID)
 }
 
 // DELRelationsByServiceID mocks base method
 func (m *MockTenantServiceRelationDao) DELRelationsByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DELRelationsByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2006,13 +1879,11 @@ func (m *MockTenantServiceRelationDao) DELRelationsByServiceID(serviceID string)
 
 // DELRelationsByServiceID indicates an expected call of DELRelationsByServiceID
 func (mr *MockTenantServiceRelationDaoMockRecorder) DELRelationsByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DELRelationsByServiceID", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).DELRelationsByServiceID), serviceID)
 }
 
 // DeleteRelationByDepID mocks base method
 func (m *MockTenantServiceRelationDao) DeleteRelationByDepID(serviceID, depID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteRelationByDepID", serviceID, depID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2020,7 +1891,6 @@ func (m *MockTenantServiceRelationDao) DeleteRelationByDepID(serviceID, depID st
 
 // DeleteRelationByDepID indicates an expected call of DeleteRelationByDepID
 func (mr *MockTenantServiceRelationDaoMockRecorder) DeleteRelationByDepID(serviceID, depID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRelationByDepID", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).DeleteRelationByDepID), serviceID, depID)
 }
 
@@ -2049,7 +1919,6 @@ func (m *MockTenantServicesStreamPluginPortDao) EXPECT() *MockTenantServicesStre
 
 // AddModel mocks base method
 func (m *MockTenantServicesStreamPluginPortDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2057,13 +1926,11 @@ func (m *MockTenantServicesStreamPluginPortDao) AddModel(arg0 model.Interface) e
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantServicesStreamPluginPortDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2071,13 +1938,11 @@ func (m *MockTenantServicesStreamPluginPortDao) UpdateModel(arg0 model.Interface
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).UpdateModel), arg0)
 }
 
 // GetPluginMappingPorts mocks base method
 func (m *MockTenantServicesStreamPluginPortDao) GetPluginMappingPorts(serviceID string) ([]*model.TenantServicesStreamPluginPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPluginMappingPorts", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServicesStreamPluginPort)
 	ret1, _ := ret[1].(error)
@@ -2086,13 +1951,11 @@ func (m *MockTenantServicesStreamPluginPortDao) GetPluginMappingPorts(serviceID 
 
 // GetPluginMappingPorts indicates an expected call of GetPluginMappingPorts
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) GetPluginMappingPorts(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPluginMappingPorts", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).GetPluginMappingPorts), serviceID)
 }
 
 // SetPluginMappingPort mocks base method
 func (m *MockTenantServicesStreamPluginPortDao) SetPluginMappingPort(tenantID, serviceID, pluginModel string, containerPort int) (int, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetPluginMappingPort", tenantID, serviceID, pluginModel, containerPort)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
@@ -2101,13 +1964,11 @@ func (m *MockTenantServicesStreamPluginPortDao) SetPluginMappingPort(tenantID, s
 
 // SetPluginMappingPort indicates an expected call of SetPluginMappingPort
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) SetPluginMappingPort(tenantID, serviceID, pluginModel, containerPort interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetPluginMappingPort", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).SetPluginMappingPort), tenantID, serviceID, pluginModel, containerPort)
 }
 
 // DeletePluginMappingPortByContainerPort mocks base method
 func (m *MockTenantServicesStreamPluginPortDao) DeletePluginMappingPortByContainerPort(serviceID, pluginModel string, containerPort int) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeletePluginMappingPortByContainerPort", serviceID, pluginModel, containerPort)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2115,13 +1976,11 @@ func (m *MockTenantServicesStreamPluginPortDao) DeletePluginMappingPortByContain
 
 // DeletePluginMappingPortByContainerPort indicates an expected call of DeletePluginMappingPortByContainerPort
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) DeletePluginMappingPortByContainerPort(serviceID, pluginModel, containerPort interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePluginMappingPortByContainerPort", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).DeletePluginMappingPortByContainerPort), serviceID, pluginModel, containerPort)
 }
 
 // DeleteAllPluginMappingPortByServiceID mocks base method
 func (m *MockTenantServicesStreamPluginPortDao) DeleteAllPluginMappingPortByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteAllPluginMappingPortByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2129,13 +1988,11 @@ func (m *MockTenantServicesStreamPluginPortDao) DeleteAllPluginMappingPortByServ
 
 // DeleteAllPluginMappingPortByServiceID indicates an expected call of DeleteAllPluginMappingPortByServiceID
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) DeleteAllPluginMappingPortByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAllPluginMappingPortByServiceID", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).DeleteAllPluginMappingPortByServiceID), serviceID)
 }
 
 // GetPluginMappingPortByServiceIDAndContainerPort mocks base method
 func (m *MockTenantServicesStreamPluginPortDao) GetPluginMappingPortByServiceIDAndContainerPort(serviceID, pluginModel string, containerPort int) (*model.TenantServicesStreamPluginPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPluginMappingPortByServiceIDAndContainerPort", serviceID, pluginModel, containerPort)
 	ret0, _ := ret[0].(*model.TenantServicesStreamPluginPort)
 	ret1, _ := ret[1].(error)
@@ -2144,13 +2001,11 @@ func (m *MockTenantServicesStreamPluginPortDao) GetPluginMappingPortByServiceIDA
 
 // GetPluginMappingPortByServiceIDAndContainerPort indicates an expected call of GetPluginMappingPortByServiceIDAndContainerPort
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) GetPluginMappingPortByServiceIDAndContainerPort(serviceID, pluginModel, containerPort interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPluginMappingPortByServiceIDAndContainerPort", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).GetPluginMappingPortByServiceIDAndContainerPort), serviceID, pluginModel, containerPort)
 }
 
 // ListByServiceID mocks base method
 func (m *MockTenantServicesStreamPluginPortDao) ListByServiceID(sid string) ([]*model.TenantServicesStreamPluginPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByServiceID", sid)
 	ret0, _ := ret[0].([]*model.TenantServicesStreamPluginPort)
 	ret1, _ := ret[1].(error)
@@ -2159,7 +2014,6 @@ func (m *MockTenantServicesStreamPluginPortDao) ListByServiceID(sid string) ([]*
 
 // ListByServiceID indicates an expected call of ListByServiceID
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) ListByServiceID(sid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).ListByServiceID), sid)
 }
 
@@ -2188,7 +2042,6 @@ func (m *MockTenantServiceEnvVarDao) EXPECT() *MockTenantServiceEnvVarDaoMockRec
 
 // AddModel mocks base method
 func (m *MockTenantServiceEnvVarDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2196,13 +2049,11 @@ func (m *MockTenantServiceEnvVarDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantServiceEnvVarDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2210,13 +2061,11 @@ func (m *MockTenantServiceEnvVarDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).UpdateModel), arg0)
 }
 
 // DeleteModel mocks base method
 func (m *MockTenantServiceEnvVarDao) DeleteModel(serviceID string, arg ...interface{}) error {
-	m.ctrl.T.Helper()
 	varargs := []interface{}{serviceID}
 	for _, a := range arg {
 		varargs = append(varargs, a)
@@ -2228,14 +2077,12 @@ func (m *MockTenantServiceEnvVarDao) DeleteModel(serviceID string, arg ...interf
 
 // DeleteModel indicates an expected call of DeleteModel
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) DeleteModel(serviceID interface{}, arg ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{serviceID}, arg...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModel", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).DeleteModel), varargs...)
 }
 
 // GetDependServiceEnvs mocks base method
 func (m *MockTenantServiceEnvVarDao) GetDependServiceEnvs(serviceIDs, scopes []string) ([]*model.TenantServiceEnvVar, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDependServiceEnvs", serviceIDs, scopes)
 	ret0, _ := ret[0].([]*model.TenantServiceEnvVar)
 	ret1, _ := ret[1].(error)
@@ -2244,13 +2091,11 @@ func (m *MockTenantServiceEnvVarDao) GetDependServiceEnvs(serviceIDs, scopes []s
 
 // GetDependServiceEnvs indicates an expected call of GetDependServiceEnvs
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) GetDependServiceEnvs(serviceIDs, scopes interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDependServiceEnvs", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).GetDependServiceEnvs), serviceIDs, scopes)
 }
 
 // GetServiceEnvs mocks base method
 func (m *MockTenantServiceEnvVarDao) GetServiceEnvs(serviceID string, scopes []string) ([]*model.TenantServiceEnvVar, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceEnvs", serviceID, scopes)
 	ret0, _ := ret[0].([]*model.TenantServiceEnvVar)
 	ret1, _ := ret[1].(error)
@@ -2259,13 +2104,11 @@ func (m *MockTenantServiceEnvVarDao) GetServiceEnvs(serviceID string, scopes []s
 
 // GetServiceEnvs indicates an expected call of GetServiceEnvs
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) GetServiceEnvs(serviceID, scopes interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceEnvs", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).GetServiceEnvs), serviceID, scopes)
 }
 
 // GetEnv mocks base method
 func (m *MockTenantServiceEnvVarDao) GetEnv(serviceID, envName string) (*model.TenantServiceEnvVar, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEnv", serviceID, envName)
 	ret0, _ := ret[0].(*model.TenantServiceEnvVar)
 	ret1, _ := ret[1].(error)
@@ -2274,13 +2117,11 @@ func (m *MockTenantServiceEnvVarDao) GetEnv(serviceID, envName string) (*model.T
 
 // GetEnv indicates an expected call of GetEnv
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) GetEnv(serviceID, envName interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEnv", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).GetEnv), serviceID, envName)
 }
 
 // DELServiceEnvsByServiceID mocks base method
 func (m *MockTenantServiceEnvVarDao) DELServiceEnvsByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DELServiceEnvsByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2288,13 +2129,11 @@ func (m *MockTenantServiceEnvVarDao) DELServiceEnvsByServiceID(serviceID string)
 
 // DELServiceEnvsByServiceID indicates an expected call of DELServiceEnvsByServiceID
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) DELServiceEnvsByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DELServiceEnvsByServiceID", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).DELServiceEnvsByServiceID), serviceID)
 }
 
 // DelByServiceIDAndScope mocks base method
 func (m *MockTenantServiceEnvVarDao) DelByServiceIDAndScope(sid, scope string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelByServiceIDAndScope", sid, scope)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2302,7 +2141,6 @@ func (m *MockTenantServiceEnvVarDao) DelByServiceIDAndScope(sid, scope string) e
 
 // DelByServiceIDAndScope indicates an expected call of DelByServiceIDAndScope
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) DelByServiceIDAndScope(sid, scope interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByServiceIDAndScope", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).DelByServiceIDAndScope), sid, scope)
 }
 
@@ -2331,7 +2169,6 @@ func (m *MockTenantServiceMountRelationDao) EXPECT() *MockTenantServiceMountRela
 
 // AddModel mocks base method
 func (m *MockTenantServiceMountRelationDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2339,13 +2176,11 @@ func (m *MockTenantServiceMountRelationDao) AddModel(arg0 model.Interface) error
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantServiceMountRelationDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantServiceMountRelationDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2353,13 +2188,11 @@ func (m *MockTenantServiceMountRelationDao) UpdateModel(arg0 model.Interface) er
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantServiceMountRelationDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).UpdateModel), arg0)
 }
 
 // GetTenantServiceMountRelationsByService mocks base method
 func (m *MockTenantServiceMountRelationDao) GetTenantServiceMountRelationsByService(serviceID string) ([]*model.TenantServiceMountRelation, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceMountRelationsByService", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceMountRelation)
 	ret1, _ := ret[1].(error)
@@ -2368,13 +2201,11 @@ func (m *MockTenantServiceMountRelationDao) GetTenantServiceMountRelationsByServ
 
 // GetTenantServiceMountRelationsByService indicates an expected call of GetTenantServiceMountRelationsByService
 func (mr *MockTenantServiceMountRelationDaoMockRecorder) GetTenantServiceMountRelationsByService(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceMountRelationsByService", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).GetTenantServiceMountRelationsByService), serviceID)
 }
 
 // DElTenantServiceMountRelationByServiceAndName mocks base method
 func (m *MockTenantServiceMountRelationDao) DElTenantServiceMountRelationByServiceAndName(serviceID, mntDir string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DElTenantServiceMountRelationByServiceAndName", serviceID, mntDir)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2382,13 +2213,11 @@ func (m *MockTenantServiceMountRelationDao) DElTenantServiceMountRelationByServi
 
 // DElTenantServiceMountRelationByServiceAndName indicates an expected call of DElTenantServiceMountRelationByServiceAndName
 func (mr *MockTenantServiceMountRelationDaoMockRecorder) DElTenantServiceMountRelationByServiceAndName(serviceID, mntDir interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DElTenantServiceMountRelationByServiceAndName", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).DElTenantServiceMountRelationByServiceAndName), serviceID, mntDir)
 }
 
 // DELTenantServiceMountRelationByServiceID mocks base method
 func (m *MockTenantServiceMountRelationDao) DELTenantServiceMountRelationByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DELTenantServiceMountRelationByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2396,13 +2225,11 @@ func (m *MockTenantServiceMountRelationDao) DELTenantServiceMountRelationByServi
 
 // DELTenantServiceMountRelationByServiceID indicates an expected call of DELTenantServiceMountRelationByServiceID
 func (mr *MockTenantServiceMountRelationDaoMockRecorder) DELTenantServiceMountRelationByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DELTenantServiceMountRelationByServiceID", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).DELTenantServiceMountRelationByServiceID), serviceID)
 }
 
 // DElTenantServiceMountRelationByDepService mocks base method
 func (m *MockTenantServiceMountRelationDao) DElTenantServiceMountRelationByDepService(serviceID, depServiceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DElTenantServiceMountRelationByDepService", serviceID, depServiceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2410,7 +2237,6 @@ func (m *MockTenantServiceMountRelationDao) DElTenantServiceMountRelationByDepSe
 
 // DElTenantServiceMountRelationByDepService indicates an expected call of DElTenantServiceMountRelationByDepService
 func (mr *MockTenantServiceMountRelationDaoMockRecorder) DElTenantServiceMountRelationByDepService(serviceID, depServiceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DElTenantServiceMountRelationByDepService", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).DElTenantServiceMountRelationByDepService), serviceID, depServiceID)
 }
 
@@ -2439,7 +2265,6 @@ func (m *MockTenantServiceVolumeDao) EXPECT() *MockTenantServiceVolumeDaoMockRec
 
 // AddModel mocks base method
 func (m *MockTenantServiceVolumeDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2447,13 +2272,11 @@ func (m *MockTenantServiceVolumeDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantServiceVolumeDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantServiceVolumeDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2461,13 +2284,11 @@ func (m *MockTenantServiceVolumeDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantServiceVolumeDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).UpdateModel), arg0)
 }
 
 // DeleteModel mocks base method
 func (m *MockTenantServiceVolumeDao) DeleteModel(serviceID string, arg ...interface{}) error {
-	m.ctrl.T.Helper()
 	varargs := []interface{}{serviceID}
 	for _, a := range arg {
 		varargs = append(varargs, a)
@@ -2479,14 +2300,12 @@ func (m *MockTenantServiceVolumeDao) DeleteModel(serviceID string, arg ...interf
 
 // DeleteModel indicates an expected call of DeleteModel
 func (mr *MockTenantServiceVolumeDaoMockRecorder) DeleteModel(serviceID interface{}, arg ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{serviceID}, arg...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModel", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).DeleteModel), varargs...)
 }
 
 // GetTenantServiceVolumesByServiceID mocks base method
 func (m *MockTenantServiceVolumeDao) GetTenantServiceVolumesByServiceID(serviceID string) ([]*model.TenantServiceVolume, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceVolumesByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceVolume)
 	ret1, _ := ret[1].(error)
@@ -2495,13 +2314,11 @@ func (m *MockTenantServiceVolumeDao) GetTenantServiceVolumesByServiceID(serviceI
 
 // GetTenantServiceVolumesByServiceID indicates an expected call of GetTenantServiceVolumesByServiceID
 func (mr *MockTenantServiceVolumeDaoMockRecorder) GetTenantServiceVolumesByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceVolumesByServiceID", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).GetTenantServiceVolumesByServiceID), serviceID)
 }
 
 // DeleteTenantServiceVolumesByServiceID mocks base method
 func (m *MockTenantServiceVolumeDao) DeleteTenantServiceVolumesByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteTenantServiceVolumesByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2509,13 +2326,11 @@ func (m *MockTenantServiceVolumeDao) DeleteTenantServiceVolumesByServiceID(servi
 
 // DeleteTenantServiceVolumesByServiceID indicates an expected call of DeleteTenantServiceVolumesByServiceID
 func (mr *MockTenantServiceVolumeDaoMockRecorder) DeleteTenantServiceVolumesByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTenantServiceVolumesByServiceID", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).DeleteTenantServiceVolumesByServiceID), serviceID)
 }
 
 // DeleteByServiceIDAndVolumePath mocks base method
 func (m *MockTenantServiceVolumeDao) DeleteByServiceIDAndVolumePath(serviceID, volumePath string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteByServiceIDAndVolumePath", serviceID, volumePath)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2523,13 +2338,11 @@ func (m *MockTenantServiceVolumeDao) DeleteByServiceIDAndVolumePath(serviceID, v
 
 // DeleteByServiceIDAndVolumePath indicates an expected call of DeleteByServiceIDAndVolumePath
 func (mr *MockTenantServiceVolumeDaoMockRecorder) DeleteByServiceIDAndVolumePath(serviceID, volumePath interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByServiceIDAndVolumePath", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).DeleteByServiceIDAndVolumePath), serviceID, volumePath)
 }
 
 // GetVolumeByServiceIDAndName mocks base method
 func (m *MockTenantServiceVolumeDao) GetVolumeByServiceIDAndName(serviceID, name string) (*model.TenantServiceVolume, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVolumeByServiceIDAndName", serviceID, name)
 	ret0, _ := ret[0].(*model.TenantServiceVolume)
 	ret1, _ := ret[1].(error)
@@ -2538,13 +2351,11 @@ func (m *MockTenantServiceVolumeDao) GetVolumeByServiceIDAndName(serviceID, name
 
 // GetVolumeByServiceIDAndName indicates an expected call of GetVolumeByServiceIDAndName
 func (mr *MockTenantServiceVolumeDaoMockRecorder) GetVolumeByServiceIDAndName(serviceID, name interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVolumeByServiceIDAndName", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).GetVolumeByServiceIDAndName), serviceID, name)
 }
 
 // GetAllVolumes mocks base method
 func (m *MockTenantServiceVolumeDao) GetAllVolumes() ([]*model.TenantServiceVolume, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAllVolumes")
 	ret0, _ := ret[0].([]*model.TenantServiceVolume)
 	ret1, _ := ret[1].(error)
@@ -2553,13 +2364,11 @@ func (m *MockTenantServiceVolumeDao) GetAllVolumes() ([]*model.TenantServiceVolu
 
 // GetAllVolumes indicates an expected call of GetAllVolumes
 func (mr *MockTenantServiceVolumeDaoMockRecorder) GetAllVolumes() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllVolumes", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).GetAllVolumes))
 }
 
 // GetVolumeByID mocks base method
 func (m *MockTenantServiceVolumeDao) GetVolumeByID(id int) (*model.TenantServiceVolume, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVolumeByID", id)
 	ret0, _ := ret[0].(*model.TenantServiceVolume)
 	ret1, _ := ret[1].(error)
@@ -2568,13 +2377,11 @@ func (m *MockTenantServiceVolumeDao) GetVolumeByID(id int) (*model.TenantService
 
 // GetVolumeByID indicates an expected call of GetVolumeByID
 func (mr *MockTenantServiceVolumeDaoMockRecorder) GetVolumeByID(id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVolumeByID", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).GetVolumeByID), id)
 }
 
 // DelShareableBySID mocks base method
 func (m *MockTenantServiceVolumeDao) DelShareableBySID(sid string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelShareableBySID", sid)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2582,7 +2389,6 @@ func (m *MockTenantServiceVolumeDao) DelShareableBySID(sid string) error {
 
 // DelShareableBySID indicates an expected call of DelShareableBySID
 func (mr *MockTenantServiceVolumeDaoMockRecorder) DelShareableBySID(sid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelShareableBySID", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).DelShareableBySID), sid)
 }
 
@@ -2611,7 +2417,6 @@ func (m *MockTenantServiceConfigFileDao) EXPECT() *MockTenantServiceConfigFileDa
 
 // AddModel mocks base method
 func (m *MockTenantServiceConfigFileDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2619,13 +2424,11 @@ func (m *MockTenantServiceConfigFileDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantServiceConfigFileDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceConfigFileDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantServiceConfigFileDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2633,13 +2436,11 @@ func (m *MockTenantServiceConfigFileDao) UpdateModel(arg0 model.Interface) error
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantServiceConfigFileDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceConfigFileDao)(nil).UpdateModel), arg0)
 }
 
 // GetByVolumeName mocks base method
 func (m *MockTenantServiceConfigFileDao) GetByVolumeName(sid, volumeName string) (*model.TenantServiceConfigFile, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByVolumeName", sid, volumeName)
 	ret0, _ := ret[0].(*model.TenantServiceConfigFile)
 	ret1, _ := ret[1].(error)
@@ -2648,13 +2449,11 @@ func (m *MockTenantServiceConfigFileDao) GetByVolumeName(sid, volumeName string)
 
 // GetByVolumeName indicates an expected call of GetByVolumeName
 func (mr *MockTenantServiceConfigFileDaoMockRecorder) GetByVolumeName(sid, volumeName interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByVolumeName", reflect.TypeOf((*MockTenantServiceConfigFileDao)(nil).GetByVolumeName), sid, volumeName)
 }
 
 // DelByVolumeID mocks base method
 func (m *MockTenantServiceConfigFileDao) DelByVolumeID(sid, volumeName string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelByVolumeID", sid, volumeName)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2662,13 +2461,11 @@ func (m *MockTenantServiceConfigFileDao) DelByVolumeID(sid, volumeName string) e
 
 // DelByVolumeID indicates an expected call of DelByVolumeID
 func (mr *MockTenantServiceConfigFileDaoMockRecorder) DelByVolumeID(sid, volumeName interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByVolumeID", reflect.TypeOf((*MockTenantServiceConfigFileDao)(nil).DelByVolumeID), sid, volumeName)
 }
 
 // DelByServiceID mocks base method
 func (m *MockTenantServiceConfigFileDao) DelByServiceID(sid string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelByServiceID", sid)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2676,7 +2473,6 @@ func (m *MockTenantServiceConfigFileDao) DelByServiceID(sid string) error {
 
 // DelByServiceID indicates an expected call of DelByServiceID
 func (mr *MockTenantServiceConfigFileDaoMockRecorder) DelByServiceID(sid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByServiceID", reflect.TypeOf((*MockTenantServiceConfigFileDao)(nil).DelByServiceID), sid)
 }
 
@@ -2705,7 +2501,6 @@ func (m *MockTenantServiceLBMappingPortDao) EXPECT() *MockTenantServiceLBMapping
 
 // AddModel mocks base method
 func (m *MockTenantServiceLBMappingPortDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2713,13 +2508,11 @@ func (m *MockTenantServiceLBMappingPortDao) AddModel(arg0 model.Interface) error
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantServiceLBMappingPortDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2727,13 +2520,11 @@ func (m *MockTenantServiceLBMappingPortDao) UpdateModel(arg0 model.Interface) er
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).UpdateModel), arg0)
 }
 
 // GetTenantServiceLBMappingPort mocks base method
 func (m *MockTenantServiceLBMappingPortDao) GetTenantServiceLBMappingPort(serviceID string, containerPort int) (*model.TenantServiceLBMappingPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceLBMappingPort", serviceID, containerPort)
 	ret0, _ := ret[0].(*model.TenantServiceLBMappingPort)
 	ret1, _ := ret[1].(error)
@@ -2742,13 +2533,11 @@ func (m *MockTenantServiceLBMappingPortDao) GetTenantServiceLBMappingPort(servic
 
 // GetTenantServiceLBMappingPort indicates an expected call of GetTenantServiceLBMappingPort
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) GetTenantServiceLBMappingPort(serviceID, containerPort interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceLBMappingPort", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).GetTenantServiceLBMappingPort), serviceID, containerPort)
 }
 
 // GetLBMappingPortByServiceIDAndPort mocks base method
 func (m *MockTenantServiceLBMappingPortDao) GetLBMappingPortByServiceIDAndPort(serviceID string, port int) (*model.TenantServiceLBMappingPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLBMappingPortByServiceIDAndPort", serviceID, port)
 	ret0, _ := ret[0].(*model.TenantServiceLBMappingPort)
 	ret1, _ := ret[1].(error)
@@ -2757,13 +2546,11 @@ func (m *MockTenantServiceLBMappingPortDao) GetLBMappingPortByServiceIDAndPort(s
 
 // GetLBMappingPortByServiceIDAndPort indicates an expected call of GetLBMappingPortByServiceIDAndPort
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) GetLBMappingPortByServiceIDAndPort(serviceID, port interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLBMappingPortByServiceIDAndPort", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).GetLBMappingPortByServiceIDAndPort), serviceID, port)
 }
 
 // GetTenantServiceLBMappingPortByService mocks base method
 func (m *MockTenantServiceLBMappingPortDao) GetTenantServiceLBMappingPortByService(serviceID string) ([]*model.TenantServiceLBMappingPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceLBMappingPortByService", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceLBMappingPort)
 	ret1, _ := ret[1].(error)
@@ -2772,13 +2559,11 @@ func (m *MockTenantServiceLBMappingPortDao) GetTenantServiceLBMappingPortByServi
 
 // GetTenantServiceLBMappingPortByService indicates an expected call of GetTenantServiceLBMappingPortByService
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) GetTenantServiceLBMappingPortByService(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceLBMappingPortByService", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).GetTenantServiceLBMappingPortByService), serviceID)
 }
 
 // GetLBPortsASC mocks base method
 func (m *MockTenantServiceLBMappingPortDao) GetLBPortsASC() ([]*model.TenantServiceLBMappingPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLBPortsASC")
 	ret0, _ := ret[0].([]*model.TenantServiceLBMappingPort)
 	ret1, _ := ret[1].(error)
@@ -2787,13 +2572,11 @@ func (m *MockTenantServiceLBMappingPortDao) GetLBPortsASC() ([]*model.TenantServ
 
 // GetLBPortsASC indicates an expected call of GetLBPortsASC
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) GetLBPortsASC() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLBPortsASC", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).GetLBPortsASC))
 }
 
 // CreateTenantServiceLBMappingPort mocks base method
 func (m *MockTenantServiceLBMappingPortDao) CreateTenantServiceLBMappingPort(serviceID string, containerPort int) (*model.TenantServiceLBMappingPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateTenantServiceLBMappingPort", serviceID, containerPort)
 	ret0, _ := ret[0].(*model.TenantServiceLBMappingPort)
 	ret1, _ := ret[1].(error)
@@ -2802,13 +2585,11 @@ func (m *MockTenantServiceLBMappingPortDao) CreateTenantServiceLBMappingPort(ser
 
 // CreateTenantServiceLBMappingPort indicates an expected call of CreateTenantServiceLBMappingPort
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) CreateTenantServiceLBMappingPort(serviceID, containerPort interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTenantServiceLBMappingPort", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).CreateTenantServiceLBMappingPort), serviceID, containerPort)
 }
 
 // DELServiceLBMappingPortByServiceID mocks base method
 func (m *MockTenantServiceLBMappingPortDao) DELServiceLBMappingPortByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DELServiceLBMappingPortByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2816,13 +2597,11 @@ func (m *MockTenantServiceLBMappingPortDao) DELServiceLBMappingPortByServiceID(s
 
 // DELServiceLBMappingPortByServiceID indicates an expected call of DELServiceLBMappingPortByServiceID
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) DELServiceLBMappingPortByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DELServiceLBMappingPortByServiceID", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).DELServiceLBMappingPortByServiceID), serviceID)
 }
 
 // DELServiceLBMappingPortByServiceIDAndPort mocks base method
 func (m *MockTenantServiceLBMappingPortDao) DELServiceLBMappingPortByServiceIDAndPort(serviceID string, lbPort int) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DELServiceLBMappingPortByServiceIDAndPort", serviceID, lbPort)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2830,13 +2609,11 @@ func (m *MockTenantServiceLBMappingPortDao) DELServiceLBMappingPortByServiceIDAn
 
 // DELServiceLBMappingPortByServiceIDAndPort indicates an expected call of DELServiceLBMappingPortByServiceIDAndPort
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) DELServiceLBMappingPortByServiceIDAndPort(serviceID, lbPort interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DELServiceLBMappingPortByServiceIDAndPort", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).DELServiceLBMappingPortByServiceIDAndPort), serviceID, lbPort)
 }
 
 // GetLBPortByTenantAndPort mocks base method
 func (m *MockTenantServiceLBMappingPortDao) GetLBPortByTenantAndPort(tenantID string, lbport int) (*model.TenantServiceLBMappingPort, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLBPortByTenantAndPort", tenantID, lbport)
 	ret0, _ := ret[0].(*model.TenantServiceLBMappingPort)
 	ret1, _ := ret[1].(error)
@@ -2845,13 +2622,11 @@ func (m *MockTenantServiceLBMappingPortDao) GetLBPortByTenantAndPort(tenantID st
 
 // GetLBPortByTenantAndPort indicates an expected call of GetLBPortByTenantAndPort
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) GetLBPortByTenantAndPort(tenantID, lbport interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLBPortByTenantAndPort", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).GetLBPortByTenantAndPort), tenantID, lbport)
 }
 
 // PortExists mocks base method
 func (m *MockTenantServiceLBMappingPortDao) PortExists(port int) bool {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PortExists", port)
 	ret0, _ := ret[0].(bool)
 	return ret0
@@ -2859,7 +2634,6 @@ func (m *MockTenantServiceLBMappingPortDao) PortExists(port int) bool {
 
 // PortExists indicates an expected call of PortExists
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) PortExists(port interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PortExists", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).PortExists), port)
 }
 
@@ -2888,7 +2662,6 @@ func (m *MockTenantServiceLabelDao) EXPECT() *MockTenantServiceLabelDaoMockRecor
 
 // AddModel mocks base method
 func (m *MockTenantServiceLabelDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2896,13 +2669,11 @@ func (m *MockTenantServiceLabelDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantServiceLabelDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantServiceLabelDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2910,13 +2681,11 @@ func (m *MockTenantServiceLabelDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantServiceLabelDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).UpdateModel), arg0)
 }
 
 // DeleteModel mocks base method
 func (m *MockTenantServiceLabelDao) DeleteModel(serviceID string, arg ...interface{}) error {
-	m.ctrl.T.Helper()
 	varargs := []interface{}{serviceID}
 	for _, a := range arg {
 		varargs = append(varargs, a)
@@ -2928,14 +2697,12 @@ func (m *MockTenantServiceLabelDao) DeleteModel(serviceID string, arg ...interfa
 
 // DeleteModel indicates an expected call of DeleteModel
 func (mr *MockTenantServiceLabelDaoMockRecorder) DeleteModel(serviceID interface{}, arg ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{serviceID}, arg...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).DeleteModel), varargs...)
 }
 
 // GetTenantServiceLabel mocks base method
 func (m *MockTenantServiceLabelDao) GetTenantServiceLabel(serviceID string) ([]*model.TenantServiceLable, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceLabel", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceLable)
 	ret1, _ := ret[1].(error)
@@ -2944,13 +2711,11 @@ func (m *MockTenantServiceLabelDao) GetTenantServiceLabel(serviceID string) ([]*
 
 // GetTenantServiceLabel indicates an expected call of GetTenantServiceLabel
 func (mr *MockTenantServiceLabelDaoMockRecorder) GetTenantServiceLabel(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceLabel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).GetTenantServiceLabel), serviceID)
 }
 
 // DeleteLabelByServiceID mocks base method
 func (m *MockTenantServiceLabelDao) DeleteLabelByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteLabelByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -2958,13 +2723,11 @@ func (m *MockTenantServiceLabelDao) DeleteLabelByServiceID(serviceID string) err
 
 // DeleteLabelByServiceID indicates an expected call of DeleteLabelByServiceID
 func (mr *MockTenantServiceLabelDaoMockRecorder) DeleteLabelByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteLabelByServiceID", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).DeleteLabelByServiceID), serviceID)
 }
 
 // GetTenantServiceNodeSelectorLabel mocks base method
 func (m *MockTenantServiceLabelDao) GetTenantServiceNodeSelectorLabel(serviceID string) ([]*model.TenantServiceLable, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceNodeSelectorLabel", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceLable)
 	ret1, _ := ret[1].(error)
@@ -2973,13 +2736,11 @@ func (m *MockTenantServiceLabelDao) GetTenantServiceNodeSelectorLabel(serviceID 
 
 // GetTenantServiceNodeSelectorLabel indicates an expected call of GetTenantServiceNodeSelectorLabel
 func (mr *MockTenantServiceLabelDaoMockRecorder) GetTenantServiceNodeSelectorLabel(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceNodeSelectorLabel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).GetTenantServiceNodeSelectorLabel), serviceID)
 }
 
 // GetTenantNodeAffinityLabel mocks base method
 func (m *MockTenantServiceLabelDao) GetTenantNodeAffinityLabel(serviceID string) (*model.TenantServiceLable, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantNodeAffinityLabel", serviceID)
 	ret0, _ := ret[0].(*model.TenantServiceLable)
 	ret1, _ := ret[1].(error)
@@ -2988,13 +2749,11 @@ func (m *MockTenantServiceLabelDao) GetTenantNodeAffinityLabel(serviceID string)
 
 // GetTenantNodeAffinityLabel indicates an expected call of GetTenantNodeAffinityLabel
 func (mr *MockTenantServiceLabelDaoMockRecorder) GetTenantNodeAffinityLabel(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantNodeAffinityLabel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).GetTenantNodeAffinityLabel), serviceID)
 }
 
 // GetTenantServiceAffinityLabel mocks base method
 func (m *MockTenantServiceLabelDao) GetTenantServiceAffinityLabel(serviceID string) ([]*model.TenantServiceLable, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceAffinityLabel", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceLable)
 	ret1, _ := ret[1].(error)
@@ -3003,13 +2762,11 @@ func (m *MockTenantServiceLabelDao) GetTenantServiceAffinityLabel(serviceID stri
 
 // GetTenantServiceAffinityLabel indicates an expected call of GetTenantServiceAffinityLabel
 func (mr *MockTenantServiceLabelDaoMockRecorder) GetTenantServiceAffinityLabel(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceAffinityLabel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).GetTenantServiceAffinityLabel), serviceID)
 }
 
 // GetTenantServiceTypeLabel mocks base method
 func (m *MockTenantServiceLabelDao) GetTenantServiceTypeLabel(serviceID string) (*model.TenantServiceLable, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceTypeLabel", serviceID)
 	ret0, _ := ret[0].(*model.TenantServiceLable)
 	ret1, _ := ret[1].(error)
@@ -3018,13 +2775,11 @@ func (m *MockTenantServiceLabelDao) GetTenantServiceTypeLabel(serviceID string) 
 
 // GetTenantServiceTypeLabel indicates an expected call of GetTenantServiceTypeLabel
 func (mr *MockTenantServiceLabelDaoMockRecorder) GetTenantServiceTypeLabel(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceTypeLabel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).GetTenantServiceTypeLabel), serviceID)
 }
 
 // DelTenantServiceLabelsByLabelValuesAndServiceID mocks base method
 func (m *MockTenantServiceLabelDao) DelTenantServiceLabelsByLabelValuesAndServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelTenantServiceLabelsByLabelValuesAndServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3032,13 +2787,11 @@ func (m *MockTenantServiceLabelDao) DelTenantServiceLabelsByLabelValuesAndServic
 
 // DelTenantServiceLabelsByLabelValuesAndServiceID indicates an expected call of DelTenantServiceLabelsByLabelValuesAndServiceID
 func (mr *MockTenantServiceLabelDaoMockRecorder) DelTenantServiceLabelsByLabelValuesAndServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelTenantServiceLabelsByLabelValuesAndServiceID", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).DelTenantServiceLabelsByLabelValuesAndServiceID), serviceID)
 }
 
 // DelTenantServiceLabelsByServiceIDKey mocks base method
 func (m *MockTenantServiceLabelDao) DelTenantServiceLabelsByServiceIDKey(serviceID, labelKey string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelTenantServiceLabelsByServiceIDKey", serviceID, labelKey)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3046,13 +2799,11 @@ func (m *MockTenantServiceLabelDao) DelTenantServiceLabelsByServiceIDKey(service
 
 // DelTenantServiceLabelsByServiceIDKey indicates an expected call of DelTenantServiceLabelsByServiceIDKey
 func (mr *MockTenantServiceLabelDaoMockRecorder) DelTenantServiceLabelsByServiceIDKey(serviceID, labelKey interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelTenantServiceLabelsByServiceIDKey", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).DelTenantServiceLabelsByServiceIDKey), serviceID, labelKey)
 }
 
 // DelTenantServiceLabelsByServiceIDKeyValue mocks base method
 func (m *MockTenantServiceLabelDao) DelTenantServiceLabelsByServiceIDKeyValue(serviceID, labelKey, labelValue string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelTenantServiceLabelsByServiceIDKeyValue", serviceID, labelKey, labelValue)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3060,13 +2811,11 @@ func (m *MockTenantServiceLabelDao) DelTenantServiceLabelsByServiceIDKeyValue(se
 
 // DelTenantServiceLabelsByServiceIDKeyValue indicates an expected call of DelTenantServiceLabelsByServiceIDKeyValue
 func (mr *MockTenantServiceLabelDaoMockRecorder) DelTenantServiceLabelsByServiceIDKeyValue(serviceID, labelKey, labelValue interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelTenantServiceLabelsByServiceIDKeyValue", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).DelTenantServiceLabelsByServiceIDKeyValue), serviceID, labelKey, labelValue)
 }
 
 // GetLabelByNodeSelectorKey mocks base method
 func (m *MockTenantServiceLabelDao) GetLabelByNodeSelectorKey(serviceID, labelValue string) (*model.TenantServiceLable, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLabelByNodeSelectorKey", serviceID, labelValue)
 	ret0, _ := ret[0].(*model.TenantServiceLable)
 	ret1, _ := ret[1].(error)
@@ -3075,7 +2824,6 @@ func (m *MockTenantServiceLabelDao) GetLabelByNodeSelectorKey(serviceID, labelVa
 
 // GetLabelByNodeSelectorKey indicates an expected call of GetLabelByNodeSelectorKey
 func (mr *MockTenantServiceLabelDaoMockRecorder) GetLabelByNodeSelectorKey(serviceID, labelValue interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLabelByNodeSelectorKey", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).GetLabelByNodeSelectorKey), serviceID, labelValue)
 }
 
@@ -3104,7 +2852,6 @@ func (m *MockLocalSchedulerDao) EXPECT() *MockLocalSchedulerDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockLocalSchedulerDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3112,13 +2859,11 @@ func (m *MockLocalSchedulerDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockLocalSchedulerDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockLocalSchedulerDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockLocalSchedulerDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3126,13 +2871,11 @@ func (m *MockLocalSchedulerDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockLocalSchedulerDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockLocalSchedulerDao)(nil).UpdateModel), arg0)
 }
 
 // GetLocalScheduler mocks base method
 func (m *MockLocalSchedulerDao) GetLocalScheduler(serviceID string) ([]*model.LocalScheduler, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLocalScheduler", serviceID)
 	ret0, _ := ret[0].([]*model.LocalScheduler)
 	ret1, _ := ret[1].(error)
@@ -3141,7 +2884,6 @@ func (m *MockLocalSchedulerDao) GetLocalScheduler(serviceID string) ([]*model.Lo
 
 // GetLocalScheduler indicates an expected call of GetLocalScheduler
 func (mr *MockLocalSchedulerDaoMockRecorder) GetLocalScheduler(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLocalScheduler", reflect.TypeOf((*MockLocalSchedulerDao)(nil).GetLocalScheduler), serviceID)
 }
 
@@ -3170,7 +2912,6 @@ func (m *MockServiceProbeDao) EXPECT() *MockServiceProbeDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockServiceProbeDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3178,13 +2919,11 @@ func (m *MockServiceProbeDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockServiceProbeDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockServiceProbeDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockServiceProbeDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3192,13 +2931,11 @@ func (m *MockServiceProbeDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockServiceProbeDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockServiceProbeDao)(nil).UpdateModel), arg0)
 }
 
 // DeleteModel mocks base method
 func (m *MockServiceProbeDao) DeleteModel(serviceID string, arg ...interface{}) error {
-	m.ctrl.T.Helper()
 	varargs := []interface{}{serviceID}
 	for _, a := range arg {
 		varargs = append(varargs, a)
@@ -3210,14 +2947,12 @@ func (m *MockServiceProbeDao) DeleteModel(serviceID string, arg ...interface{}) 
 
 // DeleteModel indicates an expected call of DeleteModel
 func (mr *MockServiceProbeDaoMockRecorder) DeleteModel(serviceID interface{}, arg ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{serviceID}, arg...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModel", reflect.TypeOf((*MockServiceProbeDao)(nil).DeleteModel), varargs...)
 }
 
 // GetServiceProbes mocks base method
 func (m *MockServiceProbeDao) GetServiceProbes(serviceID string) ([]*model.TenantServiceProbe, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceProbes", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceProbe)
 	ret1, _ := ret[1].(error)
@@ -3226,13 +2961,11 @@ func (m *MockServiceProbeDao) GetServiceProbes(serviceID string) ([]*model.Tenan
 
 // GetServiceProbes indicates an expected call of GetServiceProbes
 func (mr *MockServiceProbeDaoMockRecorder) GetServiceProbes(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceProbes", reflect.TypeOf((*MockServiceProbeDao)(nil).GetServiceProbes), serviceID)
 }
 
 // GetServiceUsedProbe mocks base method
 func (m *MockServiceProbeDao) GetServiceUsedProbe(serviceID, mode string) (*model.TenantServiceProbe, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceUsedProbe", serviceID, mode)
 	ret0, _ := ret[0].(*model.TenantServiceProbe)
 	ret1, _ := ret[1].(error)
@@ -3241,13 +2974,11 @@ func (m *MockServiceProbeDao) GetServiceUsedProbe(serviceID, mode string) (*mode
 
 // GetServiceUsedProbe indicates an expected call of GetServiceUsedProbe
 func (mr *MockServiceProbeDaoMockRecorder) GetServiceUsedProbe(serviceID, mode interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceUsedProbe", reflect.TypeOf((*MockServiceProbeDao)(nil).GetServiceUsedProbe), serviceID, mode)
 }
 
 // DELServiceProbesByServiceID mocks base method
 func (m *MockServiceProbeDao) DELServiceProbesByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DELServiceProbesByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3255,13 +2986,11 @@ func (m *MockServiceProbeDao) DELServiceProbesByServiceID(serviceID string) erro
 
 // DELServiceProbesByServiceID indicates an expected call of DELServiceProbesByServiceID
 func (mr *MockServiceProbeDaoMockRecorder) DELServiceProbesByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DELServiceProbesByServiceID", reflect.TypeOf((*MockServiceProbeDao)(nil).DELServiceProbesByServiceID), serviceID)
 }
 
 // DelByServiceID mocks base method
 func (m *MockServiceProbeDao) DelByServiceID(sid string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelByServiceID", sid)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3269,7 +2998,6 @@ func (m *MockServiceProbeDao) DelByServiceID(sid string) error {
 
 // DelByServiceID indicates an expected call of DelByServiceID
 func (mr *MockServiceProbeDaoMockRecorder) DelByServiceID(sid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByServiceID", reflect.TypeOf((*MockServiceProbeDao)(nil).DelByServiceID), sid)
 }
 
@@ -3298,7 +3026,6 @@ func (m *MockCodeCheckResultDao) EXPECT() *MockCodeCheckResultDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockCodeCheckResultDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3306,13 +3033,11 @@ func (m *MockCodeCheckResultDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockCodeCheckResultDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockCodeCheckResultDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockCodeCheckResultDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3320,13 +3045,11 @@ func (m *MockCodeCheckResultDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockCodeCheckResultDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockCodeCheckResultDao)(nil).UpdateModel), arg0)
 }
 
 // GetCodeCheckResult mocks base method
 func (m *MockCodeCheckResultDao) GetCodeCheckResult(serviceID string) (*model.CodeCheckResult, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCodeCheckResult", serviceID)
 	ret0, _ := ret[0].(*model.CodeCheckResult)
 	ret1, _ := ret[1].(error)
@@ -3335,13 +3058,11 @@ func (m *MockCodeCheckResultDao) GetCodeCheckResult(serviceID string) (*model.Co
 
 // GetCodeCheckResult indicates an expected call of GetCodeCheckResult
 func (mr *MockCodeCheckResultDaoMockRecorder) GetCodeCheckResult(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCodeCheckResult", reflect.TypeOf((*MockCodeCheckResultDao)(nil).GetCodeCheckResult), serviceID)
 }
 
 // DeleteByServiceID mocks base method
 func (m *MockCodeCheckResultDao) DeleteByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3349,7 +3070,6 @@ func (m *MockCodeCheckResultDao) DeleteByServiceID(serviceID string) error {
 
 // DeleteByServiceID indicates an expected call of DeleteByServiceID
 func (mr *MockCodeCheckResultDaoMockRecorder) DeleteByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByServiceID", reflect.TypeOf((*MockCodeCheckResultDao)(nil).DeleteByServiceID), serviceID)
 }
 
@@ -3378,7 +3098,6 @@ func (m *MockEventDao) EXPECT() *MockEventDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockEventDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3386,13 +3105,11 @@ func (m *MockEventDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockEventDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockEventDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockEventDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3400,13 +3117,11 @@ func (m *MockEventDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockEventDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockEventDao)(nil).UpdateModel), arg0)
 }
 
 // GetEventByEventID mocks base method
 func (m *MockEventDao) GetEventByEventID(eventID string) (*model.ServiceEvent, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventByEventID", eventID)
 	ret0, _ := ret[0].(*model.ServiceEvent)
 	ret1, _ := ret[1].(error)
@@ -3415,13 +3130,11 @@ func (m *MockEventDao) GetEventByEventID(eventID string) (*model.ServiceEvent, e
 
 // GetEventByEventID indicates an expected call of GetEventByEventID
 func (mr *MockEventDaoMockRecorder) GetEventByEventID(eventID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventByEventID", reflect.TypeOf((*MockEventDao)(nil).GetEventByEventID), eventID)
 }
 
 // GetEventByEventIDs mocks base method
 func (m *MockEventDao) GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEvent, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventByEventIDs", eventIDs)
 	ret0, _ := ret[0].([]*model.ServiceEvent)
 	ret1, _ := ret[1].(error)
@@ -3430,13 +3143,11 @@ func (m *MockEventDao) GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEv
 
 // GetEventByEventIDs indicates an expected call of GetEventByEventIDs
 func (mr *MockEventDaoMockRecorder) GetEventByEventIDs(eventIDs interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventByEventIDs", reflect.TypeOf((*MockEventDao)(nil).GetEventByEventIDs), eventIDs)
 }
 
 // GetEventByServiceID mocks base method
 func (m *MockEventDao) GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.ServiceEvent)
 	ret1, _ := ret[1].(error)
@@ -3445,13 +3156,11 @@ func (m *MockEventDao) GetEventByServiceID(serviceID string) ([]*model.ServiceEv
 
 // GetEventByServiceID indicates an expected call of GetEventByServiceID
 func (mr *MockEventDaoMockRecorder) GetEventByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventByServiceID", reflect.TypeOf((*MockEventDao)(nil).GetEventByServiceID), serviceID)
 }
 
 // DelEventByServiceID mocks base method
 func (m *MockEventDao) DelEventByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelEventByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3459,13 +3168,11 @@ func (m *MockEventDao) DelEventByServiceID(serviceID string) error {
 
 // DelEventByServiceID indicates an expected call of DelEventByServiceID
 func (mr *MockEventDaoMockRecorder) DelEventByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelEventByServiceID", reflect.TypeOf((*MockEventDao)(nil).DelEventByServiceID), serviceID)
 }
 
 // ListByTargetID mocks base method
 func (m *MockEventDao) ListByTargetID(targetID string) ([]*model.ServiceEvent, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByTargetID", targetID)
 	ret0, _ := ret[0].([]*model.ServiceEvent)
 	ret1, _ := ret[1].(error)
@@ -3474,13 +3181,11 @@ func (m *MockEventDao) ListByTargetID(targetID string) ([]*model.ServiceEvent, e
 
 // ListByTargetID indicates an expected call of ListByTargetID
 func (mr *MockEventDaoMockRecorder) ListByTargetID(targetID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByTargetID", reflect.TypeOf((*MockEventDao)(nil).ListByTargetID), targetID)
 }
 
 // GetEventsByTarget mocks base method
 func (m *MockEventDao) GetEventsByTarget(target, targetID string, offset, liimt int) ([]*model.ServiceEvent, int, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventsByTarget", target, targetID, offset, liimt)
 	ret0, _ := ret[0].([]*model.ServiceEvent)
 	ret1, _ := ret[1].(int)
@@ -3490,13 +3195,11 @@ func (m *MockEventDao) GetEventsByTarget(target, targetID string, offset, liimt 
 
 // GetEventsByTarget indicates an expected call of GetEventsByTarget
 func (mr *MockEventDaoMockRecorder) GetEventsByTarget(target, targetID, offset, liimt interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventsByTarget", reflect.TypeOf((*MockEventDao)(nil).GetEventsByTarget), target, targetID, offset, liimt)
 }
 
 // GetEventsByTenantID mocks base method
 func (m *MockEventDao) GetEventsByTenantID(tenantID string, offset, limit int) ([]*model.ServiceEvent, int, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventsByTenantID", tenantID, offset, limit)
 	ret0, _ := ret[0].([]*model.ServiceEvent)
 	ret1, _ := ret[1].(int)
@@ -3506,13 +3209,11 @@ func (m *MockEventDao) GetEventsByTenantID(tenantID string, offset, limit int) (
 
 // GetEventsByTenantID indicates an expected call of GetEventsByTenantID
 func (mr *MockEventDaoMockRecorder) GetEventsByTenantID(tenantID, offset, limit interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventsByTenantID", reflect.TypeOf((*MockEventDao)(nil).GetEventsByTenantID), tenantID, offset, limit)
 }
 
 // GetLastASyncEvent mocks base method
 func (m *MockEventDao) GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLastASyncEvent", target, targetID)
 	ret0, _ := ret[0].(*model.ServiceEvent)
 	ret1, _ := ret[1].(error)
@@ -3521,13 +3222,11 @@ func (m *MockEventDao) GetLastASyncEvent(target, targetID string) (*model.Servic
 
 // GetLastASyncEvent indicates an expected call of GetLastASyncEvent
 func (mr *MockEventDaoMockRecorder) GetLastASyncEvent(target, targetID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastASyncEvent", reflect.TypeOf((*MockEventDao)(nil).GetLastASyncEvent), target, targetID)
 }
 
 // UnfinishedEvents mocks base method
 func (m *MockEventDao) UnfinishedEvents(target, targetID string, optTypes ...string) ([]*model.ServiceEvent, error) {
-	m.ctrl.T.Helper()
 	varargs := []interface{}{target, targetID}
 	for _, a := range optTypes {
 		varargs = append(varargs, a)
@@ -3540,14 +3239,12 @@ func (m *MockEventDao) UnfinishedEvents(target, targetID string, optTypes ...str
 
 // UnfinishedEvents indicates an expected call of UnfinishedEvents
 func (mr *MockEventDaoMockRecorder) UnfinishedEvents(target, targetID interface{}, optTypes ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{target, targetID}, optTypes...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnfinishedEvents", reflect.TypeOf((*MockEventDao)(nil).UnfinishedEvents), varargs...)
 }
 
 // LatestFailurePodEvent mocks base method
 func (m *MockEventDao) LatestFailurePodEvent(podName string) (*model.ServiceEvent, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LatestFailurePodEvent", podName)
 	ret0, _ := ret[0].(*model.ServiceEvent)
 	ret1, _ := ret[1].(error)
@@ -3556,7 +3253,6 @@ func (m *MockEventDao) LatestFailurePodEvent(podName string) (*model.ServiceEven
 
 // LatestFailurePodEvent indicates an expected call of LatestFailurePodEvent
 func (mr *MockEventDaoMockRecorder) LatestFailurePodEvent(podName interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestFailurePodEvent", reflect.TypeOf((*MockEventDao)(nil).LatestFailurePodEvent), podName)
 }
 
@@ -3585,7 +3281,6 @@ func (m *MockVersionInfoDao) EXPECT() *MockVersionInfoDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockVersionInfoDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3593,13 +3288,11 @@ func (m *MockVersionInfoDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockVersionInfoDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockVersionInfoDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockVersionInfoDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3607,13 +3300,24 @@ func (m *MockVersionInfoDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockVersionInfoDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockVersionInfoDao)(nil).UpdateModel), arg0)
+}
+
+// ListSuccessfulOnes mocks base method
+func (m *MockVersionInfoDao) ListSuccessfulOnes() ([]*model.VersionInfo, error) {
+	ret := m.ctrl.Call(m, "ListSuccessfulOnes")
+	ret0, _ := ret[0].([]*model.VersionInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListSuccessfulOnes indicates an expected call of ListSuccessfulOnes
+func (mr *MockVersionInfoDaoMockRecorder) ListSuccessfulOnes() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSuccessfulOnes", reflect.TypeOf((*MockVersionInfoDao)(nil).ListSuccessfulOnes))
 }
 
 // GetVersionByEventID mocks base method
 func (m *MockVersionInfoDao) GetVersionByEventID(eventID string) (*model.VersionInfo, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVersionByEventID", eventID)
 	ret0, _ := ret[0].(*model.VersionInfo)
 	ret1, _ := ret[1].(error)
@@ -3622,13 +3326,11 @@ func (m *MockVersionInfoDao) GetVersionByEventID(eventID string) (*model.Version
 
 // GetVersionByEventID indicates an expected call of GetVersionByEventID
 func (mr *MockVersionInfoDaoMockRecorder) GetVersionByEventID(eventID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionByEventID", reflect.TypeOf((*MockVersionInfoDao)(nil).GetVersionByEventID), eventID)
 }
 
 // GetVersionByDeployVersion mocks base method
 func (m *MockVersionInfoDao) GetVersionByDeployVersion(version, serviceID string) (*model.VersionInfo, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVersionByDeployVersion", version, serviceID)
 	ret0, _ := ret[0].(*model.VersionInfo)
 	ret1, _ := ret[1].(error)
@@ -3637,13 +3339,11 @@ func (m *MockVersionInfoDao) GetVersionByDeployVersion(version, serviceID string
 
 // GetVersionByDeployVersion indicates an expected call of GetVersionByDeployVersion
 func (mr *MockVersionInfoDaoMockRecorder) GetVersionByDeployVersion(version, serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionByDeployVersion", reflect.TypeOf((*MockVersionInfoDao)(nil).GetVersionByDeployVersion), version, serviceID)
 }
 
 // GetVersionByServiceID mocks base method
 func (m *MockVersionInfoDao) GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVersionByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.VersionInfo)
 	ret1, _ := ret[1].(error)
@@ -3652,13 +3352,11 @@ func (m *MockVersionInfoDao) GetVersionByServiceID(serviceID string) ([]*model.V
 
 // GetVersionByServiceID indicates an expected call of GetVersionByServiceID
 func (mr *MockVersionInfoDaoMockRecorder) GetVersionByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionByServiceID", reflect.TypeOf((*MockVersionInfoDao)(nil).GetVersionByServiceID), serviceID)
 }
 
 // GetLatestScsVersion mocks base method
 func (m *MockVersionInfoDao) GetLatestScsVersion(sid string) (*model.VersionInfo, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLatestScsVersion", sid)
 	ret0, _ := ret[0].(*model.VersionInfo)
 	ret1, _ := ret[1].(error)
@@ -3667,13 +3365,11 @@ func (m *MockVersionInfoDao) GetLatestScsVersion(sid string) (*model.VersionInfo
 
 // GetLatestScsVersion indicates an expected call of GetLatestScsVersion
 func (mr *MockVersionInfoDaoMockRecorder) GetLatestScsVersion(sid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestScsVersion", reflect.TypeOf((*MockVersionInfoDao)(nil).GetLatestScsVersion), sid)
 }
 
 // GetAllVersionByServiceID mocks base method
 func (m *MockVersionInfoDao) GetAllVersionByServiceID(serviceID string) ([]*model.VersionInfo, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAllVersionByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.VersionInfo)
 	ret1, _ := ret[1].(error)
@@ -3682,13 +3378,11 @@ func (m *MockVersionInfoDao) GetAllVersionByServiceID(serviceID string) ([]*mode
 
 // GetAllVersionByServiceID indicates an expected call of GetAllVersionByServiceID
 func (mr *MockVersionInfoDaoMockRecorder) GetAllVersionByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllVersionByServiceID", reflect.TypeOf((*MockVersionInfoDao)(nil).GetAllVersionByServiceID), serviceID)
 }
 
 // DeleteVersionByEventID mocks base method
 func (m *MockVersionInfoDao) DeleteVersionByEventID(eventID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteVersionByEventID", eventID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3696,13 +3390,11 @@ func (m *MockVersionInfoDao) DeleteVersionByEventID(eventID string) error {
 
 // DeleteVersionByEventID indicates an expected call of DeleteVersionByEventID
 func (mr *MockVersionInfoDaoMockRecorder) DeleteVersionByEventID(eventID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteVersionByEventID", reflect.TypeOf((*MockVersionInfoDao)(nil).DeleteVersionByEventID), eventID)
 }
 
 // DeleteVersionByServiceID mocks base method
 func (m *MockVersionInfoDao) DeleteVersionByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteVersionByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3710,13 +3402,11 @@ func (m *MockVersionInfoDao) DeleteVersionByServiceID(serviceID string) error {
 
 // DeleteVersionByServiceID indicates an expected call of DeleteVersionByServiceID
 func (mr *MockVersionInfoDaoMockRecorder) DeleteVersionByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteVersionByServiceID", reflect.TypeOf((*MockVersionInfoDao)(nil).DeleteVersionByServiceID), serviceID)
 }
 
 // GetVersionInfo mocks base method
 func (m *MockVersionInfoDao) GetVersionInfo(timePoint time.Time, serviceIDList []string) ([]*model.VersionInfo, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVersionInfo", timePoint, serviceIDList)
 	ret0, _ := ret[0].([]*model.VersionInfo)
 	ret1, _ := ret[1].(error)
@@ -3725,13 +3415,11 @@ func (m *MockVersionInfoDao) GetVersionInfo(timePoint time.Time, serviceIDList [
 
 // GetVersionInfo indicates an expected call of GetVersionInfo
 func (mr *MockVersionInfoDaoMockRecorder) GetVersionInfo(timePoint, serviceIDList interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionInfo", reflect.TypeOf((*MockVersionInfoDao)(nil).GetVersionInfo), timePoint, serviceIDList)
 }
 
 // DeleteVersionInfo mocks base method
 func (m *MockVersionInfoDao) DeleteVersionInfo(obj *model.VersionInfo) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteVersionInfo", obj)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3739,13 +3427,11 @@ func (m *MockVersionInfoDao) DeleteVersionInfo(obj *model.VersionInfo) error {
 
 // DeleteVersionInfo indicates an expected call of DeleteVersionInfo
 func (mr *MockVersionInfoDaoMockRecorder) DeleteVersionInfo(obj interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteVersionInfo", reflect.TypeOf((*MockVersionInfoDao)(nil).DeleteVersionInfo), obj)
 }
 
 // DeleteFailureVersionInfo mocks base method
 func (m *MockVersionInfoDao) DeleteFailureVersionInfo(timePoint time.Time, status string, serviceIDList []string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteFailureVersionInfo", timePoint, status, serviceIDList)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3753,13 +3439,11 @@ func (m *MockVersionInfoDao) DeleteFailureVersionInfo(timePoint time.Time, statu
 
 // DeleteFailureVersionInfo indicates an expected call of DeleteFailureVersionInfo
 func (mr *MockVersionInfoDaoMockRecorder) DeleteFailureVersionInfo(timePoint, status, serviceIDList interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteFailureVersionInfo", reflect.TypeOf((*MockVersionInfoDao)(nil).DeleteFailureVersionInfo), timePoint, status, serviceIDList)
 }
 
 // SearchVersionInfo mocks base method
 func (m *MockVersionInfoDao) SearchVersionInfo() ([]*model.VersionInfo, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SearchVersionInfo")
 	ret0, _ := ret[0].([]*model.VersionInfo)
 	ret1, _ := ret[1].(error)
@@ -3768,7 +3452,6 @@ func (m *MockVersionInfoDao) SearchVersionInfo() ([]*model.VersionInfo, error) {
 
 // SearchVersionInfo indicates an expected call of SearchVersionInfo
 func (mr *MockVersionInfoDaoMockRecorder) SearchVersionInfo() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchVersionInfo", reflect.TypeOf((*MockVersionInfoDao)(nil).SearchVersionInfo))
 }
 
@@ -3797,7 +3480,6 @@ func (m *MockRegionUserInfoDao) EXPECT() *MockRegionUserInfoDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockRegionUserInfoDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3805,13 +3487,11 @@ func (m *MockRegionUserInfoDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockRegionUserInfoDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockRegionUserInfoDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockRegionUserInfoDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3819,13 +3499,11 @@ func (m *MockRegionUserInfoDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockRegionUserInfoDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockRegionUserInfoDao)(nil).UpdateModel), arg0)
 }
 
 // GetALLTokenInValidityPeriod mocks base method
 func (m *MockRegionUserInfoDao) GetALLTokenInValidityPeriod() ([]*model.RegionUserInfo, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetALLTokenInValidityPeriod")
 	ret0, _ := ret[0].([]*model.RegionUserInfo)
 	ret1, _ := ret[1].(error)
@@ -3834,13 +3512,11 @@ func (m *MockRegionUserInfoDao) GetALLTokenInValidityPeriod() ([]*model.RegionUs
 
 // GetALLTokenInValidityPeriod indicates an expected call of GetALLTokenInValidityPeriod
 func (mr *MockRegionUserInfoDaoMockRecorder) GetALLTokenInValidityPeriod() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetALLTokenInValidityPeriod", reflect.TypeOf((*MockRegionUserInfoDao)(nil).GetALLTokenInValidityPeriod))
 }
 
 // GetTokenByEid mocks base method
 func (m *MockRegionUserInfoDao) GetTokenByEid(eid string) (*model.RegionUserInfo, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTokenByEid", eid)
 	ret0, _ := ret[0].(*model.RegionUserInfo)
 	ret1, _ := ret[1].(error)
@@ -3849,13 +3525,11 @@ func (m *MockRegionUserInfoDao) GetTokenByEid(eid string) (*model.RegionUserInfo
 
 // GetTokenByEid indicates an expected call of GetTokenByEid
 func (mr *MockRegionUserInfoDaoMockRecorder) GetTokenByEid(eid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTokenByEid", reflect.TypeOf((*MockRegionUserInfoDao)(nil).GetTokenByEid), eid)
 }
 
 // GetTokenByTokenID mocks base method
 func (m *MockRegionUserInfoDao) GetTokenByTokenID(token string) (*model.RegionUserInfo, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTokenByTokenID", token)
 	ret0, _ := ret[0].(*model.RegionUserInfo)
 	ret1, _ := ret[1].(error)
@@ -3864,7 +3538,6 @@ func (m *MockRegionUserInfoDao) GetTokenByTokenID(token string) (*model.RegionUs
 
 // GetTokenByTokenID indicates an expected call of GetTokenByTokenID
 func (mr *MockRegionUserInfoDaoMockRecorder) GetTokenByTokenID(token interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTokenByTokenID", reflect.TypeOf((*MockRegionUserInfoDao)(nil).GetTokenByTokenID), token)
 }
 
@@ -3893,7 +3566,6 @@ func (m *MockRegionAPIClassDao) EXPECT() *MockRegionAPIClassDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockRegionAPIClassDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3901,13 +3573,11 @@ func (m *MockRegionAPIClassDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockRegionAPIClassDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockRegionAPIClassDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockRegionAPIClassDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3915,13 +3585,11 @@ func (m *MockRegionAPIClassDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockRegionAPIClassDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockRegionAPIClassDao)(nil).UpdateModel), arg0)
 }
 
 // GetPrefixesByClass mocks base method
 func (m *MockRegionAPIClassDao) GetPrefixesByClass(apiClass string) ([]*model.RegionAPIClass, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPrefixesByClass", apiClass)
 	ret0, _ := ret[0].([]*model.RegionAPIClass)
 	ret1, _ := ret[1].(error)
@@ -3930,13 +3598,11 @@ func (m *MockRegionAPIClassDao) GetPrefixesByClass(apiClass string) ([]*model.Re
 
 // GetPrefixesByClass indicates an expected call of GetPrefixesByClass
 func (mr *MockRegionAPIClassDaoMockRecorder) GetPrefixesByClass(apiClass interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrefixesByClass", reflect.TypeOf((*MockRegionAPIClassDao)(nil).GetPrefixesByClass), apiClass)
 }
 
 // DeletePrefixInClass mocks base method
 func (m *MockRegionAPIClassDao) DeletePrefixInClass(apiClass, prefix string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeletePrefixInClass", apiClass, prefix)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3944,7 +3610,6 @@ func (m *MockRegionAPIClassDao) DeletePrefixInClass(apiClass, prefix string) err
 
 // DeletePrefixInClass indicates an expected call of DeletePrefixInClass
 func (mr *MockRegionAPIClassDaoMockRecorder) DeletePrefixInClass(apiClass, prefix interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePrefixInClass", reflect.TypeOf((*MockRegionAPIClassDao)(nil).DeletePrefixInClass), apiClass, prefix)
 }
 
@@ -3973,7 +3638,6 @@ func (m *MockRegionProcotolsDao) EXPECT() *MockRegionProcotolsDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockRegionProcotolsDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3981,13 +3645,11 @@ func (m *MockRegionProcotolsDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockRegionProcotolsDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockRegionProcotolsDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockRegionProcotolsDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -3995,13 +3657,11 @@ func (m *MockRegionProcotolsDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockRegionProcotolsDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockRegionProcotolsDao)(nil).UpdateModel), arg0)
 }
 
 // GetAllSupportProtocol mocks base method
 func (m *MockRegionProcotolsDao) GetAllSupportProtocol(version string) ([]*model.RegionProcotols, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAllSupportProtocol", version)
 	ret0, _ := ret[0].([]*model.RegionProcotols)
 	ret1, _ := ret[1].(error)
@@ -4010,13 +3670,11 @@ func (m *MockRegionProcotolsDao) GetAllSupportProtocol(version string) ([]*model
 
 // GetAllSupportProtocol indicates an expected call of GetAllSupportProtocol
 func (mr *MockRegionProcotolsDaoMockRecorder) GetAllSupportProtocol(version interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllSupportProtocol", reflect.TypeOf((*MockRegionProcotolsDao)(nil).GetAllSupportProtocol), version)
 }
 
 // GetProtocolGroupByProtocolChild mocks base method
 func (m *MockRegionProcotolsDao) GetProtocolGroupByProtocolChild(version, protocolChild string) (*model.RegionProcotols, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetProtocolGroupByProtocolChild", version, protocolChild)
 	ret0, _ := ret[0].(*model.RegionProcotols)
 	ret1, _ := ret[1].(error)
@@ -4025,7 +3683,6 @@ func (m *MockRegionProcotolsDao) GetProtocolGroupByProtocolChild(version, protoc
 
 // GetProtocolGroupByProtocolChild indicates an expected call of GetProtocolGroupByProtocolChild
 func (mr *MockRegionProcotolsDaoMockRecorder) GetProtocolGroupByProtocolChild(version, protocolChild interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProtocolGroupByProtocolChild", reflect.TypeOf((*MockRegionProcotolsDao)(nil).GetProtocolGroupByProtocolChild), version, protocolChild)
 }
 
@@ -4054,7 +3711,6 @@ func (m *MockNotificationEventDao) EXPECT() *MockNotificationEventDaoMockRecorde
 
 // AddModel mocks base method
 func (m *MockNotificationEventDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4062,13 +3718,11 @@ func (m *MockNotificationEventDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockNotificationEventDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockNotificationEventDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockNotificationEventDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4076,13 +3730,11 @@ func (m *MockNotificationEventDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockNotificationEventDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockNotificationEventDao)(nil).UpdateModel), arg0)
 }
 
 // GetNotificationEventByHash mocks base method
 func (m *MockNotificationEventDao) GetNotificationEventByHash(hash string) (*model.NotificationEvent, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNotificationEventByHash", hash)
 	ret0, _ := ret[0].(*model.NotificationEvent)
 	ret1, _ := ret[1].(error)
@@ -4091,13 +3743,11 @@ func (m *MockNotificationEventDao) GetNotificationEventByHash(hash string) (*mod
 
 // GetNotificationEventByHash indicates an expected call of GetNotificationEventByHash
 func (mr *MockNotificationEventDaoMockRecorder) GetNotificationEventByHash(hash interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNotificationEventByHash", reflect.TypeOf((*MockNotificationEventDao)(nil).GetNotificationEventByHash), hash)
 }
 
 // GetNotificationEventByKind mocks base method
 func (m *MockNotificationEventDao) GetNotificationEventByKind(kind, kindID string) ([]*model.NotificationEvent, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNotificationEventByKind", kind, kindID)
 	ret0, _ := ret[0].([]*model.NotificationEvent)
 	ret1, _ := ret[1].(error)
@@ -4106,13 +3756,11 @@ func (m *MockNotificationEventDao) GetNotificationEventByKind(kind, kindID strin
 
 // GetNotificationEventByKind indicates an expected call of GetNotificationEventByKind
 func (mr *MockNotificationEventDaoMockRecorder) GetNotificationEventByKind(kind, kindID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNotificationEventByKind", reflect.TypeOf((*MockNotificationEventDao)(nil).GetNotificationEventByKind), kind, kindID)
 }
 
 // GetNotificationEventByTime mocks base method
 func (m *MockNotificationEventDao) GetNotificationEventByTime(start, end time.Time) ([]*model.NotificationEvent, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNotificationEventByTime", start, end)
 	ret0, _ := ret[0].([]*model.NotificationEvent)
 	ret1, _ := ret[1].(error)
@@ -4121,13 +3769,11 @@ func (m *MockNotificationEventDao) GetNotificationEventByTime(start, end time.Ti
 
 // GetNotificationEventByTime indicates an expected call of GetNotificationEventByTime
 func (mr *MockNotificationEventDaoMockRecorder) GetNotificationEventByTime(start, end interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNotificationEventByTime", reflect.TypeOf((*MockNotificationEventDao)(nil).GetNotificationEventByTime), start, end)
 }
 
 // GetNotificationEventNotHandle mocks base method
 func (m *MockNotificationEventDao) GetNotificationEventNotHandle() ([]*model.NotificationEvent, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNotificationEventNotHandle")
 	ret0, _ := ret[0].([]*model.NotificationEvent)
 	ret1, _ := ret[1].(error)
@@ -4136,7 +3782,6 @@ func (m *MockNotificationEventDao) GetNotificationEventNotHandle() ([]*model.Not
 
 // GetNotificationEventNotHandle indicates an expected call of GetNotificationEventNotHandle
 func (mr *MockNotificationEventDaoMockRecorder) GetNotificationEventNotHandle() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNotificationEventNotHandle", reflect.TypeOf((*MockNotificationEventDao)(nil).GetNotificationEventNotHandle))
 }
 
@@ -4165,7 +3810,6 @@ func (m *MockAppBackupDao) EXPECT() *MockAppBackupDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockAppBackupDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4173,13 +3817,11 @@ func (m *MockAppBackupDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockAppBackupDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockAppBackupDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockAppBackupDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4187,13 +3829,11 @@ func (m *MockAppBackupDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockAppBackupDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockAppBackupDao)(nil).UpdateModel), arg0)
 }
 
 // CheckHistory mocks base method
 func (m *MockAppBackupDao) CheckHistory(groupID, version string) bool {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CheckHistory", groupID, version)
 	ret0, _ := ret[0].(bool)
 	return ret0
@@ -4201,13 +3841,11 @@ func (m *MockAppBackupDao) CheckHistory(groupID, version string) bool {
 
 // CheckHistory indicates an expected call of CheckHistory
 func (mr *MockAppBackupDaoMockRecorder) CheckHistory(groupID, version interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckHistory", reflect.TypeOf((*MockAppBackupDao)(nil).CheckHistory), groupID, version)
 }
 
 // GetAppBackups mocks base method
 func (m *MockAppBackupDao) GetAppBackups(groupID string) ([]*model.AppBackup, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAppBackups", groupID)
 	ret0, _ := ret[0].([]*model.AppBackup)
 	ret1, _ := ret[1].(error)
@@ -4216,13 +3854,11 @@ func (m *MockAppBackupDao) GetAppBackups(groupID string) ([]*model.AppBackup, er
 
 // GetAppBackups indicates an expected call of GetAppBackups
 func (mr *MockAppBackupDaoMockRecorder) GetAppBackups(groupID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppBackups", reflect.TypeOf((*MockAppBackupDao)(nil).GetAppBackups), groupID)
 }
 
 // DeleteAppBackup mocks base method
 func (m *MockAppBackupDao) DeleteAppBackup(backupID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteAppBackup", backupID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4230,13 +3866,11 @@ func (m *MockAppBackupDao) DeleteAppBackup(backupID string) error {
 
 // DeleteAppBackup indicates an expected call of DeleteAppBackup
 func (mr *MockAppBackupDaoMockRecorder) DeleteAppBackup(backupID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAppBackup", reflect.TypeOf((*MockAppBackupDao)(nil).DeleteAppBackup), backupID)
 }
 
 // GetAppBackup mocks base method
 func (m *MockAppBackupDao) GetAppBackup(backupID string) (*model.AppBackup, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAppBackup", backupID)
 	ret0, _ := ret[0].(*model.AppBackup)
 	ret1, _ := ret[1].(error)
@@ -4245,13 +3879,11 @@ func (m *MockAppBackupDao) GetAppBackup(backupID string) (*model.AppBackup, erro
 
 // GetAppBackup indicates an expected call of GetAppBackup
 func (mr *MockAppBackupDaoMockRecorder) GetAppBackup(backupID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppBackup", reflect.TypeOf((*MockAppBackupDao)(nil).GetAppBackup), backupID)
 }
 
 // GetDeleteAppBackup mocks base method
 func (m *MockAppBackupDao) GetDeleteAppBackup(backupID string) (*model.AppBackup, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDeleteAppBackup", backupID)
 	ret0, _ := ret[0].(*model.AppBackup)
 	ret1, _ := ret[1].(error)
@@ -4260,13 +3892,11 @@ func (m *MockAppBackupDao) GetDeleteAppBackup(backupID string) (*model.AppBackup
 
 // GetDeleteAppBackup indicates an expected call of GetDeleteAppBackup
 func (mr *MockAppBackupDaoMockRecorder) GetDeleteAppBackup(backupID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeleteAppBackup", reflect.TypeOf((*MockAppBackupDao)(nil).GetDeleteAppBackup), backupID)
 }
 
 // GetDeleteAppBackups mocks base method
 func (m *MockAppBackupDao) GetDeleteAppBackups() ([]*model.AppBackup, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDeleteAppBackups")
 	ret0, _ := ret[0].([]*model.AppBackup)
 	ret1, _ := ret[1].(error)
@@ -4275,7 +3905,6 @@ func (m *MockAppBackupDao) GetDeleteAppBackups() ([]*model.AppBackup, error) {
 
 // GetDeleteAppBackups indicates an expected call of GetDeleteAppBackups
 func (mr *MockAppBackupDaoMockRecorder) GetDeleteAppBackups() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeleteAppBackups", reflect.TypeOf((*MockAppBackupDao)(nil).GetDeleteAppBackups))
 }
 
@@ -4304,7 +3933,6 @@ func (m *MockServiceSourceDao) EXPECT() *MockServiceSourceDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockServiceSourceDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4312,13 +3940,11 @@ func (m *MockServiceSourceDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockServiceSourceDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockServiceSourceDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockServiceSourceDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4326,13 +3952,11 @@ func (m *MockServiceSourceDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockServiceSourceDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockServiceSourceDao)(nil).UpdateModel), arg0)
 }
 
 // GetServiceSource mocks base method
 func (m *MockServiceSourceDao) GetServiceSource(serviceID string) ([]*model.ServiceSourceConfig, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceSource", serviceID)
 	ret0, _ := ret[0].([]*model.ServiceSourceConfig)
 	ret1, _ := ret[1].(error)
@@ -4341,7 +3965,6 @@ func (m *MockServiceSourceDao) GetServiceSource(serviceID string) ([]*model.Serv
 
 // GetServiceSource indicates an expected call of GetServiceSource
 func (mr *MockServiceSourceDaoMockRecorder) GetServiceSource(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceSource", reflect.TypeOf((*MockServiceSourceDao)(nil).GetServiceSource), serviceID)
 }
 
@@ -4370,7 +3993,6 @@ func (m *MockCertificateDao) EXPECT() *MockCertificateDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockCertificateDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4378,13 +4000,11 @@ func (m *MockCertificateDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockCertificateDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockCertificateDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockCertificateDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4392,13 +4012,11 @@ func (m *MockCertificateDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockCertificateDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockCertificateDao)(nil).UpdateModel), arg0)
 }
 
 // AddOrUpdate mocks base method
 func (m *MockCertificateDao) AddOrUpdate(mo model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddOrUpdate", mo)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4406,13 +4024,11 @@ func (m *MockCertificateDao) AddOrUpdate(mo model.Interface) error {
 
 // AddOrUpdate indicates an expected call of AddOrUpdate
 func (mr *MockCertificateDaoMockRecorder) AddOrUpdate(mo interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddOrUpdate", reflect.TypeOf((*MockCertificateDao)(nil).AddOrUpdate), mo)
 }
 
 // GetCertificateByID mocks base method
 func (m *MockCertificateDao) GetCertificateByID(certificateID string) (*model.Certificate, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCertificateByID", certificateID)
 	ret0, _ := ret[0].(*model.Certificate)
 	ret1, _ := ret[1].(error)
@@ -4421,13 +4037,11 @@ func (m *MockCertificateDao) GetCertificateByID(certificateID string) (*model.Ce
 
 // GetCertificateByID indicates an expected call of GetCertificateByID
 func (mr *MockCertificateDaoMockRecorder) GetCertificateByID(certificateID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCertificateByID", reflect.TypeOf((*MockCertificateDao)(nil).GetCertificateByID), certificateID)
 }
 
 // DeleteCertificateByID mocks base method
 func (m *MockCertificateDao) DeleteCertificateByID(certificateID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteCertificateByID", certificateID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4435,7 +4049,6 @@ func (m *MockCertificateDao) DeleteCertificateByID(certificateID string) error {
 
 // DeleteCertificateByID indicates an expected call of DeleteCertificateByID
 func (mr *MockCertificateDaoMockRecorder) DeleteCertificateByID(certificateID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteCertificateByID", reflect.TypeOf((*MockCertificateDao)(nil).DeleteCertificateByID), certificateID)
 }
 
@@ -4464,7 +4077,6 @@ func (m *MockRuleExtensionDao) EXPECT() *MockRuleExtensionDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockRuleExtensionDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4472,13 +4084,11 @@ func (m *MockRuleExtensionDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockRuleExtensionDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockRuleExtensionDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockRuleExtensionDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4486,13 +4096,11 @@ func (m *MockRuleExtensionDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockRuleExtensionDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockRuleExtensionDao)(nil).UpdateModel), arg0)
 }
 
 // GetRuleExtensionByRuleID mocks base method
 func (m *MockRuleExtensionDao) GetRuleExtensionByRuleID(ruleID string) ([]*model.RuleExtension, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRuleExtensionByRuleID", ruleID)
 	ret0, _ := ret[0].([]*model.RuleExtension)
 	ret1, _ := ret[1].(error)
@@ -4501,13 +4109,11 @@ func (m *MockRuleExtensionDao) GetRuleExtensionByRuleID(ruleID string) ([]*model
 
 // GetRuleExtensionByRuleID indicates an expected call of GetRuleExtensionByRuleID
 func (mr *MockRuleExtensionDaoMockRecorder) GetRuleExtensionByRuleID(ruleID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRuleExtensionByRuleID", reflect.TypeOf((*MockRuleExtensionDao)(nil).GetRuleExtensionByRuleID), ruleID)
 }
 
 // DeleteRuleExtensionByRuleID mocks base method
 func (m *MockRuleExtensionDao) DeleteRuleExtensionByRuleID(ruleID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteRuleExtensionByRuleID", ruleID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4515,7 +4121,6 @@ func (m *MockRuleExtensionDao) DeleteRuleExtensionByRuleID(ruleID string) error 
 
 // DeleteRuleExtensionByRuleID indicates an expected call of DeleteRuleExtensionByRuleID
 func (mr *MockRuleExtensionDaoMockRecorder) DeleteRuleExtensionByRuleID(ruleID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRuleExtensionByRuleID", reflect.TypeOf((*MockRuleExtensionDao)(nil).DeleteRuleExtensionByRuleID), ruleID)
 }
 
@@ -4544,7 +4149,6 @@ func (m *MockHTTPRuleDao) EXPECT() *MockHTTPRuleDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockHTTPRuleDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4552,13 +4156,11 @@ func (m *MockHTTPRuleDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockHTTPRuleDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockHTTPRuleDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockHTTPRuleDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4566,13 +4168,11 @@ func (m *MockHTTPRuleDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockHTTPRuleDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockHTTPRuleDao)(nil).UpdateModel), arg0)
 }
 
 // GetHTTPRuleByID mocks base method
 func (m *MockHTTPRuleDao) GetHTTPRuleByID(id string) (*model.HTTPRule, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHTTPRuleByID", id)
 	ret0, _ := ret[0].(*model.HTTPRule)
 	ret1, _ := ret[1].(error)
@@ -4581,13 +4181,11 @@ func (m *MockHTTPRuleDao) GetHTTPRuleByID(id string) (*model.HTTPRule, error) {
 
 // GetHTTPRuleByID indicates an expected call of GetHTTPRuleByID
 func (mr *MockHTTPRuleDaoMockRecorder) GetHTTPRuleByID(id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHTTPRuleByID", reflect.TypeOf((*MockHTTPRuleDao)(nil).GetHTTPRuleByID), id)
 }
 
 // GetHTTPRuleByServiceIDAndContainerPort mocks base method
 func (m *MockHTTPRuleDao) GetHTTPRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.HTTPRule, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHTTPRuleByServiceIDAndContainerPort", serviceID, containerPort)
 	ret0, _ := ret[0].([]*model.HTTPRule)
 	ret1, _ := ret[1].(error)
@@ -4596,13 +4194,11 @@ func (m *MockHTTPRuleDao) GetHTTPRuleByServiceIDAndContainerPort(serviceID strin
 
 // GetHTTPRuleByServiceIDAndContainerPort indicates an expected call of GetHTTPRuleByServiceIDAndContainerPort
 func (mr *MockHTTPRuleDaoMockRecorder) GetHTTPRuleByServiceIDAndContainerPort(serviceID, containerPort interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHTTPRuleByServiceIDAndContainerPort", reflect.TypeOf((*MockHTTPRuleDao)(nil).GetHTTPRuleByServiceIDAndContainerPort), serviceID, containerPort)
 }
 
 // DeleteHTTPRuleByID mocks base method
 func (m *MockHTTPRuleDao) DeleteHTTPRuleByID(id string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteHTTPRuleByID", id)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4610,13 +4206,11 @@ func (m *MockHTTPRuleDao) DeleteHTTPRuleByID(id string) error {
 
 // DeleteHTTPRuleByID indicates an expected call of DeleteHTTPRuleByID
 func (mr *MockHTTPRuleDaoMockRecorder) DeleteHTTPRuleByID(id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteHTTPRuleByID", reflect.TypeOf((*MockHTTPRuleDao)(nil).DeleteHTTPRuleByID), id)
 }
 
 // DeleteHTTPRuleByServiceID mocks base method
 func (m *MockHTTPRuleDao) DeleteHTTPRuleByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteHTTPRuleByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4624,13 +4218,11 @@ func (m *MockHTTPRuleDao) DeleteHTTPRuleByServiceID(serviceID string) error {
 
 // DeleteHTTPRuleByServiceID indicates an expected call of DeleteHTTPRuleByServiceID
 func (mr *MockHTTPRuleDaoMockRecorder) DeleteHTTPRuleByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteHTTPRuleByServiceID", reflect.TypeOf((*MockHTTPRuleDao)(nil).DeleteHTTPRuleByServiceID), serviceID)
 }
 
 // ListByServiceID mocks base method
 func (m *MockHTTPRuleDao) ListByServiceID(serviceID string) ([]*model.HTTPRule, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.HTTPRule)
 	ret1, _ := ret[1].(error)
@@ -4639,13 +4231,11 @@ func (m *MockHTTPRuleDao) ListByServiceID(serviceID string) ([]*model.HTTPRule, 
 
 // ListByServiceID indicates an expected call of ListByServiceID
 func (mr *MockHTTPRuleDaoMockRecorder) ListByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockHTTPRuleDao)(nil).ListByServiceID), serviceID)
 }
 
 // ListByCertID mocks base method
 func (m *MockHTTPRuleDao) ListByCertID(certID string) ([]*model.HTTPRule, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByCertID", certID)
 	ret0, _ := ret[0].([]*model.HTTPRule)
 	ret1, _ := ret[1].(error)
@@ -4654,7 +4244,6 @@ func (m *MockHTTPRuleDao) ListByCertID(certID string) ([]*model.HTTPRule, error)
 
 // ListByCertID indicates an expected call of ListByCertID
 func (mr *MockHTTPRuleDaoMockRecorder) ListByCertID(certID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByCertID", reflect.TypeOf((*MockHTTPRuleDao)(nil).ListByCertID), certID)
 }
 
@@ -4683,7 +4272,6 @@ func (m *MockTCPRuleDao) EXPECT() *MockTCPRuleDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockTCPRuleDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4691,13 +4279,11 @@ func (m *MockTCPRuleDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTCPRuleDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTCPRuleDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTCPRuleDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4705,13 +4291,11 @@ func (m *MockTCPRuleDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTCPRuleDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTCPRuleDao)(nil).UpdateModel), arg0)
 }
 
 // GetTCPRuleByServiceIDAndContainerPort mocks base method
 func (m *MockTCPRuleDao) GetTCPRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.TCPRule, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTCPRuleByServiceIDAndContainerPort", serviceID, containerPort)
 	ret0, _ := ret[0].([]*model.TCPRule)
 	ret1, _ := ret[1].(error)
@@ -4720,13 +4304,11 @@ func (m *MockTCPRuleDao) GetTCPRuleByServiceIDAndContainerPort(serviceID string,
 
 // GetTCPRuleByServiceIDAndContainerPort indicates an expected call of GetTCPRuleByServiceIDAndContainerPort
 func (mr *MockTCPRuleDaoMockRecorder) GetTCPRuleByServiceIDAndContainerPort(serviceID, containerPort interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTCPRuleByServiceIDAndContainerPort", reflect.TypeOf((*MockTCPRuleDao)(nil).GetTCPRuleByServiceIDAndContainerPort), serviceID, containerPort)
 }
 
 // GetTCPRuleByID mocks base method
 func (m *MockTCPRuleDao) GetTCPRuleByID(id string) (*model.TCPRule, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTCPRuleByID", id)
 	ret0, _ := ret[0].(*model.TCPRule)
 	ret1, _ := ret[1].(error)
@@ -4735,13 +4317,11 @@ func (m *MockTCPRuleDao) GetTCPRuleByID(id string) (*model.TCPRule, error) {
 
 // GetTCPRuleByID indicates an expected call of GetTCPRuleByID
 func (mr *MockTCPRuleDaoMockRecorder) GetTCPRuleByID(id interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTCPRuleByID", reflect.TypeOf((*MockTCPRuleDao)(nil).GetTCPRuleByID), id)
 }
 
 // GetTCPRuleByServiceID mocks base method
 func (m *MockTCPRuleDao) GetTCPRuleByServiceID(sid string) ([]*model.TCPRule, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTCPRuleByServiceID", sid)
 	ret0, _ := ret[0].([]*model.TCPRule)
 	ret1, _ := ret[1].(error)
@@ -4750,13 +4330,11 @@ func (m *MockTCPRuleDao) GetTCPRuleByServiceID(sid string) ([]*model.TCPRule, er
 
 // GetTCPRuleByServiceID indicates an expected call of GetTCPRuleByServiceID
 func (mr *MockTCPRuleDaoMockRecorder) GetTCPRuleByServiceID(sid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTCPRuleByServiceID", reflect.TypeOf((*MockTCPRuleDao)(nil).GetTCPRuleByServiceID), sid)
 }
 
 // DeleteByID mocks base method
 func (m *MockTCPRuleDao) DeleteByID(uuid string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteByID", uuid)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4764,13 +4342,11 @@ func (m *MockTCPRuleDao) DeleteByID(uuid string) error {
 
 // DeleteByID indicates an expected call of DeleteByID
 func (mr *MockTCPRuleDaoMockRecorder) DeleteByID(uuid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByID", reflect.TypeOf((*MockTCPRuleDao)(nil).DeleteByID), uuid)
 }
 
 // DeleteTCPRuleByServiceID mocks base method
 func (m *MockTCPRuleDao) DeleteTCPRuleByServiceID(serviceID string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteTCPRuleByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4778,13 +4354,11 @@ func (m *MockTCPRuleDao) DeleteTCPRuleByServiceID(serviceID string) error {
 
 // DeleteTCPRuleByServiceID indicates an expected call of DeleteTCPRuleByServiceID
 func (mr *MockTCPRuleDaoMockRecorder) DeleteTCPRuleByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTCPRuleByServiceID", reflect.TypeOf((*MockTCPRuleDao)(nil).DeleteTCPRuleByServiceID), serviceID)
 }
 
 // ListByServiceID mocks base method
 func (m *MockTCPRuleDao) ListByServiceID(serviceID string) ([]*model.TCPRule, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.TCPRule)
 	ret1, _ := ret[1].(error)
@@ -4793,13 +4367,11 @@ func (m *MockTCPRuleDao) ListByServiceID(serviceID string) ([]*model.TCPRule, er
 
 // ListByServiceID indicates an expected call of ListByServiceID
 func (mr *MockTCPRuleDaoMockRecorder) ListByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockTCPRuleDao)(nil).ListByServiceID), serviceID)
 }
 
 // GetUsedPortsByIP mocks base method
 func (m *MockTCPRuleDao) GetUsedPortsByIP(ip string) ([]*model.TCPRule, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUsedPortsByIP", ip)
 	ret0, _ := ret[0].([]*model.TCPRule)
 	ret1, _ := ret[1].(error)
@@ -4808,7 +4380,6 @@ func (m *MockTCPRuleDao) GetUsedPortsByIP(ip string) ([]*model.TCPRule, error) {
 
 // GetUsedPortsByIP indicates an expected call of GetUsedPortsByIP
 func (mr *MockTCPRuleDaoMockRecorder) GetUsedPortsByIP(ip interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsedPortsByIP", reflect.TypeOf((*MockTCPRuleDao)(nil).GetUsedPortsByIP), ip)
 }
 
@@ -4837,7 +4408,6 @@ func (m *MockEndpointsDao) EXPECT() *MockEndpointsDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockEndpointsDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4845,13 +4415,11 @@ func (m *MockEndpointsDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockEndpointsDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockEndpointsDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockEndpointsDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4859,13 +4427,11 @@ func (m *MockEndpointsDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockEndpointsDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockEndpointsDao)(nil).UpdateModel), arg0)
 }
 
 // GetByUUID mocks base method
 func (m *MockEndpointsDao) GetByUUID(uuid string) (*model.Endpoint, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByUUID", uuid)
 	ret0, _ := ret[0].(*model.Endpoint)
 	ret1, _ := ret[1].(error)
@@ -4874,13 +4440,11 @@ func (m *MockEndpointsDao) GetByUUID(uuid string) (*model.Endpoint, error) {
 
 // GetByUUID indicates an expected call of GetByUUID
 func (mr *MockEndpointsDaoMockRecorder) GetByUUID(uuid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByUUID", reflect.TypeOf((*MockEndpointsDao)(nil).GetByUUID), uuid)
 }
 
 // DelByUUID mocks base method
 func (m *MockEndpointsDao) DelByUUID(uuid string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelByUUID", uuid)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4888,13 +4452,11 @@ func (m *MockEndpointsDao) DelByUUID(uuid string) error {
 
 // DelByUUID indicates an expected call of DelByUUID
 func (mr *MockEndpointsDaoMockRecorder) DelByUUID(uuid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByUUID", reflect.TypeOf((*MockEndpointsDao)(nil).DelByUUID), uuid)
 }
 
 // List mocks base method
 func (m *MockEndpointsDao) List(sid string) ([]*model.Endpoint, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", sid)
 	ret0, _ := ret[0].([]*model.Endpoint)
 	ret1, _ := ret[1].(error)
@@ -4903,13 +4465,11 @@ func (m *MockEndpointsDao) List(sid string) ([]*model.Endpoint, error) {
 
 // List indicates an expected call of List
 func (mr *MockEndpointsDaoMockRecorder) List(sid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockEndpointsDao)(nil).List), sid)
 }
 
 // ListIsOnline mocks base method
 func (m *MockEndpointsDao) ListIsOnline(sid string) ([]*model.Endpoint, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListIsOnline", sid)
 	ret0, _ := ret[0].([]*model.Endpoint)
 	ret1, _ := ret[1].(error)
@@ -4918,13 +4478,11 @@ func (m *MockEndpointsDao) ListIsOnline(sid string) ([]*model.Endpoint, error) {
 
 // ListIsOnline indicates an expected call of ListIsOnline
 func (mr *MockEndpointsDaoMockRecorder) ListIsOnline(sid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListIsOnline", reflect.TypeOf((*MockEndpointsDao)(nil).ListIsOnline), sid)
 }
 
 // DeleteByServiceID mocks base method
 func (m *MockEndpointsDao) DeleteByServiceID(sid string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteByServiceID", sid)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4932,7 +4490,6 @@ func (m *MockEndpointsDao) DeleteByServiceID(sid string) error {
 
 // DeleteByServiceID indicates an expected call of DeleteByServiceID
 func (mr *MockEndpointsDaoMockRecorder) DeleteByServiceID(sid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByServiceID", reflect.TypeOf((*MockEndpointsDao)(nil).DeleteByServiceID), sid)
 }
 
@@ -4961,7 +4518,6 @@ func (m *MockThirdPartySvcDiscoveryCfgDao) EXPECT() *MockThirdPartySvcDiscoveryC
 
 // AddModel mocks base method
 func (m *MockThirdPartySvcDiscoveryCfgDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4969,13 +4525,11 @@ func (m *MockThirdPartySvcDiscoveryCfgDao) AddModel(arg0 model.Interface) error 
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockThirdPartySvcDiscoveryCfgDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockThirdPartySvcDiscoveryCfgDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockThirdPartySvcDiscoveryCfgDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -4983,13 +4537,11 @@ func (m *MockThirdPartySvcDiscoveryCfgDao) UpdateModel(arg0 model.Interface) err
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockThirdPartySvcDiscoveryCfgDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockThirdPartySvcDiscoveryCfgDao)(nil).UpdateModel), arg0)
 }
 
 // GetByServiceID mocks base method
 func (m *MockThirdPartySvcDiscoveryCfgDao) GetByServiceID(sid string) (*model.ThirdPartySvcDiscoveryCfg, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByServiceID", sid)
 	ret0, _ := ret[0].(*model.ThirdPartySvcDiscoveryCfg)
 	ret1, _ := ret[1].(error)
@@ -4998,13 +4550,11 @@ func (m *MockThirdPartySvcDiscoveryCfgDao) GetByServiceID(sid string) (*model.Th
 
 // GetByServiceID indicates an expected call of GetByServiceID
 func (mr *MockThirdPartySvcDiscoveryCfgDaoMockRecorder) GetByServiceID(sid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByServiceID", reflect.TypeOf((*MockThirdPartySvcDiscoveryCfgDao)(nil).GetByServiceID), sid)
 }
 
 // DeleteByServiceID mocks base method
 func (m *MockThirdPartySvcDiscoveryCfgDao) DeleteByServiceID(sid string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteByServiceID", sid)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -5012,7 +4562,6 @@ func (m *MockThirdPartySvcDiscoveryCfgDao) DeleteByServiceID(sid string) error {
 
 // DeleteByServiceID indicates an expected call of DeleteByServiceID
 func (mr *MockThirdPartySvcDiscoveryCfgDaoMockRecorder) DeleteByServiceID(sid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByServiceID", reflect.TypeOf((*MockThirdPartySvcDiscoveryCfgDao)(nil).DeleteByServiceID), sid)
 }
 
@@ -5041,7 +4590,6 @@ func (m *MockGwRuleConfigDao) EXPECT() *MockGwRuleConfigDaoMockRecorder {
 
 // AddModel mocks base method
 func (m *MockGwRuleConfigDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -5049,13 +4597,11 @@ func (m *MockGwRuleConfigDao) AddModel(arg0 model.Interface) error {
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockGwRuleConfigDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockGwRuleConfigDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockGwRuleConfigDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -5063,13 +4609,11 @@ func (m *MockGwRuleConfigDao) UpdateModel(arg0 model.Interface) error {
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockGwRuleConfigDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockGwRuleConfigDao)(nil).UpdateModel), arg0)
 }
 
 // DeleteByRuleID mocks base method
 func (m *MockGwRuleConfigDao) DeleteByRuleID(rid string) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteByRuleID", rid)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -5077,13 +4621,11 @@ func (m *MockGwRuleConfigDao) DeleteByRuleID(rid string) error {
 
 // DeleteByRuleID indicates an expected call of DeleteByRuleID
 func (mr *MockGwRuleConfigDaoMockRecorder) DeleteByRuleID(rid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByRuleID", reflect.TypeOf((*MockGwRuleConfigDao)(nil).DeleteByRuleID), rid)
 }
 
 // ListByRuleID mocks base method
 func (m *MockGwRuleConfigDao) ListByRuleID(rid string) ([]*model.GwRuleConfig, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByRuleID", rid)
 	ret0, _ := ret[0].([]*model.GwRuleConfig)
 	ret1, _ := ret[1].(error)
@@ -5092,7 +4634,6 @@ func (m *MockGwRuleConfigDao) ListByRuleID(rid string) ([]*model.GwRuleConfig, e
 
 // ListByRuleID indicates an expected call of ListByRuleID
 func (mr *MockGwRuleConfigDaoMockRecorder) ListByRuleID(rid interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByRuleID", reflect.TypeOf((*MockGwRuleConfigDao)(nil).ListByRuleID), rid)
 }
 
@@ -5121,7 +4662,6 @@ func (m *MockTenantServceAutoscalerRulesDao) EXPECT() *MockTenantServceAutoscale
 
 // AddModel mocks base method
 func (m *MockTenantServceAutoscalerRulesDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -5129,13 +4669,11 @@ func (m *MockTenantServceAutoscalerRulesDao) AddModel(arg0 model.Interface) erro
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantServceAutoscalerRulesDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -5143,13 +4681,11 @@ func (m *MockTenantServceAutoscalerRulesDao) UpdateModel(arg0 model.Interface) e
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).UpdateModel), arg0)
 }
 
 // GetByRuleID mocks base method
 func (m *MockTenantServceAutoscalerRulesDao) GetByRuleID(ruleID string) (*model.TenantServiceAutoscalerRules, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByRuleID", ruleID)
 	ret0, _ := ret[0].(*model.TenantServiceAutoscalerRules)
 	ret1, _ := ret[1].(error)
@@ -5158,13 +4694,11 @@ func (m *MockTenantServceAutoscalerRulesDao) GetByRuleID(ruleID string) (*model.
 
 // GetByRuleID indicates an expected call of GetByRuleID
 func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) GetByRuleID(ruleID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByRuleID", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).GetByRuleID), ruleID)
 }
 
 // ListByServiceID mocks base method
 func (m *MockTenantServceAutoscalerRulesDao) ListByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceAutoscalerRules)
 	ret1, _ := ret[1].(error)
@@ -5173,13 +4707,11 @@ func (m *MockTenantServceAutoscalerRulesDao) ListByServiceID(serviceID string) (
 
 // ListByServiceID indicates an expected call of ListByServiceID
 func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) ListByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).ListByServiceID), serviceID)
 }
 
 // ListEnableOnesByServiceID mocks base method
 func (m *MockTenantServceAutoscalerRulesDao) ListEnableOnesByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListEnableOnesByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceAutoscalerRules)
 	ret1, _ := ret[1].(error)
@@ -5188,7 +4720,6 @@ func (m *MockTenantServceAutoscalerRulesDao) ListEnableOnesByServiceID(serviceID
 
 // ListEnableOnesByServiceID indicates an expected call of ListEnableOnesByServiceID
 func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) ListEnableOnesByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListEnableOnesByServiceID", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).ListEnableOnesByServiceID), serviceID)
 }
 
@@ -5217,7 +4748,6 @@ func (m *MockTenantServceAutoscalerRuleMetricsDao) EXPECT() *MockTenantServceAut
 
 // AddModel mocks base method
 func (m *MockTenantServceAutoscalerRuleMetricsDao) AddModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -5225,13 +4755,11 @@ func (m *MockTenantServceAutoscalerRuleMetricsDao) AddModel(arg0 model.Interface
 
 // AddModel indicates an expected call of AddModel
 func (mr *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServceAutoscalerRuleMetricsDao)(nil).AddModel), arg0)
 }
 
 // UpdateModel mocks base method
 func (m *MockTenantServceAutoscalerRuleMetricsDao) UpdateModel(arg0 model.Interface) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -5239,13 +4767,11 @@ func (m *MockTenantServceAutoscalerRuleMetricsDao) UpdateModel(arg0 model.Interf
 
 // UpdateModel indicates an expected call of UpdateModel
 func (mr *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServceAutoscalerRuleMetricsDao)(nil).UpdateModel), arg0)
 }
 
 // UpdateOrCreate mocks base method
 func (m *MockTenantServceAutoscalerRuleMetricsDao) UpdateOrCreate(metric *model.TenantServiceAutoscalerRuleMetrics) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateOrCreate", metric)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -5253,13 +4779,11 @@ func (m *MockTenantServceAutoscalerRuleMetricsDao) UpdateOrCreate(metric *model.
 
 // UpdateOrCreate indicates an expected call of UpdateOrCreate
 func (mr *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder) UpdateOrCreate(metric interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOrCreate", reflect.TypeOf((*MockTenantServceAutoscalerRuleMetricsDao)(nil).UpdateOrCreate), metric)
 }
 
 // ListByRuleID mocks base method
 func (m *MockTenantServceAutoscalerRuleMetricsDao) ListByRuleID(ruleID string) ([]*model.TenantServiceAutoscalerRuleMetrics, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByRuleID", ruleID)
 	ret0, _ := ret[0].([]*model.TenantServiceAutoscalerRuleMetrics)
 	ret1, _ := ret[1].(error)
@@ -5268,8 +4792,19 @@ func (m *MockTenantServceAutoscalerRuleMetricsDao) ListByRuleID(ruleID string) (
 
 // ListByRuleID indicates an expected call of ListByRuleID
 func (mr *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder) ListByRuleID(ruleID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByRuleID", reflect.TypeOf((*MockTenantServceAutoscalerRuleMetricsDao)(nil).ListByRuleID), ruleID)
+}
+
+// DeleteByRuleID mocks base method
+func (m *MockTenantServceAutoscalerRuleMetricsDao) DeleteByRuleID(ruldID string) error {
+	ret := m.ctrl.Call(m, "DeleteByRuleID", ruldID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteByRuleID indicates an expected call of DeleteByRuleID
+func (mr *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder) DeleteByRuleID(ruldID interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByRuleID", reflect.TypeOf((*MockTenantServceAutoscalerRuleMetricsDao)(nil).DeleteByRuleID), ruldID)
 }
 
 // MockTenantServiceScalingRecordsDao is a mock of TenantServiceScalingRecordsDao interface
@@ -5295,9 +4830,32 @@ func (m *MockTenantServiceScalingRecordsDao) EXPECT() *MockTenantServiceScalingR
 	return m.recorder
 }
 
+// AddModel mocks base method
+func (m *MockTenantServiceScalingRecordsDao) AddModel(arg0 model.Interface) error {
+	ret := m.ctrl.Call(m, "AddModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddModel indicates an expected call of AddModel
+func (mr *MockTenantServiceScalingRecordsDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceScalingRecordsDao)(nil).AddModel), arg0)
+}
+
+// UpdateModel mocks base method
+func (m *MockTenantServiceScalingRecordsDao) UpdateModel(arg0 model.Interface) error {
+	ret := m.ctrl.Call(m, "UpdateModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateModel indicates an expected call of UpdateModel
+func (mr *MockTenantServiceScalingRecordsDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceScalingRecordsDao)(nil).UpdateModel), arg0)
+}
+
 // UpdateOrCreate mocks base method
 func (m *MockTenantServiceScalingRecordsDao) UpdateOrCreate(new *model.TenantServiceScalingRecords) error {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateOrCreate", new)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -5305,13 +4863,11 @@ func (m *MockTenantServiceScalingRecordsDao) UpdateOrCreate(new *model.TenantSer
 
 // UpdateOrCreate indicates an expected call of UpdateOrCreate
 func (mr *MockTenantServiceScalingRecordsDaoMockRecorder) UpdateOrCreate(new interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOrCreate", reflect.TypeOf((*MockTenantServiceScalingRecordsDao)(nil).UpdateOrCreate), new)
 }
 
 // ListByServiceID mocks base method
 func (m *MockTenantServiceScalingRecordsDao) ListByServiceID(serviceID string, offset, limit int) ([]*model.TenantServiceScalingRecords, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByServiceID", serviceID, offset, limit)
 	ret0, _ := ret[0].([]*model.TenantServiceScalingRecords)
 	ret1, _ := ret[1].(error)
@@ -5320,13 +4876,11 @@ func (m *MockTenantServiceScalingRecordsDao) ListByServiceID(serviceID string, o
 
 // ListByServiceID indicates an expected call of ListByServiceID
 func (mr *MockTenantServiceScalingRecordsDaoMockRecorder) ListByServiceID(serviceID, offset, limit interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockTenantServiceScalingRecordsDao)(nil).ListByServiceID), serviceID, offset, limit)
 }
 
 // CountByServiceID mocks base method
 func (m *MockTenantServiceScalingRecordsDao) CountByServiceID(serviceID string) (int, error) {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CountByServiceID", serviceID)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
@@ -5335,6 +4889,5 @@ func (m *MockTenantServiceScalingRecordsDao) CountByServiceID(serviceID string) 
 
 // CountByServiceID indicates an expected call of CountByServiceID
 func (mr *MockTenantServiceScalingRecordsDaoMockRecorder) CountByServiceID(serviceID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountByServiceID", reflect.TypeOf((*MockTenantServiceScalingRecordsDao)(nil).CountByServiceID), serviceID)
 }
