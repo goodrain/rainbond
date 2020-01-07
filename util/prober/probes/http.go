@@ -21,7 +21,6 @@ package probe
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -63,7 +62,6 @@ func (h *HTTPProbe) HTTPCheck() {
 	defer timer.Stop()
 	for {
 		HealthMap := GetHTTPHealth(h.Address)
-		fmt.Println(HealthMap)
 		result := &v1.HealthStatus{
 			Name:   h.Name,
 			Status: HealthMap["status"],

@@ -403,19 +403,21 @@ func (s *k8sStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 					l7Pools[backend.name] = pool
 				}
 				for _, ss := range ep.Subsets {
-					var addresses []corev1.EndpointAddress
-					if ss.Addresses != nil && len(ss.Addresses) > 0 {
-						addresses = append(addresses, ss.Addresses...)
-					} else {
-						addresses = append(addresses, ss.NotReadyAddresses...)
-					}
-					for _, address := range addresses {
-						if _, ok := l7PoolMap[epn]; ok { // l7
-							pool.Nodes = append(pool.Nodes, &v1.Node{
-								Host:   address.IP,
-								Port:   ss.Ports[0].Port,
-								Weight: backend.weight,
-							})
+					for _, port := range ss.Ports {
+						var addresses []corev1.EndpointAddress
+						if ss.Addresses != nil && len(ss.Addresses) > 0 {
+							addresses = append(addresses, ss.Addresses...)
+						} else if len(ss.NotReadyAddresses) > 0 {
+							addresses = append(addresses, ss.NotReadyAddresses[0])
+						}
+						for _, address := range addresses {
+							if _, ok := l7PoolMap[epn]; ok { // l7
+								pool.Nodes = append(pool.Nodes, &v1.Node{
+									Host:   address.IP,
+									Port:   port.Port,
+									Weight: backend.weight,
+								})
+							}
 						}
 					}
 				}

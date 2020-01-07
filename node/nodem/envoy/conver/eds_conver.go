@@ -58,49 +58,51 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 					if len(subset.Ports) < 1 {
 						continue
 					}
-					toport := int(subset.Ports[0].Port)
-					//if haven multiple port, will get other port endpoint
-					//so must ignore
-					if (len(service.Spec.Ports) == 0 || service.Spec.Ports[0].TargetPort.IntVal != int32(toport)) && en.Labels["service_kind"] != "third_party" {
-						continue
-					}
-					if serviceAlias == destServiceAlias {
-						if originPort, ok := service.Labels["origin_port"]; ok {
-							origin, err := strconv.Atoi(originPort)
-							if err == nil {
-								toport = origin
+					for _, port := range subset.Ports {
+						toport := int(port.Port)
+						//if haven multiple port, will get other port endpoint
+						//so must ignore
+						if (len(service.Spec.Ports) == 0 || service.Spec.Ports[0].TargetPort.IntVal != int32(toport)) && en.Labels["service_kind"] != "third_party" {
+							continue
+						}
+						if serviceAlias == destServiceAlias {
+							if originPort, ok := service.Labels["origin_port"]; ok {
+								origin, err := strconv.Atoi(originPort)
+								if err == nil {
+									toport = origin
+								}
 							}
 						}
-					}
-					protocol := string(subset.Ports[0].Protocol)
-					addressList := subset.Addresses
-					var notready bool
-					if len(addressList) == 0 {
-						notready = true
-						addressList = subset.NotReadyAddresses
-					}
-					getHealty := func() *endpoint.Endpoint_HealthCheckConfig {
-						if notready {
-							return nil
+						protocol := string(subset.Ports[0].Protocol)
+						addressList := subset.Addresses
+						var notready bool
+						if len(addressList) == 0 {
+							notready = true
+							addressList = subset.NotReadyAddresses
 						}
-						return &endpoint.Endpoint_HealthCheckConfig{
-							PortValue: uint32(toport),
+						getHealty := func() *endpoint.Endpoint_HealthCheckConfig {
+							if notready {
+								return nil
+							}
+							return &endpoint.Endpoint_HealthCheckConfig{
+								PortValue: uint32(toport),
+							}
 						}
-					}
-					var lbe []endpoint.LbEndpoint // just support one content
-					if len(addressList) > 0 {
-						envoyAddress := envoyv2.CreateSocketAddress(protocol, addressList[0].IP, uint32(toport))
+						var lbe []endpoint.LbEndpoint // just support one content
+						if len(addressList) > 0 {
+							envoyAddress := envoyv2.CreateSocketAddress(protocol, addressList[0].IP, uint32(toport))
 
-						lbe = append(lbe, endpoint.LbEndpoint{
-							HostIdentifier: &endpoint.LbEndpoint_Endpoint{
-								Endpoint: &endpoint.Endpoint{
-									Address:           &envoyAddress,
-									HealthCheckConfig: getHealty(),
+							lbe = append(lbe, endpoint.LbEndpoint{
+								HostIdentifier: &endpoint.LbEndpoint_Endpoint{
+									Endpoint: &endpoint.Endpoint{
+										Address:           &envoyAddress,
+										HealthCheckConfig: getHealty(),
+									},
 								},
-							},
-						})
+							})
+						}
+						lendpoints = append(lendpoints, endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
 					}
-					lendpoints = append(lendpoints, endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
 				}
 			}
 		}

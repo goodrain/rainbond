@@ -20,16 +20,24 @@ package f
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	v2beta1 "k8s.io/api/autoscaling/v2beta1"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/errors"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+)
+
+const (
+	clientRetryCount    = 5
+	clientRetryInterval = 5 * time.Second
 )
 
 // ApplyOne applies one rule.
@@ -56,7 +64,9 @@ func ApplyOne(clientset *kubernetes.Clientset, app *v1.AppService) error {
 	}
 	// update endpoints
 	for _, ep := range app.GetEndpoints() {
-		EnsureEndpoints(ep, clientset)
+		if err := EnsureEndpoints(ep, clientset); err != nil {
+			logrus.Errorf("create or update endpoint %s failure %s", ep.Name, err.Error())
+		}
 	}
 	// update ingress
 	for _, ing := range app.GetIngress() {
@@ -91,31 +101,55 @@ func ApplyOne(clientset *kubernetes.Clientset, app *v1.AppService) error {
 	return nil
 }
 
-func ensureService(new *corev1.Service, clientSet kubernetes.Interface) {
+func ensureService(new *corev1.Service, clientSet kubernetes.Interface) error {
 	old, err := clientSet.CoreV1().Services(new.Namespace).Get(new.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			_, err = clientSet.CoreV1().Services(new.Namespace).Create(new)
-			if err != nil {
+			if err != nil && !k8sErrors.IsAlreadyExists(err) {
 				logrus.Warningf("error creating service %+v: %v", new, err)
 			}
-			return
+			return nil
 		}
 		logrus.Errorf("error getting service(%s): %v", fmt.Sprintf("%s/%s", new.Namespace, new.Name), err)
-		return
+		return err
 	}
-	new.ResourceVersion = old.ResourceVersion
-	new.Spec.ClusterIP = old.Spec.ClusterIP
-	_, err = clientSet.CoreV1().Services(new.Namespace).Update(new)
-	if err != nil {
-		logrus.Warningf("error updating service %+v: %v", new, err)
-		return
+	updateService := old.DeepCopy()
+	updateService.Spec = new.Spec
+	updateService.Labels = new.Labels
+	updateService.Annotations = new.Annotations
+	return persistUpdate(updateService, clientSet)
+}
+
+func persistUpdate(service *corev1.Service, clientSet kubernetes.Interface) error {
+	var err error
+	for i := 0; i < clientRetryCount; i++ {
+		_, err = clientSet.CoreV1().Services(service.Namespace).UpdateStatus(service)
+		if err == nil {
+			return nil
+		}
+		// If the object no longer exists, we don't want to recreate it. Just bail
+		// out so that we can process the delete, which we should soon be receiving
+		// if we haven't already.
+		if errors.IsNotFound(err) {
+			logrus.Infof("Not persisting update to service '%s/%s' that no longer exists: %v",
+				service.Namespace, service.Name, err)
+			return nil
+		}
+		// TODO: Try to resolve the conflict if the change was unrelated to load
+		// balancer status. For now, just pass it up the stack.
+		if errors.IsConflict(err) {
+			return fmt.Errorf("not persisting update to service '%s/%s' that has been changed since we received it: %v",
+				service.Namespace, service.Name, err)
+		}
+		logrus.Warningf("Failed to update service '%s/%s' %s", service.Namespace, service.Name, err)
+		time.Sleep(clientRetryInterval)
 	}
+	return err
 }
 
 func ensureIngress(ingress *extensions.Ingress, clientSet kubernetes.Interface) {
 	_, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Update(ingress)
-
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			_, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(ingress)
@@ -144,29 +178,61 @@ func ensureSecret(secret *corev1.Secret, clientSet kubernetes.Interface) {
 }
 
 // EnsureEndpoints creates or updates endpoints.
-func EnsureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) {
-	oldEP, err := clientSet.CoreV1().Endpoints(ep.Namespace).Get(ep.Name, metav1.GetOptions{})
+func EnsureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) error {
+	// See if there's actually an update here.
+	currentEndpoints, err := clientSet.CoreV1().Endpoints(ep.Namespace).Get(ep.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			_, err = clientSet.CoreV1().Endpoints(ep.Namespace).Create(ep)
-			if err != nil {
-				logrus.Warningf("error createing endpoint %+v: %v", ep, err)
+			currentEndpoints = &corev1.Endpoints{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   ep.Name,
+					Labels: ep.Labels,
+				},
 			}
-			return
+		} else {
+			return err
 		}
-		logrus.Errorf("error getting endpoint(%s): %v", fmt.Sprintf("%s:%s", ep.Namespace, ep.Name), err)
-		return
 	}
-	ep.ResourceVersion = oldEP.ResourceVersion
-	_, err = clientSet.CoreV1().Endpoints(ep.Namespace).Update(ep)
+
+	createEndpoints := len(currentEndpoints.ResourceVersion) == 0
+
+	if !createEndpoints &&
+		apiequality.Semantic.DeepEqual(currentEndpoints.Subsets, ep.Subsets) &&
+		apiequality.Semantic.DeepEqual(currentEndpoints.Labels, ep.Labels) {
+		logrus.Infof("endpoints are equal for %s/%s, skipping update", ep.Namespace, ep.Name)
+		return nil
+	}
+	newEndpoints := currentEndpoints.DeepCopy()
+	newEndpoints.Subsets = ep.Subsets
+	newEndpoints.Labels = ep.Labels
+	if newEndpoints.Annotations == nil {
+		newEndpoints.Annotations = make(map[string]string)
+	}
+	if createEndpoints {
+		// No previous endpoints, create them
+		_, err = clientSet.CoreV1().Endpoints(ep.Namespace).Create(newEndpoints)
+		logrus.Infof("Create endpoints for %v/%v", ep.Namespace, ep.Name)
+	} else {
+		// Pre-existing
+		_, err = clientSet.CoreV1().Endpoints(ep.Namespace).Update(newEndpoints)
+		logrus.Infof("Update endpoints for %v/%v", ep.Namespace, ep.Name)
+	}
 	if err != nil {
-		logrus.Warningf("error updating endpoints %+v: %v", ep, err)
+		if createEndpoints && errors.IsForbidden(err) {
+			// A request is forbidden primarily for two reasons:
+			// 1. namespace is terminating, endpoint creation is not allowed by default.
+			// 2. policy is misconfigured, in which case no service would function anywhere.
+			// Given the frequency of 1, we log at a lower level.
+			logrus.Infof("Forbidden from creating endpoints: %v", err)
+		}
+		return err
 	}
+	return nil
 }
 
-// EnsureService ensure service
-func EnsureService(new *corev1.Service, clientSet kubernetes.Interface) {
-	ensureService(new, clientSet)
+// EnsureService ensure service:update or create service
+func EnsureService(new *corev1.Service, clientSet kubernetes.Interface) error {
+	return ensureService(new, clientSet)
 }
 
 // EnsureHPA -
@@ -290,72 +356,6 @@ func UpgradeSecrets(clientset *kubernetes.Clientset,
 				continue
 			}
 			logrus.Debugf("ServiceID: %s; successfully delete secret: %s", as.ServiceID, sec.Name)
-		}
-	}
-	return nil
-}
-
-// UpgradeEndpoints is used to update *corev1.Endpoints.
-func UpgradeEndpoints(clientset *kubernetes.Clientset,
-	as *v1.AppService, old, new []*corev1.Endpoints,
-	handleErr func(msg string, err error) error) error {
-	var oldMap = make(map[string]*corev1.Endpoints, len(old))
-	for i, item := range old {
-		oldMap[item.Name] = old[i]
-	}
-	for _, n := range new {
-		if o, ok := oldMap[n.Name]; ok {
-			oldEndpoint, err := clientset.CoreV1().Endpoints(n.Namespace).Get(n.Name, metav1.GetOptions{})
-			if err != nil {
-				if k8sErrors.IsNotFound(err) {
-					_, err := clientset.CoreV1().Endpoints(n.Namespace).Create(n)
-					if err != nil {
-						if err := handleErr(fmt.Sprintf("error creating endpoints: %+v: err: %v",
-							n, err), err); err != nil {
-							return err
-						}
-						continue
-					}
-				}
-				if e := handleErr(fmt.Sprintf("err get endpoint[%s:%s], err: %+v", n.Namespace, n.Name, err), err); err != nil {
-					return e
-				}
-			}
-			n.ResourceVersion = oldEndpoint.ResourceVersion
-			ep, err := clientset.CoreV1().Endpoints(n.Namespace).Update(n)
-			if err != nil {
-				if e := handleErr(fmt.Sprintf("error updating endpoints: %+v: err: %v",
-					ep, err), err); e != nil {
-					return e
-				}
-				continue
-			}
-			as.AddEndpoints(ep)
-			delete(oldMap, o.Name)
-			logrus.Debugf("ServiceID: %s; successfully update endpoints: %s", as.ServiceID, ep.Name)
-		} else {
-			_, err := clientset.CoreV1().Endpoints(n.Namespace).Create(n)
-			if err != nil {
-				if err := handleErr(fmt.Sprintf("error creating endpoints: %+v: err: %v",
-					n, err), err); err != nil {
-					return err
-				}
-				continue
-			}
-			as.AddEndpoints(n)
-			logrus.Debugf("ServiceID: %s; successfully create endpoints: %s", as.ServiceID, n.Name)
-		}
-	}
-	for _, sec := range oldMap {
-		if sec != nil {
-			if err := clientset.CoreV1().Endpoints(sec.Namespace).Delete(sec.Name, &metav1.DeleteOptions{}); err != nil {
-				if err := handleErr(fmt.Sprintf("error deleting endpoints: %+v: err: %v",
-					sec, err), err); err != nil {
-					return err
-				}
-				continue
-			}
-			logrus.Debugf("ServiceID: %s; successfully delete endpoints: %s", as.ServiceID, sec.Name)
 		}
 	}
 	return nil

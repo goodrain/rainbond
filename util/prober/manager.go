@@ -26,8 +26,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util"
-	"github.com/goodrain/rainbond/util/prober/probes"
-	"github.com/goodrain/rainbond/util/prober/types/v1"
+	probe "github.com/goodrain/rainbond/util/prober/probes"
+	v1 "github.com/goodrain/rainbond/util/prober/types/v1"
 )
 
 //Prober Prober
@@ -420,6 +420,7 @@ func (p *probeManager) UpdateServicesProbe(services []*v1.Service) {
 	for _, svc := range oldSvcs {
 		p.StopProbes([]string{svc.Name})
 	}
+	logrus.Infof("current have probe of third apps number is  %d", len(p.serviceProbe))
 }
 
 // ListServicesBySid lists services corresponding to sid.

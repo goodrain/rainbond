@@ -40,7 +40,7 @@ func (e *EndpointDaoImpl) AddModel(mo model.Interface) error {
 		return fmt.Errorf("Type conversion error. From %s to *model.Endpoint", reflect.TypeOf(mo))
 	}
 	var o model.Endpoint
-	if ok := e.DB.Where("service_id=? and ip=?", ep.ServiceID, ep.IP).Find(&o).RecordNotFound(); ok {
+	if ok := e.DB.Where("service_id=? and ip=? and port=?", ep.ServiceID, ep.IP, ep.Port).Find(&o).RecordNotFound(); ok {
 		if err := e.DB.Save(ep).Error; err != nil {
 			return err
 		}

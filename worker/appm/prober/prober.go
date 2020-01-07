@@ -81,7 +81,7 @@ func createService(probe *model.TenantServiceProbe) *v1.Service {
 		Disable: false,
 		ServiceHealth: &v1.Health{
 			Model:        probe.Scheme,
-			TimeInterval: probe.PeriodSecond,
+			TimeInterval: probe.InitialDelaySecond,
 			MaxErrorsNum: probe.FailureThreshold,
 		},
 	}
@@ -134,6 +134,7 @@ func (t *tpProbe) UpdateProbes(infos []*store.ProbeInfo) {
 		if t.utilprober.CheckIfExist(service) {
 			continue
 		}
+		logrus.Infof("create probe[sid: %s, address: %s, port: %d]", service.Sid, service.ServiceHealth.IP, service.ServiceHealth.Port)
 		go func(service *v1.Service, info *store.ProbeInfo) {
 			watcher := t.utilprober.WatchServiceHealthy(service.Name)
 			t.utilprober.EnableWatcher(watcher.GetServiceName(), watcher.GetID())
@@ -167,17 +168,6 @@ func (t *tpProbe) UpdateProbes(infos []*store.ProbeInfo) {
 									Sid:  info.Sid,
 								}
 								t.updateCh.In() <- discovery.Event{
-									Type: discovery.DeleteEvent,
-									Obj:  obj,
-								}
-							} else {
-								obj := &appmv1.RbdEndpoint{
-									UUID: info.UUID,
-									IP:   info.IP,
-									Port: int(info.Port),
-									Sid:  info.Sid,
-								}
-								t.updateCh.In() <- discovery.Event{
 									Type: discovery.UnhealthyEvent,
 									Obj:  obj,
 								}
@@ -186,11 +176,14 @@ func (t *tpProbe) UpdateProbes(infos []*store.ProbeInfo) {
 					}
 				case <-t.ctx.Done():
 					// TODO: should stop for one service, not all services.
+					logrus.Infof("third app %s probe watcher exist", service.Name)
 					return
 				}
 			}
 		}(service, info)
 	}
+	//Method internally to determine if the configuration has changed
+	//remove old address probe
 	t.utilprober.UpdateServicesProbe(services)
 }
 
@@ -215,7 +208,7 @@ func (t *tpProbe) GetProbeInfo(sid string) (*model.TenantServiceProbe, error) {
 }
 
 func (t *tpProbe) createServices(probeInfo *store.ProbeInfo) (*v1.Service, *model.TenantServiceProbe) {
-	if probeInfo.IP == "8.8.8.8" {
+	if probeInfo.IP == "1.1.1.1" {
 		app := t.store.GetAppService(probeInfo.Sid)
 		if len(app.GetServices()) >= 1 {
 			appService := app.GetServices()[0]
@@ -224,12 +217,11 @@ func (t *tpProbe) createServices(probeInfo *store.ProbeInfo) (*v1.Service, *mode
 				logrus.Debugf("domain address is : %s", probeInfo.IP)
 			}
 		}
-		if probeInfo.IP == "8.8.8.8" {
+		if probeInfo.IP == "1.1.1.1" {
 			logrus.Warningf("serviceID: %s, is a domain thirdpart endpoint, but do not found domain info", probeInfo.Sid)
 			return nil, nil
 		}
 	}
-	logrus.Debugf("create probe[sid: %s, address: %s, port: %d]", probeInfo.Sid, probeInfo.IP, probeInfo.Port)
 	tsp, err := t.GetProbeInfo(probeInfo.Sid)
 	if err != nil {
 		logrus.Warningf("ServiceID: %s; Unexpected error occurred, ignore the creation of "+

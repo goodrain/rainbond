@@ -29,7 +29,7 @@ import (
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/discover.v2"
+	discover "github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm/store"
@@ -315,49 +315,46 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 	// The same IP may correspond to two endpoints, which are internal and external endpoints.
 	// So it is need to filter the same IP.
 	exists := make(map[string]bool)
+	addEndpoint := func(tpe *pb.ThirdPartyEndpoint) {
+		if !exists[fmt.Sprintf("%s:%d", tpe.Ip, tpe.Port)] {
+			pbeps = append(pbeps, tpe)
+			exists[fmt.Sprintf("%s:%d", tpe.Ip, tpe.Port)] = true
+		}
+	}
 	for _, ep := range as.GetEndpoints() {
 		if ep.Subsets == nil || len(ep.Subsets) == 0 {
 			logrus.Debugf("Key: %s; empty subsets", fmt.Sprintf("%s/%s", ep.Namespace, ep.Name))
 			continue
 		}
-		for idx, subset := range ep.Subsets {
-			if exists[subset.Ports[0].Name] {
-				continue
-			}
-			ip := func(subset corev1.EndpointSubset) string {
-				if subset.Addresses != nil && len(subset.Addresses) > 0 {
-					return subset.Addresses[0].IP
-				}
-				if subset.NotReadyAddresses != nil && len(subset.NotReadyAddresses) > 0 {
-					return subset.NotReadyAddresses[0].IP
-				}
-				return ""
-			}(subset)
-			if strings.TrimSpace(ip) == "" {
-				logrus.Debugf("Key: %s; Index: %d; IP not found", fmt.Sprintf("%s/%s", ep.Namespace, ep.Name), idx)
-				continue
-			}
-			if ip == "8.8.8.8" {
-				ip = as.GetServices()[0].Annotations["domain"]
-				logrus.Debugf("domain address is : ", ip)
-			}
-			exists[subset.Ports[0].Name] = true
-			pbep := &pb.ThirdPartyEndpoint{
-				Uuid: subset.Ports[0].Name,
-				Sid:  ep.GetLabels()["service_id"],
-				Ip:   ip,
-				Port: subset.Ports[0].Port,
-				Status: func(item *corev1.Endpoints) string {
-					if subset.Addresses != nil && len(subset.Addresses) > 0 {
-						return "healthy"
+		for _, subset := range ep.Subsets {
+			for _, port := range subset.Ports {
+				for _, address := range subset.Addresses {
+					ip := address.IP
+					if ip == "1.1.1.1" {
+						ip = as.GetServices()[0].Annotations["domain"]
 					}
-					if subset.NotReadyAddresses != nil && len(subset.NotReadyAddresses) > 0 {
-						return "unhealthy"
+					addEndpoint(&pb.ThirdPartyEndpoint{
+						Uuid:   port.Name,
+						Sid:    ep.GetLabels()["service_id"],
+						Ip:     ip,
+						Port:   port.Port,
+						Status: "healthy",
+					})
+				}
+				for _, address := range subset.NotReadyAddresses {
+					ip := address.IP
+					if ip == "1.1.1.1" {
+						ip = as.GetServices()[0].Annotations["domain"]
 					}
-					return "unknown"
-				}(ep),
+					addEndpoint(&pb.ThirdPartyEndpoint{
+						Uuid:   port.Name,
+						Sid:    ep.GetLabels()["service_id"],
+						Ip:     ip,
+						Port:   port.Port,
+						Status: "unhealthy",
+					})
+				}
 			}
-			pbeps = append(pbeps, pbep)
 		}
 	}
 	return &pb.ThirdPartyEndpoints{

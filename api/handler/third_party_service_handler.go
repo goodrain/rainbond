@@ -49,6 +49,13 @@ func Create3rdPartySvcHandler(dbmanager db.Manager, statusCli *client.AppRuntime
 // AddEndpoints adds endpoints for third-party service.
 func (t *ThirdPartyServiceHanlder) AddEndpoints(sid string, d *model.AddEndpiontsReq) error {
 	address, port := convertAddressPort(d.Address)
+	if port == 0 {
+		//set default port by service port
+		ports, _ := t.dbmanager.TenantServicesPortDao().GetPortsByServiceID(sid)
+		if len(ports) > 0 {
+			port = ports[0].ContainerPort
+		}
+	}
 	ep := &dbmodel.Endpoint{
 		UUID:      util.NewUUID(),
 		ServiceID: sid,

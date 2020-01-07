@@ -20,7 +20,6 @@ package store
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -272,48 +271,50 @@ func NewStore(clientset *kubernetes.Clientset,
 
 func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {
 	var probeInfos []*ProbeInfo
+	addProbe := func(pi *ProbeInfo) {
+		for _, c := range probeInfos {
+			if c.IP == pi.IP && c.Port == pi.Port {
+				return
+			}
+		}
+		probeInfos = append(probeInfos, pi)
+	}
 	for _, subset := range ep.Subsets {
-		uuid := subset.Ports[0].Name
-		port := subset.Ports[0].Port
-		if ep.Annotations != nil {
-			if domain, ok := ep.Annotations["domain"]; ok && domain != "" {
-				logrus.Debugf("thirdpart service[sid: %s] add domain endpoint[domain: %s] probe", sid, domain)
-				probeInfos = []*ProbeInfo{&ProbeInfo{
+		for _, port := range subset.Ports {
+			if ep.Annotations != nil {
+				if domain, ok := ep.Annotations["domain"]; ok && domain != "" {
+					logrus.Debugf("thirdpart service[sid: %s] add domain endpoint[domain: %s] probe", sid, domain)
+					probeInfos = []*ProbeInfo{&ProbeInfo{
+						Sid:  sid,
+						UUID: port.Name,
+						IP:   domain,
+						Port: port.Port,
+					}}
+					return probeInfos
+				}
+			}
+			for _, address := range subset.NotReadyAddresses {
+				addProbe(&ProbeInfo{
 					Sid:  sid,
-					UUID: uuid,
-					IP:   domain,
-					Port: port,
-				}}
-				return probeInfos
+					UUID: port.Name,
+					IP:   address.IP,
+					Port: port.Port,
+				})
 			}
-		}
-		for _, address := range subset.NotReadyAddresses {
-			info := &ProbeInfo{
-				Sid:  sid,
-				UUID: uuid,
-				IP:   address.IP,
-				Port: port,
+			for _, address := range subset.Addresses {
+				addProbe(&ProbeInfo{
+					Sid:  sid,
+					UUID: port.Name,
+					IP:   address.IP,
+					Port: port.Port,
+				})
 			}
-			probeInfos = append(probeInfos, info)
-		}
-		for _, address := range subset.Addresses {
-			info := &ProbeInfo{
-				Sid:  sid,
-				UUID: uuid,
-				IP:   address.IP,
-				Port: port,
-			}
-			probeInfos = append(probeInfos, info)
 		}
 	}
 	return probeInfos
 }
 
 func upgradeProbe(ch chan<- interface{}, old, cur []*ProbeInfo) {
-	ob, _ := json.Marshal(old)
-	cb, _ := json.Marshal(cur)
-	logrus.Debugf("Old probe infos: %s", string(ob))
-	logrus.Debugf("Current probe infos: %s", string(cb))
 	oldMap := make(map[string]*ProbeInfo, len(old))
 	for i := 0; i < len(old); i++ {
 		oldMap[old[i].UUID] = old[i]
@@ -419,6 +420,7 @@ func (a *appRuntimeStore) InitOneThirdPartService(service *model.TenantServices)
 		logrus.Errorf("error applying rule: %v", err)
 		return err
 	}
+	logrus.Infof("init third app %s kubernetes resource", appService.ServiceAlias)
 	return nil
 }
 
