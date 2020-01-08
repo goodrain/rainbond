@@ -23,13 +23,12 @@ import (
 
 	"github.com/goodrain/rainbond/builder/sources"
 
-	"github.com/Sirupsen/logrus"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 //K8SClient K8SClient
-var K8SClient *kubernetes.Clientset
+var K8SClient kubernetes.Interface
 
 //InitClient init k8s client
 func InitClient(kubeconfig string) error {
@@ -38,16 +37,13 @@ func InitClient(kubeconfig string) error {
 		kubeconfig = path.Join(homePath, ".kube/config")
 	}
 	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	config, err := k8sutil.NewRestConfig(kubeconfig)
 	if err != nil {
 		return err
 	}
 	config.QPS = 50
 	config.Burst = 100
-	K8SClient, err = kubernetes.NewForConfig(config)
-	if err != nil {
-		logrus.Error("Create kubernetes client error.", err.Error())
-		return err
-	}
+
+	K8SClient, _ = kubernetes.NewForConfig(config)
 	return nil
 }

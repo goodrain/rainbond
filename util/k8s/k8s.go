@@ -32,14 +32,25 @@ func NewClientset(kubecfg string) (kubernetes.Interface, error) {
 	return clientset, nil
 }
 
-func MustNewKubeClient() kubernetes.Interface {
-	cfg, err := InClusterConfig()
+// NewClientsetOrDie new clientset or die
+// used for who just wants a kubernetes clientset
+func NewClientsetOrDie(kubecfg string) kubernetes.Interface {
+	restConfig, err := NewRestConfig(kubecfg)
 	if err != nil {
 		panic(err)
 	}
-	return kubernetes.NewForConfigOrDie(cfg)
+	return kubernetes.NewForConfigOrDie(restConfig)
 }
 
+// NewRestConfig new rest config
+func NewRestConfig(kubecfg string) (restConfig *rest.Config, err error) {
+	if kubecfg == "" {
+		return InClusterConfig()
+	}
+	return clientcmd.BuildConfigFromFlags("", kubecfg)
+}
+
+// InClusterConfig in cluster config
 func InClusterConfig() (*rest.Config, error) {
 	// Work around https://github.com/kubernetes/kubernetes/issues/40973
 	// See https://github.com/coreos/etcd-operator/issues/731#issuecomment-283804819
