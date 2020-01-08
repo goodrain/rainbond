@@ -149,7 +149,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.Int64Var(&a.TTL, "ttl", 10, "Frequency of node status reporting to master")
 	//fs.StringVar(&a.APIAddr, "api-addr", ":6100", "The node api server listen address")
 	fs.StringVar(&a.GrpcAPIAddr, "grpc-api-addr", ":6101", "The node grpc api server listen address")
-	fs.StringVar(&a.K8SConfPath, "kube-conf", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "absolute path to the kubeconfig file  ./kubeconfig")
+	fs.StringVar(&a.K8SConfPath, "kube-conf", "", "absolute path to the kubeconfig file  ./kubeconfig")
 	fs.StringVar(&a.RunMode, "run-mode", "worker", "the acp_node run mode,could be 'worker' or 'master'")
 	fs.StringVar(&a.NodeRule, "noderule", "compute", "current node rule,maybe is `compute` `manage` `storage` ")
 	fs.StringVar(&a.StatsdConfig.StatsdListenAddress, "statsd.listen-address", "", "The UDP address on which to receive statsd metric lines. DEPRECATED, use statsd.listen-udp instead.")

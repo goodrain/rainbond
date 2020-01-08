@@ -44,6 +44,9 @@ func InitClient(kubeconfig string) error {
 	config.QPS = 50
 	config.Burst = 100
 
-	K8SClient, _ = kubernetes.NewForConfig(config)
+	K8SClient, err = kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
 	return nil
 }

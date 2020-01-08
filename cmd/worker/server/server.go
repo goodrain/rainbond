@@ -72,7 +72,11 @@ func Run(s *option.Worker) error {
 		logrus.Errorf("create kube rest config error: %s", err.Error())
 		return err
 	}
-	clientset, _ := kubernetes.NewForConfig(restConfig)
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		logrus.Errorf("create kube client error: %s", err.Error())
+		return err
+	}
 	s.Config.KubeClient = clientset
 
 	kubeaggregatorclientset, err := kubeaggregatorclientset.NewForConfig(restConfig)
