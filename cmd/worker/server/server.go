@@ -74,7 +74,7 @@ func Run(s *option.Worker) error {
 	}
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		logrus.Errorf("create kube client error: %s", err.Error())
+		logrus.Error("Error creating clientset: %v", err)
 		return err
 	}
 	s.Config.KubeClient = clientset

@@ -26,7 +26,7 @@ func (a *AppService) GetCommonLabels(labels ...map[string]string) map[string]str
 			resultLabel[k] = v
 		}
 	}
-	resultLabel["creater"] = "Rainbond"
+	resultLabel["creator"] = "Rainbond"
 	resultLabel["creater_id"] = a.CreaterID
 	resultLabel["service_id"] = a.ServiceID
 	resultLabel["service_alias"] = a.ServiceAlias
