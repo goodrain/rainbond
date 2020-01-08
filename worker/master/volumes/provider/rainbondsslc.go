@@ -44,12 +44,12 @@ import (
 type rainbondsslcProvisioner struct {
 	// The directory to create PV-backing directories in
 	name    string
-	kubecli kubernetes.Interface
+	kubecli *kubernetes.Clientset
 	store   store.Storer
 }
 
 // NewRainbondsslcProvisioner creates a new Rainbond statefulset share volume provisioner
-func NewRainbondsslcProvisioner(kubecli kubernetes.Interface, store store.Storer) controller.Provisioner {
+func NewRainbondsslcProvisioner(kubecli *kubernetes.Clientset, store store.Storer) controller.Provisioner {
 	return &rainbondsslcProvisioner{
 		name:    "rainbond.io/provisioner-sslc",
 		kubecli: kubecli,

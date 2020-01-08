@@ -25,7 +25,7 @@ import (
 )
 
 //CreateKubeService create kube service
-func CreateKubeService(client kubernetes.Interface, namespace string, services ...*corev1.Service) error {
+func CreateKubeService(client *kubernetes.Clientset, namespace string, services ...*corev1.Service) error {
 	var retryService []*corev1.Service
 	for i := range services {
 		createService := services[i]

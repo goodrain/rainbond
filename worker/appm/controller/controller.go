@@ -25,7 +25,7 @@ import (
 
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/store"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/appm/types/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -66,14 +66,14 @@ var TypeControllerRefreshHPA TypeController = "refreshhpa"
 type Manager struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
-	client      kubernetes.Interface
+	client      *kubernetes.Clientset
 	controllers map[string]Controller
 	store       store.Storer
 	lock        sync.Mutex
 }
 
 //NewManager new manager
-func NewManager(store store.Storer, client kubernetes.Interface) *Manager {
+func NewManager(store store.Storer, client *kubernetes.Clientset) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
 		ctx:         ctx,

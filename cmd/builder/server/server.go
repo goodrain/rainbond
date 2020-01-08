@@ -23,6 +23,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/goodrain/rainbond/mq/client"
+
 	"github.com/goodrain/rainbond/builder/discover"
 	"github.com/goodrain/rainbond/builder/exector"
 	"github.com/goodrain/rainbond/builder/monitor"
@@ -30,7 +32,6 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/mq/client"
 
 	"net/http"
 

@@ -29,7 +29,7 @@ import (
 )
 
 // NewAPPMController creates a new appm controller.
-func NewAPPMController(clientset kubernetes.Interface,
+func NewAPPMController(clientset *kubernetes.Clientset,
 	store store.Storer,
 	startCh *channels.RingChannel,
 	updateCh *channels.RingChannel,
