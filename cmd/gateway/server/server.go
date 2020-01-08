@@ -50,11 +50,13 @@ func Run(s *option.GWServer) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var clientset kubernetes.Interface
-	if s.Config.K8SConfPath == "" {
-		clientset = k8sutil.MustNewKubeClient()
-	} else {
-		k8sutil.NewClientset(s.K8SConfPath)
+	config, err := k8sutil.NewRestConfig(s.K8SConfPath)
+	if err != nil {
+		return err
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
 	}
 
 	//create cluster node manage
