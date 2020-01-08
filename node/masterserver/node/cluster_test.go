@@ -16,34 +16,31 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package clients
+package node
 
 import (
-	"path"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"testing"
 
-	"github.com/goodrain/rainbond/builder/sources"
-
-	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
-//K8SClient K8SClient
-var K8SClient kubernetes.Interface
-
-//InitClient init k8s client
-func InitClient(kubeconfig string) error {
-	if kubeconfig == "" {
-		homePath, _ := sources.Home()
-		kubeconfig = path.Join(homePath, ".kube/config")
-	}
-	// use the current context in kubeconfig
-	config, err := k8sutil.NewRestConfig(kubeconfig)
+func TestCluster_handleNodeStatus(t *testing.T) {
+	config, err := clientcmd.BuildConfigFromFlags("", "/Users/fanyangyang/Documents/company/goodrain/remote/192.168.2.200/admin.kubeconfig")
 	if err != nil {
-		return err
+		return
 	}
-	config.QPS = 50
-	config.Burst = 100
+	cli, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	K8SClient, _ = kubernetes.NewForConfig(config)
-	return nil
+	node, err := cli.CoreV1().Nodes().Get("192.168.2.200", metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("node is :%+v", node)
+	t.Logf("cpu:%v", node.Status.Allocatable.Cpu().Value())
+	t.Logf("mem: %v", node.Status.Allocatable.Memory().Value())
 }

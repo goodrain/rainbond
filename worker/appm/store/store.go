@@ -106,7 +106,7 @@ type ProbeInfo struct {
 //appRuntimeStore app runtime store
 //cache all kubernetes object and appservice
 type appRuntimeStore struct {
-	clientset             *kubernetes.Clientset
+	clientset             kubernetes.Interface
 	ctx                   context.Context
 	cancel                context.CancelFunc
 	informers             *Informer
@@ -122,7 +122,7 @@ type appRuntimeStore struct {
 }
 
 //NewStore new app runtime store
-func NewStore(clientset *kubernetes.Clientset,
+func NewStore(clientset kubernetes.Interface,
 	dbmanager db.Manager,
 	conf option.Config,
 	startCh *channels.RingChannel,
