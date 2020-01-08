@@ -171,7 +171,7 @@ func New(client kubernetes.Interface,
 	// create informers factory, enable and assign required informers
 	store.sharedInformer = informers.NewFilteredSharedInformerFactory(client, conf.ResyncPeriod, corev1.NamespaceAll,
 		func(options *metav1.ListOptions) {
-			// options.LabelSelector = "creater=Rainbond"
+			options.LabelSelector = "creator=Rainbond"
 		})
 
 	store.informers.Ingress = store.sharedInformer.Extensions().V1beta1().Ingresses().Informer()

@@ -617,11 +617,11 @@ func (a *appRuntimeStore) listHPAEvents(hpa *v2beta1.HorizontalPodAutoscaler) er
 	return nil
 }
 
-//getAppService if  creater is true, will create new app service where not found in store
-func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, creater bool) (*v1.AppService, error) {
+//getAppService if  creator is true, will create new app service where not found in store
+func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, creator bool) (*v1.AppService, error) {
 	var appservice *v1.AppService
 	appservice = a.GetAppService(serviceID)
-	if appservice == nil && creater {
+	if appservice == nil && creator {
 		var err error
 		appservice, err = conversion.InitCacheAppService(a.dbmanager, serviceID, createrID)
 		if err != nil {

@@ -75,7 +75,7 @@ func InClusterConfig() (*rest.Config, error) {
 func NewRainbondFilteredSharedInformerFactory(clientset kubernetes.Interface) informers.SharedInformerFactory {
 	return informers.NewFilteredSharedInformerFactory(
 		clientset, 30*time.Second, corev1.NamespaceAll, func(options *metav1.ListOptions) {
-			options.LabelSelector = "creater=Rainbond"
+			options.LabelSelector = "creator=Rainbond"
 		},
 	)
 }
