@@ -496,7 +496,6 @@ func (t *thirdparty) runDelete(sid string) {
 			if err != nil && !errors.IsNotFound(err) {
 				logrus.Warningf("error deleting endpoint empty old app endpoints: %v", err)
 			}
-			t.store.OnDelete(ep)
 		}
 	}
 }

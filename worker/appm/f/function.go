@@ -199,7 +199,7 @@ func EnsureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) error
 	if !createEndpoints &&
 		apiequality.Semantic.DeepEqual(currentEndpoints.Subsets, ep.Subsets) &&
 		apiequality.Semantic.DeepEqual(currentEndpoints.Labels, ep.Labels) {
-		logrus.Infof("endpoints are equal for %s/%s, skipping update", ep.Namespace, ep.Name)
+		logrus.Debugf("endpoints are equal for %s/%s, skipping update", ep.Namespace, ep.Name)
 		return nil
 	}
 	newEndpoints := currentEndpoints.DeepCopy()

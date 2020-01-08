@@ -420,7 +420,7 @@ func (p *probeManager) UpdateServicesProbe(services []*v1.Service) {
 	for _, svc := range oldSvcs {
 		p.StopProbes([]string{svc.Name})
 	}
-	logrus.Infof("current have probe of third apps number is  %d", len(p.serviceProbe))
+	logrus.Debugf("current have probe of third apps number is  %d", len(p.serviceProbe))
 }
 
 // ListServicesBySid lists services corresponding to sid.

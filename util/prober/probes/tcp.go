@@ -3,10 +3,11 @@ package probe
 import (
 	"context"
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/util/prober/types/v1"
 	"net"
 	"time"
+
+	"github.com/Sirupsen/logrus"
+	v1 "github.com/goodrain/rainbond/util/prober/types/v1"
 )
 
 // TCPProbe probes through the tcp protocol
@@ -56,7 +57,7 @@ func (h *TCPProbe) TCPCheck() {
 func GetTCPHealth(address string) map[string]string {
 	conn, err := net.DialTimeout("tcp", address, 5*time.Second)
 	if err != nil {
-		logrus.Warningf("%s connection failure", address)
+		logrus.Warningf("probe health check, %s connection failure", address)
 		return map[string]string{"status": v1.StatDeath,
 			"info": fmt.Sprintf("Address: %s; Tcp connection error", address)}
 	}

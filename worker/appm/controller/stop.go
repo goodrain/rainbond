@@ -81,7 +81,6 @@ func (s *stopController) stopOne(app v1.AppService) error {
 				if err != nil && !errors.IsNotFound(err) {
 					return fmt.Errorf("delete secret failure:%s", err.Error())
 				}
-				s.manager.store.OnDelete(secret)
 			}
 		}
 	}
@@ -93,7 +92,6 @@ func (s *stopController) stopOne(app v1.AppService) error {
 				if err != nil && !errors.IsNotFound(err) {
 					return fmt.Errorf("delete ingress failure:%s", err.Error())
 				}
-				s.manager.store.OnDelete(ingress)
 			}
 		}
 	}
@@ -105,7 +103,6 @@ func (s *stopController) stopOne(app v1.AppService) error {
 				if err != nil && !errors.IsNotFound(err) {
 					return fmt.Errorf("delete config map failure:%s", err.Error())
 				}
-				s.manager.store.OnDelete(config)
 			}
 		}
 	}
@@ -115,14 +112,14 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		if err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("delete statefulset failure:%s", err.Error())
 		}
-		s.manager.store.OnDelete(statefulset)
+		s.manager.store.OnDeletes(statefulset)
 	}
 	if deployment := app.GetDeployment(); deployment != nil && deployment.Name != "" {
 		err := s.manager.client.AppsV1().Deployments(app.TenantID).Delete(deployment.Name, &metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("delete deployment failure:%s", err.Error())
 		}
-		s.manager.store.OnDelete(deployment)
+		s.manager.store.OnDeletes(deployment)
 	}
 	//step 6: delete all pod
 	var gracePeriodSeconds int64
@@ -135,7 +132,6 @@ func (s *stopController) stopOne(app v1.AppService) error {
 				if err != nil && !errors.IsNotFound(err) {
 					return fmt.Errorf("delete pod failure:%s", err.Error())
 				}
-				s.manager.store.OnDelete(pod)
 			}
 		}
 	}
@@ -146,7 +142,6 @@ func (s *stopController) stopOne(app v1.AppService) error {
 			if err != nil && !errors.IsNotFound(err) {
 				return fmt.Errorf("delete hpa: %v", err)
 			}
-			s.manager.store.OnDelete(hpa)
 		}
 	}
 

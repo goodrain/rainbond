@@ -66,7 +66,7 @@ type Storer interface {
 	GetTenantResource(tenantID string) *v1.TenantResource
 	GetTenantRunningApp(tenantID string) []*v1.AppService
 	GetNeedBillingStatus(serviceIDs []string) map[string]string
-	OnDelete(obj interface{})
+	OnDeletes(obj ...interface{})
 	GetPodLister() listcorev1.PodLister
 	RegistPodUpdateListener(string, chan<- *corev1.Pod)
 	UnRegistPodUpdateListener(string)
@@ -603,124 +603,130 @@ func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, cr
 func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 	a.OnAdd(newObj)
 }
-func (a *appRuntimeStore) OnDelete(obj interface{}) {
-	if deployment, ok := obj.(*appsv1.Deployment); ok {
-		serviceID := deployment.Labels["service_id"]
-		version := deployment.Labels["version"]
-		createrID := deployment.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteDeployment(deployment)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+func (a *appRuntimeStore) OnDelete(objs interface{}) {
+	a.OnDeletes(objs)
+}
+func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
+	for i := range objs {
+		obj := objs[i]
+		if deployment, ok := obj.(*appsv1.Deployment); ok {
+			serviceID := deployment.Labels["service_id"]
+			version := deployment.Labels["version"]
+			createrID := deployment.Labels["creater_id"]
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteDeployment(deployment)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
-	}
-	if statefulset, ok := obj.(*appsv1.StatefulSet); ok {
-		serviceID := statefulset.Labels["service_id"]
-		version := statefulset.Labels["version"]
-		createrID := statefulset.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteStatefulSet(statefulset)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+		if statefulset, ok := obj.(*appsv1.StatefulSet); ok {
+			serviceID := statefulset.Labels["service_id"]
+			version := statefulset.Labels["version"]
+			createrID := statefulset.Labels["creater_id"]
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteStatefulSet(statefulset)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
-	}
-	if replicaset, ok := obj.(*appsv1.ReplicaSet); ok {
-		serviceID := replicaset.Labels["service_id"]
-		version := replicaset.Labels["version"]
-		createrID := replicaset.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteReplicaSet(replicaset)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+		if replicaset, ok := obj.(*appsv1.ReplicaSet); ok {
+			serviceID := replicaset.Labels["service_id"]
+			version := replicaset.Labels["version"]
+			createrID := replicaset.Labels["creater_id"]
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteReplicaSet(replicaset)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
-	}
-	if secret, ok := obj.(*corev1.Secret); ok {
-		serviceID := secret.Labels["service_id"]
-		version := secret.Labels["version"]
-		createrID := secret.Labels["creater_id"]
-		if serviceID != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteSecrets(secret)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+		if secret, ok := obj.(*corev1.Secret); ok {
+			serviceID := secret.Labels["service_id"]
+			version := secret.Labels["version"]
+			createrID := secret.Labels["creater_id"]
+			if serviceID != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteSecrets(secret)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
-	}
-	if service, ok := obj.(*corev1.Service); ok {
-		serviceID := service.Labels["service_id"]
-		version := service.Labels["version"]
-		createrID := service.Labels["creater_id"]
-		if serviceID != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteServices(service)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+		if service, ok := obj.(*corev1.Service); ok {
+			serviceID := service.Labels["service_id"]
+			version := service.Labels["version"]
+			createrID := service.Labels["creater_id"]
+			if serviceID != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteServices(service)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
-	}
-	if ingress, ok := obj.(*extensions.Ingress); ok {
-		serviceID := ingress.Labels["service_id"]
-		version := ingress.Labels["version"]
-		createrID := ingress.Labels["creater_id"]
-		if serviceID != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteIngress(ingress)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+		if ingress, ok := obj.(*extensions.Ingress); ok {
+			serviceID := ingress.Labels["service_id"]
+			version := ingress.Labels["version"]
+			createrID := ingress.Labels["creater_id"]
+			if serviceID != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteIngress(ingress)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
-	}
-	if configmap, ok := obj.(*corev1.ConfigMap); ok {
-		serviceID := configmap.Labels["service_id"]
-		version := configmap.Labels["version"]
-		createrID := configmap.Labels["creater_id"]
-		if serviceID != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteConfigMaps(configmap)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+		if configmap, ok := obj.(*corev1.ConfigMap); ok {
+			serviceID := configmap.Labels["service_id"]
+			version := configmap.Labels["version"]
+			createrID := configmap.Labels["creater_id"]
+			if serviceID != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteConfigMaps(configmap)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
-	}
-	if hpa, ok := obj.(*v2beta1.HorizontalPodAutoscaler); ok {
-		serviceID := hpa.Labels["service_id"]
-		version := hpa.Labels["version"]
-		createrID := hpa.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DelHPA(hpa)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+		if hpa, ok := obj.(*v2beta1.HorizontalPodAutoscaler); ok {
+			serviceID := hpa.Labels["service_id"]
+			version := hpa.Labels["version"]
+			createrID := hpa.Labels["creater_id"]
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DelHPA(hpa)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
 	}
