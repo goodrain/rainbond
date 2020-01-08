@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/goodrain/rainbond/worker/appm/f"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 type refreshXPAController struct {
@@ -52,7 +52,7 @@ func (a *refreshXPAController) Begin() {
 	a.manager.callback(a.controllerID, nil)
 }
 
-func (a *refreshXPAController) applyOne(clientset *kubernetes.Clientset, app *v1.AppService) error {
+func (a *refreshXPAController) applyOne(clientset kubernetes.Interface, app *v1.AppService) error {
 	for _, hpa := range app.GetHPAs() {
 		f.EnsureHPA(hpa, clientset)
 	}

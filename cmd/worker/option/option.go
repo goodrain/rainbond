@@ -46,7 +46,7 @@ type Config struct {
 	Listen                  string
 	HostIP                  string
 	ServerPort              int
-	KubeClient              *kubernetes.Clientset
+	KubeClient              kubernetes.Interface
 	LeaderElectionNamespace string
 	LeaderElectionIdentity  string
 }

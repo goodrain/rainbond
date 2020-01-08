@@ -1,6 +1,8 @@
 package k8s
 
 import (
+	"net"
+	"os"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -10,6 +12,7 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/reference"
 )
@@ -27,6 +30,45 @@ func NewClientset(kubecfg string) (kubernetes.Interface, error) {
 		return nil, err
 	}
 	return clientset, nil
+}
+
+// NewClientsetOrDie new clientset or die
+// used for who just wants a kubernetes clientset
+func NewClientsetOrDie(kubecfg string) kubernetes.Interface {
+	restConfig, err := NewRestConfig(kubecfg)
+	if err != nil {
+		panic(err)
+	}
+	return kubernetes.NewForConfigOrDie(restConfig)
+}
+
+// NewRestConfig new rest config
+func NewRestConfig(kubecfg string) (restConfig *rest.Config, err error) {
+	if kubecfg == "" {
+		return InClusterConfig()
+	}
+	return clientcmd.BuildConfigFromFlags("", kubecfg)
+}
+
+// InClusterConfig in cluster config
+func InClusterConfig() (*rest.Config, error) {
+	// Work around https://github.com/kubernetes/kubernetes/issues/40973
+	// See https://github.com/coreos/etcd-operator/issues/731#issuecomment-283804819
+	if len(os.Getenv("KUBERNETES_SERVICE_HOST")) == 0 {
+		addrs, err := net.LookupHost("kubernetes.default.svc")
+		if err != nil {
+			panic(err)
+		}
+		os.Setenv("KUBERNETES_SERVICE_HOST", addrs[0])
+	}
+	if len(os.Getenv("KUBERNETES_SERVICE_PORT")) == 0 {
+		os.Setenv("KUBERNETES_SERVICE_PORT", "443")
+	}
+	cfg, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
 // NewRainbondFilteredSharedInformerFactory -

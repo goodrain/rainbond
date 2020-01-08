@@ -79,8 +79,14 @@ func TestAppRuntimeStore_GetTenantResource(t *testing.T) {
 	t.Logf("%+v", resource)
 }
 
-func TestGetStorageClass(t *testing.T) {
-	getStoreForTest(t)
+func TestStorer(t *testing.T) {
+	storer := getStoreForTest(t, nil)
+	lister := storer.GetPodLister()
+	pod, err := lister.Pods("5d7bd886e6dc4425bb6c2ac5fc9fa593").Get("122f02921da549731888a31e052e4b9f-deployment-6974f46fc6-xz29n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("pod is %+v", pod)
 
 }
 
@@ -159,16 +165,17 @@ func TestListHPAEvents(t *testing.T) {
 	}
 }
 
-func getStoreForTest(t *testing.T) Storer {
-	ocfg := option.Config{
-		DBType:                  "mysql",
-		MysqlConnectionInfo:     "oc6Poh:noot6Mea@tcp(192.168.2.203:3306)/region",
-		EtcdEndPoints:           []string{"http://192.168.2.203:2379"},
-		EtcdTimeout:             5,
-		KubeConfig:              "/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig",
-		LeaderElectionNamespace: "rainbond",
+func getStoreForTest(t *testing.T, ocfg *option.Config) Storer {
+	if ocfg == nil {
+		ocfg = &option.Config{
+			DBType:                  "mysql",
+			MysqlConnectionInfo:     "EeM2oc:lee7OhQu@tcp(192.168.2.203:3306)/region",
+			EtcdEndPoints:           []string{"http://192.168.2.203:2379"},
+			EtcdTimeout:             5,
+			KubeConfig:              "/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig",
+			LeaderElectionNamespace: "rainbond",
+		}
 	}
-
 	dbconfig := config.Config{
 		DBType:              ocfg.DBType,
 		MysqlConnectionInfo: ocfg.MysqlConnectionInfo,
@@ -199,15 +206,15 @@ func getStoreForTest(t *testing.T) Storer {
 }
 
 func TestPatch(t *testing.T) {
-	ocfg := option.Config{
+	ocfg := &option.Config{
 		DBType:                  "mysql",
-		MysqlConnectionInfo:     "oc6Poh:noot6Mea@tcp(192.168.2.203:3306)/region",
+		MysqlConnectionInfo:     "EeM2oc:lee7OhQu@tcp(192.168.2.203:3306)/region",
 		EtcdEndPoints:           []string{"http://192.168.2.203:2379"},
 		EtcdTimeout:             5,
 		KubeConfig:              "/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig",
 		LeaderElectionNamespace: "rainbond",
 	}
-	storer := getStoreForTest(t)
+	storer := getStoreForTest(t, ocfg)
 	c, err := clientcmd.BuildConfigFromFlags("", ocfg.KubeConfig)
 	if err != nil {
 		t.Fatalf("read kube config file error: %v", err)
@@ -216,9 +223,9 @@ func TestPatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create kube api client error: %v", err)
 	}
-	app := storer.GetAppService("f55f7e28ec441ce5765998259756cc09")
+	app := storer.GetAppService("122f02921da549731888a31e052e4b9f")
 	if app == nil {
-		t.Fatal("app is niil")
+		t.Fatal("app is nil")
 	}
 	statefulset := app.GetStatefulSet()
 	if statefulset == nil {
