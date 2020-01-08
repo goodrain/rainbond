@@ -67,7 +67,7 @@ type Conf struct {
 	K8SConfPath                     string //absolute path to the kubeconfig file
 	LogLevel                        string
 	LogFile                         string
-	HostIDFile                      string
+	HostID                          string
 	HostIP                          string
 	RunMode                         string //ACP_NODE 运行模式:master,node
 	NodeRule                        string //节点属性 compute manage storage
@@ -138,7 +138,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogFile, "log-file", "", "the log file path that log output")
 	fs.StringVar(&a.PrometheusAPI, "prometheus", "http://localhost:9999", "the prometheus server address")
 	fs.StringVar(&a.NodePath, "nodePath", "/rainbond/nodes", "the path of node in etcd")
-	fs.StringVar(&a.HostIDFile, "nodeid-file", "/opt/rainbond/etc/node/node_host_uuid.conf", "the unique ID for this node. Just specify, don't modify")
+	fs.StringVar(&a.HostID, "nodeid", "", "the unique ID for this node. Just specify, don't modify")
 	fs.StringVar(&a.HostIP, "hostIP", "", "the host ip you can define. default get ip from eth0")
 	fs.StringSliceVar(&a.EventLogServer, "event-log-server", []string{"127.0.0.1:6366"}, "host:port slice of event log server")
 	fs.StringVar(&a.ConfigStoragePath, "config-path", "/rainbond/acp_configs", "the path of config to store(new)")
@@ -238,6 +238,9 @@ func (a *Conf) parse() error {
 	//init api listen port, can not custom
 	if a.APIAddr == "" {
 		a.APIAddr = ":6100"
+	}
+	if a.HostID == "" {
+		return fmt.Errorf("kubernetes node id can't empty")
 	}
 	return nil
 }

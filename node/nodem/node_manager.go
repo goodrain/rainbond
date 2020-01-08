@@ -69,7 +69,6 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 	}
 	clm := logger.CreatContainerLogManage(conf)
 	controller := controller.NewManagerService(conf, healthyManager, cluster)
-	uid, err := util.ReadHostID(conf.HostIDFile)
 	if err != nil {
 		return nil, fmt.Errorf("Get host id error:%s", err.Error())
 	}
@@ -95,7 +94,7 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 		healthy:        healthyManager,
 		controller:     controller,
 		clm:            clm,
-		currentNode:    &client.HostNode{ID: uid},
+		currentNode:    &client.HostNode{ID: conf.HostID},
 		imageGCManager: imageGCManager,
 	}
 	return nodem, nil
