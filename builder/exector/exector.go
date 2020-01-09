@@ -136,7 +136,7 @@ type TaskWorker interface {
 
 var workerCreaterList = make(map[string]func([]byte, *exectorManager) (TaskWorker, error))
 
-//RegisterWorker register worker creater
+//RegisterWorker register worker creator
 func RegisterWorker(name string, fun func([]byte, *exectorManager) (TaskWorker, error)) {
 	workerCreaterList[name] = fun
 }
