@@ -334,11 +334,13 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 						ip = as.GetServices()[0].Annotations["domain"]
 					}
 					addEndpoint(&pb.ThirdPartyEndpoint{
-						Uuid:   port.Name,
-						Sid:    ep.GetLabels()["service_id"],
-						Ip:     ip,
-						Port:   port.Port,
-						Status: "healthy",
+						Uuid: port.Name,
+						Sid:  ep.GetLabels()["service_id"],
+						Ip:   ip,
+						Port: port.Port,
+						Status: func() string {
+							return "healthy"
+						}(),
 					})
 				}
 				for _, address := range subset.NotReadyAddresses {
@@ -347,11 +349,13 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 						ip = as.GetServices()[0].Annotations["domain"]
 					}
 					addEndpoint(&pb.ThirdPartyEndpoint{
-						Uuid:   port.Name,
-						Sid:    ep.GetLabels()["service_id"],
-						Ip:     ip,
-						Port:   port.Port,
-						Status: "unhealthy",
+						Uuid: port.Name,
+						Sid:  ep.GetLabels()["service_id"],
+						Ip:   ip,
+						Port: port.Port,
+						Status: func() string {
+							return "unhealthy"
+						}(),
 					})
 				}
 			}

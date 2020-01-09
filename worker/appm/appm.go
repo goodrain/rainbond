@@ -43,7 +43,7 @@ func NewAPPMController(clientset *kubernetes.Clientset,
 	}
 	// create prober first, then thirdparty
 	c.prober = prober.NewProber(c.store, c.probeCh, c.updateCh)
-	c.thirdparty = thirdparty.NewThirdPartier(clientset, c.store, c.startCh, c.updateCh, c.stopCh)
+	c.thirdparty = thirdparty.NewThirdPartier(clientset, c.store, c.startCh, c.updateCh, c.stopCh, c.prober)
 	return c
 }
 

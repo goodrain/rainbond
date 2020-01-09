@@ -27,6 +27,7 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	validation "github.com/goodrain/rainbond/util/endpoint"
 	"github.com/goodrain/rainbond/worker/appm/f"
+	"github.com/goodrain/rainbond/worker/appm/prober"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -47,15 +48,16 @@ func NewThirdPartier(clientset *kubernetes.Clientset,
 	store store.Storer,
 	startCh *channels.RingChannel,
 	updateCh *channels.RingChannel,
-	stopCh chan struct{}) ThirdPartier {
+	stopCh chan struct{},
+	prober prober.Prober) ThirdPartier {
 	t := &thirdparty{
 		clientset: clientset,
 		store:     store,
-
 		svcStopCh: make(map[string]chan struct{}),
 		startCh:   startCh,
 		updateCh:  updateCh,
 		stopCh:    stopCh,
+		prober:    prober,
 	}
 	return t
 }
@@ -63,7 +65,7 @@ func NewThirdPartier(clientset *kubernetes.Clientset,
 type thirdparty struct {
 	clientset *kubernetes.Clientset
 	store     store.Storer
-
+	prober    prober.Prober
 	// a collection of stop channel for every service.
 	svcStopCh map[string]chan struct{}
 
@@ -261,41 +263,6 @@ func (t *thirdparty) k8sEndpoints(as *v1.AppService, epinfo []*v1.RbdEndpoint) (
 	var subsets []corev1.EndpointSubset
 	for _, epi := range epinfo {
 		logrus.Debugf("make endpoints[address: %s] subset", epi.IP)
-		address := validation.SplitEndpointAddress(epi.IP)
-		if validation.IsDomainNotIP(address) {
-			if len(as.GetServices()) > 0 {
-				annotations := as.GetServices()[0].Annotations
-				if annotations == nil {
-					annotations = make(map[string]string)
-				}
-				annotations["domain"] = epi.IP
-				as.GetServices()[0].Annotations = annotations
-			}
-			subsets = []corev1.EndpointSubset{corev1.EndpointSubset{
-				Ports: []corev1.EndpointPort{
-					{
-						Name: epi.UUID,
-						Port: func(targetPort int, realPort int) int32 {
-							if realPort == 0 {
-								return int32(targetPort)
-							}
-							return int32(realPort)
-						}(p.ContainerPort, epi.Port),
-						Protocol: corev1.ProtocolUDP,
-					},
-				},
-				// init set not ready address
-				NotReadyAddresses: []corev1.EndpointAddress{
-					{
-						IP: "1.1.1.1",
-					},
-				},
-			}}
-			for _, item := range res {
-				item.Subsets = subsets
-			}
-			return res, nil
-		}
 		subset := corev1.EndpointSubset{
 			Ports: []corev1.EndpointPort{
 				{
@@ -309,21 +276,41 @@ func (t *thirdparty) k8sEndpoints(as *v1.AppService, epinfo []*v1.RbdEndpoint) (
 					Protocol: corev1.ProtocolTCP,
 				},
 			},
-			NotReadyAddresses: []corev1.EndpointAddress{
-				{
-					IP: epi.IP,
-				},
+		}
+		eaddressIP := epi.IP
+		address := validation.SplitEndpointAddress(epi.IP)
+		if validation.IsDomainNotIP(address) {
+			if len(as.GetServices()) > 0 {
+				annotations := as.GetServices()[0].Annotations
+				if annotations == nil {
+					annotations = make(map[string]string)
+				}
+				annotations["domain"] = epi.IP
+				as.GetServices()[0].Annotations = annotations
+			}
+			eaddressIP = "1.1.1.1"
+		}
+		eaddress := []corev1.EndpointAddress{
+			{
+				IP: eaddressIP,
 			},
+		}
+		useProbe := t.prober.IsUsedProbe(as.ServiceID)
+		if useProbe {
+			subset.NotReadyAddresses = eaddress
+		} else {
+			subset.Addresses = eaddress
 		}
 		subsets = append(subsets, subset)
 	}
+	//all endpoint for one third app is same
 	for _, item := range res {
 		item.Subsets = subsets
 	}
 	return res, nil
 }
 
-func createSubsetForAllEndpoint(as *v1.AppService, rbdep *v1.RbdEndpoint) error {
+func (t *thirdparty) createSubsetForAllEndpoint(as *v1.AppService, rbdep *v1.RbdEndpoint) error {
 	port, err := db.GetManager().TenantServicesPortDao().GetPortsByServiceID(as.ServiceID)
 	if err != nil {
 		return err
@@ -346,6 +333,7 @@ func createSubsetForAllEndpoint(as *v1.AppService, rbdep *v1.RbdEndpoint) error 
 			as.GetServices()[0].Annotations = annotations
 		}
 	}
+
 	subset := corev1.EndpointSubset{
 		Ports: []corev1.EndpointPort{
 			{
@@ -361,44 +349,60 @@ func createSubsetForAllEndpoint(as *v1.AppService, rbdep *v1.RbdEndpoint) error 
 				Protocol: corev1.ProtocolTCP,
 			},
 		},
-		NotReadyAddresses: []corev1.EndpointAddress{
-			{
-				IP: ipAddress,
-			},
+	}
+	eaddress := []corev1.EndpointAddress{
+		{
+			IP: ipAddress,
 		},
+	}
+	useProbe := t.prober.IsUsedProbe(as.ServiceID)
+	if useProbe {
+		subset.NotReadyAddresses = eaddress
+	} else {
+		subset.Addresses = eaddress
 	}
 
 	for _, ep := range as.GetEndpoints() {
 		existPort := false
 		existAddress := false
 		for i, item := range ep.Subsets {
-			if len(item.Ports) > 0 && item.Ports[0].Port == int32(subset.Ports[0].Port) {
-				for _, a := range item.Addresses {
-					if a.IP == ipAddress {
-						existAddress = true
-						break
+			for _, port := range item.Ports {
+				if port.Port == int32(subset.Ports[0].Port) {
+					for _, a := range item.Addresses {
+						if a.IP == ipAddress {
+							existAddress = true
+							break
+						}
 					}
-				}
-				for _, a := range item.NotReadyAddresses {
-					if a.IP == ipAddress {
-						existAddress = true
-						break
+					for _, a := range item.NotReadyAddresses {
+						if a.IP == ipAddress {
+							existAddress = true
+							break
+						}
 					}
+					if !existAddress {
+						if useProbe {
+							ep.Subsets[i].NotReadyAddresses = append(ep.Subsets[i].NotReadyAddresses, subset.Addresses...)
+						} else {
+							ep.Subsets[i].Addresses = append(ep.Subsets[i].NotReadyAddresses, subset.Addresses...)
+						}
+					}
+					existPort = true
 				}
-				if !existAddress {
-					ep.Subsets[i].NotReadyAddresses = append(ep.Subsets[i].NotReadyAddresses, subset.Addresses...)
-				}
-				existPort = true
 			}
 		}
 		if !existPort {
 			ep.Subsets = append(ep.Subsets, subset)
+		}
+		if err := f.EnsureEndpoints(ep, t.clientset); err != nil {
+			logrus.Errorf("update endpoint %s failure %s", ep.Name, err.Error())
 		}
 	}
 	return nil
 }
 
 func (t *thirdparty) runUpdate(event discovery.Event) {
+
 	updateAddress := func(as *v1.AppService, rbdep *v1.RbdEndpoint, ready bool) {
 		for _, ep := range as.GetEndpoints() {
 			var needUpdate bool
@@ -458,7 +462,7 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 	showEndpointIP := rbdep.IP
 	switch event.Type {
 	case discovery.UpdateEvent, discovery.CreateEvent:
-		err := createSubsetForAllEndpoint(as, rbdep)
+		err := t.createSubsetForAllEndpoint(as, rbdep)
 		if err != nil {
 			logrus.Warningf("ServiceID: %s; error adding subset: %s",
 				rbdep.Sid, err.Error())
@@ -469,18 +473,13 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 				logrus.Errorf("create or update service %s failure %s", service.Name, err.Error())
 			}
 		}
-		for _, e := range as.GetEndpoints() {
-			if err := f.EnsureEndpoints(e, t.clientset); err != nil {
-				logrus.Errorf("create or update endpoint %s failure %s", e.Name, err.Error())
-			}
-		}
 		logrus.Debugf("upgrade endpoints and service for third app %s", as.ServiceAlias)
 	case discovery.DeleteEvent:
 		removeAddress(as, rbdep)
-		logrus.Infof("third endpoint %s ip %s is deleted", rbdep.UUID, showEndpointIP)
+		logrus.Debugf("third endpoint %s ip %s is deleted", rbdep.UUID, showEndpointIP)
 	case discovery.HealthEvent:
 		updateAddress(as, rbdep, true)
-		logrus.Infof("third endpoint %s ip %s is onlined", rbdep.UUID, showEndpointIP)
+		logrus.Debugf("third endpoint %s ip %s is onlined", rbdep.UUID, showEndpointIP)
 	case discovery.UnhealthyEvent:
 		logrus.Debugf("third endpoint %s ip %s is offlined", rbdep.UUID, showEndpointIP)
 		updateAddress(as, rbdep, false)

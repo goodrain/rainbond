@@ -20,7 +20,8 @@ package probe
 
 import (
 	"context"
-	"github.com/goodrain/rainbond/util/prober/types/v1"
+
+	v1 "github.com/goodrain/rainbond/util/prober/types/v1"
 )
 
 //Probe probe
@@ -31,28 +32,38 @@ type Probe interface {
 
 //CreateProbe create probe
 func CreateProbe(ctx context.Context, statusChan chan *v1.HealthStatus, v *v1.Service) Probe {
+	timeoutSecond := v.ServiceHealth.MaxTimeoutSecond
+	if timeoutSecond == 0 {
+		timeoutSecond = 5
+	}
+	interval := v.ServiceHealth.TimeInterval
+	if interval == 0 {
+		interval = 5
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	if v.ServiceHealth.Model == "tcp" {
 		t := &TCPProbe{
-			Name:         v.ServiceHealth.Name,
-			Address:      v.ServiceHealth.Address,
-			Ctx:          ctx,
-			Cancel:       cancel,
-			ResultsChan:  statusChan,
-			TimeInterval: v.ServiceHealth.TimeInterval,
-			MaxErrorsNum: v.ServiceHealth.MaxErrorsNum,
+			Name:          v.ServiceHealth.Name,
+			Address:       v.ServiceHealth.Address,
+			Ctx:           ctx,
+			Cancel:        cancel,
+			ResultsChan:   statusChan,
+			TimeInterval:  interval,
+			MaxErrorsNum:  v.ServiceHealth.MaxErrorsNum,
+			TimeoutSecond: timeoutSecond,
 		}
 		return t
 	}
 	if v.ServiceHealth.Model == "http" {
 		t := &HTTPProbe{
-			Name:         v.ServiceHealth.Name,
-			Address:      v.ServiceHealth.Address,
-			Ctx:          ctx,
-			Cancel:       cancel,
-			ResultsChan:  statusChan,
-			TimeInterval: v.ServiceHealth.TimeInterval,
-			MaxErrorsNum: v.ServiceHealth.MaxErrorsNum,
+			Name:          v.ServiceHealth.Name,
+			Address:       v.ServiceHealth.Address,
+			Ctx:           ctx,
+			Cancel:        cancel,
+			ResultsChan:   statusChan,
+			TimeInterval:  v.ServiceHealth.TimeInterval,
+			MaxErrorsNum:  v.ServiceHealth.MaxErrorsNum,
+			TimeoutSecond: v.ServiceHealth.MaxTimeoutSecond,
 		}
 		return t
 	}
