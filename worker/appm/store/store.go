@@ -372,11 +372,11 @@ func (a *appRuntimeStore) Start() error {
 	a.informers.Start(stopch)
 	a.stopch = stopch
 	go a.clean()
-
 	for !a.Ready() {
 	}
-	a.initThirdPartyService()
-
+	go func() {
+		a.initThirdPartyService()
+	}()
 	return nil
 }
 
@@ -399,6 +399,7 @@ func (a *appRuntimeStore) initThirdPartyService() error {
 			Sid:  svc.ServiceID,
 		}
 	}
+	logrus.Infof("initializing third-party services success")
 	return nil
 }
 

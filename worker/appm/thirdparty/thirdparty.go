@@ -79,6 +79,24 @@ func (t *thirdparty) Start() {
 	go func() {
 		for {
 			select {
+			case event := <-t.updateCh.Out():
+				devent, ok := event.(discovery.Event)
+				if !ok {
+					logrus.Warningf("Unexpected event received %+v", event)
+					continue
+				}
+				t.runUpdate(devent)
+			case <-t.stopCh:
+				for _, stopCh := range t.svcStopCh {
+					close(stopCh)
+				}
+				return
+			}
+		}
+	}()
+	go func() {
+		for {
+			select {
 			case event := <-t.startCh.Out():
 				evt, ok := event.(*v1.Event)
 				if !ok {
@@ -106,13 +124,6 @@ func (t *thirdparty) Start() {
 					close(stopCh)
 					delete(t.svcStopCh, evt.Sid)
 				}
-			case event := <-t.updateCh.Out():
-				devent, ok := event.(discovery.Event)
-				if !ok {
-					logrus.Warningf("Unexpected event received %+v", event)
-					continue
-				}
-				go t.runUpdate(devent)
 			case <-t.stopCh:
 				for _, stopCh := range t.svcStopCh {
 					close(stopCh)
@@ -367,7 +378,7 @@ func (t *thirdparty) createSubsetForAllEndpoint(as *v1.AppService, rbdep *v1.Rbd
 		existAddress := false
 		for i, item := range ep.Subsets {
 			for _, port := range item.Ports {
-				if port.Port == int32(subset.Ports[0].Port) {
+				if port.Port == int32(subset.Ports[0].Port) && len(item.Ports) < 2 {
 					for _, a := range item.Addresses {
 						if a.IP == ipAddress {
 							existAddress = true
@@ -382,7 +393,7 @@ func (t *thirdparty) createSubsetForAllEndpoint(as *v1.AppService, rbdep *v1.Rbd
 					}
 					if !existAddress {
 						if useProbe {
-							ep.Subsets[i].NotReadyAddresses = append(ep.Subsets[i].NotReadyAddresses, subset.Addresses...)
+							ep.Subsets[i].NotReadyAddresses = append(ep.Subsets[i].NotReadyAddresses, subset.NotReadyAddresses...)
 						} else {
 							ep.Subsets[i].Addresses = append(ep.Subsets[i].NotReadyAddresses, subset.Addresses...)
 						}
@@ -424,19 +435,27 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 			}
 		}
 	}
-
+	// do not  have multiple ports, multiple addresses
 	removeAddress := func(as *v1.AppService, rbdep *v1.RbdEndpoint) {
 		for _, ep := range as.GetEndpoints() {
 			var needUpdate bool
 			for idx, subset := range ep.Subsets {
-				if subset.Ports[0].Name == rbdep.UUID {
-					address := validation.SplitEndpointAddress(rbdep.IP)
-					if validation.IsDomainNotIP(address) {
-						rbdep.IP = "1.1.1.1"
+				for i, port := range subset.Ports {
+					if port.Name == rbdep.UUID {
+						//multiple port remove port, Instead remove the address
+						if len(subset.Ports) > 1 {
+							subset.Ports = append(subset.Ports[:i], subset.Ports[:i]...)
+							ep.Subsets[idx] = subset
+						} else {
+							address := validation.SplitEndpointAddress(rbdep.IP)
+							if validation.IsDomainNotIP(address) {
+								rbdep.IP = "1.1.1.1"
+							}
+							ep.Subsets[idx] = removeSubsetAddress(rbdep, subset)
+						}
+						needUpdate = true
+						break
 					}
-					ep.Subsets[idx] = removeSubsetAddress(rbdep, subset)
-					needUpdate = true
-					break
 				}
 			}
 			if needUpdate {

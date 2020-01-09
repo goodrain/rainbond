@@ -63,9 +63,9 @@ type Controller struct {
 
 // Start starts appm controller
 func (c *Controller) Start() error {
-	logrus.Debugf("start appm manager...")
 	c.thirdparty.Start()
 	c.prober.Start()
+	logrus.Debugf("start thirdparty appm manager success")
 	return nil
 }
 

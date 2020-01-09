@@ -33,11 +33,11 @@ type Probe interface {
 //CreateProbe create probe
 func CreateProbe(ctx context.Context, statusChan chan *v1.HealthStatus, v *v1.Service) Probe {
 	timeoutSecond := v.ServiceHealth.MaxTimeoutSecond
-	if timeoutSecond == 0 {
+	if timeoutSecond <= 2 {
 		timeoutSecond = 5
 	}
 	interval := v.ServiceHealth.TimeInterval
-	if interval == 0 {
+	if interval <= 2 {
 		interval = 5
 	}
 	ctx, cancel := context.WithCancel(ctx)

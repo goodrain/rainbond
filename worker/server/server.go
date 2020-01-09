@@ -95,6 +95,7 @@ func (r *RuntimeServer) Start(errchan chan error) {
 	if err := r.registServer(); err != nil {
 		errchan <- err
 	}
+	logrus.Infof("runtime server start success")
 }
 
 //GetAppStatus get app service status

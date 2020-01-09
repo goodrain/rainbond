@@ -144,7 +144,7 @@ func (t *tpProbe) UpdateProbes(infos []*store.ProbeInfo) {
 		} else {
 			t.watcher[service.Sid] = make(map[string]uitlprober.Watcher)
 		}
-		logrus.Infof("create probe[sid: %s, address: %s, port: %d]", service.Sid, service.ServiceHealth.IP, service.ServiceHealth.Port)
+		logrus.Infof("create probe[sid: %s, address: %s, port: %d]", service.Sid, service.ServiceHealth.Address, service.ServiceHealth.Port)
 		watcher := t.utilprober.WatchServiceHealthy(service.Name)
 		t.utilprober.EnableWatcher(watcher.GetServiceName(), watcher.GetID())
 		t.watcher[service.Sid][service.Name] = watcher
