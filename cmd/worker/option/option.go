@@ -46,7 +46,7 @@ type Config struct {
 	Listen                  string
 	HostIP                  string
 	ServerPort              int
-	KubeClient              *kubernetes.Clientset
+	KubeClient              kubernetes.Interface
 	LeaderElectionNamespace string
 	LeaderElectionIdentity  string
 }
@@ -74,7 +74,7 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
 	fs.StringVar(&a.MysqlConnectionInfo, "mysql", "root:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
 	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"127.0.0.1:6366"}, "event log server address. simple lb")
-	fs.StringVar(&a.KubeConfig, "kube-config", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "kubernetes api server config file")
+	fs.StringVar(&a.KubeConfig, "kube-config", "", "kubernetes api server config file")
 	fs.IntVar(&a.MaxTasks, "max-tasks", 50, "the max tasks for per node")
 	fs.StringVar(&a.MQAPI, "mq-api", "127.0.0.1:6300", "acp_mq api")
 	fs.StringVar(&a.RunMode, "run", "sync", "sync data when worker start")
