@@ -45,6 +45,8 @@ type Config struct {
 	CleanUp              bool
 	Topic                string
 	LogPath              string
+	RbdNamespace         string
+	RbdRepoName          string
 }
 
 //Builder  builder server
@@ -79,6 +81,9 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&a.CleanUp, "clean-up", true, "Turn on build version cleanup")
 	fs.StringVar(&a.Topic, "topic", "builder", "Topic in mq,you coule choose `builder` or `windows_builder`")
 	fs.StringVar(&a.LogPath, "log-path", "/grdata/logs", "Where Docker log files and event log files are stored.")
+	fs.StringVar(&a.RbdNamespace, "rbd-namespace", "rbd-system", "rbd component namespace")
+	fs.StringVar(&a.RbdRepoName, "rbd-repo", "rbd-repo", "rbd component repo's name")
+
 }
 
 //SetLog 设置log

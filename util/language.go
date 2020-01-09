@@ -45,6 +45,7 @@ var translationMetadata = map[string]string{
 	"Check for log location code errors":             "建议查看日志定位代码错误",
 	"Check for log location imgae source errors":     "建议查看日志定位镜像源错误",
 	"create share image task error":                  "分享任务失败，请检查服务信息或查看日志",
+	"get rbd-repo ip failure":                        "获取依赖仓库IP地址失败，请检查rbd-repo组件信息",
 }
 
 //Translation Translation English to Chinese
