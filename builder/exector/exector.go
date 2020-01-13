@@ -26,6 +26,10 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
@@ -65,6 +69,19 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
+	var restConfig *rest.Config // TODO fanyangyang use k8sutil.NewRestConfig
+	if conf.KubeConfig != "" {
+		restConfig, err = clientcmd.BuildConfigFromFlags("", conf.KubeConfig)
+	} else {
+		restConfig, err = rest.InClusterConfig()
+	}
+	if err != nil {
+		return nil, err
+	}
+	kubeClient, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
 	etcdCli, err := clientv3.New(clientv3.Config{
 		Endpoints:   conf.EtcdEndPoints,
 		DialTimeout: 10 * time.Second,
@@ -82,6 +99,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	logrus.Infof("The maximum number of concurrent build tasks supported by the current node is %d", maxConcurrentTask)
 	return &exectorManager{
 		DockerClient:      dockerClient,
+		KubeClient:        kubeClient,
 		EtcdCli:           etcdCli,
 		mqClient:          mqc,
 		tasks:             make(chan *pb.TaskMessage, maxConcurrentTask),
@@ -94,6 +112,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 
 type exectorManager struct {
 	DockerClient      *client.Client
+	KubeClient        kubernetes.Interface
 	EtcdCli           *clientv3.Client
 	tasks             chan *pb.TaskMessage
 	callback          func(*pb.TaskMessage)
@@ -117,7 +136,7 @@ type TaskWorker interface {
 
 var workerCreaterList = make(map[string]func([]byte, *exectorManager) (TaskWorker, error))
 
-//RegisterWorker register worker creater
+//RegisterWorker register worker creator
 func RegisterWorker(name string, fun func([]byte, *exectorManager) (TaskWorker, error)) {
 	workerCreaterList[name] = fun
 }
@@ -288,6 +307,9 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	i := NewSouceCodeBuildItem(task.TaskBody)
 	i.DockerClient = e.DockerClient
+	i.KubeClient = e.KubeClient
+	i.RbdNamespace = e.cfg.RbdNamespace
+	i.RbdRepoName = e.cfg.RbdRepoName
 	i.Logger.Info("Build app version from source code start", map[string]string{"step": "builder-exector", "status": "starting"})
 	start := time.Now()
 	defer event.GetManager().ReleaseLogger(i.Logger)

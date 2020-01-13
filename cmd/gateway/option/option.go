@@ -146,12 +146,6 @@ func (g *GWServer) SetLog() {
 
 //CheckConfig check config
 func (g *GWServer) CheckConfig() error {
-	if g.K8SConfPath == "" {
-		return fmt.Errorf("kube config file path can not be empty")
-	}
-	if exist, _ := util.FileExists(g.K8SConfPath); !exist {
-		return fmt.Errorf("kube config file %s not exist", g.K8SConfPath)
-	}
 	if g.NodeName == "" {
 		g.NodeName, _ = os.Hostname()
 	}

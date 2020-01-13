@@ -88,7 +88,7 @@ func NewKubeClient(cfg *conf.Conf) (KubeClient, error) {
 	stop := make(chan struct{})
 	sharedInformers := informers.NewFilteredSharedInformerFactory(cli, cfg.MinResyncPeriod, v1.NamespaceAll,
 		func(options *metav1.ListOptions) {
-			//options.LabelSelector = "creater=Rainbond"
+			//options.LabelSelector = "creator=Rainbond"
 		})
 	sharedInformers.Core().V1().Services().Informer()
 	sharedInformers.Core().V1().Endpoints().Informer()
@@ -445,8 +445,8 @@ func (k *kubeClient) UpK8sNode(rainbondNode *client.HostNode) (*v1.Node, error) 
 			},
 		},
 	}
-	//set rainbond creater lable
-	node.Labels["creater"] = "Rainbond"
+	//set rainbond creator lable
+	node.Labels["creator"] = "Rainbond"
 	savedNode, err := k.kubeclient.CoreV1().Nodes().Create(node)
 	if err != nil {
 		return nil, err
