@@ -20,6 +20,11 @@ type Upstream struct {
 	// TODO sticky_cookie_insert
 }
 
+//Validation validation nginx parameters
+func (u Upstream) Validation() error {
+	return nil
+}
+
 // Defines the name and size of the shared memory zone
 // that keeps the group’s configuration and run-time state that are shared between worker processes
 type Zone struct {

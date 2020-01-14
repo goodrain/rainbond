@@ -75,8 +75,8 @@ func NewHTTP(conf *option.Config) *HTTP {
 			Unit: "k",
 		},
 		UpstreamsDict: Size{
-			Num:  128,
-			Unit: "k",
+			Num:  int(conf.ShareMemory),
+			Unit: "m",
 		},
 	}
 }
