@@ -66,7 +66,7 @@ var TypeControllerRefreshHPA TypeController = "refreshhpa"
 type Manager struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
-	client       *kubernetes.Clientset
+	client       kubernetes.Interface
 	rbdNamespace string
 	rbdDNSName   string
 	controllers  map[string]Controller

@@ -109,26 +109,26 @@ func (s *startController) startOne(app v1.AppService) error {
 			}
 		}
 	}
+	// before create app, prepare poddnsconfig
+	podDNSConfig := workerutil.MakePodDNSConfig(s.manager.client, app.TenantID, s.manager.rbdNamespace, s.manager.rbdDNSName)
 	//step 2: create statefulset or deployment
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		podDNSConfig, err := workerutil.MakePodDNSConfig(s.manager.client, statefulset.Namespace, s.manager.rbdNamespace, s.manager.rbdDNSName)
-		if err != nil {
-			return err
+		if podDNSConfig != nil {
+			statefulset.Spec.Template.Spec.DNSConfig = podDNSConfig
+			statefulset.Spec.Template.Spec.DNSPolicy = "None"
 		}
-		statefulset.Spec.Template.Spec.DNSConfig = podDNSConfig
-		statefulset.Spec.Template.Spec.DNSPolicy = "None"
+
 		_, err = s.manager.client.AppsV1().StatefulSets(app.TenantID).Create(statefulset)
 		if err != nil {
 			return fmt.Errorf("create statefulset failure:%s", err.Error())
 		}
 	}
 	if deployment := app.GetDeployment(); deployment != nil {
-		podDNSConfig, err := workerutil.MakePodDNSConfig(s.manager.client, deployment.Namespace, s.manager.rbdNamespace, s.manager.rbdDNSName)
-		if err != nil {
-			return err
+		if podDNSConfig != nil {
+			deployment.Spec.Template.Spec.DNSConfig = podDNSConfig
+			deployment.Spec.Template.Spec.DNSPolicy = "None"
 		}
-		deployment.Spec.Template.Spec.DNSConfig = podDNSConfig
-		deployment.Spec.Template.Spec.DNSPolicy = "None"
+
 		_, err = s.manager.client.AppsV1().Deployments(app.TenantID).Create(deployment)
 		if err != nil {
 			return fmt.Errorf("create deployment failure:%s;", err.Error())

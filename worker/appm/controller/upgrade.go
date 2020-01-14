@@ -187,14 +187,15 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 		}
 	}
 	s.upgradeConfigMap(app)
-	if deployment := app.GetDeployment(); deployment != nil {
 
-		podDNSConfig, err := workerutil.MakePodDNSConfig(s.manager.client, deployment.Namespace, s.manager.rbdNamespace, s.manager.rbdDNSName)
-		if err != nil {
-			return err
+	podDNSConfig := workerutil.MakePodDNSConfig(s.manager.client, app.TenantID, s.manager.rbdNamespace, s.manager.rbdDNSName)
+
+	if deployment := app.GetDeployment(); deployment != nil {
+		if podDNSConfig != nil {
+			deployment.Spec.Template.Spec.DNSConfig = podDNSConfig
+			deployment.Spec.Template.Spec.DNSPolicy = "None"
 		}
-		deployment.Spec.Template.Spec.DNSConfig = podDNSConfig
-		deployment.Spec.Template.Spec.DNSPolicy = "None"
+
 		_, err = s.manager.client.AppsV1().Deployments(deployment.Namespace).Patch(deployment.Name, types.MergePatchType, app.UpgradePatch["deployment"])
 		if err != nil {
 			app.Logger.Error(fmt.Sprintf("upgrade deployment %s failure %s", app.ServiceAlias, err.Error()), event.GetLoggerOption("failure"))
@@ -202,12 +203,11 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 		}
 	}
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		podDNSConfig, err := workerutil.MakePodDNSConfig(s.manager.client, statefulset.Namespace, s.manager.rbdNamespace, s.manager.rbdDNSName)
-		if err != nil {
-			return err
+		if podDNSConfig != nil {
+			statefulset.Spec.Template.Spec.DNSConfig = podDNSConfig
+			statefulset.Spec.Template.Spec.DNSPolicy = "None"
 		}
-		statefulset.Spec.Template.Spec.DNSConfig = podDNSConfig
-		statefulset.Spec.Template.Spec.DNSPolicy = "None"
+
 		_, err = s.manager.client.AppsV1().StatefulSets(statefulset.Namespace).Patch(statefulset.Name, types.MergePatchType, app.UpgradePatch["statefulset"])
 		if err != nil {
 			logrus.Errorf("patch statefulset error : %s", err.Error())

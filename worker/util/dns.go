@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -9,9 +10,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func dns2Config(endpoint *corev1.Endpoints, podNamespace string) (podDNSConfig *corev1.PodDNSConfig, err error) {
+func dns2Config(endpoint *corev1.Endpoints, podNamespace string) (podDNSConfig *corev1.PodDNSConfig) {
 	if endpoint == nil {
-		return nil, fmt.Errorf("rbd-dns endpoints is nil")
+		logrus.Debug("rbd-dns endpoint is nil")
+		return nil
 	}
 	servers := make([]string, 0)
 	for _, sub := range endpoint.Subsets {
@@ -25,18 +27,11 @@ func dns2Config(endpoint *corev1.Endpoints, podNamespace string) (podDNSConfig *
 		Nameservers: servers,
 		Options:     []corev1.PodDNSConfigOption{corev1.PodDNSConfigOption{Name: "ndots", Value: &ndotsValue}},
 		Searches:    []string{searchRBDDNS, "svc.cluster.local", "cluster.local"},
-	}, nil
+	}
 }
 
 // MakePodDNSConfig make pod dns config
-func MakePodDNSConfig(clientset *kubernetes.Clientset, podNamespace, rbdNamespace, rbdEndpointDNSName string) (podDNSConfig *corev1.PodDNSConfig, err error) {
-	endpoints, err := clientset.CoreV1().Endpoints(rbdNamespace).Get(rbdEndpointDNSName, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("found rbd-dns error: %s", err.Error())
-	}
-	podDNSConfig, err = dns2Config(endpoints, podNamespace)
-	if err != nil {
-		return nil, fmt.Errorf("parse rbd-dns to dnsconfig error: %s", err.Error())
-	}
-	return podDNSConfig, nil
+func MakePodDNSConfig(clientset kubernetes.Interface, podNamespace, rbdNamespace, rbdEndpointDNSName string) (podDNSConfig *corev1.PodDNSConfig) {
+	endpoints, _ := clientset.CoreV1().Endpoints(rbdNamespace).Get(rbdEndpointDNSName, metav1.GetOptions{})
+	return dns2Config(endpoints, podNamespace)
 }
