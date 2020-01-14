@@ -26,13 +26,13 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/store"
@@ -67,19 +67,19 @@ func Run(s *option.Worker) error {
 	defer event.CloseManager()
 
 	//step 2 : create kube client and etcd client
-	c, err := clientcmd.BuildConfigFromFlags("", s.Config.KubeConfig)
+	restConfig, err := k8sutil.NewRestConfig(s.Config.KubeConfig)
 	if err != nil {
-		logrus.Error("read kube config file error.", err)
+		logrus.Errorf("create kube rest config error: %s", err.Error())
 		return err
 	}
-	clientset, err := kubernetes.NewForConfig(c)
+	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		logrus.Error("create kube api client error", err)
+		logrus.Errorf("create kube client error: %s", err.Error())
 		return err
 	}
 	s.Config.KubeClient = clientset
 
-	kubeaggregatorclientset, err := kubeaggregatorclientset.NewForConfig(c)
+	kubeaggregatorclientset, err := kubeaggregatorclientset.NewForConfig(restConfig)
 	if err != nil {
 		logrus.Error("kube aggregator; read kube config file error.", err)
 		return err

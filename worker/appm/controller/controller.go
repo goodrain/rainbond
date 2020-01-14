@@ -75,7 +75,7 @@ type Manager struct {
 }
 
 //NewManager new manager
-func NewManager(store store.Storer, client *kubernetes.Clientset, rbdNamespace, rbdDNSName string) *Manager {
+func NewManager(store store.Storer, client kubernetes.Interface, rbdNamespace, rbdDNSName string) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
 		ctx:          ctx,

@@ -87,6 +87,7 @@ type Request struct {
 	BuildEnvs     map[string]string
 	Logger        event.Logger
 	DockerClient  *client.Client
+	ExtraHosts    []string
 }
 
 //Commit Commit

@@ -33,7 +33,7 @@ import (
 )
 
 // ApplyOne applies one rule.
-func ApplyOne(clientset *kubernetes.Clientset, app *v1.AppService) error {
+func ApplyOne(clientset kubernetes.Interface, app *v1.AppService) error {
 	_, err := clientset.CoreV1().Namespaces().Get(app.TenantID, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
@@ -191,7 +191,7 @@ func EnsureHPA(new *v2beta1.HorizontalPodAutoscaler, clientSet kubernetes.Interf
 }
 
 // UpgradeIngress is used to update *extensions.Ingress.
-func UpgradeIngress(clientset *kubernetes.Clientset,
+func UpgradeIngress(clientset kubernetes.Interface,
 	as *v1.AppService,
 	old, new []*extensions.Ingress,
 	handleErr func(msg string, err error) error) error {
@@ -245,7 +245,7 @@ func UpgradeIngress(clientset *kubernetes.Clientset,
 }
 
 // UpgradeSecrets is used to update *corev1.Secret.
-func UpgradeSecrets(clientset *kubernetes.Clientset,
+func UpgradeSecrets(clientset kubernetes.Interface,
 	as *v1.AppService, old, new []*corev1.Secret,
 	handleErr func(msg string, err error) error) error {
 	var oldMap = make(map[string]*corev1.Secret, len(old))
@@ -363,7 +363,7 @@ func UpgradeClaims(clientset *kubernetes.Clientset, as *v1.AppService, old, new 
 }
 
 // UpgradeEndpoints is used to update *corev1.Endpoints.
-func UpgradeEndpoints(clientset *kubernetes.Clientset,
+func UpgradeEndpoints(clientset kubernetes.Interface,
 	as *v1.AppService, old, new []*corev1.Endpoints,
 	handleErr func(msg string, err error) error) error {
 	var oldMap = make(map[string]*corev1.Endpoints, len(old))

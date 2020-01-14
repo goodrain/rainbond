@@ -277,7 +277,8 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 		NetworkConfig: &sources.NetworkConfig{
 			NetworkMode: "host",
 		},
-		Args: []string{"local"},
+		Args:       []string{"local"},
+		ExtraHosts: re.ExtraHosts,
 	}
 	reader, err := s.getSourceCodeTarFile(re)
 	if err != nil {

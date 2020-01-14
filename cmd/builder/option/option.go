@@ -45,6 +45,8 @@ type Config struct {
 	CleanUp              bool
 	Topic                string
 	LogPath              string
+	RbdNamespace         string
+	RbdRepoName          string
 }
 
 //Builder  builder server
@@ -69,7 +71,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
 	fs.StringVar(&a.MysqlConnectionInfo, "mysql", "root:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
 	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"127.0.0.1:6366"}, "event log server address. simple lb")
-	fs.StringVar(&a.KubeConfig, "kube-config", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "kubernetes api server config file")
+	fs.StringVar(&a.KubeConfig, "kube-config", "", "kubernetes api server config file")
 	fs.IntVar(&a.MaxTasks, "max-tasks", 0, "Maximum number of simultaneous build tasks，If set to 0, the maximum limit is twice the number of CPU cores")
 	fs.IntVar(&a.APIPort, "api-port", 3228, "the port for api server")
 	fs.StringVar(&a.MQAPI, "mq-api", "127.0.0.1:6300", "acp_mq api")
@@ -79,6 +81,9 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&a.CleanUp, "clean-up", true, "Turn on build version cleanup")
 	fs.StringVar(&a.Topic, "topic", "builder", "Topic in mq,you coule choose `builder` or `windows_builder`")
 	fs.StringVar(&a.LogPath, "log-path", "/grdata/logs", "Where Docker log files and event log files are stored.")
+	fs.StringVar(&a.RbdNamespace, "rbd-namespace", "rbd-system", "rbd component namespace")
+	fs.StringVar(&a.RbdRepoName, "rbd-repo", "rbd-repo", "rbd component repo's name")
+
 }
 
 //SetLog 设置log

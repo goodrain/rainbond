@@ -30,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 
 	"github.com/Sirupsen/logrus"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -41,7 +42,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 const (
@@ -73,20 +73,22 @@ type KubeClient interface {
 
 //NewKubeClient NewKubeClient
 func NewKubeClient(cfg *conf.Conf) (KubeClient, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", cfg.K8SConfPath)
+	config, err := k8sutil.NewRestConfig(cfg.K8SConfPath)
 	if err != nil {
 		return nil, err
 	}
 	config.QPS = 50
 	config.Burst = 100
+
 	cli, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
+
 	stop := make(chan struct{})
 	sharedInformers := informers.NewFilteredSharedInformerFactory(cli, cfg.MinResyncPeriod, v1.NamespaceAll,
 		func(options *metav1.ListOptions) {
-			//options.LabelSelector = "creater=Rainbond"
+			//options.LabelSelector = "creator=Rainbond"
 		})
 	sharedInformers.Core().V1().Services().Informer()
 	sharedInformers.Core().V1().Endpoints().Informer()
@@ -102,7 +104,7 @@ func NewKubeClient(cfg *conf.Conf) (KubeClient, error) {
 }
 
 type kubeClient struct {
-	kubeclient      *kubernetes.Clientset
+	kubeclient      kubernetes.Interface
 	sharedInformers informers.SharedInformerFactory
 	stop            chan struct{}
 }
@@ -443,8 +445,8 @@ func (k *kubeClient) UpK8sNode(rainbondNode *client.HostNode) (*v1.Node, error) 
 			},
 		},
 	}
-	//set rainbond creater lable
-	node.Labels["creater"] = "Rainbond"
+	//set rainbond creator lable
+	node.Labels["creator"] = "Rainbond"
 	savedNode, err := k.kubeclient.CoreV1().Nodes().Create(node)
 	if err != nil {
 		return nil, err

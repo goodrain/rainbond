@@ -27,22 +27,20 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/goodrain/rainbond/gateway/cluster"
-
+	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
-
-	"github.com/goodrain/rainbond/util"
-
-	"github.com/goodrain/rainbond/discover"
-
-	"github.com/goodrain/rainbond/gateway/metric"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/cmd/gateway/option"
-	"github.com/goodrain/rainbond/gateway/controller"
 	"k8s.io/apiserver/pkg/server/healthz"
+	"k8s.io/client-go/kubernetes"
+
+	"github.com/goodrain/rainbond/cmd/gateway/option"
+	"github.com/goodrain/rainbond/discover"
+	"github.com/goodrain/rainbond/gateway/cluster"
+	"github.com/goodrain/rainbond/gateway/controller"
+	"github.com/goodrain/rainbond/gateway/metric"
+	"github.com/goodrain/rainbond/util"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 )
 
 //Run start run
@@ -51,6 +49,16 @@ func Run(s *option.GWServer) error {
 	errCh := make(chan error, 1)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	config, err := k8sutil.NewRestConfig(s.K8SConfPath)
+	if err != nil {
+		return err
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
 	//create cluster node manage
 	node, err := cluster.CreateNodeManager(s.Config)
 	if err != nil {
@@ -67,7 +75,8 @@ func Run(s *option.GWServer) error {
 		}
 	}
 	mc.Start()
-	gwc, err := controller.NewGWController(ctx, &s.Config, mc, node)
+
+	gwc, err := controller.NewGWController(ctx, clientset, &s.Config, mc, node)
 	if err != nil {
 		return err
 	}

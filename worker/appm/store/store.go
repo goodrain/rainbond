@@ -106,7 +106,7 @@ type ProbeInfo struct {
 //appRuntimeStore app runtime store
 //cache all kubernetes object and appservice
 type appRuntimeStore struct {
-	clientset             *kubernetes.Clientset
+	clientset             kubernetes.Interface
 	ctx                   context.Context
 	cancel                context.CancelFunc
 	informers             *Informer
@@ -122,7 +122,7 @@ type appRuntimeStore struct {
 }
 
 //NewStore new app runtime store
-func NewStore(clientset *kubernetes.Clientset,
+func NewStore(clientset kubernetes.Interface,
 	dbmanager db.Manager,
 	conf option.Config,
 	startCh *channels.RingChannel,
@@ -190,6 +190,7 @@ func NewStore(clientset *kubernetes.Clientset,
 	epEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			ep := obj.(*corev1.Endpoints)
+
 			serviceID := ep.Labels["service_id"]
 			version := ep.Labels["version"]
 			createrID := ep.Labels["creater_id"]
@@ -616,11 +617,11 @@ func (a *appRuntimeStore) listHPAEvents(hpa *v2beta1.HorizontalPodAutoscaler) er
 	return nil
 }
 
-//getAppService if  creater is true, will create new app service where not found in store
-func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, creater bool) (*v1.AppService, error) {
+//getAppService if  creator is true, will create new app service where not found in store
+func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, creator bool) (*v1.AppService, error) {
 	var appservice *v1.AppService
 	appservice = a.GetAppService(serviceID)
-	if appservice == nil && creater {
+	if appservice == nil && creator {
 		var err error
 		appservice, err = conversion.InitCacheAppService(a.dbmanager, serviceID, createrID)
 		if err != nil {
