@@ -26,8 +26,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 
-	clientv3 "github.com/coreos/etcd/clientv3"
 	etcdnaming "github.com/coreos/etcd/clientv3/naming"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
 )
@@ -55,11 +55,11 @@ type mqClient struct {
 }
 
 //NewMqClient new a mq client
-func NewMqClient(etcdendpoints []string, defaultserver string) (MQClient, error) {
+func NewMqClient(etcdClientArgs *etcdutil.ClientArgs, defaultserver string) (MQClient, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var conn *grpc.ClientConn
-	if etcdendpoints != nil && len(defaultserver) > 1 {
-		c, err := clientv3.New(clientv3.Config{Endpoints: etcdendpoints, Context: ctx, DialTimeout: 10 * time.Second})
+	if etcdClientArgs != nil && etcdClientArgs.Endpoints != nil && len(defaultserver) > 1 {
+		c, err := etcdutil.NewClient(ctx, etcdClientArgs)
 		if err != nil {
 			return nil, err
 		}

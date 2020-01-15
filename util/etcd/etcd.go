@@ -119,10 +119,16 @@ func newSequentialKV(kv v3.KV, prefix, val string) (*RemoteKV, error) {
 	return &RemoteKV{kv, newKey, txnresp.Header.Revision, val}, nil
 }
 
-func (rk *RemoteKV) Key() string     { return rk.key }
-func (rk *RemoteKV) Revision() int64 { return rk.rev }
-func (rk *RemoteKV) Value() string   { return rk.val }
+// Key key
+func (rk *RemoteKV) Key() string { return rk.key }
 
+// Revision revision
+func (rk *RemoteKV) Revision() int64 { return rk.rev }
+
+// Value value
+func (rk *RemoteKV) Value() string { return rk.val }
+
+// Delete delete
 func (rk *RemoteKV) Delete() error {
 	if rk.kv == nil {
 		return nil
@@ -132,6 +138,7 @@ func (rk *RemoteKV) Delete() error {
 	return err
 }
 
+// Put put
 func (rk *RemoteKV) Put(val string) error {
 	_, err := rk.kv.Put(context.TODO(), rk.key, val)
 	return err

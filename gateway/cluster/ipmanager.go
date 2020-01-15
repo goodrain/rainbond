@@ -31,6 +31,7 @@ import (
 
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/util"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
 //IPManager ip manager
@@ -56,10 +57,16 @@ type ipManager struct {
 //CreateIPManager create ip manage
 func CreateIPManager(config option.Config) (IPManager, error) {
 	IPPool := util.NewIPPool(config.IgnoreInterface)
-	etcdCli, err := clientv3.New(clientv3.Config{
+	etcdClientArgs := &etcdutil.ClientArgs{
 		Endpoints:   config.EtcdEndpoint,
+		CaFile:      config.EtcdCaFile,
+		CertFile:    config.EtcdCertFile,
+		KeyFile:     config.EtcdKeyFile,
 		DialTimeout: time.Duration(config.EtcdTimeout) * time.Second,
-	})
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	etcdCli, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
 		return nil, err
 	}

@@ -31,6 +31,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/client-go/kubernetes"
 
@@ -40,6 +41,8 @@ import (
 	"github.com/goodrain/rainbond/gateway/controller"
 	"github.com/goodrain/rainbond/gateway/metric"
 	"github.com/goodrain/rainbond/util"
+
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 )
 
@@ -95,8 +98,13 @@ func Run(s *option.GWServer) error {
 		util.ProfilerSetup(mux)
 	}
 	go startHTTPServer(s.ListenPorts.Health, mux)
-
-	keepalive, err := discover.CreateKeepAlive(s.Config.EtcdEndpoint, "gateway", s.Config.NodeName,
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints: s.Config.EtcdEndpoint,
+		CaFile:    s.Config.EtcdCaFile,
+		CertFile:  s.Config.EtcdCertFile,
+		KeyFile:   s.Config.EtcdKeyFile,
+	}
+	keepalive, err := discover.CreateKeepAlive(etcdClientArgs, "gateway", s.Config.NodeName,
 		s.Config.HostIP, s.ListenPorts.Health)
 	if err != nil {
 		return err

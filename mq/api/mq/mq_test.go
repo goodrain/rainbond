@@ -35,7 +35,7 @@ func TestEnqueue(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer mq.Stop()
-	err = mq.Enqueue("manager", "hello word")
+	err = mq.Enqueue(context.Background(), "manager", "hello word")
 	if err != nil {
 		t.Fatal(err)
 	}
