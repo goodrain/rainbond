@@ -30,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/callback"
 	"github.com/goodrain/rainbond/monitor/prometheus"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/util/watch"
 	"github.com/tidwall/gjson"
 )
@@ -214,24 +215,26 @@ func NewMonitor(opt *option.Config, p *prometheus.Manager) *Monitor {
 	ctx, cancel := context.WithCancel(context.Background())
 	defaultTimeout := time.Second * 3
 
-	cli, err := v3.New(v3.Config{
+	etcdClientArgs := &etcdutil.ClientArgs{
 		Endpoints:   opt.EtcdEndpoints,
 		DialTimeout: defaultTimeout,
-	})
+		CaFile:      opt.EtcdCaFile,
+		CertFile:    opt.EtcdCertFile,
+		KeyFile:     opt.EtcdKeyFile,
+	}
+
+	cli, err := etcdutil.NewClient(ctx, etcdClientArgs)
+	v3.New(v3.Config{})
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
-	dc1, err := discoverv1.GetDiscover(config.DiscoverConfig{
-		EtcdClusterEndpoints: opt.EtcdEndpoints,
-	})
+	dc1, err := discoverv1.GetDiscover(config.DiscoverConfig{EtcdClientArgs: etcdClientArgs})
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
-	dc3, err := discoverv2.GetDiscover(config.DiscoverConfig{
-		EtcdClusterEndpoints: opt.EtcdEndpoints,
-	})
+	dc3, err := discoverv2.GetDiscover(config.DiscoverConfig{EtcdClientArgs: etcdClientArgs})
 	if err != nil {
 		logrus.Fatal(err)
 	}

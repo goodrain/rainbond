@@ -19,10 +19,11 @@
 package etcd
 
 import (
+	"context"
+	"sync"
+
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/model"
-	"sync"
-	"time"
 
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 
@@ -40,10 +41,15 @@ type Manager struct {
 
 //CreateManager 创建manager
 func CreateManager(config config.Config) (*Manager, error) {
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   config.EtcdEndPoints,
-		DialTimeout: time.Duration(config.EtcdTimeout) * time.Second,
-	})
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints: config.EtcdEndPoints,
+		CaFile:    config.EtcdCaFile,
+		CertFile:  config.EtcdCertFile,
+		KeyFile:   config.EtcdKeyFile,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cli, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
 		etcdutil.HandleEtcdError(err)
 		return nil, err

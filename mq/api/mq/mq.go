@@ -45,7 +45,10 @@ type ActionMQ interface {
 	Stop() error
 }
 
+// EnqueueNumber enqueue number
 var EnqueueNumber float64 = 0
+
+// DequeueNumber dequeue number
 var DequeueNumber float64 = 0
 
 //NewActionMQ new etcd mq
@@ -68,10 +71,16 @@ type etcdQueue struct {
 
 func (e *etcdQueue) Start() error {
 	logrus.Debug("etcd message queue client starting")
-	cli, err := clientv3.New(clientv3.Config{
+	etcdClientArgs := &etcdutil.ClientArgs{
 		Endpoints:   e.config.EtcdEndPoints,
+		CaFile:      e.config.EtcdCaFile,
+		CertFile:    e.config.EtcdCertFile,
+		KeyFile:     e.config.EtcdKeyFile,
 		DialTimeout: time.Duration(e.config.EtcdTimeout) * time.Second,
-	})
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cli, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
 		etcdutil.HandleEtcdError(err)
 		return err
@@ -122,13 +131,13 @@ func (e *etcdQueue) queueKey(topic string) string {
 	return e.config.EtcdPrefix + "/" + topic
 }
 func (e *etcdQueue) Enqueue(ctx context.Context, topic, value string) error {
-	EnqueueNumber += 1
-	queue := etcdutil.NewQueue(e.client, e.queueKey(topic), ctx)
+	EnqueueNumber++
+	queue := etcdutil.NewQueue(ctx, e.client, e.queueKey(topic))
 	return queue.Enqueue(value)
 }
 
 func (e *etcdQueue) Dequeue(ctx context.Context, topic string) (string, error) {
-	DequeueNumber += 1
-	queue := etcdutil.NewQueue(e.client, e.queueKey(topic), ctx)
+	DequeueNumber++
+	queue := etcdutil.NewQueue(ctx, e.client, e.queueKey(topic))
 	return queue.Dequeue()
 }

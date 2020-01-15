@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	mqclient "github.com/goodrain/rainbond/mq/client"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/worker/client"
 )
 
@@ -63,7 +64,13 @@ func GetManager() V2Manager {
 
 //NewManager new manager
 func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2Routes, error) {
-	mqClient, err := mqclient.NewMqClient(conf.EtcdEndpoint, conf.MQAPI)
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints: conf.EtcdEndpoint,
+		CaFile:    conf.EtcdCaFile,
+		CertFile:  conf.EtcdCertFile,
+		KeyFile:   conf.EtcdKeyFile,
+	}
+	mqClient, err := mqclient.NewMqClient(etcdClientArgs, conf.MQAPI)
 	if err != nil {
 		return nil, err
 	}

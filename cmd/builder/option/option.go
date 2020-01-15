@@ -29,6 +29,9 @@ import (
 //Config config server
 type Config struct {
 	EtcdEndPoints        []string
+	EtcdCaFile           string
+	EtcdCertFile         string
+	EtcdKeyFile          string
 	EtcdTimeout          int
 	EtcdPrefix           string
 	ClusterName          string
@@ -65,6 +68,9 @@ func NewBuilder() *Builder {
 func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the builder log level")
 	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd v3 cluster endpoints.")
+	fs.StringVar(&a.EtcdCaFile, "etcd-ca", "", "")
+	fs.StringVar(&a.EtcdCertFile, "etcd-cert", "", "")
+	fs.StringVar(&a.EtcdKeyFile, "etcd-key", "", "")
 	fs.IntVar(&a.EtcdTimeout, "etcd-timeout", 5, "etcd http timeout seconds")
 	fs.StringVar(&a.EtcdPrefix, "etcd-prefix", "/store", "the etcd data save key prefix ")
 	fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")

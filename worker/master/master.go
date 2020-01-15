@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
@@ -33,6 +32,7 @@ import (
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/util/leader"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/master/metricsserv"
@@ -87,12 +87,15 @@ func NewMasterController(conf option.Config, store store.Storer, kubeaggregatorc
 		rainbondsslcProvisioner.Name(): rainbondsslcProvisioner,
 	}, serverVersion.GitVersion)
 	stopCh := make(chan struct{})
-
-	clientv3, err := clientv3.New(clientv3.Config{
+	etcdClientArgs := &etcdutil.ClientArgs{
 		Endpoints:        conf.EtcdEndPoints,
+		CaFile:           conf.EtcdCaFile,
+		CertFile:         conf.EtcdCertFile,
+		KeyFile:          conf.EtcdKeyFile,
 		AutoSyncInterval: time.Second * 30,
 		DialTimeout:      time.Second * 10,
-	})
+	}
+	clientv3, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
 		cancel()
 		return nil, err
