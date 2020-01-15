@@ -11,10 +11,6 @@ import (
 )
 
 func dns2Config(endpoint *corev1.Endpoints, podNamespace string) (podDNSConfig *corev1.PodDNSConfig) {
-	if endpoint == nil {
-		logrus.Debug("rbd-dns endpoint is nil")
-		return nil
-	}
 	servers := make([]string, 0)
 	for _, sub := range endpoint.Subsets {
 		for _, addr := range sub.Addresses {
@@ -32,6 +28,10 @@ func dns2Config(endpoint *corev1.Endpoints, podNamespace string) (podDNSConfig *
 
 // MakePodDNSConfig make pod dns config
 func MakePodDNSConfig(clientset kubernetes.Interface, podNamespace, rbdNamespace, rbdEndpointDNSName string) (podDNSConfig *corev1.PodDNSConfig) {
-	endpoints, _ := clientset.CoreV1().Endpoints(rbdNamespace).Get(rbdEndpointDNSName, metav1.GetOptions{})
+	endpoints, err := clientset.CoreV1().Endpoints(rbdNamespace).Get(rbdEndpointDNSName, metav1.GetOptions{})
+	if err != nil {
+		logrus.Warningf("get rbd-dns[namespace: %s, name: %s] endpoints error: %s", rbdNamespace, rbdEndpointDNSName, err.Error())
+		return nil
+	}
 	return dns2Config(endpoints, podNamespace)
 }
