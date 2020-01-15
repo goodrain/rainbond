@@ -1,5 +1,5 @@
+// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
-// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,21 +16,31 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package v1
+package node
 
-//GetCommonLabels get common labels
-func (a *AppService) GetCommonLabels(labels ...map[string]string) map[string]string {
-	var resultLabel = make(map[string]string)
-	for _, l := range labels {
-		for k, v := range l {
-			resultLabel[k] = v
-		}
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"testing"
+
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+)
+
+func TestCluster_handleNodeStatus(t *testing.T) {
+	config, err := clientcmd.BuildConfigFromFlags("", "/Users/fanyangyang/Documents/company/goodrain/remote/192.168.2.200/admin.kubeconfig")
+	if err != nil {
+		return
 	}
-	resultLabel["creator"] = "Rainbond"
-	resultLabel["creater_id"] = a.CreaterID
-	resultLabel["service_id"] = a.ServiceID
-	resultLabel["service_alias"] = a.ServiceAlias
-	resultLabel["tenant_name"] = a.TenantName
-	resultLabel["tenant_id"] = a.TenantID
-	return resultLabel
+	cli, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	node, err := cli.CoreV1().Nodes().Get("192.168.2.200", metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("node is :%+v", node)
+	t.Logf("cpu:%v", node.Status.Allocatable.Cpu().Value())
+	t.Logf("mem: %v", node.Status.Allocatable.Memory().Value())
 }

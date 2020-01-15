@@ -29,6 +29,7 @@ import (
 
 	"github.com/goodrain/rainbond/gateway/cluster"
 
+	"k8s.io/client-go/kubernetes"
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/eapache/channels"
@@ -218,7 +219,7 @@ func (gwc *GWController) getDelUpdPools(updPools []*v1.Pool) ([]*v1.Pool, []*v1.
 }
 
 //NewGWController new Gateway controller
-func NewGWController(ctx context.Context, cfg *option.Config, mc metric.Collector, node *cluster.NodeManager) (*GWController, error) {
+func NewGWController(ctx context.Context, clientset kubernetes.Interface, cfg *option.Config, mc metric.Collector, node *cluster.NodeManager) (*GWController, error) {
 	gwc := &GWController{
 		updateCh:        channels.NewRingChannel(1024),
 		stopLock:        &sync.Mutex{},
@@ -246,13 +247,9 @@ func NewGWController(ctx context.Context, cfg *option.Config, mc metric.Collecto
 		gwc.EtcdCli = cli
 	}
 	gwc.GWS = openresty.CreateOpenrestyService(cfg, &gwc.isShuttingDown)
-	clientSet, err := NewClientSet(cfg.K8SConfPath)
-	if err != nil {
-		logrus.Error("can't create kubernetes's client.")
-		return nil, err
-	}
+
 	gwc.store = store.New(
-		clientSet,
+		clientset,
 		gwc.updateCh,
 		cfg, node)
 	gwc.syncQueue = task.NewTaskQueue(gwc.syncGateway)

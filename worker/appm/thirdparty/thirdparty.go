@@ -45,7 +45,7 @@ type ThirdPartier interface {
 }
 
 // NewThirdPartier creates a new ThirdPartier.
-func NewThirdPartier(clientset *kubernetes.Clientset,
+func NewThirdPartier(clientset kubernetes.Interface,
 	store store.Storer,
 	startCh *channels.RingChannel,
 	updateCh *channels.RingChannel,
@@ -63,7 +63,7 @@ func NewThirdPartier(clientset *kubernetes.Clientset,
 }
 
 type thirdparty struct {
-	clientset *kubernetes.Clientset
+	clientset kubernetes.Interface
 	store     store.Storer
 
 	// a collection of stop channel for every service.

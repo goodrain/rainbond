@@ -96,7 +96,7 @@ type ListenPorts struct {
 // AddFlags adds flags
 func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.LogLevel, "log-level", "debug", "the gateway log level")
-	fs.StringVar(&g.K8SConfPath, "kube-conf", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "absolute path to the kubeconfig file")
+	fs.StringVar(&g.K8SConfPath, "kube-conf", "", "absolute path to the kubeconfig file")
 	fs.IntVar(&g.ListenPorts.Status, "status-port", 18080, `Port to use for exposing NGINX status pages.`)
 	fs.IntVar(&g.WorkerProcesses, "worker-processes", 0, "Default get current compute cpu core number.This number should be, at maximum, the number of CPU cores on your system.")
 	fs.IntVar(&g.WorkerConnections, "worker-connections", 4000, "Determines how many clients will be served by each worker process.")
@@ -149,12 +149,6 @@ func (g *GWServer) SetLog() {
 
 //CheckConfig check config
 func (g *GWServer) CheckConfig() error {
-	if g.K8SConfPath == "" {
-		return fmt.Errorf("kube config file path can not be empty")
-	}
-	if exist, _ := util.FileExists(g.K8SConfPath); !exist {
-		return fmt.Errorf("kube config file %s not exist", g.K8SConfPath)
-	}
 	if g.NodeName == "" {
 		g.NodeName, _ = os.Hostname()
 	}

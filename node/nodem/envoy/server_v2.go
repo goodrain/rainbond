@@ -99,7 +99,7 @@ func (n *NodeConfig) GetID() string {
 //if return true, snapshot need update
 func (n *NodeConfig) TryUpdate(obj interface{}) (needUpdate bool) {
 	if service, ok := obj.(*corev1.Service); ok {
-		if v, ok := service.Labels["creater"]; !ok || v != "Rainbond" {
+		if v, ok := service.Labels["creator"]; !ok || v != "Rainbond" {
 			return false
 		}
 		if _, ok := n.dependServices.Load(service.Labels["service_id"]); ok {
@@ -107,7 +107,7 @@ func (n *NodeConfig) TryUpdate(obj interface{}) (needUpdate bool) {
 		}
 	}
 	if endpoints, ok := obj.(*corev1.Endpoints); ok {
-		if v, ok := endpoints.Labels["creater"]; !ok || v != "Rainbond" {
+		if v, ok := endpoints.Labels["creator"]; !ok || v != "Rainbond" {
 			return false
 		}
 		if _, ok := n.dependServices.Load(endpoints.Labels["service_id"]); ok {
@@ -258,7 +258,7 @@ func CreateDiscoverServerManager(client kubecache.KubeClient, conf option.Conf) 
 		queue:  NewQueue(1 * time.Second),
 	}
 	sharedInformers := informers.NewFilteredSharedInformerFactory(dsm.kubecli, time.Second*10, corev1.NamespaceAll, func(options *meta_v1.ListOptions) {
-		options.LabelSelector = "creater=Rainbond"
+		options.LabelSelector = "creator=Rainbond"
 	})
 	svcInformer := sharedInformers.Core().V1().Services().Informer()
 	dsm.services = dsm.createCacheHandler(svcInformer, "Services")
