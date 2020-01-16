@@ -19,6 +19,7 @@
 package parser
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -293,4 +294,48 @@ func TestDockerCompose30Parse(t *testing.T) {
 		return
 	}
 	fmt.Printf("ServiceInfo:%+v \n", p.GetServiceInfo())
+}
+
+var fanyy = `
+version: "2"
+services:
+  DOClever:
+    image: lw96/doclever
+    restart: always
+    container_name: "DOClever"
+    ports:
+    - 10000:10000
+    volumes:
+    - /root/doclever/data/file:/root/DOClever/data/file
+    - /root/doclever/data/img:/root/DOClever/data/img
+    - /root/doclever/data/tmp:/root/DOClever/data/tmp
+    environment:
+    - DB_HOST=mongodb://mongo:27017/DOClever
+    - PORT=10000
+    links:
+    - mongo:mongo
+
+  mongo:
+    image: mongo:latest
+    restart: always
+    container_name: "mongodb"
+    ports:
+    - 27017:27017
+    volumes:
+    - /root/doclever/data/db:/data/db
+`
+
+func TestDockerComposefanyy(t *testing.T) {
+	dockerclient, err := client.NewEnvClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := CreateDockerComposeParse(fanyy, dockerclient, "", "", event.GetTestLogger())
+	if err := p.Parse(); err != nil {
+		logrus.Errorf(err.Error())
+		return
+	}
+	svsInfos := p.GetServiceInfo()
+	ss, _ := json.Marshal(svsInfos)
+	fmt.Printf("ServiceInfo:%+v \n", string(ss))
 }

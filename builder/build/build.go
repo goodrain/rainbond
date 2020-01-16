@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/event"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/docker/docker/client"
 )
@@ -87,7 +88,18 @@ type Request struct {
 	BuildEnvs     map[string]string
 	Logger        event.Logger
 	DockerClient  *client.Client
+	KubeClient    kubernetes.Interface
 	ExtraHosts    []string
+	HostAlias     []HostAlias
+}
+
+// HostAlias holds the mapping between IP and hostnames that will be injected as an entry in the
+// pod's hosts file.
+type HostAlias struct {
+	// IP address of the host file entry.
+	IP string `json:"ip,omitempty" protobuf:"bytes,1,opt,name=ip"`
+	// Hostnames for the above IP address.
+	Hostnames []string `json:"hostnames,omitempty" protobuf:"bytes,2,rep,name=hostnames"`
 }
 
 //Commit Commit

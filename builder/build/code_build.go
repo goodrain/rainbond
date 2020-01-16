@@ -29,6 +29,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -39,6 +40,10 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
+
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func slugBuilder() (Build, error) {
@@ -58,7 +63,7 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 	s.re = re
 	s.buildCacheDir = re.CacheDir
 	packageName := fmt.Sprintf("%s/%s.tgz", s.tgzDir, re.DeployVersion)
-	if err := s.runBuildContainer(re); err != nil {
+	if err := s.runBuildJob(re); err != nil {
 		re.Logger.Error(util.Translation("Compiling the source code failure"), map[string]string{"step": "build-code", "status": "failure"})
 		logrus.Error("build slug in container error,", err.Error())
 		return nil, err
@@ -229,6 +234,174 @@ func (s *slugBuild) getSourceCodeTarFile(re *Request) (*os.File, error) {
 		return nil, err
 	}
 	return os.OpenFile(sourceTarFile, os.O_RDONLY, 0755)
+}
+
+func (s *slugBuild) prepareSourceCodeFile(re *Request) error {
+	var cmd []string
+	if re.ServerType == "svn" {
+		cmd = append(cmd, "rm", "-rf", path.Join(re.SourceDir, "./.svn"))
+	}
+	if re.ServerType == "git" {
+		cmd = append(cmd, "rm", "-rf", path.Join(re.SourceDir, "./.git"))
+	}
+	source := exec.Command(cmd[0], cmd[1:]...)
+	if err := source.Run(); err != nil {
+		return err
+	}
+	logrus.Debug("delete .git and .svn folder success")
+	return nil
+}
+
+func (s *slugBuild) runBuildJob(re *Request) error {
+	// delete .git and .svn folder
+	s.prepareSourceCodeFile(re)
+	name := re.ServiceID
+	namespace := re.TenantID
+	envs := []corev1.EnvVar{
+		corev1.EnvVar{Name: "SLUG_VERSION", Value: re.DeployVersion},
+		corev1.EnvVar{Name: "SERVICE_ID", Value: re.ServiceID},
+		corev1.EnvVar{Name: "TENANT_ID", Value: re.TenantID},
+		corev1.EnvVar{Name: "LANGUAGE", Value: re.Lang.String()},
+	}
+	for k, v := range re.BuildEnvs {
+		envs = append(envs, corev1.EnvVar{Name: k, Value: v})
+		if k == "PROC_ENV" {
+			var mapdata = make(map[string]interface{})
+			if err := json.Unmarshal([]byte(v), &mapdata); err == nil {
+				if runtime, ok := mapdata["runtimes"]; ok {
+					envs = append(envs, corev1.EnvVar{Name: "RUNTIME", Value: runtime.(string)})
+				}
+			}
+		}
+	}
+	job := batchv1.Job{}
+	job.Name = name
+	job.Namespace = namespace
+	// var ttl int32
+	// ttl = 5
+	// job.Spec.TTLSecondsAfterFinished = &ttl //  k8s version >= 1.12
+	podTempSpec := corev1.PodTemplateSpec{}
+	podTempSpec.Name = name
+	podTempSpec.Namespace = namespace
+
+	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
+	hostPathType := corev1.HostPathDirectoryOrCreate
+	podSpec.Volumes = []corev1.Volume{
+		corev1.Volume{
+			Name: "cache",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{Path: re.CacheDir, Type: &hostPathType},
+			},
+		},
+		corev1.Volume{
+			Name: "slug",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{Path: re.TGZDir, Type: &hostPathType},
+			},
+		},
+		corev1.Volume{
+			Name: "app",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{Path: re.SourceDir, Type: &hostPathType},
+			},
+		},
+	}
+	container := corev1.Container{Name: name, Image: builder.BUILDERIMAGENAME, Stdin: true, StdinOnce: true}
+	container.Env = envs
+	container.Args = []string{"local"}
+	container.VolumeMounts = []corev1.VolumeMount{
+		corev1.VolumeMount{
+			Name:      "cache",
+			MountPath: "/tmp/cache",
+		},
+		corev1.VolumeMount{
+			Name:      "slug",
+			MountPath: "/tmp/slug",
+		},
+		corev1.VolumeMount{
+			Name:      "app",
+			MountPath: "/tmp/app",
+		},
+	}
+	podSpec.Containers = append(podSpec.Containers, container)
+	// for _, ha := range re.HostAlias {// TODO fanyangyang wait k8s cluster
+	// 	podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: ha.IP, Hostnames: ha.Hostnames})
+	// }
+	podTempSpec.Spec = podSpec
+	job.Spec.Template = podTempSpec
+	_, err := re.KubeClient.BatchV1().Jobs(namespace).Create(&job)
+	if err != nil {
+		return err
+	}
+
+	containerID := ""
+	for {
+		logrus.Debug("get container id")
+		podList, err := re.KubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+
+		for _, pod := range podList.Items {
+			for _, container := range pod.Status.ContainerStatuses {
+				containerID = strings.TrimPrefix(container.ContainerID, "docker://")
+				break
+			}
+		}
+		if containerID != "" {
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	containerService := sources.CreateDockerService(ctx, re.DockerClient)
+	errchan := make(chan error, 1)
+	re.Logger.Info("waiting finished", map[string]string{"step": "build"})
+	writer := re.Logger.GetWriter("builder", "info")
+	close, err := containerService.AttachContainer(containerID, true, true, true, nil, writer, writer, &errchan)
+	if err != nil {
+		containerService.RemoveContainer(containerID)
+		return fmt.Errorf("attach builder container error:%s", err.Error())
+	}
+	defer close()
+	statuschan := containerService.WaitExitOrRemoved(containerID, true)
+	if err := <-errchan; err != nil {
+		logrus.Debugf("Error hijack: %s", err)
+	}
+	status := <-statuschan
+	if status != 0 {
+		return &ErrorBuild{Code: status}
+	}
+	for {
+		time.Sleep(5 * time.Second)
+		logrus.Debug("waiting job finish")
+		job, err := re.KubeClient.BatchV1().Jobs(re.TenantID).Get(re.ServiceID, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		fmt.Printf("pod Name is : %s", job.Spec.Template.Name)
+		if job.Status.Succeeded == 1 {
+			err = re.KubeClient.BatchV1().Jobs(re.TenantID).Delete(re.ServiceID, &metav1.DeleteOptions{})
+			if err != nil {
+				return fmt.Errorf("delete job error : %s", err.Error())
+			}
+			logrus.Info("delete job success")
+			break
+		}
+		if job.Status.Failed == 1 {
+			err = re.KubeClient.BatchV1().Jobs(re.TenantID).Delete(re.ServiceID, &metav1.DeleteOptions{})
+			if err != nil {
+				return fmt.Errorf("delete job error : %s", err.Error())
+			}
+			//TODO fanyangyang 不会停，不会restart，重启策略delete job
+			// can't delete pod auto
+			return fmt.Errorf("job running failed, delete it")
+		}
+	}
+	return nil
 }
 
 func (s *slugBuild) runBuildContainer(re *Request) error {
