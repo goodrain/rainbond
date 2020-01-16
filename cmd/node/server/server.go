@@ -20,25 +20,24 @@ package server
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/node/init"
 	"os"
+	"os/signal"
 	"syscall"
 
-	"github.com/goodrain/rainbond/node/nodem/docker"
-	"github.com/goodrain/rainbond/node/nodem/envoy"
-
 	"github.com/goodrain/rainbond/cmd/node/option"
+	eventLog "github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/node/api"
 	"github.com/goodrain/rainbond/node/api/controller"
 	"github.com/goodrain/rainbond/node/core/store"
+	"github.com/goodrain/rainbond/node/initiate"
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/masterserver"
 	"github.com/goodrain/rainbond/node/nodem"
+	"github.com/goodrain/rainbond/node/nodem/docker"
+	"github.com/goodrain/rainbond/node/nodem/envoy"
 
 	"github.com/Sirupsen/logrus"
-
-	eventLog "github.com/goodrain/rainbond/event"
-
-	"os/signal"
 )
 
 //Run start run
@@ -51,6 +50,11 @@ func Run(c *option.Conf) error {
 	startfunc := func() error {
 		if err := c.ParseClient(); err != nil {
 			return fmt.Errorf("config parse error:%s", err.Error())
+		}
+
+		hostManager := init.NewHostManager(c.ImageRepositoryIPAddress, c.ImageRepositoryHost)
+		if err := hostManager.CleanupAndFlush(); err != nil {
+			logrus.Errorf("error writing image repository resolve: %v", err)
 		}
 
 		nodemanager, err := nodem.NewNodeManager(c)
