@@ -19,33 +19,40 @@
 package handler
 
 import (
+	"context"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/coreos/etcd/clientv3"
 	api_db "github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/handler/group"
 	"github.com/goodrain/rainbond/api/handler/share"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/worker/client"
 )
 
 //InitHandle 初始化handle
 func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) error {
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints:   conf.EtcdEndpoint,
+		CaFile:      conf.EtcdCaFile,
+		CertFile:    conf.EtcdCertFile,
+		KeyFile:     conf.EtcdKeyFile,
+		DialTimeout: 10 * time.Second,
+	}
 	mq := api_db.MQManager{
-		EtcdEndpoint:  conf.EtcdEndpoint,
-		DefaultServer: conf.MQAPI,
+		EtcdClientArgs: etcdClientArgs,
+		DefaultServer:  conf.MQAPI,
 	}
 	mqClient, errMQ := mq.NewMQManager()
 	if errMQ != nil {
 		logrus.Errorf("new MQ manager failed, %v", errMQ)
 		return errMQ
 	}
-	etcdCli, err := clientv3.New(clientv3.Config{
-		Endpoints:   conf.EtcdEndpoint,
-		DialTimeout: 10 * time.Second,
-	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	etcdCli, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
 		logrus.Errorf("create etcd client v3 error, %v", err)
 		return err
@@ -58,7 +65,7 @@ func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) erro
 	defaultNetRulesHandler = CreateNetRulesManager(etcdCli)
 	defaultCloudHandler = CreateCloudManager(conf)
 	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdCli)
-	//需要使用etcd v2 API
+	//需要使用etcd v2 API TODO fanyangyang
 	defaultEventHandler = CreateLogManager(conf.EtcdEndpoint)
 	shareHandler = &share.ServiceShareHandle{MQClient: mqClient, EtcdCli: etcdCli}
 	pluginShareHandler = &share.PluginShareHandle{MQClient: mqClient, EtcdCli: etcdCli}

@@ -48,6 +48,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
 //Manager apiserver
@@ -193,16 +194,20 @@ func (m *Manager) Run() {
 
 //EventLogInstance 查询event server instance
 func (m *Manager) EventLogInstance(w http.ResponseWriter, r *http.Request) {
-	etcdclient, err := clientv3.New(clientv3.Config{
+	etcdClientArgs := &etcdutil.ClientArgs{
 		Endpoints:   m.conf.EtcdEndpoint,
+		CaFile:      m.conf.EtcdCaFile,
+		CertFile:    m.conf.EtcdCertFile,
+		KeyFile:     m.conf.EtcdKeyFile,
 		DialTimeout: 10 * time.Second,
-	})
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	etcdclient, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
 		w.WriteHeader(500)
 		return
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	res, err := etcdclient.Get(ctx, "/event/instance", clientv3.WithPrefix())
 	if err != nil {
 		w.WriteHeader(500)

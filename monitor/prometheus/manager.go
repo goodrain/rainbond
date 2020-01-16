@@ -33,6 +33,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
 	"github.com/goodrain/rainbond/discover"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/prometheus/common/model"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -66,7 +67,13 @@ func NewManager(config *option.Config, a *AlertingRulesManager) *Manager {
 		Timeout: time.Second * 3,
 	}
 
-	reg, err := discover.CreateKeepAlive(config.EtcdEndpoints, "prometheus", config.BindIp, config.BindIp, config.Port)
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints: config.EtcdEndpoints,
+		CaFile:    config.EtcdCaFile,
+		CertFile:  config.EtcdCertFile,
+		KeyFile:   config.EtcdKeyFile,
+	}
+	reg, err := discover.CreateKeepAlive(etcdClientArgs, "prometheus", config.BindIP, config.BindIP, config.Port)
 	if err != nil {
 		panic(err)
 	}
@@ -96,7 +103,7 @@ func NewManager(config *option.Config, a *AlertingRulesManager) *Manager {
 		ServiceDiscoveryConfig: ServiceDiscoveryConfig{
 			StaticConfigs: []*Group{
 				{
-					Targets: config.AlertManagerUrl,
+					Targets: config.AlertManagerURL,
 				},
 			},
 		},

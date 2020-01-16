@@ -18,6 +18,7 @@
 
 package conf
 
+// Conf conf
 type Conf struct {
 	Entry       EntryConf
 	EventStore  EventStoreConf
@@ -28,10 +29,14 @@ type Conf struct {
 	Cluster     ClusterConf
 	Kubernetes  KubernetsConf
 }
+
+// WebHookConf webhook conf
 type WebHookConf struct {
 	ConsoleURL   string
 	ConsoleToken string
 }
+
+// DBConf db conf
 type DBConf struct {
 	Type        string
 	URL         string
@@ -40,6 +45,7 @@ type DBConf struct {
 	HomePath    string
 }
 
+// WebSocketConf websocket conf
 type WebSocketConf struct {
 	BindIP               string
 	BindPort             int
@@ -55,12 +61,14 @@ type WebSocketConf struct {
 	PrometheusMetricPath string
 }
 
+// LogConf log conf
 type LogConf struct {
 	LogLevel   string
 	LogOutType string
 	LogPath    string
 }
 
+// EntryConf entry conf
 type EntryConf struct {
 	EventLogServer              EventLogServerConf
 	DockerLogServer             DockerLogServerConf
@@ -68,12 +76,14 @@ type EntryConf struct {
 	NewMonitorMessageServerConf NewMonitorMessageServerConf
 }
 
+// EventLogServerConf eventlog server conf
 type EventLogServerConf struct {
 	BindIP           string
 	BindPort         int
 	CacheMessageSize int
 }
 
+// DockerLogServerConf docker log server conf
 type DockerLogServerConf struct {
 	BindIP           string
 	BindPort         int
@@ -81,9 +91,13 @@ type DockerLogServerConf struct {
 	Mode             string
 }
 
+// DiscoverConf discover conf
 type DiscoverConf struct {
 	Type          string
 	EtcdAddr      []string
+	EtcdCaFile    string
+	EtcdCertFile  string
+	EtcdKeyFile   string
 	EtcdUser      string
 	EtcdPass      string
 	ClusterMode   bool
@@ -94,12 +108,14 @@ type DiscoverConf struct {
 	NodeIDFile    string
 }
 
+// PubSubConf pub sub conf
 type PubSubConf struct {
 	PubBindIP   string
 	PubBindPort int
 	ClusterMode bool
 }
 
+// EventStoreConf event store conf
 type EventStoreConf struct {
 	EventLogPersistenceLength   int64
 	MessageType                 string
@@ -114,20 +130,26 @@ type EventStoreConf struct {
 	HandleDockerLogCoreNumber   int
 	DB                          DBConf
 }
+
+// KubernetsConf kubernetes conf
 type KubernetsConf struct {
 	Master string
 }
+
+// ClusterConf cluster conf
 type ClusterConf struct {
 	PubSub   PubSubConf
 	Discover DiscoverConf
 }
 
+// MonitorMessageServerConf monitor message server conf
 type MonitorMessageServerConf struct {
 	SubAddress       []string
 	SubSubscribe     string
 	CacheMessageSize int
 }
 
+// NewMonitorMessageServerConf new monitor message server conf
 type NewMonitorMessageServerConf struct {
 	ListenerHost string
 	ListenerPort int
