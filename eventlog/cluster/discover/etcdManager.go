@@ -40,7 +40,7 @@ func CreateETCDClient(conf conf.DiscoverConf) (client.KeysAPI, error) {
 		Password:                conf.EtcdPass,
 		HeaderTimeoutPerRequest: time.Second * 5,
 	}
-	c, err := client.New(cfg)
+	c, err := client.New(cfg) // TODO fanyangyang etcd v2
 	if err != nil {
 		return nil, err
 	}

@@ -28,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/mq/api"
 
 	"github.com/Sirupsen/logrus"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
 //Run start run
@@ -42,8 +43,15 @@ func Run(s *option.MQServer) error {
 	apiManager.Start(errChan)
 	defer apiManager.Stop()
 
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints: s.Config.EtcdEndPoints,
+		CaFile:    s.Config.EtcdCaFile,
+		CertFile:  s.Config.EtcdCertFile,
+		KeyFile:   s.Config.EtcdKeyFile,
+	}
+
 	//step 2:regist mq endpoint
-	keepalive, err := discover.CreateKeepAlive(s.EtcdEndPoints, "rainbond_mq", s.Config.HostName, s.Config.HostIP, s.Config.APIPort)
+	keepalive, err := discover.CreateKeepAlive(etcdClientArgs, "rainbond_mq", s.Config.HostName, s.Config.HostIP, s.Config.APIPort)
 	if err != nil {
 		return err
 	}
@@ -53,7 +61,7 @@ func Run(s *option.MQServer) error {
 	defer keepalive.Stop()
 
 	//step 3:regist prometheus export endpoint
-	exportKeepalive, err := discover.CreateKeepAlive(s.EtcdEndPoints, "mq", s.Config.HostName, s.Config.HostIP, 6301)
+	exportKeepalive, err := discover.CreateKeepAlive(etcdClientArgs, "mq", s.Config.HostName, s.Config.HostIP, 6301)
 	if err != nil {
 		return err
 	}

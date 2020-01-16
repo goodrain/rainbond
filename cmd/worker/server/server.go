@@ -32,6 +32,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm"
 	"github.com/goodrain/rainbond/worker/appm/controller"
@@ -57,10 +58,15 @@ func Run(s *option.Worker) error {
 		return err
 	}
 	defer db.CloseManager()
-
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints: s.Config.EtcdEndPoints,
+		CaFile:    s.Config.EtcdCaFile,
+		CertFile:  s.Config.EtcdCertFile,
+		KeyFile:   s.Config.EtcdKeyFile,
+	}
 	if err := event.NewManager(event.EventConfig{
 		EventLogServers: s.Config.EventLogServers,
-		DiscoverAddress: s.Config.EtcdEndPoints,
+		DiscoverArgs:    etcdClientArgs,
 	}); err != nil {
 		return err
 	}
@@ -74,7 +80,7 @@ func Run(s *option.Worker) error {
 	}
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		logrus.Error("Error creating clientset: %v", err)
+		logrus.Errorf("create kube client error: %s", err.Error())
 		return err
 	}
 	s.Config.KubeClient = clientset
@@ -101,7 +107,7 @@ func Run(s *option.Worker) error {
 	}
 
 	//step 4: create controller manager
-	controllerManager := controller.NewManager(cachestore, clientset)
+	controllerManager := controller.NewManager(cachestore, clientset, s.Config.RBDNamespace, s.Config.RBDDNSName)
 	defer controllerManager.Stop()
 
 	//step 5 : start runtime master

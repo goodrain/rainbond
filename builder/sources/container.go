@@ -89,6 +89,7 @@ func (ds *DockerService) CreateContainer(config *ContainerConfig) (string, error
 	hc := &dockercontainer.HostConfig{
 		Binds:       generateMountBindings(config.GetMounts()),
 		NetworkMode: dockercontainer.NetworkMode(config.NetworkConfig.NetworkMode),
+		ExtraHosts:  config.ExtraHosts,
 	}
 	// Set devices for container.
 	devices := make([]dockercontainer.DeviceMapping, len(config.Devices))

@@ -137,6 +137,7 @@ type ContainerConfig struct {
 	AttachStdout  bool
 	AttachStderr  bool
 	NetworkConfig *NetworkConfig
+	ExtraHosts    []string
 }
 
 //GetMetadata GetMetadata

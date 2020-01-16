@@ -38,6 +38,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/metric"
 	"github.com/goodrain/rainbond/gateway/store"
 	v1 "github.com/goodrain/rainbond/gateway/v1"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/ingress-nginx/task"
@@ -230,10 +231,16 @@ func NewGWController(ctx context.Context, clientset kubernetes.Interface, cfg *o
 
 	if cfg.EnableRbdEndpoints {
 		// create etcd client
-		cli, err := client.New(client.Config{
+		etcdClientArgs := &etcdutil.ClientArgs{
 			Endpoints:   cfg.EtcdEndpoint,
+			CaFile:      cfg.EtcdCaFile,
+			CertFile:    cfg.EtcdCertFile,
+			KeyFile:     cfg.EtcdKeyFile,
 			DialTimeout: time.Duration(cfg.EtcdTimeout) * time.Second,
-		})
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		cli, err := etcdutil.NewClient(ctx, etcdClientArgs)
 		if err != nil {
 			return nil, err
 		}

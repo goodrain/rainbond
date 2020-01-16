@@ -16,35 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package config
+package option
 
-import "context"
-import etcdutil "github.com/goodrain/rainbond/util/etcd"
-
-//Operation 实例操作类型
-type Operation int
-
-const (
-	// ADD add operation
-	ADD Operation = iota
-	// DELETE delete operation
-	DELETE
-	// UPDATE update operation
-	UPDATE
-	// SYNC sync operation
-	SYNC
+import (
+	"testing"
 )
 
-//DiscoverConfig discover config
-type DiscoverConfig struct {
-	Ctx            context.Context
-	EtcdClientArgs *etcdutil.ClientArgs
-}
-
-// Endpoint endpoint
-type Endpoint struct {
-	Name   string `json:"name"`
-	URL    string `json:"url"`
-	Weight int    `json:"weight"`
-	Mode   int    `json:"-"` //0 表示URL变化，1表示Weight变化 ,2表示全变化
+func TestConfig_GetEtcdClientArgs(t *testing.T) {
+	c := Config{EtcdEndpoint: []string{"192.168.2.203:2379"}, EtcdCaFile: "string", EtcdCertFile: "", EtcdKeyFile: ""}
+	a := NewAPIServer()
+	a.Config = c
+	a.SetEtcdClientArgs()
+	t.Logf("%+v", a.EtcdClientArgs)
 }

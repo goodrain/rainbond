@@ -39,6 +39,9 @@ type Cadvisor struct {
 	Prometheus      *prometheus.Manager
 	sortedEndpoints []string
 	ListenPort      int
+	CaFile          string
+	CertFile        string
+	KeyFile         string
 
 	endpoints []*config.Endpoint
 }
@@ -77,7 +80,7 @@ func (c *Cadvisor) toScrape() *prometheus.ScrapeConfig {
 		JobName:        c.Name(),
 		ScrapeInterval: model.Duration(15 * time.Second),
 		ScrapeTimeout:  model.Duration(10 * time.Second),
-		MetricsPath:    "/metrics",
+		MetricsPath:    "metrics/cadvisor",
 		ServiceDiscoveryConfig: prometheus.ServiceDiscoveryConfig{
 			StaticConfigs: []*prometheus.Group{
 				{
@@ -86,6 +89,14 @@ func (c *Cadvisor) toScrape() *prometheus.ScrapeConfig {
 						"component": model.LabelValue(c.Name()),
 					},
 				},
+			},
+		},
+		Scheme: "https",
+		HTTPClientConfig: prometheus.HTTPClientConfig{
+			TLSConfig: prometheus.TLSConfig{
+				CAFile:   c.CaFile,
+				CertFile: c.CertFile,
+				KeyFile:  c.KeyFile,
 			},
 		},
 	}

@@ -26,18 +26,25 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
+	"github.com/tidwall/gjson"
+
 	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/db"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
-	mqclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
+
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	mqclient "github.com/goodrain/rainbond/mq/client"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	workermodel "github.com/goodrain/rainbond/worker/discover/model"
-	"github.com/tidwall/gjson"
 )
 
 //MetricTaskNum task number
@@ -65,11 +72,30 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	etcdCli, err := clientv3.New(clientv3.Config{
-		Endpoints:   conf.EtcdEndPoints,
-		DialTimeout: 10 * time.Second,
-	})
+
+	var restConfig *rest.Config // TODO fanyangyang use k8sutil.NewRestConfig
+	if conf.KubeConfig != "" {
+		restConfig, err = clientcmd.BuildConfigFromFlags("", conf.KubeConfig)
+	} else {
+		restConfig, err = rest.InClusterConfig()
+	}
 	if err != nil {
+		return nil, err
+	}
+	kubeClient, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints: conf.EtcdEndPoints,
+		CaFile:    conf.EtcdCaFile,
+		CertFile:  conf.EtcdCertFile,
+		KeyFile:   conf.EtcdKeyFile,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	etcdCli, err := etcdutil.NewClient(ctx, etcdClientArgs)
+	if err != nil {
+		cancel()
 		return nil, err
 	}
 	var maxConcurrentTask int
@@ -78,10 +104,11 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	} else {
 		maxConcurrentTask = conf.MaxTasks
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+
 	logrus.Infof("The maximum number of concurrent build tasks supported by the current node is %d", maxConcurrentTask)
 	return &exectorManager{
 		DockerClient:      dockerClient,
+		KubeClient:        kubeClient,
 		EtcdCli:           etcdCli,
 		mqClient:          mqc,
 		tasks:             make(chan *pb.TaskMessage, maxConcurrentTask),
@@ -94,6 +121,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 
 type exectorManager struct {
 	DockerClient      *client.Client
+	KubeClient        kubernetes.Interface
 	EtcdCli           *clientv3.Client
 	tasks             chan *pb.TaskMessage
 	callback          func(*pb.TaskMessage)
@@ -288,6 +316,9 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	i := NewSouceCodeBuildItem(task.TaskBody)
 	i.DockerClient = e.DockerClient
+	i.KubeClient = e.KubeClient
+	i.RbdNamespace = e.cfg.RbdNamespace
+	i.RbdRepoName = e.cfg.RbdRepoName
 	i.Logger.Info("Build app version from source code start", map[string]string{"step": "builder-exector", "status": "starting"})
 	start := time.Now()
 	defer event.GetManager().ReleaseLogger(i.Logger)
