@@ -144,9 +144,6 @@ build::all(){
 }
 
 case $1 in
-	node)
-		build::node $2
-	;;
 	binary)
 	    if [ "$2" = "all" ];then
 			build_items=(chaos grctl node gateway monitor mq worker eventlog api init-probe)
