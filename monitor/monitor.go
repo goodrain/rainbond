@@ -67,9 +67,6 @@ func (d *Monitor) Start() {
 	go d.discoverCadvisor(&callback.Cadvisor{
 		Prometheus: d.manager,
 		ListenPort: d.config.CadvisorListenPort,
-		CaFile:     d.config.CadvisorCaFile,
-		CertFile:   d.config.CadvisorCertFile,
-		KeyFile:    d.config.CadvisorKeyFile,
 	}, d.ctx.Done())
 }
 
