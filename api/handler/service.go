@@ -1762,7 +1762,7 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 	memoryUsageMap := make(map[string]map[string]string, 10)
 	proxy := GetPrometheusProxy()
 	queryName := strings.Join(podNames, "|")
-	query := fmt.Sprintf(`container_memory_usage_bytes{pod_name=~"%s"}`, queryName)
+	query := fmt.Sprintf(`container_memory_usage_bytes{pod=~"%s"}`, queryName)
 	proQuery := strings.Replace(query, " ", "%20", -1)
 	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", proQuery), nil)
 	if err != nil {
@@ -1787,10 +1787,10 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 				var containerName, podName string
 				var valuesBytes string
 				if cname, ok := re["metric"].(map[string]interface{}); ok {
-					if containerName, ok = cname["container_name"].(string); !ok {
+					if containerName, ok = cname["container"].(string); !ok {
 						continue
 					}
-					if podName, ok = cname["pod_name"].(string); !ok {
+					if podName, ok = cname["pod"].(string); !ok {
 						continue
 					}
 				} else {

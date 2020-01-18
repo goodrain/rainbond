@@ -25,15 +25,15 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
-
 	"k8s.io/client-go/kubernetes"
-
 	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/store"
@@ -42,9 +42,6 @@ import (
 	"github.com/goodrain/rainbond/worker/master"
 	"github.com/goodrain/rainbond/worker/monitor"
 	"github.com/goodrain/rainbond/worker/server"
-
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
-	k8sutil "github.com/goodrain/rainbond/util/k8s"
 )
 
 //Run start run
