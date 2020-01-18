@@ -20,6 +20,7 @@ package conversion
 
 import (
 	"fmt"
+	"github.com/jinzhu/gorm"
 	"os"
 	"sort"
 	"strconv"
@@ -119,7 +120,8 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 			imagename = version.DeliveredPath
 		}
 	}
-	return &corev1.Container{
+
+	c := &corev1.Container{
 		Name:           as.ServiceID,
 		Image:          imagename,
 		Args:           args,
@@ -129,16 +131,17 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		LivenessProbe:  createProbe(as, dbmanager, "liveness"),
 		ReadinessProbe: createProbe(as, dbmanager, "readiness"),
 		Resources:      resources,
-	}, nil
-}
-
-func getenv(key string, envs []corev1.EnvVar) string {
-	for _, env := range envs {
-		if env.Name == key {
-			return env.Value
-		}
 	}
-	return ""
+
+	label, err := dbmanager.TenantServiceLabelDao().GetPrivilegedLabel(as.ServiceID)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, fmt.Errorf("get privileged label: %v", err)
+	}
+	if label != nil {
+		c.SecurityContext = &corev1.SecurityContext{Privileged: util.Bool(true)}
+	}
+
+	return c, nil
 }
 
 func createArgs(version *dbmodel.VersionInfo, envs []corev1.EnvVar) (args []string) {
