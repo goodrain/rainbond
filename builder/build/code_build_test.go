@@ -22,6 +22,7 @@ import (
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -209,5 +210,65 @@ func TestGetPogLog(t *testing.T) {
 			}
 			break
 		}
+	}
+}
+
+func TestDeleteJobAuto(t *testing.T) {
+	restConfig, err := k8sutil.NewRestConfig("/Users/fanyangyang/Documents/company/goodrain/remote/192.168.2.206/admin.kubeconfig")
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := batchv1.Job{}
+	job.Name = "fanyangyang"
+	job.Namespace = "rbd-system"
+
+	var ttl int32
+	ttl = 0
+	job.Spec.TTLSecondsAfterFinished = &ttl //  k8s version >= 1.12
+	job.Spec = batchv1.JobSpec{
+		TTLSecondsAfterFinished: &ttl,
+		Template: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				RestartPolicy: corev1.RestartPolicyNever,
+				Containers: []corev1.Container{
+					corev1.Container{
+						Name:    "fanyangyang",
+						Image:   "busybox",
+						Command: []string{"echo", "hello job"},
+					},
+				},
+			},
+		},
+	}
+
+	_, err = clientset.BatchV1().Jobs(job.Namespace).Create(&job)
+	if err != nil {
+		t.Fatal("create job error: ", err.Error())
+	}
+
+	for {
+		j, err := clientset.BatchV1().Jobs(job.Namespace).Get(job.Name, metav1.GetOptions{})
+		if err != nil {
+			t.Error("get job error: ", err.Error())
+		}
+		if j == nil {
+			continue
+		}
+		if j.Status.Active > 0 {
+			fmt.Println("job is running")
+		}
+		if j.Status.Succeeded > 0 {
+			fmt.Println("job is succeed, waiting auto delete")
+			break
+		}
+		if j.Status.Failed > 0 {
+			fmt.Println("job is failed, waiting next")
+			break
+		}
+		time.Sleep(5 * time.Second)
 	}
 }

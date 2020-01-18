@@ -44,6 +44,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 func slugBuilder() (Build, error) {
@@ -348,10 +349,12 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	if err != nil {
 		return err
 	}
+	// get job builder log and delete job util it is finished
 	writer := re.Logger.GetWriter("builder", "info")
+	finish := false
+	var po *corev1.Pod
 	for {
 		logrus.Debug("waiting job finish")
-		time.Sleep(5 * time.Second)
 		job, err := re.KubeClient.BatchV1().Jobs("rbd-system").Get(re.ServiceID, metav1.GetOptions{})
 		if err != nil {
 			logrus.Errorf("get job error: %s", err.Error())
@@ -360,62 +363,90 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			continue
 		}
 		if job.Status.Active > 0 {
-			logrus.Debug("build job is active")
-			var po corev1.Pod
-			labelSelector := fmt.Sprintf("job-name=%s", re.ServiceID)
 			for {
-				pos, err := re.KubeClient.CoreV1().Pods("rbd-system").List(metav1.ListOptions{LabelSelector: labelSelector})
-				if err != nil {
-					logrus.Errorf(" get po error: %s", err.Error())
-				}
-				if len(pos.Items) == 0 {
-					continue
-				}
-				if len(pos.Items[0].Spec.Containers) > 0 {
-					logrus.Debug("pod container ready, start write log")
-					po = pos.Items[0]
+				po = getJobPod(re.KubeClient, re.ServiceID)
+				if po != nil {
+					getJobPodLogs(re.KubeClient, writer, re.ServiceID, po.Name)
 					break
 				}
 				time.Sleep(5 * time.Second)
 			}
-			podLogRequest := re.KubeClient.CoreV1().Pods("rbd-system").GetLogs(po.Name, &corev1.PodLogOptions{})
-			reader, err := podLogRequest.Stream()
-			if err != nil {
-				logrus.Warnf("get build job pod log data error: %s, retry net loop", err.Error())
-				continue
-			}
-			defer reader.Close()
-			bufReader := bufio.NewReader(reader)
-			for {
-				line, err := bufReader.ReadBytes('\n')
-				writer.Write(line)
-				if err == io.EOF {
-					break
-				}
-				if err != nil {
-					logrus.Warningf("get job log error: %s, retry next loop", err.Error())
-					break
-				}
-
-			}
 		}
+
 		if job.Status.Succeeded > 0 {
 			writer.Write([]byte("build job have done successfully"))
-			if err = re.KubeClient.BatchV1().Jobs("rbd-system").Delete(re.ServiceID, &metav1.DeleteOptions{}); err != nil {
-				logrus.Errorf("delete job failed: %s", err.Error())
-			}
-			break
+			finish = true
 		}
 		if job.Status.Failed > 0 {
 			writer.Write([]byte("build job have done failed"))
-			if err = re.KubeClient.BatchV1().Jobs("rbd-system").Delete(re.ServiceID, &metav1.DeleteOptions{}); err != nil {
-				logrus.Errorf("delete job failed: %s", err.Error())
-			}
+			finish = true
+		}
+		if finish {
+			deleteJobPod(re.KubeClient, "rbd-system", po.Name)
+			deleteJob(re.KubeClient, "rbd-system", job.Name)
 			break
 		}
+		time.Sleep(5 * time.Second)
 	}
 
 	return nil
+}
+
+func getJobPod(clientset kubernetes.Interface, job string) *corev1.Pod {
+	var po corev1.Pod
+	labelSelector := fmt.Sprintf("job-name=%s", job)
+	pos, err := clientset.CoreV1().Pods("rbd-system").List(metav1.ListOptions{LabelSelector: labelSelector})
+	if err != nil {
+		logrus.Errorf(" get po error: %s", err.Error())
+	}
+	if len(pos.Items) == 0 {
+		logrus.Warn("do not found job pods, can't get job's logs")
+		return nil
+	}
+	if len(pos.Items[0].Spec.Containers) == 0 {
+		logrus.Warn("do not found job pods container, can't get job's logs")
+		return nil
+	}
+	logrus.Debug("pod container ready, start write log")
+	po = pos.Items[0]
+	return &po
+}
+
+func getJobPodLogs(clientset kubernetes.Interface, writer event.LoggerWriter, job, pod string) {
+	podLogRequest := clientset.CoreV1().Pods("rbd-system").GetLogs(pod, &corev1.PodLogOptions{})
+	reader, err := podLogRequest.Stream()
+	if err != nil {
+		logrus.Warnf("get build job pod log data error: %s, retry net loop", err.Error())
+		return
+	}
+	defer reader.Close()
+	bufReader := bufio.NewReader(reader)
+	for {
+		line, err := bufReader.ReadBytes('\n')
+		writer.Write(line)
+		if err == io.EOF {
+			logrus.Info("get job log finished(io.EOF)")
+			break
+		}
+		if err != nil {
+			logrus.Warningf("get job log error: %s", err.Error())
+			break
+		}
+
+	}
+
+}
+
+func deleteJobPod(clientset kubernetes.Interface, namespace, pod string) {
+	if err := clientset.CoreV1().Pods(namespace).Delete(pod, &metav1.DeleteOptions{}); err != nil {
+		logrus.Errorf("delete job pod failed: %s", err.Error())
+	}
+}
+
+func deleteJob(clientset kubernetes.Interface, namespace, job string) {
+	if err := clientset.BatchV1().Jobs(namespace).Delete(job, &metav1.DeleteOptions{}); err != nil {
+		logrus.Errorf("delete job failed: %s", err.Error())
+	}
 }
 
 func (s *slugBuild) runBuildContainer(re *Request) error {
