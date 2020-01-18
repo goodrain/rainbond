@@ -253,10 +253,14 @@ func (s *slugBuild) prepareSourceCodeFile(re *Request) error {
 }
 
 func (s *slugBuild) runBuildJob(re *Request) error {
+	fmt.Println("start build job")
 	// delete .git and .svn folder
-	s.prepareSourceCodeFile(re)
+	if err := s.prepareSourceCodeFile(re); err != nil {
+		logrus.Error("delete .git and .svn folder error")
+		return err
+	}
 	name := re.ServiceID
-	namespace := re.TenantID
+	// namespace := "rbd-system"
 	envs := []corev1.EnvVar{
 		corev1.EnvVar{Name: "SLUG_VERSION", Value: re.DeployVersion},
 		corev1.EnvVar{Name: "SERVICE_ID", Value: re.ServiceID},
@@ -276,131 +280,141 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	}
 	job := batchv1.Job{}
 	job.Name = name
-	job.Namespace = namespace
-	// var ttl int32
-	// ttl = 5
-	// job.Spec.TTLSecondsAfterFinished = &ttl //  k8s version >= 1.12
+	job.Namespace = "rbd-system"
+	var ttl int32
+	ttl = 20
+	job.Spec.TTLSecondsAfterFinished = &ttl //  k8s version >= 1.12
 	podTempSpec := corev1.PodTemplateSpec{}
 	podTempSpec.Name = name
-	podTempSpec.Namespace = namespace
+	podTempSpec.Namespace = "rbd-system"
 
 	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
-	hostPathType := corev1.HostPathDirectoryOrCreate
+	// hostPathType := corev1.HostPathDirectoryOrCreate
 	podSpec.Volumes = []corev1.Volume{
-		corev1.Volume{
-			Name: "cache",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{Path: re.CacheDir, Type: &hostPathType},
-			},
-		},
+		// corev1.Volume{
+		// 	Name: "cache",
+		// 	VolumeSource: corev1.VolumeSource{
+		// 		// PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+		// 		// 	ClaimName: "cache",
+		// 		// },
+		// 		HostPath: &corev1.HostPathVolumeSource{Path: re.CacheDir, Type: &hostPathType},
+		// 	},
+		// },
 		corev1.Volume{
 			Name: "slug",
 			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{Path: re.TGZDir, Type: &hostPathType},
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "grdata",
+				},
+				// HostPath: &corev1.HostPathVolumeSource{Path: re.TGZDir, Type: &hostPathType},
 			},
 		},
 		corev1.Volume{
 			Name: "app",
 			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{Path: re.SourceDir, Type: &hostPathType},
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "cache",
+				},
+				// HostPath: &corev1.HostPathVolumeSource{Path: re.SourceDir, Type: &hostPathType},
 			},
 		},
 	}
 	container := corev1.Container{Name: name, Image: builder.BUILDERIMAGENAME, Stdin: true, StdinOnce: true}
 	container.Env = envs
 	container.Args = []string{"local"}
+	slugSubPath := strings.TrimPrefix(re.TGZDir, "/grdata/")
+	logrus.Debugf("slug subpath is : %s", slugSubPath)
+	appSubPath := strings.TrimPrefix(re.SourceDir, "/cache/")
+	logrus.Debugf("app subpath is : %s", appSubPath)
 	container.VolumeMounts = []corev1.VolumeMount{
-		corev1.VolumeMount{
-			Name:      "cache",
-			MountPath: "/tmp/cache",
-		},
 		corev1.VolumeMount{
 			Name:      "slug",
 			MountPath: "/tmp/slug",
+			SubPath:   slugSubPath,
 		},
 		corev1.VolumeMount{
 			Name:      "app",
 			MountPath: "/tmp/app",
+			SubPath:   appSubPath,
 		},
 	}
 	podSpec.Containers = append(podSpec.Containers, container)
-	// for _, ha := range re.HostAlias {// TODO fanyangyang wait k8s cluster
-	// 	podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: ha.IP, Hostnames: ha.Hostnames})
-	// }
+	for _, ha := range re.HostAlias { // TODO fanyangyang wait k8s cluster
+		podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: ha.IP, Hostnames: ha.Hostnames})
+	}
 	podTempSpec.Spec = podSpec
 	job.Spec.Template = podTempSpec
-	_, err := re.KubeClient.BatchV1().Jobs(namespace).Create(&job)
+	_, err := re.KubeClient.BatchV1().Jobs("rbd-system").Create(&job)
 	if err != nil {
 		return err
 	}
-
-	containerID := ""
-	for {
-		logrus.Debug("get container id")
-		podList, err := re.KubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
-		if err != nil {
-			return err
-		}
-
-		for _, pod := range podList.Items {
-			for _, container := range pod.Status.ContainerStatuses {
-				containerID = strings.TrimPrefix(container.ContainerID, "docker://")
-				break
-			}
-		}
-		if containerID != "" {
-			break
-		}
-		time.Sleep(5 * time.Second)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	containerService := sources.CreateDockerService(ctx, re.DockerClient)
-	errchan := make(chan error, 1)
-	re.Logger.Info("waiting finished", map[string]string{"step": "build"})
 	writer := re.Logger.GetWriter("builder", "info")
-	close, err := containerService.AttachContainer(containerID, true, true, true, nil, writer, writer, &errchan)
-	if err != nil {
-		containerService.RemoveContainer(containerID)
-		return fmt.Errorf("attach builder container error:%s", err.Error())
-	}
-	defer close()
-	statuschan := containerService.WaitExitOrRemoved(containerID, true)
-	if err := <-errchan; err != nil {
-		logrus.Debugf("Error hijack: %s", err)
-	}
-	status := <-statuschan
-	if status != 0 {
-		return &ErrorBuild{Code: status}
-	}
 	for {
-		time.Sleep(5 * time.Second)
 		logrus.Debug("waiting job finish")
-		job, err := re.KubeClient.BatchV1().Jobs(re.TenantID).Get(re.ServiceID, metav1.GetOptions{})
+		time.Sleep(5 * time.Second)
+		job, err := re.KubeClient.BatchV1().Jobs("rbd-system").Get(re.ServiceID, metav1.GetOptions{})
 		if err != nil {
-			return err
+			logrus.Errorf("get job error: %s", err.Error())
 		}
-		fmt.Printf("pod Name is : %s", job.Spec.Template.Name)
-		if job.Status.Succeeded == 1 {
-			err = re.KubeClient.BatchV1().Jobs(re.TenantID).Delete(re.ServiceID, &metav1.DeleteOptions{})
-			if err != nil {
-				return fmt.Errorf("delete job error : %s", err.Error())
+		if job == nil {
+			continue
+		}
+		if job.Status.Active > 0 {
+			logrus.Debug("build job is active")
+			var po corev1.Pod
+			labelSelector := fmt.Sprintf("job-name=%s", re.ServiceID)
+			for {
+				pos, err := re.KubeClient.CoreV1().Pods("rbd-system").List(metav1.ListOptions{LabelSelector: labelSelector})
+				if err != nil {
+					logrus.Errorf(" get po error: %s", err.Error())
+				}
+				if len(pos.Items) == 0 {
+					continue
+				}
+				if len(pos.Items[0].Spec.Containers) > 0 {
+					logrus.Debug("pod container ready, start write log")
+					po = pos.Items[0]
+					break
+				}
+				time.Sleep(5 * time.Second)
 			}
-			logrus.Info("delete job success")
+			podLogRequest := re.KubeClient.CoreV1().Pods("rbd-system").GetLogs(po.Name, &corev1.PodLogOptions{})
+			reader, err := podLogRequest.Stream()
+			if err != nil {
+				logrus.Warnf("get build job pod log data error: %s, retry net loop", err.Error())
+				continue
+			}
+			defer reader.Close()
+			bufReader := bufio.NewReader(reader)
+			for {
+				line, err := bufReader.ReadBytes('\n')
+				writer.Write(line)
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					logrus.Warningf("get job log error: %s, retry next loop", err.Error())
+					break
+				}
+
+			}
+		}
+		if job.Status.Succeeded > 0 {
+			writer.Write([]byte("build job have done successfully"))
+			if err = re.KubeClient.BatchV1().Jobs("rbd-system").Delete(re.ServiceID, &metav1.DeleteOptions{}); err != nil {
+				logrus.Errorf("delete job failed: %s", err.Error())
+			}
 			break
 		}
-		if job.Status.Failed == 1 {
-			err = re.KubeClient.BatchV1().Jobs(re.TenantID).Delete(re.ServiceID, &metav1.DeleteOptions{})
-			if err != nil {
-				return fmt.Errorf("delete job error : %s", err.Error())
+		if job.Status.Failed > 0 {
+			writer.Write([]byte("build job have done failed"))
+			if err = re.KubeClient.BatchV1().Jobs("rbd-system").Delete(re.ServiceID, &metav1.DeleteOptions{}); err != nil {
+				logrus.Errorf("delete job failed: %s", err.Error())
 			}
-			//TODO fanyangyang 不会停，不会restart，重启策略delete job
-			// can't delete pod auto
-			return fmt.Errorf("job running failed, delete it")
+			break
 		}
 	}
+
 	return nil
 }
 

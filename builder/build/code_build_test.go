@@ -2,6 +2,7 @@ package build
 
 import (
 	"archive/tar"
+	"bufio"
 	"compress/gzip"
 	"context"
 	"fmt"
@@ -18,7 +19,11 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/client-go/kubernetes"
 )
@@ -34,9 +39,9 @@ func TestCreateJob(t *testing.T) {
 	}
 	event.NewManager(event.EventConfig{
 		EventLogServers: conf.EventLogServers,
-		DiscoverAddress: conf.EtcdEndPoints,
+		DiscoverArgs:    &etcdutil.ClientArgs{Endpoints: conf.EtcdEndPoints},
 	})
-	restConfig, err := k8sutil.NewRestConfig("/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig")
+	restConfig, err := k8sutil.NewRestConfig("/Users/fanyangyang/Documents/company/goodrain/remote/192.168.2.206/admin.kubeconfig")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,9 +58,9 @@ func TestCreateJob(t *testing.T) {
 		ServerType:    "git",
 		DockerClient:  dockerClient,
 		KubeClient:    clientset,
-		ServiceID:     "4eaa41ccf145b8e43a6aeb1a5efeab53",
+		ServiceID:     "d9b8d718510dc53118af1e1219e36d3a",
 		DeployVersion: "123",
-		TenantID:      "5d7bd886e6dc4425bb6c2ac5fc9fa593",
+		TenantID:      "7c89455140284fd7b263038b44dc65bc",
 		Lang:          code.JavaMaven,
 		Runtime:       "1.8",
 		Logger:        logger,
@@ -124,4 +129,85 @@ func TestDockerClient(t *testing.T) {
 	// for _, image := range images {
 	// 	t.Log("image is : ", image.ID)
 	// }
+}
+
+func TestGetPogLog(t *testing.T) {
+	restConfig, err := k8sutil.NewRestConfig("/Users/fanyangyang/Documents/company/goodrain/remote/192.168.2.206/admin.kubeconfig")
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	re := Request{
+		KubeClient: clientset,
+		ServiceID:  "aae30a8d6a66ea9024197bc8deecd137",
+	}
+
+	for {
+		fmt.Println("waiting job finish")
+		time.Sleep(5 * time.Second)
+		job, err := re.KubeClient.BatchV1().Jobs("rbd-system").Get(re.ServiceID, metav1.GetOptions{})
+		if err != nil {
+			fmt.Printf("get job error: %s", err.Error())
+		}
+		if job == nil {
+			continue
+		}
+		if job.Status.Active > 0 {
+			fmt.Println("build job start")
+			var po corev1.Pod
+			labelSelector := fmt.Sprintf("job-name=%s", re.ServiceID)
+			for {
+				pos, err := re.KubeClient.CoreV1().Pods("rbd-system").List(metav1.ListOptions{LabelSelector: labelSelector})
+				if err != nil {
+					fmt.Printf(" get po error: %s", err.Error())
+				}
+				if len(pos.Items) == 0 {
+					continue
+				}
+				if len(pos.Items[0].Spec.Containers) > 0 {
+					fmt.Println("pod container ready, start write log")
+					po = pos.Items[0]
+					break
+				}
+				time.Sleep(5 * time.Second)
+			}
+			podLogRequest := re.KubeClient.CoreV1().Pods("rbd-system").GetLogs(po.Name, &corev1.PodLogOptions{})
+			reader, err := podLogRequest.Stream()
+			if err != nil {
+				fmt.Println("get build job pod log data error: ", err.Error())
+				continue
+			}
+			defer reader.Close()
+			bufReader := bufio.NewReader(reader)
+			for {
+				line, err := bufReader.ReadBytes('\n')
+				fmt.Println(string(line))
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					fmt.Printf("get job log error: %s", err.Error())
+					break
+				}
+
+			}
+		}
+		if job.Status.Succeeded > 0 {
+			fmt.Println("build job have done successfully")
+			if err = re.KubeClient.BatchV1().Jobs("rbd-system").Delete(re.ServiceID, &metav1.DeleteOptions{}); err != nil {
+				fmt.Printf("delete job failed: %s", err.Error())
+			}
+			break
+		}
+		if job.Status.Failed > 0 {
+			fmt.Println("build job have done failed")
+			if err = re.KubeClient.BatchV1().Jobs("rbd-system").Delete(re.ServiceID, &metav1.DeleteOptions{}); err != nil {
+				fmt.Printf("delete job failed: %s", err.Error())
+			}
+			break
+		}
+	}
 }
