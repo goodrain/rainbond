@@ -175,7 +175,7 @@ func TestGetPogLog(t *testing.T) {
 				}
 				time.Sleep(5 * time.Second)
 			}
-			podLogRequest := re.KubeClient.CoreV1().Pods("rbd-system").GetLogs(po.Name, &corev1.PodLogOptions{})
+			podLogRequest := re.KubeClient.CoreV1().Pods("rbd-system").GetLogs(po.Name, &corev1.PodLogOptions{Follow: true})
 			reader, err := podLogRequest.Stream()
 			if err != nil {
 				fmt.Println("get build job pod log data error: ", err.Error())

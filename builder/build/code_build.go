@@ -261,7 +261,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		return err
 	}
 	name := re.ServiceID
-	// namespace := "rbd-system"
+	namespace := "rbd-system"
 	envs := []corev1.EnvVar{
 		corev1.EnvVar{Name: "SLUG_VERSION", Value: re.DeployVersion},
 		corev1.EnvVar{Name: "SERVICE_ID", Value: re.ServiceID},
@@ -281,33 +281,19 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	}
 	job := batchv1.Job{}
 	job.Name = name
-	job.Namespace = "rbd-system"
-	var ttl int32
-	ttl = 20
-	job.Spec.TTLSecondsAfterFinished = &ttl //  k8s version >= 1.12
+	job.Namespace = namespace
 	podTempSpec := corev1.PodTemplateSpec{}
 	podTempSpec.Name = name
-	podTempSpec.Namespace = "rbd-system"
+	podTempSpec.Namespace = namespace
 
 	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
-	// hostPathType := corev1.HostPathDirectoryOrCreate
 	podSpec.Volumes = []corev1.Volume{
-		// corev1.Volume{
-		// 	Name: "cache",
-		// 	VolumeSource: corev1.VolumeSource{
-		// 		// PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-		// 		// 	ClaimName: "cache",
-		// 		// },
-		// 		HostPath: &corev1.HostPathVolumeSource{Path: re.CacheDir, Type: &hostPathType},
-		// 	},
-		// },
 		corev1.Volume{
 			Name: "slug",
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 					ClaimName: "grdata",
 				},
-				// HostPath: &corev1.HostPathVolumeSource{Path: re.TGZDir, Type: &hostPathType},
 			},
 		},
 		corev1.Volume{
@@ -316,7 +302,6 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 					ClaimName: "cache",
 				},
-				// HostPath: &corev1.HostPathVolumeSource{Path: re.SourceDir, Type: &hostPathType},
 			},
 		},
 	}
@@ -327,7 +312,13 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	logrus.Debugf("slug subpath is : %s", slugSubPath)
 	appSubPath := strings.TrimPrefix(re.SourceDir, "/cache/")
 	logrus.Debugf("app subpath is : %s", appSubPath)
+	cacheSubPath := strings.TrimPrefix((re.CacheDir), "/cache/")
 	container.VolumeMounts = []corev1.VolumeMount{
+		corev1.VolumeMount{
+			Name:      "app",
+			MountPath: "/tmp/cache",
+			SubPath:   cacheSubPath,
+		},
 		corev1.VolumeMount{
 			Name:      "slug",
 			MountPath: "/tmp/slug",
@@ -340,12 +331,12 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		},
 	}
 	podSpec.Containers = append(podSpec.Containers, container)
-	for _, ha := range re.HostAlias { // TODO fanyangyang wait k8s cluster
+	for _, ha := range re.HostAlias {
 		podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: ha.IP, Hostnames: ha.Hostnames})
 	}
 	podTempSpec.Spec = podSpec
 	job.Spec.Template = podTempSpec
-	_, err := re.KubeClient.BatchV1().Jobs("rbd-system").Create(&job)
+	_, err := re.KubeClient.BatchV1().Jobs(namespace).Create(&job)
 	if err != nil {
 		return err
 	}
@@ -355,7 +346,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	var po *corev1.Pod
 	for {
 		logrus.Debug("waiting job finish")
-		job, err := re.KubeClient.BatchV1().Jobs("rbd-system").Get(re.ServiceID, metav1.GetOptions{})
+		job, err := re.KubeClient.BatchV1().Jobs(namespace).Get(re.ServiceID, metav1.GetOptions{})
 		if err != nil {
 			logrus.Errorf("get job error: %s", err.Error())
 		}
@@ -364,9 +355,9 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		}
 		if job.Status.Active > 0 {
 			for {
-				po = getJobPod(re.KubeClient, re.ServiceID)
+				po = getJobPod(re.KubeClient, namespace, re.ServiceID)
 				if po != nil {
-					getJobPodLogs(re.KubeClient, writer, re.ServiceID, po.Name)
+					getJobPodLogs(re.KubeClient, writer, namespace, re.ServiceID, po.Name)
 					break
 				}
 				time.Sleep(5 * time.Second)
@@ -382,8 +373,8 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			finish = true
 		}
 		if finish {
-			deleteJobPod(re.KubeClient, "rbd-system", po.Name)
-			deleteJob(re.KubeClient, "rbd-system", job.Name)
+			deleteJobPod(re.KubeClient, namespace, po.Name)
+			deleteJob(re.KubeClient, namespace, job.Name)
 			break
 		}
 		time.Sleep(5 * time.Second)
@@ -392,10 +383,10 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	return nil
 }
 
-func getJobPod(clientset kubernetes.Interface, job string) *corev1.Pod {
+func getJobPod(clientset kubernetes.Interface, namespace, job string) *corev1.Pod {
 	var po corev1.Pod
 	labelSelector := fmt.Sprintf("job-name=%s", job)
-	pos, err := clientset.CoreV1().Pods("rbd-system").List(metav1.ListOptions{LabelSelector: labelSelector})
+	pos, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
 		logrus.Errorf(" get po error: %s", err.Error())
 	}
@@ -412,8 +403,8 @@ func getJobPod(clientset kubernetes.Interface, job string) *corev1.Pod {
 	return &po
 }
 
-func getJobPodLogs(clientset kubernetes.Interface, writer event.LoggerWriter, job, pod string) {
-	podLogRequest := clientset.CoreV1().Pods("rbd-system").GetLogs(pod, &corev1.PodLogOptions{})
+func getJobPodLogs(clientset kubernetes.Interface, writer event.LoggerWriter, namespace, job, pod string) {
+	podLogRequest := clientset.CoreV1().Pods(namespace).GetLogs(pod, &corev1.PodLogOptions{Follow: true})
 	reader, err := podLogRequest.Stream()
 	if err != nil {
 		logrus.Warnf("get build job pod log data error: %s, retry net loop", err.Error())
