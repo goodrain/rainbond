@@ -32,6 +32,7 @@ import (
 
 //KeepAlive 服务注册
 type KeepAlive struct {
+	cancel        context.CancelFunc
 	EtcdClentArgs *etcdutil.ClientArgs
 	ServerName    string
 	HostName      string
@@ -71,12 +72,12 @@ func (k *KeepAlive) Start() error {
 	duration := time.Duration(k.TTL) * time.Second
 	timer := time.NewTimer(duration)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	etcdclient, err := etcdutil.NewClient(ctx, k.EtcdClentArgs)
 	if err != nil {
 		return err
 	}
 	k.etcdClient = etcdclient
+	k.cancel = cancel
 	go func() {
 		for {
 			select {
@@ -135,6 +136,8 @@ func (k *KeepAlive) reg() error {
 //Stop 结束
 func (k *KeepAlive) Stop() error {
 	close(k.Done)
+	defer k.cancel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	if _, err := k.etcdClient.Delete(ctx, k.etcdKey()); err != nil {

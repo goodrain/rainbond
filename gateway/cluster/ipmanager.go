@@ -42,9 +42,11 @@ type IPManager interface {
 	Start() error
 	//An IP pool change triggers a forced update of the gateway policy
 	NeedUpdateGatewayPolicy() <-chan util.IPEVENT
+	Stop()
 }
 
 type ipManager struct {
+	cancel  context.CancelFunc
 	IPPool  *util.IPPool
 	ipLease map[string]clientv3.LeaseID
 	lock    sync.Mutex
@@ -65,12 +67,12 @@ func CreateIPManager(config option.Config) (IPManager, error) {
 		DialTimeout: time.Duration(config.EtcdTimeout) * time.Second,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	etcdCli, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
 		return nil, err
 	}
 	return &ipManager{
+		cancel:     cancel,
 		IPPool:     IPPool,
 		config:     config,
 		etcdCli:    etcdCli,
@@ -158,4 +160,8 @@ func (i *ipManager) deleteIP(ips ...net.IP) {
 		}
 		delete(i.ipLease, ip.String())
 	}
+}
+
+func (i *ipManager) Stop() {
+	i.cancel()
 }

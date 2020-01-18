@@ -95,7 +95,6 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	etcdCli, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
-		cancel()
 		return nil, err
 	}
 	var maxConcurrentTask int
