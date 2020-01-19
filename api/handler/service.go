@@ -1751,7 +1751,7 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 	memoryUsageMap := make(map[string]map[string]string, 10)
 	proxy := GetPrometheusProxy()
 	queryName := strings.Join(podNames, "|")
-	query := fmt.Sprintf(`container_memory_usage_bytes{pod_name=~"%s"}`, queryName)
+	query := fmt.Sprintf(`container_memory_rss{pod_name=~"%s"}`, queryName)
 	proQuery := strings.Replace(query, " ", "%20", -1)
 	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", proQuery), nil)
 	if err != nil {
