@@ -187,9 +187,7 @@ func (d *EtcdDiscoverManager) Run() error {
 		CertFile:  d.conf.EtcdCertFile,
 		KeyFile:   d.conf.EtcdKeyFile,
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	d.etcdclientv3, err = etcdutil.NewClient(ctx, etcdClientArgs)
+	d.etcdclientv3, err = etcdutil.NewClient(d.context, etcdClientArgs)
 	if err != nil {
 		d.log.Error("Create etcd v3 client error.", err.Error())
 		return err

@@ -24,14 +24,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pquerna/ffjson/ffjson"
-
 	"github.com/Sirupsen/logrus"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/exector"
 	client "github.com/goodrain/rainbond/mq/client"
 	tutil "github.com/goodrain/rainbond/util"
+	"github.com/pquerna/ffjson/ffjson"
 	"github.com/twinj/uuid"
 )
 
@@ -82,8 +81,8 @@ func (s *ServiceAction) GetServiceCheckInfo(uuid string) (*exector.ServiceCheckR
 	k := fmt.Sprintf("/servicecheck/%s", uuid)
 	var si exector.ServiceCheckResult
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	resp, err := s.EtcdCli.Get(ctx, k)
-	cancel()
 	if err != nil {
 		logrus.Errorf("get etcd k %s error, %v", k, err)
 		return nil, util.CreateAPIHandleError(500, err)
