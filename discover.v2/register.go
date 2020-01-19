@@ -37,7 +37,6 @@ import (
 type KeepAlive struct {
 	cancel         context.CancelFunc
 	EtcdClientArgs *etcdutil.ClientArgs
-	etcdcli        *clientv3.Client
 	ServerName     string
 	HostName       string
 	Endpoint       string
@@ -75,7 +74,7 @@ func CreateKeepAlive(etcdClientArgs *etcdutil.ClientArgs, ServerName string, Pro
 		Endpoint:       fmt.Sprintf("%s:%d", HostIP, Port),
 		TTL:            5,
 		Done:           make(chan struct{}),
-		etcdcli:        etcdclient,
+		etcdClient:     etcdclient,
 		cancel:         cancel,
 	}
 	if Protocol == "" {
