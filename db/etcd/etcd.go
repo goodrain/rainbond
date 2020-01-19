@@ -47,9 +47,7 @@ func CreateManager(config config.Config) (*Manager, error) {
 		CertFile:  config.EtcdCertFile,
 		KeyFile:   config.EtcdKeyFile,
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	cli, err := etcdutil.NewClient(ctx, etcdClientArgs)
+	cli, err := etcdutil.NewClient(context.Background(), etcdClientArgs)
 	if err != nil {
 		etcdutil.HandleEtcdError(err)
 		return nil, err
