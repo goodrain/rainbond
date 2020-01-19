@@ -35,6 +35,7 @@ import (
 
 //KeepAlive 服务注册
 type KeepAlive struct {
+	cancel         context.CancelFunc
 	EtcdClientArgs *etcdutil.ClientArgs
 	ServerName     string
 	HostName       string
@@ -61,12 +62,20 @@ func CreateKeepAlive(etcdClientArgs *etcdutil.ClientArgs, ServerName string, Pro
 		HostIP = ip.String()
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	etcdclient, err := etcdutil.NewClient(ctx, etcdClientArgs)
+	if err != nil {
+		return nil, err
+	}
+
 	k := &KeepAlive{
 		EtcdClientArgs: etcdClientArgs,
 		ServerName:     ServerName,
 		Endpoint:       fmt.Sprintf("%s:%d", HostIP, Port),
 		TTL:            5,
 		Done:           make(chan struct{}),
+		etcdClient:     etcdclient,
+		cancel:         cancel,
 	}
 	if Protocol == "" {
 		k.Endpoint = fmt.Sprintf("%s:%d", HostIP, Port)
@@ -80,13 +89,7 @@ func CreateKeepAlive(etcdClientArgs *etcdutil.ClientArgs, ServerName string, Pro
 func (k *KeepAlive) Start() error {
 	duration := time.Duration(k.TTL) * time.Second
 	timer := time.NewTimer(duration)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	etcdclient, err := etcdutil.NewClient(ctx, k.EtcdClientArgs)
-	if err != nil {
-		return err
-	}
-	k.etcdClient = etcdclient
+
 	go func() {
 		for {
 			select {
@@ -143,6 +146,8 @@ func (k *KeepAlive) reg() error {
 func (k *KeepAlive) Stop() {
 	k.once.Do(func() {
 		close(k.Done)
+		k.cancel()
+
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		if k.gRPCResolver != nil {
