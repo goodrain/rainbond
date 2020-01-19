@@ -19,28 +19,25 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"syscall"
 
-	"github.com/goodrain/rainbond/node/nodem/docker"
-	"github.com/goodrain/rainbond/node/nodem/envoy"
-
 	"github.com/goodrain/rainbond/cmd/node/option"
+	eventLog "github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/node/api"
 	"github.com/goodrain/rainbond/node/api/controller"
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/masterserver"
 	"github.com/goodrain/rainbond/node/nodem"
+	"github.com/goodrain/rainbond/node/nodem/docker"
+	"github.com/goodrain/rainbond/node/nodem/envoy"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 
 	"github.com/Sirupsen/logrus"
-
-	eventLog "github.com/goodrain/rainbond/event"
-
-	"os/signal"
-
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
 //Run start run
@@ -51,7 +48,18 @@ func Run(c *option.Conf) error {
 		return nil
 	}
 	startfunc := func() error {
-		if err := c.ParseClient(); err != nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		etcdClientArgs := &etcdutil.ClientArgs{
+			Endpoints:   c.EtcdEndpoints,
+			CaFile:      c.EtcdCaFile,
+			CertFile:    c.EtcdCertFile,
+			KeyFile:     c.EtcdKeyFile,
+			DialTimeout: c.EtcdDialTimeout,
+		}
+
+		if err := c.ParseClient(ctx, etcdClientArgs); err != nil {
 			return fmt.Errorf("config parse error:%s", err.Error())
 		}
 
@@ -62,14 +70,7 @@ func Run(c *option.Conf) error {
 		if err := nodemanager.InitStart(); err != nil {
 			return err
 		}
-		errChan := make(chan error, 3)
-		etcdClientArgs := &etcdutil.ClientArgs{
-			Endpoints:   c.EtcdEndpoints,
-			CaFile:      c.EtcdCaFile,
-			CertFile:    c.EtcdCertFile,
-			KeyFile:     c.EtcdKeyFile,
-			DialTimeout: c.EtcdDialTimeout,
-		}
+
 		err = eventLog.NewManager(eventLog.EventConfig{
 			EventLogServers: c.EventLogServer,
 			DiscoverArgs:    etcdClientArgs,
@@ -95,9 +96,10 @@ func Run(c *option.Conf) error {
 		}
 
 		// init etcd client
-		if err = store.NewClient(c); err != nil {
+		if err = store.NewClient(ctx, c, etcdClientArgs); err != nil {
 			return fmt.Errorf("Connect to ETCD %s failed: %s", c.EtcdEndpoints, err)
 		}
+		errChan := make(chan error, 3)
 		if err := nodemanager.Start(errChan); err != nil {
 			return fmt.Errorf("start node manager failed: %s", err)
 		}

@@ -204,22 +204,12 @@ func (a *Conf) SetLog() {
 }
 
 //ParseClient handle config and create some api
-func (a *Conf) ParseClient() (err error) {
+func (a *Conf) ParseClient(ctx context.Context, etcdClientArgs *etcdutil.ClientArgs) (err error) {
 	a.DockerCli, err = dockercli.NewEnvClient()
 	if err != nil {
 		return err
 	}
 	logrus.Infof("begin create etcd client: %s", a.EtcdEndpoints)
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints:        a.EtcdEndpoints,
-		CaFile:           a.EtcdCaFile,
-		CertFile:         a.EtcdCertFile,
-		KeyFile:          a.EtcdKeyFile,
-		AutoSyncInterval: time.Second * 30,
-		DialTimeout:      a.EtcdDialTimeout,
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	for {
 		a.EtcdCli, err = etcdutil.NewClient(ctx, etcdClientArgs)
 		if err != nil {

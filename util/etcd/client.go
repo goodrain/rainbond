@@ -20,13 +20,12 @@ package etcd
 
 import (
 	"errors"
+	"github.com/coreos/etcd/pkg/transport"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	v3 "github.com/coreos/etcd/clientv3"
 	spb "github.com/coreos/etcd/mvcc/mvccpb"
-	"github.com/coreos/etcd/pkg/transport"
 	"golang.org/x/net/context"
 )
 
@@ -81,66 +80,38 @@ type ClientArgs struct {
 
 var (
 	// for parsing ca from k8s object
-	defaultCAPath           string        = ""
-	defaultCertPath         string        = ""
-	defaultKeyPath          string        = ""
-	defaultDialTimeout      time.Duration = 10 * time.Second
-	defaultAotuSyncInterval time.Duration = 30 * time.Second
-	defaultEndpoints        []string      = []string{"127.0.0.1:2379"}
+	defaultDialTimeout      = 10 * time.Second
+	defaultAotuSyncInterval = 30 * time.Second
 )
 
 // NewClient new etcd client v3 for all rainbond module, attention: do not support v2
 func NewClient(ctx context.Context, clientArgs *ClientArgs) (*v3.Client, error) {
-	if clientArgs == nil {
-		return nil, errors.New("etcd args is nil")
-	}
-	if clientArgs.Endpoints == nil || len(clientArgs.Endpoints) == 0 { // TODO if endpoint contain invalid value
-		logrus.Warning("create etcd client without endpoint, use default endpoint 127.0.0.1:2379")
-		clientArgs.Endpoints = defaultEndpoints
-	}
-	if clientArgs.CaFile != "" && clientArgs.CertFile != "" && clientArgs.KeyFile != "" {
-		defaultCAPath = clientArgs.CaFile
-		defaultCertPath = clientArgs.CertFile
-		defaultKeyPath = clientArgs.KeyFile
-	}
-
-	if clientArgs.DialTimeout <= 10 {
+	if clientArgs.DialTimeout <= 5 {
 		clientArgs.DialTimeout = defaultDialTimeout
 	}
 	if clientArgs.AutoSyncInterval <= 30 {
 		clientArgs.AutoSyncInterval = defaultAotuSyncInterval
 	}
 
-	if defaultCAPath == "" && defaultCertPath == "" && defaultKeyPath == "" {
-		// create etcd client without tls
-		config := clientv3.Config{
-			Endpoints:        clientArgs.Endpoints,
-			Context:          ctx,
-			DialTimeout:      clientArgs.DialTimeout,
-			AutoSyncInterval: clientArgs.AutoSyncInterval,
+	config := clientv3.Config{
+		Context:          ctx,
+		Endpoints:        clientArgs.Endpoints,
+		DialTimeout:      clientArgs.DialTimeout,
+		AutoSyncInterval: clientArgs.AutoSyncInterval,
+	}
+
+	if clientArgs.CaFile != "" && clientArgs.CertFile != "" && clientArgs.KeyFile != "" {
+		// create etcd client with tls
+		tlsInfo := transport.TLSInfo{
+			CertFile:      clientArgs.CertFile,
+			KeyFile:       clientArgs.KeyFile,
+			TrustedCAFile: clientArgs.CaFile,
 		}
-		client, err := clientv3.New(config)
+		tlsConfig, err := tlsInfo.ClientConfig()
 		if err != nil {
 			return nil, err
 		}
-		return client, nil
-	}
-	// create etcd client with tls
-	tlsInfo := transport.TLSInfo{
-		CertFile:      clientArgs.CertFile,
-		KeyFile:       clientArgs.KeyFile,
-		TrustedCAFile: clientArgs.CaFile,
-	}
-	tlsConfig, err := tlsInfo.ClientConfig()
-	if err != nil {
-		return nil, err
-	}
-	config := clientv3.Config{
-		Endpoints:        clientArgs.Endpoints,
-		Context:          ctx,
-		DialTimeout:      clientArgs.DialTimeout,
-		AutoSyncInterval: clientArgs.AutoSyncInterval,
-		TLS:              tlsConfig,
+		config.TLS = tlsConfig
 	}
 	return clientv3.New(config)
 }

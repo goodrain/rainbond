@@ -39,6 +39,9 @@ import (
 
 //Run start run
 func Run(s *option.APIServer) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	errChan := make(chan error)
 	etcdClientArgs := &etcdutil.ClientArgs{
 		Endpoints: s.Config.EtcdEndpoint,
@@ -68,8 +71,6 @@ func Run(s *option.APIServer) error {
 	}
 	defer event.CloseManager()
 	//create app status client
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	cli, err := client.NewClient(ctx, client.AppRuntimeSyncClientConf{
 		EtcdEndpoints: s.Config.EtcdEndpoint,
 		EtcdCaFile:    s.Config.EtcdCaFile,
@@ -80,10 +81,17 @@ func Run(s *option.APIServer) error {
 		logrus.Errorf("create app status client error, %v", err)
 		return err
 	}
+
+	etcdcli, err := etcdutil.NewClient(ctx, etcdClientArgs)
+	if err != nil {
+		logrus.Errorf("create etcd client v3 error, %v", err)
+		return err
+	}
+
 	//初始化 middleware
 	handler.InitProxy(s.Config)
 	//创建handle
-	if err := handler.InitHandle(s.Config, cli); err != nil {
+	if err := handler.InitHandle(s.Config, etcdClientArgs, cli, etcdcli); err != nil {
 		logrus.Errorf("init all handle error, %v", err)
 		return err
 	}
@@ -92,7 +100,7 @@ func Run(s *option.APIServer) error {
 		logrus.Errorf("create v2 route manager error, %v", err)
 	}
 	// 启动api
-	apiManager := server.NewManager(s.Config)
+	apiManager := server.NewManager(s.Config, etcdcli)
 	if err := apiManager.Start(); err != nil {
 		return err
 	}

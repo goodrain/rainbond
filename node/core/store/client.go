@@ -46,16 +46,7 @@ type Client struct {
 }
 
 //NewClient 创建client
-func NewClient(cfg *conf.Conf) (err error) {
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints:   cfg.EtcdEndpoints,
-		CaFile:      cfg.EtcdCaFile,
-		CertFile:    cfg.EtcdCertFile,
-		KeyFile:     cfg.EtcdKeyFile,
-		DialTimeout: cfg.EtcdDialTimeout,
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func NewClient(ctx context.Context, cfg *conf.Conf, etcdClientArgs *etcdutil.ClientArgs) (err error) {
 	cli, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
 		return

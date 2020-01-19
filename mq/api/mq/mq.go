@@ -78,9 +78,7 @@ func (e *etcdQueue) Start() error {
 		KeyFile:     e.config.EtcdKeyFile,
 		DialTimeout: time.Duration(e.config.EtcdTimeout) * time.Second,
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	cli, err := etcdutil.NewClient(ctx, etcdClientArgs)
+	cli, err := etcdutil.NewClient(context.Background(), etcdClientArgs)
 	if err != nil {
 		etcdutil.HandleEtcdError(err)
 		return err

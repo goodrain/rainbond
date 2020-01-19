@@ -48,7 +48,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
 //Manager apiserver
@@ -59,10 +58,11 @@ type Manager struct {
 	stopChan        chan struct{}
 	r               *chi.Mux
 	prometheusProxy proxy.Proxy
+	etcdcli         *clientv3.Client
 }
 
 //NewManager newManager
-func NewManager(c option.Config) *Manager {
+func NewManager(c option.Config, etcdcli *clientv3.Client) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	//controller.CreateV2RouterManager(c)
 	r := chi.NewRouter()
@@ -108,6 +108,7 @@ func NewManager(c option.Config) *Manager {
 		conf:     c,
 		stopChan: make(chan struct{}),
 		r:        r,
+		etcdcli:  etcdcli,
 	}
 }
 
@@ -194,21 +195,10 @@ func (m *Manager) Run() {
 
 //EventLogInstance 查询event server instance
 func (m *Manager) EventLogInstance(w http.ResponseWriter, r *http.Request) {
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints:   m.conf.EtcdEndpoint,
-		CaFile:      m.conf.EtcdCaFile,
-		CertFile:    m.conf.EtcdCertFile,
-		KeyFile:     m.conf.EtcdKeyFile,
-		DialTimeout: 10 * time.Second,
-	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(m.ctx)
 	defer cancel()
-	etcdclient, err := etcdutil.NewClient(ctx, etcdClientArgs)
-	if err != nil {
-		w.WriteHeader(500)
-		return
-	}
-	res, err := etcdclient.Get(ctx, "/event/instance", clientv3.WithPrefix())
+
+	res, err := m.etcdcli.Get(ctx, "/event/instance", clientv3.WithPrefix())
 	if err != nil {
 		w.WriteHeader(500)
 		return

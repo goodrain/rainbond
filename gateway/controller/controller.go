@@ -29,7 +29,6 @@ import (
 
 	"github.com/goodrain/rainbond/gateway/cluster"
 
-	"k8s.io/client-go/kubernetes"
 	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/eapache/channels"
@@ -40,6 +39,7 @@ import (
 	v1 "github.com/goodrain/rainbond/gateway/v1"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/flowcontrol"
 	"k8s.io/ingress-nginx/task"
 )
@@ -238,8 +238,6 @@ func NewGWController(ctx context.Context, clientset kubernetes.Interface, cfg *o
 			KeyFile:     cfg.EtcdKeyFile,
 			DialTimeout: time.Duration(cfg.EtcdTimeout) * time.Second,
 		}
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 		cli, err := etcdutil.NewClient(ctx, etcdClientArgs)
 		if err != nil {
 			return nil, err
