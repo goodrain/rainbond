@@ -254,7 +254,7 @@ func (s *slugBuild) prepareSourceCodeFile(re *Request) error {
 }
 
 func (s *slugBuild) runBuildJob(re *Request) error {
-	fmt.Println("start build job")
+	logrus.Info("start build job")
 	// delete .git and .svn folder
 	if err := s.prepareSourceCodeFile(re); err != nil {
 		logrus.Error("delete .git and .svn folder error")
@@ -267,6 +267,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		corev1.EnvVar{Name: "SERVICE_ID", Value: re.ServiceID},
 		corev1.EnvVar{Name: "TENANT_ID", Value: re.TenantID},
 		corev1.EnvVar{Name: "LANGUAGE", Value: re.Lang.String()},
+		corev1.EnvVar{Name: "DEBUG", Value: "true"},
 	}
 	for k, v := range re.BuildEnvs {
 		envs = append(envs, corev1.EnvVar{Name: k, Value: v})
@@ -349,8 +350,6 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		job, err := re.KubeClient.BatchV1().Jobs(namespace).Get(re.ServiceID, metav1.GetOptions{})
 		if err != nil {
 			logrus.Errorf("get job error: %s", err.Error())
-		}
-		if job == nil {
 			continue
 		}
 		if job.Status.Active > 0 {
@@ -389,6 +388,7 @@ func getJobPod(clientset kubernetes.Interface, namespace, job string) *corev1.Po
 	pos, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
 		logrus.Errorf(" get po error: %s", err.Error())
+		return nil
 	}
 	if len(pos.Items) == 0 {
 		logrus.Warn("do not found job pods, can't get job's logs")
