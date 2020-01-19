@@ -1451,6 +1451,15 @@ func (t *ServiceLabelDaoImpl) GetTenantServiceTypeLabel(serviceID string) (*mode
 	return &label, nil
 }
 
+// GetPrivilegedLabel -
+func (t *ServiceLabelDaoImpl) GetPrivilegedLabel(serviceID string) (*model.TenantServiceLable, error) {
+	var label model.TenantServiceLable
+	if err := t.DB.Where("service_id=? and label_value=?", serviceID, model.LabelKeyServicePrivileged).Find(&label).Error; err != nil {
+		return nil, err
+	}
+	return &label, nil
+}
+
 //DelTenantServiceLabelsByLabelValuesAndServiceID DELTenantServiceLabelsByLabelvaluesAndServiceID
 func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByLabelValuesAndServiceID(serviceID string) error {
 	var label model.TenantServiceLable

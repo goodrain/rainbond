@@ -432,6 +432,9 @@ var LabelKeyServiceAffinity = "service-affinity"
 //LabelKeyServiceAntyAffinity 应用反亲和标签
 var LabelKeyServiceAntyAffinity = "service-anti-affinity"
 
+// LabelKeyServicePrivileged -
+var LabelKeyServicePrivileged = "privileged"
+
 //TenantServiceProbe 应用探针信息
 type TenantServiceProbe struct {
 	Model

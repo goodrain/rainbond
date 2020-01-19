@@ -298,6 +298,7 @@ type TenantServiceLabelDao interface {
 	DelTenantServiceLabelsByServiceIDKey(serviceID string, labelKey string) error
 	DelTenantServiceLabelsByServiceIDKeyValue(serviceID string, labelKey string, labelValue string) error
 	GetLabelByNodeSelectorKey(serviceID string, labelValue string) (*model.TenantServiceLable, error)
+	GetPrivilegedLabel(serviceID string) (*model.TenantServiceLable, error)
 }
 
 //LocalSchedulerDao 本地调度信息
