@@ -138,6 +138,7 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		return nil, fmt.Errorf("get privileged label: %v", err)
 	}
 	if label != nil {
+		logrus.Infof("service id: %s; enable privileged.", as.ServiceID)
 		c.SecurityContext = &corev1.SecurityContext{Privileged: util.Bool(true)}
 	}
 
@@ -651,6 +652,9 @@ func createNodeSelector(as *v1.AppService, dbmanager db.Manager) map[string]stri
 		for _, l := range labels {
 			if l.LabelValue == "windows" || l.LabelValue == "linux" {
 				selector[client.LabelOS] = l.LabelValue
+				continue
+			}
+			if l.LabelValue == model.LabelKeyServicePrivileged {
 				continue
 			}
 			if strings.Contains(l.LabelValue, "=") {
