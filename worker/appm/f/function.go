@@ -32,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
@@ -46,7 +47,7 @@ func ApplyOne(clientset *kubernetes.Clientset, app *v1.AppService) error {
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			_, err = clientset.CoreV1().Namespaces().Create(app.GetTenant())
-			if err != nil {
+			if err != nil && !k8sErrors.IsAlreadyExists(err) {
 				return fmt.Errorf("error creating namespace: %v", err)
 			}
 		}
@@ -54,28 +55,57 @@ func ApplyOne(clientset *kubernetes.Clientset, app *v1.AppService) error {
 			return fmt.Errorf("error checking namespace: %v", err)
 		}
 	}
-	// update service
-	for _, service := range app.GetServices() {
-		ensureService(service, clientset)
-	}
-	// update secret
-	for _, secret := range app.GetSecrets() {
-		ensureSecret(secret, clientset)
-	}
-	// update endpoints
-	for _, ep := range app.GetEndpoints() {
-		if err := EnsureEndpoints(ep, clientset); err != nil {
-			logrus.Errorf("create or update endpoint %s failure %s", ep.Name, err.Error())
+	if app.CustomParams != nil {
+		if domain, exist := app.CustomParams["domain"]; exist {
+			// update ingress
+			for _, ing := range app.GetIngress() {
+				if len(ing.Spec.Rules) > 0 && ing.Spec.Rules[0].Host == domain {
+					if len(ing.Spec.TLS) > 0 {
+						for _, secret := range app.GetSecrets() {
+							if ing.Spec.TLS[0].SecretName == secret.Name {
+								ensureSecret(secret, clientset)
+							}
+						}
+					}
+					ensureIngress(ing, clientset)
+				}
+			}
 		}
-	}
-	// update ingress
-	for _, ing := range app.GetIngress() {
-		ensureIngress(ing, clientset)
+		if domain, exist := app.CustomParams["tcp-address"]; exist {
+			// update ingress
+			for _, ing := range app.GetIngress() {
+				if host, exist := ing.Annotations[parser.GetAnnotationWithPrefix("l4-host")]; exist {
+					address := fmt.Sprintf("%s:%s", host, ing.Annotations[parser.GetAnnotationWithPrefix("l4-port")])
+					if address == domain {
+						ensureIngress(ing, clientset)
+					}
+				}
+			}
+		}
+	} else {
+		// update service
+		for _, service := range app.GetServices() {
+			ensureService(service, clientset)
+		}
+		// update secret
+		for _, secret := range app.GetSecrets() {
+			ensureSecret(secret, clientset)
+		}
+		// update endpoints
+		for _, ep := range app.GetEndpoints() {
+			if err := EnsureEndpoints(ep, clientset); err != nil {
+				logrus.Errorf("create or update endpoint %s failure %s", ep.Name, err.Error())
+			}
+		}
+		// update ingress
+		for _, ing := range app.GetIngress() {
+			ensureIngress(ing, clientset)
+		}
 	}
 	// delete delIngress
 	for _, ing := range app.GetDelIngs() {
 		err := clientset.ExtensionsV1beta1().Ingresses(ing.Namespace).Delete(ing.Name, &metav1.DeleteOptions{})
-		if err != nil {
+		if err != nil && !k8sErrors.IsNotFound(err) {
 			// don't return error, hope it is ok next time
 			logrus.Warningf("error deleting ingress(%v): %v", ing, err)
 		}
@@ -83,7 +113,7 @@ func ApplyOne(clientset *kubernetes.Clientset, app *v1.AppService) error {
 	// delete delSecrets
 	for _, secret := range app.GetDelSecrets() {
 		err := clientset.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
-		if err != nil {
+		if err != nil && !k8sErrors.IsNotFound(err) {
 			// don't return error, hope it is ok next time
 			logrus.Warningf("error deleting secret(%v): %v", secret, err)
 		}
@@ -91,7 +121,7 @@ func ApplyOne(clientset *kubernetes.Clientset, app *v1.AppService) error {
 	// delete delServices
 	for _, svc := range app.GetDelServices() {
 		err := clientset.CoreV1().Services(svc.Namespace).Delete(svc.Name, &metav1.DeleteOptions{})
-		if err != nil {
+		if err != nil && !k8sErrors.IsNotFound(err) {
 			// don't return error, hope it is ok next time
 			logrus.Warningf("error deleting service(%v): %v", svc, err)
 			continue
@@ -153,8 +183,8 @@ func ensureIngress(ingress *extensions.Ingress, clientSet kubernetes.Interface) 
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			_, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(ingress)
-			if err != nil {
-				logrus.Warningf("error creating ingress %+v: %v", ingress, err)
+			if err != nil && !k8sErrors.IsAlreadyExists(err) {
+				logrus.Errorf("error creating ingress %+v: %v", ingress, err)
 			}
 			return
 		}
@@ -168,7 +198,7 @@ func ensureSecret(secret *corev1.Secret, clientSet kubernetes.Interface) {
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			_, err := clientSet.CoreV1().Secrets(secret.Namespace).Create(secret)
-			if err != nil {
+			if err != nil && !k8sErrors.IsAlreadyExists(err) {
 				logrus.Warningf("error creating secret %+v: %v", secret, err)
 			}
 			return

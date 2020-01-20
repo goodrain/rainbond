@@ -1132,7 +1132,6 @@ func (a *appRuntimeStore) evtEventHandler() cache.ResourceEventHandlerFuncs {
 
 			serviceID, ruleID := a.scalingRecordServiceAndRuleID(evt)
 			if serviceID == "" || ruleID == "" {
-				logrus.Warningf("empty service id or rule id")
 				return
 			}
 			record := &model.TenantServiceScalingRecords{
@@ -1166,7 +1165,6 @@ func (a *appRuntimeStore) evtEventHandler() cache.ResourceEventHandlerFuncs {
 
 			serviceID, ruleID := a.scalingRecordServiceAndRuleID(cevt)
 			if serviceID == "" || ruleID == "" {
-				logrus.Warningf("empty service id or rule id")
 				return
 			}
 			record := &model.TenantServiceScalingRecords{

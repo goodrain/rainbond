@@ -118,6 +118,7 @@ type AppService struct {
 	status       AppServiceStatus
 	Logger       event.Logger
 	UpgradePatch map[string][]byte
+	CustomParams map[string]string
 }
 
 //CacheKey app cache key

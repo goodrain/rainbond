@@ -57,7 +57,7 @@ func (e *EndpointDaoImpl) UpdateModel(mo model.Interface) error {
 		return fmt.Errorf("Type conversion error. From %s to *model.Endpoint", reflect.TypeOf(mo))
 	}
 	if strings.Replace(ep.UUID, " ", "", -1) == "" {
-		return fmt.Errorf("uuid can not be empty.")
+		return fmt.Errorf("uuid can not be empty")
 	}
 	return e.DB.Save(ep).Error
 }
