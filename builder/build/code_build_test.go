@@ -272,3 +272,37 @@ func TestDeleteJobAuto(t *testing.T) {
 		time.Sleep(5 * time.Second)
 	}
 }
+
+func TestDeleteJob(t *testing.T) {
+	podChan := make(chan struct{})
+	defer close(podChan)
+	conf := option.Config{
+		EtcdEndPoints:       []string{"192.168.2.203:2379"},
+		MQAPI:               "192.168.2.203:6300",
+		EventLogServers:     []string{"192.168.2.203:6366"},
+		RbdRepoName:         "rbd-dns",
+		RbdNamespace:        "rbd-system",
+		MysqlConnectionInfo: "EeM2oc:lee7OhQu@tcp(192.168.2.203:3306)/region",
+	}
+	event.NewManager(event.EventConfig{
+		EventLogServers: conf.EventLogServers,
+		DiscoverArgs:    &etcdutil.ClientArgs{Endpoints: conf.EtcdEndPoints},
+	})
+	restConfig, err := k8sutil.NewRestConfig("/Users/fanyangyang/Documents/company/goodrain/remote/192.168.2.206/admin.kubeconfig")
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := "fanyangyang"
+	namespace := "rbd-system"
+	logger := event.GetManager().GetLogger("0000")
+	writer := logger.GetWriter("builder", "info")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go getJobPodLogs(ctx, podChan, clientset, writer, namespace, name)
+	getJob(ctx, podChan, clientset, namespace, name)
+	t.Log("done")
+}

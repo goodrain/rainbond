@@ -70,6 +70,7 @@ type SourceCodeBuildItem struct {
 	RepoInfo      *sources.RepostoryBuildInfo
 	commit        Commit
 	Configs       map[string]gjson.Result `json:"configs"`
+	Ctx           context.Context
 }
 
 //Commit code Commit
@@ -247,6 +248,7 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		DockerClient:  i.DockerClient,
 		KubeClient:    i.KubeClient,
 		HostAlias:     hostAlias,
+		Ctx:           i.Ctx,
 	}
 	res, err := codeBuild.Build(buildReq)
 	return res, err

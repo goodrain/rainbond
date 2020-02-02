@@ -19,6 +19,7 @@
 package build
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -91,6 +92,7 @@ type Request struct {
 	KubeClient    kubernetes.Interface
 	ExtraHosts    []string
 	HostAlias     []HostAlias
+	Ctx           context.Context
 }
 
 // HostAlias holds the mapping between IP and hostnames that will be injected as an entry in the

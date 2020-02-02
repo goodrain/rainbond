@@ -29,21 +29,24 @@ import (
 	"os/exec"
 	"path"
 	"strings"
-	"time"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/fsnotify/fsnotify"
+	"github.com/pquerna/ffjson/ffjson"
+
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
-	"github.com/pquerna/ffjson/ffjson"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -254,6 +257,8 @@ func (s *slugBuild) prepareSourceCodeFile(re *Request) error {
 }
 
 func (s *slugBuild) runBuildJob(re *Request) error {
+	ctx, cancel := context.WithCancel(re.Ctx)
+	defer cancel()
 	logrus.Info("start build job")
 	// delete .git and .svn folder
 	if err := s.prepareSourceCodeFile(re); err != nil {
@@ -337,107 +342,157 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	}
 	podTempSpec.Spec = podSpec
 	job.Spec.Template = podTempSpec
+
 	_, err := re.KubeClient.BatchV1().Jobs(namespace).Create(&job)
 	if err != nil {
 		return err
 	}
+
+	defer delete(re.KubeClient, namespace, job.Name)
+
 	// get job builder log and delete job util it is finished
 	writer := re.Logger.GetWriter("builder", "info")
-	finish := false
-	var po *corev1.Pod
-	for {
-		logrus.Debug("waiting job finish")
-		job, err := re.KubeClient.BatchV1().Jobs(namespace).Get(re.ServiceID, metav1.GetOptions{})
-		if err != nil {
-			logrus.Errorf("get job error: %s", err.Error())
-			continue
-		}
-		if job.Status.Active > 0 {
-			for {
-				po = getJobPod(re.KubeClient, namespace, re.ServiceID)
-				if po != nil {
-					getJobPodLogs(re.KubeClient, writer, namespace, re.ServiceID, po.Name)
-					break
-				}
-				time.Sleep(5 * time.Second)
-			}
-		}
 
-		if job.Status.Succeeded > 0 {
-			writer.Write([]byte("build job have done successfully"))
-			finish = true
-		}
-		if job.Status.Failed > 0 {
-			writer.Write([]byte("build job have done failed"))
-			finish = true
-		}
-		if finish {
-			deleteJobPod(re.KubeClient, namespace, po.Name)
-			deleteJob(re.KubeClient, namespace, job.Name)
-			break
-		}
-		time.Sleep(5 * time.Second)
-	}
+	podChan := make(chan struct{})
+	defer close(podChan)
+
+	go getJobPodLogs(ctx, podChan, re.KubeClient, writer, namespace, job.Name)
+	getJob(ctx, podChan, re.KubeClient, namespace, job.Name)
 
 	return nil
 }
 
-func getJobPod(clientset kubernetes.Interface, namespace, job string) *corev1.Pod {
-	var po corev1.Pod
-	labelSelector := fmt.Sprintf("job-name=%s", job)
-	pos, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelSelector})
+func getJob(ctx context.Context, podChan chan struct{}, clientset kubernetes.Interface, namespace, name string) {
+	var job *batchv1.Job
+	jobWatch, err := clientset.BatchV1().Jobs(namespace).Watch(metav1.ListOptions{})
 	if err != nil {
-		logrus.Errorf(" get po error: %s", err.Error())
-		return nil
-	}
-	if len(pos.Items) == 0 {
-		logrus.Warn("do not found job pods, can't get job's logs")
-		return nil
-	}
-	if len(pos.Items[0].Spec.Containers) == 0 {
-		logrus.Warn("do not found job pods container, can't get job's logs")
-		return nil
-	}
-	logrus.Debug("pod container ready, start write log")
-	po = pos.Items[0]
-	return &po
-}
-
-func getJobPodLogs(clientset kubernetes.Interface, writer event.LoggerWriter, namespace, job, pod string) {
-	podLogRequest := clientset.CoreV1().Pods(namespace).GetLogs(pod, &corev1.PodLogOptions{Follow: true})
-	reader, err := podLogRequest.Stream()
-	if err != nil {
-		logrus.Warnf("get build job pod log data error: %s, retry net loop", err.Error())
 		return
 	}
-	defer reader.Close()
-	bufReader := bufio.NewReader(reader)
+
 	for {
-		line, err := bufReader.ReadBytes('\n')
-		writer.Write(line)
-		if err == io.EOF {
-			logrus.Info("get job log finished(io.EOF)")
-			break
+		select {
+		case <-ctx.Done():
+			return
+		case event, ok := <-jobWatch.ResultChan():
+			if !ok {
+				logrus.Error("pod watch chan be closed")
+				return
+			}
+			switch event.Type {
+			case watch.Modified:
+				job, _ = event.Object.(*batchv1.Job)
+				if job.Status.Active > 0 {
+					logrus.Debug("pod is ready")
+					waitPod(ctx, podChan, clientset, namespace, name)
+					podChan <- struct{}{}
+				}
+				if job.Status.Succeeded > 0 || job.Status.Failed > 0 {
+					logrus.Debug("job is finished")
+					return
+				}
+			}
+		default:
 		}
-		if err != nil {
-			logrus.Warningf("get job log error: %s", err.Error())
-			break
-		}
-
+	}
+}
+func waitPod(ctx context.Context, podChan chan struct{}, clientset kubernetes.Interface, namespace, name string) {
+	logrus.Debug("waiting pod")
+	var pod *corev1.Pod
+	labelSelector := fmt.Sprintf("job-name=%s", name)
+	podWatch, err := clientset.CoreV1().Pods(namespace).Watch(metav1.ListOptions{LabelSelector: labelSelector})
+	if err != nil {
+		close(podChan)
+		return
 	}
 
-}
-
-func deleteJobPod(clientset kubernetes.Interface, namespace, pod string) {
-	if err := clientset.CoreV1().Pods(namespace).Delete(pod, &metav1.DeleteOptions{}); err != nil {
-		logrus.Errorf("delete job pod failed: %s", err.Error())
+	for {
+		select {
+		case <-ctx.Done():
+			close(podChan)
+			return
+		case event, ok := <-podWatch.ResultChan():
+			if !ok {
+				logrus.Error("pod watch chan be closed")
+				return
+			}
+			switch event.Type {
+			case watch.Added, watch.Modified:
+				pod, _ = event.Object.(*corev1.Pod)
+				logrus.Debugf("pod status is : %s", pod.Status.Phase)
+				if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].Ready {
+					logrus.Debug("pod is running")
+					return
+				}
+			}
+		default:
+		}
 	}
 }
 
-func deleteJob(clientset kubernetes.Interface, namespace, job string) {
+func getJobPodLogs(ctx context.Context, podChan chan struct{}, clientset kubernetes.Interface, writer event.LoggerWriter, namespace, job string) {
+	once := sync.Once{}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-podChan:
+			once.Do(func() {
+				logrus.Debug("pod ready")
+				labelSelector := fmt.Sprintf("job-name=%s", job)
+				pods, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelSelector})
+				if err != nil {
+					logrus.Errorf("do not found job's pod, %s", err.Error())
+					return
+				}
+				logrus.Debug("pod name is : ", pods.Items[0].Name)
+				podLogRequest := clientset.CoreV1().Pods(namespace).GetLogs(pods.Items[0].Name, &corev1.PodLogOptions{Follow: true})
+				reader, err := podLogRequest.Stream()
+				if err != nil {
+					logrus.Warnf("get build job pod log data error: %s, retry net loop", err.Error())
+					return
+				}
+				defer reader.Close()
+				bufReader := bufio.NewReader(reader)
+				for {
+					line, err := bufReader.ReadBytes('\n')
+					writer.Write(line)
+					if err == io.EOF {
+						logrus.Info("get job log finished(io.EOF)")
+						return
+					}
+					if err != nil {
+						logrus.Warningf("get job log error: %s", err.Error())
+						return
+					}
+				}
+			})
+		default:
+		}
+	}
+}
+
+func delete(clientset kubernetes.Interface, namespace, job string) {
+	logrus.Debugf("start delete job: %s", job)
+	labelSelector := fmt.Sprintf("job-name=%s", job)
+	pods, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelSelector})
+	if err != nil {
+		logrus.Errorf("get job's pod error: %s", err.Error())
+		return
+	}
+	logrus.Debugf("get pod len : %d", len(pods.Items))
+	for _, po := range pods.Items {
+		if err := clientset.CoreV1().Pods(namespace).Delete(po.Name, &metav1.DeleteOptions{}); err != nil {
+			logrus.Errorf("delete job pod failed: %s", err.Error())
+		}
+	}
+
+	// delete job
 	if err := clientset.BatchV1().Jobs(namespace).Delete(job, &metav1.DeleteOptions{}); err != nil {
 		logrus.Errorf("delete job failed: %s", err.Error())
 	}
+
+	logrus.Debug("delete job finish")
+
 }
 
 func (s *slugBuild) runBuildContainer(re *Request) error {

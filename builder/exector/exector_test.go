@@ -33,7 +33,9 @@ import (
 	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+
 	mqclient "github.com/goodrain/rainbond/mq/client"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 )
 
@@ -46,9 +48,10 @@ func Test_exectorManager_buildFromSourceCode(t *testing.T) {
 		RbdNamespace:        "rbd-system",
 		MysqlConnectionInfo: "EeM2oc:lee7OhQu@tcp(192.168.2.203:3306)/region",
 	}
+	etcdArgs := etcdutil.ClientArgs{Endpoints: conf.EtcdEndPoints}
 	event.NewManager(event.EventConfig{
 		EventLogServers: conf.EventLogServers,
-		DiscoverAddress: conf.EtcdEndPoints,
+		DiscoverArgs:    &etcdArgs,
 	})
 	restConfig, err := k8sutil.NewRestConfig("/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig")
 	if err != nil {
@@ -69,7 +72,7 @@ func Test_exectorManager_buildFromSourceCode(t *testing.T) {
 	} else {
 		maxConcurrentTask = conf.MaxTasks
 	}
-	mqClient, err := mqclient.NewMqClient(conf.EtcdEndPoints, conf.MQAPI)
+	mqClient, err := mqclient.NewMqClient(&etcdArgs, conf.MQAPI)
 	if err != nil {
 		t.Fatal(err)
 	}
