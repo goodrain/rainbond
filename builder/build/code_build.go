@@ -354,7 +354,6 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	writer := re.Logger.GetWriter("builder", "info")
 
 	podChan := make(chan struct{})
-	defer close(podChan)
 
 	go getJobPodLogs(ctx, podChan, re.KubeClient, writer, namespace, job.Name)
 	getJob(ctx, podChan, re.KubeClient, namespace, job.Name)
@@ -401,14 +400,12 @@ func waitPod(ctx context.Context, podChan chan struct{}, clientset kubernetes.In
 	labelSelector := fmt.Sprintf("job-name=%s", name)
 	podWatch, err := clientset.CoreV1().Pods(namespace).Watch(metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
-		close(podChan)
 		return
 	}
 
 	for {
 		select {
 		case <-ctx.Done():
-			close(podChan)
 			return
 		case event, ok := <-podWatch.ResultChan():
 			if !ok {
@@ -473,17 +470,17 @@ func getJobPodLogs(ctx context.Context, podChan chan struct{}, clientset kuberne
 
 func delete(clientset kubernetes.Interface, namespace, job string) {
 	logrus.Debugf("start delete job: %s", job)
-	labelSelector := fmt.Sprintf("job-name=%s", job)
-	pods, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelSelector})
+	listOptions := metav1.ListOptions{LabelSelector:fmt.Sprintf("job-name=%s", job)}
+	pods, err := clientset.CoreV1().Pods(namespace).List(listOptions)
 	if err != nil {
 		logrus.Errorf("get job's pod error: %s", err.Error())
 		return
 	}
+
 	logrus.Debugf("get pod len : %d", len(pods.Items))
-	for _, po := range pods.Items {
-		if err := clientset.CoreV1().Pods(namespace).Delete(po.Name, &metav1.DeleteOptions{}); err != nil {
-			logrus.Errorf("delete job pod failed: %s", err.Error())
-		}
+
+	if err := clientset.CoreV1().Pods(namespace).DeleteCollection(&metav1.DeleteOptions{}, listOptions); err != nil {
+		logrus.Errorf("delete job pod failed: %s", err.Error())
 	}
 
 	// delete job
