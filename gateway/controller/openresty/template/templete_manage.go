@@ -50,7 +50,7 @@ type NginxConfigFileTemplete struct {
 	configFileDirPath   string
 	nginxTmpl           *Template
 	serverTmpl          *Template
-	tcpUpstreamTmpl     *Template
+	tcpAndUDPServerTmpl *Template
 	writeLocks          map[string]*sync.Mutex
 }
 
@@ -68,7 +68,7 @@ func NewNginxConfigFileTemplete() (*NginxConfigFileTemplete, error) {
 	if err != nil {
 		return nil, err
 	}
-	tcpUpstreamTmpl, err := NewTemplate(path.Join(templeteFileDirPath, "upstreams-tcp.tmpl"))
+	tcpAndUDPServerTmpl, err := NewTemplate(path.Join(templeteFileDirPath, "tcp_udp_servers.tmpl"))
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func NewNginxConfigFileTemplete() (*NginxConfigFileTemplete, error) {
 		templeteFileDirPath: templeteFileDirPath,
 		configFileDirPath:   configFileDirPath,
 		serverTmpl:          serverTmpl,
-		tcpUpstreamTmpl:     tcpUpstreamTmpl,
+		tcpAndUDPServerTmpl: tcpAndUDPServerTmpl,
 		nginxTmpl:           nginxTmpl,
 		writeLocks:          make(map[string]*sync.Mutex),
 	}, nil
@@ -103,84 +103,6 @@ func (n *NginxConfigFileTemplete) NewNginxTemplate(data *model.Nginx) error {
 			return fmt.Errorf("nginx config check error")
 		}
 		return err
-	}
-	return nil
-}
-
-// WriteServerAndUpstream wriete server
-func (n *NginxConfigFileTemplete) WriteServerAndUpstream(first bool, c option.Config, configType, tenant string, server *model.Server, upstream *model.Upstream) error {
-	// write a new file just only have one server and and upstream
-	if tenant == "" {
-		tenant = "default"
-	}
-	if configType == "" {
-		configType = "http"
-	}
-	if _, ok := n.writeLocks[tenant]; !ok {
-		n.writeLocks[tenant] = &sync.Mutex{}
-	}
-	n.writeLocks[tenant].Lock()
-	defer n.writeLocks[tenant].Unlock()
-	filename := fmt.Sprintf("%s_servers.conf", tenant)
-	serverConfigFile := path.Join(n.configFileDirPath, configType, tenant, filename)
-	upstreamConfigFile := path.Join(n.configFileDirPath, "stream", tenant, "upstreams.conf")
-	serverBody, err := n.serverTmpl.Write(&NginxServerContext{Servers: []*model.Server{server}, Set: c})
-	if err != nil {
-		logrus.Errorf("create server config by templete failure %s, ignore it", err.Error())
-		return nil
-	}
-	upstreamBody, err := n.tcpUpstreamTmpl.Write(&NginxUpstreamContext{Upstream: upstream, Set: c})
-	if err != nil {
-		logrus.Errorf("create upstream config by templete failure %s, ignore it", err.Error())
-		return nil
-	}
-	hasOldServerConfig := false
-	hasOldUpstreamConfig := false
-	if hasOldUpstreamConfig, err = n.writeFileNotCheck(first, upstreamBody, upstreamConfigFile); err != nil {
-		if err == nginxcmd.ErrorCheck {
-			logrus.Errorf("upstream config check error")
-		} else {
-			logrus.Errorf("writer upstream config failure %s", err.Error())
-		}
-	}
-
-	if hasOldServerConfig, err = n.writeFileNotCheck(first, serverBody, serverConfigFile); err != nil {
-		if err == nginxcmd.ErrorCheck {
-			logrus.Errorf("server %s config error, will ignore it", func() string {
-				if server.ServerName != "" {
-					return server.ServerName
-				}
-				return server.Listen
-			}())
-		} else {
-			logrus.Errorf("writer server config failure %s", err.Error())
-		}
-	}
-
-	//test
-	if err := nginxcmd.CheckConfig(); err != nil {
-		//rollback if error
-		if hasOldServerConfig {
-			if err := os.Rename(serverConfigFile+".bak", serverConfigFile); err != nil {
-				logrus.Warningf("rollback config file failure %s", err.Error())
-			}
-		}
-		if hasOldUpstreamConfig {
-			if err := os.Rename(upstreamConfigFile+".bak", upstreamConfigFile); err != nil {
-				logrus.Warningf("rollback config file failure: %v", err.Error())
-			}
-		}
-		return err
-	}
-	if hasOldServerConfig {
-		if err := os.Remove(serverConfigFile + ".bak"); err != nil {
-			logrus.Warningf("remove old config file failure %s", err.Error())
-		}
-	}
-	if hasOldUpstreamConfig {
-		if err := os.Remove(upstreamConfigFile + ".bak"); err != nil {
-			logrus.Warningf("remove old config file failure %s", err.Error())
-		}
 	}
 	return nil
 }
@@ -260,10 +182,24 @@ func (n *NginxConfigFileTemplete) WriteServer(c option.Config, configtype, tenan
 		return n.writeFile(first, []byte{}, serverConfigFile)
 	}
 	logrus.Debugf("write %d count http server to config", len(writeServers))
-	body, err := n.serverTmpl.Write(&NginxServerContext{
-		Servers: writeServers,
-		Set:     c,
-	})
+	ctx := NginxServerContext{}
+	for _, server := range writeServers {
+		switch server.Protocol {
+		case "HTTP":
+			ctx.Servers = append(ctx.Servers, server)
+		case "UDP":
+			ctx.UDPBackends = append(ctx.UDPBackends, server)
+		case "TCP":
+			ctx.TCPBackends = append(ctx.TCPBackends, server)
+		}
+	}
+	var body []byte
+	var err error
+	if configtype == "stream" {
+		body, err = n.tcpAndUDPServerTmpl.Write(&ctx)
+	} else {
+		body, err = n.serverTmpl.Write(&ctx)
+	}
 	if err != nil {
 		logrus.Errorf("create server config by templete failure %s", err.Error())
 		return err
@@ -345,44 +281,12 @@ func (n *NginxConfigFileTemplete) ClearByTenant(tenant string) error {
 	return os.RemoveAll(tenantStreamConfigFile)
 }
 
-//WriteUpstream write upstream config
-func (n *NginxConfigFileTemplete) WriteUpstream(set option.Config, tenant string, upstrems ...*model.Upstream) error {
-	if tenant == "" {
-		tenant = "default"
-	}
-	if _, ok := n.writeLocks[tenant]; !ok {
-		n.writeLocks[tenant] = &sync.Mutex{}
-	}
-	n.writeLocks[tenant].Lock()
-	defer n.writeLocks[tenant].Unlock()
-	upstreamConfigFile := path.Join(n.configFileDirPath, "stream", tenant, "upstreams.conf")
-	var allBody []byte
-	for i := range upstrems {
-		body, err := n.tcpUpstreamTmpl.Write(&NginxUpstreamContext{
-			Upstream: upstrems[i],
-			Set:      set,
-		})
-		if err != nil {
-			logrus.Errorf("create upstream config by templete failure %s", err.Error())
-			continue
-		}
-		allBody = append(allBody, body...)
-		allBody = append(allBody, '\n')
-	}
-	if err := n.writeFile(true, allBody, upstreamConfigFile); err != nil {
-		if err == nginxcmd.ErrorCheck {
-			logrus.Errorf("upstream config check error")
-		} else {
-			logrus.Errorf("writer upstream config failure %s", err.Error())
-		}
-	}
-	return nil
-}
-
 //NginxServerContext nginx server config
 type NginxServerContext struct {
-	Servers []*model.Server
-	Set     option.Config
+	Servers     []*model.Server
+	TCPBackends []*model.Server
+	UDPBackends []*model.Server
+	Set         option.Config
 }
 
 //NginxUpstreamContext nginx upstream config

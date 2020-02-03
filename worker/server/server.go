@@ -147,7 +147,7 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 		return nil, ErrAppServiceNotFound
 	}
 
-	pods := app.GetPods()
+	pods := app.GetPods(true)
 	var oldpods, newpods []*pb.ServiceAppPod
 	for _, pod := range pods {
 		var containers = make(map[string]*pb.Container, len(pod.Spec.Containers))
@@ -258,14 +258,14 @@ func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest
 			}
 			deployinfo.Secrets = secretsinfo
 		}
-		if ingresses := appService.GetIngress(); ingresses != nil {
+		if ingresses := appService.GetIngress(true); ingresses != nil {
 			ingress := make(map[string]string, len(ingresses))
 			for _, s := range ingresses {
 				ingress[s.Name] = s.Name
 			}
 			deployinfo.Ingresses = ingress
 		}
-		if pods := appService.GetPods(); pods != nil {
+		if pods := appService.GetPods(true); pods != nil {
 			podNames := make(map[string]string, len(pods))
 			for _, s := range pods {
 				podNames[s.Name] = s.Name

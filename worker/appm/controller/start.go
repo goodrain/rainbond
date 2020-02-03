@@ -138,7 +138,7 @@ func (s *startController) startOne(app v1.AppService) error {
 		}
 	}
 	//step 5: create ingress
-	if ingresses := app.GetIngress(); ingresses != nil {
+	if ingresses := app.GetIngress(true); ingresses != nil {
 		for _, ingress := range ingresses {
 			if len(ingress.ResourceVersion) == 0 {
 				_, err := s.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Create(ingress)

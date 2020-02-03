@@ -194,12 +194,10 @@ func NewSocketCollector(gatewayHost string, metricsPerHost bool) (*SocketCollect
 // SetHosts sets the hostnames that are being served by the ingress controller
 // This set of hostnames is used to filter the metrics to be exposed
 func (sc *SocketCollector) SetHosts(hosts sets.String) {
-	logrus.Debugf("set hosts %v", hosts.List())
 	sc.hosts = hosts
 }
 
 func (sc *SocketCollector) handleMessage(msg []byte) {
-	logrus.Debugf("msg: %v", string(msg))
 	// Unmarshal bytes
 	var statsBatch []socketData
 	err := jsoniter.ConfigCompatibleWithStandardLibrary.Unmarshal(msg, &statsBatch)

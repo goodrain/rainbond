@@ -50,7 +50,8 @@ type Config struct {
 }
 
 //Validation validation nginx parameters
-func (s Config) Validation() error {
+func (s *Config) Validation() error {
+	defBackend := config.NewDefault()
 	for k, v := range s.SetHeaders {
 		if !httpguts.ValidHeaderFieldName(k) {
 			return fmt.Errorf("header %s name is valid", k)
@@ -58,6 +59,24 @@ func (s Config) Validation() error {
 		if !httpguts.ValidHeaderFieldValue(v) {
 			return fmt.Errorf("header %s value %s is valid", k, v)
 		}
+	}
+	if s.ProxyBuffering == "" {
+		s.ProxyBuffering = defBackend.ProxyBuffering
+	}
+	if s.BufferSize == "" {
+		s.BufferSize = defBackend.ProxyBufferSize
+	}
+	if s.BuffersNumber == 0 {
+		s.BuffersNumber = defBackend.ProxyBuffersNumber
+	}
+	if s.RequestBuffering == "" {
+		s.RequestBuffering = defBackend.ProxyRequestBuffering
+	}
+	if s.CookieDomain == "" {
+		s.CookieDomain = defBackend.ProxyCookieDomain
+	}
+	if s.CookiePath == "" {
+		s.CookiePath = defBackend.ProxyCookiePath
 	}
 	return nil
 }

@@ -12,6 +12,7 @@ import (
 // Server sets configuration for a virtual server...
 type Server struct {
 	Listen                  string // DefaultType: listen *:80 | *:8000; Sets the address and port for IP, or the path for a UNIX-domain socket on which the server will accept requests
+	Protocol                string
 	Root                    string // Sets the root directory for requests.
 	ServerName              string // Sets names of a virtual server
 	KeepaliveTimeout        Time   // DefaultType 60s. Sets a timeout during which an idle keepalive connection to an upstream server will stay open.
@@ -30,12 +31,32 @@ type Server struct {
 	Rewrites                []Rewrite
 	Locations               []*Location
 	OptionValue             map[string]string
+	UpstreamName            string //used for tcp and udp server
+	ProxyStreamTimeout      string
+	//proxy protocol for tcp real ip
+	ProxyProtocol ProxyProtocol
+}
+
+// ProxyProtocol describes the proxy protocol configuration
+type ProxyProtocol struct {
+	Decode bool `json:"decode"`
+	Encode bool `json:"encode"`
 }
 
 //Validation validation nginx parameters
 func (s *Server) Validation() error {
 	if s.ServerName != "" && strings.Contains(s.ServerName, " ") {
 		return fmt.Errorf("servername %s is valid", s.ServerName)
+	}
+	if s.ProxyStreamTimeout == "" {
+		s.ProxyStreamTimeout = "600s"
+	}
+	if s.Protocol == "" {
+		if s.ServerName != "" {
+			s.Protocol = "HTTP"
+		} else {
+			s.Protocol = "TCP"
+		}
 	}
 	for _, l := range s.Locations {
 		if err := l.Validation(); err != nil {
@@ -96,7 +117,7 @@ func (s *Location) Validation() error {
 	if s.Path == "" {
 		return fmt.Errorf("location path can not be empty")
 	}
-	if err := s.Proxy.Validation(); err != nil {
+	if err := (&s.Proxy).Validation(); err != nil {
 		return fmt.Errorf("location %s proxy config is valid %s", s.Path, err.Error())
 	}
 	return nil

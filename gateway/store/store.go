@@ -189,7 +189,6 @@ func New(client kubernetes.Interface,
 	ingEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			ing := obj.(*extensions.Ingress)
-			logrus.Debugf("Received ingress: %v", ing)
 
 			// updating annotations information for ingress
 			store.extractAnnotations(ing)
@@ -216,7 +215,6 @@ func New(client kubernetes.Interface,
 			if oldIng.ResourceVersion == curIng.ResourceVersion || reflect.DeepEqual(oldIng, curIng) {
 				return
 			}
-			logrus.Debugf("Received ingress: %v", curIng)
 			store.extractAnnotations(curIng)
 			store.secretIngressMap.update(curIng)
 			store.syncSecrets(curIng)
@@ -484,6 +482,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 		anns, err := s.GetIngressAnnotations(ingKey)
 		if err != nil {
 			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
+			continue
 		}
 		if anns.L4.L4Enable && anns.L4.L4Port != 0 {
 			// region l4
@@ -529,6 +528,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			vs := &v1.VirtualService{
 				Listening: []string{listening},
 				PoolName:  backendName,
+				Protocol:  protocol,
 			}
 			vs.Namespace = anns.Namespace
 			vs.ServiceID = anns.Labels["service_id"]
@@ -797,7 +797,6 @@ func (s *k8sStore) Run(stopCh chan struct{}) {
 // Ingress with the local store and file system.
 func (s *k8sStore) syncSecrets(ing *extensions.Ingress) {
 	key := k8s.MetaNamespaceKey(ing)
-	// 获取所有关联的secret key
 	for _, secrKey := range s.secretIngressMap.getSecretKeys(key) {
 		s.syncSecret(secrKey)
 	}

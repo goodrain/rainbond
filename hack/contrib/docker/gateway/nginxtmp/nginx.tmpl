@@ -179,7 +179,62 @@ http {
     include http/*/*_servers.conf;
 }
 
+{{ $stream := .Stream }}
 stream {
-    include stream/*/upstreams.conf;
+    lua_package_cpath "/run/nginx/lua/vendor/so/?.so;/usr/local/openresty/luajit/lib/?.so;;";
+    lua_package_path "/run/nginx/lua/?.lua;;";
+    lua_shared_dict tcp_udp_configuration_data {{$h.UpstreamsDict.Num}}{{$h.UpstreamsDict.Unit}};
+
+    init_by_lua_block {
+        collectgarbage("collect")
+
+        -- init modules
+        local ok, res
+
+        ok, res = pcall(require, "config")
+        if not ok then
+          error("require failed: " .. tostring(res))
+        else
+          configuration = res
+        end
+
+        ok, res = pcall(require, "tcp_udp_configuration")
+        if not ok then
+          error("require failed: " .. tostring(res))
+        else
+          tcp_udp_configuration = res
+        end
+
+        ok, res = pcall(require, "tcp_udp_balancer")
+        if not ok then
+          error("require failed: " .. tostring(res))
+        else
+          tcp_udp_balancer = res
+        end
+    }
+
+    init_worker_by_lua_block {
+        tcp_udp_balancer.init_worker()
+    }
+
+    lua_add_variable $proxy_upstream_name;
+
+    upstream upstream_balancer {
+        server 0.0.0.1:1234; # placeholder
+
+        balancer_by_lua_block {
+          tcp_udp_balancer.balance()
+        }
+    }
+
+    server {
+        listen 127.0.0.1:{{ $stream.StreamPort }};
+
+        access_log off;
+
+        content_by_lua_block {
+          tcp_udp_configuration.call()
+        }
+    }
     include stream/*/*_servers.conf;
 }

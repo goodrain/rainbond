@@ -59,6 +59,7 @@ func (n *NodeManager) checkGatewayPort() bool {
 		uint32(n.config.ListenPorts.HTTP),
 		uint32(n.config.ListenPorts.HTTPS),
 		uint32(n.config.ListenPorts.Status),
+		uint32(n.config.ListenPorts.Stream),
 	}
 	return n.CheckPortAvailable("tcp", ports...)
 }

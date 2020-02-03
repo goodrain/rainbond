@@ -96,22 +96,6 @@ func (cfg *Config) Equals(c *Config) bool {
 		return false
 	}
 
-	if len(cfg.TCPPools) != len(c.TCPPools) {
-		return false
-	}
-	for _, cfgp := range cfg.TCPPools {
-		flag := false
-		for _, cp := range c.TCPPools {
-			if cfgp.Equals(cp) {
-				flag = true
-				break
-			}
-		}
-		if !flag {
-			return false
-		}
-	}
-
 	if len(cfg.L7VS) != len(c.L7VS) {
 		return false
 	}

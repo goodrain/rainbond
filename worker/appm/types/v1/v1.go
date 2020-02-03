@@ -349,7 +349,12 @@ func (a *AppService) DelEndpoints(ep *corev1.Endpoints) {
 }
 
 //GetIngress get ingress
-func (a *AppService) GetIngress() []*extensions.Ingress {
+func (a *AppService) GetIngress(canCopy bool) []*extensions.Ingress {
+	if canCopy {
+		cr := make([]*extensions.Ingress, len(a.ingresses))
+		copy(cr, a.ingresses[0:])
+		return cr
+	}
 	return a.ingresses
 }
 
@@ -477,7 +482,11 @@ func (a *AppService) DeletePods(d *corev1.Pod) {
 }
 
 //GetPods get pods
-func (a *AppService) GetPods() []*corev1.Pod {
+func (a *AppService) GetPods(canCopy bool) []*corev1.Pod {
+	if canCopy {
+		cr := make([]*corev1.Pod, len(a.ingresses))
+		copy(cr, a.pods[0:])
+	}
 	return a.pods
 }
 
@@ -507,9 +516,9 @@ func (a *AppService) SetDeletedResources(old *AppService) {
 		logrus.Debugf("empty old app service.")
 		return
 	}
-	for _, o := range old.GetIngress() {
+	for _, o := range old.GetIngress(true) {
 		del := true
-		for _, n := range a.GetIngress() {
+		for _, n := range a.GetIngress(true) {
 			if o.Name == n.Name {
 				del = false
 				break

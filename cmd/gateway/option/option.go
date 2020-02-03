@@ -89,6 +89,7 @@ type ListenPorts struct {
 	HTTP   int
 	HTTPS  int
 	Status int
+	Stream int
 	Health int
 }
 
@@ -96,7 +97,11 @@ type ListenPorts struct {
 func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.LogLevel, "log-level", "debug", "the gateway log level")
 	fs.StringVar(&g.K8SConfPath, "kube-conf", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig", "absolute path to the kubeconfig file")
-	fs.IntVar(&g.ListenPorts.Status, "status-port", 18080, `Port to use for exposing NGINX status pages.`)
+	fs.IntVar(&g.ListenPorts.Status, "status-port", 18080, `Port to use for the lua HTTP endpoint configuration.`)
+	fs.IntVar(&g.ListenPorts.Stream, "stream-port", 18081, `Port to use for the lua TCP/UDP endpoint configuration.`)
+	fs.IntVar(&g.ListenPorts.Health, "healthz-port", 10254, `Port to use for the healthz endpoint.`)
+	fs.IntVar(&g.ListenPorts.HTTP, "service-http-port", 80, `Port to use for the http service rule`)
+	fs.IntVar(&g.ListenPorts.HTTPS, "service-https-port", 443, `Port to use for the https service rule`)
 	fs.IntVar(&g.WorkerProcesses, "worker-processes", 0, "Default get current compute cpu core number.This number should be, at maximum, the number of CPU cores on your system.")
 	fs.IntVar(&g.WorkerConnections, "worker-connections", 4000, "Determines how many clients will be served by each worker process.")
 	fs.IntVar(&g.WorkerRlimitNofile, "worker-rlimit-nofile", 200000, "Number of file descriptors used for Nginx. This is set in the OS with 'ulimit -n 200000'")
@@ -113,9 +118,6 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	// health check
 	fs.StringVar(&g.HealthPath, "health-path", "/healthz", "absolute path to the kubeconfig file")
 	fs.DurationVar(&g.HealthCheckTimeout, "health-check-timeout", 10, `Time limit, in seconds, for a probe to health-check-path to succeed.`)
-	fs.IntVar(&g.ListenPorts.Health, "healthz-port", 10254, `Port to use for the healthz endpoint.`)
-	fs.IntVar(&g.ListenPorts.HTTP, "service-http-port", 80, `Port to use for the http service rule`)
-	fs.IntVar(&g.ListenPorts.HTTPS, "service-https-port", 443, `Port to use for the https service rule`)
 	fs.BoolVar(&g.EnableMetrics, "enable-metrics", true, "Enables the collection of rbd-gateway metrics")
 	// rainbond endpoints
 	fs.BoolVar(&g.EnableRbdEndpoints, "enable-rbd-endpoints", true, "switch of Rainbond endpoints")
