@@ -19,70 +19,37 @@
 package discover
 
 import (
-	"errors"
+	"fmt"
+	"github.com/Sirupsen/logrus"
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"time"
 
 	"golang.org/x/net/context"
-
-	"github.com/coreos/etcd/client"
 )
 
-var keyAPI client.KeysAPI
-var dconf conf.DiscoverConf
-
-// Deprecated
-//CreateETCDClient 创建etcd api
-func CreateETCDClient(conf conf.DiscoverConf) (client.KeysAPI, error) {
-	dconf = conf
-	cfg := client.Config{
-		Endpoints:               conf.EtcdAddr,
-		Username:                conf.EtcdUser,
-		Password:                conf.EtcdPass,
-		HeaderTimeoutPerRequest: time.Second * 5,
-	}
-	c, err := client.New(cfg)
-	if err != nil {
-		return nil, err
-	}
-	keyAPI = client.NewKeysAPI(c)
-	return keyAPI, nil
-}
-
 //SaveDockerLogInInstance 存储service和node 的对应关系
-func SaveDockerLogInInstance(ctx context.Context, serviceID, instanceID string) error {
-	if keyAPI == nil {
-		return errors.New("etcd client is nil")
-	}
-	_, err := keyAPI.Set(ctx, dconf.HomePath+"/dockerloginstacne/"+serviceID, instanceID, &client.SetOptions{})
+func SaveDockerLogInInstance(etcdClient *clientv3.Client, conf conf.DiscoverConf, serviceID, instanceID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	_, err := etcdClient.Put(ctx, conf.HomePath+"/dockerloginstacne/"+serviceID, instanceID)
 	if err != nil {
-		if cerr, ok := err.(client.Error); ok {
-			if cerr.Code == client.ErrorCodeNodeExist {
-				_, err := keyAPI.Update(ctx, dconf.HomePath+"/dockerloginstacne/"+serviceID, instanceID)
-				if err != nil {
-					return err
-				}
-				return nil
-			}
-		}
+		logrus.Errorf("Failed to put dockerlog instance %v", err)
 		return err
 	}
 	return nil
 }
 
 //GetDokerLogInInstance 获取应用日志接收节点
-func GetDokerLogInInstance(ctx context.Context, serviceID string) (string, error) {
-	if keyAPI == nil {
-		return "", errors.New("etcd client is nil")
-	}
-	res, err := keyAPI.Get(ctx, dconf.HomePath+"/dockerloginstacne/"+serviceID, &client.GetOptions{})
+func GetDokerLogInInstance(etcdClient *clientv3.Client, conf conf.DiscoverConf, serviceID string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	res, err := etcdClient.Get(ctx, conf.HomePath+"/dockerloginstacne/"+serviceID)
 	if err != nil {
-		if cerr, ok := err.(client.Error); ok {
-			if cerr.Code == client.ErrorCodeKeyNotFound {
-				return "", nil
-			}
-		}
 		return "", err
 	}
-	return res.Node.Value, nil
+	if len(res.Kvs) == 0 {
+		return "", fmt.Errorf("get docker log instance failed")
+	}
+	return string(res.Kvs[0].Value), nil
 }

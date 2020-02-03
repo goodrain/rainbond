@@ -175,6 +175,13 @@ func (s *LogServer) Run() error {
 	s.Logger.Debug("Start run server.")
 	log := s.Logger
 
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints: s.Conf.Cluster.Discover.EtcdAddr,
+		CaFile:    s.Conf.Cluster.Discover.EtcdCaFile,
+		CertFile:  s.Conf.Cluster.Discover.EtcdCertFile,
+		KeyFile:   s.Conf.Cluster.Discover.EtcdKeyFile,
+	}
+
 	//init new db
 	if err := db.CreateDBManager(s.Conf.EventStore.DB); err != nil {
 		logrus.Infof("create db manager error, %v", err)
@@ -191,13 +198,20 @@ func (s *LogServer) Run() error {
 	}
 	defer storeManager.Stop()
 	if s.Conf.ClusterMode {
-		s.Cluster = cluster.NewCluster(s.Conf.Cluster, log.WithField("module", "Cluster"), storeManager)
+		s.Cluster, err = cluster.NewCluster(etcdClientArgs, s.Conf.Cluster, log.WithField("module", "Cluster"), storeManager)
+		if err != nil {
+			return err
+		}
 		if err := s.Cluster.Start(); err != nil {
 			return err
 		}
 		defer s.Cluster.Stop()
 	}
-	s.SocketServer = web.NewSocket(s.Conf.WebSocket, log.WithField("module", "SocketServer"), storeManager, s.Cluster, healthInfo)
+	s.SocketServer, err = web.NewSocket(s.Conf.WebSocket, s.Conf.Cluster.Discover, etcdClientArgs,
+		log.WithField("module", "SocketServer"), storeManager, s.Cluster, healthInfo)
+	if err != nil {
+		return err
+	}
 	if err := s.SocketServer.Run(); err != nil {
 		return err
 	}
@@ -209,12 +223,6 @@ func (s *LogServer) Run() error {
 	}
 	defer s.Entry.Stop()
 
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints: s.Conf.Cluster.Discover.EtcdAddr,
-		CaFile:    s.Conf.Cluster.Discover.EtcdCaFile,
-		CertFile:  s.Conf.Cluster.Discover.EtcdCertFile,
-		KeyFile:   s.Conf.Cluster.Discover.EtcdKeyFile,
-	}
 	//服务注册
 	grpckeepalive, err := discover.CreateKeepAlive(etcdClientArgs, "event_log_event_grpc",
 		s.Conf.Cluster.Discover.InstanceIP, s.Conf.Cluster.Discover.InstanceIP, s.Conf.Entry.EventLogServer.BindPort)
