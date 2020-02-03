@@ -31,6 +31,7 @@ import (
 var keyAPI client.KeysAPI
 var dconf conf.DiscoverConf
 
+// Deprecated
 //CreateETCDClient 创建etcd api
 func CreateETCDClient(conf conf.DiscoverConf) (client.KeysAPI, error) {
 	dconf = conf
@@ -40,7 +41,7 @@ func CreateETCDClient(conf conf.DiscoverConf) (client.KeysAPI, error) {
 		Password:                conf.EtcdPass,
 		HeaderTimeoutPerRequest: time.Second * 5,
 	}
-	c, err := client.New(cfg) // TODO fanyangyang etcd v2
+	c, err := client.New(cfg)
 	if err != nil {
 		return nil, err
 	}
