@@ -118,6 +118,9 @@ type Conf struct {
 
 	ImageRepositoryIPAddress string
 	ImageRepositoryHost      string
+
+	ClusterNamespace string
+	ClusterName      string
 }
 
 //StatsdConfig StatsdConfig
@@ -176,6 +179,8 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&a.ImageGCLowThresholdPercent, "image-gc-low-threshold", 75, "The percent of disk usage before which image garbage collection is never run. Lowest disk usage to garbage collect to. Values must be within the range [0, 100] and should not be larger than that of --image-gc-high-threshold.")
 	fs.StringVar(&a.ImageRepositoryIPAddress, "image-repo-ip", "", "The ip address of image repository")
 	fs.StringVar(&a.ImageRepositoryHost, "image-repo-host", "goodrain.me", "The host of image repository")
+	fs.StringVar(&a.ClusterNamespace, "cluster-namespace", "rbd-system", "The namespace of custom resource rainbondcluster.")
+	fs.StringVar(&a.ImageRepositoryHost, "cluster-name", "rainbondcluster", "The name of custom resource rainbondcluster.")
 }
 
 //SetLog 设置log

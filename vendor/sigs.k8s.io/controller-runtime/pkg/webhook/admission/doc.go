@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Kubernetes Authors.
+Copyright 2018 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,21 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package scale
+/*
+Package admission provides implementation for admission webhook and methods to implement admission webhook handlers.
+
+See examples/mutatingwebhook.go and examples/validatingwebhook.go for examples of admission webhooks.
+*/
+package admission
 
 import (
-	"testing"
-
-	"k8s.io/apimachinery/pkg/api/apitesting/roundtrip"
+	logf "sigs.k8s.io/controller-runtime/pkg/internal/log"
 )
 
-// NB: this can't be in the scheme package, because importing'
-// scheme/autoscalingv1 from scheme causes a dependency loop from
-// conversions
-
-func TestRoundTrip(t *testing.T) {
-	scheme := NewScaleConverter().Scheme()
-	// we don't actually need any custom fuzzer funcs ATM -- the defaults
-	// will do just fine
-	roundtrip.RoundTripTestForScheme(t, scheme, nil)
-}
+var log = logf.RuntimeLog.WithName("admission")

@@ -36,7 +36,9 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/docker"
 	"github.com/goodrain/rainbond/node/nodem/envoy"
 
+	rainbondv1alpha1clienset "github.com/GLYASAI/rainbond-operator/pkg/generated/clientset/versioned"
 	"github.com/Sirupsen/logrus"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 )
 
 //Run start run
@@ -46,6 +48,12 @@ func Run(c *option.Conf) error {
 		close(stoped)
 		return nil
 	}
+
+	kubecfg, err := k8sutil.NewRestConfig(c.K8SConfPath)
+	if err != nil {
+		return err
+	}
+
 	startfunc := func() error {
 		if err := c.ParseClient(); err != nil {
 			return fmt.Errorf("config parse error:%s", err.Error())
@@ -55,6 +63,16 @@ func Run(c *option.Conf) error {
 		if err := hostManager.CleanupAndFlush(); err != nil {
 			logrus.Errorf("error writing image repository resolve: %v", err)
 		}
+
+		rainbondClient, err := rainbondv1alpha1clienset.NewForConfig(kubecfg)
+		if err != nil {
+			return err
+		}
+		initiateManager := initiate.New(rainbondClient, c.ClusterNamespace, c.ClusterName)
+		if err := initiateManager.Start(); err != nil {
+			return err
+		}
+		defer initiateManager.Stop()
 
 		nodemanager, err := nodem.NewNodeManager(c)
 		if err != nil {
@@ -151,8 +169,8 @@ func Run(c *option.Conf) error {
 		logrus.Info("See you next time!")
 		return nil
 	}
-	err := initService(c, startfunc, stopfunc)
-	if err != nil {
+
+	if err := initService(c, startfunc, stopfunc); err != nil {
 		return err
 	}
 	return nil

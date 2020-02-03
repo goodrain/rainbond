@@ -17,8 +17,8 @@ type Fstab struct {
 	Lines []*fstabLine
 }
 
-func NewFstab() (*Fstab, error) {
-	f := &Fstab{Path: "/etc/fstab"}
+func NewFstab(path string) (*Fstab, error) {
+	f := &Fstab{Path: path}
 	if err := f.Load(); err != nil {
 		return f, err
 	}

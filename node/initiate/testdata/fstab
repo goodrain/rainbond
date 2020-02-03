@@ -9,3 +9,4 @@
 UUID=6bd03c61-c02b-4d0f-9951-1c0c84c784d8 /boot                   xfs     defaults        0 0
 /dev/mapper/centos-home /home                   xfs     defaults        0 0
 /dev/mapper/centos-swap swap                    swap    defaults        0 0
+host.myserver.com:/home /mnt/home nfs rw,hard,intr,rsize=8192,wsize=8192,timeo=14 0 0
