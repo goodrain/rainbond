@@ -150,6 +150,9 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 	pods := app.GetPods()
 	var oldpods, newpods []*pb.ServiceAppPod
 	for _, pod := range pods {
+		if isPodTerminated(pod) {
+			continue
+		}
 		var containers = make(map[string]*pb.Container, len(pod.Spec.Containers))
 		for _, container := range pod.Spec.Containers {
 			containers[container.Name] = &pb.Container{
@@ -176,6 +179,13 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 		OldPods: oldpods,
 		NewPods: newpods,
 	}, nil
+}
+
+func isPodTerminated(pod *corev1.Pod) bool {
+	if phase := pod.Status.Phase; phase != corev1.PodPending && phase != corev1.PodRunning && phase != corev1.PodUnknown {
+		return true
+	}
+	return false
 }
 
 // translateTimestampSince returns the elapsed time since timestamp in
