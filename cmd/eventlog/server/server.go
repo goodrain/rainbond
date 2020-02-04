@@ -19,6 +19,7 @@
 package server
 
 import (
+	"context"
 	"os/signal"
 	"path"
 	"syscall"
@@ -182,6 +183,13 @@ func (s *LogServer) Run() error {
 		KeyFile:   s.Conf.Cluster.Discover.EtcdKeyFile,
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	etcdClient, err := etcdutil.NewClient(ctx, etcdClientArgs)
+	if err != nil {
+		return err
+	}
+	defer cancel()
+
 	//init new db
 	if err := db.CreateDBManager(s.Conf.EventStore.DB); err != nil {
 		logrus.Infof("create db manager error, %v", err)
@@ -198,7 +206,7 @@ func (s *LogServer) Run() error {
 	}
 	defer storeManager.Stop()
 	if s.Conf.ClusterMode {
-		s.Cluster, err = cluster.NewCluster(etcdClientArgs, s.Conf.Cluster, log.WithField("module", "Cluster"), storeManager)
+		s.Cluster, err = cluster.NewCluster(etcdClient, s.Conf.Cluster, log.WithField("module", "Cluster"), storeManager)
 		if err != nil {
 			return err
 		}
@@ -207,7 +215,7 @@ func (s *LogServer) Run() error {
 		}
 		defer s.Cluster.Stop()
 	}
-	s.SocketServer, err = web.NewSocket(s.Conf.WebSocket, s.Conf.Cluster.Discover, etcdClientArgs,
+	s.SocketServer, err = web.NewSocket(s.Conf.WebSocket, s.Conf.Cluster.Discover, etcdClient,
 		log.WithField("module", "SocketServer"), storeManager, s.Cluster, healthInfo)
 	if err != nil {
 		return err

@@ -21,7 +21,6 @@ package cluster
 import (
 	"fmt"
 	"github.com/coreos/etcd/clientv3"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"time"
 
 	"github.com/goodrain/rainbond/eventlog/cluster/connect"
@@ -67,13 +66,8 @@ type ClusterManager struct {
 }
 
 //NewCluster 创建集群控制器
-func NewCluster(etcdClientArgs *etcdutil.ClientArgs, conf conf.ClusterConf, log *logrus.Entry, storeManager store.Manager) (Cluster, error) {
+func NewCluster(etcdClient *clientv3.Client, conf conf.ClusterConf, log *logrus.Entry, storeManager store.Manager) (Cluster, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	etcdClient, err := etcdutil.NewClient(ctx, etcdClientArgs)
-	if err != nil {
-		logrus.Error("create etcd client error: ", err.Error())
-		return nil, err
-	}
 	discover := discover.New(etcdClient, conf.Discover, log.WithField("module", "Discover"))
 	distribution := distribution.NewDistribution(etcdClient, conf.Discover, discover, log.WithField("Module", "Distribution"))
 	sub := connect.NewSub(conf.PubSub, log.WithField("module", "MessageSubManager"), storeManager, discover, distribution)

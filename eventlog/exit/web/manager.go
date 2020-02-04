@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/coreos/etcd/clientv3"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -65,17 +64,11 @@ type SocketServer struct {
 }
 
 //NewSocket 创建zmq sub客户端
-func NewSocket(conf conf.WebSocketConf, discoverConf conf.DiscoverConf, etcdClientArgs *etcdutil.ClientArgs, log *logrus.Entry, storeManager store.Manager, c cluster.Cluster, healthInfo map[string]string) (*SocketServer, error) {
+func NewSocket(conf conf.WebSocketConf, discoverConf conf.DiscoverConf, etcdClient *clientv3.Client, log *logrus.Entry, storeManager store.Manager, c cluster.Cluster, healthInfo map[string]string) (*SocketServer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	d, err := time.ParseDuration(conf.TimeOut)
 	if err != nil {
 		d = time.Minute * 1
-	}
-
-	etcdClient, err := etcdutil.NewClient(ctx, etcdClientArgs)
-	if err != nil {
-		logrus.Error("create etcd client error: ", err.Error())
-		return nil, err
 	}
 
 	return &SocketServer{
