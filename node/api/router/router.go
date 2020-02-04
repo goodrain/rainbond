@@ -67,6 +67,7 @@ func Routers(mode string) *chi.Mux {
 				r.Get("/service-health", controller.GetServicesHealthy)
 			})
 			r.Route("/nodes", func(r chi.Router) {
+				// abandoned
 				r.Get("/fullres", controller.ClusterInfo)
 				r.Get("/{node_id}/node_resource", controller.GetNodeResource)
 				r.Get("/resources", controller.Resources)
