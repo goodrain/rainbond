@@ -70,6 +70,7 @@ type SourceCodeBuildItem struct {
 	RepoInfo      *sources.RepostoryBuildInfo
 	commit        Commit
 	Configs       map[string]gjson.Result `json:"configs"`
+	Ctx           context.Context
 }
 
 //Commit code Commit
@@ -200,6 +201,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		i.Lang = string(lang)
 	}
 
+	i.Logger.Info("pull code successfully", map[string]string{"step": "codee-version"})
 	res, err := i.codeBuild()
 	if err != nil {
 		if err.Error() == context.DeadlineExceeded.Error() {
@@ -222,13 +224,13 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		i.Logger.Error(util.Translation("No way of compiling to support this source type was found"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return nil, err
 	}
-	extraHosts, err := i.getExtraHosts()
+	hostAlias, err := i.getHostAlias()
 	if err != nil {
 		i.Logger.Error(util.Translation("get rbd-repo ip failure"), map[string]string{"step": "builder-exector", "status": "failure"})
 		return nil, err
 	}
 	buildReq := &build.Request{
-		SourceDir:     i.RepoInfo.GetCodeBuildAbsPath(),
+		SourceDir:     i.RepoInfo.CodeHome,
 		CacheDir:      i.CacheDir,
 		TGZDir:        i.TGZDir,
 		RepositoryURL: i.RepoInfo.RepostoryURL,
@@ -244,7 +246,9 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		BuildEnvs:     i.BuildEnvs,
 		Logger:        i.Logger,
 		DockerClient:  i.DockerClient,
-		ExtraHosts:    extraHosts,
+		KubeClient:    i.KubeClient,
+		HostAlias:     hostAlias,
+		Ctx:           i.Ctx,
 	}
 	res, err := codeBuild.Build(buildReq)
 	return res, err
@@ -253,12 +257,28 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 func (i *SourceCodeBuildItem) getExtraHosts() (extraHosts []string, err error) {
 	endpoints, err := i.KubeClient.CoreV1().Endpoints(i.RbdNamespace).Get(i.RbdRepoName, metav1.GetOptions{})
 	if err != nil {
+		logrus.Errorf("do not found ep by name: %s in namespace: %s", i.RbdRepoName, i.Namespace)
 		return nil, err
 	}
 	for _, subset := range endpoints.Subsets {
 		for _, addr := range subset.Addresses {
 			extraHosts = append(extraHosts, fmt.Sprintf("maven.goodrain.me:%s", addr.IP))
 			extraHosts = append(extraHosts, fmt.Sprintf("lang.goodrain.me:%s", addr.IP))
+		}
+	}
+	return
+}
+
+func (i *SourceCodeBuildItem) getHostAlias() (hostAliasList []build.HostAlias, err error) {
+	endpoints, err := i.KubeClient.CoreV1().Endpoints(i.RbdNamespace).Get(i.RbdRepoName, metav1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("do not found ep by name: %s in namespace: %s", i.RbdRepoName, i.Namespace)
+		return nil, err
+	}
+	hostNames := []string{"maven.goodrain.me", "lang.goodrain.me"}
+	for _, subset := range endpoints.Subsets {
+		for _, addr := range subset.Addresses {
+			hostAliasList = append(hostAliasList, build.HostAlias{IP: addr.IP, Hostnames: hostNames})
 		}
 	}
 	return
