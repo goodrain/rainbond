@@ -471,13 +471,6 @@ func getJobPodLogs(ctx context.Context, podChan chan struct{}, clientset kuberne
 func delete(clientset kubernetes.Interface, namespace, job string) {
 	logrus.Debugf("start delete job: %s", job)
 	listOptions := metav1.ListOptions{LabelSelector:fmt.Sprintf("job-name=%s", job)}
-	pods, err := clientset.CoreV1().Pods(namespace).List(listOptions)
-	if err != nil {
-		logrus.Errorf("get job's pod error: %s", err.Error())
-		return
-	}
-
-	logrus.Debugf("get pod len : %d", len(pods.Items))
 
 	if err := clientset.CoreV1().Pods(namespace).DeleteCollection(&metav1.DeleteOptions{}, listOptions); err != nil {
 		logrus.Errorf("delete job pod failed: %s", err.Error())
