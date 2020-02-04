@@ -66,7 +66,7 @@ type ClusterManager struct {
 }
 
 //NewCluster 创建集群控制器
-func NewCluster(etcdClient *clientv3.Client, conf conf.ClusterConf, log *logrus.Entry, storeManager store.Manager) (Cluster, error) {
+func NewCluster(etcdClient *clientv3.Client, conf conf.ClusterConf, log *logrus.Entry, storeManager store.Manager) Cluster {
 	ctx, cancel := context.WithCancel(context.Background())
 	discover := discover.New(etcdClient, conf.Discover, log.WithField("module", "Discover"))
 	distribution := distribution.NewDistribution(etcdClient, conf.Discover, discover, log.WithField("Module", "Distribution"))
@@ -84,7 +84,7 @@ func NewCluster(etcdClient *clientv3.Client, conf conf.ClusterConf, log *logrus.
 		cancel:       cancel,
 		context:      ctx,
 		etcdClient:   etcdClient,
-	}, nil
+	}
 }
 
 //Start 启动
@@ -107,6 +107,7 @@ func (s *ClusterManager) Start() error {
 
 //Stop 停止
 func (s *ClusterManager) Stop() {
+	s.cancel()
 	s.distribution.Stop()
 	s.zmqPub.Stop()
 	s.zmqSub.Stop()

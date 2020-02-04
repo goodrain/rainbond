@@ -64,7 +64,7 @@ type SocketServer struct {
 }
 
 //NewSocket 创建zmq sub客户端
-func NewSocket(conf conf.WebSocketConf, discoverConf conf.DiscoverConf, etcdClient *clientv3.Client, log *logrus.Entry, storeManager store.Manager, c cluster.Cluster, healthInfo map[string]string) (*SocketServer, error) {
+func NewSocket(conf conf.WebSocketConf, discoverConf conf.DiscoverConf, etcdClient *clientv3.Client, log *logrus.Entry, storeManager store.Manager, c cluster.Cluster, healthInfo map[string]string) *SocketServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	d, err := time.ParseDuration(conf.TimeOut)
 	if err != nil {
@@ -84,7 +84,7 @@ func NewSocket(conf conf.WebSocketConf, discoverConf conf.DiscoverConf, etcdClie
 		cluster:      c,
 		healthInfo:   healthInfo,
 		etcdClient:   etcdClient,
-	}, nil
+	}
 }
 
 func (s *SocketServer) pushEventMessage(w http.ResponseWriter, r *http.Request) {

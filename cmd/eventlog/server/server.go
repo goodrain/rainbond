@@ -206,20 +206,14 @@ func (s *LogServer) Run() error {
 	}
 	defer storeManager.Stop()
 	if s.Conf.ClusterMode {
-		s.Cluster, err = cluster.NewCluster(etcdClient, s.Conf.Cluster, log.WithField("module", "Cluster"), storeManager)
-		if err != nil {
-			return err
-		}
+		s.Cluster = cluster.NewCluster(etcdClient, s.Conf.Cluster, log.WithField("module", "Cluster"), storeManager)
 		if err := s.Cluster.Start(); err != nil {
 			return err
 		}
 		defer s.Cluster.Stop()
 	}
-	s.SocketServer, err = web.NewSocket(s.Conf.WebSocket, s.Conf.Cluster.Discover, etcdClient,
+	s.SocketServer = web.NewSocket(s.Conf.WebSocket, s.Conf.Cluster.Discover, etcdClient,
 		log.WithField("module", "SocketServer"), storeManager, s.Cluster, healthInfo)
-	if err != nil {
-		return err
-	}
 	if err := s.SocketServer.Run(); err != nil {
 		return err
 	}
