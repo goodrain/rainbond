@@ -2,9 +2,8 @@ package v1alpha1
 
 import (
 	"fmt"
-	"github.com/GLYASAI/rainbond-operator/pkg/util/constants"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"path"
 )
 
 // InstallMode is the mode of Rainbond cluster installation
@@ -248,30 +247,6 @@ type RainbondClusterList struct {
 
 func init() {
 	SchemeBuilder.Register(&RainbondCluster{}, &RainbondClusterList{})
-}
-
-func (in *RainbondCluster) FindCondition(t RainbondClusterConditionType) *RainbondClusterCondition {
-	for _, c := range in.Status.Conditions {
-		if t == c.Type {
-			return &c
-		}
-	}
-
-	return nil
-}
-
-func (in *RainbondCluster) StorageClass() string {
-	if in.Spec.StorageClassName == "" {
-		return constants.DefStorageClass
-	}
-	return in.Spec.StorageClassName
-}
-
-func (in *RainbondCluster) ImageRepository() string {
-	if in.Spec.ImageHub == nil {
-		return constants.DefImageRepository
-	}
-	return path.Join(in.Spec.ImageHub.Domain, in.Spec.ImageHub.Namespace)
 }
 
 func (in *RainbondCluster) GatewayIngressIP() string {
