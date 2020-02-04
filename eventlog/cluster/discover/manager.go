@@ -72,7 +72,7 @@ type EtcdDiscoverManager struct {
 }
 
 //New 创建
-func New(conf conf.DiscoverConf, log *logrus.Entry) Manager {
+func New(etcdClient *clientv3.Client, conf conf.DiscoverConf, log *logrus.Entry) Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &EtcdDiscoverManager{
 		conf:           conf,
@@ -83,6 +83,7 @@ func New(conf conf.DiscoverConf, log *logrus.Entry) Manager {
 		delChan:        make(chan *Instance, 2),
 		updateChan:     make(chan *Instance, 2),
 		othersInstance: make([]*Instance, 0),
+		etcdclientv3:   etcdClient,
 	}
 }
 

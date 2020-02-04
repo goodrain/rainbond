@@ -68,16 +68,17 @@ type ClusterManager struct {
 
 //NewCluster 创建集群控制器
 func NewCluster(etcdClientArgs *etcdutil.ClientArgs, conf conf.ClusterConf, log *logrus.Entry, storeManager store.Manager) (Cluster, error) {
-	discover := discover.New(conf.Discover, log.WithField("module", "Discover"))
-	distribution := distribution.NewDistribution(discover, log.WithField("Module", "Distribution"))
-	sub := connect.NewSub(conf.PubSub, log.WithField("module", "MessageSubManager"), storeManager, discover, distribution)
-	pub := connect.NewPub(conf.PubSub, log.WithField("module", "MessagePubServer"), storeManager, discover)
 	ctx, cancel := context.WithCancel(context.Background())
 	etcdClient, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
 		logrus.Error("create etcd client error: ", err.Error())
 		return nil, err
 	}
+	discover := discover.New(etcdClient, conf.Discover, log.WithField("module", "Discover"))
+	distribution := distribution.NewDistribution(etcdClient, conf.Discover, discover, log.WithField("Module", "Distribution"))
+	sub := connect.NewSub(conf.PubSub, log.WithField("module", "MessageSubManager"), storeManager, discover, distribution)
+	pub := connect.NewPub(conf.PubSub, log.WithField("module", "MessagePubServer"), storeManager, discover)
+
 	return &ClusterManager{
 		discover:     discover,
 		zmqSub:       sub,
