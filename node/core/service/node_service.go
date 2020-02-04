@@ -36,6 +36,7 @@ import (
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/goodrain/rainbond/util"
 	ansibleUtil "github.com/goodrain/rainbond/util/ansible"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	licutil "github.com/goodrain/rainbond/util/license"
 	"github.com/twinj/uuid"
 )
@@ -49,9 +50,16 @@ type NodeService struct {
 
 //CreateNodeService create
 func CreateNodeService(c *option.Conf, nodecluster *node.Cluster, kubecli kubecache.KubeClient) *NodeService {
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints:   c.EtcdEndpoints,
+		CaFile:      c.EtcdCaFile,
+		CertFile:    c.EtcdCertFile,
+		KeyFile:     c.EtcdKeyFile,
+		DialTimeout: c.EtcdDialTimeout,
+	}
 	if err := event.NewManager(event.EventConfig{
-		DiscoverAddress: c.Etcd.Endpoints,
 		EventLogServers: c.EventLogServer,
+		DiscoverArgs:    etcdClientArgs,
 	}); err != nil {
 		logrus.Errorf("create event manager faliure")
 	}

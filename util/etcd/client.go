@@ -20,17 +20,26 @@ package etcd
 
 import (
 	"errors"
+	"github.com/coreos/etcd/pkg/transport"
+	"time"
 
+	"github.com/coreos/etcd/clientv3"
 	v3 "github.com/coreos/etcd/clientv3"
 	spb "github.com/coreos/etcd/mvcc/mvccpb"
 	"golang.org/x/net/context"
 )
 
 var (
-	ErrKeyExists      = errors.New("key already exists")
-	ErrWaitMismatch   = errors.New("unexpected wait result")
+	// ErrKeyExists key already exists
+	ErrKeyExists = errors.New("key already exists")
+	// ErrWaitMismatch unexpected wait result
+	ErrWaitMismatch = errors.New("unexpected wait result")
+	// ErrTooManyClients too many clients
 	ErrTooManyClients = errors.New("too many clients")
-	ErrNoWatcher      = errors.New("no watcher channel")
+	// ErrNoWatcher no watcher channel
+	ErrNoWatcher = errors.New("no watcher channel")
+	//ErrNoEndpoints no etcd endpoint
+	ErrNoEndpoints = errors.New("no etcd endpoint")
 )
 
 // deleteRevKey deletes a key by revision, returning false if key is missing
@@ -57,4 +66,52 @@ func claimFirstKey(ctx context.Context, kv v3.KV, kvs []*spb.KeyValue) (*spb.Key
 		}
 	}
 	return nil, nil
+}
+
+// ClientArgs etcd client arguments
+type ClientArgs struct {
+	Endpoints        []string      // args for clientv3.Config
+	DialTimeout      time.Duration // args for clientv3.Config
+	AutoSyncInterval time.Duration // args for clientv3.Config
+	CaFile           string        // args for clientv3.Config.TLS
+	CertFile         string        // args for clientv3.Config.TLS
+	KeyFile          string        // args for clientv3.Config.TLS
+}
+
+var (
+	// for parsing ca from k8s object
+	defaultDialTimeout      = 10 * time.Second
+	defaultAotuSyncInterval = 30 * time.Second
+)
+
+// NewClient new etcd client v3 for all rainbond module, attention: do not support v2
+func NewClient(ctx context.Context, clientArgs *ClientArgs) (*v3.Client, error) {
+	if clientArgs.DialTimeout <= 5 {
+		clientArgs.DialTimeout = defaultDialTimeout
+	}
+	if clientArgs.AutoSyncInterval <= 30 {
+		clientArgs.AutoSyncInterval = defaultAotuSyncInterval
+	}
+
+	config := clientv3.Config{
+		Context:          ctx,
+		Endpoints:        clientArgs.Endpoints,
+		DialTimeout:      clientArgs.DialTimeout,
+		AutoSyncInterval: clientArgs.AutoSyncInterval,
+	}
+
+	if clientArgs.CaFile != "" && clientArgs.CertFile != "" && clientArgs.KeyFile != "" {
+		// create etcd client with tls
+		tlsInfo := transport.TLSInfo{
+			CertFile:      clientArgs.CertFile,
+			KeyFile:       clientArgs.KeyFile,
+			TrustedCAFile: clientArgs.CaFile,
+		}
+		tlsConfig, err := tlsInfo.ClientConfig()
+		if err != nil {
+			return nil, err
+		}
+		config.TLS = tlsConfig
+	}
+	return clientv3.New(config)
 }

@@ -46,6 +46,7 @@ func CreateNodeManager(config option.Config) (*NodeManager, error) {
 	if err := ipManager.Start(); err != nil {
 		return nil, err
 	}
+	defer ipManager.Stop()
 	nm.ipManager = ipManager
 	if ok := nm.checkGatewayPort(); !ok {
 		return nil, fmt.Errorf("Check gateway node port failure")

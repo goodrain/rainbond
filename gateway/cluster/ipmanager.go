@@ -31,6 +31,7 @@ import (
 
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/util"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
 //IPManager ip manager
@@ -41,9 +42,11 @@ type IPManager interface {
 	Start() error
 	//An IP pool change triggers a forced update of the gateway policy
 	NeedUpdateGatewayPolicy() <-chan util.IPEVENT
+	Stop()
 }
 
 type ipManager struct {
+	cancel  context.CancelFunc
 	IPPool  *util.IPPool
 	ipLease map[string]clientv3.LeaseID
 	lock    sync.Mutex
@@ -56,14 +59,20 @@ type ipManager struct {
 //CreateIPManager create ip manage
 func CreateIPManager(config option.Config) (IPManager, error) {
 	IPPool := util.NewIPPool(config.IgnoreInterface)
-	etcdCli, err := clientv3.New(clientv3.Config{
+	etcdClientArgs := &etcdutil.ClientArgs{
 		Endpoints:   config.EtcdEndpoint,
+		CaFile:      config.EtcdCaFile,
+		CertFile:    config.EtcdCertFile,
+		KeyFile:     config.EtcdKeyFile,
 		DialTimeout: time.Duration(config.EtcdTimeout) * time.Second,
-	})
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	etcdCli, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
 		return nil, err
 	}
 	return &ipManager{
+		cancel:     cancel,
 		IPPool:     IPPool,
 		config:     config,
 		etcdCli:    etcdCli,
@@ -151,4 +160,8 @@ func (i *ipManager) deleteIP(ips ...net.IP) {
 		}
 		delete(i.ipLease, ip.String())
 	}
+}
+
+func (i *ipManager) Stop() {
+	i.cancel()
 }

@@ -19,8 +19,6 @@
 package handler
 
 import (
-	"time"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	api_db "github.com/goodrain/rainbond/api/db"
@@ -28,51 +26,44 @@ import (
 	"github.com/goodrain/rainbond/api/handler/share"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/worker/client"
 )
 
 //InitHandle 初始化handle
-func InitHandle(conf option.Config, statusCli *client.AppRuntimeSyncClient) error {
+func InitHandle(conf option.Config, etcdClientArgs *etcdutil.ClientArgs, statusCli *client.AppRuntimeSyncClient, etcdcli *clientv3.Client) error {
 	mq := api_db.MQManager{
-		EtcdEndpoint:  conf.EtcdEndpoint,
-		DefaultServer: conf.MQAPI,
+		EtcdClientArgs: etcdClientArgs,
+		DefaultServer:  conf.MQAPI,
 	}
 	mqClient, errMQ := mq.NewMQManager()
 	if errMQ != nil {
 		logrus.Errorf("new MQ manager failed, %v", errMQ)
 		return errMQ
 	}
-	etcdCli, err := clientv3.New(clientv3.Config{
-		Endpoints:   conf.EtcdEndpoint,
-		DialTimeout: 10 * time.Second,
-	})
-	if err != nil {
-		logrus.Errorf("create etcd client v3 error, %v", err)
-		return err
-	}
 	dbmanager := db.GetManager()
-	defaultServieHandler = CreateManager(conf, mqClient, etcdCli, statusCli)
+	defaultServieHandler = CreateManager(conf, mqClient, etcdcli, statusCli)
 	defaultPluginHandler = CreatePluginManager(mqClient)
 	defaultAppHandler = CreateAppManager(mqClient)
 	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf)
-	defaultNetRulesHandler = CreateNetRulesManager(etcdCli)
+	defaultNetRulesHandler = CreateNetRulesManager(etcdcli)
 	defaultCloudHandler = CreateCloudManager(conf)
-	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdCli)
-	//需要使用etcd v2 API
+	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdcli)
+	//需要使用etcd v2 API TODO fanyangyang
 	defaultEventHandler = CreateLogManager(conf.EtcdEndpoint)
-	shareHandler = &share.ServiceShareHandle{MQClient: mqClient, EtcdCli: etcdCli}
-	pluginShareHandler = &share.PluginShareHandle{MQClient: mqClient, EtcdCli: etcdCli}
+	shareHandler = &share.ServiceShareHandle{MQClient: mqClient, EtcdCli: etcdcli}
+	pluginShareHandler = &share.PluginShareHandle{MQClient: mqClient, EtcdCli: etcdcli}
 	if err := CreateTokenIdenHandler(conf); err != nil {
 		logrus.Errorf("create token identification mannager error, %v", err)
 		return err
 	}
-	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, etcdCli)
+	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, etcdcli)
 	def3rdPartySvcHandler = Create3rdPartySvcHandler(dbmanager, statusCli)
 	operationHandler = CreateOperationHandler(mqClient)
 	batchOperationHandler = CreateBatchOperationHandler(mqClient, operationHandler)
 	defaultAppRestoreHandler = NewAppRestoreHandler()
 	defPodHandler = NewPodHandler(statusCli)
-	
+
 	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
 
 	return nil

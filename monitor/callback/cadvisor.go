@@ -77,7 +77,7 @@ func (c *Cadvisor) toScrape() *prometheus.ScrapeConfig {
 		JobName:        c.Name(),
 		ScrapeInterval: model.Duration(15 * time.Second),
 		ScrapeTimeout:  model.Duration(10 * time.Second),
-		MetricsPath:    "/metrics",
+		MetricsPath:    "/metrics/cadvisor",
 		ServiceDiscoveryConfig: prometheus.ServiceDiscoveryConfig{
 			StaticConfigs: []*prometheus.Group{
 				{
@@ -87,6 +87,14 @@ func (c *Cadvisor) toScrape() *prometheus.ScrapeConfig {
 					},
 				},
 			},
+		},
+		Scheme: "https",
+		HTTPClientConfig: prometheus.HTTPClientConfig{
+			TLSConfig: prometheus.TLSConfig{
+				CAFile: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+				InsecureSkipVerify: true,
+			},
+			BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
 		},
 	}
 }

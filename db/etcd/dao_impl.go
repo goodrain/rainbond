@@ -22,36 +22,52 @@ import (
 	"github.com/goodrain/rainbond/db/dao"
 )
 
+// TenantDao  tenantDao
 func (m *Manager) TenantDao() dao.TenantDao {
 	return nil
 }
+
+// TenantServiceDao TenantServiceDao
 func (m *Manager) TenantServiceDao() dao.TenantServiceDao {
 	return nil
 }
+
+// TenantServicesPortDao TenantServicesPortDao
 func (m *Manager) TenantServicesPortDao() dao.TenantServicesPortDao {
 	return nil
 }
+
+// TenantServiceRelationDao TenantServiceRelationDao
 func (m *Manager) TenantServiceRelationDao() dao.TenantServiceRelationDao {
 	return nil
 }
+
+// TenantServiceEnvVarDao TenantServiceEnvVarDao
 func (m *Manager) TenantServiceEnvVarDao() dao.TenantServiceEnvVarDao {
 	return nil
 }
+
+// TenantServiceMountRelationDao TenantServiceMountRelationDao
 func (m *Manager) TenantServiceMountRelationDao() dao.TenantServiceMountRelationDao {
 	return nil
 }
+
+// TenantServiceVolumeDao TenantServiceVolumeDao
 func (m *Manager) TenantServiceVolumeDao() dao.TenantServiceVolumeDao {
 	return nil
 }
-func (m *Manager) K8sServiceDao() dao.K8sServiceDao {
-	return nil
-}
-func (m *Manager) K8sDeployReplicationDao() dao.K8sDeployReplicationDao {
-	return nil
-}
-func (m *Manager) K8sPodDao() dao.K8sPodDao {
-	return nil
-}
+
+// func (m *Manager) K8sServiceDao() dao.K8sServiceDao {
+// 	return nil
+// }
+// func (m *Manager) K8sDeployReplicationDao() dao.K8sDeployReplicationDao {
+// 	return nil
+// }
+// func (m *Manager) K8sPodDao() dao.K8sPodDao {
+// 	return nil
+// }
+
+// ServiceProbeDao ServiceProbeDao
 func (m *Manager) ServiceProbeDao() dao.ServiceProbeDao {
 	return nil
 }

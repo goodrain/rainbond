@@ -29,16 +29,25 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/fsnotify/fsnotify"
+	"github.com/pquerna/ffjson/ffjson"
+
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
-	"github.com/pquerna/ffjson/ffjson"
+
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 )
 
 func slugBuilder() (Build, error) {
@@ -58,7 +67,7 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 	s.re = re
 	s.buildCacheDir = re.CacheDir
 	packageName := fmt.Sprintf("%s/%s.tgz", s.tgzDir, re.DeployVersion)
-	if err := s.runBuildContainer(re); err != nil {
+	if err := s.runBuildJob(re); err != nil {
 		re.Logger.Error(util.Translation("Compiling the source code failure"), map[string]string{"step": "build-code", "status": "failure"})
 		logrus.Error("build slug in container error,", err.Error())
 		return nil, err
@@ -229,6 +238,258 @@ func (s *slugBuild) getSourceCodeTarFile(re *Request) (*os.File, error) {
 		return nil, err
 	}
 	return os.OpenFile(sourceTarFile, os.O_RDONLY, 0755)
+}
+
+func (s *slugBuild) prepareSourceCodeFile(re *Request) error {
+	var cmd []string
+	if re.ServerType == "svn" {
+		cmd = append(cmd, "rm", "-rf", path.Join(re.SourceDir, "./.svn"))
+	}
+	if re.ServerType == "git" {
+		cmd = append(cmd, "rm", "-rf", path.Join(re.SourceDir, "./.git"))
+	}
+	source := exec.Command(cmd[0], cmd[1:]...)
+	if err := source.Run(); err != nil {
+		return err
+	}
+	logrus.Debug("delete .git and .svn folder success")
+	return nil
+}
+
+func (s *slugBuild) runBuildJob(re *Request) error {
+	ctx, cancel := context.WithCancel(re.Ctx)
+	defer cancel()
+	logrus.Info("start build job")
+	// delete .git and .svn folder
+	if err := s.prepareSourceCodeFile(re); err != nil {
+		logrus.Error("delete .git and .svn folder error")
+		return err
+	}
+	name := re.ServiceID
+	namespace := "rbd-system"
+	envs := []corev1.EnvVar{
+		corev1.EnvVar{Name: "SLUG_VERSION", Value: re.DeployVersion},
+		corev1.EnvVar{Name: "SERVICE_ID", Value: re.ServiceID},
+		corev1.EnvVar{Name: "TENANT_ID", Value: re.TenantID},
+		corev1.EnvVar{Name: "LANGUAGE", Value: re.Lang.String()},
+		corev1.EnvVar{Name: "DEBUG", Value: "true"},
+	}
+	for k, v := range re.BuildEnvs {
+		envs = append(envs, corev1.EnvVar{Name: k, Value: v})
+		if k == "PROC_ENV" {
+			var mapdata = make(map[string]interface{})
+			if err := json.Unmarshal([]byte(v), &mapdata); err == nil {
+				if runtime, ok := mapdata["runtimes"]; ok {
+					envs = append(envs, corev1.EnvVar{Name: "RUNTIME", Value: runtime.(string)})
+				}
+			}
+		}
+	}
+	job := batchv1.Job{}
+	job.Name = name
+	job.Namespace = namespace
+	podTempSpec := corev1.PodTemplateSpec{}
+	podTempSpec.Name = name
+	podTempSpec.Namespace = namespace
+
+	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
+	podSpec.Volumes = []corev1.Volume{
+		corev1.Volume{
+			Name: "slug",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "grdata",
+				},
+			},
+		},
+		corev1.Volume{
+			Name: "app",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "cache",
+				},
+			},
+		},
+	}
+	container := corev1.Container{Name: name, Image: builder.BUILDERIMAGENAME, Stdin: true, StdinOnce: true}
+	container.Env = envs
+	container.Args = []string{"local"}
+	slugSubPath := strings.TrimPrefix(re.TGZDir, "/grdata/")
+	logrus.Debugf("slug subpath is : %s", slugSubPath)
+	appSubPath := strings.TrimPrefix(re.SourceDir, "/cache/")
+	logrus.Debugf("app subpath is : %s", appSubPath)
+	cacheSubPath := strings.TrimPrefix((re.CacheDir), "/cache/")
+	container.VolumeMounts = []corev1.VolumeMount{
+		corev1.VolumeMount{
+			Name:      "app",
+			MountPath: "/tmp/cache",
+			SubPath:   cacheSubPath,
+		},
+		corev1.VolumeMount{
+			Name:      "slug",
+			MountPath: "/tmp/slug",
+			SubPath:   slugSubPath,
+		},
+		corev1.VolumeMount{
+			Name:      "app",
+			MountPath: "/tmp/app",
+			SubPath:   appSubPath,
+		},
+	}
+	podSpec.Containers = append(podSpec.Containers, container)
+	for _, ha := range re.HostAlias {
+		podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: ha.IP, Hostnames: ha.Hostnames})
+	}
+	podTempSpec.Spec = podSpec
+	job.Spec.Template = podTempSpec
+
+	_, err := re.KubeClient.BatchV1().Jobs(namespace).Create(&job)
+	if err != nil {
+		return err
+	}
+
+	defer delete(re.KubeClient, namespace, job.Name)
+
+	// get job builder log and delete job util it is finished
+	writer := re.Logger.GetWriter("builder", "info")
+
+	podChan := make(chan struct{})
+
+	go getJobPodLogs(ctx, podChan, re.KubeClient, writer, namespace, job.Name)
+	getJob(ctx, podChan, re.KubeClient, namespace, job.Name)
+
+	return nil
+}
+
+func getJob(ctx context.Context, podChan chan struct{}, clientset kubernetes.Interface, namespace, name string) {
+	var job *batchv1.Job
+	jobWatch, err := clientset.BatchV1().Jobs(namespace).Watch(metav1.ListOptions{})
+	if err != nil {
+		return
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event, ok := <-jobWatch.ResultChan():
+			if !ok {
+				logrus.Error("pod watch chan be closed")
+				return
+			}
+			switch event.Type {
+			case watch.Modified:
+				job, _ = event.Object.(*batchv1.Job)
+				if job.Status.Active > 0 {
+					logrus.Debug("pod is ready")
+					waitPod(ctx, podChan, clientset, namespace, name)
+					podChan <- struct{}{}
+				}
+				if job.Status.Succeeded > 0 || job.Status.Failed > 0 {
+					logrus.Debug("job is finished")
+					return
+				}
+			}
+		default:
+		}
+	}
+}
+func waitPod(ctx context.Context, podChan chan struct{}, clientset kubernetes.Interface, namespace, name string) {
+	logrus.Debug("waiting pod")
+	var pod *corev1.Pod
+	labelSelector := fmt.Sprintf("job-name=%s", name)
+	podWatch, err := clientset.CoreV1().Pods(namespace).Watch(metav1.ListOptions{LabelSelector: labelSelector})
+	if err != nil {
+		return
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event, ok := <-podWatch.ResultChan():
+			if !ok {
+				logrus.Error("pod watch chan be closed")
+				return
+			}
+			switch event.Type {
+			case watch.Added, watch.Modified:
+				pod, _ = event.Object.(*corev1.Pod)
+				logrus.Debugf("pod status is : %s", pod.Status.Phase)
+				if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].Ready {
+					logrus.Debug("pod is running")
+					return
+				}
+			}
+		default:
+		}
+	}
+}
+
+func getJobPodLogs(ctx context.Context, podChan chan struct{}, clientset kubernetes.Interface, writer event.LoggerWriter, namespace, job string) {
+	once := sync.Once{}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-podChan:
+			once.Do(func() {
+				logrus.Debug("pod ready")
+				labelSelector := fmt.Sprintf("job-name=%s", job)
+				pods, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelSelector})
+				if err != nil {
+					logrus.Errorf("do not found job's pod, %s", err.Error())
+					return
+				}
+				logrus.Debug("pod name is : ", pods.Items[0].Name)
+				podLogRequest := clientset.CoreV1().Pods(namespace).GetLogs(pods.Items[0].Name, &corev1.PodLogOptions{Follow: true})
+				reader, err := podLogRequest.Stream()
+				if err != nil {
+					logrus.Warnf("get build job pod log data error: %s, retry net loop", err.Error())
+					return
+				}
+				defer reader.Close()
+				bufReader := bufio.NewReader(reader)
+				for {
+					line, err := bufReader.ReadBytes('\n')
+					writer.Write(line)
+					if err == io.EOF {
+						logrus.Info("get job log finished(io.EOF)")
+						return
+					}
+					if err != nil {
+						logrus.Warningf("get job log error: %s", err.Error())
+						return
+					}
+				}
+			})
+		default:
+		}
+	}
+}
+
+func delete(clientset kubernetes.Interface, namespace, job string) {
+	logrus.Debugf("start delete job: %s", job)
+	listOptions := metav1.ListOptions{LabelSelector:fmt.Sprintf("job-name=%s", job)}
+	pods, err := clientset.CoreV1().Pods(namespace).List(listOptions)
+	if err != nil {
+		logrus.Errorf("get job's pod error: %s", err.Error())
+		return
+	}
+
+	logrus.Debugf("get pod len : %d", len(pods.Items))
+
+	if err := clientset.CoreV1().Pods(namespace).DeleteCollection(&metav1.DeleteOptions{}, listOptions); err != nil {
+		logrus.Errorf("delete job pod failed: %s", err.Error())
+	}
+
+	// delete job
+	if err := clientset.BatchV1().Jobs(namespace).Delete(job, &metav1.DeleteOptions{}); err != nil {
+		logrus.Errorf("delete job failed: %s", err.Error())
+	}
+
+	logrus.Debug("delete job finish")
+
 }
 
 func (s *slugBuild) runBuildContainer(re *Request) error {

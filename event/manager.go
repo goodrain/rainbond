@@ -32,6 +32,7 @@ import (
 	eventclient "github.com/goodrain/rainbond/eventlog/entry/grpc/client"
 	eventpb "github.com/goodrain/rainbond/eventlog/entry/grpc/pb"
 	"github.com/goodrain/rainbond/util"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/pquerna/ffjson/ffjson"
 	"golang.org/x/net/context"
 )
@@ -48,7 +49,7 @@ type Manager interface {
 // EventConfig event config struct
 type EventConfig struct {
 	EventLogServers []string
-	DiscoverAddress []string
+	DiscoverArgs    *etcdutil.ClientArgs
 }
 type manager struct {
 	ctx            context.Context
@@ -75,7 +76,7 @@ const (
 
 //NewManager 创建manager
 func NewManager(conf EventConfig) error {
-	dis, err := discover.GetDiscover(config.DiscoverConfig{EtcdClusterEndpoints: conf.DiscoverAddress})
+	dis, err := discover.GetDiscover(config.DiscoverConfig{EtcdClientArgs: conf.DiscoverArgs})
 	if err != nil {
 		logrus.Error("create discover manager error.", err.Error())
 		if len(conf.EventLogServers) < 1 {

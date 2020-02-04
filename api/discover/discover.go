@@ -19,11 +19,13 @@
 package discover
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/goodrain/rainbond/api/proxy"
 	corediscover "github.com/goodrain/rainbond/discover"
 	corediscoverconfig "github.com/goodrain/rainbond/discover/config"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -38,14 +40,12 @@ type EndpointDiscover interface {
 var defaultEndpointDiscover EndpointDiscover
 
 //CreateEndpointDiscover create endpoint discover
-func CreateEndpointDiscover(etcdEndpoints []string) (EndpointDiscover, error) {
-	if etcdEndpoints == nil {
-		etcdEndpoints = []string{"127.0.0.1:2379"}
-	}
+func CreateEndpointDiscover(etcdClientArgs *etcdutil.ClientArgs) (EndpointDiscover, error) {
 	if defaultEndpointDiscover == nil {
-		dis, err := corediscover.GetDiscover(corediscoverconfig.DiscoverConfig{
-			EtcdClusterEndpoints: etcdEndpoints,
-		})
+		if etcdClientArgs == nil {
+			return nil, errors.New("etcd args is nil")
+		}
+		dis, err := corediscover.GetDiscover(corediscoverconfig.DiscoverConfig{EtcdClientArgs: etcdClientArgs})
 		if err != nil {
 			return nil, err
 		}
