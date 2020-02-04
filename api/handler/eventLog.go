@@ -110,7 +110,7 @@ func (l *LogAction) GetLogInstance(serviceID string) (string, error) {
 		return string(value.Kvs[0].Value), nil
 	}
 
-	return "", fmt.Errorf("get docker log instance failed")
+	return "", nil
 }
 
 //GetLevelLog get event log
