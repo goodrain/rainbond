@@ -48,7 +48,21 @@ server {
         {{ range $rewrite := $loc.Rewrite.Rewrites }}
         rewrite {{$rewrite.Regex}} {{$rewrite.Replacement}}{{if $rewrite.Flag }} {{$rewrite.Flag}}{{ end }};
         {{ end }}
-
+        set $pass_access_scheme  $scheme;
+        set $best_http_host $http_host;
+        set $pass_port $server_port;
+        # default proxy_set_header
+        proxy_set_header Host                   $best_http_host;
+        proxy_set_header X-Real-IP              $remote_addr;
+        proxy_set_header X-Forwarded-For        $remote_addr;
+        proxy_set_header X-Forwarded-Host       $best_http_host;
+        proxy_set_header X-Forwarded-Port       $pass_port;
+        proxy_set_header X-Forwarded-Proto      $pass_access_scheme;
+        proxy_set_header X-Scheme               $pass_access_scheme;
+        # mitigate HTTPoxy Vulnerability
+        # https://www.nginx.com/blog/mitigating-the-httpoxy-vulnerability-with-nginx/
+        proxy_set_header Proxy                  "";
+        # custom proxy_set_header
         {{ range $k, $v := $loc.Proxy.SetHeaders }}
         proxy_set_header    {{$k}}    {{$v}};
         {{ end }}
