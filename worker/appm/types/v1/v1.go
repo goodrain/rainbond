@@ -484,7 +484,7 @@ func (a *AppService) DeletePods(d *corev1.Pod) {
 //GetPods get pods
 func (a *AppService) GetPods(canCopy bool) []*corev1.Pod {
 	if canCopy {
-		cr := make([]*corev1.Pod, len(a.ingresses))
+		cr := make([]*corev1.Pod, len(a.pods))
 		copy(cr, a.pods[0:])
 	}
 	return a.pods
