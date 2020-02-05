@@ -213,6 +213,13 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 	if err != nil {
 		return utils.CreateAPIHandleErrorFromDBError("delete node", err)
 	}
+	if node.Role.HasRule(client.GatewayNode) {
+		logrus.Debugf("delete gateway ips: %s", node.InternalIP)
+		_, err := node.DeleteGatewayIPs()
+		if err != nil {
+			return utils.CreateAPIHandleErrorFromDBError("delete node", err)
+		}
+	}
 	return nil
 }
 

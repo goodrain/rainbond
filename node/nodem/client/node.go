@@ -511,6 +511,11 @@ func (n *HostNode) DeleteNode() (*client.DeleteResponse, error) {
 	return store.DefalutClient.Delete(conf.Config.NodePath + "/" + n.ID)
 }
 
+// DeleteGatewayIPs delete gateway ips
+func (n *HostNode) DeleteGatewayIPs() (*client.DeleteResponse, error) {
+	return store.DefalutClient.Delete("/rainbond/gateway/ips/" + n.InternalIP)
+}
+
 // DelEndpoints -
 func (n *HostNode) DelEndpoints() {
 	keys, err := n.listEndpointKeys()
