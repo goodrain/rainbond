@@ -135,7 +135,6 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 
 	//batch operation
 	r.Post("/batchoperation", controller.BatchOperation)
-	r.Delete("/etcd", controller.CleanEtcd)
 
 	return r
 }
