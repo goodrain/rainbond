@@ -435,6 +435,8 @@ func (r *RuntimeServer) DelThirdPartyEndpoint(ctx context.Context, re *pb.DelThi
 		Obj: &v1.RbdEndpoint{
 			UUID: re.Uuid,
 			Sid:  re.Sid,
+			IP:   re.Ip,
+			Port: int(re.Port),
 		},
 	}
 	return new(pb.Empty), nil

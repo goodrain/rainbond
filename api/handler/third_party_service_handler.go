@@ -118,11 +118,15 @@ func convertAddressPort(s string) (address string, port int) {
 
 // DelEndpoints deletes endpoints for third-party service.
 func (t *ThirdPartyServiceHanlder) DelEndpoints(epid, sid string) error {
+	ep, err := t.dbmanager.EndpointsDao().GetByUUID(epid)
+	if err != nil {
+		logrus.Warningf("EpID: %s; error getting endpoints: %v", epid, err)
+		return err
+	}
 	if err := t.dbmanager.EndpointsDao().DelByUUID(epid); err != nil {
 		return err
 	}
-
-	t.statusCli.DelThirdPartyEndpoint(epid, sid)
+	t.statusCli.DelThirdPartyEndpoint(ep)
 
 	return nil
 }

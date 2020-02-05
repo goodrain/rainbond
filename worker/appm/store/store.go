@@ -286,7 +286,7 @@ func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {
 					logrus.Debugf("thirdpart service[sid: %s] add domain endpoint[domain: %s] probe", sid, domain)
 					probeInfos = []*ProbeInfo{&ProbeInfo{
 						Sid:  sid,
-						UUID: port.Name,
+						UUID: fmt.Sprintf("%s_%d", domain, port.Port),
 						IP:   domain,
 						Port: port.Port,
 					}}
@@ -296,7 +296,7 @@ func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {
 			for _, address := range subset.NotReadyAddresses {
 				addProbe(&ProbeInfo{
 					Sid:  sid,
-					UUID: port.Name,
+					UUID: fmt.Sprintf("%s_%d", address.IP, port.Port),
 					IP:   address.IP,
 					Port: port.Port,
 				})
@@ -304,7 +304,7 @@ func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {
 			for _, address := range subset.Addresses {
 				addProbe(&ProbeInfo{
 					Sid:  sid,
-					UUID: port.Name,
+					UUID: fmt.Sprintf("%s_%d", address.IP, port.Port),
 					IP:   address.IP,
 					Port: port.Port,
 				})
