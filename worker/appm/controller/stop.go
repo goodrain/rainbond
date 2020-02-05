@@ -63,7 +63,7 @@ func (s *stopController) Begin() {
 }
 func (s *stopController) stopOne(app v1.AppService) error {
 	//step 1: delete services
-	if services := app.GetServices(); services != nil {
+	if services := app.GetServices(true); services != nil {
 		for _, service := range services {
 			if service != nil && service.Name != "" {
 				err := s.manager.client.CoreV1().Services(app.TenantID).Delete(service.Name, &metav1.DeleteOptions{})
@@ -74,7 +74,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 	}
 	//step 2: delete secrets
-	if secrets := app.GetSecrets(); secrets != nil {
+	if secrets := app.GetSecrets(true); secrets != nil {
 		for _, secret := range secrets {
 			if secret != nil && secret.Name != "" {
 				err := s.manager.client.CoreV1().Secrets(app.TenantID).Delete(secret.Name, &metav1.DeleteOptions{})
@@ -85,7 +85,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 	}
 	//step 3: delete ingress
-	if ingresses := app.GetIngress(); ingresses != nil {
+	if ingresses := app.GetIngress(true); ingresses != nil {
 		for _, ingress := range ingresses {
 			if ingress != nil && ingress.Name != "" {
 				err := s.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Delete(ingress.Name, &metav1.DeleteOptions{})
@@ -123,7 +123,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	}
 	//step 6: delete all pod
 	var gracePeriodSeconds int64
-	if pods := app.GetPods(); pods != nil {
+	if pods := app.GetPods(true); pods != nil {
 		for _, pod := range pods {
 			if pod != nil && pod.Name != "" {
 				err := s.manager.client.CoreV1().Pods(app.TenantID).Delete(pod.Name, &metav1.DeleteOptions{

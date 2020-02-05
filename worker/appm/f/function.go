@@ -58,10 +58,10 @@ func ApplyOne(clientset *kubernetes.Clientset, app *v1.AppService) error {
 	if app.CustomParams != nil {
 		if domain, exist := app.CustomParams["domain"]; exist {
 			// update ingress
-			for _, ing := range app.GetIngress() {
+			for _, ing := range app.GetIngress(true) {
 				if len(ing.Spec.Rules) > 0 && ing.Spec.Rules[0].Host == domain {
 					if len(ing.Spec.TLS) > 0 {
-						for _, secret := range app.GetSecrets() {
+						for _, secret := range app.GetSecrets(true) {
 							if ing.Spec.TLS[0].SecretName == secret.Name {
 								ensureSecret(secret, clientset)
 							}
@@ -73,7 +73,7 @@ func ApplyOne(clientset *kubernetes.Clientset, app *v1.AppService) error {
 		}
 		if domain, exist := app.CustomParams["tcp-address"]; exist {
 			// update ingress
-			for _, ing := range app.GetIngress() {
+			for _, ing := range app.GetIngress(true) {
 				if host, exist := ing.Annotations[parser.GetAnnotationWithPrefix("l4-host")]; exist {
 					address := fmt.Sprintf("%s:%s", host, ing.Annotations[parser.GetAnnotationWithPrefix("l4-port")])
 					if address == domain {
@@ -84,21 +84,21 @@ func ApplyOne(clientset *kubernetes.Clientset, app *v1.AppService) error {
 		}
 	} else {
 		// update service
-		for _, service := range app.GetServices() {
+		for _, service := range app.GetServices(true) {
 			ensureService(service, clientset)
 		}
 		// update secret
-		for _, secret := range app.GetSecrets() {
+		for _, secret := range app.GetSecrets(true) {
 			ensureSecret(secret, clientset)
 		}
 		// update endpoints
-		for _, ep := range app.GetEndpoints() {
+		for _, ep := range app.GetEndpoints(true) {
 			if err := EnsureEndpoints(ep, clientset); err != nil {
 				logrus.Errorf("create or update endpoint %s failure %s", ep.Name, err.Error())
 			}
 		}
 		// update ingress
-		for _, ing := range app.GetIngress() {
+		for _, ing := range app.GetIngress(true) {
 			ensureIngress(ing, clientset)
 		}
 	}

@@ -105,8 +105,8 @@ func (s *upgradeController) upgradeConfigMap(newapp v1.AppService) {
 
 func (s *upgradeController) upgradeService(newapp v1.AppService) {
 	nowApp := s.manager.store.GetAppService(newapp.ServiceID)
-	nowServices := nowApp.GetServices()
-	newService := newapp.GetServices()
+	nowServices := nowApp.GetServices(true)
+	newService := newapp.GetServices(true)
 	var nowServiceMaps = make(map[string]*corev1.Service, len(nowServices))
 	for i, now := range nowServices {
 		nowServiceMaps[now.Name] = nowServices[i]
@@ -177,8 +177,8 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 		logrus.Warning(msg)
 		return nil
 	}
-	_ = f.UpgradeSecrets(s.manager.client, &app, oldApp.GetSecrets(), app.GetSecrets(), handleErr)
-	_ = f.UpgradeIngress(s.manager.client, &app, oldApp.GetIngress(), app.GetIngress(), handleErr)
+	_ = f.UpgradeSecrets(s.manager.client, &app, oldApp.GetSecrets(true), app.GetSecrets(true), handleErr)
+	_ = f.UpgradeIngress(s.manager.client, &app, oldApp.GetIngress(true), app.GetIngress(true), handleErr)
 
 	return s.WaitingReady(app)
 }

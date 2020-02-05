@@ -147,10 +147,14 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 		return nil, ErrAppServiceNotFound
 	}
 
-	pods := app.GetPods()
+	pods := app.GetPods(false)
 	var oldpods, newpods []*pb.ServiceAppPod
 	for _, pod := range pods {
-		if isPodTerminated(pod) {
+		if v1.IsPodTerminated(pod) {
+			continue
+		}
+		// Exception pod information due to node loss is no longer displayed
+		if v1.IsPodNodeLost(pod) {
 			continue
 		}
 		var containers = make(map[string]*pb.Container, len(pod.Spec.Containers))
@@ -179,13 +183,6 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 		OldPods: oldpods,
 		NewPods: newpods,
 	}, nil
-}
-
-func isPodTerminated(pod *corev1.Pod) bool {
-	if phase := pod.Status.Phase; phase != corev1.PodPending && phase != corev1.PodRunning && phase != corev1.PodUnknown {
-		return true
-	}
-	return false
 }
 
 // translateTimestampSince returns the elapsed time since timestamp in
@@ -246,14 +243,14 @@ func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest
 			deployinfo.Deployment = appService.GetDeployment().Name
 			deployinfo.StartTime = appService.GetDeployment().ObjectMeta.CreationTimestamp.Format(time.RFC3339)
 		}
-		if services := appService.GetServices(); services != nil {
+		if services := appService.GetServices(false); services != nil {
 			service := make(map[string]string, len(services))
 			for _, s := range services {
 				service[s.Name] = s.Name
 			}
 			deployinfo.Services = service
 		}
-		if endpoints := appService.GetEndpoints(); endpoints != nil &&
+		if endpoints := appService.GetEndpoints(false); endpoints != nil &&
 			appService.AppServiceBase.ServiceKind == model.ServiceKindThirdParty {
 			eps := make(map[string]string, len(endpoints))
 			for _, s := range endpoints {
@@ -261,21 +258,21 @@ func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest
 			}
 			deployinfo.Endpoints = eps
 		}
-		if secrets := appService.GetSecrets(); secrets != nil {
+		if secrets := appService.GetSecrets(false); secrets != nil {
 			secretsinfo := make(map[string]string, len(secrets))
 			for _, s := range secrets {
 				secretsinfo[s.Name] = s.Name
 			}
 			deployinfo.Secrets = secretsinfo
 		}
-		if ingresses := appService.GetIngress(); ingresses != nil {
+		if ingresses := appService.GetIngress(false); ingresses != nil {
 			ingress := make(map[string]string, len(ingresses))
 			for _, s := range ingresses {
 				ingress[s.Name] = s.Name
 			}
 			deployinfo.Ingresses = ingress
 		}
-		if pods := appService.GetPods(); pods != nil {
+		if pods := appService.GetPods(false); pods != nil {
 			podNames := make(map[string]string, len(pods))
 			for _, s := range pods {
 				podNames[s.Name] = s.Name
@@ -332,7 +329,7 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 			exists[fmt.Sprintf("%s:%d", tpe.Ip, tpe.Port)] = true
 		}
 	}
-	for _, ep := range as.GetEndpoints() {
+	for _, ep := range as.GetEndpoints(false) {
 		if ep.Subsets == nil || len(ep.Subsets) == 0 {
 			logrus.Debugf("Key: %s; empty subsets", fmt.Sprintf("%s/%s", ep.Namespace, ep.Name))
 			continue
@@ -342,7 +339,9 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 				for _, address := range subset.Addresses {
 					ip := address.IP
 					if ip == "1.1.1.1" {
-						ip = as.GetServices()[0].Annotations["domain"]
+						if len(as.GetServices(false)) > 0 {
+							ip = as.GetServices(false)[0].Annotations["domain"]
+						}
 					}
 					addEndpoint(&pb.ThirdPartyEndpoint{
 						Uuid: port.Name,
@@ -357,7 +356,9 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 				for _, address := range subset.NotReadyAddresses {
 					ip := address.IP
 					if ip == "1.1.1.1" {
-						ip = as.GetServices()[0].Annotations["domain"]
+						if len(as.GetServices(false)) > 0 {
+							ip = as.GetServices(false)[0].Annotations["domain"]
+						}
 					}
 					addEndpoint(&pb.ThirdPartyEndpoint{
 						Uuid: port.Name,

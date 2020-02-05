@@ -787,7 +787,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 				appService.SetDeployment(deploy)
 			}
 		}
-		if services := appService.GetServices(); services != nil {
+		if services := appService.GetServices(true); services != nil {
 			for _, service := range services {
 				se, err := a.listers.Service.Services(service.Namespace).Get(service.Name)
 				if err != nil && errors.IsNotFound(err) {
@@ -798,7 +798,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 				}
 			}
 		}
-		if ingresses := appService.GetIngress(); ingresses != nil {
+		if ingresses := appService.GetIngress(true); ingresses != nil {
 			for _, ingress := range ingresses {
 				in, err := a.listers.Ingress.Ingresses(ingress.Namespace).Get(ingress.Name)
 				if err != nil && errors.IsNotFound(err) {
@@ -809,7 +809,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 				}
 			}
 		}
-		if secrets := appService.GetSecrets(); secrets != nil {
+		if secrets := appService.GetSecrets(true); secrets != nil {
 			for _, secret := range secrets {
 				se, err := a.listers.Secret.Secrets(secret.Namespace).Get(secret.Name)
 				if err != nil && errors.IsNotFound(err) {
@@ -820,7 +820,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 				}
 			}
 		}
-		if pods := appService.GetPods(); pods != nil {
+		if pods := appService.GetPods(true); pods != nil {
 			for _, pod := range pods {
 				se, err := a.listers.Pod.Pods(pod.Namespace).Get(pod.Name)
 				if err != nil && errors.IsNotFound(err) {

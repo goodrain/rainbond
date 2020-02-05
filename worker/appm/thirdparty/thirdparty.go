@@ -159,7 +159,7 @@ func (t *thirdparty) runStart(sid string, needWatch bool) {
 			}
 		}
 
-		for _, service := range as.GetServices() {
+		for _, service := range as.GetServices(true) {
 			if err := f.EnsureService(service, t.clientset); err != nil {
 				logrus.Errorf("create or update service %s failure %s", service.Name, err.Error())
 			}
@@ -200,7 +200,7 @@ func (t *thirdparty) ListRbdEndpoints(sid string) ([]*v1.RbdEndpoint, Interacter
 }
 
 func deleteSubset(as *v1.AppService, rbdep *v1.RbdEndpoint) {
-	eps := as.GetEndpoints()
+	eps := as.GetEndpoints(true)
 	for _, ep := range eps {
 		for idx, item := range ep.Subsets {
 			if item.Ports[0].Name == rbdep.UUID {
@@ -220,7 +220,7 @@ func deleteSubset(as *v1.AppService, rbdep *v1.RbdEndpoint) {
 				}
 			}
 			if isDomain {
-				for _, service := range as.GetServices() {
+				for _, service := range as.GetServices(true) {
 					if service.Annotations != nil {
 						if rbdep.IP == service.Annotations["domain"] {
 							delete(service.Annotations, "domain")
@@ -291,13 +291,13 @@ func (t *thirdparty) k8sEndpoints(as *v1.AppService, epinfo []*v1.RbdEndpoint) (
 		eaddressIP := epi.IP
 		address := validation.SplitEndpointAddress(epi.IP)
 		if validation.IsDomainNotIP(address) {
-			if len(as.GetServices()) > 0 {
-				annotations := as.GetServices()[0].Annotations
+			if len(as.GetServices(false)) > 0 {
+				annotations := as.GetServices(false)[0].Annotations
 				if annotations == nil {
 					annotations = make(map[string]string)
 				}
 				annotations["domain"] = epi.IP
-				as.GetServices()[0].Annotations = annotations
+				as.GetServices(false)[0].Annotations = annotations
 			}
 			eaddressIP = "1.1.1.1"
 		}
@@ -335,13 +335,13 @@ func (t *thirdparty) createSubsetForAllEndpoint(as *v1.AppService, rbdep *v1.Rbd
 	if validation.IsDomainNotIP(address) {
 		//domain endpoint set ip is 1.1.1.1
 		ipAddress = "1.1.1.1"
-		if len(as.GetServices()) > 0 {
-			annotations := as.GetServices()[0].Annotations
+		if len(as.GetServices(false)) > 0 {
+			annotations := as.GetServices(false)[0].Annotations
 			if annotations == nil {
 				annotations = make(map[string]string)
 			}
 			annotations["domain"] = rbdep.IP
-			as.GetServices()[0].Annotations = annotations
+			as.GetServices(false)[0].Annotations = annotations
 		}
 	}
 
@@ -373,7 +373,7 @@ func (t *thirdparty) createSubsetForAllEndpoint(as *v1.AppService, rbdep *v1.Rbd
 		subset.Addresses = eaddress
 	}
 
-	for _, ep := range as.GetEndpoints() {
+	for _, ep := range as.GetEndpoints(true) {
 		existPort := false
 		existAddress := false
 		for i, item := range ep.Subsets {
@@ -415,7 +415,7 @@ func (t *thirdparty) createSubsetForAllEndpoint(as *v1.AppService, rbdep *v1.Rbd
 func (t *thirdparty) runUpdate(event discovery.Event) {
 
 	updateAddress := func(as *v1.AppService, rbdep *v1.RbdEndpoint, ready bool) {
-		for _, ep := range as.GetEndpoints() {
+		for _, ep := range as.GetEndpoints(true) {
 			var needUpdate bool
 			for idx, subset := range ep.Subsets {
 				if subset.Ports[0].Name == rbdep.UUID {
@@ -437,7 +437,7 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 	}
 	// do not  have multiple ports, multiple addresses
 	removeAddress := func(as *v1.AppService, rbdep *v1.RbdEndpoint) {
-		for _, ep := range as.GetEndpoints() {
+		for _, ep := range as.GetEndpoints(true) {
 			var needUpdate bool
 			for idx, subset := range ep.Subsets {
 				for i, port := range subset.Ports {
@@ -487,7 +487,7 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 				rbdep.Sid, err.Error())
 			return
 		}
-		for _, service := range as.GetServices() {
+		for _, service := range as.GetServices(true) {
 			if err := f.EnsureService(service, t.clientset); err != nil {
 				logrus.Errorf("create or update service %s failure %s", service.Name, err.Error())
 			}
@@ -507,7 +507,7 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 
 func (t *thirdparty) runDelete(sid string) {
 	as := t.store.GetAppService(sid) // TODO: need to delete?
-	if eps := as.GetEndpoints(); eps != nil {
+	if eps := as.GetEndpoints(true); eps != nil {
 		for _, ep := range eps {
 			logrus.Debugf("Endpoints delete: %+v", ep)
 			err := t.clientset.CoreV1().Endpoints(as.TenantID).Delete(ep.Name, &metav1.DeleteOptions{})

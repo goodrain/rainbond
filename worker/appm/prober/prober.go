@@ -233,8 +233,8 @@ func (t *tpProbe) IsUsedProbe(sid string) bool {
 func (t *tpProbe) createServices(probeInfo *store.ProbeInfo) (*v1.Service, *model.TenantServiceProbe) {
 	if probeInfo.IP == "1.1.1.1" {
 		app := t.store.GetAppService(probeInfo.Sid)
-		if len(app.GetServices()) >= 1 {
-			appService := app.GetServices()[0]
+		if len(app.GetServices(true)) >= 1 {
+			appService := app.GetServices(true)[0]
 			if appService.Annotations != nil && appService.Annotations["domain"] != "" {
 				probeInfo.IP = appService.Annotations["domain"]
 				logrus.Debugf("domain address is : %s", probeInfo.IP)
