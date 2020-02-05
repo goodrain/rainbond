@@ -65,7 +65,6 @@ type EtcdDiscoverManager struct {
 	updateChan     chan *Instance
 	log            *logrus.Entry
 	conf           conf.DiscoverConf
-	etcdAPI        client.KeysAPI
 	etcdclientv3   *clientv3.Client
 	selfInstance   *Instance
 	othersInstance []*Instance
@@ -73,7 +72,7 @@ type EtcdDiscoverManager struct {
 }
 
 //New 创建
-func New(conf conf.DiscoverConf, log *logrus.Entry) Manager {
+func New(etcdClient *clientv3.Client, conf conf.DiscoverConf, log *logrus.Entry) Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &EtcdDiscoverManager{
 		conf:           conf,
@@ -84,6 +83,7 @@ func New(conf conf.DiscoverConf, log *logrus.Entry) Manager {
 		delChan:        make(chan *Instance, 2),
 		updateChan:     make(chan *Instance, 2),
 		othersInstance: make([]*Instance, 0),
+		etcdclientv3:   etcdClient,
 	}
 }
 
@@ -175,18 +175,13 @@ func (d *EtcdDiscoverManager) MonitorUpdateInstances() chan *Instance {
 //Run 启动
 func (d *EtcdDiscoverManager) Run() error {
 	d.log.Info("Discover manager start ")
-	api, err := CreateETCDClient(d.conf)
-	if err != nil {
-		d.log.Error("Create etcd client error.", err.Error())
-		return err
-	}
-	d.etcdAPI = api
 	etcdClientArgs := &etcdutil.ClientArgs{
 		Endpoints: d.conf.EtcdAddr,
 		CaFile:    d.conf.EtcdCaFile,
 		CertFile:  d.conf.EtcdCertFile,
 		KeyFile:   d.conf.EtcdKeyFile,
 	}
+	var err error
 	d.etcdclientv3, err = etcdutil.NewClient(d.context, etcdClientArgs)
 	if err != nil {
 		d.log.Error("Create etcd v3 client error.", err.Error())
