@@ -21,7 +21,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/node/init"
 	"os"
 	"os/signal"
 	"syscall"
@@ -65,7 +64,7 @@ func Run(c *option.Conf) error {
 			return fmt.Errorf("config parse error:%s", err.Error())
 		}
 
-		hostManager := init.NewHostManager(c.ImageRepositoryIPAddress, c.ImageRepositoryHost)
+		hostManager := initiate.NewHostManager(c.ImageRepositoryIPAddress, c.ImageRepositoryHost)
 		if err := hostManager.CleanupAndFlush(); err != nil {
 			logrus.Errorf("error writing image repository resolve: %v", err)
 		}
