@@ -21,6 +21,7 @@ func CleanEtcd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logrus.Debugf("clean etcd keys: %v", req.Keys)
 	h := handler.GetEtcdHandler()
 	h.CleanEtcd(req.Keys)
 }
