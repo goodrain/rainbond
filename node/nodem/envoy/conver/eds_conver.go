@@ -49,8 +49,11 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 		logrus.Debugf("select endpoints %d for service %s", len(selectEndpoint), service.Name)
 		var lendpoints []endpoint.LocalityLbEndpoints // localityLbEndpoints just support only one content
 		for _, en := range selectEndpoint {
+			var notReadyAddress *corev1.EndpointAddress
+			var notReadyPort *corev1.EndpointPort
+			var notreadyToPort int
 			for _, subset := range en.Subsets {
-				for _, port := range subset.Ports {
+				for i, port := range subset.Ports {
 					toport := int(port.Port)
 					if serviceAlias == destServiceAlias {
 						//use real port
@@ -62,34 +65,46 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 						}
 					}
 					protocol := string(port.Protocol)
-					addressList := subset.Addresses
-					var notready bool
-					if len(addressList) == 0 && len(subset.NotReadyAddresses) > 0 {
-						notready = true
-						addressList = subset.NotReadyAddresses[:1]
+					if len(subset.Addresses) == 0 && len(subset.NotReadyAddresses) > 0 {
+						notReadyAddress = &subset.NotReadyAddresses[0]
+						notreadyToPort = toport
+						notReadyPort = &subset.Ports[i]
 					}
 					getHealty := func() *endpoint.Endpoint_HealthCheckConfig {
-						if notready {
-							return nil
-						}
 						return &endpoint.Endpoint_HealthCheckConfig{
 							PortValue: uint32(toport),
 						}
 					}
-					var lbe []endpoint.LbEndpoint // just support one content
-					for _, address := range addressList {
-						envoyAddress := envoyv2.CreateSocketAddress(protocol, address.IP, uint32(toport))
-						lbe = append(lbe, endpoint.LbEndpoint{
-							HostIdentifier: &endpoint.LbEndpoint_Endpoint{
-								Endpoint: &endpoint.Endpoint{
-									Address:           &envoyAddress,
-									HealthCheckConfig: getHealty(),
+					if len(subset.Addresses) > 0 {
+						var lbe []endpoint.LbEndpoint
+						for _, address := range subset.Addresses {
+							envoyAddress := envoyv2.CreateSocketAddress(protocol, address.IP, uint32(toport))
+							lbe = append(lbe, endpoint.LbEndpoint{
+								HostIdentifier: &endpoint.LbEndpoint_Endpoint{
+									Endpoint: &endpoint.Endpoint{
+										Address:           &envoyAddress,
+										HealthCheckConfig: getHealty(),
+									},
 								},
-							},
-						})
+							})
+						}
+						if len(lbe) > 0 {
+							lendpoints = append(lendpoints, endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
+						}
 					}
-					lendpoints = append(lendpoints, endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
 				}
+			}
+			if len(lendpoints) == 0 && notReadyAddress != nil && notReadyPort != nil {
+				var lbe []endpoint.LbEndpoint
+				envoyAddress := envoyv2.CreateSocketAddress(string(notReadyPort.Protocol), notReadyAddress.IP, uint32(notreadyToPort))
+				lbe = append(lbe, endpoint.LbEndpoint{
+					HostIdentifier: &endpoint.LbEndpoint_Endpoint{
+						Endpoint: &endpoint.Endpoint{
+							Address: &envoyAddress,
+						},
+					},
+				})
+				lendpoints = append(lendpoints, endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
 			}
 		}
 		cla := &v2.ClusterLoadAssignment{

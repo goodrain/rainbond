@@ -135,7 +135,7 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 	}
 	m := make(map[string]*model.EndpointResp)
 	for _, item := range endpoints {
-		m[item.UUID] = &model.EndpointResp{
+		ep := &model.EndpointResp{
 			EpID: item.UUID,
 			Address: func(ip string, p int) string {
 				if p != 0 {
@@ -147,8 +147,8 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 			IsOnline: false,
 			IsStatic: true,
 		}
+		m[ep.Address] = ep
 	}
-
 	thirdPartyEndpoints, err := t.statusCli.ListThirdPartyEndpoints(sid)
 	if err != nil {
 		logrus.Warningf("ServiceID: %s; grpc; error listing third-party endpoints: %v", sid, err)
@@ -156,26 +156,25 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 	}
 	if thirdPartyEndpoints != nil && thirdPartyEndpoints.Obj != nil {
 		for _, item := range thirdPartyEndpoints.Obj {
-			ep := m[item.Uuid]
+			ep := m[fmt.Sprintf("%s:%d", item.Ip, item.Port)]
 			if ep != nil {
 				ep.IsOnline = true
 				ep.Status = item.Status
 				continue
 			}
-			m[item.Uuid] = &model.EndpointResp{
+			rep := &model.EndpointResp{
 				EpID:     item.Uuid,
 				Address:  item.Ip,
 				Status:   item.Status,
 				IsOnline: true,
 				IsStatic: false,
 			}
+			m[rep.Address] = rep
 		}
 	}
-
 	var res []*model.EndpointResp
 	for _, item := range m {
 		res = append(res, item)
 	}
-
 	return res, nil
 }
