@@ -19,7 +19,9 @@
 package distribution
 
 import (
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/eventlog/cluster/discover"
+	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/db"
 	"sync"
 	"time"
@@ -41,9 +43,11 @@ type Distribution struct {
 	context      context.Context
 	discover     discover.Manager
 	log          *logrus.Entry
+	etcdClient   *clientv3.Client
+	conf         conf.DiscoverConf
 }
 
-func NewDistribution(dis discover.Manager, log *logrus.Entry) *Distribution {
+func NewDistribution(etcdClient *clientv3.Client, conf conf.DiscoverConf, dis discover.Manager, log *logrus.Entry) *Distribution {
 	ctx, cancel := context.WithCancel(context.Background())
 	d := &Distribution{
 		cancel:       cancel,
@@ -53,6 +57,8 @@ func NewDistribution(dis discover.Manager, log *logrus.Entry) *Distribution {
 		updateTime:   make(map[string]time.Time),
 		abnormalNode: make(map[string]int),
 		log:          log,
+		etcdClient:   etcdClient,
+		conf:         conf,
 	}
 	return d
 }
@@ -121,7 +127,7 @@ func (d *Distribution) GetSuitableInstance(serviceID string) *discover.Instance 
 	defer d.lock.Unlock()
 	var suitableInstance *discover.Instance
 
-	instanceID, err := discover.GetDokerLogInInstance(d.context, serviceID)
+	instanceID, err := discover.GetDokerLogInInstance(d.etcdClient, d.conf, serviceID)
 	if err != nil {
 		d.log.Error("Get docker log in instance id error ", err.Error())
 	}

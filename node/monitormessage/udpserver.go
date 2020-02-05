@@ -19,6 +19,7 @@
 package monitormessage
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -29,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/prometheus/common/log"
 )
 
@@ -38,21 +40,23 @@ type UDPServer struct {
 	ListenerPort        int
 	eventServerEndpoint []string
 	client              net.Conn
-	etcdEndpoints       []string
+	etcdClientArgs      *etcdutil.ClientArgs
 }
 
 //CreateUDPServer create udpserver
-func CreateUDPServer(lisHost string, lisPort int, etcdEndpoints []string) *UDPServer {
+func CreateUDPServer(lisHost string, lisPort int, etcdClientArgs *etcdutil.ClientArgs) *UDPServer {
 	return &UDPServer{
-		ListenerHost:  lisHost,
-		ListenerPort:  lisPort,
-		etcdEndpoints: etcdEndpoints,
+		ListenerHost:   lisHost,
+		ListenerPort:   lisPort,
+		etcdClientArgs: etcdClientArgs,
 	}
 }
 
 //Start start
 func (u *UDPServer) Start() error {
-	dis, err := discover.GetDiscover(config.DiscoverConfig{EtcdClusterEndpoints: u.etcdEndpoints})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	dis, err := discover.GetDiscover(config.DiscoverConfig{Ctx: ctx, EtcdClientArgs: u.etcdClientArgs})
 	if err != nil {
 		return err
 	}

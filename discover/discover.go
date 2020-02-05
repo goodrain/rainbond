@@ -32,8 +32,8 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/mvcc/mvccpb"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
 //CallbackUpdate 每次返还变化
@@ -61,19 +61,11 @@ type Discover interface {
 
 //GetDiscover 获取服务发现管理器
 func GetDiscover(opt config.DiscoverConfig) (Discover, error) {
-	if opt.EtcdClusterEndpoints == nil || len(opt.EtcdClusterEndpoints) == 0 {
-		return nil, fmt.Errorf("no etcd server endpoints")
-	}
 	if opt.Ctx == nil {
 		opt.Ctx = context.Background()
 	}
 	ctx, cancel := context.WithCancel(opt.Ctx)
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints:        opt.EtcdClusterEndpoints,
-		AutoSyncInterval: time.Second * 30,
-		DialTimeout:      time.Second * 10,
-		Context:          ctx,
-	})
+	client, err := etcdutil.NewClient(ctx, opt.EtcdClientArgs)
 	if err != nil {
 		cancel()
 		return nil, err

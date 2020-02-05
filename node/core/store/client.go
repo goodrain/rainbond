@@ -31,6 +31,7 @@ import (
 	"context"
 
 	"github.com/Sirupsen/logrus"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
 var (
@@ -45,8 +46,8 @@ type Client struct {
 }
 
 //NewClient 创建client
-func NewClient(cfg *conf.Conf) (err error) {
-	cli, err := client.New(cfg.Etcd)
+func NewClient(ctx context.Context, cfg *conf.Conf, etcdClientArgs *etcdutil.ClientArgs) (err error) {
+	cli, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
 		return
 	}
@@ -57,7 +58,7 @@ func NewClient(cfg *conf.Conf) (err error) {
 		Client:     cli,
 		reqTimeout: time.Duration(cfg.ReqTimeout) * time.Second,
 	}
-	logrus.Infof("init etcd client, endpoint is:%v", cfg.Etcd.Endpoints)
+	logrus.Infof("init etcd client, endpoint is:%v", cfg.EtcdEndpoints)
 	DefalutClient = c
 	return
 }

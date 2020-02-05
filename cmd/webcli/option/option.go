@@ -28,6 +28,9 @@ import (
 //Config config server
 type Config struct {
 	EtcdEndPoints        []string
+	EtcdCaFile           string
+	EtcdCertFile         string
+	EtcdKeyFile          string
 	Address              string
 	HostIP               string
 	HostName             string

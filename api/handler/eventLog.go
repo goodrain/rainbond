@@ -28,27 +28,25 @@ import (
 	"os"
 
 	"github.com/goodrain/rainbond/db"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 
 	api_model "github.com/goodrain/rainbond/api/model"
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	eventdb "github.com/goodrain/rainbond/eventlog/db"
 
 	"github.com/Sirupsen/logrus"
-
-	"github.com/coreos/etcd/client"
-
-	eventdb "github.com/goodrain/rainbond/eventlog/db"
+	"github.com/coreos/etcd/clientv3"
 )
 
 //LogAction  log action struct
 type LogAction struct {
-	EtcdEndpoints []string
-	eventdb       *eventdb.EventFilePlugin
+	EtcdCli *clientv3.Client
+	eventdb *eventdb.EventFilePlugin
 }
 
 //CreateLogManager get log manager
-func CreateLogManager(etcdEndpoint []string) *LogAction {
+func CreateLogManager(cli *clientv3.Client) *LogAction {
 	return &LogAction{
-		EtcdEndpoints: etcdEndpoint,
+		EtcdCli: cli,
 		eventdb: &eventdb.EventFilePlugin{
 			HomePath: "/grdata/logs/",
 		},
@@ -104,19 +102,15 @@ func (l *LogAction) GetLogFile(serviceAlias, fileName string) (string, string, e
 
 //GetLogInstance get log web socket instance
 func (l *LogAction) GetLogInstance(serviceID string) (string, error) {
-	etcdclient, err := client.New(client.Config{
-		Endpoints: l.EtcdEndpoints,
-	})
+	value, err := l.EtcdCli.Get(context.Background(), fmt.Sprintf("/event/dockerloginstacne/%s", serviceID))
 	if err != nil {
 		return "", err
 	}
-	value, err := client.NewKeysAPI(etcdclient).Get(context.Background(),
-		fmt.Sprintf("/event/dockerloginstacne/%s", serviceID),
-		nil)
-	if err != nil {
-		return "", err
+	if len(value.Kvs) > 0 {
+		return string(value.Kvs[0].Value), nil
 	}
-	return value.Node.Value, nil
+
+	return "", nil
 }
 
 //GetLevelLog get event log

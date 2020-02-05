@@ -19,6 +19,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"github.com/goodrain/rainbond/node/init"
 	"os"
@@ -36,6 +37,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodem"
 	"github.com/goodrain/rainbond/node/nodem/docker"
 	"github.com/goodrain/rainbond/node/nodem/envoy"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -48,7 +50,18 @@ func Run(c *option.Conf) error {
 		return nil
 	}
 	startfunc := func() error {
-		if err := c.ParseClient(); err != nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		etcdClientArgs := &etcdutil.ClientArgs{
+			Endpoints:   c.EtcdEndpoints,
+			CaFile:      c.EtcdCaFile,
+			CertFile:    c.EtcdCertFile,
+			KeyFile:     c.EtcdKeyFile,
+			DialTimeout: c.EtcdDialTimeout,
+		}
+
+		if err := c.ParseClient(ctx, etcdClientArgs); err != nil {
 			return fmt.Errorf("config parse error:%s", err.Error())
 		}
 
@@ -64,10 +77,10 @@ func Run(c *option.Conf) error {
 		if err := nodemanager.InitStart(); err != nil {
 			return err
 		}
-		errChan := make(chan error, 3)
+
 		err = eventLog.NewManager(eventLog.EventConfig{
 			EventLogServers: c.EventLogServer,
-			DiscoverAddress: c.Etcd.Endpoints,
+			DiscoverArgs:    etcdClientArgs,
 		})
 		if err != nil {
 			logrus.Errorf("error creating eventlog manager")
@@ -90,9 +103,10 @@ func Run(c *option.Conf) error {
 		}
 
 		// init etcd client
-		if err = store.NewClient(c); err != nil {
-			return fmt.Errorf("Connect to ETCD %s failed: %s", c.Etcd.Endpoints, err)
+		if err = store.NewClient(ctx, c, etcdClientArgs); err != nil {
+			return fmt.Errorf("Connect to ETCD %s failed: %s", c.EtcdEndpoints, err)
 		}
+		errChan := make(chan error, 3)
 		if err := nodemanager.Start(errChan); err != nil {
 			return fmt.Errorf("start node manager failed: %s", err)
 		}

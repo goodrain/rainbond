@@ -20,6 +20,7 @@ package cluster
 
 import (
 	"fmt"
+	"github.com/coreos/etcd/clientv3"
 	"time"
 
 	"github.com/goodrain/rainbond/eventlog/cluster/connect"
@@ -61,15 +62,17 @@ type ClusterManager struct {
 	storeManager store.Manager
 	cancel       func()
 	context      context.Context
+	etcdClient   *clientv3.Client
 }
 
 //NewCluster 创建集群控制器
-func NewCluster(conf conf.ClusterConf, log *logrus.Entry, storeManager store.Manager) Cluster {
-	discover := discover.New(conf.Discover, log.WithField("module", "Discover"))
-	distribution := distribution.NewDistribution(discover, log.WithField("Module", "Distribution"))
+func NewCluster(etcdClient *clientv3.Client, conf conf.ClusterConf, log *logrus.Entry, storeManager store.Manager) Cluster {
+	ctx, cancel := context.WithCancel(context.Background())
+	discover := discover.New(etcdClient, conf.Discover, log.WithField("module", "Discover"))
+	distribution := distribution.NewDistribution(etcdClient, conf.Discover, discover, log.WithField("Module", "Distribution"))
 	sub := connect.NewSub(conf.PubSub, log.WithField("module", "MessageSubManager"), storeManager, discover, distribution)
 	pub := connect.NewPub(conf.PubSub, log.WithField("module", "MessagePubServer"), storeManager, discover)
-	ctx, cancel := context.WithCancel(context.Background())
+
 	return &ClusterManager{
 		discover:     discover,
 		zmqSub:       sub,
@@ -80,6 +83,7 @@ func NewCluster(conf conf.ClusterConf, log *logrus.Entry, storeManager store.Man
 		storeManager: storeManager,
 		cancel:       cancel,
 		context:      ctx,
+		etcdClient:   etcdClient,
 	}
 }
 
@@ -103,6 +107,7 @@ func (s *ClusterManager) Start() error {
 
 //Stop 停止
 func (s *ClusterManager) Stop() {
+	s.cancel()
 	s.distribution.Stop()
 	s.zmqPub.Stop()
 	s.zmqSub.Stop()
