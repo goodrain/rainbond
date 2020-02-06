@@ -764,27 +764,25 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 				}
 			}
 		}
-	}
-
-	if sc, ok := obj.(*storagev1.StorageClass); ok {
-		if err := a.dbmanager.VolumeTypeDao().DeleteModelByVolumeTypes(sc.GetName()); err != nil {
-			logrus.Errorf("delete volumeType from db error: %s", err.Error())
-			return
-		}
-	}
-
-	if claim, ok := obj.(*corev1.PersistentVolumeClaim); ok {
-		serviceID := claim.Labels["service_id"]
-		version := claim.Labels["version"]
-		createrID := claim.Labels["creater_id"]
-		if serviceID != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteClaim(claim)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
-				}
+		if sc, ok := obj.(*storagev1.StorageClass); ok {
+			if err := a.dbmanager.VolumeTypeDao().DeleteModelByVolumeTypes(sc.GetName()); err != nil {
+				logrus.Errorf("delete volumeType from db error: %s", err.Error())
 				return
+			}
+		}
+		if claim, ok := obj.(*corev1.PersistentVolumeClaim); ok {
+			serviceID := claim.Labels["service_id"]
+			version := claim.Labels["version"]
+			createrID := claim.Labels["creater_id"]
+			if serviceID != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteClaim(claim)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
+				}
 			}
 		}
 	}
