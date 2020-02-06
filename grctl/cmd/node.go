@@ -61,35 +61,6 @@ func showSuccessMsg(m string) {
 	os.Exit(0)
 }
 
-//NewCmdShow show
-func NewCmdShow() cli.Command {
-	c := cli.Command{
-		Name:  "show",
-		Usage: "Display region info",
-		Action: func(c *cli.Context) error {
-			Common(c)
-			manageHosts, err := clients.RegionClient.Nodes().GetNodeByRule("manage")
-			handleErr(err)
-			ips := getExternalIP("/opt/rainbond/.init/.ip", manageHosts)
-			fmt.Println("Manage your apps with webui:\n-------------------------------")
-			for _, v := range ips {
-				url := v + ":7070"
-				fmt.Print(url + "  ")
-			}
-			if fileExist("/opt/rainbond/.init/.regioninfo") {
-				regionInfo, err := ioutil.ReadFile("/opt/rainbond/.init/.regioninfo")
-				if err != nil {
-					return nil
-				}
-				fmt.Println("Current data center information:\n-------------------------------")
-				fmt.Println(string(regionInfo))
-			}
-			return nil
-		},
-	}
-	return c
-}
-
 func getExternalIP(path string, node []*client.HostNode) []string {
 	var result []string
 	if fileExist(path) {
@@ -325,38 +296,38 @@ func NewCmdNode() cli.Command {
 					return nil
 				},
 			},
-			{
-				Name:  "up",
-				Usage: "up hostID",
-				Action: func(c *cli.Context) error {
-					Common(c)
-					id := c.Args().First()
-					if id == "" {
-						logrus.Errorf("need hostID")
-						return nil
-					}
-					err := clients.RegionClient.Nodes().Up(id)
-					handleErr(err)
-					fmt.Printf("up node %s  success\n", id)
-					return nil
-				},
-			},
-			{
-				Name:  "down",
-				Usage: "down hostID",
-				Action: func(c *cli.Context) error {
-					Common(c)
-					id := c.Args().First()
-					if id == "" {
-						logrus.Errorf("need hostID")
-						return nil
-					}
-					err := clients.RegionClient.Nodes().Down(id)
-					handleErr(err)
-					fmt.Printf("down node %s  success\n", id)
-					return nil
-				},
-			},
+			// {
+			// 	Name:  "up",
+			// 	Usage: "up hostID",
+			// 	Action: func(c *cli.Context) error {
+			// 		Common(c)
+			// 		id := c.Args().First()
+			// 		if id == "" {
+			// 			logrus.Errorf("need hostID")
+			// 			return nil
+			// 		}
+			// 		err := clients.RegionClient.Nodes().Up(id)
+			// 		handleErr(err)
+			// 		fmt.Printf("up node %s  success\n", id)
+			// 		return nil
+			// 	},
+			// },
+			// {
+			// 	Name:  "down",
+			// 	Usage: "down hostID",
+			// 	Action: func(c *cli.Context) error {
+			// 		Common(c)
+			// 		id := c.Args().First()
+			// 		if id == "" {
+			// 			logrus.Errorf("need hostID")
+			// 			return nil
+			// 		}
+			// 		err := clients.RegionClient.Nodes().Down(id)
+			// 		handleErr(err)
+			// 		fmt.Printf("down node %s  success\n", id)
+			// 		return nil
+			// 	},
+			// },
 			{
 				Name:  "cordon",
 				Usage: "Mark node as unschedulable",
@@ -554,77 +525,77 @@ func NewCmdNode() cli.Command {
 					},
 				},
 			},
-			{
-				Name:  "add",
-				Usage: "Add a node into the cluster",
-				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "hostname,host",
-						Usage: "The option is required",
-					},
-					cli.StringFlag{
-						Name:  "hosts-file-path",
-						Usage: "hosts file path",
-						Value: "/opt/rainbond/rainbond-ansible/inventory/hosts",
-					},
-					cli.StringFlag{
-						Name:  "config-file-path",
-						Usage: "ansible global config file path",
-						Value: "/opt/rainbond/rainbond-ansible/scripts/installer/global.sh",
-					},
-					cli.StringFlag{
-						Name:  "internal-ip,iip",
-						Usage: "The option is required",
-					},
-					cli.StringFlag{
-						Name:  "external-ip,eip",
-						Usage: "Publish the ip address for external connection",
-					},
-					cli.StringFlag{
-						Name:  "root-pass,p",
-						Usage: "Specify the root password of the target host for login, this option conflicts with private-key",
-					},
-					cli.StringFlag{
-						Name:  "private-key,key",
-						Usage: "Specify the private key file for login, this option conflicts with root-pass",
-					},
-					cli.StringSliceFlag{
-						Name:  "role,r",
-						Usage: "The option is required, the allowed values are: [manage|compute|gateway]",
-					},
-					cli.StringFlag{
-						Name:  "podCIDR,cidr",
-						Usage: "Defines the IP assignment range for the specified node, which is automatically specified if not specified",
-					},
-					cli.StringFlag{
-						Name:  "id",
-						Usage: "Specify node ID",
-					},
-					cli.BoolFlag{
-						Name:  "install",
-						Usage: "Automatic installation after addition",
-					},
-				},
-				Action: addNodeCommand,
-			},
-			{
+			// {
+			// 	Name:  "add",
+			// 	Usage: "Add a node into the cluster",
+			// 	Flags: []cli.Flag{
+			// 		cli.StringFlag{
+			// 			Name:  "hostname,host",
+			// 			Usage: "The option is required",
+			// 		},
+			// 		cli.StringFlag{
+			// 			Name:  "hosts-file-path",
+			// 			Usage: "hosts file path",
+			// 			Value: "/opt/rainbond/rainbond-ansible/inventory/hosts",
+			// 		},
+			// 		cli.StringFlag{
+			// 			Name:  "config-file-path",
+			// 			Usage: "ansible global config file path",
+			// 			Value: "/opt/rainbond/rainbond-ansible/scripts/installer/global.sh",
+			// 		},
+			// 		cli.StringFlag{
+			// 			Name:  "internal-ip,iip",
+			// 			Usage: "The option is required",
+			// 		},
+			// 		cli.StringFlag{
+			// 			Name:  "external-ip,eip",
+			// 			Usage: "Publish the ip address for external connection",
+			// 		},
+			// 		cli.StringFlag{
+			// 			Name:  "root-pass,p",
+			// 			Usage: "Specify the root password of the target host for login, this option conflicts with private-key",
+			// 		},
+			// 		cli.StringFlag{
+			// 			Name:  "private-key,key",
+			// 			Usage: "Specify the private key file for login, this option conflicts with root-pass",
+			// 		},
+			// 		cli.StringSliceFlag{
+			// 			Name:  "role,r",
+			// 			Usage: "The option is required, the allowed values are: [manage|compute|gateway]",
+			// 		},
+			// 		cli.StringFlag{
+			// 			Name:  "podCIDR,cidr",
+			// 			Usage: "Defines the IP assignment range for the specified node, which is automatically specified if not specified",
+			// 		},
+			// 		cli.StringFlag{
+			// 			Name:  "id",
+			// 			Usage: "Specify node ID",
+			// 		},
+			// 		cli.BoolFlag{
+			// 			Name:  "install",
+			// 			Usage: "Automatic installation after addition",
+			// 		},
+			// 	},
+			// 	Action: addNodeCommand,
+			// },
+			// {
 
-				Name:  "install",
-				Usage: "Install a exist node into the cluster",
-				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "hosts-file-path",
-						Usage: "hosts file path",
-						Value: "/opt/rainbond/rainbond-ansible/inventory/hosts",
-					},
-					cli.StringFlag{
-						Name:  "config-file-path",
-						Usage: "ansible global config file path",
-						Value: "/opt/rainbond/rainbond-ansible/scripts/installer/global.sh",
-					},
-				},
-				Action: installNodeCommand,
-			},
+			// 	Name:  "install",
+			// 	Usage: "Install a exist node into the cluster",
+			// 	Flags: []cli.Flag{
+			// 		cli.StringFlag{
+			// 			Name:  "hosts-file-path",
+			// 			Usage: "hosts file path",
+			// 			Value: "/opt/rainbond/rainbond-ansible/inventory/hosts",
+			// 		},
+			// 		cli.StringFlag{
+			// 			Name:  "config-file-path",
+			// 			Usage: "ansible global config file path",
+			// 			Value: "/opt/rainbond/rainbond-ansible/scripts/installer/global.sh",
+			// 		},
+			// 	},
+			// 	Action: installNodeCommand,
+			// },
 		},
 	}
 	return c

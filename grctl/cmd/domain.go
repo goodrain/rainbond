@@ -27,6 +27,7 @@ import (
 )
 
 //NewCmdDomain domain cmd
+//v5.2 need refactoring
 func NewCmdDomain() cli.Command {
 	c := cli.Command{
 		Name: "domain",

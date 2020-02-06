@@ -27,12 +27,17 @@ function _M.call()
     return
   end
 
+  if backends == "GET" then
+    sock:send(_M.get_backends_data())
+    return
+  end
+
   local success, err_conf = tcp_udp_configuration_data:set("backends", backends)
   if not success then
     ngx.log(ngx.ERR, "dynamic-configuration: error updating configuration: " .. tostring(err_conf))
     ngx.say("error: ", err_conf)
     return
   end
-end
+end  
 
 return _M

@@ -1,21 +1,5 @@
 local json = require("cjson")
 
--- configuration_data: 
--- {backends:[
---    {
---       endpoints:[],
---       sessionAffinityConfig:{
---          name:"",
---          cookieSessionAffinity:{
---              name:"",
---              hash:"",
---              locations:{"":[]} 
---          }
---       }
---       upstream-hash-by:"",
---       load-balance:"",
---    }
--- ]}
 local configuration_data = ngx.shared.configuration_data
 
 local _M = {
