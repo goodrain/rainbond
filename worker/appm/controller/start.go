@@ -121,13 +121,13 @@ func (s *startController) startOne(app v1.AppService) error {
 		}
 	}
 	//step 3: create services
-	if services := app.GetServices(); services != nil {
+	if services := app.GetServices(true); services != nil {
 		if err := CreateKubeService(s.manager.client, app.TenantID, services...); err != nil {
 			return fmt.Errorf("Create service failure %s", err.Error())
 		}
 	}
 	//step 4: create secrets
-	if secrets := app.GetSecrets(); secrets != nil {
+	if secrets := app.GetSecrets(true); secrets != nil {
 		for _, secret := range secrets {
 			if len(secret.ResourceVersion) == 0 {
 				_, err := s.manager.client.CoreV1().Secrets(app.TenantID).Create(secret)

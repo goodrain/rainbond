@@ -218,22 +218,15 @@ func (k *kubeClient) deleteOrEvictPods(pods []v1.Pod) error {
 	}
 
 	return k.evictPods(pods, policyGroupVersion, getPodFn)
-	//if len(policyGroupVersion) > 0 {
-	//	//return evictPods(pods, policyGroupVersion, getPodFn)
-	//} else {
-	//	return deletePods(pods, getPodFn)
-	//}
 }
 
 func (k *kubeClient) deletePods(pods []v1.Pod, getPodFn func(namespace, name string) (*v1.Pod, error)) error {
 	// 0 timeout means infinite, we use MaxInt64 to represent it.
 	var globalTimeout time.Duration
 	if conf.Config.ReqTimeout == 0 {
-		//if Timeout == 0 {
 		globalTimeout = time.Duration(math.MaxInt64)
 	} else {
 		globalTimeout = 1
-		//globalTimeout = Timeout
 	}
 	for _, pod := range pods {
 		err := k.deletePod(pod)

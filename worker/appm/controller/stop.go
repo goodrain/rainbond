@@ -64,7 +64,7 @@ func (s *stopController) Begin() {
 func (s *stopController) stopOne(app v1.AppService) error {
 	var zero int64
 	//step 1: delete services
-	if services := app.GetServices(); services != nil {
+	if services := app.GetServices(true); services != nil {
 		for _, service := range services {
 			if service != nil && service.Name != "" {
 				err := s.manager.client.CoreV1().Services(app.TenantID).Delete(service.Name, &metav1.DeleteOptions{
@@ -77,7 +77,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 	}
 	//step 2: delete secrets
-	if secrets := app.GetSecrets(); secrets != nil {
+	if secrets := app.GetSecrets(true); secrets != nil {
 		for _, secret := range secrets {
 			if secret != nil && secret.Name != "" {
 				err := s.manager.client.CoreV1().Secrets(app.TenantID).Delete(secret.Name, &metav1.DeleteOptions{

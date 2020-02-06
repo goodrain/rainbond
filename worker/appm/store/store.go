@@ -286,7 +286,7 @@ func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {
 					logrus.Debugf("thirdpart service[sid: %s] add domain endpoint[domain: %s] probe", sid, domain)
 					probeInfos = []*ProbeInfo{&ProbeInfo{
 						Sid:  sid,
-						UUID: port.Name,
+						UUID: fmt.Sprintf("%s_%d", domain, port.Port),
 						IP:   domain,
 						Port: port.Port,
 					}}
@@ -296,7 +296,7 @@ func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {
 			for _, address := range subset.NotReadyAddresses {
 				addProbe(&ProbeInfo{
 					Sid:  sid,
-					UUID: port.Name,
+					UUID: fmt.Sprintf("%s_%d", address.IP, port.Port),
 					IP:   address.IP,
 					Port: port.Port,
 				})
@@ -304,7 +304,7 @@ func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {
 			for _, address := range subset.Addresses {
 				addProbe(&ProbeInfo{
 					Sid:  sid,
-					UUID: port.Name,
+					UUID: fmt.Sprintf("%s_%d", address.IP, port.Port),
 					IP:   address.IP,
 					Port: port.Port,
 				})
@@ -787,7 +787,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 				appService.SetDeployment(deploy)
 			}
 		}
-		if services := appService.GetServices(); services != nil {
+		if services := appService.GetServices(true); services != nil {
 			for _, service := range services {
 				se, err := a.listers.Service.Services(service.Namespace).Get(service.Name)
 				if err != nil && errors.IsNotFound(err) {
@@ -809,7 +809,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 				}
 			}
 		}
-		if secrets := appService.GetSecrets(); secrets != nil {
+		if secrets := appService.GetSecrets(true); secrets != nil {
 			for _, secret := range secrets {
 				se, err := a.listers.Secret.Secrets(secret.Namespace).Get(secret.Name)
 				if err != nil && errors.IsNotFound(err) {

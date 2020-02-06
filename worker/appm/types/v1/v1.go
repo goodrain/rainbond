@@ -291,7 +291,11 @@ func (a *AppService) SetServices(svcs []*corev1.Service) {
 }
 
 //GetServices get services
-func (a *AppService) GetServices() []*corev1.Service {
+func (a *AppService) GetServices(canCopy bool) []*corev1.Service {
+	if canCopy {
+		cr := make([]*corev1.Service, len(a.services))
+		copy(cr, a.services[0:])
+	}
 	return a.services
 }
 
@@ -324,7 +328,11 @@ func (a *AppService) AddEndpoints(ep *corev1.Endpoints) {
 }
 
 // GetEndpoints returns endpoints in AppService
-func (a *AppService) GetEndpoints() []*corev1.Endpoints {
+func (a *AppService) GetEndpoints(canCopy bool) []*corev1.Endpoints {
+	if canCopy {
+		cr := make([]*corev1.Endpoints, len(a.endpoints))
+		copy(cr, a.endpoints[0:])
+	}
 	return a.endpoints
 }
 
@@ -449,7 +457,11 @@ func (a *AppService) DeleteSecrets(d *corev1.Secret) {
 }
 
 //GetSecrets get secrets
-func (a *AppService) GetSecrets() []*corev1.Secret {
+func (a *AppService) GetSecrets(canCopy bool) []*corev1.Secret {
+	if canCopy {
+		cr := make([]*corev1.Secret, len(a.secrets))
+		copy(cr, a.secrets[0:])
+	}
 	return a.secrets
 }
 
@@ -528,9 +540,9 @@ func (a *AppService) SetDeletedResources(old *AppService) {
 			a.delIngs = append(a.delIngs, o)
 		}
 	}
-	for _, o := range old.GetSecrets() {
+	for _, o := range old.GetSecrets(true) {
 		del := true
-		for _, n := range a.GetSecrets() {
+		for _, n := range a.GetSecrets(true) {
 			if o.Name == n.Name {
 				del = false
 				break
@@ -540,9 +552,9 @@ func (a *AppService) SetDeletedResources(old *AppService) {
 			a.delSecrets = append(a.delSecrets, o)
 		}
 	}
-	for _, o := range old.GetServices() {
+	for _, o := range old.GetServices(true) {
 		del := true
-		for _, n := range a.GetServices() {
+		for _, n := range a.GetServices(true) {
 			if o.Name == n.Name {
 				del = false
 				break
