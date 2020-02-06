@@ -146,7 +146,7 @@ func NewTaskBody(taskType string, body []byte) TaskBody {
 		return b
 	case "service_gc":
 		b := ServiceGCTaskBody{}
-    err := ffjson.Unmarshal(body, &b)
+		err := ffjson.Unmarshal(body, &b)
 		if err != nil {
 			return nil
 		}
@@ -305,13 +305,14 @@ type GroupStartTaskBody struct {
 
 // ApplyRuleTaskBody contains information for ApplyRuleTask
 type ApplyRuleTaskBody struct {
-	ServiceID     string `json:"service_id"`
-	DeployVersion string `json:"deploy_version"`
-	EventID       string `json:"event_id"`
-	ServiceKind   string `json:"service_kind"`
-	Action        string `json:"action"`
-	Port          int    `json:"port"`
-	IsInner       bool   `json:"is_inner"`
+	ServiceID     string            `json:"service_id"`
+	DeployVersion string            `json:"deploy_version"`
+	EventID       string            `json:"event_id"`
+	ServiceKind   string            `json:"service_kind"`
+	Action        string            `json:"action"`
+	Port          int               `json:"port"`
+	IsInner       bool              `json:"is_inner"`
+	Limit         map[string]string `json:"limit"`
 }
 
 // ApplyPluginConfigTaskBody apply plugin dynamic discover config

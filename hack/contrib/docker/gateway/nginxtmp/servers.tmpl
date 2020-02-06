@@ -1,53 +1,68 @@
+{{ range $server:=.Servers }}
 server {
-    {{ if .Server.Listen }}listen    {{.Server.Listen}};{{ end }}
-    {{ if .Server.Root }}root    {{.Server.Root}};{{ end }}
-    {{ if .Server.ServerName }}server_name    {{.Server.ServerName}};{{end}}
-	{{ if .Server.DefaultType }}default_type    {{.Server.DefaultType}};{{end}}
-    {{ if .Server.Charset }}charset   {{.Server.Charset}};{{end}}
+    {{ if .Listen }}listen    {{.Listen}};{{ end }}
+    {{ if .Root }}root    {{.Root}};{{ end }}
+    {{ if .ServerName }}server_name    {{.ServerName}};{{end}}
+	{{ if .DefaultType }}default_type    {{.DefaultType}};{{end}}
+    {{ if .Charset }}charset   {{.Charset}};{{end}}
     access_log off;
-    {{ if gt .Server.KeepaliveTimeout.Num 0 }}
-    keepalive_timeout {{.Server.KeepaliveTimeout.Num}}{{.Server.KeepaliveTimeout.Unit}};
+    {{ if gt .KeepaliveTimeout.Num 0 }}
+    keepalive_timeout {{.KeepaliveTimeout.Num}}{{.KeepaliveTimeout.Unit}};
     {{ end }}
 
-    {{ if .Server.ServerTokens }}server_tokens on;{{ end }}
+    {{ if .ServerTokens }}server_tokens on;{{ end }}
 
-    {{ if .Server.SSLCertificate }}
+    {{ if .SSLCertificate }}
     # ssl
-    ssl_certificate {{.Server.SSLCertificate}};
+    ssl_certificate {{.SSLCertificate}};
     {{ end }}
-    {{ if .Server.SSLCertificateKey }}ssl_certificate_key {{.Server.SSLCertificateKey}};{{ end }}
+    {{ if .SSLCertificateKey }}ssl_certificate_key {{.SSLCertificateKey}};{{ end }}
 
-    {{ if .Server.ClientMaxBodySize.Unit }}
-    client_max_body_size {{.Server.ClientMaxBodySize.Num}}{{.Server.ClientMaxBodySize.Unit}};
+    {{ if .ClientMaxBodySize.Unit }}
+    client_max_body_size {{.ClientMaxBodySize.Num}}{{.ClientMaxBodySize.Unit}};
     {{ end }}
-    {{ if .Server.ChunkedTransferEncoding }}
+    {{ if .ChunkedTransferEncoding }}
     chunked_transfer_encoding on;
     {{ end }}
 
-    {{ range $rewrite := .Server.Rewrites }}
+    {{ range $rewrite := .Rewrites }}
     rewrite {{$rewrite.Regex}} {{$rewrite.Replacement}}{{if $rewrite.Flag }} {{$rewrite.Flag}}{{ end }};
     {{ end }}
 
-    {{ if ne .Server.Return.Code 0 }}
-    return {{ .Server.Return.Code }} {{ if .Server.Return.Text}} "{{ .Server.Return.Text }}" {{ else if .Server.Return.URL }} {{.Server.Return.URL}} {{ end }};
+    {{ if ne .Return.Code 0 }}
+    return {{ .Return.Code }} {{ if .Return.Text}} "{{ .Return.Text }}" {{ else if .Return.URL }} {{.Return.URL}} {{ end }};
     {{ end }}
 
-    {{ if gt .Server.ProxyConnectTimeout.Num 0 }}
-    proxy_connect_timeout   {{.Server.ProxyConnectTimeout.Num}}{{.Server.ProxyConnectTimeout.Unit}};
+    {{ if gt .ProxyConnectTimeout.Num 0 }}
+    proxy_connect_timeout   {{.ProxyConnectTimeout.Num}}{{.ProxyConnectTimeout.Unit}};
     {{ end }}
-    {{ if gt .Server.ProxyTimeout.Num 0 }}
-    proxy_timeout   {{.Server.ProxyTimeout.Num}}{{.Server.ProxyTimeout.Unit}};
+    {{ if gt .ProxyTimeout.Num 0 }}
+    proxy_timeout   {{.ProxyTimeout.Num}}{{.ProxyTimeout.Unit}};
     {{ end }}
-    {{ if .Server.ProxyPass }}
-    proxy_pass {{.Server.ProxyPass}};
+    {{ if .ProxyPass }}
+    proxy_pass {{.ProxyPass}};
     {{ end }}
 
-    {{ range $loc := .Server.Locations }}
+    {{ range $loc := .Locations }}
     location {{$loc.Path}} {
         {{ range $rewrite := $loc.Rewrite.Rewrites }}
         rewrite {{$rewrite.Regex}} {{$rewrite.Replacement}}{{if $rewrite.Flag }} {{$rewrite.Flag}}{{ end }};
         {{ end }}
-
+        set $pass_access_scheme  $scheme;
+        set $best_http_host $http_host;
+        set $pass_port $server_port;
+        # default proxy_set_header
+        proxy_set_header Host                   $best_http_host;
+        proxy_set_header X-Real-IP              $remote_addr;
+        proxy_set_header X-Forwarded-For        $remote_addr;
+        proxy_set_header X-Forwarded-Host       $best_http_host;
+        proxy_set_header X-Forwarded-Port       $pass_port;
+        proxy_set_header X-Forwarded-Proto      $pass_access_scheme;
+        proxy_set_header X-Scheme               $pass_access_scheme;
+        # mitigate HTTPoxy Vulnerability
+        # https://www.nginx.com/blog/mitigating-the-httpoxy-vulnerability-with-nginx/
+        proxy_set_header Proxy                  "";
+        # custom proxy_set_header
         {{ range $k, $v := $loc.Proxy.SetHeaders }}
         proxy_set_header    {{$k}}    {{$v}};
         {{ end }}
@@ -78,8 +93,8 @@ server {
         {{ end }}
         {{ if not $loc.DisableProxyPass }}
             set $target 'default';
-            {{ if $.Server.OptionValue }}
-                {{range $i, $v := $.Server.OptionValue}}
+            {{ if $server.OptionValue }}
+                {{range $i, $v := $server.OptionValue}}
                     set ${{$i}} '{{$v}}';
                 {{end}}
             {{ end }}
@@ -102,3 +117,4 @@ server {
     }
     {{ end }}
 }
+{{ end }}

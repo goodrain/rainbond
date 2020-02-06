@@ -115,8 +115,10 @@ type AddOrUpdRuleConfigReq struct {
 
 // RuleConfigReq -
 type RuleConfigReq struct {
-	RuleID string `json:"rule_id,omitempty" validate:"rule_id|required"`
-	Body   Body   `json:"body" validate:"body|required"`
+	RuleID    string `json:"rule_id,omitempty" validate:"rule_id|required"`
+	ServiceID string
+	EventID   string
+	Body      Body `json:"body" validate:"body|required"`
 }
 
 // Body is a embedded sturct of RuleConfigReq.

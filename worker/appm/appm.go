@@ -43,7 +43,7 @@ func NewAPPMController(clientset kubernetes.Interface,
 	}
 	// create prober first, then thirdparty
 	c.prober = prober.NewProber(c.store, c.probeCh, c.updateCh)
-	c.thirdparty = thirdparty.NewThirdPartier(clientset, c.store, c.startCh, c.updateCh, c.stopCh)
+	c.thirdparty = thirdparty.NewThirdPartier(clientset, c.store, c.startCh, c.updateCh, c.stopCh, c.prober)
 	return c
 }
 
@@ -63,9 +63,9 @@ type Controller struct {
 
 // Start starts appm controller
 func (c *Controller) Start() error {
-	logrus.Debugf("start appm manager...")
 	c.thirdparty.Start()
 	c.prober.Start()
+	logrus.Debugf("start thirdparty appm manager success")
 	return nil
 }
 

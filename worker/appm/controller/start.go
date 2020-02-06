@@ -135,36 +135,42 @@ func (s *startController) startOne(app v1.AppService) error {
 		}
 	}
 	//step 3: create services
-	if services := app.GetServices(); services != nil {
+	if services := app.GetServices(true); services != nil {
 		if err := CreateKubeService(s.manager.client, app.TenantID, services...); err != nil {
 			return fmt.Errorf("Create service failure %s", err.Error())
 		}
 	}
 	//step 4: create secrets
-	if secrets := app.GetSecrets(); secrets != nil {
+	if secrets := app.GetSecrets(true); secrets != nil {
 		for _, secret := range secrets {
-			_, err := s.manager.client.CoreV1().Secrets(app.TenantID).Create(secret)
-			if err != nil && !errors.IsAlreadyExists(err) {
-				return fmt.Errorf("create secret failure:%s", err.Error())
+			if len(secret.ResourceVersion) == 0 {
+				_, err := s.manager.client.CoreV1().Secrets(app.TenantID).Create(secret)
+				if err != nil && !errors.IsAlreadyExists(err) {
+					return fmt.Errorf("create secret failure:%s", err.Error())
+				}
 			}
 		}
 	}
 	//step 5: create ingress
-	if ingresses := app.GetIngress(); ingresses != nil {
+	if ingresses := app.GetIngress(true); ingresses != nil {
 		for _, ingress := range ingresses {
-			_, err := s.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Create(ingress)
-			if err != nil && !errors.IsAlreadyExists(err) {
-				return fmt.Errorf("create ingress failure:%s", err.Error())
+			if len(ingress.ResourceVersion) == 0 {
+				_, err := s.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Create(ingress)
+				if err != nil && !errors.IsAlreadyExists(err) {
+					return fmt.Errorf("create ingress failure:%s", err.Error())
+				}
 			}
 		}
 	}
 
 	if hpas := app.GetHPAs(); len(hpas) != 0 {
 		for _, hpa := range hpas {
-			_, err := s.manager.client.AutoscalingV2beta1().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(hpa)
-			if err != nil && !errors.IsAlreadyExists(err) {
-				logrus.Debugf("hpa: %#v", hpa)
-				return fmt.Errorf("create hpa: %v", err)
+			if len(hpa.ResourceVersion) == 0 {
+				_, err := s.manager.client.AutoscalingV2beta1().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(hpa)
+				if err != nil && !errors.IsAlreadyExists(err) {
+					logrus.Debugf("hpa: %#v", hpa)
+					return fmt.Errorf("create hpa: %v", err)
+				}
 			}
 		}
 	}

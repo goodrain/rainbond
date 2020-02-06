@@ -219,11 +219,9 @@ func (k *kubeClient) deletePods(pods []v1.Pod, getPodFn func(namespace, name str
 	// 0 timeout means infinite, we use MaxInt64 to represent it.
 	var globalTimeout time.Duration
 	if conf.Config.ReqTimeout == 0 {
-		//if Timeout == 0 {
 		globalTimeout = time.Duration(math.MaxInt64)
 	} else {
 		globalTimeout = 1
-		//globalTimeout = Timeout
 	}
 	for _, pod := range pods {
 		err := k.deletePod(pod)

@@ -1,4 +1,4 @@
-FROM rainbond/openresty:1.13.6.2
+FROM rainbond/openresty:1.15.8.2
 
 RUN apk add --no-cache bash net-tools curl tzdata && \
         cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \

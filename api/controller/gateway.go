@@ -33,7 +33,6 @@ import (
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/mq/client"
-	"github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -100,20 +99,13 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h := handler.GetGatewayHandler()
-	sid, err := h.AddHTTPRule(&req)
+	err := h.AddHTTPRule(&req)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while adding http rule: %v", err))
 		return
 	}
 
-	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
-		"service_id": sid,
-		"action":     "add-http-rule",
-	}); err != nil {
-		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
-	}
-
-	httputil.ReturnSuccess(r, w, "success")
+	httputil.ReturnSuccess(r, w, req)
 }
 
 func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
@@ -122,7 +114,6 @@ func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	// verify request
 	values := url.Values{}
 	if strings.Replace(req.CertificateID, " ", "", -1) != "" {
@@ -156,18 +147,11 @@ func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h := handler.GetGatewayHandler()
-	sid, err := h.UpdateHTTPRule(&req)
+	err := h.UpdateHTTPRule(&req)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating http rule: %v", err))
 		return
-	}
-
-	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
-		"service_id": sid,
-		"action":     "update-http-rule",
-	}); err != nil {
-		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 
 	httputil.ReturnSuccess(r, w, "success")
@@ -181,17 +165,10 @@ func (g *GatewayStruct) deleteHTTPRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h := handler.GetGatewayHandler()
-	serviceID, err := h.DeleteHTTPRule(&req)
+	err := h.DeleteHTTPRule(&req)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while delete http rule: %v", err))
 		return
-	}
-
-	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
-		"service_id": serviceID,
-		"action":     "delete-http-rule",
-	}); err != nil {
-		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 
 	httputil.ReturnSuccess(r, w, "success")
@@ -250,19 +227,12 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnValidationError(r, w, values)
 		return
 	}
-	sid, err := h.AddTCPRule(&req)
+	err := h.AddTCPRule(&req)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"adding tcp rule: %v", err))
 		return
 	}
-	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
-		"service_id": sid,
-		"action":     "add-tcp-rule",
-	}); err != nil {
-		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
-	}
-
 	httputil.ReturnSuccess(r, w, "success")
 }
 
@@ -296,18 +266,11 @@ func (g *GatewayStruct) updateTCPRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sid, err := h.UpdateTCPRule(&req, g.cfg.MinExtPort)
+	err := h.UpdateTCPRule(&req, g.cfg.MinExtPort)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"updating tcp rule: %v", err))
 		return
-	}
-
-	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
-		"service_id": sid,
-		"action":     "update-tcp-rule",
-	}); err != nil {
-		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 
 	httputil.ReturnSuccess(r, w, "success")
@@ -321,18 +284,11 @@ func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h := handler.GetGatewayHandler()
-	sid, err := h.DeleteTCPRule(&req)
+	err := h.DeleteTCPRule(&req)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"deleting tcp rule: %v", err))
 		return
-	}
-
-	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
-		"service_id": sid,
-		"action":     "delete-tcp-rule",
-	}); err != nil {
-		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 	httputil.ReturnSuccess(r, w, "success")
 }
@@ -356,23 +312,14 @@ func (g *GatewayStruct) RuleConfig(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	eventID := r.Context().Value(middleware.ContextKey("event_id")).(string)
+	req.ServiceID = sid
+	req.EventID = eventID
 	if err := handler.GetGatewayHandler().RuleConfig(&req); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Rule id: %s; error update rule config: %v", req.RuleID, err))
 		return
 	}
-
-	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	eventID := r.Context().Value(middleware.ContextKey("event_id")).(string)
-	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
-		"service_id": sid,
-		"action":     "update-rule-config",
-		"event_id":   eventID,
-	}); err != nil {
-		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
-		httputil.ReturnError(r, w, 500, "update rule config error: "+err.Error())
-		return
-	}
-
 	httputil.ReturnSuccess(r, w, "success")
 }
 
@@ -400,26 +347,6 @@ func (g *GatewayStruct) updCertificate(w http.ResponseWriter, r *http.Request) {
 		}
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
-	}
-
-	// list related http rules
-	rules, err := handler.GetGatewayHandler().ListHTTPRulesByCertID(req.CertificateID)
-	if err != nil {
-		msg := "certificate id: %s; list http rules: %v"
-		logrus.Errorf(msg, req.CertificateID, err)
-		httputil.ReturnError(r, w, 500, fmt.Sprintf(msg, req.CertificateID, err))
-		return
-	}
-
-	for _, rule := range rules {
-		eventID := util.NewUUID()
-		if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
-			"service_id": rule.ServiceID,
-			"action":     "update-rule-config",
-			"event_id":   eventID,
-		}); err != nil {
-			logrus.Warningf("send runtime message about gateway failure %v", err)
-		}
 	}
 
 	httputil.ReturnSuccess(r, w, nil)

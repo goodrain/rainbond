@@ -26,17 +26,17 @@ import (
 
 //GatewayHandler gateway api handler
 type GatewayHandler interface {
-	AddHTTPRule(req *apimodel.AddHTTPRuleStruct) (string, error)
-	UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) (string, error)
-	DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) (string, error)
+	AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error
+	UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
+	DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error
 	DeleteHTTPRuleByServiceIDWithTransaction(sid string, tx *gorm.DB) error
 
 	AddCertificate(req *apimodel.AddHTTPRuleStruct, tx *gorm.DB) error
 	UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRule *dbmodel.HTTPRule, tx *gorm.DB) error
 
-	AddTCPRule(req *apimodel.AddTCPRuleStruct) (string, error)
-	UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort int) (string, error)
-	DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) (string, error)
+	AddTCPRule(req *apimodel.AddTCPRuleStruct) error
+	UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort int) error
+	DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) error
 	DeleteTCPRuleByServiceIDWithTransaction(sid string, tx *gorm.DB) error
 	AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct, tx *gorm.DB) error
 	GetAvailablePort(ip string) (int, error)

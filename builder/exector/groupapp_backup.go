@@ -410,7 +410,7 @@ func (b *BackupAPPNew) updateBackupStatu(status string) error {
 	backupstatus.Status = status
 	backupstatus.SourceDir = b.SourceDir
 	backupstatus.SourceType = b.SourceType
-	backupstatus.BuckupSize = int(b.BackupSize)
+	backupstatus.BuckupSize = b.BackupSize
 	return db.GetManager().AppBackupDao().UpdateModel(backupstatus)
 }
 

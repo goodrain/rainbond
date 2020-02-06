@@ -1,15 +1,15 @@
 package model
 
+import "github.com/goodrain/rainbond/cmd/gateway/option"
+
 // Stream -
 type Stream struct {
-	Includes []string
+	StreamPort int
 }
 
 // NewStream creates a new stream.
-func NewStream() *Stream {
+func NewStream(conf *option.Config) *Stream {
 	return &Stream{
-		Includes: []string{
-			"/export/servers/nginx/conf/servers-tcp.conf",
-		},
+		StreamPort: conf.ListenPorts.Stream,
 	}
 }

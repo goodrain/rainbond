@@ -8,10 +8,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+//AppDaoImpl -
 type AppDaoImpl struct {
 	DB *gorm.DB
 }
 
+//AddModel -
 func (a *AppDaoImpl) AddModel(mo model.Interface) error {
 	app, ok := mo.(*model.AppStatus)
 	if !ok {
@@ -28,6 +30,7 @@ func (a *AppDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
+//UpdateModel -
 func (a *AppDaoImpl) UpdateModel(mo model.Interface) error {
 	app, ok := mo.(*model.AppStatus)
 	if !ok {
@@ -39,6 +42,7 @@ func (a *AppDaoImpl) UpdateModel(mo model.Interface) error {
 		Update(app).Error
 }
 
+//DeleteModelByEventId -
 func (a *AppDaoImpl) DeleteModelByEventId(eventID string) error {
 	var app model.AppStatus
 	if ok := a.DB.Where("event_id = ?", eventID).Find(&app).RecordNotFound(); ok {
@@ -48,6 +52,7 @@ func (a *AppDaoImpl) DeleteModelByEventId(eventID string) error {
 	return a.DB.Where("event_id = ?", eventID).Delete(&app).Error
 }
 
+//GetByEventId -
 func (a *AppDaoImpl) GetByEventId(eventID string) (*model.AppStatus, error) {
 	var app model.AppStatus
 	err := a.DB.Where("event_id = ?", eventID).First(&app).Error

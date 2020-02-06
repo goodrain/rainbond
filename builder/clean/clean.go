@@ -21,7 +21,6 @@ package clean
 import (
 	"context"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -87,32 +86,21 @@ func (t *Manager) Start(errchan chan error) error {
 				}
 				if v.DeliveredType == "image" {
 					imagePath := v.DeliveredPath
-					err := sources.ImageRemove(t.dclient, imagePath) //remove image
+					//remove local image, However, it is important to note that the version image is stored in the image repository
+					err := sources.ImageRemove(t.dclient, imagePath)
 					if err != nil {
-						if strings.Contains(err.Error(), "No such image") {
-							logrus.Error(err)
-						} else {
-							logrus.Error(err)
-							continue
-						}
+						logrus.Error(err)
 					}
 					if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
 						logrus.Error(err)
 						continue
 					}
 					logrus.Info("Image deletion successful:", imagePath)
-
 				}
 				if v.DeliveredType == "slug" {
 					filePath := v.DeliveredPath
 					if err := os.Remove(filePath); err != nil {
-						if strings.Contains(err.Error(), "no such file or directory") {
-							logrus.Error(err)
-						} else {
-							logrus.Error(err)
-							continue
-
-						}
+						logrus.Error(err)
 					}
 					if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
 						logrus.Error(err)
