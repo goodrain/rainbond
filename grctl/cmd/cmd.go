@@ -32,6 +32,7 @@ import (
 //GetCmds GetCmds
 func GetCmds() []cli.Command {
 	cmds := []cli.Command{}
+	cmds = append(cmds, NewCmdInstall())
 	cmds = append(cmds, NewCmdService())
 	cmds = append(cmds, NewCmdTenant())
 	cmds = append(cmds, NewCmdNode())

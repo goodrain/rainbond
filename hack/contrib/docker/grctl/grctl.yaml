@@ -1,0 +1,6 @@
+region_api:
+    endpoints:
+      - https://region.goodrain.me:8443
+    client-ca-file: /opt/rainbond/etc/rbd-api/region.goodrain.me/ssl/ca.pem
+    tls-cert-file:  /opt/rainbond/etc/rbd-api/region.goodrain.me/ssl/client.pem
+    tls-private-key-file:  /opt/rainbond/etc/rbd-api/region.goodrain.me/ssl/client.key.pem
