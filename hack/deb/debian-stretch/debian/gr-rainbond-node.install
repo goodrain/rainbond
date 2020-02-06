@@ -1,4 +1,0 @@
-usr/local/bin/rainbond-node /usr/local/bin
-usr/share/gr-rainbond-node/gaops/gaops.tgz /usr/share/gr-rainbond-node
-builder/deb/amd64/start-node.sh /usr/share/gr-rainbond-node/scripts/
-builder/deb/amd64/rainbond-node.service lib/systemd/system/

@@ -1,4 +1,0 @@
-#!/bin/sh
-set -e
-
-[ -L "/usr/bin/grctl" ] || ln -s /usr/local/bin/rainbond-grctl /usr/bin/grctl
