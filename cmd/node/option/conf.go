@@ -121,8 +121,9 @@ type Conf struct {
 	// ImageGCPeriod is the period for performing image garbage collection.
 	ImageGCPeriod time.Duration
 
-	ImageRepositoryIPAddress string
-	ImageRepositoryHost      string
+	// Namespace for Rainbond application.
+	RbdNamespace        string
+	ImageRepositoryHost string
 }
 
 //StatsdConfig StatsdConfig
@@ -182,8 +183,9 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&a.ImageGCPeriod, "image-gc-period", 5*time.Minute, "ImageGCPeriod is the period for performing image garbage collection.  Examples: '10s', '5m' or '2h45m'.")
 	fs.Int32Var(&a.ImageGCHighThresholdPercent, "image-gc-high-threshold", 90, "The percent of disk usage after which image garbage collection is always run. Values must be within the range [0, 100], To disable image garbage collection, set to 100. ")
 	fs.Int32Var(&a.ImageGCLowThresholdPercent, "image-gc-low-threshold", 75, "The percent of disk usage before which image garbage collection is never run. Lowest disk usage to garbage collect to. Values must be within the range [0, 100] and should not be larger than that of --image-gc-high-threshold.")
-	fs.StringVar(&a.ImageRepositoryIPAddress, "image-repo-ip", "", "The ip address of image repository")
+	fs.StringVar(&a.RbdNamespace, "rbd-ns", "rbd-system", "The namespace of rainbond applications.")
 	fs.StringVar(&a.ImageRepositoryHost, "image-repo-host", "goodrain.me", "The host of image repository")
+
 }
 
 //SetLog 设置log

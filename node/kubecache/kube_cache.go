@@ -20,6 +20,9 @@ package kubecache
 
 import (
 	"fmt"
+	"github.com/eapache/channels"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/tools/cache"
 	"math"
 	"strings"
 	"time"
@@ -31,25 +34,52 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 )
 
+// EventType -
+type EventType string
+
 const (
 	//EvictionKind EvictionKind
 	EvictionKind = "Eviction"
 	//EvictionSubresource EvictionSubresource
 	EvictionSubresource = "pods/eviction"
+	// CreateEvent event associated with new objects in an informer
+	CreateEvent EventType = "CREATE"
+	// UpdateEvent event associated with an object update in an informer
+	UpdateEvent EventType = "UPDATE"
+	// DeleteEvent event associated when an object is removed from an informer
+	DeleteEvent EventType = "DELETE"
 )
+
+// Event holds the context of an event.
+type Event struct {
+	Type EventType
+	Obj  interface{}
+}
+
+type l map[string]string
+
+func (l l) contains(k, v string) bool {
+	if l == nil {
+		return false
+	}
+	if val, ok := l[k]; !ok || val != v {
+		return false
+	}
+	return true
+}
 
 //KubeClient KubeClient
 type KubeClient interface {
@@ -58,6 +88,7 @@ type KubeClient interface {
 	DownK8sNode(nodename string) error
 	GetAllPods() (pods []*v1.Pod, err error)
 	GetPods(namespace string) (pods []*v1.Pod, err error)
+	GetPodsBySelector(namespace string, selector labels.Selector) (pods []*v1.Pod, err error)
 	GetNodeByName(nodename string) (*v1.Node, error)
 	GetNodes() ([]*v1.Node, error)
 	GetNode(nodeName string) (*v1.Node, error)
@@ -72,7 +103,7 @@ type KubeClient interface {
 }
 
 //NewKubeClient NewKubeClient
-func NewKubeClient(cfg *conf.Conf) (KubeClient, error) {
+func NewKubeClient(cfg *conf.Conf, registryUpdateCh *channels.RingChannel) (KubeClient, error) {
 	config, err := k8sutil.NewRestConfig(cfg.K8SConfPath)
 	if err != nil {
 		return nil, err
@@ -86,15 +117,53 @@ func NewKubeClient(cfg *conf.Conf) (KubeClient, error) {
 	}
 
 	stop := make(chan struct{})
-	sharedInformers := informers.NewFilteredSharedInformerFactory(cli, cfg.MinResyncPeriod, v1.NamespaceAll,
-		func(options *metav1.ListOptions) {
-			//options.LabelSelector = "creator=Rainbond"
-		})
-	sharedInformers.Core().V1().Services().Informer()
+	sharedInformers := informers.NewSharedInformerFactoryWithOptions(cli, cfg.MinResyncPeriod)
+
+	// Pod Event Handler
+	podEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			ep := obj.(*corev1.Pod)
+			if !l(ep.Labels).contains("name", "rbd-hub") {
+				return
+			}
+			registryUpdateCh.In() <- Event{
+				Type: CreateEvent,
+				Obj:  obj,
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			ep := obj.(*corev1.Pod)
+			if !l(ep.Labels).contains("name", "rbd-hub") {
+				return
+			}
+			registryUpdateCh.In() <- Event{
+				Type: DeleteEvent,
+				Obj:  obj,
+			}
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			oldPod := old.(*corev1.Pod)
+			curPod := cur.(*corev1.Pod)
+
+			if oldPod.Status.Phase == curPod.Status.Phase {
+				return
+			}
+
+			if !l(curPod.Labels).contains("name", "rbd-hub") {
+				return
+			}
+			registryUpdateCh.In() <- Event{
+				Type: UpdateEvent,
+				Obj:  cur,
+			}
+		},
+	}
+
 	sharedInformers.Core().V1().Endpoints().Informer()
+	sharedInformers.Core().V1().Services().Informer()
 	sharedInformers.Core().V1().ConfigMaps().Informer()
 	sharedInformers.Core().V1().Nodes().Informer()
-	sharedInformers.Core().V1().Pods().Informer()
+	sharedInformers.Core().V1().Pods().Informer().AddEventHandler(podEventHandler)
 	sharedInformers.Start(stop)
 	return &kubeClient{
 		kubeclient:      cli,
@@ -107,6 +176,7 @@ type kubeClient struct {
 	kubeclient      kubernetes.Interface
 	sharedInformers informers.SharedInformerFactory
 	stop            chan struct{}
+	updateCh        *channels.RingChannel
 }
 
 func (k *kubeClient) Stop() {
@@ -451,6 +521,10 @@ func (k *kubeClient) UpK8sNode(rainbondNode *client.HostNode) (*v1.Node, error) 
 	}
 	logrus.Info("creating new node success , details: %v ", savedNode)
 	return node, nil
+}
+
+func (k *kubeClient) GetPodsBySelector(namespace string, selector labels.Selector) ([]*v1.Pod, error) {
+	return k.sharedInformers.Core().V1().Pods().Lister().Pods(namespace).List(selector)
 }
 
 func (k *kubeClient) GetEndpoints(namespace string, selector labels.Selector) ([]*v1.Endpoints, error) {

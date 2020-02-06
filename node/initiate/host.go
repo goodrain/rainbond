@@ -27,6 +27,14 @@ import (
 	"net"
 	"os"
 	"strings"
+
+	"github.com/eapache/channels"
+	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/node/kubecache"
+
+	"github.com/Sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 const (
@@ -36,28 +44,77 @@ const (
 	eol                   = "\n"
 )
 
+var (
+	// ErrRegistryAddressNotFound record not found error, happens when haven't find any matched registry address.
+	ErrRegistryAddressNotFound = errors.New("registry address not found")
+)
+
 // HostManager is responsible for writing the resolution of the private image repository domain name to /etc/hosts.
-type HostManager struct {
-	// private image repository domain name
-	Domain string
-	// private image repository IP address
-	IP string
+type HostManager interface {
+	Start()
+	Stop()
 }
 
 // NewHostManager creates a new HostManager.
-func NewHostManager(ip, domain string) *HostManager {
-	return &HostManager{
-		Domain: domain,
-		IP:     ip,
+func NewHostManager(cfg *option.Conf, kubecli kubecache.KubeClient, registryUpdateCh *channels.RingChannel) HostManager {
+	return &hostManager{
+		registryUpdateCh: registryUpdateCh,
+		stopCh:           make(chan struct{}),
+		cfg:              cfg,
+		kubecli:          kubecli,
 	}
 }
 
-// CleanupAndFlush cleanup old content and write new ones.
-func (h *HostManager) CleanupAndFlush() error {
-	if h.IP == "" {
-		return nil
+type hostManager struct {
+	registryUpdateCh *channels.RingChannel
+	stopCh           chan struct{}
+
+	cfg     *option.Conf
+	kubecli kubecache.KubeClient
+}
+
+func (h *hostManager) Start() {
+	for {
+		select {
+		case <-h.registryUpdateCh.Out():
+			// ignore all error. If an error occurs, do not write the hosts file
+			ep, err := h.getEndpointForRegistry()
+			if err != nil {
+				logrus.Warningf("finding endpoint for registry: %v", err)
+				break
+			}
+			if err := h.CleanupAndFlush(ep, h.cfg.ImageRepositoryHost); err != nil {
+				logrus.Warningf("clean and flush /etc/hosts: %v", err)
+			}
+		case <-h.stopCh:
+			return
+		}
+	}
+}
+
+func (h *hostManager) Stop() {
+	close(h.stopCh)
+}
+
+func (h *hostManager) getEndpointForRegistry() (string, error) {
+	selector, _ := labels.Parse("name=rbd-hub")
+	pods, err := h.kubecli.GetPodsBySelector(h.cfg.RbdNamespace, selector)
+	if err != nil {
+		return "", err
+	}
+	for _, po := range pods {
+		for _, cdt := range po.Status.Conditions {
+			if cdt.Type == corev1.PodReady && cdt.Status == corev1.ConditionTrue {
+				return po.Status.HostIP, nil
+			}
+		}
 	}
 
+	return "", ErrRegistryAddressNotFound
+}
+
+// CleanupAndFlush cleanup old content and write new ones.
+func (h *hostManager) CleanupAndFlush(ip, domain string) error {
 	hosts, err := NewHosts()
 	if err != nil {
 		return fmt.Errorf("error creating hosts: %v", err)
@@ -68,9 +125,8 @@ func (h *HostManager) CleanupAndFlush() error {
 	}
 
 	lines := []string{
-		"\n",
 		startOfSection,
-		h.IP + " " + h.Domain,
+		ip + " " + domain,
 		endOfSection,
 	}
 	hosts.AddLines(lines...)

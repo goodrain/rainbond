@@ -21,6 +21,8 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/eapache/channels"
+	"github.com/goodrain/rainbond/node/initiate"
 	"os"
 	"os/signal"
 	"syscall"
@@ -30,7 +32,6 @@ import (
 	"github.com/goodrain/rainbond/node/api"
 	"github.com/goodrain/rainbond/node/api/controller"
 	"github.com/goodrain/rainbond/node/core/store"
-	"github.com/goodrain/rainbond/node/initiate"
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/masterserver"
 	"github.com/goodrain/rainbond/node/nodem"
@@ -64,11 +65,6 @@ func Run(c *option.Conf) error {
 			return fmt.Errorf("config parse error:%s", err.Error())
 		}
 
-		hostManager := initiate.NewHostManager(c.ImageRepositoryIPAddress, c.ImageRepositoryHost)
-		if err := hostManager.CleanupAndFlush(); err != nil {
-			logrus.Errorf("error writing image repository resolve: %v", err)
-		}
-
 		nodemanager, err := nodem.NewNodeManager(c)
 		if err != nil {
 			return fmt.Errorf("create node manager failed: %s", err)
@@ -87,13 +83,17 @@ func Run(c *option.Conf) error {
 		}
 		defer eventLog.CloseManager()
 		logrus.Debug("create and start event log client success")
-		kubecli, err := kubecache.NewKubeClient(c)
+
+		registryUpdateCh := channels.NewRingChannel(1024)
+		kubecli, err := kubecache.NewKubeClient(c, registryUpdateCh)
 		if err != nil {
 			return err
 		}
 		defer kubecli.Stop()
 
-		logrus.Debug("create and start kube cache moudle success")
+		hostManager := initiate.NewHostManager(c, kubecli, registryUpdateCh)
+		hostManager.Start()
+		defer hostManager.Stop()
 
 		logrus.Debugf("rbd-namespace=%s; rbd-docker-secret=%s", os.Getenv("RBD_NAMESPACE"), os.Getenv("RBD_DOCKER_SECRET"))
 		// sync docker inscure registries cert info into all rainbond node
