@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/discover/config"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	corev1 "k8s.io/api/core/v1"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 )
 
 func TestK8sDiscover_AddProject(t *testing.T) {
@@ -102,4 +104,43 @@ func (t *testCallback) UpdateEndpoints(endpoints ...*config.Endpoint) {
 
 func (t *testCallback) Error(err error) {
 	fmt.Println(err)
+}
+
+func TestK8sDiscover_AddProject2(t *testing.T) {
+	c, err := k8sutil.NewRestConfig("/Users/abewang/.kube/config")
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+	clientset, err := kubernetes.NewForConfig(c)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cfg := &option.Conf{RbdNamespace: "rbd-system"}
+	discover := NewK8sDiscover(ctx, clientset, cfg)
+	defer discover.Stop()
+	callback := &testCallback{
+		epCh:  make(chan []*config.Endpoint),
+		errCh: make(chan error),
+	}
+	discover.AddProject("rbd-gateway", callback)
+
+	for {
+		select {
+		case endpoints := <-callback.epCh:
+			for _, ep := range endpoints {
+				fmt.Printf("%#v\n", ep)
+			}
+		case err := <-callback.errCh:
+			t.Errorf("received unexpected error from callback: %v", err)
+			return
+		default:
+
+		}
+	}
 }

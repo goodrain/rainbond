@@ -22,19 +22,17 @@ package initiate
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/discover.v2"
+	"github.com/goodrain/rainbond/discover/config"
 	"net"
 	"os"
 	"strings"
 
-	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/node/kubecache"
-
-	"github.com/Sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 const (
@@ -52,86 +50,69 @@ var (
 // HostManager is responsible for writing the resolution of the private image repository domain name to /etc/hosts.
 type HostManager interface {
 	Start()
-	Stop()
 }
 
 // NewHostManager creates a new HostManager.
-func NewHostManager(cfg *option.Conf, kubecli kubecache.KubeClient, registryUpdateCh *channels.RingChannel) HostManager {
-	return &hostManager{
-		registryUpdateCh: registryUpdateCh,
-		stopCh:           make(chan struct{}),
-		cfg:              cfg,
-		kubecli:          kubecli,
+func NewHostManager(cfg *option.Conf, discover discover.Discover) (HostManager, error) {
+	hosts, err := NewHosts(cfg.HostsFile)
+	if err != nil {
+		return nil, err
 	}
+	callback := &hostCallback{
+		cfg:   cfg,
+		hosts: hosts,
+	}
+	return &hostManager{
+		cfg:          cfg,
+		discover:     discover,
+		hostCallback: callback,
+	}, nil
 }
 
 type hostManager struct {
-	registryUpdateCh *channels.RingChannel
-	stopCh           chan struct{}
-
-	cfg     *option.Conf
-	kubecli kubecache.KubeClient
+	ctx          context.Context
+	cfg          *option.Conf
+	discover     discover.Discover
+	hostCallback *hostCallback
 }
 
 func (h *hostManager) Start() {
-	for {
-		select {
-		case <-h.registryUpdateCh.Out():
-			// ignore all error. If an error occurs, do not write the hosts file
-			ep, err := h.getEndpointForRegistry()
-			if err != nil {
-				logrus.Warningf("finding endpoint for registry: %v", err)
-				break
-			}
-			if err := h.CleanupAndFlush(ep, h.cfg.ImageRepositoryHost); err != nil {
-				logrus.Warningf("clean and flush /etc/hosts: %v", err)
-			}
-		case <-h.stopCh:
-			return
+	if h.cfg.ImageRepositoryHost == "" {
+		// no need to write hosts file
+		return
+	}
+	h.discover.AddProject("rbd-gateway", h.hostCallback)
+}
+
+type hostCallback struct {
+	cfg   *option.Conf
+	hosts Hosts
+}
+
+func (h *hostCallback) UpdateEndpoints(endpoints ...*config.Endpoint) {
+	logrus.Info("hostCallback; update endpoints")
+	if err := h.hosts.Cleanup(); err != nil {
+		logrus.Warningf("cleanup hosts file: %v", err)
+		return
+	}
+
+	if len(endpoints) > 0 {
+		logrus.Infof("found endpints: %d; endpoint selected: %#v", len(endpoints), *endpoints[0])
+		lines := []string{
+			startOfSection,
+			endpoints[0].URL + " " + h.cfg.ImageRepositoryHost,
+			endOfSection,
 		}
+		h.hosts.AddLines(lines...)
+	}
+
+	if err := h.hosts.Flush(); err != nil {
+		logrus.Warningf("flush hosts file: %v", err)
 	}
 }
 
-func (h *hostManager) Stop() {
-	close(h.stopCh)
-}
-
-func (h *hostManager) getEndpointForRegistry() (string, error) {
-	selector, _ := labels.Parse("name=rbd-hub")
-	pods, err := h.kubecli.GetPodsBySelector(h.cfg.RbdNamespace, selector)
-	if err != nil {
-		return "", err
-	}
-	for _, po := range pods {
-		for _, cdt := range po.Status.Conditions {
-			if cdt.Type == corev1.PodReady && cdt.Status == corev1.ConditionTrue {
-				return po.Status.HostIP, nil
-			}
-		}
-	}
-
-	return "", ErrRegistryAddressNotFound
-}
-
-// CleanupAndFlush cleanup old content and write new ones.
-func (h *hostManager) CleanupAndFlush(ip, domain string) error {
-	hosts, err := NewHosts()
-	if err != nil {
-		return fmt.Errorf("error creating hosts: %v", err)
-	}
-
-	if err := hosts.Cleanup(); err != nil {
-		return fmt.Errorf("error cleanup hosts: %v", err)
-	}
-
-	lines := []string{
-		startOfSection,
-		ip + " " + domain,
-		endOfSection,
-	}
-	hosts.AddLines(lines...)
-
-	return hosts.Flush()
+func (h *hostCallback) Error(err error) {
+	logrus.Warningf("unexpected error from host callback: %v", err)
 }
 
 // HostsLine represents a single line in the hosts file.
@@ -177,8 +158,8 @@ type Hosts struct {
 }
 
 // NewHosts return a new instance of ``Hosts``.
-func NewHosts() (Hosts, error) {
-	hosts := Hosts{Path: "/etc/hosts"}
+func NewHosts(hostsFile string) (Hosts, error) {
+	hosts := Hosts{Path: hostsFile}
 
 	err := hosts.load()
 	if err != nil {

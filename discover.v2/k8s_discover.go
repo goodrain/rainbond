@@ -85,17 +85,15 @@ func (k *k8sDiscover) discover(name string, callback CallbackUpdate) {
 			return
 		case event := <-w.ResultChan():
 			pod := event.Object.(*corev1.Pod)
-			if !isPodReady(pod) {
-				continue
-			}
 			ep := endpointForPod(pod)
 			switch event.Type {
 			case watch.Deleted:
 				callback.UpdateEndpoints(config.DELETE, ep)
-			case watch.Added:
-				callback.UpdateEndpoints(config.ADD, ep)
-			case watch.Modified:
-				callback.UpdateEndpoints(config.UPDATE, ep)
+			case watch.Added, watch.Modified:
+				if !isPodReady(pod) {
+					continue
+				}
+				callback.UpdateEndpoints(config.SYNC, ep)
 			case watch.Error:
 				k.rewatchWithErr(name, callback, err)
 			}
@@ -157,6 +155,9 @@ func endpointForPod(pod *corev1.Pod) *config.Endpoint {
 }
 
 func isPodReady(pod *corev1.Pod) bool {
+	if pod.ObjectMeta.DeletionTimestamp != nil {
+		return false
+	}
 	for _, cond := range pod.Status.Conditions {
 		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
 			return true

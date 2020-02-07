@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"github.com/eapache/channels"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/cache"
 	"math"
 	"strings"
 	"time"
@@ -33,8 +32,6 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 
 	"github.com/Sirupsen/logrus"
-	k8sutil "github.com/goodrain/rainbond/util/k8s"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -83,7 +80,6 @@ func (l l) contains(k, v string) bool {
 
 //KubeClient KubeClient
 type KubeClient interface {
-	GetKubeClient() kubernetes.Interface
 	UpK8sNode(*client.HostNode) (*v1.Node, error)
 	DownK8sNode(nodename string) error
 	GetAllPods() (pods []*v1.Pod, err error)
@@ -103,70 +99,17 @@ type KubeClient interface {
 }
 
 //NewKubeClient NewKubeClient
-func NewKubeClient(cfg *conf.Conf, registryUpdateCh *channels.RingChannel) (KubeClient, error) {
-	config, err := k8sutil.NewRestConfig(cfg.K8SConfPath)
-	if err != nil {
-		return nil, err
-	}
-	config.QPS = 50
-	config.Burst = 100
-
-	cli, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-
+func NewKubeClient(cfg *conf.Conf, clientset kubernetes.Interface) (KubeClient, error) {
 	stop := make(chan struct{})
-	sharedInformers := informers.NewSharedInformerFactoryWithOptions(cli, cfg.MinResyncPeriod)
-
-	// Pod Event Handler
-	podEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			ep := obj.(*corev1.Pod)
-			if !l(ep.Labels).contains("name", "rbd-hub") {
-				return
-			}
-			registryUpdateCh.In() <- Event{
-				Type: CreateEvent,
-				Obj:  obj,
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			ep := obj.(*corev1.Pod)
-			if !l(ep.Labels).contains("name", "rbd-hub") {
-				return
-			}
-			registryUpdateCh.In() <- Event{
-				Type: DeleteEvent,
-				Obj:  obj,
-			}
-		},
-		UpdateFunc: func(old, cur interface{}) {
-			oldPod := old.(*corev1.Pod)
-			curPod := cur.(*corev1.Pod)
-
-			if oldPod.Status.Phase == curPod.Status.Phase {
-				return
-			}
-
-			if !l(curPod.Labels).contains("name", "rbd-hub") {
-				return
-			}
-			registryUpdateCh.In() <- Event{
-				Type: UpdateEvent,
-				Obj:  cur,
-			}
-		},
-	}
+	sharedInformers := informers.NewSharedInformerFactoryWithOptions(clientset, cfg.MinResyncPeriod)
 
 	sharedInformers.Core().V1().Endpoints().Informer()
 	sharedInformers.Core().V1().Services().Informer()
 	sharedInformers.Core().V1().ConfigMaps().Informer()
 	sharedInformers.Core().V1().Nodes().Informer()
-	sharedInformers.Core().V1().Pods().Informer().AddEventHandler(podEventHandler)
+	sharedInformers.Core().V1().Pods().Informer()
 	sharedInformers.Start(stop)
 	return &kubeClient{
-		kubeclient:      cli,
 		stop:            stop,
 		sharedInformers: sharedInformers,
 	}, nil
@@ -183,11 +126,6 @@ func (k *kubeClient) Stop() {
 	if k.stop != nil {
 		close(k.stop)
 	}
-}
-
-//GetKubeClient get kube client
-func (k *kubeClient) GetKubeClient() kubernetes.Interface {
-	return k.kubeclient
 }
 
 //GetNodeByName get node
