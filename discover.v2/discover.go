@@ -52,7 +52,9 @@ type Callback interface {
 
 //Discover 后端服务自动发现
 type Discover interface {
+	// Add project to cache if not exists, then watch the endpoints.
 	AddProject(name string, callback Callback)
+	// Update a project.
 	AddUpdateProject(name string, callback CallbackUpdate)
 	Stop()
 }
