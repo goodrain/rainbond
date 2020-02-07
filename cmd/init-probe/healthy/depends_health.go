@@ -39,16 +39,16 @@ import (
 //------- cds: discover all dependent services
 //------- sds: every service has at least one Ready instance
 type DependServiceHealthController struct {
-	listeners                 []v2.Listener
-	clusters                  []v2.Cluster
-	sdsHost                   []v2.ClusterLoadAssignment
-	interval                  time.Duration
-	envoyDiscoverVersion      string //only support v2
-	checkFunc                 []func() bool
-	endpointClient            v2.EndpointDiscoveryServiceClient
-	dependServiceCount        int
-	clusterID                 string
-	dependServiceClusterNames []string
+	listeners            []v2.Listener
+	clusters             []v2.Cluster
+	sdsHost              []v2.ClusterLoadAssignment
+	interval             time.Duration
+	envoyDiscoverVersion string //only support v2
+	checkFunc            []func() bool
+	endpointClient       v2.EndpointDiscoveryServiceClient
+	dependServiceCount   int
+	clusterID            string
+	dependServiceNames   []string
 }
 
 //NewDependServiceHealthController create a controller
@@ -77,9 +77,12 @@ func NewDependServiceHealthController() (*DependServiceHealthController, error) 
 		return nil, err
 	}
 	dsc.endpointClient = v2.NewEndpointDiscoveryServiceClient(cli)
-
-	dsc.dependServiceClusterNames = strings.Split(os.Getenv("DEPEND_SERVICE_CLUSTER_NAMES"), ",")
-
+	nameIDs := strings.Split(os.Getenv("DEPEND_SERVICE"), ",")
+	for _, nameID := range nameIDs {
+		if len(strings.Split(nameID, ":")) > 0 {
+			dsc.dependServiceNames = append(dsc.dependServiceNames, strings.Split(nameID, ":")[0])
+		}
+	}
 	return &dsc, nil
 }
 
@@ -116,11 +119,9 @@ func (d *DependServiceHealthController) checkClusters() bool {
 }
 
 func (d *DependServiceHealthController) checkEDS() bool {
-	logrus.Infof("start checking eds; dependent service cluster names: %s", d.dependServiceClusterNames)
-
+	logrus.Infof("start checking eds; dependent service cluster names: %s", d.dependServiceNames)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
 	res, err := d.endpointClient.FetchEndpoints(ctx, &v2.DiscoveryRequest{
 		Node: &core.Node{
 			Cluster: d.clusterID,
@@ -131,19 +132,21 @@ func (d *DependServiceHealthController) checkEDS() bool {
 		logrus.Errorf("discover depend services endpoint failure %s", err.Error())
 		return false
 	}
-
 	clusterLoadAssignments := envoyv2.ParseLocalityLbEndpointsResource(res.Resources)
 	readyClusters := make(map[string]bool, len(clusterLoadAssignments))
-	logrus.Infof("received cluster load assignments; length: %v; names: %s", len(clusterLoadAssignments), func() string {
-		var clusternames []string
-		for _, cla := range clusterLoadAssignments {
-			clusternames = append(clusternames, cla.GetClusterName())
-		}
-		return strings.Join(clusternames, ",")
-	}())
 	for _, cla := range clusterLoadAssignments {
 		// clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, service.Spec.Ports[0].Port)
-		clusterName := cla.GetClusterName()
+		serviceName := ""
+		clusterNameInfo := strings.Split(cla.GetClusterName(), "_")
+		if len(clusterNameInfo) == 4 {
+			serviceName = clusterNameInfo[2]
+		}
+		if serviceName == "" {
+			continue
+		}
+		if ready, exist := readyClusters[serviceName]; exist && ready {
+			continue
+		}
 		ready := func() bool {
 			if len(cla.Endpoints) > 0 && len(cla.Endpoints[0].LbEndpoints) > 0 {
 				// first LbEndpoints healthy is not nil. so endpoint is not notreadyaddress
@@ -154,14 +157,13 @@ func (d *DependServiceHealthController) checkEDS() bool {
 					}
 				}
 			}
-
 			return false
 		}()
-		logrus.Infof("cluster name: %s; ready: %v", clusterName, ready)
-		readyClusters[clusterName] = ready
+		logrus.Infof("cluster name: %s; ready: %v", serviceName, ready)
+		readyClusters[serviceName] = ready
 	}
 
-	for _, cn := range d.dependServiceClusterNames {
+	for _, cn := range d.dependServiceNames {
 		if ready := readyClusters[cn]; !ready {
 			logrus.Infof("%s not ready.", cn)
 			return false

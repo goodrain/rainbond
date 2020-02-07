@@ -75,8 +75,7 @@ type serviceInfo struct {
 }
 
 type podInfo struct {
-	ServiceID string `json:"service_id"`
-	//部署资源的ID ,例如rc ,deploment, statefulset
+	ServiceID       string                       `json:"service_id"`
 	ReplicationID   string                       `json:"rc_id"`
 	ReplicationType string                       `json:"rc_type"`
 	PodName         string                       `json:"pod_name"`

@@ -26,51 +26,6 @@ import (
 	v1 "github.com/goodrain/rainbond/gateway/v1"
 )
 
-func TestController_GetDelUpdPools(t *testing.T) {
-	delPools := []*v1.Pool{
-		newFakePoolWithoutNodes("pool-a"),
-		newFakePoolWithoutNodes("pool-b"),
-	}
-	updPools := []*v1.Pool{
-		newFakePoolWithoutNodes("pool-c"),
-		newFakePoolWithoutNodes("pool-d"),
-	}
-	// fooPools don't need to be change.
-	fooPools := []*v1.Pool{
-		newFakePoolWithoutNodes("pool-e"),
-		newFakePoolWithoutNodes("pool-f"),
-	}
-
-	var runnerHTTPPools []*v1.Pool
-	runnerHTTPPools = append(runnerHTTPPools, delPools...)
-	runnerHTTPPools = append(runnerHTTPPools, fooPools...)
-
-	var currentHTTPPools []*v1.Pool
-	currentHTTPPools = append(currentHTTPPools, updPools...)
-	currentHTTPPools = append(currentHTTPPools, fooPools...)
-
-	gwc := &GWController{
-		rhp: runnerHTTPPools,
-	}
-	del, upd := gwc.getDelUpdPools(currentHTTPPools)
-	if !poolsIsEqual(delPools, del) {
-		t.Errorf("del should equal delPools.")
-	}
-	if !poolsIsEqual(updPools, upd) {
-		t.Errorf("upd should equal udpPools.")
-	}
-
-	gwc.rhp = fooPools
-	currentHTTPPools = fooPools
-	del, upd = gwc.getDelUpdPools(currentHTTPPools)
-	if len(del) != 0 {
-		t.Errorf("Expected del length to be 0, but returned %v", len(del))
-	}
-	if len(upd) != 0 {
-		t.Errorf("Expected del length to be 0, but returned %v", len(upd))
-	}
-}
-
 func TestGWController_WatchRbdEndpoints(t *testing.T) {
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"localhost:2379"},

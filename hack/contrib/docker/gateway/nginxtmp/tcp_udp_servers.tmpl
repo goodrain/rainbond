@@ -1,0 +1,28 @@
+# TCP services
+{{ range $tcpServer := .TCPBackends }}
+server {
+    preread_by_lua_block {
+        ngx.var.proxy_upstream_name="{{ $tcpServer.UpstreamName }}";
+    }
+
+    {{ if .Listen }}listen {{.Listen}} {{ if $tcpServer.ProxyProtocol.Decode }} proxy_protocol{{ end }};{{ end }}
+    proxy_timeout           {{ $tcpServer.ProxyStreamTimeout }};
+    proxy_pass              upstream_balancer;
+    {{ if $tcpServer.ProxyProtocol.Encode }}
+    proxy_protocol          on;
+    {{ end }}
+}
+{{ end }}
+
+# UDP services
+{{ range $udpServer := .UDPBackends }}
+server {
+    preread_by_lua_block {
+        ngx.var.proxy_upstream_name="{{ $udpServer.UpstreamName }}";
+    }
+    {{ if $udpServer.Listen }}listen {{$udpServer.Listen}} {{ if $udpServer.ProxyProtocol.Decode }} proxy_protocol{{ end }};{{ end }}
+    proxy_responses         {{ $udpServer.ProxyStreamResponses }};
+    proxy_timeout           {{ $udpServer.ProxyStreamTimeout }};
+    proxy_pass              upstream_balancer;
+}
+{{ end }}

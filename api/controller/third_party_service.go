@@ -57,7 +57,7 @@ func (t *ThirdPartyServiceController) addEndpoints(w http.ResponseWriter, r *htt
 	// if address is not ip, and then it is domain
 	address := validation.SplitEndpointAddress(data.Address)
 	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	if err := validation.ValidateEndpointIP(address); len(err) > 0 {
+	if validation.IsDomainNotIP(address) {
 		// handle domain, check can add new endpoint or not
 		if !canAddDomainEndpoint(sid, true) {
 			logrus.Warningf("new endpoint addres[%s] is domian", address)
@@ -96,7 +96,7 @@ func canAddDomainEndpoint(sid string, isDomain bool) bool {
 	if !isDomain {
 		for _, ep := range endpoints {
 			address := validation.SplitEndpointAddress(ep.IP)
-			if err := validation.ValidateEndpointIP(address); len(err) > 0 {
+			if validation.IsDomainNotIP(address) {
 				return false
 			}
 		}

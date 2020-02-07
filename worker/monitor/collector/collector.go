@@ -22,23 +22,26 @@ import (
 	"github.com/goodrain/rainbond/worker/master"
 
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/discover"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 //Exporter 收集器
 type Exporter struct {
-	dsn              string
-	error            prometheus.Gauge
-	totalScrapes     prometheus.Counter
-	scrapeErrors     *prometheus.CounterVec
-	memoryUse        *prometheus.GaugeVec
-	fsUse            *prometheus.GaugeVec
-	workerUp         prometheus.Gauge
-	dbmanager        db.Manager
-	masterController *master.Controller
-	taskNum          prometheus.Counter
-	taskError        prometheus.Counter
+	dsn               string
+	error             prometheus.Gauge
+	totalScrapes      prometheus.Counter
+	scrapeErrors      *prometheus.CounterVec
+	memoryUse         *prometheus.GaugeVec
+	fsUse             *prometheus.GaugeVec
+	workerUp          prometheus.Gauge
+	dbmanager         db.Manager
+	masterController  *master.Controller
+	controllermanager *controller.Manager
+	taskNum           prometheus.Counter
+	taskUpNum         prometheus.Gauge
+	taskError         prometheus.Counter
 }
 
 var scrapeDurationDesc = prometheus.NewDesc(
@@ -91,6 +94,9 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 		val = 0
 	}
 	ch <- prometheus.MustNewConstMetric(healthDesc, prometheus.GaugeValue, val, "worker")
+	ch <- prometheus.MustNewConstMetric(e.taskUpNum.Desc(),
+		prometheus.GaugeValue,
+		float64(e.controllermanager.GetControllerSize()))
 	ch <- prometheus.MustNewConstMetric(e.taskNum.Desc(), prometheus.CounterValue, discover.TaskNum)
 	ch <- prometheus.MustNewConstMetric(e.taskError.Desc(), prometheus.CounterValue, discover.TaskError)
 }
@@ -98,7 +104,7 @@ func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 var namespace = "worker"
 
 //New 创建一个收集器
-func New(masterController *master.Controller) *Exporter {
+func New(masterController *master.Controller, controllermanager *controller.Manager) *Exporter {
 	return &Exporter{
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
@@ -123,6 +129,11 @@ func New(masterController *master.Controller) *Exporter {
 			Name:      "up",
 			Help:      "Whether the Worker server is up.",
 		}),
+		taskUpNum: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Name:      "task_up_number",
+			Help:      "Number of tasks being performed",
+		}),
 		taskNum: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: "exporter",
@@ -135,7 +146,8 @@ func New(masterController *master.Controller) *Exporter {
 			Name:      "worker_task_error",
 			Help:      "worker number of task errors.",
 		}),
-		dbmanager:        db.GetManager(),
-		masterController: masterController,
+		dbmanager:         db.GetManager(),
+		masterController:  masterController,
+		controllermanager: controllermanager,
 	}
 }

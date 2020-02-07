@@ -1,1 +1,0 @@
-alter table tenant_service_status add unique key(service_id);

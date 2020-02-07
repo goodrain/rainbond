@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -182,8 +183,24 @@ func (d *DiscoverServerManager) UpdateNodeConfig(nc *NodeConfig) error {
 		}
 		if selector != nil {
 			upServices, upEndpoints := d.GetServicesAndEndpoints(nc.namespace, selector)
-			services = append(services, upServices...)
-			endpoint = append(endpoint, upEndpoints...)
+			for i, service := range upServices {
+				listenPort := service.Spec.Ports[0].Port
+				if value, ok := service.Labels["origin_port"]; ok {
+					origin, _ := strconv.Atoi(value)
+					if origin != 0 {
+						listenPort = int32(origin)
+					}
+				}
+				if listenPort == int32(dep.Port) {
+					services = append(services, upServices[i])
+				}
+			}
+			for i, end := range upEndpoints {
+				if len(end.Subsets) == 0 || len(end.Subsets[0].Ports) == 0 {
+					continue
+				}
+				endpoint = append(endpoint, upEndpoints[i])
+			}
 		}
 	}
 	if nc.configModel.BasePorts != nil && len(nc.configModel.BasePorts) > 0 {

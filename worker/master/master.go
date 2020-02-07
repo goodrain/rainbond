@@ -132,6 +132,7 @@ func (m *Controller) IsLeader() bool {
 
 //Start start
 func (m *Controller) Start() error {
+	logrus.Debug("master controller starting")
 	start := func(ctx context.Context) {
 		m.isLeader = true
 		defer func() {

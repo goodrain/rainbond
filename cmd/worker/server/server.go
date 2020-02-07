@@ -130,8 +130,9 @@ func Run(s *option.Worker) error {
 	//step 7: start app runtimer server
 	runtimeServer := server.CreaterRuntimeServer(s.Config, cachestore, clientset, updateCh)
 	runtimeServer.Start(errChan)
+
 	//step 8: create application use resource exporter.
-	exporterManager := monitor.NewManager(s.Config, masterCon)
+	exporterManager := monitor.NewManager(s.Config, masterCon, controllerManager)
 	if err := exporterManager.Start(); err != nil {
 		return err
 	}

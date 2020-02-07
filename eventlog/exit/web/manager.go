@@ -21,6 +21,7 @@ package web
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/coreos/etcd/clientv3"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -49,6 +50,7 @@ import (
 //SocketServer socket 服务
 type SocketServer struct {
 	conf                 conf.WebSocketConf
+	discoverConf         conf.DiscoverConf
 	log                  *logrus.Entry
 	cancel               func()
 	context              context.Context
@@ -58,10 +60,11 @@ type SocketServer struct {
 	timeout              time.Duration
 	cluster              cluster.Cluster
 	healthInfo           map[string]string
+	etcdClient           *clientv3.Client
 }
 
 //NewSocket 创建zmq sub客户端
-func NewSocket(conf conf.WebSocketConf, log *logrus.Entry, storeManager store.Manager, c cluster.Cluster, healthInfo map[string]string) *SocketServer {
+func NewSocket(conf conf.WebSocketConf, discoverConf conf.DiscoverConf, etcdClient *clientv3.Client, log *logrus.Entry, storeManager store.Manager, c cluster.Cluster, healthInfo map[string]string) *SocketServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	d, err := time.ParseDuration(conf.TimeOut)
 	if err != nil {
@@ -70,6 +73,7 @@ func NewSocket(conf conf.WebSocketConf, log *logrus.Entry, storeManager store.Ma
 
 	return &SocketServer{
 		conf:         conf,
+		discoverConf: discoverConf,
 		log:          log,
 		cancel:       cancel,
 		context:      ctx,
@@ -79,6 +83,7 @@ func NewSocket(conf conf.WebSocketConf, log *logrus.Entry, storeManager store.Ma
 		timeout:      d,
 		cluster:      c,
 		healthInfo:   healthInfo,
+		etcdClient:   etcdClient,
 	}
 }
 
@@ -461,7 +466,7 @@ func (s *SocketServer) listen() {
 		}
 		s.log.Info("ServiceID:" + ServiceID)
 		instance := s.cluster.GetSuitableInstance(ServiceID)
-		err := discover.SaveDockerLogInInstance(s.context, ServiceID, instance.HostID)
+		err := discover.SaveDockerLogInInstance(s.etcdClient, s.discoverConf, ServiceID, instance.HostID)
 		if err != nil {
 			s.log.Error("Save docker service and instance id to etcd error.")
 			w.WriteHeader(500)

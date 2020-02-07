@@ -103,6 +103,8 @@ message UpdThirdPartyEndpointsReq {
 message DelThirdPartyEndpointsReq {
   string uuid = 1;
   string sid = 2;
+  string ip = 3;
+  int32 port = 4;
 }
 
 message ThirdPartyEndpoint {

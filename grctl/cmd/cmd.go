@@ -32,22 +32,16 @@ import (
 //GetCmds GetCmds
 func GetCmds() []cli.Command {
 	cmds := []cli.Command{}
+	cmds = append(cmds, NewCmdInstall())
 	cmds = append(cmds, NewCmdService())
 	cmds = append(cmds, NewCmdTenant())
 	cmds = append(cmds, NewCmdNode())
 	cmds = append(cmds, NewCmdCluster())
-	cmds = append(cmds, NewCmdExec())
-	cmds = append(cmds, NewCmdInit())
-	cmds = append(cmds, NewCmdShow())
-	cmds = append(cmds, NewCmdAlerting())
-	cmds = append(cmds, NewCmdNotificationEvent())
-	cmds = append(cmds, NewCmdReset())
-	cmds = append(cmds, NewCmdOp())
-	cmds = append(cmds, NewCmdConfigs())
-	cmds = append(cmds, NewCmdDomain())
 	cmds = append(cmds, NewSourceBuildCmd())
 	cmds = append(cmds, NewCmdAnsible())
 	cmds = append(cmds, NewCmdLicense())
+	cmds = append(cmds, NewCmdGateway())
+	cmds = append(cmds, NewCmdEnvoy())
 	return cmds
 }
 

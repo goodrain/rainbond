@@ -83,7 +83,7 @@ func NewDefault() Configuration {
 	cfg := Configuration{
 		Backend: defaults.Backend{
 			ProxyBodySize:          bodySize,
-			ProxyConnectTimeout:    75,
+			ProxyConnectTimeout:    60,
 			ProxyReadTimeout:       60,
 			ProxySendTimeout:       60,
 			ProxyBuffersNumber:     4,
@@ -102,11 +102,7 @@ func NewDefault() Configuration {
 			LimitRate:              0,
 			LimitRateAfter:         0,
 			ProxyBuffering:         "off",
-			ProxySetHeaders: map[string]string{
-				"Host":            "$http_host",
-				"X-Real-IP":       "$remote_addr",
-				"X-Forwarded-For": "$proxy_add_x_forwarded_for",
-			},
+			ProxySetHeaders:        map[string]string{},
 		},
 	}
 	return cfg

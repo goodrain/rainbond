@@ -49,8 +49,7 @@ func InitHandle(conf option.Config, etcdClientArgs *etcdutil.ClientArgs, statusC
 	defaultNetRulesHandler = CreateNetRulesManager(etcdcli)
 	defaultCloudHandler = CreateCloudManager(conf)
 	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdcli)
-	//需要使用etcd v2 API TODO fanyangyang
-	defaultEventHandler = CreateLogManager(conf.EtcdEndpoint)
+	defaultEventHandler = CreateLogManager(etcdcli)
 	shareHandler = &share.ServiceShareHandle{MQClient: mqClient, EtcdCli: etcdcli}
 	pluginShareHandler = &share.PluginShareHandle{MQClient: mqClient, EtcdCli: etcdcli}
 	if err := CreateTokenIdenHandler(conf); err != nil {

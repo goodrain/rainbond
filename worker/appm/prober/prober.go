@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
@@ -43,6 +45,7 @@ type Prober interface {
 	Stop()
 	UpdateProbes(info []*store.ProbeInfo)
 	StopProbe(uuids []string)
+	IsUsedProbe(sid string) bool
 }
 
 // NewProber creates a new third-party service prober.
@@ -57,9 +60,9 @@ func NewProber(store store.Storer,
 
 		updateCh: updateCh,
 		probeCh:  probeCh,
-
-		ctx:    ctx,
-		cancel: cancel,
+		watcher:  make(map[string]map[string]uitlprober.Watcher),
+		ctx:      ctx,
+		cancel:   cancel,
 	}
 }
 
@@ -68,21 +71,22 @@ type tpProbe struct {
 	utilprober uitlprober.Prober
 	dbm        db.Manager
 	store      store.Storer
-
-	probeCh  *channels.RingChannel
-	updateCh *channels.RingChannel
-
-	ctx    context.Context
-	cancel context.CancelFunc
+	probeCh    *channels.RingChannel
+	updateCh   *channels.RingChannel
+	ctx        context.Context
+	cancel     context.CancelFunc
+	watcher    map[string]map[string]uitlprober.Watcher
+	lock       sync.Mutex
 }
 
 func createService(probe *model.TenantServiceProbe) *v1.Service {
 	return &v1.Service{
-		Disable: false,
+		Disable: probe.IsUsed == nil || *probe.IsUsed != 1,
 		ServiceHealth: &v1.Health{
-			Model:        probe.Scheme,
-			TimeInterval: probe.PeriodSecond,
-			MaxErrorsNum: probe.FailureThreshold,
+			Model:            probe.Scheme,
+			TimeInterval:     probe.PeriodSecond,
+			MaxErrorsNum:     probe.FailureThreshold,
+			MaxTimeoutSecond: probe.TimeoutSecond,
 		},
 	}
 }
@@ -122,28 +126,41 @@ func (t *tpProbe) Stop() {
 }
 
 func (t *tpProbe) UpdateProbes(infos []*store.ProbeInfo) {
+	t.lock.Lock()
+	defer t.lock.Unlock()
 	var services []*v1.Service
 	for _, info := range infos {
 		service, probeInfo := t.createServices(info)
 		if service == nil {
-			logrus.Debugf("Empty service, stop creating probe")
+			t.utilprober.StopProbes([]string{info.UUID})
 			continue
 		}
 		services = append(services, service)
 		// watch
-		if t.utilprober.CheckIfExist(service) {
-			continue
+		if swatchers, exist := t.watcher[service.Sid]; exist && swatchers != nil {
+			if watcher, exist := swatchers[service.Name]; exist && watcher != nil {
+				continue
+			}
+		} else {
+			t.watcher[service.Sid] = make(map[string]uitlprober.Watcher)
 		}
-		go func(service *v1.Service, info *store.ProbeInfo) {
-			watcher := t.utilprober.WatchServiceHealthy(service.Name)
-			t.utilprober.EnableWatcher(watcher.GetServiceName(), watcher.GetID())
+		logrus.Infof("create probe[sid: %s, address: %s, port: %d]", service.Sid, service.ServiceHealth.Address, service.ServiceHealth.Port)
+		watcher := t.utilprober.WatchServiceHealthy(service.Name)
+		t.utilprober.EnableWatcher(watcher.GetServiceName(), watcher.GetID())
+		t.watcher[service.Sid][service.Name] = watcher
+		go func(watcher uitlprober.Watcher, info *store.ProbeInfo) {
 			defer watcher.Close()
 			defer t.utilprober.DisableWatcher(watcher.GetServiceName(), watcher.GetID())
+			defer delete(t.watcher[service.Sid], service.Name)
 			for {
 				select {
-				case event := <-watcher.Watch():
-					if event == nil {
+				case event, ok := <-watcher.Watch():
+					if !ok {
 						return
+					}
+					if event == nil {
+						logrus.Errorf("get nil event from prober status chan, will retry")
+						time.Sleep(time.Second * 3)
 					}
 					switch event.Status {
 					case v1.StatHealthy:
@@ -167,17 +184,6 @@ func (t *tpProbe) UpdateProbes(infos []*store.ProbeInfo) {
 									Sid:  info.Sid,
 								}
 								t.updateCh.In() <- discovery.Event{
-									Type: discovery.DeleteEvent,
-									Obj:  obj,
-								}
-							} else {
-								obj := &appmv1.RbdEndpoint{
-									UUID: info.UUID,
-									IP:   info.IP,
-									Port: int(info.Port),
-									Sid:  info.Sid,
-								}
-								t.updateCh.In() <- discovery.Event{
 									Type: discovery.UnhealthyEvent,
 									Obj:  obj,
 								}
@@ -186,11 +192,14 @@ func (t *tpProbe) UpdateProbes(infos []*store.ProbeInfo) {
 					}
 				case <-t.ctx.Done():
 					// TODO: should stop for one service, not all services.
+					logrus.Infof("third app %s probe watcher exist", service.Name)
 					return
 				}
 			}
-		}(service, info)
+		}(watcher, info)
 	}
+	//Method internally to determine if the configuration has changed
+	//remove old address probe
 	t.utilprober.UpdateServicesProbe(services)
 }
 
@@ -214,22 +223,28 @@ func (t *tpProbe) GetProbeInfo(sid string) (*model.TenantServiceProbe, error) {
 	return probes[0], nil
 }
 
+func (t *tpProbe) IsUsedProbe(sid string) bool {
+	if p, _ := t.GetProbeInfo(sid); p != nil {
+		return true
+	}
+	return false
+}
+
 func (t *tpProbe) createServices(probeInfo *store.ProbeInfo) (*v1.Service, *model.TenantServiceProbe) {
-	if probeInfo.IP == "8.8.8.8" {
+	if probeInfo.IP == "1.1.1.1" {
 		app := t.store.GetAppService(probeInfo.Sid)
-		if len(app.GetServices()) >= 1 {
-			appService := app.GetServices()[0]
+		if len(app.GetServices(true)) >= 1 {
+			appService := app.GetServices(true)[0]
 			if appService.Annotations != nil && appService.Annotations["domain"] != "" {
 				probeInfo.IP = appService.Annotations["domain"]
 				logrus.Debugf("domain address is : %s", probeInfo.IP)
 			}
 		}
-		if probeInfo.IP == "8.8.8.8" {
+		if probeInfo.IP == "1.1.1.1" {
 			logrus.Warningf("serviceID: %s, is a domain thirdpart endpoint, but do not found domain info", probeInfo.Sid)
 			return nil, nil
 		}
 	}
-	logrus.Debugf("create probe[sid: %s, address: %s, port: %d]", probeInfo.Sid, probeInfo.IP, probeInfo.Port)
 	tsp, err := t.GetProbeInfo(probeInfo.Sid)
 	if err != nil {
 		logrus.Warningf("ServiceID: %s; Unexpected error occurred, ignore the creation of "+
@@ -260,7 +275,6 @@ func (t *tpProbe) createServiceNames(ep *corev1.Endpoints) string {
 }
 
 func parseTCPHostAddress(address string, port int32) string {
-	logrus.Debugf("tcp probe address=%s, port=%d", address, port)
 	if strings.HasPrefix(address, "https://") {
 		address = strings.Split(address, "https://")[1]
 	}
@@ -270,15 +284,11 @@ func parseTCPHostAddress(address string, port int32) string {
 	if strings.Contains(address, ":") {
 		address = strings.Split(address, ":")[0]
 	}
-
 	ns, err := net.LookupHost(address)
 	if err != nil || len(ns) == 0 {
 		return address
 	}
-
 	address = ns[0]
-
 	address = fmt.Sprintf("%s:%d", address, port)
-	logrus.Debugf("parse tcp probe address = %s", address)
 	return address
 }

@@ -2,11 +2,12 @@ package openresty
 
 import (
 	"fmt"
+
 	"github.com/goodrain/rainbond/gateway/annotations/proxy"
 	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
 
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
-	"github.com/goodrain/rainbond/gateway/v1"
+	v1 "github.com/goodrain/rainbond/gateway/v1"
 )
 
 func langGoodrainMe(ip string) *model.Server {
@@ -50,6 +51,7 @@ func mavenGoodrainMe(ip string) *model.Server {
 	proxy.SendTimeout = 600
 	svr := &model.Server{
 		Listen:     fmt.Sprintf("%s:%d", ip, 80),
+		Protocol:   "HTTP",
 		ServerName: "maven.goodrain.me",
 		Locations: []*model.Location{
 			{
@@ -93,6 +95,7 @@ func goodrainMe(cfgPath string, ip string) *model.Server {
 	svr := &model.Server{
 		Listen:                  fmt.Sprintf("%s:%d %s", ip, 443, "ssl"),
 		ServerName:              "goodrain.me",
+		Protocol:                "HTTP",
 		SSLCertificate:          fmt.Sprintf("%s/%s", cfgPath, "ssl/server.crt"),
 		SSLCertificateKey:       fmt.Sprintf("%s/%s", cfgPath, "ssl/server.key"),
 		ClientMaxBodySize:       model.Size{Num: 0, Unit: "k"},
@@ -126,13 +129,15 @@ func repoGoodrainMe(ip string) *model.Server {
 		Listen:     fmt.Sprintf("%s:%d", ip, 80),
 		Root:       "/grdata/services/offline/pkgs/",
 		ServerName: "repo.goodrain.me",
+		Protocol:   "HTTP",
 	}
 }
 
 func kubeApiserver(ip string) *model.Server {
 	svr := &model.Server{
-		Listen:    fmt.Sprintf("%s:%d", ip, 6443),
-		ProxyPass: "kube_apiserver",
+		Listen:       fmt.Sprintf("%s:%d", ip, 6443),
+		UpstreamName: "kube_apiserver",
+		Protocol:     "TCP",
 		ProxyTimeout: model.Time{
 			Num:  10,
 			Unit: "m",

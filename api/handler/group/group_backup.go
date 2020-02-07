@@ -473,7 +473,7 @@ type BackupCopy struct {
 		SourceDir  string `json:"source_dir" validate:"source_dir|required"`
 		SourceType string ` json:"source_type" validate:"source_type|required"`
 		BackupMode string `json:"backup_mode" validate:"backup_mode|required"`
-		BuckupSize int    `json:"backup_size" validate:"backup_size|required"`
+		BuckupSize int64  `json:"backup_size" validate:"backup_size|required"`
 	}
 }
 

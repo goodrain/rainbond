@@ -31,6 +31,15 @@ import (
 //IsEmpty is empty
 func (a *AppService) IsEmpty() bool {
 	empty := len(a.pods) == 0
+	if !empty {
+		//The remaining pod is at the missing node and is considered closed successfully
+		for _, pod := range a.pods {
+			if !IsPodNodeLost(pod) {
+				return false
+			}
+		}
+		return true
+	}
 	return empty
 }
 
@@ -85,7 +94,7 @@ var (
 func (a *AppService) GetServiceStatus() string {
 	if a.ServiceKind == model.ServiceKindThirdParty {
 		var readyEndpointSize int
-		endpoints := a.GetEndpoints()
+		endpoints := a.GetEndpoints(false)
 		for _, ed := range endpoints {
 			for _, s := range ed.Subsets {
 				readyEndpointSize += len(s.Addresses)

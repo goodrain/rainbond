@@ -16,6 +16,7 @@ type Nginx struct {
 	EventLog           EventLog
 	Events             Events
 	HTTP               *HTTP
+	Stream             *Stream
 }
 
 // EventLog -

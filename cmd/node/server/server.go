@@ -30,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/node/api"
 	"github.com/goodrain/rainbond/node/api/controller"
 	"github.com/goodrain/rainbond/node/core/store"
+	"github.com/goodrain/rainbond/node/initiate"
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/masterserver"
 	"github.com/goodrain/rainbond/node/nodem"
@@ -61,6 +62,11 @@ func Run(c *option.Conf) error {
 
 		if err := c.ParseClient(ctx, etcdClientArgs); err != nil {
 			return fmt.Errorf("config parse error:%s", err.Error())
+		}
+
+		hostManager := initiate.NewHostManager(c.ImageRepositoryIPAddress, c.ImageRepositoryHost)
+		if err := hostManager.CleanupAndFlush(); err != nil {
+			logrus.Errorf("error writing image repository resolve: %v", err)
 		}
 
 		nodemanager, err := nodem.NewNodeManager(c)

@@ -6,7 +6,11 @@ local _M = balancer_resty:new({ factory = resty_roundrobin, name = "round_robin"
 
 function _M.new(self, backend)
   local nodes = util.get_nodes(backend.endpoints)
-  local o = { instance = self.factory:new(nodes) }
+  local o = {
+    instance = self.factory:new(nodes),
+    traffic_shaping_policy = backend.trafficShapingPolicy,
+    alternative_backends = backend.alternativeBackends,
+  }
   setmetatable(o, self)
   self.__index = self
   return o

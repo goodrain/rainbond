@@ -154,7 +154,6 @@ func convertByteToMB(a string) int {
 func convertMemoryToMBInt(mem string, pod bool) (v int) {
 	if pod {
 		if len(mem) != 1 {
-
 			if strings.Contains(mem, "G") || strings.Contains(mem, "g") {
 				mem = mem[0 : len(mem)-2]
 				v, _ = strconv.Atoi(mem)
@@ -316,17 +315,12 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 		api.ReturnError(r, w, 500, err.Error())
 		return
 	}
-
-	type tmpNode struct {
-		Name   string
-		Health bool
-	}
 	var healthCapCPU int64
 	var healthCapMem int64
 	var unhealthCapCPU int64
 	var unhealthCapMem int64
-	usedNodeList := make([]tmpNode, 0, 10)
-	for _, v := range nodes {
+	usedNodeList := make([]*v1.Node, len(nodes))
+	for i, v := range nodes {
 		nodeHealth := false
 		for _, con := range v.Status.Conditions {
 			if con.Type == v1.NodeReady {
@@ -342,24 +336,50 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 			unhealthCapMem += v.Status.Allocatable.Memory().Value()
 		}
 		if v.Spec.Unschedulable == false {
-			usedNodeList = append(usedNodeList, tmpNode{Name: v.Name, Health: nodeHealth})
+			usedNodeList = append(usedNodeList, nodes[i])
 		}
 	}
 	var healthcpuR int64
 	var healthmemR int64
 	var unhealthCPUR int64
 	var unhealthMemR int64
+	var nodeAllocatableResourceList = make(map[string]*model.NodeResource, len(usedNodeList))
+	var maxAllocatableMemory *model.NodeResource
 	for _, node := range usedNodeList {
+		if node == nil {
+			continue
+		}
 		pods, _ := kubecli.GetPodsByNodes(node.Name)
+		nodeAllocatableResource := model.NewResource(node.Status.Allocatable)
+		nodeHealth := false
+		for _, con := range node.Status.Conditions {
+			if con.Type == v1.NodeReady {
+				nodeHealth = con.Status == v1.ConditionTrue
+				break
+			}
+		}
 		for _, pod := range pods {
+			nodeAllocatableResource.AllowedPodNumber--
 			for _, c := range pod.Spec.Containers {
-				if node.Health {
+				nodeAllocatableResource.Memory -= c.Resources.Requests.Memory().Value()
+				nodeAllocatableResource.MilliCPU -= c.Resources.Requests.Cpu().MilliValue()
+				nodeAllocatableResource.EphemeralStorage -= c.Resources.Requests.StorageEphemeral().Value()
+				if nodeHealth {
 					healthcpuR += c.Resources.Requests.Cpu().MilliValue()
 					healthmemR += c.Resources.Requests.Memory().Value()
 				} else {
 					unhealthCPUR += c.Resources.Requests.Cpu().MilliValue()
 					unhealthMemR += c.Resources.Requests.Memory().Value()
 				}
+			}
+		}
+		nodeAllocatableResourceList[node.Name] = nodeAllocatableResource
+		// Gets the node resource with the maximum remaining scheduling memory
+		if maxAllocatableMemory == nil {
+			maxAllocatableMemory = nodeAllocatableResource
+		} else {
+			if nodeAllocatableResource.Memory > maxAllocatableMemory.Memory {
+				maxAllocatableMemory = nodeAllocatableResource
 			}
 		}
 	}
@@ -374,22 +394,24 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 		diskCap = diskstauts.Total
 		reqDisk = diskstauts.Used
 	}
+
 	result := &model.ClusterResource{
-		CapCPU:         int(healthCapCPU + unhealthCapCPU),
-		CapMem:         int(healthCapMem+unhealthCapMem) / 1024 / 1024,
-		HealthCapCPU:   int(healthCapCPU),
-		HealthCapMem:   int(healthCapMem) / 1024 / 1024,
-		UnhealthCapCPU: int(unhealthCapCPU),
-		UnhealthCapMem: int(unhealthCapMem) / 1024 / 1024,
-		ReqCPU:         float32(healthcpuR+unhealthCPUR) / 1000,
-		ReqMem:         int(healthmemR+unhealthMemR) / 1024 / 1024,
-		HealthReqCPU:   float32(healthcpuR) / 1000,
-		HealthReqMem:   int(healthmemR) / 1024 / 1024,
-		UnhealthReqCPU: float32(unhealthCPUR) / 1000,
-		UnhealthReqMem: int(unhealthMemR) / 1024 / 1024,
-		ComputeNode:    len(nodes),
-		CapDisk:        diskCap,
-		ReqDisk:        reqDisk,
+		CapCPU:                           int(healthCapCPU + unhealthCapCPU),
+		CapMem:                           int(healthCapMem+unhealthCapMem) / 1024 / 1024,
+		HealthCapCPU:                     int(healthCapCPU),
+		HealthCapMem:                     int(healthCapMem) / 1024 / 1024,
+		UnhealthCapCPU:                   int(unhealthCapCPU),
+		UnhealthCapMem:                   int(unhealthCapMem) / 1024 / 1024,
+		ReqCPU:                           float32(healthcpuR+unhealthCPUR) / 1000,
+		ReqMem:                           int(healthmemR+unhealthMemR) / 1024 / 1024,
+		HealthReqCPU:                     float32(healthcpuR) / 1000,
+		HealthReqMem:                     int(healthmemR) / 1024 / 1024,
+		UnhealthReqCPU:                   float32(unhealthCPUR) / 1000,
+		UnhealthReqMem:                   int(unhealthMemR) / 1024 / 1024,
+		ComputeNode:                      len(nodes),
+		CapDisk:                          diskCap,
+		ReqDisk:                          reqDisk,
+		MaxAllocatableMemoryNodeResource: maxAllocatableMemory,
 	}
 	allnodes, _ := nodeService.GetAllNode()
 	result.AllNode = len(allnodes)
@@ -450,7 +472,7 @@ func GetNodeResource(w http.ResponseWriter, r *http.Request) {
 	}
 
 	podMemRequestMB := memR / 1024 / 1024
-	result := &model.NodeResource{
+	result := &model.NodeResourceResponse{
 		CapCPU: int(capCPU),
 		CapMem: int(capMem) / 1024 / 1024,
 		ReqCPU: float32(cpuR) / 1000,

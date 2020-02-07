@@ -189,7 +189,6 @@ func New(client kubernetes.Interface,
 	ingEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			ing := obj.(*extensions.Ingress)
-			logrus.Debugf("Received ingress: %v", ing)
 
 			// updating annotations information for ingress
 			store.extractAnnotations(ing)
@@ -216,7 +215,6 @@ func New(client kubernetes.Interface,
 			if oldIng.ResourceVersion == curIng.ResourceVersion || reflect.DeepEqual(oldIng, curIng) {
 				return
 			}
-			logrus.Debugf("Received ingress: %v", curIng)
 			store.extractAnnotations(curIng)
 			store.secretIngressMap.update(curIng)
 			store.syncSecrets(curIng)
@@ -402,22 +400,32 @@ func (s *k8sStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 					pool.UpstreamHashBy = backend.hashBy
 					l7Pools[backend.name] = pool
 				}
+				var notReadyAddress *corev1.EndpointAddress
+				var notReadyPort *corev1.EndpointPort
 				for _, ss := range ep.Subsets {
-					var addresses []corev1.EndpointAddress
-					if ss.Addresses != nil && len(ss.Addresses) > 0 {
-						addresses = append(addresses, ss.Addresses...)
-					} else {
-						addresses = append(addresses, ss.NotReadyAddresses...)
-					}
-					for _, address := range addresses {
-						if _, ok := l7PoolMap[epn]; ok { // l7
-							pool.Nodes = append(pool.Nodes, &v1.Node{
-								Host:   address.IP,
-								Port:   ss.Ports[0].Port,
-								Weight: backend.weight,
-							})
+					for i, port := range ss.Ports {
+						if (ss.Addresses == nil || len(ss.Addresses) == 0) && len(ss.NotReadyAddresses) > 0 {
+							notReadyAddress = &ss.NotReadyAddresses[0]
+							notReadyPort = &ss.Ports[i]
+						}
+						for _, address := range ss.Addresses {
+							if _, ok := l7PoolMap[epn]; ok { // l7
+								pool.Nodes = append(pool.Nodes, &v1.Node{
+									Host:   address.IP,
+									Port:   port.Port,
+									Weight: backend.weight,
+								})
+							}
 						}
 					}
+				}
+				// If you have an address, make sure you have at least one node, regardless of its health
+				if len(pool.Nodes) == 0 && notReadyAddress != nil && notReadyPort != nil {
+					pool.Nodes = append(pool.Nodes, &v1.Node{
+						Host:   notReadyAddress.IP,
+						Port:   notReadyPort.Port,
+						Weight: backend.weight,
+					})
 				}
 			}
 			// l4
@@ -434,19 +442,21 @@ func (s *k8sStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 					l4Pools[backend.name] = pool
 				}
 				for _, ss := range ep.Subsets {
-					var addresses []corev1.EndpointAddress
-					if ss.Addresses != nil && len(ss.Addresses) > 0 {
-						addresses = append(addresses, ss.Addresses...)
-					} else {
-						addresses = append(addresses, ss.NotReadyAddresses...)
-					}
-					for _, address := range addresses {
-						if _, ok := l4PoolMap[epn]; ok { // l7
-							pool.Nodes = append(pool.Nodes, &v1.Node{
-								Host:   address.IP,
-								Port:   ss.Ports[0].Port,
-								Weight: backend.weight,
-							})
+					for _, port := range ss.Ports {
+						var addresses []corev1.EndpointAddress
+						if ss.Addresses != nil && len(ss.Addresses) > 0 {
+							addresses = append(addresses, ss.Addresses...)
+						} else if len(ss.NotReadyAddresses) > 0 {
+							addresses = append(addresses, ss.NotReadyAddresses[0])
+						}
+						for _, address := range addresses {
+							if _, ok := l4PoolMap[epn]; ok { // l7
+								pool.Nodes = append(pool.Nodes, &v1.Node{
+									Host:   address.IP,
+									Port:   port.Port,
+									Weight: backend.weight,
+								})
+							}
 						}
 					}
 				}
@@ -480,6 +490,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 		anns, err := s.GetIngressAnnotations(ingKey)
 		if err != nil {
 			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
+			continue
 		}
 		if anns.L4.L4Enable && anns.L4.L4Port != 0 {
 			// region l4
@@ -525,6 +536,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			vs := &v1.VirtualService{
 				Listening: []string{listening},
 				PoolName:  backendName,
+				Protocol:  protocol,
 			}
 			vs.Namespace = anns.Namespace
 			vs.ServiceID = anns.Labels["service_id"]
@@ -793,7 +805,6 @@ func (s *k8sStore) Run(stopCh chan struct{}) {
 // Ingress with the local store and file system.
 func (s *k8sStore) syncSecrets(ing *extensions.Ingress) {
 	key := k8s.MetaNamespaceKey(ing)
-	// 获取所有关联的secret key
 	for _, secrKey := range s.secretIngressMap.getSecretKeys(key) {
 		s.syncSecret(secrKey)
 	}

@@ -59,7 +59,7 @@ type GWController struct {
 	store store.Storer
 
 	syncQueue       *task.Queue
-	syncRateLimiter flowcontrol.RateLimiter // TODO: use it
+	syncRateLimiter flowcontrol.RateLimiter
 	isShuttingDown  bool
 
 	// stopLock is used to enforce that only a single call to Stop send at
@@ -67,10 +67,10 @@ type GWController struct {
 	// allowing concurrent stoppers leads to stack traces.
 	stopLock *sync.Mutex
 
-	ocfg  *option.Config
-	rcfg  *v1.Config // running configuration
-	rhp   []*v1.Pool // running http pools
-	rrbdp []*v1.Pool // running rainbond pools
+	ocfg *option.Config
+	rcfg *v1.Config // running configuration
+	rrhp []*v1.Pool // running rainbond http pools
+	rrtp []*v1.Pool // running rainbond tcp or udp pools
 
 	stopCh   chan struct{}
 	updateCh *channels.RingChannel
@@ -144,40 +144,36 @@ func (gwc *GWController) handleEvent() {
 }
 
 func (gwc *GWController) syncGateway(key interface{}) error {
+	gwc.syncRateLimiter.Accept()
+
 	if gwc.syncQueue.IsShuttingDown() {
 		return nil
 	}
 	l7sv, l4sv := gwc.store.ListVirtualService()
 	httpPools, tcpPools := gwc.store.ListPool()
-
 	currentConfig := &v1.Config{
 		HTTPPools: httpPools,
 		TCPPools:  tcpPools,
 		L7VS:      l7sv,
 		L4VS:      l4sv,
 	}
-
-	logrus.Debugf("gwc.rcfig : %+v", gwc.rcfg)
-	logrus.Debugf("currentConfig: %+v", currentConfig)
-
+	// refresh http tcp and udp pools dynamically
+	httpPools = append(httpPools, gwc.rrhp...)
+	tcpPools = append(tcpPools, gwc.rrtp...)
+	if err := gwc.GWS.UpdatePools(httpPools, tcpPools); err != nil {
+		logrus.Warningf("error updating pools: %v", err)
+	}
 	if gwc.rcfg.Equals(currentConfig) {
-		logrus.Info("No need to update running configuration.")
-		// refresh http pools dynamically
-		httpPools = append(httpPools, gwc.rrbdp...)
-		gwc.rhp = httpPools
-		gwc.refreshPools(httpPools)
+		logrus.Debug("No need to update running configuration.")
 		return nil
 	}
+	logrus.Infof("update nginx server config file.")
 	err := gwc.GWS.PersistConfig(currentConfig)
 	if err != nil {
 		// TODO: if nginx is not ready, then stop gateway
 		logrus.Errorf("Fail to persist Nginx config: %v\n", err)
 		return nil
 	}
-	// refresh http pools dynamically
-	httpPools = append(httpPools, gwc.rrbdp...)
-	gwc.refreshPools(httpPools)
-	gwc.rhp = httpPools
 
 	//set metric
 	remove, hosts := getHosts(gwc.rcfg, currentConfig)
@@ -189,39 +185,11 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 	return nil
 }
 
-// refreshPools refresh pools dynamically.
-func (gwc *GWController) refreshPools(pools []*v1.Pool) {
-	if err := gwc.GWS.UpdatePools(pools, nil); err != nil {
-		logrus.Warningf("error updating pools: %v", err)
-	}
-}
-
-// getDelUpdPools returns delPools which need to delete and updPools which needs to update.
-func (gwc *GWController) getDelUpdPools(updPools []*v1.Pool) ([]*v1.Pool, []*v1.Pool) {
-	// updPools need to delete
-	var delPools []*v1.Pool
-	for _, rPool := range gwc.rhp {
-		flag := false
-		for i, pool := range updPools {
-			if rPool.Equals(pool) {
-				flag = true
-				// delete a pool that has no changed
-				updPools = append(updPools[:i], updPools[i+1:]...)
-				break
-			}
-		}
-		if !flag {
-			delPools = append(delPools, rPool)
-		}
-	}
-
-	return delPools, updPools
-}
-
 //NewGWController new Gateway controller
 func NewGWController(ctx context.Context, clientset kubernetes.Interface, cfg *option.Config, mc metric.Collector, node *cluster.NodeManager) (*GWController, error) {
 	gwc := &GWController{
 		updateCh:        channels.NewRingChannel(1024),
+		syncRateLimiter: flowcontrol.NewTokenBucketRateLimiter(cfg.SyncRateLimit, 1),
 		stopLock:        &sync.Mutex{},
 		stopCh:          make(chan struct{}),
 		ocfg:            cfg,
@@ -268,35 +236,16 @@ func (gwc *GWController) initRbdEndpoints(errCh chan<- error) {
 
 // updateRbdPools updates rainbond pools
 func (gwc *GWController) updateRbdPools(edps map[string][]string) {
-	h, t := gwc.getRbdPools(edps)
-	//http pool merge to all http pool
-	if h != nil {
-		//merge app pool
-		for _, rbd := range h {
-			exist := false
-			for idx := range gwc.rhp {
-				item := gwc.rhp[idx]
-				if rbd.Name == item.Name {
-					gwc.rhp[idx] = rbd
-					exist = true
-				}
-			}
-			if !exist {
-				gwc.rhp = append(gwc.rhp, rbd)
-			}
+	if ok, _ := gwc.syncRbdPools(edps); ok {
+		if err := gwc.syncGateway(nil); err != nil {
+			logrus.Errorf("sync gateway rule failure %s after update rainbond pool", err.Error())
 		}
-	}
-	if t != nil {
-		//UpdatePools only update rainbond tenant tcp pools to config file
-		//http pools must full quantity update
-		if err := gwc.GWS.UpdatePools(gwc.rhp, t); err != nil {
-			logrus.Errorf("update rainbond pools failure %s", err.Error())
-		}
+		logrus.Debugf("update rainbond pools")
 	}
 }
 
-// getRbdPools returns rainbond pools
-func (gwc *GWController) getRbdPools(edps map[string][]string) ([]*v1.Pool, []*v1.Pool) {
+// syncRbdPools returns rainbond pools
+func (gwc *GWController) syncRbdPools(edps map[string][]string) (bool, error) {
 	var hpools []*v1.Pool // http pools
 	var tpools []*v1.Pool // tcp pools
 	if gwc.ocfg.EnableKApiServer {
@@ -341,17 +290,17 @@ func (gwc *GWController) getRbdPools(edps map[string][]string) ([]*v1.Pool, []*v
 			logrus.Debugf("there is no endpoints for %s", "maven.goodrain.me")
 		}
 	}
-	// The current pools are for rainbond TCP and HTTP pools
-	// Updates are returned when changes occur
-	rbdpools := append(hpools, tpools...)
-	if !rrbdpEqual(rbdpools, gwc.rrbdp) {
-		gwc.rrbdp = rbdpools
-		return hpools, tpools
+	defer func() {
+		gwc.rrhp = hpools
+		gwc.rrtp = tpools
+	}()
+	if !poolsEqual(gwc.rrhp, hpools) || !poolsEqual(gwc.rrtp, tpools) {
+		return true, nil
 	}
-	return nil, nil
+	return false, nil
 }
 
-func rrbdpEqual(a []*v1.Pool, b []*v1.Pool) bool {
+func poolsEqual(a []*v1.Pool, b []*v1.Pool) bool {
 	if len(a) != len(b) {
 		return false
 	}

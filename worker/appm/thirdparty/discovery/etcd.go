@@ -147,11 +147,9 @@ func (e *etcd) Watch() { // todo: separate stop
 	for {
 		select {
 		case <-e.stopCh:
-			logrus.Info("oop, oop")
 			cancel()
 			return
 		case watResp := <-watch:
-			logrus.Info("hihi.")
 			if err := watResp.Err(); err != nil {
 				logrus.Errorf("error watching event from etcd: %v", err)
 				continue

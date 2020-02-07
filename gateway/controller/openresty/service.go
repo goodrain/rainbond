@@ -24,9 +24,11 @@ import (
 	"encoding/asn1"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -106,6 +108,7 @@ func (o *OrService) Start(errCh chan error) error {
 	// generate default nginx.conf
 	nginx := model.NewNginx(*o.ocfg)
 	nginx.HTTP = model.NewHTTP(o.ocfg)
+	nginx.Stream = model.NewStream(o.ocfg)
 	if err := o.configManage.NewNginxTemplate(nginx); err != nil {
 		logrus.Errorf("init openresty config failure %s", err.Error())
 		return err
@@ -150,62 +153,13 @@ func (o *OrService) Stop() error {
 	return nil
 }
 
-func (o *OrService) persistServerAndPool(servers []*model.Server, pools []*v1.Pool) error {
-	if len(servers) == 0 {
-		logrus.Warn("empty proxy server info, clean server.conf")
-		if err := o.configManage.WriteServer(*o.ocfg, "stream", "", []*model.Server{}...); err != nil {
-			logrus.Errorf("write server config error: %v", err.Error())
-		}
-
-		return nil
-	}
-	first := true
-	for _, server := range servers {
-		proxyPass := server.ProxyPass
-		found := false
-		for _, pool := range pools {
-			logrus.Debugf("upstream.Name : %s", pool.Name)
-			if proxyPass == pool.Name {
-				found = true
-				upstream := &model.Upstream{}
-				upstream.Name = pool.Name
-				upstream.UseLeastConn = pool.LeastConn
-				var upstreamServers []model.UServer
-				for _, node := range pool.Nodes {
-					upstreamServer := model.UServer{
-						Address: node.Host + ":" + fmt.Sprintf("%v", node.Port),
-						Params: model.Params{
-							Weight:      1,
-							MaxFails:    node.MaxFails,
-							FailTimeout: node.FailTimeout,
-						},
-					}
-					logrus.Debugf("upstream.server address = %s", upstreamServer.Address)
-					upstreamServers = append(upstreamServers, upstreamServer)
-				}
-				upstream.Servers = upstreamServers
-				logrus.Debugf("first: %v, server: %v, upstream: %v", first, server, pool)
-				if err := o.configManage.WriteServerAndUpstream(first, *o.ocfg, "stream", pool.Namespace, server, upstream); err != nil {
-					logrus.Errorf("write server or upstream error: %v", err.Error())
-				} else {
-					first = false
-				}
-			}
-		}
-		if !found {
-			logrus.Warnf("server %v do not found upstream by name %s, ignore it", server.ServerName, proxyPass)
-		}
-	}
-	return nil
-}
-
 // PersistConfig persists ocfg
 func (o *OrService) PersistConfig(conf *v1.Config) error {
 	l7srv, l4srv := getNgxServer(conf)
-	// http
+	// http server
 	o.configManage.WriteServer(*o.ocfg, "http", "", l7srv...)
-	// stream
-	o.persistServerAndPool(l4srv, conf.TCPPools)
+	// tcp and udp server
+	o.configManage.WriteServer(*o.ocfg, "stream", "", l4srv...)
 
 	// reload nginx
 	if err := nginxcmd.Reload(); err != nil {
@@ -218,32 +172,41 @@ func (o *OrService) PersistConfig(conf *v1.Config) error {
 
 // persistUpstreams persists upstreams
 func (o *OrService) persistUpstreams(pools []*v1.Pool) error {
-	var upstreams = make(map[string][]*model.Upstream)
+	streams := make([]model.Backend, 0)
 	for _, pool := range pools {
-		upstream := &model.Upstream{}
-		upstream.Name = pool.Name
-		upstream.UseLeastConn = pool.LeastConn
-		var servers []model.UServer
+		var endpoints []model.Endpoint
 		for _, node := range pool.Nodes {
-			server := model.UServer{
-				Address: node.Host + ":" + fmt.Sprintf("%v", node.Port),
-				Params: model.Params{
-					Weight:      1,
-					MaxFails:    node.MaxFails,
-					FailTimeout: node.FailTimeout,
-				},
-			}
-			servers = append(servers, server)
+			endpoints = append(endpoints, model.Endpoint{
+				Address: node.Host,
+				Port:    strconv.Itoa(int(node.Port)),
+			})
 		}
-		upstream.Servers = servers
-		upstreams[pool.Namespace] = append(upstreams[pool.Namespace], upstream)
+		streams = append(streams, model.Backend{
+			Name:      pool.Name,
+			Endpoints: endpoints,
+		})
 	}
-	for tenant, tupstreams := range upstreams {
-		if err := o.configManage.WriteUpstream(*o.ocfg, tenant, tupstreams...); err != nil {
-			logrus.Errorf("Fail to new nginx Upstream ocfg file: %v", err)
-			return err
-		}
+
+	buf, err := json.Marshal(streams)
+	if err != nil {
+		return err
 	}
+
+	conn, err := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%v", o.ocfg.ListenPorts.Stream))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = conn.Write(buf)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(conn, "\r\n")
+	if err != nil {
+		return err
+	}
+	logrus.Debug("dynamically update tcp and udp Upstream success")
 	return nil
 }
 
@@ -251,6 +214,7 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 	for _, vs := range conf.L7VS {
 		server := &model.Server{
 			Listen:     strings.Join(vs.Listening, " "),
+			Protocol:   "HTTP",
 			ServerName: strings.Replace(vs.ServerName, "tls", "", 1),
 			// ForceSSLRedirect: vs.ForceSSLRedirect,
 			OptionValue: map[string]string{
@@ -280,11 +244,12 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 
 	for _, vs := range conf.L4VS {
 		server := &model.Server{
-			ProxyPass: vs.PoolName,
+			Protocol: string(vs.Protocol),
 			OptionValue: map[string]string{
 				"tenant_id":  vs.Namespace,
 				"service_id": vs.ServiceID,
 			},
+			UpstreamName: vs.PoolName,
 		}
 		server.Listen = strings.Join(vs.Listening, " ")
 		l4srv = append(l4srv, server)
@@ -298,16 +263,12 @@ func (o *OrService) UpdatePools(hpools []*v1.Pool, tpools []*v1.Pool) error {
 	var lock sync.Mutex
 	lock.Lock()
 	defer lock.Unlock()
+	logrus.Debugf("start update pools(tcp pools count %d, http pool count %d)", len(tpools), len(hpools))
 	if len(tpools) > 0 {
 		err := o.persistUpstreams(tpools)
 		if err != nil {
 			logrus.Warningf("error updating upstream.default.tcp.conf")
 		}
-		// reload nginx
-		if err := nginxcmd.Reload(); err != nil {
-			return fmt.Errorf("reload nginx config for update tcp upstream failure %s", err.Error())
-		}
-		logrus.Debug("Nginx reloads successfully for tcp pool.")
 	}
 	if hpools == nil || len(hpools) == 0 {
 		return nil
@@ -325,7 +286,7 @@ func (o *OrService) updateBackends(backends []*model.Backend) error {
 	if err := post(url, backends); err != nil {
 		return err
 	}
-	logrus.Debug("dynamically update Upstream success")
+	logrus.Debug("dynamically update http Upstream success")
 	return nil
 }
 
@@ -377,21 +338,6 @@ func (o *OrService) newRbdServers() error {
 		return err
 	}
 	if o.ocfg.EnableKApiServer {
-		dummyUpstream := &model.Upstream{
-			Name: "kube_apiserver",
-			Servers: []model.UServer{
-				{
-					Address: "0.0.0.1:65535", // placeholder
-					Params: model.Params{
-						Weight: 1,
-					},
-				},
-			},
-		}
-		if err := o.configManage.WriteUpstream(*o.ocfg, "rainbond", dummyUpstream); err != nil {
-			logrus.Errorf("write kube api config upstream failure %s", err.Error())
-			return err
-		}
 		ksrv := kubeApiserver(o.ocfg.KApiServerIP)
 		if err := o.configManage.WriteServer(*o.ocfg, "stream", "rainbond", ksrv); err != nil {
 			logrus.Errorf("write kube api config server failure %s", err.Error())

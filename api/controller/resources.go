@@ -661,6 +661,9 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	ss.TenantID = tenantID
 	if err := handler.GetServiceManager().ServiceCreate(&ss); err != nil {
+		if strings.Contains(err.Error(), "is exist in tenant") {
+			httputil.ReturnError(r, w, 400, fmt.Sprintf("create service error, %v", err))
+		}
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("create service error, %v", err))
 		return
 	}
@@ -1457,7 +1460,7 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 		}
 		for _, ep := range endpoints {
 			address := validation.SplitEndpointAddress(ep.IP)
-			if errs := validation.ValidateEndpointIP(address); len(errs) > 0 {
+			if validation.IsDomainNotIP(address) {
 				httputil.ReturnError(r, w, 400, "do not allow operate outer port for thirdpart domain endpoints")
 				return
 			}

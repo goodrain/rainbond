@@ -1,7 +1,5 @@
-FROM centos:7.4.1708
-
+FROM goodrainapps/alpine:3.4
 ADD . /run
-
 ENV RELEASE_DESC=__RELEASE_DESC__
-
+EXPOSE 6100 6101 9125
 ENTRYPOINT ["/run/entrypoint.sh"]

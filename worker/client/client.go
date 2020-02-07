@@ -196,12 +196,14 @@ func (a *AppRuntimeSyncClient) UpdThirdPartyEndpoint(req *model.Endpoint) {
 }
 
 // DelThirdPartyEndpoint -
-func (a *AppRuntimeSyncClient) DelThirdPartyEndpoint(uuid, sid string) {
+func (a *AppRuntimeSyncClient) DelThirdPartyEndpoint(req *model.Endpoint) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	_, _ = a.AppRuntimeSyncClient.DelThirdPartyEndpoint(ctx, &pb.DelThirdPartyEndpointsReq{
-		Uuid: uuid,
-		Sid:  sid,
+		Uuid: req.UUID,
+		Sid:  req.ServiceID,
+		Ip:   req.IP,
+		Port: int32(req.Port),
 	})
 }
 
