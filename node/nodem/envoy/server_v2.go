@@ -28,8 +28,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/goodrain/rainbond/node/kubecache"
-
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/Sirupsen/logrus"
@@ -256,13 +254,13 @@ func (d *DiscoverServerManager) setSnapshot(nc *NodeConfig) error {
 }
 
 //CreateDiscoverServerManager create discover server manager
-func CreateDiscoverServerManager(client kubecache.KubeClient, conf option.Conf) (*DiscoverServerManager, error) {
+func CreateDiscoverServerManager(clientset kubernetes.Interface, conf option.Conf) (*DiscoverServerManager, error) {
 	configcache := cache.NewSnapshotCache(false, Hasher{}, logrus.WithField("module", "config-cache"))
 	ctx, cancel := context.WithCancel(context.Background())
 	dsm := &DiscoverServerManager{
 		server:       server.NewServer(configcache, nil),
 		cacheManager: configcache,
-		kubecli:      client.GetKubeClient(),
+		kubecli:      clientset,
 		conf:         conf,
 		eventChan:    make(chan *Event, 100),
 		pool: &sync.Pool{
