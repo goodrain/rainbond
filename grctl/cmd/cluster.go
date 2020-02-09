@@ -21,6 +21,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -88,22 +89,8 @@ func getClusterInfo(c *cli.Context) error {
 		}())+"%")
 	fmt.Println(table)
 
-	//show services health status
-	allNodeHealth, err := clients.RegionClient.Nodes().GetAllNodeHealth()
-	handleErr(err)
-	serviceTable2 := termtables.CreateTable()
-	serviceTable2.AddHeaders("Service", "HealthyQuantity/Total", "Message")
-	serviceStatusInfo := allNodeHealth
-	status, message := clusterStatus(serviceStatusInfo["Role"], serviceStatusInfo["Ready"])
-	serviceTable2.AddRow("\033[0;33;33mClusterStatus\033[0m", status, message)
-	for name, v := range serviceStatusInfo {
-		if name == "Role" {
-			continue
-		}
-		status, message := summaryResult(v)
-		serviceTable2.AddRow(name, status, message)
-	}
-	fmt.Println(serviceTable2.Render())
+	//show component health status
+	printComponentStatus()
 	//show node detail
 	serviceTable := termtables.CreateTable()
 	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "Status")
@@ -231,4 +218,8 @@ func clusterStatus(roleList []map[string]string, ReadyList []map[string]string) 
 		errMessage = "No gateway nodes are available in the cluster"
 	}
 	return clusterStatus, errMessage
+}
+
+func printComponentStatus() {
+	exec.Command("kubectl", "get", "pod", "-n", "rbd-system", "-o", "wide").Run()
 }
