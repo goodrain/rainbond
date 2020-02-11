@@ -89,9 +89,9 @@ build::image() {
 			docker push "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}"
 			if [ ${DOMESTIC_BASE_NAME} ];
 			then
-				docker tag "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" "${DOMESTIC_BASE_NAME}/rbd-$1:${VERSION}"
-				docker login -u "$DOMESTIC_DOCKER_USERNAME" -p "$DOMESTIC_DOCKER_PASSWORD"
-				docker push "${DOMESTIC_BASE_NAME}/rbd-$1:${VERSION}"
+				docker tag "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" "${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-$1:${VERSION}"
+				docker login -u "$DOMESTIC_DOCKER_USERNAME" -p "$DOMESTIC_DOCKER_PASSWORD" ${DOMESTIC_BASE_NAME}
+				docker push "${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-$1:${VERSION}"
 			fi
 		fi	
 		rm -f ./Dockerfile.release
