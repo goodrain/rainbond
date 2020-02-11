@@ -253,7 +253,8 @@ func (a proxy) Parse(ing *extensions.Ingress) (interface{}, error) {
 		config.ProxyBuffering = defBackend.ProxyBuffering
 	}
 
-	config.SetHeaders = make(map[string]string)
+	config.SetHeaders = defBackend.ProxySetHeaders
+	//default header
 	for k, v := range defBackend.ProxySetHeaders {
 		config.SetHeaders[k] = v
 	}
