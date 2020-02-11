@@ -9,6 +9,7 @@ if [ $BUILD_IMAGE_BASE_NAME ];
 then 
 IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME}
 fi
+
 GO_VERSION=1.11-stretch
 GATEWAY_GO_VERSION=1.11-alpine3.8
 
@@ -82,10 +83,16 @@ build::image() {
 		fi
 		echo "---> build image:$1"
 		sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
-		docker build -t ${IMAGE_BASE_NAME}/rbd-$1:${VERSION} -f Dockerfile.release .
+		docker build -t "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" -f Dockerfile.release .
 		if [ "$2" = "push" ];then
-		    docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-			docker push ${IMAGE_BASE_NAME}/rbd-$1:${VERSION}
+		    docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+			docker push "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}"
+			if [ ${DOMESTIC_BASE_NAME} ];
+			then
+				docker tag "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" "${DOMESTIC_BASE_NAME}/rbd-$1:${VERSION}"
+				docker login -u "$DOMESTIC_DOCKER_USERNAME" -p "$DOMESTIC_DOCKER_PASSWORD"
+				docker push "${DOMESTIC_BASE_NAME}/rbd-$1:${VERSION}"
+			fi
 		fi	
 		rm -f ./Dockerfile.release
 		rm -f ./${BASE_NAME}-$1
