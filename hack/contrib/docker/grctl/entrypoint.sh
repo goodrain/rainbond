@@ -4,7 +4,7 @@ if [ "$1" = "bash" ];then
 elif [ "$1" = "version" ];then
     echo "$RELEASE_DESC"
 elif [ "$1" = "install" ];then
-    cp -a /run/rainbond-grctl /rootfs/path
+    cp -a /run/rainbond-grctl /rootfs/path/grctl
     mkdir -p /rootfs/root/.rbd
     cp -a /etc/goodrain/region.goodrain.me/ssl/ca.pem /ssl/ca.pem
     cp -a /etc/goodrain/region.goodrain.me/ssl/client.pem /ssl/client.pem
