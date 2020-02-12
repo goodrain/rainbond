@@ -10,13 +10,13 @@ then
 IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME}
 fi
 
-GO_VERSION=1.11-stretch
-GATEWAY_GO_VERSION=1.11-alpine3.8
+GO_VERSION=1.13
+GATEWAY_GO_VERSION=1.13-alpine
 
 if [ -z "$VERSION" ];then
   if [ -z "$TRAVIS_TAG" ]; then
     if [ -z "$TRAVIS_BRANCH" ]; then
-      VERSION=V5.1-dev
+      VERSION=V5.2-dev
     else
       VERSION=$TRAVIS_BRANCH-dev
     fi
@@ -59,26 +59,26 @@ build::binary() {
 
 build::image() {
 	local REPO_PATH="$PWD"
-	pushd ./hack/contrib/docker/$1
+	pushd "./hack/contrib/docker/$1"
 		echo "---> build binary:$1"
 		local DOCKER_PATH="./hack/contrib/docker/$1"
 		if [ "$1" = "eventlog" ];then
 			docker build -t goodraim.me/event-build:v1 build
-			docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} goodraim.me/event-build:v1 go build  -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/eventlog
+			docker run --rm -v "${REPO_PATH}":${WORK_DIR} -w ${WORK_DIR} goodraim.me/event-build:v1 go build  -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/eventlog
 		elif [ "$1" = "chaos" ];then
-			docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/builder
+			docker run --rm -v "${REPO_PATH}":${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/builder
 		elif [ "$1" = "monitor" ];then
-			docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -extldflags '-static' -X github.com/goodrain/rainbond/cmd.version=${release_desc}" -tags 'netgo static_build' -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
+			docker run -e CGO_ENABLED=0 --rm -v "${REPO_PATH}":${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 		elif [ "$1" = "gateway" ];then
-			docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GATEWAY_GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
+			docker run --rm -v "${REPO_PATH}":${WORK_DIR} -w ${WORK_DIR} -it golang:${GATEWAY_GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 		elif [ "$1" = "mesh-data-panel" ];then
 			echo "mesh-data-panel not need build";
 		else
 			if [ "${ENTERPRISE}" = "true" ];then
 				echo "---> ENTERPRISE:${ENTERPRISE}"
-				docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc} -X github.com/goodrain/rainbond/util/license.enterprise=${ENTERPRISE}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
+				docker run --rm -v "${REPO_PATH}":${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc} -X github.com/goodrain/rainbond/util/license.enterprise=${ENTERPRISE}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 			else
-				docker run --rm -v ${REPO_PATH}:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
+				docker run --rm -v "${REPO_PATH}":${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 			fi
 		fi
 		echo "---> build image:$1"
