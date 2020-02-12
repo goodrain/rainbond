@@ -24,18 +24,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
-	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/util/leader"
 	"github.com/goodrain/rainbond/worker/appm/store"
-	"github.com/goodrain/rainbond/worker/master/metricsserv"
 	"github.com/goodrain/rainbond/worker/master/podevent"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
@@ -58,12 +55,10 @@ type Controller struct {
 	stopCh      chan struct{}
 	podEventChs []chan *corev1.Pod
 	podEvent    *podevent.PodEvent
-
-	metricsServerManager *metricsserv.MetricsServiceManager
 }
 
 //NewMasterController new master controller
-func NewMasterController(conf option.Config, store store.Storer, kubeaggregatorclientset kubeaggregatorclientset.Interface) (*Controller, error) {
+func NewMasterController(conf option.Config, store store.Storer) (*Controller, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	// The controller needs to know what the server version is because out-of-tree
 	// provisioners aren't officially supported until 1.5
@@ -87,19 +82,6 @@ func NewMasterController(conf option.Config, store store.Storer, kubeaggregatorc
 		rainbondsslcProvisioner.Name(): rainbondsslcProvisioner,
 	}, serverVersion.GitVersion)
 	stopCh := make(chan struct{})
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints:        conf.EtcdEndPoints,
-		CaFile:           conf.EtcdCaFile,
-		CertFile:         conf.EtcdCertFile,
-		KeyFile:          conf.EtcdKeyFile,
-		AutoSyncInterval: time.Second * 30,
-		DialTimeout:      time.Second * 10,
-	}
-	clientv3, err := etcdutil.NewClient(ctx, etcdClientArgs)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
 
 	return &Controller{
 		conf:      conf,
@@ -119,9 +101,8 @@ func NewMasterController(conf option.Config, store store.Storer, kubeaggregatorc
 			Name:      "appfs",
 			Help:      "tenant service fs used.",
 		}, []string{"tenant_id", "service_id", "volume_type"}),
-		diskCache:            statistical.CreatDiskCache(ctx),
-		podEvent:             podevent.New(conf.KubeClient, stopCh),
-		metricsServerManager: metricsserv.New(conf.KubeClient, kubeaggregatorclientset, clientv3),
+		diskCache: statistical.CreatDiskCache(ctx),
+		podEvent:  podevent.New(conf.KubeClient, stopCh),
 	}, nil
 }
 
@@ -158,9 +139,6 @@ func (m *Controller) Start() error {
 	}
 	if m.conf.LeaderElectionIdentity == "" {
 		return fmt.Errorf("-leader-election-identity must not be empty")
-	}
-	if err := m.metricsServerManager.Start(); err != nil {
-		return fmt.Errorf("start metrics-server manager: %v", err)
 	}
 	// Name of config map with leader election lock
 	lockName := "rainbond-appruntime-worker-leader"

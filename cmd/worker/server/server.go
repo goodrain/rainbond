@@ -25,9 +25,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
-	"k8s.io/client-go/kubernetes"
-	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
-
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
@@ -42,6 +39,7 @@ import (
 	"github.com/goodrain/rainbond/worker/master"
 	"github.com/goodrain/rainbond/worker/monitor"
 	"github.com/goodrain/rainbond/worker/server"
+	"k8s.io/client-go/kubernetes"
 )
 
 //Run start run
@@ -85,12 +83,6 @@ func Run(s *option.Worker) error {
 	}
 	s.Config.KubeClient = clientset
 
-	kubeaggregatorclientset, err := kubeaggregatorclientset.NewForConfig(restConfig)
-	if err != nil {
-		logrus.Error("kube aggregator; read kube config file error.", err)
-		return err
-	}
-
 	//step 3: create resource store
 	startCh := channels.NewRingChannel(1024)
 	updateCh := channels.NewRingChannel(1024)
@@ -111,7 +103,7 @@ func Run(s *option.Worker) error {
 	defer controllerManager.Stop()
 
 	//step 5 : start runtime master
-	masterCon, err := master.NewMasterController(s.Config, cachestore, kubeaggregatorclientset)
+	masterCon, err := master.NewMasterController(s.Config, cachestore)
 	if err != nil {
 		return err
 	}
