@@ -25,12 +25,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/discover.v2"
-	"github.com/goodrain/rainbond/discover/config"
 	"net"
 	"os"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
+	discover "github.com/goodrain/rainbond/discover.v2"
+	"github.com/goodrain/rainbond/discover/config"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
 )
@@ -101,6 +102,7 @@ func (h *hostCallback) UpdateEndpoints(endpoints ...*config.Endpoint) {
 		lines := []string{
 			startOfSection,
 			endpoints[0].URL + " " + h.cfg.ImageRepositoryHost,
+			endpoints[0].URL + " " + "region.goodrain.me",
 			endOfSection,
 		}
 		h.hosts.AddLines(lines...)

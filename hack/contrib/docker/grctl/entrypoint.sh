@@ -6,9 +6,9 @@ elif [ "$1" = "version" ];then
 elif [ "$1" = "install" ];then
     cp -a /run/rainbond-grctl /rootfs/path/grctl
     mkdir -p /rootfs/root/.rbd
-    cp -a /etc/goodrain/region.goodrain.me/ssl/ca.pem /ssl/ca.pem
-    cp -a /etc/goodrain/region.goodrain.me/ssl/client.pem /ssl/client.pem
-    cp -a /etc/goodrain/region.goodrain.me/ssl/client.key.pem /ssl/client.key.pem
+    cat /etc/goodrain/region.goodrain.me/ssl/ca.pem > /ssl/ca.pem
+    cat /etc/goodrain/region.goodrain.me/ssl/client.pem > /ssl/client.pem
+    cat /etc/goodrain/region.goodrain.me/ssl/client.key.pem > /ssl/client.key.pem
     cp -a /run/grctl.yaml /rootfs/root/.rbd/grctl.yaml
     exec /run/rainbond-grctl install
 else
