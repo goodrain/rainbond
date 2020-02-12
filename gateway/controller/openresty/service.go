@@ -150,62 +150,14 @@ func (o *OrService) Stop() error {
 	return nil
 }
 
-func (o *OrService) persistServerAndPool(servers []*model.Server, pools []*v1.Pool) error {
-	if len(servers) == 0 {
-		logrus.Warn("empty proxy server info, clean server.conf")
-		if err := o.configManage.WriteServer(*o.ocfg, "stream", "", []*model.Server{}...); err != nil {
-			logrus.Errorf("write server config error: %v", err.Error())
-		}
-
-		return nil
-	}
-	first := true
-	for _, server := range servers {
-		proxyPass := server.ProxyPass
-		found := false
-		for _, pool := range pools {
-			logrus.Debugf("upstream.Name : %s", pool.Name)
-			if proxyPass == pool.Name {
-				found = true
-				upstream := &model.Upstream{}
-				upstream.Name = pool.Name
-				upstream.UseLeastConn = pool.LeastConn
-				var upstreamServers []model.UServer
-				for _, node := range pool.Nodes {
-					upstreamServer := model.UServer{
-						Address: node.Host + ":" + fmt.Sprintf("%v", node.Port),
-						Params: model.Params{
-							Weight:      1,
-							MaxFails:    node.MaxFails,
-							FailTimeout: node.FailTimeout,
-						},
-					}
-					logrus.Debugf("upstream.server address = %s", upstreamServer.Address)
-					upstreamServers = append(upstreamServers, upstreamServer)
-				}
-				upstream.Servers = upstreamServers
-				logrus.Debugf("first: %v, server: %v, upstream: %v", first, server, pool)
-				if err := o.configManage.WriteServerAndUpstream(first, *o.ocfg, "stream", pool.Namespace, server, upstream); err != nil {
-					logrus.Errorf("write server or upstream error: %v", err.Error())
-				} else {
-					first = false
-				}
-			}
-		}
-		if !found {
-			logrus.Warnf("server %v do not found upstream by name %s, ignore it", server.ServerName, proxyPass)
-		}
-	}
-	return nil
-}
-
 // PersistConfig persists ocfg
 func (o *OrService) PersistConfig(conf *v1.Config) error {
 	l7srv, l4srv := getNgxServer(conf)
 	// http
 	o.configManage.WriteServer(*o.ocfg, "http", "", l7srv...)
 	// stream
-	o.persistServerAndPool(l4srv, conf.TCPPools)
+	o.persistUpstreams(conf.TCPPools)
+	o.configManage.WriteServer(*o.ocfg, "stream", "", l4srv...)
 
 	// reload nginx
 	if err := nginxcmd.Reload(); err != nil {

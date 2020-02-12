@@ -420,11 +420,11 @@ type TenantServiceProbe struct {
 	//http请求头，key=value,key2=value2
 	HTTPHeader string `gorm:"column:http_header;size:300" json:"http_header" validate:"http_header"`
 	//初始化等候时间
-	InitialDelaySecond int `gorm:"column:initial_delay_second;size:2;default:1" json:"initial_delay_second" validate:"initial_delay_second"`
+	InitialDelaySecond int `gorm:"column:initial_delay_second;size:2;default:4" json:"initial_delay_second" validate:"initial_delay_second"`
 	//检测间隔时间
 	PeriodSecond int `gorm:"column:period_second;size:2;default:3" json:"period_second" validate:"period_second"`
 	//检测超时时间
-	TimeoutSecond int `gorm:"column:timeout_second;size:3;default:30" json:"timeout_second" validate:"timeout_second"`
+	TimeoutSecond int `gorm:"column:timeout_second;size:3;default:5" json:"timeout_second" validate:"timeout_second"`
 	//是否启用
 	IsUsed *int `gorm:"column:is_used;size:1;default:1" json:"is_used" validate:"is_used"`
 	//标志为失败的检测次数

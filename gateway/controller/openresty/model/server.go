@@ -1,6 +1,9 @@
 package model
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/goodrain/rainbond/gateway/annotations/proxy"
 	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
 	v1 "github.com/goodrain/rainbond/gateway/v1"
@@ -27,6 +30,19 @@ type Server struct {
 	Rewrites                []Rewrite
 	Locations               []*Location
 	OptionValue             map[string]string
+}
+
+//Validation validation nginx parameters
+func (s *Server) Validation() error {
+	if s.ServerName != "" && strings.Contains(s.ServerName, " ") {
+		return fmt.Errorf("servername %s is valid", s.ServerName)
+	}
+	for _, l := range s.Locations {
+		if err := l.Validation(); err != nil {
+			return fmt.Errorf("servername %s location is valid:%s", s.ServerName, err.Error())
+		}
+	}
+	return nil
 }
 
 // FastCGIParam sets a parameter that should be passed to the FastCGI server.
@@ -73,6 +89,17 @@ type Location struct {
 	// to be used in connections against endpoints
 	// +optional
 	Proxy proxy.Config `json:"proxy,omitempty"`
+}
+
+//Validation validation nginx parameters
+func (s *Location) Validation() error {
+	if s.Path == "" {
+		return fmt.Errorf("location path can not be empty")
+	}
+	if err := s.Proxy.Validation(); err != nil {
+		return fmt.Errorf("location %s proxy config is valid %s", s.Path, err.Error())
+	}
+	return nil
 }
 
 // ProxySetHeader allows redefining or appending fields to the request header passed to the proxied server.

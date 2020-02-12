@@ -118,6 +118,7 @@ type AppService struct {
 	status       AppServiceStatus
 	Logger       event.Logger
 	UpgradePatch map[string][]byte
+	CustomParams map[string]string
 }
 
 //CacheKey app cache key
@@ -290,7 +291,11 @@ func (a *AppService) SetServices(svcs []*corev1.Service) {
 }
 
 //GetServices get services
-func (a *AppService) GetServices() []*corev1.Service {
+func (a *AppService) GetServices(canCopy bool) []*corev1.Service {
+	if canCopy {
+		cr := make([]*corev1.Service, len(a.services))
+		copy(cr, a.services[0:])
+	}
 	return a.services
 }
 
@@ -323,7 +328,11 @@ func (a *AppService) AddEndpoints(ep *corev1.Endpoints) {
 }
 
 // GetEndpoints returns endpoints in AppService
-func (a *AppService) GetEndpoints() []*corev1.Endpoints {
+func (a *AppService) GetEndpoints(canCopy bool) []*corev1.Endpoints {
+	if canCopy {
+		cr := make([]*corev1.Endpoints, len(a.endpoints))
+		copy(cr, a.endpoints[0:])
+	}
 	return a.endpoints
 }
 
@@ -348,7 +357,12 @@ func (a *AppService) DelEndpoints(ep *corev1.Endpoints) {
 }
 
 //GetIngress get ingress
-func (a *AppService) GetIngress() []*extensions.Ingress {
+func (a *AppService) GetIngress(canCopy bool) []*extensions.Ingress {
+	if canCopy {
+		cr := make([]*extensions.Ingress, len(a.ingresses))
+		copy(cr, a.ingresses[0:])
+		return cr
+	}
 	return a.ingresses
 }
 
@@ -443,7 +457,11 @@ func (a *AppService) DeleteSecrets(d *corev1.Secret) {
 }
 
 //GetSecrets get secrets
-func (a *AppService) GetSecrets() []*corev1.Secret {
+func (a *AppService) GetSecrets(canCopy bool) []*corev1.Secret {
+	if canCopy {
+		cr := make([]*corev1.Secret, len(a.secrets))
+		copy(cr, a.secrets[0:])
+	}
 	return a.secrets
 }
 
@@ -476,7 +494,11 @@ func (a *AppService) DeletePods(d *corev1.Pod) {
 }
 
 //GetPods get pods
-func (a *AppService) GetPods() []*corev1.Pod {
+func (a *AppService) GetPods(canCopy bool) []*corev1.Pod {
+	if canCopy {
+		cr := make([]*corev1.Pod, len(a.pods))
+		copy(cr, a.pods[0:])
+	}
 	return a.pods
 }
 
@@ -506,9 +528,9 @@ func (a *AppService) SetDeletedResources(old *AppService) {
 		logrus.Debugf("empty old app service.")
 		return
 	}
-	for _, o := range old.GetIngress() {
+	for _, o := range old.GetIngress(true) {
 		del := true
-		for _, n := range a.GetIngress() {
+		for _, n := range a.GetIngress(true) {
 			if o.Name == n.Name {
 				del = false
 				break
@@ -518,9 +540,9 @@ func (a *AppService) SetDeletedResources(old *AppService) {
 			a.delIngs = append(a.delIngs, o)
 		}
 	}
-	for _, o := range old.GetSecrets() {
+	for _, o := range old.GetSecrets(true) {
 		del := true
-		for _, n := range a.GetSecrets() {
+		for _, n := range a.GetSecrets(true) {
 			if o.Name == n.Name {
 				del = false
 				break
@@ -530,9 +552,9 @@ func (a *AppService) SetDeletedResources(old *AppService) {
 			a.delSecrets = append(a.delSecrets, o)
 		}
 	}
-	for _, o := range old.GetServices() {
+	for _, o := range old.GetServices(true) {
 		del := true
-		for _, n := range a.GetServices() {
+		for _, n := range a.GetServices(true) {
 			if o.Name == n.Name {
 				del = false
 				break

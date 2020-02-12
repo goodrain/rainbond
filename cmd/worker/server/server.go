@@ -25,9 +25,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
-	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	kubeaggregatorclientset "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
 
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
@@ -124,8 +124,9 @@ func Run(s *option.Worker) error {
 	//step 7: start app runtimer server
 	runtimeServer := server.CreaterRuntimeServer(s.Config, cachestore, clientset, updateCh)
 	runtimeServer.Start(errChan)
+
 	//step 8: create application use resource exporter.
-	exporterManager := monitor.NewManager(s.Config, masterCon)
+	exporterManager := monitor.NewManager(s.Config, masterCon, controllerManager)
 	if err := exporterManager.Start(); err != nil {
 		return err
 	}

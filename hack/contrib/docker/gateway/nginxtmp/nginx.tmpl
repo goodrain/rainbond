@@ -19,7 +19,8 @@ http {
     log_format porxy '$http_x_forwarded_for - $remote_user  [$time_local]'
                  ' "$request"  $status $body_bytes_sent '
                  ' "$http_referer"  "$http_user_agent" ';
-    access_log off;             
+    access_log off;  
+    server_tokens off;           
     underscores_in_headers on;
     proxy_headers_hash_max_size 51200;
     proxy_headers_hash_bucket_size 6400;
@@ -36,6 +37,13 @@ http {
           error("require failed: " .. tostring(res))
         else
           config = res
+        end
+
+        ok, res = pcall(require, "defaultPage")
+        if not ok then
+          error("require failed: " .. tostring(res))
+        else
+          defaultPage = res
         end
 
         ok, res = pcall(require, "balancer")
@@ -103,14 +111,22 @@ http {
     server {
         listen {{$h.HTTPListen}} default_server;
         server_name _;
-        return 404;
+        location / {
+          content_by_lua_block {
+            defaultPage.call()
+          }
+        }
     }
     server {
         listen {{$h.HTTPSListen}} ssl default_server;
         server_name _;
         ssl_certificate default-server.crt;
         ssl_certificate_key default-server.key;
-        return 404;
+        location / {
+          content_by_lua_block {
+            defaultPage.call()
+          }
+        }
     }
 
     upstream upstream_balancer {

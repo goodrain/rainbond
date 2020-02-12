@@ -63,7 +63,7 @@ func (s *stopController) Begin() {
 }
 func (s *stopController) stopOne(app v1.AppService) error {
 	//step 1: delete services
-	if services := app.GetServices(); services != nil {
+	if services := app.GetServices(true); services != nil {
 		for _, service := range services {
 			if service != nil && service.Name != "" {
 				err := s.manager.client.CoreV1().Services(app.TenantID).Delete(service.Name, &metav1.DeleteOptions{})
@@ -74,26 +74,24 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 	}
 	//step 2: delete secrets
-	if secrets := app.GetSecrets(); secrets != nil {
+	if secrets := app.GetSecrets(true); secrets != nil {
 		for _, secret := range secrets {
 			if secret != nil && secret.Name != "" {
 				err := s.manager.client.CoreV1().Secrets(app.TenantID).Delete(secret.Name, &metav1.DeleteOptions{})
 				if err != nil && !errors.IsNotFound(err) {
 					return fmt.Errorf("delete secret failure:%s", err.Error())
 				}
-				s.manager.store.OnDelete(secret)
 			}
 		}
 	}
 	//step 3: delete ingress
-	if ingresses := app.GetIngress(); ingresses != nil {
+	if ingresses := app.GetIngress(true); ingresses != nil {
 		for _, ingress := range ingresses {
 			if ingress != nil && ingress.Name != "" {
 				err := s.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Delete(ingress.Name, &metav1.DeleteOptions{})
 				if err != nil && !errors.IsNotFound(err) {
 					return fmt.Errorf("delete ingress failure:%s", err.Error())
 				}
-				s.manager.store.OnDelete(ingress)
 			}
 		}
 	}
@@ -105,7 +103,6 @@ func (s *stopController) stopOne(app v1.AppService) error {
 				if err != nil && !errors.IsNotFound(err) {
 					return fmt.Errorf("delete config map failure:%s", err.Error())
 				}
-				s.manager.store.OnDelete(config)
 			}
 		}
 	}
@@ -115,18 +112,18 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		if err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("delete statefulset failure:%s", err.Error())
 		}
-		s.manager.store.OnDelete(statefulset)
+		s.manager.store.OnDeletes(statefulset)
 	}
 	if deployment := app.GetDeployment(); deployment != nil && deployment.Name != "" {
 		err := s.manager.client.AppsV1().Deployments(app.TenantID).Delete(deployment.Name, &metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("delete deployment failure:%s", err.Error())
 		}
-		s.manager.store.OnDelete(deployment)
+		s.manager.store.OnDeletes(deployment)
 	}
 	//step 6: delete all pod
 	var gracePeriodSeconds int64
-	if pods := app.GetPods(); pods != nil {
+	if pods := app.GetPods(true); pods != nil {
 		for _, pod := range pods {
 			if pod != nil && pod.Name != "" {
 				err := s.manager.client.CoreV1().Pods(app.TenantID).Delete(pod.Name, &metav1.DeleteOptions{
@@ -135,7 +132,6 @@ func (s *stopController) stopOne(app v1.AppService) error {
 				if err != nil && !errors.IsNotFound(err) {
 					return fmt.Errorf("delete pod failure:%s", err.Error())
 				}
-				s.manager.store.OnDelete(pod)
 			}
 		}
 	}
@@ -146,7 +142,6 @@ func (s *stopController) stopOne(app v1.AppService) error {
 			if err != nil && !errors.IsNotFound(err) {
 				return fmt.Errorf("delete hpa: %v", err)
 			}
-			s.manager.store.OnDelete(hpa)
 		}
 	}
 

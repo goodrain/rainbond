@@ -1,5 +1,5 @@
 // RAINBOND, Application Management Platform
-// Copyright (C) 2014-2017 Goodrain Co., Ltd.
+// Copyright (C) 2014-2019 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -18,26 +18,22 @@
 
 package v1
 
-// RbdEndpoints is a collection of RbdEndpoint.
-type RbdEndpoints struct {
-	Port        int      `json:"port"`
-	IPs         []string `json:"ips"`
-	NotReadyIPs []string `json:"not_ready_ips"`
+import (
+	corev1 "k8s.io/api/core/v1"
+)
+
+//IsPodTerminated Exception evicted pod
+func IsPodTerminated(pod *corev1.Pod) bool {
+	if phase := pod.Status.Phase; phase != corev1.PodPending && phase != corev1.PodRunning && phase != corev1.PodUnknown {
+		return true
+	}
+	return false
 }
 
-// RbdEndpoint hold information to create k8s endpoints.
-type RbdEndpoint struct {
-	UUID     string `json:"uuid"`
-	Sid      string `json:"sid"`
-	IP       string `json:"ip"`
-	Port     int    `json:"port"`
-	Status   string `json:"status"`
-	IsOnline bool   `json:"is_online"`
-	Action   string `json:"action"`
-	IsDomain bool   `json:"is_domain"`
-}
-
-// Equal tests for equality between two RbdEndpoint types
-func (l1 *RbdEndpoint) Equal(l2 *RbdEndpoint) bool {
+//IsPodNodeLost node loss pod
+func IsPodNodeLost(pod *corev1.Pod) bool {
+	if pod.DeletionTimestamp != nil && pod.Status.Reason == "NodeLost" {
+		return true
+	}
 	return false
 }

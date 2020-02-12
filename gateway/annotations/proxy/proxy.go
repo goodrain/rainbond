@@ -18,6 +18,10 @@ package proxy
 
 import (
 	"fmt"
+	"strings"
+
+	"golang.org/x/net/http/httpguts"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/gateway/controller/config"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -45,6 +49,20 @@ type Config struct {
 	SetHeaders        map[string]string `json:"setHeaders"`
 }
 
+//Validation validation nginx parameters
+func (s Config) Validation() error {
+	for k, v := range s.SetHeaders {
+		if !httpguts.ValidHeaderFieldName(k) {
+			return fmt.Errorf("header %s name is valid", k)
+		}
+		if !httpguts.ValidHeaderFieldValue(v) {
+			return fmt.Errorf("header %s value %s is valid", k, v)
+		}
+	}
+	return nil
+}
+
+//NewProxyConfig new proxy config
 func NewProxyConfig() Config {
 	defBackend := config.NewDefault()
 	return Config{
@@ -221,10 +239,8 @@ func (a proxy) Parse(ing *extensions.Ingress) (interface{}, error) {
 		config.SetHeaders[k] = v
 	}
 	setHeaders, err := parser.GetStringAnnotationWithPrefix("set-header-", ing)
-	logrus.Debugf("set headers from anns: %+v", setHeaders)
-	if err != nil {
-		logrus.Warningf("Ingress Key: %s; error parsing set-header: %v",
-			fmt.Sprintf("%s/%s", ing.GetNamespace(), ing.GetName()), err)
+	if err != nil && !strings.Contains(err.Error(), "ingress rule without annotations") {
+		logrus.Debugf("get header annotation failure %s", err.Error())
 	}
 	for k, v := range setHeaders {
 		if v == "empty" {

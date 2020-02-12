@@ -165,16 +165,11 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		Name:  "LOGGER_DRIVER_NAME",
 		Value: "streamlog",
 	})
-
 	//set relation app outer env
 	relations, err := dbmanager.TenantServiceRelationDao().GetTenantServiceRelations(as.ServiceID)
 	if err != nil {
 		return nil, err
 	}
-
-	bootSeqDepServiceIDs := as.ExtensionSet["boot_seq_dep_service_ids"]
-	logrus.Infof("boot sequence dep service ids: %s", bootSeqDepServiceIDs)
-
 	if relations != nil && len(relations) > 0 {
 		var relationIDs []string
 		for _, r := range relations {

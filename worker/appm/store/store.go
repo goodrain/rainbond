@@ -20,7 +20,6 @@ package store
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -67,7 +66,7 @@ type Storer interface {
 	GetTenantResource(tenantID string) *v1.TenantResource
 	GetTenantRunningApp(tenantID string) []*v1.AppService
 	GetNeedBillingStatus(serviceIDs []string) map[string]string
-	OnDelete(obj interface{})
+	OnDeletes(obj ...interface{})
 	GetPodLister() listcorev1.PodLister
 	RegistPodUpdateListener(string, chan<- *corev1.Pod)
 	UnRegistPodUpdateListener(string)
@@ -272,48 +271,50 @@ func NewStore(clientset *kubernetes.Clientset,
 
 func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {
 	var probeInfos []*ProbeInfo
+	addProbe := func(pi *ProbeInfo) {
+		for _, c := range probeInfos {
+			if c.IP == pi.IP && c.Port == pi.Port {
+				return
+			}
+		}
+		probeInfos = append(probeInfos, pi)
+	}
 	for _, subset := range ep.Subsets {
-		uuid := subset.Ports[0].Name
-		port := subset.Ports[0].Port
-		if ep.Annotations != nil {
-			if domain, ok := ep.Annotations["domain"]; ok && domain != "" {
-				logrus.Debugf("thirdpart service[sid: %s] add domain endpoint[domain: %s] probe", sid, domain)
-				probeInfos = []*ProbeInfo{&ProbeInfo{
+		for _, port := range subset.Ports {
+			if ep.Annotations != nil {
+				if domain, ok := ep.Annotations["domain"]; ok && domain != "" {
+					logrus.Debugf("thirdpart service[sid: %s] add domain endpoint[domain: %s] probe", sid, domain)
+					probeInfos = []*ProbeInfo{&ProbeInfo{
+						Sid:  sid,
+						UUID: fmt.Sprintf("%s_%d", domain, port.Port),
+						IP:   domain,
+						Port: port.Port,
+					}}
+					return probeInfos
+				}
+			}
+			for _, address := range subset.NotReadyAddresses {
+				addProbe(&ProbeInfo{
 					Sid:  sid,
-					UUID: uuid,
-					IP:   domain,
-					Port: port,
-				}}
-				return probeInfos
+					UUID: fmt.Sprintf("%s_%d", address.IP, port.Port),
+					IP:   address.IP,
+					Port: port.Port,
+				})
 			}
-		}
-		for _, address := range subset.NotReadyAddresses {
-			info := &ProbeInfo{
-				Sid:  sid,
-				UUID: uuid,
-				IP:   address.IP,
-				Port: port,
+			for _, address := range subset.Addresses {
+				addProbe(&ProbeInfo{
+					Sid:  sid,
+					UUID: fmt.Sprintf("%s_%d", address.IP, port.Port),
+					IP:   address.IP,
+					Port: port.Port,
+				})
 			}
-			probeInfos = append(probeInfos, info)
-		}
-		for _, address := range subset.Addresses {
-			info := &ProbeInfo{
-				Sid:  sid,
-				UUID: uuid,
-				IP:   address.IP,
-				Port: port,
-			}
-			probeInfos = append(probeInfos, info)
 		}
 	}
 	return probeInfos
 }
 
 func upgradeProbe(ch chan<- interface{}, old, cur []*ProbeInfo) {
-	ob, _ := json.Marshal(old)
-	cb, _ := json.Marshal(cur)
-	logrus.Debugf("Old probe infos: %s", string(ob))
-	logrus.Debugf("Current probe infos: %s", string(cb))
 	oldMap := make(map[string]*ProbeInfo, len(old))
 	for i := 0; i < len(old); i++ {
 		oldMap[old[i].UUID] = old[i]
@@ -371,11 +372,11 @@ func (a *appRuntimeStore) Start() error {
 	a.informers.Start(stopch)
 	a.stopch = stopch
 	go a.clean()
-
 	for !a.Ready() {
 	}
-	a.initThirdPartyService()
-
+	go func() {
+		a.initThirdPartyService()
+	}()
 	return nil
 }
 
@@ -398,6 +399,7 @@ func (a *appRuntimeStore) initThirdPartyService() error {
 			Sid:  svc.ServiceID,
 		}
 	}
+	logrus.Infof("initializing third-party services success")
 	return nil
 }
 
@@ -419,6 +421,7 @@ func (a *appRuntimeStore) InitOneThirdPartService(service *model.TenantServices)
 		logrus.Errorf("error applying rule: %v", err)
 		return err
 	}
+	logrus.Infof("init third app %s kubernetes resource", appService.ServiceAlias)
 	return nil
 }
 
@@ -591,7 +594,7 @@ func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, cr
 		var err error
 		appservice, err = conversion.InitCacheAppService(a.dbmanager, serviceID, createrID)
 		if err != nil {
-			logrus.Errorf("init cache app service failure:%s", err.Error())
+			logrus.Debugf("init cache app service %s failure:%s ", serviceID, err.Error())
 			return nil, err
 		}
 		a.RegistAppService(appservice)
@@ -601,124 +604,130 @@ func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, cr
 func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 	a.OnAdd(newObj)
 }
-func (a *appRuntimeStore) OnDelete(obj interface{}) {
-	if deployment, ok := obj.(*appsv1.Deployment); ok {
-		serviceID := deployment.Labels["service_id"]
-		version := deployment.Labels["version"]
-		createrID := deployment.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteDeployment(deployment)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+func (a *appRuntimeStore) OnDelete(objs interface{}) {
+	a.OnDeletes(objs)
+}
+func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
+	for i := range objs {
+		obj := objs[i]
+		if deployment, ok := obj.(*appsv1.Deployment); ok {
+			serviceID := deployment.Labels["service_id"]
+			version := deployment.Labels["version"]
+			createrID := deployment.Labels["creater_id"]
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteDeployment(deployment)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
-	}
-	if statefulset, ok := obj.(*appsv1.StatefulSet); ok {
-		serviceID := statefulset.Labels["service_id"]
-		version := statefulset.Labels["version"]
-		createrID := statefulset.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteStatefulSet(statefulset)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+		if statefulset, ok := obj.(*appsv1.StatefulSet); ok {
+			serviceID := statefulset.Labels["service_id"]
+			version := statefulset.Labels["version"]
+			createrID := statefulset.Labels["creater_id"]
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteStatefulSet(statefulset)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
-	}
-	if replicaset, ok := obj.(*appsv1.ReplicaSet); ok {
-		serviceID := replicaset.Labels["service_id"]
-		version := replicaset.Labels["version"]
-		createrID := replicaset.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteReplicaSet(replicaset)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+		if replicaset, ok := obj.(*appsv1.ReplicaSet); ok {
+			serviceID := replicaset.Labels["service_id"]
+			version := replicaset.Labels["version"]
+			createrID := replicaset.Labels["creater_id"]
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteReplicaSet(replicaset)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
-	}
-	if secret, ok := obj.(*corev1.Secret); ok {
-		serviceID := secret.Labels["service_id"]
-		version := secret.Labels["version"]
-		createrID := secret.Labels["creater_id"]
-		if serviceID != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteSecrets(secret)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+		if secret, ok := obj.(*corev1.Secret); ok {
+			serviceID := secret.Labels["service_id"]
+			version := secret.Labels["version"]
+			createrID := secret.Labels["creater_id"]
+			if serviceID != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteSecrets(secret)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
-	}
-	if service, ok := obj.(*corev1.Service); ok {
-		serviceID := service.Labels["service_id"]
-		version := service.Labels["version"]
-		createrID := service.Labels["creater_id"]
-		if serviceID != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteServices(service)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+		if service, ok := obj.(*corev1.Service); ok {
+			serviceID := service.Labels["service_id"]
+			version := service.Labels["version"]
+			createrID := service.Labels["creater_id"]
+			if serviceID != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteServices(service)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
-	}
-	if ingress, ok := obj.(*extensions.Ingress); ok {
-		serviceID := ingress.Labels["service_id"]
-		version := ingress.Labels["version"]
-		createrID := ingress.Labels["creater_id"]
-		if serviceID != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteIngress(ingress)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+		if ingress, ok := obj.(*extensions.Ingress); ok {
+			serviceID := ingress.Labels["service_id"]
+			version := ingress.Labels["version"]
+			createrID := ingress.Labels["creater_id"]
+			if serviceID != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteIngress(ingress)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
-	}
-	if configmap, ok := obj.(*corev1.ConfigMap); ok {
-		serviceID := configmap.Labels["service_id"]
-		version := configmap.Labels["version"]
-		createrID := configmap.Labels["creater_id"]
-		if serviceID != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DeleteConfigMaps(configmap)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+		if configmap, ok := obj.(*corev1.ConfigMap); ok {
+			serviceID := configmap.Labels["service_id"]
+			version := configmap.Labels["version"]
+			createrID := configmap.Labels["creater_id"]
+			if serviceID != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DeleteConfigMaps(configmap)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
-	}
-	if hpa, ok := obj.(*v2beta1.HorizontalPodAutoscaler); ok {
-		serviceID := hpa.Labels["service_id"]
-		version := hpa.Labels["version"]
-		createrID := hpa.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, false)
-			if appservice != nil {
-				appservice.DelHPA(hpa)
-				if appservice.IsClosed() {
-					a.DeleteAppService(appservice)
+		if hpa, ok := obj.(*v2beta1.HorizontalPodAutoscaler); ok {
+			serviceID := hpa.Labels["service_id"]
+			version := hpa.Labels["version"]
+			createrID := hpa.Labels["creater_id"]
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DelHPA(hpa)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
 				}
-				return
 			}
 		}
 	}
@@ -778,7 +787,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 				appService.SetDeployment(deploy)
 			}
 		}
-		if services := appService.GetServices(); services != nil {
+		if services := appService.GetServices(true); services != nil {
 			for _, service := range services {
 				se, err := a.listers.Service.Services(service.Namespace).Get(service.Name)
 				if err != nil && errors.IsNotFound(err) {
@@ -789,7 +798,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 				}
 			}
 		}
-		if ingresses := appService.GetIngress(); ingresses != nil {
+		if ingresses := appService.GetIngress(true); ingresses != nil {
 			for _, ingress := range ingresses {
 				in, err := a.listers.Ingress.Ingresses(ingress.Namespace).Get(ingress.Name)
 				if err != nil && errors.IsNotFound(err) {
@@ -800,7 +809,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 				}
 			}
 		}
-		if secrets := appService.GetSecrets(); secrets != nil {
+		if secrets := appService.GetSecrets(true); secrets != nil {
 			for _, secret := range secrets {
 				se, err := a.listers.Secret.Secrets(secret.Namespace).Get(secret.Name)
 				if err != nil && errors.IsNotFound(err) {
@@ -811,7 +820,7 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 				}
 			}
 		}
-		if pods := appService.GetPods(); pods != nil {
+		if pods := appService.GetPods(true); pods != nil {
 			for _, pod := range pods {
 				se, err := a.listers.Pod.Pods(pod.Namespace).Get(pod.Name)
 				if err != nil && errors.IsNotFound(err) {
@@ -1123,7 +1132,6 @@ func (a *appRuntimeStore) evtEventHandler() cache.ResourceEventHandlerFuncs {
 
 			serviceID, ruleID := a.scalingRecordServiceAndRuleID(evt)
 			if serviceID == "" || ruleID == "" {
-				logrus.Warningf("empty service id or rule id")
 				return
 			}
 			record := &model.TenantServiceScalingRecords{
@@ -1157,7 +1165,6 @@ func (a *appRuntimeStore) evtEventHandler() cache.ResourceEventHandlerFuncs {
 
 			serviceID, ruleID := a.scalingRecordServiceAndRuleID(cevt)
 			if serviceID == "" || ruleID == "" {
-				logrus.Warningf("empty service id or rule id")
 				return
 			}
 			record := &model.TenantServiceScalingRecords{

@@ -206,28 +206,29 @@ func DoRequest(baseAPI, query, queryType, method string, body []byte) ([]byte, i
 
 //ClusterResource 资源
 type ClusterResource struct {
-	AllNode        int     `json:"all_node"`
-	NotReadyNode   int     `json:"notready_node"`
-	ComputeNode    int     `json:"compute_node"`
-	Tenant         int     `json:"tenant"`
-	CapCPU         int     `json:"cap_cpu"`          //可分配CPU总额
-	CapMem         int     `json:"cap_mem"`          //可分配Mem总额
-	HealthCapCPU   int     `json:"health_cap_cpu"`   //健康可分配CPU
-	HealthCapMem   int     `json:"health_cap_mem"`   //健康可分配Mem
-	UnhealthCapCPU int     `json:"unhealth_cap_cpu"` //不健康可分配CPU
-	UnhealthCapMem int     `json:"unhealth_cap_mem"` //不健康可分配Mem
-	ReqCPU         float32 `json:"req_cpu"`          //已使用CPU总额
-	ReqMem         int     `json:"req_mem"`          //已使用Mem总额
-	HealthReqCPU   float32 `json:"health_req_cpu"`   //健康已使用CPU
-	HealthReqMem   int     `json:"health_req_mem"`   //健康已使用Mem
-	UnhealthReqCPU float32 `json:"unhealth_req_cpu"` //不健康已使用CPU
-	UnhealthReqMem int     `json:"unhealth_req_mem"` //不健康已使用Mem
-	CapDisk        uint64  `json:"cap_disk"`
-	ReqDisk        uint64  `json:"req_disk"`
+	AllNode                          int           `json:"all_node"`
+	NotReadyNode                     int           `json:"notready_node"`
+	ComputeNode                      int           `json:"compute_node"`
+	Tenant                           int           `json:"tenant"`
+	CapCPU                           int           `json:"cap_cpu"`          //可分配CPU总额
+	CapMem                           int           `json:"cap_mem"`          //可分配Mem总额
+	HealthCapCPU                     int           `json:"health_cap_cpu"`   //健康可分配CPU
+	HealthCapMem                     int           `json:"health_cap_mem"`   //健康可分配Mem
+	UnhealthCapCPU                   int           `json:"unhealth_cap_cpu"` //不健康可分配CPU
+	UnhealthCapMem                   int           `json:"unhealth_cap_mem"` //不健康可分配Mem
+	ReqCPU                           float32       `json:"req_cpu"`          //已使用CPU总额
+	ReqMem                           int           `json:"req_mem"`          //已使用Mem总额
+	HealthReqCPU                     float32       `json:"health_req_cpu"`   //健康已使用CPU
+	HealthReqMem                     int           `json:"health_req_mem"`   //健康已使用Mem
+	UnhealthReqCPU                   float32       `json:"unhealth_req_cpu"` //不健康已使用CPU
+	UnhealthReqMem                   int           `json:"unhealth_req_mem"` //不健康已使用Mem
+	CapDisk                          uint64        `json:"cap_disk"`
+	ReqDisk                          uint64        `json:"req_disk"`
+	MaxAllocatableMemoryNodeResource *NodeResource `json:"max_allocatable_memory_node_resource"`
 }
 
-//NodeResource 资源
-type NodeResource struct {
+//NodeResourceResponse 资源
+type NodeResourceResponse struct {
 	CapCPU int     `json:"cap_cpu"`
 	CapMem int     `json:"cap_mem"`
 	ReqCPU float32 `json:"req_cpu"`

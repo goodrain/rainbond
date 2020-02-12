@@ -21,7 +21,6 @@ package probe
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -35,13 +34,14 @@ import (
 
 // HTTPProbe probes through the http protocol
 type HTTPProbe struct {
-	Name         string
-	Address      string
-	ResultsChan  chan *v1.HealthStatus
-	Ctx          context.Context
-	Cancel       context.CancelFunc
-	TimeInterval int
-	MaxErrorsNum int
+	Name          string
+	Address       string
+	ResultsChan   chan *v1.HealthStatus
+	Ctx           context.Context
+	Cancel        context.CancelFunc
+	TimeInterval  int
+	MaxErrorsNum  int
+	TimeoutSecond int
 }
 
 //Check starts http probe.
@@ -62,8 +62,7 @@ func (h *HTTPProbe) HTTPCheck() {
 	timer := time.NewTimer(time.Second * time.Duration(h.TimeInterval))
 	defer timer.Stop()
 	for {
-		HealthMap := GetHTTPHealth(h.Address)
-		fmt.Println(HealthMap)
+		HealthMap := h.GetHTTPHealth()
 		result := &v1.HealthStatus{
 			Name:   h.Name,
 			Status: HealthMap["status"],
@@ -92,9 +91,10 @@ func isClientTimeout(err error) bool {
 }
 
 //GetHTTPHealth get http health
-func GetHTTPHealth(address string) map[string]string {
+func (h *HTTPProbe) GetHTTPHealth() map[string]string {
+	address := h.Address
 	c := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: time.Duration(h.TimeoutSecond) * time.Second,
 	}
 	if strings.HasPrefix(address, "https://") {
 		c.Transport = &http.Transport{
@@ -115,15 +115,15 @@ func GetHTTPHealth(address string) map[string]string {
 	}
 	logrus.Debugf("http probe check address; %s", address)
 	resp, err := c.Get(addr.String())
+	if resp.Body != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		if isClientTimeout(err) {
 			return map[string]string{"status": service.Stat_death, "info": "Request service timeout"}
 		}
 		logrus.Debugf("http probe request error %s", err.Error())
 		return map[string]string{"status": service.Stat_unhealthy, "info": err.Error()}
-	}
-	if resp.Body != nil {
-		defer resp.Body.Close()
 	}
 	if resp.StatusCode >= 400 {
 		logrus.Debugf("http probe check address %s return code %d", address, resp.StatusCode)

@@ -90,7 +90,7 @@ func (w *windowsServiceController) StopList(list []*service.Service) error {
 func (w *windowsServiceController) RestartService(s *service.Service) error {
 	if err := windows.RestartService(s.Name); err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
-			if err := w.WriteConfig(s); err != nil {
+			if _, err := w.WriteConfig(s); err != nil {
 				return fmt.Errorf("ReWrite service config failure %s", err.Error())
 			}
 		}

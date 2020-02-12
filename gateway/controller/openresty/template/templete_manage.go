@@ -124,7 +124,7 @@ func (n *NginxConfigFileTemplete) WriteServerAndUpstream(first bool, c option.Co
 	filename := fmt.Sprintf("%s_servers.conf", tenant)
 	serverConfigFile := path.Join(n.configFileDirPath, configType, tenant, filename)
 	upstreamConfigFile := path.Join(n.configFileDirPath, "stream", tenant, "upstreams.conf")
-	serverBody, err := n.serverTmpl.Write(&NginxServerContext{Server: server, Set: c})
+	serverBody, err := n.serverTmpl.Write(&NginxServerContext{Servers: []*model.Server{server}, Set: c})
 	if err != nil {
 		logrus.Errorf("create server config by templete failure %s, ignore it", err.Error())
 		return nil
@@ -247,36 +247,33 @@ func (n *NginxConfigFileTemplete) WriteServer(c option.Config, configtype, tenan
 	filename := fmt.Sprintf("%s_servers.conf", tenant)
 	serverConfigFile := path.Join(n.configFileDirPath, configtype, tenant, filename)
 	first := true
-	if servers == nil || len(servers) < 1 {
+	var writeServers []*model.Server
+	for i, s := range servers {
+		if err := s.Validation(); err != nil {
+			logrus.Errorf(err.Error())
+		} else {
+			writeServers = append(writeServers, servers[i])
+		}
+	}
+	if len(writeServers) < 1 {
 		logrus.Warnf("%s proxy is empty, nginx server[%s] will clean up", tenant, serverConfigFile)
 		return n.writeFile(first, []byte{}, serverConfigFile)
 	}
-	for i, server := range servers {
-		body, err := n.serverTmpl.Write(&NginxServerContext{
-			Server: servers[i],
-			Set:    c,
-		})
-		if err != nil {
-			logrus.Errorf("create server config by templete failure %s", err.Error())
-			continue
-		}
-		if err := n.writeFile(first, body, serverConfigFile); err != nil {
-			if err == nginxcmd.ErrorCheck {
-				logrus.Errorf("server %s config error, will ignore it", func() string {
-					if server.ServerName != "" {
-						return server.ServerName
-					}
-					return server.Listen
-				}())
-			} else {
-				logrus.Errorf("writer server config failure %s", err.Error())
-			}
-		} else {
-			first = false
-		}
+	logrus.Debugf("write %d count http server to config", len(writeServers))
+	body, err := n.serverTmpl.Write(&NginxServerContext{
+		Servers: writeServers,
+		Set:     c,
+	})
+	if err != nil {
+		logrus.Errorf("create server config by templete failure %s", err.Error())
+		return err
+	}
+	if err := n.writeFile(first, body, serverConfigFile); err != nil {
+		logrus.Errorf("writer server config failure %s", err.Error())
 	}
 	return nil
 }
+
 func (n *NginxConfigFileTemplete) writeFile(first bool, configBody []byte, configFile string) error {
 	if err := util.CheckAndCreateDir(path.Dir(configFile)); err != nil {
 		return fmt.Errorf("check or create dir %s failure %s", path.Dir(configFile), err.Error())
@@ -384,8 +381,8 @@ func (n *NginxConfigFileTemplete) WriteUpstream(set option.Config, tenant string
 
 //NginxServerContext nginx server config
 type NginxServerContext struct {
-	Server *model.Server
-	Set    option.Config
+	Servers []*model.Server
+	Set     option.Config
 }
 
 //NginxUpstreamContext nginx upstream config

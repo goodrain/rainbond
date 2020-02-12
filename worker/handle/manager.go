@@ -19,11 +19,11 @@
 package handle
 
 import (
-	"time"
 	"context"
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
@@ -421,6 +421,7 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	newAppService.Logger = logger
 	newAppService.SetDeletedResources(oldAppService)
 	// update k8s resources
+	newAppService.CustomParams = body.Limit
 	err = m.controllerManager.StartController(controller.TypeApplyRuleController, *newAppService)
 	if err != nil {
 		logrus.Errorf("Application apply rule controller failure:%s", err.Error())
@@ -491,7 +492,7 @@ func (m *Manager) ExecServiceGCTask(task *model.Task) error {
 	m.garbageCollector.DelLogFile(serviceGCReq)
 	m.garbageCollector.DelPvPvcByServiceID(serviceGCReq)
 	m.garbageCollector.DelVolumeData(serviceGCReq)
-  return nil
+	return nil
 }
 
 func (m *Manager) deleteTenant(task *model.Task) (err error) {

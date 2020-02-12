@@ -20,6 +20,8 @@ package store
 
 import (
 	"bytes"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -402,22 +404,32 @@ func (s *k8sStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 					pool.UpstreamHashBy = backend.hashBy
 					l7Pools[backend.name] = pool
 				}
+				var notReadyAddress *corev1.EndpointAddress
+				var notReadyPort *corev1.EndpointPort
 				for _, ss := range ep.Subsets {
-					var addresses []corev1.EndpointAddress
-					if ss.Addresses != nil && len(ss.Addresses) > 0 {
-						addresses = append(addresses, ss.Addresses...)
-					} else {
-						addresses = append(addresses, ss.NotReadyAddresses...)
-					}
-					for _, address := range addresses {
-						if _, ok := l7PoolMap[epn]; ok { // l7
-							pool.Nodes = append(pool.Nodes, &v1.Node{
-								Host:   address.IP,
-								Port:   ss.Ports[0].Port,
-								Weight: backend.weight,
-							})
+					for i, port := range ss.Ports {
+						if (ss.Addresses == nil || len(ss.Addresses) == 0) && len(ss.NotReadyAddresses) > 0 {
+							notReadyAddress = &ss.NotReadyAddresses[0]
+							notReadyPort = &ss.Ports[i]
+						}
+						for _, address := range ss.Addresses {
+							if _, ok := l7PoolMap[epn]; ok { // l7
+								pool.Nodes = append(pool.Nodes, &v1.Node{
+									Host:   address.IP,
+									Port:   port.Port,
+									Weight: backend.weight,
+								})
+							}
 						}
 					}
+				}
+				// If you have an address, make sure you have at least one node, regardless of its health
+				if len(pool.Nodes) == 0 && notReadyAddress != nil && notReadyPort != nil {
+					pool.Nodes = append(pool.Nodes, &v1.Node{
+						Host:   notReadyAddress.IP,
+						Port:   notReadyPort.Port,
+						Weight: backend.weight,
+					})
 				}
 			}
 			// l4
@@ -434,19 +446,21 @@ func (s *k8sStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 					l4Pools[backend.name] = pool
 				}
 				for _, ss := range ep.Subsets {
-					var addresses []corev1.EndpointAddress
-					if ss.Addresses != nil && len(ss.Addresses) > 0 {
-						addresses = append(addresses, ss.Addresses...)
-					} else {
-						addresses = append(addresses, ss.NotReadyAddresses...)
-					}
-					for _, address := range addresses {
-						if _, ok := l4PoolMap[epn]; ok { // l7
-							pool.Nodes = append(pool.Nodes, &v1.Node{
-								Host:   address.IP,
-								Port:   ss.Ports[0].Port,
-								Weight: backend.weight,
-							})
+					for _, port := range ss.Ports {
+						var addresses []corev1.EndpointAddress
+						if ss.Addresses != nil && len(ss.Addresses) > 0 {
+							addresses = append(addresses, ss.Addresses...)
+						} else if len(ss.NotReadyAddresses) > 0 {
+							addresses = append(addresses, ss.NotReadyAddresses[0])
+						}
+						for _, address := range addresses {
+							if _, ok := l4PoolMap[epn]; ok { // l7
+								pool.Nodes = append(pool.Nodes, &v1.Node{
+									Host:   address.IP,
+									Port:   port.Port,
+									Weight: backend.weight,
+								})
+							}
 						}
 					}
 				}
@@ -805,7 +819,6 @@ func (s *k8sStore) syncSecret(secrKey string) {
 		logrus.Errorf("fail to get certificate pem: %v", err)
 		return
 	}
-
 	old, exists := s.sslStore.Get(secrKey)
 	if exists {
 		oldSSLCert := old.(*v1.SSLCert)
@@ -846,9 +859,22 @@ func (s *k8sStore) getCertificatePem(secrKey string) (*v1.SSLCert, error) {
 	if e := ioutil.WriteFile(filename, buffer.Bytes(), 0666); e != nil {
 		return nil, fmt.Errorf("cant not write data to %s: %v", filename, e)
 	}
+	fileContent, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("read certificate file failed: %s", err.Error())
+	}
+	pemContent, _ := pem.Decode(fileContent)
+	certificate, err := x509.ParseCertificate(pemContent.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("generate certificate object failed: %s", err.Error())
+	}
 
 	return &v1.SSLCert{
 		CertificatePem: filename,
+		Certificate:    certificate,
+		CertificateStr: string(certificate.Raw),
+		PrivateKey:     string(key),
+		CN:             []string{certificate.Subject.CommonName},
 	}, nil
 }
 

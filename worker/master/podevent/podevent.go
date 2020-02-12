@@ -1,7 +1,6 @@
 package podevent
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -199,9 +198,6 @@ func defDetermineOptType(clientset kubernetes.Interface, pod *corev1.Pod, f k8su
 				return EventTypeReadinessProbeFailed, evt.Message
 			}
 		}
-
-		b, _ := json.Marshal(pod)
-		logrus.Debugf("unrecognized operation type; pod info: %s", string(b))
 		return "", ""
 	}
 

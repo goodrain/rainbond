@@ -137,8 +137,8 @@ func printLogger(a *v1.AppService, logger event.Logger) {
 	if a.GetDeployment() != nil {
 		ready = a.GetDeployment().Status.ReadyReplicas
 	}
-	logger.Info(fmt.Sprintf("current instance(count:%d ready:%d notready:%d)", len(a.GetPods()), ready, int32(len(a.GetPods()))-ready), map[string]string{"step": "appruntime", "status": "running"})
-	pods := a.GetPods()
+	logger.Info(fmt.Sprintf("current instance(count:%d ready:%d notready:%d)", len(a.GetPods(false)), ready, int32(len(a.GetPods(false)))-ready), map[string]string{"step": "appruntime", "status": "running"})
+	pods := a.GetPods(false)
 	for _, pod := range pods {
 		for _, con := range pod.Status.Conditions {
 			if con.Status == corev1.ConditionFalse {

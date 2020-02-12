@@ -59,13 +59,14 @@ func (l *Service) Equal(r *Service) bool {
 
 //Health ServiceHealth
 type Health struct {
-	Name         string `json:"name"`
-	Model        string `json:"model"`
-	IP           string `json:"ip"`
-	Port         int    `json:"port"`
-	Address      string `json:"address"`
-	TimeInterval int    `json:"time_interval"`
-	MaxErrorsNum int    `json:"max_errors_num"`
+	Name             string `json:"name"`
+	Model            string `json:"model"`
+	IP               string `json:"ip"`
+	Port             int    `json:"port"`
+	Address          string `json:"address"`
+	TimeInterval     int    `json:"time_interval"`
+	MaxErrorsNum     int    `json:"max_errors_num"`
+	MaxTimeoutSecond int    `json:"max_timeout"`
 }
 
 // Equal check if the left health(l) is equal to the right health(r)

@@ -29,7 +29,7 @@ import (
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/discover.v2"
+	discover "github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm/store"
@@ -95,6 +95,7 @@ func (r *RuntimeServer) Start(errchan chan error) {
 	if err := r.registServer(); err != nil {
 		errchan <- err
 	}
+	logrus.Infof("runtime server start success")
 }
 
 //GetAppStatus get app service status
@@ -146,9 +147,16 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 		return nil, ErrAppServiceNotFound
 	}
 
-	pods := app.GetPods()
+	pods := app.GetPods(false)
 	var oldpods, newpods []*pb.ServiceAppPod
 	for _, pod := range pods {
+		if v1.IsPodTerminated(pod) {
+			continue
+		}
+		// Exception pod information due to node loss is no longer displayed
+		if v1.IsPodNodeLost(pod) {
+			continue
+		}
 		var containers = make(map[string]*pb.Container, len(pod.Spec.Containers))
 		for _, container := range pod.Spec.Containers {
 			containers[container.Name] = &pb.Container{
@@ -235,14 +243,14 @@ func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest
 			deployinfo.Deployment = appService.GetDeployment().Name
 			deployinfo.StartTime = appService.GetDeployment().ObjectMeta.CreationTimestamp.Format(time.RFC3339)
 		}
-		if services := appService.GetServices(); services != nil {
+		if services := appService.GetServices(false); services != nil {
 			service := make(map[string]string, len(services))
 			for _, s := range services {
 				service[s.Name] = s.Name
 			}
 			deployinfo.Services = service
 		}
-		if endpoints := appService.GetEndpoints(); endpoints != nil &&
+		if endpoints := appService.GetEndpoints(false); endpoints != nil &&
 			appService.AppServiceBase.ServiceKind == model.ServiceKindThirdParty {
 			eps := make(map[string]string, len(endpoints))
 			for _, s := range endpoints {
@@ -250,21 +258,21 @@ func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest
 			}
 			deployinfo.Endpoints = eps
 		}
-		if secrets := appService.GetSecrets(); secrets != nil {
+		if secrets := appService.GetSecrets(false); secrets != nil {
 			secretsinfo := make(map[string]string, len(secrets))
 			for _, s := range secrets {
 				secretsinfo[s.Name] = s.Name
 			}
 			deployinfo.Secrets = secretsinfo
 		}
-		if ingresses := appService.GetIngress(); ingresses != nil {
+		if ingresses := appService.GetIngress(false); ingresses != nil {
 			ingress := make(map[string]string, len(ingresses))
 			for _, s := range ingresses {
 				ingress[s.Name] = s.Name
 			}
 			deployinfo.Ingresses = ingress
 		}
-		if pods := appService.GetPods(); pods != nil {
+		if pods := appService.GetPods(false); pods != nil {
 			podNames := make(map[string]string, len(pods))
 			for _, s := range pods {
 				podNames[s.Name] = s.Name
@@ -315,49 +323,54 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 	// The same IP may correspond to two endpoints, which are internal and external endpoints.
 	// So it is need to filter the same IP.
 	exists := make(map[string]bool)
-	for _, ep := range as.GetEndpoints() {
+	addEndpoint := func(tpe *pb.ThirdPartyEndpoint) {
+		if !exists[fmt.Sprintf("%s:%d", tpe.Ip, tpe.Port)] {
+			pbeps = append(pbeps, tpe)
+			exists[fmt.Sprintf("%s:%d", tpe.Ip, tpe.Port)] = true
+		}
+	}
+	for _, ep := range as.GetEndpoints(false) {
 		if ep.Subsets == nil || len(ep.Subsets) == 0 {
 			logrus.Debugf("Key: %s; empty subsets", fmt.Sprintf("%s/%s", ep.Namespace, ep.Name))
 			continue
 		}
-		for idx, subset := range ep.Subsets {
-			if exists[subset.Ports[0].Name] {
-				continue
-			}
-			ip := func(subset corev1.EndpointSubset) string {
-				if subset.Addresses != nil && len(subset.Addresses) > 0 {
-					return subset.Addresses[0].IP
-				}
-				if subset.NotReadyAddresses != nil && len(subset.NotReadyAddresses) > 0 {
-					return subset.NotReadyAddresses[0].IP
-				}
-				return ""
-			}(subset)
-			if strings.TrimSpace(ip) == "" {
-				logrus.Debugf("Key: %s; Index: %d; IP not found", fmt.Sprintf("%s/%s", ep.Namespace, ep.Name), idx)
-				continue
-			}
-			if ip == "8.8.8.8" {
-				ip = as.GetServices()[0].Annotations["domain"]
-				logrus.Debugf("domain address is : ", ip)
-			}
-			exists[subset.Ports[0].Name] = true
-			pbep := &pb.ThirdPartyEndpoint{
-				Uuid: subset.Ports[0].Name,
-				Sid:  ep.GetLabels()["service_id"],
-				Ip:   ip,
-				Port: subset.Ports[0].Port,
-				Status: func(item *corev1.Endpoints) string {
-					if subset.Addresses != nil && len(subset.Addresses) > 0 {
-						return "healthy"
+		for _, subset := range ep.Subsets {
+			for _, port := range subset.Ports {
+				for _, address := range subset.Addresses {
+					ip := address.IP
+					if ip == "1.1.1.1" {
+						if len(as.GetServices(false)) > 0 {
+							ip = as.GetServices(false)[0].Annotations["domain"]
+						}
 					}
-					if subset.NotReadyAddresses != nil && len(subset.NotReadyAddresses) > 0 {
-						return "unhealthy"
+					addEndpoint(&pb.ThirdPartyEndpoint{
+						Uuid: port.Name,
+						Sid:  ep.GetLabels()["service_id"],
+						Ip:   ip,
+						Port: port.Port,
+						Status: func() string {
+							return "healthy"
+						}(),
+					})
+				}
+				for _, address := range subset.NotReadyAddresses {
+					ip := address.IP
+					if ip == "1.1.1.1" {
+						if len(as.GetServices(false)) > 0 {
+							ip = as.GetServices(false)[0].Annotations["domain"]
+						}
 					}
-					return "unknown"
-				}(ep),
+					addEndpoint(&pb.ThirdPartyEndpoint{
+						Uuid: port.Name,
+						Sid:  ep.GetLabels()["service_id"],
+						Ip:   ip,
+						Port: port.Port,
+						Status: func() string {
+							return "unhealthy"
+						}(),
+					})
+				}
 			}
-			pbeps = append(pbeps, pbep)
 		}
 	}
 	return &pb.ThirdPartyEndpoints{
@@ -422,6 +435,8 @@ func (r *RuntimeServer) DelThirdPartyEndpoint(ctx context.Context, re *pb.DelThi
 		Obj: &v1.RbdEndpoint{
 			UUID: re.Uuid,
 			Sid:  re.Sid,
+			IP:   re.Ip,
+			Port: int(re.Port),
 		},
 	}
 	return new(pb.Empty), nil

@@ -57,7 +57,7 @@ type GWController struct {
 	store store.Storer
 
 	syncQueue       *task.Queue
-	syncRateLimiter flowcontrol.RateLimiter // TODO: use it
+	syncRateLimiter flowcontrol.RateLimiter
 	isShuttingDown  bool
 
 	// stopLock is used to enforce that only a single call to Stop send at
@@ -142,6 +142,8 @@ func (gwc *GWController) handleEvent() {
 }
 
 func (gwc *GWController) syncGateway(key interface{}) error {
+	gwc.syncRateLimiter.Accept()
+
 	if gwc.syncQueue.IsShuttingDown() {
 		return nil
 	}
@@ -155,17 +157,15 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 		L4VS:      l4sv,
 	}
 
-	logrus.Debugf("gwc.rcfig : %+v", gwc.rcfg)
-	logrus.Debugf("currentConfig: %+v", currentConfig)
-
 	if gwc.rcfg.Equals(currentConfig) {
-		logrus.Info("No need to update running configuration.")
+		logrus.Debug("No need to update running configuration.")
 		// refresh http pools dynamically
 		httpPools = append(httpPools, gwc.rrbdp...)
 		gwc.rhp = httpPools
 		gwc.refreshPools(httpPools)
 		return nil
 	}
+	logrus.Infof("update nginx server config file.")
 	err := gwc.GWS.PersistConfig(currentConfig)
 	if err != nil {
 		// TODO: if nginx is not ready, then stop gateway
@@ -220,6 +220,7 @@ func (gwc *GWController) getDelUpdPools(updPools []*v1.Pool) ([]*v1.Pool, []*v1.
 func NewGWController(ctx context.Context, cfg *option.Config, mc metric.Collector, node *cluster.NodeManager) (*GWController, error) {
 	gwc := &GWController{
 		updateCh:        channels.NewRingChannel(1024),
+		syncRateLimiter: flowcontrol.NewTokenBucketRateLimiter(cfg.SyncRateLimit, 1),
 		stopLock:        &sync.Mutex{},
 		stopCh:          make(chan struct{}),
 		ocfg:            cfg,

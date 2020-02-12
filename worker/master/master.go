@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	
+
 	"github.com/coreos/etcd/clientv3"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
@@ -129,6 +129,7 @@ func (m *Controller) IsLeader() bool {
 
 //Start start
 func (m *Controller) Start() error {
+	logrus.Debug("master controller starting")
 	start := func(stop <-chan struct{}) {
 		m.isLeader = true
 		defer func() {
@@ -158,7 +159,7 @@ func (m *Controller) Start() error {
 	// Name of config map with leader election lock
 	lockName := "rainbond-appruntime-worker-leader"
 	go leader.RunAsLeader(m.conf.KubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {})
-
+	logrus.Info("master controller start success")
 	return nil
 }
 
