@@ -110,6 +110,7 @@ func NewKubeClient(cfg *conf.Conf, clientset kubernetes.Interface) (KubeClient, 
 	sharedInformers.Core().V1().Pods().Informer()
 	sharedInformers.Start(stop)
 	return &kubeClient{
+		kubeclient:      clientset,
 		stop:            stop,
 		sharedInformers: sharedInformers,
 	}, nil
