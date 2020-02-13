@@ -39,7 +39,8 @@ func Run(s *option.WebCliServer) error {
 	option.Address = s.Address
 	option.Port = strconv.Itoa(s.Port)
 	option.SessionKey = s.SessionKey
-	ap, err := app.New(nil, &option)
+	option.K8SConfPath = s.K8SConfPath
+	ap, err := app.New(&option)
 	if err != nil {
 		return err
 	}
