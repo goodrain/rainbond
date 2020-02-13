@@ -40,7 +40,7 @@ build::node() {
 			echo "build node"
 			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc} -X github.com/goodrain/rainbond/util/license.enterprise=${ENTERPRISE}"  -o $releasedir/dist/usr/local/bin/node ./cmd/node
 		;;
-		grctl)	
+		grctl)
 			echo "build grctl"
 			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/grctl ./cmd/grctl
 		;;
@@ -51,8 +51,13 @@ build::node() {
 		*)
 			echo "build node"
 			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc} -X github.com/goodrain/rainbond/util/license.enterprise=${ENTERPRISE}"  -o $releasedir/dist/usr/local/bin/node ./cmd/node
-			echo "build grctl"
-			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/grctl ./cmd/grctl
+			if [ "${ENTERPRISE}" = "true" ];then
+        echo "build grctl enterprise"
+        docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc} -X github.com/goodrain/rainbond/util/license.enterprise=${ENTERPRISE}"  -o $releasedir/dist/usr/local/bin/grctl ./cmd/grctl
+      else
+        echo "build grctl"
+			  docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/grctl ./cmd/grctl
+      fi
 			echo "build certutil"
 			docker run --rm -v `pwd`:${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o $releasedir/dist/usr/local/bin/grcert ./cmd/certutil
 			pushd $distdir
@@ -64,7 +69,7 @@ COPY pkg.tgz /
 EOF
 			docker build -t ${BASE_NAME}/cni:rbd_$VERSION .
 			if [ "$1" = "push" ];then
-				docker push ${BASE_NAME}/cni:rbd_$VERSION 
+				docker push ${BASE_NAME}/cni:rbd_$VERSION
 			fi
 			popd
 		;;
