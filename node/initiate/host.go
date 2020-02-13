@@ -136,7 +136,7 @@ func NewHostsLine(raw string) HostsLine {
 	if !output.IsComment() {
 		rawIP := fields[0]
 		if net.ParseIP(rawIP) == nil {
-			output.Err = errors.New(fmt.Sprintf("Bad hosts line: %q", raw))
+			output.Err = fmt.Errorf("Bad hosts line: %q", raw)
 		}
 
 		output.IP = rawIP
