@@ -272,7 +272,6 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		corev1.EnvVar{Name: "SERVICE_ID", Value: re.ServiceID},
 		corev1.EnvVar{Name: "TENANT_ID", Value: re.TenantID},
 		corev1.EnvVar{Name: "LANGUAGE", Value: re.Lang.String()},
-		corev1.EnvVar{Name: "DEBUG", Value: "true"},
 	}
 	for k, v := range re.BuildEnvs {
 		envs = append(envs, corev1.EnvVar{Name: k, Value: v})
@@ -318,7 +317,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	logrus.Debugf("slug subpath is : %s", slugSubPath)
 	appSubPath := strings.TrimPrefix(re.SourceDir, "/cache/")
 	logrus.Debugf("app subpath is : %s", appSubPath)
-	cacheSubPath := strings.TrimPrefix((re.CacheDir), "/cache/")
+	cacheSubPath := strings.TrimPrefix(re.CacheDir, "/cache/")
 	container.VolumeMounts = []corev1.VolumeMount{
 		corev1.VolumeMount{
 			Name:      "app",
@@ -470,7 +469,7 @@ func getJobPodLogs(ctx context.Context, podChan chan struct{}, clientset kuberne
 
 func delete(clientset kubernetes.Interface, namespace, job string) {
 	logrus.Debugf("start delete job: %s", job)
-	listOptions := metav1.ListOptions{LabelSelector:fmt.Sprintf("job-name=%s", job)}
+	listOptions := metav1.ListOptions{LabelSelector: fmt.Sprintf("job-name=%s", job)}
 
 	if err := clientset.CoreV1().Pods(namespace).DeleteCollection(&metav1.DeleteOptions{}, listOptions); err != nil {
 		logrus.Errorf("delete job pod failed: %s", err.Error())
