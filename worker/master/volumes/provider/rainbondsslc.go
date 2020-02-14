@@ -192,8 +192,8 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 		if options.SelectedNode == nil {
 			return nil, fmt.Errorf("do not select an appropriate node for local volume")
 		}
-		if _, ok := options.SelectedNode.Labels["rainbond_node_ip"]; !ok {
-			return nil, fmt.Errorf("select node(%s) do not have label rainbond_node_ip ", options.SelectedNode.Name)
+		if _, ok := options.SelectedNode.Labels["kubernetes.io/hostname"]; !ok {
+			return nil, fmt.Errorf("select node(%s) do not have label kubernetes.io/hostname ", options.SelectedNode.Name)
 		}
 	}
 	path, err := p.createPath(options)
@@ -228,9 +228,9 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 						v1.NodeSelectorTerm{
 							MatchExpressions: []v1.NodeSelectorRequirement{
 								v1.NodeSelectorRequirement{
-									Key:      "rainbond_node_ip",
+									Key:      "kubernetes.io/hostname",
 									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{options.SelectedNode.Labels["rainbond_node_ip"]},
+									Values:   []string{options.SelectedNode.Labels["kubernetes.io/hostname"]},
 								},
 							},
 						},

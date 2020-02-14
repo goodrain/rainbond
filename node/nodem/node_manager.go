@@ -324,7 +324,7 @@ func (n *NodeManager) getInitLabel(node *client.HostNode) map[string]string {
 		node.HostName = hostname
 	}
 	labels["rainbond_node_hostname"] = node.HostName
-	labels["rainbond_node_ip"] = node.InternalIP
+	labels["kubernetes.io/hostname"] = node.InternalIP
 	return labels
 }
 
