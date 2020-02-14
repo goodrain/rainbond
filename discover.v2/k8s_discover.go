@@ -84,6 +84,9 @@ func (k *k8sDiscover) discover(name string, callback CallbackUpdate) {
 		case <-ctx.Done():
 			return
 		case event := <-w.ResultChan():
+			if event.Object == nil {
+				continue
+			}
 			pod := event.Object.(*corev1.Pod)
 			ep := endpointForPod(pod)
 			switch event.Type {
