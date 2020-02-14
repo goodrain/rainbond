@@ -37,6 +37,7 @@ type Config struct {
 	Port                 int
 	SessionKey           string
 	PrometheusMetricPath string
+	K8SConfPath          string
 }
 
 //WebCliServer container webcli server
@@ -57,6 +58,7 @@ func (a *WebCliServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.Address, "address", "0.0.0.0", "server listen address")
 	fs.StringVar(&a.HostIP, "hostIP", "", "Current node Intranet IP")
 	fs.StringVar(&a.HostName, "hostName", "", "Current node host name")
+	fs.StringVar(&a.K8SConfPath, "kube-conf", "", "absolute path to the kubeconfig file")
 	fs.IntVar(&a.Port, "port", 7171, "server listen port")
 	fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
 }

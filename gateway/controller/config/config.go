@@ -102,7 +102,19 @@ func NewDefault() Configuration {
 			LimitRate:              0,
 			LimitRateAfter:         0,
 			ProxyBuffering:         "off",
-			ProxySetHeaders:        map[string]string{},
+			//defaut set header
+			ProxySetHeaders: map[string]string{
+				"Host":              "$best_http_host",
+				"X-Real-IP":         "$remote_addr",
+				"X-Forwarded-For":   "$remote_addr",
+				"X-Forwarded-Host":  "$best_http_host",
+				"X-Forwarded-Port":  "$pass_port",
+				"X-Forwarded-Proto": "$pass_access_scheme",
+				"X-Scheme":          "$pass_access_scheme",
+				// mitigate HTTPoxy Vulnerability
+				// https://www.nginx.com/blog/mitigating-the-httpoxy-vulnerability-with-nginx/
+				"Proxy": "\"\"",
+			},
 		},
 	}
 	return cfg

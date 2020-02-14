@@ -46,6 +46,7 @@ func main() {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	shell := strings.Split(conf.RunShell, "&nbsp;")
+	logrus.Infof("run shell: %s", shell)
 	cmd := exec.CommandContext(ctx, shell[0], shell[1:]...)
 	startFunc := func() error {
 		cmd.Stdin = os.Stdin
@@ -67,9 +68,10 @@ func main() {
 				cancel()
 			}
 		}()
+		var s os.Signal = syscall.SIGTERM
 		defer func() {
 			if cmd.Process != nil {
-				if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+				if err := cmd.Process.Signal(s); err != nil {
 					logrus.Errorf("send SIGTERM signal to progress failure %s", err.Error())
 				}
 				time.Sleep(time.Second * 2)
@@ -79,7 +81,8 @@ func main() {
 		term := make(chan os.Signal)
 		signal.Notify(term, os.Interrupt, syscall.SIGTERM)
 		select {
-		case <-term:
+		case ls := <-term:
+			s = ls
 			logrus.Warn("Received SIGTERM, exiting gracefully...")
 		case <-ctx.Done():
 		}

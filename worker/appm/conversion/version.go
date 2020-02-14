@@ -99,6 +99,10 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			}(),
 		},
 	}
+	var terminationGracePeriodSeconds int64 = 10
+	if as.GetDeployment() != nil {
+		podtmpSpec.Spec.TerminationGracePeriodSeconds = &terminationGracePeriodSeconds
+	}
 	//set to deployment or statefulset
 	as.SetPodTemplate(podtmpSpec)
 	return nil
