@@ -241,7 +241,7 @@ func printComponentStatus() {
 }
 
 func printConfig(c *cli.Context) error {
-	config, err := clients.CRClient.GetRainbondCluster(metav1.GetOptions{})
+	config, err := clients.RainbondKubeClient.RainbondV1alpha1().RainbondClusters("rbd-system").Get("rainbondcluster", metav1.GetOptions{})
 	if err != nil {
 		showError(err.Error())
 	}

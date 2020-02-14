@@ -42,7 +42,7 @@ func NewCmdInstall() cli.Command {
 			}
 			regionAPIIP := c.StringSlice("gateway-ip")
 			if len(regionAPIIP) == 0 {
-				cluster, err := clients.CRClient.GetRainbondCluster(metav1.GetOptions{})
+				cluster, err := clients.RainbondKubeClient.RainbondV1alpha1().RainbondClusters("rbd-system").Get("rainbondcluster", metav1.GetOptions{})
 				if err != nil {
 					showError(fmt.Sprintf("get rainbond cluster config failure %s", err.Error()))
 				}

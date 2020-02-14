@@ -24,6 +24,7 @@ import (
 	"path"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond-operator/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/builder/sources"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"k8s.io/client-go/kubernetes"
@@ -32,8 +33,8 @@ import (
 //K8SClient K8SClient
 var K8SClient kubernetes.Interface
 
-//CRClient rainbond custom resource client
-var CRClient k8sutil.RainbondCustomResourceClient
+//RainbondKubeClient rainbond custom resource client
+var RainbondKubeClient versioned.Interface
 
 //InitClient init k8s client
 func InitClient(kubeconfig string) error {
@@ -59,11 +60,6 @@ func InitClient(kubeconfig string) error {
 		logrus.Error("Create kubernetes client error.", err.Error())
 		return err
 	}
-
-	CRClient, err = k8sutil.NewRainbondCustomResourceClient(config)
-	if err != nil {
-		logrus.Error("Create kubernetes rest client error.", err.Error())
-		return err
-	}
+	RainbondKubeClient = versioned.NewForConfigOrDie(config)
 	return nil
 }
