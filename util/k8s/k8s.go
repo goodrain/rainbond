@@ -6,9 +6,11 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/pkg/apis/rainbond/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -16,6 +18,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/reference"
 )
+
+func init() {
+	utilruntime.Must(rainbondv1alpha1.AddToScheme(scheme.Scheme))
+}
 
 // NewClientset -
 func NewClientset(kubecfg string) (kubernetes.Interface, error) {
@@ -48,6 +54,11 @@ func NewRestConfig(kubecfg string) (restConfig *rest.Config, err error) {
 		return InClusterConfig()
 	}
 	return clientcmd.BuildConfigFromFlags("", kubecfg)
+}
+
+//NewRestClient new rest client
+func NewRestClient(restConfig *rest.Config) (*rest.RESTClient, error) {
+	return rest.RESTClientFor(restConfig)
 }
 
 // InClusterConfig in cluster config
@@ -104,4 +115,66 @@ func DefListEventsByPod(clientset kubernetes.Interface, pod *corev1.Pod) *corev1
 	}
 	events, _ := clientset.CoreV1().Events(pod.GetNamespace()).Search(scheme.Scheme, ref)
 	return events
+}
+
+//ConfigureRainbondClient config rainbond custom resource
+func ConfigureRainbondClient(config *rest.Config) {
+	groupversion := rainbondv1alpha1.SchemeGroupVersion
+	config.GroupVersion = &groupversion
+	config.APIPath = "/apis"
+	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	if config.UserAgent == "" {
+		config.UserAgent = rest.DefaultKubernetesUserAgent()
+	}
+}
+
+//RainbondCluster rainbond cluster
+type RainbondCluster interface {
+	GetRainbondCluster(options metav1.GetOptions) (*rainbondv1alpha1.RainbondCluster, error)
+}
+
+// RainbondCustomResourceClient client
+type RainbondCustomResourceClient interface {
+	RESTClient() rest.Interface
+	RainbondCluster
+}
+
+type rclient struct {
+	restClient *rest.RESTClient
+	namespace  string
+}
+
+func (r *rclient) GetRainbondCluster(options metav1.GetOptions) (*rainbondv1alpha1.RainbondCluster, error) {
+	var cluster rainbondv1alpha1.RainbondCluster
+	err := r.restClient.Get().
+		Namespace(r.namespace).
+		Resource("rainbondclusters").
+		Name("rainbondcluster").
+		VersionedParams(&options, scheme.ParameterCodec).
+		Do().Into(&cluster)
+	if err != nil {
+		return nil, err
+	}
+	return &cluster, nil
+}
+
+func (r *rclient) RESTClient() rest.Interface {
+	if r == nil {
+		return nil
+	}
+	return r.restClient
+}
+
+//NewRainbondCustomResourceClient new rainbond cr client
+func NewRainbondCustomResourceClient(config *rest.Config) (RainbondCustomResourceClient, error) {
+	copyConfig := *config
+	ConfigureRainbondClient(&copyConfig)
+	restClient, err := NewRestClient(&copyConfig)
+	if err != nil {
+		return nil, err
+	}
+	return &rclient{
+		restClient: restClient,
+		namespace:  "rbd-system",
+	}, nil
 }

@@ -26,10 +26,12 @@ import (
 	"strings"
 
 	"github.com/apcera/termtables"
+	"github.com/ghodss/yaml"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/gosuri/uitable"
 	"github.com/urfave/cli"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 //NewCmdCluster cmd for cluster
@@ -37,6 +39,16 @@ func NewCmdCluster() cli.Command {
 	c := cli.Command{
 		Name:  "cluster",
 		Usage: "show curren cluster datacenter info",
+		Subcommands: []cli.Command{
+			cli.Command{
+				Name:  "config",
+				Usage: "prints the current cluster configuration",
+				Action: func(c *cli.Context) error {
+					Common(c)
+					return printConfig(c)
+				},
+			},
+		},
 		Action: func(c *cli.Context) error {
 			Common(c)
 			return getClusterInfo(c)
@@ -52,12 +64,10 @@ func getClusterInfo(c *cli.Context) error {
 		if err.Code == 502 {
 			fmt.Println("The current cluster node manager is not working properly.")
 			fmt.Println("You can query the service log for troubleshooting.")
-			fmt.Println("Exec Command: journalctl -fu node")
 			os.Exit(1)
 		}
 		fmt.Println("The current cluster api server is not working properly.")
 		fmt.Println("You can query the service log for troubleshooting.")
-		fmt.Println("Exec Command: journalctl -fu rbd-api")
 		os.Exit(1)
 	}
 	healthCPUFree := fmt.Sprintf("%.2f", float32(clusterInfo.HealthCapCPU)-clusterInfo.HealthReqCPU)
@@ -221,5 +231,21 @@ func clusterStatus(roleList []map[string]string, ReadyList []map[string]string) 
 }
 
 func printComponentStatus() {
-	exec.Command("kubectl", "get", "pod", "-n", "rbd-system", "-o", "wide").Run()
+	fmt.Println("----------------------------------------------------------------------------------")
+	fmt.Println()
+	cmd := exec.Command("kubectl", "get", "pod", "-n", "rbd-system", "-o", "wide")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Run()
+	fmt.Println()
+}
+
+func printConfig(c *cli.Context) error {
+	config, err := clients.CRClient.GetRainbondCluster(metav1.GetOptions{})
+	if err != nil {
+		showError(err.Error())
+	}
+	out, _ := yaml.Marshal(config)
+	fmt.Println(string(out))
+	return nil
 }
