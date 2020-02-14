@@ -647,6 +647,11 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(ss.EtcdKeys) > 0 {
+		logrus.Debugf("clean service check etcd data :%+v", ss.EtcdKeys)
+		handler.GetEtcdHandler().CleanEtcd(ss.EtcdKeys)
+	}
+
 	values := url.Values{}
 	if ss.Endpoints != nil && strings.TrimSpace(ss.Endpoints.Static) != "" {
 		if strings.Contains(ss.Endpoints.Static, "127.0.0.1") {
@@ -667,6 +672,7 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("create service error, %v", err))
 		return
 	}
+
 	httputil.ReturnSuccess(r, w, nil)
 }
 

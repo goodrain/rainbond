@@ -321,8 +321,9 @@ type ServiceStruct struct {
 	// 服务创建类型cloud云市服务,assistant云帮服务
 	// in: body
 	// required: false
-	ServiceOrigin string `json:"service_origin" validate:"service_origin"`
-	Kind          string `json:"kind" validate:"kind|in:internal,third_party"`
+	ServiceOrigin string   `json:"service_origin" validate:"service_origin"`
+	Kind          string   `json:"kind" validate:"kind|in:internal,third_party"`
+	EtcdKeys      []string `json:"etcd_keys" validate:"etcd_keys"`
 
 	ServiceLabel   string                               `json:"service_label"  validate:"service_label|in:StatelessServiceType,StatefulServiceType"`
 	NodeLabel      string                               `json:"node_label"  validate:"node_label"`
