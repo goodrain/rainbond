@@ -136,6 +136,9 @@ func NewConfig() *Config {
 //AddFlag monitor flag
 func (c *Config) AddFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.EtcdEndpointsLine, "etcd-endpoints", c.EtcdEndpointsLine, "etcd endpoints list.")
+	cmd.StringVar(&c.EtcdCaFile, "etcd-ca", "", "etcd tls ca file ")
+	cmd.StringVar(&c.EtcdCertFile, "etcd-cert", "", "etcd tls cert file")
+	cmd.StringVar(&c.EtcdKeyFile, "etcd-key", "", "etcd http tls cert key file")
 	cmd.StringVar(&c.AdvertiseAddr, "advertise-addr", c.AdvertiseAddr, "advertise address, and registry into etcd.")
 	cmd.IntVar(&c.CadvisorListenPort, "cadvisor-listen-port", c.CadvisorListenPort, "kubelet cadvisor listen port in all node")
 	cmd.StringSliceVar(&c.AlertManagerURL, "alertmanager-address", c.AlertManagerURL, "AlertManager url.")
