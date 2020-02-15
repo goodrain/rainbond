@@ -12,8 +12,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-var defaultSecretName = "rbd-docker-secret"
-var defaultNamespace = "rbd-system"
 var defaultFileName = "server.crt"
 var defaultFilePath = "/etc/docker/certs.d/goodrain.me"
 
@@ -21,11 +19,8 @@ var defaultFilePath = "/etc/docker/certs.d/goodrain.me"
 func SyncDockerCertFromSecret(clientset kubernetes.Interface, namespace, secretName string) error {
 	namespace = strings.TrimSpace(namespace)
 	secretName = strings.TrimSpace(secretName)
-	if namespace == "" {
-		namespace = defaultNamespace
-	}
-	if secretName == "" {
-		secretName = defaultSecretName
+	if namespace == "" || secretName == "" {
+		return nil
 	}
 	secretInfo, err := clientset.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
 	if err != nil {
@@ -37,7 +32,7 @@ func SyncDockerCertFromSecret(clientset kubernetes.Interface, namespace, secretN
 		}
 
 	} else {
-		logrus.Warnf("docker secret:%s do not contain cert info", defaultSecretName)
+		logrus.Warnf("docker secret: %s/%s do not contain cert info", secretName, namespace)
 	}
 	return nil
 }
