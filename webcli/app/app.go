@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"text/template"
 
@@ -332,7 +333,7 @@ func (app *App) GetDefaultContainerName(namespace, podname string) (string, []st
 	if len(pod.Spec.Containers) > 0 {
 		for _, env := range pod.Spec.Containers[0].Env {
 			if env.Name == "ES_DEFAULT_EXEC_ARGS" {
-				args = []string{env.Name}
+				args = strings.Split(env.Value, " ")
 			}
 		}
 		return pod.Spec.Containers[0].Name, args, nil
