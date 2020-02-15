@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/node/initiate"
+	"github.com/goodrain/rainbond/util/constants"
 	"k8s.io/client-go/kubernetes"
 	"os"
 	"os/signal"
@@ -103,11 +104,13 @@ func Run(cfg *option.Conf) error {
 		}
 		defer kubecli.Stop()
 
-		hostManager, err := initiate.NewHostManager(cfg, k8sDiscover)
-		if err != nil {
-			return fmt.Errorf("create new host manager: %v", err)
+		if cfg.ImageRepositoryHost == constants.DefImageRepository {
+			hostManager, err := initiate.NewHostManager(cfg, k8sDiscover)
+			if err != nil {
+				return fmt.Errorf("create new host manager: %v", err)
+			}
+			hostManager.Start()
 		}
-		hostManager.Start()
 
 		logrus.Debugf("rbd-namespace=%s; rbd-docker-secret=%s", os.Getenv("RBD_NAMESPACE"), os.Getenv("RBD_DOCKER_SECRET"))
 		// sync docker inscure registries cert info into all rainbond node
