@@ -118,6 +118,9 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	// etcd
 	fs.StringSliceVar(&g.EtcdEndpoint, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd cluster endpoints.")
 	fs.IntVar(&g.EtcdTimeout, "etcd-timeout", 10, "etcd http timeout seconds")
+	fs.StringVar(&g.EtcdCaFile, "etcd-ca", "", "etcd tls ca file ")
+	fs.StringVar(&g.EtcdCertFile, "etcd-cert", "", "etcd tls cert file")
+	fs.StringVar(&g.EtcdKeyFile, "etcd-key", "", "etcd http tls cert key file")
 	// health check
 	fs.StringVar(&g.HealthPath, "health-path", "/healthz", "absolute path to the kubeconfig file")
 	fs.DurationVar(&g.HealthCheckTimeout, "health-check-timeout", 10, `Time limit, in seconds, for a probe to health-check-path to succeed.`)
