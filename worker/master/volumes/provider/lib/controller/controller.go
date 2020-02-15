@@ -515,7 +515,7 @@ func NewProvisionController(
 			case "rainbondslsc":
 				nodeIP := func() string {
 					for _, me := range pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions {
-						if me.Key != "rainbond_node_ip" {
+						if me.Key != "kubernetes.io/hostname" {
 							continue
 						}
 						return me.Values[0]
