@@ -65,6 +65,21 @@ func Common(c *cli.Context) {
 
 }
 
+//Common Common
+func CommonWithoutRegion(c *cli.Context) {
+	config, err := conf.LoadConfig(c)
+	if err != nil {
+		logrus.Warn("Load config file error.", err.Error())
+	}
+	kc := c.GlobalString("kubeconfig")
+	if kc != "" {
+		config.Kubernets.KubeConf = kc
+	}
+	if err := clients.InitClient(config.Kubernets.KubeConf); err != nil {
+		logrus.Errorf("error config k8s,details %s", err.Error())
+	}
+}
+
 // fatal prints the message (if provided) and then exits. If V(2) or greater,
 // glog.Fatal is invoked for extended information.
 func fatal(msg string, code int) {

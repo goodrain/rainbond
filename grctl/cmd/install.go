@@ -35,7 +35,7 @@ func NewCmdInstall() cli.Command {
 		},
 		Usage: "grctl install",
 		Action: func(c *cli.Context) error {
-			Common(c)
+			CommonWithoutRegion(c)
 			apiClientSecrit, err := clients.K8SClient.CoreV1().Secrets("rbd-system").Get("rbd-api-client-cert", metav1.GetOptions{})
 			if err != nil {
 				showError(fmt.Sprintf("get region api tls secret failure %s", err.Error()))
