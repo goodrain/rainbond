@@ -38,7 +38,7 @@ type DockerRunOrImageParse struct {
 	volumes      map[string]*types.Volume
 	envs         map[string]*types.Env
 	source       string
-	deployType   string
+	serviceType  string
 	memory       int
 	image        Image
 	args         []string
@@ -133,7 +133,7 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 			}
 		}
 	}
-	d.deployType = DetermineDeployType(d.image)
+	d.serviceType = DetermineDeployType(d.image)
 	return d.errors
 }
 
@@ -267,14 +267,14 @@ func (d *DockerRunOrImageParse) GetMemory() int {
 //GetServiceInfo 获取service info
 func (d *DockerRunOrImageParse) GetServiceInfo() []ServiceInfo {
 	serviceInfo := ServiceInfo{
-		Ports:             d.GetPorts(),
-		Envs:              d.GetEnvs(),
-		Volumes:           d.GetVolumes(),
-		Image:             d.GetImage(),
-		Args:              d.GetArgs(),
-		Branchs:           d.GetBranchs(),
-		Memory:            d.memory,
-		ServiceDeployType: d.deployType,
+		Ports:       d.GetPorts(),
+		Envs:        d.GetEnvs(),
+		Volumes:     d.GetVolumes(),
+		Image:       d.GetImage(),
+		Args:        d.GetArgs(),
+		Branchs:     d.GetBranchs(),
+		Memory:      d.memory,
+		ServiceType: d.serviceType,
 	}
 	if serviceInfo.Memory == 0 {
 		serviceInfo.Memory = 512

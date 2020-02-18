@@ -20,6 +20,7 @@ package parser
 
 import (
 	"fmt"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -28,7 +29,6 @@ import (
 	"github.com/goodrain/rainbond/builder/parser/discovery"
 	"github.com/goodrain/rainbond/builder/parser/types"
 	"github.com/goodrain/rainbond/builder/sources"
-	"github.com/goodrain/rainbond/util"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -165,18 +165,18 @@ type Lang string
 
 //ServiceInfo 智能获取的应用信息
 type ServiceInfo struct {
-	ID                string         `json:"id,omitempty"`
-	Ports             []types.Port   `json:"ports,omitempty"`
-	Envs              []types.Env    `json:"envs,omitempty"`
-	Volumes           []types.Volume `json:"volumes,omitempty"`
-	Image             Image          `json:"image,omitempty"`
-	Args              []string       `json:"args,omitempty"`
-	DependServices    []string       `json:"depends,omitempty"`
-	ServiceDeployType string         `json:"deploy_type,omitempty"`
-	Branchs           []string       `json:"branchs,omitempty"`
-	Memory            int            `json:"memory,omitempty"`
-	Lang              code.Lang      `json:"language,omitempty"`
-	ImageAlias        string         `json:"image_alias,omitempty"`
+	ID             string         `json:"id,omitempty"`
+	Ports          []types.Port   `json:"ports,omitempty"`
+	Envs           []types.Env    `json:"envs,omitempty"`
+	Volumes        []types.Volume `json:"volumes,omitempty"`
+	Image          Image          `json:"image,omitempty"`
+	Args           []string       `json:"args,omitempty"`
+	DependServices []string       `json:"depends,omitempty"`
+	ServiceType    string         `json:"service_type,omitempty"`
+	Branchs        []string       `json:"branchs,omitempty"`
+	Memory         int            `json:"memory,omitempty"`
+	Lang           code.Lang      `json:"language,omitempty"`
+	ImageAlias     string         `json:"image_alias,omitempty"`
 	//For third party services
 	Endpoints []*discovery.Endpoint `json:"endpoints,omitempty"`
 
@@ -236,10 +236,10 @@ var dbImageKey = []string{
 func DetermineDeployType(imageName Image) string {
 	for _, key := range dbImageKey {
 		if strings.ToLower(imageName.GetSimpleName()) == key {
-			return util.StatefulServiceType
+			return dbmodel.ServiceTypeStatelessSingleton.String() // TODO fanyangyang 通过镜像要挂载的存储确定更细致的组件类型
 		}
 	}
-	return util.StatelessServiceType
+	return dbmodel.ServiceTypeStatelessSingleton.String()
 }
 
 //readmemory

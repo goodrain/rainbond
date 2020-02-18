@@ -37,7 +37,6 @@ import (
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dberrors "github.com/goodrain/rainbond/db/errors"
-	core_model "github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	eventutil "github.com/goodrain/rainbond/eventlog/util"
@@ -249,17 +248,12 @@ func (s *ServiceAction) AddLabel(l *api_model.LabelsStruct, serviceID string) er
 			tx.Rollback()
 		}
 	}()
+	//V5.2: do not support service type label
 	for _, label := range l.Labels {
-		var labelModel dbmodel.TenantServiceLable
-		switch label.LabelKey {
-		case core_model.LabelKeyServiceType:
-			labelModel.ServiceID = serviceID
-			labelModel.LabelKey = core_model.LabelKeyServiceType
-			labelModel.LabelValue = chekeServiceLabel(label.LabelValue)
-		default:
-			labelModel.ServiceID = serviceID
-			labelModel.LabelKey = label.LabelKey
-			labelModel.LabelValue = label.LabelValue
+		labelModel := dbmodel.TenantServiceLable{
+			ServiceID:  serviceID,
+			LabelKey:   label.LabelKey,
+			LabelValue: label.LabelValue,
 		}
 		if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&labelModel); err != nil {
 			tx.Rollback()
@@ -291,17 +285,12 @@ func (s *ServiceAction) UpdateLabel(l *api_model.LabelsStruct, serviceID string)
 			tx.Rollback()
 			return err
 		}
+		// V5.2 do not support service type label
 		// add new labels
-		var labelModel dbmodel.TenantServiceLable
-		switch label.LabelKey {
-		case core_model.LabelKeyServiceType:
-			labelModel.ServiceID = serviceID
-			labelModel.LabelKey = core_model.LabelKeyServiceType
-			labelModel.LabelValue = chekeServiceLabel(label.LabelValue)
-		default:
-			labelModel.ServiceID = serviceID
-			labelModel.LabelKey = label.LabelKey
-			labelModel.LabelValue = label.LabelValue
+		labelModel := dbmodel.TenantServiceLable{
+			ServiceID:  serviceID,
+			LabelKey:   label.LabelKey,
+			LabelValue: label.LabelValue,
 		}
 		if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&labelModel); err != nil {
 			logrus.Errorf("error adding new labels: %v", err)
@@ -340,24 +329,6 @@ func (s *ServiceAction) DeleteLabel(l *api_model.LabelsStruct, serviceID string)
 		return err
 	}
 	return nil
-}
-
-//UpdateServiceLabel UpdateLabel
-func (s *ServiceAction) UpdateServiceLabel(serviceID, value string) error {
-	sls, err := db.GetManager().TenantServiceLabelDao().GetTenantServiceLabel(serviceID)
-	if err != nil {
-		return err
-	}
-	if len(sls) > 0 {
-		for _, sl := range sls {
-			sl.ServiceID = serviceID
-			sl.LabelKey = core_model.LabelKeyServiceType
-			value = chekeServiceLabel(value)
-			sl.LabelValue = value
-			return db.GetManager().TenantServiceLabelDao().UpdateModel(sl)
-		}
-	}
-	return fmt.Errorf("Get tenant service label error")
 }
 
 //StartStopService start service
@@ -634,16 +605,6 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				return err
 			}
 		}
-	}
-	//set app label
-	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&dbmodel.TenantServiceLable{
-		ServiceID:  ts.ServiceID,
-		LabelKey:   core_model.LabelKeyServiceType,
-		LabelValue: sc.ServiceLabel,
-	}); err != nil {
-		logrus.Errorf("add label %v error, %v", ts.ServiceID, err)
-		tx.Rollback()
-		return err
 	}
 	// sc.Endpoints can't be nil
 	// sc.Endpoints.Discovery or sc.Endpoints.Static can't be nil
@@ -1343,11 +1304,11 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				tsv.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, tenantID, tsv.ServiceID, tsv.VolumePath)
 			//本地文件存储
 			case dbmodel.LocalVolumeType.String():
-				serviceType, err := db.GetManager().TenantServiceLabelDao().GetTenantServiceTypeLabel(tsv.ServiceID)
+				serviceInfo, err := db.GetManager().TenantServiceDao().GetServiceTypeById(tsv.ServiceID)
 				if err != nil {
 					return util.CreateAPIHandleErrorFromDBError("service type", err)
 				}
-				if serviceType == nil || serviceType.LabelValue != core_util.StatefulServiceType {
+				if serviceInfo == nil || serviceInfo.IsState() { // TODO fanyangyang 根据组件类型确定是否支持
 					return util.CreateAPIHandleError(400, fmt.Errorf("应用类型不为有状态应用.不支持本地存储"))
 				}
 				tsv.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, tenantID, tsv.ServiceID, tsv.VolumePath)
@@ -2172,14 +2133,4 @@ func CheckMapKey(rebody map[string]interface{}, key string, defaultValue interfa
 	}
 	rebody[key] = defaultValue
 	return rebody
-}
-
-func chekeServiceLabel(v string) string {
-	if strings.Contains(v, "有状态") {
-		return core_util.StatefulServiceType
-	}
-	if strings.Contains(v, "无状态") {
-		return core_util.StatelessServiceType
-	}
-	return v
 }

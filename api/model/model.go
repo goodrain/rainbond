@@ -258,6 +258,10 @@ type ServiceStruct struct {
 	// in: body
 	// required: true
 	ServiceAlias string `json:"service_alias" validate:"service_alias"`
+	// 组件类型
+	// in: body
+	// required: true
+	ServiceType string `json:"service_type" validate:"service_type"`
 	// 服务描述
 	// in: body
 	// required: false
@@ -286,7 +290,7 @@ type ServiceStruct struct {
 	// in: body
 	// required: false
 	ContainerEnv string `json:"container_env" validate:"container_env"`
-	// 扩容方式；0:无状态；1:有状态；2:分区
+	// 扩容方式；0:无状态；1:有状态；2:分区(v5.2用于接收组件的类型)
 	// in: body
 	// required: false
 	ExtendMethod string `json:"extend_method" validate:"extend_method"`
@@ -323,7 +327,7 @@ type ServiceStruct struct {
 	// required: false
 	ServiceOrigin string `json:"service_origin" validate:"service_origin"`
 	Kind          string `json:"kind" validate:"kind|in:internal,third_party"`
-
+	// V5.2 弃用
 	ServiceLabel   string                               `json:"service_label"  validate:"service_label|in:StatelessServiceType,StatefulServiceType"`
 	NodeLabel      string                               `json:"node_label"  validate:"node_label"`
 	Operator       string                               `json:"operator"  validate:"operator"`

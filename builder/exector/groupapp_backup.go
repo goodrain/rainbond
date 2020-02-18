@@ -426,13 +426,3 @@ func GetVolumeDir() (string, string) {
 	}
 	return localPath, sharePath
 }
-
-//GetServiceType get service deploy type
-func GetServiceType(labels []*dbmodel.TenantServiceLable) string {
-	for _, l := range labels {
-		if l.LabelKey == dbmodel.LabelKeyServiceType {
-			return l.LabelValue
-		}
-	}
-	return util.StatelessServiceType
-}

@@ -155,8 +155,8 @@ func TestSetServiceLabel(t *testing.T) {
 		t.Fatal(err)
 	}
 	label := model.TenantServiceLable{
-		LabelKey:   model.LabelKeyServiceType,
-		LabelValue: util.StatefulServiceType,
+		LabelKey:   "labelkey",
+		LabelValue: "labelvalue",
 		ServiceID:  "889bb1f028f655bebd545f24aa184a0b",
 	}
 	label.CreatedAt = time.Now()
