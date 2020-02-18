@@ -645,6 +645,17 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		tx.Rollback()
 		return err
 	}
+	if sc.OSType == "windows" {
+		if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&dbmodel.TenantServiceLable{
+			ServiceID:  ts.ServiceID,
+			LabelKey:   core_model.LabelKeyNodeSelector,
+			LabelValue: sc.OSType,
+		}); err != nil {
+			logrus.Errorf("add label %s=%s  %v error, %v", core_model.LabelKeyNodeSelector, sc.OSType, ts.ServiceID, err)
+			tx.Rollback()
+			return err
+		}
+	}
 	// sc.Endpoints can't be nil
 	// sc.Endpoints.Discovery or sc.Endpoints.Static can't be nil
 	if sc.Kind == dbmodel.ServiceKindThirdParty.String() { // TODO: validate request data
