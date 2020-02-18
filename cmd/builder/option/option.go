@@ -20,6 +20,7 @@ package option
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/mq/client"
@@ -95,6 +96,9 @@ func (a *Builder) SetLog() {
 func (a *Builder) CheckConfig() error {
 	if a.Topic != client.BuilderTopic && a.Topic != client.WindowsBuilderTopic {
 		return fmt.Errorf("Topic is only suppory `%s` and `%s`", client.BuilderTopic, client.WindowsBuilderTopic)
+	}
+	if runtime.GOOS == "windows" {
+		a.Topic = "windows_builder"
 	}
 	return nil
 }

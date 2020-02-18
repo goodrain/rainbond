@@ -21,6 +21,7 @@ package parser
 import (
 	"fmt"
 	"path"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -486,6 +487,7 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 		Memory:            d.memory,
 		Lang:              d.GetLang(),
 		ServiceDeployType: util.StatelessServiceType,
+		OS:                runtime.GOOS,
 	}
 	var res []ServiceInfo
 	if d.isMulti && d.services != nil && len(d.services) > 0 {

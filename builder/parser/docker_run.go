@@ -27,6 +27,7 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
+	"runtime"
 	"strconv"
 	"strings" //"github.com/docker/docker/client"
 )
@@ -275,6 +276,7 @@ func (d *DockerRunOrImageParse) GetServiceInfo() []ServiceInfo {
 		Branchs:           d.GetBranchs(),
 		Memory:            d.memory,
 		ServiceDeployType: d.deployType,
+		OS:                runtime.GOOS,
 	}
 	if serviceInfo.Memory == 0 {
 		serviceInfo.Memory = 512
