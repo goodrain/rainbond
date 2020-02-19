@@ -46,7 +46,7 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 		re.Logger.Error(fmt.Sprintf("Parse dockerfile error"), map[string]string{"step": "builder-exector"})
 		return nil, err
 	}
-	buildImageName := CreateImageName(re.RepositoryURL, re.ServiceAlias, re.DeployVersion)
+	buildImageName := CreateImageName(re.ServiceID, re.DeployVersion)
 
 	buildOptions := types.ImageBuildOptions{
 		Tags:      []string{buildImageName},

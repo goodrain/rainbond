@@ -20,7 +20,6 @@ package build
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/goodrain/rainbond/builder"
@@ -105,15 +104,6 @@ func GetBuild(lang code.Lang) (Build, error) {
 }
 
 //CreateImageName create image name
-func CreateImageName(repoURL, serviceAlias, deployversion string) string {
-	reg := regexp.MustCompile(`.*(?:\:|\/)([\w\-\.]+)/([\w\-\.]+)\.git`)
-	rc := reg.FindSubmatch([]byte(repoURL))
-	var name string
-	if len(rc) == 3 {
-		name = fmt.Sprintf("%s_%s_%s", serviceAlias, string(rc[1]), string(rc[2]))
-	} else {
-		name = fmt.Sprintf("%s_%s", serviceAlias, "rainbondbuild")
-	}
-	buildImageName := strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, name, deployversion))
-	return buildImageName
+func CreateImageName(serviceID, deployversion string) string {
+	return strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, serviceID, deployversion))
 }
