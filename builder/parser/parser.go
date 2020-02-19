@@ -236,10 +236,10 @@ var dbImageKey = []string{
 func DetermineDeployType(imageName Image) string {
 	for _, key := range dbImageKey {
 		if strings.ToLower(imageName.GetSimpleName()) == key {
-			return dbmodel.ServiceTypeStatelessSingleton.String() // TODO fanyangyang 通过镜像要挂载的存储确定更细致的组件类型
+			return dbmodel.ServiceTypeStatelessSingleton.String()
 		}
 	}
-	return dbmodel.ServiceTypeStatelessSingleton.String()
+	return dbmodel.ServiceTypeStatelessMultiple.String()
 }
 
 //readmemory

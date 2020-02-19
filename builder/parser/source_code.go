@@ -485,7 +485,7 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 		Branchs:     d.GetBranchs(),
 		Memory:      d.memory,
 		Lang:        d.GetLang(),
-		ServiceType: model.ServiceTypeStatelessSingleton.String(), // TODO fanyangyang 使用存储确定组件类型
+		ServiceType: model.ServiceTypeStatelessMultiple.String(),
 	}
 	var res []ServiceInfo
 	if d.isMulti && d.services != nil && len(d.services) > 0 {
