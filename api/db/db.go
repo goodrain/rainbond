@@ -167,6 +167,7 @@ func dbInit() error {
 	if err := begin.Where("class_level=? and prefix=?", "server_source", "/v2/show").Find(&rac).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			data := map[string]string{
+				"/v2/cluster":       "server_source",
 				"/v2/show":          "server_source",
 				"/v2/opentsdb":      "server_source",
 				"/v2/resources":     "server_source",
@@ -176,7 +177,7 @@ func dbInit() error {
 				"/v2/port":          "server_source",
 				"/api/v1":           "server_source",
 				"/v2/events":        "server_source",
-				"/v2/gateway/ips":  "server_source",
+				"/v2/gateway/ips":   "server_source",
 				"/v2/gateway/ports": "server_source",
 				"/v2/nodes":         "node_manager",
 				"/v2/job":           "node_manager",

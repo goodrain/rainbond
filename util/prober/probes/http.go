@@ -115,7 +115,7 @@ func (h *HTTPProbe) GetHTTPHealth() map[string]string {
 	}
 	logrus.Debugf("http probe check address; %s", address)
 	resp, err := c.Get(addr.String())
-	if resp.Body != nil {
+	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}
 	if err != nil {
