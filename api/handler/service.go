@@ -701,6 +701,28 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	if sc["service_name"] != nil {
 		ts.ServiceName = sc["service_name"].(string)
 	}
+	if sc["extend_method"] != nil {
+		extendMethod := sc["extend_method"].(string)
+		if ts.Replicas > 1 && dbmodel.ServiceType(extendMethod).IsSingleton() {
+			err := fmt.Errorf("service[%s] replicas > 1, can't change service typ to stateless_singleton", ts.ServiceAlias)
+			return err
+		}
+		volumes, err := db.GetManager().TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(ts.ServiceID)
+		if err != nil {
+			return err
+		}
+		for _, vo := range volumes {
+			if vo.VolumeType == dbmodel.LocalVolumeType.String() && !dbmodel.ServiceType(extendMethod).IsState() {
+				err := fmt.Errorf("service[%s] has local volume type, can't change type to stateless", ts.ServiceAlias)
+				return err
+			}
+			if vo.AccessMode == "RWO" && !dbmodel.ServiceType(extendMethod).IsState() {
+				err := fmt.Errorf("service[%s] volume[%s] access_mode is RWO, can't change type to stateless", ts.ServiceAlias, vo.VolumeName)
+				return err
+			}
+		}
+		ts.ServiceType = extendMethod
+	}
 	//update service
 	if err := db.GetManager().TenantServiceDao().UpdateModel(ts); err != nil {
 		logrus.Errorf("update service error, %v", err)

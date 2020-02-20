@@ -93,16 +93,43 @@ func (s ServiceType) String() string {
 	return string(s)
 }
 
+// IsState is state type or not
+func (s ServiceType) IsState() bool {
+	if s == "" {
+		return false
+	}
+	if s == ServiceTypeStatelessSingleton || s == ServiceTypeStatelessMultiple {
+		return false
+	}
+	return true
+}
+
+// IsSingleton is singleton or not
+func (s ServiceType) IsSingleton() bool {
+	if s == "" {
+		return false
+	}
+	if s == ServiceTypeStatelessMultiple || s == ServiceTypeStateMultiple {
+		return false
+	}
+	return true
+}
+
 // TODO fanyangyang 根据组件简单判断是否是有状态
 // IsState is state service or stateless service
 func (ts TenantServices) IsState() bool {
 	if ts.ServiceType == "" {
 		return false
 	}
-	if ts.ServiceType == ServiceTypeStatelessSingleton.String() || ts.ServiceType == ServiceTypeStatelessMultiple.String() {
+	return ServiceType(ts.ServiceType).IsState()
+}
+
+// IsSingleton is singleton or multiple service
+func (ts TenantServices) IsSingleton() bool {
+	if ts.ServiceType == "" {
 		return false
 	}
-	return true
+	return ServiceType(ts.ServiceType).IsSingleton()
 }
 
 // ServiceTypeUnknown unknown

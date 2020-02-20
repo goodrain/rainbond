@@ -701,6 +701,7 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 		"image_name":       []string{},
 		"container_memory": []string{},
 		"service_name":     []string{},
+		"extend_method":    []string{},
 	}
 	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
 	if !ok {
