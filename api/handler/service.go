@@ -712,6 +712,9 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 			return err
 		}
 		for _, vo := range volumes {
+			if vo.VolumeType == dbmodel.ShareFileVolumeType.String() || vo.VolumeType == dbmodel.MemoryFSVolumeType.String() {
+				continue
+			}
 			if vo.VolumeType == dbmodel.LocalVolumeType.String() && !dbmodel.ServiceType(extendMethod).IsState() {
 				err := fmt.Errorf("service[%s] has local volume type, can't change type to stateless", ts.ServiceAlias)
 				return err
@@ -721,6 +724,7 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 				return err
 			}
 		}
+		ts.ExtendMethod = extendMethod
 		ts.ServiceType = extendMethod
 	}
 	//update service
@@ -1330,7 +1334,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				if err != nil {
 					return util.CreateAPIHandleErrorFromDBError("service type", err)
 				}
-				if serviceInfo == nil || serviceInfo.IsState() { // TODO fanyangyang 根据组件类型确定是否支持
+				if serviceInfo == nil || !serviceInfo.IsState() {
 					return util.CreateAPIHandleError(400, fmt.Errorf("应用类型不为有状态应用.不支持本地存储"))
 				}
 				tsv.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, tenantID, tsv.ServiceID, tsv.VolumePath)
