@@ -236,7 +236,7 @@ var dbImageKey = []string{
 func DetermineDeployType(imageName Image) string {
 	for _, key := range dbImageKey {
 		if strings.ToLower(imageName.GetSimpleName()) == key {
-			return dbmodel.ServiceTypeStatelessSingleton.String()
+			return dbmodel.ServiceTypeStateSingleton.String()
 		}
 	}
 	return dbmodel.ServiceTypeStatelessMultiple.String()

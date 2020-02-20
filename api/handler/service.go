@@ -733,9 +733,11 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 		return err
 	}
 	//update service version
-	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
-		logrus.Errorf("update version error, %v", err)
-		return err
+	if version != nil {
+		if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
+			logrus.Errorf("update version error, %v", err)
+			return err
+		}
 	}
 	return nil
 }

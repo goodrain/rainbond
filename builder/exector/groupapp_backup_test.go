@@ -20,7 +20,9 @@ package exector
 
 import (
 	"fmt"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
+	"strings"
 	"testing"
 )
 
@@ -57,5 +59,18 @@ func TestUploadPkg2(t *testing.T) {
 	sourceDir := "/tmp/groupbackup/c6b05a2a6d664fda83dab8d3bcf1a941_20191024185643.zip"
 	if err := b.downloadFromS3(sourceDir); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestBackupServiceVolume(t *testing.T) {
+	volume := dbmodel.TenantServiceVolume{}
+	sourceDir := ""
+	serviceID := ""
+	dstDir := fmt.Sprintf("%s/data_%s/%s.zip", sourceDir, serviceID, strings.Replace(volume.VolumeName, "/", "", -1))
+	hostPath := volume.HostPath
+	if hostPath != "" && !util.DirIsEmpty(hostPath) {
+		if err := util.Zip(hostPath, dstDir); err != nil {
+			t.Fatalf("backup service(%s) volume(%s) data error.%s", serviceID, volume.VolumeName, err.Error())
+		}
 	}
 }
