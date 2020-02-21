@@ -814,7 +814,7 @@ type EnterpriseTenantListStruct struct {
 	// in: body
 	// required: true
 	Body struct {
-		// 需要获取状态的服务ID列表,若不指定，返回租户所有应用的状态
+		// 需要获取状态的租户ID列表,若不指定，返回空列表
 		// in: body
 		// required: true
 		TenantIDs []string `json:"tenant_ids" validate:"tenant_ids|required"`
