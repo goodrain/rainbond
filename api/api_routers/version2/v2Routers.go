@@ -59,7 +59,13 @@ func (v2 *V2) Routes() chi.Router {
 	r.Post("/volume-options", controller.VolumeSetVar)
 	r.Delete("/volume-options/{volume_type}", controller.DeleteVolumeType)
 	r.Put("/volume-options/{volume_type}", controller.UpdateVolumeType)
-	r.Post("/enterprise/running-services", controller.GetRunningServices)
+	r.Mount("/enterprise/{enterprise_id}", v2.enterpriseRouter())
+	return r
+}
+
+func (v2 *V2) enterpriseRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/running-services", controller.GetRunningServices)
 	return r
 }
 

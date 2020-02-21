@@ -1661,11 +1661,20 @@ func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) 
 }
 
 // GetMultiTenantsRunningServices get running services
-func (s *ServiceAction) GetMultiTenantsRunningServices(tenants []string) []string {
-	if len(tenants) == 0 {
+func (s *ServiceAction) GetEnterpriseRunningServices(enterpriseID string) []string {
+	var tenantIDs []string
+	tenants, err := db.GetManager().EnterpriseDao().GetEnterpriseTenants(enterpriseID)
+	if err != nil {
+		logrus.Errorf("list tenant failed: %s", err.Error())
 		return []string{}
 	}
-	services, err := db.GetManager().TenantServiceDao().GetServicesByTenantIDs(tenants)
+	for _, tenant := range tenants {
+		tenantIDs = append(tenantIDs, tenant.UUID)
+	}
+	if len(tenantIDs) == 0 {
+		return []string{}
+	}
+	services, err := db.GetManager().TenantServiceDao().GetServicesByTenantIDs(tenantIDs)
 	if err != nil {
 		logrus.Errorf("list tenants servicee failed: %s", err.Error())
 		return []string{}

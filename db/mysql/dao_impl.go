@@ -39,6 +39,13 @@ func (m *Manager) LicenseDao() dao.LicenseDao {
 	}
 }
 
+// EnterpriseDao enterprise dao
+func (m *Manager) EnterpriseDao() dao.EnterpriseDao {
+	return &mysqldao.EnterpriseDaoImpl{
+		DB: m.db,
+	}
+}
+
 //TenantDao 租户数据
 func (m *Manager) TenantDao() dao.TenantDao {
 	return &mysqldao.TenantDaoImpl{
