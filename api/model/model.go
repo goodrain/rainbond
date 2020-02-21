@@ -809,6 +809,18 @@ type StatusServiceListStruct struct {
 	}
 }
 
+//EnterpriseTenantListStruct enterprise tenants list
+type EnterpriseTenantListStruct struct {
+	// in: body
+	// required: true
+	Body struct {
+		// 需要获取状态的服务ID列表,若不指定，返回租户所有应用的状态
+		// in: body
+		// required: true
+		TenantIDs []string `json:"tenant_ids" validate:"tenant_ids|required"`
+	}
+}
+
 //AddServiceLabelStruct AddServiceLabelStruct
 //swagger:parameters addServiceLabel updateServiceLabel
 type AddServiceLabelStruct struct {

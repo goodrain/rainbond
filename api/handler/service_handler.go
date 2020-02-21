@@ -59,6 +59,7 @@ type ServiceHandler interface {
 	RollBack(rs *api_model.RollbackStruct) error
 	GetStatus(serviceID string) (*api_model.StatusList, error)
 	GetServicesStatus(tenantID string, services []string) map[string]string
+	GetMultiTenantsRunningServices(servicIDs []string) []string
 	CreateTenant(*dbmodel.Tenants) error
 	CreateTenandIDAndName(eid string) (string, string, error)
 	GetPods(serviceID string) (*K8sPodInfos, error)
