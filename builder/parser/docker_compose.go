@@ -44,17 +44,17 @@ type DockerComposeParse struct {
 
 //ServiceInfoFromDC service info from dockercompose
 type ServiceInfoFromDC struct {
-	ports      map[int]*types.Port
-	volumes    map[string]*types.Volume
-	envs       map[string]*types.Env
-	source     string
-	memory     int
-	image      Image
-	args       []string
-	depends    []string
-	imageAlias string
-	deployType string
-	name       string
+	ports       map[int]*types.Port
+	volumes     map[string]*types.Volume
+	envs        map[string]*types.Env
+	source      string
+	memory      int
+	image       Image
+	args        []string
+	depends     []string
+	imageAlias  string
+	serviceType string
+	name        string
 }
 
 //GetPorts 获取端口列表
@@ -163,7 +163,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 		if sc.DependsON != nil {
 			service.depends = sc.DependsON
 		}
-		service.deployType = DetermineDeployType(service.image)
+		service.serviceType = DetermineDeployType(service.image)
 		d.services[kev] = &service
 	}
 	for serviceName, service := range d.services {
@@ -212,16 +212,16 @@ func (d *DockerComposeParse) GetServiceInfo() []ServiceInfo {
 	var sis []ServiceInfo
 	for _, service := range d.services {
 		si := ServiceInfo{
-			Ports:             service.GetPorts(),
-			Envs:              service.GetEnvs(),
-			Volumes:           service.GetVolumes(),
-			Image:             service.image,
-			Args:              service.args,
-			DependServices:    service.depends,
-			ImageAlias:        service.imageAlias,
-			ServiceDeployType: service.deployType,
-			Name:              service.name,
-			Cname:             service.name,
+			Ports:          service.GetPorts(),
+			Envs:           service.GetEnvs(),
+			Volumes:        service.GetVolumes(),
+			Image:          service.image,
+			Args:           service.args,
+			DependServices: service.depends,
+			ImageAlias:     service.imageAlias,
+			ServiceType:    service.serviceType,
+			Name:           service.name,
+			Cname:          service.name,
 		}
 		if service.memory != 0 {
 			si.Memory = service.memory

@@ -99,6 +99,7 @@ type TenantServiceDao interface {
 	UpdateDeployVersion(serviceID, deployversion string) error
 	ListThirdPartyServices() ([]*model.TenantServices, error)
 	ListServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
+	GetServiceTypeById(serviceID string) (*model.TenantServices, error)
 }
 
 //TenantServiceDeleteDao TenantServiceDeleteDao

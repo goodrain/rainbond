@@ -477,15 +477,15 @@ func (d *SourceCodeParse) GetLang() code.Lang {
 //GetServiceInfo 获取service info
 func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 	serviceInfo := ServiceInfo{
-		Ports:             d.GetPorts(),
-		Envs:              d.GetEnvs(),
-		Volumes:           d.GetVolumes(),
-		Image:             d.GetImage(),
-		Args:              d.GetArgs(),
-		Branchs:           d.GetBranchs(),
-		Memory:            d.memory,
-		Lang:              d.GetLang(),
-		ServiceDeployType: util.StatelessServiceType,
+		Ports:       d.GetPorts(),
+		Envs:        d.GetEnvs(),
+		Volumes:     d.GetVolumes(),
+		Image:       d.GetImage(),
+		Args:        d.GetArgs(),
+		Branchs:     d.GetBranchs(),
+		Memory:      d.memory,
+		Lang:        d.GetLang(),
+		ServiceType: model.ServiceTypeStatelessMultiple.String(),
 	}
 	var res []ServiceInfo
 	if d.isMulti && d.services != nil && len(d.services) > 0 {

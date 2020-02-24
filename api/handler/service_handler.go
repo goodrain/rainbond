@@ -33,7 +33,6 @@ type ServiceHandler interface {
 	AddLabel(l *api_model.LabelsStruct, serviceID string) error
 	DeleteLabel(l *api_model.LabelsStruct, serviceID string) error
 	UpdateLabel(l *api_model.LabelsStruct, serviceID string) error
-	UpdateServiceLabel(serviceID, value string) error
 	StartStopService(s *api_model.StartStopStruct) error
 	ServiceVertical(v *model.VerticalScalingTaskBody) error
 	ServiceHorizontal(h *model.HorizontalScalingTaskBody) error

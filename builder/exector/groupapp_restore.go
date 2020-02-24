@@ -213,8 +213,9 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 				os.MkdirAll(volume.HostPath, 0777)
 				continue
 			}
+
 			//if app type is statefulset, change pod hostpath
-			if GetServiceType(app.ServiceLabel) == util.StatefulServiceType {
+			if app.Service.IsState() { // TODO fanyangyang 备份时需要备份组件的类型
 				//Next two level directory
 				list, err := util.GetDirList(tmpDir, 2)
 				if err != nil {
