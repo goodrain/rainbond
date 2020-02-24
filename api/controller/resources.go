@@ -647,10 +647,8 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(ss.EtcdKeys) > 0 {
-		logrus.Debugf("clean service check etcd data :%+v", ss.EtcdKeys)
-		handler.GetEtcdHandler().CleanEtcd(ss.EtcdKeys)
-	}
+	// clean etcd data(source check)
+	handler.GetEtcdHandler().CleanServiceCheckData(ss.EtcdKey)
 
 	values := url.Values{}
 	if ss.Endpoints != nil && strings.TrimSpace(ss.Endpoints.Static) != "" {
@@ -985,7 +983,7 @@ func (t *TenantStruct) DeleteSingleServiceInfo(w http.ResponseWriter, r *http.Re
 	var req api_model.EtcdCleanReq
 	if httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
 		logrus.Debugf("delete service etcd keys : %+v", req.Keys)
-		handler.GetEtcdHandler().CleanEtcd(req.Keys)
+		handler.GetEtcdHandler().CleanAllServiceData(req.Keys)
 	}
 
 	if err := handler.GetServiceManager().TransServieToDelete(tenantID, serviceID); err != nil {

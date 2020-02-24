@@ -1819,6 +1819,11 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 
 //TransServieToDelete trans service info to delete table
 func (s *ServiceAction) TransServieToDelete(tenantID, serviceID string) error {
+	_, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if err != nil && gorm.ErrRecordNotFound == err {
+		logrus.Infof("service[%s] of tenant[%s] do not exist, ignore it", serviceID, tenantID)
+		return nil
+	}
 	if err := s.isServiceClosed(serviceID); err != nil {
 		return err
 	}
