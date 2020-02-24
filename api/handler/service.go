@@ -28,30 +28,31 @@ import (
 	"strings"
 	"time"
 
-	typesv1 "github.com/goodrain/rainbond/worker/appm/types/v1"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
-	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/jinzhu/gorm"
+	"github.com/pquerna/ffjson/ffjson"
+	"github.com/twinj/uuid"
+
 	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
-	dberrors "github.com/goodrain/rainbond/db/errors"
-	core_model "github.com/goodrain/rainbond/db/model"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
-	eventutil "github.com/goodrain/rainbond/eventlog/util"
-	gclient "github.com/goodrain/rainbond/mq/client"
-	core_util "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/goodrain/rainbond/worker/server"
 	"github.com/goodrain/rainbond/worker/server/pb"
-	"github.com/jinzhu/gorm"
-	"github.com/pquerna/ffjson/ffjson"
-	"github.com/twinj/uuid"
+
+	api_model "github.com/goodrain/rainbond/api/model"
+	dberrors "github.com/goodrain/rainbond/db/errors"
+	core_model "github.com/goodrain/rainbond/db/model"
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	eventutil "github.com/goodrain/rainbond/eventlog/util"
+	gclient "github.com/goodrain/rainbond/mq/client"
+	core_util "github.com/goodrain/rainbond/util"
+	typesv1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 // ErrServiceNotClosed -
@@ -1856,6 +1857,11 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 
 //TransServieToDelete trans service info to delete table
 func (s *ServiceAction) TransServieToDelete(tenantID, serviceID string) error {
+	_, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if err != nil && gorm.ErrRecordNotFound == err {
+		logrus.Infof("service[%s] of tenant[%s] do not exist, ignore it", serviceID, tenantID)
+		return nil
+	}
 	if err := s.isServiceClosed(serviceID); err != nil {
 		return err
 	}

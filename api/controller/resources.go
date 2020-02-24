@@ -647,6 +647,9 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// clean etcd data(source check)
+	handler.GetEtcdHandler().CleanServiceCheckData(ss.EtcdKey)
+
 	values := url.Values{}
 	if ss.Endpoints != nil && strings.TrimSpace(ss.Endpoints.Static) != "" {
 		if strings.Contains(ss.Endpoints.Static, "127.0.0.1") {
@@ -668,6 +671,7 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("create service error, %v", err))
 		return
 	}
+
 	httputil.ReturnSuccess(r, w, nil)
 }
 
@@ -978,6 +982,12 @@ func (t *TenantStruct) GetSingleServiceInfo(w http.ResponseWriter, r *http.Reque
 func (t *TenantStruct) DeleteSingleServiceInfo(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	var req api_model.EtcdCleanReq
+	if httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
+		logrus.Debugf("delete service etcd keys : %+v", req.Keys)
+		handler.GetEtcdHandler().CleanAllServiceData(req.Keys)
+	}
+
 	if err := handler.GetServiceManager().TransServieToDelete(tenantID, serviceID); err != nil {
 		if err == handler.ErrServiceNotClosed {
 			httputil.ReturnError(r, w, 400, fmt.Sprintf("Service must be closed"))

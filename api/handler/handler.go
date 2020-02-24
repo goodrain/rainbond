@@ -64,6 +64,7 @@ func InitHandle(conf option.Config, etcdClientArgs *etcdutil.ClientArgs, statusC
 	defPodHandler = NewPodHandler(statusCli)
 
 	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
+	defaultEtcdHandler = NewEtcdHandler(etcdcli)
 
 	return nil
 }
@@ -176,4 +177,10 @@ var defPodHandler PodHandler
 // GetPodHandler returns the defalut PodHandler
 func GetPodHandler() PodHandler {
 	return defPodHandler
+}
+
+var defaultEtcdHandler *EtcdHandler
+
+func GetEtcdHandler() *EtcdHandler {
+	return defaultEtcdHandler
 }
