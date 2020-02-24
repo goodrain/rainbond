@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	typesv1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"net/http"
 	"os"
 	"strconv"
@@ -1658,6 +1659,39 @@ func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) 
 		return status
 	}
 	return nil
+}
+
+// GetMultiTenantsRunningServices get running services
+func (s *ServiceAction) GetEnterpriseRunningServices(enterpriseID string) []string {
+	var tenantIDs []string
+	tenants, err := db.GetManager().EnterpriseDao().GetEnterpriseTenants(enterpriseID)
+	if err != nil {
+		logrus.Errorf("list tenant failed: %s", err.Error())
+		return []string{}
+	}
+	for _, tenant := range tenants {
+		tenantIDs = append(tenantIDs, tenant.UUID)
+	}
+	if len(tenantIDs) == 0 {
+		return []string{}
+	}
+	services, err := db.GetManager().TenantServiceDao().GetServicesByTenantIDs(tenantIDs)
+	if err != nil {
+		logrus.Errorf("list tenants servicee failed: %s", err.Error())
+		return []string{}
+	}
+	var serviceIDs []string
+	for _, svc := range services {
+		serviceIDs = append(serviceIDs, svc.ServiceID)
+	}
+	statusList := s.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
+	retServices := make([]string, 0, 10)
+	for service, status := range statusList {
+		if status == typesv1.RUNNING {
+			retServices = append(retServices, service)
+		}
+	}
+	return retServices
 }
 
 //CreateTenant create tenant

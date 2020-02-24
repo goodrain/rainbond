@@ -41,6 +41,11 @@ type DelDao interface {
 	DeleteModel(serviceID string, arg ...interface{}) error
 }
 
+// EnterpriseDao enterprise dao
+type EnterpriseDao interface {
+	GetEnterpriseTenants(enterpriseID string) ([]*model.Tenants, error)
+}
+
 //TenantDao tenant dao
 type TenantDao interface {
 	Dao
