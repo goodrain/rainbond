@@ -20,6 +20,7 @@ package parser
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -222,6 +223,7 @@ func (d *DockerComposeParse) GetServiceInfo() []ServiceInfo {
 			ServiceType:    service.serviceType,
 			Name:           service.name,
 			Cname:          service.name,
+			OS:             runtime.GOOS,
 		}
 		if service.memory != 0 {
 			si.Memory = service.memory

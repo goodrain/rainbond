@@ -327,7 +327,12 @@ type ServiceStruct struct {
 	// required: false
 	ServiceOrigin string `json:"service_origin" validate:"service_origin"`
 	Kind          string `json:"kind" validate:"kind|in:internal,third_party"`
-	// V5.2 弃用
+
+	//OSType runtime os type
+	// in: body
+	// required: false
+	OSType string `json:"os_type" validate:"os_type|in:windows,linux"`
+
 	ServiceLabel   string                               `json:"service_label"  validate:"service_label|in:StatelessServiceType,StatefulServiceType"`
 	NodeLabel      string                               `json:"node_label"  validate:"node_label"`
 	Operator       string                               `json:"operator"  validate:"operator"`

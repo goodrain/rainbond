@@ -415,6 +415,7 @@ func (t *thirdparty) createSubsetForAllEndpoint(as *v1.AppService, rbdep *v1.Rbd
 func (t *thirdparty) runUpdate(event discovery.Event) {
 
 	updateAddress := func(as *v1.AppService, rbdep *v1.RbdEndpoint, ready bool) {
+		ad := validation.SplitEndpointAddress(rbdep.IP)
 		for _, ep := range as.GetEndpoints(true) {
 			var needUpdate bool
 			for idx, subset := range ep.Subsets {
@@ -424,8 +425,8 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 						address = subset.NotReadyAddresses
 					}
 					for i, addr := range address {
-						if fmt.Sprintf("%s_%d", addr.IP, port.Port) == fmt.Sprintf("%s_%d", rbdep.IP, rbdep.Port) {
-							ad := validation.SplitEndpointAddress(rbdep.IP)
+						ipequal := fmt.Sprintf("%s_%d", addr.IP, port.Port) == fmt.Sprintf("%s_%d", rbdep.IP, rbdep.Port)
+						if (addr.IP == "1.1.1.1" && validation.IsDomainNotIP(ad)) || ipequal {
 							if validation.IsDomainNotIP(ad) {
 								rbdep.IP = "1.1.1.1"
 							}
@@ -434,6 +435,7 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 							break
 						}
 					}
+					logrus.Debugf("not found need update address by %s", fmt.Sprintf("%s_%d", rbdep.IP, rbdep.Port))
 				}
 			}
 			if needUpdate {
@@ -445,6 +447,8 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 	}
 	// do not  have multiple ports, multiple addresses
 	removeAddress := func(as *v1.AppService, rbdep *v1.RbdEndpoint) {
+
+		ad := validation.SplitEndpointAddress(rbdep.IP)
 		for _, ep := range as.GetEndpoints(true) {
 			var needUpdate bool
 			var newSubsets []corev1.EndpointSubset
@@ -453,13 +457,13 @@ func (t *thirdparty) runUpdate(event discovery.Event) {
 				for i, port := range subset.Ports {
 					address := append(subset.Addresses, subset.NotReadyAddresses...)
 					for j, addr := range address {
-						if fmt.Sprintf("%s_%d", addr.IP, port.Port) == fmt.Sprintf("%s_%d", rbdep.IP, rbdep.Port) {
+						ipequal := fmt.Sprintf("%s_%d", addr.IP, port.Port) == fmt.Sprintf("%s_%d", rbdep.IP, rbdep.Port)
+						if (addr.IP == "1.1.1.1" && validation.IsDomainNotIP(ad)) || ipequal {
 							//multiple port remove port, Instead remove the address
 							if len(subset.Ports) > 1 {
 								subset.Ports = append(subset.Ports[:i], subset.Ports[:i]...)
 								newSubsets = append(newSubsets, subset)
 							} else {
-								ad := validation.SplitEndpointAddress(rbdep.IP)
 								if validation.IsDomainNotIP(ad) {
 									rbdep.IP = "1.1.1.1"
 								}

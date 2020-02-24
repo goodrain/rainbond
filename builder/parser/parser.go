@@ -179,7 +179,8 @@ type ServiceInfo struct {
 	ImageAlias     string         `json:"image_alias,omitempty"`
 	//For third party services
 	Endpoints []*discovery.Endpoint `json:"endpoints,omitempty"`
-
+	//os type,default linux
+	OS        string `json:"os"`
 	Name      string `json:"name,omitempty"`  // module name
 	Cname     string `json:"cname,omitempty"` // service cname
 	Packaging string `json:"packaging,omitempty"`
