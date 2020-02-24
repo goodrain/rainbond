@@ -663,6 +663,7 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	ss.TenantID = tenantID
+	ss.ServiceType = ss.ExtendMethod
 	if err := handler.GetServiceManager().ServiceCreate(&ss); err != nil {
 		if strings.Contains(err.Error(), "is exist in tenant") {
 			httputil.ReturnError(r, w, 400, fmt.Sprintf("create service error, %v", err))
@@ -696,7 +697,7 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-
+	// TODO fanyangyang 支持组件类型的修改
 	logrus.Debugf("trans update service service")
 	//目前提供三个元素的修改
 	rules := validator.MapData{
@@ -704,6 +705,7 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 		"image_name":       []string{},
 		"container_memory": []string{},
 		"service_name":     []string{},
+		"extend_method":    []string{},
 	}
 	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
 	if !ok {

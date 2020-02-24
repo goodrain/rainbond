@@ -23,41 +23,59 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
-	"os/exec"
+	"strings"
 	"sync"
 	"text/template"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/kr/pty"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	httputil "github.com/goodrain/rainbond/util/http"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/gorilla/websocket"
-	"github.com/kr/pty"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/yudai/umutex"
+	api "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	restclient "k8s.io/client-go/rest"
 )
 
+//ExecuteCommandTotal metric
 var ExecuteCommandTotal float64 = 0
+
+//ExecuteCommandFailed metric
 var ExecuteCommandFailed float64 = 0
 
+//App -
 type App struct {
-	command []string
 	options *Options
 
 	upgrader *websocket.Upgrader
 
 	titleTemplate *template.Template
 
-	onceMutex *umutex.UnblockingMutex
+	onceMutex  *umutex.UnblockingMutex
+	restClient *restclient.RESTClient
+	coreClient *kubernetes.Clientset
+	config     *restclient.Config
 }
 
+//Options options
 type Options struct {
-	Address         string                 `hcl:"address"`
-	Port            string                 `hcl:"port"`
-	PermitWrite     bool                   `hcl:"permit_write"`
-	IndexFile       string                 `hcl:"index_file"`
+	Address     string `hcl:"address"`
+	Port        string `hcl:"port"`
+	PermitWrite bool   `hcl:"permit_write"`
+	IndexFile   string `hcl:"index_file"`
+	//titile format by golang templete
 	TitleFormat     string                 `hcl:"title_format"`
 	EnableReconnect bool                   `hcl:"enable_reconnect"`
 	ReconnectTime   int                    `hcl:"reconnect_time"`
@@ -66,10 +84,13 @@ type Options struct {
 	Preferences     HtermPrefernces        `hcl:"preferences"`
 	RawPreferences  map[string]interface{} `hcl:"preferences"`
 	SessionKey      string                 `hcl:"session_key"`
+	K8SConfPath     string
 }
 
+//Version -
 var Version = "0.0.2"
 
+//DefaultOptions -
 var DefaultOptions = Options{
 	Address:         "",
 	Port:            "8080",
@@ -83,6 +104,7 @@ var DefaultOptions = Options{
 	SessionKey:      "_auth_user_id",
 }
 
+//InitMessage -
 type InitMessage struct {
 	TenantID  string `json:"T_id"`
 	ServiceID string `json:"S_id"`
@@ -94,10 +116,10 @@ func checkSameOrigin(r *http.Request) bool {
 	return true
 }
 
-func New(command []string, options *Options) (*App, error) {
+//New -
+func New(options *Options) (*App, error) {
 	titleTemplate, _ := template.New("title").Parse(options.TitleFormat)
-	return &App{
-		command: command,
+	app := &App{
 		options: options,
 		upgrader: &websocket.Upgrader{
 			ReadBufferSize:  1024,
@@ -106,11 +128,17 @@ func New(command []string, options *Options) (*App, error) {
 		},
 		titleTemplate: titleTemplate,
 		onceMutex:     umutex.New(),
-	}, nil
+	}
+	//create kube client and config
+	if err := app.createKubeClient(); err != nil {
+		return nil, err
+	}
+	return app, nil
 }
 
 //Run Run
 func (app *App) Run() error {
+
 	endpoint := net.JoinHostPort(app.options.Address, app.options.Port)
 
 	wsHandler := http.HandlerFunc(app.handleWS)
@@ -203,31 +231,132 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 		conn.Close()
 		return
 	}
-
-	cmd := exec.Command("kubectl", "--namespace", init.TenantID, "exec", "-ti", init.PodName, "/bin/sh")
-	ExecuteCommandTotal++
-	ptyIo, err := pty.Start(cmd)
+	pty, tty, err := pty.Open()
 	if err != nil {
-		logrus.Printf("Failed to execute command:%s", err.Error())
+		logrus.Errorf("open pty failure %s", err.Error())
+		conn.WriteMessage(websocket.TextMessage, []byte("open tty failure!"))
 		ExecuteCommandFailed++
 		return
 	}
-	logrus.Printf("Command is running for client %s with PID %d ", r.RemoteAddr, cmd.Process.Pid)
-
-	context := &clientContext{
+	containerName, args, err := app.GetDefaultContainerName(init.TenantID, init.PodName)
+	if err != nil {
+		logrus.Errorf("get default container failure %s", err.Error())
+		conn.WriteMessage(websocket.TextMessage, []byte("Get default container name failure!"))
+		ExecuteCommandFailed++
+		return
+	}
+	request := app.NewRequest(init.PodName, init.TenantID, containerName, args)
+	context := &ClientContext{
 		app:        app,
 		request:    r,
 		connection: conn,
-		command:    cmd,
-		pty:        ptyIo,
+		pty:        pty,
 		writeMutex: &sync.Mutex{},
 	}
-
-	context.goHandleClient()
+	out := CreateOut(tty)
+	t := out.SetTTY()
+	exec := NewExecContextByStd(context, out.Stdin, out.Stdout, out.Stderr, request, app.config)
+	context.exec = exec
+	stop := make(chan struct{})
+	closed := func() {
+		tty.Close()
+	}
+	go func() {
+		fn := func() error {
+			if err := exec.Run(); err != nil {
+				logrus.Errorf("exec run failure %s", err.Error())
+				conn.WriteMessage(websocket.TextMessage, []byte("Exec run failure!"))
+				ExecuteCommandFailed++
+				return err
+			}
+			close(stop)
+			logrus.Debugf("%s/%s exec run complete", init.TenantID, init.PodName)
+			return nil
+		}
+		if err := t.Safe(fn); err != nil {
+			logrus.Errorf("tty run failure %s", err.Error())
+		}
+	}()
+	context.goHandleClient(stop, closed)
 }
 
+//Exit -
 func (app *App) Exit() (firstCall bool) {
 	return true
+}
+
+func (app *App) createKubeClient() error {
+	config, err := k8sutil.NewRestConfig(app.options.K8SConfPath)
+	if err != nil {
+		return err
+	}
+	config.UserAgent = "rainbond/webcli"
+	coreAPI, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+	SetConfigDefaults(config)
+	app.config = config
+	restClient, err := restclient.RESTClientFor(config)
+	if err != nil {
+		return err
+	}
+	app.restClient = restClient
+	app.coreClient = coreAPI
+	return nil
+}
+
+//SetConfigDefaults -
+func SetConfigDefaults(config *rest.Config) error {
+	if config.APIPath == "" {
+		config.APIPath = "/api"
+	}
+	config.GroupVersion = &schema.GroupVersion{Group: "", Version: "v1"}
+	config.NegotiatedSerializer = serializer.NewCodecFactory(runtime.NewScheme())
+	if config.UserAgent == "" {
+		config.UserAgent = rest.DefaultKubernetesUserAgent()
+	}
+	return nil
+}
+
+//GetDefaultContainerName get default container name
+func (app *App) GetDefaultContainerName(namespace, podname string) (string, []string, error) {
+	var args = []string{"/bin/sh"}
+	pod, err := app.coreClient.CoreV1().Pods(namespace).Get(podname, metav1.GetOptions{})
+	if err != nil {
+		return "", args, err
+	}
+
+	if pod.Status.Phase == api.PodSucceeded || pod.Status.Phase == api.PodFailed {
+		return "", args, fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
+	}
+	if len(pod.Spec.Containers) > 0 {
+		for _, env := range pod.Spec.Containers[0].Env {
+			if env.Name == "ES_DEFAULT_EXEC_ARGS" {
+				args = strings.Split(env.Value, " ")
+			}
+		}
+		return pod.Spec.Containers[0].Name, args, nil
+	}
+	return "", args, fmt.Errorf("not have container in pod %s/%s", namespace, podname)
+}
+
+//NewRequest new exec request
+func (app *App) NewRequest(podName, namespace, containerName string, command []string) *restclient.Request {
+	// TODO: consider abstracting into a client invocation or client helper
+	req := app.restClient.Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		Param("container", containerName).
+		Param("stdin", "true").
+		Param("stdout", "true").
+		Param("tty", "true")
+	for _, c := range command {
+		req.Param("command", c)
+	}
+	return req
 }
 
 func wrapLogger(handler http.Handler) http.Handler {

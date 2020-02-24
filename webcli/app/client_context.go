@@ -22,26 +22,30 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/fatih/structs"
 	"github.com/gorilla/websocket"
+	"k8s.io/client-go/tools/remotecommand"
 )
 
-type clientContext struct {
+//ClientContext websocket context
+type ClientContext struct {
 	app        *App
 	request    *http.Request
 	connection *websocket.Conn
 	command    *exec.Cmd
 	pty        *os.File
 	writeMutex *sync.Mutex
+	exec       Exec
 }
 
 const (
@@ -70,7 +74,7 @@ type ContextVars struct {
 	RemoteAddr string
 }
 
-func (context *clientContext) goHandleClient() {
+func (context *ClientContext) goHandleClient(stop chan struct{}, close func()) {
 	exit := make(chan bool, 2)
 
 	go func() {
@@ -86,23 +90,26 @@ func (context *clientContext) goHandleClient() {
 	}()
 
 	go func() {
-
-		<-exit
+		select {
+		case <-stop:
+		case <-exit:
+		}
 		context.pty.Close()
-
+		var once sync.Once
 		// Even if the PTY has been closed,
-		// Read(0 in processSend() keeps blocking and the process doen't exit
-		context.command.Process.Signal(syscall.Signal(context.app.options.CloseSignal))
+		for context.exec.WaitingStop() {
+			once.Do(close)
+			time.Sleep(time.Millisecond * 200)
+		}
 
-		context.command.Wait()
 		context.connection.Close()
-		log.Printf("Connection closed: %s", context.request.RemoteAddr)
+		logrus.Info("Connection closed: %s", context.request.RemoteAddr)
 	}()
 }
 
-func (context *clientContext) processSend() {
+func (context *ClientContext) processSend() {
 	if err := context.sendInitialize(); err != nil {
-		log.Printf(err.Error())
+		logrus.Errorf(err.Error())
 		return
 	}
 
@@ -111,28 +118,28 @@ func (context *clientContext) processSend() {
 	for {
 		size, err := context.pty.Read(buf)
 		if err != nil {
-			log.Printf("Command exited for: %s", context.request.RemoteAddr)
+			logrus.Errorf("Command exited for: %s", context.request.RemoteAddr)
 			return
 		}
 		safeMessage := base64.StdEncoding.EncodeToString([]byte(buf[:size]))
 		if err = context.write(append([]byte{Output}, []byte(safeMessage)...)); err != nil {
-			log.Printf(err.Error())
+			logrus.Errorf(err.Error())
 			return
 		}
 	}
 }
 
-func (context *clientContext) write(data []byte) error {
+func (context *ClientContext) write(data []byte) error {
 	context.writeMutex.Lock()
 	defer context.writeMutex.Unlock()
 	return context.connection.WriteMessage(websocket.TextMessage, data)
 }
 
-func (context *clientContext) sendInitialize() error {
+func (context *ClientContext) sendInitialize() error {
 	hostname, _ := os.Hostname()
 	titleVars := ContextVars{
-		Command:    strings.Join(context.app.command, " "),
-		Pid:        context.command.Process.Pid,
+		Command:    "", //strings.Join(context.app.command, " "),
+		Pid:        0,  //context.command.Process.Pid,
 		Hostname:   hostname,
 		RemoteAddr: context.request.RemoteAddr,
 	}
@@ -171,15 +178,15 @@ func (context *clientContext) sendInitialize() error {
 	return nil
 }
 
-func (context *clientContext) processReceive() {
+func (context *ClientContext) processReceive() {
 	for {
 		_, data, err := context.connection.ReadMessage()
 		if err != nil {
-			log.Print(err.Error())
+			logrus.Errorf(err.Error())
 			return
 		}
 		if len(data) == 0 {
-			log.Print("An error has occurred")
+			logrus.Errorf("An error has occurred")
 			return
 		}
 
@@ -188,7 +195,6 @@ func (context *clientContext) processReceive() {
 			if !context.app.options.PermitWrite {
 				break
 			}
-
 			_, err := context.pty.Write(data[1:])
 			if err != nil {
 				return
@@ -196,14 +202,14 @@ func (context *clientContext) processReceive() {
 
 		case Ping:
 			if err := context.write([]byte{Pong}); err != nil {
-				log.Print(err.Error())
+				logrus.Errorf(err.Error())
 				return
 			}
 		case ResizeTerminal:
 			var args argResizeTerminal
 			err = json.Unmarshal(data[1:], &args)
 			if err != nil {
-				log.Print("Malformed remote command")
+				logrus.Errorf("Malformed remote command")
 				return
 			}
 
@@ -226,8 +232,16 @@ func (context *clientContext) processReceive() {
 			)
 
 		default:
-			log.Print("Unknown message type")
+			logrus.Errorf("Unknown message type")
 			return
 		}
+	}
+}
+
+//Next next
+func (context *ClientContext) Next() *remotecommand.TerminalSize {
+	return &remotecommand.TerminalSize{
+		Width:  1200,
+		Height: 600,
 	}
 }

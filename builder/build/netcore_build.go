@@ -81,7 +81,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 		return nil, fmt.Errorf("write default build dockerfile error:%s", err.Error())
 	}
 	d.sourceDir = re.SourceDir
-	d.imageName = CreateImageName(re.RepositoryURL, re.ServiceAlias, re.DeployVersion)
+	d.imageName = CreateImageName(re.ServiceID, re.DeployVersion)
 	d.buildImageName = d.imageName + "_build"
 	//build code
 	buildOptions := types.ImageBuildOptions{

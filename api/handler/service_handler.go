@@ -33,7 +33,6 @@ type ServiceHandler interface {
 	AddLabel(l *api_model.LabelsStruct, serviceID string) error
 	DeleteLabel(l *api_model.LabelsStruct, serviceID string) error
 	UpdateLabel(l *api_model.LabelsStruct, serviceID string) error
-	UpdateServiceLabel(serviceID, value string) error
 	StartStopService(s *api_model.StartStopStruct) error
 	ServiceVertical(v *model.VerticalScalingTaskBody) error
 	ServiceHorizontal(h *model.HorizontalScalingTaskBody) error
@@ -59,6 +58,7 @@ type ServiceHandler interface {
 	RollBack(rs *api_model.RollbackStruct) error
 	GetStatus(serviceID string) (*api_model.StatusList, error)
 	GetServicesStatus(tenantID string, services []string) map[string]string
+	GetEnterpriseRunningServices(enterpriseID string) []string
 	CreateTenant(*dbmodel.Tenants) error
 	CreateTenandIDAndName(eid string) (string, string, error)
 	GetPods(serviceID string) (*K8sPodInfos, error)

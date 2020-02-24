@@ -22,11 +22,18 @@ package initiate
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"os"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
+	discover "github.com/goodrain/rainbond/discover.v2"
+	"github.com/goodrain/rainbond/discover/config"
+
+	"github.com/goodrain/rainbond/cmd/node/option"
 )
 
 const (
@@ -36,46 +43,78 @@ const (
 	eol                   = "\n"
 )
 
+var (
+	// ErrRegistryAddressNotFound record not found error, happens when haven't find any matched registry address.
+	ErrRegistryAddressNotFound = errors.New("registry address not found")
+)
+
 // HostManager is responsible for writing the resolution of the private image repository domain name to /etc/hosts.
-type HostManager struct {
-	// private image repository domain name
-	Domain string
-	// private image repository IP address
-	IP string
+type HostManager interface {
+	Start()
 }
 
 // NewHostManager creates a new HostManager.
-func NewHostManager(ip, domain string) *HostManager {
-	return &HostManager{
-		Domain: domain,
-		IP:     ip,
+func NewHostManager(cfg *option.Conf, discover discover.Discover) (HostManager, error) {
+	hosts, err := NewHosts(cfg.HostsFile)
+	if err != nil {
+		return nil, err
+	}
+	callback := &hostCallback{
+		cfg:   cfg,
+		hosts: hosts,
+	}
+	return &hostManager{
+		cfg:          cfg,
+		discover:     discover,
+		hostCallback: callback,
+	}, nil
+}
+
+type hostManager struct {
+	ctx          context.Context
+	cfg          *option.Conf
+	discover     discover.Discover
+	hostCallback *hostCallback
+}
+
+func (h *hostManager) Start() {
+	if h.cfg.ImageRepositoryHost == "" {
+		// no need to write hosts file
+		return
+	}
+	h.discover.AddProject("rbd-gateway", h.hostCallback)
+}
+
+type hostCallback struct {
+	cfg   *option.Conf
+	hosts Hosts
+}
+
+func (h *hostCallback) UpdateEndpoints(endpoints ...*config.Endpoint) {
+	logrus.Info("hostCallback; update endpoints")
+	if err := h.hosts.Cleanup(); err != nil {
+		logrus.Warningf("cleanup hosts file: %v", err)
+		return
+	}
+
+	if len(endpoints) > 0 {
+		logrus.Infof("found endpints: %d; endpoint selected: %#v", len(endpoints), *endpoints[0])
+		lines := []string{
+			startOfSection,
+			endpoints[0].URL + " " + h.cfg.ImageRepositoryHost,
+			endpoints[0].URL + " " + "region.goodrain.me",
+			endOfSection,
+		}
+		h.hosts.AddLines(lines...)
+	}
+
+	if err := h.hosts.Flush(); err != nil {
+		logrus.Warningf("flush hosts file: %v", err)
 	}
 }
 
-// CleanupAndFlush cleanup old content and write new ones.
-func (h *HostManager) CleanupAndFlush() error {
-	if h.IP == "" {
-		return nil
-	}
-
-	hosts, err := NewHosts()
-	if err != nil {
-		return fmt.Errorf("error creating hosts: %v", err)
-	}
-
-	if err := hosts.Cleanup(); err != nil {
-		return fmt.Errorf("error cleanup hosts: %v", err)
-	}
-
-	lines := []string{
-		"\n",
-		startOfSection,
-		h.IP + " " + h.Domain,
-		endOfSection,
-	}
-	hosts.AddLines(lines...)
-
-	return hosts.Flush()
+func (h *hostCallback) Error(err error) {
+	logrus.Warningf("unexpected error from host callback: %v", err)
 }
 
 // HostsLine represents a single line in the hosts file.
@@ -97,7 +136,7 @@ func NewHostsLine(raw string) HostsLine {
 	if !output.IsComment() {
 		rawIP := fields[0]
 		if net.ParseIP(rawIP) == nil {
-			output.Err = errors.New(fmt.Sprintf("Bad hosts line: %q", raw))
+			output.Err = fmt.Errorf("Bad hosts line: %q", raw)
 		}
 
 		output.IP = rawIP
@@ -121,8 +160,8 @@ type Hosts struct {
 }
 
 // NewHosts return a new instance of ``Hosts``.
-func NewHosts() (Hosts, error) {
-	hosts := Hosts{Path: "/etc/hosts"}
+func NewHosts(hostsFile string) (Hosts, error) {
+	hosts := Hosts{Path: hostsFile}
 
 	err := hosts.load()
 	if err != nil {

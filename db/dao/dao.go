@@ -41,6 +41,11 @@ type DelDao interface {
 	DeleteModel(serviceID string, arg ...interface{}) error
 }
 
+// EnterpriseDao enterprise dao
+type EnterpriseDao interface {
+	GetEnterpriseTenants(enterpriseID string) ([]*model.Tenants, error)
+}
+
 //TenantDao tenant dao
 type TenantDao interface {
 	Dao
@@ -99,6 +104,7 @@ type TenantServiceDao interface {
 	UpdateDeployVersion(serviceID, deployversion string) error
 	ListThirdPartyServices() ([]*model.TenantServices, error)
 	ListServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
+	GetServiceTypeById(serviceID string) (*model.TenantServices, error)
 }
 
 //TenantServiceDeleteDao TenantServiceDeleteDao

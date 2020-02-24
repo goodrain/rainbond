@@ -1,31 +1,115 @@
 package cmd
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
-	"os/signal"
-	"syscall"
+	"path"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/api/region"
+	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/cmd/grctl/option"
+	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/urfave/cli"
+	yaml "gopkg.in/yaml.v2"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+var pemDirPath = "/opt/rainbond/etc/ssl/region/"
+var clientPemPath = path.Join(pemDirPath, "client.pem")
+var clientKeyPemPath = path.Join(pemDirPath, "client.key.pem")
+var clientCAPemPath = path.Join(pemDirPath, "ca.pem")
 
 //NewCmdInstall -
 func NewCmdInstall() cli.Command {
 	c := cli.Command{
 		Name:   "install",
 		Hidden: true,
-		Usage:  "grctl install",
+		Flags: []cli.Flag{
+			cli.StringSliceFlag{
+				Name:   "gateway-ips",
+				Usage:  "all gateway ip of this cluster, use it to access the region api",
+				EnvVar: "GatewayIP",
+			},
+		},
+		Usage: "grctl install",
 		Action: func(c *cli.Context) error {
-			//step finally: listen Signal
-			term := make(chan os.Signal)
-			signal.Notify(term, os.Interrupt, syscall.SIGTERM)
-			select {
-			case s := <-term:
-				logrus.Infof("Received a Signal  %s, exiting gracefully...", s.String())
+			CommonWithoutRegion(c)
+			apiClientSecrit, err := clients.K8SClient.CoreV1().Secrets("rbd-system").Get("rbd-api-client-cert", metav1.GetOptions{})
+			if err != nil {
+				showError(fmt.Sprintf("get region api tls secret failure %s", err.Error()))
 			}
-			logrus.Info("See you next time!")
+			regionAPIIP := c.StringSlice("gateway-ip")
+			if len(regionAPIIP) == 0 {
+				cluster, err := clients.RainbondKubeClient.RainbondV1alpha1().RainbondClusters("rbd-system").Get("rainbondcluster", metav1.GetOptions{})
+				if err != nil {
+					showError(fmt.Sprintf("get rainbond cluster config failure %s", err.Error()))
+				}
+				gatewayIP := cluster.GatewayIngressIPs()
+				if len(gatewayIP) == 0 {
+					showError("gateway ip not found")
+				}
+				regionAPIIP = gatewayIP
+			}
+			if err := writeCertFile(apiClientSecrit); err != nil {
+				showError(fmt.Sprintf("write region api cert file failure %s", err.Error()))
+			}
+			if err := writeConfig(regionAPIIP); err != nil {
+				showError(fmt.Sprintf("write grctl config file failure %s", err.Error()))
+			}
+			fmt.Println("Install success!")
 			return nil
 		},
 	}
 	return c
+}
+
+func writeCertFile(apiClientSecrit *v1.Secret) error {
+	if _, err := os.Stat(pemDirPath); err != nil {
+		os.MkdirAll(pemDirPath, os.ModeDir)
+	}
+	if err := ioutil.WriteFile(clientPemPath, apiClientSecrit.Data["client.pem"], 0411); err != nil && !os.IsExist(err) {
+		return err
+	}
+	if err := ioutil.WriteFile(clientKeyPemPath, apiClientSecrit.Data["client.key.pem"], 0411); err != nil && !os.IsExist(err) {
+		return err
+	}
+	if err := ioutil.WriteFile(clientCAPemPath, apiClientSecrit.Data["ca.pem"], 0411); err != nil && !os.IsExist(err) {
+		return err
+	}
+	return nil
+}
+
+func writeConfig(ips []string) error {
+	var endpoints []string
+	for _, ip := range ips {
+		endpoints = append(endpoints, fmt.Sprintf("https://%s:8443", ip))
+	}
+	var config = option.Config{
+		RegionAPI: region.APIConf{
+			Endpoints: endpoints,
+			Cacert:    clientCAPemPath,
+			Cert:      clientPemPath,
+			CertKey:   clientKeyPemPath,
+		},
+	}
+	home, _ := sources.Home()
+	configFilePath := path.Join(home, ".rbd", "grctl.yaml")
+	os.MkdirAll(path.Dir(configFilePath), os.ModeDir)
+	os.Remove(configFilePath)
+	configFile, err := os.OpenFile(configFilePath, os.O_CREATE|os.O_RDWR, 0411)
+	if err != nil {
+		return err
+	}
+	defer configFile.Close()
+	body, err := yaml.Marshal(&config)
+	if err != nil {
+		return err
+	}
+	_, err = configFile.Write(body)
+	if err != nil {
+		return err
+	}
+	return nil
 }

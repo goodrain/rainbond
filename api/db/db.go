@@ -174,7 +174,7 @@ func dbInit() error {
 		if err == gorm.ErrRecordNotFound {
 			data := map[string]string{
 				"/v2/show":           "server_source",
-				"/v2/opentsdb":       "server_source",
+				"/v2/cluster":        "server_source",
 				"/v2/resources":      "server_source",
 				"/v2/builder":        "server_source",
 				"/v2/tenants":        "server_source",
@@ -187,9 +187,6 @@ func dbInit() error {
 				"/v2/gateway/ports":  "server_source",
 				"/v2/nodes":          "node_manager",
 				"/v2/job":            "node_manager",
-				"/v2/tasks":          "node_manager",
-				"/v2/taskgroups":     "node_manager",
-				"/v2/tasktemps":      "node_manager",
 				"/v2/configs":        "node_manager",
 			}
 			tx := begin

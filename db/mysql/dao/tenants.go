@@ -172,6 +172,27 @@ type TenantServicesDaoImpl struct {
 	DB *gorm.DB
 }
 
+// GetServiceTypeById  get service type by service id
+func (t *TenantServicesDaoImpl) GetServiceTypeById(serviceID string) (*model.TenantServices, error) {
+	var service model.TenantServices
+	if err := t.DB.Select("tenant_id, service_id, service_alias, service_type").Where("service_id=?", serviceID).Find(&service).Error; err != nil {
+		return nil, err
+	}
+	if service.ServiceType == "" {
+		// for before V5.2 version
+		logrus.Infof("get low version service[%s] type", serviceID)
+		rows, err := t.DB.Raw("select label_value from tenant_services_label where service_id=? and label_key=?", serviceID, "service-type").Rows()
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			rows.Scan(&service.ServiceType)
+		}
+	}
+	return &service, nil
+}
+
 //GetAllServicesID get all service sample info
 func (t *TenantServicesDaoImpl) GetAllServicesID() ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
@@ -1322,22 +1343,12 @@ type ServiceLabelDaoImpl struct {
 func (t *ServiceLabelDaoImpl) AddModel(mo model.Interface) error {
 	label := mo.(*model.TenantServiceLable)
 	var oldLabel model.TenantServiceLable
-	if label.LabelKey == model.LabelKeyServiceType { //LabelKeyServiceType 只能有一条
-		if ok := t.DB.Where("service_id = ? and label_key=?", label.ServiceID, label.LabelKey).Find(&oldLabel).RecordNotFound(); ok {
-			if err := t.DB.Create(label).Error; err != nil {
-				return err
-			}
-		} else {
-			return fmt.Errorf("label key %s of service %s is exist", label.LabelKey, label.ServiceID)
+	if ok := t.DB.Where("service_id = ? and label_key=? and label_value=?", label.ServiceID, label.LabelKey, label.LabelValue).Find(&oldLabel).RecordNotFound(); ok {
+		if err := t.DB.Create(label).Error; err != nil {
+			return err
 		}
 	} else {
-		if ok := t.DB.Where("service_id = ? and label_key=? and label_value=?", label.ServiceID, label.LabelKey, label.LabelValue).Find(&oldLabel).RecordNotFound(); ok {
-			if err := t.DB.Create(label).Error; err != nil {
-				return err
-			}
-		} else {
-			return fmt.Errorf("label key %s value %s of service %s is exist", label.LabelKey, label.LabelValue, label.ServiceID)
-		}
+		return fmt.Errorf("label key %s value %s of service %s is exist", label.LabelKey, label.LabelValue, label.ServiceID)
 	}
 	return nil
 }
@@ -1439,15 +1450,10 @@ func (t *ServiceLabelDaoImpl) GetTenantServiceAffinityLabel(serviceID string) ([
 	return labels, nil
 }
 
+// no usages func. get tenant service type use TenantServiceDao.GetServiceTypeById(serviceID string)
 //GetTenantServiceTypeLabel GetTenantServiceTypeLabel
 func (t *ServiceLabelDaoImpl) GetTenantServiceTypeLabel(serviceID string) (*model.TenantServiceLable, error) {
 	var label model.TenantServiceLable
-	if err := t.DB.Where("service_id=? and label_key=?", serviceID, model.LabelKeyServiceType).Find(&label).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
 	return &label, nil
 }
 

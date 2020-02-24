@@ -19,23 +19,33 @@
 package clients
 
 import (
+	"fmt"
+	"os"
 	"path"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond-operator/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/builder/sources"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
-
-	"github.com/Sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 )
 
 //K8SClient K8SClient
 var K8SClient kubernetes.Interface
 
+//RainbondKubeClient rainbond custom resource client
+var RainbondKubeClient versioned.Interface
+
 //InitClient init k8s client
 func InitClient(kubeconfig string) error {
 	if kubeconfig == "" {
 		homePath, _ := sources.Home()
 		kubeconfig = path.Join(homePath, ".kube/config")
+	}
+	_, err := os.Stat(kubeconfig)
+	if err != nil {
+		fmt.Printf("Please make sure the kube-config file(%s) exists\n", kubeconfig)
+		os.Exit(1)
 	}
 	// use the current context in kubeconfig
 	config, err := k8sutil.NewRestConfig(kubeconfig)
@@ -50,5 +60,6 @@ func InitClient(kubeconfig string) error {
 		logrus.Error("Create kubernetes client error.", err.Error())
 		return err
 	}
+	RainbondKubeClient = versioned.NewForConfigOrDie(config)
 	return nil
 }

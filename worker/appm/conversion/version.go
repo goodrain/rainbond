@@ -99,6 +99,10 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			}(),
 		},
 	}
+	var terminationGracePeriodSeconds int64 = 10
+	if as.GetDeployment() != nil {
+		podtmpSpec.Spec.TerminationGracePeriodSeconds = &terminationGracePeriodSeconds
+	}
 	//set to deployment or statefulset
 	as.SetPodTemplate(podtmpSpec)
 	return nil
@@ -275,16 +279,11 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			as.ExtensionSet[strings.ToLower(e.AttrName[3:])] = e.AttrValue
 		}
 	}
-	svc, err := dbmanager.TenantServiceDao().GetServiceByID(as.ServiceID)
-	if err != nil {
-		return nil, err
-	}
 	//set default env
 	envs = append(envs, corev1.EnvVar{Name: "TENANT_ID", Value: as.TenantID})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_ID", Value: as.ServiceID})
 	envs = append(envs, corev1.EnvVar{Name: "MEMORY_SIZE", Value: getMemoryType(as.ContainerMemory)})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_NAME", Value: as.ServiceAlias})
-	envs = append(envs, corev1.EnvVar{Name: "SERVICE_EXTEND_METHOD", Value: svc.ExtendMethod})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_POD_NUM", Value: strconv.Itoa(as.Replicas)})
 	envs = append(envs, corev1.EnvVar{Name: "HOST_IP", ValueFrom: &corev1.EnvVarSource{
 		FieldRef: &corev1.ObjectFieldSelector{

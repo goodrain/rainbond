@@ -20,6 +20,7 @@ package healthy
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	yaml "gopkg.in/yaml.v2"
@@ -33,9 +34,9 @@ import (
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 )
 
-var testClusterID = "2bf54c5a0b5a48a890e2dda8635cb507_2591d9904fc4480c9c012037697f98c6_grc9e8e3"
+var testClusterID = "8cd9214e6b3d4476942b600f41bfefea_tcpmeshd3d6a722b632b854b6c232e4895e0cc6_gr5e0cc6"
 
-var testXDSHost = "192.168.195.1:6101"
+var testXDSHost = "39.104.66.227:6101"
 
 // var testClusterID = "2bf54c5a0b5a48a890e2dda8635cb507_tcpmeshed6827c0afdda50599b4108105c9e8e3_grc9e8e3"
 //var testXDSHost = "127.0.0.1:6101"
@@ -87,7 +88,12 @@ func TestClientCluster(t *testing.T) {
 	}
 	t.Logf("version %s", res.GetVersionInfo())
 	clusters := envoyv2.ParseClustersResource(res.Resources)
-	printYaml(t, clusters)
+	for _, cluster := range clusters {
+		if cluster.Type == v2.Cluster_LOGICAL_DNS {
+			fmt.Println(cluster.Name)
+		}
+		printYaml(t, cluster)
+	}
 }
 
 func printYaml(t *testing.T, data interface{}) {
@@ -117,6 +123,9 @@ func TestClientEndpoint(t *testing.T) {
 	}
 	t.Logf("version %s", res.GetVersionInfo())
 	endpoints := envoyv2.ParseLocalityLbEndpointsResource(res.Resources)
+	for _, e := range endpoints {
+		fmt.Println(e.GetClusterName())
+	}
 	printYaml(t, endpoints)
 }
 

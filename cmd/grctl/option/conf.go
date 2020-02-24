@@ -35,7 +35,6 @@ var config Config
 
 //Config Config
 type Config struct {
-	RegionMysql   RegionMysql    `yaml:"region_db"`
 	Kubernets     Kubernets      `yaml:"kube"`
 	RegionAPI     region.APIConf `yaml:"region_api"`
 	DockerLogPath string         `yaml:"docker_log_path"`
@@ -51,7 +50,7 @@ type RegionMysql struct {
 
 //Kubernets Kubernets
 type Kubernets struct {
-	Master string `yaml:"master"`
+	KubeConf string `yaml:"kube-conf"`
 }
 
 //LoadConfig 加载配置
@@ -59,12 +58,6 @@ func LoadConfig(ctx *cli.Context) (Config, error) {
 	config = Config{
 		RegionAPI: region.APIConf{
 			Endpoints: []string{"http://127.0.0.1:8888"},
-		},
-		RegionMysql: RegionMysql{
-			User:     os.Getenv("MYSQL_USER"),
-			Pass:     os.Getenv("MYSQL_PASS"),
-			URL:      os.Getenv("MYSQL_URL"),
-			Database: os.Getenv("MYSQL_DB"),
 		},
 	}
 	configfile := ctx.GlobalString("config")

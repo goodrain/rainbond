@@ -85,6 +85,68 @@ func (s ServiceKind) String() string {
 	return string(s)
 }
 
+// ServiceType type of service
+type ServiceType string
+
+// String imple String
+func (s ServiceType) String() string {
+	return string(s)
+}
+
+// IsState is state type or not
+func (s ServiceType) IsState() bool {
+	if s == "" {
+		return false
+	}
+	if s == ServiceTypeStatelessSingleton || s == ServiceTypeStatelessMultiple {
+		return false
+	}
+	return true
+}
+
+// IsSingleton is singleton or not
+func (s ServiceType) IsSingleton() bool {
+	if s == "" {
+		return false
+	}
+	if s == ServiceTypeStatelessMultiple || s == ServiceTypeStateMultiple {
+		return false
+	}
+	return true
+}
+
+// TODO fanyangyang 根据组件简单判断是否是有状态
+// IsState is state service or stateless service
+func (ts TenantServices) IsState() bool {
+	if ts.ServiceType == "" {
+		return false
+	}
+	return ServiceType(ts.ServiceType).IsState()
+}
+
+// IsSingleton is singleton or multiple service
+func (ts TenantServices) IsSingleton() bool {
+	if ts.ServiceType == "" {
+		return false
+	}
+	return ServiceType(ts.ServiceType).IsSingleton()
+}
+
+// ServiceTypeUnknown unknown
+var ServiceTypeUnknown ServiceType = "unknown"
+
+//ServiceTypeStatelessSingleton stateless_singleton
+var ServiceTypeStatelessSingleton ServiceType = "stateless_singleton"
+
+// ServiceTypeStatelessMultiple stateless_multiple
+var ServiceTypeStatelessMultiple ServiceType = "stateless_multiple"
+
+// ServiceTypeStateSingleton state_singleton
+var ServiceTypeStateSingleton ServiceType = "state_singleton"
+
+// ServiceTypeStateMultiple state_multiple
+var ServiceTypeStateMultiple ServiceType = "state_multiple"
+
 //TenantServices app service base info
 type TenantServices struct {
 	Model
@@ -96,6 +158,8 @@ type TenantServices struct {
 	ServiceAlias string `gorm:"column:service_alias;size:30" json:"service_alias"`
 	// service regist endpoint name(host name), used of statefulset
 	ServiceName string `gorm:"column:service_name;size:100" json:"service_name"`
+	// Service type now service support stateless_singleton/stateless_multiple/state_singleton/state_multiple
+	ServiceType string `gorm:"column:service_type;size:32" json:"service_type"`
 	// 服务描述
 	Comment string `gorm:"column:comment" json:"comment"`
 	// 容器CPU权重
@@ -105,7 +169,7 @@ type TenantServices struct {
 	//UpgradeMethod service upgrade controller type
 	//such as : `Rolling` `OnDelete`
 	UpgradeMethod string `gorm:"column:upgrade_method;default:'Rolling'" json:"upgrade_method"`
-	// 扩容方式；0:无状态；1:有状态；2:分区
+	// 扩容方式；0:无状态；1:有状态；2:分区(V5.2已弃用)
 	ExtendMethod string `gorm:"column:extend_method;default:'stateless';" json:"extend_method"`
 	// 节点数
 	Replicas int `gorm:"column:replicas;default:1" json:"replicas"`
@@ -197,6 +261,8 @@ type TenantServicesDelete struct {
 	ServiceAlias string `gorm:"column:service_alias;size:30" json:"service_alias"`
 	// service regist endpoint name(host name), used of statefulset
 	ServiceName string `gorm:"column:service_name;size:100" json:"service_name"`
+	// Service type now service support stateless_singleton/stateless_multiple/state_singleton/state_multiple
+	ServiceType string `gorm:"column:service_type;size:20" json:"service_type"`
 	// 服务描述
 	Comment string `gorm:"column:comment" json:"comment"`
 	// 容器CPU权重
@@ -423,6 +489,7 @@ var LabelKeyNodeSelector = "node-selector"
 //LabelKeyNodeAffinity 节点亲和标签
 var LabelKeyNodeAffinity = "node-affinity"
 
+// TODO fanyangyang 待删除，组件类型记录在tenant_service表中
 //LabelKeyServiceType 应用部署类型标签
 var LabelKeyServiceType = "service-type"
 

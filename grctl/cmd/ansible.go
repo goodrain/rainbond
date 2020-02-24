@@ -29,8 +29,9 @@ import (
 //NewCmdAnsible ansible config cmd
 func NewCmdAnsible() cli.Command {
 	c := cli.Command{
-		Name:  "ansible",
-		Usage: "Manage the ansible environment",
+		Name:   "ansible",
+		Usage:  "Manage the ansible environment",
+		Hidden: true,
 		Subcommands: []cli.Command{
 			cli.Command{
 				Name:  "hosts",

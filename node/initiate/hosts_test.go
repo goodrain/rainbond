@@ -1,8 +1,15 @@
 package initiate
 
 import (
+	"context"
+	"fmt"
+	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/discover.v2"
+	"k8s.io/client-go/kubernetes"
 	"reflect"
 	"testing"
+
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 )
 
 func TestHosts_Cleanup(t *testing.T) {
@@ -79,5 +86,39 @@ func TestHosts_Add(t *testing.T) {
 				t.Errorf("want %#v, bug got %#v", wantLines, hosts.Lines)
 			}
 		})
+	}
+}
+
+func TestHostManager_Start(t *testing.T) {
+	config, err := k8sutil.NewRestConfig("/Users/abewang/.kube/config")
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	ctx := context.Background()
+	cfg := &option.Conf{
+		RbdNamespace: "rbd-system",
+		ImageRepositoryHost: "goodrain.me",
+	}
+	k8sDiscover := discover.NewK8sDiscover(ctx, clientset, cfg)
+	defer k8sDiscover.Stop()
+
+	hostManager, err := NewHostManager(cfg, k8sDiscover)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+	hostManager.Start()
+
+	fmt.Println("oook")
+
+	select {
+
 	}
 }
