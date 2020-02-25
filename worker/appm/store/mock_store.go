@@ -166,14 +166,18 @@ func (mr *MockStorerMockRecorder) GetNeedBillingStatus(serviceIDs interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNeedBillingStatus", reflect.TypeOf((*MockStorer)(nil).GetNeedBillingStatus), serviceIDs)
 }
 
-// OnDelete mocks base method
-func (m *MockStorer) OnDelete(obj interface{}) {
-	m.ctrl.Call(m, "OnDelete", obj)
+// OnDeletes mocks base method
+func (m *MockStorer) OnDeletes(obj ...interface{}) {
+	varargs := []interface{}{}
+	for _, a := range obj {
+		varargs = append(varargs, a)
+	}
+	m.ctrl.Call(m, "OnDeletes", varargs...)
 }
 
-// OnDelete indicates an expected call of OnDelete
-func (mr *MockStorerMockRecorder) OnDelete(obj interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnDelete", reflect.TypeOf((*MockStorer)(nil).OnDelete), obj)
+// OnDeletes indicates an expected call of OnDeletes
+func (mr *MockStorerMockRecorder) OnDeletes(obj ...interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnDeletes", reflect.TypeOf((*MockStorer)(nil).OnDeletes), obj...)
 }
 
 // GetPodLister mocks base method
@@ -218,16 +222,4 @@ func (m *MockStorer) InitOneThirdPartService(service *model.TenantServices) erro
 // InitOneThirdPartService indicates an expected call of InitOneThirdPartService
 func (mr *MockStorerMockRecorder) InitOneThirdPartService(service interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InitOneThirdPartService", reflect.TypeOf((*MockStorer)(nil).InitOneThirdPartService), service)
-}
-
-// GetServiceClaims mocks base method
-func (m *MockStorer) GetServiceClaims(tenantID, serviceID string) []v10.PersistentVolumeClaim {
-	ret := m.ctrl.Call(m, "GetServiceClaims", tenantID, serviceID)
-	ret0, _ := ret[0].([]v10.PersistentVolumeClaim)
-	return ret0
-}
-
-// GetServiceClaims indicates an expected call of GetServiceClaims
-func (mr *MockStorerMockRecorder) GetServiceClaims(tenantID, serviceID interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceClaims", reflect.TypeOf((*MockStorer)(nil).GetServiceClaims), tenantID, serviceID)
 }
