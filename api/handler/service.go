@@ -1650,18 +1650,41 @@ func (s *ServiceAction) GetStatus(serviceID string) (*api_model.StatusList, erro
 }
 
 //GetServicesStatus  获取一组应用状态，若 serviceIDs为空,获取租户所有应用状态
-func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) map[string]string {
+func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) []map[string]interface{} {
 	if serviceIDs == nil || len(serviceIDs) == 0 {
 		services, _ := db.GetManager().TenantServiceDao().GetServicesByTenantID(tenantID)
 		for _, s := range services {
 			serviceIDs = append(serviceIDs, s.ServiceID)
 		}
 	}
-	if len(serviceIDs) > 0 {
-		status := s.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
-		return status
+	if len(serviceIDs) == 0 {
+		return []map[string]interface{}{}
 	}
-	return nil
+	statusList := s.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
+	var info = make([]map[string]interface{}, 0)
+	if statusList != nil {
+		for k, v := range statusList {
+			serviceInfo := map[string]interface{}{"service_id": k, "status": v, "status_cn": TransStatus(v), "used_mem": 0}
+			podInfo, err := s.GetPods(k)
+			if err != nil {
+				logrus.Warnf("get pod info failed: %s", err.Error())
+				continue
+			}
+			if podInfo != nil {
+				var usedMem int64
+				for _, po := range podInfo.NewPods {
+					for _, containerInfo := range po.Container {
+						used, _ := strconv.ParseInt(containerInfo["memory_usage"], 10, 64)
+						usedMem += used
+					}
+				}
+				serviceInfo["used_mem"] = usedMem
+			}
+
+			info = append(info, serviceInfo)
+		}
+	}
+	return info
 }
 
 // GetMultiTenantsRunningServices get running services

@@ -98,6 +98,42 @@ func (mr *MockDelDaoMockRecorder) DeleteModel(serviceID interface{}, arg ...inte
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModel", reflect.TypeOf((*MockDelDao)(nil).DeleteModel), varargs...)
 }
 
+// MockEnterpriseDao is a mock of EnterpriseDao interface
+type MockEnterpriseDao struct {
+	ctrl     *gomock.Controller
+	recorder *MockEnterpriseDaoMockRecorder
+}
+
+// MockEnterpriseDaoMockRecorder is the mock recorder for MockEnterpriseDao
+type MockEnterpriseDaoMockRecorder struct {
+	mock *MockEnterpriseDao
+}
+
+// NewMockEnterpriseDao creates a new mock instance
+func NewMockEnterpriseDao(ctrl *gomock.Controller) *MockEnterpriseDao {
+	mock := &MockEnterpriseDao{ctrl: ctrl}
+	mock.recorder = &MockEnterpriseDaoMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockEnterpriseDao) EXPECT() *MockEnterpriseDaoMockRecorder {
+	return m.recorder
+}
+
+// GetEnterpriseTenants mocks base method
+func (m *MockEnterpriseDao) GetEnterpriseTenants(enterpriseID string) ([]*model.Tenants, error) {
+	ret := m.ctrl.Call(m, "GetEnterpriseTenants", enterpriseID)
+	ret0, _ := ret[0].([]*model.Tenants)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEnterpriseTenants indicates an expected call of GetEnterpriseTenants
+func (mr *MockEnterpriseDaoMockRecorder) GetEnterpriseTenants(enterpriseID interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEnterpriseTenants", reflect.TypeOf((*MockEnterpriseDao)(nil).GetEnterpriseTenants), enterpriseID)
+}
+
 // MockTenantDao is a mock of TenantDao interface
 type MockTenantDao struct {
 	ctrl     *gomock.Controller
@@ -404,6 +440,19 @@ func (mr *MockVolumeTypeDaoMockRecorder) GetAllVolumeTypes() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllVolumeTypes", reflect.TypeOf((*MockVolumeTypeDao)(nil).GetAllVolumeTypes))
 }
 
+// GetAllVolumeTypesByPage mocks base method
+func (m *MockVolumeTypeDao) GetAllVolumeTypesByPage(page, pageSize int) ([]*model.TenantServiceVolumeType, error) {
+	ret := m.ctrl.Call(m, "GetAllVolumeTypesByPage", page, pageSize)
+	ret0, _ := ret[0].([]*model.TenantServiceVolumeType)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAllVolumeTypesByPage indicates an expected call of GetAllVolumeTypesByPage
+func (mr *MockVolumeTypeDaoMockRecorder) GetAllVolumeTypesByPage(page, pageSize interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllVolumeTypesByPage", reflect.TypeOf((*MockVolumeTypeDao)(nil).GetAllVolumeTypesByPage), page, pageSize)
+}
+
 // GetVolumeTypeByType mocks base method
 func (m *MockVolumeTypeDao) GetVolumeTypeByType(vt string) (*model.TenantServiceVolumeType, error) {
 	ret := m.ctrl.Call(m, "GetVolumeTypeByType", vt)
@@ -417,17 +466,17 @@ func (mr *MockVolumeTypeDaoMockRecorder) GetVolumeTypeByType(vt interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVolumeTypeByType", reflect.TypeOf((*MockVolumeTypeDao)(nil).GetVolumeTypeByType), vt)
 }
 
-// FindOrCreate mocks base method
-func (m *MockVolumeTypeDao) FindOrCreate(vt *model.TenantServiceVolumeType) (*model.TenantServiceVolumeType, error) {
-	ret := m.ctrl.Call(m, "FindOrCreate", vt)
+// CreateOrUpdateVolumeType mocks base method
+func (m *MockVolumeTypeDao) CreateOrUpdateVolumeType(vt *model.TenantServiceVolumeType) (*model.TenantServiceVolumeType, error) {
+	ret := m.ctrl.Call(m, "CreateOrUpdateVolumeType", vt)
 	ret0, _ := ret[0].(*model.TenantServiceVolumeType)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// FindOrCreate indicates an expected call of FindOrCreate
-func (mr *MockVolumeTypeDaoMockRecorder) FindOrCreate(vt interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOrCreate", reflect.TypeOf((*MockVolumeTypeDao)(nil).FindOrCreate), vt)
+// CreateOrUpdateVolumeType indicates an expected call of CreateOrUpdateVolumeType
+func (mr *MockVolumeTypeDaoMockRecorder) CreateOrUpdateVolumeType(vt interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrUpdateVolumeType", reflect.TypeOf((*MockVolumeTypeDao)(nil).CreateOrUpdateVolumeType), vt)
 }
 
 // MockLicenseDao is a mock of LicenseDao interface
@@ -754,6 +803,19 @@ func (m *MockTenantServiceDao) ListServicesByTenantID(tenantID string) ([]*model
 // ListServicesByTenantID indicates an expected call of ListServicesByTenantID
 func (mr *MockTenantServiceDaoMockRecorder) ListServicesByTenantID(tenantID interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListServicesByTenantID", reflect.TypeOf((*MockTenantServiceDao)(nil).ListServicesByTenantID), tenantID)
+}
+
+// GetServiceTypeById mocks base method
+func (m *MockTenantServiceDao) GetServiceTypeById(serviceID string) (*model.TenantServices, error) {
+	ret := m.ctrl.Call(m, "GetServiceTypeById", serviceID)
+	ret0, _ := ret[0].(*model.TenantServices)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetServiceTypeById indicates an expected call of GetServiceTypeById
+func (mr *MockTenantServiceDaoMockRecorder) GetServiceTypeById(serviceID interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceTypeById", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceTypeById), serviceID)
 }
 
 // MockTenantServiceDeleteDao is a mock of TenantServiceDeleteDao interface
@@ -2825,6 +2887,19 @@ func (m *MockTenantServiceLabelDao) GetLabelByNodeSelectorKey(serviceID, labelVa
 // GetLabelByNodeSelectorKey indicates an expected call of GetLabelByNodeSelectorKey
 func (mr *MockTenantServiceLabelDaoMockRecorder) GetLabelByNodeSelectorKey(serviceID, labelValue interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLabelByNodeSelectorKey", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).GetLabelByNodeSelectorKey), serviceID, labelValue)
+}
+
+// GetPrivilegedLabel mocks base method
+func (m *MockTenantServiceLabelDao) GetPrivilegedLabel(serviceID string) (*model.TenantServiceLable, error) {
+	ret := m.ctrl.Call(m, "GetPrivilegedLabel", serviceID)
+	ret0, _ := ret[0].(*model.TenantServiceLable)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPrivilegedLabel indicates an expected call of GetPrivilegedLabel
+func (mr *MockTenantServiceLabelDaoMockRecorder) GetPrivilegedLabel(serviceID interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivilegedLabel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).GetPrivilegedLabel), serviceID)
 }
 
 // MockLocalSchedulerDao is a mock of LocalSchedulerDao interface
