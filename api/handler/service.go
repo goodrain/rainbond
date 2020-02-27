@@ -1678,7 +1678,7 @@ func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) 
 						usedMem += used
 					}
 				}
-				serviceInfo["used_mem"] = usedMem
+				serviceInfo["used_mem"] = usedMem / 1024 / 1024
 			}
 
 			info = append(info, serviceInfo)
