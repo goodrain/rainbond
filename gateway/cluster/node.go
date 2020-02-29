@@ -19,12 +19,13 @@
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 )
 
@@ -35,23 +36,32 @@ type NodeManager struct {
 }
 
 //CreateNodeManager create node manager
-func CreateNodeManager(config option.Config) (*NodeManager, error) {
+func CreateNodeManager(ctx context.Context, config option.Config, etcdcli *clientv3.Client) (*NodeManager, error) {
 	nm := &NodeManager{
 		config: config,
 	}
-	ipManager, err := CreateIPManager(config)
+	ipManager, err := CreateIPManager(ctx, config, etcdcli)
 	if err != nil {
 		return nil, err
 	}
-	if err := ipManager.Start(); err != nil {
-		return nil, err
-	}
-	defer ipManager.Stop()
 	nm.ipManager = ipManager
-	if ok := nm.checkGatewayPort(); !ok {
-		return nil, fmt.Errorf("Check gateway node port failure")
-	}
 	return nm, nil
+}
+
+// Start -
+func (n *NodeManager) Start() error {
+	if err := n.ipManager.Start(); err != nil {
+		return err
+	}
+	if ok := n.checkGatewayPort(); !ok {
+		return fmt.Errorf("Check gateway node port failure")
+	}
+	return nil
+}
+
+// Stop -
+func (n *NodeManager) Stop() {
+	n.ipManager.Stop()
 }
 
 func (n *NodeManager) checkGatewayPort() bool {

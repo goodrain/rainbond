@@ -62,11 +62,26 @@ func Run(s *option.GWServer) error {
 		return err
 	}
 
+	etcdClientArgs := &etcdutil.ClientArgs{
+		Endpoints:   s.Config.EtcdEndpoint,
+		CaFile:      s.Config.EtcdCaFile,
+		CertFile:    s.Config.EtcdCertFile,
+		KeyFile:     s.Config.EtcdKeyFile,
+		DialTimeout: time.Duration(s.Config.EtcdTimeout) * time.Second,
+	}
+	etcdCli, err := etcdutil.NewClient(ctx, etcdClientArgs)
+	if err != nil {
+		return err
+	}
+
 	//create cluster node manage
-	node, err := cluster.CreateNodeManager(s.Config)
+	logrus.Debug("start creating node manager")
+	node, err := cluster.CreateNodeManager(ctx, s.Config, etcdCli)
 	if err != nil {
 		return fmt.Errorf("create gateway node manage failure %s", err.Error())
 	}
+	defer node.Stop()
+
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(prometheus.NewGoCollector())
 	reg.MustRegister(prometheus.NewProcessCollector(os.Getpid(), "gateway"))
@@ -86,6 +101,7 @@ func Run(s *option.GWServer) error {
 	if gwc == nil {
 		return fmt.Errorf("Fail to new GWController")
 	}
+	logrus.Debug("start gateway controller")
 	if err := gwc.Start(errCh); err != nil {
 		return fmt.Errorf("Fail to start GWController %s", err.Error())
 	}
@@ -98,17 +114,13 @@ func Run(s *option.GWServer) error {
 		util.ProfilerSetup(mux)
 	}
 	go startHTTPServer(s.ListenPorts.Health, mux)
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints: s.Config.EtcdEndpoint,
-		CaFile:    s.Config.EtcdCaFile,
-		CertFile:  s.Config.EtcdCertFile,
-		KeyFile:   s.Config.EtcdKeyFile,
-	}
+
 	keepalive, err := discover.CreateKeepAlive(etcdClientArgs, "gateway", s.Config.NodeName,
 		s.Config.HostIP, s.ListenPorts.Health)
 	if err != nil {
 		return err
 	}
+	logrus.Debug("start keepalive")
 	if err := keepalive.Start(); err != nil {
 		return err
 	}
