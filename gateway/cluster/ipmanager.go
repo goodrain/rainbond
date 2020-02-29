@@ -31,7 +31,6 @@ import (
 
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/util"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
 //IPManager ip manager
@@ -46,6 +45,7 @@ type IPManager interface {
 }
 
 type ipManager struct {
+	ctx     context.Context
 	cancel  context.CancelFunc
 	IPPool  *util.IPPool
 	ipLease map[string]clientv3.LeaseID
@@ -57,25 +57,15 @@ type ipManager struct {
 }
 
 //CreateIPManager create ip manage
-func CreateIPManager(config option.Config) (IPManager, error) {
+func CreateIPManager(ctx context.Context, config option.Config, etcdcli *clientv3.Client) (IPManager, error) {
+	newCtx, cancel := context.WithCancel(ctx)
 	IPPool := util.NewIPPool(config.IgnoreInterface)
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints:   config.EtcdEndpoint,
-		CaFile:      config.EtcdCaFile,
-		CertFile:    config.EtcdCertFile,
-		KeyFile:     config.EtcdKeyFile,
-		DialTimeout: time.Duration(config.EtcdTimeout) * time.Second,
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	etcdCli, err := etcdutil.NewClient(ctx, etcdClientArgs)
-	if err != nil {
-		return nil, err
-	}
 	return &ipManager{
+		ctx:        newCtx,
 		cancel:     cancel,
 		IPPool:     IPPool,
 		config:     config,
-		etcdCli:    etcdCli,
+		etcdCli:    etcdcli,
 		ipLease:    make(map[string]clientv3.LeaseID),
 		needUpdate: make(chan util.IPEVENT, 10),
 	}, nil
@@ -118,7 +108,7 @@ func (i *ipManager) syncIP() {
 }
 
 func (i *ipManager) updateIP(ips ...net.IP) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(i.ctx, time.Second*30)
 	defer cancel()
 	i.lock.Lock()
 	defer i.lock.Unlock()
@@ -149,7 +139,7 @@ func (i *ipManager) updateIP(ips ...net.IP) error {
 }
 
 func (i *ipManager) deleteIP(ips ...net.IP) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(i.ctx, time.Second*30)
 	defer cancel()
 	i.lock.Lock()
 	defer i.lock.Unlock()
