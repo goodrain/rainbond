@@ -393,7 +393,6 @@ func waitOldJobDeleted(ctx context.Context, waitChan chan struct{}, clientset ku
 	jobWatch, err := clientset.BatchV1().Jobs(namespace).Watch(metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
 		logrus.Errorf("watch job: %s failed: %s", name, err.Error())
-		ctx.Done()
 		return
 	}
 
@@ -426,7 +425,6 @@ func getJob(ctx context.Context, podChan chan struct{}, clientset kubernetes.Int
 	jobWatch, err := clientset.BatchV1().Jobs(namespace).Watch(metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
 		logrus.Errorf("watch job: %s failed: %s", name, err.Error())
-		ctx.Done()
 		return
 	}
 
@@ -475,7 +473,6 @@ func waitPod(ctx context.Context, podChan chan struct{}, clientset kubernetes.In
 	labelSelector := fmt.Sprintf("job-name=%s", name)
 	podWatch, err := clientset.CoreV1().Pods(namespace).Watch(metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
-		ctx.Done()
 		return
 	}
 
