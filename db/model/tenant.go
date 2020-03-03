@@ -117,19 +117,19 @@ func (s ServiceType) IsSingleton() bool {
 
 // TODO fanyangyang 根据组件简单判断是否是有状态
 // IsState is state service or stateless service
-func (ts TenantServices) IsState() bool {
-	if ts.ServiceType == "" {
+func (ts *TenantServices) IsState() bool {
+	if ts.ExtendMethod == "" {
 		return false
 	}
-	return ServiceType(ts.ServiceType).IsState()
+	return ServiceType(ts.ExtendMethod).IsState()
 }
 
 // IsSingleton is singleton or multiple service
-func (ts TenantServices) IsSingleton() bool {
-	if ts.ServiceType == "" {
+func (ts *TenantServices) IsSingleton() bool {
+	if ts.ExtendMethod == "" {
 		return false
 	}
-	return ServiceType(ts.ServiceType).IsSingleton()
+	return ServiceType(ts.ExtendMethod).IsSingleton()
 }
 
 // ServiceTypeUnknown unknown
