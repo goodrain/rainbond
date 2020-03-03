@@ -348,27 +348,27 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			logrus.Errorf("create new job:%s failed: %s", name, err.Error())
 			return err
 		}
-		old, err := re.KubeClient.BatchV1().Jobs(namespace).Get(job.Name, metav1.GetOptions{})
+		_, err := re.KubeClient.BatchV1().Jobs(namespace).Get(job.Name, metav1.GetOptions{})
 		if err != nil {
 			logrus.Errorf("get old job:%s failed : %s", name, err.Error())
 			return err
 		}
+
+		waitChan := make(chan struct{})
 		// if get old job, must clean it before re create a new one
+		go waitOldJobDeleted(ctx, waitChan, re.KubeClient, namespace, name)
+
 		var gracePeriod int64 = 0
-		propagationPolicy := metav1.DeletePropagationBackground
 		if err := re.KubeClient.BatchV1().Jobs(namespace).Delete(job.Name, &metav1.DeleteOptions{
 			GracePeriodSeconds: &gracePeriod,
-			Preconditions: &metav1.Preconditions{
-				UID:             &old.UID,
-				ResourceVersion: &old.ResourceVersion,
-			},
-			PropagationPolicy: &propagationPolicy,
 		}); err != nil {
 			logrus.Errorf("get old job:%s failed: %s", name, err.Error())
 			return err
 		}
-		logrus.Info("wait old job clean 10s")
-		time.Sleep(10 * time.Second)
+
+		<-waitChan
+		logrus.Infof("old job has beed cleaned, create new job: %s", job.Name)
+
 		if _, err := re.KubeClient.BatchV1().Jobs(namespace).Create(&job); err != nil {
 			logrus.Errorf("create new job:%s failed: %s", name, err.Error())
 			return err
@@ -388,6 +388,38 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	return nil
 }
 
+func waitOldJobDeleted(ctx context.Context, waitChan chan struct{}, clientset kubernetes.Interface, namespace, name string) {
+	labelSelector := fmt.Sprintf("job-name=%s", name)
+	jobWatch, err := clientset.BatchV1().Jobs(namespace).Watch(metav1.ListOptions{LabelSelector: labelSelector})
+	if err != nil {
+		logrus.Errorf("watch job: %s failed: %s", name, err.Error())
+		ctx.Done()
+		return
+	}
+
+	for {
+		select {
+		case <-time.After(30 * time.Second):
+			logrus.Warnf("wait old job[%s] cleaned time out", name)
+			waitChan <- struct{}{}
+			return
+		case <-ctx.Done():
+			return
+		case evt, ok := <-jobWatch.ResultChan():
+			if !ok {
+				logrus.Error("old job watch chan be closed")
+				return
+			}
+			switch evt.Type {
+			case watch.Deleted:
+				logrus.Infof("old job deleted : %s", name)
+				waitChan <- struct{}{}
+				return
+			}
+		}
+	}
+}
+
 func getJob(ctx context.Context, podChan chan struct{}, clientset kubernetes.Interface, namespace, name string) {
 	var job *batchv1.Job
 	labelSelector := fmt.Sprintf("job-name=%s", name)
@@ -405,7 +437,7 @@ func getJob(ctx context.Context, podChan chan struct{}, clientset kubernetes.Int
 			return
 		case evt, ok := <-jobWatch.ResultChan():
 			if !ok {
-				logrus.Error("pod watch chan be closed")
+				logrus.Error("job watch chan be closed")
 				return
 			}
 			switch evt.Type {
