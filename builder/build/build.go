@@ -72,6 +72,8 @@ type Response struct {
 
 //Request build input
 type Request struct {
+	GRDataPVCName string
+	CachePVCName  string
 	TenantID      string
 	SourceDir     string
 	CacheDir      string
