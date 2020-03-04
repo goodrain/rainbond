@@ -19,6 +19,7 @@
 package monitor
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
@@ -67,7 +68,7 @@ func createNodeExporterRestry() (*prometheus.Registry, error) {
 }
 
 //CreateManager CreateManager
-func CreateManager(c *option.Conf) (Manager, error) {
+func CreateManager(ctx context.Context, c *option.Conf) (Manager, error) {
 	//statsd exporter
 	statsdRegistry := prometheus.NewRegistry()
 	exporter := statsd.CreateExporter(c.StatsdConfig, statsdRegistry)
@@ -77,7 +78,7 @@ func CreateManager(c *option.Conf) (Manager, error) {
 		CertFile:  c.EtcdCertFile,
 		KeyFile:   c.EtcdKeyFile,
 	}
-	meserver := monitormessage.CreateUDPServer("0.0.0.0", 6666, etcdClientArgs)
+	meserver := monitormessage.CreateUDPServer(ctx, "0.0.0.0", 6666, etcdClientArgs)
 	nodeExporterRestry, err := createNodeExporterRestry()
 	if err != nil {
 		return nil, err
