@@ -48,6 +48,7 @@ func (vtd *VolumeTypeDaoImpl) CreateOrUpdateVolumeType(vt *model.TenantServiceVo
 		logrus.Debugf("volume type[%s] already exists, update it", vt.VolumeType)
 		volumeType.Provisioner = vt.Provisioner
 		volumeType.StorageClassDetail = vt.StorageClassDetail
+		volumeType.NameShow = vt.NameShow
 		err = vtd.UpdateModel(volumeType)
 	}
 	return volumeType, err
