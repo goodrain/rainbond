@@ -297,7 +297,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			Name: "slug",
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: "grdata",
+					ClaimName: s.re.GRDataPVCName,
 				},
 			},
 		},
@@ -305,7 +305,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			Name: "app",
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: "cache",
+					ClaimName: s.re.CachePVCName,
 				},
 			},
 		},
@@ -443,6 +443,7 @@ func getJob(ctx context.Context, podChan chan struct{}, clientset kubernetes.Int
 				job, _ = evt.Object.(*batchv1.Job)
 				if job.Name == name {
 					logrus.Debugf("job: %s status is: %+v ", name, job.Status)
+					// active means this job has bound a pod, can't ensure this pod's status is running or creating or initing or some status else
 					if job.Status.Active > 0 {
 						once.Do(func() {
 							logrus.Debug("job is ready")
