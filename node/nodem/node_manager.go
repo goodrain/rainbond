@@ -47,7 +47,6 @@ var sandboxImage = "k8s.gcr.io/pause-amd64:latest"
 type NodeManager struct {
 	currentNode *client.HostNode
 	ctx         context.Context
-	cancel      context.CancelFunc
 	cluster     client.ClusterClient
 	monitor     monitor.Manager
 	healthy     healthy.Manager
@@ -60,10 +59,10 @@ type NodeManager struct {
 }
 
 //NewNodeManager new a node manager
-func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
+func NewNodeManager(ctx context.Context, conf *option.Conf) (*NodeManager, error) {
 	healthyManager := healthy.CreateManager()
 	cluster := client.NewClusterClient(conf)
-	monitor, err := monitor.CreateManager(conf)
+	monitor, err := monitor.CreateManager(ctx, conf)
 	if err != nil {
 		return nil, err
 	}
@@ -84,11 +83,9 @@ func NewNodeManager(conf *option.Conf) (*NodeManager, error) {
 		return nil, fmt.Errorf("create new imageGCManager: %v", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
 	nodem := &NodeManager{
 		cfg:            conf,
 		ctx:            ctx,
-		cancel:         cancel,
 		cluster:        cluster,
 		monitor:        monitor,
 		healthy:        healthyManager,
@@ -160,7 +157,6 @@ func (n *NodeManager) Start(errchan chan error) error {
 
 //Stop Stop
 func (n *NodeManager) Stop() {
-	n.cancel()
 	n.cluster.DownNode(n.currentNode)
 	if n.controller != nil {
 		n.controller.Stop()
