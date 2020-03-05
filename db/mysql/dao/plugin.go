@@ -412,7 +412,8 @@ func (t *PluginVersionConfigDaoImpl) AddModel(mo model.Interface) error {
 		}
 	} else {
 		config.ID = oldconfig.ID
-		t.UpdateModel(config)
+		config.CreatedAt = oldconfig.CreatedAt
+		return t.UpdateModel(config)
 	}
 	return nil
 }
