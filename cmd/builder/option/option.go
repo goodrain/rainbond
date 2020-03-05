@@ -51,6 +51,8 @@ type Config struct {
 	LogPath              string
 	RbdNamespace         string
 	RbdRepoName          string
+	GRDataPVCName        string
+	CachePVCName         string
 }
 
 //Builder  builder server
@@ -90,6 +92,8 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogPath, "log-path", "/grdata/logs", "Where Docker log files and event log files are stored.")
 	fs.StringVar(&a.RbdNamespace, "rbd-namespace", "rbd-system", "rbd component namespace")
 	fs.StringVar(&a.RbdRepoName, "rbd-repo", "rbd-repo", "rbd component repo's name")
+	fs.StringVar(&a.GRDataPVCName, "pvc-grdata-name", "grdata", "pvc name of grdata")
+	fs.StringVar(&a.CachePVCName, "pvc-cache-name", "cache", "pvc name of cache")
 
 }
 

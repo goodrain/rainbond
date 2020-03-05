@@ -1665,29 +1665,13 @@ func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) 
 	if statusList != nil {
 		for k, v := range statusList {
 			serviceInfo := map[string]interface{}{"service_id": k, "status": v, "status_cn": TransStatus(v), "used_mem": 0}
-			podInfo, err := s.GetPods(k)
-			if err != nil {
-				logrus.Warnf("get pod info failed: %s", err.Error())
-				continue
-			}
-			if podInfo != nil {
-				var usedMem int64
-				for _, po := range podInfo.NewPods {
-					for _, containerInfo := range po.Container {
-						used, _ := strconv.ParseInt(containerInfo["memory_usage"], 10, 64)
-						usedMem += used
-					}
-				}
-				serviceInfo["used_mem"] = usedMem
-			}
-
 			info = append(info, serviceInfo)
 		}
 	}
 	return info
 }
 
-// GetMultiTenantsRunningServices get running services
+// GetEnterpriseRunningServices get running services
 func (s *ServiceAction) GetEnterpriseRunningServices(enterpriseID string) []string {
 	var tenantIDs []string
 	tenants, err := db.GetManager().EnterpriseDao().GetEnterpriseTenants(enterpriseID)
