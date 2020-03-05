@@ -230,11 +230,7 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
 			ServiceID: id,
 		}
 		status := h.statusCli.GetStatus(id)
-		serviceInfo, err := db.GetManager().TenantServiceDao().GetServiceTypeById(id)
-		if err != nil {
-			return fmt.Errorf("Get service deploy type error,%s", err.Error())
-		}
-		if status != v1.CLOSED && serviceInfo != nil && serviceInfo.IsState() { // TODO fanyangyang根据组件类型确定是否支持
+		if status != v1.CLOSED && service.IsState() { // TODO fanyangyang support force backup
 			return fmt.Errorf("Statefulset app must be closed before backup,%s", err.Error())
 		}
 		data.ServiceStatus = status

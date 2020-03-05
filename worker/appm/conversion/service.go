@@ -110,12 +110,11 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	if tenantService.Kind == dbmodel.ServiceKindThirdParty.String() {
 		return nil
 	}
-	//TODO fanyangyang 根据组件类型确定是否支持
 	label, err := dbmanager.TenantServiceLabelDao().GetLabelByNodeSelectorKey(as.ServiceID, "windows")
 	if label != nil {
 		as.IsWindowsService = true
 	}
-	if tenantService == nil || !tenantService.IsState() {
+	if !tenantService.IsState() {
 		initBaseDeployment(as, tenantService)
 		return nil
 	}
