@@ -237,41 +237,43 @@ func (b *BackupAPPNew) backupServiceInfo(serviceInfos []*RegionServiceSnapshot) 
 	for _, app := range serviceInfos {
 		//backup app image or code slug file
 		b.Logger.Info(fmt.Sprintf("Start backup Application(%s) runtime", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
-		var backupVersionSize int
-		for _, version := range app.Versions {
-			if backupVersionSize >= maxBackupVersionSize {
-				break
+		if len(app.Versions) > 0 {
+			var backupVersionSize int
+			for _, version := range app.Versions {
+				if backupVersionSize >= maxBackupVersionSize {
+					break
+				}
+				if version.DeliveredType == "slug" && version.FinalStatus == "success" {
+					if ok, _ := b.checkVersionExist(version); !ok {
+						version.FinalStatus = "lost"
+						continue
+					}
+					if err := b.saveSlugPkg(app, version); err != nil {
+						logrus.Errorf("upload app %s version %s slug file error.%s", app.Service.ServiceName, version.BuildVersion, err.Error())
+					} else {
+						backupVersionSize++
+					}
+				}
+				if version.DeliveredType == "image" && version.FinalStatus == "success" {
+					if ok, _ := b.checkVersionExist(version); !ok {
+						version.FinalStatus = "lost"
+						continue
+					}
+					if err := b.saveImagePkg(app, version); err != nil {
+						logrus.Errorf("upload app %s version %s image error.%s", app.Service.ServiceName, version.BuildVersion, err.Error())
+					} else {
+						backupVersionSize++
+					}
+				}
 			}
-			if version.DeliveredType == "slug" && version.FinalStatus == "success" {
-				if ok, _ := b.checkVersionExist(version); !ok {
-					version.FinalStatus = "lost"
-					continue
-				}
-				if err := b.saveSlugPkg(app, version); err != nil {
-					logrus.Errorf("upload app %s version %s slug file error.%s", app.Service.ServiceName, version.BuildVersion, err.Error())
-				} else {
-					backupVersionSize++
-				}
+			if backupVersionSize == 0 {
+				b.Logger.Error(fmt.Sprintf("Application(%s) Backup build version failure.", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
+				return fmt.Errorf("Application(%s) Backup build version failure", app.Service.ServiceAlias)
 			}
-			if version.DeliveredType == "image" && version.FinalStatus == "success" {
-				if ok, _ := b.checkVersionExist(version); !ok {
-					version.FinalStatus = "lost"
-					continue
-				}
-				if err := b.saveImagePkg(app, version); err != nil {
-					logrus.Errorf("upload app %s version %s image error.%s", app.Service.ServiceName, version.BuildVersion, err.Error())
-				} else {
-					backupVersionSize++
-				}
-			}
-		}
-		if backupVersionSize == 0 {
-			b.Logger.Error(fmt.Sprintf("Application(%s) Backup build version failure.", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "success"})
-			return fmt.Errorf("Application(%s) Backup build version failure", app.Service.ServiceAlias)
+			logrus.Infof("backup app %s %d version", app.Service.ServiceName, backupVersionSize)
+			b.Logger.Info(fmt.Sprintf("Complete backup application (%s) runtime %d version", app.Service.ServiceAlias, backupVersionSize), map[string]string{"step": "backup_builder", "status": "success"})
 		}
 
-		logrus.Infof("backup app %s %d version", app.Service.ServiceName, backupVersionSize)
-		b.Logger.Info(fmt.Sprintf("Complete backup application (%s) runtime %d version", app.Service.ServiceAlias, backupVersionSize), map[string]string{"step": "backup_builder", "status": "success"})
 		b.Logger.Info(fmt.Sprintf("Start backup application(%s) persistent data", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
 		//backup app data,The overall data of the direct backup service
 		if len(app.ServiceVolume) > 0 {

@@ -110,20 +110,15 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	if tenantService.Kind == dbmodel.ServiceKindThirdParty.String() {
 		return nil
 	}
-	//TODO fanyangyang 根据组件类型确定是否支持
-	serviceInfo, err := dbmanager.TenantServiceDao().GetServiceTypeById(as.ServiceID)
-	if err != nil {
-		return fmt.Errorf("get service type info failure %s", err.Error())
-	}
 	label, err := dbmanager.TenantServiceLabelDao().GetLabelByNodeSelectorKey(as.ServiceID, "windows")
 	if label != nil {
 		as.IsWindowsService = true
 	}
-	if serviceInfo == nil || !serviceInfo.IsState() {
+	if !tenantService.IsState() {
 		initBaseDeployment(as, tenantService)
 		return nil
 	}
-	if serviceInfo.IsState() {
+	if tenantService.IsState() {
 		initBaseStatefulSet(as, tenantService)
 		return nil
 	}

@@ -719,7 +719,9 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	}
 	if sc["extend_method"] != nil {
 		extendMethod := sc["extend_method"].(string)
-		if ts.Replicas > 1 && dbmodel.ServiceType(extendMethod).IsSingleton() {
+		ts.ExtendMethod = extendMethod
+		// if component replicas is more than 1, so can't change service type to singleton
+		if ts.Replicas > 1 && ts.IsSingleton() {
 			err := fmt.Errorf("service[%s] replicas > 1, can't change service typ to stateless_singleton", ts.ServiceAlias)
 			return err
 		}
@@ -731,11 +733,12 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 			if vo.VolumeType == dbmodel.ShareFileVolumeType.String() || vo.VolumeType == dbmodel.MemoryFSVolumeType.String() {
 				continue
 			}
-			if vo.VolumeType == dbmodel.LocalVolumeType.String() && !dbmodel.ServiceType(extendMethod).IsState() {
+			if vo.VolumeType == dbmodel.LocalVolumeType.String() && !ts.IsState() {
 				err := fmt.Errorf("service[%s] has local volume type, can't change type to stateless", ts.ServiceAlias)
 				return err
 			}
-			if vo.AccessMode == "RWO" && !dbmodel.ServiceType(extendMethod).IsState() {
+			// if component use volume, what it accessMode is rwo, can't change volume type to stateless
+			if vo.AccessMode == "RWO" && !ts.IsState() {
 				err := fmt.Errorf("service[%s] volume[%s] access_mode is RWO, can't change type to stateless", ts.ServiceAlias, vo.VolumeName)
 				return err
 			}
@@ -1352,8 +1355,9 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				if err != nil {
 					return util.CreateAPIHandleErrorFromDBError("service type", err)
 				}
+				// local volume just only support state component
 				if serviceInfo == nil || !serviceInfo.IsState() {
-					return util.CreateAPIHandleError(400, fmt.Errorf("应用类型不为有状态应用.不支持本地存储"))
+					return util.CreateAPIHandleError(400, fmt.Errorf("应用类型为'无状态'.不支持本地存储"))
 				}
 				tsv.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, tenantID, tsv.ServiceID, tsv.VolumePath)
 			}
@@ -1665,29 +1669,13 @@ func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) 
 	if statusList != nil {
 		for k, v := range statusList {
 			serviceInfo := map[string]interface{}{"service_id": k, "status": v, "status_cn": TransStatus(v), "used_mem": 0}
-			podInfo, err := s.GetPods(k)
-			if err != nil {
-				logrus.Warnf("get pod info failed: %s", err.Error())
-				continue
-			}
-			if podInfo != nil {
-				var usedMem int64
-				for _, po := range podInfo.NewPods {
-					for _, containerInfo := range po.Container {
-						used, _ := strconv.ParseInt(containerInfo["memory_usage"], 10, 64)
-						usedMem += used
-					}
-				}
-				serviceInfo["used_mem"] = usedMem
-			}
-
 			info = append(info, serviceInfo)
 		}
 	}
 	return info
 }
 
-// GetMultiTenantsRunningServices get running services
+// GetEnterpriseRunningServices get running services
 func (s *ServiceAction) GetEnterpriseRunningServices(enterpriseID string) []string {
 	var tenantIDs []string
 	tenants, err := db.GetManager().EnterpriseDao().GetEnterpriseTenants(enterpriseID)

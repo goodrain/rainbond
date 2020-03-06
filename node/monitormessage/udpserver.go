@@ -29,13 +29,14 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
-
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
+
 	"github.com/prometheus/common/log"
 )
 
 //UDPServer udp server
 type UDPServer struct {
+	ctx                 context.Context
 	ListenerHost        string
 	ListenerPort        int
 	eventServerEndpoint []string
@@ -44,8 +45,9 @@ type UDPServer struct {
 }
 
 //CreateUDPServer create udpserver
-func CreateUDPServer(lisHost string, lisPort int, etcdClientArgs *etcdutil.ClientArgs) *UDPServer {
+func CreateUDPServer(ctx context.Context, lisHost string, lisPort int, etcdClientArgs *etcdutil.ClientArgs) *UDPServer {
 	return &UDPServer{
+		ctx:            ctx,
 		ListenerHost:   lisHost,
 		ListenerPort:   lisPort,
 		etcdClientArgs: etcdClientArgs,
@@ -54,9 +56,7 @@ func CreateUDPServer(lisHost string, lisPort int, etcdClientArgs *etcdutil.Clien
 
 //Start start
 func (u *UDPServer) Start() error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	dis, err := discover.GetDiscover(config.DiscoverConfig{Ctx: ctx, EtcdClientArgs: u.etcdClientArgs})
+	dis, err := discover.GetDiscover(config.DiscoverConfig{Ctx: u.ctx, EtcdClientArgs: u.etcdClientArgs})
 	if err != nil {
 		return err
 	}

@@ -23,6 +23,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
+	"github.com/fsnotify/fsnotify"
+	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
+	"github.com/pquerna/ffjson/ffjson"
 	"io"
 	"io/ioutil"
 	"os"
@@ -30,20 +39,11 @@ import (
 	"path"
 	"strings"
 	"sync"
-
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
-	"github.com/fsnotify/fsnotify"
-	"github.com/pquerna/ffjson/ffjson"
-
-	"github.com/goodrain/rainbond/builder"
-	"github.com/goodrain/rainbond/builder/sources"
-	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/util"
+	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/watch"
@@ -190,8 +190,8 @@ func (s *slugBuild) readLogFile(logfile string, logger event.Logger, closed chan
 					select {
 					case <-closed:
 						return nil
-					case event := <-watcher.Events:
-						if event.Op&fsnotify.Write == fsnotify.Write {
+					case evt := <-watcher.Events:
+						if evt.Op&fsnotify.Write == fsnotify.Write {
 							return nil
 						}
 					case err := <-watcher.Errors:
@@ -265,7 +265,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		logrus.Error("delete .git and .svn folder error")
 		return err
 	}
-	name := re.ServiceID
+	name := fmt.Sprintf("%s-%s", re.ServiceID, re.Commit.Hash[0:7])
 	namespace := "rbd-system"
 	envs := []corev1.EnvVar{
 		corev1.EnvVar{Name: "SLUG_VERSION", Value: re.DeployVersion},
@@ -297,7 +297,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			Name: "slug",
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: "grdata",
+					ClaimName: s.re.GRDataPVCName,
 				},
 			},
 		},
@@ -305,7 +305,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			Name: "app",
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: "cache",
+					ClaimName: s.re.CachePVCName,
 				},
 			},
 		},
@@ -344,7 +344,35 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 
 	_, err := re.KubeClient.BatchV1().Jobs(namespace).Create(&job)
 	if err != nil {
-		return err
+		if !k8sErrors.IsAlreadyExists(err) {
+			logrus.Errorf("create new job:%s failed: %s", name, err.Error())
+			return err
+		}
+		_, err := re.KubeClient.BatchV1().Jobs(namespace).Get(job.Name, metav1.GetOptions{})
+		if err != nil {
+			logrus.Errorf("get old job:%s failed : %s", name, err.Error())
+			return err
+		}
+
+		waitChan := make(chan struct{})
+		// if get old job, must clean it before re create a new one
+		go waitOldJobDeleted(ctx, waitChan, re.KubeClient, namespace, name)
+
+		var gracePeriod int64 = 0
+		if err := re.KubeClient.BatchV1().Jobs(namespace).Delete(job.Name, &metav1.DeleteOptions{
+			GracePeriodSeconds: &gracePeriod,
+		}); err != nil {
+			logrus.Errorf("get old job:%s failed: %s", name, err.Error())
+			return err
+		}
+
+		<-waitChan
+		logrus.Infof("old job has beed cleaned, create new job: %s", job.Name)
+
+		if _, err := re.KubeClient.BatchV1().Jobs(namespace).Create(&job); err != nil {
+			logrus.Errorf("create new job:%s failed: %s", name, err.Error())
+			return err
+		}
 	}
 
 	defer delete(re.KubeClient, namespace, job.Name)
@@ -360,39 +388,86 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	return nil
 }
 
-func getJob(ctx context.Context, podChan chan struct{}, clientset kubernetes.Interface, namespace, name string) {
-	var job *batchv1.Job
-	jobWatch, err := clientset.BatchV1().Jobs(namespace).Watch(metav1.ListOptions{})
+func waitOldJobDeleted(ctx context.Context, waitChan chan struct{}, clientset kubernetes.Interface, namespace, name string) {
+	labelSelector := fmt.Sprintf("job-name=%s", name)
+	jobWatch, err := clientset.BatchV1().Jobs(namespace).Watch(metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
+		logrus.Errorf("watch job: %s failed: %s", name, err.Error())
 		return
 	}
 
 	for {
 		select {
+		case <-time.After(30 * time.Second):
+			logrus.Warnf("wait old job[%s] cleaned time out", name)
+			waitChan <- struct{}{}
+			return
 		case <-ctx.Done():
 			return
-		case event, ok := <-jobWatch.ResultChan():
+		case evt, ok := <-jobWatch.ResultChan():
 			if !ok {
-				logrus.Error("pod watch chan be closed")
+				logrus.Error("old job watch chan be closed")
 				return
 			}
-			switch event.Type {
-			case watch.Modified:
-				job, _ = event.Object.(*batchv1.Job)
-				if job.Status.Active > 0 {
-					logrus.Debug("pod is ready")
-					waitPod(ctx, podChan, clientset, namespace, name)
-					podChan <- struct{}{}
-				}
-				if job.Status.Succeeded > 0 || job.Status.Failed > 0 {
-					logrus.Debug("job is finished")
-					return
-				}
+			switch evt.Type {
+			case watch.Deleted:
+				logrus.Infof("old job deleted : %s", name)
+				waitChan <- struct{}{}
+				return
 			}
-		default:
 		}
 	}
 }
+
+func getJob(ctx context.Context, podChan chan struct{}, clientset kubernetes.Interface, namespace, name string) {
+	var job *batchv1.Job
+	labelSelector := fmt.Sprintf("job-name=%s", name)
+	jobWatch, err := clientset.BatchV1().Jobs(namespace).Watch(metav1.ListOptions{LabelSelector: labelSelector})
+	if err != nil {
+		logrus.Errorf("watch job: %s failed: %s", name, err.Error())
+		return
+	}
+
+	once := sync.Once{}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case evt, ok := <-jobWatch.ResultChan():
+			if !ok {
+				logrus.Error("job watch chan be closed")
+				return
+			}
+			switch evt.Type {
+			case watch.Modified, watch.Added:
+				job, _ = evt.Object.(*batchv1.Job)
+				if job.Name == name {
+					logrus.Debugf("job: %s status is: %+v ", name, job.Status)
+					// active means this job has bound a pod, can't ensure this pod's status is running or creating or initing or some status else
+					if job.Status.Active > 0 {
+						once.Do(func() {
+							logrus.Debug("job is ready")
+							waitPod(ctx, podChan, clientset, namespace, name)
+							podChan <- struct{}{}
+						})
+					}
+					if job.Status.Succeeded > 0 || job.Status.Failed > 0 {
+						logrus.Debug("job is finished")
+						return
+					}
+				}
+			case watch.Error:
+				logrus.Errorf("job: %s error", name)
+				return
+			case watch.Deleted:
+				logrus.Infof("job deleted : %s", name)
+				return
+			}
+
+		}
+	}
+}
+
 func waitPod(ctx context.Context, podChan chan struct{}, clientset kubernetes.Interface, namespace, name string) {
 	logrus.Debug("waiting pod")
 	var pod *corev1.Pod
@@ -406,21 +481,26 @@ func waitPod(ctx context.Context, podChan chan struct{}, clientset kubernetes.In
 		select {
 		case <-ctx.Done():
 			return
-		case event, ok := <-podWatch.ResultChan():
+		case evt, ok := <-podWatch.ResultChan():
 			if !ok {
 				logrus.Error("pod watch chan be closed")
 				return
 			}
-			switch event.Type {
+			switch evt.Type {
 			case watch.Added, watch.Modified:
-				pod, _ = event.Object.(*corev1.Pod)
+				pod, _ = evt.Object.(*corev1.Pod)
 				logrus.Debugf("pod status is : %s", pod.Status.Phase)
 				if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].Ready {
 					logrus.Debug("pod is running")
 					return
 				}
+			case watch.Deleted:
+				logrus.Infof("pod : %s deleted", name)
+				return
+			case watch.Error:
+				logrus.Errorf("pod : %s error", name)
+				return
 			}
-		default:
 		}
 	}
 }
@@ -462,7 +542,6 @@ func getJobPodLogs(ctx context.Context, podChan chan struct{}, clientset kuberne
 					}
 				}
 			})
-		default:
 		}
 	}
 }

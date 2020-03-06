@@ -6,7 +6,9 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"io"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"strings"
 	"testing"
@@ -305,4 +307,77 @@ func TestDeleteJob(t *testing.T) {
 	go getJobPodLogs(ctx, podChan, clientset, writer, namespace, name)
 	getJob(ctx, podChan, clientset, namespace, name)
 	t.Log("done")
+}
+
+func TestDeleteOldJobFirst(t *testing.T) {
+	restConfig, err := k8sutil.NewRestConfig("/Users/fanyangyang/Documents/company/goodrain/local/10.211.55.4.kubeconfig")
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	name := "fanyangyang"
+	namespace := "rbd-system"
+
+	job := batchv1.Job{}
+	job.Name = name
+	job.Namespace = namespace
+
+	var ttl int32
+	ttl = 0
+	job.Spec.TTLSecondsAfterFinished = &ttl //  k8s version >= 1.12
+	job.Spec = batchv1.JobSpec{
+		TTLSecondsAfterFinished: &ttl,
+		Template: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				RestartPolicy: corev1.RestartPolicyNever,
+				Containers: []corev1.Container{
+					corev1.Container{
+						Name:    name,
+						Image:   "busybox",
+						Command: []string{"echo", "hello job"},
+					},
+				},
+			},
+		},
+	}
+
+	_, err = clientset.BatchV1().Jobs(namespace).Create(&job)
+	if err != nil {
+		if !k8sErrors.IsAlreadyExists(err) {
+			fmt.Printf("create new job:%s failed: %s \n", name, err.Error())
+			t.Fatal(err)
+		}
+		old, err := clientset.BatchV1().Jobs(namespace).Get(job.Name, metav1.GetOptions{})
+		if err != nil {
+			fmt.Printf("get old job:%s failed : %s \n", name, err.Error())
+			t.Fatal(err)
+		}
+		// if get old job, must clean it before re create a new one
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go waitOldJobDeleted(ctx, clientset, namespace, name)
+		var gracePeriod int64 = 0
+		propagationPolicy := metav1.DeletePropagationBackground
+		if err := clientset.BatchV1().Jobs(namespace).Delete(job.Name, &metav1.DeleteOptions{
+			GracePeriodSeconds: &gracePeriod,
+			Preconditions: &metav1.Preconditions{
+				UID:             &old.UID,
+				ResourceVersion: &old.ResourceVersion,
+			},
+			PropagationPolicy: &propagationPolicy,
+		}); err != nil {
+			fmt.Printf("get old job:%s failed: %s \n", name, err.Error())
+			t.Fatal(err)
+		}
+		logrus.Info("wait old job clean")
+
+		if _, err := clientset.BatchV1().Jobs(namespace).Create(&job); err != nil {
+			fmt.Printf("create new job:%s failed: %s\n", name, err.Error())
+			t.Fatal(err)
+		}
+	}
 }

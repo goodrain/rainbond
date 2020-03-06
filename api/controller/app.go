@@ -1,11 +1,13 @@
 package controller
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -134,8 +136,13 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 
 		httputil.ReturnSuccess(r, w, map[string][]string{"apps": appArr})
 	case "DELETE":
-		err := os.RemoveAll(dirName)
+		cmd := exec.Command("rm", "-rf", dirName)
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		err := cmd.Run()
+		logrus.Infof("cmd return is : %s", out.String())
 		if err != nil {
+			logrus.Errorf("rm -rf %s failed: %s", dirName, err.Error())
 			httputil.ReturnError(r, w, 501, "Failed to delete directory by id: "+eventID)
 			return
 		}

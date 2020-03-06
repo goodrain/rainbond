@@ -50,6 +50,7 @@ func TransStorageClass2RBDVolumeType(sc *storagev1.StorageClass) *dbmodel.Tenant
 	}
 	scbs, _ := json.Marshal(sc)
 	cvbs, _ := json.Marshal(defaultcapacityValidation)
+
 	volumeType := &dbmodel.TenantServiceVolumeType{
 		VolumeType:         sc.GetName(),
 		NameShow:           sc.GetName(),
@@ -59,9 +60,17 @@ func TransStorageClass2RBDVolumeType(sc *storagev1.StorageClass) *dbmodel.Tenant
 		AccessMode:         strings.Join(defaultAccessMode, ","),
 		BackupPolicy:       strings.Join(defaultBackupPolicy, ","),
 		SharePolicy:        strings.Join(defaultSharePolicy, ","),
-		ReclaimPolicy:      fmt.Sprintf("%v", *sc.ReclaimPolicy),
 		Sort:               999,
 		Enable:             true,
+	}
+	volumeType.ReclaimPolicy = "Retain"
+	if sc.ReclaimPolicy != nil {
+		volumeType.ReclaimPolicy = fmt.Sprintf("%v", *sc.ReclaimPolicy)
+	}
+	if sc.Annotations != nil {
+		if name, ok := sc.Annotations["rbd_volume_name"]; ok {
+			volumeType.NameShow = name
+		}
 	}
 	return volumeType
 }

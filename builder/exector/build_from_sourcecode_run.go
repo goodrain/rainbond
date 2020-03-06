@@ -46,14 +46,16 @@ import (
 
 //SourceCodeBuildItem SouceCodeBuildItem
 type SourceCodeBuildItem struct {
-	Namespace    string       `json:"namespace"`
-	TenantName   string       `json:"tenant_name"`
-	ServiceAlias string       `json:"service_alias"`
-	Action       string       `json:"action"`
-	DestImage    string       `json:"dest_image"`
-	Logger       event.Logger `json:"logger"`
-	EventID      string       `json:"event_id"`
-	CacheDir     string       `json:"cache_dir"`
+	Namespace     string       `json:"namespace"`
+	TenantName    string       `json:"tenant_name"`
+	GRDataPVCName string       `json:"gr_data_pvc_name"`
+	CachePVCName  string       `json:"cache_pvc_name"`
+	ServiceAlias  string       `json:"service_alias"`
+	Action        string       `json:"action"`
+	DestImage     string       `json:"dest_image"`
+	Logger        event.Logger `json:"logger"`
+	EventID       string       `json:"event_id"`
+	CacheDir      string       `json:"cache_dir"`
 	//SourceDir     string       `json:"source_dir"`
 	TGZDir        string `json:"tgz_dir"`
 	DockerClient  *client.Client
@@ -249,6 +251,8 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		KubeClient:    i.KubeClient,
 		HostAlias:     hostAlias,
 		Ctx:           i.Ctx,
+		GRDataPVCName: i.GRDataPVCName,
+		CachePVCName:  i.CachePVCName,
 	}
 	res, err := codeBuild.Build(buildReq)
 	return res, err

@@ -151,7 +151,7 @@ function _M.balance()
   end
 
   ngx_balancer.set_more_tries(1)
-  ngx.log(ngx.ERR, string.format("select peer %s", peer))
+  ngx.log(ngx.DEBUG, string.format("select peer %s", peer))
   local ok, err = ngx_balancer.set_current_peer(peer)
   if not ok then
     ngx.log(ngx.ERR, string.format("error while setting current upstream peer %s: %s", peer, err))

@@ -79,7 +79,7 @@ func Run(cfg *option.Conf) error {
 		k8sDiscover := discover.NewK8sDiscover(ctx, clientset, cfg)
 		defer k8sDiscover.Stop()
 
-		nodemanager, err := nodem.NewNodeManager(cfg)
+		nodemanager, err := nodem.NewNodeManager(ctx, cfg)
 		if err != nil {
 			return fmt.Errorf("create node manager failed: %s", err)
 		}
