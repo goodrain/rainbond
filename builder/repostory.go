@@ -18,7 +18,11 @@
 
 package builder
 
-import "os"
+import (
+	"os"
+
+	"github.com/goodrain/rainbond/util/constants"
+)
 
 func init() {
 	if os.Getenv("BUILD_IMAGE_REPOSTORY_DOMAIN") != "" {
@@ -39,7 +43,7 @@ func init() {
 }
 
 //REGISTRYDOMAIN REGISTRY_DOMAIN
-var REGISTRYDOMAIN = "goodrain.me"
+var REGISTRYDOMAIN = constants.DefImageRepository
 
 //REGISTRYUSER REGISTRY USER NAME
 var REGISTRYUSER = ""
