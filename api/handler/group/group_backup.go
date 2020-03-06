@@ -111,7 +111,7 @@ func (h *BackupHandle) NewBackup(b Backup) (*dbmodel.AppBackup, *util.APIHandleE
 		if err := os.RemoveAll(sourceDir); err != nil {
 			logrus.Warningf("error removing %s: %v", sourceDir, err)
 		}
-		if strings.HasPrefix(err.Error(), "Statefulset app must be closed") {
+		if strings.HasPrefix(err.Error(), "state app must be closed before backup") {
 			return nil, util.CreateAPIHandleError(401, fmt.Errorf("snapshot group apps error,%s", err))
 		}
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf("snapshot group apps error,%s", err))
