@@ -57,6 +57,7 @@ type Backup struct {
 		BackupID   string   `json:"backup_id,omitempty"`
 
 		Mode     string `json:"mode" validate:"mode|required|in:full-online,full-offline"`
+		Force    bool   `json:"force"`
 		S3Config struct {
 			Provider   string `json:"provider"`
 			Endpoint   string `json:"endpoint"`
@@ -106,7 +107,7 @@ func (h *BackupHandle) NewBackup(b Backup) (*dbmodel.AppBackup, *util.APIHandleE
 	b.Body.SourceDir = sourceDir
 	appBackup.SourceDir = sourceDir
 	//snapshot the app metadata of region and write
-	if err := h.snapshot(b.Body.ServiceIDs, sourceDir); err != nil {
+	if err := h.snapshot(b.Body.ServiceIDs, sourceDir, b.Body.Force); err != nil {
 		if err := os.RemoveAll(sourceDir); err != nil {
 			logrus.Warningf("error removing %s: %v", sourceDir, err)
 		}
@@ -214,7 +215,7 @@ type RegionServiceSnapshot struct {
 }
 
 //snapshot
-func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
+func (h *BackupHandle) snapshot(ids []string, sourceDir string, force bool) error {
 	var pluginIDs []string
 	var services []*RegionServiceSnapshot
 	for _, id := range ids {
@@ -230,8 +231,9 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
 			ServiceID: id,
 		}
 		status := h.statusCli.GetStatus(id)
-		if status != v1.CLOSED && service.IsState() { // TODO fanyangyang support force backup
-			return fmt.Errorf("Statefulset app must be closed before backup,%s", err.Error())
+		logrus.Debugf("service: %s is state: %v", service.ServiceAlias, service.IsState())
+		if !force && status != v1.CLOSED && service.IsState() { // state running service force backup
+			return fmt.Errorf("state app must be closed before backup")
 		}
 		data.ServiceStatus = status
 		data.Service = service
@@ -279,7 +281,10 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string) error {
 		if err != nil && err != gorm.ErrRecordNotFound {
 			return fmt.Errorf("Get service(%s) build versions error %s", id, err)
 		}
-		data.Versions = []*dbmodel.VersionInfo{version}
+		if version != nil {
+			logrus.Debugf("service: %s do not have build version", service.ServiceAlias)
+			data.Versions = []*dbmodel.VersionInfo{version}
+		}
 
 		pluginReations, err := db.GetManager().TenantServicePluginRelationDao().GetALLRelationByServiceID(id)
 		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
