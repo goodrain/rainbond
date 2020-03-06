@@ -282,7 +282,7 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string, force bool) erro
 			return fmt.Errorf("Get service(%s) build versions error %s", id, err)
 		}
 		if version != nil {
-			logrus.Debugf("service: %s do not have build version", service.ServiceAlias)
+			logrus.Debugf("service: %s do have build version", service.ServiceAlias)
 			data.Versions = []*dbmodel.VersionInfo{version}
 		}
 
