@@ -25,11 +25,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"net/http"
 	"os"
 	"time"
-
-	"github.com/golang/glog"
 )
 
 //Info license 信息
@@ -77,53 +74,6 @@ func ReadLicenseFromFile(licenseFile string) (Info, error) {
 		return info, errors.New("解码LICENSE文件发生错误")
 	}
 	return info, nil
-}
-
-//ReadLicenseFromConsole 从控制台api获取license
-func ReadLicenseFromConsole(token string, defaultLicense string) (Info, error) {
-	var info Info
-	req, err := http.NewRequest("GET", "http://console.goodrain.me/api/license", nil)
-	if err != nil {
-		return info, err
-	}
-	req.Header.Add("Content-Type", "application/json")
-	if token != "" {
-		req.Header.Add("Authorization", "Token "+token)
-	}
-	http.DefaultClient.Timeout = time.Second * 5
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		glog.Info("控制台读取授权失败，使用默认授权。")
-		return ReadLicenseFromFile(defaultLicense)
-	}
-	if res != nil {
-		defer res.Body.Close()
-		body, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return info, err
-		}
-		apiInfo := struct {
-			Body struct {
-				Bean string `json:"bean"`
-			}
-		}{}
-
-		err = json.Unmarshal(body, &apiInfo)
-		if err != nil {
-			return info, err
-		}
-		//step2 decryption info
-		infoData, err := decrypt(key, apiInfo.Body.Bean)
-		if err != nil {
-			return info, errors.New("LICENSE解密发生错误。")
-		}
-		err = json.Unmarshal(infoData, &info)
-		if err != nil {
-			return info, errors.New("解码LICENSE文件发生错误")
-		}
-		return info, nil
-	}
-	return info, errors.New("res body is nil")
 }
 
 //BasePack base pack
