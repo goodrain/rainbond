@@ -20,20 +20,19 @@ package exector
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/model"
+	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/builder/sources"
-
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
-
+	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/pquerna/ffjson/ffjson"
 
-	"github.com/goodrain/rainbond/builder/model"
-
 	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 )
 
 func (e *exectorManager) pluginImageBuild(task *pb.TaskMessage) {
@@ -71,8 +70,10 @@ func (e *exectorManager) pluginImageBuild(task *pb.TaskMessage) {
 }
 
 func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) error {
+	imagep := parser.ParseImageName(t.ImageURL)
+	image := path.Join(builder.REGISTRYDOMAIN, imagep.GetSimpleName()) + ":" + imagep.Tag
 
-	if _, err := sources.ImagePull(e.DockerClient, t.ImageURL, t.ImageInfo.HubUser, t.ImageInfo.HubPassword, logger, 10); err != nil {
+	if _, err := sources.ImagePull(e.DockerClient, image, t.ImageInfo.HubUser, t.ImageInfo.HubPassword, logger, 10); err != nil {
 		logrus.Errorf("pull image %v error, %v", t.ImageURL, err)
 		logger.Error("拉取镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
