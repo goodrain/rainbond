@@ -175,10 +175,10 @@ type TenantServicesDaoImpl struct {
 // GetServiceTypeById  get service type by service id
 func (t *TenantServicesDaoImpl) GetServiceTypeById(serviceID string) (*model.TenantServices, error) {
 	var service model.TenantServices
-	if err := t.DB.Select("tenant_id, service_id, service_alias, service_type").Where("service_id=?", serviceID).Find(&service).Error; err != nil {
+	if err := t.DB.Select("tenant_id, service_id, service_alias, extend_method").Where("service_id=?", serviceID).Find(&service).Error; err != nil {
 		return nil, err
 	}
-	if service.ServiceType == "" {
+	if service.ExtendMethod == "" {
 		// for before V5.2 version
 		logrus.Infof("get low version service[%s] type", serviceID)
 		rows, err := t.DB.Raw("select label_value from tenant_services_label where service_id=? and label_key=?", serviceID, "service-type").Rows()
@@ -187,7 +187,7 @@ func (t *TenantServicesDaoImpl) GetServiceTypeById(serviceID string) (*model.Ten
 		}
 		defer rows.Close()
 		for rows.Next() {
-			rows.Scan(&service.ServiceType)
+			rows.Scan(&service.ExtendMethod)
 		}
 	}
 	return &service, nil
