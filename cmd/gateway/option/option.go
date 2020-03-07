@@ -68,18 +68,6 @@ type Config struct {
 
 	EnableMetrics bool
 
-	EnableRbdEndpoints bool
-	RbdEndpointsKey    string // key of Rainbond endpoints in ETCD
-	EnableKApiServer   bool
-	KApiServerIP       string
-	EnableLangGrMe     bool
-	LangGrMeIP         string
-	EnableMVNGrMe      bool
-	MVNGrMeIP          string
-	EnableGrMe         bool
-	GrMeIP             string
-	EnableRepoGrMe     bool
-	RepoGrMeIP         string
 	NodeName           string
 	HostIP             string
 	IgnoreInterface    []string
@@ -125,19 +113,6 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.HealthPath, "health-path", "/healthz", "absolute path to the kubeconfig file")
 	fs.DurationVar(&g.HealthCheckTimeout, "health-check-timeout", 10, `Time limit, in seconds, for a probe to health-check-path to succeed.`)
 	fs.BoolVar(&g.EnableMetrics, "enable-metrics", true, "Enables the collection of rbd-gateway metrics")
-	// rainbond endpoints
-	fs.BoolVar(&g.EnableRbdEndpoints, "enable-rbd-endpoints", true, "switch of Rainbond endpoints")
-	fs.StringVar(&g.RbdEndpointsKey, "rbd-endpoints", "/rainbond/endpoint/", "key of Rainbond endpoints in ETCD")
-	fs.BoolVar(&g.EnableKApiServer, "enable-kubeapi", false, "enable load balancing of kube-apiserver")
-	fs.StringVar(&g.KApiServerIP, "kubeapi-ip", "0.0.0.0", "ip address bound by kube-apiserver")
-	fs.BoolVar(&g.EnableLangGrMe, "enable-lang-grme", true, "enable load balancing of lang.goodrain.me")
-	fs.StringVar(&g.LangGrMeIP, "lang-grme-ip", "0.0.0.0", "ip address bound by lang.goodrain.me")
-	fs.BoolVar(&g.EnableMVNGrMe, "enable-mvn-grme", true, "enable load balancing of maven.goodrain.me")
-	fs.StringVar(&g.MVNGrMeIP, "mvn-grme-ip", "0.0.0.0", "ip address bound by maven.goodrain.me")
-	fs.BoolVar(&g.EnableGrMe, "enable-grme", true, "enable load balancing of goodrain.me")
-	fs.StringVar(&g.GrMeIP, "grme-ip", "0.0.0.0", "ip address bound by goodrain.me")
-	fs.BoolVar(&g.EnableRepoGrMe, "enable-repo-grme", true, "enable load balancing of repo.goodrain.me")
-	fs.StringVar(&g.RepoGrMeIP, "repo-grme-ip", "0.0.0.0", "ip address bound by repo.goodrain.me")
 	fs.StringVar(&g.NodeName, "node-name", "", "this gateway node host name")
 	fs.StringVar(&g.HostIP, "node-ip", "", "this gateway node ip")
 	fs.BoolVar(&g.Debug, "debug", false, "enable pprof debug")

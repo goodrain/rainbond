@@ -20,8 +20,6 @@ package openresty
 
 import (
 	"bytes"
-	"crypto/x509/pkix"
-	"encoding/asn1"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -43,7 +41,6 @@ import (
 	"github.com/goodrain/rainbond/gateway/controller/openresty/template"
 	v1 "github.com/goodrain/rainbond/gateway/v1"
 	"github.com/goodrain/rainbond/util"
-	"github.com/goodrain/rainbond/util/cert"
 )
 
 // OrService handles the business logic of OpenrestyService
@@ -112,13 +109,6 @@ func (o *OrService) Start(errCh chan error) error {
 	if err := o.configManage.NewNginxTemplate(nginx); err != nil {
 		logrus.Errorf("init openresty config failure %s", err.Error())
 		return err
-	}
-	if o.ocfg.EnableRbdEndpoints {
-		if err := o.newRbdServers(); err != nil {
-			showErr := fmt.Errorf("create rainbond default server config failure %s", err.Error())
-			logrus.Error(showErr.Error())
-			return showErr
-		}
 	}
 	logrus.Infof("init openresty config success")
 	go func() {
@@ -326,94 +316,4 @@ func (o *OrService) WaitPluginReady() {
 		logrus.Infof("Nginx is not ready yet: %v", err)
 		time.Sleep(1 * time.Second)
 	}
-}
-
-// newRbdServers creates new configuration file for Rainbond servers
-func (o *OrService) newRbdServers() error {
-	o.configManage.ClearByTenant("rainbond")
-	tenantConfigDir := path.Join(o.configManage.GetConfigFileDirPath(), "rainbond")
-	// create cert
-	err := createGoodRaindCert(tenantConfigDir, "goodrain.me")
-	if err != nil {
-		return err
-	}
-	if o.ocfg.EnableKApiServer {
-		ksrv := kubeApiserver(o.ocfg.KApiServerIP)
-		if err := o.configManage.WriteServer(*o.ocfg, "stream", "rainbond", ksrv); err != nil {
-			logrus.Errorf("write kube api config server failure %s", err.Error())
-			return err
-		}
-	}
-	var srv []*model.Server
-	if o.ocfg.EnableLangGrMe {
-		lesrv := langGoodrainMe(o.ocfg.LangGrMeIP)
-		srv = append(srv, lesrv)
-	}
-	if o.ocfg.EnableMVNGrMe {
-		mesrv := mavenGoodrainMe(o.ocfg.MVNGrMeIP)
-		srv = append(srv, mesrv)
-	}
-	if o.ocfg.EnableGrMe {
-		gesrv := goodrainMe(tenantConfigDir, o.ocfg.GrMeIP)
-		srv = append(srv, gesrv)
-	}
-	if o.ocfg.EnableRepoGrMe {
-		resrv := repoGoodrainMe(o.ocfg.RepoGrMeIP)
-		srv = append(srv, resrv)
-	}
-	if err := o.configManage.WriteServer(*o.ocfg, "http", "rainbond", srv...); err != nil {
-		logrus.Errorf("write kube api config server failure %s", err.Error())
-		return err
-	}
-	return nil
-}
-
-func createGoodRaindCert(cfgPath string, cn string) error {
-	p := path.Join(cfgPath, "ssl")
-	crtexists, crterr := util.FileExists(fmt.Sprintf("%s/%s", p, "server.crt"))
-	keyexists, keyerr := util.FileExists(fmt.Sprintf("%s/%s", p, "server.key"))
-	if (crtexists && crterr == nil) && (keyexists && keyerr == nil) {
-		logrus.Info("certificate for goodrain.me exists.")
-		return nil
-	}
-	exists, err := util.FileExists(p)
-	if !exists || err != nil {
-		if e := os.MkdirAll(p, 0777); e != nil {
-			return e
-		}
-	}
-	baseinfo := cert.CertInformation{Country: []string{"CN"}, Organization: []string{"Goodrain"}, IsCA: true,
-		OrganizationalUnit: []string{"Rainbond"}, EmailAddress: []string{"zengqg@goodrain.com"},
-		Locality: []string{"BeiJing"}, Province: []string{"BeiJing"}, CommonName: cn,
-		Domains: []string{"goodrain.me"},
-		CrtName: fmt.Sprintf("%s/%s", cfgPath, "ssl/ca.pem"),
-		KeyName: fmt.Sprintf("%s/%s", cfgPath, "ssl/ca.key")}
-
-	if err := cert.CreateCRT(nil, nil, baseinfo); err != nil {
-		logrus.Errorf("Create crt error: %s ", err.Error())
-		return err
-	}
-	crtInfo := baseinfo
-	crtInfo.IsCA = false
-	crtInfo.CrtName = fmt.Sprintf("%s/%s", cfgPath, "ssl/server.crt")
-	crtInfo.KeyName = fmt.Sprintf("%s/%s", cfgPath, "ssl/server.key")
-	crtInfo.Names = []pkix.AttributeTypeAndValue{
-		pkix.AttributeTypeAndValue{
-			Type:  asn1.ObjectIdentifier{2, 1, 3},
-			Value: "MAC_ADDR",
-		},
-	}
-
-	crt, pri, err := cert.Parse(baseinfo.CrtName, baseinfo.KeyName)
-	if err != nil {
-		logrus.Errorf("Parse crt error,Error info: %s", err.Error())
-		return err
-	}
-	err = cert.CreateCRT(crt, pri, crtInfo)
-	if err != nil {
-		logrus.Errorf("Create crt error,Error info: %s", err.Error())
-		return err
-	}
-	logrus.Info("Create certificate for goodrain.me successfully")
-	return nil
 }

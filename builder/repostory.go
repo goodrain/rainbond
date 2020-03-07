@@ -18,7 +18,12 @@
 
 package builder
 
-import "os"
+import (
+	"os"
+	"path"
+
+	"github.com/goodrain/rainbond/util/constants"
+)
 
 func init() {
 	if os.Getenv("BUILD_IMAGE_REPOSTORY_DOMAIN") != "" {
@@ -30,16 +35,21 @@ func init() {
 	if os.Getenv("BUILD_IMAGE_REPOSTORY_PASS") != "" {
 		REGISTRYPASS = os.Getenv("BUILD_IMAGE_REPOSTORY_PASS")
 	}
+	RUNNERIMAGENAME = "/runner"
 	if os.Getenv("RUNNER_IMAGE_NAME") != "" {
 		RUNNERIMAGENAME = os.Getenv("RUNNER_IMAGE_NAME")
 	}
+	RUNNERIMAGENAME = path.Join(REGISTRYDOMAIN, RUNNERIMAGENAME)
+	BUILDERIMAGENAME = "builder"
 	if os.Getenv("BUILDER_IMAGE_NAME") != "" {
 		BUILDERIMAGENAME = os.Getenv("BUILDER_IMAGE_NAME")
 	}
+
+	BUILDERIMAGENAME = path.Join(REGISTRYDOMAIN, BUILDERIMAGENAME)
 }
 
 //REGISTRYDOMAIN REGISTRY_DOMAIN
-var REGISTRYDOMAIN = "goodrain.me"
+var REGISTRYDOMAIN = constants.DefImageRepository
 
 //REGISTRYUSER REGISTRY USER NAME
 var REGISTRYUSER = ""
@@ -48,7 +58,7 @@ var REGISTRYUSER = ""
 var REGISTRYPASS = ""
 
 //RUNNERIMAGENAME runner image name
-var RUNNERIMAGENAME = REGISTRYDOMAIN + "/runner"
+var RUNNERIMAGENAME string
 
 //BUILDERIMAGENAME builder image name
-var BUILDERIMAGENAME = REGISTRYDOMAIN + "/builder"
+var BUILDERIMAGENAME string
