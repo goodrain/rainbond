@@ -12,6 +12,7 @@ type Nginx struct {
 	WorkerProcesses    int
 	WorkerRlimitNofile int
 	ErrorLog           string
+	ErrorLogLevel      string
 	User               string
 	EventLog           EventLog
 	Events             Events
@@ -50,6 +51,7 @@ func NewNginx(conf option.Config) *Nginx {
 		WorkerRlimitNofile: conf.WorkerRlimitNofile,
 		User:               conf.NginxUser,
 		ErrorLog:           conf.ErrorLog,
+		ErrorLogLevel:      conf.ErrorLogLevel,
 		Events: Events{
 			WorkerConnections: conf.WorkerConnections,
 			EnableEpoll:       conf.EnableEpool,

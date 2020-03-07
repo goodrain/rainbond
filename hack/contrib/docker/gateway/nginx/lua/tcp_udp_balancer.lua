@@ -61,7 +61,6 @@ local function sync_backend(backend)
     return
   end
 
-  ngx.log(ngx.INFO, string.format("backend ", backend.name))
   local implementation = get_implementation(backend)
   local balancer = balancers[backend.name]
 
@@ -138,6 +137,7 @@ end
 
 function _M.balance()
   local balancer = get_balancer()
+  ngx.log(ngx.DEBUG, string.format("found balancer %s for %s", balancer.name, ngx.var.proxy_upstream_name))
   if not balancer then
     local backend_name = ngx.var.proxy_upstream_name
     ngx.log(ngx.ERR, string.format("not balancer %s", backend_name))
@@ -151,7 +151,7 @@ function _M.balance()
   end
 
   ngx_balancer.set_more_tries(1)
-  ngx.log(ngx.DEBUG, string.format("select peer %s", peer))
+  ngx.log(ngx.DEBUG, string.format("select peer %s for %s", peer, ngx.var.proxy_upstream_name))
   local ok, err = ngx_balancer.set_current_peer(peer)
   if not ok then
     ngx.log(ngx.ERR, string.format("error while setting current upstream peer %s: %s", peer, err))
