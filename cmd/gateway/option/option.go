@@ -54,6 +54,7 @@ type Config struct {
 	WorkerProcesses    int
 	WorkerRlimitNofile int
 	ErrorLog           string
+	ErrorLogLevel      string
 	WorkerConnections  int
 	//essential for linux, optmized to serve many clients with each thread
 	EnableEpool       bool
@@ -68,11 +69,11 @@ type Config struct {
 
 	EnableMetrics bool
 
-	NodeName           string
-	HostIP             string
-	IgnoreInterface    []string
-	ShareMemory        uint64
-	SyncRateLimit      float32
+	NodeName        string
+	HostIP          string
+	IgnoreInterface []string
+	ShareMemory     uint64
+	SyncRateLimit   float32
 }
 
 // ListenPorts describe the ports required to run the gateway controller
@@ -98,7 +99,8 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&g.WorkerRlimitNofile, "worker-rlimit-nofile", 200000, "Number of file descriptors used for Nginx. This is set in the OS with 'ulimit -n 200000'")
 	fs.BoolVar(&g.EnableEpool, "enable-epool", true, "essential for linux, optmized to serve many clients with each thread")
 	fs.BoolVar(&g.EnableMultiAccept, "enable-multi-accept", true, "Accept as many connections as possible, after nginx gets notification about a new connection.")
-	fs.StringVar(&g.ErrorLog, "error-log", "/dev/stderr crit", "only log critical errors")
+	fs.StringVar(&g.ErrorLog, "error-log", "/dev/stderr", "nginx log file, stderr or syslog")
+	fs.StringVar(&g.ErrorLogLevel, "errlog-level", "crit", "log level")
 	fs.StringVar(&g.NginxUser, "nginx-user", "root", "nginx user name")
 	fs.IntVar(&g.KeepaliveRequests, "keepalive-requests", 10000, "Number of requests a client can make over the keep-alive connection. ")
 	fs.IntVar(&g.KeepaliveTimeout, "keepalive-timeout", 30, "Timeout for keep-alive connections. Server will close connections after this time.")

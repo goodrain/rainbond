@@ -1,6 +1,6 @@
 {{ if .User }} user {{.User}};{{ end }}
 worker_processes  {{.WorkerProcesses}};
-error_log  {{.ErrorLog}};
+error_log  {{.ErrorLog}} {{.ErrorLogLevel}};
 worker_rlimit_nofile {{.WorkerRlimitNofile}};
 daemon off;
 
