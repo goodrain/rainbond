@@ -2,12 +2,13 @@ package discover
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-	"sync"
-	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -24,6 +25,7 @@ type k8sDiscover struct {
 	projects  map[string]CallbackUpdate
 }
 
+// NewK8sDiscover creates a new Discover
 func NewK8sDiscover(ctx context.Context, clientset kubernetes.Interface, cfg *option.Conf) Discover {
 	ctx, cancel := context.WithCancel(ctx)
 	return &k8sDiscover{
@@ -72,8 +74,12 @@ func (k *k8sDiscover) discover(name string, callback CallbackUpdate) {
 		callback.UpdateEndpoints(config.SYNC, endpoints...)
 	}
 
+	var timeout int64 = 60 * 60 * 24 // a day
+
+REWATCH:
 	w, err := k.clientset.CoreV1().Pods(k.cfg.RbdNamespace).Watch(metav1.ListOptions{
-		LabelSelector: "name=" + name,
+		LabelSelector:  "name=" + name,
+		TimeoutSeconds: &timeout,
 	})
 	if err != nil {
 		k.rewatchWithErr(name, callback, err)
@@ -83,9 +89,10 @@ func (k *k8sDiscover) discover(name string, callback CallbackUpdate) {
 		select {
 		case <-ctx.Done():
 			return
-		case event := <-w.ResultChan():
-			if event.Object == nil {
-				continue
+		case event, ok := <-w.ResultChan():
+			if !ok {
+				// rewatch when watch timeout
+				goto REWATCH
 			}
 			pod := event.Object.(*corev1.Pod)
 			ep := endpointForPod(pod)
