@@ -21,6 +21,13 @@ package exector
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
@@ -33,12 +40,6 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/tidwall/gjson"
-	"io/ioutil"
-	"os"
-	"path"
-	"path/filepath"
-	"strings"
-	"time"
 )
 
 //BackupAPPRestore restrore the  group app backup
@@ -479,17 +480,21 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshot *AppSnapshot) error {
 			//local
 			case dbmodel.LocalVolumeType.String():
 				a.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, b.TenantID, a.ServiceID, a.VolumePath)
+			case dbmodel.MemoryFSVolumeType.String(), dbmodel.ConfigFileVolumeType.String():
+				logrus.Debugf("simple volume type: %s", a.VolumeType)
+			default:
+				logrus.Warnf("custom volumeType: %s", a.VolumeType)
+				volumeType, err := db.GetManager().VolumeTypeDao().GetVolumeTypeByType(a.VolumeType)
+				if err != nil {
+					logrus.Warnf("get volumeType[%s] error : %s, use share-file instead", a.VolumeType, err.Error())
+				}
+				if volumeType == nil {
+					logrus.Warnf("service[%s] volumeType[%s] do not exists, use default volumeType[%s]", a.ServiceID, a.VolumeType, dbmodel.ShareFileVolumeType.String())
+					a.VolumeType = dbmodel.ShareFileVolumeType.String()
+					a.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, b.TenantID, a.ServiceID, a.VolumePath)
+				}
 			}
-			volumeType, err := db.GetManager().VolumeTypeDao().GetVolumeTypeByType(a.VolumeType)
-			if err != nil {
-				logrus.Warnf("get volumeType error : %s", err.Error())
-				return err
-			}
-			if volumeType == nil {
-				logrus.Warnf("service[%s] volumeType[%s] do not exists, use default volumeType[%s]", a.ServiceID, a.VolumeType, dbmodel.ShareFileVolumeType.String())
-				a.VolumeType = dbmodel.ShareFileVolumeType.String()
-				a.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, b.TenantID, a.ServiceID, a.VolumePath)
-			}
+
 			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).AddModel(a); err != nil {
 				tx.Rollback()
 				return fmt.Errorf("create app volume when restore backup error. %s", err.Error())
