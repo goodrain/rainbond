@@ -29,15 +29,15 @@ var PodStatusAdviceUnhealthy PodStatusAdvice = "Unhealthy"
 var PodStatusAdviceInitiating PodStatusAdvice = "Initiating"
 
 var podStatusTbl = map[string]pb.PodStatus_Type{
-	string(corev1.PodPending):             pb.PodStatus_INITIATING,
-	string(corev1.PodRunning):             pb.PodStatus_RUNNING,
-	string(corev1.PodSucceeded):           pb.PodStatus_ABNORMAL,
-	string(corev1.PodFailed):              pb.PodStatus_ABNORMAL,
-	string(corev1.PodUnknown):             pb.PodStatus_UNKNOWN,
-	string(corev1.PodReady):               pb.PodStatus_NOTREADY,
-	string(corev1.PodInitialized):         pb.PodStatus_INITIATING,
-	string(corev1.PodScheduled):           pb.PodStatus_SCHEDULING,
-	string(corev1.ContainersReady):        pb.PodStatus_NOTREADY,
+	string(corev1.PodPending):      pb.PodStatus_INITIATING,
+	string(corev1.PodRunning):      pb.PodStatus_RUNNING,
+	string(corev1.PodSucceeded):    pb.PodStatus_ABNORMAL,
+	string(corev1.PodFailed):       pb.PodStatus_ABNORMAL,
+	string(corev1.PodUnknown):      pb.PodStatus_UNKNOWN,
+	string(corev1.PodReady):        pb.PodStatus_NOTREADY,
+	string(corev1.PodInitialized):  pb.PodStatus_INITIATING,
+	string(corev1.PodScheduled):    pb.PodStatus_SCHEDULING,
+	string(corev1.ContainersReady): pb.PodStatus_NOTREADY,
 }
 
 // DescribePodStatus -
@@ -64,13 +64,25 @@ func DescribePodStatus(clientset kubernetes.Interface, pod *corev1.Pod, podStatu
 			if condition.Status == corev1.ConditionTrue {
 				continue
 			}
-			podStatus.Type = podStatusTbl[string(condition.Type)]
+			podStatus.Type = podStatusTbl[string(condition.Type)] // find the latest not ready condition
 			podStatus.Reason = condition.Reason
 			podStatus.Message = condition.Message
 		}
 	}
 	if podStatus.Type == pb.PodStatus_INITIATING {
 		podStatus.Advice = PodStatusAdviceInitiating.String()
+		// if all main container ready
+		allMainCReady := true
+		for _, mainC := range pod.Status.ContainerStatuses {
+			if !mainC.Ready {
+				allMainCReady = false
+				break
+			}
+		}
+		if allMainCReady {
+			podStatus.Type = pb.PodStatus_RUNNING
+			return
+		}
 		return
 	}
 	if podStatus.Type == pb.PodStatus_NOTREADY {
