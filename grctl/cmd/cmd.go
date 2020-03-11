@@ -66,7 +66,7 @@ func Common(c *cli.Context) {
 
 }
 
-//Common Common
+//CommonWithoutRegion Common
 func CommonWithoutRegion(c *cli.Context) {
 	config, err := conf.LoadConfig(c)
 	if err != nil {

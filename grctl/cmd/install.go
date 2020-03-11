@@ -16,10 +16,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var pemDirPath = "/opt/rainbond/etc/ssl/region/"
+var pemDirPath = ".rbd/ssl"
 var clientPemPath = path.Join(pemDirPath, "client.pem")
 var clientKeyPemPath = path.Join(pemDirPath, "client.key.pem")
 var clientCAPemPath = path.Join(pemDirPath, "ca.pem")
+
+func init() {
+	homePath, _ := sources.Home()
+	pemDirPath = path.Join(homePath, pemDirPath)
+}
 
 //NewCmdInstall -
 func NewCmdInstall() cli.Command {
@@ -35,6 +40,7 @@ func NewCmdInstall() cli.Command {
 		},
 		Usage: "grctl install",
 		Action: func(c *cli.Context) error {
+			fmt.Println("Start install, please waiting!")
 			CommonWithoutRegion(c)
 			apiClientSecrit, err := clients.K8SClient.CoreV1().Secrets("rbd-system").Get("rbd-api-client-cert", metav1.GetOptions{})
 			if err != nil {
