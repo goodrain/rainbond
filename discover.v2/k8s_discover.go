@@ -2,15 +2,16 @@ package discover
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/discover/config"
@@ -66,48 +67,53 @@ func (k *k8sDiscover) AddUpdateProject(name string, callback CallbackUpdate) {
 }
 
 func (k *k8sDiscover) discover(name string, callback CallbackUpdate) {
-	ctx, cancel := context.WithCancel(k.ctx)
-	defer cancel()
-
 	endpoints := k.list(name)
 	if len(endpoints) > 0 {
 		callback.UpdateEndpoints(config.SYNC, endpoints...)
 	}
 
-	var timeout int64 = 60 * 60 * 24 // a day
+	sharedInformer := informers.NewSharedInformerFactoryWithOptions(
+		k.clientset,
+		10*time.Second,
+		informers.WithNamespace(k.cfg.RbdNamespace),
+		informers.WithTweakListOptions(func(options *metav1.ListOptions) {
+			options.LabelSelector = "name=" + name
+		}),
+	)
 
-REWATCH:
-	w, err := k.clientset.CoreV1().Pods(k.cfg.RbdNamespace).Watch(metav1.ListOptions{
-		LabelSelector:  "name=" + name,
-		TimeoutSeconds: &timeout,
-	})
-	if err != nil {
-		k.rewatchWithErr(name, callback, err)
-		return
-	}
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case event, ok := <-w.ResultChan():
-			if !ok {
-				// rewatch when watch timeout
-				goto REWATCH
-			}
-			pod := event.Object.(*corev1.Pod)
+	eventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			pod := obj.(*corev1.Pod)
 			ep := endpointForPod(pod)
-			switch event.Type {
-			case watch.Deleted:
-				callback.UpdateEndpoints(config.DELETE, ep)
-			case watch.Added, watch.Modified:
-				if !isPodReady(pod) {
-					continue
-				}
-				callback.UpdateEndpoints(config.SYNC, ep)
-			case watch.Error:
-				k.rewatchWithErr(name, callback, err)
+			callback.UpdateEndpoints(config.SYNC, ep)
+		},
+		DeleteFunc: func(obj interface{}) {
+			pod := obj.(*corev1.Pod)
+			ep := endpointForPod(pod)
+			callback.UpdateEndpoints(config.DELETE, ep)
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			oldPod := old.(*corev1.Pod)
+			curPod := cur.(*corev1.Pod)
+			if oldPod.Status.Phase == curPod.Status.Phase {
+				return
 			}
-		}
+			if !isPodReady(curPod) {
+				return
+			}
+			ep := endpointForPod(curPod)
+			callback.UpdateEndpoints(config.SYNC, ep)
+		},
+	}
+
+	infomer := sharedInformer.Core().V1().Pods().Informer()
+	infomer.AddEventHandler(eventHandler)
+
+	// start
+	go infomer.Run(k.ctx.Done())
+
+	if !cache.WaitForCacheSync(k.ctx.Done(), infomer.HasSynced) {
+		k.rewatchWithErr(name, callback, errors.New("timeout wait for cache sync"))
 	}
 }
 
