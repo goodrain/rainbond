@@ -257,7 +257,7 @@ func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error
 		tx.Rollback()
 		return err
 	}
-	if useTheSameCertificateHttpRules != nil && len(useTheSameCertificateHttpRules) > 0 {
+	if useTheSameCertificateHttpRules != nil {
 		logrus.Warningf("certificateID: %s, is used by other http rule, can't delete right now", httpRule.CertificateID)
 		otherUsed = true
 	}
