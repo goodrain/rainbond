@@ -864,6 +864,9 @@ func (s *k8sStore) getCertificatePem(secrKey string) (*v1.SSLCert, error) {
 		return nil, fmt.Errorf("read certificate file failed: %s", err.Error())
 	}
 	pemContent, _ := pem.Decode(fileContent)
+	if pemContent == nil {
+		return nil, fmt.Errorf("generate certificate object failed, pemContent is nil")
+	}
 	certificate, err := x509.ParseCertificate(pemContent.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("generate certificate object failed: %s", err.Error())
