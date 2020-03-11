@@ -554,11 +554,18 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 					v.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, sc.TenantID, ts.ServiceID, volumn.VolumePath)
 				//本地文件存储
 				case dbmodel.LocalVolumeType.String():
-					if sc.ExtendMethod != "state" {
+					if !dbmodel.ServiceType(sc.ExtendMethod).IsState() {
 						tx.Rollback()
-						return util.CreateAPIHandleError(400, fmt.Errorf("应用类型不为有状态应用.不支持本地存储"))
+						return util.CreateAPIHandleError(400, fmt.Errorf("local volume type only support state component"))
 					}
 					v.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", localPath, sc.TenantID, ts.ServiceID, volumn.VolumePath)
+				case dbmodel.ConfigFileVolumeType.String(), dbmodel.MemoryFSVolumeType.String():
+					logrus.Debug("simple volume type : ", volumn.VolumeType)
+				default:
+					if !dbmodel.ServiceType(sc.ExtendMethod).IsState() {
+						tx.Rollback()
+						return util.CreateAPIHandleError(400, fmt.Errorf("custom volume type only support state component"))
+					}
 				}
 			}
 			if volumn.VolumeName == "" {
