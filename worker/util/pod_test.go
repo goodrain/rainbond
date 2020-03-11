@@ -36,6 +36,7 @@ func TestDescribePodStatus(t *testing.T) {
 		{name: "notready", podfilename: "testdata/notready.json", expstatus: pb.PodStatus_NOTREADY},
 		{name: "liveness", podfilename: "testdata/liveness.json", eventsfilename: "testdata/livenessprobefailed.json", expstatus: pb.PodStatus_UNHEALTHY},
 		{name: "readiness", podfilename: "testdata/readiness.json", eventsfilename: "testdata/readinessprobefailed.json", expstatus: pb.PodStatus_UNHEALTHY},
+		{name: "initc-notready-mainc-ready", podfilename: "testdata/initc-notready-mainc-ready.json", expstatus: pb.PodStatus_RUNNING},
 	}
 	for idx := range tests {
 		tc := tests[idx]

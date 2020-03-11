@@ -241,19 +241,32 @@ func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error
 	}()
 	// delete http rule
 	httpRule, err := g.dbmanager.HTTPRuleDaoTransactions(tx).GetHTTPRuleByID(req.HTTPRuleID)
-	svcID := httpRule.ServiceID
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
+	svcID := httpRule.ServiceID
 	if err := g.dbmanager.HTTPRuleDaoTransactions(tx).DeleteHTTPRuleByID(httpRule.UUID); err != nil {
 		tx.Rollback()
 		return err
 	}
-	// delete certificate
-	if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(httpRule.CertificateID); err != nil {
+
+	otherUsed := false
+	var useTheSameCertificateHttpRules []*model.HTTPRule
+	if useTheSameCertificateHttpRules, err = g.dbmanager.HTTPRuleDaoTransactions(tx).GetHTTPRulesByCertificateID(httpRule.CertificateID); err != nil {
 		tx.Rollback()
 		return err
+	}
+	if len(useTheSameCertificateHttpRules) > 0 {
+		logrus.Warningf("certificateID: %s, is used by other http rule, can't delete right now", httpRule.CertificateID)
+		otherUsed = true
+	}
+	if !otherUsed {
+		// delete certificate
+		if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(httpRule.CertificateID); err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 	// delete rule extension
 	if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(httpRule.UUID); err != nil {

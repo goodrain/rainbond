@@ -197,6 +197,18 @@ func (h *HTTPRuleDaoImpl) GetHTTPRuleByServiceIDAndContainerPort(serviceID strin
 	return httpRule, nil
 }
 
+// GetHTTPRulesByCertificateID get http rules by certificateID
+func (h *HTTPRuleDaoImpl) GetHTTPRulesByCertificateID(certificateID string) ([]*model.HTTPRule, error) {
+	var httpRules []*model.HTTPRule
+	if err := h.DB.Where("certificate_id = ?", certificateID).Find(&httpRules).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return httpRules, nil
+		}
+		return nil, err
+	}
+	return httpRules, nil
+}
+
 //DeleteHTTPRuleByID delete http rule by rule id
 func (h *HTTPRuleDaoImpl) DeleteHTTPRuleByID(id string) error {
 	httpRule := &model.HTTPRule{}
