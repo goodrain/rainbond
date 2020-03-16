@@ -330,6 +330,13 @@ func (b *BackupAPPRestore) clear() {
 func (b *BackupAPPRestore) modify(appSnapshot *AppSnapshot) error {
 	for _, app := range appSnapshot.Services {
 		oldServiceID := app.ServiceID
+		//compatible component type
+		switch app.Service.ExtendMethod {
+		case "state":
+			app.Service.ExtendMethod = dbmodel.ServiceTypeStateMultiple.String()
+		case "stateless":
+			app.Service.ExtendMethod = dbmodel.ServiceTypeStatelessMultiple.String()
+		}
 		//change tenant
 		app.Service.TenantID = b.TenantID
 		for _, port := range app.ServicePort {
@@ -344,7 +351,7 @@ func (b *BackupAPPRestore) modify(appSnapshot *AppSnapshot) error {
 		for _, smr := range app.ServiceMntRelation {
 			smr.TenantID = b.TenantID
 		}
-		//}
+
 		//change service_id and service_alias
 		newServiceID := util.NewUUID()
 		newServiceAlias := "gr" + newServiceID[26:]

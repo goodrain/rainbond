@@ -95,13 +95,10 @@ func (s ServiceType) String() string {
 
 // IsState is state type or not
 func (s ServiceType) IsState() bool {
-	if s == "" {
-		return false
+	if s == ServiceTypeStateMultiple || s == ServiceTypeStateSingleton {
+		return true
 	}
-	if s == ServiceTypeStatelessSingleton || s == ServiceTypeStatelessMultiple {
-		return false
-	}
-	return true
+	return false
 }
 
 // IsSingleton is singleton or not
@@ -158,7 +155,7 @@ type TenantServices struct {
 	ServiceAlias string `gorm:"column:service_alias;size:30" json:"service_alias"`
 	// service regist endpoint name(host name), used of statefulset
 	ServiceName string `gorm:"column:service_name;size:100" json:"service_name"`
-	// Service type now service support stateless_singleton/stateless_multiple/state_singleton/state_multiple
+	// （This field is not currently used, use ExtendMethod）Service type now service support
 	ServiceType string `gorm:"column:service_type;size:32" json:"service_type"`
 	// 服务描述
 	Comment string `gorm:"column:comment" json:"comment"`
@@ -169,7 +166,7 @@ type TenantServices struct {
 	//UpgradeMethod service upgrade controller type
 	//such as : `Rolling` `OnDelete`
 	UpgradeMethod string `gorm:"column:upgrade_method;default:'Rolling'" json:"upgrade_method"`
-	// 扩容方式；0:无状态；1:有状态；2:分区(V5.2已弃用)
+	// 组件类型  component deploy type stateless_singleton/stateless_multiple/state_singleton/state_multiple
 	ExtendMethod string `gorm:"column:extend_method;default:'stateless';" json:"extend_method"`
 	// 节点数
 	Replicas int `gorm:"column:replicas;default:1" json:"replicas"`
