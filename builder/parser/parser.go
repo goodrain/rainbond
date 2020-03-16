@@ -20,8 +20,9 @@ package parser
 
 import (
 	"fmt"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	"strings"
+
+	dbmodel "github.com/goodrain/rainbond/db/model"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
@@ -98,9 +99,10 @@ func (ps ParseErrorList) IsFatalError() bool {
 
 //Image 镜像
 type Image struct {
-	name reference.Named
-	Name string `json:"name"`
-	Tag  string `json:"tag"`
+	name   reference.Named
+	source string
+	Name   string `json:"name"`
+	Tag    string `json:"tag"`
 }
 
 //String -
@@ -109,6 +111,11 @@ func (i Image) String() string {
 		return ""
 	}
 	return i.name.String()
+}
+
+//Source return the name before resolution
+func (i Image) Source() string {
+	return i.source
 }
 
 //GetTag get tag
@@ -314,5 +321,6 @@ func ParseImageName(s string) (i Image) {
 	} else {
 		i.Name = s
 	}
+	i.source = s
 	return
 }

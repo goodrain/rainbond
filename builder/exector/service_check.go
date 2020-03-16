@@ -94,10 +94,10 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		if r := recover(); r != nil {
 			logrus.Errorf("service check error: %v", r)
 			debug.PrintStack()
-			logger.Error("后端服务开小差，请重试或联系客服", map[string]string{"step": "callback", "status": "failure"})
+			logger.Error("The back-end service has deserted, please try again.", map[string]string{"step": "callback", "status": "failure"})
 		}
 	}()
-	logger.Info("开始应用构建源检测", map[string]string{"step": "starting"})
+	logger.Info("Start component deploy source check.", map[string]string{"step": "starting"})
 	logrus.Infof("start check service by type: %s ", input.SourceType)
 	var pr parser.Parser
 	switch input.SourceType {
@@ -121,7 +121,7 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		pr = parser.CreateThirdPartyServiceParse(input.SourceBody, logger)
 	}
 	if pr == nil {
-		logger.Error("创建应用来源类型不支持。", map[string]string{"step": "callback", "status": "failure"})
+		logger.Error("Creating component source types is not supported", map[string]string{"step": "callback", "status": "failure"})
 		return
 	}
 	errList := pr.Parse()

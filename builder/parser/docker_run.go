@@ -94,7 +94,7 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 		d.image = ParseImageName(d.source)
 	}
 	//获取镜像，验证是否存在
-	imageInspect, err := sources.ImagePull(d.dockerclient, d.image.String(), d.user, d.pass, d.logger, 10)
+	imageInspect, err := sources.ImagePull(d.dockerclient, d.image.Source(), d.user, d.pass, d.logger, 10)
 	if err != nil {
 		if strings.Contains(err.Error(), "No such image") {
 			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)不存在", d.image.String()), SolveAdvice("modify_image", "请确认输入镜像名是否正确")))
