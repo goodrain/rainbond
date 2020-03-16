@@ -1,6 +1,7 @@
 package memfs
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -36,9 +37,11 @@ func (s *storage) New(path string, mode os.FileMode, flag int) (*file, error) {
 		return nil, nil
 	}
 
+	name := filepath.Base(path)
+
 	f := &file{
-		name:    filepath.Base(path),
-		content: &content{},
+		name:    name,
+		content: &content{name: name},
 		mode:    mode,
 		flag:    flag,
 	}
@@ -169,10 +172,19 @@ func clean(path string) string {
 }
 
 type content struct {
+	name  string
 	bytes []byte
 }
 
 func (c *content) WriteAt(p []byte, off int64) (int, error) {
+	if off < 0 {
+		return 0, &os.PathError{
+			Op:   "writeat",
+			Path: c.name,
+			Err:  errors.New("negative offset"),
+		}
+	}
+
 	prev := len(c.bytes)
 
 	diff := int(off) - prev
@@ -189,6 +201,14 @@ func (c *content) WriteAt(p []byte, off int64) (int, error) {
 }
 
 func (c *content) ReadAt(b []byte, off int64) (n int, err error) {
+	if off < 0 {
+		return 0, &os.PathError{
+			Op:   "readat",
+			Path: c.name,
+			Err:  errors.New("negative offset"),
+		}
+	}
+
 	size := int64(len(c.bytes))
 	if off >= size {
 		return 0, io.EOF

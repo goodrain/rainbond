@@ -6,8 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "gopkg.in/check.v1"
+	"gopkg.in/src-d/go-billy.v4"
 	"gopkg.in/src-d/go-billy.v4/test"
+
+	. "gopkg.in/check.v1"
 )
 
 func Test(t *testing.T) { TestingT(t) }
@@ -35,4 +37,12 @@ func (s *OSSuite) TestOpenDoesNotCreateDir(c *C) {
 
 	_, err = os.Stat(filepath.Join(s.path, "dir"))
 	c.Assert(os.IsNotExist(err), Equals, true)
+}
+
+func (s *OSSuite) TestCapabilities(c *C) {
+	_, ok := s.FS.(billy.Capable)
+	c.Assert(ok, Equals, true)
+
+	caps := billy.Capabilities(s.FS)
+	c.Assert(caps, Equals, billy.AllCapabilities)
 }

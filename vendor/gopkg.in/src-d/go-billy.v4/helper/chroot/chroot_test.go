@@ -351,3 +351,18 @@ func (s *ChrootSuite) TestReadlinkWithBasic(c *C) {
 	_, err := fs.Readlink("")
 	c.Assert(err, Equals, billy.ErrNotSupported)
 }
+
+func (s *ChrootSuite) TestCapabilities(c *C) {
+	testCapabilities(c, new(test.BasicMock))
+	testCapabilities(c, new(test.OnlyReadCapFs))
+	testCapabilities(c, new(test.NoLockCapFs))
+}
+
+func testCapabilities(c *C, basic billy.Basic) {
+	baseCapabilities := billy.Capabilities(basic)
+
+	fs := New(basic, "/foo")
+	capabilities := billy.Capabilities(fs)
+
+	c.Assert(capabilities, Equals, baseCapabilities)
+}

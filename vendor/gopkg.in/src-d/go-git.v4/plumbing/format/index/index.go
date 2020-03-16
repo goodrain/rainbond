@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -17,9 +18,10 @@ var (
 	// ErrEntryNotFound is returned by Index.Entry, if an entry is not found.
 	ErrEntryNotFound = errors.New("entry not found")
 
-	indexSignature          = []byte{'D', 'I', 'R', 'C'}
-	treeExtSignature        = []byte{'T', 'R', 'E', 'E'}
-	resolveUndoExtSignature = []byte{'R', 'E', 'U', 'C'}
+	indexSignature              = []byte{'D', 'I', 'R', 'C'}
+	treeExtSignature            = []byte{'T', 'R', 'E', 'E'}
+	resolveUndoExtSignature     = []byte{'R', 'E', 'U', 'C'}
+	endOfIndexEntryExtSignature = []byte{'E', 'O', 'I', 'E'}
 )
 
 // Stage during merge
@@ -49,10 +51,24 @@ type Index struct {
 	Cache *Tree
 	// ResolveUndo represents the 'Resolve undo' extension
 	ResolveUndo *ResolveUndo
+	// EndOfIndexEntry represents the 'End of Index Entry' extension
+	EndOfIndexEntry *EndOfIndexEntry
+}
+
+// Add creates a new Entry and returns it. The caller should first check that
+// another entry with the same path does not exist.
+func (i *Index) Add(path string) *Entry {
+	e := &Entry{
+		Name: filepath.ToSlash(path),
+	}
+
+	i.Entries = append(i.Entries, e)
+	return e
 }
 
 // Entry returns the entry that match the given path, if any.
 func (i *Index) Entry(path string) (*Entry, error) {
+	path = filepath.ToSlash(path)
 	for _, e := range i.Entries {
 		if e.Name == path {
 			return e, nil
@@ -64,6 +80,7 @@ func (i *Index) Entry(path string) (*Entry, error) {
 
 // Remove remove the entry that match the give path and returns deleted entry.
 func (i *Index) Remove(path string) (*Entry, error) {
+	path = filepath.ToSlash(path)
 	for index, e := range i.Entries {
 		if e.Name == path {
 			i.Entries = append(i.Entries[:index], i.Entries[index+1:]...)
@@ -72,6 +89,24 @@ func (i *Index) Remove(path string) (*Entry, error) {
 	}
 
 	return nil, ErrEntryNotFound
+}
+
+// Glob returns the all entries matching pattern or nil if there is no matching
+// entry. The syntax of patterns is the same as in filepath.Glob.
+func (i *Index) Glob(pattern string) (matches []*Entry, err error) {
+	pattern = filepath.ToSlash(pattern)
+	for _, e := range i.Entries {
+		m, err := match(pattern, e.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		if m {
+			matches = append(matches, e)
+		}
+	}
+
+	return
 }
 
 // String is equivalent to `git ls-files --stage --debug`
@@ -160,4 +195,19 @@ type ResolveUndo struct {
 type ResolveUndoEntry struct {
 	Path   string
 	Stages map[Stage]plumbing.Hash
+}
+
+// EndOfIndexEntry is the End of Index Entry (EOIE) is used to locate the end of
+// the variable length index entries and the beginning of the extensions. Code
+// can take advantage of this to quickly locate the index extensions without
+// having to parse through all of the index entries.
+//
+//  Because it must be able to be loaded before the variable length cache
+//  entries and other index extensions, this extension must be written last.
+type EndOfIndexEntry struct {
+	// Offset to the end of the index entries
+	Offset uint32
+	// Hash is a SHA-1 over the extension types and their sizes (but not
+	//	their contents).
+	Hash plumbing.Hash
 }

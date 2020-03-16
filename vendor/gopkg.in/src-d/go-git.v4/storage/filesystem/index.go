@@ -1,10 +1,11 @@
 package filesystem
 
 import (
+	"bufio"
 	"os"
 
 	"gopkg.in/src-d/go-git.v4/plumbing/format/index"
-	"gopkg.in/src-d/go-git.v4/storage/filesystem/internal/dotgit"
+	"gopkg.in/src-d/go-git.v4/storage/filesystem/dotgit"
 	"gopkg.in/src-d/go-git.v4/utils/ioutil"
 )
 
@@ -12,20 +13,26 @@ type IndexStorage struct {
 	dir *dotgit.DotGit
 }
 
-func (s *IndexStorage) SetIndex(idx *index.Index) error {
+func (s *IndexStorage) SetIndex(idx *index.Index) (err error) {
 	f, err := s.dir.IndexWriter()
 	if err != nil {
 		return err
 	}
 
 	defer ioutil.CheckClose(f, &err)
+	bw := bufio.NewWriter(f)
+	defer func() {
+		if e := bw.Flush(); err == nil && e != nil {
+			err = e
+		}
+	}()
 
-	e := index.NewEncoder(f)
+	e := index.NewEncoder(bw)
 	err = e.Encode(idx)
 	return err
 }
 
-func (s *IndexStorage) Index() (*index.Index, error) {
+func (s *IndexStorage) Index() (i *index.Index, err error) {
 	idx := &index.Index{
 		Version: 2,
 	}
@@ -41,7 +48,7 @@ func (s *IndexStorage) Index() (*index.Index, error) {
 
 	defer ioutil.CheckClose(f, &err)
 
-	d := index.NewDecoder(f)
+	d := index.NewDecoder(bufio.NewReader(f))
 	err = d.Decode(idx)
 	return idx, err
 }

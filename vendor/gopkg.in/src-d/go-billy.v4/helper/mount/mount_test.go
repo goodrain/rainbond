@@ -337,3 +337,34 @@ func (s *MountSuite) TestSourceNotSupported(c *C) {
 	_, err = h.Readlink("foo")
 	c.Assert(err, Equals, billy.ErrNotSupported)
 }
+
+func (s *MountSuite) TestCapabilities(c *C) {
+	testCapabilities(c, new(test.BasicMock), new(test.BasicMock))
+	testCapabilities(c, new(test.BasicMock), new(test.OnlyReadCapFs))
+	testCapabilities(c, new(test.BasicMock), new(test.NoLockCapFs))
+	testCapabilities(c, new(test.OnlyReadCapFs), new(test.BasicMock))
+	testCapabilities(c, new(test.OnlyReadCapFs), new(test.OnlyReadCapFs))
+	testCapabilities(c, new(test.OnlyReadCapFs), new(test.NoLockCapFs))
+	testCapabilities(c, new(test.NoLockCapFs), new(test.BasicMock))
+	testCapabilities(c, new(test.NoLockCapFs), new(test.OnlyReadCapFs))
+	testCapabilities(c, new(test.NoLockCapFs), new(test.NoLockCapFs))
+}
+
+func testCapabilities(c *C, a, b billy.Basic) {
+	aCapabilities := billy.Capabilities(a)
+	bCapabilities := billy.Capabilities(b)
+
+	fs := New(a, "/foo", b)
+	capabilities := billy.Capabilities(fs)
+
+	unionCapabilities := aCapabilities & bCapabilities
+
+	c.Assert(capabilities, Equals, unionCapabilities)
+
+	fs = New(b, "/foo", a)
+	capabilities = billy.Capabilities(fs)
+
+	unionCapabilities = aCapabilities & bCapabilities
+
+	c.Assert(capabilities, Equals, unionCapabilities)
+}

@@ -2,10 +2,12 @@ package object
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -24,6 +26,7 @@ var (
 	ErrMaxTreeDepth      = errors.New("maximum tree depth exceeded")
 	ErrFileNotFound      = errors.New("file not found")
 	ErrDirectoryNotFound = errors.New("directory not found")
+	ErrEntryNotFound     = errors.New("entry not found")
 )
 
 // Tree is basically like a directory - it references a bunch of other trees
@@ -34,6 +37,7 @@ type Tree struct {
 
 	s storer.EncodedObjectStorer
 	m map[string]*TreeEntry
+	t map[string]*Tree // tree path cache
 }
 
 // GetTree gets a tree from an object storer and decodes it.
@@ -83,6 +87,17 @@ func (t *Tree) File(path string) (*File, error) {
 	return NewFile(path, e.Mode, blob), nil
 }
 
+// Size returns the plaintext size of an object, without reading it
+// into memory.
+func (t *Tree) Size(path string) (int64, error) {
+	e, err := t.FindEntry(path)
+	if err != nil {
+		return 0, ErrEntryNotFound
+	}
+
+	return t.s.EncodedObjectSize(e.Hash)
+}
+
 // Tree returns the tree identified by the `path` argument.
 // The path is interpreted as relative to the tree receiver.
 func (t *Tree) Tree(path string) (*Tree, error) {
@@ -111,14 +126,37 @@ func (t *Tree) TreeEntryFile(e *TreeEntry) (*File, error) {
 
 // FindEntry search a TreeEntry in this tree or any subtree.
 func (t *Tree) FindEntry(path string) (*TreeEntry, error) {
+	if t.t == nil {
+		t.t = make(map[string]*Tree)
+	}
+
 	pathParts := strings.Split(path, "/")
+	startingTree := t
+	pathCurrent := ""
+
+	// search for the longest path in the tree path cache
+	for i := len(pathParts) - 1; i > 1; i-- {
+		path := filepath.Join(pathParts[:i]...)
+
+		tree, ok := t.t[path]
+		if ok {
+			startingTree = tree
+			pathParts = pathParts[i:]
+			pathCurrent = path
+
+			break
+		}
+	}
 
 	var tree *Tree
 	var err error
-	for tree = t; len(pathParts) > 1; pathParts = pathParts[1:] {
+	for tree = startingTree; len(pathParts) > 1; pathParts = pathParts[1:] {
 		if tree, err = tree.dir(pathParts[0]); err != nil {
 			return nil, err
 		}
+
+		pathCurrent = filepath.Join(pathCurrent, pathParts[0])
+		t.t[pathCurrent] = tree
 	}
 
 	return tree.entry(pathParts[0])
@@ -141,8 +179,6 @@ func (t *Tree) dir(baseName string) (*Tree, error) {
 	return tree, err
 }
 
-var errEntryNotFound = errors.New("entry not found")
-
 func (t *Tree) entry(baseName string) (*TreeEntry, error) {
 	if t.m == nil {
 		t.buildMap()
@@ -150,7 +186,7 @@ func (t *Tree) entry(baseName string) (*TreeEntry, error) {
 
 	entry, ok := t.m[baseName]
 	if !ok {
-		return nil, errEntryNotFound
+		return nil, ErrEntryNotFound
 	}
 
 	return entry, nil
@@ -194,7 +230,9 @@ func (t *Tree) Decode(o plumbing.EncodedObject) (err error) {
 	}
 	defer ioutil.CheckClose(reader, &err)
 
-	r := bufio.NewReader(reader)
+	r := bufPool.Get().(*bufio.Reader)
+	defer bufPool.Put(r)
+	r.Reset(reader)
 	for {
 		str, err := r.ReadString(' ')
 		if err != nil {
@@ -233,7 +271,7 @@ func (t *Tree) Decode(o plumbing.EncodedObject) (err error) {
 }
 
 // Encode transforms a Tree into a plumbing.EncodedObject.
-func (t *Tree) Encode(o plumbing.EncodedObject) error {
+func (t *Tree) Encode(o plumbing.EncodedObject) (err error) {
 	o.SetType(plumbing.TreeObject)
 	w, err := o.Writer()
 	if err != nil {
@@ -242,7 +280,7 @@ func (t *Tree) Encode(o plumbing.EncodedObject) error {
 
 	defer ioutil.CheckClose(w, &err)
 	for _, entry := range t.Entries {
-		if _, err := fmt.Fprintf(w, "%o %s", entry.Mode, entry.Name); err != nil {
+		if _, err = fmt.Fprintf(w, "%o %s", entry.Mode, entry.Name); err != nil {
 			return err
 		}
 
@@ -250,7 +288,7 @@ func (t *Tree) Encode(o plumbing.EncodedObject) error {
 			return err
 		}
 
-		if _, err = w.Write([]byte(entry.Hash[:])); err != nil {
+		if _, err = w.Write(entry.Hash[:]); err != nil {
 			return err
 		}
 	}
@@ -270,15 +308,30 @@ func (from *Tree) Diff(to *Tree) (Changes, error) {
 	return DiffTree(from, to)
 }
 
+// Diff returns a list of changes between this tree and the provided one
+// Error will be returned if context expires
+// Provided context must be non nil
+func (from *Tree) DiffContext(ctx context.Context, to *Tree) (Changes, error) {
+	return DiffTreeContext(ctx, from, to)
+}
+
 // Patch returns a slice of Patch objects with all the changes between trees
 // in chunks. This representation can be used to create several diff outputs.
 func (from *Tree) Patch(to *Tree) (*Patch, error) {
-	changes, err := DiffTree(from, to)
+	return from.PatchContext(context.Background(), to)
+}
+
+// Patch returns a slice of Patch objects with all the changes between trees
+// in chunks. This representation can be used to create several diff outputs.
+// If context expires, an error will be returned
+// Provided context must be non-nil
+func (from *Tree) PatchContext(ctx context.Context, to *Tree) (*Patch, error) {
+	changes, err := DiffTreeContext(ctx, from, to)
 	if err != nil {
 		return nil, err
 	}
 
-	return changes.Patch()
+	return changes.PatchContext(ctx)
 }
 
 // treeEntryIter facilitates iterating through the TreeEntry objects in a Tree.
@@ -332,7 +385,7 @@ func NewTreeWalker(t *Tree, recursive bool, seen map[plumbing.Hash]bool) *TreeWa
 // underlying repository will be skipped automatically. It is possible that this
 // may change in future versions.
 func (w *TreeWalker) Next() (name string, entry TreeEntry, err error) {
-	var obj Object
+	var obj *Tree
 	for {
 		current := len(w.stack) - 1
 		if current < 0 {
@@ -352,7 +405,7 @@ func (w *TreeWalker) Next() (name string, entry TreeEntry, err error) {
 			// Finished with the current tree, move back up to the parent
 			w.stack = w.stack[:current]
 			w.base, _ = path.Split(w.base)
-			w.base = path.Clean(w.base) // Remove trailing slash
+			w.base = strings.TrimSuffix(w.base, "/")
 			continue
 		}
 
@@ -368,7 +421,7 @@ func (w *TreeWalker) Next() (name string, entry TreeEntry, err error) {
 			obj, err = GetTree(w.s, entry.Hash)
 		}
 
-		name = path.Join(w.base, entry.Name)
+		name = simpleJoin(w.base, entry.Name)
 
 		if err != nil {
 			err = io.EOF
@@ -382,9 +435,9 @@ func (w *TreeWalker) Next() (name string, entry TreeEntry, err error) {
 		return
 	}
 
-	if t, ok := obj.(*Tree); ok {
-		w.stack = append(w.stack, &treeEntryIter{t, 0})
-		w.base = path.Join(w.base, entry.Name)
+	if obj != nil {
+		w.stack = append(w.stack, &treeEntryIter{obj, 0})
+		w.base = simpleJoin(w.base, entry.Name)
 	}
 
 	return
@@ -457,4 +510,11 @@ func (iter *TreeIter) ForEach(cb func(*Tree) error) error {
 
 		return cb(t)
 	})
+}
+
+func simpleJoin(parent, child string) string {
+	if len(parent) > 0 {
+		return parent + "/" + child
+	}
+	return child
 }
