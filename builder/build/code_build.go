@@ -362,11 +362,11 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 func (s *slugBuild) waitingComplete(re *Request, reChan chan string) (err error) {
 	var logComplete = false
 	var jobComplete = false
-	timeout := time.NewTimer(time.Millisecond * 60)
+	timeout := time.NewTimer(time.Minute * 60)
 	for {
 		select {
 		case <-timeout.C:
-			return fmt.Errorf("build time out")
+			return fmt.Errorf("build time out (more than 60 minute)")
 		case jobStatus := <-reChan:
 			switch jobStatus {
 			case "complete":
