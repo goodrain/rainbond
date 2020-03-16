@@ -21,11 +21,12 @@ package exector
 import (
 	"context"
 	"fmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path"
 	"strings"
 	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
@@ -181,6 +182,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 			Message: commit.Message,
 		}
 	}
+	// clean cache code
 	defer func() {
 		if err := os.RemoveAll(rbi.GetCodeHome()); err != nil {
 			logrus.Warningf("remove source code: %v", err)
@@ -203,7 +205,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		i.Lang = string(lang)
 	}
 
-	i.Logger.Info("pull code successfully", map[string]string{"step": "codee-version"})
+	i.Logger.Info("pull or clone code successfully, start code build", map[string]string{"step": "codee-version"})
 	res, err := i.codeBuild()
 	if err != nil {
 		if err.Error() == context.DeadlineExceeded.Error() {

@@ -140,6 +140,10 @@ func (r *readEventBarrel) insertMessage(message *db.EventLogMessage) {
 func (r *readEventBarrel) pushCashMessage(ch chan *db.EventLogMessage, subID string) {
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
+	//send cache message
+	for _, m := range r.barrel {
+		ch <- m
+	}
 	r.subSocketChan[subID] = ch
 }
 

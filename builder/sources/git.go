@@ -113,6 +113,9 @@ func getShowURL(rurl string) string {
 //GitClone git clone code
 func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
 	GetPrivateFileParam := csi.TenantID
+	if !strings.HasSuffix(csi.RepositoryURL, ".git") {
+		csi.RepositoryURL = csi.RepositoryURL + ".git"
+	}
 	flag := true
 Loop:
 	if logger != nil {
@@ -135,7 +138,7 @@ Loop:
 		Progress:          writer,
 		SingleBranch:      true,
 		Tags:              git.NoTags,
-		RecurseSubmodules: git.NoRecurseSubmodules,
+		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 		Depth:             1,
 	}
 	if csi.Branch != "" {

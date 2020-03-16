@@ -106,10 +106,10 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		return d.errors
 	}
 	gitFunc := func() ParseErrorList {
-		//获取代码
-		if sources.CheckFileExist(buildInfo.GetCodeHome()) {
+		//get code
+		if !util.DirIsEmpty(buildInfo.GetCodeHome()) {
 			if err := sources.RemoveDir(buildInfo.GetCodeHome()); err != nil {
-				//d.errappend(ErrorAndSolve(err, "清理cache dir错误", "请提交代码到仓库"))
+				logrus.Errorf("remove code dir failure %s", err.Error())
 				return d.errors
 			}
 		}

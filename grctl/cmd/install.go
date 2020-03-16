@@ -17,13 +17,16 @@ import (
 )
 
 var pemDirPath = ".rbd/ssl"
-var clientPemPath = path.Join(pemDirPath, "client.pem")
-var clientKeyPemPath = path.Join(pemDirPath, "client.key.pem")
-var clientCAPemPath = path.Join(pemDirPath, "ca.pem")
+var clientPemPath string
+var clientKeyPemPath string
+var clientCAPemPath string
 
 func init() {
 	homePath, _ := sources.Home()
 	pemDirPath = path.Join(homePath, pemDirPath)
+	clientPemPath = path.Join(pemDirPath, "client.pem")
+	clientKeyPemPath = path.Join(pemDirPath, "client.key.pem")
+	clientCAPemPath = path.Join(pemDirPath, "ca.pem")
 }
 
 //NewCmdInstall -

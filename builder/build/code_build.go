@@ -23,31 +23,26 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
-	"github.com/fsnotify/fsnotify"
-	"github.com/goodrain/rainbond/builder"
-	"github.com/goodrain/rainbond/builder/sources"
-	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/util"
-	"github.com/pquerna/ffjson/ffjson"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
-	"sync"
 	"time"
 
-	batchv1 "k8s.io/api/batch/v1"
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
+	"github.com/fsnotify/fsnotify"
+	"github.com/goodrain/rainbond/builder"
+	jobc "github.com/goodrain/rainbond/builder/job"
+	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
+	"github.com/pquerna/ffjson/ffjson"
 	corev1 "k8s.io/api/core/v1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
 )
 
 func slugBuilder() (Build, error) {
@@ -67,17 +62,22 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 	s.re = re
 	s.buildCacheDir = re.CacheDir
 	packageName := fmt.Sprintf("%s/%s.tgz", s.tgzDir, re.DeployVersion)
+	//Stops previous build tasks for the same component
+	//If an error occurs, it does not affect the current build task
+	if err := s.stopPreBuildJob(re); err != nil {
+		logrus.Errorf("stop pre build job for service %s failure %s", re.ServiceID, err.Error())
+	}
 	if err := s.runBuildJob(re); err != nil {
 		re.Logger.Error(util.Translation("Compiling the source code failure"), map[string]string{"step": "build-code", "status": "failure"})
 		logrus.Error("build slug in container error,", err.Error())
 		return nil, err
 	}
+	re.Logger.Info("code build success", map[string]string{"step": "build-exector"})
 	defer func() {
-		if err := os.Remove(packageName); err != nil {
+		if err := os.Remove(packageName); err != nil && !strings.Contains(err.Error(), "no such file or directory") {
 			logrus.Warningf("pkg name: %s; remove slug pkg: %v", packageName, err)
 		}
 	}()
-
 	fileInfo, err := os.Stat(packageName)
 	if err != nil {
 		re.Logger.Error(util.Translation("Check that the build result failure"), map[string]string{"step": "build-code", "status": "failure"})
@@ -96,7 +96,7 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 			map[string]string{"step": "build-code", "status": "failure"})
 		return nil, fmt.Errorf("build runner image failure")
 	}
-	re.Logger.Info(util.Translation("Compiling the source code SUCCESS"), map[string]string{"step": "build-code", "status": "success"})
+	re.Logger.Info(util.Translation("build runtime image success"), map[string]string{"step": "build-code", "status": "success"})
 	res := &Response{
 		MediumType: ImageMediumType,
 		MediumPath: imageName,
@@ -222,7 +222,7 @@ func (s *slugBuild) readLogFile(logfile string, logger event.Logger, closed chan
 	}
 }
 
-func (s *slugBuild) getSourceCodeTarFile(re *Request) (*os.File, error) {
+func (s *slugBuild) getSourceCodeTarFile(re *Request) (string, error) {
 	var cmd []string
 	sourceTarFile := fmt.Sprintf("%s/%s-%s.tar", util.GetParentDirectory(re.SourceDir), re.ServiceID, re.DeployVersion)
 	if re.ServerType == "svn" {
@@ -235,37 +235,41 @@ func (s *slugBuild) getSourceCodeTarFile(re *Request) (*os.File, error) {
 	source.Dir = re.SourceDir
 	logrus.Debugf("tar source code to file %s", sourceTarFile)
 	if err := source.Run(); err != nil {
-		return nil, err
+		return "", err
 	}
-	return os.OpenFile(sourceTarFile, os.O_RDONLY, 0755)
+	return sourceTarFile, nil
 }
 
-func (s *slugBuild) prepareSourceCodeFile(re *Request) error {
-	var cmd []string
-	if re.ServerType == "svn" {
-		cmd = append(cmd, "rm", "-rf", path.Join(re.SourceDir, "./.svn"))
+//stopPreBuildJob Stops previous build tasks for the same component
+//The same component retains only one build task to perform
+func (s *slugBuild) stopPreBuildJob(re *Request) error {
+	jobList, err := jobc.GetJobController().GetServiceJobs(re.ServiceID)
+	if err != nil {
+		logrus.Errorf("get pre build job for service %s failure ,%s", re.ServiceID, err.Error())
 	}
-	if re.ServerType == "git" {
-		cmd = append(cmd, "rm", "-rf", path.Join(re.SourceDir, "./.git"))
+	if jobList != nil && len(jobList) > 0 {
+		for _, job := range jobList {
+			jobc.GetJobController().DeleteJob(job.Name)
+		}
 	}
-	source := exec.Command(cmd[0], cmd[1:]...)
-	if err := source.Run(); err != nil {
-		return err
-	}
-	logrus.Debug("delete .git and .svn folder success")
 	return nil
 }
 
 func (s *slugBuild) runBuildJob(re *Request) error {
-	ctx, cancel := context.WithCancel(re.Ctx)
-	defer cancel()
-	logrus.Info("start build job")
-	// delete .git and .svn folder
-	if err := s.prepareSourceCodeFile(re); err != nil {
-		logrus.Error("delete .git and .svn folder error")
-		return err
+	//prepare build code dir
+	re.Logger.Info(util.Translation("Start make code package"), map[string]string{"step": "build-exector"})
+	start := time.Now()
+	sourceTarFileName, err := s.getSourceCodeTarFile(re)
+	if err != nil {
+		return fmt.Errorf("create source code tar file error:%s", err.Error())
 	}
-	name := fmt.Sprintf("%s-%s", re.ServiceID, re.Commit.Hash[0:7])
+	re.Logger.Info(util.Translation("make code package success"), map[string]string{"step": "build-exector"})
+	logrus.Infof("package code for building service %s version %s successful, take time %s", re.ServiceID, re.DeployVersion, time.Now().Sub(start))
+	// remove source cache tar file
+	defer func() {
+		os.Remove(sourceTarFileName)
+	}()
+	name := fmt.Sprintf("%s-%s", re.ServiceID, re.DeployVersion)
 	namespace := "rbd-system"
 	envs := []corev1.EnvVar{
 		corev1.EnvVar{Name: "SLUG_VERSION", Value: re.DeployVersion},
@@ -284,13 +288,16 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			}
 		}
 	}
-	job := batchv1.Job{}
-	job.Name = name
-	job.Namespace = namespace
-	podTempSpec := corev1.PodTemplateSpec{}
-	podTempSpec.Name = name
-	podTempSpec.Namespace = namespace
-
+	job := corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"service": re.ServiceID,
+				"job":     "codebuild",
+			},
+		},
+	}
 	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
 	podSpec.Volumes = []corev1.Volume{
 		corev1.Volume{
@@ -314,9 +321,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	container.Env = envs
 	container.Args = []string{"local"}
 	slugSubPath := strings.TrimPrefix(re.TGZDir, "/grdata/")
-	logrus.Debugf("slug subpath is : %s", slugSubPath)
-	appSubPath := strings.TrimPrefix(re.SourceDir, "/cache/")
-	logrus.Debugf("app subpath is : %s", appSubPath)
+	sourceTarPath := strings.TrimPrefix(sourceTarFileName, "/cache/")
 	cacheSubPath := strings.TrimPrefix(re.CacheDir, "/cache/")
 	container.VolumeMounts = []corev1.VolumeMount{
 		corev1.VolumeMount{
@@ -331,238 +336,69 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		},
 		corev1.VolumeMount{
 			Name:      "app",
-			MountPath: "/tmp/app",
-			SubPath:   appSubPath,
+			MountPath: "/tmp/app-source.tar",
+			SubPath:   sourceTarPath,
 		},
 	}
 	podSpec.Containers = append(podSpec.Containers, container)
 	for _, ha := range re.HostAlias {
 		podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: ha.IP, Hostnames: ha.Hostnames})
 	}
-	podTempSpec.Spec = podSpec
-	job.Spec.Template = podTempSpec
-
-	_, err := re.KubeClient.BatchV1().Jobs(namespace).Create(&job)
-	if err != nil {
-		if !k8sErrors.IsAlreadyExists(err) {
-			logrus.Errorf("create new job:%s failed: %s", name, err.Error())
-			return err
-		}
-		_, err := re.KubeClient.BatchV1().Jobs(namespace).Get(job.Name, metav1.GetOptions{})
-		if err != nil {
-			logrus.Errorf("get old job:%s failed : %s", name, err.Error())
-			return err
-		}
-
-		waitChan := make(chan struct{})
-		// if get old job, must clean it before re create a new one
-		go waitOldJobDeleted(ctx, waitChan, re.KubeClient, namespace, name)
-
-		var gracePeriod int64 = 0
-		if err := re.KubeClient.BatchV1().Jobs(namespace).Delete(job.Name, &metav1.DeleteOptions{
-			GracePeriodSeconds: &gracePeriod,
-		}); err != nil {
-			logrus.Errorf("get old job:%s failed: %s", name, err.Error())
-			return err
-		}
-
-		<-waitChan
-		logrus.Infof("old job has beed cleaned, create new job: %s", job.Name)
-
-		if _, err := re.KubeClient.BatchV1().Jobs(namespace).Create(&job); err != nil {
-			logrus.Errorf("create new job:%s failed: %s", name, err.Error())
-			return err
-		}
-	}
-
-	defer delete(re.KubeClient, namespace, job.Name)
-
-	// get job builder log and delete job util it is finished
+	job.Spec = podSpec
 	writer := re.Logger.GetWriter("builder", "info")
-
-	podChan := make(chan struct{})
-
-	go getJobPodLogs(ctx, podChan, re.KubeClient, writer, namespace, job.Name)
-	getJob(ctx, podChan, re.KubeClient, namespace, job.Name)
-
-	return nil
-}
-
-func waitOldJobDeleted(ctx context.Context, waitChan chan struct{}, clientset kubernetes.Interface, namespace, name string) {
-	labelSelector := fmt.Sprintf("job-name=%s", name)
-	jobWatch, err := clientset.BatchV1().Jobs(namespace).Watch(metav1.ListOptions{LabelSelector: labelSelector})
+	reChan := make(chan string, 2)
+	err = jobc.GetJobController().ExecJob(&job, writer, reChan)
 	if err != nil {
-		logrus.Errorf("watch job: %s failed: %s", name, err.Error())
-		return
+		logrus.Errorf("create new job:%s failed: %s", name, err.Error())
+		return err
 	}
+	re.Logger.Info(util.Translation("create build code job success"), map[string]string{"step": "build-exector"})
+	logrus.Infof("create build job %s for service %s build version %s", job.Name, re.ServiceID, re.DeployVersion)
+	// delete job after complete
+	defer jobc.GetJobController().DeleteJob(job.Name)
+	return s.waitingComplete(re, reChan)
+}
 
+func (s *slugBuild) waitingComplete(re *Request, reChan chan string) (err error) {
+	var logComplete = false
+	var jobComplete = false
+	timeout := time.NewTimer(time.Millisecond * 60)
 	for {
 		select {
-		case <-time.After(30 * time.Second):
-			logrus.Warnf("wait old job[%s] cleaned time out", name)
-			waitChan <- struct{}{}
-			return
-		case <-ctx.Done():
-			return
-		case evt, ok := <-jobWatch.ResultChan():
-			if !ok {
-				logrus.Error("old job watch chan be closed")
-				return
-			}
-			switch evt.Type {
-			case watch.Deleted:
-				logrus.Infof("old job deleted : %s", name)
-				waitChan <- struct{}{}
-				return
+		case <-timeout.C:
+			return fmt.Errorf("build time out")
+		case jobStatus := <-reChan:
+			switch jobStatus {
+			case "complete":
+				jobComplete = true
+				if logComplete {
+					return nil
+				}
+				re.Logger.Info(util.Translation("build code job exec completed"), map[string]string{"step": "build-exector"})
+			case "failed":
+				jobComplete = true
+				err = fmt.Errorf("build code job exec failure")
+				if logComplete {
+					return err
+				}
+				re.Logger.Info(util.Translation("build code job exec failed"), map[string]string{"step": "build-exector"})
+			case "cancel":
+				jobComplete = true
+				err = fmt.Errorf("build code job is canceled")
+				if logComplete {
+					return err
+				}
+			case "logcomplete":
+				logComplete = true
+				if jobComplete {
+					return err
+				}
 			}
 		}
 	}
 }
 
-func getJob(ctx context.Context, podChan chan struct{}, clientset kubernetes.Interface, namespace, name string) {
-	var job *batchv1.Job
-	labelSelector := fmt.Sprintf("job-name=%s", name)
-	jobWatch, err := clientset.BatchV1().Jobs(namespace).Watch(metav1.ListOptions{LabelSelector: labelSelector})
-	if err != nil {
-		logrus.Errorf("watch job: %s failed: %s", name, err.Error())
-		return
-	}
-
-	once := sync.Once{}
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case evt, ok := <-jobWatch.ResultChan():
-			if !ok {
-				logrus.Error("job watch chan be closed")
-				return
-			}
-			switch evt.Type {
-			case watch.Modified, watch.Added:
-				job, _ = evt.Object.(*batchv1.Job)
-				if job.Name == name {
-					logrus.Debugf("job: %s status is: %+v ", name, job.Status)
-					// active means this job has bound a pod, can't ensure this pod's status is running or creating or initing or some status else
-					if job.Status.Active > 0 {
-						once.Do(func() {
-							logrus.Debug("job is ready")
-							waitPod(ctx, podChan, clientset, namespace, name)
-							podChan <- struct{}{}
-						})
-					}
-					if job.Status.Succeeded > 0 || job.Status.Failed > 0 {
-						logrus.Debug("job is finished")
-						return
-					}
-				}
-			case watch.Error:
-				logrus.Errorf("job: %s error", name)
-				return
-			case watch.Deleted:
-				logrus.Infof("job deleted : %s", name)
-				return
-			}
-
-		}
-	}
-}
-
-func waitPod(ctx context.Context, podChan chan struct{}, clientset kubernetes.Interface, namespace, name string) {
-	logrus.Debug("waiting pod")
-	var pod *corev1.Pod
-	labelSelector := fmt.Sprintf("job-name=%s", name)
-	podWatch, err := clientset.CoreV1().Pods(namespace).Watch(metav1.ListOptions{LabelSelector: labelSelector})
-	if err != nil {
-		return
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case evt, ok := <-podWatch.ResultChan():
-			if !ok {
-				logrus.Error("pod watch chan be closed")
-				return
-			}
-			switch evt.Type {
-			case watch.Added, watch.Modified:
-				pod, _ = evt.Object.(*corev1.Pod)
-				logrus.Debugf("pod status is : %s", pod.Status.Phase)
-				if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].Ready {
-					logrus.Debug("pod is running")
-					return
-				}
-			case watch.Deleted:
-				logrus.Infof("pod : %s deleted", name)
-				return
-			case watch.Error:
-				logrus.Errorf("pod : %s error", name)
-				return
-			}
-		}
-	}
-}
-
-func getJobPodLogs(ctx context.Context, podChan chan struct{}, clientset kubernetes.Interface, writer event.LoggerWriter, namespace, job string) {
-	once := sync.Once{}
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-podChan:
-			once.Do(func() {
-				logrus.Debug("pod ready")
-				labelSelector := fmt.Sprintf("job-name=%s", job)
-				pods, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: labelSelector})
-				if err != nil {
-					logrus.Errorf("do not found job's pod, %s", err.Error())
-					return
-				}
-				logrus.Debug("pod name is : ", pods.Items[0].Name)
-				podLogRequest := clientset.CoreV1().Pods(namespace).GetLogs(pods.Items[0].Name, &corev1.PodLogOptions{Follow: true})
-				reader, err := podLogRequest.Stream()
-				if err != nil {
-					logrus.Warnf("get build job pod log data error: %s, retry net loop", err.Error())
-					return
-				}
-				defer reader.Close()
-				bufReader := bufio.NewReader(reader)
-				for {
-					line, err := bufReader.ReadBytes('\n')
-					writer.Write(line)
-					if err == io.EOF {
-						logrus.Info("get job log finished(io.EOF)")
-						return
-					}
-					if err != nil {
-						logrus.Warningf("get job log error: %s", err.Error())
-						return
-					}
-				}
-			})
-		}
-	}
-}
-
-func delete(clientset kubernetes.Interface, namespace, job string) {
-	logrus.Debugf("start delete job: %s", job)
-	listOptions := metav1.ListOptions{LabelSelector: fmt.Sprintf("job-name=%s", job)}
-
-	if err := clientset.CoreV1().Pods(namespace).DeleteCollection(&metav1.DeleteOptions{}, listOptions); err != nil {
-		logrus.Errorf("delete job pod failed: %s", err.Error())
-	}
-
-	// delete job
-	if err := clientset.BatchV1().Jobs(namespace).Delete(job, &metav1.DeleteOptions{}); err != nil {
-		logrus.Errorf("delete job failed: %s", err.Error())
-	}
-
-	logrus.Debug("delete job finish")
-
-}
-
+//runBuildContainer The deprecated
 func (s *slugBuild) runBuildContainer(re *Request) error {
 	envs := []*sources.KeyValue{
 		&sources.KeyValue{Key: "SLUG_VERSION", Value: re.DeployVersion},
@@ -612,7 +448,11 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 		Args:       []string{"local"},
 		ExtraHosts: re.ExtraHosts,
 	}
-	reader, err := s.getSourceCodeTarFile(re)
+	sourceTarFileName, err := s.getSourceCodeTarFile(re)
+	if err != nil {
+		return fmt.Errorf("create source code tar file error:%s", err.Error())
+	}
+	reader, err := os.OpenFile(sourceTarFileName, os.O_RDONLY, 0755)
 	if err != nil {
 		return fmt.Errorf("create source code tar file error:%s", err.Error())
 	}

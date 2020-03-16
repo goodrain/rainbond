@@ -21,7 +21,6 @@ package exector
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -35,6 +34,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/tidwall/gjson"
 
+	"github.com/goodrain/rainbond/builder/job"
 	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
@@ -95,15 +95,20 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	etcdCli, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	var maxConcurrentTask int
 	if conf.MaxTasks == 0 {
-		maxConcurrentTask = runtime.NumCPU() * 2
+		maxConcurrentTask = 50
 	} else {
 		maxConcurrentTask = conf.MaxTasks
 	}
-
+	stop := make(chan struct{})
+	if err := job.InitJobController(stop, kubeClient); err != nil {
+		cancel()
+		return nil, err
+	}
 	logrus.Infof("The maximum number of concurrent build tasks supported by the current node is %d", maxConcurrentTask)
 	return &exectorManager{
 		DockerClient:      dockerClient,

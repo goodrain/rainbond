@@ -38,30 +38,60 @@ import (
 //NewSourceBuildCmd cmd for source build test
 func NewSourceBuildCmd() cli.Command {
 	c := cli.Command{
-		Name:  "buildtest",
-		Usage: "build test source code, If it can be build, you can build in rainbond",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  "dir",
-				Usage: "source code dir,default is current dir.",
-				Value: "",
+		Subcommands: []cli.Command{
+			cli.Command{
+				Name:  "test",
+				Usage: "build test source code, If it can be build, you can build in rainbond",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "dir",
+						Usage: "source code dir,default is current dir.",
+						Value: "",
+					},
+					cli.StringFlag{
+						Name:  "lang",
+						Usage: "source code lang type, if not specified, will automatic identify",
+						Value: "",
+					},
+					cli.StringFlag{
+						Name:  "image",
+						Usage: "builder image name",
+						Value: builder.BUILDERIMAGENAME,
+					},
+					cli.StringSliceFlag{
+						Name:  "env",
+						Usage: "Build the required environment variables",
+					},
+				},
+				Action: build,
 			},
-			cli.StringFlag{
-				Name:  "lang",
-				Usage: "source code lang type, if not specified, will automatic identify",
-				Value: "",
+			cli.Command{
+				Name:  "list",
+				Usage: "Lists the building tasks pod currently being performed",
+				Action: func(ctx *cli.Context) {
+					cmd := exec.Command("kubectl", "get", "pod", "-l", "job=codebuild", "-o", "wide", "-n", "rbd-system")
+					cmd.Stdout = os.Stdout
+					cmd.Stderr = os.Stderr
+					cmd.Run()
+				},
 			},
-			cli.StringFlag{
-				Name:  "image",
-				Usage: "builder image name",
-				Value: builder.BUILDERIMAGENAME,
-			},
-			cli.StringSliceFlag{
-				Name:  "env",
-				Usage: "Build the required environment variables",
+			cli.Command{
+				Name:  "log",
+				Usage: "Displays a log of the build task",
+				Action: func(ctx *cli.Context) {
+					name := ctx.Args().First()
+					if name == "" {
+						showError("Please specify the task pod name")
+					}
+					cmd := exec.Command("kubectl", "logs", "-f", name, "-n", "rbd-system")
+					cmd.Stdout = os.Stdout
+					cmd.Stderr = os.Stderr
+					cmd.Run()
+				},
 			},
 		},
-		Action: build,
+		Name:  "build",
+		Usage: "Commands related to building source code",
 	}
 	return c
 }

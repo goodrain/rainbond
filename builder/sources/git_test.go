@@ -24,11 +24,14 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/event"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
 func init() {
 	event.NewManager(event.EventConfig{
-		DiscoverAddress: []string{"172.17.0.1:2379"},
+		DiscoverArgs: &etcdutil.ClientArgs{
+			Endpoints: []string{"127.0.0.1:2379"},
+		},
 	})
 }
 func TestGitClone(t *testing.T) {
@@ -49,8 +52,8 @@ func TestGitClone(t *testing.T) {
 func TestGitCloneByTag(t *testing.T) {
 	start := time.Now()
 	csi := CodeSourceInfo{
-		RepositoryURL: "https://github.com/goodrain/rainbond-install.git",
-		Branch:        "tag:v3.5.1",
+		RepositoryURL: "https://github.com/goodrain/rainbond-ui.git",
+		Branch:        "master",
 	}
 	//logger := event.GetManager().GetLogger("system")
 	res, err := GitClone(csi, "/tmp/rainbonddoc4", event.GetTestLogger(), 1)
