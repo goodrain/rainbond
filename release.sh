@@ -118,8 +118,6 @@ build::image() {
 			docker run -e CGO_ENABLED=0 --rm -v "${REPO_PATH}":${WORK_DIR} -w ${WORK_DIR} -it golang:${GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
 		elif [ "$1" = "gateway" ];then
 			docker run --rm -v "${REPO_PATH}":${WORK_DIR} -w ${WORK_DIR} -it golang:${GATEWAY_GO_VERSION} go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o ${DOCKER_PATH}/${BASE_NAME}-$1 ./cmd/$1
-		elif [ "$1" = "mesh-data-panel" ];then
-			echo "mesh-data-panel not need build";
 		else
 			if [ "${ENTERPRISE}" = "true" ];then
 				echo "---> ENTERPRISE:${ENTERPRISE}"
