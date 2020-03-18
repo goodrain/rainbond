@@ -21,6 +21,13 @@ package exector
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
@@ -33,12 +40,6 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/tidwall/gjson"
-	"io/ioutil"
-	"os"
-	"path"
-	"path/filepath"
-	"strings"
-	"time"
 )
 
 //BackupAPPRestore restrore the  group app backup
@@ -297,9 +298,20 @@ func (b *BackupAPPRestore) downloadSlug(backup *dbmodel.AppBackup, app *RegionSe
 func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
 	dstDir := fmt.Sprintf("%s/app_%s/image_%s.tar", b.cacheDir, b.getOldServiceID(app.ServiceID), version.BuildVersion)
 	if err := sources.ImageLoad(b.DockerClient, dstDir, b.Logger); err != nil {
-		b.Logger.Error(util.Translation("load image to local hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
-		logrus.Errorf("load image to local hub error when restore backup app, %s", err.Error())
+		b.Logger.Error(util.Translation("load image to local error"), map[string]string{"step": "restore_builder", "status": "failure"})
+		logrus.Errorf("load image to local error when restore backup app, %s", err.Error())
 		return err
+	}
+	imageName := version.ImageName
+	if imageName == "" {
+		imageName = version.DeliveredPath
+	}
+	if imageName != "" {
+		if err := sources.ImagePush(b.DockerClient, version.ImageName, "", "", b.Logger, 10); err != nil {
+			b.Logger.Error(util.Translation("push image to local hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
+			logrus.Errorf("push image to local hub error when restore backup app, %s", err.Error())
+			return err
+		}
 	}
 	return nil
 }
