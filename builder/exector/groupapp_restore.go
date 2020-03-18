@@ -233,7 +233,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 					continue
 				}
 			} else {
-				tmpDir = fmt.Sprintf("%s/", allTmpDir)
+				tmpDir = path.Join(allTmpDir, b.getOldServiceID(app.ServiceID))
 			}
 
 			//if app type is statefulset, change pod hostpath
@@ -246,11 +246,11 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 				}
 				for _, path := range list {
 					newNameTmp := strings.Split(filepath.Base(path), "-")
-					// before use PVC, path name is pod name. eg gr123456-0
+					// after version 5.0.4, path name is pod name. eg gr123456-0
 					if len(newNameTmp) == 2 {
 						newNameTmp[0] = b.serviceChange[b.getOldServiceID(app.ServiceID)].ServiceAlias
 					}
-					//pvc name in path , manual16-grcaa708-0
+					// before version 5.0.4, path name is pvc name, eg manual16-grcaa708-0
 					if len(newNameTmp) == 3 {
 						newNameTmp[1] = b.serviceChange[b.getOldServiceID(app.ServiceID)].ServiceAlias
 						oldVolumeID, _ := strconv.Atoi(newNameTmp[0][6:])
