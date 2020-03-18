@@ -32,7 +32,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/cloudos"
+	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/errors"
@@ -311,6 +313,14 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 			logrus.Errorf("dst: %s; failed to load plugin image: %v", dstDir, err)
 			return err
 		}
+		imageName := getNewImageName(pb.BuildLocalImage)
+		if imageName != "" {
+			if err := sources.ImagePush(b.DockerClient, imageName, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 30); err != nil {
+				b.Logger.Error("push plugin image failure", map[string]string{"step": "restore_builder", "status": "failure"})
+				logrus.Errorf("failure push image %s: %v", imageName, err)
+				return err
+			}
+		}
 	}
 	b.Logger.Info("完成恢复插件镜像", map[string]string{"step": "restore_builder", "status": "running"})
 
@@ -341,6 +351,26 @@ func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionS
 		logrus.Errorf("load image to local hub error when restore backup app, %s", err.Error())
 		return err
 	}
+	imageName := version.ImageName
+	if imageName == "" {
+		imageName = version.DeliveredPath
+	}
+	newImageName := getNewImageName(imageName)
+	if newImageName != imageName {
+		if err := sources.ImageTag(b.DockerClient, imageName, newImageName, b.Logger, 3); err != nil {
+			b.Logger.Error(util.Translation("change image tag error"), map[string]string{"step": "restore_builder", "status": "failure"})
+			logrus.Errorf("change image tag %s to %s failure, %s", imageName, newImageName, err.Error())
+			return err
+		}
+		imageName = newImageName
+	}
+	if imageName != "" {
+		if err := sources.ImagePush(b.DockerClient, imageName, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 30); err != nil {
+			b.Logger.Error(util.Translation("push image to local hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
+			logrus.Errorf("push image to local hub error when restore backup app, %s", err.Error())
+			return err
+		}
+	}
 	return nil
 }
 
@@ -364,6 +394,14 @@ func (b *BackupAPPRestore) clear() {
 	}
 	//clear cache data
 	os.RemoveAll(b.cacheDir)
+}
+func getNewImageName(imageName string) string {
+	image := parser.ParseImageName(imageName)
+	if image.GetDomain() != builder.REGISTRYDOMAIN {
+		newImageName := strings.Replace(imageName, image.GetDomain(), builder.REGISTRYDOMAIN, 1)
+		return newImageName
+	}
+	return imageName
 }
 func (b *BackupAPPRestore) modify(appSnapshot *AppSnapshot) error {
 	for _, app := range appSnapshot.Services {
@@ -419,6 +457,10 @@ func (b *BackupAPPRestore) modify(appSnapshot *AppSnapshot) error {
 			a.ServiceID = newServiceID
 		}
 		for _, a := range app.Versions {
+			if a.DeliveredType == "image" {
+				a.ImageName = getNewImageName(a.ImageName)
+				a.DeliveredPath = getNewImageName(a.DeliveredPath)
+			}
 			a.ServiceID = newServiceID
 		}
 
@@ -603,6 +645,7 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshot *AppSnapshot) error {
 	}
 	for _, p := range appSnapshot.PluginBuildVersions {
 		p.ID = 0
+		p.BuildLocalImage = getNewImageName(p.BuildLocalImage)
 		if err := db.GetManager().TenantPluginBuildVersionDaoTransactions(tx).AddModel(p); err != nil {
 			if err == errors.ErrRecordAlreadyExist {
 				continue
