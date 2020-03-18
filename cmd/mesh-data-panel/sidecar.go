@@ -68,8 +68,6 @@ func Run() error {
 							logrus.Infof("rewrite hosts file success")
 						}
 						oldHosts = hosts
-					} else {
-						logrus.Infof("hosts not change %+v", hosts)
 					}
 				}
 			}

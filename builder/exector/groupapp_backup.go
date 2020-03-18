@@ -277,7 +277,7 @@ func (b *BackupAPPNew) backupServiceInfo(serviceInfos []*RegionServiceSnapshot) 
 		b.Logger.Info(fmt.Sprintf("Start backup application(%s) persistent data", app.Service.ServiceAlias), map[string]string{"step": "backup_builder", "status": "starting"})
 		//backup app data,The overall data of the direct backup service
 		if len(app.ServiceVolume) > 0 {
-			dstDir := fmt.Sprintf("%s/data_%s/%s.zip", b.SourceDir, "all", "data")
+			dstDir := fmt.Sprintf("%s/data_%s/%s.zip", b.SourceDir, app.Service.ServiceID, "__all_data")
 			_, sharepath := GetVolumeDir()
 			serviceVolumeData := path.Join(sharepath, "tenant", app.Service.TenantID, "service", app.Service.ServiceID)
 			if !util.DirIsEmpty(serviceVolumeData) {
