@@ -207,21 +207,18 @@ func (h *handleMessageStore) InsertGarbageMessage(message ...*db.EventLogMessage
 
 func (h *handleMessageStore) handleGarbageMessage() {
 	tike := time.Tick(10 * time.Second)
-	switch h.conf.GarbageMessageSaveType {
-	default: //file
-		for {
-			select {
-			case <-tike:
-				if len(h.garbageMessage) > 0 {
-					h.saveGarbageMessage()
-				}
-			case <-h.garbageGC:
+	for {
+		select {
+		case <-tike:
+			if len(h.garbageMessage) > 0 {
 				h.saveGarbageMessage()
-			case <-h.stopGarbage:
-				h.saveGarbageMessage()
-				h.log.Debug("handle message store garbage message handle-core stop.")
-				return
 			}
+		case <-h.garbageGC:
+			h.saveGarbageMessage()
+		case <-h.stopGarbage:
+			h.saveGarbageMessage()
+			h.log.Debug("handle message store garbage message handle-core stop.")
+			return
 		}
 	}
 }

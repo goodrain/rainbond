@@ -19,9 +19,9 @@
 package license
 
 import (
-	"github.com/goodrain/rainbond/api/controller"
-	"github.com/goodrain/rainbond/api/util"
 	"net/http"
+
+	"github.com/goodrain/rainbond/api/controller"
 
 	"github.com/go-chi/chi"
 
@@ -41,15 +41,12 @@ func Routes() chi.Router {
 //CheckLicense 验证
 func CheckLicense(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-
 		licenseCome := r.Header.Get("License")
 		logrus.Debug("License is :" + licenseCome)
-		if 1 == 1 {
-			next.ServeHTTP(w, r)
-			return
-		}
-		util.CloseRequest(r)
-		w.WriteHeader(http.StatusUnauthorized)
+		next.ServeHTTP(w, r)
+		return
+		// util.CloseRequest(r)
+		// w.WriteHeader(http.StatusUnauthorized)
 	}
 	return http.HandlerFunc(fn)
 }
