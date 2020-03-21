@@ -21,8 +21,10 @@ package main
 import "testing"
 
 func TestHaveChange(t *testing.T) {
+	old := make(map[string]string)
+	t.Log(haveChange(map[string]string{"console": "127.0.0.1"}, old))
 	t.Log(haveChange(map[string]string{"console": "127.0.0.1"}, map[string]string{"console": "127.0.0.1"}))
 	t.Log(haveChange(map[string]string{"console": "127.0.0.2"}, map[string]string{"console": "127.0.0.1"}))
 	t.Log(haveChange(map[string]string{"console": "127.0.0.2", "console1": "127.0.0.1"}, map[string]string{"console": "127.0.0.1"}))
-	t.Log(haveChange(map[string]string{"console": "127.0.0.2"}, map[string]string{"console": "127.0.0.1", "console1": "127.0.0.1"}))
+	t.Log(haveChange(map[string]string{"console": "127.0.0.2"}, map[string]string{"console2": "127.0.0.1", "console1": "127.0.0.1"}))
 }

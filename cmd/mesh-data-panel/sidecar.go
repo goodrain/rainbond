@@ -46,30 +46,37 @@ func main() {
 
 //Run run
 func Run() error {
-	ticker := time.NewTicker(time.Second * 3)
+	// start run first
+	run()
+	ticker := time.NewTicker(time.Second * 5)
 	defer ticker.Stop()
 	//step finally: listen Signal
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
-	var oldHosts = make(map[string]string)
 	for {
 		select {
 		case <-term:
 			logrus.Warn("Received SIGTERM, exiting gracefully...")
 			return nil
 		case <-ticker.C:
-			configs := discoverConfig()
-			if configs != nil {
-				if hosts := getHosts(configs); hosts != nil {
-					if haveChange(hosts, oldHosts) {
-						if err := writeHosts(hosts); err != nil {
-							logrus.Errorf("write hosts failure %s", err.Error())
-						} else {
-							logrus.Infof("rewrite hosts file success")
-						}
-						oldHosts = hosts
-					}
+			run()
+		}
+	}
+}
+
+var oldHosts = make(map[string]string)
+
+func run() {
+	configs := discoverConfig()
+	if configs != nil {
+		if hosts := getHosts(configs); hosts != nil {
+			if haveChange(hosts, oldHosts) {
+				if err := writeHosts(hosts); err != nil {
+					logrus.Errorf("write hosts failure %s", err.Error())
+				} else {
+					logrus.Infof("rewrite hosts file success")
 				}
+				oldHosts = hosts
 			}
 		}
 	}
