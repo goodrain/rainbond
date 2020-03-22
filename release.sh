@@ -12,11 +12,11 @@ fi
 
 GO_VERSION=1.13
 GATEWAY_GO_VERSION=1.13-alpine
-
+BRANCH=$(git symbolic-ref HEAD 2>/dev/null | cut -d"/" -f 3)
 if [ -z "$VERSION" ];then
   if [ -z "$TRAVIS_TAG" ]; then
     if [ -z "$TRAVIS_BRANCH" ]; then
-      VERSION=V5.2-dev
+      VERSION=$BRANCH-dev
     else
       VERSION=$TRAVIS_BRANCH-dev
     fi
