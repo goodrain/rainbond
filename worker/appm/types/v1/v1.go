@@ -101,22 +101,24 @@ type AppServiceBase struct {
 //AppService a service of rainbond app state in kubernetes
 type AppService struct {
 	AppServiceBase
-	tenant         *corev1.Namespace
-	statefulset    *v1.StatefulSet
-	deployment     *v1.Deployment
-	hpas           []*v2beta1.HorizontalPodAutoscaler
-	delHPAs        []*v2beta1.HorizontalPodAutoscaler
-	replicasets    []*v1.ReplicaSet
-	services       []*corev1.Service
-	delServices    []*corev1.Service
-	endpoints      []*corev1.Endpoints
-	configMaps     []*corev1.ConfigMap
-	ingresses      []*extensions.Ingress
-	delIngs        []*extensions.Ingress // ingresses which need to be deleted
-	secrets        []*corev1.Secret
-	delSecrets     []*corev1.Secret // secrets which need to be deleted
-	pods           []*corev1.Pod
-	claims         []*corev1.PersistentVolumeClaim
+	tenant      *corev1.Namespace
+	statefulset *v1.StatefulSet
+	deployment  *v1.Deployment
+	hpas        []*v2beta1.HorizontalPodAutoscaler
+	delHPAs     []*v2beta1.HorizontalPodAutoscaler
+	replicasets []*v1.ReplicaSet
+	services    []*corev1.Service
+	delServices []*corev1.Service
+	endpoints   []*corev1.Endpoints
+	configMaps  []*corev1.ConfigMap
+	ingresses   []*extensions.Ingress
+	delIngs     []*extensions.Ingress // ingresses which need to be deleted
+	secrets     []*corev1.Secret
+	delSecrets  []*corev1.Secret // secrets which need to be deleted
+	pods        []*corev1.Pod
+	claims      []*corev1.PersistentVolumeClaim
+	// claims that needs to be created manually
+	claimsmanual   []*corev1.PersistentVolumeClaim
 	status         AppServiceStatus
 	Logger         event.Logger
 	storageClasses []*storagev1.StorageClass
@@ -596,6 +598,11 @@ func (a *AppService) GetClaims() []*corev1.PersistentVolumeClaim {
 	return a.claims
 }
 
+// GetClaimsManually get claims
+func (a *AppService) GetClaimsManually() []*corev1.PersistentVolumeClaim {
+	return a.claimsmanual
+}
+
 // SetClaim set claim
 func (a *AppService) SetClaim(claim *corev1.PersistentVolumeClaim) {
 	claim.Namespace = a.TenantID
@@ -608,6 +615,20 @@ func (a *AppService) SetClaim(claim *corev1.PersistentVolumeClaim) {
 		}
 	}
 	a.claims = append(a.claims, claim)
+}
+
+// SetClaimManually sets claim that needs to be created manually.
+func (a *AppService) SetClaimManually(claim *corev1.PersistentVolumeClaim) {
+	claim.Namespace = a.TenantID
+	if len(a.claimsmanual) > 0 {
+		for i, c := range a.claimsmanual {
+			if c.GetName() == claim.GetName() {
+				a.claimsmanual[i] = claim
+				return
+			}
+		}
+	}
+	a.claimsmanual = append(a.claimsmanual, claim)
 }
 
 // DeleteClaim delete claim

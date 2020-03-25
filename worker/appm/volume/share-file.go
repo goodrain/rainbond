@@ -21,6 +21,7 @@ package volume
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util"
@@ -48,10 +49,12 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 	var vm *corev1.VolumeMount
 	if v.as.GetStatefulSet() != nil {
 		statefulset := v.as.GetStatefulSet()
+
 		labels := v.as.GetCommonLabels(map[string]string{"volume_name": volumeMountName})
 		annotations := map[string]string{"volume_name": v.svm.VolumeName}
 		claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v1.RainbondStatefuleShareStorageClass, v.svm.VolumeCapacity, labels, annotations)
 		v.as.SetClaim(claim)
+
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
 		vo := corev1.Volume{Name: volumeMountName}
 		vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
@@ -68,13 +71,16 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 				return nil
 			}
 		}
-		hostPath := v.svm.HostPath
+
+		labels := v.as.GetCommonLabels(map[string]string{"volume_name": volumeMountName})
+		annotations := map[string]string{"volume_name": v.svm.VolumeName}
+		claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v1.RainbondStatefuleShareStorageClass, v.svm.VolumeCapacity, labels, annotations)
+
+		v.as.SetClaim(claim)
+		v.as.SetClaimManually(claim)
+
 		vo := corev1.Volume{Name: volumeMountName}
-		hostPathType := corev1.HostPathDirectoryOrCreate
-		vo.HostPath = &corev1.HostPathVolumeSource{
-			Path: hostPath,
-			Type: &hostPathType,
-		}
+		vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
 		define.volumes = append(define.volumes, vo)
 		vm = &corev1.VolumeMount{
 			Name:      volumeMountName,
@@ -89,6 +95,18 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 	return nil
 }
 
+func (v *ShareFileVolume) getClaimName() string {
+	claimName := os.Getenv("GRDATA_PVC_NAME")
+	if claimName == "" {
+		claimName = "rbd-cpt-grdata"
+	}
+	return claimName
+}
+
+func (v *ShareFileVolume) getSubpath(originalPath string) string {
+	return strings.Replace(originalPath, "/grdata/", "", 1)
+}
+
 // CreateDependVolume create depend volume
 func (v *ShareFileVolume) CreateDependVolume(define *Define) error {
 	volumeMountName := fmt.Sprintf("mnt%d", v.smr.ID)
@@ -100,21 +118,10 @@ func (v *ShareFileVolume) CreateDependVolume(define *Define) error {
 			return nil
 		}
 	}
-	err := util.CheckAndCreateDir(v.smr.HostPath)
-	if err != nil {
-		return fmt.Errorf("create host path %s error,%s", v.smr.HostPath, err.Error())
-	}
-	hostPath := v.smr.HostPath
-	if v.as.IsWindowsService {
-		hostPath = RewriteHostPathInWindows(hostPath)
-	}
 
 	vo := corev1.Volume{Name: volumeMountName}
-	hostPathType := corev1.HostPathDirectoryOrCreate
-	vo.HostPath = &corev1.HostPathVolumeSource{
-		Path: hostPath,
-		Type: &hostPathType,
-	}
+	claimName := fmt.Sprintf("manual%d", v.smr.ID)
+	vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claimName, ReadOnly: volumeReadOnly}
 	define.volumes = append(define.volumes, vo)
 	vm := corev1.VolumeMount{
 		Name:      volumeMountName,
