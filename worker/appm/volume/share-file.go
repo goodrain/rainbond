@@ -69,9 +69,6 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 			}
 		}
 		hostPath := v.svm.HostPath
-		if v.as.IsWindowsService {
-			hostPath = RewriteHostPathInWindows(hostPath)
-		}
 		vo := corev1.Volume{Name: volumeMountName}
 		hostPathType := corev1.HostPathDirectoryOrCreate
 		vo.HostPath = &corev1.HostPathVolumeSource{

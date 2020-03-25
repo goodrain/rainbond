@@ -81,6 +81,9 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 	if err := util.CheckAndCreateDirByMode(hostpath, 0777); err != nil {
 		return nil, err
 	}
+	// new nfs path
+	options.NFS.Path = strings.Replace(hostpath, "/grdata", options.NFS.Path, 1)
+
 	pv := &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   options.PVName,
@@ -93,9 +96,7 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 				v1.ResourceName(v1.ResourceStorage): options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)],
 			},
 			PersistentVolumeSource: v1.PersistentVolumeSource{
-				HostPath: &v1.HostPathVolumeSource{
-					Path: hostpath,
-				},
+				NFS: options.NFS,
 			},
 		},
 	}
