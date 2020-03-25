@@ -20,53 +20,45 @@ package app
 
 import (
 	"fmt"
-	"io"
 	"os"
+	"syscall"
+	"unsafe"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/kr/pty"
+	"github.com/yudai/gotty/server"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 )
 
-//Exec exec interface
-type Exec interface {
-	Run() error
-	WaitingStop() bool
-}
-
 type execContext struct {
-	clientContext *ClientContext
-	tty, pty      *os.File
-	Stdin         io.Reader
-	Stdout        io.Writer
-	Stderr        io.Writer
-	kubeRequest   *restclient.Request
-	config        *restclient.Config
-	closed        bool
+	tty, pty    *os.File
+	kubeRequest *restclient.Request
+	config      *restclient.Config
+	sizeUpdate  chan remotecommand.TerminalSize
+	closed      bool
 }
 
 //NewExecContext new exec Context
-func NewExecContext(clientContext *ClientContext, tty *os.File, kubeRequest *restclient.Request, config *restclient.Config) Exec {
-	return &execContext{
-		clientContext: clientContext,
-		Stdin:         tty,
-		Stdout:        tty,
-		Stderr:        tty,
-		kubeRequest:   kubeRequest,
-		config:        config,
+func NewExecContext(kubeRequest *restclient.Request, config *restclient.Config) (server.Slave, error) {
+	pty, tty, err := pty.Open()
+	if err != nil {
+		logrus.Errorf("open pty failure %s", err.Error())
+		return nil, err
 	}
+	ec := &execContext{
+		tty:         tty,
+		pty:         pty,
+		kubeRequest: kubeRequest,
+		config:      config,
+		sizeUpdate:  make(chan remotecommand.TerminalSize, 2),
+	}
+	if err := ec.Run(); err != nil {
+		return nil, err
+	}
+	return ec, nil
 }
 
-//NewExecContextByStd -
-func NewExecContextByStd(clientContext *ClientContext, Stdin io.Reader, Stdout, Stderr io.Writer, kubeRequest *restclient.Request, config *restclient.Config) Exec {
-	return &execContext{
-		clientContext: clientContext,
-		Stdin:         Stdin,
-		Stdout:        Stdout,
-		Stderr:        Stderr,
-		kubeRequest:   kubeRequest,
-		config:        config,
-	}
-}
 func (e *execContext) WaitingStop() bool {
 	if e.closed {
 		return false
@@ -74,25 +66,82 @@ func (e *execContext) WaitingStop() bool {
 	return true
 }
 
-func (e *execContext) Close() {
-	e.tty.Close()
-}
-
 func (e *execContext) Run() error {
-	defer e.Close()
-	defer func() { e.closed = true }()
 	exec, err := remotecommand.NewSPDYExecutor(e.config, "POST", e.kubeRequest.URL())
 	if err != nil {
 		return fmt.Errorf("create executor failure %s", err.Error())
 	}
-	if err := exec.Stream(remotecommand.StreamOptions{
-		Stdin:             e.Stdin,
-		Stdout:            e.Stdout,
-		Stderr:            e.Stderr,
-		Tty:               false,
-		TerminalSizeQueue: e.clientContext,
-	}); err != nil {
-		return fmt.Errorf("executor stream failure %s", err.Error())
+	go func() {
+		out := CreateOut(e.tty)
+		t := out.SetTTY()
+		t.Safe(func() error {
+			if err := exec.Stream(remotecommand.StreamOptions{
+				Stdin:             out.Stdin,
+				Stdout:            out.Stdout,
+				Stderr:            nil,
+				Tty:               true,
+				TerminalSizeQueue: e,
+			}); err != nil {
+				logrus.Errorf("executor stream failure %s", err.Error())
+				return err
+			}
+			return nil
+		})
+
+	}()
+	return nil
+}
+
+func (e *execContext) Read(p []byte) (n int, err error) {
+	return e.pty.Read(p)
+}
+
+func (e *execContext) Write(p []byte) (n int, err error) {
+	return e.pty.Write(p)
+}
+
+func (e *execContext) Close() error {
+	return e.tty.Close()
+}
+
+func (e *execContext) WindowTitleVariables() map[string]interface{} {
+	return map[string]interface{}{}
+}
+
+func (e *execContext) Next() *remotecommand.TerminalSize {
+	size, ok := <-e.sizeUpdate
+	if !ok {
+		return nil
+	}
+	logrus.Infof("width %d height %d", size.Width, size.Height)
+	return &size
+}
+
+func (e *execContext) ResizeTerminal(width int, height int) error {
+	logrus.Infof("set width %d height %d", width, height)
+	e.sizeUpdate <- remotecommand.TerminalSize{
+		Width:  uint16(width),
+		Height: uint16(height),
+	}
+	window := struct {
+		row uint16
+		col uint16
+		x   uint16
+		y   uint16
+	}{
+		uint16(height),
+		uint16(width),
+		0,
+		0,
+	}
+	_, _, errno := syscall.Syscall(
+		syscall.SYS_IOCTL,
+		e.pty.Fd(),
+		syscall.TIOCSWINSZ,
+		uintptr(unsafe.Pointer(&window)),
+	)
+	if errno != 0 {
+		return errno
 	}
 	return nil
 }

@@ -20,13 +20,14 @@ package controller
 
 import (
 	"context"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/service"
-	"strings"
-	"testing"
-	"time"
 )
 
 func TestManagerService_SetEndpoints(t *testing.T) {
@@ -44,7 +45,7 @@ func TestManagerService_SetEndpoints(t *testing.T) {
 	defer cli.Delete(ctx, key, clientv3.WithPrefix())
 
 	m := &ManagerService{}
-	srvs := &[]*service.Service{
+	srvs := []*service.Service{
 		{
 			Endpoints: []*service.Endpoint{
 				{

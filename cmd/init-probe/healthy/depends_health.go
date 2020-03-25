@@ -27,7 +27,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	endpointapi "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
 	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
 	"github.com/goodrain/rainbond/util"
@@ -134,7 +134,7 @@ func (d *DependServiceHealthController) checkClusters() bool {
 	clusters := envoyv2.ParseClustersResource(res.Resources)
 	d.ignoreCheckEndpointsClusterName = nil
 	for _, cluster := range clusters {
-		if cluster.Type == v2.Cluster_LOGICAL_DNS {
+		if cluster.GetType() == v2.Cluster_LOGICAL_DNS {
 			d.ignoreCheckEndpointsClusterName = append(d.ignoreCheckEndpointsClusterName, cluster.Name)
 		}
 	}

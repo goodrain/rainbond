@@ -104,60 +104,60 @@ func NewProxyConfig() Config {
 }
 
 // Equal tests for equality between two Configuration types
-func (l1 *Config) Equal(l2 *Config) bool {
-	if l1 == l2 {
+func (s *Config) Equal(l2 *Config) bool {
+	if s == l2 {
 		return true
 	}
-	if l1 == nil || l2 == nil {
+	if s == nil || l2 == nil {
 		return false
 	}
-	if l1.BodySize != l2.BodySize {
+	if s.BodySize != l2.BodySize {
 		return false
 	}
-	if l1.ConnectTimeout != l2.ConnectTimeout {
+	if s.ConnectTimeout != l2.ConnectTimeout {
 		return false
 	}
-	if l1.SendTimeout != l2.SendTimeout {
+	if s.SendTimeout != l2.SendTimeout {
 		return false
 	}
-	if l1.ReadTimeout != l2.ReadTimeout {
+	if s.ReadTimeout != l2.ReadTimeout {
 		return false
 	}
-	if l1.BuffersNumber != l2.BuffersNumber {
+	if s.BuffersNumber != l2.BuffersNumber {
 		return false
 	}
-	if l1.BufferSize != l2.BufferSize {
+	if s.BufferSize != l2.BufferSize {
 		return false
 	}
-	if l1.CookieDomain != l2.CookieDomain {
+	if s.CookieDomain != l2.CookieDomain {
 		return false
 	}
-	if l1.CookiePath != l2.CookiePath {
+	if s.CookiePath != l2.CookiePath {
 		return false
 	}
-	if l1.NextUpstream != l2.NextUpstream {
+	if s.NextUpstream != l2.NextUpstream {
 		return false
 	}
-	if l1.NextUpstreamTries != l2.NextUpstreamTries {
+	if s.NextUpstreamTries != l2.NextUpstreamTries {
 		return false
 	}
-	if l1.RequestBuffering != l2.RequestBuffering {
+	if s.RequestBuffering != l2.RequestBuffering {
 		return false
 	}
-	if l1.ProxyRedirectFrom != l2.ProxyRedirectFrom {
+	if s.ProxyRedirectFrom != l2.ProxyRedirectFrom {
 		return false
 	}
-	if l1.ProxyRedirectTo != l2.ProxyRedirectTo {
+	if s.ProxyRedirectTo != l2.ProxyRedirectTo {
 		return false
 	}
-	if l1.ProxyBuffering != l2.ProxyBuffering {
+	if s.ProxyBuffering != l2.ProxyBuffering {
 		return false
 	}
 
-	if len(l1.SetHeaders) != len(l2.SetHeaders) {
+	if len(s.SetHeaders) != len(l2.SetHeaders) {
 		return false
 	}
-	for k, v := range l1.SetHeaders {
+	for k, v := range s.SetHeaders {
 		if l2.SetHeaders[k] != v {
 			return false
 		}
@@ -253,7 +253,7 @@ func (a proxy) Parse(ing *extensions.Ingress) (interface{}, error) {
 		config.ProxyBuffering = defBackend.ProxyBuffering
 	}
 
-	config.SetHeaders = defBackend.ProxySetHeaders
+	config.SetHeaders = make(map[string]string)
 	//default header
 	for k, v := range defBackend.ProxySetHeaders {
 		config.SetHeaders[k] = v
@@ -268,6 +268,5 @@ func (a proxy) Parse(ing *extensions.Ingress) (interface{}, error) {
 		}
 		config.SetHeaders[k] = v
 	}
-
 	return config, nil
 }

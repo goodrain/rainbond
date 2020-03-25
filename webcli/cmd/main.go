@@ -1,7 +1,7 @@
 package main
 
 import (
-	"os"
+	"fmt"
 
 	"github.com/Sirupsen/logrus"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
@@ -11,10 +11,11 @@ import (
 
 func main() {
 	option := app.DefaultOptions
-	option.K8SConfPath = "/tmp/config"
+	option.K8SConfPath = "/root/.kube/config"
 	ap, err := app.New(&option)
 	if err != nil {
 		logrus.Error(err)
+		return
 	}
 	logrus.Info(ap.GetDefaultContainerName("rbd-system", "rainbond-operator-0"))
 	config, err := k8sutil.NewRestConfig(option.K8SConfPath)
@@ -40,21 +41,21 @@ func main() {
 	for _, c := range commands {
 		req.Param("command", c)
 	}
-	out := &app.Out{
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-	}
-	t := out.SetTTY()
-	fn := func() error {
-		exec := app.NewExecContextByStd(&app.ClientContext{}, out.Stdin, out.Stdout, out.Stderr, req, config)
-		if err := exec.Run(); err != nil {
-			logrus.Error(err)
-			return err
-		}
-		return nil
-	}
-	if err := t.Safe(fn); err != nil {
+
+	slave, err := app.NewExecContext(req, config)
+	if err != nil {
 		logrus.Error(err)
+		return
+	}
+	slave.ResizeTerminal(100, 60)
+	defer slave.Close()
+	for {
+		buffer := make([]byte, 1024)
+		n, err := slave.Read(buffer)
+		if err != nil {
+			logrus.Error(err)
+			return
+		}
+		fmt.Print(string(buffer[:n]))
 	}
 }

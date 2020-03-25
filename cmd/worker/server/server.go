@@ -99,7 +99,7 @@ func Run(s *option.Worker) error {
 	}
 
 	//step 4: create controller manager
-	controllerManager := controller.NewManager(cachestore, clientset, s.Config.RBDNamespace, s.Config.RBDDNSName)
+	controllerManager := controller.NewManager(cachestore, clientset)
 	defer controllerManager.Stop()
 
 	//step 5 : start runtime master

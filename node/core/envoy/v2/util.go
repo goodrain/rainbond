@@ -24,40 +24,49 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
-
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache"
-
-	v1 "github.com/goodrain/rainbond/node/core/envoy/v1"
+	"github.com/envoyproxy/go-control-plane/pkg/conversion"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/envoyproxy/go-control-plane/pkg/util"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/types"
+	any "github.com/golang/protobuf/ptypes/any"
+	"github.com/golang/protobuf/ptypes/duration"
+	_struct "github.com/golang/protobuf/ptypes/struct"
+	"github.com/golang/protobuf/ptypes/wrappers"
+	v1 "github.com/goodrain/rainbond/node/core/envoy/v1"
 )
 
 // MessageToStruct converts from proto message to proto Struct
-func MessageToStruct(msg proto.Message) *types.Struct {
-	s, err := util.MessageToStruct(msg)
+func MessageToStruct(msg proto.Message) *_struct.Struct {
+	s, err := conversion.MessageToStruct(msg)
 	if err != nil {
 		logrus.Error(err.Error())
-		return &types.Struct{}
+		return &_struct.Struct{}
 	}
 	return s
 }
 
-//ConversionUInt32 conversion uint32 to proto uint32
-func ConversionUInt32(value uint32) *types.UInt32Value {
+//ConversionUInt32 conversion uint32 to wrappers uint32
+func ConversionUInt32(value uint32) *wrappers.UInt32Value {
+	return &wrappers.UInt32Value{
+		Value: value,
+	}
+}
+
+//ConversionTypeUInt32 conversion uint32 to proto uint32
+func ConversionTypeUInt32(value uint32) *types.UInt32Value {
 	return &types.UInt32Value{
 		Value: value,
 	}
 }
 
 //ConverTimeDuration second
-func ConverTimeDuration(second int64) *types.Duration {
-	return &types.Duration{
+func ConverTimeDuration(second int64) *duration.Duration {
+	return &duration.Duration{
 		Seconds: second,
 	}
 }
@@ -146,8 +155,8 @@ func (r RainbondPluginOptions) RouteBasicHash() string {
 func GetOptionValues(sr map[string]interface{}) RainbondPluginOptions {
 	rpo := RainbondPluginOptions{
 		Prefix:                "/",
-		MaxConnections:        1024,
-		MaxRequests:           1024,
+		MaxConnections:        10240,
+		MaxRequests:           10240,
 		MaxPendingRequests:    1024,
 		MaxActiveRetries:      3,
 		Domains:               []string{"*"},
@@ -260,7 +269,7 @@ func GetRainbondInboundPluginOptions(sr map[string]interface{}) (r RainbondInbou
 }
 
 //ParseLocalityLbEndpointsResource parse envoy xds server response ParseLocalityLbEndpointsResource
-func ParseLocalityLbEndpointsResource(resources []types.Any) []v2.ClusterLoadAssignment {
+func ParseLocalityLbEndpointsResource(resources []*any.Any) []v2.ClusterLoadAssignment {
 	var endpoints []v2.ClusterLoadAssignment
 	for _, resource := range resources {
 		switch resource.GetTypeUrl() {
@@ -276,7 +285,7 @@ func ParseLocalityLbEndpointsResource(resources []types.Any) []v2.ClusterLoadAss
 }
 
 //ParseClustersResource parse envoy xds server response ParseClustersResource
-func ParseClustersResource(resources []types.Any) []v2.Cluster {
+func ParseClustersResource(resources []*any.Any) []v2.Cluster {
 	var clusters []v2.Cluster
 	for _, resource := range resources {
 		switch resource.GetTypeUrl() {
@@ -292,7 +301,7 @@ func ParseClustersResource(resources []types.Any) []v2.Cluster {
 }
 
 //ParseListenerResource parse envoy xds server response ListenersResource
-func ParseListenerResource(resources []types.Any) []v2.Listener {
+func ParseListenerResource(resources []*any.Any) []v2.Listener {
 	var listeners []v2.Listener
 	for _, resource := range resources {
 		switch resource.GetTypeUrl() {
@@ -308,7 +317,7 @@ func ParseListenerResource(resources []types.Any) []v2.Listener {
 }
 
 //ParseRouteConfigurationsResource parse envoy xds server response RouteConfigurationsResource
-func ParseRouteConfigurationsResource(resources []types.Any) []v2.RouteConfiguration {
+func ParseRouteConfigurationsResource(resources []*any.Any) []v2.RouteConfiguration {
 	var routes []v2.RouteConfiguration
 	for _, resource := range resources {
 		switch resource.GetTypeUrl() {
