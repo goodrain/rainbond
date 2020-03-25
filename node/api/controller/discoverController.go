@@ -83,5 +83,8 @@ func PluginResourcesConfig(w http.ResponseWriter, r *http.Request) {
 		util.CreateAPIHandleError(500, err).Handle(r, w)
 		return
 	}
+	if ss == nil {
+		util.CreateAPIHandleError(404, err).Handle(r, w)
+	}
 	httputil.ReturnNoFomart(r, w, 200, ss)
 }
