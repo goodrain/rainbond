@@ -21,23 +21,25 @@ package v2
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	apiv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/cluster"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
+	auth "github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
+	cluster "github.com/envoyproxy/go-control-plane/envoy/api/v2/cluster"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
+	envoy_api_v2_listener "github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
+	route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
 	http_rate_limit "github.com/envoyproxy/go-control-plane/envoy/config/filter/http/rate_limit/v2"
 	http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	tcp_proxy "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
+	envoy_config_filter_udp_udp_proxy_v2alpha "github.com/envoyproxy/go-control-plane/envoy/config/filter/udp/udp_proxy/v2alpha"
 	configratelimit "github.com/envoyproxy/go-control-plane/envoy/config/ratelimit/v2"
 	_type "github.com/envoyproxy/go-control-plane/envoy/type"
-	"github.com/envoyproxy/go-control-plane/pkg/util"
+	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/duration"
 	v1 "github.com/goodrain/rainbond/node/core/envoy/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -60,15 +62,50 @@ func CreateTCPListener(name, clusterName, address, statPrefix string, port uint3
 	listener := &apiv2.Listener{
 		Name:    name,
 		Address: CreateSocketAddress("tcp", address, port),
-		FilterChains: []listener.FilterChain{
-			listener.FilterChain{
-				Filters: []listener.Filter{
-					listener.Filter{
-						Name: util.TCPProxy,
-						ConfigType: &listener.Filter_Config{
+		FilterChains: []*envoy_api_v2_listener.FilterChain{
+			&envoy_api_v2_listener.FilterChain{
+				Filters: []*envoy_api_v2_listener.Filter{
+					&envoy_api_v2_listener.Filter{
+						Name: wellknown.TCPProxy,
+						ConfigType: &envoy_api_v2_listener.Filter_Config{
 							Config: MessageToStruct(tcpProxy),
 						},
 					},
+				},
+			},
+		},
+	}
+	if err := listener.Validate(); err != nil {
+		logrus.Errorf("validate listener config failure %s", err.Error())
+		return nil
+	}
+	return listener
+}
+
+//CreateUDPListener create udp listenner
+func CreateUDPListener(name, clusterName, address, statPrefix string, port uint32) *apiv2.Listener {
+	if address == "" {
+		address = DefaultLocalhostListenerAddress
+	}
+	config := &envoy_config_filter_udp_udp_proxy_v2alpha.UdpProxyConfig{
+		StatPrefix: statPrefix,
+		RouteSpecifier: &envoy_config_filter_udp_udp_proxy_v2alpha.UdpProxyConfig_Cluster{
+			Cluster: clusterName,
+		},
+	}
+	anyConfig, err := ptypes.MarshalAny(config)
+	if err != nil {
+		logrus.Errorf("marshal any failure %s", err.Error())
+		return nil
+	}
+	listener := &apiv2.Listener{
+		Name:    name,
+		Address: CreateSocketAddress("udp", address, port),
+		ListenerFilters: []*envoy_api_v2_listener.ListenerFilter{
+			&envoy_api_v2_listener.ListenerFilter{
+				Name: "envoy.filters.udp_listener.udp_proxy",
+				ConfigType: &envoy_api_v2_listener.ListenerFilter_TypedConfig{
+					TypedConfig: anyConfig,
 				},
 			},
 		},
@@ -115,18 +152,18 @@ func CreateHTTPRateLimit(option RateLimitOptions) *http_rate_limit.RateLimit {
 }
 
 //CreateHTTPConnectionManager create http connection manager
-func CreateHTTPConnectionManager(name, statPrefix string, rateOpt *RateLimitOptions, routes ...route.VirtualHost) *http_connection_manager.HttpConnectionManager {
+func CreateHTTPConnectionManager(name, statPrefix string, rateOpt *RateLimitOptions, routes ...*route.VirtualHost) *http_connection_manager.HttpConnectionManager {
 	var httpFilters []*http_connection_manager.HttpFilter
 	if rateOpt != nil && rateOpt.Enable {
 		httpFilters = append(httpFilters, &http_connection_manager.HttpFilter{
-			Name: util.HTTPRateLimit,
+			Name: wellknown.HTTPRateLimit,
 			ConfigType: &http_connection_manager.HttpFilter_Config{
 				Config: MessageToStruct(CreateHTTPRateLimit(*rateOpt)),
 			},
 		})
 	}
 	httpFilters = append(httpFilters, &http_connection_manager.HttpFilter{
-		Name: util.Router,
+		Name: wellknown.Router,
 	})
 	hcm := &http_connection_manager.HttpConnectionManager{
 		StatPrefix: statPrefix,
@@ -146,7 +183,7 @@ func CreateHTTPConnectionManager(name, statPrefix string, rateOpt *RateLimitOpti
 }
 
 //CreateHTTPListener create http manager listener
-func CreateHTTPListener(name, address, statPrefix string, port uint32, rateOpt *RateLimitOptions, routes ...route.VirtualHost) *apiv2.Listener {
+func CreateHTTPListener(name, address, statPrefix string, port uint32, rateOpt *RateLimitOptions, routes ...*route.VirtualHost) *apiv2.Listener {
 	hcm := CreateHTTPConnectionManager(name, statPrefix, rateOpt, routes...)
 	if hcm == nil {
 		logrus.Warningf("create http connection manager failure %s", name)
@@ -154,10 +191,10 @@ func CreateHTTPListener(name, address, statPrefix string, port uint32, rateOpt *
 	}
 	listener := &apiv2.Listener{
 		Name: name,
-		Address: core.Address{
+		Address: &core.Address{
 			Address: &core.Address_SocketAddress{
 				SocketAddress: &core.SocketAddress{
-					Protocol: core.TCP,
+					Protocol: core.SocketAddress_TCP,
 					Address:  address,
 					PortSpecifier: &core.SocketAddress_PortValue{
 						PortValue: port,
@@ -166,12 +203,12 @@ func CreateHTTPListener(name, address, statPrefix string, port uint32, rateOpt *
 			},
 		},
 
-		FilterChains: []listener.FilterChain{
-			listener.FilterChain{
-				Filters: []listener.Filter{
-					listener.Filter{
-						Name: util.HTTPConnectionManager,
-						ConfigType: &listener.Filter_Config{
+		FilterChains: []*envoy_api_v2_listener.FilterChain{
+			&envoy_api_v2_listener.FilterChain{
+				Filters: []*envoy_api_v2_listener.Filter{
+					&envoy_api_v2_listener.Filter{
+						Name: wellknown.HTTPConnectionManager,
+						ConfigType: &envoy_api_v2_listener.Filter_Config{
 							Config: MessageToStruct(hcm),
 						},
 					},
@@ -187,21 +224,21 @@ func CreateHTTPListener(name, address, statPrefix string, port uint32, rateOpt *
 }
 
 //CreateSocketAddress create socket address
-func CreateSocketAddress(protocol, address string, port uint32) core.Address {
+func CreateSocketAddress(protocol, address string, port uint32) *core.Address {
 	if strings.HasPrefix(address, "https://") {
 		address = strings.Split(address, "https://")[1]
 	}
 	if strings.HasPrefix(address, "http://") {
 		address = strings.Split(address, "http://")[1]
 	}
-	return core.Address{
+	return &core.Address{
 		Address: &core.Address_SocketAddress{
 			SocketAddress: &core.SocketAddress{
 				Protocol: func(protocol string) core.SocketAddress_Protocol {
 					if protocol == "udp" {
-						return core.UDP
+						return core.SocketAddress_UDP
 					}
-					return core.TCP
+					return core.SocketAddress_TCP
 				}(protocol),
 				Address: address,
 				PortSpecifier: &core.SocketAddress_PortValue{
@@ -248,7 +285,7 @@ func CreatOutlierDetection(options RainbondPluginOptions) *cluster.OutlierDetect
 }
 
 //CreateRouteVirtualHost create route virtual host
-func CreateRouteVirtualHost(name string, domains []string, rateLimits []*route.RateLimit, routes ...route.Route) *route.VirtualHost {
+func CreateRouteVirtualHost(name string, domains []string, rateLimits []*route.RateLimit, routes ...*route.Route) *route.VirtualHost {
 	pvh := &route.VirtualHost{
 		Name:       name,
 		Domains:    domains,
@@ -281,7 +318,7 @@ func CreateRouteWithHostRewrite(host, clusterName, prefix string, headers []*rou
 			Cluster: clusterName,
 		}
 		rout = &route.Route{
-			Match: route.RouteMatch{
+			Match: &route.RouteMatch{
 				PathSpecifier: &route.RouteMatch_Prefix{
 					Prefix: prefix,
 				},
@@ -308,7 +345,7 @@ func CreateRouteWithHostRewrite(host, clusterName, prefix string, headers []*rou
 func CreateRoute(clusterName, prefix string, headers []*route.HeaderMatcher, weight uint32) *route.Route {
 	var rout *route.Route
 	rout = &route.Route{
-		Match: route.RouteMatch{
+		Match: &route.RouteMatch{
 			PathSpecifier: &route.RouteMatch_Prefix{
 				Prefix: prefix,
 			},
@@ -388,6 +425,7 @@ func CreateEDSClusterConfig(serviceName string) *apiv2.Cluster_EdsClusterConfig 
 type ClusterOptions struct {
 	Name                     string
 	ServiceName              string
+	ConnectionTimeout        *duration.Duration
 	ClusterType              apiv2.Cluster_DiscoveryType
 	MaxRequestsPerConnection *uint32
 	OutlierDetection         *cluster.OutlierDetection
@@ -409,14 +447,14 @@ func CreateCluster(options ClusterOptions) *apiv2.Cluster {
 		}
 	}
 	cluster := &apiv2.Cluster{
-		Name:             options.Name,
-		Type:             options.ClusterType,
-		ConnectTimeout:   time.Second * 250,
-		LbPolicy:         apiv2.Cluster_ROUND_ROBIN,
-		EdsClusterConfig: edsClusterConfig,
-		Hosts:            options.Hosts,
-		OutlierDetection: options.OutlierDetection,
-		CircuitBreakers:  options.CircuitBreakers,
+		Name:                 options.Name,
+		ClusterDiscoveryType: &apiv2.Cluster_Type{Type: options.ClusterType},
+		ConnectTimeout:       options.ConnectionTimeout,
+		LbPolicy:             apiv2.Cluster_ROUND_ROBIN,
+		EdsClusterConfig:     edsClusterConfig,
+		Hosts:                options.Hosts,
+		OutlierDetection:     options.OutlierDetection,
+		CircuitBreakers:      options.CircuitBreakers,
 		CommonLbConfig: &apiv2.Cluster_CommonLbConfig{
 			HealthyPanicThreshold: &_type.Percent{Value: float64(options.HealthyPanicThreshold) / 100},
 		},
@@ -476,21 +514,20 @@ func CreateDNSLoadAssignment(serviceAlias, namespace, domain string, service *co
 	}
 
 	clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, service.Spec.Ports[0].Port)
-	var lendpoints []endpoint.LocalityLbEndpoints
+	var lendpoints []*endpoint.LocalityLbEndpoints
 	protocol, _ := service.Labels["port_protocol"]
 	port := service.Spec.Ports[0].Port
-	var lbe []endpoint.LbEndpoint
+	var lbe []*endpoint.LbEndpoint
 	envoyAddress := CreateSocketAddress(protocol, domain, uint32(port))
-	logrus.Debugf("envoyAddress is : ", envoyAddress)
-	lbe = append(lbe, endpoint.LbEndpoint{
+	lbe = append(lbe, &endpoint.LbEndpoint{
 		HostIdentifier: &endpoint.LbEndpoint_Endpoint{
 			Endpoint: &endpoint.Endpoint{
-				Address:           &envoyAddress,
+				Address:           envoyAddress,
 				HealthCheckConfig: &endpoint.Endpoint_HealthCheckConfig{PortValue: uint32(port)},
 			},
 		},
 	})
-	lendpoints = append(lendpoints, endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
+	lendpoints = append(lendpoints, &endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
 	cla := &v2.ClusterLoadAssignment{
 		ClusterName: clusterName,
 		Endpoints:   lendpoints,

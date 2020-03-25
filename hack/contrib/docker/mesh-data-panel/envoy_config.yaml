@@ -47,8 +47,3 @@ static_resources:
               socket_address:
                 address: ${RATE_LIMIT_SERVER_HOST:127.0.0.1}
                 port_value: ${RATE_LIMIT_SERVER_PORT:8081}       
-# version 1.10.0 and newer do not support
-rate_limit_service:
-  grpc_service: 
-    envoy_grpc: 
-      cluster_name: rate_limit_service_cluster

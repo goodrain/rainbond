@@ -32,7 +32,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	api_model "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
@@ -138,44 +137,21 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 	for i := range appPlugins {
 		ApplyPluginConfig(as, appPlugins[i], dbmanager, inboundPluginConfig)
 	}
-	var udpDep bool
 	//if need proxy but not install net plugin
 	if as.NeedProxy && !netPlugin {
-		depUDPPort, _ := dbmanager.TenantServicesPortDao().GetDepUDPPort(as.ServiceID)
-		if len(depUDPPort) > 0 {
-			c2 := createUDPDefaultPluginContainer(as, mainContainer.Env)
-			containers = append(containers, c2)
-			udpDep = true
-		} else {
-			pluginID, err := applyDefaultMeshPluginConfig(as, dbmanager)
-			if err != nil {
-				logrus.Errorf("apply default mesh plugin config failure %s", err.Error())
-			}
-			c2 := createTCPDefaultPluginContainer(as, pluginID, mainContainer.Env)
-			containers = append(containers, c2)
-			meshPluginID = pluginID
+		pluginID, err := applyDefaultMeshPluginConfig(as, dbmanager)
+		if err != nil {
+			logrus.Errorf("apply default mesh plugin config failure %s", err.Error())
 		}
+		c2 := createTCPDefaultPluginContainer(as, pluginID, mainContainer.Env)
+		containers = append(containers, c2)
+		meshPluginID = pluginID
 	}
 
-	if bootSeqDepServiceIds := as.ExtensionSet["boot_seq_dep_service_ids"]; as.NeedProxy && !udpDep && bootSeqDepServiceIds != "" {
+	if bootSeqDepServiceIds := as.ExtensionSet["boot_seq_dep_service_ids"]; as.NeedProxy && bootSeqDepServiceIds != "" {
 		initContainers = append(initContainers, createProbeMeshInitContainer(as, meshPluginID, as.ServiceAlias, mainContainer.Env))
 	}
 	return initContainers, containers, nil
-}
-
-func createUDPDefaultPluginContainer(as *typesv1.AppService, envs []v1.EnvVar) v1.Container {
-	return v1.Container{
-		Name: "default-udpmesh-" + as.ServiceID[len(as.ServiceID)-20:],
-		VolumeMounts: []v1.VolumeMount{v1.VolumeMount{
-			MountPath: "/etc/kubernetes",
-			Name:      "kube-config",
-			ReadOnly:  true,
-		}},
-		Env:                    envs,
-		TerminationMessagePath: "",
-		Image:                  builder.REGISTRYDOMAIN + "/adapter",
-		Resources:              createTCPUDPMeshRecources(as),
-	}
 }
 
 func createTCPDefaultPluginContainer(as *typesv1.AppService, pluginID string, envs []v1.EnvVar) v1.Container {
@@ -282,7 +258,7 @@ func applyDefaultMeshPluginConfig(as *typesv1.AppService, dbmanager db.Manager) 
 					DependServiceAlias: depService.ServiceAlias,
 					DependServiceID:    depService.ServiceID,
 					Port:               port.ContainerPort,
-					Protocol:           "tcp",
+					Protocol:           port.Protocol,
 				}
 				baseServices = append(baseServices, depService)
 			}

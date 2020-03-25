@@ -21,6 +21,7 @@ package conver
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/pquerna/ffjson/ffjson"
@@ -84,18 +85,19 @@ func OneNodeListerner(serviceAlias, namespace string, configs *corev1.ConfigMap,
 func upstreamListener(serviceAlias, namespace string, dependsServices []*api_model.BaseService, services []*corev1.Service) (ldsL []*v2.Listener) {
 	var ListennerConfig = make(map[string]*api_model.BaseService, len(dependsServices))
 	for i, dService := range dependsServices {
-		listennerName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, dService.DependServiceAlias, dService.Port)
+		listennerName := fmt.Sprintf("%s_%s_%s_%s_%d", namespace, serviceAlias, dService.DependServiceAlias, strings.ToLower(dService.Protocol), dService.Port)
 		ListennerConfig[listennerName] = dependsServices[i]
 	}
 	var portMap = make(map[int32]int)
 	var uniqRoute = make(map[string]*route.Route, len(services))
-	var newVHL []route.VirtualHost
+	var newVHL []*route.VirtualHost
 	for _, service := range services {
 		inner, ok := service.Labels["service_type"]
 		if !ok || inner != "inner" {
 			continue
 		}
 		port := service.Spec.Ports[0].Port
+		protocol := service.Spec.Ports[0].Protocol
 		var ListenPort = port
 		//listener real port
 		if value, ok := service.Labels["origin_port"]; ok {
@@ -105,7 +107,7 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 			}
 		}
 		clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port)
-		listennerName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), ListenPort)
+		listennerName := fmt.Sprintf("%s_%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), strings.ToLower(string(protocol)), ListenPort)
 		destService := ListennerConfig[listennerName]
 		statPrefix := fmt.Sprintf("%s_%s", serviceAlias, GetServiceAliasByService(service))
 
@@ -118,13 +120,20 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 			if domain, ok := service.Annotations["domain"]; ok && domain != "" && (protocol == "https" || protocol == "http") {
 				route := envoyv2.CreateRouteWithHostRewrite(domain, clusterName, "/", nil, 0)
 				if route != nil {
-					pvh := envoyv2.CreateRouteVirtualHost(fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port), []string{"*"}, nil, *route)
+					pvh := envoyv2.CreateRouteVirtualHost(
+						fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port),
+						[]string{"*"},
+						nil,
+						route,
+					)
 					if pvh != nil {
-						listener = envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port), envoyv2.DefaultLocalhostListenerAddress, fmt.Sprintf("%s_%d", serviceAlias, port), uint32(port), nil, *pvh)
+						listener = envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port), envoyv2.DefaultLocalhostListenerAddress, fmt.Sprintf("%s_%d", serviceAlias, port), uint32(port), nil, pvh)
 					} else {
 						logrus.Warnf("create route virtual host of domain listener %s failure", fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port))
 					}
 				}
+			} else if protocol == "udp" {
+				listener = envoyv2.CreateUDPListener(listenerName, clusterName, envoyv2.DefaultLocalhostListenerAddress, statPrefix, uint32(ListenPort))
 			} else {
 				listener = envoyv2.CreateTCPListener(listenerName, clusterName, envoyv2.DefaultLocalhostListenerAddress, statPrefix, uint32(ListenPort))
 			}
@@ -178,9 +187,9 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 
 					if route != nil {
 						pvh := envoyv2.CreateRouteVirtualHost(fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias,
-							GetServiceAliasByService(service), port), options.Domains, nil, *route)
+							GetServiceAliasByService(service), port), options.Domains, nil, route)
 						if pvh != nil {
-							newVHL = append(newVHL, *pvh)
+							newVHL = append(newVHL, pvh)
 							uniqRoute[hashKey] = route
 						}
 					}
@@ -239,7 +248,7 @@ func downstreamListener(serviceAlias, namespace string, ports []*api_model.BaseP
 					logrus.Warning("create route cirtual route failure")
 					continue
 				}
-				virtuals := envoyv2.CreateRouteVirtualHost(listenerName, []string{"*"}, limit, *route)
+				virtuals := envoyv2.CreateRouteVirtualHost(listenerName, []string{"*"}, limit, route)
 				if virtuals == nil {
 					logrus.Warning("create route cirtual failure")
 					continue
@@ -249,9 +258,17 @@ func downstreamListener(serviceAlias, namespace string, ports []*api_model.BaseP
 					Domain:                inboundConfig.LimitDomain,
 					RateServerClusterName: envoyv2.DefaultRateLimitServerClusterName,
 					Stage:                 0,
-				}, *virtuals)
+				}, virtuals)
 				if listener != nil {
 					ls = append(ls, listener)
+				}
+			} else if p.Protocol == "udp" {
+				listener := envoyv2.CreateUDPListener(listenerName, clusterName, "0.0.0.0", statsPrefix, uint32(p.ListenPort))
+				if listener != nil {
+					ls = append(ls, listener)
+				} else {
+					logrus.Warningf("create udp listener %s failure", listenerName)
+					continue
 				}
 			} else {
 				listener := envoyv2.CreateTCPListener(listenerName, clusterName, "0.0.0.0", statsPrefix, uint32(p.ListenPort))
