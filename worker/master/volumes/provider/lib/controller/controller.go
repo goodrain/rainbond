@@ -1009,15 +1009,12 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 	if err != nil {
 		return fmt.Errorf("pv for grdata: %v", err)
 	}
-	if grdatapv.Spec.NFS == nil {
-		return fmt.Errorf("%s/%s; nfs not found for grdata pv", grdatapv.Name)
-	}
 
 	options := VolumeOptions{
 		PersistentVolumeReclaimPolicy: reclaimPolicy,
 		PVName:                        pvName,
 		PVC:                           claim,
-		NFS:                           grdatapv.Spec.NFS,
+		PersistentVolumeSource:        grdatapv.Spec.PersistentVolumeSource,
 		MountOptions:                  mountOptions,
 		Parameters:                    parameters,
 		SelectedNode:                  selectedNode,

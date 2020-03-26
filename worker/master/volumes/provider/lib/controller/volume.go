@@ -86,8 +86,8 @@ type VolumeOptions struct {
 	// i.e. with required capacity, accessMode, labels matching PVC.Selector and
 	// so on.
 	PVC *v1.PersistentVolumeClaim
-	// NFS
-	NFS *v1.NFSVolumeSource
+	// The actual volume backing the persistent volume.
+	v1.PersistentVolumeSource `json:",inline"`
 	// Volume provisioning parameters from StorageClass
 	Parameters map[string]string
 

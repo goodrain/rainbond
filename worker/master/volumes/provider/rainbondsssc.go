@@ -86,8 +86,12 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 	if err := util.CheckAndCreateDirByMode(hostpath, 0777); err != nil {
 		return nil, err
 	}
-	// new nfs path
-	options.NFS.Path = strings.Replace(hostpath, "/grdata", options.NFS.Path, 1)
+	// new volume path
+	newPath := strings.Replace(hostpath, "/grdata", options.NFS.Path, 1)
+	persistentVolumeSource, err := updatePathForPersistentVolumeSource(&options.PersistentVolumeSource, newPath)
+	if err != nil {
+		return nil, err
+	}
 
 	pv := &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
@@ -98,11 +102,9 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 			PersistentVolumeReclaimPolicy: options.PersistentVolumeReclaimPolicy,
 			AccessModes:                   options.PVC.Spec.AccessModes,
 			Capacity: v1.ResourceList{
-				v1.ResourceName(v1.ResourceStorage): options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)],
+				v1.ResourceStorage: options.PVC.Spec.Resources.Requests[v1.ResourceStorage],
 			},
-			PersistentVolumeSource: v1.PersistentVolumeSource{
-				NFS: options.NFS,
-			},
+			PersistentVolumeSource: *persistentVolumeSource,
 		},
 	}
 	logrus.Infof("create rainbondsssc pv %s for pvc %s", pv.Name, options.PVC.Name)
@@ -143,4 +145,23 @@ func getVolumeIDByPVCName(pvcName string) int {
 		return id
 	}
 	return 0
+}
+
+func updatePathForPersistentVolumeSource(persistentVolumeSource *v1.PersistentVolumeSource, newPath string) (*v1.PersistentVolumeSource, error) {
+	switch {
+	case persistentVolumeSource.NFS != nil:
+		persistentVolumeSource.NFS.Path = newPath
+	case persistentVolumeSource.CSI != nil:
+		if persistentVolumeSource.CSI.VolumeAttributes != nil {
+			persistentVolumeSource.CSI.VolumeAttributes["path"] = newPath
+		}
+	case persistentVolumeSource.Glusterfs != nil:
+		//glusterfs:
+		//	endpoints: glusterfs-cluster
+		//	path: myVol1
+		persistentVolumeSource.Glusterfs.Path = newPath
+	default:
+		return nil, fmt.Errorf("unsupported persistence volume source")
+	}
+	return persistentVolumeSource, nil
 }
