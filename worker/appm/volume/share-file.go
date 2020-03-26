@@ -20,13 +20,11 @@ package volume
 
 import (
 	"fmt"
-	"os"
-	"strings"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
+	"os"
 )
 
 // ShareFileVolume nfs volume struct
@@ -40,7 +38,7 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 	if err != nil {
 		return fmt.Errorf("create host path %s error,%s", v.svm.HostPath, err.Error())
 	}
-	os.Chmod(v.svm.HostPath, 0777)
+	_ = os.Chmod(v.svm.HostPath, 0777)
 
 	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
 	volumeMountPath := v.svm.VolumePath
@@ -72,10 +70,12 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 			}
 		}
 
-		labels := v.as.GetCommonLabels(map[string]string{"volume_name": volumeMountName})
+		labels := v.as.GetCommonLabels(map[string]string{
+			"volume_name": volumeMountName,
+			"stateless":   "",
+		})
 		annotations := map[string]string{"volume_name": v.svm.VolumeName}
 		claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v1.RainbondStatefuleShareStorageClass, v.svm.VolumeCapacity, labels, annotations)
-
 		v.as.SetClaim(claim)
 		v.as.SetClaimManually(claim)
 
@@ -88,30 +88,15 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 			ReadOnly:  volumeReadOnly,
 		}
 	}
-	if vm != nil {
-		define.volumeMounts = append(define.volumeMounts, *vm)
-	}
+	define.volumeMounts = append(define.volumeMounts, *vm)
 
 	return nil
-}
-
-func (v *ShareFileVolume) getClaimName() string {
-	claimName := os.Getenv("GRDATA_PVC_NAME")
-	if claimName == "" {
-		claimName = "rbd-cpt-grdata"
-	}
-	return claimName
-}
-
-func (v *ShareFileVolume) getSubpath(originalPath string) string {
-	return strings.Replace(originalPath, "/grdata/", "", 1)
 }
 
 // CreateDependVolume create depend volume
 func (v *ShareFileVolume) CreateDependVolume(define *Define) error {
 	volumeMountName := fmt.Sprintf("mnt%d", v.smr.ID)
 	volumeMountPath := v.smr.VolumePath
-	volumeReadOnly := false
 	for _, m := range define.volumeMounts {
 		if m.MountPath == volumeMountPath {
 			logrus.Warningf("found the same mount path: %s, skip it", volumeMountPath)
@@ -121,12 +106,12 @@ func (v *ShareFileVolume) CreateDependVolume(define *Define) error {
 
 	vo := corev1.Volume{Name: volumeMountName}
 	claimName := fmt.Sprintf("manual%d", v.smr.ID)
-	vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claimName, ReadOnly: volumeReadOnly}
+	vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claimName, ReadOnly: false}
 	define.volumes = append(define.volumes, vo)
 	vm := corev1.VolumeMount{
 		Name:      volumeMountName,
 		MountPath: volumeMountPath,
-		ReadOnly:  volumeReadOnly,
+		ReadOnly:  false,
 	}
 	define.volumeMounts = append(define.volumeMounts, vm)
 	return nil

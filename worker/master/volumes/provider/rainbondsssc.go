@@ -59,8 +59,10 @@ var _ controller.Provisioner = &rainbondssscProvisioner{}
 func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
 	tenantID := options.PVC.Labels["tenant_id"]
 	serviceID := options.PVC.Labels["service_id"]
+	_, stateless := options.PVC.Labels["stateless"]
 	// v5.0.4 Previous versions
 	hostpath := path.Join(p.pvDir, "tenant", tenantID, "service", serviceID, options.PVC.Name)
+
 	// after v5.0.4,change host path
 	// Directory path has nothing to do with volume ID
 	// Directory path bound to volume mount path
@@ -73,7 +75,10 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 				logrus.Errorf("get volume by id %d failure %s", volumeID, err.Error())
 				return nil, err
 			}
-			hostpath = path.Join(volume.HostPath, podName)
+			hostpath = volume.HostPath
+			if !stateless {
+				hostpath = path.Join(volume.HostPath, podName)
+			}
 		} else {
 			return nil, fmt.Errorf("can not parse volume id")
 		}
