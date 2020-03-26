@@ -115,8 +115,6 @@ func (s *startController) startOne(app v1.AppService) error {
 			return fmt.Errorf("create claims: %v", err)
 		}
 	}
-	// before create app, prepare poddnsconfig
-	podDNSConfig := workerutil.MakePodDNSConfig(s.manager.client, app.TenantID, s.manager.rbdNamespace, s.manager.rbdDNSName)
 	//step 2: create statefulset or deployment
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
 		_, err = s.manager.client.AppsV1().StatefulSets(app.TenantID).Create(statefulset)
