@@ -52,6 +52,9 @@ type Config struct {
 	KubeClient              kubernetes.Interface
 	LeaderElectionNamespace string
 	LeaderElectionIdentity  string
+	RBDNamespace            string
+	GrdataPVCName           string
+	RBDDNSName              string
 }
 
 //Worker  worker server
@@ -90,6 +93,9 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.NodeAPI, "node-api", "http://172.30.42.1:6100", "node discover api, node docker endpoints")
 	flag.StringVar(&a.LeaderElectionNamespace, "leader-election-namespace", "rainbond", "Namespace where this attacher runs.")
 	flag.StringVar(&a.LeaderElectionIdentity, "leader-election-identity", "", "Unique idenity of this attcher. Typically name of the pod where the attacher runs.")
+	flag.StringVar(&a.RBDNamespace, "rbd-system-namespace", "rbd-system", "rbd components kubernetes namespace")
+	flag.StringVar(&a.GrdataPVCName, "grdata-pvc-name", "rbd-cpt-grdata", "The name of grdata persistent volume claim")
+	flag.StringVar(&a.RBDDNSName, "rbd-dns", "rbd-dns", "rbd dns endpoint name")
 }
 
 //SetLog 设置log
@@ -104,6 +110,9 @@ func (a *Worker) SetLog() {
 
 //CheckEnv 检测环境变量
 func (a *Worker) CheckEnv() error {
+	if err := os.Setenv("GRDATA_PVC_NAME", a.Config.GrdataPVCName); err != nil {
+		return fmt.Errorf("set env 'GRDATA_PVC_NAME': %v", err)
+	}
 	if os.Getenv("CUR_NET") == "" {
 		return fmt.Errorf("please set env `CUR_NET`")
 	}

@@ -77,7 +77,7 @@ func NewMasterController(conf option.Config, store store.Storer) (*Controller, e
 	rainbondsslcProvisioner := provider.NewRainbondsslcProvisioner(conf.KubeClient, store)
 	// Start the provision controller which will dynamically provision hostPath
 	// PVs
-	pc := controller.NewProvisionController(conf.KubeClient, map[string]controller.Provisioner{
+	pc := controller.NewProvisionController(conf.KubeClient, &conf, map[string]controller.Provisioner{
 		rainbondssscProvisioner.Name(): rainbondssscProvisioner,
 		rainbondsslcProvisioner.Name(): rainbondsslcProvisioner,
 	}, serverVersion.GitVersion)

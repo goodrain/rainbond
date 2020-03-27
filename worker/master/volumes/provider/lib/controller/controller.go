@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/cmd/worker/option"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -79,6 +80,7 @@ const annSelectedNode = "volume.kubernetes.io/selected-node"
 // PersistentVolumeClaims.
 type ProvisionController struct {
 	client kubernetes.Interface
+	cfg    *option.Config
 
 	// The provisioner the controller will use to provision and delete volumes.
 	// Presumably this implementer of Provisioner carries its own
@@ -409,6 +411,7 @@ func (ctrl *ProvisionController) HasRun() bool {
 // the given configuration parameters and with private (non-shared) informers.
 func NewProvisionController(
 	client kubernetes.Interface,
+	cfg *option.Config,
 	provisioners map[string]Provisioner,
 	kubeVersion string,
 	options ...func(*ProvisionController) error,
@@ -429,6 +432,7 @@ func NewProvisionController(
 
 	controller := &ProvisionController{
 		client:                        client,
+		cfg:                           cfg,
 		provisioners:                  provisioners,
 		kubeVersion:                   utilversion.MustParseSemantic(kubeVersion),
 		id:                            id,
@@ -1000,10 +1004,17 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 		}
 	}
 
+	// Find pv for grdata
+	grdatapv, err := ctrl.persistentVolumeForGrdata()
+	if err != nil {
+		return fmt.Errorf("pv for grdata: %v", err)
+	}
+
 	options := VolumeOptions{
 		PersistentVolumeReclaimPolicy: reclaimPolicy,
 		PVName:                        pvName,
 		PVC:                           claim,
+		PersistentVolumeSource:        grdatapv.Spec.PersistentVolumeSource,
 		MountOptions:                  mountOptions,
 		Parameters:                    parameters,
 		SelectedNode:                  selectedNode,
@@ -1092,6 +1103,18 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 
 	logrus.Info(logOperation(operation, "succeeded"))
 	return nil
+}
+
+func (ctrl *ProvisionController) persistentVolumeForGrdata() (*v1.PersistentVolume, error) {
+	pvc, err := ctrl.client.CoreV1().PersistentVolumeClaims(ctrl.cfg.RBDNamespace).Get(ctrl.cfg.GrdataPVCName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("find pvc for grdata: %v", err)
+	}
+	pv, err := ctrl.client.CoreV1().PersistentVolumes().Get(pvc.Spec.VolumeName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("find pv for grdata: %v", err)
+	}
+	return pv, nil
 }
 
 // deleteVolumeOperation attempts to delete the volume backing the given

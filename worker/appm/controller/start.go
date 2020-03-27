@@ -107,7 +107,14 @@ func (s *startController) startOne(app v1.AppService) error {
 			}
 		}
 	}
-
+	// create claims
+	for _, claim := range app.GetClaimsManually() {
+		logrus.Debugf("create claim: %s", claim.Name)
+		_, err := s.manager.client.CoreV1().PersistentVolumeClaims(app.TenantID).Create(claim)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("create claims: %v", err)
+		}
+	}
 	//step 2: create statefulset or deployment
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
 		_, err = s.manager.client.AppsV1().StatefulSets(app.TenantID).Create(statefulset)
