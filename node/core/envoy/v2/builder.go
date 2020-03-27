@@ -109,6 +109,8 @@ func CreateUDPListener(name, clusterName, address, statPrefix string, port uint3
 				},
 			},
 		},
+		// Listening on UDP without SO_REUSEPORT socket option may result to unstable packet proxying. Consider configuring the reuse_port listener option.
+		ReusePort: true,
 	}
 	if err := listener.Validate(); err != nil {
 		logrus.Errorf("validate listener config failure %s", err.Error())
