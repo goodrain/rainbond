@@ -59,8 +59,10 @@ var _ controller.Provisioner = &rainbondssscProvisioner{}
 func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
 	tenantID := options.PVC.Labels["tenant_id"]
 	serviceID := options.PVC.Labels["service_id"]
+	_, stateless := options.PVC.Labels["stateless"]
 	// v5.0.4 Previous versions
 	hostpath := path.Join(p.pvDir, "tenant", tenantID, "service", serviceID, options.PVC.Name)
+
 	// after v5.0.4,change host path
 	// Directory path has nothing to do with volume ID
 	// Directory path bound to volume mount path
@@ -73,7 +75,10 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 				logrus.Errorf("get volume by id %d failure %s", volumeID, err.Error())
 				return nil, err
 			}
-			hostpath = path.Join(volume.HostPath, podName)
+			hostpath = volume.HostPath
+			if !stateless {
+				hostpath = path.Join(volume.HostPath, podName)
+			}
 		} else {
 			return nil, fmt.Errorf("can not parse volume id")
 		}
@@ -81,6 +86,13 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 	if err := util.CheckAndCreateDirByMode(hostpath, 0777); err != nil {
 		return nil, err
 	}
+	// new volume path
+	newPath := strings.Replace(hostpath, "/grdata", options.NFS.Path, 1)
+	persistentVolumeSource, err := updatePathForPersistentVolumeSource(&options.PersistentVolumeSource, newPath)
+	if err != nil {
+		return nil, err
+	}
+
 	pv := &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   options.PVName,
@@ -90,13 +102,9 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 			PersistentVolumeReclaimPolicy: options.PersistentVolumeReclaimPolicy,
 			AccessModes:                   options.PVC.Spec.AccessModes,
 			Capacity: v1.ResourceList{
-				v1.ResourceName(v1.ResourceStorage): options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)],
+				v1.ResourceStorage: options.PVC.Spec.Resources.Requests[v1.ResourceStorage],
 			},
-			PersistentVolumeSource: v1.PersistentVolumeSource{
-				HostPath: &v1.HostPathVolumeSource{
-					Path: hostpath,
-				},
-			},
+			PersistentVolumeSource: *persistentVolumeSource,
 		},
 	}
 	logrus.Infof("create rainbondsssc pv %s for pvc %s", pv.Name, options.PVC.Name)
@@ -137,4 +145,23 @@ func getVolumeIDByPVCName(pvcName string) int {
 		return id
 	}
 	return 0
+}
+
+func updatePathForPersistentVolumeSource(persistentVolumeSource *v1.PersistentVolumeSource, newPath string) (*v1.PersistentVolumeSource, error) {
+	switch {
+	case persistentVolumeSource.NFS != nil:
+		persistentVolumeSource.NFS.Path = newPath
+	case persistentVolumeSource.CSI != nil:
+		if persistentVolumeSource.CSI.VolumeAttributes != nil {
+			persistentVolumeSource.CSI.VolumeAttributes["path"] = newPath
+		}
+	case persistentVolumeSource.Glusterfs != nil:
+		//glusterfs:
+		//	endpoints: glusterfs-cluster
+		//	path: myVol1
+		persistentVolumeSource.Glusterfs.Path = newPath
+	default:
+		return nil, fmt.Errorf("unsupported persistence volume source")
+	}
+	return persistentVolumeSource, nil
 }

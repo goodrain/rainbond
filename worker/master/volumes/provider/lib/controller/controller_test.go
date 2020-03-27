@@ -650,7 +650,7 @@ func TestControllerExternalSharedInformers(t *testing.T) {
 				newClaim("claim-1", "uid-1-1", "class-1", "foo.bar/baz", "", nil),
 			},
 			provisionerName: "foo.bar/baz",
-			serverVersion:   "v1.8.0",
+			serverVersion:   "v1.8.0",w
 			expectedVolumes: []v1.PersistentVolume{
 				*newProvisionedVolumeWithSpecifiedReclaimPolicy(newStorageClassWithSpecifiedReclaimPolicy("class-1", "foo.bar/baz", v1.PersistentVolumeReclaimDelete), newClaim("claim-1", "uid-1-1", "class-1", "foo.bar/baz", "", nil)),
 			},
@@ -940,6 +940,11 @@ type testProvisioner struct {
 	provisionCalls chan provisionParams
 }
 
+func (t *testProvisioner) Name() string{
+	return ""
+}
+
+// Provisioner -
 var _ Provisioner = &testProvisioner{}
 
 func newTestQualifiedProvisioner(answer bool) *testQualifiedProvisioner {

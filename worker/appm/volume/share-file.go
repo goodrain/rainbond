@@ -20,12 +20,11 @@ package volume
 
 import (
 	"fmt"
-	"os"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
+	"os"
 )
 
 // ShareFileVolume nfs volume struct
@@ -39,7 +38,7 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 	if err != nil {
 		return fmt.Errorf("create host path %s error,%s", v.svm.HostPath, err.Error())
 	}
-	os.Chmod(v.svm.HostPath, 0777)
+	_ = os.Chmod(v.svm.HostPath, 0777)
 
 	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
 	volumeMountPath := v.svm.VolumePath
@@ -48,10 +47,12 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 	var vm *corev1.VolumeMount
 	if v.as.GetStatefulSet() != nil {
 		statefulset := v.as.GetStatefulSet()
+
 		labels := v.as.GetCommonLabels(map[string]string{"volume_name": volumeMountName})
 		annotations := map[string]string{"volume_name": v.svm.VolumeName}
 		claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v1.RainbondStatefuleShareStorageClass, v.svm.VolumeCapacity, labels, annotations)
 		v.as.SetClaim(claim)
+
 		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
 		vo := corev1.Volume{Name: volumeMountName}
 		vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
@@ -68,16 +69,18 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 				return nil
 			}
 		}
-		hostPath := v.svm.HostPath
-		if v.as.IsWindowsService {
-			hostPath = RewriteHostPathInWindows(hostPath)
-		}
+
+		labels := v.as.GetCommonLabels(map[string]string{
+			"volume_name": volumeMountName,
+			"stateless":   "",
+		})
+		annotations := map[string]string{"volume_name": v.svm.VolumeName}
+		claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v1.RainbondStatefuleShareStorageClass, v.svm.VolumeCapacity, labels, annotations)
+		v.as.SetClaim(claim)
+		v.as.SetClaimManually(claim)
+
 		vo := corev1.Volume{Name: volumeMountName}
-		hostPathType := corev1.HostPathDirectoryOrCreate
-		vo.HostPath = &corev1.HostPathVolumeSource{
-			Path: hostPath,
-			Type: &hostPathType,
-		}
+		vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
 		define.volumes = append(define.volumes, vo)
 		vm = &corev1.VolumeMount{
 			Name:      volumeMountName,
@@ -85,9 +88,7 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 			ReadOnly:  volumeReadOnly,
 		}
 	}
-	if vm != nil {
-		define.volumeMounts = append(define.volumeMounts, *vm)
-	}
+	define.volumeMounts = append(define.volumeMounts, *vm)
 
 	return nil
 }
@@ -96,33 +97,21 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 func (v *ShareFileVolume) CreateDependVolume(define *Define) error {
 	volumeMountName := fmt.Sprintf("mnt%d", v.smr.ID)
 	volumeMountPath := v.smr.VolumePath
-	volumeReadOnly := false
 	for _, m := range define.volumeMounts {
 		if m.MountPath == volumeMountPath {
 			logrus.Warningf("found the same mount path: %s, skip it", volumeMountPath)
 			return nil
 		}
 	}
-	err := util.CheckAndCreateDir(v.smr.HostPath)
-	if err != nil {
-		return fmt.Errorf("create host path %s error,%s", v.smr.HostPath, err.Error())
-	}
-	hostPath := v.smr.HostPath
-	if v.as.IsWindowsService {
-		hostPath = RewriteHostPathInWindows(hostPath)
-	}
 
 	vo := corev1.Volume{Name: volumeMountName}
-	hostPathType := corev1.HostPathDirectoryOrCreate
-	vo.HostPath = &corev1.HostPathVolumeSource{
-		Path: hostPath,
-		Type: &hostPathType,
-	}
+	claimName := fmt.Sprintf("manual%d", v.smr.ID)
+	vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claimName, ReadOnly: false}
 	define.volumes = append(define.volumes, vo)
 	vm := corev1.VolumeMount{
 		Name:      volumeMountName,
 		MountPath: volumeMountPath,
-		ReadOnly:  volumeReadOnly,
+		ReadOnly:  false,
 	}
 	define.volumeMounts = append(define.volumeMounts, vm)
 	return nil
