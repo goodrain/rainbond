@@ -314,19 +314,18 @@ func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *api
 		EventID:   "system",
 		Action:    "put",
 	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return util.CreateAPIHandleErrorFromDBError("save plugin config failure", err)
+	}
 	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		TaskType: "apply_plugin_config",
 		TaskBody: TaskBody,
 		Topic:    gclient.WorkerTopic,
 	})
 	if err != nil {
-		tx.Rollback()
 		logrus.Errorf("equque mq error, %v", err)
 		return util.CreateAPIHandleErrorf(500, "send apply plugin config message failure")
-	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("save plugin config failure", err)
 	}
 	return nil
 }

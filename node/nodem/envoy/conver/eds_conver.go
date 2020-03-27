@@ -47,7 +47,7 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 		clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, service.Spec.Ports[0].Port)
 		selectEndpoint := getEndpointsByServiceName(endpoints, service.Name)
 		logrus.Debugf("select endpoints %d for service %s", len(selectEndpoint), service.Name)
-		var lendpoints []endpoint.LocalityLbEndpoints // localityLbEndpoints just support only one content
+		var lendpoints []*endpoint.LocalityLbEndpoints // localityLbEndpoints just support only one content
 		for _, en := range selectEndpoint {
 			var notReadyAddress *corev1.EndpointAddress
 			var notReadyPort *corev1.EndpointPort
@@ -76,35 +76,35 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 						}
 					}
 					if len(subset.Addresses) > 0 {
-						var lbe []endpoint.LbEndpoint
+						var lbe []*endpoint.LbEndpoint
 						for _, address := range subset.Addresses {
 							envoyAddress := envoyv2.CreateSocketAddress(protocol, address.IP, uint32(toport))
-							lbe = append(lbe, endpoint.LbEndpoint{
+							lbe = append(lbe, &endpoint.LbEndpoint{
 								HostIdentifier: &endpoint.LbEndpoint_Endpoint{
 									Endpoint: &endpoint.Endpoint{
-										Address:           &envoyAddress,
+										Address:           envoyAddress,
 										HealthCheckConfig: getHealty(),
 									},
 								},
 							})
 						}
 						if len(lbe) > 0 {
-							lendpoints = append(lendpoints, endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
+							lendpoints = append(lendpoints, &endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
 						}
 					}
 				}
 			}
 			if len(lendpoints) == 0 && notReadyAddress != nil && notReadyPort != nil {
-				var lbe []endpoint.LbEndpoint
+				var lbe []*endpoint.LbEndpoint
 				envoyAddress := envoyv2.CreateSocketAddress(string(notReadyPort.Protocol), notReadyAddress.IP, uint32(notreadyToPort))
-				lbe = append(lbe, endpoint.LbEndpoint{
+				lbe = append(lbe, &endpoint.LbEndpoint{
 					HostIdentifier: &endpoint.LbEndpoint_Endpoint{
 						Endpoint: &endpoint.Endpoint{
-							Address: &envoyAddress,
+							Address: envoyAddress,
 						},
 					},
 				})
-				lendpoints = append(lendpoints, endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
+				lendpoints = append(lendpoints, &endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
 			}
 		}
 		cla := &v2.ClusterLoadAssignment{

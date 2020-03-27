@@ -19,6 +19,7 @@
 package app
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
@@ -27,11 +28,9 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"sync"
 	"text/template"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/kr/pty"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -40,6 +39,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/yudai/gotty/server"
+	"github.com/yudai/gotty/webtty"
 	"github.com/yudai/umutex"
 	api "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,10 +51,10 @@ import (
 )
 
 //ExecuteCommandTotal metric
-var ExecuteCommandTotal float64 = 0
+var ExecuteCommandTotal float64
 
 //ExecuteCommandFailed metric
-var ExecuteCommandFailed float64 = 0
+var ExecuteCommandFailed float64
 
 //App -
 type App struct {
@@ -81,7 +82,6 @@ type Options struct {
 	ReconnectTime   int                    `hcl:"reconnect_time"`
 	PermitArguments bool                   `hcl:"permit_arguments"`
 	CloseSignal     int                    `hcl:"close_signal"`
-	Preferences     HtermPrefernces        `hcl:"preferences"`
 	RawPreferences  map[string]interface{} `hcl:"preferences"`
 	SessionKey      string                 `hcl:"session_key"`
 	K8SConfPath     string
@@ -100,7 +100,6 @@ var DefaultOptions = Options{
 	EnableReconnect: true,
 	ReconnectTime:   10,
 	CloseSignal:     1, // syscall.SIGHUP
-	Preferences:     HtermPrefernces{},
 	SessionKey:      "_auth_user_id",
 }
 
@@ -124,6 +123,7 @@ func New(options *Options) (*App, error) {
 		upgrader: &websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
+			Subprotocols:    []string{"webtty"},
 			CheckOrigin:     checkSameOrigin,
 		},
 		titleTemplate: titleTemplate,
@@ -231,13 +231,7 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 		conn.Close()
 		return
 	}
-	pty, tty, err := pty.Open()
-	if err != nil {
-		logrus.Errorf("open pty failure %s", err.Error())
-		conn.WriteMessage(websocket.TextMessage, []byte("open tty failure!"))
-		ExecuteCommandFailed++
-		return
-	}
+	// base kubernetes api create exec slave
 	containerName, args, err := app.GetDefaultContainerName(init.TenantID, init.PodName)
 	if err != nil {
 		logrus.Errorf("get default container failure %s", err.Error())
@@ -246,38 +240,41 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	request := app.NewRequest(init.PodName, init.TenantID, containerName, args)
-	context := &ClientContext{
-		app:        app,
-		request:    r,
-		connection: conn,
-		pty:        pty,
-		writeMutex: &sync.Mutex{},
+	var slave server.Slave
+	slave, err = NewExecContext(request, app.config)
+	if err != nil {
+		logrus.Errorf("open exec context failure %s", err.Error())
+		conn.WriteMessage(websocket.TextMessage, []byte("open tty failure!"))
+		ExecuteCommandFailed++
+		return
 	}
-	out := CreateOut(tty)
-	t := out.SetTTY()
-	exec := NewExecContextByStd(context, out.Stdin, out.Stdout, out.Stderr, request, app.config)
-	context.exec = exec
-	stop := make(chan struct{})
-	closed := func() {
-		tty.Close()
+	defer slave.Close()
+	opts := []webtty.Option{
+		webtty.WithWindowTitle([]byte(init.PodName)),
+		webtty.WithReconnect(10),
+		webtty.WithPermitWrite(),
 	}
-	go func() {
-		fn := func() error {
-			if err := exec.Run(); err != nil {
-				logrus.Errorf("exec run failure %s", err.Error())
-				conn.WriteMessage(websocket.TextMessage, []byte("Exec run failure!"))
-				ExecuteCommandFailed++
-				return err
-			}
-			close(stop)
-			logrus.Debugf("%s/%s exec run complete", init.TenantID, init.PodName)
-			return nil
+	// create web tty and run
+	tty, err := webtty.New(&WsWrapper{conn}, slave, opts...)
+	if err != nil {
+		logrus.Errorf("open web tty context failure %s", err.Error())
+		conn.WriteMessage(websocket.TextMessage, []byte("open tty failure!"))
+		ExecuteCommandFailed++
+		return
+	}
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+	err = tty.Run(ctx)
+	if err != nil {
+		if strings.Contains(err.Error(), "master closed") {
+			logrus.Infof("client close connection")
+			return
 		}
-		if err := t.Safe(fn); err != nil {
-			logrus.Errorf("tty run failure %s", err.Error())
-		}
-	}()
-	context.goHandleClient(stop, closed)
+		logrus.Errorf("run web tty failure %s", err.Error())
+		conn.WriteMessage(websocket.TextMessage, []byte("run tty failure!"))
+		ExecuteCommandFailed++
+		return
+	}
 }
 
 //Exit -
@@ -352,6 +349,7 @@ func (app *App) NewRequest(podName, namespace, containerName string, command []s
 		Param("container", containerName).
 		Param("stdin", "true").
 		Param("stdout", "true").
+		Param("stderr", "false").
 		Param("tty", "true")
 	for _, c := range command {
 		req.Param("command", c)

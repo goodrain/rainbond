@@ -15,44 +15,68 @@
 package cache
 
 import (
-	"github.com/gogo/protobuf/proto"
-	"github.com/gogo/protobuf/types"
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
+	auth "github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	hcm "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
-	"github.com/envoyproxy/go-control-plane/pkg/util"
+	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
+	"github.com/envoyproxy/go-control-plane/pkg/conversion"
+	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 )
 
 // Resource is the base interface for the xDS payload.
 type Resource interface {
 	proto.Message
-	Equal(interface{}) bool
 }
 
 // Resource types in xDS v2.
 const (
-	typePrefix   = "type.googleapis.com/envoy.api.v2."
-	EndpointType = typePrefix + "ClusterLoadAssignment"
-	ClusterType  = typePrefix + "Cluster"
-	RouteType    = typePrefix + "RouteConfiguration"
-	ListenerType = typePrefix + "Listener"
-	SecretType   = typePrefix + "auth.Secret"
+	apiTypePrefix       = "type.googleapis.com/envoy.api.v2."
+	discoveryTypePrefix = "type.googleapis.com/envoy.service.discovery.v2."
+	EndpointType        = apiTypePrefix + "ClusterLoadAssignment"
+	ClusterType         = apiTypePrefix + "Cluster"
+	RouteType           = apiTypePrefix + "RouteConfiguration"
+	ListenerType        = apiTypePrefix + "Listener"
+	SecretType          = apiTypePrefix + "auth.Secret"
+	RuntimeType         = discoveryTypePrefix + "Runtime"
 
 	// AnyType is used only by ADS
 	AnyType = ""
 )
 
-var (
-	// ResponseTypes are supported response types.
-	ResponseTypes = []string{
-		EndpointType,
-		ClusterType,
-		RouteType,
-		ListenerType,
-		SecretType,
-	}
+// ResponseType enumeration of supported response types
+type ResponseType int
+
+const (
+	Endpoint ResponseType = iota
+	Cluster
+	Route
+	Listener
+	Secret
+	Runtime
+	UnknownType // token to count the total number of supported types
 )
+
+// GetResponseType returns the enumeration for a valid xDS type URL
+func GetResponseType(typeURL string) ResponseType {
+	switch typeURL {
+	case EndpointType:
+		return Endpoint
+	case ClusterType:
+		return Cluster
+	case RouteType:
+		return Route
+	case ListenerType:
+		return Listener
+	case SecretType:
+		return Secret
+	case RuntimeType:
+		return Runtime
+	}
+	return UnknownType
+}
 
 // GetResourceName returns the resource name for a valid xDS response type.
 func GetResourceName(res Resource) string {
@@ -67,9 +91,23 @@ func GetResourceName(res Resource) string {
 		return v.GetName()
 	case *auth.Secret:
 		return v.GetName()
+	case *discovery.Runtime:
+		return v.GetName()
 	default:
 		return ""
 	}
+}
+
+// MarshalResource converts the Resource to MarshaledResource
+func MarshalResource(resource Resource) (MarshaledResource, error) {
+	b := proto.NewBuffer(nil)
+	b.SetDeterministic(true)
+	err := b.Marshal(resource)
+	if err != nil {
+		return nil, err
+	}
+
+	return b.Bytes(), nil
 }
 
 // GetResourceReferences returns the names for dependent resources (EDS cluster
@@ -85,11 +123,14 @@ func GetResourceReferences(resources map[string]Resource) map[string]bool {
 			// no dependencies
 		case *v2.Cluster:
 			// for EDS type, use cluster name or ServiceName override
-			if v.Type == v2.Cluster_EDS {
-				if v.EdsClusterConfig != nil && v.EdsClusterConfig.ServiceName != "" {
-					out[v.EdsClusterConfig.ServiceName] = true
-				} else {
-					out[v.Name] = true
+			switch typ := v.ClusterDiscoveryType.(type) {
+			case *v2.Cluster_Type:
+				if typ.Type == v2.Cluster_EDS {
+					if v.EdsClusterConfig != nil && v.EdsClusterConfig.ServiceName != "" {
+						out[v.EdsClusterConfig.ServiceName] = true
+					} else {
+						out[v.Name] = true
+					}
 				}
 			}
 		case *v2.RouteConfiguration:
@@ -100,7 +141,7 @@ func GetResourceReferences(resources map[string]Resource) map[string]bool {
 			// extract route configuration names from HTTP connection manager
 			for _, chain := range v.FilterChains {
 				for _, filter := range chain.Filters {
-					if filter.Name != util.HTTPConnectionManager {
+					if filter.Name != wellknown.HTTPConnectionManager {
 						continue
 					}
 
@@ -108,9 +149,9 @@ func GetResourceReferences(resources map[string]Resource) map[string]bool {
 
 					// use typed config if available
 					if typedConfig := filter.GetTypedConfig(); typedConfig != nil {
-						types.UnmarshalAny(typedConfig, config)
+						ptypes.UnmarshalAny(typedConfig, config)
 					} else {
-						util.StructToMessage(filter.GetConfig(), config)
+						conversion.StructToMessage(filter.GetConfig(), config)
 					}
 
 					if config == nil {
@@ -122,6 +163,8 @@ func GetResourceReferences(resources map[string]Resource) map[string]bool {
 					}
 				}
 			}
+		case *discovery.Runtime:
+			// no dependencies
 		}
 	}
 	return out

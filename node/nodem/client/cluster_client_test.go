@@ -136,13 +136,11 @@ func TestGetEndpoints(t *testing.T) {
 }
 func TestEtcdClusterClient_ListEndpointKeys(t *testing.T) {
 	cfg := &option.Conf{
-		Etcd: clientv3.Config{
-			Endpoints:   []string{"192.168.3.3:2379"},
-			DialTimeout: 5 * time.Second,
-		},
+		EtcdEndpoints:   []string{"192.168.3.3:2379"},
+		EtcdDialTimeout: 5 * time.Second,
 	}
 
-	if err := store.NewClient(cfg); err != nil {
+	if err := store.NewClient(context.Background(), cfg); err != nil {
 		t.Fatalf("error create etcd client: %v", err)
 	}
 

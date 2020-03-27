@@ -73,7 +73,7 @@ func RoutesRouters() chi.Router {
 }
 
 //SourcesRoutes SourcesRoutes
-//GET /v1/sources/(string: tenant_id)/(string: service_alias)/(string: plugin_id)
+//GET /v1/resources/(string: tenant_id)/(string: service_alias)/(string: plugin_id)
 func SourcesRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/{tenant_id}/{service_alias}/{plugin_id}", controller.PluginResourcesConfig)

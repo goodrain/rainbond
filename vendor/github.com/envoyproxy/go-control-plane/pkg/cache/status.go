@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 )
 
 // NodeHash computes string identifiers for Envoy nodes.
@@ -26,6 +26,19 @@ type NodeHash interface {
 	// ID function defines a unique string identifier for the remote Envoy node.
 	ID(node *core.Node) string
 }
+
+// IDHash uses ID field as the node hash.
+type IDHash struct{}
+
+// ID uses the node ID field
+func (IDHash) ID(node *core.Node) string {
+	if node == nil {
+		return ""
+	}
+	return node.Id
+}
+
+var _ NodeHash = IDHash{}
 
 // StatusInfo tracks the server state for the remote Envoy node.
 // Not all fields are used by all cache implementations.

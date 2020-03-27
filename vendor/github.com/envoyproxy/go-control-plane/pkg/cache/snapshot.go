@@ -24,7 +24,7 @@ type Resources struct {
 	// Version information.
 	Version string
 
-	// Items in the group.
+	// Items in the group indexed by name.
 	Items map[string]Resource
 }
 
@@ -49,20 +49,7 @@ func NewResources(version string, items []Resource) Resources {
 // Consistentcy is important for the convergence as different resource types
 // from the snapshot may be delivered to the proxy in arbitrary order.
 type Snapshot struct {
-	// Endpoints are items in the EDS response payload.
-	Endpoints Resources
-
-	// Clusters are items in the CDS response payload.
-	Clusters Resources
-
-	// Routes are items in the RDS response payload.
-	Routes Resources
-
-	// Listeners are items in the LDS response payload.
-	Listeners Resources
-
-	// Secrets are items in the SDS response payload.
-	Secrets Resources
+	Resources [UnknownType]Resources
 }
 
 // NewSnapshot creates a snapshot from response types and a version.
@@ -70,13 +57,15 @@ func NewSnapshot(version string,
 	endpoints []Resource,
 	clusters []Resource,
 	routes []Resource,
-	listeners []Resource) Snapshot {
-	return Snapshot{
-		Endpoints: NewResources(version, endpoints),
-		Clusters:  NewResources(version, clusters),
-		Routes:    NewResources(version, routes),
-		Listeners: NewResources(version, listeners),
-	}
+	listeners []Resource,
+	runtimes []Resource) Snapshot {
+	out := Snapshot{}
+	out.Resources[Endpoint] = NewResources(version, endpoints)
+	out.Resources[Cluster] = NewResources(version, clusters)
+	out.Resources[Route] = NewResources(version, routes)
+	out.Resources[Listener] = NewResources(version, listeners)
+	out.Resources[Runtime] = NewResources(version, runtimes)
+	return out
 }
 
 // Consistent check verifies that the dependent resources are exactly listed in the
@@ -91,57 +80,41 @@ func (s *Snapshot) Consistent() error {
 	if s == nil {
 		return errors.New("nil snapshot")
 	}
-	endpoints := GetResourceReferences(s.Clusters.Items)
-	if len(endpoints) != len(s.Endpoints.Items) {
-		return fmt.Errorf("mismatched endpoint reference and resource lengths: %v != %d", endpoints, len(s.Endpoints.Items))
+	endpoints := GetResourceReferences(s.Resources[Cluster].Items)
+	if len(endpoints) != len(s.Resources[Endpoint].Items) {
+		return fmt.Errorf("mismatched endpoint reference and resource lengths: %v != %d", endpoints, len(s.Resources[Endpoint].Items))
 	}
-	if err := superset(endpoints, s.Endpoints.Items); err != nil {
+	if err := superset(endpoints, s.Resources[Endpoint].Items); err != nil {
 		return err
 	}
 
-	routes := GetResourceReferences(s.Listeners.Items)
-	if len(routes) != len(s.Routes.Items) {
-		return fmt.Errorf("mismatched route reference and resource lengths: %v != %d", routes, len(s.Routes.Items))
+	routes := GetResourceReferences(s.Resources[Listener].Items)
+	if len(routes) != len(s.Resources[Route].Items) {
+		return fmt.Errorf("mismatched route reference and resource lengths: %v != %d", routes, len(s.Resources[Route].Items))
 	}
-	return superset(routes, s.Routes.Items)
+	return superset(routes, s.Resources[Route].Items)
 }
 
 // GetResources selects snapshot resources by type.
-func (s *Snapshot) GetResources(typ string) map[string]Resource {
+func (s *Snapshot) GetResources(typeURL string) map[string]Resource {
 	if s == nil {
 		return nil
 	}
-	switch typ {
-	case EndpointType:
-		return s.Endpoints.Items
-	case ClusterType:
-		return s.Clusters.Items
-	case RouteType:
-		return s.Routes.Items
-	case ListenerType:
-		return s.Listeners.Items
-	case SecretType:
-		return s.Secrets.Items
+	typ := GetResponseType(typeURL)
+	if typ == UnknownType {
+		return nil
 	}
-	return nil
+	return s.Resources[typ].Items
 }
 
 // GetVersion returns the version for a resource type.
-func (s *Snapshot) GetVersion(typ string) string {
+func (s *Snapshot) GetVersion(typeURL string) string {
 	if s == nil {
 		return ""
 	}
-	switch typ {
-	case EndpointType:
-		return s.Endpoints.Version
-	case ClusterType:
-		return s.Clusters.Version
-	case RouteType:
-		return s.Routes.Version
-	case ListenerType:
-		return s.Listeners.Version
-	case SecretType:
-		return s.Secrets.Version
+	typ := GetResponseType(typeURL)
+	if typ == UnknownType {
+		return ""
 	}
-	return ""
+	return s.Resources[typ].Version
 }

@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
 	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
 	"github.com/gosuri/uitable"

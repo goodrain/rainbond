@@ -25,8 +25,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	auth "github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/go-control-plane/pkg/cache"
 	api_model "github.com/goodrain/rainbond/api/model"
 	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
@@ -111,6 +111,7 @@ func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_mod
 			clusterOption.ClusterType = v2.Cluster_EDS
 		}
 		clusterOption.HealthyPanicThreshold = options.HealthyPanicThreshold
+		clusterOption.ConnectionTimeout = envoyv2.ConverTimeDuration(250)
 		cluster := envoyv2.CreateCluster(clusterOption)
 		if cluster != nil {
 			logrus.Debugf("cluster is : %v", cluster)
@@ -135,7 +136,7 @@ func downstreamClusters(serviceAlias, namespace string, ports []*api_model.BaseP
 			CircuitBreakers:          envoyv2.CreateCircuitBreaker(option),
 			OutlierDetection:         envoyv2.CreatOutlierDetection(option),
 			MaxRequestsPerConnection: option.MaxRequestsPerConnection,
-			Hosts:                    []*core.Address{&address},
+			Hosts:                    []*core.Address{address},
 			HealthyPanicThreshold:    option.HealthyPanicThreshold,
 		})
 		if cluster != nil {

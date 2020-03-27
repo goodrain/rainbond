@@ -152,6 +152,9 @@ func (d *DiscoverAction) DiscoverClusters(
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf(
 			"get env %s error: %v", namespace+serviceAlias+pluginID, err))
 	}
+	if resources == nil {
+		return cds, nil
+	}
 	if resources.BaseServices != nil && len(resources.BaseServices) > 0 {
 		clusters, err := d.upstreamClusters(serviceAlias, namespace, resources.BaseServices)
 		if err != nil {
@@ -267,6 +270,9 @@ func (d *DiscoverAction) DiscoverListeners(
 		logrus.Warnf("in lds get env %s error: %v", namespace+serviceAlias+pluginID, err)
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf(
 			"get env %s error: %v", namespace+serviceAlias+pluginID, err))
+	}
+	if resources == nil {
+		return lds, nil
 	}
 	if resources.BaseServices != nil && len(resources.BaseServices) > 0 {
 		listeners, err := d.upstreamListener(serviceAlias, namespace, resources.BaseServices)
@@ -408,13 +414,11 @@ func (d *DiscoverAction) GetPluginConfigs(namespace, sourceAlias, pluginID strin
 		return nil, err
 	}
 	configs, err := d.kubecli.GetConfig(namespace, selector)
-	if err != nil || len(configs) == 0 {
-		return nil, fmt.Errorf("get plugin config failure %s", func() string {
-			if err != nil {
-				return err.Error()
-			}
-			return "configs is empty"
-		}())
+	if err != nil {
+		return nil, fmt.Errorf("get plugin config failure %s", err.Error())
+	}
+	if len(configs) == 0 {
+		return nil, nil
 	}
 	var rs api_model.ResourceSpec
 	if err := ffjson.Unmarshal([]byte(configs[0].Data["plugin-config"]), &rs); err != nil {

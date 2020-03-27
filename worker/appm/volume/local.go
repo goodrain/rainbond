@@ -21,6 +21,7 @@ package volume
 import (
 	"fmt"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -37,6 +38,10 @@ func (v *LocalVolume) CreateVolume(define *Define) error {
 	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := v.svm.IsReadOnly
 	statefulset := v.as.GetStatefulSet()
+	if statefulset == nil {
+		logrus.Warning("local volume must be used state compoment")
+		return nil
+	}
 	labels := v.as.GetCommonLabels(map[string]string{"volume_name": v.svm.VolumeName, "version": v.as.DeployVersion})
 	annotations := map[string]string{"volume_name": v.svm.VolumeName}
 	claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v1.RainbondStatefuleLocalStorageClass, v.svm.VolumeCapacity, labels, annotations)

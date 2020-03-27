@@ -43,6 +43,7 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdGateway())
 	cmds = append(cmds, NewCmdEnvoy())
 	cmds = append(cmds, NewCmdGrdata())
+	cmds = append(cmds, NewCmdConfig())
 	return cmds
 }
 

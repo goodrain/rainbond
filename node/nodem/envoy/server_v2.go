@@ -28,11 +28,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"k8s.io/apimachinery/pkg/labels"
-
 	"github.com/Sirupsen/logrus"
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/cache"
 	"github.com/envoyproxy/go-control-plane/pkg/server"
@@ -42,6 +40,7 @@ import (
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	kcache "k8s.io/client-go/tools/cache"
@@ -70,7 +69,7 @@ type Hasher struct {
 }
 
 // ID function
-func (h Hasher) ID(node *core.Node) string {
+func (h Hasher) ID(node *envoy_api_v2_core.Node) string {
 	if node == nil {
 		return "unknown"
 	}
@@ -244,7 +243,7 @@ func (d *DiscoverServerManager) setSnapshot(nc *NodeConfig) error {
 		logrus.Warningf("node id: %s; node config cluster length is zero or listener length is zero,not set snapshot", nc.GetID())
 		return nil
 	}
-	snapshot := cache.NewSnapshot(nc.GetVersion(), nc.endpoints, nc.clusters, nil, nc.listeners)
+	snapshot := cache.NewSnapshot(nc.GetVersion(), nc.endpoints, nc.clusters, nil, nc.listeners, nil)
 	err := d.cacheManager.SetSnapshot(nc.nodeID, snapshot)
 	if err != nil {
 		return err
@@ -258,7 +257,7 @@ func CreateDiscoverServerManager(clientset kubernetes.Interface, conf option.Con
 	configcache := cache.NewSnapshotCache(false, Hasher{}, logrus.WithField("module", "config-cache"))
 	ctx, cancel := context.WithCancel(context.Background())
 	dsm := &DiscoverServerManager{
-		server:       server.NewServer(configcache, nil),
+		server:       server.NewServer(ctx, configcache, nil),
 		cacheManager: configcache,
 		kubecli:      clientset,
 		conf:         conf,

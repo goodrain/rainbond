@@ -45,15 +45,6 @@ func TestEmessage(t *testing.T) {
 	fmt.Printf("end.\n")
 }
 
-func TestGetLevelLog(t *testing.T) {
-	l := CreateLogManager([]string{"http://192.168.2.172:2379"})
-	messageList, err := l.eventdb.GetMessages("df07f2b579364cf791137d33aceb89be", "debug", 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(messageList)
-}
-
 func getLevelLog(eventID string, level string) (*api_model.DataLog, error) {
 	//messages, err := db.GetManager().EventLogDao().GetEventLogMessages(eventID)
 	//if err != nil {

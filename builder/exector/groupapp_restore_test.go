@@ -21,10 +21,12 @@ package exector
 import (
 	"testing"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/pquerna/ffjson/ffjson"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 )
 
 func TestModify(t *testing.T) {
@@ -70,4 +72,12 @@ func TestModify(t *testing.T) {
 	b.modify(&appSnapshot)
 	re, _ := ffjson.Marshal(appSnapshot)
 	t.Log(string(re))
+}
+
+func TestUnzipAllDataFile(t *testing.T) {
+	allDataFilePath := "/tmp/__all_data.zip"
+	allTmpDir := "/tmp/4f25c53e864744ec95d037528acaa708"
+	if err := util.Unzip(allDataFilePath, allTmpDir); err != nil {
+		logrus.Errorf("unzip all data file failure %s", err.Error())
+	}
 }

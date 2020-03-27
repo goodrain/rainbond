@@ -27,7 +27,7 @@ import (
 
 	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
 
-	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 
 	"google.golang.org/grpc"
 
@@ -89,7 +89,7 @@ func TestClientCluster(t *testing.T) {
 	t.Logf("version %s", res.GetVersionInfo())
 	clusters := envoyv2.ParseClustersResource(res.Resources)
 	for _, cluster := range clusters {
-		if cluster.Type == v2.Cluster_LOGICAL_DNS {
+		if cluster.GetType() == v2.Cluster_LOGICAL_DNS {
 			fmt.Println(cluster.Name)
 		}
 		printYaml(t, cluster)
