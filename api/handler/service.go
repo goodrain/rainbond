@@ -1683,23 +1683,23 @@ func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) 
 }
 
 // GetEnterpriseRunningServices get running services
-func (s *ServiceAction) GetEnterpriseRunningServices(enterpriseID string) []string {
+func (s *ServiceAction) GetEnterpriseRunningServices(enterpriseID string) ([]string, *util.APIHandleError) {
 	var tenantIDs []string
 	tenants, err := db.GetManager().EnterpriseDao().GetEnterpriseTenants(enterpriseID)
 	if err != nil {
 		logrus.Errorf("list tenant failed: %s", err.Error())
-		return []string{}
+		return nil, util.CreateAPIHandleErrorFromDBError(fmt.Sprintf("enterprise[%s] get tenant failed", enterpriseID), err)
+	}
+	if len(tenants) == 0 {
+		return nil, util.CreateAPIHandleErrorf(400, "enterprise[%s] has not tenants", enterpriseID)
 	}
 	for _, tenant := range tenants {
 		tenantIDs = append(tenantIDs, tenant.UUID)
 	}
-	if len(tenantIDs) == 0 {
-		return []string{}
-	}
 	services, err := db.GetManager().TenantServiceDao().GetServicesByTenantIDs(tenantIDs)
 	if err != nil {
 		logrus.Errorf("list tenants servicee failed: %s", err.Error())
-		return []string{}
+		return nil, util.CreateAPIHandleErrorf(400, "enterprise[%s] has not tenants", enterpriseID)
 	}
 	var serviceIDs []string
 	for _, svc := range services {
@@ -1712,7 +1712,7 @@ func (s *ServiceAction) GetEnterpriseRunningServices(enterpriseID string) []stri
 			retServices = append(retServices, service)
 		}
 	}
-	return retServices
+	return retServices, nil
 }
 
 //CreateTenant create tenant
