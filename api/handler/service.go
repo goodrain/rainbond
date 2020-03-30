@@ -1699,7 +1699,7 @@ func (s *ServiceAction) GetEnterpriseRunningServices(enterpriseID string) ([]str
 	services, err := db.GetManager().TenantServiceDao().GetServicesByTenantIDs(tenantIDs)
 	if err != nil {
 		logrus.Errorf("list tenants servicee failed: %s", err.Error())
-		return nil, util.CreateAPIHandleErrorf(400, "enterprise[%s] has not tenants", enterpriseID)
+		return nil, util.CreateAPIHandleErrorf(400, "enterprise[%s] has not service", enterpriseID)
 	}
 	var serviceIDs []string
 	for _, svc := range services {
