@@ -80,6 +80,9 @@ func Run(s *option.GWServer) error {
 	if err != nil {
 		return fmt.Errorf("create gateway node manage failure %s", err.Error())
 	}
+	if err := node.Start(); err != nil {
+		return fmt.Errorf("start node manager: %v", err)
+	}
 	defer node.Stop()
 
 	reg := prometheus.NewRegistry()
