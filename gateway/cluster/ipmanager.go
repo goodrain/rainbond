@@ -87,6 +87,7 @@ func (i *ipManager) IPInCurrentHost(in net.IP) bool {
 
 func (i *ipManager) Start() error {
 	logrus.Info("start ip manager.")
+	go i.IPPool.LoopCheckIPs()
 	i.IPPool.Ready()
 	logrus.Info("ip manager is ready.")
 	go i.syncIP()

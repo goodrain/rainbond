@@ -120,7 +120,7 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&g.Debug, "debug", false, "enable pprof debug")
 	fs.Uint64Var(&g.ShareMemory, "max-config-share-memory", 128, "Nginx maximum Shared memory size, which should be increased for larger clusters.")
 	fs.Float32Var(&g.SyncRateLimit, "sync-rate-limit", 0.3, "Define the sync frequency upper limit")
-	fs.StringArrayVar(&g.IgnoreInterface, "ignore-interface", []string{"docker0", "tunl0"}, "The network interface name that ignore by gateway")
+	fs.StringArrayVar(&g.IgnoreInterface, "ignore-interface", []string{"docker0", "tunl0", "cni0", "kube-ipvs0", "flannel"}, "The network interface name that ignore by gateway")
 }
 
 // SetLog sets log
