@@ -271,6 +271,7 @@ type TenantServiceVolumeDao interface {
 //TenantServiceConfigFileDao tenant service config file dao interface
 type TenantServiceConfigFileDao interface {
 	Dao
+	GetConfigFileByServiceID(serviceID string) ([]*model.TenantServiceConfigFile, error)
 	GetByVolumeName(sid, volumeName string) (*model.TenantServiceConfigFile, error)
 	DelByVolumeID(sid string, volumeName string) error
 	DelByServiceID(sid string) error

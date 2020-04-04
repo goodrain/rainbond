@@ -453,6 +453,9 @@ func (b *BackupAPPRestore) modify(appSnapshot *AppSnapshot) error {
 		for _, a := range app.ServiceVolume {
 			a.ServiceID = newServiceID
 		}
+		for _, a := range app.ServiceConfigFile {
+			a.ServiceID = newServiceID
+		}
 		for _, a := range app.ServicePort {
 			a.ServiceID = newServiceID
 		}
@@ -587,6 +590,13 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshot *AppSnapshot) error {
 				return fmt.Errorf("create app volume when restore backup error. %s", err.Error())
 			}
 			b.volumeIDMap[oldVolumeID] = a.ID
+		}
+		for _, a := range app.ServiceConfigFile {
+			a.ID = 0
+			if err := db.GetManager().TenantServiceConfigFileDao().AddModel(a); err != nil {
+				tx.Rollback()
+				return fmt.Errorf("create app config file when restore backup errro. %s", err.Error())
+			}
 		}
 		for _, a := range app.ServicePort {
 			a.ID = 0

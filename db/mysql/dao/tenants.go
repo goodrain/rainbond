@@ -1126,6 +1126,15 @@ func (t *TenantServiceConfigFileDaoImpl) UpdateModel(mo model.Interface) error {
 		Update(configFile).Error
 }
 
+// GetConfigFileByServiceID -
+func (t *TenantServiceConfigFileDaoImpl) GetConfigFileByServiceID(serviceID string) ([]*model.TenantServiceConfigFile, error) {
+	var configFiles []*model.TenantServiceConfigFile
+	if err := t.DB.Where("service_id=?", serviceID).Find(&configFiles).Error; err != nil {
+		return nil, err
+	}
+	return configFiles, nil
+}
+
 // GetByVolumeName get config file by volume name
 func (t *TenantServiceConfigFileDaoImpl) GetByVolumeName(sid string, volumeName string) (*model.TenantServiceConfigFile, error) {
 	var res model.TenantServiceConfigFile
