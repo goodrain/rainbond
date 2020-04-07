@@ -33,11 +33,13 @@ import (
 
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/worker/client"
+
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	core_util "github.com/goodrain/rainbond/util"
-	"github.com/goodrain/rainbond/worker/client"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 //Backup GroupBackup
