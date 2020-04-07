@@ -53,6 +53,7 @@ Rainbond完成与龙芯、飞腾、麒麟操作系统等为代表的国产化计
 | 应用描述模型              | 以应用为中心描述应用包含的组件特性，应用特性，部署运维特性，实现复杂应用的标准化交付。 |
 
 更多功能特性详见： 
+
 [Rainbond功能特性说明](https://www.rainbond.com/docs/quick-start/edition/)
 [Rainbond开发计划](https://www.rainbond.com/docs/quick-start/roadmap/)
 
@@ -73,11 +74,12 @@ Rainbond完成与龙芯、飞腾、麒麟操作系统等为代表的国产化计
 
 <center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/12141565594759_.pic_hd.jpg"/></center>
 <center> 添加微信，申请加入微信群，了解Rainbond更多资讯 </center>
+
 ## 参与贡献
 
 我们非常欢迎你参与Rainbond社区关于平台使用经验、标准化应用、插件分享等领域的贡献和分享。
 
-若你是正在使用Rainbond的用户，且对Rainbond有深入的了解和技术路线的认同，在你的企业内部有较大的需求，我们非法欢迎你 [参与Rainbond项目开发贡献](https://www.rainbond.com/docs/contribution/)
+若你是正在使用Rainbond的用户，且对Rainbond有深入的了解和技术路线的认同，在你的企业内部有较大的需求，我们非常欢迎你 [参与Rainbond项目开发贡献](https://www.rainbond.com/docs/contribution/)
 
 ## 相关项目
 
