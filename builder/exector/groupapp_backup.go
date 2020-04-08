@@ -114,6 +114,7 @@ type RegionServiceSnapshot struct {
 	ServiceRelation    []*dbmodel.TenantServiceRelation
 	ServiceStatus      string
 	ServiceVolume      []*dbmodel.TenantServiceVolume
+	ServiceConfigFile  []*dbmodel.TenantServiceConfigFile
 	ServicePort        []*dbmodel.TenantServicesPort
 	Versions           []*dbmodel.VersionInfo
 

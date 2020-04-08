@@ -33,12 +33,13 @@ import (
 
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/worker/client"
+
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	core_util "github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
-	"github.com/goodrain/rainbond/worker/client"
 )
 
 //Backup GroupBackup
@@ -205,6 +206,7 @@ type RegionServiceSnapshot struct {
 	ServiceRelation    []*dbmodel.TenantServiceRelation
 	ServiceStatus      string
 	ServiceVolume      []*dbmodel.TenantServiceVolume
+	ServiceConfigFile  []*dbmodel.TenantServiceConfigFile
 	ServicePort        []*dbmodel.TenantServicesPort
 	Versions           []*dbmodel.VersionInfo
 
@@ -272,6 +274,11 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string, force bool) erro
 			return fmt.Errorf("Get service(%s) volume error %s", id, err)
 		}
 		data.ServiceVolume = serviceVolume
+		serviceConfigFile, err := db.GetManager().TenantServiceConfigFileDao().GetConfigFileByServiceID(id)
+		if err != nil && err != gorm.ErrRecordNotFound {
+			return fmt.Errorf("get service(%s) config file error: %s", id, err.Error())
+		}
+		data.ServiceConfigFile = serviceConfigFile
 		servicePorts, err := db.GetManager().TenantServicesPortDao().GetPortsByServiceID(id)
 		if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 			return fmt.Errorf("Get service(%s) ports error %s", id, err)
