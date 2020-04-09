@@ -5,14 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"reflect"
 	"testing"
 	"time"
 
-	"github.com/eapache/channels"
 	"github.com/golang/mock/gomock"
-	"github.com/goodrain/rainbond/cmd/worker/option"
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
@@ -158,93 +155,289 @@ func TestListEvents(t *testing.T) {
 	t.Logf("pod events: %v", podEvents)
 }
 
-func TestGetStorageClass(t *testing.T) {
-	c, err := clientcmd.BuildConfigFromFlags("", "/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig")
-	if err != nil {
-		t.Fatalf("read kube config file error: %v", err)
+func TestRuntimeServer_GetAppVolumeStatus(t *testing.T) {
+	tests := []struct {
+		name    string
+		re      *pb.ServiceRequest
+		as      *v1.AppService
+		want    *pb.ServiceVolumeStatusMessage
+		wantErr bool
+	}{
+		{
+			name: "running pod",
+			re: &pb.ServiceRequest{
+				ServiceId: "serviceID",
+			},
+			as: func() *v1.AppService {
+				as := &v1.AppService{}
+				as.SetPods(&corev1.Pod{
+					Spec: corev1.PodSpec{
+						Volumes: []corev1.Volume{
+							{
+								Name: "manual1",
+								VolumeSource: corev1.VolumeSource{
+									HostPath: &corev1.HostPathVolumeSource{},
+								},
+							},
+							{
+								Name: "default-token-xwxgv",
+								VolumeSource: corev1.VolumeSource{
+									Secret: &corev1.SecretVolumeSource{},
+								},
+							},
+						},
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+					},
+				})
+				return as
+			}(),
+			want: &pb.ServiceVolumeStatusMessage{
+				Status: map[string]pb.ServiceVolumeStatus{"1": pb.ServiceVolumeStatus_READY},
+			},
+			wantErr: false,
+		},
+		{
+			name: "PodStatus_PENDING",
+			re: &pb.ServiceRequest{
+				ServiceId: "serviceID",
+			},
+			as: func() *v1.AppService {
+				as := &v1.AppService{}
+				as.SetPods(&corev1.Pod{
+					Spec: corev1.PodSpec{
+						Volumes: []corev1.Volume{
+							{
+								Name: "manual1",
+								VolumeSource: corev1.VolumeSource{
+									HostPath: &corev1.HostPathVolumeSource{},
+								},
+							},
+							{
+								Name: "default-token-xwxgv",
+								VolumeSource: corev1.VolumeSource{
+									Secret: &corev1.SecretVolumeSource{},
+								},
+							},
+						},
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodPending,
+						ContainerStatuses: []corev1.ContainerStatus{
+							{
+								Ready: false,
+							},
+						},
+					},
+				})
+				return as
+			}(),
+			want: &pb.ServiceVolumeStatusMessage{
+				Status: map[string]pb.ServiceVolumeStatus{"1": pb.ServiceVolumeStatus_NOT_READY},
+			},
+			wantErr: false,
+		},
+		{
+			name: "PodStatus_INITIATING",
+			re: &pb.ServiceRequest{
+				ServiceId: "serviceID",
+			},
+			as: func() *v1.AppService {
+				as := &v1.AppService{}
+				as.SetPods(&corev1.Pod{
+					Spec: corev1.PodSpec{
+						Volumes: []corev1.Volume{
+							{
+								Name: "manual1",
+								VolumeSource: corev1.VolumeSource{
+									HostPath: &corev1.HostPathVolumeSource{},
+								},
+							},
+							{
+								Name: "default-token-xwxgv",
+								VolumeSource: corev1.VolumeSource{
+									Secret: &corev1.SecretVolumeSource{},
+								},
+							},
+						},
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodPending,
+						Conditions: []corev1.PodCondition{
+							{
+								Type:   corev1.PodInitialized,
+								Status: corev1.ConditionTrue,
+							},
+						},
+						ContainerStatuses: []corev1.ContainerStatus{
+							{
+								Ready: false,
+							},
+						},
+					},
+				})
+				return as
+			}(),
+			want: &pb.ServiceVolumeStatusMessage{
+				Status: map[string]pb.ServiceVolumeStatus{"1": pb.ServiceVolumeStatus_READY},
+			},
+			wantErr: false,
+		},
+		{
+			name: "PodStatus_ABNORMAL",
+			re: &pb.ServiceRequest{
+				ServiceId: "serviceID",
+			},
+			as: func() *v1.AppService {
+				as := &v1.AppService{}
+				as.SetPods(&corev1.Pod{
+					Spec: corev1.PodSpec{
+						Volumes: []corev1.Volume{
+							{
+								Name: "manual1",
+								VolumeSource: corev1.VolumeSource{
+									HostPath: &corev1.HostPathVolumeSource{},
+								},
+							},
+							{
+								Name: "default-token-xwxgv",
+								VolumeSource: corev1.VolumeSource{
+									Secret: &corev1.SecretVolumeSource{},
+								},
+							},
+						},
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						Conditions: []corev1.PodCondition{
+							{
+								Type:   corev1.PodReady,
+								Status: corev1.ConditionTrue,
+							},
+						},
+						ContainerStatuses: []corev1.ContainerStatus{
+							{
+								Ready: false,
+								State: corev1.ContainerState{
+									Waiting:    nil,
+									Running:    nil,
+									Terminated: &corev1.ContainerStateTerminated{},
+								},
+							},
+						},
+					},
+				})
+				return as
+			}(),
+			want: &pb.ServiceVolumeStatusMessage{
+				Status: map[string]pb.ServiceVolumeStatus{"1": pb.ServiceVolumeStatus_READY},
+			},
+			wantErr: false,
+		},
+		{
+			name: "PodStatus_NOTREADY",
+			re: &pb.ServiceRequest{
+				ServiceId: "serviceID",
+			},
+			as: func() *v1.AppService {
+				as := &v1.AppService{}
+				as.SetPods(&corev1.Pod{
+					Spec: corev1.PodSpec{
+						Volumes: []corev1.Volume{
+							{
+								Name: "manual1",
+								VolumeSource: corev1.VolumeSource{
+									HostPath: &corev1.HostPathVolumeSource{},
+								},
+							},
+							{
+								Name: "default-token-xwxgv",
+								VolumeSource: corev1.VolumeSource{
+									Secret: &corev1.SecretVolumeSource{},
+								},
+							},
+						},
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						Conditions: []corev1.PodCondition{
+							{
+								Type:   corev1.PodReady,
+								Status: corev1.ConditionTrue,
+							},
+						},
+						ContainerStatuses: []corev1.ContainerStatus{},
+					},
+				})
+				return as
+			}(),
+			want: &pb.ServiceVolumeStatusMessage{
+				Status: map[string]pb.ServiceVolumeStatus{"1": pb.ServiceVolumeStatus_READY},
+			},
+			wantErr: false,
+		},
+		{
+			name: "PodStatus_SCHEDULING",
+			re: &pb.ServiceRequest{
+				ServiceId: "serviceID",
+			},
+			as: func() *v1.AppService {
+				as := &v1.AppService{}
+				as.SetPods(&corev1.Pod{
+					Spec: corev1.PodSpec{
+						Volumes: []corev1.Volume{
+							{
+								Name: "manual1",
+								VolumeSource: corev1.VolumeSource{
+									HostPath: &corev1.HostPathVolumeSource{},
+								},
+							},
+							{
+								Name: "default-token-xwxgv",
+								VolumeSource: corev1.VolumeSource{
+									Secret: &corev1.SecretVolumeSource{},
+								},
+							},
+						},
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodPending,
+						Conditions: []corev1.PodCondition{
+							{
+								Type:   corev1.PodScheduled,
+								Status: corev1.ConditionFalse,
+							},
+						},
+					},
+				})
+				return as
+			}(),
+			want: &pb.ServiceVolumeStatusMessage{
+				Status: map[string]pb.ServiceVolumeStatus{"1": pb.ServiceVolumeStatus_NOT_READY},
+			},
+			wantErr: false,
+		},
 	}
-	clientset, err := kubernetes.NewForConfig(c)
-	if err != nil {
-		t.Fatalf("create kube api client error: %v", err)
-	}
-	s := store.NewStore(clientset, nil, option.Config{}, nil, nil)
-	stes := s.GetStorageClasses()
-	storageclasses := new(pb.StorageClasses)
-	if stes != nil {
-		for _, st := range stes {
-			var allowTopologies []*pb.TopologySelectorTerm
-			for _, topologySelectorTerm := range st.AllowedTopologies {
-				var expressions []*pb.TopologySelectorLabelRequirement
-				for _, value := range topologySelectorTerm.MatchLabelExpressions {
-					expressions = append(expressions, &pb.TopologySelectorLabelRequirement{Key: value.Key, Values: value.Values})
-				}
-				allowTopologies = append(allowTopologies, &pb.TopologySelectorTerm{MatchLabelExpressions: expressions})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			storer := store.NewMockStorer(ctrl)
+			r := &RuntimeServer{
+				store: storer,
 			}
+			storer.EXPECT().GetAppService(tt.re.ServiceId).Return(tt.as)
 
-			var allowVolumeExpansion bool
-			if st.AllowVolumeExpansion == nil {
-				allowVolumeExpansion = false
-			} else {
-				allowVolumeExpansion = *st.AllowVolumeExpansion
+			got, err := r.GetAppVolumeStatus(context.Background(), tt.re)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetAppVolumeStatus() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
-			storageclasses.List = append(storageclasses.List, &pb.StorageClassDetail{
-				Name:                 st.Name,
-				Provisioner:          st.Provisioner,
-				ReclaimPolicy:        st.ReclaimPolicy,
-				AllowVolumeExpansion: allowVolumeExpansion,
-				VolumeBindingMode:    st.VolumeBindingMode,
-				AllowedTopologies:    allowTopologies,
-			})
-			t.Logf("allowVolumeExpansion is : %v", allowVolumeExpansion)
-		}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetAppVolumeStatus() got = %v, want %v", got, tt.want)
+			}
+		})
 	}
-}
-
-func TestGetAppVolumeStatus(t *testing.T) {
-	ocfg := option.Config{
-		DBType:                  "mysql",
-		MysqlConnectionInfo:     "oc6Poh:noot6Mea@tcp(192.168.2.203:3306)/region",
-		EtcdEndPoints:           []string{"http://192.168.2.203:2379"},
-		EtcdTimeout:             5,
-		KubeConfig:              "/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig",
-		LeaderElectionNamespace: "rainbond",
-	}
-
-	dbconfig := config.Config{
-		DBType:              ocfg.DBType,
-		MysqlConnectionInfo: ocfg.MysqlConnectionInfo,
-		EtcdEndPoints:       ocfg.EtcdEndPoints,
-		EtcdTimeout:         ocfg.EtcdTimeout,
-	}
-	//step 1:db manager init ,event log client init
-	if err := db.CreateManager(dbconfig); err != nil {
-		t.Fatalf("error creating db manager: %v", err)
-	}
-	defer db.CloseManager()
-
-	c, err := clientcmd.BuildConfigFromFlags("", ocfg.KubeConfig)
-	if err != nil {
-		t.Fatalf("read kube config file error: %v", err)
-	}
-	clientset, err := kubernetes.NewForConfig(c)
-	if err != nil {
-		t.Fatalf("create kube api client error: %v", err)
-	}
-	startCh := channels.NewRingChannel(1024)
-	probeCh := channels.NewRingChannel(1024)
-	storer := store.NewStore(clientset, db.GetManager(), option.Config{LeaderElectionNamespace: ocfg.LeaderElectionNamespace, KubeClient: clientset}, startCh, probeCh)
-	if err := storer.Start(); err != nil {
-		t.Fatalf("error starting store: %v", err)
-	}
-	server := &RuntimeServer{
-		store:     storer,
-		clientset: clientset,
-	}
-	statusList, err := server.GetAppVolumeStatus(context.Background(), &pb.ServiceRequest{ServiceId: "c5802cd0276018209ff1f9b52bc04ec1"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(statusList.GetStatus())
-	t.Log("end")
-	time.Sleep(20 * time.Second) // db woulld close
 }
