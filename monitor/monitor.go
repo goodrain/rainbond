@@ -184,7 +184,7 @@ func (d *Monitor) discoverEtcd(e *callback.Etcd, done <-chan struct{}) {
 
 			endpoints := make([]*config.Endpoint, 0, 5)
 			for _, member := range resp.Members {
-				if len(member.ClientURLs) > 1 {
+				if len(member.ClientURLs) >= 1 {
 					url := member.ClientURLs[0]
 					end := &config.Endpoint{
 						URL: url,
@@ -192,7 +192,7 @@ func (d *Monitor) discoverEtcd(e *callback.Etcd, done <-chan struct{}) {
 					endpoints = append(endpoints, end)
 				}
 			}
-
+			logrus.Debugf("etcd endpoints: %+v", endpoints)
 			e.UpdateEndpoints(endpoints...)
 		}
 	}
