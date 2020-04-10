@@ -23,8 +23,11 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/duration"
+
 	apiv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	auth "github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	cluster "github.com/envoyproxy/go-control-plane/envoy/api/v2/cluster"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -36,12 +39,11 @@ import (
 	tcp_proxy "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
 	envoy_config_filter_udp_udp_proxy_v2alpha "github.com/envoyproxy/go-control-plane/envoy/config/filter/udp/udp_proxy/v2alpha"
 	configratelimit "github.com/envoyproxy/go-control-plane/envoy/config/ratelimit/v2"
-	_type "github.com/envoyproxy/go-control-plane/envoy/type"
-	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/duration"
-	v1 "github.com/goodrain/rainbond/node/core/envoy/v1"
 	corev1 "k8s.io/api/core/v1"
+
+	_type "github.com/envoyproxy/go-control-plane/envoy/type"
+
+	v1 "github.com/goodrain/rainbond/node/core/envoy/v1"
 )
 
 //DefaultLocalhostListenerAddress -
@@ -209,10 +211,8 @@ func CreateHTTPListener(name, address, statPrefix string, port uint32, rateOpt *
 			&envoy_api_v2_listener.FilterChain{
 				Filters: []*envoy_api_v2_listener.Filter{
 					&envoy_api_v2_listener.Filter{
-						Name: wellknown.HTTPConnectionManager,
-						ConfigType: &envoy_api_v2_listener.Filter_Config{
-							Config: MessageToStruct(hcm),
-						},
+						Name:       wellknown.HTTPConnectionManager,
+						ConfigType: &envoy_api_v2_listener.Filter_TypedConfig{TypedConfig: Message2Any(hcm)},
 					},
 				},
 			},
@@ -508,7 +508,7 @@ func getEndpointsByLables(endpoints []*corev1.Endpoints, slabels map[string]stri
 }
 
 //CreateDNSLoadAssignment create dns loadAssignment
-func CreateDNSLoadAssignment(serviceAlias, namespace, domain string, service *corev1.Service) *v2.ClusterLoadAssignment {
+func CreateDNSLoadAssignment(serviceAlias, namespace, domain string, service *corev1.Service) *apiv2.ClusterLoadAssignment {
 	destServiceAlias := GetServiceAliasByService(service)
 	if destServiceAlias == "" {
 		logrus.Errorf("service alias is empty in k8s service %s", service.Name)
@@ -530,7 +530,7 @@ func CreateDNSLoadAssignment(serviceAlias, namespace, domain string, service *co
 		},
 	})
 	lendpoints = append(lendpoints, &endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
-	cla := &v2.ClusterLoadAssignment{
+	cla := &apiv2.ClusterLoadAssignment{
 		ClusterName: clusterName,
 		Endpoints:   lendpoints,
 	}
