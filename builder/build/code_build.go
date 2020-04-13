@@ -272,10 +272,10 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	name := fmt.Sprintf("%s-%s", re.ServiceID, re.DeployVersion)
 	namespace := "rbd-system"
 	envs := []corev1.EnvVar{
-		corev1.EnvVar{Name: "SLUG_VERSION", Value: re.DeployVersion},
-		corev1.EnvVar{Name: "SERVICE_ID", Value: re.ServiceID},
-		corev1.EnvVar{Name: "TENANT_ID", Value: re.TenantID},
-		corev1.EnvVar{Name: "LANGUAGE", Value: re.Lang.String()},
+		{Name: "SLUG_VERSION", Value: re.DeployVersion},
+		{Name: "SERVICE_ID", Value: re.ServiceID},
+		{Name: "TENANT_ID", Value: re.TenantID},
+		{Name: "LANGUAGE", Value: re.Lang.String()},
 	}
 	for k, v := range re.BuildEnvs {
 		envs = append(envs, corev1.EnvVar{Name: k, Value: v})
@@ -300,7 +300,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	}
 	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
 	podSpec.Volumes = []corev1.Volume{
-		corev1.Volume{
+		{
 			Name: "slug",
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
@@ -308,7 +308,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 				},
 			},
 		},
-		corev1.Volume{
+		{
 			Name: "app",
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
@@ -324,17 +324,17 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	sourceTarPath := strings.TrimPrefix(sourceTarFileName, "/cache/")
 	cacheSubPath := strings.TrimPrefix(re.CacheDir, "/cache/")
 	container.VolumeMounts = []corev1.VolumeMount{
-		corev1.VolumeMount{
+		{
 			Name:      "app",
 			MountPath: "/tmp/cache",
 			SubPath:   cacheSubPath,
 		},
-		corev1.VolumeMount{
+		{
 			Name:      "slug",
 			MountPath: "/tmp/slug",
 			SubPath:   slugSubPath,
 		},
-		corev1.VolumeMount{
+		{
 			Name:      "app",
 			MountPath: "/tmp/app-source.tar",
 			SubPath:   sourceTarPath,
@@ -345,6 +345,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: ha.IP, Hostnames: ha.Hostnames})
 	}
 	job.Spec = podSpec
+	s.setImagePullSecretsForPod(&job)
 	writer := re.Logger.GetWriter("builder", "info")
 	reChan := make(chan string, 2)
 	err = jobc.GetJobController().ExecJob(&job, writer, reChan)
@@ -506,6 +507,17 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 		return &ErrorBuild{Code: status}
 	}
 	return nil
+}
+
+func (s *slugBuild) setImagePullSecretsForPod(pod *corev1.Pod)  {
+	imagePullSecretName := os.Getenv("IMAGE_PULL_SECRET")
+	if imagePullSecretName == "" {
+		return
+	}
+
+	pod.Spec.ImagePullSecrets = []corev1.LocalObjectReference{
+		{Name: imagePullSecretName},
+	}
 }
 
 //ErrorBuild build error
