@@ -45,7 +45,8 @@ type IPPool struct {
 	EventCh             chan IPEVENT
 	StopCh              chan struct{}
 	ignoreInterfaceName []string
-	startReady          bool
+	startReady          chan struct{}
+	once                sync.Once
 }
 
 const (
@@ -64,21 +65,19 @@ func NewIPPool(ignoreInterfaceName []string) *IPPool {
 		ctx:                 ctx,
 		cancel:              cancel,
 		HostIPs:             map[string]net.IP{},
-		EventCh:             make(chan IPEVENT, 20),
+		EventCh:             make(chan IPEVENT, 1024),
 		StopCh:              make(chan struct{}),
 		ignoreInterfaceName: ignoreInterfaceName,
-		startReady:          false,
+		startReady:          make(chan struct{}),
 	}
-	go ippool.LoopCheckIPs()
 	return ippool
 }
 
 //Ready ready
 func (i *IPPool) Ready() bool {
-	for !i.startReady {
-		time.Sleep(time.Second * 1)
-	}
-	return i.startReady
+	logrus.Info("waiting ip pool start ready")
+	<-i.startReady
+	return true
 }
 
 //GetHostIPs get host ips
@@ -105,6 +104,7 @@ func (i *IPPool) Close() {
 //LoopCheckIPs loop check ips
 func (i *IPPool) LoopCheckIPs() {
 	Exec(i.ctx, func() error {
+		logrus.Debugf("start loop watch ips from all interface")
 		ips, err := i.getInterfaceIPs()
 		if err != nil {
 			logrus.Errorf("get ip address from interface failure %s, will retry", err.Error())
@@ -133,7 +133,9 @@ func (i *IPPool) LoopCheckIPs() {
 		}
 		logrus.Debugf("loop watch ips from all interface, find %d ips", len(newIP))
 		i.HostIPs = newIP
-		i.startReady = true
+		i.once.Do(func() {
+			close(i.startReady)
+		})
 		return nil
 	}, time.Second*5)
 }

@@ -38,6 +38,14 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "version" {
 		cmd.ShowVersion("sidecar")
 	}
+	loggerFile, _ := os.Create("/var/log/sidecar.log")
+	if loggerFile != nil {
+		defer loggerFile.Close()
+		logrus.SetOutput(loggerFile)
+	}
+	if os.Getenv("DEBUG") == "true" {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
 	if err := Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
@@ -70,12 +78,10 @@ func run() {
 	configs := discoverConfig()
 	if configs != nil {
 		if hosts := getHosts(configs); hosts != nil {
-			if haveChange(hosts, oldHosts) {
-				if err := writeHosts(hosts); err != nil {
-					logrus.Errorf("write hosts failure %s", err.Error())
-				} else {
-					logrus.Infof("rewrite hosts file success")
-				}
+			if err := writeHosts(hosts); err != nil {
+				logrus.Errorf("write hosts failure %s", err.Error())
+			} else {
+				logrus.Debugf("rewrite hosts file success, %+v", hosts)
 				oldHosts = hosts
 			}
 		}

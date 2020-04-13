@@ -68,33 +68,42 @@ func (c *Cadvisor) Name() string {
 }
 
 func (c *Cadvisor) toScrape() *prometheus.ScrapeConfig {
-	ts := make([]string, 0, len(c.sortedEndpoints))
-	for _, end := range c.sortedEndpoints {
-		ts = append(ts, end)
-	}
-
 	return &prometheus.ScrapeConfig{
 		JobName:        c.Name(),
 		ScrapeInterval: model.Duration(15 * time.Second),
 		ScrapeTimeout:  model.Duration(10 * time.Second),
-		MetricsPath:    "/metrics/cadvisor",
-		ServiceDiscoveryConfig: prometheus.ServiceDiscoveryConfig{
-			StaticConfigs: []*prometheus.Group{
-				{
-					Targets: ts,
-					Labels: map[model.LabelName]model.LabelValue{
-						"component": model.LabelValue(c.Name()),
-					},
-				},
-			},
-		},
-		Scheme: "https",
+		Scheme:         "https",
 		HTTPClientConfig: prometheus.HTTPClientConfig{
 			TLSConfig: prometheus.TLSConfig{
-				CAFile: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+				CAFile:             "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
 				InsecureSkipVerify: true,
 			},
 			BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
+		},
+		ServiceDiscoveryConfig: prometheus.ServiceDiscoveryConfig{
+			KubernetesSDConfigs: []*prometheus.SDConfig{
+				{
+					Role: "node",
+				},
+			},
+		},
+		RelabelConfigs: []*prometheus.RelabelConfig{
+			{
+				TargetLabel: "__address__",
+				Replacement: "kubernetes.default.svc:443",
+			},
+			{
+				SourceLabels: []model.LabelName{
+					"__meta_kubernetes_node_name",
+				},
+				Regex:       prometheus.MustNewRegexp("(.+)"),
+				TargetLabel: "__metrics_path__",
+				Replacement: "/api/v1/nodes/${1}/proxy/metrics/cadvisor",
+			},
+			{
+				Action: prometheus.RelabelAction("labelmap"),
+				Regex:  prometheus.MustNewRegexp("__meta_kubernetes_node_label_(.+)"),
+			},
 		},
 	}
 }

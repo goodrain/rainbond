@@ -86,12 +86,16 @@ func (i *ipManager) IPInCurrentHost(in net.IP) bool {
 }
 
 func (i *ipManager) Start() error {
+	logrus.Info("start ip manager.")
+	go i.IPPool.LoopCheckIPs()
 	i.IPPool.Ready()
+	logrus.Info("ip manager is ready.")
 	go i.syncIP()
 	return nil
 }
 
 func (i *ipManager) syncIP() {
+	logrus.Debugf("start syncronizing ip.")
 	ips := i.IPPool.GetHostIPs()
 	i.updateIP(ips...)
 	for ipevent := range i.IPPool.GetWatchIPChan() {

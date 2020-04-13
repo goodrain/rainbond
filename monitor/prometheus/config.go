@@ -181,6 +181,8 @@ type RelabelConfig struct {
 type ServiceDiscoveryConfig struct {
 	// List of labeled target groups for this job.
 	StaticConfigs []*Group `yaml:"static_configs,omitempty"`
+	// List of Kubernetes service discovery configurations.
+	KubernetesSDConfigs []*SDConfig `yaml:"kubernetes_sd_configs,omitempty"`
 }
 
 type Group struct {
@@ -194,10 +196,68 @@ type Group struct {
 	Source string `yaml:"source,omitempty"`
 }
 
+// SDConfig is the configuration for Kubernetes service discovery.
+type SDConfig struct {
+	Role Role `yaml:"role"`
+}
+
+// Role is role of the service in Kubernetes.
+type Role string
+
+// The valid options for Role.
+const (
+	RoleNode     Role = "node"
+	RolePod      Role = "pod"
+	RoleService  Role = "service"
+	RoleEndpoint Role = "endpoints"
+	RoleIngress  Role = "ingress"
+)
+
 // Regexp encapsulates a regexp.Regexp and makes it YAML marshallable.
 type Regexp struct {
 	*regexp.Regexp
 	original string
+}
+
+// NewRegexp creates a new anchored Regexp and returns an error if the
+// passed-in regular expression does not compile.
+func NewRegexp(s string) (Regexp, error) {
+	regex, err := regexp.Compile("^(?:" + s + ")$")
+	return Regexp{
+		Regexp:   regex,
+		original: s,
+	}, err
+}
+
+// MustNewRegexp works like NewRegexp, but panics if the regular expression does not compile.
+func MustNewRegexp(s string) Regexp {
+	re, err := NewRegexp(s)
+	if err != nil {
+		panic(err)
+	}
+	return re
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (re *Regexp) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err != nil {
+		return err
+	}
+	r, err := NewRegexp(s)
+	if err != nil {
+		return err
+	}
+	*re = r
+	return nil
+}
+
+// MarshalYAML implements the yaml.Marshaler interface.
+func (re Regexp) MarshalYAML() (interface{}, error) {
+	if re.original != "" {
+		return re.original, nil
+	}
+	return nil, nil
 }
 
 // RelabelAction is the action to be performed on relabeling.
