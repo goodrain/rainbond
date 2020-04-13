@@ -50,11 +50,6 @@ func NewCmdEnterprise() cli.Command {
 				},
 				Subcommands: []cli.Command{
 					{
-						Name:   "info",
-						Usage:  "show username and password of administrator",
-						Action: adminInfo,
-					},
-					{
 						Name:  "reset",
 						Usage: "reset password of administrator",
 						Flags: []cli.Flag{
@@ -104,24 +99,6 @@ func (e *enterprise) closeDB() {
 	return
 }
 
-func (e *enterprise) getAdmin() *admin {
-	if err := e.openDB(); err != nil {
-		showError(err.Error())
-	}
-	defer e.closeDB()
-
-	e.repo = &adminRepo{db: e.db}
-
-	adminInfo, err := e.repo.Get()
-	if err != nil {
-		showError(fmt.Sprintf("get administrator failed: %s", err.Error()))
-	}
-	if adminInfo == nil {
-		showWarn(fmt.Sprintf("administrator has not been generated, maybe next time"))
-	}
-	return adminInfo
-}
-
 func (e *enterprise) validatePassword(password string) {
 	// TODO password rule write here
 	if password == "" {
@@ -144,11 +121,13 @@ func (e *enterprise) resetAdminPassword() {
 	// prepare repo
 	e.repo = &adminRepo{db: e.db}
 
-	// use repo query admin
+	// use repo query admin, check generated or not
 	adminInfo, err := e.repo.Get()
 	if err != nil {
 		showError(fmt.Sprintf("get administrator failed: %s", err.Error()))
 	}
+
+	// admin has not been generated
 	if adminInfo == nil {
 		showWarn(fmt.Sprintf("administrator has not been generated, maybe next time"))
 	}
@@ -177,12 +156,6 @@ func initEnterprise(c *cli.Context) *enterprise {
 	}
 
 	return e
-}
-
-func adminInfo(c *cli.Context) {
-	e := initEnterprise(c)
-	adminInfo := e.getAdmin()
-	fmt.Println(adminInfo.String())
 }
 
 func resetAdminPassword(c *cli.Context) {
