@@ -34,6 +34,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/eapache/channels"
 	"github.com/fsnotify/fsnotify"
 	"github.com/goodrain/rainbond/builder"
 	jobc "github.com/goodrain/rainbond/builder/job"
@@ -346,7 +347,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	}
 	job.Spec = podSpec
 	writer := re.Logger.GetWriter("builder", "info")
-	reChan := make(chan string, 2)
+	reChan := channels.NewRingChannel(10)
 	err = jobc.GetJobController().ExecJob(&job, writer, reChan)
 	if err != nil {
 		logrus.Errorf("create new job:%s failed: %s", name, err.Error())
@@ -359,7 +360,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	return s.waitingComplete(re, reChan)
 }
 
-func (s *slugBuild) waitingComplete(re *Request, reChan chan string) (err error) {
+func (s *slugBuild) waitingComplete(re *Request, reChan *channels.RingChannel) (err error) {
 	var logComplete = false
 	var jobComplete = false
 	timeout := time.NewTimer(time.Minute * 60)
@@ -367,8 +368,9 @@ func (s *slugBuild) waitingComplete(re *Request, reChan chan string) (err error)
 		select {
 		case <-timeout.C:
 			return fmt.Errorf("build time out (more than 60 minute)")
-		case jobStatus := <-reChan:
-			switch jobStatus {
+		case jobStatus := <-reChan.Out():
+			status := jobStatus.(string)
+			switch status {
 			case "complete":
 				jobComplete = true
 				if logComplete {
