@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/eapache/channels"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,7 +39,7 @@ import (
 
 //Controller build job controller
 type Controller interface {
-	ExecJob(job *corev1.Pod, logger io.Writer, result chan string) error
+	ExecJob(job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error
 	GetJob(string) (*corev1.Pod, error)
 	GetServiceJobs(serviceID string) ([]*corev1.Pod, error)
 	DeleteJob(job string)
@@ -88,14 +89,14 @@ func InitJobController(stop chan struct{}, kubeClient kubernetes.Interface) erro
 				if terminated != nil && terminated.ExitCode == 0 {
 					if val, exist := jobController.subJobStatus.Load(job.Name); exist {
 						logrus.Infof("job %s container exit 0 and complete", job.Name)
-						ch := val.(chan string)
-						ch <- "complete"
+						ch := val.(*channels.RingChannel)
+						ch.In() <- "complete"
 					}
 				}
 				if terminated != nil && terminated.ExitCode > 0 {
 					if val, exist := jobController.subJobStatus.Load(job.Name); exist {
-						ch := val.(chan string)
-						ch <- "failed"
+						ch := val.(*channels.RingChannel)
+						ch.In() <- "failed"
 					}
 				}
 				logrus.Infof("job %s container %s state %+v", job.Name, buildContainer.Name, buildContainer.State)
@@ -132,7 +133,7 @@ func (c *controller) GetServiceJobs(serviceID string) ([]*corev1.Pod, error) {
 	return jobs, nil
 }
 
-func (c *controller) ExecJob(job *corev1.Pod, logger io.Writer, result chan string) error {
+func (c *controller) ExecJob(job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error {
 	if j, _ := c.GetJob(job.Name); j != nil {
 		go c.getLogger(job.Name, logger, result)
 		c.subJobStatus.Store(job.Name, result)
@@ -155,9 +156,9 @@ func (c *controller) Start(stop chan struct{}) error {
 	return nil
 }
 
-func (c *controller) getLogger(job string, writer io.Writer, result chan string) {
+func (c *controller) getLogger(job string, writer io.Writer, result *channels.RingChannel) {
 	defer func() {
-		result <- "logcomplete"
+		result.In() <- "logcomplete"
 	}()
 	for {
 		podLogRequest := c.KubeClient.CoreV1().Pods(c.namespace).GetLogs(job, &corev1.PodLogOptions{Follow: true})
