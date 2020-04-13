@@ -10,6 +10,7 @@ type EnterpriseDaoImpl struct {
 	DB *gorm.DB
 }
 
+// GetEnterpriseTenants -
 func (e *EnterpriseDaoImpl) GetEnterpriseTenants(enterpriseID string) ([]*model.Tenants, error) {
 	var tenants []*model.Tenants
 	if enterpriseID == "" {
