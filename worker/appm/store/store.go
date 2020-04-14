@@ -21,6 +21,9 @@ package store
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/util/constants"
+	"k8s.io/apimachinery/pkg/types"
+	"os"
 	"sync"
 	"time"
 
@@ -140,8 +143,11 @@ func NewStore(clientset kubernetes.Interface,
 		podUpdateListeners: make(map[string]chan<- *corev1.Pod, 1),
 	}
 	// create informers factory, enable and assign required informers
-	infFactory := informers.NewFilteredSharedInformerFactory(conf.KubeClient, time.Second, corev1.NamespaceAll,
-		func(options *metav1.ListOptions) {})
+	infFactory := informers.NewSharedInformerFactoryWithOptions(conf.KubeClient, 10*time.Second,
+		informers.WithNamespace(corev1.NamespaceAll))
+
+	store.informers.Namespace = infFactory.Core().V1().Namespaces().Informer()
+
 	store.informers.Deployment = infFactory.Apps().V1().Deployments().Informer()
 	store.listers.Deployment = infFactory.Apps().V1().Deployments().Lister()
 
@@ -264,6 +270,7 @@ func NewStore(clientset kubernetes.Interface,
 		},
 	}
 
+	store.informers.Namespace.AddEventHandler(store.nsEventHandler())
 	store.informers.Deployment.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.StatefulSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Pod.AddEventHandlerWithResyncPeriod(store.podEventHandler(), time.Second*10)
@@ -1241,6 +1248,24 @@ func (a *appRuntimeStore) evtEventHandler() cache.ResourceEventHandlerFuncs {
 	}
 }
 
+func (a *appRuntimeStore) nsEventHandler() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(old, cur interface{}) {
+			ns := cur.(*corev1.Namespace)
+			logrus.Debugf("Received update event. Namespace: %s", ns.Name)
+
+			// check if the namespace is created by Rainbond
+			if !filterOutNotRainbondNamespace(ns) {
+				return
+			}
+
+			if err := a.createOrUpdateImagePullSecret(ns.Name); err != nil {
+				logrus.Errorf("create or update imagepullsecret: %v", err)
+			}
+		},
+	}
+}
+
 func (a *appRuntimeStore) scalingRecordServiceAndRuleID(evt *corev1.Event) (string, string) {
 	var ruleID, serviceID string
 	switch evt.InvolvedObject.Kind {
@@ -1284,4 +1309,83 @@ func (a *appRuntimeStore) UnRegistPodUpdateListener(name string) {
 	a.podUpdateListenerLock.Lock()
 	defer a.podUpdateListenerLock.Unlock()
 	delete(a.podUpdateListeners, name)
+}
+
+func (a *appRuntimeStore) createOrUpdateImagePullSecret(ns string) error {
+	imagePullSecretName := os.Getenv(constants.ImagePullSecretKey)
+	if imagePullSecretName == "" {
+		return nil
+	}
+
+	// get secret in namespace rbd-system
+	rawSecret, err := a.secretByKey(types.NamespacedName{Namespace: a.conf.RBDNamespace, Name: imagePullSecretName})
+	if err != nil {
+		return fmt.Errorf("get secret %s: %v",
+			types.NamespacedName{Namespace: a.conf.RBDNamespace, Name: imagePullSecretName}.String(), err)
+	}
+	// get secret in current namespace
+	curSecret, err := a.secretByKey(types.NamespacedName{Namespace: ns, Name: imagePullSecretName})
+	if err != nil {
+		// current secret not exists. create a new one.
+		if errors.IsNotFound(err) {
+			curSecret = &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      rawSecret.Name,
+					Namespace: ns,
+				},
+				Data: rawSecret.Data,
+				Type: rawSecret.Type,
+			}
+			_, err := a.clientset.CoreV1().Secrets(ns).Create(curSecret)
+			if err != nil {
+				return fmt.Errorf("create secret for pulling images: %v", err)
+			}
+			return nil
+		}
+		return fmt.Errorf("get secret %s: %v", types.NamespacedName{Namespace: ns, Name: imagePullSecretName}.String(), err)
+	}
+
+	// check if the raw secret is different from the current one
+	if isImagePullSecretEqual(rawSecret, curSecret) {
+		return nil
+	}
+
+	// if the raw secret is different from the current one, then update the current one.
+	curSecret.Data = rawSecret.Data
+	if _, err := a.clientset.CoreV1().Secrets(ns).Update(curSecret); err != nil {
+		return fmt.Errorf("update secret for pulling images: %v", err)
+	}
+	return nil
+}
+
+func (a *appRuntimeStore) secretByKey(key types.NamespacedName) (*corev1.Secret, error) {
+	return a.listers.Secret.Secrets(key.Namespace).Get(key.Name)
+}
+
+func isImagePullSecretEqual(a, b *corev1.Secret) bool {
+	if len(a.Data) != len(b.Data) {
+		return false
+	}
+	for key, av := range a.Data {
+		bv, ok := b.Data[key]
+		if !ok {
+			return false
+		}
+		if string(av) != string(bv) {
+			return false
+		}
+	}
+	return true
+}
+
+func filterOutNotRainbondNamespace(ns *corev1.Namespace) bool {
+	// compatible with pre-5.2 versions
+	oldVersion := len(ns.Name) == 32
+	curVersion := func() bool {
+		if ns.Labels == nil {
+			return false
+		}
+		return ns.Labels["creator"] == "Rainbond"
+	}()
+	return curVersion || oldVersion
 }

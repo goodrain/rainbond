@@ -54,7 +54,6 @@ type Config struct {
 	LeaderElectionIdentity  string
 	RBDNamespace            string
 	GrdataPVCName           string
-	RBDDNSName              string
 }
 
 //Worker  worker server
@@ -95,7 +94,6 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	flag.StringVar(&a.LeaderElectionIdentity, "leader-election-identity", "", "Unique idenity of this attcher. Typically name of the pod where the attacher runs.")
 	flag.StringVar(&a.RBDNamespace, "rbd-system-namespace", "rbd-system", "rbd components kubernetes namespace")
 	flag.StringVar(&a.GrdataPVCName, "grdata-pvc-name", "rbd-cpt-grdata", "The name of grdata persistent volume claim")
-	flag.StringVar(&a.RBDDNSName, "rbd-dns", "rbd-dns", "rbd dns endpoint name")
 }
 
 //SetLog 设置log

@@ -69,10 +69,11 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			Name:        as.ServiceID + "-pod-spec",
 		},
 		Spec: corev1.PodSpec{
-			Volumes:      dv.GetVolumes(),
-			Containers:   []corev1.Container{*container},
-			NodeSelector: createNodeSelector(as, dbmanager),
-			Affinity:     createAffinity(as, dbmanager),
+			ImagePullSecrets: setImagePullSecrets(),
+			Volumes:          dv.GetVolumes(),
+			Containers:       []corev1.Container{*container},
+			NodeSelector:     createNodeSelector(as, dbmanager),
+			Affinity:         createAffinity(as, dbmanager),
 			Hostname: func() string {
 				if nodeID, ok := as.ExtensionSet["hostname"]; ok {
 					return nodeID
@@ -718,4 +719,15 @@ func createPodAnnotations(as *v1.AppService) map[string]string {
 		annotations["rainbond.com/tolerate-unready-endpoints"] = "true"
 	}
 	return annotations
+}
+
+func setImagePullSecrets() []corev1.LocalObjectReference {
+	imagePullSecretName := os.Getenv("IMAGE_PULL_SECRET")
+	if imagePullSecretName == "" {
+		return nil
+	}
+
+	return []corev1.LocalObjectReference{
+		{Name: imagePullSecretName},
+	}
 }
