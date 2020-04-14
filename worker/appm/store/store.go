@@ -1252,7 +1252,6 @@ func (a *appRuntimeStore) nsEventHandler() cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
 			ns := cur.(*corev1.Namespace)
-			logrus.Debugf("Received update event. Namespace: %s", ns.Name)
 
 			// check if the namespace is created by Rainbond
 			if !filterOutNotRainbondNamespace(ns) {
@@ -1340,6 +1339,7 @@ func (a *appRuntimeStore) createOrUpdateImagePullSecret(ns string) error {
 			if err != nil {
 				return fmt.Errorf("create secret for pulling images: %v", err)
 			}
+			logrus.Infof("successfully create secret: %s", types.NamespacedName{Namespace: ns, Name: imagePullSecretName}.String())
 			return nil
 		}
 		return fmt.Errorf("get secret %s: %v", types.NamespacedName{Namespace: ns, Name: imagePullSecretName}.String(), err)
@@ -1355,6 +1355,7 @@ func (a *appRuntimeStore) createOrUpdateImagePullSecret(ns string) error {
 	if _, err := a.clientset.CoreV1().Secrets(ns).Update(curSecret); err != nil {
 		return fmt.Errorf("update secret for pulling images: %v", err)
 	}
+	logrus.Infof("successfully update secret: %s", types.NamespacedName{Namespace: ns, Name: imagePullSecretName}.String())
 	return nil
 }
 
