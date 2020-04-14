@@ -50,7 +50,6 @@ type controller struct {
 	jobInformer  v1.PodInformer
 	namespace    string
 	subJobStatus sync.Map
-	lock         sync.Mutex
 }
 
 var jobController *controller
@@ -69,8 +68,8 @@ func InitJobController(stop chan struct{}, kubeClient kubernetes.Interface) erro
 		DeleteFunc: func(obj interface{}) {
 			job, _ := obj.(*corev1.Pod)
 			if val, exist := jobController.subJobStatus.Load(job.Name); exist {
-				ch := val.(chan string)
-				ch <- "cancel"
+				ch := val.(*channels.RingChannel)
+				ch.In() <- "cancel"
 			}
 			logrus.Infof("[Watch] Build job pod %s deleted", job.Name)
 		},
@@ -193,8 +192,6 @@ func (c *controller) DeleteJob(job string) {
 			logrus.Errorf("delete job failed: %s", err.Error())
 		}
 	}
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	c.subJobStatus.Delete(job)
 	logrus.Infof("delete job %s finish", job)
 }
