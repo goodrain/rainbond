@@ -68,10 +68,8 @@ func CreateTCPListener(name, clusterName, address, statPrefix string, port uint3
 			&envoy_api_v2_listener.FilterChain{
 				Filters: []*envoy_api_v2_listener.Filter{
 					&envoy_api_v2_listener.Filter{
-						Name: wellknown.TCPProxy,
-						ConfigType: &envoy_api_v2_listener.Filter_Config{
-							Config: MessageToStruct(tcpProxy),
-						},
+						Name:       wellknown.TCPProxy,
+						ConfigType: &envoy_api_v2_listener.Filter_TypedConfig{TypedConfig: Message2Any(tcpProxy)},
 					},
 				},
 			},
