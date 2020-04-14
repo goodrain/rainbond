@@ -69,10 +69,11 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			Name:        as.ServiceID + "-pod-spec",
 		},
 		Spec: corev1.PodSpec{
-			Volumes:      dv.GetVolumes(),
-			Containers:   []corev1.Container{*container},
-			NodeSelector: createNodeSelector(as, dbmanager),
-			Affinity:     createAffinity(as, dbmanager),
+			ImagePullSecrets: setImagePullSecrets(),
+			Volumes:          dv.GetVolumes(),
+			Containers:       []corev1.Container{*container},
+			NodeSelector:     createNodeSelector(as, dbmanager),
+			Affinity:         createAffinity(as, dbmanager),
 			Hostname: func() string {
 				if nodeID, ok := as.ExtensionSet["hostname"]; ok {
 					return nodeID
@@ -445,7 +446,11 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 
 	if vs != nil && len(tsmr) > 0 {
 		for _, t := range tsmr {
-			vol := volume.NewVolumeManager(as, nil, t, version, dbmanager)
+			sv, err := dbmanager.TenantServiceVolumeDao().GetVolumeByServiceIDAndName(t.DependServiceID, t.VolumeName)
+			if err != nil {
+				return nil, fmt.Errorf("service id: %s; volume name: %s; get dep volume: %v", t.DependServiceID, t.VolumeName, err)
+			}
+			vol := volume.NewVolumeManager(as, sv, t, version, dbmanager)
 			if vol != nil {
 				if err = vol.CreateDependVolume(define); err != nil {
 					logrus.Warningf("service: %s, create volume: %s, error: %+v \n skip it", version.ServiceID, t.VolumeName, err.Error())
@@ -714,4 +719,15 @@ func createPodAnnotations(as *v1.AppService) map[string]string {
 		annotations["rainbond.com/tolerate-unready-endpoints"] = "true"
 	}
 	return annotations
+}
+
+func setImagePullSecrets() []corev1.LocalObjectReference {
+	imagePullSecretName := os.Getenv("IMAGE_PULL_SECRET")
+	if imagePullSecretName == "" {
+		return nil
+	}
+
+	return []corev1.LocalObjectReference{
+		{Name: imagePullSecretName},
+	}
 }

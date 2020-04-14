@@ -24,6 +24,7 @@ import (
 
 //Informer kube-api client cache
 type Informer struct {
+	Namespace               cache.SharedIndexInformer
 	Ingress                 cache.SharedIndexInformer
 	Service                 cache.SharedIndexInformer
 	Secret                  cache.SharedIndexInformer
@@ -42,6 +43,7 @@ type Informer struct {
 
 //Start statrt
 func (i *Informer) Start(stop chan struct{}) {
+	go i.Namespace.Run(stop)
 	go i.Ingress.Run(stop)
 	go i.Service.Run(stop)
 	go i.Secret.Run(stop)
@@ -60,7 +62,7 @@ func (i *Informer) Start(stop chan struct{}) {
 
 //Ready if all kube informers is syncd, store is ready
 func (i *Informer) Ready() bool {
-	if i.Ingress.HasSynced() && i.Service.HasSynced() && i.Secret.HasSynced() &&
+	if i.Namespace.HasSynced() && i.Ingress.HasSynced() && i.Service.HasSynced() && i.Secret.HasSynced() &&
 		i.StatefulSet.HasSynced() && i.Deployment.HasSynced() && i.Pod.HasSynced() &&
 		i.ConfigMap.HasSynced() && i.Nodes.HasSynced() && i.Events.HasSynced() &&
 		i.HorizontalPodAutoscaler.HasSynced() && i.StorageClass.HasSynced() && i.Claims.HasSynced() {
