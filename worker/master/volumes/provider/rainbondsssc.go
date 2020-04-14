@@ -25,10 +25,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/goodrain/rainbond/db"
-
 	"github.com/Sirupsen/logrus"
-
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
 	v1 "k8s.io/api/core/v1"
@@ -156,10 +154,13 @@ func updatePathForPersistentVolumeSource(persistentVolumeSource *v1.PersistentVo
 	case persistentVolumeSource.NFS != nil:
 		source.NFS = persistentVolumeSource.NFS
 		source.NFS.Path = newPath(persistentVolumeSource.NFS.Path)
-	case persistentVolumeSource.CSI != nil:
+	case persistentVolumeSource.CSI != nil && persistentVolumeSource.CSI.Driver == "nasplugin.csi.alibabacloud.com":
+		// convert aliyun nas to nfs
 		if persistentVolumeSource.CSI.VolumeAttributes != nil {
-			source.CSI = persistentVolumeSource.CSI
-			source.CSI.VolumeAttributes["path"] = newPath(persistentVolumeSource.CSI.VolumeAttributes["path"])
+			source.NFS = &v1.NFSVolumeSource{
+				Server: persistentVolumeSource.CSI.VolumeAttributes["server"],
+				Path:   newPath(persistentVolumeSource.CSI.VolumeAttributes["path"]),
+			}
 		}
 	case persistentVolumeSource.Glusterfs != nil:
 		//glusterfs:
@@ -170,5 +171,5 @@ func updatePathForPersistentVolumeSource(persistentVolumeSource *v1.PersistentVo
 	default:
 		return nil, fmt.Errorf("unsupported persistence volume source")
 	}
-	return persistentVolumeSource, nil
+	return source, nil
 }
