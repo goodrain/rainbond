@@ -384,8 +384,8 @@ func (i *ImportApp) importPlugins() error {
 				return err
 			}
 			// 上传到仓库
-			user := plugin.Get("plugin_image.hub_user").String()
-			pass := plugin.Get("plugin_image.hub_password").String()
+			// get docker account user and pass
+			user, pass := builder.GetImageUserInfo(plugin.Get("plugin_image.hub_user").String(), plugin.Get("plugin_image.hub_password").String())
 			// 上传之前先要根据新的仓库地址修改镜像名
 			image := i.oldPluginPath[plugin.Get("plugin_id").String()]
 			imageName := sources.ImageNameWithNamespaceHandle(image)
@@ -437,8 +437,8 @@ func (i *ImportApp) loadApps() error {
 			// 上传到仓库
 			oldImage := i.oldAPPPath[app.Get("service_key").String()]
 			oldImageName := sources.ImageNameWithNamespaceHandle(oldImage)
-			user := app.Get("service_image.hub_user").String()
-			pass := app.Get("service_image.hub_password").String()
+			// get docker account user and pass
+			user, pass := builder.GetImageUserInfo(app.Get("service_image.hub_user").String(), app.Get("service_image.hub_password").String())
 			// 上传之前先要根据新的仓库地址修改镜像名
 			image := app.Get("share_image").String()
 			if err := sources.ImageTag(i.DockerClient, fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, oldImageName.Name, oldImageName.Tag), image, i.Logger, 15); err != nil {
