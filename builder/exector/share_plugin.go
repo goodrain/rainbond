@@ -21,6 +21,7 @@ package exector
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/builder"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -72,7 +73,7 @@ func SharePluginItemCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 
 //Run Run
 func (i *PluginShareItem) Run(timeout time.Duration) error {
-	_, err := sources.ImagePull(i.DockerClient, i.LocalImageName, "", "", i.Logger, 10)
+	_, err := sources.ImagePull(i.DockerClient, i.LocalImageName, builder.REGISTRYUSER, builder.REGISTRYPASS, i.Logger, 10)
 	if err != nil {
 		logrus.Errorf("pull image %s error: %s", i.LocalImageName, err.Error())
 		i.Logger.Error(fmt.Sprintf("拉取应用镜像: %s失败", i.LocalImageName), map[string]string{"step": "builder-exector", "status": "failure"})
