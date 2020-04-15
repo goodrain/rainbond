@@ -72,13 +72,14 @@ type SourceCodeParse struct {
 //CreateSourceCodeParse create parser
 func CreateSourceCodeParse(source string, logger event.Logger) Parser {
 	return &SourceCodeParse{
-		source:  source,
-		ports:   make(map[int]*types.Port),
-		volumes: make(map[string]*types.Volume),
-		envs:    make(map[string]*types.Env),
-		logger:  logger,
-		image:   ParseImageName(builder.RUNNERIMAGENAME),
-		args:    []string{"start", "web"},
+		source:      source,
+		ports:       make(map[int]*types.Port),
+		volumes:     make(map[string]*types.Volume),
+		envs:        make(map[string]*types.Env),
+		logger:      logger,
+		image:       ParseImageName(builder.RUNNERIMAGENAME),
+		args:        []string{"start", "web"},
+		serviceType: dbmodel.ServiceTypeStatelessMultiple.String(),
 	}
 }
 
@@ -532,7 +533,6 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 		switch cm.Cmd {
 		case "from":
 			// default service type is stateless multiple, parse from dockerfile FROM command
-			d.serviceType = dbmodel.ServiceTypeStatelessMultiple.String()
 			for _, value := range cm.Value {
 				// parse base image info
 				image := Image{}
