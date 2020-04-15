@@ -36,6 +36,9 @@ var K8SClient kubernetes.Interface
 //RainbondKubeClient rainbond custom resource client
 var RainbondKubeClient versioned.Interface
 
+// RainbondNamespace rainbond component namespace
+var RainbondNamespace = "rbd-system"
+
 //InitClient init k8s client
 func InitClient(kubeconfig string) error {
 	if kubeconfig == "" {
