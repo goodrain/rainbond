@@ -61,11 +61,6 @@ type ImportApp struct {
 //NewImportApp create
 func NewImportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 	eventID := gjson.GetBytes(in, "event_id").String()
-	var serviceImage model.ServiceImage
-	if err := json.Unmarshal([]byte(gjson.GetBytes(in, "service_image").String()), &serviceImage); err != nil {
-		logrus.Error("Failed to unmarshal service_image for import: ", err)
-		return nil, err
-	}
 
 	var serviceSlug model.ServiceSlug
 	if err := json.Unmarshal([]byte(gjson.GetBytes(in, "service_slug").String()), &serviceSlug); err != nil {
@@ -84,7 +79,6 @@ func NewImportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 		Format:        gjson.GetBytes(in, "format").String(),
 		SourceDir:     gjson.GetBytes(in, "source_dir").String(),
 		Apps:          apps,
-		ServiceImage:  serviceImage,
 		ServiceSlug:   serviceSlug,
 		Logger:        logger,
 		EventID:       eventID,
@@ -180,20 +174,21 @@ func (i *ImportApp) importApp() error {
 		}
 		for index := range apps {
 			app := meta.Get("apps").GetIndex(index)
-			if _, ok := app.CheckGet("service_image"); ok {
-				app.Set("service_image", i.ServiceImage)
-			}
 			if _, ok := app.CheckGet("service_slug"); ok {
 				app.Set("service_slug", i.ServiceSlug)
 			}
 			getAppImage := func() string {
 				oldname, _ := app.Get("share_image").String()
 				oldImageName := sources.ImageNameWithNamespaceHandle(oldname)
-				var image string
-				if i.ServiceImage.NameSpace == "" {
-					image = fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, oldImageName.Name, oldImageName.Tag)
-				} else {
-					image = fmt.Sprintf("%s/%s/%s:%s", i.ServiceImage.HubUrl, i.ServiceImage.NameSpace, oldImageName.Name, oldImageName.Tag)
+				hubURL, err := app.Get("service_image").Get("hub_url").String()
+				if err != nil {
+					logrus.Warn("app service image hubURL get failed: %s, use goodrain.me", err.Error())
+					hubURL = builder.REGISTRYDOMAIN
+				}
+				image := fmt.Sprintf("%s/%s:%s", hubURL, oldImageName.Name, oldImageName.Tag)
+				namespace, _ := app.Get("service_image").Get("namespace").String()
+				if namespace != "" {
+					image = fmt.Sprintf("%s/%s/%s:%s", hubURL, namespace, oldImageName.Name, oldImageName.Tag)
 				}
 				return image
 			}
@@ -211,9 +206,9 @@ func (i *ImportApp) importApp() error {
 				return strings.Replace(shareSlugPath, "//", "/", -1)
 			}
 
-			if oldimage, ok := app.CheckGet("share_image"); ok {
+			if oldImage, ok := app.CheckGet("share_image"); ok {
 				appKey, _ := app.Get("service_key").String()
-				i.oldAPPPath[appKey], _ = oldimage.String()
+				i.oldAPPPath[appKey], _ = oldImage.String()
 				app.Set("share_image", getAppImage())
 			}
 			if oldslug, ok := app.CheckGet("share_slug_path"); ok {
@@ -324,17 +319,20 @@ func (i *ImportApp) importPlugins() error {
 
 	for index := range oldPlugins {
 		plugin := meta.Get("plugins").GetIndex(index)
-		if _, ok := plugin.CheckGet("plugin_image"); ok {
-			plugin.Set("plugin_image", i.ServiceImage)
-		}
 		getImageImage := func() string {
 			oldname, _ := plugin.Get("share_image").String()
 			oldImageName := sources.ImageNameWithNamespaceHandle(oldname)
 			var image string
-			if i.ServiceImage.NameSpace == "" {
-				image = fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, oldImageName.Name, oldImageName.Tag)
-			} else {
-				image = fmt.Sprintf("%s/%s/%s:%s", i.ServiceImage.HubUrl, i.ServiceImage.NameSpace, oldImageName.Name, oldImageName.Tag)
+			hubURL, err := plugin.Get("plugin_image").Get("hub_url").String()
+			if err != nil {
+				logrus.Warnf("plugin get hub url failed: %s, use goodrain.me", err.Error())
+				hubURL = builder.REGISTRYDOMAIN
+			}
+			image = fmt.Sprintf("%s/%s:%s", hubURL, oldImageName.Name, oldImageName.Tag)
+
+			namespace, _ := plugin.Get("plugin_image").Get("namespace").String()
+			if namespace != "" {
+				image = fmt.Sprintf("%s/%s/%s:%s", hubURL, namespace, oldImageName.Name, oldImageName.Tag)
 			}
 			return image
 		}
@@ -444,7 +442,7 @@ func (i *ImportApp) loadApps() error {
 			// 上传之前先要根据新的仓库地址修改镜像名
 			image := app.Get("share_image").String()
 			if err := sources.ImageTag(i.DockerClient, fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, oldImageName.Name, oldImageName.Tag), image, i.Logger, 15); err != nil {
-				return fmt.Errorf("change image tag(%s => %s) error %s", fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, oldImageName.Name, oldImageName.Tag), image, err.Error())
+				return fmt.Errorf("change image tag(%s => %s) error %s", fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, oldImageName.Name, oldImageName.Tag), image, err.Error())
 			}
 			// 开始上传
 			if err := sources.ImagePush(i.DockerClient, image, user, pass, i.Logger, 15); err != nil {
