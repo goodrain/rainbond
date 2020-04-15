@@ -26,18 +26,23 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/client"
+	"github.com/pquerna/ffjson/ffjson"
+
+	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/transport" //"github.com/docker/docker/client"
+
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
-	multi "github.com/goodrain/rainbond/builder/parser/code/multisvc"
 	"github.com/goodrain/rainbond/builder/parser/types"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
-	"github.com/pquerna/ffjson/ffjson"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport" //"github.com/docker/docker/client"
+
+	multi "github.com/goodrain/rainbond/builder/parser/code/multisvc"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
 //SourceCodeParse docker run 命令解析或直接镜像名解析
@@ -46,6 +51,7 @@ type SourceCodeParse struct {
 	volumes      map[string]*types.Volume
 	envs         map[string]*types.Env
 	source       string
+	serviceType  string
 	memory       int
 	image        Image
 	args         []string
@@ -486,7 +492,7 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 		Branchs:     d.GetBranchs(),
 		Memory:      d.memory,
 		Lang:        d.GetLang(),
-		ServiceType: model.ServiceTypeStatelessMultiple.String(),
+		ServiceType: d.serviceType,
 		OS:          runtime.GOOS,
 	}
 	var res []ServiceInfo
@@ -524,6 +530,28 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 
 	for _, cm := range commands {
 		switch cm.Cmd {
+		case "from":
+			// default service type is stateless multiple, parse from dockerfile FROM command
+			d.serviceType = dbmodel.ServiceTypeStatelessMultiple.String()
+			for _, value := range cm.Value {
+				// parse base image info
+				image := Image{}
+				ref, err := reference.ParseAnyReference(value)
+				if err != nil {
+					logrus.Errorf("image name: %s; parse image failure %s", value, err.Error())
+					break
+				}
+				name, err := reference.ParseNamed(ref.String())
+				if err != nil {
+					logrus.Errorf("parse image failure %s, use stateless_multiple", err.Error())
+					break
+				}
+				image.name = name
+				serviceType := DetermineDeployType(image)
+				if serviceType == dbmodel.ServiceTypeStateSingleton.String() {
+					d.serviceType = serviceType
+				}
+			}
 		case "arg":
 			length := len(cm.Value)
 			for i := 0; i < length; i++ {
