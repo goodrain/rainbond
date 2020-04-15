@@ -117,6 +117,17 @@ func InitService(next http.Handler) http.Handler {
 //InitPlugin 实现plugin init中间件
 func InitPlugin(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
+		if !apiExclude(r) {
+			body, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				logrus.Warningf("error reading request body: %v", err)
+			} else {
+				logrus.Debugf("method: %s; uri: %s; body: %s", r.Method, r.RequestURI, string(body))
+			}
+			// set a new body, which will simulate the same data we read
+			r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+		}
+
 		pluginID := chi.URLParam(r, "plugin_id")
 		tenantID := r.Context().Value(ContextKey("tenant_id")).(string)
 		if pluginID == "" {

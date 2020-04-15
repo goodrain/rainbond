@@ -326,7 +326,7 @@ func (b *BackupAPPNew) backupPluginInfo(appSnapshot *AppSnapshot) error {
 func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, error) {
 	if version.DeliveredType == "image" {
 		imageInfo := sources.ImageNameHandle(version.DeliveredPath)
-		reg, err := registry.NewInsecure(imageInfo.Host, "", "")
+		reg, err := registry.NewInsecure(imageInfo.Host, builder.REGISTRYUSER, builder.REGISTRYPASS)
 		if err != nil {
 			logrus.Errorf("new registry client error %s", err.Error())
 			return false, err
