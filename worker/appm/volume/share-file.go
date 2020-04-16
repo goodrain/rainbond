@@ -105,7 +105,7 @@ func (v *ShareFileVolume) CreateDependVolume(define *Define) error {
 	}
 
 	vo := corev1.Volume{Name: volumeMountName}
-	claimName := fmt.Sprintf("manual%d", v.smr.ID)
+	claimName := fmt.Sprintf("manual%d", v.svm.ID)
 	vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claimName, ReadOnly: false}
 	define.volumes = append(define.volumes, vo)
 	vm := corev1.VolumeMount{

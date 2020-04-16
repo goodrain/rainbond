@@ -68,7 +68,8 @@ func (e *exectorManager) pluginImageBuild(task *pb.TaskMessage) {
 }
 
 func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) error {
-	if _, err := sources.ImagePull(e.DockerClient, t.ImageURL, t.ImageInfo.HubUser, t.ImageInfo.HubPassword, logger, 10); err != nil {
+	hubUser, hubPass := builder.GetImageUserInfo(t.ImageInfo.HubUser, t.ImageInfo.HubPassword)
+	if _, err := sources.ImagePull(e.DockerClient, t.ImageURL, hubUser, hubPass, logger, 10); err != nil {
 		logrus.Errorf("pull image %v error, %v", t.ImageURL, err)
 		logger.Error("拉取镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err

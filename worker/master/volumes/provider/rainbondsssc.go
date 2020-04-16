@@ -25,10 +25,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/goodrain/rainbond/db"
-
 	"github.com/Sirupsen/logrus"
-
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
 	v1 "k8s.io/api/core/v1"
@@ -87,8 +85,7 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 		return nil, err
 	}
 	// new volume path
-	newPath := strings.Replace(hostpath, "/grdata", options.NFS.Path, 1)
-	persistentVolumeSource, err := updatePathForPersistentVolumeSource(&options.PersistentVolumeSource, newPath)
+	persistentVolumeSource, err := updatePathForPersistentVolumeSource(&options.PersistentVolumeSource, hostpath)
 	if err != nil {
 		return nil, err
 	}
@@ -147,21 +144,32 @@ func getVolumeIDByPVCName(pvcName string) int {
 	return 0
 }
 
-func updatePathForPersistentVolumeSource(persistentVolumeSource *v1.PersistentVolumeSource, newPath string) (*v1.PersistentVolumeSource, error) {
+func updatePathForPersistentVolumeSource(persistentVolumeSource *v1.PersistentVolumeSource, hostpath string) (*v1.PersistentVolumeSource, error) {
+	newPath := func(new string) string {
+		p := strings.Replace(hostpath, "/grdata", "", 1)
+		return path.Join(new, p)
+	}
+	source := &v1.PersistentVolumeSource{}
 	switch {
 	case persistentVolumeSource.NFS != nil:
-		persistentVolumeSource.NFS.Path = newPath
-	case persistentVolumeSource.CSI != nil:
+		source.NFS = persistentVolumeSource.NFS
+		source.NFS.Path = newPath(persistentVolumeSource.NFS.Path)
+	case persistentVolumeSource.CSI != nil && persistentVolumeSource.CSI.Driver == "nasplugin.csi.alibabacloud.com":
+		// convert aliyun nas to nfs
 		if persistentVolumeSource.CSI.VolumeAttributes != nil {
-			persistentVolumeSource.CSI.VolumeAttributes["path"] = newPath
+			source.NFS = &v1.NFSVolumeSource{
+				Server: persistentVolumeSource.CSI.VolumeAttributes["server"],
+				Path:   newPath(persistentVolumeSource.CSI.VolumeAttributes["path"]),
+			}
 		}
 	case persistentVolumeSource.Glusterfs != nil:
 		//glusterfs:
 		//	endpoints: glusterfs-cluster
 		//	path: myVol1
-		persistentVolumeSource.Glusterfs.Path = newPath
+		source.Glusterfs.Path = persistentVolumeSource.Glusterfs.Path
+		source.Glusterfs.Path = newPath(persistentVolumeSource.Glusterfs.Path)
 	default:
 		return nil, fmt.Errorf("unsupported persistence volume source")
 	}
-	return persistentVolumeSource, nil
+	return source, nil
 }

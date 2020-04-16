@@ -24,19 +24,21 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/envoyproxy/go-control-plane/pkg/cache"
+	"github.com/envoyproxy/go-control-plane/pkg/conversion"
+	"github.com/gogo/protobuf/proto"
+	"github.com/gogo/protobuf/types"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
+	"github.com/golang/protobuf/ptypes/duration"
+	"github.com/golang/protobuf/ptypes/wrappers"
+
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
 
-	"github.com/envoyproxy/go-control-plane/pkg/cache"
-	"github.com/envoyproxy/go-control-plane/pkg/conversion"
-
-	"github.com/Sirupsen/logrus"
-	"github.com/gogo/protobuf/proto"
-	"github.com/gogo/protobuf/types"
-	any "github.com/golang/protobuf/ptypes/any"
-	"github.com/golang/protobuf/ptypes/duration"
 	_struct "github.com/golang/protobuf/ptypes/struct"
-	"github.com/golang/protobuf/ptypes/wrappers"
+
 	v1 "github.com/goodrain/rainbond/node/core/envoy/v1"
 )
 
@@ -48,6 +50,16 @@ func MessageToStruct(msg proto.Message) *_struct.Struct {
 		return &_struct.Struct{}
 	}
 	return s
+}
+
+// Message2Any converts from proto message to proto any
+func Message2Any(msg proto.Message) *any.Any {
+	a, err := ptypes.MarshalAny(msg)
+	if err != nil {
+		logrus.Error(err.Error())
+		return &any.Any{}
+	}
+	return a
 }
 
 //ConversionUInt32 conversion uint32 to wrappers uint32

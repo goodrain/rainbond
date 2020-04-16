@@ -193,6 +193,16 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 			return fmt.Errorf("upgrade deployment %s failure %s", app.ServiceAlias, err.Error())
 		}
 	}
+
+	// create claims
+	for _, claim := range app.GetClaimsManually() {
+		logrus.Debugf("create claim: %s", claim.Name)
+		_, err := s.manager.client.CoreV1().PersistentVolumeClaims(app.TenantID).Create(claim)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("create claims: %v", err)
+		}
+	}
+
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
 		_, err = s.manager.client.AppsV1().StatefulSets(statefulset.Namespace).Patch(statefulset.Name, types.MergePatchType, app.UpgradePatch["statefulset"])
 		if err != nil {

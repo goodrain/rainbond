@@ -51,16 +51,7 @@ func init() {
 //InitTenant 实现中间件
 func InitTenant(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		if !apiExclude(r) {
-			body, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				logrus.Warningf("error reading request body: %v", err)
-			} else {
-				logrus.Debugf("method: %s; uri: %s; body: %s", r.Method, r.RequestURI, string(body))
-			}
-			// set a new body, which will simulate the same data we read
-			r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
-		}
+		debugRequestBody(r)
 
 		tenantName := chi.URLParam(r, "tenant_name")
 		if tenantName == "" {
@@ -117,6 +108,8 @@ func InitService(next http.Handler) http.Handler {
 //InitPlugin 实现plugin init中间件
 func InitPlugin(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
+		debugRequestBody(r)
+
 		pluginID := chi.URLParam(r, "plugin_id")
 		tenantID := r.Context().Value(ContextKey("tenant_id")).(string)
 		if pluginID == "" {
@@ -280,5 +273,18 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 				util.UpdateEvent(event.EventID, rw.statusCode)
 			}
 		}
+	}
+}
+
+func debugRequestBody(r *http.Request) {
+	if !apiExclude(r) {
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			logrus.Warningf("error reading request body: %v", err)
+		}
+		logrus.Debugf("method: %s; uri: %s; body: %s", r.Method, r.RequestURI, string(body))
+
+		// set a new body, which will simulate the same data we read
+		r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 	}
 }

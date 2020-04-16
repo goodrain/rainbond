@@ -20,6 +20,7 @@ package exector
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/builder"
 	"io/ioutil"
 	"os"
 	"path"
@@ -308,7 +309,7 @@ func (b *BackupAPPNew) backupPluginInfo(appSnapshot *AppSnapshot) error {
 	for _, pv := range appSnapshot.PluginBuildVersions {
 		dstDir := fmt.Sprintf("%s/plugin_%s/image_%s.tar", b.SourceDir, pv.PluginID, pv.DeployVersion)
 		util.CheckAndCreateDir(filepath.Dir(dstDir))
-		if _, err := sources.ImagePull(b.DockerClient, pv.BuildLocalImage, "", "", b.Logger, 20); err != nil {
+		if _, err := sources.ImagePull(b.DockerClient, pv.BuildLocalImage, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 20); err != nil {
 			b.Logger.Error(fmt.Sprintf("plugin image: %s; failed to pull image", pv.BuildLocalImage), map[string]string{"step": "backup_builder", "status": "failure"})
 			logrus.Errorf("plugin image: %s; failed to pull image: %v", pv.BuildLocalImage, err)
 			return err
@@ -325,7 +326,7 @@ func (b *BackupAPPNew) backupPluginInfo(appSnapshot *AppSnapshot) error {
 func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, error) {
 	if version.DeliveredType == "image" {
 		imageInfo := sources.ImageNameHandle(version.DeliveredPath)
-		reg, err := registry.NewInsecure(imageInfo.Host, "", "")
+		reg, err := registry.NewInsecure(imageInfo.Host, builder.REGISTRYUSER, builder.REGISTRYPASS)
 		if err != nil {
 			logrus.Errorf("new registry client error %s", err.Error())
 			return false, err
@@ -368,7 +369,7 @@ func (b *BackupAPPNew) saveSlugPkg(app *RegionServiceSnapshot, version *dbmodel.
 func (b *BackupAPPNew) saveImagePkg(app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
 	dstDir := fmt.Sprintf("%s/app_%s/image_%s.tar", b.SourceDir, app.ServiceID, version.BuildVersion)
 	util.CheckAndCreateDir(filepath.Dir(dstDir))
-	if _, err := sources.ImagePull(b.DockerClient, version.DeliveredPath, "", "", b.Logger, 20); err != nil {
+	if _, err := sources.ImagePull(b.DockerClient, version.DeliveredPath, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 20); err != nil {
 		b.Logger.Error(util.Translation("error pulling image"), map[string]string{"step": "backup_builder", "status": "failure"})
 		logrus.Errorf(fmt.Sprintf("image: %s; error pulling image: %v", version.DeliveredPath, err), version.DeliveredPath, err.Error())
 	}

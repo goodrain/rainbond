@@ -132,7 +132,8 @@ func initTenant(as *v1.AppService, tenant *dbmodel.Tenants) error {
 	}
 	namespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: tenant.UUID,
+			Name:   tenant.UUID,
+			Labels: map[string]string{"creator": "Rainbond"},
 		},
 	}
 	as.SetTenant(namespace)

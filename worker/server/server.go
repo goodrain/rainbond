@@ -499,35 +499,43 @@ func (r *RuntimeServer) GetAppVolumeStatus(ctx context.Context, re *pb.ServiceRe
 	if as == nil {
 		return ret, nil
 	}
-	appPodList, err := r.GetAppPods(ctx, re)
-	if err != nil {
-		logrus.Warnf("get volume status error : %s", err.Error())
-		return ret, nil
-	}
-	for _, pod := range appPodList.GetNewPods() {
-		for _, volumeName := range pod.PodVolumes {
-			prefix := "manual"
-			if strings.HasPrefix(volumeName, prefix) {
-				volumeName = strings.TrimPrefix(volumeName, prefix)
-				if pod.GetPodStatus() != pb.PodStatus_RUNNING.String() {
-					ret.Status[volumeName] = pb.ServiceVolumeStatus_NOT_READY // volumeName tranfer to serviceVolume's id in db
-				} else {
-					ret.Status[volumeName] = pb.ServiceVolumeStatus_READY // volumeName tranfer to serviceVolume's id in db
-				}
 
-			}
+	// get component all pods
+	pods := as.GetPods(false)
+	for _, pod := range pods {
+		// if pod is terminated, volume status of pod is NOT_READY
+		if v1.IsPodTerminated(pod) {
+			continue
 		}
-	}
+		// Exception pod information due to node loss is no longer displayed, so volume status is NOT_READY
+		if v1.IsPodNodeLost(pod) {
+			continue
+		}
 
-	for _, pod := range appPodList.GetOldPods() {
-		for _, volumeName := range pod.PodVolumes {
-			prefix := "manual"
+		podStatus := &pb.PodStatus{}
+		wutil.DescribePodStatus(r.clientset, pod, podStatus, k8s.DefListEventsByPod)
+
+		for _, volume := range pod.Spec.Volumes {
+			volumeName := volume.Name
+			prefix := "manual" // all volume name start with manual but config file, volume name style: fmt.Sprintf("manual%d", TenantServiceVolume.ID)
 			if strings.HasPrefix(volumeName, prefix) {
 				volumeName = strings.TrimPrefix(volumeName, prefix)
-				if pod.GetPodStatus() != pb.PodStatus_RUNNING.String() {
-					ret.Status[volumeName] = pb.ServiceVolumeStatus_NOT_READY // volumeName tranfer to serviceVolume's id in db
-				} else {
-					ret.Status[volumeName] = pb.ServiceVolumeStatus_READY // volumeName tranfer to serviceVolume's id in db
+				switch podStatus.Type {
+				case pb.PodStatus_SCHEDULING:
+					// pod can't bind volume
+					ret.Status[volumeName] = pb.ServiceVolumeStatus_NOT_READY
+				case pb.PodStatus_UNKNOWN:
+					// pod status is unknown
+					ret.Status[volumeName] = pb.ServiceVolumeStatus_NOT_READY
+				case pb.PodStatus_INITIATING:
+					// pod status is unknown
+					ret.Status[volumeName] = pb.ServiceVolumeStatus_READY
+					if pod.Status.Phase == corev1.PodPending {
+						ret.Status[volumeName] = pb.ServiceVolumeStatus_NOT_READY
+					}
+				case pb.PodStatus_RUNNING, pb.PodStatus_ABNORMAL, pb.PodStatus_NOTREADY, pb.PodStatus_UNHEALTHY:
+					// pod is running
+					ret.Status[volumeName] = pb.ServiceVolumeStatus_READY
 				}
 			}
 		}

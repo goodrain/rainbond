@@ -21,6 +21,7 @@ package exector
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/builder"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
@@ -32,15 +33,17 @@ import (
 
 //ImageShareItem ImageShareItem
 type ImageShareItem struct {
-	Namespace      string `json:"namespace"`
-	TenantName     string `json:"tenant_name"`
-	ServiceID      string `json:"service_id"`
-	ServiceAlias   string `json:"service_alias"`
-	ImageName      string `json:"image_name"`
-	LocalImageName string `json:"local_image_name"`
-	ShareID        string `json:"share_id"`
-	Logger         event.Logger
-	ShareInfo      struct {
+	Namespace          string `json:"namespace"`
+	TenantName         string `json:"tenant_name"`
+	ServiceID          string `json:"service_id"`
+	ServiceAlias       string `json:"service_alias"`
+	ImageName          string `json:"image_name"`
+	LocalImageName     string `json:"local_image_name"`
+	LocalImageUsername string `json:"-"`
+	LocalImagePassword string `json:"-"`
+	ShareID            string `json:"share_id"`
+	Logger             event.Logger
+	ShareInfo          struct {
 		ServiceKey string `json:"service_key" `
 		AppVersion string `json:"app_version" `
 		EventID    string `json:"event_id"`
@@ -64,6 +67,8 @@ func NewImageShareItem(in []byte, DockerClient *client.Client, EtcdCli *clientv3
 	if err := ffjson.Unmarshal(in, &isi); err != nil {
 		return nil, err
 	}
+	isi.LocalImageUsername = builder.REGISTRYUSER
+	isi.LocalImagePassword = builder.REGISTRYPASS
 	eventID := isi.ShareInfo.EventID
 	isi.Logger = event.GetManager().GetLogger(eventID)
 	isi.DockerClient = DockerClient
@@ -76,7 +81,7 @@ func NewImageShareItem(in []byte, DockerClient *client.Client, EtcdCli *clientv3
 
 //ShareService ShareService
 func (i *ImageShareItem) ShareService() error {
-	_, err := sources.ImagePull(i.DockerClient, i.LocalImageName, "", "", i.Logger, 20)
+	_, err := sources.ImagePull(i.DockerClient, i.LocalImageName, i.LocalImageUsername, i.LocalImagePassword, i.Logger, 20)
 	if err != nil {
 		logrus.Errorf("pull image %s error: %s", i.LocalImageName, err.Error())
 		i.Logger.Error(fmt.Sprintf("拉取应用镜像: %s失败", i.LocalImageName), map[string]string{"step": "builder-exector", "status": "failure"})

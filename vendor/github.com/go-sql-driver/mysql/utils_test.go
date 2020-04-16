@@ -10,51 +10,11 @@ package mysql
 
 import (
 	"bytes"
+	"database/sql"
+	"database/sql/driver"
 	"encoding/binary"
-	"fmt"
 	"testing"
-	"time"
 )
-
-func TestScanNullTime(t *testing.T) {
-	var scanTests = []struct {
-		in    interface{}
-		error bool
-		valid bool
-		time  time.Time
-	}{
-		{tDate, false, true, tDate},
-		{sDate, false, true, tDate},
-		{[]byte(sDate), false, true, tDate},
-		{tDateTime, false, true, tDateTime},
-		{sDateTime, false, true, tDateTime},
-		{[]byte(sDateTime), false, true, tDateTime},
-		{tDate0, false, true, tDate0},
-		{sDate0, false, true, tDate0},
-		{[]byte(sDate0), false, true, tDate0},
-		{sDateTime0, false, true, tDate0},
-		{[]byte(sDateTime0), false, true, tDate0},
-		{"", true, false, tDate0},
-		{"1234", true, false, tDate0},
-		{0, true, false, tDate0},
-	}
-
-	var nt = NullTime{}
-	var err error
-
-	for _, tst := range scanTests {
-		err = nt.Scan(tst.in)
-		if (err != nil) != tst.error {
-			t.Errorf("%v: expected error status %t, got %t", tst.in, tst.error, (err != nil))
-		}
-		if nt.Valid != tst.valid {
-			t.Errorf("%v: expected valid status %t, got %t", tst.in, tst.valid, nt.Valid)
-		}
-		if nt.Time != tst.time {
-			t.Errorf("%v: expected time %v, got %v", tst.in, tst.time, nt.Time)
-		}
-	}
-}
 
 func TestLengthEncodedInteger(t *testing.T) {
 	var integerTests = []struct {
@@ -93,25 +53,6 @@ func TestLengthEncodedInteger(t *testing.T) {
 	}
 }
 
-func TestOldPass(t *testing.T) {
-	scramble := []byte{9, 8, 7, 6, 5, 4, 3, 2}
-	vectors := []struct {
-		pass string
-		out  string
-	}{
-		{" pass", "47575c5a435b4251"},
-		{"pass ", "47575c5a435b4251"},
-		{"123\t456", "575c47505b5b5559"},
-		{"C0mpl!ca ted#PASS123", "5d5d554849584a45"},
-	}
-	for _, tuple := range vectors {
-		ours := scrambleOldPassword(scramble, []byte(tuple.pass))
-		if tuple.out != fmt.Sprintf("%x", ours) {
-			t.Errorf("Failed old password %q", tuple.pass)
-		}
-	}
-}
-
 func TestFormatBinaryDateTime(t *testing.T) {
 	rawDate := [11]byte{}
 	binary.LittleEndian.PutUint16(rawDate[:2], 1978)   // years
@@ -122,7 +63,7 @@ func TestFormatBinaryDateTime(t *testing.T) {
 	rawDate[6] = 23                                    // seconds
 	binary.LittleEndian.PutUint32(rawDate[7:], 987654) // microseconds
 	expect := func(expected string, inlen, outlen uint8) {
-		actual, _ := formatBinaryDateTime(rawDate[:inlen], outlen, false)
+		actual, _ := formatBinaryDateTime(rawDate[:inlen], outlen)
 		bytes, ok := actual.([]byte)
 		if !ok {
 			t.Errorf("formatBinaryDateTime must return []byte, was %T", actual)
@@ -130,7 +71,7 @@ func TestFormatBinaryDateTime(t *testing.T) {
 		if string(bytes) != expected {
 			t.Errorf(
 				"expected %q, got %q for length in %d, out %d",
-				bytes, actual, inlen, outlen,
+				expected, actual, inlen, outlen,
 			)
 		}
 	}
@@ -139,6 +80,41 @@ func TestFormatBinaryDateTime(t *testing.T) {
 	expect("1978-12-30", 4, 10)
 	expect("1978-12-30 15:46:23", 7, 19)
 	expect("1978-12-30 15:46:23.987654", 11, 26)
+}
+
+func TestFormatBinaryTime(t *testing.T) {
+	expect := func(expected string, src []byte, outlen uint8) {
+		actual, _ := formatBinaryTime(src, outlen)
+		bytes, ok := actual.([]byte)
+		if !ok {
+			t.Errorf("formatBinaryDateTime must return []byte, was %T", actual)
+		}
+		if string(bytes) != expected {
+			t.Errorf(
+				"expected %q, got %q for src=%q and outlen=%d",
+				expected, actual, src, outlen)
+		}
+	}
+
+	// binary format:
+	// sign (0: positive, 1: negative), days(4), hours, minutes, seconds, micro(4)
+
+	// Zeros
+	expect("00:00:00", []byte{}, 8)
+	expect("00:00:00.0", []byte{}, 10)
+	expect("00:00:00.000000", []byte{}, 15)
+
+	// Without micro(4)
+	expect("12:34:56", []byte{0, 0, 0, 0, 0, 12, 34, 56}, 8)
+	expect("-12:34:56", []byte{1, 0, 0, 0, 0, 12, 34, 56}, 8)
+	expect("12:34:56.00", []byte{0, 0, 0, 0, 0, 12, 34, 56}, 11)
+	expect("24:34:56", []byte{0, 1, 0, 0, 0, 0, 34, 56}, 8)
+	expect("-99:34:56", []byte{1, 4, 0, 0, 0, 3, 34, 56}, 8)
+	expect("103079215103:34:56", []byte{0, 255, 255, 255, 255, 23, 34, 56}, 8)
+
+	// With micro(4)
+	expect("12:34:56.00", []byte{0, 0, 0, 0, 0, 12, 34, 56, 99, 0, 0, 0}, 11)
+	expect("12:34:56.000099", []byte{0, 0, 0, 0, 0, 12, 34, 56, 99, 0, 0, 0}, 15)
 }
 
 func TestEscapeBackslash(t *testing.T) {
@@ -273,5 +249,45 @@ func TestAtomicError(t *testing.T) {
 	}
 	if v := ae.Value(); v != ErrPktSync {
 		t.Fatal("Error did not match")
+	}
+}
+
+func TestIsolationLevelMapping(t *testing.T) {
+	data := []struct {
+		level    driver.IsolationLevel
+		expected string
+	}{
+		{
+			level:    driver.IsolationLevel(sql.LevelReadCommitted),
+			expected: "READ COMMITTED",
+		},
+		{
+			level:    driver.IsolationLevel(sql.LevelRepeatableRead),
+			expected: "REPEATABLE READ",
+		},
+		{
+			level:    driver.IsolationLevel(sql.LevelReadUncommitted),
+			expected: "READ UNCOMMITTED",
+		},
+		{
+			level:    driver.IsolationLevel(sql.LevelSerializable),
+			expected: "SERIALIZABLE",
+		},
+	}
+
+	for i, td := range data {
+		if actual, err := mapIsolationLevel(td.level); actual != td.expected || err != nil {
+			t.Fatal(i, td.expected, actual, err)
+		}
+	}
+
+	// check unsupported mapping
+	expectedErr := "mysql: unsupported isolation level: 7"
+	actual, err := mapIsolationLevel(driver.IsolationLevel(sql.LevelLinearizable))
+	if actual != "" || err == nil {
+		t.Fatal("Expected error on unsupported isolation level")
+	}
+	if err.Error() != expectedErr {
+		t.Fatalf("Expected error to be %q, got %q", expectedErr, err)
 	}
 }

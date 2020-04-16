@@ -25,7 +25,9 @@ import (
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/mysql"
+
+	// import sql driver manually
+	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
 
