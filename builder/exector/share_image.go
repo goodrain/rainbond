@@ -81,7 +81,8 @@ func NewImageShareItem(in []byte, DockerClient *client.Client, EtcdCli *clientv3
 
 //ShareService ShareService
 func (i *ImageShareItem) ShareService() error {
-	_, err := sources.ImagePull(i.DockerClient, i.LocalImageName, i.LocalImageUsername, i.LocalImagePassword, i.Logger, 20)
+	hubuser, hubpass := builder.GetImageUserInfo(i.LocalImageUsername, i.LocalImagePassword)
+	_, err := sources.ImagePull(i.DockerClient, i.LocalImageName, hubuser, hubpass, i.Logger, 20)
 	if err != nil {
 		logrus.Errorf("pull image %s error: %s", i.LocalImageName, err.Error())
 		i.Logger.Error(fmt.Sprintf("拉取应用镜像: %s失败", i.LocalImageName), map[string]string{"step": "builder-exector", "status": "failure"})
