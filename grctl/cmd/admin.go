@@ -39,7 +39,7 @@ func NewCmdAdmin() cli.Command {
 		Usage: "rainbond administrator manage cmd",
 		Subcommands: []cli.Command{
 			{
-				Name:  "reset-admin-password",
+				Name:  "reset-password",
 				Usage: "reset password of rainbond administrator",
 				Flags: []cli.Flag{
 					cli.StringFlag{
@@ -94,23 +94,21 @@ func resetAdminPassword(c *cli.Context) {
 
 func getURL() string {
 	// get openapi service address and port
-	operatorName := "rainbond-operator"
-	svc, err := clients.K8SClient.CoreV1().Services(clients.RainbondNamespace).Get(operatorName, metav1.GetOptions{})
+	services, err := clients.K8SClient.CoreV1().Services(clients.RainbondNamespace).List(metav1.ListOptions{LabelSelector: "key=rainbond-openapi-admin"})
 	if err != nil {
 		showError(fmt.Sprintf("get openapi service failed: %s", err.Error()))
 	}
-
-	if svc == nil {
+	if services == nil || len(services.Items) == 0 {
 		showError("can't found operator svc")
 	}
-
+	svc := services.Items[0]
 	addr := svc.Spec.ClusterIP
-	port := 8080
+	port := 1234
 	if len(svc.Spec.Ports) > 0 {
 		port = int(svc.Spec.Ports[0].Port)
 	}
 	// format url
-	return fmt.Sprintf("http://%s:%d/user/reset-password", addr, port)
+	return fmt.Sprintf("http://%s:%d/admin/reset-password", addr, port)
 
 }
 
