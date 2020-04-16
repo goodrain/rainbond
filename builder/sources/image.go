@@ -365,6 +365,13 @@ func ImageBuild(dockerCli *client.Client, contextDir string, options types.Image
 	if err != nil {
 		return err
 	}
+
+	// pull image runner
+	if _, err := ImagePull(dockerCli, builder.RUNNERIMAGENAME, builder.REGISTRYUSER, builder.REGISTRYPASS, logger, timeout); err != nil {
+		return fmt.Errorf("pull image %s: %v", builder.RUNNERIMAGENAME, err)
+	}
+	logrus.Infof("pull image %s successfully.", builder.RUNNERIMAGENAME)
+
 	rc, err := dockerCli.ImageBuild(ctx, buildCtx, options)
 	if err != nil {
 		return err
