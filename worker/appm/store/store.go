@@ -76,6 +76,8 @@ type Storer interface {
 	GetPodLister() listcorev1.PodLister
 	RegistPodUpdateListener(string, chan<- *corev1.Pod)
 	UnRegistPodUpdateListener(string)
+	RegisterVolumeTypeListener(string, chan<- *model.TenantServiceVolumeType)
+	UnRegisterVolumeTypeListener(string)
 	InitOneThirdPartService(service *model.TenantServices) error
 }
 
@@ -108,19 +110,21 @@ type ProbeInfo struct {
 //appRuntimeStore app runtime store
 //cache all kubernetes object and appservice
 type appRuntimeStore struct {
-	clientset             kubernetes.Interface
-	ctx                   context.Context
-	cancel                context.CancelFunc
-	informers             *Informer
-	listers               *Lister
-	appServices           sync.Map
-	appCount              int32
-	dbmanager             db.Manager
-	conf                  option.Config
-	startCh               *channels.RingChannel
-	stopch                chan struct{}
-	podUpdateListeners    map[string]chan<- *corev1.Pod
-	podUpdateListenerLock sync.Mutex
+	clientset              kubernetes.Interface
+	ctx                    context.Context
+	cancel                 context.CancelFunc
+	informers              *Informer
+	listers                *Lister
+	appServices            sync.Map
+	appCount               int32
+	dbmanager              db.Manager
+	conf                   option.Config
+	startCh                *channels.RingChannel
+	stopch                 chan struct{}
+	podUpdateListeners     map[string]chan<- *corev1.Pod
+	podUpdateListenerLock  sync.Mutex
+	volumeTypeListeners    map[string]chan<- *model.TenantServiceVolumeType
+	volumeTypeListenerLock sync.Mutex
 }
 
 //NewStore new app runtime store
@@ -131,16 +135,17 @@ func NewStore(clientset kubernetes.Interface,
 	probeCh *channels.RingChannel) Storer {
 	ctx, cancel := context.WithCancel(context.Background())
 	store := &appRuntimeStore{
-		clientset:          clientset,
-		ctx:                ctx,
-		cancel:             cancel,
-		informers:          &Informer{},
-		listers:            &Lister{},
-		appServices:        sync.Map{},
-		conf:               conf,
-		dbmanager:          dbmanager,
-		startCh:            startCh,
-		podUpdateListeners: make(map[string]chan<- *corev1.Pod, 1),
+		clientset:           clientset,
+		ctx:                 ctx,
+		cancel:              cancel,
+		informers:           &Informer{},
+		listers:             &Lister{},
+		appServices:         sync.Map{},
+		conf:                conf,
+		dbmanager:           dbmanager,
+		startCh:             startCh,
+		podUpdateListeners:  make(map[string]chan<- *corev1.Pod, 1),
+		volumeTypeListeners: make(map[string]chan<- *model.TenantServiceVolumeType, 1),
 	}
 	// create informers factory, enable and assign required informers
 	infFactory := informers.NewSharedInformerFactoryWithOptions(conf.KubeClient, 10*time.Second,
@@ -591,8 +596,11 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 	}
 	if sc, ok := obj.(*storagev1.StorageClass); ok {
 		vt := workerutil.TransStorageClass2RBDVolumeType(sc)
-		if _, err := db.GetManager().VolumeTypeDao().CreateOrUpdateVolumeType(vt); err != nil {
-			logrus.Errorf("sync storageclass error : %s, ignore it", err.Error())
+		for _, ch := range a.volumeTypeListeners {
+			select {
+			case ch <- vt:
+			default:
+			}
 		}
 	}
 	if claim, ok := obj.(*corev1.PersistentVolumeClaim); ok {
@@ -1308,6 +1316,20 @@ func (a *appRuntimeStore) UnRegistPodUpdateListener(name string) {
 	a.podUpdateListenerLock.Lock()
 	defer a.podUpdateListenerLock.Unlock()
 	delete(a.podUpdateListeners, name)
+}
+
+// RegisterVolumeTypeListener -
+func (a *appRuntimeStore) RegisterVolumeTypeListener(name string, ch chan<- *model.TenantServiceVolumeType) {
+	a.volumeTypeListenerLock.Lock()
+	defer a.volumeTypeListenerLock.Unlock()
+	a.volumeTypeListeners[name] = ch
+}
+
+// UnRegisterVolumeTypeListener -
+func (a *appRuntimeStore) UnRegisterVolumeTypeListener(name string) {
+	a.volumeTypeListenerLock.Lock()
+	defer a.volumeTypeListenerLock.Unlock()
+	delete(a.volumeTypeListeners, name)
 }
 
 func (a *appRuntimeStore) createOrUpdateImagePullSecret(ns string) error {

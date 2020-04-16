@@ -26,6 +26,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
+
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/goodrain/rainbond/cmd/worker/option"
@@ -37,6 +38,7 @@ import (
 	"github.com/goodrain/rainbond/worker/master/volumes/provider"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
 	"github.com/goodrain/rainbond/worker/master/volumes/statistical"
+	"github.com/goodrain/rainbond/worker/master/volumes/sync"
 )
 
 //Controller app runtime master controller
@@ -52,9 +54,10 @@ type Controller struct {
 	pc        *controller.ProvisionController
 	isLeader  bool
 
-	stopCh      chan struct{}
-	podEventChs []chan *corev1.Pod
-	podEvent    *podevent.PodEvent
+	stopCh          chan struct{}
+	podEventChs     []chan *corev1.Pod
+	podEvent        *podevent.PodEvent
+	volumeTypeEvent *sync.VolumeTypeEvent
 }
 
 //NewMasterController new master controller
@@ -101,8 +104,9 @@ func NewMasterController(conf option.Config, store store.Storer) (*Controller, e
 			Name:      "appfs",
 			Help:      "tenant service fs used.",
 		}, []string{"tenant_id", "service_id", "volume_type"}),
-		diskCache: statistical.CreatDiskCache(ctx),
-		podEvent:  podevent.New(conf.KubeClient, stopCh),
+		diskCache:       statistical.CreatDiskCache(ctx),
+		podEvent:        podevent.New(conf.KubeClient, stopCh),
+		volumeTypeEvent: sync.New(stopCh),
 	}, nil
 }
 
@@ -125,6 +129,11 @@ func (m *Controller) Start() error {
 		m.store.RegistPodUpdateListener("podEvent", m.podEvent.GetChan())
 		defer m.store.UnRegistPodUpdateListener("podEvent")
 		go m.podEvent.Handle()
+
+		m.store.RegisterVolumeTypeListener("volumeTypeEvent", m.volumeTypeEvent.GetChan())
+		defer m.store.UnRegisterVolumeTypeListener("volumeTypeEvent")
+		go m.volumeTypeEvent.Handle()
+
 		select {
 		case <-ctx.Done():
 		case <-m.ctx.Done():
