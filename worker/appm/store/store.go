@@ -596,11 +596,9 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 	}
 	if sc, ok := obj.(*storagev1.StorageClass); ok {
 		vt := workerutil.TransStorageClass2RBDVolumeType(sc)
-		logrus.Debugf("get new storage, create or update it: %s, name_show is: %s", vt.VolumeType, vt.NameShow)
 		for _, ch := range a.volumeTypeListeners {
 			select {
 			case ch <- vt:
-				logrus.Infof("push new storage[%s] into handle channel success", vt.VolumeType)
 			default:
 			}
 		}

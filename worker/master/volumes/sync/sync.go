@@ -2,7 +2,6 @@ package sync
 
 import (
 	"github.com/Sirupsen/logrus"
-
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 )
@@ -33,25 +32,9 @@ func (e *VolumeTypeEvent) Handle() {
 		case <-e.stopCh:
 			return
 		case vt := <-e.vtEventCh:
-			createOrUpdate(vt)
+			if _, err := db.GetManager().VolumeTypeDao().CreateOrUpdateVolumeType(vt); err != nil {
+				logrus.Errorf("sync storageClass error : %s, ignore it", err.Error())
+			}
 		}
-	}
-}
-
-func createOrUpdate(vt *model.TenantServiceVolumeType) {
-	tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
-		}
-	}()
-
-	if _, err := db.GetManager().VolumeTypeDao().CreateOrUpdateVolumeType(vt); err != nil {
-		logrus.Errorf("sync storageclass error : %s, ignore it", err.Error())
-		tx.Rollback()
-	}
-	if err := tx.Commit().Error; err != nil {
-		logrus.Errorf("commit sync storage class error: %s", err.Error())
 	}
 }
