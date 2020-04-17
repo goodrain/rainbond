@@ -93,10 +93,11 @@ func (i *ImageShareItem) ShareService() error {
 		i.Logger.Error(fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.LocalImageName, i.ImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
+	user, pass := builder.GetImageUserInfo(i.ShareInfo.ImageInfo.HubUser, i.ShareInfo.ImageInfo.HubPassword)
 	if i.ShareInfo.ImageInfo.IsTrust {
-		err = sources.TrustedImagePush(i.DockerClient, i.ImageName, i.ShareInfo.ImageInfo.HubUser, i.ShareInfo.ImageInfo.HubPassword, i.Logger, 30)
+		err = sources.TrustedImagePush(i.DockerClient, i.ImageName, user, pass, i.Logger, 30)
 	} else {
-		err = sources.ImagePush(i.DockerClient, i.ImageName, i.ShareInfo.ImageInfo.HubUser, i.ShareInfo.ImageInfo.HubPassword, i.Logger, 30)
+		err = sources.ImagePush(i.DockerClient, i.ImageName, user, pass, i.Logger, 30)
 	}
 	if err != nil {
 		if err.Error() == "authentication required" {

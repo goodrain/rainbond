@@ -73,7 +73,8 @@ func NewImageBuildItem(in []byte) *ImageBuildItem {
 
 //Run Run
 func (i *ImageBuildItem) Run(timeout time.Duration) error {
-	_, err := sources.ImagePull(i.DockerClient, i.Image, i.HubUser, i.HubPassword, i.Logger, 30)
+	user, password := builder.GetImageUserInfo(i.HubUser, i.HubPassword)
+	_, err := sources.ImagePull(i.DockerClient, i.Image, user, password, i.Logger, 30)
 	if err != nil {
 		logrus.Errorf("pull image %s error: %s", i.Image, err.Error())
 		i.Logger.Error(fmt.Sprintf("获取指定镜像: %s失败", i.Image), map[string]string{"step": "builder-exector", "status": "failure"})
