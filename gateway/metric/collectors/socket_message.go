@@ -207,7 +207,7 @@ func (sc *SocketCollector) handleMessage(msg []byte) {
 	}
 	for _, stats := range statsBatch {
 		if !sc.hosts.HasAny(stats.Host, "tls"+stats.Host) {
-			logrus.Infof("skiping metric for host %v that is not being served", stats.Host)
+			logrus.Debugf("skiping metric for host %v that is not being served", stats.Host)
 			continue
 		}
 		// Note these must match the order in requestTags at the top
