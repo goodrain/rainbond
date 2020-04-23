@@ -128,6 +128,7 @@ type StreamLog struct {
 	intervalSendMicrosecondTime    int64
 	minIntervalSendMicrosecondTime int64
 	closedChan                     chan struct{}
+	once                           sync.Once
 }
 
 //New new logger
@@ -355,8 +356,10 @@ func (s *StreamLog) reConect() {
 func (s *StreamLog) Close() error {
 	s.cancel()
 	<-s.closedChan
-	s.writer.Close()
-	close(s.cacheQueue)
+	s.once.Do(func() {
+		s.writer.Close()
+		close(s.cacheQueue)
+	})
 	return nil
 }
 
