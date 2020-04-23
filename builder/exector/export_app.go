@@ -255,8 +255,7 @@ func (i *ExportApp) exportImage(serviceDir string, app gjson.Result) error {
 	os.MkdirAll(serviceDir, 0755)
 	image := app.Get("share_image").String()
 	tarFileName := buildToLinuxFileName(image)
-	user := app.Get("service_image.hub_user").String()
-	pass := app.Get("service_image.hub_password").String()
+	user, pass := builder.GetImageUserInfo(app.Get("service_image.hub_user").String(), app.Get("service_image.hub_password").String())
 	// ignore runner image
 	if checkIsRunner(image) {
 		logrus.Debug("Skip the runner image: ", image)
@@ -353,8 +352,7 @@ func (i *ExportApp) savePlugins() error {
 		os.MkdirAll(pluginDir, 0755)
 		image := plugin.Get("share_image").String()
 		tarFileName := buildToLinuxFileName(image)
-		user := plugin.Get("plugin_image.hub_user").String()
-		pass := plugin.Get("plugin_image.hub_password").String()
+		user, pass := builder.GetImageUserInfo(plugin.Get("plugin_image.hub_user").String(), plugin.Get("plugin_image.hub_password").String())
 		// docker pull image-name
 		_, err := sources.ImagePull(i.DockerClient, image, user, pass, i.Logger, 15)
 		if err != nil {
