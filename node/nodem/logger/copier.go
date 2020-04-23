@@ -92,5 +92,22 @@ func (c *Copier) Close() {
 			}
 		}
 	}
+	// if channel closed, return
+	if isClosed(c.closed) {
+		return
+	}
+	// if channel is not closed do close
 	close(c.closed)
+}
+
+func isClosed(ch <-chan struct{}) bool {
+	select {
+	case _, ok := <-ch:
+		if !ok { // if not ok, means channel is closed
+			return true
+		}
+	default:
+	}
+
+	return false
 }

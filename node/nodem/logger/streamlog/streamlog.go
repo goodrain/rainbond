@@ -367,8 +367,10 @@ func (s *StreamLog) Close() error {
 
 func isClosed(ch <-chan string) bool {
 	select {
-	case <-ch:
-		return true
+	case _, ok := <-ch:
+		if !ok { // if not ok, means channel is closed
+			return true
+		}
 	default:
 	}
 
