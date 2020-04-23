@@ -61,6 +61,10 @@ func CreateTCPListener(name, clusterName, address, statPrefix string, port uint3
 			Cluster: clusterName,
 		},
 	}
+	if err := tcpProxy.Validate(); err != nil {
+		logrus.Errorf("validate listener tcp proxy config failure %s", err.Error())
+		return nil
+	}
 	listener := &apiv2.Listener{
 		Name:    name,
 		Address: CreateSocketAddress("tcp", address, port),
@@ -92,6 +96,10 @@ func CreateUDPListener(name, clusterName, address, statPrefix string, port uint3
 		RouteSpecifier: &envoy_config_filter_udp_udp_proxy_v2alpha.UdpProxyConfig_Cluster{
 			Cluster: clusterName,
 		},
+	}
+	if err := config.Validate(); err != nil {
+		logrus.Errorf("validate listener udp config failure %s", err.Error())
+		return nil
 	}
 	anyConfig, err := ptypes.MarshalAny(config)
 	if err != nil {
