@@ -356,8 +356,23 @@ func (s *StreamLog) Close() error {
 	s.cancel()
 	<-s.closedChan
 	s.writer.Close()
+	// if channel closed, return
+	if isClosed(s.cacheQueue) {
+		return nil
+	}
+	// if channel is not closed do close
 	close(s.cacheQueue)
 	return nil
+}
+
+func isClosed(ch <-chan string) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+	}
+
+	return false
 }
 
 //Name 返回logger name
