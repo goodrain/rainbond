@@ -298,8 +298,7 @@ func (a *AppService) SetServices(svcs []*corev1.Service) {
 //GetServices get services
 func (a *AppService) GetServices(canCopy bool) []*corev1.Service {
 	if canCopy {
-		cr := make([]*corev1.Service, len(a.services))
-		copy(cr, a.services[0:])
+		return append(a.services[:0:0], a.services...)
 	}
 	return a.services
 }
@@ -335,8 +334,7 @@ func (a *AppService) AddEndpoints(ep *corev1.Endpoints) {
 // GetEndpoints returns endpoints in AppService
 func (a *AppService) GetEndpoints(canCopy bool) []*corev1.Endpoints {
 	if canCopy {
-		cr := make([]*corev1.Endpoints, len(a.endpoints))
-		copy(cr, a.endpoints[0:])
+		return append(a.endpoints[:0:0], a.endpoints...)
 	}
 	return a.endpoints
 }
@@ -464,8 +462,7 @@ func (a *AppService) DeleteSecrets(d *corev1.Secret) {
 //GetSecrets get secrets
 func (a *AppService) GetSecrets(canCopy bool) []*corev1.Secret {
 	if canCopy {
-		cr := make([]*corev1.Secret, len(a.secrets))
-		copy(cr, a.secrets[0:])
+		return append(a.secrets[:0:0], a.secrets...)
 	}
 	return a.secrets
 }
@@ -501,8 +498,7 @@ func (a *AppService) DeletePods(d *corev1.Pod) {
 //GetPods get pods
 func (a *AppService) GetPods(canCopy bool) []*corev1.Pod {
 	if canCopy {
-		cr := make([]*corev1.Pod, len(a.pods))
-		copy(cr, a.pods[0:])
+		return append(a.pods[:0:0], a.pods...)
 	}
 	return a.pods
 }
