@@ -398,6 +398,8 @@ func (s *ServiceAction) ServiceHorizontal(hs *model.HorizontalScalingTaskBody) e
 		logrus.Errorf("get service by id %s error, %s", service.ServiceID, err)
 		return err
 	}
+	// for rollback database
+	oldReplicas := service.Replicas
 	if int32(service.Replicas) == hs.Replicas {
 		return nil
 	}
@@ -407,17 +409,30 @@ func (s *ServiceAction) ServiceHorizontal(hs *model.HorizontalScalingTaskBody) e
 		logrus.Errorf("updtae service replicas failure. %v", err)
 		return fmt.Errorf("horizontal service faliure:%s", err.Error())
 	}
-	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
-		TaskType: "horizontal_scaling",
-		TaskBody: hs,
-		Topic:    gclient.WorkerTopic,
-	})
-	if err != nil {
-		logrus.Errorf("equque mq error, %v", err)
+
+	for i := 3; i > 0; i-- {
+		err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+			TaskType: "horizontal_scaling",
+			TaskBody: hs,
+			Topic:    gclient.WorkerTopic,
+		})
+		// if send task success, return nil
+		if err == nil {
+			logrus.Debugf("enqueue mq horizontal task success")
+			return nil
+		}
+		logrus.Errorf("enqueue mq error, %v, retry", err)
+	}
+	logrus.Warning("send task failed 3 times")
+
+	// retry 3 times, can't send task, rollback db
+	service.Replicas = oldReplicas
+	if err := db.GetManager().TenantServiceDao().UpdateModel(service); err != nil {
+		logrus.Errorf("rollback service[%s] replicas to %d failed: %s", hs.ServiceID, oldReplicas, err.Error())
 		return err
 	}
-	logrus.Debugf("equeue mq horizontal task success")
-	return nil
+
+	return fmt.Errorf("send horizontal_scaling task failed")
 }
 
 //ServiceUpgrade service upgrade
