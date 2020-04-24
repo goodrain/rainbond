@@ -21,6 +21,7 @@ package conversion
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -454,6 +455,7 @@ func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *co
 		"service_type":  "inner",
 		"name":          a.service.ServiceAlias + "Service",
 		"port_protocol": port.Protocol,
+		"service_port":  strconv.Itoa(port.ContainerPort),
 		"version":       a.service.DeployVersion,
 	})
 	if a.service.Replicas <= 1 {
@@ -491,6 +493,7 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 		"tenant_name":   a.tenant.Name,
 		"protocol":      port.Protocol,
 		"port_protocol": port.Protocol,
+		"service_port":  strconv.Itoa(port.ContainerPort),
 		"event_id":      a.eventID,
 		"version":       a.service.DeployVersion,
 	})

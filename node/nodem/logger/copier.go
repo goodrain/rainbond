@@ -19,6 +19,7 @@
 package logger
 
 import (
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -37,6 +38,7 @@ type Copier struct {
 	closed  chan struct{}
 	reader  *LogWatcher
 	since   time.Time
+	once    sync.Once
 }
 
 // NewCopier creates a new Copier
@@ -85,12 +87,14 @@ lool:
 
 // Close closes the copier
 func (c *Copier) Close() {
-	if c.dst != nil {
-		for _, d := range c.dst {
-			if err := d.Close(); err != nil {
-				logrus.Errorf("close log driver failure %s", err.Error())
+	c.once.Do(func() {
+		if c.dst != nil {
+			for _, d := range c.dst {
+				if err := d.Close(); err != nil {
+					logrus.Errorf("close log driver failure %s", err.Error())
+				}
 			}
 		}
-	}
-	close(c.closed)
+		close(c.closed)
+	})
 }
