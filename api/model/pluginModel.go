@@ -218,11 +218,11 @@ type BuildPluginStruct struct {
 		// in: body
 		// required: false
 		RepoURL string `json:"repo_url" validate:"repo_url"`
-		// git 账户名
+		// git username
 		// in: body
 		// required: false
 		Username string `json:"username"`
-		// git 密码
+		// git password
 		// in: body
 		// required: false
 		Password string `json:"password"`

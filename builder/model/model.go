@@ -26,8 +26,8 @@ type BuildPluginTaskBody struct {
 	Operator      string `json:"operator"`
 	Repo          string `json:"repo"`
 	GitURL        string `json:"git_url"`
-	GitUsername string `json:"git_username"`
-	GitPassword string `json:"git_password"`
+	GitUsername   string `json:"git_username"`
+	GitPassword   string `json:"git_password"`
 	ImageURL      string `json:"image_url"`
 	EventID       string `json:"event_id"`
 	DeployVersion string `json:"deploy_version"`
