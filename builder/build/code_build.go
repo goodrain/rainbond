@@ -349,7 +349,9 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	s.setImagePullSecretsForPod(&job)
 	writer := re.Logger.GetWriter("builder", "info")
 	reChan := channels.NewRingChannel(10)
-	err = jobc.GetJobController().ExecJob(&job, writer, reChan)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	err = jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
 	if err != nil {
 		logrus.Errorf("create new job:%s failed: %s", name, err.Error())
 		return err
@@ -511,7 +513,7 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 	return nil
 }
 
-func (s *slugBuild) setImagePullSecretsForPod(pod *corev1.Pod)  {
+func (s *slugBuild) setImagePullSecretsForPod(pod *corev1.Pod) {
 	imagePullSecretName := os.Getenv("IMAGE_PULL_SECRET")
 	if imagePullSecretName == "" {
 		return
