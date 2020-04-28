@@ -2,7 +2,7 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/goodrain/rainbond)](https://goreportcard.com/report/github.com/goodrain/rainbond)
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-![Rainbond version](https://img.shields.io/badge/version-v5.1-brightgreen.svg)
+![Rainbond version](https://img.shields.io/badge/version-v5.2-brightgreen.svg)
 [![Build Status](https://travis-ci.org/goodrain/rainbond.svg?branch=master)](https://travis-ci.org/goodrain/rainbond)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
@@ -87,10 +87,9 @@ Rainbond完成与龙芯、飞腾、麒麟操作系统等为代表的国产化计
 
    * [Rainbond-Console](https://github.com/goodrain/rainbond-console) Rainbond控制台服务端项目
    * [Rainbond-Console-UI](https://github.com/goodrain/rainbond-ui) Rainbond控制台前端项目
-   * [Rainbond-Ansible](https://github.com/goodrain/rainbond-ansible) Rainbond安装工具项目
+   * [Rainbond-Operator](https://github.com/goodrain/rainbond-operator) Rainbond安装运维项目
    * [Rainbond-Builder](https://github.com/goodrain/builder) Rainbond源码构建工具集
    * [Rainbond-Docs](https://github.com/goodrain/rainbond-docs) Rainbond文档
-   * Rainbond-Resource/UI (企业版)
 
 ## License
 
