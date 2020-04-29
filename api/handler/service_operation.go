@@ -223,6 +223,11 @@ func (o *OperationHandler) Upgrade(ru model.UpgradeInfoRequestStruct) (re Operat
 		re.ErrMsg = fmt.Sprintf("get service %s version %s failure", ru.ServiceID, ru.UpgradeVersion)
 		return
 	}
+	oldDeployVersion := services.DeployVersion
+	var rollback = func() {
+		services.DeployVersion = oldDeployVersion
+		_ = db.GetManager().TenantServiceDao().UpdateModel(services)
+	}
 	if version.FinalStatus != "success" {
 		logrus.Warnf("deploy version %s is not build success,can not change deploy version in this upgrade event", ru.UpgradeVersion)
 	} else {
@@ -246,6 +251,7 @@ func (o *OperationHandler) Upgrade(ru model.UpgradeInfoRequestStruct) (re Operat
 		Topic:    gclient.WorkerTopic,
 	})
 	if err != nil {
+		rollback()
 		logrus.Errorf("equque upgrade message error, %v", err)
 		re.ErrMsg = fmt.Sprintf("send service %s upgrade message failure", ru.ServiceID)
 		return
@@ -270,6 +276,11 @@ func (o *OperationHandler) RollBack(rollback model.RollbackInfoRequestStruct) (r
 		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", rollback.ServiceID)
 		return
 	}
+	oldDeployVersion := service.DeployVersion
+	var rollbackFunc = func() {
+		service.DeployVersion = oldDeployVersion
+		_ = db.GetManager().TenantServiceDao().UpdateModel(service)
+	}
 
 	if service.DeployVersion == rollback.RollBackVersion {
 		logrus.Warningf("rollback version is same of current version")
@@ -291,6 +302,7 @@ func (o *OperationHandler) RollBack(rollback model.RollbackInfoRequestStruct) (r
 		Topic:    gclient.WorkerTopic,
 	})
 	if err != nil {
+		rollbackFunc()
 		logrus.Errorf("equque rollback message error, %v", err)
 		re.ErrMsg = fmt.Sprintf("send service %s rollback message failure", rollback.ServiceID)
 		return

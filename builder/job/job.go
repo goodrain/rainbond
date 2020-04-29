@@ -39,7 +39,7 @@ import (
 
 //Controller build job controller
 type Controller interface {
-	ExecJob(job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error
+	ExecJob(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error
 	GetJob(string) (*corev1.Pod, error)
 	GetServiceJobs(serviceID string) ([]*corev1.Pod, error)
 	DeleteJob(job string)
@@ -132,9 +132,9 @@ func (c *controller) GetServiceJobs(serviceID string) ([]*corev1.Pod, error) {
 	return jobs, nil
 }
 
-func (c *controller) ExecJob(job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error {
+func (c *controller) ExecJob(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error {
 	if j, _ := c.GetJob(job.Name); j != nil {
-		go c.getLogger(job.Name, logger, result)
+		go c.getLogger(ctx, job.Name, logger, result)
 		c.subJobStatus.Store(job.Name, result)
 		return nil
 	}
@@ -142,7 +142,7 @@ func (c *controller) ExecJob(job *corev1.Pod, logger io.Writer, result *channels
 	if err != nil {
 		return err
 	}
-	go c.getLogger(job.Name, logger, result)
+	go c.getLogger(ctx, job.Name, logger, result)
 	c.subJobStatus.Store(job.Name, result)
 	return nil
 }
@@ -155,30 +155,35 @@ func (c *controller) Start(stop chan struct{}) error {
 	return nil
 }
 
-func (c *controller) getLogger(job string, writer io.Writer, result *channels.RingChannel) {
+func (c *controller) getLogger(ctx context.Context, job string, writer io.Writer, result *channels.RingChannel) {
 	defer func() {
 		result.In() <- "logcomplete"
 	}()
 	for {
-		podLogRequest := c.KubeClient.CoreV1().Pods(c.namespace).GetLogs(job, &corev1.PodLogOptions{Follow: true})
-		reader, err := podLogRequest.Stream()
-		if err != nil {
-			logrus.Warnf("get build job pod log data error: %s, retry net loop", err.Error())
-			time.Sleep(time.Second * 3)
-			continue
-		}
-		defer reader.Close()
-		bufReader := bufio.NewReader(reader)
-		for {
-			line, err := bufReader.ReadBytes('\n')
-			if err == io.EOF {
-				return
-			}
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			podLogRequest := c.KubeClient.CoreV1().Pods(c.namespace).GetLogs(job, &corev1.PodLogOptions{Follow: true})
+			reader, err := podLogRequest.Stream()
 			if err != nil {
-				logrus.Warningf("get job log error: %s", err.Error())
-				return
+				logrus.Warnf("get build job pod log data error: %s, retry net loop", err.Error())
+				time.Sleep(time.Second * 3)
+				continue
 			}
-			writer.Write(line)
+			defer reader.Close()
+			bufReader := bufio.NewReader(reader)
+			for {
+				line, err := bufReader.ReadBytes('\n')
+				if err == io.EOF {
+					return
+				}
+				if err != nil {
+					logrus.Warningf("get job log error: %s", err.Error())
+					return
+				}
+				writer.Write(line)
+			}
 		}
 	}
 }
