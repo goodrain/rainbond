@@ -175,7 +175,7 @@ func (c *controller) getLogger(ctx context.Context, job string, writer io.Writer
 	for {
 		select {
 		case <-ctx.Done():
-			logrus.Warnf("job[%s] task is done, exit get log func", job)
+			logrus.Debugf("job[%s] task is done, exit get log func", job)
 			return
 		case <-jobContainerCh:
 			logrus.Debugf("job[%s] container is ready, start get log stream", job)
