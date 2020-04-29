@@ -45,11 +45,12 @@ type Controller interface {
 	DeleteJob(job string)
 }
 type controller struct {
-	KubeClient   kubernetes.Interface
-	ctx          context.Context
-	jobInformer  v1.PodInformer
-	namespace    string
-	subJobStatus sync.Map
+	KubeClient         kubernetes.Interface
+	ctx                context.Context
+	jobInformer        v1.PodInformer
+	namespace          string
+	subJobStatus       sync.Map
+	jobContainerStatus sync.Map
 }
 
 var jobController *controller
@@ -96,6 +97,14 @@ func InitJobController(stop chan struct{}, kubeClient kubernetes.Interface) erro
 					if val, exist := jobController.subJobStatus.Load(job.Name); exist {
 						ch := val.(*channels.RingChannel)
 						ch.In() <- "failed"
+					}
+				}
+				running := buildContainer.State.Running
+				if running != nil {
+					// job container is ready
+					logrus.Debugf("job[%s] container is ready", job.Name)
+					if _, exist := jobController.jobContainerStatus.Load(job.Name); !exist {
+						jobController.jobContainerStatus.Store(job.Name, struct{}{})
 					}
 				}
 				logrus.Infof("job %s container %s state %+v", job.Name, buildContainer.Name, buildContainer.State)
@@ -157,13 +166,22 @@ func (c *controller) Start(stop chan struct{}) error {
 
 func (c *controller) getLogger(ctx context.Context, job string, writer io.Writer, result *channels.RingChannel) {
 	defer func() {
+		logrus.Infof("job[%s] get log complete", job)
 		result.In() <- "logcomplete"
 	}()
 	for {
 		select {
 		case <-ctx.Done():
+			logrus.Warnf("job[%s] task is done, exit get log func", job)
 			return
 		default:
+			// wait job container ready
+			if _, exists := c.jobContainerStatus.Load(job); !exists {
+				logrus.Debugf("job[%s] container is not ready, wait 3s", job)
+				time.Sleep(time.Second * 3)
+				continue
+			}
+			logrus.Debugf("job[%s] container is ready, start get log stream", job)
 			podLogRequest := c.KubeClient.CoreV1().Pods(c.namespace).GetLogs(job, &corev1.PodLogOptions{Follow: true})
 			reader, err := podLogRequest.Stream()
 			if err != nil {
@@ -171,11 +189,13 @@ func (c *controller) getLogger(ctx context.Context, job string, writer io.Writer
 				time.Sleep(time.Second * 3)
 				continue
 			}
+			logrus.Debugf("get job[%s] log stream successfully, ready for reading log", job)
 			defer reader.Close()
 			bufReader := bufio.NewReader(reader)
 			for {
 				line, err := bufReader.ReadBytes('\n')
 				if err == io.EOF {
+					logrus.Debugf("job[%s] get log eof", job)
 					return
 				}
 				if err != nil {
@@ -198,5 +218,6 @@ func (c *controller) DeleteJob(job string) {
 		}
 	}
 	c.subJobStatus.Delete(job)
+	c.jobContainerStatus.Delete(job)
 	logrus.Infof("delete job %s finish", job)
 }
