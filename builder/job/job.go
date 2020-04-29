@@ -99,12 +99,12 @@ func InitJobController(stop chan struct{}, kubeClient kubernetes.Interface) erro
 						ch.In() <- "failed"
 					}
 				}
-				running := buildContainer.State.Running
-				if running != nil {
+				if buildContainer.State.Running != nil {
 					// job container is ready
 					logrus.Debugf("job[%s] container is ready", job.Name)
-					if _, exist := jobController.jobContainerStatus.Load(job.Name); !exist {
-						jobController.jobContainerStatus.Store(job.Name, struct{}{})
+					if val, exist := jobController.jobContainerStatus.Load(job.Name); exist {
+						jobContainerCh := val.(chan struct{})
+						jobContainerCh <- struct{}{}
 					}
 				}
 				logrus.Infof("job %s container %s state %+v", job.Name, buildContainer.Name, buildContainer.State)
@@ -142,8 +142,11 @@ func (c *controller) GetServiceJobs(serviceID string) ([]*corev1.Pod, error) {
 }
 
 func (c *controller) ExecJob(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error {
+	// one job, one job container channel
+	jobContainerCh := make(chan struct{})
+	c.jobContainerStatus.Store(job.Name, jobContainerCh)
 	if j, _ := c.GetJob(job.Name); j != nil {
-		go c.getLogger(ctx, job.Name, logger, result)
+		go c.getLogger(ctx, job.Name, logger, result, jobContainerCh)
 		c.subJobStatus.Store(job.Name, result)
 		return nil
 	}
@@ -151,7 +154,7 @@ func (c *controller) ExecJob(ctx context.Context, job *corev1.Pod, logger io.Wri
 	if err != nil {
 		return err
 	}
-	go c.getLogger(ctx, job.Name, logger, result)
+	go c.getLogger(ctx, job.Name, logger, result, jobContainerCh)
 	c.subJobStatus.Store(job.Name, result)
 	return nil
 }
@@ -164,7 +167,7 @@ func (c *controller) Start(stop chan struct{}) error {
 	return nil
 }
 
-func (c *controller) getLogger(ctx context.Context, job string, writer io.Writer, result *channels.RingChannel) {
+func (c *controller) getLogger(ctx context.Context, job string, writer io.Writer, result *channels.RingChannel, jobContainerCh chan struct{}) {
 	defer func() {
 		logrus.Infof("job[%s] get log complete", job)
 		result.In() <- "logcomplete"
@@ -174,13 +177,7 @@ func (c *controller) getLogger(ctx context.Context, job string, writer io.Writer
 		case <-ctx.Done():
 			logrus.Warnf("job[%s] task is done, exit get log func", job)
 			return
-		default:
-			// wait job container ready
-			if _, exists := c.jobContainerStatus.Load(job); !exists {
-				logrus.Debugf("job[%s] container is not ready, wait 3s", job)
-				time.Sleep(time.Second * 3)
-				continue
-			}
+		case <-jobContainerCh:
 			logrus.Debugf("job[%s] container is ready, start get log stream", job)
 			podLogRequest := c.KubeClient.CoreV1().Pods(c.namespace).GetLogs(job, &corev1.PodLogOptions{Follow: true})
 			reader, err := podLogRequest.Stream()
