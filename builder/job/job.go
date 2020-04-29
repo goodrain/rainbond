@@ -99,6 +99,13 @@ func InitJobController(stop chan struct{}, kubeClient kubernetes.Interface) erro
 						ch.In() <- "failed"
 					}
 				}
+				if terminated != nil {
+					logrus.Debugf("job[%s] container is ready", job.Name)
+					if val, exist := jobController.jobContainerStatus.Load(job.Name); exist {
+						jobContainerCh := val.(chan struct{})
+						jobContainerCh <- struct{}{}
+					}
+				}
 				if buildContainer.State.Running != nil {
 					// job container is ready
 					logrus.Debugf("job[%s] container is ready", job.Name)
@@ -172,35 +179,39 @@ func (c *controller) getLogger(ctx context.Context, job string, writer io.Writer
 		logrus.Infof("job[%s] get log complete", job)
 		result.In() <- "logcomplete"
 	}()
+	once := sync.Once{}
 	for {
 		select {
 		case <-ctx.Done():
 			logrus.Debugf("job[%s] task is done, exit get log func", job)
 			return
 		case <-jobContainerCh:
-			logrus.Debugf("job[%s] container is ready, start get log stream", job)
-			podLogRequest := c.KubeClient.CoreV1().Pods(c.namespace).GetLogs(job, &corev1.PodLogOptions{Follow: true})
-			reader, err := podLogRequest.Stream()
-			if err != nil {
-				logrus.Warnf("get build job pod log data error: %s, retry net loop", err.Error())
-				time.Sleep(time.Second * 3)
-				continue
-			}
-			logrus.Debugf("get job[%s] log stream successfully, ready for reading log", job)
-			defer reader.Close()
-			bufReader := bufio.NewReader(reader)
-			for {
-				line, err := bufReader.ReadBytes('\n')
-				if err == io.EOF {
-					logrus.Debugf("job[%s] get log eof", job)
-					return
-				}
+			// get log only do once
+			once.Do(func() {
+				logrus.Debugf("job[%s] container is ready, start get log stream", job)
+				podLogRequest := c.KubeClient.CoreV1().Pods(c.namespace).GetLogs(job, &corev1.PodLogOptions{Follow: true})
+				reader, err := podLogRequest.Stream()
 				if err != nil {
-					logrus.Warningf("get job log error: %s", err.Error())
+					logrus.Warnf("get build job pod log data error: %s", err.Error())
 					return
 				}
-				writer.Write(line)
-			}
+				logrus.Debugf("get job[%s] log stream successfully, ready for reading log", job)
+				defer reader.Close()
+				bufReader := bufio.NewReader(reader)
+				for {
+					line, err := bufReader.ReadBytes('\n')
+					if err == io.EOF {
+						logrus.Debugf("job[%s] get log eof", job)
+						return
+					}
+					if err != nil {
+						logrus.Warningf("get job log error: %s", err.Error())
+						return
+					}
+					writer.Write(line)
+				}
+			})
+			return
 		}
 	}
 }
