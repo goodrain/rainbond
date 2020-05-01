@@ -299,7 +299,21 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			},
 		},
 	}
+
 	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
+	// schedule builder
+	if re.BuilderInNode != "" {
+		logrus.Debugf("builder schedule to node: %s", re.BuilderInNode)
+		podSpec.NodeSelector = map[string]string{
+			"kubernetes.io/hostname": re.BuilderInNode,
+		}
+		podSpec.Tolerations = []corev1.Toleration{
+			{
+				Operator: "Exists",
+			},
+		}
+	}
+	logrus.Debugf("request is: %+v", re)
 	podSpec.Volumes = []corev1.Volume{
 		{
 			Name: "slug",
@@ -310,18 +324,16 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			},
 		},
 		{
-			Name: "app",
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: s.re.CachePVCName,
-				},
-			},
+			Name:         "app",
+			VolumeSource: re.CacheVolumeSource(),
 		},
 	}
+
 	container := corev1.Container{Name: name, Image: builder.BUILDERIMAGENAME, Stdin: true, StdinOnce: true}
 	container.Env = envs
 	container.Args = []string{"local"}
 	slugSubPath := strings.TrimPrefix(re.TGZDir, "/grdata/")
+	logrus.Debugf("sourceTarFileName is: %s", sourceTarFileName)
 	sourceTarPath := strings.TrimPrefix(sourceTarFileName, "/cache/")
 	cacheSubPath := strings.TrimPrefix(re.CacheDir, "/cache/")
 	container.VolumeMounts = []corev1.VolumeMount{
