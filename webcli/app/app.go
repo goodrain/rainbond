@@ -105,10 +105,11 @@ var DefaultOptions = Options{
 
 //InitMessage -
 type InitMessage struct {
-	TenantID  string `json:"T_id"`
-	ServiceID string `json:"S_id"`
-	PodName   string `json:"C_id"`
-	Md5       string `json:"Md5"`
+	TenantID      string `json:"T_id"`
+	ServiceID     string `json:"S_id"`
+	PodName       string `json:"C_id"`
+	ContainerName string `json:"containerName"`
+	Md5           string `json:"Md5"`
 }
 
 func checkSameOrigin(r *http.Request) bool {
@@ -232,7 +233,7 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// base kubernetes api create exec slave
-	containerName, args, err := app.GetDefaultContainerName(init.TenantID, init.PodName)
+	containerName, ip, args, err := app.GetContainerArgs(init.TenantID, init.PodName, init.ContainerName)
 	if err != nil {
 		logrus.Errorf("get default container failure %s", err.Error())
 		conn.WriteMessage(websocket.TextMessage, []byte("Get default container name failure!"))
@@ -250,7 +251,7 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer slave.Close()
 	opts := []webtty.Option{
-		webtty.WithWindowTitle([]byte(init.PodName)),
+		webtty.WithWindowTitle([]byte(ip)),
 		webtty.WithReconnect(10),
 		webtty.WithPermitWrite(),
 	}
@@ -316,26 +317,28 @@ func SetConfigDefaults(config *rest.Config) error {
 	return nil
 }
 
-//GetDefaultContainerName get default container name
-func (app *App) GetDefaultContainerName(namespace, podname string) (string, []string, error) {
+//GetContainerArgs get default container name
+func (app *App) GetContainerArgs(namespace, podname, containerName string) (string, string, []string, error) {
 	var args = []string{"/bin/sh"}
 	pod, err := app.coreClient.CoreV1().Pods(namespace).Get(podname, metav1.GetOptions{})
 	if err != nil {
-		return "", args, err
+		return "", "", args, err
 	}
 
 	if pod.Status.Phase == api.PodSucceeded || pod.Status.Phase == api.PodFailed {
-		return "", args, fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
+		return "", "", args, fmt.Errorf("cannot exec into a container in a completed pod; current phase is %s", pod.Status.Phase)
 	}
-	if len(pod.Spec.Containers) > 0 {
-		for _, env := range pod.Spec.Containers[0].Env {
-			if env.Name == "ES_DEFAULT_EXEC_ARGS" {
-				args = strings.Split(env.Value, " ")
+	for i, container := range pod.Spec.Containers {
+		if container.Name == containerName || (containerName == "" && i == 0) {
+			for _, env := range container.Env {
+				if env.Name == "ES_DEFAULT_EXEC_ARGS" {
+					args = strings.Split(env.Value, " ")
+				}
 			}
+			return container.Name, pod.Status.PodIP, args, nil
 		}
-		return pod.Spec.Containers[0].Name, args, nil
 	}
-	return "", args, fmt.Errorf("not have container in pod %s/%s", namespace, podname)
+	return "", "", args, fmt.Errorf("not have container in pod %s/%s", namespace, podname)
 }
 
 //NewRequest new exec request
