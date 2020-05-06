@@ -104,14 +104,14 @@ func InitJobController(stop chan struct{}, kubeClient kubernetes.Interface) erro
 					logrus.Debugf("job[%s] container is ready", job.Name)
 					if val, exist := jobController.jobContainerStatus.Load(job.Name); exist {
 						jobContainerCh := val.(*channels.RingChannel)
-						jobContainerCh.In() <- ""
+						jobContainerCh.In() <- struct{}{}
 					}
 				}
 				if buildContainer.State.Waiting != nil && buildContainer.State.Waiting.Reason == "CrashLoopBackOff" {
 					logrus.Infof("job %s container status is waiting and reason is CrashLoopBackOff", job.Name)
 					if val, exist := jobController.jobContainerStatus.Load(job.Name); exist {
 						jobContainerCh := val.(*channels.RingChannel)
-						jobContainerCh.In() <- ""
+						jobContainerCh.In() <- struct{}{}
 					}
 					if val, exist := jobController.subJobStatus.Load(job.Name); exist {
 						ch := val.(*channels.RingChannel)
@@ -123,7 +123,7 @@ func InitJobController(stop chan struct{}, kubeClient kubernetes.Interface) erro
 					logrus.Debugf("job[%s] container is ready", job.Name)
 					if val, exist := jobController.jobContainerStatus.Load(job.Name); exist {
 						jobContainerCh := val.(*channels.RingChannel)
-						jobContainerCh.In() <- ""
+						jobContainerCh.In() <- struct{}{}
 					}
 				}
 			}
