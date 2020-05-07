@@ -75,6 +75,7 @@ func (e *execContext) Run() error {
 		out := CreateOut(e.tty)
 		t := out.SetTTY()
 		t.Safe(func() error {
+			defer e.Close()
 			if err := exec.Stream(remotecommand.StreamOptions{
 				Stdin:             out.Stdin,
 				Stdout:            out.Stdout,

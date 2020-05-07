@@ -85,6 +85,7 @@ func InitJobController(stop chan struct{}, kubeClient kubernetes.Interface) erro
 
 			if len(job.Status.ContainerStatuses) > 0 {
 				buildContainer := job.Status.ContainerStatuses[0]
+				logrus.Infof("job %s container %s state %+v", job.Name, buildContainer.Name, buildContainer.State)
 				terminated := buildContainer.State.Terminated
 				if terminated != nil && terminated.ExitCode == 0 {
 					if val, exist := jobController.subJobStatus.Load(job.Name); exist {
@@ -102,26 +103,39 @@ func InitJobController(stop chan struct{}, kubeClient kubernetes.Interface) erro
 				if terminated != nil {
 					logrus.Debugf("job[%s] container is ready", job.Name)
 					if val, exist := jobController.jobContainerStatus.Load(job.Name); exist {
-						jobContainerCh := val.(chan struct{})
-						jobContainerCh <- struct{}{}
+						jobContainerCh := val.(*channels.RingChannel)
+						jobContainerCh.In() <- struct{}{}
+					}
+				}
+				if buildContainer.State.Waiting != nil && buildContainer.State.Waiting.Reason == "CrashLoopBackOff" {
+					logrus.Infof("job %s container status is waiting and reason is CrashLoopBackOff", job.Name)
+					if val, exist := jobController.jobContainerStatus.Load(job.Name); exist {
+						jobContainerCh := val.(*channels.RingChannel)
+						jobContainerCh.In() <- struct{}{}
+					}
+					if val, exist := jobController.subJobStatus.Load(job.Name); exist {
+						ch := val.(*channels.RingChannel)
+						ch.In() <- "failed"
 					}
 				}
 				if buildContainer.State.Running != nil {
 					// job container is ready
 					logrus.Debugf("job[%s] container is ready", job.Name)
 					if val, exist := jobController.jobContainerStatus.Load(job.Name); exist {
-						jobContainerCh := val.(chan struct{})
-						jobContainerCh <- struct{}{}
+						jobContainerCh := val.(*channels.RingChannel)
+						jobContainerCh.In() <- struct{}{}
 					}
 				}
-				logrus.Infof("job %s container %s state %+v", job.Name, buildContainer.Name, buildContainer.State)
 			}
 		},
 	}
-	infFactory := informers.NewFilteredSharedInformerFactory(kubeClient, time.Second*3, jobController.namespace,
-		func(options *metav1.ListOptions) {
+	infFactory := informers.NewSharedInformerFactoryWithOptions(
+		kubeClient,
+		time.Second*3,
+		informers.WithNamespace(jobController.namespace),
+		informers.WithTweakListOptions(func(options *metav1.ListOptions) {
 			options.LabelSelector = "job=codebuild"
-		})
+		}))
 	jobController.jobInformer = infFactory.Core().V1().Pods()
 	jobController.jobInformer.Informer().AddEventHandlerWithResyncPeriod(eventHandler, time.Second*10)
 	return jobController.Start(stop)
@@ -150,7 +164,7 @@ func (c *controller) GetServiceJobs(serviceID string) ([]*corev1.Pod, error) {
 
 func (c *controller) ExecJob(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error {
 	// one job, one job container channel
-	jobContainerCh := make(chan struct{})
+	jobContainerCh := channels.NewRingChannel(1)
 	c.jobContainerStatus.Store(job.Name, jobContainerCh)
 	if j, _ := c.GetJob(job.Name); j != nil {
 		go c.getLogger(ctx, job.Name, logger, result, jobContainerCh)
@@ -174,7 +188,7 @@ func (c *controller) Start(stop chan struct{}) error {
 	return nil
 }
 
-func (c *controller) getLogger(ctx context.Context, job string, writer io.Writer, result *channels.RingChannel, jobContainerCh chan struct{}) {
+func (c *controller) getLogger(ctx context.Context, job string, writer io.Writer, result, jobContainerCh *channels.RingChannel) {
 	defer func() {
 		logrus.Infof("job[%s] get log complete", job)
 		result.In() <- "logcomplete"
@@ -185,8 +199,9 @@ func (c *controller) getLogger(ctx context.Context, job string, writer io.Writer
 		case <-ctx.Done():
 			logrus.Debugf("job[%s] task is done, exit get log func", job)
 			return
-		case <-jobContainerCh:
+		case <-jobContainerCh.Out():
 			// get log only do once
+			logrus.Debugf("job[%s] get container ready message", job)
 			once.Do(func() {
 				logrus.Debugf("job[%s] container is ready, start get log stream", job)
 				podLogRequest := c.KubeClient.CoreV1().Pods(c.namespace).GetLogs(job, &corev1.PodLogOptions{Follow: true})
