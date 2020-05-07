@@ -864,6 +864,7 @@ func (s *k8sStore) getCertificatePem(secrKey string) (*v1.SSLCert, error) {
 	}
 	pemContent, _ := pem.Decode(fileContent)
 	if pemContent == nil {
+		logrus.Errorf("no pem content found from: %v", fileContent)
 		return nil, fmt.Errorf("generate certificate object failed, pemContent is nil")
 	}
 	certificate, err := x509.ParseCertificate(pemContent.Bytes)

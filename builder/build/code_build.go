@@ -235,8 +235,8 @@ func (s *slugBuild) getSourceCodeTarFile(re *Request) (string, error) {
 	source := exec.Command(cmd[0], cmd[1:]...)
 	source.Dir = re.SourceDir
 	logrus.Debugf("tar source code to file %s", sourceTarFile)
-	if err := source.Run(); err != nil {
-		return "", err
+	if err := source.Run(); err != nil && err.Error() != "exit status 1" {
+		return "", fmt.Errorf("command %s: %v", source.String(), err)
 	}
 	return sourceTarFile, nil
 }
@@ -471,7 +471,7 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 	}
 	reader, err := os.OpenFile(sourceTarFileName, os.O_RDONLY, 0755)
 	if err != nil {
-		return fmt.Errorf("create source code tar file error:%s", err.Error())
+		return fmt.Errorf("open source code tar file error:%s", err.Error())
 	}
 	defer func() {
 		reader.Close()
