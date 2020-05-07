@@ -447,7 +447,6 @@ func (l *loggerWriter) Write(b []byte) (n int, err error) {
 			message = string(messageb)
 		}
 
-		logrus.Debugf("step: %s, level: %s;write message : %v", l.step, l.level, message)
 		l.l.send(message, map[string]string{"step": l.step, "level": l.level})
 	}
 	return len(b), nil
