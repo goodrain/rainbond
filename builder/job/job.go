@@ -108,11 +108,9 @@ func InitJobController(stop chan struct{}, kubeClient kubernetes.Interface) erro
 						// no block channel write
 						select {
 						case jobContainerCh <- struct{}{}:
-							logrus.Debugf("job[%s] push log message successfully", job.Name)
 						default:
 							// if channel is block, ignore it
 						}
-						logrus.Infof("job[%s] container running,  read log", job.Name)
 					}
 				}
 			}
