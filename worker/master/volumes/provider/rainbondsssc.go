@@ -166,8 +166,12 @@ func updatePathForPersistentVolumeSource(persistentVolumeSource *v1.PersistentVo
 		//glusterfs:
 		//	endpoints: glusterfs-cluster
 		//	path: myVol1
-		source.Glusterfs.Path = persistentVolumeSource.Glusterfs.Path
-		source.Glusterfs.Path = newPath(persistentVolumeSource.Glusterfs.Path)
+		glusterfs := &v1.GlusterfsPersistentVolumeSource{
+			EndpointsName:      persistentVolumeSource.Glusterfs.EndpointsName,
+			EndpointsNamespace: persistentVolumeSource.Glusterfs.EndpointsNamespace,
+			Path:               newPath(persistentVolumeSource.Glusterfs.Path),
+		}
+		source.Glusterfs = glusterfs
 	default:
 		return nil, fmt.Errorf("unsupported persistence volume source")
 	}

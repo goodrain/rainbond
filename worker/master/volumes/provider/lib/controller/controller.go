@@ -1117,6 +1117,9 @@ func (ctrl *ProvisionController) persistentVolumeForGrdata() (*v1.PersistentVolu
 	if err != nil {
 		return nil, fmt.Errorf("find pv for grdata: %v", err)
 	}
+	if pv.Spec.PersistentVolumeSource.Glusterfs != nil && pv.Spec.PersistentVolumeSource.Glusterfs.EndpointsNamespace == nil {
+		pv.Spec.PersistentVolumeSource.Glusterfs.EndpointsNamespace =  &pv.Spec.ClaimRef.Namespace
+	}
 	return pv, nil
 }
 
