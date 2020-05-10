@@ -130,6 +130,11 @@ func (t *TenantAction) DeleteTenant(tenantID string) error {
 	if err != nil {
 		return err
 	}
+	oldStatus := tenant.Status
+	var rollback = func() {
+		tenant.Status = oldStatus
+		_ = db.GetManager().TenantDao().UpdateModel(tenant)
+	}
 	tenant.Status = dbmodel.TenantStatusDeleting.String()
 	if err := db.GetManager().TenantDao().UpdateModel(tenant); err != nil {
 		return err
@@ -144,6 +149,7 @@ func (t *TenantAction) DeleteTenant(tenantID string) error {
 		},
 	})
 	if err != nil {
+		rollback()
 		logrus.Error("send task 'delete tenant'", err)
 		return err
 	}

@@ -235,8 +235,8 @@ func (s *slugBuild) getSourceCodeTarFile(re *Request) (string, error) {
 	source := exec.Command(cmd[0], cmd[1:]...)
 	source.Dir = re.SourceDir
 	logrus.Debugf("tar source code to file %s", sourceTarFile)
-	if err := source.Run(); err != nil {
-		return "", err
+	if err := source.Run(); err != nil && err.Error() != "exit status 1" {
+		return "", fmt.Errorf("command %s: %v", source.String(), err)
 	}
 	return sourceTarFile, nil
 }
@@ -299,7 +299,21 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			},
 		},
 	}
+
 	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
+	// schedule builder
+	if re.BuilderInNode != "" {
+		logrus.Debugf("builder schedule to node: %s", re.BuilderInNode)
+		podSpec.NodeSelector = map[string]string{
+			"kubernetes.io/hostname": re.BuilderInNode,
+		}
+		podSpec.Tolerations = []corev1.Toleration{
+			{
+				Operator: "Exists",
+			},
+		}
+	}
+	logrus.Debugf("request is: %+v", re)
 	podSpec.Volumes = []corev1.Volume{
 		{
 			Name: "slug",
@@ -310,18 +324,16 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			},
 		},
 		{
-			Name: "app",
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: s.re.CachePVCName,
-				},
-			},
+			Name:         "app",
+			VolumeSource: re.CacheVolumeSource(),
 		},
 	}
+
 	container := corev1.Container{Name: name, Image: builder.BUILDERIMAGENAME, Stdin: true, StdinOnce: true}
 	container.Env = envs
 	container.Args = []string{"local"}
 	slugSubPath := strings.TrimPrefix(re.TGZDir, "/grdata/")
+	logrus.Debugf("sourceTarFileName is: %s", sourceTarFileName)
 	sourceTarPath := strings.TrimPrefix(sourceTarFileName, "/cache/")
 	cacheSubPath := strings.TrimPrefix(re.CacheDir, "/cache/")
 	container.VolumeMounts = []corev1.VolumeMount{
@@ -349,7 +361,9 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	s.setImagePullSecretsForPod(&job)
 	writer := re.Logger.GetWriter("builder", "info")
 	reChan := channels.NewRingChannel(10)
-	err = jobc.GetJobController().ExecJob(&job, writer, reChan)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	err = jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
 	if err != nil {
 		logrus.Errorf("create new job:%s failed: %s", name, err.Error())
 		return err
@@ -457,7 +471,7 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 	}
 	reader, err := os.OpenFile(sourceTarFileName, os.O_RDONLY, 0755)
 	if err != nil {
-		return fmt.Errorf("create source code tar file error:%s", err.Error())
+		return fmt.Errorf("open source code tar file error:%s", err.Error())
 	}
 	defer func() {
 		reader.Close()
@@ -511,7 +525,7 @@ func (s *slugBuild) runBuildContainer(re *Request) error {
 	return nil
 }
 
-func (s *slugBuild) setImagePullSecretsForPod(pod *corev1.Pod)  {
+func (s *slugBuild) setImagePullSecretsForPod(pod *corev1.Pod) {
 	imagePullSecretName := os.Getenv("IMAGE_PULL_SECRET")
 	if imagePullSecretName == "" {
 		return

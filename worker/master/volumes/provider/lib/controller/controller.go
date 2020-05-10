@@ -508,10 +508,15 @@ func NewProvisionController(
 				return
 			}
 
+			path, err := getDataPath(pv.Spec.PersistentVolumeSource)
+			if err != nil {
+				logrus.Errorf("get data path: %v", err)
+				return
+			}
+
 			// rainbondsssc
 			switch pv.Spec.StorageClassName {
 			case "rainbondsssc":
-				path := pv.Spec.PersistentVolumeSource.HostPath.Path
 				if err := os.RemoveAll(path); err != nil {
 					logrus.Errorf("path: %s; name: %s; remove pv hostpath: %v", path, pv.Name, err)
 				}
@@ -531,8 +536,6 @@ func NewProvisionController(
 					logrus.Errorf("storage class: rainbondslsc; name: %s; node ip not found", pv.Name)
 					return
 				}
-
-				path := pv.Spec.PersistentVolumeSource.HostPath.Path
 
 				if err := deletePath(nodeIP, path); err != nil {
 					logrus.Errorf("delete path: %v", err)
@@ -1114,6 +1117,9 @@ func (ctrl *ProvisionController) persistentVolumeForGrdata() (*v1.PersistentVolu
 	if err != nil {
 		return nil, fmt.Errorf("find pv for grdata: %v", err)
 	}
+	if pv.Spec.PersistentVolumeSource.Glusterfs != nil && pv.Spec.PersistentVolumeSource.Glusterfs.EndpointsNamespace == nil {
+		pv.Spec.PersistentVolumeSource.Glusterfs.EndpointsNamespace =  &pv.Spec.ClaimRef.Namespace
+	}
 	return pv, nil
 }
 
@@ -1327,4 +1333,20 @@ func deletePath(nodeIP, path string) error {
 	}
 
 	return fmt.Errorf("delete local path: %s; status code: %d; err: %v", path, statusCode, err)
+}
+
+func getDataPath(source v1.PersistentVolumeSource) (string, error) {
+	switch {
+	case source.HostPath != nil:
+		return source.HostPath.Path, nil
+	case source.NFS != nil:
+		return source.NFS.Path, nil
+	case source.Glusterfs != nil:
+		//glusterfs:
+		//	endpoints: glusterfs-cluster
+		//	path: myVol1
+		return source.Glusterfs.Path, nil
+	default:
+		return "", fmt.Errorf("unsupported persistence volume source")
+	}
 }

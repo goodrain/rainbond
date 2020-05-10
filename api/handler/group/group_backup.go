@@ -127,6 +127,9 @@ func (h *BackupHandle) NewBackup(b Backup) (*dbmodel.AppBackup, *util.APIHandleE
 	if err := db.GetManager().AppBackupDao().AddModel(&appBackup); err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("create backup history", err)
 	}
+	var rollback = func() {
+		_ = db.GetManager().AppBackupDao().DeleteAppBackup(appBackup.BackupID)
+	}
 	//clear metadata
 	b.Body.Metadata = ""
 	b.Body.BackupID = appBackup.BackupID
@@ -136,6 +139,7 @@ func (h *BackupHandle) NewBackup(b Backup) (*dbmodel.AppBackup, *util.APIHandleE
 		Topic:    mqclient.BuilderTopic,
 	})
 	if err != nil {
+		rollback()
 		logrus.Error("Failed to Enqueue MQ for BackupApp:", err)
 		return nil, util.CreateAPIHandleError(500, fmt.Errorf("build enqueue task error,%s", err))
 	}

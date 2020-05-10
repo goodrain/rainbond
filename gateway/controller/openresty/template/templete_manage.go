@@ -224,7 +224,6 @@ func (n *NginxConfigFileTemplete) writeFile(first bool, configBody []byte, confi
 		}
 		noOldConfig = true
 	}
-	newbody := configBody
 	if !noOldConfig {
 		if err := os.Rename(configFile, configFile+".bak"); err != nil {
 			logrus.Errorf("rename server config file failure %s", err.Error())
@@ -258,8 +257,6 @@ func (n *NginxConfigFileTemplete) writeFile(first bool, configBody []byte, confi
 				logrus.Warningf("rollback config file failre %s", err.Error())
 			}
 		}
-		fmt.Println("failure config body:")
-		fmt.Println(string(newbody))
 		return err
 	}
 	//success
