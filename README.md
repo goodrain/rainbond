@@ -12,7 +12,7 @@
 
 [Rainbond](https://github.com/goodrain/rainbond) 是以企业云原生应用开发、架构、运维、共享、交付为核心的Kubernetes多云赋能平台, 向下结合Kubernetes云原生资源管理模式，对接管理各类传统基础设施，通过多维度的软件定义屏蔽了底层资源的差异，甚至包括CPU架构差异和操作系统差异，从而对上层提供以应用为中心的新一代基础设施； 向上定义了标准应用模型（RAM,[OAM](https://oam.dev/))，内置ServiceMesh微服务架构框架， 提供用户基于源码/已有镜像构建服务组件的能力，编排服务组件的能力，发布共享完整应用模型的能力，交付运维业务应用的能力。
 
-<img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/Rainbond%E4%BA%A7%E5%93%81%E6%9E%B6%E6%9E%84.png" width="100%">
+<img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/docs/5.2/qun.png" width="100%">
 
 ## 应用场景
 
