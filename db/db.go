@@ -21,7 +21,9 @@ package db
 import (
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/mysql"
@@ -128,15 +130,36 @@ type Manager interface {
 
 var defaultManager Manager
 
+var supportDrivers map[string]struct{}
+
+func init() {
+	supportDrivers = map[string]struct{}{
+		"mysql":       {},
+		"cockroachdb": {},
+	}
+}
+
 //CreateManager 创建manager
 func CreateManager(config config.Config) (err error) {
-	if config.DBType == "mysql" || config.DBType == "cockroachdb" {
+	if _, ok := supportDrivers[config.DBType]; !ok {
+		return fmt.Errorf("DB drivers: %s not supported", config.DBType)
+	}
+
+	var tryTime time.Duration
+	tryTime = 0
+	for tryTime < 4 {
+		tryTime++
 		defaultManager, err = mysql.CreateManager(config)
-		return err
+		if err == nil {
+			logrus.Infof("db manager is ready")
+			break
+		}
+		logrus.Errorf("get db manager failed, try time is %v,%s", tryTime, err.Error())
+		time.Sleep((5 + tryTime*10) * time.Second)
 	}
 	//TODO:etcd db plugin
 	//defaultManager, err = etcd.CreateManager(config)
-	return fmt.Errorf("Db drivers not supported")
+	return
 }
 
 //CloseManager close db manager
