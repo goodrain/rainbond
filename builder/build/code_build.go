@@ -271,7 +271,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		os.Remove(sourceTarFileName)
 	}()
 	name := fmt.Sprintf("%s-%s", re.ServiceID, re.DeployVersion)
-	namespace := "rbd-system"
+	namespace := re.RbdNamespace
 	envs := []corev1.EnvVar{
 		{Name: "SLUG_VERSION", Value: re.DeployVersion},
 		{Name: "SERVICE_ID", Value: re.ServiceID},
@@ -363,6 +363,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	reChan := channels.NewRingChannel(10)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	logrus.Debugf("create job[name: %s; namespace: %s]", job.Name, job.Namespace)
 	err = jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
 	if err != nil {
 		logrus.Errorf("create new job:%s failed: %s", name, err.Error())

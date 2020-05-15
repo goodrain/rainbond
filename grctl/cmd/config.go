@@ -37,11 +37,19 @@ func NewCmdConfig() cli.Command {
 				Name:  "output,o",
 				Usage: "write region api config to file",
 			},
+			cli.StringFlag{
+				Name:  "namespace,ns",
+				Usage: "rainbond build job namespace",
+			},
 		},
 		Usage: "show region config file",
 		Action: func(c *cli.Context) {
 			Common(c)
-			configMap, err := clients.K8SClient.CoreV1().ConfigMaps("rbd-system").Get("region-config", metav1.GetOptions{})
+			namespace := c.GlobalString("namespace")
+			if namespace == "" {
+				namespace = "rbd-system"
+			}
+			configMap, err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Get("region-config", metav1.GetOptions{})
 			if err != nil {
 				showError(err.Error())
 			}

@@ -40,18 +40,24 @@ func NewCmdInstall() cli.Command {
 				Usage:  "all gateway ip of this cluster, use it to access the region api",
 				EnvVar: "GatewayIP",
 			},
+			cli.StringFlag{
+				Name:   "namespace,ns",
+				Usage:  "rainbond namespace",
+				EnvVar: "RBDNamespace",
+			},
 		},
 		Usage: "grctl install",
 		Action: func(c *cli.Context) error {
 			fmt.Println("Start install, please waiting!")
 			CommonWithoutRegion(c)
-			apiClientSecrit, err := clients.K8SClient.CoreV1().Secrets("rbd-system").Get("rbd-api-client-cert", metav1.GetOptions{})
+			namespace := c.GlobalString("namespace")
+			apiClientSecrit, err := clients.K8SClient.CoreV1().Secrets(namespace).Get("rbd-api-client-cert", metav1.GetOptions{})
 			if err != nil {
 				showError(fmt.Sprintf("get region api tls secret failure %s", err.Error()))
 			}
 			regionAPIIP := c.StringSlice("gateway-ip")
 			if len(regionAPIIP) == 0 {
-				cluster, err := clients.RainbondKubeClient.RainbondV1alpha1().RainbondClusters("rbd-system").Get("rainbondcluster", metav1.GetOptions{})
+				cluster, err := clients.RainbondKubeClient.RainbondV1alpha1().RainbondClusters(namespace).Get("rainbondcluster", metav1.GetOptions{})
 				if err != nil {
 					showError(fmt.Sprintf("get rainbond cluster config failure %s", err.Error()))
 				}

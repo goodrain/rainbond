@@ -56,11 +56,12 @@ type controller struct {
 var jobController *controller
 
 //InitJobController init job controller
-func InitJobController(stop chan struct{}, kubeClient kubernetes.Interface) error {
+func InitJobController(rbdNamespace string, stop chan struct{}, kubeClient kubernetes.Interface) error {
 	jobController = &controller{
 		KubeClient: kubeClient,
-		namespace:  "rbd-system",
+		namespace:  rbdNamespace,
 	}
+	logrus.Infof("watch namespace[%s] job ", rbdNamespace)
 	eventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			job, _ := obj.(*corev1.Pod)
