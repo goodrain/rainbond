@@ -160,18 +160,22 @@ func Proxy(next http.Handler) http.Handler {
 			handler.GetBuilderProxy().Proxy(w, r)
 			return
 		}
+		// deprecated
 		if strings.HasPrefix(r.RequestURI, "/v2/tasks") {
 			handler.GetNodeProxy().Proxy(w, r)
 			return
 		}
+		// deprecated
 		if strings.HasPrefix(r.RequestURI, "/v2/tasktemps") {
 			handler.GetNodeProxy().Proxy(w, r)
 			return
 		}
+		// deprecated
 		if strings.HasPrefix(r.RequestURI, "/v2/taskgroups") {
 			handler.GetNodeProxy().Proxy(w, r)
 			return
 		}
+		// deprecated
 		if strings.HasPrefix(r.RequestURI, "/v2/configs") {
 			handler.GetNodeProxy().Proxy(w, r)
 			return

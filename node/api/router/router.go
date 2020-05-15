@@ -58,6 +58,7 @@ func Routers(mode string) *chi.Mux {
 		})
 		//以下只有管理节点具有的API
 		if mode == "master" {
+			// deprecated
 			r.Route("/configs", func(r chi.Router) {
 				r.Get("/datacenter", controller.GetDatacenterConfig)
 				r.Put("/datacenter", controller.PutDatacenterConfig)
