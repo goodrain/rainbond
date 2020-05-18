@@ -105,7 +105,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 		maxConcurrentTask = conf.MaxTasks
 	}
 	stop := make(chan struct{})
-	if err := job.InitJobController(stop, kubeClient); err != nil {
+	if err := job.InitJobController(conf.RbdNamespace, stop, kubeClient); err != nil {
 		cancel()
 		return nil, err
 	}

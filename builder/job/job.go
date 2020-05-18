@@ -56,11 +56,12 @@ type controller struct {
 var jobController *controller
 
 //InitJobController init job controller
-func InitJobController(stop chan struct{}, kubeClient kubernetes.Interface) error {
+func InitJobController(rbdNamespace string, stop chan struct{}, kubeClient kubernetes.Interface) error {
 	jobController = &controller{
 		KubeClient: kubeClient,
-		namespace:  "rbd-system",
+		namespace:  rbdNamespace,
 	}
+	logrus.Infof("watch namespace[%s] job ", rbdNamespace)
 	eventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			job, _ := obj.(*corev1.Pod)
@@ -101,7 +102,15 @@ func InitJobController(stop chan struct{}, kubeClient kubernetes.Interface) erro
 						ch.In() <- "failed"
 					}
 				}
-				if buildContainer.State.Running != nil || terminated != nil {
+				waiting := buildContainer.State.Waiting
+				if waiting != nil && waiting.Reason == "CrashLoopBackOff" {
+					logrus.Infof("job %s container status is waiting and reason is CrashLoopBackOff", job.Name)
+					if val, exist := jobController.subJobStatus.Load(job.Name); exist {
+						ch := val.(*channels.RingChannel)
+						ch.In() <- "failed"
+					}
+				}
+				if buildContainer.State.Running != nil || terminated != nil || (waiting != nil && waiting.Reason == "CrashLoopBackOff") {
 					// job container is ready
 					if val, exist := jobController.jobContainerStatus.Load(job.Name); exist {
 						jobContainerCh := val.(chan struct{})

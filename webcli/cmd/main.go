@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/Sirupsen/logrus"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
@@ -12,12 +13,6 @@ import (
 func main() {
 	option := app.DefaultOptions
 	option.K8SConfPath = "/root/.kube/config"
-	ap, err := app.New(&option)
-	if err != nil {
-		logrus.Error(err)
-		return
-	}
-	logrus.Info(ap.GetDefaultContainerName("rbd-system", "rainbond-operator-0"))
 	config, err := k8sutil.NewRestConfig(option.K8SConfPath)
 	if err != nil {
 		logrus.Error(err)
@@ -28,11 +23,15 @@ func main() {
 	if err != nil {
 		logrus.Error(err)
 	}
+	namespace := os.Getenv("RBD_NAMESPACE")
+	if namespace == "" {
+		namespace = "rbd-system"
+	}
 	commands := []string{"sh"}
 	req := restClient.Post().
 		Resource("pods").
 		Name("rainbond-operator-0").
-		Namespace("rbd-system").
+		Namespace(namespace).
 		SubResource("exec").
 		Param("container", "operator").
 		Param("stdin", "true").
