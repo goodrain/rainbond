@@ -46,7 +46,8 @@ func NewCmdCluster() cli.Command {
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "namespace, ns",
-						Usage: "rainbond build job namespace",
+						Usage: "rainbond default namespace",
+						Value: "rbd-system",
 					},
 				},
 				Action: func(c *cli.Context) error {
@@ -58,7 +59,8 @@ func NewCmdCluster() cli.Command {
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "namespace,ns",
-				Usage: "rainbond build job namespace",
+				Usage: "rainbond default namespace",
+				Value: "rbd-system",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -70,10 +72,7 @@ func NewCmdCluster() cli.Command {
 }
 
 func getClusterInfo(c *cli.Context) error {
-	namespace := c.Args().First()
-	if namespace == "" {
-		namespace = "rbd-system"
-	}
+	namespace := c.String("namespace")
 	//show cluster resource detail
 	clusterInfo, err := clients.RegionClient.Cluster().GetClusterInfo()
 	if err != nil {
@@ -257,10 +256,7 @@ func printComponentStatus(namespace string) {
 }
 
 func printConfig(c *cli.Context) error {
-	namespace := c.Args().First()
-	if namespace == "" {
-		namespace = "rbd-system"
-	}
+	namespace := c.String("namespace")
 	config, err := clients.RainbondKubeClient.RainbondV1alpha1().RainbondClusters(namespace).Get("rainbondcluster", metav1.GetOptions{})
 	if err != nil {
 		showError(err.Error())

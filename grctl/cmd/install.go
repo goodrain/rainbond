@@ -44,16 +44,14 @@ func NewCmdInstall() cli.Command {
 				Name:   "namespace,ns",
 				Usage:  "rainbond namespace",
 				EnvVar: "RBDNamespace",
+				Value:  "rbd-system",
 			},
 		},
 		Usage: "grctl install",
 		Action: func(c *cli.Context) error {
 			fmt.Println("Start install, please waiting!")
 			CommonWithoutRegion(c)
-			namespace := c.GlobalString("namespace")
-			if namespace == "" {
-				namespace = "rbd-system"
-			}
+			namespace := c.String("namespace")
 			apiClientSecrit, err := clients.K8SClient.CoreV1().Secrets(namespace).Get("rbd-api-client-cert", metav1.GetOptions{})
 			if err != nil {
 				showError(fmt.Sprintf("get region api tls secret failure %s", err.Error()))

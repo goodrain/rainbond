@@ -39,16 +39,14 @@ func NewCmdConfig() cli.Command {
 			},
 			cli.StringFlag{
 				Name:  "namespace,ns",
-				Usage: "rainbond build job namespace",
+				Usage: "rainbond default namespace",
+				Value: "rbd-system",
 			},
 		},
 		Usage: "show region config file",
 		Action: func(c *cli.Context) {
 			Common(c)
-			namespace := c.GlobalString("namespace")
-			if namespace == "" {
-				namespace = "rbd-system"
-			}
+			namespace := c.String("namespace")
 			configMap, err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Get("region-config", metav1.GetOptions{})
 			if err != nil {
 				showError(err.Error())

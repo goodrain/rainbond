@@ -71,14 +71,12 @@ func NewSourceBuildCmd() cli.Command {
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "namespace,ns",
-						Usage: "rainbond build job namespace",
+						Usage: "rainbond default namespace",
+						Value: "rbd-system",
 					},
 				},
 				Action: func(ctx *cli.Context) {
-					namespace := ctx.Args().First()
-					if namespace == "" {
-						namespace = "rbd-system"
-					}
+					namespace := ctx.String("namespace")
 					cmd := exec.Command("kubectl", "get", "pod", "-l", "job=codebuild", "-o", "wide", "-n", namespace)
 					cmd.Stdout = os.Stdout
 					cmd.Stderr = os.Stderr
@@ -88,16 +86,20 @@ func NewSourceBuildCmd() cli.Command {
 			cli.Command{
 				Name:  "log",
 				Usage: "Displays a log of the build task",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "namespace,ns",
+						Usage: "rainbond default namespace",
+						Value: "rbd-system",
+					},
+				},
 				Action: func(ctx *cli.Context) {
 					name := ctx.Args().First()
 					if name == "" {
 						showError("Please specify the task pod name")
 					}
 
-					namespace := ctx.Args().Get(1)
-					if namespace == "" {
-						namespace = "rbd-system"
-					}
+					namespace := ctx.String("namespace")
 					cmd := exec.Command("kubectl", "logs", "-f", name, "-n", namespace)
 					cmd.Stdout = os.Stdout
 					cmd.Stderr = os.Stderr
