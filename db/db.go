@@ -145,16 +145,14 @@ func CreateManager(config config.Config) (err error) {
 		return fmt.Errorf("DB drivers: %s not supported", config.DBType)
 	}
 
-	var tryTime time.Duration
 	for {
-		tryTime++
 		defaultManager, err = mysql.CreateManager(config)
 		if err == nil {
 			logrus.Infof("db manager is ready")
 			break
 		}
-		logrus.Errorf("get db manager failed, try time is %v,%s", tryTime, err.Error())
-		time.Sleep((5 + tryTime*10) * time.Second)
+		logrus.Errorf("get db manager failed, try time is %d,%s", 10, err.Error())
+		time.Sleep(10 * time.Second)
 	}
 	//TODO:etcd db plugin
 	//defaultManager, err = etcd.CreateManager(config)

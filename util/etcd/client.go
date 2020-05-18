@@ -115,19 +115,16 @@ func NewClient(ctx context.Context, clientArgs *ClientArgs) (*v3.Client, error) 
 		}
 		config.TLS = tlsConfig
 	}
-	var tryTime time.Duration
-	tryTime = 0
 	var etcdClient *v3.Client
 	var err error
 	for {
-		tryTime++
 		etcdClient, err = clientv3.New(config)
 		if err == nil {
 			logrus.Infof("etcd.v3 client is ready")
 			return etcdClient, nil
 		}
-		logrus.Errorf("create etcd.v3 client failed, try time is %v,%s", tryTime, err.Error())
-		time.Sleep((5 + tryTime*10) * time.Second)
+		logrus.Errorf("create etcd.v3 client failed, try time is %d,%s", 10, err.Error())
+		time.Sleep(10 * time.Second)
 	}
 	return nil, err
 }
