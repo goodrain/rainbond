@@ -74,6 +74,7 @@ type Response struct {
 
 //Request build input
 type Request struct {
+	RbdNamespace  string
 	GRDataPVCName string
 	CachePVCName  string
 	CacheSource   string
