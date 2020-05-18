@@ -102,7 +102,15 @@ func InitJobController(rbdNamespace string, stop chan struct{}, kubeClient kuber
 						ch.In() <- "failed"
 					}
 				}
-				if buildContainer.State.Running != nil || terminated != nil {
+				waiting := buildContainer.State.Waiting
+				if waiting != nil && waiting.Reason == "CrashLoopBackOff" {
+					logrus.Infof("job %s container status is waiting and reason is CrashLoopBackOff", job.Name)
+					if val, exist := jobController.subJobStatus.Load(job.Name); exist {
+						ch := val.(*channels.RingChannel)
+						ch.In() <- "failed"
+					}
+				}
+				if buildContainer.State.Running != nil || terminated != nil || (waiting != nil && waiting.Reason == "CrashLoopBackOff") {
 					// job container is ready
 					if val, exist := jobController.jobContainerStatus.Load(job.Name); exist {
 						jobContainerCh := val.(chan struct{})
