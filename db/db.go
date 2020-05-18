@@ -146,8 +146,7 @@ func CreateManager(config config.Config) (err error) {
 	}
 
 	var tryTime time.Duration
-	tryTime = 0
-	for tryTime < 4 {
+	for {
 		tryTime++
 		defaultManager, err = mysql.CreateManager(config)
 		if err == nil {

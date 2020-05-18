@@ -119,7 +119,7 @@ func NewClient(ctx context.Context, clientArgs *ClientArgs) (*v3.Client, error) 
 	tryTime = 0
 	var etcdClient *v3.Client
 	var err error
-	for tryTime < 4 {
+	for {
 		tryTime++
 		etcdClient, err = clientv3.New(config)
 		if err == nil {
