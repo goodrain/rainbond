@@ -23,7 +23,7 @@ func main() {
 	if err != nil {
 		logrus.Error(err)
 	}
-	namespace := os.Getenv("namespace")
+	namespace := os.Getenv("RBD_NAMESPACE")
 	if namespace == "" {
 		namespace = "rbd-system"
 	}

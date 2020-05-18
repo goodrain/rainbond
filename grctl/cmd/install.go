@@ -51,6 +51,9 @@ func NewCmdInstall() cli.Command {
 			fmt.Println("Start install, please waiting!")
 			CommonWithoutRegion(c)
 			namespace := c.GlobalString("namespace")
+			if namespace == "" {
+				namespace = "rbd-system"
+			}
 			apiClientSecrit, err := clients.K8SClient.CoreV1().Secrets(namespace).Get("rbd-api-client-cert", metav1.GetOptions{})
 			if err != nil {
 				showError(fmt.Sprintf("get region api tls secret failure %s", err.Error()))
