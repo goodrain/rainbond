@@ -43,10 +43,24 @@ func NewCmdCluster() cli.Command {
 			cli.Command{
 				Name:  "config",
 				Usage: "prints the current cluster configuration",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "namespace, ns",
+						Usage: "rainbond default namespace",
+						Value: "rbd-system",
+					},
+				},
 				Action: func(c *cli.Context) error {
 					Common(c)
 					return printConfig(c)
 				},
+			},
+		},
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "namespace,ns",
+				Usage: "rainbond default namespace",
+				Value: "rbd-system",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -58,6 +72,7 @@ func NewCmdCluster() cli.Command {
 }
 
 func getClusterInfo(c *cli.Context) error {
+	namespace := c.String("namespace")
 	//show cluster resource detail
 	clusterInfo, err := clients.RegionClient.Cluster().GetClusterInfo()
 	if err != nil {
@@ -100,7 +115,7 @@ func getClusterInfo(c *cli.Context) error {
 	fmt.Println(table)
 
 	//show component health status
-	printComponentStatus()
+	printComponentStatus(namespace)
 	//show node detail
 	serviceTable := termtables.CreateTable()
 	serviceTable.AddHeaders("Uid", "IP", "HostName", "NodeRole", "Status")
@@ -230,10 +245,10 @@ func clusterStatus(roleList []map[string]string, ReadyList []map[string]string) 
 	return clusterStatus, errMessage
 }
 
-func printComponentStatus() {
+func printComponentStatus(namespace string) {
 	fmt.Println("----------------------------------------------------------------------------------")
 	fmt.Println()
-	cmd := exec.Command("kubectl", "get", "pod", "-n", "rbd-system", "-o", "wide")
+	cmd := exec.Command("kubectl", "get", "pod", "-n", namespace, "-o", "wide")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Run()
@@ -241,7 +256,8 @@ func printComponentStatus() {
 }
 
 func printConfig(c *cli.Context) error {
-	config, err := clients.RainbondKubeClient.RainbondV1alpha1().RainbondClusters("rbd-system").Get("rainbondcluster", metav1.GetOptions{})
+	namespace := c.String("namespace")
+	config, err := clients.RainbondKubeClient.RainbondV1alpha1().RainbondClusters(namespace).Get("rainbondcluster", metav1.GetOptions{})
 	if err != nil {
 		showError(err.Error())
 	}

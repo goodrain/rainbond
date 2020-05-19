@@ -236,6 +236,7 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		return nil, err
 	}
 	buildReq := &build.Request{
+		RbdNamespace:  i.RbdNamespace,
 		SourceDir:     i.RepoInfo.GetCodeBuildAbsPath(),
 		CacheDir:      i.CacheDir,
 		TGZDir:        i.TGZDir,
