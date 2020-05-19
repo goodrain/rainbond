@@ -118,12 +118,13 @@ type AppService struct {
 	pods        []*corev1.Pod
 	claims      []*corev1.PersistentVolumeClaim
 	// claims that needs to be created manually
-	claimsmanual   []*corev1.PersistentVolumeClaim
-	status         AppServiceStatus
-	Logger         event.Logger
-	storageClasses []*storagev1.StorageClass
-	UpgradePatch   map[string][]byte
-	CustomParams   map[string]string
+	claimsmanual     []*corev1.PersistentVolumeClaim
+	status           AppServiceStatus
+	BootSeqContainer *corev1.Container
+	Logger           event.Logger
+	storageClasses   []*storagev1.StorageClass
+	UpgradePatch     map[string][]byte
+	CustomParams     map[string]string
 }
 
 //CacheKey app cache key
