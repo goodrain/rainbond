@@ -40,10 +40,11 @@ import (
 
 //TenantServicePlugin conv service all plugin
 func TenantServicePlugin(as *typesv1.AppService, dbmanager db.Manager) error {
-	initContainers, pluginContainers, err := conversionServicePlugin(as, dbmanager)
+	initContainers, pluginContainers, bootSeqContainer, err := conversionServicePlugin(as, dbmanager)
 	if err != nil {
 		return err
 	}
+	as.BootSeqContainer = bootSeqContainer
 	podtemplate := as.GetPodTemplate()
 	if podtemplate != nil {
 		podtemplate.Spec.Containers = append(podtemplate.Spec.Containers, pluginContainers...)
@@ -53,15 +54,15 @@ func TenantServicePlugin(as *typesv1.AppService, dbmanager db.Manager) error {
 	return fmt.Errorf("pod templete is nil before define plugin")
 }
 
-func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1.Container, []v1.Container, error) {
+func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1.Container, []v1.Container, *v1.Container, error) {
 	var containers []v1.Container
 	var initContainers []v1.Container
 	appPlugins, err := dbmanager.TenantServicePluginRelationDao().GetALLRelationByServiceID(as.ServiceID)
 	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
-		return nil, nil, fmt.Errorf("find plugins error. %v", err.Error())
+		return nil, nil, nil, fmt.Errorf("find plugins error. %v", err.Error())
 	}
 	if len(appPlugins) == 0 && !as.NeedProxy {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 	netPlugin := false
 	var meshPluginID string
@@ -77,7 +78,7 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 		}
 		versionInfo, err := dbmanager.TenantPluginBuildVersionDao().GetLastBuildVersionByVersionID(pluginR.PluginID, pluginR.VersionID)
 		if err != nil {
-			return nil, nil, fmt.Errorf("do not found available plugin versions")
+			return nil, nil, nil, fmt.Errorf("do not found available plugin versions")
 		}
 		podTmpl := as.GetPodTemplate()
 		if podTmpl == nil {
@@ -86,11 +87,11 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 		}
 		envs, err := createPluginEnvs(pluginR.PluginID, as.TenantID, as.ServiceAlias, mainContainer.Env, pluginR.VersionID, as.ServiceID, dbmanager)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		args, err := createPluginArgs(versionInfo.ContainerCMD, *envs)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		pc := v1.Container{
 			Name:                   "plugin-" + pluginR.PluginID,
@@ -103,7 +104,7 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 		}
 		pluginModel, err := getPluginModel(pluginR.PluginID, as.TenantID, dbmanager)
 		if err != nil {
-			return nil, nil, fmt.Errorf("get plugin model info failure %s", err.Error())
+			return nil, nil, nil, fmt.Errorf("get plugin model info failure %s", err.Error())
 		}
 		if pluginModel == model.InBoundAndOutBoundNetPlugin || pluginModel == model.InBoundNetPlugin {
 			inBoundPlugin = pluginR
@@ -148,10 +149,11 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 		meshPluginID = pluginID
 	}
 
+	bootSequence := createProbeMeshInitContainer(as, meshPluginID, as.ServiceAlias, mainContainer.Env)
 	if bootSeqDepServiceIds := as.ExtensionSet["boot_seq_dep_service_ids"]; as.NeedProxy && bootSeqDepServiceIds != "" {
-		initContainers = append(initContainers, createProbeMeshInitContainer(as, meshPluginID, as.ServiceAlias, mainContainer.Env))
+		initContainers = append(initContainers, bootSequence)
 	}
-	return initContainers, containers, nil
+	return initContainers, containers, &bootSequence, nil
 }
 
 func createTCPDefaultPluginContainer(as *typesv1.AppService, pluginID string, envs []v1.EnvVar) v1.Container {

@@ -22,17 +22,22 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
-
 	"github.com/goodrain/rainbond/util"
-
 	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 //SetUpgradePatch create and set upgrade pathch for deployment and statefulset
 func (a *AppService) SetUpgradePatch(new *AppService) error {
 	if a.statefulset != nil && new.statefulset != nil {
+		// If the controller originally had a startup sequence, then the startup sequence needs to be updated
+		if isContainsBootSequence(a.statefulset.Spec.Template.Spec.InitContainers) &&
+			!isContainsBootSequence(new.statefulset.Spec.Template.Spec.InitContainers) && new.BootSeqContainer != nil {
+			new.statefulset.Spec.Template.Spec.InitContainers = append(new.statefulset.Spec.Template.Spec.InitContainers, *new.BootSeqContainer)
+		}
 		statefulsetPatch, err := getStatefulsetModifiedConfiguration(a.statefulset, new.statefulset)
 		if err != nil {
 			return err
@@ -44,6 +49,11 @@ func (a *AppService) SetUpgradePatch(new *AppService) error {
 		new.UpgradePatch["statefulset"] = statefulsetPatch
 	}
 	if a.deployment != nil && new.deployment != nil {
+		// If the controller originally had a startup sequence, then the startup sequence needs to be updated
+		if isContainsBootSequence(a.deployment.Spec.Template.Spec.InitContainers) &&
+			!isContainsBootSequence(new.deployment.Spec.Template.Spec.InitContainers) && new.BootSeqContainer != nil {
+			new.deployment.Spec.Template.Spec.InitContainers = append(new.deployment.Spec.Template.Spec.InitContainers, *new.BootSeqContainer)
+		}
 		deploymentPatch, err := getDeploymentModifiedConfiguration(a.deployment, new.deployment)
 		if err != nil {
 			return err
@@ -194,4 +204,13 @@ func getchange(old, new interface{}) ([]byte, error) {
 		return nil, err
 	}
 	return changebody, nil
+}
+
+func isContainsBootSequence(initContainers []corev1.Container) bool {
+	for _, initContainer := range initContainers {
+		if strings.Contains(initContainer.Name, "probe-mesh-") {
+			return true
+		}
+	}
+	return false
 }
