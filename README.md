@@ -72,8 +72,8 @@ Rainbond完成与龙芯、飞腾、麒麟操作系统等为代表的国产化计
 
 [Gitter](https://gitter.im/goodrain/rainbond)   在线IM与Rainbond开发者进行相关话题探讨。
 
-<center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/docs/5.2/qun.png"/></center>
-<center> 加入微信群，与社区用户一起交流 Rainbond </center>
+<center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/12141565594759_.pic_hd.jpg"/></center>
+<center>加入微信群，与社区用户一起交流 Rainbond </center>
 
 ## 参与贡献
 
