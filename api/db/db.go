@@ -46,22 +46,11 @@ type ConDB struct {
 //CreateDBManager get db manager
 //TODO: need to try when happened error, try 4 times
 func CreateDBManager(conf option.Config) error {
-	var tryTime time.Duration
-	tryTime = 0
-	var err error
-	for tryTime < 4 {
-		tryTime++
-		if err = db.CreateManager(config.Config{
-			MysqlConnectionInfo: conf.DBConnectionInfo,
-			DBType:              conf.DBType,
-		}); err != nil {
-			logrus.Errorf("get db manager failed, try time is %v,%s", tryTime, err.Error())
-			time.Sleep((5 + tryTime*10) * time.Second)
-		} else {
-			break
-		}
+	dbCfg := config.Config{
+		MysqlConnectionInfo: conf.DBConnectionInfo,
+		DBType:              conf.DBType,
 	}
-	if err != nil {
+	if err := db.CreateManager(dbCfg); err != nil {
 		logrus.Errorf("get db manager failed,%s", err.Error())
 		return err
 	}
