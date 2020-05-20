@@ -77,11 +77,11 @@ func readPHPRuntimeInfo(buildPath string) (map[string]string, error) {
 					return nil, ErrRuntimeNotSupport
 				}
 				if version[0] == '~' {
-					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1"}, version[1:3]) {
+					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1", "7.3"}, version[1:3]) {
 						return nil, ErrRuntimeNotSupport
 					}
 				} else {
-					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1"}, version[0:3]) {
+					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1", "7.3"}, version[0:3]) {
 						return nil, ErrRuntimeNotSupport
 					}
 				}
