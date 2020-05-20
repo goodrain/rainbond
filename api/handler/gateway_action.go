@@ -229,6 +229,14 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
 	return nil
 }
 
+func (g *GatewayAction) isCertificateBeingUsed(certID string) (bool, error) {
+	rules, err := g.dbmanager.HTTPRuleDao().GetHTTPRulesByCertificateID(certID)
+	if err != nil {
+		return false, fmt.Errorf("list rules by certificate id: %v", err)
+	}
+	return len(rules) > 0, nil
+}
+
 // DeleteHTTPRule deletes http rule, including certificate and rule extensions
 func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error {
 	// begin transaction
@@ -251,17 +259,13 @@ func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error
 		return err
 	}
 
-	otherUsed := false
-	var useTheSameCertificateHttpRules []*model.HTTPRule
-	if useTheSameCertificateHttpRules, err = g.dbmanager.HTTPRuleDaoTransactions(tx).GetHTTPRulesByCertificateID(httpRule.CertificateID); err != nil {
+	certBeingUsed, err := g.isCertificateBeingUsed(httpRule.CertificateID)
+	if err != nil {
 		tx.Rollback()
 		return err
 	}
-	if len(useTheSameCertificateHttpRules) > 0 {
-		logrus.Warningf("certificateID: %s, is used by other http rule, can't delete right now", httpRule.CertificateID)
-		otherUsed = true
-	}
-	if !otherUsed {
+	if !certBeingUsed {
+		logrus.Info("certificate(%s) is no longer being used, delete it", httpRule.CertificateID)
 		// delete certificate
 		if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(httpRule.CertificateID); err != nil {
 			tx.Rollback()
@@ -297,8 +301,14 @@ func (g *GatewayAction) DeleteHTTPRuleByServiceIDWithTransaction(sid string, tx 
 	}
 
 	for _, rule := range rules {
-		if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(rule.CertificateID); err != nil {
+		certBeingUsed, err := g.isCertificateBeingUsed(rule.CertificateID)
+		if err != nil {
 			return err
+		}
+		if !certBeingUsed {
+			if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(rule.CertificateID); err != nil {
+				return err
+			}
 		}
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(rule.UUID); err != nil {
 			return err
