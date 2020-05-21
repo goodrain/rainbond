@@ -147,17 +147,11 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
 		return fmt.Errorf("HTTPRule dosen't exist based on uuid(%s)", req.HTTPRuleID)
 	}
 	if strings.Replace(req.CertificateID, " ", "", -1) != "" {
-		// delete old Certificate
-		if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(rule.CertificateID); err != nil {
-			tx.Rollback()
-			return err
-		}
 		// add new certificate
 		cert := &model.Certificate{
-			UUID:            req.CertificateID,
-			CertificateName: fmt.Sprintf("cert-%s", util.NewUUID()[0:8]),
-			Certificate:     req.Certificate,
-			PrivateKey:      req.PrivateKey,
+			UUID:        req.CertificateID,
+			Certificate: req.Certificate,
+			PrivateKey:  req.PrivateKey,
 		}
 		if err := g.dbmanager.CertificateDaoTransactions(tx).AddOrUpdate(cert); err != nil {
 			tx.Rollback()
@@ -259,19 +253,6 @@ func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error
 		return err
 	}
 
-	certBeingUsed, err := g.isCertificateBeingUsed(httpRule.CertificateID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	if !certBeingUsed {
-		logrus.Info("certificate(%s) is no longer being used, delete it", httpRule.CertificateID)
-		// delete certificate
-		if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(httpRule.CertificateID); err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
 	// delete rule extension
 	if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(httpRule.UUID); err != nil {
 		tx.Rollback()
@@ -301,15 +282,6 @@ func (g *GatewayAction) DeleteHTTPRuleByServiceIDWithTransaction(sid string, tx 
 	}
 
 	for _, rule := range rules {
-		certBeingUsed, err := g.isCertificateBeingUsed(rule.CertificateID)
-		if err != nil {
-			return err
-		}
-		if !certBeingUsed {
-			if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(rule.CertificateID); err != nil {
-				return err
-			}
-		}
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(rule.UUID); err != nil {
 			return err
 		}
