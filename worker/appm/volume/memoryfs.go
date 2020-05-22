@@ -55,10 +55,11 @@ func (v *MemoryFSVolume) CreateVolume(define *Define) error {
 	es, err := v.dbmanager.TenantServiceEnvVarDao().GetServiceEnvs(v.as.ServiceID, []string{"inner"})
 	if err != nil {
 		logrus.Errorf("get service[%s] env failed: %s", v.as.ServiceID, err.Error())
+		return err
 	}
 	for _, env := range es {
 		// still support for memory medium
-		if env.AttrName == "ES_EMPTYDIR_MEDIUM_MEMORY" && env.AttrValue == "enable" {
+		if env.AttrName == "ES_ENABLE_EMPTYDIR_MEDIUM_MEMORY" && env.AttrValue == "true" {
 			logrus.Debugf("use memory as medium of emptyDir for volume[name: %s; path: %s]", volumeMountName, volumeMountPath)
 			vo.EmptyDir.Medium = corev1.StorageMediumMemory
 		}
