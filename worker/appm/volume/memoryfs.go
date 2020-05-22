@@ -20,6 +20,7 @@ package volume
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -32,6 +33,7 @@ type MemoryFSVolume struct {
 
 // CreateVolume memory fs volume create volume
 func (v *MemoryFSVolume) CreateVolume(define *Define) error {
+	logrus.Debugf("create emptyDir volume type for: %s", v.svm.VolumePath)
 	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
 	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := false
@@ -46,8 +48,27 @@ func (v *MemoryFSVolume) CreateVolume(define *Define) error {
 		}
 	}
 	vo := corev1.Volume{Name: volumeMountName} // !!!: volumeMount name of k8s model must equal to volume name of k8s model
-	vo.EmptyDir = &corev1.EmptyDirVolumeSource{
-		Medium: corev1.StorageMediumMemory,
+
+	// V5.2  emptyDir's medium use default "" which means to use the node's default medium
+	vo.EmptyDir = &corev1.EmptyDirVolumeSource{}
+
+	// get service custom env
+	es, err := v.dbmanager.TenantServiceEnvVarDao().GetServiceEnvs(v.as.ServiceID, []string{"inner"})
+	if err != nil {
+		logrus.Errorf("get service[%s] env failed: %s", v.as.ServiceID, err.Error())
+	}
+	for _, env := range es {
+		// still support for memory medium
+		if env.AttrName == "MEMORY_MEDIUM" {
+			scopes := strings.Split(env.AttrValue, ",")
+			logrus.Debugf("use memory as medium for volume path: %+v", scopes)
+			for _, scope := range scopes {
+				if scope == volumeMountPath {
+					logrus.Debugf("use memory as medium of emptyDir  for volume[name: %s; path: %s]", volumeMountName, volumeMountPath)
+					vo.EmptyDir.Medium = corev1.StorageMediumMemory
+				}
+			}
+		}
 	}
 	define.volumes = append(define.volumes, vo)
 	vm := corev1.VolumeMount{
