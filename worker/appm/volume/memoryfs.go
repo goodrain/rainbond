@@ -20,7 +20,6 @@ package volume
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -59,15 +58,9 @@ func (v *MemoryFSVolume) CreateVolume(define *Define) error {
 	}
 	for _, env := range es {
 		// still support for memory medium
-		if env.AttrName == "MEMORY_MEDIUM" {
-			scopes := strings.Split(env.AttrValue, ",")
-			logrus.Debugf("use memory as medium for volume path: %+v", scopes)
-			for _, scope := range scopes {
-				if scope == volumeMountPath {
-					logrus.Debugf("use memory as medium of emptyDir  for volume[name: %s; path: %s]", volumeMountName, volumeMountPath)
-					vo.EmptyDir.Medium = corev1.StorageMediumMemory
-				}
-			}
+		if env.AttrName == "ES_EMPTYDIR_MEDIUM_MEMORY" && env.AttrValue == "enable" {
+			logrus.Debugf("use memory as medium of emptyDir for volume[name: %s; path: %s]", volumeMountName, volumeMountPath)
+			vo.EmptyDir.Medium = corev1.StorageMediumMemory
 		}
 	}
 	define.volumes = append(define.volumes, vo)
