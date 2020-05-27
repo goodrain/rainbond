@@ -39,7 +39,7 @@ import (
 	workerutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/jinzhu/gorm"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/autoscaling/v2beta1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -190,8 +190,8 @@ func NewStore(clientset kubernetes.Interface,
 
 	store.informers.Events = infFactory.Core().V1().Events().Informer()
 
-	store.informers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2beta1().HorizontalPodAutoscalers().Informer()
-	store.listers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2beta1().HorizontalPodAutoscalers().Lister()
+	store.informers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2beta2().HorizontalPodAutoscalers().Informer()
+	store.listers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2beta2().HorizontalPodAutoscalers().Lister()
 
 	isThirdParty := func(ep *corev1.Endpoints) bool {
 		return ep.Labels["service-kind"] == model.ServiceKindThirdParty.String()
@@ -578,14 +578,14 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 		}
 	}
-	if hpa, ok := obj.(*v2beta1.HorizontalPodAutoscaler); ok {
+	if hpa, ok := obj.(*autoscalingv2.HorizontalPodAutoscaler); ok {
 		serviceID := hpa.Labels["service_id"]
 		version := hpa.Labels["version"]
 		createrID := hpa.Labels["creater_id"]
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AutoscalingV2beta1().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(hpa.GetName(), &metav1.DeleteOptions{})
+				a.conf.KubeClient.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(hpa.GetName(), &metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetHPA(hpa)
@@ -620,7 +620,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 	}
 }
 
-func (a *appRuntimeStore) listHPAEvents(hpa *v2beta1.HorizontalPodAutoscaler) error {
+func (a *appRuntimeStore) listHPAEvents(hpa *autoscalingv2.HorizontalPodAutoscaler) error {
 	namespace, name := hpa.GetNamespace(), hpa.GetName()
 	eventsInterface := a.clientset.CoreV1().Events(hpa.GetNamespace())
 	selector := eventsInterface.GetFieldSelector(&name, &namespace, nil, nil)
@@ -764,7 +764,7 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 				}
 			}
 		}
-		if hpa, ok := obj.(*v2beta1.HorizontalPodAutoscaler); ok {
+		if hpa, ok := obj.(*autoscalingv2.HorizontalPodAutoscaler); ok {
 			serviceID := hpa.Labels["service_id"]
 			version := hpa.Labels["version"]
 			createrID := hpa.Labels["creater_id"]

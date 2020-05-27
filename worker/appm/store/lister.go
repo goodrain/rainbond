@@ -20,7 +20,7 @@ package store
 
 import (
 	appsv1 "k8s.io/client-go/listers/apps/v1"
-	"k8s.io/client-go/listers/autoscaling/v2beta1"
+	autoscalingv2 "k8s.io/client-go/listers/autoscaling/v2beta2"
 	corev1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/listers/extensions/v1beta1"
 	storagev1 "k8s.io/client-go/listers/storage/v1"
@@ -39,5 +39,5 @@ type Lister struct {
 	Nodes                   corev1.NodeLister
 	StorageClass            storagev1.StorageClassLister
 	Claims                  corev1.PersistentVolumeClaimLister
-	HorizontalPodAutoscaler v2beta1.HorizontalPodAutoscalerLister
+	HorizontalPodAutoscaler autoscalingv2.HorizontalPodAutoscalerLister
 }
