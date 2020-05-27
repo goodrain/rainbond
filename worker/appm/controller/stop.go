@@ -147,7 +147,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 
 	if hpas := app.GetHPAs(); len(hpas) != 0 {
 		for _, hpa := range hpas {
-			err := s.manager.client.AutoscalingV2beta1().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(hpa.GetName(), &metav1.DeleteOptions{})
+			err := s.manager.client.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(hpa.GetName(), &metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				return fmt.Errorf("delete hpa: %v", err)
 			}

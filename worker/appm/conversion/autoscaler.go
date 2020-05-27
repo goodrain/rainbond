@@ -23,7 +23,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
-	"k8s.io/api/autoscaling/v2beta1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,13 +52,13 @@ func TenantServiceAutoscaler(as *v1.AppService, dbmanager db.Manager) error {
 	return nil
 }
 
-func newHPAs(as *v1.AppService, dbmanager db.Manager) ([]*v2beta1.HorizontalPodAutoscaler, error) {
+func newHPAs(as *v1.AppService, dbmanager db.Manager) ([]*autoscalingv2.HorizontalPodAutoscaler, error) {
 	xpaRules, err := dbmanager.TenantServceAutoscalerRulesDao().ListEnableOnesByServiceID(as.ServiceID)
 	if err != nil {
 		return nil, err
 	}
 
-	var hpas []*v2beta1.HorizontalPodAutoscaler
+	var hpas []*autoscalingv2.HorizontalPodAutoscaler
 	for _, rule := range xpaRules {
 		metrics, err := dbmanager.TenantServceAutoscalerRuleMetricsDao().ListByRuleID(rule.RuleID)
 		if err != nil {
@@ -67,7 +67,7 @@ func newHPAs(as *v1.AppService, dbmanager db.Manager) ([]*v2beta1.HorizontalPodA
 
 		var kind, name string
 		if as.GetStatefulSet() != nil {
-			kind, name = "Statefulset", as.GetStatefulSet().GetName()
+			kind, name = "StatefulSet", as.GetStatefulSet().GetName()
 		} else {
 			kind, name = "Deployment", as.GetDeployment().GetName()
 		}
@@ -85,32 +85,36 @@ func newHPAs(as *v1.AppService, dbmanager db.Manager) ([]*v2beta1.HorizontalPodA
 	return hpas, nil
 }
 
-func createResourceMetrics(metric *model.TenantServiceAutoscalerRuleMetrics) v2beta1.MetricSpec {
-	ms := v2beta1.MetricSpec{
-		Type: v2beta1.ResourceMetricSourceType,
-		Resource: &v2beta1.ResourceMetricSource{
+func createResourceMetrics(metric *model.TenantServiceAutoscalerRuleMetrics) autoscalingv2.MetricSpec {
+	ms := autoscalingv2.MetricSpec{
+		Type: autoscalingv2.ResourceMetricSourceType,
+		Resource: &autoscalingv2.ResourceMetricSource{
 			Name: str2ResourceName[metric.MetricsName],
 		},
 	}
 
 	if metric.MetricTargetType == "utilization" {
 		value := int32(metric.MetricTargetValue)
-		ms.Resource.TargetAverageUtilization = &value
+		ms.Resource.Target = autoscalingv2.MetricTarget{
+			Type:               autoscalingv2.UtilizationMetricType,
+			AverageUtilization: &value,
+		}
 	}
 	if metric.MetricTargetType == "average_value" {
+		ms.Resource.Target.Type = autoscalingv2.AverageValueMetricType
 		if metric.MetricsName == "cpu" {
-			ms.Resource.TargetAverageValue = resource.NewMilliQuantity(int64(metric.MetricTargetValue), resource.DecimalSI)
+			ms.Resource.Target.AverageValue = resource.NewMilliQuantity(int64(metric.MetricTargetValue), resource.DecimalSI)
 		}
 		if metric.MetricsName == "memory" {
-			ms.Resource.TargetAverageValue = resource.NewQuantity(int64(metric.MetricTargetValue*1024*1024), resource.BinarySI)
+			ms.Resource.Target.AverageValue = resource.NewQuantity(int64(metric.MetricTargetValue*1024*1024), resource.BinarySI)
 		}
 	}
 
 	return ms
 }
 
-func newHPA(namespace, kind, name string, labels map[string]string, rule *model.TenantServiceAutoscalerRules, metrics []*model.TenantServiceAutoscalerRuleMetrics) *v2beta1.HorizontalPodAutoscaler {
-	hpa := &v2beta1.HorizontalPodAutoscaler{
+func newHPA(namespace, kind, name string, labels map[string]string, rule *model.TenantServiceAutoscalerRules, metrics []*model.TenantServiceAutoscalerRuleMetrics) *autoscalingv2.HorizontalPodAutoscaler {
+	hpa := &autoscalingv2.HorizontalPodAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      rule.RuleID,
 			Namespace: namespace,
@@ -118,10 +122,10 @@ func newHPA(namespace, kind, name string, labels map[string]string, rule *model.
 		},
 	}
 
-	spec := v2beta1.HorizontalPodAutoscalerSpec{
+	spec := autoscalingv2.HorizontalPodAutoscalerSpec{
 		MinReplicas: util.Int32(int32(rule.MinReplicas)),
 		MaxReplicas: int32(rule.MaxReplicas),
-		ScaleTargetRef: v2beta1.CrossVersionObjectReference{
+		ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
 			Kind:       kind,
 			Name:       name,
 			APIVersion: "apps/v1",

@@ -25,7 +25,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
-	v2beta1 "k8s.io/api/autoscaling/v2beta1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -104,8 +104,8 @@ type AppService struct {
 	tenant      *corev1.Namespace
 	statefulset *v1.StatefulSet
 	deployment  *v1.Deployment
-	hpas        []*v2beta1.HorizontalPodAutoscaler
-	delHPAs     []*v2beta1.HorizontalPodAutoscaler
+	hpas        []*autoscalingv2.HorizontalPodAutoscaler
+	delHPAs     []*autoscalingv2.HorizontalPodAutoscaler
 	replicasets []*v1.ReplicaSet
 	services    []*corev1.Service
 	delServices []*corev1.Service
@@ -642,12 +642,12 @@ func (a *AppService) DeleteClaim(claim *corev1.PersistentVolumeClaim) {
 }
 
 // SetHPAs -
-func (a *AppService) SetHPAs(hpas []*v2beta1.HorizontalPodAutoscaler) {
+func (a *AppService) SetHPAs(hpas []*autoscalingv2.HorizontalPodAutoscaler) {
 	a.hpas = hpas
 }
 
 // SetHPA -
-func (a *AppService) SetHPA(hpa *v2beta1.HorizontalPodAutoscaler) {
+func (a *AppService) SetHPA(hpa *autoscalingv2.HorizontalPodAutoscaler) {
 	if len(a.hpas) > 0 {
 		for i, old := range a.hpas {
 			if old.GetName() == hpa.GetName() {
@@ -660,17 +660,17 @@ func (a *AppService) SetHPA(hpa *v2beta1.HorizontalPodAutoscaler) {
 }
 
 // GetHPAs -
-func (a *AppService) GetHPAs() []*v2beta1.HorizontalPodAutoscaler {
+func (a *AppService) GetHPAs() []*autoscalingv2.HorizontalPodAutoscaler {
 	return a.hpas
 }
 
 // GetDelHPAs -
-func (a *AppService) GetDelHPAs() []*v2beta1.HorizontalPodAutoscaler {
+func (a *AppService) GetDelHPAs() []*autoscalingv2.HorizontalPodAutoscaler {
 	return a.delHPAs
 }
 
 // DelHPA -
-func (a *AppService) DelHPA(hpa *v2beta1.HorizontalPodAutoscaler) {
+func (a *AppService) DelHPA(hpa *autoscalingv2.HorizontalPodAutoscaler) {
 	if len(a.hpas) == 0 {
 		return
 	}
