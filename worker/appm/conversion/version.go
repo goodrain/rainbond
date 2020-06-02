@@ -59,6 +59,8 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	if as.NeedProxy {
 		dv.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes", "/grdata/kubernetes", corev1.HostPathDirectoryOrCreate, true)
 	}
+	nodeSelector := createNodeSelector(as, dbmanager)
+	tolerations := createToleration(nodeSelector)
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: as.GetCommonLabels(map[string]string{
@@ -72,7 +74,8 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			ImagePullSecrets: setImagePullSecrets(),
 			Volumes:          dv.GetVolumes(),
 			Containers:       []corev1.Container{*container},
-			NodeSelector:     createNodeSelector(as, dbmanager),
+			NodeSelector:     nodeSelector,
+			Tolerations:      tolerations,
 			Affinity:         createAffinity(as, dbmanager),
 			Hostname: func() string {
 				if nodeID, ok := as.ExtensionSet["hostname"]; ok {
@@ -616,7 +619,7 @@ func createNodeSelector(as *v1.AppService, dbmanager db.Manager) map[string]stri
 				continue
 			}
 			if strings.Contains(l.LabelValue, "=") {
-				kv := strings.SplitN(l.LabelValue, "=", 1)
+				kv := strings.SplitN(l.LabelValue, "=", 2)
 				selector[kv[0]] = kv[1]
 			} else {
 				selector["rainbond_node_lable_"+l.LabelValue] = "true"
@@ -730,4 +733,15 @@ func setImagePullSecrets() []corev1.LocalObjectReference {
 	return []corev1.LocalObjectReference{
 		{Name: imagePullSecretName},
 	}
+}
+
+func createToleration(nodeSelector map[string]string) []corev1.Toleration {
+	var tolerations []corev1.Toleration
+	if value, exist := nodeSelector["type"]; exist && value == "virtual-kubelet" {
+		tolerations = append(tolerations, corev1.Toleration{
+			Key:      "virtual-kubelet.io/provider",
+			Operator: corev1.TolerationOpExists,
+		})
+	}
+	return tolerations
 }
