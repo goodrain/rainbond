@@ -17,10 +17,6 @@ func TestCreateMetricSpec(t *testing.T) {
 
 	metricSpec := createResourceMetrics(metric)
 	t.Logf("%#v", metricSpec)
-
-	if metricSpec.Resource.TargetAverageValue == nil {
-		t.Errorf("empty target average value.")
-	}
 }
 
 func TestNewHPA(t *testing.T) {
@@ -55,7 +51,7 @@ func TestNewHPA(t *testing.T) {
 		t.Fatalf("error creating k8s clientset: %s", err.Error())
 	}
 
-	_, err = clientset.AutoscalingV2beta1().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(hpa)
+	_, err = clientset.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(hpa)
 	if err != nil {
 		t.Fatalf("create hpa: %v", err)
 	}

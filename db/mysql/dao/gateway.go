@@ -69,18 +69,17 @@ func (c *CertificateDaoImpl) AddOrUpdate(mo model.Interface) error {
 	}
 
 	var old model.Certificate
-	if ok := c.DB.Where("uuid = ?", cert.UUID).Find(&old).RecordNotFound(); ok {
-		if err := c.DB.Create(cert).Error; err != nil {
-			return err
+	if err := c.DB.Where("uuid = ?", cert.UUID).Find(&old).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.DB.Create(cert).Error
 		}
-	} else {
-		// update certificate
-		old.Certificate = cert.Certificate
-		old.PrivateKey = cert.PrivateKey
-		return c.DB.Table(cert.TableName()).Where("uuid = ?", cert.UUID).Save(old).Error
+		return err
 	}
 
-	return nil
+	// update certificate
+	old.Certificate = cert.Certificate
+	old.PrivateKey = cert.PrivateKey
+	return c.DB.Table(cert.TableName()).Where("uuid = ?", cert.UUID).Save(&old).Error
 }
 
 // GetCertificateByID gets a certificate by matching id

@@ -160,7 +160,7 @@ func (s *startController) startOne(app v1.AppService) error {
 	if hpas := app.GetHPAs(); len(hpas) != 0 {
 		for _, hpa := range hpas {
 			if len(hpa.ResourceVersion) == 0 {
-				_, err := s.manager.client.AutoscalingV2beta1().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(hpa)
+				_, err := s.manager.client.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(hpa)
 				if err != nil && !errors.IsAlreadyExists(err) {
 					logrus.Debugf("hpa: %#v", hpa)
 					return fmt.Errorf("create hpa: %v", err)
