@@ -181,6 +181,7 @@ func GetPodHandler() PodHandler {
 
 var defaultEtcdHandler *EtcdHandler
 
+// GetEtcdHandler returns the default etcd handler.
 func GetEtcdHandler() *EtcdHandler {
 	return defaultEtcdHandler
 }

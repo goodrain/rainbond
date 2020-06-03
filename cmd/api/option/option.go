@@ -27,36 +27,37 @@ import (
 
 //Config config
 type Config struct {
-	DBType            string
-	APIAddr           string
-	APIAddrSSL        string
-	DBConnectionInfo  string
-	EventLogServers   []string
-	NodeAPI           []string
-	BuilderAPI        []string
-	V1API             string
-	MQAPI             string
-	EtcdEndpoint      []string
-	EtcdCaFile        string
-	EtcdCertFile      string
-	EtcdKeyFile       string
-	APISSL            bool
-	APICertFile       string
-	APIKeyFile        string
-	APICaFile         string
-	WebsocketSSL      bool
-	WebsocketCertFile string
-	WebsocketKeyFile  string
-	WebsocketAddr     string
-	Opentsdb          string
-	RegionTag         string
-	LoggerFile        string
-	EnableFeature     []string
-	Debug             bool
-	MinExtPort        int // minimum external port
-	LicensePath       string
-	LicSoPath         string
-	LogPath           string
+	DBType                 string
+	APIAddr                string
+	APIAddrSSL             string
+	DBConnectionInfo       string
+	EventLogServers        []string
+	NodeAPI                []string
+	BuilderAPI             []string
+	V1API                  string
+	MQAPI                  string
+	EtcdEndpoint           []string
+	EtcdCaFile             string
+	EtcdCertFile           string
+	EtcdKeyFile            string
+	APISSL                 bool
+	APICertFile            string
+	APIKeyFile             string
+	APICaFile              string
+	WebsocketSSL           bool
+	WebsocketCertFile      string
+	WebsocketKeyFile       string
+	WebsocketAddr          string
+	Opentsdb               string
+	RegionTag              string
+	LoggerFile             string
+	EnableFeature          []string
+	Debug                  bool
+	MinExtPort             int // minimum external port
+	LicensePath            string
+	LicSoPath              string
+	LogPath                string
+	KuberentesDashboardAPI string
 }
 
 //APIServer  apiserver server
@@ -105,6 +106,7 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LicensePath, "license-path", "/opt/rainbond/etc/license/license.yb", "the license path of the enterprise version.")
 	fs.StringVar(&a.LicSoPath, "license-so-path", "/opt/rainbond/etc/license/license.so", "Dynamic library file path for parsing the license.")
 	fs.StringVar(&a.LogPath, "log-path", "/grdata/logs", "Where Docker log files and event log files are stored.")
+	fs.StringVar(&a.KuberentesDashboardAPI, "k8s-dashboard-api", "kubernetes-dashboard.kubernetes-dashboard:443", "The service DNS name of Kubernetes dashboard. Default to kubernetes-dashboard.kubernetes-dashboard")
 }
 
 //SetLog 设置log
