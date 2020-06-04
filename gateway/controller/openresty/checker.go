@@ -39,16 +39,6 @@ func (o *OrService) Check() error {
 		return fmt.Errorf("ingress controller is not healthy")
 	}
 
-	url = fmt.Sprintf("http://127.0.0.1:%v/is-dynamic-lb-initialized", o.ocfg.ListenPorts.Status)
-	statusCode, err = simpleGet(url, timeout)
-	if err != nil {
-		logrus.Errorf("error checking is-dynamic-lb-initialized: %v", err)
-		return err
-	}
-	if statusCode != 200 {
-		return fmt.Errorf("dynamic load balancer not started")
-	}
-
 	return nil
 }
 
