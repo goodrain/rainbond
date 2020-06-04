@@ -151,6 +151,7 @@ func (m *Manager) Run() {
 	//兼容老版docker
 	m.r.Get("/v1/etcd/event-log/instances", m.EventLogInstance)
 
+	m.r.Get("/kubernetes/dashboard", m.KuberntesDashboardAPI)
 	//prometheus单节点代理
 	m.r.Get("/api/v1/query", m.PrometheusAPI)
 	m.r.Get("/api/v1/query_range", m.PrometheusAPI)
@@ -220,4 +221,9 @@ func (m *Manager) EventLogInstance(w http.ResponseWriter, r *http.Request) {
 //PrometheusAPI prometheus api 代理
 func (m *Manager) PrometheusAPI(w http.ResponseWriter, r *http.Request) {
 	handler.GetPrometheusProxy().Proxy(w, r)
+}
+
+// KuberntesDashboardAPI proxy traffix to kubernetes dashboard
+func (m *Manager) KuberntesDashboardAPI(w http.ResponseWriter, r *http.Request) {
+	handler.GetKubernetesDashboardProxy().Proxy(w, r)
 }

@@ -153,7 +153,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 			i.Logger.Error(fmt.Sprintf("Checkout svn code failed, please make sure the code can be downloaded properly"), map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
-		if len(rs.Logs.CommitEntrys) < 1 {
+		if rs.Logs == nil || len(rs.Logs.CommitEntrys) < 1 {
 			logrus.Errorf("get code commit info error: %s", err.Error())
 			i.Logger.Error(fmt.Sprintf("读取代码版本信息失败"), map[string]string{"step": "builder-exector", "status": "failure"})
 			return err

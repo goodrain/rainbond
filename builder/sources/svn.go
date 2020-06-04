@@ -302,7 +302,7 @@ func (c *svnclient) readTags() []string {
 
 // run 运行命令
 func (c *svnclient) runWithLogger(args ...string) ([]byte, error) {
-	ops := []string{"--username", c.username, "--password", c.password, "--non-interactive", "--trust-server-cert"}
+	ops := []string{"--username", c.username, "--password", c.password, "--non-interactive", "--trust-server-cert-failures", "unknown-ca,cn-mismatch,expired,not-yet-valid,other"}
 	args = append(args, ops...)
 	cmd := exec.Command("svn", args...)
 	if len(c.Env) > 0 {
@@ -326,7 +326,7 @@ func (c *svnclient) runWithLogger(args ...string) ([]byte, error) {
 
 // run 运行命令
 func (c *svnclient) run(args ...string) ([]byte, error) {
-	ops := []string{"--username", c.username, "--password", c.password, "--non-interactive", "--trust-server-cert"}
+	ops := []string{"--username", c.username, "--password", c.password, "--non-interactive", "--trust-server-cert-failures", "unknown-ca,cn-mismatch,expired,not-yet-valid,other"}
 	args = append(args, ops...)
 	cmd := exec.Command("svn", args...)
 	if len(c.Env) > 0 {
