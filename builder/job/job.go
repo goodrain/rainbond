@@ -76,14 +76,7 @@ func InitJobController(rbdNamespace string, stop chan struct{}, kubeClient kuber
 			logrus.Infof("[Watch] Build job pod %s deleted", job.Name)
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			oldJob := old.(*corev1.Pod)
 			job, _ := cur.(*corev1.Pod)
-
-			// ignore job if the phase is not changed.
-			if oldJob.Status.Phase == job.Status.Phase {
-				return
-			}
-
 			if len(job.Status.ContainerStatuses) > 0 {
 				buildContainer := job.Status.ContainerStatuses[0]
 				logrus.Infof("job %s container %s state %+v", job.Name, buildContainer.Name, buildContainer.State)
