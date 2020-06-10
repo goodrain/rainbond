@@ -98,7 +98,6 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.CachePVCName, "pvc-cache-name", "cache", "pvc name of cache")
 	fs.StringVar(&a.CacheSource, "cache-source", "pvc", "volume type for cache path, default set pvc")
 	fs.StringVar(&a.BuilderInNode, "job-node", "", "where builder job running")
-
 }
 
 //SetLog 设置log
