@@ -79,7 +79,6 @@ type Request struct {
 	CachePVCName  string
 	CacheMode     string
 	CachePath     string
-	BuilderInNode string
 	TenantID      string
 	SourceDir     string
 	CacheDir      string

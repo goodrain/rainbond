@@ -328,7 +328,6 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	i.GRDataPVCName = e.cfg.GRDataPVCName
 	i.CacheMode = e.cfg.CacheMode
 	i.CachePath = e.cfg.CachePath
-	i.BuilderInNode = e.cfg.BuilderInNode
 	i.Logger.Info("Build app version from source code start", map[string]string{"step": "builder-exector", "status": "starting"})
 	start := time.Now()
 	defer event.GetManager().ReleaseLogger(i.Logger)

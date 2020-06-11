@@ -307,16 +307,20 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 
 	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
 	// schedule builder
-	if re.BuilderInNode != "" {
-		logrus.Debugf("builder schedule to node: %s", re.BuilderInNode)
-		podSpec.NodeSelector = map[string]string{
-			"kubernetes.io/hostname": re.BuilderInNode,
+	if re.CacheMode == "hostpath" {
+		logrus.Debugf("builder cache mode using hostpath, schedule job into current node")
+		hostIP := os.Getenv("HOST_IP")
+		if hostIP != "" {
+			podSpec.NodeSelector = map[string]string{
+				"kubernetes.io/hostname": hostIP,
+			}
+			podSpec.Tolerations = []corev1.Toleration{
+				{
+					Operator: "Exists",
+				},
+			}
 		}
-		podSpec.Tolerations = []corev1.Toleration{
-			{
-				Operator: "Exists",
-			},
-		}
+
 	}
 	logrus.Debugf("request is: %+v", re)
 	podSpec.Volumes = []corev1.Volume{

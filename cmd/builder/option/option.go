@@ -55,7 +55,6 @@ type Config struct {
 	CachePVCName         string
 	CacheMode            string
 	CachePath            string
-	BuilderInNode        string
 }
 
 //Builder  builder server
@@ -99,7 +98,6 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.CachePVCName, "pvc-cache-name", "cache", "pvc name of cache")
 	fs.StringVar(&a.CacheMode, "cache-mode", "pvc", "volume cache mount type, can be hostpath and sharefile, default is sharefile, which mount using pvc")
 	fs.StringVar(&a.CachePath, "cache-path", "/cache", "volume cache mount path, when cache-mode using hostpath, default path is /cache")
-	fs.StringVar(&a.BuilderInNode, "job-node", "", "where builder job running")
 }
 
 //SetLog 设置log
