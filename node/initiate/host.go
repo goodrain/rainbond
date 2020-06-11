@@ -70,6 +70,24 @@ func (h *hostManager) Start() {
 		// no need to write hosts file
 		return
 	}
+	if h.cfg.GatewayVIP != "" {
+		if err := h.hostCallback.hosts.Cleanup(); err != nil {
+			logrus.Warningf("cleanup hosts file: %v", err)
+			return
+		}
+		logrus.Infof("set hosts %s to %s", h.cfg.ImageRepositoryHost, h.cfg.GatewayVIP)
+		lines := []string{
+			util.StartOfSection,
+			h.cfg.GatewayVIP + " " + h.cfg.ImageRepositoryHost,
+			h.cfg.GatewayVIP + " " + "region.goodrain.me",
+			util.EndOfSection,
+		}
+		h.hostCallback.hosts.AddLines(lines...)
+		if err := h.hostCallback.hosts.Flush(); err != nil {
+			logrus.Warningf("flush hosts file: %v", err)
+		}
+		return
+	}
 	h.discover.AddProject("rbd-gateway", h.hostCallback)
 }
 
@@ -78,6 +96,7 @@ type hostCallback struct {
 	hosts util.Hosts
 }
 
+// TODO HA error
 func (h *hostCallback) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	logrus.Info("hostCallback; update endpoints")
 	if err := h.hosts.Cleanup(); err != nil {

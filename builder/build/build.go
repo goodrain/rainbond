@@ -77,8 +77,8 @@ type Request struct {
 	RbdNamespace  string
 	GRDataPVCName string
 	CachePVCName  string
-	CacheSource   string
-	BuilderInNode string
+	CacheMode     string
+	CachePath     string
 	TenantID      string
 	SourceDir     string
 	CacheDir      string
@@ -102,11 +102,11 @@ type Request struct {
 }
 
 func (r *Request) CacheVolumeSource() corev1.VolumeSource {
-	if r.CacheSource == "hostpath" {
+	if r.CacheMode == "hostpath" {
 		hostPathType := corev1.HostPathDirectoryOrCreate
 		return corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: "/cache",
+				Path: r.CachePath,
 				Type: &hostPathType,
 			},
 		}
