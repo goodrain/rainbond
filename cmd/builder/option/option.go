@@ -96,7 +96,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.RbdRepoName, "rbd-repo", "rbd-repo", "rbd component repo's name")
 	fs.StringVar(&a.GRDataPVCName, "pvc-grdata-name", "grdata", "pvc name of grdata")
 	fs.StringVar(&a.CachePVCName, "pvc-cache-name", "cache", "pvc name of cache")
-	fs.StringVar(&a.CacheMode, "cache-mode", "pvc", "volume cache mount type, can be hostpath and sharefile, default is sharefile, which mount using pvc")
+	fs.StringVar(&a.CacheMode, "cache-mode", "sharefile", "volume cache mount type, can be hostpath and sharefile, default is sharefile, which mount using pvc")
 	fs.StringVar(&a.CachePath, "cache-path", "/cache", "volume cache mount path, when cache-mode using hostpath, default path is /cache")
 }
 
