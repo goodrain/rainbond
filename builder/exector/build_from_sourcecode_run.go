@@ -51,8 +51,8 @@ type SourceCodeBuildItem struct {
 	TenantName    string       `json:"tenant_name"`
 	GRDataPVCName string       `json:"gr_data_pvc_name"`
 	CachePVCName  string       `json:"cache_pvc_name"`
-	CacheSource   string       `json:"cache_source"`
-	BuilderInNode string       `json:"builder_in_node"`
+	CacheMode     string       `json:"cache_mode"`
+	CachePath     string       `json:"cache_path"`
 	ServiceAlias  string       `json:"service_alias"`
 	Action        string       `json:"action"`
 	DestImage     string       `json:"dest_image"`
@@ -258,8 +258,8 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		Ctx:           i.Ctx,
 		GRDataPVCName: i.GRDataPVCName,
 		CachePVCName:  i.CachePVCName,
-		CacheSource:   i.CacheSource,
-		BuilderInNode: i.BuilderInNode,
+		CacheMode:     i.CacheMode,
+		CachePath:     i.CachePath,
 	}
 	res, err := codeBuild.Build(buildReq)
 	return res, err
