@@ -20,9 +20,9 @@ http {
                  ' "$request"  $status $body_bytes_sent '
                  ' "$http_referer"  "$http_user_agent" '; 
     {{ if $h.DisableAccessLog }}
-      access_log off;
+    access_log off;
     {{ else if $h.AccessLogPath }}
-      access_log $h.AccessLogPath porxy;
+    access_log {{$h.AccessLogPath}} porxy;
     {{ end }}
     server_tokens off;           
     underscores_in_headers on;
