@@ -22,7 +22,7 @@ http {
     {{ if $h.DisableAccessLog }}
       access_log off;
     {{ else if $h.AccessLogPath }}
-      access_log $loc.AccessLogPath porxy;
+      access_log $h.AccessLogPath porxy;
     {{ end }}
     server_tokens off;           
     underscores_in_headers on;
