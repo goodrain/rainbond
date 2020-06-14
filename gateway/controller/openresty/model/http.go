@@ -20,6 +20,8 @@ type HTTP struct {
 	UpstreamsDict        Size
 	HTTPListen           int
 	HTTPSListen          int
+	AccessLogPath        string
+	DisableAccessLog     bool
 }
 
 // LogFormat -
@@ -37,11 +39,13 @@ type AccessLog struct {
 // NewHTTP creates a new model.HTTP
 func NewHTTP(conf *option.Config) *HTTP {
 	return &HTTP{
-		HTTPListen:  conf.ListenPorts.HTTP,
-		HTTPSListen: conf.ListenPorts.HTTPS,
-		DefaultType: "text/html",
-		SendFile:    true,
-		StatusPort:  conf.ListenPorts.Status,
+		HTTPListen:       conf.ListenPorts.HTTP,
+		HTTPSListen:      conf.ListenPorts.HTTPS,
+		DefaultType:      "text/html",
+		SendFile:         true,
+		StatusPort:       conf.ListenPorts.Status,
+		AccessLogPath:    conf.AccessLogPath,
+		DisableAccessLog: conf.AccessLogPath == "",
 		KeepaliveTimeout: Time{
 			Num:  30,
 			Unit: "s",

@@ -471,7 +471,6 @@ func CreateCluster(options ClusterOptions) *apiv2.Cluster {
 		cluster.TlsContext = options.TLSContext
 	}
 	if options.LoadAssignment != nil {
-		logrus.Debugf("loadAssignment is : ", options.LoadAssignment)
 		cluster.LoadAssignment = options.LoadAssignment
 	}
 	if options.MaxRequestsPerConnection != nil {

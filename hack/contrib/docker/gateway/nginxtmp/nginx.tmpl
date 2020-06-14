@@ -18,8 +18,12 @@ http {
     
     log_format porxy '$http_x_forwarded_for - $remote_user  [$time_local]'
                  ' "$request"  $status $body_bytes_sent '
-                 ' "$http_referer"  "$http_user_agent" ';
-    access_log off;  
+                 ' "$http_referer"  "$http_user_agent" '; 
+    {{ if $h.DisableAccessLog }}
+      access_log off;
+    {{ else if $h.AccessLogPath }}
+      access_log $loc.AccessLogPath porxy;
+    {{ end }}
     server_tokens off;           
     underscores_in_headers on;
     proxy_headers_hash_max_size 51200;
