@@ -75,7 +75,7 @@ server {
         {{ if $loc.DisableAccessLog }}
         access_log off;
         {{ else if $loc.AccessLogPath }}
-        access_log {{$loc.AccessLogPath}} porxy;
+        access_log {{$loc.AccessLogPath}} proxy;
         {{ end }}
         
         {{ if $loc.ProxyRedirect }}

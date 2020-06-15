@@ -22,6 +22,7 @@ type HTTP struct {
 	HTTPSListen          int
 	AccessLogPath        string
 	DisableAccessLog     bool
+	AccessLogFormat      string
 }
 
 // LogFormat -
@@ -45,6 +46,7 @@ func NewHTTP(conf *option.Config) *HTTP {
 		SendFile:         true,
 		StatusPort:       conf.ListenPorts.Status,
 		AccessLogPath:    conf.AccessLogPath,
+		AccessLogFormat:  `%v - [$the_real_ip] - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" $request_length $request_time [$proxy_upstream_name] $upstream_addr $upstream_response_length $upstream_response_time $upstream_status $req_id`,
 		DisableAccessLog: conf.AccessLogPath == "",
 		KeepaliveTimeout: Time{
 			Num:  30,

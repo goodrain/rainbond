@@ -145,7 +145,7 @@ func (o *OrService) Stop() error {
 
 // PersistConfig persists ocfg
 func (o *OrService) PersistConfig(conf *v1.Config) error {
-	l7srv, l4srv := getNgxServer(conf)
+	l7srv, l4srv := o.getNgxServer(conf)
 	// http server
 	o.configManage.WriteServer(*o.ocfg, "http", "", l7srv...)
 	// tcp and udp server
@@ -200,7 +200,7 @@ func (o *OrService) persistUpstreams(pools []*v1.Pool) error {
 	return nil
 }
 
-func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server) {
+func (o *OrService) getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server) {
 	for _, vs := range conf.L7VS {
 		server := &model.Server{
 			Listen:     strings.Join(vs.Listening, " "),
@@ -218,7 +218,9 @@ func getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv []*model.Server
 		}
 		for _, loc := range vs.Locations {
 			location := &model.Location{
-				DisableAccessLog: true,
+				DisableAccessLog: o.ocfg.AccessLogPath == "",
+				// TODO: Distinguish between server output logs
+				AccessLogPath:    o.ocfg.AccessLogPath,
 				EnableMetrics:    true,
 				Path:             loc.Path,
 				NameCondition:    loc.NameCondition,

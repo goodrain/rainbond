@@ -16,13 +16,11 @@ http {
     lua_package_path "/run/nginx/lua/?.lua;;";
     lua_shared_dict configuration_data {{$h.UpstreamsDict.Num}}{{$h.UpstreamsDict.Unit}};
     
-    log_format porxy '$http_x_forwarded_for - $remote_user  [$time_local]'
-                 ' "$request"  $status $body_bytes_sent '
-                 ' "$http_referer"  "$http_user_agent" '; 
+    log_format proxy {{$h.AccessLogFormat}}
     {{ if $h.DisableAccessLog }}
     access_log off;
     {{ else if $h.AccessLogPath }}
-    access_log {{$h.AccessLogPath}} porxy;
+    access_log {{$h.AccessLogPath}} proxy;
     {{ end }}
     server_tokens off;           
     underscores_in_headers on;
