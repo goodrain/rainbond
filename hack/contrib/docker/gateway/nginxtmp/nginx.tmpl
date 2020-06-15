@@ -16,7 +16,7 @@ http {
     lua_package_path "/run/nginx/lua/?.lua;;";
     lua_shared_dict configuration_data {{$h.UpstreamsDict.Num}}{{$h.UpstreamsDict.Unit}};
     
-    log_format proxy {{$h.AccessLogFormat}}
+    log_format proxy '{{$h.AccessLogFormat}}';
     {{ if $h.DisableAccessLog }}
     access_log off;
     {{ else if $h.AccessLogPath }}

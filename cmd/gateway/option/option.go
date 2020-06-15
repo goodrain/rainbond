@@ -55,6 +55,7 @@ type Config struct {
 	WorkerRlimitNofile int
 	ErrorLog           string
 	AccessLogPath      string
+	AccessLogFormat    string
 	ErrorLogLevel      string
 	WorkerConnections  int
 	//essential for linux, optmized to serve many clients with each thread
@@ -147,6 +148,9 @@ func (g *GWServer) CheckConfig() error {
 			return fmt.Errorf("get host ip failure %s", err.Error())
 		}
 		g.HostIP = ip.String()
+	}
+	if os.Getenv("ACCESS_LOG_FORMAT") != "" {
+		g.Config.AccessLogFormat = os.Getenv("ACCESS_LOG_FORMAT")
 	}
 	return nil
 }
