@@ -54,8 +54,17 @@ func OneNodeListerner(serviceAlias, namespace string, configs *corev1.ConfigMap,
 		return nil, err
 	}
 	var listener []cache.Resource
+	var notCreateCommonHTTPListener = func() bool {
+		if configs.Annotations["disable_create_http_common_listener"] == "true" {
+			return true
+		}
+		if strings.Contains(configs.Name, "def-mesh") {
+			return true
+		}
+		return false
+	}()
 	if resources.BaseServices != nil && len(resources.BaseServices) > 0 {
-		for _, l := range upstreamListener(serviceAlias, namespace, resources.BaseServices, services) {
+		for _, l := range upstreamListener(serviceAlias, namespace, resources.BaseServices, services, !notCreateCommonHTTPListener) {
 			if err := l.Validate(); err != nil {
 				logrus.Errorf("listener validate failure %s", err.Error())
 			} else {
@@ -82,7 +91,7 @@ func OneNodeListerner(serviceAlias, namespace string, configs *corev1.ConfigMap,
 
 //upstreamListener handle upstream app listener
 // handle kubernetes inner service
-func upstreamListener(serviceAlias, namespace string, dependsServices []*api_model.BaseService, services []*corev1.Service) (ldsL []*v2.Listener) {
+func upstreamListener(serviceAlias, namespace string, dependsServices []*api_model.BaseService, services []*corev1.Service, createHTTPListen bool) (ldsL []*v2.Listener) {
 	var ListennerConfig = make(map[string]*api_model.BaseService, len(dependsServices))
 	for i, dService := range dependsServices {
 		protoccol := "tcp"
@@ -207,7 +216,7 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 	}
 	logrus.Debugf("virtual host is : %v", newVHL)
 	// create common http listener
-	if len(newVHL) > 0 {
+	if len(newVHL) > 0 && createHTTPListen {
 		//remove 80 tcp listener is exist
 		if i, ok := portMap[80]; ok {
 			ldsL = append(ldsL[:i], ldsL[i+1:]...)

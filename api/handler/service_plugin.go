@@ -292,19 +292,11 @@ func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *api
 		logrus.Errorf("mashal plugin config value error, %v", err)
 		return util.CreateAPIHandleError(500, err)
 	}
-	tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
-		}
-	}()
-	if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).AddModel(&dbmodel.TenantPluginVersionDiscoverConfig{
+	if err := db.GetManager().TenantPluginVersionConfigDao().AddModel(&dbmodel.TenantPluginVersionDiscoverConfig{
 		PluginID:  pluginID,
 		ServiceID: serviceID,
 		ConfigStr: string(v),
 	}); err != nil {
-		tx.Rollback()
 		return util.CreateAPIHandleErrorFromDBError("save plugin config failure", err)
 	}
 	//push message to worker
@@ -320,15 +312,10 @@ func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *api
 		Topic:    gclient.WorkerTopic,
 	})
 	if err != nil {
-		tx.Rollback()
 		logrus.Errorf("equque mq error, %v", err)
-		return util.CreateAPIHandleErrorf(500, "send apply plugin config message failure")
+		// not return error
+		return nil
 	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return util.CreateAPIHandleErrorFromDBError("save plugin config failure", err)
-	}
-
 	return nil
 }
 
