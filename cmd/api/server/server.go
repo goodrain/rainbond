@@ -32,7 +32,9 @@ import (
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/event"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/client"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -62,7 +64,14 @@ func Run(s *option.APIServer) error {
 	if err := db.CreateEventManager(s.Config); err != nil {
 		logrus.Debugf("create event manager error, %v", err)
 	}
-
+	config, err := k8sutil.NewRestConfig(s.KubeConfigPath)
+	if err != nil {
+		return err
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
 	if err := event.NewManager(event.EventConfig{
 		EventLogServers: s.Config.EventLogServers,
 		DiscoverArgs:    etcdClientArgs,
@@ -91,7 +100,7 @@ func Run(s *option.APIServer) error {
 	//初始化 middleware
 	handler.InitProxy(s.Config)
 	//创建handle
-	if err := handler.InitHandle(s.Config, etcdClientArgs, cli, etcdcli); err != nil {
+	if err := handler.InitHandle(s.Config, etcdClientArgs, cli, etcdcli, clientset); err != nil {
 		logrus.Errorf("init all handle error, %v", err)
 		return err
 	}

@@ -25,6 +25,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -33,24 +34,30 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
-	cli "github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/worker/client"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 //TenantAction tenant act
 type TenantAction struct {
-	MQClient  mqclient.MQClient
-	statusCli *client.AppRuntimeSyncClient
-	OptCfg    *option.Config
+	MQClient                  mqclient.MQClient
+	statusCli                 *client.AppRuntimeSyncClient
+	OptCfg                    *option.Config
+	kubeClient                *kubernetes.Clientset
+	cacheClusterResourceStats *ClusterResourceStats
+	cacheTime                 time.Time
 }
 
 //CreateTenManager create Manger
 func CreateTenManager(mqc mqclient.MQClient, statusCli *client.AppRuntimeSyncClient,
-	optCfg *option.Config) *TenantAction {
+	optCfg *option.Config, kubeClient *kubernetes.Clientset) *TenantAction {
 	return &TenantAction{
-		MQClient:  mqc,
-		statusCli: statusCli,
-		OptCfg:    optCfg,
+		MQClient:   mqc,
+		statusCli:  statusCli,
+		OptCfg:     optCfg,
+		kubeClient: kubeClient,
 	}
 }
 
@@ -355,53 +362,38 @@ type ClusterResourceStats struct {
 
 // GetAllocatableResources returns allocatable cpu and memory (MB)
 func (t *TenantAction) GetAllocatableResources() (*ClusterResourceStats, error) {
-	var crs ClusterResourceStats
-	nproxy := GetNodeProxy()
-	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/v2/nodes/rule/compute",
-		t.OptCfg.NodeAPI), nil)
-	if err != nil {
-		return &crs, fmt.Errorf("error creating http request: %v", err)
-	}
-	resp, err := nproxy.Do(req)
-	if err != nil {
-		return &crs, fmt.Errorf("error getting cluster resources: %v", err)
-	}
-	if resp.Body != nil {
-		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
-			return &crs, fmt.Errorf("error getting cluster resources: status code: %d; "+
-				"response: %v", resp.StatusCode, resp)
-		}
-		type foo struct {
-			List []*cli.HostNode `json:"list"`
-		}
-		var f foo
-		err = json.NewDecoder(resp.Body).Decode(&f)
+	if t.cacheClusterResourceStats == nil || t.cacheTime.Add(time.Minute*3).Before(time.Now()) {
+		var crs ClusterResourceStats
+		nodes, err := t.kubeClient.CoreV1().Nodes().List(metav1.ListOptions{})
 		if err != nil {
-			return &crs, fmt.Errorf("error decoding response body: %v", err)
+			logrus.Errorf("get cluster nodes failure %s", err.Error())
+			return &crs, nil
 		}
-
-		for _, n := range f.List {
-			if k := n.NodeStatus.KubeNode; k != nil && !k.Spec.Unschedulable {
-				s := strings.Replace(k.Status.Allocatable.Cpu().String(), "m", "", -1)
-				i, err := strconv.ParseInt(s, 10, 64)
-				if err != nil {
-					return &crs, fmt.Errorf("error converting string to int64: %v", err)
-				}
-				crs.AllCPU += i
-				crs.AllMemory += k.Status.Allocatable.Memory().Value() / (1024 * 1024)
+		for _, node := range nodes.Items {
+			if node.Spec.Unschedulable {
+				continue
 			}
+			for _, c := range node.Status.Conditions {
+				if c.Type == v1.NodeReady && c.Status != v1.ConditionTrue {
+					continue
+				}
+			}
+			crs.AllMemory += node.Status.Allocatable.Memory().Value() / (1024 * 1024)
+			crs.AllCPU += node.Status.Allocatable.Cpu().Value()
 		}
+		t.cacheClusterResourceStats = &crs
+		t.cacheTime = time.Now()
 	}
 	ts, err := t.statusCli.GetTenantResource("")
 	if err != nil {
 		logrus.Errorf("get tenant resource failure %s", err.Error())
 	}
+	crs := t.cacheClusterResourceStats
 	if ts != nil {
 		crs.RequestCPU = ts.CpuRequest
 		crs.RequestMemory = ts.MemoryRequest
 	}
-	return &crs, nil
+	return crs, nil
 }
 
 //GetServicesResources Gets the resource usage of the specified service.

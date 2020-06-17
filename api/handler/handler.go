@@ -28,10 +28,16 @@ import (
 	"github.com/goodrain/rainbond/db"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/worker/client"
+	"k8s.io/client-go/kubernetes"
 )
 
 //InitHandle 初始化handle
-func InitHandle(conf option.Config, etcdClientArgs *etcdutil.ClientArgs, statusCli *client.AppRuntimeSyncClient, etcdcli *clientv3.Client) error {
+func InitHandle(conf option.Config,
+	etcdClientArgs *etcdutil.ClientArgs,
+	statusCli *client.AppRuntimeSyncClient,
+	etcdcli *clientv3.Client,
+	kubeClient *kubernetes.Clientset,
+) error {
 	mq := api_db.MQManager{
 		EtcdClientArgs: etcdClientArgs,
 		DefaultServer:  conf.MQAPI,
@@ -45,7 +51,7 @@ func InitHandle(conf option.Config, etcdClientArgs *etcdutil.ClientArgs, statusC
 	defaultServieHandler = CreateManager(conf, mqClient, etcdcli, statusCli)
 	defaultPluginHandler = CreatePluginManager(mqClient)
 	defaultAppHandler = CreateAppManager(mqClient)
-	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf)
+	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, kubeClient)
 	defaultNetRulesHandler = CreateNetRulesManager(etcdcli)
 	defaultCloudHandler = CreateCloudManager(conf)
 	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdcli)
