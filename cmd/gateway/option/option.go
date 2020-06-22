@@ -71,11 +71,12 @@ type Config struct {
 
 	EnableMetrics bool
 
-	NodeName        string
-	HostIP          string
-	IgnoreInterface []string
-	ShareMemory     uint64
-	SyncRateLimit   float32
+	NodeName          string
+	HostIP            string
+	IgnoreInterface   []string
+	ShareMemory       uint64
+	SyncRateLimit     float32
+	EnableSSLStapling bool
 }
 
 // ListenPorts describe the ports required to run the gateway controller
@@ -121,6 +122,7 @@ func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&g.NodeName, "node-name", "", "this gateway node host name")
 	fs.StringVar(&g.HostIP, "node-ip", "", "this gateway node ip")
 	fs.BoolVar(&g.Debug, "debug", false, "enable pprof debug")
+	fs.BoolVar(&g.EnableSSLStapling, "enable-ssl-stapling", false, "enable ssl stapling")
 	fs.Uint64Var(&g.ShareMemory, "max-config-share-memory", 128, "Nginx maximum Shared memory size, which should be increased for larger clusters.")
 	fs.Float32Var(&g.SyncRateLimit, "sync-rate-limit", 0.3, "Define the sync frequency upper limit")
 	fs.StringArrayVar(&g.IgnoreInterface, "ignore-interface", []string{"docker0", "tunl0", "cni0", "kube-ipvs0", "flannel"}, "The network interface name that ignore by gateway")

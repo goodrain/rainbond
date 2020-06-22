@@ -26,6 +26,7 @@ type Server struct {
 	ProxyPass               string
 	SSLCertificate          string // Specifies a file with the certificate in the PEM format.
 	SSLCertificateKey       string // Specifies a file with the secret key in the PEM format.
+	EnableSSLStapling       bool
 	ForceSSLRedirect        bool
 	Return                  Return
 	Rewrites                []Rewrite

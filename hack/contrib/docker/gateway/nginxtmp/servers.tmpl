@@ -15,6 +15,11 @@ server {
     {{ if .SSLCertificate }}
     # ssl
     ssl_certificate {{.SSLCertificate}};
+    {{ if .EnableSSLStapling }}
+    ssl_stapling on;
+    resolver 8.8.8.8 8.8.4.4 114.114.114.114 valid=300s;
+    resolver_timeout 5s;
+    {{ end }}
     {{ end }}
     {{ if .SSLCertificateKey }}ssl_certificate_key {{.SSLCertificateKey}};{{ end }}
 
