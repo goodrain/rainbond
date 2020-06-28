@@ -397,7 +397,9 @@ func (i *ImportApp) loadApps() error {
 				if strings.Contains(err.Error(), "No such image") {
 					err = sources.ImageTag(i.DockerClient, "goodrain.me/"+saveImageName, image, i.Logger, 2)
 				}
-				return fmt.Errorf("change image tag(%s => %s) error %s", saveImageName, image, err.Error())
+				if err != nil {
+					return fmt.Errorf("change image tag(%s => %s) error %s", saveImageName, image, err.Error())
+				}
 			}
 			if err := sources.ImagePush(i.DockerClient, image, i.ServiceImage.HubUser, i.ServiceImage.HubPassword, i.Logger, 30); err != nil {
 				return fmt.Errorf("push  image %s error %s", image, err.Error())
