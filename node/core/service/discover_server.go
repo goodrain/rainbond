@@ -262,7 +262,7 @@ func (d *DiscoverAction) DiscoverListeners(
 	pluginID := nn[1]
 	serviceAlias := nn[2]
 	lds := &envoyv1.LDSListener{}
-	resources, err := d.GetPluginConfigs(namespace, serviceAlias, pluginID)
+	resources, defaultMesh, err := d.GetPluginConfigAndType(namespace, serviceAlias, pluginID)
 	if err != nil {
 		if strings.Contains(err.Error(), "is not exist") {
 			return lds, nil
@@ -275,7 +275,7 @@ func (d *DiscoverAction) DiscoverListeners(
 		return lds, nil
 	}
 	if resources.BaseServices != nil && len(resources.BaseServices) > 0 {
-		listeners, err := d.upstreamListener(serviceAlias, namespace, resources.BaseServices)
+		listeners, err := d.upstreamListener(serviceAlias, namespace, resources.BaseServices, !defaultMesh)
 		if err != nil {
 			return nil, err
 		}
@@ -294,7 +294,7 @@ func (d *DiscoverAction) DiscoverListeners(
 
 //upstreamListener handle upstream app listener
 // handle kubernetes inner service
-func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, dependsServices []*api_model.BaseService) (envoyv1.Listeners, *util.APIHandleError) {
+func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, dependsServices []*api_model.BaseService, createHTTPListen bool) (envoyv1.Listeners, *util.APIHandleError) {
 	var vhL []*envoyv1.VirtualHost
 	var ldsL envoyv1.Listeners
 	var portMap = make(map[int32]int, 0)
@@ -362,7 +362,7 @@ func (d *DiscoverAction) upstreamListener(serviceAlias, namespace string, depend
 		}
 	}
 	// create common http listener
-	if len(vhL) != 0 {
+	if len(vhL) != 0 && createHTTPListen {
 		newVHL := envoyv1.UniqVirtualHost(vhL)
 		for i, lds := range ldsL {
 			if lds.Address == "tcp://127.0.0.1:80" {
@@ -426,4 +426,27 @@ func (d *DiscoverAction) GetPluginConfigs(namespace, sourceAlias, pluginID strin
 		return nil, err
 	}
 	return &rs, nil
+}
+
+//GetPluginConfigAndType get plugin configs and plugin type (default mesh or custom mesh)
+//if not exist return error
+func (d *DiscoverAction) GetPluginConfigAndType(namespace, sourceAlias, pluginID string) (*api_model.ResourceSpec, bool, error) {
+	labelname := fmt.Sprintf("plugin_id=%s,service_alias=%s", pluginID, sourceAlias)
+	selector, err := labels.Parse(labelname)
+	if err != nil {
+		return nil, false, err
+	}
+	configs, err := d.kubecli.GetConfig(namespace, selector)
+	if err != nil {
+		return nil, false, fmt.Errorf("get plugin config failure %s", err.Error())
+	}
+	if len(configs) == 0 {
+		return nil, false, nil
+	}
+	var rs api_model.ResourceSpec
+	if err := ffjson.Unmarshal([]byte(configs[0].Data["plugin-config"]), &rs); err != nil {
+		logrus.Errorf("unmashal etcd v error, %v", err)
+		return nil, strings.Contains(configs[0].Name, "def-mesh"), err
+	}
+	return &rs, strings.Contains(configs[0].Name, "def-mesh"), nil
 }

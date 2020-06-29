@@ -20,6 +20,9 @@ type HTTP struct {
 	UpstreamsDict        Size
 	HTTPListen           int
 	HTTPSListen          int
+	AccessLogPath        string
+	DisableAccessLog     bool
+	AccessLogFormat      string
 }
 
 // LogFormat -
@@ -37,11 +40,19 @@ type AccessLog struct {
 // NewHTTP creates a new model.HTTP
 func NewHTTP(conf *option.Config) *HTTP {
 	return &HTTP{
-		HTTPListen:  conf.ListenPorts.HTTP,
-		HTTPSListen: conf.ListenPorts.HTTPS,
-		DefaultType: "text/html",
-		SendFile:    true,
-		StatusPort:  conf.ListenPorts.Status,
+		HTTPListen:    conf.ListenPorts.HTTP,
+		HTTPSListen:   conf.ListenPorts.HTTPS,
+		DefaultType:   "text/html",
+		SendFile:      true,
+		StatusPort:    conf.ListenPorts.Status,
+		AccessLogPath: conf.AccessLogPath,
+		AccessLogFormat: func() string {
+			if conf.AccessLogFormat == "" {
+				return `$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" $request_length $request_time $upstream_addr $upstream_response_length $upstream_response_time $upstream_status`
+			}
+			return conf.AccessLogFormat
+		}(),
+		DisableAccessLog: conf.AccessLogPath == "",
 		KeepaliveTimeout: Time{
 			Num:  30,
 			Unit: "s",

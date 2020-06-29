@@ -146,6 +146,11 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 	} else {
 		runbuildOptions.NoCache = false
 	}
+	// pull image runner
+	if _, err := sources.ImagePull(s.re.DockerClient, builder.RUNNERIMAGENAME, builder.REGISTRYUSER, builder.REGISTRYPASS, s.re.Logger, 30); err != nil {
+		return "", fmt.Errorf("pull image %s: %v", builder.RUNNERIMAGENAME, err)
+	}
+	logrus.Infof("pull image %s successfully.", builder.RUNNERIMAGENAME)
 	err := sources.ImageBuild(s.re.DockerClient, cacheDir, runbuildOptions, s.re.Logger, 30)
 	if err != nil {
 		s.re.Logger.Error(fmt.Sprintf("build image %s of new version failure", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
@@ -271,7 +276,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		os.Remove(sourceTarFileName)
 	}()
 	name := fmt.Sprintf("%s-%s", re.ServiceID, re.DeployVersion)
-	namespace := "rbd-system"
+	namespace := re.RbdNamespace
 	envs := []corev1.EnvVar{
 		{Name: "SLUG_VERSION", Value: re.DeployVersion},
 		{Name: "SERVICE_ID", Value: re.ServiceID},
@@ -302,16 +307,20 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 
 	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
 	// schedule builder
-	if re.BuilderInNode != "" {
-		logrus.Debugf("builder schedule to node: %s", re.BuilderInNode)
-		podSpec.NodeSelector = map[string]string{
-			"kubernetes.io/hostname": re.BuilderInNode,
+	if re.CacheMode == "hostpath" {
+		logrus.Debugf("builder cache mode using hostpath, schedule job into current node")
+		hostIP := os.Getenv("HOST_IP")
+		if hostIP != "" {
+			podSpec.NodeSelector = map[string]string{
+				"kubernetes.io/hostname": hostIP,
+			}
+			podSpec.Tolerations = []corev1.Toleration{
+				{
+					Operator: "Exists",
+				},
+			}
 		}
-		podSpec.Tolerations = []corev1.Toleration{
-			{
-				Operator: "Exists",
-			},
-		}
+
 	}
 	logrus.Debugf("request is: %+v", re)
 	podSpec.Volumes = []corev1.Volume{
@@ -363,6 +372,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	reChan := channels.NewRingChannel(10)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	logrus.Debugf("create job[name: %s; namespace: %s]", job.Name, job.Namespace)
 	err = jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
 	if err != nil {
 		logrus.Errorf("create new job:%s failed: %s", name, err.Error())

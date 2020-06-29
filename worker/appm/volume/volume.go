@@ -168,9 +168,8 @@ func (v *Define) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath, hostP
 	switch VolumeType {
 	case dbmodel.MemoryFSVolumeType:
 		vo := corev1.Volume{Name: name}
-		vo.EmptyDir = &corev1.EmptyDirVolumeSource{
-			Medium: corev1.StorageMediumMemory,
-		}
+		// V5.2 do not use memory as medium of emptyDir
+		vo.EmptyDir = &corev1.EmptyDirVolumeSource{}
 		v.volumes = append(v.volumes, vo)
 		if mountPath != "" {
 			vm := corev1.VolumeMount{

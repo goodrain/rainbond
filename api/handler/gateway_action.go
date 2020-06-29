@@ -83,7 +83,7 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 	}()
 	if err := db.GetManager().HTTPRuleDaoTransactions(tx).AddModel(httpRule); err != nil {
 		tx.Rollback()
-		return err
+		return fmt.Errorf("create http rule: %v", err)
 	}
 
 	if strings.Replace(req.CertificateID, " ", "", -1) != "" {
@@ -95,7 +95,7 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 		}
 		if err := db.GetManager().CertificateDaoTransactions(tx).AddOrUpdate(cert); err != nil {
 			tx.Rollback()
-			return err
+			return fmt.Errorf("create or update http rule: %v", err)
 		}
 	}
 
@@ -108,14 +108,14 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 		}
 		if err := db.GetManager().RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
 			tx.Rollback()
-			return err
+			return fmt.Errorf("create rule extensions: %v", err)
 		}
 	}
 
 	// end transaction
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
-		return err
+		return fmt.Errorf("commit transaction: %v", err)
 	}
 	// Effective immediately
 	if err := g.SendTask(map[string]interface{}{
@@ -147,17 +147,11 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
 		return fmt.Errorf("HTTPRule dosen't exist based on uuid(%s)", req.HTTPRuleID)
 	}
 	if strings.Replace(req.CertificateID, " ", "", -1) != "" {
-		// delete old Certificate
-		if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(rule.CertificateID); err != nil {
-			tx.Rollback()
-			return err
-		}
 		// add new certificate
 		cert := &model.Certificate{
-			UUID:            req.CertificateID,
-			CertificateName: fmt.Sprintf("cert-%s", util.NewUUID()[0:8]),
-			Certificate:     req.Certificate,
-			PrivateKey:      req.PrivateKey,
+			UUID:        req.CertificateID,
+			Certificate: req.Certificate,
+			PrivateKey:  req.PrivateKey,
 		}
 		if err := g.dbmanager.CertificateDaoTransactions(tx).AddOrUpdate(cert); err != nil {
 			tx.Rollback()
@@ -229,6 +223,14 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
 	return nil
 }
 
+func (g *GatewayAction) isCertificateBeingUsed(certID string) (bool, error) {
+	rules, err := g.dbmanager.HTTPRuleDao().GetHTTPRulesByCertificateID(certID)
+	if err != nil {
+		return false, fmt.Errorf("list rules by certificate id: %v", err)
+	}
+	return len(rules) > 0, nil
+}
+
 // DeleteHTTPRule deletes http rule, including certificate and rule extensions
 func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error {
 	// begin transaction
@@ -251,23 +253,6 @@ func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error
 		return err
 	}
 
-	otherUsed := false
-	var useTheSameCertificateHttpRules []*model.HTTPRule
-	if useTheSameCertificateHttpRules, err = g.dbmanager.HTTPRuleDaoTransactions(tx).GetHTTPRulesByCertificateID(httpRule.CertificateID); err != nil {
-		tx.Rollback()
-		return err
-	}
-	if len(useTheSameCertificateHttpRules) > 0 {
-		logrus.Warningf("certificateID: %s, is used by other http rule, can't delete right now", httpRule.CertificateID)
-		otherUsed = true
-	}
-	if !otherUsed {
-		// delete certificate
-		if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(httpRule.CertificateID); err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
 	// delete rule extension
 	if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(httpRule.UUID); err != nil {
 		tx.Rollback()
@@ -297,9 +282,6 @@ func (g *GatewayAction) DeleteHTTPRuleByServiceIDWithTransaction(sid string, tx 
 	}
 
 	for _, rule := range rules {
-		if err := g.dbmanager.CertificateDaoTransactions(tx).DeleteCertificateByID(rule.CertificateID); err != nil {
-			return err
-		}
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(rule.UUID); err != nil {
 			return err
 		}

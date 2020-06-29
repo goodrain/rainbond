@@ -70,6 +70,7 @@ type Conf struct {
 	LogFile                         string
 	HostID                          string
 	HostIP                          string
+	PodIP                           string
 	RunMode                         string //ACP_NODE 运行模式:master,node
 	NodeRule                        string //节点属性 compute manage storage
 	Service                         string //服务注册与发现
@@ -124,6 +125,7 @@ type Conf struct {
 	// Namespace for Rainbond application.
 	RbdNamespace        string
 	ImageRepositoryHost string
+	GatewayVIP          string
 	HostsFile           string
 }
 
@@ -150,6 +152,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.NodePath, "nodePath", "/rainbond/nodes", "the path of node in etcd")
 	fs.StringVar(&a.HostID, "nodeid", "", "the unique ID for this node. Just specify, don't modify")
 	fs.StringVar(&a.HostIP, "hostIP", "", "the host ip you can define. default get ip from eth0")
+	fs.StringVar(&a.PodIP, "podIP", "", "The pod ip of node.")
 	fs.StringSliceVar(&a.EventLogServer, "event-log-server", []string{"127.0.0.1:6366"}, "host:port slice of event log server")
 	fs.StringVar(&a.ConfigStoragePath, "config-path", "/rainbond/acp_configs", "the path of config to store(new)")
 	fs.StringVar(&a.Service, "servicePath", "/traefik/backends", "the path of service info to store")
@@ -186,6 +189,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&a.ImageGCLowThresholdPercent, "image-gc-low-threshold", 75, "The percent of disk usage before which image garbage collection is never run. Lowest disk usage to garbage collect to. Values must be within the range [0, 100] and should not be larger than that of --image-gc-high-threshold.")
 	fs.StringVar(&a.RbdNamespace, "rbd-ns", "rbd-system", "The namespace of rainbond applications.")
 	fs.StringVar(&a.ImageRepositoryHost, "image-repo-host", "goodrain.me", "The host of image repository")
+	fs.StringVar(&a.GatewayVIP, "gateway-vip", "", "The vip of gateway")
 	fs.StringVar(&a.HostsFile, "hostsfile", "/newetc/hosts", "/etc/hosts mapped path in the container. eg. /etc/hosts:/tmp/hosts. Do not set hostsfile to /etc/hosts")
 }
 

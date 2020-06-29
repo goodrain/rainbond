@@ -1110,7 +1110,10 @@ func (t *TenantServiceConfigFileDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("ServiceID: %s; VolumeName: %s; ConfigFile already exists", configFile.ServiceID, configFile.VolumeName)
+		old.FileContent = configFile.FileContent
+		if err := t.DB.Save(&old).Error; err != nil {
+			return err
+		}
 	}
 	return nil
 }

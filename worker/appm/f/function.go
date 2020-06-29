@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	v2beta1 "k8s.io/api/autoscaling/v2beta1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -266,11 +266,11 @@ func EnsureService(new *corev1.Service, clientSet kubernetes.Interface) error {
 }
 
 // EnsureHPA -
-func EnsureHPA(new *v2beta1.HorizontalPodAutoscaler, clientSet kubernetes.Interface) {
-	_, err := clientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(new.Namespace).Get(new.Name, metav1.GetOptions{})
+func EnsureHPA(new *autoscalingv2.HorizontalPodAutoscaler, clientSet kubernetes.Interface) {
+	_, err := clientSet.AutoscalingV2beta2().HorizontalPodAutoscalers(new.Namespace).Get(new.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			_, err = clientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(new.Namespace).Create(new)
+			_, err = clientSet.AutoscalingV2beta2().HorizontalPodAutoscalers(new.Namespace).Create(new)
 			if err != nil {
 				logrus.Warningf("error creating hpa %+v: %v", new, err)
 			}
@@ -279,7 +279,7 @@ func EnsureHPA(new *v2beta1.HorizontalPodAutoscaler, clientSet kubernetes.Interf
 		logrus.Errorf("error getting hpa(%s): %v", fmt.Sprintf("%s/%s", new.Namespace, new.Name), err)
 		return
 	}
-	_, err = clientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(new.Namespace).Update(new)
+	_, err = clientSet.AutoscalingV2beta2().HorizontalPodAutoscalers(new.Namespace).Update(new)
 	if err != nil {
 		logrus.Warningf("error updating hpa %+v: %v", new, err)
 		return
@@ -430,7 +430,7 @@ func UpgradeClaims(clientset *kubernetes.Clientset, as *v1.AppService, old, new 
 				}
 			}
 			if claim != nil {
-				logrus.Infof("claim is exists, do not create again, and can't update it", claim.Name)
+				logrus.Infof("claim is exists, do not create again, and can't update it: %s", claim.Name)
 			} else {
 				claim, err = clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Update(n)
 				if err != nil {

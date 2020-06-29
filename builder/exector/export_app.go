@@ -359,8 +359,7 @@ func (i *ExportApp) savePlugins() error {
 			return err
 		}
 		//change save app image name
-		imageName := sources.ImageNameWithNamespaceHandle(image)
-		saveImageName := fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, imageName.Name, imageName.Tag)
+		saveImageName := sources.GenSaveImageName(image)
 		if err := sources.ImageTag(i.DockerClient, image, saveImageName, i.Logger, 2); err != nil {
 			return err
 		}
@@ -396,7 +395,6 @@ func (i *ExportApp) saveApps() error {
 		serviceDir := fmt.Sprintf("%s/%s", i.SourceDir, serviceName)
 		os.MkdirAll(serviceDir, 0755)
 		logrus.Debug("Create directory for export app: ", serviceDir)
-		shareSlugPath := app.Get("share_slug_path").String()
 		shareImage := app.Get("share_image").String()
 
 		volumes := app.Get("service_volume_map_list").Array()
@@ -408,13 +406,6 @@ func (i *ExportApp) saveApps() error {
 					return err
 				}
 			}
-		}
-		if shareSlugPath != "" {
-			// app is slug type
-			if err := i.exportSlug(serviceDir, app); err != nil {
-				return err
-			}
-			continue
 		}
 		if shareImage != "" {
 			logrus.Infof("The service is image model deploy: %s", serviceName)

@@ -19,9 +19,12 @@
 package etcd
 
 import (
+	"fmt"
 	"path"
 	"testing"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 
 	"golang.org/x/net/context"
 )
@@ -56,4 +59,28 @@ func TestNewETCDClient(t *testing.T) {
 	}
 	t.Logf("resp is : %+v", resp)
 	time.Sleep(30)
+}
+
+func TestEtcd(t *testing.T) {
+	// test etcd retry connection
+	fmt.Println("yes")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	etcdClientArgs := &ClientArgs{
+		Endpoints: []string{"http://127.0.0.1:2359"},
+	}
+	etcdcli, err := NewClient(ctx, etcdClientArgs)
+	if err != nil {
+		logrus.Errorf("create etcd client v3 error, %v", err)
+		t.Fatal(err)
+	}
+	memberList, err := etcdcli.MemberList(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(memberList.Members) == 0 {
+		fmt.Println("no members")
+		return
+	}
+	t.Logf("members is: %s", memberList.Members[0].Name)
 }

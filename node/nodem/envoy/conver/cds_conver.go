@@ -111,7 +111,7 @@ func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_mod
 			clusterOption.ClusterType = v2.Cluster_EDS
 		}
 		clusterOption.HealthyPanicThreshold = options.HealthyPanicThreshold
-		clusterOption.ConnectionTimeout = envoyv2.ConverTimeDuration(250)
+		clusterOption.ConnectionTimeout = envoyv2.ConverTimeDuration(options.ConnectionTimeout)
 		cluster := envoyv2.CreateCluster(clusterOption)
 		if cluster != nil {
 			logrus.Debugf("cluster is : %v", cluster)
@@ -131,7 +131,7 @@ func downstreamClusters(serviceAlias, namespace string, ports []*api_model.BaseP
 		option := envoyv2.GetOptionValues(port.Options)
 		cluster := envoyv2.CreateCluster(envoyv2.ClusterOptions{
 			Name:                     clusterName,
-			ConnectionTimeout:        envoyv2.ConverTimeDuration(250),
+			ConnectionTimeout:        envoyv2.ConverTimeDuration(option.ConnectionTimeout),
 			ServiceName:              "",
 			ClusterType:              v2.Cluster_STATIC,
 			CircuitBreakers:          envoyv2.CreateCircuitBreaker(option),

@@ -67,12 +67,19 @@ func (c *CertificateDaoImpl) AddOrUpdate(mo model.Interface) error {
 	if !ok {
 		return fmt.Errorf("Failed to convert %s to *model.Certificate", reflect.TypeOf(mo).String())
 	}
-	var result model.Certificate
-	if err := c.DB.Where("uuid = ?", cert.UUID).Assign(cert).FirstOrCreate(&result).Error; err != nil {
-		return fmt.Errorf("Unexpected error occurred while adding or updating certficate: %v", err)
+
+	var old model.Certificate
+	if err := c.DB.Where("uuid = ?", cert.UUID).Find(&old).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.DB.Create(cert).Error
+		}
+		return err
 	}
 
-	return nil
+	// update certificate
+	old.Certificate = cert.Certificate
+	old.PrivateKey = cert.PrivateKey
+	return c.DB.Table(cert.TableName()).Where("uuid = ?", cert.UUID).Save(&old).Error
 }
 
 // GetCertificateByID gets a certificate by matching id
@@ -86,14 +93,6 @@ func (c *CertificateDaoImpl) GetCertificateByID(certificateID string) (*model.Ce
 		return nil, err
 	}
 	return &certificate, nil
-}
-
-//DeleteCertificateByID delete certificate
-func (c *CertificateDaoImpl) DeleteCertificateByID(certificateID string) error {
-	cert := &model.Certificate{
-		UUID: certificateID,
-	}
-	return c.DB.Where("uuid=?", certificateID).Delete(cert).Error
 }
 
 //RuleExtensionDaoImpl rule extension dao

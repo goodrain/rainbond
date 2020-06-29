@@ -50,6 +50,9 @@ func (c *VersionInfoDaoImpl) DeleteVersionByServiceID(serviceID string) error {
 //AddModel AddModel
 func (c *VersionInfoDaoImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.VersionInfo)
+	if len(result.CommitMsg) > 200 {
+		result.CommitMsg = result.CommitMsg[:200]
+	}
 	var oldResult model.VersionInfo
 	if ok := c.DB.Where("build_version=? and service_id=?", result.BuildVersion, result.ServiceID).Find(&oldResult).RecordNotFound(); ok {
 		if err := c.DB.Create(result).Error; err != nil {
