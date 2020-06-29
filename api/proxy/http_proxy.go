@@ -19,10 +19,14 @@
 package proxy
 
 import (
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -32,6 +36,7 @@ type HTTPProxy struct {
 	name      string
 	endpoints EndpointList
 	lb        LoadBalance
+	client    *http.Client
 }
 
 //Proxy http proxy
@@ -73,7 +78,7 @@ func (h *HTTPProxy) Do(r *http.Request) (*http.Response, error) {
 	}
 	//default is http
 	r.URL.Scheme = "http"
-	return http.DefaultClient.Do(r)
+	return h.client.Do(r)
 }
 
 func createHTTPProxy(name string, endpoints []string, lb LoadBalance) *HTTPProxy {
@@ -88,5 +93,19 @@ func createHTTPProxy(name string, endpoints []string, lb LoadBalance) *HTTPProxy
 	if lb == nil {
 		lb = NewRoundRobin()
 	}
-	return &HTTPProxy{name, CreateEndpoints(ends), lb}
+	timeout, _ := strconv.Atoi(os.Getenv("PROXY_TIMEOUT"))
+	if timeout == 0 {
+		timeout = 10
+	}
+	var netTransport = &http.Transport{
+		Dial: (&net.Dialer{
+			Timeout: 5 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout: 5 * time.Second,
+	}
+	client := &http.Client{
+		Transport: netTransport,
+		Timeout:   time.Second * time.Duration(timeout),
+	}
+	return &HTTPProxy{name, CreateEndpoints(ends), lb, client}
 }
