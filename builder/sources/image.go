@@ -35,7 +35,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/model"
 	"github.com/goodrain/rainbond/event"
 	"golang.org/x/net/context"
@@ -206,7 +205,7 @@ func ImageNameWithNamespaceHandle(imageName string) *model.ImageName {
 // the image in the exported tar package.
 func GenSaveImageName(name string) string {
 	imageName := ImageNameWithNamespaceHandle(name)
-	return fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, imageName.Name, imageName.Tag)
+	return fmt.Sprintf("%s:%s", imageName.Name, imageName.Tag)
 }
 
 //ImagePush push image to registry

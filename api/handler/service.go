@@ -661,6 +661,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	// sc.Endpoints.Discovery or sc.Endpoints.Static can't be nil
 	if sc.Kind == dbmodel.ServiceKindThirdParty.String() { // TODO: validate request data
 		if sc.Endpoints == nil {
+			tx.Rollback()
 			return fmt.Errorf("endpoints can not be empty for third-party service")
 		}
 		if config := strings.Replace(sc.Endpoints.Discovery, " ", "", -1); config != "" {
@@ -1956,6 +1957,7 @@ func (s *ServiceAction) delServiceMetadata(serviceID string) error {
 	if err != nil {
 		return err
 	}
+	logrus.Infof("delete service %s %s", serviceID, service.ServiceAlias)
 	tx := db.GetManager().Begin()
 	defer func() {
 		if r := recover(); r != nil {

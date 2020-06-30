@@ -72,15 +72,15 @@ func (e EventStatus) String() string {
 // EventStatusSuccess -
 var EventStatusSuccess EventStatus = "success"
 
-// EventStatusFailure
+// EventStatusFailure -
 var EventStatusFailure EventStatus = "failure"
 
 //ServiceEvent event struct
 type ServiceEvent struct {
 	Model
 	EventID     string `gorm:"column:event_id;size:40"`
-	TenantID    string `gorm:"column:tenant_id;size:40"`
-	ServiceID   string `gorm:"column:service_id;size:40"`
+	TenantID    string `gorm:"column:tenant_id;size:40;index:tenant_id"`
+	ServiceID   string `gorm:"column:service_id;size:40;index:service_id"`
 	Target      string `gorm:"column:target;size:40"`
 	TargetID    string `gorm:"column:target_id;size:255"`
 	RequestBody string `gorm:"column:request_body;size:1024"`

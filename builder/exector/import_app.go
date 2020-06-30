@@ -33,6 +33,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
@@ -46,12 +47,11 @@ func init() {
 
 //ImportApp Export app to specified format(rainbond-app or dockercompose)
 type ImportApp struct {
-	EventID       string   `json:"event_id"`
-	Format        string   `json:"format"`
-	SourceDir     string   `json:"source_dir"`
-	Apps          []string `json:"apps"`
-	ServiceImage  model.ServiceImage
-	ServiceSlug   model.ServiceSlug
+	EventID       string             `json:"event_id"`
+	Format        string             `json:"format"`
+	SourceDir     string             `json:"source_dir"`
+	Apps          []string           `json:"apps"`
+	ServiceImage  model.ServiceImage `json:"service_image"`
 	Logger        event.Logger
 	DockerClient  *client.Client
 	oldAPPPath    map[string]string
@@ -60,32 +60,21 @@ type ImportApp struct {
 
 //NewImportApp create
 func NewImportApp(in []byte, m *exectorManager) (TaskWorker, error) {
-	eventID := gjson.GetBytes(in, "event_id").String()
-
-	var serviceSlug model.ServiceSlug
-	if err := json.Unmarshal([]byte(gjson.GetBytes(in, "service_slug").String()), &serviceSlug); err != nil {
-		logrus.Error("Failed to unmarshal service_slug for import app: ", err)
+	var importApp ImportApp
+	if err := json.Unmarshal(in, &importApp); err != nil {
 		return nil, err
 	}
-
-	apps := make([]string, 0, 10)
-	for _, r := range gjson.GetBytes(in, "apps").Array() {
-		apps = append(apps, r.String())
+	if importApp.ServiceImage.HubUrl == "goodrain.me" {
+		importApp.ServiceImage.HubUrl = builder.REGISTRYDOMAIN
+		importApp.ServiceImage.HubUser = builder.REGISTRYUSER
+		importApp.ServiceImage.HubPassword = builder.REGISTRYPASS
 	}
-
-	logger := event.GetManager().GetLogger(eventID)
-
-	return &ImportApp{
-		Format:        gjson.GetBytes(in, "format").String(),
-		SourceDir:     gjson.GetBytes(in, "source_dir").String(),
-		Apps:          apps,
-		ServiceSlug:   serviceSlug,
-		Logger:        logger,
-		EventID:       eventID,
-		DockerClient:  m.DockerClient,
-		oldAPPPath:    make(map[string]string),
-		oldPluginPath: make(map[string]string),
-	}, nil
+	logrus.Infof("%+v", importApp.ServiceImage)
+	importApp.Logger = event.GetManager().GetLogger(importApp.EventID)
+	importApp.DockerClient = m.DockerClient
+	importApp.oldAPPPath = make(map[string]string)
+	importApp.oldPluginPath = make(map[string]string)
+	return &importApp, nil
 }
 
 //Stop stop
@@ -174,47 +163,22 @@ func (i *ImportApp) importApp() error {
 		}
 		for index := range apps {
 			app := meta.Get("apps").GetIndex(index)
-			if _, ok := app.CheckGet("service_slug"); ok {
-				app.Set("service_slug", i.ServiceSlug)
-			}
 			getAppImage := func() string {
+				//new image will create by new app store hub config
 				oldname, _ := app.Get("share_image").String()
-				oldImageName := sources.ImageNameWithNamespaceHandle(oldname)
-				hubURL, err := app.Get("service_image").Get("hub_url").String()
-				if err != nil {
-					logrus.Warn("app service image hubURL get failed: %s, use goodrain.me", err.Error())
-					hubURL = builder.REGISTRYDOMAIN
+				image := parser.ParseImageName(oldname)
+				newImage := fmt.Sprintf("%s/%s/%s:%s", i.ServiceImage.HubUrl, i.ServiceImage.NameSpace, image.GetSimpleName(), image.GetTag())
+				if i.ServiceImage.NameSpace == "" {
+					newImage = fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, image.GetSimpleName(), image.GetTag())
 				}
-				image := fmt.Sprintf("%s/%s:%s", hubURL, oldImageName.Name, oldImageName.Tag)
-				namespace, _ := app.Get("service_image").Get("namespace").String()
-				if namespace != "" {
-					image = fmt.Sprintf("%s/%s/%s:%s", hubURL, namespace, oldImageName.Name, oldImageName.Tag)
-				}
-				return image
-			}
-			getAppSlugPath := func() string {
-				shareSlugPath, _ := app.Get("share_slug_path").String()
-				if strings.HasPrefix(shareSlugPath, "/grdata/build/tenant/") {
-					shareSlugPath = strings.Replace(shareSlugPath, "/grdata/build/tenant/", "", 1)
-				}
-				if i.ServiceSlug.FtpHost == "" {
-					shareSlugPath = fmt.Sprintf("/grdata/build/tenant/%s", shareSlugPath)
-				} else {
-					info := strings.Split(shareSlugPath, "/")
-					shareSlugPath = fmt.Sprintf("%s/%s", i.ServiceSlug.NameSpace, strings.Join(info[1:], "/"))
-				}
-				return strings.Replace(shareSlugPath, "//", "/", -1)
+				return newImage
 			}
 
 			if oldImage, ok := app.CheckGet("share_image"); ok {
 				appKey, _ := app.Get("service_key").String()
 				i.oldAPPPath[appKey], _ = oldImage.String()
 				app.Set("share_image", getAppImage())
-			}
-			if oldslug, ok := app.CheckGet("share_slug_path"); ok {
-				appKey, _ := app.Get("service_key").String()
-				i.oldAPPPath[appKey], _ = oldslug.String()
-				app.Set("share_slug_path", getAppSlugPath())
+				app.Set("service_image", i.ServiceImage)
 			}
 			apps[index] = app
 		}
@@ -263,7 +227,7 @@ func (i *ImportApp) importApp() error {
 		logrus.Errorf("Failed to load apps %s: %v", i.SourceDir, err)
 		return err
 	}
-	// 更新应用状态
+
 	if err := i.updateStatus("success", datas); err != nil {
 		logrus.Errorf("Failed to load apps %s: %v", i.SourceDir, err)
 		return err
@@ -320,26 +284,20 @@ func (i *ImportApp) importPlugins() error {
 	for index := range oldPlugins {
 		plugin := meta.Get("plugins").GetIndex(index)
 		getImageImage := func() string {
+			//new image will create by new app store hub config
 			oldname, _ := plugin.Get("share_image").String()
-			oldImageName := sources.ImageNameWithNamespaceHandle(oldname)
-			var image string
-			hubURL, err := plugin.Get("plugin_image").Get("hub_url").String()
-			if err != nil {
-				logrus.Warnf("plugin get hub url failed: %s, use goodrain.me", err.Error())
-				hubURL = builder.REGISTRYDOMAIN
+			image := parser.ParseImageName(oldname)
+			newImage := fmt.Sprintf("%s/%s/%s:%s", i.ServiceImage.HubUrl, i.ServiceImage.NameSpace, image.GetSimpleName(), image.GetTag())
+			if i.ServiceImage.NameSpace == "" {
+				newImage = fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, image.GetSimpleName(), image.GetTag())
 			}
-			image = fmt.Sprintf("%s/%s:%s", hubURL, oldImageName.Name, oldImageName.Tag)
-
-			namespace, _ := plugin.Get("plugin_image").Get("namespace").String()
-			if namespace != "" {
-				image = fmt.Sprintf("%s/%s/%s:%s", hubURL, namespace, oldImageName.Name, oldImageName.Tag)
-			}
-			return image
+			return newImage
 		}
 		if oldimage, ok := plugin.CheckGet("share_image"); ok {
 			pluginID, _ := plugin.Get("plugin_id").String()
 			i.oldPluginPath[pluginID], _ = oldimage.String()
 			plugin.Set("share_image", getImageImage())
+			plugin.Set("service_image", i.ServiceImage)
 		} else {
 			logrus.Warnf("plugin do not found share_image, skip it")
 		}
@@ -383,19 +341,20 @@ func (i *ImportApp) importPlugins() error {
 				logrus.Error("Failed to load image for service: ", pluginName)
 				return err
 			}
-			// 上传到仓库
-			// get docker account user and pass
-			user, pass := builder.GetImageUserInfo(plugin.Get("plugin_image.hub_user").String(), plugin.Get("plugin_image.hub_password").String())
 			// 上传之前先要根据新的仓库地址修改镜像名
 			image := i.oldPluginPath[plugin.Get("plugin_id").String()]
-			imageName := sources.ImageNameWithNamespaceHandle(image)
-			saveImageName := fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, imageName.Name, imageName.Tag)
+			saveImageName := sources.GenSaveImageName(image)
 			newImageName := plugin.Get("share_image").String()
 			if err := sources.ImageTag(i.DockerClient, saveImageName, newImageName, i.Logger, 2); err != nil {
-				return fmt.Errorf("change plugin image tag(%s => %s) error %s", saveImageName, newImageName, err.Error())
+				if strings.Contains(err.Error(), "No such image") {
+					saveImageName = "goodrain.me/" + saveImageName
+					err = sources.ImageTag(i.DockerClient, saveImageName, newImageName, i.Logger, 2)
+				}
+				if err != nil {
+					return fmt.Errorf("change plugin image tag(%s => %s) error %s", saveImageName, newImageName, err.Error())
+				}
 			}
-			// 开始上传
-			if err := sources.ImagePush(i.DockerClient, saveImageName, user, pass, i.Logger, 15); err != nil {
+			if err := sources.ImagePush(i.DockerClient, newImageName, i.ServiceImage.HubUser, i.ServiceImage.HubPassword, i.Logger, 30); err != nil {
 				return fmt.Errorf("push plugin image %s error %s", image, err.Error())
 			}
 			logrus.Debug("Successful load and push the plugin image ", image)
@@ -412,7 +371,6 @@ func (i *ImportApp) loadApps() error {
 	}
 
 	for _, app := range apps {
-		// 获取该组件资源文件
 		serviceName := app.Get("service_cname").String()
 		serviceName = unicode2zh(serviceName)
 		serviceDir := fmt.Sprintf("%s/%s", i.SourceDir, serviceName)
@@ -424,10 +382,6 @@ func (i *ImportApp) loadApps() error {
 
 		fileName := filepath.Join(serviceDir, files[0].Name())
 		logrus.Debug("Parse the source file for service: ", fileName)
-
-		// 判断该用应资源是什么类型
-		// 如果是镜像，则加载到本地，并上传到仓库
-		// 如果slug文件，则上传到ftp服务器
 		if strings.HasSuffix(fileName, ".image.tar") {
 			// 加载到本地
 			if err := sources.ImageLoad(i.DockerClient, fileName, i.Logger); err != nil {
@@ -436,49 +390,21 @@ func (i *ImportApp) loadApps() error {
 			}
 			// 上传到仓库
 			oldImage := i.oldAPPPath[app.Get("service_key").String()]
-			oldImageName := sources.ImageNameWithNamespaceHandle(oldImage)
-			// get docker account user and pass
-			user, pass := builder.GetImageUserInfo(app.Get("service_image.hub_user").String(), app.Get("service_image.hub_password").String())
+			saveImageName := sources.GenSaveImageName(oldImage)
 			// 上传之前先要根据新的仓库地址修改镜像名
 			image := app.Get("share_image").String()
-			if err := sources.ImageTag(i.DockerClient, fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, oldImageName.Name, oldImageName.Tag), image, i.Logger, 15); err != nil {
-				return fmt.Errorf("change image tag(%s => %s) error %s", fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, oldImageName.Name, oldImageName.Tag), image, err.Error())
+			if err := sources.ImageTag(i.DockerClient, saveImageName, image, i.Logger, 15); err != nil {
+				if strings.Contains(err.Error(), "No such image") {
+					err = sources.ImageTag(i.DockerClient, "goodrain.me/"+saveImageName, image, i.Logger, 2)
+				}
+				if err != nil {
+					return fmt.Errorf("change image tag(%s => %s) error %s", saveImageName, image, err.Error())
+				}
 			}
-			// 开始上传
-			if err := sources.ImagePush(i.DockerClient, image, user, pass, i.Logger, 15); err != nil {
+			if err := sources.ImagePush(i.DockerClient, image, i.ServiceImage.HubUser, i.ServiceImage.HubPassword, i.Logger, 30); err != nil {
 				return fmt.Errorf("push  image %s error %s", image, err.Error())
 			}
-			logrus.Debug("Successful load and push the image ", image)
-		} else if strings.HasSuffix(fileName, ".tgz") {
-			shareSlugPath := app.Get("share_slug_path").String()
-			ftpHost := app.Get("service_slug.ftp_host").String()
-			ftpPort := app.Get("service_slug.ftp_port").String()
-			ftpUsername := app.Get("service_slug.ftp_username").String()
-			ftpPassword := app.Get("service_slug.ftp_password").String()
-			// if sftp available
-			if ftpHost != "" && ftpPort != "" {
-				ftpClient, err := sources.NewSFTPClient(ftpUsername, ftpPassword, ftpHost, ftpPort)
-				if err != nil {
-					return err
-				}
-				err = ftpClient.PushFile(fileName, shareSlugPath, i.Logger)
-				ftpClient.Close()
-				if err != nil {
-					logrus.Errorf("Failed to upload slug file for group %s: %v", i.SourceDir, err)
-					return err
-				}
-			} else {
-				if err := util.CheckAndCreateDir(filepath.Dir(shareSlugPath)); err != nil {
-					logrus.Errorf("Failed create slug file directory %s error %s ", filepath.Dir(shareSlugPath), err.Error())
-					return err
-				}
-				err := util.CopyFile(fileName, shareSlugPath)
-				if err != nil {
-					logrus.Error("Failed to copy slug file to local directory: ", shareSlugPath)
-					return err
-				}
-			}
-			logrus.Debug("Successful upload slug file: ", fileName)
+			logrus.Debugf("Successful load and push the image %s", image)
 		}
 	}
 	logrus.Debug("Successful load apps for group: ", i.SourceDir)

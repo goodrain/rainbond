@@ -124,6 +124,10 @@ const (
 	// KeyHealthyPanicThreshold default 50,More than 50% of hosts are ejected and go into panic mode
 	// Panic mode will send traffic back to the failed host
 	KeyHealthyPanicThreshold string = "HealthyPanicThreshold"
+	//KeyConnectionTimeout connection timeout setting
+	KeyConnectionTimeout string = "ConnectionTimeout"
+	//KeyTCPIdleTimeout tcp idle timeout
+	KeyTCPIdleTimeout string = "TCPIdleTimeout"
 )
 
 //RainbondPluginOptions rainbond plugin config struct
@@ -142,6 +146,8 @@ type RainbondPluginOptions struct {
 	MaxEjectionPercent       int
 	MaxRequestsPerConnection *uint32
 	HealthyPanicThreshold    int64
+	ConnectionTimeout        int64
+	TCPIdleTimeout           int64
 }
 
 //RainbondInboundPluginOptions rainbond inbound plugin options
@@ -178,6 +184,8 @@ func GetOptionValues(sr map[string]interface{}) RainbondPluginOptions {
 		BaseEjectionTimeMS:    30000,
 		MaxEjectionPercent:    10,
 		HealthyPanicThreshold: 50,
+		ConnectionTimeout:     250,
+		TCPIdleTimeout:        60 * 60 * 2,
 	}
 	if sr == nil {
 		return rpo
@@ -259,6 +267,14 @@ func GetOptionValues(sr map[string]interface{}) RainbondPluginOptions {
 				} else {
 					rpo.HealthyPanicThreshold = int64(i)
 				}
+			}
+		case KeyConnectionTimeout:
+			if i, err := strconv.Atoi(v.(string)); err == nil {
+				rpo.ConnectionTimeout = int64(i)
+			}
+		case KeyTCPIdleTimeout:
+			if i, err := strconv.Atoi(v.(string)); err == nil {
+				rpo.TCPIdleTimeout = int64(i)
 			}
 		}
 	}

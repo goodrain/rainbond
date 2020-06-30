@@ -198,6 +198,9 @@ type Image struct {
 }
 
 func (i Image) String() string {
+	if i.Namespace == "" {
+		return fmt.Sprintf("%s/%s", i.Host, i.Name)
+	}
 	return fmt.Sprintf("%s/%s/%s", i.Host, i.Namespace, i.Name)
 }
 

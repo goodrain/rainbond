@@ -66,7 +66,8 @@ func CreateCluster(kubecli kubecache.KubeClient, node *client.HostNode, datacent
 //Start 启动
 func (n *Cluster) Start(errchan chan error) error {
 	go n.loadAndWatchNodes(errchan)
-	go n.installWorker(errchan)
+	// disable after 5.2.0
+	// go n.installWorker(errchan)
 	go n.loopHandleNodeStatus(errchan)
 	return nil
 }
@@ -138,7 +139,7 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 		v.NodeStatus.Status = client.Unknown
 		v.GetAndUpdateCondition(client.NodeUp, client.ConditionFalse, "", "Node lost connection, state unknown")
 		//node lost connection, advice offline action
-		v.NodeStatus.AdviceAction = append(v.NodeStatus.AdviceAction, "offline")
+		//v.NodeStatus.AdviceAction = append(v.NodeStatus.AdviceAction, "offline")
 	} else {
 		v.GetAndUpdateCondition(client.NodeUp, client.ConditionTrue, "", "")
 		v.NodeStatus.CurrentScheduleStatus = !v.Unschedulable
@@ -199,19 +200,21 @@ func (n *Cluster) handleNodeStatus(v *client.HostNode) {
 			}
 			if action == "scheduler" && !v.Unschedulable {
 				//if node status is not scheduler
-				if v.NodeStatus.KubeNode != nil && v.NodeStatus.KubeNode.Spec.Unschedulable {
-					logrus.Infof("node %s is advice set scheduler,will do this action", v.ID)
-					_, err := n.kubecli.CordonOrUnCordon(v.ID, false)
-					if err != nil {
-						logrus.Errorf("auto set node is scheduler failure.")
-					}
-				}
+				// disable from 5.2.0
+				// if v.NodeStatus.KubeNode != nil && v.NodeStatus.KubeNode.Spec.Unschedulable {
+				// 	logrus.Infof("node %s is advice set scheduler,will do this action", v.ID)
+				// 	_, err := n.kubecli.CordonOrUnCordon(v.ID, false)
+				// 	if err != nil {
+				// 		logrus.Errorf("auto set node is scheduler failure.")
+				// 	}
+				// }
 			}
 			if action == "offline" {
 				logrus.Warningf("node %s is advice set offline", v.ID)
 				// k8s will offline node itself.
 				// remove the endpoints associated with the node from etcd
-				v.DelEndpoints()
+				// disable from 5.2.0
+				// v.DelEndpoints()
 			}
 		}
 	}

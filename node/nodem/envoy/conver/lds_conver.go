@@ -54,8 +54,17 @@ func OneNodeListerner(serviceAlias, namespace string, configs *corev1.ConfigMap,
 		return nil, err
 	}
 	var listener []cache.Resource
+	var notCreateCommonHTTPListener = func() bool {
+		if configs.Annotations["disable_create_http_common_listener"] == "true" {
+			return true
+		}
+		if strings.Contains(configs.Name, "def-mesh") {
+			return true
+		}
+		return false
+	}()
 	if resources.BaseServices != nil && len(resources.BaseServices) > 0 {
-		for _, l := range upstreamListener(serviceAlias, namespace, resources.BaseServices, services) {
+		for _, l := range upstreamListener(serviceAlias, namespace, resources.BaseServices, services, !notCreateCommonHTTPListener) {
 			if err := l.Validate(); err != nil {
 				logrus.Errorf("listener validate failure %s", err.Error())
 			} else {
@@ -82,10 +91,17 @@ func OneNodeListerner(serviceAlias, namespace string, configs *corev1.ConfigMap,
 
 //upstreamListener handle upstream app listener
 // handle kubernetes inner service
-func upstreamListener(serviceAlias, namespace string, dependsServices []*api_model.BaseService, services []*corev1.Service) (ldsL []*v2.Listener) {
+func upstreamListener(serviceAlias, namespace string, dependsServices []*api_model.BaseService, services []*corev1.Service, createHTTPListen bool) (ldsL []*v2.Listener) {
 	var ListennerConfig = make(map[string]*api_model.BaseService, len(dependsServices))
 	for i, dService := range dependsServices {
-		listennerName := fmt.Sprintf("%s_%s_%s_%s_%d", namespace, serviceAlias, dService.DependServiceAlias, strings.ToLower(dService.Protocol), dService.Port)
+		protoccol := "tcp"
+		if strings.ToLower(dService.Protocol) == "udp" {
+			protoccol = "udp"
+		}
+		if strings.ToLower(dService.Protocol) == "sctp" {
+			protoccol = "sctp"
+		}
+		listennerName := fmt.Sprintf("%s_%s_%s_%s_%d", namespace, serviceAlias, dService.DependServiceAlias, protoccol, dService.Port)
 		ListennerConfig[listennerName] = dependsServices[i]
 	}
 	var portMap = make(map[int32]int)
@@ -110,7 +126,12 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 		listennerName := fmt.Sprintf("%s_%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), strings.ToLower(string(protocol)), ListenPort)
 		destService := ListennerConfig[listennerName]
 		statPrefix := fmt.Sprintf("%s_%s", serviceAlias, GetServiceAliasByService(service))
-
+		var options envoyv2.RainbondPluginOptions
+		if destService != nil {
+			options = envoyv2.GetOptionValues(destService.Options)
+		} else {
+			logrus.Warningf("destService is nil for service %s listenner name %s", serviceAlias, listennerName)
+		}
 		// Unique by listen port
 		if _, ok := portMap[ListenPort]; !ok {
 			//listener name depend listner port
@@ -135,7 +156,7 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 			} else if protocol == "udp" {
 				listener = envoyv2.CreateUDPListener(listenerName, clusterName, envoyv2.DefaultLocalhostListenerAddress, statPrefix, uint32(ListenPort))
 			} else {
-				listener = envoyv2.CreateTCPListener(listenerName, clusterName, envoyv2.DefaultLocalhostListenerAddress, statPrefix, uint32(ListenPort))
+				listener = envoyv2.CreateTCPListener(listenerName, clusterName, envoyv2.DefaultLocalhostListenerAddress, statPrefix, uint32(ListenPort), options.TCPIdleTimeout)
 			}
 			if listener != nil {
 				ldsL = append(ldsL, listener)
@@ -155,12 +176,6 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 			//TODO: support more protocol
 			switch portProtocol {
 			case "http", "https":
-				var options envoyv2.RainbondPluginOptions
-				if destService != nil {
-					options = envoyv2.GetOptionValues(destService.Options)
-				} else {
-					logrus.Warningf("destService is nil for service %s", serviceAlias)
-				}
 				hashKey := options.RouteBasicHash()
 				if oldroute, ok := uniqRoute[hashKey]; ok {
 					oldrr := oldroute.Action.(*route.Route_Route)
@@ -201,7 +216,7 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 	}
 	logrus.Debugf("virtual host is : %v", newVHL)
 	// create common http listener
-	if len(newVHL) > 0 {
+	if len(newVHL) > 0 && createHTTPListen {
 		//remove 80 tcp listener is exist
 		if i, ok := portMap[80]; ok {
 			ldsL = append(ldsL[:i], ldsL[i+1:]...)
@@ -228,6 +243,7 @@ func downstreamListener(serviceAlias, namespace string, ports []*api_model.BaseP
 		statsPrefix := fmt.Sprintf("%s_%d", serviceAlias, port)
 		if _, ok := portMap[port]; !ok {
 			inboundConfig := envoyv2.GetRainbondInboundPluginOptions(p.Options)
+			options := envoyv2.GetOptionValues(p.Options)
 			if p.Protocol == "http" || p.Protocol == "https" {
 				var limit []*route.RateLimit
 				if inboundConfig.OpenLimit {
@@ -271,7 +287,7 @@ func downstreamListener(serviceAlias, namespace string, ports []*api_model.BaseP
 					continue
 				}
 			} else {
-				listener := envoyv2.CreateTCPListener(listenerName, clusterName, "0.0.0.0", statsPrefix, uint32(p.ListenPort))
+				listener := envoyv2.CreateTCPListener(listenerName, clusterName, "0.0.0.0", statsPrefix, uint32(p.ListenPort), options.TCPIdleTimeout)
 				if listener != nil {
 					ls = append(ls, listener)
 				} else {

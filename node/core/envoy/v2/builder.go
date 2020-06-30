@@ -50,7 +50,7 @@ import (
 var DefaultLocalhostListenerAddress = "127.0.0.1"
 
 //CreateTCPListener listener builder
-func CreateTCPListener(name, clusterName, address, statPrefix string, port uint32) *apiv2.Listener {
+func CreateTCPListener(name, clusterName, address, statPrefix string, port uint32, idleTimeout int64) *apiv2.Listener {
 	if address == "" {
 		address = DefaultLocalhostListenerAddress
 	}
@@ -60,6 +60,7 @@ func CreateTCPListener(name, clusterName, address, statPrefix string, port uint3
 		ClusterSpecifier: &tcp_proxy.TcpProxy_Cluster{
 			Cluster: clusterName,
 		},
+		IdleTimeout: ConverTimeDuration(idleTimeout),
 	}
 	if err := tcpProxy.Validate(); err != nil {
 		logrus.Errorf("validate listener tcp proxy config failure %s", err.Error())
@@ -471,7 +472,6 @@ func CreateCluster(options ClusterOptions) *apiv2.Cluster {
 		cluster.TlsContext = options.TLSContext
 	}
 	if options.LoadAssignment != nil {
-		logrus.Debugf("loadAssignment is : ", options.LoadAssignment)
 		cluster.LoadAssignment = options.LoadAssignment
 	}
 	if options.MaxRequestsPerConnection != nil {
