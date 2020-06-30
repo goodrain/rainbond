@@ -293,7 +293,7 @@ func (t *TenantServicesDaoImpl) GetServiceMemoryByTenantIDs(tenantIDs []string, 
 
 //GetServiceMemoryByServiceIDs get service memory by service ids
 func (t *TenantServicesDaoImpl) GetServiceMemoryByServiceIDs(serviceIDs []string) (map[string]map[string]interface{}, error) {
-	rows, err := t.DB.Raw("select service_id, container_cpu as cpu,container_memory * replicas as memory from tenant_services where service_id in (?)", serviceIDs).Rows()
+	rows, err := t.DB.Raw("select service_id, container_cpu as cpu, container_memory as memory from tenant_services where service_id in (?)", serviceIDs).Rows()
 	if err != nil {
 		return nil, err
 	}

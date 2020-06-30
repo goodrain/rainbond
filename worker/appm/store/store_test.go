@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/eapache/channels"
-	autoscalingv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -139,30 +138,6 @@ func TestGetAppVolumeStatus(t *testing.T) {
 	// app := storer.GetAppService(serviceID)
 
 	time.Sleep(20 * time.Second)
-}
-func TestListHPAEvents(t *testing.T) {
-
-	c, err := clientcmd.BuildConfigFromFlags("", "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig")
-	if err != nil {
-		t.Fatalf("read kube config file error: %v", err)
-	}
-	clientset, err := kubernetes.NewForConfig(c)
-	if err != nil {
-		t.Fatalf("create kube api client error: %v", err)
-	}
-	a := appRuntimeStore{
-		clientset: clientset,
-	}
-
-	hpa := &v2beta1.HorizontalPodAutoscaler{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-			Namespace: "bab18e6b1c8640979b91f8dfdd211226",
-		},
-	}
-	if err := a.listHPAEvents(hpa); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func getStoreForTest(t *testing.T, ocfg *option.Config) Storer {
