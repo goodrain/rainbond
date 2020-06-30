@@ -1266,6 +1266,10 @@ func (a *appRuntimeStore) nsEventHandler() cache.ResourceEventHandlerFuncs {
 				return
 			}
 
+			if ns.Status.Phase == corev1.NamespaceTerminating {
+				return
+			}
+
 			if err := a.createOrUpdateImagePullSecret(ns.Name); err != nil {
 				logrus.Errorf("create or update imagepullsecret: %v", err)
 			}
