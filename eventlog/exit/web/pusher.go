@@ -161,6 +161,12 @@ func (p *PubContext) handleSubscribe(wm WebsocketMessage) {
 			p.createChan(channel, "docker", channelInfo[1])
 			p.createChan(channel, "newmonitor", channelInfo[1])
 		}
+		if channelInfo[0] == "l" {
+			p.createChan(channel, "docker", channelInfo[1])
+		}
+		if channelInfo[0] == "m" {
+			p.createChan(channel, "newmonitor", channelInfo[1])
+		}
 		if channelInfo[0] == "e" {
 			p.createChan(channel, "event", channelInfo[1])
 		}
