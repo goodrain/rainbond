@@ -60,6 +60,7 @@ type SocketServer struct {
 	cluster              cluster.Cluster
 	healthInfo           map[string]string
 	etcdClient           *clientv3.Client
+	pubsubCtx            map[string]*PubContext
 }
 
 //NewSocket 创建zmq sub客户端
@@ -83,6 +84,7 @@ func NewSocket(conf conf.WebSocketConf, discoverConf conf.DiscoverConf, etcdClie
 		cluster:      c,
 		healthInfo:   healthInfo,
 		etcdClient:   etcdClient,
+		pubsubCtx:    make(map[string]*PubContext),
 	}
 }
 

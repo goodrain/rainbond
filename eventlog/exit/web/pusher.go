@@ -19,6 +19,7 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -63,6 +64,7 @@ type PubContext struct {
 	lock        sync.Mutex
 	close       chan struct{}
 	sendQueue   chan sendMessage
+	once        sync.Once
 }
 
 //Chan handle
@@ -73,6 +75,7 @@ type Chan struct {
 	reevent string
 	channel string
 	p       *PubContext
+	closed  *bool
 }
 
 //NewPubContext create context
@@ -101,12 +104,19 @@ func (p *PubContext) handleMessage(me []byte) {
 	switch wm.Event {
 	case "pusher:subscribe":
 		p.handleSubscribe(wm)
+	case "cancel:subscribe":
+		p.handleCancelSubscribe(wm)
 	}
 }
 func (p *PubContext) createChan(channel, chantype, id string) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if _, exist := p.chans[chantype+"-"+id]; exist {
+		p.SendMessage(WebsocketMessage{
+			Event:   "message",
+			Channel: chantype + "-" + id,
+			Data:    "channel is exist",
+		})
 		return
 	}
 	ch := p.server.storemanager.WebSocketMessageChan(chantype, id, p.ID)
@@ -130,13 +140,14 @@ func (p *PubContext) createChan(channel, chantype, id string) {
 			}(),
 			p: p,
 		}
-		p.chans[chantype+"-"+id] = c
+		p.chans[c.channel] = c
 		// send success message
 		p.SendMessage(WebsocketMessage{
 			Event:   "pusher:succeeded",
 			Channel: c.channel,
 		})
 		go c.handleChan()
+		p.server.log.Infof("pubsub context %s channel %s create success", p.ID, c.channel)
 	}
 }
 func (p *PubContext) removeChan(key string) {
@@ -145,10 +156,18 @@ func (p *PubContext) removeChan(key string) {
 	if _, exist := p.chans[key]; exist {
 		delete(p.chans, key)
 	}
-	if len(p.chans) == 0 {
-		p.Close()
-	}
 }
+
+func (p *PubContext) closeChan(key string) error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if ch, exist := p.chans[key]; exist {
+		go ch.close()
+		return nil
+	}
+	return fmt.Errorf("not fount chan %s", key)
+}
+
 func (p *PubContext) handleSubscribe(wm WebsocketMessage) {
 	data := wm.Data.(map[string]interface{})
 	if channel, ok := data["channel"].(string); ok {
@@ -161,17 +180,44 @@ func (p *PubContext) handleSubscribe(wm WebsocketMessage) {
 			p.createChan(channel, "docker", channelInfo[1])
 			p.createChan(channel, "newmonitor", channelInfo[1])
 		}
+		if channelInfo[0] == "l" {
+			p.createChan(channel, "docker", channelInfo[1])
+		}
+		if channelInfo[0] == "m" {
+			p.createChan(channel, "newmonitor", channelInfo[1])
+		}
 		if channelInfo[0] == "e" {
 			p.createChan(channel, "event", channelInfo[1])
 		}
 	}
 }
 
+func (p *PubContext) handleCancelSubscribe(wm WebsocketMessage) {
+	data := wm.Data.(map[string]interface{})
+	if channel, ok := data["channel"].(string); ok {
+		p.server.log.Debugf("handle channel %s cancel subscribe", channel)
+		if err := p.closeChan(channel); err == nil {
+			p.SendMessage(WebsocketMessage{
+				Event:   "cancel:succeeded",
+				Channel: channel,
+			})
+		}
+	}
+}
+
+func (c *Chan) close() {
+	if c.closed != nil && *c.closed {
+		return
+	}
+	c.p.removeChan(c.channel)
+	c.p.server.storemanager.RealseWebSocketMessageChan(c.chtype, c.id, c.p.ID)
+	c.p.server.log.Infof("pubsub message chan %s closed", c.channel)
+	var close = true
+	c.closed = &close
+}
+
 func (c *Chan) handleChan() {
-	defer func() {
-		c.p.server.log.Infof("pubsub message chan %s closed", c.channel)
-		c.p.removeChan(c.chtype + "-" + c.id)
-	}()
+	defer c.close()
 	for {
 		select {
 		case <-c.p.close:
@@ -183,7 +229,6 @@ func (c *Chan) handleChan() {
 		case message, ok := <-c.ch:
 			if !ok {
 				c.p.SendMessage(WebsocketMessage{Event: "pusher:close", Data: "{}", Channel: c.channel})
-				c.p.SendWebsocketMessage(websocket.CloseMessage)
 				return
 			}
 			if message != nil {
@@ -273,7 +318,7 @@ func (p *PubContext) sendPing(closed chan struct{}) {
 			return err
 		}
 		return nil
-	}, time.Second*20)
+	}, time.Second*10)
 	if err != nil {
 		p.server.log.Errorf("send ping message failure %s will closed the connect", err.Error())
 		close(closed)
@@ -312,7 +357,9 @@ func (p *PubContext) Stop() {
 
 //Close close the context
 func (p *PubContext) Close() {
-	close(p.close)
+	p.once.Do(func() {
+		close(p.close)
+	})
 }
 
 func (s *SocketServer) pubsub(w http.ResponseWriter, r *http.Request) {
@@ -330,6 +377,9 @@ func (s *SocketServer) pubsub(w http.ResponseWriter, r *http.Request) {
 	context := NewPubContext(upgrader, w, r, s)
 	defer context.Stop()
 	s.log.Infof("websocket pubsub context running %s", context.ID)
+	s.pubsubCtx[context.ID] = context
+	s.log.Infof("websocket pubsub context count %d", len(s.pubsubCtx))
 	context.Start()
 	s.log.Infof("websocket pubsub context closed %s", context.ID)
+	delete(s.pubsubCtx, context.ID)
 }
