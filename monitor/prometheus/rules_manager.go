@@ -41,6 +41,25 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 		RulesConfig: &AlertingRulesConfig{
 			Groups: []*AlertingNameConfig{
 				&AlertingNameConfig{
+					Name: "GatewayHealth",
+					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:       "RequestMany",
+							Expr:        "rate(gateway_requests[5m]) > 100",
+							For:         "10s",
+							Labels:      map[string]string{},
+							Annotations: map[string]string{"description": "http doamin {{ $labels.host }} per-second requests more than 100"},
+						},
+						&RulesConfig{
+							Alert:       "FailureRequestMany",
+							Expr:        "rate(gateway_requests{status=~\"5..\"}[5m]) > 5",
+							For:         "10s",
+							Labels:      map[string]string{},
+							Annotations: map[string]string{"description": "http doamin {{ $labels.host }} per-second failure requests more than 5"},
+						},
+					},
+				},
+				&AlertingNameConfig{
 
 					Name: "BuilderHealth",
 					Rules: []*RulesConfig{
@@ -49,7 +68,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Expr:        "builder_exporter_health_status == 0",
 							For:         "3m",
 							Labels:      map[string]string{},
-							Annotations: map[string]string{"summary": "builder unhealthy"},
+							Annotations: map[string]string{"description": "builder unhealthy"},
 						},
 						&RulesConfig{
 							Alert:       "BuilderTaskError",
@@ -133,10 +152,10 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 						&RulesConfig{
 							Alert:       "WebcliUnhealthy",
-							Expr:        "webcli_exporter_execute_command_failed > 100",
+							Expr:        "rate(webcli_exporter_execute_command_failed[5m]) > 5",
 							For:         "3m",
 							Labels:      map[string]string{},
-							Annotations: map[string]string{"summary": "The number of errors that occurred while executing the command was greater than 100."},
+							Annotations: map[string]string{"summary": "The number of errors that occurred while executing the command was greater than 5 per-second."},
 						},
 					},
 				},
@@ -159,18 +178,18 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Annotations: map[string]string{"description": "{{ $labels.instance }} has a high load average. Load Average 5m is {{ humanize $value}}.", "summary": "HIGH LOAD AVERAGE WARNING ON '{{ $labels.instance }}'"},
 						},
 						&RulesConfig{
-							Alert:       "node_running_out_of_disk_space",
-							Expr:        "(node_filesystem_size{mountpoint='/'} - node_filesystem_free{mountpoint='/'}) * 100 / node_filesystem_size{mountpoint='/'} > 80",
+							Alert:       "high_rootdisk_usage_on_node",
+							Expr:        "(node_filesystem_size{mountpoint='/'} - node_filesystem_free{mountpoint='/'}) * 100 / node_filesystem_size{mountpoint='/'} > 75",
 							For:         "5m",
-							Labels:      map[string]string{"service": "node_running_out_of_disk_space"},
-							Annotations: map[string]string{"description": "More than 80% of disk used. Disk usage {{ humanize $value }}%.", "summary": "LOW DISK SPACE WARING:NODE '{{ $labels.instance }}"},
+							Labels:      map[string]string{"service": "high_rootdisk_usage_on_node"},
+							Annotations: map[string]string{"description": "More than 75% of disk used. Disk usage {{ humanize $value }} mountpoint {{ $labels.mountpoint }}%.", "summary": "LOW DISK SPACE WARING:NODE '{{ $labels.instance }}"},
 						},
 						&RulesConfig{
-							Alert:       "monitoring_service_down",
-							Expr:        "up == 0",
+							Alert:       "high_dockerdisk_usage_on_node",
+							Expr:        "(node_filesystem_size{mountpoint='/var/lib/docker'} - node_filesystem_free{mountpoint='/var/lib/docker'}) * 100 / node_filesystem_size{mountpoint='/var/lib/docker'} > 75",
 							For:         "5m",
-							Labels:      map[string]string{"service": "service_down"},
-							Annotations: map[string]string{"description": "The monitoring service '{{ $labels.job }}' is down.", "summary": "MONITORING SERVICE DOWN WARNING:NODE '{{ $labels.instance }}'"},
+							Labels:      map[string]string{"service": "high_dockerdisk_usage_on_node"},
+							Annotations: map[string]string{"description": "More than 75% of disk used. Disk usage {{ humanize $value }} mountpoint {{ $labels.mountpoint }}%.", "summary": "LOW DISK SPACE WARING:NODE '{{ $labels.instance }}"},
 						},
 						&RulesConfig{
 							Alert:       "high_memory_usage_on_node",
@@ -186,25 +205,25 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Name: "ClusterHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
-							Alert:       "cluster_unhealth",
+							Alert:       "cluster_node_unhealth",
 							Expr:        "rainbond_cluster_node_health != 0",
 							For:         "3m",
-							Labels:      map[string]string{"service": "cluster_health"},
-							Annotations: map[string]string{"summary": "!!!Dangerous, the current cluster is in an unhealthy state."},
+							Labels:      map[string]string{"service": "cluster_node_unhealth"},
+							Annotations: map[string]string{"description": "cluster node {{ $labels.node_ip }} is unhealth"},
 						},
 						&RulesConfig{
-							Alert:       "monitoring_component_status_unhealth",
-							Expr:        "rainbond_cluster_component_health != 0",
+							Alert:       "cluster_kube_node_unhealth",
+							Expr:        "rainbond_cluster_component_health{component=\"KubeNodeReady\"} != 0",
 							For:         "3m",
 							Labels:      map[string]string{"service": "component_unhealth"},
-							Annotations: map[string]string{"description": "The monitoring component '{{ $labels.component }}' is down.", "summary": "MONITORING COMPONENT UNHEALTHY WARNING:NODE '{{ $labels.node_ip }}'"},
+							Annotations: map[string]string{"description": "kubernetes cluster node {{ $labels.node_ip }} is unhealth"},
 						},
 						&RulesConfig{
 							Alert:       "rainbond_cluster_collector_duration_seconds_timeout",
 							Expr:        "rainbond_cluster_collector_duration_seconds > 10",
 							For:         "3m",
 							Labels:      map[string]string{"service": "cluster_collector"},
-							Annotations: map[string]string{"summary": "Cluster collector '{{ $labels.instance }}' more than 10s"},
+							Annotations: map[string]string{"description": "Cluster collector '{{ $labels.instance }}' more than 10s"},
 						},
 					},
 				},
