@@ -188,7 +188,7 @@ func (s *SelectBalance) Select(r *http.Request, endpoints EndpointList) Endpoint
 	}
 
 	if len(endpoints) > 0 {
-		return endpoints[0]
+		return endpoints[len(endpoints)-1]
 	}
 
 	return Endpoint(s.hostIDMap["local"])
