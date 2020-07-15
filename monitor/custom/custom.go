@@ -13,6 +13,7 @@ type Metrics struct {
 	Metrics  []string
 	Interval time.Duration
 	Timeout  time.Duration
+	Scheme   string
 	Path     string
 }
 
@@ -23,6 +24,7 @@ func AddMetrics(p *prometheus.Manager, metrics Metrics) {
 		ScrapeInterval: model.Duration(metrics.Interval),
 		ScrapeTimeout:  model.Duration(metrics.Timeout),
 		MetricsPath:    metrics.Path,
+		Scheme:         metrics.Scheme,
 		ServiceDiscoveryConfig: prometheus.ServiceDiscoveryConfig{
 			StaticConfigs: []*prometheus.Group{
 				{

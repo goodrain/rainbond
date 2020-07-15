@@ -282,7 +282,8 @@ func (p *PubContext) readMessage(closed chan struct{}) {
 	}
 }
 
-func (p *PubContext) send() {
+func (p *PubContext) send(sendClose chan struct{}) {
+	defer close(sendClose)
 	for {
 		select {
 		case m, ok := <-p.sendQueue:
@@ -313,15 +314,13 @@ func (p *PubContext) SendWebsocketMessage(message int) error {
 }
 
 func (p *PubContext) sendPing(closed chan struct{}) {
+	defer close(closed)
 	err := util.Exec(p.httpRequest.Context(), func() error {
-		if err := p.SendWebsocketMessage(websocket.PingMessage); err != nil {
-			return err
-		}
+		p.SendWebsocketMessage(websocket.PingMessage)
 		return nil
 	}, time.Second*10)
 	if err != nil {
 		p.server.log.Errorf("send ping message failure %s will closed the connect", err.Error())
-		close(closed)
 	}
 }
 
@@ -333,12 +332,14 @@ func (p *PubContext) Start() {
 		p.server.log.Error("Create web socket conn error.", err.Error())
 		return
 	}
-	go p.send()
+	sendclosed := make(chan struct{})
+	go p.send(sendclosed)
 	pingclosed := make(chan struct{})
 	readclosed := make(chan struct{})
 	go p.sendPing(pingclosed)
 	go p.readMessage(readclosed)
 	select {
+	case <-sendclosed:
 	case <-pingclosed:
 	case <-readclosed:
 	case <-p.close:

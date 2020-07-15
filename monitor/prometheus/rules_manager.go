@@ -44,25 +44,64 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Name: "GatewayHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
+							Alert:  "GatewayDown",
+							Expr:   "absent(up{job=\"gateway\"})",
+							For:    "10s",
+							Labels: map[string]string{},
+							Annotations: map[string]string{
+								"description": "gateway node {{ $labels.instance }} is down, ",
+								"summary":     "gateway is down",
+							},
+						},
+						&RulesConfig{
+							Alert:  "RequestSizeTooMuch",
+							Expr:   "sum by (instance, host) (rate(gateway_request_size_sum[5m])) > 1024*1024*10",
+							For:    "20s",
+							Labels: map[string]string{},
+							Annotations: map[string]string{
+								"description": "http doamin {{ $labels.host }} per-second request size {{ humanize $value }}, more than 10M",
+								"summary":     "Too much traffic",
+							},
+						},
+						&RulesConfig{
+							Alert:  "ResponseSizeTooMuch",
+							Expr:   "sum by (instance, host) (rate(gateway_response_size_sum[5m])) > 1024*1024*10",
+							For:    "20s",
+							Labels: map[string]string{},
+							Annotations: map[string]string{
+								"description": "http doamin {{ $labels.host }} per-second response size {{ humanize $value }}, more than 10M",
+								"summary":     "Too much traffic",
+							},
+						},
+						&RulesConfig{
 							Alert:       "RequestMany",
-							Expr:        "rate(gateway_requests[5m]) > 100",
+							Expr:        "rate(gateway_requests[5m]) > 200",
 							For:         "10s",
 							Labels:      map[string]string{},
-							Annotations: map[string]string{"description": "http doamin {{ $labels.host }} per-second requests more than 100"},
+							Annotations: map[string]string{"description": "http doamin {{ $labels.host }} per-second requests {{ humanize $value }}, more than 200"},
 						},
 						&RulesConfig{
 							Alert:       "FailureRequestMany",
 							Expr:        "rate(gateway_requests{status=~\"5..\"}[5m]) > 5",
 							For:         "10s",
 							Labels:      map[string]string{},
-							Annotations: map[string]string{"description": "http doamin {{ $labels.host }} per-second failure requests more than 5"},
+							Annotations: map[string]string{"description": "http doamin {{ $labels.host }} per-second failure requests {{ humanize $value }}, more than 5"},
 						},
 					},
 				},
 				&AlertingNameConfig{
-
 					Name: "BuilderHealth",
 					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:  "BuilderDown",
+							Expr:   "absent(up{component=\"builder\"})",
+							For:    "10s",
+							Labels: map[string]string{},
+							Annotations: map[string]string{
+								"description": "builder(rbd-chaos) node {{ $labels.instance }} is down, ",
+								"summary":     "builder(rbd-chaos) is down",
+							},
+						},
 						&RulesConfig{
 							Alert:       "BuilderUnhealthy",
 							Expr:        "builder_exporter_health_status == 0",
@@ -80,9 +119,18 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					},
 				},
 				&AlertingNameConfig{
-
 					Name: "WorkerHealth",
 					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:  "WorkerDown",
+							Expr:   "absent(up{component=\"worker\"})",
+							For:    "10s",
+							Labels: map[string]string{},
+							Annotations: map[string]string{
+								"description": "worker node {{ $labels.instance }} is down",
+								"summary":     "worker is down",
+							},
+						},
 						&RulesConfig{
 							Alert:       "WorkerUnhealthy",
 							Expr:        "app_resource_exporter_health_status == 0",
@@ -100,9 +148,18 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					},
 				},
 				&AlertingNameConfig{
-
 					Name: "MqHealth",
 					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:  "MqDown",
+							Expr:   "absent(up{component=\"mq\"})",
+							For:    "20s",
+							Labels: map[string]string{},
+							Annotations: map[string]string{
+								"description": "mq node {{ $labels.instance }} is down",
+								"summary":     "mq is down",
+							},
+						},
 						&RulesConfig{
 							Alert:       "MqUnhealthy",
 							Expr:        "acp_mq_exporter_health_status == 0",
@@ -120,7 +177,6 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					},
 				},
 				&AlertingNameConfig{
-
 					Name: "EventlogHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
@@ -131,18 +187,30 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Annotations: map[string]string{"summary": "eventlog unhealthy"},
 						},
 						&RulesConfig{
-							Alert:       "EventLogDown",
-							Expr:        "event_log_exporter_instance_up == 0",
-							For:         "3m",
-							Labels:      map[string]string{},
-							Annotations: map[string]string{"summary": "eventlog service down"},
+							Alert:  "EventLogDown",
+							Expr:   "absent(up{component=\"eventlog\"})",
+							For:    "3m",
+							Labels: map[string]string{},
+							Annotations: map[string]string{
+								"description": "worker node {{ $labels.instance }} is down",
+								"summary":     "eventlog service down",
+							},
 						},
 					},
 				},
 				&AlertingNameConfig{
-
 					Name: "WebcliHealth",
 					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:  "WebcliDown",
+							Expr:   "absent(up{component=\"webcli\"})",
+							For:    "20s",
+							Labels: map[string]string{},
+							Annotations: map[string]string{
+								"description": "webcli node {{ $labels.instance }} is down",
+								"summary":     "webcli is down",
+							},
+						},
 						&RulesConfig{
 							Alert:       "WebcliUnhealthy",
 							Expr:        "webcli_exporter_health_status == 0",
@@ -160,9 +228,18 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					},
 				},
 				&AlertingNameConfig{
-
 					Name: "NodeHealth",
 					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:  "NodeDown",
+							Expr:   "absent(up{component=\"rbd_node\"})",
+							For:    "30s",
+							Labels: map[string]string{},
+							Annotations: map[string]string{
+								"description": "node {{ $labels.instance }} is down",
+								"summary":     "rbd_node is down",
+							},
+						},
 						&RulesConfig{
 							Alert:       "high_cpu_usage_on_node",
 							Expr:        "sum by(instance) (rate(process_cpu_seconds_total[5m])) * 100 > 70",
@@ -172,10 +249,17 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 						&RulesConfig{
 							Alert:       "high_la_usage_on_node",
-							Expr:        "node_load5 > 5",
+							Expr:        "count by (instance) (node_load5) > count by(instance)(count by(job, instance, cpu)(node_cpu))",
 							For:         "5m",
 							Labels:      map[string]string{"service": "node_load5"},
 							Annotations: map[string]string{"description": "{{ $labels.instance }} has a high load average. Load Average 5m is {{ humanize $value}}.", "summary": "HIGH LOAD AVERAGE WARNING ON '{{ $labels.instance }}'"},
+						},
+						&RulesConfig{
+							Alert:       "inode_freerate_low",
+							Expr:        "node_filesystem_files_free{fstype=~\"ext4|xfs\"} / node_filesystem_files{fstype=~\"ext4|xfs\"} < 0.3",
+							For:         "5m",
+							Labels:      map[string]string{"service": "node_filesystem_files_free"},
+							Annotations: map[string]string{"description": "the inode free rate is low of node {{ $labels.instance }}, current value is {{ humanize $value}}."},
 						},
 						&RulesConfig{
 							Alert:       "high_rootdisk_usage_on_node",
@@ -201,7 +285,6 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					},
 				},
 				&AlertingNameConfig{
-
 					Name: "ClusterHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
@@ -224,6 +307,128 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							For:         "3m",
 							Labels:      map[string]string{"service": "cluster_collector"},
 							Annotations: map[string]string{"description": "Cluster collector '{{ $labels.instance }}' more than 10s"},
+						},
+					},
+				},
+				&AlertingNameConfig{
+					Name: "EtcdHealth",
+					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:  "EtcdDown",
+							Expr:   "absent(up{component=\"etcd\"})",
+							For:    "1m",
+							Labels: map[string]string{},
+							Annotations: map[string]string{
+								"description": "etcd node {{ $labels.instance }} is down, ",
+								"summary":     "etcd node is down",
+							},
+						},
+						&RulesConfig{
+							Alert:  "EtcdLoseLeader",
+							Expr:   "etcd_server_has_leader == 0",
+							For:    "1m",
+							Labels: map[string]string{},
+							Annotations: map[string]string{
+								"description": "etcd node {{ $labels.instance }} is lose leader",
+								"summary":     "etcd lose leader",
+							},
+						},
+						&RulesConfig{
+							Alert: "InsufficientMembers",
+							Expr:  "count(up{job=\"etcd\"} == 0) > (count(up{job=\"etcd\"}) / 2 - 1)",
+							For:   "1m",
+							Labels: map[string]string{
+								"severity": "critical",
+							},
+							Annotations: map[string]string{
+								"description": "If one more etcd member goes down the cluster will be unavailable",
+								"summary":     "etcd cluster insufficient members",
+							},
+						},
+						&RulesConfig{
+							Alert: "HighNumberOfLeaderChanges",
+							Expr:  "increase(etcd_server_leader_changes_seen_total{job=\"etcd\"}[1h]) > 3",
+							For:   "1m",
+							Labels: map[string]string{
+								"severity": "warning",
+							},
+							Annotations: map[string]string{
+								"description": "etcd instance {{ $labels.instance }} has seen {{ $value }} leader changes within the last hour",
+								"summary":     "a high number of leader changes within the etcd cluster are happening",
+							},
+						},
+						&RulesConfig{
+							Alert: "HighNumberOfFailedGRPCRequests",
+							Expr:  "sum(rate(etcd_grpc_requests_failed_total{job=\"etcd\"}[5m])) BY (grpc_method) / sum(rate(etcd_grpc_total{job=\"etcd\"}[5m])) BY (grpc_method) > 0.05",
+							For:   "5m",
+							Labels: map[string]string{
+								"severity": "critical",
+							},
+							Annotations: map[string]string{
+								"description": "{{ $value }}% of requests for {{ $labels.grpc_method }} failed on etcd instance {{ $labels.instance }}",
+								"summary":     "a high number of gRPC requests are failing",
+							},
+						},
+						&RulesConfig{
+							Alert: "HighNumberOfFailedHTTPRequests",
+							Expr:  "sum(rate(etcd_http_failed_total{job=\"etcd\"}[5m])) BY (method) / sum(rate(etcd_http_received_total{job=\"etcd\"}[5m]))BY (method) > 0.05",
+							For:   "1m",
+							Labels: map[string]string{
+								"severity": "critical",
+							},
+							Annotations: map[string]string{
+								"description": "{{ $value }}% of requests for {{ $labels.method }} failed on etcd instance {{ $labels.instance }}",
+								"summary":     "a high number of HTTP requests are failing",
+							},
+						},
+						&RulesConfig{
+							Alert: "GRPCRequestsSlow",
+							Expr:  "histogram_quantile(0.99, rate(etcd_grpc_unary_requests_duration_seconds_bucket[5m])) > 0.15",
+							For:   "1m",
+							Labels: map[string]string{
+								"severity": "critical",
+							},
+							Annotations: map[string]string{
+								"description": "on etcd instance {{ $labels.instance }} gRPC requests to {{ $labels.grpc_method}} are slow",
+								"summary":     "slow gRPC requests",
+							},
+						},
+						&RulesConfig{
+							Alert: "HighNumberOfFailedHTTPRequests",
+							Expr:  "sum(rate(etcd_http_failed_total{job=\"etcd\"}[5m])) BY (method) / sum(rate(etcd_http_received_total{job=\"etcd\"}[5m]))BY (method) > 0.05",
+							For:   "1m",
+							Labels: map[string]string{
+								"severity": "critical",
+							},
+							Annotations: map[string]string{
+								"description": "{{ $value }}% of requests for {{ $labels.method }} failed on etcd instance {{ $labels.instance }}",
+								"summary":     "a high number of HTTP requests are failing",
+							},
+						},
+						&RulesConfig{
+							Alert: "HighNumberOfFailedHTTPRequests",
+							Expr:  "sum(rate(etcd_http_failed_total{job=\"etcd\"}[5m])) BY (method) / sum(rate(etcd_http_received_total{job=\"etcd\"}[5m]))BY (method) > 0.05",
+							For:   "1m",
+							Labels: map[string]string{
+								"severity": "critical",
+							},
+							Annotations: map[string]string{
+								"description": "{{ $value }}% of requests for {{ $labels.method }} failed on etcd instance {{ $labels.instance }}",
+								"summary":     "a high number of HTTP requests are failing",
+							},
+						},
+						&RulesConfig{
+							Alert: "DatabaseSpaceExceeded",
+							Expr:  "etcd_mvcc_db_total_size_in_bytes/etcd_server_quota_backend_bytes > 0.80",
+							For:   "1m",
+							Labels: map[string]string{
+								"severity": "critical",
+							},
+							Annotations: map[string]string{
+								"description": "{{ $labels.instance }}, {{ $labels.job }} of etcd DB space uses more than 80%",
+								"summary":     "Etcd DB space is overused",
+								"runbook":     "Please consider manual compaction and defrag. https://github.com/etcd-io/etcd/blob/master/Documentation/op-guide/maintenance.md",
+							},
 						},
 					},
 				},
@@ -254,7 +459,7 @@ func (a *AlertingRulesManager) LoadAlertingRulesConfig() error {
 
 //SaveAlertingRulesConfig save alerting rule config
 func (a *AlertingRulesManager) SaveAlertingRulesConfig() error {
-	logrus.Debug("Save alerting rules config file.")
+	logrus.Info("Save alerting rules config file.")
 
 	data, err := yaml.Marshal(a.RulesConfig)
 	if err != nil {

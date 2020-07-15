@@ -38,11 +38,9 @@ func InitProxy(conf option.Config) {
 	}
 	if builderProxy == nil {
 		builderProxy = proxy.CreateProxy("builder", "http", conf.BuilderAPI)
-		discover.GetEndpointDiscover().AddProject("builder", builderProxy)
 	}
 	if prometheusProxy == nil {
-		prometheusProxy = proxy.CreateProxy("prometheus", "http", []string{"127.0.0.1:9999"})
-		discover.GetEndpointDiscover().AddProject("prometheus", prometheusProxy)
+		prometheusProxy = proxy.CreateProxy("prometheus", "http", []string{"rbd-monitor:9999"})
 	}
 	if monitorProxy == nil {
 		monitorProxy = proxy.CreateProxy("monitor", "http", []string{"127.0.0.1:3329"})
