@@ -152,7 +152,7 @@ func Proxy(next http.Handler) http.Handler {
 			handler.GetNodeProxy().Proxy(w, r)
 			return
 		}
-		if strings.HasPrefix(r.RequestURI, "/v2/cluster") {
+		if strings.HasPrefix(r.RequestURI, "/v2/cluster/service-health") {
 			handler.GetNodeProxy().Proxy(w, r)
 			return
 		}

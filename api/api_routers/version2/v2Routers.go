@@ -39,6 +39,7 @@ func (v2 *V2) Routes() chi.Router {
 	r.Get("/show", controller.GetManager().Show)
 	r.Post("/show", controller.GetManager().Show)
 	r.Mount("/tenants", v2.tenantRouter())
+	r.Mount("/cluster", v2.clusterRouter())
 	r.Mount("/notificationEvent", v2.notificationEventRouter())
 	r.Mount("/resources", v2.resourcesRouter())
 	r.Mount("/prometheus", v2.prometheusRouter())
@@ -75,6 +76,12 @@ func (v2 *V2) eventsRouter() chi.Router {
 	r.Get("/", controller.GetManager().Events)
 	// get target's event content
 	r.Get("/{eventID}/log", controller.GetManager().EventLog)
+	return r
+}
+
+func (v2 *V2) clusterRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/", controller.GetManager().GetClusterInfo)
 	return r
 }
 
