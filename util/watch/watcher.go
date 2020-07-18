@@ -170,7 +170,9 @@ func (wc *watchChan) startWatching(watchClosedCh chan struct{}) {
 	if wc.recursive {
 		opts = append(opts, clientv3.WithPrefix())
 	}
-	wch := wc.watcher.client.Watch(wc.ctx, wc.key, opts...)
+	ctx, cancel := context.WithCancel(wc.ctx)
+	defer cancel()
+	wch := wc.watcher.client.Watch(ctx, wc.key, opts...)
 	timer := time.NewTimer(time.Second * 20)
 	defer timer.Stop()
 lool:

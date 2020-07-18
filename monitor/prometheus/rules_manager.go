@@ -61,7 +61,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						&RulesConfig{
 							Alert:  "GatewayDown",
 							Expr:   "absent(up{job=\"gateway\"})",
-							For:    "10s",
+							For:    "20s",
 							Labels: commonLables,
 							Annotations: map[string]string{
 								"description": "gateway node {{ $labels.instance }} is down, ",
@@ -110,7 +110,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						&RulesConfig{
 							Alert:  "BuilderDown",
 							Expr:   "absent(up{component=\"builder\"})",
-							For:    "10s",
+							For:    "1m",
 							Labels: commonLables,
 							Annotations: map[string]string{
 								"description": "builder(rbd-chaos) node {{ $labels.instance }} is down, ",
@@ -139,7 +139,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						&RulesConfig{
 							Alert:  "WorkerDown",
 							Expr:   "absent(up{component=\"worker\"})",
-							For:    "10s",
+							For:    "5m",
 							Labels: commonLables,
 							Annotations: map[string]string{
 								"description": "worker node {{ $labels.instance }} is down",
@@ -149,7 +149,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						&RulesConfig{
 							Alert:  "WorkerUnhealthy",
 							Expr:   "app_resource_exporter_health_status == 0",
-							For:    "3m",
+							For:    "5m",
 							Labels: commonLables,
 							Annotations: map[string]string{
 								"summary":     "worker unhealthy",
@@ -159,7 +159,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						&RulesConfig{
 							Alert:  "WorkerTaskError",
 							Expr:   "app_resource_exporter_worker_task_error > 50",
-							For:    "3m",
+							For:    "5m",
 							Labels: commonLables,
 							Annotations: map[string]string{
 								"description": "worker node {{ $labels.instance }} execution task error number is greater than 50",
@@ -173,7 +173,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						&RulesConfig{
 							Alert:  "MqDown",
 							Expr:   "absent(up{component=\"mq\"})",
-							For:    "20s",
+							For:    "2m",
 							Labels: commonLables,
 							Annotations: map[string]string{
 								"description": "mq node {{ $labels.instance }} is down",
