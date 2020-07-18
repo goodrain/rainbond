@@ -48,42 +48,47 @@ func (q *Queue) Enqueue(val string) error {
 // Dequeue returns Enqueue()'d elements in FIFO order. If the
 // queue is empty, Dequeue blocks until elements are available.
 func (q *Queue) Dequeue() (string, error) {
-	// TODO: fewer round trips by fetching more than one key
-	resp, err := q.client.Get(q.ctx, q.keyPrefix, v3.WithFirstRev()...)
-	if err != nil {
-		return "", err
-	}
+	for {
+		// TODO: fewer round trips by fetching more than one key
+		resp, err := q.client.Get(q.ctx, q.keyPrefix, v3.WithFirstRev()...)
+		if err != nil {
+			return "", err
+		}
 
-	kv, err := claimFirstKey(q.ctx, q.client, resp.Kvs)
-	if err != nil {
-		return "", err
-	} else if kv != nil {
-		return string(kv.Value), nil
-	} else if resp.More {
-		// missed some items, retry to read in more
-		return q.Dequeue()
-	}
+		kv, err := claimFirstKey(q.ctx, q.client, resp.Kvs)
+		if err != nil {
+			return "", err
+		} else if kv != nil {
+			return string(kv.Value), nil
+		} else if resp.More {
+			// missed some items, retry to read in more
+			return q.Dequeue()
+		}
 
-	// nothing yet; wait on elements
-	ev, err := WaitPrefixEvents(
-		q.client,
-		q.keyPrefix,
-		resp.Header.Revision,
-		[]mvccpb.Event_EventType{mvccpb.PUT})
-	if err != nil {
-		return "", err
+		// nothing yet; wait on elements
+		ev, err := WaitPrefixEvents(
+			q.client,
+			q.keyPrefix,
+			resp.Header.Revision,
+			[]mvccpb.Event_EventType{mvccpb.PUT})
+		if err != nil {
+			if err.Error() == "not updated for a long time" {
+				continue
+			}
+			return "", err
+		}
+		if ev == nil {
+			return "", fmt.Errorf("event is nil")
+		}
+		if ev.Kv == nil {
+			return "", fmt.Errorf("event key value is nil")
+		}
+		ok, err := deleteRevKey(q.ctx, q.client, string(ev.Kv.Key), ev.Kv.ModRevision)
+		if err != nil {
+			return "", err
+		} else if !ok {
+			return q.Dequeue()
+		}
+		return string(ev.Kv.Value), err
 	}
-	if ev == nil {
-		return "", fmt.Errorf("event is nil")
-	}
-	if ev.Kv == nil {
-		return "", fmt.Errorf("event key value is nil")
-	}
-	ok, err := deleteRevKey(q.ctx, q.client, string(ev.Kv.Key), ev.Kv.ModRevision)
-	if err != nil {
-		return "", err
-	} else if !ok {
-		return q.Dequeue()
-	}
-	return string(ev.Kv.Value), err
 }

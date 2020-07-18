@@ -22,6 +22,11 @@ import (
 	"net/http"
 )
 
+// ClusterInterface -
+type ClusterInterface interface {
+	GetClusterInfo(w http.ResponseWriter, r *http.Request)
+}
+
 //TenantInterface interface
 type TenantInterface interface {
 	TenantInterfaceWithV1

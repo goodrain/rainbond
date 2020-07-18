@@ -16,16 +16,29 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package option
+package controller
 
 import (
-	"testing"
+	"net/http"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/api/handler"
+
+	httputil "github.com/goodrain/rainbond/util/http"
 )
 
-func TestConfig_GetEtcdClientArgs(t *testing.T) {
-	c := Config{EtcdEndpoint: []string{"192.168.2.203:2379"}, EtcdCaFile: "string", EtcdCertFile: "", EtcdKeyFile: ""}
-	a := NewAPIServer()
-	a.Config = c
-	a.SetEtcdClientArgs()
-	t.Logf("%+v", a.EtcdClientArgs)
+// ClusterController -
+type ClusterController struct {
+}
+
+// GetClusterInfo -
+func (t *ClusterController) GetClusterInfo(w http.ResponseWriter, r *http.Request) {
+	nodes, err := handler.GetClusterHandler().GetClusterInfo()
+	if err != nil {
+		logrus.Errorf("get cluster info: %v", err)
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, nodes)
 }

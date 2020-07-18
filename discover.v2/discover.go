@@ -225,9 +225,14 @@ func (e *etcdDiscover) discover(name string, callback CallbackUpdate) {
 		callback.UpdateEndpoints(config.SYNC, endpoints...)
 	}
 	watch := e.client.Watch(ctx, fmt.Sprintf("%s/%s", e.prefix, name), clientv3.WithPrefix())
+	timer := time.NewTimer(time.Second * 20)
+	defer timer.Stop()
 	for {
 		select {
 		case <-e.ctx.Done():
+			return
+		case <-timer.C:
+			go e.discover(name, callback)
 			return
 		case res := <-watch:
 			if err := res.Err(); err != nil {
@@ -261,8 +266,8 @@ func (e *etcdDiscover) discover(name string, callback CallbackUpdate) {
 					}
 				}
 			}
+			timer.Reset(time.Second * 20)
 		}
-
 	}
 }
 func (e *etcdDiscover) list(name string) []*config.Endpoint {

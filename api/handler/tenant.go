@@ -19,6 +19,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -35,6 +36,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/worker/client"
+	"github.com/goodrain/rainbond/worker/server/pb"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -407,10 +409,20 @@ func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re
 			closed = append(closed, k)
 		}
 	}
+
 	resmp, err := db.GetManager().TenantServiceDao().GetServiceMemoryByServiceIDs(running)
 	if err != nil {
 		return nil, err
 	}
+
+	for serviceID, item := range resmp {
+		podNums := t.getPodNums(serviceID)
+		memory, ok := item["memory"].(int)
+		if ok {
+			item["memory"] = memory * podNums
+		}
+	}
+
 	for _, c := range closed {
 		resmp[c] = map[string]interface{}{"memory": 0, "cpu": 0}
 	}
@@ -425,6 +437,19 @@ func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re
 		}
 	}
 	return resmp, nil
+}
+
+func (t *TenantAction) getPodNums(serviceID string) int {
+	pods, err := t.statusCli.GetAppPods(context.TODO(), &pb.ServiceRequest{
+		ServiceId: serviceID,
+	})
+
+	if err != nil {
+		logrus.Warningf("get app pods: %v", err)
+		return 0
+	}
+
+	return len(pods.OldPods) + len(pods.NewPods)
 }
 
 //TenantsSum TenantsSum

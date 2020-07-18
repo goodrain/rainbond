@@ -99,6 +99,16 @@ func monitorKSM(c *option.Config, p *prometheus.Manager) {
 	if strings.TrimSpace(c.KSMExporter) != "" {
 		metrics := strings.TrimSpace(c.KSMExporter)
 		logrus.Infof("add kube-state-metrics[%s] into prometheus", metrics)
-		custom.AddMetrics(p, custom.Metrics{Name: "kubernetes", Path: "/metrics", Metrics: []string{metrics}, Interval: 30 * time.Second, Timeout: 10 * time.Second})
+		custom.AddMetrics(p, custom.Metrics{
+			Name: "kubernetes",
+			Path: "/metrics",
+			Scheme: func() string {
+				if strings.HasSuffix(metrics, "443") {
+					return "https"
+				}
+				return "http"
+			}(),
+			Metrics: []string{metrics}, Interval: 30 * time.Second, Timeout: 10 * time.Second},
+		)
 	}
 }

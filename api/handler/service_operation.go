@@ -94,22 +94,26 @@ func (o *OperationHandler) Build(buildInfo model.BuildInfoRequestStruct) (re Ope
 	switch buildInfo.Kind {
 	case model.FromImageBuildKing:
 		if err := o.buildFromImage(buildInfo, service); err != nil {
+			logrus.Errorf("build service %s failure %s", serviceID, err.Error())
 			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)
 			return
 		}
 	case model.FromCodeBuildKing:
 		if err := o.buildFromSourceCode(buildInfo, service); err != nil {
+			logrus.Errorf("build service %s failure %s", serviceID, err.Error())
 			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)
 			return
 		}
 	case model.FromMarketImageBuildKing:
 		if err := o.buildFromImage(buildInfo, service); err != nil {
+			logrus.Errorf("build service %s failure %s", serviceID, err.Error())
 			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)
 			return
 		}
 
 	case model.FromMarketSlugBuildKing:
 		if err := o.buildFromMarketSlug(buildInfo, service); err != nil {
+			logrus.Errorf("build service %s failure %s", serviceID, err.Error())
 			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)
 			return
 		}

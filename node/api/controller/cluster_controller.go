@@ -339,6 +339,7 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 			usedNodeList = append(usedNodeList, nodes[i])
 		}
 	}
+	
 	var healthcpuR int64
 	var healthmemR int64
 	var unhealthCPUR int64
