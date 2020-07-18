@@ -70,20 +70,16 @@ func CreateDataCenterConfig() *DataCenterConfig {
 	if err != nil {
 		logrus.Error("load datacenter config error.", err.Error())
 	}
-	if len(res.Kvs) < 1 {
-		// dgc := model.CreateDefaultGlobalConfig()
-		// err := dataCenterConfig.PutDataCenterConfig(dgc)
-		// if err != nil {
-		// 	logrus.Error("put datacenter config error,", err.Error())
-		// }
-
-		dgc := &model.GlobalConfig{
-			Configs: make(map[string]*model.ConfigUnit),
-		}
-		dataCenterConfig.config = dgc
-	} else {
-		for _, kv := range res.Kvs {
-			dataCenterConfig.PutConfigKV(kv)
+	if res != nil {
+		if len(res.Kvs) < 1 {
+			dgc := &model.GlobalConfig{
+				Configs: make(map[string]*model.ConfigUnit),
+			}
+			dataCenterConfig.config = dgc
+		} else {
+			for _, kv := range res.Kvs {
+				dataCenterConfig.PutConfigKV(kv)
+			}
 		}
 	}
 	return dataCenterConfig
