@@ -69,21 +69,47 @@ func readPHPRuntimeInfo(buildPath string) (map[string]string, error) {
 	if err != nil {
 		return phpRuntimeInfo, nil
 	}
+	getPhpNewVersion := func(v string) string {
+		version := v
+		switch v {
+		case "5.5":
+			version = "5.5.38"
+		case "5.6":
+			version = "5.6.35"
+		case "7.0":
+			version = "7.0.29"
+		case "7.1":
+			version = "7.1.33"
+		case "7.2":
+			version = "7.2.26"
+		case "7.3":
+			version = "7.3.13"
+		}
+		return version
+	}
 	if json.Get("require") != nil {
 		if phpVersion := json.Get("require").Get("php"); phpVersion != nil {
 			version, _ := phpVersion.String()
 			if version != "" {
-				if len(version) < 4 {
+				if len(version) < 4 || (version[0:2] == ">=" && len(version) < 5) {
 					return nil, ErrRuntimeNotSupport
+				}
+				if version[0:2] == ">=" {
+					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1", "7.3"}, version[2:3]) {
+						return nil, ErrRuntimeNotSupport
+					}
+					version = getPhpNewVersion(version[2:3])
 				}
 				if version[0] == '~' {
 					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1", "7.3"}, version[1:3]) {
 						return nil, ErrRuntimeNotSupport
 					}
+					version = getPhpNewVersion(version[1:3])
 				} else {
 					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1", "7.3"}, version[0:3]) {
 						return nil, ErrRuntimeNotSupport
 					}
+					version = getPhpNewVersion(version[0:3])
 				}
 				phpRuntimeInfo["RUNTIMES"] = version
 			}
