@@ -44,6 +44,9 @@ func init() {
 	specification[JavaJar] = javaJarCheck
 	specification[JavaMaven] = javaMavenCheck
 	specification[PHP] = phpCheck
+	specification[NodeJSStatic] = nodeCheck
+	specification[Nodejs] = nodeCheck
+	specification[Golang] = golangCheck
 }
 
 //CheckCodeSpecification 检查语言规范
@@ -142,8 +145,28 @@ func phpCheck(buildPath string) Specification {
 	if ok, _ := util.FileExists(path.Join(buildPath, "composer.lock")); !ok {
 		return Specification{
 			Conform:   false,
-			Noconform: map[string]string{"识别为PHP语言，工作目录未发现composer.lock文件": "必须生成composer.lock文件"},
+			Noconform: map[string]string{"识别为PHP语言，代码目录未发现composer.lock文件": "必须生成composer.lock文件"},
 		}
 	}
+	return common()
+}
+func nodeCheck(buildPath string) Specification {
+	var yarn, npm bool
+	if ok, _ := util.FileExists(path.Join(buildPath, "yarn.lock")); ok {
+		yarn = true
+	}
+	if ok, _ := util.FileExists(path.Join(buildPath, "package-lock.json")); ok {
+		npm = true
+	}
+	if !yarn && !npm {
+		return Specification{
+			Conform:   false,
+			Noconform: map[string]string{"代码目录未发现yarn.lock或package-lock.json文件": "必须生成并提交yarn.lock或package-lock.json文件"},
+		}
+	}
+	return common()
+}
+
+func golangCheck(buildPath string) Specification {
 	return common()
 }

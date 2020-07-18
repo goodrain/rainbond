@@ -30,12 +30,12 @@ import (
 
 //RainbondFileConfig 云帮源码配置文件
 type RainbondFileConfig struct {
-	Language  string            `yaml:"language"`
-	BuildPath string            `yaml:"buildpath"`
-	Ports     []Port            `yaml:"ports"`
-	Envs      map[string]string `yaml:"envs"`
-	Cmd       string            `yaml:"cmd"`
-	Services  []*Service        `yaml:"services"`
+	Language  string                 `yaml:"language"`
+	BuildPath string                 `yaml:"buildpath"`
+	Ports     []Port                 `yaml:"ports"`
+	Envs      map[string]interface{} `yaml:"envs"`
+	Cmd       string                 `yaml:"cmd"`
+	Services  []*Service             `yaml:"services"`
 }
 
 // Service contains
