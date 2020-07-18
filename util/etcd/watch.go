@@ -19,32 +19,14 @@
 package etcd
 
 import (
+	"fmt"
+	"time"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"golang.org/x/net/context"
 )
-
-// WaitEvents waits on a key until it observes the given events and returns the final one.
-func WaitEvents(c *clientv3.Client, key string, rev int64, evs []mvccpb.Event_EventType) (*clientv3.Event, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	wc := c.Watch(ctx, key, clientv3.WithRev(rev))
-	if wc == nil {
-		return nil, ErrNoWatcher
-	}
-	return waitEvents(wc, evs), nil
-}
-
-//WatchPrefixEvents watch prefix
-func WatchPrefixEvents(c *clientv3.Client, prefix string, evs []mvccpb.Event_EventType) (*clientv3.Event, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	wc := c.Watch(ctx, prefix, clientv3.WithPrefix())
-	if wc == nil {
-		return nil, ErrNoWatcher
-	}
-	return waitEvents(wc, evs), nil
-}
 
 //WaitPrefixEvents WaitPrefixEvents
 func WaitPrefixEvents(c *clientv3.Client, prefix string, rev int64, evs []mvccpb.Event_EventType) (*clientv3.Event, error) {
@@ -54,21 +36,32 @@ func WaitPrefixEvents(c *clientv3.Client, prefix string, rev int64, evs []mvccpb
 	if wc == nil {
 		return nil, ErrNoWatcher
 	}
-	return waitEvents(wc, evs), nil
+	event := waitEvents(wc, evs)
+	if event != nil {
+		return event, nil
+	}
+	logrus.Debug("queue watcher sync, because of not updated for a long time")
+	return nil, fmt.Errorf("not updated for a long time")
 }
 
 //waitEvents this will return nil
 func waitEvents(wc clientv3.WatchChan, evs []mvccpb.Event_EventType) *clientv3.Event {
 	i := 0
-	for wresp := range wc {
-		for _, ev := range wresp.Events {
-			if ev.Type == evs[i] {
-				i++
-				if i == len(evs) {
-					return ev
+	timer := time.NewTimer(time.Second * 30)
+	defer timer.Stop()
+	for {
+		select {
+		case wresp := <-wc:
+			for _, ev := range wresp.Events {
+				if ev.Type == evs[i] {
+					i++
+					if i == len(evs) {
+						return ev
+					}
 				}
 			}
+		case <-timer.C:
+			return nil
 		}
 	}
-	return nil
 }

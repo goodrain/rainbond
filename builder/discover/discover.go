@@ -20,7 +20,9 @@ package discover
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -68,8 +70,8 @@ func NewTaskManager(c option.Config, client client.MQClient, exec exector.Manage
 }
 
 //Start 启动
-func (t *TaskManager) Start() error {
-	go t.Do()
+func (t *TaskManager) Start(errChan chan error) error {
+	go t.Do(errChan)
 	logrus.Info("start discover success.")
 	return nil
 }
@@ -87,7 +89,7 @@ func (t *TaskManager) callback(task *pb.TaskMessage) {
 }
 
 //Do do
-func (t *TaskManager) Do() {
+func (t *TaskManager) Do(errChan chan error) {
 	hostName, _ := os.Hostname()
 	for {
 		select {
@@ -112,7 +114,11 @@ func (t *TaskManager) Do() {
 					logrus.Warn(err.Error())
 					continue
 				}
-				logrus.Error(err.Error())
+				if strings.Contains(err.Error(), "there is no connection available") {
+					errChan <- fmt.Errorf("message dequeue failure %s", err.Error())
+					return
+				}
+				logrus.Errorf("message dequeue failure %s, will retry", err.Error())
 				time.Sleep(time.Second * 2)
 				continue
 			}

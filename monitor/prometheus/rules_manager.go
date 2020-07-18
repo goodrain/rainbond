@@ -44,47 +44,57 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Name: "GatewayHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
-							Alert:  "GatewayDown",
-							Expr:   "absent(up{job=\"gateway\"})",
-							For:    "10s",
-							Labels: map[string]string{},
+							Alert: "GatewayDown",
+							Expr:  "absent(up{job=\"gateway\"})",
+							For:   "10s",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{
 								"description": "gateway node {{ $labels.instance }} is down, ",
 								"summary":     "gateway is down",
 							},
 						},
 						&RulesConfig{
-							Alert:  "RequestSizeTooMuch",
-							Expr:   "sum by (instance, host) (rate(gateway_request_size_sum[5m])) > 1024*1024*10",
-							For:    "20s",
-							Labels: map[string]string{},
+							Alert: "RequestSizeTooMuch",
+							Expr:  "sum by (instance, host) (rate(gateway_request_size_sum[5m])) > 1024*1024*10",
+							For:   "20s",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{
 								"description": "http doamin {{ $labels.host }} per-second request size {{ humanize $value }}, more than 10M",
 								"summary":     "Too much traffic",
 							},
 						},
 						&RulesConfig{
-							Alert:  "ResponseSizeTooMuch",
-							Expr:   "sum by (instance, host) (rate(gateway_response_size_sum[5m])) > 1024*1024*10",
-							For:    "20s",
-							Labels: map[string]string{},
+							Alert: "ResponseSizeTooMuch",
+							Expr:  "sum by (instance, host) (rate(gateway_response_size_sum[5m])) > 1024*1024*10",
+							For:   "20s",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{
 								"description": "http doamin {{ $labels.host }} per-second response size {{ humanize $value }}, more than 10M",
 								"summary":     "Too much traffic",
 							},
 						},
 						&RulesConfig{
-							Alert:       "RequestMany",
-							Expr:        "rate(gateway_requests[5m]) > 200",
-							For:         "10s",
-							Labels:      map[string]string{},
+							Alert: "RequestMany",
+							Expr:  "rate(gateway_requests[5m]) > 200",
+							For:   "10s",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{"description": "http doamin {{ $labels.host }} per-second requests {{ humanize $value }}, more than 200"},
 						},
 						&RulesConfig{
-							Alert:       "FailureRequestMany",
-							Expr:        "rate(gateway_requests{status=~\"5..\"}[5m]) > 5",
-							For:         "10s",
-							Labels:      map[string]string{},
+							Alert: "FailureRequestMany",
+							Expr:  "rate(gateway_requests{status=~\"5..\"}[5m]) > 5",
+							For:   "10s",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{"description": "http doamin {{ $labels.host }} per-second failure requests {{ humanize $value }}, more than 5"},
 						},
 					},
@@ -93,27 +103,33 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Name: "BuilderHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
-							Alert:  "BuilderDown",
-							Expr:   "absent(up{component=\"builder\"})",
-							For:    "10s",
-							Labels: map[string]string{},
+							Alert: "BuilderDown",
+							Expr:  "absent(up{component=\"builder\"})",
+							For:   "10s",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{
 								"description": "builder(rbd-chaos) node {{ $labels.instance }} is down, ",
 								"summary":     "builder(rbd-chaos) is down",
 							},
 						},
 						&RulesConfig{
-							Alert:       "BuilderUnhealthy",
-							Expr:        "builder_exporter_health_status == 0",
-							For:         "3m",
-							Labels:      map[string]string{},
+							Alert: "BuilderUnhealthy",
+							Expr:  "builder_exporter_health_status == 0",
+							For:   "3m",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{"description": "builder unhealthy"},
 						},
 						&RulesConfig{
-							Alert:       "BuilderTaskError",
-							Expr:        "builder_exporter_builder_current_concurrent_task == builder_exporter_builder_max_concurrent_task",
-							For:         "20s",
-							Labels:      map[string]string{},
+							Alert: "BuilderTaskError",
+							Expr:  "builder_exporter_builder_current_concurrent_task == builder_exporter_builder_max_concurrent_task",
+							For:   "20s",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{"summary": "The build service is performing a maximum number of tasks"},
 						},
 					},
@@ -122,28 +138,39 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Name: "WorkerHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
-							Alert:  "WorkerDown",
-							Expr:   "absent(up{component=\"worker\"})",
-							For:    "10s",
-							Labels: map[string]string{},
+							Alert: "WorkerDown",
+							Expr:  "absent(up{component=\"worker\"})",
+							For:   "10s",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{
 								"description": "worker node {{ $labels.instance }} is down",
 								"summary":     "worker is down",
 							},
 						},
 						&RulesConfig{
-							Alert:       "WorkerUnhealthy",
-							Expr:        "app_resource_exporter_health_status == 0",
-							For:         "3m",
-							Labels:      map[string]string{},
-							Annotations: map[string]string{"summary": "worker unhealthy"},
+							Alert: "WorkerUnhealthy",
+							Expr:  "app_resource_exporter_health_status == 0",
+							For:   "3m",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
+							Annotations: map[string]string{
+								"summary":     "worker unhealthy",
+								"description": "worker node {{ $labels.instance }} is unhealthy",
+							},
 						},
 						&RulesConfig{
-							Alert:       "WorkerTaskError",
-							Expr:        "app_resource_exporter_worker_task_error > 50",
-							For:         "3m",
-							Labels:      map[string]string{},
-							Annotations: map[string]string{"summary": "worker execution task error number is greater than 50"},
+							Alert: "WorkerTaskError",
+							Expr:  "app_resource_exporter_worker_task_error > 50",
+							For:   "3m",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
+							Annotations: map[string]string{
+								"description": "worker node {{ $labels.instance }} execution task error number is greater than 50",
+							},
 						},
 					},
 				},
@@ -151,27 +178,33 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Name: "MqHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
-							Alert:  "MqDown",
-							Expr:   "absent(up{component=\"mq\"})",
-							For:    "20s",
-							Labels: map[string]string{},
+							Alert: "MqDown",
+							Expr:  "absent(up{component=\"mq\"})",
+							For:   "20s",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{
 								"description": "mq node {{ $labels.instance }} is down",
 								"summary":     "mq is down",
 							},
 						},
 						&RulesConfig{
-							Alert:       "MqUnhealthy",
-							Expr:        "acp_mq_exporter_health_status == 0",
-							For:         "3m",
-							Labels:      map[string]string{},
+							Alert: "MqUnhealthy",
+							Expr:  "acp_mq_exporter_health_status == 0",
+							For:   "3m",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{"summary": "mq unhealthy"},
 						},
 						&RulesConfig{
-							Alert:       "TeamTaskMany",
-							Expr:        "acp_mq_dequeue_number-acp_mq_enqueue_number > 200",
-							For:         "3m",
-							Labels:      map[string]string{},
+							Alert: "TeamTaskMany",
+							Expr:  "acp_mq_dequeue_number-acp_mq_enqueue_number > 200",
+							For:   "3m",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{"summary": "The number of tasks in the queue is greater than 200"},
 						},
 					},
@@ -180,17 +213,21 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Name: "EventlogHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
-							Alert:       "EventLogUnhealthy",
-							Expr:        "event_log_exporter_health_status == 0",
-							For:         "3m",
-							Labels:      map[string]string{},
+							Alert: "EventLogUnhealthy",
+							Expr:  "event_log_exporter_health_status == 0",
+							For:   "3m",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{"summary": "eventlog unhealthy"},
 						},
 						&RulesConfig{
-							Alert:  "EventLogDown",
-							Expr:   "absent(up{component=\"eventlog\"})",
-							For:    "3m",
-							Labels: map[string]string{},
+							Alert: "EventLogDown",
+							Expr:  "absent(up{component=\"eventlog\"})",
+							For:   "3m",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{
 								"description": "worker node {{ $labels.instance }} is down",
 								"summary":     "eventlog service down",
@@ -202,27 +239,33 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Name: "WebcliHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
-							Alert:  "WebcliDown",
-							Expr:   "absent(up{component=\"webcli\"})",
-							For:    "20s",
-							Labels: map[string]string{},
+							Alert: "WebcliDown",
+							Expr:  "absent(up{component=\"webcli\"})",
+							For:   "20s",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{
 								"description": "webcli node {{ $labels.instance }} is down",
 								"summary":     "webcli is down",
 							},
 						},
 						&RulesConfig{
-							Alert:       "WebcliUnhealthy",
-							Expr:        "webcli_exporter_health_status == 0",
-							For:         "3m",
-							Labels:      map[string]string{},
+							Alert: "WebcliUnhealthy",
+							Expr:  "webcli_exporter_health_status == 0",
+							For:   "3m",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{"summary": "webcli unhealthy"},
 						},
 						&RulesConfig{
-							Alert:       "WebcliUnhealthy",
-							Expr:        "rate(webcli_exporter_execute_command_failed[5m]) > 5",
-							For:         "3m",
-							Labels:      map[string]string{},
+							Alert: "WebcliUnhealthy",
+							Expr:  "rate(webcli_exporter_execute_command_failed[5m]) > 5",
+							For:   "3m",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{"summary": "The number of errors that occurred while executing the command was greater than 5 per-second."},
 						},
 					},
@@ -231,10 +274,12 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Name: "NodeHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
-							Alert:  "NodeDown",
-							Expr:   "absent(up{component=\"rbd_node\"})",
-							For:    "30s",
-							Labels: map[string]string{},
+							Alert: "NodeDown",
+							Expr:  "absent(up{component=\"rbd_node\"})",
+							For:   "30s",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{
 								"description": "node {{ $labels.instance }} is down",
 								"summary":     "rbd_node is down",
@@ -244,14 +289,14 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Alert:       "high_cpu_usage_on_node",
 							Expr:        "sum by(instance) (rate(process_cpu_seconds_total[5m])) * 100 > 70",
 							For:         "5m",
-							Labels:      map[string]string{"service": "node_cpu"},
+							Labels:      map[string]string{"Alert": "Rainbond"},
 							Annotations: map[string]string{"description": "{{ $labels.instance }} is using a LOT of CPU. CPU usage is {{ humanize $value}}%.", "summary": "HIGH CPU USAGE WARNING ON '{{ $labels.instance }}'"},
 						},
 						&RulesConfig{
 							Alert:       "high_la_usage_on_node",
 							Expr:        "count by (instance) (node_load5) > count by(instance)(count by(job, instance, cpu)(node_cpu))",
 							For:         "5m",
-							Labels:      map[string]string{"service": "node_load5"},
+							Labels:      map[string]string{"Alert": "Rainbond"},
 							Annotations: map[string]string{"description": "{{ $labels.instance }} has a high load average. Load Average 5m is {{ humanize $value}}.", "summary": "HIGH LOAD AVERAGE WARNING ON '{{ $labels.instance }}'"},
 						},
 						&RulesConfig{
@@ -265,21 +310,21 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Alert:       "high_rootdisk_usage_on_node",
 							Expr:        "(node_filesystem_size{mountpoint='/'} - node_filesystem_free{mountpoint='/'}) * 100 / node_filesystem_size{mountpoint='/'} > 75",
 							For:         "5m",
-							Labels:      map[string]string{"service": "high_rootdisk_usage_on_node"},
+							Labels:      map[string]string{"Alert": "Rainbond"},
 							Annotations: map[string]string{"description": "More than 75% of disk used. Disk usage {{ humanize $value }} mountpoint {{ $labels.mountpoint }}%.", "summary": "LOW DISK SPACE WARING:NODE '{{ $labels.instance }}"},
 						},
 						&RulesConfig{
 							Alert:       "high_dockerdisk_usage_on_node",
 							Expr:        "(node_filesystem_size{mountpoint='/var/lib/docker'} - node_filesystem_free{mountpoint='/var/lib/docker'}) * 100 / node_filesystem_size{mountpoint='/var/lib/docker'} > 75",
 							For:         "5m",
-							Labels:      map[string]string{"service": "high_dockerdisk_usage_on_node"},
+							Labels:      map[string]string{"Alert": "Rainbond"},
 							Annotations: map[string]string{"description": "More than 75% of disk used. Disk usage {{ humanize $value }} mountpoint {{ $labels.mountpoint }}%.", "summary": "LOW DISK SPACE WARING:NODE '{{ $labels.instance }}"},
 						},
 						&RulesConfig{
 							Alert:       "high_memory_usage_on_node",
 							Expr:        "((node_memory_MemTotal - node_memory_MemAvailable) / node_memory_MemTotal) * 100 > 80",
 							For:         "5m",
-							Labels:      map[string]string{"service": "node_memory"},
+							Labels:      map[string]string{"Alert": "Rainbond"},
 							Annotations: map[string]string{"description": "{{ $labels.instance }} is using a LOT of MEMORY. MEMORY usage is over {{ humanize $value}}%.", "summary": "HIGH MEMORY USAGE WARNING TASK ON '{{ $labels.instance }}'"},
 						},
 					},
@@ -291,21 +336,21 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Alert:       "cluster_node_unhealth",
 							Expr:        "rainbond_cluster_node_health != 0",
 							For:         "3m",
-							Labels:      map[string]string{"service": "cluster_node_unhealth"},
+							Labels:      map[string]string{"Alert": "Rainbond"},
 							Annotations: map[string]string{"description": "cluster node {{ $labels.node_ip }} is unhealth"},
 						},
 						&RulesConfig{
 							Alert:       "cluster_kube_node_unhealth",
 							Expr:        "rainbond_cluster_component_health{component=\"KubeNodeReady\"} != 0",
 							For:         "3m",
-							Labels:      map[string]string{"service": "component_unhealth"},
+							Labels:      map[string]string{"Alert": "Rainbond"},
 							Annotations: map[string]string{"description": "kubernetes cluster node {{ $labels.node_ip }} is unhealth"},
 						},
 						&RulesConfig{
 							Alert:       "rainbond_cluster_collector_duration_seconds_timeout",
 							Expr:        "rainbond_cluster_collector_duration_seconds > 10",
 							For:         "3m",
-							Labels:      map[string]string{"service": "cluster_collector"},
+							Labels:      map[string]string{"Alert": "Rainbond"},
 							Annotations: map[string]string{"description": "Cluster collector '{{ $labels.instance }}' more than 10s"},
 						},
 					},
@@ -314,20 +359,24 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Name: "EtcdHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
-							Alert:  "EtcdDown",
-							Expr:   "absent(up{component=\"etcd\"})",
-							For:    "1m",
-							Labels: map[string]string{},
+							Alert: "EtcdDown",
+							Expr:  "absent(up{component=\"etcd\"})",
+							For:   "1m",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{
 								"description": "etcd node {{ $labels.instance }} is down, ",
 								"summary":     "etcd node is down",
 							},
 						},
 						&RulesConfig{
-							Alert:  "EtcdLoseLeader",
-							Expr:   "etcd_server_has_leader == 0",
-							For:    "1m",
-							Labels: map[string]string{},
+							Alert: "EtcdLoseLeader",
+							Expr:  "etcd_server_has_leader == 0",
+							For:   "1m",
+							Labels: map[string]string{
+								"Alert": "Rainbond",
+							},
 							Annotations: map[string]string{
 								"description": "etcd node {{ $labels.instance }} is lose leader",
 								"summary":     "etcd lose leader",
@@ -339,6 +388,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							For:   "1m",
 							Labels: map[string]string{
 								"severity": "critical",
+								"Alert":    "Rainbond",
 							},
 							Annotations: map[string]string{
 								"description": "If one more etcd member goes down the cluster will be unavailable",
@@ -351,6 +401,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							For:   "1m",
 							Labels: map[string]string{
 								"severity": "warning",
+								"Alert":    "Rainbond",
 							},
 							Annotations: map[string]string{
 								"description": "etcd instance {{ $labels.instance }} has seen {{ $value }} leader changes within the last hour",
@@ -363,6 +414,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							For:   "5m",
 							Labels: map[string]string{
 								"severity": "critical",
+								"Alert":    "Rainbond",
 							},
 							Annotations: map[string]string{
 								"description": "{{ $value }}% of requests for {{ $labels.grpc_method }} failed on etcd instance {{ $labels.instance }}",
@@ -375,6 +427,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							For:   "1m",
 							Labels: map[string]string{
 								"severity": "critical",
+								"Alert":    "Rainbond",
 							},
 							Annotations: map[string]string{
 								"description": "{{ $value }}% of requests for {{ $labels.method }} failed on etcd instance {{ $labels.instance }}",
@@ -387,6 +440,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							For:   "1m",
 							Labels: map[string]string{
 								"severity": "critical",
+								"Alert":    "Rainbond",
 							},
 							Annotations: map[string]string{
 								"description": "on etcd instance {{ $labels.instance }} gRPC requests to {{ $labels.grpc_method}} are slow",
@@ -399,6 +453,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							For:   "1m",
 							Labels: map[string]string{
 								"severity": "critical",
+								"Alert":    "Rainbond",
 							},
 							Annotations: map[string]string{
 								"description": "{{ $value }}% of requests for {{ $labels.method }} failed on etcd instance {{ $labels.instance }}",
@@ -411,6 +466,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							For:   "1m",
 							Labels: map[string]string{
 								"severity": "critical",
+								"Alert":    "Rainbond",
 							},
 							Annotations: map[string]string{
 								"description": "{{ $value }}% of requests for {{ $labels.method }} failed on etcd instance {{ $labels.instance }}",
@@ -423,6 +479,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							For:   "1m",
 							Labels: map[string]string{
 								"severity": "critical",
+								"Alert":    "Rainbond",
 							},
 							Annotations: map[string]string{
 								"description": "{{ $labels.instance }}, {{ $labels.job }} of etcd DB space uses more than 80%",

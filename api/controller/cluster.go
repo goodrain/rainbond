@@ -19,9 +19,10 @@
 package controller
 
 import (
+	"net/http"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/handler"
-	"net/http"
 
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -32,8 +33,6 @@ type ClusterController struct {
 
 // GetClusterInfo -
 func (t *ClusterController) GetClusterInfo(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("start getting cluster info")
-
 	nodes, err := handler.GetClusterHandler().GetClusterInfo()
 	if err != nil {
 		logrus.Errorf("get cluster info: %v", err)

@@ -181,7 +181,6 @@ func Proxy(next http.Handler) http.Handler {
 			return
 		}
 		if strings.HasPrefix(r.RequestURI, "/kubernetes/dashboard") {
-			logrus.Debugf("proxy traffic to kubernetes dashboard.")
 			proxy := handler.GetKubernetesDashboardProxy()
 			r.URL.Path = strings.Replace(r.URL.Path, "/kubernetes/dashboard", "", 1)
 			proxy.Proxy(w, r)

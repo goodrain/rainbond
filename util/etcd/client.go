@@ -82,8 +82,8 @@ type ClientArgs struct {
 
 var (
 	// for parsing ca from k8s object
-	defaultDialTimeout      = 10 * time.Second
-	defaultAotuSyncInterval = 30 * time.Second
+	defaultDialTimeout      = 5 * time.Second
+	defaultAotuSyncInterval = 10 * time.Second
 )
 
 // NewClient new etcd client v3 for all rainbond module, attention: do not support v2
@@ -96,10 +96,12 @@ func NewClient(ctx context.Context, clientArgs *ClientArgs) (*v3.Client, error) 
 	}
 
 	config := clientv3.Config{
-		Context:          ctx,
-		Endpoints:        clientArgs.Endpoints,
-		DialTimeout:      clientArgs.DialTimeout,
-		AutoSyncInterval: clientArgs.AutoSyncInterval,
+		Context:              ctx,
+		Endpoints:            clientArgs.Endpoints,
+		DialTimeout:          clientArgs.DialTimeout,
+		DialKeepAliveTime:    time.Second * 2,
+		DialKeepAliveTimeout: time.Second * 6,
+		AutoSyncInterval:     clientArgs.AutoSyncInterval,
 	}
 
 	if clientArgs.CaFile != "" && clientArgs.CertFile != "" && clientArgs.KeyFile != "" {
@@ -126,5 +128,4 @@ func NewClient(ctx context.Context, clientArgs *ClientArgs) (*v3.Client, error) 
 		logrus.Errorf("create etcd.v3 client failed, try time is %d,%s", 10, err.Error())
 		time.Sleep(10 * time.Second)
 	}
-	return nil, err
 }

@@ -141,9 +141,6 @@ func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	if endpoints == nil || len(endpoints) < 1 {
 		return
 	}
-	for _, e := range endpoints {
-		logrus.Infof("Update event server endpoint,%s", e.URL)
-	}
 	//清空不可用节点信息，以服务发现为主
 	m.abnormalServer = make(map[string]string)
 	//增加新节点
@@ -159,6 +156,7 @@ func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
 				ctx:       m.ctx,
 			}
 			m.handles[end.URL] = h
+			logrus.Infof("Add event server endpoint,%s", end.URL)
 			go h.HandleLog()
 		}
 	}
@@ -166,6 +164,7 @@ func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	for k := range m.handles {
 		if _, ok := new[k]; !ok {
 			delete(m.handles, k)
+			logrus.Infof("Remove event server endpoint,%s", k)
 		}
 	}
 	var eventServer []string
