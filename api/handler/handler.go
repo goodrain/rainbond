@@ -68,6 +68,7 @@ func InitHandle(conf option.Config,
 	batchOperationHandler = CreateBatchOperationHandler(mqClient, operationHandler)
 	defaultAppRestoreHandler = NewAppRestoreHandler()
 	defPodHandler = NewPodHandler(statusCli)
+	defClusterHandler = NewClusterHandler(kubeClient)
 
 	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
 	defaultEtcdHandler = NewEtcdHandler(etcdcli)
@@ -190,4 +191,11 @@ var defaultEtcdHandler *EtcdHandler
 // GetEtcdHandler returns the default etcd handler.
 func GetEtcdHandler() *EtcdHandler {
 	return defaultEtcdHandler
+}
+
+var defClusterHandler ClusterHandler
+
+// GetClusterHandler returns the default cluster handler.
+func GetClusterHandler() ClusterHandler {
+	return defClusterHandler
 }

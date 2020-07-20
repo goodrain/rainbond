@@ -83,7 +83,7 @@ func Run(s *option.Builder) error {
 	}
 	//exec manage stop by discover
 	dis := discover.NewTaskManager(s.Config, client, exec)
-	if err := dis.Start(); err != nil {
+	if err := dis.Start(errChan); err != nil {
 		return err
 	}
 	defer dis.Stop()

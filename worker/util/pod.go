@@ -72,16 +72,18 @@ func DescribePodStatus(clientset kubernetes.Interface, pod *corev1.Pod, podStatu
 	if podStatus.Type == pb.PodStatus_INITIATING {
 		podStatus.Advice = PodStatusAdviceInitiating.String()
 		// if all main container ready
-		allMainCReady := true
-		for _, mainC := range pod.Status.ContainerStatuses {
-			if !mainC.Ready {
-				allMainCReady = false
-				break
+		if len(pod.Status.ContainerStatuses) > 0 {
+			allMainCReady := true
+			for _, mainC := range pod.Status.ContainerStatuses {
+				if !mainC.Ready {
+					allMainCReady = false
+					break
+				}
 			}
-		}
-		if allMainCReady {
-			podStatus.Type = pb.PodStatus_RUNNING
-			return
+			if allMainCReady {
+				podStatus.Type = pb.PodStatus_RUNNING
+				return
+			}
 		}
 		return
 	}

@@ -44,7 +44,6 @@ type Config struct {
 	MaxTasks                int
 	MQAPI                   string
 	NodeName                string
-	NodeAPI                 string
 	Listen                  string
 	HostIP                  string
 	ServerPort              int
@@ -88,7 +87,6 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.NodeName, "node-name", "", "the name of this worker,it must be global unique name")
 	fs.StringVar(&a.HostIP, "host-ip", "", "the ip of this worker,it must be global connected ip")
 	fs.IntVar(&a.ServerPort, "server-port", 6535, "the listen port that app runtime server")
-	fs.StringVar(&a.NodeAPI, "node-api", "http://172.30.42.1:6100", "node discover api, node docker endpoints")
 	fs.StringVar(&a.LeaderElectionNamespace, "leader-election-namespace", "rainbond", "Namespace where this attacher runs.")
 	fs.StringVar(&a.LeaderElectionIdentity, "leader-election-identity", "", "Unique idenity of this attcher. Typically name of the pod where the attacher runs.")
 	fs.StringVar(&a.RBDNamespace, "rbd-system-namespace", "rbd-system", "rbd components kubernetes namespace")

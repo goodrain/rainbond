@@ -139,7 +139,6 @@ func (d *Monitor) discoverCadvisor(c *callback.Cadvisor, done <-chan struct{}) {
 				logrus.Warn("the events channel is closed.")
 				return
 			}
-
 			switch event.Type {
 			case watch.Added:
 				isSlave := gjson.Get(event.GetValueString(), "labels.rainbond_node_rule_compute").String()

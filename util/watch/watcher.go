@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 
@@ -158,31 +159,44 @@ func (wc *watchChan) startWatching(watchClosedCh chan struct{}) {
 		if err := wc.sync(); err != nil {
 			logrus.Errorf("failed to sync with latest state: %v", err)
 			wc.sendError(err)
+			close(watchClosedCh)
 			return
 		}
 	}
-	opts := []clientv3.OpOption{clientv3.WithRev(wc.initialRev + 1), clientv3.WithPrevKV()}
+	opts := []clientv3.OpOption{
+		clientv3.WithRev(wc.initialRev + 1),
+		clientv3.WithPrevKV(),
+	}
 	if wc.recursive {
 		opts = append(opts, clientv3.WithPrefix())
 	}
-	wch := wc.watcher.client.Watch(wc.ctx, wc.key, opts...)
-	for wres := range wch {
-		if wres.Err() != nil {
-			err := wres.Err()
-			// If there is an error on server (e.g. compaction), the channel will return it before closed.
-			logrus.Errorf("watch chan error: %v", err)
-			wc.sendError(err)
-			return
-		}
-		for _, e := range wres.Events {
-			wc.sendEvent(parseEvent(e))
+	ctx, cancel := context.WithCancel(wc.ctx)
+	defer cancel()
+	wch := wc.watcher.client.Watch(ctx, wc.key, opts...)
+	timer := time.NewTimer(time.Second * 20)
+	defer timer.Stop()
+lool:
+	for {
+		select {
+		case wres := <-wch:
+			if wres.Err() != nil {
+				err := wres.Err()
+				// If there is an error on server (e.g. compaction), the channel will return it before closed.
+				logrus.Errorf("watch chan error: %v", err)
+				wc.sendError(err)
+				return
+			}
+			for _, e := range wres.Events {
+				wc.sendEvent(parseEvent(e))
+			}
+			timer.Reset(time.Second * 20)
+		case <-timer.C:
+			break lool
 		}
 	}
-	// When we come to this point, it's only possible that client side ends the watch.
-	// e.g. cancel the context, close the client.
-	// If this watch chan is broken and context isn't cancelled, other goroutines will still hang.
-	// We should notify the main thread that this goroutine has exited.
-	close(watchClosedCh)
+	wc.initialRev = 0
+	logrus.Debugf("watcher sync, because of not updated for a long time")
+	go wc.startWatching(watchClosedCh)
 }
 
 // processEvent processes events from etcd watcher and sends results to resultChan.

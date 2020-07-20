@@ -256,7 +256,7 @@ local _M = {
                     <div></div>
                 </div>
             </div>
-            <p class="text2">Power By <a href="https://www.rainbond.com" target="_blank">Rainbond</a></p>
+            <p class="text2">Power By <a href="https://www.rainbond.com" target="_blank" rel="noopener noreferrer">Rainbond</a></p>
         </div>
     </body>
 

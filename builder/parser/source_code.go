@@ -223,9 +223,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	//read rainbondfile
 	rbdfileConfig, err := code.ReadRainbondFile(buildInfo.GetCodeBuildAbsPath())
 	if err != nil {
-		if err == code.ErrRainbondFileNotFound {
-			d.errappend(ErrorAndSolve(NegligibleError, "rainbondfile未定义", "可以参考文档说明配置此文件定义应用属性"))
-		} else {
+		if err != code.ErrRainbondFileNotFound {
 			d.errappend(ErrorAndSolve(NegligibleError, "rainbondfile定义格式有误", "可以参考文档说明配置此文件定义应用属性"))
 		}
 	}
@@ -336,7 +334,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 							item.Envs = make(map[string]*types.Env, len(rbdfileConfig.Envs))
 						}
 						if item.Envs[k] == nil {
-							item.Envs[k] = &types.Env{Name: k, Value: v}
+							item.Envs[k] = &types.Env{Name: k, Value: fmt.Sprintf("%v", v)}
 						}
 					}
 					for _, port := range rbdfileConfig.Ports {
@@ -363,7 +361,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	if rbdfileConfig != nil {
 		//handle profile env
 		for k, v := range rbdfileConfig.Envs {
-			d.envs[k] = &types.Env{Name: k, Value: v}
+			d.envs[k] = &types.Env{Name: k, Value: fmt.Sprintf("%v", v)}
 		}
 		//handle profile port
 		for _, port := range rbdfileConfig.Ports {
