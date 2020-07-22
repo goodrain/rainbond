@@ -116,11 +116,6 @@ func (r *RuntimeServer) GetAppStatus(ctx context.Context, re *pb.ServicesRequest
 func (r *RuntimeServer) GetTenantResource(ctx context.Context, re *pb.TenantRequest) (*pb.TenantResource, error) {
 	var tr pb.TenantResource
 	res := r.store.GetTenantResource(re.TenantId)
-	if res == nil {
-		return &tr, nil
-	}
-	// tr.RunningAppNum = int64(len(r.store.GetTenantRunningApp(re.TenantId)))
-	// tr.RunningAppNum = int64(len(r.store.GetTenantRunningApp(re.TenantId)))
 	runningApps := r.store.GetTenantRunningApp(re.TenantId)
 	for _, app := range runningApps {
 		if app.ServiceKind == model.ServiceKindThirdParty {
@@ -134,11 +129,31 @@ func (r *RuntimeServer) GetTenantResource(ctx context.Context, re *pb.TenantRequ
 	tr.CpuRequest = res.CPURequest
 	tr.MemoryLimit = res.MemoryLimit / 1024 / 1024
 	tr.MemoryRequest = res.MemoryRequest / 1024 / 1024
-	tr.UnscdCpuLimit = res.UnscdCPULimit
-	tr.UnscdCpuReq = res.UnscdCPUReq
-	tr.UnscdMemoryLimit = res.UnscdMemoryLimit / 1024 / 1024
-	tr.UnscdMemoryReq = res.UnscdMemoryReq / 1024 / 1024
 	return &tr, nil
+}
+
+//GetTenantResources get tenant resources
+func (r *RuntimeServer) GetTenantResources(context.Context, *pb.Empty) (*pb.TenantResourceList, error) {
+	res := r.store.GetTenantResourceList()
+	var trs = make(map[string]*pb.TenantResource)
+	for _, re := range res {
+		var tr pb.TenantResource
+		runningApps := r.store.GetTenantRunningApp(re.Namespace)
+		for _, app := range runningApps {
+			if app.ServiceKind == model.ServiceKindThirdParty {
+				tr.RunningAppThirdNum++
+			} else if app.ServiceKind == model.ServiceKindInternal {
+				tr.RunningAppInternalNum++
+			}
+		}
+		tr.RunningAppNum = int64(len(runningApps))
+		tr.CpuLimit = re.CPULimit
+		tr.CpuRequest = re.CPURequest
+		tr.MemoryLimit = re.MemoryLimit / 1024 / 1024
+		tr.MemoryRequest = re.MemoryRequest / 1024 / 1024
+		trs[re.Namespace] = &tr
+	}
+	return &pb.TenantResourceList{Resources: trs}, nil
 }
 
 //GetAppPods get app pod list

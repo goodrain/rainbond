@@ -887,7 +887,10 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 		AllocatedCPU += ser.ContainerCPU * ser.Replicas
 		AllocatedMEM += ser.ContainerMemory * ser.Replicas
 	}
-	tenantResUesd, _ := s.statusCli.GetTenantResource(uuid)
+	tenantResUesd, err := s.statusCli.GetTenantResource(uuid)
+	if err != nil {
+		logrus.Errorf("get tenant %s resource failure %s", uuid, err.Error())
+	}
 	disks := GetServicesDisk(strings.Split(serviceIDs, ","), GetPrometheusProxy())
 	var value float64
 	for _, v := range disks {
@@ -899,8 +902,10 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 	res.EID = tenant.EID
 	res.AllocatedCPU = AllocatedCPU
 	res.AllocatedMEM = AllocatedMEM
-	res.UsedCPU = int(tenantResUesd.CpuRequest)
-	res.UsedMEM = int(tenantResUesd.MemoryRequest)
+	if tenantResUesd != nil {
+		res.UsedCPU = int(tenantResUesd.CpuRequest)
+		res.UsedMEM = int(tenantResUesd.MemoryRequest)
+	}
 	res.UsedDisk = value
 	return &res, nil
 }

@@ -25,8 +25,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
-
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	grpcutil "github.com/goodrain/rainbond/util/grpc"
 	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
 )
@@ -62,7 +62,7 @@ func NewMqClient(etcdClientArgs *etcdutil.ClientArgs, defaultserver string) (MQC
 		if err != nil {
 			return nil, err
 		}
-		r := &GRPCResolver{Client: c}
+		r := &grpcutil.GRPCResolver{Client: c}
 		b := grpc.RoundRobin(r)
 		conn, err = grpc.DialContext(ctx, "/rainbond/discover/rainbond_mq", grpc.WithBalancer(b), grpc.WithInsecure())
 		if err != nil {

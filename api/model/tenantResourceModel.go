@@ -74,10 +74,6 @@ type TenantAndResource struct {
 	CPULimit              int64 `json:"cpu_limit"`
 	MemoryRequest         int64 `json:"memory_request"`
 	MemoryLimit           int64 `json:"memory_limit"`
-	UnscdCPUReq           int64 `json:"unscd_cpu_req"`
-	UnscdCPULimit         int64 `json:"unscd_cpu_limit"`
-	UnscdMemoryReq        int64 `json:"unscd_memory_req"`
-	UnscdMemoryLimit      int64 `json:"unscd_memory_limit"`
 	RunningAppNum         int64 `json:"running_app_num"`
 	RunningAppInternalNum int64 `json:"running_app_internal_num"`
 	RunningAppThirdNum    int64 `json:"running_app_third_num"`
@@ -95,16 +91,21 @@ func (list TenantList) Len() int {
 }
 
 func (list TenantList) Less(i, j int) bool {
-	if list[i].Tenants.LimitMemory < list[j].Tenants.LimitMemory {
-		return true
+	// Highest priority
+	if list[i].MemoryRequest > list[j].MemoryRequest {
+		return false
 	}
-	if list[i].RunningAppNum < list[j].RunningAppNum {
-		return true
+	if list[i].CPURequest > list[j].CPURequest {
+		return false
 	}
-	if list[i].MemoryRequest < list[j].MemoryRequest {
-		return true
+	if list[i].RunningAppNum > list[j].RunningAppNum {
+		return false
 	}
-	return false
+	// Minimum priority
+	if list[i].Tenants.LimitMemory > list[j].Tenants.LimitMemory {
+		return false
+	}
+	return true
 }
 
 func (list TenantList) Swap(i, j int) {
