@@ -21,6 +21,7 @@ package discover
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -44,9 +45,16 @@ type KeepAlive struct {
 }
 
 //CreateKeepAlive create keepalive for server
-func CreateKeepAlive(etcdClientArgs *etcdutil.ClientArgs, ServerName string, HostName string, HostIP string, Port int) (*KeepAlive, error) {
-	if ServerName == "" || Port == 0 {
+func CreateKeepAlive(etcdClientArgs *etcdutil.ClientArgs, serverName string, hostName string, HostIP string, Port int) (*KeepAlive, error) {
+	if serverName == "" || Port == 0 {
 		return nil, fmt.Errorf("servername or serverport can not be empty")
+	}
+	if hostName == "" {
+		var err error
+		hostName, err = os.Hostname()
+		if err != nil {
+			return nil, err
+		}
 	}
 	if HostIP == "" {
 		ip, err := util.LocalIP()
@@ -56,11 +64,10 @@ func CreateKeepAlive(etcdClientArgs *etcdutil.ClientArgs, ServerName string, Hos
 		}
 		HostIP = ip.String()
 	}
-	HostName = HostIP
 	return &KeepAlive{
 		EtcdClentArgs: etcdClientArgs,
-		ServerName:    ServerName,
-		HostName:      HostName,
+		ServerName:    serverName,
+		HostName:      hostName,
 		Endpoint:      fmt.Sprintf("%s:%d", HostIP, Port),
 		TTL:           10,
 		Done:          make(chan struct{}),

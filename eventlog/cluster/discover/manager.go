@@ -19,25 +19,21 @@
 package discover
 
 import (
+	"encoding/json"
+	"fmt"
 	"net"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/eventlog/conf"
-	"github.com/goodrain/rainbond/eventlog/util"
-
-	"fmt"
-
-	"encoding/json"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/mvcc/mvccpb"
+	"github.com/goodrain/rainbond/eventlog/conf"
+	"github.com/goodrain/rainbond/eventlog/util"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/twinj/uuid"
 	"golang.org/x/net/context"
 )
 
@@ -122,16 +118,7 @@ func (d *EtcdDiscoverManager) RegisteredInstance(host string, port int, stopRegi
 		instance.PubPort = port
 		instance.DockerLogPort = d.conf.DockerLogPort
 		instance.WebPort = d.conf.WebPort
-		hostID, err := util.GetHostID(d.conf.NodeIDFile)
-		if err != nil {
-			d.log.Error("Read host id from file error.", err.Error())
-			hostID = uuid.NewV4().String()
-		}
-		if len(hostID) < 32 {
-			d.log.Error("Read host id from file error. Invalid hostID ")
-			hostID = uuid.NewV4().String()
-		}
-		instance.HostID = hostID[len(hostID)-12:]
+		instance.HostID = d.conf.NodeID
 		instance.HostName, _ = os.Hostname()
 		instance.Status = "create"
 		data, err := json.Marshal(instance)
@@ -289,7 +276,7 @@ func (d *EtcdDiscoverManager) add(node *client.Node) {
 		}
 
 		if !isExist {
-			d.log.Infof("Find an instance.IP:%s, Port:%d, HostName:%s HostID: %s", instance.HostIP.String(), instance.PubPort, instance.HostName, instance.HostID)
+			d.log.Infof("Find an instance.IP:%s, Port:%d, NodeID:%s HostID: %s", instance.HostIP.String(), instance.PubPort, instance.HostName, instance.HostID)
 			d.MonitorAddInstances() <- &instance
 			d.othersInstance = append(d.othersInstance, &instance)
 		}
