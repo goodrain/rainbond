@@ -33,6 +33,11 @@ import (
 func TrimAndSort(endpoints []*config.Endpoint) []string {
 	arr := make([]string, 0, len(endpoints))
 	for _, end := range endpoints {
+		if strings.HasPrefix(end.URL, "https://") {
+			url := strings.TrimLeft(end.URL, "https://")
+			arr = append(arr, url)
+			continue
+		}
 		url := strings.TrimLeft(end.URL, "http://")
 		arr = append(arr, url)
 	}

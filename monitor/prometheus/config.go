@@ -19,10 +19,11 @@
 package prometheus
 
 import (
-	"github.com/prometheus/common/model"
 	"net/url"
 	"regexp"
 	"time"
+
+	"github.com/prometheus/common/model"
 )
 
 // Config is the top-level configuration for Prometheus's config files.

@@ -158,12 +158,16 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 
 func createTCPDefaultPluginContainer(as *typesv1.AppService, pluginID string, envs []v1.EnvVar) v1.Container {
 	envs = append(envs, v1.EnvVar{Name: "PLUGIN_ID", Value: pluginID})
-	_, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
-	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
-		FieldRef: &corev1.ObjectFieldSelector{
-			FieldPath: "status.hostIP",
-		},
-	}})
+	xdsHost, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
+	if xdsHost == "" {
+		envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: "status.hostIP",
+			},
+		}})
+	} else {
+		envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", Value: xdsHost})
+	}
 	envs = append(envs, v1.EnvVar{Name: "API_HOST_PORT", Value: apiHostPort})
 	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_PORT", Value: xdsHostPort})
 
@@ -177,12 +181,16 @@ func createTCPDefaultPluginContainer(as *typesv1.AppService, pluginID string, en
 
 func createProbeMeshInitContainer(as *typesv1.AppService, pluginID, serviceAlias string, envs []v1.EnvVar) v1.Container {
 	envs = append(envs, v1.EnvVar{Name: "PLUGIN_ID", Value: pluginID})
-	_, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
-	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
-		FieldRef: &corev1.ObjectFieldSelector{
-			FieldPath: "status.hostIP",
-		},
-	}})
+	xdsHost, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
+	if xdsHost == "" {
+		envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: "status.hostIP",
+			},
+		}})
+	} else {
+		envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", Value: xdsHost})
+	}
 	envs = append(envs, v1.EnvVar{Name: "API_HOST_PORT", Value: apiHostPort})
 	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_PORT", Value: xdsHostPort})
 	return v1.Container{
@@ -340,7 +348,7 @@ func createPluginEnvs(pluginID, tenantID, serviceAlias string, mainEnvs []v1.Env
 		envs = append(envs, v1.EnvVar{Name: e.EnvName, Value: e.EnvValue})
 	}
 	xdsHost, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
-	if xdsHost != "" {
+	if xdsHost == "" {
 		envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{
 				FieldPath: "status.hostIP",
