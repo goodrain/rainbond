@@ -20,11 +20,13 @@ package client
 
 import (
 	"context"
+	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
-	etcdnaming "github.com/coreos/etcd/clientv3/naming"
 	"github.com/goodrain/rainbond/db/model"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	grpcutil "github.com/goodrain/rainbond/util/grpc"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"google.golang.org/grpc"
@@ -60,7 +62,7 @@ func NewClient(ctx context.Context, conf AppRuntimeSyncClientConf) (*AppRuntimeS
 		KeyFile:   conf.EtcdKeyFile,
 	}
 	c, err := etcdutil.NewClient(ctx, etcdClientArgs)
-	r := &etcdnaming.GRPCResolver{Client: c}
+	r := &grpcutil.GRPCResolver{Client: c}
 	b := grpc.RoundRobin(r)
 	arsc.cc, err = grpc.DialContext(ctx, "/rainbond/discover/app_sync_runtime_server", grpc.WithBalancer(b), grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
@@ -77,7 +79,7 @@ func (a *AppRuntimeSyncClient) Error(err error) {
 
 //GetStatus get status
 func (a *AppRuntimeSyncClient) GetStatus(serviceID string) string {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	status, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.ServicesRequest{
 		ServiceIds: serviceID,
@@ -90,20 +92,25 @@ func (a *AppRuntimeSyncClient) GetStatus(serviceID string) string {
 
 //GetStatuss get multiple app status
 func (a *AppRuntimeSyncClient) GetStatuss(serviceIDs string) map[string]string {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 	status, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.ServicesRequest{
 		ServiceIds: serviceIDs,
 	})
 	if err != nil {
-		return nil
+		logrus.Errorf("get service status failure %s", err.Error())
+		re := make(map[string]string, len(serviceIDs))
+		for _, id := range strings.Split(serviceIDs, ",") {
+			re[id] = v1.UNKNOW
+		}
+		return re
 	}
 	return status.Status
 }
 
 //GetAllStatus get all status
 func (a *AppRuntimeSyncClient) GetAllStatus() map[string]string {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 	status, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.ServicesRequest{
 		ServiceIds: "",
@@ -116,7 +123,7 @@ func (a *AppRuntimeSyncClient) GetAllStatus() map[string]string {
 
 //GetNeedBillingStatus get need billing status
 func (a *AppRuntimeSyncClient) GetNeedBillingStatus() (map[string]string, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 	re, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.ServicesRequest{})
 	if err != nil {
@@ -133,7 +140,7 @@ func (a *AppRuntimeSyncClient) GetNeedBillingStatus() (map[string]string, error)
 
 //GetServiceDeployInfo get service deploy info
 func (a *AppRuntimeSyncClient) GetServiceDeployInfo(serviceID string) (*pb.DeployInfo, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	re, err := a.AppRuntimeSyncClient.GetDeployInfo(ctx, &pb.ServiceRequest{
 		ServiceId: serviceID,
@@ -151,14 +158,21 @@ func (a *AppRuntimeSyncClient) IsClosedStatus(curStatus string) bool {
 
 //GetTenantResource get tenant resource
 func (a *AppRuntimeSyncClient) GetTenantResource(tenantID string) (*pb.TenantResource, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	return a.AppRuntimeSyncClient.GetTenantResource(ctx, &pb.TenantRequest{TenantId: tenantID})
 }
 
+//GetAllTenantResource get all tenant resource
+func (a *AppRuntimeSyncClient) GetAllTenantResource() (*pb.TenantResourceList, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	return a.AppRuntimeSyncClient.GetTenantResources(ctx, &pb.Empty{})
+}
+
 // ListThirdPartyEndpoints -
 func (a *AppRuntimeSyncClient) ListThirdPartyEndpoints(sid string) (*pb.ThirdPartyEndpoints, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	resp, err := a.AppRuntimeSyncClient.ListThirdPartyEndpoints(ctx, &pb.ServiceRequest{
 		ServiceId: sid,
@@ -171,7 +185,7 @@ func (a *AppRuntimeSyncClient) ListThirdPartyEndpoints(sid string) (*pb.ThirdPar
 
 // AddThirdPartyEndpoint -
 func (a *AppRuntimeSyncClient) AddThirdPartyEndpoint(req *model.Endpoint) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	_, _ = a.AppRuntimeSyncClient.AddThirdPartyEndpoint(ctx, &pb.AddThirdPartyEndpointsReq{
 		Uuid:     req.UUID,
@@ -184,7 +198,7 @@ func (a *AppRuntimeSyncClient) AddThirdPartyEndpoint(req *model.Endpoint) {
 
 // UpdThirdPartyEndpoint -
 func (a *AppRuntimeSyncClient) UpdThirdPartyEndpoint(req *model.Endpoint) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	_, _ = a.AppRuntimeSyncClient.UpdThirdPartyEndpoint(ctx, &pb.UpdThirdPartyEndpointsReq{
 		Uuid:     req.UUID,
@@ -197,7 +211,7 @@ func (a *AppRuntimeSyncClient) UpdThirdPartyEndpoint(req *model.Endpoint) {
 
 // DelThirdPartyEndpoint -
 func (a *AppRuntimeSyncClient) DelThirdPartyEndpoint(req *model.Endpoint) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	_, _ = a.AppRuntimeSyncClient.DelThirdPartyEndpoint(ctx, &pb.DelThirdPartyEndpointsReq{
 		Uuid: req.UUID,
@@ -209,14 +223,14 @@ func (a *AppRuntimeSyncClient) DelThirdPartyEndpoint(req *model.Endpoint) {
 
 // GetStorageClasses client GetStorageClasses
 func (a *AppRuntimeSyncClient) GetStorageClasses() (storageclasses *pb.StorageClasses, err error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	return a.AppRuntimeSyncClient.GetStorageClasses(ctx, &pb.Empty{})
 }
 
 // GetAppVolumeStatus get app volume status
 func (a *AppRuntimeSyncClient) GetAppVolumeStatus(serviceID string) (*pb.ServiceVolumeStatusMessage, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	return a.AppRuntimeSyncClient.GetAppVolumeStatus(ctx, &pb.ServiceRequest{ServiceId: serviceID})
 }

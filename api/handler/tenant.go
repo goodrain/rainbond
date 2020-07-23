@@ -66,20 +66,34 @@ func CreateTenManager(mqc mqclient.MQClient, statusCli *client.AppRuntimeSyncCli
 //BindTenantsResource query tenant resource used and sort
 func (t *TenantAction) BindTenantsResource(source []*dbmodel.Tenants) api_model.TenantList {
 	var list api_model.TenantList
+	var resources = make(map[string]*pb.TenantResource, len(source))
+	if len(source) == 1 {
+		re, err := t.statusCli.GetTenantResource(source[0].UUID)
+		if err != nil {
+			logrus.Errorf("get tenant %s resource failure %s", source[0].UUID, err.Error())
+		}
+		if re != nil {
+			resources[source[0].UUID] = re
+		}
+	} else {
+		res, err := t.statusCli.GetAllTenantResource()
+		if err != nil {
+			logrus.Errorf("get all tenant resource failure %s", err.Error())
+		}
+		if res != nil {
+			resources = res.Resources
+		}
+	}
 	for i, ten := range source {
-		re, _ := t.statusCli.GetTenantResource(ten.UUID)
 		var item = &api_model.TenantAndResource{
 			Tenants: *source[i],
 		}
+		re := resources[ten.UUID]
 		if re != nil {
 			item.CPULimit = re.CpuLimit
 			item.CPURequest = re.CpuRequest
 			item.MemoryLimit = re.MemoryLimit
 			item.MemoryRequest = re.MemoryRequest
-			item.UnscdCPULimit = re.UnscdCpuLimit
-			item.UnscdCPUReq = re.UnscdCpuReq
-			item.UnscdMemoryLimit = re.UnscdMemoryLimit
-			item.UnscdMemoryReq = re.UnscdMemoryReq
 			item.RunningAppNum = re.RunningAppNum
 			item.RunningAppInternalNum = re.RunningAppInternalNum
 			item.RunningAppThirdNum = re.RunningAppThirdNum
@@ -266,8 +280,25 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 		return nil, fmt.Errorf("error getting allocatalbe cpu and memory: %v", err)
 	}
 	var result = make(map[string]map[string]interface{}, len(ids))
+	var resources = make(map[string]*pb.TenantResource, len(ids))
+	if len(ids) == 1 {
+		re, err := t.statusCli.GetTenantResource(ids[0])
+		if err != nil {
+			logrus.Errorf("get tenant %s resource failure %s", ids[0], err.Error())
+		}
+		if re != nil {
+			resources[ids[0]] = re
+		}
+	} else {
+		res, err := t.statusCli.GetAllTenantResource()
+		if err != nil {
+			logrus.Errorf("get all tenant resource failure %s", err.Error())
+		}
+		if res != nil {
+			resources = res.Resources
+		}
+	}
 	for _, tenantID := range ids {
-		tr, _ := t.statusCli.GetTenantResource(tenantID)
 		var limitMemory int64
 		if l, ok := limits[tenantID]; ok && l != 0 {
 			limitMemory = int64(l)
@@ -278,11 +309,17 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 			"tenant_id":           tenantID,
 			"limit_memory":        limitMemory,
 			"limit_cpu":           clusterStats.AllCPU,
-			"service_running_num": tr.RunningAppNum,
 			"service_total_num":   serviceTenantCount[tenantID],
-			"cpu":                 tr.CpuRequest,
-			"memory":              tr.MemoryRequest,
 			"disk":                0,
+			"service_running_num": 0,
+			"cpu":                 0,
+			"memory":              0,
+		}
+		tr, _ := resources[tenantID]
+		if tr != nil {
+			result[tenantID]["service_running_num"] = tr.RunningAppNum
+			result[tenantID]["cpu"] = tr.CpuRequest
+			result[tenantID]["memory"] = tr.MemoryRequest
 		}
 	}
 	//query disk used in prometheus
@@ -386,14 +423,18 @@ func (t *TenantAction) GetAllocatableResources() (*ClusterResourceStats, error) 
 		t.cacheClusterResourceStats = &crs
 		t.cacheTime = time.Now()
 	}
-	ts, err := t.statusCli.GetTenantResource("")
+	ts, err := t.statusCli.GetAllTenantResource()
 	if err != nil {
 		logrus.Errorf("get tenant resource failure %s", err.Error())
 	}
 	crs := t.cacheClusterResourceStats
 	if ts != nil {
-		crs.RequestCPU = ts.CpuRequest
-		crs.RequestMemory = ts.MemoryRequest
+		crs.RequestCPU = 0
+		crs.RequestMemory = 0
+		for _, re := range ts.Resources {
+			crs.RequestCPU += re.CpuRequest
+			crs.RequestMemory += re.MemoryRequest
+		}
 	}
 	return crs, nil
 }
