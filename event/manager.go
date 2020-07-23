@@ -172,8 +172,7 @@ func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
 		eventServer = append(eventServer, k)
 	}
 	m.eventServer = eventServer
-	logrus.Infof("update event handle core success,handle core count:%d, event server count:%d", len(m.handles), len(m.eventServer))
-
+	logrus.Debugf("update event handle core success,handle core count:%d, event server count:%d", len(m.handles), len(m.eventServer))
 }
 
 func (m *manager) Error(err error) {

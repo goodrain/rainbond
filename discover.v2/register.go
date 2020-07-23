@@ -27,9 +27,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	client "github.com/coreos/etcd/clientv3"
-	etcdnaming "github.com/coreos/etcd/clientv3/naming"
 	"github.com/goodrain/rainbond/util"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	grpcutil "github.com/goodrain/rainbond/util/grpc"
 	"google.golang.org/grpc/naming"
 )
 
@@ -44,7 +44,7 @@ type KeepAlive struct {
 	LID            clientv3.LeaseID
 	Done           chan struct{}
 	etcdClient     *client.Client
-	gRPCResolver   *etcdnaming.GRPCResolver
+	gRPCResolver   *grpcutil.GRPCResolver
 	once           sync.Once
 }
 
@@ -65,6 +65,7 @@ func CreateKeepAlive(etcdClientArgs *etcdutil.ClientArgs, ServerName string, Pro
 	ctx, cancel := context.WithCancel(context.Background())
 	etcdclient, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
@@ -127,7 +128,7 @@ func (k *KeepAlive) etcdKey() string {
 }
 
 func (k *KeepAlive) reg() error {
-	k.gRPCResolver = &etcdnaming.GRPCResolver{Client: k.etcdClient}
+	k.gRPCResolver = &grpcutil.GRPCResolver{Client: k.etcdClient}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	resp, err := k.etcdClient.Grant(ctx, k.TTL+3)

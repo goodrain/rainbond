@@ -24,7 +24,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -87,7 +86,14 @@ func (a MessageDataList) Less(i, j int) bool { return a[i].Unixtime <= a[j].Unix
 
 //GetMessages GetMessages
 func (m *EventFilePlugin) GetMessages(eventID, level string, length int) (interface{}, error) {
+	var message MessageDataList
 	apath := path.Join(m.HomePath, "eventlog", eventID+".log")
+	if ok, err := util.FileExists(apath); !ok {
+		if err != nil {
+			logrus.Errorf("check file exist error %s", err.Error())
+		}
+		return message, nil
+	}
 	eventFile, err := os.Open(apath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -97,7 +103,6 @@ func (m *EventFilePlugin) GetMessages(eventID, level string, length int) (interf
 	}
 	defer eventFile.Close()
 	reader := bufio.NewReader(eventFile)
-	var message MessageDataList
 	for {
 		line, _, err := reader.ReadLine()
 		if err != nil {
@@ -127,8 +132,6 @@ func (m *EventFilePlugin) GetMessages(eventID, level string, length int) (interf
 			}
 		}
 	}
-	//Multi-node eventlog is valid.
-	sort.Sort(message)
 	return message, nil
 }
 
