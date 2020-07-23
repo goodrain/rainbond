@@ -40,7 +40,7 @@ type VersionInfo struct {
 	DeliveredPath string `gorm:"column:delivered_path;size:250" json:"delivered_path"` //交付物path
 	ImageName     string `gorm:"column:image_name;size:250" json:"image_name"`         //运行镜像名称
 	Cmd           string `gorm:"column:cmd;size:200" json:"cmd"`                       //启动命令
-	RepoURL       string `gorm:"column:repo_url;size:100" json:"repo_url"`
+	RepoURL       string `gorm:"column:repo_url;size:2047" json:"repo_url"`
 	CodeVersion   string `gorm:"column:code_version;size:40" json:"code_version"`
 	CodeBranch    string `gorm:"column:code_branch;size:40" json:"code_branch"`
 	CommitMsg     string `gorm:"column:code_commit_msg;size:200" json:"code_commit_msg"`
