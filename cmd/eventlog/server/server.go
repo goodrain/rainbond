@@ -20,24 +20,20 @@ package server
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"os/signal"
 	"path"
 	"syscall"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/eventlog/cluster"
 	"github.com/goodrain/rainbond/eventlog/conf"
+	"github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/eventlog/entry"
 	"github.com/goodrain/rainbond/eventlog/exit/web"
 	"github.com/goodrain/rainbond/eventlog/store"
-
-	"os"
-
-	"fmt"
-
-	"github.com/Sirupsen/logrus"
-	"github.com/goodrain/rainbond/eventlog/db"
-	"github.com/goodrain/rainbond/util"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/spf13/pflag"
 )
@@ -112,7 +108,7 @@ func (s *LogServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&s.Conf.EventStore.DB.HomePath, "docker.log.homepath", "/grdata/logs/", "container log persistent home path")
 	fs.StringVar(&s.Conf.Entry.NewMonitorMessageServerConf.ListenerHost, "monitor.udp.host", "0.0.0.0", "receive new monitor udp server host")
 	fs.IntVar(&s.Conf.Entry.NewMonitorMessageServerConf.ListenerPort, "monitor.udp.port", 6166, "receive new monitor udp server port")
-	fs.StringVar(&s.Conf.Cluster.Discover.NodeIDFile, "nodeid-file", "/opt/rainbond/etc/node/node_host_uuid.conf", "the unique ID for this node. Just specify, don't modify")
+	fs.StringVar(&s.Conf.Cluster.Discover.NodeID, "node-id", "", "the unique ID for this node.")
 }
 
 //InitLog 初始化log
@@ -227,7 +223,7 @@ func (s *LogServer) Run() error {
 
 	//服务注册
 	grpckeepalive, err := discover.CreateKeepAlive(etcdClientArgs, "event_log_event_grpc",
-		s.Conf.Cluster.Discover.InstanceIP, s.Conf.Cluster.Discover.InstanceIP, s.Conf.Entry.EventLogServer.BindPort)
+		s.Conf.Cluster.Discover.NodeID, s.Conf.Cluster.Discover.InstanceIP, s.Conf.Entry.EventLogServer.BindPort)
 	if err != nil {
 		return err
 	}
@@ -237,7 +233,7 @@ func (s *LogServer) Run() error {
 	defer grpckeepalive.Stop()
 
 	udpkeepalive, err := discover.CreateKeepAlive(etcdClientArgs, "event_log_event_udp",
-		s.Conf.Cluster.Discover.InstanceIP, s.Conf.Cluster.Discover.InstanceIP, s.Conf.Entry.NewMonitorMessageServerConf.ListenerPort)
+		s.Conf.Cluster.Discover.NodeID, s.Conf.Cluster.Discover.InstanceIP, s.Conf.Entry.NewMonitorMessageServerConf.ListenerPort)
 	if err != nil {
 		return err
 	}
@@ -246,18 +242,8 @@ func (s *LogServer) Run() error {
 	}
 	defer udpkeepalive.Stop()
 
-	hostID, err := util.ReadHostID(s.Conf.Cluster.Discover.NodeIDFile)
-	if err != nil {
-		return err
-	}
-	var id string
-	if len(hostID) < 12 {
-		id = hostID
-	} else {
-		id = hostID[len(hostID)-12:]
-	}
 	httpkeepalive, err := discover.CreateKeepAlive(etcdClientArgs, "event_log_event_http",
-		id, s.Conf.Cluster.Discover.InstanceIP, s.Conf.WebSocket.BindPort)
+		s.Conf.Cluster.Discover.NodeID, s.Conf.Cluster.Discover.InstanceIP, s.Conf.WebSocket.BindPort)
 	if err != nil {
 		return err
 	}
