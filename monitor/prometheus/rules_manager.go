@@ -187,13 +187,6 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Labels:      commonLables,
 							Annotations: map[string]string{"summary": "mq unhealthy"},
 						},
-						&RulesConfig{
-							Alert:       "TeamTaskMany",
-							Expr:        "acp_mq_dequeue_number-acp_mq_enqueue_number > 200",
-							For:         "3m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"summary": "The number of tasks in the queue is greater than 200"},
-						},
 					},
 				},
 				&AlertingNameConfig{
