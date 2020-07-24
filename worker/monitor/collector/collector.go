@@ -33,8 +33,6 @@ type Exporter struct {
 	error             prometheus.Gauge
 	totalScrapes      prometheus.Counter
 	scrapeErrors      *prometheus.CounterVec
-	memoryUse         *prometheus.GaugeVec
-	fsUse             *prometheus.GaugeVec
 	workerUp          prometheus.Gauge
 	dbmanager         db.Manager
 	masterController  *master.Controller

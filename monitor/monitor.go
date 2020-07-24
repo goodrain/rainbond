@@ -61,7 +61,20 @@ func (d *Monitor) Start() {
 	go d.discoverNodes(&callback.Node{Prometheus: d.manager}, &callback.App{Prometheus: d.manager}, d.ctx.Done())
 
 	// monitor etcd members
-	go d.discoverEtcd(&callback.Etcd{Prometheus: d.manager}, d.ctx.Done())
+	go d.discoverEtcd(&callback.Etcd{
+		Prometheus: d.manager,
+		Scheme: func() string {
+			if d.config.EtcdCertFile != "" {
+				return "https"
+			}
+			return "http"
+		}(),
+		TLSConfig: prometheus.TLSConfig{
+			CAFile:   d.config.EtcdCaFile,
+			CertFile: d.config.EtcdCertFile,
+			KeyFile:  d.config.EtcdKeyFile,
+		},
+	}, d.ctx.Done())
 
 	// monitor Cadvisor
 	go d.discoverCadvisor(&callback.Cadvisor{

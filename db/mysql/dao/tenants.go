@@ -106,11 +106,11 @@ func (t *TenantDaoImpl) GetALLTenants(query string) ([]*model.Tenants, error) {
 func (t *TenantDaoImpl) GetTenantByEid(eid, query string) ([]*model.Tenants, error) {
 	var tenants []*model.Tenants
 	if query != "" {
-		if err := t.DB.Where("eid = ? and name like '%?%'", query).Find(&tenants).Error; err != nil {
+		if err := t.DB.Where("eid = ? and name like '%?%'", eid, query).Find(&tenants).Error; err != nil {
 			return nil, err
 		}
 	} else {
-		if err := t.DB.Where("eid = ?", query).Find(&tenants).Error; err != nil {
+		if err := t.DB.Where("eid = ?", eid).Find(&tenants).Error; err != nil {
 			return nil, err
 		}
 	}
