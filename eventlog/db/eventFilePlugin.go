@@ -96,6 +96,9 @@ func (m *EventFilePlugin) GetMessages(eventID, level string, length int) (interf
 	}
 	eventFile, err := os.Open(apath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	defer eventFile.Close()

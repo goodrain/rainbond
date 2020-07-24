@@ -33,6 +33,8 @@ import (
 type Etcd struct {
 	discover.Callback
 	Prometheus      *prometheus.Manager
+	Scheme          string
+	TLSConfig       prometheus.TLSConfig
 	sortedEndpoints []string
 }
 
@@ -66,8 +68,9 @@ func (e *Etcd) toScrape() *prometheus.ScrapeConfig {
 		ts = append(ts, end)
 	}
 
-	return &prometheus.ScrapeConfig{
+	sc := &prometheus.ScrapeConfig{
 		JobName:        e.Name(),
+		Scheme:         e.Scheme,
 		ScrapeInterval: model.Duration(1 * time.Minute),
 		ScrapeTimeout:  model.Duration(30 * time.Second),
 		MetricsPath:    "/metrics",
@@ -82,4 +85,10 @@ func (e *Etcd) toScrape() *prometheus.ScrapeConfig {
 			},
 		},
 	}
+	if e.Scheme == "https" {
+		sc.HTTPClientConfig = prometheus.HTTPClientConfig{
+			TLSConfig: e.TLSConfig,
+		}
+	}
+	return sc
 }
