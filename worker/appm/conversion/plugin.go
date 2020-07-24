@@ -340,7 +340,7 @@ func createPluginEnvs(pluginID, tenantID, serviceAlias string, mainEnvs []v1.Env
 		envs = append(envs, v1.EnvVar{Name: e.EnvName, Value: e.EnvValue})
 	}
 	xdsHost, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
-	if xdsHost != "" {
+	if xdsHost == "" {
 		envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{
 				FieldPath: "status.hostIP",
