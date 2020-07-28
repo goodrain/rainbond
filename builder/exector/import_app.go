@@ -275,10 +275,10 @@ func (i *ImportApp) importPlugins() error {
 		return err
 	}
 
-	oldPlugins, err := meta.Get("plugins").Array()
-	if err != nil {
-		logrus.Errorf("Failed to get plugins from meta for load app %s: %v", i.SourceDir, err)
-		return nil
+	var oldPlugins []interface{}
+	if plugins, err := meta.Get("plugins").Array(); err != nil {
+		logrus.Warningf("Failed to get plugins from meta for load app %s: %v", i.SourceDir, err)
+		oldPlugins = plugins
 	}
 
 	for index := range oldPlugins {
@@ -370,7 +370,8 @@ func (i *ImportApp) loadApps() error {
 		return err
 	}
 
-	for _, app := range apps {
+	for idx := range apps {
+		app := apps[idx]
 		serviceName := app.Get("service_cname").String()
 		serviceName = unicode2zh(serviceName)
 		serviceDir := fmt.Sprintf("%s/%s", i.SourceDir, serviceName)
@@ -393,6 +394,7 @@ func (i *ImportApp) loadApps() error {
 			saveImageName := sources.GenSaveImageName(oldImage)
 			// 上传之前先要根据新的仓库地址修改镜像名
 			image := app.Get("share_image").String()
+			logrus.Debugf("[loadApps] target image: %s", image)
 			if err := sources.ImageTag(i.DockerClient, saveImageName, image, i.Logger, 15); err != nil {
 				if strings.Contains(err.Error(), "No such image") {
 					err = sources.ImageTag(i.DockerClient, "goodrain.me/"+saveImageName, image, i.Logger, 2)
