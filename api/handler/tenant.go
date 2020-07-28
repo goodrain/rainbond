@@ -100,7 +100,7 @@ func (t *TenantAction) BindTenantsResource(source []*dbmodel.Tenants) api_model.
 		}
 		list.Add(item)
 	}
-	sort.Sort(sort.Reverse(list))
+	sort.Sort(list)
 	return list
 }
 

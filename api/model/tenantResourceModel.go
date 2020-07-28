@@ -93,19 +93,19 @@ func (list TenantList) Len() int {
 func (list TenantList) Less(i, j int) bool {
 	// Highest priority
 	if list[i].MemoryRequest > list[j].MemoryRequest {
-		return false
+		return true
 	}
 	if list[i].CPURequest > list[j].CPURequest {
-		return false
+		return true
 	}
 	if list[i].RunningAppNum > list[j].RunningAppNum {
-		return false
+		return true
 	}
 	// Minimum priority
 	if list[i].Tenants.LimitMemory > list[j].Tenants.LimitMemory {
-		return false
+		return true
 	}
-	return true
+	return false
 }
 
 func (list TenantList) Swap(i, j int) {
