@@ -141,7 +141,7 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 		cmd.Stdout = &out
 		err := cmd.Run()
 		logrus.Infof("cmd return is : %s", out.String())
-		if err != nil {
+		if err != nil && err.Error() != "exit status 1" {
 			logrus.Errorf("rm -rf %s failed: %s", dirName, err.Error())
 			httputil.ReturnError(r, w, 501, "Failed to delete directory by id: "+eventID)
 			return
