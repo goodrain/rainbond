@@ -207,6 +207,22 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 	}, nil
 }
 
+//GetMultiAppPods get multi app pods
+func (r *RuntimeServer) GetMultiAppPods(ctx context.Context, re *pb.ServicesRequest) (*pb.MultiServiceAppPodList, error) {
+	serviceIDs := strings.Split(re.ServiceIds, ",")
+	var res pb.MultiServiceAppPodList
+	res.ServicePods = make(map[string]*pb.ServiceAppPodList, len(serviceIDs))
+	for _, id := range serviceIDs {
+		list, err := r.GetAppPods(ctx, &pb.ServiceRequest{ServiceId: id})
+		if err != nil {
+			logrus.Errorf("get app %s pod list failure %s", id, err.Error())
+			continue
+		}
+		res.ServicePods[id] = list
+	}
+	return &res, nil
+}
+
 // translateTimestampSince returns the elapsed time since timestamp in
 // human-readable approximation.
 func translateTimestampSince(timestamp metav1.Time) string {

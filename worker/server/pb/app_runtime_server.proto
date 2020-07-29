@@ -4,6 +4,7 @@ package pb;
 service AppRuntimeSync {
   rpc GetAppStatus (ServicesRequest) returns (StatusMessage) {}
   rpc GetAppPods (ServiceRequest) returns (ServiceAppPodList) {}
+  rpc GetMultiAppPods (ServicesRequest) returns (MultiServiceAppPodList) {}
   rpc GetDeployInfo (ServiceRequest) returns (DeployInfo) {}
   rpc GetTenantResource (TenantRequest) returns (TenantResource) {}
   rpc GetTenantResources (Empty) returns (TenantResourceList) {}
@@ -39,6 +40,10 @@ message DiskMessage {
 message ServiceAppPodList {
   repeated ServiceAppPod oldPods = 1;
   repeated ServiceAppPod newPods = 2;
+}
+
+message MultiServiceAppPodList {
+  map<string, ServiceAppPodList> servicePods = 1;
 }
 
 message ServiceAppPod {

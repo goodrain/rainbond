@@ -1847,6 +1847,55 @@ func (s *ServiceAction) GetPods(serviceID string) (*K8sPodInfos, error) {
 	}, nil
 }
 
+//GetMultiServicePods get pods
+func (s *ServiceAction) GetMultiServicePods(serviceIDs []string) (*K8sPodInfos, error) {
+	mpods, err := s.statusCli.GetMultiServicePods(serviceIDs)
+	if err != nil && !strings.Contains(err.Error(), server.ErrAppServiceNotFound.Error()) &&
+		!strings.Contains(err.Error(), server.ErrPodNotFound.Error()) {
+		logrus.Error("GetPodByService Error:", err)
+		return nil, err
+	}
+	if mpods == nil {
+		return nil, nil
+	}
+	convpod := func(serviceID string, pods []*pb.ServiceAppPod) []*K8sPodInfo {
+		var podsInfoList []*K8sPodInfo
+		var podNames []string
+		for _, v := range pods {
+			var podInfo K8sPodInfo
+			podInfo.PodName = v.PodName
+			podInfo.PodIP = v.PodIp
+			podInfo.PodStatus = v.PodStatus
+			podInfo.ServiceID = serviceID
+			containerInfos := make(map[string]map[string]string, 10)
+			for _, container := range v.Containers {
+				containerInfos[container.ContainerName] = map[string]string{
+					"memory_limit": fmt.Sprintf("%d", container.MemoryLimit),
+					"memory_usage": "0",
+				}
+			}
+			podInfo.Container = containerInfos
+			podNames = append(podNames, v.PodName)
+			podsInfoList = append(podsInfoList, &podInfo)
+		}
+		containerMemInfo, _ := s.GetPodContainerMemory(podNames)
+		for _, c := range podsInfoList {
+			for k := range c.Container {
+				if info, exist := containerMemInfo[c.PodName][k]; exist {
+					c.Container[k]["memory_usage"] = info
+				}
+			}
+		}
+		return podsInfoList
+	}
+	var re K8sPodInfos
+	for serviceID, pods := range mpods.ServicePods {
+		re.NewPods = append(re.NewPods, convpod(serviceID, pods.NewPods)...)
+		re.OldPods = append(re.OldPods, convpod(serviceID, pods.OldPods)...)
+	}
+	return &re, nil
+}
+
 //GetPodContainerMemory Use Prometheus to query memory resources
 func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map[string]string, error) {
 	memoryUsageMap := make(map[string]map[string]string, 10)
