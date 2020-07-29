@@ -21,6 +21,7 @@ package exector
 import (
 	"context"
 	"fmt"
+
 	"github.com/goodrain/rainbond/builder"
 
 	"github.com/Sirupsen/logrus"
@@ -73,9 +74,6 @@ func NewImageShareItem(in []byte, DockerClient *client.Client, EtcdCli *clientv3
 	isi.Logger = event.GetManager().GetLogger(eventID)
 	isi.DockerClient = DockerClient
 	isi.EtcdCli = EtcdCli
-	if isi.ShareInfo.ImageInfo.HubURL == "hub.goodrain.com" {
-		isi.ShareInfo.ImageInfo.IsTrust = true
-	}
 	return &isi, nil
 }
 
