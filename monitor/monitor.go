@@ -81,6 +81,10 @@ func (d *Monitor) Start() {
 		Prometheus: d.manager,
 		ListenPort: d.config.CadvisorListenPort,
 	}, d.ctx.Done())
+
+	// kubernetes service discovery
+	rbdapi := callback.RbdAPI{Prometheus: d.manager}
+	rbdapi.UpdateEndpoints(nil)
 }
 
 func (d *Monitor) discoverNodes(node *callback.Node, app *callback.App, done <-chan struct{}) {

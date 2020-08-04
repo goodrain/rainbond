@@ -26,9 +26,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/common/version"
 
 	"github.com/goodrain/rainbond/util"
 
@@ -37,6 +41,7 @@ import (
 
 	"github.com/goodrain/rainbond/api/api_routers/doc"
 	"github.com/goodrain/rainbond/api/api_routers/license"
+	"github.com/goodrain/rainbond/api/metric"
 	"github.com/goodrain/rainbond/api/proxy"
 
 	"github.com/goodrain/rainbond/api/api_routers/cloud"
@@ -59,14 +64,31 @@ type Manager struct {
 	r               *chi.Mux
 	prometheusProxy proxy.Proxy
 	etcdcli         *clientv3.Client
+	exporter        *metric.Exporter
 }
 
 //NewManager newManager
 func NewManager(c option.Config, etcdcli *clientv3.Client) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
-	//controller.CreateV2RouterManager(c)
+	manager := &Manager{
+		ctx:      ctx,
+		cancel:   cancel,
+		conf:     c,
+		stopChan: make(chan struct{}),
+		etcdcli:  etcdcli,
+	}
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID) //每个请求的上下文中注册一个id
+	manager.r = r
+	manager.SetMiddleware()
+	return manager
+}
+
+//SetMiddleware set api meddleware
+func (m *Manager) SetMiddleware() {
+	c := m.conf
+	r := m.r
+	r.Use(m.RequestMetric)
+	r.Use(middleware.RequestID)
 	//Sets a http.Request's RemoteAddr to either X-Forwarded-For or X-Real-IP
 	r.Use(middleware.RealIP)
 	//Logs the start and end of each request with the elapsed processing time
@@ -93,23 +115,6 @@ func NewManager(c option.Config, etcdcli *clientv3.Client) *Manager {
 	//simple api version
 	r.Use(apimiddleware.APIVersion)
 	r.Use(apimiddleware.Proxy)
-
-	if c.Debug {
-		util.ProfilerSetup(r)
-	}
-
-	r.Get("/monitor", func(res http.ResponseWriter, req *http.Request) {
-		res.Write([]byte("ok"))
-	})
-
-	return &Manager{
-		ctx:      ctx,
-		cancel:   cancel,
-		conf:     c,
-		stopChan: make(chan struct{}),
-		r:        r,
-		etcdcli:  etcdcli,
-	}
 }
 
 //Start manager
@@ -140,10 +145,16 @@ func (m *Manager) Stop() error {
 
 //Run run
 func (m *Manager) Run() {
-
 	v2R := &version2.V2{
 		Cfg: &m.conf,
 	}
+	m.Metric()
+	if m.conf.Debug {
+		util.ProfilerSetup(m.r)
+	}
+	m.r.Get("/monitor", func(res http.ResponseWriter, req *http.Request) {
+		res.Write([]byte("ok"))
+	})
 	m.r.Mount("/v2", v2R.Routes())
 	m.r.Mount("/cloud", cloud.Routes())
 	m.r.Mount("/", doc.Routes())
@@ -226,4 +237,29 @@ func (m *Manager) PrometheusAPI(w http.ResponseWriter, r *http.Request) {
 // KuberntesDashboardAPI proxy traffix to kubernetes dashboard
 func (m *Manager) KuberntesDashboardAPI(w http.ResponseWriter, r *http.Request) {
 	handler.GetKubernetesDashboardProxy().Proxy(w, r)
+}
+
+//Metric prometheus metric
+func (m *Manager) Metric() {
+	prometheus.MustRegister(version.NewCollector("rbd_api"))
+	exporter := metric.NewExporter()
+	m.exporter = exporter
+	prometheus.MustRegister(exporter)
+	m.r.Handle("/metrics", promhttp.Handler())
+}
+
+//RequestMetric request metric midd
+func (m *Manager) RequestMetric(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+		defer func() {
+			path := r.RequestURI
+			if strings.Index(r.RequestURI, "?") > -1 {
+				path = r.RequestURI[:strings.Index(r.RequestURI, "?")]
+			}
+			m.exporter.RequestInc(ww.Status(), path)
+		}()
+		next.ServeHTTP(ww, r)
+	}
+	return http.HandlerFunc(fn)
 }

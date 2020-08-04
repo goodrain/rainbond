@@ -213,12 +213,14 @@ func (r *RuntimeServer) GetMultiAppPods(ctx context.Context, re *pb.ServicesRequ
 	var res pb.MultiServiceAppPodList
 	res.ServicePods = make(map[string]*pb.ServiceAppPodList, len(serviceIDs))
 	for _, id := range serviceIDs {
-		list, err := r.GetAppPods(ctx, &pb.ServiceRequest{ServiceId: id})
-		if err != nil {
-			logrus.Errorf("get app %s pod list failure %s", id, err.Error())
-			continue
+		if len(id) != 0 {
+			list, err := r.GetAppPods(ctx, &pb.ServiceRequest{ServiceId: id})
+			if err != nil && err != ErrAppServiceNotFound {
+				logrus.Errorf("get app %s pod list failure %s", id, err.Error())
+				continue
+			}
+			res.ServicePods[id] = list
 		}
-		res.ServicePods[id] = list
 	}
 	return &res, nil
 }

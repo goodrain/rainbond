@@ -278,6 +278,9 @@ func (n *NodeManager) init() error {
 			return fmt.Errorf("find node %s from cluster failure %s", n.currentNode.ID, err.Error())
 		}
 	}
+	if n.cfg.HostIP != "" && node.InternalIP != n.cfg.HostIP {
+		node.InternalIP = n.cfg.HostIP
+	}
 	//update node mode
 	node.Mode = n.cfg.RunMode
 	//update node rule
