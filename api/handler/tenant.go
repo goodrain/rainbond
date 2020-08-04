@@ -162,6 +162,16 @@ func (t *TenantAction) DeleteTenant(tenantID string, deleteTenantReq *api_model.
 				return fmt.Errorf("delete service(%s): %v", svc.ServiceID, err)
 			}
 		}
+		// delete plugins
+		plugins, err := db.GetManager().TenantPluginDao().ListByTenantID(tenantID)
+		if err != nil {
+			return fmt.Errorf("list plugins: %v", err)
+		}
+		for _, plugin := range plugins {
+			if err := db.GetManager().TenantPluginDao().DeletePluginByID(plugin.PluginID, tenantID); err != nil {
+				return fmt.Errorf("delete plugin(%s): %v", plugin.PluginID, err)
+			}
+		}
 	}
 
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
