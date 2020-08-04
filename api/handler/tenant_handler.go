@@ -45,4 +45,5 @@ type TenantHandler interface {
 	BindTenantsResource(source []*dbmodel.Tenants) api_model.TenantList
 	UpdateTenant(*dbmodel.Tenants) error
 	DeleteTenant(tenantID string, deleteTenantReq *api_model.DeleteTenantReq) error
+	GetClusterResource() *ClusterResourceStats
 }

@@ -102,7 +102,6 @@ func (e *App) Add(event *watch.Event) {
 		URL:  url,
 		Name: event.GetKey(),
 	}
-
 	e.AddEndpoint(end)
 }
 
@@ -123,6 +122,7 @@ func (e *App) Modify(event *watch.Event) {
 			Name: event.GetKey(),
 			URL:  url,
 		})
+		e.UpdateEndpoints(e.endpoints...)
 	}
 }
 

@@ -186,6 +186,7 @@ type ServiceDiscoveryConfig struct {
 	KubernetesSDConfigs []*SDConfig `yaml:"kubernetes_sd_configs,omitempty"`
 }
 
+//Group group
 type Group struct {
 	// Targets is a list of targets identified by a label set. Each target is
 	// uniquely identifiable in the group by its address label.
@@ -199,7 +200,22 @@ type Group struct {
 
 // SDConfig is the configuration for Kubernetes service discovery.
 type SDConfig struct {
-	Role Role `yaml:"role"`
+	Role               Role               `yaml:"role"`
+	NamespaceDiscovery NamespaceDiscovery `yaml:"namespaces,omitempty"`
+	Selectors          []SelectorConfig   `yaml:"selectors,omitempty"`
+}
+
+//SelectorConfig selector config
+type SelectorConfig struct {
+	Role  Role   `yaml:"role,omitempty"`
+	Label string `yaml:"label,omitempty"`
+	Field string `yaml:"field,omitempty"`
+}
+
+// NamespaceDiscovery is the configuration for discovering
+// Kubernetes namespaces.
+type NamespaceDiscovery struct {
+	Names []string `yaml:"names"`
 }
 
 // Role is role of the service in Kubernetes.

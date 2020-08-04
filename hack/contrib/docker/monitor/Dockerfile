@@ -1,4 +1,4 @@
-FROM rainbond/prometheus:v2.2.1
+FROM rainbond/prometheus:v2.20.0
 
 USER root
 VOLUME ["/prometheusdata"]

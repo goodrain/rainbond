@@ -424,14 +424,13 @@ type ClusterResourceStats struct {
 	RequestMemory int64
 }
 
-// GetAllocatableResources returns allocatable cpu and memory (MB)
-func (t *TenantAction) GetAllocatableResources() (*ClusterResourceStats, error) {
+func (t *TenantAction) initClusterResource() error {
 	if t.cacheClusterResourceStats == nil || t.cacheTime.Add(time.Minute*3).Before(time.Now()) {
 		var crs ClusterResourceStats
 		nodes, err := t.kubeClient.CoreV1().Nodes().List(metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("get cluster nodes failure %s", err.Error())
-			return &crs, nil
+			return err
 		}
 		for _, node := range nodes.Items {
 			if node.Spec.Unschedulable {
@@ -448,11 +447,20 @@ func (t *TenantAction) GetAllocatableResources() (*ClusterResourceStats, error) 
 		t.cacheClusterResourceStats = &crs
 		t.cacheTime = time.Now()
 	}
+	return nil
+}
+
+// GetAllocatableResources returns allocatable cpu and memory (MB)
+func (t *TenantAction) GetAllocatableResources() (*ClusterResourceStats, error) {
+	var crs ClusterResourceStats
+	if t.initClusterResource() != nil {
+		return &crs, nil
+	}
 	ts, err := t.statusCli.GetAllTenantResource()
 	if err != nil {
 		logrus.Errorf("get tenant resource failure %s", err.Error())
 	}
-	crs := t.cacheClusterResourceStats
+	re := t.cacheClusterResourceStats
 	if ts != nil {
 		crs.RequestCPU = 0
 		crs.RequestMemory = 0
@@ -461,7 +469,7 @@ func (t *TenantAction) GetAllocatableResources() (*ClusterResourceStats, error) 
 			crs.RequestMemory += re.MemoryRequest
 		}
 	}
-	return crs, nil
+	return re, nil
 }
 
 //GetServicesResources Gets the resource usage of the specified service.
@@ -581,4 +589,12 @@ func (t *TenantAction) GetServicesStatus(ids string) map[string]string {
 //IsClosedStatus checks if the status is closed status.
 func (t *TenantAction) IsClosedStatus(status string) bool {
 	return t.statusCli.IsClosedStatus(status)
+}
+
+//GetClusterResource get cluster resource
+func (t *TenantAction) GetClusterResource() *ClusterResourceStats {
+	if t.initClusterResource() != nil {
+		return nil
+	}
+	return t.cacheClusterResourceStats
 }
