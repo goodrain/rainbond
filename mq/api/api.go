@@ -105,7 +105,7 @@ func NewManager(c option.Config) (*Manager, error) {
 		actionMQ: actionMQ,
 	}
 	go func() {
-		Prometheus()
+		manager.Prometheus()
 		health()
 		if err := http.ListenAndServe(":6301", nil); err != nil {
 			logrus.Error("mq pprof listen error.", err.Error())
@@ -182,9 +182,9 @@ func (m *Manager) Stop() error {
 }
 
 //Prometheus prometheus init
-func Prometheus() {
+func (m *Manager) Prometheus() {
 	prometheus.MustRegister(version.NewCollector("acp_mq"))
-	exporter := monitor.NewExporter()
+	exporter := monitor.NewExporter(m.actionMQ)
 	prometheus.MustRegister(exporter)
 	http.Handle("/metrics", promhttp.Handler())
 }

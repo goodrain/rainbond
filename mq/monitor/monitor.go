@@ -42,12 +42,12 @@ var (
 
 //Exporter collects entrance metrics. It implements prometheus.Collector.
 type Exporter struct {
-	error         prometheus.Gauge
-	totalScrapes  prometheus.Counter
-	scrapeErrors  *prometheus.CounterVec
-	lbPluginUp    prometheus.Gauge
-	enqueueNumber prometheus.Counter
-	dequeueNumber prometheus.Counter
+	error              prometheus.Gauge
+	totalScrapes       prometheus.Counter
+	scrapeErrors       *prometheus.CounterVec
+	lbPluginUp         prometheus.Gauge
+	queueMessageNumber *prometheus.GaugeVec
+	mqm                mq.ActionMQ
 }
 
 var healthDesc = prometheus.NewDesc(
@@ -57,8 +57,9 @@ var healthDesc = prometheus.NewDesc(
 )
 
 //NewExporter new a exporter
-func NewExporter() *Exporter {
+func NewExporter(mqm mq.ActionMQ) *Exporter {
 	return &Exporter{
+		mqm: mqm,
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: exporter,
@@ -82,16 +83,11 @@ func NewExporter() *Exporter {
 			Name:      "up",
 			Help:      "Whether the default lb plugin is up.",
 		}),
-		enqueueNumber: prometheus.NewCounter(prometheus.CounterOpts{
+		queueMessageNumber: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
-			Name:      "enqueue_number",
+			Name:      "queue_message_number",
 			Help:      "Message queue enqueue total.",
-		}),
-		dequeueNumber: prometheus.NewCounter(prometheus.CounterOpts{
-			Namespace: namespace,
-			Name:      "dequeue_number",
-			Help:      "Message queue dequeue total.",
-		}),
+		}, []string{"topic"}),
 	}
 }
 
@@ -115,15 +111,16 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 // Collect implements prometheus.Collector.
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	e.scrape(ch)
-
 	ch <- e.totalScrapes
 	ch <- e.error
 	e.scrapeErrors.Collect(ch)
+	for _, topic := range e.mqm.GetAllTopics() {
+		e.queueMessageNumber.WithLabelValues(topic).Set(float64(e.mqm.MessageQueueSize(topic)))
+	}
+	e.queueMessageNumber.Collect(ch)
 }
 
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	e.totalScrapes.Inc()
-	ch <- prometheus.MustNewConstMetric(e.enqueueNumber.Desc(), prometheus.CounterValue, mq.EnqueueNumber)
-	ch <- prometheus.MustNewConstMetric(e.dequeueNumber.Desc(), prometheus.CounterValue, mq.DequeueNumber)
 	ch <- prometheus.MustNewConstMetric(healthDesc, prometheus.GaugeValue, 1, "mq")
 }

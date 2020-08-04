@@ -85,6 +85,7 @@ func (e *etcdClusterClient) UpdateStatus(n *HostNode, deleteConditions []NodeCon
 	existNode.NodeStatus.NodeInfo = n.NodeStatus.NodeInfo
 	existNode.AvailableMemory = n.AvailableMemory
 	existNode.AvailableCPU = n.AvailableCPU
+	existNode.InternalIP = n.InternalIP
 	// only update system labels
 	newLabels := n.Labels
 	for k, v := range existNode.Labels {

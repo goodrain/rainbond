@@ -28,6 +28,9 @@ import (
 	"golang.org/x/net/context"
 )
 
+//ErrNoUpdateForLongTime no update for long time , can reobservation of synchronous data
+var ErrNoUpdateForLongTime = fmt.Errorf("not updated for a long time")
+
 //WaitPrefixEvents WaitPrefixEvents
 func WaitPrefixEvents(c *clientv3.Client, prefix string, rev int64, evs []mvccpb.Event_EventType) (*clientv3.Event, error) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -41,7 +44,7 @@ func WaitPrefixEvents(c *clientv3.Client, prefix string, rev int64, evs []mvccpb
 		return event, nil
 	}
 	logrus.Debug("queue watcher sync, because of not updated for a long time")
-	return nil, fmt.Errorf("not updated for a long time")
+	return nil, ErrNoUpdateForLongTime
 }
 
 //waitEvents this will return nil
