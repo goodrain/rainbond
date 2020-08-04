@@ -130,23 +130,38 @@ func (t *TenantAction) UpdateTenant(tenant *dbmodel.Tenants) error {
 // DeleteTenant deletes tenant based on the given tenantID.
 //
 // tenant can only be deleted without service or plugin
-func (t *TenantAction) DeleteTenant(tenantID string) error {
-	// check if there are still services
-	services, err := db.GetManager().TenantServiceDao().ListServicesByTenantID(tenantID)
-	if err != nil {
-		return err
-	}
-	if len(services) > 0 {
-		return ErrTenantStillHasServices
-	}
+func (t *TenantAction) DeleteTenant(tenantID string, deleteTenantReq *api_model.DeleteTenantReq) error {
+	if !deleteTenantReq.Force {
+		// check if there are still services
+		services, err := db.GetManager().TenantServiceDao().ListServicesByTenantID(tenantID)
+		if err != nil {
+			return err
+		}
+		if len(services) > 0 {
+			return ErrTenantStillHasServices
+		}
 
-	// check if there are still plugins
-	plugins, err := db.GetManager().TenantPluginDao().ListByTenantID(tenantID)
-	if err != nil {
-		return err
-	}
-	if len(plugins) > 0 {
-		return ErrTenantStillHasPlugins
+		// check if there are still plugins
+		plugins, err := db.GetManager().TenantPluginDao().ListByTenantID(tenantID)
+		if err != nil {
+			return err
+		}
+		if len(plugins) > 0 {
+			return ErrTenantStillHasPlugins
+		}
+	} else {
+		// force delete services
+		// list existing services
+		services, err := db.GetManager().TenantServiceDao().ListServicesByTenantID(tenantID)
+		if err != nil {
+			return fmt.Errorf("list services: %v", err)
+		}
+		// delete services
+		for _, svc := range services {
+			if err := db.GetManager().TenantServiceDao().DeleteServiceByServiceID(svc.ServiceID); err != nil {
+				return fmt.Errorf("delete service(%s): %v", svc.ServiceID, err)
+			}
+		}
 	}
 
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)

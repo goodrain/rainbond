@@ -546,9 +546,15 @@ func (t *TenantStruct) GetTenants(w http.ResponseWriter, r *http.Request) {
 
 //DeleteTenant DeleteTenant
 func (t *TenantStruct) DeleteTenant(w http.ResponseWriter, r *http.Request) {
+	var req api_model.DeleteTenantReq
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 
-	if err := handler.GetTenantManager().DeleteTenant(tenantID); err != nil {
+	if err := handler.GetTenantManager().DeleteTenant(tenantID, &req); err != nil {
 		if err == handler.ErrTenantStillHasServices || err == handler.ErrTenantStillHasPlugins {
 			httputil.ReturnError(r, w, 400, err.Error())
 			return

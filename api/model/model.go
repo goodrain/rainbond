@@ -579,6 +579,10 @@ type UpdateTenantStruct struct {
 	}
 }
 
+type DeleteTenantReq struct {
+	Force bool `json:"force"`
+}
+
 // ServicesInfoStruct ServicesInfoStruct
 // swagger:parameters getServiceInfo
 type ServicesInfoStruct struct {
