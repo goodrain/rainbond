@@ -49,6 +49,7 @@ type Controller struct {
 	store               store.Storer
 	dbmanager           db.Manager
 	memoryUse           *prometheus.GaugeVec
+	cpuUse              *prometheus.GaugeVec
 	fsUse               *prometheus.GaugeVec
 	diskCache           *statistical.DiskCache
 	namespaceMemRequest *prometheus.GaugeVec
@@ -101,7 +102,12 @@ func NewMasterController(conf option.Config, store store.Storer) (*Controller, e
 		memoryUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "app_resource",
 			Name:      "appmemory",
-			Help:      "tenant service memory used.",
+			Help:      "tenant service memory request.",
+		}, []string{"tenant_id", "service_id", "service_status"}),
+		cpuUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "app_resource",
+			Name:      "appcpu",
+			Help:      "tenant service cpu request.",
 		}, []string{"tenant_id", "service_id", "service_status"}),
 		fsUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "app_resource",
@@ -196,7 +202,8 @@ func (m *Controller) Scrape(ch chan<- prometheus.Metric, scrapeDurationDesc *pro
 	//获取内存使用情况
 	for _, service := range services {
 		if _, ok := status[service.ServiceID]; ok {
-			m.memoryUse.WithLabelValues(service.TenantID, service.ServiceID, "running").Set(float64(service.ContainerMemory * service.Replicas))
+			m.memoryUse.WithLabelValues(service.TenantID, service.ServiceID, "running").Set(float64(service.GetMemoryRequest()))
+			m.cpuUse.WithLabelValues(service.TenantID, service.ServiceID, "running").Set(float64(service.GetMemoryRequest()))
 		}
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.memory")
@@ -218,6 +225,7 @@ func (m *Controller) Scrape(ch chan<- prometheus.Metric, scrapeDurationDesc *pro
 	}
 	m.fsUse.Collect(ch)
 	m.memoryUse.Collect(ch)
+	m.cpuUse.Collect(ch)
 	m.namespaceMemLimit.Collect(ch)
 	m.namespaceCPULimit.Collect(ch)
 	m.namespaceMemRequest.Collect(ch)

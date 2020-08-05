@@ -72,7 +72,7 @@ func (q *Queue) Dequeue() (string, error) {
 			resp.Header.Revision,
 			[]mvccpb.Event_EventType{mvccpb.PUT})
 		if err != nil {
-			if err.Error() == "not updated for a long time" {
+			if err == ErrNoUpdateForLongTime {
 				continue
 			}
 			return "", err

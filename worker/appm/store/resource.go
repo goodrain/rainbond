@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -39,25 +40,16 @@ func NewResourceCache() *ResourceCache {
 }
 
 //NamespaceResource namespace resource
-type NamespaceResource map[string]*PodResource
+type NamespaceResource map[string]*v1.PodResource
 
 //SetPodResource set pod resource
-func (r *NamespaceResource) SetPodResource(podName string, pr *PodResource) {
+func (r *NamespaceResource) SetPodResource(podName string, pr *v1.PodResource) {
 	(*r)[podName] = pr
 }
 
 //RemovePod remove pod resource
 func (r *NamespaceResource) RemovePod(podName string) {
 	delete(*r, podName)
-}
-
-//PodResource resource struct
-type PodResource struct {
-	MemoryRequest int64
-	MemoryLimit   int64
-	CPURequest    int64
-	CPULimit      int64
-	NodeName      string
 }
 
 //TenantResource tenant resource
@@ -74,7 +66,7 @@ func (r *ResourceCache) SetPodResource(pod *corev1.Pod) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	namespace := pod.Namespace
-	re := calculatePodResource(pod)
+	re := v1.CalculatePodResource(pod)
 	if nr, ok := r.resources[namespace]; ok && nr != nil {
 		nr.SetPodResource(pod.Name, re)
 	} else {
@@ -127,21 +119,4 @@ func (r *ResourceCache) GetAllTenantResource() (trs []TenantResource) {
 		trs = append(trs, tr)
 	}
 	return
-}
-
-func calculatePodResource(pod *corev1.Pod) *PodResource {
-	for _, con := range pod.Status.Conditions {
-		if con.Type == corev1.PodScheduled && con.Status == corev1.ConditionFalse {
-			return &PodResource{}
-		}
-	}
-	var pr PodResource
-	for _, con := range pod.Spec.Containers {
-		pr.MemoryRequest += con.Resources.Requests.Memory().Value()
-		pr.CPURequest += con.Resources.Requests.Cpu().MilliValue()
-		pr.MemoryLimit += con.Resources.Limits.Memory().Value()
-		pr.CPULimit += con.Resources.Limits.Cpu().MilliValue()
-	}
-	pr.NodeName = pod.Spec.NodeName
-	return &pr
 }

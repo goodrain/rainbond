@@ -43,6 +43,7 @@ type ActionMQ interface {
 	GetAllTopics() []string
 	Start() error
 	Stop() error
+	MessageQueueSize(topic string) int64
 }
 
 // EnqueueNumber enqueue number
@@ -138,4 +139,17 @@ func (e *etcdQueue) Dequeue(ctx context.Context, topic string) (string, error) {
 	DequeueNumber++
 	queue := etcdutil.NewQueue(ctx, e.client, e.queueKey(topic))
 	return queue.Dequeue()
+}
+
+func (e *etcdQueue) MessageQueueSize(topic string) int64 {
+	ctx, cancel := context.WithCancel(e.ctx)
+	defer cancel()
+	res, err := e.client.Get(ctx, e.queueKey(topic), clientv3.WithPrefix())
+	if err != nil {
+		logrus.Errorf("get message queue size failure %s", err.Error())
+	}
+	if res != nil {
+		return res.Count
+	}
+	return 0
 }

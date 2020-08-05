@@ -1890,8 +1890,10 @@ func (s *ServiceAction) GetMultiServicePods(serviceIDs []string) (*K8sPodInfos, 
 	}
 	var re K8sPodInfos
 	for serviceID, pods := range mpods.ServicePods {
-		re.NewPods = append(re.NewPods, convpod(serviceID, pods.NewPods)...)
-		re.OldPods = append(re.OldPods, convpod(serviceID, pods.OldPods)...)
+		if pods != nil {
+			re.NewPods = append(re.NewPods, convpod(serviceID, pods.NewPods)...)
+			re.OldPods = append(re.OldPods, convpod(serviceID, pods.OldPods)...)
+		}
 	}
 	return &re, nil
 }

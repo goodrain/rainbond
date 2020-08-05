@@ -120,6 +120,8 @@ type AppService struct {
 	// claims that needs to be created manually
 	claimsmanual     []*corev1.PersistentVolumeClaim
 	status           AppServiceStatus
+	podMemoryRequest int64
+	podCPURequest    int64
 	BootSeqContainer *corev1.Container
 	Logger           event.Logger
 	storageClasses   []*storagev1.StorageClass
@@ -155,6 +157,7 @@ func (a *AppService) SetDeployment(d *v1.Deployment) {
 		a.DeployVersion = v
 	}
 	a.Replicas = int(*d.Spec.Replicas)
+	a.calculateComponentMemoryRequest()
 }
 
 //DeleteDeployment delete kubernetes deployment model
@@ -174,6 +177,7 @@ func (a *AppService) SetStatefulSet(d *v1.StatefulSet) {
 		a.DeployVersion = v
 	}
 	a.Replicas = int(*d.Spec.Replicas)
+	a.calculateComponentMemoryRequest()
 }
 
 //SetReplicaSets set kubernetes replicaset
@@ -402,6 +406,24 @@ func (a *AppService) DeleteIngress(d *extensions.Ingress) {
 		}
 	}
 }
+func (a *AppService) calculateComponentMemoryRequest() {
+	var memoryRequest int64
+	var cpuRequest int64
+	if a.statefulset != nil {
+		for _, c := range a.statefulset.Spec.Template.Spec.Containers {
+			memoryRequest += c.Resources.Requests.Memory().Value() / 1024 / 1024
+			cpuRequest += c.Resources.Requests.Cpu().MilliValue()
+		}
+	}
+	if a.deployment != nil {
+		for _, c := range a.deployment.Spec.Template.Spec.Containers {
+			memoryRequest += c.Resources.Requests.Memory().Value() / 1024 / 1024
+			cpuRequest += c.Resources.Requests.Cpu().MilliValue()
+		}
+	}
+	a.podMemoryRequest = memoryRequest
+	a.podCPURequest = cpuRequest
+}
 
 //SetPodTemplate set pod template spec
 func (a *AppService) SetPodTemplate(d corev1.PodTemplateSpec) {
@@ -411,6 +433,7 @@ func (a *AppService) SetPodTemplate(d corev1.PodTemplateSpec) {
 	if a.deployment != nil {
 		a.deployment.Spec.Template = d
 	}
+	a.calculateComponentMemoryRequest()
 }
 
 //GetPodTemplate get pod template
@@ -707,6 +730,22 @@ func (a *AppService) DeleteStorageClass(sc *storagev1.StorageClass) {
 	}
 }
 
+//GetMemoryRequest get component memory request
+func (a *AppService) GetMemoryRequest() (res int64) {
+	for _, pod := range a.pods {
+		res += CalculatePodResource(pod).MemoryRequest / 1024 / 1024
+	}
+	return
+}
+
+//GetCPURequest get component cpu request
+func (a *AppService) GetCPURequest() (res int64) {
+	for _, pod := range a.pods {
+		res += CalculatePodResource(pod).CPURequest
+	}
+	return
+}
+
 func (a *AppService) String() string {
 	return fmt.Sprintf(`
 	-----------------------------------------------------
@@ -777,4 +816,31 @@ func GetProbeMeshImageName() string {
 		return d
 	}
 	return builder.REGISTRYDOMAIN + "/rbd-init-probe"
+}
+
+//CalculatePodResource calculate pod resource
+func CalculatePodResource(pod *corev1.Pod) *PodResource {
+	for _, con := range pod.Status.Conditions {
+		if con.Type == corev1.PodScheduled && con.Status == corev1.ConditionFalse {
+			return &PodResource{}
+		}
+	}
+	var pr PodResource
+	for _, con := range pod.Spec.Containers {
+		pr.MemoryRequest += con.Resources.Requests.Memory().Value()
+		pr.CPURequest += con.Resources.Requests.Cpu().MilliValue()
+		pr.MemoryLimit += con.Resources.Limits.Memory().Value()
+		pr.CPULimit += con.Resources.Limits.Cpu().MilliValue()
+	}
+	pr.NodeName = pod.Spec.NodeName
+	return &pr
+}
+
+//PodResource resource struct
+type PodResource struct {
+	MemoryRequest int64
+	MemoryLimit   int64
+	CPURequest    int64
+	CPULimit      int64
+	NodeName      string
 }
