@@ -21,11 +21,12 @@ package store
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/util/constants"
-	"k8s.io/apimachinery/pkg/types"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/goodrain/rainbond/util/constants"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
@@ -46,7 +47,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
@@ -69,7 +69,8 @@ type Storer interface {
 	GetAllAppServices() []*v1.AppService
 	GetAppServiceStatus(serviceID string) string
 	GetAppServicesStatus(serviceIDs []string) map[string]string
-	GetTenantResource(tenantID string) *v1.TenantResource
+	GetTenantResource(tenantID string) TenantResource
+	GetTenantResourceList() []TenantResource
 	GetTenantRunningApp(tenantID string) []*v1.AppService
 	GetNeedBillingStatus(serviceIDs []string) map[string]string
 	OnDeletes(obj ...interface{})
@@ -125,6 +126,7 @@ type appRuntimeStore struct {
 	podUpdateListenerLock  sync.Mutex
 	volumeTypeListeners    map[string]chan<- *model.TenantServiceVolumeType
 	volumeTypeListenerLock sync.Mutex
+	resourceCache          *ResourceCache
 }
 
 //NewStore new app runtime store
@@ -144,6 +146,7 @@ func NewStore(clientset kubernetes.Interface,
 		conf:                conf,
 		dbmanager:           dbmanager,
 		startCh:             startCh,
+		resourceCache:       NewResourceCache(),
 		podUpdateListeners:  make(map[string]chan<- *corev1.Pod, 1),
 		volumeTypeListeners: make(map[string]chan<- *model.TenantServiceVolumeType, 1),
 	}
@@ -1054,79 +1057,13 @@ func (a *appRuntimeStore) GetPodLister() listcorev1.PodLister {
 }
 
 //GetTenantResource get tenant resource
-func (a *appRuntimeStore) GetTenantResource(tenantID string) *v1.TenantResource {
-	nodes, err := a.listers.Nodes.List(labels.Everything())
-	if err != nil {
-		logrus.Errorf("error listing nodes: %v", err)
-		return nil
-	}
-	nodeStatus := make(map[string]bool, len(nodes))
-	for _, node := range nodes {
-		nodeStatus[node.Name] = node.Spec.Unschedulable
-	}
-	pods, err := a.listers.Pod.Pods(tenantID).List(labels.Everything())
-	if err != nil {
-		logrus.Errorf("list namespace %s pod failure %s", tenantID, err.Error())
-		return nil
-	}
+func (a *appRuntimeStore) GetTenantResource(tenantID string) TenantResource {
+	return a.resourceCache.GetTenantResource(tenantID)
+}
 
-	calculateResourcesfunc := func(pod *corev1.Pod, res map[string]int64) {
-		runningC := make(map[string]struct{})
-		cstatus := append(pod.Status.ContainerStatuses, pod.Status.InitContainerStatuses...)
-		for _, c := range cstatus {
-			runningC[c.Name] = struct{}{}
-		}
-		for _, container := range pod.Spec.Containers {
-			if _, ok := runningC[container.Name]; !ok {
-				continue
-			}
-			cpulimit := container.Resources.Limits.Cpu()
-			memorylimit := container.Resources.Limits.Memory()
-			cpurequest := container.Resources.Requests.Cpu()
-			memoryrequest := container.Resources.Requests.Memory()
-			if cpulimit != nil {
-				res["cpulimit"] += cpulimit.MilliValue()
-			}
-			if memorylimit != nil {
-				if ml, ok := memorylimit.AsInt64(); ok {
-					res["memlimit"] += ml
-				} else {
-					res["memlimit"] += memorylimit.Value()
-				}
-			}
-			if cpurequest != nil {
-				res["cpureq"] += cpurequest.MilliValue()
-			}
-			if memoryrequest != nil {
-				if mr, ok := memoryrequest.AsInt64(); ok {
-					res["memreq"] += mr
-				} else {
-					res["memreq"] += memoryrequest.Value()
-				}
-			}
-		}
-	}
-	resource := &v1.TenantResource{}
-	// schedulable resources
-	sres := make(map[string]int64)
-	// unschedulable resources
-	ures := make(map[string]int64)
-	for _, pod := range pods {
-		if nodeStatus[pod.Spec.NodeName] {
-			calculateResourcesfunc(pod, ures)
-			continue
-		}
-		calculateResourcesfunc(pod, sres)
-	}
-	resource.CPULimit = sres["cpulimit"]
-	resource.CPURequest = sres["cpureq"]
-	resource.MemoryLimit = sres["memlimit"]
-	resource.MemoryRequest = sres["memreq"]
-	resource.UnscdCPULimit = ures["cpulimit"]
-	resource.UnscdCPUReq = ures["cpureq"]
-	resource.UnscdMemoryLimit = ures["memlimit"]
-	resource.UnscdMemoryReq = ures["memreq"]
-	return resource
+//GetTenantResource get tenant resource
+func (a *appRuntimeStore) GetTenantResourceList() []TenantResource {
+	return a.resourceCache.GetAllTenantResource()
 }
 
 //GetTenantRunningApp get running app by tenant
@@ -1145,6 +1082,7 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			pod := obj.(*corev1.Pod)
+			a.resourceCache.SetPodResource(pod)
 			_, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, err := a.getAppService(serviceID, version, createrID, true)
@@ -1158,6 +1096,7 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 		},
 		DeleteFunc: func(obj interface{}) {
 			pod := obj.(*corev1.Pod)
+			a.resourceCache.RemovePod(pod)
 			_, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, _ := a.getAppService(serviceID, version, createrID, false)
@@ -1171,6 +1110,7 @@ func (a *appRuntimeStore) podEventHandler() cache.ResourceEventHandlerFuncs {
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			pod := cur.(*corev1.Pod)
+			a.resourceCache.SetPodResource(pod)
 			_, serviceID, version, createrID := k8sutil.ExtractLabels(pod.GetLabels())
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, err := a.getAppService(serviceID, version, createrID, true)

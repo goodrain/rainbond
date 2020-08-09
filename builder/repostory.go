@@ -21,6 +21,7 @@ package builder
 import (
 	"os"
 	"path"
+	"strings"
 
 	"github.com/goodrain/rainbond/util/constants"
 )
@@ -48,12 +49,23 @@ func init() {
 	BUILDERIMAGENAME = path.Join(REGISTRYDOMAIN, BUILDERIMAGENAME)
 }
 
-// GetImageUserInfo -
+// GetImageUserInfo - deprecated
 func GetImageUserInfo(user, pass string) (string, string) {
 	if user != "" && pass != "" {
 		return user, pass
 	}
 	return REGISTRYUSER, REGISTRYPASS
+}
+
+// GetImageUserInfoV2 -
+func GetImageUserInfoV2(domain, user, pass string) (string, string) {
+	if user != "" && pass != "" {
+		return user, pass
+	}
+	if strings.HasPrefix(domain, REGISTRYDOMAIN) {
+		return REGISTRYUSER, REGISTRYPASS
+	}
+	return "", ""
 }
 
 //REGISTRYDOMAIN REGISTRY_DOMAIN

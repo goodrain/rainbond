@@ -4,8 +4,10 @@ package pb;
 service AppRuntimeSync {
   rpc GetAppStatus (ServicesRequest) returns (StatusMessage) {}
   rpc GetAppPods (ServiceRequest) returns (ServiceAppPodList) {}
+  rpc GetMultiAppPods (ServicesRequest) returns (MultiServiceAppPodList) {}
   rpc GetDeployInfo (ServiceRequest) returns (DeployInfo) {}
   rpc GetTenantResource (TenantRequest) returns (TenantResource) {}
+  rpc GetTenantResources (Empty) returns (TenantResourceList) {}
   rpc ListThirdPartyEndpoints (ServiceRequest) returns (ThirdPartyEndpoints) {}
   rpc AddThirdPartyEndpoint (AddThirdPartyEndpointsReq) returns (Empty) {}
   rpc UpdThirdPartyEndpoint (UpdThirdPartyEndpointsReq) returns (Empty) {}
@@ -38,6 +40,10 @@ message DiskMessage {
 message ServiceAppPodList {
   repeated ServiceAppPod oldPods = 1;
   repeated ServiceAppPod newPods = 2;
+}
+
+message MultiServiceAppPodList {
+  map<string, ServiceAppPodList> servicePods = 1;
 }
 
 message ServiceAppPod {
@@ -76,12 +82,12 @@ message TenantResource {
   int64 memory_request = 3;
   int64 memory_limit = 4;
   int64 running_app_num = 5;
-  int64 unscd_cpu_req = 6;
-  int64 unscd_cpu_limit = 7;
-  int64 unscd_memory_req = 8;
-  int64 unscd_memory_limit = 9;
   int64 running_app_third_num = 10;
   int64 running_app_internal_num = 11;
+}
+
+message TenantResourceList {
+  map<string, TenantResource> resources = 1;
 }
 
 message AddThirdPartyEndpointsReq {

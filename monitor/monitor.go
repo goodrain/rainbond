@@ -61,13 +61,30 @@ func (d *Monitor) Start() {
 	go d.discoverNodes(&callback.Node{Prometheus: d.manager}, &callback.App{Prometheus: d.manager}, d.ctx.Done())
 
 	// monitor etcd members
-	go d.discoverEtcd(&callback.Etcd{Prometheus: d.manager}, d.ctx.Done())
+	go d.discoverEtcd(&callback.Etcd{
+		Prometheus: d.manager,
+		Scheme: func() string {
+			if d.config.EtcdCertFile != "" {
+				return "https"
+			}
+			return "http"
+		}(),
+		TLSConfig: prometheus.TLSConfig{
+			CAFile:   d.config.EtcdCaFile,
+			CertFile: d.config.EtcdCertFile,
+			KeyFile:  d.config.EtcdKeyFile,
+		},
+	}, d.ctx.Done())
 
 	// monitor Cadvisor
 	go d.discoverCadvisor(&callback.Cadvisor{
 		Prometheus: d.manager,
 		ListenPort: d.config.CadvisorListenPort,
 	}, d.ctx.Done())
+
+	// kubernetes service discovery
+	rbdapi := callback.RbdAPI{Prometheus: d.manager}
+	rbdapi.UpdateEndpoints(nil)
 }
 
 func (d *Monitor) discoverNodes(node *callback.Node, app *callback.App, done <-chan struct{}) {

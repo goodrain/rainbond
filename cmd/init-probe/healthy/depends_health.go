@@ -68,9 +68,6 @@ func NewDependServiceHealthController() (*DependServiceHealthController, error) 
 	dsc.checkFunc = append(dsc.checkFunc, dsc.checkClusters)
 	dsc.checkFunc = append(dsc.checkFunc, dsc.checkEDS)
 	xDSHost := os.Getenv("XDS_HOST_IP")
-	if xDSHost == "" {
-		xDSHost = "172.30.42.1"
-	}
 	xDSHostPort := os.Getenv("XDS_HOST_PORT")
 	if xDSHostPort == "" {
 		xDSHostPort = "6101"

@@ -43,16 +43,21 @@ import (
 
 //Controller app runtime master controller
 type Controller struct {
-	ctx       context.Context
-	cancel    context.CancelFunc
-	conf      option.Config
-	store     store.Storer
-	dbmanager db.Manager
-	memoryUse *prometheus.GaugeVec
-	fsUse     *prometheus.GaugeVec
-	diskCache *statistical.DiskCache
-	pc        *controller.ProvisionController
-	isLeader  bool
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	conf                option.Config
+	store               store.Storer
+	dbmanager           db.Manager
+	memoryUse           *prometheus.GaugeVec
+	cpuUse              *prometheus.GaugeVec
+	fsUse               *prometheus.GaugeVec
+	diskCache           *statistical.DiskCache
+	namespaceMemRequest *prometheus.GaugeVec
+	namespaceMemLimit   *prometheus.GaugeVec
+	namespaceCPURequest *prometheus.GaugeVec
+	namespaceCPULimit   *prometheus.GaugeVec
+	pc                  *controller.ProvisionController
+	isLeader            bool
 
 	stopCh          chan struct{}
 	podEventChs     []chan *corev1.Pod
@@ -97,13 +102,38 @@ func NewMasterController(conf option.Config, store store.Storer) (*Controller, e
 		memoryUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "app_resource",
 			Name:      "appmemory",
-			Help:      "tenant service memory used.",
+			Help:      "tenant service memory request.",
+		}, []string{"tenant_id", "service_id", "service_status"}),
+		cpuUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "app_resource",
+			Name:      "appcpu",
+			Help:      "tenant service cpu request.",
 		}, []string{"tenant_id", "service_id", "service_status"}),
 		fsUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "app_resource",
 			Name:      "appfs",
 			Help:      "tenant service fs used.",
 		}, []string{"tenant_id", "service_id", "volume_type"}),
+		namespaceMemRequest: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "namespace_resource",
+			Name:      "memory_request",
+			Help:      "total memory request in namespace",
+		}, []string{"namespace"}),
+		namespaceMemLimit: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "namespace_resource",
+			Name:      "memory_limit",
+			Help:      "total memory limit in namespace",
+		}, []string{"namespace"}),
+		namespaceCPURequest: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "namespace_resource",
+			Name:      "cpu_request",
+			Help:      "total cpu request in namespace",
+		}, []string{"namespace"}),
+		namespaceCPULimit: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "namespace_resource",
+			Name:      "cpu_limit",
+			Help:      "total cpu limit in namespace",
+		}, []string{"namespace"}),
 		diskCache:       statistical.CreatDiskCache(ctx),
 		podEvent:        podevent.New(conf.KubeClient, stopCh),
 		volumeTypeEvent: sync.New(stopCh),
@@ -172,7 +202,8 @@ func (m *Controller) Scrape(ch chan<- prometheus.Metric, scrapeDurationDesc *pro
 	//获取内存使用情况
 	for _, service := range services {
 		if _, ok := status[service.ServiceID]; ok {
-			m.memoryUse.WithLabelValues(service.TenantID, service.ServiceID, "running").Set(float64(service.ContainerMemory * service.Replicas))
+			m.memoryUse.WithLabelValues(service.TenantID, service.ServiceID, "running").Set(float64(service.GetMemoryRequest()))
+			m.cpuUse.WithLabelValues(service.TenantID, service.ServiceID, "running").Set(float64(service.GetMemoryRequest()))
 		}
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.memory")
@@ -185,7 +216,19 @@ func (m *Controller) Scrape(ch chan<- prometheus.Metric, scrapeDurationDesc *pro
 		}
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.fs")
+	resources := m.store.GetTenantResourceList()
+	for _, re := range resources {
+		m.namespaceMemLimit.WithLabelValues(re.Namespace).Set(float64(re.MemoryLimit / 1024 / 1024))
+		m.namespaceCPULimit.WithLabelValues(re.Namespace).Set(float64(re.CPULimit))
+		m.namespaceMemRequest.WithLabelValues(re.Namespace).Set(float64(re.MemoryRequest / 1024 / 1024))
+		m.namespaceCPURequest.WithLabelValues(re.Namespace).Set(float64(re.CPURequest))
+	}
 	m.fsUse.Collect(ch)
 	m.memoryUse.Collect(ch)
-	logrus.Infof("success collect app disk and memory used metric")
+	m.cpuUse.Collect(ch)
+	m.namespaceMemLimit.Collect(ch)
+	m.namespaceCPULimit.Collect(ch)
+	m.namespaceMemRequest.Collect(ch)
+	m.namespaceCPURequest.Collect(ch)
+	logrus.Infof("success collect worker master metric")
 }

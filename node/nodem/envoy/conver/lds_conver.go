@@ -179,12 +179,13 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 				hashKey := options.RouteBasicHash()
 				if oldroute, ok := uniqRoute[hashKey]; ok {
 					oldrr := oldroute.Action.(*route.Route_Route)
-					oldrrwc := oldrr.Route.ClusterSpecifier.(*route.RouteAction_WeightedClusters)
-					weight := envoyv2.CheckWeightSum(oldrrwc.WeightedClusters.Clusters, options.Weight)
-					oldrrwc.WeightedClusters.Clusters = append(oldrrwc.WeightedClusters.Clusters, &route.WeightedCluster_ClusterWeight{
-						Name:   clusterName,
-						Weight: envoyv2.ConversionUInt32(weight),
-					})
+					if oldrrwc, ok := oldrr.Route.ClusterSpecifier.(*route.RouteAction_WeightedClusters); ok {
+						weight := envoyv2.CheckWeightSum(oldrrwc.WeightedClusters.Clusters, options.Weight)
+						oldrrwc.WeightedClusters.Clusters = append(oldrrwc.WeightedClusters.Clusters, &route.WeightedCluster_ClusterWeight{
+							Name:   clusterName,
+							Weight: envoyv2.ConversionUInt32(weight),
+						})
+					}
 				} else {
 					var headerMatchers []*route.HeaderMatcher
 					for _, header := range options.Headers {

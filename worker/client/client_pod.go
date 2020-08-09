@@ -20,6 +20,7 @@ package client
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/worker/server/pb"
@@ -30,6 +31,13 @@ func (a *AppRuntimeSyncClient) GetServicePods(serviceID string) (*pb.ServiceAppP
 	ctx, cancel := context.WithTimeout(a.ctx, time.Second*5)
 	defer cancel()
 	return a.AppRuntimeSyncClient.GetAppPods(ctx, &pb.ServiceRequest{ServiceId: serviceID})
+}
+
+//GetMultiServicePods get multi service pods list
+func (a *AppRuntimeSyncClient) GetMultiServicePods(serviceIDs []string) (*pb.MultiServiceAppPodList, error) {
+	ctx, cancel := context.WithTimeout(a.ctx, time.Second*5)
+	defer cancel()
+	return a.AppRuntimeSyncClient.GetMultiAppPods(ctx, &pb.ServicesRequest{ServiceIds: strings.Join(serviceIDs, ",")})
 }
 
 // GetPodDetail -

@@ -171,7 +171,9 @@ func (p *rainbondsslcProvisioner) createPath(options controller.VolumeOptions) (
 					logrus.Errorf("request create local volume failure: parse body failure %s ", err.Error())
 				}
 			}
-			logrus.Errorf("request create local volume failure code:%d", res.StatusCode)
+			if res != nil {
+				logrus.Errorf("request create local volume failure code:%d", res.StatusCode)
+			}
 			time.Sleep(time.Second * 2)
 		}
 		return path, nil

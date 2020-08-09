@@ -60,11 +60,11 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Rules: []*RulesConfig{
 						&RulesConfig{
 							Alert:  "GatewayDown",
-							Expr:   "absent(up{job=\"gateway\"})",
+							Expr:   "absent(up{job=\"gateway\"}) or up{job=\"gateway\"}==0",
 							For:    "20s",
 							Labels: commonLables,
 							Annotations: map[string]string{
-								"description": "gateway node {{ $labels.instance }} is down, ",
+								"description": "gateway node {{ $labels.instance }} maybe down",
 								"summary":     "gateway is down",
 							},
 						},
@@ -109,11 +109,11 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Rules: []*RulesConfig{
 						&RulesConfig{
 							Alert:  "BuilderDown",
-							Expr:   "absent(up{component=\"builder\"})",
+							Expr:   "absent(up{component=\"builder\"}) or up{component=\"builder\"}==0",
 							For:    "1m",
 							Labels: commonLables,
 							Annotations: map[string]string{
-								"description": "builder(rbd-chaos) node {{ $labels.instance }} is down, ",
+								"description": "builder(rbd-chaos) node {{ $labels.instance }} maybe down",
 								"summary":     "builder(rbd-chaos) is down",
 							},
 						},
@@ -138,11 +138,11 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Rules: []*RulesConfig{
 						&RulesConfig{
 							Alert:  "WorkerDown",
-							Expr:   "absent(up{component=\"worker\"})",
+							Expr:   "absent(up{component=\"worker\"}) or up{component=\"worker\"}==0",
 							For:    "5m",
 							Labels: commonLables,
 							Annotations: map[string]string{
-								"description": "worker node {{ $labels.instance }} is down",
+								"description": "worker node {{ $labels.instance }} maybe down",
 								"summary":     "worker is down",
 							},
 						},
@@ -172,11 +172,11 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Rules: []*RulesConfig{
 						&RulesConfig{
 							Alert:  "MqDown",
-							Expr:   "absent(up{component=\"mq\"})",
+							Expr:   "absent(up{component=\"mq\"}) or up{component=\"mq\"}==0",
 							For:    "2m",
 							Labels: commonLables,
 							Annotations: map[string]string{
-								"description": "mq node {{ $labels.instance }} is down",
+								"description": "mq node {{ $labels.instance }} maybe down",
 								"summary":     "mq is down",
 							},
 						},
@@ -188,11 +188,14 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Annotations: map[string]string{"summary": "mq unhealthy"},
 						},
 						&RulesConfig{
-							Alert:       "TeamTaskMany",
-							Expr:        "acp_mq_dequeue_number-acp_mq_enqueue_number > 200",
-							For:         "3m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"summary": "The number of tasks in the queue is greater than 200"},
+							Alert:  "MqMessageQueueBlock",
+							Expr:   "acp_mq_queue_message_number > 0",
+							For:    "1m",
+							Labels: commonLables,
+							Annotations: map[string]string{
+								"summary":     "message queue blocked",
+								"description": "mq topic {{ $labels.topic }} message queue may be blocked, message size is {{ humanize $value }}",
+							},
 						},
 					},
 				},
@@ -208,11 +211,11 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 						&RulesConfig{
 							Alert:  "EventLogDown",
-							Expr:   "absent(up{component=\"eventlog\"})",
+							Expr:   "absent(up{component=\"eventlog\"}) or up{component=\"eventlog\"}==0",
 							For:    "3m",
 							Labels: commonLables,
 							Annotations: map[string]string{
-								"description": "worker node {{ $labels.instance }} is down",
+								"description": "worker node {{ $labels.instance }} maybe down",
 								"summary":     "eventlog service down",
 							},
 						},
@@ -223,11 +226,11 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Rules: []*RulesConfig{
 						&RulesConfig{
 							Alert:  "WebcliDown",
-							Expr:   "absent(up{component=\"webcli\"})",
+							Expr:   "absent(up{component=\"webcli\"}) or up{component=\"webcli\"}==0",
 							For:    "20s",
 							Labels: commonLables,
 							Annotations: map[string]string{
-								"description": "webcli node {{ $labels.instance }} is down",
+								"description": "webcli node {{ $labels.instance }} maybe down",
 								"summary":     "webcli is down",
 							},
 						},
@@ -252,51 +255,51 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Rules: []*RulesConfig{
 						&RulesConfig{
 							Alert:  "NodeDown",
-							Expr:   "absent(up{component=\"rbd_node\"})",
+							Expr:   "absent(up{component=\"rbd_node\"}) or up{component=\"rbd_node\"} == 0",
 							For:    "30s",
 							Labels: commonLables,
 							Annotations: map[string]string{
-								"description": "node {{ $labels.instance }} is down",
+								"description": "node {{ $labels.instance }} may be down",
 								"summary":     "rbd_node is down",
 							},
 						},
 						&RulesConfig{
-							Alert:       "high_cpu_usage_on_node",
+							Alert:       "HighCpuUsageOnNode",
 							Expr:        "sum by(instance) (rate(process_cpu_seconds_total[5m])) * 100 > 70",
 							For:         "5m",
 							Labels:      commonLables,
 							Annotations: map[string]string{"description": "{{ $labels.instance }} is using a LOT of CPU. CPU usage is {{ humanize $value}}%.", "summary": "HIGH CPU USAGE WARNING ON '{{ $labels.instance }}'"},
 						},
 						&RulesConfig{
-							Alert:       "high_la_usage_on_node",
+							Alert:       "HighLoadOnNode",
 							Expr:        "count by (instance) (node_load5) > count by(instance)(count by(job, instance, cpu)(node_cpu))",
 							For:         "5m",
 							Labels:      commonLables,
 							Annotations: map[string]string{"description": "{{ $labels.instance }} has a high load average. Load Average 5m is {{ humanize $value}}.", "summary": "HIGH LOAD AVERAGE WARNING ON '{{ $labels.instance }}'"},
 						},
 						&RulesConfig{
-							Alert:       "inode_freerate_low",
+							Alert:       "InodeFreerateLow",
 							Expr:        "node_filesystem_files_free{fstype=~\"ext4|xfs\"} / node_filesystem_files{fstype=~\"ext4|xfs\"} < 0.3",
 							For:         "5m",
 							Labels:      commonLables,
 							Annotations: map[string]string{"description": "the inode free rate is low of node {{ $labels.instance }}, current value is {{ humanize $value}}."},
 						},
 						&RulesConfig{
-							Alert:       "high_rootdisk_usage_on_node",
-							Expr:        "(node_filesystem_size{mountpoint='/'} - node_filesystem_free{mountpoint='/'}) * 100 / node_filesystem_size{mountpoint='/'} > 75",
+							Alert:       "HighRootdiskUsageOnNode",
+							Expr:        "(node_filesystem_size{mountpoint='/'} - node_filesystem_free{mountpoint='/'}) * 100 / node_filesystem_size{mountpoint='/'} > 85",
 							For:         "5m",
 							Labels:      commonLables,
-							Annotations: map[string]string{"description": "More than 75% of disk used. Disk usage {{ humanize $value }} mountpoint {{ $labels.mountpoint }}%.", "summary": "LOW DISK SPACE WARING:NODE '{{ $labels.instance }}"},
+							Annotations: map[string]string{"description": "More than 85% of disk used. Disk usage {{ humanize $value }} mountpoint {{ $labels.mountpoint }}%.", "summary": "LOW DISK SPACE WARING:NODE '{{ $labels.instance }}"},
 						},
 						&RulesConfig{
-							Alert:       "high_dockerdisk_usage_on_node",
-							Expr:        "(node_filesystem_size{mountpoint='/var/lib/docker'} - node_filesystem_free{mountpoint='/var/lib/docker'}) * 100 / node_filesystem_size{mountpoint='/var/lib/docker'} > 75",
+							Alert:       "HighDockerdiskUsageOnNode",
+							Expr:        "(node_filesystem_size{mountpoint='/var/lib/docker'} - node_filesystem_free{mountpoint='/var/lib/docker'}) * 100 / node_filesystem_size{mountpoint='/var/lib/docker'} > 85",
 							For:         "5m",
 							Labels:      commonLables,
-							Annotations: map[string]string{"description": "More than 75% of disk used. Disk usage {{ humanize $value }} mountpoint {{ $labels.mountpoint }}%.", "summary": "LOW DISK SPACE WARING:NODE '{{ $labels.instance }}"},
+							Annotations: map[string]string{"description": "More than 85% of disk used. Disk usage {{ humanize $value }} mountpoint {{ $labels.mountpoint }}%.", "summary": "LOW DISK SPACE WARING:NODE '{{ $labels.instance }}"},
 						},
 						&RulesConfig{
-							Alert:       "high_memory_usage_on_node",
+							Alert:       "HighMemoryUsageOnNode",
 							Expr:        "((node_memory_MemTotal - node_memory_MemAvailable) / node_memory_MemTotal) * 100 > 80",
 							For:         "5m",
 							Labels:      commonLables,
@@ -308,25 +311,55 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Name: "ClusterHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
-							Alert:       "cluster_node_unhealth",
+							Alert:       "RbdNodeUnhealth",
 							Expr:        "rainbond_cluster_node_health != 0",
 							For:         "3m",
 							Labels:      commonLables,
 							Annotations: map[string]string{"description": "cluster node {{ $labels.node_ip }} is unhealth"},
 						},
 						&RulesConfig{
-							Alert:       "cluster_kube_node_unhealth",
+							Alert:       "KubeNodeUnhealth",
 							Expr:        "rainbond_cluster_component_health{component=\"KubeNodeReady\"} != 0",
 							For:         "3m",
 							Labels:      commonLables,
 							Annotations: map[string]string{"description": "kubernetes cluster node {{ $labels.node_ip }} is unhealth"},
 						},
 						&RulesConfig{
-							Alert:       "rainbond_cluster_collector_duration_seconds_timeout",
+							Alert:       "ClusterCollectorTimeout",
 							Expr:        "rainbond_cluster_collector_duration_seconds > 10",
 							For:         "3m",
 							Labels:      commonLables,
 							Annotations: map[string]string{"description": "Cluster collector '{{ $labels.instance }}' more than 10s"},
+						},
+						&RulesConfig{
+							Alert:  "InsufficientClusteMemoryResources",
+							Expr:   "sum(rbd_api_exporter_cluster_memory_total) - sum(namespace_resource_memory_request) < 2048",
+							For:    "2m",
+							Labels: commonLables,
+							Annotations: map[string]string{
+								"description": "Cluster residual scheduled memory is {{ humanize $value }} MB, less than 2048 MB",
+								"summary":     "Insufficient Cluster Memory Resources",
+							},
+						},
+						&RulesConfig{
+							Alert:  "InsufficientClusteCPUResources",
+							Expr:   "sum(rbd_api_exporter_cluster_cpu_total*1000) - sum(namespace_resource_cpu_request) < 500",
+							For:    "2m",
+							Labels: commonLables,
+							Annotations: map[string]string{
+								"description": "Cluster residual scheduled cpu is {{ humanize $value }}, less than 500",
+								"summary":     "Insufficient Cluster CPU Resources",
+							},
+						},
+						&RulesConfig{
+							Alert:  "InsufficientTenantResources",
+							Expr:   "sum(rbd_api_exporter_tenant_memory_limit) by(namespace) - sum(namespace_resource_memory_request)by (namespace) < sum(rbd_api_exporter_tenant_memory_limit) by(namespace) *0.2 and sum(rbd_api_exporter_tenant_memory_limit) by(namespace) > 0",
+							For:    "2m",
+							Labels: commonLables,
+							Annotations: map[string]string{
+								"description": "Tenant available memory capacity {{ humanize $value }} MB, less than 20% of the limit",
+								"summary":     "Insufficient Tenant memory Resources",
+							},
 						},
 					},
 				},
@@ -335,11 +368,11 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Rules: []*RulesConfig{
 						&RulesConfig{
 							Alert:  "EtcdDown",
-							Expr:   "absent(up{component=\"etcd\"})",
+							Expr:   "absent(up{component=\"etcd\"}) or up{component=\"etcd\"}==0",
 							For:    "1m",
 							Labels: commonLables,
 							Annotations: map[string]string{
-								"description": "etcd node {{ $labels.instance }} is down, ",
+								"description": "etcd node {{ $labels.instance }} may be down",
 								"summary":     "etcd node is down",
 							},
 						},
@@ -432,6 +465,21 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 								"description": "{{ $labels.instance }}, {{ $labels.job }} of etcd DB space uses more than 80%",
 								"summary":     "Etcd DB space is overused",
 								"runbook":     "Please consider manual compaction and defrag. https://github.com/etcd-io/etcd/blob/master/Documentation/op-guide/maintenance.md",
+							},
+						},
+					},
+				},
+				&AlertingNameConfig{
+					Name: "APIHealth",
+					Rules: []*RulesConfig{
+						&RulesConfig{
+							Alert:  "APIDown",
+							Expr:   "absent(up{job=\"rbdapi\"}) or up{job=\"rbdapi\"}==0",
+							For:    "1m",
+							Labels: commonLables,
+							Annotations: map[string]string{
+								"description": "rbd api node {{ $labels.instance }} maybe down",
+								"summary":     "rbd api node is down",
 							},
 						},
 					},

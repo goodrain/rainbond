@@ -119,10 +119,8 @@ func (gw *gRPCWatcher) Next() ([]*naming.Update, error) {
 		return updates, nil
 	case <-timer.C:
 		gw.watchCancel()
-		ctx, cancel := context.WithCancel(gw.ctx)
-		gw.watchCancel = cancel
-		all, err := gw.firstNext(ctx)
-		return all, err
+		gw.wch = nil
+		return gw.Next()
 	}
 }
 

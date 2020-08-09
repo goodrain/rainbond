@@ -14,29 +14,23 @@ func CheckTenantResource(tenant *dbmodel.Tenants, needMemory int) error {
 	}
 	logrus.Debugf("tenant limitMemory: %v, usedMemory: %v", tenant.LimitMemory, ts.UsedMEM)
 	if tenant.LimitMemory != 0 {
-		//tenant.LimitMemory: 租户的总资源 ts.UsedMEM: 租户使用的资源
 		avaiMemory := tenant.LimitMemory - ts.UsedMEM
-
 		if needMemory > avaiMemory {
-			logrus.Error("超出租户可用资源")
-
+			logrus.Errorf("tenant available memory is %d, To apply for %d, not enough", avaiMemory, needMemory)
 			return errors.New("tenant_lack_of_memory")
 		}
 	}
-
-	clusterInfo, err := GetTenantManager().GetAllocatableResources() //节点可用资源
+	clusterInfo, err := GetTenantManager().GetAllocatableResources()
 	if err != nil {
-		return err
+		logrus.Errorf("get cluster resources failure for check tenant resource.", err.Error())
 	}
-
-	logrus.Debugf("cluster allocatedMemory: %v, tenantsUsedMemory; %v", clusterInfo.AllMemory, clusterInfo.RequestMemory)
-
-	// clusterInfo.AllMemory: 集群总资源 clusterInfo.RequestMemory: 集群已使用资源
-	clusterAvailMemory := clusterInfo.AllMemory - clusterInfo.RequestMemory
-	if int64(needMemory) > clusterAvailMemory {
-		logrus.Error("超出集群可用资源")
-		return errors.New("cluster_lack_of_memory")
+	if clusterInfo != nil {
+		clusterAvailMemory := clusterInfo.AllMemory - clusterInfo.RequestMemory
+		logrus.Debugf("cluster allocatedMemory: %v, availmemory %d tenantsUsedMemory; %v", clusterInfo.RequestMemory, clusterAvailMemory, clusterInfo.RequestMemory)
+		if int64(needMemory) > clusterAvailMemory {
+			logrus.Errorf("cluster available memory is %d, To apply for %d, not enough", clusterAvailMemory, needMemory)
+			return errors.New("cluster_lack_of_memory")
+		}
 	}
-
 	return nil
 }

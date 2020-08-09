@@ -19,76 +19,67 @@
 package callback
 
 import (
+	"os"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
-	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
 )
 
-//Etcd etcd discover
-type Etcd struct {
+//RbdAPI rbd api metrics
+type RbdAPI struct {
 	discover.Callback
 	Prometheus      *prometheus.Manager
-	Scheme          string
-	TLSConfig       prometheus.TLSConfig
 	sortedEndpoints []string
 }
 
-//UpdateEndpoints update endpoints
-func (e *Etcd) UpdateEndpoints(endpoints ...*config.Endpoint) {
-	newArr := utils.TrimAndSort(endpoints)
-
-	if utils.ArrCompare(e.sortedEndpoints, newArr) {
-		logrus.Debugf("The endpoints is not modify: %s", e.Name())
-		return
-	}
-
-	e.sortedEndpoints = newArr
-
-	scrape := e.toScrape()
-	e.Prometheus.UpdateScrape(scrape)
+//UpdateEndpoints update endpoint
+func (b *RbdAPI) UpdateEndpoints(endpoints ...*config.Endpoint) {
+	scrape := b.toScrape()
+	b.Prometheus.UpdateScrape(scrape)
 }
 
-func (e *Etcd) Error(err error) {
+//Error handle error
+func (b *RbdAPI) Error(err error) {
 	logrus.Error(err)
 }
 
 //Name name
-func (e *Etcd) Name() string {
-	return "etcd"
+func (b *RbdAPI) Name() string {
+	return "rbdapi"
 }
 
-func (e *Etcd) toScrape() *prometheus.ScrapeConfig {
-	ts := make([]string, 0, len(e.sortedEndpoints))
-	for _, end := range e.sortedEndpoints {
+func (b *RbdAPI) toScrape() *prometheus.ScrapeConfig {
+	ts := make([]string, 0, len(b.sortedEndpoints))
+	for _, end := range b.sortedEndpoints {
 		ts = append(ts, end)
 	}
+	namespace := os.Getenv("NAMESPACE")
 
-	sc := &prometheus.ScrapeConfig{
-		JobName:        e.Name(),
-		Scheme:         e.Scheme,
-		ScrapeInterval: model.Duration(1 * time.Minute),
+	return &prometheus.ScrapeConfig{
+		JobName:        b.Name(),
+		ScrapeInterval: model.Duration(time.Minute),
 		ScrapeTimeout:  model.Duration(30 * time.Second),
 		MetricsPath:    "/metrics",
+		HonorLabels:    true,
 		ServiceDiscoveryConfig: prometheus.ServiceDiscoveryConfig{
-			StaticConfigs: []*prometheus.Group{
-				{
-					Targets: ts,
-					Labels: map[model.LabelName]model.LabelValue{
-						"component": model.LabelValue(e.Name()),
+			KubernetesSDConfigs: []*prometheus.SDConfig{
+				&prometheus.SDConfig{
+					Role: prometheus.RoleEndpoint,
+					NamespaceDiscovery: prometheus.NamespaceDiscovery{
+						Names: []string{namespace},
+					},
+					Selectors: []prometheus.SelectorConfig{
+						prometheus.SelectorConfig{
+							Role:  prometheus.RoleEndpoint,
+							Field: "metadata.name=rbd-api-api-inner",
+						},
 					},
 				},
 			},
 		},
 	}
-	if e.Scheme == "https" {
-		sc.HTTPClientConfig = prometheus.HTTPClientConfig{
-			TLSConfig: e.TLSConfig,
-		}
-	}
-	return sc
 }

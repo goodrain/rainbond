@@ -158,12 +158,8 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 
 func createTCPDefaultPluginContainer(as *typesv1.AppService, pluginID string, envs []v1.EnvVar) v1.Container {
 	envs = append(envs, v1.EnvVar{Name: "PLUGIN_ID", Value: pluginID})
-	_, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
-	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
-		FieldRef: &corev1.ObjectFieldSelector{
-			FieldPath: "status.hostIP",
-		},
-	}})
+	xdsHost, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
+	envs = append(envs, xdsHostIPEnv(xdsHost))
 	envs = append(envs, v1.EnvVar{Name: "API_HOST_PORT", Value: apiHostPort})
 	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_PORT", Value: xdsHostPort})
 
@@ -177,12 +173,8 @@ func createTCPDefaultPluginContainer(as *typesv1.AppService, pluginID string, en
 
 func createProbeMeshInitContainer(as *typesv1.AppService, pluginID, serviceAlias string, envs []v1.EnvVar) v1.Container {
 	envs = append(envs, v1.EnvVar{Name: "PLUGIN_ID", Value: pluginID})
-	_, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
-	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
-		FieldRef: &corev1.ObjectFieldSelector{
-			FieldPath: "status.hostIP",
-		},
-	}})
+	xdsHost, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
+	envs = append(envs, xdsHostIPEnv(xdsHost))
 	envs = append(envs, v1.EnvVar{Name: "API_HOST_PORT", Value: apiHostPort})
 	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_PORT", Value: xdsHostPort})
 	return v1.Container{
@@ -310,14 +302,11 @@ func createPluginArgs(cmd string, envs []v1.EnvVar) ([]string, error) {
 	return strings.Split(util.ParseVariable(cmd, configs), " "), nil
 }
 func getXDSHostIPAndPort() (string, string, string) {
-	dockerBridgeIP := "172.30.42.1"
+	xdsHost := ""
 	xdsHostPort := "6101"
 	apiHostPort := "6100"
-	if os.Getenv("DOCKER_BRIDGE_IP") != "" {
-		dockerBridgeIP = os.Getenv("DOCKER_BRIDGE_IP")
-	}
 	if os.Getenv("XDS_HOST_IP") != "" {
-		dockerBridgeIP = os.Getenv("XDS_HOST_IP")
+		xdsHost = os.Getenv("XDS_HOST_IP")
 	}
 	if os.Getenv("XDS_HOST_PORT") != "" {
 		xdsHostPort = os.Getenv("XDS_HOST_PORT")
@@ -325,7 +314,7 @@ func getXDSHostIPAndPort() (string, string, string) {
 	if os.Getenv("API_HOST_PORT") != "" {
 		apiHostPort = os.Getenv("API_HOST_PORT")
 	}
-	return dockerBridgeIP, xdsHostPort, apiHostPort
+	return xdsHost, xdsHostPort, apiHostPort
 }
 
 //container envs
@@ -342,17 +331,13 @@ func createPluginEnvs(pluginID, tenantID, serviceAlias string, mainEnvs []v1.Env
 	for _, e := range versionEnvs {
 		envs = append(envs, v1.EnvVar{Name: e.EnvName, Value: e.EnvValue})
 	}
-	dockerBridgeIP, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
-	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
-		FieldRef: &corev1.ObjectFieldSelector{
-			FieldPath: "status.hostIP",
-		},
-	}})
+	xdsHost, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
+	envs = append(envs, xdsHostIPEnv(xdsHost))
 	envs = append(envs, v1.EnvVar{Name: "API_HOST_PORT", Value: apiHostPort})
 	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_PORT", Value: xdsHostPort})
 	discoverURL := fmt.Sprintf(
 		"http://%s:6100/v1/resources/%s/%s/%s",
-		dockerBridgeIP,
+		"${XDS_HOST_IP}",
 		tenantID,
 		serviceAlias,
 		pluginID)
@@ -411,4 +396,15 @@ func createTCPUDPMeshRecources(as *typesv1.AppService) v1.ResourceRequirements {
 		}
 		return cpu
 	}())
+}
+
+func xdsHostIPEnv(xdsHost string) corev1.EnvVar {
+	if xdsHost == "" {
+		return v1.EnvVar{Name: "XDS_HOST_IP", ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: "status.hostIP",
+			},
+		}}
+	}
+	return v1.EnvVar{Name: "XDS_HOST_IP", Value: xdsHost}
 }

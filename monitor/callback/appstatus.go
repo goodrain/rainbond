@@ -87,7 +87,7 @@ func (e *Worker) toScrape() *prometheus.ScrapeConfig {
 
 	return &prometheus.ScrapeConfig{
 		JobName:        e.Name(),
-		ScrapeInterval: model.Duration(5 * time.Minute),
+		ScrapeInterval: model.Duration(3 * time.Minute),
 		ScrapeTimeout:  model.Duration(60 * time.Second),
 		MetricsPath:    "/metrics",
 		ServiceDiscoveryConfig: prometheus.ServiceDiscoveryConfig{
