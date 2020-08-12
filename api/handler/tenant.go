@@ -408,6 +408,11 @@ func (t *TenantAction) initClusterResource() error {
 			return err
 		}
 		for _, node := range nodes.Items {
+			// check if node contains taints
+			if containsTaints(&node) {
+				logrus.Debugf("[GetClusterInfo] node(%s) contains NoSchedule taints", node.GetName())
+				continue
+			}
 			if node.Spec.Unschedulable {
 				continue
 			}
