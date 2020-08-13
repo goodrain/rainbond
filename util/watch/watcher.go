@@ -179,13 +179,19 @@ func (wc *watchChan) startWatching(watchClosedCh chan struct{}) {
 		for {
 			select {
 			case wres := <-wch:
-				if wres.Err() != nil {
-					err := wres.Err()
+				if err := wres.Err(); err != nil {
 					// If there is an error on server (e.g. compaction), the channel will return it before closed.
 					logrus.Errorf("watch chan error: %v", err)
 					wc.sendError(err)
 					close(watchClosedCh)
 					return err
+				}
+				logrus.Debugf("watch event %+v", wres)
+				// If you return a structure with no events
+				// It is considered that this watch is no longer effective
+				// Return nil redo watch
+				if len(wres.Events) == 0 {
+					return nil
 				}
 				for _, e := range wres.Events {
 					wc.sendEvent(parseEvent(e))

@@ -422,7 +422,7 @@ func (t *TenantAction) initClusterResource() error {
 				}
 			}
 			crs.AllMemory += node.Status.Allocatable.Memory().Value() / (1024 * 1024)
-			crs.AllCPU += node.Status.Allocatable.Cpu().Value()
+			crs.AllCPU += node.Status.Allocatable.Cpu().MilliValue()
 		}
 		t.cacheClusterResourceStats = &crs
 		t.cacheTime = time.Now()

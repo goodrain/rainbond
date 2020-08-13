@@ -343,7 +343,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 						&RulesConfig{
 							Alert:  "InsufficientClusteCPUResources",
-							Expr:   "max(rbd_api_exporter_cluster_cpu_total*1000) - sum(namespace_resource_cpu_request) < 500",
+							Expr:   "max(rbd_api_exporter_cluster_cpu_total) - sum(namespace_resource_cpu_request) < 500",
 							For:    "2m",
 							Labels: commonLables,
 							Annotations: map[string]string{
