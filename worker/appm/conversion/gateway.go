@@ -468,6 +468,8 @@ func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *co
 	} else {
 		servicePort.Protocol = "TCP"
 	}
+	servicePort.Name = fmt.Sprintf("%s-%d",
+		strings.ToLower(string(servicePort.Protocol)), port.ContainerPort)
 	servicePort.TargetPort = intstr.FromInt(port.ContainerPort)
 	servicePort.Port = int32(port.MappingPort)
 	if servicePort.Port == 0 {
@@ -503,6 +505,8 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 	var servicePort corev1.ServicePort
 	servicePort.Protocol = conversionPortProtocol(port.Protocol)
 	servicePort.TargetPort = intstr.FromInt(port.ContainerPort)
+	servicePort.Name = fmt.Sprintf("%s-%d",
+		strings.ToLower(string(servicePort.Protocol)), port.ContainerPort)
 	servicePort.Port = int32(port.ContainerPort)
 	var portType corev1.ServiceType
 	if os.Getenv("CUR_NET") == "midonet" {
@@ -538,7 +542,8 @@ func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPor
 		servicePort.Protocol = "TCP"
 		servicePort.TargetPort = intstr.FromInt(p.ContainerPort)
 		servicePort.Port = int32(p.MappingPort)
-		servicePort.Name = fmt.Sprintf("%d-port", p.ID)
+		servicePort.Name = fmt.Sprintf("%s-%d",
+			strings.ToLower(string(servicePort.Protocol)), p.ContainerPort)
 		if servicePort.Port == 0 {
 			servicePort.Port = int32(p.ContainerPort)
 		}
