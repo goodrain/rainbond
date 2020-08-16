@@ -95,15 +95,21 @@ func (list TenantList) Less(i, j int) bool {
 	if list[i].MemoryRequest > list[j].MemoryRequest {
 		return true
 	}
-	if list[i].CPURequest > list[j].CPURequest {
-		return true
-	}
-	if list[i].RunningAppNum > list[j].RunningAppNum {
-		return true
-	}
-	// Minimum priority
-	if list[i].Tenants.LimitMemory > list[j].Tenants.LimitMemory {
-		return true
+	if list[i].MemoryRequest == list[j].MemoryRequest {
+		if list[i].CPURequest > list[j].CPURequest {
+			return true
+		}
+		if list[i].CPURequest == list[j].CPURequest {
+			if list[i].RunningAppNum > list[j].RunningAppNum {
+				return true
+			}
+			if list[i].RunningAppNum == list[j].RunningAppNum {
+				// Minimum priority
+				if list[i].Tenants.LimitMemory > list[j].Tenants.LimitMemory {
+					return true
+				}
+			}
+		}
 	}
 	return false
 }
