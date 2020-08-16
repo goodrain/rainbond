@@ -137,7 +137,9 @@ func (t *TenantAction) DeleteTenant(tenantID string) error {
 		return err
 	}
 	if len(services) > 0 {
-		return ErrTenantStillHasServices
+		for _, service := range services {
+			GetServiceManager().TransServieToDelete(tenantID, service.ServiceID)
+		}
 	}
 
 	// check if there are still plugins
@@ -146,7 +148,9 @@ func (t *TenantAction) DeleteTenant(tenantID string) error {
 		return err
 	}
 	if len(plugins) > 0 {
-		return ErrTenantStillHasPlugins
+		for _, plugin := range plugins {
+			GetPluginManager().DeletePluginAct(plugin.PluginID, tenantID)
+		}
 	}
 
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
