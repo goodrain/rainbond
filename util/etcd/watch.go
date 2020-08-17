@@ -33,8 +33,9 @@ var ErrNoUpdateForLongTime = fmt.Errorf("not updated for a long time")
 
 //WaitPrefixEvents WaitPrefixEvents
 func WaitPrefixEvents(c *clientv3.Client, prefix string, rev int64, evs []mvccpb.Event_EventType) (*clientv3.Event, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
+	logrus.Debug("start watch message from etcd queue")
 	wc := c.Watch(ctx, prefix, clientv3.WithPrefix(), clientv3.WithRev(rev))
 	if wc == nil {
 		return nil, ErrNoWatcher
