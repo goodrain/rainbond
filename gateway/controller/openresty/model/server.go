@@ -33,7 +33,14 @@ type Server struct {
 	Locations               []*Location
 	OptionValue             map[string]string
 	UpstreamName            string //used for tcp and udp server
-	ProxyStreamTimeout      string
+
+	// Sets the number of datagrams expected from the proxied server in response
+	// to the client request if the UDP protocol is used.
+	// http://nginx.org/en/docs/stream/ngx_stream_proxy_module.html#proxy_responses
+	// Default: 1
+	ProxyStreamResponses int
+
+	ProxyStreamTimeout string
 	//proxy protocol for tcp real ip
 	ProxyProtocol ProxyProtocol
 }
