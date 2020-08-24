@@ -1,6 +1,5 @@
 <img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/rainbond%20log_full.png" width="60%">
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/goodrain/rainbond)](https://goreportcard.com/report/github.com/goodrain/rainbond)
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
 ![Rainbond version](https://img.shields.io/badge/version-v5.2-brightgreen.svg)
 [![Build Status](https://travis-ci.org/goodrain/rainbond.svg?branch=master)](https://travis-ci.org/goodrain/rainbond)
@@ -8,9 +7,18 @@
 
 [项目官网](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/)
 
+|![notification](./docs/bell-outline-badge.svg) What is NEW!|
+|------------------|
+|2020年8月24日 Rainbond 5.2 稳定版正式发布 [查看发布文案](https://mp.weixin.qq.com/s/q1sgEaBPaepsuUOfk1un-w)|
+
+
 ## Rainbond初识
 
-[Rainbond](https://github.com/goodrain/rainbond) 是以企业云原生应用开发、架构、运维、共享、交付为核心的Kubernetes多云赋能平台, 向下结合Kubernetes云原生资源管理模式，对接管理各类传统基础设施，通过多维度的软件定义屏蔽了底层资源的差异，甚至包括CPU架构差异和操作系统差异，从而对上层提供以应用为中心的新一代基础设施； 向上定义了标准应用模型（RAM,[OAM](https://oam.dev/))，内置ServiceMesh微服务架构框架， 提供用户基于源码/已有镜像构建服务组件的能力，编排服务组件的能力，发布共享完整应用模型的能力，交付运维业务应用的能力。
+<b>云原生应用管理平台</b>
+
+实现微服务架构不用改代码，管理K8s不用学容器，帮企业实现应用上云，一站式将任何企业应用持续交付到K8s集群、混合云、多云等基础设施。
+
+[我要试用](https://cloud.pre.goodrain.com/enterprise-server/trial)
 
 <img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/Rainbond%E4%BA%A7%E5%93%81%E6%9E%B6%E6%9E%84.png" width="100%">
 
@@ -69,8 +77,6 @@ Rainbond完成与龙芯、飞腾、麒麟操作系统等为代表的国产化计
 [Rainbond 开源社区](https://t.goodrain.com)    欢迎你在社区中查阅或贡献Rainbond的用例用法。    
 
 [Rainbond 项目官网](https://www.rainbond.com)    查阅关于Rainbond的更多信息。
-
-[Gitter](https://gitter.im/goodrain/rainbond)   在线IM与Rainbond开发者进行相关话题探讨。
 
 <center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/12141565594759_.pic_hd.jpg"/></center>
 <center>加入微信群，与社区用户一起交流 Rainbond </center>
