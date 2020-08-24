@@ -232,10 +232,10 @@ func (s *slugBuild) getSourceCodeTarFile(re *Request) (string, error) {
 	var cmd []string
 	sourceTarFile := fmt.Sprintf("%s/%s-%s.tar", util.GetParentDirectory(re.SourceDir), re.ServiceID, re.DeployVersion)
 	if re.ServerType == "svn" {
-		cmd = append(cmd, "tar", "-cf", sourceTarFile, "--exclude=.svn", "./")
+		cmd = append(cmd, "tar", "-cf", sourceTarFile, "./")
 	}
 	if re.ServerType == "git" {
-		cmd = append(cmd, "tar", "-cf", sourceTarFile, "--exclude=.git", "./")
+		cmd = append(cmd, "tar", "-cf", sourceTarFile, "./")
 	}
 	source := exec.Command(cmd[0], cmd[1:]...)
 	source.Dir = re.SourceDir
