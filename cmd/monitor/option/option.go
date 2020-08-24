@@ -230,9 +230,11 @@ func (c *Config) CompleteConfig() {
 	if c.Web.EnableLifecycle {
 		defaultOptions += " --web.enable-lifecycle"
 	}
+	if c.Web.ExternalURL != "" {
+		defaultOptions += fmt.Sprintf(" --web.external-url=%s", c.Web.ExternalURL)
+	}
 
 	args := strings.Split(defaultOptions, " ")
-	c.StartArgs = append(c.StartArgs, os.Args[0])
 	c.StartArgs = append(c.StartArgs, args...)
 
 	level, err := logrus.ParseLevel(c.LogLevel)
