@@ -18,7 +18,7 @@
 
 实现微服务架构不用改代码，管理K8s不用学容器，帮企业实现应用上云，一站式将任何企业应用持续交付到K8s集群、混合云、多云等基础设施。
 
-[我要试用](https://cloud.pre.goodrain.com/enterprise-server/trial)
+[我要试用](https://cloud.goodrain.com/enterprise-server/trial)
 
 <img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/Rainbond%E4%BA%A7%E5%93%81%E6%9E%B6%E6%9E%84.png" width="100%">
 
