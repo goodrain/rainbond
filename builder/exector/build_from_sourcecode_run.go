@@ -211,7 +211,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	res, err := i.codeBuild()
 	if err != nil {
 		if err.Error() == context.DeadlineExceeded.Error() {
-			i.Logger.Error("Build app version from source code timeout, the maximum time is 30 minutes", map[string]string{"step": "builder-exector", "status": "failure"})
+			i.Logger.Error("Build app version from source code timeout, the maximum time is 60 minutes", map[string]string{"step": "builder-exector", "status": "failure"})
 		} else {
 			i.Logger.Error("Build app version from source code failure,"+err.Error(), map[string]string{"step": "builder-exector", "status": "failure"})
 		}

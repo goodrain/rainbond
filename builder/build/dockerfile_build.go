@@ -59,7 +59,7 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 		buildOptions.NoCache = false
 	}
 	re.Logger.Info("Start build image from dockerfile", map[string]string{"step": "builder-exector"})
-	_, err = sources.ImageBuild(re.DockerClient, re.SourceDir, buildOptions, re.Logger, 30)
+	_, err = sources.ImageBuild(re.DockerClient, re.SourceDir, buildOptions, re.Logger, 60)
 	if err != nil {
 		re.Logger.Error(fmt.Sprintf("build image %s failure", buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())

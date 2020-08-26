@@ -129,7 +129,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 	} else {
 		runbuildOptions.NoCache = false
 	}
-	_, err = sources.ImageBuild(re.DockerClient, d.buildCacheDir, runbuildOptions, re.Logger, 20)
+	_, err = sources.ImageBuild(re.DockerClient, d.buildCacheDir, runbuildOptions, re.Logger, 60)
 	if err != nil {
 		re.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
