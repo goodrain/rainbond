@@ -44,10 +44,10 @@ func TestImageName(t *testing.T) {
 func TestBuildImage(t *testing.T) {
 	dc, _ := client.NewEnvClient()
 	buildOptions := types.ImageBuildOptions{
-		Tags:   []string{"goodrain.me/gr1e1a6c_goodrain-apps_mysql:20180307135753"},
+		Tags:   []string{"java:test"},
 		Remove: true,
 	}
-	if err := ImageBuild(dc, "/Users/qingguo/tmp/nginx", buildOptions, nil, 1); err != nil {
+	if _, err := ImageBuild(dc, "/Users/barnett/coding/java/Demo-RestAPI-Servlet2", buildOptions, nil, 20); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -94,4 +94,3 @@ func TestImagePull(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-

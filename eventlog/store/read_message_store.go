@@ -69,6 +69,7 @@ func (h *readMessageStore) SubChan(eventID, subID string) chan *db.EventLogMessa
 		return ba.addSubChan(subID)
 	}
 	ba := h.pool.Get().(*readEventBarrel)
+	ba.updateTime = time.Now()
 	h.barrels[eventID] = ba
 	return ba.addSubChan(subID)
 }

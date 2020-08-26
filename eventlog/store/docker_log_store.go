@@ -106,6 +106,7 @@ func (h *dockerLogStore) SubChan(eventID, subID string) chan *db.EventLogMessage
 	h.rwLock.Lock()
 	defer h.rwLock.Unlock()
 	ba := h.pool.Get().(*dockerLogEventBarrel)
+	ba.updateTime = time.Now()
 	ba.name = eventID
 	h.barrels[eventID] = ba
 	return ba.addSubChan(subID)
