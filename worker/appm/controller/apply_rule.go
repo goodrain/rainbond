@@ -21,7 +21,7 @@ package controller
 import (
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/worker/appm/f"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )

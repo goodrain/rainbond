@@ -29,7 +29,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 	v1 "k8s.io/api/core/v1"
 	storage "k8s.io/api/storage/v1"
@@ -47,7 +47,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	ref "k8s.io/client-go/tools/reference"
 	"k8s.io/client-go/util/workqueue"
-	utilversion "k8s.io/kubernetes/pkg/util/version"
+	utilversion "k8s.io/apimachinery/pkg/util/version"
 
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller/metrics"

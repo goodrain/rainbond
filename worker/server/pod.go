@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/goodrain/rainbond/worker/util"

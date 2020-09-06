@@ -38,7 +38,7 @@ import (
 	testclient "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	ref "k8s.io/client-go/tools/reference"
-	utilversion "k8s.io/kubernetes/pkg/util/version"
+	utilversion "k8s.io/apimachinery/pkg/util/version"
 )
 
 const (

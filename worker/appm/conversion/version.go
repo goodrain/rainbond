@@ -27,7 +27,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"

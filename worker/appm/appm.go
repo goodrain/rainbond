@@ -19,7 +19,7 @@
 package appm
 
 import (
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/eapache/channels"
 	opt "github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/worker/appm/prober"

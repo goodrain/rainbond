@@ -1,0 +1,9 @@
+language: go
+go:
+  - 1.6
+  - 1.7
+  - tip
+
+script:
+- go vet $(go list ./...|grep -v "/vendor/")
+- go test -v -race ./...

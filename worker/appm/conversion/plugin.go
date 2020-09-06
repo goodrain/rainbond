@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/jinzhu/gorm"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"

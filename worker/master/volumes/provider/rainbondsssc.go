@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"

@@ -33,7 +33,7 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	httputil "github.com/goodrain/rainbond/util/http"
 

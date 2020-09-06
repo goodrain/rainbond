@@ -24,7 +24,7 @@ import (
 
 	"github.com/goodrain/rainbond/worker/master"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/appm/controller"

@@ -28,7 +28,7 @@ import (
 	"github.com/goodrain/rainbond/util/constants"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"

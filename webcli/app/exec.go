@@ -24,9 +24,9 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/kr/pty"
-	"github.com/yudai/gotty/server"
+	"github.com/barnettZQG/gotty/server"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 )

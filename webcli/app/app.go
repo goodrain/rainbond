@@ -30,7 +30,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -39,8 +39,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/yudai/gotty/server"
-	"github.com/yudai/gotty/webtty"
+	"github.com/barnettZQG/gotty/server"
+	"github.com/barnettZQG/gotty/webtty"
 	"github.com/yudai/umutex"
 	api "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

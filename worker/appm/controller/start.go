@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"

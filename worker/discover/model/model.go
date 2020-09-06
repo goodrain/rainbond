@@ -21,7 +21,7 @@ package model
 import (
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/tidwall/gjson"

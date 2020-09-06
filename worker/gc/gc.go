@@ -23,7 +23,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	eventutil "github.com/goodrain/rainbond/eventlog/util"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

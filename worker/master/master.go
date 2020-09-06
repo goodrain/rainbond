@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
 
 	corev1 "k8s.io/api/core/v1"

@@ -26,7 +26,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"

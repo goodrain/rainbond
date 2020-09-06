@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db/model"

@@ -21,7 +21,7 @@ package store
 import (
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	corev1 "k8s.io/api/core/v1"
 )
