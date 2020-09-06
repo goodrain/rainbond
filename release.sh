@@ -72,12 +72,13 @@ build::image() {
 	if [ -z "${CACHE}" ] || [ ! -f "${OUTPATH}" ];then
 		build::binary "$1"
 	fi
-	sudo mkdir -p "${build_image_dir}"
-	sudo chmod 777 "${build_image_dir}"
+	mkdir -p "${build_image_dir}"
+	chmod 777 "${build_image_dir}"
 	cp "${OUTPATH}" "${build_image_dir}"
 	cp -r "${source_dir}" "${build_image_dir}"
 	pushd "${build_image_dir}"
 		echo "---> build image:$1"
+		ls -al
 		sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
 		docker build -t "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" -f Dockerfile.release .
 		docker run -it --rm "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" version
@@ -96,7 +97,7 @@ build::image() {
 			fi
 		fi
 	popd
-	sudo rm -rf "${build_image_dir}"
+	rm -rf "${build_image_dir}"
 }
 
 build::image::all(){
