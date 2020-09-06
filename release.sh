@@ -70,7 +70,7 @@ build::image() {
 	if [ -z "${CACHE}" ] || [ ! -f "${OUTPATH}" ];then
 		build::binary "$1"
 	fi
-	mkdir -p "${build_image_dir}"
+	sudo mkdir -p "${build_image_dir}"
 	cp "${OUTPATH}" "${build_image_dir}"
 	cp -a "${source_dir}" "${build_image_dir}"
 	pushd "${build_image_dir}"
