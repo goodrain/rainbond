@@ -19,7 +19,7 @@
 package exporter
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/goodrain/rainbond/node/statsd/prometheus"
 )
 
 var (

@@ -21,7 +21,7 @@ package region
 import (
 	"path"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	utilhttp "github.com/goodrain/rainbond/util/http"

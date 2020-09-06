@@ -27,8 +27,8 @@ import (
 
 	httputil "github.com/goodrain/rainbond/util/http"
 
-	"github.com/Sirupsen/logrus"
-	validator "github.com/thedevsaddam/govalidator"
+	validator "github.com/goodrain/rainbond/util/govalidator"
+	"github.com/sirupsen/logrus"
 )
 
 //LicenseManager license manager

@@ -34,7 +34,7 @@ import (
 
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/api"
 	"github.com/goodrain/rainbond/builder/clean"
 	discoverv2 "github.com/goodrain/rainbond/discover.v2"

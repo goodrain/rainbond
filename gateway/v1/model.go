@@ -18,7 +18,7 @@
 
 package v1
 
-import "github.com/Sirupsen/logrus"
+import "github.com/sirupsen/logrus"
 
 //LoadBalancingType Load Balancing type
 type LoadBalancingType string

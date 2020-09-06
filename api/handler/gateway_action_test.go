@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/db"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/cmd/api/option"

@@ -33,7 +33,7 @@ import (
 
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	zmq4 "github.com/pebbe/zmq4"
 )
 

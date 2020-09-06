@@ -23,7 +23,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/region"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/urfave/cli"

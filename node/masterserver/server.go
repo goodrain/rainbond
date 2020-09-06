@@ -25,7 +25,7 @@ import (
 
 	"github.com/goodrain/rainbond/node/masterserver/monitor"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/node/kubecache"
 	"github.com/goodrain/rainbond/node/nodem/client"

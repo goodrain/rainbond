@@ -28,7 +28,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
@@ -39,11 +38,12 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	validation "github.com/goodrain/rainbond/util/endpoint"
+	"github.com/goodrain/rainbond/util/fuzzy"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/jinzhu/gorm"
-	"github.com/renstorm/fuzzysearch/fuzzy"
-	validator "github.com/thedevsaddam/govalidator"
+	"github.com/sirupsen/logrus"
+	validator "github.com/goodrain/rainbond/util/govalidator"
 )
 
 //V2Routes v2Routes

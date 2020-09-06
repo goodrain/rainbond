@@ -26,7 +26,6 @@ import (
 
 	"github.com/goodrain/rainbond/gateway/cluster"
 
-	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
@@ -34,10 +33,11 @@ import (
 	"github.com/goodrain/rainbond/gateway/metric"
 	"github.com/goodrain/rainbond/gateway/store"
 	v1 "github.com/goodrain/rainbond/gateway/v1"
+	"github.com/goodrain/rainbond/util/ingress-nginx/task"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/flowcontrol"
-	"k8s.io/ingress-nginx/task"
 )
 
 // rainbond endpoints map

@@ -19,7 +19,7 @@ package rewrite
 import (
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
 	extensions "k8s.io/api/extensions/v1beta1"

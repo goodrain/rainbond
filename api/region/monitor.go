@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/node/api/model"
 	utilhttp "github.com/goodrain/rainbond/util/http"

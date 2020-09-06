@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	cdb "github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/eventlog/conf"

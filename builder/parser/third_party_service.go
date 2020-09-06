@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/parser/discovery"
 	"github.com/goodrain/rainbond/event"
 )

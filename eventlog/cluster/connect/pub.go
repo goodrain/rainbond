@@ -31,7 +31,7 @@ import (
 
 	"github.com/goodrain/rainbond/eventlog/cluster/discover"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/pebbe/zmq4"
 )
 

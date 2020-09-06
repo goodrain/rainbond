@@ -26,8 +26,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/apcera/termtables"
+	"github.com/sirupsen/logrus"
+	"github.com/goodrain/rainbond/util/termtables"
 	eventdb "github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/grctl/clients"
 	coreutil "github.com/goodrain/rainbond/util"

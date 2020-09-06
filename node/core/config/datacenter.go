@@ -30,7 +30,7 @@ import (
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/util"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 )
 

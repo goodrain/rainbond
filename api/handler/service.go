@@ -28,7 +28,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"

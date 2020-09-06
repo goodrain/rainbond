@@ -29,7 +29,7 @@ import (
 
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 //EventLogServer 日志接受服务

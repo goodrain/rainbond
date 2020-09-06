@@ -36,7 +36,7 @@ import (
 
 	_ "net/http/pprof"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	restful "github.com/emicklei/go-restful"
 	swagger "github.com/emicklei/go-restful-swagger12"
 	grpcserver "github.com/goodrain/rainbond/mq/api/grpc/server"

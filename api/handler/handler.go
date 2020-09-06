@@ -19,7 +19,7 @@
 package handler
 
 import (
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	api_db "github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/handler/group"

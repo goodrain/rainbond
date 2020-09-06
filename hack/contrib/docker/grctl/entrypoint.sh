@@ -2,7 +2,7 @@
 if [ "$1" = "bash" ];then
     exec /bin/bash
 elif [ "$1" = "version" ];then
-    echo "$RELEASE_DESC"
+    /run/rainbond-grctl version
 elif [ "$1" = "copy" ];then
     cp -a /run/rainbond-grctl /rootfs/usr/local/bin/
 else

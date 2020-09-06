@@ -34,7 +34,7 @@ import (
 
 	"github.com/goodrain/rainbond/gateway/controller/openresty/nginxcmd"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/golang/glog"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"

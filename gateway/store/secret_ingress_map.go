@@ -20,8 +20,9 @@ package store
 
 import (
 	"fmt"
+
+	"github.com/goodrain/rainbond/util/ingress-nginx/k8s"
 	"k8s.io/api/extensions/v1beta1"
-	"k8s.io/ingress-nginx/k8s"
 )
 
 type secretIngressMap struct {

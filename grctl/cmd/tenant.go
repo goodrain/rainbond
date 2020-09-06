@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/apcera/termtables"
+	"github.com/sirupsen/logrus"
+	"github.com/goodrain/rainbond/util/termtables"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/gosuri/uitable"
 	"github.com/urfave/cli"

@@ -24,7 +24,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/jinzhu/gorm"
 	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 

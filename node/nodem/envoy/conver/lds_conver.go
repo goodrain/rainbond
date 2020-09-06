@@ -23,12 +23,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
-	"github.com/envoyproxy/go-control-plane/pkg/cache"
+	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	api_model "github.com/goodrain/rainbond/api/model"
 	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -48,12 +48,12 @@ func GetPluginConfigs(configs *corev1.ConfigMap) (*api_model.ResourceSpec, strin
 }
 
 //OneNodeListerner conver listerner of on envoy node
-func OneNodeListerner(serviceAlias, namespace string, configs *corev1.ConfigMap, services []*corev1.Service) ([]cache.Resource, error) {
+func OneNodeListerner(serviceAlias, namespace string, configs *corev1.ConfigMap, services []*corev1.Service) ([]types.Resource, error) {
 	resources, _, err := GetPluginConfigs(configs)
 	if err != nil {
 		return nil, err
 	}
-	var listener []cache.Resource
+	var listener []types.Resource
 	var notCreateCommonHTTPListener = func() bool {
 		if configs.Annotations["disable_create_http_common_listener"] == "true" {
 			return true

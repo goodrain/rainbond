@@ -18,9 +18,10 @@ package parser
 
 import (
 	"fmt"
-	"k8s.io/ingress-nginx/ingress/errors"
 	"strconv"
 	"strings"
+
+	"github.com/goodrain/rainbond/util/ingress-nginx/ingress/errors"
 
 	extensions "k8s.io/api/extensions/v1beta1"
 )

@@ -31,7 +31,7 @@ import (
 
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"crypto/rand"
 	"crypto/rsa"

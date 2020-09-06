@@ -30,7 +30,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
 	"github.com/goodrain/rainbond/discover"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"

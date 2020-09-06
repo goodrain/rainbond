@@ -23,7 +23,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"

@@ -25,7 +25,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/parser/types"
 	"github.com/goodrain/rainbond/util"
 )

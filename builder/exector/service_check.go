@@ -25,7 +25,7 @@ import (
 
 	"github.com/ghodss/yaml"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"

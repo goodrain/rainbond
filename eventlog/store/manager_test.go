@@ -22,7 +22,7 @@ import (
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 var urlData = `

@@ -22,7 +22,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	version "github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/init-probe/cmd"
@@ -30,6 +30,9 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		version.ShowVersion("init-probe")
+	}
 	App := cli.NewApp()
 	App.Version = version.GetVersion()
 	App.Flags = []cli.Flag{}

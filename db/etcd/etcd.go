@@ -27,7 +27,7 @@ import (
 
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 )
 

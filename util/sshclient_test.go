@@ -22,7 +22,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 func TestSSHClient(t *testing.T) {

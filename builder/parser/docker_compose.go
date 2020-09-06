@@ -23,7 +23,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder/parser/compose"
 	"github.com/goodrain/rainbond/builder/parser/types"

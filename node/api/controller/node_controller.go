@@ -27,7 +27,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/node/api/model"
 	"github.com/goodrain/rainbond/node/nodem/client"

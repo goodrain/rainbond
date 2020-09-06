@@ -33,7 +33,6 @@ import (
 
 	"github.com/goodrain/rainbond/gateway/cluster"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/annotations"
@@ -44,6 +43,9 @@ import (
 	"github.com/goodrain/rainbond/gateway/util"
 	v1 "github.com/goodrain/rainbond/gateway/v1"
 	coreutil "github.com/goodrain/rainbond/util"
+	istroe "github.com/goodrain/rainbond/util/ingress-nginx/ingress/controller/store"
+	ik8s "github.com/goodrain/rainbond/util/ingress-nginx/k8s"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -51,8 +53,6 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	istroe "k8s.io/ingress-nginx/ingress/controller/store"
-	"k8s.io/ingress-nginx/k8s"
 )
 
 // EventType -
@@ -230,7 +230,7 @@ func New(client kubernetes.Interface,
 	secEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			sec := obj.(*corev1.Secret)
-			key := k8s.MetaNamespaceKey(sec)
+			key := ik8s.MetaNamespaceKey(sec)
 
 			// find references in ingresses and update local ssl certs
 			if ings := store.secretIngressMap.getSecretKeys(key); len(ings) > 0 {
@@ -257,7 +257,7 @@ func New(client kubernetes.Interface,
 				if oldSec.ResourceVersion == curSec.ResourceVersion || reflect.DeepEqual(curSec, oldSec) {
 					return
 				}
-				key := k8s.MetaNamespaceKey(curSec)
+				key := ik8s.MetaNamespaceKey(curSec)
 
 				// find references in ingresses and update local ssl certs
 				if ings := store.secretIngressMap.getSecretKeys(key); len(ings) > 0 {
@@ -293,9 +293,9 @@ func New(client kubernetes.Interface,
 				}
 			}
 
-			store.sslStore.Delete(k8s.MetaNamespaceKey(sec))
+			store.sslStore.Delete(ik8s.MetaNamespaceKey(sec))
 
-			key := k8s.MetaNamespaceKey(sec)
+			key := ik8s.MetaNamespaceKey(sec)
 
 			// find references in ingresses
 			if ings := store.secretIngressMap.getSecretKeys(key); len(ings) > 0 {
@@ -367,7 +367,7 @@ func (s *k8sStore) checkIngress(ing *extensions.Ingress) bool {
 // extractAnnotations parses ingress annotations converting the value of the
 // annotation to a go struct and also information about the referenced secrets
 func (s *k8sStore) extractAnnotations(ing *extensions.Ingress) {
-	key := k8s.MetaNamespaceKey(ing)
+	key := ik8s.MetaNamespaceKey(ing)
 	logrus.Debugf("updating annotations information for ingress %v", key)
 
 	anns := s.annotations.Extract(ing)
@@ -488,7 +488,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 		if !s.ingressIsValid(ing) {
 			continue
 		}
-		ingKey := k8s.MetaNamespaceKey(ing)
+		ingKey := ik8s.MetaNamespaceKey(ing)
 		anns, err := s.GetIngressAnnotations(ingKey)
 		if err != nil {
 			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
@@ -652,7 +652,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			continue
 		}
 
-		ingKey := k8s.MetaNamespaceKey(ing)
+		ingKey := ik8s.MetaNamespaceKey(ing)
 		anns, err := s.GetIngressAnnotations(ingKey)
 		if err != nil {
 			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
@@ -806,7 +806,7 @@ func (s *k8sStore) Run(stopCh chan struct{}) {
 // syncSecrets synchronizes data from all Secrets referenced by the given
 // Ingress with the local store and file system.
 func (s *k8sStore) syncSecrets(ing *extensions.Ingress) {
-	key := k8s.MetaNamespaceKey(ing)
+	key := ik8s.MetaNamespaceKey(ing)
 	for _, secrKey := range s.secretIngressMap.getSecretKeys(key) {
 		s.syncSecret(secrKey)
 	}

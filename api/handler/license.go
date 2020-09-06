@@ -23,7 +23,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
 )

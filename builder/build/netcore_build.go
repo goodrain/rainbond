@@ -29,7 +29,7 @@ import (
 
 	"github.com/docker/docker/client"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/docker/docker/api/types"
 	"github.com/goodrain/rainbond/builder"

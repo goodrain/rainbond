@@ -28,15 +28,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
+
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	envoy_api_v2_core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	discovery "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
-	"github.com/envoyproxy/go-control-plane/pkg/cache"
-	"github.com/envoyproxy/go-control-plane/pkg/server"
+	"github.com/envoyproxy/go-control-plane/pkg/cache/v2"
+	"github.com/envoyproxy/go-control-plane/pkg/server/v2"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/nodem/envoy/conver"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -85,7 +87,7 @@ type NodeConfig struct {
 	config                         *corev1.ConfigMap
 	configModel                    *api_model.ResourceSpec
 	dependServices                 sync.Map
-	listeners, clusters, endpoints []cache.Resource
+	listeners, clusters, endpoints []types.Resource
 }
 
 //GetID get envoy node config id

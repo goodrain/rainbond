@@ -23,7 +23,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 //ContextKey context key

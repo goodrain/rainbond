@@ -25,10 +25,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/apcera/termtables"
 	"github.com/ghodss/yaml"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/util/termtables"
 	"github.com/gosuri/uitable"
 	"github.com/urfave/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

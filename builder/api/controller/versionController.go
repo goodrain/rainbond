@@ -25,7 +25,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/builder"

@@ -26,7 +26,7 @@ import (
 
 	"github.com/go-chi/chi"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 //Routes routes

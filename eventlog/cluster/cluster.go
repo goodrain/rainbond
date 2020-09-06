@@ -34,7 +34,7 @@ import (
 
 	"github.com/goodrain/rainbond/eventlog/cluster/distribution"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
 )
 

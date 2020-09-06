@@ -21,7 +21,7 @@ package etcd
 import (
 	"context"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"
 )
 

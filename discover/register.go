@@ -24,7 +24,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/util"

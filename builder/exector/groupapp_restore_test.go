@@ -21,7 +21,7 @@ package exector
 import (
 	"testing"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/pquerna/ffjson/ffjson"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"

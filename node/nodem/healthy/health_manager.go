@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/healthy/probe"
 	"github.com/goodrain/rainbond/node/nodem/service"

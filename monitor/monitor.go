@@ -22,7 +22,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	v3 "github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
 	discoverv1 "github.com/goodrain/rainbond/discover"

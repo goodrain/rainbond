@@ -2,7 +2,7 @@
 if [ "$1" = "bash" ];then
     exec /bin/bash
 elif [ "$1" = "version" ];then
-    echo $RELEASE_DESC
+    /run/rainbond-gateway version
 else
     exec /run/rainbond-gateway $@
 fi

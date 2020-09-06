@@ -24,7 +24,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	discover "github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/discover/config"

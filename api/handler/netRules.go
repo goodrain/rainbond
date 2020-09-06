@@ -25,7 +25,7 @@ import (
 
 	"github.com/pquerna/ffjson/ffjson"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"

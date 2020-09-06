@@ -29,7 +29,7 @@ import (
 
 	"github.com/goodrain/rainbond/eventlog/entry/grpc/pb"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )

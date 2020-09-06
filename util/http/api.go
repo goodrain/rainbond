@@ -25,9 +25,9 @@ import (
 	"net/url"
 	"reflect"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/render"
-	govalidator "github.com/thedevsaddam/govalidator"
+	govalidator "github.com/goodrain/rainbond/util/govalidator"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

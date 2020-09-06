@@ -24,7 +24,7 @@ import (
 
 	"github.com/goodrain/rainbond/builder"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder/sources"

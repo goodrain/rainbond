@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/kubernetes"
 )

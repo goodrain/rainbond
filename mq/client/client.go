@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	grpcutil "github.com/goodrain/rainbond/util/grpc"

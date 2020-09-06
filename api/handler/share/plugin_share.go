@@ -24,7 +24,7 @@ import (
 
 	"github.com/goodrain/rainbond/mq/client"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/exector"

@@ -21,7 +21,7 @@ package sources
 import (
 	"github.com/goodrain/rainbond/builder/sources/registry"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 )
 

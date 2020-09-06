@@ -34,7 +34,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"

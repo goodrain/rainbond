@@ -34,7 +34,7 @@ import (
 	"github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/goodrain/rainbond/db"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder/cloudos"
 	dbmodel "github.com/goodrain/rainbond/db/model"

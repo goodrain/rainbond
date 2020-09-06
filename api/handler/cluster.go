@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/shirou/gopsutil/disk"
 	corev1 "k8s.io/api/core/v1"

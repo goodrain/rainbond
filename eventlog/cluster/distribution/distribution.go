@@ -30,7 +30,7 @@ import (
 
 	"sort"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 //Distribution 数据分区

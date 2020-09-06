@@ -28,7 +28,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/goodrain/rainbond/builder/discover"
 	"io/ioutil"

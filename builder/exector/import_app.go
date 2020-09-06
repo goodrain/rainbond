@@ -28,7 +28,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	simplejson "github.com/bitly/go-simplejson"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/api/model"

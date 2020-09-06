@@ -29,7 +29,7 @@ import (
 
 	"github.com/goodrain/rainbond/util"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/node/option"

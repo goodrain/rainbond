@@ -19,7 +19,6 @@
 package annotations
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/gateway/annotations/cookie"
 	"github.com/goodrain/rainbond/gateway/annotations/header"
 	"github.com/goodrain/rainbond/gateway/annotations/l4"
@@ -29,10 +28,11 @@ import (
 	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
 	"github.com/goodrain/rainbond/gateway/annotations/upstreamhashby"
 	weight "github.com/goodrain/rainbond/gateway/annotations/wight"
+	"github.com/goodrain/rainbond/util/ingress-nginx/ingress/errors"
 	"github.com/imdario/mergo"
+	"github.com/sirupsen/logrus"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/ingress-nginx/ingress/errors"
 )
 
 // DeniedKeyName name of the key that contains the reason to deny a location

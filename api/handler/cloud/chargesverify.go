@@ -25,7 +25,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"

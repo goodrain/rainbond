@@ -28,7 +28,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/build"

@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/util"
 	probe "github.com/goodrain/rainbond/util/prober/probes"
 	v1 "github.com/goodrain/rainbond/util/prober/types/v1"

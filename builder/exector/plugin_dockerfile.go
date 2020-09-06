@@ -35,7 +35,7 @@ import (
 
 	"github.com/goodrain/rainbond/builder/model"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 )
 

@@ -31,7 +31,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/jinzhu/gorm"
 
 	api_model "github.com/goodrain/rainbond/api/model"

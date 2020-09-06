@@ -25,7 +25,7 @@ import (
 
 	"github.com/goodrain/rainbond/event"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/ghodss/yaml"
 )

@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	tsdbClient "github.com/bluebreezecf/opentsdb-goclient/client"
 	tsdbConfig "github.com/bluebreezecf/opentsdb-goclient/config"
 	"github.com/goodrain/rainbond/cmd/api/option"

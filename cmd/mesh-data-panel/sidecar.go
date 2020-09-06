@@ -27,7 +27,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/cmd"
 	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"

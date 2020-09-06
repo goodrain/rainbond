@@ -23,7 +23,7 @@ import (
 
 	"github.com/goodrain/rainbond/api/util"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/go-chi/chi"
 	httputil "github.com/goodrain/rainbond/util/http"
 )

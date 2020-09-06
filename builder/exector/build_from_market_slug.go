@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"

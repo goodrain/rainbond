@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/mysql"

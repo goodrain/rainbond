@@ -40,7 +40,7 @@ limitations under the License.
 */
 
 import (
-	s "k8s.io/ingress-nginx/ingress/controller/store"
+	s "github.com/goodrain/rainbond/util/ingress-nginx/ingress/controller/store"
 )
 
 // IngressAnnotationsLister makes a Store that lists annotations in Ingress rules.

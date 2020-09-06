@@ -26,7 +26,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	dockercli "github.com/docker/docker/client"
 	"github.com/fsnotify/fsnotify"

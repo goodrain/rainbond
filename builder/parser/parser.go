@@ -24,7 +24,7 @@ import (
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/parser/discovery"

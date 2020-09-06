@@ -25,7 +25,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 func TestHttpProxy(t *testing.T) {

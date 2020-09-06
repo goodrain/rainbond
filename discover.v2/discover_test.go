@@ -22,7 +22,7 @@ import (
 	"github.com/goodrain/rainbond/discover/config"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 

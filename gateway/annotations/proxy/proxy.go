@@ -22,7 +22,7 @@ import (
 
 	"golang.org/x/net/http/httpguts"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/gateway/controller/config"
 	extensions "k8s.io/api/extensions/v1beta1"
 

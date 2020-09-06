@@ -23,7 +23,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond-operator/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/builder/sources"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"

@@ -36,7 +36,7 @@ import (
 	"github.com/goodrain/rainbond/worker/client"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 //Run start run

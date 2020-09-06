@@ -3,7 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 )
 

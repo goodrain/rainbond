@@ -27,7 +27,7 @@ import (
 	discover "github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/mq/api"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 

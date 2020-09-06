@@ -23,7 +23,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	conf "github.com/goodrain/rainbond/cmd/grctl/option"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/urfave/cli"

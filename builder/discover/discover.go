@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/exector"
 	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"

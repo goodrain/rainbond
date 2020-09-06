@@ -23,7 +23,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/event"
 
 	"github.com/docker/docker/client"

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/errors"

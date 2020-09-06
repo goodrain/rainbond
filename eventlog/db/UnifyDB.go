@@ -21,7 +21,7 @@ package db
 import (
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/eventlog/conf"

@@ -31,7 +31,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )

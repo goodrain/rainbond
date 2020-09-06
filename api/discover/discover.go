@@ -27,7 +27,7 @@ import (
 	corediscoverconfig "github.com/goodrain/rainbond/discover/config"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 //EndpointDiscover 后端服务自动发现

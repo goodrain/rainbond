@@ -24,9 +24,9 @@ import (
 	"net/http"
 	"os"
 
-	validator "github.com/thedevsaddam/govalidator"
+	validator "github.com/goodrain/rainbond/util/govalidator"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"

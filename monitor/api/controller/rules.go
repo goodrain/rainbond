@@ -8,7 +8,7 @@ import (
 
 	"encoding/json"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 )
