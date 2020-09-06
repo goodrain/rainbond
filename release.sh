@@ -72,32 +72,32 @@ build::image() {
 	if [ -z "${CACHE}" ] || [ ! -f "${OUTPATH}" ];then
 		build::binary "$1"
 	fi
-	mkdir -p "${build_image_dir}"
-	chmod 777 "${build_image_dir}"
-	cp "${OUTPATH}" "${build_image_dir}"
-	cp -r "${source_dir}" "${build_image_dir}"
+	sudo mkdir -p "${build_image_dir}"
+	sudo chmod 777 "${build_image_dir}"
+	sudo cp "${OUTPATH}" "${build_image_dir}"
+	sudo cp -r "${source_dir}" "${build_image_dir}"
 	pushd "${build_image_dir}"
 		echo "---> build image:$1"
-		ls -al
-		sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
-		docker build -t "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" -f Dockerfile.release .
-		docker run -it --rm "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" version
+		sudo ls -al
+		sudo sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
+		sudo docker build -t "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" -f Dockerfile.release .
+		sudo docker run -it --rm "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" version
 		if [  $? -ne 0 ];then
 			echo "image version is different ${release_desc}"
 			exit 1
 		fi
 		if [ "$2" = "push" ];then
-		    docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
-			docker push "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}"
+		    sudo docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+			sudo docker push "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}"
 			if [ "${DOMESTIC_BASE_NAME}" ];
 			then
-				docker tag "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" "${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-$1:${VERSION}"
-				docker login -u "$DOMESTIC_DOCKER_USERNAME" -p "$DOMESTIC_DOCKER_PASSWORD" "${DOMESTIC_BASE_NAME}"
-				docker push "${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-$1:${VERSION}"
+				sudo docker tag "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" "${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-$1:${VERSION}"
+				sudo docker login -u "$DOMESTIC_DOCKER_USERNAME" -p "$DOMESTIC_DOCKER_PASSWORD" "${DOMESTIC_BASE_NAME}"
+				sudo docker push "${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-$1:${VERSION}"
 			fi
 		fi
 	popd
-	rm -rf "${build_image_dir}"
+	sudo rm -rf "${build_image_dir}"
 }
 
 build::image::all(){
