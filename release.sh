@@ -15,7 +15,9 @@ GO_VERSION=1.13
 if [ -z "$GOOS" ];then
   GOOS="linux"
 fi
-
+if [ "$DEBUG" ];then
+  set -x
+fi
 BRANCH=$(git symbolic-ref HEAD 2>/dev/null | cut -d"/" -f 3)
 if [ -z "$VERSION" ];then
   if [ -z "$TRAVIS_TAG" ]; then
@@ -73,7 +75,7 @@ build::image() {
 	sudo mkdir -p "${build_image_dir}"
 	sudo chmod 777 "${build_image_dir}"
 	cp "${OUTPATH}" "${build_image_dir}"
-	cp -a "${source_dir}" "${build_image_dir}"
+	cp -r "${source_dir}" "${build_image_dir}"
 	pushd "${build_image_dir}"
 		echo "---> build image:$1"
 		sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
