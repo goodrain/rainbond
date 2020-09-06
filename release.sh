@@ -71,6 +71,7 @@ build::image() {
 		build::binary "$1"
 	fi
 	sudo mkdir -p "${build_image_dir}"
+	sudo chmod 777 "${build_image_dir}"
 	cp "${OUTPATH}" "${build_image_dir}"
 	cp -a "${source_dir}" "${build_image_dir}"
 	pushd "${build_image_dir}"
@@ -93,7 +94,7 @@ build::image() {
 			fi
 		fi
 	popd
-	rm -rf "${build_image_dir}"
+	sudo rm -rf "${build_image_dir}"
 }
 
 build::image::all(){
