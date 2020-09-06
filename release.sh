@@ -68,14 +68,13 @@ build::binary() {
 build::image() {
 	local OUTPATH="./_output/binary/$GOOS/${BASE_NAME}-$1"
 	local build_image_dir="./_output/image/$1/"
-	local source_dir="./hack/contrib/docker/$1/"
 	if [ -z "${CACHE}" ] || [ ! -f "${OUTPATH}" ];then
 		build::binary "$1"
 	fi
 	sudo mkdir -p "${build_image_dir}"
 	sudo chmod 777 "${build_image_dir}"
 	sudo cp "${OUTPATH}" "${build_image_dir}"
-	sudo cp -r "${source_dir}" "${build_image_dir}"
+	sudo cp -r ./hack/contrib/docker/$1/* "${build_image_dir}"
 	pushd "${build_image_dir}"
 		echo "---> build image:$1"
 		sudo ls -al
