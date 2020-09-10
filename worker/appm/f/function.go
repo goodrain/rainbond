@@ -22,6 +22,10 @@ import (
 	"fmt"
 	"time"
 
+	monitorv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/coreos/prometheus-operator/pkg/client/versioned"
+	"github.com/goodrain/rainbond/gateway/annotations/parser"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
@@ -31,9 +35,6 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-
-	"github.com/goodrain/rainbond/gateway/annotations/parser"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 const (
@@ -519,6 +520,61 @@ func UpgradeEndpoints(clientset kubernetes.Interface,
 				continue
 			}
 			logrus.Debugf("ServiceID: %s; successfully delete endpoints: %s", as.ServiceID, sec.Name)
+		}
+	}
+	return nil
+}
+
+// UpgradeServiceMonitor -
+func UpgradeServiceMonitor(
+	clientset *versioned.Clientset,
+	as *v1.AppService,
+	old, new []*monitorv1.ServiceMonitor,
+	handleErr func(msg string, err error) error) error {
+
+	var oldMap = make(map[string]*monitorv1.ServiceMonitor, len(old))
+	for i := range old {
+		oldMap[old[i].Name] = old[i]
+	}
+	for _, n := range new {
+		if o, ok := oldMap[n.Name]; ok {
+			n.UID = o.UID
+			n.ResourceVersion = o.ResourceVersion
+			ing, err := clientset.MonitoringV1().ServiceMonitors(n.Namespace).Update(n)
+			if err != nil {
+				if err := handleErr(fmt.Sprintf("error updating service monitor: %+v: err: %v",
+					ing, err), err); err != nil {
+					return err
+				}
+				continue
+			}
+			as.SetServiceMonitor(n)
+			delete(oldMap, o.Name)
+			logrus.Debugf("ServiceID: %s; successfully update service monitor: %s", as.ServiceID, ing.Name)
+		} else {
+			ing, err := clientset.MonitoringV1().ServiceMonitors(n.Namespace).Create(n)
+			if err != nil {
+				if err := handleErr(fmt.Sprintf("error creating service monitor: %+v: err: %v",
+					ing, err), err); err != nil {
+					return err
+				}
+				continue
+			}
+			as.SetServiceMonitor(ing)
+			logrus.Debugf("ServiceID: %s; successfully create service monitor: %s", as.ServiceID, ing.Name)
+		}
+	}
+	for _, ing := range oldMap {
+		if ing != nil {
+			if err := clientset.MonitoringV1().ServiceMonitors(ing.Namespace).Delete(ing.Name,
+				&metav1.DeleteOptions{}); err != nil {
+				if err := handleErr(fmt.Sprintf("error deleting service monitor: %+v: err: %v",
+					ing, err), err); err != nil {
+					return err
+				}
+				continue
+			}
+			logrus.Debugf("ServiceID: %s; successfully delete service monitor: %s", as.ServiceID, ing.Name)
 		}
 	}
 	return nil

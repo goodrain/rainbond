@@ -499,3 +499,12 @@ type TenantServiceScalingRecordsDao interface {
 	ListByServiceID(serviceID string, offset, limit int) ([]*model.TenantServiceScalingRecords, error)
 	CountByServiceID(serviceID string) (int, error)
 }
+
+// TenantServiceMonitorDao -
+type TenantServiceMonitorDao interface {
+	Dao
+	GetByName(serviceID, name string) (*model.TenantServiceMonitor, error)
+	GetByServiceID(serviceID string) ([]*model.TenantServiceMonitor, error)
+	DeleteServiceMonitor(mo *model.TenantServiceMonitor) error
+	DeleteServiceMonitorByServiceID(serviceID string) error
+}

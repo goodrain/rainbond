@@ -22,7 +22,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 func init() {
@@ -36,7 +36,10 @@ func init() {
 	RegistConversion("TenantServicePlugin", TenantServicePlugin)
 	//step5 conv service inner and outer regist
 	RegistConversion("TenantServiceRegist", TenantServiceRegist)
+	//step6 -
 	RegistConversion("TenantServiceAutoscaler", TenantServiceAutoscaler)
+	//step7 conv service monitor
+	RegistConversion("TenantServiceMonitor", TenantServiceMonitor)
 }
 
 //Conversion conversion function

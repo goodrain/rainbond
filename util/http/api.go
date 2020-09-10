@@ -25,6 +25,8 @@ import (
 	"net/url"
 	"reflect"
 
+	"github.com/goodrain/rainbond/api/util/bcode"
+
 	"github.com/go-chi/render"
 	govalidator "github.com/goodrain/rainbond/util/govalidator"
 	"github.com/sirupsen/logrus"
@@ -171,4 +173,12 @@ func ReturnResNotEnough(r *http.Request, w http.ResponseWriter, msg string) {
 	logrus.Debugf("resource not enough, msg: %s", msg)
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, 412))
 	render.DefaultResponder(w, r, ResponseBody{Msg: msg})
+}
+
+//ReturnBcodeError bcode error
+func ReturnBcodeError(r *http.Request, w http.ResponseWriter, err error) {
+	berr := bcode.Err2Coder(err)
+	logrus.Debugf("path %s error code: %d; status: %d; error msg: %s", r.RequestURI, berr.GetCode(), berr.GetStatus(), berr.Error())
+	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, berr.GetStatus()))
+	render.DefaultResponder(w, r, berr)
 }
