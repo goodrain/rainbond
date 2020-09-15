@@ -789,3 +789,12 @@ func getVariableKey(source string) (key, value string) {
 	}
 	return k, ""
 }
+
+// Getenv returns env by key or default value.
+func Getenv(key, def string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return def
+	}
+	return value
+}
