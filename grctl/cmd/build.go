@@ -138,7 +138,6 @@ func NewSourceBuildCmd() cli.Command {
 							runtable := termtables.CreateTable()
 							runtable.AddHeaders("Name", "CreateTime", "UpdateTime", "Default")
 							for _, cm := range cms.Items {
-								info := strings.Split(cm.Name, "-")
 								var updateTime = "-"
 								if cm.Annotations != nil {
 									updateTime = cm.Annotations["updateTime"]
@@ -147,9 +146,7 @@ func NewSourceBuildCmd() cli.Command {
 								if cm.Labels["default"] == "true" {
 									def = true
 								}
-								if len(info) > 0 {
-									runtable.AddRow(info[len(info)-1], cm.CreationTimestamp.Format(time.RFC3339), updateTime, def)
-								}
+								runtable.AddRow(cm.Name, cm.CreationTimestamp.Format(time.RFC3339), updateTime, def)
 							}
 							fmt.Println(runtable.Render())
 						},
@@ -171,8 +168,7 @@ func NewSourceBuildCmd() cli.Command {
 								showError("Please specify the task pod name")
 							}
 							namespace := ctx.String("namespace")
-							realName := strings.ToLower(fmt.Sprintf("%s-%s", code.JavaMaven, name))
-							cm, err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Get(realName, metav1.GetOptions{})
+							cm, err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
 							if err != nil {
 								showError(err.Error())
 							}
@@ -201,8 +197,7 @@ func NewSourceBuildCmd() cli.Command {
 								showError("Please specify the task pod name")
 							}
 							namespace := ctx.String("namespace")
-							realName := strings.ToLower(fmt.Sprintf("%s-%s", code.JavaMaven, name))
-							cm, err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Get(realName, metav1.GetOptions{})
+							cm, err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
 							if err != nil {
 								showError(err.Error())
 							}
@@ -251,17 +246,17 @@ func NewSourceBuildCmd() cli.Command {
 								showError("Please specify the task pod name")
 							}
 							namespace := ctx.String("namespace")
-							realName := strings.ToLower(fmt.Sprintf("%s-%s", code.JavaMaven, name))
 							body, err := ioutil.ReadFile(ctx.String("f"))
 							if err != nil {
 								showError(err.Error())
 							}
 							config := &corev1.ConfigMap{}
-							config.Name = realName
+							config.Name = name
 							config.Namespace = namespace
 							config.Labels = map[string]string{
 								"creator":    "Rainbond",
 								"configtype": "mavensetting",
+								"laguage":    code.JavaMaven.String(),
 							}
 							if ctx.Bool("default") {
 								config.Labels["default"] = "true"
@@ -296,8 +291,7 @@ func NewSourceBuildCmd() cli.Command {
 								showError("Please specify the task pod name")
 							}
 							namespace := ctx.String("namespace")
-							realName := strings.ToLower(fmt.Sprintf("%s-%s", code.JavaMaven, name))
-							err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Delete(realName, &metav1.DeleteOptions{})
+							err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Delete(name, &metav1.DeleteOptions{})
 							if err != nil {
 								showError(err.Error())
 							}
