@@ -90,3 +90,35 @@ func (g *GarbageCollector) DelPvPvcByServiceID(serviceGCReq model.ServiceGCTaskB
 		logrus.Warningf("service id: %s; delete a collection fo PVC: %v", serviceGCReq.ServiceID, err)
 	}
 }
+
+// DelKubernetesObjects deletes all kubernetes objects.
+func (g *GarbageCollector) DelKubernetesObjects(serviceGCReq model.ServiceGCTaskBody) {
+	deleteOpts := &metav1.DeleteOptions{}
+	listOpts := metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("service_id=%s", serviceGCReq.ServiceID),
+	}
+	if err := g.clientset.AppsV1().Deployments(serviceGCReq.TenantID).DeleteCollection(deleteOpts, listOpts); err != nil {
+		logrus.Warningf("[DelKubernetesObjects] delete deployments(%s): %v", serviceGCReq.ServiceID, err)
+	}
+	if err := g.clientset.AppsV1().StatefulSets(serviceGCReq.TenantID).DeleteCollection(deleteOpts, listOpts); err != nil {
+		logrus.Warningf("[DelKubernetesObjects] delete statefulsets(%s): %v", serviceGCReq.ServiceID, err)
+	}
+	if err := g.clientset.ExtensionsV1beta1().Ingresses(serviceGCReq.TenantID).DeleteCollection(deleteOpts, listOpts); err != nil {
+		logrus.Warningf("[DelKubernetesObjects] delete ingresses(%s): %v", serviceGCReq.ServiceID, err)
+	}
+	if err := g.clientset.CoreV1().Endpoints(serviceGCReq.TenantID).DeleteCollection(deleteOpts, listOpts); err != nil {
+		logrus.Warningf("[DelKubernetesObjects] delete endpoints(%s): %v", serviceGCReq.ServiceID, err)
+	}
+	// kubernetes does not support api for deleting collection of service
+	// read: https://github.com/kubernetes/kubernetes/issues/68468#issuecomment-419981870
+	serviceList, err := g.clientset.CoreV1().Services(serviceGCReq.TenantID).List(listOpts)
+	if err != nil {
+		logrus.Warningf("[DelKubernetesObjects] list services(%s): %v", serviceGCReq.ServiceID, err)
+	} else {
+		for _, svc := range serviceList.Items {
+			if err := g.clientset.CoreV1().Services(serviceGCReq.TenantID).Delete(svc.Name, deleteOpts); err != nil {
+				logrus.Warningf("[DelKubernetesObjects] delete service(%s): %v", svc.GetName(), err)
+			}
+		}
+	}
+}
