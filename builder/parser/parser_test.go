@@ -20,6 +20,8 @@ package parser
 
 import (
 	"testing"
+
+	"github.com/goodrain/rainbond/builder/parser/types"
 )
 
 func TestParseImageName(t *testing.T) {
@@ -84,4 +86,25 @@ func TestReadmemory(t *testing.T) {
 			t.Errorf("mem: %s; Expected %d, but returned %d", tc.mem, tc.exp, mem)
 		}
 	}
+}
+
+func TestParseDockerRun(t *testing.T) {
+	var dr = &DockerRunOrImageParse{
+		ports:   make(map[int]*types.Port),
+		volumes: make(map[string]*types.Volume),
+		envs:    make(map[string]*types.Env),
+	}
+	drs := `
+	docker run -p 9000:9000 --name minio1 \
+  -e "MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE" \
+  -e "MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
+  -v /mnt/data:/data \
+  -v /mnt/config:/root/.minio \
+  minio/minio server /data`
+	dr.ParseDockerun(drs)
+	t.Log(dr.GetEnvs())
+	t.Log(dr.GetPorts())
+	t.Log(dr.GetVolumes())
+	t.Log(dr.GetArgs())
+	t.Log(dr.GetImage())
 }

@@ -333,7 +333,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 						&RulesConfig{
 							Alert:  "InsufficientClusteMemoryResources",
-							Expr:   "sum(rbd_api_exporter_cluster_memory_total) - sum(namespace_resource_memory_request) < 2048",
+							Expr:   "max(rbd_api_exporter_cluster_memory_total) - max(sum(namespace_resource_memory_request) by (instance)) < 2048",
 							For:    "2m",
 							Labels: commonLables,
 							Annotations: map[string]string{
@@ -343,7 +343,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 						&RulesConfig{
 							Alert:  "InsufficientClusteCPUResources",
-							Expr:   "sum(rbd_api_exporter_cluster_cpu_total*1000) - sum(namespace_resource_cpu_request) < 500",
+							Expr:   "max(rbd_api_exporter_cluster_cpu_total) - max(sum(namespace_resource_cpu_request) by (instance)) < 500",
 							For:    "2m",
 							Labels: commonLables,
 							Annotations: map[string]string{

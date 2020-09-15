@@ -253,7 +253,6 @@ func ImagePush(dockerCli *client.Client, image, user, pass string, logger event.
 		}
 		return err
 	}
-	logger.Info(fmt.Sprintf("success push image：%s", image), map[string]string{"step": "pushimage"})
 	if readcloser != nil {
 		defer readcloser.Close()
 		dec := json.NewDecoder(readcloser)
@@ -275,8 +274,8 @@ func ImagePush(dockerCli *client.Client, image, user, pass string, logger event.
 			}
 			logger.Debug(jm.JSONString(), map[string]string{"step": "progress"})
 		}
-
 	}
+	logger.Info(fmt.Sprintf("success push image：%s", image), map[string]string{"step": "pushimage"})
 	return nil
 }
 

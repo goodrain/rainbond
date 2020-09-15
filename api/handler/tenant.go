@@ -137,7 +137,9 @@ func (t *TenantAction) DeleteTenant(tenantID string) error {
 		return err
 	}
 	if len(services) > 0 {
-		return ErrTenantStillHasServices
+		for _, service := range services {
+			GetServiceManager().TransServieToDelete(tenantID, service.ServiceID)
+		}
 	}
 
 	// check if there are still plugins
@@ -146,7 +148,9 @@ func (t *TenantAction) DeleteTenant(tenantID string) error {
 		return err
 	}
 	if len(plugins) > 0 {
-		return ErrTenantStillHasPlugins
+		for _, plugin := range plugins {
+			GetPluginManager().DeletePluginAct(plugin.PluginID, tenantID)
+		}
 	}
 
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
@@ -408,6 +412,11 @@ func (t *TenantAction) initClusterResource() error {
 			return err
 		}
 		for _, node := range nodes.Items {
+			// check if node contains taints
+			if containsTaints(&node) {
+				logrus.Debugf("[GetClusterInfo] node(%s) contains NoSchedule taints", node.GetName())
+				continue
+			}
 			if node.Spec.Unschedulable {
 				continue
 			}
@@ -417,7 +426,7 @@ func (t *TenantAction) initClusterResource() error {
 				}
 			}
 			crs.AllMemory += node.Status.Allocatable.Memory().Value() / (1024 * 1024)
-			crs.AllCPU += node.Status.Allocatable.Cpu().Value()
+			crs.AllCPU += node.Status.Allocatable.Cpu().MilliValue()
 		}
 		t.cacheClusterResourceStats = &crs
 		t.cacheTime = time.Now()

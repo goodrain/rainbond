@@ -23,7 +23,7 @@ function localbuild() {
 		for item in "${build_items[@]}"
 		do
     		echo "build local ${item}"
-    		go build -ldflags "-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o _output/${GOOS}/${VERSION}/rainbond-$item ./cmd/$item
+    		go build -ldflags "-X github.com/goodrain/rainbond/cmd.version=${release_desc}"  -o _output/${GOOS}/${VERSION}/rainbond-$item ./cmd/$item
 		done	
 	else
 		echo "build local $1 ${VERSION}"
@@ -32,11 +32,11 @@ function localbuild() {
 		if [ "$GOOS" = "windows" ];then
 			outputname="_output/${GOOS}/${VERSION}/rainbond-$1.exe"
 		fi
-		ldflags="-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"
+		ldflags="-X github.com/goodrain/rainbond/cmd.version=${release_desc}"
 		if [ "$STATIC" = "true" ];then
 		    ldflags="${ldflags} -extldflags '-static'"
 		fi
-		CGO_ENABLED=1 go build -v -ldflags "${ldflags}"  -o ${outputname} ./cmd/$1
+		go build -v -ldflags "${ldflags}"  -o ${outputname} ./cmd/$1
 	fi
 }
 

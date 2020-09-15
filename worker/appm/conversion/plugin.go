@@ -78,7 +78,8 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 		}
 		versionInfo, err := dbmanager.TenantPluginBuildVersionDao().GetLastBuildVersionByVersionID(pluginR.PluginID, pluginR.VersionID)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("do not found available plugin versions")
+			logrus.Errorf("do not found available plugin versions %s", pluginR.PluginID)
+			continue
 		}
 		podTmpl := as.GetPodTemplate()
 		if podTmpl == nil {
