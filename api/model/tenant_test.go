@@ -38,12 +38,23 @@ func TestTenantList(t *testing.T) {
 	tenants.Add(t2)
 
 	t3 := &TenantAndResource{
-		MemoryRequest: 80,
+		MemoryRequest: 0,
 	}
 	t3.LimitMemory = 60
+	t4 := &TenantAndResource{
+		MemoryRequest: 0,
+	}
+	t4.LimitMemory = 70
+
+	t5 := &TenantAndResource{
+		RunningAppNum: 10,
+	}
+	t5.LimitMemory = 0
 
 	tenants.Add(t3)
-	sort.Sort(sort.Reverse(tenants))
+	tenants.Add(t4)
+	tenants.Add(t5)
+	sort.Sort(tenants)
 	for _, ten := range tenants {
 		t.Logf("%+v", ten)
 	}

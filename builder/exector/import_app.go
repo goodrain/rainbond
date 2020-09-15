@@ -167,9 +167,10 @@ func (i *ImportApp) importApp() error {
 				//new image will create by new app store hub config
 				oldname, _ := app.Get("share_image").String()
 				image := parser.ParseImageName(oldname)
-				newImage := fmt.Sprintf("%s/%s/%s:%s", i.ServiceImage.HubUrl, i.ServiceImage.NameSpace, image.GetSimpleName(), image.GetTag())
+				imageRepo := builder.GetImageRepo(i.ServiceImage.HubUrl)
+				newImage := fmt.Sprintf("%s/%s/%s:%s", imageRepo, i.ServiceImage.NameSpace, image.GetSimpleName(), image.GetTag())
 				if i.ServiceImage.NameSpace == "" {
-					newImage = fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, image.GetSimpleName(), image.GetTag())
+					newImage = fmt.Sprintf("%s/%s:%s", imageRepo, image.GetSimpleName(), image.GetTag())
 				}
 				return newImage
 			}
@@ -354,7 +355,8 @@ func (i *ImportApp) importPlugins() error {
 					return fmt.Errorf("change plugin image tag(%s => %s) error %s", saveImageName, newImageName, err.Error())
 				}
 			}
-			if err := sources.ImagePush(i.DockerClient, newImageName, i.ServiceImage.HubUser, i.ServiceImage.HubPassword, i.Logger, 30); err != nil {
+			user, pass := builder.GetImageUserInfo(i.ServiceImage.HubUser, i.ServiceImage.HubPassword)
+			if err := sources.ImagePush(i.DockerClient, newImageName, user, pass, i.Logger, 30); err != nil {
 				return fmt.Errorf("push plugin image %s error %s", image, err.Error())
 			}
 			logrus.Debug("Successful load and push the plugin image ", image)
@@ -403,7 +405,8 @@ func (i *ImportApp) loadApps() error {
 					return fmt.Errorf("change image tag(%s => %s) error %s", saveImageName, image, err.Error())
 				}
 			}
-			if err := sources.ImagePush(i.DockerClient, image, i.ServiceImage.HubUser, i.ServiceImage.HubPassword, i.Logger, 30); err != nil {
+			user, pass := builder.GetImageUserInfo(i.ServiceImage.HubUser, i.ServiceImage.HubPassword)
+			if err := sources.ImagePush(i.DockerClient, image, user, pass, i.Logger, 30); err != nil {
 				return fmt.Errorf("push  image %s error %s", image, err.Error())
 			}
 			logrus.Debugf("Successful load and push the image %s", image)

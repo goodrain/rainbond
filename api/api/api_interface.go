@@ -25,6 +25,11 @@ import (
 // ClusterInterface -
 type ClusterInterface interface {
 	GetClusterInfo(w http.ResponseWriter, r *http.Request)
+	MavenSettingList(w http.ResponseWriter, r *http.Request)
+	MavenSettingAdd(w http.ResponseWriter, r *http.Request)
+	MavenSettingUpdate(w http.ResponseWriter, r *http.Request)
+	MavenSettingDelete(w http.ResponseWriter, r *http.Request)
+	MavenSettingDetail(w http.ResponseWriter, r *http.Request)
 }
 
 //TenantInterface interface

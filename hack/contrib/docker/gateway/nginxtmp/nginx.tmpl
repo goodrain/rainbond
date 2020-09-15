@@ -10,6 +10,9 @@ events {
     worker_connections  {{.Events.WorkerConnections}};
 }
 
+# env for lua
+env DISABLE_POWER;
+
 {{ $h := .HTTP }}
 http {
     lua_package_cpath "/run/nginx/lua/vendor/so/?.so;/usr/local/openresty/luajit/lib/?.so;;";

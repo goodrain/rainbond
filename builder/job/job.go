@@ -21,12 +21,15 @@ package job
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
+	"github.com/goodrain/rainbond/builder/parser/code"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,6 +46,8 @@ type Controller interface {
 	GetJob(string) (*corev1.Pod, error)
 	GetServiceJobs(serviceID string) ([]*corev1.Pod, error)
 	DeleteJob(job string)
+	GetLanguageBuildSetting(lang code.Lang, name string) string
+	GetDefaultLanguageBuildSetting(lang code.Lang) string
 }
 type controller struct {
 	KubeClient         kubernetes.Interface
@@ -227,4 +232,33 @@ func (c *controller) DeleteJob(job string) {
 	c.subJobStatus.Delete(job)
 	c.jobContainerStatus.Delete(job)
 	logrus.Infof("delete job %s finish", job)
+}
+
+func (c *controller) GetLanguageBuildSetting(lang code.Lang, name string) string {
+	cname := strings.ToLower(fmt.Sprintf("%s-%s", lang, name))
+	config, err := c.KubeClient.CoreV1().ConfigMaps(c.namespace).Get(cname, metav1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("get configmap %s failure  %s", cname, err.Error())
+	}
+	if config != nil {
+		return cname
+	}
+	return ""
+}
+
+func (c *controller) GetDefaultLanguageBuildSetting(lang code.Lang) string {
+	config, err := c.KubeClient.CoreV1().ConfigMaps(c.namespace).List(metav1.ListOptions{
+		LabelSelector: "default=true",
+	})
+	if err != nil {
+		logrus.Errorf("get  default maven setting configmap failure  %s", err.Error())
+	}
+	if config != nil {
+		for _, c := range config.Items {
+			if strings.HasPrefix(c.Name, strings.ToLower(fmt.Sprintf("%s-", lang))) {
+				return c.Name
+			}
+		}
+	}
+	return ""
 }
