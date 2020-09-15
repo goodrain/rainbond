@@ -518,7 +518,7 @@ func removeQuotes(value string) string {
 		value = value[1:]
 	}
 	if len(value) > 0 && (value[len(value)-1] == '"' || value[0] == '\'') {
-		value = value[:len(value)-2]
+		value = value[:len(value)-1]
 	}
 	return value
 }
