@@ -136,15 +136,19 @@ func NewSourceBuildCmd() cli.Command {
 								showError(err.Error())
 							}
 							runtable := termtables.CreateTable()
-							runtable.AddHeaders("Name", "CreateTime", "UpdateTime")
+							runtable.AddHeaders("Name", "CreateTime", "UpdateTime", "Default")
 							for _, cm := range cms.Items {
 								info := strings.Split(cm.Name, "-")
 								var updateTime = "-"
 								if cm.Annotations != nil {
 									updateTime = cm.Annotations["updateTime"]
 								}
+								var def bool
+								if cm.Labels["default"] == "true" {
+									def = true
+								}
 								if len(info) > 0 {
-									runtable.AddRow(info[len(info)-1], cm.CreationTimestamp.Format(time.RFC3339), updateTime)
+									runtable.AddRow(info[len(info)-1], cm.CreationTimestamp.Format(time.RFC3339), updateTime, def)
 								}
 							}
 							fmt.Println(runtable.Render())
@@ -230,6 +234,10 @@ func NewSourceBuildCmd() cli.Command {
 								Usage: "define maven setting file",
 								Value: "./setting.xml",
 							},
+							cli.BoolFlag{
+								Name:  "default,d",
+								Usage: "default maven setting file",
+							},
 							cli.StringFlag{
 								Name:  "namespace,ns",
 								Usage: "rainbond default namespace",
@@ -254,6 +262,9 @@ func NewSourceBuildCmd() cli.Command {
 							config.Labels = map[string]string{
 								"creator":    "Rainbond",
 								"configtype": "mavensetting",
+							}
+							if ctx.Bool("default") {
+								config.Labels["default"] = "true"
 							}
 							config.Annotations = map[string]string{
 								"updateTime": time.Now().Format(time.RFC3339),

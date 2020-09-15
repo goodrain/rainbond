@@ -47,6 +47,7 @@ type Controller interface {
 	GetServiceJobs(serviceID string) ([]*corev1.Pod, error)
 	DeleteJob(job string)
 	GetLanguageBuildSetting(lang code.Lang, name string) string
+	GetDefaultLanguageBuildSetting(lang code.Lang) string
 }
 type controller struct {
 	KubeClient         kubernetes.Interface
@@ -241,6 +242,23 @@ func (c *controller) GetLanguageBuildSetting(lang code.Lang, name string) string
 	}
 	if config != nil {
 		return cname
+	}
+	return ""
+}
+
+func (c *controller) GetDefaultLanguageBuildSetting(lang code.Lang) string {
+	config, err := c.KubeClient.CoreV1().ConfigMaps(c.namespace).List(metav1.ListOptions{
+		LabelSelector: "default=true",
+	})
+	if err != nil {
+		logrus.Errorf("get  default maven setting configmap failure  %s", err.Error())
+	}
+	if config != nil {
+		for _, c := range config.Items {
+			if strings.HasPrefix(c.Name, strings.ToLower(fmt.Sprintf("%s-", lang))) {
+				return c.Name
+			}
+		}
 	}
 	return ""
 }

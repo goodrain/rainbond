@@ -378,36 +378,42 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		},
 	}
 	//set maven setting
+	var mavenSettingConfigName string
 	if mavenSettingName != "" && re.Lang.String() == code.JavaMaven.String() {
 		if setting := jobc.GetJobController().GetLanguageBuildSetting(code.JavaMaven, mavenSettingName); setting != "" {
-			podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
-				Name: "mavensetting",
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: setting,
-						},
-					},
-				},
-			})
-			mountPath := "/etc/maven/setting.xml"
-			container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
-				MountPath: mountPath,
-				SubPath:   "mavensetting",
-				Name:      "mavensetting",
-			})
-			container.Env = append(container.Env, corev1.EnvVar{
-				Name:  "MAVEN_SETTINGS_PATH",
-				Value: mountPath,
-			})
-			container.Env = append(container.Env, corev1.EnvVar{
-				Name:  "MAVEN_MIRROR_DISABLE",
-				Value: "true",
-			})
-			logrus.Infof("set maven setting config %s success", mavenSettingName)
+			mavenSettingConfigName = setting
 		} else {
 			logrus.Warnf("maven setting config %s not found", mavenSettingName)
 		}
+	} else if settingName := jobc.GetJobController().GetDefaultLanguageBuildSetting(code.JavaMaven); settingName != "" {
+		mavenSettingConfigName = settingName
+	}
+	if mavenSettingConfigName != "" {
+		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+			Name: "mavensetting",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: mavenSettingConfigName,
+					},
+				},
+			},
+		})
+		mountPath := "/etc/maven/setting.xml"
+		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
+			MountPath: mountPath,
+			SubPath:   "mavensetting",
+			Name:      "mavensetting",
+		})
+		container.Env = append(container.Env, corev1.EnvVar{
+			Name:  "MAVEN_SETTINGS_PATH",
+			Value: mountPath,
+		})
+		container.Env = append(container.Env, corev1.EnvVar{
+			Name:  "MAVEN_MIRROR_DISABLE",
+			Value: "true",
+		})
+		logrus.Infof("set maven setting config %s success", mavenSettingName)
 	}
 	podSpec.Containers = append(podSpec.Containers, container)
 	for _, ha := range re.HostAlias {
