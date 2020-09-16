@@ -128,8 +128,8 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Mount("/plugin/{plugin_id}", v2.pluginRouter())
 	r.Get("/event", controller.GetManager().Event)
 	r.Get("/chargesverify", controller.ChargesVerifyController)
-	//租户下应用
-	r.Post("/apps", controller.GetManager().CreateApp)
+	//tenant app
+	r.Post("/apps", middleware.WrapEL(controller.GetManager().CreateApp, dbmodel.TargetTypeService, "create-tenant-app", dbmodel.SYNEVENTTYPE))
 	//get some service pod info
 	r.Get("/pods", controller.Pods)
 	//app backup

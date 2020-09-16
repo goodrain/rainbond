@@ -159,10 +159,11 @@ func (a *TenantAppDaoImpl) AddModel(mo model.Interface) error {
 	}
 
 	var oldApp model.App
-	if ok := a.DB.Where("tenantID = ? AND appID = ?", appReq.TenantID, appReq.AppID).Find(&oldApp).RecordNotFound(); ok {
-		if err := a.DB.Create(appReq).Error; err != nil {
-			return err
+	if err := a.DB.Where("tenantID = ? AND appID = ?", appReq.TenantID, appReq.AppID).Find(&oldApp).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return a.DB.Create(appReq).Error
 		}
+		return err
 	}
 
 	return nil

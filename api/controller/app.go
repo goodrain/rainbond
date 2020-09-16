@@ -15,8 +15,10 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/controller/upload"
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
 )
@@ -334,23 +336,15 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 
 // CreateApp -
 func (a *AppStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case "POST":
-		// 获取当前租户ID
-		tenantName := strings.TrimSpace(chi.URLParam(r, "tenant_name"))
-		tenant, err := db.GetManager().TenantDao().GetTenantIDByName(tenantName)
-		if err != nil {
-			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to Find tenant %s: %v", tenantName, err))
-			return
-		}
-		// 创建App
-		a := handler.GetAppHandler()
-		app, err := a.CreateApp(tenant.UUID)
-		if err != nil {
-			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to create app : %v", err))
-			return
-		}
-
-		httputil.ReturnSuccess(r, w, app)
+	// 获取当前租户
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	
+	// 创建App
+	app, err := handler.GetAppHandler().CreateApp(tenant.UUID)
+	if err != nil {
+		httputil.ReturnError(r, w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+		return
 	}
+
+	httputil.ReturnSuccess(r, w, app)
 }
