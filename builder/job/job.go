@@ -21,9 +21,7 @@ package job
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"io"
-	"strings"
 	"sync"
 	"time"
 
@@ -235,13 +233,12 @@ func (c *controller) DeleteJob(job string) {
 }
 
 func (c *controller) GetLanguageBuildSetting(lang code.Lang, name string) string {
-	cname := strings.ToLower(fmt.Sprintf("%s-%s", lang, name))
-	config, err := c.KubeClient.CoreV1().ConfigMaps(c.namespace).Get(cname, metav1.GetOptions{})
+	config, err := c.KubeClient.CoreV1().ConfigMaps(c.namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		logrus.Errorf("get configmap %s failure  %s", cname, err.Error())
+		logrus.Errorf("get configmap %s failure  %s", name, err.Error())
 	}
 	if config != nil {
-		return cname
+		return name
 	}
 	return ""
 }
@@ -255,9 +252,7 @@ func (c *controller) GetDefaultLanguageBuildSetting(lang code.Lang) string {
 	}
 	if config != nil {
 		for _, c := range config.Items {
-			if strings.HasPrefix(c.Name, strings.ToLower(fmt.Sprintf("%s-", lang))) {
-				return c.Name
-			}
+			return c.Name
 		}
 	}
 	return ""

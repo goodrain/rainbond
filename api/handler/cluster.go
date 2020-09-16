@@ -3,13 +3,11 @@ package handler
 import (
 	"fmt"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
-	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/shirou/gopsutil/disk"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -214,24 +212,20 @@ func (c *clusterAction) MavenSettingList() (re []MavenSetting) {
 		logrus.Errorf("list maven setting config list failure %s", err.Error())
 	}
 	for _, sm := range cms.Items {
-		info := strings.Split(sm.Name, "-")
-		if len(info) > 0 {
-			re = append(re, MavenSetting{
-				Name:       info[len(info)-1],
-				CreateTime: sm.CreationTimestamp.Format(time.RFC3339),
-				UpdateTime: sm.Labels["updateTime"],
-				Content:    sm.Data["mavensetting"],
-			})
-		}
+		re = append(re, MavenSetting{
+			Name:       sm.Name,
+			CreateTime: sm.CreationTimestamp.Format(time.RFC3339),
+			UpdateTime: sm.Labels["updateTime"],
+			Content:    sm.Data["mavensetting"],
+		})
 	}
 	return
 }
 
 //MavenSettingAdd maven setting add
 func (c *clusterAction) MavenSettingAdd(ms *MavenSetting) *util.APIHandleError {
-	realName := strings.ToLower(fmt.Sprintf("%s-%s", code.JavaMaven, ms.Name))
 	config := &corev1.ConfigMap{}
-	config.Name = realName
+	config.Name = ms.Name
 	config.Namespace = c.namespace
 	config.Labels = map[string]string{
 		"creator":    "Rainbond",
@@ -258,8 +252,7 @@ func (c *clusterAction) MavenSettingAdd(ms *MavenSetting) *util.APIHandleError {
 
 //MavenSettingUpdate maven setting file update
 func (c *clusterAction) MavenSettingUpdate(ms *MavenSetting) *util.APIHandleError {
-	realName := strings.ToLower(fmt.Sprintf("%s-%s", code.JavaMaven, ms.Name))
-	sm, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Get(realName, metav1.GetOptions{})
+	sm, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Get(ms.Name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return &util.APIHandleError{Code: 404, Err: fmt.Errorf("setting name is not exist")}
@@ -286,8 +279,7 @@ func (c *clusterAction) MavenSettingUpdate(ms *MavenSetting) *util.APIHandleErro
 
 //MavenSettingDelete maven setting file delete
 func (c *clusterAction) MavenSettingDelete(name string) *util.APIHandleError {
-	realName := strings.ToLower(fmt.Sprintf("%s-%s", code.JavaMaven, name))
-	err := c.clientset.CoreV1().ConfigMaps(c.namespace).Delete(realName, &metav1.DeleteOptions{})
+	err := c.clientset.CoreV1().ConfigMaps(c.namespace).Delete(name, &metav1.DeleteOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return &util.APIHandleError{Code: 404, Err: fmt.Errorf("setting not found")}
@@ -300,8 +292,7 @@ func (c *clusterAction) MavenSettingDelete(name string) *util.APIHandleError {
 
 //MavenSettingDetail maven setting file delete
 func (c *clusterAction) MavenSettingDetail(name string) (*MavenSetting, *util.APIHandleError) {
-	realName := strings.ToLower(fmt.Sprintf("%s-%s", code.JavaMaven, name))
-	sm, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Get(realName, metav1.GetOptions{})
+	sm, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("get maven setting config failure %s", err.Error())
 		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("setting not found")}
