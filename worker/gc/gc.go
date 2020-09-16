@@ -103,9 +103,6 @@ func (g *GarbageCollector) DelKubernetesObjects(serviceGCReq model.ServiceGCTask
 	if err := g.clientset.ExtensionsV1beta1().Ingresses(serviceGCReq.TenantID).DeleteCollection(deleteOpts, listOpts); err != nil {
 		logrus.Warningf("[DelKubernetesObjects] delete ingresses(%s): %v", serviceGCReq.ServiceID, err)
 	}
-	if err := g.clientset.CoreV1().Endpoints(serviceGCReq.TenantID).DeleteCollection(deleteOpts, listOpts); err != nil {
-		logrus.Warningf("[DelKubernetesObjects] delete endpoints(%s): %v", serviceGCReq.ServiceID, err)
-	}
 	if err := g.clientset.CoreV1().Secrets(serviceGCReq.TenantID).DeleteCollection(deleteOpts, listOpts); err != nil {
 		logrus.Warningf("[DelKubernetesObjects] delete secrets(%s): %v", serviceGCReq.ServiceID, err)
 	}
@@ -126,6 +123,10 @@ func (g *GarbageCollector) DelKubernetesObjects(serviceGCReq model.ServiceGCTask
 				logrus.Warningf("[DelKubernetesObjects] delete service(%s): %v", svc.GetName(), err)
 			}
 		}
+	}
+	// delete endpoints after deleting services
+	if err := g.clientset.CoreV1().Endpoints(serviceGCReq.TenantID).DeleteCollection(deleteOpts, listOpts); err != nil {
+		logrus.Warningf("[DelKubernetesObjects] delete endpoints(%s): %v", serviceGCReq.ServiceID, err)
 	}
 }
 
