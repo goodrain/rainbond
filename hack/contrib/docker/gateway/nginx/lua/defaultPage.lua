@@ -256,7 +256,7 @@ local _M = {
                     <div></div>
                 </div>
             </div>
-            <p class="text2">Power By <a href="https://www.rainbond.com" target="_blank" rel="noopener noreferrer">Rainbond</a></p>
+            POWER
         </div>
     </body>
 
@@ -266,7 +266,14 @@ local _M = {
 
 function _M.call()
   ngx.header["Content-type"] = "text/html"
-  ngx.print(_M.defaultHTML)
+  local html = ""
+  if (os.getenv("DISABLE_POWER") == "true")
+  then
+    html = string.gsub(_M.defaultHTML, "POWER", "", 1)
+  else
+    html = string.gsub(_M.defaultHTML, "POWER", [[<p class="text2" id="power">Power By <a href="https://www.rainbond.com" target="_blank" rel="noopener noreferrer">Rainbond</a></p>]],1)
+  end
+  ngx.print(html)
   ngx.status = ngx.HTTP_OK
 end
 

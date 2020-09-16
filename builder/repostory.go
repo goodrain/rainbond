@@ -68,6 +68,13 @@ func GetImageUserInfoV2(domain, user, pass string) (string, string) {
 	return "", ""
 }
 
+func GetImageRepo(imageRepo string) string {
+	if imageRepo == "" {
+		return REGISTRYDOMAIN
+	}
+	return imageRepo
+}
+
 //REGISTRYDOMAIN REGISTRY_DOMAIN
 var REGISTRYDOMAIN = constants.DefImageRepository
 
