@@ -331,3 +331,26 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
+
+// CreateApp -
+func (a *AppStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		// 获取当前租户ID
+		tenantName := strings.TrimSpace(chi.URLParam(r, "tenant_name"))
+		tenant, err := db.GetManager().TenantDao().GetTenantIDByName(tenantName)
+		if err != nil {
+			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to Find tenant %s: %v", tenantName, err))
+			return
+		}
+		// 创建App
+		a := handler.GetAppHandler()
+		app, err := a.CreateApp(tenant.UUID)
+		if err != nil {
+			httputil.ReturnError(r, w, 502, fmt.Sprintf("Failed to create app : %v", err))
+			return
+		}
+
+		httputil.ReturnSuccess(r, w, app)
+	}
+}

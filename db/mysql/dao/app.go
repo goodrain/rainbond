@@ -145,3 +145,31 @@ func (a *AppBackupDaoImpl) GetDeleteAppBackups() ([]*model.AppBackup, error) {
 	}
 	return apps, nil
 }
+
+// TenantAppDaoImpl -
+type TenantAppDaoImpl struct {
+	DB *gorm.DB
+}
+
+//AddModel -
+func (a *TenantAppDaoImpl) AddModel(mo model.Interface) error {
+	appReq, ok := mo.(*model.App)
+	if !ok {
+		return errors.New("Failed to convert interface to App")
+	}
+
+	var oldApp model.App
+	if ok := a.DB.Where("tenantID = ? AND appID = ?", appReq.TenantID, appReq.AppID).Find(&oldApp).RecordNotFound(); ok {
+		if err := a.DB.Create(appReq).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+//UpdateModel -
+func (a *TenantAppDaoImpl) UpdateModel(mo model.Interface) error {
+
+	return nil
+}

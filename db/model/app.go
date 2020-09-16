@@ -36,3 +36,15 @@ type AppBackup struct {
 func (t *AppBackup) TableName() string {
 	return "region_app_backup"
 }
+
+// App -
+type App struct {
+	Model
+	AppID    string `gorm:"column:appID;size:32" json:"appID"`
+	TenantID string `gorm:"column:tenantID;size:32" json:"tenantID"`
+}
+
+//TableName 表名
+func (t *App) TableName() string {
+	return "tenant_app"
+}

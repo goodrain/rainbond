@@ -417,6 +417,13 @@ func (m *Manager) AppDao() dao.AppDao {
 	}
 }
 
+//TenantAppDao -
+func (m *Manager) TenantAppDao() dao.TenantAppDao {
+	return &mysqldao.TenantAppDaoImpl{
+		DB: m.db,
+	}
+}
+
 //AppBackupDao group app backup info
 func (m *Manager) AppBackupDao() dao.AppBackupDao {
 	return &mysqldao.AppBackupDaoImpl{
