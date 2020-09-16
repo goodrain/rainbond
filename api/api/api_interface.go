@@ -147,6 +147,7 @@ type AppInterface interface {
 	ImportID(w http.ResponseWriter, r *http.Request)
 	ImportApp(w http.ResponseWriter, r *http.Request)
 	CreateApp(w http.ResponseWriter, r *http.Request)
+	ListApps(w http.ResponseWriter, r *http.Request)
 }
 
 //Gatewayer gateway api interface

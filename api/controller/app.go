@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -347,4 +348,50 @@ func (a *AppStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httputil.ReturnSuccess(r, w, app)
+}
+
+// ListAppResponse -
+type ListAppResponse struct {
+	Page     int            `json:"page"`
+	PageSize int            `json:"pageSize"`
+	Total    int64          `json:"total"`
+	Apps     []*dbmodel.App `json:"apps"`
+}
+
+// ListApps -
+func (a *AppStruct) ListApps(w http.ResponseWriter, r *http.Request) {
+	var resp ListAppResponse
+
+	// get current tenantID
+	tenantName := strings.TrimSpace(chi.URLParam(r, "tenant_name"))
+	tenant, err := db.GetManager().TenantDao().GetTenantIDByName(tenantName)
+	if err != nil {
+		httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to Find tenant %s: %v", tenantName, err))
+		return
+	}
+
+	pageSize, _ := strconv.Atoi(chi.URLParam(r, "pageSize"))
+	if pageSize == 0 {
+		pageSize = 9
+	}
+	page, _ := strconv.Atoi(chi.URLParam(r, "page"))
+	if page == 0 {
+		page = 1
+	}
+
+	// List apps
+	apps, total, err := handler.GetAppHandler().ListApps(tenant.UUID, page, pageSize)
+	if err != nil {
+		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("List apps failure : %v", err))
+		return
+	}
+	if apps != nil {
+		resp.Apps = apps
+	} else {
+		resp.Apps = make([]*dbmodel.App, 0)
+	}
+	resp.Page = page
+	resp.PageSize = pageSize
+	resp.Total = total
+	httputil.ReturnSuccess(r, w, resp)
 }

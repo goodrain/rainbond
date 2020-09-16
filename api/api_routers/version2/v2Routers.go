@@ -130,6 +130,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/chargesverify", controller.ChargesVerifyController)
 	//tenant app
 	r.Post("/apps", middleware.WrapEL(controller.GetManager().CreateApp, dbmodel.TargetTypeService, "create-tenant-app", dbmodel.SYNEVENTTYPE))
+	r.Get("/apps", controller.GetManager().ListApps)
 	//get some service pod info
 	r.Get("/pods", controller.Pods)
 	//app backup

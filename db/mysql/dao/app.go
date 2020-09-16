@@ -151,7 +151,7 @@ type TenantAppDaoImpl struct {
 	DB *gorm.DB
 }
 
-//AddModel -
+// AddModel -
 func (a *TenantAppDaoImpl) AddModel(mo model.Interface) error {
 	appReq, ok := mo.(*model.App)
 	if !ok {
@@ -169,8 +169,25 @@ func (a *TenantAppDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel -
+// UpdateModel -
 func (a *TenantAppDaoImpl) UpdateModel(mo model.Interface) error {
 
 	return nil
+}
+
+// ListApps -
+func (a *TenantAppDaoImpl) ListApps(tenantID string, page, pageSize int) ([]*model.App, int64, error) {
+	var datas []*model.App
+	offset := (page - 1) * pageSize
+
+	db := a.DB.Where("tenantID=?", tenantID).Order("create_time desc")
+
+	var total int64
+	if err := db.Model(&model.App{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := db.Limit(pageSize).Offset(offset).Find(&datas).Error; err != nil {
+		return nil, 0, err
+	}
+	return datas, total, nil
 }

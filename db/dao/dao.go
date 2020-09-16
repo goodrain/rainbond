@@ -70,6 +70,7 @@ type AppDao interface {
 //TenantAppDao tenant AppDao
 type TenantAppDao interface {
 	Dao
+	ListApps(tenantID string, page, pageSize int) ([]*model.App, int64, error)
 }
 
 // VolumeTypeDao volume type dao
