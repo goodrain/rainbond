@@ -342,6 +342,7 @@ type ServiceStruct struct {
 	EnvsInfo       []dbmodel.TenantServiceEnvVar        `json:"envs_info" validate:"envs_info"`
 	PortsInfo      []dbmodel.TenantServicesPort         `json:"ports_info" validate:"ports_info"`
 	Endpoints      *Endpoints                           `json:"endpoints" validate:"endpoints"`
+	AppID          string                               `json:"app_id"`
 }
 
 // Endpoints holds third-party service endpoints or configuraion to get endpoints.

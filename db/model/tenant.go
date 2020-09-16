@@ -188,6 +188,8 @@ type TenantServices struct {
 	ServiceOrigin string `gorm:"column:service_origin;default:'assistant'" json:"service_origin"`
 	// kind of service. option: internal, third_party
 	Kind string `gorm:"column:kind;default:'internal'" json:"kind"`
+	// service bind appID
+	AppID string `gorm:"column:app_id" json:"app_id"`
 }
 
 //Image 镜像
@@ -294,6 +296,8 @@ type TenantServicesDelete struct {
 	ServiceOrigin string `gorm:"column:service_origin;default:'assistant'" json:"service_origin"`
 	// kind of service. option: internal, third_party
 	Kind string `gorm:"column:kind;default:'internal'" json:"kind"`
+	// service bind appID
+	AppID string `gorm:"column:app_id" json:"app_id"`
 }
 
 //TableName 表名
