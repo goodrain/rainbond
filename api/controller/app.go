@@ -342,7 +342,7 @@ func (a *AppStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
 	// create app
 	app, err := handler.GetAppHandler().CreateApp(tenant.UUID)
 	if err != nil {
-		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("%s", err))
+		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("Create app failed : %v", err))
 		return
 	}
 
