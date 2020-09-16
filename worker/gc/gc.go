@@ -27,6 +27,7 @@ import (
 	eventutil "github.com/goodrain/rainbond/eventlog/util"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -79,9 +80,7 @@ func (g *GarbageCollector) DelVolumeData(serviceGCReq model.ServiceGCTaskBody) {
 func (g *GarbageCollector) DelPvPvcByServiceID(serviceGCReq model.ServiceGCTaskBody) {
 	logrus.Infof("service_id: %s", serviceGCReq.ServiceID)
 	deleteOpts := &metav1.DeleteOptions{}
-	listOpts := metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("service_id=%s", serviceGCReq.ServiceID),
-	}
+	listOpts := g.listOptionsServiceID(serviceGCReq.ServiceID)
 	if err := g.clientset.CoreV1().PersistentVolumes().DeleteCollection(deleteOpts, listOpts); err != nil {
 		logrus.Warningf("service id: %s; delete a collection fo PV: %v", serviceGCReq.ServiceID, err)
 	}
@@ -94,9 +93,7 @@ func (g *GarbageCollector) DelPvPvcByServiceID(serviceGCReq model.ServiceGCTaskB
 // DelKubernetesObjects deletes all kubernetes objects.
 func (g *GarbageCollector) DelKubernetesObjects(serviceGCReq model.ServiceGCTaskBody) {
 	deleteOpts := &metav1.DeleteOptions{}
-	listOpts := metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("service_id=%s", serviceGCReq.ServiceID),
-	}
+	listOpts := g.listOptionsServiceID(serviceGCReq.ServiceID)
 	if err := g.clientset.AppsV1().Deployments(serviceGCReq.TenantID).DeleteCollection(deleteOpts, listOpts); err != nil {
 		logrus.Warningf("[DelKubernetesObjects] delete deployments(%s): %v", serviceGCReq.ServiceID, err)
 	}
@@ -120,5 +117,15 @@ func (g *GarbageCollector) DelKubernetesObjects(serviceGCReq model.ServiceGCTask
 				logrus.Warningf("[DelKubernetesObjects] delete service(%s): %v", svc.GetName(), err)
 			}
 		}
+	}
+}
+
+func (g *GarbageCollector) listOptionsServiceID(serviceID string) metav1.ListOptions {
+	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{
+		"creator":    "Rainbond",
+		"service_id": serviceID,
+	}}
+	return metav1.ListOptions{
+		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
 	}
 }
