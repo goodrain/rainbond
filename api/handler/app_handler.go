@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"github.com/goodrain/rainbond-operator/pkg/util/uuidutil"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/util"
 )
 
 // AppHandler defines handler methods to app.
@@ -20,7 +20,7 @@ func NewAppHandler() AppHandler {
 func (a *AppAction) CreateApp(tenantID string) (*model.App, error) {
 	createApp := &model.App{
 		TenantID: tenantID,
-		AppID:    uuidutil.NewUUID(),
+		AppID:    util.NewUUID(),
 	}
 	if err := db.GetManager().TenantAppDao().AddModel(createApp); err != nil {
 		return nil, err
