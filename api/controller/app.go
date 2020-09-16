@@ -336,13 +336,13 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 
 // CreateApp -
 func (a *AppStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
-	// 获取当前租户
+	// get current tenant
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
-	
-	// 创建App
+
+	// create app
 	app, err := handler.GetAppHandler().CreateApp(tenant.UUID)
 	if err != nil {
-		httputil.ReturnError(r, w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("%s", err))
 		return
 	}
 

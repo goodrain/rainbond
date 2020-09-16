@@ -4,7 +4,6 @@ import (
 	"github.com/goodrain/rainbond-operator/pkg/util/uuidutil"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
-	"github.com/pkg/errors"
 )
 
 // AppHandler defines handler methods to app.
@@ -19,10 +18,6 @@ func NewAppHandler() AppHandler {
 
 // CreateApp -
 func (a *AppAction) CreateApp(tenantID string) (*model.App, error) {
-	if tenantID == "" {
-		err := errors.New("Failed to get tenantID")
-		return nil, err
-	}
 	createApp := &model.App{
 		TenantID: tenantID,
 		AppID:    uuidutil.NewUUID(),

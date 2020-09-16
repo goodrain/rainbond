@@ -44,7 +44,7 @@ type App struct {
 	TenantID string `gorm:"column:tenantID;size:32" json:"tenantID"`
 }
 
-//TableName 表名
+// TableName -
 func (t *App) TableName() string {
 	return "tenant_app"
 }
