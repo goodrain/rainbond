@@ -106,6 +106,15 @@ func (g *GarbageCollector) DelKubernetesObjects(serviceGCReq model.ServiceGCTask
 	if err := g.clientset.CoreV1().Endpoints(serviceGCReq.TenantID).DeleteCollection(deleteOpts, listOpts); err != nil {
 		logrus.Warningf("[DelKubernetesObjects] delete endpoints(%s): %v", serviceGCReq.ServiceID, err)
 	}
+	if err := g.clientset.CoreV1().Secrets(serviceGCReq.TenantID).DeleteCollection(deleteOpts, listOpts); err != nil {
+		logrus.Warningf("[DelKubernetesObjects] delete secrets(%s): %v", serviceGCReq.ServiceID, err)
+	}
+	if err := g.clientset.CoreV1().ConfigMaps(serviceGCReq.TenantID).DeleteCollection(deleteOpts, listOpts); err != nil {
+		logrus.Warningf("[DelKubernetesObjects] delete configmaps(%s): %v", serviceGCReq.ServiceID, err)
+	}
+	if err := g.clientset.AutoscalingV2beta2().HorizontalPodAutoscalers(serviceGCReq.TenantID).DeleteCollection(deleteOpts, listOpts); err != nil {
+		logrus.Warningf("[DelKubernetesObjects] delete hpas(%s): %v", serviceGCReq.ServiceID, err)
+	}
 	// kubernetes does not support api for deleting collection of service
 	// read: https://github.com/kubernetes/kubernetes/issues/68468#issuecomment-419981870
 	serviceList, err := g.clientset.CoreV1().Services(serviceGCReq.TenantID).List(listOpts)
