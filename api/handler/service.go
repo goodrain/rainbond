@@ -503,6 +503,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	volumns := sc.VolumesInfo
 	dependVolumes := sc.DepVolumesInfo
 	dependIds := sc.DependIDs
+	ts.AppID = sc.AppID
 	ts.DeployVersion = ""
 	tx := db.GetManager().Begin()
 	defer func() {
