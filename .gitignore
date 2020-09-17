@@ -54,6 +54,7 @@ test/*
 test.db
 *.bak
 temp
+vendor
 
 .scannerwork
 
