@@ -15,10 +15,8 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/controller/upload"
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
 )
@@ -332,19 +330,4 @@ func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnSuccess(r, w, "successfully deleted")
 	}
 
-}
-
-// CreateApp -
-func (a *AppStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
-	// get current tenant
-	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
-
-	// create app
-	app, err := handler.GetAppHandler().CreateApp(tenant.UUID)
-	if err != nil {
-		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("Create app failed : %v", err))
-		return
-	}
-
-	httputil.ReturnSuccess(r, w, app)
 }

@@ -1625,8 +1625,8 @@ func NewAppStatusFromImport(app *ImportAppStruct) *dbmodel.AppStatus {
 	}
 }
 
-//App -
-type App struct {
+// TenantApplication -
+type TenantApplication struct {
 	AppID    string `json:"appID"`
 	TenantID string `json:"tenantID"`
 }

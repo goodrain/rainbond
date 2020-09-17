@@ -417,9 +417,9 @@ func (m *Manager) AppDao() dao.AppDao {
 	}
 }
 
-//TenantAppDao -
-func (m *Manager) TenantAppDao() dao.TenantAppDao {
-	return &mysqldao.TenantAppDaoImpl{
+// TenantApplicationDao -
+func (m *Manager) TenantApplicationDao() dao.TenantApplicationDao {
+	return &mysqldao.TenantApplicationDaoImpl{
 		DB: m.db,
 	}
 }

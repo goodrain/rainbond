@@ -67,8 +67,8 @@ type AppDao interface {
 	DeleteModelByEventId(eventID string) error
 }
 
-//TenantAppDao tenant AppDao
-type TenantAppDao interface {
+//TenantApplicationDao tenant Application Dao
+type TenantApplicationDao interface {
 	Dao
 }
 
