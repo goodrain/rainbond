@@ -14,7 +14,7 @@ type TenantApplicationDaoImpl struct {
 func (a *TenantApplicationDaoImpl) AddModel(mo model.Interface) error {
 	appReq, _ := mo.(*model.Application)
 	var oldApp model.Application
-	if err := a.DB.Where("tenantID = ? AND appID = ?", appReq.TenantID, appReq.AppID).Find(&oldApp).Error; err != nil {
+	if err := a.DB.Where("tenant_id = ? AND app_id = ?", appReq.TenantID, appReq.AppID).Find(&oldApp).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return a.DB.Create(appReq).Error
 		}
@@ -35,7 +35,7 @@ func (a *TenantApplicationDaoImpl) ListApps(tenantID string, page, pageSize int)
 	var datas []*model.Application
 	offset := (page - 1) * pageSize
 
-	db := a.DB.Where("tenantID=?", tenantID).Order("create_time desc")
+	db := a.DB.Where("tenant_id=?", tenantID).Order("create_time desc")
 
 	var total int64
 	if err := db.Model(&model.Application{}).Count(&total).Error; err != nil {

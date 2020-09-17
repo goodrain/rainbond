@@ -3,9 +3,9 @@ package model
 // Application -
 type Application struct {
 	Model
-	AppName  string `gorm:"column:appName" json:"appName"`
-	AppID    int64  `gorm:"column:appID" json:"appID"`
-	TenantID string `gorm:"column:tenantID;size:32" json:"tenantID"`
+	AppName  string `gorm:"column:app_name" json:"app_name"`
+	AppID    int64  `gorm:"column:app_id" json:"app_id"`
+	TenantID string `gorm:"column:tenant_id" json:"tenant_id"`
 }
 
 // TableName return tableName "tenant_application"
