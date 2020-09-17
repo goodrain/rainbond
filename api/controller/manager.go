@@ -48,7 +48,7 @@ type V2Manager interface {
 	api.Labeler
 	api.AppRestoreInterface
 	api.PodInterface
-	api.TenantApplicationInterface
+	api.ApplicationInterface
 }
 
 var defaultV2Manager V2Manager

@@ -143,9 +143,10 @@ type AppInterface interface {
 	ImportApp(w http.ResponseWriter, r *http.Request)
 }
 
-// TenantApplicationInterface tenant application interface
-type TenantApplicationInterface interface {
+// ApplicationInterface tenant application interface
+type ApplicationInterface interface {
 	CreateApp(w http.ResponseWriter, r *http.Request)
+	ListApps(w http.ResponseWriter, r *http.Request)
 }
 
 //Gatewayer gateway api interface
