@@ -1,8 +1,9 @@
 package handler
 
 import (
+	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/model"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
 // TenantApplicationAction -
@@ -20,7 +21,13 @@ func NewTenantApplicationHandler() TenantApplicationHandler {
 
 // CreateApplication -
 func (a *TenantApplicationAction) CreateApplication(createAppReq *model.TenantApplication) (*model.TenantApplication, error) {
-	if err := db.GetManager().TenantApplicationDao().AddModel(createAppReq); err != nil {
+	appReq := &dbmodel.TenantApplication{
+		ApplicationName: createAppReq.ApplicationName,
+		ApplicationID:   createAppReq.ApplicationID,
+		TenantID:        createAppReq.TenantID,
+	}
+
+	if err := db.GetManager().TenantApplicationDao().AddModel(appReq); err != nil {
 		return nil, err
 	}
 	return createAppReq, nil

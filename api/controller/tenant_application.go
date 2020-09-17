@@ -17,7 +17,7 @@ type TenantAppStruct struct{}
 // CreateApplication -
 func (a *TenantAppStruct) CreateApplication(w http.ResponseWriter, r *http.Request) {
 	var tenantReq model.TenantApplication
-	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &telantReq, nil) {
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &tenantReq, nil) {
 		return
 	}
 
@@ -26,7 +26,7 @@ func (a *TenantAppStruct) CreateApplication(w http.ResponseWriter, r *http.Reque
 	tenantReq.TenantID = tenant.UUID
 
 	// create app
-	app, err := handler.GetTenantApplicationHandler().CreateApplication(&telantReq)
+	app, err := handler.GetTenantApplicationHandler().CreateApplication(&tenantReq)
 	if err != nil {
 		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("Create app failed : %v", err))
 		return
