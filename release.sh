@@ -9,7 +9,7 @@ if [ "$BUILD_IMAGE_BASE_NAME" ];
 then 
 IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME}
 fi
-CACHE=true
+CACHE=${CACHE:true}
 GO_VERSION=1.13
 
 if [ -z "$GOOS" ];then
@@ -68,7 +68,7 @@ build::binary() {
 build::image() {
 	local OUTPATH="./_output/binary/$GOOS/${BASE_NAME}-$1"
 	local build_image_dir="./_output/image/$1/"
-	if [ -z "${CACHE}" ] || [ ! -f "${OUTPATH}" ];then
+	if [  !${CACHE} ] || [ ! -f "${OUTPATH}" ];then
 		build::binary "$1"
 	fi
 	sudo mkdir -p "${build_image_dir}"
@@ -77,7 +77,6 @@ build::image() {
 	sudo cp -r ./hack/contrib/docker/$1/* "${build_image_dir}"
 	pushd "${build_image_dir}"
 		echo "---> build image:$1"
-		sudo ls -al
 		sudo sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
 		sudo docker build -t "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" -f Dockerfile.release .
 		sudo docker run -it --rm "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" version
