@@ -19,7 +19,7 @@ func (a *TenantApplicationDaoImpl) AddModel(mo model.Interface) error {
 	}
 
 	var oldApp model.TenantApplication
-	if err := a.DB.Where("tenantID = ? AND appID = ?", appReq.TenantID, appReq.AppID).Find(&oldApp).Error; err != nil {
+	if err := a.DB.Where("tenantID = ? AND applicationID = ?", appReq.TenantID, appReq.ApplicationID).Find(&oldApp).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return a.DB.Create(appReq).Error
 		}
