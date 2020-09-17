@@ -143,6 +143,11 @@ type AppInterface interface {
 	ImportApp(w http.ResponseWriter, r *http.Request)
 }
 
+// TenantApplicationInterface tenant application interface
+type TenantApplicationInterface interface {
+	CreateApp(w http.ResponseWriter, r *http.Request)
+}
+
 //Gatewayer gateway api interface
 type Gatewayer interface {
 	HTTPRule(w http.ResponseWriter, r *http.Request)

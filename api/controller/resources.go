@@ -57,6 +57,7 @@ type V2Routes struct {
 	LabelController
 	AppRestoreController
 	PodController
+	TenantAppStruct
 }
 
 //Show test

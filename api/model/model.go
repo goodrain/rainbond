@@ -1624,3 +1624,10 @@ func NewAppStatusFromImport(app *ImportAppStruct) *dbmodel.AppStatus {
 		Status:    "importing",
 	}
 }
+
+// Application -
+type Application struct {
+	AppName  string `json:"appName" validate:"required"`
+	AppID    int64  `json:"appID" validate:"required"`
+	TenantID string `json:"tenantID"`
+}
