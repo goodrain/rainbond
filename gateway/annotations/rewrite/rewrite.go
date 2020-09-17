@@ -119,7 +119,8 @@ func convert(in map[string]string) []*Rewrite {
 		}
 		rewrite := m[sli[0]]
 		if rewrite == nil {
-			m[k] = &Rewrite{}
+			rewrite = &Rewrite{}
+			m[sli[0]] = rewrite
 		}
 		switch sli[1] {
 		case "regex":
