@@ -653,7 +653,7 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 	_, err := handler.GetTenantApplicationHandler().GetAppByID(ss.AppID)
 	if err != nil || ss.AppID == "" {
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
-			httputil.ReturnError(r, w, 404, "can't find application")
+			httputil.ReturnError(r, w, 404, "create must set correct app_id ,can't find application")
 			return
 		}
 		httputil.ReturnError(r, w, 500, "get assign tenant application failed")
@@ -734,7 +734,7 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 	_, err := handler.GetTenantApplicationHandler().GetAppByID(appID)
 	if err != nil || appID == "" {
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
-			httputil.ReturnError(r, w, 404, "can't find application")
+			httputil.ReturnError(r, w, 404, "update must set correct app_id ,can't find application")
 			return
 		}
 		httputil.ReturnError(r, w, 500, "get assign tenant application failed")
