@@ -39,11 +39,11 @@ import (
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	validation "github.com/goodrain/rainbond/util/endpoint"
 	"github.com/goodrain/rainbond/util/fuzzy"
+	validator "github.com/goodrain/rainbond/util/govalidator"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
-	validator "github.com/goodrain/rainbond/util/govalidator"
 )
 
 //V2Routes v2Routes
@@ -646,6 +646,17 @@ func (t *TenantStruct) ServicesInfo(w http.ResponseWriter, r *http.Request) {
 func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 	var ss api_model.ServiceStruct
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &ss, nil) {
+		return
+	}
+
+	// Check if the application ID exists
+	_, err := handler.GetTenantApplicationHandler().GetAppByID(ss.AppID)
+	if err != nil || ss.AppID == "" {
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
+			httputil.ReturnError(r, w, 404, "can't find application")
+			return
+		}
+		httputil.ReturnError(r, w, 500, "get assign tenant application failed")
 		return
 	}
 
