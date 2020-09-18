@@ -4,6 +4,7 @@ import (
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/util"
 	"github.com/jinzhu/gorm"
 )
 
@@ -25,7 +26,7 @@ func NewTenantApplicationHandler() TenantApplicationHandler {
 func (a *TenantApplicationAction) CreateApp(req *model.Application) (*model.Application, error) {
 	appReq := &dbmodel.Application{
 		AppName:  req.AppName,
-		AppID:    req.AppID,
+		AppID:    util.NewUUID(),
 		TenantID: req.TenantID,
 	}
 

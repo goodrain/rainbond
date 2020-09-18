@@ -1629,6 +1629,6 @@ func NewAppStatusFromImport(app *ImportAppStruct) *dbmodel.AppStatus {
 // Application -
 type Application struct {
 	AppName  string `json:"app_name" validate:"required"`
-	AppID    string `json:"app_id" validate:"required"`
+	AppID    string `json:"app_id"`
 	TenantID string `json:"tenant_id"`
 }
