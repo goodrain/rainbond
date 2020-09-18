@@ -25,6 +25,14 @@ type ListAppResponse struct {
 	Apps     []*dbmodel.Application `json:"apps"`
 }
 
+// ListServiceResponse -
+type ListServiceResponse struct {
+	Page     int                       `json:"page"`
+	PageSize int                       `json:"pageSize"`
+	Total    int64                     `json:"total"`
+	Services []*dbmodel.TenantServices `json:"services"`
+}
+
 // CreateApp -
 func (a *TenantAppStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
 	var tenantReq model.Application
@@ -102,6 +110,37 @@ func (a *TenantAppStruct) ListApps(w http.ResponseWriter, r *http.Request) {
 		resp.Apps = apps
 	} else {
 		resp.Apps = make([]*dbmodel.Application, 0)
+	}
+
+	resp.Page = page
+	resp.Total = total
+	resp.PageSize = pageSize
+	httputil.ReturnSuccess(r, w, resp)
+}
+
+// ListServices -
+func (a *TenantAppStruct) ListServices(w http.ResponseWriter, r *http.Request) {
+	var resp ListServiceResponse
+	appID := chi.URLParam(r, "app_id")
+	page, _ := strconv.Atoi(chi.URLParam(r, "page"))
+	if page == 0 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(chi.URLParam(r, "pageSize"))
+	if pageSize == 0 {
+		pageSize = 10
+	}
+
+	// List apps
+	services, total, err := handler.GetServiceManager().GetServicesByAppID(appID, page, pageSize)
+	if err != nil {
+		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("List apps failure : %v", err))
+		return
+	}
+	if services != nil {
+		resp.Services = services
+	} else {
+		resp.Services = make([]*dbmodel.TenantServices, 0)
 	}
 
 	resp.Page = page

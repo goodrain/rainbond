@@ -837,6 +837,26 @@ func (s *ServiceAction) GetService(tenantID string) ([]*dbmodel.TenantServices, 
 	return services, nil
 }
 
+//GetServicesByAppID get service(s) by appID
+func (s *ServiceAction) GetServicesByAppID(appID string, page, pageSize int) ([]*dbmodel.TenantServices, int64, error) {
+	services, total, err := db.GetManager().TenantServiceDao().GetServicesInfoByAppID(appID, page, pageSize)
+	if err != nil {
+		logrus.Errorf("get service by application id error, %v, %v", services, err)
+		return nil, 0, err
+	}
+	var serviceIDs []string
+	for _, s := range services {
+		serviceIDs = append(serviceIDs, s.ServiceID)
+	}
+	status := s.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
+	for _, s := range services {
+		if status, ok := status[s.ServiceID]; ok {
+			s.CurStatus = status
+		}
+	}
+	return services, total, nil
+}
+
 //GetPagedTenantRes get pagedTenantServiceRes(s)
 func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantResource, int, error) {
 	allstatus := s.statusCli.GetAllStatus()
