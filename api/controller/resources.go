@@ -717,6 +717,7 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 		"container_memory": []string{},
 		"service_name":     []string{},
 		"extend_method":    []string{},
+		"app_id":           []string{},
 	}
 	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
 	if !ok {
@@ -724,6 +725,22 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 	}
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	data["service_id"] = serviceID
+
+	// Check if the application ID exists
+	var appID string
+	if data["app_id"] != nil {
+		appID = data["app_id"].(string)
+	}
+	_, err := handler.GetTenantApplicationHandler().GetAppByID(appID)
+	if err != nil || appID == "" {
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
+			httputil.ReturnError(r, w, 404, "can't find application")
+			return
+		}
+		httputil.ReturnError(r, w, 500, "get assign tenant application failed")
+		return
+	}
+
 	logrus.Debugf("begin to update service")
 	if err := handler.GetServiceManager().ServiceUpdate(data); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("update service error, %v", err))

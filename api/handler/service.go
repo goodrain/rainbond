@@ -28,10 +28,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 
 	"github.com/goodrain/rainbond/api/proxy"
@@ -744,6 +744,7 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
+	ts.AppID = sc["app_id"].(string)
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(ts.DeployVersion, ts.ServiceID)
 	if sc["container_memory"] != nil {
 		ts.ContainerMemory = sc["container_memory"].(int)
