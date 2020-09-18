@@ -31,7 +31,7 @@ func (a *TenantApplicationAction) CreateApp(req *model.Application) (*model.Appl
 		AppID:    util.NewUUID(),
 		TenantID: req.TenantID,
 	}
-
+	req.AppID = appReq.AppID
 	if err := db.GetManager().TenantApplicationDao().AddModel(appReq); err != nil {
 		return nil, err
 	}
