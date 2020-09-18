@@ -26,7 +26,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/util"
@@ -35,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/event"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 )
 
 //ContextKey ctx key type
@@ -58,6 +58,11 @@ func InitTenant(next http.Handler) http.Handler {
 			httputil.ReturnError(r, w, 404, "cant find tenant")
 			return
 		}
+		appID := chi.URLParam(r, "app_id")
+		if appID == "" {
+			httputil.ReturnError(r, w, 404, "can't find application")
+			return
+		}
 		tenant, err := db.GetManager().TenantDao().GetTenantIDByName(tenantName)
 		if err != nil {
 			logrus.Errorf("get tenant by tenantName error: %s %v", tenantName, err)
@@ -68,10 +73,20 @@ func InitTenant(next http.Handler) http.Handler {
 			httputil.ReturnError(r, w, 500, "get assign tenant uuid failed")
 			return
 		}
+		tenantApp, err := db.GetManager().TenantApplicationDao().GetAppByID(appID)
+		if err != nil {
+			logrus.Errorf("get tenant application by appID error: %s %v", appID, err)
+			if err.Error() == gorm.ErrRecordNotFound.Error() {
+				httputil.ReturnError(r, w, 404, "can't find application")
+				return
+			}
+			httputil.ReturnError(r, w, 500, "get assign tenant application failed")
+			return
+		}
 		ctx := context.WithValue(r.Context(), ContextKey("tenant_name"), tenantName)
 		ctx = context.WithValue(ctx, ContextKey("tenant_id"), tenant.UUID)
 		ctx = context.WithValue(ctx, ContextKey("tenant"), tenant)
-
+		ctx = context.WithValue(ctx, ContextKey("app_id"), tenantApp.AppID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)

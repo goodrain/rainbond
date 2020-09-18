@@ -26,8 +26,12 @@ func (a *TenantApplicationDaoImpl) AddModel(mo model.Interface) error {
 
 //UpdateModel -
 func (a *TenantApplicationDaoImpl) UpdateModel(mo model.Interface) error {
-
-	return nil
+	updateReq := mo.(*model.Application)
+	var oldApp model.Application
+	if err := a.DB.Where("tenant_id = ? AND app_id = ?", updateReq.TenantID, updateReq.AppID).Find(&oldApp).Error; err != nil {
+		return err
+	}
+	return a.DB.Model(&oldApp).Update("app_name", updateReq.AppName).Error
 }
 
 // ListApps -

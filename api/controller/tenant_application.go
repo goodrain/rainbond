@@ -45,6 +45,29 @@ func (a *TenantAppStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, app)
 }
 
+// UpdateApp -
+func (a *TenantAppStruct) UpdateApp(w http.ResponseWriter, r *http.Request) {
+	var updateAppReq model.Application
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &updateAppReq, nil) {
+		return
+	}
+
+	// get current tenant
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+	updateAppReq.TenantID = tenant.UUID
+	updateAppReq.AppID = appID
+
+	// create app
+	app, err := handler.GetTenantApplicationHandler().UpdateApp(&updateAppReq)
+	if err != nil {
+		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("Create app failed : %v", err))
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, app)
+}
+
 // ListApps -
 func (a *TenantAppStruct) ListApps(w http.ResponseWriter, r *http.Request) {
 	var resp ListAppResponse
