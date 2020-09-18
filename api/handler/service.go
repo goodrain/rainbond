@@ -28,10 +28,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 
 	"github.com/goodrain/rainbond/api/proxy"
@@ -2046,6 +2046,7 @@ func (s *ServiceAction) delServiceMetadata(serviceID string) error {
 		db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByServiceID,
 		db.GetManager().ServiceProbeDaoTransactions(tx).DELServiceProbesByServiceID,
 		db.GetManager().ServiceEventDaoTransactions(tx).DelEventByServiceID,
+		db.GetManager().TenantServiceMonitorDaoTransactions(tx).DeleteServiceMonitorByServiceID,
 	}
 	if err := GetGatewayHandler().DeleteTCPRuleByServiceIDWithTransaction(serviceID, tx); err != nil {
 		tx.Rollback()

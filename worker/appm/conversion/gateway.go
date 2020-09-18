@@ -24,12 +24,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -509,11 +509,7 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 		strings.ToLower(string(servicePort.Protocol)), port.ContainerPort)
 	servicePort.Port = int32(port.ContainerPort)
 	var portType corev1.ServiceType
-	if os.Getenv("CUR_NET") == "midonet" {
-		portType = corev1.ServiceTypeNodePort
-	} else {
-		portType = corev1.ServiceTypeClusterIP
-	}
+	portType = corev1.ServiceTypeClusterIP
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{servicePort},
 		Type:  portType,

@@ -19,6 +19,7 @@
 package store
 
 import (
+	crdlisters "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/internalversion"
 	appsv1 "k8s.io/client-go/listers/apps/v1"
 	autoscalingv2 "k8s.io/client-go/listers/autoscaling/v2beta2"
 	corev1 "k8s.io/client-go/listers/core/v1"
@@ -40,4 +41,5 @@ type Lister struct {
 	StorageClass            storagev1.StorageClassLister
 	Claims                  corev1.PersistentVolumeClaimLister
 	HorizontalPodAutoscaler autoscalingv2.HorizontalPodAutoscalerLister
+	CRD                     crdlisters.CustomResourceDefinitionLister
 }
