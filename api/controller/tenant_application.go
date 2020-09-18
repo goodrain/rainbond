@@ -148,3 +148,29 @@ func (a *TenantAppStruct) ListServices(w http.ResponseWriter, r *http.Request) {
 	resp.PageSize = pageSize
 	httputil.ReturnSuccess(r, w, resp)
 }
+
+// DeleteApp -
+func (a *TenantAppStruct) DeleteApp(w http.ResponseWriter, r *http.Request) {
+	appID := chi.URLParam(r, "app_id")
+
+	// Get the number of services under the application
+	_, total, err := handler.GetServiceManager().GetServicesByAppID(appID, 1, 10)
+	if err != nil {
+		if err.Error() != gorm.ErrRecordNotFound.Error() {
+			httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("Delete app failed : %v", err))
+			return
+		}
+	}
+	if total != 0 {
+		httputil.ReturnError(r, w, http.StatusFound, "Failed to delete the app because it has bound services")
+		return
+	}
+
+	// Delete application
+	err = handler.GetTenantApplicationHandler().DeleteApp(appID)
+	if err != nil {
+		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("Delete app failed : %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}

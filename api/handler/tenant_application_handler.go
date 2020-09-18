@@ -17,6 +17,7 @@ type TenantApplicationHandler interface {
 	UpdateApp(req *model.Application) (*model.Application, error)
 	ListApps(tenantID string, page, pageSize int) ([]*dbmodel.Application, int64, error)
 	GetAppByID(appID string) (*dbmodel.Application, error)
+	DeleteApp(appID string) error
 }
 
 // NewTenantApplicationHandler creates a new Tenant Application Handler.
@@ -68,4 +69,13 @@ func (a *TenantApplicationAction) GetAppByID(appID string) (*dbmodel.Application
 		return nil, err
 	}
 	return app, nil
+}
+
+// DeleteApp -
+func (a *TenantApplicationAction) DeleteApp(appID string) error {
+	err := db.GetManager().TenantApplicationDao().DeleteApp(appID)
+	if err != nil {
+		return err
+	}
+	return nil
 }

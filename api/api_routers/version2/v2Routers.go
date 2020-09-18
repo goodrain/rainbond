@@ -128,6 +128,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Put("/apps/{app_id}", controller.GetManager().UpdateApp)
 	r.Get("/apps", controller.GetManager().ListApps)
 	r.Get("/apps/{app_id}/services", controller.GetManager().ListServices)
+	r.Delete("/apps/{app_id}", controller.GetManager().DeleteApp)
 	//get some service pod info
 	r.Get("/pods", controller.Pods)
 	//app backup

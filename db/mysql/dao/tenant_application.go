@@ -59,3 +59,12 @@ func (a *TenantApplicationDaoImpl) GetAppByID(appID string) (*model.Application,
 	}
 	return &app, nil
 }
+
+// DeleteApp Delete application By appID -
+func (a *TenantApplicationDaoImpl) DeleteApp(appID string) error {
+	var app model.Application
+	if err := a.DB.Where("app_id=?", appID).Find(&app).Error; err != nil {
+		return err
+	}
+	return a.DB.Delete(&app).Error
+}
