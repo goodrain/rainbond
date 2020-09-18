@@ -15,6 +15,7 @@ type TenantApplicationAction struct{}
 type TenantApplicationHandler interface {
 	CreateApp(req *model.Application) (*model.Application, error)
 	ListApps(tenantID string, page, pageSize int) ([]*dbmodel.Application, int64, error)
+	GetAppByID(appID string) (*dbmodel.Application, error)
 }
 
 // NewTenantApplicationHandler creates a new Tenant Application Handler.
@@ -43,4 +44,13 @@ func (a *TenantApplicationAction) ListApps(tenantID string, page, pageSize int) 
 		return nil, 0, err
 	}
 	return apps, total, nil
+}
+
+// GetAppByID -
+func (a *TenantApplicationAction) GetAppByID(appID string) (*dbmodel.Application, error) {
+	app, err := db.GetManager().TenantApplicationDao().GetAppByID(appID)
+	if err != nil {
+		return nil, err
+	}
+	return app, nil
 }

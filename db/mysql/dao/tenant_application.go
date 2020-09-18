@@ -46,3 +46,12 @@ func (a *TenantApplicationDaoImpl) ListApps(tenantID string, page, pageSize int)
 	}
 	return datas, total, nil
 }
+
+// GetAppByID -
+func (a *TenantApplicationDaoImpl) GetAppByID(appID string) (*model.Application, error) {
+	var app model.Application
+	if err := a.DB.Where("app_id=?", appID).Find(&app).Error; err != nil {
+		return nil, err
+	}
+	return &app, nil
+}

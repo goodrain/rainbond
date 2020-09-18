@@ -71,6 +71,7 @@ type AppDao interface {
 type TenantApplicationDao interface {
 	Dao
 	ListApps(tenantID string, page, pageSize int) ([]*model.Application, int64, error)
+	GetAppByID(appID string) (*model.Application, error)
 }
 
 // VolumeTypeDao volume type dao
