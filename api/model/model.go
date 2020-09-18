@@ -342,7 +342,7 @@ type ServiceStruct struct {
 	EnvsInfo       []dbmodel.TenantServiceEnvVar        `json:"envs_info" validate:"envs_info"`
 	PortsInfo      []dbmodel.TenantServicesPort         `json:"ports_info" validate:"ports_info"`
 	Endpoints      *Endpoints                           `json:"endpoints" validate:"endpoints"`
-	AppID          int64                                `json:"app_id" validate:"required"`
+	AppID          string                               `json:"app_id" validate:"required"`
 }
 
 // Endpoints holds third-party service endpoints or configuraion to get endpoints.
@@ -1629,6 +1629,6 @@ func NewAppStatusFromImport(app *ImportAppStruct) *dbmodel.AppStatus {
 // Application -
 type Application struct {
 	AppName  string `json:"app_name" validate:"required"`
-	AppID    int64  `json:"app_id" validate:"required"`
+	AppID    string `json:"app_id" validate:"required"`
 	TenantID string `json:"tenant_id"`
 }

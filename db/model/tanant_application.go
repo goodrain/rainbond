@@ -4,7 +4,7 @@ package model
 type Application struct {
 	Model
 	AppName  string `gorm:"column:app_name" json:"app_name"`
-	AppID    int64  `gorm:"column:app_id" json:"app_id"`
+	AppID    string `gorm:"column:app_id" json:"app_id"`
 	TenantID string `gorm:"column:tenant_id" json:"tenant_id"`
 }
 
