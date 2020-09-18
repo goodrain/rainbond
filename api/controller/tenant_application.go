@@ -11,6 +11,7 @@ import (
 	"github.com/goodrain/rainbond/api/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/jinzhu/gorm"
 )
 
 // TenantAppStruct -
@@ -51,12 +52,20 @@ func (a *TenantAppStruct) UpdateApp(w http.ResponseWriter, r *http.Request) {
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &updateAppReq, nil) {
 		return
 	}
-
+	appID := chi.URLParam(r, "app_id")
+	tenantApp, err := handler.GetTenantApplicationHandler().GetAppByID(appID)
+	if err != nil {
+		if err.Error() == gorm.ErrRecordNotFound.Error() {
+			httputil.ReturnError(r, w, 404, "can't find application")
+			return
+		}
+		httputil.ReturnError(r, w, 500, "get assign tenant application failed")
+		return
+	}
 	// get current tenant
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
-	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
 	updateAppReq.TenantID = tenant.UUID
-	updateAppReq.AppID = appID
+	updateAppReq.AppID = tenantApp.AppID
 
 	// create app
 	app, err := handler.GetTenantApplicationHandler().UpdateApp(&updateAppReq)
