@@ -77,9 +77,5 @@ func (a *TenantApplicationAction) GetAppByID(appID string) (*dbmodel.Application
 
 // DeleteApp -
 func (a *TenantApplicationAction) DeleteApp(appID string) error {
-	err := db.GetManager().TenantApplicationDao().DeleteApp(appID)
-	if err != nil {
-		return err
-	}
-	return nil
+	return db.GetManager().TenantApplicationDao().DeleteApp(appID)
 }

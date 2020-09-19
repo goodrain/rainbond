@@ -650,8 +650,12 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if the application ID exists
+	if ss.AppID == "" {
+		httputil.ReturnError(r, w, 404, "create must set correct app_id ,can't find application")
+		return
+	}
 	_, err := handler.GetTenantApplicationHandler().GetAppByID(ss.AppID)
-	if err != nil || ss.AppID == "" {
+	if err != nil {
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
 			httputil.ReturnError(r, w, 404, "create must set correct app_id ,can't find application")
 			return
