@@ -2,10 +2,10 @@ package handler
 
 import (
 	"github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
-	"github.com/pkg/errors"
 )
 
 // TenantApplicationAction -
@@ -84,7 +84,7 @@ func (a *TenantApplicationAction) DeleteApp(appID string) error {
 		return err
 	}
 	if total != 0 {
-		return errors.New("have bound service")
+		return bcode.ErrDeleteDueToBindService
 	}
 	return db.GetManager().TenantApplicationDao().DeleteApp(appID)
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/goodrain/rainbond/api/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"github.com/jinzhu/gorm"
 )
 
 // TenantAppStruct -
@@ -31,7 +30,7 @@ func (a *TenantAppStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
 	// create app
 	app, err := handler.GetTenantApplicationHandler().CreateApp(&tenantReq)
 	if err != nil {
-		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("Create app failed : %v", err))
+		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
 
@@ -49,7 +48,7 @@ func (a *TenantAppStruct) UpdateApp(w http.ResponseWriter, r *http.Request) {
 	// update app
 	app, err := handler.GetTenantApplicationHandler().UpdateApp(app, updateAppReq)
 	if err != nil {
-		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("Update app failed : %v", err))
+		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
 
@@ -92,7 +91,7 @@ func (a *TenantAppStruct) ListServices(w http.ResponseWriter, r *http.Request) {
 		pageSize = 10
 	}
 
-	// List apps
+	// List services
 	resp, err := handler.GetServiceManager().GetServicesByAppID(appID, page, pageSize)
 	if err != nil {
 		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("List apps failure : %v", err))
@@ -109,7 +108,7 @@ func (a *TenantAppStruct) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	// Delete application
 	err := handler.GetTenantApplicationHandler().DeleteApp(appID)
 	if err != nil {
-		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("Delete app failed : %v", err))
+		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)

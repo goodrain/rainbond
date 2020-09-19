@@ -32,6 +32,7 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/errors"
@@ -651,16 +652,12 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 
 	// Check if the application ID exists
 	if ss.AppID == "" {
-		httputil.ReturnError(r, w, 404, "create must set correct app_id ,can't find application")
+		httputil.ReturnBcodeError(r, w, bcode.ErrCreateNeedCorrectAppID)
 		return
 	}
 	_, err := handler.GetTenantApplicationHandler().GetAppByID(ss.AppID)
 	if err != nil {
-		if err.Error() == gorm.ErrRecordNotFound.Error() {
-			httputil.ReturnError(r, w, 404, "create must set correct app_id ,can't find application")
-			return
-		}
-		httputil.ReturnError(r, w, 500, "get assign tenant application failed")
+		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
 
@@ -735,13 +732,14 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 	if data["app_id"] != nil {
 		appID = data["app_id"].(string)
 	}
+	if appID == "" {
+		httputil.ReturnBcodeError(r, w, bcode.ErrUpdateNeedCorrectAppID)
+		return
+	}
+
 	_, err := handler.GetTenantApplicationHandler().GetAppByID(appID)
-	if err != nil || appID == "" {
-		if err.Error() == gorm.ErrRecordNotFound.Error() {
-			httputil.ReturnError(r, w, 404, "update must set correct app_id ,can't find application")
-			return
-		}
-		httputil.ReturnError(r, w, 500, "get assign tenant application failed")
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
 

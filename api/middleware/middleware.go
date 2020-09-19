@@ -112,11 +112,7 @@ func InitApplication(next http.Handler) http.Handler {
 		appID := chi.URLParam(r, "app_id")
 		tenantApp, err := handler.GetTenantApplicationHandler().GetAppByID(appID)
 		if err != nil {
-			if err.Error() == gorm.ErrRecordNotFound.Error() {
-				httputil.ReturnError(r, w, 404, "can't find application")
-				return
-			}
-			httputil.ReturnError(r, w, 500, "get assign tenant application failed")
+			httputil.ReturnBcodeError(r, w, err)
 			return
 		}
 

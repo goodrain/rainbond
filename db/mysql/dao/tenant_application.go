@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 )
@@ -20,8 +21,7 @@ func (a *TenantApplicationDaoImpl) AddModel(mo model.Interface) error {
 		}
 		return err
 	}
-
-	return nil
+	return bcode.ErrApplicationExist
 }
 
 //UpdateModel -
@@ -51,6 +51,9 @@ func (a *TenantApplicationDaoImpl) ListApps(tenantID string, page, pageSize int)
 func (a *TenantApplicationDaoImpl) GetAppByID(appID string) (*model.Application, error) {
 	var app model.Application
 	if err := a.DB.Where("app_id=?", appID).Find(&app).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, bcode.ErrApplicationNotFound
+		}
 		return nil, err
 	}
 	return &app, nil
@@ -60,6 +63,9 @@ func (a *TenantApplicationDaoImpl) GetAppByID(appID string) (*model.Application,
 func (a *TenantApplicationDaoImpl) DeleteApp(appID string) error {
 	var app model.Application
 	if err := a.DB.Where("app_id=?", appID).Find(&app).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return bcode.ErrApplicationNotFound
+		}
 		return err
 	}
 	return a.DB.Delete(&app).Error
