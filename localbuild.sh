@@ -36,7 +36,7 @@ function localbuild() {
 		if [ "$STATIC" = "true" ];then
 		    ldflags="${ldflags} -extldflags '-static'"
 		fi
-		CGO_ENABLED=1 go build -v -ldflags "${ldflags}"  -o ${outputname} ./cmd/$1
+		go build -v -ldflags "${ldflags}"  -o ${outputname} ./cmd/$1
 	fi
 }
 

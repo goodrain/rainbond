@@ -78,6 +78,9 @@ type ServiceInterface interface {
 	GetDeployVersion(w http.ResponseWriter, r *http.Request)
 	AutoscalerRules(w http.ResponseWriter, r *http.Request)
 	ScalingRecords(w http.ResponseWriter, r *http.Request)
+	AddServiceMonitors(w http.ResponseWriter, r *http.Request)
+	DeleteServiceMonitors(w http.ResponseWriter, r *http.Request)
+	UpdateServiceMonitors(w http.ResponseWriter, r *http.Request)
 }
 
 //TenantInterfaceWithV1 funcs for both v2 and v1

@@ -23,11 +23,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/mysql"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 )
 
 //Manager db manager
@@ -127,6 +127,9 @@ type Manager interface {
 	TenantServceAutoscalerRuleMetricsDaoTransactions(db *gorm.DB) dao.TenantServceAutoscalerRuleMetricsDao
 	TenantServiceScalingRecordsDao() dao.TenantServiceScalingRecordsDao
 	TenantServiceScalingRecordsDaoTransactions(db *gorm.DB) dao.TenantServiceScalingRecordsDao
+
+	TenantServiceMonitorDao() dao.TenantServiceMonitorDao
+	TenantServiceMonitorDaoTransactions(db *gorm.DB) dao.TenantServiceMonitorDao
 }
 
 var defaultManager Manager

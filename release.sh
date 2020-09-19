@@ -9,7 +9,6 @@ if [ "$BUILD_IMAGE_BASE_NAME" ];
 then 
 IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME}
 fi
-CACHE=${CACHE:true}
 GO_VERSION=1.13
 
 if [ -z "$GOOS" ];then

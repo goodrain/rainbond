@@ -584,3 +584,17 @@ func (m *Manager) TenantServiceScalingRecordsDaoTransactions(db *gorm.DB) dao.Te
 		DB: db,
 	}
 }
+
+//TenantServiceMonitorDao monitor dao
+func (m *Manager) TenantServiceMonitorDao() dao.TenantServiceMonitorDao {
+	return &mysqldao.TenantServiceMonitorDaoImpl{
+		DB: m.db,
+	}
+}
+
+//TenantServiceMonitorDaoTransactions monitor dao
+func (m *Manager) TenantServiceMonitorDaoTransactions(db *gorm.DB) dao.TenantServiceMonitorDao {
+	return &mysqldao.TenantServiceMonitorDaoImpl{
+		DB: db,
+	}
+}
