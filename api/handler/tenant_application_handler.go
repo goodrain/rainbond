@@ -5,7 +5,6 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
-	"github.com/jinzhu/gorm"
 )
 
 // TenantApplicationAction -
@@ -15,7 +14,7 @@ type TenantApplicationAction struct{}
 type TenantApplicationHandler interface {
 	CreateApp(req *model.Application) (*model.Application, error)
 	UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error)
-	ListApps(tenantID string, page, pageSize int) ([]*dbmodel.Application, int64, error)
+	ListApps(tenantID string, page, pageSize int) (*model.ListAppResponse, error)
 	GetAppByID(appID string) (*dbmodel.Application, error)
 	DeleteApp(appID string) error
 }
@@ -49,12 +48,22 @@ func (a *TenantApplicationAction) UpdateApp(srcApp *dbmodel.Application, req mod
 }
 
 // ListApps -
-func (a *TenantApplicationAction) ListApps(tenantID string, page, pageSize int) ([]*dbmodel.Application, int64, error) {
+func (a *TenantApplicationAction) ListApps(tenantID string, page, pageSize int) (*model.ListAppResponse, error) {
+	var resp model.ListAppResponse
 	apps, total, err := db.GetManager().TenantApplicationDao().ListApps(tenantID, page, pageSize)
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, 0, err
+	if err != nil {
+		return nil, err
 	}
-	return apps, total, nil
+	if apps != nil {
+		resp.Apps = apps
+	} else {
+		resp.Apps = make([]*dbmodel.Application, 0)
+	}
+
+	resp.Page = page
+	resp.Total = total
+	resp.PageSize = pageSize
+	return &resp, nil
 }
 
 // GetAppByID -
