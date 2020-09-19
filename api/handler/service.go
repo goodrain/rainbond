@@ -838,11 +838,12 @@ func (s *ServiceAction) GetService(tenantID string) ([]*dbmodel.TenantServices, 
 }
 
 //GetServicesByAppID get service(s) by appID
-func (s *ServiceAction) GetServicesByAppID(appID string, page, pageSize int) ([]*dbmodel.TenantServices, int64, error) {
+func (s *ServiceAction) GetServicesByAppID(appID string, page, pageSize int) (*api_model.ListServiceResponse, error) {
+	var resp api_model.ListServiceResponse
 	services, total, err := db.GetManager().TenantServiceDao().GetServicesInfoByAppID(appID, page, pageSize)
 	if err != nil {
 		logrus.Errorf("get service by application id error, %v, %v", services, err)
-		return nil, 0, err
+		return nil, err
 	}
 	var serviceIDs []string
 	for _, s := range services {
@@ -854,7 +855,16 @@ func (s *ServiceAction) GetServicesByAppID(appID string, page, pageSize int) ([]
 			s.CurStatus = status
 		}
 	}
-	return services, total, nil
+	if services != nil {
+		resp.Services = services
+	} else {
+		resp.Services = make([]*dbmodel.TenantServices, 0)
+	}
+
+	resp.Page = page
+	resp.Total = total
+	resp.PageSize = pageSize
+	return &resp, nil
 }
 
 //GetPagedTenantRes get pagedTenantServiceRes(s)

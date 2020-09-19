@@ -5,6 +5,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
+	"github.com/pkg/errors"
 )
 
 // TenantApplicationAction -
@@ -77,5 +78,13 @@ func (a *TenantApplicationAction) GetAppByID(appID string) (*dbmodel.Application
 
 // DeleteApp -
 func (a *TenantApplicationAction) DeleteApp(appID string) error {
+	// Get the number of services under the application
+	total, err := db.GetManager().TenantServiceDao().CountServiceByAppID(appID)
+	if err != nil {
+		return err
+	}
+	if total != 0 {
+		return errors.New("have bound service")
+	}
 	return db.GetManager().TenantApplicationDao().DeleteApp(appID)
 }

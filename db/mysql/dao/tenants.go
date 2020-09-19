@@ -472,6 +472,16 @@ func (t *TenantServicesDaoImpl) GetServicesInfoByAppID(appID string, page, pageS
 	return services, total, nil
 }
 
+// CountServiceByAppID get Service number by AppID
+func (t *TenantServicesDaoImpl) CountServiceByAppID(appID string) (int64, error) {
+	var total int64
+
+	if err := t.DB.Model(&model.TenantServices{}).Where("app_id=?", appID).Count(&total).Error; err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
 //SetTenantServiceStatus SetTenantServiceStatus
 func (t *TenantServicesDaoImpl) SetTenantServiceStatus(serviceID, status string) error {
 	var service model.TenantServices

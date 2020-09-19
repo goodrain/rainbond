@@ -82,7 +82,6 @@ func (a *TenantAppStruct) ListApps(w http.ResponseWriter, r *http.Request) {
 
 // ListServices -
 func (a *TenantAppStruct) ListServices(w http.ResponseWriter, r *http.Request) {
-	var resp model.ListServiceResponse
 	appID := chi.URLParam(r, "app_id")
 	page, _ := strconv.Atoi(chi.URLParam(r, "page"))
 	if page == 0 {
@@ -94,20 +93,12 @@ func (a *TenantAppStruct) ListServices(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// List apps
-	services, total, err := handler.GetServiceManager().GetServicesByAppID(appID, page, pageSize)
+	resp, err := handler.GetServiceManager().GetServicesByAppID(appID, page, pageSize)
 	if err != nil {
 		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("List apps failure : %v", err))
 		return
 	}
-	if services != nil {
-		resp.Services = services
-	} else {
-		resp.Services = make([]*dbmodel.TenantServices, 0)
-	}
 
-	resp.Page = page
-	resp.Total = total
-	resp.PageSize = pageSize
 	httputil.ReturnSuccess(r, w, resp)
 }
 
@@ -115,21 +106,8 @@ func (a *TenantAppStruct) ListServices(w http.ResponseWriter, r *http.Request) {
 func (a *TenantAppStruct) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "app_id")
 
-	// Get the number of services under the application
-	_, total, err := handler.GetServiceManager().GetServicesByAppID(appID, 1, 10)
-	if err != nil {
-		if err.Error() != gorm.ErrRecordNotFound.Error() {
-			httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("Delete app failed : %v", err))
-			return
-		}
-	}
-	if total != 0 {
-		httputil.ReturnError(r, w, http.StatusFound, "Failed to delete the app because it has bound services")
-		return
-	}
-
 	// Delete application
-	err = handler.GetTenantApplicationHandler().DeleteApp(appID)
+	err := handler.GetTenantApplicationHandler().DeleteApp(appID)
 	if err != nil {
 		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("Delete app failed : %v", err))
 		return
