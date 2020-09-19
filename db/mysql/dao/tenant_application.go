@@ -31,12 +31,14 @@ func (a *TenantApplicationDaoImpl) UpdateModel(mo model.Interface) error {
 }
 
 // ListApps -
-func (a *TenantApplicationDaoImpl) ListApps(tenantID string, page, pageSize int) ([]*model.Application, int64, error) {
+func (a *TenantApplicationDaoImpl) ListApps(tenantID, appName string, page, pageSize int) ([]*model.Application, int64, error) {
 	var datas []*model.Application
 	offset := (page - 1) * pageSize
 
 	db := a.DB.Where("tenant_id=?", tenantID).Order("create_time desc")
-
+	if appName != "" {
+		db = db.Where("app_name like ?", "%"+appName+"%")
+	}
 	var total int64
 	if err := db.Model(&model.Application{}).Count(&total).Error; err != nil {
 		return nil, 0, err

@@ -15,7 +15,7 @@ type TenantApplicationAction struct{}
 type TenantApplicationHandler interface {
 	CreateApp(req *model.Application) (*model.Application, error)
 	UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error)
-	ListApps(tenantID string, page, pageSize int) (*model.ListAppResponse, error)
+	ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error)
 	GetAppByID(appID string) (*dbmodel.Application, error)
 	DeleteApp(appID string) error
 }
@@ -49,9 +49,9 @@ func (a *TenantApplicationAction) UpdateApp(srcApp *dbmodel.Application, req mod
 }
 
 // ListApps -
-func (a *TenantApplicationAction) ListApps(tenantID string, page, pageSize int) (*model.ListAppResponse, error) {
+func (a *TenantApplicationAction) ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error) {
 	var resp model.ListAppResponse
-	apps, total, err := db.GetManager().TenantApplicationDao().ListApps(tenantID, page, pageSize)
+	apps, total, err := db.GetManager().TenantApplicationDao().ListApps(tenantID, appName, page, pageSize)
 	if err != nil {
 		return nil, err
 	}

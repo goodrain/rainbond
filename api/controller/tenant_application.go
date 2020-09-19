@@ -57,11 +57,16 @@ func (a *TenantAppStruct) UpdateApp(w http.ResponseWriter, r *http.Request) {
 
 // ListApps -
 func (a *TenantAppStruct) ListApps(w http.ResponseWriter, r *http.Request) {
-	page, _ := strconv.Atoi(chi.URLParam(r, "page"))
+	query := r.URL.Query()
+	appName := query.Get("app_name")
+	pageQuery := query.Get("page")
+	pageSizeQuery := query.Get("pageSize")
+
+	page, _ := strconv.Atoi(pageQuery)
 	if page == 0 {
 		page = 1
 	}
-	pageSize, _ := strconv.Atoi(chi.URLParam(r, "pageSize"))
+	pageSize, _ := strconv.Atoi(pageSizeQuery)
 	if pageSize == 0 {
 		pageSize = 10
 	}
@@ -70,7 +75,7 @@ func (a *TenantAppStruct) ListApps(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 
 	// List apps
-	resp, err := handler.GetTenantApplicationHandler().ListApps(tenantID, page, pageSize)
+	resp, err := handler.GetTenantApplicationHandler().ListApps(tenantID, appName, page, pageSize)
 	if err != nil {
 		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("List apps failure : %v", err))
 		return
@@ -82,11 +87,15 @@ func (a *TenantAppStruct) ListApps(w http.ResponseWriter, r *http.Request) {
 // ListServices -
 func (a *TenantAppStruct) ListServices(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "app_id")
-	page, _ := strconv.Atoi(chi.URLParam(r, "page"))
+	query := r.URL.Query()
+	pageQuery := query.Get("page")
+	pageSizeQuery := query.Get("pageSize")
+
+	page, _ := strconv.Atoi(pageQuery)
 	if page == 0 {
 		page = 1
 	}
-	pageSize, _ := strconv.Atoi(chi.URLParam(r, "pageSize"))
+	pageSize, _ := strconv.Atoi(pageSizeQuery)
 	if pageSize == 0 {
 		pageSize = 10
 	}
