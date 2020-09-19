@@ -60,20 +60,11 @@ func (a *TenantAppStruct) UpdateApp(w http.ResponseWriter, r *http.Request) {
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &updateAppReq, nil) {
 		return
 	}
-	appID := chi.URLParam(r, "app_id")
-	tenantApp, err := handler.GetTenantApplicationHandler().GetAppByID(appID)
-	if err != nil {
-		if err.Error() == gorm.ErrRecordNotFound.Error() {
-			httputil.ReturnError(r, w, 404, "can't find application")
-			return
-		}
-		httputil.ReturnError(r, w, 500, "get assign tenant application failed")
-		return
-	}
+	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
 	// get current tenant
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
 	updateAppReq.TenantID = tenant.UUID
-	updateAppReq.AppID = tenantApp.AppID
+	updateAppReq.AppID = appID
 
 	// create app
 	app, err := handler.GetTenantApplicationHandler().UpdateApp(&updateAppReq)

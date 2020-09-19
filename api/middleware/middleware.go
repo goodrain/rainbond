@@ -104,6 +104,30 @@ func InitService(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+// InitApplication -
+func InitApplication(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		debugRequestBody(r)
+
+		appID := chi.URLParam(r, "app_id")
+		tenantApp, err := handler.GetTenantApplicationHandler().GetAppByID(appID)
+		if err != nil {
+			if err.Error() == gorm.ErrRecordNotFound.Error() {
+				httputil.ReturnError(r, w, 404, "can't find application")
+				return
+			}
+			httputil.ReturnError(r, w, 500, "get assign tenant application failed")
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), ContextKey("app_name"), tenantApp.AppName)
+		ctx = context.WithValue(ctx, ContextKey("tenant_id"), tenantApp.TenantID)
+		ctx = context.WithValue(ctx, ContextKey("app_id"), tenantApp.AppID)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	}
+	return http.HandlerFunc(fn)
+}
+
 //InitPlugin 实现plugin init中间件
 func InitPlugin(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
