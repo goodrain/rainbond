@@ -124,7 +124,9 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/event", controller.GetManager().Event)
 	r.Get("/chargesverify", controller.ChargesVerifyController)
 	//tenant app
-	r.Mount("/apps", v2.applicationRouter())
+	r.Post("/apps", controller.GetManager().CreateApp)
+	r.Get("/apps", controller.GetManager().ListApps)
+	r.Mount("/apps/{app_id}", v2.applicationRouter())
 	//get some service pod info
 	r.Get("/pods", controller.Pods)
 	//app backup
@@ -288,11 +290,9 @@ func (v2 *V2) applicationRouter() chi.Router {
 	// Init Application
 	r.Use(middleware.InitApplication)
 
-	r.Post("/", controller.GetManager().CreateApp)
-	r.Get("/", controller.GetManager().ListApps)
-	r.Put("/{app_id}", controller.GetManager().UpdateApp)
-	r.Delete("/{app_id}", controller.GetManager().DeleteApp)
-	r.Get("/{app_id}/services", controller.GetManager().ListServices)
+	r.Put("/", controller.GetManager().UpdateApp)
+	r.Delete("/", controller.GetManager().DeleteApp)
+	r.Get("/services", controller.GetManager().ListServices)
 
 	return r
 }
