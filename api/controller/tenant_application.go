@@ -17,22 +17,6 @@ import (
 // TenantAppStruct -
 type TenantAppStruct struct{}
 
-// ListAppResponse -
-type ListAppResponse struct {
-	Page     int                    `json:"page"`
-	PageSize int                    `json:"pageSize"`
-	Total    int64                  `json:"total"`
-	Apps     []*dbmodel.Application `json:"apps"`
-}
-
-// ListServiceResponse -
-type ListServiceResponse struct {
-	Page     int                       `json:"page"`
-	PageSize int                       `json:"pageSize"`
-	Total    int64                     `json:"total"`
-	Services []*dbmodel.TenantServices `json:"services"`
-}
-
 // CreateApp -
 func (a *TenantAppStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
 	var tenantReq model.Application
@@ -56,20 +40,16 @@ func (a *TenantAppStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
 
 // UpdateApp -
 func (a *TenantAppStruct) UpdateApp(w http.ResponseWriter, r *http.Request) {
-	var updateAppReq model.Application
+	var updateAppReq model.UpdateAppRequest
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &updateAppReq, nil) {
 		return
 	}
-	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
-	// get current tenant
-	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
-	updateAppReq.TenantID = tenant.UUID
-	updateAppReq.AppID = appID
+	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
 
-	// create app
-	app, err := handler.GetTenantApplicationHandler().UpdateApp(&updateAppReq)
+	// update app
+	app, err := handler.GetTenantApplicationHandler().UpdateApp(app, updateAppReq)
 	if err != nil {
-		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("Create app failed : %v", err))
+		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("Update app failed : %v", err))
 		return
 	}
 
@@ -78,7 +58,7 @@ func (a *TenantAppStruct) UpdateApp(w http.ResponseWriter, r *http.Request) {
 
 // ListApps -
 func (a *TenantAppStruct) ListApps(w http.ResponseWriter, r *http.Request) {
-	var resp ListAppResponse
+	var resp model.ListAppResponse
 	page, _ := strconv.Atoi(chi.URLParam(r, "page"))
 	if page == 0 {
 		page = 1
@@ -111,7 +91,7 @@ func (a *TenantAppStruct) ListApps(w http.ResponseWriter, r *http.Request) {
 
 // ListServices -
 func (a *TenantAppStruct) ListServices(w http.ResponseWriter, r *http.Request) {
-	var resp ListServiceResponse
+	var resp model.ListServiceResponse
 	appID := chi.URLParam(r, "app_id")
 	page, _ := strconv.Atoi(chi.URLParam(r, "page"))
 	if page == 0 {

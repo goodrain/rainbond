@@ -1632,3 +1632,24 @@ type Application struct {
 	AppID    string `json:"app_id"`
 	TenantID string `json:"tenant_id"`
 }
+
+// ListAppResponse -
+type ListAppResponse struct {
+	Page     int                    `json:"page"`
+	PageSize int                    `json:"pageSize"`
+	Total    int64                  `json:"total"`
+	Apps     []*dbmodel.Application `json:"apps"`
+}
+
+// ListServiceResponse -
+type ListServiceResponse struct {
+	Page     int                       `json:"page"`
+	PageSize int                       `json:"pageSize"`
+	Total    int64                     `json:"total"`
+	Services []*dbmodel.TenantServices `json:"services"`
+}
+
+// UpdateAppRequest -
+type UpdateAppRequest struct {
+	AppName string `json:"app_name" validate:"required"`
+}

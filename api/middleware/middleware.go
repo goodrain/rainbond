@@ -123,6 +123,7 @@ func InitApplication(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), ContextKey("app_name"), tenantApp.AppName)
 		ctx = context.WithValue(ctx, ContextKey("tenant_id"), tenantApp.TenantID)
 		ctx = context.WithValue(ctx, ContextKey("app_id"), tenantApp.AppID)
+		ctx = context.WithValue(ctx, ContextKey("application"), tenantApp)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)

@@ -14,7 +14,7 @@ type TenantApplicationAction struct{}
 // TenantApplicationHandler defines handler methods to TenantApplication.
 type TenantApplicationHandler interface {
 	CreateApp(req *model.Application) (*model.Application, error)
-	UpdateApp(req *model.Application) (*model.Application, error)
+	UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error)
 	ListApps(tenantID string, page, pageSize int) ([]*dbmodel.Application, int64, error)
 	GetAppByID(appID string) (*dbmodel.Application, error)
 	DeleteApp(appID string) error
@@ -40,17 +40,12 @@ func (a *TenantApplicationAction) CreateApp(req *model.Application) (*model.Appl
 }
 
 // UpdateApp -
-func (a *TenantApplicationAction) UpdateApp(req *model.Application) (*model.Application, error) {
-	appReq := &dbmodel.Application{
-		AppName:  req.AppName,
-		AppID:    req.AppID,
-		TenantID: req.TenantID,
-	}
-
-	if err := db.GetManager().TenantApplicationDao().UpdateModel(appReq); err != nil {
+func (a *TenantApplicationAction) UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error) {
+	srcApp.AppName = req.AppName
+	if err := db.GetManager().TenantApplicationDao().UpdateModel(srcApp); err != nil {
 		return nil, err
 	}
-	return req, nil
+	return srcApp, nil
 }
 
 // ListApps -
