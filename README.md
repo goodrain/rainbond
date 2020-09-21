@@ -37,7 +37,7 @@ Built-in ServiceMesh microservice framework, microservice governance can be used
 
 Kubernetes technology is complex and difficult to get started; a large number of deployment, Statefulset, or Operator resource management are complex problems that directly use Kubernetes clusters. Rainbond's application-centric resource management model shields the complexity of Kubernetes, and Kubernetes resources are handed over to Rainbond for orchestration and management.
 
-* Enterprise Middle Office Construction and Application Delivery
+* Enterprise Middle Platform Construction and Application Delivery
 
 There are many enterprise business systems, many delivery projects, and many IT products. Build a unified enterprise business center, integrate all digital systems and common component libraries of the enterprise to form digital assets, and efficiently reuse by internal teams. ToB delivery scenarios achieve the greatest level of The combination of automation, standardization and customization.
 
