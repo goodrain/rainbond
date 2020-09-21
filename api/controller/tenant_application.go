@@ -103,7 +103,7 @@ func (a *TenantAppStruct) ListServices(w http.ResponseWriter, r *http.Request) {
 	// List services
 	resp, err := handler.GetServiceManager().GetServicesByAppID(appID, page, pageSize)
 	if err != nil {
-		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("List apps failure : %v", err))
+		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("List services failure : %v", err))
 		return
 	}
 
