@@ -71,7 +71,6 @@ func InitTenant(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), ContextKey("tenant_name"), tenantName)
 		ctx = context.WithValue(ctx, ContextKey("tenant_id"), tenant.UUID)
 		ctx = context.WithValue(ctx, ContextKey("tenant"), tenant)
-
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)
@@ -100,6 +99,23 @@ func InitService(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), ContextKey("service_alias"), serviceAlias)
 		ctx = context.WithValue(ctx, ContextKey("service_id"), serviceID)
 		ctx = context.WithValue(ctx, ContextKey("service"), service)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	}
+	return http.HandlerFunc(fn)
+}
+
+// InitApplication -
+func InitApplication(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		appID := chi.URLParam(r, "app_id")
+		tenantApp, err := handler.GetTenantApplicationHandler().GetAppByID(appID)
+		if err != nil {
+			httputil.ReturnBcodeError(r, w, err)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), ContextKey("app_id"), tenantApp.AppID)
+		ctx = context.WithValue(ctx, ContextKey("application"), tenantApp)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)

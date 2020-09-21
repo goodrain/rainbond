@@ -67,6 +67,14 @@ type AppDao interface {
 	DeleteModelByEventId(eventID string) error
 }
 
+//TenantApplicationDao tenant Application Dao
+type TenantApplicationDao interface {
+	Dao
+	ListApps(tenantID, appName string, page, pageSize int) ([]*model.Application, int64, error)
+	GetAppByID(appID string) (*model.Application, error)
+	DeleteApp(appID string) error
+}
+
 // VolumeTypeDao volume type dao
 type VolumeTypeDao interface {
 	Dao
@@ -96,6 +104,8 @@ type TenantServiceDao interface {
 	GetServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServicesByTenantIDs(tenantIDs []string) ([]*model.TenantServices, error)
 	GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error)
+	GetServicesInfoByAppID(appID string, page, pageSize int) ([]*model.TenantServices, int64, error)
+	CountServiceByAppID(appID string) (int64, error)
 	DeleteServiceByServiceID(serviceID string) error
 	GetServiceMemoryByTenantIDs(tenantIDs, serviceIDs []string) (map[string]map[string]interface{}, error)
 	GetServiceMemoryByServiceIDs(serviceIDs []string) (map[string]map[string]interface{}, error)

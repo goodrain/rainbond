@@ -41,6 +41,7 @@ type ServiceHandler interface {
 	ServiceUpdate(sc map[string]interface{}) error
 	LanguageSet(langS *api_model.LanguageSet) error
 	GetService(tenantID string) ([]*dbmodel.TenantServices, error)
+	GetServicesByAppID(appID string, page, pageSize int) (*api_model.ListServiceResponse, error)
 	GetPagedTenantRes(offset, len int) ([]*api_model.TenantResource, int, error)
 	GetTenantRes(uuid string) (*api_model.TenantResource, error)
 	CodeCheck(c *api_model.CheckCodeStruct) error

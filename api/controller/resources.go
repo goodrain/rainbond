@@ -32,6 +32,7 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/errors"
@@ -39,11 +40,11 @@ import (
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	validation "github.com/goodrain/rainbond/util/endpoint"
 	"github.com/goodrain/rainbond/util/fuzzy"
+	validator "github.com/goodrain/rainbond/util/govalidator"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
-	validator "github.com/goodrain/rainbond/util/govalidator"
 )
 
 //V2Routes v2Routes
@@ -57,6 +58,7 @@ type V2Routes struct {
 	LabelController
 	AppRestoreController
 	PodController
+	TenantAppStruct
 }
 
 //Show test
@@ -648,6 +650,17 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if the application ID exists
+	if ss.AppID == "" {
+		httputil.ReturnBcodeError(r, w, bcode.ErrCreateNeedCorrectAppID)
+		return
+	}
+	_, err := handler.GetTenantApplicationHandler().GetAppByID(ss.AppID)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
 	// clean etcd data(source check)
 	handler.GetEtcdHandler().CleanServiceCheckData(ss.EtcdKey)
 
@@ -705,6 +718,7 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 		"container_memory": []string{},
 		"service_name":     []string{},
 		"extend_method":    []string{},
+		"app_id":           []string{},
 	}
 	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
 	if !ok {
@@ -712,6 +726,23 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 	}
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	data["service_id"] = serviceID
+
+	// Check if the application ID exists
+	var appID string
+	if data["app_id"] != nil {
+		appID = data["app_id"].(string)
+	}
+	if appID == "" {
+		httputil.ReturnBcodeError(r, w, bcode.ErrUpdateNeedCorrectAppID)
+		return
+	}
+
+	_, err := handler.GetTenantApplicationHandler().GetAppByID(appID)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
 	logrus.Debugf("begin to update service")
 	if err := handler.GetServiceManager().ServiceUpdate(data); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("update service error, %v", err))

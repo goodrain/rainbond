@@ -40,6 +40,7 @@ require (
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.4.2
 	github.com/goodrain/rainbond-operator v1.0.0
+	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uitable v0.0.4

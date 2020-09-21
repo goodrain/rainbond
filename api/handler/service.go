@@ -503,6 +503,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	volumns := sc.VolumesInfo
 	dependVolumes := sc.DepVolumesInfo
 	dependIds := sc.DependIDs
+	ts.AppID = sc.AppID
 	ts.DeployVersion = ""
 	tx := db.GetManager().Begin()
 	defer func() {
@@ -743,6 +744,7 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
+	ts.AppID = sc["app_id"].(string)
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(ts.DeployVersion, ts.ServiceID)
 	if sc["container_memory"] != nil {
 		ts.ContainerMemory = sc["container_memory"].(int)
@@ -833,6 +835,36 @@ func (s *ServiceAction) GetService(tenantID string) ([]*dbmodel.TenantServices, 
 		}
 	}
 	return services, nil
+}
+
+//GetServicesByAppID get service(s) by appID
+func (s *ServiceAction) GetServicesByAppID(appID string, page, pageSize int) (*api_model.ListServiceResponse, error) {
+	var resp api_model.ListServiceResponse
+	services, total, err := db.GetManager().TenantServiceDao().GetServicesInfoByAppID(appID, page, pageSize)
+	if err != nil {
+		logrus.Errorf("get service by application id error, %v, %v", services, err)
+		return nil, err
+	}
+	var serviceIDs []string
+	for _, s := range services {
+		serviceIDs = append(serviceIDs, s.ServiceID)
+	}
+	status := s.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
+	for _, s := range services {
+		if status, ok := status[s.ServiceID]; ok {
+			s.CurStatus = status
+		}
+	}
+	if services != nil {
+		resp.Services = services
+	} else {
+		resp.Services = make([]*dbmodel.TenantServices, 0)
+	}
+
+	resp.Page = page
+	resp.Total = total
+	resp.PageSize = pageSize
+	return &resp, nil
 }
 
 //GetPagedTenantRes get pagedTenantServiceRes(s)

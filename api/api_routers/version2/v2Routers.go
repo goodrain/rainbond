@@ -123,6 +123,10 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Mount("/plugin/{plugin_id}", v2.pluginRouter())
 	r.Get("/event", controller.GetManager().Event)
 	r.Get("/chargesverify", controller.ChargesVerifyController)
+	//tenant app
+	r.Post("/apps", controller.GetManager().CreateApp)
+	r.Get("/apps", controller.GetManager().ListApps)
+	r.Mount("/apps/{app_id}", v2.applicationRouter())
 	//get some service pod info
 	r.Get("/pods", controller.Pods)
 	//app backup
@@ -277,6 +281,18 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Post("/service-monitors", middleware.WrapEL(controller.GetManager().AddServiceMonitors, dbmodel.TargetTypeService, "add-app-service-monitor", dbmodel.SYNEVENTTYPE))
 	r.Put("/service-monitors/{name}", middleware.WrapEL(controller.GetManager().UpdateServiceMonitors, dbmodel.TargetTypeService, "update-app-service-monitor", dbmodel.SYNEVENTTYPE))
 	r.Delete("/service-monitors/{name}", middleware.WrapEL(controller.GetManager().DeleteServiceMonitors, dbmodel.TargetTypeService, "delete-app-service-monitor", dbmodel.SYNEVENTTYPE))
+
+	return r
+}
+
+func (v2 *V2) applicationRouter() chi.Router {
+	r := chi.NewRouter()
+	// Init Application
+	r.Use(middleware.InitApplication)
+
+	r.Put("/", controller.GetManager().UpdateApp)
+	r.Delete("/", controller.GetManager().DeleteApp)
+	r.Get("/services", controller.GetManager().ListServices)
 
 	return r
 }

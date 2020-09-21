@@ -25,8 +25,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/errors"
@@ -452,6 +452,34 @@ func (t *TenantServicesDaoImpl) GetServicesAllInfoByTenantID(tenantID string) ([
 		return nil, err
 	}
 	return services, nil
+}
+
+// GetServicesInfoByAppID Get Services Info By ApplicationID
+func (t *TenantServicesDaoImpl) GetServicesInfoByAppID(appID string, page, pageSize int) ([]*model.TenantServices, int64, error) {
+	var (
+		total    int64
+		services []*model.TenantServices
+	)
+	offset := (page - 1) * pageSize
+	db := t.DB.Where("app_id=?", appID).Order("create_time desc")
+
+	if err := db.Model(&model.TenantServices{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := db.Limit(pageSize).Offset(offset).Find(&services).Error; err != nil {
+		return nil, 0, err
+	}
+	return services, total, nil
+}
+
+// CountServiceByAppID get Service number by AppID
+func (t *TenantServicesDaoImpl) CountServiceByAppID(appID string) (int64, error) {
+	var total int64
+
+	if err := t.DB.Model(&model.TenantServices{}).Where("app_id=?", appID).Count(&total).Error; err != nil {
+		return 0, err
+	}
+	return total, nil
 }
 
 //SetTenantServiceStatus SetTenantServiceStatus
