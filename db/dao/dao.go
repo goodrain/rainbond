@@ -75,6 +75,11 @@ type TenantApplicationDao interface {
 	DeleteApp(appID string) error
 }
 
+//ApplicationConfigDao Application config group Dao
+type ApplicationConfigDao interface {
+	Dao
+}
+
 // VolumeTypeDao volume type dao
 type VolumeTypeDao interface {
 	Dao

@@ -13,3 +13,9 @@ var (
 	//ErrDeleteDueToBindService
 	ErrDeleteDueToBindService = newByMessage(400, 11005, "the application cannot be deleted because there are bound services")
 )
+
+// tenant application 11100~11199
+var (
+	//ErrApplicationConfigGroupExist -
+	ErrApplicationConfigGroupExist = newByMessage(400, 11101, "application config group already exist")
+)
