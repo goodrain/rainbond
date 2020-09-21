@@ -8,11 +8,11 @@ import (
 	"github.com/goodrain/rainbond/util"
 )
 
-// TenantApplicationAction -
-type TenantApplicationAction struct{}
+// ApplicationAction -
+type ApplicationAction struct{}
 
-// TenantApplicationHandler defines handler methods to TenantApplication.
-type TenantApplicationHandler interface {
+// ApplicationHandler defines handler methods to TenantApplication.
+type ApplicationHandler interface {
 	CreateApp(req *model.Application) (*model.Application, error)
 	UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error)
 	ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error)
@@ -20,13 +20,13 @@ type TenantApplicationHandler interface {
 	DeleteApp(appID string) error
 }
 
-// NewTenantApplicationHandler creates a new Tenant Application Handler.
-func NewTenantApplicationHandler() TenantApplicationHandler {
-	return &TenantApplicationAction{}
+// NewApplicationHandler creates a new Tenant Application Handler.
+func NewApplicationHandler() ApplicationHandler {
+	return &ApplicationAction{}
 }
 
 // CreateApp -
-func (a *TenantApplicationAction) CreateApp(req *model.Application) (*model.Application, error) {
+func (a *ApplicationAction) CreateApp(req *model.Application) (*model.Application, error) {
 	appReq := &dbmodel.Application{
 		AppName:  req.AppName,
 		AppID:    util.NewUUID(),
@@ -40,7 +40,7 @@ func (a *TenantApplicationAction) CreateApp(req *model.Application) (*model.Appl
 }
 
 // UpdateApp -
-func (a *TenantApplicationAction) UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error) {
+func (a *ApplicationAction) UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error) {
 	srcApp.AppName = req.AppName
 	if err := db.GetManager().TenantApplicationDao().UpdateModel(srcApp); err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func (a *TenantApplicationAction) UpdateApp(srcApp *dbmodel.Application, req mod
 }
 
 // ListApps -
-func (a *TenantApplicationAction) ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error) {
+func (a *ApplicationAction) ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error) {
 	var resp model.ListAppResponse
 	apps, total, err := db.GetManager().TenantApplicationDao().ListApps(tenantID, appName, page, pageSize)
 	if err != nil {
@@ -68,7 +68,7 @@ func (a *TenantApplicationAction) ListApps(tenantID, appName string, page, pageS
 }
 
 // GetAppByID -
-func (a *TenantApplicationAction) GetAppByID(appID string) (*dbmodel.Application, error) {
+func (a *ApplicationAction) GetAppByID(appID string) (*dbmodel.Application, error) {
 	app, err := db.GetManager().TenantApplicationDao().GetAppByID(appID)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func (a *TenantApplicationAction) GetAppByID(appID string) (*dbmodel.Application
 }
 
 // DeleteApp -
-func (a *TenantApplicationAction) DeleteApp(appID string) error {
+func (a *ApplicationAction) DeleteApp(appID string) error {
 	// Get the number of services under the application
 	total, err := db.GetManager().TenantServiceDao().CountServiceByAppID(appID)
 	if err != nil {

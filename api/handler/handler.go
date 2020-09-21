@@ -200,9 +200,9 @@ func GetClusterHandler() ClusterHandler {
 	return defClusterHandler
 }
 
-var defTenantApplicationHandler *TenantApplicationAction
+var defApplicationHandler *ApplicationAction
 
-// GetTenantApplicationHandler  returns the default tenant application handler.
-func GetTenantApplicationHandler() *TenantApplicationAction {
-	return defTenantApplicationHandler
+// GetApplicationHandler  returns the default tenant application handler.
+func GetApplicationHandler() *ApplicationAction {
+	return defApplicationHandler
 }

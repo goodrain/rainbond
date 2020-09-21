@@ -108,7 +108,7 @@ func InitService(next http.Handler) http.Handler {
 func InitApplication(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		appID := chi.URLParam(r, "app_id")
-		tenantApp, err := handler.GetTenantApplicationHandler().GetAppByID(appID)
+		tenantApp, err := handler.GetApplicationHandler().GetAppByID(appID)
 		if err != nil {
 			httputil.ReturnBcodeError(r, w, err)
 			return
