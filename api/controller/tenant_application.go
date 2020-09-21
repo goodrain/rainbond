@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -77,7 +76,7 @@ func (a *TenantAppStruct) ListApps(w http.ResponseWriter, r *http.Request) {
 	// List apps
 	resp, err := handler.GetTenantApplicationHandler().ListApps(tenantID, appName, page, pageSize)
 	if err != nil {
-		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("List apps failure : %v", err))
+		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
 
@@ -103,7 +102,7 @@ func (a *TenantAppStruct) ListServices(w http.ResponseWriter, r *http.Request) {
 	// List services
 	resp, err := handler.GetServiceManager().GetServicesByAppID(appID, page, pageSize)
 	if err != nil {
-		httputil.ReturnError(r, w, http.StatusInternalServerError, fmt.Sprintf("List services failure : %v", err))
+		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
 
