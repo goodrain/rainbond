@@ -9,6 +9,7 @@ if [ "$BUILD_IMAGE_BASE_NAME" ];
 then 
 IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME}
 fi
+CACHE=${CACHE:true}
 GO_VERSION=1.13
 
 GOPROXY=${GOPROXY:-'https://goproxy.io'}
@@ -68,7 +69,7 @@ build::binary() {
 build::image() {
 	local OUTPATH="./_output/binary/$GOOS/${BASE_NAME}-$1"
 	local build_image_dir="./_output/image/$1/"
-	if [ -z "${CACHE}" ] || [ ! -f "${OUTPATH}" ];then
+	if [  !${CACHE} ] || [ ! -f "${OUTPATH}" ];then
 		build::binary "$1"
 	fi
 	sudo mkdir -p "${build_image_dir}"

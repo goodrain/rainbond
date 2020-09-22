@@ -36,3 +36,4 @@ type AppBackup struct {
 func (t *AppBackup) TableName() string {
 	return "region_app_backup"
 }
+
