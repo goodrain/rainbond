@@ -40,6 +40,8 @@ type Manager interface {
 	AppDao() dao.AppDao
 	TenantApplicationDao() dao.TenantApplicationDao
 	ApplicationConfigDao() dao.ApplicationConfigDao
+	ServiceConfigGroupDao() dao.ServiceConfigGroupDao
+	ConfigItemDao() dao.ConfigItemDao
 	EnterpriseDao() dao.EnterpriseDao
 	TenantDao() dao.TenantDao
 	TenantDaoTransactions(db *gorm.DB) dao.TenantDao

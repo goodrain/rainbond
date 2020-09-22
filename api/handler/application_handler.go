@@ -18,7 +18,7 @@ type ApplicationHandler interface {
 	ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error)
 	GetAppByID(appID string) (*dbmodel.Application, error)
 	DeleteApp(appID string) error
-	AddConfigGroup(appID string, req *model.ApplicationConfigGroup) (*dbmodel.ApplicationConfigGroup, error)
+	AddConfigGroup(appID string, req *model.ApplicationConfigGroup) (*model.ApplicationConfigGroup, error)
 }
 
 // NewApplicationHandler creates a new Tenant Application Handler.

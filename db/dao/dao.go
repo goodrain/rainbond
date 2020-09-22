@@ -80,6 +80,16 @@ type ApplicationConfigDao interface {
 	Dao
 }
 
+//ServiceConfigGroupDao service config group Dao
+type ServiceConfigGroupDao interface {
+	Dao
+}
+
+//ConfigItemDao Application config item group Dao
+type ConfigItemDao interface {
+	Dao
+}
+
 // VolumeTypeDao volume type dao
 type VolumeTypeDao interface {
 	Dao
@@ -111,6 +121,7 @@ type TenantServiceDao interface {
 	GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServicesInfoByAppID(appID string, page, pageSize int) ([]*model.TenantServices, int64, error)
 	CountServiceByAppID(appID string) (int64, error)
+	GetServicesIDsByAppID(appID string) (re []model.ServiceIDResult)
 	DeleteServiceByServiceID(serviceID string) error
 	GetServiceMemoryByTenantIDs(tenantIDs, serviceIDs []string) (map[string]map[string]interface{}, error)
 	GetServiceMemoryByServiceIDs(serviceIDs []string) (map[string]map[string]interface{}, error)

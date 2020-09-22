@@ -18,4 +18,10 @@ var (
 var (
 	//ErrApplicationConfigGroupExist -
 	ErrApplicationConfigGroupExist = newByMessage(400, 11101, "application config group already exist")
+	//ErrServiceConfigGroupExist -
+	ErrServiceConfigGroupExist = newByMessage(400, 11102, "config group under this service already exists")
+	//ErrConfigItemExist -
+	ErrConfigItemExist = newByMessage(400, 11103, "config item under this config group already exist")
+	//ErrServiceIDNotFound -
+	ErrServiceIDNotFound = newByMessage(404, 11104, "this service ID cannot be found under this application")
 )

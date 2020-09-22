@@ -431,6 +431,20 @@ func (m *Manager) ApplicationConfigDao() dao.ApplicationConfigDao {
 	}
 }
 
+// ServiceConfigGroupDao -
+func (m *Manager) ServiceConfigGroupDao() dao.ServiceConfigGroupDao {
+	return &mysqldao.ServiceConfigGroupDaoImpl{
+		DB: m.db,
+	}
+}
+
+// ConfigItemDao -
+func (m *Manager) ConfigItemDao() dao.ConfigItemDao {
+	return &mysqldao.ConfigItemDaoImpl{
+		DB: m.db,
+	}
+}
+
 //AppBackupDao group app backup info
 func (m *Manager) AppBackupDao() dao.AppBackupDao {
 	return &mysqldao.AppBackupDaoImpl{

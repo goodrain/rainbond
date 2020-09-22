@@ -603,3 +603,8 @@ type TenantServiceScalingRecords struct {
 func (t *TenantServiceScalingRecords) TableName() string {
 	return "tenant_services_scaling_records"
 }
+
+// ServiceIDResult -
+type ServiceIDResult struct {
+	ServiceID string `gorm:"column:service_id" json:"-"`
+}
