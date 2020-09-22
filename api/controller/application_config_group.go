@@ -21,7 +21,7 @@ func (a *ApplicationStruct) AddConfigGroup(w http.ResponseWriter, r *http.Reques
 
 	// Get the application bound serviceIDs
 	var availableServiceIDs []string
-	availableServices := db.GetManager().TenantServiceDao().GetServicesIDsByAppID(appID)
+	availableServices := db.GetManager().TenantServiceDao().GetServicesIDAndNameByAppID(appID)
 	for _, s := range availableServices {
 		availableServiceIDs = append(availableServiceIDs, s.ServiceID)
 	}

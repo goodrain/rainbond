@@ -1672,9 +1672,19 @@ type ConfigItem struct {
 
 // ApplicationConfigGroup -
 type ApplicationConfigGroup struct {
-	AppID           string        `json:"app_id"`
-	ConfigGroupName string        `json:"config_group_name" validate:"required,alphanum,min=2,max=64"`
-	DeployType      string        `json:"deploy_type" validate:"required,oneof=env configfile"`
-	ServiceIDs      []string      `json:"service_ids" validate:"required"`
-	ConfigItems     []*ConfigItem `json:"config_items"`
+	AppID           string       `json:"app_id"`
+	ConfigGroupName string       `json:"config_group_name" validate:"required,alphanum,min=2,max=64"`
+	DeployType      string       `json:"deploy_type" validate:"required,oneof=env configfile"`
+	ServiceIDs      []string     `json:"service_ids" validate:"required"`
+	ConfigItems     []ConfigItem `json:"config_items"`
+}
+
+// ApplicationConfigGroupResp -
+type ApplicationConfigGroupResp struct {
+	CreateTime      time.Time                        `json:"create_time"`
+	AppID           string                           `json:"app_id"`
+	ConfigGroupName string                           `json:"config_group_name"`
+	DeployType      string                           `json:"deploy_type"`
+	Services        []dbmodel.ServiceIDAndNameResult `json:"services"`
+	ConfigItems     []ConfigItem                     `json:"config_items"`
 }

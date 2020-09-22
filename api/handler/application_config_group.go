@@ -9,8 +9,7 @@ import (
 )
 
 // AddConfigGroup -
-func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationConfigGroup) (*model.ApplicationConfigGroup, error) {
-	req.AppID = appID
+func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationConfigGroup) (*model.ApplicationConfigGroupResp, error) {
 	serviceConfigGroup := &dbmodel.ServiceConfigGroup{
 		AppID:           appID,
 		ConfigGroupName: req.ConfigGroupName,
@@ -52,5 +51,17 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 	if err := db.GetManager().ApplicationConfigDao().AddModel(config); err != nil {
 		return nil, err
 	}
-	return req, nil
+
+	services := db.GetManager().TenantServiceDao().GetServicesIDAndNameByAppID(appID)
+	appconfig, _ := db.GetManager().ApplicationConfigDao().GetConfigByID(appID, req.ConfigGroupName)
+	var resp *model.ApplicationConfigGroupResp
+	resp = &model.ApplicationConfigGroupResp{
+		CreateTime:      appconfig.CreatedAt,
+		AppID:           appID,
+		ConfigGroupName: appconfig.ConfigGroupName,
+		DeployType:      appconfig.DeployType,
+		ConfigItems:     req.ConfigItems,
+		Services:        services,
+	}
+	return resp, nil
 }

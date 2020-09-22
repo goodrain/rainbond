@@ -78,6 +78,7 @@ type TenantApplicationDao interface {
 //ApplicationConfigDao Application config group Dao
 type ApplicationConfigDao interface {
 	Dao
+	GetConfigByID(appID, name string) (*model.ApplicationConfigGroup, error)
 }
 
 //ServiceConfigGroupDao service config group Dao
@@ -121,7 +122,7 @@ type TenantServiceDao interface {
 	GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServicesInfoByAppID(appID string, page, pageSize int) ([]*model.TenantServices, int64, error)
 	CountServiceByAppID(appID string) (int64, error)
-	GetServicesIDsByAppID(appID string) (re []model.ServiceIDResult)
+	GetServicesIDAndNameByAppID(appID string) (re []model.ServiceIDAndNameResult)
 	DeleteServiceByServiceID(serviceID string) error
 	GetServiceMemoryByTenantIDs(tenantIDs, serviceIDs []string) (map[string]map[string]interface{}, error)
 	GetServiceMemoryByServiceIDs(serviceIDs []string) (map[string]map[string]interface{}, error)

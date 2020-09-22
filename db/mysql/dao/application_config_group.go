@@ -30,6 +30,15 @@ func (a *ApplicationConfigDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
+// GetConfigByID -
+func (a *ApplicationConfigDaoImpl) GetConfigByID(appID, name string) (*model.ApplicationConfigGroup, error) {
+	var oldApp model.ApplicationConfigGroup
+	if err := a.DB.Where("app_id = ? AND config_group_name = ?", appID, name).Find(&oldApp).Error; err != nil {
+		return nil, err
+	}
+	return &oldApp, nil
+}
+
 // ServiceConfigGroupDaoImpl -
 type ServiceConfigGroupDaoImpl struct {
 	DB *gorm.DB
