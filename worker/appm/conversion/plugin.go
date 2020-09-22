@@ -157,7 +157,7 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 	}
 
 	var bootSequence v1.Container
-	if bootSeqDepServiceIds := as.ExtensionSet["boot_seq_dep_service_ids"]; bootSeqDepServiceIds != "" {
+	if needStartupSequence := as.ExtensionSet["needStartupSequence"]; needStartupSequence == "true" {
 		startupSequenceDetector := newStartupSequenceDetector(as.ServiceID, dbmanager)
 		dependServices, dependServiceNum, err := startupSequenceDetector.dependServices()
 		if err != nil {
