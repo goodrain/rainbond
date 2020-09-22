@@ -5,84 +5,90 @@
 package dao
 
 import (
-	gomock "github.com/golang/mock/gomock"
-	model "github.com/goodrain/rainbond/db/model"
 	reflect "reflect"
 	time "time"
+
+	gomock "github.com/golang/mock/gomock"
+	model "github.com/goodrain/rainbond/db/model"
 )
 
-// MockDao is a mock of Dao interface
+// MockDao is a mock of Dao interface.
 type MockDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockDaoMockRecorder
 }
 
-// MockDaoMockRecorder is the mock recorder for MockDao
+// MockDaoMockRecorder is the mock recorder for MockDao.
 type MockDaoMockRecorder struct {
 	mock *MockDao
 }
 
-// NewMockDao creates a new mock instance
+// NewMockDao creates a new mock instance.
 func NewMockDao(ctrl *gomock.Controller) *MockDao {
 	mock := &MockDao{ctrl: ctrl}
 	mock.recorder = &MockDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDao) EXPECT() *MockDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockDao)(nil).UpdateModel), arg0)
 }
 
-// MockDelDao is a mock of DelDao interface
+// MockDelDao is a mock of DelDao interface.
 type MockDelDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockDelDaoMockRecorder
 }
 
-// MockDelDaoMockRecorder is the mock recorder for MockDelDao
+// MockDelDaoMockRecorder is the mock recorder for MockDelDao.
 type MockDelDaoMockRecorder struct {
 	mock *MockDelDao
 }
 
-// NewMockDelDao creates a new mock instance
+// NewMockDelDao creates a new mock instance.
 func NewMockDelDao(ctrl *gomock.Controller) *MockDelDao {
 	mock := &MockDelDao{ctrl: ctrl}
 	mock.recorder = &MockDelDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDelDao) EXPECT() *MockDelDaoMockRecorder {
 	return m.recorder
 }
 
-// DeleteModel mocks base method
+// DeleteModel mocks base method.
 func (m *MockDelDao) DeleteModel(serviceID string, arg ...interface{}) error {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{serviceID}
 	for _, a := range arg {
 		varargs = append(varargs, a)
@@ -92,656 +98,1047 @@ func (m *MockDelDao) DeleteModel(serviceID string, arg ...interface{}) error {
 	return ret0
 }
 
-// DeleteModel indicates an expected call of DeleteModel
+// DeleteModel indicates an expected call of DeleteModel.
 func (mr *MockDelDaoMockRecorder) DeleteModel(serviceID interface{}, arg ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{serviceID}, arg...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModel", reflect.TypeOf((*MockDelDao)(nil).DeleteModel), varargs...)
 }
 
-// MockEnterpriseDao is a mock of EnterpriseDao interface
+// MockEnterpriseDao is a mock of EnterpriseDao interface.
 type MockEnterpriseDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockEnterpriseDaoMockRecorder
 }
 
-// MockEnterpriseDaoMockRecorder is the mock recorder for MockEnterpriseDao
+// MockEnterpriseDaoMockRecorder is the mock recorder for MockEnterpriseDao.
 type MockEnterpriseDaoMockRecorder struct {
 	mock *MockEnterpriseDao
 }
 
-// NewMockEnterpriseDao creates a new mock instance
+// NewMockEnterpriseDao creates a new mock instance.
 func NewMockEnterpriseDao(ctrl *gomock.Controller) *MockEnterpriseDao {
 	mock := &MockEnterpriseDao{ctrl: ctrl}
 	mock.recorder = &MockEnterpriseDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockEnterpriseDao) EXPECT() *MockEnterpriseDaoMockRecorder {
 	return m.recorder
 }
 
-// GetEnterpriseTenants mocks base method
+// GetEnterpriseTenants mocks base method.
 func (m *MockEnterpriseDao) GetEnterpriseTenants(enterpriseID string) ([]*model.Tenants, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEnterpriseTenants", enterpriseID)
 	ret0, _ := ret[0].([]*model.Tenants)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetEnterpriseTenants indicates an expected call of GetEnterpriseTenants
+// GetEnterpriseTenants indicates an expected call of GetEnterpriseTenants.
 func (mr *MockEnterpriseDaoMockRecorder) GetEnterpriseTenants(enterpriseID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEnterpriseTenants", reflect.TypeOf((*MockEnterpriseDao)(nil).GetEnterpriseTenants), enterpriseID)
 }
 
-// MockTenantDao is a mock of TenantDao interface
+// MockTenantDao is a mock of TenantDao interface.
 type MockTenantDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantDaoMockRecorder
 }
 
-// MockTenantDaoMockRecorder is the mock recorder for MockTenantDao
+// MockTenantDaoMockRecorder is the mock recorder for MockTenantDao.
 type MockTenantDaoMockRecorder struct {
 	mock *MockTenantDao
 }
 
-// NewMockTenantDao creates a new mock instance
+// NewMockTenantDao creates a new mock instance.
 func NewMockTenantDao(ctrl *gomock.Controller) *MockTenantDao {
 	mock := &MockTenantDao{ctrl: ctrl}
 	mock.recorder = &MockTenantDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantDao) EXPECT() *MockTenantDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantDao)(nil).UpdateModel), arg0)
 }
 
-// GetTenantByUUID mocks base method
+// GetTenantByUUID mocks base method.
 func (m *MockTenantDao) GetTenantByUUID(uuid string) (*model.Tenants, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantByUUID", uuid)
 	ret0, _ := ret[0].(*model.Tenants)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantByUUID indicates an expected call of GetTenantByUUID
+// GetTenantByUUID indicates an expected call of GetTenantByUUID.
 func (mr *MockTenantDaoMockRecorder) GetTenantByUUID(uuid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantByUUID", reflect.TypeOf((*MockTenantDao)(nil).GetTenantByUUID), uuid)
 }
 
-// GetTenantIDByName mocks base method
+// GetTenantIDByName mocks base method.
 func (m *MockTenantDao) GetTenantIDByName(tenantName string) (*model.Tenants, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantIDByName", tenantName)
 	ret0, _ := ret[0].(*model.Tenants)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantIDByName indicates an expected call of GetTenantIDByName
+// GetTenantIDByName indicates an expected call of GetTenantIDByName.
 func (mr *MockTenantDaoMockRecorder) GetTenantIDByName(tenantName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantIDByName", reflect.TypeOf((*MockTenantDao)(nil).GetTenantIDByName), tenantName)
 }
 
-// GetALLTenants mocks base method
+// GetALLTenants mocks base method.
 func (m *MockTenantDao) GetALLTenants(query string) ([]*model.Tenants, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetALLTenants", query)
 	ret0, _ := ret[0].([]*model.Tenants)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetALLTenants indicates an expected call of GetALLTenants
+// GetALLTenants indicates an expected call of GetALLTenants.
 func (mr *MockTenantDaoMockRecorder) GetALLTenants(query interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetALLTenants", reflect.TypeOf((*MockTenantDao)(nil).GetALLTenants), query)
 }
 
-// GetTenantByEid mocks base method
+// GetTenantByEid mocks base method.
 func (m *MockTenantDao) GetTenantByEid(eid, query string) ([]*model.Tenants, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantByEid", eid, query)
 	ret0, _ := ret[0].([]*model.Tenants)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantByEid indicates an expected call of GetTenantByEid
+// GetTenantByEid indicates an expected call of GetTenantByEid.
 func (mr *MockTenantDaoMockRecorder) GetTenantByEid(eid, query interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantByEid", reflect.TypeOf((*MockTenantDao)(nil).GetTenantByEid), eid, query)
 }
 
-// GetPagedTenants mocks base method
+// GetPagedTenants mocks base method.
 func (m *MockTenantDao) GetPagedTenants(offset, len int) ([]*model.Tenants, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPagedTenants", offset, len)
 	ret0, _ := ret[0].([]*model.Tenants)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetPagedTenants indicates an expected call of GetPagedTenants
+// GetPagedTenants indicates an expected call of GetPagedTenants.
 func (mr *MockTenantDaoMockRecorder) GetPagedTenants(offset, len interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPagedTenants", reflect.TypeOf((*MockTenantDao)(nil).GetPagedTenants), offset, len)
 }
 
-// GetTenantIDsByNames mocks base method
+// GetTenantIDsByNames mocks base method.
 func (m *MockTenantDao) GetTenantIDsByNames(names []string) ([]string, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantIDsByNames", names)
 	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantIDsByNames indicates an expected call of GetTenantIDsByNames
+// GetTenantIDsByNames indicates an expected call of GetTenantIDsByNames.
 func (mr *MockTenantDaoMockRecorder) GetTenantIDsByNames(names interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantIDsByNames", reflect.TypeOf((*MockTenantDao)(nil).GetTenantIDsByNames), names)
 }
 
-// GetTenantLimitsByNames mocks base method
+// GetTenantLimitsByNames mocks base method.
 func (m *MockTenantDao) GetTenantLimitsByNames(names []string) (map[string]int, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantLimitsByNames", names)
 	ret0, _ := ret[0].(map[string]int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantLimitsByNames indicates an expected call of GetTenantLimitsByNames
+// GetTenantLimitsByNames indicates an expected call of GetTenantLimitsByNames.
 func (mr *MockTenantDaoMockRecorder) GetTenantLimitsByNames(names interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantLimitsByNames", reflect.TypeOf((*MockTenantDao)(nil).GetTenantLimitsByNames), names)
 }
 
-// GetTenantByUUIDIsExist mocks base method
+// GetTenantByUUIDIsExist mocks base method.
 func (m *MockTenantDao) GetTenantByUUIDIsExist(uuid string) bool {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantByUUIDIsExist", uuid)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-// GetTenantByUUIDIsExist indicates an expected call of GetTenantByUUIDIsExist
+// GetTenantByUUIDIsExist indicates an expected call of GetTenantByUUIDIsExist.
 func (mr *MockTenantDaoMockRecorder) GetTenantByUUIDIsExist(uuid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantByUUIDIsExist", reflect.TypeOf((*MockTenantDao)(nil).GetTenantByUUIDIsExist), uuid)
 }
 
-// DelByTenantID mocks base method
+// DelByTenantID mocks base method.
 func (m *MockTenantDao) DelByTenantID(tenantID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelByTenantID", tenantID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DelByTenantID indicates an expected call of DelByTenantID
+// DelByTenantID indicates an expected call of DelByTenantID.
 func (mr *MockTenantDaoMockRecorder) DelByTenantID(tenantID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByTenantID", reflect.TypeOf((*MockTenantDao)(nil).DelByTenantID), tenantID)
 }
 
-// MockAppDao is a mock of AppDao interface
+// MockAppDao is a mock of AppDao interface.
 type MockAppDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockAppDaoMockRecorder
 }
 
-// MockAppDaoMockRecorder is the mock recorder for MockAppDao
+// MockAppDaoMockRecorder is the mock recorder for MockAppDao.
 type MockAppDaoMockRecorder struct {
 	mock *MockAppDao
 }
 
-// NewMockAppDao creates a new mock instance
+// NewMockAppDao creates a new mock instance.
 func NewMockAppDao(ctrl *gomock.Controller) *MockAppDao {
 	mock := &MockAppDao{ctrl: ctrl}
 	mock.recorder = &MockAppDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockAppDao) EXPECT() *MockAppDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockAppDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockAppDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockAppDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockAppDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockAppDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockAppDao)(nil).UpdateModel), arg0)
 }
 
-// GetByEventId mocks base method
+// GetByEventId mocks base method.
 func (m *MockAppDao) GetByEventId(eventID string) (*model.AppStatus, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByEventId", eventID)
 	ret0, _ := ret[0].(*model.AppStatus)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetByEventId indicates an expected call of GetByEventId
+// GetByEventId indicates an expected call of GetByEventId.
 func (mr *MockAppDaoMockRecorder) GetByEventId(eventID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByEventId", reflect.TypeOf((*MockAppDao)(nil).GetByEventId), eventID)
 }
 
-// DeleteModelByEventId mocks base method
+// DeleteModelByEventId mocks base method.
 func (m *MockAppDao) DeleteModelByEventId(eventID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteModelByEventId", eventID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteModelByEventId indicates an expected call of DeleteModelByEventId
+// DeleteModelByEventId indicates an expected call of DeleteModelByEventId.
 func (mr *MockAppDaoMockRecorder) DeleteModelByEventId(eventID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModelByEventId", reflect.TypeOf((*MockAppDao)(nil).DeleteModelByEventId), eventID)
 }
 
-// MockVolumeTypeDao is a mock of VolumeTypeDao interface
+// MockTenantApplicationDao is a mock of TenantApplicationDao interface.
+type MockTenantApplicationDao struct {
+	ctrl     *gomock.Controller
+	recorder *MockTenantApplicationDaoMockRecorder
+}
+
+// MockTenantApplicationDaoMockRecorder is the mock recorder for MockTenantApplicationDao.
+type MockTenantApplicationDaoMockRecorder struct {
+	mock *MockTenantApplicationDao
+}
+
+// NewMockTenantApplicationDao creates a new mock instance.
+func NewMockTenantApplicationDao(ctrl *gomock.Controller) *MockTenantApplicationDao {
+	mock := &MockTenantApplicationDao{ctrl: ctrl}
+	mock.recorder = &MockTenantApplicationDaoMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockTenantApplicationDao) EXPECT() *MockTenantApplicationDaoMockRecorder {
+	return m.recorder
+}
+
+// AddModel mocks base method.
+func (m *MockTenantApplicationDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddModel indicates an expected call of AddModel.
+func (mr *MockTenantApplicationDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantApplicationDao)(nil).AddModel), arg0)
+}
+
+// UpdateModel mocks base method.
+func (m *MockTenantApplicationDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateModel indicates an expected call of UpdateModel.
+func (mr *MockTenantApplicationDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantApplicationDao)(nil).UpdateModel), arg0)
+}
+
+// ListApps mocks base method.
+func (m *MockTenantApplicationDao) ListApps(tenantID, appName string, page, pageSize int) ([]*model.Application, int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListApps", tenantID, appName, page, pageSize)
+	ret0, _ := ret[0].([]*model.Application)
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// ListApps indicates an expected call of ListApps.
+func (mr *MockTenantApplicationDaoMockRecorder) ListApps(tenantID, appName, page, pageSize interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListApps", reflect.TypeOf((*MockTenantApplicationDao)(nil).ListApps), tenantID, appName, page, pageSize)
+}
+
+// GetAppByID mocks base method.
+func (m *MockTenantApplicationDao) GetAppByID(appID string) (*model.Application, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAppByID", appID)
+	ret0, _ := ret[0].(*model.Application)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAppByID indicates an expected call of GetAppByID.
+func (mr *MockTenantApplicationDaoMockRecorder) GetAppByID(appID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppByID", reflect.TypeOf((*MockTenantApplicationDao)(nil).GetAppByID), appID)
+}
+
+// DeleteApp mocks base method.
+func (m *MockTenantApplicationDao) DeleteApp(appID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteApp", appID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteApp indicates an expected call of DeleteApp.
+func (mr *MockTenantApplicationDaoMockRecorder) DeleteApp(appID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteApp", reflect.TypeOf((*MockTenantApplicationDao)(nil).DeleteApp), appID)
+}
+
+// MockApplicationConfigDao is a mock of ApplicationConfigDao interface.
+type MockApplicationConfigDao struct {
+	ctrl     *gomock.Controller
+	recorder *MockApplicationConfigDaoMockRecorder
+}
+
+// MockApplicationConfigDaoMockRecorder is the mock recorder for MockApplicationConfigDao.
+type MockApplicationConfigDaoMockRecorder struct {
+	mock *MockApplicationConfigDao
+}
+
+// NewMockApplicationConfigDao creates a new mock instance.
+func NewMockApplicationConfigDao(ctrl *gomock.Controller) *MockApplicationConfigDao {
+	mock := &MockApplicationConfigDao{ctrl: ctrl}
+	mock.recorder = &MockApplicationConfigDaoMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockApplicationConfigDao) EXPECT() *MockApplicationConfigDaoMockRecorder {
+	return m.recorder
+}
+
+// AddModel mocks base method.
+func (m *MockApplicationConfigDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddModel indicates an expected call of AddModel.
+func (mr *MockApplicationConfigDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockApplicationConfigDao)(nil).AddModel), arg0)
+}
+
+// UpdateModel mocks base method.
+func (m *MockApplicationConfigDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateModel indicates an expected call of UpdateModel.
+func (mr *MockApplicationConfigDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockApplicationConfigDao)(nil).UpdateModel), arg0)
+}
+
+// GetConfigByID mocks base method.
+func (m *MockApplicationConfigDao) GetConfigByID(appID, name string) (*model.ApplicationConfigGroup, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetConfigByID", appID, name)
+	ret0, _ := ret[0].(*model.ApplicationConfigGroup)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetConfigByID indicates an expected call of GetConfigByID.
+func (mr *MockApplicationConfigDaoMockRecorder) GetConfigByID(appID, name interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfigByID", reflect.TypeOf((*MockApplicationConfigDao)(nil).GetConfigByID), appID, name)
+}
+
+// MockServiceConfigGroupDao is a mock of ServiceConfigGroupDao interface.
+type MockServiceConfigGroupDao struct {
+	ctrl     *gomock.Controller
+	recorder *MockServiceConfigGroupDaoMockRecorder
+}
+
+// MockServiceConfigGroupDaoMockRecorder is the mock recorder for MockServiceConfigGroupDao.
+type MockServiceConfigGroupDaoMockRecorder struct {
+	mock *MockServiceConfigGroupDao
+}
+
+// NewMockServiceConfigGroupDao creates a new mock instance.
+func NewMockServiceConfigGroupDao(ctrl *gomock.Controller) *MockServiceConfigGroupDao {
+	mock := &MockServiceConfigGroupDao{ctrl: ctrl}
+	mock.recorder = &MockServiceConfigGroupDaoMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockServiceConfigGroupDao) EXPECT() *MockServiceConfigGroupDaoMockRecorder {
+	return m.recorder
+}
+
+// AddModel mocks base method.
+func (m *MockServiceConfigGroupDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddModel indicates an expected call of AddModel.
+func (mr *MockServiceConfigGroupDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockServiceConfigGroupDao)(nil).AddModel), arg0)
+}
+
+// UpdateModel mocks base method.
+func (m *MockServiceConfigGroupDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateModel indicates an expected call of UpdateModel.
+func (mr *MockServiceConfigGroupDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockServiceConfigGroupDao)(nil).UpdateModel), arg0)
+}
+
+// MockConfigItemDao is a mock of ConfigItemDao interface.
+type MockConfigItemDao struct {
+	ctrl     *gomock.Controller
+	recorder *MockConfigItemDaoMockRecorder
+}
+
+// MockConfigItemDaoMockRecorder is the mock recorder for MockConfigItemDao.
+type MockConfigItemDaoMockRecorder struct {
+	mock *MockConfigItemDao
+}
+
+// NewMockConfigItemDao creates a new mock instance.
+func NewMockConfigItemDao(ctrl *gomock.Controller) *MockConfigItemDao {
+	mock := &MockConfigItemDao{ctrl: ctrl}
+	mock.recorder = &MockConfigItemDaoMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockConfigItemDao) EXPECT() *MockConfigItemDaoMockRecorder {
+	return m.recorder
+}
+
+// AddModel mocks base method.
+func (m *MockConfigItemDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddModel indicates an expected call of AddModel.
+func (mr *MockConfigItemDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockConfigItemDao)(nil).AddModel), arg0)
+}
+
+// UpdateModel mocks base method.
+func (m *MockConfigItemDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateModel indicates an expected call of UpdateModel.
+func (mr *MockConfigItemDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockConfigItemDao)(nil).UpdateModel), arg0)
+}
+
+// MockVolumeTypeDao is a mock of VolumeTypeDao interface.
 type MockVolumeTypeDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockVolumeTypeDaoMockRecorder
 }
 
-// MockVolumeTypeDaoMockRecorder is the mock recorder for MockVolumeTypeDao
+// MockVolumeTypeDaoMockRecorder is the mock recorder for MockVolumeTypeDao.
 type MockVolumeTypeDaoMockRecorder struct {
 	mock *MockVolumeTypeDao
 }
 
-// NewMockVolumeTypeDao creates a new mock instance
+// NewMockVolumeTypeDao creates a new mock instance.
 func NewMockVolumeTypeDao(ctrl *gomock.Controller) *MockVolumeTypeDao {
 	mock := &MockVolumeTypeDao{ctrl: ctrl}
 	mock.recorder = &MockVolumeTypeDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockVolumeTypeDao) EXPECT() *MockVolumeTypeDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockVolumeTypeDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockVolumeTypeDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockVolumeTypeDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockVolumeTypeDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockVolumeTypeDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockVolumeTypeDao)(nil).UpdateModel), arg0)
 }
 
-// DeleteModelByVolumeTypes mocks base method
+// DeleteModelByVolumeTypes mocks base method.
 func (m *MockVolumeTypeDao) DeleteModelByVolumeTypes(volumeType string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteModelByVolumeTypes", volumeType)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteModelByVolumeTypes indicates an expected call of DeleteModelByVolumeTypes
+// DeleteModelByVolumeTypes indicates an expected call of DeleteModelByVolumeTypes.
 func (mr *MockVolumeTypeDaoMockRecorder) DeleteModelByVolumeTypes(volumeType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModelByVolumeTypes", reflect.TypeOf((*MockVolumeTypeDao)(nil).DeleteModelByVolumeTypes), volumeType)
 }
 
-// GetAllVolumeTypes mocks base method
+// GetAllVolumeTypes mocks base method.
 func (m *MockVolumeTypeDao) GetAllVolumeTypes() ([]*model.TenantServiceVolumeType, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAllVolumeTypes")
 	ret0, _ := ret[0].([]*model.TenantServiceVolumeType)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetAllVolumeTypes indicates an expected call of GetAllVolumeTypes
+// GetAllVolumeTypes indicates an expected call of GetAllVolumeTypes.
 func (mr *MockVolumeTypeDaoMockRecorder) GetAllVolumeTypes() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllVolumeTypes", reflect.TypeOf((*MockVolumeTypeDao)(nil).GetAllVolumeTypes))
 }
 
-// GetAllVolumeTypesByPage mocks base method
+// GetAllVolumeTypesByPage mocks base method.
 func (m *MockVolumeTypeDao) GetAllVolumeTypesByPage(page, pageSize int) ([]*model.TenantServiceVolumeType, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAllVolumeTypesByPage", page, pageSize)
 	ret0, _ := ret[0].([]*model.TenantServiceVolumeType)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetAllVolumeTypesByPage indicates an expected call of GetAllVolumeTypesByPage
+// GetAllVolumeTypesByPage indicates an expected call of GetAllVolumeTypesByPage.
 func (mr *MockVolumeTypeDaoMockRecorder) GetAllVolumeTypesByPage(page, pageSize interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllVolumeTypesByPage", reflect.TypeOf((*MockVolumeTypeDao)(nil).GetAllVolumeTypesByPage), page, pageSize)
 }
 
-// GetVolumeTypeByType mocks base method
+// GetVolumeTypeByType mocks base method.
 func (m *MockVolumeTypeDao) GetVolumeTypeByType(vt string) (*model.TenantServiceVolumeType, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVolumeTypeByType", vt)
 	ret0, _ := ret[0].(*model.TenantServiceVolumeType)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetVolumeTypeByType indicates an expected call of GetVolumeTypeByType
+// GetVolumeTypeByType indicates an expected call of GetVolumeTypeByType.
 func (mr *MockVolumeTypeDaoMockRecorder) GetVolumeTypeByType(vt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVolumeTypeByType", reflect.TypeOf((*MockVolumeTypeDao)(nil).GetVolumeTypeByType), vt)
 }
 
-// CreateOrUpdateVolumeType mocks base method
+// CreateOrUpdateVolumeType mocks base method.
 func (m *MockVolumeTypeDao) CreateOrUpdateVolumeType(vt *model.TenantServiceVolumeType) (*model.TenantServiceVolumeType, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateOrUpdateVolumeType", vt)
 	ret0, _ := ret[0].(*model.TenantServiceVolumeType)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateOrUpdateVolumeType indicates an expected call of CreateOrUpdateVolumeType
+// CreateOrUpdateVolumeType indicates an expected call of CreateOrUpdateVolumeType.
 func (mr *MockVolumeTypeDaoMockRecorder) CreateOrUpdateVolumeType(vt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrUpdateVolumeType", reflect.TypeOf((*MockVolumeTypeDao)(nil).CreateOrUpdateVolumeType), vt)
 }
 
-// MockLicenseDao is a mock of LicenseDao interface
+// MockLicenseDao is a mock of LicenseDao interface.
 type MockLicenseDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockLicenseDaoMockRecorder
 }
 
-// MockLicenseDaoMockRecorder is the mock recorder for MockLicenseDao
+// MockLicenseDaoMockRecorder is the mock recorder for MockLicenseDao.
 type MockLicenseDaoMockRecorder struct {
 	mock *MockLicenseDao
 }
 
-// NewMockLicenseDao creates a new mock instance
+// NewMockLicenseDao creates a new mock instance.
 func NewMockLicenseDao(ctrl *gomock.Controller) *MockLicenseDao {
 	mock := &MockLicenseDao{ctrl: ctrl}
 	mock.recorder = &MockLicenseDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockLicenseDao) EXPECT() *MockLicenseDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockLicenseDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockLicenseDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockLicenseDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockLicenseDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockLicenseDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockLicenseDao)(nil).UpdateModel), arg0)
 }
 
-// ListLicenses mocks base method
+// ListLicenses mocks base method.
 func (m *MockLicenseDao) ListLicenses() ([]*model.LicenseInfo, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListLicenses")
 	ret0, _ := ret[0].([]*model.LicenseInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListLicenses indicates an expected call of ListLicenses
+// ListLicenses indicates an expected call of ListLicenses.
 func (mr *MockLicenseDaoMockRecorder) ListLicenses() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListLicenses", reflect.TypeOf((*MockLicenseDao)(nil).ListLicenses))
 }
 
-// MockTenantServiceDao is a mock of TenantServiceDao interface
+// MockTenantServiceDao is a mock of TenantServiceDao interface.
 type MockTenantServiceDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantServiceDaoMockRecorder
 }
 
-// MockTenantServiceDaoMockRecorder is the mock recorder for MockTenantServiceDao
+// MockTenantServiceDaoMockRecorder is the mock recorder for MockTenantServiceDao.
 type MockTenantServiceDaoMockRecorder struct {
 	mock *MockTenantServiceDao
 }
 
-// NewMockTenantServiceDao creates a new mock instance
+// NewMockTenantServiceDao creates a new mock instance.
 func NewMockTenantServiceDao(ctrl *gomock.Controller) *MockTenantServiceDao {
 	mock := &MockTenantServiceDao{ctrl: ctrl}
 	mock.recorder = &MockTenantServiceDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantServiceDao) EXPECT() *MockTenantServiceDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantServiceDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantServiceDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantServiceDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantServiceDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceDao)(nil).UpdateModel), arg0)
 }
 
-// GetServiceByID mocks base method
+// GetServiceByID mocks base method.
 func (m *MockTenantServiceDao) GetServiceByID(serviceID string) (*model.TenantServices, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceByID", serviceID)
 	ret0, _ := ret[0].(*model.TenantServices)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServiceByID indicates an expected call of GetServiceByID
+// GetServiceByID indicates an expected call of GetServiceByID.
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceByID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceByID", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceByID), serviceID)
 }
 
-// GetServiceByServiceAlias mocks base method
+// GetServiceByServiceAlias mocks base method.
 func (m *MockTenantServiceDao) GetServiceByServiceAlias(serviceAlias string) (*model.TenantServices, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceByServiceAlias", serviceAlias)
 	ret0, _ := ret[0].(*model.TenantServices)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServiceByServiceAlias indicates an expected call of GetServiceByServiceAlias
+// GetServiceByServiceAlias indicates an expected call of GetServiceByServiceAlias.
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceByServiceAlias(serviceAlias interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceByServiceAlias", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceByServiceAlias), serviceAlias)
 }
 
-// GetServiceByIDs mocks base method
+// GetServiceByIDs mocks base method.
 func (m *MockTenantServiceDao) GetServiceByIDs(serviceIDs []string) ([]*model.TenantServices, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceByIDs", serviceIDs)
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServiceByIDs indicates an expected call of GetServiceByIDs
+// GetServiceByIDs indicates an expected call of GetServiceByIDs.
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceByIDs(serviceIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceByIDs", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceByIDs), serviceIDs)
 }
 
-// GetServiceAliasByIDs mocks base method
+// GetServiceAliasByIDs mocks base method.
 func (m *MockTenantServiceDao) GetServiceAliasByIDs(uids []string) ([]*model.TenantServices, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceAliasByIDs", uids)
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServiceAliasByIDs indicates an expected call of GetServiceAliasByIDs
+// GetServiceAliasByIDs indicates an expected call of GetServiceAliasByIDs.
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceAliasByIDs(uids interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceAliasByIDs", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceAliasByIDs), uids)
 }
 
-// GetServiceByTenantIDAndServiceAlias mocks base method
+// GetServiceByTenantIDAndServiceAlias mocks base method.
 func (m *MockTenantServiceDao) GetServiceByTenantIDAndServiceAlias(tenantID, serviceName string) (*model.TenantServices, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceByTenantIDAndServiceAlias", tenantID, serviceName)
 	ret0, _ := ret[0].(*model.TenantServices)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServiceByTenantIDAndServiceAlias indicates an expected call of GetServiceByTenantIDAndServiceAlias
+// GetServiceByTenantIDAndServiceAlias indicates an expected call of GetServiceByTenantIDAndServiceAlias.
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceByTenantIDAndServiceAlias(tenantID, serviceName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceByTenantIDAndServiceAlias", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceByTenantIDAndServiceAlias), tenantID, serviceName)
 }
 
-// SetTenantServiceStatus mocks base method
+// SetTenantServiceStatus mocks base method.
 func (m *MockTenantServiceDao) SetTenantServiceStatus(serviceID, status string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetTenantServiceStatus", serviceID, status)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// SetTenantServiceStatus indicates an expected call of SetTenantServiceStatus
+// SetTenantServiceStatus indicates an expected call of SetTenantServiceStatus.
 func (mr *MockTenantServiceDaoMockRecorder) SetTenantServiceStatus(serviceID, status interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTenantServiceStatus", reflect.TypeOf((*MockTenantServiceDao)(nil).SetTenantServiceStatus), serviceID, status)
 }
 
-// GetServicesByTenantID mocks base method
+// GetServicesByTenantID mocks base method.
 func (m *MockTenantServiceDao) GetServicesByTenantID(tenantID string) ([]*model.TenantServices, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServicesByTenantID", tenantID)
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServicesByTenantID indicates an expected call of GetServicesByTenantID
+// GetServicesByTenantID indicates an expected call of GetServicesByTenantID.
 func (mr *MockTenantServiceDaoMockRecorder) GetServicesByTenantID(tenantID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServicesByTenantID", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServicesByTenantID), tenantID)
 }
 
-// GetServicesByTenantIDs mocks base method
+// GetServicesByTenantIDs mocks base method.
 func (m *MockTenantServiceDao) GetServicesByTenantIDs(tenantIDs []string) ([]*model.TenantServices, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServicesByTenantIDs", tenantIDs)
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServicesByTenantIDs indicates an expected call of GetServicesByTenantIDs
+// GetServicesByTenantIDs indicates an expected call of GetServicesByTenantIDs.
 func (mr *MockTenantServiceDaoMockRecorder) GetServicesByTenantIDs(tenantIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServicesByTenantIDs", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServicesByTenantIDs), tenantIDs)
 }
 
-// GetServicesAllInfoByTenantID mocks base method
+// GetServicesAllInfoByTenantID mocks base method.
 func (m *MockTenantServiceDao) GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServicesAllInfoByTenantID", tenantID)
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServicesAllInfoByTenantID indicates an expected call of GetServicesAllInfoByTenantID
+// GetServicesAllInfoByTenantID indicates an expected call of GetServicesAllInfoByTenantID.
 func (mr *MockTenantServiceDaoMockRecorder) GetServicesAllInfoByTenantID(tenantID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServicesAllInfoByTenantID", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServicesAllInfoByTenantID), tenantID)
 }
 
-// DeleteServiceByServiceID mocks base method
+// GetServicesInfoByAppID mocks base method.
+func (m *MockTenantServiceDao) GetServicesInfoByAppID(appID string, page, pageSize int) ([]*model.TenantServices, int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetServicesInfoByAppID", appID, page, pageSize)
+	ret0, _ := ret[0].([]*model.TenantServices)
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetServicesInfoByAppID indicates an expected call of GetServicesInfoByAppID.
+func (mr *MockTenantServiceDaoMockRecorder) GetServicesInfoByAppID(appID, page, pageSize interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServicesInfoByAppID", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServicesInfoByAppID), appID, page, pageSize)
+}
+
+// CountServiceByAppID mocks base method.
+func (m *MockTenantServiceDao) CountServiceByAppID(appID string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountServiceByAppID", appID)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountServiceByAppID indicates an expected call of CountServiceByAppID.
+func (mr *MockTenantServiceDaoMockRecorder) CountServiceByAppID(appID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountServiceByAppID", reflect.TypeOf((*MockTenantServiceDao)(nil).CountServiceByAppID), appID)
+}
+
+// GetServicesIDAndNameByAppID mocks base method.
+func (m *MockTenantServiceDao) GetServicesIDAndNameByAppID(appID string) []model.ServiceIDAndNameResult {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetServicesIDAndNameByAppID", appID)
+	ret0, _ := ret[0].([]model.ServiceIDAndNameResult)
+	return ret0
+}
+
+// GetServicesIDAndNameByAppID indicates an expected call of GetServicesIDAndNameByAppID.
+func (mr *MockTenantServiceDaoMockRecorder) GetServicesIDAndNameByAppID(appID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServicesIDAndNameByAppID", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServicesIDAndNameByAppID), appID)
+}
+
+// DeleteServiceByServiceID mocks base method.
 func (m *MockTenantServiceDao) DeleteServiceByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteServiceByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteServiceByServiceID indicates an expected call of DeleteServiceByServiceID
+// DeleteServiceByServiceID indicates an expected call of DeleteServiceByServiceID.
 func (mr *MockTenantServiceDaoMockRecorder) DeleteServiceByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteServiceByServiceID", reflect.TypeOf((*MockTenantServiceDao)(nil).DeleteServiceByServiceID), serviceID)
 }
 
-// GetServiceMemoryByTenantIDs mocks base method
+// GetServiceMemoryByTenantIDs mocks base method.
 func (m *MockTenantServiceDao) GetServiceMemoryByTenantIDs(tenantIDs, serviceIDs []string) (map[string]map[string]interface{}, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceMemoryByTenantIDs", tenantIDs, serviceIDs)
 	ret0, _ := ret[0].(map[string]map[string]interface{})
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServiceMemoryByTenantIDs indicates an expected call of GetServiceMemoryByTenantIDs
+// GetServiceMemoryByTenantIDs indicates an expected call of GetServiceMemoryByTenantIDs.
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceMemoryByTenantIDs(tenantIDs, serviceIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceMemoryByTenantIDs", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceMemoryByTenantIDs), tenantIDs, serviceIDs)
 }
 
-// GetServiceMemoryByServiceIDs mocks base method
+// GetServiceMemoryByServiceIDs mocks base method.
 func (m *MockTenantServiceDao) GetServiceMemoryByServiceIDs(serviceIDs []string) (map[string]map[string]interface{}, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceMemoryByServiceIDs", serviceIDs)
 	ret0, _ := ret[0].(map[string]map[string]interface{})
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServiceMemoryByServiceIDs indicates an expected call of GetServiceMemoryByServiceIDs
+// GetServiceMemoryByServiceIDs indicates an expected call of GetServiceMemoryByServiceIDs.
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceMemoryByServiceIDs(serviceIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceMemoryByServiceIDs", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceMemoryByServiceIDs), serviceIDs)
 }
 
-// GetPagedTenantService mocks base method
+// GetPagedTenantService mocks base method.
 func (m *MockTenantServiceDao) GetPagedTenantService(offset, len int, serviceIDs []string) ([]map[string]interface{}, int, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPagedTenantService", offset, len, serviceIDs)
 	ret0, _ := ret[0].([]map[string]interface{})
 	ret1, _ := ret[1].(int)
@@ -749,196 +1146,220 @@ func (m *MockTenantServiceDao) GetPagedTenantService(offset, len int, serviceIDs
 	return ret0, ret1, ret2
 }
 
-// GetPagedTenantService indicates an expected call of GetPagedTenantService
+// GetPagedTenantService indicates an expected call of GetPagedTenantService.
 func (mr *MockTenantServiceDaoMockRecorder) GetPagedTenantService(offset, len, serviceIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPagedTenantService", reflect.TypeOf((*MockTenantServiceDao)(nil).GetPagedTenantService), offset, len, serviceIDs)
 }
 
-// GetAllServicesID mocks base method
+// GetAllServicesID mocks base method.
 func (m *MockTenantServiceDao) GetAllServicesID() ([]*model.TenantServices, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAllServicesID")
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetAllServicesID indicates an expected call of GetAllServicesID
+// GetAllServicesID indicates an expected call of GetAllServicesID.
 func (mr *MockTenantServiceDaoMockRecorder) GetAllServicesID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllServicesID", reflect.TypeOf((*MockTenantServiceDao)(nil).GetAllServicesID))
 }
 
-// UpdateDeployVersion mocks base method
+// UpdateDeployVersion mocks base method.
 func (m *MockTenantServiceDao) UpdateDeployVersion(serviceID, deployversion string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateDeployVersion", serviceID, deployversion)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateDeployVersion indicates an expected call of UpdateDeployVersion
+// UpdateDeployVersion indicates an expected call of UpdateDeployVersion.
 func (mr *MockTenantServiceDaoMockRecorder) UpdateDeployVersion(serviceID, deployversion interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDeployVersion", reflect.TypeOf((*MockTenantServiceDao)(nil).UpdateDeployVersion), serviceID, deployversion)
 }
 
-// ListThirdPartyServices mocks base method
+// ListThirdPartyServices mocks base method.
 func (m *MockTenantServiceDao) ListThirdPartyServices() ([]*model.TenantServices, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListThirdPartyServices")
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListThirdPartyServices indicates an expected call of ListThirdPartyServices
+// ListThirdPartyServices indicates an expected call of ListThirdPartyServices.
 func (mr *MockTenantServiceDaoMockRecorder) ListThirdPartyServices() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListThirdPartyServices", reflect.TypeOf((*MockTenantServiceDao)(nil).ListThirdPartyServices))
 }
 
-// ListServicesByTenantID mocks base method
+// ListServicesByTenantID mocks base method.
 func (m *MockTenantServiceDao) ListServicesByTenantID(tenantID string) ([]*model.TenantServices, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListServicesByTenantID", tenantID)
 	ret0, _ := ret[0].([]*model.TenantServices)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListServicesByTenantID indicates an expected call of ListServicesByTenantID
+// ListServicesByTenantID indicates an expected call of ListServicesByTenantID.
 func (mr *MockTenantServiceDaoMockRecorder) ListServicesByTenantID(tenantID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListServicesByTenantID", reflect.TypeOf((*MockTenantServiceDao)(nil).ListServicesByTenantID), tenantID)
 }
 
-// GetServiceTypeById mocks base method
+// GetServiceTypeById mocks base method.
 func (m *MockTenantServiceDao) GetServiceTypeById(serviceID string) (*model.TenantServices, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceTypeById", serviceID)
 	ret0, _ := ret[0].(*model.TenantServices)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServiceTypeById indicates an expected call of GetServiceTypeById
+// GetServiceTypeById indicates an expected call of GetServiceTypeById.
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceTypeById(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceTypeById", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceTypeById), serviceID)
 }
 
-// MockTenantServiceDeleteDao is a mock of TenantServiceDeleteDao interface
+// MockTenantServiceDeleteDao is a mock of TenantServiceDeleteDao interface.
 type MockTenantServiceDeleteDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantServiceDeleteDaoMockRecorder
 }
 
-// MockTenantServiceDeleteDaoMockRecorder is the mock recorder for MockTenantServiceDeleteDao
+// MockTenantServiceDeleteDaoMockRecorder is the mock recorder for MockTenantServiceDeleteDao.
 type MockTenantServiceDeleteDaoMockRecorder struct {
 	mock *MockTenantServiceDeleteDao
 }
 
-// NewMockTenantServiceDeleteDao creates a new mock instance
+// NewMockTenantServiceDeleteDao creates a new mock instance.
 func NewMockTenantServiceDeleteDao(ctrl *gomock.Controller) *MockTenantServiceDeleteDao {
 	mock := &MockTenantServiceDeleteDao{ctrl: ctrl}
 	mock.recorder = &MockTenantServiceDeleteDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantServiceDeleteDao) EXPECT() *MockTenantServiceDeleteDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantServiceDeleteDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantServiceDeleteDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceDeleteDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantServiceDeleteDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantServiceDeleteDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceDeleteDao)(nil).UpdateModel), arg0)
 }
 
-// GetTenantServicesDeleteByCreateTime mocks base method
+// GetTenantServicesDeleteByCreateTime mocks base method.
 func (m *MockTenantServiceDeleteDao) GetTenantServicesDeleteByCreateTime(createTime time.Time) ([]*model.TenantServicesDelete, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServicesDeleteByCreateTime", createTime)
 	ret0, _ := ret[0].([]*model.TenantServicesDelete)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantServicesDeleteByCreateTime indicates an expected call of GetTenantServicesDeleteByCreateTime
+// GetTenantServicesDeleteByCreateTime indicates an expected call of GetTenantServicesDeleteByCreateTime.
 func (mr *MockTenantServiceDeleteDaoMockRecorder) GetTenantServicesDeleteByCreateTime(createTime interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServicesDeleteByCreateTime", reflect.TypeOf((*MockTenantServiceDeleteDao)(nil).GetTenantServicesDeleteByCreateTime), createTime)
 }
 
-// DeleteTenantServicesDelete mocks base method
+// DeleteTenantServicesDelete mocks base method.
 func (m *MockTenantServiceDeleteDao) DeleteTenantServicesDelete(record *model.TenantServicesDelete) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteTenantServicesDelete", record)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteTenantServicesDelete indicates an expected call of DeleteTenantServicesDelete
+// DeleteTenantServicesDelete indicates an expected call of DeleteTenantServicesDelete.
 func (mr *MockTenantServiceDeleteDaoMockRecorder) DeleteTenantServicesDelete(record interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTenantServicesDelete", reflect.TypeOf((*MockTenantServiceDeleteDao)(nil).DeleteTenantServicesDelete), record)
 }
 
-// MockTenantServicesPortDao is a mock of TenantServicesPortDao interface
+// MockTenantServicesPortDao is a mock of TenantServicesPortDao interface.
 type MockTenantServicesPortDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantServicesPortDaoMockRecorder
 }
 
-// MockTenantServicesPortDaoMockRecorder is the mock recorder for MockTenantServicesPortDao
+// MockTenantServicesPortDaoMockRecorder is the mock recorder for MockTenantServicesPortDao.
 type MockTenantServicesPortDaoMockRecorder struct {
 	mock *MockTenantServicesPortDao
 }
 
-// NewMockTenantServicesPortDao creates a new mock instance
+// NewMockTenantServicesPortDao creates a new mock instance.
 func NewMockTenantServicesPortDao(ctrl *gomock.Controller) *MockTenantServicesPortDao {
 	mock := &MockTenantServicesPortDao{ctrl: ctrl}
 	mock.recorder = &MockTenantServicesPortDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantServicesPortDao) EXPECT() *MockTenantServicesPortDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantServicesPortDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantServicesPortDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServicesPortDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantServicesPortDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantServicesPortDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServicesPortDao)(nil).UpdateModel), arg0)
 }
 
-// DeleteModel mocks base method
+// DeleteModel mocks base method.
 func (m *MockTenantServicesPortDao) DeleteModel(serviceID string, arg ...interface{}) error {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{serviceID}
 	for _, a := range arg {
 		varargs = append(varargs, a)
@@ -948,924 +1369,1046 @@ func (m *MockTenantServicesPortDao) DeleteModel(serviceID string, arg ...interfa
 	return ret0
 }
 
-// DeleteModel indicates an expected call of DeleteModel
+// DeleteModel indicates an expected call of DeleteModel.
 func (mr *MockTenantServicesPortDaoMockRecorder) DeleteModel(serviceID interface{}, arg ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{serviceID}, arg...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModel", reflect.TypeOf((*MockTenantServicesPortDao)(nil).DeleteModel), varargs...)
 }
 
-// GetPortsByServiceID mocks base method
+// GetPortsByServiceID mocks base method.
 func (m *MockTenantServicesPortDao) GetPortsByServiceID(serviceID string) ([]*model.TenantServicesPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPortsByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServicesPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetPortsByServiceID indicates an expected call of GetPortsByServiceID
+// GetPortsByServiceID indicates an expected call of GetPortsByServiceID.
 func (mr *MockTenantServicesPortDaoMockRecorder) GetPortsByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPortsByServiceID", reflect.TypeOf((*MockTenantServicesPortDao)(nil).GetPortsByServiceID), serviceID)
 }
 
-// GetOuterPorts mocks base method
+// GetOuterPorts mocks base method.
 func (m *MockTenantServicesPortDao) GetOuterPorts(serviceID string) ([]*model.TenantServicesPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOuterPorts", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServicesPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetOuterPorts indicates an expected call of GetOuterPorts
+// GetOuterPorts indicates an expected call of GetOuterPorts.
 func (mr *MockTenantServicesPortDaoMockRecorder) GetOuterPorts(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOuterPorts", reflect.TypeOf((*MockTenantServicesPortDao)(nil).GetOuterPorts), serviceID)
 }
 
-// GetInnerPorts mocks base method
+// GetInnerPorts mocks base method.
 func (m *MockTenantServicesPortDao) GetInnerPorts(serviceID string) ([]*model.TenantServicesPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetInnerPorts", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServicesPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetInnerPorts indicates an expected call of GetInnerPorts
+// GetInnerPorts indicates an expected call of GetInnerPorts.
 func (mr *MockTenantServicesPortDaoMockRecorder) GetInnerPorts(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInnerPorts", reflect.TypeOf((*MockTenantServicesPortDao)(nil).GetInnerPorts), serviceID)
 }
 
-// GetPort mocks base method
+// GetPort mocks base method.
 func (m *MockTenantServicesPortDao) GetPort(serviceID string, port int) (*model.TenantServicesPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPort", serviceID, port)
 	ret0, _ := ret[0].(*model.TenantServicesPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetPort indicates an expected call of GetPort
+// GetPort indicates an expected call of GetPort.
 func (mr *MockTenantServicesPortDaoMockRecorder) GetPort(serviceID, port interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPort", reflect.TypeOf((*MockTenantServicesPortDao)(nil).GetPort), serviceID, port)
 }
 
-// GetOpenedPorts mocks base method
+// GetOpenedPorts mocks base method.
 func (m *MockTenantServicesPortDao) GetOpenedPorts(serviceID string) ([]*model.TenantServicesPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOpenedPorts", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServicesPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetOpenedPorts indicates an expected call of GetOpenedPorts
+// GetOpenedPorts indicates an expected call of GetOpenedPorts.
 func (mr *MockTenantServicesPortDaoMockRecorder) GetOpenedPorts(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOpenedPorts", reflect.TypeOf((*MockTenantServicesPortDao)(nil).GetOpenedPorts), serviceID)
 }
 
-// GetDepUDPPort mocks base method
+// GetDepUDPPort mocks base method.
 func (m *MockTenantServicesPortDao) GetDepUDPPort(serviceID string) ([]*model.TenantServicesPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDepUDPPort", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServicesPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetDepUDPPort indicates an expected call of GetDepUDPPort
+// GetDepUDPPort indicates an expected call of GetDepUDPPort.
 func (mr *MockTenantServicesPortDaoMockRecorder) GetDepUDPPort(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDepUDPPort", reflect.TypeOf((*MockTenantServicesPortDao)(nil).GetDepUDPPort), serviceID)
 }
 
-// DELPortsByServiceID mocks base method
+// DELPortsByServiceID mocks base method.
 func (m *MockTenantServicesPortDao) DELPortsByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DELPortsByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DELPortsByServiceID indicates an expected call of DELPortsByServiceID
+// DELPortsByServiceID indicates an expected call of DELPortsByServiceID.
 func (mr *MockTenantServicesPortDaoMockRecorder) DELPortsByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DELPortsByServiceID", reflect.TypeOf((*MockTenantServicesPortDao)(nil).DELPortsByServiceID), serviceID)
 }
 
-// HasOpenPort mocks base method
+// HasOpenPort mocks base method.
 func (m *MockTenantServicesPortDao) HasOpenPort(sid string) bool {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HasOpenPort", sid)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-// HasOpenPort indicates an expected call of HasOpenPort
+// HasOpenPort indicates an expected call of HasOpenPort.
 func (mr *MockTenantServicesPortDaoMockRecorder) HasOpenPort(sid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasOpenPort", reflect.TypeOf((*MockTenantServicesPortDao)(nil).HasOpenPort), sid)
 }
 
-// DelByServiceID mocks base method
+// DelByServiceID mocks base method.
 func (m *MockTenantServicesPortDao) DelByServiceID(sid string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelByServiceID", sid)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DelByServiceID indicates an expected call of DelByServiceID
+// DelByServiceID indicates an expected call of DelByServiceID.
 func (mr *MockTenantServicesPortDaoMockRecorder) DelByServiceID(sid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByServiceID", reflect.TypeOf((*MockTenantServicesPortDao)(nil).DelByServiceID), sid)
 }
 
-// ListInnerPortsByServiceIDs mocks base method
+// ListInnerPortsByServiceIDs mocks base method.
 func (m *MockTenantServicesPortDao) ListInnerPortsByServiceIDs(serviceIDs []string) ([]*model.TenantServicesPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListInnerPortsByServiceIDs", serviceIDs)
 	ret0, _ := ret[0].([]*model.TenantServicesPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListInnerPortsByServiceIDs indicates an expected call of ListInnerPortsByServiceIDs
+// ListInnerPortsByServiceIDs indicates an expected call of ListInnerPortsByServiceIDs.
 func (mr *MockTenantServicesPortDaoMockRecorder) ListInnerPortsByServiceIDs(serviceIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListInnerPortsByServiceIDs", reflect.TypeOf((*MockTenantServicesPortDao)(nil).ListInnerPortsByServiceIDs), serviceIDs)
 }
 
-// MockTenantPluginDao is a mock of TenantPluginDao interface
+// MockTenantPluginDao is a mock of TenantPluginDao interface.
 type MockTenantPluginDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantPluginDaoMockRecorder
 }
 
-// MockTenantPluginDaoMockRecorder is the mock recorder for MockTenantPluginDao
+// MockTenantPluginDaoMockRecorder is the mock recorder for MockTenantPluginDao.
 type MockTenantPluginDaoMockRecorder struct {
 	mock *MockTenantPluginDao
 }
 
-// NewMockTenantPluginDao creates a new mock instance
+// NewMockTenantPluginDao creates a new mock instance.
 func NewMockTenantPluginDao(ctrl *gomock.Controller) *MockTenantPluginDao {
 	mock := &MockTenantPluginDao{ctrl: ctrl}
 	mock.recorder = &MockTenantPluginDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantPluginDao) EXPECT() *MockTenantPluginDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantPluginDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantPluginDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantPluginDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantPluginDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantPluginDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantPluginDao)(nil).UpdateModel), arg0)
 }
 
-// GetPluginByID mocks base method
+// GetPluginByID mocks base method.
 func (m *MockTenantPluginDao) GetPluginByID(pluginID, tenantID string) (*model.TenantPlugin, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPluginByID", pluginID, tenantID)
 	ret0, _ := ret[0].(*model.TenantPlugin)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetPluginByID indicates an expected call of GetPluginByID
+// GetPluginByID indicates an expected call of GetPluginByID.
 func (mr *MockTenantPluginDaoMockRecorder) GetPluginByID(pluginID, tenantID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPluginByID", reflect.TypeOf((*MockTenantPluginDao)(nil).GetPluginByID), pluginID, tenantID)
 }
 
-// DeletePluginByID mocks base method
+// DeletePluginByID mocks base method.
 func (m *MockTenantPluginDao) DeletePluginByID(pluginID, tenantID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeletePluginByID", pluginID, tenantID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeletePluginByID indicates an expected call of DeletePluginByID
+// DeletePluginByID indicates an expected call of DeletePluginByID.
 func (mr *MockTenantPluginDaoMockRecorder) DeletePluginByID(pluginID, tenantID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePluginByID", reflect.TypeOf((*MockTenantPluginDao)(nil).DeletePluginByID), pluginID, tenantID)
 }
 
-// GetPluginsByTenantID mocks base method
+// GetPluginsByTenantID mocks base method.
 func (m *MockTenantPluginDao) GetPluginsByTenantID(tenantID string) ([]*model.TenantPlugin, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPluginsByTenantID", tenantID)
 	ret0, _ := ret[0].([]*model.TenantPlugin)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetPluginsByTenantID indicates an expected call of GetPluginsByTenantID
+// GetPluginsByTenantID indicates an expected call of GetPluginsByTenantID.
 func (mr *MockTenantPluginDaoMockRecorder) GetPluginsByTenantID(tenantID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPluginsByTenantID", reflect.TypeOf((*MockTenantPluginDao)(nil).GetPluginsByTenantID), tenantID)
 }
 
-// ListByIDs mocks base method
+// ListByIDs mocks base method.
 func (m *MockTenantPluginDao) ListByIDs(ids []string) ([]*model.TenantPlugin, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByIDs", ids)
 	ret0, _ := ret[0].([]*model.TenantPlugin)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListByIDs indicates an expected call of ListByIDs
+// ListByIDs indicates an expected call of ListByIDs.
 func (mr *MockTenantPluginDaoMockRecorder) ListByIDs(ids interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByIDs", reflect.TypeOf((*MockTenantPluginDao)(nil).ListByIDs), ids)
 }
 
-// ListByTenantID mocks base method
+// ListByTenantID mocks base method.
 func (m *MockTenantPluginDao) ListByTenantID(tenantID string) ([]*model.TenantPlugin, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByTenantID", tenantID)
 	ret0, _ := ret[0].([]*model.TenantPlugin)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListByTenantID indicates an expected call of ListByTenantID
+// ListByTenantID indicates an expected call of ListByTenantID.
 func (mr *MockTenantPluginDaoMockRecorder) ListByTenantID(tenantID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByTenantID", reflect.TypeOf((*MockTenantPluginDao)(nil).ListByTenantID), tenantID)
 }
 
-// MockTenantPluginDefaultENVDao is a mock of TenantPluginDefaultENVDao interface
+// MockTenantPluginDefaultENVDao is a mock of TenantPluginDefaultENVDao interface.
 type MockTenantPluginDefaultENVDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantPluginDefaultENVDaoMockRecorder
 }
 
-// MockTenantPluginDefaultENVDaoMockRecorder is the mock recorder for MockTenantPluginDefaultENVDao
+// MockTenantPluginDefaultENVDaoMockRecorder is the mock recorder for MockTenantPluginDefaultENVDao.
 type MockTenantPluginDefaultENVDaoMockRecorder struct {
 	mock *MockTenantPluginDefaultENVDao
 }
 
-// NewMockTenantPluginDefaultENVDao creates a new mock instance
+// NewMockTenantPluginDefaultENVDao creates a new mock instance.
 func NewMockTenantPluginDefaultENVDao(ctrl *gomock.Controller) *MockTenantPluginDefaultENVDao {
 	mock := &MockTenantPluginDefaultENVDao{ctrl: ctrl}
 	mock.recorder = &MockTenantPluginDefaultENVDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantPluginDefaultENVDao) EXPECT() *MockTenantPluginDefaultENVDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantPluginDefaultENVDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantPluginDefaultENVDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).UpdateModel), arg0)
 }
 
-// GetDefaultENVByName mocks base method
+// GetDefaultENVByName mocks base method.
 func (m *MockTenantPluginDefaultENVDao) GetDefaultENVByName(pluginID, name, versionID string) (*model.TenantPluginDefaultENV, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDefaultENVByName", pluginID, name, versionID)
 	ret0, _ := ret[0].(*model.TenantPluginDefaultENV)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetDefaultENVByName indicates an expected call of GetDefaultENVByName
+// GetDefaultENVByName indicates an expected call of GetDefaultENVByName.
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) GetDefaultENVByName(pluginID, name, versionID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultENVByName", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).GetDefaultENVByName), pluginID, name, versionID)
 }
 
-// GetDefaultENVSByPluginID mocks base method
+// GetDefaultENVSByPluginID mocks base method.
 func (m *MockTenantPluginDefaultENVDao) GetDefaultENVSByPluginID(pluginID, versionID string) ([]*model.TenantPluginDefaultENV, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDefaultENVSByPluginID", pluginID, versionID)
 	ret0, _ := ret[0].([]*model.TenantPluginDefaultENV)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetDefaultENVSByPluginID indicates an expected call of GetDefaultENVSByPluginID
+// GetDefaultENVSByPluginID indicates an expected call of GetDefaultENVSByPluginID.
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) GetDefaultENVSByPluginID(pluginID, versionID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultENVSByPluginID", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).GetDefaultENVSByPluginID), pluginID, versionID)
 }
 
-// DeleteDefaultENVByName mocks base method
+// DeleteDefaultENVByName mocks base method.
 func (m *MockTenantPluginDefaultENVDao) DeleteDefaultENVByName(pluginID, name, versionID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteDefaultENVByName", pluginID, name, versionID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteDefaultENVByName indicates an expected call of DeleteDefaultENVByName
+// DeleteDefaultENVByName indicates an expected call of DeleteDefaultENVByName.
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) DeleteDefaultENVByName(pluginID, name, versionID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteDefaultENVByName", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).DeleteDefaultENVByName), pluginID, name, versionID)
 }
 
-// DeleteAllDefaultENVByPluginID mocks base method
+// DeleteAllDefaultENVByPluginID mocks base method.
 func (m *MockTenantPluginDefaultENVDao) DeleteAllDefaultENVByPluginID(PluginID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteAllDefaultENVByPluginID", PluginID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteAllDefaultENVByPluginID indicates an expected call of DeleteAllDefaultENVByPluginID
+// DeleteAllDefaultENVByPluginID indicates an expected call of DeleteAllDefaultENVByPluginID.
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) DeleteAllDefaultENVByPluginID(PluginID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAllDefaultENVByPluginID", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).DeleteAllDefaultENVByPluginID), PluginID)
 }
 
-// DeleteDefaultENVByPluginIDAndVersionID mocks base method
+// DeleteDefaultENVByPluginIDAndVersionID mocks base method.
 func (m *MockTenantPluginDefaultENVDao) DeleteDefaultENVByPluginIDAndVersionID(pluginID, versionID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteDefaultENVByPluginIDAndVersionID", pluginID, versionID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteDefaultENVByPluginIDAndVersionID indicates an expected call of DeleteDefaultENVByPluginIDAndVersionID
+// DeleteDefaultENVByPluginIDAndVersionID indicates an expected call of DeleteDefaultENVByPluginIDAndVersionID.
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) DeleteDefaultENVByPluginIDAndVersionID(pluginID, versionID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteDefaultENVByPluginIDAndVersionID", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).DeleteDefaultENVByPluginIDAndVersionID), pluginID, versionID)
 }
 
-// GetALLMasterDefultENVs mocks base method
+// GetALLMasterDefultENVs mocks base method.
 func (m *MockTenantPluginDefaultENVDao) GetALLMasterDefultENVs(pluginID string) ([]*model.TenantPluginDefaultENV, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetALLMasterDefultENVs", pluginID)
 	ret0, _ := ret[0].([]*model.TenantPluginDefaultENV)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetALLMasterDefultENVs indicates an expected call of GetALLMasterDefultENVs
+// GetALLMasterDefultENVs indicates an expected call of GetALLMasterDefultENVs.
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) GetALLMasterDefultENVs(pluginID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetALLMasterDefultENVs", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).GetALLMasterDefultENVs), pluginID)
 }
 
-// GetDefaultEnvWhichCanBeSetByPluginID mocks base method
+// GetDefaultEnvWhichCanBeSetByPluginID mocks base method.
 func (m *MockTenantPluginDefaultENVDao) GetDefaultEnvWhichCanBeSetByPluginID(pluginID, versionID string) ([]*model.TenantPluginDefaultENV, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDefaultEnvWhichCanBeSetByPluginID", pluginID, versionID)
 	ret0, _ := ret[0].([]*model.TenantPluginDefaultENV)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetDefaultEnvWhichCanBeSetByPluginID indicates an expected call of GetDefaultEnvWhichCanBeSetByPluginID
+// GetDefaultEnvWhichCanBeSetByPluginID indicates an expected call of GetDefaultEnvWhichCanBeSetByPluginID.
 func (mr *MockTenantPluginDefaultENVDaoMockRecorder) GetDefaultEnvWhichCanBeSetByPluginID(pluginID, versionID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultEnvWhichCanBeSetByPluginID", reflect.TypeOf((*MockTenantPluginDefaultENVDao)(nil).GetDefaultEnvWhichCanBeSetByPluginID), pluginID, versionID)
 }
 
-// MockTenantPluginBuildVersionDao is a mock of TenantPluginBuildVersionDao interface
+// MockTenantPluginBuildVersionDao is a mock of TenantPluginBuildVersionDao interface.
 type MockTenantPluginBuildVersionDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantPluginBuildVersionDaoMockRecorder
 }
 
-// MockTenantPluginBuildVersionDaoMockRecorder is the mock recorder for MockTenantPluginBuildVersionDao
+// MockTenantPluginBuildVersionDaoMockRecorder is the mock recorder for MockTenantPluginBuildVersionDao.
 type MockTenantPluginBuildVersionDaoMockRecorder struct {
 	mock *MockTenantPluginBuildVersionDao
 }
 
-// NewMockTenantPluginBuildVersionDao creates a new mock instance
+// NewMockTenantPluginBuildVersionDao creates a new mock instance.
 func NewMockTenantPluginBuildVersionDao(ctrl *gomock.Controller) *MockTenantPluginBuildVersionDao {
 	mock := &MockTenantPluginBuildVersionDao{ctrl: ctrl}
 	mock.recorder = &MockTenantPluginBuildVersionDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantPluginBuildVersionDao) EXPECT() *MockTenantPluginBuildVersionDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantPluginBuildVersionDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantPluginBuildVersionDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).UpdateModel), arg0)
 }
 
-// DeleteBuildVersionByVersionID mocks base method
+// DeleteBuildVersionByVersionID mocks base method.
 func (m *MockTenantPluginBuildVersionDao) DeleteBuildVersionByVersionID(versionID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteBuildVersionByVersionID", versionID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteBuildVersionByVersionID indicates an expected call of DeleteBuildVersionByVersionID
+// DeleteBuildVersionByVersionID indicates an expected call of DeleteBuildVersionByVersionID.
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) DeleteBuildVersionByVersionID(versionID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBuildVersionByVersionID", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).DeleteBuildVersionByVersionID), versionID)
 }
 
-// DeleteBuildVersionByPluginID mocks base method
+// DeleteBuildVersionByPluginID mocks base method.
 func (m *MockTenantPluginBuildVersionDao) DeleteBuildVersionByPluginID(pluginID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteBuildVersionByPluginID", pluginID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteBuildVersionByPluginID indicates an expected call of DeleteBuildVersionByPluginID
+// DeleteBuildVersionByPluginID indicates an expected call of DeleteBuildVersionByPluginID.
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) DeleteBuildVersionByPluginID(pluginID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBuildVersionByPluginID", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).DeleteBuildVersionByPluginID), pluginID)
 }
 
-// GetBuildVersionByPluginID mocks base method
+// GetBuildVersionByPluginID mocks base method.
 func (m *MockTenantPluginBuildVersionDao) GetBuildVersionByPluginID(pluginID string) ([]*model.TenantPluginBuildVersion, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBuildVersionByPluginID", pluginID)
 	ret0, _ := ret[0].([]*model.TenantPluginBuildVersion)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetBuildVersionByPluginID indicates an expected call of GetBuildVersionByPluginID
+// GetBuildVersionByPluginID indicates an expected call of GetBuildVersionByPluginID.
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) GetBuildVersionByPluginID(pluginID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBuildVersionByPluginID", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).GetBuildVersionByPluginID), pluginID)
 }
 
-// GetBuildVersionByVersionID mocks base method
+// GetBuildVersionByVersionID mocks base method.
 func (m *MockTenantPluginBuildVersionDao) GetBuildVersionByVersionID(pluginID, versionID string) (*model.TenantPluginBuildVersion, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBuildVersionByVersionID", pluginID, versionID)
 	ret0, _ := ret[0].(*model.TenantPluginBuildVersion)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetBuildVersionByVersionID indicates an expected call of GetBuildVersionByVersionID
+// GetBuildVersionByVersionID indicates an expected call of GetBuildVersionByVersionID.
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) GetBuildVersionByVersionID(pluginID, versionID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBuildVersionByVersionID", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).GetBuildVersionByVersionID), pluginID, versionID)
 }
 
-// GetLastBuildVersionByVersionID mocks base method
+// GetLastBuildVersionByVersionID mocks base method.
 func (m *MockTenantPluginBuildVersionDao) GetLastBuildVersionByVersionID(pluginID, versionID string) (*model.TenantPluginBuildVersion, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLastBuildVersionByVersionID", pluginID, versionID)
 	ret0, _ := ret[0].(*model.TenantPluginBuildVersion)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetLastBuildVersionByVersionID indicates an expected call of GetLastBuildVersionByVersionID
+// GetLastBuildVersionByVersionID indicates an expected call of GetLastBuildVersionByVersionID.
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) GetLastBuildVersionByVersionID(pluginID, versionID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastBuildVersionByVersionID", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).GetLastBuildVersionByVersionID), pluginID, versionID)
 }
 
-// GetBuildVersionByDeployVersion mocks base method
+// GetBuildVersionByDeployVersion mocks base method.
 func (m *MockTenantPluginBuildVersionDao) GetBuildVersionByDeployVersion(pluginID, versionID, deployVersion string) (*model.TenantPluginBuildVersion, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBuildVersionByDeployVersion", pluginID, versionID, deployVersion)
 	ret0, _ := ret[0].(*model.TenantPluginBuildVersion)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetBuildVersionByDeployVersion indicates an expected call of GetBuildVersionByDeployVersion
+// GetBuildVersionByDeployVersion indicates an expected call of GetBuildVersionByDeployVersion.
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) GetBuildVersionByDeployVersion(pluginID, versionID, deployVersion interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBuildVersionByDeployVersion", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).GetBuildVersionByDeployVersion), pluginID, versionID, deployVersion)
 }
 
-// ListSuccessfulOnesByPluginIDs mocks base method
+// ListSuccessfulOnesByPluginIDs mocks base method.
 func (m *MockTenantPluginBuildVersionDao) ListSuccessfulOnesByPluginIDs(pluginIDs []string) ([]*model.TenantPluginBuildVersion, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListSuccessfulOnesByPluginIDs", pluginIDs)
 	ret0, _ := ret[0].([]*model.TenantPluginBuildVersion)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListSuccessfulOnesByPluginIDs indicates an expected call of ListSuccessfulOnesByPluginIDs
+// ListSuccessfulOnesByPluginIDs indicates an expected call of ListSuccessfulOnesByPluginIDs.
 func (mr *MockTenantPluginBuildVersionDaoMockRecorder) ListSuccessfulOnesByPluginIDs(pluginIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSuccessfulOnesByPluginIDs", reflect.TypeOf((*MockTenantPluginBuildVersionDao)(nil).ListSuccessfulOnesByPluginIDs), pluginIDs)
 }
 
-// MockTenantPluginVersionEnvDao is a mock of TenantPluginVersionEnvDao interface
+// MockTenantPluginVersionEnvDao is a mock of TenantPluginVersionEnvDao interface.
 type MockTenantPluginVersionEnvDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantPluginVersionEnvDaoMockRecorder
 }
 
-// MockTenantPluginVersionEnvDaoMockRecorder is the mock recorder for MockTenantPluginVersionEnvDao
+// MockTenantPluginVersionEnvDaoMockRecorder is the mock recorder for MockTenantPluginVersionEnvDao.
 type MockTenantPluginVersionEnvDaoMockRecorder struct {
 	mock *MockTenantPluginVersionEnvDao
 }
 
-// NewMockTenantPluginVersionEnvDao creates a new mock instance
+// NewMockTenantPluginVersionEnvDao creates a new mock instance.
 func NewMockTenantPluginVersionEnvDao(ctrl *gomock.Controller) *MockTenantPluginVersionEnvDao {
 	mock := &MockTenantPluginVersionEnvDao{ctrl: ctrl}
 	mock.recorder = &MockTenantPluginVersionEnvDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantPluginVersionEnvDao) EXPECT() *MockTenantPluginVersionEnvDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantPluginVersionEnvDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantPluginVersionEnvDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).UpdateModel), arg0)
 }
 
-// DeleteEnvByEnvName mocks base method
+// DeleteEnvByEnvName mocks base method.
 func (m *MockTenantPluginVersionEnvDao) DeleteEnvByEnvName(envName, pluginID, serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteEnvByEnvName", envName, pluginID, serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteEnvByEnvName indicates an expected call of DeleteEnvByEnvName
+// DeleteEnvByEnvName indicates an expected call of DeleteEnvByEnvName.
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) DeleteEnvByEnvName(envName, pluginID, serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEnvByEnvName", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).DeleteEnvByEnvName), envName, pluginID, serviceID)
 }
 
-// DeleteEnvByPluginID mocks base method
+// DeleteEnvByPluginID mocks base method.
 func (m *MockTenantPluginVersionEnvDao) DeleteEnvByPluginID(serviceID, pluginID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteEnvByPluginID", serviceID, pluginID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteEnvByPluginID indicates an expected call of DeleteEnvByPluginID
+// DeleteEnvByPluginID indicates an expected call of DeleteEnvByPluginID.
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) DeleteEnvByPluginID(serviceID, pluginID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEnvByPluginID", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).DeleteEnvByPluginID), serviceID, pluginID)
 }
 
-// DeleteEnvByServiceID mocks base method
+// DeleteEnvByServiceID mocks base method.
 func (m *MockTenantPluginVersionEnvDao) DeleteEnvByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteEnvByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteEnvByServiceID indicates an expected call of DeleteEnvByServiceID
+// DeleteEnvByServiceID indicates an expected call of DeleteEnvByServiceID.
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) DeleteEnvByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEnvByServiceID", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).DeleteEnvByServiceID), serviceID)
 }
 
-// GetVersionEnvByServiceID mocks base method
+// GetVersionEnvByServiceID mocks base method.
 func (m *MockTenantPluginVersionEnvDao) GetVersionEnvByServiceID(serviceID, pluginID string) ([]*model.TenantPluginVersionEnv, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVersionEnvByServiceID", serviceID, pluginID)
 	ret0, _ := ret[0].([]*model.TenantPluginVersionEnv)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetVersionEnvByServiceID indicates an expected call of GetVersionEnvByServiceID
+// GetVersionEnvByServiceID indicates an expected call of GetVersionEnvByServiceID.
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) GetVersionEnvByServiceID(serviceID, pluginID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionEnvByServiceID", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).GetVersionEnvByServiceID), serviceID, pluginID)
 }
 
-// ListByServiceID mocks base method
+// ListByServiceID mocks base method.
 func (m *MockTenantPluginVersionEnvDao) ListByServiceID(serviceID string) ([]*model.TenantPluginVersionEnv, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.TenantPluginVersionEnv)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListByServiceID indicates an expected call of ListByServiceID
+// ListByServiceID indicates an expected call of ListByServiceID.
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) ListByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).ListByServiceID), serviceID)
 }
 
-// GetVersionEnvByEnvName mocks base method
+// GetVersionEnvByEnvName mocks base method.
 func (m *MockTenantPluginVersionEnvDao) GetVersionEnvByEnvName(serviceID, pluginID, envName string) (*model.TenantPluginVersionEnv, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVersionEnvByEnvName", serviceID, pluginID, envName)
 	ret0, _ := ret[0].(*model.TenantPluginVersionEnv)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetVersionEnvByEnvName indicates an expected call of GetVersionEnvByEnvName
+// GetVersionEnvByEnvName indicates an expected call of GetVersionEnvByEnvName.
 func (mr *MockTenantPluginVersionEnvDaoMockRecorder) GetVersionEnvByEnvName(serviceID, pluginID, envName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionEnvByEnvName", reflect.TypeOf((*MockTenantPluginVersionEnvDao)(nil).GetVersionEnvByEnvName), serviceID, pluginID, envName)
 }
 
-// MockTenantPluginVersionConfigDao is a mock of TenantPluginVersionConfigDao interface
+// MockTenantPluginVersionConfigDao is a mock of TenantPluginVersionConfigDao interface.
 type MockTenantPluginVersionConfigDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantPluginVersionConfigDaoMockRecorder
 }
 
-// MockTenantPluginVersionConfigDaoMockRecorder is the mock recorder for MockTenantPluginVersionConfigDao
+// MockTenantPluginVersionConfigDaoMockRecorder is the mock recorder for MockTenantPluginVersionConfigDao.
 type MockTenantPluginVersionConfigDaoMockRecorder struct {
 	mock *MockTenantPluginVersionConfigDao
 }
 
-// NewMockTenantPluginVersionConfigDao creates a new mock instance
+// NewMockTenantPluginVersionConfigDao creates a new mock instance.
 func NewMockTenantPluginVersionConfigDao(ctrl *gomock.Controller) *MockTenantPluginVersionConfigDao {
 	mock := &MockTenantPluginVersionConfigDao{ctrl: ctrl}
 	mock.recorder = &MockTenantPluginVersionConfigDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantPluginVersionConfigDao) EXPECT() *MockTenantPluginVersionConfigDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantPluginVersionConfigDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantPluginVersionConfigDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantPluginVersionConfigDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantPluginVersionConfigDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantPluginVersionConfigDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantPluginVersionConfigDao)(nil).UpdateModel), arg0)
 }
 
-// GetPluginConfig mocks base method
+// GetPluginConfig mocks base method.
 func (m *MockTenantPluginVersionConfigDao) GetPluginConfig(serviceID, pluginID string) (*model.TenantPluginVersionDiscoverConfig, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPluginConfig", serviceID, pluginID)
 	ret0, _ := ret[0].(*model.TenantPluginVersionDiscoverConfig)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetPluginConfig indicates an expected call of GetPluginConfig
+// GetPluginConfig indicates an expected call of GetPluginConfig.
 func (mr *MockTenantPluginVersionConfigDaoMockRecorder) GetPluginConfig(serviceID, pluginID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPluginConfig", reflect.TypeOf((*MockTenantPluginVersionConfigDao)(nil).GetPluginConfig), serviceID, pluginID)
 }
 
-// GetPluginConfigs mocks base method
+// GetPluginConfigs mocks base method.
 func (m *MockTenantPluginVersionConfigDao) GetPluginConfigs(serviceID string) ([]*model.TenantPluginVersionDiscoverConfig, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPluginConfigs", serviceID)
 	ret0, _ := ret[0].([]*model.TenantPluginVersionDiscoverConfig)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetPluginConfigs indicates an expected call of GetPluginConfigs
+// GetPluginConfigs indicates an expected call of GetPluginConfigs.
 func (mr *MockTenantPluginVersionConfigDaoMockRecorder) GetPluginConfigs(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPluginConfigs", reflect.TypeOf((*MockTenantPluginVersionConfigDao)(nil).GetPluginConfigs), serviceID)
 }
 
-// DeletePluginConfig mocks base method
+// DeletePluginConfig mocks base method.
 func (m *MockTenantPluginVersionConfigDao) DeletePluginConfig(serviceID, pluginID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeletePluginConfig", serviceID, pluginID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeletePluginConfig indicates an expected call of DeletePluginConfig
+// DeletePluginConfig indicates an expected call of DeletePluginConfig.
 func (mr *MockTenantPluginVersionConfigDaoMockRecorder) DeletePluginConfig(serviceID, pluginID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePluginConfig", reflect.TypeOf((*MockTenantPluginVersionConfigDao)(nil).DeletePluginConfig), serviceID, pluginID)
 }
 
-// DeletePluginConfigByServiceID mocks base method
+// DeletePluginConfigByServiceID mocks base method.
 func (m *MockTenantPluginVersionConfigDao) DeletePluginConfigByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeletePluginConfigByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeletePluginConfigByServiceID indicates an expected call of DeletePluginConfigByServiceID
+// DeletePluginConfigByServiceID indicates an expected call of DeletePluginConfigByServiceID.
 func (mr *MockTenantPluginVersionConfigDaoMockRecorder) DeletePluginConfigByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePluginConfigByServiceID", reflect.TypeOf((*MockTenantPluginVersionConfigDao)(nil).DeletePluginConfigByServiceID), serviceID)
 }
 
-// MockTenantServicePluginRelationDao is a mock of TenantServicePluginRelationDao interface
+// MockTenantServicePluginRelationDao is a mock of TenantServicePluginRelationDao interface.
 type MockTenantServicePluginRelationDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantServicePluginRelationDaoMockRecorder
 }
 
-// MockTenantServicePluginRelationDaoMockRecorder is the mock recorder for MockTenantServicePluginRelationDao
+// MockTenantServicePluginRelationDaoMockRecorder is the mock recorder for MockTenantServicePluginRelationDao.
 type MockTenantServicePluginRelationDaoMockRecorder struct {
 	mock *MockTenantServicePluginRelationDao
 }
 
-// NewMockTenantServicePluginRelationDao creates a new mock instance
+// NewMockTenantServicePluginRelationDao creates a new mock instance.
 func NewMockTenantServicePluginRelationDao(ctrl *gomock.Controller) *MockTenantServicePluginRelationDao {
 	mock := &MockTenantServicePluginRelationDao{ctrl: ctrl}
 	mock.recorder = &MockTenantServicePluginRelationDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantServicePluginRelationDao) EXPECT() *MockTenantServicePluginRelationDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantServicePluginRelationDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantServicePluginRelationDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).UpdateModel), arg0)
 }
 
-// DeleteRelationByServiceIDAndPluginID mocks base method
+// DeleteRelationByServiceIDAndPluginID mocks base method.
 func (m *MockTenantServicePluginRelationDao) DeleteRelationByServiceIDAndPluginID(serviceID, pluginID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteRelationByServiceIDAndPluginID", serviceID, pluginID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteRelationByServiceIDAndPluginID indicates an expected call of DeleteRelationByServiceIDAndPluginID
+// DeleteRelationByServiceIDAndPluginID indicates an expected call of DeleteRelationByServiceIDAndPluginID.
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) DeleteRelationByServiceIDAndPluginID(serviceID, pluginID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRelationByServiceIDAndPluginID", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).DeleteRelationByServiceIDAndPluginID), serviceID, pluginID)
 }
 
-// DeleteALLRelationByServiceID mocks base method
+// DeleteALLRelationByServiceID mocks base method.
 func (m *MockTenantServicePluginRelationDao) DeleteALLRelationByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteALLRelationByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteALLRelationByServiceID indicates an expected call of DeleteALLRelationByServiceID
+// DeleteALLRelationByServiceID indicates an expected call of DeleteALLRelationByServiceID.
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) DeleteALLRelationByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteALLRelationByServiceID", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).DeleteALLRelationByServiceID), serviceID)
 }
 
-// DeleteALLRelationByPluginID mocks base method
+// DeleteALLRelationByPluginID mocks base method.
 func (m *MockTenantServicePluginRelationDao) DeleteALLRelationByPluginID(pluginID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteALLRelationByPluginID", pluginID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteALLRelationByPluginID indicates an expected call of DeleteALLRelationByPluginID
+// DeleteALLRelationByPluginID indicates an expected call of DeleteALLRelationByPluginID.
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) DeleteALLRelationByPluginID(pluginID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteALLRelationByPluginID", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).DeleteALLRelationByPluginID), pluginID)
 }
 
-// GetALLRelationByServiceID mocks base method
+// GetALLRelationByServiceID mocks base method.
 func (m *MockTenantServicePluginRelationDao) GetALLRelationByServiceID(serviceID string) ([]*model.TenantServicePluginRelation, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetALLRelationByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServicePluginRelation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetALLRelationByServiceID indicates an expected call of GetALLRelationByServiceID
+// GetALLRelationByServiceID indicates an expected call of GetALLRelationByServiceID.
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) GetALLRelationByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetALLRelationByServiceID", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).GetALLRelationByServiceID), serviceID)
 }
 
-// GetRelateionByServiceIDAndPluginID mocks base method
+// GetRelateionByServiceIDAndPluginID mocks base method.
 func (m *MockTenantServicePluginRelationDao) GetRelateionByServiceIDAndPluginID(serviceID, pluginID string) (*model.TenantServicePluginRelation, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRelateionByServiceIDAndPluginID", serviceID, pluginID)
 	ret0, _ := ret[0].(*model.TenantServicePluginRelation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetRelateionByServiceIDAndPluginID indicates an expected call of GetRelateionByServiceIDAndPluginID
+// GetRelateionByServiceIDAndPluginID indicates an expected call of GetRelateionByServiceIDAndPluginID.
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) GetRelateionByServiceIDAndPluginID(serviceID, pluginID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRelateionByServiceIDAndPluginID", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).GetRelateionByServiceIDAndPluginID), serviceID, pluginID)
 }
 
-// CheckSomeModelPluginByServiceID mocks base method
+// CheckSomeModelPluginByServiceID mocks base method.
 func (m *MockTenantServicePluginRelationDao) CheckSomeModelPluginByServiceID(serviceID, pluginModel string) (bool, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CheckSomeModelPluginByServiceID", serviceID, pluginModel)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CheckSomeModelPluginByServiceID indicates an expected call of CheckSomeModelPluginByServiceID
+// CheckSomeModelPluginByServiceID indicates an expected call of CheckSomeModelPluginByServiceID.
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) CheckSomeModelPluginByServiceID(serviceID, pluginModel interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckSomeModelPluginByServiceID", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).CheckSomeModelPluginByServiceID), serviceID, pluginModel)
 }
 
-// CheckSomeModelLikePluginByServiceID mocks base method
+// CheckSomeModelLikePluginByServiceID mocks base method.
 func (m *MockTenantServicePluginRelationDao) CheckSomeModelLikePluginByServiceID(serviceID, pluginModel string) (bool, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CheckSomeModelLikePluginByServiceID", serviceID, pluginModel)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CheckSomeModelLikePluginByServiceID indicates an expected call of CheckSomeModelLikePluginByServiceID
+// CheckSomeModelLikePluginByServiceID indicates an expected call of CheckSomeModelLikePluginByServiceID.
 func (mr *MockTenantServicePluginRelationDaoMockRecorder) CheckSomeModelLikePluginByServiceID(serviceID, pluginModel interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckSomeModelLikePluginByServiceID", reflect.TypeOf((*MockTenantServicePluginRelationDao)(nil).CheckSomeModelLikePluginByServiceID), serviceID, pluginModel)
 }
 
-// MockTenantServiceRelationDao is a mock of TenantServiceRelationDao interface
+// MockTenantServiceRelationDao is a mock of TenantServiceRelationDao interface.
 type MockTenantServiceRelationDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantServiceRelationDaoMockRecorder
 }
 
-// MockTenantServiceRelationDaoMockRecorder is the mock recorder for MockTenantServiceRelationDao
+// MockTenantServiceRelationDaoMockRecorder is the mock recorder for MockTenantServiceRelationDao.
 type MockTenantServiceRelationDaoMockRecorder struct {
 	mock *MockTenantServiceRelationDao
 }
 
-// NewMockTenantServiceRelationDao creates a new mock instance
+// NewMockTenantServiceRelationDao creates a new mock instance.
 func NewMockTenantServiceRelationDao(ctrl *gomock.Controller) *MockTenantServiceRelationDao {
 	mock := &MockTenantServiceRelationDao{ctrl: ctrl}
 	mock.recorder = &MockTenantServiceRelationDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantServiceRelationDao) EXPECT() *MockTenantServiceRelationDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantServiceRelationDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantServiceRelationDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantServiceRelationDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantServiceRelationDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).UpdateModel), arg0)
 }
 
-// DeleteModel mocks base method
+// DeleteModel mocks base method.
 func (m *MockTenantServiceRelationDao) DeleteModel(serviceID string, arg ...interface{}) error {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{serviceID}
 	for _, a := range arg {
 		varargs = append(varargs, a)
@@ -1875,259 +2418,293 @@ func (m *MockTenantServiceRelationDao) DeleteModel(serviceID string, arg ...inte
 	return ret0
 }
 
-// DeleteModel indicates an expected call of DeleteModel
+// DeleteModel indicates an expected call of DeleteModel.
 func (mr *MockTenantServiceRelationDaoMockRecorder) DeleteModel(serviceID interface{}, arg ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{serviceID}, arg...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModel", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).DeleteModel), varargs...)
 }
 
-// GetTenantServiceRelations mocks base method
+// GetTenantServiceRelations mocks base method.
 func (m *MockTenantServiceRelationDao) GetTenantServiceRelations(serviceID string) ([]*model.TenantServiceRelation, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceRelations", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceRelation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantServiceRelations indicates an expected call of GetTenantServiceRelations
+// GetTenantServiceRelations indicates an expected call of GetTenantServiceRelations.
 func (mr *MockTenantServiceRelationDaoMockRecorder) GetTenantServiceRelations(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceRelations", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).GetTenantServiceRelations), serviceID)
 }
 
-// ListByServiceIDs mocks base method
+// ListByServiceIDs mocks base method.
 func (m *MockTenantServiceRelationDao) ListByServiceIDs(serviceIDs []string) ([]*model.TenantServiceRelation, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByServiceIDs", serviceIDs)
 	ret0, _ := ret[0].([]*model.TenantServiceRelation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListByServiceIDs indicates an expected call of ListByServiceIDs
+// ListByServiceIDs indicates an expected call of ListByServiceIDs.
 func (mr *MockTenantServiceRelationDaoMockRecorder) ListByServiceIDs(serviceIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceIDs", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).ListByServiceIDs), serviceIDs)
 }
 
-// GetTenantServiceRelationsByDependServiceID mocks base method
+// GetTenantServiceRelationsByDependServiceID mocks base method.
 func (m *MockTenantServiceRelationDao) GetTenantServiceRelationsByDependServiceID(dependServiceID string) ([]*model.TenantServiceRelation, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceRelationsByDependServiceID", dependServiceID)
 	ret0, _ := ret[0].([]*model.TenantServiceRelation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantServiceRelationsByDependServiceID indicates an expected call of GetTenantServiceRelationsByDependServiceID
+// GetTenantServiceRelationsByDependServiceID indicates an expected call of GetTenantServiceRelationsByDependServiceID.
 func (mr *MockTenantServiceRelationDaoMockRecorder) GetTenantServiceRelationsByDependServiceID(dependServiceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceRelationsByDependServiceID", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).GetTenantServiceRelationsByDependServiceID), dependServiceID)
 }
 
-// HaveRelations mocks base method
+// HaveRelations mocks base method.
 func (m *MockTenantServiceRelationDao) HaveRelations(serviceID string) bool {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HaveRelations", serviceID)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-// HaveRelations indicates an expected call of HaveRelations
+// HaveRelations indicates an expected call of HaveRelations.
 func (mr *MockTenantServiceRelationDaoMockRecorder) HaveRelations(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HaveRelations", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).HaveRelations), serviceID)
 }
 
-// DELRelationsByServiceID mocks base method
+// DELRelationsByServiceID mocks base method.
 func (m *MockTenantServiceRelationDao) DELRelationsByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DELRelationsByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DELRelationsByServiceID indicates an expected call of DELRelationsByServiceID
+// DELRelationsByServiceID indicates an expected call of DELRelationsByServiceID.
 func (mr *MockTenantServiceRelationDaoMockRecorder) DELRelationsByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DELRelationsByServiceID", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).DELRelationsByServiceID), serviceID)
 }
 
-// DeleteRelationByDepID mocks base method
+// DeleteRelationByDepID mocks base method.
 func (m *MockTenantServiceRelationDao) DeleteRelationByDepID(serviceID, depID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteRelationByDepID", serviceID, depID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteRelationByDepID indicates an expected call of DeleteRelationByDepID
+// DeleteRelationByDepID indicates an expected call of DeleteRelationByDepID.
 func (mr *MockTenantServiceRelationDaoMockRecorder) DeleteRelationByDepID(serviceID, depID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRelationByDepID", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).DeleteRelationByDepID), serviceID, depID)
 }
 
-// MockTenantServicesStreamPluginPortDao is a mock of TenantServicesStreamPluginPortDao interface
+// MockTenantServicesStreamPluginPortDao is a mock of TenantServicesStreamPluginPortDao interface.
 type MockTenantServicesStreamPluginPortDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantServicesStreamPluginPortDaoMockRecorder
 }
 
-// MockTenantServicesStreamPluginPortDaoMockRecorder is the mock recorder for MockTenantServicesStreamPluginPortDao
+// MockTenantServicesStreamPluginPortDaoMockRecorder is the mock recorder for MockTenantServicesStreamPluginPortDao.
 type MockTenantServicesStreamPluginPortDaoMockRecorder struct {
 	mock *MockTenantServicesStreamPluginPortDao
 }
 
-// NewMockTenantServicesStreamPluginPortDao creates a new mock instance
+// NewMockTenantServicesStreamPluginPortDao creates a new mock instance.
 func NewMockTenantServicesStreamPluginPortDao(ctrl *gomock.Controller) *MockTenantServicesStreamPluginPortDao {
 	mock := &MockTenantServicesStreamPluginPortDao{ctrl: ctrl}
 	mock.recorder = &MockTenantServicesStreamPluginPortDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantServicesStreamPluginPortDao) EXPECT() *MockTenantServicesStreamPluginPortDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantServicesStreamPluginPortDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantServicesStreamPluginPortDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).UpdateModel), arg0)
 }
 
-// GetPluginMappingPorts mocks base method
+// GetPluginMappingPorts mocks base method.
 func (m *MockTenantServicesStreamPluginPortDao) GetPluginMappingPorts(serviceID string) ([]*model.TenantServicesStreamPluginPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPluginMappingPorts", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServicesStreamPluginPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetPluginMappingPorts indicates an expected call of GetPluginMappingPorts
+// GetPluginMappingPorts indicates an expected call of GetPluginMappingPorts.
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) GetPluginMappingPorts(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPluginMappingPorts", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).GetPluginMappingPorts), serviceID)
 }
 
-// SetPluginMappingPort mocks base method
+// SetPluginMappingPort mocks base method.
 func (m *MockTenantServicesStreamPluginPortDao) SetPluginMappingPort(tenantID, serviceID, pluginModel string, containerPort int) (int, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetPluginMappingPort", tenantID, serviceID, pluginModel, containerPort)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// SetPluginMappingPort indicates an expected call of SetPluginMappingPort
+// SetPluginMappingPort indicates an expected call of SetPluginMappingPort.
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) SetPluginMappingPort(tenantID, serviceID, pluginModel, containerPort interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetPluginMappingPort", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).SetPluginMappingPort), tenantID, serviceID, pluginModel, containerPort)
 }
 
-// DeletePluginMappingPortByContainerPort mocks base method
+// DeletePluginMappingPortByContainerPort mocks base method.
 func (m *MockTenantServicesStreamPluginPortDao) DeletePluginMappingPortByContainerPort(serviceID, pluginModel string, containerPort int) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeletePluginMappingPortByContainerPort", serviceID, pluginModel, containerPort)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeletePluginMappingPortByContainerPort indicates an expected call of DeletePluginMappingPortByContainerPort
+// DeletePluginMappingPortByContainerPort indicates an expected call of DeletePluginMappingPortByContainerPort.
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) DeletePluginMappingPortByContainerPort(serviceID, pluginModel, containerPort interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePluginMappingPortByContainerPort", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).DeletePluginMappingPortByContainerPort), serviceID, pluginModel, containerPort)
 }
 
-// DeleteAllPluginMappingPortByServiceID mocks base method
+// DeleteAllPluginMappingPortByServiceID mocks base method.
 func (m *MockTenantServicesStreamPluginPortDao) DeleteAllPluginMappingPortByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteAllPluginMappingPortByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteAllPluginMappingPortByServiceID indicates an expected call of DeleteAllPluginMappingPortByServiceID
+// DeleteAllPluginMappingPortByServiceID indicates an expected call of DeleteAllPluginMappingPortByServiceID.
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) DeleteAllPluginMappingPortByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAllPluginMappingPortByServiceID", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).DeleteAllPluginMappingPortByServiceID), serviceID)
 }
 
-// GetPluginMappingPortByServiceIDAndContainerPort mocks base method
+// GetPluginMappingPortByServiceIDAndContainerPort mocks base method.
 func (m *MockTenantServicesStreamPluginPortDao) GetPluginMappingPortByServiceIDAndContainerPort(serviceID, pluginModel string, containerPort int) (*model.TenantServicesStreamPluginPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPluginMappingPortByServiceIDAndContainerPort", serviceID, pluginModel, containerPort)
 	ret0, _ := ret[0].(*model.TenantServicesStreamPluginPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetPluginMappingPortByServiceIDAndContainerPort indicates an expected call of GetPluginMappingPortByServiceIDAndContainerPort
+// GetPluginMappingPortByServiceIDAndContainerPort indicates an expected call of GetPluginMappingPortByServiceIDAndContainerPort.
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) GetPluginMappingPortByServiceIDAndContainerPort(serviceID, pluginModel, containerPort interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPluginMappingPortByServiceIDAndContainerPort", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).GetPluginMappingPortByServiceIDAndContainerPort), serviceID, pluginModel, containerPort)
 }
 
-// ListByServiceID mocks base method
+// ListByServiceID mocks base method.
 func (m *MockTenantServicesStreamPluginPortDao) ListByServiceID(sid string) ([]*model.TenantServicesStreamPluginPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByServiceID", sid)
 	ret0, _ := ret[0].([]*model.TenantServicesStreamPluginPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListByServiceID indicates an expected call of ListByServiceID
+// ListByServiceID indicates an expected call of ListByServiceID.
 func (mr *MockTenantServicesStreamPluginPortDaoMockRecorder) ListByServiceID(sid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockTenantServicesStreamPluginPortDao)(nil).ListByServiceID), sid)
 }
 
-// MockTenantServiceEnvVarDao is a mock of TenantServiceEnvVarDao interface
+// MockTenantServiceEnvVarDao is a mock of TenantServiceEnvVarDao interface.
 type MockTenantServiceEnvVarDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantServiceEnvVarDaoMockRecorder
 }
 
-// MockTenantServiceEnvVarDaoMockRecorder is the mock recorder for MockTenantServiceEnvVarDao
+// MockTenantServiceEnvVarDaoMockRecorder is the mock recorder for MockTenantServiceEnvVarDao.
 type MockTenantServiceEnvVarDaoMockRecorder struct {
 	mock *MockTenantServiceEnvVarDao
 }
 
-// NewMockTenantServiceEnvVarDao creates a new mock instance
+// NewMockTenantServiceEnvVarDao creates a new mock instance.
 func NewMockTenantServiceEnvVarDao(ctrl *gomock.Controller) *MockTenantServiceEnvVarDao {
 	mock := &MockTenantServiceEnvVarDao{ctrl: ctrl}
 	mock.recorder = &MockTenantServiceEnvVarDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantServiceEnvVarDao) EXPECT() *MockTenantServiceEnvVarDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantServiceEnvVarDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantServiceEnvVarDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).UpdateModel), arg0)
 }
 
-// DeleteModel mocks base method
+// DeleteModel mocks base method.
 func (m *MockTenantServiceEnvVarDao) DeleteModel(serviceID string, arg ...interface{}) error {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{serviceID}
 	for _, a := range arg {
 		varargs = append(varargs, a)
@@ -2137,220 +2714,248 @@ func (m *MockTenantServiceEnvVarDao) DeleteModel(serviceID string, arg ...interf
 	return ret0
 }
 
-// DeleteModel indicates an expected call of DeleteModel
+// DeleteModel indicates an expected call of DeleteModel.
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) DeleteModel(serviceID interface{}, arg ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{serviceID}, arg...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModel", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).DeleteModel), varargs...)
 }
 
-// GetDependServiceEnvs mocks base method
+// GetDependServiceEnvs mocks base method.
 func (m *MockTenantServiceEnvVarDao) GetDependServiceEnvs(serviceIDs, scopes []string) ([]*model.TenantServiceEnvVar, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDependServiceEnvs", serviceIDs, scopes)
 	ret0, _ := ret[0].([]*model.TenantServiceEnvVar)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetDependServiceEnvs indicates an expected call of GetDependServiceEnvs
+// GetDependServiceEnvs indicates an expected call of GetDependServiceEnvs.
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) GetDependServiceEnvs(serviceIDs, scopes interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDependServiceEnvs", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).GetDependServiceEnvs), serviceIDs, scopes)
 }
 
-// GetServiceEnvs mocks base method
+// GetServiceEnvs mocks base method.
 func (m *MockTenantServiceEnvVarDao) GetServiceEnvs(serviceID string, scopes []string) ([]*model.TenantServiceEnvVar, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceEnvs", serviceID, scopes)
 	ret0, _ := ret[0].([]*model.TenantServiceEnvVar)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServiceEnvs indicates an expected call of GetServiceEnvs
+// GetServiceEnvs indicates an expected call of GetServiceEnvs.
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) GetServiceEnvs(serviceID, scopes interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceEnvs", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).GetServiceEnvs), serviceID, scopes)
 }
 
-// GetEnv mocks base method
+// GetEnv mocks base method.
 func (m *MockTenantServiceEnvVarDao) GetEnv(serviceID, envName string) (*model.TenantServiceEnvVar, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEnv", serviceID, envName)
 	ret0, _ := ret[0].(*model.TenantServiceEnvVar)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetEnv indicates an expected call of GetEnv
+// GetEnv indicates an expected call of GetEnv.
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) GetEnv(serviceID, envName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEnv", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).GetEnv), serviceID, envName)
 }
 
-// DELServiceEnvsByServiceID mocks base method
+// DELServiceEnvsByServiceID mocks base method.
 func (m *MockTenantServiceEnvVarDao) DELServiceEnvsByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DELServiceEnvsByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DELServiceEnvsByServiceID indicates an expected call of DELServiceEnvsByServiceID
+// DELServiceEnvsByServiceID indicates an expected call of DELServiceEnvsByServiceID.
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) DELServiceEnvsByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DELServiceEnvsByServiceID", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).DELServiceEnvsByServiceID), serviceID)
 }
 
-// DelByServiceIDAndScope mocks base method
+// DelByServiceIDAndScope mocks base method.
 func (m *MockTenantServiceEnvVarDao) DelByServiceIDAndScope(sid, scope string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelByServiceIDAndScope", sid, scope)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DelByServiceIDAndScope indicates an expected call of DelByServiceIDAndScope
+// DelByServiceIDAndScope indicates an expected call of DelByServiceIDAndScope.
 func (mr *MockTenantServiceEnvVarDaoMockRecorder) DelByServiceIDAndScope(sid, scope interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByServiceIDAndScope", reflect.TypeOf((*MockTenantServiceEnvVarDao)(nil).DelByServiceIDAndScope), sid, scope)
 }
 
-// MockTenantServiceMountRelationDao is a mock of TenantServiceMountRelationDao interface
+// MockTenantServiceMountRelationDao is a mock of TenantServiceMountRelationDao interface.
 type MockTenantServiceMountRelationDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantServiceMountRelationDaoMockRecorder
 }
 
-// MockTenantServiceMountRelationDaoMockRecorder is the mock recorder for MockTenantServiceMountRelationDao
+// MockTenantServiceMountRelationDaoMockRecorder is the mock recorder for MockTenantServiceMountRelationDao.
 type MockTenantServiceMountRelationDaoMockRecorder struct {
 	mock *MockTenantServiceMountRelationDao
 }
 
-// NewMockTenantServiceMountRelationDao creates a new mock instance
+// NewMockTenantServiceMountRelationDao creates a new mock instance.
 func NewMockTenantServiceMountRelationDao(ctrl *gomock.Controller) *MockTenantServiceMountRelationDao {
 	mock := &MockTenantServiceMountRelationDao{ctrl: ctrl}
 	mock.recorder = &MockTenantServiceMountRelationDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantServiceMountRelationDao) EXPECT() *MockTenantServiceMountRelationDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantServiceMountRelationDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantServiceMountRelationDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantServiceMountRelationDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantServiceMountRelationDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).UpdateModel), arg0)
 }
 
-// GetTenantServiceMountRelationsByService mocks base method
+// GetTenantServiceMountRelationsByService mocks base method.
 func (m *MockTenantServiceMountRelationDao) GetTenantServiceMountRelationsByService(serviceID string) ([]*model.TenantServiceMountRelation, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceMountRelationsByService", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceMountRelation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantServiceMountRelationsByService indicates an expected call of GetTenantServiceMountRelationsByService
+// GetTenantServiceMountRelationsByService indicates an expected call of GetTenantServiceMountRelationsByService.
 func (mr *MockTenantServiceMountRelationDaoMockRecorder) GetTenantServiceMountRelationsByService(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceMountRelationsByService", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).GetTenantServiceMountRelationsByService), serviceID)
 }
 
-// DElTenantServiceMountRelationByServiceAndName mocks base method
+// DElTenantServiceMountRelationByServiceAndName mocks base method.
 func (m *MockTenantServiceMountRelationDao) DElTenantServiceMountRelationByServiceAndName(serviceID, mntDir string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DElTenantServiceMountRelationByServiceAndName", serviceID, mntDir)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DElTenantServiceMountRelationByServiceAndName indicates an expected call of DElTenantServiceMountRelationByServiceAndName
+// DElTenantServiceMountRelationByServiceAndName indicates an expected call of DElTenantServiceMountRelationByServiceAndName.
 func (mr *MockTenantServiceMountRelationDaoMockRecorder) DElTenantServiceMountRelationByServiceAndName(serviceID, mntDir interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DElTenantServiceMountRelationByServiceAndName", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).DElTenantServiceMountRelationByServiceAndName), serviceID, mntDir)
 }
 
-// DELTenantServiceMountRelationByServiceID mocks base method
+// DELTenantServiceMountRelationByServiceID mocks base method.
 func (m *MockTenantServiceMountRelationDao) DELTenantServiceMountRelationByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DELTenantServiceMountRelationByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DELTenantServiceMountRelationByServiceID indicates an expected call of DELTenantServiceMountRelationByServiceID
+// DELTenantServiceMountRelationByServiceID indicates an expected call of DELTenantServiceMountRelationByServiceID.
 func (mr *MockTenantServiceMountRelationDaoMockRecorder) DELTenantServiceMountRelationByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DELTenantServiceMountRelationByServiceID", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).DELTenantServiceMountRelationByServiceID), serviceID)
 }
 
-// DElTenantServiceMountRelationByDepService mocks base method
+// DElTenantServiceMountRelationByDepService mocks base method.
 func (m *MockTenantServiceMountRelationDao) DElTenantServiceMountRelationByDepService(serviceID, depServiceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DElTenantServiceMountRelationByDepService", serviceID, depServiceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DElTenantServiceMountRelationByDepService indicates an expected call of DElTenantServiceMountRelationByDepService
+// DElTenantServiceMountRelationByDepService indicates an expected call of DElTenantServiceMountRelationByDepService.
 func (mr *MockTenantServiceMountRelationDaoMockRecorder) DElTenantServiceMountRelationByDepService(serviceID, depServiceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DElTenantServiceMountRelationByDepService", reflect.TypeOf((*MockTenantServiceMountRelationDao)(nil).DElTenantServiceMountRelationByDepService), serviceID, depServiceID)
 }
 
-// MockTenantServiceVolumeDao is a mock of TenantServiceVolumeDao interface
+// MockTenantServiceVolumeDao is a mock of TenantServiceVolumeDao interface.
 type MockTenantServiceVolumeDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantServiceVolumeDaoMockRecorder
 }
 
-// MockTenantServiceVolumeDaoMockRecorder is the mock recorder for MockTenantServiceVolumeDao
+// MockTenantServiceVolumeDaoMockRecorder is the mock recorder for MockTenantServiceVolumeDao.
 type MockTenantServiceVolumeDaoMockRecorder struct {
 	mock *MockTenantServiceVolumeDao
 }
 
-// NewMockTenantServiceVolumeDao creates a new mock instance
+// NewMockTenantServiceVolumeDao creates a new mock instance.
 func NewMockTenantServiceVolumeDao(ctrl *gomock.Controller) *MockTenantServiceVolumeDao {
 	mock := &MockTenantServiceVolumeDao{ctrl: ctrl}
 	mock.recorder = &MockTenantServiceVolumeDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantServiceVolumeDao) EXPECT() *MockTenantServiceVolumeDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantServiceVolumeDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantServiceVolumeDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantServiceVolumeDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantServiceVolumeDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).UpdateModel), arg0)
 }
 
-// DeleteModel mocks base method
+// DeleteModel mocks base method.
 func (m *MockTenantServiceVolumeDao) DeleteModel(serviceID string, arg ...interface{}) error {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{serviceID}
 	for _, a := range arg {
 		varargs = append(varargs, a)
@@ -2360,394 +2965,461 @@ func (m *MockTenantServiceVolumeDao) DeleteModel(serviceID string, arg ...interf
 	return ret0
 }
 
-// DeleteModel indicates an expected call of DeleteModel
+// DeleteModel indicates an expected call of DeleteModel.
 func (mr *MockTenantServiceVolumeDaoMockRecorder) DeleteModel(serviceID interface{}, arg ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{serviceID}, arg...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModel", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).DeleteModel), varargs...)
 }
 
-// GetTenantServiceVolumesByServiceID mocks base method
+// GetTenantServiceVolumesByServiceID mocks base method.
 func (m *MockTenantServiceVolumeDao) GetTenantServiceVolumesByServiceID(serviceID string) ([]*model.TenantServiceVolume, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceVolumesByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceVolume)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantServiceVolumesByServiceID indicates an expected call of GetTenantServiceVolumesByServiceID
+// GetTenantServiceVolumesByServiceID indicates an expected call of GetTenantServiceVolumesByServiceID.
 func (mr *MockTenantServiceVolumeDaoMockRecorder) GetTenantServiceVolumesByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceVolumesByServiceID", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).GetTenantServiceVolumesByServiceID), serviceID)
 }
 
-// DeleteTenantServiceVolumesByServiceID mocks base method
+// DeleteTenantServiceVolumesByServiceID mocks base method.
 func (m *MockTenantServiceVolumeDao) DeleteTenantServiceVolumesByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteTenantServiceVolumesByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteTenantServiceVolumesByServiceID indicates an expected call of DeleteTenantServiceVolumesByServiceID
+// DeleteTenantServiceVolumesByServiceID indicates an expected call of DeleteTenantServiceVolumesByServiceID.
 func (mr *MockTenantServiceVolumeDaoMockRecorder) DeleteTenantServiceVolumesByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTenantServiceVolumesByServiceID", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).DeleteTenantServiceVolumesByServiceID), serviceID)
 }
 
-// DeleteByServiceIDAndVolumePath mocks base method
+// DeleteByServiceIDAndVolumePath mocks base method.
 func (m *MockTenantServiceVolumeDao) DeleteByServiceIDAndVolumePath(serviceID, volumePath string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteByServiceIDAndVolumePath", serviceID, volumePath)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteByServiceIDAndVolumePath indicates an expected call of DeleteByServiceIDAndVolumePath
+// DeleteByServiceIDAndVolumePath indicates an expected call of DeleteByServiceIDAndVolumePath.
 func (mr *MockTenantServiceVolumeDaoMockRecorder) DeleteByServiceIDAndVolumePath(serviceID, volumePath interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByServiceIDAndVolumePath", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).DeleteByServiceIDAndVolumePath), serviceID, volumePath)
 }
 
-// GetVolumeByServiceIDAndName mocks base method
+// GetVolumeByServiceIDAndName mocks base method.
 func (m *MockTenantServiceVolumeDao) GetVolumeByServiceIDAndName(serviceID, name string) (*model.TenantServiceVolume, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVolumeByServiceIDAndName", serviceID, name)
 	ret0, _ := ret[0].(*model.TenantServiceVolume)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetVolumeByServiceIDAndName indicates an expected call of GetVolumeByServiceIDAndName
+// GetVolumeByServiceIDAndName indicates an expected call of GetVolumeByServiceIDAndName.
 func (mr *MockTenantServiceVolumeDaoMockRecorder) GetVolumeByServiceIDAndName(serviceID, name interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVolumeByServiceIDAndName", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).GetVolumeByServiceIDAndName), serviceID, name)
 }
 
-// GetAllVolumes mocks base method
+// GetAllVolumes mocks base method.
 func (m *MockTenantServiceVolumeDao) GetAllVolumes() ([]*model.TenantServiceVolume, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAllVolumes")
 	ret0, _ := ret[0].([]*model.TenantServiceVolume)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetAllVolumes indicates an expected call of GetAllVolumes
+// GetAllVolumes indicates an expected call of GetAllVolumes.
 func (mr *MockTenantServiceVolumeDaoMockRecorder) GetAllVolumes() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllVolumes", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).GetAllVolumes))
 }
 
-// GetVolumeByID mocks base method
+// GetVolumeByID mocks base method.
 func (m *MockTenantServiceVolumeDao) GetVolumeByID(id int) (*model.TenantServiceVolume, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVolumeByID", id)
 	ret0, _ := ret[0].(*model.TenantServiceVolume)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetVolumeByID indicates an expected call of GetVolumeByID
+// GetVolumeByID indicates an expected call of GetVolumeByID.
 func (mr *MockTenantServiceVolumeDaoMockRecorder) GetVolumeByID(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVolumeByID", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).GetVolumeByID), id)
 }
 
-// DelShareableBySID mocks base method
+// DelShareableBySID mocks base method.
 func (m *MockTenantServiceVolumeDao) DelShareableBySID(sid string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelShareableBySID", sid)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DelShareableBySID indicates an expected call of DelShareableBySID
+// DelShareableBySID indicates an expected call of DelShareableBySID.
 func (mr *MockTenantServiceVolumeDaoMockRecorder) DelShareableBySID(sid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelShareableBySID", reflect.TypeOf((*MockTenantServiceVolumeDao)(nil).DelShareableBySID), sid)
 }
 
-// MockTenantServiceConfigFileDao is a mock of TenantServiceConfigFileDao interface
+// MockTenantServiceConfigFileDao is a mock of TenantServiceConfigFileDao interface.
 type MockTenantServiceConfigFileDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantServiceConfigFileDaoMockRecorder
 }
 
-// MockTenantServiceConfigFileDaoMockRecorder is the mock recorder for MockTenantServiceConfigFileDao
+// MockTenantServiceConfigFileDaoMockRecorder is the mock recorder for MockTenantServiceConfigFileDao.
 type MockTenantServiceConfigFileDaoMockRecorder struct {
 	mock *MockTenantServiceConfigFileDao
 }
 
-// NewMockTenantServiceConfigFileDao creates a new mock instance
+// NewMockTenantServiceConfigFileDao creates a new mock instance.
 func NewMockTenantServiceConfigFileDao(ctrl *gomock.Controller) *MockTenantServiceConfigFileDao {
 	mock := &MockTenantServiceConfigFileDao{ctrl: ctrl}
 	mock.recorder = &MockTenantServiceConfigFileDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantServiceConfigFileDao) EXPECT() *MockTenantServiceConfigFileDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantServiceConfigFileDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantServiceConfigFileDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceConfigFileDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantServiceConfigFileDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantServiceConfigFileDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceConfigFileDao)(nil).UpdateModel), arg0)
 }
 
-// GetByVolumeName mocks base method
+// GetConfigFileByServiceID mocks base method.
+func (m *MockTenantServiceConfigFileDao) GetConfigFileByServiceID(serviceID string) ([]*model.TenantServiceConfigFile, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetConfigFileByServiceID", serviceID)
+	ret0, _ := ret[0].([]*model.TenantServiceConfigFile)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetConfigFileByServiceID indicates an expected call of GetConfigFileByServiceID.
+func (mr *MockTenantServiceConfigFileDaoMockRecorder) GetConfigFileByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfigFileByServiceID", reflect.TypeOf((*MockTenantServiceConfigFileDao)(nil).GetConfigFileByServiceID), serviceID)
+}
+
+// GetByVolumeName mocks base method.
 func (m *MockTenantServiceConfigFileDao) GetByVolumeName(sid, volumeName string) (*model.TenantServiceConfigFile, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByVolumeName", sid, volumeName)
 	ret0, _ := ret[0].(*model.TenantServiceConfigFile)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetByVolumeName indicates an expected call of GetByVolumeName
+// GetByVolumeName indicates an expected call of GetByVolumeName.
 func (mr *MockTenantServiceConfigFileDaoMockRecorder) GetByVolumeName(sid, volumeName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByVolumeName", reflect.TypeOf((*MockTenantServiceConfigFileDao)(nil).GetByVolumeName), sid, volumeName)
 }
 
-// DelByVolumeID mocks base method
+// DelByVolumeID mocks base method.
 func (m *MockTenantServiceConfigFileDao) DelByVolumeID(sid, volumeName string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelByVolumeID", sid, volumeName)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DelByVolumeID indicates an expected call of DelByVolumeID
+// DelByVolumeID indicates an expected call of DelByVolumeID.
 func (mr *MockTenantServiceConfigFileDaoMockRecorder) DelByVolumeID(sid, volumeName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByVolumeID", reflect.TypeOf((*MockTenantServiceConfigFileDao)(nil).DelByVolumeID), sid, volumeName)
 }
 
-// DelByServiceID mocks base method
+// DelByServiceID mocks base method.
 func (m *MockTenantServiceConfigFileDao) DelByServiceID(sid string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelByServiceID", sid)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DelByServiceID indicates an expected call of DelByServiceID
+// DelByServiceID indicates an expected call of DelByServiceID.
 func (mr *MockTenantServiceConfigFileDaoMockRecorder) DelByServiceID(sid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByServiceID", reflect.TypeOf((*MockTenantServiceConfigFileDao)(nil).DelByServiceID), sid)
 }
 
-// MockTenantServiceLBMappingPortDao is a mock of TenantServiceLBMappingPortDao interface
+// MockTenantServiceLBMappingPortDao is a mock of TenantServiceLBMappingPortDao interface.
 type MockTenantServiceLBMappingPortDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantServiceLBMappingPortDaoMockRecorder
 }
 
-// MockTenantServiceLBMappingPortDaoMockRecorder is the mock recorder for MockTenantServiceLBMappingPortDao
+// MockTenantServiceLBMappingPortDaoMockRecorder is the mock recorder for MockTenantServiceLBMappingPortDao.
 type MockTenantServiceLBMappingPortDaoMockRecorder struct {
 	mock *MockTenantServiceLBMappingPortDao
 }
 
-// NewMockTenantServiceLBMappingPortDao creates a new mock instance
+// NewMockTenantServiceLBMappingPortDao creates a new mock instance.
 func NewMockTenantServiceLBMappingPortDao(ctrl *gomock.Controller) *MockTenantServiceLBMappingPortDao {
 	mock := &MockTenantServiceLBMappingPortDao{ctrl: ctrl}
 	mock.recorder = &MockTenantServiceLBMappingPortDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantServiceLBMappingPortDao) EXPECT() *MockTenantServiceLBMappingPortDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantServiceLBMappingPortDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantServiceLBMappingPortDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).UpdateModel), arg0)
 }
 
-// GetTenantServiceLBMappingPort mocks base method
+// GetTenantServiceLBMappingPort mocks base method.
 func (m *MockTenantServiceLBMappingPortDao) GetTenantServiceLBMappingPort(serviceID string, containerPort int) (*model.TenantServiceLBMappingPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceLBMappingPort", serviceID, containerPort)
 	ret0, _ := ret[0].(*model.TenantServiceLBMappingPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantServiceLBMappingPort indicates an expected call of GetTenantServiceLBMappingPort
+// GetTenantServiceLBMappingPort indicates an expected call of GetTenantServiceLBMappingPort.
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) GetTenantServiceLBMappingPort(serviceID, containerPort interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceLBMappingPort", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).GetTenantServiceLBMappingPort), serviceID, containerPort)
 }
 
-// GetLBMappingPortByServiceIDAndPort mocks base method
+// GetLBMappingPortByServiceIDAndPort mocks base method.
 func (m *MockTenantServiceLBMappingPortDao) GetLBMappingPortByServiceIDAndPort(serviceID string, port int) (*model.TenantServiceLBMappingPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLBMappingPortByServiceIDAndPort", serviceID, port)
 	ret0, _ := ret[0].(*model.TenantServiceLBMappingPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetLBMappingPortByServiceIDAndPort indicates an expected call of GetLBMappingPortByServiceIDAndPort
+// GetLBMappingPortByServiceIDAndPort indicates an expected call of GetLBMappingPortByServiceIDAndPort.
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) GetLBMappingPortByServiceIDAndPort(serviceID, port interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLBMappingPortByServiceIDAndPort", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).GetLBMappingPortByServiceIDAndPort), serviceID, port)
 }
 
-// GetTenantServiceLBMappingPortByService mocks base method
+// GetTenantServiceLBMappingPortByService mocks base method.
 func (m *MockTenantServiceLBMappingPortDao) GetTenantServiceLBMappingPortByService(serviceID string) ([]*model.TenantServiceLBMappingPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceLBMappingPortByService", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceLBMappingPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantServiceLBMappingPortByService indicates an expected call of GetTenantServiceLBMappingPortByService
+// GetTenantServiceLBMappingPortByService indicates an expected call of GetTenantServiceLBMappingPortByService.
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) GetTenantServiceLBMappingPortByService(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceLBMappingPortByService", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).GetTenantServiceLBMappingPortByService), serviceID)
 }
 
-// GetLBPortsASC mocks base method
+// GetLBPortsASC mocks base method.
 func (m *MockTenantServiceLBMappingPortDao) GetLBPortsASC() ([]*model.TenantServiceLBMappingPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLBPortsASC")
 	ret0, _ := ret[0].([]*model.TenantServiceLBMappingPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetLBPortsASC indicates an expected call of GetLBPortsASC
+// GetLBPortsASC indicates an expected call of GetLBPortsASC.
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) GetLBPortsASC() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLBPortsASC", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).GetLBPortsASC))
 }
 
-// CreateTenantServiceLBMappingPort mocks base method
+// CreateTenantServiceLBMappingPort mocks base method.
 func (m *MockTenantServiceLBMappingPortDao) CreateTenantServiceLBMappingPort(serviceID string, containerPort int) (*model.TenantServiceLBMappingPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateTenantServiceLBMappingPort", serviceID, containerPort)
 	ret0, _ := ret[0].(*model.TenantServiceLBMappingPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateTenantServiceLBMappingPort indicates an expected call of CreateTenantServiceLBMappingPort
+// CreateTenantServiceLBMappingPort indicates an expected call of CreateTenantServiceLBMappingPort.
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) CreateTenantServiceLBMappingPort(serviceID, containerPort interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTenantServiceLBMappingPort", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).CreateTenantServiceLBMappingPort), serviceID, containerPort)
 }
 
-// DELServiceLBMappingPortByServiceID mocks base method
+// DELServiceLBMappingPortByServiceID mocks base method.
 func (m *MockTenantServiceLBMappingPortDao) DELServiceLBMappingPortByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DELServiceLBMappingPortByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DELServiceLBMappingPortByServiceID indicates an expected call of DELServiceLBMappingPortByServiceID
+// DELServiceLBMappingPortByServiceID indicates an expected call of DELServiceLBMappingPortByServiceID.
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) DELServiceLBMappingPortByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DELServiceLBMappingPortByServiceID", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).DELServiceLBMappingPortByServiceID), serviceID)
 }
 
-// DELServiceLBMappingPortByServiceIDAndPort mocks base method
+// DELServiceLBMappingPortByServiceIDAndPort mocks base method.
 func (m *MockTenantServiceLBMappingPortDao) DELServiceLBMappingPortByServiceIDAndPort(serviceID string, lbPort int) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DELServiceLBMappingPortByServiceIDAndPort", serviceID, lbPort)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DELServiceLBMappingPortByServiceIDAndPort indicates an expected call of DELServiceLBMappingPortByServiceIDAndPort
+// DELServiceLBMappingPortByServiceIDAndPort indicates an expected call of DELServiceLBMappingPortByServiceIDAndPort.
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) DELServiceLBMappingPortByServiceIDAndPort(serviceID, lbPort interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DELServiceLBMappingPortByServiceIDAndPort", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).DELServiceLBMappingPortByServiceIDAndPort), serviceID, lbPort)
 }
 
-// GetLBPortByTenantAndPort mocks base method
+// GetLBPortByTenantAndPort mocks base method.
 func (m *MockTenantServiceLBMappingPortDao) GetLBPortByTenantAndPort(tenantID string, lbport int) (*model.TenantServiceLBMappingPort, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLBPortByTenantAndPort", tenantID, lbport)
 	ret0, _ := ret[0].(*model.TenantServiceLBMappingPort)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetLBPortByTenantAndPort indicates an expected call of GetLBPortByTenantAndPort
+// GetLBPortByTenantAndPort indicates an expected call of GetLBPortByTenantAndPort.
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) GetLBPortByTenantAndPort(tenantID, lbport interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLBPortByTenantAndPort", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).GetLBPortByTenantAndPort), tenantID, lbport)
 }
 
-// PortExists mocks base method
+// PortExists mocks base method.
 func (m *MockTenantServiceLBMappingPortDao) PortExists(port int) bool {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PortExists", port)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-// PortExists indicates an expected call of PortExists
+// PortExists indicates an expected call of PortExists.
 func (mr *MockTenantServiceLBMappingPortDaoMockRecorder) PortExists(port interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PortExists", reflect.TypeOf((*MockTenantServiceLBMappingPortDao)(nil).PortExists), port)
 }
 
-// MockTenantServiceLabelDao is a mock of TenantServiceLabelDao interface
+// MockTenantServiceLabelDao is a mock of TenantServiceLabelDao interface.
 type MockTenantServiceLabelDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantServiceLabelDaoMockRecorder
 }
 
-// MockTenantServiceLabelDaoMockRecorder is the mock recorder for MockTenantServiceLabelDao
+// MockTenantServiceLabelDaoMockRecorder is the mock recorder for MockTenantServiceLabelDao.
 type MockTenantServiceLabelDaoMockRecorder struct {
 	mock *MockTenantServiceLabelDao
 }
 
-// NewMockTenantServiceLabelDao creates a new mock instance
+// NewMockTenantServiceLabelDao creates a new mock instance.
 func NewMockTenantServiceLabelDao(ctrl *gomock.Controller) *MockTenantServiceLabelDao {
 	mock := &MockTenantServiceLabelDao{ctrl: ctrl}
 	mock.recorder = &MockTenantServiceLabelDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantServiceLabelDao) EXPECT() *MockTenantServiceLabelDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantServiceLabelDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantServiceLabelDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantServiceLabelDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantServiceLabelDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).UpdateModel), arg0)
 }
 
-// DeleteModel mocks base method
+// DeleteModel mocks base method.
 func (m *MockTenantServiceLabelDao) DeleteModel(serviceID string, arg ...interface{}) error {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{serviceID}
 	for _, a := range arg {
 		varargs = append(varargs, a)
@@ -2757,260 +3429,294 @@ func (m *MockTenantServiceLabelDao) DeleteModel(serviceID string, arg ...interfa
 	return ret0
 }
 
-// DeleteModel indicates an expected call of DeleteModel
+// DeleteModel indicates an expected call of DeleteModel.
 func (mr *MockTenantServiceLabelDaoMockRecorder) DeleteModel(serviceID interface{}, arg ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{serviceID}, arg...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).DeleteModel), varargs...)
 }
 
-// GetTenantServiceLabel mocks base method
+// GetTenantServiceLabel mocks base method.
 func (m *MockTenantServiceLabelDao) GetTenantServiceLabel(serviceID string) ([]*model.TenantServiceLable, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceLabel", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceLable)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantServiceLabel indicates an expected call of GetTenantServiceLabel
+// GetTenantServiceLabel indicates an expected call of GetTenantServiceLabel.
 func (mr *MockTenantServiceLabelDaoMockRecorder) GetTenantServiceLabel(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceLabel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).GetTenantServiceLabel), serviceID)
 }
 
-// DeleteLabelByServiceID mocks base method
+// DeleteLabelByServiceID mocks base method.
 func (m *MockTenantServiceLabelDao) DeleteLabelByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteLabelByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteLabelByServiceID indicates an expected call of DeleteLabelByServiceID
+// DeleteLabelByServiceID indicates an expected call of DeleteLabelByServiceID.
 func (mr *MockTenantServiceLabelDaoMockRecorder) DeleteLabelByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteLabelByServiceID", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).DeleteLabelByServiceID), serviceID)
 }
 
-// GetTenantServiceNodeSelectorLabel mocks base method
+// GetTenantServiceNodeSelectorLabel mocks base method.
 func (m *MockTenantServiceLabelDao) GetTenantServiceNodeSelectorLabel(serviceID string) ([]*model.TenantServiceLable, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceNodeSelectorLabel", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceLable)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantServiceNodeSelectorLabel indicates an expected call of GetTenantServiceNodeSelectorLabel
+// GetTenantServiceNodeSelectorLabel indicates an expected call of GetTenantServiceNodeSelectorLabel.
 func (mr *MockTenantServiceLabelDaoMockRecorder) GetTenantServiceNodeSelectorLabel(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceNodeSelectorLabel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).GetTenantServiceNodeSelectorLabel), serviceID)
 }
 
-// GetTenantNodeAffinityLabel mocks base method
+// GetTenantNodeAffinityLabel mocks base method.
 func (m *MockTenantServiceLabelDao) GetTenantNodeAffinityLabel(serviceID string) (*model.TenantServiceLable, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantNodeAffinityLabel", serviceID)
 	ret0, _ := ret[0].(*model.TenantServiceLable)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantNodeAffinityLabel indicates an expected call of GetTenantNodeAffinityLabel
+// GetTenantNodeAffinityLabel indicates an expected call of GetTenantNodeAffinityLabel.
 func (mr *MockTenantServiceLabelDaoMockRecorder) GetTenantNodeAffinityLabel(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantNodeAffinityLabel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).GetTenantNodeAffinityLabel), serviceID)
 }
 
-// GetTenantServiceAffinityLabel mocks base method
+// GetTenantServiceAffinityLabel mocks base method.
 func (m *MockTenantServiceLabelDao) GetTenantServiceAffinityLabel(serviceID string) ([]*model.TenantServiceLable, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceAffinityLabel", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceLable)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantServiceAffinityLabel indicates an expected call of GetTenantServiceAffinityLabel
+// GetTenantServiceAffinityLabel indicates an expected call of GetTenantServiceAffinityLabel.
 func (mr *MockTenantServiceLabelDaoMockRecorder) GetTenantServiceAffinityLabel(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceAffinityLabel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).GetTenantServiceAffinityLabel), serviceID)
 }
 
-// GetTenantServiceTypeLabel mocks base method
+// GetTenantServiceTypeLabel mocks base method.
 func (m *MockTenantServiceLabelDao) GetTenantServiceTypeLabel(serviceID string) (*model.TenantServiceLable, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTenantServiceTypeLabel", serviceID)
 	ret0, _ := ret[0].(*model.TenantServiceLable)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTenantServiceTypeLabel indicates an expected call of GetTenantServiceTypeLabel
+// GetTenantServiceTypeLabel indicates an expected call of GetTenantServiceTypeLabel.
 func (mr *MockTenantServiceLabelDaoMockRecorder) GetTenantServiceTypeLabel(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceTypeLabel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).GetTenantServiceTypeLabel), serviceID)
 }
 
-// DelTenantServiceLabelsByLabelValuesAndServiceID mocks base method
+// DelTenantServiceLabelsByLabelValuesAndServiceID mocks base method.
 func (m *MockTenantServiceLabelDao) DelTenantServiceLabelsByLabelValuesAndServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelTenantServiceLabelsByLabelValuesAndServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DelTenantServiceLabelsByLabelValuesAndServiceID indicates an expected call of DelTenantServiceLabelsByLabelValuesAndServiceID
+// DelTenantServiceLabelsByLabelValuesAndServiceID indicates an expected call of DelTenantServiceLabelsByLabelValuesAndServiceID.
 func (mr *MockTenantServiceLabelDaoMockRecorder) DelTenantServiceLabelsByLabelValuesAndServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelTenantServiceLabelsByLabelValuesAndServiceID", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).DelTenantServiceLabelsByLabelValuesAndServiceID), serviceID)
 }
 
-// DelTenantServiceLabelsByServiceIDKey mocks base method
+// DelTenantServiceLabelsByServiceIDKey mocks base method.
 func (m *MockTenantServiceLabelDao) DelTenantServiceLabelsByServiceIDKey(serviceID, labelKey string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelTenantServiceLabelsByServiceIDKey", serviceID, labelKey)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DelTenantServiceLabelsByServiceIDKey indicates an expected call of DelTenantServiceLabelsByServiceIDKey
+// DelTenantServiceLabelsByServiceIDKey indicates an expected call of DelTenantServiceLabelsByServiceIDKey.
 func (mr *MockTenantServiceLabelDaoMockRecorder) DelTenantServiceLabelsByServiceIDKey(serviceID, labelKey interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelTenantServiceLabelsByServiceIDKey", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).DelTenantServiceLabelsByServiceIDKey), serviceID, labelKey)
 }
 
-// DelTenantServiceLabelsByServiceIDKeyValue mocks base method
+// DelTenantServiceLabelsByServiceIDKeyValue mocks base method.
 func (m *MockTenantServiceLabelDao) DelTenantServiceLabelsByServiceIDKeyValue(serviceID, labelKey, labelValue string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelTenantServiceLabelsByServiceIDKeyValue", serviceID, labelKey, labelValue)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DelTenantServiceLabelsByServiceIDKeyValue indicates an expected call of DelTenantServiceLabelsByServiceIDKeyValue
+// DelTenantServiceLabelsByServiceIDKeyValue indicates an expected call of DelTenantServiceLabelsByServiceIDKeyValue.
 func (mr *MockTenantServiceLabelDaoMockRecorder) DelTenantServiceLabelsByServiceIDKeyValue(serviceID, labelKey, labelValue interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelTenantServiceLabelsByServiceIDKeyValue", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).DelTenantServiceLabelsByServiceIDKeyValue), serviceID, labelKey, labelValue)
 }
 
-// GetLabelByNodeSelectorKey mocks base method
+// GetLabelByNodeSelectorKey mocks base method.
 func (m *MockTenantServiceLabelDao) GetLabelByNodeSelectorKey(serviceID, labelValue string) (*model.TenantServiceLable, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLabelByNodeSelectorKey", serviceID, labelValue)
 	ret0, _ := ret[0].(*model.TenantServiceLable)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetLabelByNodeSelectorKey indicates an expected call of GetLabelByNodeSelectorKey
+// GetLabelByNodeSelectorKey indicates an expected call of GetLabelByNodeSelectorKey.
 func (mr *MockTenantServiceLabelDaoMockRecorder) GetLabelByNodeSelectorKey(serviceID, labelValue interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLabelByNodeSelectorKey", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).GetLabelByNodeSelectorKey), serviceID, labelValue)
 }
 
-// GetPrivilegedLabel mocks base method
+// GetPrivilegedLabel mocks base method.
 func (m *MockTenantServiceLabelDao) GetPrivilegedLabel(serviceID string) (*model.TenantServiceLable, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPrivilegedLabel", serviceID)
 	ret0, _ := ret[0].(*model.TenantServiceLable)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetPrivilegedLabel indicates an expected call of GetPrivilegedLabel
+// GetPrivilegedLabel indicates an expected call of GetPrivilegedLabel.
 func (mr *MockTenantServiceLabelDaoMockRecorder) GetPrivilegedLabel(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivilegedLabel", reflect.TypeOf((*MockTenantServiceLabelDao)(nil).GetPrivilegedLabel), serviceID)
 }
 
-// MockLocalSchedulerDao is a mock of LocalSchedulerDao interface
+// MockLocalSchedulerDao is a mock of LocalSchedulerDao interface.
 type MockLocalSchedulerDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockLocalSchedulerDaoMockRecorder
 }
 
-// MockLocalSchedulerDaoMockRecorder is the mock recorder for MockLocalSchedulerDao
+// MockLocalSchedulerDaoMockRecorder is the mock recorder for MockLocalSchedulerDao.
 type MockLocalSchedulerDaoMockRecorder struct {
 	mock *MockLocalSchedulerDao
 }
 
-// NewMockLocalSchedulerDao creates a new mock instance
+// NewMockLocalSchedulerDao creates a new mock instance.
 func NewMockLocalSchedulerDao(ctrl *gomock.Controller) *MockLocalSchedulerDao {
 	mock := &MockLocalSchedulerDao{ctrl: ctrl}
 	mock.recorder = &MockLocalSchedulerDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockLocalSchedulerDao) EXPECT() *MockLocalSchedulerDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockLocalSchedulerDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockLocalSchedulerDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockLocalSchedulerDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockLocalSchedulerDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockLocalSchedulerDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockLocalSchedulerDao)(nil).UpdateModel), arg0)
 }
 
-// GetLocalScheduler mocks base method
+// GetLocalScheduler mocks base method.
 func (m *MockLocalSchedulerDao) GetLocalScheduler(serviceID string) ([]*model.LocalScheduler, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLocalScheduler", serviceID)
 	ret0, _ := ret[0].([]*model.LocalScheduler)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetLocalScheduler indicates an expected call of GetLocalScheduler
+// GetLocalScheduler indicates an expected call of GetLocalScheduler.
 func (mr *MockLocalSchedulerDaoMockRecorder) GetLocalScheduler(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLocalScheduler", reflect.TypeOf((*MockLocalSchedulerDao)(nil).GetLocalScheduler), serviceID)
 }
 
-// MockServiceProbeDao is a mock of ServiceProbeDao interface
+// MockServiceProbeDao is a mock of ServiceProbeDao interface.
 type MockServiceProbeDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockServiceProbeDaoMockRecorder
 }
 
-// MockServiceProbeDaoMockRecorder is the mock recorder for MockServiceProbeDao
+// MockServiceProbeDaoMockRecorder is the mock recorder for MockServiceProbeDao.
 type MockServiceProbeDaoMockRecorder struct {
 	mock *MockServiceProbeDao
 }
 
-// NewMockServiceProbeDao creates a new mock instance
+// NewMockServiceProbeDao creates a new mock instance.
 func NewMockServiceProbeDao(ctrl *gomock.Controller) *MockServiceProbeDao {
 	mock := &MockServiceProbeDao{ctrl: ctrl}
 	mock.recorder = &MockServiceProbeDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockServiceProbeDao) EXPECT() *MockServiceProbeDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockServiceProbeDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockServiceProbeDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockServiceProbeDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockServiceProbeDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockServiceProbeDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockServiceProbeDao)(nil).UpdateModel), arg0)
 }
 
-// DeleteModel mocks base method
+// DeleteModel mocks base method.
 func (m *MockServiceProbeDao) DeleteModel(serviceID string, arg ...interface{}) error {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{serviceID}
 	for _, a := range arg {
 		varargs = append(varargs, a)
@@ -3020,247 +3726,279 @@ func (m *MockServiceProbeDao) DeleteModel(serviceID string, arg ...interface{}) 
 	return ret0
 }
 
-// DeleteModel indicates an expected call of DeleteModel
+// DeleteModel indicates an expected call of DeleteModel.
 func (mr *MockServiceProbeDaoMockRecorder) DeleteModel(serviceID interface{}, arg ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{serviceID}, arg...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteModel", reflect.TypeOf((*MockServiceProbeDao)(nil).DeleteModel), varargs...)
 }
 
-// GetServiceProbes mocks base method
+// GetServiceProbes mocks base method.
 func (m *MockServiceProbeDao) GetServiceProbes(serviceID string) ([]*model.TenantServiceProbe, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceProbes", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceProbe)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServiceProbes indicates an expected call of GetServiceProbes
+// GetServiceProbes indicates an expected call of GetServiceProbes.
 func (mr *MockServiceProbeDaoMockRecorder) GetServiceProbes(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceProbes", reflect.TypeOf((*MockServiceProbeDao)(nil).GetServiceProbes), serviceID)
 }
 
-// GetServiceUsedProbe mocks base method
+// GetServiceUsedProbe mocks base method.
 func (m *MockServiceProbeDao) GetServiceUsedProbe(serviceID, mode string) (*model.TenantServiceProbe, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceUsedProbe", serviceID, mode)
 	ret0, _ := ret[0].(*model.TenantServiceProbe)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServiceUsedProbe indicates an expected call of GetServiceUsedProbe
+// GetServiceUsedProbe indicates an expected call of GetServiceUsedProbe.
 func (mr *MockServiceProbeDaoMockRecorder) GetServiceUsedProbe(serviceID, mode interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceUsedProbe", reflect.TypeOf((*MockServiceProbeDao)(nil).GetServiceUsedProbe), serviceID, mode)
 }
 
-// DELServiceProbesByServiceID mocks base method
+// DELServiceProbesByServiceID mocks base method.
 func (m *MockServiceProbeDao) DELServiceProbesByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DELServiceProbesByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DELServiceProbesByServiceID indicates an expected call of DELServiceProbesByServiceID
+// DELServiceProbesByServiceID indicates an expected call of DELServiceProbesByServiceID.
 func (mr *MockServiceProbeDaoMockRecorder) DELServiceProbesByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DELServiceProbesByServiceID", reflect.TypeOf((*MockServiceProbeDao)(nil).DELServiceProbesByServiceID), serviceID)
 }
 
-// DelByServiceID mocks base method
+// DelByServiceID mocks base method.
 func (m *MockServiceProbeDao) DelByServiceID(sid string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelByServiceID", sid)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DelByServiceID indicates an expected call of DelByServiceID
+// DelByServiceID indicates an expected call of DelByServiceID.
 func (mr *MockServiceProbeDaoMockRecorder) DelByServiceID(sid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByServiceID", reflect.TypeOf((*MockServiceProbeDao)(nil).DelByServiceID), sid)
 }
 
-// MockCodeCheckResultDao is a mock of CodeCheckResultDao interface
+// MockCodeCheckResultDao is a mock of CodeCheckResultDao interface.
 type MockCodeCheckResultDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockCodeCheckResultDaoMockRecorder
 }
 
-// MockCodeCheckResultDaoMockRecorder is the mock recorder for MockCodeCheckResultDao
+// MockCodeCheckResultDaoMockRecorder is the mock recorder for MockCodeCheckResultDao.
 type MockCodeCheckResultDaoMockRecorder struct {
 	mock *MockCodeCheckResultDao
 }
 
-// NewMockCodeCheckResultDao creates a new mock instance
+// NewMockCodeCheckResultDao creates a new mock instance.
 func NewMockCodeCheckResultDao(ctrl *gomock.Controller) *MockCodeCheckResultDao {
 	mock := &MockCodeCheckResultDao{ctrl: ctrl}
 	mock.recorder = &MockCodeCheckResultDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockCodeCheckResultDao) EXPECT() *MockCodeCheckResultDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockCodeCheckResultDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockCodeCheckResultDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockCodeCheckResultDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockCodeCheckResultDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockCodeCheckResultDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockCodeCheckResultDao)(nil).UpdateModel), arg0)
 }
 
-// GetCodeCheckResult mocks base method
+// GetCodeCheckResult mocks base method.
 func (m *MockCodeCheckResultDao) GetCodeCheckResult(serviceID string) (*model.CodeCheckResult, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCodeCheckResult", serviceID)
 	ret0, _ := ret[0].(*model.CodeCheckResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetCodeCheckResult indicates an expected call of GetCodeCheckResult
+// GetCodeCheckResult indicates an expected call of GetCodeCheckResult.
 func (mr *MockCodeCheckResultDaoMockRecorder) GetCodeCheckResult(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCodeCheckResult", reflect.TypeOf((*MockCodeCheckResultDao)(nil).GetCodeCheckResult), serviceID)
 }
 
-// DeleteByServiceID mocks base method
+// DeleteByServiceID mocks base method.
 func (m *MockCodeCheckResultDao) DeleteByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteByServiceID indicates an expected call of DeleteByServiceID
+// DeleteByServiceID indicates an expected call of DeleteByServiceID.
 func (mr *MockCodeCheckResultDaoMockRecorder) DeleteByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByServiceID", reflect.TypeOf((*MockCodeCheckResultDao)(nil).DeleteByServiceID), serviceID)
 }
 
-// MockEventDao is a mock of EventDao interface
+// MockEventDao is a mock of EventDao interface.
 type MockEventDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockEventDaoMockRecorder
 }
 
-// MockEventDaoMockRecorder is the mock recorder for MockEventDao
+// MockEventDaoMockRecorder is the mock recorder for MockEventDao.
 type MockEventDaoMockRecorder struct {
 	mock *MockEventDao
 }
 
-// NewMockEventDao creates a new mock instance
+// NewMockEventDao creates a new mock instance.
 func NewMockEventDao(ctrl *gomock.Controller) *MockEventDao {
 	mock := &MockEventDao{ctrl: ctrl}
 	mock.recorder = &MockEventDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockEventDao) EXPECT() *MockEventDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockEventDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockEventDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockEventDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockEventDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockEventDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockEventDao)(nil).UpdateModel), arg0)
 }
 
-// GetEventByEventID mocks base method
+// GetEventByEventID mocks base method.
 func (m *MockEventDao) GetEventByEventID(eventID string) (*model.ServiceEvent, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventByEventID", eventID)
 	ret0, _ := ret[0].(*model.ServiceEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetEventByEventID indicates an expected call of GetEventByEventID
+// GetEventByEventID indicates an expected call of GetEventByEventID.
 func (mr *MockEventDaoMockRecorder) GetEventByEventID(eventID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventByEventID", reflect.TypeOf((*MockEventDao)(nil).GetEventByEventID), eventID)
 }
 
-// GetEventByEventIDs mocks base method
+// GetEventByEventIDs mocks base method.
 func (m *MockEventDao) GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEvent, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventByEventIDs", eventIDs)
 	ret0, _ := ret[0].([]*model.ServiceEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetEventByEventIDs indicates an expected call of GetEventByEventIDs
+// GetEventByEventIDs indicates an expected call of GetEventByEventIDs.
 func (mr *MockEventDaoMockRecorder) GetEventByEventIDs(eventIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventByEventIDs", reflect.TypeOf((*MockEventDao)(nil).GetEventByEventIDs), eventIDs)
 }
 
-// GetEventByServiceID mocks base method
+// GetEventByServiceID mocks base method.
 func (m *MockEventDao) GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.ServiceEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetEventByServiceID indicates an expected call of GetEventByServiceID
+// GetEventByServiceID indicates an expected call of GetEventByServiceID.
 func (mr *MockEventDaoMockRecorder) GetEventByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventByServiceID", reflect.TypeOf((*MockEventDao)(nil).GetEventByServiceID), serviceID)
 }
 
-// DelEventByServiceID mocks base method
+// DelEventByServiceID mocks base method.
 func (m *MockEventDao) DelEventByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelEventByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DelEventByServiceID indicates an expected call of DelEventByServiceID
+// DelEventByServiceID indicates an expected call of DelEventByServiceID.
 func (mr *MockEventDaoMockRecorder) DelEventByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelEventByServiceID", reflect.TypeOf((*MockEventDao)(nil).DelEventByServiceID), serviceID)
 }
 
-// ListByTargetID mocks base method
+// ListByTargetID mocks base method.
 func (m *MockEventDao) ListByTargetID(targetID string) ([]*model.ServiceEvent, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByTargetID", targetID)
 	ret0, _ := ret[0].([]*model.ServiceEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListByTargetID indicates an expected call of ListByTargetID
+// ListByTargetID indicates an expected call of ListByTargetID.
 func (mr *MockEventDaoMockRecorder) ListByTargetID(targetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByTargetID", reflect.TypeOf((*MockEventDao)(nil).ListByTargetID), targetID)
 }
 
-// GetEventsByTarget mocks base method
+// GetEventsByTarget mocks base method.
 func (m *MockEventDao) GetEventsByTarget(target, targetID string, offset, liimt int) ([]*model.ServiceEvent, int, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventsByTarget", target, targetID, offset, liimt)
 	ret0, _ := ret[0].([]*model.ServiceEvent)
 	ret1, _ := ret[1].(int)
@@ -3268,13 +4006,15 @@ func (m *MockEventDao) GetEventsByTarget(target, targetID string, offset, liimt 
 	return ret0, ret1, ret2
 }
 
-// GetEventsByTarget indicates an expected call of GetEventsByTarget
+// GetEventsByTarget indicates an expected call of GetEventsByTarget.
 func (mr *MockEventDaoMockRecorder) GetEventsByTarget(target, targetID, offset, liimt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventsByTarget", reflect.TypeOf((*MockEventDao)(nil).GetEventsByTarget), target, targetID, offset, liimt)
 }
 
-// GetEventsByTenantID mocks base method
+// GetEventsByTenantID mocks base method.
 func (m *MockEventDao) GetEventsByTenantID(tenantID string, offset, limit int) ([]*model.ServiceEvent, int, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEventsByTenantID", tenantID, offset, limit)
 	ret0, _ := ret[0].([]*model.ServiceEvent)
 	ret1, _ := ret[1].(int)
@@ -3282,26 +4022,30 @@ func (m *MockEventDao) GetEventsByTenantID(tenantID string, offset, limit int) (
 	return ret0, ret1, ret2
 }
 
-// GetEventsByTenantID indicates an expected call of GetEventsByTenantID
+// GetEventsByTenantID indicates an expected call of GetEventsByTenantID.
 func (mr *MockEventDaoMockRecorder) GetEventsByTenantID(tenantID, offset, limit interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventsByTenantID", reflect.TypeOf((*MockEventDao)(nil).GetEventsByTenantID), tenantID, offset, limit)
 }
 
-// GetLastASyncEvent mocks base method
+// GetLastASyncEvent mocks base method.
 func (m *MockEventDao) GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLastASyncEvent", target, targetID)
 	ret0, _ := ret[0].(*model.ServiceEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetLastASyncEvent indicates an expected call of GetLastASyncEvent
+// GetLastASyncEvent indicates an expected call of GetLastASyncEvent.
 func (mr *MockEventDaoMockRecorder) GetLastASyncEvent(target, targetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastASyncEvent", reflect.TypeOf((*MockEventDao)(nil).GetLastASyncEvent), target, targetID)
 }
 
-// UnfinishedEvents mocks base method
+// UnfinishedEvents mocks base method.
 func (m *MockEventDao) UnfinishedEvents(target, targetID string, optTypes ...string) ([]*model.ServiceEvent, error) {
+	m.ctrl.T.Helper()
 	varargs := []interface{}{target, targetID}
 	for _, a := range optTypes {
 		varargs = append(varargs, a)
@@ -3312,1657 +4056,1970 @@ func (m *MockEventDao) UnfinishedEvents(target, targetID string, optTypes ...str
 	return ret0, ret1
 }
 
-// UnfinishedEvents indicates an expected call of UnfinishedEvents
+// UnfinishedEvents indicates an expected call of UnfinishedEvents.
 func (mr *MockEventDaoMockRecorder) UnfinishedEvents(target, targetID interface{}, optTypes ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{target, targetID}, optTypes...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnfinishedEvents", reflect.TypeOf((*MockEventDao)(nil).UnfinishedEvents), varargs...)
 }
 
-// LatestFailurePodEvent mocks base method
+// LatestFailurePodEvent mocks base method.
 func (m *MockEventDao) LatestFailurePodEvent(podName string) (*model.ServiceEvent, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LatestFailurePodEvent", podName)
 	ret0, _ := ret[0].(*model.ServiceEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// LatestFailurePodEvent indicates an expected call of LatestFailurePodEvent
+// LatestFailurePodEvent indicates an expected call of LatestFailurePodEvent.
 func (mr *MockEventDaoMockRecorder) LatestFailurePodEvent(podName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LatestFailurePodEvent", reflect.TypeOf((*MockEventDao)(nil).LatestFailurePodEvent), podName)
 }
 
-// MockVersionInfoDao is a mock of VersionInfoDao interface
+// MockVersionInfoDao is a mock of VersionInfoDao interface.
 type MockVersionInfoDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockVersionInfoDaoMockRecorder
 }
 
-// MockVersionInfoDaoMockRecorder is the mock recorder for MockVersionInfoDao
+// MockVersionInfoDaoMockRecorder is the mock recorder for MockVersionInfoDao.
 type MockVersionInfoDaoMockRecorder struct {
 	mock *MockVersionInfoDao
 }
 
-// NewMockVersionInfoDao creates a new mock instance
+// NewMockVersionInfoDao creates a new mock instance.
 func NewMockVersionInfoDao(ctrl *gomock.Controller) *MockVersionInfoDao {
 	mock := &MockVersionInfoDao{ctrl: ctrl}
 	mock.recorder = &MockVersionInfoDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockVersionInfoDao) EXPECT() *MockVersionInfoDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockVersionInfoDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockVersionInfoDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockVersionInfoDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockVersionInfoDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockVersionInfoDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockVersionInfoDao)(nil).UpdateModel), arg0)
 }
 
-// ListSuccessfulOnes mocks base method
+// ListSuccessfulOnes mocks base method.
 func (m *MockVersionInfoDao) ListSuccessfulOnes() ([]*model.VersionInfo, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListSuccessfulOnes")
 	ret0, _ := ret[0].([]*model.VersionInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListSuccessfulOnes indicates an expected call of ListSuccessfulOnes
+// ListSuccessfulOnes indicates an expected call of ListSuccessfulOnes.
 func (mr *MockVersionInfoDaoMockRecorder) ListSuccessfulOnes() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSuccessfulOnes", reflect.TypeOf((*MockVersionInfoDao)(nil).ListSuccessfulOnes))
 }
 
-// GetVersionByEventID mocks base method
+// GetVersionByEventID mocks base method.
 func (m *MockVersionInfoDao) GetVersionByEventID(eventID string) (*model.VersionInfo, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVersionByEventID", eventID)
 	ret0, _ := ret[0].(*model.VersionInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetVersionByEventID indicates an expected call of GetVersionByEventID
+// GetVersionByEventID indicates an expected call of GetVersionByEventID.
 func (mr *MockVersionInfoDaoMockRecorder) GetVersionByEventID(eventID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionByEventID", reflect.TypeOf((*MockVersionInfoDao)(nil).GetVersionByEventID), eventID)
 }
 
-// GetVersionByDeployVersion mocks base method
+// GetVersionByDeployVersion mocks base method.
 func (m *MockVersionInfoDao) GetVersionByDeployVersion(version, serviceID string) (*model.VersionInfo, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVersionByDeployVersion", version, serviceID)
 	ret0, _ := ret[0].(*model.VersionInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetVersionByDeployVersion indicates an expected call of GetVersionByDeployVersion
+// GetVersionByDeployVersion indicates an expected call of GetVersionByDeployVersion.
 func (mr *MockVersionInfoDaoMockRecorder) GetVersionByDeployVersion(version, serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionByDeployVersion", reflect.TypeOf((*MockVersionInfoDao)(nil).GetVersionByDeployVersion), version, serviceID)
 }
 
-// GetVersionByServiceID mocks base method
+// GetVersionByServiceID mocks base method.
 func (m *MockVersionInfoDao) GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVersionByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.VersionInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetVersionByServiceID indicates an expected call of GetVersionByServiceID
+// GetVersionByServiceID indicates an expected call of GetVersionByServiceID.
 func (mr *MockVersionInfoDaoMockRecorder) GetVersionByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionByServiceID", reflect.TypeOf((*MockVersionInfoDao)(nil).GetVersionByServiceID), serviceID)
 }
 
-// GetLatestScsVersion mocks base method
+// GetLatestScsVersion mocks base method.
 func (m *MockVersionInfoDao) GetLatestScsVersion(sid string) (*model.VersionInfo, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLatestScsVersion", sid)
 	ret0, _ := ret[0].(*model.VersionInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetLatestScsVersion indicates an expected call of GetLatestScsVersion
+// GetLatestScsVersion indicates an expected call of GetLatestScsVersion.
 func (mr *MockVersionInfoDaoMockRecorder) GetLatestScsVersion(sid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLatestScsVersion", reflect.TypeOf((*MockVersionInfoDao)(nil).GetLatestScsVersion), sid)
 }
 
-// GetAllVersionByServiceID mocks base method
+// GetAllVersionByServiceID mocks base method.
 func (m *MockVersionInfoDao) GetAllVersionByServiceID(serviceID string) ([]*model.VersionInfo, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAllVersionByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.VersionInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetAllVersionByServiceID indicates an expected call of GetAllVersionByServiceID
+// GetAllVersionByServiceID indicates an expected call of GetAllVersionByServiceID.
 func (mr *MockVersionInfoDaoMockRecorder) GetAllVersionByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllVersionByServiceID", reflect.TypeOf((*MockVersionInfoDao)(nil).GetAllVersionByServiceID), serviceID)
 }
 
-// DeleteVersionByEventID mocks base method
+// DeleteVersionByEventID mocks base method.
 func (m *MockVersionInfoDao) DeleteVersionByEventID(eventID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteVersionByEventID", eventID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteVersionByEventID indicates an expected call of DeleteVersionByEventID
+// DeleteVersionByEventID indicates an expected call of DeleteVersionByEventID.
 func (mr *MockVersionInfoDaoMockRecorder) DeleteVersionByEventID(eventID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteVersionByEventID", reflect.TypeOf((*MockVersionInfoDao)(nil).DeleteVersionByEventID), eventID)
 }
 
-// DeleteVersionByServiceID mocks base method
+// DeleteVersionByServiceID mocks base method.
 func (m *MockVersionInfoDao) DeleteVersionByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteVersionByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteVersionByServiceID indicates an expected call of DeleteVersionByServiceID
+// DeleteVersionByServiceID indicates an expected call of DeleteVersionByServiceID.
 func (mr *MockVersionInfoDaoMockRecorder) DeleteVersionByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteVersionByServiceID", reflect.TypeOf((*MockVersionInfoDao)(nil).DeleteVersionByServiceID), serviceID)
 }
 
-// GetVersionInfo mocks base method
+// GetVersionInfo mocks base method.
 func (m *MockVersionInfoDao) GetVersionInfo(timePoint time.Time, serviceIDList []string) ([]*model.VersionInfo, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVersionInfo", timePoint, serviceIDList)
 	ret0, _ := ret[0].([]*model.VersionInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetVersionInfo indicates an expected call of GetVersionInfo
+// GetVersionInfo indicates an expected call of GetVersionInfo.
 func (mr *MockVersionInfoDaoMockRecorder) GetVersionInfo(timePoint, serviceIDList interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersionInfo", reflect.TypeOf((*MockVersionInfoDao)(nil).GetVersionInfo), timePoint, serviceIDList)
 }
 
-// DeleteVersionInfo mocks base method
+// DeleteVersionInfo mocks base method.
 func (m *MockVersionInfoDao) DeleteVersionInfo(obj *model.VersionInfo) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteVersionInfo", obj)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteVersionInfo indicates an expected call of DeleteVersionInfo
+// DeleteVersionInfo indicates an expected call of DeleteVersionInfo.
 func (mr *MockVersionInfoDaoMockRecorder) DeleteVersionInfo(obj interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteVersionInfo", reflect.TypeOf((*MockVersionInfoDao)(nil).DeleteVersionInfo), obj)
 }
 
-// DeleteFailureVersionInfo mocks base method
+// DeleteFailureVersionInfo mocks base method.
 func (m *MockVersionInfoDao) DeleteFailureVersionInfo(timePoint time.Time, status string, serviceIDList []string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteFailureVersionInfo", timePoint, status, serviceIDList)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteFailureVersionInfo indicates an expected call of DeleteFailureVersionInfo
+// DeleteFailureVersionInfo indicates an expected call of DeleteFailureVersionInfo.
 func (mr *MockVersionInfoDaoMockRecorder) DeleteFailureVersionInfo(timePoint, status, serviceIDList interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteFailureVersionInfo", reflect.TypeOf((*MockVersionInfoDao)(nil).DeleteFailureVersionInfo), timePoint, status, serviceIDList)
 }
 
-// SearchVersionInfo mocks base method
+// SearchVersionInfo mocks base method.
 func (m *MockVersionInfoDao) SearchVersionInfo() ([]*model.VersionInfo, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SearchVersionInfo")
 	ret0, _ := ret[0].([]*model.VersionInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// SearchVersionInfo indicates an expected call of SearchVersionInfo
+// SearchVersionInfo indicates an expected call of SearchVersionInfo.
 func (mr *MockVersionInfoDaoMockRecorder) SearchVersionInfo() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchVersionInfo", reflect.TypeOf((*MockVersionInfoDao)(nil).SearchVersionInfo))
 }
 
-// MockRegionUserInfoDao is a mock of RegionUserInfoDao interface
+// MockRegionUserInfoDao is a mock of RegionUserInfoDao interface.
 type MockRegionUserInfoDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockRegionUserInfoDaoMockRecorder
 }
 
-// MockRegionUserInfoDaoMockRecorder is the mock recorder for MockRegionUserInfoDao
+// MockRegionUserInfoDaoMockRecorder is the mock recorder for MockRegionUserInfoDao.
 type MockRegionUserInfoDaoMockRecorder struct {
 	mock *MockRegionUserInfoDao
 }
 
-// NewMockRegionUserInfoDao creates a new mock instance
+// NewMockRegionUserInfoDao creates a new mock instance.
 func NewMockRegionUserInfoDao(ctrl *gomock.Controller) *MockRegionUserInfoDao {
 	mock := &MockRegionUserInfoDao{ctrl: ctrl}
 	mock.recorder = &MockRegionUserInfoDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockRegionUserInfoDao) EXPECT() *MockRegionUserInfoDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockRegionUserInfoDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockRegionUserInfoDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockRegionUserInfoDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockRegionUserInfoDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockRegionUserInfoDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockRegionUserInfoDao)(nil).UpdateModel), arg0)
 }
 
-// GetALLTokenInValidityPeriod mocks base method
+// GetALLTokenInValidityPeriod mocks base method.
 func (m *MockRegionUserInfoDao) GetALLTokenInValidityPeriod() ([]*model.RegionUserInfo, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetALLTokenInValidityPeriod")
 	ret0, _ := ret[0].([]*model.RegionUserInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetALLTokenInValidityPeriod indicates an expected call of GetALLTokenInValidityPeriod
+// GetALLTokenInValidityPeriod indicates an expected call of GetALLTokenInValidityPeriod.
 func (mr *MockRegionUserInfoDaoMockRecorder) GetALLTokenInValidityPeriod() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetALLTokenInValidityPeriod", reflect.TypeOf((*MockRegionUserInfoDao)(nil).GetALLTokenInValidityPeriod))
 }
 
-// GetTokenByEid mocks base method
+// GetTokenByEid mocks base method.
 func (m *MockRegionUserInfoDao) GetTokenByEid(eid string) (*model.RegionUserInfo, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTokenByEid", eid)
 	ret0, _ := ret[0].(*model.RegionUserInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTokenByEid indicates an expected call of GetTokenByEid
+// GetTokenByEid indicates an expected call of GetTokenByEid.
 func (mr *MockRegionUserInfoDaoMockRecorder) GetTokenByEid(eid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTokenByEid", reflect.TypeOf((*MockRegionUserInfoDao)(nil).GetTokenByEid), eid)
 }
 
-// GetTokenByTokenID mocks base method
+// GetTokenByTokenID mocks base method.
 func (m *MockRegionUserInfoDao) GetTokenByTokenID(token string) (*model.RegionUserInfo, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTokenByTokenID", token)
 	ret0, _ := ret[0].(*model.RegionUserInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTokenByTokenID indicates an expected call of GetTokenByTokenID
+// GetTokenByTokenID indicates an expected call of GetTokenByTokenID.
 func (mr *MockRegionUserInfoDaoMockRecorder) GetTokenByTokenID(token interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTokenByTokenID", reflect.TypeOf((*MockRegionUserInfoDao)(nil).GetTokenByTokenID), token)
 }
 
-// MockRegionAPIClassDao is a mock of RegionAPIClassDao interface
+// MockRegionAPIClassDao is a mock of RegionAPIClassDao interface.
 type MockRegionAPIClassDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockRegionAPIClassDaoMockRecorder
 }
 
-// MockRegionAPIClassDaoMockRecorder is the mock recorder for MockRegionAPIClassDao
+// MockRegionAPIClassDaoMockRecorder is the mock recorder for MockRegionAPIClassDao.
 type MockRegionAPIClassDaoMockRecorder struct {
 	mock *MockRegionAPIClassDao
 }
 
-// NewMockRegionAPIClassDao creates a new mock instance
+// NewMockRegionAPIClassDao creates a new mock instance.
 func NewMockRegionAPIClassDao(ctrl *gomock.Controller) *MockRegionAPIClassDao {
 	mock := &MockRegionAPIClassDao{ctrl: ctrl}
 	mock.recorder = &MockRegionAPIClassDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockRegionAPIClassDao) EXPECT() *MockRegionAPIClassDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockRegionAPIClassDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockRegionAPIClassDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockRegionAPIClassDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockRegionAPIClassDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockRegionAPIClassDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockRegionAPIClassDao)(nil).UpdateModel), arg0)
 }
 
-// GetPrefixesByClass mocks base method
+// GetPrefixesByClass mocks base method.
 func (m *MockRegionAPIClassDao) GetPrefixesByClass(apiClass string) ([]*model.RegionAPIClass, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPrefixesByClass", apiClass)
 	ret0, _ := ret[0].([]*model.RegionAPIClass)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetPrefixesByClass indicates an expected call of GetPrefixesByClass
+// GetPrefixesByClass indicates an expected call of GetPrefixesByClass.
 func (mr *MockRegionAPIClassDaoMockRecorder) GetPrefixesByClass(apiClass interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrefixesByClass", reflect.TypeOf((*MockRegionAPIClassDao)(nil).GetPrefixesByClass), apiClass)
 }
 
-// DeletePrefixInClass mocks base method
+// DeletePrefixInClass mocks base method.
 func (m *MockRegionAPIClassDao) DeletePrefixInClass(apiClass, prefix string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeletePrefixInClass", apiClass, prefix)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeletePrefixInClass indicates an expected call of DeletePrefixInClass
+// DeletePrefixInClass indicates an expected call of DeletePrefixInClass.
 func (mr *MockRegionAPIClassDaoMockRecorder) DeletePrefixInClass(apiClass, prefix interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePrefixInClass", reflect.TypeOf((*MockRegionAPIClassDao)(nil).DeletePrefixInClass), apiClass, prefix)
 }
 
-// MockRegionProcotolsDao is a mock of RegionProcotolsDao interface
+// MockRegionProcotolsDao is a mock of RegionProcotolsDao interface.
 type MockRegionProcotolsDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockRegionProcotolsDaoMockRecorder
 }
 
-// MockRegionProcotolsDaoMockRecorder is the mock recorder for MockRegionProcotolsDao
+// MockRegionProcotolsDaoMockRecorder is the mock recorder for MockRegionProcotolsDao.
 type MockRegionProcotolsDaoMockRecorder struct {
 	mock *MockRegionProcotolsDao
 }
 
-// NewMockRegionProcotolsDao creates a new mock instance
+// NewMockRegionProcotolsDao creates a new mock instance.
 func NewMockRegionProcotolsDao(ctrl *gomock.Controller) *MockRegionProcotolsDao {
 	mock := &MockRegionProcotolsDao{ctrl: ctrl}
 	mock.recorder = &MockRegionProcotolsDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockRegionProcotolsDao) EXPECT() *MockRegionProcotolsDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockRegionProcotolsDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockRegionProcotolsDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockRegionProcotolsDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockRegionProcotolsDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockRegionProcotolsDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockRegionProcotolsDao)(nil).UpdateModel), arg0)
 }
 
-// GetAllSupportProtocol mocks base method
+// GetAllSupportProtocol mocks base method.
 func (m *MockRegionProcotolsDao) GetAllSupportProtocol(version string) ([]*model.RegionProcotols, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAllSupportProtocol", version)
 	ret0, _ := ret[0].([]*model.RegionProcotols)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetAllSupportProtocol indicates an expected call of GetAllSupportProtocol
+// GetAllSupportProtocol indicates an expected call of GetAllSupportProtocol.
 func (mr *MockRegionProcotolsDaoMockRecorder) GetAllSupportProtocol(version interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllSupportProtocol", reflect.TypeOf((*MockRegionProcotolsDao)(nil).GetAllSupportProtocol), version)
 }
 
-// GetProtocolGroupByProtocolChild mocks base method
+// GetProtocolGroupByProtocolChild mocks base method.
 func (m *MockRegionProcotolsDao) GetProtocolGroupByProtocolChild(version, protocolChild string) (*model.RegionProcotols, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetProtocolGroupByProtocolChild", version, protocolChild)
 	ret0, _ := ret[0].(*model.RegionProcotols)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetProtocolGroupByProtocolChild indicates an expected call of GetProtocolGroupByProtocolChild
+// GetProtocolGroupByProtocolChild indicates an expected call of GetProtocolGroupByProtocolChild.
 func (mr *MockRegionProcotolsDaoMockRecorder) GetProtocolGroupByProtocolChild(version, protocolChild interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProtocolGroupByProtocolChild", reflect.TypeOf((*MockRegionProcotolsDao)(nil).GetProtocolGroupByProtocolChild), version, protocolChild)
 }
 
-// MockNotificationEventDao is a mock of NotificationEventDao interface
+// MockNotificationEventDao is a mock of NotificationEventDao interface.
 type MockNotificationEventDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockNotificationEventDaoMockRecorder
 }
 
-// MockNotificationEventDaoMockRecorder is the mock recorder for MockNotificationEventDao
+// MockNotificationEventDaoMockRecorder is the mock recorder for MockNotificationEventDao.
 type MockNotificationEventDaoMockRecorder struct {
 	mock *MockNotificationEventDao
 }
 
-// NewMockNotificationEventDao creates a new mock instance
+// NewMockNotificationEventDao creates a new mock instance.
 func NewMockNotificationEventDao(ctrl *gomock.Controller) *MockNotificationEventDao {
 	mock := &MockNotificationEventDao{ctrl: ctrl}
 	mock.recorder = &MockNotificationEventDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockNotificationEventDao) EXPECT() *MockNotificationEventDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockNotificationEventDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockNotificationEventDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockNotificationEventDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockNotificationEventDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockNotificationEventDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockNotificationEventDao)(nil).UpdateModel), arg0)
 }
 
-// GetNotificationEventByHash mocks base method
+// GetNotificationEventByHash mocks base method.
 func (m *MockNotificationEventDao) GetNotificationEventByHash(hash string) (*model.NotificationEvent, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNotificationEventByHash", hash)
 	ret0, _ := ret[0].(*model.NotificationEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetNotificationEventByHash indicates an expected call of GetNotificationEventByHash
+// GetNotificationEventByHash indicates an expected call of GetNotificationEventByHash.
 func (mr *MockNotificationEventDaoMockRecorder) GetNotificationEventByHash(hash interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNotificationEventByHash", reflect.TypeOf((*MockNotificationEventDao)(nil).GetNotificationEventByHash), hash)
 }
 
-// GetNotificationEventByKind mocks base method
+// GetNotificationEventByKind mocks base method.
 func (m *MockNotificationEventDao) GetNotificationEventByKind(kind, kindID string) ([]*model.NotificationEvent, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNotificationEventByKind", kind, kindID)
 	ret0, _ := ret[0].([]*model.NotificationEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetNotificationEventByKind indicates an expected call of GetNotificationEventByKind
+// GetNotificationEventByKind indicates an expected call of GetNotificationEventByKind.
 func (mr *MockNotificationEventDaoMockRecorder) GetNotificationEventByKind(kind, kindID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNotificationEventByKind", reflect.TypeOf((*MockNotificationEventDao)(nil).GetNotificationEventByKind), kind, kindID)
 }
 
-// GetNotificationEventByTime mocks base method
+// GetNotificationEventByTime mocks base method.
 func (m *MockNotificationEventDao) GetNotificationEventByTime(start, end time.Time) ([]*model.NotificationEvent, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNotificationEventByTime", start, end)
 	ret0, _ := ret[0].([]*model.NotificationEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetNotificationEventByTime indicates an expected call of GetNotificationEventByTime
+// GetNotificationEventByTime indicates an expected call of GetNotificationEventByTime.
 func (mr *MockNotificationEventDaoMockRecorder) GetNotificationEventByTime(start, end interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNotificationEventByTime", reflect.TypeOf((*MockNotificationEventDao)(nil).GetNotificationEventByTime), start, end)
 }
 
-// GetNotificationEventNotHandle mocks base method
+// GetNotificationEventNotHandle mocks base method.
 func (m *MockNotificationEventDao) GetNotificationEventNotHandle() ([]*model.NotificationEvent, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNotificationEventNotHandle")
 	ret0, _ := ret[0].([]*model.NotificationEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetNotificationEventNotHandle indicates an expected call of GetNotificationEventNotHandle
+// GetNotificationEventNotHandle indicates an expected call of GetNotificationEventNotHandle.
 func (mr *MockNotificationEventDaoMockRecorder) GetNotificationEventNotHandle() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNotificationEventNotHandle", reflect.TypeOf((*MockNotificationEventDao)(nil).GetNotificationEventNotHandle))
 }
 
-// MockAppBackupDao is a mock of AppBackupDao interface
+// MockAppBackupDao is a mock of AppBackupDao interface.
 type MockAppBackupDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockAppBackupDaoMockRecorder
 }
 
-// MockAppBackupDaoMockRecorder is the mock recorder for MockAppBackupDao
+// MockAppBackupDaoMockRecorder is the mock recorder for MockAppBackupDao.
 type MockAppBackupDaoMockRecorder struct {
 	mock *MockAppBackupDao
 }
 
-// NewMockAppBackupDao creates a new mock instance
+// NewMockAppBackupDao creates a new mock instance.
 func NewMockAppBackupDao(ctrl *gomock.Controller) *MockAppBackupDao {
 	mock := &MockAppBackupDao{ctrl: ctrl}
 	mock.recorder = &MockAppBackupDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockAppBackupDao) EXPECT() *MockAppBackupDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockAppBackupDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockAppBackupDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockAppBackupDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockAppBackupDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockAppBackupDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockAppBackupDao)(nil).UpdateModel), arg0)
 }
 
-// CheckHistory mocks base method
+// CheckHistory mocks base method.
 func (m *MockAppBackupDao) CheckHistory(groupID, version string) bool {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CheckHistory", groupID, version)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-// CheckHistory indicates an expected call of CheckHistory
+// CheckHistory indicates an expected call of CheckHistory.
 func (mr *MockAppBackupDaoMockRecorder) CheckHistory(groupID, version interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckHistory", reflect.TypeOf((*MockAppBackupDao)(nil).CheckHistory), groupID, version)
 }
 
-// GetAppBackups mocks base method
+// GetAppBackups mocks base method.
 func (m *MockAppBackupDao) GetAppBackups(groupID string) ([]*model.AppBackup, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAppBackups", groupID)
 	ret0, _ := ret[0].([]*model.AppBackup)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetAppBackups indicates an expected call of GetAppBackups
+// GetAppBackups indicates an expected call of GetAppBackups.
 func (mr *MockAppBackupDaoMockRecorder) GetAppBackups(groupID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppBackups", reflect.TypeOf((*MockAppBackupDao)(nil).GetAppBackups), groupID)
 }
 
-// DeleteAppBackup mocks base method
+// DeleteAppBackup mocks base method.
 func (m *MockAppBackupDao) DeleteAppBackup(backupID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteAppBackup", backupID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteAppBackup indicates an expected call of DeleteAppBackup
+// DeleteAppBackup indicates an expected call of DeleteAppBackup.
 func (mr *MockAppBackupDaoMockRecorder) DeleteAppBackup(backupID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAppBackup", reflect.TypeOf((*MockAppBackupDao)(nil).DeleteAppBackup), backupID)
 }
 
-// GetAppBackup mocks base method
+// GetAppBackup mocks base method.
 func (m *MockAppBackupDao) GetAppBackup(backupID string) (*model.AppBackup, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAppBackup", backupID)
 	ret0, _ := ret[0].(*model.AppBackup)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetAppBackup indicates an expected call of GetAppBackup
+// GetAppBackup indicates an expected call of GetAppBackup.
 func (mr *MockAppBackupDaoMockRecorder) GetAppBackup(backupID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppBackup", reflect.TypeOf((*MockAppBackupDao)(nil).GetAppBackup), backupID)
 }
 
-// GetDeleteAppBackup mocks base method
+// GetDeleteAppBackup mocks base method.
 func (m *MockAppBackupDao) GetDeleteAppBackup(backupID string) (*model.AppBackup, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDeleteAppBackup", backupID)
 	ret0, _ := ret[0].(*model.AppBackup)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetDeleteAppBackup indicates an expected call of GetDeleteAppBackup
+// GetDeleteAppBackup indicates an expected call of GetDeleteAppBackup.
 func (mr *MockAppBackupDaoMockRecorder) GetDeleteAppBackup(backupID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeleteAppBackup", reflect.TypeOf((*MockAppBackupDao)(nil).GetDeleteAppBackup), backupID)
 }
 
-// GetDeleteAppBackups mocks base method
+// GetDeleteAppBackups mocks base method.
 func (m *MockAppBackupDao) GetDeleteAppBackups() ([]*model.AppBackup, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDeleteAppBackups")
 	ret0, _ := ret[0].([]*model.AppBackup)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetDeleteAppBackups indicates an expected call of GetDeleteAppBackups
+// GetDeleteAppBackups indicates an expected call of GetDeleteAppBackups.
 func (mr *MockAppBackupDaoMockRecorder) GetDeleteAppBackups() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeleteAppBackups", reflect.TypeOf((*MockAppBackupDao)(nil).GetDeleteAppBackups))
 }
 
-// MockServiceSourceDao is a mock of ServiceSourceDao interface
+// MockServiceSourceDao is a mock of ServiceSourceDao interface.
 type MockServiceSourceDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockServiceSourceDaoMockRecorder
 }
 
-// MockServiceSourceDaoMockRecorder is the mock recorder for MockServiceSourceDao
+// MockServiceSourceDaoMockRecorder is the mock recorder for MockServiceSourceDao.
 type MockServiceSourceDaoMockRecorder struct {
 	mock *MockServiceSourceDao
 }
 
-// NewMockServiceSourceDao creates a new mock instance
+// NewMockServiceSourceDao creates a new mock instance.
 func NewMockServiceSourceDao(ctrl *gomock.Controller) *MockServiceSourceDao {
 	mock := &MockServiceSourceDao{ctrl: ctrl}
 	mock.recorder = &MockServiceSourceDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockServiceSourceDao) EXPECT() *MockServiceSourceDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockServiceSourceDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockServiceSourceDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockServiceSourceDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockServiceSourceDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockServiceSourceDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockServiceSourceDao)(nil).UpdateModel), arg0)
 }
 
-// GetServiceSource mocks base method
+// GetServiceSource mocks base method.
 func (m *MockServiceSourceDao) GetServiceSource(serviceID string) ([]*model.ServiceSourceConfig, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetServiceSource", serviceID)
 	ret0, _ := ret[0].([]*model.ServiceSourceConfig)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServiceSource indicates an expected call of GetServiceSource
+// GetServiceSource indicates an expected call of GetServiceSource.
 func (mr *MockServiceSourceDaoMockRecorder) GetServiceSource(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceSource", reflect.TypeOf((*MockServiceSourceDao)(nil).GetServiceSource), serviceID)
 }
 
-// MockCertificateDao is a mock of CertificateDao interface
+// MockCertificateDao is a mock of CertificateDao interface.
 type MockCertificateDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockCertificateDaoMockRecorder
 }
 
-// MockCertificateDaoMockRecorder is the mock recorder for MockCertificateDao
+// MockCertificateDaoMockRecorder is the mock recorder for MockCertificateDao.
 type MockCertificateDaoMockRecorder struct {
 	mock *MockCertificateDao
 }
 
-// NewMockCertificateDao creates a new mock instance
+// NewMockCertificateDao creates a new mock instance.
 func NewMockCertificateDao(ctrl *gomock.Controller) *MockCertificateDao {
 	mock := &MockCertificateDao{ctrl: ctrl}
 	mock.recorder = &MockCertificateDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockCertificateDao) EXPECT() *MockCertificateDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockCertificateDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockCertificateDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockCertificateDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockCertificateDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockCertificateDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockCertificateDao)(nil).UpdateModel), arg0)
 }
 
-// AddOrUpdate mocks base method
+// AddOrUpdate mocks base method.
 func (m *MockCertificateDao) AddOrUpdate(mo model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddOrUpdate", mo)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddOrUpdate indicates an expected call of AddOrUpdate
+// AddOrUpdate indicates an expected call of AddOrUpdate.
 func (mr *MockCertificateDaoMockRecorder) AddOrUpdate(mo interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddOrUpdate", reflect.TypeOf((*MockCertificateDao)(nil).AddOrUpdate), mo)
 }
 
-// GetCertificateByID mocks base method
+// GetCertificateByID mocks base method.
 func (m *MockCertificateDao) GetCertificateByID(certificateID string) (*model.Certificate, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCertificateByID", certificateID)
 	ret0, _ := ret[0].(*model.Certificate)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetCertificateByID indicates an expected call of GetCertificateByID
+// GetCertificateByID indicates an expected call of GetCertificateByID.
 func (mr *MockCertificateDaoMockRecorder) GetCertificateByID(certificateID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCertificateByID", reflect.TypeOf((*MockCertificateDao)(nil).GetCertificateByID), certificateID)
 }
 
-// DeleteCertificateByID mocks base method
-func (m *MockCertificateDao) DeleteCertificateByID(certificateID string) error {
-	ret := m.ctrl.Call(m, "DeleteCertificateByID", certificateID)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeleteCertificateByID indicates an expected call of DeleteCertificateByID
-func (mr *MockCertificateDaoMockRecorder) DeleteCertificateByID(certificateID interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteCertificateByID", reflect.TypeOf((*MockCertificateDao)(nil).DeleteCertificateByID), certificateID)
-}
-
-// MockRuleExtensionDao is a mock of RuleExtensionDao interface
+// MockRuleExtensionDao is a mock of RuleExtensionDao interface.
 type MockRuleExtensionDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockRuleExtensionDaoMockRecorder
 }
 
-// MockRuleExtensionDaoMockRecorder is the mock recorder for MockRuleExtensionDao
+// MockRuleExtensionDaoMockRecorder is the mock recorder for MockRuleExtensionDao.
 type MockRuleExtensionDaoMockRecorder struct {
 	mock *MockRuleExtensionDao
 }
 
-// NewMockRuleExtensionDao creates a new mock instance
+// NewMockRuleExtensionDao creates a new mock instance.
 func NewMockRuleExtensionDao(ctrl *gomock.Controller) *MockRuleExtensionDao {
 	mock := &MockRuleExtensionDao{ctrl: ctrl}
 	mock.recorder = &MockRuleExtensionDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockRuleExtensionDao) EXPECT() *MockRuleExtensionDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockRuleExtensionDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockRuleExtensionDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockRuleExtensionDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockRuleExtensionDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockRuleExtensionDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockRuleExtensionDao)(nil).UpdateModel), arg0)
 }
 
-// GetRuleExtensionByRuleID mocks base method
+// GetRuleExtensionByRuleID mocks base method.
 func (m *MockRuleExtensionDao) GetRuleExtensionByRuleID(ruleID string) ([]*model.RuleExtension, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRuleExtensionByRuleID", ruleID)
 	ret0, _ := ret[0].([]*model.RuleExtension)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetRuleExtensionByRuleID indicates an expected call of GetRuleExtensionByRuleID
+// GetRuleExtensionByRuleID indicates an expected call of GetRuleExtensionByRuleID.
 func (mr *MockRuleExtensionDaoMockRecorder) GetRuleExtensionByRuleID(ruleID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRuleExtensionByRuleID", reflect.TypeOf((*MockRuleExtensionDao)(nil).GetRuleExtensionByRuleID), ruleID)
 }
 
-// DeleteRuleExtensionByRuleID mocks base method
+// DeleteRuleExtensionByRuleID mocks base method.
 func (m *MockRuleExtensionDao) DeleteRuleExtensionByRuleID(ruleID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteRuleExtensionByRuleID", ruleID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteRuleExtensionByRuleID indicates an expected call of DeleteRuleExtensionByRuleID
+// DeleteRuleExtensionByRuleID indicates an expected call of DeleteRuleExtensionByRuleID.
 func (mr *MockRuleExtensionDaoMockRecorder) DeleteRuleExtensionByRuleID(ruleID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRuleExtensionByRuleID", reflect.TypeOf((*MockRuleExtensionDao)(nil).DeleteRuleExtensionByRuleID), ruleID)
 }
 
-// MockHTTPRuleDao is a mock of HTTPRuleDao interface
+// MockHTTPRuleDao is a mock of HTTPRuleDao interface.
 type MockHTTPRuleDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockHTTPRuleDaoMockRecorder
 }
 
-// MockHTTPRuleDaoMockRecorder is the mock recorder for MockHTTPRuleDao
+// MockHTTPRuleDaoMockRecorder is the mock recorder for MockHTTPRuleDao.
 type MockHTTPRuleDaoMockRecorder struct {
 	mock *MockHTTPRuleDao
 }
 
-// NewMockHTTPRuleDao creates a new mock instance
+// NewMockHTTPRuleDao creates a new mock instance.
 func NewMockHTTPRuleDao(ctrl *gomock.Controller) *MockHTTPRuleDao {
 	mock := &MockHTTPRuleDao{ctrl: ctrl}
 	mock.recorder = &MockHTTPRuleDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockHTTPRuleDao) EXPECT() *MockHTTPRuleDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockHTTPRuleDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockHTTPRuleDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockHTTPRuleDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockHTTPRuleDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockHTTPRuleDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockHTTPRuleDao)(nil).UpdateModel), arg0)
 }
 
-// GetHTTPRuleByID mocks base method
+// GetHTTPRuleByID mocks base method.
 func (m *MockHTTPRuleDao) GetHTTPRuleByID(id string) (*model.HTTPRule, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHTTPRuleByID", id)
 	ret0, _ := ret[0].(*model.HTTPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetHTTPRuleByID indicates an expected call of GetHTTPRuleByID
+// GetHTTPRuleByID indicates an expected call of GetHTTPRuleByID.
 func (mr *MockHTTPRuleDaoMockRecorder) GetHTTPRuleByID(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHTTPRuleByID", reflect.TypeOf((*MockHTTPRuleDao)(nil).GetHTTPRuleByID), id)
 }
 
-// GetHTTPRuleByServiceIDAndContainerPort mocks base method
+// GetHTTPRuleByServiceIDAndContainerPort mocks base method.
 func (m *MockHTTPRuleDao) GetHTTPRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.HTTPRule, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHTTPRuleByServiceIDAndContainerPort", serviceID, containerPort)
 	ret0, _ := ret[0].([]*model.HTTPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetHTTPRuleByServiceIDAndContainerPort indicates an expected call of GetHTTPRuleByServiceIDAndContainerPort
+// GetHTTPRuleByServiceIDAndContainerPort indicates an expected call of GetHTTPRuleByServiceIDAndContainerPort.
 func (mr *MockHTTPRuleDaoMockRecorder) GetHTTPRuleByServiceIDAndContainerPort(serviceID, containerPort interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHTTPRuleByServiceIDAndContainerPort", reflect.TypeOf((*MockHTTPRuleDao)(nil).GetHTTPRuleByServiceIDAndContainerPort), serviceID, containerPort)
 }
 
-// DeleteHTTPRuleByID mocks base method
+// GetHTTPRulesByCertificateID mocks base method.
+func (m *MockHTTPRuleDao) GetHTTPRulesByCertificateID(certificateID string) ([]*model.HTTPRule, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetHTTPRulesByCertificateID", certificateID)
+	ret0, _ := ret[0].([]*model.HTTPRule)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetHTTPRulesByCertificateID indicates an expected call of GetHTTPRulesByCertificateID.
+func (mr *MockHTTPRuleDaoMockRecorder) GetHTTPRulesByCertificateID(certificateID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHTTPRulesByCertificateID", reflect.TypeOf((*MockHTTPRuleDao)(nil).GetHTTPRulesByCertificateID), certificateID)
+}
+
+// DeleteHTTPRuleByID mocks base method.
 func (m *MockHTTPRuleDao) DeleteHTTPRuleByID(id string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteHTTPRuleByID", id)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteHTTPRuleByID indicates an expected call of DeleteHTTPRuleByID
+// DeleteHTTPRuleByID indicates an expected call of DeleteHTTPRuleByID.
 func (mr *MockHTTPRuleDaoMockRecorder) DeleteHTTPRuleByID(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteHTTPRuleByID", reflect.TypeOf((*MockHTTPRuleDao)(nil).DeleteHTTPRuleByID), id)
 }
 
-// DeleteHTTPRuleByServiceID mocks base method
+// DeleteHTTPRuleByServiceID mocks base method.
 func (m *MockHTTPRuleDao) DeleteHTTPRuleByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteHTTPRuleByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteHTTPRuleByServiceID indicates an expected call of DeleteHTTPRuleByServiceID
+// DeleteHTTPRuleByServiceID indicates an expected call of DeleteHTTPRuleByServiceID.
 func (mr *MockHTTPRuleDaoMockRecorder) DeleteHTTPRuleByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteHTTPRuleByServiceID", reflect.TypeOf((*MockHTTPRuleDao)(nil).DeleteHTTPRuleByServiceID), serviceID)
 }
 
-// ListByServiceID mocks base method
+// ListByServiceID mocks base method.
 func (m *MockHTTPRuleDao) ListByServiceID(serviceID string) ([]*model.HTTPRule, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.HTTPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListByServiceID indicates an expected call of ListByServiceID
+// ListByServiceID indicates an expected call of ListByServiceID.
 func (mr *MockHTTPRuleDaoMockRecorder) ListByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockHTTPRuleDao)(nil).ListByServiceID), serviceID)
 }
 
-// ListByCertID mocks base method
+// ListByCertID mocks base method.
 func (m *MockHTTPRuleDao) ListByCertID(certID string) ([]*model.HTTPRule, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByCertID", certID)
 	ret0, _ := ret[0].([]*model.HTTPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListByCertID indicates an expected call of ListByCertID
+// ListByCertID indicates an expected call of ListByCertID.
 func (mr *MockHTTPRuleDaoMockRecorder) ListByCertID(certID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByCertID", reflect.TypeOf((*MockHTTPRuleDao)(nil).ListByCertID), certID)
 }
 
-// MockTCPRuleDao is a mock of TCPRuleDao interface
+// MockTCPRuleDao is a mock of TCPRuleDao interface.
 type MockTCPRuleDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTCPRuleDaoMockRecorder
 }
 
-// MockTCPRuleDaoMockRecorder is the mock recorder for MockTCPRuleDao
+// MockTCPRuleDaoMockRecorder is the mock recorder for MockTCPRuleDao.
 type MockTCPRuleDaoMockRecorder struct {
 	mock *MockTCPRuleDao
 }
 
-// NewMockTCPRuleDao creates a new mock instance
+// NewMockTCPRuleDao creates a new mock instance.
 func NewMockTCPRuleDao(ctrl *gomock.Controller) *MockTCPRuleDao {
 	mock := &MockTCPRuleDao{ctrl: ctrl}
 	mock.recorder = &MockTCPRuleDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTCPRuleDao) EXPECT() *MockTCPRuleDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTCPRuleDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTCPRuleDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTCPRuleDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTCPRuleDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTCPRuleDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTCPRuleDao)(nil).UpdateModel), arg0)
 }
 
-// GetTCPRuleByServiceIDAndContainerPort mocks base method
+// GetTCPRuleByServiceIDAndContainerPort mocks base method.
 func (m *MockTCPRuleDao) GetTCPRuleByServiceIDAndContainerPort(serviceID string, containerPort int) ([]*model.TCPRule, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTCPRuleByServiceIDAndContainerPort", serviceID, containerPort)
 	ret0, _ := ret[0].([]*model.TCPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTCPRuleByServiceIDAndContainerPort indicates an expected call of GetTCPRuleByServiceIDAndContainerPort
+// GetTCPRuleByServiceIDAndContainerPort indicates an expected call of GetTCPRuleByServiceIDAndContainerPort.
 func (mr *MockTCPRuleDaoMockRecorder) GetTCPRuleByServiceIDAndContainerPort(serviceID, containerPort interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTCPRuleByServiceIDAndContainerPort", reflect.TypeOf((*MockTCPRuleDao)(nil).GetTCPRuleByServiceIDAndContainerPort), serviceID, containerPort)
 }
 
-// GetTCPRuleByID mocks base method
+// GetTCPRuleByID mocks base method.
 func (m *MockTCPRuleDao) GetTCPRuleByID(id string) (*model.TCPRule, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTCPRuleByID", id)
 	ret0, _ := ret[0].(*model.TCPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTCPRuleByID indicates an expected call of GetTCPRuleByID
+// GetTCPRuleByID indicates an expected call of GetTCPRuleByID.
 func (mr *MockTCPRuleDaoMockRecorder) GetTCPRuleByID(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTCPRuleByID", reflect.TypeOf((*MockTCPRuleDao)(nil).GetTCPRuleByID), id)
 }
 
-// GetTCPRuleByServiceID mocks base method
+// GetTCPRuleByServiceID mocks base method.
 func (m *MockTCPRuleDao) GetTCPRuleByServiceID(sid string) ([]*model.TCPRule, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTCPRuleByServiceID", sid)
 	ret0, _ := ret[0].([]*model.TCPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTCPRuleByServiceID indicates an expected call of GetTCPRuleByServiceID
+// GetTCPRuleByServiceID indicates an expected call of GetTCPRuleByServiceID.
 func (mr *MockTCPRuleDaoMockRecorder) GetTCPRuleByServiceID(sid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTCPRuleByServiceID", reflect.TypeOf((*MockTCPRuleDao)(nil).GetTCPRuleByServiceID), sid)
 }
 
-// DeleteByID mocks base method
+// DeleteByID mocks base method.
 func (m *MockTCPRuleDao) DeleteByID(uuid string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteByID", uuid)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteByID indicates an expected call of DeleteByID
+// DeleteByID indicates an expected call of DeleteByID.
 func (mr *MockTCPRuleDaoMockRecorder) DeleteByID(uuid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByID", reflect.TypeOf((*MockTCPRuleDao)(nil).DeleteByID), uuid)
 }
 
-// DeleteTCPRuleByServiceID mocks base method
+// DeleteTCPRuleByServiceID mocks base method.
 func (m *MockTCPRuleDao) DeleteTCPRuleByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteTCPRuleByServiceID", serviceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteTCPRuleByServiceID indicates an expected call of DeleteTCPRuleByServiceID
+// DeleteTCPRuleByServiceID indicates an expected call of DeleteTCPRuleByServiceID.
 func (mr *MockTCPRuleDaoMockRecorder) DeleteTCPRuleByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTCPRuleByServiceID", reflect.TypeOf((*MockTCPRuleDao)(nil).DeleteTCPRuleByServiceID), serviceID)
 }
 
-// ListByServiceID mocks base method
+// ListByServiceID mocks base method.
 func (m *MockTCPRuleDao) ListByServiceID(serviceID string) ([]*model.TCPRule, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.TCPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListByServiceID indicates an expected call of ListByServiceID
+// ListByServiceID indicates an expected call of ListByServiceID.
 func (mr *MockTCPRuleDaoMockRecorder) ListByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockTCPRuleDao)(nil).ListByServiceID), serviceID)
 }
 
-// GetUsedPortsByIP mocks base method
+// GetUsedPortsByIP mocks base method.
 func (m *MockTCPRuleDao) GetUsedPortsByIP(ip string) ([]*model.TCPRule, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUsedPortsByIP", ip)
 	ret0, _ := ret[0].([]*model.TCPRule)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetUsedPortsByIP indicates an expected call of GetUsedPortsByIP
+// GetUsedPortsByIP indicates an expected call of GetUsedPortsByIP.
 func (mr *MockTCPRuleDaoMockRecorder) GetUsedPortsByIP(ip interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsedPortsByIP", reflect.TypeOf((*MockTCPRuleDao)(nil).GetUsedPortsByIP), ip)
 }
 
-// MockEndpointsDao is a mock of EndpointsDao interface
+// MockEndpointsDao is a mock of EndpointsDao interface.
 type MockEndpointsDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockEndpointsDaoMockRecorder
 }
 
-// MockEndpointsDaoMockRecorder is the mock recorder for MockEndpointsDao
+// MockEndpointsDaoMockRecorder is the mock recorder for MockEndpointsDao.
 type MockEndpointsDaoMockRecorder struct {
 	mock *MockEndpointsDao
 }
 
-// NewMockEndpointsDao creates a new mock instance
+// NewMockEndpointsDao creates a new mock instance.
 func NewMockEndpointsDao(ctrl *gomock.Controller) *MockEndpointsDao {
 	mock := &MockEndpointsDao{ctrl: ctrl}
 	mock.recorder = &MockEndpointsDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockEndpointsDao) EXPECT() *MockEndpointsDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockEndpointsDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockEndpointsDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockEndpointsDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockEndpointsDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockEndpointsDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockEndpointsDao)(nil).UpdateModel), arg0)
 }
 
-// GetByUUID mocks base method
+// GetByUUID mocks base method.
 func (m *MockEndpointsDao) GetByUUID(uuid string) (*model.Endpoint, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByUUID", uuid)
 	ret0, _ := ret[0].(*model.Endpoint)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetByUUID indicates an expected call of GetByUUID
+// GetByUUID indicates an expected call of GetByUUID.
 func (mr *MockEndpointsDaoMockRecorder) GetByUUID(uuid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByUUID", reflect.TypeOf((*MockEndpointsDao)(nil).GetByUUID), uuid)
 }
 
-// DelByUUID mocks base method
+// DelByUUID mocks base method.
 func (m *MockEndpointsDao) DelByUUID(uuid string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DelByUUID", uuid)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DelByUUID indicates an expected call of DelByUUID
+// DelByUUID indicates an expected call of DelByUUID.
 func (mr *MockEndpointsDaoMockRecorder) DelByUUID(uuid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DelByUUID", reflect.TypeOf((*MockEndpointsDao)(nil).DelByUUID), uuid)
 }
 
-// List mocks base method
+// List mocks base method.
 func (m *MockEndpointsDao) List(sid string) ([]*model.Endpoint, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", sid)
 	ret0, _ := ret[0].([]*model.Endpoint)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// List indicates an expected call of List
+// List indicates an expected call of List.
 func (mr *MockEndpointsDaoMockRecorder) List(sid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockEndpointsDao)(nil).List), sid)
 }
 
-// ListIsOnline mocks base method
+// ListIsOnline mocks base method.
 func (m *MockEndpointsDao) ListIsOnline(sid string) ([]*model.Endpoint, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListIsOnline", sid)
 	ret0, _ := ret[0].([]*model.Endpoint)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListIsOnline indicates an expected call of ListIsOnline
+// ListIsOnline indicates an expected call of ListIsOnline.
 func (mr *MockEndpointsDaoMockRecorder) ListIsOnline(sid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListIsOnline", reflect.TypeOf((*MockEndpointsDao)(nil).ListIsOnline), sid)
 }
 
-// DeleteByServiceID mocks base method
+// DeleteByServiceID mocks base method.
 func (m *MockEndpointsDao) DeleteByServiceID(sid string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteByServiceID", sid)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteByServiceID indicates an expected call of DeleteByServiceID
+// DeleteByServiceID indicates an expected call of DeleteByServiceID.
 func (mr *MockEndpointsDaoMockRecorder) DeleteByServiceID(sid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByServiceID", reflect.TypeOf((*MockEndpointsDao)(nil).DeleteByServiceID), sid)
 }
 
-// MockThirdPartySvcDiscoveryCfgDao is a mock of ThirdPartySvcDiscoveryCfgDao interface
+// MockThirdPartySvcDiscoveryCfgDao is a mock of ThirdPartySvcDiscoveryCfgDao interface.
 type MockThirdPartySvcDiscoveryCfgDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockThirdPartySvcDiscoveryCfgDaoMockRecorder
 }
 
-// MockThirdPartySvcDiscoveryCfgDaoMockRecorder is the mock recorder for MockThirdPartySvcDiscoveryCfgDao
+// MockThirdPartySvcDiscoveryCfgDaoMockRecorder is the mock recorder for MockThirdPartySvcDiscoveryCfgDao.
 type MockThirdPartySvcDiscoveryCfgDaoMockRecorder struct {
 	mock *MockThirdPartySvcDiscoveryCfgDao
 }
 
-// NewMockThirdPartySvcDiscoveryCfgDao creates a new mock instance
+// NewMockThirdPartySvcDiscoveryCfgDao creates a new mock instance.
 func NewMockThirdPartySvcDiscoveryCfgDao(ctrl *gomock.Controller) *MockThirdPartySvcDiscoveryCfgDao {
 	mock := &MockThirdPartySvcDiscoveryCfgDao{ctrl: ctrl}
 	mock.recorder = &MockThirdPartySvcDiscoveryCfgDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockThirdPartySvcDiscoveryCfgDao) EXPECT() *MockThirdPartySvcDiscoveryCfgDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockThirdPartySvcDiscoveryCfgDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockThirdPartySvcDiscoveryCfgDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockThirdPartySvcDiscoveryCfgDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockThirdPartySvcDiscoveryCfgDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockThirdPartySvcDiscoveryCfgDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockThirdPartySvcDiscoveryCfgDao)(nil).UpdateModel), arg0)
 }
 
-// GetByServiceID mocks base method
+// GetByServiceID mocks base method.
 func (m *MockThirdPartySvcDiscoveryCfgDao) GetByServiceID(sid string) (*model.ThirdPartySvcDiscoveryCfg, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByServiceID", sid)
 	ret0, _ := ret[0].(*model.ThirdPartySvcDiscoveryCfg)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetByServiceID indicates an expected call of GetByServiceID
+// GetByServiceID indicates an expected call of GetByServiceID.
 func (mr *MockThirdPartySvcDiscoveryCfgDaoMockRecorder) GetByServiceID(sid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByServiceID", reflect.TypeOf((*MockThirdPartySvcDiscoveryCfgDao)(nil).GetByServiceID), sid)
 }
 
-// DeleteByServiceID mocks base method
+// DeleteByServiceID mocks base method.
 func (m *MockThirdPartySvcDiscoveryCfgDao) DeleteByServiceID(sid string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteByServiceID", sid)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteByServiceID indicates an expected call of DeleteByServiceID
+// DeleteByServiceID indicates an expected call of DeleteByServiceID.
 func (mr *MockThirdPartySvcDiscoveryCfgDaoMockRecorder) DeleteByServiceID(sid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByServiceID", reflect.TypeOf((*MockThirdPartySvcDiscoveryCfgDao)(nil).DeleteByServiceID), sid)
 }
 
-// MockGwRuleConfigDao is a mock of GwRuleConfigDao interface
+// MockGwRuleConfigDao is a mock of GwRuleConfigDao interface.
 type MockGwRuleConfigDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockGwRuleConfigDaoMockRecorder
 }
 
-// MockGwRuleConfigDaoMockRecorder is the mock recorder for MockGwRuleConfigDao
+// MockGwRuleConfigDaoMockRecorder is the mock recorder for MockGwRuleConfigDao.
 type MockGwRuleConfigDaoMockRecorder struct {
 	mock *MockGwRuleConfigDao
 }
 
-// NewMockGwRuleConfigDao creates a new mock instance
+// NewMockGwRuleConfigDao creates a new mock instance.
 func NewMockGwRuleConfigDao(ctrl *gomock.Controller) *MockGwRuleConfigDao {
 	mock := &MockGwRuleConfigDao{ctrl: ctrl}
 	mock.recorder = &MockGwRuleConfigDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockGwRuleConfigDao) EXPECT() *MockGwRuleConfigDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockGwRuleConfigDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockGwRuleConfigDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockGwRuleConfigDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockGwRuleConfigDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockGwRuleConfigDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockGwRuleConfigDao)(nil).UpdateModel), arg0)
 }
 
-// DeleteByRuleID mocks base method
+// DeleteByRuleID mocks base method.
 func (m *MockGwRuleConfigDao) DeleteByRuleID(rid string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteByRuleID", rid)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteByRuleID indicates an expected call of DeleteByRuleID
+// DeleteByRuleID indicates an expected call of DeleteByRuleID.
 func (mr *MockGwRuleConfigDaoMockRecorder) DeleteByRuleID(rid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByRuleID", reflect.TypeOf((*MockGwRuleConfigDao)(nil).DeleteByRuleID), rid)
 }
 
-// ListByRuleID mocks base method
+// ListByRuleID mocks base method.
 func (m *MockGwRuleConfigDao) ListByRuleID(rid string) ([]*model.GwRuleConfig, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByRuleID", rid)
 	ret0, _ := ret[0].([]*model.GwRuleConfig)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListByRuleID indicates an expected call of ListByRuleID
+// ListByRuleID indicates an expected call of ListByRuleID.
 func (mr *MockGwRuleConfigDaoMockRecorder) ListByRuleID(rid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByRuleID", reflect.TypeOf((*MockGwRuleConfigDao)(nil).ListByRuleID), rid)
 }
 
-// MockTenantServceAutoscalerRulesDao is a mock of TenantServceAutoscalerRulesDao interface
+// MockTenantServceAutoscalerRulesDao is a mock of TenantServceAutoscalerRulesDao interface.
 type MockTenantServceAutoscalerRulesDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantServceAutoscalerRulesDaoMockRecorder
 }
 
-// MockTenantServceAutoscalerRulesDaoMockRecorder is the mock recorder for MockTenantServceAutoscalerRulesDao
+// MockTenantServceAutoscalerRulesDaoMockRecorder is the mock recorder for MockTenantServceAutoscalerRulesDao.
 type MockTenantServceAutoscalerRulesDaoMockRecorder struct {
 	mock *MockTenantServceAutoscalerRulesDao
 }
 
-// NewMockTenantServceAutoscalerRulesDao creates a new mock instance
+// NewMockTenantServceAutoscalerRulesDao creates a new mock instance.
 func NewMockTenantServceAutoscalerRulesDao(ctrl *gomock.Controller) *MockTenantServceAutoscalerRulesDao {
 	mock := &MockTenantServceAutoscalerRulesDao{ctrl: ctrl}
 	mock.recorder = &MockTenantServceAutoscalerRulesDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantServceAutoscalerRulesDao) EXPECT() *MockTenantServceAutoscalerRulesDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantServceAutoscalerRulesDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantServceAutoscalerRulesDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).UpdateModel), arg0)
 }
 
-// GetByRuleID mocks base method
+// GetByRuleID mocks base method.
 func (m *MockTenantServceAutoscalerRulesDao) GetByRuleID(ruleID string) (*model.TenantServiceAutoscalerRules, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByRuleID", ruleID)
 	ret0, _ := ret[0].(*model.TenantServiceAutoscalerRules)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetByRuleID indicates an expected call of GetByRuleID
+// GetByRuleID indicates an expected call of GetByRuleID.
 func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) GetByRuleID(ruleID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByRuleID", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).GetByRuleID), ruleID)
 }
 
-// ListByServiceID mocks base method
+// ListByServiceID mocks base method.
 func (m *MockTenantServceAutoscalerRulesDao) ListByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceAutoscalerRules)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListByServiceID indicates an expected call of ListByServiceID
+// ListByServiceID indicates an expected call of ListByServiceID.
 func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) ListByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).ListByServiceID), serviceID)
 }
 
-// ListEnableOnesByServiceID mocks base method
+// ListEnableOnesByServiceID mocks base method.
 func (m *MockTenantServceAutoscalerRulesDao) ListEnableOnesByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListEnableOnesByServiceID", serviceID)
 	ret0, _ := ret[0].([]*model.TenantServiceAutoscalerRules)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListEnableOnesByServiceID indicates an expected call of ListEnableOnesByServiceID
+// ListEnableOnesByServiceID indicates an expected call of ListEnableOnesByServiceID.
 func (mr *MockTenantServceAutoscalerRulesDaoMockRecorder) ListEnableOnesByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListEnableOnesByServiceID", reflect.TypeOf((*MockTenantServceAutoscalerRulesDao)(nil).ListEnableOnesByServiceID), serviceID)
 }
 
-// MockTenantServceAutoscalerRuleMetricsDao is a mock of TenantServceAutoscalerRuleMetricsDao interface
+// MockTenantServceAutoscalerRuleMetricsDao is a mock of TenantServceAutoscalerRuleMetricsDao interface.
 type MockTenantServceAutoscalerRuleMetricsDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder
 }
 
-// MockTenantServceAutoscalerRuleMetricsDaoMockRecorder is the mock recorder for MockTenantServceAutoscalerRuleMetricsDao
+// MockTenantServceAutoscalerRuleMetricsDaoMockRecorder is the mock recorder for MockTenantServceAutoscalerRuleMetricsDao.
 type MockTenantServceAutoscalerRuleMetricsDaoMockRecorder struct {
 	mock *MockTenantServceAutoscalerRuleMetricsDao
 }
 
-// NewMockTenantServceAutoscalerRuleMetricsDao creates a new mock instance
+// NewMockTenantServceAutoscalerRuleMetricsDao creates a new mock instance.
 func NewMockTenantServceAutoscalerRuleMetricsDao(ctrl *gomock.Controller) *MockTenantServceAutoscalerRuleMetricsDao {
 	mock := &MockTenantServceAutoscalerRuleMetricsDao{ctrl: ctrl}
 	mock.recorder = &MockTenantServceAutoscalerRuleMetricsDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantServceAutoscalerRuleMetricsDao) EXPECT() *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantServceAutoscalerRuleMetricsDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServceAutoscalerRuleMetricsDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantServceAutoscalerRuleMetricsDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServceAutoscalerRuleMetricsDao)(nil).UpdateModel), arg0)
 }
 
-// UpdateOrCreate mocks base method
+// UpdateOrCreate mocks base method.
 func (m *MockTenantServceAutoscalerRuleMetricsDao) UpdateOrCreate(metric *model.TenantServiceAutoscalerRuleMetrics) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateOrCreate", metric)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateOrCreate indicates an expected call of UpdateOrCreate
+// UpdateOrCreate indicates an expected call of UpdateOrCreate.
 func (mr *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder) UpdateOrCreate(metric interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOrCreate", reflect.TypeOf((*MockTenantServceAutoscalerRuleMetricsDao)(nil).UpdateOrCreate), metric)
 }
 
-// ListByRuleID mocks base method
+// ListByRuleID mocks base method.
 func (m *MockTenantServceAutoscalerRuleMetricsDao) ListByRuleID(ruleID string) ([]*model.TenantServiceAutoscalerRuleMetrics, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByRuleID", ruleID)
 	ret0, _ := ret[0].([]*model.TenantServiceAutoscalerRuleMetrics)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListByRuleID indicates an expected call of ListByRuleID
+// ListByRuleID indicates an expected call of ListByRuleID.
 func (mr *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder) ListByRuleID(ruleID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByRuleID", reflect.TypeOf((*MockTenantServceAutoscalerRuleMetricsDao)(nil).ListByRuleID), ruleID)
 }
 
-// DeleteByRuleID mocks base method
+// DeleteByRuleID mocks base method.
 func (m *MockTenantServceAutoscalerRuleMetricsDao) DeleteByRuleID(ruldID string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteByRuleID", ruldID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteByRuleID indicates an expected call of DeleteByRuleID
+// DeleteByRuleID indicates an expected call of DeleteByRuleID.
 func (mr *MockTenantServceAutoscalerRuleMetricsDaoMockRecorder) DeleteByRuleID(ruldID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByRuleID", reflect.TypeOf((*MockTenantServceAutoscalerRuleMetricsDao)(nil).DeleteByRuleID), ruldID)
 }
 
-// MockTenantServiceScalingRecordsDao is a mock of TenantServiceScalingRecordsDao interface
+// MockTenantServiceScalingRecordsDao is a mock of TenantServiceScalingRecordsDao interface.
 type MockTenantServiceScalingRecordsDao struct {
 	ctrl     *gomock.Controller
 	recorder *MockTenantServiceScalingRecordsDaoMockRecorder
 }
 
-// MockTenantServiceScalingRecordsDaoMockRecorder is the mock recorder for MockTenantServiceScalingRecordsDao
+// MockTenantServiceScalingRecordsDaoMockRecorder is the mock recorder for MockTenantServiceScalingRecordsDao.
 type MockTenantServiceScalingRecordsDaoMockRecorder struct {
 	mock *MockTenantServiceScalingRecordsDao
 }
 
-// NewMockTenantServiceScalingRecordsDao creates a new mock instance
+// NewMockTenantServiceScalingRecordsDao creates a new mock instance.
 func NewMockTenantServiceScalingRecordsDao(ctrl *gomock.Controller) *MockTenantServiceScalingRecordsDao {
 	mock := &MockTenantServiceScalingRecordsDao{ctrl: ctrl}
 	mock.recorder = &MockTenantServiceScalingRecordsDaoMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTenantServiceScalingRecordsDao) EXPECT() *MockTenantServiceScalingRecordsDaoMockRecorder {
 	return m.recorder
 }
 
-// AddModel mocks base method
+// AddModel mocks base method.
 func (m *MockTenantServiceScalingRecordsDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddModel indicates an expected call of AddModel
+// AddModel indicates an expected call of AddModel.
 func (mr *MockTenantServiceScalingRecordsDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceScalingRecordsDao)(nil).AddModel), arg0)
 }
 
-// UpdateModel mocks base method
+// UpdateModel mocks base method.
 func (m *MockTenantServiceScalingRecordsDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateModel", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateModel indicates an expected call of UpdateModel
+// UpdateModel indicates an expected call of UpdateModel.
 func (mr *MockTenantServiceScalingRecordsDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceScalingRecordsDao)(nil).UpdateModel), arg0)
 }
 
-// UpdateOrCreate mocks base method
+// UpdateOrCreate mocks base method.
 func (m *MockTenantServiceScalingRecordsDao) UpdateOrCreate(new *model.TenantServiceScalingRecords) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateOrCreate", new)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateOrCreate indicates an expected call of UpdateOrCreate
+// UpdateOrCreate indicates an expected call of UpdateOrCreate.
 func (mr *MockTenantServiceScalingRecordsDaoMockRecorder) UpdateOrCreate(new interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOrCreate", reflect.TypeOf((*MockTenantServiceScalingRecordsDao)(nil).UpdateOrCreate), new)
 }
 
-// ListByServiceID mocks base method
+// ListByServiceID mocks base method.
 func (m *MockTenantServiceScalingRecordsDao) ListByServiceID(serviceID string, offset, limit int) ([]*model.TenantServiceScalingRecords, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListByServiceID", serviceID, offset, limit)
 	ret0, _ := ret[0].([]*model.TenantServiceScalingRecords)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListByServiceID indicates an expected call of ListByServiceID
+// ListByServiceID indicates an expected call of ListByServiceID.
 func (mr *MockTenantServiceScalingRecordsDaoMockRecorder) ListByServiceID(serviceID, offset, limit interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceID", reflect.TypeOf((*MockTenantServiceScalingRecordsDao)(nil).ListByServiceID), serviceID, offset, limit)
 }
 
-// CountByServiceID mocks base method
+// CountByServiceID mocks base method.
 func (m *MockTenantServiceScalingRecordsDao) CountByServiceID(serviceID string) (int, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CountByServiceID", serviceID)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CountByServiceID indicates an expected call of CountByServiceID
+// CountByServiceID indicates an expected call of CountByServiceID.
 func (mr *MockTenantServiceScalingRecordsDaoMockRecorder) CountByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountByServiceID", reflect.TypeOf((*MockTenantServiceScalingRecordsDao)(nil).CountByServiceID), serviceID)
+}
+
+// MockTenantServiceMonitorDao is a mock of TenantServiceMonitorDao interface.
+type MockTenantServiceMonitorDao struct {
+	ctrl     *gomock.Controller
+	recorder *MockTenantServiceMonitorDaoMockRecorder
+}
+
+// MockTenantServiceMonitorDaoMockRecorder is the mock recorder for MockTenantServiceMonitorDao.
+type MockTenantServiceMonitorDaoMockRecorder struct {
+	mock *MockTenantServiceMonitorDao
+}
+
+// NewMockTenantServiceMonitorDao creates a new mock instance.
+func NewMockTenantServiceMonitorDao(ctrl *gomock.Controller) *MockTenantServiceMonitorDao {
+	mock := &MockTenantServiceMonitorDao{ctrl: ctrl}
+	mock.recorder = &MockTenantServiceMonitorDaoMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockTenantServiceMonitorDao) EXPECT() *MockTenantServiceMonitorDaoMockRecorder {
+	return m.recorder
+}
+
+// AddModel mocks base method.
+func (m *MockTenantServiceMonitorDao) AddModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddModel indicates an expected call of AddModel.
+func (mr *MockTenantServiceMonitorDaoMockRecorder) AddModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddModel", reflect.TypeOf((*MockTenantServiceMonitorDao)(nil).AddModel), arg0)
+}
+
+// UpdateModel mocks base method.
+func (m *MockTenantServiceMonitorDao) UpdateModel(arg0 model.Interface) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateModel", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateModel indicates an expected call of UpdateModel.
+func (mr *MockTenantServiceMonitorDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockTenantServiceMonitorDao)(nil).UpdateModel), arg0)
+}
+
+// GetByName mocks base method.
+func (m *MockTenantServiceMonitorDao) GetByName(serviceID, name string) (*model.TenantServiceMonitor, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByName", serviceID, name)
+	ret0, _ := ret[0].(*model.TenantServiceMonitor)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByName indicates an expected call of GetByName.
+func (mr *MockTenantServiceMonitorDaoMockRecorder) GetByName(serviceID, name interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByName", reflect.TypeOf((*MockTenantServiceMonitorDao)(nil).GetByName), serviceID, name)
+}
+
+// GetByServiceID mocks base method.
+func (m *MockTenantServiceMonitorDao) GetByServiceID(serviceID string) ([]*model.TenantServiceMonitor, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByServiceID", serviceID)
+	ret0, _ := ret[0].([]*model.TenantServiceMonitor)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByServiceID indicates an expected call of GetByServiceID.
+func (mr *MockTenantServiceMonitorDaoMockRecorder) GetByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByServiceID", reflect.TypeOf((*MockTenantServiceMonitorDao)(nil).GetByServiceID), serviceID)
+}
+
+// DeleteServiceMonitor mocks base method.
+func (m *MockTenantServiceMonitorDao) DeleteServiceMonitor(mo *model.TenantServiceMonitor) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteServiceMonitor", mo)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteServiceMonitor indicates an expected call of DeleteServiceMonitor.
+func (mr *MockTenantServiceMonitorDaoMockRecorder) DeleteServiceMonitor(mo interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteServiceMonitor", reflect.TypeOf((*MockTenantServiceMonitorDao)(nil).DeleteServiceMonitor), mo)
+}
+
+// DeleteServiceMonitorByServiceID mocks base method.
+func (m *MockTenantServiceMonitorDao) DeleteServiceMonitorByServiceID(serviceID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteServiceMonitorByServiceID", serviceID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteServiceMonitorByServiceID indicates an expected call of DeleteServiceMonitorByServiceID.
+func (mr *MockTenantServiceMonitorDaoMockRecorder) DeleteServiceMonitorByServiceID(serviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteServiceMonitorByServiceID", reflect.TypeOf((*MockTenantServiceMonitorDao)(nil).DeleteServiceMonitorByServiceID), serviceID)
 }
