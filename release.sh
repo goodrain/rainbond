@@ -4,11 +4,7 @@ set -o errexit
 # define package name
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
-IMAGE_BASE_NAME=rainbond
-if [ $BUILD_IMAGE_BASE_NAME ]; 
-then 
-IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME}
-fi
+IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME:-'rainbond'}
 
 GO_VERSION=1.13
 GATEWAY_GO_VERSION=1.13-alpine

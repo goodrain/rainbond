@@ -269,19 +269,6 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			if es != nil {
 				envsAll = append(envsAll, es...)
 			}
-			serviceAliass, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
-			if err != nil {
-				return nil, err
-			}
-			var Depend string
-			for _, sa := range serviceAliass {
-				if Depend != "" {
-					Depend += ","
-				}
-				Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
-			}
-			envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: Depend})
-			envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliass))})
 			as.NeedProxy = true
 		}
 	}

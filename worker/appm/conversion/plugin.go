@@ -156,9 +156,21 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 		meshPluginID = pluginID
 	}
 
-	bootSequence := createProbeMeshInitContainer(as, meshPluginID, as.ServiceAlias, mainContainer.Env)
-	if bootSeqDepServiceIds := as.ExtensionSet["boot_seq_dep_service_ids"]; as.NeedProxy && bootSeqDepServiceIds != "" {
-		initContainers = append(initContainers, bootSequence)
+	var bootSequence v1.Container
+	if bootSeqDepServiceIds := as.ExtensionSet["boot_seq_dep_service_ids"]; bootSeqDepServiceIds != "" {
+		startupSequenceDetector := newStartupSequenceDetector(as.ServiceID, dbmanager)
+		dependServices, dependServiceNum, err := startupSequenceDetector.dependServices()
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("detect depend services: %v", err)
+		}
+
+		if dependServices != "" {
+			envs := mainContainer.Env
+			envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: dependServices})
+			envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(dependServiceNum)})
+			bootSequence = createProbeMeshInitContainer(as, meshPluginID, as.ServiceAlias, envs)
+			initContainers = append(initContainers, bootSequence)
+		}
 	}
 	return initContainers, containers, &bootSequence, nil
 }

@@ -9,8 +9,7 @@ import (
 // startupSequenceDetector can detect whether the service require a startup sequence,
 // and set dependent services for it.
 type startupSequenceDetector struct {
-	serviceID            string
-	enableStarupSequence bool
+	serviceID string
 
 	dbmanager db.Manager
 }
@@ -22,17 +21,17 @@ func newStartupSequenceDetector(serviceID string, dbmanager db.Manager) *startup
 	}
 }
 
-func (s *startupSequenceDetector) dependServices() (string, error) {
+func (s *startupSequenceDetector) dependServices() (string, int, error) {
 	depServiceIDs, err := s.directlyDepServices(s.serviceID)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	var serviceIDs []string
 	for _, depServiceID := range depServiceIDs {
 		ok, err := s.dependOnEachOther(depServiceID)
 		if err != nil {
-			return "", err
+			return "", 0, err
 		}
 		// Ignore interdependent components
 		if ok {
@@ -44,7 +43,7 @@ func (s *startupSequenceDetector) dependServices() (string, error) {
 	// build result: alias1:id2,alias2:id2,alias2:id2
 	serivces, err := s.dbmanager.TenantServiceDao().GetServiceAliasByIDs(serviceIDs)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	var res string
 	for _, svc := range serivces {
@@ -54,7 +53,7 @@ func (s *startupSequenceDetector) dependServices() (string, error) {
 		res += fmt.Sprintf("%s:%s", svc.ServiceAlias, svc.ServiceID)
 	}
 
-	return res, nil
+	return res, len(serviceIDs), nil
 }
 
 // directlyDepServices get directly dependent services
