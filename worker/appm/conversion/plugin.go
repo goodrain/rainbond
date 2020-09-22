@@ -57,6 +57,7 @@ func TenantServicePlugin(as *typesv1.AppService, dbmanager db.Manager) error {
 func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1.Container, []v1.Container, *v1.Container, error) {
 	var containers []v1.Container
 	var initContainers []v1.Container
+
 	appPlugins, err := dbmanager.TenantServicePluginRelationDao().GetALLRelationByServiceID(as.ServiceID)
 	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 		return nil, nil, nil, fmt.Errorf("find plugins error. %v", err.Error())
@@ -64,12 +65,14 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 	if len(appPlugins) == 0 && !as.NeedProxy {
 		return nil, nil, nil, nil
 	}
+
 	netPlugin := false
 	var meshPluginID string
 	var mainContainer v1.Container
 	if as.GetPodTemplate() != nil && len(as.GetPodTemplate().Spec.Containers) > 0 {
 		mainContainer = as.GetPodTemplate().Spec.Containers[0]
 	}
+
 	var inBoundPlugin *model.TenantServicePluginRelation
 	for _, pluginR := range appPlugins {
 		//if plugin not enable,ignore it
@@ -120,6 +123,7 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 			containers = append(containers, pc)
 		}
 	}
+
 	var inboundPluginConfig *api_model.ResourceSpec
 	//apply plugin dynamic config
 	if inBoundPlugin != nil {
@@ -135,10 +139,12 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 			}
 		}
 	}
+
 	//create plugin config to configmap
 	for i := range appPlugins {
 		ApplyPluginConfig(as, appPlugins[i], dbmanager, inboundPluginConfig)
 	}
+
 	//if need proxy but not install net plugin
 	if as.NeedProxy && !netPlugin {
 		pluginID, err := applyDefaultMeshPluginConfig(as, dbmanager)
