@@ -3,6 +3,7 @@ module github.com/goodrain/rainbond
 go 1.13
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.3.3
 	github.com/Microsoft/go-winio v0.4.15-0.20200113171025-3fe6c5262873 // indirect
 	github.com/Microsoft/hcsshim v0.8.7 // indirect
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
