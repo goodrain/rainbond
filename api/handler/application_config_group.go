@@ -11,14 +11,17 @@ import (
 // AddConfigGroup -
 func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationConfigGroup) (*model.ApplicationConfigGroupResp, error) {
 	var serviceResp []dbmodel.ServiceConfigGroup
+	services, err := db.GetManager().TenantServiceDao().GetServicesByServiceIDs(req.ServiceIDs)
+	if err != nil {
+		return nil, err
+	}
 	// Create application configGroup-services
-	for _, sid := range req.ServiceIDs {
-		services, _ := db.GetManager().TenantServiceDao().GetServiceByID(sid)
+	for _, s := range services {
 		serviceConfigGroup := dbmodel.ServiceConfigGroup{
 			AppID:           appID,
 			ConfigGroupName: req.ConfigGroupName,
-			ServiceID:       sid,
-			ServiceAlias:    services.ServiceAlias,
+			ServiceID:       s.ServiceID,
+			ServiceAlias:    s.ServiceAlias,
 		}
 		serviceResp = append(serviceResp, serviceConfigGroup)
 		if err := db.GetManager().AppConfigGroupServiceDao().AddModel(&serviceConfigGroup); err != nil {
@@ -57,7 +60,10 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 		return nil, err
 	}
 
-	appconfig, _ := db.GetManager().AppConfigGroupDao().GetConfigByID(appID, req.ConfigGroupName)
+	appconfig, err := db.GetManager().AppConfigGroupDao().GetConfigByID(appID, req.ConfigGroupName)
+	if err != nil {
+		return nil, err
+	}
 	var resp *model.ApplicationConfigGroupResp
 	resp = &model.ApplicationConfigGroupResp{
 		CreateTime:      appconfig.CreatedAt,

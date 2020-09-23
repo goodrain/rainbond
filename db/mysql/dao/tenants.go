@@ -492,6 +492,18 @@ func (t *TenantServicesDaoImpl) GetServiceIDsByAppID(appID string) (re []model.S
 	return
 }
 
+//GetServicesByServiceIDs Get Services By ServiceIDs
+func (t *TenantServicesDaoImpl) GetServicesByServiceIDs(serviceIDs []string) ([]*model.TenantServices, error) {
+	var services []*model.TenantServices
+	if err := t.DB.Where("service_id in (?)", serviceIDs).Find(&services).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return services, nil
+		}
+		return nil, err
+	}
+	return services, nil
+}
+
 //SetTenantServiceStatus SetTenantServiceStatus
 func (t *TenantServicesDaoImpl) SetTenantServiceStatus(serviceID, status string) error {
 	var service model.TenantServices
