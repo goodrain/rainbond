@@ -26,14 +26,13 @@ func (a *AppConfigGroupDaoImpl) AddModel(mo model.Interface) error {
 
 //UpdateModel -
 func (a *AppConfigGroupDaoImpl) UpdateModel(mo model.Interface) error {
-	// updateReq := mo.(*model.Application)
 	return nil
 }
 
-// GetConfigByID -
-func (a *AppConfigGroupDaoImpl) GetConfigByID(appID, name string) (*model.ApplicationConfigGroup, error) {
+// GetConfigGroupByID -
+func (a *AppConfigGroupDaoImpl) GetConfigGroupByID(appID, configGroupName string) (*model.ApplicationConfigGroup, error) {
 	var oldApp model.ApplicationConfigGroup
-	if err := a.DB.Where("app_id = ? AND config_group_name = ?", appID, name).Find(&oldApp).Error; err != nil {
+	if err := a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Find(&oldApp).Error; err != nil {
 		return nil, err
 	}
 	return &oldApp, nil
@@ -54,13 +53,17 @@ func (a *AppConfigGroupServiceDaoImpl) AddModel(mo model.Interface) error {
 		}
 		return err
 	}
-	return bcode.ErrApplicationConfigGroupExist
+	return bcode.ErrServiceConfigGroupExist
 }
 
 //UpdateModel -
 func (a *AppConfigGroupServiceDaoImpl) UpdateModel(mo model.Interface) error {
-	// updateReq := mo.(*model.Application)
 	return nil
+}
+
+//DeleteServiceConfig -
+func (a *AppConfigGroupServiceDaoImpl) DeleteServiceConfig(appID, configGroupName string) error {
+	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ServiceConfigGroup{}).Error
 }
 
 // AppConfigGroupItemDaoImpl -
@@ -78,11 +81,13 @@ func (a *AppConfigGroupItemDaoImpl) AddModel(mo model.Interface) error {
 		}
 		return err
 	}
-	return bcode.ErrApplicationConfigGroupExist
+	return bcode.ErrConfigItemExist
 }
 
 //UpdateModel -
 func (a *AppConfigGroupItemDaoImpl) UpdateModel(mo model.Interface) error {
-	// updateReq := mo.(*model.Application)
-	return nil
+	updateReq := mo.(*model.ConfigItem)
+	return a.DB.Model(&model.ConfigItem{}).
+		Where("app_id = ? AND config_group_name = ? AND item_key = ?", updateReq.AppID, updateReq.ConfigGroupName, updateReq.ItemKey).
+		Update("item_value", updateReq.ItemValue).Error
 }

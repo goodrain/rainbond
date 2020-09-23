@@ -26,7 +26,7 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 			ServiceAlias:    s.ServiceAlias,
 		}
 		serviceResp = append(serviceResp, serviceConfigGroup)
-		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(&serviceConfigGroup); err != nil {
+		if err := db.GetManager().AppConfigGroupServiceDao().AddModel(&serviceConfigGroup); err != nil {
 			if err == bcode.ErrServiceConfigGroupExist {
 				logrus.Warningf("config group \"%s\" under this service \"%s\" already exists.", serviceConfigGroup.ConfigGroupName, serviceConfigGroup.ServiceID)
 				continue
@@ -69,7 +69,7 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 		return nil, err
 	}
 
-	appconfig, err := db.GetManager().AppConfigGroupDao().GetConfigByID(appID, req.ConfigGroupName)
+	appconfig, err := db.GetManager().AppConfigGroupDao().GetConfigGroupByID(appID, req.ConfigGroupName)
 	if err != nil {
 		return nil, err
 	}
@@ -77,6 +77,69 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 	resp = &model.ApplicationConfigGroupResp{
 		CreateTime:      appconfig.CreatedAt,
 		AppID:           appID,
+		ConfigGroupName: appconfig.ConfigGroupName,
+		DeployType:      appconfig.DeployType,
+		ConfigItems:     req.ConfigItems,
+		Services:        serviceResp,
+	}
+	return resp, nil
+}
+
+// UpdateConfigGroup -
+func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req *model.UpdateAppConfigGroupReq) (*model.ApplicationConfigGroupResp, error) {
+	var serviceResp []dbmodel.ServiceConfigGroup
+	services, err := db.GetManager().TenantServiceDao().GetServicesByServiceIDs(req.ServiceIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := db.GetManager().Begin()
+	// Update application configGroup-services
+	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteServiceConfig(appID, configGroupName); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	for _, s := range services {
+		serviceConfigGroup := dbmodel.ServiceConfigGroup{
+			AppID:           appID,
+			ConfigGroupName: configGroupName,
+			ServiceID:       s.ServiceID,
+			ServiceAlias:    s.ServiceAlias,
+		}
+		serviceResp = append(serviceResp, serviceConfigGroup)
+		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(&serviceConfigGroup); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+	}
+
+	// Update application configGroup-configItem
+	for _, it := range req.ConfigItems {
+		configItem := &dbmodel.ConfigItem{
+			AppID:           appID,
+			ConfigGroupName: configGroupName,
+			ItemKey:         it.ItemKey,
+			ItemValue:       it.ItemValue,
+		}
+		if err := db.GetManager().AppConfigGroupItemDaoTransactions(tx).UpdateModel(configItem); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	
+	// Build return data
+	appconfig, err := db.GetManager().AppConfigGroupDao().GetConfigGroupByID(appID, configGroupName)
+	if err != nil {
+		return nil, err
+	}
+	var resp *model.ApplicationConfigGroupResp
+	resp = &model.ApplicationConfigGroupResp{
+		CreateTime:      appconfig.CreatedAt,
+		AppID:           appconfig.AppID,
 		ConfigGroupName: appconfig.ConfigGroupName,
 		DeployType:      appconfig.DeployType,
 		ConfigItems:     req.ConfigItems,

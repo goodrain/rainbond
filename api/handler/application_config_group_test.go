@@ -55,7 +55,7 @@ func TestAddAppConfigGroup(t *testing.T) {
 
 				applicationConfigDao := daomock.NewMockAppConfigGroupDao(ctrl)
 				applicationConfigDao.EXPECT().AddModel(gomock.Any()).Return(nil)
-				applicationConfigDao.EXPECT().GetConfigByID(gomock.Any(), gomock.Any()).Return(config, nil)
+				applicationConfigDao.EXPECT().GetConfigGroupByID(gomock.Any(), gomock.Any()).Return(config, nil)
 				manager.EXPECT().AppConfigGroupDao().Return(applicationConfigDao).AnyTimes()
 			},
 			wanterr: false,
