@@ -33,7 +33,7 @@ func TestAddAppConfigGroup(t *testing.T) {
 				},
 			},
 			mockFunc: func(manager *db.MockManager, ctrl *gomock.Controller) {
-				serviceResult := []dbmodel.ServiceIDAndNameResult{
+				serviceResult := []*dbmodel.TenantServices{
 					{ServiceID: "sid1", ServiceName: "sid1_name"},
 				}
 				config := &dbmodel.ApplicationConfigGroup{
@@ -55,7 +55,7 @@ func TestAddAppConfigGroup(t *testing.T) {
 				manager.EXPECT().ApplicationConfigDao().Return(applicationConfigDao).AnyTimes()
 
 				tenantServiceDao := daomock.NewMockTenantServiceDao(ctrl)
-				tenantServiceDao.EXPECT().GetServicesIDAndNameByAppID(gomock.Any()).Return(serviceResult)
+				tenantServiceDao.EXPECT().GetServiceByIDs(gomock.Any()).Return(serviceResult, nil)
 				manager.EXPECT().TenantServiceDao().Return(tenantServiceDao)
 			},
 			wanterr: false,

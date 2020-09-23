@@ -52,7 +52,15 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 		return nil, err
 	}
 
-	services := db.GetManager().TenantServiceDao().GetServicesIDAndNameByAppID(appID)
+	var serviceResult []dbmodel.ServiceIDAndNameResult
+	services, _ := db.GetManager().TenantServiceDao().GetServiceByIDs(req.ServiceIDs)
+	for _, service := range services {
+		s := dbmodel.ServiceIDAndNameResult{
+			ServiceID:   service.ServiceID,
+			ServiceName: service.ServiceName,
+		}
+		serviceResult = append(serviceResult, s)
+	}
 	appconfig, _ := db.GetManager().ApplicationConfigDao().GetConfigByID(appID, req.ConfigGroupName)
 	var resp *model.ApplicationConfigGroupResp
 	resp = &model.ApplicationConfigGroupResp{
@@ -61,7 +69,7 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 		ConfigGroupName: appconfig.ConfigGroupName,
 		DeployType:      appconfig.DeployType,
 		ConfigItems:     req.ConfigItems,
-		Services:        services,
+		Services:        serviceResult,
 	}
 	return resp, nil
 }
