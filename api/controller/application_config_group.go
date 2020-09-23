@@ -21,14 +21,14 @@ func (a *ApplicationStruct) AddConfigGroup(w http.ResponseWriter, r *http.Reques
 
 	// Get the application bound serviceIDs
 	var availableServiceIDs []string
-	availableServices := db.GetManager().TenantServiceDao().GetServicesIDAndNameByAppID(appID)
+	availableServices := db.GetManager().TenantServiceDao().GetServiceIDsByAppID(appID)
 	for _, s := range availableServices {
 		availableServiceIDs = append(availableServiceIDs, s.ServiceID)
 	}
 	// Judge whether the requested service ID is correct
-	for _, sID := range configReq.ServiceIDs {
-		if !MapKeyInStringSlice(availableServiceIDs, sID) {
-			httputil.ReturnBcodeError(r, w, bcode.ErrServiceIDNotFound)
+	for _, sid := range configReq.ServiceIDs {
+		if !MapKeyInStringSlice(availableServiceIDs, sid) {
+			httputil.ReturnBcodeError(r, w, bcode.ErrServiceNotFound)
 			return
 		}
 	}

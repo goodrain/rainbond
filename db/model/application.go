@@ -16,15 +16,15 @@ func (t *Application) TableName() string {
 // ServiceConfigGroup -
 type ServiceConfigGroup struct {
 	Model
-	AppID           string `gorm:"column:app_id" json:"app_id"`
-	ConfigGroupName string `gorm:"column:config_group_name" json:"config_group_name"`
+	AppID           string `gorm:"column:app_id" json:"-"`
+	ConfigGroupName string `gorm:"column:config_group_name" json:"-"`
 	ServiceID       string `gorm:"column:service_id" json:"service_id"`
-	ServiceName     string `gorm:"column:service_name" json:"service_name"`
+	ServiceAlias    string `gorm:"column:service_alias" json:"service_alias"`
 }
 
 // TableName return tableName "application"
 func (t *ServiceConfigGroup) TableName() string {
-	return "application_config_service"
+	return "app_config_group_service"
 }
 
 // ConfigItem -
@@ -38,7 +38,7 @@ type ConfigItem struct {
 
 // TableName return tableName "application"
 func (t *ConfigItem) TableName() string {
-	return "application_config_item"
+	return "app_config_group_item"
 }
 
 // ApplicationConfigGroup -
@@ -51,5 +51,5 @@ type ApplicationConfigGroup struct {
 
 // TableName return tableName "application"
 func (t *ApplicationConfigGroup) TableName() string {
-	return "application_config_group"
+	return "app_config_group"
 }

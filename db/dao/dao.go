@@ -122,7 +122,7 @@ type TenantServiceDao interface {
 	GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServicesInfoByAppID(appID string, page, pageSize int) ([]*model.TenantServices, int64, error)
 	CountServiceByAppID(appID string) (int64, error)
-	GetServicesIDAndNameByAppID(appID string) (re []model.ServiceIDAndNameResult)
+	GetServiceIDsByAppID(appID string) (re []model.ServiceID)
 	DeleteServiceByServiceID(serviceID string) error
 	GetServiceMemoryByTenantIDs(tenantIDs, serviceIDs []string) (map[string]map[string]interface{}, error)
 	GetServiceMemoryByServiceIDs(serviceIDs []string) (map[string]map[string]interface{}, error)

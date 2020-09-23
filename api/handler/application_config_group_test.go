@@ -33,14 +33,19 @@ func TestAddAppConfigGroup(t *testing.T) {
 				},
 			},
 			mockFunc: func(manager *db.MockManager, ctrl *gomock.Controller) {
-				serviceResult := []*dbmodel.TenantServices{
-					{ServiceID: "sid1", ServiceName: "sid1_name"},
+				serviceResult := &dbmodel.TenantServices{
+					ServiceID:    "sid1",
+					ServiceAlias: "sid1_name",
 				}
 				config := &dbmodel.ApplicationConfigGroup{
 					AppID:           "appID1",
 					ConfigGroupName: "configName1",
 					DeployType:      "env",
 				}
+				tenantServiceDao := daomock.NewMockTenantServiceDao(ctrl)
+				tenantServiceDao.EXPECT().GetServiceByID(gomock.Any()).Return(serviceResult, nil)
+				manager.EXPECT().TenantServiceDao().Return(tenantServiceDao)
+
 				serviceConfigGroupDao := daomock.NewMockServiceConfigGroupDao(ctrl)
 				serviceConfigGroupDao.EXPECT().AddModel(gomock.Any()).Return(nil).AnyTimes()
 				manager.EXPECT().ServiceConfigGroupDao().Return(serviceConfigGroupDao).AnyTimes()
@@ -53,10 +58,6 @@ func TestAddAppConfigGroup(t *testing.T) {
 				applicationConfigDao.EXPECT().AddModel(gomock.Any()).Return(nil)
 				applicationConfigDao.EXPECT().GetConfigByID(gomock.Any(), gomock.Any()).Return(config, nil)
 				manager.EXPECT().ApplicationConfigDao().Return(applicationConfigDao).AnyTimes()
-
-				tenantServiceDao := daomock.NewMockTenantServiceDao(ctrl)
-				tenantServiceDao.EXPECT().GetServiceByIDs(gomock.Any()).Return(serviceResult, nil)
-				manager.EXPECT().TenantServiceDao().Return(tenantServiceDao)
 			},
 			wanterr: false,
 		},
@@ -73,6 +74,14 @@ func TestAddAppConfigGroup(t *testing.T) {
 				},
 			},
 			mockFunc: func(manager *db.MockManager, ctrl *gomock.Controller) {
+				serviceResult := &dbmodel.TenantServices{
+					ServiceID:    "sid1",
+					ServiceAlias: "sid1_name",
+				}
+				tenantServiceDao := daomock.NewMockTenantServiceDao(ctrl)
+				tenantServiceDao.EXPECT().GetServiceByID(gomock.Any()).Return(serviceResult, nil)
+				manager.EXPECT().TenantServiceDao().Return(tenantServiceDao)
+
 				serviceConfigGroupDao := daomock.NewMockServiceConfigGroupDao(ctrl)
 				serviceConfigGroupDao.EXPECT().AddModel(gomock.Any()).Return(errors.New("add service config failed")).AnyTimes()
 				manager.EXPECT().ServiceConfigGroupDao().Return(serviceConfigGroupDao).AnyTimes()
@@ -92,6 +101,14 @@ func TestAddAppConfigGroup(t *testing.T) {
 				},
 			},
 			mockFunc: func(manager *db.MockManager, ctrl *gomock.Controller) {
+				serviceResult := &dbmodel.TenantServices{
+					ServiceID:    "sid1",
+					ServiceAlias: "sid1_name",
+				}
+				tenantServiceDao := daomock.NewMockTenantServiceDao(ctrl)
+				tenantServiceDao.EXPECT().GetServiceByID(gomock.Any()).Return(serviceResult, nil)
+				manager.EXPECT().TenantServiceDao().Return(tenantServiceDao)
+
 				serviceConfigGroupDao := daomock.NewMockServiceConfigGroupDao(ctrl)
 				serviceConfigGroupDao.EXPECT().AddModel(gomock.Any()).Return(nil).AnyTimes()
 				manager.EXPECT().ServiceConfigGroupDao().Return(serviceConfigGroupDao).AnyTimes()
@@ -115,6 +132,14 @@ func TestAddAppConfigGroup(t *testing.T) {
 				},
 			},
 			mockFunc: func(manager *db.MockManager, ctrl *gomock.Controller) {
+				serviceResult := &dbmodel.TenantServices{
+					ServiceID:    "sid1",
+					ServiceAlias: "sid1_name",
+				}
+				tenantServiceDao := daomock.NewMockTenantServiceDao(ctrl)
+				tenantServiceDao.EXPECT().GetServiceByID(gomock.Any()).Return(serviceResult, nil)
+				manager.EXPECT().TenantServiceDao().Return(tenantServiceDao)
+
 				serviceConfigGroupDao := daomock.NewMockServiceConfigGroupDao(ctrl)
 				serviceConfigGroupDao.EXPECT().AddModel(gomock.Any()).Return(nil).AnyTimes()
 				manager.EXPECT().ServiceConfigGroupDao().Return(serviceConfigGroupDao).AnyTimes()

@@ -1659,7 +1659,7 @@ type ServiceConfigGroup struct {
 	AppID           string `json:"app_id"`
 	ConfigGroupName string `json:"config_group_name"`
 	ServiceID       string `json:"service_id"`
-	ServiceName     string `json:"service_name"`
+	ServiceAlias    string `json:"service_alias"`
 }
 
 // ConfigItem -
@@ -1681,10 +1681,10 @@ type ApplicationConfigGroup struct {
 
 // ApplicationConfigGroupResp -
 type ApplicationConfigGroupResp struct {
-	CreateTime      time.Time                        `json:"create_time"`
-	AppID           string                           `json:"app_id"`
-	ConfigGroupName string                           `json:"config_group_name"`
-	DeployType      string                           `json:"deploy_type"`
-	Services        []dbmodel.ServiceIDAndNameResult `json:"services"`
-	ConfigItems     []ConfigItem                     `json:"config_items"`
+	CreateTime      time.Time                    `json:"create_time"`
+	AppID           string                       `json:"app_id"`
+	ConfigGroupName string                       `json:"config_group_name"`
+	DeployType      string                       `json:"deploy_type"`
+	Services        []dbmodel.ServiceConfigGroup `json:"services"`
+	ConfigItems     []ConfigItem                 `json:"config_items"`
 }

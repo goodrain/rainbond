@@ -1078,18 +1078,18 @@ func (mr *MockTenantServiceDaoMockRecorder) CountServiceByAppID(appID interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountServiceByAppID", reflect.TypeOf((*MockTenantServiceDao)(nil).CountServiceByAppID), appID)
 }
 
-// GetServicesIDAndNameByAppID mocks base method.
-func (m *MockTenantServiceDao) GetServicesIDAndNameByAppID(appID string) []model.ServiceIDAndNameResult {
+// GetServiceIDsByAppID mocks base method.
+func (m *MockTenantServiceDao) GetServiceIDsByAppID(appID string) []model.ServiceID {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetServicesIDAndNameByAppID", appID)
-	ret0, _ := ret[0].([]model.ServiceIDAndNameResult)
+	ret := m.ctrl.Call(m, "GetServiceIDsByAppID", appID)
+	ret0, _ := ret[0].([]model.ServiceID)
 	return ret0
 }
 
-// GetServicesIDAndNameByAppID indicates an expected call of GetServicesIDAndNameByAppID.
-func (mr *MockTenantServiceDaoMockRecorder) GetServicesIDAndNameByAppID(appID interface{}) *gomock.Call {
+// GetServiceIDsByAppID indicates an expected call of GetServiceIDsByAppID.
+func (mr *MockTenantServiceDaoMockRecorder) GetServiceIDsByAppID(appID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServicesIDAndNameByAppID", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServicesIDAndNameByAppID), appID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceIDsByAppID", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceIDsByAppID), appID)
 }
 
 // DeleteServiceByServiceID mocks base method.
