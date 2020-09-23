@@ -431,6 +431,13 @@ func (m *Manager) AppConfigGroupDao() dao.AppConfigGroupDao {
 	}
 }
 
+//AppConfigGroupDaoTransactions -
+func (m *Manager) AppConfigGroupDaoTransactions(db *gorm.DB) dao.AppConfigGroupDao {
+	return &mysqldao.AppConfigGroupDaoImpl{
+		DB: db,
+	}
+}
+
 // AppConfigGroupServiceDao -
 func (m *Manager) AppConfigGroupServiceDao() dao.AppConfigGroupServiceDao {
 	return &mysqldao.AppConfigGroupServiceDaoImpl{
@@ -438,10 +445,24 @@ func (m *Manager) AppConfigGroupServiceDao() dao.AppConfigGroupServiceDao {
 	}
 }
 
+//AppConfigGroupServiceDaoTransactions -
+func (m *Manager) AppConfigGroupServiceDaoTransactions(db *gorm.DB) dao.AppConfigGroupServiceDao {
+	return &mysqldao.AppConfigGroupServiceDaoImpl{
+		DB: db,
+	}
+}
+
 // AppConfigGroupItemDao -
 func (m *Manager) AppConfigGroupItemDao() dao.AppConfigGroupItemDao {
 	return &mysqldao.AppConfigGroupItemDaoImpl{
 		DB: m.db,
+	}
+}
+
+//AppConfigGroupItemDaoTransactions -
+func (m *Manager) AppConfigGroupItemDaoTransactions(db *gorm.DB) dao.AppConfigGroupItemDao {
+	return &mysqldao.AppConfigGroupItemDaoImpl{
+		DB: db,
 	}
 }
 

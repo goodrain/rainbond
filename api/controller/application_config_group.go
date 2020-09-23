@@ -9,6 +9,7 @@ import (
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/sirupsen/logrus"
 )
 
 // AddConfigGroup -
@@ -29,6 +30,7 @@ func (a *ApplicationStruct) AddConfigGroup(w http.ResponseWriter, r *http.Reques
 	for _, sid := range configReq.ServiceIDs {
 		_, ok := set[sid]
 		if !ok {
+			logrus.Infof("The serviceID [%s] is not under the application or does not exist", sid)
 			httputil.ReturnBcodeError(r, w, bcode.ErrServiceNotFound)
 			return
 		}

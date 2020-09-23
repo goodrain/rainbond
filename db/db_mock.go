@@ -147,6 +147,20 @@ func (mr *MockManagerMockRecorder) AppConfigGroupDao() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppConfigGroupDao", reflect.TypeOf((*MockManager)(nil).AppConfigGroupDao))
 }
 
+// AppConfigGroupDaoTransactions mocks base method.
+func (m *MockManager) AppConfigGroupDaoTransactions(db *gorm.DB) dao.AppConfigGroupDao {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AppConfigGroupDaoTransactions", db)
+	ret0, _ := ret[0].(dao.AppConfigGroupDao)
+	return ret0
+}
+
+// AppConfigGroupDaoTransactions indicates an expected call of AppConfigGroupDaoTransactions.
+func (mr *MockManagerMockRecorder) AppConfigGroupDaoTransactions(db interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppConfigGroupDaoTransactions", reflect.TypeOf((*MockManager)(nil).AppConfigGroupDaoTransactions), db)
+}
+
 // AppConfigGroupServiceDao mocks base method.
 func (m *MockManager) AppConfigGroupServiceDao() dao.AppConfigGroupServiceDao {
 	m.ctrl.T.Helper()
@@ -161,6 +175,20 @@ func (mr *MockManagerMockRecorder) AppConfigGroupServiceDao() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppConfigGroupServiceDao", reflect.TypeOf((*MockManager)(nil).AppConfigGroupServiceDao))
 }
 
+// AppConfigGroupServiceDaoTransactions mocks base method.
+func (m *MockManager) AppConfigGroupServiceDaoTransactions(db *gorm.DB) dao.AppConfigGroupServiceDao {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AppConfigGroupServiceDaoTransactions", db)
+	ret0, _ := ret[0].(dao.AppConfigGroupServiceDao)
+	return ret0
+}
+
+// AppConfigGroupServiceDaoTransactions indicates an expected call of AppConfigGroupServiceDaoTransactions.
+func (mr *MockManagerMockRecorder) AppConfigGroupServiceDaoTransactions(db interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppConfigGroupServiceDaoTransactions", reflect.TypeOf((*MockManager)(nil).AppConfigGroupServiceDaoTransactions), db)
+}
+
 // AppConfigGroupItemDao mocks base method.
 func (m *MockManager) AppConfigGroupItemDao() dao.AppConfigGroupItemDao {
 	m.ctrl.T.Helper()
@@ -173,6 +201,20 @@ func (m *MockManager) AppConfigGroupItemDao() dao.AppConfigGroupItemDao {
 func (mr *MockManagerMockRecorder) AppConfigGroupItemDao() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppConfigGroupItemDao", reflect.TypeOf((*MockManager)(nil).AppConfigGroupItemDao))
+}
+
+// AppConfigGroupItemDaoTransactions mocks base method.
+func (m *MockManager) AppConfigGroupItemDaoTransactions(db *gorm.DB) dao.AppConfigGroupItemDao {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AppConfigGroupItemDaoTransactions", db)
+	ret0, _ := ret[0].(dao.AppConfigGroupItemDao)
+	return ret0
+}
+
+// AppConfigGroupItemDaoTransactions indicates an expected call of AppConfigGroupItemDaoTransactions.
+func (mr *MockManagerMockRecorder) AppConfigGroupItemDaoTransactions(db interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppConfigGroupItemDaoTransactions", reflect.TypeOf((*MockManager)(nil).AppConfigGroupItemDaoTransactions), db)
 }
 
 // EnterpriseDao mocks base method.

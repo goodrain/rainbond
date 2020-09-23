@@ -15,6 +15,8 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 	if err != nil {
 		return nil, err
 	}
+
+	tx := db.GetManager().Begin()
 	// Create application configGroup-services
 	for _, s := range services {
 		serviceConfigGroup := dbmodel.ServiceConfigGroup{
@@ -24,11 +26,12 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 			ServiceAlias:    s.ServiceAlias,
 		}
 		serviceResp = append(serviceResp, serviceConfigGroup)
-		if err := db.GetManager().AppConfigGroupServiceDao().AddModel(&serviceConfigGroup); err != nil {
+		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(&serviceConfigGroup); err != nil {
 			if err == bcode.ErrServiceConfigGroupExist {
 				logrus.Warningf("config group \"%s\" under this service \"%s\" already exists.", serviceConfigGroup.ConfigGroupName, serviceConfigGroup.ServiceID)
 				continue
 			}
+			tx.Rollback()
 			return nil, err
 		}
 	}
@@ -41,11 +44,12 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 			ItemKey:         it.ItemKey,
 			ItemValue:       it.ItemValue,
 		}
-		if err := db.GetManager().AppConfigGroupItemDao().AddModel(configItem); err != nil {
+		if err := db.GetManager().AppConfigGroupItemDaoTransactions(tx).AddModel(configItem); err != nil {
 			if err == bcode.ErrConfigItemExist {
 				logrus.Warningf("config item \"%s\" under this config group \"%s\" already exists.", configItem.ItemKey, configItem.ConfigGroupName)
 				continue
 			}
+			tx.Rollback()
 			return nil, err
 		}
 	}
@@ -56,7 +60,12 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 		ConfigGroupName: req.ConfigGroupName,
 		DeployType:      req.DeployType,
 	}
-	if err := db.GetManager().AppConfigGroupDao().AddModel(config); err != nil {
+	if err := db.GetManager().AppConfigGroupDaoTransactions(tx).AddModel(config); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
 		return nil, err
 	}
 

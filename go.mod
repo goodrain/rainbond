@@ -73,6 +73,7 @@ require (
 	github.com/sirupsen/logrus v1.6.0
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/pflag v1.0.5
+	github.com/stretchr/testify v1.6.1
 	github.com/testcontainers/testcontainers-go v0.7.0
 	github.com/thejerf/suture v3.0.3+incompatible
 	github.com/tidwall/gjson v1.6.1
