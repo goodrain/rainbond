@@ -8,7 +8,7 @@ type Application struct {
 	TenantID string `gorm:"column:tenant_id" json:"tenant_id"`
 }
 
-// TableName return tableName "tenant_application"
+// TableName return tableName "application"
 func (t *Application) TableName() string {
-	return "tenant_application"
+	return "application"
 }

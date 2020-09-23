@@ -12,11 +12,11 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
-// TenantAppStruct -
-type TenantAppStruct struct{}
+// ApplicationStruct -
+type ApplicationStruct struct{}
 
 // CreateApp -
-func (a *TenantAppStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
 	var tenantReq model.Application
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &tenantReq, nil) {
 		return
@@ -27,7 +27,7 @@ func (a *TenantAppStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
 	tenantReq.TenantID = tenant.UUID
 
 	// create app
-	app, err := handler.GetTenantApplicationHandler().CreateApp(&tenantReq)
+	app, err := handler.GetApplicationHandler().CreateApp(&tenantReq)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
@@ -37,7 +37,7 @@ func (a *TenantAppStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateApp -
-func (a *TenantAppStruct) UpdateApp(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationStruct) UpdateApp(w http.ResponseWriter, r *http.Request) {
 	var updateAppReq model.UpdateAppRequest
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &updateAppReq, nil) {
 		return
@@ -45,7 +45,7 @@ func (a *TenantAppStruct) UpdateApp(w http.ResponseWriter, r *http.Request) {
 	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
 
 	// update app
-	app, err := handler.GetTenantApplicationHandler().UpdateApp(app, updateAppReq)
+	app, err := handler.GetApplicationHandler().UpdateApp(app, updateAppReq)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
@@ -55,7 +55,7 @@ func (a *TenantAppStruct) UpdateApp(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListApps -
-func (a *TenantAppStruct) ListApps(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationStruct) ListApps(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	appName := query.Get("app_name")
 	pageQuery := query.Get("page")
@@ -74,7 +74,7 @@ func (a *TenantAppStruct) ListApps(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 
 	// List apps
-	resp, err := handler.GetTenantApplicationHandler().ListApps(tenantID, appName, page, pageSize)
+	resp, err := handler.GetApplicationHandler().ListApps(tenantID, appName, page, pageSize)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
@@ -84,7 +84,7 @@ func (a *TenantAppStruct) ListApps(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListServices -
-func (a *TenantAppStruct) ListServices(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationStruct) ListServices(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "app_id")
 	query := r.URL.Query()
 	pageQuery := query.Get("page")
@@ -110,11 +110,11 @@ func (a *TenantAppStruct) ListServices(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteApp -
-func (a *TenantAppStruct) DeleteApp(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationStruct) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "app_id")
 
 	// Delete application
-	err := handler.GetTenantApplicationHandler().DeleteApp(appID)
+	err := handler.GetApplicationHandler().DeleteApp(appID)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return

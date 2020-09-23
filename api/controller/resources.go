@@ -58,7 +58,7 @@ type V2Routes struct {
 	LabelController
 	AppRestoreController
 	PodController
-	TenantAppStruct
+	ApplicationStruct
 }
 
 //Show test
@@ -655,7 +655,7 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, bcode.ErrCreateNeedCorrectAppID)
 		return
 	}
-	_, err := handler.GetTenantApplicationHandler().GetAppByID(ss.AppID)
+	_, err := handler.GetApplicationHandler().GetAppByID(ss.AppID)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
@@ -737,7 +737,7 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := handler.GetTenantApplicationHandler().GetAppByID(appID)
+	_, err := handler.GetApplicationHandler().GetAppByID(appID)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
