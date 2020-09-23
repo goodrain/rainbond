@@ -125,6 +125,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.AppStatus{})
 	m.models = append(m.models, &model.AppBackup{})
 	m.models = append(m.models, &model.ServiceSourceConfig{})
+	m.models = append(m.models, &model.TenantApplication{})
 	// gateway
 	m.models = append(m.models, &model.Certificate{})
 	m.models = append(m.models, &model.RuleExtension{})

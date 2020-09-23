@@ -67,6 +67,11 @@ type AppDao interface {
 	DeleteModelByEventId(eventID string) error
 }
 
+//TenantApplicationDao tenant Application Dao
+type TenantApplicationDao interface {
+	Dao
+}
+
 // VolumeTypeDao volume type dao
 type VolumeTypeDao interface {
 	Dao
