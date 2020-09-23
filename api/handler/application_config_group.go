@@ -147,3 +147,30 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 	}
 	return resp, nil
 }
+
+// DeleteConfigGroup -
+func (a *ApplicationAction) DeleteConfigGroup(appID, configGroupName string) error {
+	tx := db.GetManager().Begin()
+
+	// Delete application configGroup-services
+	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteServiceConfig(appID, configGroupName); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// Delete application configGroup-configItem
+	if err := db.GetManager().AppConfigGroupItemDaoTransactions(tx).DeleteConfigItem(appID, configGroupName); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// Delete application configGroup
+	if err := db.GetManager().AppConfigGroupDaoTransactions(tx).DeleteConfigGroup(appID, configGroupName); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	return nil
+}

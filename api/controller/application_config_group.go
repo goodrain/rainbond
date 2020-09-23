@@ -78,3 +78,17 @@ func (a *ApplicationStruct) UpdateConfigGroup(w http.ResponseWriter, r *http.Req
 	}
 	httputil.ReturnSuccess(r, w, app)
 }
+
+// DeleteConfigGroup -
+func (a *ApplicationStruct) DeleteConfigGroup(w http.ResponseWriter, r *http.Request) {
+	configGroupname := chi.URLParam(r, "config_group_name")
+	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+
+	// delete app ConfigGroups
+	err := handler.GetApplicationHandler().DeleteConfigGroup(appID, configGroupname)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, app)
+}

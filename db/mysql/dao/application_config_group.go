@@ -38,6 +38,11 @@ func (a *AppConfigGroupDaoImpl) GetConfigGroupByID(appID, configGroupName string
 	return &oldApp, nil
 }
 
+//DeleteConfigGroup -
+func (a *AppConfigGroupDaoImpl) DeleteConfigGroup(appID, configGroupName string) error {
+	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ApplicationConfigGroup{}).Error
+}
+
 // AppConfigGroupServiceDaoImpl -
 type AppConfigGroupServiceDaoImpl struct {
 	DB *gorm.DB
@@ -90,4 +95,9 @@ func (a *AppConfigGroupItemDaoImpl) UpdateModel(mo model.Interface) error {
 	return a.DB.Model(&model.ConfigItem{}).
 		Where("app_id = ? AND config_group_name = ? AND item_key = ?", updateReq.AppID, updateReq.ConfigGroupName, updateReq.ItemKey).
 		Update("item_value", updateReq.ItemValue).Error
+}
+
+//DeleteConfigItem -
+func (a *AppConfigGroupItemDaoImpl) DeleteConfigItem(appID, configGroupName string) error {
+	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ConfigItem{}).Error
 }

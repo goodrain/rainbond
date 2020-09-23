@@ -139,6 +139,56 @@ func TestAppGetConfigGroupByID(t *testing.T) {
 	}
 }
 
+func TestDeleteConfigGroup(t *testing.T) {
+	tests := []struct {
+		name, appID, configGroupName string
+		request                      *model.ConfigItem
+		mockFunc                     func(mock sqlmock.Sqlmock)
+		wanterr                      bool
+	}{
+		{
+			name: "delete success",
+			mockFunc: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectExec("DELETE").WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1)).WillReturnError(nil)
+				mock.ExpectCommit()
+			},
+			wanterr: false,
+		},
+		{
+			name: "delete failed",
+			mockFunc: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectExec("DELETE").WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnError(errors.New("delete failed"))
+				mock.ExpectCommit()
+			},
+			wanterr: true,
+		},
+	}
+	for i := range tests {
+		tc := tests[i]
+		t.Run(tc.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+			}
+			defer db.Close()
+
+			gdb, _ := gorm.Open("mysql", db)
+			appConfigGroupDaoImpl := &AppConfigGroupDaoImpl{
+				DB: gdb,
+			}
+			tc.mockFunc(mock)
+
+			err = appConfigGroupDaoImpl.DeleteConfigGroup(tc.appID, tc.configGroupName)
+			if (err != nil) != tc.wanterr {
+				t.Errorf("Unexpected error = %v, wantErr %v", err, tc.wanterr)
+				return
+			}
+		})
+	}
+}
+
 // Test AppConfigGroup Service Dao
 func TestAppConfigGroupServiceDaoAddModel(t *testing.T) {
 	req := &model.ServiceConfigGroup{
@@ -392,6 +442,56 @@ func TestAppConfigGroupItemDaoUpdateModel(t *testing.T) {
 			tc.mockFunc(mock)
 
 			err = configItemDaoImpl.UpdateModel(req)
+			if (err != nil) != tc.wanterr {
+				t.Errorf("Unexpected error = %v, wantErr %v", err, tc.wanterr)
+				return
+			}
+		})
+	}
+}
+
+func TestDeleteConfigItem(t *testing.T) {
+	tests := []struct {
+		name, appID, configGroupName string
+		request                      *model.ConfigItem
+		mockFunc                     func(mock sqlmock.Sqlmock)
+		wanterr                      bool
+	}{
+		{
+			name: "delete success",
+			mockFunc: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectExec("DELETE").WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(1, 1)).WillReturnError(nil)
+				mock.ExpectCommit()
+			},
+			wanterr: false,
+		},
+		{
+			name: "delete failed",
+			mockFunc: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectExec("DELETE").WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnError(errors.New("delete failed"))
+				mock.ExpectCommit()
+			},
+			wanterr: true,
+		},
+	}
+	for i := range tests {
+		tc := tests[i]
+		t.Run(tc.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+			}
+			defer db.Close()
+
+			gdb, _ := gorm.Open("mysql", db)
+			appConfigGroupItemDaoImpl := &AppConfigGroupItemDaoImpl{
+				DB: gdb,
+			}
+			tc.mockFunc(mock)
+
+			err = appConfigGroupItemDaoImpl.DeleteConfigItem(tc.appID, tc.configGroupName)
 			if (err != nil) != tc.wanterr {
 				t.Errorf("Unexpected error = %v, wantErr %v", err, tc.wanterr)
 				return
