@@ -67,27 +67,27 @@ type AppDao interface {
 	DeleteModelByEventId(eventID string) error
 }
 
-//TenantApplicationDao tenant Application Dao
-type TenantApplicationDao interface {
+//ApplicationDao tenant Application Dao
+type ApplicationDao interface {
 	Dao
 	ListApps(tenantID, appName string, page, pageSize int) ([]*model.Application, int64, error)
 	GetAppByID(appID string) (*model.Application, error)
 	DeleteApp(appID string) error
 }
 
-//ApplicationConfigDao Application config group Dao
-type ApplicationConfigDao interface {
+//AppConfigGroupDao Application config group Dao
+type AppConfigGroupDao interface {
 	Dao
 	GetConfigByID(appID, name string) (*model.ApplicationConfigGroup, error)
 }
 
-//ServiceConfigGroupDao service config group Dao
-type ServiceConfigGroupDao interface {
+//AppConfigGroupServiceDao service config group Dao
+type AppConfigGroupServiceDao interface {
 	Dao
 }
 
-//ConfigItemDao Application config item group Dao
-type ConfigItemDao interface {
+//AppConfigGroupItemDao Application config item group Dao
+type AppConfigGroupItemDao interface {
 	Dao
 }
 

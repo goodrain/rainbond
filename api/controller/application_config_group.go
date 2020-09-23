@@ -20,14 +20,15 @@ func (a *ApplicationStruct) AddConfigGroup(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Get the application bound serviceIDs
-	var availableServiceIDs []string
 	availableServices := db.GetManager().TenantServiceDao().GetServiceIDsByAppID(appID)
-	for _, s := range availableServices {
-		availableServiceIDs = append(availableServiceIDs, s.ServiceID)
-	}
 	// Judge whether the requested service ID is correct
+	set := make(map[string]struct{})
+	for _, s := range availableServices {
+		set[s.ServiceID] = struct{}{}
+	}
 	for _, sid := range configReq.ServiceIDs {
-		if !MapKeyInStringSlice(availableServiceIDs, sid) {
+		_, ok := set[sid]
+		if !ok {
 			httputil.ReturnBcodeError(r, w, bcode.ErrServiceNotFound)
 			return
 		}
@@ -40,14 +41,4 @@ func (a *ApplicationStruct) AddConfigGroup(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	httputil.ReturnSuccess(r, w, app)
-}
-
-// MapKeyInStringSlice -
-func MapKeyInStringSlice(source []string, needle string) bool {
-	set := make(map[string]struct{})
-	for _, s := range source {
-		set[s] = struct{}{}
-	}
-	_, ok := set[needle]
-	return ok
 }

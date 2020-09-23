@@ -119,60 +119,60 @@ func (mr *MockManagerMockRecorder) AppDao() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppDao", reflect.TypeOf((*MockManager)(nil).AppDao))
 }
 
-// TenantApplicationDao mocks base method.
-func (m *MockManager) TenantApplicationDao() dao.TenantApplicationDao {
+// ApplicationDao mocks base method.
+func (m *MockManager) ApplicationDao() dao.ApplicationDao {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "TenantApplicationDao")
-	ret0, _ := ret[0].(dao.TenantApplicationDao)
+	ret := m.ctrl.Call(m, "ApplicationDao")
+	ret0, _ := ret[0].(dao.ApplicationDao)
 	return ret0
 }
 
-// TenantApplicationDao indicates an expected call of TenantApplicationDao.
-func (mr *MockManagerMockRecorder) TenantApplicationDao() *gomock.Call {
+// ApplicationDao indicates an expected call of ApplicationDao.
+func (mr *MockManagerMockRecorder) ApplicationDao() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TenantApplicationDao", reflect.TypeOf((*MockManager)(nil).TenantApplicationDao))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApplicationDao", reflect.TypeOf((*MockManager)(nil).ApplicationDao))
 }
 
-// ApplicationConfigDao mocks base method.
-func (m *MockManager) ApplicationConfigDao() dao.ApplicationConfigDao {
+// AppConfigGroupDao mocks base method.
+func (m *MockManager) AppConfigGroupDao() dao.AppConfigGroupDao {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ApplicationConfigDao")
-	ret0, _ := ret[0].(dao.ApplicationConfigDao)
+	ret := m.ctrl.Call(m, "AppConfigGroupDao")
+	ret0, _ := ret[0].(dao.AppConfigGroupDao)
 	return ret0
 }
 
-// ApplicationConfigDao indicates an expected call of ApplicationConfigDao.
-func (mr *MockManagerMockRecorder) ApplicationConfigDao() *gomock.Call {
+// AppConfigGroupDao indicates an expected call of AppConfigGroupDao.
+func (mr *MockManagerMockRecorder) AppConfigGroupDao() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApplicationConfigDao", reflect.TypeOf((*MockManager)(nil).ApplicationConfigDao))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppConfigGroupDao", reflect.TypeOf((*MockManager)(nil).AppConfigGroupDao))
 }
 
-// ServiceConfigGroupDao mocks base method.
-func (m *MockManager) ServiceConfigGroupDao() dao.ServiceConfigGroupDao {
+// AppConfigGroupServiceDao mocks base method.
+func (m *MockManager) AppConfigGroupServiceDao() dao.AppConfigGroupServiceDao {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ServiceConfigGroupDao")
-	ret0, _ := ret[0].(dao.ServiceConfigGroupDao)
+	ret := m.ctrl.Call(m, "AppConfigGroupServiceDao")
+	ret0, _ := ret[0].(dao.AppConfigGroupServiceDao)
 	return ret0
 }
 
-// ServiceConfigGroupDao indicates an expected call of ServiceConfigGroupDao.
-func (mr *MockManagerMockRecorder) ServiceConfigGroupDao() *gomock.Call {
+// AppConfigGroupServiceDao indicates an expected call of AppConfigGroupServiceDao.
+func (mr *MockManagerMockRecorder) AppConfigGroupServiceDao() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ServiceConfigGroupDao", reflect.TypeOf((*MockManager)(nil).ServiceConfigGroupDao))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppConfigGroupServiceDao", reflect.TypeOf((*MockManager)(nil).AppConfigGroupServiceDao))
 }
 
-// ConfigItemDao mocks base method.
-func (m *MockManager) ConfigItemDao() dao.ConfigItemDao {
+// AppConfigGroupItemDao mocks base method.
+func (m *MockManager) AppConfigGroupItemDao() dao.AppConfigGroupItemDao {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ConfigItemDao")
-	ret0, _ := ret[0].(dao.ConfigItemDao)
+	ret := m.ctrl.Call(m, "AppConfigGroupItemDao")
+	ret0, _ := ret[0].(dao.AppConfigGroupItemDao)
 	return ret0
 }
 
-// ConfigItemDao indicates an expected call of ConfigItemDao.
-func (mr *MockManagerMockRecorder) ConfigItemDao() *gomock.Call {
+// AppConfigGroupItemDao indicates an expected call of AppConfigGroupItemDao.
+func (mr *MockManagerMockRecorder) AppConfigGroupItemDao() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConfigItemDao", reflect.TypeOf((*MockManager)(nil).ConfigItemDao))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AppConfigGroupItemDao", reflect.TypeOf((*MockManager)(nil).AppConfigGroupItemDao))
 }
 
 // EnterpriseDao mocks base method.

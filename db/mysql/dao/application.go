@@ -6,13 +6,13 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-// TenantApplicationDaoImpl -
-type TenantApplicationDaoImpl struct {
+// ApplicationDaoImpl -
+type ApplicationDaoImpl struct {
 	DB *gorm.DB
 }
 
 //AddModel -
-func (a *TenantApplicationDaoImpl) AddModel(mo model.Interface) error {
+func (a *ApplicationDaoImpl) AddModel(mo model.Interface) error {
 	appReq, _ := mo.(*model.Application)
 	var oldApp model.Application
 	if err := a.DB.Where("tenant_id = ? AND app_id = ?", appReq.TenantID, appReq.AppID).Find(&oldApp).Error; err != nil {
@@ -25,13 +25,13 @@ func (a *TenantApplicationDaoImpl) AddModel(mo model.Interface) error {
 }
 
 //UpdateModel -
-func (a *TenantApplicationDaoImpl) UpdateModel(mo model.Interface) error {
+func (a *ApplicationDaoImpl) UpdateModel(mo model.Interface) error {
 	updateReq := mo.(*model.Application)
 	return a.DB.Save(updateReq).Error
 }
 
 // ListApps -
-func (a *TenantApplicationDaoImpl) ListApps(tenantID, appName string, page, pageSize int) ([]*model.Application, int64, error) {
+func (a *ApplicationDaoImpl) ListApps(tenantID, appName string, page, pageSize int) ([]*model.Application, int64, error) {
 	var datas []*model.Application
 	offset := (page - 1) * pageSize
 
@@ -50,7 +50,7 @@ func (a *TenantApplicationDaoImpl) ListApps(tenantID, appName string, page, page
 }
 
 // GetAppByID -
-func (a *TenantApplicationDaoImpl) GetAppByID(appID string) (*model.Application, error) {
+func (a *ApplicationDaoImpl) GetAppByID(appID string) (*model.Application, error) {
 	var app model.Application
 	if err := a.DB.Where("app_id=?", appID).Find(&app).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -62,7 +62,7 @@ func (a *TenantApplicationDaoImpl) GetAppByID(appID string) (*model.Application,
 }
 
 // DeleteApp Delete application By appID -
-func (a *TenantApplicationDaoImpl) DeleteApp(appID string) error {
+func (a *ApplicationDaoImpl) DeleteApp(appID string) error {
 	var app model.Application
 	if err := a.DB.Where("app_id=?", appID).Find(&app).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {

@@ -46,18 +46,18 @@ func TestAddAppConfigGroup(t *testing.T) {
 				tenantServiceDao.EXPECT().GetServiceByID(gomock.Any()).Return(serviceResult, nil)
 				manager.EXPECT().TenantServiceDao().Return(tenantServiceDao)
 
-				serviceConfigGroupDao := daomock.NewMockServiceConfigGroupDao(ctrl)
+				serviceConfigGroupDao := daomock.NewMockAppConfigGroupServiceDao(ctrl)
 				serviceConfigGroupDao.EXPECT().AddModel(gomock.Any()).Return(nil).AnyTimes()
-				manager.EXPECT().ServiceConfigGroupDao().Return(serviceConfigGroupDao).AnyTimes()
+				manager.EXPECT().AppConfigGroupServiceDao().Return(serviceConfigGroupDao).AnyTimes()
 
-				configItemDao := daomock.NewMockConfigItemDao(ctrl)
+				configItemDao := daomock.NewMockAppConfigGroupItemDao(ctrl)
 				configItemDao.EXPECT().AddModel(gomock.Any()).Return(nil).AnyTimes()
-				manager.EXPECT().ConfigItemDao().Return(configItemDao).AnyTimes()
+				manager.EXPECT().AppConfigGroupItemDao().Return(configItemDao).AnyTimes()
 
-				applicationConfigDao := daomock.NewMockApplicationConfigDao(ctrl)
+				applicationConfigDao := daomock.NewMockAppConfigGroupDao(ctrl)
 				applicationConfigDao.EXPECT().AddModel(gomock.Any()).Return(nil)
 				applicationConfigDao.EXPECT().GetConfigByID(gomock.Any(), gomock.Any()).Return(config, nil)
-				manager.EXPECT().ApplicationConfigDao().Return(applicationConfigDao).AnyTimes()
+				manager.EXPECT().AppConfigGroupDao().Return(applicationConfigDao).AnyTimes()
 			},
 			wanterr: false,
 		},
@@ -82,9 +82,9 @@ func TestAddAppConfigGroup(t *testing.T) {
 				tenantServiceDao.EXPECT().GetServiceByID(gomock.Any()).Return(serviceResult, nil)
 				manager.EXPECT().TenantServiceDao().Return(tenantServiceDao)
 
-				serviceConfigGroupDao := daomock.NewMockServiceConfigGroupDao(ctrl)
+				serviceConfigGroupDao := daomock.NewMockAppConfigGroupServiceDao(ctrl)
 				serviceConfigGroupDao.EXPECT().AddModel(gomock.Any()).Return(errors.New("add service config failed")).AnyTimes()
-				manager.EXPECT().ServiceConfigGroupDao().Return(serviceConfigGroupDao).AnyTimes()
+				manager.EXPECT().AppConfigGroupServiceDao().Return(serviceConfigGroupDao).AnyTimes()
 			},
 			wanterr: true,
 		},
@@ -109,13 +109,13 @@ func TestAddAppConfigGroup(t *testing.T) {
 				tenantServiceDao.EXPECT().GetServiceByID(gomock.Any()).Return(serviceResult, nil)
 				manager.EXPECT().TenantServiceDao().Return(tenantServiceDao)
 
-				serviceConfigGroupDao := daomock.NewMockServiceConfigGroupDao(ctrl)
+				serviceConfigGroupDao := daomock.NewMockAppConfigGroupServiceDao(ctrl)
 				serviceConfigGroupDao.EXPECT().AddModel(gomock.Any()).Return(nil).AnyTimes()
-				manager.EXPECT().ServiceConfigGroupDao().Return(serviceConfigGroupDao).AnyTimes()
+				manager.EXPECT().AppConfigGroupServiceDao().Return(serviceConfigGroupDao).AnyTimes()
 
-				configItemDao := daomock.NewMockConfigItemDao(ctrl)
+				configItemDao := daomock.NewMockAppConfigGroupItemDao(ctrl)
 				configItemDao.EXPECT().AddModel(gomock.Any()).Return(errors.New("add config item failed")).AnyTimes()
-				manager.EXPECT().ConfigItemDao().Return(configItemDao).AnyTimes()
+				manager.EXPECT().AppConfigGroupItemDao().Return(configItemDao).AnyTimes()
 			},
 			wanterr: true,
 		},
@@ -140,17 +140,17 @@ func TestAddAppConfigGroup(t *testing.T) {
 				tenantServiceDao.EXPECT().GetServiceByID(gomock.Any()).Return(serviceResult, nil)
 				manager.EXPECT().TenantServiceDao().Return(tenantServiceDao)
 
-				serviceConfigGroupDao := daomock.NewMockServiceConfigGroupDao(ctrl)
+				serviceConfigGroupDao := daomock.NewMockAppConfigGroupServiceDao(ctrl)
 				serviceConfigGroupDao.EXPECT().AddModel(gomock.Any()).Return(nil).AnyTimes()
-				manager.EXPECT().ServiceConfigGroupDao().Return(serviceConfigGroupDao).AnyTimes()
+				manager.EXPECT().AppConfigGroupServiceDao().Return(serviceConfigGroupDao).AnyTimes()
 
-				configItemDao := daomock.NewMockConfigItemDao(ctrl)
+				configItemDao := daomock.NewMockAppConfigGroupItemDao(ctrl)
 				configItemDao.EXPECT().AddModel(gomock.Any()).Return(nil).AnyTimes()
-				manager.EXPECT().ConfigItemDao().Return(configItemDao).AnyTimes()
+				manager.EXPECT().AppConfigGroupItemDao().Return(configItemDao).AnyTimes()
 
-				applicationConfigDao := daomock.NewMockApplicationConfigDao(ctrl)
+				applicationConfigDao := daomock.NewMockAppConfigGroupDao(ctrl)
 				applicationConfigDao.EXPECT().AddModel(gomock.Any()).Return(errors.New("add application config group failed"))
-				manager.EXPECT().ApplicationConfigDao().Return(applicationConfigDao).AnyTimes()
+				manager.EXPECT().AppConfigGroupDao().Return(applicationConfigDao).AnyTimes()
 			},
 			wanterr: true,
 		},

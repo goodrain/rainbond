@@ -6,13 +6,13 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-// ApplicationConfigDaoImpl -
-type ApplicationConfigDaoImpl struct {
+// AppConfigGroupDaoImpl -
+type AppConfigGroupDaoImpl struct {
 	DB *gorm.DB
 }
 
 //AddModel -
-func (a *ApplicationConfigDaoImpl) AddModel(mo model.Interface) error {
+func (a *AppConfigGroupDaoImpl) AddModel(mo model.Interface) error {
 	configReq, _ := mo.(*model.ApplicationConfigGroup)
 	var oldApp model.ApplicationConfigGroup
 	if err := a.DB.Where("app_id = ? AND config_group_name = ?", configReq.AppID, configReq.ConfigGroupName).Find(&oldApp).Error; err != nil {
@@ -25,13 +25,13 @@ func (a *ApplicationConfigDaoImpl) AddModel(mo model.Interface) error {
 }
 
 //UpdateModel -
-func (a *ApplicationConfigDaoImpl) UpdateModel(mo model.Interface) error {
+func (a *AppConfigGroupDaoImpl) UpdateModel(mo model.Interface) error {
 	// updateReq := mo.(*model.Application)
 	return nil
 }
 
 // GetConfigByID -
-func (a *ApplicationConfigDaoImpl) GetConfigByID(appID, name string) (*model.ApplicationConfigGroup, error) {
+func (a *AppConfigGroupDaoImpl) GetConfigByID(appID, name string) (*model.ApplicationConfigGroup, error) {
 	var oldApp model.ApplicationConfigGroup
 	if err := a.DB.Where("app_id = ? AND config_group_name = ?", appID, name).Find(&oldApp).Error; err != nil {
 		return nil, err
@@ -39,13 +39,13 @@ func (a *ApplicationConfigDaoImpl) GetConfigByID(appID, name string) (*model.App
 	return &oldApp, nil
 }
 
-// ServiceConfigGroupDaoImpl -
-type ServiceConfigGroupDaoImpl struct {
+// AppConfigGroupServiceDaoImpl -
+type AppConfigGroupServiceDaoImpl struct {
 	DB *gorm.DB
 }
 
 //AddModel -
-func (a *ServiceConfigGroupDaoImpl) AddModel(mo model.Interface) error {
+func (a *AppConfigGroupServiceDaoImpl) AddModel(mo model.Interface) error {
 	configReq, _ := mo.(*model.ServiceConfigGroup)
 	var oldApp model.ServiceConfigGroup
 	if err := a.DB.Where("app_id = ? AND config_group_name = ? AND service_id = ?", configReq.AppID, configReq.ConfigGroupName, configReq.ServiceID).Find(&oldApp).Error; err != nil {
@@ -58,18 +58,18 @@ func (a *ServiceConfigGroupDaoImpl) AddModel(mo model.Interface) error {
 }
 
 //UpdateModel -
-func (a *ServiceConfigGroupDaoImpl) UpdateModel(mo model.Interface) error {
+func (a *AppConfigGroupServiceDaoImpl) UpdateModel(mo model.Interface) error {
 	// updateReq := mo.(*model.Application)
 	return nil
 }
 
-// ConfigItemDaoImpl -
-type ConfigItemDaoImpl struct {
+// AppConfigGroupItemDaoImpl -
+type AppConfigGroupItemDaoImpl struct {
 	DB *gorm.DB
 }
 
 //AddModel -
-func (a *ConfigItemDaoImpl) AddModel(mo model.Interface) error {
+func (a *AppConfigGroupItemDaoImpl) AddModel(mo model.Interface) error {
 	configReq, _ := mo.(*model.ConfigItem)
 	var oldApp model.ConfigItem
 	if err := a.DB.Where("app_id = ? AND config_group_name = ? AND item_key = ?", configReq.AppID, configReq.ConfigGroupName, configReq.ItemKey).Find(&oldApp).Error; err != nil {
@@ -82,7 +82,7 @@ func (a *ConfigItemDaoImpl) AddModel(mo model.Interface) error {
 }
 
 //UpdateModel -
-func (a *ConfigItemDaoImpl) UpdateModel(mo model.Interface) error {
+func (a *AppConfigGroupItemDaoImpl) UpdateModel(mo model.Interface) error {
 	// updateReq := mo.(*model.Application)
 	return nil
 }

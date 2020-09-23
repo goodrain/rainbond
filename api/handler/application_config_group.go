@@ -21,7 +21,7 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 			ServiceAlias:    services.ServiceAlias,
 		}
 		serviceResp = append(serviceResp, serviceConfigGroup)
-		if err := db.GetManager().ServiceConfigGroupDao().AddModel(&serviceConfigGroup); err != nil {
+		if err := db.GetManager().AppConfigGroupServiceDao().AddModel(&serviceConfigGroup); err != nil {
 			if err == bcode.ErrServiceConfigGroupExist {
 				logrus.Warningf("config group \"%s\" under this service \"%s\" already exists.", serviceConfigGroup.ConfigGroupName, serviceConfigGroup.ServiceID)
 				continue
@@ -38,7 +38,7 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 			ItemKey:         it.ItemKey,
 			ItemValue:       it.ItemValue,
 		}
-		if err := db.GetManager().ConfigItemDao().AddModel(configItem); err != nil {
+		if err := db.GetManager().AppConfigGroupItemDao().AddModel(configItem); err != nil {
 			if err == bcode.ErrConfigItemExist {
 				logrus.Warningf("config item \"%s\" under this config group \"%s\" already exists.", configItem.ItemKey, configItem.ConfigGroupName)
 				continue
@@ -53,11 +53,11 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 		ConfigGroupName: req.ConfigGroupName,
 		DeployType:      req.DeployType,
 	}
-	if err := db.GetManager().ApplicationConfigDao().AddModel(config); err != nil {
+	if err := db.GetManager().AppConfigGroupDao().AddModel(config); err != nil {
 		return nil, err
 	}
 
-	appconfig, _ := db.GetManager().ApplicationConfigDao().GetConfigByID(appID, req.ConfigGroupName)
+	appconfig, _ := db.GetManager().AppConfigGroupDao().GetConfigByID(appID, req.ConfigGroupName)
 	var resp *model.ApplicationConfigGroupResp
 	resp = &model.ApplicationConfigGroupResp{
 		CreateTime:      appconfig.CreatedAt,

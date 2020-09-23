@@ -1,7 +1,6 @@
 package dao
 
 import (
-	"regexp"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -36,7 +35,7 @@ func TestAppConfigDaoAddModel(t *testing.T) {
 			name:    "config group not found,create success",
 			request: req,
 			mockFunc: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `application_config_group` WHERE (app_id = ? AND config_group_name = ?)")).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnError(gorm.ErrRecordNotFound)
+				mock.ExpectQuery("SELECT").WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnError(gorm.ErrRecordNotFound)
 				mock.ExpectBegin()
 				mock.ExpectExec("INSERT").WillReturnResult(sqlmock.NewResult(1, 1)).WillReturnError(nil)
 				mock.ExpectCommit()
@@ -66,7 +65,7 @@ func TestAppConfigDaoAddModel(t *testing.T) {
 			defer db.Close()
 
 			gdb, _ := gorm.Open("mysql", db)
-			appConfigDaoImpl := &ApplicationConfigDaoImpl{
+			appConfigDaoImpl := &AppConfigGroupDaoImpl{
 				DB: gdb,
 			}
 			tc.mockFunc(mock)
@@ -121,7 +120,7 @@ func TestAppGetConfigByID(t *testing.T) {
 			defer db.Close()
 
 			gdb, _ := gorm.Open("mysql", db)
-			appConfigDaoImpl := &ApplicationConfigDaoImpl{
+			appConfigDaoImpl := &AppConfigGroupDaoImpl{
 				DB: gdb,
 			}
 			tc.mockFunc(mock)
@@ -139,7 +138,7 @@ func TestAppGetConfigByID(t *testing.T) {
 	}
 }
 
-func TestServiceConfigGroupDaoAddModel(t *testing.T) {
+func TestAppConfigGroupServiceDaoAddModel(t *testing.T) {
 	req := &model.ServiceConfigGroup{
 		AppID:           "appID",
 		ConfigGroupName: "configname",
@@ -195,7 +194,7 @@ func TestServiceConfigGroupDaoAddModel(t *testing.T) {
 			defer db.Close()
 
 			gdb, _ := gorm.Open("mysql", db)
-			serviceConfigGroupDao := &ServiceConfigGroupDaoImpl{
+			serviceConfigGroupDao := &AppConfigGroupServiceDaoImpl{
 				DB: gdb,
 			}
 			tc.mockFunc(mock)
@@ -214,7 +213,7 @@ func TestServiceConfigGroupDaoAddModel(t *testing.T) {
 	}
 }
 
-func TestConfigItemDaoAddModel(t *testing.T) {
+func TestAppConfigGroupItemDaoAddModel(t *testing.T) {
 	req := &model.ConfigItem{
 		AppID:           "appID",
 		ConfigGroupName: "configname",
@@ -271,7 +270,7 @@ func TestConfigItemDaoAddModel(t *testing.T) {
 			defer db.Close()
 
 			gdb, _ := gorm.Open("mysql", db)
-			configItemDaoImpl := &ConfigItemDaoImpl{
+			configItemDaoImpl := &AppConfigGroupItemDaoImpl{
 				DB: gdb,
 			}
 			tc.mockFunc(mock)

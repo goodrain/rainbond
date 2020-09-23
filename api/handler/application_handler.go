@@ -34,7 +34,7 @@ func (a *ApplicationAction) CreateApp(req *model.Application) (*model.Applicatio
 		TenantID: req.TenantID,
 	}
 	req.AppID = appReq.AppID
-	if err := db.GetManager().TenantApplicationDao().AddModel(appReq); err != nil {
+	if err := db.GetManager().ApplicationDao().AddModel(appReq); err != nil {
 		return nil, err
 	}
 	return req, nil
@@ -43,7 +43,7 @@ func (a *ApplicationAction) CreateApp(req *model.Application) (*model.Applicatio
 // UpdateApp -
 func (a *ApplicationAction) UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error) {
 	srcApp.AppName = req.AppName
-	if err := db.GetManager().TenantApplicationDao().UpdateModel(srcApp); err != nil {
+	if err := db.GetManager().ApplicationDao().UpdateModel(srcApp); err != nil {
 		return nil, err
 	}
 	return srcApp, nil
@@ -52,7 +52,7 @@ func (a *ApplicationAction) UpdateApp(srcApp *dbmodel.Application, req model.Upd
 // ListApps -
 func (a *ApplicationAction) ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error) {
 	var resp model.ListAppResponse
-	apps, total, err := db.GetManager().TenantApplicationDao().ListApps(tenantID, appName, page, pageSize)
+	apps, total, err := db.GetManager().ApplicationDao().ListApps(tenantID, appName, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (a *ApplicationAction) ListApps(tenantID, appName string, page, pageSize in
 
 // GetAppByID -
 func (a *ApplicationAction) GetAppByID(appID string) (*dbmodel.Application, error) {
-	app, err := db.GetManager().TenantApplicationDao().GetAppByID(appID)
+	app, err := db.GetManager().ApplicationDao().GetAppByID(appID)
 	if err != nil {
 		return nil, err
 	}
@@ -87,5 +87,5 @@ func (a *ApplicationAction) DeleteApp(appID string) error {
 	if total != 0 {
 		return bcode.ErrDeleteDueToBindService
 	}
-	return db.GetManager().TenantApplicationDao().DeleteApp(appID)
+	return db.GetManager().ApplicationDao().DeleteApp(appID)
 }

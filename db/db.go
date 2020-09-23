@@ -38,10 +38,10 @@ type Manager interface {
 	VolumeTypeDao() dao.VolumeTypeDao
 	LicenseDao() dao.LicenseDao
 	AppDao() dao.AppDao
-	TenantApplicationDao() dao.TenantApplicationDao
-	ApplicationConfigDao() dao.ApplicationConfigDao
-	ServiceConfigGroupDao() dao.ServiceConfigGroupDao
-	ConfigItemDao() dao.ConfigItemDao
+	ApplicationDao() dao.ApplicationDao
+	AppConfigGroupDao() dao.AppConfigGroupDao
+	AppConfigGroupServiceDao() dao.AppConfigGroupServiceDao
+	AppConfigGroupItemDao() dao.AppConfigGroupItemDao
 	EnterpriseDao() dao.EnterpriseDao
 	TenantDao() dao.TenantDao
 	TenantDaoTransactions(db *gorm.DB) dao.TenantDao

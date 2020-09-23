@@ -417,30 +417,30 @@ func (m *Manager) AppDao() dao.AppDao {
 	}
 }
 
-// TenantApplicationDao -
-func (m *Manager) TenantApplicationDao() dao.TenantApplicationDao {
-	return &mysqldao.TenantApplicationDaoImpl{
+// ApplicationDao -
+func (m *Manager) ApplicationDao() dao.ApplicationDao {
+	return &mysqldao.ApplicationDaoImpl{
 		DB: m.db,
 	}
 }
 
-// ApplicationConfigDao -
-func (m *Manager) ApplicationConfigDao() dao.ApplicationConfigDao {
-	return &mysqldao.ApplicationConfigDaoImpl{
+// AppConfigGroupDao -
+func (m *Manager) AppConfigGroupDao() dao.AppConfigGroupDao {
+	return &mysqldao.AppConfigGroupDaoImpl{
 		DB: m.db,
 	}
 }
 
-// ServiceConfigGroupDao -
-func (m *Manager) ServiceConfigGroupDao() dao.ServiceConfigGroupDao {
-	return &mysqldao.ServiceConfigGroupDaoImpl{
+// AppConfigGroupServiceDao -
+func (m *Manager) AppConfigGroupServiceDao() dao.AppConfigGroupServiceDao {
+	return &mysqldao.AppConfigGroupServiceDaoImpl{
 		DB: m.db,
 	}
 }
 
-// ConfigItemDao -
-func (m *Manager) ConfigItemDao() dao.ConfigItemDao {
-	return &mysqldao.ConfigItemDaoImpl{
+// AppConfigGroupItemDao -
+func (m *Manager) AppConfigGroupItemDao() dao.AppConfigGroupItemDao {
+	return &mysqldao.AppConfigGroupItemDaoImpl{
 		DB: m.db,
 	}
 }
