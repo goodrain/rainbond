@@ -554,19 +554,19 @@ func (mr *MockAppConfigGroupDaoMockRecorder) UpdateModel(arg0 interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockAppConfigGroupDao)(nil).UpdateModel), arg0)
 }
 
-// GetConfigByID mocks base method.
-func (m *MockAppConfigGroupDao) GetConfigByID(appID, name string) (*model.ApplicationConfigGroup, error) {
+// GetConfigGroupByID mocks base method.
+func (m *MockAppConfigGroupDao) GetConfigGroupByID(appID, name string) (*model.ApplicationConfigGroup, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetConfigByID", appID, name)
+	ret := m.ctrl.Call(m, "GetConfigGroupByID", appID, name)
 	ret0, _ := ret[0].(*model.ApplicationConfigGroup)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetConfigByID indicates an expected call of GetConfigByID.
-func (mr *MockAppConfigGroupDaoMockRecorder) GetConfigByID(appID, name interface{}) *gomock.Call {
+// GetConfigGroupByID indicates an expected call of GetConfigGroupByID.
+func (mr *MockAppConfigGroupDaoMockRecorder) GetConfigGroupByID(appID, name interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfigByID", reflect.TypeOf((*MockAppConfigGroupDao)(nil).GetConfigByID), appID, name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfigGroupByID", reflect.TypeOf((*MockAppConfigGroupDao)(nil).GetConfigGroupByID), appID, name)
 }
 
 // MockAppConfigGroupServiceDao is a mock of AppConfigGroupServiceDao interface.

@@ -1688,3 +1688,9 @@ type ApplicationConfigGroupResp struct {
 	Services        []dbmodel.ServiceConfigGroup `json:"services"`
 	ConfigItems     []ConfigItem                 `json:"config_items"`
 }
+
+// UpdateAppConfigGroupReq -
+type UpdateAppConfigGroupReq struct {
+	ServiceIDs  []string     `json:"service_ids"`
+	ConfigItems []ConfigItem `json:"config_items" validate:"required"`
+}

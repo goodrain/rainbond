@@ -299,6 +299,7 @@ func (v2 *V2) applicationRouter() chi.Router {
 
 	// Application configuration group
 	r.Post("/configgroups", controller.GetManager().AddConfigGroup)
+	r.Put("/configgroups/{config_group_name}", controller.GetManager().UpdateConfigGroup)
 	return r
 }
 

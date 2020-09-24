@@ -78,17 +78,19 @@ type ApplicationDao interface {
 //AppConfigGroupDao Application config group Dao
 type AppConfigGroupDao interface {
 	Dao
-	GetConfigByID(appID, name string) (*model.ApplicationConfigGroup, error)
+	GetConfigGroupByID(appID, configGroupName string) (*model.ApplicationConfigGroup, error)
 }
 
 //AppConfigGroupServiceDao service config group Dao
 type AppConfigGroupServiceDao interface {
 	Dao
+	DeleteServiceConfig(appID, configGroupName string) error
 }
 
 //AppConfigGroupItemDao Application config item group Dao
 type AppConfigGroupItemDao interface {
 	Dao
+	DeleteConfigGroupItem(appID, configGroupName string) error
 }
 
 // VolumeTypeDao volume type dao
