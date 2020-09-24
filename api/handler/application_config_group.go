@@ -26,7 +26,7 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 			ServiceAlias:    s.ServiceAlias,
 		}
 		serviceResp = append(serviceResp, serviceConfigGroup)
-		if err := db.GetManager().AppConfigGroupServiceDao().AddModel(&serviceConfigGroup); err != nil {
+		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(&serviceConfigGroup); err != nil {
 			if err == bcode.ErrServiceConfigGroupExist {
 				logrus.Warningf("config group \"%s\" under this service \"%s\" already exists.", serviceConfigGroup.ConfigGroupName, serviceConfigGroup.ServiceID)
 				continue
@@ -130,7 +130,7 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 		tx.Rollback()
 		return nil, err
 	}
-	
+
 	// Build return data
 	appconfig, err := db.GetManager().AppConfigGroupDao().GetConfigGroupByID(appID, configGroupName)
 	if err != nil {
