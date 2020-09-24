@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
@@ -38,12 +39,12 @@ func (a *ApplicationStruct) AddConfigGroup(w http.ResponseWriter, r *http.Reques
 	}
 
 	// create app ConfigGroups
-	app, err := handler.GetApplicationHandler().AddConfigGroup(appID, &configReq)
+	resp, err := handler.GetApplicationHandler().AddConfigGroup(appID, &configReq)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
-	httputil.ReturnSuccess(r, w, app)
+	httputil.ReturnSuccess(r, w, resp)
 }
 
 // UpdateConfigGroup -
@@ -71,12 +72,12 @@ func (a *ApplicationStruct) UpdateConfigGroup(w http.ResponseWriter, r *http.Req
 	}
 
 	// update app ConfigGroups
-	app, err := handler.GetApplicationHandler().UpdateConfigGroup(appID, configGroupname, &updateReq)
+	resp, err := handler.GetApplicationHandler().UpdateConfigGroup(appID, configGroupname, &updateReq)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
-	httputil.ReturnSuccess(r, w, app)
+	httputil.ReturnSuccess(r, w, resp)
 }
 
 // DeleteConfigGroup -
@@ -90,5 +91,30 @@ func (a *ApplicationStruct) DeleteConfigGroup(w http.ResponseWriter, r *http.Req
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
-	httputil.ReturnSuccess(r, w, app)
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+// ListConfigGroups -
+func (a *ApplicationStruct) ListConfigGroups(w http.ResponseWriter, r *http.Request) {
+	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+	query := r.URL.Query()
+	pageQuery := query.Get("page")
+	pageSizeQuery := query.Get("pageSize")
+
+	page, _ := strconv.Atoi(pageQuery)
+	if page == 0 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(pageSizeQuery)
+	if pageSize == 0 {
+		pageSize = 10
+	}
+
+	// list app ConfigGroups
+	resp, err := handler.GetApplicationHandler().ListConfigGroups(appID, page, pageSize)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, resp)
 }

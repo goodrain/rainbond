@@ -265,7 +265,7 @@ func TestAppConfigGroupServiceDaoAddModel(t *testing.T) {
 	}
 }
 
-func TestDeleteServiceConfig(t *testing.T) {
+func TestDeleteConfigGroupService(t *testing.T) {
 	tests := []struct {
 		name, appID, configGroupName string
 		request                      *model.ConfigItem
@@ -306,7 +306,7 @@ func TestDeleteServiceConfig(t *testing.T) {
 			}
 			tc.mockFunc(mock)
 
-			err = appConfigGroupServiceDaoImpl.DeleteServiceConfig(tc.appID, tc.configGroupName)
+			err = appConfigGroupServiceDaoImpl.DeleteConfigGroupService(tc.appID, tc.configGroupName)
 			if (err != nil) != tc.wanterr {
 				t.Errorf("Unexpected error = %v, wantErr %v", err, tc.wanterr)
 				return
@@ -450,7 +450,7 @@ func TestAppConfigGroupItemDaoUpdateModel(t *testing.T) {
 	}
 }
 
-func TestDeleteConfigItem(t *testing.T) {
+func TestDeleteConfigGroupItem(t *testing.T) {
 	tests := []struct {
 		name, appID, configGroupName string
 		request                      *model.ConfigItem
@@ -491,7 +491,7 @@ func TestDeleteConfigItem(t *testing.T) {
 			}
 			tc.mockFunc(mock)
 
-			err = appConfigGroupItemDaoImpl.DeleteConfigItem(tc.appID, tc.configGroupName)
+			err = appConfigGroupItemDaoImpl.DeleteConfigGroupItem(tc.appID, tc.configGroupName)
 			if (err != nil) != tc.wanterr {
 				t.Errorf("Unexpected error = %v, wantErr %v", err, tc.wanterr)
 				return

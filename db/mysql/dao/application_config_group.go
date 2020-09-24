@@ -38,6 +38,22 @@ func (a *AppConfigGroupDaoImpl) GetConfigGroupByID(appID, configGroupName string
 	return &oldApp, nil
 }
 
+// GetConfigGroupsByAppID -
+func (a *AppConfigGroupDaoImpl) GetConfigGroupsByAppID(appID string, page, pageSize int) ([]*model.ApplicationConfigGroup, int64, error) {
+	var oldApp []*model.ApplicationConfigGroup
+	offset := (page - 1) * pageSize
+	db := a.DB.Where("app_id = ?", appID).Order("create_time desc")
+
+	var total int64
+	if err := db.Model(&model.ApplicationConfigGroup{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := db.Limit(pageSize).Offset(offset).Find(&oldApp).Error; err != nil {
+		return nil, 0, err
+	}
+	return oldApp, total, nil
+}
+
 //DeleteConfigGroup -
 func (a *AppConfigGroupDaoImpl) DeleteConfigGroup(appID, configGroupName string) error {
 	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ApplicationConfigGroup{}).Error
@@ -66,8 +82,17 @@ func (a *AppConfigGroupServiceDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
-//DeleteServiceConfig -
-func (a *AppConfigGroupServiceDaoImpl) DeleteServiceConfig(appID, configGroupName string) error {
+// GetConfigGroupServicesByID -
+func (a *AppConfigGroupServiceDaoImpl) GetConfigGroupServicesByID(appID, configGroupName string) ([]*model.ServiceConfigGroup, error) {
+	var oldApp []*model.ServiceConfigGroup
+	if err := a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Find(&oldApp).Error; err != nil {
+		return nil, err
+	}
+	return oldApp, nil
+}
+
+//DeleteConfigGroupService -
+func (a *AppConfigGroupServiceDaoImpl) DeleteConfigGroupService(appID, configGroupName string) error {
 	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ServiceConfigGroup{}).Error
 }
 
@@ -97,7 +122,16 @@ func (a *AppConfigGroupItemDaoImpl) UpdateModel(mo model.Interface) error {
 		Update("item_value", updateReq.ItemValue).Error
 }
 
-//DeleteConfigItem -
-func (a *AppConfigGroupItemDaoImpl) DeleteConfigItem(appID, configGroupName string) error {
+// GetConfigGroupItemsByID -
+func (a *AppConfigGroupItemDaoImpl) GetConfigGroupItemsByID(appID, configGroupName string) ([]*model.ConfigItem, error) {
+	var oldApp []*model.ConfigItem
+	if err := a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Find(&oldApp).Error; err != nil {
+		return nil, err
+	}
+	return oldApp, nil
+}
+
+//DeleteConfigGroupItem -
+func (a *AppConfigGroupItemDaoImpl) DeleteConfigGroupItem(appID, configGroupName string) error {
 	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ConfigItem{}).Error
 }

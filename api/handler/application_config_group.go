@@ -95,7 +95,7 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 
 	tx := db.GetManager().Begin()
 	// Update application configGroup-services
-	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteServiceConfig(appID, configGroupName); err != nil {
+	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteConfigGroupService(appID, configGroupName); err != nil {
 		tx.Rollback()
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 		tx.Rollback()
 		return nil, err
 	}
-	
+
 	// Build return data
 	appconfig, err := db.GetManager().AppConfigGroupDao().GetConfigGroupByID(appID, configGroupName)
 	if err != nil {
@@ -153,12 +153,12 @@ func (a *ApplicationAction) DeleteConfigGroup(appID, configGroupName string) err
 	tx := db.GetManager().Begin()
 
 	// Delete application configGroup-services
-	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteServiceConfig(appID, configGroupName); err != nil {
+	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteConfigGroupService(appID, configGroupName); err != nil {
 		tx.Rollback()
 		return err
 	}
 	// Delete application configGroup-configItem
-	if err := db.GetManager().AppConfigGroupItemDaoTransactions(tx).DeleteConfigItem(appID, configGroupName); err != nil {
+	if err := db.GetManager().AppConfigGroupItemDaoTransactions(tx).DeleteConfigGroupItem(appID, configGroupName); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -173,4 +173,55 @@ func (a *ApplicationAction) DeleteConfigGroup(appID, configGroupName string) err
 		return err
 	}
 	return nil
+}
+
+// ListConfigGroups -
+func (a *ApplicationAction) ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error) {
+	var (
+		servicesResp    []dbmodel.ServiceConfigGroup
+		itemsResp       []model.ConfigItem
+		configGroupResp []model.ApplicationConfigGroupResp
+		resp            model.ListApplicationConfigGroupResp
+	)
+	configGroups, total, err := db.GetManager().AppConfigGroupDao().GetConfigGroupsByAppID(appID, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range configGroups {
+		cgroup := model.ApplicationConfigGroupResp{
+			CreateTime:      c.CreatedAt,
+			AppID:           c.AppID,
+			ConfigGroupName: c.ConfigGroupName,
+			DeployType:      c.DeployType,
+		}
+		configGroupResp = append(configGroupResp, cgroup)
+
+		configGroupServices, err := db.GetManager().AppConfigGroupServiceDao().GetConfigGroupServicesByID(c.AppID, c.ConfigGroupName)
+		if err != nil {
+			return nil, err
+		}
+		for _, cs := range configGroupServices {
+			servicesResp = append(servicesResp, *cs)
+		}
+
+		configGroupItems, err := db.GetManager().AppConfigGroupItemDao().GetConfigGroupItemsByID(c.AppID, c.ConfigGroupName)
+		if err != nil {
+			return nil, err
+		}
+		for _, ci := range configGroupItems {
+			cgroupItem := model.ConfigItem{
+				ItemKey:   ci.ItemKey,
+				ItemValue: ci.ItemValue,
+			}
+			itemsResp = append(itemsResp, cgroupItem)
+		}
+
+		cgroup.Services = servicesResp
+		cgroup.ConfigItems = itemsResp
+		resp.ConfigGroup = append(resp.ConfigGroup, cgroup)
+	}
+	resp.Page = page
+	resp.Total = total
+	resp.PageSize = pageSize
+	return &resp, nil
 }
