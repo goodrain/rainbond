@@ -12,6 +12,7 @@ fi
 CACHE=${CACHE:true}
 GO_VERSION=1.13
 
+GOPROXY=${GOPROXY:-'https://goproxy.io'}
 if [ -z "$GOOS" ];then
   GOOS="linux"
 fi
@@ -59,7 +60,7 @@ build::binary() {
 	elif [ "$1" = "monitor" ];then
 		CGO_ENABLED=0
     fi
-	docker run --rm -e CGO_ENABLED=${CGO_ENABLED} -e GOPROXY=https://goproxy.io -e GOOS="${GOOS}" -v "${go_mod_cache}":/go/pkg/mod  -v "$(pwd)":${WORK_DIR} -w ${WORK_DIR} -it ${build_image} go build -ldflags "${build_args}" -tags "${build_tag}"  -o "${OUTPATH}" ${build_dir}
+	docker run --rm -e CGO_ENABLED=${CGO_ENABLED} -e GOPROXY=${GOPROXY} -e GOOS="${GOOS}" -v "${go_mod_cache}":/go/pkg/mod  -v "$(pwd)":${WORK_DIR} -w ${WORK_DIR} -it ${build_image} go build -ldflags "${build_args}" -tags "${build_tag}"  -o "${OUTPATH}" ${build_dir}
 	if [ "$GOOS" = "windows" ];then
 	    mv "$OUTPATH"  "${OUTPATH}.exe"
 	fi
