@@ -1691,7 +1691,7 @@ type ApplicationConfigGroupResp struct {
 
 // UpdateAppConfigGroupReq -
 type UpdateAppConfigGroupReq struct {
-	ServiceIDs  []string     `json:"service_ids" validate:"required"`
+	ServiceIDs  []string     `json:"service_ids"`
 	ConfigItems []ConfigItem `json:"config_items" validate:"required"`
 }
 
