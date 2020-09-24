@@ -90,6 +90,7 @@ type AppConfigGroupServiceDao interface {
 //AppConfigGroupItemDao Application config item group Dao
 type AppConfigGroupItemDao interface {
 	Dao
+	DeleteConfigGroupItem(appID, configGroupName string) error
 }
 
 // VolumeTypeDao volume type dao

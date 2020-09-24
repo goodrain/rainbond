@@ -91,3 +91,8 @@ func (a *AppConfigGroupItemDaoImpl) UpdateModel(mo model.Interface) error {
 		Where("app_id = ? AND config_group_name = ? AND item_key = ?", updateReq.AppID, updateReq.ConfigGroupName, updateReq.ItemKey).
 		Update("item_value", updateReq.ItemValue).Error
 }
+
+//DeleteConfigGroupItem -
+func (a *AppConfigGroupItemDaoImpl) DeleteConfigGroupItem(appID, configGroupName string) error {
+	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ConfigItem{}).Error
+}

@@ -88,6 +88,10 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 // UpdateConfigGroup -
 func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req *model.UpdateAppConfigGroupReq) (*model.ApplicationConfigGroupResp, error) {
 	var serviceResp []dbmodel.ServiceConfigGroup
+	appconfig, err := db.GetManager().AppConfigGroupDao().GetConfigGroupByID(appID, configGroupName)
+	if err != nil {
+		return nil, err
+	}
 	services, err := db.GetManager().TenantServiceDao().GetServicesByServiceIDs(req.ServiceIDs)
 	if err != nil {
 		return nil, err
@@ -114,6 +118,10 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 	}
 
 	// Update application configGroup-configItem
+	if err := db.GetManager().AppConfigGroupItemDaoTransactions(tx).DeleteConfigGroupItem(appID, configGroupName); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
 	for _, it := range req.ConfigItems {
 		configItem := &dbmodel.ConfigItem{
 			AppID:           appID,
@@ -121,7 +129,7 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 			ItemKey:         it.ItemKey,
 			ItemValue:       it.ItemValue,
 		}
-		if err := db.GetManager().AppConfigGroupItemDaoTransactions(tx).UpdateModel(configItem); err != nil {
+		if err := db.GetManager().AppConfigGroupItemDaoTransactions(tx).AddModel(configItem); err != nil {
 			tx.Rollback()
 			return nil, err
 		}
@@ -132,10 +140,6 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 	}
 
 	// Build return data
-	appconfig, err := db.GetManager().AppConfigGroupDao().GetConfigGroupByID(appID, configGroupName)
-	if err != nil {
-		return nil, err
-	}
 	var resp *model.ApplicationConfigGroupResp
 	resp = &model.ApplicationConfigGroupResp{
 		CreateTime:      appconfig.CreatedAt,
