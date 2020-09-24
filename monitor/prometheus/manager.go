@@ -19,6 +19,7 @@
 package prometheus
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -30,11 +31,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
 	"github.com/goodrain/rainbond/discover"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/prometheus/common/model"
+	"github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -49,16 +50,17 @@ const (
 
 // Manager manage struct
 type Manager struct {
-	cancel     context.CancelFunc
-	ctx        context.Context
-	Opt        *option.Config
-	Config     *Config
-	Process    *os.Process
-	Status     int
-	Registry   *discover.KeepAlive
-	httpClient *http.Client
-	l          *sync.Mutex
-	a          *AlertingRulesManager
+	cancel        context.CancelFunc
+	ctx           context.Context
+	Opt           *option.Config
+	generatedConf []byte
+	Config        *Config
+	Process       *os.Process
+	Status        int
+	Registry      *discover.KeepAlive
+	httpClient    *http.Client
+	l             *sync.Mutex
+	a             *AlertingRulesManager
 }
 
 // NewManager new manager
@@ -99,19 +101,20 @@ func NewManager(config *option.Config, a *AlertingRulesManager) *Manager {
 	}
 
 	m.LoadConfig()
-	al := &AlertmanagerConfig{
-		ServiceDiscoveryConfig: ServiceDiscoveryConfig{
-			StaticConfigs: []*Group{
-				{
-					Targets: config.AlertManagerURL,
+	if len(config.AlertManagerURL) > 0 {
+		al := &AlertmanagerConfig{
+			ServiceDiscoveryConfig: ServiceDiscoveryConfig{
+				StaticConfigs: []*Group{
+					{
+						Targets: config.AlertManagerURL,
+					},
 				},
 			},
-		},
+		}
+		m.Config.AlertingConfig.AlertmanagerConfigs = append(m.Config.AlertingConfig.AlertmanagerConfigs, al)
 	}
-	m.Config.AlertingConfig.AlertmanagerConfigs = append(m.Config.AlertingConfig.AlertmanagerConfigs, al)
 	m.SaveConfig()
 	m.a.InitRulesConfig()
-
 	return m
 }
 
@@ -170,8 +173,8 @@ func (p *Manager) StopDaemon() {
 	}
 }
 
-// RestartDaemon restart daemon
-func (p *Manager) RestartDaemon() error {
+//ReloadConfig reload prometheus config
+func (p *Manager) ReloadConfig() error {
 	if p.Status == STARTED {
 		logrus.Debug("Restart daemon for prometheus.")
 		if err := p.Process.Signal(syscall.SIGHUP); err != nil {
@@ -204,37 +207,47 @@ func (p *Manager) LoadConfig() error {
 // SaveConfig save config
 func (p *Manager) SaveConfig() error {
 	logrus.Debug("Save prometheus config file.")
-	data, err := yaml.Marshal(p.Config)
+	currentConf, err := yaml.Marshal(p.Config)
 	if err != nil {
 		logrus.Error("Marshal prometheus config to yaml error.", err.Error())
 		return err
 	}
-
-	err = ioutil.WriteFile(p.Opt.ConfigFile, data, 0644)
+	if bytes.Equal(currentConf, p.generatedConf) {
+		logrus.Debug("updating Prometheus configuration skipped, no configuration change")
+		return nil
+	}
+	err = ioutil.WriteFile(p.Opt.ConfigFile, currentConf, 0644)
 	if err != nil {
 		logrus.Error("Write prometheus config file error.", err.Error())
 		return err
 	}
-
+	if err := p.ReloadConfig(); err != nil {
+		return err
+	}
+	p.generatedConf = currentConf
+	logrus.Info("reload prometheus config success")
 	return nil
 }
 
 // UpdateScrape update scrape
-func (p *Manager) UpdateScrape(scrape *ScrapeConfig) {
-	logrus.Debugf("update scrape: %+v", scrape)
+func (p *Manager) UpdateScrape(scrapes ...*ScrapeConfig) {
 	p.l.Lock()
 	defer p.l.Unlock()
-	exist := false
-	for i, s := range p.Config.ScrapeConfigs {
-		if s.JobName == scrape.JobName {
-			p.Config.ScrapeConfigs[i] = scrape
-			exist = true
-			break
+	for _, scrape := range scrapes {
+		logrus.Debugf("update scrape: %+v", scrape)
+		exist := false
+		for i, s := range p.Config.ScrapeConfigs {
+			if s.JobName == scrape.JobName {
+				p.Config.ScrapeConfigs[i] = scrape
+				exist = true
+				break
+			}
+		}
+		if !exist {
+			p.Config.ScrapeConfigs = append(p.Config.ScrapeConfigs, scrape)
 		}
 	}
-	if !exist {
-		p.Config.ScrapeConfigs = append(p.Config.ScrapeConfigs, scrape)
+	if err := p.SaveConfig(); err != nil {
+		logrus.Errorf("save prometheus config failure:%s", err.Error())
 	}
-	p.SaveConfig()
-	p.RestartDaemon()
 }

@@ -61,6 +61,13 @@ func (v2 *V2) Routes() chi.Router {
 	r.Delete("/volume-options/{volume_type}", controller.DeleteVolumeType)
 	r.Put("/volume-options/{volume_type}", controller.UpdateVolumeType)
 	r.Mount("/enterprise/{enterprise_id}", v2.enterpriseRouter())
+	r.Mount("/monitor", v2.monitorRouter())
+	return r
+}
+
+func (v2 *V2) monitorRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/metrics", controller.GetMonitorMetrics)
 	return r
 }
 

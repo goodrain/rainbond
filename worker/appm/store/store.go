@@ -429,6 +429,7 @@ func (a *appRuntimeStore) Start() error {
 	}
 	go func() {
 		a.initThirdPartyService()
+		a.initCustomResourceInformer(stopch)
 	}()
 	return nil
 }

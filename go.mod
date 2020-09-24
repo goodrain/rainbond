@@ -9,7 +9,7 @@ require (
 	github.com/aliyun/aliyun-oss-go-sdk v2.1.4+incompatible
 	github.com/aws/aws-sdk-go v1.34.17
 	github.com/barnettZQG/gotty v1.0.1-0.20200904091006-a0a1f7d747dc
-	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
+	github.com/beorn7/perks v1.0.1
 	github.com/bitly/go-simplejson v0.5.0
 	github.com/bluebreezecf/opentsdb-goclient v0.0.0-20190921120552-796138372df3
 	github.com/cockroachdb/cmux v0.0.0-20170110192607-30d10be49292 // indirect
@@ -90,6 +90,7 @@ require (
 	k8s.io/apiserver v0.19.0
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/ingress-nginx v0.0.0-20200903213136-333288e755c1
+	k8s.io/klog v1.0.0
 	k8s.io/kubernetes v1.19.0
 )
 
@@ -102,7 +103,7 @@ replace (
 	github.com/docker/libcompose => github.com/docker/libcompose v0.4.1-0.20181019154650-213509acef0f
 	github.com/godbus/dbus/v5 => github.com/godbus/dbus/v5 v5.0.3
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.0
-	github.com/prometheus/client_golang => github.com/prometheus/client_golang v0.8.1-0.20161124155732-575f371f7862
+	// github.com/prometheus/client_golang => github.com/prometheus/client_golang v0.8.1-0.20161124155732-575f371f7862
 	github.com/xeipuuv/gojsonschema => github.com/xeipuuv/gojsonschema v0.0.0-20160323030313-93e72a773fad
 	k8s.io/api => k8s.io/api v0.16.15
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.16.15

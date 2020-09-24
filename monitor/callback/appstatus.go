@@ -22,12 +22,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
+	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 )
 
@@ -99,6 +99,12 @@ func (e *Worker) toScrape() *prometheus.ScrapeConfig {
 						"service_name": model.LabelValue(e.Name()),
 					},
 				},
+			},
+		},
+		MetricRelabelConfigs: []*prometheus.RelabelConfig{
+			{
+				SourceLabels: model.LabelNames{model.LabelName("tenant_id")},
+				TargetLabel:  "namespace",
 			},
 		},
 	}

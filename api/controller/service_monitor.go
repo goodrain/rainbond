@@ -57,3 +57,8 @@ func (t *TenantStruct) UpdateServiceMonitors(w http.ResponseWriter, r *http.Requ
 	}
 	httputil.ReturnSuccess(r, w, tsm)
 }
+
+//GetMonitorMetrics get monitor metrics
+func GetMonitorMetrics(w http.ResponseWriter, r *http.Request) {
+	handler.GetMonitorManager()
+}
