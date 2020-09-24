@@ -21,20 +21,9 @@ func (a *ApplicationStruct) AddConfigGroup(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Get the application bound serviceIDs
-	availableServices := db.GetManager().TenantServiceDao().GetServiceIDsByAppID(appID)
-	// Judge whether the requested service ID is correct
-	set := make(map[string]struct{})
-	for _, s := range availableServices {
-		set[s.ServiceID] = struct{}{}
-	}
-	for _, sid := range configReq.ServiceIDs {
-		_, ok := set[sid]
-		if !ok {
-			logrus.Infof("The serviceID [%s] is not under the application or does not exist", sid)
-			httputil.ReturnBcodeError(r, w, bcode.ErrServiceNotFound)
-			return
-		}
+	if !CheckServiceExist(appID, configReq.ServiceIDs) {
+		httputil.ReturnBcodeError(r, w, bcode.ErrServiceNotFound)
+		return
 	}
 
 	// create app ConfigGroups
@@ -55,19 +44,9 @@ func (a *ApplicationStruct) UpdateConfigGroup(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Get the application bound serviceIDs
-	availableServices := db.GetManager().TenantServiceDao().GetServiceIDsByAppID(appID)
-	// Judge whether the requested service ID is correct
-	set := make(map[string]struct{})
-	for _, s := range availableServices {
-		set[s.ServiceID] = struct{}{}
-	}
-	for _, sid := range updateReq.ServiceIDs {
-		_, ok := set[sid]
-		if !ok {
-			httputil.ReturnBcodeError(r, w, bcode.ErrServiceNotFound)
-			return
-		}
+	if !CheckServiceExist(appID, updateReq.ServiceIDs) {
+		httputil.ReturnBcodeError(r, w, bcode.ErrServiceNotFound)
+		return
 	}
 
 	// update app ConfigGroups
@@ -77,6 +56,25 @@ func (a *ApplicationStruct) UpdateConfigGroup(w http.ResponseWriter, r *http.Req
 		return
 	}
 	httputil.ReturnSuccess(r, w, app)
+}
+
+// CheckServiceExist -
+func CheckServiceExist(appID string, serviceIDs []string) bool {
+	// Get the application bound serviceIDs
+	availableServices := db.GetManager().TenantServiceDao().GetServiceIDsByAppID(appID)
+	// Judge whether the requested service ID is correct
+	set := make(map[string]struct{})
+	for _, s := range availableServices {
+		set[s.ServiceID] = struct{}{}
+	}
+	for _, sid := range serviceIDs {
+		_, ok := set[sid]
+		if !ok {
+			logrus.Infof("The serviceID [%s] is not under the application or does not exist", sid)
+		}
+		return ok
+	}
+	return false
 }
 
 // DeleteConfigGroup -
