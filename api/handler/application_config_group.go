@@ -182,10 +182,9 @@ func (a *ApplicationAction) DeleteConfigGroup(appID, configGroupName string) err
 // ListConfigGroups -
 func (a *ApplicationAction) ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error) {
 	var (
-		servicesResp    []dbmodel.ServiceConfigGroup
-		itemsResp       []model.ConfigItem
-		configGroupResp []model.ApplicationConfigGroupResp
-		resp            model.ListApplicationConfigGroupResp
+		servicesResp []dbmodel.ServiceConfigGroup
+		itemsResp    []model.ConfigItem
+		resp         model.ListApplicationConfigGroupResp
 	)
 	configGroups, total, err := db.GetManager().AppConfigGroupDao().GetConfigGroupsByAppID(appID, page, pageSize)
 	if err != nil {
@@ -198,7 +197,6 @@ func (a *ApplicationAction) ListConfigGroups(appID string, page, pageSize int) (
 			ConfigGroupName: c.ConfigGroupName,
 			DeployType:      c.DeployType,
 		}
-		configGroupResp = append(configGroupResp, cgroup)
 
 		configGroupServices, err := db.GetManager().AppConfigGroupServiceDao().GetConfigGroupServicesByID(c.AppID, c.ConfigGroupName)
 		if err != nil {
