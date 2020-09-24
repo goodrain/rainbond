@@ -482,6 +482,28 @@ func (t *TenantServicesDaoImpl) CountServiceByAppID(appID string) (int64, error)
 	return total, nil
 }
 
+// GetServiceIDsByAppID get ServiceIDs by AppID
+func (t *TenantServicesDaoImpl) GetServiceIDsByAppID(appID string) (re []model.ServiceID) {
+	if err := t.DB.Raw("SELECT service_id FROM tenant_services WHERE app_id=?", appID).
+		Scan(&re).Error; err != nil {
+		logrus.Errorf("select service_id failure %s", err.Error())
+		return
+	}
+	return
+}
+
+//GetServicesByServiceIDs Get Services By ServiceIDs
+func (t *TenantServicesDaoImpl) GetServicesByServiceIDs(serviceIDs []string) ([]*model.TenantServices, error) {
+	var services []*model.TenantServices
+	if err := t.DB.Where("service_id in (?)", serviceIDs).Find(&services).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return services, nil
+		}
+		return nil, err
+	}
+	return services, nil
+}
+
 //SetTenantServiceStatus SetTenantServiceStatus
 func (t *TenantServicesDaoImpl) SetTenantServiceStatus(serviceID, status string) error {
 	var service model.TenantServices
