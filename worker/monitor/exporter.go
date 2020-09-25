@@ -24,7 +24,6 @@ import (
 
 	"github.com/goodrain/rainbond/worker/master"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/appm/controller"
@@ -33,6 +32,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
+	"github.com/sirupsen/logrus"
 )
 
 //ExporterManager app resource exporter
@@ -72,7 +72,7 @@ func (t *ExporterManager) handler(w http.ResponseWriter, r *http.Request) {
 
 //Start 启动
 func (t *ExporterManager) Start() error {
-	http.HandleFunc(t.config.PrometheusMetricPath, prometheus.InstrumentHandlerFunc("metrics", t.handler))
+	http.HandleFunc(t.config.PrometheusMetricPath, t.handler)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
 			<head><title>Worker exporter</title></head>

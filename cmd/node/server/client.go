@@ -141,7 +141,7 @@ func upgradeImages(ctx *cli.Context) error {
 			if util.StringArrayContains(ctx.StringSlice("s"), service.Name) &&
 				service.Start != "" && !service.OnlyHealthCheck {
 				par := parser.CreateDockerRunOrImageParse("", "", service.Start, nil, event.GetTestLogger())
-				par.ParseDockerun(strings.Split(service.Start, " "))
+				par.ParseDockerun(service.Start)
 				image := par.GetImage()
 				if image.Name == "" {
 					continue

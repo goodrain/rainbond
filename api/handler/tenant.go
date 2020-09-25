@@ -20,15 +20,12 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/goodrain/rainbond/api/client/prometheus"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/cmd/api/option"
@@ -37,6 +34,7 @@ import (
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -50,16 +48,18 @@ type TenantAction struct {
 	kubeClient                *kubernetes.Clientset
 	cacheClusterResourceStats *ClusterResourceStats
 	cacheTime                 time.Time
+	prometheusCli             prometheus.Interface
 }
 
 //CreateTenManager create Manger
 func CreateTenManager(mqc mqclient.MQClient, statusCli *client.AppRuntimeSyncClient,
-	optCfg *option.Config, kubeClient *kubernetes.Clientset) *TenantAction {
+	optCfg *option.Config, kubeClient *kubernetes.Clientset, prometheusCli prometheus.Interface) *TenantAction {
 	return &TenantAction{
-		MQClient:   mqc,
-		statusCli:  statusCli,
-		OptCfg:     optCfg,
-		kubeClient: kubeClient,
+		MQClient:      mqc,
+		statusCli:     statusCli,
+		OptCfg:        optCfg,
+		kubeClient:    kubeClient,
+		prometheusCli: prometheusCli,
 	}
 }
 
@@ -327,40 +327,16 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 		}
 	}
 	//query disk used in prometheus
-	pproxy := GetPrometheusProxy()
 	query := fmt.Sprintf(`sum(app_resource_appfs{tenant_id=~"%s"}) by(tenant_id)`, strings.Join(ids, "|"))
-	query = strings.Replace(query, " ", "%20", -1)
-	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", query), nil)
-	if err != nil {
-		logrus.Error("create request prometheus api error ", err.Error())
-		return result, nil
-	}
-	presult, err := pproxy.Do(req)
-	if err != nil {
-		logrus.Error("do pproxy request prometheus api error ", err.Error())
-		return result, nil
-	}
-	if presult.Body != nil {
-		defer presult.Body.Close()
-		if presult.StatusCode != 200 {
-			return result, nil
+	metric := t.prometheusCli.GetMetric(query, time.Now())
+	for _, mv := range metric.MetricData.MetricValues {
+		var tenantID = mv.Metadata["tenant_id"]
+		var disk int
+		if mv.Sample != nil {
+			disk = int(mv.Sample.Value() / 1024)
 		}
-		var qres QueryResult
-		err = json.NewDecoder(presult.Body).Decode(&qres)
-		if err == nil {
-			for _, re := range qres.Data.Result {
-				var tenantID string
-				var disk int
-				if tid, ok := re["metric"].(map[string]interface{}); ok {
-					tenantID = tid["tenant_id"].(string)
-				}
-				if re, ok := (re["value"]).([]interface{}); ok && len(re) == 2 {
-					disk, _ = strconv.Atoi(re[1].(string))
-				}
-				if _, ok := result[tenantID]; ok {
-					result[tenantID]["disk"] = disk / 1024
-				}
-			}
+		if tenantID != "" {
+			result[tenantID]["disk"] = disk / 1024
 		}
 	}
 	return result, nil
@@ -484,8 +460,7 @@ func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re
 	for _, c := range closed {
 		resmp[c] = map[string]interface{}{"memory": 0, "cpu": 0}
 	}
-	re = resmp
-	disks := GetServicesDisk(tr.Body.ServiceIDs, GetPrometheusProxy())
+	disks := GetServicesDisk(tr.Body.ServiceIDs, t.prometheusCli)
 	for serviceID, disk := range disks {
 		if _, ok := resmp[serviceID]; ok {
 			resmp[serviceID]["disk"] = disk / 1024

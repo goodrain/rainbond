@@ -22,7 +22,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	v3 "github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
 	discoverv1 "github.com/goodrain/rainbond/discover"
@@ -31,20 +30,24 @@ import (
 	"github.com/goodrain/rainbond/monitor/callback"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/util/watch"
+	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 )
 
 //Monitor monitor
 type Monitor struct {
-	config     *option.Config
-	ctx        context.Context
-	cancel     context.CancelFunc
-	client     *v3.Client
-	timeout    time.Duration
-	manager    *prometheus.Manager
-	discoverv1 discoverv1.Discover
-	discoverv2 discoverv2.Discover
+	config         *option.Config
+	ctx            context.Context
+	cancel         context.CancelFunc
+	client         *v3.Client
+	timeout        time.Duration
+	manager        *prometheus.Manager
+	discoverv1     discoverv1.Discover
+	discoverv2     discoverv2.Discover
+	serviceMonitor *prometheus.ServiceMonitorController
+	stopCh         chan struct{}
 }
 
 //Start start
@@ -85,6 +88,9 @@ func (d *Monitor) Start() {
 	// kubernetes service discovery
 	rbdapi := callback.RbdAPI{Prometheus: d.manager}
 	rbdapi.UpdateEndpoints(nil)
+
+	// service monitor
+	d.serviceMonitor.Run(d.stopCh)
 }
 
 func (d *Monitor) discoverNodes(node *callback.Node, app *callback.App, done <-chan struct{}) {
@@ -221,6 +227,7 @@ func (d *Monitor) Stop() {
 	d.discoverv1.Stop()
 	d.discoverv2.Stop()
 	d.client.Close()
+	close(d.stopCh)
 }
 
 // NewMonitor new monitor
@@ -251,6 +258,10 @@ func NewMonitor(opt *option.Config, p *prometheus.Manager) *Monitor {
 	if err != nil {
 		logrus.Fatal(err)
 	}
+	restConfig, err := k8sutil.NewRestConfig(opt.KubeConfig)
+	if err != nil {
+		logrus.Fatal(err)
+	}
 
 	d := &Monitor{
 		config:     opt,
@@ -261,7 +272,11 @@ func NewMonitor(opt *option.Config, p *prometheus.Manager) *Monitor {
 		discoverv1: dc1,
 		discoverv2: dc3,
 		timeout:    defaultTimeout,
+		stopCh:     make(chan struct{}),
 	}
-
+	d.serviceMonitor, err = prometheus.NewServiceMonitorController(ctx, restConfig, p)
+	if err != nil {
+		logrus.Fatal(err)
+	}
 	return d
 }

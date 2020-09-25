@@ -1,7 +1,6 @@
 package conversion
 
 import (
-	"fmt"
 	"time"
 
 	mv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
@@ -66,7 +65,7 @@ func createServiceMonitor(as *v1.AppService, dbmanager db.Manager) []*mv1.Servic
 		_, err = time.ParseDuration(tsm.Interval)
 		if err != nil {
 			logrus.Errorf("service monitor interval %s is valid, set default", tsm.Interval)
-			tsm.Interval = "10s"
+			tsm.Interval = "30s"
 		}
 		sm := mv1.ServiceMonitor{}
 		sm.Name = tsm.Name
@@ -86,11 +85,12 @@ func createServiceMonitor(as *v1.AppService, dbmanager db.Manager) []*mv1.Servic
 			},
 			Endpoints: []mv1.Endpoint{
 				mv1.Endpoint{
-					Port:     fmt.Sprintf("%d", tsm.Port),
+					Port:     service.Spec.Ports[0].Name,
 					Path:     tsm.Path,
 					Interval: tsm.Interval,
 				},
 			},
+			TargetLabels: []string{"service_id", "tenant_id", "app_id"},
 		}
 		re = append(re, &sm)
 	}
