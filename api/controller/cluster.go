@@ -21,8 +21,9 @@ package controller
 import (
 	"net/http"
 
-	"github.com/sirupsen/logrus"
+	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/sirupsen/logrus"
 
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -41,4 +42,62 @@ func (t *ClusterController) GetClusterInfo(w http.ResponseWriter, r *http.Reques
 	}
 
 	httputil.ReturnSuccess(r, w, nodes)
+}
+
+//MavenSettingList maven setting list
+func (t *ClusterController) MavenSettingList(w http.ResponseWriter, r *http.Request) {
+	httputil.ReturnSuccess(r, w, handler.GetClusterHandler().MavenSettingList())
+}
+
+//MavenSettingAdd maven setting add
+func (t *ClusterController) MavenSettingAdd(w http.ResponseWriter, r *http.Request) {
+	var set handler.MavenSetting
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &set, nil); !ok {
+		return
+	}
+	if err := handler.GetClusterHandler().MavenSettingAdd(&set); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, &set)
+}
+
+//MavenSettingUpdate maven setting file update
+func (t *ClusterController) MavenSettingUpdate(w http.ResponseWriter, r *http.Request) {
+	type SettingUpdate struct {
+		Content string `json:"content" validate:"required"`
+	}
+	var su SettingUpdate
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &su, nil); !ok {
+		return
+	}
+	set := &handler.MavenSetting{
+		Name:    chi.URLParam(r, "name"),
+		Content: su.Content,
+	}
+	if err := handler.GetClusterHandler().MavenSettingUpdate(set); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, set)
+}
+
+//MavenSettingDelete maven setting file delete
+func (t *ClusterController) MavenSettingDelete(w http.ResponseWriter, r *http.Request) {
+	err := handler.GetClusterHandler().MavenSettingDelete(chi.URLParam(r, "name"))
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+//MavenSettingDetail maven setting file delete
+func (t *ClusterController) MavenSettingDetail(w http.ResponseWriter, r *http.Request) {
+	c, err := handler.GetClusterHandler().MavenSettingDetail(chi.URLParam(r, "name"))
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, c)
 }

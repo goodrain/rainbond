@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/goodrain/rainbond/monitor/utils"
+	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/watch"
 	"github.com/prometheus/common/model"
 	"github.com/sirupsen/logrus"
@@ -68,6 +69,9 @@ func (c *Cadvisor) Name() string {
 }
 
 func (c *Cadvisor) toScrape() *prometheus.ScrapeConfig {
+	apiServerHost := util.Getenv("KUBERNETES_SERVICE_HOST", "kubernetes.default.svc")
+	apiServerPort := util.Getenv("KUBERNETES_SERVICE_PORT", "443")
+
 	return &prometheus.ScrapeConfig{
 		JobName:        c.Name(),
 		ScrapeInterval: model.Duration(15 * time.Second),
@@ -90,7 +94,7 @@ func (c *Cadvisor) toScrape() *prometheus.ScrapeConfig {
 		RelabelConfigs: []*prometheus.RelabelConfig{
 			{
 				TargetLabel: "__address__",
-				Replacement: "kubernetes.default.svc:443",
+				Replacement: apiServerHost + ":" + apiServerPort,
 			},
 			{
 				SourceLabels: []model.LabelName{

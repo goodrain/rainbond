@@ -75,7 +75,7 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 	}
 	//docker run
 	if strings.HasPrefix(d.source, "docker") {
-		d.ParseDockerun(strings.Split(d.source, " "))
+		d.ParseDockerun(d.source)
 		if d.image.String() == "" || d.image.String() == ":" {
 			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像名称识别失败"), SolveAdvice("modify_image", "请确认输入DockerRun命令是否正确")))
 			return d.errors
@@ -139,13 +139,20 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 }
 
 //ParseDockerun parse docker run command
-func (d *DockerRunOrImageParse) ParseDockerun(source []string) {
+func (d *DockerRunOrImageParse) ParseDockerun(cmd string) {
 	var name string
-	source = util.RemoveSpaces(source)
+	cmd = strings.TrimLeft(cmd, " ")
+	cmd = strings.Replace(cmd, "\n", "", -1)
+	cmd = strings.Replace(cmd, "\r", "", -1)
+	cmd = strings.Replace(cmd, "\t", "", -1)
+	cmd = strings.Replace(cmd, "\\", "", -1)
+	cmd = strings.Replace(cmd, "  ", " ", -1)
+	source := util.RemoveSpaces(strings.Split(cmd, " "))
 	for i, s := range source {
 		if s == "docker" || s == "run" {
 			continue
 		}
+		fmt.Println(name)
 		if strings.HasPrefix(s, "-") {
 			name = strings.TrimLeft(s, "-")
 			index := strings.Index(name, "=")
@@ -179,12 +186,12 @@ func (d *DockerRunOrImageParse) ParseDockerun(source []string) {
 		} else {
 			switch name {
 			case "e", "env":
-				info := strings.Split(s, "=")
+				info := strings.Split(removeQuotes(s), "=")
 				if len(info) == 2 {
 					d.envs[info[0]] = &types.Env{Name: info[0], Value: info[1]}
 				}
 			case "p", "public":
-				info := strings.Split(s, ":")
+				info := strings.Split(removeQuotes(s), ":")
 				if len(info) == 2 {
 					port, _ := strconv.Atoi(info[1])
 					if port != 0 {
@@ -192,13 +199,13 @@ func (d *DockerRunOrImageParse) ParseDockerun(source []string) {
 					}
 				}
 			case "v", "volume":
-				info := strings.Split(s, ":")
+				info := strings.Split(removeQuotes(s), ":")
 				if len(info) >= 2 {
 					d.volumes[info[1]] = &types.Volume{VolumePath: info[1], VolumeType: model.ShareFileVolumeType.String()}
 				}
 			case "memory", "m":
 				d.memory = readmemory(s)
-			case "", "d", "i", "t", "it", "P":
+			case "", "d", "i", "t", "it", "P", "rm", "init", "interactive", "no-healthcheck", "oom-kill-disable", "privileged", "read-only", "tty", "sig-proxy":
 				d.image = ParseImageName(s)
 				if len(source) > i+1 {
 					d.args = source[i+1:]
