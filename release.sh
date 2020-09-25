@@ -49,7 +49,7 @@ build::binary() {
 	local build_args="-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"
 	local build_dir="./cmd/$1"
 	local build_tag=""
-	if [ ! -f "${DOCKER_PATH}/ignorebuild" ];then
+	if [ -f "${DOCKER_PATH}/ignorebuild" ];then
 		return
 	fi
 	CGO_ENABLED=1
