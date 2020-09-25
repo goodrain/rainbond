@@ -20,11 +20,14 @@ package prometheus
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
+	"time"
 
 	mv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	yaml "gopkg.in/yaml.v2"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/util/workqueue"
 )
 
 var smYaml = `
@@ -66,4 +69,26 @@ func TestCreateScrapeBySM(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(string(out))
+}
+
+func TestQueue(t *testing.T) {
+	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "sm-monitor")
+	defer queue.ShutDown()
+
+	go func() {
+		for i := 0; i < 10; i++ {
+			queue.Add("abc")
+			time.Sleep(time.Second * 1)
+		}
+	}()
+	for {
+		item, close := queue.Get()
+		if close {
+			t.Fatal("queue closed")
+		}
+		time.Sleep(time.Second * 2)
+		fmt.Println(item)
+		queue.Forget(item)
+		queue.Done(item)
+	}
 }

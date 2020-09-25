@@ -251,3 +251,35 @@ func (p *Manager) UpdateScrape(scrapes ...*ScrapeConfig) {
 		logrus.Errorf("save prometheus config failure:%s", err.Error())
 	}
 }
+
+// UpdateAndRemoveScrape update and remove scrape
+func (p *Manager) UpdateAndRemoveScrape(remove []*ScrapeConfig, scrapes ...*ScrapeConfig) {
+	p.l.Lock()
+	defer p.l.Unlock()
+	for _, scrape := range scrapes {
+		logrus.Debugf("update scrape: %+v", scrape)
+		exist := false
+		for i, s := range p.Config.ScrapeConfigs {
+			if s.JobName == scrape.JobName {
+				p.Config.ScrapeConfigs[i] = scrape
+				exist = true
+				break
+			}
+		}
+		if !exist {
+			p.Config.ScrapeConfigs = append(p.Config.ScrapeConfigs, scrape)
+		}
+	}
+	for _, rm := range remove {
+		for i, s := range p.Config.ScrapeConfigs {
+			if s.JobName == rm.JobName {
+				logrus.Infof("remove scrape %s", rm.JobName)
+				p.Config.ScrapeConfigs = append(p.Config.ScrapeConfigs[0:i], p.Config.ScrapeConfigs[i+1:]...)
+				break
+			}
+		}
+	}
+	if err := p.SaveConfig(); err != nil {
+		logrus.Errorf("save prometheus config failure:%s", err.Error())
+	}
+}

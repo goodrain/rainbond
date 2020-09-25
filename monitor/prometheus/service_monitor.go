@@ -40,11 +40,12 @@ import (
 
 //ServiceMonitorController service monitor
 type ServiceMonitorController struct {
-	ctx        context.Context
-	Prometheus *Manager
-	smClient   *versioned.Clientset
-	smInf      cache.SharedIndexInformer
-	queue      workqueue.RateLimitingInterface
+	ctx         context.Context
+	Prometheus  *Manager
+	lastScrapes []*ScrapeConfig
+	smClient    *versioned.Clientset
+	smInf       cache.SharedIndexInformer
+	queue       workqueue.RateLimitingInterface
 }
 
 //NewServiceMonitorController new sm controller
@@ -133,6 +134,7 @@ func (s *ServiceMonitorController) processNextWorkItem(ctx context.Context) bool
 }
 
 func (s *ServiceMonitorController) sync() {
+	logrus.Debug("start sync service monitor config to prometheus config")
 	smList := s.smInf.GetStore().List()
 	var scrapes []*ScrapeConfig
 	sMonIdentifiers := make([]string, len(smList))
@@ -148,12 +150,23 @@ func (s *ServiceMonitorController) sync() {
 
 	// Sorting ensures, that we always generate the config in the same order.
 	sort.Strings(sMonIdentifiers)
+	var scrapeMap = make(map[string]*ScrapeConfig, len(sMonIdentifiers))
 	for _, name := range sMonIdentifiers {
 		for i, end := range sMons[name].Spec.Endpoints {
-			scrapes = append(scrapes, s.createScrapeBySM(sMons[name], end, i))
+			scrape := s.createScrapeBySM(sMons[name], end, i)
+			scrapeMap[scrape.JobName] = scrape
+			scrapes = append(scrapes, scrape)
 		}
 	}
-	s.Prometheus.UpdateScrape(scrapes...)
+	var remove []*ScrapeConfig
+	for i, ls := range s.lastScrapes {
+		if _, ok := scrapeMap[ls.JobName]; !ok {
+			remove = append(remove, s.lastScrapes[i])
+		}
+	}
+	s.Prometheus.UpdateAndRemoveScrape(remove, scrapes...)
+	s.lastScrapes = scrapes
+	logrus.Debugf("success sync service monitor config and or update %d , remove %d", len(scrapes), len(remove))
 }
 
 func (s *ServiceMonitorController) createScrapeBySM(sm *mv1.ServiceMonitor, ep mv1.Endpoint, i int) *ScrapeConfig {
