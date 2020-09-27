@@ -160,6 +160,7 @@ type ApplicationInterface interface {
 	DeleteApp(w http.ResponseWriter, r *http.Request)
 	AddConfigGroup(w http.ResponseWriter, r *http.Request)
 	UpdateConfigGroup(w http.ResponseWriter, r *http.Request)
+	UpdateAppPorts(w http.ResponseWriter, r *http.Request)
 }
 
 //Gatewayer gateway api interface

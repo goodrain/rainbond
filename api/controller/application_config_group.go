@@ -14,14 +14,14 @@ import (
 )
 
 // AddConfigGroup -
-func (a *ApplicationStruct) AddConfigGroup(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationController) AddConfigGroup(w http.ResponseWriter, r *http.Request) {
 	var configReq model.ApplicationConfigGroup
 	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &configReq, nil) {
 		return
 	}
 
-	if !CheckServiceExist(appID, configReq.ServiceIDs) {
+	if !checkServiceExist(appID, configReq.ServiceIDs) {
 		httputil.ReturnBcodeError(r, w, bcode.ErrServiceNotFound)
 		return
 	}
@@ -36,7 +36,7 @@ func (a *ApplicationStruct) AddConfigGroup(w http.ResponseWriter, r *http.Reques
 }
 
 // UpdateConfigGroup -
-func (a *ApplicationStruct) UpdateConfigGroup(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationController) UpdateConfigGroup(w http.ResponseWriter, r *http.Request) {
 	var updateReq model.UpdateAppConfigGroupReq
 	configGroupname := chi.URLParam(r, "config_group_name")
 	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
@@ -44,7 +44,7 @@ func (a *ApplicationStruct) UpdateConfigGroup(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if !CheckServiceExist(appID, updateReq.ServiceIDs) {
+	if !checkServiceExist(appID, updateReq.ServiceIDs) {
 		httputil.ReturnBcodeError(r, w, bcode.ErrServiceNotFound)
 		return
 	}
@@ -58,8 +58,8 @@ func (a *ApplicationStruct) UpdateConfigGroup(w http.ResponseWriter, r *http.Req
 	httputil.ReturnSuccess(r, w, app)
 }
 
-// CheckServiceExist -
-func CheckServiceExist(appID string, serviceIDs []string) bool {
+// checkServiceExist -
+func checkServiceExist(appID string, serviceIDs []string) bool {
 	// Get the application bound serviceIDs
 	availableServices := db.GetManager().TenantServiceDao().GetServiceIDsByAppID(appID)
 	// Judge whether the requested service ID is correct

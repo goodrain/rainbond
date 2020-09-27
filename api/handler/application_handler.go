@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"fmt"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
+	"strconv"
 )
 
 // ApplicationAction -
@@ -88,4 +91,78 @@ func (a *ApplicationAction) DeleteApp(appID string) error {
 		return bcode.ErrDeleteDueToBindService
 	}
 	return db.GetManager().ApplicationDao().DeleteApp(appID)
+}
+
+func (a *ApplicationAction) UpdatePorts(appID string, ports []*model.AppPort) error {
+	if err := a.checkPorts(appID, ports); err != nil {
+		return err
+	}
+
+	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
+
+	// update port
+	for _, p := range ports {
+		port, err := db.GetManager().TenantServicesPortDaoTransactions(tx).GetPort(p.ServiceID, p.ContainerPort)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		port.PortAlias = p.PortAlias
+		port.K8sServiceName = p.K8sServiceName
+		err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(port)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
+}
+
+func (a *ApplicationAction) checkPorts(appID string, ports []*model.AppPort) error {
+	// check if the ports are belong to the given appID
+	services, err := db.GetManager().TenantServiceDao().ListByAppID(appID)
+	if err != nil {
+		return err
+	}
+	set := make(map[string]struct{})
+	for _, svc := range services {
+		set[svc.ServiceID] = struct{}{}
+	}
+	var k8sServiceNames []string
+	key2ports := make(map[string]*model.AppPort)
+	for i := range ports {
+		port := ports[i]
+		if _, ok := set[port.ServiceID]; !ok {
+			return bcode.NewBadRequest(fmt.Sprintf("port(%s) is not belong to app(%s)", port.ServiceID, appID))
+		}
+		k8sServiceNames = append(k8sServiceNames, port.ServiceID)
+		key2ports[port.ServiceID+strconv.Itoa(port.ContainerPort)] = port
+	}
+
+	// check if k8s_service_name is unique
+	servicesPorts, err := db.GetManager().TenantServicesPortDao().ListByK8sServiceNames(k8sServiceNames)
+	if err != nil {
+		return err
+	}
+	for _, port := range servicesPorts {
+		// check if the port is as same as the one in request
+		if _, ok := key2ports[port.ServiceID+strconv.Itoa(port.ContainerPort)]; !ok {
+			logrus.Errorf("kubernetes service name(%s) already exists", port.K8sServiceName)
+			return bcode.ErrK8sServiceNameExists
+		}
+	}
+
+	return nil
 }
