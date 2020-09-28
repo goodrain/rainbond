@@ -460,7 +460,7 @@ func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re
 	for _, c := range closed {
 		resmp[c] = map[string]interface{}{"memory": 0, "cpu": 0}
 	}
-	disks := GetServicesDisk(tr.Body.ServiceIDs, t.prometheusCli)
+	disks := GetServicesDiskDeprecated(tr.Body.ServiceIDs, t.prometheusCli)
 	for serviceID, disk := range disks {
 		if _, ok := resmp[serviceID]; ok {
 			resmp[serviceID]["disk"] = disk / 1024

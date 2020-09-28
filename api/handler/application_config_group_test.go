@@ -161,7 +161,7 @@ func TestAddAppConfigGroup(t *testing.T) {
 			db.SetTestManager(manager)
 			tc.mockFunc(manager, ctrl)
 
-			appAction := NewApplicationHandler()
+			appAction := ApplicationAction{}
 			resp, err := appAction.AddConfigGroup(tc.appID, tc.request)
 			if (err != nil) != tc.wanterr {
 				t.Errorf("Unexpected error = %v, wantErr %v", err, tc.wanterr)

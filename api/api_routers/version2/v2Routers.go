@@ -314,6 +314,7 @@ func (v2 *V2) applicationRouter() chi.Router {
 	r.Put("/configgroups/{config_group_name}", controller.GetManager().UpdateConfigGroup)
 
 	r.Put("/ports", controller.GetManager().UpdateAppPorts)
+	r.Put("/status", controller.GetManager().GetAppStatus)
 
 	return r
 }

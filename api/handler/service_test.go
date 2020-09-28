@@ -105,6 +105,6 @@ func TestUUID(t *testing.T) {
 
 func TestGetServicesDisk(t *testing.T) {
 	p := proxy.CreateProxy("prometheus", "http", []string{"39.96.189.166:9999"})
-	disk := GetServicesDisk([]string{"ef75e1d5e3df412a8af06129dae42869"}, p)
+	disk := GetServicesDiskDeprecated([]string{"ef75e1d5e3df412a8af06129dae42869"}, p)
 	t.Log(disk)
 }

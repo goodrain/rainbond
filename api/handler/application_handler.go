@@ -1,18 +1,27 @@
 package handler
 
 import (
+	"context"
 	"fmt"
+	"strconv"
+	"time"
+
+	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/worker/client"
+	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/sirupsen/logrus"
-	"strconv"
 )
 
 // ApplicationAction -
-type ApplicationAction struct{}
+type ApplicationAction struct {
+	statusCli  *client.AppRuntimeSyncClient
+	promClient prometheus.Interface
+}
 
 // ApplicationHandler defines handler methods to TenantApplication.
 type ApplicationHandler interface {
@@ -21,12 +30,20 @@ type ApplicationHandler interface {
 	ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error)
 	GetAppByID(appID string) (*dbmodel.Application, error)
 	DeleteApp(appID string) error
+
 	AddConfigGroup(appID string, req *model.ApplicationConfigGroup) (*model.ApplicationConfigGroupResp, error)
+	UpdateConfigGroup(appID, configGroupName string, req *model.UpdateAppConfigGroupReq) (*model.ApplicationConfigGroupResp, error)
+
+	UpdatePorts(appID string, ports []*model.AppPort) error
+	GetStatus(appID string) (*model.AppStatus, error)
 }
 
 // NewApplicationHandler creates a new Tenant Application Handler.
-func NewApplicationHandler() ApplicationHandler {
-	return &ApplicationAction{}
+func NewApplicationHandler(statusCli *client.AppRuntimeSyncClient, promClient prometheus.Interface) ApplicationHandler {
+	return &ApplicationAction{
+		statusCli:  statusCli,
+		promClient: promClient,
+	}
 }
 
 // CreateApp -
@@ -165,4 +182,36 @@ func (a *ApplicationAction) checkPorts(appID string, ports []*model.AppPort) err
 	}
 
 	return nil
+}
+
+func (a *ApplicationAction) GetStatus(appID string) (*model.AppStatus, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	status, err := a.statusCli.GetAppStatus(ctx, &pb.AppStatusReq{
+		AppId: appID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	diskUsage := a.getDiskUsage(appID)
+
+	res := &model.AppStatus{
+		Status: status.Status.String(),
+		Cpu:    status.Cpu,
+		Memory: status.Memory,
+		Disk:   int64(diskUsage),
+	}
+	return res, nil
+}
+
+func (a *ApplicationAction) getDiskUsage(appID string) float64 {
+	var result float64
+	query := fmt.Sprintf(`max(app_resource_appfs{app_id=~"%s"}) by(app_id)`, appID)
+	metric := a.promClient.GetMetric(query, time.Now())
+	for _, m := range metric.MetricData.MetricValues {
+		result += m.Sample.Value()
+	}
+	return result
 }

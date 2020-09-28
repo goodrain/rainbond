@@ -8,6 +8,7 @@ require (
 	github.com/Microsoft/hcsshim v0.8.7 // indirect
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/aliyun/aliyun-oss-go-sdk v2.1.4+incompatible
+	github.com/apcera/termtables v0.0.0-20170405184538-bcbc5dc54055
 	github.com/aws/aws-sdk-go v1.34.17
 	github.com/barnettZQG/gotty v1.0.1-0.20200904091006-a0a1f7d747dc
 	github.com/beorn7/perks v1.0.1
@@ -43,7 +44,6 @@ require (
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.4.2
 	github.com/goodrain/rainbond-operator v1.0.0
-	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uitable v0.0.4
@@ -74,7 +74,6 @@ require (
 	github.com/sirupsen/logrus v1.6.0
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.6.1
 	github.com/testcontainers/testcontainers-go v0.7.0
 	github.com/thejerf/suture v3.0.3+incompatible
 	github.com/tidwall/gjson v1.6.1
@@ -94,7 +93,6 @@ require (
 	k8s.io/apiserver v0.19.0
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/ingress-nginx v0.0.0-20200903213136-333288e755c1
-	k8s.io/klog v1.0.0
 	k8s.io/kubernetes v1.19.0
 )
 

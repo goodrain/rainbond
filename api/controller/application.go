@@ -144,3 +144,15 @@ func (a *ApplicationController) UpdateAppPorts(w http.ResponseWriter, r *http.Re
 
 	httputil.ReturnSuccess(r, w, nil)
 }
+
+func (a *ApplicationController) GetAppStatus(w http.ResponseWriter, r *http.Request) {
+	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+
+	res, err := handler.GetApplicationHandler().GetStatus(appID)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, res)
+}

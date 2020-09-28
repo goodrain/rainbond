@@ -2,7 +2,9 @@ syntax = "proto3";
 package pb;
 
 service AppRuntimeSync {
-  rpc GetAppStatus (ServicesRequest) returns (StatusMessage) {}
+  // Deprecated: -
+  rpc GetAppStatusDeprecated (ServicesRequest) returns (StatusMessage) {}
+  rpc GetAppStatus (AppStatusReq) returns (AppStatus) {}
   rpc GetAppPods (ServiceRequest) returns (ServiceAppPodList) {}
   rpc GetMultiAppPods (ServicesRequest) returns (MultiServiceAppPodList) {}
   rpc GetDeployInfo (ServiceRequest) returns (DeployInfo) {}
@@ -18,6 +20,10 @@ service AppRuntimeSync {
 }
 
 message Empty {}
+
+message AppStatusReq {
+  string app_id = 1;
+}
 
 message ServiceRequest {
   string service_id = 1;
@@ -229,4 +235,18 @@ enum ServiceVolumeStatus {
 
 message ServiceVolumeStatusMessage {
   map<string, ServiceVolumeStatus> status = 1;
+}
+
+message AppStatus {
+  enum Status {
+    NIL = 0;
+    RUNNING = 1;
+    CLOSED = 2;
+    ABNORMAL = 3;
+    PARTIAL_ABNORMAL = 4;
+  }
+
+  Status status = 1;
+  int64 cpu = 2;
+  int64 memory = 3;
 }
