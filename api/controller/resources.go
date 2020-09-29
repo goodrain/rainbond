@@ -710,7 +710,6 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	logrus.Debugf("trans update service service")
 	//目前提供三个元素的修改
 	rules := validator.MapData{
 		"container_cmd":    []string{},
@@ -742,10 +741,8 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
-
-	logrus.Debugf("begin to update service")
 	if err := handler.GetServiceManager().ServiceUpdate(data); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("update service error, %v", err))
+		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
@@ -773,7 +770,6 @@ func (t *TenantStruct) SetLanguage(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	logrus.Debugf("trans language set service")
 	rules := validator.MapData{
 		"language": []string{"required"},
 	}
