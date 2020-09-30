@@ -70,7 +70,7 @@ func checkServiceExist(appID string, serviceIDs []string) {
 }
 
 // DeleteConfigGroup -
-func (a *ApplicationStruct) DeleteConfigGroup(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationController) DeleteConfigGroup(w http.ResponseWriter, r *http.Request) {
 	configGroupname := chi.URLParam(r, "config_group_name")
 	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
 
@@ -84,7 +84,7 @@ func (a *ApplicationStruct) DeleteConfigGroup(w http.ResponseWriter, r *http.Req
 }
 
 // ListConfigGroups -
-func (a *ApplicationStruct) ListConfigGroups(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationController) ListConfigGroups(w http.ResponseWriter, r *http.Request) {
 	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
 	query := r.URL.Query()
 	pageQuery := query.Get("page")
