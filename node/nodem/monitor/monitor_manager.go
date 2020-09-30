@@ -33,6 +33,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/node_exporter/collector"
 	"github.com/sirupsen/logrus"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 //Manager Manager
@@ -55,6 +56,8 @@ func createNodeExporterRestry() (*prometheus.Registry, error) {
 		"ipvs", "loadavg", "meminfo", "netdev",
 		"netclass", "netdev", "netstat",
 		"uname", "mountstats", "nfs"}
+	// init kingpin parse
+	kingpin.CommandLine.Parse([]string{"--collector.mountstats=true"})
 	nc, err := collector.NewNodeCollector(log.NewNopLogger(), filters...)
 	if err != nil {
 		return nil, err
