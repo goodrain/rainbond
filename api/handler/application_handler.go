@@ -1,15 +1,27 @@
 package handler
 
 import (
+	"context"
+	"fmt"
+	"strconv"
+	"time"
+
+	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/worker/client"
+	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/sirupsen/logrus"
 )
 
 // ApplicationAction -
-type ApplicationAction struct{}
+type ApplicationAction struct {
+	statusCli  *client.AppRuntimeSyncClient
+	promClient prometheus.Interface
+}
 
 // ApplicationHandler defines handler methods to TenantApplication.
 type ApplicationHandler interface {
@@ -18,15 +30,23 @@ type ApplicationHandler interface {
 	ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error)
 	GetAppByID(appID string) (*dbmodel.Application, error)
 	DeleteApp(appID string) error
+
 	AddConfigGroup(appID string, req *model.ApplicationConfigGroup) (*model.ApplicationConfigGroupResp, error)
 	UpdateConfigGroup(appID, configGroupName string, req *model.UpdateAppConfigGroupReq) (*model.ApplicationConfigGroupResp, error)
+
+	BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error
+	GetStatus(appID string) (*model.AppStatus, error)
+  
 	DeleteConfigGroup(appID, configGroupName string) error
 	ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error)
 }
 
 // NewApplicationHandler creates a new Tenant Application Handler.
-func NewApplicationHandler() ApplicationHandler {
-	return &ApplicationAction{}
+func NewApplicationHandler(statusCli *client.AppRuntimeSyncClient, promClient prometheus.Interface) ApplicationHandler {
+	return &ApplicationAction{
+		statusCli:  statusCli,
+		promClient: promClient,
+	}
 }
 
 // CreateApp -
@@ -91,4 +111,112 @@ func (a *ApplicationAction) DeleteApp(appID string) error {
 		return bcode.ErrDeleteDueToBindService
 	}
 	return db.GetManager().ApplicationDao().DeleteApp(appID)
+}
+
+// BatchUpdateComponentPorts -
+func (a *ApplicationAction) BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error {
+	if err := a.checkPorts(appID, ports); err != nil {
+		return err
+	}
+
+	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
+
+	// update port
+	for _, p := range ports {
+		port, err := db.GetManager().TenantServicesPortDaoTransactions(tx).GetPort(p.ServiceID, p.ContainerPort)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		port.PortAlias = p.PortAlias
+		port.K8sServiceName = p.K8sServiceName
+		err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(port)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
+}
+
+func (a *ApplicationAction) checkPorts(appID string, ports []*model.AppPort) error {
+	// check if the ports are belong to the given appID
+	services, err := db.GetManager().TenantServiceDao().ListByAppID(appID)
+	if err != nil {
+		return err
+	}
+	set := make(map[string]struct{})
+	for _, svc := range services {
+		set[svc.ServiceID] = struct{}{}
+	}
+	var k8sServiceNames []string
+	key2ports := make(map[string]*model.AppPort)
+	for i := range ports {
+		port := ports[i]
+		if _, ok := set[port.ServiceID]; !ok {
+			return bcode.NewBadRequest(fmt.Sprintf("port(%s) is not belong to app(%s)", port.ServiceID, appID))
+		}
+		k8sServiceNames = append(k8sServiceNames, port.ServiceID)
+		key2ports[port.ServiceID+strconv.Itoa(port.ContainerPort)] = port
+	}
+
+	// check if k8s_service_name is unique
+	servicesPorts, err := db.GetManager().TenantServicesPortDao().ListByK8sServiceNames(k8sServiceNames)
+	if err != nil {
+		return err
+	}
+	for _, port := range servicesPorts {
+		// check if the port is as same as the one in request
+		if _, ok := key2ports[port.ServiceID+strconv.Itoa(port.ContainerPort)]; !ok {
+			logrus.Errorf("kubernetes service name(%s) already exists", port.K8sServiceName)
+			return bcode.ErrK8sServiceNameExists
+		}
+	}
+
+	return nil
+}
+
+// GetStatus -
+func (a *ApplicationAction) GetStatus(appID string) (*model.AppStatus, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	status, err := a.statusCli.GetAppStatus(ctx, &pb.AppStatusReq{
+		AppId: appID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	diskUsage := a.getDiskUsage(appID)
+
+	res := &model.AppStatus{
+		Status: status.Status.String(),
+		Cpu:    status.Cpu,
+		Memory: status.Memory,
+		Disk:   int64(diskUsage),
+	}
+	return res, nil
+}
+
+func (a *ApplicationAction) getDiskUsage(appID string) float64 {
+	var result float64
+	query := fmt.Sprintf(`sum(max(app_resource_appfs{app_id=~"%s"}) by(app_id))`, appID)
+	metric := a.promClient.GetMetric(query, time.Now())
+	for _, m := range metric.MetricData.MetricValues {
+		result += m.Sample.Value()
+	}
+	return result
 }

@@ -80,6 +80,7 @@ func InitHandle(conf option.Config,
 	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
 	defaultEtcdHandler = NewEtcdHandler(etcdcli)
 	defaultmonitorHandler = NewMonitorHandler(prometheusCli)
+	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli)
 	return nil
 }
 
@@ -213,9 +214,9 @@ func GetClusterHandler() ClusterHandler {
 	return defClusterHandler
 }
 
-var defApplicationHandler *ApplicationAction
+var defApplicationHandler ApplicationHandler
 
 // GetApplicationHandler  returns the default tenant application handler.
-func GetApplicationHandler() *ApplicationAction {
+func GetApplicationHandler() ApplicationHandler {
 	return defApplicationHandler
 }

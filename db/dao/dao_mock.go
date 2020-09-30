@@ -2543,19 +2543,19 @@ func (mr *MockTenantServiceRelationDaoMockRecorder) GetTenantServiceRelations(se
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTenantServiceRelations", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).GetTenantServiceRelations), serviceID)
 }
 
-// ListByServiceIDs mocks base method.
+// ListByK8sServiceNames mocks base method.
 func (m *MockTenantServiceRelationDao) ListByServiceIDs(serviceIDs []string) ([]*model.TenantServiceRelation, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListByServiceIDs", serviceIDs)
+	ret := m.ctrl.Call(m, "ListByK8sServiceNames", serviceIDs)
 	ret0, _ := ret[0].([]*model.TenantServiceRelation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListByServiceIDs indicates an expected call of ListByServiceIDs.
+// ListByK8sServiceNames indicates an expected call of ListByK8sServiceNames.
 func (mr *MockTenantServiceRelationDaoMockRecorder) ListByServiceIDs(serviceIDs interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByServiceIDs", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).ListByServiceIDs), serviceIDs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByK8sServiceNames", reflect.TypeOf((*MockTenantServiceRelationDao)(nil).ListByServiceIDs), serviceIDs)
 }
 
 // GetTenantServiceRelationsByDependServiceID mocks base method.

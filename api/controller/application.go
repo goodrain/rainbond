@@ -12,11 +12,11 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
-// ApplicationStruct -
-type ApplicationStruct struct{}
+// ApplicationController -
+type ApplicationController struct{}
 
 // CreateApp -
-func (a *ApplicationStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationController) CreateApp(w http.ResponseWriter, r *http.Request) {
 	var tenantReq model.Application
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &tenantReq, nil) {
 		return
@@ -37,7 +37,7 @@ func (a *ApplicationStruct) CreateApp(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateApp -
-func (a *ApplicationStruct) UpdateApp(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationController) UpdateApp(w http.ResponseWriter, r *http.Request) {
 	var updateAppReq model.UpdateAppRequest
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &updateAppReq, nil) {
 		return
@@ -55,7 +55,7 @@ func (a *ApplicationStruct) UpdateApp(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListApps -
-func (a *ApplicationStruct) ListApps(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationController) ListApps(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	appName := query.Get("app_name")
 	pageQuery := query.Get("page")
@@ -84,7 +84,7 @@ func (a *ApplicationStruct) ListApps(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListServices -
-func (a *ApplicationStruct) ListServices(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationController) ListServices(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "app_id")
 	query := r.URL.Query()
 	pageQuery := query.Get("page")
@@ -110,7 +110,7 @@ func (a *ApplicationStruct) ListServices(w http.ResponseWriter, r *http.Request)
 }
 
 // DeleteApp -
-func (a *ApplicationStruct) DeleteApp(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationController) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "app_id")
 
 	// Delete application
@@ -120,4 +120,39 @@ func (a *ApplicationStruct) DeleteApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
+}
+
+func (a *ApplicationController) BatchUpdateComponentPorts(w http.ResponseWriter, r *http.Request) {
+	var appPorts []*model.AppPort
+	if err := httputil.ReadEntity(r, &appPorts); err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	for _, port := range appPorts {
+		if err := httputil.ValidateStruct(port); err != nil {
+			httputil.ReturnBcodeError(r, w, err)
+			return
+		}
+	}
+
+	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+
+	if err := handler.GetApplicationHandler().BatchUpdateComponentPorts(appID, appPorts); err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+func (a *ApplicationController) GetAppStatus(w http.ResponseWriter, r *http.Request) {
+	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+
+	res, err := handler.GetApplicationHandler().GetStatus(appID)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, res)
 }

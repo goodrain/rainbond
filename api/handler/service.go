@@ -921,7 +921,7 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 	if err != nil {
 		logrus.Errorf("get tenant %s resource failure %s", uuid, err.Error())
 	}
-	disks := GetServicesDisk(strings.Split(serviceIDs, ","), s.prometheusCli)
+	disks := GetServicesDiskDeprecated(strings.Split(serviceIDs, ","), s.prometheusCli)
 	var value float64
 	for _, v := range disks {
 		value += v
@@ -940,8 +940,10 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 	return &res, nil
 }
 
-//GetServicesDisk get service disk
-func GetServicesDisk(ids []string, prometheusCli prometheus.Interface) map[string]float64 {
+//GetServicesDiskDeprecated get service disk
+//
+// Deprecated
+func GetServicesDiskDeprecated(ids []string, prometheusCli prometheus.Interface) map[string]float64 {
 	result := make(map[string]float64)
 	//query disk used in prometheus
 	query := fmt.Sprintf(`max(app_resource_appfs{service_id=~"%s"}) by(service_id)`, strings.Join(ids, "|"))
@@ -1910,7 +1912,7 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 		var podName = re.Metadata["pod"]
 		var valuesBytes string
 		if re.Sample != nil {
-			valuesBytes = fmt.Sprintf("%d", re.Sample.Value)
+			valuesBytes = fmt.Sprintf("%d", int(re.Sample.Value()))
 		}
 		if _, ok := memoryUsageMap[podName]; ok {
 			memoryUsageMap[podName][containerName] = valuesBytes
