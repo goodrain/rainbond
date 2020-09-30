@@ -19,7 +19,7 @@ require (
 	github.com/coreos/prometheus-operator v0.38.3
 	github.com/docker/cli v0.0.0-20190711175710-5b38d82aa076
 	github.com/docker/distribution v2.7.1+incompatible
-	github.com/docker/docker v1.4.2-0.20200309214505-aa6a9891b09c
+	github.com/docker/docker v1.13.1
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libcompose v0.4.1-0.20190808084053-143e0f3f1ab9
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
@@ -42,7 +42,6 @@ require (
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.4.2
 	github.com/goodrain/rainbond-operator v1.0.0
-	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uitable v0.0.4
@@ -73,8 +72,7 @@ require (
 	github.com/sirupsen/logrus v1.6.0
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.6.1
-	github.com/testcontainers/testcontainers-go v0.7.0
+	github.com/testcontainers/testcontainers-go v0.8.0
 	github.com/thejerf/suture v3.0.3+incompatible
 	github.com/tidwall/gjson v1.6.1
 	github.com/twinj/uuid v1.0.0
@@ -94,7 +92,6 @@ require (
 	k8s.io/apiserver v0.19.0
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/ingress-nginx v0.0.0-20200903213136-333288e755c1
-	k8s.io/klog v1.0.0
 	k8s.io/kubernetes v1.19.0
 )
 
@@ -103,11 +100,10 @@ replace (
 	github.com/coreos/etcd => github.com/coreos/etcd v3.2.31+incompatible
 	github.com/coreos/go-systemd => github.com/coreos/go-systemd v0.0.0-20161114122254-48702e0da86b
 	github.com/docker/cli => github.com/docker/cli v0.0.0-20181026144139-6b71e84ec8bf
-	github.com/docker/docker => github.com/docker/engine v0.0.0-20190725163905-fa8dd90ceb7b
+	github.com/docker/docker => github.com/docker/engine v0.0.0-20181106193140-f5749085e9cb
 	github.com/docker/libcompose => github.com/docker/libcompose v0.4.1-0.20181019154650-213509acef0f
 	github.com/godbus/dbus/v5 => github.com/godbus/dbus/v5 v5.0.3
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.0
-	// github.com/prometheus/client_golang => github.com/prometheus/client_golang v0.8.1-0.20161124155732-575f371f7862
 	github.com/xeipuuv/gojsonschema => github.com/xeipuuv/gojsonschema v0.0.0-20160323030313-93e72a773fad
 	k8s.io/api => k8s.io/api v0.16.15
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.16.15
