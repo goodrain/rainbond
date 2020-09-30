@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -103,17 +103,17 @@ func NewMasterController(conf option.Config, store store.Storer) (*Controller, e
 			Namespace: "app_resource",
 			Name:      "appmemory",
 			Help:      "tenant service memory request.",
-		}, []string{"tenant_id", "service_id", "service_status"}),
+		}, []string{"tenant_id", "app_id", "service_id", "service_status"}),
 		cpuUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "app_resource",
 			Name:      "appcpu",
 			Help:      "tenant service cpu request.",
-		}, []string{"tenant_id", "service_id", "service_status"}),
+		}, []string{"tenant_id", "app_id", "service_id", "service_status"}),
 		fsUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "app_resource",
 			Name:      "appfs",
 			Help:      "tenant service fs used.",
-		}, []string{"tenant_id", "service_id", "volume_type"}),
+		}, []string{"tenant_id", "app_id", "service_id", "volume_type"}),
 		namespaceMemRequest: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "namespace_resource",
 			Name:      "memory_request",
@@ -202,8 +202,8 @@ func (m *Controller) Scrape(ch chan<- prometheus.Metric, scrapeDurationDesc *pro
 	//获取内存使用情况
 	for _, service := range services {
 		if _, ok := status[service.ServiceID]; ok {
-			m.memoryUse.WithLabelValues(service.TenantID, service.ServiceID, "running").Set(float64(service.GetMemoryRequest()))
-			m.cpuUse.WithLabelValues(service.TenantID, service.ServiceID, "running").Set(float64(service.GetMemoryRequest()))
+			m.memoryUse.WithLabelValues(service.TenantID, service.AppID, service.ServiceID, "running").Set(float64(service.GetMemoryRequest()))
+			m.cpuUse.WithLabelValues(service.TenantID, service.AppID, service.ServiceID, "running").Set(float64(service.GetMemoryRequest()))
 		}
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.memory")
@@ -211,8 +211,8 @@ func (m *Controller) Scrape(ch chan<- prometheus.Metric, scrapeDurationDesc *pro
 	diskcache := m.diskCache.Get()
 	for k, v := range diskcache {
 		key := strings.Split(k, "_")
-		if len(key) == 2 {
-			m.fsUse.WithLabelValues(key[1], key[0], string(model.ShareFileVolumeType)).Set(v)
+		if len(key) == 3 {
+			m.fsUse.WithLabelValues(key[2], key[1], key[0], string(model.ShareFileVolumeType)).Set(v)
 		}
 	}
 	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds(), "collect.fs")

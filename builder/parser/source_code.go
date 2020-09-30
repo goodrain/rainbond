@@ -513,6 +513,16 @@ func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 	return res
 }
 
+func removeQuotes(value string) string {
+	if len(value) > 0 && (value[0] == '"' || value[0] == '\'') {
+		value = value[1:]
+	}
+	if len(value) > 0 && (value[len(value)-1] == '"' || value[0] == '\'') {
+		value = value[:len(value)-1]
+	}
+	return value
+}
+
 func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 	commands, err := sources.ParseFile(dockerfile)
 	if err != nil {
@@ -527,14 +537,14 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 			for i := 0; i < length; i++ {
 				if kv := strings.Split(cm.Value[i], "="); len(kv) > 1 {
 					key := "BUILD_ARG_" + kv[0]
-					d.envs[key] = &types.Env{Name: key, Value: kv[1]}
+					d.envs[key] = &types.Env{Name: key, Value: removeQuotes(kv[1])}
 				} else {
 					if i+1 >= length {
 						logrus.Error("Parse ARG format error at ", cm.Value[i])
 						continue
 					}
 					key := "BUILD_ARG_" + cm.Value[i]
-					d.envs[key] = &types.Env{Name: key, Value: cm.Value[i+1]}
+					d.envs[key] = &types.Env{Name: key, Value: removeQuotes(cm.Value[i+1])}
 					i++
 				}
 			}

@@ -25,9 +25,9 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/jinzhu/gorm"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,6 +96,7 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 		as.DeployVersion = tenantService.DeployVersion
 	}
 	as.ContainerCPU = tenantService.ContainerCPU
+	as.AppID = tenantService.AppID
 	as.ContainerMemory = tenantService.ContainerMemory
 	as.Replicas = tenantService.Replicas
 	as.ServiceAlias = tenantService.ServiceAlias

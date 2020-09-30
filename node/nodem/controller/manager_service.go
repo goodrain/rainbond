@@ -529,7 +529,7 @@ func (m *ManagerService) ListServiceImages() []string {
 		}
 
 		par := parser.CreateDockerRunOrImageParse("", "", svc.Start, nil, event.GetTestLogger())
-		par.ParseDockerun(strings.Split(svc.Start, " "))
+		par.ParseDockerun(svc.Start)
 		logrus.Debugf("detect image: %s", par.GetImage().String())
 		if par.GetImage().String() == "" {
 			continue

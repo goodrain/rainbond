@@ -105,7 +105,7 @@ func (d *DiskCache) setcache() {
 				Key   string
 				Value float64
 			}{
-				Key:   service.ServiceID + "_" + service.TenantID,
+				Key:   service.ServiceID + "_" + service.AppID + "_" + service.TenantID,
 				Value: size,
 			})
 		}
