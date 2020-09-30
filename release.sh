@@ -13,6 +13,10 @@ CACHE=${CACHE:true}
 GO_VERSION=1.13
 
 GOPROXY=${GOPROXY:-'https://goproxy.io'}
+
+if [ "$DISABLE_GOPROXY" == "true" ]; then
+	GOPROXY=
+fi
 if [ -z "$GOOS" ];then
   GOOS="linux"
 fi
