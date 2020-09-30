@@ -555,18 +555,48 @@ func (mr *MockAppConfigGroupDaoMockRecorder) UpdateModel(arg0 interface{}) *gomo
 }
 
 // GetConfigGroupByID mocks base method.
-func (m *MockAppConfigGroupDao) GetConfigGroupByID(appID, name string) (*model.ApplicationConfigGroup, error) {
+func (m *MockAppConfigGroupDao) GetConfigGroupByID(appID, configGroupName string) (*model.ApplicationConfigGroup, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetConfigGroupByID", appID, name)
+	ret := m.ctrl.Call(m, "GetConfigGroupByID", appID, configGroupName)
 	ret0, _ := ret[0].(*model.ApplicationConfigGroup)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetConfigGroupByID indicates an expected call of GetConfigGroupByID.
-func (mr *MockAppConfigGroupDaoMockRecorder) GetConfigGroupByID(appID, name interface{}) *gomock.Call {
+func (mr *MockAppConfigGroupDaoMockRecorder) GetConfigGroupByID(appID, configGroupName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfigGroupByID", reflect.TypeOf((*MockAppConfigGroupDao)(nil).GetConfigGroupByID), appID, name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfigGroupByID", reflect.TypeOf((*MockAppConfigGroupDao)(nil).GetConfigGroupByID), appID, configGroupName)
+}
+
+// GetConfigGroupsByAppID mocks base method.
+func (m *MockAppConfigGroupDao) GetConfigGroupsByAppID(appID string, page, pageSize int) ([]*model.ApplicationConfigGroup, int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetConfigGroupsByAppID", appID, page, pageSize)
+	ret0, _ := ret[0].([]*model.ApplicationConfigGroup)
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetConfigGroupsByAppID indicates an expected call of GetConfigGroupsByAppID.
+func (mr *MockAppConfigGroupDaoMockRecorder) GetConfigGroupsByAppID(appID, page, pageSize interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfigGroupsByAppID", reflect.TypeOf((*MockAppConfigGroupDao)(nil).GetConfigGroupsByAppID), appID, page, pageSize)
+}
+
+// DeleteConfigGroup mocks base method.
+func (m *MockAppConfigGroupDao) DeleteConfigGroup(appID, configGroupName string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteConfigGroup", appID, configGroupName)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteConfigGroup indicates an expected call of DeleteConfigGroup.
+func (mr *MockAppConfigGroupDaoMockRecorder) DeleteConfigGroup(appID, configGroupName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteConfigGroup", reflect.TypeOf((*MockAppConfigGroupDao)(nil).DeleteConfigGroup), appID, configGroupName)
 }
 
 // MockAppConfigGroupServiceDao is a mock of AppConfigGroupServiceDao interface.
@@ -620,6 +650,35 @@ func (mr *MockAppConfigGroupServiceDaoMockRecorder) UpdateModel(arg0 interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockAppConfigGroupServiceDao)(nil).UpdateModel), arg0)
 }
 
+// GetConfigGroupServicesByID mocks base method.
+func (m *MockAppConfigGroupServiceDao) GetConfigGroupServicesByID(appID, configGroupName string) ([]*model.ServiceConfigGroup, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetConfigGroupServicesByID", appID, configGroupName)
+	ret0, _ := ret[0].([]*model.ServiceConfigGroup)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetConfigGroupServicesByID indicates an expected call of GetConfigGroupServicesByID.
+func (mr *MockAppConfigGroupServiceDaoMockRecorder) GetConfigGroupServicesByID(appID, configGroupName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfigGroupServicesByID", reflect.TypeOf((*MockAppConfigGroupServiceDao)(nil).GetConfigGroupServicesByID), appID, configGroupName)
+}
+
+// DeleteConfigGroupService mocks base method.
+func (m *MockAppConfigGroupServiceDao) DeleteConfigGroupService(appID, configGroupName string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteConfigGroupService", appID, configGroupName)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteConfigGroupService indicates an expected call of DeleteConfigGroupService.
+func (mr *MockAppConfigGroupServiceDaoMockRecorder) DeleteConfigGroupService(appID, configGroupName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteConfigGroupService", reflect.TypeOf((*MockAppConfigGroupServiceDao)(nil).DeleteConfigGroupService), appID, configGroupName)
+}
+
 // MockAppConfigGroupItemDao is a mock of AppConfigGroupItemDao interface.
 type MockAppConfigGroupItemDao struct {
 	ctrl     *gomock.Controller
@@ -669,6 +728,35 @@ func (m *MockAppConfigGroupItemDao) UpdateModel(arg0 model.Interface) error {
 func (mr *MockAppConfigGroupItemDaoMockRecorder) UpdateModel(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateModel", reflect.TypeOf((*MockAppConfigGroupItemDao)(nil).UpdateModel), arg0)
+}
+
+// GetConfigGroupItemsByID mocks base method.
+func (m *MockAppConfigGroupItemDao) GetConfigGroupItemsByID(appID, configGroupName string) ([]*model.ConfigItem, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetConfigGroupItemsByID", appID, configGroupName)
+	ret0, _ := ret[0].([]*model.ConfigItem)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetConfigGroupItemsByID indicates an expected call of GetConfigGroupItemsByID.
+func (mr *MockAppConfigGroupItemDaoMockRecorder) GetConfigGroupItemsByID(appID, configGroupName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfigGroupItemsByID", reflect.TypeOf((*MockAppConfigGroupItemDao)(nil).GetConfigGroupItemsByID), appID, configGroupName)
+}
+
+// DeleteConfigGroupItem mocks base method.
+func (m *MockAppConfigGroupItemDao) DeleteConfigGroupItem(appID, configGroupName string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteConfigGroupItem", appID, configGroupName)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteConfigGroupItem indicates an expected call of DeleteConfigGroupItem.
+func (mr *MockAppConfigGroupItemDaoMockRecorder) DeleteConfigGroupItem(appID, configGroupName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteConfigGroupItem", reflect.TypeOf((*MockAppConfigGroupItemDao)(nil).DeleteConfigGroupItem), appID, configGroupName)
 }
 
 // MockVolumeTypeDao is a mock of VolumeTypeDao interface.

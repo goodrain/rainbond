@@ -79,17 +79,21 @@ type ApplicationDao interface {
 type AppConfigGroupDao interface {
 	Dao
 	GetConfigGroupByID(appID, configGroupName string) (*model.ApplicationConfigGroup, error)
+	GetConfigGroupsByAppID(appID string, page, pageSize int) ([]*model.ApplicationConfigGroup, int64, error)
+	DeleteConfigGroup(appID, configGroupName string) error
 }
 
 //AppConfigGroupServiceDao service config group Dao
 type AppConfigGroupServiceDao interface {
 	Dao
-	DeleteServiceConfig(appID, configGroupName string) error
+	GetConfigGroupServicesByID(appID, configGroupName string) ([]*model.ServiceConfigGroup, error)
+	DeleteConfigGroupService(appID, configGroupName string) error
 }
 
 //AppConfigGroupItemDao Application config item group Dao
 type AppConfigGroupItemDao interface {
 	Dao
+	GetConfigGroupItemsByID(appID, configGroupName string) ([]*model.ConfigItem, error)
 	DeleteConfigGroupItem(appID, configGroupName string) error
 }
 

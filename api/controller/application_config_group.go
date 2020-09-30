@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
@@ -23,12 +24,12 @@ func (a *ApplicationController) AddConfigGroup(w http.ResponseWriter, r *http.Re
 	checkServiceExist(appID, configReq.ServiceIDs)
 	
 	// create app ConfigGroups
-	app, err := handler.GetApplicationHandler().AddConfigGroup(appID, &configReq)
+	resp, err := handler.GetApplicationHandler().AddConfigGroup(appID, &configReq)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
-	httputil.ReturnSuccess(r, w, app)
+	httputil.ReturnSuccess(r, w, resp)
 }
 
 // UpdateConfigGroup -
@@ -66,4 +67,43 @@ func checkServiceExist(appID string, serviceIDs []string) {
 			logrus.Warningf("The serviceID [%s] is not under the application or does not exist", sid)
 		}
 	}
+}
+
+// DeleteConfigGroup -
+func (a *ApplicationStruct) DeleteConfigGroup(w http.ResponseWriter, r *http.Request) {
+	configGroupname := chi.URLParam(r, "config_group_name")
+	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+
+	// delete app ConfigGroups
+	err := handler.GetApplicationHandler().DeleteConfigGroup(appID, configGroupname)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+// ListConfigGroups -
+func (a *ApplicationStruct) ListConfigGroups(w http.ResponseWriter, r *http.Request) {
+	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+	query := r.URL.Query()
+	pageQuery := query.Get("page")
+	pageSizeQuery := query.Get("pageSize")
+
+	page, _ := strconv.Atoi(pageQuery)
+	if page == 0 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(pageSizeQuery)
+	if pageSize == 0 {
+		pageSize = 10
+	}
+
+	// list app ConfigGroups
+	resp, err := handler.GetApplicationHandler().ListConfigGroups(appID, page, pageSize)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, resp)
 }

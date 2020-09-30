@@ -36,6 +36,9 @@ type ApplicationHandler interface {
 
 	BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error
 	GetStatus(appID string) (*model.AppStatus, error)
+  
+	DeleteConfigGroup(appID, configGroupName string) error
+	ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error)
 }
 
 // NewApplicationHandler creates a new Tenant Application Handler.
