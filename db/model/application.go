@@ -30,8 +30,8 @@ func (t *ServiceConfigGroup) TableName() string {
 // ConfigItem -
 type ConfigItem struct {
 	Model
-	AppID           string `gorm:"column:app_id" json:"app_id"`
-	ConfigGroupName string `gorm:"column:config_group_name" json:"config_group_name"`
+	AppID           string `gorm:"column:app_id" json:"-"`
+	ConfigGroupName string `gorm:"column:config_group_name" json:"-"`
 	ItemKey         string `gorm:"column:item_key" json:"item_key"`
 	ItemValue       string `gorm:"column:item_value" json:"item_value"`
 }

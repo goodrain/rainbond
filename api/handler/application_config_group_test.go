@@ -175,3 +175,136 @@ func TestAddAppConfigGroup(t *testing.T) {
 	}
 
 }
+
+func TestListConfigGroups(t *testing.T) {
+	tests := []struct {
+		name     string
+		appID    string
+		request  *model.ApplicationConfigGroup
+		mockFunc func(manager *db.MockManager, ctrl *gomock.Controller)
+		wanterr  bool
+	}{
+		{
+			name:  "list config group success",
+			appID: "appID1",
+			request: &model.ApplicationConfigGroup{
+				ConfigGroupName: "configName1",
+				DeployType:      "env",
+				ServiceIDs:      []string{"sid1"},
+				ConfigItems: []model.ConfigItem{
+					{ItemKey: "key1", ItemValue: "value1"},
+					{ItemKey: "key2", ItemValue: "value2"},
+				},
+			},
+			mockFunc: func(manager *db.MockManager, ctrl *gomock.Controller) {
+				configGroupsServiceResult := []*dbmodel.ServiceConfigGroup{
+					{ServiceID: "sid1", ServiceAlias: "sid1_name"},
+				}
+				configGroupsResult := []*dbmodel.ApplicationConfigGroup{
+					{AppID: "appID1", ConfigGroupName: "configName1", DeployType: "env"},
+				}
+				configGroupItemResult := []*dbmodel.ConfigItem{
+					{ItemKey: "itemKey1", ItemValue: "itemValue1"},
+				}
+				applicationConfigDao := daomock.NewMockAppConfigGroupDao(ctrl)
+				applicationConfigDao.EXPECT().GetConfigGroupsByAppID(gomock.Any(), gomock.Any(), gomock.Any()).Return(configGroupsResult, int64(1), nil)
+				manager.EXPECT().AppConfigGroupDao().Return(applicationConfigDao).AnyTimes()
+
+				serviceConfigGroupDao := daomock.NewMockAppConfigGroupServiceDao(ctrl)
+				serviceConfigGroupDao.EXPECT().GetConfigGroupServicesByID(gomock.Any(), gomock.Any()).Return(configGroupsServiceResult, nil).AnyTimes()
+				manager.EXPECT().AppConfigGroupServiceDao().Return(serviceConfigGroupDao).AnyTimes()
+
+				configItemDao := daomock.NewMockAppConfigGroupItemDao(ctrl)
+				configItemDao.EXPECT().GetConfigGroupItemsByID(gomock.Any(), gomock.Any()).Return(configGroupItemResult, nil).AnyTimes()
+				manager.EXPECT().AppConfigGroupItemDao().Return(configItemDao).AnyTimes()
+			},
+			wanterr: false,
+		},
+		{
+			name:  "list config group failed because get config group error",
+			appID: "appID1",
+			mockFunc: func(manager *db.MockManager, ctrl *gomock.Controller) {
+				applicationConfigDao := daomock.NewMockAppConfigGroupDao(ctrl)
+				applicationConfigDao.EXPECT().GetConfigGroupsByAppID(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, int64(0), errors.New("get config group error"))
+				manager.EXPECT().AppConfigGroupDao().Return(applicationConfigDao).AnyTimes()
+			},
+			wanterr: true,
+		},
+		{
+			name:  "list config group failed because get config group service error",
+			appID: "appID1",
+			mockFunc: func(manager *db.MockManager, ctrl *gomock.Controller) {
+				configGroupsResult := []*dbmodel.ApplicationConfigGroup{
+					{AppID: "appID1", ConfigGroupName: "configName1", DeployType: "env"},
+				}
+				applicationConfigDao := daomock.NewMockAppConfigGroupDao(ctrl)
+				applicationConfigDao.EXPECT().GetConfigGroupsByAppID(gomock.Any(), gomock.Any(), gomock.Any()).Return(configGroupsResult, int64(1), nil)
+				manager.EXPECT().AppConfigGroupDao().Return(applicationConfigDao).AnyTimes()
+
+				serviceConfigGroupDao := daomock.NewMockAppConfigGroupServiceDao(ctrl)
+				serviceConfigGroupDao.EXPECT().GetConfigGroupServicesByID(gomock.Any(), gomock.Any()).Return(nil, errors.New("get config group service error")).AnyTimes()
+				manager.EXPECT().AppConfigGroupServiceDao().Return(serviceConfigGroupDao).AnyTimes()
+			},
+			wanterr: true,
+		},
+		{
+			name:  "list config group failed because get config group item error",
+			appID: "appID1",
+			mockFunc: func(manager *db.MockManager, ctrl *gomock.Controller) {
+				configGroupsServiceResult := []*dbmodel.ServiceConfigGroup{
+					{ServiceID: "sid1", ServiceAlias: "sid1_name"},
+				}
+				configGroupsResult := []*dbmodel.ApplicationConfigGroup{
+					{AppID: "appID1", ConfigGroupName: "configName1", DeployType: "env"},
+				}
+				applicationConfigDao := daomock.NewMockAppConfigGroupDao(ctrl)
+				applicationConfigDao.EXPECT().GetConfigGroupsByAppID(gomock.Any(), gomock.Any(), gomock.Any()).Return(configGroupsResult, int64(1), nil)
+				manager.EXPECT().AppConfigGroupDao().Return(applicationConfigDao).AnyTimes()
+
+				serviceConfigGroupDao := daomock.NewMockAppConfigGroupServiceDao(ctrl)
+				serviceConfigGroupDao.EXPECT().GetConfigGroupServicesByID(gomock.Any(), gomock.Any()).Return(configGroupsServiceResult, nil).AnyTimes()
+				manager.EXPECT().AppConfigGroupServiceDao().Return(serviceConfigGroupDao).AnyTimes()
+
+				configItemDao := daomock.NewMockAppConfigGroupItemDao(ctrl)
+				configItemDao.EXPECT().GetConfigGroupItemsByID(gomock.Any(), gomock.Any()).Return(nil, errors.New("get config group item error")).AnyTimes()
+				manager.EXPECT().AppConfigGroupItemDao().Return(configItemDao).AnyTimes()
+			},
+			wanterr: true,
+		},
+	}
+	for i := range tests {
+		tc := tests[i]
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			manager := db.NewMockManager(ctrl)
+			db.SetTestManager(manager)
+			tc.mockFunc(manager, ctrl)
+
+			appAction := NewApplicationHandler()
+			resp, err := appAction.ListConfigGroups(tc.appID, 1, 10)
+			if (err != nil) != tc.wanterr {
+				t.Errorf("Unexpected error = %v, wantErr %v", err, tc.wanterr)
+				return
+			}
+			if resp != nil {
+				for _, r := range resp.ConfigGroup {
+					assert.Equal(t, r.AppID, tc.appID)
+					assert.Equal(t, r.ConfigGroupName, tc.request.ConfigGroupName)
+					assert.Equal(t, r.DeployType, tc.request.DeployType)
+					got := false
+					for _, s := range r.Services {
+						if s.ServiceID == tc.request.ServiceIDs[0] {
+							got = true
+						}
+					}
+					if got != true {
+						t.Errorf("get config group service error,serviceID not exists")
+					}
+				}
+			}
+		})
+	}
+
+}
