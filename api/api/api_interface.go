@@ -160,7 +160,7 @@ type ApplicationInterface interface {
 	DeleteApp(w http.ResponseWriter, r *http.Request)
 	AddConfigGroup(w http.ResponseWriter, r *http.Request)
 	UpdateConfigGroup(w http.ResponseWriter, r *http.Request)
-	UpdateAppPorts(w http.ResponseWriter, r *http.Request)
+	BatchUpdateComponentPorts(w http.ResponseWriter, r *http.Request)
 	GetAppStatus(w http.ResponseWriter, r *http.Request)
 }
 

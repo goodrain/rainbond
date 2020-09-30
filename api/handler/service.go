@@ -1915,7 +1915,7 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 		var podName = re.Metadata["pod"]
 		var valuesBytes string
 		if re.Sample != nil {
-			valuesBytes = fmt.Sprintf("%d", re.Sample.Value)
+			valuesBytes = fmt.Sprintf("%d", int(re.Sample.Value()))
 		}
 		if _, ok := memoryUsageMap[podName]; ok {
 			memoryUsageMap[podName][containerName] = valuesBytes

@@ -7,7 +7,6 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
@@ -21,11 +20,8 @@ func (a *ApplicationController) AddConfigGroup(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if !checkServiceExist(appID, configReq.ServiceIDs) {
-		httputil.ReturnBcodeError(r, w, bcode.ErrServiceNotFound)
-		return
-	}
-
+	checkServiceExist(appID, configReq.ServiceIDs)
+	
 	// create app ConfigGroups
 	app, err := handler.GetApplicationHandler().AddConfigGroup(appID, &configReq)
 	if err != nil {
@@ -44,10 +40,7 @@ func (a *ApplicationController) UpdateConfigGroup(w http.ResponseWriter, r *http
 		return
 	}
 
-	if !checkServiceExist(appID, updateReq.ServiceIDs) {
-		httputil.ReturnBcodeError(r, w, bcode.ErrServiceNotFound)
-		return
-	}
+	checkServiceExist(appID, updateReq.ServiceIDs)
 
 	// update app ConfigGroups
 	app, err := handler.GetApplicationHandler().UpdateConfigGroup(appID, configGroupname, &updateReq)
@@ -59,7 +52,7 @@ func (a *ApplicationController) UpdateConfigGroup(w http.ResponseWriter, r *http
 }
 
 // checkServiceExist -
-func checkServiceExist(appID string, serviceIDs []string) bool {
+func checkServiceExist(appID string, serviceIDs []string) {
 	// Get the application bound serviceIDs
 	availableServices := db.GetManager().TenantServiceDao().GetServiceIDsByAppID(appID)
 	// Judge whether the requested service ID is correct
@@ -70,9 +63,7 @@ func checkServiceExist(appID string, serviceIDs []string) bool {
 	for _, sid := range serviceIDs {
 		_, ok := set[sid]
 		if !ok {
-			logrus.Infof("The serviceID [%s] is not under the application or does not exist", sid)
+			logrus.Warningf("The serviceID [%s] is not under the application or does not exist", sid)
 		}
-		return ok
 	}
-	return false
 }

@@ -34,7 +34,7 @@ type ApplicationHandler interface {
 	AddConfigGroup(appID string, req *model.ApplicationConfigGroup) (*model.ApplicationConfigGroupResp, error)
 	UpdateConfigGroup(appID, configGroupName string, req *model.UpdateAppConfigGroupReq) (*model.ApplicationConfigGroupResp, error)
 
-	UpdatePorts(appID string, ports []*model.AppPort) error
+	BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error
 	GetStatus(appID string) (*model.AppStatus, error)
 }
 
@@ -110,7 +110,8 @@ func (a *ApplicationAction) DeleteApp(appID string) error {
 	return db.GetManager().ApplicationDao().DeleteApp(appID)
 }
 
-func (a *ApplicationAction) UpdatePorts(appID string, ports []*model.AppPort) error {
+// BatchUpdateComponentPorts -
+func (a *ApplicationAction) BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error {
 	if err := a.checkPorts(appID, ports); err != nil {
 		return err
 	}
@@ -184,6 +185,7 @@ func (a *ApplicationAction) checkPorts(appID string, ports []*model.AppPort) err
 	return nil
 }
 
+// GetStatus -
 func (a *ApplicationAction) GetStatus(appID string) (*model.AppStatus, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -208,7 +210,7 @@ func (a *ApplicationAction) GetStatus(appID string) (*model.AppStatus, error) {
 
 func (a *ApplicationAction) getDiskUsage(appID string) float64 {
 	var result float64
-	query := fmt.Sprintf(`max(app_resource_appfs{app_id=~"%s"}) by(app_id)`, appID)
+	query := fmt.Sprintf(`sum(max(app_resource_appfs{app_id=~"%s"}) by(app_id))`, appID)
 	metric := a.promClient.GetMetric(query, time.Now())
 	for _, m := range metric.MetricData.MetricValues {
 		result += m.Sample.Value()

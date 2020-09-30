@@ -20,15 +20,14 @@ package handler
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/api/proxy"
-	"github.com/twinj/uuid"
 	"strings"
 	"testing"
 
+	"github.com/goodrain/rainbond/api/client/prometheus"
 	api_model "github.com/goodrain/rainbond/api/model"
-
-	"github.com/sirupsen/logrus"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
+	"github.com/twinj/uuid"
 )
 
 func TestABCService(t *testing.T) {
@@ -104,7 +103,12 @@ func TestUUID(t *testing.T) {
 }
 
 func TestGetServicesDisk(t *testing.T) {
-	p := proxy.CreateProxy("prometheus", "http", []string{"39.96.189.166:9999"})
-	disk := GetServicesDiskDeprecated([]string{"ef75e1d5e3df412a8af06129dae42869"}, p)
+	prometheusCli, err := prometheus.NewPrometheus(&prometheus.Options{
+		Endpoint: "39.96.189.166:9999",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	disk := GetServicesDiskDeprecated([]string{"ef75e1d5e3df412a8af06129dae42869"}, prometheusCli)
 	t.Log(disk)
 }
