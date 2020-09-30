@@ -10,13 +10,18 @@ import (
 
 // AddConfigGroup -
 func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationConfigGroup) (*model.ApplicationConfigGroupResp, error) {
-	var serviceResp []dbmodel.ServiceConfigGroup
 	services, err := db.GetManager().TenantServiceDao().GetServicesByServiceIDs(req.ServiceIDs)
 	if err != nil {
 		return nil, err
 	}
 
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	// Create application configGroup-services
 	for _, s := range services {
 		serviceConfigGroup := dbmodel.ServiceConfigGroup{
@@ -25,7 +30,6 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 			ServiceID:       s.ServiceID,
 			ServiceAlias:    s.ServiceAlias,
 		}
-		serviceResp = append(serviceResp, serviceConfigGroup)
 		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(&serviceConfigGroup); err != nil {
 			if err == bcode.ErrServiceConfigGroupExist {
 				logrus.Warningf("config group \"%s\" under this service \"%s\" already exists.", serviceConfigGroup.ConfigGroupName, serviceConfigGroup.ServiceID)
@@ -73,21 +77,28 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 	if err != nil {
 		return nil, err
 	}
+	configGroupServices, err := db.GetManager().AppConfigGroupServiceDao().GetConfigGroupServicesByID(appID, req.ConfigGroupName)
+	if err != nil {
+		return nil, err
+	}
+	configGroupItems, err := db.GetManager().AppConfigGroupItemDao().GetConfigGroupItemsByID(appID, req.ConfigGroupName)
+	if err != nil {
+		return nil, err
+	}
 	var resp *model.ApplicationConfigGroupResp
 	resp = &model.ApplicationConfigGroupResp{
 		CreateTime:      appconfig.CreatedAt,
 		AppID:           appID,
 		ConfigGroupName: appconfig.ConfigGroupName,
 		DeployType:      appconfig.DeployType,
-		ConfigItems:     req.ConfigItems,
-		Services:        serviceResp,
+		ConfigItems:     configGroupItems,
+		Services:        configGroupServices,
 	}
 	return resp, nil
 }
 
 // UpdateConfigGroup -
 func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req *model.UpdateAppConfigGroupReq) (*model.ApplicationConfigGroupResp, error) {
-	var serviceResp []dbmodel.ServiceConfigGroup
 	appconfig, err := db.GetManager().AppConfigGroupDao().GetConfigGroupByID(appID, configGroupName)
 	if err != nil {
 		return nil, err
@@ -98,6 +109,12 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 	}
 
 	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	// Update application configGroup-services
 	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteConfigGroupService(appID, configGroupName); err != nil {
 		tx.Rollback()
@@ -110,7 +127,6 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 			ServiceID:       s.ServiceID,
 			ServiceAlias:    s.ServiceAlias,
 		}
-		serviceResp = append(serviceResp, serviceConfigGroup)
 		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(&serviceConfigGroup); err != nil {
 			tx.Rollback()
 			return nil, err
@@ -138,6 +154,14 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 		tx.Rollback()
 		return nil, err
 	}
+	configGroupServices, err := db.GetManager().AppConfigGroupServiceDao().GetConfigGroupServicesByID(appID, configGroupName)
+	if err != nil {
+		return nil, err
+	}
+	configGroupItems, err := db.GetManager().AppConfigGroupItemDao().GetConfigGroupItemsByID(appID, configGroupName)
+	if err != nil {
+		return nil, err
+	}
 
 	// Build return data
 	var resp *model.ApplicationConfigGroupResp
@@ -146,8 +170,8 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 		AppID:           appconfig.AppID,
 		ConfigGroupName: appconfig.ConfigGroupName,
 		DeployType:      appconfig.DeployType,
-		ConfigItems:     req.ConfigItems,
-		Services:        serviceResp,
+		ConfigItems:     configGroupItems,
+		Services:        configGroupServices,
 	}
 	return resp, nil
 }
@@ -155,7 +179,12 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 // DeleteConfigGroup -
 func (a *ApplicationAction) DeleteConfigGroup(appID, configGroupName string) error {
 	tx := db.GetManager().Begin()
-
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
 	// Delete application configGroup-services
 	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteConfigGroupService(appID, configGroupName); err != nil {
 		tx.Rollback()
@@ -181,11 +210,8 @@ func (a *ApplicationAction) DeleteConfigGroup(appID, configGroupName string) err
 
 // ListConfigGroups -
 func (a *ApplicationAction) ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error) {
-	var (
-		servicesResp []dbmodel.ServiceConfigGroup
-		itemsResp    []model.ConfigItem
-		resp         model.ListApplicationConfigGroupResp
-	)
+	var resp model.ListApplicationConfigGroupResp
+
 	configGroups, total, err := db.GetManager().AppConfigGroupDao().GetConfigGroupsByAppID(appID, page, pageSize)
 	if err != nil {
 		return nil, err
@@ -202,24 +228,14 @@ func (a *ApplicationAction) ListConfigGroups(appID string, page, pageSize int) (
 		if err != nil {
 			return nil, err
 		}
-		for _, cs := range configGroupServices {
-			servicesResp = append(servicesResp, *cs)
-		}
 
 		configGroupItems, err := db.GetManager().AppConfigGroupItemDao().GetConfigGroupItemsByID(c.AppID, c.ConfigGroupName)
 		if err != nil {
 			return nil, err
 		}
-		for _, ci := range configGroupItems {
-			cgroupItem := model.ConfigItem{
-				ItemKey:   ci.ItemKey,
-				ItemValue: ci.ItemValue,
-			}
-			itemsResp = append(itemsResp, cgroupItem)
-		}
 
-		cgroup.Services = servicesResp
-		cgroup.ConfigItems = itemsResp
+		cgroup.Services = configGroupServices
+		cgroup.ConfigItems = configGroupItems
 		resp.ConfigGroup = append(resp.ConfigGroup, cgroup)
 	}
 	resp.Page = page
