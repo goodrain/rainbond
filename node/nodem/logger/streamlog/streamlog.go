@@ -19,17 +19,16 @@ import (
 
 	"sync"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/node/nodem/logger"
+	"github.com/sirupsen/logrus"
 )
 
-//STREAMLOGNAME 插件名称
+//STREAMLOGNAME driver name
 const name = "streamlog"
-const defaultClusterAddress = "http://127.0.0.1:6363/docker-instance"
-const defaultAddress = "127.0.0.1:6362"
+const defaultClusterAddress = "http://rbd-eventlog:6363/docker-instance"
+const defaultAddress = "rbd-eventlog:6362"
 
-var etcdV2Endpoints = []string{"http://127.0.0.1:4001"}
-var etcdV3Endpoints = []string{"127.0.0.1:2379"}
+var etcdV3Endpoints = []string{"rbd-etcd:2379"}
 var clusterAddress = []string{defaultClusterAddress}
 
 //Dis dis manage
@@ -235,15 +234,15 @@ func (s *StreamLog) send() {
 	defer tike.Stop()
 	for {
 		select {
-		case <-s.ctx.Done():
-			close(s.closedChan)
-			return
 		case msg := <-s.cacheQueue:
 			if msg == "" || msg == "\n" {
 				continue
 			}
 			s.sendMsg(msg)
 			break
+		case <-s.ctx.Done():
+			close(s.closedChan)
+			return
 		case <-tike.C:
 			s.ping()
 		}
