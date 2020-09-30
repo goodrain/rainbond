@@ -8,7 +8,6 @@ require (
 	github.com/Microsoft/hcsshim v0.8.7 // indirect
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/aliyun/aliyun-oss-go-sdk v2.1.4+incompatible
-	github.com/apcera/termtables v0.0.0-20170405184538-bcbc5dc54055
 	github.com/aws/aws-sdk-go v1.34.17
 	github.com/barnettZQG/gotty v1.0.1-0.20200904091006-a0a1f7d747dc
 	github.com/beorn7/perks v1.0.1
