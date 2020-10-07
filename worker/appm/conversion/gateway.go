@@ -139,15 +139,17 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 		}
 		ports, pp, err = a.CreateUpstreamPluginMappingPort(ports, pluginPorts)
 	}
-	if err != nil {
-		return nil, fmt.Errorf("create upstream port error, %s", err.Error())
-	}
+
 	var services []*corev1.Service
 	var ingresses []*extensions.Ingress
 	var secrets []*corev1.Secret
 	if ports != nil && len(ports) > 0 {
 		for i := range ports {
 			port := ports[i]
+			if *port.IsInnerService && a.appService.GovernanceMode == model.GovernanceModeKubernetesNativeService {
+				services = append(services, a.createKubernetesNativeService(port))
+			}
+			// Regardless of the governance model, the default inner service is created.
 			if *port.IsInnerService {
 				services = append(services, a.createInnerService(port))
 			}
@@ -445,6 +447,12 @@ func (a *AppServiceBuild) createServiceAnnotations() map[string]string {
 		annotations["rainbond.com/tolerate-unready-endpoints"] = "true"
 	}
 	return annotations
+}
+
+func (a *AppServiceBuild) createKubernetesNativeService(port *model.TenantServicesPort) *corev1.Service {
+	svc := a.createInnerService(port)
+	svc.Name = port.K8sServiceName
+	return svc
 }
 
 func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *corev1.Service {
