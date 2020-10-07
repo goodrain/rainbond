@@ -282,9 +282,9 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			}
 			envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: Depend})
 			envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliass))})
-			as.NeedProxy = true
 		}
 	}
+
 	//set app relation env
 	relations, err = dbmanager.TenantServiceRelationDao().GetTenantServiceRelationsByDependServiceID(as.ServiceID)
 	if err != nil {

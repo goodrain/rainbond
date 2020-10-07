@@ -1,16 +1,24 @@
 package model
 
+const (
+	// GovernanceModeBuildInServiceMesh means the governance mode is BUILD_IN_SERVICE_MESH
+	GovernanceModeBuildInServiceMesh = "build_in_service_mesh"
+	// GovernanceModeKubernetesNativeService means the governance mode is KUBERNETES_NATIVE_SERVICE
+	GovernanceModeKubernetesNativeService = "kubernetes_native_service"
+)
+
 // Application -
 type Application struct {
 	Model
-	AppName  string `gorm:"column:app_name" json:"app_name"`
-	AppID    string `gorm:"column:app_id" json:"app_id"`
-	TenantID string `gorm:"column:tenant_id" json:"tenant_id"`
+	AppName        string `gorm:"column:app_name" json:"app_name"`
+	AppID          string `gorm:"column:app_id" json:"app_id"`
+	TenantID       string `gorm:"column:tenant_id" json:"tenant_id"`
+	GovernanceMode string `gorm:"column:governance_mode;default:'build_in_service_mesh'" json:"governance_mode"`
 }
 
 // TableName return tableName "application"
 func (t *Application) TableName() string {
-	return "application"
+	return "applications"
 }
 
 // ServiceConfigGroup -

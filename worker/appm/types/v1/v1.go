@@ -96,8 +96,9 @@ type AppServiceBase struct {
 	IsWindowsService bool
 	CreaterID        string
 	//depend all service id
-	Dependces    []string
-	ExtensionSet map[string]string
+	Dependces      []string
+	ExtensionSet   map[string]string
+	GovernanceMode string
 }
 
 //AppService a service of rainbond app state in kubernetes

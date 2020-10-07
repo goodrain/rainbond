@@ -182,7 +182,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	if err != nil {
 		return nil, err
 	}
-	if relations != nil && len(relations) > 0 {
+	if len(relations) > 0 {
 		var relationIDs []string
 		for _, r := range relations {
 			relationIDs = append(relationIDs, r.DependServiceID)
@@ -215,7 +215,10 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		for _, alias := range serviceAliass {
 			sid2alias[alias.ServiceID] = alias.ServiceAlias
 		}
-		as.NeedProxy = true
+
+		if as.GovernanceMode == model.GovernanceModeBuildInServiceMesh {
+			as.NeedProxy = true
+		}
 	}
 
 	//set app relation env

@@ -73,6 +73,7 @@ type ApplicationDao interface {
 	ListApps(tenantID, appName string, page, pageSize int) ([]*model.Application, int64, error)
 	GetAppByID(appID string) (*model.Application, error)
 	DeleteApp(appID string) error
+	GetByServiceID(sid string) (*model.Application, error)
 }
 
 //AppConfigGroupDao Application config group Dao
