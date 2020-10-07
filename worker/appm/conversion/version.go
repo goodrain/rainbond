@@ -177,13 +177,14 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		Name:  "LOGGER_DRIVER_NAME",
 		Value: "streamlog",
 	})
+
 	//set relation app outer env
+	var relationIDs []string
 	relations, err := dbmanager.TenantServiceRelationDao().GetTenantServiceRelations(as.ServiceID)
 	if err != nil {
 		return nil, err
 	}
 	if len(relations) > 0 {
-		var relationIDs []string
 		for _, r := range relations {
 			relationIDs = append(relationIDs, r.DependServiceID)
 		}
@@ -197,24 +198,19 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			envsAll = append(envsAll, es...)
 		}
 
-		serviceAliass, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
+		serviceAliases, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
 		if err != nil {
 			return nil, err
 		}
-		var Depend string
-		for _, sa := range serviceAliass {
-			if Depend != "" {
-				Depend += ","
+		var depend string
+		for _, sa := range serviceAliases {
+			if depend != "" {
+				depend += ","
 			}
-			Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
+			depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
 		}
-		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: Depend})
-		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliass))})
-
-		sid2alias := make(map[string]string, len(serviceAliass))
-		for _, alias := range serviceAliass {
-			sid2alias[alias.ServiceID] = alias.ServiceAlias
-		}
+		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: depend})
+		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliases))})
 
 		if as.GovernanceMode == model.GovernanceModeBuildInServiceMesh {
 			as.NeedProxy = true
@@ -226,25 +222,23 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	if err != nil {
 		return nil, err
 	}
-	if relations != nil && len(relations) > 0 {
+	if len(relations) > 0 {
 		var relationIDs []string
 		for _, r := range relations {
 			relationIDs = append(relationIDs, r.ServiceID)
 		}
-		if len(relationIDs) > 0 {
-			serviceAliass, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
-			if err != nil {
-				return nil, err
-			}
-			var Depend string
-			for _, sa := range serviceAliass {
-				if Depend != "" {
-					Depend += ","
-				}
-				Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
-			}
-			envs = append(envs, corev1.EnvVar{Name: "REVERSE_DEPEND_SERVICE", Value: Depend})
+		serviceAliass, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
+		if err != nil {
+			return nil, err
 		}
+		var Depend string
+		for _, sa := range serviceAliass {
+			if Depend != "" {
+				Depend += ","
+			}
+			Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
+		}
+		envs = append(envs, corev1.EnvVar{Name: "REVERSE_DEPEND_SERVICE", Value: Depend})
 	}
 
 	//set app port and net env
@@ -270,6 +264,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		}
 		envs = append(envs, corev1.EnvVar{Name: "MONITOR_PORT", Value: portStr})
 	}
+
 	//set app custom envs
 	es, err := dbmanager.TenantServiceEnvVarDao().GetServiceEnvs(as.ServiceID, []string{"inner", "both", "outer"})
 	if err != nil {
@@ -284,6 +279,27 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			as.ExtensionSet[strings.ToLower(e.AttrName[3:])] = e.AttrValue
 		}
 	}
+
+	// env for port alias
+	for _, port := range ports {
+		if as.GovernanceMode == model.GovernanceModeKubernetesNativeService {
+			name := fmt.Sprintf("%s_HOST", port.PortAlias)
+			addOrUpdateEnvs(envs, name, port.K8sServiceName)
+		}
+	}
+
+	// update port env if the governance mode of dependent service is kubernetes_native_service
+	depPorts, err := dbmanager.TenantServicesPortDao().ListInnerPortsByServiceIDs(relationIDs)
+	if as.GovernanceMode == model.GovernanceModeKubernetesNativeService {
+		if err != nil {
+			return nil, err
+		}
+		for _, port := range depPorts {
+			name := fmt.Sprintf("%s_HOST", port.PortAlias)
+			addOrUpdateEnvs(envs, name, port.K8sServiceName)
+		}
+	}
+
 	//set default env
 	envs = append(envs, corev1.EnvVar{Name: "TENANT_ID", Value: as.TenantID})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_ID", Value: as.ServiceID})
@@ -308,6 +324,17 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		envs[i].Value = util.ParseVariable(env.Value, config)
 	}
 	return &envs, nil
+}
+
+func addOrUpdateEnvs(envs []corev1.EnvVar, name, value string) {
+	for i, env := range envs {
+		if env.Name == name {
+			envs[i].Value = value
+			return
+		}
+	}
+
+	envs = append(envs, corev1.EnvVar{Name: name, Value: value})
 }
 
 func convertRulesToEnvs(as *v1.AppService, dbmanager db.Manager, ports []*dbmodel.TenantServicesPort) (re []corev1.EnvVar) {

@@ -64,8 +64,7 @@ func (a *ApplicationDaoImpl) GetAppByID(appID string) (*model.Application, error
 // GetByServiceID -
 func (a *ApplicationDaoImpl) GetByServiceID(sid string) (*model.Application, error) {
 	var app model.Application
-	subQuery := a.DB.Table("tenant_services").Select("app_id").Where("service_id=?", sid)
-	if err := a.DB.Where("app_id = ?", subQuery).Find(&app).Error; err != nil {
+	if err := a.DB.Where("app_id = ?", a.DB.Table("tenant_services").Select("app_id").Where("service_id=?", sid).SubQuery()).Find(&app).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, bcode.ErrApplicationNotFound
 		}
