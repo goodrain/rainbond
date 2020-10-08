@@ -42,7 +42,7 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 
 	// Create application configGroup-configItem
 	for _, it := range req.ConfigItems {
-		configItem := &dbmodel.ConfigItem{
+		configItem := &dbmodel.ConfigGroupItem{
 			AppID:           appID,
 			ConfigGroupName: req.ConfigGroupName,
 			ItemKey:         it.ItemKey,
@@ -139,7 +139,7 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 		return nil, err
 	}
 	for _, it := range req.ConfigItems {
-		configItem := &dbmodel.ConfigItem{
+		configItem := &dbmodel.ConfigGroupItem{
 			AppID:           appID,
 			ConfigGroupName: configGroupName,
 			ItemKey:         it.ItemKey,

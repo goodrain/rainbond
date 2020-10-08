@@ -93,7 +93,8 @@ type AppConfigGroupServiceDao interface {
 //AppConfigGroupItemDao Application config item group Dao
 type AppConfigGroupItemDao interface {
 	Dao
-	GetConfigGroupItemsByID(appID, configGroupName string) ([]*model.ConfigItem, error)
+	GetConfigGroupItemsByID(appID, configGroupName string) ([]*model.ConfigGroupItem, error)
+	ListByServiceID(sid string) ([]*model.ConfigGroupItem, error)
 	DeleteConfigGroupItem(appID, configGroupName string) error
 }
 

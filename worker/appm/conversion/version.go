@@ -25,8 +25,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jinzhu/gorm"
-
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -35,6 +33,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/appm/volume"
+	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -304,7 +303,27 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	for i, env := range envs {
 		envs[i].Value = util.ParseVariable(env.Value, config)
 	}
+
+	configGroup := CreateConfigGroup(as.ServiceID)
+	cgEnvs, err := configGroup.createEnvs()
+	if err != nil {
+		return nil, err
+	}
+	envs = append(envs, cgEnvs...)
+
 	return &envs, nil
+}
+
+func addOrUpdateEnvs(envsPtr *[]corev1.EnvVar, name, value string) {
+	for i, env := range *envsPtr {
+		if env.Name == name {
+			envs := *envsPtr
+			envs[i].Value = value
+			return
+		}
+	}
+
+	*envsPtr = append(*envsPtr, corev1.EnvVar{Name: name, Value: value})
 }
 
 func convertRulesToEnvs(as *v1.AppService, dbmanager db.Manager, ports []*dbmodel.TenantServicesPort) (re []corev1.EnvVar) {

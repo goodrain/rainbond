@@ -731,10 +731,10 @@ func (mr *MockAppConfigGroupItemDaoMockRecorder) UpdateModel(arg0 interface{}) *
 }
 
 // GetConfigGroupItemsByID mocks base method.
-func (m *MockAppConfigGroupItemDao) GetConfigGroupItemsByID(appID, configGroupName string) ([]*model.ConfigItem, error) {
+func (m *MockAppConfigGroupItemDao) GetConfigGroupItemsByID(appID, configGroupName string) ([]*model.ConfigGroupItem, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetConfigGroupItemsByID", appID, configGroupName)
-	ret0, _ := ret[0].([]*model.ConfigItem)
+	ret0, _ := ret[0].([]*model.ConfigGroupItem)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

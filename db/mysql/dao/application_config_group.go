@@ -103,8 +103,8 @@ type AppConfigGroupItemDaoImpl struct {
 
 //AddModel -
 func (a *AppConfigGroupItemDaoImpl) AddModel(mo model.Interface) error {
-	configReq, _ := mo.(*model.ConfigItem)
-	var oldApp model.ConfigItem
+	configReq, _ := mo.(*model.ConfigGroupItem)
+	var oldApp model.ConfigGroupItem
 	if err := a.DB.Where("app_id = ? AND config_group_name = ? AND item_key = ?", configReq.AppID, configReq.ConfigGroupName, configReq.ItemKey).Find(&oldApp).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return a.DB.Create(configReq).Error
@@ -116,22 +116,31 @@ func (a *AppConfigGroupItemDaoImpl) AddModel(mo model.Interface) error {
 
 //UpdateModel -
 func (a *AppConfigGroupItemDaoImpl) UpdateModel(mo model.Interface) error {
-	updateReq := mo.(*model.ConfigItem)
-	return a.DB.Model(&model.ConfigItem{}).
+	updateReq := mo.(*model.ConfigGroupItem)
+	return a.DB.Model(&model.ConfigGroupItem{}).
 		Where("app_id = ? AND config_group_name = ? AND item_key = ?", updateReq.AppID, updateReq.ConfigGroupName, updateReq.ItemKey).
 		Update("item_value", updateReq.ItemValue).Error
 }
 
 // GetConfigGroupItemsByID -
-func (a *AppConfigGroupItemDaoImpl) GetConfigGroupItemsByID(appID, configGroupName string) ([]*model.ConfigItem, error) {
-	var oldApp []*model.ConfigItem
+func (a *AppConfigGroupItemDaoImpl) GetConfigGroupItemsByID(appID, configGroupName string) ([]*model.ConfigGroupItem, error) {
+	var oldApp []*model.ConfigGroupItem
 	if err := a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Find(&oldApp).Error; err != nil {
 		return nil, err
 	}
 	return oldApp, nil
 }
 
+func (a *AppConfigGroupItemDaoImpl) ListByServiceID(sid string) ([]*model.ConfigGroupItem, error) {
+	var items []*model.ConfigGroupItem
+	if err := a.DB.Model(model.ConfigGroupItem{}).Select("app_config_group_item.*").Joins("left join app_config_group_service on app_config_group_item.app_id = app_config_group_service.app_id and app_config_group_item.config_group_name = app_config_group_service.config_group_name").
+		Where("app_config_group_service.service_id = ?", sid).Scan(&items).Error; err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 //DeleteConfigGroupItem -
 func (a *AppConfigGroupItemDaoImpl) DeleteConfigGroupItem(appID, configGroupName string) error {
-	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ConfigItem{}).Error
+	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ConfigGroupItem{}).Error
 }

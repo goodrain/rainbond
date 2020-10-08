@@ -1662,7 +1662,7 @@ type ServiceConfigGroup struct {
 	ServiceAlias    string `json:"service_alias"`
 }
 
-// ConfigItem -
+// ConfigGroupItem -
 type ConfigItem struct {
 	AppID           string `json:"-"`
 	ConfigGroupName string `json:"-"`
@@ -1686,7 +1686,7 @@ type ApplicationConfigGroupResp struct {
 	ConfigGroupName string                        `json:"config_group_name"`
 	DeployType      string                        `json:"deploy_type"`
 	Services        []*dbmodel.ServiceConfigGroup `json:"services"`
-	ConfigItems     []*dbmodel.ConfigItem         `json:"config_items"`
+	ConfigItems     []*dbmodel.ConfigGroupItem    `json:"config_items"`
 }
 
 // UpdateAppConfigGroupReq -

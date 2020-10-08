@@ -142,7 +142,7 @@ func TestAppGetConfigGroupByID(t *testing.T) {
 func TestDeleteConfigGroup(t *testing.T) {
 	tests := []struct {
 		name, appID, configGroupName string
-		request                      *model.ConfigItem
+		request                      *model.ConfigGroupItem
 		mockFunc                     func(mock sqlmock.Sqlmock)
 		wanterr                      bool
 	}{
@@ -268,7 +268,7 @@ func TestAppConfigGroupServiceDaoAddModel(t *testing.T) {
 func TestDeleteConfigGroupService(t *testing.T) {
 	tests := []struct {
 		name, appID, configGroupName string
-		request                      *model.ConfigItem
+		request                      *model.ConfigGroupItem
 		mockFunc                     func(mock sqlmock.Sqlmock)
 		wanterr                      bool
 	}{
@@ -317,14 +317,14 @@ func TestDeleteConfigGroupService(t *testing.T) {
 
 // Test AppConfigGroup Item Dao
 func TestAppConfigGroupItemDaoAddModel(t *testing.T) {
-	req := &model.ConfigItem{
+	req := &model.ConfigGroupItem{
 		AppID:           "appID",
 		ConfigGroupName: "configname",
 		ItemKey:         "key1",
 	}
 	tests := []struct {
 		name     string
-		request  *model.ConfigItem
+		request  *model.ConfigGroupItem
 		mockFunc func(mock sqlmock.Sqlmock)
 		wanterr  bool
 	}{
@@ -378,7 +378,7 @@ func TestAppConfigGroupItemDaoAddModel(t *testing.T) {
 			}
 			tc.mockFunc(mock)
 
-			req := &model.ConfigItem{
+			req := &model.ConfigGroupItem{
 				AppID:           "appID",
 				ConfigGroupName: "configname",
 				ItemKey:         "key1",
@@ -393,7 +393,7 @@ func TestAppConfigGroupItemDaoAddModel(t *testing.T) {
 }
 
 func TestAppConfigGroupItemDaoUpdateModel(t *testing.T) {
-	req := &model.ConfigItem{
+	req := &model.ConfigGroupItem{
 		AppID:           "appID",
 		ConfigGroupName: "configname",
 		ItemKey:         "key1",
@@ -401,7 +401,7 @@ func TestAppConfigGroupItemDaoUpdateModel(t *testing.T) {
 	}
 	tests := []struct {
 		name     string
-		request  *model.ConfigItem
+		request  *model.ConfigGroupItem
 		mockFunc func(mock sqlmock.Sqlmock)
 		wanterr  bool
 	}{
@@ -453,7 +453,7 @@ func TestAppConfigGroupItemDaoUpdateModel(t *testing.T) {
 func TestDeleteConfigGroupItem(t *testing.T) {
 	tests := []struct {
 		name, appID, configGroupName string
-		request                      *model.ConfigItem
+		request                      *model.ConfigGroupItem
 		mockFunc                     func(mock sqlmock.Sqlmock)
 		wanterr                      bool
 	}{

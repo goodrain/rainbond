@@ -203,7 +203,7 @@ func TestListConfigGroups(t *testing.T) {
 				configGroupsResult := []*dbmodel.ApplicationConfigGroup{
 					{AppID: "appID1", ConfigGroupName: "configName1", DeployType: "env"},
 				}
-				configGroupItemResult := []*dbmodel.ConfigItem{
+				configGroupItemResult := []*dbmodel.ConfigGroupItem{
 					{ItemKey: "itemKey1", ItemValue: "itemValue1"},
 				}
 				applicationConfigDao := daomock.NewMockAppConfigGroupDao(ctrl)
