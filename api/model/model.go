@@ -1654,6 +1654,11 @@ type UpdateAppRequest struct {
 	AppName string `json:"app_name" validate:"required"`
 }
 
+// BindServiceRequest -
+type BindServiceRequest struct {
+	ServiceIDs []string `json:"service_ids"`
+}
+
 // ServiceConfigGroup -
 type ServiceConfigGroup struct {
 	AppID           string `json:"app_id"`
@@ -1675,7 +1680,7 @@ type ApplicationConfigGroup struct {
 	AppID           string       `json:"app_id"`
 	ConfigGroupName string       `json:"config_group_name" validate:"required,alphanum,min=2,max=64"`
 	DeployType      string       `json:"deploy_type" validate:"required,oneof=env configfile"`
-	ServiceIDs      []string     `json:"service_ids" validate:"required"`
+	ServiceIDs      []string     `json:"service_ids"`
 	ConfigItems     []ConfigItem `json:"config_items"`
 }
 

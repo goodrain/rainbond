@@ -152,6 +152,7 @@ type ApplicationInterface interface {
 	UpdateApp(w http.ResponseWriter, r *http.Request)
 	ListApps(w http.ResponseWriter, r *http.Request)
 	ListServices(w http.ResponseWriter, r *http.Request)
+	BatchBindService(w http.ResponseWriter, r *http.Request)
 	DeleteApp(w http.ResponseWriter, r *http.Request)
 	AddConfigGroup(w http.ResponseWriter, r *http.Request)
 	UpdateConfigGroup(w http.ResponseWriter, r *http.Request)

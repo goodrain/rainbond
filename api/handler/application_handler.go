@@ -17,6 +17,7 @@ type ApplicationHandler interface {
 	UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error)
 	ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error)
 	GetAppByID(appID string) (*dbmodel.Application, error)
+	BatchBindService(appID string,req model.BindServiceRequest)error
 	DeleteApp(appID string) error
 	AddConfigGroup(appID string, req *model.ApplicationConfigGroup) (*model.ApplicationConfigGroupResp, error)
 	UpdateConfigGroup(appID, configGroupName string, req *model.UpdateAppConfigGroupReq) (*model.ApplicationConfigGroupResp, error)
@@ -91,4 +92,12 @@ func (a *ApplicationAction) DeleteApp(appID string) error {
 		return bcode.ErrDeleteDueToBindService
 	}
 	return db.GetManager().ApplicationDao().DeleteApp(appID)
+}
+
+//BatchBindService
+func (a *ApplicationAction)BatchBindService(appID string,req model.BindServiceRequest)error{
+	if err := db.GetManager().TenantServiceDao().BindAppByServiceIDs(appID,req.ServiceIDs);err!=nil{
+		return err
+	}
+	return nil
 }

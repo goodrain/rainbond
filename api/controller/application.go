@@ -121,3 +121,20 @@ func (a *ApplicationStruct) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
+
+// BatchBindService -
+func (a *ApplicationStruct)BatchBindService(w http.ResponseWriter, r *http.Request){
+	appID := chi.URLParam(r, "app_id")
+	var bindServiceReq model.BindServiceRequest
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &bindServiceReq, nil) {
+		return
+	}
+
+	// bind service
+	err := handler.GetApplicationHandler().BatchBindService(appID, bindServiceReq)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
