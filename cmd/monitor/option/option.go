@@ -57,6 +57,7 @@ type Config struct {
 	CadvisorListenPort   int
 	MysqldExporter       string
 	KSMExporter          string
+	KubeConfig           string
 }
 
 // Web Options for the web Handler.
@@ -98,13 +99,13 @@ func NewConfig() *Config {
 	host, _ := os.Hostname()
 
 	config := &Config{
-		EtcdEndpointsLine: "http://127.0.0.1:2379",
-		EtcdEndpoints:     []string{},
-		AdvertiseAddr:     host + ":9999",
-		BindIP:            host,
-		Port:              9999,
-		LogLevel:          "info",
-
+		EtcdEndpointsLine:    "http://127.0.0.1:2379",
+		EtcdEndpoints:        []string{},
+		AdvertiseAddr:        host + ":9999",
+		BindIP:               host,
+		Port:                 9999,
+		LogLevel:             "info",
+		KubeConfig:           "",
 		ConfigFile:           "/etc/prometheus/prometheus.yml",
 		AlertingRulesFile:    "/etc/prometheus/rules.yml",
 		AlertManagerURL:      []string{},
@@ -144,6 +145,7 @@ func (c *Config) AddFlag(cmd *pflag.FlagSet) {
 	cmd.StringSliceVar(&c.AlertManagerURL, "alertmanager-address", c.AlertManagerURL, "AlertManager url.")
 	cmd.StringVar(&c.MysqldExporter, "mysqld-exporter", c.MysqldExporter, "mysqld exporter address. eg: 127.0.0.1:9104")
 	cmd.StringVar(&c.KSMExporter, "kube-state-metrics", c.KSMExporter, "kube-state-metrics, current server's kube-state-metrics address")
+	cmd.StringVar(&c.KubeConfig, "kube-config", "", "kubernetes api server config file")
 }
 
 //AddPrometheusFlag prometheus flag
@@ -219,7 +221,7 @@ func (c *Config) CompleteConfig() {
 		c.Port = port
 	}
 
-	defaultOptions := "--log.level=%s --web.listen-address=%s --config.file=%s --storage.tsdb.path=%s --storage.tsdb.retention=%s"
+	defaultOptions := "--log.level=%s --web.listen-address=%s --config.file=%s --storage.tsdb.path=%s --storage.tsdb.retention.time=%s"
 	defaultOptions = fmt.Sprintf(defaultOptions, c.LogLevel, c.Web.ListenAddress, c.ConfigFile, c.LocalStoragePath, c.Tsdb.Retention)
 	if c.Tsdb.NoLockfile {
 		defaultOptions += " --storage.tsdb.no-lockfile"

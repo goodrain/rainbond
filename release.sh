@@ -13,6 +13,10 @@ CACHE=${CACHE:true}
 GO_VERSION=1.13
 
 GOPROXY=${GOPROXY:-'https://goproxy.io'}
+
+if [ "$DISABLE_GOPROXY" == "true" ]; then
+	GOPROXY=
+fi
 if [ -z "$GOOS" ];then
   GOOS="linux"
 fi
@@ -36,7 +40,7 @@ buildTime=$(date +%F-%H)
 git_commit=$(git log -n 1 --pretty --format=%h)
 
 release_desc=${VERSION}-${git_commit}-${buildTime}
-build_items=(api chaos gateway monitor mq webcli worker eventlog init-probe mesh-data-panel grctl node)
+build_items=(api chaos gateway monitor mq webcli worker eventlog init-probe mesh-data-panel grctl node resource-proxy)
 
 
 build::binary() {
@@ -49,6 +53,9 @@ build::binary() {
 	local build_args="-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"
 	local build_dir="./cmd/$1"
 	local build_tag=""
+	if [ -f "${DOCKER_PATH}/ignorebuild" ];then
+		return
+	fi
 	CGO_ENABLED=1
 	if [ "$1" = "eventlog" ];then
 		docker build -t goodraim.me/event-build:v1 "${DOCKER_PATH}/build"
@@ -69,13 +76,16 @@ build::binary() {
 build::image() {
 	local OUTPATH="./_output/binary/$GOOS/${BASE_NAME}-$1"
 	local build_image_dir="./_output/image/$1/"
-	if [  !${CACHE} ] || [ ! -f "${OUTPATH}" ];then
-		build::binary "$1"
-	fi
+	local source_dir="./hack/contrib/docker/$1"
 	sudo mkdir -p "${build_image_dir}"
 	sudo chmod 777 "${build_image_dir}"
-	sudo cp "${OUTPATH}" "${build_image_dir}"
-	sudo cp -r ./hack/contrib/docker/$1/* "${build_image_dir}"
+	if [ ! -f "${source_dir}/ignorebuild" ];then
+		if [  !${CACHE} ] || [ ! -f "${OUTPATH}" ];then
+			build::binary "$1"
+		fi
+		sudo cp "${OUTPATH}" "${build_image_dir}"
+	fi	
+	sudo cp -r ${source_dir}/* "${build_image_dir}"
 	pushd "${build_image_dir}"
 		echo "---> build image:$1"
 		sudo sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
@@ -84,6 +94,9 @@ build::image() {
 		if [  $? -ne 0 ];then
 			echo "image version is different ${release_desc}"
 			exit 1
+		fi
+		if [ -f "${source_dir}/test.sh" ];then
+			"${source_dir}/test.sh" "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}"
 		fi
 		if [ "$2" = "push" ];then
 		    sudo docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"

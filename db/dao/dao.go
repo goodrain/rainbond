@@ -139,6 +139,7 @@ type TenantServiceDao interface {
 	ListThirdPartyServices() ([]*model.TenantServices, error)
 	ListServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServiceTypeById(serviceID string) (*model.TenantServices, error)
+	ListByAppID(appID string) ([]*model.TenantServices, error)
 	BindAppByServiceIDs(appID string,serviceIDs []string) error
 }
 
@@ -164,6 +165,7 @@ type TenantServicesPortDao interface {
 	HasOpenPort(sid string) bool
 	DelByServiceID(sid string) error
 	ListInnerPortsByServiceIDs(serviceIDs []string) ([]*model.TenantServicesPort, error)
+	ListByK8sServiceNames(serviceIDs []string) ([]*model.TenantServicesPort, error)
 }
 
 //TenantPluginDao TenantPluginDao

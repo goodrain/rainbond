@@ -26,12 +26,12 @@ import (
 	"path"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	dockercli "github.com/docker/docker/client"
 	"github.com/fsnotify/fsnotify"
 	"github.com/goodrain/rainbond/util"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 
@@ -148,7 +148,7 @@ type UDPMonitorConfig struct {
 func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the log level")
 	fs.StringVar(&a.LogFile, "log-file", "", "the log file path that log output")
-	fs.StringVar(&a.PrometheusAPI, "prometheus", "http://localhost:9999", "the prometheus server address")
+	fs.StringVar(&a.PrometheusAPI, "prometheus", "http://rbd-monitor:9999", "the prometheus server address")
 	fs.StringVar(&a.NodePath, "nodePath", "/rainbond/nodes", "the path of node in etcd")
 	fs.StringVar(&a.HostID, "nodeid", "", "the unique ID for this node. Just specify, don't modify")
 	fs.StringVar(&a.HostIP, "hostIP", "", "the host ip you can define. default get ip from eth0")

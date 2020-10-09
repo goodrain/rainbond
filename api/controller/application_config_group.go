@@ -8,25 +8,21 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
 )
 
 // AddConfigGroup -
-func (a *ApplicationStruct) AddConfigGroup(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationController) AddConfigGroup(w http.ResponseWriter, r *http.Request) {
 	var configReq model.ApplicationConfigGroup
 	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &configReq, nil) {
 		return
 	}
 
-	if !CheckServiceExist(appID, configReq.ServiceIDs) {
-		httputil.ReturnBcodeError(r, w, bcode.ErrServiceNotFound)
-		return
-	}
-
+	checkServiceExist(appID, configReq.ServiceIDs)
+	
 	// create app ConfigGroups
 	resp, err := handler.GetApplicationHandler().AddConfigGroup(appID, &configReq)
 	if err != nil {
@@ -37,7 +33,7 @@ func (a *ApplicationStruct) AddConfigGroup(w http.ResponseWriter, r *http.Reques
 }
 
 // UpdateConfigGroup -
-func (a *ApplicationStruct) UpdateConfigGroup(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationController) UpdateConfigGroup(w http.ResponseWriter, r *http.Request) {
 	var updateReq model.UpdateAppConfigGroupReq
 	configGroupname := chi.URLParam(r, "config_group_name")
 	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
@@ -45,10 +41,7 @@ func (a *ApplicationStruct) UpdateConfigGroup(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if !CheckServiceExist(appID, updateReq.ServiceIDs) {
-		httputil.ReturnBcodeError(r, w, bcode.ErrServiceNotFound)
-		return
-	}
+	checkServiceExist(appID, updateReq.ServiceIDs)
 
 	// update app ConfigGroups
 	app, err := handler.GetApplicationHandler().UpdateConfigGroup(appID, configGroupname, &updateReq)
@@ -59,8 +52,8 @@ func (a *ApplicationStruct) UpdateConfigGroup(w http.ResponseWriter, r *http.Req
 	httputil.ReturnSuccess(r, w, app)
 }
 
-// CheckServiceExist -
-func CheckServiceExist(appID string, serviceIDs []string) bool {
+// checkServiceExist -
+func checkServiceExist(appID string, serviceIDs []string) {
 	// Get the application bound serviceIDs
 	availableServices := db.GetManager().TenantServiceDao().GetServiceIDsByAppID(appID)
 	// Judge whether the requested service ID is correct
@@ -71,15 +64,13 @@ func CheckServiceExist(appID string, serviceIDs []string) bool {
 	for _, sid := range serviceIDs {
 		_, ok := set[sid]
 		if !ok {
-			logrus.Infof("The serviceID [%s] is not under the application or does not exist", sid)
+			logrus.Warningf("The serviceID [%s] is not under the application or does not exist", sid)
 		}
-		return ok
 	}
-	return false
 }
 
 // DeleteConfigGroup -
-func (a *ApplicationStruct) DeleteConfigGroup(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationController) DeleteConfigGroup(w http.ResponseWriter, r *http.Request) {
 	configGroupname := chi.URLParam(r, "config_group_name")
 	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
 
@@ -93,7 +84,7 @@ func (a *ApplicationStruct) DeleteConfigGroup(w http.ResponseWriter, r *http.Req
 }
 
 // ListConfigGroups -
-func (a *ApplicationStruct) ListConfigGroups(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationController) ListConfigGroups(w http.ResponseWriter, r *http.Request) {
 	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
 	query := r.URL.Query()
 	pageQuery := query.Get("page")

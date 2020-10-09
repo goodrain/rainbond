@@ -21,6 +21,9 @@ package store
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/worker/server/pb"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"os"
 	"sync"
 	"time"
@@ -47,7 +50,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
-	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	internalinformers "k8s.io/apiextensions-apiserver/pkg/client/informers/internalversion"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -89,6 +92,8 @@ type Storer interface {
 	GetCrds() ([]*apiextensions.CustomResourceDefinition, error)
 	GetCrd(name string) (*apiextensions.CustomResourceDefinition, error)
 	GetServiceMonitorClient() (*versioned.Clientset, error)
+	GetAppStatus(appID string) (pb.AppStatus_Status, error)
+	GetAppResources(appID string) (int64, int64, error)
 }
 
 // EventType type of event associated with an informer
@@ -429,6 +434,7 @@ func (a *appRuntimeStore) Start() error {
 	}
 	go func() {
 		a.initThirdPartyService()
+		a.initCustomResourceInformer(stopch)
 	}()
 	return nil
 }
@@ -1022,6 +1028,68 @@ func (a *appRuntimeStore) GetAppServicesStatus(serviceIDs []string) map[string]s
 	return statusMap
 }
 
+func (a *appRuntimeStore) GetAppStatus(appID string) (pb.AppStatus_Status, error) {
+	services, err := db.GetManager().TenantServiceDao().ListByAppID(appID)
+	if err != nil {
+		return 0, err
+	}
+	var serviceIDs []string
+	for _, s := range services {
+		serviceIDs = append(serviceIDs, s.ServiceID)
+	}
+
+	appStatus := pb.AppStatus_NIL
+	serviceStatuses := a.GetAppServicesStatus(serviceIDs)
+	switch {
+	case appClosed(serviceStatuses):
+		appStatus = pb.AppStatus_CLOSED
+	case appAbnormal(serviceStatuses):
+		appStatus = pb.AppStatus_ABNORMAL
+	case appPartialAbnormal(serviceStatuses):
+		appStatus = pb.AppStatus_PARTIAL_ABNORMAL
+	case appRunning(serviceStatuses):
+		appStatus = pb.AppStatus_RUNNING
+	}
+
+	return appStatus, nil
+}
+
+func appClosed(statuses map[string]string) bool {
+	for _, status := range statuses {
+		if status != v1.CLOSED {
+			return false
+		}
+	}
+	return true
+}
+
+func appAbnormal(statuses map[string]string) bool {
+	for _, status := range statuses {
+		if status != v1.ABNORMAL {
+			return false
+		}
+	}
+	return true
+}
+
+func appPartialAbnormal(statuses map[string]string) bool {
+	for _, status := range statuses {
+		if status == v1.ABNORMAL {
+			return true
+		}
+	}
+	return false
+}
+
+func appRunning(statuses map[string]string) bool {
+	for _, status := range statuses {
+		if status == v1.RUNNING {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *appRuntimeStore) GetNeedBillingStatus(serviceIDs []string) map[string]string {
 	statusMap := make(map[string]string, len(serviceIDs))
 	if serviceIDs == nil || len(serviceIDs) == 0 {
@@ -1335,6 +1403,30 @@ func (a *appRuntimeStore) UnRegisterVolumeTypeListener(name string) {
 	a.volumeTypeListenerLock.Lock()
 	defer a.volumeTypeListenerLock.Unlock()
 	delete(a.volumeTypeListeners, name)
+}
+
+func (a *appRuntimeStore) GetAppResources(appID string) (int64, int64, error) {
+	// list pod based on the given appID
+	requirement, err := labels.NewRequirement("app_id", selection.Equals, []string{appID})
+	if err != nil {
+		return 0, 0, err
+	}
+	selector := labels.NewSelector()
+	selector.Add(*requirement)
+	pods, err := a.listers.Pod.List(selector)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	var cpu, memory int64
+	for _, pod := range pods {
+		for _, c := range pod.Spec.Containers {
+			cpu += c.Resources.Limits.Cpu().MilliValue()
+			memory += c.Resources.Limits.Memory().Value() / 1024 / 1024
+		}
+	}
+
+	return cpu, memory, nil
 }
 
 func (a *appRuntimeStore) createOrUpdateImagePullSecret(ns string) error {

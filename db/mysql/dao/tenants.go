@@ -25,12 +25,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/jinzhu/gorm"
-	"github.com/sirupsen/logrus"
-
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 )
 
 //TenantDaoImpl 租户信息管理
@@ -679,6 +679,9 @@ func (t *TenantServicesPortDaoImpl) GetInnerPorts(serviceID string) ([]*model.Te
 func (t *TenantServicesPortDaoImpl) GetPort(serviceID string, port int) (*model.TenantServicesPort, error) {
 	var oldPort model.TenantServicesPort
 	if err := t.DB.Where("service_id = ? and container_port=?", serviceID, port).Find(&oldPort).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, bcode.ErrPortNotFound
+		}
 		return nil, err
 	}
 	return &oldPort, nil
@@ -739,6 +742,14 @@ func (t *TenantServicesPortDaoImpl) ListInnerPortsByServiceIDs(serviceIDs []stri
 		return nil, err
 	}
 
+	return ports, nil
+}
+
+func (t *TenantServicesPortDaoImpl) ListByK8sServiceNames(k8sServiceNames []string) ([]*model.TenantServicesPort, error) {
+	var ports []*model.TenantServicesPort
+	if err := t.DB.Where("k8s_service_name in (?)", k8sServiceNames).Find(&ports).Error; err != nil {
+		return nil, err
+	}
 	return ports, nil
 }
 
@@ -811,7 +822,7 @@ func (t *TenantServiceRelationDaoImpl) GetTenantServiceRelations(serviceID strin
 	return oldRelation, nil
 }
 
-// ListByServiceIDs -
+// ListByK8sServiceNames -
 func (t *TenantServiceRelationDaoImpl) ListByServiceIDs(serviceIDs []string) ([]*model.TenantServiceRelation, error) {
 	var relations []*model.TenantServiceRelation
 	if err := t.DB.Where("service_id in (?)", serviceIDs).Find(&relations).Error; err != nil {

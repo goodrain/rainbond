@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -34,7 +33,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 
-	"github.com/goodrain/rainbond/api/proxy"
+	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/cmd/api/option"
@@ -60,10 +59,11 @@ var ErrServiceNotClosed = errors.New("Service has not been closed")
 
 //ServiceAction service act
 type ServiceAction struct {
-	MQClient  gclient.MQClient
-	EtcdCli   *clientv3.Client
-	statusCli *client.AppRuntimeSyncClient
-	conf      option.Config
+	MQClient      gclient.MQClient
+	EtcdCli       *clientv3.Client
+	statusCli     *client.AppRuntimeSyncClient
+	prometheusCli prometheus.Interface
+	conf          option.Config
 }
 
 type dCfg struct {
@@ -76,12 +76,13 @@ type dCfg struct {
 
 //CreateManager create Manger
 func CreateManager(conf option.Config, mqClient gclient.MQClient,
-	etcdCli *clientv3.Client, statusCli *client.AppRuntimeSyncClient) *ServiceAction {
+	etcdCli *clientv3.Client, statusCli *client.AppRuntimeSyncClient, prometheusCli prometheus.Interface) *ServiceAction {
 	return &ServiceAction{
-		MQClient:  mqClient,
-		EtcdCli:   etcdCli,
-		statusCli: statusCli,
-		conf:      conf,
+		MQClient:      mqClient,
+		EtcdCli:       etcdCli,
+		statusCli:     statusCli,
+		conf:          conf,
+		prometheusCli: prometheusCli,
 	}
 }
 
@@ -746,14 +747,11 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	}
 	ts.AppID = sc["app_id"].(string)
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(ts.DeployVersion, ts.ServiceID)
-	if sc["container_memory"] != nil {
-		ts.ContainerMemory = sc["container_memory"].(int)
+	if memory, ok := sc["container_memory"].(int); ok && memory != 0 {
+		ts.ContainerMemory = memory
 	}
-	if sc["container_cmd"] != nil {
-		version.Cmd = sc["container_cmd"].(string)
-	}
-	if sc["service_name"] != nil {
-		ts.ServiceName = sc["service_name"].(string)
+	if name, ok := sc["service_name"].(string); ok && name != "" {
+		ts.ServiceName = name
 	}
 	if sc["extend_method"] != nil {
 		extendMethod := sc["extend_method"].(string)
@@ -923,7 +921,7 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 	if err != nil {
 		logrus.Errorf("get tenant %s resource failure %s", uuid, err.Error())
 	}
-	disks := GetServicesDisk(strings.Split(serviceIDs, ","), GetPrometheusProxy())
+	disks := GetServicesDiskDeprecated(strings.Split(serviceIDs, ","), s.prometheusCli)
 	var value float64
 	for _, v := range disks {
 		value += v
@@ -942,48 +940,20 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 	return &res, nil
 }
 
-//GetServicesDisk get service disk
-func GetServicesDisk(ids []string, p proxy.Proxy) map[string]float64 {
+//GetServicesDiskDeprecated get service disk
+//
+// Deprecated
+func GetServicesDiskDeprecated(ids []string, prometheusCli prometheus.Interface) map[string]float64 {
 	result := make(map[string]float64)
 	//query disk used in prometheus
 	query := fmt.Sprintf(`max(app_resource_appfs{service_id=~"%s"}) by(service_id)`, strings.Join(ids, "|"))
-	query = strings.Replace(query, " ", "%20", -1)
-	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", query), nil)
-	if err != nil {
-		logrus.Error("create request prometheus api error ", err.Error())
-		return result
-	}
-	presult, err := p.Do(req)
-	if err != nil {
-		logrus.Error("do pproxy request prometheus api error ", err.Error())
-		return result
-	}
-
-	if presult.Body != nil {
-		defer presult.Body.Close()
-		if presult.StatusCode != 200 {
-			return result
-		}
-		var qres QueryResult
-		err = json.NewDecoder(presult.Body).Decode(&qres)
-		if err == nil {
-			for _, re := range qres.Data.Result {
-				var serviceID string
-				if tid, ok := re["metric"].(map[string]interface{}); ok {
-					serviceID = tid["service_id"].(string)
-				}
-				if re, ok := (re["value"]).([]interface{}); ok && len(re) == 2 {
-					i, err := strconv.ParseFloat(re[1].(string), 10)
-					if err != nil {
-						logrus.Warningf("error convert interface(%v) to float64", re[1].(string))
-						continue
-					}
-					result[serviceID] = i
-				}
-			}
+	metric := prometheusCli.GetMetric(query, time.Now())
+	for _, re := range metric.MetricData.MetricValues {
+		var serviceID = re.Metadata["service_id"]
+		if re.Sample != nil {
+			result[serviceID] = re.Sample.Value()
 		}
 	}
-
 	return result
 }
 
@@ -1933,59 +1903,24 @@ func (s *ServiceAction) GetMultiServicePods(serviceIDs []string) (*K8sPodInfos, 
 //GetPodContainerMemory Use Prometheus to query memory resources
 func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map[string]string, error) {
 	memoryUsageMap := make(map[string]map[string]string, 10)
-	proxy := GetPrometheusProxy()
 	queryName := strings.Join(podNames, "|")
 	query := fmt.Sprintf(`container_memory_rss{pod=~"%s"}`, queryName)
-	proQuery := strings.Replace(query, " ", "%20", -1)
-	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", proQuery), nil)
-	if err != nil {
-		logrus.Error("create request prometheus api error ", err.Error())
-		return memoryUsageMap, nil
-	}
-	presult, err := proxy.Do(req)
-	if err != nil {
-		logrus.Error("do proxy request prometheus api error ", err.Error())
-		return memoryUsageMap, nil
-	}
-	if presult.Body != nil {
-		defer presult.Body.Close()
-		if presult.StatusCode != 200 {
-			logrus.Error("StatusCode:", presult.StatusCode, err)
-			return memoryUsageMap, nil
+	metric := s.prometheusCli.GetMetric(query, time.Now())
+
+	for _, re := range metric.MetricData.MetricValues {
+		var containerName = re.Metadata["container"]
+		var podName = re.Metadata["pod"]
+		var valuesBytes string
+		if re.Sample != nil {
+			valuesBytes = fmt.Sprintf("%d", int(re.Sample.Value()))
 		}
-		var qres QueryResult
-		err = json.NewDecoder(presult.Body).Decode(&qres)
-		if err == nil {
-			for _, re := range qres.Data.Result {
-				var containerName, podName string
-				var valuesBytes string
-				if cname, ok := re["metric"].(map[string]interface{}); ok {
-					if containerName, ok = cname["container"].(string); !ok {
-						continue
-					}
-					if podName, ok = cname["pod"].(string); !ok {
-						continue
-					}
-				} else {
-					logrus.Info("metric decode error")
-				}
-				if val, ok := (re["value"]).([]interface{}); ok && len(val) == 2 {
-					valuesBytes = val[1].(string)
-				} else {
-					logrus.Info("value decode error")
-				}
-				if _, ok := memoryUsageMap[podName]; ok {
-					memoryUsageMap[podName][containerName] = valuesBytes
-				} else {
-					memoryUsageMap[podName] = map[string]string{
-						containerName: valuesBytes,
-					}
-				}
+		if _, ok := memoryUsageMap[podName]; ok {
+			memoryUsageMap[podName][containerName] = valuesBytes
+		} else {
+			memoryUsageMap[podName] = map[string]string{
+				containerName: valuesBytes,
 			}
-			return memoryUsageMap, nil
 		}
-	} else {
-		logrus.Error("Body Is empty")
 	}
 	return memoryUsageMap, nil
 }

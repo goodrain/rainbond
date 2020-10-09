@@ -33,11 +33,11 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"github.com/eapache/channels"
 	"github.com/fsnotify/fsnotify"
 	"github.com/goodrain/rainbond/builder"
 	jobc "github.com/goodrain/rainbond/builder/job"
+	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
@@ -277,23 +277,6 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	}()
 	name := fmt.Sprintf("%s-%s", re.ServiceID, re.DeployVersion)
 	namespace := re.RbdNamespace
-	envs := []corev1.EnvVar{
-		{Name: "SLUG_VERSION", Value: re.DeployVersion},
-		{Name: "SERVICE_ID", Value: re.ServiceID},
-		{Name: "TENANT_ID", Value: re.TenantID},
-		{Name: "LANGUAGE", Value: re.Lang.String()},
-	}
-	for k, v := range re.BuildEnvs {
-		envs = append(envs, corev1.EnvVar{Name: k, Value: v})
-		if k == "PROC_ENV" {
-			var mapdata = make(map[string]interface{})
-			if err := json.Unmarshal([]byte(v), &mapdata); err == nil {
-				if runtime, ok := mapdata["runtimes"]; ok {
-					envs = append(envs, corev1.EnvVar{Name: "RUNTIME", Value: runtime.(string)})
-				}
-			}
-		}
-	}
 	job := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -304,7 +287,35 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			},
 		},
 	}
-
+	envs := []corev1.EnvVar{
+		{Name: "SLUG_VERSION", Value: re.DeployVersion},
+		{Name: "SERVICE_ID", Value: re.ServiceID},
+		{Name: "TENANT_ID", Value: re.TenantID},
+		{Name: "LANGUAGE", Value: re.Lang.String()},
+	}
+	var mavenSettingName string
+	for k, v := range re.BuildEnvs {
+		if k == "MAVEN_SETTING_NAME" {
+			mavenSettingName = v
+			continue
+		}
+		if k == "PROCFILE" {
+			if !strings.HasPrefix(v, "web:") {
+				v = "web: " + v
+			} else if v[4] != ' ' {
+				v = "web: " + v[4:]
+			}
+		}
+		envs = append(envs, corev1.EnvVar{Name: k, Value: v})
+		if k == "PROC_ENV" {
+			var mapdata = make(map[string]interface{})
+			if err := json.Unmarshal([]byte(v), &mapdata); err == nil {
+				if runtime, ok := mapdata["runtimes"]; ok {
+					envs = append(envs, corev1.EnvVar{Name: "RUNTIME", Value: runtime.(string)})
+				}
+			}
+		}
+	}
 	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
 	// schedule builder
 	if re.CacheMode == "hostpath" {
@@ -337,10 +348,14 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			VolumeSource: re.CacheVolumeSource(),
 		},
 	}
-
-	container := corev1.Container{Name: name, Image: builder.BUILDERIMAGENAME, Stdin: true, StdinOnce: true}
-	container.Env = envs
-	container.Args = []string{"local"}
+	container := corev1.Container{
+		Name:      name,
+		Image:     builder.BUILDERIMAGENAME,
+		Stdin:     true,
+		StdinOnce: true,
+		Env:       envs,
+		Args:      []string{"local"},
+	}
 	slugSubPath := strings.TrimPrefix(re.TGZDir, "/grdata/")
 	logrus.Debugf("sourceTarFileName is: %s", sourceTarFileName)
 	sourceTarPath := strings.TrimPrefix(sourceTarFileName, "/cache/")
@@ -361,6 +376,44 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			MountPath: "/tmp/app-source.tar",
 			SubPath:   sourceTarPath,
 		},
+	}
+	//set maven setting
+	var mavenSettingConfigName string
+	if mavenSettingName != "" && re.Lang.String() == code.JavaMaven.String() {
+		if setting := jobc.GetJobController().GetLanguageBuildSetting(code.JavaMaven, mavenSettingName); setting != "" {
+			mavenSettingConfigName = setting
+		} else {
+			logrus.Warnf("maven setting config %s not found", mavenSettingName)
+		}
+	} else if settingName := jobc.GetJobController().GetDefaultLanguageBuildSetting(code.JavaMaven); settingName != "" {
+		mavenSettingConfigName = settingName
+	}
+	if mavenSettingConfigName != "" {
+		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+			Name: "mavensetting",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: mavenSettingConfigName,
+					},
+				},
+			},
+		})
+		mountPath := "/etc/maven/setting.xml"
+		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
+			MountPath: mountPath,
+			SubPath:   "mavensetting",
+			Name:      "mavensetting",
+		})
+		container.Env = append(container.Env, corev1.EnvVar{
+			Name:  "MAVEN_SETTINGS_PATH",
+			Value: mountPath,
+		})
+		container.Env = append(container.Env, corev1.EnvVar{
+			Name:  "MAVEN_MIRROR_DISABLE",
+			Value: "true",
+		})
+		logrus.Infof("set maven setting config %s success", mavenSettingName)
 	}
 	podSpec.Containers = append(podSpec.Containers, container)
 	for _, ha := range re.HostAlias {
@@ -423,116 +476,6 @@ func (s *slugBuild) waitingComplete(re *Request, reChan *channels.RingChannel) (
 			}
 		}
 	}
-}
-
-//runBuildContainer The deprecated
-func (s *slugBuild) runBuildContainer(re *Request) error {
-	envs := []*sources.KeyValue{
-		&sources.KeyValue{Key: "SLUG_VERSION", Value: re.DeployVersion},
-		&sources.KeyValue{Key: "SERVICE_ID", Value: re.ServiceID},
-		&sources.KeyValue{Key: "TENANT_ID", Value: re.TenantID},
-		&sources.KeyValue{Key: "LANGUAGE", Value: re.Lang.String()},
-	}
-	for k, v := range re.BuildEnvs {
-		envs = append(envs, &sources.KeyValue{Key: k, Value: v})
-		if k == "PROC_ENV" {
-			var mapdata = make(map[string]interface{})
-			if err := json.Unmarshal([]byte(v), &mapdata); err == nil {
-				if runtime, ok := mapdata["runtimes"]; ok {
-					envs = append(envs, &sources.KeyValue{Key: "RUNTIME", Value: runtime.(string)})
-				}
-			}
-		}
-	}
-	containerConfig := &sources.ContainerConfig{
-		Metadata: &sources.ContainerMetadata{
-			Name: re.ServiceID[:8] + "_" + re.DeployVersion,
-		},
-		Image: &sources.ImageSpec{
-			Image: builder.BUILDERIMAGENAME,
-		},
-		Mounts: []*sources.Mount{
-			&sources.Mount{
-				ContainerPath: "/tmp/cache",
-				HostPath:      re.CacheDir,
-				Readonly:      false,
-			},
-			&sources.Mount{
-				ContainerPath: "/tmp/slug",
-				HostPath:      s.tgzDir,
-				Readonly:      false,
-			},
-		},
-		Envs:         envs,
-		Stdin:        true,
-		StdinOnce:    true,
-		AttachStdin:  true,
-		AttachStdout: true,
-		AttachStderr: true,
-		NetworkConfig: &sources.NetworkConfig{
-			NetworkMode: "host",
-		},
-		Args:       []string{"local"},
-		ExtraHosts: re.ExtraHosts,
-	}
-	sourceTarFileName, err := s.getSourceCodeTarFile(re)
-	if err != nil {
-		return fmt.Errorf("create source code tar file error:%s", err.Error())
-	}
-	reader, err := os.OpenFile(sourceTarFileName, os.O_RDONLY, 0755)
-	if err != nil {
-		return fmt.Errorf("open source code tar file error:%s", err.Error())
-	}
-	defer func() {
-		reader.Close()
-		os.Remove(reader.Name())
-	}()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	containerService := sources.CreateDockerService(ctx, re.DockerClient)
-	containerID, err := containerService.CreateContainer(containerConfig)
-	if err != nil {
-		if client.IsErrNotFound(err) {
-			// we don't want to write to stdout anything apart from container.ID
-			if _, err = sources.ImagePull(re.DockerClient, containerConfig.Image.Image, builder.REGISTRYUSER, builder.REGISTRYPASS, re.Logger, 20); err != nil {
-				return fmt.Errorf("pull builder container image error:%s", err.Error())
-			}
-			// Retry
-			containerID, err = containerService.CreateContainer(containerConfig)
-		}
-		//The container already exists.
-		if err != nil && strings.Contains(err.Error(), "is already in use by container") {
-			//remove exist container
-			containerService.RemoveContainer(containerID)
-			// Retry
-			containerID, err = containerService.CreateContainer(containerConfig)
-		}
-		if err != nil {
-			return fmt.Errorf("create builder container failure %s", err.Error())
-		}
-	}
-	errchan := make(chan error, 1)
-	writer := re.Logger.GetWriter("builder", "info")
-	close, err := containerService.AttachContainer(containerID, true, true, true, reader, writer, writer, &errchan)
-	if err != nil {
-		containerService.RemoveContainer(containerID)
-		return fmt.Errorf("attach builder container error:%s", err.Error())
-	}
-	defer close()
-	statuschan := containerService.WaitExitOrRemoved(containerID, true)
-	//start the container
-	if err := containerService.StartContainer(containerID); err != nil {
-		containerService.RemoveContainer(containerID)
-		return fmt.Errorf("start builder container error:%s", err.Error())
-	}
-	if err := <-errchan; err != nil {
-		logrus.Debugf("Error hijack: %s", err)
-	}
-	status := <-statuschan
-	if status != 0 {
-		return &ErrorBuild{Code: status}
-	}
-	return nil
 }
 
 func (s *slugBuild) setImagePullSecretsForPod(pod *corev1.Pod) {

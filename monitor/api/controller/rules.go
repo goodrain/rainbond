@@ -8,9 +8,9 @@ import (
 
 	"encoding/json"
 
-	"github.com/sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/monitor/prometheus"
+	"github.com/sirupsen/logrus"
 )
 
 //RuleControllerManager controller manager
@@ -53,7 +53,7 @@ func (c *RuleControllerManager) AddRules(w http.ResponseWriter, r *http.Request)
 	group = append(group, &RulesConfig)
 	c.Rules.RulesConfig.Groups = group
 	c.Rules.SaveAlertingRulesConfig()
-	c.Manager.RestartDaemon()
+	c.Manager.ReloadConfig()
 	httputil.ReturnSuccess(r, w, "Add rule successfully")
 }
 
@@ -80,7 +80,7 @@ func (c *RuleControllerManager) DelRules(w http.ResponseWriter, r *http.Request)
 			groupsList = append(groupsList[:i], groupsList[i+1:]...)
 			c.Rules.RulesConfig.Groups = groupsList
 			c.Rules.SaveAlertingRulesConfig()
-			c.Manager.RestartDaemon()
+			c.Manager.ReloadConfig()
 			httputil.ReturnSuccess(r, w, "successfully deleted")
 			return
 		}
@@ -108,9 +108,9 @@ func (c *RuleControllerManager) RegRules(w http.ResponseWriter, r *http.Request)
 	for i, v := range group {
 		if v.Name == rulesName {
 			group[i] = &RulesConfig
-			c.Manager.RestartDaemon()
-			httputil.ReturnSuccess(r, w, "Update rule succeeded")
 			c.Rules.SaveAlertingRulesConfig()
+			c.Manager.ReloadConfig()
+			httputil.ReturnSuccess(r, w, "Update rule succeeded")
 			return
 		}
 	}

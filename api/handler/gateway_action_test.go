@@ -26,31 +26,27 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	"github.com/goodrain/rainbond/api/db"
 	apimodel "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/cmd/api/option"
-	cdb "github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 )
 
 var gm *GatewayAction
 
 func init() {
-	conf := option.Config{
-		DBType:           "mysql",
-		DBConnectionInfo: "pohF4b:EiW6Eipu@tcp(192.168.56.101:3306)/region",
-	}
-	//创建db manager
-	if err := db.CreateDBManager(conf); err != nil {
-		fmt.Printf("create db manager error, %v", err)
-	}
-	cli, err := client.NewMqClient([]string{"http://192.168.56.101:2379"}, "192.168.56.101:6300")
-	if err != nil {
-		fmt.Printf("create mq client error, %v", err)
-	}
-	gm = CreateGatewayManager(cdb.GetManager(), cli, nil)
+	//conf := option.Config{
+	//	DBType:           "mysql",
+	//	DBConnectionInfo: "pohF4b:EiW6Eipu@tcp(192.168.56.101:3306)/region",
+	//}
+	////创建db manager
+	//if err := db.CreateDBManager(conf); err != nil {
+	//	fmt.Printf("create db manager error, %v", err)
+	//}
+	//cli, err := client.NewMqClient([]string{"http://192.168.56.101:2379"}, "192.168.56.101:6300")
+	//if err != nil {
+	//	fmt.Printf("create mq client error, %v", err)
+	//}
+	//gm = CreateGatewayManager(cdb.GetManager(), cli, nil)
 }
 func TestSelectAvailablePort(t *testing.T) {
 	t.Log(selectAvailablePort([]int{9000}))         // less than minport

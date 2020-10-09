@@ -3,6 +3,8 @@ package controller
 import (
 	"net/http"
 
+	"github.com/goodrain/rainbond/api/client/prometheus"
+
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
@@ -56,4 +58,20 @@ func (t *TenantStruct) UpdateServiceMonitors(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	httputil.ReturnSuccess(r, w, tsm)
+}
+
+//GetMonitorMetrics get monitor metrics
+func GetMonitorMetrics(w http.ResponseWriter, r *http.Request) {
+	target := r.FormValue("target")
+	var metricMetadatas []prometheus.Metadata
+	if target == "tenant" {
+		metricMetadatas = handler.GetMonitorHandle().GetTenantMonitorMetrics(r.FormValue("tenant"))
+	}
+	if target == "app" {
+		metricMetadatas = handler.GetMonitorHandle().GetAppMonitorMetrics(r.FormValue("tenant"), r.FormValue("app"))
+	}
+	if target == "component" {
+		metricMetadatas = handler.GetMonitorHandle().GetComponentMonitorMetrics(r.FormValue("tenant"), r.FormValue("component"))
+	}
+	httputil.ReturnSuccess(r, w, metricMetadatas)
 }

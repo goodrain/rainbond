@@ -128,10 +128,19 @@ func (c *ContainerLogManage) handleLogger() {
 						retry := 0
 						for retry < maxJSONDecodeRetry {
 							retry++
-							reader, err := NewLogFile(cevent.Container.LogPath, 2, false, decodeFunc, 0640, getTailReader)
-							if err != nil {
-								logrus.Errorf("create logger failure %s", err.Error())
+							var reader *LogFile
+							if cevent.Container.LogPath != "" {
+								var err error
+								reader, err = NewLogFile(cevent.Container.LogPath, 2, false, decodeFunc, 0640, getTailReader)
+								if err != nil {
+									logrus.Errorf("create logger failure %s", err.Error())
+									time.Sleep(time.Second * 1)
+									continue
+								}
+							} else {
 								time.Sleep(time.Second * 1)
+								//retry get container inspect info
+								cevent.Container, _ = c.getContainer(cevent.Container.ID)
 								continue
 							}
 							clog := createContainerLog(c.ctx, cevent.Container, reader)
@@ -152,15 +161,7 @@ func (c *ContainerLogManage) handleLogger() {
 						}
 					}()
 				}
-			case "stop":
-				if logger, ok := c.containerLogs.Load(cevent.Container.ID); ok {
-					clog, okf := logger.(*ContainerLog)
-					if okf {
-						clog.Stop()
-						logrus.Infof("stop copy container log for container %s", cevent.Container.Name)
-					}
-				}
-			case "die":
+			case "die", "destroy":
 				if logger, ok := c.containerLogs.Load(cevent.Container.ID); ok {
 					clog, okf := logger.(*ContainerLog)
 					if okf {
@@ -279,7 +280,7 @@ func (c *ContainerLogManage) getContainer(containerID string) (types.ContainerJS
 	return c.conf.DockerCli.ContainerInspect(ctx, containerID)
 }
 
-var handleAction = []string{"start", "stop", "die"}
+var handleAction = []string{"create", "start", "stop", "die", "destroy"}
 
 func checkEventAction(action string) bool {
 	for _, enable := range handleAction {
@@ -371,7 +372,7 @@ func (container *ContainerLog) startLogger() ([]Logger, error) {
 	configs := getLoggerConfig(container.Config.Env)
 	var loggers []Logger
 	for _, config := range configs {
-		initDriver, err := 
+		initDriver, err :=
 			GetLogDriver(config.Name)
 		if err != nil {
 			logrus.Warnf("get container log driver failure %s", err.Error())

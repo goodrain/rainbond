@@ -12,9 +12,11 @@ var (
 	ErrUpdateNeedCorrectAppID = newByMessage(404, 11004, "update service need correct application ID")
 	//ErrDeleteDueToBindService
 	ErrDeleteDueToBindService = newByMessage(400, 11005, "the application cannot be deleted because there are bound services")
+
+	ErrK8sServiceNameExists = newByMessage(409, 11006, "kubernetes service name already exists")
 )
 
-// tenant application 11100~11199
+// app config group 11100~11199
 var (
 	//ErrApplicationConfigGroupExist -
 	ErrApplicationConfigGroupExist = newByMessage(409, 11101, "application config group already exist")

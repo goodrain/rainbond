@@ -445,8 +445,9 @@ func listDirNonSymlink(dir string) []os.FileInfo {
 //RemoveSpaces 去除空格项
 func RemoveSpaces(sources []string) (re []string) {
 	for _, s := range sources {
-		if s != " " && s != "" {
+		if s != " " && s != "" && s != "\t" && s != "\n" && s != "\r" {
 			re = append(re, s)
+			fmt.Println(re)
 		}
 	}
 	return
@@ -788,4 +789,13 @@ func getVariableKey(source string) (key, value string) {
 		return re[0], ""
 	}
 	return k, ""
+}
+
+// Getenv returns env by key or default value.
+func Getenv(key, def string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return def
+	}
+	return value
 }

@@ -82,6 +82,7 @@ var OnDelete TypeUpgradeMethod = "OnDelete"
 type AppServiceBase struct {
 	TenantID         string
 	TenantName       string
+	AppID            string
 	ServiceID        string
 	ServiceAlias     string
 	ServiceType      AppServiceType
