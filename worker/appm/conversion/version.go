@@ -128,12 +128,27 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		}
 	}
 
+	// secret as container environment variables
+	var envFromSecrets []corev1.EnvFromSource
+	envVarSecrets := as.GetEnvVarSecrets(true)
+	logrus.Debugf("[getMainContainer] %d secrets as envs were found.", len(envVarSecrets))
+	for _, secret := range envVarSecrets {
+		envFromSecrets = append(envFromSecrets, corev1.EnvFromSource{
+			SecretRef: &corev1.SecretEnvSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: secret.Name,
+				},
+			},
+		})
+	}
+
 	c := &corev1.Container{
 		Name:           as.ServiceID,
 		Image:          imagename,
 		Args:           args,
 		Ports:          ports,
 		Env:            *envs,
+		EnvFrom:        envFromSecrets,
 		VolumeMounts:   dv.GetVolumeMounts(),
 		LivenessProbe:  createProbe(as, dbmanager, "liveness"),
 		ReadinessProbe: createProbe(as, dbmanager, "readiness"),
@@ -304,26 +319,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		envs[i].Value = util.ParseVariable(env.Value, config)
 	}
 
-	configGroup := CreateConfigGroup(as.ServiceID)
-	cgEnvs, err := configGroup.createEnvs()
-	if err != nil {
-		return nil, err
-	}
-	envs = append(envs, cgEnvs...)
-
 	return &envs, nil
-}
-
-func addOrUpdateEnvs(envsPtr *[]corev1.EnvVar, name, value string) {
-	for i, env := range *envsPtr {
-		if env.Name == name {
-			envs := *envsPtr
-			envs[i].Value = value
-			return
-		}
-	}
-
-	*envsPtr = append(*envsPtr, corev1.EnvVar{Name: name, Value: value})
 }
 
 func convertRulesToEnvs(as *v1.AppService, dbmanager db.Manager, ports []*dbmodel.TenantServicesPort) (re []corev1.EnvVar) {

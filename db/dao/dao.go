@@ -79,6 +79,7 @@ type ApplicationDao interface {
 type AppConfigGroupDao interface {
 	Dao
 	GetConfigGroupByID(appID, configGroupName string) (*model.ApplicationConfigGroup, error)
+	ListByServiceID(sid string) ([]*model.ApplicationConfigGroup, error)
 	GetConfigGroupsByAppID(appID string, page, pageSize int) ([]*model.ApplicationConfigGroup, int64, error)
 	DeleteConfigGroup(appID, configGroupName string) error
 }

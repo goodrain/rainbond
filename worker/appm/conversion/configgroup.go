@@ -4,32 +4,73 @@ import (
 	"fmt"
 
 	"github.com/goodrain/rainbond/db"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type configGroup struct {
-	sid string
-}
-
-func CreateConfigGroup(sid string) *configGroup {
-	return &configGroup{
-		sid: sid,
-	}
-}
-
-func (c *configGroup) createEnvs() ([]corev1.EnvVar, error) {
-	// list all config group items
-	items, err := db.GetManager().AppConfigGroupItemDao().ListByServiceID(c.sid)
+func TenantServiceConfigGroup(as *v1.AppService, dbm db.Manager) error {
+	logrus.Infof("service id: %s; create config group for service.")
+	groups, err := dbm.AppConfigGroupDao().ListByServiceID(as.ServiceID)
 	if err != nil {
-		return nil, fmt.Errorf("list config group items: %v", err)
+		return fmt.Errorf("[TenantServiceConfigGroup] list config groups: %v", err)
 	}
 
-	var envs []corev1.EnvVar
-	logrus.Debugf("service id: %s; %d config group items were found", c.sid, len(items))
+	var secrets []*corev1.Secret
+	for _, group := range groups {
+		cg := createConfigGroup(as, as.TenantID, group.AppID, group.ConfigGroupName)
+		secret, err := cg.secretForConfigGroup()
+		if err != nil {
+			return fmt.Errorf("create secret for config group: %v", err)
+		}
+		secrets = append(secrets, secret)
+	}
+
+	as.SetEnvVarSecrets(secrets)
+
+	return nil
+}
+
+type configGroup struct {
+	as *v1.AppService
+
+	namespace       string
+	appID           string
+	configGroupName string
+}
+
+func createConfigGroup(as *v1.AppService, ns, appID, configGroupName string) *configGroup {
+	return &configGroup{
+		as:              as,
+		namespace:       ns,
+		appID:           appID,
+		configGroupName: configGroupName,
+	}
+}
+
+func (c *configGroup) secretForConfigGroup() (*corev1.Secret, error) {
+	items, err := db.GetManager().AppConfigGroupItemDao().GetConfigGroupItemsByID(c.appID, c.configGroupName)
+	if err != nil {
+		return nil, err
+	}
+
+	data := make(map[string][]byte)
 	for _, item := range items {
-		addOrUpdateEnvs(&envs, item.ItemKey, item.ItemValue)
+		data[item.ItemKey] = []byte(item.ItemValue)
 	}
 
-	return envs, nil
+	labels := c.as.GetCommonLabels()
+	delete(labels, "service_id")
+	delete(labels, "service_alias")
+
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-%s", c.configGroupName, c.appID),
+			Namespace: c.namespace,
+			Labels:    labels,
+		},
+		Data: data,
+		Type: corev1.SecretTypeOpaque,
+	}, nil
 }

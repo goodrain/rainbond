@@ -130,6 +130,7 @@ type AppService struct {
 	storageClasses   []*storagev1.StorageClass
 	UpgradePatch     map[string][]byte
 	CustomParams     map[string]string
+	envVarSecrets    []*corev1.Secret
 }
 
 //CacheKey app cache key
@@ -497,6 +498,19 @@ func (a *AppService) GetSecrets(canCopy bool) []*corev1.Secret {
 //GetDelSecrets get delSecrets which need to be deleted
 func (a *AppService) GetDelSecrets() []*corev1.Secret {
 	return a.delSecrets
+}
+
+// SetEnvVarSecrets -
+func (a *AppService) SetEnvVarSecrets(secrets []*corev1.Secret) {
+	a.envVarSecrets = secrets
+}
+
+// GetEnvVarSecrets -
+func (a *AppService) GetEnvVarSecrets(canCopy bool) []*corev1.Secret {
+	if canCopy {
+		return append(a.envVarSecrets[:0:0], a.envVarSecrets...)
+	}
+	return a.envVarSecrets
 }
 
 //SetPods set pod
