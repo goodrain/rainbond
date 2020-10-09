@@ -140,6 +140,7 @@ type TenantServiceDao interface {
 	ListServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServiceTypeById(serviceID string) (*model.TenantServices, error)
 	ListByAppID(appID string) ([]*model.TenantServices, error)
+	BindAppByServiceIDs(appID string,serviceIDs []string) error
 }
 
 //TenantServiceDeleteDao TenantServiceDeleteDao

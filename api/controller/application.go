@@ -156,3 +156,20 @@ func (a *ApplicationController) GetAppStatus(w http.ResponseWriter, r *http.Requ
 
 	httputil.ReturnSuccess(r, w, res)
 }
+
+// BatchBindService -
+func (a *ApplicationController)BatchBindService(w http.ResponseWriter, r *http.Request){
+	appID := chi.URLParam(r, "app_id")
+	var bindServiceReq model.BindServiceRequest
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &bindServiceReq, nil) {
+		return
+	}
+
+	// bind service
+	err := handler.GetApplicationHandler().BatchBindService(appID, bindServiceReq)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}

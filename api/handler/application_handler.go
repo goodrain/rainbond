@@ -29,6 +29,7 @@ type ApplicationHandler interface {
 	UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error)
 	ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error)
 	GetAppByID(appID string) (*dbmodel.Application, error)
+	BatchBindService(appID string,req model.BindServiceRequest)error
 	DeleteApp(appID string) error
 
 	AddConfigGroup(appID string, req *model.ApplicationConfigGroup) (*model.ApplicationConfigGroupResp, error)
@@ -36,7 +37,7 @@ type ApplicationHandler interface {
 
 	BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error
 	GetStatus(appID string) (*model.AppStatus, error)
-  
+
 	DeleteConfigGroup(appID, configGroupName string) error
 	ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error)
 }
@@ -219,4 +220,12 @@ func (a *ApplicationAction) getDiskUsage(appID string) float64 {
 		result += m.Sample.Value()
 	}
 	return result
+}
+
+//BatchBindService
+func (a *ApplicationAction)BatchBindService(appID string,req model.BindServiceRequest)error{
+	if err := db.GetManager().TenantServiceDao().BindAppByServiceIDs(appID,req.ServiceIDs);err!=nil{
+		return err
+	}
+	return nil
 }
