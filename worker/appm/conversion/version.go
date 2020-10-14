@@ -177,6 +177,10 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		Name:  "LOGGER_DRIVER_NAME",
 		Value: "streamlog",
 	})
+
+	bootSeqDepServiceIDs := as.ExtensionSet["boot_seq_dep_service_ids"]
+	logrus.Infof("boot sequence dep service ids: %s", bootSeqDepServiceIDs)
+
 	//set relation app outer env
 	relations, err := dbmanager.TenantServiceRelationDao().GetTenantServiceRelations(as.ServiceID)
 	if err != nil {
@@ -202,14 +206,20 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			return nil, err
 		}
 		var Depend string
+		var startupSequenceDependencies []string
 		for _, sa := range serviceAliass {
 			if Depend != "" {
 				Depend += ","
 			}
 			Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
+
+			if bootSeqDepServiceIDs != "" && strings.Contains(bootSeqDepServiceIDs, sa.ServiceID) {
+				startupSequenceDependencies = append(startupSequenceDependencies, sa.ServiceAlias)
+			}
 		}
 		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: Depend})
 		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliass))})
+		envs = append(envs, corev1.EnvVar{Name: "STARTUP_SEQUENCE_DEPENDENCIES", Value: strings.Join(startupSequenceDependencies, ",")})
 
 		sid2alias := make(map[string]string, len(serviceAliass))
 		for _, alias := range serviceAliass {
