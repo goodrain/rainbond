@@ -312,18 +312,19 @@ func (s *ServiceDependency) buildLinkListByHead(l *list.List) []*list.List {
 	if !ok {
 		copy := list.New()
 		copy.PushBackList(l)
-		return []*list.List{l}
+		return []*list.List{copy}
 	}
 
 	var result []*list.List
 	for _, depsid := range depsids {
 		// child node is already in the linked list
-		if alreadyInLinkedList(l, depsid) {
+		if alreadyInLinkedList(l, depsid) || s.childInLinkedList(l, depsid) {
 			copy := list.New()
 			copy.PushBackList(l)
 			result = append(result, copy)
 			continue
 		}
+
 		newl := list.New()
 		newl.PushBackList(l)
 		newl.PushBack(depsid)
@@ -339,6 +340,21 @@ func (s *ServiceDependency) buildLinkListByHead(l *list.List) []*list.List {
 	}
 
 	return result
+}
+
+func (s *ServiceDependency) childInLinkedList(l *list.List, sid string) bool {
+	depsids, ok := s.sid2depsids[sid]
+	if !ok {
+		return false
+	}
+
+	for _, depsid := range depsids {
+		if alreadyInLinkedList(l, depsid) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func alreadyInLinkedList(l *list.List, depsid string) bool {
