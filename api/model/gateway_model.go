@@ -129,6 +129,8 @@ type Body struct {
 	ProxyBodySize       int          `json:"proxy_body_size,omitempty" validate:"proxy_body_size|required"`
 	SetHeaders          []*SetHeader `json:"set_headers,omitempty" `
 	Rewrites            []*Rewrite   `json:"rewrite,omitempty"`
+	ProxyBufferSize     int          `json:"proxy_buffer_size,omitempty"`
+	ProxyBufferNumbers  int          `json:"proxy_buffer_numbers,omitempty"`
 }
 
 //SetHeader set header
