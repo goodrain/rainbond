@@ -1039,6 +1039,7 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 			vpD.MappingPort = vp.MappingPort
 			vpD.Protocol = vp.Protocol
 			vpD.PortAlias = vp.PortAlias
+			vpD.K8sServiceName = vp.K8sServiceName
 			if err := db.GetManager().TenantServicesPortDao().AddModel(&vpD); err != nil {
 				logrus.Errorf("add port var error, %v", err)
 				return err

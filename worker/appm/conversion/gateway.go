@@ -147,8 +147,11 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 		for i := range ports {
 			port := ports[i]
 			if *port.IsInnerService {
-				services = append(services, a.createKubernetesNativeService(port))
-				services = append(services, a.createInnerService(port))
+				if a.appService.GovernanceMode == model.GovernanceModeBuildInServiceMesh {
+					services = append(services, a.createKubernetesNativeService(port))
+				} else {
+					services = append(services, a.createInnerService(port))
+				}
 			}
 			if *port.IsOuterService {
 				service := a.createOuterService(port)
@@ -449,6 +452,9 @@ func (a *AppServiceBuild) createServiceAnnotations() map[string]string {
 func (a *AppServiceBuild) createKubernetesNativeService(port *model.TenantServicesPort) *corev1.Service {
 	svc := a.createInnerService(port)
 	svc.Name = port.K8sServiceName
+	if svc.Name == "" {
+		svc.Name = fmt.Sprintf("%s_%d", a.service.ServiceAlias, port.ContainerPort)
+	}
 	return svc
 }
 
