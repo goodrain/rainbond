@@ -718,18 +718,25 @@ func (s *k8sStore) ingressIsValid(ing *extensions.Ingress) bool {
 		logrus.Errorf("Cant not convert %v to %v", reflect.TypeOf(item), reflect.TypeOf(endpoint))
 		return false
 	}
-	if endpoint.Subsets == nil || len(endpoint.Subsets) == 0 {
+	if len(endpoint.Subsets) == 0 {
 		logrus.Debugf("Endpoints(%s) is empty, ignore it", endpointKey)
 		return false
 	}
-	for _, ep := range endpoint.Subsets {
-		if len(ep.Addresses) == 0 {
-			logrus.Debugf("Endpoints(%s) is empty, ignore it", endpointKey)
-			return false
-		}
+	if !hasReadyAddresses(endpoint) {
+		logrus.Debugf("Endpoints(%s) is empty, ignore it", endpointKey)
+		return false
 	}
 
 	return true
+}
+
+func hasReadyAddresses(endpoints *corev1.Endpoints) bool {
+	for _, ep := range endpoints.Subsets {
+		if len(ep.Addresses) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // GetIngress returns the Ingress matching key.
