@@ -48,6 +48,7 @@ type ServiceHandler interface {
 	ServiceDepend(action string, ds *api_model.DependService) error
 	EnvAttr(action string, at *dbmodel.TenantServiceEnvVar) error
 	PortVar(action string, tenantID, serviceID string, vp *api_model.ServicePorts, oldPort int) error
+	CreatePorts(tenantID, serviceID string, vps *api_model.ServicePorts) error
 	PortOuter(tenantName, serviceID string, containerPort int, servicePort *api_model.ServicePortInnerOrOuter) (*dbmodel.TenantServiceLBMappingPort, string, error)
 	PortInner(tenantName, serviceID, operation string, port int) error
 	VolumnVar(avs *dbmodel.TenantServiceVolume, tenantID, fileContent, action string) *util.APIHandleError

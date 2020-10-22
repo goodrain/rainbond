@@ -1,5 +1,6 @@
 package bcode
 
+// service: 10000~10099
 var (
 	//ErrPortNotFound -
 	ErrPortNotFound = newByMessage(404, 10001, "service port not found")

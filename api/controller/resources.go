@@ -1351,7 +1351,7 @@ func (t *TenantStruct) addPortController(w http.ResponseWriter, r *http.Request)
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ports, nil); !ok {
 		return
 	}
-	if err := handler.GetServiceManager().PortVar("add", tenantID, serviceID, &ports, 0); err != nil {
+	if err := handler.GetServiceManager().CreatePorts(tenantID, serviceID, &ports); err != nil {
 		logrus.Errorf("add port error. %v", err)
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
