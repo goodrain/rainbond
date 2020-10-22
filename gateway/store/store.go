@@ -690,7 +690,6 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 
 // ingressIsValid checks if the specified ingress is valid
 func (s *k8sStore) ingressIsValid(ing *extensions.Ingress) bool {
-
 	var endpointKey string
 	if ing.Spec.Backend != nil { // stream
 		endpointKey = fmt.Sprintf("%s/%s", ing.Namespace, ing.Spec.Backend.ServiceName)
@@ -724,7 +723,7 @@ func (s *k8sStore) ingressIsValid(ing *extensions.Ingress) bool {
 		return false
 	}
 	for _, ep := range endpoint.Subsets {
-		if (ep.Addresses == nil || len(ep.Addresses) == 0) && (ep.NotReadyAddresses == nil || len(ep.NotReadyAddresses) == 0) {
+		if len(ep.Addresses) == 0 {
 			logrus.Debugf("Endpoints(%s) is empty, ignore it", endpointKey)
 			return false
 		}
