@@ -280,17 +280,9 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		}
 	}
 
-	// env for port alias
-	for _, port := range ports {
-		if as.GovernanceMode == model.GovernanceModeKubernetesNativeService {
-			name := fmt.Sprintf("%s_HOST", port.PortAlias)
-			addOrUpdateEnvs(envs, name, port.K8sServiceName)
-		}
-	}
-
-	// update port env if the governance mode of dependent service is kubernetes_native_service
-	depPorts, err := dbmanager.TenantServicesPortDao().ListInnerPortsByServiceIDs(relationIDs)
 	if as.GovernanceMode == model.GovernanceModeKubernetesNativeService {
+		// update port env if the governance mode of dependent service is kubernetes_native_service
+		depPorts, err := dbmanager.TenantServicesPortDao().ListInnerPortsByServiceIDs(relationIDs)
 		if err != nil {
 			return nil, err
 		}
