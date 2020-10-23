@@ -280,18 +280,6 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		}
 	}
 
-	if as.GovernanceMode == model.GovernanceModeKubernetesNativeService {
-		// update port env if the governance mode of dependent service is kubernetes_native_service
-		depPorts, err := dbmanager.TenantServicesPortDao().ListInnerPortsByServiceIDs(relationIDs)
-		if err != nil {
-			return nil, err
-		}
-		for _, port := range depPorts {
-			name := fmt.Sprintf("%s_HOST", port.PortAlias)
-			addOrUpdateEnvs(envs, name, port.K8sServiceName)
-		}
-	}
-
 	//set default env
 	envs = append(envs, corev1.EnvVar{Name: "TENANT_ID", Value: as.TenantID})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_ID", Value: as.ServiceID})
@@ -316,17 +304,6 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		envs[i].Value = util.ParseVariable(env.Value, config)
 	}
 	return &envs, nil
-}
-
-func addOrUpdateEnvs(envs []corev1.EnvVar, name, value string) {
-	for i, env := range envs {
-		if env.Name == name {
-			envs[i].Value = value
-			return
-		}
-	}
-
-	envs = append(envs, corev1.EnvVar{Name: name, Value: value})
 }
 
 func convertRulesToEnvs(as *v1.AppService, dbmanager db.Manager, ports []*dbmodel.TenantServicesPort) (re []corev1.EnvVar) {
