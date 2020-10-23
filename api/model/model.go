@@ -1631,6 +1631,7 @@ type Application struct {
 	AppName  string `json:"app_name" validate:"required"`
 	AppID    string `json:"app_id"`
 	TenantID string `json:"tenant_id"`
+	ServiceIDs []string `json:"service_ids"`
 }
 
 // ListAppResponse -
