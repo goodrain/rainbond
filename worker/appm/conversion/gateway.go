@@ -453,7 +453,7 @@ func (a *AppServiceBuild) createKubernetesNativeService(port *model.TenantServic
 	svc := a.createInnerService(port)
 	svc.Name = port.K8sServiceName
 	if svc.Name == "" {
-		svc.Name = fmt.Sprintf("%s_%d", a.service.ServiceAlias, port.ContainerPort)
+		svc.Name = fmt.Sprintf("%s-%d", a.service.ServiceAlias, port.ContainerPort)
 	}
 	return svc
 }
