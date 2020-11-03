@@ -222,6 +222,12 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	}
 	_ = f.UpgradeSecrets(s.manager.client, &app, oldApp.GetSecrets(true), app.GetSecrets(true), handleErr)
 	_ = f.UpgradeIngress(s.manager.client, &app, oldApp.GetIngress(true), app.GetIngress(true), handleErr)
+	for _, secret := range app.GetEnvVarSecrets(true) {
+		err := f.CreateOrUpdateSecret(s.manager.client, secret)
+		if err != nil {
+			return fmt.Errorf("[upgradeController] [upgradeOne] create or update secrets: %v", err)
+		}
+	}
 
 	if crd, _ := s.manager.store.GetCrd(store.ServiceMonitor); crd != nil {
 		client, err := s.manager.store.GetServiceMonitorClient()

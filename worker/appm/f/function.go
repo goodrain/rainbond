@@ -579,3 +579,21 @@ func UpgradeServiceMonitor(
 	}
 	return nil
 }
+
+// CreateOrUpdateSecret creates or updates secret.
+func CreateOrUpdateSecret(clientset kubernetes.Interface, secret *corev1.Secret) error {
+	old, err := clientset.CoreV1().Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
+	if err != nil {
+		if !k8sErrors.IsNotFound(err) {
+			return err
+		}
+		// create secret
+		_, err := clientset.CoreV1().Secrets(secret.Namespace).Create(secret)
+		return err
+	}
+
+	// update secret
+	secret.ResourceVersion = old.ResourceVersion
+	_, err = clientset.CoreV1().Secrets(secret.Namespace).Update(secret)
+	return err
+}

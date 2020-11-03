@@ -25,8 +25,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jinzhu/gorm"
-
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -35,6 +33,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/appm/volume"
+	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -129,12 +128,27 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		}
 	}
 
+	// secret as container environment variables
+	var envFromSecrets []corev1.EnvFromSource
+	envVarSecrets := as.GetEnvVarSecrets(true)
+	logrus.Debugf("[getMainContainer] %d secrets as envs were found.", len(envVarSecrets))
+	for _, secret := range envVarSecrets {
+		envFromSecrets = append(envFromSecrets, corev1.EnvFromSource{
+			SecretRef: &corev1.SecretEnvSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: secret.Name,
+				},
+			},
+		})
+	}
+
 	c := &corev1.Container{
 		Name:           as.ServiceID,
 		Image:          imagename,
 		Args:           args,
 		Ports:          ports,
 		Env:            *envs,
+		EnvFrom:        envFromSecrets,
 		VolumeMounts:   dv.GetVolumeMounts(),
 		LivenessProbe:  createProbe(as, dbmanager, "liveness"),
 		ReadinessProbe: createProbe(as, dbmanager, "readiness"),
@@ -304,6 +318,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	for i, env := range envs {
 		envs[i].Value = util.ParseVariable(env.Value, config)
 	}
+
 	return &envs, nil
 }
 

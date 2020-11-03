@@ -30,6 +30,8 @@ func init() {
 	RegistConversion("ServiceSource", ServiceSource)
 	//step2 conv service base
 	RegistConversion("TenantServiceBase", TenantServiceBase)
+	// convert config group to env secrets
+	RegistConversion("TenantServiceConfigGroup", TenantServiceConfigGroup)
 	//step3 conv service pod base info
 	RegistConversion("TenantServiceVersion", TenantServiceVersion)
 	//step4 conv service plugin

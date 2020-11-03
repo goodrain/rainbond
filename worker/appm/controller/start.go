@@ -137,7 +137,7 @@ func (s *startController) startOne(app v1.AppService) error {
 		}
 	}
 	//step 4: create secrets
-	if secrets := app.GetSecrets(true); secrets != nil {
+	if secrets := append(app.GetSecrets(true), app.GetEnvVarSecrets(true)...); secrets != nil {
 		for _, secret := range secrets {
 			if len(secret.ResourceVersion) == 0 {
 				_, err := s.manager.client.CoreV1().Secrets(app.TenantID).Create(secret)

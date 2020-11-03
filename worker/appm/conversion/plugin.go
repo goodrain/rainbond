@@ -25,8 +25,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -90,6 +90,17 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 		if err != nil {
 			return nil, nil, nil, err
 		}
+		var envFromSecrets []corev1.EnvFromSource
+		envVarSecrets := as.GetEnvVarSecrets(true)
+		for _, secret := range envVarSecrets {
+			envFromSecrets = append(envFromSecrets, corev1.EnvFromSource{
+				SecretRef: &corev1.SecretEnvSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: secret.Name,
+					},
+				},
+			})
+		}
 		args, err := createPluginArgs(versionInfo.ContainerCMD, *envs)
 		if err != nil {
 			return nil, nil, nil, err
@@ -98,6 +109,7 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 			Name:                   "plugin-" + pluginR.PluginID,
 			Image:                  versionInfo.BuildLocalImage,
 			Env:                    *envs,
+			EnvFrom:                envFromSecrets,
 			Resources:              createPluginResources(pluginR.ContainerMemory, pluginR.ContainerCPU),
 			TerminationMessagePath: "",
 			Args:                   args,
