@@ -301,14 +301,12 @@ func (v2 *V2) applicationRouter() chi.Router {
 	r := chi.NewRouter()
 	// Init Application
 	r.Use(middleware.InitApplication)
-
 	// Operation application
 	r.Put("/", controller.GetManager().UpdateApp)
 	r.Delete("/", controller.GetManager().DeleteApp)
-
 	// Get services under application
 	r.Get("/services", controller.GetManager().ListServices)
-
+	r.Put("/services", controller.GetManager().BatchBindService)
 	// Application configuration group
 	r.Post("/configgroups", controller.GetManager().AddConfigGroup)
 	r.Put("/configgroups/{config_group_name}", controller.GetManager().UpdateConfigGroup)

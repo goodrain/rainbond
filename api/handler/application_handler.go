@@ -29,6 +29,7 @@ type ApplicationHandler interface {
 	UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error)
 	ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error)
 	GetAppByID(appID string) (*dbmodel.Application, error)
+	BatchBindService(appID string, req model.BindServiceRequest) error
 	DeleteApp(appID string) error
 
 	AddConfigGroup(appID string, req *model.ApplicationConfigGroup) (*model.ApplicationConfigGroupResp, error)
@@ -36,7 +37,7 @@ type ApplicationHandler interface {
 
 	BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error
 	GetStatus(appID string) (*model.AppStatus, error)
-  
+
 	DeleteConfigGroup(appID, configGroupName string) error
 	ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error)
 }
@@ -57,7 +58,34 @@ func (a *ApplicationAction) CreateApp(req *model.Application) (*model.Applicatio
 		TenantID: req.TenantID,
 	}
 	req.AppID = appReq.AppID
+
+	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
+
 	if err := db.GetManager().ApplicationDao().AddModel(appReq); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	if len(req.ServiceIDs) != 0 {
+		for _,sid := range req.ServiceIDs {
+			if _, err := db.GetManager().TenantServiceDao().GetServiceByID(sid); err != nil {
+				tx.Rollback()
+				return nil, err
+			}
+		}
+		if err := db.GetManager().TenantServiceDao().BindAppByServiceIDs(appReq.AppID, req.ServiceIDs); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
 		return nil, err
 	}
 	return req, nil
@@ -219,4 +247,17 @@ func (a *ApplicationAction) getDiskUsage(appID string) float64 {
 		result += m.Sample.Value()
 	}
 	return result
+}
+
+//BatchBindService
+func (a *ApplicationAction) BatchBindService(appID string, req model.BindServiceRequest) error {
+	for _,sid := range req.ServiceIDs {
+		if _, err := db.GetManager().TenantServiceDao().GetServiceByID(sid); err != nil {
+			return err
+		}
+	}
+	if err := db.GetManager().TenantServiceDao().BindAppByServiceIDs(appID, req.ServiceIDs); err != nil {
+		return err
+	}
+	return nil
 }
