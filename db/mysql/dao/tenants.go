@@ -642,6 +642,15 @@ func (t *TenantServicesPortDaoImpl) DeleteModel(serviceID string, args ...interf
 	return nil
 }
 
+// GetByTenantAndName -
+func (t *TenantServicesPortDaoImpl) GetByTenantAndName(tenantID, name string) (*model.TenantServicesPort, error) {
+	var port model.TenantServicesPort
+	if err := t.DB.Where("tenant_id=? and k8s_service_name=?", tenantID, name).Find(&port).Error; err != nil {
+		return nil, err
+	}
+	return &port, nil
+}
+
 //GetPortsByServiceID 通过服务获取port
 func (t *TenantServicesPortDaoImpl) GetPortsByServiceID(serviceID string) ([]*model.TenantServicesPort, error) {
 	var oldPort []*model.TenantServicesPort

@@ -35,6 +35,7 @@ import (
 
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
@@ -1018,6 +1019,54 @@ func (s *ServiceAction) EnvAttr(action string, at *dbmodel.TenantServiceEnvVar) 
 	return nil
 }
 
+// CreatePorts -
+func (s *ServiceAction) CreatePorts(tenantID, serviceID string, vps *api_model.ServicePorts) error {
+	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
+
+	for _, vp := range vps.Port {
+		// make sure K8sServiceName is unique
+		if vp.K8sServiceName != "" {
+			port, err := db.GetManager().TenantServicesPortDao().GetByTenantAndName(tenantID, vp.K8sServiceName)
+			if err != nil && err != gorm.ErrRecordNotFound {
+				tx.Rollback()
+				return err
+			}
+			if port != nil {
+				tx.Rollback()
+				return bcode.ErrK8sServiceNameExists
+			}
+		}
+
+		var vpD dbmodel.TenantServicesPort
+		vpD.ServiceID = serviceID
+		vpD.TenantID = tenantID
+		vpD.IsInnerService = &vp.IsInnerService
+		vpD.IsOuterService = &vp.IsOuterService
+		vpD.ContainerPort = vp.ContainerPort
+		vpD.MappingPort = vp.MappingPort
+		vpD.Protocol = vp.Protocol
+		vpD.PortAlias = vp.PortAlias
+		vpD.K8sServiceName = vp.K8sServiceName
+		if err := db.GetManager().TenantServicesPortDaoTransactions(tx).AddModel(&vpD); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
+}
+
 //PortVar port var
 func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_model.ServicePorts, oldPort int) error {
 	crt, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
@@ -1028,22 +1077,6 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 		return err
 	}
 	switch action {
-	case "add":
-		for _, vp := range vps.Port {
-			var vpD dbmodel.TenantServicesPort
-			vpD.ServiceID = serviceID
-			vpD.TenantID = tenantID
-			vpD.IsInnerService = &vp.IsInnerService
-			vpD.IsOuterService = &vp.IsOuterService
-			vpD.ContainerPort = vp.ContainerPort
-			vpD.MappingPort = vp.MappingPort
-			vpD.Protocol = vp.Protocol
-			vpD.PortAlias = vp.PortAlias
-			if err := db.GetManager().TenantServicesPortDao().AddModel(&vpD); err != nil {
-				logrus.Errorf("add port var error, %v", err)
-				return err
-			}
-		}
 	case "delete":
 		tx := db.GetManager().Begin()
 		defer func() {
@@ -1082,6 +1115,19 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 				tx.Rollback()
 				return err
 			}
+			// make sure K8sServiceName is unique
+			if vp.K8sServiceName != "" {
+				port, err := db.GetManager().TenantServicesPortDao().GetByTenantAndName(tenantID, vp.K8sServiceName)
+				if err != nil && err != gorm.ErrRecordNotFound {
+					tx.Rollback()
+					return err
+				}
+				if port != nil && vpD.K8sServiceName != vp.K8sServiceName {
+					tx.Rollback()
+					return bcode.ErrK8sServiceNameExists
+				}
+			}
+
 			vpD.ServiceID = serviceID
 			vpD.TenantID = tenantID
 			vpD.IsInnerService = &vp.IsInnerService
@@ -1090,6 +1136,7 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 			vpD.MappingPort = vp.MappingPort
 			vpD.Protocol = vp.Protocol
 			vpD.PortAlias = vp.PortAlias
+			vpD.K8sServiceName = vp.K8sServiceName
 			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(vpD); err != nil {
 				logrus.Errorf("update port var error, %v", err)
 				tx.Rollback()

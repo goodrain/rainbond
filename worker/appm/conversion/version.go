@@ -191,13 +191,14 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		Name:  "LOGGER_DRIVER_NAME",
 		Value: "streamlog",
 	})
+
 	//set relation app outer env
+	var relationIDs []string
 	relations, err := dbmanager.TenantServiceRelationDao().GetTenantServiceRelations(as.ServiceID)
 	if err != nil {
 		return nil, err
 	}
-	if relations != nil && len(relations) > 0 {
-		var relationIDs []string
+	if len(relations) > 0 {
 		for _, r := range relations {
 			relationIDs = append(relationIDs, r.DependServiceID)
 		}
@@ -211,6 +212,35 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			envsAll = append(envsAll, es...)
 		}
 
+		serviceAliases, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
+		if err != nil {
+			return nil, err
+		}
+		var depend string
+		for _, sa := range serviceAliases {
+			if depend != "" {
+				depend += ","
+			}
+			depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
+		}
+		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: depend})
+		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliases))})
+
+		if as.GovernanceMode == model.GovernanceModeBuildInServiceMesh {
+			as.NeedProxy = true
+		}
+	}
+
+	//set app relation env
+	relations, err = dbmanager.TenantServiceRelationDao().GetTenantServiceRelationsByDependServiceID(as.ServiceID)
+	if err != nil {
+		return nil, err
+	}
+	if len(relations) > 0 {
+		var relationIDs []string
+		for _, r := range relations {
+			relationIDs = append(relationIDs, r.ServiceID)
+		}
 		serviceAliass, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
 		if err != nil {
 			return nil, err
@@ -222,40 +252,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			}
 			Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
 		}
-		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: Depend})
-		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliass))})
-
-		sid2alias := make(map[string]string, len(serviceAliass))
-		for _, alias := range serviceAliass {
-			sid2alias[alias.ServiceID] = alias.ServiceAlias
-		}
-		as.NeedProxy = true
-	}
-
-	//set app relation env
-	relations, err = dbmanager.TenantServiceRelationDao().GetTenantServiceRelationsByDependServiceID(as.ServiceID)
-	if err != nil {
-		return nil, err
-	}
-	if relations != nil && len(relations) > 0 {
-		var relationIDs []string
-		for _, r := range relations {
-			relationIDs = append(relationIDs, r.ServiceID)
-		}
-		if len(relationIDs) > 0 {
-			serviceAliass, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
-			if err != nil {
-				return nil, err
-			}
-			var Depend string
-			for _, sa := range serviceAliass {
-				if Depend != "" {
-					Depend += ","
-				}
-				Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
-			}
-			envs = append(envs, corev1.EnvVar{Name: "REVERSE_DEPEND_SERVICE", Value: Depend})
-		}
+		envs = append(envs, corev1.EnvVar{Name: "REVERSE_DEPEND_SERVICE", Value: Depend})
 	}
 
 	//set app port and net env
@@ -281,6 +278,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		}
 		envs = append(envs, corev1.EnvVar{Name: "MONITOR_PORT", Value: portStr})
 	}
+
 	//set app custom envs
 	es, err := dbmanager.TenantServiceEnvVarDao().GetServiceEnvs(as.ServiceID, []string{"inner", "both", "outer"})
 	if err != nil {
@@ -295,6 +293,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			as.ExtensionSet[strings.ToLower(e.AttrName[3:])] = e.AttrValue
 		}
 	}
+
 	//set default env
 	envs = append(envs, corev1.EnvVar{Name: "TENANT_ID", Value: as.TenantID})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_ID", Value: as.ServiceID})

@@ -73,6 +73,7 @@ type ApplicationDao interface {
 	ListApps(tenantID, appName string, page, pageSize int) ([]*model.Application, int64, error)
 	GetAppByID(appID string) (*model.Application, error)
 	DeleteApp(appID string) error
+	GetByServiceID(sid string) (*model.Application, error)
 }
 
 //AppConfigGroupDao Application config group Dao
@@ -156,6 +157,7 @@ type TenantServiceDeleteDao interface {
 type TenantServicesPortDao interface {
 	Dao
 	DelDao
+	GetByTenantAndName(tenantID, name string) (*model.TenantServicesPort, error)
 	GetPortsByServiceID(serviceID string) ([]*model.TenantServicesPort, error)
 	GetOuterPorts(serviceID string) ([]*model.TenantServicesPort, error)
 	GetInnerPorts(serviceID string) ([]*model.TenantServicesPort, error)
