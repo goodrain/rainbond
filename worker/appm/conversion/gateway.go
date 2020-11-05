@@ -460,7 +460,10 @@ func (a *AppServiceBuild) createKubernetesNativeService(port *model.TenantServic
 
 func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *corev1.Service {
 	var service corev1.Service
-	service.Name = fmt.Sprintf("service-%d-%d", port.ID, port.ContainerPort)
+	service.Name = port.K8sServiceName
+	if service.Name == "" {
+		service.Name = fmt.Sprintf("service-%d-%d", port.ID, port.ContainerPort)
+	}
 	service.Namespace = a.service.TenantID
 	service.Labels = a.appService.GetCommonLabels(map[string]string{
 		"service_type":  "inner",
