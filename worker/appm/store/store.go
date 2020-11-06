@@ -1412,7 +1412,7 @@ func (a *appRuntimeStore) GetAppResources(appID string) (int64, int64, error) {
 		return 0, 0, err
 	}
 	selector := labels.NewSelector()
-	selector.Add(*requirement)
+	selector = selector.Add(*requirement)
 	pods, err := a.listers.Pod.List(selector)
 	if err != nil {
 		return 0, 0, err
