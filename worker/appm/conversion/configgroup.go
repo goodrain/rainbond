@@ -2,8 +2,10 @@ package conversion
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/db/model"
 
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -56,11 +58,6 @@ func (c *configGroup) secretForConfigGroup() (*corev1.Secret, error) {
 		return nil, err
 	}
 
-	data := make(map[string][]byte)
-	for _, item := range items {
-		data[item.ItemKey] = []byte(item.ItemValue)
-	}
-
 	labels := c.as.GetCommonLabels()
 	delete(labels, "service_id")
 	delete(labels, "service_alias")
@@ -71,7 +68,24 @@ func (c *configGroup) secretForConfigGroup() (*corev1.Secret, error) {
 			Namespace: c.namespace,
 			Labels:    labels,
 		},
-		Data: data,
+		Data: c.parseVariable(items),
 		Type: corev1.SecretTypeOpaque,
 	}, nil
+}
+
+func (c *configGroup) parseVariable(items []*model.ConfigGroupItem) map[string][]byte {
+	var config = make(map[string]string, len(items))
+	for _, item := range items {
+		config[item.ItemKey] = item.ItemValue
+	}
+
+	for i, item := range items {
+		items[i].ItemValue = util.ParseVariable(item.ItemValue, config)
+	}
+
+	data := make(map[string][]byte)
+	for _, item := range items {
+		data[item.ItemKey] = []byte(item.ItemValue)
+	}
+	return data
 }
