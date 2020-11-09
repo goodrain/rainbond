@@ -72,12 +72,6 @@ func (a *ApplicationAction) CreateApp(req *model.Application) (*model.Applicatio
 		return nil, err
 	}
 	if len(req.ServiceIDs) != 0 {
-		for _,sid := range req.ServiceIDs {
-			if _, err := db.GetManager().TenantServiceDao().GetServiceByID(sid); err != nil {
-				tx.Rollback()
-				return nil, err
-			}
-		}
 		if err := db.GetManager().TenantServiceDao().BindAppByServiceIDs(appReq.AppID, req.ServiceIDs); err != nil {
 			tx.Rollback()
 			return nil, err
@@ -251,7 +245,7 @@ func (a *ApplicationAction) getDiskUsage(appID string) float64 {
 
 //BatchBindService
 func (a *ApplicationAction) BatchBindService(appID string, req model.BindServiceRequest) error {
-	for _,sid := range req.ServiceIDs {
+	for _, sid := range req.ServiceIDs {
 		if _, err := db.GetManager().TenantServiceDao().GetServiceByID(sid); err != nil {
 			return err
 		}

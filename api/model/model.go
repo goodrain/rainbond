@@ -1629,10 +1629,22 @@ func NewAppStatusFromImport(app *ImportAppStruct) *dbmodel.AppStatus {
 
 // Application -
 type Application struct {
-	AppName  string `json:"app_name" validate:"required"`
-	AppID    string `json:"app_id"`
-	TenantID string `json:"tenant_id"`
+	AppName    string   `json:"app_name" validate:"required"`
+	GroupID    int64    `json:"group_id"`
+	AppID      string   `json:"app_id"`
+	TenantID   string   `json:"tenant_id"`
 	ServiceIDs []string `json:"service_ids"`
+}
+
+// CreateAppRequest -
+type CreateAppRequest struct {
+	AppsInfo []Application `json:"apps_info"`
+}
+
+// CreateAppResponse -
+type CreateAppResponse struct {
+	AppID       int64  `json:"app_id"`
+	RegionAppID string `json:"region_app_id"`
 }
 
 // ListAppResponse -
