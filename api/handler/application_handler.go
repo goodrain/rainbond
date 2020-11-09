@@ -87,7 +87,15 @@ func (a *ApplicationAction) CreateApp(req *model.Application) (*model.Applicatio
 
 // UpdateApp -
 func (a *ApplicationAction) UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error) {
-	srcApp.AppName = req.AppName
+	if req.AppName != "" {
+		srcApp.AppName = req.AppName
+	}
+	if req.GovernanceMode != "" {
+		if !dbmodel.IsGovernanceModeValid(req.GovernanceMode) {
+			return nil, bcode.NewBadRequest(fmt.Sprintf("governance mode '%s' is valid", req.GovernanceMode))
+		}
+		srcApp.GovernanceMode = req.GovernanceMode
+	}
 	if err := db.GetManager().ApplicationDao().UpdateModel(srcApp); err != nil {
 		return nil, err
 	}
@@ -243,7 +251,7 @@ func (a *ApplicationAction) getDiskUsage(appID string) float64 {
 	return result
 }
 
-//BatchBindService
+// BatchBindService -
 func (a *ApplicationAction) BatchBindService(appID string, req model.BindServiceRequest) error {
 	for _, sid := range req.ServiceIDs {
 		if _, err := db.GetManager().TenantServiceDao().GetServiceByID(sid); err != nil {
