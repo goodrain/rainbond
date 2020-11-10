@@ -10,7 +10,6 @@ import (
 	"github.com/goodrain/rainbond/api/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
-	"github.com/sirupsen/logrus"
 )
 
 // ApplicationController -
@@ -39,28 +38,17 @@ func (a *ApplicationController) CreateApp(w http.ResponseWriter, r *http.Request
 
 // BatchCreateApp -
 func (a *ApplicationController) BatchCreateApp(w http.ResponseWriter, r *http.Request) {
-	var (
-		apps     model.CreateAppRequest
-		resp     model.CreateAppResponse
-		respList []model.CreateAppResponse
-	)
+	var apps model.CreateAppRequest
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &apps, nil) {
 		return
 	}
 
 	// get current tenant
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
-	for _, app := range apps.AppsInfo {
-		app.TenantID = tenant.UUID
-		regionApp, err := handler.GetApplicationHandler().CreateApp(&app)
-		if err != nil {
-			logrus.Debugf("Batch Create App error is %v ", err)
-			httputil.ReturnBcodeError(r, w, err)
-			return
-		}
-		resp.AppID = app.GroupID
-		resp.RegionAppID = regionApp.AppID
-		respList = append(respList, resp)
+	respList, err := handler.GetApplicationHandler().BatchCreateApp(&apps, tenant.UUID)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
 	}
 	httputil.ReturnSuccess(r, w, respList)
 }
