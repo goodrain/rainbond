@@ -97,7 +97,7 @@ func (a *ApplicationAction) BatchCreateApp(apps *model.CreateAppRequest, tenantI
 		regionApp, err := GetApplicationHandler().CreateApp(&app)
 		if err != nil {
 			logrus.Errorf("Batch Create App [%v] error is [%v] ", app.AppName, err)
-			return nil, err
+			continue
 		}
 		resp.AppID = app.ConsoleAppID
 		resp.RegionAppID = regionApp.AppID
