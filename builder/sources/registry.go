@@ -19,10 +19,12 @@
 package sources
 
 import (
+	"fmt"
+
 	"github.com/goodrain/rainbond/builder/sources/registry"
 
-	"github.com/sirupsen/logrus"
 	"github.com/docker/distribution/reference"
+	"github.com/sirupsen/logrus"
 )
 
 //GetTagFromNamedRef get image tag by name
@@ -67,9 +69,8 @@ func ImageExist(imageName, user, password string) (bool, error) {
 			}
 		}
 		tag := GetTagFromNamedRef(name)
-		_, err = reg.ManifestV2(reference.Path(name), tag)
-		if err != nil {
-			rerr = err
+		if err := reg.CheckManifest(reference.Path(name), tag); err != nil {
+			rerr = fmt.Errorf("[ImageExist] check manifest v2: %v", err)
 			continue
 		}
 		return true, nil
