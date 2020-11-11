@@ -643,6 +643,16 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 		Key:    "proxy-body-size",
 		Value:  strconv.Itoa(req.Body.ProxyBodySize),
 	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key:    "proxy-buffer-size",
+		Value:  strconv.Itoa(req.Body.ProxyBufferSize) + "k",
+	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key:    "proxy-buffer-numbers",
+		Value:  strconv.Itoa(req.Body.ProxyBufferNumbers),
+	})
 	setheaders := make(map[string]string)
 	for _, item := range req.Body.SetHeaders {
 		if strings.TrimSpace(item.Key) == "" {
@@ -661,10 +671,12 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 			Value:  v,
 		})
 	}
+
 	rule, err := g.dbmanager.HTTPRuleDao().GetHTTPRuleByID(req.RuleID)
 	if err != nil {
 		return err
 	}
+
 	tx := db.GetManager().Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -686,6 +698,7 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 		tx.Rollback()
 		return err
 	}
+
 	if err := g.SendTask(map[string]interface{}{
 		"service_id": req.ServiceID,
 		"action":     "update-rule-config",

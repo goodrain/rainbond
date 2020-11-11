@@ -78,12 +78,7 @@ func NewDependServiceHealthController() (*DependServiceHealthController, error) 
 	}
 	dsc.endpointClient = v2.NewEndpointDiscoveryServiceClient(cli)
 	dsc.clusterClient = v2.NewClusterDiscoveryServiceClient(cli)
-	nameIDs := strings.Split(os.Getenv("DEPEND_SERVICE"), ",")
-	for _, nameID := range nameIDs {
-		if len(strings.Split(nameID, ":")) > 0 {
-			dsc.dependServiceNames = append(dsc.dependServiceNames, strings.Split(nameID, ":")[0])
-		}
-	}
+	dsc.dependServiceNames = strings.Split(os.Getenv("STARTUP_SEQUENCE_DEPENDENCIES"), ",")
 	return &dsc, nil
 }
 

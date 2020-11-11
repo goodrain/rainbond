@@ -167,6 +167,32 @@ func TestBuildLinkListByHead(t *testing.T) {
 				return []*list.List{l}
 			}(),
 		},
+		{
+			name: "spring cloud pig",
+			l: func() *list.List {
+				l := list.New()
+				l.PushBack("banana")
+				return l
+			}(),
+			sid2depsids: map[string][]string{
+				"apple":  []string{"banana"},
+				"banana": []string{"apple", "cat", "dog"},
+			},
+			want: func() []*list.List {
+				l1 := list.New()
+				l1.PushBack("banana")
+
+				l2 := list.New()
+				l2.PushBack("banana")
+				l2.PushBack("cat")
+
+				l3 := list.New()
+				l3.PushBack("banana")
+				l3.PushBack("dog")
+
+				return []*list.List{l1, l2, l3}
+			}(),
+		},
 	}
 
 	for idx := range tests {
