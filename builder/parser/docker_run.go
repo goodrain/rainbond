@@ -152,7 +152,6 @@ func (d *DockerRunOrImageParse) ParseDockerun(cmd string) {
 		if s == "docker" || s == "run" {
 			continue
 		}
-		fmt.Println(name)
 		if strings.HasPrefix(s, "-") {
 			name = strings.TrimLeft(s, "-")
 			index := strings.Index(name, "=")
