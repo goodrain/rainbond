@@ -731,6 +731,10 @@ func createPodAnnotations(as *v1.AppService) map[string]string {
 	if as.Replicas <= 1 {
 		annotations["rainbond.com/tolerate-unready-endpoints"] = "true"
 	}
+	if as.Replicas == 1 && as.ExtensionSet["pod_ip"] != "" {
+		logrus.Infof("custom set pod ip for calico, service %s, ip: %s", as.ServiceID, as.ExtensionSet["pod_ip"])
+		annotations["cni.projectcalico.org/ipAddrs"] = fmt.Sprintf("[\"%s\"]", as.ExtensionSet["pod_ip"])
+	}
 	return annotations
 }
 
