@@ -154,6 +154,7 @@ type AppInterface interface {
 // ApplicationInterface tenant application interface
 type ApplicationInterface interface {
 	CreateApp(w http.ResponseWriter, r *http.Request)
+	BatchCreateApp(w http.ResponseWriter, r *http.Request)
 	UpdateApp(w http.ResponseWriter, r *http.Request)
 	ListApps(w http.ResponseWriter, r *http.Request)
 	ListServices(w http.ResponseWriter, r *http.Request)
