@@ -38,12 +38,14 @@ var dockerrun = `docker run -d -P -v /usr/share/ca-certificates/:/etc/ssl/certs 
 -initial-cluster etcd0=http://127.0.0.1:2380 \
 -initial-cluster-state new`
 
+var test_case = `docker run --init jenkins/inbound-agent -url http://8080.grf8fccb.1b752ape.17f4cc.grapps.cn f51a0428be6049dc0ba7d4df4cda807b87b86fb21685ec9cba6956053210aadd agent01`
+
 func TestParse(t *testing.T) {
 	dockerclient, err := client.NewEnvClient()
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := CreateDockerRunOrImageParse("", "", dockerrun, dockerclient, nil)
+	p := CreateDockerRunOrImageParse("", "", test_case, dockerclient, nil)
 	if err := p.Parse(); err != nil {
 		logrus.Errorf(err.Error())
 	}

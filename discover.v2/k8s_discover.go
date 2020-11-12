@@ -3,6 +3,7 @@ package discover
 import (
 	"context"
 	"errors"
+	"reflect"
 	"sync"
 	"time"
 
@@ -90,18 +91,24 @@ func (k *k8sDiscover) discover(name string, callback CallbackUpdate) {
 		DeleteFunc: func(obj interface{}) {
 			pod := obj.(*corev1.Pod)
 			ep := endpointForPod(pod)
+			ep.Mode = 2
 			callback.UpdateEndpoints(config.DELETE, ep)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			oldPod := old.(*corev1.Pod)
 			curPod := cur.(*corev1.Pod)
-			if oldPod.Status.Phase == curPod.Status.Phase {
+
+			if reflect.DeepEqual(oldPod, curPod) {
 				return
 			}
-			if !isPodReady(curPod) {
-				return
-			}
+
 			ep := endpointForPod(curPod)
+			if !isPodReady(curPod) {
+				logrus.Infof("unready pod(%s%s) received, delete endpoint based on the pod", curPod.Name, curPod.Namespace)
+				ep.Mode = 2
+				callback.UpdateEndpoints(config.DELETE, ep)
+				return
+			}
 			callback.UpdateEndpoints(config.SYNC, ep)
 		},
 	}

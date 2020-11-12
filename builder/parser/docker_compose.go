@@ -195,7 +195,7 @@ func (d *DockerComposeParse) Parse() ParseErrorList {
 		d.logger.Debug(fmt.Sprintf("start check service %s ", service.name), map[string]string{"step": "service_check", "status": "running"})
 		exist, err := sources.ImageExist(service.image.String(), hubUser, hubPass)
 		if err != nil {
-			logrus.Errorf("check image exist failure %s", err.Error())
+			logrus.Errorf("check image(%s) exist failure %s", service.image.String(), err.Error())
 		}
 		if !exist {
 			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("服务%s镜像%s检测失败", serviceName, service.image.String()), SolveAdvice("modify_compose", fmt.Sprintf("请确认%s服务镜像名称是否正确或镜像仓库访问是否正常", serviceName))))
