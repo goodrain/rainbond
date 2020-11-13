@@ -105,6 +105,11 @@ func (a *AppConfigGroupServiceDaoImpl) DeleteConfigGroupService(appID, configGro
 	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ServiceConfigGroup{}).Error
 }
 
+//DeleteEffectiveServiceByServiceID -
+func (a *AppConfigGroupServiceDaoImpl) DeleteEffectiveServiceByServiceID(serviceID string) error {
+	return a.DB.Where("service_id = ?", serviceID).Delete(model.ServiceConfigGroup{}).Error
+}
+
 // AppConfigGroupItemDaoImpl -
 type AppConfigGroupItemDaoImpl struct {
 	DB *gorm.DB
