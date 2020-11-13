@@ -20,8 +20,8 @@ var (
 var (
 	//ErrApplicationConfigGroupExist -
 	ErrApplicationConfigGroupExist = newByMessage(409, 11101, "application config group already exist")
-	//ErrServiceConfigGroupExist -
-	ErrServiceConfigGroupExist = newByMessage(409, 11102, "config group under this service already exists")
+	//ErrConfigGroupServiceExist -
+	ErrConfigGroupServiceExist = newByMessage(409, 11102, "config group under this service already exists")
 	//ErrConfigItemExist -
 	ErrConfigItemExist = newByMessage(409, 11103, "config item under this config group already exist")
 	//ErrServiceNotFound -
