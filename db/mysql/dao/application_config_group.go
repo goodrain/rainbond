@@ -75,15 +75,15 @@ type AppConfigGroupServiceDaoImpl struct {
 
 //AddModel -
 func (a *AppConfigGroupServiceDaoImpl) AddModel(mo model.Interface) error {
-	configReq, _ := mo.(*model.ServiceConfigGroup)
-	var oldApp model.ServiceConfigGroup
+	configReq, _ := mo.(*model.ConfigGroupService)
+	var oldApp model.ConfigGroupService
 	if err := a.DB.Where("app_id = ? AND config_group_name = ? AND service_id = ?", configReq.AppID, configReq.ConfigGroupName, configReq.ServiceID).Find(&oldApp).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return a.DB.Create(configReq).Error
 		}
 		return err
 	}
-	return bcode.ErrServiceConfigGroupExist
+	return bcode.ErrConfigGroupServiceExist
 }
 
 //UpdateModel -
@@ -92,8 +92,8 @@ func (a *AppConfigGroupServiceDaoImpl) UpdateModel(mo model.Interface) error {
 }
 
 // GetConfigGroupServicesByID -
-func (a *AppConfigGroupServiceDaoImpl) GetConfigGroupServicesByID(appID, configGroupName string) ([]*model.ServiceConfigGroup, error) {
-	var oldApp []*model.ServiceConfigGroup
+func (a *AppConfigGroupServiceDaoImpl) GetConfigGroupServicesByID(appID, configGroupName string) ([]*model.ConfigGroupService, error) {
+	var oldApp []*model.ConfigGroupService
 	if err := a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Find(&oldApp).Error; err != nil {
 		return nil, err
 	}
@@ -102,12 +102,12 @@ func (a *AppConfigGroupServiceDaoImpl) GetConfigGroupServicesByID(appID, configG
 
 //DeleteConfigGroupService -
 func (a *AppConfigGroupServiceDaoImpl) DeleteConfigGroupService(appID, configGroupName string) error {
-	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ServiceConfigGroup{}).Error
+	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ConfigGroupService{}).Error
 }
 
 //DeleteEffectiveServiceByServiceID -
 func (a *AppConfigGroupServiceDaoImpl) DeleteEffectiveServiceByServiceID(serviceID string) error {
-	return a.DB.Where("service_id = ?", serviceID).Delete(model.ServiceConfigGroup{}).Error
+	return a.DB.Where("service_id = ?", serviceID).Delete(model.ConfigGroupService{}).Error
 }
 
 // AppConfigGroupItemDaoImpl -

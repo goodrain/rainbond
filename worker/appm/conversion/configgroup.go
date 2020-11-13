@@ -10,12 +10,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// TenantServiceConfigGroup -
-func TenantServiceConfigGroup(as *v1.AppService, dbm db.Manager) error {
+// TenantConfigGroupService -
+func TenantConfigGroupService(as *v1.AppService, dbm db.Manager) error {
 	logrus.Infof("service id: %s; create config group for service.", as.ServiceID)
 	groups, err := dbm.AppConfigGroupDao().ListByServiceID(as.ServiceID)
 	if err != nil {
-		return fmt.Errorf("[TenantServiceConfigGroup] list config groups: %v", err)
+		return fmt.Errorf("[TenantConfigGroupService] list config groups: %v", err)
 	}
 
 	var secrets []*corev1.Secret

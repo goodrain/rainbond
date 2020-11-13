@@ -1674,8 +1674,8 @@ type BindServiceRequest struct {
 	ServiceIDs []string `json:"service_ids"`
 }
 
-// ServiceConfigGroup -
-type ServiceConfigGroup struct {
+// ConfigGroupService -
+type ConfigGroupService struct {
 	AppID           string `json:"app_id"`
 	ConfigGroupName string `json:"config_group_name"`
 	ServiceID       string `json:"service_id"`
@@ -1705,7 +1705,7 @@ type ApplicationConfigGroupResp struct {
 	AppID           string                        `json:"app_id"`
 	ConfigGroupName string                        `json:"config_group_name"`
 	DeployType      string                        `json:"deploy_type"`
-	Services        []*dbmodel.ServiceConfigGroup `json:"services"`
+	Services        []*dbmodel.ConfigGroupService `json:"services"`
 	ConfigItems     []*dbmodel.ConfigGroupItem    `json:"config_items"`
 }
 

@@ -88,7 +88,7 @@ type AppConfigGroupDao interface {
 //AppConfigGroupServiceDao service config group Dao
 type AppConfigGroupServiceDao interface {
 	Dao
-	GetConfigGroupServicesByID(appID, configGroupName string) ([]*model.ServiceConfigGroup, error)
+	GetConfigGroupServicesByID(appID, configGroupName string) ([]*model.ConfigGroupService, error)
 	DeleteConfigGroupService(appID, configGroupName string) error
 	DeleteEffectiveServiceByServiceID(serviceID string) error
 }

@@ -191,13 +191,13 @@ func TestDeleteConfigGroup(t *testing.T) {
 
 // Test AppConfigGroup Service Dao
 func TestAppConfigGroupServiceDaoAddModel(t *testing.T) {
-	req := &model.ServiceConfigGroup{
+	req := &model.ConfigGroupService{
 		AppID:           "appID",
 		ConfigGroupName: "configname",
 	}
 	tests := []struct {
 		name     string
-		request  *model.ServiceConfigGroup
+		request  *model.ConfigGroupService
 		mockFunc func(mock sqlmock.Sqlmock)
 		wanterr  bool
 	}{
@@ -251,7 +251,7 @@ func TestAppConfigGroupServiceDaoAddModel(t *testing.T) {
 			}
 			tc.mockFunc(mock)
 
-			req := &model.ServiceConfigGroup{
+			req := &model.ConfigGroupService{
 				AppID:           "appID",
 				ConfigGroupName: "configname",
 				ServiceID:       "serviceID",

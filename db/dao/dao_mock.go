@@ -651,10 +651,10 @@ func (mr *MockAppConfigGroupServiceDaoMockRecorder) UpdateModel(arg0 interface{}
 }
 
 // GetConfigGroupServicesByID mocks base method.
-func (m *MockAppConfigGroupServiceDao) GetConfigGroupServicesByID(appID, configGroupName string) ([]*model.ServiceConfigGroup, error) {
+func (m *MockAppConfigGroupServiceDao) GetConfigGroupServicesByID(appID, configGroupName string) ([]*model.ConfigGroupService, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetConfigGroupServicesByID", appID, configGroupName)
-	ret0, _ := ret[0].([]*model.ServiceConfigGroup)
+	ret0, _ := ret[0].([]*model.ConfigGroupService)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
