@@ -27,9 +27,7 @@ func (a *AppConfigGroupDaoImpl) AddModel(mo model.Interface) error {
 //UpdateModel -
 func (a *AppConfigGroupDaoImpl) UpdateModel(mo model.Interface) error {
 	updateReq := mo.(*model.ApplicationConfigGroup)
-	return a.DB.Model(&model.ApplicationConfigGroup{}).
-		Where("app_id = ? AND config_group_name = ?", updateReq.AppID, updateReq.ConfigGroupName.
-			Update("enable", updateReq.Enable).Error
+	return a.DB.Model(&model.ApplicationConfigGroup{}).Where("app_id = ? AND config_group_name = ?", updateReq.AppID, updateReq.ConfigGroupName).Update("enable", updateReq.Enable).Error
 }
 
 // GetConfigGroupByID -
