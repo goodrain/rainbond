@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"github.com/sirupsen/logrus"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // CheckTenantResource check tenant's resource is support action or not
@@ -22,7 +22,7 @@ func CheckTenantResource(tenant *dbmodel.Tenants, needMemory int) error {
 	}
 	clusterInfo, err := GetTenantManager().GetAllocatableResources()
 	if err != nil {
-		logrus.Errorf("get cluster resources failure for check tenant resource : %v.", err.Error())
+		logrus.Errorf("get cluster resources failure for check tenant resource: %v", err.Error())
 	}
 	if clusterInfo != nil {
 		clusterAvailMemory := clusterInfo.AllMemory - clusterInfo.RequestMemory

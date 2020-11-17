@@ -26,6 +26,7 @@ type ApplicationAction struct {
 // ApplicationHandler defines handler methods to TenantApplication.
 type ApplicationHandler interface {
 	CreateApp(req *model.Application) (*model.Application, error)
+	BatchCreateApp(req *model.CreateAppRequest, tenantID string) ([]model.CreateAppResponse, error)
 	UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error)
 	ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error)
 	GetAppByID(appID string) (*dbmodel.Application, error)
@@ -72,12 +73,6 @@ func (a *ApplicationAction) CreateApp(req *model.Application) (*model.Applicatio
 		return nil, err
 	}
 	if len(req.ServiceIDs) != 0 {
-		for _, sid := range req.ServiceIDs {
-			if _, err := db.GetManager().TenantServiceDao().GetServiceByID(sid); err != nil {
-				tx.Rollback()
-				return nil, err
-			}
-		}
 		if err := db.GetManager().TenantServiceDao().BindAppByServiceIDs(appReq.AppID, req.ServiceIDs); err != nil {
 			tx.Rollback()
 			return nil, err
@@ -89,6 +84,26 @@ func (a *ApplicationAction) CreateApp(req *model.Application) (*model.Applicatio
 		return nil, err
 	}
 	return req, nil
+}
+
+// BatchCreateApp -
+func (a *ApplicationAction) BatchCreateApp(apps *model.CreateAppRequest, tenantID string) ([]model.CreateAppResponse, error) {
+	var (
+		resp     model.CreateAppResponse
+		respList []model.CreateAppResponse
+	)
+	for _, app := range apps.AppsInfo {
+		app.TenantID = tenantID
+		regionApp, err := GetApplicationHandler().CreateApp(&app)
+		if err != nil {
+			logrus.Errorf("Batch Create App [%v] error is [%v] ", app.AppName, err)
+			continue
+		}
+		resp.AppID = app.ConsoleAppID
+		resp.RegionAppID = regionApp.AppID
+		respList = append(respList, resp)
+	}
+	return respList, nil
 }
 
 // UpdateApp -

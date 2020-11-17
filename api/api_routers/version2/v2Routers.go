@@ -137,6 +137,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/chargesverify", controller.ChargesVerifyController)
 	//tenant app
 	r.Post("/apps", controller.GetManager().CreateApp)
+	r.Post("/batch_create_apps", controller.GetManager().BatchCreateApp)
 	r.Get("/apps", controller.GetManager().ListApps)
 	r.Mount("/apps/{app_id}", v2.applicationRouter())
 	//get some service pod info

@@ -26,8 +26,8 @@ func (t *Application) TableName() string {
 	return "applications"
 }
 
-// ServiceConfigGroup -
-type ServiceConfigGroup struct {
+// ConfigGroupService -
+type ConfigGroupService struct {
 	Model
 	AppID           string `gorm:"column:app_id" json:"-"`
 	ConfigGroupName string `gorm:"column:config_group_name" json:"-"`
@@ -36,7 +36,7 @@ type ServiceConfigGroup struct {
 }
 
 // TableName return tableName "application"
-func (t *ServiceConfigGroup) TableName() string {
+func (t *ConfigGroupService) TableName() string {
 	return "app_config_group_service"
 }
 

@@ -20,14 +20,17 @@ package registry
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
+	"github.com/sirupsen/logrus"
 	manifestV1 "github.com/docker/distribution/manifest/schema1"
 	manifestV2 "github.com/docker/distribution/manifest/schema2"
 	digest "github.com/opencontainers/go-digest"
 )
 
+// Manifest -
 func (registry *Registry) Manifest(repository, reference string) (*manifestV1.SignedManifest, error) {
 	url := registry.url("/v2/%s/manifests/%s", repository, reference)
 	registry.Logf("registry.manifest.get url=%s repository=%s reference=%s", url, repository, reference)
@@ -58,9 +61,10 @@ func (registry *Registry) Manifest(repository, reference string) (*manifestV1.Si
 	return signedManifest, nil
 }
 
+// ManifestV2 -
 func (registry *Registry) ManifestV2(repository, reference string) (*manifestV2.DeserializedManifest, error) {
 	url := registry.url("/v2/%s/manifests/%s", repository, reference)
-	registry.Logf("registry.manifest.get url=%s repository=%s reference=%s", url, repository, reference)
+	logrus.Debugf("registry.manifest.get url=%s repository=%s reference=%s", url, repository, reference)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -70,7 +74,7 @@ func (registry *Registry) ManifestV2(repository, reference string) (*manifestV2.
 	req.Header.Set("Accept", manifestV2.MediaTypeManifest)
 	resp, err := registry.Client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("do request: %v", err)
 	}
 
 	defer resp.Body.Close()
@@ -82,11 +86,25 @@ func (registry *Registry) ManifestV2(repository, reference string) (*manifestV2.
 	deserialized := &manifestV2.DeserializedManifest{}
 	err = deserialized.UnmarshalJSON(body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unmarshal JSON: %v", err)
 	}
 	return deserialized, nil
 }
 
+// CheckManifest checks if the manifest of the given image is exist.
+func (registry *Registry) CheckManifest(repository, reference string) error {
+	url := registry.url("/v2/%s/manifests/%s", repository, reference)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	_, err = registry.Client.Do(req)
+	return err
+}
+
+// ManifestDigest -
 func (registry *Registry) ManifestDigest(repository, reference string) (digest.Digest, error) {
 	url := registry.url("/v2/%s/manifests/%s", repository, reference)
 	registry.Logf("registry.manifest.head url=%s repository=%s reference=%s", url, repository, reference)
@@ -101,6 +119,7 @@ func (registry *Registry) ManifestDigest(repository, reference string) (digest.D
 	return digest.Parse(resp.Header.Get("Docker-Content-Digest"))
 }
 
+// DeleteManifest -
 func (registry *Registry) DeleteManifest(repository string, digest digest.Digest) error {
 	url := registry.url("/v2/%s/manifests/%s", repository, digest)
 	registry.Logf("registry.manifest.delete url=%s repository=%s reference=%s", url, repository, digest)
@@ -119,6 +138,7 @@ func (registry *Registry) DeleteManifest(repository string, digest digest.Digest
 	return nil
 }
 
+// PutManifest -
 func (registry *Registry) PutManifest(repository, reference string, signedManifest *manifestV1.SignedManifest) error {
 	url := registry.url("/v2/%s/manifests/%s", repository, reference)
 	registry.Logf("registry.manifest.put url=%s repository=%s reference=%s", url, repository, reference)

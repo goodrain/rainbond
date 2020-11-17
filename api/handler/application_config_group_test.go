@@ -197,7 +197,7 @@ func TestListConfigGroups(t *testing.T) {
 				},
 			},
 			mockFunc: func(manager *db.MockManager, ctrl *gomock.Controller) {
-				configGroupsServiceResult := []*dbmodel.ServiceConfigGroup{
+				configGroupsServiceResult := []*dbmodel.ConfigGroupService{
 					{ServiceID: "sid1", ServiceAlias: "sid1_name"},
 				}
 				configGroupsResult := []*dbmodel.ApplicationConfigGroup{
@@ -251,7 +251,7 @@ func TestListConfigGroups(t *testing.T) {
 			name:  "list config group failed because get config group item error",
 			appID: "appID1",
 			mockFunc: func(manager *db.MockManager, ctrl *gomock.Controller) {
-				configGroupsServiceResult := []*dbmodel.ServiceConfigGroup{
+				configGroupsServiceResult := []*dbmodel.ConfigGroupService{
 					{ServiceID: "sid1", ServiceAlias: "sid1_name"},
 				}
 				configGroupsResult := []*dbmodel.ApplicationConfigGroup{

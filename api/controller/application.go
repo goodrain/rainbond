@@ -36,6 +36,23 @@ func (a *ApplicationController) CreateApp(w http.ResponseWriter, r *http.Request
 	httputil.ReturnSuccess(r, w, app)
 }
 
+// BatchCreateApp -
+func (a *ApplicationController) BatchCreateApp(w http.ResponseWriter, r *http.Request) {
+	var apps model.CreateAppRequest
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &apps, nil) {
+		return
+	}
+
+	// get current tenant
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	respList, err := handler.GetApplicationHandler().BatchCreateApp(&apps, tenant.UUID)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, respList)
+}
+
 // UpdateApp -
 func (a *ApplicationController) UpdateApp(w http.ResponseWriter, r *http.Request) {
 	var updateAppReq model.UpdateAppRequest

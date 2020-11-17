@@ -194,6 +194,9 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 		Value: "streamlog",
 	})
 
+	bootSeqDepServiceIDs := as.ExtensionSet["boot_seq_dep_service_ids"]
+	logrus.Infof("boot sequence dep service ids: %s", bootSeqDepServiceIDs)
+
 	//set relation app outer env
 	var relationIDs []string
 	relations, err := dbmanager.TenantServiceRelationDao().GetTenantServiceRelations(as.ServiceID)
@@ -218,15 +221,21 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 		if err != nil {
 			return nil, err
 		}
-		var depend string
+		var Depend string
+		var startupSequenceDependencies []string
 		for _, sa := range serviceAliases {
-			if depend != "" {
-				depend += ","
+			if Depend != "" {
+				Depend += ","
 			}
-			depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
+			Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
+
+			if bootSeqDepServiceIDs != "" && strings.Contains(bootSeqDepServiceIDs, sa.ServiceID) {
+				startupSequenceDependencies = append(startupSequenceDependencies, sa.ServiceAlias)
+			}
 		}
-		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: depend})
+		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: Depend})
 		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliases))})
+		envs = append(envs, corev1.EnvVar{Name: "STARTUP_SEQUENCE_DEPENDENCIES", Value: strings.Join(startupSequenceDependencies, ",")})
 
 		if as.GovernanceMode == model.GovernanceModeBuildInServiceMesh {
 			as.NeedProxy = true
