@@ -118,6 +118,7 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 		}
 	}()
 	// Update effective status
+	appconfig.Enable = req.Enable
 	if err := db.GetManager().AppConfigGroupDaoTransactions(tx).UpdateModel(appconfig); err != nil {
 		tx.Rollback()
 		return nil, err
