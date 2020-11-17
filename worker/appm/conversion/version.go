@@ -112,10 +112,26 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 }
 
 func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volume.Define, dbmanager db.Manager) (*corev1.Container, error) {
-	envs, err := createEnv(as, dbmanager)
+	envVarSecrets := as.GetEnvVarSecrets(true)
+	logrus.Debugf("[getMainContainer] %d secrets as envs were found.", len(envVarSecrets))
+
+	envs, err := createEnv(as, dbmanager, envVarSecrets)
 	if err != nil {
 		return nil, fmt.Errorf("conv service envs failure %s", err.Error())
 	}
+
+	// secret as container environment variables
+	var envFromSecrets []corev1.EnvFromSource
+	for _, secret := range envVarSecrets {
+		envFromSecrets = append(envFromSecrets, corev1.EnvFromSource{
+			SecretRef: &corev1.SecretEnvSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: secret.Name,
+				},
+			},
+		})
+	}
+
 	args := createArgs(version, *envs)
 	resources := createResources(as)
 	ports := createPorts(as, dbmanager)
@@ -126,20 +142,6 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		} else {
 			imagename = version.DeliveredPath
 		}
-	}
-
-	// secret as container environment variables
-	var envFromSecrets []corev1.EnvFromSource
-	envVarSecrets := as.GetEnvVarSecrets(true)
-	logrus.Debugf("[getMainContainer] %d secrets as envs were found.", len(envVarSecrets))
-	for _, secret := range envVarSecrets {
-		envFromSecrets = append(envFromSecrets, corev1.EnvFromSource{
-			SecretRef: &corev1.SecretEnvSource{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: secret.Name,
-				},
-			},
-		})
 	}
 
 	c := &corev1.Container{
@@ -182,7 +184,7 @@ func createArgs(version *dbmodel.VersionInfo, envs []corev1.EnvVar) (args []stri
 }
 
 //createEnv create service container env
-func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error) {
+func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.Secret) (*[]corev1.EnvVar, error) {
 	var envs []corev1.EnvVar
 	var envsAll []*dbmodel.TenantServiceEnvVar
 	//set logger env
@@ -323,8 +325,22 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	for _, env := range envs {
 		config[env.Name] = env.Value
 	}
+	for _, sec := range envVarSecrets {
+		for k, v := range sec.Data {
+			// The priority of component environment variable is higher than the one of the application.
+			if val := config[k]; val == string(v) {
+				continue
+			}
+			config[k] = string(v)
+		}
+	}
 	for i, env := range envs {
 		envs[i].Value = util.ParseVariable(env.Value, config)
+	}
+	for _, sec := range envVarSecrets {
+		for i, data := range sec.Data {
+			sec.Data[i] = []byte(util.ParseVariable(string(data), config))
+		}
 	}
 
 	return &envs, nil
@@ -439,25 +455,12 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 		return nil, err
 	}
 
-	// environment variables
-	configs := make(map[string]string)
-	envs, err := createEnv(as, dbmanager)
-	if err != nil {
-		logrus.Warningf("error creating environment variables: %v", err)
-	} else {
-		for _, env := range *envs {
-			configs[env.Name] = env.Value
-		}
-	}
-
-	if vs != nil && len(vs) > 0 {
-		for _, v := range vs {
-			vol := volume.NewVolumeManager(as, v, nil, version, dbmanager)
-			if vol != nil {
-				if err = vol.CreateVolume(define); err != nil {
-					logrus.Warningf("service: %s, create volume: %s, error: %+v \n skip it", version.ServiceID, v.VolumeName, err.Error())
-					continue
-				}
+	for _, v := range vs {
+		vol := volume.NewVolumeManager(as, v, nil, version, dbmanager)
+		if vol != nil {
+			if err = vol.CreateVolume(define); err != nil {
+				logrus.Warningf("service: %s, create volume: %s, error: %+v \n skip it", version.ServiceID, v.VolumeName, err.Error())
+				continue
 			}
 		}
 	}
