@@ -112,10 +112,16 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 }
 
 func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volume.Define, dbmanager db.Manager) (*corev1.Container, error) {
-	// secret as container environment variables
-	var envFromSecrets []corev1.EnvFromSource
 	envVarSecrets := as.GetEnvVarSecrets(true)
 	logrus.Debugf("[getMainContainer] %d secrets as envs were found.", len(envVarSecrets))
+
+	envs, err := createEnv(as, dbmanager, envVarSecrets)
+	if err != nil {
+		return nil, fmt.Errorf("conv service envs failure %s", err.Error())
+	}
+
+	// secret as container environment variables
+	var envFromSecrets []corev1.EnvFromSource
 	for _, secret := range envVarSecrets {
 		envFromSecrets = append(envFromSecrets, corev1.EnvFromSource{
 			SecretRef: &corev1.SecretEnvSource{
@@ -126,10 +132,6 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		})
 	}
 
-	envs, err := createEnv(as, dbmanager, envVarSecrets)
-	if err != nil {
-		return nil, fmt.Errorf("conv service envs failure %s", err.Error())
-	}
 	args := createArgs(version, *envs)
 	resources := createResources(as)
 	ports := createPorts(as, dbmanager)
@@ -325,6 +327,11 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 	}
 	for i, env := range envs {
 		envs[i].Value = util.ParseVariable(env.Value, config)
+	}
+	for _, sec := range envVarSecrets {
+		for i, data := range sec.Data {
+			sec.Data[i] = []byte(util.ParseVariable(string(data), config))
+		}
 	}
 
 	return &envs, nil

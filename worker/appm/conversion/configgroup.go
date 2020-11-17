@@ -2,10 +2,7 @@ package conversion
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/db/model"
-
 	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -62,30 +59,18 @@ func (c *configGroup) secretForConfigGroup() (*corev1.Secret, error) {
 	delete(labels, "service_id")
 	delete(labels, "service_alias")
 
+	data := make(map[string][]byte)
+	for _, item := range items {
+		data[item.ItemKey] = []byte(item.ItemValue)
+	}
+
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%s", c.configGroupName, c.appID),
 			Namespace: c.namespace,
 			Labels:    labels,
 		},
-		Data: c.parseVariable(items),
+		Data: data,
 		Type: corev1.SecretTypeOpaque,
 	}, nil
-}
-
-func (c *configGroup) parseVariable(items []*model.ConfigGroupItem) map[string][]byte {
-	var config = make(map[string]string, len(items))
-	for _, item := range items {
-		config[item.ItemKey] = item.ItemValue
-	}
-
-	for i, item := range items {
-		items[i].ItemValue = util.ParseVariable(item.ItemValue, config)
-	}
-
-	data := make(map[string][]byte)
-	for _, item := range items {
-		data[item.ItemKey] = []byte(item.ItemValue)
-	}
-	return data
 }
