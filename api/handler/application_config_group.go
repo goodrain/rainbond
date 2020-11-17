@@ -63,6 +63,7 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 		AppID:           appID,
 		ConfigGroupName: req.ConfigGroupName,
 		DeployType:      req.DeployType,
+		Enable:          req.Enable,
 	}
 	if err := db.GetManager().AppConfigGroupDaoTransactions(tx).AddModel(config); err != nil {
 		tx.Rollback()
@@ -93,6 +94,7 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 		DeployType:      appconfig.DeployType,
 		ConfigItems:     configGroupItems,
 		Services:        configGroupServices,
+		Enable:          appconfig.Enable,
 	}
 	return resp, nil
 }
@@ -172,6 +174,7 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 		DeployType:      appconfig.DeployType,
 		ConfigItems:     configGroupItems,
 		Services:        configGroupServices,
+		Enable:          appconfig.Enable,
 	}
 	return resp, nil
 }
@@ -222,6 +225,7 @@ func (a *ApplicationAction) ListConfigGroups(appID string, page, pageSize int) (
 			AppID:           c.AppID,
 			ConfigGroupName: c.ConfigGroupName,
 			DeployType:      c.DeployType,
+			Enable:          c.Enable,
 		}
 
 		configGroupServices, err := db.GetManager().AppConfigGroupServiceDao().GetConfigGroupServicesByID(c.AppID, c.ConfigGroupName)

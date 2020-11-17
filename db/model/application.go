@@ -60,6 +60,7 @@ type ApplicationConfigGroup struct {
 	AppID           string `gorm:"column:app_id" json:"app_id"`
 	ConfigGroupName string `gorm:"column:config_group_name" json:"config_group_name"`
 	DeployType      string `gorm:"column:deploy_type;default:'env'" json:"deploy_type"`
+	Enable          bool   `gorm:"column:enable" json:"enable"`
 }
 
 // TableName return tableName "application"
