@@ -21,13 +21,14 @@ package build
 import (
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 )
 
 func dockerfileBuilder() (Build, error) {
@@ -59,7 +60,12 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 		buildOptions.NoCache = false
 	}
 	re.Logger.Info("Start build image from dockerfile", map[string]string{"step": "builder-exector"})
-	_, err = sources.ImageBuild(re.DockerClient, re.SourceDir, buildOptions, re.Logger, 60)
+	timeout, _ := strconv.Atoi(re.BuildEnvs["TIMOUT"])
+	// min 10 minutes
+	if timeout < 10 {
+		timeout = 60
+	}
+	_, err = sources.ImageBuild(re.DockerClient, re.SourceDir, buildOptions, re.Logger, timeout)
 	if err != nil {
 		re.Logger.Error(fmt.Sprintf("build image %s failure", buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
