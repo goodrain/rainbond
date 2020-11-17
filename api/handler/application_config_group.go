@@ -117,6 +117,11 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 			tx.Rollback()
 		}
 	}()
+	// Update effective status
+	if err := db.GetManager().AppConfigGroupDaoTransactions(tx).UpdateModel(appconfig); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
 	// Update application configGroup-services
 	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteConfigGroupService(appID, configGroupName); err != nil {
 		tx.Rollback()

@@ -26,7 +26,10 @@ func (a *AppConfigGroupDaoImpl) AddModel(mo model.Interface) error {
 
 //UpdateModel -
 func (a *AppConfigGroupDaoImpl) UpdateModel(mo model.Interface) error {
-	return nil
+	updateReq := mo.(*model.ApplicationConfigGroup)
+	return a.DB.Model(&model.ApplicationConfigGroup{}).
+		Where("app_id = ? AND config_group_name = ?", updateReq.AppID, updateReq.ConfigGroupName.
+			Update("enable", updateReq.Enable).Error
 }
 
 // GetConfigGroupByID -
@@ -40,7 +43,7 @@ func (a *AppConfigGroupDaoImpl) GetConfigGroupByID(appID, configGroupName string
 
 func (a *AppConfigGroupDaoImpl) ListByServiceID(sid string) ([]*model.ApplicationConfigGroup, error) {
 	var groups []*model.ApplicationConfigGroup
-	if err := a.DB.Model(model.ApplicationConfigGroup{}).Select("app_config_group.*").Joins("left join app_config_group_service on app_config_group.app_id = app_config_group_service.app_id and app_config_group.config_group_name = app_config_group_service.config_group_name").
+	if err := a.DB.Debug().Model(model.ApplicationConfigGroup{}).Select("app_config_group.*").Joins("left join app_config_group_service on app_config_group.app_id = app_config_group_service.app_id and app_config_group.config_group_name = app_config_group_service.config_group_name").
 		Where("app_config_group_service.service_id = ? and enable = true", sid).Scan(&groups).Error; err != nil {
 		return nil, err
 	}
