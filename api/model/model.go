@@ -1629,10 +1629,22 @@ func NewAppStatusFromImport(app *ImportAppStruct) *dbmodel.AppStatus {
 
 // Application -
 type Application struct {
-	AppName  string `json:"app_name" validate:"required"`
-	AppID    string `json:"app_id"`
-	TenantID string `json:"tenant_id"`
-	ServiceIDs []string `json:"service_ids"`
+	AppName      string   `json:"app_name" validate:"required"`
+	ConsoleAppID int64    `json:"console_app_id"`
+	AppID        string   `json:"app_id"`
+	TenantID     string   `json:"tenant_id"`
+	ServiceIDs   []string `json:"service_ids"`
+}
+
+// CreateAppRequest -
+type CreateAppRequest struct {
+	AppsInfo []Application `json:"apps_info"`
+}
+
+// CreateAppResponse -
+type CreateAppResponse struct {
+	AppID       int64  `json:"app_id"`
+	RegionAppID string `json:"region_app_id"`
 }
 
 // ListAppResponse -
@@ -1662,8 +1674,8 @@ type BindServiceRequest struct {
 	ServiceIDs []string `json:"service_ids"`
 }
 
-// ServiceConfigGroup -
-type ServiceConfigGroup struct {
+// ConfigGroupService -
+type ConfigGroupService struct {
 	AppID           string `json:"app_id"`
 	ConfigGroupName string `json:"config_group_name"`
 	ServiceID       string `json:"service_id"`
@@ -1693,7 +1705,7 @@ type ApplicationConfigGroupResp struct {
 	AppID           string                        `json:"app_id"`
 	ConfigGroupName string                        `json:"config_group_name"`
 	DeployType      string                        `json:"deploy_type"`
-	Services        []*dbmodel.ServiceConfigGroup `json:"services"`
+	Services        []*dbmodel.ConfigGroupService `json:"services"`
 	ConfigItems     []*dbmodel.ConfigGroupItem    `json:"config_items"`
 }
 
