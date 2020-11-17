@@ -2,7 +2,6 @@ package conversion
 
 import (
 	"fmt"
-
 	"github.com/goodrain/rainbond/db"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
@@ -56,14 +55,14 @@ func (c *configGroup) secretForConfigGroup() (*corev1.Secret, error) {
 		return nil, err
 	}
 
+	labels := c.as.GetCommonLabels()
+	delete(labels, "service_id")
+	delete(labels, "service_alias")
+
 	data := make(map[string][]byte)
 	for _, item := range items {
 		data[item.ItemKey] = []byte(item.ItemValue)
 	}
-
-	labels := c.as.GetCommonLabels()
-	delete(labels, "service_id")
-	delete(labels, "service_alias")
 
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
