@@ -1653,7 +1653,8 @@ type ListServiceResponse struct {
 
 // UpdateAppRequest -
 type UpdateAppRequest struct {
-	AppName string `json:"app_name" validate:"required"`
+	AppName        string `json:"app_name"`
+	GovernanceMode string `json:"governance_mode"`
 }
 
 // BindServiceRequest -
