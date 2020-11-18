@@ -93,8 +93,12 @@ var (
 //GetServiceStatus get service status
 func (a *AppService) GetServiceStatus() string {
 	if a.ServiceKind == model.ServiceKindThirdParty {
-		var readyEndpointSize int
 		endpoints := a.GetEndpoints(false)
+		if len(endpoints) == 0 {
+			return CLOSED
+		}
+
+		var readyEndpointSize int
 		for _, ed := range endpoints {
 			for _, s := range ed.Subsets {
 				readyEndpointSize += len(s.Addresses)

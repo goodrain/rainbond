@@ -1014,7 +1014,8 @@ func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
 
 func (a *appRuntimeStore) GetAppServicesStatus(serviceIDs []string) map[string]string {
 	statusMap := make(map[string]string, len(serviceIDs))
-	if serviceIDs == nil || len(serviceIDs) == 0 {
+	if len(serviceIDs) == 0 {
+		// When serviceIDs is empty, return the status of all services
 		a.appServices.Range(func(k, v interface{}) bool {
 			appService, _ := v.(*v1.AppService)
 			statusMap[appService.ServiceID] = a.GetAppServiceStatus(appService.ServiceID)
@@ -1030,8 +1031,8 @@ func (a *appRuntimeStore) GetAppServicesStatus(serviceIDs []string) map[string]s
 
 func (a *appRuntimeStore) GetAppStatus(appID string) (pb.AppStatus_Status, error) {
 	services, err := db.GetManager().TenantServiceDao().ListByAppID(appID)
-	if err != nil {
-		return 0, err
+	if err != nil || len(services) == 0 {
+		return pb.AppStatus_NIL, err
 	}
 	var serviceIDs []string
 	for _, s := range services {
