@@ -21,7 +21,9 @@ package model
 import (
 	"strconv"
 
-	"github.com/goodrain/rainbond/gateway/v1"
+	"github.com/sirupsen/logrus"
+
+	v1 "github.com/goodrain/rainbond/gateway/v1"
 	apiv1 "k8s.io/api/core/v1"
 )
 
@@ -87,6 +89,14 @@ func CreateBackendByPool(pool *v1.Pool) *Backend {
 	switch pool.LoadBalancingType {
 	case v1.RoundRobin:
 		backend.LoadBalancing = "round_robin"
+	case v1.CookieSessionAffinity:
+		logrus.Infof("pool %s use cookie-session-affinity load balance", pool.Name)
+		backend.SessionAffinity = SessionAffinityConfig{
+			AffinityType: "cookie",
+			CookieSessionAffinity: CookieSessionAffinity{
+				Name: "rainbond-route",
+			},
+		}
 	}
 	backend.UpstreamHashBy = pool.UpstreamHashBy
 	var endpoints []Endpoint

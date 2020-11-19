@@ -24,25 +24,22 @@ import "github.com/sirupsen/logrus"
 type LoadBalancingType string
 
 //RoundRobin Assign requests in turn to each node.
-var RoundRobin LoadBalancingType = "RoundRobin"
+var RoundRobin LoadBalancingType = "round-robin"
 
-//WeightedRoundRobin Assign requests in turn to each node, in proportion to their weights.
-var WeightedRoundRobin LoadBalancingType = "WeightedRoundRobin"
+//CookieSessionAffinity session affinity by cookie
+var CookieSessionAffinity LoadBalancingType = "cookie-session-affinity"
 
-//Perceptive Predict the most appropriate node using a combination of historical and current data.
-var Perceptive LoadBalancingType = "Perceptive"
-
-//LeastConnections Assign each request to the node with the fewest connections.
-var LeastConnections LoadBalancingType = "LeastConnections"
-
-//WeightedLeastConnections Assign each request to a node based on the number of concurrent connections to the node and its weight.
-var WeightedLeastConnections LoadBalancingType = "WeightedLeastConnections"
-
-//FastestResponseTime Assign each request to the node with the fastest response time.
-var FastestResponseTime LoadBalancingType = "FastestResponseTime"
-
-//RandomNode Choose a random node for each request.
-var RandomNode LoadBalancingType = "RandomNode"
+//GetLoadBalancingType get load balancing
+func GetLoadBalancingType(s string) LoadBalancingType {
+	switch s {
+	case "round-robin":
+		return RoundRobin
+	case "cookie-session-affinity":
+		return CookieSessionAffinity
+	default:
+		return RoundRobin
+	}
+}
 
 //Monitor monitor type
 type Monitor string

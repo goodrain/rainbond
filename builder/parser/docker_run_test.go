@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	//"github.com/docker/docker/client"
 	"github.com/docker/docker/client"
 )
@@ -38,7 +37,7 @@ var dockerrun = `docker run -d -P -v /usr/share/ca-certificates/:/etc/ssl/certs 
 -initial-cluster etcd0=http://127.0.0.1:2380 \
 -initial-cluster-state new`
 
-var test_case = `docker run --init jenkins/inbound-agent -url http://8080.grf8fccb.1b752ape.17f4cc.grapps.cn f51a0428be6049dc0ba7d4df4cda807b87b86fb21685ec9cba6956053210aadd agent01`
+var test_case = `docker run -it --rm tensorflow/tensorflow tail`
 
 func TestParse(t *testing.T) {
 	dockerclient, err := client.NewEnvClient()
@@ -46,8 +45,6 @@ func TestParse(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := CreateDockerRunOrImageParse("", "", test_case, dockerclient, nil)
-	if err := p.Parse(); err != nil {
-		logrus.Errorf(err.Error())
-	}
+	p.ParseDockerun(test_case)
 	fmt.Printf("ServiceInfo:%+v \n", p.GetServiceInfo())
 }

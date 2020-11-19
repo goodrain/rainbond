@@ -101,9 +101,10 @@ type Storer interface {
 }
 
 type backend struct {
-	name   string
-	weight int
-	hashBy string
+	name              string
+	weight            int
+	hashBy            string
+	loadBalancingType string
 }
 
 // Event holds the context of an event.
@@ -400,6 +401,7 @@ func (s *k8sStore) ListPool() ([]*v1.Pool, []*v1.Pool) {
 					// TODO: The tenant isolation
 					pool.Namespace = "default"
 					pool.UpstreamHashBy = backend.hashBy
+					pool.LoadBalancingType = v1.GetLoadBalancingType(backend.loadBalancingType)
 					l7Pools[backend.name] = pool
 				}
 				for _, ss := range ep.Subsets {
@@ -615,7 +617,11 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 					}
 					backendName = util.BackendName(backendName, ing.Namespace)
 					location.NameCondition[backendName] = nameCondition
-					backend := backend{name: backendName, weight: anns.Weight.Weight}
+					backend := backend{
+						name:              backendName,
+						weight:            anns.Weight.Weight,
+						loadBalancingType: anns.LoadBalancingType,
+					}
 					if anns.UpstreamHashBy != "" {
 						backend.hashBy = anns.UpstreamHashBy
 					}
