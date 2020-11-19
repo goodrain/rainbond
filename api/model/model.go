@@ -1697,6 +1697,7 @@ type ApplicationConfigGroup struct {
 	DeployType      string       `json:"deploy_type" validate:"required,oneof=env configfile"`
 	ServiceIDs      []string     `json:"service_ids"`
 	ConfigItems     []ConfigItem `json:"config_items"`
+	Enable          bool         `json:"enable"`
 }
 
 // ApplicationConfigGroupResp -
@@ -1707,12 +1708,14 @@ type ApplicationConfigGroupResp struct {
 	DeployType      string                        `json:"deploy_type"`
 	Services        []*dbmodel.ConfigGroupService `json:"services"`
 	ConfigItems     []*dbmodel.ConfigGroupItem    `json:"config_items"`
+	Enable          bool                          `json:"enable"`
 }
 
 // UpdateAppConfigGroupReq -
 type UpdateAppConfigGroupReq struct {
 	ServiceIDs  []string     `json:"service_ids"`
 	ConfigItems []ConfigItem `json:"config_items" validate:"required"`
+	Enable      bool         `json:"enable"`
 }
 
 // ListApplicationConfigGroupResp -
