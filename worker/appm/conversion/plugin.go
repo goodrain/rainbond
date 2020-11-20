@@ -86,10 +86,17 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 			logrus.Warnf("Can't not get pod for plugin(plugin_id=%s)", pluginR.PluginID)
 			continue
 		}
+
 		envs, err := createPluginEnvs(pluginR.PluginID, as.TenantID, as.ServiceAlias, mainContainer.Env, pluginR.VersionID, as.ServiceID, dbmanager)
 		if err != nil {
 			return nil, nil, nil, err
 		}
+
+		if pluginR.PluginModel == "exporter-plugin" {
+			env := createDataSourceNameEnv(envs)
+			*envs = append(*envs, env)
+		}
+
 		var envFromSecrets []corev1.EnvFromSource
 		envVarSecrets := as.GetEnvVarSecrets(true)
 		for _, secret := range envVarSecrets {
@@ -101,6 +108,7 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 				},
 			})
 		}
+
 		args, err := createPluginArgs(versionInfo.ContainerCMD, *envs)
 		if err != nil {
 			return nil, nil, nil, err
@@ -167,6 +175,33 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 		initContainers = append(initContainers, bootSequence)
 	}
 	return initContainers, containers, &bootSequence, nil
+}
+
+func createDataSourceNameEnv(envs *[]v1.EnvVar) v1.EnvVar {
+	envMap := make(map[string]string)
+	for _, env := range *envs {
+		envMap[env.Name] = env.Value
+	}
+
+	user := envMap["MYSQL_USERNAME"]
+	if user == "" {
+		user = envMap["MYSQL_USER"]
+	}
+	pass := envMap["MYSQL_PASSWORD"]
+	if pass == "" {
+		pass = envMap["MYSQL_PASS"]
+	}
+	port := envMap["MYSQL_PORT"]
+	if port == "" {
+		port = "3306"
+	}
+	// root:02182f72@(127.0.0.1:3306)/
+	// When user, pass, port does not exist or is incorrect, no error will be reported and the main container will be ok
+	value := fmt.Sprintf("%s:%s@(127.0.0.1:%s)/", user, pass, port)
+	return v1.EnvVar{
+		Name:  "DATA_SOURCE_NAME",
+		Value: value,
+	}
 }
 
 func createTCPDefaultPluginContainer(as *typesv1.AppService, pluginID string, envs []v1.EnvVar) v1.Container {
