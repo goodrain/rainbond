@@ -1422,7 +1422,7 @@ func (a *appRuntimeStore) GetAppResources(appID string) (int64, int64, error) {
 	var cpu, memory int64
 	for _, pod := range pods {
 		for _, c := range pod.Spec.Containers {
-			cpu += c.Resources.Limits.Cpu().MilliValue()
+			cpu += c.Resources.Requests.Cpu().MilliValue()
 			memory += c.Resources.Limits.Memory().Value() / 1024 / 1024
 		}
 	}

@@ -444,32 +444,39 @@ func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re
 		}
 	}
 
-	resmp, err := db.GetManager().TenantServiceDao().GetServiceMemoryByServiceIDs(running)
+	podList, err := t.statusCli.GetMultiServicePods(running)
 	if err != nil {
 		return nil, err
 	}
 
-	for serviceID, item := range resmp {
-		podNums := t.getPodNums(serviceID)
-		memory, ok := item["memory"].(int)
-		if ok {
-			item["memory"] = memory * podNums
+	res := make(map[string]map[string]interface{})
+	for serviceID, item := range podList.ServicePods {
+		pods := item.NewPods
+		pods = append(pods, item.OldPods...)
+		var memory, cpu int64
+		for _, pod := range pods {
+			for _, c := range pod.Containers {
+				memory += c.MemoryLimit
+				cpu += c.CpuRequest
+			}
 		}
+		res[serviceID] = map[string]interface{}{"memory": memory/1024/1024, "cpu": cpu}
 	}
 
 	for _, c := range closed {
-		resmp[c] = map[string]interface{}{"memory": 0, "cpu": 0}
+		res[c] = map[string]interface{}{"memory": 0, "cpu": 0}
 	}
+
 	disks := GetServicesDiskDeprecated(tr.Body.ServiceIDs, t.prometheusCli)
 	for serviceID, disk := range disks {
-		if _, ok := resmp[serviceID]; ok {
-			resmp[serviceID]["disk"] = disk / 1024
+		if _, ok := res[serviceID]; ok {
+			res[serviceID]["disk"] = disk / 1024
 		} else {
-			resmp[serviceID] = make(map[string]interface{})
-			resmp[serviceID]["disk"] = disk / 1024
+			res[serviceID] = make(map[string]interface{})
+			res[serviceID]["disk"] = disk / 1024
 		}
 	}
-	return resmp, nil
+	return res, nil
 }
 
 func (t *TenantAction) getPodNums(serviceID string) int {
