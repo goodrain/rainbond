@@ -111,6 +111,7 @@ func (r *RuntimeServer) GetAppStatusDeprecated(ctx context.Context, re *pb.Servi
 	}, nil
 }
 
+// GetAppStatus returns the status of application based on the given appId.
 func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (*pb.AppStatus, error) {
 	status, err := r.store.GetAppStatus(in.AppId)
 	if err != nil {
@@ -197,6 +198,7 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 			containers[container.Name] = &pb.Container{
 				ContainerName: container.Name,
 				MemoryLimit:   container.Resources.Limits.Memory().Value(),
+				CpuRequest:    container.Resources.Requests.Cpu().MilliValue(),
 			}
 			for _, vm := range container.VolumeMounts {
 				volumes = append(volumes, vm.Name)
