@@ -1068,7 +1068,7 @@ func appClosed(statuses map[string]string) bool {
 
 func appAbnormal(statuses map[string]string) bool {
 	for _, status := range statuses {
-		if status == v1.ABNORMAL {
+		if status == v1.ABNORMAL || status == v1.SOMEABNORMAL {
 			return true
 		}
 	}
