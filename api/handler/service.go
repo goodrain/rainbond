@@ -746,13 +746,15 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
-	ts.AppID = sc["app_id"].(string)
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(ts.DeployVersion, ts.ServiceID)
 	if memory, ok := sc["container_memory"].(int); ok && memory != 0 {
 		ts.ContainerMemory = memory
 	}
 	if name, ok := sc["service_name"].(string); ok && name != "" {
 		ts.ServiceName = name
+	}
+	if appID, ok := sc["app_id"].(string); ok && appID != "" {
+		ts.AppID = appID
 	}
 	if sc["extend_method"] != nil {
 		extendMethod := sc["extend_method"].(string)

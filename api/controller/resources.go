@@ -728,19 +728,15 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 
 	// Check if the application ID exists
 	var appID string
-	if data["app_id"] != nil {
+	if data["app_id"] != nil && data["app_id"] != "" {
 		appID = data["app_id"].(string)
-	}
-	if appID == "" {
-		httputil.ReturnBcodeError(r, w, bcode.ErrUpdateNeedCorrectAppID)
-		return
+		_, err := handler.GetApplicationHandler().GetAppByID(appID)
+		if err != nil {
+			httputil.ReturnBcodeError(r, w, err)
+			return
+		}
 	}
 
-	_, err := handler.GetApplicationHandler().GetAppByID(appID)
-	if err != nil {
-		httputil.ReturnBcodeError(r, w, err)
-		return
-	}
 	if err := handler.GetServiceManager().ServiceUpdate(data); err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
