@@ -86,8 +86,6 @@ var (
 	BUILDEFAILURE = "build_failure"
 	//UNDEPLOY init status
 	UNDEPLOY = "undeploy"
-	//WAITTING wait depend service start
-	WAITTING = "waitting"
 )
 
 //GetServiceStatus get service status

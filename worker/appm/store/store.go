@@ -1046,8 +1046,10 @@ func (a *appRuntimeStore) GetAppStatus(appID string) (pb.AppStatus_Status, error
 		appStatus = pb.AppStatus_CLOSED
 	case appAbnormal(serviceStatuses):
 		appStatus = pb.AppStatus_ABNORMAL
-	case appPartialAbnormal(serviceStatuses):
-		appStatus = pb.AppStatus_PARTIAL_ABNORMAL
+	case appStarting(serviceStatuses):
+		appStatus = pb.AppStatus_STARTING
+	case appStopping(serviceStatuses):
+		appStatus = pb.AppStatus_STOPPING
 	case appRunning(serviceStatuses):
 		appStatus = pb.AppStatus_RUNNING
 	}
@@ -1066,20 +1068,35 @@ func appClosed(statuses map[string]string) bool {
 
 func appAbnormal(statuses map[string]string) bool {
 	for _, status := range statuses {
-		if status != v1.ABNORMAL {
-			return false
-		}
-	}
-	return true
-}
-
-func appPartialAbnormal(statuses map[string]string) bool {
-	for _, status := range statuses {
 		if status == v1.ABNORMAL {
 			return true
 		}
 	}
 	return false
+}
+
+func appStarting(statuses map[string]string) bool {
+	for _, status := range statuses {
+		if status == v1.STARTING {
+			return true
+		}
+	}
+	return false
+}
+
+func appStopping(statuses map[string]string) bool {
+	stopping := false
+	for _, status := range statuses {
+		if status == v1.STOPPING {
+			stopping = true
+			continue
+		}
+		if status == v1.CLOSED {
+			continue
+		}
+		return false
+	}
+	return stopping
 }
 
 func appRunning(statuses map[string]string) bool {
