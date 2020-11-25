@@ -1039,9 +1039,11 @@ func (a *appRuntimeStore) GetAppStatus(appID string) (pb.AppStatus_Status, error
 		serviceIDs = append(serviceIDs, s.ServiceID)
 	}
 
-	appStatus := pb.AppStatus_NIL
+	appStatus := pb.AppStatus_RUNNING
 	serviceStatuses := a.GetAppServicesStatus(serviceIDs)
 	switch {
+	case appNil(serviceStatuses):
+		appStatus = pb.AppStatus_NIL
 	case appClosed(serviceStatuses):
 		appStatus = pb.AppStatus_CLOSED
 	case appAbnormal(serviceStatuses):
@@ -1050,11 +1052,18 @@ func (a *appRuntimeStore) GetAppStatus(appID string) (pb.AppStatus_Status, error
 		appStatus = pb.AppStatus_STARTING
 	case appStopping(serviceStatuses):
 		appStatus = pb.AppStatus_STOPPING
-	case appRunning(serviceStatuses):
-		appStatus = pb.AppStatus_RUNNING
 	}
 
 	return appStatus, nil
+}
+
+func appNil(statuses map[string]string) bool {
+	for _, status := range statuses {
+		if status != v1.UNDEPLOY {
+			return false
+		}
+	}
+	return true
 }
 
 func appClosed(statuses map[string]string) bool {
@@ -1097,15 +1106,6 @@ func appStopping(statuses map[string]string) bool {
 		return false
 	}
 	return stopping
-}
-
-func appRunning(statuses map[string]string) bool {
-	for _, status := range statuses {
-		if status == v1.RUNNING {
-			return true
-		}
-	}
-	return false
 }
 
 func (a *appRuntimeStore) GetNeedBillingStatus(serviceIDs []string) map[string]string {
