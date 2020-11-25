@@ -1039,20 +1039,31 @@ func (a *appRuntimeStore) GetAppStatus(appID string) (pb.AppStatus_Status, error
 		serviceIDs = append(serviceIDs, s.ServiceID)
 	}
 
-	appStatus := pb.AppStatus_NIL
+	appStatus := pb.AppStatus_RUNNING
 	serviceStatuses := a.GetAppServicesStatus(serviceIDs)
 	switch {
+	case appNil(serviceStatuses):
+		appStatus = pb.AppStatus_NIL
 	case appClosed(serviceStatuses):
 		appStatus = pb.AppStatus_CLOSED
 	case appAbnormal(serviceStatuses):
 		appStatus = pb.AppStatus_ABNORMAL
-	case appPartialAbnormal(serviceStatuses):
-		appStatus = pb.AppStatus_PARTIAL_ABNORMAL
-	case appRunning(serviceStatuses):
-		appStatus = pb.AppStatus_RUNNING
+	case appStarting(serviceStatuses):
+		appStatus = pb.AppStatus_STARTING
+	case appStopping(serviceStatuses):
+		appStatus = pb.AppStatus_STOPPING
 	}
 
 	return appStatus, nil
+}
+
+func appNil(statuses map[string]string) bool {
+	for _, status := range statuses {
+		if status != v1.UNDEPLOY {
+			return false
+		}
+	}
+	return true
 }
 
 func appClosed(statuses map[string]string) bool {
@@ -1066,29 +1077,35 @@ func appClosed(statuses map[string]string) bool {
 
 func appAbnormal(statuses map[string]string) bool {
 	for _, status := range statuses {
-		if status != v1.ABNORMAL {
-			return false
-		}
-	}
-	return true
-}
-
-func appPartialAbnormal(statuses map[string]string) bool {
-	for _, status := range statuses {
-		if status == v1.ABNORMAL {
+		if status == v1.ABNORMAL || status == v1.SOMEABNORMAL {
 			return true
 		}
 	}
 	return false
 }
 
-func appRunning(statuses map[string]string) bool {
+func appStarting(statuses map[string]string) bool {
 	for _, status := range statuses {
-		if status == v1.RUNNING {
+		if status == v1.STARTING {
 			return true
 		}
 	}
 	return false
+}
+
+func appStopping(statuses map[string]string) bool {
+	stopping := false
+	for _, status := range statuses {
+		if status == v1.STOPPING {
+			stopping = true
+			continue
+		}
+		if status == v1.CLOSED {
+			continue
+		}
+		return false
+	}
+	return stopping
 }
 
 func (a *appRuntimeStore) GetNeedBillingStatus(serviceIDs []string) map[string]string {

@@ -244,7 +244,8 @@ message AppStatus {
     RUNNING = 1;
     CLOSED = 2;
     ABNORMAL = 3;
-    PARTIAL_ABNORMAL = 4;
+    STARTING = 4;
+    STOPPING = 5;
   }
 
   Status status = 1;

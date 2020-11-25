@@ -86,8 +86,6 @@ var (
 	BUILDEFAILURE = "build_failure"
 	//UNDEPLOY init status
 	UNDEPLOY = "undeploy"
-	//WAITTING wait depend service start
-	WAITTING = "waitting"
 )
 
 //GetServiceStatus get service status
@@ -118,9 +116,6 @@ func (a *AppService) GetServiceStatus() string {
 	if a.statefulset == nil && a.deployment == nil && len(a.pods) > 0 {
 		return STOPPING
 	}
-	// if a.IsWaitting() {
-	// 	return WAITTING
-	// }
 	if (a.statefulset != nil || a.deployment != nil) && len(a.pods) < a.Replicas {
 		return STARTING
 	}
