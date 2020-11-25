@@ -50,9 +50,9 @@ import (
 
 	apimiddleware "github.com/goodrain/rainbond/api/middleware"
 
-	"github.com/sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/sirupsen/logrus"
 )
 
 //Manager apiserver

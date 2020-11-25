@@ -30,7 +30,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -38,6 +37,7 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/goodrain/rainbond/builder/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

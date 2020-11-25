@@ -28,9 +28,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	eventutil "github.com/goodrain/rainbond/eventlog/util"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 )
 
 //EventFilePlugin EventFilePlugin

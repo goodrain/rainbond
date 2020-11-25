@@ -265,10 +265,10 @@ type summary struct {
 	headStream                       *quantile.Stream
 	headStreamIdx                    int
 	headStreamExpTime, hotBufExpTime time.Time
-	timestamp int64
+	timestamp                        int64
 }
 
-func (this *summary) SetTimestamp(current int64){
+func (this *summary) SetTimestamp(current int64) {
 	this.timestamp = current
 }
 

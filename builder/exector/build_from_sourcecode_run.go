@@ -28,7 +28,6 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/build"
@@ -40,6 +39,7 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson" //"github.com/docker/docker/api/types"
 	"k8s.io/client-go/kubernetes"
 	//"github.com/docker/docker/client"

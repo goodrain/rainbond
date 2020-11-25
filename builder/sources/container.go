@@ -25,7 +25,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
@@ -34,6 +33,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

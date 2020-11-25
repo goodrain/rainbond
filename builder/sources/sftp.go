@@ -26,9 +26,9 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 

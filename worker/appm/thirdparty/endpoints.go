@@ -19,12 +19,12 @@
 package thirdparty
 
 import (
-	"github.com/sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/sirupsen/logrus"
 )
 
 // Interacter is the interface that wraps the required methods to interact

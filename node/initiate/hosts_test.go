@@ -103,7 +103,7 @@ func TestHostManager_Start(t *testing.T) {
 
 	ctx := context.Background()
 	cfg := &option.Conf{
-		RbdNamespace: "rbd-system",
+		RbdNamespace:        "rbd-system",
 		ImageRepositoryHost: "goodrain.me",
 	}
 	k8sDiscover := discover.NewK8sDiscover(ctx, clientset, cfg)
@@ -118,7 +118,5 @@ func TestHostManager_Start(t *testing.T) {
 
 	fmt.Println("oook")
 
-	select {
-
-	}
+	select {}
 }

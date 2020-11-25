@@ -27,7 +27,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
@@ -35,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 )
 
 // GatewayAction -

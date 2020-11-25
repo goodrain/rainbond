@@ -540,9 +540,9 @@ func (t *TenantServicesDaoImpl) ListThirdPartyServices() ([]*model.TenantService
 }
 
 // BindAppByServiceIDs binding application by serviceIDs
-func (t *TenantServicesDaoImpl)BindAppByServiceIDs(appID string, serviceIDs []string) error{
+func (t *TenantServicesDaoImpl) BindAppByServiceIDs(appID string, serviceIDs []string) error {
 	var service model.TenantServices
-	if err := t.DB.Model(&service).Where("service_id in (?)", serviceIDs).Update("app_id", appID).Error; err != nil{
+	if err := t.DB.Model(&service).Where("service_id in (?)", serviceIDs).Update("app_id", appID).Error; err != nil {
 		return err
 	}
 	return nil

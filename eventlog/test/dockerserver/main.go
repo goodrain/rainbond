@@ -28,8 +28,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/pebbe/zmq4"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/tidwall/gjson"
 	"github.com/twinj/uuid"

@@ -23,11 +23,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/worker/client"
 )

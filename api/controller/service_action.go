@@ -26,7 +26,6 @@ import (
 
 	validator "github.com/goodrain/rainbond/util/govalidator"
 
-	"github.com/sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
@@ -38,6 +37,7 @@ import (
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
 )
 
 //StartService StartService

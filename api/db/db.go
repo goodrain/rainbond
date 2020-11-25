@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	tsdbClient "github.com/bluebreezecf/opentsdb-goclient/client"
 	tsdbConfig "github.com/bluebreezecf/opentsdb-goclient/config"
 	"github.com/goodrain/rainbond/cmd/api/option"
@@ -35,6 +34,7 @@ import (
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 )
 
 //ConDB struct

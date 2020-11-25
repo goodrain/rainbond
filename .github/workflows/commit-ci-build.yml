@@ -14,8 +14,8 @@ jobs:
       with:
         # The Go version to download (if necessary) and use. Supports semver spec and ranges.
         go-version: 1.13
-    - name: Go-linter
-      uses: Jerome1337/golint-action@v1.0.2
+    # - name: Go-linter
+    #   uses: Jerome1337/golint-action@v1.0.2
 
     - name: Extract branch name
       shell: bash

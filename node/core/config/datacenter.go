@@ -30,8 +30,8 @@ import (
 	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/util"
 
-	"github.com/sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
+	"github.com/sirupsen/logrus"
 )
 
 //DataCenterConfig 数据中心配置

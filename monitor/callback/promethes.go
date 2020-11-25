@@ -21,12 +21,12 @@ package callback
 import (
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
+	"github.com/sirupsen/logrus"
 )
 
 // Prometheus 指prometheus的运行指标，数据来源于prometheus自身API

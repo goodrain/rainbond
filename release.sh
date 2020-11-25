@@ -95,7 +95,9 @@ build::image() {
 			"${source_dir}/test.sh" "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}"
 		fi
 		if [ "$2" = "push" ];then
-		    sudo docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+			if [ $DOCKER_USERNAME ];then
+		    	sudo docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+			fi
 			sudo docker push "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}"
 			if [ "${DOMESTIC_BASE_NAME}" ];
 			then

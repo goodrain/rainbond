@@ -460,7 +460,7 @@ func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re
 				cpu += c.CpuRequest
 			}
 		}
-		res[serviceID] = map[string]interface{}{"memory": memory/1024/1024, "cpu": cpu}
+		res[serviceID] = map[string]interface{}{"memory": memory / 1024 / 1024, "cpu": cpu}
 	}
 
 	for _, c := range closed {

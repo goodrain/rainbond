@@ -22,11 +22,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/prometheus/common/model"
+	"github.com/sirupsen/logrus"
 )
 
 //RbdAPI rbd api metrics

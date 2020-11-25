@@ -35,8 +35,8 @@ import (
 
 	"github.com/goodrain/rainbond/builder/model"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	"github.com/sirupsen/logrus"
 )
 
 const (

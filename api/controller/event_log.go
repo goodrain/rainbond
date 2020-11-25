@@ -27,8 +27,8 @@ import (
 
 	httputil "github.com/goodrain/rainbond/util/http"
 
-	"github.com/sirupsen/logrus"
 	"github.com/go-chi/chi"
+	"github.com/sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"

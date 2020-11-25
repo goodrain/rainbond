@@ -90,8 +90,8 @@ func TestManager_PluginBuildVersionDaoImpl_ListSuccessfulOnesByPluginIDs(t *test
 	}
 	for _, od := range oridata {
 		buildVersion := &model.TenantPluginBuildVersion{
-			PluginID: od.pluginID,
-			Status:   od.status,
+			PluginID:      od.pluginID,
+			Status:        od.status,
 			DeployVersion: time.Now().Format("20060102150405.000000"),
 		}
 		if err := GetManager().TenantPluginBuildVersionDao().AddModel(buildVersion); err != nil {

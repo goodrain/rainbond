@@ -24,8 +24,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	libcomposeyaml "github.com/docker/libcompose/yaml"
+	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 
 	"github.com/docker/cli/cli/compose/loader"

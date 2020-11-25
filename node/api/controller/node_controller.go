@@ -27,7 +27,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/node/api/model"
 	"github.com/goodrain/rainbond/node/nodem/client"
@@ -35,6 +34,7 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/version"
+	"github.com/sirupsen/logrus"
 )
 
 func init() {

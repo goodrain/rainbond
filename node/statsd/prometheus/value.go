@@ -51,7 +51,7 @@ type value struct {
 	desc       *Desc
 	valType    ValueType
 	labelPairs []*dto.LabelPair
-	timestamp int64
+	timestamp  int64
 }
 
 // newValue returns a newly allocated value with the given Desc, ValueType,
@@ -71,7 +71,7 @@ func newValue(desc *Desc, valueType ValueType, val float64, labelValues ...strin
 	return result
 }
 
-func (this *value) SetTimestamp(current int64){
+func (this *value) SetTimestamp(current int64) {
 	this.timestamp = current
 }
 

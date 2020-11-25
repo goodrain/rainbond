@@ -26,7 +26,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/cmd/node/option"
@@ -34,6 +33,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/node/nodem/healthy"
 	"github.com/goodrain/rainbond/node/nodem/service"
+	"github.com/sirupsen/logrus"
 )
 
 var (

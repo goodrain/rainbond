@@ -19,8 +19,8 @@
 package model
 
 import (
-	"github.com/sirupsen/logrus"
 	"github.com/docker/distribution/reference"
+	"github.com/sirupsen/logrus"
 )
 
 //TenantPlugin plugin model

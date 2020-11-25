@@ -28,8 +28,8 @@ import (
 
 	"sync"
 
-	"github.com/sirupsen/logrus"
 	zmq4 "github.com/pebbe/zmq4"
+	"github.com/sirupsen/logrus"
 )
 
 //MonitorMessageServer 监控实时数据接受服务

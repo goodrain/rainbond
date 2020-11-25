@@ -20,9 +20,9 @@ package discover
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/eventlog/conf"
+	"github.com/sirupsen/logrus"
 	"time"
 
 	"golang.org/x/net/context"

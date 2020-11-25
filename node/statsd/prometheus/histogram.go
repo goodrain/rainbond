@@ -232,10 +232,10 @@ type histogram struct {
 	counts      []uint64
 
 	labelPairs []*dto.LabelPair
-	timestamp int64
+	timestamp  int64
 }
 
-func (this *histogram) SetTimestamp(current int64){
+func (this *histogram) SetTimestamp(current int64) {
 	this.timestamp = current
 }
 

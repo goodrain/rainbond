@@ -31,8 +31,8 @@ import (
 
 	"github.com/goodrain/rainbond/eventlog/cluster/discover"
 
-	"github.com/sirupsen/logrus"
 	"github.com/pebbe/zmq4"
+	"github.com/sirupsen/logrus"
 )
 
 type Pub struct {

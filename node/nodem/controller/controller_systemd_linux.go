@@ -27,9 +27,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/nodem/service"
+	"github.com/sirupsen/logrus"
 )
 
 type ControllerSystemd struct {

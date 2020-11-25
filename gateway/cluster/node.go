@@ -24,9 +24,9 @@ import (
 	"net"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
+	"github.com/sirupsen/logrus"
 )
 
 //NodeManager node manager

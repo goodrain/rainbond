@@ -26,10 +26,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	"github.com/sirupsen/logrus"
 
 	"github.com/prometheus/common/log"
 )

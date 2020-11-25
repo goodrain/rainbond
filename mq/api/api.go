@@ -36,7 +36,6 @@ import (
 
 	_ "net/http/pprof"
 
-	"github.com/sirupsen/logrus"
 	restful "github.com/emicklei/go-restful"
 	swagger "github.com/emicklei/go-restful-swagger12"
 	grpcserver "github.com/goodrain/rainbond/mq/api/grpc/server"
@@ -44,6 +43,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
+	"github.com/sirupsen/logrus"
 )
 
 type Manager struct {

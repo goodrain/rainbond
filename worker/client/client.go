@@ -23,12 +23,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	grpcutil "github.com/goodrain/rainbond/util/grpc"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 

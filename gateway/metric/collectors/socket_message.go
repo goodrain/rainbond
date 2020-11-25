@@ -27,9 +27,9 @@ import (
 	"net"
 	"os"
 
-	"github.com/sirupsen/logrus"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 

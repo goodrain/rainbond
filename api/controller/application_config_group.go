@@ -22,7 +22,7 @@ func (a *ApplicationController) AddConfigGroup(w http.ResponseWriter, r *http.Re
 	}
 
 	checkServiceExist(appID, configReq.ServiceIDs)
-	
+
 	// create app ConfigGroups
 	resp, err := handler.GetApplicationHandler().AddConfigGroup(appID, &configReq)
 	if err != nil {

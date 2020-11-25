@@ -21,10 +21,10 @@ package dao
 import (
 	"fmt"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 )
 
 //PluginDaoImpl PluginDaoImpl

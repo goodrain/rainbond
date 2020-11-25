@@ -26,8 +26,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
+	"github.com/sirupsen/logrus"
 )
 
 //AppService app service

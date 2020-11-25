@@ -22,9 +22,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/mvcc/mvccpb"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

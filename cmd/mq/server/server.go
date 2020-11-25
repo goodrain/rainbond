@@ -27,8 +27,8 @@ import (
 	discover "github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/mq/api"
 
-	"github.com/sirupsen/logrus"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	"github.com/sirupsen/logrus"
 )
 
 //Run start run

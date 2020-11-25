@@ -11,11 +11,11 @@ func TestPreCheckNodeInstall(t *testing.T) {
 		wanterr bool
 	}{
 		{
-			name:    "empty node id",
-			opt:     &NodeInstallOption{
-				HostRole: "host role",
+			name: "empty node id",
+			opt: &NodeInstallOption{
+				HostRole:   "host role",
 				InternalIP: "192.168.1.1",
-				RootPass: "root pass",
+				RootPass:   "root pass",
 			},
 			wanterr: true,
 		},

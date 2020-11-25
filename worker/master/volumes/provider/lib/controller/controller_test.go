@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	storage "k8s.io/api/storage/v1"
 	storagebeta "k8s.io/api/storage/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -38,7 +39,6 @@ import (
 	testclient "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	ref "k8s.io/client-go/tools/reference"
-	utilversion "k8s.io/apimachinery/pkg/util/version"
 )
 
 const (
@@ -650,7 +650,7 @@ func TestControllerExternalSharedInformers(t *testing.T) {
 				newClaim("claim-1", "uid-1-1", "class-1", "foo.bar/baz", "", nil),
 			},
 			provisionerName: "foo.bar/baz",
-			serverVersion:   "v1.8.0",w
+			serverVersion:   "v1.8.0",
 			expectedVolumes: []v1.PersistentVolume{
 				*newProvisionedVolumeWithSpecifiedReclaimPolicy(newStorageClassWithSpecifiedReclaimPolicy("class-1", "foo.bar/baz", v1.PersistentVolumeReclaimDelete), newClaim("claim-1", "uid-1-1", "class-1", "foo.bar/baz", "", nil)),
 			},
@@ -940,7 +940,7 @@ type testProvisioner struct {
 	provisionCalls chan provisionParams
 }
 
-func (t *testProvisioner) Name() string{
+func (t *testProvisioner) Name() string {
 	return ""
 }
 

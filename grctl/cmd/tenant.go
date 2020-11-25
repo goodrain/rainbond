@@ -22,10 +22,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sirupsen/logrus"
-	"github.com/goodrain/rainbond/util/termtables"
 	"github.com/goodrain/rainbond/grctl/clients"
+	"github.com/goodrain/rainbond/util/termtables"
 	"github.com/gosuri/uitable"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
 	//"github.com/goodrain/rainbond/eventlog/conf"

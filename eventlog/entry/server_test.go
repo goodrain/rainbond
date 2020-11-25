@@ -30,8 +30,8 @@ import (
 
 	"sync"
 
-	"github.com/sirupsen/logrus"
 	"github.com/pebbe/zmq4"
+	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 )
 

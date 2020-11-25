@@ -24,11 +24,11 @@ import (
 	"context"
 	"errors"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	discover "github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 )
 
 var (

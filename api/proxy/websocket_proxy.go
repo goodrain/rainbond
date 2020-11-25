@@ -26,8 +26,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 )
 
 //WebSocketProxy WebSocketProxy

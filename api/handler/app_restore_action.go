@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sirupsen/logrus"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 )
 
 // AppRestoreAction is an implementation of AppRestoreHandler

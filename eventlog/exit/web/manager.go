@@ -34,7 +34,6 @@ import (
 	"github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
 
-	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -42,6 +41,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
+	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 	"golang.org/x/net/context"
 )

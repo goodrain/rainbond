@@ -21,11 +21,11 @@ package region
 import (
 	"path"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	utilhttp "github.com/goodrain/rainbond/util/http"
 	"github.com/mitchellh/mapstructure"
+	"github.com/sirupsen/logrus"
 )
 
 type tenant struct {

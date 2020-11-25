@@ -27,8 +27,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 )
 
 type readMessageStore struct {

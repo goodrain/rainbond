@@ -26,10 +26,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"

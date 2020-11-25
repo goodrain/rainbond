@@ -24,12 +24,12 @@ import (
 
 	"fmt"
 
-	"github.com/sirupsen/logrus"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/sirupsen/logrus"
 	// pb "github.com/goodrain/rainibond/worker/server/pb"
 )
 

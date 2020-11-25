@@ -26,11 +26,11 @@ import (
 
 	"github.com/jinzhu/gorm"
 
-	"github.com/sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/sirupsen/logrus"
 )
 
 //Event GetLogs

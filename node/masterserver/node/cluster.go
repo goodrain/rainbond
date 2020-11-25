@@ -23,7 +23,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/core/config"
 	"github.com/goodrain/rainbond/node/core/store"
@@ -31,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/watch"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 

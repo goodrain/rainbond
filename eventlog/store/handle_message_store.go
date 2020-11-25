@@ -24,13 +24,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	cdb "github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/eventlog/util"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

@@ -24,8 +24,8 @@ import (
 	"os/exec"
 	"path"
 
-	"github.com/sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 )
 
 var (

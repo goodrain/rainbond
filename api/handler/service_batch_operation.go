@@ -23,10 +23,10 @@ import (
 	"strings"
 
 	"container/list"
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	gclient "github.com/goodrain/rainbond/mq/client"
+	"github.com/sirupsen/logrus"
 )
 
 //BatchOperationHandler batch operation handler

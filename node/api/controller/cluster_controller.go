@@ -29,8 +29,8 @@ import (
 
 	api "github.com/goodrain/rainbond/util/http"
 
-	"github.com/sirupsen/logrus"
 	"github.com/go-chi/chi"
+	"github.com/sirupsen/logrus"
 
 	"strconv"
 
@@ -339,7 +339,7 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 			usedNodeList = append(usedNodeList, nodes[i])
 		}
 	}
-	
+
 	var healthcpuR int64
 	var healthmemR int64
 	var unhealthCPUR int64

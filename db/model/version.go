@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/docker/distribution/reference"
+	"github.com/sirupsen/logrus"
 )
 
 //VersionInfo version info struct

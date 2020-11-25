@@ -21,8 +21,8 @@ package dao
 import (
 	"fmt"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/sirupsen/logrus"
 
 	"github.com/jinzhu/gorm"
 )

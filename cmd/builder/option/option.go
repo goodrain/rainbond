@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/mq/client"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 

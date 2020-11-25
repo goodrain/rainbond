@@ -34,13 +34,13 @@ import (
 
 	"net/http"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/api"
 	"github.com/goodrain/rainbond/builder/clean"
 	discoverv2 "github.com/goodrain/rainbond/discover.v2"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 )
 
 //Run start run

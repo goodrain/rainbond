@@ -22,17 +22,17 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/builder/option"
 	eventutil "github.com/goodrain/rainbond/eventlog/util"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
 )
 
 // GarbageCollectionItem -
 type GarbageCollectionItem struct {
-	TenantID  string   `json:"tenant_id"`
-	ServiceID string   `json:"service_id"`
-	EventIDs  []string `json:"event_ids"`
+	TenantID  string        `json:"tenant_id"`
+	ServiceID string        `json:"service_id"`
+	EventIDs  []string      `json:"event_ids"`
 	Cfg       option.Config `json:"-"`
 }
 

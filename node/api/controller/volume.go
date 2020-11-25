@@ -25,8 +25,8 @@ import (
 	"path"
 	"runtime"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 
 	httputil "github.com/goodrain/rainbond/util/http"
 )

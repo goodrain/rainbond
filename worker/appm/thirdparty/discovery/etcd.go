@@ -26,12 +26,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	c "github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/db/model"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/sirupsen/logrus"
 )
 
 type etcd struct {

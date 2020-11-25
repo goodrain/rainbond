@@ -21,8 +21,8 @@ package db
 import (
 	"fmt"
 
-	"github.com/sirupsen/logrus"
 	"github.com/goodrain/rainbond/eventlog/conf"
+	"github.com/sirupsen/logrus"
 )
 
 type Manager interface {
