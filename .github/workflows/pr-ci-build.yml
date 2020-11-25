@@ -1,7 +1,7 @@
-name: commit-ci-build
+name: pr-ci-build
 
 on:
-  push:
+  pull_request:
     branches: [ master, V5.2, V5.3 ]
 
 jobs:
