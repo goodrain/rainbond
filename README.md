@@ -65,10 +65,10 @@ Rainbond has completed two-way authentication with localized computing bases rep
 
 [Rainbond Website](https://www.rainbond.com)    Read more about Rainbond.
 
-<center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/12141565594759_.pic_hd.jpg"/></center>
-<center>Join WeChart</center>
+<center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/cloud/weichart.png"/></center>
+<center>Add Maintainer WeChart</center>
 
-## Related items
+## Related repositorys
 
    * [Rainbond-Console](https://github.com/goodrain/rainbond-console) 
    * [Rainbond-Console-UI](https://github.com/goodrain/rainbond-ui) 

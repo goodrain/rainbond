@@ -84,8 +84,8 @@ Rainbond完成与龙芯、飞腾、麒麟操作系统等为代表的国产化计
 
 [Rainbond 项目官网](https://www.rainbond.com)    查阅关于Rainbond的更多信息。
 
-<center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/12141565594759_.pic_hd.jpg"/></center>
-<center>加入微信群，与社区用户一起交流 Rainbond </center>
+<center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/cloud/weichart.png"/></center>
+<center>加入微信群，与社区用户一起交流 Rainbond</center>
 
 ## 参与贡献
 
