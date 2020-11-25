@@ -14,9 +14,15 @@
 
 ## Rainbond初识
 
-<b>云原生应用管理平台</b>
+<b>云原生且易用的应用管理平台</b>
 
-实现微服务架构不用改代码，管理K8s不用学容器，帮企业实现应用上云，一站式将任何企业应用持续交付到K8s集群、混合云、多云等基础设施。
+Rainbond 是云原生且易用的云原生应用管理平台，云原生应用交付的最佳实践，简单易用。专注于以应用为中心的理念。赋能企业搭建云原生开发云、云原生交付云。
+
+<b>对于企业：</b> Rainbond 是可以直接开箱即用的云原生平台，借助 Rainbond 可以快速完成企业研发和交付体系的云原生转型。
+
+<b>对于开发者：</b> 基于 Rainbond 开发、测试和运维企业业务应用，可以开箱即用的获得全方位的云原生技术能力。包括但不仅限于持续集成、服务治理、架构支撑、多维度应用观测、流量管理。
+
+<b>对于交付人员：</b> 基于 Rainbond 搭建产品版本化管理体系，搭建标准化客户交付环境，使传统的交付流程可以自动化、简单化和可管理。
 
 [我要试用](https://cloud.goodrain.com/enterprise-server/trial)
 
@@ -78,8 +84,8 @@ Rainbond完成与龙芯、飞腾、麒麟操作系统等为代表的国产化计
 
 [Rainbond 项目官网](https://www.rainbond.com)    查阅关于Rainbond的更多信息。
 
-<center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/12141565594759_.pic_hd.jpg"/></center>
-<center>加入微信群，与社区用户一起交流 Rainbond </center>
+<center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/cloud/weichart.png"/></center>
+<center>加入微信群，与社区用户一起交流 Rainbond</center>
 
 ## 参与贡献
 

@@ -15,11 +15,16 @@
 
 ## Rainbond Introduction
 
-<b>Cloud native application management platform</b>
+<b>Cloud native and easy-to-use application management platform</b>
 
-* Implementing the microservice architecture without changing the code.
-* Manage app in k8s without learning about container techniques.
-* Help enterprises implement application to the cloud, one-stop delivery of any enterprise application to k8s cluster, hybrid cloud, multi-cloud and other infrastructure.
+Rainbond is a cloud native and easy-to-use application management platform, a best practice for cloud native application delivery, and easy to use. Focus on the application-centric concept. Enabling enterprises to build cloud native development cloud, cloud native delivery cloud.
+
+<b>For Enterprise：</b> Rainbond is a cloud native platform that can be used directly out of the box，With Rainbond, you can quickly complete the cloud-native transformation of the enterprise R&D and delivery system.
+
+
+<b>For Developers：</b> Develop, test and operate enterprise business applications based on Rainbond，You can get a full range of cloud native technology capabilities out of the box. Including but not limited to continuous integration, service governance, architecture support, multi-dimensional application observation, and traffic management.
+
+<b>For Delivery engineer：</b> Build a product version management system based on Rainbond and build a standardized customer delivery environment, so that the traditional delivery process can be automated, simplified and manageable.
 
 [Request Demo](https://cloud.goodrain.com/enterprise-server/trial)
 
@@ -60,10 +65,10 @@ Rainbond has completed two-way authentication with localized computing bases rep
 
 [Rainbond Website](https://www.rainbond.com)    Read more about Rainbond.
 
-<center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/12141565594759_.pic_hd.jpg"/></center>
-<center>Join WeChart</center>
+<center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/cloud/weichart.png"/></center>
+<center>Add Maintainer WeChart</center>
 
-## Related items
+## Related repositorys
 
    * [Rainbond-Console](https://github.com/goodrain/rainbond-console) 
    * [Rainbond-Console-UI](https://github.com/goodrain/rainbond-ui) 
