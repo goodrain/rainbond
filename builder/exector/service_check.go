@@ -25,11 +25,11 @@ import (
 
 	"github.com/ghodss/yaml"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
 )
 
 //ServiceCheckInput 任务输入数据

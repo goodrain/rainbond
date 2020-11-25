@@ -21,9 +21,9 @@ package controller
 import (
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/worker/appm/f"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/sirupsen/logrus"
 )
 
 type applyRuleController struct {

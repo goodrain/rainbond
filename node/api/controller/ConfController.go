@@ -23,8 +23,8 @@ import (
 
 	"github.com/goodrain/rainbond/node/api/model"
 
-	"github.com/Sirupsen/logrus"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/sirupsen/logrus"
 )
 
 //GetDatacenterConfig 获取数据中心配置

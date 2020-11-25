@@ -23,8 +23,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/event"
+	"github.com/sirupsen/logrus"
 
 	"github.com/docker/docker/client"
 	"golang.org/x/net/context"

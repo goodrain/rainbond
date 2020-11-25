@@ -6,8 +6,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	v1 "github.com/goodrain/rainbond/util/prober/types/v1"
+	"github.com/sirupsen/logrus"
 )
 
 // TCPProbe probes through the tcp protocol

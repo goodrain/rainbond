@@ -24,8 +24,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/goodrain/rainbond/api/handler"

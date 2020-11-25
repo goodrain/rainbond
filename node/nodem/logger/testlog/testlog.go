@@ -22,8 +22,8 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/node/nodem/logger"
+	"github.com/sirupsen/logrus"
 )
 
 // Name is the name of the file that the jsonlogger logs to.

@@ -22,7 +22,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	monitorv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/coreos/prometheus-operator/pkg/client/versioned"
+	"github.com/goodrain/rainbond/gateway/annotations/parser"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/sirupsen/logrus"
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -31,9 +35,6 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-
-	"github.com/goodrain/rainbond/gateway/annotations/parser"
-	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 const (
@@ -522,4 +523,77 @@ func UpgradeEndpoints(clientset kubernetes.Interface,
 		}
 	}
 	return nil
+}
+
+// UpgradeServiceMonitor -
+func UpgradeServiceMonitor(
+	clientset *versioned.Clientset,
+	as *v1.AppService,
+	old, new []*monitorv1.ServiceMonitor,
+	handleErr func(msg string, err error) error) error {
+
+	var oldMap = make(map[string]*monitorv1.ServiceMonitor, len(old))
+	for i := range old {
+		oldMap[old[i].Name] = old[i]
+	}
+	for _, n := range new {
+		if o, ok := oldMap[n.Name]; ok {
+			n.UID = o.UID
+			n.ResourceVersion = o.ResourceVersion
+			ing, err := clientset.MonitoringV1().ServiceMonitors(n.Namespace).Update(n)
+			if err != nil {
+				if err := handleErr(fmt.Sprintf("error updating service monitor: %+v: err: %v",
+					ing, err), err); err != nil {
+					return err
+				}
+				continue
+			}
+			as.SetServiceMonitor(n)
+			delete(oldMap, o.Name)
+			logrus.Debugf("ServiceID: %s; successfully update service monitor: %s", as.ServiceID, ing.Name)
+		} else {
+			ing, err := clientset.MonitoringV1().ServiceMonitors(n.Namespace).Create(n)
+			if err != nil {
+				if err := handleErr(fmt.Sprintf("error creating service monitor: %+v: err: %v",
+					ing, err), err); err != nil {
+					return err
+				}
+				continue
+			}
+			as.SetServiceMonitor(ing)
+			logrus.Debugf("ServiceID: %s; successfully create service monitor: %s", as.ServiceID, ing.Name)
+		}
+	}
+	for _, ing := range oldMap {
+		if ing != nil {
+			if err := clientset.MonitoringV1().ServiceMonitors(ing.Namespace).Delete(ing.Name,
+				&metav1.DeleteOptions{}); err != nil {
+				if err := handleErr(fmt.Sprintf("error deleting service monitor: %+v: err: %v",
+					ing, err), err); err != nil {
+					return err
+				}
+				continue
+			}
+			logrus.Debugf("ServiceID: %s; successfully delete service monitor: %s", as.ServiceID, ing.Name)
+		}
+	}
+	return nil
+}
+
+// CreateOrUpdateSecret creates or updates secret.
+func CreateOrUpdateSecret(clientset kubernetes.Interface, secret *corev1.Secret) error {
+	old, err := clientset.CoreV1().Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
+	if err != nil {
+		if !k8sErrors.IsNotFound(err) {
+			return err
+		}
+		// create secret
+		_, err := clientset.CoreV1().Secrets(secret.Namespace).Create(secret)
+		return err
+	}
+
+	// update secret
+	secret.ResourceVersion = old.ResourceVersion
+	_, err = clientset.CoreV1().Secrets(secret.Namespace).Update(secret)
+	return err
 }

@@ -30,8 +30,8 @@ import (
 
 	"context"
 
-	"github.com/Sirupsen/logrus"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	"github.com/sirupsen/logrus"
 )
 
 var (

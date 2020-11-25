@@ -28,22 +28,23 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/errors"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	validation "github.com/goodrain/rainbond/util/endpoint"
+	"github.com/goodrain/rainbond/util/fuzzy"
+	validator "github.com/goodrain/rainbond/util/govalidator"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/jinzhu/gorm"
-	"github.com/renstorm/fuzzysearch/fuzzy"
-	validator "github.com/thedevsaddam/govalidator"
+	"github.com/sirupsen/logrus"
 )
 
 //V2Routes v2Routes
@@ -57,6 +58,7 @@ type V2Routes struct {
 	LabelController
 	AppRestoreController
 	PodController
+	ApplicationController
 }
 
 //Show test
@@ -648,6 +650,17 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if the application ID exists
+	if ss.AppID == "" {
+		httputil.ReturnBcodeError(r, w, bcode.ErrCreateNeedCorrectAppID)
+		return
+	}
+	_, err := handler.GetApplicationHandler().GetAppByID(ss.AppID)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
 	// clean etcd data(source check)
 	handler.GetEtcdHandler().CleanServiceCheckData(ss.EtcdKey)
 
@@ -697,7 +710,6 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	logrus.Debugf("trans update service service")
 	//目前提供三个元素的修改
 	rules := validator.MapData{
 		"container_cmd":    []string{},
@@ -705,6 +717,7 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 		"container_memory": []string{},
 		"service_name":     []string{},
 		"extend_method":    []string{},
+		"app_id":           []string{},
 	}
 	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
 	if !ok {
@@ -712,9 +725,20 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 	}
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	data["service_id"] = serviceID
-	logrus.Debugf("begin to update service")
+
+	// Check if the application ID exists
+	var appID string
+	if data["app_id"] != nil && data["app_id"] != "" {
+		appID = data["app_id"].(string)
+		_, err := handler.GetApplicationHandler().GetAppByID(appID)
+		if err != nil {
+			httputil.ReturnBcodeError(r, w, err)
+			return
+		}
+	}
+
 	if err := handler.GetServiceManager().ServiceUpdate(data); err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf("update service error, %v", err))
+		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
@@ -742,7 +766,6 @@ func (t *TenantStruct) SetLanguage(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	logrus.Debugf("trans language set service")
 	rules := validator.MapData{
 		"language": []string{"required"},
 	}
@@ -1324,7 +1347,7 @@ func (t *TenantStruct) addPortController(w http.ResponseWriter, r *http.Request)
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ports, nil); !ok {
 		return
 	}
-	if err := handler.GetServiceManager().PortVar("add", tenantID, serviceID, &ports, 0); err != nil {
+	if err := handler.GetServiceManager().CreatePorts(tenantID, serviceID, &ports); err != nil {
 		logrus.Errorf("add port error. %v", err)
 		httputil.ReturnError(r, w, 500, err.Error())
 		return

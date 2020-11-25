@@ -26,8 +26,8 @@ import (
 	"os"
 	"sort"
 
-	"github.com/Sirupsen/logrus"
 	version "github.com/goodrain/rainbond/cmd"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 

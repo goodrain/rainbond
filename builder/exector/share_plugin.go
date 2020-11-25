@@ -25,12 +25,12 @@ import (
 
 	"github.com/goodrain/rainbond/builder"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 )
 

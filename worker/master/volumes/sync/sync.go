@@ -1,9 +1,9 @@
 package sync
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/sirupsen/logrus"
 )
 
 // VolumeTypeEvent -

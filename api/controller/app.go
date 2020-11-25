@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/controller/upload"
 	"github.com/goodrain/rainbond/api/handler"
@@ -19,6 +18,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 )
 
 //AppStruct -

@@ -5,9 +5,9 @@ RUN apt-get update && apt-get install -y bash curl net-tools wget vim && \
 ADD . /root/
 RUN chmod 755 /root/start.sh && chmod 755 /usr/bin/env2file
 ENV ENVOY_BINARY="/usr/local/bin/envoy"
-ENV RELEASE_DESC=__RELEASE_DESC__
+ENV RELEASE_DESC=${RELEASE_DESC}
 WORKDIR /root
-CMD ["./start.sh"]
+ENTRYPOINT ["./start.sh"]
 
 
 

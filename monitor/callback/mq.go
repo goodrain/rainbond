@@ -21,12 +21,12 @@ package callback
 import (
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
 	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/prometheus/common/model"
+	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 )
 

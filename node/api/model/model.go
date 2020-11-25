@@ -19,7 +19,7 @@
 package model
 
 import (
-	//"github.com/Sirupsen/logrus"
+	//"github.com/sirupsen/logrus"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -29,7 +29,7 @@ import (
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/pquerna/ffjson/ffjson"
-	v1 "k8s.io/api/core/v1" //"github.com/Sirupsen/logrus"
+	v1 "k8s.io/api/core/v1" //"github.com/sirupsen/logrus"
 )
 
 //Resource 资源

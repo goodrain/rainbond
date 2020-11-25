@@ -19,8 +19,8 @@
 package handler
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
+	"github.com/goodrain/rainbond/api/client/prometheus"
 	api_db "github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/handler/group"
 	"github.com/goodrain/rainbond/api/handler/share"
@@ -28,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/worker/client"
+	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -47,11 +48,18 @@ func InitHandle(conf option.Config,
 		logrus.Errorf("new MQ manager failed, %v", errMQ)
 		return errMQ
 	}
+	prometheusCli, err := prometheus.NewPrometheus(&prometheus.Options{
+		Endpoint: conf.PrometheusEndpoint,
+	})
+	if err != nil {
+		logrus.Errorf("new prometheus client failure, %v", err)
+		return err
+	}
 	dbmanager := db.GetManager()
-	defaultServieHandler = CreateManager(conf, mqClient, etcdcli, statusCli)
+	defaultServieHandler = CreateManager(conf, mqClient, etcdcli, statusCli, prometheusCli)
 	defaultPluginHandler = CreatePluginManager(mqClient)
 	defaultAppHandler = CreateAppManager(mqClient)
-	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, kubeClient)
+	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, kubeClient, prometheusCli)
 	defaultNetRulesHandler = CreateNetRulesManager(etcdcli)
 	defaultCloudHandler = CreateCloudManager(conf)
 	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdcli)
@@ -69,16 +77,22 @@ func InitHandle(conf option.Config,
 	defaultAppRestoreHandler = NewAppRestoreHandler()
 	defPodHandler = NewPodHandler(statusCli)
 	defClusterHandler = NewClusterHandler(kubeClient, conf.RbdNamespace)
-
 	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
 	defaultEtcdHandler = NewEtcdHandler(etcdcli)
-
+	defaultmonitorHandler = NewMonitorHandler(prometheusCli)
+	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli)
 	return nil
 }
 
 var defaultServieHandler ServiceHandler
 var shareHandler *share.ServiceShareHandle
 var pluginShareHandler *share.PluginShareHandle
+var defaultmonitorHandler MonitorHandler
+
+//GetMonitorHandle get monitor handler
+func GetMonitorHandle() MonitorHandler {
+	return defaultmonitorHandler
+}
 
 //GetShareHandle get share handle
 func GetShareHandle() *share.ServiceShareHandle {
@@ -198,4 +212,11 @@ var defClusterHandler ClusterHandler
 // GetClusterHandler returns the default cluster handler.
 func GetClusterHandler() ClusterHandler {
 	return defClusterHandler
+}
+
+var defApplicationHandler ApplicationHandler
+
+// GetApplicationHandler  returns the default tenant application handler.
+func GetApplicationHandler() ApplicationHandler {
+	return defApplicationHandler
 }

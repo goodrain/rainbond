@@ -22,8 +22,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/webcli/term"
+	"github.com/sirupsen/logrus"
 )
 
 //Out out

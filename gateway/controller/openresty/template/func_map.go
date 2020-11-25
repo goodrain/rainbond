@@ -24,10 +24,10 @@ import (
 	"strings"
 	text_template "text/template"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/golang/glog"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
 	v1 "github.com/goodrain/rainbond/gateway/v1"
+	"github.com/sirupsen/logrus"
 )
 
 var (

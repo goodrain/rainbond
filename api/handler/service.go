@@ -22,20 +22,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 
-	"github.com/goodrain/rainbond/api/proxy"
+	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
@@ -60,10 +60,11 @@ var ErrServiceNotClosed = errors.New("Service has not been closed")
 
 //ServiceAction service act
 type ServiceAction struct {
-	MQClient  gclient.MQClient
-	EtcdCli   *clientv3.Client
-	statusCli *client.AppRuntimeSyncClient
-	conf      option.Config
+	MQClient      gclient.MQClient
+	EtcdCli       *clientv3.Client
+	statusCli     *client.AppRuntimeSyncClient
+	prometheusCli prometheus.Interface
+	conf          option.Config
 }
 
 type dCfg struct {
@@ -76,12 +77,13 @@ type dCfg struct {
 
 //CreateManager create Manger
 func CreateManager(conf option.Config, mqClient gclient.MQClient,
-	etcdCli *clientv3.Client, statusCli *client.AppRuntimeSyncClient) *ServiceAction {
+	etcdCli *clientv3.Client, statusCli *client.AppRuntimeSyncClient, prometheusCli prometheus.Interface) *ServiceAction {
 	return &ServiceAction{
-		MQClient:  mqClient,
-		EtcdCli:   etcdCli,
-		statusCli: statusCli,
-		conf:      conf,
+		MQClient:      mqClient,
+		EtcdCli:       etcdCli,
+		statusCli:     statusCli,
+		conf:          conf,
+		prometheusCli: prometheusCli,
 	}
 }
 
@@ -503,6 +505,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	volumns := sc.VolumesInfo
 	dependVolumes := sc.DepVolumesInfo
 	dependIds := sc.DependIDs
+	ts.AppID = sc.AppID
 	ts.DeployVersion = ""
 	tx := db.GetManager().Begin()
 	defer func() {
@@ -744,14 +747,14 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 		return err
 	}
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(ts.DeployVersion, ts.ServiceID)
-	if sc["container_memory"] != nil {
-		ts.ContainerMemory = sc["container_memory"].(int)
+	if memory, ok := sc["container_memory"].(int); ok && memory != 0 {
+		ts.ContainerMemory = memory
 	}
-	if sc["container_cmd"] != nil {
-		version.Cmd = sc["container_cmd"].(string)
+	if name, ok := sc["service_name"].(string); ok && name != "" {
+		ts.ServiceName = name
 	}
-	if sc["service_name"] != nil {
-		ts.ServiceName = sc["service_name"].(string)
+	if appID, ok := sc["app_id"].(string); ok && appID != "" {
+		ts.AppID = appID
 	}
 	if sc["extend_method"] != nil {
 		extendMethod := sc["extend_method"].(string)
@@ -835,6 +838,36 @@ func (s *ServiceAction) GetService(tenantID string) ([]*dbmodel.TenantServices, 
 	return services, nil
 }
 
+//GetServicesByAppID get service(s) by appID
+func (s *ServiceAction) GetServicesByAppID(appID string, page, pageSize int) (*api_model.ListServiceResponse, error) {
+	var resp api_model.ListServiceResponse
+	services, total, err := db.GetManager().TenantServiceDao().GetServicesInfoByAppID(appID, page, pageSize)
+	if err != nil {
+		logrus.Errorf("get service by application id error, %v, %v", services, err)
+		return nil, err
+	}
+	var serviceIDs []string
+	for _, s := range services {
+		serviceIDs = append(serviceIDs, s.ServiceID)
+	}
+	status := s.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
+	for _, s := range services {
+		if status, ok := status[s.ServiceID]; ok {
+			s.CurStatus = status
+		}
+	}
+	if services != nil {
+		resp.Services = services
+	} else {
+		resp.Services = make([]*dbmodel.TenantServices, 0)
+	}
+
+	resp.Page = page
+	resp.Total = total
+	resp.PageSize = pageSize
+	return &resp, nil
+}
+
 //GetPagedTenantRes get pagedTenantServiceRes(s)
 func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantResource, int, error) {
 	allstatus := s.statusCli.GetAllStatus()
@@ -891,7 +924,7 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 	if err != nil {
 		logrus.Errorf("get tenant %s resource failure %s", uuid, err.Error())
 	}
-	disks := GetServicesDisk(strings.Split(serviceIDs, ","), GetPrometheusProxy())
+	disks := GetServicesDiskDeprecated(strings.Split(serviceIDs, ","), s.prometheusCli)
 	var value float64
 	for _, v := range disks {
 		value += v
@@ -910,48 +943,20 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 	return &res, nil
 }
 
-//GetServicesDisk get service disk
-func GetServicesDisk(ids []string, p proxy.Proxy) map[string]float64 {
+//GetServicesDiskDeprecated get service disk
+//
+// Deprecated
+func GetServicesDiskDeprecated(ids []string, prometheusCli prometheus.Interface) map[string]float64 {
 	result := make(map[string]float64)
 	//query disk used in prometheus
 	query := fmt.Sprintf(`max(app_resource_appfs{service_id=~"%s"}) by(service_id)`, strings.Join(ids, "|"))
-	query = strings.Replace(query, " ", "%20", -1)
-	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", query), nil)
-	if err != nil {
-		logrus.Error("create request prometheus api error ", err.Error())
-		return result
-	}
-	presult, err := p.Do(req)
-	if err != nil {
-		logrus.Error("do pproxy request prometheus api error ", err.Error())
-		return result
-	}
-
-	if presult.Body != nil {
-		defer presult.Body.Close()
-		if presult.StatusCode != 200 {
-			return result
-		}
-		var qres QueryResult
-		err = json.NewDecoder(presult.Body).Decode(&qres)
-		if err == nil {
-			for _, re := range qres.Data.Result {
-				var serviceID string
-				if tid, ok := re["metric"].(map[string]interface{}); ok {
-					serviceID = tid["service_id"].(string)
-				}
-				if re, ok := (re["value"]).([]interface{}); ok && len(re) == 2 {
-					i, err := strconv.ParseFloat(re[1].(string), 10)
-					if err != nil {
-						logrus.Warningf("error convert interface(%v) to float64", re[1].(string))
-						continue
-					}
-					result[serviceID] = i
-				}
-			}
+	metric := prometheusCli.GetMetric(query, time.Now())
+	for _, re := range metric.MetricData.MetricValues {
+		var serviceID = re.Metadata["service_id"]
+		if re.Sample != nil {
+			result[serviceID] = re.Sample.Value()
 		}
 	}
-
 	return result
 }
 
@@ -1016,6 +1021,54 @@ func (s *ServiceAction) EnvAttr(action string, at *dbmodel.TenantServiceEnvVar) 
 	return nil
 }
 
+// CreatePorts -
+func (s *ServiceAction) CreatePorts(tenantID, serviceID string, vps *api_model.ServicePorts) error {
+	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
+
+	for _, vp := range vps.Port {
+		// make sure K8sServiceName is unique
+		if vp.K8sServiceName != "" {
+			port, err := db.GetManager().TenantServicesPortDao().GetByTenantAndName(tenantID, vp.K8sServiceName)
+			if err != nil && err != gorm.ErrRecordNotFound {
+				tx.Rollback()
+				return err
+			}
+			if port != nil {
+				tx.Rollback()
+				return bcode.ErrK8sServiceNameExists
+			}
+		}
+
+		var vpD dbmodel.TenantServicesPort
+		vpD.ServiceID = serviceID
+		vpD.TenantID = tenantID
+		vpD.IsInnerService = &vp.IsInnerService
+		vpD.IsOuterService = &vp.IsOuterService
+		vpD.ContainerPort = vp.ContainerPort
+		vpD.MappingPort = vp.MappingPort
+		vpD.Protocol = vp.Protocol
+		vpD.PortAlias = vp.PortAlias
+		vpD.K8sServiceName = vp.K8sServiceName
+		if err := db.GetManager().TenantServicesPortDaoTransactions(tx).AddModel(&vpD); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
+}
+
 //PortVar port var
 func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_model.ServicePorts, oldPort int) error {
 	crt, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
@@ -1026,22 +1079,6 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 		return err
 	}
 	switch action {
-	case "add":
-		for _, vp := range vps.Port {
-			var vpD dbmodel.TenantServicesPort
-			vpD.ServiceID = serviceID
-			vpD.TenantID = tenantID
-			vpD.IsInnerService = &vp.IsInnerService
-			vpD.IsOuterService = &vp.IsOuterService
-			vpD.ContainerPort = vp.ContainerPort
-			vpD.MappingPort = vp.MappingPort
-			vpD.Protocol = vp.Protocol
-			vpD.PortAlias = vp.PortAlias
-			if err := db.GetManager().TenantServicesPortDao().AddModel(&vpD); err != nil {
-				logrus.Errorf("add port var error, %v", err)
-				return err
-			}
-		}
 	case "delete":
 		tx := db.GetManager().Begin()
 		defer func() {
@@ -1080,6 +1117,19 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 				tx.Rollback()
 				return err
 			}
+			// make sure K8sServiceName is unique
+			if vp.K8sServiceName != "" {
+				port, err := db.GetManager().TenantServicesPortDao().GetByTenantAndName(tenantID, vp.K8sServiceName)
+				if err != nil && err != gorm.ErrRecordNotFound {
+					tx.Rollback()
+					return err
+				}
+				if port != nil && vpD.K8sServiceName != vp.K8sServiceName {
+					tx.Rollback()
+					return bcode.ErrK8sServiceNameExists
+				}
+			}
+
 			vpD.ServiceID = serviceID
 			vpD.TenantID = tenantID
 			vpD.IsInnerService = &vp.IsInnerService
@@ -1088,6 +1138,7 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 			vpD.MappingPort = vp.MappingPort
 			vpD.Protocol = vp.Protocol
 			vpD.PortAlias = vp.PortAlias
+			vpD.K8sServiceName = vp.K8sServiceName
 			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(vpD); err != nil {
 				logrus.Errorf("update port var error, %v", err)
 				tx.Rollback()
@@ -1901,59 +1952,24 @@ func (s *ServiceAction) GetMultiServicePods(serviceIDs []string) (*K8sPodInfos, 
 //GetPodContainerMemory Use Prometheus to query memory resources
 func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map[string]string, error) {
 	memoryUsageMap := make(map[string]map[string]string, 10)
-	proxy := GetPrometheusProxy()
 	queryName := strings.Join(podNames, "|")
 	query := fmt.Sprintf(`container_memory_rss{pod=~"%s"}`, queryName)
-	proQuery := strings.Replace(query, " ", "%20", -1)
-	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:9999/api/v1/query?query=%s", proQuery), nil)
-	if err != nil {
-		logrus.Error("create request prometheus api error ", err.Error())
-		return memoryUsageMap, nil
-	}
-	presult, err := proxy.Do(req)
-	if err != nil {
-		logrus.Error("do proxy request prometheus api error ", err.Error())
-		return memoryUsageMap, nil
-	}
-	if presult.Body != nil {
-		defer presult.Body.Close()
-		if presult.StatusCode != 200 {
-			logrus.Error("StatusCode:", presult.StatusCode, err)
-			return memoryUsageMap, nil
+	metric := s.prometheusCli.GetMetric(query, time.Now())
+
+	for _, re := range metric.MetricData.MetricValues {
+		var containerName = re.Metadata["container"]
+		var podName = re.Metadata["pod"]
+		var valuesBytes string
+		if re.Sample != nil {
+			valuesBytes = fmt.Sprintf("%d", int(re.Sample.Value()))
 		}
-		var qres QueryResult
-		err = json.NewDecoder(presult.Body).Decode(&qres)
-		if err == nil {
-			for _, re := range qres.Data.Result {
-				var containerName, podName string
-				var valuesBytes string
-				if cname, ok := re["metric"].(map[string]interface{}); ok {
-					if containerName, ok = cname["container"].(string); !ok {
-						continue
-					}
-					if podName, ok = cname["pod"].(string); !ok {
-						continue
-					}
-				} else {
-					logrus.Info("metric decode error")
-				}
-				if val, ok := (re["value"]).([]interface{}); ok && len(val) == 2 {
-					valuesBytes = val[1].(string)
-				} else {
-					logrus.Info("value decode error")
-				}
-				if _, ok := memoryUsageMap[podName]; ok {
-					memoryUsageMap[podName][containerName] = valuesBytes
-				} else {
-					memoryUsageMap[podName] = map[string]string{
-						containerName: valuesBytes,
-					}
-				}
+		if _, ok := memoryUsageMap[podName]; ok {
+			memoryUsageMap[podName][containerName] = valuesBytes
+		} else {
+			memoryUsageMap[podName] = map[string]string{
+				containerName: valuesBytes,
 			}
-			return memoryUsageMap, nil
 		}
-	} else {
-		logrus.Error("Body Is empty")
 	}
 	return memoryUsageMap, nil
 }
@@ -2046,6 +2062,8 @@ func (s *ServiceAction) delServiceMetadata(serviceID string) error {
 		db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByServiceID,
 		db.GetManager().ServiceProbeDaoTransactions(tx).DELServiceProbesByServiceID,
 		db.GetManager().ServiceEventDaoTransactions(tx).DelEventByServiceID,
+		db.GetManager().TenantServiceMonitorDaoTransactions(tx).DeleteServiceMonitorByServiceID,
+		db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteEffectiveServiceByServiceID,
 	}
 	if err := GetGatewayHandler().DeleteTCPRuleByServiceIDWithTransaction(serviceID, tx); err != nil {
 		tx.Rollback()

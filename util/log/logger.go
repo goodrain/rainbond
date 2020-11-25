@@ -23,8 +23,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi/middleware"
+	"github.com/sirupsen/logrus"
 )
 
 //NewStructuredLogger new struct
@@ -70,7 +70,7 @@ type StructuredLoggerEntry struct {
 }
 
 //Write Write
-func (l *StructuredLoggerEntry) Write(status, bytes int, elapsed time.Duration) {
+func (l *StructuredLoggerEntry) Write(status, bytes int, header http.Header, elapsed time.Duration, data interface{}) {
 	l.Logger = l.Logger.WithFields(logrus.Fields{
 		"resp_status": status, "resp_bytes_length": bytes,
 		"resp_elapsed_ms": float64(elapsed.Nanoseconds()) / 1000000.0,

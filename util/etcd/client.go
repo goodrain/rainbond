@@ -22,8 +22,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/pkg/transport"
+	"github.com/sirupsen/logrus"
 
 	"github.com/coreos/etcd/clientv3"
 	v3 "github.com/coreos/etcd/clientv3"

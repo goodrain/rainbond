@@ -23,9 +23,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/region"
 	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	yaml "gopkg.in/yaml.v2"
 	//"strings"

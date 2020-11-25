@@ -21,9 +21,9 @@ package controller
 import (
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/sirupsen/logrus"
 
 	httputil "github.com/goodrain/rainbond/util/http"
 )

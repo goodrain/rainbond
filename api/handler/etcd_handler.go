@@ -3,8 +3,8 @@ package handler
 import (
 	"context"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
+	"github.com/sirupsen/logrus"
 )
 
 // EtcdKeyType etcd key type

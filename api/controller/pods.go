@@ -23,7 +23,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
@@ -31,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/server"
+	"github.com/sirupsen/logrus"
 )
 
 // PodController is an implementation of PodInterface

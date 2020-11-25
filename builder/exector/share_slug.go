@@ -26,11 +26,11 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
 )
 
 //SlugShareItem SlugShareItem

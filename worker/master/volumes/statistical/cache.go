@@ -25,7 +25,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -105,7 +105,7 @@ func (d *DiskCache) setcache() {
 				Key   string
 				Value float64
 			}{
-				Key:   service.ServiceID + "_" + service.TenantID,
+				Key:   service.ServiceID + "_" + service.AppID + "_" + service.TenantID,
 				Value: size,
 			})
 		}

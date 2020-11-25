@@ -24,8 +24,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )

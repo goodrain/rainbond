@@ -26,7 +26,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/node/api/model"
@@ -38,6 +37,7 @@ import (
 	ansibleUtil "github.com/goodrain/rainbond/util/ansible"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	licutil "github.com/goodrain/rainbond/util/license"
+	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 )
 

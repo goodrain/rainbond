@@ -29,9 +29,9 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
+	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 
 	"github.com/goodrain/rainbond/builder/job"

@@ -342,6 +342,7 @@ type ServiceStruct struct {
 	EnvsInfo       []dbmodel.TenantServiceEnvVar        `json:"envs_info" validate:"envs_info"`
 	PortsInfo      []dbmodel.TenantServicesPort         `json:"ports_info" validate:"ports_info"`
 	Endpoints      *Endpoints                           `json:"endpoints" validate:"endpoints"`
+	AppID          string                               `json:"app_id" validate:"required"`
 }
 
 // Endpoints holds third-party service endpoints or configuraion to get endpoints.
@@ -1270,6 +1271,7 @@ type TenantServicesPort struct {
 	MappingPort    int    `gorm:"column:mapping_port" validate:"mapping_port|required|numeric_between:1,65535" json:"mapping_port"`
 	Protocol       string `gorm:"column:protocol" validate:"protocol|required|in:http,https,stream,grpc" json:"protocol"`
 	PortAlias      string `gorm:"column:port_alias" validate:"port_alias|required|alpha_dash" json:"port_alias"`
+	K8sServiceName string `gorm:"column:k8s_service_name" json:"k8s_service_name"`
 	IsInnerService bool   `gorm:"column:is_inner_service" validate:"is_inner_service|bool" json:"is_inner_service"`
 	IsOuterService bool   `gorm:"column:is_outer_service" validate:"is_outer_service|bool" json:"is_outer_service"`
 }
@@ -1623,4 +1625,103 @@ func NewAppStatusFromImport(app *ImportAppStruct) *dbmodel.AppStatus {
 		Apps:      apps,
 		Status:    "importing",
 	}
+}
+
+// Application -
+type Application struct {
+	AppName      string   `json:"app_name" validate:"required"`
+	ConsoleAppID int64    `json:"console_app_id"`
+	AppID        string   `json:"app_id"`
+	TenantID     string   `json:"tenant_id"`
+	ServiceIDs   []string `json:"service_ids"`
+}
+
+// CreateAppRequest -
+type CreateAppRequest struct {
+	AppsInfo []Application `json:"apps_info"`
+}
+
+// CreateAppResponse -
+type CreateAppResponse struct {
+	AppID       int64  `json:"app_id"`
+	RegionAppID string `json:"region_app_id"`
+}
+
+// ListAppResponse -
+type ListAppResponse struct {
+	Page     int                    `json:"page"`
+	PageSize int                    `json:"pageSize"`
+	Total    int64                  `json:"total"`
+	Apps     []*dbmodel.Application `json:"apps"`
+}
+
+// ListServiceResponse -
+type ListServiceResponse struct {
+	Page     int                       `json:"page"`
+	PageSize int                       `json:"pageSize"`
+	Total    int64                     `json:"total"`
+	Services []*dbmodel.TenantServices `json:"services"`
+}
+
+// UpdateAppRequest -
+type UpdateAppRequest struct {
+	AppName        string `json:"app_name"`
+	GovernanceMode string `json:"governance_mode"`
+}
+
+// BindServiceRequest -
+type BindServiceRequest struct {
+	ServiceIDs []string `json:"service_ids"`
+}
+
+// ConfigGroupService -
+type ConfigGroupService struct {
+	AppID           string `json:"app_id"`
+	ConfigGroupName string `json:"config_group_name"`
+	ServiceID       string `json:"service_id"`
+	ServiceAlias    string `json:"service_alias"`
+}
+
+// ConfigGroupItem -
+type ConfigItem struct {
+	AppID           string `json:"-"`
+	ConfigGroupName string `json:"-"`
+	ItemKey         string `json:"item_key" validate:"required,max=255"`
+	ItemValue       string `json:"item_value" validate:"required,max=65535"`
+}
+
+// ApplicationConfigGroup -
+type ApplicationConfigGroup struct {
+	AppID           string       `json:"app_id"`
+	ConfigGroupName string       `json:"config_group_name" validate:"required,alphanum,min=2,max=64"`
+	DeployType      string       `json:"deploy_type" validate:"required,oneof=env configfile"`
+	ServiceIDs      []string     `json:"service_ids"`
+	ConfigItems     []ConfigItem `json:"config_items"`
+	Enable          bool         `json:"enable"`
+}
+
+// ApplicationConfigGroupResp -
+type ApplicationConfigGroupResp struct {
+	CreateTime      time.Time                     `json:"create_time"`
+	AppID           string                        `json:"app_id"`
+	ConfigGroupName string                        `json:"config_group_name"`
+	DeployType      string                        `json:"deploy_type"`
+	Services        []*dbmodel.ConfigGroupService `json:"services"`
+	ConfigItems     []*dbmodel.ConfigGroupItem    `json:"config_items"`
+	Enable          bool                          `json:"enable"`
+}
+
+// UpdateAppConfigGroupReq -
+type UpdateAppConfigGroupReq struct {
+	ServiceIDs  []string     `json:"service_ids"`
+	ConfigItems []ConfigItem `json:"config_items" validate:"required"`
+	Enable      bool         `json:"enable"`
+}
+
+// ListApplicationConfigGroupResp -
+type ListApplicationConfigGroupResp struct {
+	ConfigGroup []ApplicationConfigGroupResp `json:"config_group"`
+	Total       int64                        `json:"total"`
+	Page        int                          `json:"page"`
+	PageSize    int                          `json:"pageSize"`
 }

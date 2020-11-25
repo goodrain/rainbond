@@ -42,7 +42,7 @@ import (
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 //Run start run

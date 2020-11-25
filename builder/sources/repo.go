@@ -23,8 +23,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 )
 

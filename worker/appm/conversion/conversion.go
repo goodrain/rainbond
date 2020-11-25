@@ -19,10 +19,13 @@
 package conversion
 
 import (
+	"fmt"
+
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
-	"github.com/goodrain/rainbond/worker/appm/types/v1"
+	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
 func init() {
@@ -30,13 +33,18 @@ func init() {
 	RegistConversion("ServiceSource", ServiceSource)
 	//step2 conv service base
 	RegistConversion("TenantServiceBase", TenantServiceBase)
+	// convert config group to env secrets
+	RegistConversion("TenantServiceConfigGroup", TenantServiceConfigGroup)
 	//step3 conv service pod base info
 	RegistConversion("TenantServiceVersion", TenantServiceVersion)
 	//step4 conv service plugin
 	RegistConversion("TenantServicePlugin", TenantServicePlugin)
 	//step5 conv service inner and outer regist
 	RegistConversion("TenantServiceRegist", TenantServiceRegist)
+	//step6 -
 	RegistConversion("TenantServiceAutoscaler", TenantServiceAutoscaler)
+	//step7 conv service monitor
+	RegistConversion("TenantServiceMonitor", TenantServiceMonitor)
 }
 
 //Conversion conversion function
@@ -62,13 +70,25 @@ func InitAppService(dbmanager db.Manager, serviceID string, configs map[string]s
 	if configs == nil {
 		configs = make(map[string]string)
 	}
+
 	appService := &v1.AppService{
 		AppServiceBase: v1.AppServiceBase{
-			ServiceID:    serviceID,
-			ExtensionSet: configs,
+			ServiceID:      serviceID,
+			ExtensionSet:   configs,
+			GovernanceMode: model.GovernanceModeBuildInServiceMesh,
 		},
 		UpgradePatch: make(map[string][]byte, 2),
 	}
+
+	// setup governance mode
+	app, err := dbmanager.ApplicationDao().GetByServiceID(serviceID)
+	if err != nil && err != bcode.ErrApplicationNotFound {
+		return nil, fmt.Errorf("get app based on service id(%s)", serviceID)
+	}
+	if app != nil {
+		appService.AppServiceBase.GovernanceMode = app.GovernanceMode
+	}
+
 	for _, c := range conversionList {
 		if len(enableConversionList) == 0 || util.StringArrayContains(enableConversionList, c.Name) {
 			if err := c.Conversion(appService, dbmanager); err != nil {

@@ -23,10 +23,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/worker/appm/store"
+
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -135,7 +137,7 @@ func (s *startController) startOne(app v1.AppService) error {
 		}
 	}
 	//step 4: create secrets
-	if secrets := app.GetSecrets(true); secrets != nil {
+	if secrets := append(app.GetSecrets(true), app.GetEnvVarSecrets(true)...); secrets != nil {
 		for _, secret := range secrets {
 			if len(secret.ResourceVersion) == 0 {
 				_, err := s.manager.client.CoreV1().Secrets(app.TenantID).Create(secret)
@@ -156,7 +158,7 @@ func (s *startController) startOne(app v1.AppService) error {
 			}
 		}
 	}
-
+	//step 6: create hpa
 	if hpas := app.GetHPAs(); len(hpas) != 0 {
 		for _, hpa := range hpas {
 			if len(hpa.ResourceVersion) == 0 {
@@ -169,7 +171,27 @@ func (s *startController) startOne(app v1.AppService) error {
 		}
 	}
 
-	//step 6: waiting endpoint ready
+	//step 7: create CR resource
+	if crd, _ := s.manager.store.GetCrd(store.ServiceMonitor); crd != nil {
+		if sms := app.GetServiceMonitors(true); len(sms) > 0 {
+			smClient, err := s.manager.store.GetServiceMonitorClient()
+			if err != nil {
+				logrus.Errorf("create service monitor client failure %s", err.Error())
+			}
+			if smClient != nil {
+				for _, sm := range sms {
+					if len(sm.ResourceVersion) == 0 {
+						_, err := smClient.MonitoringV1().ServiceMonitors(sm.GetNamespace()).Create(sm)
+						if err != nil && !errors.IsAlreadyExists(err) {
+							logrus.Errorf("create service monitor failure: %s", err.Error())
+						}
+					}
+				}
+			}
+		}
+	}
+
+	//step 8: waiting endpoint ready
 	app.Logger.Info("Create all app model success, will waiting app ready", event.GetLoggerOption("running"))
 	return s.WaitingReady(app)
 }

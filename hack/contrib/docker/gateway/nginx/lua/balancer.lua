@@ -2,8 +2,8 @@
 local ngx_balancer = require("ngx.balancer")
 local round_robin = require("balancer.round_robin")
 local chash = require("balancer.chash")
--- local sticky = require("balancer.sticky")
--- local ewma = require("balancer.ewma")
+local sticky = require("balancer.sticky")
+local ewma = require("balancer.ewma")
 local json = require("cjson")
 local config = require("config")
 
@@ -11,8 +11,8 @@ local DEFAULT_LB_ALG = "round_robin"
 local IMPLEMENTATIONS = {
   round_robin = round_robin,
   chash = chash,
-  -- sticky = sticky,
-  -- ewma = ewma,
+  sticky = sticky,
+  ewma = ewma,
 }
 
 local _M = {}

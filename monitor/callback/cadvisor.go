@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/monitor/prometheus"
@@ -30,6 +29,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/watch"
 	"github.com/prometheus/common/model"
+	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 )
 
@@ -107,6 +107,14 @@ func (c *Cadvisor) toScrape() *prometheus.ScrapeConfig {
 			{
 				Action: prometheus.RelabelAction("labelmap"),
 				Regex:  prometheus.MustNewRegexp("__meta_kubernetes_node_label_(.+)"),
+			},
+		},
+		MetricRelabelConfigs: []*prometheus.RelabelConfig{
+			{
+				SourceLabels: []model.LabelName{"name"},
+				Regex:        prometheus.MustNewRegexp("k8s_(.*)_(.*)_(.*)_(.*)_(.*)"),
+				TargetLabel:  "service_id",
+				Replacement:  "${1}",
 			},
 		},
 	}

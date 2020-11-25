@@ -41,12 +41,14 @@ type ServiceHandler interface {
 	ServiceUpdate(sc map[string]interface{}) error
 	LanguageSet(langS *api_model.LanguageSet) error
 	GetService(tenantID string) ([]*dbmodel.TenantServices, error)
+	GetServicesByAppID(appID string, page, pageSize int) (*api_model.ListServiceResponse, error)
 	GetPagedTenantRes(offset, len int) ([]*api_model.TenantResource, int, error)
 	GetTenantRes(uuid string) (*api_model.TenantResource, error)
 	CodeCheck(c *api_model.CheckCodeStruct) error
 	ServiceDepend(action string, ds *api_model.DependService) error
 	EnvAttr(action string, at *dbmodel.TenantServiceEnvVar) error
 	PortVar(action string, tenantID, serviceID string, vp *api_model.ServicePorts, oldPort int) error
+	CreatePorts(tenantID, serviceID string, vps *api_model.ServicePorts) error
 	PortOuter(tenantName, serviceID string, containerPort int, servicePort *api_model.ServicePortInnerOrOuter) (*dbmodel.TenantServiceLBMappingPort, string, error)
 	PortInner(tenantName, serviceID, operation string, port int) error
 	VolumnVar(avs *dbmodel.TenantServiceVolume, tenantID, fileContent, action string) *util.APIHandleError
@@ -78,4 +80,8 @@ type ServiceHandler interface {
 	AddAutoscalerRule(req *api_model.AutoscalerRuleReq) error
 	UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) error
 	ListScalingRecords(serviceID string, page, pageSize int) ([]*dbmodel.TenantServiceScalingRecords, int, error)
+
+	UpdateServiceMonitor(tenantID, serviceID, name string, update api_model.UpdateServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error)
+	DeleteServiceMonitor(tenantID, serviceID, name string) (*dbmodel.TenantServiceMonitor, error)
+	AddServiceMonitor(tenantID, serviceID string, add api_model.AddServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error)
 }

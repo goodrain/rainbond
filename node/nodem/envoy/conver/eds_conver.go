@@ -22,17 +22,17 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
-	"github.com/envoyproxy/go-control-plane/pkg/cache"
+	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
 	corev1 "k8s.io/api/core/v1"
 )
 
 //OneNodeClusterLoadAssignment one envoy node endpoints
-func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*corev1.Endpoints, services []*corev1.Service) (clusterLoadAssignment []cache.Resource) {
+func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*corev1.Endpoints, services []*corev1.Service) (clusterLoadAssignment []types.Resource) {
 	for i := range services {
 		if domain, ok := services[i].Annotations["domain"]; ok && domain != "" {
 			logrus.Warnf("service[sid: %s] endpoint id domain endpoint[domain: %s], use dns cluster type, do not create eds", services[i].GetUID(), domain)

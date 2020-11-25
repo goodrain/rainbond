@@ -25,9 +25,9 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/parser/types"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 )
 
 // Build represents build in pom.xml

@@ -25,12 +25,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/jinzhu/gorm"
-
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 )
 
 //TenantDaoImpl 租户信息管理
@@ -454,6 +454,56 @@ func (t *TenantServicesDaoImpl) GetServicesAllInfoByTenantID(tenantID string) ([
 	return services, nil
 }
 
+// GetServicesInfoByAppID Get Services Info By ApplicationID
+func (t *TenantServicesDaoImpl) GetServicesInfoByAppID(appID string, page, pageSize int) ([]*model.TenantServices, int64, error) {
+	var (
+		total    int64
+		services []*model.TenantServices
+	)
+	offset := (page - 1) * pageSize
+	db := t.DB.Where("app_id=?", appID).Order("create_time desc")
+
+	if err := db.Model(&model.TenantServices{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := db.Limit(pageSize).Offset(offset).Find(&services).Error; err != nil {
+		return nil, 0, err
+	}
+	return services, total, nil
+}
+
+// CountServiceByAppID get Service number by AppID
+func (t *TenantServicesDaoImpl) CountServiceByAppID(appID string) (int64, error) {
+	var total int64
+
+	if err := t.DB.Model(&model.TenantServices{}).Where("app_id=?", appID).Count(&total).Error; err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+// GetServiceIDsByAppID get ServiceIDs by AppID
+func (t *TenantServicesDaoImpl) GetServiceIDsByAppID(appID string) (re []model.ServiceID) {
+	if err := t.DB.Raw("SELECT service_id FROM tenant_services WHERE app_id=?", appID).
+		Scan(&re).Error; err != nil {
+		logrus.Errorf("select service_id failure %s", err.Error())
+		return
+	}
+	return
+}
+
+//GetServicesByServiceIDs Get Services By ServiceIDs
+func (t *TenantServicesDaoImpl) GetServicesByServiceIDs(serviceIDs []string) ([]*model.TenantServices, error) {
+	var services []*model.TenantServices
+	if err := t.DB.Where("service_id in (?)", serviceIDs).Find(&services).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return services, nil
+		}
+		return nil, err
+	}
+	return services, nil
+}
+
 //SetTenantServiceStatus SetTenantServiceStatus
 func (t *TenantServicesDaoImpl) SetTenantServiceStatus(serviceID, status string) error {
 	var service model.TenantServices
@@ -487,6 +537,15 @@ func (t *TenantServicesDaoImpl) ListThirdPartyServices() ([]*model.TenantService
 		return nil, err
 	}
 	return res, nil
+}
+
+// BindAppByServiceIDs binding application by serviceIDs
+func (t *TenantServicesDaoImpl) BindAppByServiceIDs(appID string, serviceIDs []string) error {
+	var service model.TenantServices
+	if err := t.DB.Model(&service).Where("service_id in (?)", serviceIDs).Update("app_id", appID).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 //TenantServicesDeleteImpl TenantServiceDeleteImpl
@@ -583,6 +642,15 @@ func (t *TenantServicesPortDaoImpl) DeleteModel(serviceID string, args ...interf
 	return nil
 }
 
+// GetByTenantAndName -
+func (t *TenantServicesPortDaoImpl) GetByTenantAndName(tenantID, name string) (*model.TenantServicesPort, error) {
+	var port model.TenantServicesPort
+	if err := t.DB.Where("tenant_id=? and k8s_service_name=?", tenantID, name).Find(&port).Error; err != nil {
+		return nil, err
+	}
+	return &port, nil
+}
+
 //GetPortsByServiceID 通过服务获取port
 func (t *TenantServicesPortDaoImpl) GetPortsByServiceID(serviceID string) ([]*model.TenantServicesPort, error) {
 	var oldPort []*model.TenantServicesPort
@@ -620,6 +688,9 @@ func (t *TenantServicesPortDaoImpl) GetInnerPorts(serviceID string) ([]*model.Te
 func (t *TenantServicesPortDaoImpl) GetPort(serviceID string, port int) (*model.TenantServicesPort, error) {
 	var oldPort model.TenantServicesPort
 	if err := t.DB.Where("service_id = ? and container_port=?", serviceID, port).Find(&oldPort).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, bcode.ErrPortNotFound
+		}
 		return nil, err
 	}
 	return &oldPort, nil
@@ -680,6 +751,14 @@ func (t *TenantServicesPortDaoImpl) ListInnerPortsByServiceIDs(serviceIDs []stri
 		return nil, err
 	}
 
+	return ports, nil
+}
+
+func (t *TenantServicesPortDaoImpl) ListByK8sServiceNames(k8sServiceNames []string) ([]*model.TenantServicesPort, error) {
+	var ports []*model.TenantServicesPort
+	if err := t.DB.Where("k8s_service_name in (?)", k8sServiceNames).Find(&ports).Error; err != nil {
+		return nil, err
+	}
 	return ports, nil
 }
 
@@ -752,7 +831,7 @@ func (t *TenantServiceRelationDaoImpl) GetTenantServiceRelations(serviceID strin
 	return oldRelation, nil
 }
 
-// ListByServiceIDs -
+// ListByK8sServiceNames -
 func (t *TenantServiceRelationDaoImpl) ListByServiceIDs(serviceIDs []string) ([]*model.TenantServiceRelation, error) {
 	var relations []*model.TenantServiceRelation
 	if err := t.DB.Where("service_id in (?)", serviceIDs).Find(&relations).Error; err != nil {

@@ -26,7 +26,7 @@ import (
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/mq/api/mq"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	context "golang.org/x/net/context"
 

@@ -67,6 +67,40 @@ type AppDao interface {
 	DeleteModelByEventId(eventID string) error
 }
 
+//ApplicationDao tenant Application Dao
+type ApplicationDao interface {
+	Dao
+	ListApps(tenantID, appName string, page, pageSize int) ([]*model.Application, int64, error)
+	GetAppByID(appID string) (*model.Application, error)
+	DeleteApp(appID string) error
+	GetByServiceID(sid string) (*model.Application, error)
+}
+
+//AppConfigGroupDao Application config group Dao
+type AppConfigGroupDao interface {
+	Dao
+	GetConfigGroupByID(appID, configGroupName string) (*model.ApplicationConfigGroup, error)
+	ListByServiceID(sid string) ([]*model.ApplicationConfigGroup, error)
+	GetConfigGroupsByAppID(appID string, page, pageSize int) ([]*model.ApplicationConfigGroup, int64, error)
+	DeleteConfigGroup(appID, configGroupName string) error
+}
+
+//AppConfigGroupServiceDao service config group Dao
+type AppConfigGroupServiceDao interface {
+	Dao
+	GetConfigGroupServicesByID(appID, configGroupName string) ([]*model.ConfigGroupService, error)
+	DeleteConfigGroupService(appID, configGroupName string) error
+	DeleteEffectiveServiceByServiceID(serviceID string) error
+}
+
+//AppConfigGroupItemDao Application config item group Dao
+type AppConfigGroupItemDao interface {
+	Dao
+	GetConfigGroupItemsByID(appID, configGroupName string) ([]*model.ConfigGroupItem, error)
+	ListByServiceID(sid string) ([]*model.ConfigGroupItem, error)
+	DeleteConfigGroupItem(appID, configGroupName string) error
+}
+
 // VolumeTypeDao volume type dao
 type VolumeTypeDao interface {
 	Dao
@@ -96,6 +130,10 @@ type TenantServiceDao interface {
 	GetServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServicesByTenantIDs(tenantIDs []string) ([]*model.TenantServices, error)
 	GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error)
+	GetServicesInfoByAppID(appID string, page, pageSize int) ([]*model.TenantServices, int64, error)
+	CountServiceByAppID(appID string) (int64, error)
+	GetServiceIDsByAppID(appID string) (re []model.ServiceID)
+	GetServicesByServiceIDs(serviceIDs []string) ([]*model.TenantServices, error)
 	DeleteServiceByServiceID(serviceID string) error
 	GetServiceMemoryByTenantIDs(tenantIDs, serviceIDs []string) (map[string]map[string]interface{}, error)
 	GetServiceMemoryByServiceIDs(serviceIDs []string) (map[string]map[string]interface{}, error)
@@ -105,6 +143,8 @@ type TenantServiceDao interface {
 	ListThirdPartyServices() ([]*model.TenantServices, error)
 	ListServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServiceTypeById(serviceID string) (*model.TenantServices, error)
+	ListByAppID(appID string) ([]*model.TenantServices, error)
+	BindAppByServiceIDs(appID string, serviceIDs []string) error
 }
 
 //TenantServiceDeleteDao TenantServiceDeleteDao
@@ -118,6 +158,7 @@ type TenantServiceDeleteDao interface {
 type TenantServicesPortDao interface {
 	Dao
 	DelDao
+	GetByTenantAndName(tenantID, name string) (*model.TenantServicesPort, error)
 	GetPortsByServiceID(serviceID string) ([]*model.TenantServicesPort, error)
 	GetOuterPorts(serviceID string) ([]*model.TenantServicesPort, error)
 	GetInnerPorts(serviceID string) ([]*model.TenantServicesPort, error)
@@ -129,6 +170,7 @@ type TenantServicesPortDao interface {
 	HasOpenPort(sid string) bool
 	DelByServiceID(sid string) error
 	ListInnerPortsByServiceIDs(serviceIDs []string) ([]*model.TenantServicesPort, error)
+	ListByK8sServiceNames(serviceIDs []string) ([]*model.TenantServicesPort, error)
 }
 
 //TenantPluginDao TenantPluginDao
@@ -498,4 +540,13 @@ type TenantServiceScalingRecordsDao interface {
 	UpdateOrCreate(new *model.TenantServiceScalingRecords) error
 	ListByServiceID(serviceID string, offset, limit int) ([]*model.TenantServiceScalingRecords, error)
 	CountByServiceID(serviceID string) (int, error)
+}
+
+// TenantServiceMonitorDao -
+type TenantServiceMonitorDao interface {
+	Dao
+	GetByName(serviceID, name string) (*model.TenantServiceMonitor, error)
+	GetByServiceID(serviceID string) ([]*model.TenantServiceMonitor, error)
+	DeleteServiceMonitor(mo *model.TenantServiceMonitor) error
+	DeleteServiceMonitorByServiceID(serviceID string) error
 }

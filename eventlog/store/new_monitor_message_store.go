@@ -25,9 +25,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/db"

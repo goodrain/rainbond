@@ -23,7 +23,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
+	monitorv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
@@ -81,6 +82,7 @@ var OnDelete TypeUpgradeMethod = "OnDelete"
 type AppServiceBase struct {
 	TenantID         string
 	TenantName       string
+	AppID            string
 	ServiceID        string
 	ServiceAlias     string
 	ServiceType      AppServiceType
@@ -94,29 +96,31 @@ type AppServiceBase struct {
 	IsWindowsService bool
 	CreaterID        string
 	//depend all service id
-	Dependces    []string
-	ExtensionSet map[string]string
+	Dependces      []string
+	ExtensionSet   map[string]string
+	GovernanceMode string
 }
 
 //AppService a service of rainbond app state in kubernetes
 type AppService struct {
 	AppServiceBase
-	tenant      *corev1.Namespace
-	statefulset *v1.StatefulSet
-	deployment  *v1.Deployment
-	hpas        []*autoscalingv2.HorizontalPodAutoscaler
-	delHPAs     []*autoscalingv2.HorizontalPodAutoscaler
-	replicasets []*v1.ReplicaSet
-	services    []*corev1.Service
-	delServices []*corev1.Service
-	endpoints   []*corev1.Endpoints
-	configMaps  []*corev1.ConfigMap
-	ingresses   []*extensions.Ingress
-	delIngs     []*extensions.Ingress // ingresses which need to be deleted
-	secrets     []*corev1.Secret
-	delSecrets  []*corev1.Secret // secrets which need to be deleted
-	pods        []*corev1.Pod
-	claims      []*corev1.PersistentVolumeClaim
+	tenant         *corev1.Namespace
+	statefulset    *v1.StatefulSet
+	deployment     *v1.Deployment
+	hpas           []*autoscalingv2.HorizontalPodAutoscaler
+	delHPAs        []*autoscalingv2.HorizontalPodAutoscaler
+	replicasets    []*v1.ReplicaSet
+	services       []*corev1.Service
+	delServices    []*corev1.Service
+	endpoints      []*corev1.Endpoints
+	configMaps     []*corev1.ConfigMap
+	ingresses      []*extensions.Ingress
+	delIngs        []*extensions.Ingress // ingresses which need to be deleted
+	secrets        []*corev1.Secret
+	delSecrets     []*corev1.Secret // secrets which need to be deleted
+	pods           []*corev1.Pod
+	claims         []*corev1.PersistentVolumeClaim
+	serviceMonitor []*monitorv1.ServiceMonitor
 	// claims that needs to be created manually
 	claimsmanual     []*corev1.PersistentVolumeClaim
 	status           AppServiceStatus
@@ -127,6 +131,7 @@ type AppService struct {
 	storageClasses   []*storagev1.StorageClass
 	UpgradePatch     map[string][]byte
 	CustomParams     map[string]string
+	envVarSecrets    []*corev1.Secret
 }
 
 //CacheKey app cache key
@@ -496,6 +501,19 @@ func (a *AppService) GetDelSecrets() []*corev1.Secret {
 	return a.delSecrets
 }
 
+// SetEnvVarSecrets -
+func (a *AppService) SetEnvVarSecrets(secrets []*corev1.Secret) {
+	a.envVarSecrets = secrets
+}
+
+// GetEnvVarSecrets -
+func (a *AppService) GetEnvVarSecrets(canCopy bool) []*corev1.Secret {
+	if canCopy {
+		return append(a.envVarSecrets[:0:0], a.envVarSecrets...)
+	}
+	return a.envVarSecrets
+}
+
 //SetPods set pod
 func (a *AppService) SetPods(d *corev1.Pod) {
 	if len(a.pods) > 0 {
@@ -680,6 +698,38 @@ func (a *AppService) SetHPA(hpa *autoscalingv2.HorizontalPodAutoscaler) {
 		}
 	}
 	a.hpas = append(a.hpas, hpa)
+}
+
+// SetServiceMonitor -
+func (a *AppService) SetServiceMonitor(sm *monitorv1.ServiceMonitor) {
+	for i, s := range a.serviceMonitor {
+		if s.Name == sm.Name {
+			a.serviceMonitor[i] = sm
+			return
+		}
+	}
+	a.serviceMonitor = append(a.serviceMonitor, sm)
+}
+
+//DeleteServiceMonitor delete service monitor
+func (a *AppService) DeleteServiceMonitor(sm *monitorv1.ServiceMonitor) {
+	if len(a.serviceMonitor) == 0 {
+		return
+	}
+	for i, old := range a.serviceMonitor {
+		if old.GetName() == sm.GetName() {
+			a.serviceMonitor = append(a.serviceMonitor[0:i], a.serviceMonitor[i+1:]...)
+			return
+		}
+	}
+}
+
+// GetServiceMonitors -
+func (a *AppService) GetServiceMonitors(canCopy bool) []*monitorv1.ServiceMonitor {
+	if canCopy {
+		return append(a.serviceMonitor[:0:0], a.serviceMonitor...)
+	}
+	return a.serviceMonitor
 }
 
 // GetHPAs -

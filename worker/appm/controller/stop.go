@@ -23,10 +23,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/worker/appm/store"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -144,7 +145,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 			}
 		}
 	}
-
+	//step 7: deleta all hpa
 	if hpas := app.GetHPAs(); len(hpas) != 0 {
 		for _, hpa := range hpas {
 			err := s.manager.client.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(hpa.GetName(), &metav1.DeleteOptions{})
@@ -154,7 +155,25 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 	}
 
-	//step 7: waiting endpoint ready
+	//step 8: delete CR resource
+	if crd, _ := s.manager.store.GetCrd(store.ServiceMonitor); crd != nil {
+		if sms := app.GetServiceMonitors(true); len(sms) > 0 {
+			smClient, err := s.manager.store.GetServiceMonitorClient()
+			if err != nil {
+				logrus.Errorf("create service monitor client failure %s", err.Error())
+			}
+			if smClient != nil {
+				for _, sm := range sms {
+					err := smClient.MonitoringV1().ServiceMonitors(sm.GetNamespace()).Delete(sm.GetName(), &metav1.DeleteOptions{})
+					if err != nil && !errors.IsNotFound(err) {
+						logrus.Errorf("delete service monitor failure: %s", err.Error())
+					}
+				}
+			}
+		}
+	}
+
+	//step 9: waiting endpoint ready
 	app.Logger.Info("Delete all app model success, will waiting app closed", event.GetLoggerOption("running"))
 	return s.WaitingReady(app)
 }

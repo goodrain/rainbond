@@ -29,7 +29,7 @@ import (
 
 	"github.com/docker/docker/client"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/docker/docker/api/types"
 	"github.com/goodrain/rainbond/builder"
@@ -94,7 +94,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 		buildOptions.NoCache = false
 	}
 	re.Logger.Info("start compiling the source code", map[string]string{"step": "builder-exector"})
-	err := sources.ImageBuild(re.DockerClient, re.SourceDir, buildOptions, re.Logger, 20)
+	_, err := sources.ImageBuild(re.DockerClient, re.SourceDir, buildOptions, re.Logger, 20)
 	if err != nil {
 		re.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
@@ -129,7 +129,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 	} else {
 		runbuildOptions.NoCache = false
 	}
-	err = sources.ImageBuild(re.DockerClient, d.buildCacheDir, runbuildOptions, re.Logger, 20)
+	_, err = sources.ImageBuild(re.DockerClient, d.buildCacheDir, runbuildOptions, re.Logger, 60)
 	if err != nil {
 		re.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())

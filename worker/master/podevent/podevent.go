@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
@@ -15,6 +14,7 @@ import (
 	"github.com/goodrain/rainbond/worker/server/pb"
 	wutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )

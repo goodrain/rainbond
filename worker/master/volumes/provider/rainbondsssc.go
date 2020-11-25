@@ -25,10 +25,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

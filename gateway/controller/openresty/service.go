@@ -34,13 +34,13 @@ import (
 
 	"github.com/goodrain/rainbond/gateway/controller/openresty/nginxcmd"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/golang/glog"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/model"
 	"github.com/goodrain/rainbond/gateway/controller/openresty/template"
 	v1 "github.com/goodrain/rainbond/gateway/v1"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 )
 
 // OrService handles the business logic of OpenrestyService

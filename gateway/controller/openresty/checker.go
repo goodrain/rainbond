@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // Check returns if the nginx healthz endpoint is returning ok (status code 200)

@@ -24,8 +24,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/envoyproxy/go-control-plane/pkg/cache"
 	"github.com/envoyproxy/go-control-plane/pkg/conversion"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/types"
@@ -33,10 +31,11 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/sirupsen/logrus"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
-
+	rsrc "github.com/envoyproxy/go-control-plane/pkg/resource/v2"
 	_struct "github.com/golang/protobuf/ptypes/struct"
 
 	v1 "github.com/goodrain/rainbond/node/core/envoy/v1"
@@ -301,7 +300,7 @@ func ParseLocalityLbEndpointsResource(resources []*any.Any) []v2.ClusterLoadAssi
 	var endpoints []v2.ClusterLoadAssignment
 	for _, resource := range resources {
 		switch resource.GetTypeUrl() {
-		case cache.EndpointType:
+		case rsrc.EndpointType:
 			var endpoint v2.ClusterLoadAssignment
 			if err := proto.Unmarshal(resource.GetValue(), &endpoint); err != nil {
 				logrus.Errorf("unmarshal envoy endpoint resource failure %s", err.Error())
@@ -317,7 +316,7 @@ func ParseClustersResource(resources []*any.Any) []v2.Cluster {
 	var clusters []v2.Cluster
 	for _, resource := range resources {
 		switch resource.GetTypeUrl() {
-		case cache.ClusterType:
+		case rsrc.ClusterType:
 			var cluster v2.Cluster
 			if err := proto.Unmarshal(resource.GetValue(), &cluster); err != nil {
 				logrus.Errorf("unmarshal envoy cluster resource failure %s", err.Error())
@@ -333,7 +332,7 @@ func ParseListenerResource(resources []*any.Any) []v2.Listener {
 	var listeners []v2.Listener
 	for _, resource := range resources {
 		switch resource.GetTypeUrl() {
-		case cache.ListenerType:
+		case rsrc.ListenerType:
 			var listener v2.Listener
 			if err := proto.Unmarshal(resource.GetValue(), &listener); err != nil {
 				logrus.Errorf("unmarshal envoy listener resource failure %s", err.Error())
@@ -349,7 +348,7 @@ func ParseRouteConfigurationsResource(resources []*any.Any) []v2.RouteConfigurat
 	var routes []v2.RouteConfiguration
 	for _, resource := range resources {
 		switch resource.GetTypeUrl() {
-		case cache.RouteType:
+		case rsrc.RouteType:
 			var route v2.RouteConfiguration
 			if err := proto.Unmarshal(resource.GetValue(), &route); err != nil {
 				logrus.Errorf("unmarshal envoy route resource failure %s", err.Error())

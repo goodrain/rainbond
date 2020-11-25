@@ -61,6 +61,13 @@ func (v2 *V2) Routes() chi.Router {
 	r.Delete("/volume-options/{volume_type}", controller.DeleteVolumeType)
 	r.Put("/volume-options/{volume_type}", controller.UpdateVolumeType)
 	r.Mount("/enterprise/{enterprise_id}", v2.enterpriseRouter())
+	r.Mount("/monitor", v2.monitorRouter())
+	return r
+}
+
+func (v2 *V2) monitorRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/metrics", controller.GetMonitorMetrics)
 	return r
 }
 
@@ -128,6 +135,11 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Mount("/plugin/{plugin_id}", v2.pluginRouter())
 	r.Get("/event", controller.GetManager().Event)
 	r.Get("/chargesverify", controller.ChargesVerifyController)
+	//tenant app
+	r.Post("/apps", controller.GetManager().CreateApp)
+	r.Post("/batch_create_apps", controller.GetManager().BatchCreateApp)
+	r.Get("/apps", controller.GetManager().ListApps)
+	r.Mount("/apps/{app_id}", v2.applicationRouter())
 	//get some service pod info
 	r.Get("/pods", controller.Pods)
 	//app backup
@@ -277,6 +289,34 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Post("/xparules", middleware.WrapEL(controller.GetManager().AutoscalerRules, dbmodel.TargetTypeService, "add-app-autoscaler-rule", dbmodel.SYNEVENTTYPE))
 	r.Put("/xparules", middleware.WrapEL(controller.GetManager().AutoscalerRules, dbmodel.TargetTypeService, "update-app-autoscaler-rule", dbmodel.SYNEVENTTYPE))
 	r.Get("/xparecords", controller.GetManager().ScalingRecords)
+
+	//service monitor
+	r.Post("/service-monitors", middleware.WrapEL(controller.GetManager().AddServiceMonitors, dbmodel.TargetTypeService, "add-app-service-monitor", dbmodel.SYNEVENTTYPE))
+	r.Put("/service-monitors/{name}", middleware.WrapEL(controller.GetManager().UpdateServiceMonitors, dbmodel.TargetTypeService, "update-app-service-monitor", dbmodel.SYNEVENTTYPE))
+	r.Delete("/service-monitors/{name}", middleware.WrapEL(controller.GetManager().DeleteServiceMonitors, dbmodel.TargetTypeService, "delete-app-service-monitor", dbmodel.SYNEVENTTYPE))
+
+	return r
+}
+
+func (v2 *V2) applicationRouter() chi.Router {
+	r := chi.NewRouter()
+	// Init Application
+	r.Use(middleware.InitApplication)
+	// Operation application
+	r.Put("/", controller.GetManager().UpdateApp)
+	r.Delete("/", controller.GetManager().DeleteApp)
+	// Get services under application
+	r.Get("/services", controller.GetManager().ListServices)
+	r.Put("/services", controller.GetManager().BatchBindService)
+	// Application configuration group
+	r.Post("/configgroups", controller.GetManager().AddConfigGroup)
+	r.Put("/configgroups/{config_group_name}", controller.GetManager().UpdateConfigGroup)
+
+	r.Put("/ports", controller.GetManager().BatchUpdateComponentPorts)
+	r.Put("/status", controller.GetManager().GetAppStatus)
+
+	r.Delete("/configgroups/{config_group_name}", controller.GetManager().DeleteConfigGroup)
+	r.Get("/configgroups", controller.GetManager().ListConfigGroups)
 
 	return r
 }

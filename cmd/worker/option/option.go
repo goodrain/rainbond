@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/kubernetes"
 )
@@ -107,9 +107,6 @@ func (a *Worker) SetLog() {
 func (a *Worker) CheckEnv() error {
 	if err := os.Setenv("GRDATA_PVC_NAME", a.Config.GrdataPVCName); err != nil {
 		return fmt.Errorf("set env 'GRDATA_PVC_NAME': %v", err)
-	}
-	if os.Getenv("CUR_NET") == "" {
-		return fmt.Errorf("please set env `CUR_NET`")
 	}
 	if os.Getenv("EX_DOMAIN") == "" {
 		return fmt.Errorf("please set env `EX_DOMAIN`")

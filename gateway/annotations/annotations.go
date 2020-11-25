@@ -19,20 +19,21 @@
 package annotations
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/gateway/annotations/cookie"
 	"github.com/goodrain/rainbond/gateway/annotations/header"
 	"github.com/goodrain/rainbond/gateway/annotations/l4"
+	"github.com/goodrain/rainbond/gateway/annotations/lbtype"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/proxy"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
 	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
 	"github.com/goodrain/rainbond/gateway/annotations/upstreamhashby"
 	weight "github.com/goodrain/rainbond/gateway/annotations/wight"
+	"github.com/goodrain/rainbond/util/ingress-nginx/ingress/errors"
 	"github.com/imdario/mergo"
+	"github.com/sirupsen/logrus"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/ingress-nginx/ingress/errors"
 )
 
 // DeniedKeyName name of the key that contains the reason to deny a location
@@ -41,13 +42,14 @@ const DeniedKeyName = "Denied"
 // Ingress defines the valid annotations present in one NGINX Ingress rule
 type Ingress struct {
 	metav1.ObjectMeta
-	Header         header.Config
-	Cookie         cookie.Config
-	Weight         weight.Config
-	Rewrite        rewrite.Config
-	L4             l4.Config
-	UpstreamHashBy string
-	Proxy          proxy.Config
+	Header            header.Config
+	Cookie            cookie.Config
+	Weight            weight.Config
+	Rewrite           rewrite.Config
+	L4                l4.Config
+	UpstreamHashBy    string
+	LoadBalancingType string
+	Proxy             proxy.Config
 }
 
 // Extractor defines the annotation parsers to be used in the extraction of annotations
@@ -59,13 +61,14 @@ type Extractor struct {
 func NewAnnotationExtractor(cfg resolver.Resolver) Extractor {
 	return Extractor{
 		map[string]parser.IngressAnnotation{
-			"Header":         header.NewParser(cfg),
-			"Cookie":         cookie.NewParser(cfg),
-			"Weight":         weight.NewParser(cfg),
-			"Rewrite":        rewrite.NewParser(cfg),
-			"L4":             l4.NewParser(cfg),
-			"UpstreamHashBy": upstreamhashby.NewParser(cfg),
-			"Proxy":          proxy.NewParser(cfg),
+			"Header":            header.NewParser(cfg),
+			"Cookie":            cookie.NewParser(cfg),
+			"Weight":            weight.NewParser(cfg),
+			"Rewrite":           rewrite.NewParser(cfg),
+			"L4":                l4.NewParser(cfg),
+			"UpstreamHashBy":    upstreamhashby.NewParser(cfg),
+			"LoadBalancingType": lbtype.NewParser(cfg),
+			"Proxy":             proxy.NewParser(cfg),
 		},
 	}
 }

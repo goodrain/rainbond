@@ -1,6 +1,7 @@
 FROM goodrainapps/alpine:3.4
-COPY rainbond-init-probe /run/rainbond-init-probe
-RUN chmod 655 /run/rainbond-init-probe
-ENV RELEASE_DESC=__RELEASE_DESC__
-CMD ["/run/rainbond-init-probe","probe"]
+COPY . /run/
+RUN chmod 655 /run/rainbond-init-probe /run/entrypoint.sh
+ENV RELEASE_DESC=${RELEASE_DESC}
+ENTRYPOINT [ "/run/entrypoint.sh" ]
+CMD ["probe"]
 

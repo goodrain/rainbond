@@ -33,8 +33,8 @@ import (
 
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	zmq4 "github.com/pebbe/zmq4"
+	"github.com/sirupsen/logrus"
 )
 
 //DockerLogServer 日志接受服务

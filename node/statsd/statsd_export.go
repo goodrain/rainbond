@@ -23,10 +23,10 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/goodrain/rainbond/node/statsd/prometheus"
 	"github.com/howeyc/fsnotify"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/version"
+	"github.com/sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/statsd/exporter"
@@ -60,7 +60,6 @@ func CreateExporter(sc option.StatsdConfig, register *prometheus.Registry) *Expo
 
 //Start Start
 func (e *Exporter) Start() error {
-	e.register.Register(version.NewCollector("statsd_exporter"))
 	if e.statsdListenAddress != "" {
 		logrus.Warnln("Warning: statsd.listen-address is DEPRECATED, please use statsd.listen-udp instead.")
 		e.statsdListenUDP = e.statsdListenAddress

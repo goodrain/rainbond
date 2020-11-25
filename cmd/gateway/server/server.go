@@ -27,10 +27,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 
 	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/client-go/kubernetes"
@@ -87,7 +87,12 @@ func Run(s *option.GWServer) error {
 
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(prometheus.NewGoCollector())
-	reg.MustRegister(prometheus.NewProcessCollector(os.Getpid(), "gateway"))
+	reg.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{
+		PidFn: func() (int, error) {
+			return os.Getpid(), nil
+		},
+		Namespace: "gateway",
+	}))
 	mc := metric.NewDummyCollector()
 	if s.Config.EnableMetrics {
 		mc, err = metric.NewCollector(s.NodeName, reg)

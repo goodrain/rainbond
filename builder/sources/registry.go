@@ -20,10 +20,11 @@ package sources
 
 import (
 	"fmt"
-	
+
 	"github.com/goodrain/rainbond/builder/sources/registry"
-	"github.com/Sirupsen/logrus"
+
 	"github.com/docker/distribution/reference"
+	"github.com/sirupsen/logrus"
 )
 
 //GetTagFromNamedRef get image tag by name

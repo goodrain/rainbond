@@ -26,18 +26,23 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/goodrain/rainbond/cmd"
+
 	"github.com/goodrain/rainbond/monitor/custom"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
 	"github.com/goodrain/rainbond/monitor"
 	"github.com/goodrain/rainbond/monitor/api"
 	"github.com/goodrain/rainbond/monitor/api/controller"
 	"github.com/goodrain/rainbond/monitor/prometheus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		cmd.ShowVersion("monitor")
+	}
 	c := option.NewConfig()
 	c.AddFlag(pflag.CommandLine)
 	c.AddPrometheusFlag(pflag.CommandLine)

@@ -21,8 +21,8 @@ package monitorserver
 import (
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/pebbe/zmq4"
+	"github.com/sirupsen/logrus"
 )
 
 var urlData = `

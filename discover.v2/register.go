@@ -24,12 +24,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/util"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	grpcutil "github.com/goodrain/rainbond/util/grpc"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/naming"
 )
 

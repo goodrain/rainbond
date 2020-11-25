@@ -25,7 +25,7 @@ import (
 
 	"github.com/goodrain/rainbond/eventlog/db"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 //EventBarrel 事件桶

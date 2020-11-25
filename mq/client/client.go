@@ -23,10 +23,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	grpcutil "github.com/goodrain/rainbond/util/grpc"
+	"github.com/sirupsen/logrus"
 	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
 )

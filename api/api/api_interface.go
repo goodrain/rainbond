@@ -83,6 +83,9 @@ type ServiceInterface interface {
 	GetDeployVersion(w http.ResponseWriter, r *http.Request)
 	AutoscalerRules(w http.ResponseWriter, r *http.Request)
 	ScalingRecords(w http.ResponseWriter, r *http.Request)
+	AddServiceMonitors(w http.ResponseWriter, r *http.Request)
+	DeleteServiceMonitors(w http.ResponseWriter, r *http.Request)
+	UpdateServiceMonitors(w http.ResponseWriter, r *http.Request)
 }
 
 //TenantInterfaceWithV1 funcs for both v2 and v1
@@ -146,6 +149,25 @@ type AppInterface interface {
 	NewUpload(w http.ResponseWriter, r *http.Request)
 	ImportID(w http.ResponseWriter, r *http.Request)
 	ImportApp(w http.ResponseWriter, r *http.Request)
+}
+
+// ApplicationInterface tenant application interface
+type ApplicationInterface interface {
+	CreateApp(w http.ResponseWriter, r *http.Request)
+	BatchCreateApp(w http.ResponseWriter, r *http.Request)
+	UpdateApp(w http.ResponseWriter, r *http.Request)
+	ListApps(w http.ResponseWriter, r *http.Request)
+	ListServices(w http.ResponseWriter, r *http.Request)
+	BatchBindService(w http.ResponseWriter, r *http.Request)
+	DeleteApp(w http.ResponseWriter, r *http.Request)
+	AddConfigGroup(w http.ResponseWriter, r *http.Request)
+	UpdateConfigGroup(w http.ResponseWriter, r *http.Request)
+
+	BatchUpdateComponentPorts(w http.ResponseWriter, r *http.Request)
+	GetAppStatus(w http.ResponseWriter, r *http.Request)
+
+	DeleteConfigGroup(w http.ResponseWriter, r *http.Request)
+	ListConfigGroups(w http.ResponseWriter, r *http.Request)
 }
 
 //Gatewayer gateway api interface

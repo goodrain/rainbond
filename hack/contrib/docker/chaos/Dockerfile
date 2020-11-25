@@ -11,6 +11,6 @@ COPY build-app /src/build-app
 
 WORKDIR $WORK_DIR
 
-ENV RELEASE_DESC=__RELEASE_DESC__
+ENV RELEASE_DESC=${RELEASE_DESC}
 
 ENTRYPOINT ["/run/entrypoint.sh"]

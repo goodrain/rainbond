@@ -32,10 +32,10 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/goodrain/rainbond/node/statsd/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
+	"github.com/sirupsen/logrus"
 )
 
 const (

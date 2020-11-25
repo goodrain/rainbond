@@ -21,14 +21,19 @@ package store
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/worker/server/pb"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"os"
 	"sync"
 	"time"
 
+	monitorv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/coreos/prometheus-operator/pkg/client/versioned"
 	"github.com/goodrain/rainbond/util/constants"
+	"k8s.io/apiextensions-apiserver/pkg/client/clientset/internalclientset"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
@@ -39,17 +44,21 @@ import (
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	workerutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	internalinformers "k8s.io/apiextensions-apiserver/pkg/client/informers/internalversion"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -80,6 +89,11 @@ type Storer interface {
 	RegisterVolumeTypeListener(string, chan<- *model.TenantServiceVolumeType)
 	UnRegisterVolumeTypeListener(string)
 	InitOneThirdPartService(service *model.TenantServices) error
+	GetCrds() ([]*apiextensions.CustomResourceDefinition, error)
+	GetCrd(name string) (*apiextensions.CustomResourceDefinition, error)
+	GetServiceMonitorClient() (*versioned.Clientset, error)
+	GetAppStatus(appID string) (pb.AppStatus_Status, error)
+	GetAppResources(appID string) (int64, int64, error)
 }
 
 // EventType type of event associated with an informer
@@ -111,7 +125,10 @@ type ProbeInfo struct {
 //appRuntimeStore app runtime store
 //cache all kubernetes object and appservice
 type appRuntimeStore struct {
+	kubeconfig             *rest.Config
 	clientset              kubernetes.Interface
+	crdClient              *internalclientset.Clientset
+	crClients              map[string]interface{}
 	ctx                    context.Context
 	cancel                 context.CancelFunc
 	informers              *Informer
@@ -130,26 +147,41 @@ type appRuntimeStore struct {
 }
 
 //NewStore new app runtime store
-func NewStore(clientset kubernetes.Interface,
+func NewStore(
+	kubeconfig *rest.Config,
+	clientset kubernetes.Interface,
 	dbmanager db.Manager,
 	conf option.Config,
 	startCh *channels.RingChannel,
 	probeCh *channels.RingChannel) Storer {
 	ctx, cancel := context.WithCancel(context.Background())
 	store := &appRuntimeStore{
+		kubeconfig:          kubeconfig,
 		clientset:           clientset,
 		ctx:                 ctx,
 		cancel:              cancel,
-		informers:           &Informer{},
+		informers:           &Informer{CRS: make(map[string]cache.SharedIndexInformer)},
 		listers:             &Lister{},
 		appServices:         sync.Map{},
 		conf:                conf,
 		dbmanager:           dbmanager,
+		crClients:           make(map[string]interface{}),
 		startCh:             startCh,
 		resourceCache:       NewResourceCache(),
 		podUpdateListeners:  make(map[string]chan<- *corev1.Pod, 1),
 		volumeTypeListeners: make(map[string]chan<- *model.TenantServiceVolumeType, 1),
 	}
+	crdClient, err := internalclientset.NewForConfig(kubeconfig)
+	if err != nil {
+		logrus.Errorf("create crd client failure %s", err.Error())
+	}
+	if crdClient != nil {
+		store.crdClient = crdClient
+		crdFactory := internalinformers.NewSharedInformerFactory(crdClient, 5*time.Minute)
+		store.informers.CRD = crdFactory.Apiextensions().InternalVersion().CustomResourceDefinitions().Informer()
+		store.listers.CRD = crdFactory.Apiextensions().InternalVersion().CustomResourceDefinitions().Lister()
+	}
+
 	// create informers factory, enable and assign required informers
 	infFactory := informers.NewSharedInformerFactoryWithOptions(conf.KubeClient, 10*time.Second,
 		informers.WithNamespace(corev1.NamespaceAll))
@@ -291,7 +323,6 @@ func NewStore(clientset kubernetes.Interface,
 	store.informers.Nodes.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.StorageClass.AddEventHandlerWithResyncPeriod(store, time.Second*300)
 	store.informers.Claims.AddEventHandlerWithResyncPeriod(store, time.Second*10)
-
 	store.informers.Events.AddEventHandlerWithResyncPeriod(store.evtEventHandler(), time.Second*10)
 	store.informers.HorizontalPodAutoscaler.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	return store
@@ -395,7 +426,6 @@ func (a *appRuntimeStore) Start() error {
 	if err := a.init(); err != nil {
 		return err
 	}
-
 	stopch := make(chan struct{})
 	a.informers.Start(stopch)
 	a.stopch = stopch
@@ -404,6 +434,7 @@ func (a *appRuntimeStore) Start() error {
 	}
 	go func() {
 		a.initThirdPartyService()
+		a.initCustomResourceInformer(stopch)
 	}()
 	return nil
 }
@@ -621,6 +652,30 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 		}
 	}
+	if sm, ok := obj.(*monitorv1.ServiceMonitor); ok {
+		serviceID := sm.Labels["service_id"]
+		version := sm.Labels["version"]
+		createrID := sm.Labels["creater_id"]
+		if serviceID != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true)
+			if err == conversion.ErrServiceNotFound {
+				smClient, err := a.GetServiceMonitorClient()
+				if err != nil {
+					logrus.Errorf("create service monitor client failure %s", err.Error())
+				}
+				if smClient != nil {
+					err := smClient.MonitoringV1().ServiceMonitors(sm.GetNamespace()).Delete(sm.GetName(), &metav1.DeleteOptions{})
+					if err != nil && !errors.IsNotFound(err) {
+						logrus.Errorf("delete service monitor failure: %s", err.Error())
+					}
+				}
+			}
+			if appservice != nil {
+				appservice.SetServiceMonitor(sm)
+				return
+			}
+		}
+	}
 }
 
 func (a *appRuntimeStore) listHPAEvents(hpa *autoscalingv2.HorizontalPodAutoscaler) error {
@@ -803,6 +858,18 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 				}
 			}
 		}
+		if sm, ok := obj.(*monitorv1.ServiceMonitor); ok {
+			serviceID := sm.Labels["service_id"]
+			version := sm.Labels["version"]
+			createrID := sm.Labels["creater_id"]
+			if serviceID != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, true)
+				if appservice != nil {
+					appservice.DeleteServiceMonitor(sm)
+					return
+				}
+			}
+		}
 	}
 }
 
@@ -947,7 +1014,8 @@ func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
 
 func (a *appRuntimeStore) GetAppServicesStatus(serviceIDs []string) map[string]string {
 	statusMap := make(map[string]string, len(serviceIDs))
-	if serviceIDs == nil || len(serviceIDs) == 0 {
+	if len(serviceIDs) == 0 {
+		// When serviceIDs is empty, return the status of all services
 		a.appServices.Range(func(k, v interface{}) bool {
 			appService, _ := v.(*v1.AppService)
 			statusMap[appService.ServiceID] = a.GetAppServiceStatus(appService.ServiceID)
@@ -959,6 +1027,85 @@ func (a *appRuntimeStore) GetAppServicesStatus(serviceIDs []string) map[string]s
 		statusMap[serviceID] = a.GetAppServiceStatus(serviceID)
 	}
 	return statusMap
+}
+
+func (a *appRuntimeStore) GetAppStatus(appID string) (pb.AppStatus_Status, error) {
+	services, err := db.GetManager().TenantServiceDao().ListByAppID(appID)
+	if err != nil || len(services) == 0 {
+		return pb.AppStatus_NIL, err
+	}
+	var serviceIDs []string
+	for _, s := range services {
+		serviceIDs = append(serviceIDs, s.ServiceID)
+	}
+
+	appStatus := pb.AppStatus_RUNNING
+	serviceStatuses := a.GetAppServicesStatus(serviceIDs)
+	switch {
+	case appNil(serviceStatuses):
+		appStatus = pb.AppStatus_NIL
+	case appClosed(serviceStatuses):
+		appStatus = pb.AppStatus_CLOSED
+	case appAbnormal(serviceStatuses):
+		appStatus = pb.AppStatus_ABNORMAL
+	case appStarting(serviceStatuses):
+		appStatus = pb.AppStatus_STARTING
+	case appStopping(serviceStatuses):
+		appStatus = pb.AppStatus_STOPPING
+	}
+
+	return appStatus, nil
+}
+
+func appNil(statuses map[string]string) bool {
+	for _, status := range statuses {
+		if status != v1.UNDEPLOY {
+			return false
+		}
+	}
+	return true
+}
+
+func appClosed(statuses map[string]string) bool {
+	for _, status := range statuses {
+		if status != v1.CLOSED {
+			return false
+		}
+	}
+	return true
+}
+
+func appAbnormal(statuses map[string]string) bool {
+	for _, status := range statuses {
+		if status == v1.ABNORMAL || status == v1.SOMEABNORMAL {
+			return true
+		}
+	}
+	return false
+}
+
+func appStarting(statuses map[string]string) bool {
+	for _, status := range statuses {
+		if status == v1.STARTING {
+			return true
+		}
+	}
+	return false
+}
+
+func appStopping(statuses map[string]string) bool {
+	stopping := false
+	for _, status := range statuses {
+		if status == v1.STOPPING {
+			stopping = true
+			continue
+		}
+		if status == v1.CLOSED {
+			continue
+		}
+		return false
+	}
+	return stopping
 }
 
 func (a *appRuntimeStore) GetNeedBillingStatus(serviceIDs []string) map[string]string {
@@ -1274,6 +1421,30 @@ func (a *appRuntimeStore) UnRegisterVolumeTypeListener(name string) {
 	a.volumeTypeListenerLock.Lock()
 	defer a.volumeTypeListenerLock.Unlock()
 	delete(a.volumeTypeListeners, name)
+}
+
+func (a *appRuntimeStore) GetAppResources(appID string) (int64, int64, error) {
+	// list pod based on the given appID
+	requirement, err := labels.NewRequirement("app_id", selection.Equals, []string{appID})
+	if err != nil {
+		return 0, 0, err
+	}
+	selector := labels.NewSelector()
+	selector = selector.Add(*requirement)
+	pods, err := a.listers.Pod.List(selector)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	var cpu, memory int64
+	for _, pod := range pods {
+		for _, c := range pod.Spec.Containers {
+			cpu += c.Resources.Requests.Cpu().MilliValue()
+			memory += c.Resources.Limits.Memory().Value() / 1024 / 1024
+		}
+	}
+
+	return cpu, memory, nil
 }
 
 func (a *appRuntimeStore) createOrUpdateImagePullSecret(ns string) error {

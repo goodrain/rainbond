@@ -22,8 +22,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"

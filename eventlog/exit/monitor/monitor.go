@@ -23,8 +23,8 @@ import (
 	"github.com/goodrain/rainbond/eventlog/store"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 )
 
 // Metric name parts.

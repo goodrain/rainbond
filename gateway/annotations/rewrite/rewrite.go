@@ -19,9 +19,9 @@ package rewrite
 import (
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
+	"github.com/sirupsen/logrus"
 	extensions "k8s.io/api/extensions/v1beta1"
 )
 

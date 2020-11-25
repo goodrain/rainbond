@@ -25,7 +25,7 @@ import (
 
 	"github.com/goodrain/rainbond/mq/api/mq"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	discovermodel "github.com/goodrain/rainbond/worker/discover/model"
 

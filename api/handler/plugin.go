@@ -33,7 +33,7 @@ import (
 
 	builder_model "github.com/goodrain/rainbond/builder/model"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 //PluginAction  plugin action struct

@@ -34,8 +34,8 @@ import (
 
 	"github.com/goodrain/rainbond/eventlog/cluster/distribution"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 )
 
 //Cluster 集群模块对外服务

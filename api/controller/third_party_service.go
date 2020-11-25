@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
@@ -30,6 +29,7 @@ import (
 	"github.com/goodrain/rainbond/db/errors"
 	validation "github.com/goodrain/rainbond/util/endpoint"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/sirupsen/logrus"
 )
 
 // ThirdPartyServiceController implements ThirdPartyServicer

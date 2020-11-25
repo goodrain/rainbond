@@ -31,8 +31,8 @@ import (
 
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
+	"github.com/sirupsen/logrus"
 )
 
 //ActionMQ 队列操作

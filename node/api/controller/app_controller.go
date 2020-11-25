@@ -24,8 +24,8 @@ import (
 
 	httputil "github.com/goodrain/rainbond/util/http"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
+	"github.com/sirupsen/logrus"
 )
 
 //APPRegister 服务注册

@@ -40,23 +40,6 @@ image:
 binary:
 	@echo "🐳build binary ${WHAT} os ${GOOS}"
 	@ GOOS=${GOOS} bash ./release.sh binary ${WHAT}
-run-c:image
-	test/run/run_${WHAT}.sh
-run:build
-ifeq ($(WHAT),mq)
-	${BIN_PATH}/${BASE_NAME}-mq --log-level=debug
-else ifeq ($(WHAT),worker)
-	test/run/run_worker.sh ${BIN_PATH}/${BASE_NAME}-worker
-else ifeq ($(WHAT),builder)
-    ${BIN_PATH}/${BASE_NAME}-chaos \
-	--log-level=debug  \
-    --mysql="root:@tcp(127.0.0.1:3306)/region"
-else
-	test/run/run_${WHAT}.sh ${BIN_PATH}/${BASE_NAME}-$(WHAT)
-endif	
-
-doc:  
-	@cd cmd/api && swagger generate spec -o ../../hack/contrib/docker/api/html/swagger.json
 check:
 	./check.sh
 mock:

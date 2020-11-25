@@ -21,8 +21,8 @@ package exector
 import (
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"

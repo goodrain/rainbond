@@ -22,15 +22,18 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/go-kit/kit/log"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api"
 	"github.com/goodrain/rainbond/node/monitormessage"
 	"github.com/goodrain/rainbond/node/statsd"
+	innerprometheus "github.com/goodrain/rainbond/node/statsd/prometheus"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/node_exporter/collector"
+	"github.com/sirupsen/logrus"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 //Manager Manager
@@ -42,7 +45,7 @@ type Manager interface {
 
 type manager struct {
 	statsdExporter     *statsd.Exporter
-	statsdRegistry     *prometheus.Registry
+	statsdRegistry     *innerprometheus.Registry
 	nodeExporterRestry *prometheus.Registry
 	meserver           *monitormessage.UDPServer
 }
@@ -53,7 +56,9 @@ func createNodeExporterRestry() (*prometheus.Registry, error) {
 		"ipvs", "loadavg", "meminfo", "netdev",
 		"netclass", "netdev", "netstat",
 		"uname", "mountstats", "nfs"}
-	nc, err := collector.NewNodeCollector(filters...)
+	// init kingpin parse
+	kingpin.CommandLine.Parse([]string{"--collector.mountstats=true"})
+	nc, err := collector.NewNodeCollector(log.NewNopLogger(), filters...)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +75,7 @@ func createNodeExporterRestry() (*prometheus.Registry, error) {
 //CreateManager CreateManager
 func CreateManager(ctx context.Context, c *option.Conf) (Manager, error) {
 	//statsd exporter
-	statsdRegistry := prometheus.NewRegistry()
+	statsdRegistry := innerprometheus.NewRegistry()
 	exporter := statsd.CreateExporter(c.StatsdConfig, statsdRegistry)
 	etcdClientArgs := &etcdutil.ClientArgs{
 		Endpoints: c.EtcdEndpoints,

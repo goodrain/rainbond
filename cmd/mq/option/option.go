@@ -19,7 +19,7 @@
 package option
 
 import "github.com/spf13/pflag"
-import "github.com/Sirupsen/logrus"
+import "github.com/sirupsen/logrus"
 import "fmt"
 
 //Config config server

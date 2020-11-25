@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"github.com/Sirupsen/logrus"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // CheckTenantResource check tenant's resource is support action or not

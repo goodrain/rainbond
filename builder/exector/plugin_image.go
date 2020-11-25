@@ -30,7 +30,7 @@ import (
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/pquerna/ffjson/ffjson"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 func (e *exectorManager) pluginImageBuild(task *pb.TaskMessage) {

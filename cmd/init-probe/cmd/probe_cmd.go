@@ -19,8 +19,8 @@
 package cmd
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/init-probe/healthy"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 

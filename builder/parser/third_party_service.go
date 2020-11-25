@@ -22,9 +22,9 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder/parser/discovery"
 	"github.com/goodrain/rainbond/event"
+	"github.com/sirupsen/logrus"
 )
 
 // ThirdPartyServiceParse is one of the implematation of parser.Parser

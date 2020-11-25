@@ -44,6 +44,7 @@ venv/
 
 .release/
 _output/
+.cache
 
 
 hack/deb/ubuntu-trusty
@@ -53,6 +54,8 @@ test/*
 test.db
 *.bak
 temp
+vendor
 
 .scannerwork
+Library
 .cache

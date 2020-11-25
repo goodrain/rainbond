@@ -28,7 +28,6 @@ import (
 
 	"github.com/goodrain/rainbond/node/nodem/logger"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api"
 	"github.com/goodrain/rainbond/node/nodem/client"
@@ -39,6 +38,7 @@ import (
 	"github.com/goodrain/rainbond/node/nodem/monitor"
 	"github.com/goodrain/rainbond/node/nodem/service"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 )
 
 var sandboxImage = "k8s.gcr.io/pause-amd64:latest"

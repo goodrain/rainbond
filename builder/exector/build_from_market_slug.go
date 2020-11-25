@@ -22,11 +22,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
 
 	//"github.com/docker/docker/api/types"
 

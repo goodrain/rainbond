@@ -24,7 +24,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
@@ -35,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/goodrain/rainbond/worker/gc"
 	"github.com/goodrain/rainbond/worker/handle"
+	"github.com/sirupsen/logrus"
 	grpc1 "google.golang.org/grpc"
 )
 

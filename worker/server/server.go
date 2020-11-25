@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db/model"
@@ -38,6 +37,7 @@ import (
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	wutil "github.com/goodrain/rainbond/worker/util"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	corev1 "k8s.io/api/core/v1"
@@ -99,8 +99,8 @@ func (r *RuntimeServer) Start(errchan chan error) {
 	logrus.Infof("runtime server start success")
 }
 
-//GetAppStatus get app service status
-func (r *RuntimeServer) GetAppStatus(ctx context.Context, re *pb.ServicesRequest) (*pb.StatusMessage, error) {
+// GetAppStatusDeprecated get app service status
+func (r *RuntimeServer) GetAppStatusDeprecated(ctx context.Context, re *pb.ServicesRequest) (*pb.StatusMessage, error) {
 	var servicdIDs []string
 	if re.ServiceIds != "" {
 		servicdIDs = strings.Split(re.ServiceIds, ",")
@@ -108,6 +108,25 @@ func (r *RuntimeServer) GetAppStatus(ctx context.Context, re *pb.ServicesRequest
 	status := r.store.GetAppServicesStatus(servicdIDs)
 	return &pb.StatusMessage{
 		Status: status,
+	}, nil
+}
+
+// GetAppStatus returns the status of application based on the given appId.
+func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (*pb.AppStatus, error) {
+	status, err := r.store.GetAppStatus(in.AppId)
+	if err != nil {
+		return nil, err
+	}
+
+	cpu, memory, err := r.store.GetAppResources(in.AppId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.AppStatus{
+		Status: status,
+		Cpu:    cpu,
+		Memory: memory,
 	}, nil
 }
 
@@ -179,6 +198,7 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 			containers[container.Name] = &pb.Container{
 				ContainerName: container.Name,
 				MemoryLimit:   container.Resources.Limits.Memory().Value(),
+				CpuRequest:    container.Resources.Requests.Cpu().MilliValue(),
 			}
 			for _, vm := range container.VolumeMounts {
 				volumes = append(volumes, vm.Name)

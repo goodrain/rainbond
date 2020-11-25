@@ -38,8 +38,8 @@ import (
 
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/pebbe/zmq4"
+	"github.com/sirupsen/logrus"
 )
 
 type Sub struct {

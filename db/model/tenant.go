@@ -188,6 +188,8 @@ type TenantServices struct {
 	ServiceOrigin string `gorm:"column:service_origin;default:'assistant'" json:"service_origin"`
 	// kind of service. option: internal, third_party
 	Kind string `gorm:"column:kind;default:'internal'" json:"kind"`
+	// service bind appID
+	AppID string `gorm:"column:app_id" json:"app_id"`
 }
 
 //Image 镜像
@@ -294,6 +296,8 @@ type TenantServicesDelete struct {
 	ServiceOrigin string `gorm:"column:service_origin;default:'assistant'" json:"service_origin"`
 	// kind of service. option: internal, third_party
 	Kind string `gorm:"column:kind;default:'internal'" json:"kind"`
+	// service bind appID
+	AppID string `gorm:"column:app_id" json:"app_id"`
 }
 
 //TableName 表名
@@ -312,6 +316,7 @@ type TenantServicesPort struct {
 	PortAlias      string `gorm:"column:port_alias" validate:"port_alias|required|alpha_dash" json:"port_alias"`
 	IsInnerService *bool  `gorm:"column:is_inner_service" validate:"is_inner_service|bool" json:"is_inner_service"`
 	IsOuterService *bool  `gorm:"column:is_outer_service" validate:"is_outer_service|bool" json:"is_outer_service"`
+	K8sServiceName string `gorm:"column:k8s_service_name" json:"k8s_service_name"`
 }
 
 //TableName 表名
@@ -598,4 +603,9 @@ type TenantServiceScalingRecords struct {
 // TableName -
 func (t *TenantServiceScalingRecords) TableName() string {
 	return "tenant_services_scaling_records"
+}
+
+// ServiceID -
+type ServiceID struct {
+	ServiceID string `gorm:"column:service_id" json:"-"`
 }

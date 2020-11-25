@@ -26,7 +26,6 @@ import (
 	"path"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/eventlog/cluster"
 	"github.com/goodrain/rainbond/eventlog/conf"
@@ -35,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/eventlog/exit/web"
 	"github.com/goodrain/rainbond/eventlog/store"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 

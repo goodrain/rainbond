@@ -23,8 +23,8 @@ import (
 	"io/ioutil"
 	"path"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
 )
 

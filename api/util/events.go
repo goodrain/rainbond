@@ -21,11 +21,11 @@ package util
 import (
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 )
 
 // CanDoEvent check can do event or not

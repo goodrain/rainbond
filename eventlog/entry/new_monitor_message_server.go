@@ -31,7 +31,7 @@ import (
 
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 //NMonitorMessageServer 新性能分析实时数据接受服务

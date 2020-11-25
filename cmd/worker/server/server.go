@@ -23,7 +23,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
@@ -39,6 +38,7 @@ import (
 	"github.com/goodrain/rainbond/worker/master"
 	"github.com/goodrain/rainbond/worker/monitor"
 	"github.com/goodrain/rainbond/worker/server"
+	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -87,7 +87,7 @@ func Run(s *option.Worker) error {
 	startCh := channels.NewRingChannel(1024)
 	updateCh := channels.NewRingChannel(1024)
 	probeCh := channels.NewRingChannel(1024)
-	cachestore := store.NewStore(clientset, db.GetManager(), s.Config, startCh, probeCh)
+	cachestore := store.NewStore(restConfig, clientset, db.GetManager(), s.Config, startCh, probeCh)
 	appmController := appm.NewAPPMController(clientset, cachestore, startCh, updateCh, probeCh)
 	if err := appmController.Start(); err != nil {
 		logrus.Errorf("error starting appm controller: %v", err)

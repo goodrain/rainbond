@@ -25,9 +25,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jinzhu/gorm"
-
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
@@ -36,6 +33,8 @@ import (
 	"github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/appm/volume"
+	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -113,10 +112,26 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 }
 
 func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volume.Define, dbmanager db.Manager) (*corev1.Container, error) {
-	envs, err := createEnv(as, dbmanager)
+	envVarSecrets := as.GetEnvVarSecrets(true)
+	logrus.Debugf("[getMainContainer] %d secrets as envs were found.", len(envVarSecrets))
+
+	envs, err := createEnv(as, dbmanager, envVarSecrets)
 	if err != nil {
 		return nil, fmt.Errorf("conv service envs failure %s", err.Error())
 	}
+
+	// secret as container environment variables
+	var envFromSecrets []corev1.EnvFromSource
+	for _, secret := range envVarSecrets {
+		envFromSecrets = append(envFromSecrets, corev1.EnvFromSource{
+			SecretRef: &corev1.SecretEnvSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: secret.Name,
+				},
+			},
+		})
+	}
+
 	args := createArgs(version, *envs)
 	resources := createResources(as)
 	ports := createPorts(as, dbmanager)
@@ -135,6 +150,7 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		Args:           args,
 		Ports:          ports,
 		Env:            *envs,
+		EnvFrom:        envFromSecrets,
 		VolumeMounts:   dv.GetVolumeMounts(),
 		LivenessProbe:  createProbe(as, dbmanager, "liveness"),
 		ReadinessProbe: createProbe(as, dbmanager, "readiness"),
@@ -168,7 +184,7 @@ func createArgs(version *dbmodel.VersionInfo, envs []corev1.EnvVar) (args []stri
 }
 
 //createEnv create service container env
-func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error) {
+func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.Secret) (*[]corev1.EnvVar, error) {
 	var envs []corev1.EnvVar
 	var envsAll []*dbmodel.TenantServiceEnvVar
 	//set logger env
@@ -182,12 +198,12 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	logrus.Infof("boot sequence dep service ids: %s", bootSeqDepServiceIDs)
 
 	//set relation app outer env
+	var relationIDs []string
 	relations, err := dbmanager.TenantServiceRelationDao().GetTenantServiceRelations(as.ServiceID)
 	if err != nil {
 		return nil, err
 	}
-	if relations != nil && len(relations) > 0 {
-		var relationIDs []string
+	if len(relations) > 0 {
 		for _, r := range relations {
 			relationIDs = append(relationIDs, r.DependServiceID)
 		}
@@ -201,13 +217,13 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			envsAll = append(envsAll, es...)
 		}
 
-		serviceAliass, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
+		serviceAliases, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
 		if err != nil {
 			return nil, err
 		}
 		var Depend string
 		var startupSequenceDependencies []string
-		for _, sa := range serviceAliass {
+		for _, sa := range serviceAliases {
 			if Depend != "" {
 				Depend += ","
 			}
@@ -218,14 +234,12 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			}
 		}
 		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: Depend})
-		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliass))})
+		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliases))})
 		envs = append(envs, corev1.EnvVar{Name: "STARTUP_SEQUENCE_DEPENDENCIES", Value: strings.Join(startupSequenceDependencies, ",")})
 
-		sid2alias := make(map[string]string, len(serviceAliass))
-		for _, alias := range serviceAliass {
-			sid2alias[alias.ServiceID] = alias.ServiceAlias
+		if as.GovernanceMode == model.GovernanceModeBuildInServiceMesh {
+			as.NeedProxy = true
 		}
-		as.NeedProxy = true
 	}
 
 	//set app relation env
@@ -233,25 +247,23 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	if err != nil {
 		return nil, err
 	}
-	if relations != nil && len(relations) > 0 {
+	if len(relations) > 0 {
 		var relationIDs []string
 		for _, r := range relations {
 			relationIDs = append(relationIDs, r.ServiceID)
 		}
-		if len(relationIDs) > 0 {
-			serviceAliass, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
-			if err != nil {
-				return nil, err
-			}
-			var Depend string
-			for _, sa := range serviceAliass {
-				if Depend != "" {
-					Depend += ","
-				}
-				Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
-			}
-			envs = append(envs, corev1.EnvVar{Name: "REVERSE_DEPEND_SERVICE", Value: Depend})
+		serviceAliass, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
+		if err != nil {
+			return nil, err
 		}
+		var Depend string
+		for _, sa := range serviceAliass {
+			if Depend != "" {
+				Depend += ","
+			}
+			Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
+		}
+		envs = append(envs, corev1.EnvVar{Name: "REVERSE_DEPEND_SERVICE", Value: Depend})
 	}
 
 	//set app port and net env
@@ -277,8 +289,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 		}
 		envs = append(envs, corev1.EnvVar{Name: "MONITOR_PORT", Value: portStr})
 	}
-	//set net mode env by get from system
-	envs = append(envs, corev1.EnvVar{Name: "CUR_NET", Value: os.Getenv("CUR_NET")})
+
 	//set app custom envs
 	es, err := dbmanager.TenantServiceEnvVarDao().GetServiceEnvs(as.ServiceID, []string{"inner", "both", "outer"})
 	if err != nil {
@@ -293,6 +304,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 			as.ExtensionSet[strings.ToLower(e.AttrName[3:])] = e.AttrValue
 		}
 	}
+
 	//set default env
 	envs = append(envs, corev1.EnvVar{Name: "TENANT_ID", Value: as.TenantID})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_ID", Value: as.ServiceID})
@@ -313,9 +325,24 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	for _, env := range envs {
 		config[env.Name] = env.Value
 	}
+	for _, sec := range envVarSecrets {
+		for k, v := range sec.Data {
+			// The priority of component environment variable is higher than the one of the application.
+			if val := config[k]; val == string(v) {
+				continue
+			}
+			config[k] = string(v)
+		}
+	}
 	for i, env := range envs {
 		envs[i].Value = util.ParseVariable(env.Value, config)
 	}
+	for _, sec := range envVarSecrets {
+		for i, data := range sec.Data {
+			sec.Data[i] = []byte(util.ParseVariable(string(data), config))
+		}
+	}
+
 	return &envs, nil
 }
 
@@ -428,25 +455,12 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, dbmanager db
 		return nil, err
 	}
 
-	// environment variables
-	configs := make(map[string]string)
-	envs, err := createEnv(as, dbmanager)
-	if err != nil {
-		logrus.Warningf("error creating environment variables: %v", err)
-	} else {
-		for _, env := range *envs {
-			configs[env.Name] = env.Value
-		}
-	}
-
-	if vs != nil && len(vs) > 0 {
-		for _, v := range vs {
-			vol := volume.NewVolumeManager(as, v, nil, version, dbmanager)
-			if vol != nil {
-				if err = vol.CreateVolume(define); err != nil {
-					logrus.Warningf("service: %s, create volume: %s, error: %+v \n skip it", version.ServiceID, v.VolumeName, err.Error())
-					continue
-				}
+	for _, v := range vs {
+		vol := volume.NewVolumeManager(as, v, nil, version, dbmanager)
+		if vol != nil {
+			if err = vol.CreateVolume(define); err != nil {
+				logrus.Warningf("service: %s, create volume: %s, error: %+v \n skip it", version.ServiceID, v.VolumeName, err.Error())
+				continue
 			}
 		}
 	}

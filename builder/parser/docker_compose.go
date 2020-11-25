@@ -23,13 +23,13 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder/parser/compose"
 	"github.com/goodrain/rainbond/builder/parser/types"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/sirupsen/logrus"
 )
 
 //DockerComposeParse docker compose 文件解析

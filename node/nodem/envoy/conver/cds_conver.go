@@ -23,23 +23,24 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
+
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	auth "github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	"github.com/envoyproxy/go-control-plane/pkg/cache"
 	api_model "github.com/goodrain/rainbond/api/model"
 	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 )
 
 //OneNodeCluster conver cluster of on envoy node
-func OneNodeCluster(serviceAlias, namespace string, configs *corev1.ConfigMap, services []*corev1.Service) ([]cache.Resource, error) {
+func OneNodeCluster(serviceAlias, namespace string, configs *corev1.ConfigMap, services []*corev1.Service) ([]types.Resource, error) {
 	resources, _, err := GetPluginConfigs(configs)
 	if err != nil {
 		return nil, err
 	}
-	var clusters []cache.Resource
+	var clusters []types.Resource
 	if resources.BaseServices != nil && len(resources.BaseServices) > 0 {
 		for _, cl := range upstreamClusters(serviceAlias, namespace, resources.BaseServices, services) {
 			if err := cl.Validate(); err != nil {

@@ -26,14 +26,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/util"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -189,7 +188,7 @@ func (d *EtcdDiscoverManager) discover() {
 			d.log.Error("Get instance info from etcd error.", err.Error())
 		} else {
 			for _, kv := range res.Kvs {
-				node := &client.Node{
+				node := &Node{
 					Key:   string(kv.Key),
 					Value: string(kv.Value),
 				}
@@ -214,7 +213,7 @@ func (d *EtcdDiscoverManager) discover() {
 		}
 
 		for _, event := range res.Events {
-			node := &client.Node{
+			node := &Node{
 				Key:   string(event.Kv.Key),
 				Value: string(event.Kv.Value),
 			}
@@ -251,7 +250,12 @@ func (d *EtcdDiscoverManager) discover() {
 	d.log.Debug("discover manager discover core stop")
 }
 
-func (d *EtcdDiscoverManager) add(node *client.Node) {
+type Node struct {
+	Key   string
+	Value string
+}
+
+func (d *EtcdDiscoverManager) add(node *Node) {
 
 	//忽略自己
 	if strings.HasSuffix(node.Key, fmt.Sprintf("/%s:%d", d.selfInstance.HostIP, d.selfInstance.PubPort)) {
@@ -284,7 +288,7 @@ func (d *EtcdDiscoverManager) add(node *client.Node) {
 
 }
 
-func (d *EtcdDiscoverManager) update(node *client.Node) {
+func (d *EtcdDiscoverManager) update(node *Node) {
 
 	var instance Instance
 	if err := json.Unmarshal([]byte(node.Value), &instance); err != nil {
@@ -329,7 +333,7 @@ func (d *EtcdDiscoverManager) CancellationInstance(instance *Instance) {
 	ctx, cancel := context.WithTimeout(d.context, time.Second*5)
 	defer cancel()
 	_, err := d.etcdclientv3.Delete(ctx, fmt.Sprintf("%s/instance/%s:%d", d.conf.HomePath, instance.HostIP, instance.PubPort))
-	if err != nil && !client.IsKeyNotFound(err) {
+	if err != nil {
 		d.log.Error("Cancellation Instance from etcd error.", err.Error())
 	} else {
 		d.log.Info("Cancellation Instance from etcd")
@@ -347,7 +351,7 @@ func (d *EtcdDiscoverManager) UpdateInstance(instance *Instance) {
 	ctx, cancel := context.WithTimeout(d.context, time.Second*5)
 	defer cancel()
 	_, err = d.etcdclientv3.Put(ctx, fmt.Sprintf("%s/instance/%s:%d", d.conf.HomePath, instance.HostIP, instance.PubPort), string(data))
-	if err != nil && !client.IsKeyNotFound(err) {
+	if err != nil {
 		d.log.Error(" Update Instance from etcd error.", err.Error())
 	}
 }

@@ -2,9 +2,9 @@ package cloudos
 
 import (
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
-	"path/filepath"
 )
 
 var endpoint = "dummy"

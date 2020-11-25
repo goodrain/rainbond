@@ -22,13 +22,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	gclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
 	dmodel "github.com/goodrain/rainbond/worker/discover/model"
+	"github.com/sirupsen/logrus"
 )
 
 //OperationHandler operation handler

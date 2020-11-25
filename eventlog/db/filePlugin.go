@@ -31,8 +31,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 )
 
 type filePlugin struct {

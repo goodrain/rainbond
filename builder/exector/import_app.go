@@ -28,7 +28,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	simplejson "github.com/bitly/go-simplejson"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/api/model"
@@ -38,6 +37,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 )
 

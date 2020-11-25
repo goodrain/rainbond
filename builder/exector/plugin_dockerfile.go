@@ -35,8 +35,8 @@ import (
 
 	"github.com/goodrain/rainbond/builder/model"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -115,7 +115,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 		buildOptions.NoCache = false
 	}
 	logger.Info("start build image", map[string]string{"step": "builder-exector"})
-	err := sources.ImageBuild(e.DockerClient, sourceDir, buildOptions, logger, 5)
+	_, err := sources.ImageBuild(e.DockerClient, sourceDir, buildOptions, logger, 5)
 	if err != nil {
 		logger.Error(fmt.Sprintf("build image %s failure,find log in rbd-chaos", buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("[plugin]build image error: %s", err.Error())

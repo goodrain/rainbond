@@ -25,8 +25,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libcompose/project"
+	"github.com/sirupsen/logrus"
 )
 
 // Parse Docker Compose with libcompose (only supports v1 and v2). Eventually we will

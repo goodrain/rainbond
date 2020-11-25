@@ -25,8 +25,8 @@ import (
 
 	"github.com/goodrain/rainbond/util"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/util/windows"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 

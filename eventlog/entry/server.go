@@ -22,7 +22,7 @@ import (
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/store"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/thejerf/suture"
 )
 

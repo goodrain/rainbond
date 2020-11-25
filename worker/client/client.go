@@ -23,12 +23,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/model"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	grpcutil "github.com/goodrain/rainbond/util/grpc"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
@@ -81,7 +81,7 @@ func (a *AppRuntimeSyncClient) Error(err error) {
 func (a *AppRuntimeSyncClient) GetStatus(serviceID string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-	status, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.ServicesRequest{
+	status, err := a.AppRuntimeSyncClient.GetAppStatusDeprecated(ctx, &pb.ServicesRequest{
 		ServiceIds: serviceID,
 	})
 	if err != nil {
@@ -94,7 +94,7 @@ func (a *AppRuntimeSyncClient) GetStatus(serviceID string) string {
 func (a *AppRuntimeSyncClient) GetStatuss(serviceIDs string) map[string]string {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
-	status, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.ServicesRequest{
+	status, err := a.AppRuntimeSyncClient.GetAppStatusDeprecated(ctx, &pb.ServicesRequest{
 		ServiceIds: serviceIDs,
 	})
 	if err != nil {
@@ -112,7 +112,7 @@ func (a *AppRuntimeSyncClient) GetStatuss(serviceIDs string) map[string]string {
 func (a *AppRuntimeSyncClient) GetAllStatus() map[string]string {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
-	status, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.ServicesRequest{
+	status, err := a.AppRuntimeSyncClient.GetAppStatusDeprecated(ctx, &pb.ServicesRequest{
 		ServiceIds: "",
 	})
 	if err != nil {
@@ -125,7 +125,7 @@ func (a *AppRuntimeSyncClient) GetAllStatus() map[string]string {
 func (a *AppRuntimeSyncClient) GetNeedBillingStatus() (map[string]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
-	re, err := a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.ServicesRequest{})
+	re, err := a.AppRuntimeSyncClient.GetAppStatusDeprecated(ctx, &pb.ServicesRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -233,4 +233,12 @@ func (a *AppRuntimeSyncClient) GetAppVolumeStatus(serviceID string) (*pb.Service
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	return a.AppRuntimeSyncClient.GetAppVolumeStatus(ctx, &pb.ServiceRequest{ServiceId: serviceID})
+}
+
+// GetAppResources -
+func (a *AppRuntimeSyncClient) GetAppResources(appID string) (*pb.AppStatus, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	return a.AppRuntimeSyncClient.GetAppStatus(ctx, &pb.AppStatusReq{AppId: appID})
 }

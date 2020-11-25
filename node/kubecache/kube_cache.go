@@ -31,7 +31,7 @@ import (
 	conf "github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/nodem/client"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

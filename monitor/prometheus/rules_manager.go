@@ -4,8 +4,8 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
+	"github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -546,5 +546,4 @@ func (a *AlertingRulesManager) InitRulesConfig() {
 		return
 	}
 	return
-
 }

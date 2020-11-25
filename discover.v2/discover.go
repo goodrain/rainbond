@@ -28,10 +28,10 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/mvcc/mvccpb"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	"github.com/sirupsen/logrus"
 )
 
 //CallbackUpdate 每次返还变化

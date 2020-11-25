@@ -7,10 +7,10 @@ import (
 	"sort"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/goodrain/rainbond/worker/util"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -190,7 +190,7 @@ func describeContainerResource(container corev1.Container, pc *pb.PodContainer) 
 		}
 	}
 	for _, name := range SortedResourceNames(resources.Requests) {
-		quantity := resources.Limits[name]
+		quantity := resources.Requests[name]
 		if name == "memory" {
 			pc.RequestMemory = quantity.String()
 		}

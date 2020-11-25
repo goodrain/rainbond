@@ -40,7 +40,7 @@ func InitProxy(conf option.Config) {
 		builderProxy = proxy.CreateProxy("builder", "http", conf.BuilderAPI)
 	}
 	if prometheusProxy == nil {
-		prometheusProxy = proxy.CreateProxy("prometheus", "http", []string{"rbd-monitor:9999"})
+		prometheusProxy = proxy.CreateProxy("prometheus", "http", []string{conf.PrometheusEndpoint})
 	}
 	if monitorProxy == nil {
 		monitorProxy = proxy.CreateProxy("monitor", "http", []string{"127.0.0.1:3329"})

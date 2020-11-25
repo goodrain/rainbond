@@ -44,7 +44,7 @@ func CreateTestManager() (Manager, error) {
 			"MYSQL_ROOT_PASSWORD": rootpw,
 			"MYSQL_DATABASE":      dbname,
 		},
-		Cmd: "--character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci",
+		Cmd: []string{"character-set-server=utf8mb4", "collation-server=utf8mb4_unicode_ci"},
 	}
 	mariadb, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,

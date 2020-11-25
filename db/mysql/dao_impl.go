@@ -417,6 +417,55 @@ func (m *Manager) AppDao() dao.AppDao {
 	}
 }
 
+// ApplicationDao -
+func (m *Manager) ApplicationDao() dao.ApplicationDao {
+	return &mysqldao.ApplicationDaoImpl{
+		DB: m.db,
+	}
+}
+
+// AppConfigGroupDao -
+func (m *Manager) AppConfigGroupDao() dao.AppConfigGroupDao {
+	return &mysqldao.AppConfigGroupDaoImpl{
+		DB: m.db,
+	}
+}
+
+//AppConfigGroupDaoTransactions -
+func (m *Manager) AppConfigGroupDaoTransactions(db *gorm.DB) dao.AppConfigGroupDao {
+	return &mysqldao.AppConfigGroupDaoImpl{
+		DB: db,
+	}
+}
+
+// AppConfigGroupServiceDao -
+func (m *Manager) AppConfigGroupServiceDao() dao.AppConfigGroupServiceDao {
+	return &mysqldao.AppConfigGroupServiceDaoImpl{
+		DB: m.db,
+	}
+}
+
+//AppConfigGroupServiceDaoTransactions -
+func (m *Manager) AppConfigGroupServiceDaoTransactions(db *gorm.DB) dao.AppConfigGroupServiceDao {
+	return &mysqldao.AppConfigGroupServiceDaoImpl{
+		DB: db,
+	}
+}
+
+// AppConfigGroupItemDao -
+func (m *Manager) AppConfigGroupItemDao() dao.AppConfigGroupItemDao {
+	return &mysqldao.AppConfigGroupItemDaoImpl{
+		DB: m.db,
+	}
+}
+
+//AppConfigGroupItemDaoTransactions -
+func (m *Manager) AppConfigGroupItemDaoTransactions(db *gorm.DB) dao.AppConfigGroupItemDao {
+	return &mysqldao.AppConfigGroupItemDaoImpl{
+		DB: db,
+	}
+}
+
 //AppBackupDao group app backup info
 func (m *Manager) AppBackupDao() dao.AppBackupDao {
 	return &mysqldao.AppBackupDaoImpl{
@@ -574,6 +623,20 @@ func (m *Manager) TenantServiceScalingRecordsDao() dao.TenantServiceScalingRecor
 // TenantServiceScalingRecordsDaoTransactions -
 func (m *Manager) TenantServiceScalingRecordsDaoTransactions(db *gorm.DB) dao.TenantServiceScalingRecordsDao {
 	return &mysqldao.TenantServiceScalingRecordsDaoImpl{
+		DB: db,
+	}
+}
+
+//TenantServiceMonitorDao monitor dao
+func (m *Manager) TenantServiceMonitorDao() dao.TenantServiceMonitorDao {
+	return &mysqldao.TenantServiceMonitorDaoImpl{
+		DB: m.db,
+	}
+}
+
+//TenantServiceMonitorDaoTransactions monitor dao
+func (m *Manager) TenantServiceMonitorDaoTransactions(db *gorm.DB) dao.TenantServiceMonitorDao {
+	return &mysqldao.TenantServiceMonitorDaoImpl{
 		DB: db,
 	}
 }

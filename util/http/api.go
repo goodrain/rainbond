@@ -19,17 +19,45 @@
 package http
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/url"
 	"reflect"
+	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/render"
-	govalidator "github.com/thedevsaddam/govalidator"
+	"github.com/go-playground/validator/v10"
+	"github.com/goodrain/rainbond/api/util/bcode"
+	govalidator "github.com/goodrain/rainbond/util/govalidator"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
+
+var validate *validator.Validate
+
+func init() {
+	var once sync.Once
+	once.Do(func() {
+		validate = validator.New()
+	})
+}
+
+// ErrBadRequest -
+type ErrBadRequest struct {
+	err error
+}
+
+func (e ErrBadRequest) Error() string {
+	return e.err.Error()
+}
+
+// Result represents a response for restful api.
+type Result struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
+}
 
 //ValidatorStructRequest 验证请求数据
 //data 传入指针
@@ -171,4 +199,41 @@ func ReturnResNotEnough(r *http.Request, w http.ResponseWriter, msg string) {
 	logrus.Debugf("resource not enough, msg: %s", msg)
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, 412))
 	render.DefaultResponder(w, r, ResponseBody{Msg: msg})
+}
+
+//ReturnBcodeError bcode error
+func ReturnBcodeError(r *http.Request, w http.ResponseWriter, err error) {
+	berr := bcode.Err2Coder(err)
+	logrus.Debugf("path %s error code: %d; status: %d; error msg: %s", r.RequestURI, berr.GetCode(), berr.GetStatus(), berr.Error())
+
+	status := berr.GetStatus()
+	result := Result{
+		Code: berr.GetCode(),
+		Msg:  berr.Error(),
+	}
+
+	if _, isErrBadRequest := err.(ErrBadRequest); isErrBadRequest {
+		status = 400
+		result.Code = 400
+		result.Msg = err.Error()
+	}
+
+	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, status))
+	render.DefaultResponder(w, r, result)
+}
+
+// ReadEntity reads entity from http.Request
+func ReadEntity(r *http.Request, x interface{}) error {
+	if err := json.NewDecoder(r.Body).Decode(x); err != nil {
+		return ErrBadRequest{err: err}
+	}
+	return nil
+}
+
+// ValidateStruct validates a structs exposed fields.
+func ValidateStruct(x interface{}) error {
+	if err := validate.Struct(x); err != nil {
+		return ErrBadRequest{err: err}
+	}
+	return nil
 }

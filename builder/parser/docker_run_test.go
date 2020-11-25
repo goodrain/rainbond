@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	//"github.com/docker/docker/client"
 	"github.com/docker/docker/client"
 )
@@ -38,14 +37,14 @@ var dockerrun = `docker run -d -P -v /usr/share/ca-certificates/:/etc/ssl/certs 
 -initial-cluster etcd0=http://127.0.0.1:2380 \
 -initial-cluster-state new`
 
+var test_case = `docker run -it --rm tensorflow/tensorflow tail`
+
 func TestParse(t *testing.T) {
 	dockerclient, err := client.NewEnvClient()
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := CreateDockerRunOrImageParse("", "", dockerrun, dockerclient, nil)
-	if err := p.Parse(); err != nil {
-		logrus.Errorf(err.Error())
-	}
+	p := CreateDockerRunOrImageParse("", "", test_case, dockerclient, nil)
+	p.ParseDockerun(test_case)
 	fmt.Printf("ServiceInfo:%+v \n", p.GetServiceInfo())
 }

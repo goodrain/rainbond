@@ -22,11 +22,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	eventclient "github.com/goodrain/rainbond/eventlog/entry/grpc/client"
@@ -34,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -419,10 +420,12 @@ func (l *logger) GetWriter(step, level string) LoggerWriter {
 }
 
 type loggerWriter struct {
-	l     *logger
-	step  string
-	level string
-	fmt   map[string]interface{}
+	l           *logger
+	step        string
+	level       string
+	fmt         map[string]interface{}
+	tmp         []byte
+	lastMessage string
 }
 
 func (l *loggerWriter) SetFormat(f map[string]interface{}) {
@@ -430,7 +433,17 @@ func (l *loggerWriter) SetFormat(f map[string]interface{}) {
 }
 func (l *loggerWriter) Write(b []byte) (n int, err error) {
 	if b != nil && len(b) > 0 {
-		message := string(b)
+		if !strings.HasSuffix(string(b), "\n") {
+			l.tmp = append(l.tmp, b...)
+			return len(b), nil
+		}
+		var message string
+		if len(l.tmp) > 0 {
+			message = string(append(l.tmp, b...))
+			l.tmp = l.tmp[:0]
+		} else {
+			message = string(b)
+		}
 		// if loggerWriter has format, and then use it format message
 		if len(l.fmt) > 0 {
 			newLineMap := make(map[string]interface{}, len(l.fmt))
@@ -444,8 +457,18 @@ func (l *loggerWriter) Write(b []byte) (n int, err error) {
 			messageb, _ := ffjson.Marshal(newLineMap)
 			message = string(messageb)
 		}
-
+		if l.step == "build-progress" {
+			if strings.HasPrefix(message, "Progress ") && strings.HasPrefix(l.lastMessage, "Progress ") {
+				l.lastMessage = message
+				return len(b), nil
+			}
+			// send last message
+			if !strings.HasPrefix(message, "Progress ") && strings.HasPrefix(l.lastMessage, "Progress ") {
+				l.l.send(message, map[string]string{"step": l.lastMessage, "level": l.level})
+			}
+		}
 		l.l.send(message, map[string]string{"step": l.step, "level": l.level})
+		l.lastMessage = message
 	}
 	return len(b), nil
 }

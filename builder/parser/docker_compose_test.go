@@ -25,9 +25,9 @@ import (
 
 	"github.com/goodrain/rainbond/event"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/ghodss/yaml"
+	"github.com/sirupsen/logrus"
 )
 
 var dockercompose = `

@@ -23,11 +23,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/f"
+	"github.com/goodrain/rainbond/worker/appm/store"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -221,6 +222,22 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	}
 	_ = f.UpgradeSecrets(s.manager.client, &app, oldApp.GetSecrets(true), app.GetSecrets(true), handleErr)
 	_ = f.UpgradeIngress(s.manager.client, &app, oldApp.GetIngress(true), app.GetIngress(true), handleErr)
+	for _, secret := range app.GetEnvVarSecrets(true) {
+		err := f.CreateOrUpdateSecret(s.manager.client, secret)
+		if err != nil {
+			return fmt.Errorf("[upgradeController] [upgradeOne] create or update secrets: %v", err)
+		}
+	}
+
+	if crd, _ := s.manager.store.GetCrd(store.ServiceMonitor); crd != nil {
+		client, err := s.manager.store.GetServiceMonitorClient()
+		if err != nil {
+			logrus.Errorf("create service monitor client failure %s", err.Error())
+		}
+		if client != nil {
+			_ = f.UpgradeServiceMonitor(client, &app, oldApp.GetServiceMonitors(true), app.GetServiceMonitors(true), handleErr)
+		}
+	}
 
 	return s.WaitingReady(app)
 }

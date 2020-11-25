@@ -21,8 +21,8 @@ package etcd
 import (
 	"context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"
+	"github.com/sirupsen/logrus"
 )
 
 //HandleEtcdError 处理etcd错误

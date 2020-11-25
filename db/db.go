@@ -23,11 +23,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/mysql"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 )
 
 //Manager db manager
@@ -38,6 +38,13 @@ type Manager interface {
 	VolumeTypeDao() dao.VolumeTypeDao
 	LicenseDao() dao.LicenseDao
 	AppDao() dao.AppDao
+	ApplicationDao() dao.ApplicationDao
+	AppConfigGroupDao() dao.AppConfigGroupDao
+	AppConfigGroupDaoTransactions(db *gorm.DB) dao.AppConfigGroupDao
+	AppConfigGroupServiceDao() dao.AppConfigGroupServiceDao
+	AppConfigGroupServiceDaoTransactions(db *gorm.DB) dao.AppConfigGroupServiceDao
+	AppConfigGroupItemDao() dao.AppConfigGroupItemDao
+	AppConfigGroupItemDaoTransactions(db *gorm.DB) dao.AppConfigGroupItemDao
 	EnterpriseDao() dao.EnterpriseDao
 	TenantDao() dao.TenantDao
 	TenantDaoTransactions(db *gorm.DB) dao.TenantDao
@@ -126,6 +133,9 @@ type Manager interface {
 	TenantServceAutoscalerRuleMetricsDaoTransactions(db *gorm.DB) dao.TenantServceAutoscalerRuleMetricsDao
 	TenantServiceScalingRecordsDao() dao.TenantServiceScalingRecordsDao
 	TenantServiceScalingRecordsDaoTransactions(db *gorm.DB) dao.TenantServiceScalingRecordsDao
+
+	TenantServiceMonitorDao() dao.TenantServiceMonitorDao
+	TenantServiceMonitorDaoTransactions(db *gorm.DB) dao.TenantServiceMonitorDao
 }
 
 var defaultManager Manager

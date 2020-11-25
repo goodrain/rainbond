@@ -25,9 +25,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/core/store"
+	"github.com/sirupsen/logrus"
 )
 
 //GroupContext 组任务会话

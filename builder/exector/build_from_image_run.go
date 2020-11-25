@@ -23,13 +23,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/build"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
+	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 )
 

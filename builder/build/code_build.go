@@ -31,7 +31,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/eapache/channels"
 	"github.com/fsnotify/fsnotify"
@@ -42,6 +41,7 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -151,7 +151,7 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 		return "", fmt.Errorf("pull image %s: %v", builder.RUNNERIMAGENAME, err)
 	}
 	logrus.Infof("pull image %s successfully.", builder.RUNNERIMAGENAME)
-	err := sources.ImageBuild(s.re.DockerClient, cacheDir, runbuildOptions, s.re.Logger, 30)
+	_, err := sources.ImageBuild(s.re.DockerClient, cacheDir, runbuildOptions, s.re.Logger, 30)
 	if err != nil {
 		s.re.Logger.Error(fmt.Sprintf("build image %s of new version failure", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())

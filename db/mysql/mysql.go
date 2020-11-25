@@ -21,10 +21,10 @@ package mysql
 import (
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 
 	// import sql driver manually
 	_ "github.com/go-sql-driver/mysql"
@@ -125,6 +125,10 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.AppStatus{})
 	m.models = append(m.models, &model.AppBackup{})
 	m.models = append(m.models, &model.ServiceSourceConfig{})
+	m.models = append(m.models, &model.Application{})
+	m.models = append(m.models, &model.ApplicationConfigGroup{})
+	m.models = append(m.models, &model.ConfigGroupService{})
+	m.models = append(m.models, &model.ConfigGroupItem{})
 	// gateway
 	m.models = append(m.models, &model.Certificate{})
 	m.models = append(m.models, &model.RuleExtension{})
@@ -141,6 +145,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.TenantServiceAutoscalerRules{})
 	m.models = append(m.models, &model.TenantServiceAutoscalerRuleMetrics{})
 	m.models = append(m.models, &model.TenantServiceScalingRecords{})
+	m.models = append(m.models, &model.TenantServiceMonitor{})
 }
 
 //CheckTable check and create tables

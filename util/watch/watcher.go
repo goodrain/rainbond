@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/coreos/etcd/clientv3"
 	etcdrpc "github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"

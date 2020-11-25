@@ -24,12 +24,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -139,9 +139,7 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 		}
 		ports, pp, err = a.CreateUpstreamPluginMappingPort(ports, pluginPorts)
 	}
-	if err != nil {
-		return nil, fmt.Errorf("create upstream port error, %s", err.Error())
-	}
+
 	var services []*corev1.Service
 	var ingresses []*extensions.Ingress
 	var secrets []*corev1.Secret
@@ -149,7 +147,11 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 		for i := range ports {
 			port := ports[i]
 			if *port.IsInnerService {
-				services = append(services, a.createInnerService(port))
+				if a.appService.GovernanceMode == model.GovernanceModeBuildInServiceMesh {
+					services = append(services, a.createKubernetesNativeService(port))
+				} else {
+					services = append(services, a.createInnerService(port))
+				}
 			}
 			if *port.IsOuterService {
 				service := a.createOuterService(port)
@@ -447,9 +449,21 @@ func (a *AppServiceBuild) createServiceAnnotations() map[string]string {
 	return annotations
 }
 
+func (a *AppServiceBuild) createKubernetesNativeService(port *model.TenantServicesPort) *corev1.Service {
+	svc := a.createInnerService(port)
+	svc.Name = port.K8sServiceName
+	if svc.Name == "" {
+		svc.Name = fmt.Sprintf("%s-%d", a.service.ServiceAlias, port.ContainerPort)
+	}
+	return svc
+}
+
 func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *corev1.Service {
 	var service corev1.Service
-	service.Name = fmt.Sprintf("service-%d-%d", port.ID, port.ContainerPort)
+	service.Name = port.K8sServiceName
+	if service.Name == "" {
+		service.Name = fmt.Sprintf("service-%d-%d", port.ID, port.ContainerPort)
+	}
 	service.Namespace = a.service.TenantID
 	service.Labels = a.appService.GetCommonLabels(map[string]string{
 		"service_type":  "inner",
@@ -509,11 +523,7 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 		strings.ToLower(string(servicePort.Protocol)), port.ContainerPort)
 	servicePort.Port = int32(port.ContainerPort)
 	var portType corev1.ServiceType
-	if os.Getenv("CUR_NET") == "midonet" {
-		portType = corev1.ServiceTypeNodePort
-	} else {
-		portType = corev1.ServiceTypeClusterIP
-	}
+	portType = corev1.ServiceTypeClusterIP
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{servicePort},
 		Type:  portType,

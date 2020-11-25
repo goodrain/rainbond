@@ -30,13 +30,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/goodrain/rainbond/builder/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -346,7 +347,7 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 }
 
 //ImageBuild ImageBuild
-func ImageBuild(dockerCli *client.Client, contextDir string, options types.ImageBuildOptions, logger event.Logger, timeout int) error {
+func ImageBuild(dockerCli *client.Client, contextDir string, options types.ImageBuildOptions, logger event.Logger, timeout int) (string, error) {
 	var ctx context.Context
 	if timeout != 0 {
 		var cancel context.CancelFunc
@@ -361,36 +362,28 @@ func ImageBuild(dockerCli *client.Client, contextDir string, options types.Image
 		IncludeFiles:    []string{"."},
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
-
 	rc, err := dockerCli.ImageBuild(ctx, buildCtx, options)
 	if err != nil {
-		return err
+		return "", err
 	}
-	if rc.Body != nil {
-		defer rc.Body.Close()
-		dec := json.NewDecoder(rc.Body)
-		for {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-			}
-			var jm JSONMessage
-			if err := dec.Decode(&jm); err != nil {
-				if err == io.EOF {
-					break
-				}
-				return err
-			}
-			if jm.Error != nil {
-				return jm.Error
-			}
-			logger.Info(jm.JSONString(), map[string]string{"step": "build-progress"})
-		}
+	var out io.Writer
+	if logger != nil {
+		out = logger.GetWriter("build-progress", "info")
+	} else {
+		out, _ = os.OpenFile("/tmp/build.log", os.O_RDWR|os.O_CREATE, 0755)
 	}
-	return nil
+	var imageID string
+	err = jsonmessage.DisplayJSONMessagesStream(rc.Body, out, 0, true, func(msg jsonmessage.JSONMessage) {
+		var r types.BuildResult
+		imageID = r.ID
+	})
+	if err != nil {
+		logrus.Errorf("read build log failure %s", err.Error())
+		return "", err
+	}
+	return imageID, nil
 }
 
 //ImageInspectWithRaw get image inspect

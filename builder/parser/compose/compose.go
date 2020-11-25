@@ -26,9 +26,9 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libcompose/project"
 	"github.com/fatih/structs"
+	"github.com/sirupsen/logrus"
 )
 
 // Compose is docker compose file loader, implements Loader interface

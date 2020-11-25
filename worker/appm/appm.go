@@ -19,12 +19,12 @@
 package appm
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/eapache/channels"
 	opt "github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/worker/appm/prober"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty"
+	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 )
 

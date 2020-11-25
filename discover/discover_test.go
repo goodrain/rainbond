@@ -24,7 +24,7 @@ import (
 	"github.com/goodrain/rainbond/discover/config"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 func TestAddUpdateProject(t *testing.T) {

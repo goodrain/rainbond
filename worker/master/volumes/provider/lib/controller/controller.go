@@ -29,7 +29,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 	v1 "k8s.io/api/core/v1"
 	storage "k8s.io/api/storage/v1"
@@ -38,6 +38,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -47,7 +48,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	ref "k8s.io/client-go/tools/reference"
 	"k8s.io/client-go/util/workqueue"
-	utilversion "k8s.io/kubernetes/pkg/util/version"
 
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller/metrics"
@@ -1118,7 +1118,7 @@ func (ctrl *ProvisionController) persistentVolumeForGrdata() (*v1.PersistentVolu
 		return nil, fmt.Errorf("find pv for grdata: %v", err)
 	}
 	if pv.Spec.PersistentVolumeSource.Glusterfs != nil && pv.Spec.PersistentVolumeSource.Glusterfs.EndpointsNamespace == nil {
-		pv.Spec.PersistentVolumeSource.Glusterfs.EndpointsNamespace =  &pv.Spec.ClaimRef.Namespace
+		pv.Spec.PersistentVolumeSource.Glusterfs.EndpointsNamespace = &pv.Spec.ClaimRef.Namespace
 	}
 	return pv, nil
 }

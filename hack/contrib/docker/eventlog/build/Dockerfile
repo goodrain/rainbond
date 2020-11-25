@@ -1,6 +1,6 @@
-FROM golang:1.11-alpine
+FROM golang:1.13-alpine
 
-RUN apk --no-cache add pkgconfig gcc musl-dev
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && apk --no-cache add pkgconfig gcc musl-dev
 
 COPY ./libzmq /opt/libzmq
 

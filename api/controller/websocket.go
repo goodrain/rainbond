@@ -24,13 +24,13 @@ import (
 	"os"
 	"path"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/util/constants"
+	"github.com/sirupsen/logrus"
 )
 
 //DockerConsole docker console
@@ -39,7 +39,7 @@ type DockerConsole struct {
 }
 
 var defaultDockerConsoleEndpoints = []string{"127.0.0.1:7171"}
-var defaultEventLogEndpoints = []string{"local=>127.0.0.1:6363"}
+var defaultEventLogEndpoints = []string{"local=>rbd-eventlog:6363"}
 
 var dockerConsole *DockerConsole
 

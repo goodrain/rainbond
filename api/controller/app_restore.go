@@ -6,11 +6,11 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/sirupsen/logrus"
 )
 
 // AppRestoreController is an implementation of AppRestoreInterface

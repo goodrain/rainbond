@@ -21,7 +21,7 @@ package router
 import (
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/node/api/controller"
 	"github.com/goodrain/rainbond/util/log"

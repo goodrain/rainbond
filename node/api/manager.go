@@ -42,10 +42,10 @@ import (
 
 	_ "net/http/pprof"
 
-	"github.com/Sirupsen/logrus"
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/go-chi/chi"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	"github.com/sirupsen/logrus"
 )
 
 //Manager api manager

@@ -1,7 +1,7 @@
 package util
 
 import (
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"strings"
 
 	"encoding/json"

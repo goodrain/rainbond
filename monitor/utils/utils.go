@@ -25,8 +25,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/goodrain/rainbond/discover/config"
+	"github.com/sirupsen/logrus"
 )
 
 //TrimAndSort TrimAndSort

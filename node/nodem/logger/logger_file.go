@@ -36,10 +36,10 @@ import (
 	"github.com/docker/docker/pkg/pools"
 	"github.com/fsnotify/fsnotify"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger/jsonfilelog/jsonlog"
 	"github.com/docker/docker/pkg/tailfile"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 const maxJSONDecodeRetry = 20000
