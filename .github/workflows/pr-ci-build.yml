@@ -16,13 +16,8 @@ jobs:
         go-version: 1.13
     # - name: Go-linter
     #   uses: Jerome1337/golint-action@v1.0.2
-
-    - name: Extract branch name
-      shell: bash
-      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-      id: extract_branch
   
     - name: Build the Docker image
       env: 
         DISABLE_GOPROXY: true
-      run: VERSION=${{ steps.extract_branch.outputs.branch }}-dev ./release.sh all
+      run: VERSION=${{ github.base_ref }}-dev ./release.sh all
