@@ -65,7 +65,7 @@ build::binary() {
 	elif [ "$1" = "monitor" ];then
 		CGO_ENABLED=0
     fi
-	docker run --rm -e CGO_ENABLED=${CGO_ENABLED} -e GOPROXY=${GOPROXY} -e GOOS="${GOOS}" -v "${go_mod_cache}":/go/pkg/mod  -v "$(pwd)":${WORK_DIR} -w ${WORK_DIR} -it ${build_image} go build -ldflags "${build_args}" -tags "${build_tag}"  -o "${OUTPATH}" ${build_dir}
+	docker run --rm -e CGO_ENABLED=${CGO_ENABLED} -e GOPROXY=${GOPROXY} -e GOOS="${GOOS}" -v "${go_mod_cache}":/go/pkg/mod  -v "$(pwd)":${WORK_DIR} -w ${WORK_DIR} ${build_image} go build -ldflags "${build_args}" -tags "${build_tag}"  -o "${OUTPATH}" ${build_dir}
 	if [ "$GOOS" = "windows" ];then
 	    mv "$OUTPATH"  "${OUTPATH}.exe"
 	fi
@@ -87,7 +87,7 @@ build::image() {
 	pushd "${build_image_dir}"
 		echo "---> build image:$1"
 		docker build --build-arg RELEASE_DESC="${release_desc}" -t "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" -f Dockerfile .
-		docker run -it --rm "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" version
+		docker run --rm "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" version
 		if [  $? -ne 0 ];then
 			echo "image version is different ${release_desc}"
 			exit 1
