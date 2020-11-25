@@ -25,8 +25,4 @@ jobs:
     - name: Build the Docker image
       env: 
         DISABLE_GOPROXY: true
-        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
-        DOMESTIC_DOCKER_USERNAME: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
-      run: VERSION=${{ steps.extract_branch.outputs.branch }}-dev ./release.sh all push
+      run: VERSION=${{ steps.extract_branch.outputs.branch }}-dev ./release.sh all

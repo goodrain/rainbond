@@ -18,8 +18,8 @@ jobs:
     #   uses: Jerome1337/golint-action@v1.0.2
 
     - name: get tag
-        id: vars
-        run: echo ::set-output name=tag::${GITHUB_REF:10}
+      id: vars
+      run: echo ::set-output name=tag::${GITHUB_REF:10}
   
     - name: Build the Docker image
       env: 
