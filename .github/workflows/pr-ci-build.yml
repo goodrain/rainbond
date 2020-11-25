@@ -17,8 +17,8 @@ jobs:
         go-version: 1.13
     - name: install-golint
       run: go get -u golang.org/x/lint/golint
-    
-      - name: Go-linter
+
+    - name: Go-linter
       run: ./check.sh
   
     - name: Build the Docker image
