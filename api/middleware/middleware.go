@@ -272,7 +272,7 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 			var operator string
 			var reqData map[string]interface{}
 			if err = json.Unmarshal(body, &reqData); err == nil {
-				if operatorI, ok := reqData["operator"]; ok {
+				if operatorI := reqData["operator"]; operatorI != nil {
 					operator = operatorI.(string)
 				}
 			}
