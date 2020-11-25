@@ -9,13 +9,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+    
     - name: Setup Go environment
       uses: actions/setup-go@v2.1.3
       with:
         # The Go version to download (if necessary) and use. Supports semver spec and ranges.
         go-version: 1.13
-    # - name: Go-linter
-    #   uses: Jerome1337/golint-action@v1.0.2
+    - name: install-golint
+      run: go get -u golang.org/x/lint/golint
+    
+      - name: Go-linter
+      run: ./check.sh
   
     - name: Build the Docker image
       env: 
