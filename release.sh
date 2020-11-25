@@ -5,6 +5,8 @@ set -o errexit
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME:-'rainbond'}
+DOMESTIC_BASE_NAME=${DOMESTIC_BASE_NAME:-'registry.cn-hangzhou.aliyuncs.com'}
+DOMESTIC_NAMESPACE=${DOMESTIC_NAMESPACE:-'goodrain'}
 
 GO_VERSION=1.13
 
@@ -73,20 +75,19 @@ build::image() {
 	local OUTPATH="./_output/binary/$GOOS/${BASE_NAME}-$1"
 	local build_image_dir="./_output/image/$1/"
 	local source_dir="./hack/contrib/docker/$1"
-	sudo mkdir -p "${build_image_dir}"
-	sudo chmod 777 "${build_image_dir}"
+	mkdir -p "${build_image_dir}"
+	chmod 777 "${build_image_dir}"
 	if [ ! -f "${source_dir}/ignorebuild" ];then
 		if [  !${CACHE} ] || [ ! -f "${OUTPATH}" ];then
 			build::binary "$1"
 		fi
-		sudo cp "${OUTPATH}" "${build_image_dir}"
+		cp "${OUTPATH}" "${build_image_dir}"
 	fi	
-	sudo cp -r ${source_dir}/* "${build_image_dir}"
+	cp -r ${source_dir}/* "${build_image_dir}"
 	pushd "${build_image_dir}"
 		echo "---> build image:$1"
-		sudo sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
-		sudo docker build -t "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" -f Dockerfile.release .
-		sudo docker run -it --rm "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" version
+		docker build --build-arg RELEASE_DESC="${release_desc}" -t "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" -f Dockerfile .
+		docker run -it --rm "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" version
 		if [  $? -ne 0 ];then
 			echo "image version is different ${release_desc}"
 			exit 1
@@ -96,18 +97,18 @@ build::image() {
 		fi
 		if [ "$2" = "push" ];then
 			if [ $DOCKER_USERNAME ];then
-		    	sudo docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+		    	docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
 			fi
-			sudo docker push "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}"
+			docker push "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}"
 			if [ "${DOMESTIC_BASE_NAME}" ];
 			then
-				sudo docker tag "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" "${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-$1:${VERSION}"
-				sudo docker login -u "$DOMESTIC_DOCKER_USERNAME" -p "$DOMESTIC_DOCKER_PASSWORD" "${DOMESTIC_BASE_NAME}"
-				sudo docker push "${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-$1:${VERSION}"
+				docker tag "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" "${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-$1:${VERSION}"
+				docker login -u "$DOMESTIC_DOCKER_USERNAME" -p "$DOMESTIC_DOCKER_PASSWORD" "${DOMESTIC_BASE_NAME}"
+				docker push "${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-$1:${VERSION}"
 			fi
 		fi
 	popd
-	sudo rm -rf "${build_image_dir}"
+	rm -rf "${build_image_dir}"
 }
 
 build::image::all(){

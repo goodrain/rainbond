@@ -1,7 +1,7 @@
 FROM nginx:1.19
 
 VOLUME ["/data/nginx/cache"]
-ENV RELEASE_DESC=__RELEASE_DESC__
+ENV RELEASE_DESC=${RELEASE_DESC}
 
 COPY resource-proxy.conf /etc/nginx/conf.d/
 ADD docker-entrypoint.sh /run/docker-entrypoint.sh

@@ -3,7 +3,7 @@ FROM rainbond/prometheus:v2.20.0
 USER root
 VOLUME ["/prometheusdata"]
 
-ENV RELEASE_DESC=__RELEASE_DESC__
+ENV RELEASE_DESC=${RELEASE_DESC}
 
 COPY rainbond-monitor /run/rainbond-monitor
 

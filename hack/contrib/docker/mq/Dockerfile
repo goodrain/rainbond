@@ -5,7 +5,7 @@ ADD entrypoint.sh /run/entrypoint.sh
 RUN chmod 655 /run/rainbond-mq
 EXPOSE 6300
 
-ENV RELEASE_DESC=__RELEASE_DESC__
+ENV RELEASE_DESC=${RELEASE_DESC}
 
 ENTRYPOINT ["/run/entrypoint.sh"]
 

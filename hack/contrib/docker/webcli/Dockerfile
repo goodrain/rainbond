@@ -6,5 +6,5 @@ ADD rainbond-webcli /usr/bin/rainbond-webcli
 ADD entrypoint.sh /entrypoint.sh
 RUN mkdir /root/.kube
 
-ENV RELEASE_DESC=__RELEASE_DESC__
+ENV RELEASE_DESC=${RELEASE_DESC}
 ENTRYPOINT ["/entrypoint.sh"]
