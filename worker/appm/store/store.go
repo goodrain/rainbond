@@ -1424,16 +1424,15 @@ func (a *appRuntimeStore) UnRegisterVolumeTypeListener(name string) {
 }
 
 func (a *appRuntimeStore) GetAppResources(appID string) (int64, int64, error) {
-	// list pod based on the given appID
-	requirement, err := labels.NewRequirement("app_id", selection.Equals, []string{appID})
+	pods, err := a.listPodsByAppID(appID)
 	if err != nil {
 		return 0, 0, err
 	}
-	selector := labels.NewSelector()
-	selector = selector.Add(*requirement)
-	pods, err := a.listers.Pod.List(selector)
-	if err != nil {
-		return 0, 0, err
+	if len(pods) == 0 {
+		pods, err = a.listPodsByAppIDLegacy(appID)
+		if err != nil {
+			return 0, 0, err
+		}
 	}
 
 	var cpu, memory int64
@@ -1445,6 +1444,39 @@ func (a *appRuntimeStore) GetAppResources(appID string) (int64, int64, error) {
 	}
 
 	return cpu, memory, nil
+}
+
+func (a *appRuntimeStore) listPodsByAppID(appID string) ([]*corev1.Pod, error) {
+	// list pod based on the given appID
+	requirement, err := labels.NewRequirement("app_id", selection.Equals, []string{appID})
+	if err != nil {
+		return nil, err
+	}
+	selector := labels.NewSelector()
+	selector = selector.Add(*requirement)
+	return a.listers.Pod.List(selector)
+}
+
+// Compatible with the old version.
+// Versions prior to 5.3.0 have no app_id in the label, only service_id.
+func (a *appRuntimeStore) listPodsByAppIDLegacy(appID string) ([]*corev1.Pod, error) {
+	services, err := a.dbmanager.TenantServiceDao().ListByAppID(appID)
+	if err != nil {
+		return nil, err
+	}
+	var serviceIDs []string
+	for _, svc := range services {
+		serviceIDs = append(serviceIDs, svc.ServiceID)
+	}
+
+	// list pod based on the given appID
+	requirement, err := labels.NewRequirement("service_id", selection.In, serviceIDs)
+	if err != nil {
+		return nil, err
+	}
+	selector := labels.NewSelector()
+	selector = selector.Add(*requirement)
+	return a.listers.Pod.List(selector)
 }
 
 func (a *appRuntimeStore) createOrUpdateImagePullSecret(ns string) error {
