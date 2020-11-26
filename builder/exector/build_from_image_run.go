@@ -20,6 +20,7 @@ package exector
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/docker/docker/client"
@@ -91,6 +92,16 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 		logrus.Errorf("push image into registry error: %s", err.Error())
 		i.Logger.Error("推送镜像至镜像仓库失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
+	}
+
+	if err := sources.ImageRemove(i.DockerClient, localImageURL); err != nil {
+		logrus.Errorf("remove image %s failure %s", localImageURL, err.Error())
+	}
+
+	if os.Getenv("DISABLE_IMAGE_CACHE") == "true" {
+		if err := sources.ImageRemove(i.DockerClient, i.Image); err != nil {
+			logrus.Errorf("remove image %s failure %s", i.Image, err.Error())
+		}
 	}
 	if err := i.StorageVersionInfo(localImageURL); err != nil {
 		logrus.Errorf("storage version info error, ignor it: %s", err.Error())
