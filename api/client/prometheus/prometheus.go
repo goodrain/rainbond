@@ -153,23 +153,18 @@ func (p prometheus) GetAppMetadata(namespace, appID string) []Metadata {
 }
 
 func (p prometheus) GetComponentMetadata(namespace, componentID string) []Metadata {
+	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
+	defer cancel()
+
 	var meta []Metadata
 
 	// Filter metrics available to members of this namespace
 	matchTarget := fmt.Sprintf("{namespace=\"%s\",service_id=\"%s\"}", namespace, componentID)
-	items, err := p.client.TargetsMetadata(context.Background(), matchTarget, "", "")
+	items, err := p.client.TargetsMetadata(ctx, matchTarget, "", "")
 	if err != nil {
 		logrus.Error(err)
 		return meta
 	}
-
-	commonItems, err := p.client.TargetsMetadata(context.Background(), "{job=~\"gateway|cadvisor\"}", "", "")
-	if err != nil {
-		logrus.Error(err)
-		return meta
-	}
-	items = append(items, commonItems...)
-
 	// Deduplication
 	set := make(map[string]bool)
 	for _, item := range items {
@@ -183,6 +178,28 @@ func (p prometheus) GetComponentMetadata(namespace, componentID string) []Metada
 			})
 		}
 	}
+
+
+	commonItems, err := p.client.TargetsMetadata(ctx, "{job=~\"gateway|cadvisor\"}", "", "")
+	if err != nil {
+		logrus.Error(err)
+		return meta
+	}
+	for _, item := range commonItems {
+		if !strings.HasPrefix(item.Metric, "container") && !strings.HasPrefix(item.Metric, "gateway") {
+			continue
+		}
+		_, ok := set[item.Metric]
+		if !ok {
+			set[item.Metric] = true
+			meta = append(meta, Metadata{
+				Metric: item.Metric,
+				Type:   string(item.Type),
+				Help:   item.Help,
+			})
+		}
+	}
+
 	return meta
 }
 
