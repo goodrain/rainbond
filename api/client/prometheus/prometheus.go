@@ -163,6 +163,13 @@ func (p prometheus) GetComponentMetadata(namespace, componentID string) []Metada
 		return meta
 	}
 
+	commonItems, err := p.client.TargetsMetadata(context.Background(), "{job=~\"gateway|cadvisor\"}", "", "")
+	if err != nil {
+		logrus.Error(err)
+		return meta
+	}
+	items = append(items, commonItems...)
+
 	// Deduplication
 	set := make(map[string]bool)
 	for _, item := range items {
