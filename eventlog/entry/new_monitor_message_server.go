@@ -95,7 +95,10 @@ func (s *NMonitorMessageServer) handleMessage() {
 			time.Sleep(time.Second * 2)
 			continue
 		}
-		s.messageChan <- buf[0:n]
+		// fix issues https://github.com/golang/go/issues/35725
+		message := make([]byte, n)
+		copy(message, buf[0:n])
+		s.messageChan <- message
 	}
 }
 
