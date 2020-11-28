@@ -28,29 +28,20 @@ Rainbond is a cloud native and easy-to-use application management platform, a be
 
 [Request Demo](https://cloud.goodrain.com/enterprise-server/trial)
 
-With Rainbond you can:
+#### With Rainbond you can:
 
-* Enterprise cloud native DevOps
+* Enterprise cloud native DevOps.
+* Set up To B software delivery system.
+  * Build an online multi-customer continuous delivery system
+  * Build an offline, efficient delivery system.
+* Enterprises transform from delivering software to delivering services.
+* Industry integrator integrated industry application delivery
+* Enterprise Technology Center Construction.
+* Kubernetes multi-cloud management.
 
-Application-oriented DevOps development pipeline, provides the ability to continuously build cloud-native applications from source code or simple image, does not require developers to have containerization capability, developer-friendly, non-intrusive source code, the business continues to release to the cloud.
+[Read Rainbond Detailed introduction](https://www.rainbond.com/docs/quick-start/rainbond_overview/)
 
-* Enterprise microservice governance
-
-Built-in ServiceMesh microservice framework, microservice governance can be used out of the box, and traditional business cloud as a service. Plug-in expansion and enhancement of microservice governance functions, and work in conjunction with microservice frameworks such as SpringCloud Dubbo, effectively lowering the threshold of microservice technology.
-
-* Kubernetes multi-cloud management
-
-Kubernetes technology is complex and difficult to get started; a large number of deployment, Statefulset, or Operator resource management are complex problems that directly use Kubernetes clusters. Rainbond's application-centric resource management model shields the complexity of Kubernetes, and Kubernetes resources are handed over to Rainbond for orchestration and management.
-
-* Enterprise Middle Platform Construction and Application Delivery
-
-There are many enterprise business systems, many delivery projects, and many IT products. Build a unified enterprise business center, integrate all digital systems and common component libraries of the enterprise to form digital assets, and efficiently reuse by internal teams. ToB delivery scenarios achieve the greatest level of The combination of automation, standardization and customization.
-
-* Support multiple CPU architectures
-
-Rainbond has completed two-way authentication with localized computing bases represented by Loongson, Feiteng, and Kirin operating systems, which enables Rainbond to shield the differences in the underlying CPU architecture and operating system and provide users with a unified localized business application management platform.
-
-[Rainbond RoadMap](https://github.com/goodrain/rainbond/issues?q=is%3Aissue+is%3Aopen+label%3A%22Feature+Suggestions%22)
+[Rainbond Roadmap](https://github.com/goodrain/rainbond/issues?q=is%3Aissue+is%3Aopen+label%3A%22Feature+Suggestions%22)
 
 ## Quick start
 
@@ -67,7 +58,6 @@ Rainbond has completed two-way authentication with localized computing bases rep
 
 <center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/cloud/weichart.png"/></center>
 <center>Add Maintainer WeChart</center>
-
 ## Related repositorys
 
    * [Rainbond-Console](https://github.com/goodrain/rainbond-console) 
