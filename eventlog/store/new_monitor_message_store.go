@@ -20,12 +20,12 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"math"
 	"sort"
 	"sync"
 	"time"
 
-	"github.com/pquerna/ffjson/ffjson"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 
@@ -307,12 +307,12 @@ func (c *CacheMonitorMessageList) empty() {
 	}
 }
 func getByte(source []MonitorMessage) []byte {
-	b, _ := ffjson.Marshal(source)
+	b, _ := json.Marshal(source)
 	return b
 }
 func fromByte(source []byte) []MonitorMessage {
 	var mm []MonitorMessage
-	ffjson.Unmarshal(source, &mm)
+	json.Unmarshal(source, &mm)
 	return mm
 }
 
@@ -383,6 +383,6 @@ func (m *MonitorMessageList) Pop(i int) *MonitorMessageList {
 
 //String json string
 func (m *MonitorMessageList) String() string {
-	body, _ := ffjson.Marshal(m)
+	body, _ := json.Marshal(m)
 	return string(body)
 }

@@ -2,7 +2,6 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
 ![Rainbond version](https://img.shields.io/badge/version-v5.2-brightgreen.svg)
-[![Build Status](https://travis-ci.org/goodrain/rainbond.svg?branch=master)](https://travis-ci.org/goodrain/rainbond)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
 [项目官网](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/)
@@ -18,55 +17,70 @@
 
 Rainbond 是云原生且易用的云原生应用管理平台，云原生应用交付的最佳实践，简单易用。专注于以应用为中心的理念。赋能企业搭建云原生开发云、云原生交付云。
 
-<b>对于企业：</b> Rainbond 是可以直接开箱即用的云原生平台，借助 Rainbond 可以快速完成企业研发和交付体系的云原生转型。
+<b>对于企业：</b> Rainbond 是开箱即用的云原生平台，借助 Rainbond 可以快速完成企业研发和交付体系的云原生转型。
 
-<b>对于开发者：</b> 基于 Rainbond 开发、测试和运维企业业务应用，可以开箱即用的获得全方位的云原生技术能力。包括但不仅限于持续集成、服务治理、架构支撑、多维度应用观测、流量管理。
+<b>对于开发者：</b> 基于 Rainbond 开发、测试和运维企业业务应用，开箱即用的获得全方位的云原生技术能力。包括但不仅限于持续集成、服务治理、架构支撑、多维度应用观测、流量管理。
 
 <b>对于交付人员：</b> 基于 Rainbond 搭建产品版本化管理体系，搭建标准化客户交付环境，使传统的交付流程可以自动化、简单化和可管理。
 
 [我要试用](https://cloud.goodrain.com/enterprise-server/trial)
 
-<img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/Rainbond%E4%BA%A7%E5%93%81%E6%9E%B6%E6%9E%84.png" width="100%">
 
-## 应用场景
+### 价值场景
 
-* 企业云原生DevOps
+#### <b>企业云原生 DevOps</b>
 
-面向应用的DevOps开发流水线，提供从源码或简单镜像持续构建云原生应用的能力，不要求开发者具有容器化能力，面向开发者友好，对源码无侵入，业务持续发布到云端。
+  面向应用的云原生 DevOps， 开发、测试、生产运维一体化，不要求开发者具有容器、Kubernetes等复杂能力，面向开发者友好；提供从源码或简单镜像持续构建云原生应用的能力，对源码无侵入，业务持续发布到云端；高效的自动化运维，帮助开发者高效管理高可用的、安全的且去中心化的业务系统。
+#### <b>搭建 To B 软件交付系统 </b>
+  
+  * <b>构建在线的多客户持续交付体系</b>
 
-* 企业微服务治理
+  传统To B 交付往往投入较大的人力、时间成本。客户多，定制多，产品版本升级都会带来挑战。
 
-内置ServiceMesh微服务框架，微服务治理开箱即用，传统业务上云即服务化。插件化扩展和增强微服务治理功能体现，与SpringCloud Dubbo等微服务框架协同工作，有效降低微服务技术门槛。
+  (1). Rainbond 搭建高效的开发平台，产出标准化交付产品。
 
-* Kubernetes多云管理
+  (2). Rainbond 作为客户环境的基础平台，即可在线完成交付产品的安装和持续升级。
 
-Kubernetes技术复杂上手难；大量Deployment、Statefulset或Operator资源管理复杂都是直接使用Kubernetes集群的难题，Rainbond以应用为中心的资源管理模型屏蔽了Kubernetes的复杂度，Kubernetes资源交给Rainbond来编排管理。
+  (3). 将所有的 Rainbond 端都接入到 [Rainstore](https://store.goodrain.com) 中。在线管理客户，管理客户的交付应用，在线批量持续升级。
 
-* 企业中台建设与应用交付
+  * <b>构建离线的高效交付体系</b>
 
-企业业务系统多，交付项目多，IT产品多，建设统一的企业业务中台，整合企业所有数字系统、通用组件库形成数字资产，内部各团队高效复用，ToB交付场景中实现最大层度的自动化，标准化与可定制相结合。
+  离线环境的不确定性往往意味着人力的持续投入和沟通成本的增加，更需要将交付的产品和持续的升级能力标准化。Rainbond 开发平台产出标准化应用离线安装包，人工导入到离线 Rainbond 环境即可持续升级。
 
-* 国产易用的PaaS
+#### <b>企业从交付软件到交付服务转型</b>
 
-Rainbond完成与龙芯、飞腾、麒麟操作系统等为代表的国产化计算基座的双向认证，使Rainbond具有屏蔽底层CPU架构、操作系统的差异，对用户提供统一的国产化业务应用管理平台。
+  交付服务意味着持续的收入，业务厂商提供持续的业务服务需要两个能力：获得较强的运维能力和对客户交付业务的持续迭代能力。Rainbond 使业务厂商可以高效交付多套业务系统，对每个客户业务系统可以持续开发集成，自动化运维保障所有业务的可用性。
 
-## 主要功能特性
+  另外 借助  [Rainstore](https://store.goodrain.com) 的产品（解决方案）展示、在线交易、产品管理、在线自动化交付、批量升级等能力帮助企业快速实现转型。
 
-| 特性                       | 描述                                                         |
-| -------------------------- | ------------------------------------------------------------ |
-| Kubernetes多云管理         | 平台底层基于Kubernetes，但用户无需学习和编辑复杂的yaml文件，开发者仅需要以最简单的方式构建和维护应用模型，所有Kubernetes资源由Rainbond编排创建和维护。 |
-| Service Mesh微服务架构 | 内置跨语言、跨协议、代码无侵入的Service Mesh微服务架构原生支持，传统应用直接变成微服务架构。同时支持常见微服务架构Spring Cloud、Dubbo等，通过插件扩展架构能力及治理功能。 |
-| 源码构建 | 开发者无需关注底层资源，从源代码（无需Dockerfile）或已有简单镜像即可持续发布应用组件。支持常用的Java Python PHP Golang NodeJS NodeJS前端 .NetCore 等开发语言。 |
-| 一体化DevOps               | 以应用为中心，衔接开发、测试、构建、上线、运维的一体化DevOps。 |
-| 企业级应用市场             | 非镜像市场和服务目录，支持各类企业级应用，像手机应用一样即点即用，全流程管理（应用开发、应用发布、应用展示、应用离线导入/导出、应用安装/升级、应用运维） |
-| 自动化运维                 | 应用自动化运维。节点自动安装、扩容、监控、容错。平台支持高可用、多数据中心管理、多租户管理。 |
-| 无侵入性 | Rainbond在源码构建，服务组装，服务治理，微服务框架等多个方面体现无侵入性 |
-| Serverless PaaS            | 以应用为核心，使用过程不需要了解服务器相关概念，简单灵活。通过对接行业应用，快速构建行业专有PaaS。 |
-| 应用网关                   | 基于HTTP、HTTPs、TCP、UDP等协议应用访问控制策略，轻松操作应用灰度发布、A/B测试。 |
-| 异构服务统一管理            | 以第三方组件集成的方式，支持集群内外不同架构服务统一管理、监控和通信治理。                  |
-| 应用描述模型              | 以应用为中心描述应用包含的组件特性，应用特性，部署运维特性，实现复杂应用的标准化交付。 |
+#### <b>行业集成商集成行业应用交付</b>
 
-更多功能特性详见： 
+  行业集成商既要面对客户，又要面对供应商。Rainbond 给行业集成商赋予建立应用交付标准的能力。为供应商提供 Rainbond 标准应用接入平台，产品统一发布到组件库中。行业集成商即可从组件库选择合适的产品组成解决方案一键交付到客户环境。
+
+  另外 借助  [Rainstore](https://store.goodrain.com) 的产品（解决方案）展示、组装能力，建立行业云应用商店，整合行业IT解决方案。
+
+#### <b>企业技术中台建设</b>
+
+  企业技术中台包括技术中间件管理和基础业务模块化。Rainbond 结合可扩展的组件控制器，扩充统一管理云数据库、大数据中间件、人工智能中间件等技术中间件基础设施。提供业务中间件持续发布共享，积累业务通用模块。基础能力服务于企业业务场景。
+
+#### <b>Kubernetes多云管理</b>
+
+  Kubernetes 技术复杂上手难；大量 Deployment、Statefulset 或 Operator 资源管理复杂都是直接使用 Kubernetes 集群的难题，Rainbond 以应用为中心的资源管理模型屏蔽了 Kubernetes 的复杂度，Kubernetes 资源全部交给 Rainbond 来编排管理。
+
+#### <b>国产易用的云原生 PaaS</b>
+
+  Rainbond 完成与龙芯、飞腾、麒麟操作系统等为代表的国产化计算基座的双向认证，使 Rainbond 具有屏蔽底层 CPU 架构、操作系统的差异的能力，对用户提供统一的国产化业务应用管理平台。
+
+### 核心能力与技术
+
+| 场景                         | 主要功能与能力                                                     | 核心技术                                                     |
+| ---------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| 企业云原生DevOps             | 持续集成；持续交付；内置微服务架构；流量管理；应用全维度监控；异构服务统一管理； | 云原生CI/CD；Code To Image(无需Dockerfile)；以应用为中心抽象；ServiceMesh；应用网关；应用监控；业务通用服务治理框架。 |
+| 搭建 To B 软件交付系统       | 应用模型管理；应用模型离线导出；应用模型同步到云端；应用持续升级 | 云原生应用模型抽象（类似于 [OAM](https://oam.dev/))；多端交付模型转换；应用升级控制；跨云互联 |
+| 企业从交付软件到交付服务转型 | 自动化运维；应用一键安装；应用升级；流量管理                 | 业务自恢复控制；应用模型转换；资源自动化按需调度             |
+| 企业技术中台建设             | 开源中间件同步复用；业务模块发布复用；中间价集群管理；数据库、大数据、人工智能基础服务管理。 | 组件库模型打包与管理；Operator 组件类型扩展；业务集群监控    |
+| Kubernetes多云管理           | 多集群接入；集群监控视图；自动化调度                         | 集群自动化接入；公有云Kubernetes服务接入；自动化资源生成与维护。 |
+| 国产易用的云原生 PaaS        | 支持常见国产CPU和操作系统，支持Windows操作系统过度到国产操作系统。 | 异构资源调度；异构操作系统应用编排。                             |
 
 [Rainbond功能特性说明](https://www.rainbond.com/docs/quick-start/edition/)
 [Rainbond开发计划](https://www.rainbond.com/docs/quick-start/roadmap/)
@@ -74,7 +88,7 @@ Rainbond完成与龙芯、飞腾、麒麟操作系统等为代表的国产化计
 ## 快速开始
 
 1.  [快速安装 Rainbond 集群](https://www.rainbond.com/docs/quick-start/rainbond_install/)
-2.  [创建第一个应用（服务）](https://www.rainbond.com/docs/user-manual/app-creation/)
+2.  [创建第一个应用（组件）](https://www.rainbond.com/docs/user-manual/app-creation/)
 3.  [观看教程视频，快速学习Rainbond](https://www.rainbond.com/video.html)
 4.  [搭建 ServiceMesh 微服务架构](https://www.rainbond.com/docs/advanced-scenarios/micro/)
 

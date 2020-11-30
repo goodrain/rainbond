@@ -1,5 +1,5 @@
 #!/bin/sh
-apt-get update && apt-get install -y jq
+sudo apt-get update && sudo apt-get install -y jq || exit 1
 
 pull_number=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
 
