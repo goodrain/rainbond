@@ -76,6 +76,7 @@ var (
 		"path",
 		"namespace",
 		"service",
+		"service_id",
 	}
 )
 
@@ -151,7 +152,7 @@ func NewSocketCollector(gatewayHost string, metricsPerHost bool) (*SocketCollect
 				Namespace:   PrometheusNamespace,
 				ConstLabels: constLabels,
 			},
-			[]string{"host", "namespace", "service", "status"},
+			[]string{"host", "namespace", "service", "status", "service_id"},
 		),
 
 		bytesSent: prometheus.NewHistogramVec(
@@ -172,7 +173,7 @@ func NewSocketCollector(gatewayHost string, metricsPerHost bool) (*SocketCollect
 				Namespace:   PrometheusNamespace,
 				ConstLabels: constLabels,
 			},
-			[]string{"namespace", "service"},
+			[]string{"namespace", "service", "service_id"},
 		),
 	}
 
@@ -212,24 +213,27 @@ func (sc *SocketCollector) handleMessage(msg []byte) {
 		}
 		// Note these must match the order in requestTags at the top
 		requestLabels := prometheus.Labels{
-			"status":    stats.Status,
-			"method":    stats.Method,
-			"path":      stats.Path,
-			"namespace": stats.Namespace,
-			"service":   stats.ServiceID,
+			"status":     stats.Status,
+			"method":     stats.Method,
+			"path":       stats.Path,
+			"namespace":  stats.Namespace,
+			"service":    stats.ServiceID,
+			"service_id": stats.ServiceID,
 		}
 		if sc.metricsPerHost {
 			requestLabels["host"] = stats.Host
 		}
 		collectorLabels := prometheus.Labels{
-			"namespace": stats.Namespace,
-			"service":   stats.ServiceID,
-			"status":    stats.Status,
-			"host":      stats.Host,
+			"namespace":  stats.Namespace,
+			"service":    stats.ServiceID,
+			"service_id": stats.ServiceID,
+			"status":     stats.Status,
+			"host":       stats.Host,
 		}
 		latencyLabels := prometheus.Labels{
-			"namespace": stats.Namespace,
-			"service":   stats.ServiceID,
+			"namespace":  stats.Namespace,
+			"service":    stats.ServiceID,
+			"service_id": stats.ServiceID,
 		}
 		requestsMetric, err := sc.requests.GetMetricWith(collectorLabels)
 		if err != nil {
