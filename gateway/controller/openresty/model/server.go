@@ -24,6 +24,7 @@ type Server struct {
 	ProxyConnectTimeout     Time
 	ProxyTimeout            Time
 	ProxyPass               string
+	SSLProtocols            string
 	SSLCertificate          string // Specifies a file with the certificate in the PEM format.
 	SSLCertificateKey       string // Specifies a file with the secret key in the PEM format.
 	EnableSSLStapling       bool

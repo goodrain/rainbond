@@ -55,6 +55,7 @@ type VirtualService struct {
 	Timeout          int                    `json:"timeout"`
 	ServerName       string                 `json:"server_name"`
 	PoolName         string                 `json:"pool_name"`
+	SSlProtocols     string                 `json:"ssl_protocols"`
 	SSLCert          *SSLCert               `json:"ssl_cert"`
 	Locations        []*Location            `json:"locations"`
 	ForceSSLRedirect bool                   `json:"force_ssl_redirect"`

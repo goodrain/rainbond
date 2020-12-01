@@ -14,8 +14,10 @@ server {
 
     {{ if .SSLCertificate }}
     # ssl
-    ssl_protocols TLSv1.1 TLSv1.2 TLSv1.3;
     ssl_certificate {{.SSLCertificate}};
+    {{ if .SSLProtocols }}
+    ssl_protocols {{.SSLProtocols}};
+    {{ end }}
     {{ if .EnableSSLStapling }}
     ssl_stapling on;
     resolver 8.8.8.8 8.8.4.4 114.114.114.114 valid=300s;
