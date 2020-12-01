@@ -38,7 +38,6 @@ import (
 	"github.com/urfave/cli"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	//conf "github.com/goodrain/rainbond/cmd/grctl/option"
 )
 
 //NewCmdService application service command
@@ -461,50 +460,64 @@ func showServiceDeployInfo(c *cli.Context) error {
 			table.AddRow("PodIP:", pod.Status.PodIP)
 			table.AddRow("PodHostIP:", pod.Status.HostIP)
 			table.AddRow("PodHostName:", pod.Spec.NodeName)
-			if pod.Spec.Volumes != nil && len(pod.Spec.Volumes) > 0 {
-				value := ""
-				for _, v := range pod.Spec.Volumes {
-					valueline := ""
-					if v.HostPath != nil {
-						valueline += v.HostPath.Path
-					}
-					if v.PersistentVolumeClaim != nil {
-						claimName := v.PersistentVolumeClaim.ClaimName
-						pvc, _ := clients.K8SClient.CoreV1().PersistentVolumeClaims(tenantID).Get(claimName, metav1.GetOptions{})
-						if pvc != nil {
-							pvn := pvc.Spec.VolumeName
-							pv, _ := clients.K8SClient.CoreV1().PersistentVolumes().Get(pvn, metav1.GetOptions{})
-							if pv != nil {
-								if hostPath := pv.Spec.HostPath; hostPath != nil {
-									valueline += hostPath.Path
-								}
-							}
-						}
-					}
-					//if not pvc, do not show
-					if valueline == "" {
-						continue
-					}
-					value += valueline
-				con:
-					for _, vc := range pod.Spec.Containers {
-						m := vc.VolumeMounts
-						for _, v2 := range m {
-							if v2.Name == v.Name {
-								value += ":" + string(v2.MountPath)
-								break con
-							}
-						}
-					}
-					value += "\n"
+
+			name2Path := make(map[string]string)
+			if len(pod.Spec.Containers) > 0 {
+				container := pod.Spec.Containers[0]
+				for _, cvm := range container.VolumeMounts {
+					name2Path[cvm.Name] = cvm.MountPath
 				}
-				table.AddRow("PodVolumePath:", value)
 			}
+
 			if pod.Status.StartTime != nil {
 				table.AddRow("PodStratTime:", pod.Status.StartTime.Format(time.RFC3339))
 			}
-			table.AddRow("Containers:", "")
 			fmt.Println(table)
+
+			fmt.Println("PodVolume:")
+			volumeTable := termtables.CreateTable()
+			volumeTable.AddHeaders("Volume", "Type", "Volume Mount")
+			for _, vol := range pod.Spec.Volumes {
+				// only PersistentVolumeClaim
+				if vol.PersistentVolumeClaim == nil {
+					continue
+				}
+
+				claimName := vol.PersistentVolumeClaim.ClaimName
+				pvc, _ := clients.K8SClient.CoreV1().PersistentVolumeClaims(tenantID).Get(claimName, metav1.GetOptions{})
+				if pvc != nil {
+					pvn := pvc.Spec.VolumeName
+					volumeMount := name2Path[vol.Name]
+					pv, _ := clients.K8SClient.CoreV1().PersistentVolumes().Get(pvn, metav1.GetOptions{})
+					if pv != nil {
+						switch {
+						case pv.Spec.HostPath != nil:
+							volumeTable.AddRow("volumeMount", "hostPath", pv.Spec.HostPath.Path)
+						case pv.Spec.NFS != nil:
+							volumeTable.AddRow(volumeMount, "nfs", "server: "+pv.Spec.NFS.Server)
+							volumeTable.AddRow("", "", "path: "+pv.Spec.NFS.Path)
+						case pv.Spec.Glusterfs != nil:
+							volumeTable.AddRow(volumeMount, "nfs", "endpoints: "+pv.Spec.Glusterfs.EndpointsName)
+							volumeTable.AddRow("", "", "path: "+pv.Spec.Glusterfs.Path)
+							if pv.Spec.Glusterfs.EndpointsNamespace != nil {
+								volumeTable.AddRow("", "", "endpointsNamespace: "+*pv.Spec.Glusterfs.EndpointsNamespace)
+							}
+						case pv.Spec.CSI != nil:
+							switch pv.Spec.CSI.Driver {
+							case "nasplugin.csi.alibabacloud.com":
+								volumeTable.AddRow(volumeMount, pv.Spec.CSI.Driver, "server: "+pv.Spec.CSI.VolumeAttributes["server"])
+								volumeTable.AddRow("", "", "path: "+pv.Spec.CSI.VolumeAttributes["path"])
+							case "diskplugin.csi.alibabacloud.com":
+								volumeTable.AddRow(volumeMount, pv.Spec.CSI.Driver, "type: "+pv.Spec.CSI.VolumeAttributes["type"])
+								volumeTable.AddRow("", "", "storage.kubernetes.io/csiProvisionerIdentity"+pv.Spec.CSI.VolumeAttributes["storage.kubernetes.io/csiProvisionerIdentity"])
+							}
+						}
+					}
+				}
+			}
+			fmt.Println(volumeTable.Render())
+
+			fmt.Println("Containers:")
 			containerTable := termtables.CreateTable()
 			containerTable.AddHeaders("ID", "Name", "Image", "State")
 			for j := 0; j < len(pod.Status.ContainerStatuses); j++ {
