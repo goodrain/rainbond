@@ -565,10 +565,16 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				vs = l7vsMap[virSrvName]
 				if vs == nil {
 					vs = &v1.VirtualService{
-						Listening:  []string{strconv.Itoa(s.conf.ListenPorts.HTTP)},
-						ServerName: virSrvName,
-						Locations:  []*v1.Location{},
+						Listening:    []string{strconv.Itoa(s.conf.ListenPorts.HTTP)},
+						ServerName:   virSrvName,
+						Locations:    []*v1.Location{},
+						SSlProtocols: "TLSv1.2 TLSv1.3",
 					}
+					sslProtocols := os.Getenv("SSL_PROTOCOLS")
+					if sslProtocols != "" {
+						vs.SSlProtocols = sslProtocols
+					}
+
 					vs.Namespace = ing.Namespace
 					vs.ServiceID = anns.Labels["service_id"]
 					if len(hostSSLMap) != 0 {

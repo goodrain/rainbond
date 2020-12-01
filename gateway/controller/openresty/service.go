@@ -213,6 +213,7 @@ func (o *OrService) getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv 
 			},
 		}
 		if vs.SSLCert != nil {
+			server.SSLProtocols = vs.SSlProtocols
 			server.SSLCertificate = vs.SSLCert.CertificatePem
 			server.SSLCertificateKey = vs.SSLCert.CertificatePem
 			server.EnableSSLStapling = o.ocfg.EnableSSLStapling
