@@ -141,11 +141,6 @@ func (i *ExportApp) exportDockerCompose() error {
 		return err
 	}
 
-	// Save runner image name
-	if err := i.exportRunnerImage(); err != nil {
-		return err
-	}
-
 	// 在主目录中生成文件：docker-compose.yaml
 	if err := i.buildDockerComposeYaml(); err != nil {
 		return err
@@ -562,7 +557,6 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 	logrus.Debug("Build docker compose yaml file in directory: ", i.SourceDir)
 
 	for _, app := range apps {
-		image := app.Get("image").String()
 		shareImage := app.Get("share_image").String()
 		appName := app.Get("service_cname").String()
 		appName = composeName(appName)
@@ -583,17 +577,6 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 				y.Volumes[volumeName] = ""
 				volumes = append(volumes, fmt.Sprintf("%s:%s", volumeName, volumePath))
 			}
-		}
-
-		lang := app.Get("language").String()
-		// 如果该组件是源码方式部署，则挂载slug文件到runner容器内
-		if lang != "dockerfile" && checkIsRunner(image) {
-			shareImage = image
-			shareSlugPath := app.Get("share_slug_path").String()
-			tarFileName := buildToLinuxFileName(shareSlugPath)
-			volume := fmt.Sprintf("__GROUP_DIR__/%s/%s:/tmp/slug/slug.tgz", appName, tarFileName)
-			volumes = append(volumes, volume)
-			logrus.Debug("Mount the slug file to runner image: ", volume)
 		}
 
 		// environment variables
