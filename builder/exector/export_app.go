@@ -28,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
@@ -35,6 +36,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
+	"github.com/mozillazg/go-pinyin"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
@@ -250,8 +252,6 @@ func (i *ExportApp) parseApps() ([]gjson.Result, error) {
 
 //exportImage export image of app
 func (i *ExportApp) exportImage(serviceDir string, app gjson.Result) error {
-	serviceName := app.Get("service_cname").String()
-	serviceName = unicode2zh(serviceName)
 	os.MkdirAll(serviceDir, 0755)
 	image := app.Get("share_image").String()
 	tarFileName := buildToLinuxFileName(image)
@@ -450,6 +450,27 @@ func unicode2zh(uText string) (context string) {
 	return context
 }
 
+// [a-zA-Z0-9._-]
+func composeName(uText string) string {
+	str := unicode2zh(uText)
+
+	var res string
+	for _, runeValue := range str {
+		if unicode.Is(unicode.Han, runeValue) {
+			// convert chinese to pinyin
+			res += strings.Join(pinyin.LazyConvert(string(runeValue), nil), "")
+			continue
+		}
+		if runeValue == '(' || runeValue == ')' {
+			res += "_"
+			continue
+		}
+		res += string(runeValue)
+	}
+	logrus.Debugf("convert chinese %s to pinyin %s", str, res)
+	return res
+}
+
 func checkIsRunner(image string) bool {
 	return strings.Contains(image, builder.RUNNERIMAGENAME)
 }
@@ -540,7 +561,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 		image := app.Get("image").String()
 		shareImage := app.Get("share_image").String()
 		appName := app.Get("service_cname").String()
-		appName = unicode2zh(appName)
+		appName = composeName(appName)
 		volumes := make([]string, 0, 3)
 		envs := make(map[string]string, 10)
 
@@ -571,11 +592,19 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 			logrus.Debug("Mount the slug file to runner image: ", volume)
 		}
 
-		// 处理环境变量
+		// environment variables
+		configs := make(map[string]string)
 		for _, item := range app.Get("service_env_map_list").Array() {
 			key := item.Get("attr_name").String()
 			value := item.Get("attr_value").String()
+			configs[key] = value
 			envs[key] = value
+		}
+		for _, item := range app.Get("service_env_map_list").Array() {
+			key := item.Get("attr_name").String()
+			value := item.Get("attr_value").String()
+			// env rendering
+			envs[key] = util.ParseVariable(value, configs)
 		}
 
 		for _, item := range app.Get("service_connect_info_map_list").Array() {
@@ -594,7 +623,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 			}
 
 			if svc := i.getDependedService(serviceKey, &apps); svc != "" {
-				depServices = append(depServices, svc)
+				depServices = append(depServices, composeName(svc))
 			}
 		}
 
@@ -610,7 +639,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 		service.Loggin.Driver = "json-file"
 		service.Loggin.Options.MaxSize = "5m"
 		service.Loggin.Options.MaxFile = "2"
-		if depServices != nil && len(depServices) > 0 {
+		if len(depServices) > 0 {
 			service.DependsOn = depServices
 		}
 
