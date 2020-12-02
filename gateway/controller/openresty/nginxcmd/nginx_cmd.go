@@ -34,15 +34,15 @@ var (
 	//ErrorCheck check config file failure
 	ErrorCheck  = fmt.Errorf("error check config")
 	updateCount = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "gateway",
+		Namespace: "nginx",
 		Subsystem: "",
-		Name:      "nginx_update",
+		Name:      "update",
 		Help:      "Number of nginx updates inside the gateway",
 	})
 	errUpdateCount = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "gateway",
+		Namespace: "nginx",
 		Subsystem: "",
-		Name:      "nginx_update_err",
+		Name:      "update_err",
 		Help:      "Number of nginx error updates inside the gateway",
 	})
 )
