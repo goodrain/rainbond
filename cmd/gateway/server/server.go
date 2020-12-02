@@ -91,7 +91,7 @@ func Run(s *option.GWServer) error {
 		PidFn: func() (int, error) {
 			return os.Getpid(), nil
 		},
-		Namespace: "gateway",
+		Namespace: "gateway_process",
 	}))
 	mc := metric.NewDummyCollector()
 	if s.Config.EnableMetrics {
