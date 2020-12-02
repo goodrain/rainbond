@@ -461,7 +461,11 @@ func composeName(uText string) string {
 			res += strings.Join(pinyin.LazyConvert(string(runeValue), nil), "")
 			continue
 		}
-		if runeValue == '(' || runeValue == ')' {
+		matched, err := regexp.Match("[a-zA-Z0-9._-]", []byte{byte(runeValue)})
+		if err != nil {
+			logrus.Warningf("check if %s meets [a-zA-Z0-9._-]: %v", string(runeValue), err)
+		}
+		if !matched {
 			res += "_"
 			continue
 		}
