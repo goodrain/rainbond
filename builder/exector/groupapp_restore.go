@@ -208,6 +208,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 		allDataRestore := false
 		allTmpDir := fmt.Sprintf("/grdata/tmp/%s", app.ServiceID)
 		if exist, _ := util.FileExists(allDataFilePath); exist {
+			logrus.Infof("unzip all data from %s to %s", allDataFilePath, allTmpDir)
 			if err := util.Unzip(allDataFilePath, allTmpDir); err != nil {
 				logrus.Errorf("unzip all data file failure %s", err.Error())
 			} else {
@@ -222,6 +223,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 			if !allDataRestore {
 				dstDir := fmt.Sprintf("%s/data_%s/%s.zip", b.cacheDir, b.getOldServiceID(app.ServiceID), strings.Replace(volume.VolumeName, "/", "", -1))
 				tmpDir = fmt.Sprintf("/grdata/tmp/%s_%d", volume.ServiceID, volume.ID)
+				logrus.Infof("unzip %s to %s", dstDir, tmpDir)
 				if err := util.Unzip(dstDir, tmpDir); err != nil {
 					if !strings.Contains(err.Error(), "no such file") {
 						logrus.Errorf("restore service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
@@ -238,13 +240,15 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 
 			//if app type is statefulset, change pod hostpath
 			if app.Service.IsState() {
+				logrus.Infof("app type is statefulset, change pod hostpath %s. tmp dir: %s", volume.HostPath, tmpDir)
 				//Next two level directory
-				list, err := util.GetDirList(tmpDir, 2)
+				list, err := util.GetDirList(path.Join(tmpDir, volume.VolumePath), 1)
 				if err != nil {
 					logrus.Errorf("restore statefulset service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
 					return err
 				}
 				for _, path := range list {
+					logrus.Infof("handle path %s", path)
 					newNameTmp := strings.Split(filepath.Base(path), "-")
 					// after version 5.0.4, path name is pod name. eg gr123456-0
 					if len(newNameTmp) == 2 {
@@ -260,6 +264,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 					}
 					newName := strings.Join(newNameTmp, "-")
 					newpath := filepath.Join(util.GetParentDirectory(path), newName)
+					logrus.Infof("rename %s to %s", path, newpath)
 					err := util.Rename(path, newpath)
 					if err != nil {
 						if strings.Contains(err.Error(), "file exists") {
@@ -276,6 +281,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 				}
 			}
 			if !allDataRestore {
+				logrus.Infof("rename parent directory from %s to %s", tmpDir, util.GetParentDirectory(volume.HostPath))
 				err := util.Rename(tmpDir, util.GetParentDirectory(volume.HostPath))
 				if err != nil {
 					if strings.Contains(err.Error(), "file exists") {
@@ -291,8 +297,10 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 				}
 			}
 		}
+
 		if allDataRestore {
-			err := util.Rename(path.Join(allTmpDir, b.getOldServiceID(app.ServiceID)), fmt.Sprintf("/grdata/tenant/%s/service/%s", app.Service.TenantID, app.Service.ServiceID))
+			dst := fmt.Sprintf("/grdata/tenant/%s/service/%s", app.Service.TenantID, app.Service.ServiceID)
+			err := util.Rename(path.Join(allTmpDir, b.getOldServiceID(app.ServiceID)), dst)
 			if err != nil {
 				logrus.Errorf("rename %s to %s failure %s", path.Join(allTmpDir, b.getOldServiceID(app.ServiceID)), fmt.Sprintf("/grdata/tenant/%s/service/%s", app.Service.TenantID, app.Service.ServiceID), err.Error())
 			}
@@ -326,6 +334,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 
 	return nil
 }
+
 func (b *BackupAPPRestore) getOldServiceID(new string) string {
 	for k, v := range b.serviceChange {
 		if v.ServiceID == new {
