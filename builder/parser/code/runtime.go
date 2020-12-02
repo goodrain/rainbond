@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
+	"strings"
 
 	simplejson "github.com/bitly/go-simplejson"
 
@@ -171,8 +172,13 @@ func readNodeRuntimeInfo(buildPath string) (map[string]string, error) {
 		return runtimeInfo, nil
 	}
 	if json.Get("engines") != nil {
-		if nodeVersion := json.Get("engines").Get("node"); nodeVersion != nil {
-			runtimeInfo["RUNTIMES"], _ = nodeVersion.String()
+		if v := json.Get("engines").Get("node"); v != nil {
+			nodeVersion, _ := v.String()
+			// The latest version is used by default. (11.1.0 is latest version in ui)
+			if strings.HasPrefix(nodeVersion, ">") || strings.HasPrefix(nodeVersion, "*") {
+				nodeVersion = "11.1.0"
+			}
+			runtimeInfo["RUNTIMES"] = nodeVersion
 		}
 	}
 	return runtimeInfo, nil
