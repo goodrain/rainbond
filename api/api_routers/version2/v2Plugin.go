@@ -21,6 +21,7 @@ package version2
 import (
 	"github.com/goodrain/rainbond/api/controller"
 	"github.com/goodrain/rainbond/api/middleware"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 
 	"github.com/go-chi/chi"
 )
@@ -46,13 +47,13 @@ func (v2 *V2) serviceRelatePluginRouter() chi.Router {
 	r := chi.NewRouter()
 	//service relate plugin
 	// v2/tenant/tenant_name/services/service_alias/plugin/xxx
-	r.Post("/", controller.GetManager().PluginSet)
-	r.Put("/", controller.GetManager().PluginSet)
+	r.Post("/", middleware.WrapEL(controller.GetManager().PluginSet, dbmodel.TargetTypeService, "create-service-plugin", dbmodel.SYNEVENTTYPE))
+	r.Put("/", middleware.WrapEL(controller.GetManager().PluginSet, dbmodel.TargetTypeService, "update-service-plugin", dbmodel.SYNEVENTTYPE))
 	r.Get("/", controller.GetManager().PluginSet)
-	r.Delete("/{plugin_id}", controller.GetManager().DeletePluginRelation)
+	r.Delete("/{plugin_id}", middleware.WrapEL(controller.GetManager().DeletePluginRelation, dbmodel.TargetTypeService, "delete-service-plugin", dbmodel.SYNEVENTTYPE))
 	// app plugin config supdate
-	r.Post("/{plugin_id}/setenv", controller.GetManager().UpdateVersionEnv)
-	r.Put("/{plugin_id}/upenv", controller.GetManager().UpdateVersionEnv)
+	r.Post("/{plugin_id}/setenv", middleware.WrapEL(controller.GetManager().UpdateVersionEnv, dbmodel.TargetTypeService, "update-service-plugin-config", dbmodel.SYNEVENTTYPE))
+	r.Put("/{plugin_id}/upenv", middleware.WrapEL(controller.GetManager().UpdateVersionEnv, dbmodel.TargetTypeService, "update-service-plugin-config", dbmodel.SYNEVENTTYPE))
 	//deprecated
 	r.Get("/{plugin_id}/envs", controller.GetManager().GePluginEnvWhichCanBeSet)
 	return r
