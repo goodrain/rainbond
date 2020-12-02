@@ -39,7 +39,7 @@ func NewController() *Controller {
 	cm := &Controller{
 		activeDomain: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace:   PrometheusNamespace,
+				Namespace:   "nginx",
 				Name:        "active_server",
 				Help:        "Cumulative number of active server",
 				ConstLabels: constLabels,
