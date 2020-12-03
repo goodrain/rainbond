@@ -571,7 +571,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 			volumeName = buildToLinuxFileName(volumeName)
 			volumePath := item.Get("volume_path").String()
 			if item.Get("volume_type").String() == "config-file" {
-				volume := fmt.Sprintf("__GROUP_DIR__/%s/%s:%s", appName, volumePath, volumePath)
+				volume := fmt.Sprintf("./%s/%s:%s", appName, volumePath, volumePath)
 				volumes = append(volumes, volume)
 			} else {
 				y.Volumes[volumeName] = ""
@@ -640,6 +640,10 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 		return err
 	}
 
+	// sed -i 's/""//g' docker-compose.yaml
+	content = strings.ReplaceAll(content, "\"\"", "")
+	// sed -i "s/\*\*None\*\*/$(uuidgen | tr -d -)/g" docker-compose.yaml
+	content = strings.ReplaceAll(content, "**None**", util.NewUUID())
 	err = ioutil.WriteFile(fmt.Sprintf("%s/docker-compose.yaml", i.SourceDir), content, 0644)
 	if err != nil {
 		i.Logger.Error(fmt.Sprintf("创建YAML文件失败：%v", err), map[string]string{"step": "create-yaml", "status": "failure"})
