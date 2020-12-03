@@ -230,6 +230,11 @@ func dbInit() error {
 		}
 	}
 
+	tx := begin
+	if err := tx.Exec("ALTER TABLE tenant_service_version modify COLUMN code_commit_msg TEXT;"); err != nil {
+		tx.Rollback()
+	}
+	tx.Commit()
 	return nil
 }
 
