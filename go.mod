@@ -55,6 +55,7 @@ require (
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/mitchellh/mapstructure v1.3.3
+	github.com/mozillazg/go-pinyin v0.18.0
 	github.com/ncabatoff/process-exporter v0.7.1
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/pborman/uuid v1.2.1
