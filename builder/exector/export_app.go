@@ -561,7 +561,6 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 		appName := app.Get("service_cname").String()
 		appName = composeName(appName)
 		volumes := make([]string, 0, 3)
-		envs := make(map[string]string, 10)
 
 		// 如果该组件是镜像方式部署，需要做两件事
 		// 1. 在.volumes中创建一个volume
@@ -580,21 +579,25 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 		}
 
 		// environment variables
+		envs := make(map[string]string, 10)
+		if len(app.Get("service_env_map_list").Array()) > 0 {
+			// The first port here maybe not as the same as the first one original
+			port := app.Get("port_map_list").Array()[0]
+			envs["PORT"] = port.Get("container_port").String()
+		}
 		configs := make(map[string]string)
 		for _, item := range app.Get("service_env_map_list").Array() {
 			key := item.Get("attr_name").String()
 			value := item.Get("attr_value").String()
 			configs[key] = value
 			envs[key] = value
-		}
-		for _, item := range app.Get("service_env_map_list").Array() {
-			key := item.Get("attr_name").String()
-			value := item.Get("attr_value").String()
-			// env rendering
-			envs[key] = util.ParseVariable(value, configs)
 			if envs[key] == "**None**" {
 				envs[key] = util.NewUUID()[:8]
 			}
+		}
+		for key, value := range envs {
+			// env rendering
+			envs[key] = util.ParseVariable(value, configs)
 		}
 
 		for _, item := range app.Get("service_connect_info_map_list").Array() {
