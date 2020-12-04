@@ -517,7 +517,7 @@ func (i *ExportApp) exportRunnerImage() error {
 //DockerComposeYaml docker compose struct
 type DockerComposeYaml struct {
 	Version  string              `yaml:"version"`
-	Volumes  map[string]string   `yaml:"volumes,omitempty"`
+	Volumes  map[string]Volume   `yaml:"volumes,omitempty"`
 	Services map[string]*Service `yaml:"services,omitempty"`
 }
 
@@ -540,6 +540,11 @@ type Service struct {
 	} `yaml:"logging,omitempty"`
 }
 
+// Volume is the volume for docker compose.
+type Volume struct {
+	External bool `yaml:"external"`
+}
+
 func (i *ExportApp) buildDockerComposeYaml() error {
 	// 因为在保存apps的步骤中更新了json文件，所以要重新加载
 	apps, err := i.parseApps()
@@ -549,7 +554,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 
 	y := &DockerComposeYaml{
 		Version:  "2.1",
-		Volumes:  make(map[string]string, 5),
+		Volumes:  make(map[string]Volume, 5),
 		Services: make(map[string]*Service, 5),
 	}
 
@@ -570,10 +575,12 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 			volumeName = buildToLinuxFileName(volumeName)
 			volumePath := item.Get("volume_path").String()
 			if item.Get("volume_type").String() == "config-file" {
-				volume := fmt.Sprintf(".%s:%s", path.Join("./", appName, volumePath), volumePath)
+				mountPath := path.Join(appName, volumePath)
+				logrus.Debugf("appName: %s; volumePath: %s; mount path: %s", appName, volumePath, mountPath)
+				volume := fmt.Sprintf("./%s:%s", mountPath, volumePath)
 				volumes = append(volumes, volume)
 			} else {
-				y.Volumes[volumeName] = ""
+				y.Volumes[volumeName] = Volume{}
 				volumes = append(volumes, fmt.Sprintf("%s:%s", volumeName, volumePath))
 			}
 		}
@@ -646,9 +653,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 		return err
 	}
 
-	// sed -i 's/""//g' docker-compose.yaml
-	contentStr := strings.ReplaceAll(string(content), "\"\"", "")
-	err = ioutil.WriteFile(fmt.Sprintf("%s/docker-compose.yaml", i.SourceDir), []byte(contentStr), 0644)
+	err = ioutil.WriteFile(fmt.Sprintf("%s/docker-compose.yaml", i.SourceDir), content, 0644)
 	if err != nil {
 		i.Logger.Error(fmt.Sprintf("创建YAML文件失败：%v", err), map[string]string{"step": "create-yaml", "status": "failure"})
 		logrus.Error("Failed to create yaml file: ", err)
