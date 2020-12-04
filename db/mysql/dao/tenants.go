@@ -196,7 +196,7 @@ func (t *TenantServicesDaoImpl) GetServiceTypeById(serviceID string) (*model.Ten
 //GetAllServicesID get all service sample info
 func (t *TenantServicesDaoImpl) GetAllServicesID() ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
-	if err := t.DB.Select("service_id,service_alias,tenant_id").Find(&services).Error; err != nil {
+	if err := t.DB.Select("service_id,service_alias,tenant_id,app_id").Find(&services).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return services, nil
 		}
