@@ -238,8 +238,8 @@ func (t *thirdparty) k8sEndpoints(as *v1.AppService, epinfo []*v1.RbdEndpoint) (
 		return nil, err
 	}
 	// third-party service can only have one port
-	if ports == nil || len(ports) == 0 {
-		return nil, fmt.Errorf("Port not found")
+	if len(ports) == 0 {
+		return nil, fmt.Errorf("port not found")
 	}
 	p := ports[0]
 
@@ -250,6 +250,9 @@ func (t *thirdparty) k8sEndpoints(as *v1.AppService, epinfo []*v1.RbdEndpoint) (
 		// inner or outer
 		if *p.IsInnerService {
 			ep.Name = fmt.Sprintf("service-%d-%d", p.ID, p.ContainerPort)
+			if p.K8sServiceName != "" {
+				ep.Name = p.K8sServiceName
+			}
 			ep.Labels = as.GetCommonLabels(map[string]string{
 				"name":         as.ServiceAlias + "Service",
 				"service-kind": model.ServiceKindThirdParty.String(),

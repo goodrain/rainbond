@@ -110,6 +110,16 @@ func InitCacheAppService(dbm db.Manager, serviceID, creatorID string) (*v1.AppSe
 		},
 		UpgradePatch: make(map[string][]byte, 2),
 	}
+
+	// setup governance mode
+	app, err := dbm.ApplicationDao().GetByServiceID(serviceID)
+	if err != nil && err != bcode.ErrApplicationNotFound {
+		return nil, fmt.Errorf("get app based on service id(%s)", serviceID)
+	}
+	if app != nil {
+		appService.AppServiceBase.GovernanceMode = app.GovernanceMode
+	}
+
 	if err := TenantServiceBase(appService, dbm); err != nil {
 		return nil, err
 	}
