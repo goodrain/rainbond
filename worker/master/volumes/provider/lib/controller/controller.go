@@ -1028,7 +1028,7 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 
 	volume, err = ctrl.provisioners[provisioner].Provision(options)
 	if err != nil {
-		if err == dao.VolumeNotFound {
+		if err == dao.ErrVolumeNotFound {
 			logrus.Warningf("PVC: %s; volume not found.", claim.Name)
 			return nil
 		}

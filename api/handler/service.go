@@ -1443,7 +1443,7 @@ func (s *ServiceAction) VolumnVar(tsv *dbmodel.TenantServiceVolume, tenantID, fi
 				tsv.HostPath = fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, tenantID, tsv.ServiceID, tsv.VolumePath)
 			//本地文件存储
 			case dbmodel.LocalVolumeType.String():
-				serviceInfo, err := db.GetManager().TenantServiceDao().GetServiceTypeById(tsv.ServiceID)
+				serviceInfo, err := db.GetManager().TenantServiceDao().GetServiceTypeByID(tsv.ServiceID)
 				if err != nil {
 					return util.CreateAPIHandleErrorFromDBError("service type", err)
 				}

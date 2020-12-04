@@ -172,8 +172,8 @@ type TenantServicesDaoImpl struct {
 	DB *gorm.DB
 }
 
-// GetServiceTypeById  get service type by service id
-func (t *TenantServicesDaoImpl) GetServiceTypeById(serviceID string) (*model.TenantServices, error) {
+// GetServiceTypeByID  get service type by service id
+func (t *TenantServicesDaoImpl) GetServiceTypeByID(serviceID string) (*model.TenantServices, error) {
 	var service model.TenantServices
 	if err := t.DB.Select("tenant_id, service_id, service_alias, extend_method").Where("service_id=?", serviceID).Find(&service).Error; err != nil {
 		return nil, err
@@ -196,7 +196,7 @@ func (t *TenantServicesDaoImpl) GetServiceTypeById(serviceID string) (*model.Ten
 //GetAllServicesID get all service sample info
 func (t *TenantServicesDaoImpl) GetAllServicesID() ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
-	if err := t.DB.Select("service_id,service_alias,tenant_id").Find(&services).Error; err != nil {
+	if err := t.DB.Select("service_id,service_alias,tenant_id,app_id").Find(&services).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return services, nil
 		}
@@ -754,6 +754,7 @@ func (t *TenantServicesPortDaoImpl) ListInnerPortsByServiceIDs(serviceIDs []stri
 	return ports, nil
 }
 
+// ListByK8sServiceNames -
 func (t *TenantServicesPortDaoImpl) ListByK8sServiceNames(k8sServiceNames []string) ([]*model.TenantServicesPort, error) {
 	var ports []*model.TenantServicesPort
 	if err := t.DB.Where("k8s_service_name in (?)", k8sServiceNames).Find(&ports).Error; err != nil {
@@ -831,7 +832,7 @@ func (t *TenantServiceRelationDaoImpl) GetTenantServiceRelations(serviceID strin
 	return oldRelation, nil
 }
 
-// ListByK8sServiceNames -
+// ListByServiceIDs -
 func (t *TenantServiceRelationDaoImpl) ListByServiceIDs(serviceIDs []string) ([]*model.TenantServiceRelation, error) {
 	var relations []*model.TenantServiceRelation
 	if err := t.DB.Where("service_id in (?)", serviceIDs).Find(&relations).Error; err != nil {
@@ -1149,7 +1150,7 @@ func (t *TenantServiceVolumeDaoImpl) GetVolumeByID(id int) (*model.TenantService
 	var volume model.TenantServiceVolume
 	if err := t.DB.Where("ID=?", id).Find(&volume).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, dao.VolumeNotFound
+			return nil, dao.ErrVolumeNotFound
 		}
 		return nil, err
 	}
@@ -1541,8 +1542,8 @@ func (t *ServiceLabelDaoImpl) GetTenantServiceAffinityLabel(serviceID string) ([
 	return labels, nil
 }
 
-// no usages func. get tenant service type use TenantServiceDao.GetServiceTypeById(serviceID string)
 //GetTenantServiceTypeLabel GetTenantServiceTypeLabel
+// no usages func. get tenant service type use TenantServiceDao.GetServiceTypeByID(serviceID string)
 func (t *ServiceLabelDaoImpl) GetTenantServiceTypeLabel(serviceID string) (*model.TenantServiceLable, error) {
 	var label model.TenantServiceLable
 	return &label, nil

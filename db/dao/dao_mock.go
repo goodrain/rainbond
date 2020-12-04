@@ -1314,19 +1314,19 @@ func (mr *MockTenantServiceDaoMockRecorder) ListServicesByTenantID(tenantID inte
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListServicesByTenantID", reflect.TypeOf((*MockTenantServiceDao)(nil).ListServicesByTenantID), tenantID)
 }
 
-// GetServiceTypeById mocks base method.
+// GetServiceTypeByID mocks base method.
 func (m *MockTenantServiceDao) GetServiceTypeById(serviceID string) (*model.TenantServices, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetServiceTypeById", serviceID)
+	ret := m.ctrl.Call(m, "GetServiceTypeByID", serviceID)
 	ret0, _ := ret[0].(*model.TenantServices)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetServiceTypeById indicates an expected call of GetServiceTypeById.
+// GetServiceTypeByID indicates an expected call of GetServiceTypeByID.
 func (mr *MockTenantServiceDaoMockRecorder) GetServiceTypeById(serviceID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceTypeById", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceTypeById), serviceID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceTypeByID", reflect.TypeOf((*MockTenantServiceDao)(nil).GetServiceTypeById), serviceID)
 }
 
 // MockTenantServiceDeleteDao is a mock of TenantServiceDeleteDao interface.
