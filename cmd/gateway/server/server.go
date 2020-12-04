@@ -87,11 +87,7 @@ func Run(s *option.GWServer) error {
 
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(prometheus.NewGoCollector())
-	reg.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{
-		PidFn: func() (int, error) {
-			return os.Getpid(), nil
-		},
-	}))
+	reg.MustRegister(prometheus.NewProcessCollector(os.Getpid(), ""))
 	mc := metric.NewDummyCollector()
 	if s.Config.EnableMetrics {
 		mc, err = metric.NewCollector(s.NodeName, reg)
