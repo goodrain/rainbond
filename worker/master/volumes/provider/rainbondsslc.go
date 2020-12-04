@@ -200,7 +200,7 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 	}
 	path, err := p.createPath(options)
 	if err != nil {
-		if err == dao.VolumeNotFound {
+		if err == dao.ErrVolumeNotFound {
 			return nil, err
 		}
 		return nil, fmt.Errorf("create local volume from node %s failure %s", options.SelectedNode.Name, err.Error())

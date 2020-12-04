@@ -26,8 +26,8 @@ import (
 )
 
 var (
-	// VolumeNotFound volume not found error, happens when haven't find any matched data
-	VolumeNotFound = errors.New("Volume not found.")
+	// ErrVolumeNotFound volume not found error, happens when haven't find any matched data
+	ErrVolumeNotFound = errors.New("volume not found")
 )
 
 //Dao 数据持久化层接口
@@ -142,7 +142,7 @@ type TenantServiceDao interface {
 	UpdateDeployVersion(serviceID, deployversion string) error
 	ListThirdPartyServices() ([]*model.TenantServices, error)
 	ListServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
-	GetServiceTypeById(serviceID string) (*model.TenantServices, error)
+	GetServiceTypeByID(serviceID string) (*model.TenantServices, error)
 	ListByAppID(appID string) ([]*model.TenantServices, error)
 	BindAppByServiceIDs(appID string, serviceIDs []string) error
 }
