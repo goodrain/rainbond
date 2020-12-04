@@ -56,12 +56,6 @@ import::image(){
   find . -name '*.image.tar' | xargs -I LOADIMAGES docker load -i LOADIMAGES
 }
 
-gen::config(){
-  sed -i 's/""//g' docker-compose.yaml
-  sed -i "s|__GROUP_DIR__|$(pwd)|g" docker-compose.yaml
-  sed -i "s/\*\*None\*\*/$(uuidgen | tr -d -)/g" docker-compose.yaml
-}
-
 start(){
   import::image
   docker-compose -f docker-compose.yaml up -d
@@ -73,7 +67,6 @@ stop(){
 
 main(){
   check::dependency || exit $?
-  gen::config
 
   eval "$cmd"
 }
