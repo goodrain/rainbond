@@ -592,6 +592,9 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 			value := item.Get("attr_value").String()
 			// env rendering
 			envs[key] = util.ParseVariable(value, configs)
+			if envs[key] == "**None**" {
+				envs[key] = util.NewUUID()[:8]
+			}
 		}
 
 		for _, item := range app.Get("service_connect_info_map_list").Array() {
@@ -642,8 +645,6 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 
 	// sed -i 's/""//g' docker-compose.yaml
 	contentStr := strings.ReplaceAll(string(content), "\"\"", "")
-	// sed -i "s/\*\*None\*\*/$(uuidgen | tr -d -)/g" docker-compose.yaml
-	contentStr = strings.ReplaceAll(contentStr, "**None**", util.NewUUID())
 	err = ioutil.WriteFile(fmt.Sprintf("%s/docker-compose.yaml", i.SourceDir), []byte(contentStr), 0644)
 	if err != nil {
 		i.Logger.Error(fmt.Sprintf("创建YAML文件失败：%v", err), map[string]string{"step": "create-yaml", "status": "failure"})
