@@ -37,6 +37,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/util/envutil"
 	"github.com/mozillazg/go-pinyin"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
@@ -592,6 +593,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 			port := app.Get("port_map_list").Array()[0]
 			envs["PORT"] = port.Get("container_port").String()
 		}
+		envs["MEMORY_SIZE"] = envutil.GetMemoryType(int(app.Get("memory").Int()))
 		configs := make(map[string]string)
 		for _, item := range app.Get("service_env_map_list").Array() {
 			key := item.Get("attr_name").String()
