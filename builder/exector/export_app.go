@@ -19,6 +19,7 @@
 package exector
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -32,6 +33,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
+	ramv1alpha1 "github.com/goodrain/rainbond-oam/pkg/ram/v1alpha1"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
@@ -244,6 +246,21 @@ func (i *ExportApp) parseApps() ([]gjson.Result, error) {
 	logrus.Debug("Successful parse apps array from metadata, count: ", len(arr))
 
 	return arr, nil
+}
+
+// parse metadata into ram
+func (i *ExportApp) parseApp() (*ramv1alpha1.RainbondApplicationConfig, error) {
+	data, err := ioutil.ReadFile(fmt.Sprintf("%s/metadata.json", i.SourceDir))
+	if err != nil {
+		return nil, errors.Wrapf(err, "open metadata.json")
+	}
+
+	var ram ramv1alpha1.RainbondApplicationConfig
+	if err := json.Unmarshal(data, &ram); err != nil {
+		return nil, errors.Wrapf(err, "unmarshal data into ram")
+	}
+
+	return &ram, nil
 }
 
 //exportImage export image of app
@@ -518,7 +535,7 @@ func (i *ExportApp) exportRunnerImage() error {
 //DockerComposeYaml docker compose struct
 type DockerComposeYaml struct {
 	Version  string              `yaml:"version"`
-	Volumes  map[string]Volume   `yaml:"volumes,omitempty"`
+	Volumes  map[string]GlobalVolume   `yaml:"volumes,omitempty"`
 	Services map[string]*Service `yaml:"services,omitempty"`
 }
 
@@ -541,8 +558,8 @@ type Service struct {
 	} `yaml:"logging,omitempty"`
 }
 
-// Volume is the volume for docker compose.
-type Volume struct {
+// GlobalVolume is the volume for docker compose.
+type GlobalVolume struct {
 	External bool `yaml:"external"`
 }
 
@@ -555,36 +572,25 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 
 	y := &DockerComposeYaml{
 		Version:  "2.1",
-		Volumes:  make(map[string]Volume, 5),
+		Volumes:  make(map[string]GlobalVolume, 5),
 		Services: make(map[string]*Service, 5),
 	}
 
 	i.Logger.Info("开始生成YAML文件", map[string]string{"step": "build-yaml", "status": "failure"})
 	logrus.Debug("Build docker compose yaml file in directory: ", i.SourceDir)
 
+	ram, err := i.parseApp()
+	if err != nil {
+		return err
+	}
+	dockerCompose := newDockerCompose(ram)
+
 	for _, app := range apps {
 		shareImage := app.Get("share_image").String()
-		appName := app.Get("service_cname").String()
-		appName = composeName(appName)
-		volumes := make([]string, 0, 3)
+		shareUUID := app.Get("service_share_uuid").String()
+		appName := dockerCompose.GetServiceName(shareUUID)
 
-		// 如果该组件是镜像方式部署，需要做两件事
-		// 1. 在.volumes中创建一个volume
-		// 2. 在.services.volumes中做映射
-		for _, item := range app.Get("service_volume_map_list").Array() {
-			volumeName := item.Get("volume_name").String()
-			volumeName = buildToLinuxFileName(volumeName)
-			volumePath := item.Get("volume_path").String()
-			if item.Get("volume_type").String() == "config-file" {
-				mountPath := path.Join(appName, volumePath)
-				logrus.Debugf("appName: %s; volumePath: %s; mount path: %s", appName, volumePath, mountPath)
-				volume := fmt.Sprintf("./%s:%s", mountPath, volumePath)
-				volumes = append(volumes, volume)
-			} else {
-				y.Volumes[volumeName] = Volume{}
-				volumes = append(volumes, fmt.Sprintf("%s:%s", volumeName, volumePath))
-			}
-		}
+		volumes := dockerCompose.GetServiceVolumes(shareUUID)
 
 		// environment variables
 		envs := make(map[string]string, 10)
@@ -645,6 +651,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 		y.Services[appName] = service
 	}
 
+	y.Volumes = dockerCompose.GetGlobalVolumes()
 	content, err := yaml.Marshal(y)
 	if err != nil {
 		i.Logger.Error(fmt.Sprintf("生成YAML文件失败：%v", err), map[string]string{"step": "build-yaml", "status": "failure"})
@@ -760,4 +767,132 @@ func buildToLinuxFileName(fileName string) string {
 	fileName = re.ReplaceAllString(fileName, "")
 
 	return fileName
+}
+
+type dockerCompose struct {
+	ram            *ramv1alpha1.RainbondApplicationConfig
+	globalVolumes  []string
+	serviceVolumes map[string][]string
+	serviceNames   map[string]string
+}
+
+func newDockerCompose(ram *ramv1alpha1.RainbondApplicationConfig) *dockerCompose {
+	dc := &dockerCompose{
+		ram: ram,
+	}
+	dc.build()
+	return dc
+}
+
+func (d *dockerCompose) build() {
+	// Important! serviceNames is always first
+	d.serviceNames = d.buildServiceNames()
+	d.serviceVolumes, d.globalVolumes = d.buildVolumes()
+}
+
+func (d *dockerCompose) buildServiceNames() map[string]string {
+	names := make(map[string]string)
+	set := make(map[string]struct{})
+	for _, cpt := range d.ram.Components {
+		name := composeName(cpt.ServiceCname)
+		// make sure every name is unique
+		if _, exists := set[name]; exists {
+			name += "-" + util.NewUUID()[0:4]
+		}
+		set[name] = struct{}{}
+		names[cpt.ServiceShareID] = name
+	}
+	return names
+}
+
+// build service volumes and global volumes
+func (d *dockerCompose) buildVolumes() (map[string][]string, []string) {
+	logrus.Debugf("start building volumes for %s", d.ram.AppName)
+
+	// all volumes from components
+	allVolumes := make(map[string]ramv1alpha1.ComponentVolumeList)
+	for _, cpt := range d.ram.Components {
+		allVolumes[cpt.ServiceShareID] = cpt.ServiceVolumeMapList
+	}
+
+	var composeVolumes []string
+	componentVolumes := make(map[string][]string)
+	for _, cpt := range d.ram.Components {
+		serviceName := d.GetServiceName(cpt.ServiceShareID)
+
+		var volumes []string
+		// own volumes
+		for _, vol := range cpt.ServiceVolumeMapList {
+			vol, composeVolume := d.buildVolume(serviceName, &vol)
+			volumes = append(volumes, vol)
+			if composeVolume != "" {
+				composeVolumes = append(composeVolumes, composeVolume)
+			}
+		}
+
+		// dependent volumes
+		for _, dvol := range cpt.MntReleationList {
+			vol := findDepVolume(allVolumes, dvol.ShareServiceUUID, dvol.VolumeName)
+			if vol == nil {
+				logrus.Warningf("[dockerCompose] [buildVolumes] dependent volume(%s/%s) not found", dvol.ShareServiceUUID, dvol.VolumeName)
+				continue
+			}
+
+			volume, composeVolume := d.buildVolume(serviceName, vol)
+			volumes = append(volumes, volume)
+			if composeVolume != "" {
+				composeVolumes = append(composeVolumes, composeVolume)
+			}
+		}
+
+		componentVolumes[cpt.ServiceShareID] = volumes
+	}
+
+	return componentVolumes, composeVolumes
+}
+
+func (d *dockerCompose) buildVolume(serviceName string, volume *ramv1alpha1.ComponentVolume) (string, string) {
+	volumePath := volume.VolumeMountPath
+	if volume.VolumeType == "config-file" {
+		mountPath := path.Join(serviceName, volume.VolumeMountPath)
+		mountPath = buildToLinuxFileName(mountPath)
+		return fmt.Sprintf("./%s:%s", mountPath, volumePath), ""
+	}
+	// make sure every volumeName is unique
+	volumeName := serviceName + "_" + volume.VolumeName
+	return fmt.Sprintf("%s:%s", volumeName, volumePath), volumeName
+}
+
+// GetServiceVolumes -
+func (d *dockerCompose) GetServiceVolumes(shareServiceUUID string) []string {
+	return d.serviceVolumes[shareServiceUUID]
+}
+
+// GetGlobalVolumes -
+func (d *dockerCompose) GetGlobalVolumes() map[string]GlobalVolume {
+	globalVolumes := make(map[string]GlobalVolume)
+	for _, vol := range d.globalVolumes {
+		globalVolumes[vol] = GlobalVolume{
+			External: false,
+		}
+	}
+	return globalVolumes
+}
+
+// GetServiceName -
+func (d *dockerCompose) GetServiceName(shareServiceUUID string) string {
+	return d.serviceNames[shareServiceUUID]
+}
+
+func findDepVolume(allVolumes map[string]ramv1alpha1.ComponentVolumeList, key, volumeName string) *ramv1alpha1.ComponentVolume {
+	vols := allVolumes[key]
+	// find related volume
+	var volume *ramv1alpha1.ComponentVolume
+	for _, vol := range vols {
+		if vol.VolumeName == volumeName {
+			volume = &vol
+			break
+		}
+	}
+	return volume
 }
