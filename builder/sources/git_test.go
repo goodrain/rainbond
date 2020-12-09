@@ -24,23 +24,14 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/event"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
-func init() {
-	event.NewManager(event.EventConfig{
-		DiscoverArgs: &etcdutil.ClientArgs{
-			Endpoints: []string{"127.0.0.1:2379"},
-		},
-	})
-}
 func TestGitClone(t *testing.T) {
 	start := time.Now()
 	csi := CodeSourceInfo{
 		RepositoryURL: "git@gitee.com:zhoujunhaogoodrain/webhook_test.git",
 		Branch:        "master",
 	}
-	//logger := event.GetManager().GetLogger("system")
 	res, err := GitClone(csi, "/tmp/rainbonddoc3", event.GetTestLogger(), 1)
 	if err != nil {
 		t.Fatal(err)
@@ -55,7 +46,6 @@ func TestGitCloneByTag(t *testing.T) {
 		RepositoryURL: "https://github.com/goodrain/rainbond-ui.git",
 		Branch:        "master",
 	}
-	//logger := event.GetManager().GetLogger("system")
 	res, err := GitClone(csi, "/tmp/rainbonddoc4", event.GetTestLogger(), 1)
 	if err != nil {
 		t.Fatal(err)
@@ -70,7 +60,6 @@ func TestGitPull(t *testing.T) {
 		RepositoryURL: "git@gitee.com:zhoujunhaogoodrain/webhook_test.git",
 		Branch:        "master2",
 	}
-	//logger := event.GetManager().GetLogger("system")
 	res, err := GitPull(csi, "/tmp/master2", event.GetTestLogger(), 1)
 	if err != nil {
 		t.Fatal(err)
@@ -86,7 +75,6 @@ func TestGitPullOrClone(t *testing.T) {
 	csi := CodeSourceInfo{
 		RepositoryURL: "git@gitee.com:zhoujunhaogoodrain/webhook_test.git",
 	}
-	//logger := event.GetManager().GetLogger("system")
 	res, err := GitCloneOrPull(csi, "/tmp/goodrainweb2", event.GetTestLogger(), 1)
 	if err != nil {
 		t.Fatal(err)

@@ -22,18 +22,10 @@ import (
 	"testing"
 
 	"github.com/goodrain/rainbond/event"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
-func init() {
-	event.NewManager(event.EventConfig{
-		DiscoverArgs: &etcdutil.ClientArgs{
-			Endpoints: []string{"127.0.0.1:2379"},
-		},
-	})
-}
 func TestCopyFileWithProgress(t *testing.T) {
-	logger := event.GetManager().GetLogger("system")
+	logger := event.GetTestLogger()
 	if err := CopyFileWithProgress("/tmp/src.tgz", "/tmp/abc/desc1.tgz", logger); err != nil {
 		t.Fatal(err)
 	}

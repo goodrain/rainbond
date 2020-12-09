@@ -53,7 +53,7 @@ install::docker-compose(){
 }
 
 import::image(){
-  find . -name '*.image.tar' | xargs -I LOADIMAGES docker load -i LOADIMAGES
+  docker load -i component-images.tar
 }
 
 start(){

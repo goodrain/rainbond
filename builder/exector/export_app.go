@@ -19,6 +19,7 @@
 package exector
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -40,7 +41,7 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/envutil"
-	"github.com/mozillazg/go-pinyin"
+	pinyin "github.com/mozillazg/go-pinyin"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 	yaml "gopkg.in/yaml.v2"
@@ -139,8 +140,8 @@ func (i *ExportApp) exportDockerCompose() error {
 		return err
 	}
 
-	// Save application attachments
-	if err := i.saveApps(); err != nil {
+	// Save components attachments
+	if err := i.saveComponents(); err != nil {
 		return err
 	}
 
@@ -196,10 +197,10 @@ func (i *ExportApp) isLatest() bool {
 			logrus.Debug("The export app tar file is not found. ")
 			return false
 		}
-		logrus.Debug("The export app tar file is not latest.")
+		logrus.Info("The export app tar file is not latest.")
 		return false
 	}
-	logrus.Debug("The export app tar file is latest.")
+	logrus.Info("The export app tar file is latest.")
 	return true
 }
 
@@ -261,6 +262,20 @@ func (i *ExportApp) parseApp() (*ramv1alpha1.RainbondApplicationConfig, error) {
 	}
 
 	return &ram, nil
+}
+
+func (i *ExportApp) pullImage(component *ramv1alpha1.Component) (string, error) {
+	// docker pull image-name
+	_, err := sources.ImagePull(i.DockerClient, component.ShareImage, component.AppImage.HubUser, component.AppImage.HubPassword, i.Logger, 15)
+	if err != nil {
+		return "", err
+	}
+	//change save app image name
+	saveImageName := sources.GenSaveImageName(component.ShareImage)
+	if err := sources.ImageTag(i.DockerClient, component.ShareImage, saveImageName, i.Logger, 2); err != nil {
+		return "", err
+	}
+	return saveImageName, nil
 }
 
 //exportImage export image of app
@@ -333,10 +348,15 @@ func (i *ExportApp) exportSlug(serviceDir string, app gjson.Result) error {
 	return nil
 }
 
+func (i *ExportApp) exportComponentConfigFile(serviceDir string, v ramv1alpha1.ComponentVolume) error {
+	serviceDir = strings.TrimRight(serviceDir, "/")
+	filename := fmt.Sprintf("%s%s", serviceDir, v.VolumeMountPath)
+	dir := path.Dir(filename)
+	os.MkdirAll(dir, 0755)
+	return ioutil.WriteFile(filename, []byte(v.FileConent), 0644)
+}
+
 func (i *ExportApp) exportConfigFile(serviceDir string, v gjson.Result) error {
-	if v.Get("volume_type").String() != "config-file" {
-		return nil
-	}
 	serviceDir = strings.TrimRight(serviceDir, "/")
 	fc := v.Get("file_content").String()
 	vp := v.Get("volume_path").String()
@@ -430,6 +450,46 @@ func (i *ExportApp) saveApps() error {
 		}
 	}
 	return nil
+}
+
+// saveComponents Bulk export of mirrored mode, lower disk footprint for the entire package
+func (i *ExportApp) saveComponents() error {
+	app, err := i.parseApp()
+	if err != nil {
+		return err
+	}
+	dockerCompose := newDockerCompose(app)
+	i.Logger.Info(fmt.Sprintf("Start export app %s", app.AppName), map[string]string{"step": "export-app", "status": "success"})
+	var componentImageNames []string
+	for _, component := range app.Components {
+		componentName := component.ServiceCname
+		componentEnName := dockerCompose.GetServiceName(component.ServiceShareID)
+		serviceDir := fmt.Sprintf("%s/%s", i.SourceDir, componentEnName)
+		os.MkdirAll(serviceDir, 0755)
+		logrus.Debugf("Create directory for export app: %s", serviceDir)
+		volumes := component.ServiceVolumeMapList
+		if volumes != nil && len(volumes) > 0 {
+			for _, v := range volumes {
+				if v.VolumeType == ramv1alpha1.ConfigFileVolumeType {
+					err := i.exportComponentConfigFile(serviceDir, v)
+					if err != nil {
+						logrus.Errorf("error exporting config file: %v", err)
+						return err
+					}
+				}
+			}
+		}
+		if component.ShareImage != "" {
+			// app is image type
+			localImageName, err := i.pullImage(component)
+			if err != nil {
+				return err
+			}
+			logrus.Infof("Pull component %s image success", componentName)
+			componentImageNames = append(componentImageNames, localImageName)
+		}
+	}
+	return i.saveComponentImages(componentImageNames)
 }
 
 // unicode2zh 将unicode转为中文，并去掉空格
@@ -532,11 +592,25 @@ func (i *ExportApp) exportRunnerImage() error {
 	return nil
 }
 
+func (i *ExportApp) saveComponentImages(images []string) error {
+	logrus.Info("Start save component images")
+	start := time.Now()
+	ctx := context.Background()
+	err := sources.MultiImageSave(ctx, i.DockerClient, fmt.Sprintf("%s/component-images.tar", i.SourceDir), i.Logger, images...)
+	if err != nil {
+		i.Logger.Error(fmt.Sprintf("Save image file failure"), map[string]string{"step": "save-image", "status": "failure"})
+		logrus.Errorf("Failed to save image(%v) : %s", images, err)
+		return err
+	}
+	logrus.Infof("Save component images success, Take %s time", time.Now().Sub(start))
+	return nil
+}
+
 //DockerComposeYaml docker compose struct
 type DockerComposeYaml struct {
-	Version  string              `yaml:"version"`
-	Volumes  map[string]GlobalVolume   `yaml:"volumes,omitempty"`
-	Services map[string]*Service `yaml:"services,omitempty"`
+	Version  string                  `yaml:"version"`
+	Volumes  map[string]GlobalVolume `yaml:"volumes,omitempty"`
+	Services map[string]*Service     `yaml:"services,omitempty"`
 }
 
 //Service service
@@ -564,7 +638,7 @@ type GlobalVolume struct {
 }
 
 func (i *ExportApp) buildDockerComposeYaml() error {
-	// 因为在保存apps的步骤中更新了json文件，所以要重新加载
+	// Because updated the JSON file in the save Apps step, so need to reload it
 	apps, err := i.parseApps()
 	if err != nil {
 		return err
@@ -576,7 +650,7 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 		Services: make(map[string]*Service, 5),
 	}
 
-	i.Logger.Info("开始生成YAML文件", map[string]string{"step": "build-yaml", "status": "failure"})
+	i.Logger.Info("Start create docker compose app metadata file", map[string]string{"step": "build-yaml", "status": "starting"})
 	logrus.Debug("Build docker compose yaml file in directory: ", i.SourceDir)
 
 	ram, err := i.parseApp()
@@ -654,17 +728,18 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 	y.Volumes = dockerCompose.GetGlobalVolumes()
 	content, err := yaml.Marshal(y)
 	if err != nil {
-		i.Logger.Error(fmt.Sprintf("生成YAML文件失败：%v", err), map[string]string{"step": "build-yaml", "status": "failure"})
+		i.Logger.Error(fmt.Sprintf("Create docker compose app metadata file failure：%v", err), map[string]string{"step": "build-yaml", "status": "failure"})
 		logrus.Error("Failed to build yaml file: ", err)
 		return err
 	}
 
 	err = ioutil.WriteFile(fmt.Sprintf("%s/docker-compose.yaml", i.SourceDir), content, 0644)
 	if err != nil {
-		i.Logger.Error(fmt.Sprintf("创建YAML文件失败：%v", err), map[string]string{"step": "create-yaml", "status": "failure"})
+		i.Logger.Error(fmt.Sprintf("Create docker compose app metadata file failure：%v", err), map[string]string{"step": "create-yaml", "status": "failure"})
 		logrus.Error("Failed to create yaml file: ", err)
 		return err
 	}
+	i.Logger.Info("Create docker compose app metadata file success", map[string]string{"step": "build-yaml", "status": "success"})
 
 	return nil
 }
@@ -809,13 +884,8 @@ func (d *dockerCompose) buildServiceNames() map[string]string {
 func (d *dockerCompose) buildVolumes() (map[string][]string, []string) {
 	logrus.Debugf("start building volumes for %s", d.ram.AppName)
 
-	// all volumes from components
-	allVolumes := make(map[string]ramv1alpha1.ComponentVolumeList)
-	for _, cpt := range d.ram.Components {
-		allVolumes[cpt.ServiceShareID] = cpt.ServiceVolumeMapList
-	}
-
-	var composeVolumes []string
+	var volumeMaps = make(map[string]string)
+	var volumeList []string
 	componentVolumes := make(map[string][]string)
 	for _, cpt := range d.ram.Components {
 		serviceName := d.GetServiceName(cpt.ServiceShareID)
@@ -823,44 +893,40 @@ func (d *dockerCompose) buildVolumes() (map[string][]string, []string) {
 		var volumes []string
 		// own volumes
 		for _, vol := range cpt.ServiceVolumeMapList {
-			vol, composeVolume := d.buildVolume(serviceName, &vol)
-			volumes = append(volumes, vol)
+			svolume, composeVolume, isConfig := d.buildVolume(serviceName, &vol)
+			volumes = append(volumes, svolume)
 			if composeVolume != "" {
-				composeVolumes = append(composeVolumes, composeVolume)
+				if !isConfig {
+					volumeList = append(volumeList, composeVolume)
+				}
+				volumeMaps[cpt.ServiceShareID+vol.VolumeName] = composeVolume
 			}
 		}
-
+		componentVolumes[cpt.ServiceShareID] = volumes
+	}
+	for _, cpt := range d.ram.Components {
 		// dependent volumes
 		for _, dvol := range cpt.MntReleationList {
-			vol := findDepVolume(allVolumes, dvol.ShareServiceUUID, dvol.VolumeName)
-			if vol == nil {
+			vol := volumeMaps[dvol.ShareServiceUUID+dvol.VolumeName]
+			if vol == "" {
 				logrus.Warningf("[dockerCompose] [buildVolumes] dependent volume(%s/%s) not found", dvol.ShareServiceUUID, dvol.VolumeName)
 				continue
 			}
-
-			volume, composeVolume := d.buildVolume(serviceName, vol)
-			volumes = append(volumes, volume)
-			if composeVolume != "" {
-				composeVolumes = append(composeVolumes, composeVolume)
-			}
+			componentVolumes[cpt.ServiceShareID] = append(componentVolumes[cpt.ServiceShareID], fmt.Sprintf("%s:%s", vol, dvol.VolumeMountDir))
 		}
-
-		componentVolumes[cpt.ServiceShareID] = volumes
 	}
-
-	return componentVolumes, composeVolumes
+	return componentVolumes, volumeList
 }
 
-func (d *dockerCompose) buildVolume(serviceName string, volume *ramv1alpha1.ComponentVolume) (string, string) {
+func (d *dockerCompose) buildVolume(serviceName string, volume *ramv1alpha1.ComponentVolume) (string, string, bool) {
 	volumePath := volume.VolumeMountPath
 	if volume.VolumeType == "config-file" {
-		mountPath := path.Join(serviceName, volume.VolumeMountPath)
-		mountPath = buildToLinuxFileName(mountPath)
-		return fmt.Sprintf("./%s:%s", mountPath, volumePath), ""
+		configFilePath := "./" + path.Join(serviceName, buildToLinuxFileName(volume.VolumeMountPath))
+		return fmt.Sprintf("%s:%s", configFilePath, volumePath), configFilePath, true
 	}
 	// make sure every volumeName is unique
 	volumeName := serviceName + "_" + volume.VolumeName
-	return fmt.Sprintf("%s:%s", volumeName, volumePath), volumeName
+	return fmt.Sprintf("%s:%s", volumeName, volumePath), volumeName, false
 }
 
 // GetServiceVolumes -

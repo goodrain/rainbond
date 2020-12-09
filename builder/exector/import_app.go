@@ -84,7 +84,7 @@ func (i *ImportApp) Stop() error {
 
 //Name return worker name
 func (i *ImportApp) Name() string {
-	return "export_app"
+	return "import_app"
 }
 
 //GetLogger GetLogger

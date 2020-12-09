@@ -331,7 +331,6 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 				},
 			}
 		}
-
 	}
 	logrus.Debugf("request is: %+v", re)
 	podSpec.Volumes = []corev1.Volume{

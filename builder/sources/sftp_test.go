@@ -22,23 +22,14 @@ import (
 	"testing"
 
 	"github.com/goodrain/rainbond/event"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
-func init() {
-	event.NewManager(event.EventConfig{
-		DiscoverArgs: &etcdutil.ClientArgs{
-			Endpoints: []string{"127.0.0.1:2379"},
-		},
-	})
-}
 func TestPushFile(t *testing.T) {
 	sftpClient, err := NewSFTPClient("admin", "9bc067dc", "47.92.168.60", "20012")
 	if err != nil {
 		t.Fatal(err)
 	}
-	logger := event.GetManager().GetLogger("system")
-	if err := sftpClient.PushFile("/tmp/src.tgz", "/upload/team/servicekey/goodrain.tgz", logger); err != nil {
+	if err := sftpClient.PushFile("/tmp/src.tgz", "/upload/team/servicekey/goodrain.tgz", event.GetTestLogger()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -48,8 +39,7 @@ func TestDownloadFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	logger := event.GetManager().GetLogger("system")
-	if err := sftpClient.DownloadFile("/upload/team/servicekey/goodrain.tgz", "./team/servicekey/goodrain.tgz", logger); err != nil {
+	if err := sftpClient.DownloadFile("/upload/team/servicekey/goodrain.tgz", "./team/servicekey/goodrain.tgz", event.GetTestLogger()); err != nil {
 		t.Fatal(err)
 	}
 }
