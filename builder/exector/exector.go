@@ -265,6 +265,7 @@ func (e *exectorManager) exec(task *pb.TaskMessage) error {
 		}
 	}()
 	if err := worker.Run(time.Minute * 10); err != nil {
+		logrus.Errorf("task type: %s; body: %s; run task: %+v", task.TaskType, task.TaskBody, err)
 		MetricErrorTaskNum++
 		worker.ErrorCallBack(err)
 	}
