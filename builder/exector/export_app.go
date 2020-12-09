@@ -857,8 +857,8 @@ func (d *dockerCompose) buildVolumes() (map[string][]string, []string) {
 func (d *dockerCompose) buildVolume(serviceName string, volume *ramv1alpha1.ComponentVolume) (string, string) {
 	volumePath := volume.VolumeMountPath
 	if volume.VolumeType == "config-file" {
-		mountPath := path.Join(serviceName, volume.VolumeMountPath)
-		mountPath = buildToLinuxFileName(mountPath)
+		mountPath := buildToLinuxFileName(volume.VolumeMountPath)
+		mountPath = path.Join(serviceName, mountPath)
 		return fmt.Sprintf("./%s:%s", mountPath, volumePath), ""
 	}
 	// make sure every volumeName is unique
