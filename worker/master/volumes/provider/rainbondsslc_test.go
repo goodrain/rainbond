@@ -36,7 +36,7 @@ func TestSelectNode(t *testing.T) {
 		name:    "rainbond.io/provisioner-sslc",
 		kubecli: client,
 	}
-	node, err := pr.selectNode("linux")
+	node, err := pr.selectNode("linux", "")
 	if err != nil {
 		t.Fatal(err)
 	}

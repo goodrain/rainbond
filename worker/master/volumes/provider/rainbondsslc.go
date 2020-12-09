@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/db"
@@ -60,7 +61,7 @@ func NewRainbondsslcProvisioner(kubecli kubernetes.Interface, store store.Storer
 var _ controller.Provisioner = &rainbondsslcProvisioner{}
 
 //selectNode select an appropriate node with the largest resource surplus
-func (p *rainbondsslcProvisioner) selectNode(nodeOS string) (*v1.Node, error) {
+func (p *rainbondsslcProvisioner) selectNode(nodeOS, ignore string) (*v1.Node, error) {
 	allnode, err := p.kubecli.CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -72,6 +73,13 @@ func (p *rainbondsslcProvisioner) selectNode(nodeOS string) (*v1.Node, error) {
 		if node.Labels[client.LabelOS] != nodeOS {
 			continue
 		}
+
+		// filter out ignore nodes
+		if strings.Contains(ignore, node.Name) {
+			logrus.Debugf("[rainbondsslcProvisioner] [selectNode] ignore node %s based on %s", node.Name, ignore)
+			continue
+		}
+
 		for _, condition := range node.Status.Conditions {
 			if condition.Type == v1.NodeReady {
 				nodeReady = true
@@ -183,10 +191,15 @@ func (p *rainbondsslcProvisioner) createPath(options controller.VolumeOptions) (
 
 // Provision creates a storage asset and returns a PV object representing it.
 func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
+	logrus.Debugf("[rainbondsslcProvisioner] start creating PV object. paramters: %+v", options.Parameters)
 	//runtime select an appropriate node with the largest resource surplus
 	if options.SelectedNode == nil {
 		var err error
-		options.SelectedNode, err = p.selectNode(options.PVC.Annotations[client.LabelOS])
+		var ignoreNodes string
+		if options.Parameters != nil {
+			ignoreNodes = options.Parameters["ignoreNodes"]
+		}
+		options.SelectedNode, err = p.selectNode(options.PVC.Annotations[client.LabelOS], ignoreNodes)
 		if err != nil {
 			return nil, fmt.Errorf("Node OS: %s; error selecting node: %v",
 				options.PVC.Annotations[client.LabelOS], err)

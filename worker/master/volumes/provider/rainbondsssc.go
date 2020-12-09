@@ -55,6 +55,8 @@ var _ controller.Provisioner = &rainbondssscProvisioner{}
 
 // Provision creates a storage asset and returns a PV object representing it.
 func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
+	logrus.Debugf("[rainbondssscProvisioner] start creating PV object. paramters: %+v", options.Parameters)
+
 	tenantID := options.PVC.Labels["tenant_id"]
 	serviceID := options.PVC.Labels["service_id"]
 	_, stateless := options.PVC.Labels["stateless"]
