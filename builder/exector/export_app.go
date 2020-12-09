@@ -588,33 +588,25 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 
 		// environment variables
 		envs := make(map[string]string, 10)
-		if len(app.Get("service_env_map_list").Array()) > 0 {
+		if len(app.Get("port_map_list").Array()) > 0 {
 			// The first port here maybe not as the same as the first one original
 			port := app.Get("port_map_list").Array()[0]
 			envs["PORT"] = port.Get("container_port").String()
 		}
 		envs["MEMORY_SIZE"] = envutil.GetMemoryType(int(app.Get("memory").Int()))
-		configs := make(map[string]string)
 		for _, item := range app.Get("service_env_map_list").Array() {
 			key := item.Get("attr_name").String()
 			value := item.Get("attr_value").String()
-			configs[key] = value
 			envs[key] = value
 			if envs[key] == "**None**" {
 				envs[key] = util.NewUUID()[:8]
 			}
 		}
-		for key, value := range envs {
-			// env rendering
-			envs[key] = util.ParseVariable(value, configs)
-		}
-
 		for _, item := range app.Get("service_connect_info_map_list").Array() {
 			key := item.Get("attr_name").String()
 			value := item.Get("attr_value").String()
 			envs[key] = value
 		}
-
 		var depServices []string
 		// 如果该app依赖了另了个app-b，则把app-b中所有公开环境变量注入到该app
 		for _, item := range app.Get("dep_service_map_list").Array() {
@@ -627,6 +619,11 @@ func (i *ExportApp) buildDockerComposeYaml() error {
 			if svc := i.getDependedService(serviceKey, &apps); svc != "" {
 				depServices = append(depServices, composeName(svc))
 			}
+		}
+
+		for key, value := range envs {
+			// env rendering
+			envs[key] = util.ParseVariable(value, envs)
 		}
 
 		service := &Service{
