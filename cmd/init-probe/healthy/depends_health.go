@@ -194,9 +194,11 @@ func (d *DependServiceHealthController) checkEDS() bool {
 		}
 	}
 	for _, cn := range d.dependServiceNames {
-		if ready := readyClusters[cn]; !ready {
-			logrus.Infof("%s not ready.", cn)
-			return false
+		if cn != "" {
+			if ready := readyClusters[cn]; !ready {
+				logrus.Infof("%s not ready.", cn)
+				return false
+			}
 		}
 	}
 	logrus.Info("all dependent services have been started.")

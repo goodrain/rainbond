@@ -19,8 +19,10 @@
 package exector
 
 import (
-	"github.com/goodrain/rainbond/event"
+	"path"
 	"testing"
+
+	"github.com/goodrain/rainbond/event"
 )
 
 func TestExportApp_parseApps(t *testing.T) {
@@ -32,4 +34,8 @@ func TestExportApp_parseApps(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestPath(t *testing.T) {
+	t.Log("./" + path.Join("serviceName", "/abc"))
 }

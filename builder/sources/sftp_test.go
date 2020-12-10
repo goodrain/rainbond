@@ -29,8 +29,7 @@ func TestPushFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	logger := event.GetManager().GetLogger("system")
-	if err := sftpClient.PushFile("/tmp/src.tgz", "/upload/team/servicekey/goodrain.tgz", logger); err != nil {
+	if err := sftpClient.PushFile("/tmp/src.tgz", "/upload/team/servicekey/goodrain.tgz", event.GetTestLogger()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -40,8 +39,7 @@ func TestDownloadFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	logger := event.GetManager().GetLogger("system")
-	if err := sftpClient.DownloadFile("/upload/team/servicekey/goodrain.tgz", "./team/servicekey/goodrain.tgz", logger); err != nil {
+	if err := sftpClient.DownloadFile("/upload/team/servicekey/goodrain.tgz", "./team/servicekey/goodrain.tgz", event.GetTestLogger()); err != nil {
 		t.Fatal(err)
 	}
 }

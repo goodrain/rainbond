@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/goodrain/rainbond/event"
+	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -76,6 +77,15 @@ func TestCheckTrustedRepositories(t *testing.T) {
 func TestImageSave(t *testing.T) {
 	dc, _ := client.NewEnvClient()
 	if err := ImageSave(dc, "hub.goodrain.com/zengqg-test/etcd:v2.2.0", "/tmp/testsaveimage.tar", nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMulitImageSave(t *testing.T) {
+	dc, _ := client.NewEnvClient()
+	if err := MultiImageSave(context.Background(), dc, "/tmp/testsaveimage.tar", nil,
+		"registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-node:V5.3.0-cloud",
+		"registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-resource-proxy:V5.3.0-cloud"); err != nil {
 		t.Fatal(err)
 	}
 }

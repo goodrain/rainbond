@@ -25,7 +25,7 @@ import (
 )
 
 func TestCopyFileWithProgress(t *testing.T) {
-	logger := event.GetManager().GetLogger("system")
+	logger := event.GetTestLogger()
 	if err := CopyFileWithProgress("/tmp/src.tgz", "/tmp/abc/desc1.tgz", logger); err != nil {
 		t.Fatal(err)
 	}

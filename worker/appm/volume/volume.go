@@ -30,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/util/envutil"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -350,7 +351,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error
 	//set default env
 	envs = append(envs, corev1.EnvVar{Name: "TENANT_ID", Value: as.TenantID})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_ID", Value: as.ServiceID})
-	envs = append(envs, corev1.EnvVar{Name: "MEMORY_SIZE", Value: getMemoryType(as.ContainerMemory)})
+	envs = append(envs, corev1.EnvVar{Name: "MEMORY_SIZE", Value: envutil.GetMemoryType(as.ContainerMemory)})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_NAME", Value: as.ServiceAlias})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_POD_NUM", Value: strconv.Itoa(as.Replicas)})
 	envs = append(envs, corev1.EnvVar{Name: "HOST_IP", ValueFrom: &corev1.EnvVarSource{
@@ -452,27 +453,6 @@ func convertRulesToEnvs(as *v1.AppService, dbmanager db.Manager, ports []*dbmode
 		})
 	}
 	return
-}
-
-func getMemoryType(memorySize int) string {
-	memoryType := "small"
-	if v, ok := memoryLabels[memorySize]; ok {
-		memoryType = v
-	}
-	return memoryType
-}
-
-var memoryLabels = map[int]string{
-	128:   "micro",
-	256:   "small",
-	512:   "medium",
-	1024:  "large",
-	2048:  "2xlarge",
-	4096:  "4xlarge",
-	8192:  "8xlarge",
-	16384: "16xlarge",
-	32768: "32xlarge",
-	65536: "64xlarge",
 }
 
 //RewriteHostPathInWindows rewrite host path

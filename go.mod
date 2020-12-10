@@ -41,6 +41,7 @@ require (
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.4.2
+	github.com/goodrain/rainbond-oam v0.0.0-20200918054122-c774fd26ffa1
 	github.com/goodrain/rainbond-operator v1.0.0
 	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/gorilla/websocket v1.4.2
@@ -72,7 +73,6 @@ require (
 	github.com/sirupsen/logrus v1.6.0
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.6.1
 	github.com/testcontainers/testcontainers-go v0.8.0
 	github.com/thejerf/suture v3.0.3+incompatible
 	github.com/tidwall/gjson v1.6.1

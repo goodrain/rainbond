@@ -410,6 +410,17 @@ func ImageSave(dockerCli *client.Client, image, destination string, logger event
 	return CopyToFile(destination, rc)
 }
 
+//MultiImageSave save multi image to tar file
+// destination destination file name eg. /tmp/xxx.tar
+func MultiImageSave(ctx context.Context, dockerCli *client.Client, destination string, logger event.Logger, images ...string) error {
+	rc, err := dockerCli.ImageSave(ctx, images)
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+	return CopyToFile(destination, rc)
+}
+
 //ImageLoad load image from  tar file
 // destination destination file name eg. /tmp/xxx.tar
 func ImageLoad(dockerCli *client.Client, tarFile string, logger event.Logger) error {

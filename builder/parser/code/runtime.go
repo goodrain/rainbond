@@ -175,7 +175,7 @@ func readNodeRuntimeInfo(buildPath string) (map[string]string, error) {
 		if v := json.Get("engines").Get("node"); v != nil {
 			nodeVersion, _ := v.String()
 			// The latest version is used by default. (11.1.0 is latest version in ui)
-			if strings.HasPrefix(nodeVersion, ">") || strings.HasPrefix(nodeVersion, "*") {
+			if strings.HasPrefix(nodeVersion, ">") || strings.HasPrefix(nodeVersion, "*") || strings.HasPrefix(nodeVersion, "^") {
 				nodeVersion = "11.1.0"
 			}
 			runtimeInfo["RUNTIMES"] = nodeVersion
