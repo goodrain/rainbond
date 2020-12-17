@@ -104,9 +104,10 @@ func InitAppService(dbmanager db.Manager, serviceID string, configs map[string]s
 func InitCacheAppService(dbm db.Manager, serviceID, creatorID string) (*v1.AppService, error) {
 	appService := &v1.AppService{
 		AppServiceBase: v1.AppServiceBase{
-			ServiceID:    serviceID,
-			CreaterID:    creatorID,
-			ExtensionSet: make(map[string]string),
+			ServiceID:      serviceID,
+			CreaterID:      creatorID,
+			ExtensionSet:   make(map[string]string),
+			GovernanceMode: model.GovernanceModeBuildInServiceMesh,
 		},
 		UpgradePatch: make(map[string][]byte, 2),
 	}
