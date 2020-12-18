@@ -147,10 +147,11 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 		for i := range ports {
 			port := ports[i]
 			if *port.IsInnerService {
-				if a.appService.GovernanceMode == model.GovernanceModeBuildInServiceMesh {
-					services = append(services, a.createInnerService(port))
-				} else {
+				switch a.appService.GovernanceMode {
+				case model.GovernanceModeKubernetesNativeService:
 					services = append(services, a.createKubernetesNativeService(port))
+				default:
+					services = append(services, a.createInnerService(port))
 				}
 			}
 			if *port.IsOuterService {

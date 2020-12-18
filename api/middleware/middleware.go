@@ -264,6 +264,7 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 			//eventLog check the latest event
 
 			if !util.CanDoEvent(optType, synType, target, targetID) {
+				logrus.Errorf("operation too frequently. uri: %s; target: %s; target id: %s", r.RequestURI, target, targetID)
 				httputil.ReturnError(r, w, 409, "操作过于频繁，请稍后再试") // status code 409 conflict
 				return
 			}
