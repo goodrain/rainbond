@@ -192,6 +192,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Get("/build-list", controller.GetManager().BuildList)
 	//构建版本操作
 	r.Get("/build-version/{build_version}", controller.GetManager().BuildVersionInfo)
+	r.Put("/build-version/{build_version}", controller.GetManager().BuildVersionInfo)
 	r.Get("/deployversion", controller.GetManager().GetDeployVersion)
 	r.Delete("/build-version/{build_version}", middleware.WrapEL(controller.GetManager().BuildVersionInfo, dbmodel.TargetTypeService, "delete-buildversion", dbmodel.SYNEVENTTYPE))
 	//应用分享
