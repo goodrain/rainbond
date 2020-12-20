@@ -1512,6 +1512,11 @@ type BuildInfoRequestStruct struct {
 	Configs    map[string]string `json:"configs"`
 }
 
+// UpdateBuildVersionReq -
+type UpdateBuildVersionReq struct {
+	PlanVersion string `json:"plan_version" validate:"required"`
+}
+
 //UpgradeInfoRequestStruct -
 type UpgradeInfoRequestStruct struct {
 	//UpgradeVersion The target version of the upgrade

@@ -418,6 +418,29 @@ func (t *TenantStruct) DeleteBuildVersion(w http.ResponseWriter, r *http.Request
 
 }
 
+//UpdateBuildVersion -
+func (t *TenantStruct) UpdateBuildVersion(w http.ResponseWriter, r *http.Request) {
+	var build api_model.UpdateBuildVersionReq
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build, nil)
+	if !ok {
+		return
+	}
+	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	buildVersion := chi.URLParam(r, "build_version")
+	version_info, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(buildVersion, serviceID)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("update build version info error, %v", err))
+		return
+	}
+	version_info.PlanVersion = build.PlanVersion
+	err := db.GetManager().VersionInfoDao().UpdateModel(version_info)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("update build version info error, %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
 //BuildVersionInfo -
 func (t *TenantStruct) BuildVersionInfo(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -425,6 +448,8 @@ func (t *TenantStruct) BuildVersionInfo(w http.ResponseWriter, r *http.Request) 
 		t.DeleteBuildVersion(w, r)
 	case "GET":
 		t.BuildVersionIsExist(w, r)
+	case "PUT":
+		t.UpdateBuildVersion(w, r)
 	}
 
 }
