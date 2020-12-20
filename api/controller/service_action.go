@@ -433,7 +433,7 @@ func (t *TenantStruct) UpdateBuildVersion(w http.ResponseWriter, r *http.Request
 		return
 	}
 	version_info.PlanVersion = build.PlanVersion
-	err := db.GetManager().VersionInfoDao().UpdateModel(version_info)
+	err = db.GetManager().VersionInfoDao().UpdateModel(version_info)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("update build version info error, %v", err))
 		return
