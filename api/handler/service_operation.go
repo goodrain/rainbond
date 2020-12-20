@@ -76,6 +76,7 @@ func (o *OperationHandler) Build(buildInfo model.BuildInfoRequestStruct) (re Ope
 		Cmd:          buildInfo.ImageInfo.Cmd,
 		Author:       buildInfo.Operator,
 		FinishTime:   time.Now(),
+		PlanVersion:  buildInfo.PlanVersion
 	}
 	if buildInfo.CodeInfo.Cmd != "" {
 		version.Cmd = buildInfo.CodeInfo.Cmd
