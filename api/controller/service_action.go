@@ -427,13 +427,13 @@ func (t *TenantStruct) UpdateBuildVersion(w http.ResponseWriter, r *http.Request
 	}
 	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	buildVersion := chi.URLParam(r, "build_version")
-	version_info, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(buildVersion, serviceID)
+	versionInfo, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(buildVersion, serviceID)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("update build version info error, %v", err))
 		return
 	}
-	version_info.PlanVersion = build.PlanVersion
-	err = db.GetManager().VersionInfoDao().UpdateModel(version_info)
+	versionInfo.PlanVersion = build.PlanVersion
+	err = db.GetManager().VersionInfoDao().UpdateModel(versionInfo)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("update build version info error, %v", err))
 		return
