@@ -1689,7 +1689,7 @@ type ConfigGroupService struct {
 	ServiceAlias    string `json:"service_alias"`
 }
 
-// ConfigGroupItem -
+// ConfigItem -
 type ConfigItem struct {
 	AppID           string `json:"-"`
 	ConfigGroupName string `json:"-"`
