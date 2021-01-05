@@ -57,4 +57,5 @@ type BuildVersion struct {
 	CreateTime  string    `json:"create_time"`
 	FinalStatus string    `json:"final_status"`
 	FinishTime  time.Time `json:"finish_time"`
+	PlanVersion string    `json:"plan_version"`
 }
