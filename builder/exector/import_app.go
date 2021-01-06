@@ -64,8 +64,8 @@ func NewImportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 	if err := json.Unmarshal(in, &importApp); err != nil {
 		return nil, err
 	}
-	if importApp.ServiceImage.HubUrl == "goodrain.me" {
-		importApp.ServiceImage.HubUrl = builder.REGISTRYDOMAIN
+	if importApp.ServiceImage.HubURL == "goodrain.me" {
+		importApp.ServiceImage.HubURL = builder.REGISTRYDOMAIN
 		importApp.ServiceImage.HubUser = builder.REGISTRYUSER
 		importApp.ServiceImage.HubPassword = builder.REGISTRYPASS
 	}
@@ -167,7 +167,7 @@ func (i *ImportApp) importApp() error {
 				//new image will create by new app store hub config
 				oldname, _ := app.Get("share_image").String()
 				image := parser.ParseImageName(oldname)
-				imageRepo := builder.GetImageRepo(i.ServiceImage.HubUrl)
+				imageRepo := builder.GetImageRepo(i.ServiceImage.HubURL)
 				newImage := fmt.Sprintf("%s/%s/%s:%s", imageRepo, i.ServiceImage.NameSpace, image.GetSimpleName(), image.GetTag())
 				if i.ServiceImage.NameSpace == "" {
 					newImage = fmt.Sprintf("%s/%s:%s", imageRepo, image.GetSimpleName(), image.GetTag())
@@ -288,9 +288,9 @@ func (i *ImportApp) importPlugins() error {
 			//new image will create by new app store hub config
 			oldname, _ := plugin.Get("share_image").String()
 			image := parser.ParseImageName(oldname)
-			newImage := fmt.Sprintf("%s/%s/%s:%s", i.ServiceImage.HubUrl, i.ServiceImage.NameSpace, image.GetSimpleName(), image.GetTag())
+			newImage := fmt.Sprintf("%s/%s/%s:%s", i.ServiceImage.HubURL, i.ServiceImage.NameSpace, image.GetSimpleName(), image.GetTag())
 			if i.ServiceImage.NameSpace == "" {
-				newImage = fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, image.GetSimpleName(), image.GetTag())
+				newImage = fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubURL, image.GetSimpleName(), image.GetTag())
 			}
 			return newImage
 		}
