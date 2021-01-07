@@ -4,7 +4,9 @@ set -o errexit
 # define package name
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
-IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME:-'rainbond'}
+IMAGE_DOMAIN=${IMAGE_DOMAIN:-'docker.io'}
+IMAGE_NAMESPACE=${IMAGE_NAMESPACE:-'rainbond'}
+IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME:-${IMAGE_DOMAIN}/${IMAGE_NAMESPACE}}
 
 GO_VERSION=1.13
 GATEWAY_GO_VERSION=1.13-alpine
@@ -126,7 +128,7 @@ build::image() {
 		sed "s/__RELEASE_DESC__/${release_desc}/" Dockerfile > Dockerfile.release
 		docker build -t "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" -f Dockerfile.release .
 		if [ "$2" = "push" ];then
-		    docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+		    docker login ${IMAGE_DOMAIN} -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
 			docker push "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}"
 			if [ ${DOMESTIC_BASE_NAME} ];
 			then
