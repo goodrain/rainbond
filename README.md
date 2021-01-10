@@ -55,11 +55,14 @@ Rainbond is a cloud native and easy-to-use application management platform, a be
 
 [Rainbond Website](https://www.rainbond.com)    Read more about Rainbond.
 
+<center><img width="200px" src="https://static.goodrain.com/images/dingding.jpeg"/></center>
+
+<center>DingDing Group</center>
+
 <center><img width="200px" src="https://static.goodrain.com/images/cloud/weichart.png"/></center>
+
 <center>Add Maintainer WeChart</center>
 
-<center><img width="200px" src="https://static.goodrain.com/images/dingding.jpeg"/></center>
-<center>DingDing Group</center>
 
 ## Related repositorys
 
