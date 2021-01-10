@@ -2,7 +2,7 @@
 
 [![Rainbond](https://jaywcjlove.github.io/sb/lang/chinese.svg)](README-zh.md)
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-![Rainbond version](https://img.shields.io/badge/version-v5.2-brightgreen.svg)
+![Rainbond version](https://img.shields.io/badge/version-v5.3-brightgreen.svg)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
 [Website](http://www.rainbond.com) • [Documentation](https://www.rainbond.com/docs/)
@@ -57,6 +57,9 @@ Rainbond is a cloud native and easy-to-use application management platform, a be
 
 <center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/cloud/weichart.png"/></center>
 <center>Add Maintainer WeChart</center>
+
+<center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/dingding.jpeg"/></center>
+<center>DingDing Group</center>
 ## Related repositorys
 
    * [Rainbond-Console](https://github.com/goodrain/rainbond-console) 
