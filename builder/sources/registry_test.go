@@ -31,7 +31,7 @@ func TestPublicImageExist(t *testing.T) {
 }
 
 func TestPrivateImageExist(t *testing.T) {
-	exist, err := ImageExist("barnett/collabora:190114", "barnett", "5258423Zqg")
+	exist, err := ImageExist("quay.io/geomesa/geoserver:geomesa-2.2.1-accumulo-1.9.2", "", "")
 	if err != nil {
 		t.Fail()
 	}
