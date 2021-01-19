@@ -111,7 +111,9 @@ func newFromTransport(registryURL, username, password string, transport http.Rou
 	if !strings.HasPrefix(url, "https") {
 		url = fmt.Sprintf("https://%s", registryURL)
 	}
-	transport = WrapTransport(transport, url, username, password)
+	if username != "" {
+		transport = WrapTransport(transport, url, username, password)
+	}
 	registry := &Registry{
 		URL: url,
 		Client: &http.Client{
