@@ -88,7 +88,7 @@ func TestCreateVolume(t *testing.T) {
 	}
 	version := &model.VersionInfo{}
 
-	vol := volume.NewVolumeManager(as, serviceVolume, nil, version, dbmanager)
+	vol := volume.NewVolumeManager(as, serviceVolume, nil, version, nil, nil, dbmanager)
 	var define = &volume.Define{}
 	vol.CreateVolume(define)
 }
