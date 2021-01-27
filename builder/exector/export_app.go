@@ -266,7 +266,8 @@ func (i *ExportApp) parseApp() (*ramv1alpha1.RainbondApplicationConfig, error) {
 
 func (i *ExportApp) pullImage(component *ramv1alpha1.Component) (string, error) {
 	// docker pull image-name
-	_, err := sources.ImagePull(i.DockerClient, component.ShareImage, component.AppImage.HubUser, component.AppImage.HubPassword, i.Logger, 15)
+	user, pass := builder.GetImageUserInfo(component.AppImage.HubUser, component.AppImage.HubPassword)
+	_, err := sources.ImagePull(i.DockerClient, component.ShareImage, user, pass, i.Logger, 15)
 	if err != nil {
 		return "", err
 	}
