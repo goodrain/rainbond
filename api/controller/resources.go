@@ -1552,9 +1552,6 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
 			httputil.ReturnError(r, w, 404, "service port "+err.Error())
 			return
-		} else if err.Error() == "already open" || err.Error() == "already close" {
-			httputil.Return(r, w, 200, httputil.ResponseBody{Msg: err.Error()})
-			return
 		} else {
 			httputil.ReturnError(r, w, 500, err.Error())
 			return
