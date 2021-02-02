@@ -1,5 +1,5 @@
 // RAINBOND, Application Management Platform
-// Copyright (C) 2014-2017 Goodrain Co., Ltd.
+// Copyright (C) 2020-2020 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -21,21 +21,8 @@ package exector
 import (
 	"path"
 	"testing"
-
-	"github.com/goodrain/rainbond/event"
 )
 
-func TestExportApp_parseApps(t *testing.T) {
-	e := &ExportApp{
-		SourceDir: "./",
-		Logger:    event.GetTestLogger(),
-	}
-	err := e.buildDockerComposeYaml()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestPath(t *testing.T) {
-	t.Log("./" + path.Join("serviceName", "/abc"))
+	t.Log(path.Ext("/grdata/app/import/69f31ed1b03d4f84bd8be2fc92c6eb01/物联网-1.0.zip"))
 }

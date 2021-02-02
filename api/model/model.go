@@ -19,9 +19,7 @@
 package model
 
 import (
-	"fmt"
 	"net/url"
-	"strings"
 	"time"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -1574,15 +1572,11 @@ type MQBody struct {
 
 //NewAppStatusFromExport -
 func NewAppStatusFromExport(app *ExportAppStruct) *dbmodel.AppStatus {
-	fields := strings.Split(app.SourceDir, "/")
-	tarName := fields[len(fields)-1]
-	tarFileHref := fmt.Sprintf("/v2/app/download/%s/%s.zip", app.Body.Format, tarName)
 	return &dbmodel.AppStatus{
-		Format:      app.Body.Format,
-		EventID:     app.Body.EventID,
-		SourceDir:   app.SourceDir,
-		Status:      "exporting",
-		TarFileHref: tarFileHref,
+		Format:    app.Body.Format,
+		EventID:   app.Body.EventID,
+		SourceDir: app.SourceDir,
+		Status:    "exporting",
 	}
 }
 

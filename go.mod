@@ -4,7 +4,6 @@ go 1.13
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.3.3
-	github.com/Microsoft/go-winio v0.4.15-0.20200113171025-3fe6c5262873 // indirect
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/aliyun/aliyun-oss-go-sdk v2.1.4+incompatible
 	github.com/aws/aws-sdk-go v1.34.17
@@ -41,7 +40,7 @@ require (
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.4.2
-	github.com/goodrain/rainbond-oam v0.0.0-20200918054122-c774fd26ffa1
+	github.com/goodrain/rainbond-oam v0.0.0-20210201144300-4e04c538d9eb
 	github.com/goodrain/rainbond-operator v1.0.0
 	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/gorilla/websocket v1.4.2
@@ -56,7 +55,6 @@ require (
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/mitchellh/mapstructure v1.3.3
-	github.com/mozillazg/go-pinyin v0.18.0
 	github.com/ncabatoff/process-exporter v0.7.1
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/pborman/uuid v1.2.1

@@ -79,8 +79,8 @@ github.com/Masterminds/goutils v1.1.0/go.mod h1:8cTjp+g8YejhMuvIA5y2vz3BpJxksy86
 github.com/Masterminds/semver v1.5.0/go.mod h1:MB6lktGJrhw8PrUyiEoblNEGEQ+RzHPF078ddwwvV3Y=
 github.com/Masterminds/sprig v2.22.0+incompatible/go.mod h1:y6hNFY5UBTIWBxnzTeuNhlNS5hqE0NB0E6fgfo2Br3o=
 github.com/Microsoft/go-winio v0.4.11/go.mod h1:VhR8bwka0BXejwEJY73c50VrPtXAaKcyvVC4A4RozmA=
-github.com/Microsoft/go-winio v0.4.15-0.20200113171025-3fe6c5262873 h1:93nQ7k53GjoMQ07HVP8g6Zj1fQZDDj7Xy2VkNNtvX8o=
-github.com/Microsoft/go-winio v0.4.15-0.20200113171025-3fe6c5262873/go.mod h1:tTuCMEN+UleMWgg9dVx4Hu52b1bJo+59jBh3ajtinzw=
+github.com/Microsoft/go-winio v0.4.16 h1:FtSW/jqD+l4ba5iPBj9CODVtgfYAD8w2wS923g/cFDk=
+github.com/Microsoft/go-winio v0.4.16/go.mod h1:XB6nPKklQyQ7GC9LdcBEcBl8PF76WugXOPRXwdLnMv0=
 github.com/Microsoft/hcsshim v0.0.0-20190417211021-672e52e9209d/go.mod h1:Op3hHsoHPAvb6lceZHDtd9OkTew38wNoXnJs8iY7rUg=
 github.com/Microsoft/hcsshim v0.8.6 h1:ZfF0+zZeYdzMIVMZHKtDKJvLHj76XCuVae/jNkjj0IA=
 github.com/Microsoft/hcsshim v0.8.6/go.mod h1:Op3hHsoHPAvb6lceZHDtd9OkTew38wNoXnJs8iY7rUg=
@@ -689,8 +689,8 @@ github.com/golangplus/bytes v0.0.0-20160111154220-45c989fe5450/go.mod h1:Bk6SMAO
 github.com/golangplus/fmt v0.0.0-20150411045040-2a5d6d7d2995/go.mod h1:lJgMEyOkYFkPcDKwRXegd+iM6E7matEszMG5HhwytU8=
 github.com/golangplus/testing v0.0.0-20180327235837-af21d9c3145e/go.mod h1:0AA//k/eakGydO4jKRoRL2j92ZKSzTgj9tclaCrvXHk=
 github.com/gomarkdown/markdown v0.0.0-20190222000725-ee6a7931a1e4/go.mod h1:gmFANS06wAVmF0B9yi65QKsRmPQ97tze7FRLswua+OY=
-github.com/goodrain/rainbond-oam v0.0.0-20200918054122-c774fd26ffa1 h1:SgTX2qU9uyrZnVp+GBcby/A1ViP0GKeCWPFmq123IiA=
-github.com/goodrain/rainbond-oam v0.0.0-20200918054122-c774fd26ffa1/go.mod h1:VfVazWXComjQzCHso+/R/0Qju+7Em9Fpa8iVOShq1cs=
+github.com/goodrain/rainbond-oam v0.0.0-20210201144300-4e04c538d9eb h1:FujTSPlTta5CI3dpw5XGJW6NBL6UBj/gUp8eYD3si08=
+github.com/goodrain/rainbond-oam v0.0.0-20210201144300-4e04c538d9eb/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
 github.com/goodrain/rainbond-operator v1.0.0 h1:8b/yGjwRC+wPKNq3THiddZyf1KKnb59CG0c/esEXUfI=
 github.com/goodrain/rainbond-operator v1.0.0/go.mod h1:uJ2ZEOtNG8bEa5yRov8u7ydWfjCnWJWHttfR8f1dozk=
 github.com/google/btree v0.0.0-20160524151835-7d79101e329e/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
