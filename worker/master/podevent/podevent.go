@@ -190,12 +190,14 @@ func defDetermineOptType(clientset kubernetes.Interface, pod *corev1.Pod, f k8su
 			}
 		}
 		events := f(clientset, pod)
-		for _, evt := range events.Items {
-			if strings.Contains(evt.Message, "Liveness probe failed") && state.Waiting != nil {
-				return EventTypeLivenessProbeFailed, evt.Message
-			}
-			if strings.Contains(evt.Message, "Readiness probe failed") {
-				return EventTypeReadinessProbeFailed, evt.Message
+		if events != nil {
+			for _, evt := range events.Items {
+				if strings.Contains(evt.Message, "Liveness probe failed") && state.Waiting != nil {
+					return EventTypeLivenessProbeFailed, evt.Message
+				}
+				if strings.Contains(evt.Message, "Readiness probe failed") {
+					return EventTypeReadinessProbeFailed, evt.Message
+				}
 			}
 		}
 		return "", ""

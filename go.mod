@@ -40,7 +40,7 @@ require (
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.4.2
-	github.com/goodrain/rainbond-oam v0.0.0-20210201144300-4e04c538d9eb
+	github.com/goodrain/rainbond-oam v0.0.0-20210203034743-4f162dd5ea85
 	github.com/goodrain/rainbond-operator v1.0.0
 	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/gorilla/websocket v1.4.2
@@ -104,12 +104,12 @@ replace (
 	github.com/godbus/dbus/v5 => github.com/godbus/dbus/v5 v5.0.3
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.0
 	github.com/xeipuuv/gojsonschema => github.com/xeipuuv/gojsonschema v0.0.0-20160323030313-93e72a773fad
-	k8s.io/api => k8s.io/api v0.16.15
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.16.15
-	k8s.io/apimachinery => k8s.io/apimachinery v0.16.15
-	k8s.io/apiserver => k8s.io/apiserver v0.16.15
+	k8s.io/api => k8s.io/api v0.17.0
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.17.0
+	k8s.io/apimachinery => k8s.io/apimachinery v0.17.0
+	k8s.io/apiserver => k8s.io/apiserver v0.17.0
 	k8s.io/cli-runtime => k8s.io/cli-runtime v0.0.0-20191016114015-74ad18325ed5
-	k8s.io/client-go => k8s.io/client-go v12.0.0+incompatible
+	k8s.io/client-go => k8s.io/client-go v0.17.0
 	k8s.io/cloud-provider => k8s.io/cloud-provider v0.0.0-20191016115326-20453efc2458
 	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.0.0-20191016115129-c07a134afb42
 	k8s.io/code-generator => k8s.io/code-generator v0.0.0-20191004115455-8e001e5d1894

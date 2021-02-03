@@ -230,7 +230,7 @@ func (v *Define) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isReadOnly b
 				},
 				DefaultMode: &defaultMode,
 				Items: []corev1.KeyToPath{
-					corev1.KeyToPath{
+					{
 						Key:  k,
 						Path: path.Base(p), // subpath
 						Mode: &configFileMode,
