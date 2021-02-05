@@ -574,6 +574,7 @@ func (a *AppService) SetDeletedResources(old *AppService) {
 	for _, o := range old.GetIngress(true) {
 		del := true
 		for _, n := range a.GetIngress(true) {
+			// if service_id is not same, can not delete it
 			if o.Name == n.Name {
 				del = false
 				break
