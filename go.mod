@@ -40,7 +40,7 @@ require (
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.4.2
-	github.com/goodrain/rainbond-oam v0.0.0-20210203034743-4f162dd5ea85
+	github.com/goodrain/rainbond-oam v0.0.0-20210206060607-d781c2f593de
 	github.com/goodrain/rainbond-operator v1.0.0
 	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/gorilla/websocket v1.4.2
