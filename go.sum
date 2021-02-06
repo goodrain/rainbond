@@ -684,8 +684,8 @@ github.com/golangplus/bytes v0.0.0-20160111154220-45c989fe5450/go.mod h1:Bk6SMAO
 github.com/golangplus/fmt v0.0.0-20150411045040-2a5d6d7d2995/go.mod h1:lJgMEyOkYFkPcDKwRXegd+iM6E7matEszMG5HhwytU8=
 github.com/golangplus/testing v0.0.0-20180327235837-af21d9c3145e/go.mod h1:0AA//k/eakGydO4jKRoRL2j92ZKSzTgj9tclaCrvXHk=
 github.com/gomarkdown/markdown v0.0.0-20190222000725-ee6a7931a1e4/go.mod h1:gmFANS06wAVmF0B9yi65QKsRmPQ97tze7FRLswua+OY=
-github.com/goodrain/rainbond-oam v0.0.0-20210206060607-d781c2f593de h1:UJ3YuWzXcWH9MP3oIHD4BWonaLBWawZ/AnYJ9MGB+n4=
-github.com/goodrain/rainbond-oam v0.0.0-20210206060607-d781c2f593de/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
+github.com/goodrain/rainbond-oam v0.0.0-20210206075623-511d0796af43 h1:xhUwEWQKk+maL6CmV5Y6kxKb+jA/RvN6SZcDbNm51FM=
+github.com/goodrain/rainbond-oam v0.0.0-20210206075623-511d0796af43/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
 github.com/goodrain/rainbond-operator v1.0.0 h1:8b/yGjwRC+wPKNq3THiddZyf1KKnb59CG0c/esEXUfI=
 github.com/goodrain/rainbond-operator v1.0.0/go.mod h1:uJ2ZEOtNG8bEa5yRov8u7ydWfjCnWJWHttfR8f1dozk=
 github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
