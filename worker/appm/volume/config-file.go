@@ -48,6 +48,7 @@ func (v *ConfigFileVolume) CreateVolume(define *Define) error {
 			configs[k] = string(v)
 		}
 	}
+	// component env priority over the app configuration group
 	for _, env := range v.envs {
 		configs[env.Name] = env.Value
 	}

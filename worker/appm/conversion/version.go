@@ -323,9 +323,6 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 		},
 	}})
 	var config = make(map[string]string, len(envs))
-	for _, env := range envs {
-		config[env.Name] = env.Value
-	}
 	for _, sec := range envVarSecrets {
 		for k, v := range sec.Data {
 			// The priority of component environment variable is higher than the one of the application.
@@ -335,6 +332,11 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 			config[k] = string(v)
 		}
 	}
+	// component env priority over the app configuration group
+	for _, env := range envs {
+		config[env.Name] = env.Value
+	}
+	
 	for i, env := range envs {
 		envs[i].Value = util.ParseVariable(env.Value, config)
 	}
