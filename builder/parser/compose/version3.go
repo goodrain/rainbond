@@ -271,7 +271,12 @@ func dockerComposeToKomposeMapping(composeObject *types.Config) (ComposeObject, 
 		// DockerCompose uses map[string]*string while we use []string
 		// So let's convert that using this hack
 		for name, value := range composeServiceConfig.Environment {
-			env := EnvVar{Name: name, Value: *value}
+			var env EnvVar
+			if value != nil {
+				env = EnvVar{Name: name, Value: *value}
+			} else {
+				env = EnvVar{Name: name, Value: ""}
+			}
 			serviceConfig.Environment = append(serviceConfig.Environment, env)
 		}
 
