@@ -31,9 +31,9 @@ func TestPublicImageExist(t *testing.T) {
 }
 
 func TestPrivateImageExist(t *testing.T) {
-	exist, err := ImageExist("quay.io/geomesa/geoserver:geomesa-2.2.1-accumulo-1.9.2", "", "")
+	exist, err := ImageExist("harbor.smartqi.cn:80/library/nginx:1.11", "admin", "Harbor12345")
 	if err != nil {
-		t.Fail()
+		t.Fatal(err)
 	}
 	if exist {
 		t.Log("image exist")
