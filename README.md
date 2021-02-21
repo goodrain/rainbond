@@ -9,6 +9,7 @@
 
 |![notification](./docs/bell-outline-badge.svg) What is NEW!|
 |------------------|
+|February 21, 2021 ,Rainbond 5.3.0 version is officially released [View Release](https://www.rainbond.com/docs/upgrade/5.3.0-upgrade/)|
 |August 24, 2020 ,Rainbond 5.2 Stable version is officially released [View Release](https://mp.weixin.qq.com/s/q1sgEaBPaepsuUOfk1un-w)|
 
 
