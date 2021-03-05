@@ -33,6 +33,7 @@ import (
 	cdb "github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
 var gm *GatewayAction
@@ -46,7 +47,9 @@ func init() {
 	if err := db.CreateDBManager(conf); err != nil {
 		fmt.Printf("create db manager error, %v", err)
 	}
-	cli, err := client.NewMqClient([]string{"http://192.168.56.101:2379"}, "192.168.56.101:6300")
+	cli, err := client.NewMqClient(&etcdutil.ClientArgs{
+		Endpoints: []string{""},
+	}, "192.168.56.101:6300")
 	if err != nil {
 		fmt.Printf("create mq client error, %v", err)
 	}

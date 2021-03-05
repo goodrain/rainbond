@@ -196,7 +196,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Get("/deployversion", controller.GetManager().GetDeployVersion)
 	r.Delete("/build-version/{build_version}", middleware.WrapEL(controller.GetManager().BuildVersionInfo, dbmodel.TargetTypeService, "delete-buildversion", dbmodel.SYNEVENTTYPE))
 	//应用分享
-	r.Post("/share", middleware.WrapEL(controller.GetManager().Share, dbmodel.TargetTypeService, "share-service", dbmodel.ASYNEVENTTYPE))
+	r.Post("/share", middleware.WrapEL(controller.GetManager().Share, dbmodel.TargetTypeService, "share-service", dbmodel.SYNEVENTTYPE))
 	r.Get("/share/{share_id}", controller.GetManager().ShareResult)
 	r.Get("/logs", controller.GetManager().HistoryLogs)
 	r.Get("/log-file", controller.GetManager().LogList)
