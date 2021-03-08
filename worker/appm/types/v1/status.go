@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/db/model"
-
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -114,19 +113,33 @@ func (a *AppService) GetServiceStatus() string {
 	if a.statefulset == nil && a.deployment == nil && len(a.pods) > 0 {
 		return STOPPING
 	}
-	// if a.IsWaitting() {
-	// 	return WAITTING
-	// }
 	if (a.statefulset != nil || a.deployment != nil) && len(a.pods) < a.Replicas {
 		return STARTING
 	}
-	if a.statefulset != nil && a.statefulset.Status.ReadyReplicas >= int32(a.Replicas) {
+	if a.statefulset != nil && a.statefulset.Status.ObservedGeneration == 1 && a.statefulset.Status.ReadyReplicas == int32(a.Replicas) {
+		if a.Ready() {
+			return RUNNING
+		}
+	}
+	if a.deployment != nil && a.deployment.Status.ObservedGeneration == 1 && a.deployment.Status.ReadyReplicas == int32(a.Replicas) {
+		if a.Ready() {
+			return RUNNING
+		}
+	}
+
+	if a.statefulset != nil && a.statefulset.Status.ObservedGeneration != 1 && a.statefulset.Status.UpdatedReplicas <= int32(a.Replicas) {
+		if a.statefulset.Status.UpdatedReplicas < int32(a.Replicas) {
+			return UPGRADE
+		}
 		if a.UpgradeComlete() {
 			return RUNNING
 		}
 		return UPGRADE
 	}
-	if a.deployment != nil && a.deployment.Status.ReadyReplicas >= int32(a.Replicas) {
+	if a.deployment != nil && a.deployment.Status.UpdatedReplicas <= int32(a.Replicas) && a.deployment.Status.ObservedGeneration != 1 {
+		if a.deployment.Status.UpdatedReplicas < int32(a.Replicas) {
+			return UPGRADE
+		}
 		if a.UpgradeComlete() {
 			return RUNNING
 		}
@@ -200,15 +213,11 @@ func isHaveNormalTerminatedContainer(pods []*corev1.Pod) bool {
 
 //Ready Whether ready
 func (a *AppService) Ready() bool {
-	if a.statefulset != nil {
-		if a.statefulset.Status.ReadyReplicas >= int32(a.Replicas) {
-			return true
-		}
+	if a.statefulset != nil && a.statefulset.Status.ReadyReplicas >= a.statefulset.Status.Replicas {
+		return true
 	}
-	if a.deployment != nil {
-		if a.deployment.Status.ReadyReplicas >= int32(a.Replicas) {
-			return true
-		}
+	if a.deployment != nil && a.deployment.Status.ReadyReplicas >= a.deployment.Status.Replicas {
+		return true
 	}
 	return false
 }
