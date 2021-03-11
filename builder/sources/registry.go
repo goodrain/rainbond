@@ -60,11 +60,16 @@ func ImageExist(imageName, user, password string) (bool, error) {
 		retry--
 		reg, err := registry.New(domain, user, password)
 		if err != nil {
+			logrus.Debugf("new registry client failure %s", err.Error())
 			reg, err = registry.NewInsecure(domain, user, password)
 			if err != nil {
-				logrus.Errorf("new registry client failure %s", err.Error())
-				rerr = err
-				continue
+				logrus.Debugf("new insecure registry client failure %s", err.Error())
+				reg, err = registry.NewInsecure("http://"+domain, user, password)
+				if err != nil {
+					logrus.Errorf("new insecure registry http or https client all failure %s", err.Error())
+					rerr = err
+					continue
+				}
 			}
 		}
 		tag := GetTagFromNamedRef(name)

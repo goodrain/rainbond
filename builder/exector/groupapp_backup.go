@@ -20,7 +20,6 @@ package exector
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/builder"
 	"io/ioutil"
 	"os"
 	"path"
@@ -28,17 +27,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/util"
-
-	"github.com/goodrain/rainbond/builder/sources"
-	"github.com/goodrain/rainbond/builder/sources/registry"
-	"github.com/goodrain/rainbond/db"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
+	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/cloudos"
+	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/tidwall/gjson"
 )
@@ -325,18 +322,11 @@ func (b *BackupAPPNew) backupPluginInfo(appSnapshot *AppSnapshot) error {
 
 func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, error) {
 	if version.DeliveredType == "image" {
-		imageInfo := sources.ImageNameHandle(version.DeliveredPath)
-		reg, err := registry.NewInsecure(imageInfo.Host, builder.REGISTRYUSER, builder.REGISTRYPASS)
+		exist, err := sources.ImageExist(version.DeliveredPath, builder.REGISTRYUSER, builder.REGISTRYPASS)
 		if err != nil {
-			logrus.Errorf("new registry client error %s", err.Error())
-			return false, err
+			return false, fmt.Errorf("check if image exists: %v", err)
 		}
-		_, err = reg.Manifest(imageInfo.Name, imageInfo.Tag)
-		if err != nil {
-			logrus.Errorf("get image %s manifest info failure, it could be not exist", version.DeliveredPath)
-			return false, err
-		}
-		return true, nil
+		return exist, nil
 	}
 	if version.DeliveredType == "slug" {
 		islugfile, err := os.Stat(version.DeliveredPath)
