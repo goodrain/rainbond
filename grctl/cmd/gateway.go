@@ -38,11 +38,11 @@ func NewCmdGateway() cli.Command {
 		Name:  "gateway",
 		Usage: "Gateway management related commands",
 		Subcommands: []cli.Command{
-			cli.Command{
+			{
 				Name:  "endpoints",
 				Usage: "list gateway http endpoints",
 				Subcommands: []cli.Command{
-					cli.Command{
+					{
 						Name:  "http",
 						Usage: "list gateway http endpoints",
 						Flags: []cli.Flag{
@@ -56,7 +56,7 @@ func NewCmdGateway() cli.Command {
 							return listHTTPEndpoint(c)
 						},
 					},
-					cli.Command{
+					{
 						Name:  "stream",
 						Usage: "list gateway stream endpoints",
 						Flags: []cli.Flag{

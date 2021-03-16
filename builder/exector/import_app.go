@@ -24,21 +24,20 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
-	simplejson "github.com/bitly/go-simplejson"
 	"github.com/docker/docker/client"
+	"github.com/goodrain/rainbond-oam/pkg/localimport"
+	"github.com/goodrain/rainbond-oam/pkg/ram/v1alpha1"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/builder"
-	"github.com/goodrain/rainbond/builder/parser"
-	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
 )
 
 func init() {
@@ -64,12 +63,12 @@ func NewImportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 	if err := json.Unmarshal(in, &importApp); err != nil {
 		return nil, err
 	}
-	if importApp.ServiceImage.HubUrl == "goodrain.me" {
-		importApp.ServiceImage.HubUrl = builder.REGISTRYDOMAIN
+	if importApp.ServiceImage.HubURL == "" || importApp.ServiceImage.HubURL == "goodrain.me" {
+		importApp.ServiceImage.HubURL = builder.REGISTRYDOMAIN
 		importApp.ServiceImage.HubUser = builder.REGISTRYUSER
 		importApp.ServiceImage.HubPassword = builder.REGISTRYPASS
 	}
-	logrus.Infof("%+v", importApp.ServiceImage)
+	logrus.Infof("load app image to hub %s", importApp.ServiceImage.HubURL)
 	importApp.Logger = event.GetManager().GetLogger(importApp.EventID)
 	importApp.DockerClient = m.DockerClient
 	importApp.oldAPPPath = make(map[string]string)
@@ -94,7 +93,7 @@ func (i *ImportApp) GetLogger() event.Logger {
 
 //ErrorCallBack if run error will callback
 func (i *ImportApp) ErrorCallBack(err error) {
-	i.updateStatus("failed", "")
+	i.updateStatus("failed")
 }
 
 //Run Run
@@ -102,6 +101,7 @@ func (i *ImportApp) Run(timeout time.Duration) error {
 	if i.Format == "rainbond-app" {
 		err := i.importApp()
 		if err != nil {
+			logrus.Errorf("load rainbond app failure %s", err.Error())
 			return err
 		}
 		return nil
@@ -113,310 +113,50 @@ func (i *ImportApp) Run(timeout time.Duration) error {
 // support batch import
 func (i *ImportApp) importApp() error {
 	oldSourceDir := i.SourceDir
-	var datas = "["
-	tmpDir := oldSourceDir + "/TmpUnzipDir"
+	var datas []v1alpha1.RainbondApplicationConfig
+	var wait sync.WaitGroup
 	for _, app := range i.Apps {
-		if err := i.updateStatusForApp(app, "importing"); err != nil {
-			logrus.Errorf("Failed to update status to importing for app %s: %v", app, err)
-		}
-		appFile := filepath.Join(oldSourceDir, app)
-		os.MkdirAll(tmpDir, 0755)
-		err := util.Unzip(appFile, tmpDir)
-		if err != nil {
-			logrus.Errorf("Failed to unzip app file %s : %s", appFile, err.Error())
-			i.updateStatusForApp(app, "failed")
-			continue
-		}
-		files, _ := ioutil.ReadDir(tmpDir)
-		if len(files) < 1 {
-			logrus.Errorf("Failed to read files in tmp dir %s: %v", appFile, err)
-			continue
-		}
-		i.SourceDir = fmt.Sprintf("%s/%s", oldSourceDir, files[0].Name())
-		if _, err := os.Stat(i.SourceDir); err == nil {
-			os.RemoveAll(i.SourceDir)
-		}
-		err = os.Rename(fmt.Sprintf("%s/%s", tmpDir, files[0].Name()), i.SourceDir)
-		if err != nil {
-			logrus.Errorf("Failed to mv source dir to %s: %v", i.SourceDir, err)
-			continue
-		}
-		os.RemoveAll(tmpDir)
-		// push image and slug file
-
-		// 修改json元数据中的镜像和源码包仓库地址为指定地址
-		metaFile := fmt.Sprintf("%s/metadata.json", i.SourceDir)
-		logrus.Debug("Change image and slug repo address in: ", metaFile)
-
-		data, err := ioutil.ReadFile(metaFile)
-		meta, err := simplejson.NewJson(data)
-		if err != nil {
-			logrus.Errorf("Failed to new json for load app %s: %v", appFile, err)
-			i.updateStatusForApp(app, "failed")
-			continue
-		}
-		apps, err := meta.Get("apps").Array()
-		if err != nil {
-			logrus.Errorf("Failed to get apps from meta for load app %s: %v", appFile, err)
-			i.updateStatusForApp(app, "failed")
-			continue
-		}
-		for index := range apps {
-			app := meta.Get("apps").GetIndex(index)
-			getAppImage := func() string {
-				//new image will create by new app store hub config
-				oldname, _ := app.Get("share_image").String()
-				image := parser.ParseImageName(oldname)
-				imageRepo := builder.GetImageRepo(i.ServiceImage.HubUrl)
-				newImage := fmt.Sprintf("%s/%s/%s:%s", imageRepo, i.ServiceImage.NameSpace, image.GetSimpleName(), image.GetTag())
-				if i.ServiceImage.NameSpace == "" {
-					newImage = fmt.Sprintf("%s/%s:%s", imageRepo, image.GetSimpleName(), image.GetTag())
-				}
-				return newImage
+		wait.Add(1)
+		go func(app string) {
+			defer wait.Done()
+			appFile := filepath.Join(oldSourceDir, app)
+			tmpDir := path.Join(oldSourceDir, app+"-cache")
+			li := localimport.New(logrus.StandardLogger(), i.DockerClient, tmpDir)
+			if err := i.updateStatusForApp(app, "importing"); err != nil {
+				logrus.Errorf("Failed to update status to importing for app %s: %v", app, err)
 			}
-
-			if oldImage, ok := app.CheckGet("share_image"); ok {
-				appKey, _ := app.Get("service_key").String()
-				i.oldAPPPath[appKey], _ = oldImage.String()
-				app.Set("share_image", getAppImage())
-				app.Set("service_image", i.ServiceImage)
+			ram, err := li.Import(appFile, v1alpha1.ImageInfo{
+				HubURL:      i.ServiceImage.HubURL,
+				HubUser:     i.ServiceImage.HubUser,
+				HubPassword: i.ServiceImage.HubPassword,
+				Namespace:   i.ServiceImage.NameSpace,
+			})
+			if err != nil {
+				logrus.Errorf("Failed to load app %s: %v", appFile, err)
+				i.updateStatusForApp(app, "failed")
+				return
 			}
-			apps[index] = app
-		}
-		meta.Set("apps", apps)
-		data, err = meta.MarshalJSON()
-		if err != nil {
-			logrus.Errorf("Failed to marshal json for app %s: %v", appFile, err)
-			i.updateStatusForApp(app, "failed")
-			continue
-		}
-		err = ioutil.WriteFile(metaFile, data, 0644)
-		if err != nil {
-			logrus.Errorf("Failed to write metadata load app %s: %v", appFile, err)
-			i.updateStatusForApp(app, "failed")
-			continue
-		}
-		// load all service version attachment in app
-		if err := i.loadApps(); err != nil {
-			logrus.Errorf("Failed to load app %s: %v", appFile, err)
-			i.updateStatusForApp(app, "failed")
-			continue
-		}
-		// load all plugins
-		if err := i.importPlugins(); err != nil {
-			logrus.Errorf("Failed to load app plugin %s: %v", appFile, err)
-			i.updateStatusForApp(app, "failed")
-			continue
-		}
-		if err := i.updateStatusForApp(app, "success"); err != nil {
-			logrus.Errorf("Failed to update status to success for app %s: %v", app, err)
-			continue
-		}
-		if datas == "[" {
-			datas += string(data)
-		} else {
-			datas += ", " + string(data)
-		}
-		os.Rename(appFile, appFile+".success")
-		logrus.Debug("Successful import app: ", appFile)
+			os.Rename(appFile, appFile+".success")
+			datas = append(datas, *ram)
+			logrus.Infof("Successful import app: %s", appFile)
+			os.Remove(tmpDir)
+		}(app)
 	}
-	datas += "]"
-	i.SourceDir = oldSourceDir
-
+	wait.Wait()
 	metadatasFile := fmt.Sprintf("%s/metadatas.json", i.SourceDir)
-	if err := ioutil.WriteFile(metadatasFile, []byte(datas), 0644); err != nil {
+	dataBytes, _ := json.Marshal(datas)
+	if err := ioutil.WriteFile(metadatasFile, []byte(dataBytes), 0644); err != nil {
 		logrus.Errorf("Failed to load apps %s: %v", i.SourceDir, err)
 		return err
 	}
-
-	if err := i.updateStatus("success", datas); err != nil {
+	if err := i.updateStatus("success"); err != nil {
 		logrus.Errorf("Failed to load apps %s: %v", i.SourceDir, err)
 		return err
 	}
 	return nil
 }
 
-//parseApps get apps array from metadata.json
-func (i *ImportApp) parseApps() ([]gjson.Result, error) {
-	i.Logger.Info("解析应用信息", map[string]string{"step": "export-app", "status": "success"})
-
-	data, err := ioutil.ReadFile(fmt.Sprintf("%s/metadata.json", i.SourceDir))
-	if err != nil {
-		i.Logger.Error("导出应用失败，没有找到应用信息", map[string]string{"step": "read-metadata", "status": "failure"})
-		logrus.Error("Failed to read metadata file: ", err)
-		return nil, err
-	}
-
-	arr := gjson.GetBytes(data, "apps").Array()
-	if len(arr) < 1 {
-		i.Logger.Error("解析应用列表信息失败", map[string]string{"step": "parse-apps", "status": "failure"})
-		err := errors.New("not found apps in the metadata")
-		logrus.Error("Failed to get apps from json: ", err)
-		return nil, err
-	}
-	logrus.Debug("Successful parse apps array from metadata, count: ", len(arr))
-
-	return arr, nil
-}
-
-func (i *ImportApp) importPlugins() error {
-	i.Logger.Info("解析插件信息", map[string]string{"step": "import-plugins", "status": "success"})
-
-	data, err := ioutil.ReadFile(fmt.Sprintf("%s/metadata.json", i.SourceDir))
-	if err != nil {
-		i.Logger.Error("导出插件失败，没有找到应用信息", map[string]string{"step": "read-metadata", "status": "failure"})
-		logrus.Error("Failed to read metadata file: ", err)
-		return err
-	}
-
-	// 先修改json数据中的插件镜像服务器地址为新环境中的服务器地址
-	meta, err := simplejson.NewJson(data)
-	if err != nil {
-		logrus.Errorf("Failed to new json for load app %s: %v", i.SourceDir, err)
-		return err
-	}
-
-	var oldPlugins []interface{}
-	if plugins, err := meta.Get("plugins").Array(); err != nil {
-		logrus.Warningf("Failed to get plugins from meta for load app %s: %v", i.SourceDir, err)
-		oldPlugins = plugins
-	}
-
-	for index := range oldPlugins {
-		plugin := meta.Get("plugins").GetIndex(index)
-		getImageImage := func() string {
-			//new image will create by new app store hub config
-			oldname, _ := plugin.Get("share_image").String()
-			image := parser.ParseImageName(oldname)
-			newImage := fmt.Sprintf("%s/%s/%s:%s", i.ServiceImage.HubUrl, i.ServiceImage.NameSpace, image.GetSimpleName(), image.GetTag())
-			if i.ServiceImage.NameSpace == "" {
-				newImage = fmt.Sprintf("%s/%s:%s", i.ServiceImage.HubUrl, image.GetSimpleName(), image.GetTag())
-			}
-			return newImage
-		}
-		if oldimage, ok := plugin.CheckGet("share_image"); ok {
-			pluginID, _ := plugin.Get("plugin_id").String()
-			i.oldPluginPath[pluginID], _ = oldimage.String()
-			plugin.Set("share_image", getImageImage())
-			plugin.Set("service_image", i.ServiceImage)
-		} else {
-			logrus.Warnf("plugin do not found share_image, skip it")
-		}
-		oldPlugins[index] = plugin
-	}
-
-	meta.Set("plugins", oldPlugins)
-	data, err = meta.MarshalJSON()
-	if err != nil {
-		logrus.Errorf("Failed to marshal json for app %s: %v", i.SourceDir, err)
-		return err
-	}
-
-	// 修改完毕后写回文件中
-	err = ioutil.WriteFile(fmt.Sprintf("%s/metadata.json", i.SourceDir), data, 0644)
-	if err != nil {
-		logrus.Errorf("Failed to write metadata load app %s: %v", i.SourceDir, err)
-		return err
-	}
-
-	plugins := gjson.GetBytes(data, "plugins").Array()
-
-	for _, plugin := range plugins {
-		pluginName := plugin.Get("plugin_name").String()
-		pluginName = unicode2zh(pluginName)
-		pluginDir := fmt.Sprintf("%s/%s", i.SourceDir, pluginName)
-
-		files, err := ioutil.ReadDir(pluginDir)
-		if err != nil || len(files) < 1 {
-			logrus.Error("Failed to list in service directory: ", pluginDir)
-			continue
-		}
-
-		fileName := filepath.Join(pluginDir, files[0].Name())
-		logrus.Debug("Parse the source file for service: ", fileName)
-
-		// 将镜像加载到本地，并上传到仓库
-		if strings.HasSuffix(fileName, ".image.tar") {
-			// 加载到本地
-			if err := sources.ImageLoad(i.DockerClient, fileName, i.Logger); err != nil {
-				logrus.Error("Failed to load image for service: ", pluginName)
-				return err
-			}
-			// 上传之前先要根据新的仓库地址修改镜像名
-			image := i.oldPluginPath[plugin.Get("plugin_id").String()]
-			saveImageName := sources.GenSaveImageName(image)
-			newImageName := plugin.Get("share_image").String()
-			if err := sources.ImageTag(i.DockerClient, saveImageName, newImageName, i.Logger, 2); err != nil {
-				if strings.Contains(err.Error(), "No such image") {
-					saveImageName = "goodrain.me/" + saveImageName
-					err = sources.ImageTag(i.DockerClient, saveImageName, newImageName, i.Logger, 2)
-				}
-				if err != nil {
-					return fmt.Errorf("change plugin image tag(%s => %s) error %s", saveImageName, newImageName, err.Error())
-				}
-			}
-			user, pass := builder.GetImageUserInfo(i.ServiceImage.HubUser, i.ServiceImage.HubPassword)
-			if err := sources.ImagePush(i.DockerClient, newImageName, user, pass, i.Logger, 30); err != nil {
-				return fmt.Errorf("push plugin image %s error %s", image, err.Error())
-			}
-			logrus.Debug("Successful load and push the plugin image ", image)
-		}
-	}
-
-	return nil
-}
-
-func (i *ImportApp) loadApps() error {
-	apps, err := i.parseApps()
-	if err != nil {
-		return err
-	}
-
-	for idx := range apps {
-		app := apps[idx]
-		serviceName := app.Get("service_cname").String()
-		serviceName = unicode2zh(serviceName)
-		serviceDir := fmt.Sprintf("%s/%s", i.SourceDir, serviceName)
-		files, err := ioutil.ReadDir(serviceDir)
-		if err != nil || len(files) < 1 {
-			logrus.Error("Failed to list in service directory: ", serviceDir)
-			continue
-		}
-
-		fileName := filepath.Join(serviceDir, files[0].Name())
-		logrus.Debug("Parse the source file for service: ", fileName)
-		if strings.HasSuffix(fileName, ".image.tar") {
-			// 加载到本地
-			if err := sources.ImageLoad(i.DockerClient, fileName, i.Logger); err != nil {
-				logrus.Error("Failed to load image for service: ", serviceName)
-				return err
-			}
-			// 上传到仓库
-			oldImage := i.oldAPPPath[app.Get("service_key").String()]
-			saveImageName := sources.GenSaveImageName(oldImage)
-			// 上传之前先要根据新的仓库地址修改镜像名
-			image := app.Get("share_image").String()
-			logrus.Debugf("[loadApps] target image: %s", image)
-			if err := sources.ImageTag(i.DockerClient, saveImageName, image, i.Logger, 15); err != nil {
-				if strings.Contains(err.Error(), "No such image") {
-					err = sources.ImageTag(i.DockerClient, "goodrain.me/"+saveImageName, image, i.Logger, 2)
-				}
-				if err != nil {
-					return fmt.Errorf("change image tag(%s => %s) error %s", saveImageName, image, err.Error())
-				}
-			}
-			user, pass := builder.GetImageUserInfo(i.ServiceImage.HubUser, i.ServiceImage.HubPassword)
-			if err := sources.ImagePush(i.DockerClient, image, user, pass, i.Logger, 30); err != nil {
-				return fmt.Errorf("push  image %s error %s", image, err.Error())
-			}
-			logrus.Debugf("Successful load and push the image %s", image)
-		}
-	}
-	logrus.Debug("Successful load apps for group: ", i.SourceDir)
-	return nil
-}
-
-func (i *ImportApp) updateStatus(status, data string) error {
+func (i *ImportApp) updateStatus(status string) error {
 	logrus.Debug("Update app status in database to: ", status)
 	// 从数据库中获取该应用的状态信息
 	res, err := db.GetManager().AppDao().GetByEventId(i.EventID)

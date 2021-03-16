@@ -31,19 +31,26 @@ import (
 // ConfigFileVolume config file volume struct
 type ConfigFileVolume struct {
 	Base
+	envs          []corev1.EnvVar
+	envVarSecrets []*corev1.Secret
 }
 
 // CreateVolume config file volume create volume
 func (v *ConfigFileVolume) CreateVolume(define *Define) error {
 	// environment variables
 	configs := make(map[string]string)
-	envs, err := createEnv(v.as, v.dbmanager)
-	if err != nil {
-		logrus.Warningf("error creating environment variables: %v", err)
-	} else {
-		for _, env := range *envs {
-			configs[env.Name] = env.Value
+	for _, sec := range v.envVarSecrets {
+		for k, v := range sec.Data {
+			// The priority of component environment variable is higher than the one of the application.
+			if val := configs[k]; val == string(v) {
+				continue
+			}
+			configs[k] = string(v)
 		}
+	}
+	// component env priority over the app configuration group
+	for _, env := range v.envs {
+		configs[env.Name] = env.Value
 	}
 	cf, err := v.dbmanager.TenantServiceConfigFileDao().GetByVolumeName(v.as.ServiceID, v.svm.VolumeName)
 	if err != nil {
@@ -67,15 +74,10 @@ func (v *ConfigFileVolume) CreateVolume(define *Define) error {
 // CreateDependVolume config file volume create depend volume
 func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 	configs := make(map[string]string)
-	envs, err := createEnv(v.as, v.dbmanager)
-	if err != nil {
-		logrus.Warningf("error creating environment variables: %v", err)
-	} else {
-		for _, env := range *envs {
-			configs[env.Name] = env.Value
-		}
+	for _, env := range v.envs {
+		configs[env.Name] = env.Value
 	}
-	_, err = v.dbmanager.TenantServiceVolumeDao().GetVolumeByServiceIDAndName(v.smr.DependServiceID, v.smr.VolumeName)
+	_, err := v.dbmanager.TenantServiceVolumeDao().GetVolumeByServiceIDAndName(v.smr.DependServiceID, v.smr.VolumeName)
 	if err != nil {
 		return fmt.Errorf("error getting TenantServiceVolume according to serviceID(%s) and volumeName(%s): %v",
 			v.smr.DependServiceID, v.smr.VolumeName, err)

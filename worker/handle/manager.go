@@ -419,7 +419,7 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		return fmt.Errorf("Application init create failure")
 	}
 	newAppService.Logger = logger
-	newAppService.SetDeletedResources(oldAppService)
+	newAppService.SetDeletedResources(m.store.GetAppService(body.ServiceID))
 	// update k8s resources
 	newAppService.CustomParams = body.Limit
 	err = m.controllerManager.StartController(controller.TypeApplyRuleController, *newAppService)

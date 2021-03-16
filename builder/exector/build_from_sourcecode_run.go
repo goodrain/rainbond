@@ -353,6 +353,7 @@ func (i *SourceCodeBuildItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
 	version.Author = vi.Author
 	version.CodeVersion = vi.CodeVersion
 	version.CodeBranch = vi.CodeBranch
+	version.FinishTime = time.Now()
 	if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
 		return err
 	}

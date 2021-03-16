@@ -90,7 +90,7 @@ type ListenPorts struct {
 
 // AddFlags adds flags
 func (g *GWServer) AddFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&g.LogLevel, "log-level", "debug", "the gateway log level")
+	fs.StringVar(&g.LogLevel, "log-level", "info", "the gateway log level")
 	fs.StringVar(&g.K8SConfPath, "kube-conf", "", "absolute path to the kubeconfig file")
 	fs.IntVar(&g.ListenPorts.Status, "status-port", 18080, `Port to use for the lua HTTP endpoint configuration.`)
 	fs.IntVar(&g.ListenPorts.Stream, "stream-port", 18081, `Port to use for the lua TCP/UDP endpoint configuration.`)

@@ -49,14 +49,6 @@ func init() {
 	BUILDERIMAGENAME = path.Join(REGISTRYDOMAIN, BUILDERIMAGENAME)
 }
 
-// GetImageUserInfo - deprecated
-func GetImageUserInfo(user, pass string) (string, string) {
-	if user != "" && pass != "" {
-		return user, pass
-	}
-	return REGISTRYUSER, REGISTRYPASS
-}
-
 // GetImageUserInfoV2 -
 func GetImageUserInfoV2(domain, user, pass string) (string, string) {
 	if user != "" && pass != "" {
@@ -68,6 +60,7 @@ func GetImageUserInfoV2(domain, user, pass string) (string, string) {
 	return "", ""
 }
 
+//GetImageRepo -
 func GetImageRepo(imageRepo string) string {
 	if imageRepo == "" {
 		return REGISTRYDOMAIN

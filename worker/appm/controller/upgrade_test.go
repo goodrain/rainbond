@@ -97,7 +97,7 @@ func getStoreForTest(t *testing.T) store.Storer {
 	}
 	startCh := channels.NewRingChannel(1024)
 	probeCh := channels.NewRingChannel(1024)
-	storer := store.NewStore(clientset, db.GetManager(), option.Config{LeaderElectionNamespace: ocfg.LeaderElectionNamespace, KubeClient: clientset}, startCh, probeCh)
+	storer := store.NewStore(c, clientset, db.GetManager(), option.Config{LeaderElectionNamespace: ocfg.LeaderElectionNamespace, KubeClient: clientset}, startCh, probeCh)
 	if err := storer.Start(); err != nil {
 		t.Fatalf("error starting store: %v", err)
 	}

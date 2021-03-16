@@ -51,6 +51,7 @@ type VersionInfo struct {
 	//lost: there is no delivered
 	FinalStatus string    `gorm:"column:final_status;size:40" json:"final_status"`
 	FinishTime  time.Time `gorm:"column:finish_time;" json:"finish_time"`
+	PlanVersion string  `gorm:"column:plan_version;size:250" json:"plan_version"`
 }
 
 //TableName 表名

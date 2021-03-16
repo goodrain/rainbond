@@ -182,11 +182,12 @@ func (v2 *V2) serviceRouter() chi.Router {
 	//初始化应用信息
 	r.Use(middleware.InitService)
 	r.Put("/", middleware.WrapEL(controller.GetManager().UpdateService, dbmodel.TargetTypeService, "update-service", dbmodel.SYNEVENTTYPE))
-	//应用构建(act)
+	// component build
 	r.Post("/build", middleware.WrapEL(controller.GetManager().BuildService, dbmodel.TargetTypeService, "build-service", dbmodel.ASYNEVENTTYPE))
-	//应用起停
+	// component start
 	r.Post("/start", middleware.WrapEL(controller.GetManager().StartService, dbmodel.TargetTypeService, "start-service", dbmodel.ASYNEVENTTYPE))
-	r.Post("/stop", middleware.WrapEL(controller.GetManager().StopService, dbmodel.TargetTypeService, "stop-service", dbmodel.ASYNEVENTTYPE))
+	// component stop event set to synchronous event, not wait.
+	r.Post("/stop", middleware.WrapEL(controller.GetManager().StopService, dbmodel.TargetTypeService, "stop-service", dbmodel.SYNEVENTTYPE))
 	r.Post("/restart", middleware.WrapEL(controller.GetManager().RestartService, dbmodel.TargetTypeService, "restart-service", dbmodel.ASYNEVENTTYPE))
 	//应用伸缩
 	r.Put("/vertical", middleware.WrapEL(controller.GetManager().VerticalService, dbmodel.TargetTypeService, "vertical-service", dbmodel.ASYNEVENTTYPE))
@@ -204,10 +205,11 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Get("/build-list", controller.GetManager().BuildList)
 	//构建版本操作
 	r.Get("/build-version/{build_version}", controller.GetManager().BuildVersionInfo)
+	r.Put("/build-version/{build_version}", controller.GetManager().BuildVersionInfo)
 	r.Get("/deployversion", controller.GetManager().GetDeployVersion)
 	r.Delete("/build-version/{build_version}", middleware.WrapEL(controller.GetManager().BuildVersionInfo, dbmodel.TargetTypeService, "delete-buildversion", dbmodel.SYNEVENTTYPE))
 	//应用分享
-	r.Post("/share", middleware.WrapEL(controller.GetManager().Share, dbmodel.TargetTypeService, "share-service", dbmodel.ASYNEVENTTYPE))
+	r.Post("/share", middleware.WrapEL(controller.GetManager().Share, dbmodel.TargetTypeService, "share-service", dbmodel.SYNEVENTTYPE))
 	r.Get("/share/{share_id}", controller.GetManager().ShareResult)
 	r.Get("/logs", controller.GetManager().HistoryLogs)
 	r.Get("/log-file", controller.GetManager().LogList)

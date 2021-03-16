@@ -21,12 +21,13 @@ package store
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/worker/server/pb"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/goodrain/rainbond/worker/server/pb"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 
 	monitorv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/coreos/prometheus-operator/pkg/client/versioned"
@@ -709,6 +710,20 @@ func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, cr
 	return appservice, nil
 }
 func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
+	// ingress update maybe change owner component
+	if ingress, ok := newObj.(*extensions.Ingress); ok {
+		oldIngress := oldObj.(*extensions.Ingress)
+		if oldIngress.Labels["service_id"] != ingress.Labels["service_id"] {
+			logrus.Infof("ingress %s change owner component", oldIngress.Name)
+			serviceID := oldIngress.Labels["service_id"]
+			version := oldIngress.Labels["version"]
+			createrID := oldIngress.Labels["creater_id"]
+			oldComponent, _ := a.getAppService(serviceID, version, createrID, true)
+			if oldComponent != nil {
+				oldComponent.DeleteIngress(oldIngress)
+			}
+		}
+	}
 	a.OnAdd(newObj)
 }
 func (a *appRuntimeStore) OnDelete(objs interface{}) {

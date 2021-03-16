@@ -34,8 +34,8 @@ func TestGetAppStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 	time.Sleep(3 * time.Second)
-	status, err := client.GetAppStatus(context.Background(), &pb.ServicesRequest{
-		ServiceIds: "43eaae441859eda35b02075d37d83589",
+	status, err := client.GetAppStatus(context.Background(), &pb.AppStatusReq{
+		AppId: "43eaae441859eda35b02075d37d83589",
 	})
 	if err != nil {
 		t.Fatal(err)

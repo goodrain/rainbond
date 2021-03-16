@@ -118,7 +118,7 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 		}
 		apps, err := ioutil.ReadDir(dirName)
 		if err != nil {
-			httputil.ReturnSuccess(r, w, map[string][]string{"apps": []string{}})
+			httputil.ReturnSuccess(r, w, map[string][]string{"apps": {}})
 			return
 		}
 
@@ -128,7 +128,7 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			ex := filepath.Ext(dir.Name())
-			if ex != ".zip" {
+			if ex != ".zip" && ex != ".tar.gz" && ex != ".gz" {
 				continue
 			}
 			appArr = append(appArr, dir.Name())
@@ -140,7 +140,6 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		err := cmd.Run()
-		logrus.Infof("cmd return is : %s", out.String())
 		if err != nil && err.Error() != "exit status 1" {
 			logrus.Errorf("rm -rf %s failed: %s", dirName, err.Error())
 			httputil.ReturnError(r, w, 501, "Failed to delete directory by id: "+eventID)
@@ -153,10 +152,8 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 		}
 		res.Status = "cleaned"
 		db.GetManager().AppDao().UpdateModel(res)
-
 		httputil.ReturnSuccess(r, w, "successful")
 	}
-
 }
 
 //NewUpload -
