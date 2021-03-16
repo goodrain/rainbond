@@ -197,7 +197,7 @@ func (s *Sub) listen(ins *dis.Instance) {
 		reactor := zmq4.NewReactor()
 		reactor.AddSocket(sock, zmq4.POLLIN, socketHandler)
 		reactor.AddChannel(chQuit, 0, quitHandler)
-		err := reactor.Run(100 * time.Millisecond)
+		err := reactor.Run(s.conf.PollingTimeout)
 		chErr <- err
 	}
 	for {

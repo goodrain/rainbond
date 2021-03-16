@@ -18,6 +18,8 @@
 
 package conf
 
+import "time"
+
 // Conf conf
 type Conf struct {
 	Entry       EntryConf
@@ -110,9 +112,10 @@ type DiscoverConf struct {
 
 // PubSubConf pub sub conf
 type PubSubConf struct {
-	PubBindIP   string
-	PubBindPort int
-	ClusterMode bool
+	PubBindIP      string
+	PubBindPort    int
+	ClusterMode    bool
+	PollingTimeout time.Duration
 }
 
 // EventStoreConf event store conf
