@@ -39,6 +39,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// LogServer -
 type LogServer struct {
 	Conf         conf.Conf
 	Entry        *entry.Entry
@@ -47,6 +48,7 @@ type LogServer struct {
 	Cluster      cluster.Cluster
 }
 
+// NewLogServer creates a new NewLogServer.
 func NewLogServer() *LogServer {
 	conf := conf.Conf{}
 	return &LogServer{
@@ -182,11 +184,12 @@ func (s *LogServer) Run() error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	etcdClient, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
 		return err
 	}
-	defer cancel()
 
 	//init new db
 	if err := db.CreateDBManager(s.Conf.EventStore.DB); err != nil {
