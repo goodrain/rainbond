@@ -20,28 +20,23 @@ package connect
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	dis "github.com/goodrain/rainbond/eventlog/cluster/discover"
 	"github.com/goodrain/rainbond/eventlog/cluster/distribution"
 	"github.com/goodrain/rainbond/eventlog/conf"
-	"github.com/goodrain/rainbond/eventlog/store"
-
-	"golang.org/x/net/context"
-
-	"fmt"
-
-	"sync"
-
 	"github.com/goodrain/rainbond/eventlog/db"
-
-	"strconv"
-
+	"github.com/goodrain/rainbond/eventlog/store"
 	"github.com/pebbe/zmq4"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/net/context"
 )
 
+// Sub -
 type Sub struct {
 	conf           conf.PubSubConf
 	log            *logrus.Entry
@@ -57,6 +52,8 @@ type Sub struct {
 	subLock        sync.Mutex
 	distribution   *distribution.Distribution
 }
+
+// SubClient -
 type SubClient struct {
 	context *zmq4.Context
 	socket  *zmq4.Socket
