@@ -362,9 +362,9 @@ type TenantServiceEnvVar struct {
 	TenantID      string `gorm:"column:tenant_id;size:32" validate:"tenant_id|between:30,33" json:"tenant_id"`
 	ServiceID     string `gorm:"column:service_id;size:32" validate:"service_id|between:30,33" json:"service_id"`
 	ContainerPort int    `gorm:"column:container_port" validate:"container_port|numeric_between:1,65535" json:"container_port"`
-	Name          string `gorm:"column:name;size:100" validate:"name" json:"name"`
-	AttrName      string `gorm:"column:attr_name" validate:"env_name|required" json:"attr_name"`
-	AttrValue     string `gorm:"column:attr_value;size:1024" validate:"env_value|required" json:"attr_value"`
+	Name          string `gorm:"column:name;size:1024" validate:"name" json:"name"`
+	AttrName      string `gorm:"column:attr_name;size:1024" validate:"env_name|required" json:"attr_name"`
+	AttrValue     string `gorm:"column:attr_value;size:2048" validate:"env_value|required" json:"attr_value"`
 	IsChange      bool   `gorm:"column:is_change" validate:"is_change|bool" json:"is_change"`
 	Scope         string `gorm:"column:scope;default:'outer'" validate:"scope|in:outer,inner,both" json:"scope"`
 }

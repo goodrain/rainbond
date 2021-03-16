@@ -23,14 +23,11 @@ import (
 	"os"
 	"path"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/util"
-	"github.com/goodrain/rainbond/util/envutil"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -46,7 +43,13 @@ type Volume interface {
 }
 
 // NewVolumeManager create volume
-func NewVolumeManager(as *v1.AppService, serviceVolume *model.TenantServiceVolume, serviceMountR *model.TenantServiceMountRelation, version *dbmodel.VersionInfo, dbmanager db.Manager) Volume {
+func NewVolumeManager(as *v1.AppService,
+	serviceVolume *model.TenantServiceVolume,
+	serviceMountR *model.TenantServiceMountRelation,
+	version *dbmodel.VersionInfo,
+	envs []corev1.EnvVar,
+	envVarSecrets []*corev1.Secret,
+	dbmanager db.Manager) Volume {
 	var v Volume
 	volumeType := ""
 	if serviceVolume != nil {
@@ -63,7 +66,7 @@ func NewVolumeManager(as *v1.AppService, serviceVolume *model.TenantServiceVolum
 	case dbmodel.ShareFileVolumeType.String():
 		v = new(ShareFileVolume)
 	case dbmodel.ConfigFileVolumeType.String():
-		v = new(ConfigFileVolume)
+		v = &ConfigFileVolume{envs: envs, envVarSecrets: envVarSecrets}
 	case dbmodel.MemoryFSVolumeType.String():
 		v = new(MemoryFSVolume)
 	case dbmodel.LocalVolumeType.String():
@@ -227,7 +230,7 @@ func (v *Define) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isReadOnly b
 				},
 				DefaultMode: &defaultMode,
 				Items: []corev1.KeyToPath{
-					corev1.KeyToPath{
+					{
 						Key:  k,
 						Path: path.Base(p), // subpath
 						Mode: &configFileMode,
@@ -237,141 +240,6 @@ func (v *Define) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isReadOnly b
 		},
 	}
 	v.volumes = append(v.volumes, vo)
-}
-
-//createEnv create service container env
-func createEnv(as *v1.AppService, dbmanager db.Manager) (*[]corev1.EnvVar, error) {
-	var envs []corev1.EnvVar
-	var envsAll []*dbmodel.TenantServiceEnvVar
-	//set logger env
-	//todo: user define and set logger config
-	envs = append(envs, corev1.EnvVar{
-		Name:  "LOGGER_DRIVER_NAME",
-		Value: "streamlog",
-	})
-
-	//set relation app outer env
-	relations, err := dbmanager.TenantServiceRelationDao().GetTenantServiceRelations(as.ServiceID)
-	if err != nil {
-		return nil, err
-	}
-	if relations != nil && len(relations) > 0 {
-		var relationIDs []string
-		for _, r := range relations {
-			relationIDs = append(relationIDs, r.DependServiceID)
-		}
-		//set service all dependces ids
-		as.Dependces = relationIDs
-		if len(relationIDs) > 0 {
-			es, err := dbmanager.TenantServiceEnvVarDao().GetDependServiceEnvs(relationIDs, []string{"outer", "both"})
-			if err != nil {
-				return nil, err
-			}
-			if es != nil {
-				envsAll = append(envsAll, es...)
-			}
-			serviceAliass, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
-			if err != nil {
-				return nil, err
-			}
-			var Depend string
-			for _, sa := range serviceAliass {
-				if Depend != "" {
-					Depend += ","
-				}
-				Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
-			}
-			envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: Depend})
-			envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliass))})
-		}
-	}
-
-	//set app relation env
-	relations, err = dbmanager.TenantServiceRelationDao().GetTenantServiceRelationsByDependServiceID(as.ServiceID)
-	if err != nil {
-		return nil, err
-	}
-	if relations != nil && len(relations) > 0 {
-		var relationIDs []string
-		for _, r := range relations {
-			relationIDs = append(relationIDs, r.ServiceID)
-		}
-		if len(relationIDs) > 0 {
-			serviceAliass, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
-			if err != nil {
-				return nil, err
-			}
-			var Depend string
-			for _, sa := range serviceAliass {
-				if Depend != "" {
-					Depend += ","
-				}
-				Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
-			}
-			envs = append(envs, corev1.EnvVar{Name: "REVERSE_DEPEND_SERVICE", Value: Depend})
-		}
-	}
-	//set app port and net env
-	ports, err := dbmanager.TenantServicesPortDao().GetPortsByServiceID(as.ServiceID)
-	if err != nil {
-		return nil, err
-	}
-	if ports != nil && len(ports) > 0 {
-		var portStr string
-		for i, port := range ports {
-			if i == 0 {
-				envs = append(envs, corev1.EnvVar{Name: "PORT", Value: strconv.Itoa(ports[0].ContainerPort)})
-				envs = append(envs, corev1.EnvVar{Name: "PROTOCOL", Value: ports[0].Protocol})
-			}
-			if portStr != "" {
-				portStr += ":"
-			}
-			portStr += fmt.Sprintf("%d", port.ContainerPort)
-		}
-		menvs := convertRulesToEnvs(as, dbmanager, ports)
-		if envs != nil && len(envs) > 0 {
-			envs = append(envs, menvs...)
-		}
-		envs = append(envs, corev1.EnvVar{Name: "MONITOR_PORT", Value: portStr})
-	}
-	//set app custom envs
-	es, err := dbmanager.TenantServiceEnvVarDao().GetServiceEnvs(as.ServiceID, []string{"inner", "both", "outer"})
-	if err != nil {
-		return nil, err
-	}
-	if len(es) > 0 {
-		envsAll = append(envsAll, es...)
-	}
-	for _, e := range envsAll {
-		envs = append(envs, corev1.EnvVar{Name: strings.TrimSpace(e.AttrName), Value: e.AttrValue})
-		if strings.HasPrefix(e.AttrName, "ES_") {
-			as.ExtensionSet[strings.ToLower(e.AttrName[3:])] = e.AttrValue
-		}
-	}
-	//set default env
-	envs = append(envs, corev1.EnvVar{Name: "TENANT_ID", Value: as.TenantID})
-	envs = append(envs, corev1.EnvVar{Name: "SERVICE_ID", Value: as.ServiceID})
-	envs = append(envs, corev1.EnvVar{Name: "MEMORY_SIZE", Value: envutil.GetMemoryType(as.ContainerMemory)})
-	envs = append(envs, corev1.EnvVar{Name: "SERVICE_NAME", Value: as.ServiceAlias})
-	envs = append(envs, corev1.EnvVar{Name: "SERVICE_POD_NUM", Value: strconv.Itoa(as.Replicas)})
-	envs = append(envs, corev1.EnvVar{Name: "HOST_IP", ValueFrom: &corev1.EnvVarSource{
-		FieldRef: &corev1.ObjectFieldSelector{
-			FieldPath: "status.hostIP",
-		},
-	}})
-	envs = append(envs, corev1.EnvVar{Name: "POD_IP", ValueFrom: &corev1.EnvVarSource{
-		FieldRef: &corev1.ObjectFieldSelector{
-			FieldPath: "status.podIP",
-		},
-	}})
-	var config = make(map[string]string, len(envs))
-	for _, env := range envs {
-		config[env.Name] = env.Value
-	}
-	for i, env := range envs {
-		envs[i].Value = util.ParseVariable(env.Value, config)
-	}
-	return &envs, nil
 }
 
 func convertRulesToEnvs(as *v1.AppService, dbmanager db.Manager, ports []*dbmodel.TenantServicesPort) (re []corev1.EnvVar) {

@@ -85,7 +85,7 @@ func (i *PluginShareItem) Run(timeout time.Duration) error {
 		i.Logger.Error(fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.LocalImageName, i.ImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	user, pass := builder.GetImageUserInfo(i.ImageInfo.HubUser, i.ImageInfo.HubPassword)
+	user, pass := builder.GetImageUserInfoV2(i.ImageName, i.ImageInfo.HubUser, i.ImageInfo.HubPassword)
 	if i.ImageInfo.IsTrust {
 		err = sources.TrustedImagePush(i.DockerClient, i.ImageName, user, pass, i.Logger, 10)
 	} else {

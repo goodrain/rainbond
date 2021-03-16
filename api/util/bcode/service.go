@@ -8,4 +8,6 @@ var (
 	ErrServiceMonitorNotFound = newByMessage(404, 10101, "service monitor not found")
 	//ErrServiceMonitorNameExist -
 	ErrServiceMonitorNameExist = newByMessage(400, 10102, "service monitor name is exist")
+	// ErrSyncOperation -
+	ErrSyncOperation = newByMessage(409, 10103, "The asynchronous operation is executing")
 )

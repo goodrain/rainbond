@@ -565,13 +565,26 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 
 		for _, volumn := range volumns {
 			v := dbmodel.TenantServiceVolume{
-				ServiceID:  ts.ServiceID,
-				Category:   volumn.Category,
-				VolumeType: volumn.VolumeType,
-				VolumeName: volumn.VolumeName,
-				HostPath:   volumn.HostPath,
-				VolumePath: volumn.VolumePath,
-				IsReadOnly: volumn.IsReadOnly,
+				ServiceID:      ts.ServiceID,
+				Category:       volumn.Category,
+				VolumeType:     volumn.VolumeType,
+				VolumeName:     volumn.VolumeName,
+				HostPath:       volumn.HostPath,
+				VolumePath:     volumn.VolumePath,
+				IsReadOnly:     volumn.IsReadOnly,
+				VolumeCapacity: volumn.VolumeCapacity,
+				// AccessMode 读写模式（Important! A volume can only be mounted using one access mode at a time, even if it supports many. For example, a GCEPersistentDisk can be mounted as ReadWriteOnce by a single node or ReadOnlyMany by many nodes, but not at the same time. #https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes）
+				AccessMode: volumn.AccessMode,
+				// SharePolicy 共享模式
+				SharePolicy: volumn.SharePolicy,
+				// BackupPolicy 备份策略
+				BackupPolicy: volumn.BackupPolicy,
+				// ReclaimPolicy 回收策略
+				ReclaimPolicy: volumn.ReclaimPolicy,
+				// AllowExpansion 是否支持扩展
+				AllowExpansion: volumn.AllowExpansion,
+				// VolumeProviderName 使用的存储驱动别名
+				VolumeProviderName: volumn.VolumeProviderName,
 			}
 			v.ServiceID = ts.ServiceID
 			if volumn.VolumeType == "" {

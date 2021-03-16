@@ -65,7 +65,7 @@ func (c *clusterAction) GetClusterInfo() (*model.ClusterResource, error) {
 		}
 	}
 
-	var healthcpuR, healthmemR, unhealthCPUR, unhealthMemR int64
+	var healthcpuR, healthmemR, unhealthCPUR, unhealthMemR, rbdMemR, rbdCPUR int64
 	nodeAllocatableResourceList := make(map[string]*model.NodeResource, len(usedNodeList))
 	var maxAllocatableMemory *model.NodeResource
 	for i := range usedNodeList {
@@ -89,6 +89,10 @@ func (c *clusterAction) GetClusterInfo() (*model.ClusterResource, error) {
 				} else {
 					unhealthCPUR += c.Resources.Requests.Cpu().MilliValue()
 					unhealthMemR += c.Resources.Requests.Memory().Value()
+				}
+				if pod.Labels["creator"] == "Rainbond" {
+					rbdMemR += c.Resources.Requests.Memory().Value()
+					rbdCPUR += c.Resources.Requests.Cpu().MilliValue()
 				}
 			}
 		}
@@ -125,6 +129,8 @@ func (c *clusterAction) GetClusterInfo() (*model.ClusterResource, error) {
 		UnhealthCapMem:                   int(unhealthCapMem) / 1024 / 1024,
 		ReqCPU:                           float32(healthcpuR+unhealthCPUR) / 1000,
 		ReqMem:                           int(healthmemR+unhealthMemR) / 1024 / 1024,
+		RainbondReqCPU:                   float32(rbdCPUR) / 1000,
+		RainbondReqMem:                   int(rbdMemR) / 1024 / 1024,
 		HealthReqCPU:                     float32(healthcpuR) / 1000,
 		HealthReqMem:                     int(healthmemR) / 1024 / 1024,
 		UnhealthReqCPU:                   float32(unhealthCPUR) / 1000,

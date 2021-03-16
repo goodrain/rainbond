@@ -134,7 +134,6 @@ func getVolumeIDByPVCName(pvcName string) int {
 	pvcNames := strings.SplitN(pvcName, "-", 2)
 	if len(pvcNames) == 2 {
 		idStr := pvcNames[0][6:]
-		fmt.Println(idStr)
 		id, _ := strconv.Atoi(idStr)
 		return id
 	}

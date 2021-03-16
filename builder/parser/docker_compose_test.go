@@ -43,6 +43,9 @@ services:
     - /srv/docker/gitlab/redis:/var/lib/redis
     ports:
       - "6379"
+    environment:
+      - "HUB_USER:admin"
+      - "HUB_PASSWORD:passwd"
 
   postgresql:
     restart: always
@@ -50,7 +53,8 @@ services:
     volumes:
     - /srv/docker/gitlab/postgresql:/var/lib/postgresql
     environment:
-    - DB_USER=gitlab
+    - "DB_USER:gitlab"
+    - "WANGER:gitlab"
     - DB_PASS=password
     - DB_NAME=gitlabhq_production
     - DB_EXTENSION=pg_trgm
@@ -270,12 +274,12 @@ func TestDockerComposeParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	y, err := yaml.JSONToYAML([]byte(composeJ))
+	y, err := yaml.JSONToYAML([]byte(dockercompose))
 	if err != nil {
 		fmt.Printf("yaml error, %v", err.Error())
 	}
 	fmt.Printf("yaml is %s", string(y))
-	p := CreateDockerComposeParse(string(y), dockerclient, "", "", nil)
+	p := CreateDockerComposeParse(string(y), dockerclient, "", "", event.GetTestLogger())
 	if err := p.Parse(); err != nil {
 		logrus.Errorf(err.Error())
 		return

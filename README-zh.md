@@ -1,7 +1,7 @@
 <img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/rainbond%20log_full.png" width="60%">
 
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-![Rainbond version](https://img.shields.io/badge/version-v5.2-brightgreen.svg)
+![Rainbond version](https://img.shields.io/badge/version-v5.3-brightgreen.svg)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
 [项目官网](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/)
@@ -98,8 +98,11 @@ Rainbond 是云原生且易用的云原生应用管理平台，云原生应用�
 
 [Rainbond 项目官网](https://www.rainbond.com)    查阅关于Rainbond的更多信息。
 
-<center><img width="200px" src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/cloud/weichart.png"/></center>
-<center>加入微信群，与社区用户一起交流 Rainbond</center>
+<center><img width="200px" src="https://static.goodrain.com/images/cloud/weichart.png"/></center>
+<center>添加项目作者微信</center>
+
+<center><img width="200px" src="https://static.goodrain.com/images/dingding.jpeg"/></center>
+<center>加入社区用户钉钉群</center>
 
 ## 参与贡献
 

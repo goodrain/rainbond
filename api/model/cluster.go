@@ -18,6 +18,8 @@ type ClusterResource struct {
 	UnhealthCapMem                   int           `json:"unhealth_cap_mem"`
 	ReqCPU                           float32       `json:"req_cpu"`
 	ReqMem                           int           `json:"req_mem"`
+	RainbondReqMem                   int           `json:"rbd_req_mem"` // Resources to embody rainbond scheduling
+	RainbondReqCPU                   float32       `json:"rbd_req_cpu"`
 	HealthReqCPU                     float32       `json:"health_req_cpu"`
 	HealthReqMem                     int           `json:"health_req_mem"`
 	UnhealthReqCPU                   float32       `json:"unhealth_req_cpu"`
