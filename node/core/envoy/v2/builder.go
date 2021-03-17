@@ -215,9 +215,9 @@ func CreateHTTPListener(name, address, statPrefix string, port uint32, rateOpt *
 		},
 
 		FilterChains: []*envoy_api_v2_listener.FilterChain{
-			&envoy_api_v2_listener.FilterChain{
+			{
 				Filters: []*envoy_api_v2_listener.Filter{
-					&envoy_api_v2_listener.Filter{
+					{
 						Name:       wellknown.HTTPConnectionManager,
 						ConfigType: &envoy_api_v2_listener.Filter_TypedConfig{TypedConfig: Message2Any(hcm)},
 					},
@@ -443,6 +443,9 @@ type ClusterOptions struct {
 	HealthyPanicThreshold    int64
 	TLSContext               *auth.UpstreamTlsContext
 	LoadAssignment           *apiv2.ClusterLoadAssignment
+	Protocol                 string
+	// grpc service name of health check
+	GrpcHealthServiceName string
 }
 
 //CreateCluster create cluster config
@@ -467,6 +470,18 @@ func CreateCluster(options ClusterOptions) *apiv2.Cluster {
 		CommonLbConfig: &apiv2.Cluster_CommonLbConfig{
 			HealthyPanicThreshold: &_type.Percent{Value: float64(options.HealthyPanicThreshold) / 100},
 		},
+	}
+	if options.Protocol == "http2" || options.Protocol == "grpc" {
+		cluster.Http2ProtocolOptions = &core.Http2ProtocolOptions{}
+		// set grpc health check
+		if options.Protocol == "grpc" && options.GrpcHealthServiceName != "" {
+			cluster.HealthChecks = append(cluster.HealthChecks, &core.HealthCheck{
+				HealthChecker: &core.HealthCheck_GrpcHealthCheck_{
+					GrpcHealthCheck: &core.HealthCheck_GrpcHealthCheck{
+						ServiceName: options.GrpcHealthServiceName,
+					},
+				}})
+		}
 	}
 	if options.TLSContext != nil {
 		cluster.TlsContext = options.TLSContext

@@ -503,11 +503,35 @@ func (t *TenantAction) TenantsSum() (int, error) {
 
 //GetProtocols GetProtocols
 func (t *TenantAction) GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHandleError) {
-	rps, err := db.GetManager().RegionProcotolsDao().GetAllSupportProtocol("v2")
-	if err != nil {
-		return nil, util.CreateAPIHandleErrorFromDBError("get all support protocols", err)
-	}
-	return rps, nil
+	return []*dbmodel.RegionProcotols{
+		{
+			ProtocolGroup: "http",
+			ProtocolChild: "http",
+			APIVersion:    "v2",
+			IsSupport:     true,
+		},
+		{
+			ProtocolGroup: "http",
+			ProtocolChild: "grpc",
+			APIVersion:    "v2",
+			IsSupport:     true,
+		}, {
+			ProtocolGroup: "stream",
+			ProtocolChild: "tcp",
+			APIVersion:    "v2",
+			IsSupport:     true,
+		}, {
+			ProtocolGroup: "stream",
+			ProtocolChild: "udp",
+			APIVersion:    "v2",
+			IsSupport:     true,
+		}, {
+			ProtocolGroup: "stream",
+			ProtocolChild: "mysql",
+			APIVersion:    "v2",
+			IsSupport:     true,
+		},
+	}, nil
 }
 
 //TransPlugins TransPlugins

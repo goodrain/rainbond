@@ -101,9 +101,6 @@ type Manager interface {
 	RegionAPIClassDao() dao.RegionAPIClassDao
 	RegionAPIClassDaoTransactions(db *gorm.DB) dao.RegionAPIClassDao
 
-	RegionProcotolsDao() dao.RegionProcotolsDao
-	RegionProcotolsDaoTransactions(db *gorm.DB) dao.RegionProcotolsDao
-
 	NotificationEventDao() dao.NotificationEventDao
 	AppBackupDao() dao.AppBackupDao
 	AppBackupDaoTransactions(db *gorm.DB) dao.AppBackupDao

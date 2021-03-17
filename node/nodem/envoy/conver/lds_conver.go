@@ -138,7 +138,7 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 			listenerName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, ListenPort)
 			var listener *v2.Listener
 			protocol := service.Labels["port_protocol"]
-			if domain, ok := service.Annotations["domain"]; ok && domain != "" && (protocol == "https" || protocol == "http") {
+			if domain, ok := service.Annotations["domain"]; ok && domain != "" && (protocol == "https" || protocol == "http" || protocol == "grpc") {
 				route := envoyv2.CreateRouteWithHostRewrite(domain, clusterName, "/", nil, 0)
 				if route != nil {
 					pvh := envoyv2.CreateRouteVirtualHost(
@@ -175,7 +175,7 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 		if portProtocol != "" {
 			//TODO: support more protocol
 			switch portProtocol {
-			case "http", "https":
+			case "http", "https", "grpc":
 				hashKey := options.RouteBasicHash()
 				if oldroute, ok := uniqRoute[hashKey]; ok {
 					oldrr := oldroute.Action.(*route.Route_Route)
@@ -245,13 +245,13 @@ func downstreamListener(serviceAlias, namespace string, ports []*api_model.BaseP
 		if _, ok := portMap[port]; !ok {
 			inboundConfig := envoyv2.GetRainbondInboundPluginOptions(p.Options)
 			options := envoyv2.GetOptionValues(p.Options)
-			if p.Protocol == "http" || p.Protocol == "https" {
+			if p.Protocol == "http" || p.Protocol == "https" || p.Protocol == "grpc" {
 				var limit []*route.RateLimit
 				if inboundConfig.OpenLimit {
 					limit = []*route.RateLimit{
-						&route.RateLimit{
+						{
 							Actions: []*route.RateLimit_Action{
-								&route.RateLimit_Action{
+								{
 									ActionSpecifier: &route.RateLimit_Action_RemoteAddress_{
 										RemoteAddress: &route.RateLimit_Action_RemoteAddress{},
 									},

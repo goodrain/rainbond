@@ -127,6 +127,8 @@ const (
 	KeyConnectionTimeout string = "ConnectionTimeout"
 	//KeyTCPIdleTimeout tcp idle timeout
 	KeyTCPIdleTimeout string = "TCPIdleTimeout"
+	//KeyGrpcHealthServiceName The name of the grpc service used for health checking.
+	KeyGrpcHealthServiceName string = "GrpcHealthServiceName"
 )
 
 //RainbondPluginOptions rainbond plugin config struct
@@ -147,6 +149,7 @@ type RainbondPluginOptions struct {
 	HealthyPanicThreshold    int64
 	ConnectionTimeout        int64
 	TCPIdleTimeout           int64
+	GrpcHealthServiceName    string
 }
 
 //RainbondInboundPluginOptions rainbond inbound plugin options
@@ -192,7 +195,7 @@ func GetOptionValues(sr map[string]interface{}) RainbondPluginOptions {
 	for kind, v := range sr {
 		switch kind {
 		case KeyPrefix:
-			rpo.Prefix = v.(string)
+			rpo.Prefix = strings.TrimSpace(v.(string))
 		case KeyMaxConnections:
 			if i, err := strconv.Atoi(v.(string)); err == nil && i != 0 {
 				rpo.MaxConnections = i
@@ -275,6 +278,8 @@ func GetOptionValues(sr map[string]interface{}) RainbondPluginOptions {
 			if i, err := strconv.Atoi(v.(string)); err == nil {
 				rpo.TCPIdleTimeout = int64(i)
 			}
+		case KeyGrpcHealthServiceName:
+			rpo.GrpcHealthServiceName = strings.TrimSpace(v.(string))
 		}
 	}
 	return rpo
