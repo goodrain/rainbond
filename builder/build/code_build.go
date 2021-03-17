@@ -267,7 +267,6 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 	cacheSubPath := strings.TrimPrefix(re.CacheDir, "/cache/")
 
 	hostPathType := corev1.HostPathDirectoryOrCreate
-	hostPathFileType := corev1.HostPathFileOrCreate
 
 	if re.CacheMode == "hostpath" {
 		volumeMounts = []corev1.VolumeMount{
@@ -308,7 +307,8 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: path.Join(re.CachePath, sourceTarPath),
-						Type: &hostPathFileType,
+						// host file type can not auto create parent dir, so can not use.
+						Type: &hostPathType,
 					},
 				},
 			},
