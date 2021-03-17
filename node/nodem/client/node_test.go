@@ -19,11 +19,7 @@ package client_test
 
 import (
 	"testing"
-	"time"
 
-	"github.com/coreos/etcd/clientv3"
-	conf "github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/node/core/store"
 	"github.com/goodrain/rainbond/node/nodem/client"
 )
 
@@ -62,21 +58,4 @@ func TestHostNodeMergeLabels(t *testing.T) {
 	if sysLabelsLen != len(hostNode.Labels) {
 		t.Errorf("Expected %d for the length of system labels, but returned %+v", sysLabelsLen, len(hostNode.Labels))
 	}
-}
-
-func TestHostNode_DelEndpoints(t *testing.T) {
-	cfg := &conf.Conf{
-		Etcd: clientv3.Config{
-			Endpoints:   []string{"http://192.168.3.252:2379"},
-			DialTimeout: 3 * time.Second,
-		},
-	}
-	err := store.NewClient(cfg)
-	if err != nil {
-		t.Fatalf("error creating etcd client: %v", err)
-	}
-	n := &client.HostNode{
-		InternalIP: "192.168.2.54",
-	}
-	n.DelEndpoints()
 }

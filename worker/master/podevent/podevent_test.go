@@ -141,20 +141,7 @@ func TestRecordUpdateEvent(t *testing.T) {
 			db.SetTestManager(dbmanager)
 			serviceEventDao := dao.NewMockEventDao(ctrl)
 			dbmanager.EXPECT().ServiceEventDao().AnyTimes().Return(serviceEventDao)
-			var evt *model.ServiceEvent
-			if tc.eventErr == nil {
-				evt = &model.ServiceEvent{
-					EventID:     tc.eventID,
-					TenantID:    tc.tenantID,
-					Target:      model.TargetTypePod,
-					TargetID:    pod.GetName(),
-					UserName:    model.UsernameSystem,
-					FinalStatus: tc.finalStatus.String(),
-					OptType:     tc.optType.String(),
-				}
-			}
 			serviceEventDao.EXPECT().AddModel(gomock.Any()).AnyTimes().Return(nil)
-			serviceEventDao.EXPECT().LatestUnfinishedPodEvent(pod.GetName()).Return(evt, tc.eventErr)
 
 			// mock event manager
 			lm := event.NewMockManager(ctrl)

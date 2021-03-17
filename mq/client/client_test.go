@@ -26,13 +26,14 @@ import (
 
 	"github.com/goodrain/rainbond/builder/exector"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	"github.com/goodrain/rainbond/util/etcd"
 	"github.com/twinj/uuid"
 
 	context "golang.org/x/net/context"
 )
 
 func TestClient(t *testing.T) {
-	c, err := NewMqClient([]string{"127.0.0.1:2379"})
+	c, err := NewMqClient(&etcd.ClientArgs{Endpoints: []string{"127.0.0.1:2379"}}, "127.0.0.1:2379")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +63,7 @@ func TestClient(t *testing.T) {
 
 func TestClientScaling(t *testing.T) {
 	t.SkipNow()
-	client, err := NewMqClient([]string{"127.0.0.1:2379"})
+	client, err := NewMqClient(&etcd.ClientArgs{Endpoints: []string{"127.0.0.1:2379"}}, "127.0.0.1:2379")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +80,7 @@ func TestClientScaling(t *testing.T) {
 
 func TestClientUpgrade(t *testing.T) {
 	t.SkipNow()
-	client, err := NewMqClient([]string{"127.0.0.1:2379"})
+	client, err := NewMqClient(&etcd.ClientArgs{Endpoints: []string{"127.0.0.1:2379"}}, "127.0.0.1:2379")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +96,7 @@ func TestClientUpgrade(t *testing.T) {
 }
 func TestBuilder(t *testing.T) {
 	t.SkipNow()
-	c, err := NewMqClient([]string{"127.0.0.1:2379"})
+	c, err := NewMqClient(&etcd.ClientArgs{Endpoints: []string{"127.0.0.1:2379"}}, "127.0.0.1:2379")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +119,7 @@ func TestChaosTask(t *testing.T) {
 		EventID:    "system",
 	}
 	body, _ := ffjson.Marshal(sci)
-	client, err := NewMqClient([]string{"127.0.0.1:2379"})
+	client, err := NewMqClient(&etcd.ClientArgs{Endpoints: []string{"127.0.0.1:2379"}}, "127.0.0.1:2379")
 	if err != nil {
 		t.Fatal(err)
 	}
