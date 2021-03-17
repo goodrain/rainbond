@@ -261,6 +261,98 @@ func (s *slugBuild) stopPreBuildJob(re *Request) error {
 	return nil
 }
 
+func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+	slugSubPath := strings.TrimPrefix(re.TGZDir, "/grdata/")
+	sourceTarPath := strings.TrimPrefix(sourceTarFileName, "/cache/")
+	cacheSubPath := strings.TrimPrefix(re.CacheDir, "/cache/")
+
+	hostPathType := corev1.HostPathDirectoryOrCreate
+
+	if re.CacheMode == "hostpath" {
+		volumeMounts = []corev1.VolumeMount{
+			{
+				Name:      "cache",
+				MountPath: "/tmp/cache",
+			},
+			{
+				Name:      "slug",
+				MountPath: "/tmp/slug",
+				SubPath:   slugSubPath,
+			},
+			{
+				Name:      "source-file",
+				MountPath: "/tmp/app-source.tar",
+			},
+		}
+		volumes = []corev1.Volume{
+			{
+				Name: "slug",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: s.re.GRDataPVCName,
+					},
+				},
+			},
+			{
+				Name: "cache",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: path.Join(re.CachePath, cacheSubPath),
+						Type: &hostPathType,
+					},
+				},
+			},
+			{
+				Name: "source-file",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: path.Join(re.CachePath, sourceTarPath),
+						// host file type can not auto create parent dir, so can not use.
+						Type: &hostPathType,
+					},
+				},
+			},
+		}
+	} else {
+		volumes = []corev1.Volume{
+			{
+				Name: "slug",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: s.re.GRDataPVCName,
+					},
+				},
+			},
+			{
+				Name: "app",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: re.CachePVCName,
+					},
+				},
+			},
+		}
+		volumeMounts = []corev1.VolumeMount{
+			{
+				Name:      "app",
+				MountPath: "/tmp/cache",
+				SubPath:   cacheSubPath,
+			},
+			{
+				Name:      "slug",
+				MountPath: "/tmp/slug",
+				SubPath:   slugSubPath,
+			},
+			{
+				Name:      "app",
+				MountPath: "/tmp/app-source.tar",
+				SubPath:   sourceTarPath,
+			},
+		}
+	}
+	return volumes, volumeMounts
+}
+
 func (s *slugBuild) runBuildJob(re *Request) error {
 	//prepare build code dir
 	re.Logger.Info(util.Translation("Start make code package"), map[string]string{"step": "build-exector"})
@@ -333,20 +425,9 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		}
 	}
 	logrus.Debugf("request is: %+v", re)
-	podSpec.Volumes = []corev1.Volume{
-		{
-			Name: "slug",
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: s.re.GRDataPVCName,
-				},
-			},
-		},
-		{
-			Name:         "app",
-			VolumeSource: re.CacheVolumeSource(),
-		},
-	}
+
+	volumes, mounts := s.createVolumeAndMount(re, sourceTarFileName)
+	podSpec.Volumes = volumes
 	container := corev1.Container{
 		Name:      name,
 		Image:     builder.BUILDERIMAGENAME,
@@ -355,27 +436,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		Env:       envs,
 		Args:      []string{"local"},
 	}
-	slugSubPath := strings.TrimPrefix(re.TGZDir, "/grdata/")
-	logrus.Debugf("sourceTarFileName is: %s", sourceTarFileName)
-	sourceTarPath := strings.TrimPrefix(sourceTarFileName, "/cache/")
-	cacheSubPath := strings.TrimPrefix(re.CacheDir, "/cache/")
-	container.VolumeMounts = []corev1.VolumeMount{
-		{
-			Name:      "app",
-			MountPath: "/tmp/cache",
-			SubPath:   cacheSubPath,
-		},
-		{
-			Name:      "slug",
-			MountPath: "/tmp/slug",
-			SubPath:   slugSubPath,
-		},
-		{
-			Name:      "app",
-			MountPath: "/tmp/app-source.tar",
-			SubPath:   sourceTarPath,
-		},
-	}
+	container.VolumeMounts = mounts
 	//set maven setting
 	var mavenSettingConfigName string
 	if mavenSettingName != "" && re.Lang.String() == code.JavaMaven.String() {

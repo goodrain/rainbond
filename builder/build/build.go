@@ -23,8 +23,6 @@ import (
 	"fmt"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/event"
@@ -99,24 +97,6 @@ type Request struct {
 	ExtraHosts    []string
 	HostAlias     []HostAlias
 	Ctx           context.Context
-}
-
-func (r *Request) CacheVolumeSource() corev1.VolumeSource {
-	if r.CacheMode == "hostpath" {
-		hostPathType := corev1.HostPathDirectoryOrCreate
-		return corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: r.CachePath,
-				Type: &hostPathType,
-			},
-		}
-	}
-	// default use pvc
-	return corev1.VolumeSource{
-		PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-			ClaimName: r.CachePVCName,
-		},
-	}
 }
 
 // HostAlias holds the mapping between IP and hostnames that will be injected as an entry in the
