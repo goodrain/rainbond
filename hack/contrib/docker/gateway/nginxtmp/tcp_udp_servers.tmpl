@@ -21,7 +21,7 @@ server {
         ngx.var.proxy_upstream_name="{{ $udpServer.UpstreamName }}";
     }
     {{ if $udpServer.Listen }}listen {{$udpServer.Listen}} {{ if $udpServer.ProxyProtocol.Decode }} proxy_protocol{{ end }};{{ end }}
-    proxy_responses         {{ $udpServer.ProxyStreamResponses }};
+    {{ if $udpServer.ProxyStreamResponses }}proxy_responses {{ $udpServer.ProxyStreamResponses }}; {{ end }}
     proxy_timeout           {{ $udpServer.ProxyStreamTimeout }};
     proxy_pass              upstream_balancer;
 }
