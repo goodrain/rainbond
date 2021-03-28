@@ -2,7 +2,9 @@ package handler
 
 import (
 	"fmt"
+	"os"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/goodrain/rainbond/api/model"
@@ -35,19 +37,31 @@ func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace string) Clu
 }
 
 type clusterAction struct {
-	namespace string
-	clientset *kubernetes.Clientset
+	namespace        string
+	clientset        *kubernetes.Clientset
+	clusterInfoCache *model.ClusterResource
+	cacheTime        time.Time
 }
 
 func (c *clusterAction) GetClusterInfo() (*model.ClusterResource, error) {
+	timeout, _ := strconv.Atoi(os.Getenv("CLUSTER_INFO_CACHE_TIME"))
+	if timeout == 0 {
+		// default is 30 seconds
+		timeout = 30
+	}
+	if c.clusterInfoCache != nil && c.cacheTime.Add(time.Second*time.Duration(timeout)).After(time.Now()) {
+		return c.clusterInfoCache, nil
+	}
+	if c.clusterInfoCache != nil {
+		logrus.Debugf("cluster info cache is timeout, will calculate a new value")
+	}
+
 	nodes, err := c.listNodes()
 	if err != nil {
 		return nil, fmt.Errorf("[GetClusterInfo] list nodes: %v", err)
 	}
 
 	var healthCapCPU, healthCapMem, unhealthCapCPU, unhealthCapMem int64
-	nodeLen := len(nodes)
-	_ = nodeLen
 	usedNodeList := make([]*corev1.Node, len(nodes))
 	for i := range nodes {
 		node := nodes[i]
@@ -147,7 +161,8 @@ func (c *clusterAction) GetClusterInfo() (*model.ClusterResource, error) {
 			result.NotReadyNode++
 		}
 	}
-
+	c.clusterInfoCache = result
+	c.cacheTime = time.Now()
 	return result, nil
 }
 

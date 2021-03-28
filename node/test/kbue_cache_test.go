@@ -31,7 +31,7 @@ func TestGetCluster(t *testing.T) {
 		K8SConfPath:     "/opt/rainbond/etc/kubernetes/kubecfg/admin.kubeconfig",
 		MinResyncPeriod: 10 * time.Second,
 	}
-	kubecli, err := kubecache.NewKubeClient(c)
+	kubecli, err := kubecache.NewKubeClient(c, nil)
 	if err != nil {
 		t.Fatalf("error creating kube client: %v", err)
 	}

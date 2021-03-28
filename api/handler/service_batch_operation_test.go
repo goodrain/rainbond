@@ -49,7 +49,7 @@ func TestBuildLinkListByHead(t *testing.T) {
 				return l
 			}(),
 			sid2depsids: map[string][]string{
-				"dog": []string{"banana"},
+				"dog": {"banana"},
 			},
 			want: func() []*list.List {
 				l := list.New()
@@ -71,7 +71,7 @@ func TestBuildLinkListByHead(t *testing.T) {
 				return l
 			}(),
 			sid2depsids: map[string][]string{
-				"dog": []string{"banana", "elephant"},
+				"dog": {"banana", "elephant"},
 			},
 			want: func() []*list.List {
 				l := list.New()
@@ -97,11 +97,11 @@ func TestBuildLinkListByHead(t *testing.T) {
 				return l
 			}(),
 			sid2depsids: map[string][]string{
-				"apple":  []string{"banana"},
-				"banana": []string{"cat", "cake", "candy"},
-				"cat":    []string{"dog"},
-				"cake":   []string{"dance"},
-				"candy":  []string{"daughter"},
+				"apple":  {"banana"},
+				"banana": {"cat", "cake", "candy"},
+				"cat":    {"dog"},
+				"cake":   {"dance"},
+				"candy":  {"daughter"},
 			},
 			want: func() []*list.List {
 				l1 := list.New()
@@ -132,9 +132,9 @@ func TestBuildLinkListByHead(t *testing.T) {
 				return l
 			}(),
 			sid2depsids: map[string][]string{
-				"apple":  []string{"banana"},
-				"banana": []string{"cat"},
-				"cat":    []string{"dog"},
+				"apple":  {"banana"},
+				"banana": {"cat"},
+				"cat":    {"dog"},
 			},
 			want: func() []*list.List {
 				l := list.New()
@@ -153,10 +153,10 @@ func TestBuildLinkListByHead(t *testing.T) {
 				return l
 			}(),
 			sid2depsids: map[string][]string{
-				"apple":  []string{"banana"},
-				"banana": []string{"cat"},
-				"cat":    []string{"dog"},
-				"dog":    []string{"apple"},
+				"apple":  {"banana"},
+				"banana": {"cat"},
+				"cat":    {"dog"},
+				"dog":    {"apple"},
 			},
 			want: func() []*list.List {
 				l := list.New()
@@ -175,8 +175,8 @@ func TestBuildLinkListByHead(t *testing.T) {
 				return l
 			}(),
 			sid2depsids: map[string][]string{
-				"apple":  []string{"banana"},
-				"banana": []string{"apple", "cat", "dog"},
+				"apple":  {"banana"},
+				"banana": {"apple", "cat", "dog"},
 			},
 			want: func() []*list.List {
 				l1 := list.New()
@@ -275,21 +275,21 @@ func TestServiceStartupSequence(t *testing.T) {
 			name:       "one to two",
 			serviceIDS: []string{"apple", "banana", "cat"},
 			sid2depsids: map[string][]string{
-				"apple": []string{
+				"apple": {
 					"banana",
 					"cat",
 				},
 			},
 			depsid2sids: map[string][]string{
-				"banana": []string{
+				"banana": {
 					"apple",
 				},
-				"cat": []string{
+				"cat": {
 					"apple",
 				},
 			},
 			want: map[string][]string{
-				"apple": []string{
+				"apple": {
 					"banana",
 					"cat",
 				},
@@ -299,32 +299,32 @@ func TestServiceStartupSequence(t *testing.T) {
 			name:       "a circle",
 			serviceIDS: []string{"apple", "banana", "cat"},
 			sid2depsids: map[string][]string{
-				"apple": []string{
+				"apple": {
 					"banana",
 				},
-				"banana": []string{
+				"banana": {
 					"cat",
 				},
-				"cat": []string{
+				"cat": {
 					"apple",
 				},
 			},
 			depsid2sids: map[string][]string{
-				"banana": []string{
+				"banana": {
 					"apple",
 				},
-				"cat": []string{
+				"cat": {
 					"banana",
 				},
-				"apple": []string{
+				"apple": {
 					"cat",
 				},
 			},
 			want: map[string][]string{
-				"apple": []string{
+				"apple": {
 					"banana",
 				},
-				"banana": []string{
+				"banana": {
 					"cat",
 				},
 			},

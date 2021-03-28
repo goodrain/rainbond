@@ -15,6 +15,7 @@ require (
 	github.com/containerd/continuity v0.0.0-20200228182428-0f16d7a0959c // indirect
 	github.com/coreos/etcd v3.3.17+incompatible
 	github.com/coreos/prometheus-operator v0.38.3
+	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/docker/cli v0.0.0-20190711175710-5b38d82aa076
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v1.13.1
@@ -57,6 +58,7 @@ require (
 	github.com/mitchellh/mapstructure v1.3.3
 	github.com/ncabatoff/process-exporter v0.7.1
 	github.com/opencontainers/go-digest v1.0.0-rc1
+	github.com/opencontainers/runc v1.0.0-rc91.0.20200707015106-819fcc687efb // indirect
 	github.com/pborman/uuid v1.2.1
 	github.com/pebbe/zmq4 v1.2.1
 	github.com/pkg/errors v0.9.1
@@ -76,6 +78,9 @@ require (
 	github.com/tidwall/gjson v1.6.1
 	github.com/twinj/uuid v1.0.0
 	github.com/urfave/cli v1.22.2
+	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
+	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
+	github.com/xeipuuv/gojsonschema v1.1.0 // indirect
 	github.com/yudai/umutex v0.0.0-20150817080136-18216d265c6b
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
 	golang.org/x/net v0.0.0-20200707034311-ab3426394381
@@ -90,8 +95,9 @@ require (
 	k8s.io/apimachinery v0.19.0
 	k8s.io/apiserver v0.19.0
 	k8s.io/client-go v12.0.0+incompatible
-	k8s.io/ingress-nginx v0.0.0-20200903213136-333288e755c1
+	k8s.io/klog/v2 v2.2.0 // indirect
 	k8s.io/kubernetes v1.19.0
+	sigs.k8s.io/controller-runtime v0.6.1-0.20200831170621-ab55aa710b06 // indirect
 )
 
 // Pinned to kubernetes-1.16.2

@@ -140,7 +140,7 @@ func TestEtcdClusterClient_ListEndpointKeys(t *testing.T) {
 		EtcdDialTimeout: 5 * time.Second,
 	}
 
-	if err := store.NewClient(context.Background(), cfg); err != nil {
+	if err := store.NewClient(context.Background(), cfg, nil); err != nil {
 		t.Fatalf("error create etcd client: %v", err)
 	}
 
