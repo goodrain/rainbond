@@ -63,7 +63,7 @@ func (s *Config) Validation() error {
 	if s.ProxyBuffering == "" {
 		s.ProxyBuffering = defBackend.ProxyBuffering
 	}
-	if s.BufferSize == "" {
+	if s.BufferSize == "" || s.BufferSize == "0k" {
 		s.BufferSize = defBackend.ProxyBufferSize
 	}
 	if s.BuffersNumber == 0 {
