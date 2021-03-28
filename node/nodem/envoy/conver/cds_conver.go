@@ -117,6 +117,8 @@ func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_mod
 		portProtocol, _ := service.Labels["port_protocol"]
 		clusterOption.Protocol = portProtocol
 		clusterOption.GrpcHealthServiceName = options.GrpcHealthServiceName
+		clusterOption.HealthTimeout = options.HealthCheckTimeout
+		clusterOption.HealthInterval = options.HealthCheckInterval
 		cluster := envoyv2.CreateCluster(clusterOption)
 		if cluster != nil {
 			logrus.Debugf("cluster is : %v", cluster)
