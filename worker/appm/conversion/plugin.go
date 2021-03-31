@@ -127,6 +127,10 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 			meshPluginID = pluginR.PluginID
 		}
 		if pluginModel == model.InitPlugin {
+			if strings.ToLower(os.Getenv("DISABLE_INIT_CONTAINER_ENABLE_SECURITY")) != "true" {
+				//init container default open security
+				pc.SecurityContext = &corev1.SecurityContext{Privileged: util.Bool(true)}
+			}
 			initContainers = append(initContainers, pc)
 		} else {
 			containers = append(containers, pc)
