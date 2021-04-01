@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/sirupsen/logrus"
@@ -22,14 +23,14 @@ func dns2Config(endpoint *corev1.Endpoints, podNamespace string) (podDNSConfig *
 	ndotsValue := "5"
 	return &corev1.PodDNSConfig{
 		Nameservers: servers,
-		Options:     []corev1.PodDNSConfigOption{corev1.PodDNSConfigOption{Name: "ndots", Value: &ndotsValue}},
+		Options:     []corev1.PodDNSConfigOption{{Name: "ndots", Value: &ndotsValue}},
 		Searches:    []string{searchRBDDNS, "svc.cluster.local", "cluster.local"},
 	}
 }
 
 // MakePodDNSConfig make pod dns config
 func MakePodDNSConfig(clientset kubernetes.Interface, podNamespace, rbdNamespace, rbdEndpointDNSName string) (podDNSConfig *corev1.PodDNSConfig) {
-	endpoints, err := clientset.CoreV1().Endpoints(rbdNamespace).Get(rbdEndpointDNSName, metav1.GetOptions{})
+	endpoints, err := clientset.CoreV1().Endpoints(rbdNamespace).Get(context.Background(), rbdEndpointDNSName, metav1.GetOptions{})
 	if err != nil {
 		logrus.Warningf("get rbd-dns[namespace: %s, name: %s] endpoints error: %s", rbdNamespace, rbdEndpointDNSName, err.Error())
 		return nil

@@ -261,7 +261,7 @@ type QueryResult struct {
 }
 
 //GetTenantsResources Gets the resource usage of the specified tenant.
-func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[string]map[string]interface{}, error) {
+func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *api_model.TenantResources) (map[string]map[string]interface{}, error) {
 	ids, err := db.GetManager().TenantDao().GetTenantIDsByNames(tr.Body.TenantNames)
 	if err != nil {
 		return nil, err
@@ -279,7 +279,7 @@ func (t *TenantAction) GetTenantsResources(tr *api_model.TenantResources) (map[s
 		serviceTenantCount[s.TenantID]++
 	}
 	// get cluster resources
-	clusterStats, err := t.GetAllocatableResources()
+	clusterStats, err := t.GetAllocatableResources(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting allocatalbe cpu and memory: %v", err)
 	}
@@ -379,10 +379,10 @@ type ClusterResourceStats struct {
 	RequestMemory int64
 }
 
-func (t *TenantAction) initClusterResource() error {
+func (t *TenantAction) initClusterResource(ctx context.Context) error {
 	if t.cacheClusterResourceStats == nil || t.cacheTime.Add(time.Minute*3).Before(time.Now()) {
 		var crs ClusterResourceStats
-		nodes, err := t.kubeClient.CoreV1().Nodes().List(metav1.ListOptions{})
+		nodes, err := t.kubeClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("get cluster nodes failure %s", err.Error())
 			return err
@@ -411,9 +411,9 @@ func (t *TenantAction) initClusterResource() error {
 }
 
 // GetAllocatableResources returns allocatable cpu and memory (MB)
-func (t *TenantAction) GetAllocatableResources() (*ClusterResourceStats, error) {
+func (t *TenantAction) GetAllocatableResources(ctx context.Context) (*ClusterResourceStats, error) {
 	var crs ClusterResourceStats
-	if t.initClusterResource() != nil {
+	if t.initClusterResource(ctx) != nil {
 		return &crs, nil
 	}
 	ts, err := t.statusCli.GetAllTenantResource()
@@ -582,8 +582,8 @@ func (t *TenantAction) IsClosedStatus(status string) bool {
 }
 
 //GetClusterResource get cluster resource
-func (t *TenantAction) GetClusterResource() *ClusterResourceStats {
-	if t.initClusterResource() != nil {
+func (t *TenantAction) GetClusterResource(ctx context.Context) *ClusterResourceStats {
+	if t.initClusterResource(ctx) != nil {
 		return nil
 	}
 	return t.cacheClusterResourceStats

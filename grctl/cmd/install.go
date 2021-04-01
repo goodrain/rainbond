@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -52,7 +53,7 @@ func NewCmdInstall() cli.Command {
 			fmt.Println("Start install, please waiting!")
 			CommonWithoutRegion(c)
 			namespace := c.String("namespace")
-			apiClientSecrit, err := clients.K8SClient.CoreV1().Secrets(namespace).Get("rbd-api-client-cert", metav1.GetOptions{})
+			apiClientSecrit, err := clients.K8SClient.CoreV1().Secrets(namespace).Get(context.Background(), "rbd-api-client-cert", metav1.GetOptions{})
 			if err != nil {
 				showError(fmt.Sprintf("get region api tls secret failure %s", err.Error()))
 			}

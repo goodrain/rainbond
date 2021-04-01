@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"context"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -46,11 +47,11 @@ Dv5SVos+Rd/zF9Szg68uBOzkrFODygyzUjPgUtP1oIrPMFgvraYmbBQNdzT/7zBN
 OIBrj5fMeg27zqsV/2Qr1YuzfMZcgQG9KtPSe57RZH9kF7pCl+cqetc=
 -----END CERTIFICATE-----`)
 	secret.Data = data
-	if _, err := cli.CoreV1().Secrets(namespace).Create(secret); err != nil {
+	if _, err := cli.CoreV1().Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("create secret error: %s", err.Error())
 	}
 	if err := SyncDockerCertFromSecret(cli, namespace, secretName); err != nil {
 		t.Fatalf("sync secret error: %s", err.Error())
 	}
-	cli.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
+	cli.CoreV1().Secrets(namespace).Delete(context.Background(), secretName, metav1.DeleteOptions{})
 }

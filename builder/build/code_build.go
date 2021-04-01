@@ -440,12 +440,12 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	//set maven setting
 	var mavenSettingConfigName string
 	if mavenSettingName != "" && re.Lang.String() == code.JavaMaven.String() {
-		if setting := jobc.GetJobController().GetLanguageBuildSetting(code.JavaMaven, mavenSettingName); setting != "" {
+		if setting := jobc.GetJobController().GetLanguageBuildSetting(re.Ctx, code.JavaMaven, mavenSettingName); setting != "" {
 			mavenSettingConfigName = setting
 		} else {
 			logrus.Warnf("maven setting config %s not found", mavenSettingName)
 		}
-	} else if settingName := jobc.GetJobController().GetDefaultLanguageBuildSetting(code.JavaMaven); settingName != "" {
+	} else if settingName := jobc.GetJobController().GetDefaultLanguageBuildSetting(re.Ctx, code.JavaMaven); settingName != "" {
 		mavenSettingConfigName = settingName
 	}
 	if mavenSettingConfigName != "" {

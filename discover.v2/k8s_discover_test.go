@@ -3,12 +3,13 @@ package discover
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/discover/config"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	"testing"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -76,14 +77,14 @@ func TestK8sDiscover_AddProject(t *testing.T) {
 				Status: corev1.ConditionTrue,
 			})
 			pod.Status.PodIP = "172.20.0.50"
-			_, err := clientset.CoreV1().Pods("").Update(pod)
+			_, err := clientset.CoreV1().Pods("").Update(context.Background(), pod, metav1.UpdateOptions{})
 			if err != nil {
 				t.Error(err)
 			}
 
 			time.Sleep(1 * time.Second)
 
-			err = clientset.CoreV1().Pods("").Delete(pod.Name, &metav1.DeleteOptions{})
+			err = clientset.CoreV1().Pods("").Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
 			if err != nil {
 				t.Error(err)
 			}
