@@ -79,6 +79,11 @@ func (m *Manager) Begin() *gorm.DB {
 	return m.db.Begin()
 }
 
+//DB get DB
+func (m *Manager) DB() *gorm.DB {
+	return m.db
+}
+
 // EnsureEndTransactionFunc -
 func (m *Manager) EnsureEndTransactionFunc() func(tx *gorm.DB) {
 	return func(tx *gorm.DB) {

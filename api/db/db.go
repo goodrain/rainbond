@@ -154,6 +154,11 @@ func GetBegin() *gorm.DB {
 	return db.GetManager().Begin()
 }
 
+//DB get DB
+func DB() *gorm.DB {
+	return db.GetManager().DB()
+}
+
 func dbInit() error {
 	logrus.Info("api database initialization starting...")
 	begin := GetBegin()
@@ -230,11 +235,10 @@ func dbInit() error {
 		}
 	}
 
-	tx := begin
-	if err := tx.Exec("ALTER TABLE tenant_service_version modify COLUMN code_commit_msg TEXT;"); err != nil {
-		tx.Rollback()
+	db := DB()
+	if err := db.Exec("ALTER TABLE tenant_service_version modify COLUMN code_commit_msg TEXT;"); err != nil {
+		return err
 	}
-	tx.Commit()
 	return nil
 }
 
