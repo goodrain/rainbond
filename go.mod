@@ -120,7 +120,6 @@ require (
 // Pinned to kubernetes-1.20.0
 replace (
 	github.com/coreos/etcd => github.com/coreos/etcd v3.2.31+incompatible
-	github.com/coreos/go-systemd => github.com/coreos/go-systemd v0.0.0-20161114122254-48702e0da86b
 	github.com/docker/cli => github.com/docker/cli v0.0.0-20181026144139-6b71e84ec8bf
 	github.com/docker/docker => github.com/docker/engine v0.0.0-20181106193140-f5749085e9cb
 	github.com/docker/libcompose => github.com/docker/libcompose v0.4.1-0.20181019154650-213509acef0f
