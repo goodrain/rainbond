@@ -235,8 +235,7 @@ func dbInit() error {
 		}
 	}
 
-	db := DB()
-	if err := db.Exec("ALTER TABLE tenant_service_version modify COLUMN code_commit_msg TEXT;"); err != nil {
+	if err := DB().Exec("ALTER TABLE tenant_service_version modify COLUMN code_commit_msg TEXT;").Error; err != nil {
 		return err
 	}
 	return nil
