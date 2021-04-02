@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 
+	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond/api/region"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/cmd/grctl/option"
@@ -15,6 +16,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 var pemDirPath = ".rbd/ssl"
@@ -59,7 +61,9 @@ func NewCmdInstall() cli.Command {
 			}
 			regionAPIIP := c.StringSlice("gateway-ip")
 			if len(regionAPIIP) == 0 {
-				cluster, err := clients.RainbondKubeClient.RainbondV1alpha1().RainbondClusters(namespace).Get("rainbondcluster", metav1.GetOptions{})
+				var cluster rainbondv1alpha1.RainbondCluster
+				err := clients.RainbondKubeClient.Get(context.Background(),
+					types.NamespacedName{Namespace: namespace, Name: "rainbondcluster"}, &cluster)
 				if err != nil {
 					showError(fmt.Sprintf("get rainbond cluster config failure %s", err.Error()))
 				}
