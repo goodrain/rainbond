@@ -112,21 +112,21 @@ func (s ServiceType) IsSingleton() bool {
 	return true
 }
 
-// TODO fanyangyang 根据组件简单判断是否是有状态
 // IsState is state service or stateless service
-func (ts *TenantServices) IsState() bool {
-	if ts.ExtendMethod == "" {
+// TODO fanyangyang 根据组件简单判断是否是有状态
+func (t *TenantServices) IsState() bool {
+	if t.ExtendMethod == "" {
 		return false
 	}
-	return ServiceType(ts.ExtendMethod).IsState()
+	return ServiceType(t.ExtendMethod).IsState()
 }
 
 // IsSingleton is singleton or multiple service
-func (ts *TenantServices) IsSingleton() bool {
-	if ts.ExtendMethod == "" {
+func (t *TenantServices) IsSingleton() bool {
+	if t.ExtendMethod == "" {
 		return false
 	}
-	return ServiceType(ts.ExtendMethod).IsSingleton()
+	return ServiceType(t.ExtendMethod).IsSingleton()
 }
 
 // ServiceTypeUnknown unknown
@@ -494,8 +494,8 @@ var LabelKeyNodeSelector = "node-selector"
 //LabelKeyNodeAffinity 节点亲和标签
 var LabelKeyNodeAffinity = "node-affinity"
 
-// TODO fanyangyang 待删除，组件类型记录在tenant_service表中
 //LabelKeyServiceType 应用部署类型标签
+// TODO fanyangyang 待删除，组件类型记录在tenant_service表中
 var LabelKeyServiceType = "service-type"
 
 //LabelKeyServiceAffinity 应用亲和标签
