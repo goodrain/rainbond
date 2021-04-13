@@ -20,6 +20,7 @@ package conversion
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"sort"
 	"strconv"
@@ -85,6 +86,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			NodeSelector:     nodeSelector,
 			Tolerations:      tolerations,
 			Affinity:         createAffinity(as, dbmanager),
+			HostAliases:      createHostAliases(as),
 			Hostname: func() string {
 				if nodeID, ok := as.ExtensionSet["hostname"]; ok {
 					return nodeID
@@ -272,7 +274,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 	if err != nil {
 		return nil, err
 	}
-	if ports != nil && len(ports) > 0 {
+	if len(ports) > 0 {
 		var portStr string
 		for i, port := range ports {
 			if i == 0 {
@@ -285,7 +287,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 			portStr += fmt.Sprintf("%d", port.ContainerPort)
 		}
 		menvs := convertRulesToEnvs(as, dbmanager, ports)
-		if envs != nil && len(envs) > 0 {
+		if len(envs) > 0 {
 			envs = append(envs, menvs...)
 		}
 		envs = append(envs, corev1.EnvVar{Name: "MONITOR_PORT", Value: portStr})
@@ -301,9 +303,6 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 	}
 	for _, e := range envsAll {
 		envs = append(envs, corev1.EnvVar{Name: strings.TrimSpace(e.AttrName), Value: e.AttrValue})
-		if strings.HasPrefix(e.AttrName, "ES_") {
-			as.ExtensionSet[strings.ToLower(e.AttrName[3:])] = e.AttrValue
-		}
 	}
 
 	//set default env
@@ -336,7 +335,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 	for _, env := range envs {
 		config[env.Name] = env.Value
 	}
-	
+
 	for i, env := range envs {
 		envs[i].Value = util.ParseVariable(env.Value, config)
 	}
@@ -345,7 +344,12 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 			sec.Data[i] = []byte(util.ParseVariable(string(data), config))
 		}
 	}
-
+	// set Extension set config item
+	for k, v := range config {
+		if strings.HasPrefix(k, "ES_") {
+			as.ExtensionSet[strings.ToLower(k[3:])] = v
+		}
+	}
 	return envs, nil
 }
 
@@ -753,4 +757,24 @@ func createToleration(nodeSelector map[string]string) []corev1.Toleration {
 		})
 	}
 	return tolerations
+}
+
+func createHostAliases(as *v1.AppService) []corev1.HostAlias {
+	cache := make(map[string]*corev1.HostAlias)
+	for k, v := range as.ExtensionSet {
+		if strings.HasPrefix(k, "host_") {
+			if net.ParseIP(v) != nil {
+				if cache[v] != nil {
+					cache[v].Hostnames = append(cache[v].Hostnames, k[5:])
+				} else {
+					cache[v] = &corev1.HostAlias{IP: v, Hostnames: []string{k[5:]}}
+				}
+			}
+		}
+	}
+	var re []corev1.HostAlias
+	for k := range cache {
+		re = append(re, *cache[k])
+	}
+	return re
 }
