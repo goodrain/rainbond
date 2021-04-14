@@ -8,6 +8,7 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -20,6 +21,20 @@ func (a *ApplicationController) CreateApp(w http.ResponseWriter, r *http.Request
 	var tenantReq model.Application
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &tenantReq, nil) {
 		return
+	}
+	if tenantReq.AppType == model.AppTypeHelm {
+		if tenantReq.AppStoreName == "" {
+			httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("the field 'app_tore_name' is required"))
+			return
+		}
+		if tenantReq.HelmAppName == "" {
+			httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("the field 'helm_app_name' is required"))
+			return
+		}
+		if tenantReq.Version == "" {
+			httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("the field 'version' is required"))
+			return
+		}
 	}
 
 	// get current tenant

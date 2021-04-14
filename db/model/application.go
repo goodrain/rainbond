@@ -15,9 +15,14 @@ func IsGovernanceModeValid(governanceMode string) bool {
 // Application -
 type Application struct {
 	Model
+	EID            string `gorm:"column:eid" json:"eid"`
+	TenantID       string `gorm:"column:tenant_id" json:"tenant_id"`
 	AppName        string `gorm:"column:app_name" json:"app_name"`
 	AppID          string `gorm:"column:app_id" json:"app_id"`
-	TenantID       string `gorm:"column:tenant_id" json:"tenant_id"`
+	AppType        string `gorm:"column:app_type;default:rainbond" json:"app_type"`
+	AppStoreName   string `gorm:"column:app_store_name" json:"app_store_name"`
+	HelmAppName    string `gorm:"column:helm_app_name" json:"helm_app_name"`
+	Version        string `gorm:"column:Version" json:"Version"`
 	GovernanceMode string `gorm:"column:governance_mode;default:'BUILD_IN_SERVICE_MESH'" json:"governance_mode"`
 }
 

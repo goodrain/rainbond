@@ -14,6 +14,7 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 )
 
@@ -54,36 +55,33 @@ func NewApplicationHandler(statusCli *client.AppRuntimeSyncClient, promClient pr
 // CreateApp -
 func (a *ApplicationAction) CreateApp(req *model.Application) (*model.Application, error) {
 	appReq := &dbmodel.Application{
-		AppName:  req.AppName,
-		AppID:    util.NewUUID(),
-		TenantID: req.TenantID,
+		EID:          req.EID,
+		TenantID:     req.TenantID,
+		AppID:        util.NewUUID(),
+		AppName:      req.AppName,
+		AppType:      req.AppType,
+		AppStoreName: req.AppStoreName,
+		HelmAppName:  req.HelmAppName,
+		Version:      req.Version,
 	}
 	req.AppID = appReq.AppID
 
 	tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
+	err := tx.Transaction(func(tx *gorm.DB) error {
+		if err := db.GetManager().ApplicationDaoTransactions(tx).AddModel(appReq); err != nil {
+			return err
 		}
-	}()
-
-	if err := db.GetManager().ApplicationDao().AddModel(appReq); err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-	if len(req.ServiceIDs) != 0 {
-		if err := db.GetManager().TenantServiceDao().BindAppByServiceIDs(appReq.AppID, req.ServiceIDs); err != nil {
-			tx.Rollback()
-			return nil, err
+		if len(req.ServiceIDs) != 0 {
+			if err := db.GetManager().TenantServiceDaoTransactions(tx).BindAppByServiceIDs(appReq.AppID, req.ServiceIDs); err != nil {
+				return err
+			}
 		}
-	}
 
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-	return req, nil
+		// create app.rainbond.io
+		return nil
+	})
+
+	return req, err
 }
 
 // BatchCreateApp -
