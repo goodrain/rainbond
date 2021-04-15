@@ -138,7 +138,7 @@ type HelmAppStatus struct {
 	Status HelmAppStatusStatus `json:"status"`
 
 	// Current state of helm app.
-	Contidions []HelmAppCondition `json:"conditions,omitempty"`
+	Conditions []HelmAppCondition `json:"conditions,omitempty"`
 
 	CurrentValues string `json:"currentValues,omitempty"`
 

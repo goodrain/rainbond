@@ -58,6 +58,12 @@ func (c *ControlLoop) run(obj interface{}) {
 
 func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 	logrus.Debugf("HelmApp Received: %s", k8sutil.ObjKey(helmApp))
+
+	status := NewStatus(helmApp.Status)
+
+	detector := NewDetector(status)
+	detector.Detect()
+
 	return nil
 }
 

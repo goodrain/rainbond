@@ -1,0 +1,62 @@
+package main
+
+import "C"
+import (
+	rainbondv1alpha1 "github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
+	"github.com/goodrain/rainbond/worker/controllers/helmapp"
+	"github.com/sirupsen/logrus"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"os"
+	"time"
+)
+
+func init() {
+	logrus.SetOutput(os.Stdout)
+	logrus.SetLevel(logrus.DebugLevel)
+}
+
+func main() {
+	restcfg, err := k8sutil.NewRestConfig("/Users/abewang/.kube/config.172.20.0.20")
+	if err != nil {
+		logrus.Fatalf("create kube rest config error: %s", err.Error())
+	}
+
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+
+	clientset := versioned.NewForConfigOrDie(restcfg)
+
+	helmApp := &rainbondv1alpha1.HelmApp{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "rbd-system",
+		},
+		Spec: rainbondv1alpha1.HelmAppSpec{
+			PreStatus: "",
+			AppName:   "",
+			Version:   "v1.0.0",
+			Revision:  Int32(0),
+			Values:    "",
+		},
+	}
+	if _, err := clientset.RainbondV1alpha1().HelmApps("rbd-system").Create(helmApp); err != nil {
+		if !k8sErrors.IsAlreadyExists(err) {
+			logrus.Fatal(err)
+		}
+	}
+
+	ctrl := helmapp.NewController(stopCh, restcfg, 5*time.Second)
+	if err = ctrl.Start(); err != nil {
+		logrus.Fatalf("start controller: %v", err)
+	}
+
+	select {}
+}
+
+// Int32 returns a pointer to the int32 value passed in.
+func Int32(v int32) *int32 {
+	return &v
+}
