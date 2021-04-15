@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -37,6 +38,12 @@ import (
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "version" {
 		cmd.ShowVersion("sidecar")
+	}
+	if len(os.Args) > 1 && os.Args[1] == "run" {
+		if err := run(); err != nil {
+			os.Exit(1)
+		}
+		os.Exit(0)
 	}
 	loggerFile, _ := os.Create("/var/log/sidecar.log")
 	if loggerFile != nil {
@@ -74,18 +81,20 @@ func Run() error {
 
 var oldHosts = make(map[string]string)
 
-func run() {
+func run() error {
 	configs := discoverConfig()
 	if configs != nil {
 		if hosts := getHosts(configs); hosts != nil {
 			if err := writeHosts(hosts); err != nil {
 				logrus.Errorf("write hosts failure %s", err.Error())
+				return err
 			} else {
 				logrus.Debugf("rewrite hosts file success, %+v", hosts)
 				oldHosts = hosts
 			}
 		}
 	}
+	return nil
 }
 
 func haveChange(hosts, oldHosts map[string]string) bool {
@@ -130,6 +139,9 @@ func getHosts(configs *api_model.ResourceSpec) map[string]string {
 		options := envoyv2.GetOptionValues(service.Options)
 		for _, domain := range options.Domains {
 			if domain != "" && domain != "*" {
+				if strings.Contains(domain, ":") {
+					domain = strings.Split(domain, ":")[0]
+				}
 				hosts[domain] = "127.0.0.1"
 			}
 		}

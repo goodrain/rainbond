@@ -19,6 +19,7 @@
 package cloud
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -70,14 +71,14 @@ func PubChargeSverify(tenant *model.Tenants, quantity int, reason string) *util.
 }
 
 // PriChargeSverify verifies that the resources requested in the private cloud are legal
-func PriChargeSverify(tenant *model.Tenants, quantity int) *util.APIHandleError {
+func PriChargeSverify(ctx context.Context, tenant *model.Tenants, quantity int) *util.APIHandleError {
 	t, err := db.GetManager().TenantDao().GetTenantByUUID(tenant.UUID)
 	if err != nil {
 		logrus.Errorf("error getting tenant: %v", err)
 		return util.CreateAPIHandleError(500, fmt.Errorf("error getting tenant: %v", err))
 	}
 	if t.LimitMemory == 0 {
-		clusterStats, err := handler.GetTenantManager().GetAllocatableResources()
+		clusterStats, err := handler.GetTenantManager().GetAllocatableResources(ctx)
 		if err != nil {
 			logrus.Errorf("error getting allocatable resources: %v", err)
 			return util.CreateAPIHandleError(500, fmt.Errorf("error getting allocatable resources: %v", err))

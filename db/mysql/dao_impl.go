@@ -389,20 +389,6 @@ func (m *Manager) RegionAPIClassDaoTransactions(db *gorm.DB) dao.RegionAPIClassD
 	}
 }
 
-//RegionProcotolsDao RegionProcotolsDao
-func (m *Manager) RegionProcotolsDao() dao.RegionProcotolsDao {
-	return &mysqldao.RegionProcotolsDaoImpl{
-		DB: m.db,
-	}
-}
-
-//RegionProcotolsDaoTransactions RegionProcotolsDao
-func (m *Manager) RegionProcotolsDaoTransactions(db *gorm.DB) dao.RegionProcotolsDao {
-	return &mysqldao.RegionProcotolsDaoImpl{
-		DB: db,
-	}
-}
-
 //NotificationEventDao NotificationEventDao
 func (m *Manager) NotificationEventDao() dao.NotificationEventDao {
 	return &mysqldao.NotificationEventDaoImpl{

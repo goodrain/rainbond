@@ -19,6 +19,7 @@
 package conversion
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"testing"
@@ -242,17 +243,17 @@ func TestApplyTcpRule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create kube api client error: %v", err)
 	}
-	if _, err := clientSet.CoreV1().Namespaces().Create(&corev1.Namespace{
+	if _, err := clientSet.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: testCase["namespace"],
 		},
-	}); err != nil {
+	}, metav1.CreateOptions{}); err != nil {
 		t.Errorf("Can't create Namespace(%s): %v", testCase["namespace"], err)
 	}
-	if _, err := clientSet.ExtensionsV1beta1().Ingresses(ing.Namespace).Create(ing); err != nil {
+	if _, err := clientSet.ExtensionsV1beta1().Ingresses(ing.Namespace).Create(context.Background(), ing, metav1.CreateOptions{}); err != nil {
 		t.Errorf("Can't create Ingress(%s): %v", ing.Name, err)
 	}
-	if err := clientSet.CoreV1().Namespaces().Delete(testCase["namespace"], &metav1.DeleteOptions{}); err != nil {
+	if err := clientSet.CoreV1().Namespaces().Delete(context.Background(), testCase["namespace"], metav1.DeleteOptions{}); err != nil {
 		t.Errorf("Can't delete namespace(%s)", testCase["namespace"])
 	}
 }
@@ -380,17 +381,17 @@ func TestAppServiceBuild_ApplyHttpRule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create kube api client error: %v", err)
 	}
-	if _, err := clientSet.CoreV1().Namespaces().Create(&corev1.Namespace{
+	if _, err := clientSet.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: testCase["namespace"],
 		},
-	}); err != nil {
+	}, metav1.CreateOptions{}); err != nil {
 		t.Errorf("Can't create Namespace(%s): %v", testCase["namespace"], err)
 	}
-	if _, err := clientSet.ExtensionsV1beta1().Ingresses(ing.Namespace).Create(ing); err != nil {
+	if _, err := clientSet.ExtensionsV1beta1().Ingresses(ing.Namespace).Create(context.Background(), ing, metav1.CreateOptions{}); err != nil {
 		t.Errorf("Can't create Ingress(%s): %v", ing.Name, err)
 	}
-	if err := clientSet.CoreV1().Namespaces().Delete(testCase["namespace"], &metav1.DeleteOptions{}); err != nil {
+	if err := clientSet.CoreV1().Namespaces().Delete(context.Background(), testCase["namespace"], metav1.DeleteOptions{}); err != nil {
 		t.Errorf("Can't delete namespace(%s)", testCase["namespace"])
 	}
 }
@@ -511,20 +512,20 @@ func TestAppServiceBuild_ApplyHttpRuleWithCertificate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create kube api client error: %v", err)
 	}
-	if _, err := clientSet.CoreV1().Namespaces().Create(&corev1.Namespace{
+	if _, err := clientSet.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: testCase["namespace"],
 		},
-	}); err != nil {
+	}, metav1.CreateOptions{}); err != nil {
 		t.Errorf("Can't create Serect(%s): %v", sec.Name, err)
 	}
-	if _, err := clientSet.CoreV1().Secrets(sec.Namespace).Create(sec); err != nil {
+	if _, err := clientSet.CoreV1().Secrets(sec.Namespace).Create(context.Background(), sec, metav1.CreateOptions{}); err != nil {
 		t.Errorf("Can't create Serect(%s): %v", sec.Name, err)
 	}
-	if _, err := clientSet.ExtensionsV1beta1().Ingresses(ing.Namespace).Create(ing); err != nil {
+	if _, err := clientSet.ExtensionsV1beta1().Ingresses(ing.Namespace).Create(context.Background(), ing, metav1.CreateOptions{}); err != nil {
 		t.Errorf("Can't create Ingress(%s): %v", ing.Name, err)
 	}
-	if err := clientSet.CoreV1().Namespaces().Delete(testCase["namespace"], &metav1.DeleteOptions{}); err != nil {
+	if err := clientSet.CoreV1().Namespaces().Delete(context.Background(), testCase["namespace"], metav1.DeleteOptions{}); err != nil {
 		t.Errorf("Can't delete namespace(%s)", testCase["namespace"])
 	}
 

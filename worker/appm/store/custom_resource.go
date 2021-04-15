@@ -3,10 +3,10 @@ package store
 import (
 	"time"
 
-	externalversions "github.com/coreos/prometheus-operator/pkg/client/informers/externalversions"
-	"github.com/coreos/prometheus-operator/pkg/client/versioned"
+	externalversions "github.com/prometheus-operator/prometheus-operator/pkg/client/informers/externalversions"
+	"github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/sirupsen/logrus"
-	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 //ServiceMonitor service monitor custom resource

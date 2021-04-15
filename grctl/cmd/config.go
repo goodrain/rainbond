@@ -19,6 +19,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -47,7 +48,7 @@ func NewCmdConfig() cli.Command {
 		Action: func(c *cli.Context) {
 			Common(c)
 			namespace := c.String("namespace")
-			configMap, err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Get("region-config", metav1.GetOptions{})
+			configMap, err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), "region-config", metav1.GetOptions{})
 			if err != nil {
 				showError(err.Error())
 			}

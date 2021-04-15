@@ -420,13 +420,6 @@ type RegionAPIClassDao interface {
 	DeletePrefixInClass(apiClass, prefix string) error
 }
 
-//RegionProcotolsDao RegionProcotolsDao
-type RegionProcotolsDao interface {
-	Dao
-	GetAllSupportProtocol(version string) ([]*model.RegionProcotols, error)
-	GetProtocolGroupByProtocolChild(version, protocolChild string) (*model.RegionProcotols, error)
-}
-
 //NotificationEventDao NotificationEventDao
 type NotificationEventDao interface {
 	Dao

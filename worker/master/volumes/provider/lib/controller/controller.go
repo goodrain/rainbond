@@ -21,13 +21,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/cmd/worker/option"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/goodrain/rainbond/cmd/worker/option"
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
@@ -773,7 +774,9 @@ func (ctrl *ProvisionController) syncClaim(obj interface{}) error {
 
 	if ctrl.shouldProvision(claim) {
 		startTime := time.Now()
-		err := ctrl.provisionClaimOperation(claim)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*100)
+		defer cancel()
+		err := ctrl.provisionClaimOperation(ctx, claim)
 		ctrl.updateProvisionStats(claim, err, startTime)
 		return err
 	}
@@ -786,10 +789,11 @@ func (ctrl *ProvisionController) syncVolume(obj interface{}) error {
 	if !ok {
 		return fmt.Errorf("expected volume but got %+v", obj)
 	}
-
 	if ctrl.shouldDelete(volume) {
 		startTime := time.Now()
-		err := ctrl.deleteVolumeOperation(volume)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+		defer cancel()
+		err := ctrl.deleteVolumeOperation(ctx, volume)
 		ctrl.updateDeleteStats(volume, err, startTime)
 		return err
 	}
@@ -927,7 +931,7 @@ func GetPersistentVolumeClaimClass(claim *v1.PersistentVolumeClaim) string {
 // provisionClaimOperation attempts to provision a volume for the given claim.
 // Returns error, which indicates whether provisioning should be retried
 // (requeue the claim) or not
-func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVolumeClaim) error {
+func (ctrl *ProvisionController) provisionClaimOperation(ctx context.Context, claim *v1.PersistentVolumeClaim) error {
 	// Most code here is identical to that found in controller.go of kube's PV controller...
 	claimClass := GetPersistentVolumeClaimClass(claim)
 	operation := fmt.Sprintf("provision %q class %q", claimToClaimKey(claim), claimClass)
@@ -937,7 +941,7 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 	//  the locks. Check that PV (with deterministic name) hasn't been provisioned
 	//  yet.
 	pvName := ctrl.getProvisionedVolumeNameForClaim(claim)
-	volume, err := ctrl.client.CoreV1().PersistentVolumes().Get(pvName, metav1.GetOptions{})
+	volume, err := ctrl.client.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
 	if err == nil && volume != nil {
 		// Volume has been already provisioned, nothing to do.
 		logrus.Info(logOperation(operation, "persistentvolume %q already exists, skipping", pvName))
@@ -990,7 +994,7 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 	if ctrl.kubeVersion.AtLeast(utilversion.MustParseSemantic("v1.11.0")) {
 		// Get SelectedNode
 		if nodeName, ok := claim.Annotations[annSelectedNode]; ok {
-			selectedNode, err = ctrl.client.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{}) // TODO (verult) cache Nodes
+			selectedNode, err = ctrl.client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{}) // TODO (verult) cache Nodes
 			if err != nil {
 				err = fmt.Errorf("failed to get target node: %v", err)
 				ctrl.eventRecorder.Event(claim, v1.EventTypeWarning, "ProvisioningFailed", err.Error())
@@ -1008,7 +1012,7 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 	}
 
 	// Find pv for grdata
-	grdatapv, err := ctrl.persistentVolumeForGrdata()
+	grdatapv, err := ctrl.persistentVolumeForGrdata(ctx)
 	if err != nil {
 		return fmt.Errorf("pv for grdata: %v", err)
 	}
@@ -1057,7 +1061,7 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 	// Try to create the PV object several times
 	for i := 0; i < ctrl.createProvisionedPVRetryCount; i++ {
 		logrus.Info(logOperation(operation, "trying to save persistentvolume %q", volume.Name))
-		if _, err = ctrl.client.CoreV1().PersistentVolumes().Create(volume); err == nil || apierrs.IsAlreadyExists(err) {
+		if _, err = ctrl.client.CoreV1().PersistentVolumes().Create(ctx, volume, metav1.CreateOptions{}); err == nil || apierrs.IsAlreadyExists(err) {
 			// Save succeeded.
 			if err != nil {
 				logrus.Info(logOperation(operation, "persistentvolume %q already exists, reusing", volume.Name))
@@ -1108,12 +1112,12 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 	return nil
 }
 
-func (ctrl *ProvisionController) persistentVolumeForGrdata() (*v1.PersistentVolume, error) {
-	pvc, err := ctrl.client.CoreV1().PersistentVolumeClaims(ctrl.cfg.RBDNamespace).Get(ctrl.cfg.GrdataPVCName, metav1.GetOptions{})
+func (ctrl *ProvisionController) persistentVolumeForGrdata(ctx context.Context) (*v1.PersistentVolume, error) {
+	pvc, err := ctrl.client.CoreV1().PersistentVolumeClaims(ctrl.cfg.RBDNamespace).Get(ctx, ctrl.cfg.GrdataPVCName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("find pvc for grdata: %v", err)
 	}
-	pv, err := ctrl.client.CoreV1().PersistentVolumes().Get(pvc.Spec.VolumeName, metav1.GetOptions{})
+	pv, err := ctrl.client.CoreV1().PersistentVolumes().Get(ctx, pvc.Spec.VolumeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("find pv for grdata: %v", err)
 	}
@@ -1126,7 +1130,7 @@ func (ctrl *ProvisionController) persistentVolumeForGrdata() (*v1.PersistentVolu
 // deleteVolumeOperation attempts to delete the volume backing the given
 // volume. Returns error, which indicates whether deletion should be retried
 // (requeue the volume) or not
-func (ctrl *ProvisionController) deleteVolumeOperation(volume *v1.PersistentVolume) error {
+func (ctrl *ProvisionController) deleteVolumeOperation(ctx context.Context, volume *v1.PersistentVolume) error {
 	operation := fmt.Sprintf("delete %q", volume.Name)
 	logrus.Info(logOperation(operation, "started"))
 
@@ -1134,7 +1138,7 @@ func (ctrl *ProvisionController) deleteVolumeOperation(volume *v1.PersistentVolu
 	// Our check does not have to be as sophisticated as PV controller's, we can
 	// trust that the PV controller has set the PV to Released/Failed and it's
 	// ours to delete
-	newVolume, err := ctrl.client.CoreV1().PersistentVolumes().Get(volume.Name, metav1.GetOptions{})
+	newVolume, err := ctrl.client.CoreV1().PersistentVolumes().Get(ctx, volume.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil
 	}
@@ -1159,7 +1163,7 @@ func (ctrl *ProvisionController) deleteVolumeOperation(volume *v1.PersistentVolu
 	logrus.Info(logOperation(operation, "volume deleted"))
 
 	// Delete the volume
-	if err = ctrl.client.CoreV1().PersistentVolumes().Delete(volume.Name, nil); err != nil {
+	if err = ctrl.client.CoreV1().PersistentVolumes().Delete(ctx, volume.Name, metav1.DeleteOptions{}); err != nil {
 		// Oops, could not delete the volume and therefore the controller will
 		// try to delete the volume again on next update.
 		logrus.Info(logOperation(operation, "failed to delete persistentvolume: %v", err))

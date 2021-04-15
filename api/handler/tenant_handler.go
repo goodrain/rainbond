@@ -19,6 +19,8 @@
 package handler
 
 import (
+	"context"
+
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -33,9 +35,9 @@ type TenantHandler interface {
 	GetTenantsName() ([]string, error)
 	StatsMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)
 	TotalMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)
-	GetTenantsResources(tr *api_model.TenantResources) (map[string]map[string]interface{}, error)
+	GetTenantsResources(ctx context.Context, tr *api_model.TenantResources) (map[string]map[string]interface{}, error)
 	GetTenantResource(tenantID string) (TenantResourceStats, error)
-	GetAllocatableResources() (*ClusterResourceStats, error)
+	GetAllocatableResources(ctx context.Context) (*ClusterResourceStats, error)
 	GetServicesResources(tr *api_model.ServicesResources) (map[string]map[string]interface{}, error)
 	TenantsSum() (int, error)
 	GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHandleError)
@@ -45,5 +47,5 @@ type TenantHandler interface {
 	BindTenantsResource(source []*dbmodel.Tenants) api_model.TenantList
 	UpdateTenant(*dbmodel.Tenants) error
 	DeleteTenant(tenantID string) error
-	GetClusterResource() *ClusterResourceStats
+	GetClusterResource(ctx context.Context) *ClusterResourceStats
 }

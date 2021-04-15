@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"context"
 	"io"
 	"os"
 	"path"
@@ -22,7 +23,7 @@ func SyncDockerCertFromSecret(clientset kubernetes.Interface, namespace, secretN
 	if namespace == "" || secretName == "" {
 		return nil
 	}
-	secretInfo, err := clientset.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
+	secretInfo, err := clientset.CoreV1().Secrets(namespace).Get(context.Background(), secretName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

@@ -266,7 +266,7 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 }
 
 func (i *SourceCodeBuildItem) getExtraHosts() (extraHosts []string, err error) {
-	endpoints, err := i.KubeClient.CoreV1().Endpoints(i.RbdNamespace).Get(i.RbdRepoName, metav1.GetOptions{})
+	endpoints, err := i.KubeClient.CoreV1().Endpoints(i.RbdNamespace).Get(context.Background(), i.RbdRepoName, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("do not found ep by name: %s in namespace: %s", i.RbdRepoName, i.Namespace)
 		return nil, err
@@ -281,7 +281,7 @@ func (i *SourceCodeBuildItem) getExtraHosts() (extraHosts []string, err error) {
 }
 
 func (i *SourceCodeBuildItem) getHostAlias() (hostAliasList []build.HostAlias, err error) {
-	endpoints, err := i.KubeClient.CoreV1().Endpoints(i.RbdNamespace).Get(i.RbdRepoName, metav1.GetOptions{})
+	endpoints, err := i.KubeClient.CoreV1().Endpoints(i.RbdNamespace).Get(context.Background(), i.RbdRepoName, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("do not found ep by name: %s in namespace: %s", i.RbdRepoName, i.Namespace)
 		return nil, err

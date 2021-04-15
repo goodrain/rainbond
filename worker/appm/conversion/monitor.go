@@ -3,10 +3,10 @@ package conversion
 import (
 	"time"
 
-	mv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/goodrain/rainbond/db"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/jinzhu/gorm"
+	mv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

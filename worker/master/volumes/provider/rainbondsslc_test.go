@@ -19,6 +19,7 @@
 package provider
 
 import (
+	"context"
 	"testing"
 
 	"k8s.io/client-go/tools/clientcmd"
@@ -36,7 +37,7 @@ func TestSelectNode(t *testing.T) {
 		name:    "rainbond.io/provisioner-sslc",
 		kubecli: client,
 	}
-	node, err := pr.selectNode("linux", "")
+	node, err := pr.selectNode(context.TODO(), "linux", "")
 	if err != nil {
 		t.Fatal(err)
 	}

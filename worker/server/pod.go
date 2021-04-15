@@ -114,7 +114,7 @@ func (r RuntimeServer) listPodEventsByName(name, namespace string) []*pb.PodEven
 	eventsInterface := r.clientset.CoreV1().Events(namespace)
 	selector := eventsInterface.GetFieldSelector(&name, &namespace, nil, nil)
 	options := metav1.ListOptions{FieldSelector: selector.String()}
-	events, err := eventsInterface.List(options)
+	events, err := eventsInterface.List(context.Background(), options)
 	if err == nil && len(events.Items) > 0 {
 		podEvents := DescribeEvents(events)
 		return podEvents

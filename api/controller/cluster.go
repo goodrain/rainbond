@@ -34,7 +34,7 @@ type ClusterController struct {
 
 // GetClusterInfo -
 func (t *ClusterController) GetClusterInfo(w http.ResponseWriter, r *http.Request) {
-	nodes, err := handler.GetClusterHandler().GetClusterInfo()
+	nodes, err := handler.GetClusterHandler().GetClusterInfo(r.Context())
 	if err != nil {
 		logrus.Errorf("get cluster info: %v", err)
 		httputil.ReturnError(r, w, 500, err.Error())
@@ -46,7 +46,7 @@ func (t *ClusterController) GetClusterInfo(w http.ResponseWriter, r *http.Reques
 
 //MavenSettingList maven setting list
 func (t *ClusterController) MavenSettingList(w http.ResponseWriter, r *http.Request) {
-	httputil.ReturnSuccess(r, w, handler.GetClusterHandler().MavenSettingList())
+	httputil.ReturnSuccess(r, w, handler.GetClusterHandler().MavenSettingList(r.Context()))
 }
 
 //MavenSettingAdd maven setting add
@@ -55,7 +55,7 @@ func (t *ClusterController) MavenSettingAdd(w http.ResponseWriter, r *http.Reque
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &set, nil); !ok {
 		return
 	}
-	if err := handler.GetClusterHandler().MavenSettingAdd(&set); err != nil {
+	if err := handler.GetClusterHandler().MavenSettingAdd(r.Context(), &set); err != nil {
 		err.Handle(r, w)
 		return
 	}
@@ -75,7 +75,7 @@ func (t *ClusterController) MavenSettingUpdate(w http.ResponseWriter, r *http.Re
 		Name:    chi.URLParam(r, "name"),
 		Content: su.Content,
 	}
-	if err := handler.GetClusterHandler().MavenSettingUpdate(set); err != nil {
+	if err := handler.GetClusterHandler().MavenSettingUpdate(r.Context(), set); err != nil {
 		err.Handle(r, w)
 		return
 	}
@@ -84,7 +84,7 @@ func (t *ClusterController) MavenSettingUpdate(w http.ResponseWriter, r *http.Re
 
 //MavenSettingDelete maven setting file delete
 func (t *ClusterController) MavenSettingDelete(w http.ResponseWriter, r *http.Request) {
-	err := handler.GetClusterHandler().MavenSettingDelete(chi.URLParam(r, "name"))
+	err := handler.GetClusterHandler().MavenSettingDelete(r.Context(), chi.URLParam(r, "name"))
 	if err != nil {
 		err.Handle(r, w)
 		return
@@ -94,7 +94,7 @@ func (t *ClusterController) MavenSettingDelete(w http.ResponseWriter, r *http.Re
 
 //MavenSettingDetail maven setting file delete
 func (t *ClusterController) MavenSettingDetail(w http.ResponseWriter, r *http.Request) {
-	c, err := handler.GetClusterHandler().MavenSettingDetail(chi.URLParam(r, "name"))
+	c, err := handler.GetClusterHandler().MavenSettingDetail(r.Context(), chi.URLParam(r, "name"))
 	if err != nil {
 		err.Handle(r, w)
 		return

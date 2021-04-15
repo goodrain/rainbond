@@ -19,19 +19,21 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 
-	"github.com/ghodss/yaml"
+	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util/termtables"
 	"github.com/gosuri/uitable"
 	"github.com/urfave/cli"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"gopkg.in/yaml.v2"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 //NewCmdCluster cmd for cluster
@@ -256,8 +258,9 @@ func printComponentStatus(namespace string) {
 }
 
 func printConfig(c *cli.Context) error {
-	namespace := c.String("namespace")
-	config, err := clients.RainbondKubeClient.RainbondV1alpha1().RainbondClusters(namespace).Get("rainbondcluster", metav1.GetOptions{})
+	var config rainbondv1alpha1.RainbondCluster
+	err := clients.RainbondKubeClient.Get(context.Background(),
+		types.NamespacedName{Namespace: c.String("namespace"), Name: "rainbondcluster"}, &config)
 	if err != nil {
 		showError(err.Error())
 	}

@@ -26,6 +26,8 @@ import (
 	"strings"
 	"time"
 
+	"context"
+
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/node/nodem/client"
@@ -61,8 +63,8 @@ func NewRainbondsslcProvisioner(kubecli kubernetes.Interface, store store.Storer
 var _ controller.Provisioner = &rainbondsslcProvisioner{}
 
 //selectNode select an appropriate node with the largest resource surplus
-func (p *rainbondsslcProvisioner) selectNode(nodeOS, ignore string) (*v1.Node, error) {
-	allnode, err := p.kubecli.CoreV1().Nodes().List(metav1.ListOptions{})
+func (p *rainbondsslcProvisioner) selectNode(ctx context.Context, nodeOS, ignore string) (*v1.Node, error) {
+	allnode, err := p.kubecli.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +99,7 @@ func (p *rainbondsslcProvisioner) selectNode(nodeOS, ignore string) (*v1.Node, e
 					}
 					//only contains rainbond pod
 					//pods, err := p.store.GetPodLister().Pods(v1.NamespaceAll).List(labels.NewSelector())
-					pods, err := p.kubecli.CoreV1().Pods(v1.NamespaceAll).List(metav1.ListOptions{
+					pods, err := p.kubecli.CoreV1().Pods(v1.NamespaceAll).List(ctx, metav1.ListOptions{
 						FieldSelector: "spec.nodeName=" + node.Name,
 					})
 					if err != nil {
@@ -199,7 +201,7 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 		if options.Parameters != nil {
 			ignoreNodes = options.Parameters["ignoreNodes"]
 		}
-		options.SelectedNode, err = p.selectNode(options.PVC.Annotations[client.LabelOS], ignoreNodes)
+		options.SelectedNode, err = p.selectNode(context.Background(), options.PVC.Annotations[client.LabelOS], ignoreNodes)
 		if err != nil {
 			return nil, fmt.Errorf("Node OS: %s; error selecting node: %v",
 				options.PVC.Annotations[client.LabelOS], err)

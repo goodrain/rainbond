@@ -19,7 +19,9 @@
 package metric
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/prometheus/client_golang/prometheus"
@@ -102,7 +104,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		e.tenantLimit.WithLabelValues(t.UUID, t.UUID).Set(float64(t.LimitMemory))
 	}
 	// cluster memory
-	resource := handler.GetTenantManager().GetClusterResource()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+	resource := handler.GetTenantManager().GetClusterResource(ctx)
 	if resource != nil {
 		e.clusterMemoryTotal.Set(float64(resource.AllMemory))
 		e.clusterCPUTotal.Set(float64(resource.AllCPU))

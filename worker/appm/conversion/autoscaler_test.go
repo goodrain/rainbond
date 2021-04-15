@@ -1,10 +1,12 @@
 package conversion
 
 import (
+	"context"
 	"testing"
 
 	"github.com/goodrain/rainbond/db/model"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestCreateMetricSpec(t *testing.T) {
@@ -51,7 +53,7 @@ func TestNewHPA(t *testing.T) {
 		t.Fatalf("error creating k8s clientset: %s", err.Error())
 	}
 
-	_, err = clientset.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(hpa)
+	_, err = clientset.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(context.Background(), hpa, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("create hpa: %v", err)
 	}

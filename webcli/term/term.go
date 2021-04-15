@@ -22,7 +22,7 @@ import (
 
 	"github.com/docker/docker/pkg/term"
 
-	"k8s.io/kubernetes/pkg/util/interrupt"
+	"github.com/goodrain/rainbond/util/interrupt"
 )
 
 // SafeFunc is a function to be invoked by TTY.

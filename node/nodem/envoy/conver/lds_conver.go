@@ -107,6 +107,7 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 	var portMap = make(map[int32]int)
 	var uniqRoute = make(map[string]*route.Route, len(services))
 	var newVHL []*route.VirtualHost
+	var VHLDomainMap = make(map[string]*route.VirtualHost)
 	for _, service := range services {
 		inner, ok := service.Labels["service_type"]
 		if !ok || inner != "inner" {
@@ -138,7 +139,7 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 			listenerName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, ListenPort)
 			var listener *v2.Listener
 			protocol := service.Labels["port_protocol"]
-			if domain, ok := service.Annotations["domain"]; ok && domain != "" && (protocol == "https" || protocol == "http") {
+			if domain, ok := service.Annotations["domain"]; ok && domain != "" && (protocol == "https" || protocol == "http" || protocol == "grpc") {
 				route := envoyv2.CreateRouteWithHostRewrite(domain, clusterName, "/", nil, 0)
 				if route != nil {
 					pvh := envoyv2.CreateRouteVirtualHost(
@@ -175,7 +176,7 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 		if portProtocol != "" {
 			//TODO: support more protocol
 			switch portProtocol {
-			case "http", "https":
+			case "http", "https", "grpc":
 				hashKey := options.RouteBasicHash()
 				if oldroute, ok := uniqRoute[hashKey]; ok {
 					oldrr := oldroute.Action.(*route.Route_Route)
@@ -202,11 +203,16 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 					}
 
 					if route != nil {
-						pvh := envoyv2.CreateRouteVirtualHost(fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias,
-							GetServiceAliasByService(service), port), options.Domains, nil, route)
-						if pvh != nil {
-							newVHL = append(newVHL, pvh)
-							uniqRoute[hashKey] = route
+						if pvh := VHLDomainMap[strings.Join(options.Domains, "")]; pvh != nil {
+							pvh.Routes = append(pvh.Routes, route)
+						} else {
+							pvh := envoyv2.CreateRouteVirtualHost(fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias,
+								GetServiceAliasByService(service), port), envoyv2.CheckDomain(options.Domains, portProtocol), nil, route)
+							if pvh != nil {
+								newVHL = append(newVHL, pvh)
+								uniqRoute[hashKey] = route
+								VHLDomainMap[strings.Join(options.Domains, "")] = pvh
+							}
 						}
 					}
 				}
@@ -215,19 +221,38 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 			}
 		}
 	}
+	// Sum of weights in the weighted_cluster should add up to 100
+	for _, vh := range newVHL {
+		for _, r := range vh.Routes {
+			oldrr := r.Action.(*route.Route_Route)
+			if oldrrwc, ok := oldrr.Route.ClusterSpecifier.(*route.RouteAction_WeightedClusters); ok {
+				var weightSum uint32 = 0
+				for _, cluster := range oldrrwc.WeightedClusters.Clusters {
+					weightSum += cluster.Weight.Value
+				}
+				if weightSum != 100 {
+					oldrrwc.WeightedClusters.Clusters[len(oldrrwc.WeightedClusters.Clusters)-1].Weight = envoyv2.ConversionUInt32(
+						uint32(oldrrwc.WeightedClusters.Clusters[len(oldrrwc.WeightedClusters.Clusters)-1].Weight.Value) + uint32(100-weightSum))
+				}
+			}
+		}
+	}
 	logrus.Debugf("virtual host is : %v", newVHL)
 	// create common http listener
 	if len(newVHL) > 0 && createHTTPListen {
+		defaultListenPort := envoyv2.DefaultLocalhostListenerPort
 		//remove 80 tcp listener is exist
-		if i, ok := portMap[80]; ok {
+		if i, ok := portMap[int32(defaultListenPort)]; ok {
 			ldsL = append(ldsL[:i], ldsL[i+1:]...)
 		}
-		statsPrefix := fmt.Sprintf("%s_80", serviceAlias)
-		plds := envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias), envoyv2.DefaultLocalhostListenerAddress, statsPrefix, 80, nil, newVHL...)
+		statsPrefix := fmt.Sprintf("%s_%d", serviceAlias, defaultListenPort)
+		plds := envoyv2.CreateHTTPListener(
+			fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, defaultListenPort),
+			envoyv2.DefaultLocalhostListenerAddress, statsPrefix, defaultListenPort, nil, newVHL...)
 		if plds != nil {
 			ldsL = append(ldsL, plds)
 		} else {
-			logrus.Warnf("create listenner %s failure", fmt.Sprintf("%s_%s_http_80", namespace, serviceAlias))
+			logrus.Warnf("create listenner %s failure", fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, defaultListenPort))
 		}
 	}
 	return
@@ -245,13 +270,13 @@ func downstreamListener(serviceAlias, namespace string, ports []*api_model.BaseP
 		if _, ok := portMap[port]; !ok {
 			inboundConfig := envoyv2.GetRainbondInboundPluginOptions(p.Options)
 			options := envoyv2.GetOptionValues(p.Options)
-			if p.Protocol == "http" || p.Protocol == "https" {
+			if p.Protocol == "http" || p.Protocol == "https" || p.Protocol == "grpc" {
 				var limit []*route.RateLimit
 				if inboundConfig.OpenLimit {
 					limit = []*route.RateLimit{
-						&route.RateLimit{
+						{
 							Actions: []*route.RateLimit_Action{
-								&route.RateLimit_Action{
+								{
 									ActionSpecifier: &route.RateLimit_Action_RemoteAddress_{
 										RemoteAddress: &route.RateLimit_Action_RemoteAddress{},
 									},

@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -91,10 +92,10 @@ func (s *startController) errorCallback(app v1.AppService) error {
 }
 func (s *startController) startOne(app v1.AppService) error {
 	//first: check and create namespace
-	_, err := s.manager.client.CoreV1().Namespaces().Get(app.TenantID, metav1.GetOptions{})
+	_, err := s.manager.client.CoreV1().Namespaces().Get(context.Background(), app.TenantID, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			_, err = s.manager.client.CoreV1().Namespaces().Create(app.GetTenant())
+			_, err = s.manager.client.CoreV1().Namespaces().Create(context.Background(), app.GetTenant(), metav1.CreateOptions{})
 		}
 		if err != nil {
 			return fmt.Errorf("create or check namespace failure %s", err.Error())
@@ -103,7 +104,7 @@ func (s *startController) startOne(app v1.AppService) error {
 	//step 1: create configmap
 	if configs := app.GetConfigMaps(); configs != nil {
 		for _, config := range configs {
-			_, err := s.manager.client.CoreV1().ConfigMaps(app.TenantID).Create(config)
+			_, err := s.manager.client.CoreV1().ConfigMaps(app.TenantID).Create(context.Background(), config, metav1.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("create config map failure:%s", err.Error())
 			}
@@ -112,20 +113,20 @@ func (s *startController) startOne(app v1.AppService) error {
 	// create claims
 	for _, claim := range app.GetClaimsManually() {
 		logrus.Debugf("create claim: %s", claim.Name)
-		_, err := s.manager.client.CoreV1().PersistentVolumeClaims(app.TenantID).Create(claim)
+		_, err := s.manager.client.CoreV1().PersistentVolumeClaims(app.TenantID).Create(context.Background(), claim, metav1.CreateOptions{})
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("create claims: %v", err)
 		}
 	}
 	//step 2: create statefulset or deployment
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		_, err = s.manager.client.AppsV1().StatefulSets(app.TenantID).Create(statefulset)
+		_, err = s.manager.client.AppsV1().StatefulSets(app.TenantID).Create(context.Background(), statefulset, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("create statefulset failure:%s", err.Error())
 		}
 	}
 	if deployment := app.GetDeployment(); deployment != nil {
-		_, err = s.manager.client.AppsV1().Deployments(app.TenantID).Create(deployment)
+		_, err = s.manager.client.AppsV1().Deployments(app.TenantID).Create(context.Background(), deployment, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("create deployment failure:%s;", err.Error())
 		}
@@ -140,7 +141,7 @@ func (s *startController) startOne(app v1.AppService) error {
 	if secrets := append(app.GetSecrets(true), app.GetEnvVarSecrets(true)...); secrets != nil {
 		for _, secret := range secrets {
 			if len(secret.ResourceVersion) == 0 {
-				_, err := s.manager.client.CoreV1().Secrets(app.TenantID).Create(secret)
+				_, err := s.manager.client.CoreV1().Secrets(app.TenantID).Create(context.Background(), secret, metav1.CreateOptions{})
 				if err != nil && !errors.IsAlreadyExists(err) {
 					return fmt.Errorf("create secret failure:%s", err.Error())
 				}
@@ -151,7 +152,7 @@ func (s *startController) startOne(app v1.AppService) error {
 	if ingresses := app.GetIngress(true); ingresses != nil {
 		for _, ingress := range ingresses {
 			if len(ingress.ResourceVersion) == 0 {
-				_, err := s.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Create(ingress)
+				_, err := s.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Create(context.Background(), ingress, metav1.CreateOptions{})
 				if err != nil && !errors.IsAlreadyExists(err) {
 					return fmt.Errorf("create ingress failure:%s", err.Error())
 				}
@@ -162,7 +163,7 @@ func (s *startController) startOne(app v1.AppService) error {
 	if hpas := app.GetHPAs(); len(hpas) != 0 {
 		for _, hpa := range hpas {
 			if len(hpa.ResourceVersion) == 0 {
-				_, err := s.manager.client.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(hpa)
+				_, err := s.manager.client.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(context.Background(), hpa, metav1.CreateOptions{})
 				if err != nil && !errors.IsAlreadyExists(err) {
 					logrus.Debugf("hpa: %#v", hpa)
 					return fmt.Errorf("create hpa: %v", err)
@@ -181,7 +182,7 @@ func (s *startController) startOne(app v1.AppService) error {
 			if smClient != nil {
 				for _, sm := range sms {
 					if len(sm.ResourceVersion) == 0 {
-						_, err := smClient.MonitoringV1().ServiceMonitors(sm.GetNamespace()).Create(sm)
+						_, err := smClient.MonitoringV1().ServiceMonitors(sm.GetNamespace()).Create(context.Background(), sm, metav1.CreateOptions{})
 						if err != nil && !errors.IsAlreadyExists(err) {
 							logrus.Errorf("create service monitor failure: %s", err.Error())
 						}
