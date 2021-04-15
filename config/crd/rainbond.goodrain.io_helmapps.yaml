@@ -6,18 +6,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: helmapps.rainbond.goodrdain.io
+  name: helmapps.rainbond.goodrain.io
 spec:
-  group: rainbond.goodrdain.io
+  group: rainbond.goodrain.io
   names:
     kind: HelmApp
     listKind: HelmAppList
     plural: helmapps
     singular: helmapp
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
-      description: HelmApp is the Schema for the helmapps API
+      description: HelmApp -
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation

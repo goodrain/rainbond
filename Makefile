@@ -54,10 +54,11 @@ precommit:
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./worker/..." output:crd:artifacts:config=config/crd
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/apis/..." output:crd:artifacts:config=config/crd
 
 # Generate code
 generate: controller-gen
+	./hack/k8s/codegen/update-generated.sh
 	$(CONTROLLER_GEN) object:headerFile="hack/k8s/codegen/boilerplate.go.txt" paths="./pkg/apis/..."
 
 # find or download controller-gen

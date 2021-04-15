@@ -3,7 +3,6 @@ package k8s
 import (
 	"net"
 	"os"
-	"time"
 
 	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/pkg/apis/rainbond/v1alpha1"
 	"github.com/sirupsen/logrus"
@@ -11,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -82,15 +80,6 @@ func InClusterConfig() (*rest.Config, error) {
 	return cfg, nil
 }
 
-// NewRainbondFilteredSharedInformerFactory -
-func NewRainbondFilteredSharedInformerFactory(clientset kubernetes.Interface) informers.SharedInformerFactory {
-	return informers.NewFilteredSharedInformerFactory(
-		clientset, 30*time.Second, corev1.NamespaceAll, func(options *metav1.ListOptions) {
-			options.LabelSelector = "creator=Rainbond"
-		},
-	)
-}
-
 // ExtractLabels extracts the service information from the labels
 func ExtractLabels(labels map[string]string) (string, string, string, string) {
 	if labels == nil {
@@ -115,4 +104,9 @@ func DefListEventsByPod(clientset kubernetes.Interface, pod *corev1.Pod) *corev1
 	}
 	events, _ := clientset.CoreV1().Events(pod.GetNamespace()).Search(scheme.Scheme, ref)
 	return events
+}
+
+// ObjKey returns the key of the given object.
+func ObjKey(obj metav1.Object) string {
+	return obj.GetName() + "/" + obj.GetNamespace()
 }
