@@ -26,6 +26,12 @@ func (in *HelmAppStatus) GetCondition(t HelmAppConditionType) (int, *HelmAppCond
 	return -1, nil
 }
 
+// IsConditionTrue checks if the condition is ready or not based on the given condition type.
+func (in *HelmAppStatus) IsConditionTrue(t HelmAppConditionType) bool {
+	idx, condition := in.GetCondition(t)
+	return idx != -1 && condition.Status == corev1.ConditionTrue
+}
+
 // SetCondition setups the given HelmApp condition.
 func (in *HelmAppStatus) SetCondition(c HelmAppCondition) {
 	pos, cp := in.GetCondition(c.Type)
@@ -39,4 +45,45 @@ func (in *HelmAppStatus) SetCondition(c HelmAppCondition) {
 	} else {
 		in.Conditions = append(in.Conditions, c)
 	}
+}
+
+// UpdateCondition updates existing HelmApp condition or creates a new
+// one. Sets LastTransitionTime to now if the status has changed.
+// Returns true if HelmApp condition has changed or has been added.
+func (in *HelmAppStatus) UpdateCondition(condition *HelmAppCondition) bool {
+	condition.LastTransitionTime = metav1.Now()
+	// Try to find this HelmApp condition.
+	conditionIndex, oldCondition := in.GetCondition(condition.Type)
+
+	if oldCondition == nil {
+		// We are adding new HelmApp condition.
+		in.Conditions = append(in.Conditions, *condition)
+		return true
+	}
+
+	// We are updating an existing condition, so we need to check if it has changed.
+	if condition.Status == oldCondition.Status {
+		condition.LastTransitionTime = oldCondition.LastTransitionTime
+	}
+
+	isEqual := condition.Status == oldCondition.Status &&
+		condition.Reason == oldCondition.Reason &&
+		condition.Message == oldCondition.Message &&
+		condition.LastTransitionTime.Equal(&oldCondition.LastTransitionTime)
+
+	in.Conditions[conditionIndex] = *condition
+	// Return true if one of the fields have changed.
+	return !isEqual
+}
+
+func (in *HelmAppStatus) UpdateConditionStatus(conditionType HelmAppConditionType, conditionStatus corev1.ConditionStatus) {
+	_, condition := in.GetCondition(conditionType)
+	if condition != nil {
+		condition.Status = conditionStatus
+		in.UpdateCondition(condition)
+		return
+	}
+
+	condition = NewHelmAppCondition(conditionType, conditionStatus, "", "")
+	in.UpdateCondition(condition)
 }

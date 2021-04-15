@@ -27,33 +27,24 @@ var deprecatedRepos = map[string]string{
 
 // Repo -
 type Repo struct {
-	name        string
-	url         string
-	username    string
-	password    string
-	forceUpdate bool
-
 	repoFile  string
 	repoCache string
 
+	forceUpdate           bool
 	insecureSkipTLSverify bool
 }
 
-func NewRepo(name, url, username, password, repoFile, repoCache string) *Repo {
+// NewRepo creates a new repo.
+func NewRepo(repoFile, repoCache string) *Repo {
 	return &Repo{
-		name:        name,
-		url:         url,
-		username:    username,
-		password:    password,
-		forceUpdate: true,
-		repoFile:    repoFile,
-		repoCache:   repoCache,
+		repoFile:  repoFile,
+		repoCache: repoCache,
 	}
 }
 
-func (o *Repo) Add() error {
+func (o *Repo) Add(name, url, username, password string) error {
 	var buf bytes.Buffer
-	err := o.add(&buf)
+	err := o.add(&buf, name, url, username, password)
 	if err != nil {
 		return err
 	}
@@ -64,11 +55,11 @@ func (o *Repo) Add() error {
 	return nil
 }
 
-func (o *Repo) add(out io.Writer) error {
+func (o *Repo) add(out io.Writer, name, url, username, password string) error {
 	// Block deprecated repos
 	for oldURL, newURL := range deprecatedRepos {
-		if strings.Contains(o.url, oldURL) {
-			return fmt.Errorf("repo %q is no longer available; try %q instead", o.url, newURL)
+		if strings.Contains(url, oldURL) {
+			return fmt.Errorf("repo %q is no longer available; try %q instead", url, newURL)
 		}
 	}
 
@@ -101,27 +92,27 @@ func (o *Repo) add(out io.Writer) error {
 	}
 
 	c := repo.Entry{
-		Name:                  o.name,
-		URL:                   o.url,
-		Username:              o.username,
-		Password:              o.password,
+		Name:                  name,
+		URL:                   url,
+		Username:              username,
+		Password:              password,
 		InsecureSkipTLSverify: o.insecureSkipTLSverify,
 	}
 
 	// If the repo exists do one of two things:
 	// 1. If the configuration for the name is the same continue without error
 	// 2. When the config is different require --force-update
-	if !o.forceUpdate && f.Has(o.name) {
-		existing := f.Get(o.name)
+	if !o.forceUpdate && f.Has(name) {
+		existing := f.Get(name)
 		if c != *existing {
 
 			// The input coming in for the name is different from what is already
 			// configured. Return an error.
-			return errors.Errorf("repository name (%s) already exists, please specify a different name", o.name)
+			return errors.Errorf("repository name (%s) already exists, please specify a different name", name)
 		}
 
 		// The add is idempotent so do nothing
-		fmt.Fprintf(out, "%q already exists with the same configuration, skipping\n", o.name)
+		fmt.Fprintf(out, "%q already exists with the same configuration, skipping\n", name)
 		return nil
 	}
 
@@ -137,7 +128,7 @@ func (o *Repo) add(out io.Writer) error {
 		r.CachePath = o.repoCache
 	}
 	if _, err := r.DownloadIndexFile(); err != nil {
-		return errors.Wrapf(err, "looks like %q is not a valid chart repository or cannot be reached", o.url)
+		return errors.Wrapf(err, "looks like %q is not a valid chart repository or cannot be reached", url)
 	}
 
 	f.Update(&c)
@@ -145,6 +136,6 @@ func (o *Repo) add(out io.Writer) error {
 	if err := f.WriteFile(o.repoFile, 0644); err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "%q has been added to your repositories\n", o.name)
+	fmt.Fprintf(out, "%q has been added to your repositories\n", name)
 	return nil
 }

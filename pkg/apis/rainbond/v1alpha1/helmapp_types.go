@@ -62,8 +62,10 @@ type HelmAppConditionType string
 
 // These are valid conditions of helm app.
 const (
-	// HelmAppDetected indicates whether the helm app has been detected.
-	HelmAppDetected HelmAppConditionType = "Detected"
+	//  HelmAppRepoReady indicates whether the helm repository is ready.
+	HelmAppRepoReady HelmAppConditionType = "RepoReady"
+	//  HelmAppChartReady indicates whether the chart is ready.
+	HelmAppChartReady HelmAppConditionType = "ChartReady"
 	// HelmAppDetected indicates whether the helm app has been installed.
 	HelmAppInstalled HelmAppConditionType = "Installed"
 )
@@ -109,6 +111,10 @@ type HelmAppSpec struct {
 
 	// The values.yaml of the helm app, encoded by base64.
 	Values string `json:"values"`
+
+	// The helm app store.
+	// TODO: validation. not null
+	AppStore *HelmAppStore `json:"appStore"`
 }
 
 // HelmAppStore represents a helm repo.

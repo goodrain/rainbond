@@ -16,12 +16,13 @@ type Controller struct {
 	controlLoop *ControlLoop
 }
 
-func NewController(stopCh chan struct{}, restcfg *rest.Config, resyncPeriod time.Duration) *Controller {
+func NewController(stopCh chan struct{}, restcfg *rest.Config, resyncPeriod time.Duration,
+	repoFile, repoCache string) *Controller {
 	queue := workqueue.New()
 	clientset := versioned.NewForConfigOrDie(restcfg)
 	storer := NewStorer(clientset, resyncPeriod, queue)
 
-	controlLoop := NewControlLoop(storer, queue)
+	controlLoop := NewControlLoop(clientset, storer, queue, repoFile, repoCache)
 
 	return &Controller{
 		storer:      storer,

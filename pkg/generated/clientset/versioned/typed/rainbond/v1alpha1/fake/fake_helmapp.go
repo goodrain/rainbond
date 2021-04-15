@@ -21,6 +21,8 @@
 package fake
 
 import (
+	"context"
+
 	v1alpha1 "github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -41,7 +43,7 @@ var helmappsResource = schema.GroupVersionResource{Group: "rainbond.goodrain.io"
 var helmappsKind = schema.GroupVersionKind{Group: "rainbond.goodrain.io", Version: "v1alpha1", Kind: "HelmApp"}
 
 // Get takes name of the helmApp, and returns the corresponding helmApp object, and an error if there is any.
-func (c *FakeHelmApps) Get(name string, options v1.GetOptions) (result *v1alpha1.HelmApp, err error) {
+func (c *FakeHelmApps) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.HelmApp, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(helmappsResource, c.ns, name), &v1alpha1.HelmApp{})
 
@@ -52,7 +54,7 @@ func (c *FakeHelmApps) Get(name string, options v1.GetOptions) (result *v1alpha1
 }
 
 // List takes label and field selectors, and returns the list of HelmApps that match those selectors.
-func (c *FakeHelmApps) List(opts v1.ListOptions) (result *v1alpha1.HelmAppList, err error) {
+func (c *FakeHelmApps) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.HelmAppList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(helmappsResource, helmappsKind, c.ns, opts), &v1alpha1.HelmAppList{})
 
@@ -74,14 +76,14 @@ func (c *FakeHelmApps) List(opts v1.ListOptions) (result *v1alpha1.HelmAppList, 
 }
 
 // Watch returns a watch.Interface that watches the requested helmApps.
-func (c *FakeHelmApps) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeHelmApps) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(helmappsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a helmApp and creates it.  Returns the server's representation of the helmApp, and an error, if there is any.
-func (c *FakeHelmApps) Create(helmApp *v1alpha1.HelmApp) (result *v1alpha1.HelmApp, err error) {
+func (c *FakeHelmApps) Create(ctx context.Context, helmApp *v1alpha1.HelmApp, opts v1.CreateOptions) (result *v1alpha1.HelmApp, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(helmappsResource, c.ns, helmApp), &v1alpha1.HelmApp{})
 
@@ -92,7 +94,7 @@ func (c *FakeHelmApps) Create(helmApp *v1alpha1.HelmApp) (result *v1alpha1.HelmA
 }
 
 // Update takes the representation of a helmApp and updates it. Returns the server's representation of the helmApp, and an error, if there is any.
-func (c *FakeHelmApps) Update(helmApp *v1alpha1.HelmApp) (result *v1alpha1.HelmApp, err error) {
+func (c *FakeHelmApps) Update(ctx context.Context, helmApp *v1alpha1.HelmApp, opts v1.UpdateOptions) (result *v1alpha1.HelmApp, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(helmappsResource, c.ns, helmApp), &v1alpha1.HelmApp{})
 
@@ -104,7 +106,7 @@ func (c *FakeHelmApps) Update(helmApp *v1alpha1.HelmApp) (result *v1alpha1.HelmA
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeHelmApps) UpdateStatus(helmApp *v1alpha1.HelmApp) (*v1alpha1.HelmApp, error) {
+func (c *FakeHelmApps) UpdateStatus(ctx context.Context, helmApp *v1alpha1.HelmApp, opts v1.UpdateOptions) (*v1alpha1.HelmApp, error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateSubresourceAction(helmappsResource, "status", c.ns, helmApp), &v1alpha1.HelmApp{})
 
@@ -115,7 +117,7 @@ func (c *FakeHelmApps) UpdateStatus(helmApp *v1alpha1.HelmApp) (*v1alpha1.HelmAp
 }
 
 // Delete takes name of the helmApp and deletes it. Returns an error if one occurs.
-func (c *FakeHelmApps) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeHelmApps) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(helmappsResource, c.ns, name), &v1alpha1.HelmApp{})
 
@@ -123,15 +125,15 @@ func (c *FakeHelmApps) Delete(name string, options *v1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeHelmApps) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(helmappsResource, c.ns, listOptions)
+func (c *FakeHelmApps) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(helmappsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.HelmAppList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched helmApp.
-func (c *FakeHelmApps) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.HelmApp, err error) {
+func (c *FakeHelmApps) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.HelmApp, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(helmappsResource, c.ns, name, pt, data, subresources...), &v1alpha1.HelmApp{})
 

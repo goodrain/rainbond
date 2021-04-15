@@ -28,8 +28,10 @@ import (
 )
 
 // HelmAppLister helps list HelmApps.
+// All objects returned here must be treated as read-only.
 type HelmAppLister interface {
 	// List lists all HelmApps in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.HelmApp, err error)
 	// HelmApps returns an object that can list and get HelmApps.
 	HelmApps(namespace string) HelmAppNamespaceLister
@@ -60,10 +62,13 @@ func (s *helmAppLister) HelmApps(namespace string) HelmAppNamespaceLister {
 }
 
 // HelmAppNamespaceLister helps list and get HelmApps.
+// All objects returned here must be treated as read-only.
 type HelmAppNamespaceLister interface {
 	// List lists all HelmApps in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.HelmApp, err error)
 	// Get retrieves the HelmApp from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.HelmApp, error)
 	HelmAppNamespaceListerExpansion
 }

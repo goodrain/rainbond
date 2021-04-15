@@ -2,6 +2,10 @@ package main
 
 import "C"
 import (
+	"context"
+	"os"
+	"time"
+
 	rainbondv1alpha1 "github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
@@ -9,8 +13,6 @@ import (
 	"github.com/sirupsen/logrus"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
-	"time"
 )
 
 func init() {
@@ -36,19 +38,25 @@ func main() {
 		},
 		Spec: rainbondv1alpha1.HelmAppSpec{
 			PreStatus: "",
-			AppName:   "",
+			AppName:   "rainbond-operator",
 			Version:   "v1.0.0",
 			Revision:  Int32(0),
 			Values:    "",
+			AppStore: &rainbondv1alpha1.HelmAppStore{
+				Version: "1111111",
+				Name:    "rainbond",
+				URL:     "https://openchart.goodrain.com/goodrain/rainbond",
+			},
 		},
 	}
-	if _, err := clientset.RainbondV1alpha1().HelmApps("rbd-system").Create(helmApp); err != nil {
+	if _, err := clientset.RainbondV1alpha1().HelmApps("rbd-system").Create(context.Background(),
+		helmApp, metav1.CreateOptions{}); err != nil {
 		if !k8sErrors.IsAlreadyExists(err) {
 			logrus.Fatal(err)
 		}
 	}
 
-	ctrl := helmapp.NewController(stopCh, restcfg, 5*time.Second)
+	ctrl := helmapp.NewController(stopCh, restcfg, 5*time.Second, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
 	if err = ctrl.Start(); err != nil {
 		logrus.Fatalf("start controller: %v", err)
 	}

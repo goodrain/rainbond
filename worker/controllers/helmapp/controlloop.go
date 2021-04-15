@@ -1,6 +1,10 @@
 package helmapp
 
 import (
+	"context"
+	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
+	"github.com/goodrain/rainbond/worker/controllers/helmapp/helm"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
@@ -10,17 +14,26 @@ import (
 )
 
 type ControlLoop struct {
+	clientset versioned.Interface
 	storer    Storer
 	workqueue workqueue.Interface
+	repo      *helm.Repo
 }
 
 // NewControlLoop -
-func NewControlLoop(storer Storer,
+func NewControlLoop(clientset versioned.Interface,
+	storer Storer,
 	workqueue workqueue.Interface,
+	repoFile string,
+	repoCache string,
 ) *ControlLoop {
+	repo := helm.NewRepo(repoFile, repoCache)
+
 	return &ControlLoop{
+		clientset: clientset,
 		storer:    storer,
 		workqueue: workqueue,
+		repo:      repo,
 	}
 }
 
@@ -61,8 +74,20 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 
 	status := NewStatus(helmApp.Status)
 
-	detector := NewDetector(status)
-	detector.Detect()
+	detector := NewDetector(helmApp, status, c.repo)
+	err := detector.Detect()
+	if err != nil {
+		// TODO: create event
+		return err
+	}
+
+	helmApp.Status = status.HelmAppStatus
+	// TODO: context
+	if _, err := c.clientset.RainbondV1alpha1().HelmApps(helmApp.Namespace).
+		UpdateStatus(context.Background(), helmApp, metav1.UpdateOptions{}); err != nil {
+		// TODO: create event
+		return err
+	}
 
 	return nil
 }

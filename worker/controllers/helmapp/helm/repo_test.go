@@ -7,11 +7,9 @@ import (
 )
 
 func TestRepoAdd(t *testing.T) {
-	repo := NewRepo(util.NewUUID(),
-		"https://openchart.goodrain.com/goodrain/rainbond",
-		"", "",
+	repo := NewRepo(
 		"/tmp/helm/repo/repositories.yaml",
 		"/tmp/helm/cache")
-	err := repo.Add()
+	err := repo.Add(util.NewUUID(), "https://openchart.goodrain.com/goodrain/rainbond", "", "")
 	assert.Nil(t, err)
 }

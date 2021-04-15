@@ -21,6 +21,7 @@
 package v1alpha1
 
 import (
+	"context"
 	time "time"
 
 	rainbondv1alpha1 "github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
@@ -63,13 +64,13 @@ func NewFilteredHelmAppInformer(client versioned.Interface, namespace string, re
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RainbondV1alpha1().HelmApps(namespace).List(options)
+				return client.RainbondV1alpha1().HelmApps(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RainbondV1alpha1().HelmApps(namespace).Watch(options)
+				return client.RainbondV1alpha1().HelmApps(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&rainbondv1alpha1.HelmApp{},

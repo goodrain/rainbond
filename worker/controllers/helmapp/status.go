@@ -11,16 +11,7 @@ type Status struct {
 
 // NewStatus creates a new helm app status.
 func NewStatus(status v1alpha1.HelmAppStatus) *Status {
-	idx, _ := status.GetCondition(v1alpha1.HelmAppDetected)
-	if idx == -1 {
-		status.SetCondition(*v1alpha1.NewHelmAppCondition(
-			v1alpha1.HelmAppDetected,
-			corev1.ConditionFalse,
-			"",
-			"",
-		))
-	}
-	idx, _ = status.GetCondition(v1alpha1.HelmAppInstalled)
+	idx, _ := status.GetCondition(v1alpha1.HelmAppInstalled)
 	if idx == -1 {
 		status.SetCondition(*v1alpha1.NewHelmAppCondition(
 			v1alpha1.HelmAppInstalled,
@@ -35,6 +26,14 @@ func NewStatus(status v1alpha1.HelmAppStatus) *Status {
 }
 
 func (s *Status) isDetected() bool {
-	idx, condition := s.GetCondition(v1alpha1.HelmAppDetected)
-	return idx != -1 && condition.Status == corev1.ConditionTrue
+	types := []v1alpha1.HelmAppConditionType{
+		v1alpha1.HelmAppRepoReady,
+		v1alpha1.HelmAppChartReady,
+	}
+	for _, t := range types {
+		if !s.IsConditionTrue(t) {
+			return false
+		}
+	}
+	return true
 }
