@@ -58,7 +58,7 @@ manifests: controller-gen
 
 # Generate code
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile="hack/k8s/codegen/boilerplate.go.txt" paths="./worker/api/..."
+	$(CONTROLLER_GEN) object:headerFile="hack/k8s/codegen/boilerplate.go.txt" paths="./pkg/apis/..."
 
 # find or download controller-gen
 # download controller-gen if necessary

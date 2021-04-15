@@ -145,9 +145,12 @@ type HelmAppStatus struct {
 	CurrentRevision string `json:"currentRevision,omitempty"`
 }
 
+// +genclient
 // +kubebuilder:object:root=true
 
-// HelmApp is the Schema for the helmapps API
+// HelmApp -
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:path=helmapps,scope=Namespaced
 type HelmApp struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

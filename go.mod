@@ -90,6 +90,7 @@ require (
 	k8s.io/apimachinery v0.19.0
 	k8s.io/apiserver v0.19.0
 	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/code-generator v0.19.0
 	k8s.io/ingress-nginx v0.0.0-20200903213136-333288e755c1
 	k8s.io/kubernetes v1.19.0
 	sigs.k8s.io/controller-runtime v0.6.1-0.20200831170621-ab55aa710b06
