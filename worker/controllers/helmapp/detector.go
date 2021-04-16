@@ -13,9 +13,7 @@ type Detector struct {
 	app     *helm.App
 }
 
-func NewDetector(helmApp *v1alpha1.HelmApp, status *Status, h *helm.Helm, repo *helm.Repo) *Detector {
-	appStore := helmApp.Spec.AppStore
-	app := helm.NewApp(helmApp.Name, helmApp.Namespace, helmApp.Spec.TemplateName, appStore.Name, helmApp.Spec.Version, h)
+func NewDetector(helmApp *v1alpha1.HelmApp, status *Status, app *helm.App, repo *helm.Repo) *Detector {
 	return &Detector{
 		helmApp: helmApp,
 		status:  status,

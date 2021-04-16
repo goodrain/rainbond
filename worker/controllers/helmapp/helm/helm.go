@@ -9,7 +9,6 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/cli"
-	"helm.sh/helm/v3/pkg/cli/values"
 	"helm.sh/helm/v3/pkg/downloader"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/kube"
@@ -24,7 +23,7 @@ type Helm struct {
 }
 
 // NewHelm creates a new helm.
-func NewHelm(kubeClient kube.Interface, configFlags *genericclioptions.ConfigFlags, repoFile, repoCache string) *Helm {
+func NewHelm(kubeClient kube.Interface, configFlags *genericclioptions.ConfigFlags, repoFile, repoCache string) (*Helm, error) {
 	cfg := &action.Configuration{
 		KubeClient: kubeClient,
 		Log: func(s string, i ...interface{}) {
@@ -32,18 +31,29 @@ func NewHelm(kubeClient kube.Interface, configFlags *genericclioptions.ConfigFla
 		},
 		RESTClientGetter: configFlags,
 	}
+	helmDriver := ""
+	settings := cli.New()
+	if err := cfg.Init(settings.RESTClientGetter(), settings.Namespace(), helmDriver, func(format string, v ...interface{}) {
+		logrus.Debugf(format, v)
+	}); err != nil {
+		return nil, errors.Wrap(err, "init config")
+	}
 	return &Helm{
 		cfg:       cfg,
 		repoFile:  repoFile,
 		repoCache: repoCache,
-	}
+	}, nil
 }
 
 func (h *Helm) PreInstall(name, namespace, chart string, out io.Writer) error {
-	return h.install(name, namespace, chart, &values.Options{}, true, out)
+	return h.install(name, namespace, chart, nil, true, out)
 }
 
-func (h *Helm) install(name, namespace, chart string, valueOpts *values.Options, dryRun bool, out io.Writer) error {
+func (h *Helm) Install(name, namespace, chart string, vals map[string]interface{}, out io.Writer) error {
+	return h.install(name, namespace, chart, vals, true, out)
+}
+
+func (h *Helm) install(name, namespace, chart string, vals map[string]interface{}, dryRun bool, out io.Writer) error {
 	client := action.NewInstall(h.cfg)
 	client.ReleaseName = name
 	client.Namespace = namespace
@@ -61,10 +71,6 @@ func (h *Helm) install(name, namespace, chart string, valueOpts *values.Options,
 	logrus.Debugf("CHART PATH: %s\n", cp)
 
 	p := getter.All(settings)
-	vals, err := valueOpts.MergeValues(p)
-	if err != nil {
-		return err
-	}
 
 	// Check chart dependencies to make sure all are present in /charts
 	chartRequested, err := loader.Load(cp)
@@ -110,6 +116,13 @@ func (h *Helm) install(name, namespace, chart string, valueOpts *values.Options,
 	}
 
 	_, err = client.Run(chartRequested, vals)
+	return err
+}
+
+func (h *Helm) Status(name string) error {
+	// helm status RELEASE_NAME [flags]
+	client := action.NewStatus(h.cfg)
+	_, err := client.Run(name)
 	return err
 }
 

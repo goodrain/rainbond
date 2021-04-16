@@ -81,6 +81,8 @@ const (
 	HelmAppPreInstalled HelmAppConditionType = "PreInstalled"
 	// HelmAppPreInstalled indicates whether the chart has been parsed.
 	HelmAppChartParsed HelmAppConditionType = "ChartParsed"
+	// HelmAppInstalled indicates whether the helm app has been installed.
+	HelmAppInstalled HelmAppConditionType = "HelmAppInstalled"
 )
 
 // HelmAppCondition contains details for the current condition of this helm application.

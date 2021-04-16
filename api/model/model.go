@@ -1700,6 +1700,11 @@ type BindServiceRequest struct {
 	ServiceIDs []string `json:"service_ids"`
 }
 
+// InstallAppReq -
+type InstallAppReq struct {
+	Values string `json:"values"`
+}
+
 // ConfigGroupService -
 type ConfigGroupService struct {
 	AppID           string `json:"app_id"`

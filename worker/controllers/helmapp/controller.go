@@ -4,8 +4,6 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
-	"helm.sh/helm/v3/pkg/kube"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
 )
@@ -22,10 +20,8 @@ func NewController(stopCh chan struct{}, restcfg *rest.Config, resyncPeriod time
 	queue := workqueue.New()
 	clientset := versioned.NewForConfigOrDie(restcfg)
 	storer := NewStorer(clientset, resyncPeriod, queue)
-	configFlags := genericclioptions.NewConfigFlags(true)
-	kubeClient := kube.New(configFlags)
 
-	controlLoop := NewControlLoop(kubeClient, clientset, configFlags, storer, queue, repoFile, repoCache)
+	controlLoop := NewControlLoop(clientset, storer, queue, repoFile, repoCache)
 
 	return &Controller{
 		storer:      storer,

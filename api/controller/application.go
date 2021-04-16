@@ -205,6 +205,21 @@ func (a *ApplicationController) GetDetectProcess(w http.ResponseWriter, r *http.
 	httputil.ReturnSuccess(r, w, processes)
 }
 
+func (a *ApplicationController) Install(w http.ResponseWriter, r *http.Request) {
+	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+
+	var installAppReq model.InstallAppReq
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &installAppReq, nil) {
+		return
+	}
+
+	err := handler.GetApplicationHandler().Install(r.Context(), app, installAppReq.Values)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+}
+
 // BatchBindService -
 func (a *ApplicationController) BatchBindService(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "app_id")

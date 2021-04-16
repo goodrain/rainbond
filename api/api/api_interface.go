@@ -166,6 +166,7 @@ type ApplicationInterface interface {
 	BatchUpdateComponentPorts(w http.ResponseWriter, r *http.Request)
 	GetAppStatus(w http.ResponseWriter, r *http.Request)
 	GetDetectProcess(w http.ResponseWriter, r *http.Request)
+	Install(w http.ResponseWriter, r *http.Request)
 
 	DeleteConfigGroup(w http.ResponseWriter, r *http.Request)
 	ListConfigGroups(w http.ResponseWriter, r *http.Request)

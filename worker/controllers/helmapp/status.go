@@ -7,24 +7,26 @@ import (
 
 type Status struct {
 	v1alpha1.HelmAppStatus
+	values string
 }
 
 // NewStatus creates a new helm app status.
-func NewStatus(status v1alpha1.HelmAppStatus) *Status {
-	idx, _ := status.GetCondition(v1alpha1.HelmAppChartReady)
+func NewStatus(app *v1alpha1.HelmApp) *Status {
+	idx, _ := app.Status.GetCondition(v1alpha1.HelmAppChartReady)
 	if idx == -1 {
-		status.UpdateConditionStatus(v1alpha1.HelmAppChartReady, corev1.ConditionFalse)
+		app.Status.UpdateConditionStatus(v1alpha1.HelmAppChartReady, corev1.ConditionFalse)
 	}
-	idx, _ = status.GetCondition(v1alpha1.HelmAppPreInstalled)
+	idx, _ = app.Status.GetCondition(v1alpha1.HelmAppPreInstalled)
 	if idx == -1 {
-		status.UpdateConditionStatus(v1alpha1.HelmAppPreInstalled, corev1.ConditionFalse)
+		app.Status.UpdateConditionStatus(v1alpha1.HelmAppPreInstalled, corev1.ConditionFalse)
 	}
-	idx, _ = status.GetCondition(v1alpha1.HelmAppChartParsed)
+	idx, _ = app.Status.GetCondition(v1alpha1.HelmAppChartParsed)
 	if idx == -1 {
-		status.UpdateConditionStatus(v1alpha1.HelmAppChartParsed, corev1.ConditionFalse)
+		app.Status.UpdateConditionStatus(v1alpha1.HelmAppChartParsed, corev1.ConditionFalse)
 	}
 	return &Status{
-		HelmAppStatus: status,
+		HelmAppStatus: app.Status,
+		values:        app.Spec.Values,
 	}
 }
 
@@ -37,9 +39,12 @@ func (s *Status) GetHelmAppStatus() v1alpha1.HelmAppStatus {
 }
 
 func (s *Status) getPhase() v1alpha1.HelmAppStatusPhase {
-	phase := v1alpha1.HelmAppStatusPhaseInitialing
-	if !s.isDetected() {
-		phase = v1alpha1.HelmAppStatusPhaseDetecting
+	phase := v1alpha1.HelmAppStatusPhaseDetecting
+	if s.isDetected() {
+		phase = v1alpha1.HelmAppStatusPhaseConfiguring
+	}
+	if s.values != "" {
+		phase = v1alpha1.HelmAppStatusPhaseInstalled
 	}
 	return phase
 }

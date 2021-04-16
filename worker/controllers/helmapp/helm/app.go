@@ -9,10 +9,15 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/goodrain/rainbond/util/commonutil"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/cli"
+	"helm.sh/helm/v3/pkg/kube"
+	"helm.sh/helm/v3/pkg/storage/driver"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"sigs.k8s.io/yaml"
 )
 
 type App struct {
@@ -23,6 +28,8 @@ type App struct {
 	version      string
 	chartDir     string
 
+	encodedValues string
+
 	helm *Helm
 }
 
@@ -30,17 +37,26 @@ func (a *App) Chart() string {
 	return a.repo + "/" + a.templateName
 }
 
-// TODO: use appName and templateName
-func NewApp(name, namespace, templateName, repo string, version string, helm *Helm) *App {
-	return &App{
-		name:         name,
-		namespace:    namespace,
-		templateName: templateName,
-		repo:         repo,
-		version:      version,
-		helm:         helm,
-		chartDir:     path.Join("/tmp/helm/chart", namespace, name, version),
+func NewApp(name, namespace, templateName, repo string, version, values, repoFile, repoCache string) (*App, error) {
+	configFlags := genericclioptions.NewConfigFlags(true)
+	configFlags.Namespace = commonutil.String(namespace)
+	kubeClient := kube.New(configFlags)
+
+	helm, err := NewHelm(kubeClient, configFlags, repoFile, repoCache)
+	if err != nil {
+		return nil, err
 	}
+
+	return &App{
+		name:          name,
+		namespace:     namespace,
+		templateName:  templateName,
+		repo:          repo,
+		version:       version,
+		encodedValues: values,
+		helm:          helm,
+		chartDir:      path.Join("/tmp/helm/chart", namespace, name, version),
+	}, nil
 }
 
 func (a *App) Pull() error {
@@ -71,7 +87,34 @@ func (a *App) chart() string {
 
 func (a *App) PreInstall() error {
 	var buf bytes.Buffer
-	return a.helm.PreInstall(a.templateName, a.namespace, a.Chart(), &buf)
+	if err := a.helm.PreInstall(a.templateName, a.namespace, a.Chart(), &buf); err != nil {
+		return err
+	}
+	logrus.Infof("pre install: %s", buf.String())
+	return nil
+}
+
+func (a *App) InstallOrUpdate() error {
+	err := a.helm.Status(a.name)
+	if errors.Is(err, driver.ErrReleaseNotFound) {
+		b, err := base64.StdEncoding.DecodeString(a.encodedValues)
+		if err != nil {
+			return errors.Wrap(err, "decode values")
+		}
+
+		values := map[string]interface{}{}
+		if err := yaml.Unmarshal(b, &values); err != nil {
+			return errors.Wrap(err, "parse values")
+		}
+
+		var buf bytes.Buffer
+		if err := a.helm.Install(a.templateName, a.namespace, a.Chart(), values, &buf); err != nil {
+			return err
+		}
+		logrus.Infof("install: %s", buf.String())
+		return nil
+	}
+	return nil
 }
 
 func (a *App) ParseChart() (string, error) {

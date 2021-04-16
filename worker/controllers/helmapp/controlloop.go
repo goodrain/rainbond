@@ -9,9 +9,8 @@ import (
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/controllers/helmapp/helm"
 	"github.com/sirupsen/logrus"
-	"helm.sh/helm/v3/pkg/kube"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -20,13 +19,12 @@ type ControlLoop struct {
 	storer    Storer
 	workqueue workqueue.Interface
 	repo      *helm.Repo
-	helm      *helm.Helm
+	repoFile  string
+	repoCache string
 }
 
 // NewControlLoop -
-func NewControlLoop(kubeClient kube.Interface,
-	clientset versioned.Interface,
-	configFlags *genericclioptions.ConfigFlags,
+func NewControlLoop(clientset versioned.Interface,
 	storer Storer,
 	workqueue workqueue.Interface,
 	repoFile string,
@@ -39,7 +37,8 @@ func NewControlLoop(kubeClient kube.Interface,
 		storer:    storer,
 		workqueue: workqueue,
 		repo:      repo,
-		helm:      helm.NewHelm(kubeClient, configFlags, repoFile, repoCache),
+		repoFile:  repoFile,
+		repoCache: repoCache,
 	}
 }
 
@@ -78,21 +77,45 @@ func (c *ControlLoop) run(obj interface{}) {
 func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 	logrus.Debugf("HelmApp Received: %s", k8sutil.ObjKey(helmApp))
 
-	status := NewStatus(helmApp.Status)
+	status := NewStatus(helmApp)
 
 	defer func() {
 		helmApp.Status = status.GetHelmAppStatus()
+		// TODO: handle the error
 		c.updateStatus(helmApp)
 	}()
 
-	detector := NewDetector(helmApp, status, c.helm, c.repo)
-	err := detector.Detect()
+	appStore := helmApp.Spec.AppStore
+	app, err := helm.NewApp(helmApp.Name, helmApp.Namespace,
+		helmApp.Spec.TemplateName, appStore.Name, helmApp.Spec.Version,
+		helmApp.Spec.Values,
+		c.repoFile, c.repoCache)
+
 	if err != nil {
+		return err
+	}
+
+	detector := NewDetector(helmApp, status, app, c.repo)
+	if err := detector.Detect(); err != nil {
 		// TODO: create event
 		return err
 	}
 
+	if needUpdate(helmApp) {
+		if err := app.InstallOrUpdate(); err != nil {
+			status.SetCondition(*v1alpha1.NewHelmAppCondition(
+				v1alpha1.HelmAppInstalled, corev1.ConditionFalse, "InstallFailed", err.Error()))
+			return err
+		}
+		status.UpdateConditionStatus(v1alpha1.HelmAppInstalled, corev1.ConditionTrue)
+		status.CurrentValues = helmApp.Spec.Values
+	}
+
 	return nil
+}
+
+func needUpdate(helmApp *v1alpha1.HelmApp) bool {
+	return helmApp.Spec.Values != helmApp.Status.CurrentValues
 }
 
 func (c *ControlLoop) updateStatus(helmApp *v1alpha1.HelmApp) error {

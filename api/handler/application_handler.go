@@ -48,6 +48,7 @@ type ApplicationHandler interface {
 	BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error
 	GetStatus(app *dbmodel.Application) (*model.AppStatus, error)
 	GetDetectProcess(ctx context.Context, app *dbmodel.Application) ([]*model.AppDetectProcess, error)
+	Install(ctx context.Context, app *dbmodel.Application, values string) error
 
 	DeleteConfigGroup(appID, configGroupName string) error
 	ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error)
@@ -335,6 +336,9 @@ func (a *ApplicationAction) GetDetectProcess(ctx context.Context, app *dbmodel.A
 
 	var processes []*model.AppDetectProcess
 	for _, condition := range helmApp.Status.Conditions {
+		if condition.Type == v1alpha1.HelmAppInstalled {
+			continue
+		}
 		processes = append(processes, &model.AppDetectProcess{
 			Type:  string(condition.Type),
 			Ready: condition.Status == corev1.ConditionTrue,
@@ -343,6 +347,23 @@ func (a *ApplicationAction) GetDetectProcess(ctx context.Context, app *dbmodel.A
 	}
 
 	return processes, nil
+}
+
+func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Application, values string) error {
+	nctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	helmApp, err := a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Get(nctx, app.AppName, metav1.GetOptions{})
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			return errors.Wrap(bcode.ErrApplicationNotFound, "install app")
+		}
+		return errors.Wrap(err, "install app")
+	}
+
+	helmApp.Spec.Values = values
+	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Update(nctx, helmApp, metav1.UpdateOptions{})
+	return errors.Wrap(err, "install app")
 }
 
 func (a *ApplicationAction) getDiskUsage(appID string) float64 {
