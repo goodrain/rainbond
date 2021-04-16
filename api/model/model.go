@@ -1649,16 +1649,17 @@ func NewAppStatusFromImport(app *ImportAppStruct) *dbmodel.AppStatus {
 
 // Application -
 type Application struct {
-	EID          string   `json:"eid" validate:"required"`
-	AppName      string   `json:"app_name" validate:"required"`
-	AppType      string   `json:"app_type" validate:"required,oneof=rainbond helm"`
-	ConsoleAppID int64    `json:"console_app_id"`
-	AppID        string   `json:"app_id"`
-	TenantID     string   `json:"tenant_id"`
-	ServiceIDs   []string `json:"service_ids"`
-	AppStoreName string   `json:"app_store_name"`
-	HelmAppName  string   `json:"helm_app_name"`
-	Version      string   `json:"version"`
+	EID             string   `json:"eid" validate:"required"`
+	AppName         string   `json:"app_name" validate:"required"`
+	AppType         string   `json:"app_type" validate:"required,oneof=rainbond helm"`
+	ConsoleAppID    int64    `json:"console_app_id"`
+	AppID           string   `json:"app_id"`
+	TenantID        string   `json:"tenant_id"`
+	ServiceIDs      []string `json:"service_ids"`
+	AppStoreName    string   `json:"app_store_name"`
+	AppStoreURL     string   `json:"app_store_url"`
+	AppTemplateName string   `json:"app_template_name"`
+	Version         string   `json:"version"`
 }
 
 // CreateAppRequest -

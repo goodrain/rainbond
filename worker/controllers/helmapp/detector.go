@@ -15,7 +15,7 @@ type Detector struct {
 
 func NewDetector(helmApp *v1alpha1.HelmApp, status *Status, h *helm.Helm, repo *helm.Repo) *Detector {
 	appStore := helmApp.Spec.AppStore
-	app := helm.NewApp(helmApp.Spec.AppName, helmApp.Namespace, helmApp.Spec.AppName, appStore.Name, helmApp.Spec.Version, h)
+	app := helm.NewApp(helmApp.Name, helmApp.Namespace, helmApp.Spec.TemplateName, appStore.Name, helmApp.Spec.Version, h)
 	return &Detector{
 		helmApp: helmApp,
 		status:  status,
@@ -42,7 +42,7 @@ func (d *Detector) Detect() error {
 
 	// pull chart
 	if !d.status.IsConditionTrue(v1alpha1.HelmAppChartReady) {
-		err := d.app.Pull(d.helmApp.Spec.AppStore.Name + "/" + d.helmApp.Spec.AppName)
+		err := d.app.Pull()
 		if err != nil {
 			d.status.UpdateCondition(v1alpha1.NewHelmAppCondition(
 				v1alpha1.HelmAppChartReady, corev1.ConditionFalse, "ChartFailed", err.Error()))

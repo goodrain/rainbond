@@ -96,13 +96,15 @@ type HelmAppSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	EID string `json:"eid"`
+
 	// The prerequisite status.
 	// +kubebuilder:validation:Enum=NotConfigured;Configured
 	PreStatus string `json:"preStatus,omitempty"`
 
 	// The application name.
 	// TODO: validation
-	AppName string `json:"appName"`
+	TemplateName string `json:"appName"`
 
 	// The application version.
 	// TODO: validation

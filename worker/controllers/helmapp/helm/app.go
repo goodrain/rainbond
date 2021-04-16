@@ -3,45 +3,46 @@ package helm
 import (
 	"bytes"
 	"encoding/base64"
-	"github.com/sirupsen/logrus"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/cli"
 	"io/fs"
 	"io/ioutil"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/sirupsen/logrus"
+	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/cli"
 )
 
 type App struct {
-	name        string
-	repo        string
-	releaseName string
-	namespace   string
-	version     string
-	chartDir    string
+	templateName string
+	repo         string
+	name         string
+	namespace    string
+	version      string
+	chartDir     string
 
 	helm *Helm
 }
 
 func (a *App) Chart() string {
-	return a.repo + "/" + a.name
+	return a.repo + "/" + a.templateName
 }
 
 // TODO: use appName and templateName
-func NewApp(releaseName string, namespace, name, repo string, version string, helm *Helm) *App {
+func NewApp(name, namespace, templateName, repo string, version string, helm *Helm) *App {
 	return &App{
-		name:        name,
-		repo:        repo,
-		releaseName: releaseName,
-		namespace:   namespace,
-		version:     version,
-		helm:        helm,
-		chartDir:    "/tmp/helm/chart",
+		name:         name,
+		namespace:    namespace,
+		templateName: templateName,
+		repo:         repo,
+		version:      version,
+		helm:         helm,
+		chartDir:     "/tmp/helm/chart",
 	}
 }
 
-func (a *App) Pull(chart string) error {
+func (a *App) Pull() error {
 	client := action.NewPull()
 	settings := cli.New()
 	settings.RepositoryConfig = a.helm.repoFile
@@ -50,7 +51,7 @@ func (a *App) Pull(chart string) error {
 	client.DestDir = a.chartDir
 	client.Version = a.version
 
-	output, err := client.Run(chart)
+	output, err := client.Run(a.chart())
 	if err != nil {
 		return err
 	}
@@ -58,14 +59,18 @@ func (a *App) Pull(chart string) error {
 	return nil
 }
 
+func (a *App) chart() string {
+	return a.repo + "/" + a.templateName
+}
+
 func (a *App) PreInstall() error {
 	var buf bytes.Buffer
-	return a.helm.PreInstall(a.name, a.namespace, a.Chart(), &buf)
+	return a.helm.PreInstall(a.templateName, a.namespace, a.Chart(), &buf)
 }
 
 func (a *App) ParseChart() (string, error) {
-	//chartPath := path.Join(a.chartDir, a.name + a.version + ".tgz")
-	chartDir := path.Join(a.chartDir, a.name)
+	//chartPath := path.Join(a.chartDir, a.templateName + a.version + ".tgz")
+	chartDir := path.Join(a.chartDir, a.templateName)
 
 	var values string
 	err := filepath.Walk(chartDir, func(path string, info fs.FileInfo, err error) error {

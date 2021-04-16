@@ -11,23 +11,28 @@ import (
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/util/commonutil"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ApplicationAction -
 type ApplicationAction struct {
-	statusCli  *client.AppRuntimeSyncClient
-	promClient prometheus.Interface
+	statusCli      *client.AppRuntimeSyncClient
+	promClient     prometheus.Interface
+	rainbondClient versioned.Interface
 }
 
 // ApplicationHandler defines handler methods to TenantApplication.
 type ApplicationHandler interface {
-	CreateApp(req *model.Application) (*model.Application, error)
-	BatchCreateApp(req *model.CreateAppRequest, tenantID string) ([]model.CreateAppResponse, error)
+	CreateApp(ctx context.Context, req *model.Application) (*model.Application, error)
+	BatchCreateApp(ctx context.Context, req *model.CreateAppRequest, tenantID string) ([]model.CreateAppResponse, error)
 	UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error)
 	ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error)
 	GetAppByID(appID string) (*dbmodel.Application, error)
@@ -53,16 +58,16 @@ func NewApplicationHandler(statusCli *client.AppRuntimeSyncClient, promClient pr
 }
 
 // CreateApp -
-func (a *ApplicationAction) CreateApp(req *model.Application) (*model.Application, error) {
+func (a *ApplicationAction) CreateApp(ctx context.Context, req *model.Application) (*model.Application, error) {
 	appReq := &dbmodel.Application{
-		EID:          req.EID,
-		TenantID:     req.TenantID,
-		AppID:        util.NewUUID(),
-		AppName:      req.AppName,
-		AppType:      req.AppType,
-		AppStoreName: req.AppStoreName,
-		HelmAppName:  req.HelmAppName,
-		Version:      req.Version,
+		EID:             req.EID,
+		TenantID:        req.TenantID,
+		AppID:           util.NewUUID(),
+		AppName:         req.AppName,
+		AppType:         req.AppType,
+		AppStoreName:    req.AppStoreName,
+		AppTemplateName: req.AppTemplateName,
+		Version:         req.Version,
 	}
 	req.AppID = appReq.AppID
 
@@ -77,22 +82,45 @@ func (a *ApplicationAction) CreateApp(req *model.Application) (*model.Applicatio
 			}
 		}
 
-		// create app.rainbond.io
-		return nil
+		// create helmapp.rainbond.goodrain.io
+		return a.createHelmApp(ctx, appReq)
 	})
 
 	return req, err
 }
 
+func (a *ApplicationAction) createHelmApp(ctx context.Context, app *dbmodel.Application) error {
+	helmApp := &v1alpha1.HelmApp{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      app.AppName,
+			Namespace: app.TenantID,
+			// TODO: rainbond labels.
+		},
+		Spec: v1alpha1.HelmAppSpec{
+			EID:          app.EID,
+			TemplateName: app.AppTemplateName,
+			Version:      app.Version,
+			Revision:     commonutil.Int32(0),
+			AppStore: &v1alpha1.HelmAppStore{
+				Version: "", // TODO: setup version.
+				Name:    app.AppStoreName,
+				URL:     app.AppStoreURL,
+			},
+		}}
+
+	_, err := a.rainbondClient.RainbondV1alpha1().HelmApps(helmApp.Name).Create(ctx, helmApp, metav1.CreateOptions{})
+	return err
+}
+
 // BatchCreateApp -
-func (a *ApplicationAction) BatchCreateApp(apps *model.CreateAppRequest, tenantID string) ([]model.CreateAppResponse, error) {
+func (a *ApplicationAction) BatchCreateApp(ctx context.Context, apps *model.CreateAppRequest, tenantID string) ([]model.CreateAppResponse, error) {
 	var (
 		resp     model.CreateAppResponse
 		respList []model.CreateAppResponse
 	)
 	for _, app := range apps.AppsInfo {
 		app.TenantID = tenantID
-		regionApp, err := GetApplicationHandler().CreateApp(&app)
+		regionApp, err := GetApplicationHandler().CreateApp(ctx, &app)
 		if err != nil {
 			logrus.Errorf("Batch Create App [%v] error is [%v] ", app.AppName, err)
 			continue

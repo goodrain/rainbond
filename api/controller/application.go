@@ -27,7 +27,11 @@ func (a *ApplicationController) CreateApp(w http.ResponseWriter, r *http.Request
 			httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("the field 'app_tore_name' is required"))
 			return
 		}
-		if tenantReq.HelmAppName == "" {
+		if tenantReq.AppTemplateName == "" {
+			httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("the field 'app_template_name' is required"))
+			return
+		}
+		if tenantReq.AppTemplateName == "" {
 			httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("the field 'helm_app_name' is required"))
 			return
 		}
@@ -42,7 +46,7 @@ func (a *ApplicationController) CreateApp(w http.ResponseWriter, r *http.Request
 	tenantReq.TenantID = tenant.UUID
 
 	// create app
-	app, err := handler.GetApplicationHandler().CreateApp(&tenantReq)
+	app, err := handler.GetApplicationHandler().CreateApp(r.Context(), &tenantReq)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
@@ -60,7 +64,7 @@ func (a *ApplicationController) BatchCreateApp(w http.ResponseWriter, r *http.Re
 
 	// get current tenant
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
-	respList, err := handler.GetApplicationHandler().BatchCreateApp(&apps, tenant.UUID)
+	respList, err := handler.GetApplicationHandler().BatchCreateApp(r.Context(), &apps, tenant.UUID)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
