@@ -21,6 +21,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// The phase of helm app
+type HelmAppStatusPhase string
+
+// The phase of helm app
+const (
+	HelmAppStatusPhaseInitialing  HelmAppStatusPhase = "initialing"
+	HelmAppStatusPhaseDetecting   HelmAppStatusPhase = "detecting"
+	HelmAppStatusPhaseConfiguring HelmAppStatusPhase = "configuring"
+	HelmAppStatusPhaseInstalled   HelmAppStatusPhase = "installed"
+)
+
 // The status of helm app
 // Except for `not-configured`, the other statues are the native statues of helm.
 type HelmAppStatusStatus string
@@ -147,12 +158,16 @@ type HelmAppStatus struct {
 	// The status of helm app.
 	Status HelmAppStatusStatus `json:"status"`
 
+	Phase HelmAppStatusPhase `json:"phase"`
+
 	// Current state of helm app.
 	Conditions []HelmAppCondition `json:"conditions,omitempty"`
 
 	CurrentValues string `json:"currentValues,omitempty"`
 
 	CurrentRevision string `json:"currentRevision,omitempty"`
+
+	ValuesTemplate string `json:"valuesTemplate,omitempty"`
 }
 
 // +genclient

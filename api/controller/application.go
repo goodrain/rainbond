@@ -182,9 +182,9 @@ func (a *ApplicationController) BatchUpdateComponentPorts(w http.ResponseWriter,
 }
 
 func (a *ApplicationController) GetAppStatus(w http.ResponseWriter, r *http.Request) {
-	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
 
-	res, err := handler.GetApplicationHandler().GetStatus(appID)
+	res, err := handler.GetApplicationHandler().GetStatus(app)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return

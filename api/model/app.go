@@ -14,6 +14,7 @@ type AppStatus struct {
 	Cpu    int64  `json:"cpu"`
 	Memory int64  `json:"memory"`
 	Disk   int64  `json:"disk"`
+	Phase  string `json:"phase"`
 }
 
 // AppDetectProcess -

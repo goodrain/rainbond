@@ -46,7 +46,7 @@ type ApplicationHandler interface {
 	UpdateConfigGroup(appID, configGroupName string, req *model.UpdateAppConfigGroupReq) (*model.ApplicationConfigGroupResp, error)
 
 	BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error
-	GetStatus(appID string) (*model.AppStatus, error)
+	GetStatus(app *dbmodel.Application) (*model.AppStatus, error)
 	GetDetectProcess(ctx context.Context, app *dbmodel.Application) ([]*model.AppDetectProcess, error)
 
 	DeleteConfigGroup(appID, configGroupName string) error
@@ -71,6 +71,7 @@ func (a *ApplicationAction) CreateApp(ctx context.Context, req *model.Applicatio
 		AppName:         req.AppName,
 		AppType:         req.AppType,
 		AppStoreName:    req.AppStoreName,
+		AppStoreURL:     req.AppStoreURL,
 		AppTemplateName: req.AppTemplateName,
 		Version:         req.Version,
 	}
@@ -115,6 +116,9 @@ func (a *ApplicationAction) createHelmApp(ctx context.Context, app *dbmodel.Appl
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	_, err := a.rainbondClient.RainbondV1alpha1().HelmApps(helmApp.Namespace).Create(ctx, helmApp, metav1.CreateOptions{})
+	if k8sErrors.IsAlreadyExists(err) {
+		return errors.Wrap(bcode.ErrApplicationExist, "create helm app")
+	}
 	return err
 }
 
@@ -272,18 +276,40 @@ func (a *ApplicationAction) checkPorts(appID string, ports []*model.AppPort) err
 }
 
 // GetStatus -
-func (a *ApplicationAction) GetStatus(appID string) (*model.AppStatus, error) {
+func (a *ApplicationAction) GetStatus(app *dbmodel.Application) (*model.AppStatus, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	if app.AppType == "helm" {
+		return a.getHelmAppStatus(ctx, app)
+	}
+
+	return a.getRainbondAppStatus(ctx, app)
+}
+
+func (a *ApplicationAction) getHelmAppStatus(ctx context.Context, app *dbmodel.Application) (*model.AppStatus, error) {
+	helmApp, err := a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Get(ctx, app.AppName, metav1.GetOptions{})
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			return nil, errors.WithStack(bcode.ErrApplicationNotFound)
+		}
+		return nil, errors.WithStack(err)
+	}
+
+	return &model.AppStatus{
+		Phase: string(helmApp.Status.Phase),
+	}, nil
+}
+
+func (a *ApplicationAction) getRainbondAppStatus(ctx context.Context, app *dbmodel.Application) (*model.AppStatus, error) {
 	status, err := a.statusCli.GetAppStatus(ctx, &pb.AppStatusReq{
-		AppId: appID,
+		AppId: app.AppID,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	diskUsage := a.getDiskUsage(appID)
+	diskUsage := a.getDiskUsage(app.AppID)
 
 	res := &model.AppStatus{
 		Status: status.Status.String(),

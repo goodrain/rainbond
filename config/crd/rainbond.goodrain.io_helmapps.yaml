@@ -127,10 +127,16 @@ spec:
               type: string
             currentValues:
               type: string
+            phase:
+              description: The phase of helm app
+              type: string
             status:
               description: The status of helm app.
               type: string
+            valuesTemplate:
+              type: string
           required:
+          - phase
           - status
           type: object
       type: object

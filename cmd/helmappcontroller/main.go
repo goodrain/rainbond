@@ -2,17 +2,12 @@ package main
 
 import "C"
 import (
-	"context"
 	"os"
 	"time"
 
-	rainbondv1alpha1 "github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
-	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/controllers/helmapp"
 	"github.com/sirupsen/logrus"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func init() {
@@ -21,7 +16,7 @@ func init() {
 }
 
 func main() {
-	restcfg, err := k8sutil.NewRestConfig("/Users/abewang/.kube/config.172.20.0.20")
+	restcfg, err := k8sutil.NewRestConfig("/Users/abewang/.kube/config")
 	if err != nil {
 		logrus.Fatalf("create kube rest config error: %s", err.Error())
 	}
@@ -29,31 +24,31 @@ func main() {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
-	clientset := versioned.NewForConfigOrDie(restcfg)
+	//clientset := versioned.NewForConfigOrDie(restcfg)
 
-	helmApp := &rainbondv1alpha1.HelmApp{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "rbd-system",
-		},
-		Spec: rainbondv1alpha1.HelmAppSpec{
-			PreStatus: "",
-			Version:   "1.3.0",
-			Revision:  Int32(0),
-			Values:    "",
-			AppStore: &rainbondv1alpha1.HelmAppStore{
-				Version: "1111111",
-				Name:    "rainbond",
-				URL:     "https://openchart.goodrain.com/goodrain/rainbond",
-			},
-		},
-	}
-	if _, err := clientset.RainbondV1alpha1().HelmApps("rbd-system").Create(context.Background(),
-		helmApp, metav1.CreateOptions{}); err != nil {
-		if !k8sErrors.IsAlreadyExists(err) {
-			logrus.Fatal(err)
-		}
-	}
+	//helmApp := &rainbondv1alpha1.HelmApp{
+	//	ObjectMeta: metav1.ObjectMeta{
+	//		Name:      "foo",
+	//		Namespace: "rbd-system",
+	//	},
+	//	Spec: rainbondv1alpha1.HelmAppSpec{
+	//		PreStatus: "",
+	//		Version:   "1.3.0",
+	//		Revision:  Int32(0),
+	//		Values:    "",
+	//		AppStore: &rainbondv1alpha1.HelmAppStore{
+	//			Version: "1111111",
+	//			Name:    "rainbond",
+	//			URL:     "https://openchart.goodrain.com/goodrain/rainbond",
+	//		},
+	//	},
+	//}
+	//if _, err := clientset.RainbondV1alpha1().HelmApps("rbd-system").Create(context.Background(),
+	//	helmApp, metav1.CreateOptions{}); err != nil {
+	//	if !k8sErrors.IsAlreadyExists(err) {
+	//		logrus.Fatal(err)
+	//	}
+	//}
 
 	ctrl := helmapp.NewController(stopCh, restcfg, 5*time.Second, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
 	if err = ctrl.Start(); err != nil {

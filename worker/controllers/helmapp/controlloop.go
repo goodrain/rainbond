@@ -81,7 +81,7 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 	status := NewStatus(helmApp.Status)
 
 	defer func() {
-		helmApp.Status = status.HelmAppStatus
+		helmApp.Status = status.GetHelmAppStatus()
 		c.updateStatus(helmApp)
 	}()
 

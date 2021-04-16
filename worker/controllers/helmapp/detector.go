@@ -30,14 +30,14 @@ func (d *Detector) Detect() error {
 	}
 
 	// add repo
-	if !d.status.IsConditionTrue(v1alpha1.HelmAppRepoReady) {
+	if !d.status.IsConditionTrue(v1alpha1.HelmAppChartReady) {
 		appStore := d.helmApp.Spec.AppStore
 		if err := d.repo.Add(appStore.Name, appStore.URL, "", ""); err != nil {
 			d.status.SetCondition(*v1alpha1.NewHelmAppCondition(
-				v1alpha1.HelmAppRepoReady, corev1.ConditionFalse, "RepoFailed", err.Error()))
+				v1alpha1.HelmAppChartReady, corev1.ConditionFalse, "RepoFailed", err.Error()))
 			return err
 		}
-		d.status.UpdateConditionStatus(v1alpha1.HelmAppRepoReady, corev1.ConditionTrue)
+		d.status.UpdateConditionStatus(v1alpha1.HelmAppChartReady, corev1.ConditionTrue)
 	}
 
 	// pull chart
@@ -70,7 +70,7 @@ func (d *Detector) Detect() error {
 			return err
 		}
 		d.status.UpdateConditionStatus(v1alpha1.HelmAppChartParsed, corev1.ConditionTrue)
-		d.status.CurrentValues = values
+		d.status.ValuesTemplate = values
 	}
 
 	return nil
