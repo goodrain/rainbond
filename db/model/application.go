@@ -23,7 +23,7 @@ type Application struct {
 	AppStoreName    string `gorm:"column:app_store_name" json:"app_store_name"`
 	AppStoreURL     string `gorm:"column:app_store_url" json:"app_store_url"`
 	AppTemplateName string `gorm:"column:app_template_name" json:"app_template_name"`
-	Version         string `gorm:"column:Version" json:"Version"`
+	Version         string `gorm:"column:version" json:"version"`
 	GovernanceMode  string `gorm:"column:governance_mode;default:'BUILD_IN_SERVICE_MESH'" json:"governance_mode"`
 }
 

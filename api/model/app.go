@@ -15,3 +15,10 @@ type AppStatus struct {
 	Memory int64  `json:"memory"`
 	Disk   int64  `json:"disk"`
 }
+
+// AppDetectProcess -
+type AppDetectProcess struct {
+	Type  string `json:"type"`
+	Ready bool   `json:"ready"`
+	Error string `json:"error"`
+}

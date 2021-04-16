@@ -193,6 +193,18 @@ func (a *ApplicationController) GetAppStatus(w http.ResponseWriter, r *http.Requ
 	httputil.ReturnSuccess(r, w, res)
 }
 
+func (a *ApplicationController) GetDetectProcess(w http.ResponseWriter, r *http.Request) {
+	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+
+	processes, err := handler.GetApplicationHandler().GetDetectProcess(r.Context(), app)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, processes)
+}
+
 // BatchBindService -
 func (a *ApplicationController) BatchBindService(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "app_id")

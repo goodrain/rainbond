@@ -3,8 +3,8 @@ package helm
 import (
 	"bytes"
 	"encoding/base64"
-	"io/fs"
 	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -73,7 +73,7 @@ func (a *App) ParseChart() (string, error) {
 	chartDir := path.Join(a.chartDir, a.templateName)
 
 	var values string
-	err := filepath.Walk(chartDir, func(path string, info fs.FileInfo, err error) error {
+	err := filepath.Walk(chartDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

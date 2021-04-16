@@ -39,6 +39,32 @@ spec:
             appName:
               description: 'The application name. TODO: validation'
               type: string
+            appStore:
+              description: 'The helm app store. TODO: validation. not null'
+              properties:
+                branch:
+                  description: The branch of a git repo.
+                  type: string
+                name:
+                  type: string
+                password:
+                  type: string
+                url:
+                  description: The url of helm repo, sholud be a helm native repo
+                    url or a git url.
+                  type: string
+                username:
+                  type: string
+                version:
+                  description: The verision of the helm app store.
+                  type: string
+              required:
+              - name
+              - url
+              - version
+              type: object
+            eid:
+              type: string
             preStatus:
               description: The prerequisite status.
               enum:
@@ -57,6 +83,8 @@ spec:
               type: string
           required:
           - appName
+          - appStore
+          - eid
           - revision
           - values
           - version

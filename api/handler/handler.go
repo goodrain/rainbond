@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/api/handler/share"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/sirupsen/logrus"
@@ -38,6 +39,7 @@ func InitHandle(conf option.Config,
 	statusCli *client.AppRuntimeSyncClient,
 	etcdcli *clientv3.Client,
 	kubeClient *kubernetes.Clientset,
+	rainbondClient versioned.Interface,
 ) error {
 	mq := api_db.MQManager{
 		EtcdClientArgs: etcdClientArgs,
@@ -80,7 +82,7 @@ func InitHandle(conf option.Config,
 	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
 	defaultEtcdHandler = NewEtcdHandler(etcdcli)
 	defaultmonitorHandler = NewMonitorHandler(prometheusCli)
-	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli)
+	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli, rainbondClient)
 	return nil
 }
 

@@ -18,7 +18,10 @@ import (
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -44,16 +47,18 @@ type ApplicationHandler interface {
 
 	BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error
 	GetStatus(appID string) (*model.AppStatus, error)
+	GetDetectProcess(ctx context.Context, app *dbmodel.Application) ([]*model.AppDetectProcess, error)
 
 	DeleteConfigGroup(appID, configGroupName string) error
 	ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error)
 }
 
 // NewApplicationHandler creates a new Tenant Application Handler.
-func NewApplicationHandler(statusCli *client.AppRuntimeSyncClient, promClient prometheus.Interface) ApplicationHandler {
+func NewApplicationHandler(statusCli *client.AppRuntimeSyncClient, promClient prometheus.Interface, rainbondClient versioned.Interface) ApplicationHandler {
 	return &ApplicationAction{
-		statusCli:  statusCli,
-		promClient: promClient,
+		statusCli:      statusCli,
+		promClient:     promClient,
+		rainbondClient: rainbondClient,
 	}
 }
 
@@ -71,8 +76,7 @@ func (a *ApplicationAction) CreateApp(ctx context.Context, req *model.Applicatio
 	}
 	req.AppID = appReq.AppID
 
-	tx := db.GetManager().Begin()
-	err := tx.Transaction(func(tx *gorm.DB) error {
+	err := db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
 		if err := db.GetManager().ApplicationDaoTransactions(tx).AddModel(appReq); err != nil {
 			return err
 		}
@@ -108,7 +112,9 @@ func (a *ApplicationAction) createHelmApp(ctx context.Context, app *dbmodel.Appl
 			},
 		}}
 
-	_, err := a.rainbondClient.RainbondV1alpha1().HelmApps(helmApp.Name).Create(ctx, helmApp, metav1.CreateOptions{})
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	_, err := a.rainbondClient.RainbondV1alpha1().HelmApps(helmApp.Namespace).Create(ctx, helmApp, metav1.CreateOptions{})
 	return err
 }
 
@@ -286,6 +292,30 @@ func (a *ApplicationAction) GetStatus(appID string) (*model.AppStatus, error) {
 		Disk:   int64(diskUsage),
 	}
 	return res, nil
+}
+
+func (a *ApplicationAction) GetDetectProcess(ctx context.Context, app *dbmodel.Application) ([]*model.AppDetectProcess, error) {
+	nctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	helmApp, err := a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Get(nctx, app.AppName, metav1.GetOptions{})
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			return nil, errors.WithStack(bcode.ErrApplicationNotFound)
+		}
+		return nil, errors.WithStack(err)
+	}
+
+	var processes []*model.AppDetectProcess
+	for _, condition := range helmApp.Status.Conditions {
+		processes = append(processes, &model.AppDetectProcess{
+			Type:  string(condition.Type),
+			Ready: condition.Status == corev1.ConditionTrue,
+			Error: condition.Message,
+		})
+	}
+
+	return processes, nil
 }
 
 func (a *ApplicationAction) getDiskUsage(appID string) float64 {
