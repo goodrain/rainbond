@@ -297,7 +297,8 @@ func (a *ApplicationAction) getHelmAppStatus(ctx context.Context, app *dbmodel.A
 	}
 
 	return &model.AppStatus{
-		Phase: string(helmApp.Status.Phase),
+		Phase:          string(helmApp.Status.Phase),
+		ValuesTemplate: helmApp.Status.ValuesTemplate,
 	}, nil
 }
 

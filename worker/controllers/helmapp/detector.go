@@ -37,7 +37,6 @@ func (d *Detector) Detect() error {
 				v1alpha1.HelmAppChartReady, corev1.ConditionFalse, "RepoFailed", err.Error()))
 			return err
 		}
-		d.status.UpdateConditionStatus(v1alpha1.HelmAppChartReady, corev1.ConditionTrue)
 	}
 
 	// pull chart
