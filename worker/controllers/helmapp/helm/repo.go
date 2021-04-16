@@ -37,8 +37,8 @@ type Repo struct {
 // NewRepo creates a new repo.
 func NewRepo(repoFile, repoCache string) *Repo {
 	return &Repo{
-		repoFile:  repoFile,
-		repoCache: repoCache,
+		repoFile:    repoFile,
+		repoCache:   repoCache,
 	}
 }
 

@@ -14,7 +14,6 @@ require (
 	github.com/beorn7/perks v1.0.1
 	github.com/bitly/go-simplejson v0.5.0
 	github.com/bluebreezecf/opentsdb-goclient v0.0.0-20190921120552-796138372df3
-	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/cockroachdb/cmux v0.0.0-20170110192607-30d10be49292 // indirect
 	github.com/coreos/etcd v3.3.17+incompatible
 	github.com/creack/pty v1.1.11 // indirect
@@ -61,7 +60,6 @@ require (
 	github.com/kr/pty v1.1.8
 	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/mattn/go-runewidth v0.0.6
-	github.com/mattn/go-shellwords v1.0.10 // indirect
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/mitchellh/mapstructure v1.3.3
@@ -92,23 +90,18 @@ require (
 	github.com/tidwall/gjson v1.6.1
 	github.com/twinj/uuid v1.0.0
 	github.com/urfave/cli v1.22.2
-	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
-	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/yudai/umutex v0.0.0-20150817080136-18216d265c6b
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b
 	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5 // indirect
-	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a // indirect
 	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
 	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324
 	golang.org/x/tools v0.0.0-20201228162255-34cd474b9958 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20201201144952-b05cb90ed32e // indirect
 	google.golang.org/grpc v1.33.2
-	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
-	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/yaml.v2 v2.4.0
 	helm.sh/helm/v3 v3.5.4
@@ -116,9 +109,9 @@ require (
 	k8s.io/apiextensions-apiserver v0.20.4
 	k8s.io/apimachinery v0.20.4
 	k8s.io/apiserver v0.20.4
+	k8s.io/cli-runtime v0.20.4
 	k8s.io/client-go v12.0.0+incompatible
-	k8s.io/code-generator v0.20.0
-	k8s.io/component-base v0.20.1 // indirect
+	k8s.io/code-generator v0.20.4
 	sigs.k8s.io/controller-runtime v0.7.0
 	sigs.k8s.io/yaml v1.2.0
 )
@@ -129,28 +122,13 @@ replace (
 	github.com/docker/distribution => github.com/docker/distribution v0.0.0-20191216044856-a8371794149d
 	github.com/docker/docker => github.com/docker/engine v0.0.0-20181106193140-f5749085e9cb
 	github.com/docker/libcompose => github.com/docker/libcompose v0.4.1-0.20181019154650-213509acef0f
-	github.com/godbus/dbus/v5 => github.com/godbus/dbus/v5 v5.0.3
 	google.golang.org/grpc => google.golang.org/grpc v1.29.0
-	k8s.io/api => k8s.io/api v0.20.0
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.0
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.0
 	k8s.io/apiserver => k8s.io/apiserver v0.20.0
 	k8s.io/cli-runtime => k8s.io/cli-runtime v0.20.0
 	k8s.io/client-go => k8s.io/client-go v0.20.0
-	k8s.io/cloud-provider => k8s.io/cloud-provider v0.20.0
-	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.20.0
 	k8s.io/code-generator => k8s.io/code-generator v0.20.0
 	k8s.io/component-base => k8s.io/component-base v0.20.0
-	k8s.io/cri-api => k8s.io/cri-api v0.20.0
-	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.0.0-20191016115521-756ffa5af0bd
-	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.0.0-20191016112429-9587704a8ad4
-	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.0.0-20191016114939-2b2b218dc1df
-	k8s.io/kube-proxy => k8s.io/kube-proxy v0.0.0-20191016114407-2e83b6f20229
-	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.0.0-20191016114748-65049c67a58b
-	k8s.io/kubectl => k8s.io/kubectl v0.0.0-20191016120415-2ed914427d51
-	k8s.io/kubelet => k8s.io/kubelet v0.0.0-20191016114556-7841ed97f1b2
-	k8s.io/kubernetes => k8s.io/kubernetes v1.16.15
-	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.0.0-20191016115753-cf0698c3a16b
-	k8s.io/metrics => k8s.io/metrics v0.0.0-20191016113814-3b1a734dba6e
-	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.0.0-20191016112829-06bb3c9d77c9
+
 )

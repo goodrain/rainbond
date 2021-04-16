@@ -2,14 +2,16 @@ package helmapp
 
 import (
 	"context"
-	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
-	"github.com/goodrain/rainbond/worker/controllers/helmapp/helm"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
+	"github.com/goodrain/rainbond/worker/controllers/helmapp/helm"
 	"github.com/sirupsen/logrus"
+	"helm.sh/helm/v3/pkg/kube"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -18,10 +20,13 @@ type ControlLoop struct {
 	storer    Storer
 	workqueue workqueue.Interface
 	repo      *helm.Repo
+	helm      *helm.Helm
 }
 
 // NewControlLoop -
-func NewControlLoop(clientset versioned.Interface,
+func NewControlLoop(kubeClient kube.Interface,
+	clientset versioned.Interface,
+	configFlags *genericclioptions.ConfigFlags,
 	storer Storer,
 	workqueue workqueue.Interface,
 	repoFile string,
@@ -34,6 +39,7 @@ func NewControlLoop(clientset versioned.Interface,
 		storer:    storer,
 		workqueue: workqueue,
 		repo:      repo,
+		helm:      helm.NewHelm(kubeClient, configFlags, repoFile, repoCache),
 	}
 }
 
@@ -74,21 +80,28 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 
 	status := NewStatus(helmApp.Status)
 
-	detector := NewDetector(helmApp, status, c.repo)
+	defer func() {
+		helmApp.Status = status.HelmAppStatus
+		c.updateStatus(helmApp)
+	}()
+
+	detector := NewDetector(helmApp, status, c.helm, c.repo)
 	err := detector.Detect()
 	if err != nil {
 		// TODO: create event
 		return err
 	}
 
-	helmApp.Status = status.HelmAppStatus
+	return nil
+}
+
+func (c *ControlLoop) updateStatus(helmApp *v1alpha1.HelmApp) error {
 	// TODO: context
 	if _, err := c.clientset.RainbondV1alpha1().HelmApps(helmApp.Namespace).
 		UpdateStatus(context.Background(), helmApp, metav1.UpdateOptions{}); err != nil {
 		// TODO: create event
 		return err
 	}
-
 	return nil
 }
 

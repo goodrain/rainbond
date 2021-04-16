@@ -66,8 +66,10 @@ const (
 	HelmAppRepoReady HelmAppConditionType = "RepoReady"
 	//  HelmAppChartReady indicates whether the chart is ready.
 	HelmAppChartReady HelmAppConditionType = "ChartReady"
-	// HelmAppDetected indicates whether the helm app has been installed.
-	HelmAppInstalled HelmAppConditionType = "Installed"
+	// HelmAppPreInstalled indicates whether the helm app has been pre installed.
+	HelmAppPreInstalled HelmAppConditionType = "PreInstalled"
+	// HelmAppPreInstalled indicates whether the chart has been parsed.
+	HelmAppChartParsed HelmAppConditionType = "ChartParsed"
 )
 
 // HelmAppCondition contains details for the current condition of this helm application.

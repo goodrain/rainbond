@@ -10,13 +10,17 @@ type Detector struct {
 	helmApp *v1alpha1.HelmApp
 	status  *Status
 	repo    *helm.Repo
+	app     *helm.App
 }
 
-func NewDetector(helmApp *v1alpha1.HelmApp, status *Status, repo *helm.Repo) *Detector {
+func NewDetector(helmApp *v1alpha1.HelmApp, status *Status, h *helm.Helm, repo *helm.Repo) *Detector {
+	appStore := helmApp.Spec.AppStore
+	app := helm.NewApp(helmApp.Spec.AppName, helmApp.Namespace, helmApp.Spec.AppName, appStore.Name, helmApp.Spec.Version, h)
 	return &Detector{
 		helmApp: helmApp,
 		status:  status,
 		repo:    repo,
+		app:     app,
 	}
 }
 
@@ -34,6 +38,39 @@ func (d *Detector) Detect() error {
 			return err
 		}
 		d.status.UpdateConditionStatus(v1alpha1.HelmAppRepoReady, corev1.ConditionTrue)
+	}
+
+	// pull chart
+	if !d.status.IsConditionTrue(v1alpha1.HelmAppChartReady) {
+		err := d.app.Pull(d.helmApp.Spec.AppStore.Name + "/" + d.helmApp.Spec.AppName)
+		if err != nil {
+			d.status.UpdateCondition(v1alpha1.NewHelmAppCondition(
+				v1alpha1.HelmAppChartReady, corev1.ConditionFalse, "ChartFailed", err.Error()))
+			return err
+		}
+		d.status.UpdateConditionStatus(v1alpha1.HelmAppChartReady, corev1.ConditionTrue)
+	}
+
+	// check if the chart is valid
+	if !d.status.IsConditionTrue(v1alpha1.HelmAppPreInstalled) {
+		if err := d.app.PreInstall(); err != nil {
+			d.status.UpdateCondition(v1alpha1.NewHelmAppCondition(
+				v1alpha1.HelmAppPreInstalled, corev1.ConditionFalse, "PreInstallFailed", err.Error()))
+			return err
+		}
+		d.status.UpdateConditionStatus(v1alpha1.HelmAppPreInstalled, corev1.ConditionTrue)
+	}
+
+	// parse chart
+	if !d.status.IsConditionTrue(v1alpha1.HelmAppChartParsed) {
+		values, err := d.app.ParseChart()
+		if err != nil {
+			d.status.UpdateCondition(v1alpha1.NewHelmAppCondition(
+				v1alpha1.HelmAppChartParsed, corev1.ConditionFalse, "ChartParsed", err.Error()))
+			return err
+		}
+		d.status.UpdateConditionStatus(v1alpha1.HelmAppChartParsed, corev1.ConditionTrue)
+		d.status.CurrentValues = values
 	}
 
 	return nil

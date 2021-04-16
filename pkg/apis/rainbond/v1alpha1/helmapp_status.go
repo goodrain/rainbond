@@ -80,6 +80,10 @@ func (in *HelmAppStatus) UpdateConditionStatus(conditionType HelmAppConditionTyp
 	_, condition := in.GetCondition(conditionType)
 	if condition != nil {
 		condition.Status = conditionStatus
+		if conditionStatus == corev1.ConditionTrue {
+			condition.Reason = ""
+			condition.Message = ""
+		}
 		in.UpdateCondition(condition)
 		return
 	}
