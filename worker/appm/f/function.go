@@ -19,13 +19,14 @@
 package f
 
 import (
+	"context"
 	"fmt"
 	"time"
 
-	monitorv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
-	"github.com/coreos/prometheus-operator/pkg/client/versioned"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	monitorv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/sirupsen/logrus"
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
@@ -44,10 +45,10 @@ const (
 
 // ApplyOne applies one rule.
 func ApplyOne(clientset kubernetes.Interface, app *v1.AppService) error {
-	_, err := clientset.CoreV1().Namespaces().Get(app.TenantID, metav1.GetOptions{})
+	_, err := clientset.CoreV1().Namespaces().Get(context.Background(), app.TenantID, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			_, err = clientset.CoreV1().Namespaces().Create(app.GetTenant())
+			_, err = clientset.CoreV1().Namespaces().Create(context.Background(), app.GetTenant(), metav1.CreateOptions{})
 			if err != nil && !k8sErrors.IsAlreadyExists(err) {
 				return fmt.Errorf("error creating namespace: %v", err)
 			}
@@ -105,7 +106,7 @@ func ApplyOne(clientset kubernetes.Interface, app *v1.AppService) error {
 	}
 	// delete delIngress
 	for _, ing := range app.GetDelIngs() {
-		err := clientset.ExtensionsV1beta1().Ingresses(ing.Namespace).Delete(ing.Name, &metav1.DeleteOptions{})
+		err := clientset.ExtensionsV1beta1().Ingresses(ing.Namespace).Delete(context.Background(), ing.Name, metav1.DeleteOptions{})
 		if err != nil && !k8sErrors.IsNotFound(err) {
 			// don't return error, hope it is ok next time
 			logrus.Warningf("error deleting ingress(%v): %v", ing, err)
@@ -113,7 +114,7 @@ func ApplyOne(clientset kubernetes.Interface, app *v1.AppService) error {
 	}
 	// delete delSecrets
 	for _, secret := range app.GetDelSecrets() {
-		err := clientset.CoreV1().Secrets(secret.Namespace).Delete(secret.Name, &metav1.DeleteOptions{})
+		err := clientset.CoreV1().Secrets(secret.Namespace).Delete(context.Background(), secret.Name, metav1.DeleteOptions{})
 		if err != nil && !k8sErrors.IsNotFound(err) {
 			// don't return error, hope it is ok next time
 			logrus.Warningf("error deleting secret(%v): %v", secret, err)
@@ -121,7 +122,7 @@ func ApplyOne(clientset kubernetes.Interface, app *v1.AppService) error {
 	}
 	// delete delServices
 	for _, svc := range app.GetDelServices() {
-		err := clientset.CoreV1().Services(svc.Namespace).Delete(svc.Name, &metav1.DeleteOptions{})
+		err := clientset.CoreV1().Services(svc.Namespace).Delete(context.Background(), svc.Name, metav1.DeleteOptions{})
 		if err != nil && !k8sErrors.IsNotFound(err) {
 			// don't return error, hope it is ok next time
 			logrus.Warningf("error deleting service(%v): %v", svc, err)
@@ -133,10 +134,10 @@ func ApplyOne(clientset kubernetes.Interface, app *v1.AppService) error {
 }
 
 func ensureService(new *corev1.Service, clientSet kubernetes.Interface) error {
-	old, err := clientSet.CoreV1().Services(new.Namespace).Get(new.Name, metav1.GetOptions{})
+	old, err := clientSet.CoreV1().Services(new.Namespace).Get(context.Background(), new.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			_, err = clientSet.CoreV1().Services(new.Namespace).Create(new)
+			_, err = clientSet.CoreV1().Services(new.Namespace).Create(context.Background(), new, metav1.CreateOptions{})
 			if err != nil && !k8sErrors.IsAlreadyExists(err) {
 				logrus.Warningf("error creating service %+v: %v", new, err)
 			}
@@ -155,7 +156,7 @@ func ensureService(new *corev1.Service, clientSet kubernetes.Interface) error {
 func persistUpdate(service *corev1.Service, clientSet kubernetes.Interface) error {
 	var err error
 	for i := 0; i < clientRetryCount; i++ {
-		_, err = clientSet.CoreV1().Services(service.Namespace).UpdateStatus(service)
+		_, err = clientSet.CoreV1().Services(service.Namespace).UpdateStatus(context.Background(), service, metav1.UpdateOptions{})
 		if err == nil {
 			return nil
 		}
@@ -180,10 +181,10 @@ func persistUpdate(service *corev1.Service, clientSet kubernetes.Interface) erro
 }
 
 func ensureIngress(ingress *extensions.Ingress, clientSet kubernetes.Interface) {
-	_, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Update(ingress)
+	_, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Update(context.Background(), ingress, metav1.UpdateOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			_, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(ingress)
+			_, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(context.Background(), ingress, metav1.CreateOptions{})
 			if err != nil && !k8sErrors.IsAlreadyExists(err) {
 				logrus.Errorf("error creating ingress %+v: %v", ingress, err)
 			}
@@ -194,11 +195,11 @@ func ensureIngress(ingress *extensions.Ingress, clientSet kubernetes.Interface) 
 }
 
 func ensureSecret(secret *corev1.Secret, clientSet kubernetes.Interface) {
-	_, err := clientSet.CoreV1().Secrets(secret.Namespace).Update(secret)
+	_, err := clientSet.CoreV1().Secrets(secret.Namespace).Update(context.Background(), secret, metav1.UpdateOptions{})
 
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			_, err := clientSet.CoreV1().Secrets(secret.Namespace).Create(secret)
+			_, err := clientSet.CoreV1().Secrets(secret.Namespace).Create(context.Background(), secret, metav1.CreateOptions{})
 			if err != nil && !k8sErrors.IsAlreadyExists(err) {
 				logrus.Warningf("error creating secret %+v: %v", secret, err)
 			}
@@ -211,7 +212,7 @@ func ensureSecret(secret *corev1.Secret, clientSet kubernetes.Interface) {
 // EnsureEndpoints creates or updates endpoints.
 func EnsureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) error {
 	// See if there's actually an update here.
-	currentEndpoints, err := clientSet.CoreV1().Endpoints(ep.Namespace).Get(ep.Name, metav1.GetOptions{})
+	currentEndpoints, err := clientSet.CoreV1().Endpoints(ep.Namespace).Get(context.Background(), ep.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			currentEndpoints = &corev1.Endpoints{
@@ -241,11 +242,11 @@ func EnsureEndpoints(ep *corev1.Endpoints, clientSet kubernetes.Interface) error
 	}
 	if createEndpoints {
 		// No previous endpoints, create them
-		_, err = clientSet.CoreV1().Endpoints(ep.Namespace).Create(newEndpoints)
+		_, err = clientSet.CoreV1().Endpoints(ep.Namespace).Create(context.Background(), newEndpoints, metav1.CreateOptions{})
 		logrus.Infof("Create endpoints for %v/%v", ep.Namespace, ep.Name)
 	} else {
 		// Pre-existing
-		_, err = clientSet.CoreV1().Endpoints(ep.Namespace).Update(newEndpoints)
+		_, err = clientSet.CoreV1().Endpoints(ep.Namespace).Update(context.Background(), newEndpoints, metav1.UpdateOptions{})
 		logrus.Infof("Update endpoints for %v/%v", ep.Namespace, ep.Name)
 	}
 	if err != nil {
@@ -268,10 +269,10 @@ func EnsureService(new *corev1.Service, clientSet kubernetes.Interface) error {
 
 // EnsureHPA -
 func EnsureHPA(new *autoscalingv2.HorizontalPodAutoscaler, clientSet kubernetes.Interface) {
-	_, err := clientSet.AutoscalingV2beta2().HorizontalPodAutoscalers(new.Namespace).Get(new.Name, metav1.GetOptions{})
+	_, err := clientSet.AutoscalingV2beta2().HorizontalPodAutoscalers(new.Namespace).Get(context.Background(), new.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			_, err = clientSet.AutoscalingV2beta2().HorizontalPodAutoscalers(new.Namespace).Create(new)
+			_, err = clientSet.AutoscalingV2beta2().HorizontalPodAutoscalers(new.Namespace).Create(context.Background(), new, metav1.CreateOptions{})
 			if err != nil {
 				logrus.Warningf("error creating hpa %+v: %v", new, err)
 			}
@@ -280,7 +281,7 @@ func EnsureHPA(new *autoscalingv2.HorizontalPodAutoscaler, clientSet kubernetes.
 		logrus.Errorf("error getting hpa(%s): %v", fmt.Sprintf("%s/%s", new.Namespace, new.Name), err)
 		return
 	}
-	_, err = clientSet.AutoscalingV2beta2().HorizontalPodAutoscalers(new.Namespace).Update(new)
+	_, err = clientSet.AutoscalingV2beta2().HorizontalPodAutoscalers(new.Namespace).Update(context.Background(), new, metav1.UpdateOptions{})
 	if err != nil {
 		logrus.Warningf("error updating hpa %+v: %v", new, err)
 		return
@@ -300,7 +301,7 @@ func UpgradeIngress(clientset kubernetes.Interface,
 		if o, ok := oldMap[n.Name]; ok {
 			n.UID = o.UID
 			n.ResourceVersion = o.ResourceVersion
-			ing, err := clientset.ExtensionsV1beta1().Ingresses(n.Namespace).Update(n)
+			ing, err := clientset.ExtensionsV1beta1().Ingresses(n.Namespace).Update(context.Background(), n, metav1.UpdateOptions{})
 			if err != nil {
 				if err := handleErr(fmt.Sprintf("error updating ingress: %+v: err: %v",
 					ing, err), err); err != nil {
@@ -313,7 +314,7 @@ func UpgradeIngress(clientset kubernetes.Interface,
 			logrus.Debugf("ServiceID: %s; successfully update ingress: %s", as.ServiceID, ing.Name)
 		} else {
 			logrus.Debugf("ingress: %+v", n)
-			ing, err := clientset.ExtensionsV1beta1().Ingresses(n.Namespace).Create(n)
+			ing, err := clientset.ExtensionsV1beta1().Ingresses(n.Namespace).Create(context.Background(), n, metav1.CreateOptions{})
 			if err != nil {
 				if err := handleErr(fmt.Sprintf("error creating ingress: %+v: err: %v",
 					ing, err), err); err != nil {
@@ -327,8 +328,8 @@ func UpgradeIngress(clientset kubernetes.Interface,
 	}
 	for _, ing := range oldMap {
 		if ing != nil {
-			if err := clientset.ExtensionsV1beta1().Ingresses(ing.Namespace).Delete(ing.Name,
-				&metav1.DeleteOptions{}); err != nil {
+			if err := clientset.ExtensionsV1beta1().Ingresses(ing.Namespace).Delete(context.Background(), ing.Name,
+				metav1.DeleteOptions{}); err != nil {
 				if err := handleErr(fmt.Sprintf("error deleting ingress: %+v: err: %v",
 					ing, err), err); err != nil {
 					return err
@@ -353,7 +354,7 @@ func UpgradeSecrets(clientset kubernetes.Interface,
 		if o, ok := oldMap[n.Name]; ok {
 			n.UID = o.UID
 			n.ResourceVersion = o.ResourceVersion
-			sec, err := clientset.CoreV1().Secrets(n.Namespace).Update(n)
+			sec, err := clientset.CoreV1().Secrets(n.Namespace).Update(context.Background(), n, metav1.UpdateOptions{})
 			if err != nil {
 				if err := handleErr(fmt.Sprintf("error updating secret: %+v: err: %v",
 					sec, err), err); err != nil {
@@ -365,7 +366,7 @@ func UpgradeSecrets(clientset kubernetes.Interface,
 			delete(oldMap, o.Name)
 			logrus.Debugf("ServiceID: %s; successfully update secret: %s", as.ServiceID, sec.Name)
 		} else {
-			sec, err := clientset.CoreV1().Secrets(n.Namespace).Create(n)
+			sec, err := clientset.CoreV1().Secrets(n.Namespace).Create(context.Background(), n, metav1.CreateOptions{})
 			if err != nil {
 				if err := handleErr(fmt.Sprintf("error creating secret: %+v: err: %v",
 					sec, err), err); err != nil {
@@ -379,7 +380,7 @@ func UpgradeSecrets(clientset kubernetes.Interface,
 	}
 	for _, sec := range oldMap {
 		if sec != nil {
-			if err := clientset.CoreV1().Secrets(sec.Namespace).Delete(sec.Name, &metav1.DeleteOptions{}); err != nil {
+			if err := clientset.CoreV1().Secrets(sec.Namespace).Delete(context.Background(), sec.Name, metav1.DeleteOptions{}); err != nil {
 				if err := handleErr(fmt.Sprintf("error deleting secret: %+v: err: %v",
 					sec, err), err); err != nil {
 					return err
@@ -402,7 +403,7 @@ func UpgradeClaims(clientset *kubernetes.Clientset, as *v1.AppService, old, new 
 		if o, ok := oldMap[n.Name]; ok {
 			n.UID = o.UID
 			n.ResourceVersion = o.ResourceVersion
-			claim, err := clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Update(n)
+			claim, err := clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Update(context.Background(), n, metav1.UpdateOptions{})
 			if err != nil {
 				if err := handleErr(fmt.Sprintf("error updating claim: %+v: err: %v", claim, err), err); err != nil {
 					return err
@@ -413,10 +414,10 @@ func UpgradeClaims(clientset *kubernetes.Clientset, as *v1.AppService, old, new 
 			delete(oldMap, o.Name)
 			logrus.Debugf("ServiceID: %s; successfully update claim: %s", as.ServiceID, claim.Name)
 		} else {
-			claim, err := clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Get(n.Name, metav1.GetOptions{})
+			claim, err := clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Get(context.Background(), n.Name, metav1.GetOptions{})
 			if err != nil {
 				if k8sErrors.IsNotFound(err) {
-					_, err := clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Create(n)
+					_, err := clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Create(context.Background(), n, metav1.CreateOptions{})
 					if err != nil {
 						if err := handleErr(fmt.Sprintf("error creating claim: %+v: err: %v",
 							n, err), err); err != nil {
@@ -433,7 +434,7 @@ func UpgradeClaims(clientset *kubernetes.Clientset, as *v1.AppService, old, new 
 			if claim != nil {
 				logrus.Infof("claim is exists, do not create again, and can't update it: %s", claim.Name)
 			} else {
-				claim, err = clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Update(n)
+				claim, err = clientset.CoreV1().PersistentVolumeClaims(n.Namespace).Update(context.Background(), n, metav1.UpdateOptions{})
 				if err != nil {
 					if err := handleErr(fmt.Sprintf("error update claim: %+v: err: %v", claim, err), err); err != nil {
 						return err
@@ -447,7 +448,7 @@ func UpgradeClaims(clientset *kubernetes.Clientset, as *v1.AppService, old, new 
 	}
 	for _, claim := range oldMap {
 		if claim != nil {
-			if err := clientset.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(claim.Name, &metav1.DeleteOptions{}); err != nil {
+			if err := clientset.CoreV1().PersistentVolumeClaims(claim.Namespace).Delete(context.Background(), claim.Name, metav1.DeleteOptions{}); err != nil {
 				if err := handleErr(fmt.Sprintf("error deleting claim: %+v: err: %v", claim, err), err); err != nil {
 					return err
 				}
@@ -469,10 +470,10 @@ func UpgradeEndpoints(clientset kubernetes.Interface,
 	}
 	for _, n := range new {
 		if o, ok := oldMap[n.Name]; ok {
-			oldEndpoint, err := clientset.CoreV1().Endpoints(n.Namespace).Get(n.Name, metav1.GetOptions{})
+			oldEndpoint, err := clientset.CoreV1().Endpoints(n.Namespace).Get(context.Background(), n.Name, metav1.GetOptions{})
 			if err != nil {
 				if k8sErrors.IsNotFound(err) {
-					_, err := clientset.CoreV1().Endpoints(n.Namespace).Create(n)
+					_, err := clientset.CoreV1().Endpoints(n.Namespace).Create(context.Background(), n, metav1.CreateOptions{})
 					if err != nil {
 						if err := handleErr(fmt.Sprintf("error creating endpoints: %+v: err: %v",
 							n, err), err); err != nil {
@@ -486,7 +487,7 @@ func UpgradeEndpoints(clientset kubernetes.Interface,
 				}
 			}
 			n.ResourceVersion = oldEndpoint.ResourceVersion
-			ep, err := clientset.CoreV1().Endpoints(n.Namespace).Update(n)
+			ep, err := clientset.CoreV1().Endpoints(n.Namespace).Update(context.Background(), n, metav1.UpdateOptions{})
 			if err != nil {
 				if e := handleErr(fmt.Sprintf("error updating endpoints: %+v: err: %v",
 					ep, err), err); e != nil {
@@ -498,7 +499,7 @@ func UpgradeEndpoints(clientset kubernetes.Interface,
 			delete(oldMap, o.Name)
 			logrus.Debugf("ServiceID: %s; successfully update endpoints: %s", as.ServiceID, ep.Name)
 		} else {
-			_, err := clientset.CoreV1().Endpoints(n.Namespace).Create(n)
+			_, err := clientset.CoreV1().Endpoints(n.Namespace).Create(context.Background(), n, metav1.CreateOptions{})
 			if err != nil {
 				if err := handleErr(fmt.Sprintf("error creating endpoints: %+v: err: %v",
 					n, err), err); err != nil {
@@ -512,7 +513,7 @@ func UpgradeEndpoints(clientset kubernetes.Interface,
 	}
 	for _, sec := range oldMap {
 		if sec != nil {
-			if err := clientset.CoreV1().Endpoints(sec.Namespace).Delete(sec.Name, &metav1.DeleteOptions{}); err != nil {
+			if err := clientset.CoreV1().Endpoints(sec.Namespace).Delete(context.Background(), sec.Name, metav1.DeleteOptions{}); err != nil {
 				if err := handleErr(fmt.Sprintf("error deleting endpoints: %+v: err: %v",
 					sec, err), err); err != nil {
 					return err
@@ -540,7 +541,7 @@ func UpgradeServiceMonitor(
 		if o, ok := oldMap[n.Name]; ok {
 			n.UID = o.UID
 			n.ResourceVersion = o.ResourceVersion
-			ing, err := clientset.MonitoringV1().ServiceMonitors(n.Namespace).Update(n)
+			ing, err := clientset.MonitoringV1().ServiceMonitors(n.Namespace).Update(context.Background(), n, metav1.UpdateOptions{})
 			if err != nil {
 				if err := handleErr(fmt.Sprintf("error updating service monitor: %+v: err: %v",
 					ing, err), err); err != nil {
@@ -552,7 +553,7 @@ func UpgradeServiceMonitor(
 			delete(oldMap, o.Name)
 			logrus.Debugf("ServiceID: %s; successfully update service monitor: %s", as.ServiceID, ing.Name)
 		} else {
-			ing, err := clientset.MonitoringV1().ServiceMonitors(n.Namespace).Create(n)
+			ing, err := clientset.MonitoringV1().ServiceMonitors(n.Namespace).Create(context.Background(), n, metav1.CreateOptions{})
 			if err != nil {
 				if err := handleErr(fmt.Sprintf("error creating service monitor: %+v: err: %v",
 					ing, err), err); err != nil {
@@ -566,8 +567,8 @@ func UpgradeServiceMonitor(
 	}
 	for _, ing := range oldMap {
 		if ing != nil {
-			if err := clientset.MonitoringV1().ServiceMonitors(ing.Namespace).Delete(ing.Name,
-				&metav1.DeleteOptions{}); err != nil {
+			if err := clientset.MonitoringV1().ServiceMonitors(ing.Namespace).Delete(context.Background(), ing.Name,
+				metav1.DeleteOptions{}); err != nil {
 				if err := handleErr(fmt.Sprintf("error deleting service monitor: %+v: err: %v",
 					ing, err), err); err != nil {
 					return err
@@ -582,18 +583,18 @@ func UpgradeServiceMonitor(
 
 // CreateOrUpdateSecret creates or updates secret.
 func CreateOrUpdateSecret(clientset kubernetes.Interface, secret *corev1.Secret) error {
-	old, err := clientset.CoreV1().Secrets(secret.Namespace).Get(secret.Name, metav1.GetOptions{})
+	old, err := clientset.CoreV1().Secrets(secret.Namespace).Get(context.Background(), secret.Name, metav1.GetOptions{})
 	if err != nil {
 		if !k8sErrors.IsNotFound(err) {
 			return err
 		}
 		// create secret
-		_, err := clientset.CoreV1().Secrets(secret.Namespace).Create(secret)
+		_, err := clientset.CoreV1().Secrets(secret.Namespace).Create(context.Background(), secret, metav1.CreateOptions{})
 		return err
 	}
 
 	// update secret
 	secret.ResourceVersion = old.ResourceVersion
-	_, err = clientset.CoreV1().Secrets(secret.Namespace).Update(secret)
+	_, err = clientset.CoreV1().Secrets(secret.Namespace).Update(context.Background(), secret, metav1.UpdateOptions{})
 	return err
 }

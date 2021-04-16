@@ -19,8 +19,10 @@
 package node
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"context"
 	"testing"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -36,7 +38,7 @@ func TestCluster_handleNodeStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	node, err := cli.CoreV1().Nodes().Get("192.168.2.200", metav1.GetOptions{})
+	node, err := cli.CoreV1().Nodes().Get(context.Background(), "192.168.2.200", metav1.GetOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

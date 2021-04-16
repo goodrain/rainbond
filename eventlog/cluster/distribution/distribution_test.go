@@ -19,18 +19,19 @@
 package distribution
 
 import (
+	"testing"
+	"time"
+
 	"github.com/goodrain/rainbond/eventlog/cluster/discover"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/db"
-	"testing"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
 func TestGetSuitableInstance(t *testing.T) {
-	dis := discover.New(conf.DiscoverConf{}, logrus.WithField("Module", "Test"))
+	dis := discover.New(nil, conf.DiscoverConf{}, logrus.WithField("Module", "Test"))
 	ctx, cancel := context.WithCancel(context.Background())
 	d := &Distribution{
 		cancel:       cancel,

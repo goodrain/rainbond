@@ -777,7 +777,7 @@ type IPAndAvailablePort struct {
 //GetGatewayIPs get all gateway node ips
 func (g *GatewayAction) GetGatewayIPs() []IPAndAvailablePort {
 	defaultAvailablePort, _ := g.GetAvailablePort("0.0.0.0")
-	defaultIps := []IPAndAvailablePort{IPAndAvailablePort{
+	defaultIps := []IPAndAvailablePort{{
 		IP:            "0.0.0.0",
 		AvailablePort: defaultAvailablePort,
 	}}

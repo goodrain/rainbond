@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -68,7 +69,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	if services := app.GetServices(true); services != nil {
 		for _, service := range services {
 			if service != nil && service.Name != "" {
-				err := s.manager.client.CoreV1().Services(app.TenantID).Delete(service.Name, &metav1.DeleteOptions{
+				err := s.manager.client.CoreV1().Services(app.TenantID).Delete(context.Background(), service.Name, metav1.DeleteOptions{
 					GracePeriodSeconds: &zero,
 				})
 				if err != nil && !errors.IsNotFound(err) {
@@ -81,7 +82,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	if secrets := app.GetSecrets(true); secrets != nil {
 		for _, secret := range secrets {
 			if secret != nil && secret.Name != "" {
-				err := s.manager.client.CoreV1().Secrets(app.TenantID).Delete(secret.Name, &metav1.DeleteOptions{
+				err := s.manager.client.CoreV1().Secrets(app.TenantID).Delete(context.Background(), secret.Name, metav1.DeleteOptions{
 					GracePeriodSeconds: &zero,
 				})
 				if err != nil && !errors.IsNotFound(err) {
@@ -94,7 +95,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	if ingresses := app.GetIngress(true); ingresses != nil {
 		for _, ingress := range ingresses {
 			if ingress != nil && ingress.Name != "" {
-				err := s.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Delete(ingress.Name, &metav1.DeleteOptions{
+				err := s.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{
 					GracePeriodSeconds: &zero,
 				})
 				if err != nil && !errors.IsNotFound(err) {
@@ -107,7 +108,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	if configs := app.GetConfigMaps(); configs != nil {
 		for _, config := range configs {
 			if config != nil && config.Name != "" {
-				err := s.manager.client.CoreV1().ConfigMaps(app.TenantID).Delete(config.Name, &metav1.DeleteOptions{
+				err := s.manager.client.CoreV1().ConfigMaps(app.TenantID).Delete(context.Background(), config.Name, metav1.DeleteOptions{
 					GracePeriodSeconds: &zero,
 				})
 				if err != nil && !errors.IsNotFound(err) {
@@ -118,14 +119,14 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	}
 	//step 5: delete statefulset or deployment
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		err := s.manager.client.AppsV1().StatefulSets(app.TenantID).Delete(statefulset.Name, &metav1.DeleteOptions{})
+		err := s.manager.client.AppsV1().StatefulSets(app.TenantID).Delete(context.Background(), statefulset.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("delete statefulset failure:%s", err.Error())
 		}
 		s.manager.store.OnDeletes(statefulset)
 	}
 	if deployment := app.GetDeployment(); deployment != nil && deployment.Name != "" {
-		err := s.manager.client.AppsV1().Deployments(app.TenantID).Delete(deployment.Name, &metav1.DeleteOptions{})
+		err := s.manager.client.AppsV1().Deployments(app.TenantID).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("delete deployment failure:%s", err.Error())
 		}
@@ -136,7 +137,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	if pods := app.GetPods(true); pods != nil {
 		for _, pod := range pods {
 			if pod != nil && pod.Name != "" {
-				err := s.manager.client.CoreV1().Pods(app.TenantID).Delete(pod.Name, &metav1.DeleteOptions{
+				err := s.manager.client.CoreV1().Pods(app.TenantID).Delete(context.Background(), pod.Name, metav1.DeleteOptions{
 					GracePeriodSeconds: &gracePeriodSeconds,
 				})
 				if err != nil && !errors.IsNotFound(err) {
@@ -148,7 +149,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	//step 7: deleta all hpa
 	if hpas := app.GetHPAs(); len(hpas) != 0 {
 		for _, hpa := range hpas {
-			err := s.manager.client.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(hpa.GetName(), &metav1.DeleteOptions{})
+			err := s.manager.client.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				return fmt.Errorf("delete hpa: %v", err)
 			}
@@ -164,7 +165,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 			}
 			if smClient != nil {
 				for _, sm := range sms {
-					err := smClient.MonitoringV1().ServiceMonitors(sm.GetNamespace()).Delete(sm.GetName(), &metav1.DeleteOptions{})
+					err := smClient.MonitoringV1().ServiceMonitors(sm.GetNamespace()).Delete(context.Background(), sm.GetName(), metav1.DeleteOptions{})
 					if err != nil && !errors.IsNotFound(err) {
 						logrus.Errorf("delete service monitor failure: %s", err.Error())
 					}

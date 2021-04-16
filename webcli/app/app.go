@@ -320,7 +320,7 @@ func SetConfigDefaults(config *rest.Config) error {
 //GetContainerArgs get default container name
 func (app *App) GetContainerArgs(namespace, podname, containerName string) (string, string, []string, error) {
 	var args = []string{"/bin/sh"}
-	pod, err := app.coreClient.CoreV1().Pods(namespace).Get(podname, metav1.GetOptions{})
+	pod, err := app.coreClient.CoreV1().Pods(namespace).Get(context.Background(), podname, metav1.GetOptions{})
 	if err != nil {
 		return "", "", args, err
 	}

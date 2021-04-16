@@ -19,13 +19,10 @@
 package header
 
 import (
-	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	api "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"reflect"
-	"testing"
 )
 
 func buildIngress() *extensions.Ingress {
@@ -60,27 +57,5 @@ func buildIngress() *extensions.Ingress {
 				},
 			},
 		},
-	}
-}
-
-func TestHeader_Parse(t *testing.T) {
-	ing := buildIngress()
-
-	data := map[string]string{}
-	data[parser.GetAnnotationWithPrefix("header")] = "hkey1:hval1;hkey2:hval2"
-	ing.SetAnnotations(data)
-
-	hmap := transform(data[parser.GetAnnotationWithPrefix("header")])
-
-	i, err := NewParser(header{}).Parse(ing)
-	if err != nil {
-		t.Errorf("Uxpected error with ingress: %v", err)
-		return
-	}
-
-	cfg := i.(*Config)
-	header := cfg.Header
-	if !reflect.DeepEqual(hmap, header) {
-		t.Errorf("hmap should equal header")
 	}
 }

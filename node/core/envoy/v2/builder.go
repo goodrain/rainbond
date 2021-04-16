@@ -48,6 +48,7 @@ import (
 
 //DefaultLocalhostListenerAddress -
 var DefaultLocalhostListenerAddress = "127.0.0.1"
+var DefaultLocalhostListenerPort uint32 = 80
 
 //CreateTCPListener listener builder
 func CreateTCPListener(name, clusterName, address, statPrefix string, port uint32, idleTimeout int64) *apiv2.Listener {
@@ -70,9 +71,9 @@ func CreateTCPListener(name, clusterName, address, statPrefix string, port uint3
 		Name:    name,
 		Address: CreateSocketAddress("tcp", address, port),
 		FilterChains: []*envoy_api_v2_listener.FilterChain{
-			&envoy_api_v2_listener.FilterChain{
+			{
 				Filters: []*envoy_api_v2_listener.Filter{
-					&envoy_api_v2_listener.Filter{
+					{
 						Name:       wellknown.TCPProxy,
 						ConfigType: &envoy_api_v2_listener.Filter_TypedConfig{TypedConfig: Message2Any(tcpProxy)},
 					},
@@ -111,7 +112,7 @@ func CreateUDPListener(name, clusterName, address, statPrefix string, port uint3
 		Name:    name,
 		Address: CreateSocketAddress("udp", address, port),
 		ListenerFilters: []*envoy_api_v2_listener.ListenerFilter{
-			&envoy_api_v2_listener.ListenerFilter{
+			{
 				Name: "envoy.filters.udp_listener.udp_proxy",
 				ConfigType: &envoy_api_v2_listener.ListenerFilter_TypedConfig{
 					TypedConfig: anyConfig,
@@ -215,9 +216,9 @@ func CreateHTTPListener(name, address, statPrefix string, port uint32, rateOpt *
 		},
 
 		FilterChains: []*envoy_api_v2_listener.FilterChain{
-			&envoy_api_v2_listener.FilterChain{
+			{
 				Filters: []*envoy_api_v2_listener.Filter{
-					&envoy_api_v2_listener.Filter{
+					{
 						Name:       wellknown.HTTPConnectionManager,
 						ConfigType: &envoy_api_v2_listener.Filter_TypedConfig{TypedConfig: Message2Any(hcm)},
 					},
@@ -262,7 +263,7 @@ func CreateSocketAddress(protocol, address string, port uint32) *core.Address {
 func CreateCircuitBreaker(options RainbondPluginOptions) *cluster.CircuitBreakers {
 	circuitBreakers := &cluster.CircuitBreakers{
 		Thresholds: []*cluster.CircuitBreakers_Thresholds{
-			&cluster.CircuitBreakers_Thresholds{
+			{
 				Priority:           core.RoutingPriority_DEFAULT,
 				MaxConnections:     ConversionUInt32(uint32(options.MaxConnections)),
 				MaxRequests:        ConversionUInt32(uint32(options.MaxRequests)),
@@ -365,7 +366,7 @@ func CreateRoute(clusterName, prefix string, headers []*route.HeaderMatcher, wei
 				ClusterSpecifier: &route.RouteAction_WeightedClusters{
 					WeightedClusters: &route.WeightedCluster{
 						Clusters: []*route.WeightedCluster_ClusterWeight{
-							&route.WeightedCluster_ClusterWeight{
+							{
 								Name:   clusterName,
 								Weight: ConversionUInt32(weight),
 							},
@@ -410,7 +411,7 @@ func CreateEDSClusterConfig(serviceName string) *apiv2.Cluster_EdsClusterConfig 
 				ApiConfigSource: &core.ApiConfigSource{
 					ApiType: core.ApiConfigSource_GRPC,
 					GrpcServices: []*core.GrpcService{
-						&core.GrpcService{
+						{
 							TargetSpecifier: &core.GrpcService_EnvoyGrpc_{
 								EnvoyGrpc: &core.GrpcService_EnvoyGrpc{
 									ClusterName: "rainbond_xds_cluster",
@@ -443,6 +444,12 @@ type ClusterOptions struct {
 	HealthyPanicThreshold    int64
 	TLSContext               *auth.UpstreamTlsContext
 	LoadAssignment           *apiv2.ClusterLoadAssignment
+	Protocol                 string
+	// grpc service name of health check
+	GrpcHealthServiceName string
+	//health check
+	HealthTimeout  int64
+	HealthInterval int64
 }
 
 //CreateCluster create cluster config
@@ -467,6 +474,26 @@ func CreateCluster(options ClusterOptions) *apiv2.Cluster {
 		CommonLbConfig: &apiv2.Cluster_CommonLbConfig{
 			HealthyPanicThreshold: &_type.Percent{Value: float64(options.HealthyPanicThreshold) / 100},
 		},
+	}
+	if options.Protocol == "http2" || options.Protocol == "grpc" {
+		cluster.Http2ProtocolOptions = &core.Http2ProtocolOptions{}
+		// set grpc health check
+		if options.Protocol == "grpc" && options.GrpcHealthServiceName != "" {
+			cluster.HealthChecks = append(cluster.HealthChecks, &core.HealthCheck{
+				Timeout:  ConverTimeDuration(options.HealthTimeout),
+				Interval: ConverTimeDuration(options.HealthInterval),
+				//The number of unhealthy health checks required before a host is marked unhealthy.
+				//Note that for http health checking if a host responds with 503 this threshold is ignored and the host is considered unhealthy immediately.
+				UnhealthyThreshold: ConversionUInt32(2),
+				//The number of healthy health checks required before a host is marked healthy.
+				//Note that during startup, only a single successful health check is required to mark a host healthy.
+				HealthyThreshold: ConversionUInt32(1),
+				HealthChecker: &core.HealthCheck_GrpcHealthCheck_{
+					GrpcHealthCheck: &core.HealthCheck_GrpcHealthCheck{
+						ServiceName: options.GrpcHealthServiceName,
+					},
+				}})
+		}
 	}
 	if options.TLSContext != nil {
 		cluster.TlsContext = options.TLSContext

@@ -19,10 +19,13 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"container/list"
+
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	gclient "github.com/goodrain/rainbond/mq/client"
@@ -67,8 +70,9 @@ func checkResourceEnough(serviceID string) error {
 		logrus.Errorf("get tenant by id error: %v", err)
 		return err
 	}
-
-	return CheckTenantResource(tenant, service.ContainerMemory*service.Replicas)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	return CheckTenantResource(ctx, tenant, service.ContainerMemory*service.Replicas)
 }
 
 func (b *BatchOperationHandler) serviceStartupSequence(serviceIDs []string) map[string][]string {

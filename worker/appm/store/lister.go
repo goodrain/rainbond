@@ -19,7 +19,7 @@
 package store
 
 import (
-	crdlisters "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/internalversion"
+	crdlisters "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/v1"
 	appsv1 "k8s.io/client-go/listers/apps/v1"
 	autoscalingv2 "k8s.io/client-go/listers/autoscaling/v2beta2"
 	corev1 "k8s.io/client-go/listers/core/v1"

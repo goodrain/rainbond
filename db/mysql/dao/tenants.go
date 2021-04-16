@@ -885,6 +885,9 @@ func (t *TenantServiceEnvVarDaoImpl) AddModel(mo model.Interface) error {
 	relation := mo.(*model.TenantServiceEnvVar)
 	var oldRelation model.TenantServiceEnvVar
 	if ok := t.DB.Where("service_id = ? and attr_name = ?", relation.ServiceID, relation.AttrName).Find(&oldRelation).RecordNotFound(); ok {
+		if len(relation.AttrValue) > 65532 {
+			relation.AttrValue = relation.AttrValue[:65532]
+		}
 		if err := t.DB.Create(relation).Error; err != nil {
 			return err
 		}

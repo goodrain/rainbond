@@ -23,18 +23,32 @@ import (
 	"os"
 	"path"
 
-	"github.com/goodrain/rainbond-operator/pkg/generated/clientset/versioned"
+	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond/builder/sources"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
+
+var (
+	scheme = runtime.NewScheme()
+)
+
+func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(rainbondv1alpha1.AddToScheme(scheme))
+}
 
 //K8SClient K8SClient
 var K8SClient kubernetes.Interface
 
 //RainbondKubeClient rainbond custom resource client
-var RainbondKubeClient versioned.Interface
+var RainbondKubeClient client.Client
 
 //InitClient init k8s client
 func InitClient(kubeconfig string) error {
@@ -60,6 +74,14 @@ func InitClient(kubeconfig string) error {
 		logrus.Error("Create kubernetes client error.", err.Error())
 		return err
 	}
-	RainbondKubeClient = versioned.NewForConfigOrDie(config)
+	mapper, err := apiutil.NewDynamicRESTMapper(config, apiutil.WithLazyDiscovery)
+	if err != nil {
+		return fmt.Errorf("NewDynamicRESTMapper failure %+v", err)
+	}
+	runtimeClient, err := client.New(config, client.Options{Scheme: scheme, Mapper: mapper})
+	if err != nil {
+		return fmt.Errorf("New kube client failure %+v", err)
+	}
+	RainbondKubeClient = runtimeClient
 	return nil
 }
