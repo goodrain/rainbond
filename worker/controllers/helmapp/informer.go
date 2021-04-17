@@ -17,7 +17,7 @@ import (
 
 // Storer -
 type Storer interface {
-	Run(stopCh <-chan struct{}) error
+	Run(stopCh <-chan struct{})
 	GetHelmApp(ns, name string) (*rainbondv1alpha1.HelmApp, error)
 }
 
@@ -56,7 +56,7 @@ func NewStorer(clientset versioned.Interface,
 	}
 }
 
-func (i *store) Run(stopCh <-chan struct{}) error {
+func (i *store) Run(stopCh <-chan struct{}) {
 	go i.informer.Run(stopCh)
 
 	// wait for all involved caches to be synced before processing items
@@ -70,8 +70,6 @@ func (i *store) Run(stopCh <-chan struct{}) error {
 	// in big clusters, deltas can keep arriving even after HasSynced
 	// functions have returned 'true'
 	time.Sleep(1 * time.Second)
-
-	return nil
 }
 
 func (i *store) GetHelmApp(ns, name string) (*rainbondv1alpha1.HelmApp, error) {

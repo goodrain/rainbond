@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
@@ -33,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/worker/appm"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/store"
+	"github.com/goodrain/rainbond/worker/controllers/helmapp"
 	"github.com/goodrain/rainbond/worker/discover"
 	"github.com/goodrain/rainbond/worker/gc"
 	"github.com/goodrain/rainbond/worker/master"
@@ -129,6 +131,10 @@ func Run(s *option.Worker) error {
 		return err
 	}
 	defer exporterManager.Stop()
+
+	stopCh := make(chan struct{})
+	ctrl := helmapp.NewController(stopCh, restConfig, 5*time.Second, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
+	go ctrl.Start()
 
 	logrus.Info("worker begin running...")
 

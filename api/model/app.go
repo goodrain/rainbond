@@ -24,3 +24,14 @@ type AppDetectProcess struct {
 	Ready bool   `json:"ready"`
 	Error string `json:"error"`
 }
+
+// AppService -
+type AppService struct {
+	ServiceName string    `json:"service_name"`
+	Pods        []*AppPod `json:"pods"`
+}
+
+type AppPod struct {
+	PodName   string `json:"pod_name"`
+	PodStatus string `json:"pod_status"`
+}

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
+	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
 )
@@ -30,10 +31,9 @@ func NewController(stopCh chan struct{}, restcfg *rest.Config, resyncPeriod time
 	}
 }
 
-func (c *Controller) Start() error {
+func (c *Controller) Start() {
+	logrus.Info("start helm app controller")
 	go c.storer.Run(c.stopCh)
 
 	c.controlLoop.Run()
-
-	return nil
 }

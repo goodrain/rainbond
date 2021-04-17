@@ -82,7 +82,7 @@ func InitHandle(conf option.Config,
 	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
 	defaultEtcdHandler = NewEtcdHandler(etcdcli)
 	defaultmonitorHandler = NewMonitorHandler(prometheusCli)
-	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli, rainbondClient)
+	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli, rainbondClient, kubeClient)
 	return nil
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/goodrain/rainbond/api/util/bcode"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/sirupsen/logrus"
 )
 
 // ApplicationController -
@@ -48,6 +49,7 @@ func (a *ApplicationController) CreateApp(w http.ResponseWriter, r *http.Request
 	// create app
 	app, err := handler.GetApplicationHandler().CreateApp(r.Context(), &tenantReq)
 	if err != nil {
+		logrus.Errorf("create app: %+v", err)
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
@@ -120,7 +122,7 @@ func (a *ApplicationController) ListApps(w http.ResponseWriter, r *http.Request)
 }
 
 // ListServices -
-func (a *ApplicationController) ListServices(w http.ResponseWriter, r *http.Request) {
+func (a *ApplicationController) ListComponents(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "app_id")
 	query := r.URL.Query()
 	pageQuery := query.Get("page")
@@ -218,6 +220,18 @@ func (a *ApplicationController) Install(w http.ResponseWriter, r *http.Request) 
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
+}
+
+func (a *ApplicationController) ListServices(w http.ResponseWriter, r *http.Request) {
+	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+
+	services, err := handler.GetApplicationHandler().ListServices(r.Context(), app)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, services)
 }
 
 // BatchBindService -

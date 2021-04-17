@@ -13,16 +13,20 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
-	"github.com/goodrain/rainbond/util"
+	util "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/commonutil"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/server/pb"
+	wutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	clientset "k8s.io/client-go/kubernetes"
 )
 
 // ApplicationAction -
@@ -30,6 +34,7 @@ type ApplicationAction struct {
 	statusCli      *client.AppRuntimeSyncClient
 	promClient     prometheus.Interface
 	rainbondClient versioned.Interface
+	kubeClient     clientset.Interface
 }
 
 // ApplicationHandler defines handler methods to TenantApplication.
@@ -49,17 +54,19 @@ type ApplicationHandler interface {
 	GetStatus(app *dbmodel.Application) (*model.AppStatus, error)
 	GetDetectProcess(ctx context.Context, app *dbmodel.Application) ([]*model.AppDetectProcess, error)
 	Install(ctx context.Context, app *dbmodel.Application, values string) error
+	ListServices(ctx context.Context, app *dbmodel.Application) ([]*model.AppService, error)
 
 	DeleteConfigGroup(appID, configGroupName string) error
 	ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error)
 }
 
 // NewApplicationHandler creates a new Tenant Application Handler.
-func NewApplicationHandler(statusCli *client.AppRuntimeSyncClient, promClient prometheus.Interface, rainbondClient versioned.Interface) ApplicationHandler {
+func NewApplicationHandler(statusCli *client.AppRuntimeSyncClient, promClient prometheus.Interface, rainbondClient versioned.Interface, kubeClient clientset.Interface) ApplicationHandler {
 	return &ApplicationAction{
 		statusCli:      statusCli,
 		promClient:     promClient,
 		rainbondClient: rainbondClient,
+		kubeClient:     kubeClient,
 	}
 }
 
@@ -364,6 +371,52 @@ func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Applicatio
 	helmApp.Spec.Values = values
 	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Update(nctx, helmApp, metav1.UpdateOptions{})
 	return errors.Wrap(err, "install app")
+}
+
+func (a *ApplicationAction) ListServices(ctx context.Context, app *dbmodel.Application) ([]*model.AppService, error) {
+	nctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	// list services
+	labelSelector := labels.FormatLabels(map[string]string{
+		"app.kubernetes.io/name":       app.AppName,
+		"app.kubernetes.io/managed-by": "Helm",
+	})
+	serviceList, err := a.kubeClient.CoreV1().Services(app.TenantID).List(nctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var services []*model.AppService
+	for _, service := range serviceList.Items {
+		svc := &model.AppService{
+			ServiceName: service.Name,
+		}
+
+		podList, err := a.kubeClient.CoreV1().Pods(service.Namespace).List(nctx, metav1.ListOptions{
+			LabelSelector: labels.FormatLabels(service.Spec.Selector),
+		})
+		if err != nil {
+			logrus.Warningf("list pods: %v", err)
+		} else {
+			var pods []*model.AppPod
+			for _, pod := range podList.Items {
+				podStatus := &pb.PodStatus{}
+				wutil.DescribePodStatus(a.kubeClient, &pod, podStatus, k8sutil.DefListEventsByPod)
+				pods = append(pods, &model.AppPod{
+					PodName:   pod.Name,
+					PodStatus: podStatus.TypeStr,
+				})
+			}
+			svc.Pods = pods
+		}
+
+		services = append(services, svc)
+	}
+
+	return services, nil
 }
 
 func (a *ApplicationAction) getDiskUsage(appID string) float64 {

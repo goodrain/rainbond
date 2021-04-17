@@ -50,7 +50,7 @@ func (h *Helm) PreInstall(name, namespace, chart string, out io.Writer) error {
 }
 
 func (h *Helm) Install(name, namespace, chart string, vals map[string]interface{}, out io.Writer) error {
-	return h.install(name, namespace, chart, vals, true, out)
+	return h.install(name, namespace, chart, vals, false, out)
 }
 
 func (h *Helm) install(name, namespace, chart string, vals map[string]interface{}, dryRun bool, out io.Writer) error {
