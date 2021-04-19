@@ -40,6 +40,7 @@ type Informer struct {
 	Events                  cache.SharedIndexInformer
 	HorizontalPodAutoscaler cache.SharedIndexInformer
 	CRD                     cache.SharedIndexInformer
+	HelmApp                 cache.SharedIndexInformer
 	CRS                     map[string]cache.SharedIndexInformer
 }
 

@@ -21,6 +21,10 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"net"
 	"strings"
 	"time"
@@ -113,20 +117,100 @@ func (r *RuntimeServer) GetAppStatusDeprecated(ctx context.Context, re *pb.Servi
 
 // GetAppStatus returns the status of application based on the given appId.
 func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (*pb.AppStatus, error) {
-	status, err := r.store.GetAppStatus(in.AppId)
+	app, err := db.GetManager().ApplicationDao().GetAppByID(in.AppId)
 	if err != nil {
 		return nil, err
 	}
 
-	cpu, memory, err := r.store.GetAppResources(in.AppId)
+	if app.AppType == model.AppTypeHelm {
+		return r.getHelmAppStatus(app)
+	}
+
+	return r.getRainbondAppStatus(app)
+}
+
+func (r *RuntimeServer) getRainbondAppStatus(app *model.Application) (*pb.AppStatus, error) {
+	status, err := r.store.GetAppStatus(app.AppID)
+	if err != nil {
+		return nil, err
+	}
+
+	cpu, memory, err := r.store.GetAppResources(app.AppID)
 	if err != nil {
 		return nil, err
 	}
 
 	return &pb.AppStatus{
-		Status: status,
+		Status: string(status),
 		Cpu:    cpu,
 		Memory: memory,
+	}, nil
+}
+
+func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus, error) {
+	helmApp, err := r.store.GetHelmApp(app.TenantID, app.AppName)
+	if err != nil {
+		return nil, err
+	}
+
+	phase := string(v1alpha1.HelmAppStatusPhaseDetecting)
+	if string(helmApp.Status.Phase) != "" {
+		phase = string(helmApp.Status.Phase)
+	}
+
+	selector := labels.NewSelector()
+	instanceReq, _ := labels.NewRequirement("app.kubernetes.io/instance", selection.Equals, []string{app.AppName})
+	selector = selector.Add(*instanceReq)
+	managedReq, _ := labels.NewRequirement("app.kubernetes.io/managed-by", selection.Equals, []string{"Helm"})
+	selector = selector.Add(*managedReq)
+	pods, err := r.store.ListPods(app.TenantID, selector)
+	if err != nil {
+		return nil, err
+	}
+
+	var cpu, memory int64
+	for _, pod := range pods {
+		for _, c := range pod.Spec.Containers {
+			cpu += c.Resources.Requests.Cpu().MilliValue()
+			memory += c.Resources.Limits.Memory().Value() / 1024 / 1024
+		}
+	}
+
+	return &pb.AppStatus{
+		Status:         string(helmApp.Status.Status),
+		Phase:          phase,
+		ValuesTemplate: helmApp.Status.ValuesTemplate,
+		Cpu:            cpu,
+		Memory:         memory,
+		Readme:         helmApp.Status.Readme,
+	}, nil
+}
+
+func (r *RuntimeServer) ListHelmAppDetectConditions(ctx context.Context, appReq *pb.AppReq) (*pb.AppDetectConditions, error) {
+	app, err := db.GetManager().ApplicationDao().GetAppByID(appReq.AppId)
+	if err != nil {
+		return nil, err
+	}
+
+	helmApp, err :=r.store.GetHelmApp(app.TenantID, app.AppName)
+	if err != nil {
+		return nil, err
+	}
+
+	var conditions []*pb.AppDetectCondition
+	for _, condition := range helmApp.Status.Conditions {
+		if condition.Type == v1alpha1.HelmAppInstalled {
+			continue
+		}
+		conditions = append(conditions, &pb.AppDetectCondition{
+			Type:  string(condition.Type),
+			Ready: condition.Status == corev1.ConditionTrue,
+			Error: condition.Message,
+		})
+	}
+
+	return &pb.AppDetectConditions{
+		Conditions:           conditions,
 	}, nil
 }
 

@@ -22,7 +22,6 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -51,7 +50,7 @@ type ApplicationHandler interface {
 	UpdateConfigGroup(appID, configGroupName string, req *model.UpdateAppConfigGroupReq) (*model.ApplicationConfigGroupResp, error)
 
 	BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error
-	GetStatus(app *dbmodel.Application) (*model.AppStatus, error)
+	GetStatus(ctx context.Context, app *dbmodel.Application) (*model.AppStatus, error)
 	GetDetectProcess(ctx context.Context, app *dbmodel.Application) ([]*model.AppDetectProcess, error)
 	Install(ctx context.Context, app *dbmodel.Application, values string) error
 	ListServices(ctx context.Context, app *dbmodel.Application) ([]*model.AppService, error)
@@ -284,72 +283,21 @@ func (a *ApplicationAction) checkPorts(appID string, ports []*model.AppPort) err
 }
 
 // GetStatus -
-func (a *ApplicationAction) GetStatus(app *dbmodel.Application) (*model.AppStatus, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Application) (*model.AppStatus, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	if app.AppType == "helm" {
-		return a.getHelmAppStatus(ctx, app)
-	}
-
-	return a.getRainbondAppStatus(ctx, app)
-}
-
-func (a *ApplicationAction) getHelmAppStatus(ctx context.Context, app *dbmodel.Application) (*model.AppStatus, error) {
-	helmApp, err := a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Get(ctx, app.AppName, metav1.GetOptions{})
-	if err != nil {
-		if k8sErrors.IsNotFound(err) {
-			return nil, errors.WithStack(bcode.ErrApplicationNotFound)
-		}
-		return nil, errors.WithStack(err)
-	}
-
-	phase := string(v1alpha1.HelmAppStatusPhaseDetecting)
-	if string(helmApp.Status.Phase) != "" {
-		phase = string(helmApp.Status.Phase)
-	}
-
-	labelSelector := labels.FormatLabels(map[string]string{
-		"app.kubernetes.io/instance":   app.AppName,
-		"app.kubernetes.io/managed-by": "Helm",
-	})
-	podList, err := a.kubeClient.CoreV1().Pods(app.TenantID).List(ctx, metav1.ListOptions{
-		LabelSelector: labelSelector,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	var cpu, memory int64
-	for _, pod := range podList.Items {
-		for _, c := range pod.Spec.Containers {
-			cpu += c.Resources.Requests.Cpu().MilliValue()
-			memory += c.Resources.Limits.Memory().Value() / 1024 / 1024
-		}
-	}
-
-	return &model.AppStatus{
-		Status:         string(helmApp.Status.Status),
-		Phase:          phase,
-		ValuesTemplate: helmApp.Status.ValuesTemplate,
-		Cpu:            cpu,
-		Memory:         memory,
-		Readme:         helmApp.Status.Readme,
-	}, nil
-}
-
-func (a *ApplicationAction) getRainbondAppStatus(ctx context.Context, app *dbmodel.Application) (*model.AppStatus, error) {
 	status, err := a.statusCli.GetAppStatus(ctx, &pb.AppStatusReq{
 		AppId: app.AppID,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "get app status")
 	}
 
 	diskUsage := a.getDiskUsage(app.AppID)
 
 	res := &model.AppStatus{
-		Status: status.Status.String(),
+		Status: status.Status,
 		Cpu:    status.Cpu,
 		Memory: status.Memory,
 		Disk:   int64(diskUsage),
@@ -361,27 +309,23 @@ func (a *ApplicationAction) GetDetectProcess(ctx context.Context, app *dbmodel.A
 	nctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	helmApp, err := a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Get(nctx, app.AppName, metav1.GetOptions{})
+	res, err := a.statusCli.ListHelmAppDetectConditions(nctx, &pb.AppReq{
+		AppId: app.AppID,
+	})
 	if err != nil {
-		if k8sErrors.IsNotFound(err) {
-			return nil, errors.WithStack(bcode.ErrApplicationNotFound)
-		}
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
-	var processes []*model.AppDetectProcess
-	for _, condition := range helmApp.Status.Conditions {
-		if condition.Type == v1alpha1.HelmAppInstalled {
-			continue
-		}
-		processes = append(processes, &model.AppDetectProcess{
-			Type:  string(condition.Type),
-			Ready: condition.Status == corev1.ConditionTrue,
-			Error: condition.Message,
+	var conditions []*model.AppDetectProcess
+	for _, condition := range res.Conditions {
+		conditions = append(conditions, &model.AppDetectProcess{
+			Type:  condition.Type,
+			Ready: condition.Ready,
+			Error: condition.Error,
 		})
 	}
 
-	return processes, nil
+	return conditions, nil
 }
 
 func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Application, values string) error {

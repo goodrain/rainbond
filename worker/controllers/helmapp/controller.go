@@ -5,7 +5,6 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/sirupsen/logrus"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -16,10 +15,9 @@ type Controller struct {
 	controlLoop *ControlLoop
 }
 
-func NewController(stopCh chan struct{}, restcfg *rest.Config, resyncPeriod time.Duration,
+func NewController(stopCh chan struct{}, clientset versioned.Interface, resyncPeriod time.Duration,
 	repoFile, repoCache string) *Controller {
 	queue := workqueue.New()
-	clientset := versioned.NewForConfigOrDie(restcfg)
 	storer := NewStorer(clientset, resyncPeriod, queue)
 
 	controlLoop := NewControlLoop(clientset, storer, queue, repoFile, repoCache)

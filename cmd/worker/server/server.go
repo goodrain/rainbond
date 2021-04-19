@@ -24,11 +24,13 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/store"
+	"github.com/goodrain/rainbond/worker/controllers/helmapp"
 	"github.com/goodrain/rainbond/worker/discover"
 	"github.com/goodrain/rainbond/worker/gc"
 	"github.com/goodrain/rainbond/worker/master"
@@ -39,6 +41,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 //Run start run
@@ -82,11 +85,13 @@ func Run(s *option.Worker) error {
 	}
 	s.Config.KubeClient = clientset
 
+	rainbondClient := versioned.NewForConfigOrDie(restConfig)
+
 	//step 3: create resource store
 	startCh := channels.NewRingChannel(1024)
 	updateCh := channels.NewRingChannel(1024)
 	probeCh := channels.NewRingChannel(1024)
-	cachestore := store.NewStore(restConfig, clientset, db.GetManager(), s.Config, startCh, probeCh)
+	cachestore := store.NewStore(restConfig, clientset, rainbondClient, db.GetManager(), s.Config, startCh, probeCh)
 	appmController := appm.NewAPPMController(clientset, cachestore, startCh, updateCh, probeCh)
 	if err := appmController.Start(); err != nil {
 		logrus.Errorf("error starting appm controller: %v", err)
@@ -129,10 +134,10 @@ func Run(s *option.Worker) error {
 	}
 	defer exporterManager.Stop()
 
-	//stopCh := make(chan struct{})
-	//ctrl := helmapp.NewController(stopCh, restConfig, 5*time.Second, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
-	//go ctrl.Start()
-	//defer close(stopCh)
+	stopCh := make(chan struct{})
+	ctrl := helmapp.NewController(stopCh, rainbondClient, 5*time.Second, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
+	go ctrl.Start()
+	defer close(stopCh)
 
 	logrus.Info("worker begin running...")
 

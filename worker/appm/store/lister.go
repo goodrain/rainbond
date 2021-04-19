@@ -19,6 +19,7 @@
 package store
 
 import (
+	"github.com/goodrain/rainbond/pkg/generated/listers/rainbond/v1alpha1"
 	crdlisters "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/v1"
 	appsv1 "k8s.io/client-go/listers/apps/v1"
 	autoscalingv2 "k8s.io/client-go/listers/autoscaling/v2beta2"
@@ -42,4 +43,5 @@ type Lister struct {
 	Claims                  corev1.PersistentVolumeClaimLister
 	HorizontalPodAutoscaler autoscalingv2.HorizontalPodAutoscalerLister
 	CRD                     crdlisters.CustomResourceDefinitionLister
+	HelmApp                 v1alpha1.HelmAppLister
 }

@@ -7,6 +7,12 @@ const (
 	GovernanceModeKubernetesNativeService = "KUBERNETES_NATIVE_SERVICE"
 )
 
+// app type
+const (
+	AppTypeRainbond = "rainbond"
+	AppTypeHelm     = "helm"
+)
+
 // IsGovernanceModeValid checks if the governanceMode is valid.
 func IsGovernanceModeValid(governanceMode string) bool {
 	return governanceMode == GovernanceModeBuildInServiceMesh || governanceMode == GovernanceModeKubernetesNativeService

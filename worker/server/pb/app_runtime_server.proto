@@ -17,9 +17,14 @@ service AppRuntimeSync {
   rpc GetPodDetail(GetPodDetailReq) returns (PodDetail) {}
   rpc GetStorageClasses(Empty) returns (StorageClasses) {}
   rpc GetAppVolumeStatus(ServiceRequest) returns(ServiceVolumeStatusMessage){}
+  rpc ListHelmAppDetectConditions(AppReq) returns(AppDetectConditions){}
 }
 
 message Empty {}
+
+message AppReq {
+  string app_id = 1;
+}
 
 message AppStatusReq {
   string app_id = 1;
@@ -240,15 +245,28 @@ message ServiceVolumeStatusMessage {
 
 message AppStatus {
   enum Status {
-    NIL = 0;
-    RUNNING = 1;
-    CLOSED = 2;
-    ABNORMAL = 3;
-    STARTING = 4;
-    STOPPING = 5;
+      NIL = 0;
+      RUNNING = 1;
+      CLOSED = 2;
+      ABNORMAL = 3;
+      STARTING = 4;
+      STOPPING = 5;
   }
 
-  Status status = 1;
-  int64 cpu = 2;
-  int64 memory = 3;
+  string status = 1;
+  int64  cpu = 2;
+  int64  memory = 3;
+  string phase = 4;
+  string valuesTemplate = 5;
+  string readme = 6;
+}
+
+message AppDetectCondition {
+    string type = 1;
+    bool ready = 2;
+    string error = 3;
+}
+
+message AppDetectConditions {
+  repeated AppDetectCondition conditions = 1;
 }
