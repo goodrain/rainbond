@@ -19,11 +19,6 @@
 package server
 
 import (
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
@@ -34,7 +29,6 @@ import (
 	"github.com/goodrain/rainbond/worker/appm"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/store"
-	"github.com/goodrain/rainbond/worker/controllers/helmapp"
 	"github.com/goodrain/rainbond/worker/discover"
 	"github.com/goodrain/rainbond/worker/gc"
 	"github.com/goodrain/rainbond/worker/master"
@@ -42,6 +36,9 @@ import (
 	"github.com/goodrain/rainbond/worker/server"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 //Run start run
@@ -132,9 +129,10 @@ func Run(s *option.Worker) error {
 	}
 	defer exporterManager.Stop()
 
-	stopCh := make(chan struct{})
-	ctrl := helmapp.NewController(stopCh, restConfig, 5*time.Second, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
-	go ctrl.Start()
+	//stopCh := make(chan struct{})
+	//ctrl := helmapp.NewController(stopCh, restConfig, 5*time.Second, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
+	//go ctrl.Start()
+	//defer close(stopCh)
 
 	logrus.Info("worker begin running...")
 

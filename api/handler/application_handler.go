@@ -304,9 +304,37 @@ func (a *ApplicationAction) getHelmAppStatus(ctx context.Context, app *dbmodel.A
 		return nil, errors.WithStack(err)
 	}
 
+	phase := string(v1alpha1.HelmAppStatusPhaseDetecting)
+	if string(helmApp.Status.Phase) != "" {
+		phase = string(helmApp.Status.Phase)
+	}
+
+	labelSelector := labels.FormatLabels(map[string]string{
+		"app.kubernetes.io/instance":   app.AppName,
+		"app.kubernetes.io/managed-by": "Helm",
+	})
+	podList, err := a.kubeClient.CoreV1().Pods(app.TenantID).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var cpu, memory int64
+	for _, pod := range podList.Items {
+		for _, c := range pod.Spec.Containers {
+			cpu += c.Resources.Requests.Cpu().MilliValue()
+			memory += c.Resources.Limits.Memory().Value() / 1024 / 1024
+		}
+	}
+
 	return &model.AppStatus{
-		Phase:          string(helmApp.Status.Phase),
+		Status:         string(helmApp.Status.Status),
+		Phase:          phase,
 		ValuesTemplate: helmApp.Status.ValuesTemplate,
+		Cpu:            cpu,
+		Memory:         memory,
+		Readme:         helmApp.Status.Readme,
 	}, nil
 }
 
@@ -379,7 +407,7 @@ func (a *ApplicationAction) ListServices(ctx context.Context, app *dbmodel.Appli
 
 	// list services
 	labelSelector := labels.FormatLabels(map[string]string{
-		"app.kubernetes.io/name":       app.AppName,
+		"app.kubernetes.io/instance":   app.AppName,
 		"app.kubernetes.io/managed-by": "Helm",
 	})
 	serviceList, err := a.kubeClient.CoreV1().Services(app.TenantID).List(nctx, metav1.ListOptions{

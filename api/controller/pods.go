@@ -88,8 +88,8 @@ func Pods(w http.ResponseWriter, r *http.Request) {
 // PodDetail -
 func (p *PodController) PodDetail(w http.ResponseWriter, r *http.Request) {
 	podName := chi.URLParam(r, "pod_name")
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	pd, err := handler.GetPodHandler().PodDetail(serviceID, podName)
+	namespace := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	pd, err := handler.GetPodHandler().PodDetail(namespace, podName)
 	if err != nil {
 		logrus.Errorf("error getting pod detail: %v", err)
 		if err == server.ErrPodNotFound {

@@ -12,6 +12,7 @@ import (
 	"helm.sh/helm/v3/pkg/downloader"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/kube"
+	"helm.sh/helm/v3/pkg/release"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
@@ -119,11 +120,11 @@ func (h *Helm) install(name, namespace, chart string, vals map[string]interface{
 	return err
 }
 
-func (h *Helm) Status(name string) error {
+func (h *Helm) Status(name string) (*release.Release, error) {
 	// helm status RELEASE_NAME [flags]
 	client := action.NewStatus(h.cfg)
-	_, err := client.Run(name)
-	return err
+	rel, err := client.Run(name)
+	return rel, errors.Wrap(err, "helm status")
 }
 
 // checkIfInstallable validates if a chart can be installed

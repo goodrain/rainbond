@@ -136,6 +136,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Get("/event", controller.GetManager().Event)
 	r.Get("/chargesverify", controller.ChargesVerifyController)
 	//tenant app
+	r.Get("/pods/{pod_name}", controller.GetManager().PodDetail)
 	r.Post("/apps", controller.GetManager().CreateApp)
 	r.Post("/batch_create_apps", controller.GetManager().BatchCreateApp)
 	r.Get("/apps", controller.GetManager().ListApps)

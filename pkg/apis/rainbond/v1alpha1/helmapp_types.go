@@ -124,10 +124,10 @@ type HelmAppSpec struct {
 	Version string `json:"version"`
 
 	// The application revision.
-	Revision *int32 `json:"revision"`
+	Revision *int32 `json:"revision,omitempty"`
 
 	// The values.yaml of the helm app, encoded by base64.
-	Values string `json:"values"`
+	Values string `json:"values,omitempty"`
 
 	// The helm app store.
 	// TODO: validation. not null
@@ -170,6 +170,8 @@ type HelmAppStatus struct {
 	CurrentRevision string `json:"currentRevision,omitempty"`
 
 	ValuesTemplate string `json:"valuesTemplate,omitempty"`
+
+	Readme string `json:"readme,omitempty"`
 }
 
 // +genclient

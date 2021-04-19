@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/goodrain/rainbond/util/commonutil"
 	"github.com/pkg/errors"
@@ -87,15 +86,23 @@ func (a *App) chart() string {
 
 func (a *App) PreInstall() error {
 	var buf bytes.Buffer
-	if err := a.helm.PreInstall(a.templateName, a.namespace, a.Chart(), &buf); err != nil {
+	if err := a.helm.PreInstall(a.name, a.namespace, a.Chart(), &buf); err != nil {
 		return err
 	}
 	logrus.Infof("pre install: %s", buf.String())
 	return nil
 }
 
+func (a *App) Status() (string, error) {
+	release, err := a.helm.Status(a.name)
+	if err != nil {
+		return "", err
+	}
+	return string(release.Info.Status), nil
+}
+
 func (a *App) InstallOrUpdate() error {
-	err := a.helm.Status(a.name)
+	_, err := a.helm.Status(a.name)
 	if errors.Is(err, driver.ErrReleaseNotFound) {
 		b, err := base64.StdEncoding.DecodeString(a.encodedValues)
 		if err != nil {
@@ -108,7 +115,7 @@ func (a *App) InstallOrUpdate() error {
 		}
 
 		var buf bytes.Buffer
-		if err := a.helm.Install(a.templateName, a.namespace, a.Chart(), values, &buf); err != nil {
+		if err := a.helm.Install(a.name, a.namespace, a.Chart(), values, &buf); err != nil {
 			return err
 		}
 		logrus.Infof("install: %s", buf.String())
@@ -117,26 +124,38 @@ func (a *App) InstallOrUpdate() error {
 	return nil
 }
 
-func (a *App) ParseChart() (string, error) {
+func (a *App) ParseChart() (string, string, error) {
 	var values string
-	err := filepath.Walk(a.chartDir, func(path string, info os.FileInfo, err error) error {
+	var readme string
+	err := filepath.Walk(a.chartDir, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
+		if p == a.chartDir {
 			return nil
 		}
-		if !strings.Contains(path, "values.yaml") {
+		if values != "" || readme != "" {
+			return filepath.SkipDir
+		}
+		if !info.IsDir() {
 			return nil
 		}
 
-		file, err := ioutil.ReadFile(path)
+		valuesFile := path.Join(p, "values.yaml")
+		valuesBytes, err := ioutil.ReadFile(valuesFile)
 		if err != nil {
 			return err
 		}
-		values = base64.StdEncoding.EncodeToString(file)
+		values = base64.StdEncoding.EncodeToString(valuesBytes)
+
+		readmeFile := path.Join(p, "README.md")
+		readmeBytes, err := ioutil.ReadFile(readmeFile)
+		if err != nil {
+			return err
+		}
+		readme = base64.StdEncoding.EncodeToString(readmeBytes)
 
 		return nil
 	})
-	return values, err
+	return values, readme, err
 }

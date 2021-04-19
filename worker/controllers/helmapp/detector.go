@@ -46,6 +46,7 @@ func (d *Detector) Detect() error {
 			return err
 		}
 		d.status.UpdateConditionStatus(v1alpha1.HelmAppChartReady, corev1.ConditionTrue)
+		return nil
 	}
 
 	// check if the chart is valid
@@ -56,11 +57,12 @@ func (d *Detector) Detect() error {
 			return err
 		}
 		d.status.UpdateConditionStatus(v1alpha1.HelmAppPreInstalled, corev1.ConditionTrue)
+		return nil
 	}
 
 	// parse chart
 	if !d.status.IsConditionTrue(v1alpha1.HelmAppChartParsed) {
-		values, err := d.app.ParseChart()
+		values, readme, err := d.app.ParseChart()
 		if err != nil {
 			d.status.UpdateCondition(v1alpha1.NewHelmAppCondition(
 				v1alpha1.HelmAppChartParsed, corev1.ConditionFalse, "ChartParsed", err.Error()))
@@ -68,6 +70,7 @@ func (d *Detector) Detect() error {
 		}
 		d.status.UpdateConditionStatus(v1alpha1.HelmAppChartParsed, corev1.ConditionTrue)
 		d.status.ValuesTemplate = values
+		d.status.Readme = readme
 	}
 
 	return nil

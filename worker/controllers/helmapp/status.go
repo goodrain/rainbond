@@ -11,23 +11,27 @@ type Status struct {
 }
 
 // NewStatus creates a new helm app status.
-func NewStatus(app *v1alpha1.HelmApp) *Status {
+func NewStatus(app *v1alpha1.HelmApp) (*Status, bool) {
+	continu3 := true
 	idx, _ := app.Status.GetCondition(v1alpha1.HelmAppChartReady)
 	if idx == -1 {
 		app.Status.UpdateConditionStatus(v1alpha1.HelmAppChartReady, corev1.ConditionFalse)
+		continu3 = false
 	}
 	idx, _ = app.Status.GetCondition(v1alpha1.HelmAppPreInstalled)
 	if idx == -1 {
 		app.Status.UpdateConditionStatus(v1alpha1.HelmAppPreInstalled, corev1.ConditionFalse)
+		continu3 = false
 	}
 	idx, _ = app.Status.GetCondition(v1alpha1.HelmAppChartParsed)
 	if idx == -1 {
 		app.Status.UpdateConditionStatus(v1alpha1.HelmAppChartParsed, corev1.ConditionFalse)
+		continu3 = false
 	}
 	return &Status{
 		HelmAppStatus: app.Status,
 		values:        app.Spec.Values,
-	}
+	}, continu3
 }
 
 func (s *Status) GetHelmAppStatus() v1alpha1.HelmAppStatus {

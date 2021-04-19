@@ -51,9 +51,7 @@ func main() {
 	//}
 
 	ctrl := helmapp.NewController(stopCh, restcfg, 5*time.Second, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
-	if err = ctrl.Start(); err != nil {
-		logrus.Fatalf("start controller: %v", err)
-	}
+	ctrl.Start()
 
 	select {}
 }

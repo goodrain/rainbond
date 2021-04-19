@@ -75,15 +75,7 @@ func (c *ControlLoop) run(obj interface{}) {
 }
 
 func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
-	logrus.Debugf("HelmApp Received: %s", k8sutil.ObjKey(helmApp))
-
-	status := NewStatus(helmApp)
-
-	defer func() {
-		helmApp.Status = status.GetHelmAppStatus()
-		// TODO: handle the error
-		c.updateStatus(helmApp)
-	}()
+	logrus.Debugf("HelmApp Received: %s; phase: %s", k8sutil.ObjKey(helmApp), helmApp.Status.Phase)
 
 	appStore := helmApp.Spec.AppStore
 	app, err := helm.NewApp(helmApp.Name, helmApp.Namespace,
@@ -93,6 +85,20 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 
 	if err != nil {
 		return err
+	}
+
+	status, continu3 := NewStatus(helmApp)
+
+	defer func() {
+		helmApp.Status = status.GetHelmAppStatus()
+		s, _ := app.Status()
+		helmApp.Status.Status = v1alpha1.HelmAppStatusStatus(s)
+		// TODO: handle the error
+		c.updateStatus(helmApp)
+	}()
+
+	if !continu3 {
+		return nil
 	}
 
 	detector := NewDetector(helmApp, status, app, c.repo)

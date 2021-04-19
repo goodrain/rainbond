@@ -16,6 +16,7 @@ type AppStatus struct {
 	Disk           int64  `json:"disk"`
 	Phase          string `json:"phase"`
 	ValuesTemplate string `json:"valuesTemplate"`
+	Readme         string `json:"readme"`
 }
 
 // AppDetectProcess -

@@ -73,6 +73,7 @@ var rc2RecordType = map[string]string{
 type Storer interface {
 	Start() error
 	Ready() bool
+	GetPod(namespace, name string) (*corev1.Pod, error)
 	RegistAppService(*v1.AppService)
 	GetAppService(serviceID string) *v1.AppService
 	UpdateGetAppService(serviceID string) *v1.AppService
@@ -878,6 +879,10 @@ func (a *appRuntimeStore) RegistAppService(app *v1.AppService) {
 	a.appServices.Store(v1.GetCacheKeyOnlyServiceID(app.ServiceID), app)
 	a.appCount++
 	logrus.Debugf("current have %d app after add \n", a.appCount)
+}
+
+func (a *appRuntimeStore) GetPod(namespace, name string) (*corev1.Pod, error) {
+	return a.listers.Pod.Pods(namespace).Get(name)
 }
 
 //DeleteAppService delete cache app service
