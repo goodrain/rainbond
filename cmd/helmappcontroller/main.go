@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/controllers/helmapp"
 	"github.com/sirupsen/logrus"
@@ -49,8 +50,9 @@ func main() {
 	//		logrus.Fatal(err)
 	//	}
 	//}
+	rainbondClient := versioned.NewForConfigOrDie(restcfg)
 
-	ctrl := helmapp.NewController(stopCh, restcfg, 5*time.Second, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
+	ctrl := helmapp.NewController(stopCh, rainbondClient, 5*time.Second, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
 	ctrl.Start()
 
 	select {}

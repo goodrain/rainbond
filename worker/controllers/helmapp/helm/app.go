@@ -120,12 +120,15 @@ func (a *App) InstallOrUpdate() error {
 		}
 
 		var buf bytes.Buffer
+		logrus.Debugf("name: %s; namespace: %s; chart: %s; install helm app", a.name, a.namespace, a.Chart())
 		if err := a.helm.Install(a.name, a.namespace, a.Chart(), values, &buf); err != nil {
 			return err
 		}
-		logrus.Infof("install: %s", buf.String())
+		logrus.Infof("[App] [InstallOrUpdate] %s", buf.String())
+
 		return nil
 	}
+	// TODO: upgrade
 	return nil
 }
 
@@ -166,12 +169,7 @@ func (a *App) ParseChart() (string, string, error) {
 	return values, readme, err
 }
 
-func (a *App) parseServices() ([]*corev1.Service, error) {
-	manifests, err := a.helm.Manifests(a.name, a.namespace, a.Chart(), ioutil.Discard)
-	if err != nil {
-		return nil, errors.Wrap(err, "get manifests")
-	}
-
+func (a *App) parseServices(manifests string) ([]*corev1.Service, error) {
 	// Create a local builder...
 	builder := resource.NewLocalBuilder().
 		// Configure with a scheme to get typed objects in the versions registered with the scheme.

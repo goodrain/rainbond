@@ -69,6 +69,7 @@ func (i *Informer) Start(stop chan struct{}) {
 	go i.HorizontalPodAutoscaler.Run(stop)
 	go i.Claims.Run(stop)
 	go i.CRD.Run(stop)
+	go i.HelmApp.Run(stop)
 }
 
 //Ready if all kube informers is syncd, store is ready

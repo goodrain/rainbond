@@ -19,11 +19,23 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/util/commonutil"
+	"github.com/goodrain/rainbond/worker/controllers/helmapp/helm"
+	"github.com/pkg/errors"
+	"helm.sh/helm/v3/pkg/kube"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/yaml"
 
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
@@ -698,6 +710,14 @@ func (r *RuntimeServer) ListAppServices(ctx context.Context, in *pb.AppReq) (*pb
 		return nil, err
 	}
 
+	appServices := r.convertServices(services)
+
+	return &pb.AppServices{
+		Services: appServices,
+	}, nil
+}
+
+func (r *RuntimeServer) convertServices(services []*corev1.Service) []*pb.AppService {
 	var appServices []*pb.AppService
 	for _, svc := range services {
 		var tcpPorts []int32
@@ -716,19 +736,19 @@ func (r *RuntimeServer) ListAppServices(ctx context.Context, in *pb.AppReq) (*pb
 			selector = selector.Add(*req)
 		}
 
+		var spods []*pb.AppService_Pod
 		pods, err := r.store.ListPods(svc.Namespace, selector)
 		if err != nil {
-			return nil, err
-		}
-
-		var spods []*pb.AppService_Pod
-		for _, pod := range pods {
-			podStatus := &pb.PodStatus{}
-			wutil.DescribePodStatus(r.clientset, pod, podStatus, k8sutil.DefListEventsByPod)
-			spods = append(spods, &pb.AppService_Pod{
-				Name:   pod.Name,
-				Status: podStatus.TypeStr,
-			})
+			logrus.Warningf("parse services: %v", err)
+		} else {
+			for _, pod := range pods {
+				podStatus := &pb.PodStatus{}
+				wutil.DescribePodStatus(r.clientset, pod, podStatus, k8sutil.DefListEventsByPod)
+				spods = append(spods, &pb.AppService_Pod{
+					Name:   pod.Name,
+					Status: podStatus.TypeStr,
+				})
+			}
 		}
 
 		appServices = append(appServices, &pb.AppService{
@@ -738,6 +758,73 @@ func (r *RuntimeServer) ListAppServices(ctx context.Context, in *pb.AppReq) (*pb
 			Pods:     spods,
 		})
 	}
+	return appServices
+}
+
+func (r *RuntimeServer) ParseAppServices(ctx context.Context, req *pb.ParseAppServicesReq) (*pb.AppServices, error) {
+	app, err := db.GetManager().ApplicationDao().GetAppByID(req.AppID)
+	if err != nil {
+		return nil, err
+	}
+
+	b, err := base64.StdEncoding.DecodeString(req.Values)
+	if err != nil {
+		return nil, errors.Wrap(err, "decode values")
+	}
+
+	vals := map[string]interface{}{}
+	if err := yaml.Unmarshal(b, &vals); err != nil {
+		return nil, errors.Wrap(err, "parse values")
+	}
+
+	configFlags := genericclioptions.NewConfigFlags(true)
+	configFlags.Namespace = commonutil.String(app.TenantID)
+	kubeClient := kube.New(configFlags)
+
+	h, err := helm.NewHelm(kubeClient, configFlags, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
+	if err != nil {
+		return nil, err
+	}
+
+	manifests, err := h.Manifests(app.AppName, app.TenantID, app.AppStoreName+"/"+app.AppTemplateName, vals, ioutil.Discard)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a local builder...
+	builder := resource.NewLocalBuilder().
+		// Configure with a scheme to get typed objects in the versions registered with the scheme.
+		// As an alternative, could call Unstructured() to get unstructured objects.
+		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		// Provide input via a Reader.
+		// As an alternative, could call Path(false, "/path/to/file") to read from a file.
+		Stream(bytes.NewBufferString(manifests), "input").
+		// Flatten items contained in List objects
+		Flatten().
+		// Accumulate as many items as possible
+		ContinueOnError()
+
+	// Run the builder
+	result := builder.Do()
+
+	items, err := result.Infos()
+	if err != nil {
+		return nil, errors.WithMessage(err, "resource infos")
+	}
+
+	var services []*corev1.Service
+	for _, item := range items {
+		if item.Object.GetObjectKind().GroupVersionKind().Kind != "Service" {
+			continue
+		}
+		svc, ok := item.Object.(*corev1.Service)
+		if !ok {
+			continue
+		}
+		services = append(services, svc)
+	}
+
+	appServices := r.convertServices(services)
 
 	return &pb.AppServices{
 		Services: appServices,

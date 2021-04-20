@@ -85,8 +85,6 @@ spec:
           - appName
           - appStore
           - eid
-          - revision
-          - values
           - version
           type: object
         status:
@@ -129,6 +127,10 @@ spec:
               type: string
             phase:
               description: The phase of helm app
+              type: string
+            readme:
+              type: string
+            services:
               type: string
             status:
               description: The status of helm app.

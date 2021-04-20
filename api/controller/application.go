@@ -215,11 +215,13 @@ func (a *ApplicationController) Install(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	err := handler.GetApplicationHandler().Install(r.Context(), app, installAppReq.Values)
+	services, err := handler.GetApplicationHandler().Install(r.Context(), app, installAppReq.Values)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
+
+	httputil.ReturnSuccess(r, w, services)
 }
 
 func (a *ApplicationController) ListServices(w http.ResponseWriter, r *http.Request) {

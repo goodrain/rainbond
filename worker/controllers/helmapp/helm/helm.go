@@ -52,12 +52,13 @@ func (h *Helm) PreInstall(name, namespace, chart string, out io.Writer) error {
 }
 
 func (h *Helm) Install(name, namespace, chart string, vals map[string]interface{}, out io.Writer) error {
+	// TODO: discard the output
 	_, err := h.install(name, namespace, chart, vals, false, out)
 	return err
 }
 
-func (h *Helm) Manifests(name, namespace, chart string, out io.Writer) (string, error) {
-	rel, err := h.install(name, namespace, chart, nil, true, out)
+func (h *Helm) Manifests(name, namespace, chart string, vals map[string]interface{}, out io.Writer) (string, error) {
+	rel, err := h.install(name, namespace, chart, vals, true, out)
 	if err != nil {
 		return "", err
 	}
