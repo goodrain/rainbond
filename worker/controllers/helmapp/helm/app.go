@@ -15,7 +15,10 @@ import (
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/storage/driver"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/yaml"
 )
 
@@ -30,6 +33,8 @@ type App struct {
 	encodedValues string
 
 	helm *Helm
+
+	builder *resource.Builder
 }
 
 func (a *App) Chart() string {
@@ -157,5 +162,48 @@ func (a *App) ParseChart() (string, string, error) {
 
 		return nil
 	})
+
 	return values, readme, err
+}
+
+func (a *App) parseServices() ([]*corev1.Service, error) {
+	manifests, err := a.helm.Manifests(a.name, a.namespace, a.Chart(), ioutil.Discard)
+	if err != nil {
+		return nil, errors.Wrap(err, "get manifests")
+	}
+
+	// Create a local builder...
+	builder := resource.NewLocalBuilder().
+		// Configure with a scheme to get typed objects in the versions registered with the scheme.
+		// As an alternative, could call Unstructured() to get unstructured objects.
+		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
+		// Provide input via a Reader.
+		// As an alternative, could call Path(false, "/path/to/file") to read from a file.
+		Stream(bytes.NewBufferString(manifests), "input").
+		// Flatten items contained in List objects
+		Flatten().
+		// Accumulate as many items as possible
+		ContinueOnError()
+
+	// Run the builder
+	result := builder.Do()
+
+	items, err := result.Infos()
+	if err != nil {
+		return nil, errors.WithMessage(err, "resource infos")
+	}
+
+	var services []*corev1.Service
+	for _, item := range items {
+		if item.Object.GetObjectKind().GroupVersionKind().Kind != "Service" {
+			continue
+		}
+		svc, ok := item.Object.(*corev1.Service)
+		if !ok {
+			continue
+		}
+		services = append(services, svc)
+	}
+
+	return services, nil
 }

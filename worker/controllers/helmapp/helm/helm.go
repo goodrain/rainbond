@@ -47,14 +47,24 @@ func NewHelm(kubeClient kube.Interface, configFlags *genericclioptions.ConfigFla
 }
 
 func (h *Helm) PreInstall(name, namespace, chart string, out io.Writer) error {
-	return h.install(name, namespace, chart, nil, true, out)
+	_, err := h.install(name, namespace, chart, nil, true, out)
+	return err
 }
 
 func (h *Helm) Install(name, namespace, chart string, vals map[string]interface{}, out io.Writer) error {
-	return h.install(name, namespace, chart, vals, false, out)
+	_, err := h.install(name, namespace, chart, vals, false, out)
+	return err
 }
 
-func (h *Helm) install(name, namespace, chart string, vals map[string]interface{}, dryRun bool, out io.Writer) error {
+func (h *Helm) Manifests(name, namespace, chart string, out io.Writer) (string, error) {
+	rel, err := h.install(name, namespace, chart, nil, true, out)
+	if err != nil {
+		return "", err
+	}
+	return rel.Manifest, nil
+}
+
+func (h *Helm) install(name, namespace, chart string, vals map[string]interface{}, dryRun bool, out io.Writer) (*release.Release, error) {
 	client := action.NewInstall(h.cfg)
 	client.ReleaseName = name
 	client.Namespace = namespace
@@ -66,7 +76,7 @@ func (h *Helm) install(name, namespace, chart string, vals map[string]interface{
 
 	cp, err := client.ChartPathOptions.LocateChart(chart, settings)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	logrus.Debugf("CHART PATH: %s\n", cp)
@@ -76,11 +86,11 @@ func (h *Helm) install(name, namespace, chart string, vals map[string]interface{
 	// Check chart dependencies to make sure all are present in /charts
 	chartRequested, err := loader.Load(cp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := checkIfInstallable(chartRequested); err != nil {
-		return err
+		return nil, err
 	}
 
 	if chartRequested.Metadata.Deprecated {
@@ -104,20 +114,19 @@ func (h *Helm) install(name, namespace, chart string, vals map[string]interface{
 					Debug:            settings.Debug,
 				}
 				if err := man.Update(); err != nil {
-					return err
+					return nil, err
 				}
 				// Reload the chart with the updated Chart.lock file.
 				if chartRequested, err = loader.Load(cp); err != nil {
-					return errors.Wrap(err, "failed reloading chart after repo update")
+					return nil, errors.Wrap(err, "failed reloading chart after repo update")
 				}
 			} else {
-				return err
+				return nil, err
 			}
 		}
 	}
 
-	_, err = client.Run(chartRequested, vals)
-	return err
+	return client.Run(chartRequested, vals)
 }
 
 func (h *Helm) Status(name string) (*release.Release, error) {

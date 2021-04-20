@@ -29,6 +29,8 @@ type AppDetectProcess struct {
 // AppService -
 type AppService struct {
 	ServiceName string    `json:"service_name"`
+	TCPPorts    []int32   `json:"tcp_ports"`
+	UDPPorts    []int32   `json:"udp_ports"`
 	Pods        []*AppPod `json:"pods"`
 }
 

@@ -309,7 +309,7 @@ func (v2 *V2) applicationRouter() chi.Router {
 	r.Put("/", controller.GetManager().UpdateApp)
 	r.Delete("/", controller.GetManager().DeleteApp)
 	// Get services under application
-	r.Get("/services", controller.GetManager().ListComponents)
+	r.Get("/services", controller.GetManager().ListServices)
 	r.Put("/services", controller.GetManager().BatchBindService)
 	// Application configuration group
 	r.Post("/configgroups", controller.GetManager().AddConfigGroup)
@@ -319,7 +319,6 @@ func (v2 *V2) applicationRouter() chi.Router {
 	r.Put("/status", controller.GetManager().GetAppStatus)
 	r.Get("/detect-process", controller.GetManager().GetDetectProcess)
 	r.Post("/install", controller.GetManager().Install)
-	r.Post("/services", controller.GetManager().ListServices)
 
 	r.Delete("/configgroups/{config_group_name}", controller.GetManager().DeleteConfigGroup)
 	r.Get("/configgroups", controller.GetManager().ListConfigGroups)

@@ -98,6 +98,7 @@ type Storer interface {
 	GetAppResources(appID string) (int64, int64, error)
 	GetHelmApp(namespace, name string) (*v1alpha1.HelmApp, error)
 	ListPods(namespace string, selector labels.Selector) ([]*corev1.Pod, error)
+	ListServices(namespace string, selector labels.Selector) ([]*corev1.Service, error)
 }
 
 // EventType type of event associated with an informer
@@ -1553,6 +1554,10 @@ func (a *appRuntimeStore) GetHelmApp(namespace, name string) (*v1alpha1.HelmApp,
 
 func (a *appRuntimeStore) ListPods(namespace string, selector labels.Selector) ([]*corev1.Pod, error) {
 	return a.listers.Pod.Pods(namespace).List(selector)
+}
+
+func (a *appRuntimeStore) ListServices(namespace string, selector labels.Selector) ([]*corev1.Service, error) {
+	return a.listers.Service.Services(namespace).List(selector)
 }
 
 func isImagePullSecretEqual(a, b *corev1.Secret) bool {

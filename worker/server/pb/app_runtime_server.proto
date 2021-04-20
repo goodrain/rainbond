@@ -18,6 +18,7 @@ service AppRuntimeSync {
   rpc GetStorageClasses(Empty) returns (StorageClasses) {}
   rpc GetAppVolumeStatus(ServiceRequest) returns(ServiceVolumeStatusMessage){}
   rpc ListHelmAppDetectConditions(AppReq) returns(AppDetectConditions){}
+  rpc ListAppServices(AppReq) returns(AppServices){}
 }
 
 message Empty {}
@@ -269,4 +270,20 @@ message AppDetectCondition {
 
 message AppDetectConditions {
   repeated AppDetectCondition conditions = 1;
+}
+
+message AppService {
+    message Pod {
+        string name=1;
+        string status=2;
+    }
+
+    string name=1;
+    repeated int32 tcpPorts=2;
+    repeated int32 udpPorts=3;
+    repeated Pod pods=4;
+}
+
+message AppServices {
+  repeated AppService services=1;
 }

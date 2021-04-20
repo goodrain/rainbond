@@ -21,21 +21,20 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	discover "github.com/goodrain/rainbond/discover.v2"
+	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/util"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/util/k8s"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -46,6 +45,8 @@ import (
 	"google.golang.org/grpc/reflection"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/client-go/kubernetes"
 )
@@ -192,7 +193,7 @@ func (r *RuntimeServer) ListHelmAppDetectConditions(ctx context.Context, appReq 
 		return nil, err
 	}
 
-	helmApp, err :=r.store.GetHelmApp(app.TenantID, app.AppName)
+	helmApp, err := r.store.GetHelmApp(app.TenantID, app.AppName)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +211,7 @@ func (r *RuntimeServer) ListHelmAppDetectConditions(ctx context.Context, appReq 
 	}
 
 	return &pb.AppDetectConditions{
-		Conditions:           conditions,
+		Conditions: conditions,
 	}, nil
 }
 
@@ -679,4 +680,66 @@ func (r *RuntimeServer) GetAppVolumeStatus(ctx context.Context, re *pb.ServiceRe
 	}
 
 	return ret, nil
+}
+
+func (r *RuntimeServer) ListAppServices(ctx context.Context, in *pb.AppReq) (*pb.AppServices, error) {
+	app, err := db.GetManager().ApplicationDao().GetAppByID(in.AppId)
+	if err != nil {
+		return nil, err
+	}
+
+	selector := labels.NewSelector()
+	instanceReq, _ := labels.NewRequirement("app.kubernetes.io/instance", selection.Equals, []string{app.AppName})
+	selector = selector.Add(*instanceReq)
+	managedReq, _ := labels.NewRequirement("app.kubernetes.io/managed-by", selection.Equals, []string{"Helm"})
+	selector = selector.Add(*managedReq)
+	services, err := r.store.ListServices(app.TenantID, selector)
+	if err != nil {
+		return nil, err
+	}
+
+	var appServices []*pb.AppService
+	for _, svc := range services {
+		var tcpPorts []int32
+		var udpPorts []int32
+		for _, port := range svc.Spec.Ports {
+			if port.Protocol == corev1.ProtocolUDP {
+				udpPorts = append(udpPorts, port.Port)
+			}
+			if port.Protocol == corev1.ProtocolTCP {
+				tcpPorts = append(tcpPorts, port.Port)
+			}
+		}
+		selector := labels.NewSelector()
+		for key, val := range svc.Spec.Selector {
+			req, _ := labels.NewRequirement(key, selection.Equals, []string{val})
+			selector = selector.Add(*req)
+		}
+
+		pods, err := r.store.ListPods(svc.Namespace, selector)
+		if err != nil {
+			return nil, err
+		}
+
+		var spods []*pb.AppService_Pod
+		for _, pod := range pods {
+			podStatus := &pb.PodStatus{}
+			wutil.DescribePodStatus(r.clientset, pod, podStatus, k8sutil.DefListEventsByPod)
+			spods = append(spods, &pb.AppService_Pod{
+				Name:   pod.Name,
+				Status: podStatus.TypeStr,
+			})
+		}
+
+		appServices = append(appServices, &pb.AppService{
+			Name:     svc.Name,
+			TcpPorts: tcpPorts,
+			UdpPorts: udpPorts,
+			Pods:     spods,
+		})
+	}
+
+	return &pb.AppServices{
+		Services: appServices,
+	}, nil
 }

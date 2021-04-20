@@ -15,16 +15,13 @@ import (
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	util "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/commonutil"
-	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/server/pb"
-	wutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	clientset "k8s.io/client-go/kubernetes"
 )
 
@@ -349,40 +346,31 @@ func (a *ApplicationAction) ListServices(ctx context.Context, app *dbmodel.Appli
 	nctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	// list services
-	labelSelector := labels.FormatLabels(map[string]string{
-		"app.kubernetes.io/instance":   app.AppName,
-		"app.kubernetes.io/managed-by": "Helm",
-	})
-	serviceList, err := a.kubeClient.CoreV1().Services(app.TenantID).List(nctx, metav1.ListOptions{
-		LabelSelector: labelSelector,
-	})
+	appServices, err := a.statusCli.ListAppServices(nctx, &pb.AppReq{AppId: app.AppID})
 	if err != nil {
 		return nil, err
 	}
 
 	var services []*model.AppService
-	for _, service := range serviceList.Items {
+	for _, service := range appServices.Services {
 		svc := &model.AppService{
 			ServiceName: service.Name,
 		}
 
-		podList, err := a.kubeClient.CoreV1().Pods(service.Namespace).List(nctx, metav1.ListOptions{
-			LabelSelector: labels.FormatLabels(service.Spec.Selector),
-		})
-		if err != nil {
-			logrus.Warningf("list pods: %v", err)
-		} else {
-			var pods []*model.AppPod
-			for _, pod := range podList.Items {
-				podStatus := &pb.PodStatus{}
-				wutil.DescribePodStatus(a.kubeClient, &pod, podStatus, k8sutil.DefListEventsByPod)
-				pods = append(pods, &model.AppPod{
-					PodName:   pod.Name,
-					PodStatus: podStatus.TypeStr,
-				})
-			}
-			svc.Pods = pods
+		var pods []*model.AppPod
+		for _, pod := range service.Pods {
+			pods = append(pods, &model.AppPod{
+				PodName:   pod.Name,
+				PodStatus: pod.Status,
+			})
+		}
+		svc.Pods = pods
+
+		for _, port := range service.TcpPorts {
+			svc.TCPPorts = append(svc.TCPPorts, port)
+		}
+		for _, port := range service.UdpPorts {
+			svc.UDPPorts = append(svc.UDPPorts, port)
 		}
 
 		services = append(services, svc)
