@@ -792,6 +792,11 @@ func (r *RuntimeServer) ParseAppServices(ctx context.Context, req *pb.ParseAppSe
 		return nil, err
 	}
 
+	repo := helm.NewRepo("/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
+	if err := repo.Add(app.AppStoreName, app.AppStoreURL, "", ""); err != nil {
+		logrus.Warningf("add repo: %v", err)
+	}
+
 	manifests, err := h.Manifests(app.AppName, app.TenantID, app.AppStoreName+"/"+app.AppTemplateName, vals, ioutil.Discard)
 	if err != nil {
 		return nil, err
@@ -811,7 +816,12 @@ func (r *RuntimeServer) ParseAppServices(ctx context.Context, req *pb.ParseAppSe
 		ContinueOnError()
 
 	// Run the builder
+	logrus.Debugf("start parse manifests: %s", manifests)
 	result := builder.Do()
+
+	if result.Err() != nil {
+		logrus.Warningf("parse manifests: %v", err)
+	}
 
 	items, err := result.Infos()
 	if err != nil {

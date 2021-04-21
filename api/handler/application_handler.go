@@ -49,7 +49,7 @@ type ApplicationHandler interface {
 	BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error
 	GetStatus(ctx context.Context, app *dbmodel.Application) (*model.AppStatus, error)
 	GetDetectProcess(ctx context.Context, app *dbmodel.Application) ([]*model.AppDetectProcess, error)
-	Install(ctx context.Context, app *dbmodel.Application, values string) ([]*pb.AppService, error)
+	Install(ctx context.Context, app *dbmodel.Application, values string) error
 	ListServices(ctx context.Context, app *dbmodel.Application) ([]*model.AppService, error)
 
 	DeleteConfigGroup(appID, configGroupName string) error
@@ -328,39 +328,26 @@ func (a *ApplicationAction) GetDetectProcess(ctx context.Context, app *dbmodel.A
 	return conditions, nil
 }
 
-func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Application, values string) ([]*pb.AppService, error) {
+func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Application, values string) error {
 	ctx1, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	helmApp, err := a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Get(ctx1, app.AppName, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
-			return nil, errors.Wrap(bcode.ErrApplicationNotFound, "install app")
+			return errors.Wrap(bcode.ErrApplicationNotFound, "install app")
 		}
-		return nil, errors.Wrap(err, "install app")
+		return errors.Wrap(err, "install app")
 	}
-
-	//ctx2, cancel := context.WithTimeout(ctx, 30*time.Second)
-	//defer cancel()
-	//var services []*pb.AppService
-	//appServices, err := a.statusCli.ParseAppServices(ctx2, &pb.ParseAppServicesReq{
-	//	AppID:  app.AppID,
-	//	Values: values,
-	//})
-	//if err != nil {
-	//	logrus.Warningf("[ApplicationAction] [Install] parse services: %v", err)
-	//} else {
-	//	services = appServices.Services
-	//}
 
 	ctx3, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	helmApp.Spec.Values = values
 	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Update(ctx3, helmApp, metav1.UpdateOptions{})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return nil, errors.Wrap(err, "install app")
+	return errors.Wrap(err, "install app")
 }
 
 func (a *ApplicationAction) ListServices(ctx context.Context, app *dbmodel.Application) ([]*model.AppService, error) {
