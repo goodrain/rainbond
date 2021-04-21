@@ -68,7 +68,7 @@ func (c *ControlLoop) run(obj interface{}) {
 	}
 
 	if err := c.Reconcile(helmApp); err != nil {
-		// ignore the error, informer will push the same time into workqueue later.
+		// ignore the error, informer will push the same time into queue later.
 		logrus.Warningf("[HelmAppController] [ControlLoop] [Reconcile]: %v", err)
 		return
 	}

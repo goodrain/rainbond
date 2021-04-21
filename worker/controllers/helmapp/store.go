@@ -28,7 +28,8 @@ type store struct {
 
 func NewStorer(clientset versioned.Interface,
 	resyncPeriod time.Duration,
-	workqueue workqueue.Interface) Storer {
+	workqueue workqueue.Interface,
+	finalizerQueue workqueue.Interface) Storer {
 	// create informers factory, enable and assign required informers
 	sharedInformer := externalversions.NewSharedInformerFactoryWithOptions(clientset, resyncPeriod,
 		externalversions.WithNamespace(corev1.NamespaceAll))
@@ -46,7 +47,10 @@ func NewStorer(clientset versioned.Interface,
 			workqueue.Add(k8sutil.ObjKey(helmApp))
 		},
 		DeleteFunc: func(obj interface{}) {
-
+			// Two purposes of using finalizerQueue
+			// 1. non-block DeleteFunc
+			// 2. retry if the finalizer is failed
+			finalizerQueue.Add(obj)
 		},
 	})
 

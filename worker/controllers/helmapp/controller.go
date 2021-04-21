@@ -13,25 +13,29 @@ type Controller struct {
 	storer      Storer
 	stopCh      chan struct{}
 	controlLoop *ControlLoop
+	finalizer   *Finalizer
 }
 
 func NewController(stopCh chan struct{}, clientset versioned.Interface, resyncPeriod time.Duration,
 	repoFile, repoCache string) *Controller {
-	queue := workqueue.New()
-	storer := NewStorer(clientset, resyncPeriod, queue)
+	workQueue := workqueue.New()
+	finalizerQueue := workqueue.New()
+	storer := NewStorer(clientset, resyncPeriod, workQueue, finalizerQueue)
 
-	controlLoop := NewControlLoop(clientset, storer, queue, repoFile, repoCache)
+	controlLoop := NewControlLoop(clientset, storer, workQueue, repoFile, repoCache)
+	finalizer := NewFinalizer(clientset, finalizerQueue, repoFile, repoCache)
 
 	return &Controller{
 		storer:      storer,
 		stopCh:      stopCh,
 		controlLoop: controlLoop,
+		finalizer:   finalizer,
 	}
 }
 
 func (c *Controller) Start() {
 	logrus.Info("start helm app controller")
 	go c.storer.Run(c.stopCh)
-
-	c.controlLoop.Run()
+	go c.controlLoop.Run()
+	c.finalizer.Run()
 }

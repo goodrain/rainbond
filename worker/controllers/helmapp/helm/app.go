@@ -205,3 +205,7 @@ func (a *App) parseServices(manifests string) ([]*corev1.Service, error) {
 
 	return services, nil
 }
+
+func (a *App) Uninstall() error {
+	return a.helm.Uninstall(a.name)
+}

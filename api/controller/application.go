@@ -149,10 +149,10 @@ func (a *ApplicationController) ListComponents(w http.ResponseWriter, r *http.Re
 
 // DeleteApp -
 func (a *ApplicationController) DeleteApp(w http.ResponseWriter, r *http.Request) {
-	appID := chi.URLParam(r, "app_id")
+	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
 
 	// Delete application
-	err := handler.GetApplicationHandler().DeleteApp(appID)
+	err := handler.GetApplicationHandler().DeleteApp(r.Context(), app)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return

@@ -137,6 +137,12 @@ func (h *Helm) Status(name string) (*release.Release, error) {
 	return rel, errors.Wrap(err, "helm status")
 }
 
+func (h *Helm) Uninstall(name string) error {
+	uninstall := action.NewUninstall(h.cfg)
+	_, err := uninstall.Run(name)
+	return err
+}
+
 // checkIfInstallable validates if a chart can be installed
 //
 // Application chart type is only installable

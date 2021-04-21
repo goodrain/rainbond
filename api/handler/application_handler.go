@@ -41,7 +41,7 @@ type ApplicationHandler interface {
 	ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error)
 	GetAppByID(appID string) (*dbmodel.Application, error)
 	BatchBindService(appID string, req model.BindServiceRequest) error
-	DeleteApp(appID string) error
+	DeleteApp(ctx context.Context, app *dbmodel.Application) error
 
 	AddConfigGroup(appID string, req *model.ApplicationConfigGroup) (*model.ApplicationConfigGroupResp, error)
 	UpdateConfigGroup(appID, configGroupName string, req *model.UpdateAppConfigGroupReq) (*model.ApplicationConfigGroupResp, error)
@@ -192,16 +192,31 @@ func (a *ApplicationAction) GetAppByID(appID string) (*dbmodel.Application, erro
 }
 
 // DeleteApp -
-func (a *ApplicationAction) DeleteApp(appID string) error {
+func (a *ApplicationAction) DeleteApp(ctx context.Context, app *dbmodel.Application) error {
 	// Get the number of services under the application
-	total, err := db.GetManager().TenantServiceDao().CountServiceByAppID(appID)
+	total, err := db.GetManager().TenantServiceDao().CountServiceByAppID(app.AppID)
 	if err != nil {
 		return err
 	}
 	if total != 0 {
 		return bcode.ErrDeleteDueToBindService
 	}
-	return db.GetManager().ApplicationDao().DeleteApp(appID)
+
+	ctx, cancel := context.WithTimeout(ctx, 5 * time.Second)
+	defer cancel()
+
+	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		if err := db.GetManager().ApplicationDaoTransactions(tx).DeleteApp(app.AppID); err != nil {
+			return err
+		}
+
+		if err := a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Delete(ctx, app.AppName, metav1.DeleteOptions{}); err != nil {
+			if !k8sErrors.IsNotFound(err) {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // BatchUpdateComponentPorts -
