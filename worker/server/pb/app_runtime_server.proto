@@ -280,9 +280,10 @@ message AppService {
     }
 
     string name=1;
-    repeated int32 tcpPorts=2;
-    repeated int32 udpPorts=3;
-    repeated Pod pods=4;
+    string address=2;
+    repeated int32 tcpPorts=3;
+    repeated int32 udpPorts=4;
+    repeated Pod pods=5;
 }
 
 message AppServices {

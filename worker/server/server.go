@@ -751,8 +751,14 @@ func (r *RuntimeServer) convertServices(services []*corev1.Service) []*pb.AppSer
 			}
 		}
 
+		address := svc.Spec.ClusterIP
+		if address == "" || address == "None" {
+			address = svc.Name + "." + svc.Namespace
+		}
+
 		appServices = append(appServices, &pb.AppService{
 			Name:     svc.Name,
+			Address:  address,
 			TcpPorts: tcpPorts,
 			UdpPorts: udpPorts,
 			Pods:     spods,

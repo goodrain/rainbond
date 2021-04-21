@@ -376,6 +376,7 @@ func (a *ApplicationAction) ListServices(ctx context.Context, app *dbmodel.Appli
 	for _, service := range appServices.Services {
 		svc := &model.AppService{
 			ServiceName: service.Name,
+			Address:     service.Address,
 		}
 
 		var pods []*model.AppPod
@@ -389,9 +390,6 @@ func (a *ApplicationAction) ListServices(ctx context.Context, app *dbmodel.Appli
 
 		for _, port := range service.TcpPorts {
 			svc.TCPPorts = append(svc.TCPPorts, port)
-		}
-		for _, port := range service.UdpPorts {
-			svc.UDPPorts = append(svc.UDPPorts, port)
 		}
 
 		services = append(services, svc)
