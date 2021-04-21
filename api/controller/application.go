@@ -249,3 +249,20 @@ func (a *ApplicationController) BatchBindService(w http.ResponseWriter, r *http.
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
+
+func (a *ApplicationController) EnsureAppName(w http.ResponseWriter, r *http.Request) {
+	var req model.EnsureAppNameReq
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
+		return
+	}
+
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+
+	res, err := handler.GetApplicationHandler().EnsureAppName(r.Context(), tenant.UUID, req.AppName)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, res)
+}

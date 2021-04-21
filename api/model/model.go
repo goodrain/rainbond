@@ -1756,3 +1756,13 @@ type ListApplicationConfigGroupResp struct {
 	Page        int                          `json:"page"`
 	PageSize    int                          `json:"pageSize"`
 }
+
+// EnsureAppNameReq -
+type EnsureAppNameReq struct {
+	AppName string `json:"app_name"`
+}
+
+// EnsureAppNameResp -
+type EnsureAppNameResp struct {
+	AppName string `json:"app_name"`
+}

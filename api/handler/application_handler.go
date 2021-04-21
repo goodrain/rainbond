@@ -51,6 +51,7 @@ type ApplicationHandler interface {
 	GetDetectProcess(ctx context.Context, app *dbmodel.Application) ([]*model.AppDetectProcess, error)
 	Install(ctx context.Context, app *dbmodel.Application, values string) error
 	ListServices(ctx context.Context, app *dbmodel.Application) ([]*model.AppService, error)
+	EnsureAppName(ctx context.Context, namespace, appName string) (*model.EnsureAppNameResp, error)
 
 	DeleteConfigGroup(appID, configGroupName string) error
 	ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error)
@@ -202,7 +203,7 @@ func (a *ApplicationAction) DeleteApp(ctx context.Context, app *dbmodel.Applicat
 		return bcode.ErrDeleteDueToBindService
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 5 * time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
@@ -421,4 +422,25 @@ func (a *ApplicationAction) BatchBindService(appID string, req model.BindService
 		return err
 	}
 	return nil
+}
+
+func (a *ApplicationAction) EnsureAppName(ctx context.Context, namespace, appName string) (*model.EnsureAppNameResp, error) {
+	nctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	retries := 3
+	for i := 0; i < retries; i++ {
+		_, err := a.rainbondClient.RainbondV1alpha1().HelmApps(namespace).Get(nctx, appName, metav1.GetOptions{})
+		if err != nil {
+			if k8sErrors.IsNotFound(err) {
+				break
+			}
+			return nil, errors.Wrap(err, "ensure app name")
+		}
+		appName += "-" + util.NewUUID()[:5]
+	}
+
+	return &model.EnsureAppNameResp{
+		AppName: appName,
+	}, nil
 }
