@@ -29,6 +29,7 @@ const (
 	HelmAppStatusPhaseInitialing  HelmAppStatusPhase = "initialing"
 	HelmAppStatusPhaseDetecting   HelmAppStatusPhase = "detecting"
 	HelmAppStatusPhaseConfiguring HelmAppStatusPhase = "configuring"
+	HelmAppStatusPhaseInstalling  HelmAppStatusPhase = "installing"
 	HelmAppStatusPhaseInstalled   HelmAppStatusPhase = "installed"
 )
 

@@ -48,6 +48,9 @@ func (s *Status) getPhase() v1alpha1.HelmAppStatusPhase {
 		phase = v1alpha1.HelmAppStatusPhaseConfiguring
 	}
 	if s.values != "" {
+		phase = v1alpha1.HelmAppStatusPhaseInstalling
+	}
+	if s.values == s.CurrentValues {
 		phase = v1alpha1.HelmAppStatusPhaseInstalled
 	}
 	return phase
