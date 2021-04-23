@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -52,6 +53,7 @@ type ApplicationHandler interface {
 	Install(ctx context.Context, app *dbmodel.Application, values string) error
 	ListServices(ctx context.Context, app *dbmodel.Application) ([]*model.AppService, error)
 	EnsureAppName(ctx context.Context, namespace, appName string) (*model.EnsureAppNameResp, error)
+	ParseServices(ctx context.Context, app *dbmodel.Application, values string) ([]*model.AppService, error)
 
 	DeleteConfigGroup(appID, configGroupName string) error
 	ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error)
@@ -92,8 +94,11 @@ func (a *ApplicationAction) CreateApp(ctx context.Context, req *model.Applicatio
 			}
 		}
 
-		// create helmapp.rainbond.goodrain.io
-		return a.createHelmApp(ctx, appReq)
+		if appReq.AppType == model.AppTypeHelm {
+			// create helmapp.rainbond.goodrain.io
+			return a.createHelmApp(ctx, appReq)
+		}
+		return nil
 	})
 
 	return req, err
@@ -344,6 +349,35 @@ func (a *ApplicationAction) GetDetectProcess(ctx context.Context, app *dbmodel.A
 	return conditions, nil
 }
 
+func (a *ApplicationAction) ParseServices(ctx context.Context, app *dbmodel.Application, values string) ([]*model.AppService, error) {
+	nctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+
+	services, err := a.statusCli.ParseAppServices(nctx, &pb.ParseAppServicesReq{
+		AppID:  app.AppID,
+		Values: values,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var appServices []*model.AppService
+	for _, service := range services.Services {
+		svc := &model.AppService{
+			ServiceName: service.Name,
+			Address:     service.Address,
+		}
+
+		for _, port := range service.TcpPorts {
+			svc.TCPPorts = append(svc.TCPPorts, port)
+		}
+
+		appServices = append(appServices, svc)
+	}
+
+	return appServices, nil
+}
+
 func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Application, values string) error {
 	ctx1, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -397,6 +431,8 @@ func (a *ApplicationAction) ListServices(ctx context.Context, app *dbmodel.Appli
 
 		services = append(services, svc)
 	}
+
+	sort.Sort(model.ByServiceName(services))
 
 	return services, nil
 }

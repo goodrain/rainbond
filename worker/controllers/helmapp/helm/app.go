@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sigs.k8s.io/yaml"
 
 	"github.com/goodrain/rainbond/util/commonutil"
 	"github.com/pkg/errors"
@@ -19,12 +20,12 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/yaml"
 )
 
 type App struct {
 	templateName string
 	repo         string
+	repoURL      string
 	name         string
 	namespace    string
 	version      string
@@ -41,7 +42,7 @@ func (a *App) Chart() string {
 	return a.repo + "/" + a.templateName
 }
 
-func NewApp(name, namespace, templateName, repo string, version, values, repoFile, repoCache string) (*App, error) {
+func NewApp(name, namespace, templateName, version, values, repo, repoURL, repoFile, repoCache string) (*App, error) {
 	configFlags := genericclioptions.NewConfigFlags(true)
 	configFlags.Namespace = commonutil.String(namespace)
 	kubeClient := kube.New(configFlags)
@@ -56,6 +57,7 @@ func NewApp(name, namespace, templateName, repo string, version, values, repoFil
 		namespace:     namespace,
 		templateName:  templateName,
 		repo:          repo,
+		repoURL:       repoURL,
 		version:       version,
 		encodedValues: values,
 		helm:          helm,
@@ -108,6 +110,15 @@ func (a *App) Status() (string, error) {
 
 func (a *App) InstallOrUpdate() error {
 	_, err := a.helm.Status(a.name)
+	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
+		return err
+	}
+
+	repo := NewRepo(a.helm.repoFile, a.helm.repoCache)
+	if err := repo.Add(a.repo, a.repoURL, "", ""); err != nil {
+		return err
+	}
+
 	if errors.Is(err, driver.ErrReleaseNotFound) {
 		b, err := base64.StdEncoding.DecodeString(a.encodedValues)
 		if err != nil {
@@ -128,6 +139,7 @@ func (a *App) InstallOrUpdate() error {
 
 		return nil
 	}
+
 	// TODO: upgrade
 	return nil
 }

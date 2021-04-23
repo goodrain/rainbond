@@ -34,6 +34,14 @@ type AppService struct {
 	Pods        []*AppPod `json:"pods"`
 }
 
+// ByServiceName implements sort.Interface for []*AppService based on
+// the ServiceName field.
+type ByServiceName []*AppService
+
+func (a ByServiceName) Len() int           { return len(a) }
+func (a ByServiceName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByServiceName) Less(i, j int) bool { return a[i].ServiceName < a[j].ServiceName }
+
 type AppPod struct {
 	PodName   string `json:"pod_name"`
 	PodStatus string `json:"pod_status"`
