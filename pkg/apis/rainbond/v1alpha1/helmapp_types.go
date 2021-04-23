@@ -140,6 +140,8 @@ type HelmAppStore struct {
 	// The verision of the helm app store.
 	Version string `json:"version"`
 
+	EnterpriseID string `json:"enterpriseID"`
+
 	Name string `json:"name"`
 
 	// The url of helm repo, sholud be a helm native repo url or a git url.
@@ -151,6 +153,11 @@ type HelmAppStore struct {
 	Username string `json:"username,omitempty"`
 
 	Password string `json:"password,omitempty"`
+}
+
+// FullName returns the full name of the app store.
+func (in *HelmAppStore) FullName() string {
+	return in.EnterpriseID + "-" + in.Name
 }
 
 // HelmAppStatus defines the observed state of HelmApp

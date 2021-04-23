@@ -117,9 +117,10 @@ func (a *ApplicationAction) createHelmApp(ctx context.Context, app *dbmodel.Appl
 			Version:      app.Version,
 			Revision:     commonutil.Int32(0),
 			AppStore: &v1alpha1.HelmAppStore{
-				Version: "", // TODO: setup version.
-				Name:    app.AppStoreName,
-				URL:     app.AppStoreURL,
+				Version:      "", // TODO: setup version.
+				EnterpriseID: app.EID,
+				Name:         app.AppStoreName,
+				URL:          app.AppStoreURL,
 			},
 		}}
 

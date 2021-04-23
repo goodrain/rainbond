@@ -80,7 +80,7 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 	appStore := helmApp.Spec.AppStore
 	app, err := helm.NewApp(helmApp.Name, helmApp.Namespace,
 		helmApp.Spec.TemplateName, helmApp.Spec.Version, helmApp.Spec.Values,
-		appStore.Name, appStore.URL, c.repoFile, c.repoCache)
+		appStore.FullName(), appStore.URL, c.repoFile, c.repoCache)
 
 	if err != nil {
 		return err
