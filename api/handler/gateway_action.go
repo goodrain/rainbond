@@ -34,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
 	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -118,7 +119,7 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 		return fmt.Errorf("commit transaction: %v", err)
 	}
 	// Effective immediately
-	if err := g.SendTask(map[string]interface{}{
+	if err := g.SendTaskDeprecated(map[string]interface{}{
 		"service_id": req.ServiceID,
 		"action":     "add-http-rule",
 		"limit":      map[string]string{"domain": req.Domain},
@@ -213,7 +214,7 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
 		return err
 	}
 
-	if err := g.SendTask(map[string]interface{}{
+	if err := g.SendTaskDeprecated(map[string]interface{}{
 		"service_id": rule.ServiceID,
 		"action":     "update-http-rule",
 		"limit":      map[string]string{"domain": req.Domain},
@@ -263,7 +264,7 @@ func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error
 		return err
 	}
 
-	if err := g.SendTask(map[string]interface{}{
+	if err := g.SendTaskDeprecated(map[string]interface{}{
 		"service_id": svcID,
 		"action":     "delete-http-rule",
 		"limit":      map[string]string{"domain": httpRule.Domain},
@@ -365,7 +366,7 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
 	if err := tx.Commit().Error; err != nil {
 		return err
 	}
-	if err := g.SendTask(map[string]interface{}{
+	if err := g.SendTaskDeprecated(map[string]interface{}{
 		"service_id": tcpRule.ServiceID,
 		"action":     "add-tcp-rule",
 		"limit":      map[string]string{"tcp-address": fmt.Sprintf("%s:%d", tcpRule.IP, tcpRule.Port)},
@@ -434,7 +435,7 @@ func (g *GatewayAction) UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort
 		logrus.Debugf("TCP rule id: %s;error end transaction %v", tcpRule.UUID, err)
 		return err
 	}
-	if err := g.SendTask(map[string]interface{}{
+	if err := g.SendTaskDeprecated(map[string]interface{}{
 		"service_id": tcpRule.ServiceID,
 		"action":     "update-tcp-rule",
 		"limit":      map[string]string{"tcp-address": fmt.Sprintf("%s:%d", tcpRule.IP, tcpRule.Port)},
@@ -482,7 +483,7 @@ func (g *GatewayAction) DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) error {
 		return err
 	}
 
-	if err := g.SendTask(map[string]interface{}{
+	if err := g.SendTaskDeprecated(map[string]interface{}{
 		"service_id": tcpRule.ServiceID,
 		"action":     "delete-tcp-rule",
 		"limit":      map[string]string{"tcp-address": fmt.Sprintf("%s:%d", tcpRule.IP, tcpRule.Port)},
@@ -597,7 +598,7 @@ func (g *GatewayAction) TCPIPPortExists(host string, port int) bool {
 }
 
 // SendTask sends apply rules task
-func (g *GatewayAction) SendTask(in map[string]interface{}) error {
+func (g *GatewayAction) SendTaskDeprecated(in map[string]interface{}) error {
 	sid := in["service_id"].(string)
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(sid)
 	if err != nil {
@@ -615,6 +616,19 @@ func (g *GatewayAction) SendTask(in map[string]interface{}) error {
 	})
 	if err != nil {
 		return fmt.Errorf("Unexpected error occurred while sending task: %v", err)
+	}
+	return nil
+}
+
+// SendTask sends apply rules task
+func (g *GatewayAction) SendTask(task *ComponentIngressTask) error {
+	err := g.mqclient.SendBuilderTopic(client.TaskStruct{
+		Topic:    client.WorkerTopic,
+		TaskType: "apply_rule",
+		TaskBody: task,
+	})
+	if err != nil {
+		return errors.WithMessage(err, "send gateway task")
 	}
 	return nil
 }
@@ -699,7 +713,7 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 		return err
 	}
 
-	if err := g.SendTask(map[string]interface{}{
+	if err := g.SendTaskDeprecated(map[string]interface{}{
 		"service_id": req.ServiceID,
 		"action":     "update-rule-config",
 		"event_id":   req.EventID,
@@ -750,7 +764,7 @@ func (g *GatewayAction) UpdCertificate(req *apimodel.UpdCertificateReq) error {
 
 	for _, rule := range rules {
 		eventID := util.NewUUID()
-		if err := g.SendTask(map[string]interface{}{
+		if err := g.SendTaskDeprecated(map[string]interface{}{
 			"service_id": rule.ServiceID,
 			"action":     "update-rule-config",
 			"event_id":   eventID,

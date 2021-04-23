@@ -726,7 +726,7 @@ func (r *RuntimeServer) convertServices(services []*corev1.Service) []*pb.AppSer
 			if port.Protocol == corev1.ProtocolUDP {
 				udpPorts = append(udpPorts, port.Port)
 			}
-			if port.Protocol == corev1.ProtocolTCP {
+			if port.Protocol == corev1.ProtocolTCP || port.Protocol == "" {
 				tcpPorts = append(tcpPorts, port.Port)
 			}
 		}

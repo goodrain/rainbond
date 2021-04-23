@@ -680,6 +680,7 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 	if err := handler.GetServiceManager().ServiceCreate(&ss); err != nil {
 		if strings.Contains(err.Error(), "is exist in tenant") {
 			httputil.ReturnError(r, w, 400, fmt.Sprintf("create service error, %v", err))
+			return
 		}
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("create service error, %v", err))
 		return
@@ -1525,7 +1526,7 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 		rc["port"] = fmt.Sprintf("%v", vsPort.Port)
 	}
 
-	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
+	if err := handler.GetGatewayHandler().SendTaskDeprecated(map[string]interface{}{
 		"service_id": serviceID,
 		"action":     "port-" + data.Body.Operation,
 		"port":       containerPort,
@@ -1584,7 +1585,7 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
+	if err := handler.GetGatewayHandler().SendTaskDeprecated(map[string]interface{}{
 		"service_id": serviceID,
 		"action":     "port-" + data.Body.Operation,
 		"port":       containerPort,

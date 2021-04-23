@@ -40,6 +40,7 @@ import (
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util/commonutil"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/goodrain/rainbond/worker/server"
@@ -750,7 +751,32 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		return err
 	}
 	logrus.Debugf("create a new app %s success", ts.ServiceAlias)
+
+	if sc.Kind == dbmodel.ServiceKindThirdParty.String() {
+		s.openInnerPorts(ts.ServiceID, ports)
+	}
+
 	return nil
+}
+
+func (s *ServiceAction) openInnerPorts(componentID string, ports []dbmodel.TenantServicesPort) {
+	// TODO: support open multiple ports in one task.
+	for _, port := range ports {
+		if !commonutil.BoolValue(port.IsInnerService) {
+			continue
+		}
+
+		logrus.Infof("component: %s; port: %d; open inner ports", componentID, port.ContainerPort)
+		task := &ComponentIngressTask{
+			ComponentID: componentID,
+			Action: "port-open",
+			Port: port.ContainerPort,
+			IsInner: true,
+		}
+		if err := GetGatewayHandler().SendTask(task); err != nil {
+			logrus.Warningf("send runtime message about gateway failure %s", err.Error())
+		}
+	}
 }
 
 //ServiceUpdate update service
