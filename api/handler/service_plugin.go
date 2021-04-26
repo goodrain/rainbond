@@ -91,6 +91,16 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("get plugin by plugin id", err)
 	}
+
+	// check if the service plugin already exists
+	servicePlugin, err := db.GetManager().TenantServicePluginRelationDao().GetRelateionByServiceIDAndPluginID(serviceID, plugin.PluginID)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, util.CreateAPIHandleErrorFromDBError("get service plugin", err)
+	}
+	if servicePlugin != nil {
+		return nil, util.CreateAPIHandleError(400, fmt.Errorf("service plugin already exists"))
+	}
+
 	crt, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelLikePluginByServiceID(
 		serviceID,
 		plugin.PluginModel,
