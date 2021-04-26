@@ -799,7 +799,7 @@ func (r *RuntimeServer) ParseAppServices(ctx context.Context, req *pb.ParseAppSe
 		logrus.Warningf("add repo: %v", err)
 	}
 
-	manifests, err := h.Manifests(app.AppName, app.AppStoreName+"/"+app.AppTemplateName, vals, ioutil.Discard)
+	manifests, err := h.Manifests(app.AppName, app.AppStoreName+"/"+app.AppTemplateName, app.Version, vals, ioutil.Discard)
 	if err != nil {
 		return nil, err
 	}

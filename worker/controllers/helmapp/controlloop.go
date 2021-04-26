@@ -114,13 +114,15 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 		}
 		status.UpdateConditionStatus(v1alpha1.HelmAppInstalled, corev1.ConditionTrue)
 		status.CurrentValues = helmApp.Spec.Values
+		status.CurrentVersion = helmApp.Spec.Version
 	}
 
 	return nil
 }
 
 func needUpdate(helmApp *v1alpha1.HelmApp) bool {
-	return helmApp.Spec.Values != helmApp.Status.CurrentValues
+	return helmApp.Spec.Values != helmApp.Status.CurrentValues ||
+		helmApp.Spec.Version != helmApp.Status.CurrentVersion
 }
 
 func (c *ControlLoop) updateStatus(helmApp *v1alpha1.HelmApp) error {

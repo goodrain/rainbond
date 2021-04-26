@@ -1694,6 +1694,7 @@ type UpdateAppRequest struct {
 	AppName        string `json:"app_name"`
 	GovernanceMode string `json:"governance_mode"`
 	Values         string `json:"values"`
+	Version        string `json:"version"`
 }
 
 // BindServiceRequest -

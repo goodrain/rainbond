@@ -178,6 +178,8 @@ type HelmAppStatus struct {
 
 	CurrentRevision string `json:"currentRevision,omitempty"`
 
+	CurrentVersion string `json:"currentVersion,omitempty"`
+
 	ValuesTemplate string `json:"valuesTemplate,omitempty"`
 
 	Readme string `json:"readme,omitempty"`

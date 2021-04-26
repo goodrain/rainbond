@@ -117,9 +117,9 @@ func (a *ApplicationAction) createHelmApp(ctx context.Context, app *dbmodel.Appl
 			Version:      app.Version,
 			Revision:     commonutil.Int32(0),
 			AppStore: &v1alpha1.HelmAppStore{
-				Version:      "", // TODO: setup version.
-				Name:         app.AppStoreName,
-				URL:          app.AppStoreURL,
+				Version: "", // TODO: setup version.
+				Name:    app.AppStoreName,
+				URL:     app.AppStoreURL,
 			},
 		}}
 
@@ -169,8 +169,8 @@ func (a *ApplicationAction) UpdateApp(ctx context.Context, app *dbmodel.Applicat
 			return err
 		}
 
-		if req.Values != "" {
-			ctx, cancel := context.WithTimeout(ctx, 5 * time.Second)
+		if req.Values != "" || req.Version != "" {
+			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
 			helmApp, err := a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Get(ctx, app.AppName, metav1.GetOptions{})
 			if err != nil {
@@ -179,10 +179,12 @@ func (a *ApplicationAction) UpdateApp(ctx context.Context, app *dbmodel.Applicat
 				}
 				return errors.Wrap(err, "update app")
 			}
-			if helmApp.Spec.Values == req.Values {
-				return nil
+			if req.Values != "" {
+				helmApp.Spec.Values = req.Values
 			}
-			helmApp.Spec.Values = req.Values
+			if req.Version != "" {
+				helmApp.Spec.Version = req.Version
+			}
 			_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Update(ctx, helmApp, metav1.UpdateOptions{})
 			return err
 		}

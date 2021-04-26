@@ -58,28 +58,29 @@ func NewHelm(kubeClient kube.Interface, configFlags *genericclioptions.ConfigFla
 	}, nil
 }
 
-func (h *Helm) PreInstall(name, chart string, out io.Writer) error {
-	_, err := h.install(name, chart, nil, true, out)
+func (h *Helm) PreInstall(name, chart, version string, out io.Writer) error {
+	_, err := h.install(name, chart, version, nil, true, out)
 	return err
 }
 
-func (h *Helm) Install(name, chart string, vals map[string]interface{}) error {
-	_, err := h.install(name, chart, vals, false, ioutil.Discard)
+func (h *Helm) Install(name, chart, version string, vals map[string]interface{}) error {
+	_, err := h.install(name, chart, version, vals, false, ioutil.Discard)
 	return err
 }
 
-func (h *Helm) Manifests(name, chart string, vals map[string]interface{}, out io.Writer) (string, error) {
-	rel, err := h.install(name, chart, vals, true, out)
+func (h *Helm) Manifests(name, chart, version string, vals map[string]interface{}, out io.Writer) (string, error) {
+	rel, err := h.install(name, chart, version, vals, true, out)
 	if err != nil {
 		return "", err
 	}
 	return rel.Manifest, nil
 }
 
-func (h *Helm) install(name, chart string, vals map[string]interface{}, dryRun bool, out io.Writer) (*release.Release, error) {
+func (h *Helm) install(name, chart, version string, vals map[string]interface{}, dryRun bool, out io.Writer) (*release.Release, error) {
 	client := action.NewInstall(h.cfg)
 	client.ReleaseName = name
 	client.Namespace = h.namespace
+	client.Version = version
 	client.DryRun = dryRun
 
 	cp, err := client.ChartPathOptions.LocateChart(chart, h.settings)
@@ -137,9 +138,10 @@ func (h *Helm) install(name, chart string, vals map[string]interface{}, dryRun b
 	return client.Run(chartRequested, vals)
 }
 
-func (h *Helm) Upgrade(name string, chart string, vals map[string]interface{}) error {
+func (h *Helm) Upgrade(name string, chart, version string, vals map[string]interface{}) error {
 	client := action.NewUpgrade(h.cfg)
 	client.Namespace = h.namespace
+	client.Version = version
 
 	chartPath, err := client.ChartPathOptions.LocateChart(chart, h.settings)
 	if err != nil {

@@ -104,7 +104,7 @@ func (a *App) PreInstall() error {
 	}
 
 	var buf bytes.Buffer
-	if err := a.helm.PreInstall(a.name, a.Chart(), &buf); err != nil {
+	if err := a.helm.PreInstall(a.name, a.Chart(), a.version, &buf); err != nil {
 		return err
 	}
 	logrus.Infof("pre install: %s", buf.String())
@@ -140,7 +140,7 @@ func (a *App) InstallOrUpdate() error {
 
 	if errors.Is(err, driver.ErrReleaseNotFound) {
 		logrus.Debugf("name: %s; namespace: %s; chart: %s; install helm app", a.name, a.namespace, a.Chart())
-		if err := a.helm.Install(a.name, a.Chart(), values); err != nil {
+		if err := a.helm.Install(a.name, a.Chart(), a.version, values); err != nil {
 			return err
 		}
 
@@ -148,7 +148,7 @@ func (a *App) InstallOrUpdate() error {
 	}
 
 	logrus.Debugf("name: %s; namespace: %s; chart: %s; upgrade helm app", a.name, a.namespace, a.Chart())
-	return a.helm.Upgrade(a.name, a.chart(), values)
+	return a.helm.Upgrade(a.name, a.chart(), a.version, values)
 }
 
 func (a *App) ParseChart() (string, string, error) {
