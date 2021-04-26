@@ -135,12 +135,18 @@ type HelmAppSpec struct {
 	AppStore *HelmAppStore `json:"appStore"`
 }
 
+// FullName returns the full name of the app store.
+func (in *HelmAppSpec) FullName() string {
+	if in.AppStore == nil {
+		return ""
+	}
+	return in.EID + "-" + in.AppStore.Name
+}
+
 // HelmAppStore represents a helm repo.
 type HelmAppStore struct {
 	// The verision of the helm app store.
 	Version string `json:"version"`
-
-	EnterpriseID string `json:"enterpriseID"`
 
 	Name string `json:"name"`
 
@@ -153,11 +159,6 @@ type HelmAppStore struct {
 	Username string `json:"username,omitempty"`
 
 	Password string `json:"password,omitempty"`
-}
-
-// FullName returns the full name of the app store.
-func (in *HelmAppStore) FullName() string {
-	return in.EnterpriseID + "-" + in.Name
 }
 
 // HelmAppStatus defines the observed state of HelmApp

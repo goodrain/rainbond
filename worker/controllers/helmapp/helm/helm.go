@@ -2,6 +2,8 @@ package helm
 
 import (
 	"io"
+	"io/ioutil"
+	"unsafe"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -17,14 +19,16 @@ import (
 )
 
 type Helm struct {
-	cfg *action.Configuration
+	cfg       *action.Configuration
+	settings  *cli.EnvSettings
+	namespace string
 
 	repoFile  string
 	repoCache string
 }
 
 // NewHelm creates a new helm.
-func NewHelm(kubeClient kube.Interface, configFlags *genericclioptions.ConfigFlags, repoFile, repoCache string) (*Helm, error) {
+func NewHelm(kubeClient kube.Interface, configFlags *genericclioptions.ConfigFlags, namespace, repoFile, repoCache string) (*Helm, error) {
 	cfg := &action.Configuration{
 		KubeClient: kubeClient,
 		Log: func(s string, i ...interface{}) {
@@ -34,6 +38,12 @@ func NewHelm(kubeClient kube.Interface, configFlags *genericclioptions.ConfigFla
 	}
 	helmDriver := ""
 	settings := cli.New()
+	// set namespace
+	namespacePtr := (*string)(unsafe.Pointer(settings))
+	*namespacePtr = namespace
+	settings.RepositoryConfig = repoFile
+	settings.RepositoryCache = repoCache
+	// initializes the action configuration
 	if err := cfg.Init(settings.RESTClientGetter(), settings.Namespace(), helmDriver, func(format string, v ...interface{}) {
 		logrus.Debugf(format, v)
 	}); err != nil {
@@ -41,48 +51,45 @@ func NewHelm(kubeClient kube.Interface, configFlags *genericclioptions.ConfigFla
 	}
 	return &Helm{
 		cfg:       cfg,
+		settings:  settings,
+		namespace: namespace,
 		repoFile:  repoFile,
 		repoCache: repoCache,
 	}, nil
 }
 
-func (h *Helm) PreInstall(name, namespace, chart string, out io.Writer) error {
-	_, err := h.install(name, namespace, chart, nil, true, out)
+func (h *Helm) PreInstall(name, chart string, out io.Writer) error {
+	_, err := h.install(name, chart, nil, true, out)
 	return err
 }
 
-func (h *Helm) Install(name, namespace, chart string, vals map[string]interface{}, out io.Writer) error {
-	// TODO: discard the output
-	_, err := h.install(name, namespace, chart, vals, false, out)
+func (h *Helm) Install(name, chart string, vals map[string]interface{}) error {
+	_, err := h.install(name, chart, vals, false, ioutil.Discard)
 	return err
 }
 
-func (h *Helm) Manifests(name, namespace, chart string, vals map[string]interface{}, out io.Writer) (string, error) {
-	rel, err := h.install(name, namespace, chart, vals, true, out)
+func (h *Helm) Manifests(name, chart string, vals map[string]interface{}, out io.Writer) (string, error) {
+	rel, err := h.install(name, chart, vals, true, out)
 	if err != nil {
 		return "", err
 	}
 	return rel.Manifest, nil
 }
 
-func (h *Helm) install(name, namespace, chart string, vals map[string]interface{}, dryRun bool, out io.Writer) (*release.Release, error) {
+func (h *Helm) install(name, chart string, vals map[string]interface{}, dryRun bool, out io.Writer) (*release.Release, error) {
 	client := action.NewInstall(h.cfg)
 	client.ReleaseName = name
-	client.Namespace = namespace
+	client.Namespace = h.namespace
 	client.DryRun = dryRun
 
-	settings := cli.New()
-	settings.RepositoryCache = h.repoCache
-	settings.RepositoryConfig = h.repoFile
-
-	cp, err := client.ChartPathOptions.LocateChart(chart, settings)
+	cp, err := client.ChartPathOptions.LocateChart(chart, h.settings)
 	if err != nil {
 		return nil, err
 	}
 
 	logrus.Debugf("CHART PATH: %s\n", cp)
 
-	p := getter.All(settings)
+	p := getter.All(h.settings)
 
 	// Check chart dependencies to make sure all are present in /charts
 	chartRequested, err := loader.Load(cp)
@@ -110,16 +117,16 @@ func (h *Helm) install(name, namespace, chart string, vals map[string]interface{
 					Keyring:          client.ChartPathOptions.Keyring,
 					SkipUpdate:       false,
 					Getters:          p,
-					RepositoryConfig: settings.RepositoryConfig,
-					RepositoryCache:  settings.RepositoryCache,
-					Debug:            settings.Debug,
+					RepositoryConfig: h.settings.RepositoryConfig,
+					RepositoryCache:  h.settings.RepositoryCache,
+					Debug:            h.settings.Debug,
 				}
 				if err := man.Update(); err != nil {
 					return nil, err
 				}
 				// Reload the chart with the updated Chart.lock file.
 				if chartRequested, err = loader.Load(cp); err != nil {
-					return nil, errors.Wrap(err, "failed reloading chart after repo update")
+					return nil, errors.Wrap(err, "failed reloading chart after repoName update")
 				}
 			} else {
 				return nil, err
@@ -128,6 +135,36 @@ func (h *Helm) install(name, namespace, chart string, vals map[string]interface{
 	}
 
 	return client.Run(chartRequested, vals)
+}
+
+func (h *Helm) Upgrade(name string, chart string, vals map[string]interface{}) error {
+	client := action.NewUpgrade(h.cfg)
+	client.Namespace = h.namespace
+
+	chartPath, err := client.ChartPathOptions.LocateChart(chart, h.settings)
+	if err != nil {
+		return err
+	}
+
+	// Check chart dependencies to make sure all are present in /charts
+	ch, err := loader.Load(chartPath)
+	if err != nil {
+		return err
+	}
+	if req := ch.Metadata.Dependencies; req != nil {
+		if err := action.CheckDependencies(ch, req); err != nil {
+			return err
+		}
+	}
+
+	if ch.Metadata.Deprecated {
+		logrus.Warningf("This chart is deprecated")
+	}
+
+	upgrade := action.NewUpgrade(h.cfg)
+	upgrade.Namespace = h.namespace
+	_, err = upgrade.Run(name, ch, vals)
+	return err
 }
 
 func (h *Helm) Status(name string) (*release.Release, error) {

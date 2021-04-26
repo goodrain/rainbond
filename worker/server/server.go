@@ -194,7 +194,9 @@ func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus,
 		Phase:          phase,
 		ValuesTemplate: helmApp.Status.ValuesTemplate,
 		Cpu:            cpu,
+		SetCPU:         cpu > 0,
 		Memory:         memory,
+		SetMemory:      memory > 0,
 		Readme:         helmApp.Status.Readme,
 	}, nil
 }
@@ -787,7 +789,7 @@ func (r *RuntimeServer) ParseAppServices(ctx context.Context, req *pb.ParseAppSe
 	configFlags.Namespace = commonutil.String(app.TenantID)
 	kubeClient := kube.New(configFlags)
 
-	h, err := helm.NewHelm(kubeClient, configFlags, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
+	h, err := helm.NewHelm(kubeClient, configFlags, app.TenantID, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
 	if err != nil {
 		return nil, err
 	}
@@ -797,7 +799,7 @@ func (r *RuntimeServer) ParseAppServices(ctx context.Context, req *pb.ParseAppSe
 		logrus.Warningf("add repo: %v", err)
 	}
 
-	manifests, err := h.Manifests(app.AppName, app.TenantID, app.AppStoreName+"/"+app.AppTemplateName, vals, ioutil.Discard)
+	manifests, err := h.Manifests(app.AppName, app.AppStoreName+"/"+app.AppTemplateName, vals, ioutil.Discard)
 	if err != nil {
 		return nil, err
 	}

@@ -24,7 +24,7 @@ import (
 
 type App struct {
 	templateName string
-	repo         string
+	repoName     string
 	repoURL      string
 	name         string
 	namespace    string
@@ -34,38 +34,45 @@ type App struct {
 	encodedValues string
 
 	helm *Helm
+	repo *Repo
 
 	builder *resource.Builder
 }
 
 func (a *App) Chart() string {
-	return a.repo + "/" + a.templateName
+	return a.repoName + "/" + a.templateName
 }
 
-func NewApp(name, namespace, templateName, version, values, repo, repoURL, repoFile, repoCache string) (*App, error) {
+func NewApp(name, namespace, templateName, version, values, repoName, repoURL, repoFile, repoCache string) (*App, error) {
 	configFlags := genericclioptions.NewConfigFlags(true)
 	configFlags.Namespace = commonutil.String(namespace)
 	kubeClient := kube.New(configFlags)
 
-	helm, err := NewHelm(kubeClient, configFlags, repoFile, repoCache)
+	helm, err := NewHelm(kubeClient, configFlags, namespace, repoFile, repoCache)
 	if err != nil {
 		return nil, err
 	}
+	repo := NewRepo(repoFile, repoCache)
 
 	return &App{
 		name:          name,
 		namespace:     namespace,
 		templateName:  templateName,
-		repo:          repo,
+		repoName:      repoName,
 		repoURL:       repoURL,
 		version:       version,
 		encodedValues: values,
 		helm:          helm,
+		repo:          repo,
 		chartDir:      path.Join("/tmp/helm/chart", namespace, name, version),
 	}, nil
 }
 
 func (a *App) Pull() error {
+	if err := a.repo.Add(a.repoName, a.repoURL, "", ""); err != nil {
+		return err
+	}
+
 	client := action.NewPull()
 	settings := cli.New()
 	settings.RepositoryConfig = a.helm.repoFile
@@ -88,12 +95,16 @@ func (a *App) Pull() error {
 }
 
 func (a *App) chart() string {
-	return a.repo + "/" + a.templateName
+	return a.repoName + "/" + a.templateName
 }
 
 func (a *App) PreInstall() error {
+	if err := a.repo.Add(a.repoName, a.repoURL, "", ""); err != nil {
+		return err
+	}
+
 	var buf bytes.Buffer
-	if err := a.helm.PreInstall(a.name, a.namespace, a.Chart(), &buf); err != nil {
+	if err := a.helm.PreInstall(a.name, a.Chart(), &buf); err != nil {
 		return err
 	}
 	logrus.Infof("pre install: %s", buf.String())
@@ -109,39 +120,35 @@ func (a *App) Status() (string, error) {
 }
 
 func (a *App) InstallOrUpdate() error {
-	_, err := a.helm.Status(a.name)
+	if err := a.repo.Add(a.repoName, a.repoURL, "", ""); err != nil {
+		return err
+	}
+
+	b, err := base64.StdEncoding.DecodeString(a.encodedValues)
+	if err != nil {
+		return errors.Wrap(err, "decode values")
+	}
+	values := map[string]interface{}{}
+	if err := yaml.Unmarshal(b, &values); err != nil {
+		return errors.Wrap(err, "parse values")
+	}
+
+	_, err = a.helm.Status(a.name)
 	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
 		return err
 	}
 
-	repo := NewRepo(a.helm.repoFile, a.helm.repoCache)
-	if err := repo.Add(a.repo, a.repoURL, "", ""); err != nil {
-		return err
-	}
-
 	if errors.Is(err, driver.ErrReleaseNotFound) {
-		b, err := base64.StdEncoding.DecodeString(a.encodedValues)
-		if err != nil {
-			return errors.Wrap(err, "decode values")
-		}
-
-		values := map[string]interface{}{}
-		if err := yaml.Unmarshal(b, &values); err != nil {
-			return errors.Wrap(err, "parse values")
-		}
-
-		var buf bytes.Buffer
 		logrus.Debugf("name: %s; namespace: %s; chart: %s; install helm app", a.name, a.namespace, a.Chart())
-		if err := a.helm.Install(a.name, a.namespace, a.Chart(), values, &buf); err != nil {
+		if err := a.helm.Install(a.name, a.Chart(), values); err != nil {
 			return err
 		}
-		logrus.Infof("[App] [InstallOrUpdate] %s", buf.String())
 
 		return nil
 	}
 
-	// TODO: upgrade
-	return nil
+	logrus.Debugf("name: %s; namespace: %s; chart: %s; upgrade helm app", a.name, a.namespace, a.Chart())
+	return a.helm.Upgrade(a.name, a.chart(), values)
 }
 
 func (a *App) ParseChart() (string, string, error) {

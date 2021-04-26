@@ -261,6 +261,8 @@ message AppStatus {
   string phase = 4;
   string valuesTemplate = 5;
   string readme = 6;
+  bool setCPU = 7;
+  bool setMemory = 8;
 }
 
 message AppDetectCondition {

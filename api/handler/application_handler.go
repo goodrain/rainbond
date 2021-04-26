@@ -38,7 +38,7 @@ type ApplicationAction struct {
 type ApplicationHandler interface {
 	CreateApp(ctx context.Context, req *model.Application) (*model.Application, error)
 	BatchCreateApp(ctx context.Context, req *model.CreateAppRequest, tenantID string) ([]model.CreateAppResponse, error)
-	UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error)
+	UpdateApp(ctx context.Context, app *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error)
 	ListApps(tenantID, appName string, page, pageSize int) (*model.ListAppResponse, error)
 	GetAppByID(appID string) (*dbmodel.Application, error)
 	BatchBindService(appID string, req model.BindServiceRequest) error
@@ -118,7 +118,6 @@ func (a *ApplicationAction) createHelmApp(ctx context.Context, app *dbmodel.Appl
 			Revision:     commonutil.Int32(0),
 			AppStore: &v1alpha1.HelmAppStore{
 				Version:      "", // TODO: setup version.
-				EnterpriseID: app.EID,
 				Name:         app.AppStoreName,
 				URL:          app.AppStoreURL,
 			},
@@ -154,20 +153,44 @@ func (a *ApplicationAction) BatchCreateApp(ctx context.Context, apps *model.Crea
 }
 
 // UpdateApp -
-func (a *ApplicationAction) UpdateApp(srcApp *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error) {
+func (a *ApplicationAction) UpdateApp(ctx context.Context, app *dbmodel.Application, req model.UpdateAppRequest) (*dbmodel.Application, error) {
 	if req.AppName != "" {
-		srcApp.AppName = req.AppName
+		app.AppName = req.AppName
 	}
 	if req.GovernanceMode != "" {
 		if !dbmodel.IsGovernanceModeValid(req.GovernanceMode) {
 			return nil, bcode.NewBadRequest(fmt.Sprintf("governance mode '%s' is valid", req.GovernanceMode))
 		}
-		srcApp.GovernanceMode = req.GovernanceMode
+		app.GovernanceMode = req.GovernanceMode
 	}
-	if err := db.GetManager().ApplicationDao().UpdateModel(srcApp); err != nil {
-		return nil, err
-	}
-	return srcApp, nil
+
+	err := db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		if err := db.GetManager().ApplicationDao().UpdateModel(app); err != nil {
+			return err
+		}
+
+		if req.Values != "" {
+			ctx, cancel := context.WithTimeout(ctx, 5 * time.Second)
+			defer cancel()
+			helmApp, err := a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Get(ctx, app.AppName, metav1.GetOptions{})
+			if err != nil {
+				if k8sErrors.IsNotFound(err) {
+					return errors.Wrap(bcode.ErrApplicationNotFound, "update app")
+				}
+				return errors.Wrap(err, "update app")
+			}
+			if helmApp.Spec.Values == req.Values {
+				return nil
+			}
+			helmApp.Spec.Values = req.Values
+			_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Update(ctx, helmApp, metav1.UpdateOptions{})
+			return err
+		}
+
+		return nil
+	})
+
+	return app, err
 }
 
 // ListApps -
@@ -315,10 +338,19 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 
 	diskUsage := a.getDiskUsage(app.AppID)
 
+	var cpu *int64
+	if status.SetCPU {
+		cpu = commonutil.Int64(status.Cpu)
+	}
+	var memory *int64
+	if status.SetMemory {
+		memory = commonutil.Int64(status.Memory)
+	}
+
 	res := &model.AppStatus{
 		Status:         status.Status,
-		Cpu:            status.Cpu,
-		Memory:         status.Memory,
+		Cpu:            cpu,
+		Memory:         memory,
 		Disk:           int64(diskUsage),
 		Phase:          status.Phase,
 		ValuesTemplate: status.ValuesTemplate,

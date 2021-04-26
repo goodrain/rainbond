@@ -58,7 +58,7 @@ func (c *Finalizer) run(obj interface{}) error {
 	app, err := helm.NewApp(helmApp.Name, helmApp.Namespace,
 		helmApp.Spec.TemplateName, helmApp.Spec.Version,
 		helmApp.Spec.Values,
-		appStore.FullName(), appStore.URL, c.repoFile, c.repoCache)
+		helmApp.Spec.FullName(), appStore.URL, c.repoFile, c.repoCache)
 	if err != nil {
 		return err
 	}

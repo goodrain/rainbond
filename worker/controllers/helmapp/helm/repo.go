@@ -51,7 +51,7 @@ func (o *Repo) Add(name, url, username, password string) error {
 	}
 
 	s := buf.String()
-	logrus.Infof("add repo: %s", s)
+	logrus.Debugf("add repo: %s", s)
 
 	return nil
 }
@@ -60,7 +60,7 @@ func (o *Repo) add(out io.Writer, name, url, username, password string) error {
 	// Block deprecated repos
 	for oldURL, newURL := range deprecatedRepos {
 		if strings.Contains(url, oldURL) {
-			return fmt.Errorf("repo %q is no longer available; try %q instead", url, newURL)
+			return fmt.Errorf("repoName %q is no longer available; try %q instead", url, newURL)
 		}
 	}
 
@@ -100,7 +100,7 @@ func (o *Repo) add(out io.Writer, name, url, username, password string) error {
 		InsecureSkipTLSverify: o.insecureSkipTLSverify,
 	}
 
-	// If the repo exists do one of two things:
+	// If the repoName exists do one of two things:
 	// 1. If the configuration for the templateName is the same continue without error
 	// 2. When the config is different require --force-update
 	if !o.forceUpdate && f.Has(name) {

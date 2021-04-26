@@ -83,7 +83,7 @@ func (a *ApplicationController) UpdateApp(w http.ResponseWriter, r *http.Request
 	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
 
 	// update app
-	app, err := handler.GetApplicationHandler().UpdateApp(app, updateAppReq)
+	app, err := handler.GetApplicationHandler().UpdateApp(r.Context(), app, updateAppReq)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
