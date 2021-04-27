@@ -32,21 +32,22 @@ import (
 
 // Config returns the proxy timeout to use in the upstream server/s
 type Config struct {
-	BodySize          int               `json:"bodySize"`
-	ConnectTimeout    int               `json:"connectTimeout"`
-	SendTimeout       int               `json:"sendTimeout"`
-	ReadTimeout       int               `json:"readTimeout"`
-	BuffersNumber     int               `json:"buffersNumber"`
-	BufferSize        string            `json:"bufferSize"`
-	CookieDomain      string            `json:"cookieDomain"`
-	CookiePath        string            `json:"cookiePath"`
-	NextUpstream      string            `json:"nextUpstream"`
-	NextUpstreamTries int               `json:"nextUpstreamTries"`
-	ProxyRedirectFrom string            `json:"proxyRedirectFrom"`
-	ProxyRedirectTo   string            `json:"proxyRedirectTo"`
-	RequestBuffering  string            `json:"requestBuffering"`
-	ProxyBuffering    string            `json:"proxyBuffering"`
-	SetHeaders        map[string]string `json:"setHeaders"`
+	BodySize            int               `json:"bodySize"`
+	ConnectTimeout      int               `json:"connectTimeout"`
+	SendTimeout         int               `json:"sendTimeout"`
+	ReadTimeout         int               `json:"readTimeout"`
+	BuffersNumber       int               `json:"buffersNumber"`
+	BufferSize          string            `json:"bufferSize"`
+	CookieDomain        string            `json:"cookieDomain"`
+	CookiePath          string            `json:"cookiePath"`
+	NextUpstream        string            `json:"nextUpstream"`
+	NextUpstreamTimeout int               `json:"nextUpstreamTimeout"`
+	NextUpstreamTries   int               `json:"nextUpstreamTries"`
+	ProxyRedirectFrom   string            `json:"proxyRedirectFrom"`
+	ProxyRedirectTo     string            `json:"proxyRedirectTo"`
+	RequestBuffering    string            `json:"requestBuffering"`
+	ProxyBuffering      string            `json:"proxyBuffering"`
+	SetHeaders          map[string]string `json:"setHeaders"`
 }
 
 //Validation validation nginx parameters
@@ -85,21 +86,22 @@ func (s *Config) Validation() error {
 func NewProxyConfig() Config {
 	defBackend := config.NewDefault()
 	return Config{
-		BodySize:          defBackend.ProxyBodySize,
-		ConnectTimeout:    defBackend.ProxyConnectTimeout,
-		SendTimeout:       defBackend.ProxySendTimeout,
-		ReadTimeout:       defBackend.ProxyReadTimeout,
-		BuffersNumber:     defBackend.ProxyBuffersNumber,
-		BufferSize:        defBackend.ProxyBufferSize,
-		CookieDomain:      defBackend.ProxyCookieDomain,
-		CookiePath:        defBackend.ProxyCookiePath,
-		NextUpstream:      defBackend.ProxyNextUpstream,
-		NextUpstreamTries: defBackend.ProxyNextUpstreamTries,
-		RequestBuffering:  defBackend.ProxyRequestBuffering,
-		ProxyRedirectFrom: defBackend.ProxyRedirectFrom,
-		ProxyRedirectTo:   defBackend.ProxyRedirectTo,
-		ProxyBuffering:    defBackend.ProxyBuffering,
-		SetHeaders:        defBackend.ProxySetHeaders,
+		BodySize:            defBackend.ProxyBodySize,
+		ConnectTimeout:      defBackend.ProxyConnectTimeout,
+		SendTimeout:         defBackend.ProxySendTimeout,
+		ReadTimeout:         defBackend.ProxyReadTimeout,
+		BuffersNumber:       defBackend.ProxyBuffersNumber,
+		BufferSize:          defBackend.ProxyBufferSize,
+		CookieDomain:        defBackend.ProxyCookieDomain,
+		CookiePath:          defBackend.ProxyCookiePath,
+		NextUpstream:        defBackend.ProxyNextUpstream,
+		NextUpstreamTries:   defBackend.ProxyNextUpstreamTries,
+		NextUpstreamTimeout: defBackend.ProxyNextUpstreamTimeout,
+		RequestBuffering:    defBackend.ProxyRequestBuffering,
+		ProxyRedirectFrom:   defBackend.ProxyRedirectFrom,
+		ProxyRedirectTo:     defBackend.ProxyRedirectTo,
+		ProxyBuffering:      defBackend.ProxyBuffering,
+		SetHeaders:          defBackend.ProxySetHeaders,
 	}
 }
 
@@ -231,6 +233,11 @@ func (a proxy) Parse(ing *extensions.Ingress) (interface{}, error) {
 	config.NextUpstreamTries, err = parser.GetIntAnnotation("proxy-next-upstream-tries", ing)
 	if err != nil {
 		config.NextUpstreamTries = defBackend.ProxyNextUpstreamTries
+	}
+
+	config.NextUpstreamTimeout, err = parser.GetIntAnnotation("proxy-next-upstream-timeout", ing)
+	if err != nil {
+		config.NextUpstreamTimeout = defBackend.ProxyNextUpstreamTimeout
 	}
 
 	config.RequestBuffering, err = parser.GetStringAnnotation("proxy-request-buffering", ing)

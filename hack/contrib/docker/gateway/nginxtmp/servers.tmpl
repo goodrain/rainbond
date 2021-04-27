@@ -68,6 +68,10 @@ server {
         proxy_send_timeout                      {{ $loc.Proxy.SendTimeout }}s;
         proxy_read_timeout                      {{ $loc.Proxy.ReadTimeout }}s;
 
+        proxy_next_upstream                     {{ buildNextUpstream $loc.Proxy.NextUpstream false }};
+        proxy_next_upstream_timeout             {{ $loc.Proxy.NextUpstreamTimeout }};
+        proxy_next_upstream_tries               {{ $loc.Proxy.NextUpstreamTries }};
+
         proxy_buffering                         {{ $loc.Proxy.ProxyBuffering }};
         proxy_buffer_size                       {{ $loc.Proxy.BufferSize }};
         proxy_buffers                           {{ $loc.Proxy.BuffersNumber }} {{ $loc.Proxy.BufferSize }};
