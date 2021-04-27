@@ -234,20 +234,42 @@ func (a *ApplicationAction) GetAppByID(appID string) (*dbmodel.Application, erro
 
 // DeleteApp -
 func (a *ApplicationAction) DeleteApp(ctx context.Context, app *dbmodel.Application) error {
-	// Get the number of services under the application
-	total, err := db.GetManager().TenantServiceDao().CountServiceByAppID(app.AppID)
+	if app.AppType == dbmodel.AppTypeHelm {
+		return a.deleteHelmApp(ctx, app)
+	}
+
+	return a.deleteRainbondApp(app)
+}
+
+func (a *ApplicationAction) deleteRainbondApp(app *dbmodel.Application) error {
+	// can't delete rainbond app with components
+	if err := a.isContainComponents(app.AppID); err != nil {
+		return err
+	}
+
+	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		return errors.WithMessage(a.deleteApp(tx, app), "delete app from db")
+	})
+}
+
+// isContainComponents checks if the app contains components.
+func (a *ApplicationAction) isContainComponents(appID string) error {
+	total, err := db.GetManager().TenantServiceDao().CountServiceByAppID(appID)
 	if err != nil {
 		return err
 	}
 	if total != 0 {
 		return bcode.ErrDeleteDueToBindService
 	}
+	return nil
+}
 
+func (a *ApplicationAction) deleteHelmApp(ctx context.Context, app *dbmodel.Application) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
-		if err := db.GetManager().ApplicationDaoTransactions(tx).DeleteApp(app.AppID); err != nil {
+		if err := a.deleteApp(tx, app); err != nil {
 			return err
 		}
 
@@ -258,6 +280,26 @@ func (a *ApplicationAction) DeleteApp(ctx context.Context, app *dbmodel.Applicat
 		}
 		return nil
 	})
+}
+
+func (a *ApplicationAction) deleteApp(tx *gorm.DB, app *dbmodel.Application) error {
+	// delete app config group service
+	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteByAppID(app.AppID); err != nil {
+		return err
+	}
+
+	// delete config group items
+	if err := db.GetManager().AppConfigGroupItemDaoTransactions(tx).DeleteByAppID(app.AppID); err != nil {
+		return err
+	}
+
+	// delete config group
+	if err := db.GetManager().AppConfigGroupDaoTransactions(tx).DeleteByAppID(app.AppID); err != nil {
+		return err
+	}
+
+	// delete application
+	return db.GetManager().ApplicationDaoTransactions(tx).DeleteApp(app.AppID)
 }
 
 // BatchUpdateComponentPorts -

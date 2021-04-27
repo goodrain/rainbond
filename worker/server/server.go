@@ -185,7 +185,7 @@ func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus,
 	for _, pod := range pods {
 		for _, c := range pod.Spec.Containers {
 			cpu += c.Resources.Requests.Cpu().MilliValue()
-			memory += c.Resources.Limits.Memory().Value() / 1024 / 1024
+			memory += c.Resources.Requests.Memory().Value() / 1024 / 1024
 		}
 	}
 

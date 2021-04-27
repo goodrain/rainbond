@@ -2062,24 +2062,20 @@ func (s *ServiceAction) isServiceClosed(serviceID string) error {
 	return nil
 }
 
-// delServiceMetadata deletes service-related metadata in the database.
-func (s *ServiceAction) delServiceMetadata(serviceID string) error {
-	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
-	if err != nil {
-		return err
-	}
-	logrus.Infof("delete service %s %s", serviceID, service.ServiceAlias)
-	tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
+func (s *ServiceAction) DeleteComponentInBatch(tx *gorm.DB, components []*dbmodel.TenantServices) error {
+	for _, cpt := range components {
+		err := s.deleteComponent(tx, cpt)
+		if err != nil {
+			return err
 		}
-	}()
+	}
+	return nil
+}
+
+func (s *ServiceAction) deleteComponent(tx *gorm.DB, service *dbmodel.TenantServices) error {
 	delService := service.ChangeDelete()
 	delService.ID = 0
 	if err := db.GetManager().TenantServiceDeleteDaoTransactions(tx).AddModel(delService); err != nil {
-		tx.Rollback()
 		return err
 	}
 	var deleteServicePropertyFunc = []func(serviceID string) error{
@@ -2104,27 +2100,32 @@ func (s *ServiceAction) delServiceMetadata(serviceID string) error {
 		db.GetManager().TenantServiceMonitorDaoTransactions(tx).DeleteServiceMonitorByServiceID,
 		db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteEffectiveServiceByServiceID,
 	}
-	if err := GetGatewayHandler().DeleteTCPRuleByServiceIDWithTransaction(serviceID, tx); err != nil {
-		tx.Rollback()
+	if err := GetGatewayHandler().DeleteTCPRuleByServiceIDWithTransaction(service.ServiceID, tx); err != nil {
 		return err
 	}
-	if err := GetGatewayHandler().DeleteHTTPRuleByServiceIDWithTransaction(serviceID, tx); err != nil {
-		tx.Rollback()
+	if err := GetGatewayHandler().DeleteHTTPRuleByServiceIDWithTransaction(service.ServiceID, tx); err != nil {
 		return err
 	}
 	for _, del := range deleteServicePropertyFunc {
-		if err := del(serviceID); err != nil {
+		if err := del(service.ServiceID); err != nil {
 			if err != gorm.ErrRecordNotFound {
-				tx.Rollback()
 				return err
 			}
 		}
 	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
+	return nil
+}
+
+// delServiceMetadata deletes service-related metadata in the database.
+func (s *ServiceAction) delServiceMetadata(serviceID string) error {
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if err != nil {
 		return err
 	}
-	return nil
+	logrus.Infof("delete service %s %s", serviceID, service.ServiceAlias)
+	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		return s.deleteComponent(tx, service)
+	})
 }
 
 // delLogFile deletes persistent data related to the service based on serviceID.

@@ -25,6 +25,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/jinzhu/gorm"
 )
 
 //ServiceHandler service handler
@@ -76,6 +77,7 @@ type ServiceHandler interface {
 	GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError)
 	GetServiceDeployInfo(tenantID, serviceID string) (*pb.DeployInfo, *util.APIHandleError)
 	ListVersionInfo(serviceID string) (*api_model.BuildListRespVO, error)
+	DeleteComponentInBatch(tx *gorm.DB, components []*dbmodel.TenantServices) error
 
 	AddAutoscalerRule(req *api_model.AutoscalerRuleReq) error
 	UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) error

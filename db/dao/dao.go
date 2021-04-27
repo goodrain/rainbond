@@ -83,6 +83,7 @@ type AppConfigGroupDao interface {
 	ListByServiceID(sid string) ([]*model.ApplicationConfigGroup, error)
 	GetConfigGroupsByAppID(appID string, page, pageSize int) ([]*model.ApplicationConfigGroup, int64, error)
 	DeleteConfigGroup(appID, configGroupName string) error
+	DeleteByAppID(appID string) error
 }
 
 //AppConfigGroupServiceDao service config group Dao
@@ -91,6 +92,7 @@ type AppConfigGroupServiceDao interface {
 	GetConfigGroupServicesByID(appID, configGroupName string) ([]*model.ConfigGroupService, error)
 	DeleteConfigGroupService(appID, configGroupName string) error
 	DeleteEffectiveServiceByServiceID(serviceID string) error
+	DeleteByAppID(appID string) error
 }
 
 //AppConfigGroupItemDao Application config item group Dao
@@ -99,6 +101,7 @@ type AppConfigGroupItemDao interface {
 	GetConfigGroupItemsByID(appID, configGroupName string) ([]*model.ConfigGroupItem, error)
 	ListByServiceID(sid string) ([]*model.ConfigGroupItem, error)
 	DeleteConfigGroupItem(appID, configGroupName string) error
+	DeleteByAppID(appID string) error
 }
 
 // VolumeTypeDao volume type dao
