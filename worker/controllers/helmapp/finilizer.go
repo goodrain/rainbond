@@ -55,8 +55,9 @@ func (c *Finalizer) run(obj interface{}) error {
 	logrus.Infof("start uninstall helm app: %s/%s", helmApp.Name, helmApp.Namespace)
 
 	appStore := helmApp.Spec.AppStore
+	// TODO: too much args
 	app, err := helm.NewApp(helmApp.Name, helmApp.Namespace,
-		helmApp.Spec.TemplateName, helmApp.Spec.Version,
+		helmApp.Spec.TemplateName, helmApp.Spec.Version, helmApp.Spec.Revision,
 		helmApp.Spec.Values,
 		helmApp.Spec.FullName(), appStore.URL, c.repoFile, c.repoCache)
 	if err != nil {

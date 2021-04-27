@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sigs.k8s.io/yaml"
 
 	"github.com/goodrain/rainbond/util/commonutil"
 	"github.com/pkg/errors"
@@ -15,11 +14,10 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/kube"
+	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/yaml"
 )
 
 type App struct {
@@ -30,20 +28,19 @@ type App struct {
 	namespace    string
 	version      string
 	chartDir     string
+	revision     int
 
 	encodedValues string
 
 	helm *Helm
 	repo *Repo
-
-	builder *resource.Builder
 }
 
 func (a *App) Chart() string {
 	return a.repoName + "/" + a.templateName
 }
 
-func NewApp(name, namespace, templateName, version, values, repoName, repoURL, repoFile, repoCache string) (*App, error) {
+func NewApp(name, namespace, templateName, version string, revision int, values, repoName, repoURL, repoFile, repoCache string) (*App, error) {
 	configFlags := genericclioptions.NewConfigFlags(true)
 	configFlags.Namespace = commonutil.String(namespace)
 	kubeClient := kube.New(configFlags)
@@ -61,6 +58,7 @@ func NewApp(name, namespace, templateName, version, values, repoName, repoURL, r
 		repoName:      repoName,
 		repoURL:       repoURL,
 		version:       version,
+		revision:      revision,
 		encodedValues: values,
 		helm:          helm,
 		repo:          repo,
@@ -111,12 +109,12 @@ func (a *App) PreInstall() error {
 	return nil
 }
 
-func (a *App) Status() (string, error) {
+func (a *App) Status() (*release.Release, error) {
 	release, err := a.helm.Status(a.name)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(release.Info.Status), nil
+	return release, nil
 }
 
 func (a *App) InstallOrUpdate() error {
@@ -188,43 +186,10 @@ func (a *App) ParseChart() (string, string, error) {
 	return values, readme, err
 }
 
-func (a *App) parseServices(manifests string) ([]*corev1.Service, error) {
-	// Create a local builder...
-	builder := resource.NewLocalBuilder().
-		// Configure with a scheme to get typed objects in the versions registered with the scheme.
-		// As an alternative, could call Unstructured() to get unstructured objects.
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
-		// Provide input via a Reader.
-		// As an alternative, could call Path(false, "/path/to/file") to read from a file.
-		Stream(bytes.NewBufferString(manifests), "input").
-		// Flatten items contained in List objects
-		Flatten().
-		// Accumulate as many items as possible
-		ContinueOnError()
-
-	// Run the builder
-	result := builder.Do()
-
-	items, err := result.Infos()
-	if err != nil {
-		return nil, errors.WithMessage(err, "resource infos")
-	}
-
-	var services []*corev1.Service
-	for _, item := range items {
-		if item.Object.GetObjectKind().GroupVersionKind().Kind != "Service" {
-			continue
-		}
-		svc, ok := item.Object.(*corev1.Service)
-		if !ok {
-			continue
-		}
-		services = append(services, svc)
-	}
-
-	return services, nil
-}
-
 func (a *App) Uninstall() error {
 	return a.helm.Uninstall(a.name)
+}
+
+func (a *App) Rollback() error {
+	return a.helm.Rollback(a.name, a.revision)
 }

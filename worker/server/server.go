@@ -198,6 +198,9 @@ func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus,
 		Memory:         memory,
 		SetMemory:      memory > 0,
 		Readme:         helmApp.Status.Readme,
+		Values:         helmApp.Status.CurrentValues,
+		Version:        helmApp.Status.CurrentVersion,
+		Revision:       int32(helmApp.Status.CurrentRevision),
 	}, nil
 }
 
@@ -789,12 +792,12 @@ func (r *RuntimeServer) ParseAppServices(ctx context.Context, req *pb.ParseAppSe
 	configFlags.Namespace = commonutil.String(app.TenantID)
 	kubeClient := kube.New(configFlags)
 
-	h, err := helm.NewHelm(kubeClient, configFlags, app.TenantID, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
+	h, err := helm.NewHelm(kubeClient, configFlags, app.TenantID, r.conf.Helm.RepoFile, r.conf.Helm.RepoCache)
 	if err != nil {
 		return nil, err
 	}
 
-	repo := helm.NewRepo("/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
+	repo := helm.NewRepo(r.conf.Helm.RepoFile, r.conf.Helm.RepoCache)
 	if err := repo.Add(app.AppStoreName, app.AppStoreURL, "", ""); err != nil {
 		logrus.Warningf("add repo: %v", err)
 	}
@@ -846,5 +849,44 @@ func (r *RuntimeServer) ParseAppServices(ctx context.Context, req *pb.ParseAppSe
 
 	return &pb.AppServices{
 		Services: appServices,
+	}, nil
+}
+
+func (r *RuntimeServer) ListHelmAppRelease(ctx context.Context, req *pb.AppReq) (*pb.HelmAppReleases, error) {
+	app, err := db.GetManager().ApplicationDao().GetAppByID(req.AppId)
+	if err != nil {
+		return nil, err
+	}
+
+	configFlags := genericclioptions.NewConfigFlags(true)
+	configFlags.Namespace = commonutil.String(app.TenantID)
+	kubeClient := kube.New(configFlags)
+
+	h, err := helm.NewHelm(kubeClient, configFlags, app.TenantID, r.conf.Helm.RepoFile, r.conf.Helm.RepoCache)
+	if err != nil {
+		return nil, err
+	}
+
+	rels, err := h.History(app.AppName)
+	if err != nil {
+		return nil, err
+	}
+
+	var releases []*pb.HelmAppRelease
+	for _, rel := range rels {
+		releases = append(releases, &pb.HelmAppRelease{
+			Revision:    int32(rel.Revision),
+			Updated:     rel.Updated.String(),
+			Status:      rel.Status,
+			Chart:       rel.Chart,
+			AppVersion:  rel.AppVersion,
+			Description: rel.Description,
+		})
+	}
+
+	logrus.Debugf("%d releases were found for app %s", len(releases), app.AppName+"/"+app.TenantID)
+
+	return &pb.HelmAppReleases{
+		HelmAppRelease: releases,
 	}, nil
 }

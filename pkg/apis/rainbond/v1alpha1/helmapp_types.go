@@ -125,7 +125,7 @@ type HelmAppSpec struct {
 	Version string `json:"version"`
 
 	// The application revision.
-	Revision *int32 `json:"revision,omitempty"`
+	Revision int `json:"revision,omitempty"`
 
 	// The values.yaml of the helm app, encoded by base64.
 	Values string `json:"values,omitempty"`
@@ -169,19 +169,30 @@ type HelmAppStatus struct {
 	// The status of helm app.
 	Status HelmAppStatusStatus `json:"status"`
 
+	// The phase of the helm app.
 	Phase HelmAppStatusPhase `json:"phase"`
 
 	// Current state of helm app.
 	Conditions []HelmAppCondition `json:"conditions,omitempty"`
 
+	// The base64 encoded string from the active values.
 	CurrentValues string `json:"currentValues,omitempty"`
 
-	CurrentRevision string `json:"currentRevision,omitempty"`
+	// The actual revision of the helm app, as same as the revision from 'helm status'
+	CurrentRevision int `json:"currentRevision,omitempty"`
+
+	// TargetRevision is the revision that used to rollbak the helm app.
+	// After executing command 'helm rollback [appName] [targetRevision]', the actual
+	// revision of helm app is currentRevision, not targetRevision.
+	// The new currentRevision is equals to the origin currentRevision plus one.
+	TargetRevision int `json:"targetRevision,omitempty"`
 
 	CurrentVersion string `json:"currentVersion,omitempty"`
 
+	// The base64 encoded string from values.yaml
 	ValuesTemplate string `json:"valuesTemplate,omitempty"`
 
+	// The base64 encoded string from README.md
 	Readme string `json:"readme,omitempty"`
 }
 

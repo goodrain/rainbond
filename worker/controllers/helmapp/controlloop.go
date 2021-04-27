@@ -79,7 +79,7 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 
 	appStore := helmApp.Spec.AppStore
 	app, err := helm.NewApp(helmApp.Name, helmApp.Namespace,
-		helmApp.Spec.TemplateName, helmApp.Spec.Version, helmApp.Spec.Values,
+		helmApp.Spec.TemplateName, helmApp.Spec.Version, helmApp.Spec.Revision, helmApp.Spec.Values,
 		helmApp.Spec.FullName(), appStore.URL, c.repoFile, c.repoCache)
 
 	if err != nil {
@@ -90,12 +90,20 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 
 	defer func() {
 		helmApp.Status = status.GetHelmAppStatus()
-		s, _ := app.Status()
-		helmApp.Status.Status = v1alpha1.HelmAppStatusStatus(s)
+		appStatus, err := app.Status()
+		if err != nil {
+			logrus.Warningf("get app status: %v", err)
+		} else {
+			helmApp.Status.Status = v1alpha1.HelmAppStatusStatus(appStatus.Info.Status)
+			helmApp.Status.CurrentRevision = appStatus.Version
+		}
 		// TODO: handle the error
-		c.updateStatus(helmApp)
+		if err := c.updateStatus(helmApp); err != nil {
+			logrus.Warningf("update app status: %v", err)
+		}
 	}()
 
+	// update condition quickly
 	if !continu3 {
 		return nil
 	}
@@ -117,12 +125,27 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 		status.CurrentVersion = helmApp.Spec.Version
 	}
 
+	if needRollback(helmApp) {
+		if err := app.Rollback(); err != nil {
+			logrus.Warningf("app: %s; namespace: %s; rollback helm app: %v", helmApp.Name, helmApp.Namespace, err)
+		} else {
+			status.TargetRevision = helmApp.Spec.Revision
+		}
+	}
+
 	return nil
 }
 
+// check if the helmApp needed to be update
 func needUpdate(helmApp *v1alpha1.HelmApp) bool {
 	return helmApp.Spec.Values != helmApp.Status.CurrentValues ||
 		helmApp.Spec.Version != helmApp.Status.CurrentVersion
+}
+
+// check if the helmApp needed to be rollback
+func needRollback(helmApp *v1alpha1.HelmApp) bool {
+	return helmApp.Spec.Revision != 0 &&
+		helmApp.Spec.Revision != helmApp.Status.TargetRevision
 }
 
 func (c *ControlLoop) updateStatus(helmApp *v1alpha1.HelmApp) error {

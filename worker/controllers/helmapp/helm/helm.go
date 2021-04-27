@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"unsafe"
@@ -15,8 +16,21 @@ import (
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/release"
+	"helm.sh/helm/v3/pkg/releaseutil"
+	helmtime "helm.sh/helm/v3/pkg/time"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
+
+type ReleaseInfo struct {
+	Revision    int           `json:"revision"`
+	Updated     helmtime.Time `json:"updated"`
+	Status      string        `json:"status"`
+	Chart       string        `json:"chart"`
+	AppVersion  string        `json:"app_version"`
+	Description string        `json:"description"`
+}
+
+type ReleaseHistory []ReleaseInfo
 
 type Helm struct {
 	cfg       *action.Configuration
@@ -182,6 +196,44 @@ func (h *Helm) Uninstall(name string) error {
 	return err
 }
 
+func (h *Helm) Rollback(name string, revision int) error {
+	logrus.Infof("name: %s; revision: %d; rollback helm app", name, revision)
+	client := action.NewRollback(h.cfg)
+	client.Version = revision
+
+	if err := client.Run(name); err != nil {
+		return errors.Wrap(err, "helm rollback")
+	}
+	return nil
+}
+
+func (h *Helm) History(name string) (ReleaseHistory, error) {
+	logrus.Debugf("name: %s; list helm app history", name)
+	client := action.NewHistory(h.cfg)
+	client.Max = 256
+
+	hist, err := client.Run(name)
+	if err != nil {
+		return nil, err
+	}
+
+	releaseutil.Reverse(hist, releaseutil.SortByRevision)
+
+	var rels []*release.Release
+	for i := 0; i < min(len(hist), client.Max); i++ {
+		rels = append(rels, hist[i])
+	}
+
+	if len(rels) == 0 {
+		logrus.Debugf("name: %s; helm app history not found", name)
+		return nil, nil
+	}
+
+	releaseHistory := getReleaseHistory(rels)
+
+	return releaseHistory, nil
+}
+
 // checkIfInstallable validates if a chart can be installed
 //
 // Application chart type is only installable
@@ -191,4 +243,54 @@ func checkIfInstallable(ch *chart.Chart) error {
 		return nil
 	}
 	return errors.Errorf("%s charts are not installable", ch.Metadata.Type)
+}
+
+func min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
+}
+
+func getReleaseHistory(rls []*release.Release) (history ReleaseHistory) {
+	for i := len(rls) - 1; i >= 0; i-- {
+		r := rls[i]
+		c := formatChartname(r.Chart)
+		s := r.Info.Status.String()
+		v := r.Version
+		d := r.Info.Description
+		a := formatAppVersion(r.Chart)
+
+		rInfo := ReleaseInfo{
+			Revision:    v,
+			Status:      s,
+			Chart:       c,
+			AppVersion:  a,
+			Description: d,
+		}
+		if !r.Info.LastDeployed.IsZero() {
+			rInfo.Updated = r.Info.LastDeployed
+		}
+		history = append(history, rInfo)
+	}
+
+	return history
+}
+
+func formatChartname(c *chart.Chart) string {
+	if c == nil || c.Metadata == nil {
+		// This is an edge case that has happened in prod, though we don't
+		// know how: https://github.com/helm/helm/issues/1347
+		return "MISSING"
+	}
+	return fmt.Sprintf("%s-%s", c.Name(), c.Metadata.Version)
+}
+
+func formatAppVersion(c *chart.Chart) string {
+	if c == nil || c.Metadata == nil {
+		// This is an edge case that has happened in prod, though we don't
+		// know how: https://github.com/helm/helm/issues/1347
+		return "MISSING"
+	}
+	return c.AppVersion()
 }

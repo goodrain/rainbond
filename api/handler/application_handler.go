@@ -54,6 +54,7 @@ type ApplicationHandler interface {
 	ListServices(ctx context.Context, app *dbmodel.Application) ([]*model.AppService, error)
 	EnsureAppName(ctx context.Context, namespace, appName string) (*model.EnsureAppNameResp, error)
 	ParseServices(ctx context.Context, app *dbmodel.Application, values string) ([]*model.AppService, error)
+	ListHelmAppReleases(ctx context.Context, app *dbmodel.Application) ([]*model.HelmAppRelease, error)
 
 	DeleteConfigGroup(appID, configGroupName string) error
 	ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error)
@@ -115,7 +116,6 @@ func (a *ApplicationAction) createHelmApp(ctx context.Context, app *dbmodel.Appl
 			EID:          app.EID,
 			TemplateName: app.AppTemplateName,
 			Version:      app.Version,
-			Revision:     commonutil.Int32(0),
 			AppStore: &v1alpha1.HelmAppStore{
 				Version: "", // TODO: setup version.
 				Name:    app.AppStoreName,
@@ -169,30 +169,39 @@ func (a *ApplicationAction) UpdateApp(ctx context.Context, app *dbmodel.Applicat
 			return err
 		}
 
-		if req.Values != "" || req.Version != "" {
-			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
-			helmApp, err := a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Get(ctx, app.AppName, metav1.GetOptions{})
-			if err != nil {
-				if k8sErrors.IsNotFound(err) {
-					return errors.Wrap(bcode.ErrApplicationNotFound, "update app")
-				}
-				return errors.Wrap(err, "update app")
+		if req.NeedUpdateHelmApp() {
+			if err := a.updateHelmApp(ctx, app, req); err != nil {
+				return err
 			}
-			if req.Values != "" {
-				helmApp.Spec.Values = req.Values
-			}
-			if req.Version != "" {
-				helmApp.Spec.Version = req.Version
-			}
-			_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Update(ctx, helmApp, metav1.UpdateOptions{})
-			return err
 		}
 
 		return nil
 	})
 
 	return app, err
+}
+
+func (a *ApplicationAction) updateHelmApp(ctx context.Context, app *dbmodel.Application, req model.UpdateAppRequest) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	helmApp, err := a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Get(ctx, app.AppName, metav1.GetOptions{})
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			return errors.Wrap(bcode.ErrApplicationNotFound, "update app")
+		}
+		return errors.Wrap(err, "update app")
+	}
+	if req.Values != "" {
+		helmApp.Spec.Values = req.Values
+	}
+	if req.Version != "" {
+		helmApp.Spec.Version = req.Version
+	}
+	if req.Revision != 0 {
+		helmApp.Spec.Revision = req.Revision
+	}
+	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Update(ctx, helmApp, metav1.UpdateOptions{})
+	return err
 }
 
 // ListApps -
@@ -356,7 +365,10 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 		Disk:           int64(diskUsage),
 		Phase:          status.Phase,
 		ValuesTemplate: status.ValuesTemplate,
+		Values:         status.Values,
 		Readme:         status.Readme,
+		Version:        status.Version,
+		Revision:       int(status.Revision),
 	}
 	return res, nil
 }
@@ -458,6 +470,7 @@ func (a *ApplicationAction) ListServices(ctx context.Context, app *dbmodel.Appli
 				PodStatus: pod.Status,
 			})
 		}
+		sort.Sort(model.ByPodName(pods))
 		svc.Pods = pods
 
 		for _, port := range service.TcpPorts {
@@ -514,4 +527,34 @@ func (a *ApplicationAction) EnsureAppName(ctx context.Context, namespace, appNam
 	return &model.EnsureAppNameResp{
 		AppName: appName,
 	}, nil
+}
+
+func (a *ApplicationAction) ListHelmAppReleases(ctx context.Context, app *dbmodel.Application) ([]*model.HelmAppRelease, error) {
+	// only for helm app
+	if app.AppType != model.AppTypeHelm {
+		return nil, nil
+	}
+
+	nctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	releases, err := a.statusCli.ListHelmAppRelease(nctx, &pb.AppReq{
+		AppId: app.AppID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*model.HelmAppRelease
+	for _, rel := range releases.HelmAppRelease {
+		result = append(result, &model.HelmAppRelease{
+			Revision:    int(rel.Revision),
+			Updated:     rel.Updated,
+			Status:      rel.Status,
+			Chart:       rel.Chart,
+			AppVersion:  rel.AppVersion,
+			Description: rel.Description,
+		})
+	}
+	return result, nil
 }

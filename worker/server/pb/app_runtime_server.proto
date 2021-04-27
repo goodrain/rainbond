@@ -20,6 +20,7 @@ service AppRuntimeSync {
   rpc ListHelmAppDetectConditions(AppReq) returns(AppDetectConditions){}
   rpc ListAppServices(AppReq) returns(AppServices){}
   rpc ParseAppServices(ParseAppServicesReq) returns(AppServices){}
+  rpc ListHelmAppRelease(AppReq) returns(HelmAppReleases){}
 }
 
 message Empty {}
@@ -263,6 +264,9 @@ message AppStatus {
   string readme = 6;
   bool setCPU = 7;
   bool setMemory = 8;
+  string values = 9;
+  string version = 10;
+  int32 revision = 11;
 }
 
 message AppDetectCondition {
@@ -297,3 +301,15 @@ message ParseAppServicesReq {
     string values=2;
 }
 
+message HelmAppReleases {
+  repeated HelmAppRelease helmAppRelease=1;
+}
+
+message HelmAppRelease {
+  int32 revision=1;
+  string updated=2;
+  string status=3;
+  string chart=4;
+  string appVersion=5;
+  string description=6;
+}

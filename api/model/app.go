@@ -11,12 +11,15 @@ type AppPort struct {
 // AppStatus -
 type AppStatus struct {
 	Status         string `json:"status"`
-	Cpu            *int64  `json:"cpu"`
-	Memory         *int64  `json:"memory"`
+	Cpu            *int64 `json:"cpu"`
+	Memory         *int64 `json:"memory"`
 	Disk           int64  `json:"disk"`
 	Phase          string `json:"phase"`
 	ValuesTemplate string `json:"valuesTemplate"`
+	Values         string `json:"values"`
 	Readme         string `json:"readme"`
+	Version        string `json:"version"`
+	Revision       int    `json:"revision"`
 }
 
 // AppDetectProcess -
@@ -46,3 +49,11 @@ type AppPod struct {
 	PodName   string `json:"pod_name"`
 	PodStatus string `json:"pod_status"`
 }
+
+// ByPodName implements sort.Interface for []*AppPod based on
+// the PodName field.
+type ByPodName []*AppPod
+
+func (a ByPodName) Len() int           { return len(a) }
+func (a ByPodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByPodName) Less(i, j int) bool { return a[i].PodName < a[j].PodName }

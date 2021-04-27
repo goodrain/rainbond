@@ -73,7 +73,6 @@ spec:
               type: string
             revision:
               description: The application revision.
-              format: int32
               type: integer
             values:
               description: The values.yaml of the helm app, encoded by base64.
@@ -122,20 +121,32 @@ spec:
                 type: object
               type: array
             currentRevision:
-              type: string
+              description: The actual revision of the helm app, as same as the revision
+                from 'helm status'
+              type: integer
             currentValues:
+              description: The base64 encoded string from the active values.
+              type: string
+            currentVersion:
               type: string
             phase:
-              description: The phase of helm app
+              description: The phase of the helm app.
               type: string
             readme:
-              type: string
-            services:
+              description: The base64 encoded string from README.md
               type: string
             status:
               description: The status of helm app.
               type: string
+            targetRevision:
+              description: TargetRevision is the revision that used to rollbak the
+                helm app. After executing command 'helm rollback [appName] [targetRevision]',
+                the actual revision of helm app is currentRevision, not targetRevision.
+                The new currentRevision is equals to the origin currentRevision plus
+                one.
+              type: integer
             valuesTemplate:
+              description: The base64 encoded string from values.yaml
               type: string
           required:
           - phase

@@ -1695,6 +1695,12 @@ type UpdateAppRequest struct {
 	GovernanceMode string `json:"governance_mode"`
 	Values         string `json:"values"`
 	Version        string `json:"version"`
+	Revision       int    `json:"revision"`
+}
+
+// NeedUpdateHelmApp check if necessary to update the helm app.
+func (u *UpdateAppRequest) NeedUpdateHelmApp() bool {
+	return u.Values != "" || u.Version != "" || u.Revision != 0
 }
 
 // BindServiceRequest -
@@ -1772,4 +1778,14 @@ type EnsureAppNameReq struct {
 // EnsureAppNameResp -
 type EnsureAppNameResp struct {
 	AppName string `json:"app_name"`
+}
+
+// HelmAppRelease -
+type HelmAppRelease struct {
+	Revision    int    `json:"revision"`
+	Updated     string `json:"updated"`
+	Status      string `json:"status"`
+	Chart       string `json:"chart"`
+	AppVersion  string `json:"app_version"`
+	Description string `json:"description"`
 }

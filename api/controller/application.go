@@ -283,3 +283,15 @@ func (a *ApplicationController) ParseServices(w http.ResponseWriter, r *http.Req
 
 	httputil.ReturnSuccess(r, w, services)
 }
+
+func (a *ApplicationController) ListHelmAppReleases(w http.ResponseWriter, r *http.Request) {
+	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+
+	releases, err := handler.GetApplicationHandler().ListHelmAppReleases(r.Context(), app)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, releases)
+}
