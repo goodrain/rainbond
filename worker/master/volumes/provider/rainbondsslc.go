@@ -117,7 +117,7 @@ func (p *rainbondsslcProvisioner) selectNode(ctx context.Context, nodeOS, ignore
 					if available >= maxavailable {
 						logrus.Infof("select node: %s", node.Name)
 						maxavailable = available
-						selectnode = &node
+						selectnode = node.DeepCopy()
 					} else {
 						logrus.Infof("Node: %s; node available memory(%d) is less than max available "+
 							"memory(%d)", node.Name, available, maxavailable)

@@ -70,16 +70,17 @@ type mockBackend struct {
 
 func (m mockBackend) GetDefaultBackend() defaults.Backend {
 	return defaults.Backend{
-		ProxyConnectTimeout:    10,
-		ProxySendTimeout:       15,
-		ProxyReadTimeout:       20,
-		ProxyBuffersNumber:     4,
-		ProxyBufferSize:        "10k",
-		ProxyBodySize:          3,
-		ProxyNextUpstream:      "error",
-		ProxyNextUpstreamTries: 3,
-		ProxyRequestBuffering:  "on",
-		ProxyBuffering:         "off",
+		ProxyConnectTimeout:      10,
+		ProxySendTimeout:         15,
+		ProxyReadTimeout:         20,
+		ProxyBuffersNumber:       4,
+		ProxyBufferSize:          "10k",
+		ProxyBodySize:            3,
+		ProxyNextUpstream:        "error timeout",
+		ProxyNextUpstreamTries:   3,
+		ProxyNextUpstreamTimeout: 0,
+		ProxyRequestBuffering:    "on",
+		ProxyBuffering:           "off",
 	}
 }
 
@@ -125,9 +126,6 @@ func TestProxy(t *testing.T) {
 	if p.BodySize != 2 {
 		t.Errorf("expected 2 as body-size but returned %v", p.BodySize)
 	}
-	if p.NextUpstream != "off" {
-		t.Errorf("expected off as next-upstream but returned %v", p.NextUpstream)
-	}
 	if p.NextUpstreamTries != 3 {
 		t.Errorf("expected 3 as next-upstream-tries but returned %v", p.NextUpstreamTries)
 	}
@@ -170,9 +168,6 @@ func TestProxyWithNoAnnotation(t *testing.T) {
 	}
 	if p.BodySize != 3 {
 		t.Errorf("expected 3k as body-size but returned %v", p.BodySize)
-	}
-	if p.NextUpstream != "error" {
-		t.Errorf("expected error as next-upstream but returned %v", p.NextUpstream)
 	}
 	if p.NextUpstreamTries != 3 {
 		t.Errorf("expected 3 as next-upstream-tries but returned %v", p.NextUpstreamTries)

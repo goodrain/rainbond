@@ -15,6 +15,7 @@ import (
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/sirupsen/logrus"
+	"github.com/jinzhu/gorm"
 )
 
 // ApplicationAction -
@@ -274,13 +275,15 @@ func (a *ApplicationAction) getDiskUsage(appID string) float64 {
 
 // BatchBindService -
 func (a *ApplicationAction) BatchBindService(appID string, req model.BindServiceRequest) error {
+	var serviceIDs []string
 	for _, sid := range req.ServiceIDs {
 		if _, err := db.GetManager().TenantServiceDao().GetServiceByID(sid); err != nil {
+			if err == gorm.ErrRecordNotFound {
+				continue
+			}
 			return err
 		}
+		serviceIDs = append(serviceIDs, sid)
 	}
-	if err := db.GetManager().TenantServiceDao().BindAppByServiceIDs(appID, req.ServiceIDs); err != nil {
-		return err
-	}
-	return nil
+	return db.GetManager().TenantServiceDao().BindAppByServiceIDs(appID, serviceIDs)
 }

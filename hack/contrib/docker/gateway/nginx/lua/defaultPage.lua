@@ -274,7 +274,6 @@ function _M.call()
     html = string.gsub(_M.defaultHTML, "POWER", [[<p class="text2" id="power">Power By <a href="https://www.rainbond.com" target="_blank" rel="noopener noreferrer">Rainbond</a></p>]],1)
   end
   ngx.print(html)
-  ngx.status = ngx.HTTP_OK
 end
 
 return _M
