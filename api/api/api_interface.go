@@ -169,7 +169,6 @@ type ApplicationInterface interface {
 	Install(w http.ResponseWriter, r *http.Request)
 	ListServices(w http.ResponseWriter, r *http.Request)
 	EnsureAppName(w http.ResponseWriter, r *http.Request)
-	ParseServices(w http.ResponseWriter, r *http.Request)
 	ListHelmAppReleases(w http.ResponseWriter, r *http.Request)
 
 	DeleteConfigGroup(w http.ResponseWriter, r *http.Request)

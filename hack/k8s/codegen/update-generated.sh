@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 vendor/k8s.io/code-generator/generate-groups.sh \
-  "all" \
+  "defaulter,client,lister,informer" \
   "github.com/goodrain/rainbond/pkg/generated" \
   "github.com/goodrain/rainbond/pkg/apis" \
   "rainbond:v1alpha1" \

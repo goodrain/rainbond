@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"unsafe"
 
+	"github.com/goodrain/rainbond/util/commonutil"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/action"
@@ -17,6 +18,7 @@ import (
 	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/releaseutil"
+	"helm.sh/helm/v3/pkg/strvals"
 	helmtime "helm.sh/helm/v3/pkg/time"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
@@ -42,7 +44,11 @@ type Helm struct {
 }
 
 // NewHelm creates a new helm.
-func NewHelm(kubeClient kube.Interface, configFlags *genericclioptions.ConfigFlags, namespace, repoFile, repoCache string) (*Helm, error) {
+func NewHelm(namespace, repoFile, repoCache string) (*Helm, error) {
+	configFlags := genericclioptions.NewConfigFlags(true)
+	configFlags.Namespace = commonutil.String(namespace)
+	kubeClient := kube.New(configFlags)
+
 	cfg := &action.Configuration{
 		KubeClient: kubeClient,
 		Log: func(s string, i ...interface{}) {
@@ -77,20 +83,20 @@ func (h *Helm) PreInstall(name, chart, version string, out io.Writer) error {
 	return err
 }
 
-func (h *Helm) Install(name, chart, version string, vals map[string]interface{}) error {
-	_, err := h.install(name, chart, version, vals, false, ioutil.Discard)
+func (h *Helm) Install(name, chart, version string, overrides []string) error {
+	_, err := h.install(name, chart, version, overrides, false, ioutil.Discard)
 	return err
 }
 
-func (h *Helm) Manifests(name, chart, version string, vals map[string]interface{}, out io.Writer) (string, error) {
-	rel, err := h.install(name, chart, version, vals, true, out)
+func (h *Helm) Manifests(name, chart, version string, overrides []string, out io.Writer) (string, error) {
+	rel, err := h.install(name, chart, version, overrides, true, out)
 	if err != nil {
 		return "", err
 	}
 	return rel.Manifest, nil
 }
 
-func (h *Helm) install(name, chart, version string, vals map[string]interface{}, dryRun bool, out io.Writer) (*release.Release, error) {
+func (h *Helm) install(name, chart, version string, overrides []string, dryRun bool, out io.Writer) (*release.Release, error) {
 	client := action.NewInstall(h.cfg)
 	client.ReleaseName = name
 	client.Namespace = h.namespace
@@ -105,6 +111,11 @@ func (h *Helm) install(name, chart, version string, vals map[string]interface{},
 	logrus.Debugf("CHART PATH: %s\n", cp)
 
 	p := getter.All(h.settings)
+	// User specified a value via --set
+	vals, err := h.parseOverrides(overrides)
+	if err != nil {
+		return nil, err
+	}
 
 	// Check chart dependencies to make sure all are present in /charts
 	chartRequested, err := loader.Load(cp)
@@ -152,12 +163,27 @@ func (h *Helm) install(name, chart, version string, vals map[string]interface{},
 	return client.Run(chartRequested, vals)
 }
 
-func (h *Helm) Upgrade(name string, chart, version string, vals map[string]interface{}) error {
+func (h *Helm) parseOverrides(overrides []string) (map[string]interface{}, error) {
+	vals := make(map[string]interface{})
+	for _, value := range overrides {
+		if err := strvals.ParseInto(value, vals); err != nil {
+			return nil, errors.Wrap(err, "failed parsing --set data")
+		}
+	}
+	return vals, nil
+}
+func (h *Helm) Upgrade(name string, chart, version string, overrides []string) error {
 	client := action.NewUpgrade(h.cfg)
 	client.Namespace = h.namespace
 	client.Version = version
 
 	chartPath, err := client.ChartPathOptions.LocateChart(chart, h.settings)
+	if err != nil {
+		return err
+	}
+
+	// User specified a value via --set
+	vals, err := h.parseOverrides(overrides)
 	if err != nil {
 		return err
 	}

@@ -8,16 +8,12 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/goodrain/rainbond/util/commonutil"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/cli"
-	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"sigs.k8s.io/yaml"
 )
 
 type App struct {
@@ -29,8 +25,7 @@ type App struct {
 	version      string
 	chartDir     string
 	revision     int
-
-	encodedValues string
+	overrides    []string
 
 	helm *Helm
 	repo *Repo
@@ -40,29 +35,25 @@ func (a *App) Chart() string {
 	return a.repoName + "/" + a.templateName
 }
 
-func NewApp(name, namespace, templateName, version string, revision int, values, repoName, repoURL, repoFile, repoCache string) (*App, error) {
-	configFlags := genericclioptions.NewConfigFlags(true)
-	configFlags.Namespace = commonutil.String(namespace)
-	kubeClient := kube.New(configFlags)
-
-	helm, err := NewHelm(kubeClient, configFlags, namespace, repoFile, repoCache)
+func NewApp(name, namespace, templateName, version string, revision int, overrides []string, repoName, repoURL, repoFile, repoCache string) (*App, error) {
+	helm, err := NewHelm(namespace, repoFile, repoCache)
 	if err != nil {
 		return nil, err
 	}
 	repo := NewRepo(repoFile, repoCache)
 
 	return &App{
-		name:          name,
-		namespace:     namespace,
-		templateName:  templateName,
-		repoName:      repoName,
-		repoURL:       repoURL,
-		version:       version,
-		revision:      revision,
-		encodedValues: values,
-		helm:          helm,
-		repo:          repo,
-		chartDir:      path.Join("/tmp/helm/chart", namespace, name, version),
+		name:         name,
+		namespace:    namespace,
+		templateName: templateName,
+		repoName:     repoName,
+		repoURL:      repoURL,
+		version:      version,
+		revision:     revision,
+		overrides:    overrides,
+		helm:         helm,
+		repo:         repo,
+		chartDir:     path.Join("/tmp/helm/chart", namespace, name, version),
 	}, nil
 }
 
@@ -110,11 +101,11 @@ func (a *App) PreInstall() error {
 }
 
 func (a *App) Status() (*release.Release, error) {
-	release, err := a.helm.Status(a.name)
+	rel, err := a.helm.Status(a.name)
 	if err != nil {
 		return nil, err
 	}
-	return release, nil
+	return rel, nil
 }
 
 func (a *App) InstallOrUpdate() error {
@@ -122,23 +113,14 @@ func (a *App) InstallOrUpdate() error {
 		return err
 	}
 
-	b, err := base64.StdEncoding.DecodeString(a.encodedValues)
-	if err != nil {
-		return errors.Wrap(err, "decode values")
-	}
-	values := map[string]interface{}{}
-	if err := yaml.Unmarshal(b, &values); err != nil {
-		return errors.Wrap(err, "parse values")
-	}
-
-	_, err = a.helm.Status(a.name)
+	_, err := a.helm.Status(a.name)
 	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
 		return err
 	}
 
 	if errors.Is(err, driver.ErrReleaseNotFound) {
 		logrus.Debugf("name: %s; namespace: %s; chart: %s; install helm app", a.name, a.namespace, a.Chart())
-		if err := a.helm.Install(a.name, a.Chart(), a.version, values); err != nil {
+		if err := a.helm.Install(a.name, a.Chart(), a.version, a.overrides); err != nil {
 			return err
 		}
 
@@ -146,7 +128,7 @@ func (a *App) InstallOrUpdate() error {
 	}
 
 	logrus.Debugf("name: %s; namespace: %s; chart: %s; upgrade helm app", a.name, a.namespace, a.Chart())
-	return a.helm.Upgrade(a.name, a.chart(), a.version, values)
+	return a.helm.Upgrade(a.name, a.chart(), a.version, a.overrides)
 }
 
 func (a *App) ParseChart() (string, string, error) {
@@ -191,5 +173,9 @@ func (a *App) Uninstall() error {
 }
 
 func (a *App) Rollback() error {
+	if err := a.repo.Add(a.repoName, a.repoURL, "", ""); err != nil {
+		return err
+	}
+
 	return a.helm.Rollback(a.name, a.revision)
 }

@@ -215,7 +215,7 @@ func (a *ApplicationController) Install(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := handler.GetApplicationHandler().Install(r.Context(), app, installAppReq.Values); err != nil {
+	if err := handler.GetApplicationHandler().Install(r.Context(), app, installAppReq.Overrides); err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
@@ -265,23 +265,6 @@ func (a *ApplicationController) EnsureAppName(w http.ResponseWriter, r *http.Req
 	}
 
 	httputil.ReturnSuccess(r, w, res)
-}
-
-func (a *ApplicationController) ParseServices(w http.ResponseWriter, r *http.Request) {
-	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
-
-	var installAppReq model.ParseAppServicesReq
-	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &installAppReq, nil) {
-		return
-	}
-
-	services, err := handler.GetApplicationHandler().ParseServices(r.Context(), app, installAppReq.Values)
-	if err != nil {
-		httputil.ReturnBcodeError(r, w, err)
-		return
-	}
-
-	httputil.ReturnSuccess(r, w, services)
 }
 
 func (a *ApplicationController) ListHelmAppReleases(w http.ResponseWriter, r *http.Request) {

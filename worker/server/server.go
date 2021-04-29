@@ -19,23 +19,11 @@
 package server
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"strings"
 	"time"
-
-	"github.com/goodrain/rainbond/util/commonutil"
-	"github.com/goodrain/rainbond/worker/controllers/helmapp/helm"
-	"github.com/pkg/errors"
-	"helm.sh/helm/v3/pkg/kube"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/yaml"
 
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
@@ -50,6 +38,7 @@ import (
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/controllers/helmapp/helm"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	wutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/sirupsen/logrus"
@@ -190,17 +179,17 @@ func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus,
 	}
 
 	return &pb.AppStatus{
-		Status:         string(helmApp.Status.Status),
-		Phase:          phase,
-		ValuesTemplate: helmApp.Status.ValuesTemplate,
-		Cpu:            cpu,
-		SetCPU:         cpu > 0,
-		Memory:         memory,
-		SetMemory:      memory > 0,
-		Readme:         helmApp.Status.Readme,
-		Values:         helmApp.Status.CurrentValues,
-		Version:        helmApp.Status.CurrentVersion,
-		Revision:       int32(helmApp.Status.CurrentRevision),
+		Status:    string(helmApp.Status.Status),
+		Phase:     phase,
+		Cpu:       cpu,
+		SetCPU:    cpu > 0,
+		Memory:    memory,
+		SetMemory: memory > 0,
+		Readme:    helmApp.Status.Readme,
+		Version:   helmApp.Status.CurrentVersion,
+		Revision:  int32(helmApp.Status.CurrentRevision),
+		Values:    helmApp.Status.Values,
+		Overrides: helmApp.Status.Overrides,
 	}, nil
 }
 
@@ -772,97 +761,13 @@ func (r *RuntimeServer) convertServices(services []*corev1.Service) []*pb.AppSer
 	return appServices
 }
 
-func (r *RuntimeServer) ParseAppServices(ctx context.Context, req *pb.ParseAppServicesReq) (*pb.AppServices, error) {
-	app, err := db.GetManager().ApplicationDao().GetAppByID(req.AppID)
-	if err != nil {
-		return nil, err
-	}
-
-	b, err := base64.StdEncoding.DecodeString(req.Values)
-	if err != nil {
-		return nil, errors.Wrap(err, "decode values")
-	}
-
-	vals := map[string]interface{}{}
-	if err := yaml.Unmarshal(b, &vals); err != nil {
-		return nil, errors.Wrap(err, "parse values")
-	}
-
-	configFlags := genericclioptions.NewConfigFlags(true)
-	configFlags.Namespace = commonutil.String(app.TenantID)
-	kubeClient := kube.New(configFlags)
-
-	h, err := helm.NewHelm(kubeClient, configFlags, app.TenantID, r.conf.Helm.RepoFile, r.conf.Helm.RepoCache)
-	if err != nil {
-		return nil, err
-	}
-
-	repo := helm.NewRepo(r.conf.Helm.RepoFile, r.conf.Helm.RepoCache)
-	if err := repo.Add(app.AppStoreName, app.AppStoreURL, "", ""); err != nil {
-		logrus.Warningf("add repo: %v", err)
-	}
-
-	manifests, err := h.Manifests(app.AppName, app.AppStoreName+"/"+app.AppTemplateName, app.Version, vals, ioutil.Discard)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create a local builder...
-	builder := resource.NewLocalBuilder().
-		// Configure with a scheme to get typed objects in the versions registered with the scheme.
-		// As an alternative, could call Unstructured() to get unstructured objects.
-		WithScheme(scheme.Scheme, scheme.Scheme.PrioritizedVersionsAllGroups()...).
-		// Provide input via a Reader.
-		// As an alternative, could call Path(false, "/path/to/file") to read from a file.
-		Stream(bytes.NewBufferString(manifests), "input").
-		// Flatten items contained in List objects
-		Flatten().
-		// Accumulate as many items as possible
-		ContinueOnError()
-
-	// Run the builder
-	logrus.Debugf("start parse manifests: %s", manifests)
-	result := builder.Do()
-
-	if result.Err() != nil {
-		logrus.Warningf("parse manifests: %v", err)
-	}
-
-	items, err := result.Infos()
-	if err != nil {
-		return nil, errors.WithMessage(err, "resource infos")
-	}
-
-	var services []*corev1.Service
-	for _, item := range items {
-		if item.Object.GetObjectKind().GroupVersionKind().Kind != "Service" {
-			continue
-		}
-		svc, ok := item.Object.(*corev1.Service)
-		if !ok {
-			continue
-		}
-		services = append(services, svc)
-	}
-
-	appServices := r.convertServices(services)
-
-	return &pb.AppServices{
-		Services: appServices,
-	}, nil
-}
-
 func (r *RuntimeServer) ListHelmAppRelease(ctx context.Context, req *pb.AppReq) (*pb.HelmAppReleases, error) {
 	app, err := db.GetManager().ApplicationDao().GetAppByID(req.AppId)
 	if err != nil {
 		return nil, err
 	}
 
-	configFlags := genericclioptions.NewConfigFlags(true)
-	configFlags.Namespace = commonutil.String(app.TenantID)
-	kubeClient := kube.New(configFlags)
-
-	h, err := helm.NewHelm(kubeClient, configFlags, app.TenantID, r.conf.Helm.RepoFile, r.conf.Helm.RepoCache)
+	h, err := helm.NewHelm(app.TenantID, r.conf.Helm.RepoFile, r.conf.Helm.RepoCache)
 	if err != nil {
 		return nil, err
 	}

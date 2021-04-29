@@ -2,6 +2,7 @@ package helmapp
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
@@ -9,6 +10,7 @@ import (
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/controllers/helmapp/helm"
 	"github.com/sirupsen/logrus"
+	"helm.sh/helm/v3/pkg/storage/driver"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
@@ -17,7 +19,7 @@ import (
 type ControlLoop struct {
 	clientset versioned.Interface
 	storer    Storer
-	workqueue workqueue.Interface
+	workQueue workqueue.Interface
 	repo      *helm.Repo
 	repoFile  string
 	repoCache string
@@ -26,7 +28,7 @@ type ControlLoop struct {
 // NewControlLoop -
 func NewControlLoop(clientset versioned.Interface,
 	storer Storer,
-	workqueue workqueue.Interface,
+	workQueue workqueue.Interface,
 	repoFile string,
 	repoCache string,
 ) *ControlLoop {
@@ -35,7 +37,7 @@ func NewControlLoop(clientset versioned.Interface,
 	return &ControlLoop{
 		clientset: clientset,
 		storer:    storer,
-		workqueue: workqueue,
+		workQueue: workQueue,
 		repo:      repo,
 		repoFile:  repoFile,
 		repoCache: repoCache,
@@ -44,7 +46,7 @@ func NewControlLoop(clientset versioned.Interface,
 
 func (c *ControlLoop) Run() {
 	for {
-		obj, shutdown := c.workqueue.Get()
+		obj, shutdown := c.workQueue.Get()
 		if shutdown {
 			return
 		}
@@ -58,7 +60,7 @@ func (c *ControlLoop) run(obj interface{}) {
 	if !ok {
 		return
 	}
-	defer c.workqueue.Done(obj)
+	defer c.workQueue.Done(obj)
 	name, ns := nameNamespace(key)
 
 	helmApp, err := c.storer.GetHelmApp(ns, name)
@@ -79,7 +81,7 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 
 	appStore := helmApp.Spec.AppStore
 	app, err := helm.NewApp(helmApp.Name, helmApp.Namespace,
-		helmApp.Spec.TemplateName, helmApp.Spec.Version, helmApp.Spec.Revision, helmApp.Spec.Values,
+		helmApp.Spec.TemplateName, helmApp.Spec.Version, helmApp.Spec.Revision, helmApp.Spec.Overrides,
 		helmApp.Spec.FullName(), appStore.URL, c.repoFile, c.repoCache)
 
 	if err != nil {
@@ -92,7 +94,9 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 		helmApp.Status = status.GetHelmAppStatus()
 		appStatus, err := app.Status()
 		if err != nil {
-			logrus.Warningf("get app status: %v", err)
+			if !errors.Is(err, driver.ErrReleaseNotFound) {
+				logrus.Warningf("get app status: %v", err)
+			}
 		} else {
 			helmApp.Status.Status = v1alpha1.HelmAppStatusStatus(appStatus.Info.Status)
 			helmApp.Status.CurrentRevision = appStatus.Version
@@ -121,8 +125,8 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 			return err
 		}
 		status.UpdateConditionStatus(v1alpha1.HelmAppInstalled, corev1.ConditionTrue)
-		status.CurrentValues = helmApp.Spec.Values
 		status.CurrentVersion = helmApp.Spec.Version
+		status.Overrides = helmApp.Spec.Overrides
 	}
 
 	if needRollback(helmApp) {
@@ -138,8 +142,10 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 
 // check if the helmApp needed to be update
 func needUpdate(helmApp *v1alpha1.HelmApp) bool {
-	return helmApp.Spec.Values != helmApp.Status.CurrentValues ||
-		helmApp.Spec.Version != helmApp.Status.CurrentVersion
+	if helmApp.Spec.PreStatus != "Configured" {
+		return false
+	}
+	return !helmApp.OverridesEqual() || helmApp.Spec.Version != helmApp.Status.CurrentVersion
 }
 
 // check if the helmApp needed to be rollback

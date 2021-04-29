@@ -6,8 +6,9 @@ import (
 )
 
 type Status struct {
+	helmApp *v1alpha1.HelmApp
 	v1alpha1.HelmAppStatus
-	values string
+	overrides []string
 }
 
 // NewStatus creates a new helm app status.
@@ -30,7 +31,7 @@ func NewStatus(app *v1alpha1.HelmApp) (*Status, bool) {
 	}
 	return &Status{
 		HelmAppStatus: app.Status,
-		values:        app.Spec.Values,
+		helmApp:       app,
 	}, continu3
 }
 
@@ -47,10 +48,11 @@ func (s *Status) getPhase() v1alpha1.HelmAppStatusPhase {
 	if s.isDetected() {
 		phase = v1alpha1.HelmAppStatusPhaseConfiguring
 	}
-	if s.values != "" {
+	if s.helmApp.Spec.PreStatus == "Configured" {
 		phase = v1alpha1.HelmAppStatusPhaseInstalling
 	}
-	if s.values != "" && s.values == s.CurrentValues {
+	idx, condition := s.helmApp.Status.GetCondition(v1alpha1.HelmAppInstalled)
+	if idx != -1 && condition.Status == corev1.ConditionTrue {
 		phase = v1alpha1.HelmAppStatusPhaseInstalled
 	}
 	return phase

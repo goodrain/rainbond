@@ -69,7 +69,7 @@ func (d *Detector) Detect() error {
 			return err
 		}
 		d.status.UpdateConditionStatus(v1alpha1.HelmAppChartParsed, corev1.ConditionTrue)
-		d.status.ValuesTemplate = values
+		d.status.Values = values
 		d.status.Readme = readme
 	}
 

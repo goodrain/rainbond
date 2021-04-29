@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"sort"
 	"strconv"
@@ -24,6 +25,7 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/yaml"
 )
 
 // ApplicationAction -
@@ -50,10 +52,9 @@ type ApplicationHandler interface {
 	BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error
 	GetStatus(ctx context.Context, app *dbmodel.Application) (*model.AppStatus, error)
 	GetDetectProcess(ctx context.Context, app *dbmodel.Application) ([]*model.AppDetectProcess, error)
-	Install(ctx context.Context, app *dbmodel.Application, values string) error
+	Install(ctx context.Context, app *dbmodel.Application, overrides []string) error
 	ListServices(ctx context.Context, app *dbmodel.Application) ([]*model.AppService, error)
 	EnsureAppName(ctx context.Context, namespace, appName string) (*model.EnsureAppNameResp, error)
-	ParseServices(ctx context.Context, app *dbmodel.Application, values string) ([]*model.AppService, error)
 	ListHelmAppReleases(ctx context.Context, app *dbmodel.Application) ([]*model.HelmAppRelease, error)
 
 	DeleteConfigGroup(appID, configGroupName string) error
@@ -191,8 +192,8 @@ func (a *ApplicationAction) updateHelmApp(ctx context.Context, app *dbmodel.Appl
 		}
 		return errors.Wrap(err, "update app")
 	}
-	if req.Values != "" {
-		helmApp.Spec.Values = req.Values
+	if len(req.Overrides) > 0 {
+		helmApp.Spec.Overrides = req.Overrides
 	}
 	if req.Version != "" {
 		helmApp.Spec.Version = req.Version
@@ -202,6 +203,20 @@ func (a *ApplicationAction) updateHelmApp(ctx context.Context, app *dbmodel.Appl
 	}
 	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Update(ctx, helmApp, metav1.UpdateOptions{})
 	return err
+}
+
+func (a *ApplicationAction) validateValues(encodedValues string) error {
+	values, err := base64.StdEncoding.DecodeString(encodedValues)
+	if err != nil {
+		return errors.Wrap(bcode.ErrInvalidHelmAppValues, err.Error())
+	}
+
+	obj := make(map[string]interface{})
+	if err = yaml.Unmarshal(values, obj); err != nil {
+		return errors.Wrap(bcode.ErrInvalidHelmAppValues, err.Error())
+	}
+
+	return nil
 }
 
 // ListApps -
@@ -401,16 +416,16 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 	}
 
 	res := &model.AppStatus{
-		Status:         status.Status,
-		Cpu:            cpu,
-		Memory:         memory,
-		Disk:           int64(diskUsage),
-		Phase:          status.Phase,
-		ValuesTemplate: status.ValuesTemplate,
-		Values:         status.Values,
-		Readme:         status.Readme,
-		Version:        status.Version,
-		Revision:       int(status.Revision),
+		Status:    status.Status,
+		Cpu:       cpu,
+		Memory:    memory,
+		Disk:      int64(diskUsage),
+		Phase:     status.Phase,
+		Overrides: status.Overrides,
+		Values:    status.Values,
+		Readme:    status.Readme,
+		Version:   status.Version,
+		Revision:  int(status.Revision),
 	}
 	return res, nil
 }
@@ -438,36 +453,7 @@ func (a *ApplicationAction) GetDetectProcess(ctx context.Context, app *dbmodel.A
 	return conditions, nil
 }
 
-func (a *ApplicationAction) ParseServices(ctx context.Context, app *dbmodel.Application, values string) ([]*model.AppService, error) {
-	nctx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
-
-	services, err := a.statusCli.ParseAppServices(nctx, &pb.ParseAppServicesReq{
-		AppID:  app.AppID,
-		Values: values,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	var appServices []*model.AppService
-	for _, service := range services.Services {
-		svc := &model.AppService{
-			ServiceName: service.Name,
-			Address:     service.Address,
-		}
-
-		for _, port := range service.TcpPorts {
-			svc.TCPPorts = append(svc.TCPPorts, port)
-		}
-
-		appServices = append(appServices, svc)
-	}
-
-	return appServices, nil
-}
-
-func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Application, values string) error {
+func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Application, overrides []string) error {
 	ctx1, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
@@ -481,7 +467,8 @@ func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Applicatio
 
 	ctx3, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	helmApp.Spec.Values = values
+	helmApp.Spec.Overrides = overrides
+	helmApp.Spec.PreStatus = "Configured"
 	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Update(ctx3, helmApp, metav1.UpdateOptions{})
 	if err != nil {
 		return err

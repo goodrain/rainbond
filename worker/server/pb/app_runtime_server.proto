@@ -19,7 +19,6 @@ service AppRuntimeSync {
   rpc GetAppVolumeStatus(ServiceRequest) returns(ServiceVolumeStatusMessage){}
   rpc ListHelmAppDetectConditions(AppReq) returns(AppDetectConditions){}
   rpc ListAppServices(AppReq) returns(AppServices){}
-  rpc ParseAppServices(ParseAppServicesReq) returns(AppServices){}
   rpc ListHelmAppRelease(AppReq) returns(HelmAppReleases){}
 }
 
@@ -267,6 +266,7 @@ message AppStatus {
   string values = 9;
   string version = 10;
   int32 revision = 11;
+  repeated string overrides = 12;
 }
 
 message AppDetectCondition {
@@ -294,11 +294,6 @@ message AppService {
 
 message AppServices {
   repeated AppService services=1;
-}
-
-message ParseAppServicesReq {
-    string appID=1;
-    string values=2;
 }
 
 message HelmAppReleases {

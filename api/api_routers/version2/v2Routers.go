@@ -320,7 +320,6 @@ func (v2 *V2) applicationRouter() chi.Router {
 	r.Put("/status", controller.GetManager().GetAppStatus)
 	r.Get("/detect-process", controller.GetManager().GetDetectProcess)
 	r.Post("/install", controller.GetManager().Install)
-	r.Post("/parse-services", controller.GetManager().ParseServices)
 	r.Get("/helm-releases", controller.GetManager().ListHelmAppReleases)
 
 	r.Delete("/configgroups/{config_group_name}", controller.GetManager().DeleteConfigGroup)

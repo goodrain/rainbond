@@ -117,22 +117,19 @@ type HelmAppSpec struct {
 	PreStatus string `json:"preStatus,omitempty"`
 
 	// The application name.
-	// TODO: validation
 	TemplateName string `json:"appName"`
 
 	// The application version.
-	// TODO: validation
 	Version string `json:"version"`
 
 	// The application revision.
 	Revision int `json:"revision,omitempty"`
 
-	// The values.yaml of the helm app, encoded by base64.
-	Values string `json:"values,omitempty"`
-
 	// The helm app store.
-	// TODO: validation. not null
 	AppStore *HelmAppStore `json:"appStore"`
+
+	// Overrides will overrides the values in the chart.
+	Overrides []string `json:"overrides,omitempty"`
 }
 
 // FullName returns the full name of the app store.
@@ -148,6 +145,7 @@ type HelmAppStore struct {
 	// The verision of the helm app store.
 	Version string `json:"version"`
 
+	// The name of app store.
 	Name string `json:"name"`
 
 	// The url of helm repo, sholud be a helm native repo url or a git url.
@@ -156,8 +154,10 @@ type HelmAppStore struct {
 	// The branch of a git repo.
 	Branch string `json:"branch,omitempty"`
 
+	// The chart repository username where to locate the requested chart
 	Username string `json:"username,omitempty"`
 
+	// The chart repository password where to locate the requested chart
 	Password string `json:"password,omitempty"`
 }
 
@@ -175,25 +175,26 @@ type HelmAppStatus struct {
 	// Current state of helm app.
 	Conditions []HelmAppCondition `json:"conditions,omitempty"`
 
-	// The base64 encoded string from the active values.
-	CurrentValues string `json:"currentValues,omitempty"`
-
 	// The actual revision of the helm app, as same as the revision from 'helm status'
 	CurrentRevision int `json:"currentRevision,omitempty"`
 
-	// TargetRevision is the revision that used to rollbak the helm app.
+	// TargetRevision is the revision that used to rollback the helm app.
 	// After executing command 'helm rollback [appName] [targetRevision]', the actual
 	// revision of helm app is currentRevision, not targetRevision.
 	// The new currentRevision is equals to the origin currentRevision plus one.
 	TargetRevision int `json:"targetRevision,omitempty"`
 
+	// The version infect.
 	CurrentVersion string `json:"currentVersion,omitempty"`
 
 	// The base64 encoded string from values.yaml
-	ValuesTemplate string `json:"valuesTemplate,omitempty"`
+	Values string `json:"values,omitempty"`
 
 	// The base64 encoded string from README.md
 	Readme string `json:"readme,omitempty"`
+
+	// Overrides in effect.
+	Overrides []string `json:"overrides,omitempty"`
 }
 
 // +genclient
@@ -208,6 +209,26 @@ type HelmApp struct {
 
 	Spec   HelmAppSpec   `json:"spec,omitempty"`
 	Status HelmAppStatus `json:"status,omitempty"`
+}
+
+// OverridesEqual tells whether overrides in spec and status contain the same elements.
+func (in *HelmApp) OverridesEqual() bool {
+	if len(in.Spec.Overrides) != len(in.Status.Overrides) {
+		return false
+	}
+
+	candidates := make(map[string]struct{})
+	for _, o := range in.Spec.Overrides {
+		candidates[o] = struct{}{}
+	}
+
+	for _, o := range in.Status.Overrides {
+		_, ok := candidates[o]
+		if !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // +kubebuilder:object:root=true

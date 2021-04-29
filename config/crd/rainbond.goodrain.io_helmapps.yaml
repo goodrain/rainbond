@@ -37,23 +37,28 @@ spec:
           description: HelmAppSpec defines the desired state of HelmApp
           properties:
             appName:
-              description: 'The application name. TODO: validation'
+              description: The application name.
               type: string
             appStore:
-              description: 'The helm app store. TODO: validation. not null'
+              description: The helm app store.
               properties:
                 branch:
                   description: The branch of a git repo.
                   type: string
                 name:
+                  description: The name of app store.
                   type: string
                 password:
+                  description: The chart repository password where to locate the requested
+                    chart
                   type: string
                 url:
                   description: The url of helm repo, sholud be a helm native repo
                     url or a git url.
                   type: string
                 username:
+                  description: The chart repository username where to locate the requested
+                    chart
                   type: string
                 version:
                   description: The verision of the helm app store.
@@ -65,6 +70,11 @@ spec:
               type: object
             eid:
               type: string
+            overrides:
+              description: Overrides will overrides the values in the chart.
+              items:
+                type: string
+              type: array
             preStatus:
               description: The prerequisite status.
               enum:
@@ -74,11 +84,8 @@ spec:
             revision:
               description: The application revision.
               type: integer
-            values:
-              description: The values.yaml of the helm app, encoded by base64.
-              type: string
             version:
-              description: 'The application version. TODO: validation'
+              description: The application version.
               type: string
           required:
           - appName
@@ -124,11 +131,14 @@ spec:
               description: The actual revision of the helm app, as same as the revision
                 from 'helm status'
               type: integer
-            currentValues:
-              description: The base64 encoded string from the active values.
-              type: string
             currentVersion:
+              description: The version infect.
               type: string
+            overrides:
+              additionalProperties:
+                type: string
+              description: Overrides in effect.
+              type: object
             phase:
               description: The phase of the helm app.
               type: string
@@ -139,13 +149,13 @@ spec:
               description: The status of helm app.
               type: string
             targetRevision:
-              description: TargetRevision is the revision that used to rollbak the
+              description: TargetRevision is the revision that used to rollback the
                 helm app. After executing command 'helm rollback [appName] [targetRevision]',
                 the actual revision of helm app is currentRevision, not targetRevision.
                 The new currentRevision is equals to the origin currentRevision plus
                 one.
               type: integer
-            valuesTemplate:
+            values:
               description: The base64 encoded string from values.yaml
               type: string
           required:

@@ -1691,16 +1691,16 @@ type ListServiceResponse struct {
 
 // UpdateAppRequest -
 type UpdateAppRequest struct {
-	AppName        string `json:"app_name"`
-	GovernanceMode string `json:"governance_mode"`
-	Values         string `json:"values"`
-	Version        string `json:"version"`
-	Revision       int    `json:"revision"`
+	AppName        string   `json:"app_name"`
+	GovernanceMode string   `json:"governance_mode"`
+	Overrides      []string `json:"overrides"`
+	Version        string   `json:"version"`
+	Revision       int      `json:"revision"`
 }
 
 // NeedUpdateHelmApp check if necessary to update the helm app.
 func (u *UpdateAppRequest) NeedUpdateHelmApp() bool {
-	return u.Values != "" || u.Version != "" || u.Revision != 0
+	return len(u.Overrides) > 0 || u.Version != "" || u.Revision != 0
 }
 
 // BindServiceRequest -
@@ -1710,7 +1710,7 @@ type BindServiceRequest struct {
 
 // InstallAppReq -
 type InstallAppReq struct {
-	Values string `json:"values"`
+	Overrides []string `json:"overrides"`
 }
 
 // ParseAppServicesReq -

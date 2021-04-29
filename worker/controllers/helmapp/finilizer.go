@@ -58,7 +58,7 @@ func (c *Finalizer) run(obj interface{}) error {
 	// TODO: too much args
 	app, err := helm.NewApp(helmApp.Name, helmApp.Namespace,
 		helmApp.Spec.TemplateName, helmApp.Spec.Version, helmApp.Spec.Revision,
-		helmApp.Spec.Values,
+		helmApp.Spec.Overrides,
 		helmApp.Spec.FullName(), appStore.URL, c.repoFile, c.repoCache)
 	if err != nil {
 		return err
