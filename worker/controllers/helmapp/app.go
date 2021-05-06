@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
@@ -272,8 +273,46 @@ func (a *App) installOrUpdate() error {
 	return a.helmCmd.Upgrade(a.name, a.chart(), a.version, a.overrides)
 }
 
-func (a *App) ParseChart() (string, string, error) {
-	var values string
+func (a *App) ParseChart() (map[string]string, string, error) {
+	readme, err := a.getReadme()
+	if err != nil {
+		return nil, "", err
+	}
+
+	files, err := a.getValues()
+	if err != nil {
+		return nil, "", err
+	}
+
+	return files, readme, nil
+}
+
+func (a *App) getValues() (map[string]string, error) {
+	files := make(map[string]string)
+	err := filepath.Walk(a.chartDir, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(p, "values.yaml") {
+			return nil
+		}
+
+		valuesBytes, err := ioutil.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		files[strings.Replace(p, a.chartDir, "", 1)] = base64.StdEncoding.EncodeToString(valuesBytes)
+
+		return nil
+	})
+
+	return files, err
+}
+
+func (a *App) getReadme() (string, error) {
 	var readme string
 	err := filepath.Walk(a.chartDir, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -282,19 +321,12 @@ func (a *App) ParseChart() (string, string, error) {
 		if p == a.chartDir {
 			return nil
 		}
-		if values != "" || readme != "" {
+		if readme != "" {
 			return filepath.SkipDir
 		}
 		if !info.IsDir() {
 			return nil
 		}
-
-		valuesFile := path.Join(p, "values.yaml")
-		valuesBytes, err := ioutil.ReadFile(valuesFile)
-		if err != nil {
-			return err
-		}
-		values = base64.StdEncoding.EncodeToString(valuesBytes)
 
 		readmeFile := path.Join(p, "README.md")
 		readmeBytes, err := ioutil.ReadFile(readmeFile)
@@ -306,7 +338,7 @@ func (a *App) ParseChart() (string, string, error) {
 		return nil
 	})
 
-	return values, readme, err
+	return readme, err
 }
 
 func (a *App) Uninstall() error {

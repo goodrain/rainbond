@@ -139,7 +139,7 @@ func Run(s *option.Worker) error {
 	defer exporterManager.Stop()
 
 	stopCh := make(chan struct{})
-	ctrl := helmapp.NewController(ctx, stopCh, rainbondClient, 5*time.Second, s.Helm.RepoFile, s.Helm.RepoCache)
+	ctrl := helmapp.NewController(ctx, stopCh, clientset, rainbondClient, 5*time.Second, s.Helm.RepoFile, s.Helm.RepoCache)
 	go ctrl.Start()
 	defer close(stopCh)
 

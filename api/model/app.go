@@ -10,16 +10,16 @@ type AppPort struct {
 
 // AppStatus -
 type AppStatus struct {
-	Status    string   `json:"status"`
-	Cpu       *int64   `json:"cpu"`
-	Memory    *int64   `json:"memory"`
-	Disk      int64    `json:"disk"`
-	Phase     string   `json:"phase"`
-	Values    string   `json:"values"`
-	Readme    string   `json:"readme"`
-	Version   string   `json:"version"`
-	Revision  int      `json:"revision"`
-	Overrides []string `json:"overrides"`
+	Status    string            `json:"status"`
+	Cpu       *int64            `json:"cpu"`
+	Memory    *int64            `json:"memory"`
+	Disk      int64             `json:"disk"`
+	Phase     string            `json:"phase"`
+	Values    map[string]string `json:"values"`
+	Readme    string            `json:"readme"`
+	Version   string            `json:"version"`
+	Revision  int               `json:"revision"`
+	Overrides []string          `json:"overrides"`
 }
 
 // AppDetectProcess -

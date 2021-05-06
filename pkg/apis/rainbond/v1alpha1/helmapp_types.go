@@ -197,7 +197,7 @@ type HelmAppStatus struct {
 	CurrentVersion string `json:"currentVersion,omitempty"`
 
 	// The base64 encoded string from values.yaml
-	Values string `json:"values,omitempty"`
+	Values map[string]string `json:"values,omitempty"`
 
 	// The base64 encoded string from README.md
 	Readme string `json:"readme,omitempty"`

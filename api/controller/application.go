@@ -278,3 +278,17 @@ func (a *ApplicationController) ListHelmAppReleases(w http.ResponseWriter, r *ht
 
 	httputil.ReturnSuccess(r, w, releases)
 }
+
+func (a *ApplicationController) ListHelmAppValues(w http.ResponseWriter, r *http.Request) {
+	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+
+	version := chi.URLParam(r, "version")
+
+	values, err := handler.GetApplicationHandler().ListHelmAppValues(r.Context(), app, version)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, values)
+}

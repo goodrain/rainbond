@@ -56,6 +56,7 @@ type ApplicationHandler interface {
 	ListServices(ctx context.Context, app *dbmodel.Application) ([]*model.AppService, error)
 	EnsureAppName(ctx context.Context, namespace, appName string) (*model.EnsureAppNameResp, error)
 	ListHelmAppReleases(ctx context.Context, app *dbmodel.Application) ([]*model.HelmAppRelease, error)
+	ListHelmAppValues(ctx context.Context, app *dbmodel.Application, version string) (map[string]string, error)
 
 	DeleteConfigGroup(appID, configGroupName string) error
 	ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error)
@@ -586,4 +587,26 @@ func (a *ApplicationAction) ListHelmAppReleases(ctx context.Context, app *dbmode
 		})
 	}
 	return result, nil
+}
+
+func (a *ApplicationAction) ListHelmAppValues(ctx context.Context, app *dbmodel.Application, version string) (map[string]string, error) {
+	// only for helm app
+	if app.AppType != model.AppTypeHelm {
+		return nil, nil
+	}
+
+	nctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	res, err := a.statusCli.ListHelmAppValues(nctx, &pb.HelmAppValuesReq{
+		TemplateName: app.AppTemplateName,
+		Version:      version,
+		RepoName:     app.AppStoreName,
+		Eid:          app.EID,
+		RepoURL:      app.AppStoreURL,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return res.Values, nil
 }

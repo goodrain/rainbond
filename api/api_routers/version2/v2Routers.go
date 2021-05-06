@@ -321,6 +321,7 @@ func (v2 *V2) applicationRouter() chi.Router {
 	r.Get("/detect-process", controller.GetManager().GetDetectProcess)
 	r.Post("/install", controller.GetManager().Install)
 	r.Get("/helm-releases", controller.GetManager().ListHelmAppReleases)
+	r.Get("/helm-values", controller.GetManager().ListHelmAppValues)
 
 	r.Delete("/configgroups/{config_group_name}", controller.GetManager().DeleteConfigGroup)
 	r.Get("/configgroups", controller.GetManager().ListConfigGroups)

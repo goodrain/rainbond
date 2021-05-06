@@ -156,8 +156,10 @@ spec:
                 one.
               type: integer
             values:
+              additionalProperties:
+                type: string
               description: The base64 encoded string from values.yaml
-              type: string
+              type: object
           required:
           - phase
           - status

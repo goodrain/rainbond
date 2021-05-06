@@ -157,7 +157,7 @@ func waitUntilConfiguring(helmApp *rainbondv1alpha1.HelmApp) error {
 	}
 
 	if newHelmApp.Status.Readme == "" ||
-		newHelmApp.Status.Values == "" {
+		len(newHelmApp.Status.Values) == 0 {
 		return errors.New("phase is configuring, but readme and values are empty")
 	}
 	return nil
