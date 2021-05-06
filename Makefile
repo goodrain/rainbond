@@ -78,3 +78,7 @@ CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif
+
+.PHONY: test
+test:
+	KUBE_CONFIG=~/.kube/config PROJECT_HOME=${shell pwd} ginkgo -v worker/controllers/helmapp

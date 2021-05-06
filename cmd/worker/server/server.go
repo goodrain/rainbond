@@ -19,6 +19,12 @@
 package server
 
 import (
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
@@ -38,14 +44,12 @@ import (
 	"github.com/goodrain/rainbond/worker/server"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 )
 
 //Run start run
 func Run(s *option.Worker) error {
+	ctx := context.Background()
+
 	errChan := make(chan error, 2)
 	dbconfig := config.Config{
 		DBType:              s.Config.DBType,
@@ -135,7 +139,7 @@ func Run(s *option.Worker) error {
 	defer exporterManager.Stop()
 
 	stopCh := make(chan struct{})
-	ctrl := helmapp.NewController(stopCh, rainbondClient, 5*time.Second, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
+	ctrl := helmapp.NewController(ctx, stopCh, rainbondClient, 5*time.Second, s.Helm.RepoFile, s.Helm.RepoCache)
 	go ctrl.Start()
 	defer close(stopCh)
 

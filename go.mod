@@ -62,6 +62,8 @@ require (
 	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/mitchellh/mapstructure v1.3.3
 	github.com/ncabatoff/process-exporter v0.7.1
+	github.com/onsi/ginkgo v1.14.1
+	github.com/onsi/gomega v1.10.2
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/runc v1.0.0-rc91.0.20200707015106-819fcc687efb // indirect
 	github.com/pborman/uuid v1.2.1
@@ -96,7 +98,7 @@ require (
 	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
 	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324
 	golang.org/x/tools v0.0.0-20201228162255-34cd474b9958 // indirect
-	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/appengine v1.6.7
 	google.golang.org/genproto v0.0.0-20201201144952-b05cb90ed32e // indirect
 	google.golang.org/grpc v1.33.2
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6

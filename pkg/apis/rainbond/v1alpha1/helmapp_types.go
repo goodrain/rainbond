@@ -86,6 +86,15 @@ const (
 	HelmAppInstalled HelmAppConditionType = "HelmAppInstalled"
 )
 
+// HelmAppPreStatus is a valid value for the PreStatus of HelmApp.
+type HelmAppPreStatus string
+
+// HelmAppPreStatus
+const (
+	HelmAppPreStatusNotConfigured HelmAppPreStatus = "NotConfigured"
+	HelmAppPreStatusConfigured    HelmAppPreStatus = "Configured"
+)
+
 // HelmAppCondition contains details for the current condition of this helm application.
 type HelmAppCondition struct {
 	// Type is the type of the condition.
@@ -114,10 +123,10 @@ type HelmAppSpec struct {
 
 	// The prerequisite status.
 	// +kubebuilder:validation:Enum=NotConfigured;Configured
-	PreStatus string `json:"preStatus,omitempty"`
+	PreStatus HelmAppPreStatus `json:"preStatus,omitempty"`
 
 	// The application name.
-	TemplateName string `json:"appName"`
+	TemplateName string `json:"templateName"`
 
 	// The application version.
 	Version string `json:"version"`

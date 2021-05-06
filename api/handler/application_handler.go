@@ -468,7 +468,7 @@ func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Applicatio
 	ctx3, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	helmApp.Spec.Overrides = overrides
-	helmApp.Spec.PreStatus = "Configured"
+	helmApp.Spec.PreStatus = v1alpha1.HelmAppPreStatusConfigured
 	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Update(ctx3, helmApp, metav1.UpdateOptions{})
 	if err != nil {
 		return err

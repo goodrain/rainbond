@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"encoding/json"
 	"net"
 	"os"
 
@@ -8,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -103,4 +105,17 @@ func DefListEventsByPod(clientset kubernetes.Interface, pod *corev1.Pod) *corev1
 // ObjKey returns the key of the given object.
 func ObjKey(obj metav1.Object) string {
 	return obj.GetName() + "/" + obj.GetNamespace()
+}
+
+// CreatePatch -
+func CreatePatch(o, n, datastruct interface{}) ([]byte, error) {
+	oldData, err := json.Marshal(o)
+	if err != nil {
+		return nil, err
+	}
+	newData, err := json.Marshal(n)
+	if err != nil {
+		return nil, err
+	}
+	return strategicpatch.CreateTwoWayMergePatch(oldData, newData, datastruct)
 }

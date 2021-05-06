@@ -1,10 +1,12 @@
 package helmapp
 
 import (
+	"context"
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/sirupsen/logrus"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -16,14 +18,14 @@ type Controller struct {
 	finalizer   *Finalizer
 }
 
-func NewController(stopCh chan struct{}, clientset versioned.Interface, resyncPeriod time.Duration,
+func NewController(ctx context.Context, stopCh chan struct{}, kubeClient clientset.Interface, clientset versioned.Interface, resyncPeriod time.Duration,
 	repoFile, repoCache string) *Controller {
 	workQueue := workqueue.New()
 	finalizerQueue := workqueue.New()
 	storer := NewStorer(clientset, resyncPeriod, workQueue, finalizerQueue)
 
-	controlLoop := NewControlLoop(clientset, storer, workQueue, repoFile, repoCache)
-	finalizer := NewFinalizer(clientset, finalizerQueue, repoFile, repoCache)
+	controlLoop := NewControlLoop(ctx, kubeClient, clientset, storer, workQueue, repoFile, repoCache)
+	finalizer := NewFinalizer(ctx, kubeClient, clientset, finalizerQueue, repoFile, repoCache)
 
 	return &Controller{
 		storer:      storer,
@@ -35,7 +37,7 @@ func NewController(stopCh chan struct{}, clientset versioned.Interface, resyncPe
 
 func (c *Controller) Start() {
 	logrus.Info("start helm app controller")
-	go c.storer.Run(c.stopCh)
+	c.storer.Run(c.stopCh)
 	go c.controlLoop.Run()
 	c.finalizer.Run()
 }

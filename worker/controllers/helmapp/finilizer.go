@@ -1,32 +1,40 @@
 package helmapp
 
 import (
+	"context"
+
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
-	"github.com/goodrain/rainbond/worker/controllers/helmapp/helm"
 	"github.com/sirupsen/logrus"
+	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/workqueue"
 )
 
 type Finalizer struct {
-	clientset versioned.Interface
-	queue     workqueue.Interface
-	repoFile  string
-	repoCache string
+	ctx        context.Context
+	kubeClient clientset.Interface
+	clientset  versioned.Interface
+	queue      workqueue.Interface
+	repoFile   string
+	repoCache  string
 }
 
 // NewControlLoop -
-func NewFinalizer(clientset versioned.Interface,
-	workqueue workqueue.Interface,
+func NewFinalizer(ctx context.Context,
+	kubeClient clientset.Interface,
+	clientset versioned.Interface,
+	workQueue workqueue.Interface,
 	repoFile string,
 	repoCache string,
 ) *Finalizer {
 
 	return &Finalizer{
-		clientset: clientset,
-		queue:     workqueue,
-		repoFile:  repoFile,
-		repoCache: repoCache,
+		ctx:        ctx,
+		kubeClient: kubeClient,
+		clientset:  clientset,
+		queue:      workQueue,
+		repoFile:   repoFile,
+		repoCache:  repoCache,
 	}
 }
 
@@ -54,12 +62,7 @@ func (c *Finalizer) run(obj interface{}) error {
 
 	logrus.Infof("start uninstall helm app: %s/%s", helmApp.Name, helmApp.Namespace)
 
-	appStore := helmApp.Spec.AppStore
-	// TODO: too much args
-	app, err := helm.NewApp(helmApp.Name, helmApp.Namespace,
-		helmApp.Spec.TemplateName, helmApp.Spec.Version, helmApp.Spec.Revision,
-		helmApp.Spec.Overrides,
-		helmApp.Spec.FullName(), appStore.URL, c.repoFile, c.repoCache)
+	app, err := NewApp(c.ctx, c.kubeClient, c.clientset, helmApp, c.repoFile, c.repoCache)
 	if err != nil {
 		return err
 	}

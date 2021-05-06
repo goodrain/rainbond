@@ -1,46 +1,46 @@
 package helmapp
 
 import (
+	"context"
+
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 type Status struct {
-	helmApp *v1alpha1.HelmApp
-	v1alpha1.HelmAppStatus
-	overrides []string
+	ctx            context.Context
+	rainbondClient versioned.Interface
+	helmApp        *v1alpha1.HelmApp
 }
 
 // NewStatus creates a new helm app status.
-func NewStatus(app *v1alpha1.HelmApp) (*Status, bool) {
-	continu3 := true
-	idx, _ := app.Status.GetCondition(v1alpha1.HelmAppChartReady)
-	if idx == -1 {
-		app.Status.UpdateConditionStatus(v1alpha1.HelmAppChartReady, corev1.ConditionFalse)
-		continu3 = false
-	}
-	idx, _ = app.Status.GetCondition(v1alpha1.HelmAppPreInstalled)
-	if idx == -1 {
-		app.Status.UpdateConditionStatus(v1alpha1.HelmAppPreInstalled, corev1.ConditionFalse)
-		continu3 = false
-	}
-	idx, _ = app.Status.GetCondition(v1alpha1.HelmAppChartParsed)
-	if idx == -1 {
-		app.Status.UpdateConditionStatus(v1alpha1.HelmAppChartParsed, corev1.ConditionFalse)
-		continu3 = false
-	}
+func NewStatus(ctx context.Context, app *v1alpha1.HelmApp, rainbondClient versioned.Interface) *Status {
 	return &Status{
-		HelmAppStatus: app.Status,
-		helmApp:       app,
-	}, continu3
+		ctx:            ctx,
+		helmApp:        app,
+		rainbondClient: rainbondClient,
+	}
 }
 
-func (s *Status) GetHelmAppStatus() v1alpha1.HelmAppStatus {
-	status := s.HelmAppStatus
+func (s *Status) Update() error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		ctx, cancel := context.WithTimeout(s.ctx, defaultTimeout)
+		defer cancel()
 
-	status.Phase = s.getPhase()
+		helmApp, err := s.rainbondClient.RainbondV1alpha1().HelmApps(s.helmApp.Namespace).Get(ctx, s.helmApp.Name, metav1.GetOptions{})
+		if err != nil {
+			return errors.Wrap(err, "get helm app before update")
+		}
 
-	return status
+		s.helmApp.Status.Phase = s.getPhase()
+		s.helmApp.ResourceVersion = helmApp.ResourceVersion
+		_, err = s.rainbondClient.RainbondV1alpha1().HelmApps(s.helmApp.Namespace).UpdateStatus(ctx, s.helmApp, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 func (s *Status) getPhase() v1alpha1.HelmAppStatusPhase {
@@ -48,7 +48,7 @@ func (s *Status) getPhase() v1alpha1.HelmAppStatusPhase {
 	if s.isDetected() {
 		phase = v1alpha1.HelmAppStatusPhaseConfiguring
 	}
-	if s.helmApp.Spec.PreStatus == "Configured" {
+	if s.helmApp.Spec.PreStatus == v1alpha1.HelmAppPreStatusConfigured {
 		phase = v1alpha1.HelmAppStatusPhaseInstalling
 	}
 	idx, condition := s.helmApp.Status.GetCondition(v1alpha1.HelmAppInstalled)
@@ -65,7 +65,7 @@ func (s *Status) isDetected() bool {
 		v1alpha1.HelmAppChartParsed,
 	}
 	for _, t := range types {
-		if !s.IsConditionTrue(t) {
+		if !s.helmApp.Status.IsConditionTrue(t) {
 			return false
 		}
 	}

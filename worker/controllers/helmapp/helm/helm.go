@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"unsafe"
 
 	"github.com/goodrain/rainbond/util/commonutil"
@@ -78,8 +79,8 @@ func NewHelm(namespace, repoFile, repoCache string) (*Helm, error) {
 	}, nil
 }
 
-func (h *Helm) PreInstall(name, chart, version string, out io.Writer) error {
-	_, err := h.install(name, chart, version, nil, true, out)
+func (h *Helm) PreInstall(name, chart, version string) error {
+	_, err := h.install(name, chart, version, nil, true, ioutil.Discard)
 	return err
 }
 
@@ -260,6 +261,24 @@ func (h *Helm) History(name string) (ReleaseHistory, error) {
 	return releaseHistory, nil
 }
 
+func (h *Helm) Pull(chart, version, chartDir string) error {
+	client := action.NewPull()
+	settings := cli.New()
+	settings.RepositoryConfig = h.repoFile
+	settings.RepositoryCache = h.repoCache
+	client.Settings = settings
+	client.DestDir = chartDir
+	client.Version = version
+	client.Untar = true
+
+	if err := os.RemoveAll(chartDir); err != nil {
+		return errors.WithMessage(err, "clean up chart dir")
+	}
+
+	_, err := client.Run(chart)
+	return err
+}
+
 // checkIfInstallable validates if a chart can be installed
 //
 // Application chart type is only installable
@@ -281,7 +300,7 @@ func min(x, y int) int {
 func getReleaseHistory(rls []*release.Release) (history ReleaseHistory) {
 	for i := len(rls) - 1; i >= 0; i-- {
 		r := rls[i]
-		c := formatChartname(r.Chart)
+		c := formatChartName(r.Chart)
 		s := r.Info.Status.String()
 		v := r.Version
 		d := r.Info.Description
@@ -303,7 +322,7 @@ func getReleaseHistory(rls []*release.Release) (history ReleaseHistory) {
 	return history
 }
 
-func formatChartname(c *chart.Chart) string {
+func formatChartName(c *chart.Chart) string {
 	if c == nil || c.Metadata == nil {
 		// This is an edge case that has happened in prod, though we don't
 		// know how: https://github.com/helm/helm/issues/1347
