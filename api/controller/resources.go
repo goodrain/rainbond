@@ -31,6 +31,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
+	"github.com/goodrain/rainbond/api/model"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/cmd"
@@ -1931,4 +1932,21 @@ func (t *TenantStruct) TransPlugins(w http.ResponseWriter, r *http.Request) {
 	rc["result"] = "success"
 	httputil.ReturnSuccess(r, w, rc)
 	return
+}
+
+func (a *TenantStruct) CheckResourceName(w http.ResponseWriter, r *http.Request) {
+	var req model.CheckResourceNameReq
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
+		return
+	}
+
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+
+	res, err := handler.GetTenantManager().CheckResourceName(r.Context(), tenant.UUID, &req)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, res)
 }

@@ -52,6 +52,7 @@ type TenantInterface interface {
 	GetManyDeployVersion(w http.ResponseWriter, r *http.Request)
 	LimitTenantMemory(w http.ResponseWriter, r *http.Request)
 	TenantResourcesStatus(w http.ResponseWriter, r *http.Request)
+	CheckResourceName(w http.ResponseWriter, r *http.Request)
 }
 
 //ServiceInterface ServiceInterface
@@ -165,12 +166,9 @@ type ApplicationInterface interface {
 
 	BatchUpdateComponentPorts(w http.ResponseWriter, r *http.Request)
 	GetAppStatus(w http.ResponseWriter, r *http.Request)
-	GetDetectProcess(w http.ResponseWriter, r *http.Request)
 	Install(w http.ResponseWriter, r *http.Request)
 	ListServices(w http.ResponseWriter, r *http.Request)
-	EnsureAppName(w http.ResponseWriter, r *http.Request)
 	ListHelmAppReleases(w http.ResponseWriter, r *http.Request)
-	ListHelmAppValues(w http.ResponseWriter, r *http.Request)
 
 	DeleteConfigGroup(w http.ResponseWriter, r *http.Request)
 	ListConfigGroups(w http.ResponseWriter, r *http.Request)

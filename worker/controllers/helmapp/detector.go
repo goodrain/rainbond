@@ -56,7 +56,7 @@ func (d *Detector) Detect() error {
 
 	// parse chart
 	if !d.helmApp.Status.IsConditionTrue(v1alpha1.HelmAppChartParsed) {
-		values, readme, err := d.app.ParseChart()
+		values, readme, questions, err := d.app.ParseChart()
 		if err != nil {
 			d.helmApp.Status.UpdateCondition(v1alpha1.NewHelmAppCondition(
 				v1alpha1.HelmAppChartParsed, corev1.ConditionFalse, "ChartParsed", err.Error()))
@@ -65,6 +65,7 @@ func (d *Detector) Detect() error {
 		d.helmApp.Status.UpdateConditionStatus(v1alpha1.HelmAppChartParsed, corev1.ConditionTrue)
 		d.helmApp.Status.Values = values
 		d.helmApp.Status.Readme = readme
+		d.helmApp.Status.Questions = questions
 	}
 
 	return nil

@@ -20,13 +20,7 @@ type AppStatus struct {
 	Version   string            `json:"version"`
 	Revision  int               `json:"revision"`
 	Overrides []string          `json:"overrides"`
-}
-
-// AppDetectProcess -
-type AppDetectProcess struct {
-	Type  string `json:"type"`
-	Ready bool   `json:"ready"`
-	Error string `json:"error"`
+	Questions string            `json:"questions"`
 }
 
 // AppService -

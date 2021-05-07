@@ -102,6 +102,11 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 		return err
 	}
 
+	app.log.Debug("start reconcile")
+
+	// update running status
+	defer app.UpdateRunningStatus()
+
 	if app.NeedSetup() {
 		return app.Setup()
 	}

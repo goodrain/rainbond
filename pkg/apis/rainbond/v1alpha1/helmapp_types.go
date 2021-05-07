@@ -202,6 +202,9 @@ type HelmAppStatus struct {
 	// The base64 encoded string from README.md
 	Readme string `json:"readme,omitempty"`
 
+	// The base64 encoded string from questions.yaml
+	Questions string `json:"questions,omitempty"`
+
 	// Overrides in effect.
 	Overrides []string `json:"overrides,omitempty"`
 }

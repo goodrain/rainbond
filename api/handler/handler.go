@@ -31,6 +31,7 @@ import (
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 //InitHandle 初始化handle
@@ -40,6 +41,7 @@ func InitHandle(conf option.Config,
 	etcdcli *clientv3.Client,
 	kubeClient *kubernetes.Clientset,
 	rainbondClient versioned.Interface,
+	k8sClient k8sclient.Client,
 ) error {
 	mq := api_db.MQManager{
 		EtcdClientArgs: etcdClientArgs,
@@ -61,7 +63,7 @@ func InitHandle(conf option.Config,
 	defaultServieHandler = CreateManager(conf, mqClient, etcdcli, statusCli, prometheusCli)
 	defaultPluginHandler = CreatePluginManager(mqClient)
 	defaultAppHandler = CreateAppManager(mqClient)
-	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, kubeClient, prometheusCli)
+	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, kubeClient, prometheusCli, k8sClient)
 	defaultNetRulesHandler = CreateNetRulesManager(etcdcli)
 	defaultCloudHandler = CreateCloudManager(conf)
 	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdcli)

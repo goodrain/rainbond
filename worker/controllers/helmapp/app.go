@@ -171,6 +171,27 @@ func (a *App) Update() error {
 	return a.UpdateSpec()
 }
 
+// UpdateStatus updates the running status of the helm app.
+func (a *App) UpdateRunningStatus() error {
+	rel, err := a.Status()
+	if err != nil {
+		if errors.Is(err, driver.ErrReleaseNotFound) {
+			return nil
+		}
+		return err
+	}
+
+	newStatus := v1alpha1.HelmAppStatusStatus(rel.Info.Status)
+	if a.helmApp.Status.Status == newStatus {
+		// no change
+		return nil
+	}
+
+	status := NewStatus(a.ctx, a.helmApp, a.rainbondClient)
+
+	return status.Update()
+}
+
 // UpdateStatus updates the status of the helm app.
 func (a *App) UpdateStatus() error {
 	status := NewStatus(a.ctx, a.helmApp, a.rainbondClient)
@@ -230,11 +251,7 @@ func (a *App) PreInstall() error {
 }
 
 func (a *App) Status() (*release.Release, error) {
-	rel, err := a.helmCmd.Status(a.name)
-	if err != nil {
-		return nil, err
-	}
-	return rel, nil
+	return a.helmCmd.Status(a.name)
 }
 
 func (a *App) InstallOrUpdate() error {
@@ -273,18 +290,23 @@ func (a *App) installOrUpdate() error {
 	return a.helmCmd.Upgrade(a.name, a.chart(), a.version, a.overrides)
 }
 
-func (a *App) ParseChart() (map[string]string, string, error) {
+func (a *App) ParseChart() (map[string]string, string, string, error) {
 	readme, err := a.getReadme()
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	files, err := a.getValues()
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
-	return files, readme, nil
+	questions, err := a.getQuestions()
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	return files, readme, questions, nil
 }
 
 func (a *App) getValues() (map[string]string, error) {
@@ -313,7 +335,15 @@ func (a *App) getValues() (map[string]string, error) {
 }
 
 func (a *App) getReadme() (string, error) {
-	var readme string
+	return a.fileInRootChart("README.md")
+}
+
+func (a *App) getQuestions() (string, error) {
+	return a.fileInRootChart("questions.yaml")
+}
+
+func (a *App) fileInRootChart(filename string) (string, error) {
+	var file string
 	err := filepath.Walk(a.chartDir, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -321,24 +351,27 @@ func (a *App) getReadme() (string, error) {
 		if p == a.chartDir {
 			return nil
 		}
-		if readme != "" {
+		if file != "" {
 			return filepath.SkipDir
 		}
 		if !info.IsDir() {
 			return nil
 		}
 
-		readmeFile := path.Join(p, "README.md")
+		readmeFile := path.Join(p, filename)
 		readmeBytes, err := ioutil.ReadFile(readmeFile)
 		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
 			return err
 		}
-		readme = base64.StdEncoding.EncodeToString(readmeBytes)
+		file = base64.StdEncoding.EncodeToString(readmeBytes)
 
 		return nil
 	})
 
-	return readme, err
+	return file, err
 }
 
 func (a *App) Uninstall() error {

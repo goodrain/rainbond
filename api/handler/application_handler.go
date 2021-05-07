@@ -51,12 +51,9 @@ type ApplicationHandler interface {
 
 	BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error
 	GetStatus(ctx context.Context, app *dbmodel.Application) (*model.AppStatus, error)
-	GetDetectProcess(ctx context.Context, app *dbmodel.Application) ([]*model.AppDetectProcess, error)
 	Install(ctx context.Context, app *dbmodel.Application, overrides []string) error
 	ListServices(ctx context.Context, app *dbmodel.Application) ([]*model.AppService, error)
-	EnsureAppName(ctx context.Context, namespace, appName string) (*model.EnsureAppNameResp, error)
 	ListHelmAppReleases(ctx context.Context, app *dbmodel.Application) ([]*model.HelmAppRelease, error)
-	ListHelmAppValues(ctx context.Context, app *dbmodel.Application, version string) (map[string]string, error)
 
 	DeleteConfigGroup(appID, configGroupName string) error
 	ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error)
@@ -427,31 +424,9 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 		Readme:    status.Readme,
 		Version:   status.Version,
 		Revision:  int(status.Revision),
+		Questions: status.Questions,
 	}
 	return res, nil
-}
-
-func (a *ApplicationAction) GetDetectProcess(ctx context.Context, app *dbmodel.Application) ([]*model.AppDetectProcess, error) {
-	nctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-
-	res, err := a.statusCli.ListHelmAppDetectConditions(nctx, &pb.AppReq{
-		AppId: app.AppID,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	var conditions []*model.AppDetectProcess
-	for _, condition := range res.Conditions {
-		conditions = append(conditions, &model.AppDetectProcess{
-			Type:  condition.Type,
-			Ready: condition.Ready,
-			Error: condition.Error,
-		})
-	}
-
-	return conditions, nil
 }
 
 func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Application, overrides []string) error {
@@ -538,27 +513,6 @@ func (a *ApplicationAction) BatchBindService(appID string, req model.BindService
 	return nil
 }
 
-func (a *ApplicationAction) EnsureAppName(ctx context.Context, namespace, appName string) (*model.EnsureAppNameResp, error) {
-	nctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	retries := 3
-	for i := 0; i < retries; i++ {
-		_, err := a.rainbondClient.RainbondV1alpha1().HelmApps(namespace).Get(nctx, appName, metav1.GetOptions{})
-		if err != nil {
-			if k8sErrors.IsNotFound(err) {
-				break
-			}
-			return nil, errors.Wrap(err, "ensure app name")
-		}
-		appName += "-" + util.NewUUID()[:5]
-	}
-
-	return &model.EnsureAppNameResp{
-		AppName: appName,
-	}, nil
-}
-
 func (a *ApplicationAction) ListHelmAppReleases(ctx context.Context, app *dbmodel.Application) ([]*model.HelmAppRelease, error) {
 	// only for helm app
 	if app.AppType != model.AppTypeHelm {
@@ -587,26 +541,4 @@ func (a *ApplicationAction) ListHelmAppReleases(ctx context.Context, app *dbmode
 		})
 	}
 	return result, nil
-}
-
-func (a *ApplicationAction) ListHelmAppValues(ctx context.Context, app *dbmodel.Application, version string) (map[string]string, error) {
-	// only for helm app
-	if app.AppType != model.AppTypeHelm {
-		return nil, nil
-	}
-
-	nctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	res, err := a.statusCli.ListHelmAppValues(nctx, &pb.HelmAppValuesReq{
-		TemplateName: app.AppTemplateName,
-		Version:      version,
-		RepoName:     app.AppStoreName,
-		Eid:          app.EID,
-		RepoURL:      app.AppStoreURL,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return res.Values, nil
 }

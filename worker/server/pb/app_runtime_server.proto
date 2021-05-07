@@ -17,10 +17,9 @@ service AppRuntimeSync {
   rpc GetPodDetail(GetPodDetailReq) returns (PodDetail) {}
   rpc GetStorageClasses(Empty) returns (StorageClasses) {}
   rpc GetAppVolumeStatus(ServiceRequest) returns(ServiceVolumeStatusMessage){}
-  rpc ListHelmAppDetectConditions(AppReq) returns(AppDetectConditions){}
   rpc ListAppServices(AppReq) returns(AppServices){}
   rpc ListHelmAppRelease(AppReq) returns(HelmAppReleases){}
-  rpc ListHelmAppValues(HelmAppValuesReq) returns(HelmAppValuesResp){}
+  rpc ParseHelmApp(ParseHelmAppReq) returns(ParseHelmAppResp){}
 }
 
 message Empty {}
@@ -267,16 +266,13 @@ message AppStatus {
   repeated string overrides = 9;
   string version = 10;
   int32 revision = 11;
+  string questions = 12;
 }
 
 message AppDetectCondition {
     string type = 1;
     bool ready = 2;
     string error = 3;
-}
-
-message AppDetectConditions {
-  repeated AppDetectCondition conditions = 1;
 }
 
 message AppService {
@@ -309,7 +305,7 @@ message HelmAppRelease {
   string description=6;
 }
 
-message HelmAppValuesReq {
+message ParseHelmAppReq {
     string templateName=1;
     string version=2;
     string repoName=3;
@@ -317,6 +313,7 @@ message HelmAppValuesReq {
     string repoURL=5;
 }
 
-message HelmAppValuesResp {
+message ParseHelmAppResp {
     map<string, string> values=1;
+    string questions=2;
 }

@@ -140,7 +140,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/apps", controller.GetManager().CreateApp)
 	r.Post("/batch_create_apps", controller.GetManager().BatchCreateApp)
 	r.Get("/apps", controller.GetManager().ListApps)
-	r.Post("/ensure-app-name", controller.GetManager().EnsureAppName)
+	r.Post("/checkResourceName", controller.GetManager().CheckResourceName)
 	r.Mount("/apps/{app_id}", v2.applicationRouter())
 	//get some service pod info
 	r.Get("/pods", controller.Pods)
@@ -311,6 +311,7 @@ func (v2 *V2) applicationRouter() chi.Router {
 	r.Delete("/", controller.GetManager().DeleteApp)
 	// Get services under application
 	r.Get("/services", controller.GetManager().ListServices)
+	// bind components
 	r.Put("/services", controller.GetManager().BatchBindService)
 	// Application configuration group
 	r.Post("/configgroups", controller.GetManager().AddConfigGroup)
@@ -318,10 +319,9 @@ func (v2 *V2) applicationRouter() chi.Router {
 
 	r.Put("/ports", controller.GetManager().BatchUpdateComponentPorts)
 	r.Put("/status", controller.GetManager().GetAppStatus)
-	r.Get("/detect-process", controller.GetManager().GetDetectProcess)
+	// status
 	r.Post("/install", controller.GetManager().Install)
-	r.Get("/helm-releases", controller.GetManager().ListHelmAppReleases)
-	r.Get("/helm-values", controller.GetManager().ListHelmAppValues)
+	r.Get("/releases", controller.GetManager().ListHelmAppReleases)
 
 	r.Delete("/configgroups/{config_group_name}", controller.GetManager().DeleteConfigGroup)
 	r.Get("/configgroups", controller.GetManager().ListConfigGroups)

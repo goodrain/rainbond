@@ -218,6 +218,7 @@ func (h *Helm) Status(name string) (*release.Release, error) {
 }
 
 func (h *Helm) Uninstall(name string) error {
+	logrus.Infof("uninstall helm app(%s/%s)", h.namespace, name)
 	uninstall := action.NewUninstall(h.cfg)
 	_, err := uninstall.Run(name)
 	return err

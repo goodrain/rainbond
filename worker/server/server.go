@@ -194,34 +194,7 @@ func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus,
 		Revision:  int32(helmApp.Status.CurrentRevision),
 		Values:    helmApp.Status.Values,
 		Overrides: helmApp.Status.Overrides,
-	}, nil
-}
-
-func (r *RuntimeServer) ListHelmAppDetectConditions(ctx context.Context, appReq *pb.AppReq) (*pb.AppDetectConditions, error) {
-	app, err := db.GetManager().ApplicationDao().GetAppByID(appReq.AppId)
-	if err != nil {
-		return nil, err
-	}
-
-	helmApp, err := r.store.GetHelmApp(app.TenantID, app.AppName)
-	if err != nil {
-		return nil, err
-	}
-
-	var conditions []*pb.AppDetectCondition
-	for _, condition := range helmApp.Status.Conditions {
-		if condition.Type == v1alpha1.HelmAppInstalled {
-			continue
-		}
-		conditions = append(conditions, &pb.AppDetectCondition{
-			Type:  string(condition.Type),
-			Ready: condition.Status == corev1.ConditionTrue,
-			Error: condition.Message,
-		})
-	}
-
-	return &pb.AppDetectConditions{
-		Conditions: conditions,
+		Questions: helmApp.Status.Questions,
 	}, nil
 }
 
@@ -340,7 +313,7 @@ func (r *RuntimeServer) GetMultiAppPods(ctx context.Context, re *pb.ServicesRequ
 	return &res, nil
 }
 
-func (r *RuntimeServer) ListHelmAppValues(ctx context.Context, req *pb.HelmAppValuesReq) (*pb.HelmAppValuesResp, error) {
+func (r *RuntimeServer) ParseHelmApp(ctx context.Context, req *pb.ParseHelmAppReq) (*pb.ParseHelmAppResp, error) {
 	helmApp := &v1alpha1.HelmApp{
 		Spec: v1alpha1.HelmAppSpec{
 			EID:          req.Eid,
@@ -362,13 +335,14 @@ func (r *RuntimeServer) ListHelmAppValues(ctx context.Context, req *pb.HelmAppVa
 		return nil, errors.WithMessage(err, "pull chart")
 	}
 
-	values, _, err := app.ParseChart()
+	values, _, questions, err := app.ParseChart()
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.HelmAppValuesResp{
-		Values: values,
+	return &pb.ParseHelmAppResp{
+		Values:    values,
+		Questions: questions,
 	}, nil
 }
 

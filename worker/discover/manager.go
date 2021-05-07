@@ -105,8 +105,9 @@ func (t *TaskManager) Do() {
 			return
 		default:
 			ctx, cancel := context.WithCancel(t.ctx)
+			defer cancel()
+
 			data, err := t.client.Dequeue(ctx, &pb.DequeueRequest{Topic: client.WorkerTopic, ClientHost: hostname + "-worker"})
-			cancel()
 			if err != nil {
 				if grpc1.ErrorDesc(err) == context.DeadlineExceeded.Error() {
 					continue

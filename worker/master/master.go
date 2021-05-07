@@ -24,21 +24,22 @@ import (
 	"strings"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
-
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/util/leader"
 	"github.com/goodrain/rainbond/worker/appm/store"
+	"github.com/goodrain/rainbond/worker/controllers/helmapp"
 	"github.com/goodrain/rainbond/worker/master/podevent"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
 	"github.com/goodrain/rainbond/worker/master/volumes/statistical"
 	"github.com/goodrain/rainbond/worker/master/volumes/sync"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 //Controller app runtime master controller
@@ -57,6 +58,7 @@ type Controller struct {
 	namespaceCPURequest *prometheus.GaugeVec
 	namespaceCPULimit   *prometheus.GaugeVec
 	pc                  *controller.ProvisionController
+	helmAppController   *helmapp.Controller
 	isLeader            bool
 
 	stopCh          chan struct{}
@@ -66,7 +68,7 @@ type Controller struct {
 }
 
 //NewMasterController new master controller
-func NewMasterController(conf option.Config, store store.Storer) (*Controller, error) {
+func NewMasterController(conf option.Config, store store.Storer, kubeClient kubernetes.Interface, rainbondClient versioned.Interface) (*Controller, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	// The controller needs to know what the server version is because out-of-tree
 	// provisioners aren't officially supported until 1.5
@@ -91,14 +93,17 @@ func NewMasterController(conf option.Config, store store.Storer) (*Controller, e
 	}, serverVersion.GitVersion)
 	stopCh := make(chan struct{})
 
+	helmAppController := helmapp.NewController(ctx, stopCh, kubeClient, rainbondClient, 5*time.Second, conf.Helm.RepoFile, conf.Helm.RepoCache)
+
 	return &Controller{
-		conf:      conf,
-		pc:        pc,
-		store:     store,
-		stopCh:    stopCh,
-		cancel:    cancel,
-		ctx:       ctx,
-		dbmanager: db.GetManager(),
+		conf:              conf,
+		pc:                pc,
+		helmAppController: helmAppController,
+		store:             store,
+		stopCh:            stopCh,
+		cancel:            cancel,
+		ctx:               ctx,
+		dbmanager:         db.GetManager(),
 		memoryUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "app_resource",
 			Name:      "appmemory",
@@ -163,6 +168,9 @@ func (m *Controller) Start() error {
 		m.store.RegisterVolumeTypeListener("volumeTypeEvent", m.volumeTypeEvent.GetChan())
 		defer m.store.UnRegisterVolumeTypeListener("volumeTypeEvent")
 		go m.volumeTypeEvent.Handle()
+
+		// helm app controller
+		go m.helmAppController.Start()
 
 		select {
 		case <-ctx.Done():

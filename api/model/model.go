@@ -1770,14 +1770,15 @@ type ListApplicationConfigGroupResp struct {
 	PageSize    int                          `json:"pageSize"`
 }
 
-// EnsureAppNameReq -
-type EnsureAppNameReq struct {
-	AppName string `json:"app_name"`
+// CheckResourceNameReq -
+type CheckResourceNameReq struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
 }
 
-// EnsureAppNameResp -
-type EnsureAppNameResp struct {
-	AppName string `json:"app_name"`
+// CheckResourceNameResp -
+type CheckResourceNameResp struct {
+	Name string `json:"name"`
 }
 
 // HelmAppRelease -
