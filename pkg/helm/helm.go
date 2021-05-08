@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"unsafe"
 
@@ -94,7 +95,13 @@ func (h *Helm) Install(name, chart, version string, overrides []string) error {
 }
 
 func (h *Helm) locateChart(chart, version string) (string, error) {
-	cp := path.Join(h.settings.RepositoryCache, chart, version)
+	repoAndName := strings.Split(chart, "/")
+	if len(repoAndName) != 2 {
+		return "", errors.New("invalid chart. expect repo/name, but got " + chart)
+	}
+
+	chartCache := path.Join(h.settings.RepositoryCache, chart, version)
+	cp := path.Join(chartCache, repoAndName[1]+"-"+version+".tgz")
 	if f, err := os.Open(cp); err == nil {
 		defer f.Close()
 
@@ -115,8 +122,9 @@ func (h *Helm) locateChart(chart, version string) (string, error) {
 		}
 	}
 
-	cpo := &action.ChartPathOptions{}
-	cp, err := cpo.LocateChart(chart, h.settings)
+	cpo := &ChartPathOptions{}
+	settings := h.settings
+	cp, err := cpo.LocateChart(chart, chartCache, settings)
 	if err != nil {
 		return "", err
 	}
@@ -318,6 +326,77 @@ func (h *Helm) History(name string) (ReleaseHistory, error) {
 // Load loads the chart from the repository.
 func (h *Helm) Load(chart, version string) (string, error) {
 	return h.locateChart(chart, version)
+}
+
+type ChartPathOptions struct {
+	action.ChartPathOptions
+}
+
+// LocateChart looks for a chart directory in known places, and returns either the full path or an error.
+func (c *ChartPathOptions) LocateChart(name, dest string, settings *cli.EnvSettings) (string, error) {
+	name = strings.TrimSpace(name)
+	version := strings.TrimSpace(c.Version)
+
+	if _, err := os.Stat(name); err == nil {
+		abs, err := filepath.Abs(name)
+		if err != nil {
+			return abs, err
+		}
+		if c.Verify {
+			if _, err := downloader.VerifyChart(abs, c.Keyring); err != nil {
+				return "", err
+			}
+		}
+		return abs, nil
+	}
+	if filepath.IsAbs(name) || strings.HasPrefix(name, ".") {
+		return name, errors.Errorf("path %q not found", name)
+	}
+
+	dl := downloader.ChartDownloader{
+		Out:     os.Stdout,
+		Keyring: c.Keyring,
+		Getters: getter.All(settings),
+		Options: []getter.Option{
+			getter.WithBasicAuth(c.Username, c.Password),
+			getter.WithTLSClientConfig(c.CertFile, c.KeyFile, c.CaFile),
+			getter.WithInsecureSkipVerifyTLS(c.InsecureSkipTLSverify),
+		},
+		RepositoryConfig: settings.RepositoryConfig,
+		RepositoryCache:  settings.RepositoryCache,
+	}
+	if c.Verify {
+		dl.Verify = downloader.VerifyAlways
+	}
+	if c.RepoURL != "" {
+		chartURL, err := repo.FindChartInAuthAndTLSRepoURL(c.RepoURL, c.Username, c.Password, name, version,
+			c.CertFile, c.KeyFile, c.CaFile, c.InsecureSkipTLSverify, getter.All(settings))
+		if err != nil {
+			return "", err
+		}
+		name = chartURL
+	}
+
+	if err := os.MkdirAll(dest, 0755); err != nil {
+		return "", err
+	}
+
+	filename, _, err := dl.DownloadTo(name, version, dest)
+	if err == nil {
+		lname, err := filepath.Abs(filename)
+		if err != nil {
+			return filename, err
+		}
+		return lname, nil
+	} else if settings.Debug {
+		return filename, err
+	}
+
+	atVersion := ""
+	if version != "" {
+		atVersion = fmt.Sprintf(" at version %q", version)
+	}
+	return filename, errors.Errorf("failed to download %q%s (hint: running `helm repo update` may help)", name, atVersion)
 }
 
 // checkIfInstallable validates if a chart can be installed

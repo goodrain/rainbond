@@ -11,7 +11,7 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
-	"github.com/goodrain/rainbond/worker/controllers/helmapp/helm"
+	"github.com/goodrain/rainbond/pkg/helm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/release"

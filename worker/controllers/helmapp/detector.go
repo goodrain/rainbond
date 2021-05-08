@@ -2,7 +2,7 @@ package helmapp
 
 import (
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
-	"github.com/goodrain/rainbond/worker/controllers/helmapp/helm"
+	"github.com/goodrain/rainbond/pkg/helm"
 	corev1 "k8s.io/api/core/v1"
 )
 

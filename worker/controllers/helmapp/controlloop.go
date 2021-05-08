@@ -7,7 +7,7 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
-	"github.com/goodrain/rainbond/worker/controllers/helmapp/helm"
+	"github.com/goodrain/rainbond/pkg/helm"
 	"github.com/sirupsen/logrus"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/workqueue"
