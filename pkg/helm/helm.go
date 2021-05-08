@@ -64,6 +64,7 @@ func NewHelm(namespace, repoFile, repoCache string) (*Helm, error) {
 	}
 	helmDriver := ""
 	settings := cli.New()
+	settings.Debug = true
 	// set namespace
 	namespacePtr := (*string)(unsafe.Pointer(settings))
 	*namespacePtr = namespace
@@ -123,6 +124,7 @@ func (h *Helm) locateChart(chart, version string) (string, error) {
 	}
 
 	cpo := &ChartPathOptions{}
+	cpo.Version = version
 	settings := h.settings
 	cp, err := cpo.LocateChart(chart, chartCache, settings)
 	if err != nil {
