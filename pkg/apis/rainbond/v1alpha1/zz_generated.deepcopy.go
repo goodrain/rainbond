@@ -136,13 +136,6 @@ func (in *HelmAppStatus) DeepCopyInto(out *HelmAppStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.Values != nil {
-		in, out := &in.Values, &out.Values
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
-	}
 	if in.Overrides != nil {
 		in, out := &in.Overrides, &out.Overrides
 		*out = make([]string, len(*in))

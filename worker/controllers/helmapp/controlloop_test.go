@@ -7,7 +7,6 @@ import (
 	"github.com/goodrain/rainbond/util"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -103,7 +102,6 @@ var _ = Describe("ControlLoop", func() {
 
 				conditionTypes := []rainbondv1alpha1.HelmAppConditionType{
 					rainbondv1alpha1.HelmAppChartReady,
-					rainbondv1alpha1.HelmAppChartParsed,
 					rainbondv1alpha1.HelmAppPreInstalled,
 				}
 
@@ -151,16 +149,8 @@ var _ = Describe("ControlLoop", func() {
 })
 
 func waitUntilConfiguring(helmApp *rainbondv1alpha1.HelmApp) error {
-	newHelmApp, err := waitPhaseUntil(helmApp, rainbondv1alpha1.HelmAppStatusPhaseConfiguring)
-	if err != nil {
-		return err
-	}
-
-	if newHelmApp.Status.Readme == "" ||
-		len(newHelmApp.Status.Values) == 0 {
-		return errors.New("phase is configuring, but readme and values are empty")
-	}
-	return nil
+	_, err := waitPhaseUntil(helmApp, rainbondv1alpha1.HelmAppStatusPhaseConfiguring)
+	return err
 }
 
 func waitUntilInstalled(helmApp *rainbondv1alpha1.HelmApp) error {

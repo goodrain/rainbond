@@ -19,7 +19,6 @@ const (
 
 var defaultConditionTypes = []v1alpha1.HelmAppConditionType{
 	v1alpha1.HelmAppChartReady,
-	v1alpha1.HelmAppChartParsed,
 	v1alpha1.HelmAppPreInstalled,
 	v1alpha1.HelmAppInstalled,
 }
@@ -117,10 +116,6 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 
 	if app.NeedUpdate() {
 		return app.InstallOrUpdate()
-	}
-
-	if app.NeedRollback() {
-		return app.Rollback()
 	}
 
 	return nil

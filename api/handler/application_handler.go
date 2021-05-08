@@ -420,11 +420,7 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 		Disk:      int64(diskUsage),
 		Phase:     status.Phase,
 		Overrides: status.Overrides,
-		Values:    status.Values,
-		Readme:    status.Readme,
 		Version:   status.Version,
-		Revision:  int(status.Revision),
-		Questions: status.Questions,
 	}
 	return res, nil
 }

@@ -19,7 +19,6 @@ service AppRuntimeSync {
   rpc GetAppVolumeStatus(ServiceRequest) returns(ServiceVolumeStatusMessage){}
   rpc ListAppServices(AppReq) returns(AppServices){}
   rpc ListHelmAppRelease(AppReq) returns(HelmAppReleases){}
-  rpc ParseHelmApp(ParseHelmAppReq) returns(ParseHelmAppResp){}
 }
 
 message Empty {}
@@ -258,15 +257,11 @@ message AppStatus {
   string status = 1;
   int64  cpu = 2;
   int64  memory = 3;
-  string phase = 4;
-  map<string, string> values = 5;
-  string readme = 6;
-  bool setCPU = 7;
-  bool setMemory = 8;
-  repeated string overrides = 9;
-  string version = 10;
-  int32 revision = 11;
-  string questions = 12;
+  bool setCPU = 4;
+  bool setMemory = 5;
+  string phase = 6;
+  repeated string overrides = 7;
+  string version = 8;
 }
 
 message AppDetectCondition {
@@ -303,17 +298,4 @@ message HelmAppRelease {
   string chart=4;
   string appVersion=5;
   string description=6;
-}
-
-message ParseHelmAppReq {
-    string templateName=1;
-    string version=2;
-    string repoName=3;
-    string eid=4;
-    string repoURL=5;
-}
-
-message ParseHelmAppResp {
-    map<string, string> values=1;
-    string questions=2;
 }

@@ -80,8 +80,6 @@ const (
 	HelmAppChartReady HelmAppConditionType = "ChartReady"
 	// HelmAppPreInstalled indicates whether the helm app has been pre installed.
 	HelmAppPreInstalled HelmAppConditionType = "PreInstalled"
-	// HelmAppPreInstalled indicates whether the chart has been parsed.
-	HelmAppChartParsed HelmAppConditionType = "ChartParsed"
 	// HelmAppInstalled indicates whether the helm app has been installed.
 	HelmAppInstalled HelmAppConditionType = "HelmAppInstalled"
 )
@@ -184,26 +182,8 @@ type HelmAppStatus struct {
 	// Current state of helm app.
 	Conditions []HelmAppCondition `json:"conditions,omitempty"`
 
-	// The actual revision of the helm app, as same as the revision from 'helm status'
-	CurrentRevision int `json:"currentRevision,omitempty"`
-
-	// TargetRevision is the revision that used to rollback the helm app.
-	// After executing command 'helm rollback [appName] [targetRevision]', the actual
-	// revision of helm app is currentRevision, not targetRevision.
-	// The new currentRevision is equals to the origin currentRevision plus one.
-	TargetRevision int `json:"targetRevision,omitempty"`
-
 	// The version infect.
 	CurrentVersion string `json:"currentVersion,omitempty"`
-
-	// The base64 encoded string from values.yaml
-	Values map[string]string `json:"values,omitempty"`
-
-	// The base64 encoded string from README.md
-	Readme string `json:"readme,omitempty"`
-
-	// The base64 encoded string from questions.yaml
-	Questions string `json:"questions,omitempty"`
 
 	// Overrides in effect.
 	Overrides []string `json:"overrides,omitempty"`

@@ -52,6 +52,7 @@ func (a *App) Chart() string {
 	return a.repoName + "/" + a.templateName
 }
 
+// NewApp creates a new app.
 func NewApp(ctx context.Context, kubeClient clientset.Interface, rainbondClient versioned.Interface, helmApp *v1alpha1.HelmApp, repoFile, repoCache string) (*App, error) {
 	helmCmd, err := helm.NewHelm(helmApp.GetNamespace(), repoFile, repoCache)
 	if err != nil {
@@ -115,7 +116,6 @@ func (a *App) NeedDetect() bool {
 	conditionTypes := []v1alpha1.HelmAppConditionType{
 		v1alpha1.HelmAppChartReady,
 		v1alpha1.HelmAppPreInstalled,
-		v1alpha1.HelmAppChartParsed,
 	}
 	for _, t := range conditionTypes {
 		if !a.helmApp.Status.IsConditionTrue(t) {
@@ -131,11 +131,6 @@ func (a *App) NeedUpdate() bool {
 		return false
 	}
 	return !a.helmApp.OverridesEqual() || a.helmApp.Spec.Version != a.helmApp.Status.CurrentVersion
-}
-
-// NeedRollback checks if the helmApp needed to be rollback
-func (a *App) NeedRollback() bool {
-	return a.helmApp.Spec.Revision != 0 && a.helmApp.Spec.Revision != a.helmApp.Status.TargetRevision
 }
 
 func (a *App) Setup() error {
@@ -227,12 +222,14 @@ func (a *App) Detect() error {
 	return a.UpdateStatus()
 }
 
-func (a *App) Pull() error {
+// LoadChart loads the chart from repository.
+func (a *App) LoadChart() error {
 	if err := a.repo.Add(a.repoName, a.repoURL, "", ""); err != nil {
 		return err
 	}
 
-	return a.helmCmd.Pull(a.chart(), a.version, a.chartDir)
+	_, err := a.helmCmd.Load(a.chart(), a.version)
+	return err
 }
 
 func (a *App) chart() string {
@@ -244,10 +241,7 @@ func (a *App) PreInstall() error {
 		return err
 	}
 
-	if err := a.helmCmd.PreInstall(a.name, a.Chart(), a.version); err != nil {
-		return err
-	}
-	return nil
+	return a.helmCmd.PreInstall(a.name, a.Chart(), a.version)
 }
 
 func (a *App) Status() (*release.Release, error) {
@@ -376,21 +370,4 @@ func (a *App) fileInRootChart(filename string) (string, error) {
 
 func (a *App) Uninstall() error {
 	return a.helmCmd.Uninstall(a.name)
-}
-
-func (a *App) Rollback() error {
-	if err := a.rollback(); err != nil {
-		a.recorder.Event(a.helmApp, corev1.EventTypeWarning, "RollBackFailed", err.Error())
-		return a.UpdateStatus()
-	}
-
-	a.helmApp.Status.TargetRevision = a.helmApp.Spec.Revision
-	return a.UpdateStatus()
-}
-
-func (a *App) rollback() error {
-	if err := a.repo.Add(a.repoName, a.repoURL, "", ""); err != nil {
-		return err
-	}
-	return a.helmCmd.Rollback(a.name, a.revision)
 }

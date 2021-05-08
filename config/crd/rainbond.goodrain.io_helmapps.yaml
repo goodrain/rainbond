@@ -127,10 +127,6 @@ spec:
                 - type
                 type: object
               type: array
-            currentRevision:
-              description: The actual revision of the helm app, as same as the revision
-                from 'helm status'
-              type: integer
             currentVersion:
               description: The version infect.
               type: string
@@ -142,24 +138,9 @@ spec:
             phase:
               description: The phase of the helm app.
               type: string
-            readme:
-              description: The base64 encoded string from README.md
-              type: string
             status:
               description: The status of helm app.
               type: string
-            targetRevision:
-              description: TargetRevision is the revision that used to rollback the
-                helm app. After executing command 'helm rollback [appName] [targetRevision]',
-                the actual revision of helm app is currentRevision, not targetRevision.
-                The new currentRevision is equals to the origin currentRevision plus
-                one.
-              type: integer
-            values:
-              additionalProperties:
-                type: string
-              description: The base64 encoded string from values.yaml
-              type: object
           required:
           - phase
           - status

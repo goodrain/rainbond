@@ -62,7 +62,6 @@ func (s *Status) isDetected() bool {
 	types := []v1alpha1.HelmAppConditionType{
 		v1alpha1.HelmAppChartReady,
 		v1alpha1.HelmAppPreInstalled,
-		v1alpha1.HelmAppChartParsed,
 	}
 	for _, t := range types {
 		if !s.helmApp.Status.IsConditionTrue(t) {

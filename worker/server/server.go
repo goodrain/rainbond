@@ -31,7 +31,6 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	discover "github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
-	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/util"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/util/k8s"
@@ -39,11 +38,9 @@ import (
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
-	"github.com/goodrain/rainbond/worker/controllers/helmapp"
 	"github.com/goodrain/rainbond/worker/controllers/helmapp/helm"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	wutil "github.com/goodrain/rainbond/worker/util"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -57,16 +54,15 @@ import (
 
 //RuntimeServer app runtime grpc server
 type RuntimeServer struct {
-	ctx            context.Context
-	cancel         context.CancelFunc
-	store          store.Storer
-	conf           option.Config
-	server         *grpc.Server
-	hostIP         string
-	keepalive      *discover.KeepAlive
-	clientset      kubernetes.Interface
-	rainbondClient versioned.Interface
-	updateCh       *channels.RingChannel
+	ctx       context.Context
+	cancel    context.CancelFunc
+	store     store.Storer
+	conf      option.Config
+	server    *grpc.Server
+	hostIP    string
+	keepalive *discover.KeepAlive
+	clientset kubernetes.Interface
+	updateCh  *channels.RingChannel
 }
 
 //CreaterRuntimeServer create a runtime grpc server
@@ -189,12 +185,8 @@ func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus,
 		SetCPU:    cpu > 0,
 		Memory:    memory,
 		SetMemory: memory > 0,
-		Readme:    helmApp.Status.Readme,
 		Version:   helmApp.Status.CurrentVersion,
-		Revision:  int32(helmApp.Status.CurrentRevision),
-		Values:    helmApp.Status.Values,
 		Overrides: helmApp.Status.Overrides,
-		Questions: helmApp.Status.Questions,
 	}, nil
 }
 
@@ -313,39 +305,6 @@ func (r *RuntimeServer) GetMultiAppPods(ctx context.Context, re *pb.ServicesRequ
 	return &res, nil
 }
 
-func (r *RuntimeServer) ParseHelmApp(ctx context.Context, req *pb.ParseHelmAppReq) (*pb.ParseHelmAppResp, error) {
-	helmApp := &v1alpha1.HelmApp{
-		Spec: v1alpha1.HelmAppSpec{
-			EID:          req.Eid,
-			TemplateName: req.TemplateName,
-			Version:      req.Version,
-			AppStore: &v1alpha1.HelmAppStore{
-				Name: req.RepoName,
-				URL:  req.RepoURL,
-			},
-		},
-	}
-
-	app, err := helmapp.NewApp(ctx, r.clientset, r.rainbondClient, helmApp, r.conf.Helm.RepoFile, r.conf.Helm.RepoCache)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := app.Pull(); err != nil {
-		return nil, errors.WithMessage(err, "pull chart")
-	}
-
-	values, _, questions, err := app.ParseChart()
-	if err != nil {
-		return nil, err
-	}
-
-	return &pb.ParseHelmAppResp{
-		Values:    values,
-		Questions: questions,
-	}, nil
-}
-
 // translateTimestampSince returns the elapsed time since timestamp in
 // human-readable approximation.
 func translateTimestampSince(timestamp metav1.Time) string {
@@ -354,15 +313,6 @@ func translateTimestampSince(timestamp metav1.Time) string {
 	}
 
 	return duration.HumanDuration(time.Since(timestamp.Time))
-}
-
-// formatEventSource formats EventSource as a comma separated string excluding Host when empty
-func formatEventSource(es corev1.EventSource) string {
-	EventSourceString := []string{es.Component}
-	if len(es.Host) > 0 {
-		EventSourceString = append(EventSourceString, es.Host)
-	}
-	return strings.Join(EventSourceString, ", ")
 }
 
 // DescribeEvents -

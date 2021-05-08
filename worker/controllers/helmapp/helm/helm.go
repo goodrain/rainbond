@@ -5,6 +5,8 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
+	"strings"
 	"unsafe"
 
 	"github.com/goodrain/rainbond/util/commonutil"
@@ -17,8 +19,10 @@ import (
 	"helm.sh/helm/v3/pkg/downloader"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/kube"
+	"helm.sh/helm/v3/pkg/provenance"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/releaseutil"
+	"helm.sh/helm/v3/pkg/repo"
 	"helm.sh/helm/v3/pkg/strvals"
 	helmtime "helm.sh/helm/v3/pkg/time"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -89,12 +93,61 @@ func (h *Helm) Install(name, chart, version string, overrides []string) error {
 	return err
 }
 
-func (h *Helm) Manifests(name, chart, version string, overrides []string, out io.Writer) (string, error) {
-	rel, err := h.install(name, chart, version, overrides, true, out)
+func (h *Helm) locateChart(chart, version string) (string, error) {
+	cp := path.Join(h.settings.RepositoryCache, chart, version)
+	if f, err := os.Open(cp); err == nil {
+		defer f.Close()
+
+		// check if the chart file is up to date.
+		hash, err := provenance.Digest(f)
+		if err != nil {
+			return "", errors.Wrap(err, "digist chart file")
+		}
+
+		// get digiest from repo index.
+		digest, err := h.getDigest(chart, version)
+		if err != nil {
+			return "", err
+		}
+
+		if hash == digest {
+			return cp, nil
+		}
+	}
+
+	cpo := &action.ChartPathOptions{}
+	cp, err := cpo.LocateChart(chart, h.settings)
 	if err != nil {
 		return "", err
 	}
-	return rel.Manifest, nil
+
+	return cp, err
+}
+
+func (h *Helm) getDigest(chart, version string) (string, error) {
+	repoAndApp := strings.Split(chart, "/")
+	if len(repoAndApp) != 2 {
+		return "", errors.New("wrong chart format, expect repo/name, but got " + chart)
+	}
+	repoName, appName := repoAndApp[0], repoAndApp[1]
+
+	indexFile, err := repo.LoadIndexFile(path.Join(h.repoCache, repoName+"-index.yaml"))
+	if err != nil {
+		return "", errors.Wrap(err, "load index file")
+	}
+
+	entries, ok := indexFile.Entries[appName]
+	if !ok {
+		return "", errors.New(fmt.Sprintf("chart(%s) not found", chart))
+	}
+
+	for _, entry := range entries {
+		if entry.Version == version {
+			return entry.Digest, nil
+		}
+	}
+
+	return "", errors.New(fmt.Sprintf("chart(%s) version(%s) not found", chart, version))
 }
 
 func (h *Helm) install(name, chart, version string, overrides []string, dryRun bool, out io.Writer) (*release.Release, error) {
@@ -104,7 +157,7 @@ func (h *Helm) install(name, chart, version string, overrides []string, dryRun b
 	client.Version = version
 	client.DryRun = dryRun
 
-	cp, err := client.ChartPathOptions.LocateChart(chart, h.settings)
+	cp, err := h.locateChart(chart, version)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +231,7 @@ func (h *Helm) Upgrade(name string, chart, version string, overrides []string) e
 	client.Namespace = h.namespace
 	client.Version = version
 
-	chartPath, err := client.ChartPathOptions.LocateChart(chart, h.settings)
+	chartPath, err := h.locateChart(chart, version)
 	if err != nil {
 		return err
 	}
@@ -262,22 +315,9 @@ func (h *Helm) History(name string) (ReleaseHistory, error) {
 	return releaseHistory, nil
 }
 
-func (h *Helm) Pull(chart, version, chartDir string) error {
-	client := action.NewPull()
-	settings := cli.New()
-	settings.RepositoryConfig = h.repoFile
-	settings.RepositoryCache = h.repoCache
-	client.Settings = settings
-	client.DestDir = chartDir
-	client.Version = version
-	client.Untar = true
-
-	if err := os.RemoveAll(chartDir); err != nil {
-		return errors.WithMessage(err, "clean up chart dir")
-	}
-
-	_, err := client.Run(chart)
-	return err
+// Load loads the chart from the repository.
+func (h *Helm) Load(chart, version string) (string, error) {
+	return h.locateChart(chart, version)
 }
 
 // checkIfInstallable validates if a chart can be installed
