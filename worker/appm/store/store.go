@@ -21,17 +21,16 @@ package store
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/api/util/bcode"
-	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
-	"github.com/pkg/errors"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/eapache/channels"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	rainbondversioned "github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/pkg/generated/informers/externalversions"
 	"github.com/goodrain/rainbond/util/constants"
@@ -42,6 +41,7 @@ import (
 	"github.com/goodrain/rainbond/worker/server/pb"
 	workerutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 	monitorv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/sirupsen/logrus"
@@ -98,6 +98,7 @@ type Storer interface {
 	GetAppResources(appID string) (int64, int64, error)
 	GetHelmApp(namespace, name string) (*v1alpha1.HelmApp, error)
 	ListPods(namespace string, selector labels.Selector) ([]*corev1.Pod, error)
+	ListReplicaSets(namespace string, selector labels.Selector) ([]*appsv1.ReplicaSet, error)
 	ListServices(namespace string, selector labels.Selector) ([]*corev1.Service, error)
 }
 
@@ -138,6 +139,7 @@ type appRuntimeStore struct {
 	cancel                 context.CancelFunc
 	informers              *Informer
 	listers                *Lister
+	replicaSets            *Lister
 	appServices            sync.Map
 	appCount               int32
 	dbmanager              db.Manager
@@ -221,6 +223,7 @@ func NewStore(
 	store.listers.Ingress = infFactory.Extensions().V1beta1().Ingresses().Lister()
 
 	store.informers.ReplicaSet = infFactory.Apps().V1().ReplicaSets().Informer()
+	store.listers.ReplicaSets = infFactory.Apps().V1().ReplicaSets().Lister()
 
 	store.informers.Endpoints = infFactory.Core().V1().Endpoints().Informer()
 	store.listers.Endpoints = infFactory.Core().V1().Endpoints().Lister()
@@ -508,8 +511,7 @@ func (a *appRuntimeStore) checkReplicasetWhetherDelete(app *v1.AppService, rs *a
 		//delete old version
 		if v1.GetReplicaSetVersion(current) > v1.GetReplicaSetVersion(rs) {
 			if rs.Status.Replicas == 0 && rs.Status.ReadyReplicas == 0 && rs.Status.AvailableReplicas == 0 {
-				if err := a.conf.KubeClient.AppsV1().ReplicaSets(rs.Namespace).Delete(context.Background(), rs.Name, metav1.DeleteOptions{});
-					err != nil && k8sErrors.IsNotFound(err) {
+				if err := a.conf.KubeClient.AppsV1().ReplicaSets(rs.Namespace).Delete(context.Background(), rs.Name, metav1.DeleteOptions{}); err != nil && k8sErrors.IsNotFound(err) {
 					logrus.Errorf("delete old version replicaset failure %s", err.Error())
 				}
 			}
@@ -1554,6 +1556,10 @@ func (a *appRuntimeStore) GetHelmApp(namespace, name string) (*v1alpha1.HelmApp,
 
 func (a *appRuntimeStore) ListPods(namespace string, selector labels.Selector) ([]*corev1.Pod, error) {
 	return a.listers.Pod.Pods(namespace).List(selector)
+}
+
+func (a *appRuntimeStore) ListReplicaSets(namespace string, selector labels.Selector) ([]*appsv1.ReplicaSet, error) {
+	return a.listers.ReplicaSets.ReplicaSets(namespace).List(selector)
 }
 
 func (a *appRuntimeStore) ListServices(namespace string, selector labels.Selector) ([]*corev1.Service, error) {

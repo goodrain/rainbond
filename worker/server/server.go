@@ -34,7 +34,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/helm"
 	"github.com/goodrain/rainbond/util"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
-	"github.com/goodrain/rainbond/util/k8s"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
@@ -44,6 +43,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -527,7 +527,7 @@ func (r *RuntimeServer) UpdThirdPartyEndpoint(ctx context.Context, re *pb.UpdThi
 		Port:     int(re.Port),
 		IsOnline: re.IsOnline,
 	}
-	if re.IsOnline == false {
+	if !re.IsOnline {
 		r.updateCh.In() <- discovery.Event{
 			Type: discovery.DeleteEvent,
 			Obj:  rbdep,
@@ -690,7 +690,7 @@ func (r *RuntimeServer) convertServices(services []*corev1.Service) []*pb.AppSer
 			selector = selector.Add(*req)
 		}
 
-		var spods []*pb.AppService_Pod
+		var oldPods, newPods []*pb.AppService_Pod
 		pods, err := r.store.ListPods(svc.Namespace, selector)
 		if err != nil {
 			logrus.Warningf("parse services: %v", err)
@@ -698,10 +698,21 @@ func (r *RuntimeServer) convertServices(services []*corev1.Service) []*pb.AppSer
 			for _, pod := range pods {
 				podStatus := &pb.PodStatus{}
 				wutil.DescribePodStatus(r.clientset, pod, podStatus, k8sutil.DefListEventsByPod)
-				spods = append(spods, &pb.AppService_Pod{
+				po := &pb.AppService_Pod{
 					Name:   pod.Name,
 					Status: podStatus.TypeStr,
-				})
+				}
+
+				rss, err := r.store.ListReplicaSets(svc.Namespace, selector)
+				if err != nil {
+					logrus.Warningf("[RuntimeServer] convert services: list replica sets: %v", err)
+				}
+
+				if isOldPod(pod, rss) {
+					oldPods = append(oldPods, po)
+				} else {
+					newPods = append(newPods, po)
+				}
 			}
 		}
 
@@ -715,7 +726,8 @@ func (r *RuntimeServer) convertServices(services []*corev1.Service) []*pb.AppSer
 			Address:  address,
 			TcpPorts: tcpPorts,
 			UdpPorts: udpPorts,
-			Pods:     spods,
+			OldPods:  oldPods,
+			Pods:     newPods,
 		})
 	}
 	return appServices
@@ -754,4 +766,22 @@ func (r *RuntimeServer) ListHelmAppRelease(ctx context.Context, req *pb.AppReq) 
 	return &pb.HelmAppReleases{
 		HelmAppRelease: releases,
 	}, nil
+}
+
+func isOldPod(pod *corev1.Pod, rss []*appv1.ReplicaSet) bool {
+	if len(rss) == 0 {
+		return false
+	}
+
+	var newrs *appv1.ReplicaSet
+	for _, rs := range rss {
+		if newrs == nil {
+			newrs = rs
+			continue
+		}
+		if newrs.ObjectMeta.CreationTimestamp.Before(&rs.ObjectMeta.CreationTimestamp) {
+			newrs = rs
+		}
+	}
+	return pod.ObjectMeta.CreationTimestamp.Before(&newrs.ObjectMeta.CreationTimestamp)
 }

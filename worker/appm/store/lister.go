@@ -36,6 +36,7 @@ type Lister struct {
 	StatefulSet             appsv1.StatefulSetLister
 	Deployment              appsv1.DeploymentLister
 	Pod                     corev1.PodLister
+	ReplicaSets             appsv1.ReplicaSetLister
 	ConfigMap               corev1.ConfigMapLister
 	Endpoints               corev1.EndpointsLister
 	Nodes                   corev1.NodeLister

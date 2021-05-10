@@ -281,6 +281,7 @@ message AppService {
     repeated int32 tcpPorts=3;
     repeated int32 udpPorts=4;
     repeated Pod pods=5;
+    repeated Pod oldPods=6;
 }
 
 message AppServices {
