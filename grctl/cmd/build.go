@@ -19,23 +19,18 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/docker/docker/client"
-	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
-	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/termtables"
-	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,32 +40,6 @@ import (
 func NewSourceBuildCmd() cli.Command {
 	c := cli.Command{
 		Subcommands: []cli.Command{
-			cli.Command{
-				Name:  "test",
-				Usage: "build test source code, If it can be build, you can build in rainbond",
-				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "dir",
-						Usage: "source code dir,default is current dir.",
-						Value: "",
-					},
-					cli.StringFlag{
-						Name:  "lang",
-						Usage: "source code lang type, if not specified, will automatic identify",
-						Value: "",
-					},
-					cli.StringFlag{
-						Name:  "image",
-						Usage: "builder image name",
-						Value: builder.BUILDERIMAGENAME,
-					},
-					cli.StringSliceFlag{
-						Name:  "env",
-						Usage: "Build the required environment variables",
-					},
-				},
-				Action: build,
-			},
 			cli.Command{
 				Name:  "list",
 				Usage: "Lists the building tasks pod currently being performed",
@@ -305,101 +274,6 @@ func NewSourceBuildCmd() cli.Command {
 		Usage: "Commands related to building source code",
 	}
 	return c
-}
-
-func build(c *cli.Context) error {
-	dir := c.String("dir")
-	if dir == "" {
-		dir = util.GetCurrentDir()
-	}
-	fmt.Printf("Start test build code:%s \n", dir)
-	envs := c.StringSlice("env")
-	var kvenv []*sources.KeyValue
-	for _, e := range envs {
-		if strings.Contains(e, "=") {
-			info := strings.Split(e, "=")
-			kvenv = append(kvenv, &sources.KeyValue{Key: info[0], Value: info[1]})
-		}
-	}
-	lang := c.String("lang")
-	if lang == "" {
-		var err error
-		lang, err = getLang(dir)
-		if err != nil {
-			fatal("automatic identify failure."+err.Error(), 1)
-		}
-	}
-	prepare(dir)
-	kvenv = append(kvenv, &sources.KeyValue{Key: "LANGUAGE", Value: lang})
-	containerConfig := &sources.ContainerConfig{
-		Metadata: &sources.ContainerMetadata{
-			Name: "buildcontainer",
-		},
-		Image: &sources.ImageSpec{
-			Image: c.String("image"),
-		},
-		Mounts: []*sources.Mount{
-			&sources.Mount{
-				ContainerPath: "/tmp/cache",
-				HostPath:      path.Join(dir, ".cache"),
-				Readonly:      false,
-			},
-			&sources.Mount{
-				ContainerPath: "/tmp/slug",
-				HostPath:      path.Join(dir, ".release"),
-				Readonly:      false,
-			},
-		},
-		Envs:         kvenv,
-		Stdin:        true,
-		StdinOnce:    true,
-		AttachStdin:  true,
-		AttachStdout: true,
-		AttachStderr: true,
-		NetworkConfig: &sources.NetworkConfig{
-			NetworkMode: "host",
-		},
-		Args: []string{"local"},
-	}
-	reader, err := getSourceCodeTarFile(dir)
-	if err != nil {
-		fatal("tar code failure."+err.Error(), 1)
-	}
-	defer func() {
-		reader.Close()
-		clear()
-	}()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	containerService := sources.CreateDockerService(ctx, createDockerCli())
-	containerID, err := containerService.CreateContainer(containerConfig)
-	if err != nil {
-		return fmt.Errorf("create builder container error:%s", err.Error())
-	}
-	closed := make(chan struct{})
-	defer close(closed)
-	errchan := make(chan error, 1)
-	close, err := containerService.AttachContainer(containerID, true, true, true, reader, os.Stdout, os.Stderr, &errchan)
-	if err != nil {
-		containerService.RemoveContainer(containerID)
-		return fmt.Errorf("attach builder container error:%s", err.Error())
-	}
-	defer close()
-	statuschan := containerService.WaitExitOrRemoved(containerID, true)
-	//start the container
-	if err := containerService.StartContainer(containerID); err != nil {
-		containerService.RemoveContainer(containerID)
-		return fmt.Errorf("start builder container error:%s", err.Error())
-	}
-	if err := <-errchan; err != nil {
-		logrus.Debugf("Error hijack: %s", err)
-	}
-	status := <-statuschan
-	if status != 0 {
-		fatal("build source code error", 1)
-	}
-	fmt.Println("BUILD SUCCESS")
-	return nil
 }
 
 func getLang(dir string) (string, error) {
