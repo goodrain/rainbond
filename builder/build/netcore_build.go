@@ -56,6 +56,10 @@ type netcoreBuild struct {
 	serviceID      string
 }
 
+func netcoreBuilder() (Build, error) {
+	return &netcoreBuild{}, nil
+}
+
 func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 	defer d.clear()
 	d.dockercli = re.DockerClient
