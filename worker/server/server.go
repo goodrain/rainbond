@@ -160,6 +160,16 @@ func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus,
 		phase = string(helmApp.Status.Phase)
 	}
 
+	var conditions []*pb.AppStatusCondition
+	for _, cdt := range helmApp.Status.Conditions {
+		conditions = append(conditions, &pb.AppStatusCondition{
+			Type:    string(cdt.Type),
+			Status:  cdt.Status == corev1.ConditionTrue,
+			Reason:  cdt.Reason,
+			Message: cdt.Message,
+		})
+	}
+
 	selector := labels.NewSelector()
 	instanceReq, _ := labels.NewRequirement("app.kubernetes.io/instance", selection.Equals, []string{app.AppName})
 	selector = selector.Add(*instanceReq)
@@ -179,14 +189,15 @@ func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus,
 	}
 
 	return &pb.AppStatus{
-		Status:    string(helmApp.Status.Status),
-		Phase:     phase,
-		Cpu:       cpu,
-		SetCPU:    cpu > 0,
-		Memory:    memory,
-		SetMemory: memory > 0,
-		Version:   helmApp.Status.CurrentVersion,
-		Overrides: helmApp.Status.Overrides,
+		Status:     string(helmApp.Status.Status),
+		Phase:      phase,
+		Cpu:        cpu,
+		SetCPU:     cpu > 0,
+		Memory:     memory,
+		SetMemory:  memory > 0,
+		Version:    helmApp.Status.CurrentVersion,
+		Overrides:  helmApp.Status.Overrides,
+		Conditions: conditions,
 	}, nil
 }
 
@@ -272,7 +283,7 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 			PodVolumes: volumes,
 		}
 		podStatus := &pb.PodStatus{}
-		wutil.DescribePodStatus(r.clientset, pod, podStatus, k8s.DefListEventsByPod)
+		wutil.DescribePodStatus(r.clientset, pod, podStatus, k8sutil.DefListEventsByPod)
 		sapod.PodStatus = podStatus.Type.String()
 		if app.DistinguishPod(pod) {
 			newpods = append(newpods, sapod)
@@ -617,7 +628,7 @@ func (r *RuntimeServer) GetAppVolumeStatus(ctx context.Context, re *pb.ServiceRe
 		}
 
 		podStatus := &pb.PodStatus{}
-		wutil.DescribePodStatus(r.clientset, pod, podStatus, k8s.DefListEventsByPod)
+		wutil.DescribePodStatus(r.clientset, pod, podStatus, k8sutil.DefListEventsByPod)
 
 		for _, volume := range pod.Spec.Volumes {
 			volumeName := volume.Name

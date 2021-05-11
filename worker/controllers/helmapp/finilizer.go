@@ -12,6 +12,7 @@ import (
 
 type Finalizer struct {
 	ctx        context.Context
+	log        *logrus.Entry
 	kubeClient clientset.Interface
 	clientset  versioned.Interface
 	queue      workqueue.Interface
@@ -30,6 +31,7 @@ func NewFinalizer(ctx context.Context,
 
 	return &Finalizer{
 		ctx:        ctx,
+		log:        logrus.WithField("WHO", "Finalizer"),
 		kubeClient: kubeClient,
 		clientset:  clientset,
 		queue:      workQueue,
@@ -47,7 +49,7 @@ func (c *Finalizer) Run() {
 
 		err := c.run(obj)
 		if err != nil {
-			logrus.Warningf("[HelmAppFinalizer] run finalizer: %v", err)
+			c.log.Warningf("run: %v", err)
 			continue
 		}
 		c.queue.Done(obj)

@@ -262,12 +262,14 @@ message AppStatus {
   string phase = 6;
   repeated string overrides = 7;
   string version = 8;
+  repeated AppStatusCondition conditions=9;
 }
 
-message AppDetectCondition {
+message AppStatusCondition {
     string type = 1;
-    bool ready = 2;
-    string error = 3;
+    bool status = 2;
+    string reason = 3;
+    string message = 4;
 }
 
 message AppService {

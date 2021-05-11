@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"sort"
 	"strconv"
@@ -25,7 +24,6 @@ import (
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
-	"sigs.k8s.io/yaml"
 )
 
 // ApplicationAction -
@@ -201,20 +199,6 @@ func (a *ApplicationAction) updateHelmApp(ctx context.Context, app *dbmodel.Appl
 	}
 	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Update(ctx, helmApp, metav1.UpdateOptions{})
 	return err
-}
-
-func (a *ApplicationAction) validateValues(encodedValues string) error {
-	values, err := base64.StdEncoding.DecodeString(encodedValues)
-	if err != nil {
-		return errors.Wrap(bcode.ErrInvalidHelmAppValues, err.Error())
-	}
-
-	obj := make(map[string]interface{})
-	if err = yaml.Unmarshal(values, obj); err != nil {
-		return errors.Wrap(bcode.ErrInvalidHelmAppValues, err.Error())
-	}
-
-	return nil
 }
 
 // ListApps -
@@ -402,6 +386,16 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 		return nil, errors.Wrap(err, "get app status")
 	}
 
+	var conditions []*model.AppStatusCondition
+	for _, cdt := range status.Conditions {
+		conditions = append(conditions, &model.AppStatusCondition{
+			Type:    string(cdt.Type),
+			Status:  cdt.Status,
+			Reason:  cdt.Reason,
+			Message: cdt.Message,
+		})
+	}
+
 	diskUsage := a.getDiskUsage(app.AppID)
 
 	var cpu *int64
@@ -414,13 +408,14 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 	}
 
 	res := &model.AppStatus{
-		Status:    status.Status,
-		Cpu:       cpu,
-		Memory:    memory,
-		Disk:      int64(diskUsage),
-		Phase:     status.Phase,
-		Overrides: status.Overrides,
-		Version:   status.Version,
+		Status:     status.Status,
+		Cpu:        cpu,
+		Memory:     memory,
+		Disk:       int64(diskUsage),
+		Phase:      status.Phase,
+		Overrides:  status.Overrides,
+		Version:    status.Version,
+		Conditions: conditions,
 	}
 	return res, nil
 }
@@ -464,26 +459,27 @@ func (a *ApplicationAction) ListServices(ctx context.Context, app *dbmodel.Appli
 			Address:     service.Address,
 		}
 
-		var pods []*model.AppPod
-		for _, pod := range service.Pods {
-			pods = append(pods, &model.AppPod{
-				PodName:   pod.Name,
-				PodStatus: pod.Status,
-			})
-		}
-		sort.Sort(model.ByPodName(pods))
-		svc.Pods = pods
-
-		for _, port := range service.TcpPorts {
-			svc.TCPPorts = append(svc.TCPPorts, port)
-		}
-
+		svc.Pods = a.convertPods(service.Pods)
+		svc.OldPods = a.convertPods(service.OldPods)
+		svc.TCPPorts = append(svc.TCPPorts, service.TcpPorts...)
 		services = append(services, svc)
 	}
 
 	sort.Sort(model.ByServiceName(services))
 
 	return services, nil
+}
+
+func (a *ApplicationAction) convertPods(pods []*pb.AppService_Pod) []*model.AppPod {
+	var res []*model.AppPod
+	for _, pod := range pods {
+		res = append(res, &model.AppPod{
+			PodName:   pod.Name,
+			PodStatus: pod.Status,
+		})
+	}
+	sort.Sort(model.ByPodName(res))
+	return res
 }
 
 func (a *ApplicationAction) getDiskUsage(appID string) float64 {

@@ -240,7 +240,7 @@ func (a *AppRestoreAction) RestoreDepVols(tenantID, serviceID string, req *apimo
 		if err != nil {
 			// err contains gorm.ErrRecordNotFound
 			tx.Rollback()
-			return fmt.Errorf("Dep service id: %s; error getting dep volume: %s", item.DepServiceID, err)
+			return fmt.Errorf("dep service id: %s; error getting dep volume: %s", item.DepServiceID, err)
 		}
 
 		mr := &model.TenantServiceMountRelation{

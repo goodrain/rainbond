@@ -143,6 +143,9 @@ var _ = Describe("ControlLoop", func() {
 
 				err = waitUntilInstalled(helmApp)
 				Expect(err).NotTo(HaveOccurred())
+
+				err = waitUntilDeployed(helmApp)
+				Expect(err).NotTo(HaveOccurred())
 			})
 		})
 	})
@@ -176,4 +179,28 @@ func waitPhaseUntil(helmApp *rainbondv1alpha1.HelmApp, phase rainbondv1alpha1.He
 	}
 
 	return nil, nil
+}
+
+func waitUntilDeployed(helmApp *rainbondv1alpha1.HelmApp) error {
+	return waitStatusUntil(helmApp, rainbondv1alpha1.HelmAppStatusDeployed)
+}
+
+func waitStatusUntil(helmApp *rainbondv1alpha1.HelmApp, status rainbondv1alpha1.HelmAppStatusStatus) error {
+	watch, err := rainbondClient.RainbondV1alpha1().HelmApps(helmApp.Namespace).Watch(context.Background(), metav1.ListOptions{
+		LabelSelector: "app=phpmyadmin",
+		Watch:         true,
+	})
+	if err != nil {
+		return err
+	}
+
+	// TODO: timeout
+	for event := range watch.ResultChan() {
+		newHelmApp := event.Object.(*rainbondv1alpha1.HelmApp)
+		if newHelmApp.Status.Status == status {
+			return nil
+		}
+	}
+
+	return nil
 }

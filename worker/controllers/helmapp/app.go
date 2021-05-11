@@ -2,12 +2,7 @@ package helmapp
 
 import (
 	"context"
-	"encoding/base64"
-	"io/ioutil"
-	"os"
 	"path"
-	"path/filepath"
-	"strings"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
@@ -167,24 +162,32 @@ func (a *App) Update() error {
 }
 
 // UpdateStatus updates the running status of the helm app.
-func (a *App) UpdateRunningStatus() error {
+func (a *App) UpdateRunningStatus() {
+	if a.helmApp.Status.Phase != v1alpha1.HelmAppStatusPhaseInstalled {
+		return
+	}
+
 	rel, err := a.Status()
 	if err != nil {
 		if errors.Is(err, driver.ErrReleaseNotFound) {
-			return nil
+			a.log.Warningf("get running status: %v", err)
+			return
 		}
-		return err
+		a.log.Errorf("get running status: %v", err)
+		return
 	}
 
 	newStatus := v1alpha1.HelmAppStatusStatus(rel.Info.Status)
 	if a.helmApp.Status.Status == newStatus {
 		// no change
-		return nil
+		return
 	}
 
+	a.helmApp.Status.Status = newStatus
 	status := NewStatus(a.ctx, a.helmApp, a.rainbondClient)
-
-	return status.Update()
+	if err := status.Update(); err != nil {
+		a.log.Warningf("update running status: %v", err)
+	}
 }
 
 // UpdateStatus updates the status of the helm app.
@@ -282,90 +285,6 @@ func (a *App) installOrUpdate() error {
 
 	logrus.Debugf("name: %s; namespace: %s; chart: %s; upgrade helm app", a.name, a.namespace, a.Chart())
 	return a.helmCmd.Upgrade(a.name, a.chart(), a.version, a.overrides)
-}
-
-func (a *App) ParseChart() (map[string]string, string, string, error) {
-	readme, err := a.getReadme()
-	if err != nil {
-		return nil, "", "", err
-	}
-
-	files, err := a.getValues()
-	if err != nil {
-		return nil, "", "", err
-	}
-
-	questions, err := a.getQuestions()
-	if err != nil {
-		return nil, "", "", err
-	}
-
-	return files, readme, questions, nil
-}
-
-func (a *App) getValues() (map[string]string, error) {
-	files := make(map[string]string)
-	err := filepath.Walk(a.chartDir, func(p string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(p, "values.yaml") {
-			return nil
-		}
-
-		valuesBytes, err := ioutil.ReadFile(p)
-		if err != nil {
-			return err
-		}
-		files[strings.Replace(p, a.chartDir, "", 1)] = base64.StdEncoding.EncodeToString(valuesBytes)
-
-		return nil
-	})
-
-	return files, err
-}
-
-func (a *App) getReadme() (string, error) {
-	return a.fileInRootChart("README.md")
-}
-
-func (a *App) getQuestions() (string, error) {
-	return a.fileInRootChart("questions.yaml")
-}
-
-func (a *App) fileInRootChart(filename string) (string, error) {
-	var file string
-	err := filepath.Walk(a.chartDir, func(p string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if p == a.chartDir {
-			return nil
-		}
-		if file != "" {
-			return filepath.SkipDir
-		}
-		if !info.IsDir() {
-			return nil
-		}
-
-		readmeFile := path.Join(p, filename)
-		readmeBytes, err := ioutil.ReadFile(readmeFile)
-		if err != nil {
-			if os.IsNotExist(err) {
-				return nil
-			}
-			return err
-		}
-		file = base64.StdEncoding.EncodeToString(readmeBytes)
-
-		return nil
-	})
-
-	return file, err
 }
 
 func (a *App) Uninstall() error {

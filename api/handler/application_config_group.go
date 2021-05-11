@@ -86,8 +86,8 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 	if err != nil {
 		return nil, err
 	}
-	var resp *model.ApplicationConfigGroupResp
-	resp = &model.ApplicationConfigGroupResp{
+
+	return &model.ApplicationConfigGroupResp{
 		CreateTime:      appconfig.CreatedAt,
 		AppID:           appID,
 		ConfigGroupName: appconfig.ConfigGroupName,
@@ -95,8 +95,7 @@ func (a *ApplicationAction) AddConfigGroup(appID string, req *model.ApplicationC
 		ConfigItems:     configGroupItems,
 		Services:        configGroupServices,
 		Enable:          appconfig.Enable,
-	}
-	return resp, nil
+	}, nil
 }
 
 // UpdateConfigGroup -
@@ -171,9 +170,7 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 		return nil, err
 	}
 
-	// Build return data
-	var resp *model.ApplicationConfigGroupResp
-	resp = &model.ApplicationConfigGroupResp{
+	return &model.ApplicationConfigGroupResp{
 		CreateTime:      appconfig.CreatedAt,
 		AppID:           appconfig.AppID,
 		ConfigGroupName: appconfig.ConfigGroupName,
@@ -181,8 +178,7 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 		ConfigItems:     configGroupItems,
 		Services:        configGroupServices,
 		Enable:          appconfig.Enable,
-	}
-	return resp, nil
+	}, nil
 }
 
 // DeleteConfigGroup -

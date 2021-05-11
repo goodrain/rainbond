@@ -10,13 +10,22 @@ type AppPort struct {
 
 // AppStatus -
 type AppStatus struct {
-	Status    string   `json:"status"`
-	Cpu       *int64   `json:"cpu"`
-	Memory    *int64   `json:"memory"`
-	Disk      int64    `json:"disk"`
-	Phase     string   `json:"phase"`
-	Version   string   `json:"version"`
-	Overrides []string `json:"overrides"`
+	Status     string                `json:"status"`
+	Cpu        *int64                `json:"cpu"`
+	Memory     *int64                `json:"memory"`
+	Disk       int64                 `json:"disk"`
+	Phase      string                `json:"phase"`
+	Version    string                `json:"version"`
+	Overrides  []string              `json:"overrides"`
+	Conditions []*AppStatusCondition `json:"conditions"`
+}
+
+// AppStatusCondition is the conditon of app status.
+type AppStatusCondition struct {
+	Type    string `json:"type"`
+	Status  bool   `json:"status"`
+	Reason  string `json:"reason"`
+	Message string `json:"message"`
 }
 
 // AppService -
@@ -24,6 +33,7 @@ type AppService struct {
 	ServiceName string    `json:"service_name"`
 	Address     string    `json:"address"`
 	TCPPorts    []int32   `json:"tcp_ports"`
+	OldPods     []*AppPod `json:"oldPods"`
 	Pods        []*AppPod `json:"pods"`
 }
 
