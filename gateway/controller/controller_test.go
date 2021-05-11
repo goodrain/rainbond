@@ -19,28 +19,8 @@
 package controller
 
 import (
-	"testing"
-	"time"
-
-	"github.com/coreos/etcd/clientv3"
 	v1 "github.com/goodrain/rainbond/gateway/v1"
 )
-
-func TestGWController_WatchRbdEndpoints(t *testing.T) {
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"localhost:2379"},
-		DialTimeout: 10 * time.Second,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer cli.Close()
-
-	gwc := GWController{
-		EtcdCli: cli,
-	}
-	go gwc.watchRbdEndpoints(0)
-}
 
 func poolsIsEqual(old []*v1.Pool, new []*v1.Pool) bool {
 	if len(old) != len(new) {

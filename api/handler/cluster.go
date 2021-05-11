@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/goodrain/rainbond/api/model"
@@ -18,12 +21,12 @@ import (
 
 // ClusterHandler -
 type ClusterHandler interface {
-	GetClusterInfo() (*model.ClusterResource, error)
-	MavenSettingAdd(ms *MavenSetting) *util.APIHandleError
-	MavenSettingList() (re []MavenSetting)
-	MavenSettingUpdate(ms *MavenSetting) *util.APIHandleError
-	MavenSettingDelete(name string) *util.APIHandleError
-	MavenSettingDetail(name string) (*MavenSetting, *util.APIHandleError)
+	GetClusterInfo(ctx context.Context) (*model.ClusterResource, error)
+	MavenSettingAdd(ctx context.Context, ms *MavenSetting) *util.APIHandleError
+	MavenSettingList(ctx context.Context) (re []MavenSetting)
+	MavenSettingUpdate(ctx context.Context, ms *MavenSetting) *util.APIHandleError
+	MavenSettingDelete(ctx context.Context, name string) *util.APIHandleError
+	MavenSettingDetail(ctx context.Context, name string) (*MavenSetting, *util.APIHandleError)
 }
 
 // NewClusterHandler -
@@ -35,19 +38,31 @@ func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace string) Clu
 }
 
 type clusterAction struct {
-	namespace string
-	clientset *kubernetes.Clientset
+	namespace        string
+	clientset        *kubernetes.Clientset
+	clusterInfoCache *model.ClusterResource
+	cacheTime        time.Time
 }
 
-func (c *clusterAction) GetClusterInfo() (*model.ClusterResource, error) {
-	nodes, err := c.listNodes()
+func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResource, error) {
+	timeout, _ := strconv.Atoi(os.Getenv("CLUSTER_INFO_CACHE_TIME"))
+	if timeout == 0 {
+		// default is 30 seconds
+		timeout = 30
+	}
+	if c.clusterInfoCache != nil && c.cacheTime.Add(time.Second*time.Duration(timeout)).After(time.Now()) {
+		return c.clusterInfoCache, nil
+	}
+	if c.clusterInfoCache != nil {
+		logrus.Debugf("cluster info cache is timeout, will calculate a new value")
+	}
+
+	nodes, err := c.listNodes(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("[GetClusterInfo] list nodes: %v", err)
 	}
 
 	var healthCapCPU, healthCapMem, unhealthCapCPU, unhealthCapMem int64
-	nodeLen := len(nodes)
-	_ = nodeLen
 	usedNodeList := make([]*corev1.Node, len(nodes))
 	for i := range nodes {
 		node := nodes[i]
@@ -71,7 +86,7 @@ func (c *clusterAction) GetClusterInfo() (*model.ClusterResource, error) {
 	for i := range usedNodeList {
 		node := usedNodeList[i]
 
-		pods, err := c.listPods(node.Name)
+		pods, err := c.listPods(ctx, node.Name)
 		if err != nil {
 			return nil, fmt.Errorf("list pods: %v", err)
 		}
@@ -147,13 +162,14 @@ func (c *clusterAction) GetClusterInfo() (*model.ClusterResource, error) {
 			result.NotReadyNode++
 		}
 	}
-
+	c.clusterInfoCache = result
+	c.cacheTime = time.Now()
 	return result, nil
 }
 
-func (c *clusterAction) listNodes() ([]*corev1.Node, error) {
+func (c *clusterAction) listNodes(ctx context.Context) ([]*corev1.Node, error) {
 	opts := metav1.ListOptions{}
-	nodeList, err := c.clientset.CoreV1().Nodes().List(opts)
+	nodeList, err := c.clientset.CoreV1().Nodes().List(ctx, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -191,8 +207,8 @@ func containsTaints(node *corev1.Node) bool {
 	return false
 }
 
-func (c *clusterAction) listPods(nodeName string) (pods []corev1.Pod, err error) {
-	podList, err := c.clientset.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{
+func (c *clusterAction) listPods(ctx context.Context, nodeName string) (pods []corev1.Pod, err error) {
+	podList, err := c.clientset.CoreV1().Pods(metav1.NamespaceAll).List(ctx, metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName}).String()})
 	if err != nil {
 		return pods, err
@@ -210,8 +226,8 @@ type MavenSetting struct {
 }
 
 //MavenSettingList maven setting list
-func (c *clusterAction) MavenSettingList() (re []MavenSetting) {
-	cms, err := c.clientset.CoreV1().ConfigMaps(c.namespace).List(metav1.ListOptions{
+func (c *clusterAction) MavenSettingList(ctx context.Context) (re []MavenSetting) {
+	cms, err := c.clientset.CoreV1().ConfigMaps(c.namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: "configtype=mavensetting",
 	})
 	if err != nil {
@@ -229,7 +245,7 @@ func (c *clusterAction) MavenSettingList() (re []MavenSetting) {
 }
 
 //MavenSettingAdd maven setting add
-func (c *clusterAction) MavenSettingAdd(ms *MavenSetting) *util.APIHandleError {
+func (c *clusterAction) MavenSettingAdd(ctx context.Context, ms *MavenSetting) *util.APIHandleError {
 	config := &corev1.ConfigMap{}
 	config.Name = ms.Name
 	config.Namespace = c.namespace
@@ -243,7 +259,7 @@ func (c *clusterAction) MavenSettingAdd(ms *MavenSetting) *util.APIHandleError {
 	config.Data = map[string]string{
 		"mavensetting": ms.Content,
 	}
-	_, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Create(config)
+	_, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Create(ctx, config, metav1.CreateOptions{})
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return &util.APIHandleError{Code: 400, Err: fmt.Errorf("setting name is exist")}
@@ -257,8 +273,8 @@ func (c *clusterAction) MavenSettingAdd(ms *MavenSetting) *util.APIHandleError {
 }
 
 //MavenSettingUpdate maven setting file update
-func (c *clusterAction) MavenSettingUpdate(ms *MavenSetting) *util.APIHandleError {
-	sm, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Get(ms.Name, metav1.GetOptions{})
+func (c *clusterAction) MavenSettingUpdate(ctx context.Context, ms *MavenSetting) *util.APIHandleError {
+	sm, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Get(ctx, ms.Name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return &util.APIHandleError{Code: 404, Err: fmt.Errorf("setting name is not exist")}
@@ -274,7 +290,7 @@ func (c *clusterAction) MavenSettingUpdate(ms *MavenSetting) *util.APIHandleErro
 	}
 	sm.Data["mavensetting"] = ms.Content
 	sm.Annotations["updateTime"] = time.Now().Format(time.RFC3339)
-	if _, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Update(sm); err != nil {
+	if _, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Update(ctx, sm, metav1.UpdateOptions{}); err != nil {
 		logrus.Errorf("update maven setting configmap failure %s", err.Error())
 		return &util.APIHandleError{Code: 500, Err: fmt.Errorf("update setting config failure")}
 	}
@@ -284,8 +300,8 @@ func (c *clusterAction) MavenSettingUpdate(ms *MavenSetting) *util.APIHandleErro
 }
 
 //MavenSettingDelete maven setting file delete
-func (c *clusterAction) MavenSettingDelete(name string) *util.APIHandleError {
-	err := c.clientset.CoreV1().ConfigMaps(c.namespace).Delete(name, &metav1.DeleteOptions{})
+func (c *clusterAction) MavenSettingDelete(ctx context.Context, name string) *util.APIHandleError {
+	err := c.clientset.CoreV1().ConfigMaps(c.namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return &util.APIHandleError{Code: 404, Err: fmt.Errorf("setting not found")}
@@ -297,8 +313,8 @@ func (c *clusterAction) MavenSettingDelete(name string) *util.APIHandleError {
 }
 
 //MavenSettingDetail maven setting file delete
-func (c *clusterAction) MavenSettingDetail(name string) (*MavenSetting, *util.APIHandleError) {
-	sm, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Get(name, metav1.GetOptions{})
+func (c *clusterAction) MavenSettingDetail(ctx context.Context, name string) (*MavenSetting, *util.APIHandleError) {
+	sm, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("get maven setting config failure %s", err.Error())
 		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("setting not found")}

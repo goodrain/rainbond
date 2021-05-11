@@ -20,6 +20,7 @@ package v2
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -127,6 +128,12 @@ const (
 	KeyConnectionTimeout string = "ConnectionTimeout"
 	//KeyTCPIdleTimeout tcp idle timeout
 	KeyTCPIdleTimeout string = "TCPIdleTimeout"
+	//KeyGrpcHealthServiceName The name of the grpc service used for health checking.
+	KeyGrpcHealthServiceName string = "GrpcHealthServiceName"
+	// cluster health check timeout
+	KeyHealthCheckTimeout string = "HealthCheckTimeout"
+	// cluster health check interval
+	KeyHealthCheckInterval string = "HealthCheckInterval"
 )
 
 //RainbondPluginOptions rainbond plugin config struct
@@ -147,6 +154,9 @@ type RainbondPluginOptions struct {
 	HealthyPanicThreshold    int64
 	ConnectionTimeout        int64
 	TCPIdleTimeout           int64
+	GrpcHealthServiceName    string
+	HealthCheckTimeout       int64
+	HealthCheckInterval      int64
 }
 
 //RainbondInboundPluginOptions rainbond inbound plugin options
@@ -185,6 +195,8 @@ func GetOptionValues(sr map[string]interface{}) RainbondPluginOptions {
 		HealthyPanicThreshold: 50,
 		ConnectionTimeout:     250,
 		TCPIdleTimeout:        60 * 60 * 2,
+		HealthCheckTimeout:    5,
+		HealthCheckInterval:   4,
 	}
 	if sr == nil {
 		return rpo
@@ -192,7 +204,7 @@ func GetOptionValues(sr map[string]interface{}) RainbondPluginOptions {
 	for kind, v := range sr {
 		switch kind {
 		case KeyPrefix:
-			rpo.Prefix = v.(string)
+			rpo.Prefix = strings.TrimSpace(v.(string))
 		case KeyMaxConnections:
 			if i, err := strconv.Atoi(v.(string)); err == nil && i != 0 {
 				rpo.MaxConnections = i
@@ -275,6 +287,16 @@ func GetOptionValues(sr map[string]interface{}) RainbondPluginOptions {
 			if i, err := strconv.Atoi(v.(string)); err == nil {
 				rpo.TCPIdleTimeout = int64(i)
 			}
+		case KeyHealthCheckInterval:
+			if i, err := strconv.Atoi(v.(string)); err == nil {
+				rpo.HealthCheckInterval = int64(i)
+			}
+		case KeyHealthCheckTimeout:
+			if i, err := strconv.Atoi(v.(string)); err == nil {
+				rpo.HealthCheckTimeout = int64(i)
+			}
+		case KeyGrpcHealthServiceName:
+			rpo.GrpcHealthServiceName = strings.TrimSpace(v.(string))
 		}
 	}
 	return rpo
@@ -372,4 +394,27 @@ func CheckWeightSum(clusters []*route.WeightedCluster_ClusterWeight, weight uint
 		return 100 - sum
 	}
 	return weight
+}
+
+// CheckDomain check and handling http domain
+// fix grpc issues https://github.com/envoyproxy/envoy/issues/886
+// after https://github.com/envoyproxy/envoy/pull/10960 merge version, This logic can be removed.
+func CheckDomain(domain []string, protocol string) []string {
+	if protocol == "grpc" {
+		var newDomain []string
+		for _, d := range domain {
+			if !strings.Contains(d, ":") {
+				newDomain = append(newDomain, fmt.Sprintf("%s:%d", d, DefaultLocalhostListenerPort))
+			} else {
+				di := strings.Split(d, ":")
+				if len(di) == 2 && di[1] != fmt.Sprintf("%d", DefaultLocalhostListenerPort) {
+					newDomain = append(newDomain, fmt.Sprintf("%s:%d", di[0], DefaultLocalhostListenerPort))
+				} else {
+					newDomain = append(newDomain, d)
+				}
+			}
+		}
+		return newDomain
+	}
+	return domain
 }

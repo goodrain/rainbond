@@ -318,7 +318,7 @@ func (container *ContainerLog) StartLogging() error {
 	loggers, err := container.startLogger()
 	if err != nil {
 		if err == ErrNeglectedContainer {
-			logrus.Warnf("find a container %s that do not define rainbond logger.", container.Name)
+			logrus.Debugf("find a container %s that do not define rainbond logger.", container.Name)
 			return ErrNeglectedContainer
 		}
 		return fmt.Errorf("failed to initialize logging driver: %v", err)

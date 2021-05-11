@@ -20,11 +20,10 @@ package volume
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/util"
+
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	"os"
 )
 
 // ShareFileVolume nfs volume struct
@@ -34,12 +33,6 @@ type ShareFileVolume struct {
 
 // CreateVolume share file volume create volume
 func (v *ShareFileVolume) CreateVolume(define *Define) error {
-	err := util.CheckAndCreateDir(v.svm.HostPath)
-	if err != nil {
-		return fmt.Errorf("create host path %s error,%s", v.svm.HostPath, err.Error())
-	}
-	_ = os.Chmod(v.svm.HostPath, 0777)
-
 	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
 	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := v.svm.IsReadOnly

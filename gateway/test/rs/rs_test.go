@@ -19,6 +19,7 @@
 package rs
 
 import (
+	"context"
 	"testing"
 
 	"github.com/goodrain/rainbond/gateway/controller"
@@ -32,7 +33,7 @@ func TestReplicaSetTimestamp(t *testing.T) {
 	}
 
 	ns := "c1a29fe4d7b0413993dc859430cf743d"
-	rs, err := clientset.ExtensionsV1beta1().ReplicaSets(ns).Get("88d8c4c55657217522f3bb86cfbded7e-deployment-7545b75dbd", metav1.GetOptions{})
+	rs, err := clientset.ExtensionsV1beta1().ReplicaSets(ns).Get(context.TODO(), "88d8c4c55657217522f3bb86cfbded7e-deployment-7545b75dbd", metav1.GetOptions{})
 	if err != nil {
 		t.Errorf("Unexpected error: %+v", err)
 	}

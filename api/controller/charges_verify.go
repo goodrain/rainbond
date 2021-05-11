@@ -76,7 +76,7 @@ func ChargesVerifyController(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if publicCloud := os.Getenv("PUBLIC_CLOUD"); publicCloud != "true" {
-		err := cloud.PriChargeSverify(tenant, quantityInt)
+		err := cloud.PriChargeSverify(r.Context(), tenant, quantityInt)
 		if err != nil {
 			err.Handle(r, w)
 			return

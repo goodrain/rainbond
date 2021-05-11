@@ -98,7 +98,7 @@ func NewSourceBuildCmd() cli.Command {
 						Action: func(ctx *cli.Context) {
 							Common(ctx)
 							namespace := ctx.String("namespace")
-							cms, err := clients.K8SClient.CoreV1().ConfigMaps(namespace).List(metav1.ListOptions{
+							cms, err := clients.K8SClient.CoreV1().ConfigMaps(namespace).List(context.Background(), metav1.ListOptions{
 								LabelSelector: "configtype=mavensetting",
 							})
 							if err != nil {
@@ -137,7 +137,7 @@ func NewSourceBuildCmd() cli.Command {
 								showError("Please specify the task pod name")
 							}
 							namespace := ctx.String("namespace")
-							cm, err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
+							cm, err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), name, metav1.GetOptions{})
 							if err != nil {
 								showError(err.Error())
 							}
@@ -166,7 +166,7 @@ func NewSourceBuildCmd() cli.Command {
 								showError("Please specify the task pod name")
 							}
 							namespace := ctx.String("namespace")
-							cm, err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
+							cm, err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), name, metav1.GetOptions{})
 							if err != nil {
 								showError(err.Error())
 							}
@@ -182,7 +182,7 @@ func NewSourceBuildCmd() cli.Command {
 							}
 							cm.Data["mavensetting"] = string(body)
 							cm.Annotations["updateTime"] = time.Now().Format(time.RFC3339)
-							_, err = clients.K8SClient.CoreV1().ConfigMaps(namespace).Update(cm)
+							_, err = clients.K8SClient.CoreV1().ConfigMaps(namespace).Update(context.Background(), cm, metav1.UpdateOptions{})
 							if err != nil {
 								showError(err.Error())
 							}
@@ -236,7 +236,7 @@ func NewSourceBuildCmd() cli.Command {
 							config.Data = map[string]string{
 								"mavensetting": string(body),
 							}
-							_, err = clients.K8SClient.CoreV1().ConfigMaps(namespace).Create(config)
+							_, err = clients.K8SClient.CoreV1().ConfigMaps(namespace).Create(context.Background(), config, metav1.CreateOptions{})
 							if err != nil {
 								showError(err.Error())
 							}
@@ -260,7 +260,7 @@ func NewSourceBuildCmd() cli.Command {
 								showError("Please specify the task pod name")
 							}
 							namespace := ctx.String("namespace")
-							err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Delete(name, &metav1.DeleteOptions{})
+							err := clients.K8SClient.CoreV1().ConfigMaps(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 							if err != nil {
 								showError(err.Error())
 							}

@@ -19,6 +19,7 @@
 package thirdparty
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/eapache/channels"
@@ -538,7 +539,7 @@ func (t *thirdparty) runDelete(sid string) {
 	if eps := as.GetEndpoints(true); eps != nil {
 		for _, ep := range eps {
 			logrus.Debugf("Endpoints delete: %+v", ep)
-			err := t.clientset.CoreV1().Endpoints(as.TenantID).Delete(ep.Name, &metav1.DeleteOptions{})
+			err := t.clientset.CoreV1().Endpoints(as.TenantID).Delete(context.Background(), ep.Name, metav1.DeleteOptions{})
 			if err != nil && !errors.IsNotFound(err) {
 				logrus.Warningf("error deleting endpoint empty old app endpoints: %v", err)
 			}

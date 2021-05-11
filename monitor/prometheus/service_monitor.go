@@ -27,9 +27,9 @@ import (
 	"strings"
 	"time"
 
-	mv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
-	externalversions "github.com/coreos/prometheus-operator/pkg/client/informers/externalversions"
-	"github.com/coreos/prometheus-operator/pkg/client/versioned"
+	mv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	externalversions "github.com/prometheus-operator/prometheus-operator/pkg/client/informers/externalversions"
+	"github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/common/model"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

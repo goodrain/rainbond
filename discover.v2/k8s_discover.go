@@ -141,7 +141,7 @@ func (k *k8sDiscover) rewatchWithErr(name string, callback CallbackUpdate, err e
 }
 
 func (k *k8sDiscover) list(name string) []*config.Endpoint {
-	podList, err := k.clientset.CoreV1().Pods(k.cfg.RbdNamespace).List(metav1.ListOptions{
+	podList, err := k.clientset.CoreV1().Pods(k.cfg.RbdNamespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: "name=" + name,
 	})
 	if err != nil {

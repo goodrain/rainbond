@@ -523,7 +523,7 @@ func (m *Manager) deleteTenant(task *model.Task) (err error) {
 		}
 	}()
 
-	if err = m.cfg.KubeClient.CoreV1().Namespaces().Delete(body.TenantID, &metav1.DeleteOptions{
+	if err = m.cfg.KubeClient.CoreV1().Namespaces().Delete(context.Background(), body.TenantID, metav1.DeleteOptions{
 		GracePeriodSeconds: util.Int64(0),
 	}); err != nil && !k8sErrors.IsNotFound(err) {
 		err = fmt.Errorf("delete namespace: %v", err)
