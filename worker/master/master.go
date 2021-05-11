@@ -30,7 +30,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/util/leader"
 	"github.com/goodrain/rainbond/worker/appm/store"
-	"github.com/goodrain/rainbond/worker/controllers/helmapp"
+	"github.com/goodrain/rainbond/worker/master/helmapp"
 	"github.com/goodrain/rainbond/worker/master/podevent"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
