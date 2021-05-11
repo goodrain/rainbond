@@ -1424,15 +1424,9 @@ func (a *appRuntimeStore) UnRegisterVolumeTypeListener(name string) {
 }
 
 func (a *appRuntimeStore) GetAppResources(appID string) (int64, int64, error) {
-	pods, err := a.listPodsByAppID(appID)
+	pods, err := a.listPodsByAppIDLegacy(appID)
 	if err != nil {
 		return 0, 0, err
-	}
-	if len(pods) == 0 {
-		pods, err = a.listPodsByAppIDLegacy(appID)
-		if err != nil {
-			return 0, 0, err
-		}
 	}
 
 	var cpu, memory int64
@@ -1444,17 +1438,6 @@ func (a *appRuntimeStore) GetAppResources(appID string) (int64, int64, error) {
 	}
 
 	return cpu, memory, nil
-}
-
-func (a *appRuntimeStore) listPodsByAppID(appID string) ([]*corev1.Pod, error) {
-	// list pod based on the given appID
-	requirement, err := labels.NewRequirement("app_id", selection.Equals, []string{appID})
-	if err != nil {
-		return nil, err
-	}
-	selector := labels.NewSelector()
-	selector = selector.Add(*requirement)
-	return a.listers.Pod.List(selector)
 }
 
 // Compatible with the old version.
