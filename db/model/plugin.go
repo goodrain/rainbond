@@ -19,9 +19,15 @@
 package model
 
 import (
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 )
+
+// NetPluginPrefix is the prefix of network plugin model.
+// More detail: https://github.com/goodrain/rainbond-console/blob/63676d0ec5e02df0b621187794ce6b43a28a157c/console/constants.py#L78
+const NetPluginPrefix = "net-plugin"
 
 //TenantPlugin plugin model
 type TenantPlugin struct {
@@ -50,6 +56,11 @@ type TenantPlugin struct {
 //TableName table name
 func (t *TenantPlugin) TableName() string {
 	return "tenant_plugin"
+}
+
+// IsNetPlugin checks if the plugin model is network plugin.
+func IsNetPlugin(model string) bool {
+	return strings.HasPrefix(model, NetPluginPrefix)
 }
 
 //TenantPluginDefaultENV plugin default env config

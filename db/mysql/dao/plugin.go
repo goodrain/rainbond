@@ -533,6 +533,15 @@ func (t *TenantServicePluginRelationDaoImpl) CheckSomeModelLikePluginByServiceID
 	return false, nil
 }
 
+// GetNetPluginByServiceID returns the network plugin based on the given serviceID
+func (t *TenantServicePluginRelationDaoImpl) GetNetPluginByServiceID(serviceID string) (*model.TenantServicePluginRelation, error) {
+	var relation model.TenantServicePluginRelation
+	if err := t.DB.Where("service_id=? and plugin_model LIKE ?", serviceID, model.NetPluginPrefix+"%").Find(&relation).Error; err != nil {
+		return nil, err
+	}
+	return &relation, nil
+}
+
 //DeleteALLRelationByServiceID 删除serviceID所有插件依赖 一般用于删除应用时使用
 func (t *TenantServicePluginRelationDaoImpl) DeleteALLRelationByServiceID(serviceID string) error {
 	relation := &model.TenantServicePluginRelation{
