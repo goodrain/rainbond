@@ -33,6 +33,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/helm"
 	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/util/constants"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm/store"
@@ -171,9 +172,9 @@ func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus,
 	}
 
 	selector := labels.NewSelector()
-	instanceReq, _ := labels.NewRequirement("app.kubernetes.io/instance", selection.Equals, []string{app.AppName})
+	instanceReq, _ := labels.NewRequirement(constants.ResourceInstanceLabel, selection.Equals, []string{app.AppName})
 	selector = selector.Add(*instanceReq)
-	managedReq, _ := labels.NewRequirement("app.kubernetes.io/managed-by", selection.Equals, []string{"Helm"})
+	managedReq, _ := labels.NewRequirement(constants.ResourceManagedByLabel, selection.Equals, []string{"Helm"})
 	selector = selector.Add(*managedReq)
 	pods, err := r.store.ListPods(app.TenantID, selector)
 	if err != nil {
@@ -666,9 +667,9 @@ func (r *RuntimeServer) ListAppServices(ctx context.Context, in *pb.AppReq) (*pb
 	}
 
 	selector := labels.NewSelector()
-	instanceReq, _ := labels.NewRequirement("app.kubernetes.io/instance", selection.Equals, []string{app.AppName})
+	instanceReq, _ := labels.NewRequirement(constants.ResourceInstanceLabel, selection.Equals, []string{app.AppName})
 	selector = selector.Add(*instanceReq)
-	managedReq, _ := labels.NewRequirement("app.kubernetes.io/managed-by", selection.Equals, []string{"Helm"})
+	managedReq, _ := labels.NewRequirement(constants.ResourceManagedByLabel, selection.Equals, []string{"Helm"})
 	selector = selector.Add(*managedReq)
 	services, err := r.store.ListServices(app.TenantID, selector)
 	if err != nil {

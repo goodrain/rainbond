@@ -16,11 +16,13 @@ import (
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	util "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/commonutil"
+	"github.com/goodrain/rainbond/util/constants"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
@@ -103,30 +105,47 @@ func (a *ApplicationAction) CreateApp(ctx context.Context, req *model.Applicatio
 }
 
 func (a *ApplicationAction) createHelmApp(ctx context.Context, app *dbmodel.Application) error {
+	labels := map[string]string{
+		constants.ResourceManagedByLabel: constants.Rainbond,
+	}
 	helmApp := &v1alpha1.HelmApp{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      app.AppName,
 			Namespace: app.TenantID,
-			// TODO: rainbond labels.
+			Labels:    labels,
 		},
 		Spec: v1alpha1.HelmAppSpec{
 			EID:          app.EID,
 			TemplateName: app.AppTemplateName,
 			Version:      app.Version,
 			AppStore: &v1alpha1.HelmAppStore{
-				Version: "", // TODO: setup version.
-				Name:    app.AppStoreName,
-				URL:     app.AppStoreURL,
+				Name: app.AppStoreName,
+				URL:  app.AppStoreURL,
 			},
 		}}
 
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	ctx1, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	_, err := a.rainbondClient.RainbondV1alpha1().HelmApps(helmApp.Namespace).Create(ctx, helmApp, metav1.CreateOptions{})
-	if k8sErrors.IsAlreadyExists(err) {
-		return errors.Wrap(bcode.ErrApplicationExist, "create helm app")
+	_, err := a.kubeClient.CoreV1().Namespaces().Create(ctx1, &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   app.AppName,
+			Labels: labels,
+		},
+	}, metav1.CreateOptions{})
+	if err != nil && !k8sErrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "create namespace for helm app")
 	}
-	return err
+
+	ctx2, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(helmApp.Namespace).Create(ctx2, helmApp, metav1.CreateOptions{})
+	if err != nil {
+		if k8sErrors.IsAlreadyExists(err) {
+			return errors.Wrap(bcode.ErrApplicationExist, "create helm app")
+		}
+		return errors.Wrap(err, "create helm app")
+	}
+	return nil
 }
 
 // BatchCreateApp -
