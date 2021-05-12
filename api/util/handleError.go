@@ -34,6 +34,7 @@ import (
 type APIHandleError struct {
 	Code int
 	Err  error
+	Data interface{}
 }
 
 //CreateAPIHandleError create APIHandleError
@@ -41,6 +42,16 @@ func CreateAPIHandleError(code int, err error) *APIHandleError {
 	return &APIHandleError{
 		Code: code,
 		Err:  err,
+	}
+}
+
+// CreateAPIHandleErrorV2 creates APIHandleError
+// Support setting data
+func CreateAPIHandleErrorV2(code int, err error, data interface{}) *APIHandleError {
+	return &APIHandleError{
+		Code: code,
+		Err:  err,
+		Data: data,
 	}
 }
 
@@ -86,6 +97,15 @@ func (a *APIHandleError) Handle(r *http.Request, w http.ResponseWriter) {
 		httputil.ReturnError(r, w, a.Code, a.Error())
 		return
 	}
+
+	if a.Data != nil {
+		httputil.Return(r, w, a.Code, httputil.ResponseBody{
+			Msg:  a.Error(),
+			Bean: a.Data,
+		})
+		return
+	}
+
 	httputil.ReturnError(r, w, a.Code, a.Error())
 	return
 }

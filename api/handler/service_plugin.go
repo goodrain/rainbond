@@ -21,16 +21,14 @@ package handler
 import (
 	"fmt"
 
-	"github.com/goodrain/rainbond/worker/discover/model"
-
-	"github.com/jinzhu/gorm"
-
 	"github.com/Sirupsen/logrus"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	gclient "github.com/goodrain/rainbond/mq/client"
+	"github.com/goodrain/rainbond/worker/discover/model"
+	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
 )
 
@@ -91,16 +89,19 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("get plugin by plugin id", err)
 	}
-	crt, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelLikePluginByServiceID(
-		serviceID,
-		plugin.PluginModel,
-	)
-	if err != nil {
-		return nil, util.CreateAPIHandleErrorFromDBError("check plugin model", err)
+
+	// check if the service plugin already exists
+	if err := s.isPluginExists(serviceID, plugin.PluginID); err != nil {
+		return nil, err
 	}
-	if crt {
-		return nil, util.CreateAPIHandleError(400, fmt.Errorf("can not add this kind plugin, a same kind plugin has been linked"))
+
+	// A component can only have one network plugin
+	if dbmodel.IsNetPlugin(plugin.PluginModel) {
+		if err := s.containsNetPlugin(serviceID); err != nil {
+			return nil, err
+		}
 	}
+
 	pluginversion, err := db.GetManager().TenantPluginBuildVersionDao().GetBuildVersionByVersionID(plugin.PluginID, pss.Body.VersionID)
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("plugin version get error ", err)
@@ -172,6 +173,30 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 		return nil, util.CreateAPIHandleErrorFromDBError("commit set service plugin relation", err)
 	}
 	return relation, nil
+}
+
+// check if the service plugin already exists
+func (s *ServiceAction) isPluginExists(serviceID, pluginID string) *util.APIHandleError {
+	servicePlugin, err := db.GetManager().TenantServicePluginRelationDao().GetRelateionByServiceIDAndPluginID(serviceID, pluginID)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return util.CreateAPIHandleErrorFromDBError("get service plugin", err)
+	}
+	if servicePlugin != nil {
+		return util.CreateAPIHandleError(400, fmt.Errorf("service plugin already exists"))
+	}
+	return nil
+}
+
+func (s *ServiceAction) containsNetPlugin(serviceID string) *util.APIHandleError {
+	relation, err := db.GetManager().TenantServicePluginRelationDao().GetNetPluginByServiceID(serviceID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil
+		}
+		return util.CreateAPIHandleErrorFromDBError("get plugin relations", err)
+	}
+	// return the conflict network plugin, so that the client can handle this error gracefully.
+	return util.CreateAPIHandleErrorV2(400, fmt.Errorf("can not add this kind plugin, a same kind plugin has been linked"), relation)
 }
 
 //UpdateTenantServicePluginRelation UpdateTenantServicePluginRelation
