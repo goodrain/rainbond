@@ -44,6 +44,7 @@ type store struct {
 	lister   v1alpha1.HelmAppLister
 }
 
+// NewStorer creates a new storer.
 func NewStorer(clientset versioned.Interface,
 	resyncPeriod time.Duration,
 	workqueue workqueue.Interface,

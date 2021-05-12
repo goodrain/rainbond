@@ -11,7 +11,7 @@ type AppPort struct {
 // AppStatus -
 type AppStatus struct {
 	Status     string                `json:"status"`
-	Cpu        *int64                `json:"cpu"`
+	CPU        *int64                `json:"cpu"`
 	Memory     *int64                `json:"memory"`
 	Disk       int64                 `json:"disk"`
 	Phase      string                `json:"phase"`
@@ -45,6 +45,7 @@ func (a ByServiceName) Len() int           { return len(a) }
 func (a ByServiceName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByServiceName) Less(i, j int) bool { return a[i].ServiceName < a[j].ServiceName }
 
+// AppPod -
 type AppPod struct {
 	PodName   string `json:"pod_name"`
 	PodStatus string `json:"pod_status"`

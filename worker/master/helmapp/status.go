@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
+// Status represents the status of helm app.
 type Status struct {
 	ctx            context.Context
 	rainbondClient versioned.Interface
@@ -44,6 +45,7 @@ func NewStatus(ctx context.Context, app *v1alpha1.HelmApp, rainbondClient versio
 	}
 }
 
+// Update updates helm app status.
 func (s *Status) Update() error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		ctx, cancel := context.WithTimeout(s.ctx, defaultTimeout)

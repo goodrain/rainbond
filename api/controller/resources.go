@@ -1931,10 +1931,10 @@ func (t *TenantStruct) TransPlugins(w http.ResponseWriter, r *http.Request) {
 	}
 	rc["result"] = "success"
 	httputil.ReturnSuccess(r, w, rc)
-	return
 }
 
-func (a *TenantStruct) CheckResourceName(w http.ResponseWriter, r *http.Request) {
+// CheckResourceName checks the resource name.
+func (t *TenantStruct) CheckResourceName(w http.ResponseWriter, r *http.Request) {
 	var req model.CheckResourceNameReq
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
 		return

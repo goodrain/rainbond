@@ -182,7 +182,7 @@ func (a *App) Update() error {
 	return a.UpdateSpec()
 }
 
-// UpdateStatus updates the running status of the helm app.
+// UpdateRunningStatus updates the running status of the helm app.
 func (a *App) UpdateRunningStatus() {
 	if a.helmApp.Status.Phase != v1alpha1.HelmAppStatusPhaseInstalled {
 		return

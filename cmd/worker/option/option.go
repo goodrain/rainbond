@@ -56,6 +56,7 @@ type Config struct {
 	Helm                    Helm
 }
 
+// Helm helm configuration.
 type Helm struct {
 	DataDir   string
 	RepoFile  string

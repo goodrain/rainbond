@@ -160,6 +160,7 @@ func (a *ApplicationController) DeleteApp(w http.ResponseWriter, r *http.Request
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+// BatchUpdateComponentPorts update component ports in batch.
 func (a *ApplicationController) BatchUpdateComponentPorts(w http.ResponseWriter, r *http.Request) {
 	var appPorts []*model.AppPort
 	if err := httputil.ReadEntity(r, &appPorts); err != nil {
@@ -183,6 +184,7 @@ func (a *ApplicationController) BatchUpdateComponentPorts(w http.ResponseWriter,
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+// GetAppStatus returns the status of the application.
 func (a *ApplicationController) GetAppStatus(w http.ResponseWriter, r *http.Request) {
 	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
 
@@ -195,6 +197,7 @@ func (a *ApplicationController) GetAppStatus(w http.ResponseWriter, r *http.Requ
 	httputil.ReturnSuccess(r, w, res)
 }
 
+// Install installs the application.
 func (a *ApplicationController) Install(w http.ResponseWriter, r *http.Request) {
 	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
 
@@ -209,6 +212,7 @@ func (a *ApplicationController) Install(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// ListServices returns the list fo the application.
 func (a *ApplicationController) ListServices(w http.ResponseWriter, r *http.Request) {
 	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
 
@@ -238,6 +242,7 @@ func (a *ApplicationController) BatchBindService(w http.ResponseWriter, r *http.
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+// ListHelmAppReleases returns the list of helm releases.
 func (a *ApplicationController) ListHelmAppReleases(w http.ResponseWriter, r *http.Request) {
 	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
 

@@ -24,12 +24,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// Detector is responsible for detecting the helm app.
 type Detector struct {
 	helmApp *v1alpha1.HelmApp
 	repo    *helm.Repo
 	app     *App
 }
 
+// NewDetector creates a new Detector.
 func NewDetector(helmApp *v1alpha1.HelmApp, app *App, repo *helm.Repo) *Detector {
 	return &Detector{
 		helmApp: helmApp,
@@ -38,6 +40,7 @@ func NewDetector(helmApp *v1alpha1.HelmApp, app *App, repo *helm.Repo) *Detector
 	}
 }
 
+// Detect detects the helm app.
 func (d *Detector) Detect() error {
 	// add repo
 	if !d.helmApp.Status.IsConditionTrue(v1alpha1.HelmAppChartReady) {

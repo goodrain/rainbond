@@ -2062,6 +2062,7 @@ func (s *ServiceAction) isServiceClosed(serviceID string) error {
 	return nil
 }
 
+// DeleteComponentInBatch deletes components in batch.
 func (s *ServiceAction) DeleteComponentInBatch(tx *gorm.DB, components []*dbmodel.TenantServices) error {
 	for _, cpt := range components {
 		err := s.deleteComponent(tx, cpt)

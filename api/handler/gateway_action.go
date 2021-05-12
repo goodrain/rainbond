@@ -597,7 +597,7 @@ func (g *GatewayAction) TCPIPPortExists(host string, port int) bool {
 	return false
 }
 
-// SendTask sends apply rules task
+// SendTaskDeprecated sends apply rules task
 func (g *GatewayAction) SendTaskDeprecated(in map[string]interface{}) error {
 	sid := in["service_id"].(string)
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(sid)

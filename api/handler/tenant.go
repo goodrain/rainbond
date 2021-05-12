@@ -611,8 +611,9 @@ func (t *TenantAction) GetClusterResource(ctx context.Context) *ClusterResourceS
 	return t.cacheClusterResourceStats
 }
 
-func (a *TenantAction) CheckResourceName(ctx context.Context, namespace string, req *model.CheckResourceNameReq) (*model.CheckResourceNameResp, error) {
-	obj, ok := a.resources[req.Type]
+// CheckResourceName checks resource name.
+func (t *TenantAction) CheckResourceName(ctx context.Context, namespace string, req *model.CheckResourceNameReq) (*model.CheckResourceNameResp, error) {
+	obj, ok := t.resources[req.Type]
 	if !ok {
 		return nil, bcode.NewBadRequest("unsupported resource: " + req.Type)
 	}
@@ -622,7 +623,7 @@ func (a *TenantAction) CheckResourceName(ctx context.Context, namespace string, 
 
 	retries := 3
 	for i := 0; i < retries; i++ {
-		if err := a.k8sClient.Get(nctx, types.NamespacedName{Namespace: namespace, Name: req.Name}, obj); err != nil {
+		if err := t.k8sClient.Get(nctx, types.NamespacedName{Namespace: namespace, Name: req.Name}, obj); err != nil {
 			if k8sErrors.IsNotFound(err) {
 				break
 			}

@@ -428,7 +428,7 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 
 	res := &model.AppStatus{
 		Status:     status.Status,
-		Cpu:        cpu,
+		CPU:        cpu,
 		Memory:     memory,
 		Disk:       int64(diskUsage),
 		Phase:      status.Phase,
@@ -439,6 +439,7 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 	return res, nil
 }
 
+// Install installs the application.
 func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Application, overrides []string) error {
 	ctx1, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -462,6 +463,7 @@ func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Applicatio
 	return errors.Wrap(err, "install app")
 }
 
+// ListServices returns the list of the application.
 func (a *ApplicationAction) ListServices(ctx context.Context, app *dbmodel.Application) ([]*model.AppService, error) {
 	nctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -526,6 +528,7 @@ func (a *ApplicationAction) BatchBindService(appID string, req model.BindService
 	return db.GetManager().TenantServiceDao().BindAppByServiceIDs(appID, serviceIDs)
 }
 
+// ListHelmAppReleases returns the list of the helm app.
 func (a *ApplicationAction) ListHelmAppReleases(ctx context.Context, app *dbmodel.Application) ([]*model.HelmAppRelease, error) {
 	// only for helm app
 	if app.AppType != model.AppTypeHelm {
