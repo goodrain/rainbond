@@ -195,6 +195,7 @@ func (p *rainbondsslcProvisioner) createPath(options controller.VolumeOptions) (
 func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
 	logrus.Debugf("[rainbondsslcProvisioner] start creating PV object. paramters: %+v", options.Parameters)
 	//runtime select an appropriate node with the largest resource surplus
+	// storageclass VolumeBinding set WaitForFirstConsumer, SelectedNode should be assigned.
 	if options.SelectedNode == nil {
 		var err error
 		var ignoreNodes string
@@ -203,8 +204,7 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 		}
 		options.SelectedNode, err = p.selectNode(context.Background(), options.PVC.Annotations[client.LabelOS], ignoreNodes)
 		if err != nil {
-			return nil, fmt.Errorf("Node OS: %s; error selecting node: %v",
-				options.PVC.Annotations[client.LabelOS], err)
+			return nil, fmt.Errorf("node OS: %s; error selecting node: %s", options.PVC.Annotations[client.LabelOS], err.Error())
 		}
 		if options.SelectedNode == nil {
 			return nil, fmt.Errorf("do not select an appropriate node for local volume")
@@ -239,12 +239,13 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 					Path: path,
 				},
 			},
+			MountOptions: options.MountOptions,
 			NodeAffinity: &v1.VolumeNodeAffinity{
 				Required: &v1.NodeSelector{
 					NodeSelectorTerms: []v1.NodeSelectorTerm{
-						v1.NodeSelectorTerm{
+						{
 							MatchExpressions: []v1.NodeSelectorRequirement{
-								v1.NodeSelectorRequirement{
+								{
 									Key:      "kubernetes.io/hostname",
 									Operator: v1.NodeSelectorOpIn,
 									Values:   []string{options.SelectedNode.Labels["kubernetes.io/hostname"]},

@@ -30,6 +30,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	slash         = "/"
+	nonIdempotent = "non_idempotent"
+)
+
 var (
 	funcMap = text_template.FuncMap{
 		"empty": func(input interface{}) bool {
@@ -41,6 +46,7 @@ var (
 		},
 		"buildLuaHeaderRouter": buildLuaHeaderRouter,
 		"isValidByteSize":      isValidByteSize,
+		"buildNextUpstream":    buildNextUpstream,
 	}
 )
 
@@ -152,4 +158,33 @@ func isValidByteSize(input interface{}, isOffset bool) bool {
 	}
 
 	return nginxSizeRegex.MatchString(s)
+}
+
+func buildNextUpstream(i, r interface{}) string {
+	nextUpstream, ok := i.(string)
+	if !ok {
+		logrus.Errorf("expected a 'string' type but %T was returned", i)
+		return ""
+	}
+
+	retryNonIdempotent := r.(bool)
+
+	parts := strings.Split(nextUpstream, " ")
+
+	nextUpstreamCodes := make([]string, 0, len(parts))
+	for _, v := range parts {
+		if v != "" && v != nonIdempotent {
+			nextUpstreamCodes = append(nextUpstreamCodes, v)
+		}
+
+		if v == nonIdempotent {
+			retryNonIdempotent = true
+		}
+	}
+
+	if retryNonIdempotent {
+		nextUpstreamCodes = append(nextUpstreamCodes, nonIdempotent)
+	}
+
+	return strings.Join(nextUpstreamCodes, " ")
 }

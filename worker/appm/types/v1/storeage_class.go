@@ -41,7 +41,7 @@ var RainbondStatefuleLocalStorageClass = "rainbondslsc"
 
 func init() {
 	var volumeBindingImmediate = storagev1.VolumeBindingImmediate
-	//var columeWaitForFirstConsumer = storagev1.VolumeBindingWaitForFirstConsumer
+	var columeWaitForFirstConsumer = storagev1.VolumeBindingWaitForFirstConsumer
 	var Retain = v1.PersistentVolumeReclaimRetain
 	initStorageClass = append(initStorageClass, &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
@@ -56,7 +56,7 @@ func init() {
 			Name: RainbondStatefuleLocalStorageClass,
 		},
 		Provisioner:       "rainbond.io/provisioner-sslc",
-		VolumeBindingMode: &volumeBindingImmediate,
+		VolumeBindingMode: &columeWaitForFirstConsumer,
 		ReclaimPolicy:     &Retain,
 	})
 }

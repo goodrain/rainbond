@@ -103,6 +103,7 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 			Capacity: v1.ResourceList{
 				v1.ResourceStorage: options.PVC.Spec.Resources.Requests[v1.ResourceStorage],
 			},
+			MountOptions:           options.MountOptions,
 			PersistentVolumeSource: *persistentVolumeSource,
 		},
 	}

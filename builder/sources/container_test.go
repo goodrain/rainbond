@@ -20,13 +20,10 @@ package sources
 
 import (
 	"log"
-	"os"
 	"testing"
 
-	"github.com/goodrain/rainbond/event"
-	"github.com/sirupsen/logrus"
-
 	"github.com/docker/docker/client"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -110,74 +107,4 @@ func TestStartContainer(t *testing.T) {
 		}
 	}
 	t.Log(containerID)
-}
-
-func TestWaitExitOrRemoved(t *testing.T) {
-	service := createService()
-	exist := service.WaitExitOrRemoved("ebe308d2e69be555d492f3bd7960c908b9915e87b278fe661838b3e4b1a9196b", false)
-	t.Log(<-exist)
-}
-
-func TestStartBuildContainer(t *testing.T) {
-	logrus.SetLevel(logrus.DebugLevel)
-	service := createService()
-	containerID, err := service.CreateContainer(&ContainerConfig{
-		Metadata: &ContainerMetadata{
-			Name: "builder__11",
-		},
-		Image: &ImageSpec{
-			Image: "containertest",
-		},
-		Mounts: []*Mount{
-			&Mount{
-				ContainerPath: "/tmp/cache",
-				HostPath:      "/tmp/buildtest/cache",
-				Readonly:      false,
-			},
-		},
-		Envs: []*KeyValue{
-			&KeyValue{Key: "LANG", Value: "static"},
-		},
-		Stdin:        true,
-		StdinOnce:    true,
-		AttachStdin:  true,
-		AttachStdout: true,
-		AttachStderr: true,
-		NetworkConfig: &NetworkConfig{
-			NetworkMode: "host",
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	errchan := make(chan error, 1)
-	tarfile, err := os.OpenFile("/Users/qingguo/gopath/src/github.com/goodrain/rainbond/test/testcontainer/test.tar", os.O_RDONLY, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer tarfile.Close()
-	logger := event.GetTestLogger()
-	writer := logger.GetWriter("builder", "debug")
-	close, err := service.AttachContainer(containerID, true, true, true, tarfile, writer, writer, &errchan)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer close()
-	statuschan := service.WaitExitOrRemoved(containerID, false)
-	//start the container
-	if err := service.StartContainer(containerID); err != nil {
-		<-errchan
-		t.Fatal(err)
-	}
-	logrus.Infof("start container complete")
-	if errchan != nil {
-		if err := <-errchan; err != nil {
-			logrus.Debugf("Error hijack: %s", err)
-			t.Fatal(err)
-		}
-	}
-	logrus.Infof("watch status chan")
-	t.Log(<-statuschan)
-	t.Log(containerID)
-
 }

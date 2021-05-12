@@ -77,6 +77,8 @@ type Backend struct {
 	// https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_next_upstream_tries
 	ProxyNextUpstreamTries int `json:"proxy-next-upstream-tries"`
 
+	ProxyNextUpstreamTimeout int `json:"proxy-next-upstream-timeout"`
+
 	// Sets the original text that should be changed in the "Location" and "Refresh" header fields of a proxied server response.
 	// http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_redirect
 	// Default: off

@@ -19,107 +19,61 @@
 package build
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 
-	"github.com/goodrain/rainbond/util"
-
-	"github.com/docker/docker/client"
-
-	"github.com/sirupsen/logrus"
-
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 )
 
-var netcoreBuildDockerfile = "/src/build-app/netcore/Dockerfile.build"
-var netcoreRuntimeDockerfile = "/src/build-app/netcore/Dockerfile.runtime"
+var dockerfileTmpl = `
+FROM microsoft/dotnet:${DOTNET_SDK_VERSION:2.2-sdk-alpine} AS builder
+WORKDIR /app
 
-// var netcoreBuildDockerfile = "/Users/qingguo/gopath/src/github.com/goodrain/rainbond/hack/contrib/docker/chaos/build-app/netcore/Dockerfile.build"
-// var netcoreRuntimeDockerfile = "/Users/qingguo/gopath/src/github.com/goodrain/rainbond/hack/contrib/docker/chaos/build-app/netcore/Dockerfile.runtime"
-var buildDockerfile []byte
-var runDockerfile []byte
+# copy csproj and restore as distinct layers
+COPY . .
+RUN ${DOTNET_RESTORE_PRE} && ${DOTNET_RESTORE:dotnet restore} && dotnet publish -c Release -o /out
 
-func netcoreBuilder() (Build, error) {
-	if buildDockerfile == nil || runDockerfile == nil {
-		build, err := ioutil.ReadFile(netcoreBuildDockerfile)
-		if err != nil {
-			return nil, err
-		}
-		runtime, err := ioutil.ReadFile(netcoreRuntimeDockerfile)
-		if err != nil {
-			return nil, err
-		}
-		buildDockerfile = build
-		runDockerfile = runtime
-	}
-	return &netcoreBuild{}, nil
-}
+FROM microsoft/dotnet:${DOTNET_RUNTIME_VERSION:2.2-aspnetcore-runtime-alpine}
+WORKDIR /app
+COPY --from=builder /out/ .
+CMD ["dotnet"]
+`
 
 type netcoreBuild struct {
 	imageName      string
 	buildImageName string
-	buildCacheDir  string
 	sourceDir      string
 	dockercli      *client.Client
 	logger         event.Logger
 	serviceID      string
 }
 
+func netcoreBuilder() (Build, error) {
+	return &netcoreBuild{}, nil
+}
+
 func (d *netcoreBuild) Build(re *Request) (*Response, error) {
+	defer d.clear()
 	d.dockercli = re.DockerClient
 	d.logger = re.Logger
 	d.serviceID = re.ServiceID
-	defer d.clear()
-	//write default Dockerfile for build
-	if err := d.writeBuildDockerfile(re.SourceDir, re.BuildEnvs); err != nil {
-		return nil, fmt.Errorf("write default build dockerfile error:%s", err.Error())
-	}
 	d.sourceDir = re.SourceDir
 	d.imageName = CreateImageName(re.ServiceID, re.DeployVersion)
-	d.buildImageName = d.imageName + "_build"
-	//build code
-	buildOptions := types.ImageBuildOptions{
-		Tags:   []string{d.buildImageName},
-		Remove: true,
-	}
-	if _, ok := re.BuildEnvs["NO_CACHE"]; ok {
-		buildOptions.NoCache = true
-	} else {
-		buildOptions.NoCache = false
-	}
+
 	re.Logger.Info("start compiling the source code", map[string]string{"step": "builder-exector"})
-	_, err := sources.ImageBuild(re.DockerClient, re.SourceDir, buildOptions, re.Logger, 20)
-	if err != nil {
-		re.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
-		logrus.Errorf("build image error: %s", err.Error())
-		return nil, err
+	// write dockerfile
+	if err := d.writeDockerfile(d.sourceDir, re.BuildEnvs); err != nil {
+		return nil, fmt.Errorf("write default dockerfile error:%s", err.Error())
 	}
-	// check build image exist
-	_, err = sources.ImageInspectWithRaw(re.DockerClient, d.buildImageName)
-	if err != nil {
-		re.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
-		logrus.Errorf("get image inspect error: %s", err.Error())
-		return nil, err
-	}
-	// copy build output
-	d.buildCacheDir = path.Join(re.CacheDir, re.DeployVersion)
-	err = d.copyBuildOut(d.buildCacheDir, d.buildImageName)
-	if err != nil {
-		re.Logger.Error(fmt.Sprintf("copy compilation package failed, find log in rbd-chaos"), map[string]string{"step": "builder-exector", "status": "failure"})
-		logrus.Errorf("copy build output file error: %s", err.Error())
-		return nil, err
-	}
-	//write default runtime dockerfile
-	if err := d.writeRunDockerfile(d.buildCacheDir, re.BuildEnvs); err != nil {
-		return nil, fmt.Errorf("write default runtime dockerfile error:%s", err.Error())
-	}
-	//build runtime image
+	// build image
 	runbuildOptions := types.ImageBuildOptions{
 		Tags:   []string{d.imageName},
 		Remove: true,
@@ -129,7 +83,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 	} else {
 		runbuildOptions.NoCache = false
 	}
-	_, err = sources.ImageBuild(re.DockerClient, d.buildCacheDir, runbuildOptions, re.Logger, 60)
+	_, err := sources.ImageBuild(re.DockerClient, d.sourceDir, runbuildOptions, re.Logger, 60)
 	if err != nil {
 		re.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
@@ -155,50 +109,14 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 	}
 	return d.createResponse(), nil
 }
-func (d *netcoreBuild) writeBuildDockerfile(sourceDir string, envs map[string]string) error {
-	result := util.ParseVariable(string(buildDockerfile), envs)
-	return ioutil.WriteFile(path.Join(sourceDir, "Dockerfile"), []byte(result), 0755)
+
+func (d *netcoreBuild) writeDockerfile(sourceDir string, envs map[string]string) error {
+	dockerfile := util.ParseVariable(dockerfileTmpl, envs)
+	dfpath := path.Join(sourceDir, "Dockerfile")
+	logrus.Debugf("dest: %s; write dockerfile: %s", dfpath, dockerfile)
+	return ioutil.WriteFile(dfpath, []byte(dockerfile), 0755)
 }
 
-func (d *netcoreBuild) writeRunDockerfile(sourceDir string, envs map[string]string) error {
-	result := util.ParseVariable(string(runDockerfile), envs)
-	return ioutil.WriteFile(path.Join(sourceDir, "Dockerfile"), []byte(result), 0755)
-}
-
-func (d *netcoreBuild) copyBuildOut(outDir string, sourceImage string) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	ds := sources.CreateDockerService(ctx, d.dockercli)
-	cid, err := ds.CreateContainer(&sources.ContainerConfig{
-		Metadata: &sources.ContainerMetadata{
-			Name: d.serviceID + "_builder",
-		},
-		NetworkConfig: &sources.NetworkConfig{
-			NetworkMode: "none",
-		},
-		Image: &sources.ImageSpec{
-			Image: sourceImage,
-		},
-		Mounts: []*sources.Mount{
-			&sources.Mount{
-				ContainerPath: "/tmp/out",
-				HostPath:      outDir,
-			},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("create container copy file error %s", err.Error())
-	}
-	statuschan := ds.WaitExitOrRemoved(cid, true)
-	if err := ds.StartContainer(cid); err != nil {
-		return fmt.Errorf("start container copy file error %s", err.Error())
-	}
-	status := <-statuschan
-	if status != 0 {
-		return &ErrorBuild{Code: status}
-	}
-	return nil
-}
 func (d *netcoreBuild) createResponse() *Response {
 	return &Response{
 		MediumType: ImageMediumType,
@@ -207,6 +125,5 @@ func (d *netcoreBuild) createResponse() *Response {
 }
 
 func (d *netcoreBuild) clear() {
-	//os.RemoveAll(d.buildCacheDir)
 	os.Remove(path.Join(d.sourceDir, "Dockerfile"))
 }

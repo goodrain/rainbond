@@ -211,6 +211,9 @@ func (o *OrService) getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv 
 				"tenant_id":  vs.Namespace,
 				"service_id": vs.ServiceID,
 			},
+			ProxyStreamNextUpstream:        true,
+			ProxyStreamNextUpstreamTimeout: "600s",
+			ProxyStreamNextUpstreamTries:   3,
 		}
 		if vs.SSLCert != nil {
 			server.SSLProtocols = vs.SSlProtocols
@@ -223,14 +226,14 @@ func (o *OrService) getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv 
 			location := &model.Location{
 				DisableAccessLog: o.ocfg.AccessLogPath == "",
 				// TODO: Distinguish between server output logs
-				AccessLogPath:    o.ocfg.AccessLogPath,
-				EnableMetrics:    true,
-				Path:             loc.Path,
-				NameCondition:    loc.NameCondition,
-				Proxy:            loc.Proxy,
-				Rewrite:          loc.Rewrite,
-				PathRewrite:      false,
-				DisableProxyPass: loc.DisableProxyPass,
+				AccessLogPath:                  o.ocfg.AccessLogPath,
+				EnableMetrics:                  true,
+				Path:                           loc.Path,
+				NameCondition:                  loc.NameCondition,
+				Proxy:                          loc.Proxy,
+				Rewrite:                        loc.Rewrite,
+				PathRewrite:                    false,
+				DisableProxyPass:               loc.DisableProxyPass,
 			}
 			server.Locations = append(server.Locations, location)
 		}
@@ -244,7 +247,10 @@ func (o *OrService) getNgxServer(conf *v1.Config) (l7srv []*model.Server, l4srv 
 				"tenant_id":  vs.Namespace,
 				"service_id": vs.ServiceID,
 			},
-			UpstreamName: vs.PoolName,
+			UpstreamName:                   vs.PoolName,
+			ProxyStreamNextUpstream:        true,
+			ProxyStreamNextUpstreamTimeout: "600s",
+			ProxyStreamNextUpstreamTries:   3,
 		}
 		server.Listen = strings.Join(vs.Listening, " ")
 		l4srv = append(l4srv, server)

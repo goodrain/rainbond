@@ -41,7 +41,10 @@ type Server struct {
 	// Default: 1
 	ProxyStreamResponses int
 
-	ProxyStreamTimeout string
+	ProxyStreamTimeout             string
+	ProxyStreamNextUpstream        bool   `json:"proxyStreamNextUpstream"`
+	ProxyStreamNextUpstreamTimeout string `json:"proxyStreamNextUpstreamTimeout"`
+	ProxyStreamNextUpstreamTries   int    `json:"proxyStreamNextUpstreamTries"`
 	//proxy protocol for tcp real ip
 	ProxyProtocol ProxyProtocol
 }

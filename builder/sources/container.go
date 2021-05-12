@@ -22,15 +22,11 @@ import (
 	"fmt"
 	"io"
 	"net/http/httputil"
-	"strconv"
 	"time"
 
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
 	dockerstrslice "github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
@@ -177,89 +173,6 @@ func (ds *DockerService) AttachContainer(containerID string, attacheStdin, attaS
 		return errAttach
 	})
 	return resp.Close, nil
-}
-
-//WaitExitOrRemoved wait container exist or remove
-func (ds *DockerService) WaitExitOrRemoved(containerID string, waitRemove bool) chan int {
-	var removeErr error
-	statusChan := make(chan int, 1)
-	exitCode := 125
-	if len(containerID) == 0 {
-		// containerID can never be empty
-		logrus.Errorf("Internal Error: waitExitOrRemoved needs a containerID as parameter")
-		statusChan <- 1
-		return statusChan
-	}
-
-	// Get events via Events API
-	f := filters.NewArgs()
-	f.Add("type", "container")
-	f.Add("container", containerID)
-	options := dockertypes.EventsOptions{
-		Filters: f,
-	}
-	eventCtx, cancel := context.WithCancel(ds.ctx)
-	eventreader, errq := ds.client.Events(eventCtx, options)
-	eventProcessor := func(e events.Message) bool {
-		stopProcessing := false
-		switch e.Status {
-		case "die":
-			if v, ok := e.Actor.Attributes["exitCode"]; ok {
-				code, cerr := strconv.Atoi(v)
-				if cerr != nil {
-					logrus.Errorf("failed to convert exitcode '%q' to int: %v", v, cerr)
-				} else {
-					exitCode = code
-				}
-			}
-			if !waitRemove {
-				stopProcessing = true
-			} else {
-				// If we are talking to an older daemon, `AutoRemove` is not supported.
-				// We need to fall back to the old behavior, which is client-side removal
-				if versions.LessThan(ds.client.ClientVersion(), "1.25") {
-					go func() {
-						delCtx, cancelDel := context.WithCancel(ds.ctx)
-						defer cancelDel()
-						removeErr = ds.client.ContainerRemove(delCtx, containerID, dockertypes.ContainerRemoveOptions{RemoveVolumes: true})
-						if removeErr != nil {
-							logrus.Errorf("error removing container: %v", removeErr)
-							cancel() // cancel the event Q
-						}
-					}()
-				}
-			}
-		case "detach":
-			exitCode = 0
-			stopProcessing = true
-		case "destroy":
-			stopProcessing = true
-		}
-		return stopProcessing
-	}
-	go func() {
-		defer func() {
-			statusChan <- exitCode // must always send an exit code or the caller will block
-			cancel()
-		}()
-		for {
-			select {
-			case <-eventCtx.Done():
-				if removeErr != nil {
-					return
-				}
-			case evt := <-eventreader:
-				if eventProcessor(evt) {
-					return
-				}
-			case err := <-errq:
-				logrus.Errorf("error getting events from daemon: %v", err)
-				return
-			}
-		}
-	}()
-
-	return statusChan
 }
 
 // generateMountBindings converts the mount list to a list of strings that
