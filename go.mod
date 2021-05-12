@@ -129,5 +129,5 @@ replace (
 	k8s.io/client-go => k8s.io/client-go v0.20.0
 	k8s.io/code-generator => k8s.io/code-generator v0.20.0
 	k8s.io/component-base => k8s.io/component-base v0.20.0
-
+	github.com/godbus/dbus => github.com/godbus/dbus/v5 v5.0.4
 )
