@@ -1942,14 +1942,6 @@ func (s *ServiceAction) GetMultiServicePods(serviceIDs []string) (*K8sPodInfos, 
 			podNames = append(podNames, v.PodName)
 			podsInfoList = append(podsInfoList, &podInfo)
 		}
-		containerMemInfo, _ := s.GetPodContainerMemory(podNames)
-		for _, c := range podsInfoList {
-			for k := range c.Container {
-				if info, exist := containerMemInfo[c.PodName][k]; exist {
-					c.Container[k]["memory_usage"] = info
-				}
-			}
-		}
 		return podsInfoList
 	}
 	var re K8sPodInfos
