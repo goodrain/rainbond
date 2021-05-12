@@ -41,8 +41,10 @@ var defaultConditionTypes = []v1alpha1.HelmAppConditionType{
 	v1alpha1.HelmAppInstalled,
 }
 
+// ControlLoop is a control loop to get helm app and reconcile it.
 type ControlLoop struct {
 	ctx        context.Context
+	log        *logrus.Entry
 	kubeClient clientset.Interface
 	clientset  versioned.Interface
 	storer     Storer
@@ -62,9 +64,9 @@ func NewControlLoop(ctx context.Context,
 	repoCache string,
 ) *ControlLoop {
 	repo := helm.NewRepo(repoFile, repoCache)
-
 	return &ControlLoop{
 		ctx:        ctx,
+		log:        logrus.WithField("WHO", "Helm App ControlLoop"),
 		kubeClient: kubeClient,
 		clientset:  clientset,
 		storer:     storer,
@@ -75,6 +77,7 @@ func NewControlLoop(ctx context.Context,
 	}
 }
 
+// Run runs the control loop.
 func (c *ControlLoop) Run() {
 	for {
 		obj, shutdown := c.workQueue.Get()
@@ -84,6 +87,12 @@ func (c *ControlLoop) Run() {
 
 		c.run(obj)
 	}
+}
+
+// Stop stops the control loop.
+func (c *ControlLoop) Stop() {
+	c.log.Info("stopping...")
+	c.workQueue.ShutDown()
 }
 
 func (c *ControlLoop) run(obj interface{}) {
@@ -113,6 +122,7 @@ func nameNamespace(key string) (string, string) {
 	return strs[0], strs[1]
 }
 
+// Reconcile -
 func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 	app, err := NewApp(c.ctx, c.kubeClient, c.clientset, helmApp, c.repoFile, c.repoCache)
 	if err != nil {
@@ -124,14 +134,17 @@ func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
 	// update running status
 	defer app.UpdateRunningStatus()
 
+	// setups the default values of the helm app.
 	if app.NeedSetup() {
 		return app.Setup()
 	}
 
+	// detect the helm app.
 	if app.NeedDetect() {
 		return app.Detect()
 	}
 
+	// install or update the helm app.
 	if app.NeedUpdate() {
 		return app.InstallOrUpdate()
 	}

@@ -38,7 +38,6 @@ import (
 	"github.com/goodrain/rainbond/worker/master/volumes/sync"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -62,7 +61,6 @@ type Controller struct {
 	isLeader            bool
 
 	stopCh          chan struct{}
-	podEventChs     []chan *corev1.Pod
 	podEvent        *podevent.PodEvent
 	volumeTypeEvent *sync.VolumeTypeEvent
 }
@@ -171,6 +169,7 @@ func (m *Controller) Start() error {
 
 		// helm app controller
 		go m.helmAppController.Start()
+		defer m.helmAppController.Stop()
 
 		select {
 		case <-ctx.Done():

@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
+// Finalizer does some cleanup work when helmApp is deleted
 type Finalizer struct {
 	ctx        context.Context
 	log        *logrus.Entry
@@ -38,7 +39,7 @@ type Finalizer struct {
 	repoCache  string
 }
 
-// NewControlLoop -
+// NewFinalizer creates a new finalizer.
 func NewFinalizer(ctx context.Context,
 	kubeClient clientset.Interface,
 	clientset versioned.Interface,
@@ -46,10 +47,9 @@ func NewFinalizer(ctx context.Context,
 	repoFile string,
 	repoCache string,
 ) *Finalizer {
-
 	return &Finalizer{
 		ctx:        ctx,
-		log:        logrus.WithField("WHO", "Finalizer"),
+		log:        logrus.WithField("WHO", "Helm App Finalizer"),
 		kubeClient: kubeClient,
 		clientset:  clientset,
 		queue:      workQueue,
@@ -58,6 +58,7 @@ func NewFinalizer(ctx context.Context,
 	}
 }
 
+// Run runs the finalizer.
 func (c *Finalizer) Run() {
 	for {
 		obj, shutdown := c.queue.Get()
@@ -72,6 +73,12 @@ func (c *Finalizer) Run() {
 		}
 		c.queue.Done(obj)
 	}
+}
+
+// Stop stops the finalizer.
+func (c *Finalizer) Stop() {
+	c.log.Info("stopping...")
+	c.queue.ShutDown()
 }
 
 func (c *Finalizer) run(obj interface{}) error {

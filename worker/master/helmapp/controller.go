@@ -36,6 +36,7 @@ type Controller struct {
 	finalizer   *Finalizer
 }
 
+// NewController creates a new helm app controller.
 func NewController(ctx context.Context, stopCh chan struct{}, kubeClient clientset.Interface, clientset versioned.Interface, resyncPeriod time.Duration,
 	repoFile, repoCache string) *Controller {
 	workQueue := workqueue.New()
@@ -53,9 +54,16 @@ func NewController(ctx context.Context, stopCh chan struct{}, kubeClient clients
 	}
 }
 
+// Start starts the controller.
 func (c *Controller) Start() {
 	logrus.Info("start helm app controller")
 	c.storer.Run(c.stopCh)
 	go c.controlLoop.Run()
 	c.finalizer.Run()
+}
+
+// Stop stops the controller.
+func (c *Controller) Stop() {
+	c.controlLoop.Stop()
+	c.finalizer.Stop()
 }

@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
+// App represents a helm app.
 type App struct {
 	ctx            context.Context
 	log            *logrus.Entry
@@ -61,6 +62,7 @@ type App struct {
 	repo    *helm.Repo
 }
 
+// Chart returns the chart.
 func (a *App) Chart() string {
 	return a.repoName + "/" + a.templateName
 }
@@ -146,6 +148,7 @@ func (a *App) NeedUpdate() bool {
 	return !a.helmApp.OverridesEqual() || a.helmApp.Spec.Version != a.helmApp.Status.CurrentVersion
 }
 
+// Setup setups the default values of the helm app.
 func (a *App) Setup() error {
 	a.log.Info("setup the helm app")
 	// setup default PreStatus
@@ -257,6 +260,7 @@ func (a *App) chart() string {
 	return a.repoName + "/" + a.templateName
 }
 
+// PreInstall will check if we can intall the helm app.
 func (a *App) PreInstall() error {
 	if err := a.repo.Add(a.repoName, a.repoURL, "", ""); err != nil {
 		return err
@@ -265,10 +269,12 @@ func (a *App) PreInstall() error {
 	return a.helmCmd.PreInstall(a.name, a.Chart(), a.version)
 }
 
+// Status returns the status.
 func (a *App) Status() (*release.Release, error) {
 	return a.helmCmd.Status(a.name)
 }
 
+// InstallOrUpdate will install or update the helm app.
 func (a *App) InstallOrUpdate() error {
 	if err := a.installOrUpdate(); err != nil {
 		a.helmApp.Status.SetCondition(*v1alpha1.NewHelmAppCondition(
@@ -305,6 +311,7 @@ func (a *App) installOrUpdate() error {
 	return a.helmCmd.Upgrade(a.name, a.chart(), a.version, a.overrides)
 }
 
+// Uninstall uninstalls the helm app.
 func (a *App) Uninstall() error {
 	return a.helmCmd.Uninstall(a.name)
 }
