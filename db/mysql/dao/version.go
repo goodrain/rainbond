@@ -19,12 +19,12 @@
 package dao
 
 import (
-	"github.com/goodrain/rainbond/db/errors"
-	"github.com/goodrain/rainbond/db/model"
-
 	"time"
 
+	"github.com/goodrain/rainbond/db/errors"
+	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	pkgerr "github.com/pkg/errors"
 )
 
 //DeleteVersionByEventID DeleteVersionByEventID
@@ -86,6 +86,19 @@ func (c *VersionInfoDaoImpl) ListSuccessfulOnes() ([]*model.VersionInfo, error) 
 	var versoins []*model.VersionInfo
 	if err := c.DB.Where("final_status=?", "success").Find(&versoins).Error; err != nil {
 		return nil, err
+	}
+	return versoins, nil
+}
+
+// ListByServiceIDStatus returns a list of versions based on the given serviceID and finalStatus.
+func (c *VersionInfoDaoImpl) ListByServiceIDStatus(serviceID string, finalStatus *bool) ([]*model.VersionInfo, error) {
+	db := c.DB.Where("service_id=?", serviceID)
+	if finalStatus != nil {
+		db = db.Where("final_status=?", "success")
+	}
+	var versoins []*model.VersionInfo
+	if err := db.Find(&versoins).Error; err != nil {
+		return nil, pkgerr.Wrap(err, "list versions")
 	}
 	return versoins, nil
 }

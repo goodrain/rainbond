@@ -27,6 +27,7 @@ import (
 	manifestV1 "github.com/docker/distribution/manifest/schema1"
 	manifestV2 "github.com/docker/distribution/manifest/schema2"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -135,6 +136,22 @@ func (registry *Registry) ManifestDigestV2(repository, reference string) (digest
 		return "", fmt.Errorf("do request: %v", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == 404 {
+		return "", errors.Wrap(ErrManifestNotFound, "get digest v2")
+	}
+
+	if resp.StatusCode != 200 {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			logrus.Warningf("read digest v2 body")
+		}
+		msg := fmt.Sprintf("unexpect status code: %d", resp.StatusCode)
+		if len(body) > 0 {
+			msg += "; " + string(body)
+		}
+		return "", errors.New(msg)
+	}
 
 	return digest.Parse(resp.Header.Get("Docker-Content-Digest"))
 }

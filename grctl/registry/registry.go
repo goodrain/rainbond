@@ -44,17 +44,15 @@ func NewRegistryCleaner(url, username, password string) (*RegistryCleaner, error
 
 // Cleanup cleans up the free image in the registry.
 func (r *RegistryCleaner) Cleanup() {
-	logrus.Info("Start cleaning up the free imags. Please be patient.")
-	logrus.Info("The clean up time will be affected by the number of free imags and the network environment.")
+	logrus.Info("Start cleaning up the free images. Please be patient.")
+	logrus.Info("The clean up time will be affected by the number of free images and the network environment.")
 
 	// list images needed to be cleaned up
 	freeImages := r.ListFreeImages()
-
 	if len(freeImages) == 0 {
 		logrus.Info("Free images not Found")
 		return
 	}
-
 	logrus.Infof("Found %d free images", len(freeImages))
 
 	// delete images
@@ -73,7 +71,21 @@ func (r *RegistryCleaner) ListFreeImages() []*FreeImage {
 		freeImages = append(freeImages, images...)
 	}
 
-	return freeImages
+	// deduplicate
+	var result []*FreeImage
+	m := make(map[string]struct{})
+	for _, fi := range freeImages {
+		fi := fi
+		key := fi.Key()
+		_, ok := m[key]
+		if ok {
+			continue
+		}
+		m[key] = struct{}{}
+		result = append(result, fi)
+	}
+
+	return result
 }
 
 func (r *RegistryCleaner) DeleteImages(freeImages []*FreeImage) {

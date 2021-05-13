@@ -19,18 +19,18 @@
 package registry
 
 import (
-	"strings"
-
 	"github.com/goodrain/rainbond/builder/sources/registry"
-	"github.com/goodrain/rainbond/db"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // FreeImage represents a free image.
 type FreeImage struct {
 	Repository string
 	Digest     string
+}
+
+// Key returns the key of the FreeImaeg.
+func (f *FreeImage) Key() string {
+	return f.Repository + "/" + f.Digest
 }
 
 // FreeImager is resposible for listing the free images.
@@ -44,70 +44,7 @@ func NewFreeImageres(reg *registry.Registry) map[string]FreeImager {
 	// there are two kinds of free images:
 	// 1. images belongs to the free components
 	// 2. images belongs to the free component versions.
-	freeComponent := NewFreeComponent(reg)
-	freeImageres["free component"] = freeComponent
+	freeImageres["free component"] = NewFreeComponent(reg)
+	freeImageres["free version"] = NewFreeVersion(reg)
 	return freeImageres
-}
-
-var _ FreeImager = &FreeComponent{}
-
-// FreeComponent is resposible for listing the free images belong to free components.
-type FreeComponent struct {
-	reg *registry.Registry
-}
-
-// NewFreeComponent creates a new FreeComponent.
-func NewFreeComponent(reg *registry.Registry) *FreeComponent {
-	return &FreeComponent{
-		reg: reg,
-	}
-}
-
-// List return a list of free images belong to free components.
-func (f *FreeComponent) List() ([]*FreeImage, error) {
-	// list free components
-	components, err := db.GetManager().TenantServiceDeleteDao().List()
-	if err != nil {
-		return nil, err
-	}
-
-	var images []*FreeImage
-	for _, cpt := range components {
-		// component.ServiceID is the repository of image
-		digests, err := f.listDigests(cpt.ServiceID)
-		if err != nil {
-			logrus.Warningf("list digests for repository %s: %v", cpt.ServiceID, err)
-			continue
-		}
-		for _, digest := range digests {
-			images = append(images, &FreeImage{
-				Repository: cpt.ServiceID,
-				Digest:     digest,
-			})
-		}
-	}
-
-	return images, nil
-}
-
-func (f *FreeComponent) listDigests(repository string) ([]string, error) {
-	// list tags, then list digest for every tag
-	tags, err := f.reg.Tags(repository)
-	if err != nil {
-		if strings.Contains(err.Error(), "404") {
-			return nil, nil
-		}
-		return nil, errors.Wrap(err, "list tags")
-	}
-
-	var digests []string
-	for _, tag := range tags {
-		digest, err := f.reg.ManifestDigestV2(repository, tag)
-		if err != nil {
-			logrus.Warningf("get digest for manifest %s/%s: %v", repository, tag, err)
-			continue
-		}
-		digests = append(digests, digest.String())
-	}
-	return digests, nil
 }

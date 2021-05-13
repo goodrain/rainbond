@@ -404,6 +404,7 @@ type VersionInfoDao interface {
 	DeleteVersionInfo(obj *model.VersionInfo) error
 	DeleteFailureVersionInfo(timePoint time.Time, status string, serviceIDList []string) error
 	SearchVersionInfo() ([]*model.VersionInfo, error)
+	ListByServiceIDStatus(serviceID string, finalStatus *bool) ([]*model.VersionInfo, error)
 }
 
 //RegionUserInfoDao UserRegionInfoDao
