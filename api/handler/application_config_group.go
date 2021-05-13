@@ -136,6 +136,10 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 			ServiceAlias:    s.ServiceAlias,
 		}
 		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(&serviceConfigGroup); err != nil {
+			if err == bcode.ErrConfigGroupServiceExist {
+				logrus.Warningf("config group \"%s\" under this service \"%s\" already exists.", serviceConfigGroup.ConfigGroupName, serviceConfigGroup.ServiceID)
+				continue
+			}
 			tx.Rollback()
 			return nil, err
 		}
@@ -154,6 +158,10 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 			ItemValue:       it.ItemValue,
 		}
 		if err := db.GetManager().AppConfigGroupItemDaoTransactions(tx).AddModel(configItem); err != nil {
+			if err == bcode.ErrConfigItemExist {
+				logrus.Warningf("config item \"%s\" under this config group \"%s\" already exists.", configItem.ItemKey, configItem.ConfigGroupName)
+				continue
+			}
 			tx.Rollback()
 			return nil, err
 		}
