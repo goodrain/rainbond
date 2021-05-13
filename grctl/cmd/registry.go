@@ -34,7 +34,12 @@ func NewCmdRegistry() cli.Command {
 		Subcommands: []cli.Command{
 			{
 				Name:  "cleanup",
-				Usage: "clean up free mirrors in the registry",
+				Usage: `Clean up free images in the registry.
+	The command 'grctl registry cleanup' will delete the index of free images in registry.
+	Then you have to exec the command below to remove blobs from the filesystem:
+		bin/registry garbage-collect [--dry-run] /path/to/config.yml
+	More Detail: https://docs.docker.com/registry/garbage-collection/#run-garbage-collection.
+				`,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "dsn",
