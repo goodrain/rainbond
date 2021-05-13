@@ -1931,14 +1931,6 @@ func (s *ServiceAction) GetMultiServicePods(serviceIDs []string) (*K8sPodInfos, 
 			podInfo.PodIP = v.PodIp
 			podInfo.PodStatus = v.PodStatus
 			podInfo.ServiceID = serviceID
-			containerInfos := make(map[string]map[string]string, 10)
-			for _, container := range v.Containers {
-				containerInfos[container.ContainerName] = map[string]string{
-					"memory_limit": fmt.Sprintf("%d", container.MemoryLimit),
-					"memory_usage": "0",
-				}
-			}
-			podInfo.Container = containerInfos
 			podNames = append(podNames, v.PodName)
 			podsInfoList = append(podsInfoList, &podInfo)
 		}
