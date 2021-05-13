@@ -595,6 +595,7 @@ func (t *TenantServicesDeleteImpl) DeleteTenantServicesDelete(record *model.Tena
 	return nil
 }
 
+// List returns a list of TenantServicesDeletes.
 func (t *TenantServicesDeleteImpl) List() ([]*model.TenantServicesDelete, error) {
 	var components []*model.TenantServicesDelete
 	if err := t.DB.Find(&components).Error; err != nil {

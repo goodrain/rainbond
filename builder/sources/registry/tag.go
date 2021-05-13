@@ -28,6 +28,7 @@ type tagsResponse struct {
 	Tags []string `json:"tags"`
 }
 
+// Tags returns the list of tags fo the repository.
 func (registry *Registry) Tags(repository string) (tags []string, err error) {
 	url := registry.url("/v2/%s/tags/list", repository)
 

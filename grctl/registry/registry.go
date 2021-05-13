@@ -24,26 +24,26 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// RegistryCleaner is resposible for cleaning up the free images in registry.
-type RegistryCleaner struct {
+// Cleaner is responsible for cleaning up the free images in registry.
+type Cleaner struct {
 	reg          *registry.Registry
 	freeImageres map[string]FreeImager
 }
 
-// NewRegistryCleaner creates a new RegistryCleaner.
-func NewRegistryCleaner(url, username, password string) (*RegistryCleaner, error) {
+// NewRegistryCleaner creates a new Cleaner.
+func NewRegistryCleaner(url, username, password string) (*Cleaner, error) {
 	reg, err := registry.NewInsecure(url, username, password)
 
 	freeImageres := NewFreeImageres(reg)
 
-	return &RegistryCleaner{
+	return &Cleaner{
 		reg:          reg,
 		freeImageres: freeImageres,
 	}, err
 }
 
 // Cleanup cleans up the free image in the registry.
-func (r *RegistryCleaner) Cleanup() {
+func (r *Cleaner) Cleanup() {
 	logrus.Info("Start cleaning up the free images. Please be patient.")
 	logrus.Info("The clean up time will be affected by the number of free images and the network environment.")
 
@@ -59,8 +59,8 @@ func (r *RegistryCleaner) Cleanup() {
 	r.DeleteImages(freeImages)
 }
 
-// ListImages return a list of free images needed to be cleaned up.
-func (r *RegistryCleaner) ListFreeImages() []*FreeImage {
+// ListFreeImages return a list of free images needed to be cleaned up.
+func (r *Cleaner) ListFreeImages() []*FreeImage {
 	var freeImages []*FreeImage
 	for name, freeImager := range r.freeImageres {
 		images, err := freeImager.List()
@@ -88,7 +88,8 @@ func (r *RegistryCleaner) ListFreeImages() []*FreeImage {
 	return result
 }
 
-func (r *RegistryCleaner) DeleteImages(freeImages []*FreeImage) {
+// DeleteImages deletes images.
+func (r *Cleaner) DeleteImages(freeImages []*FreeImage) {
 	for _, image := range freeImages {
 		if err := r.deleteManifest(image.Repository, image.Digest); err != nil {
 			logrus.Infof("delete manifest %s/%s: %v", image.Repository, image.Digest, err)
@@ -98,6 +99,6 @@ func (r *RegistryCleaner) DeleteImages(freeImages []*FreeImage) {
 	}
 }
 
-func (r *RegistryCleaner) deleteManifest(repository, dig string) error {
+func (r *Cleaner) deleteManifest(repository, dig string) error {
 	return r.reg.DeleteManifest(repository, digest.Digest(dig))
 }
