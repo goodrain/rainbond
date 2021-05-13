@@ -30,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	pkgerr "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -592,6 +593,14 @@ func (t *TenantServicesDeleteImpl) DeleteTenantServicesDelete(record *model.Tena
 		return err
 	}
 	return nil
+}
+
+func (t *TenantServicesDeleteImpl) List() ([]*model.TenantServicesDelete, error) {
+	var components []*model.TenantServicesDelete
+	if err := t.DB.Find(&components).Error; err != nil {
+		return nil, pkgerr.Wrap(err, "list deleted components")
+	}
+	return components, nil
 }
 
 //TenantServicesPortDaoImpl 租户应用端口操作

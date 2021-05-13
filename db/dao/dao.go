@@ -152,6 +152,7 @@ type TenantServiceDeleteDao interface {
 	Dao
 	GetTenantServicesDeleteByCreateTime(createTime time.Time) ([]*model.TenantServicesDelete, error)
 	DeleteTenantServicesDelete(record *model.TenantServicesDelete) error
+	List() ([]*model.TenantServicesDelete, error)
 }
 
 //TenantServicesPortDao TenantServicesPortDao
