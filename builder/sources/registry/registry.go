@@ -83,12 +83,10 @@ func NewInsecure(registryURL, username, password string) (*Registry, error) {
 	return newFromTransport(registryURL, username, password, transport, Log)
 }
 
-/*
- * Given an existing http.RoundTripper such as http.DefaultTransport, build the
- * transport stack necessary to authenticate to the Docker registry API. This
- * adds in support for OAuth bearer tokens and HTTP Basic auth, and sets up
- * error handling this library relies on.
- */
+// WrapTransport returns an existing http.RoundTripper such as http.DefaultTransport,
+// build the transport stack necessary to authenticate to the Docker registry API.
+// This adds in support for OAuth bearer tokens and HTTP Basic auth, and sets up
+// error handling this library relies on.
 func WrapTransport(transport http.RoundTripper, url, username, password string) http.RoundTripper {
 	tokenTransport := &TokenTransport{
 		Transport: transport,
