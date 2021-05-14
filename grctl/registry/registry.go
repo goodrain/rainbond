@@ -69,8 +69,8 @@ More detail: https://docs.docker.com/registry/configuration/#list-of-configurati
 		return
 	}
 
-	logrus.Infof(`you have to exec the command below in registry to remove blobs from the filesystem:
-	bin/registry garbage-collect [--dry-run] /path/to/config.yml
+	logrus.Infof(`you have to exec the command below in the registry container to remove blobs from the filesystem:
+	/bin/registry garbage-collect /etc/docker/registry/config.yml
 More Detail: https://docs.docker.com/registry/garbage-collection/#run-garbage-collection.`)
 }
 
