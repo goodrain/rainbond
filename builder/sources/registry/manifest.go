@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	manifestV1 "github.com/docker/distribution/manifest/schema1"
 	manifestV2 "github.com/docker/distribution/manifest/schema2"
@@ -166,11 +167,14 @@ func (registry *Registry) DeleteManifest(repository string, digest digest.Digest
 		return err
 	}
 	resp, err := registry.Client.Do(req)
+	if err != nil {
+		if strings.Contains(err.Error(), "The operation is unsupported.") {
+			return errors.Wrap(ErrOperationIsUnsupported, "delete manifest")
+		}
+		return errors.Wrap(err, "do request")
+	}
 	if resp != nil {
 		defer resp.Body.Close()
-	}
-	if err != nil {
-		return err
 	}
 	return nil
 }

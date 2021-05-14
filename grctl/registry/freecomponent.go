@@ -51,23 +51,18 @@ func (f *FreeComponent) List() ([]*FreeImage, error) {
 	var images []*FreeImage
 	for _, cpt := range components {
 		// component.ServiceID is the repository of image
-		digests, err := f.listDigests(cpt.ServiceID)
+		freeImages, err := f.listFreeImages(cpt.ServiceID)
 		if err != nil {
-			logrus.Warningf("list digests for repository %s: %v", cpt.ServiceID, err)
+			logrus.Warningf("list free images: %v", err)
 			continue
 		}
-		for _, digest := range digests {
-			images = append(images, &FreeImage{
-				Repository: cpt.ServiceID,
-				Digest:     digest,
-			})
-		}
+		images = append(images, freeImages...)
 	}
 
 	return images, nil
 }
 
-func (f *FreeComponent) listDigests(repository string) ([]string, error) {
+func (f *FreeComponent) listFreeImages(repository string) ([]*FreeImage, error) {
 	// list tags, then list digest for every tag
 	tags, err := f.reg.Tags(repository)
 	if err != nil {
@@ -77,14 +72,19 @@ func (f *FreeComponent) listDigests(repository string) ([]string, error) {
 		return nil, err
 	}
 
-	var digests []string
+	var images []*FreeImage
 	for _, tag := range tags {
 		digest, err := f.reg.ManifestDigestV2(repository, tag)
 		if err != nil {
 			logrus.Warningf("get digest for manifest %s/%s: %v", repository, tag, err)
 			continue
 		}
-		digests = append(digests, digest.String())
+		images = append(images, &FreeImage{
+			Repository: repository,
+			Digest:     digest.String(),
+			Tag:        tag,
+			Type:       string(FreeImageTypeFreeVersion),
+		})
 	}
-	return digests, nil
+	return images, nil
 }

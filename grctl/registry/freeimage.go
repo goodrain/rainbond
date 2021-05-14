@@ -22,10 +22,21 @@ import (
 	"github.com/goodrain/rainbond/builder/sources/registry"
 )
 
+// FreeImageType is the type of FreeImage
+type FreeImageType string
+
+// FreeImageType -
+var (
+	FreeImageTypeFreeComponent FreeImageType = "FreeComponent"
+	FreeImageTypeFreeVersion   FreeImageType = "FreeVersion"
+)
+
 // FreeImage represents a free image.
 type FreeImage struct {
 	Repository string
 	Digest     string
+	Tag        string
+	Type       string
 }
 
 // Key returns the key of the FreeImaeg.

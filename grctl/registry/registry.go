@@ -21,6 +21,7 @@ package registry
 import (
 	"github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -56,7 +57,21 @@ func (r *Cleaner) Cleanup() {
 	logrus.Infof("Found %d free images", len(freeImages))
 
 	// delete images
-	r.DeleteImages(freeImages)
+	if err := r.DeleteImages(freeImages); err != nil {
+		if errors.Is(err, registry.ErrOperationIsUnsupported) {
+			logrus.Warningf(`The operation image deletion is unsupported.
+You can try to add REGISTRY_STORAGE_DELETE_ENABLED=true when start the registry.
+More detail: https://docs.docker.com/registry/configuration/#list-of-configuration-options.
+				`)
+			return
+		}
+		logrus.Warningf("delete images: %v", err)
+		return
+	}
+
+	logrus.Infof(`you have to exec the command below in registry to remove blobs from the filesystem:
+	bin/registry garbage-collect [--dry-run] /path/to/config.yml
+More Detail: https://docs.docker.com/registry/garbage-collection/#run-garbage-collection.`)
 }
 
 // ListFreeImages return a list of free images needed to be cleaned up.
@@ -89,14 +104,22 @@ func (r *Cleaner) ListFreeImages() []*FreeImage {
 }
 
 // DeleteImages deletes images.
-func (r *Cleaner) DeleteImages(freeImages []*FreeImage) {
+func (r *Cleaner) DeleteImages(freeImages []*FreeImage) error {
 	for _, image := range freeImages {
 		if err := r.deleteManifest(image.Repository, image.Digest); err != nil {
-			logrus.Infof("delete manifest %s/%s: %v", image.Repository, image.Digest, err)
+			if errors.Is(err, registry.ErrOperationIsUnsupported) {
+				return err
+			}
+			logrus.Warningf("delete manifest %s/%s: %v", image.Repository, image.Digest, err)
 			continue
 		}
-		logrus.Infof("manifest %s/%s deleted", image.Repository, image.Digest)
+		log := logrus.WithField("Type", image.Type).
+			WithField("Component ID", image.Repository).
+			WithField("Build Version", image.Tag).
+			WithField("Digest", image.Digest)
+		log.Infof("image %s/%s deleted", image.Repository, image.Tag)
 	}
+	return nil
 }
 
 func (r *Cleaner) deleteManifest(repository, dig string) error {
