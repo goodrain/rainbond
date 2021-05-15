@@ -23,4 +23,11 @@ import "github.com/pkg/errors"
 // registry error
 var (
 	ErrRegistryNotFound = errors.New("registry not found")
+  
+	// ErrRepositoryNotFound means the repository can not be found.
+	ErrRepositoryNotFound = errors.New("repository not found")
+
+	ErrManifestNotFound = errors.New("manifest not found")
+
+	ErrOperationIsUnsupported = errors.New("The operation is unsupported")
 )

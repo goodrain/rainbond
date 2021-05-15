@@ -236,6 +236,7 @@ func (c *controller) GetLanguageBuildSetting(ctx context.Context, lang code.Lang
 	config, err := c.KubeClient.CoreV1().ConfigMaps(c.namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("get configmap %s failure  %s", name, err.Error())
+		return ""
 	}
 	if config != nil {
 		return name

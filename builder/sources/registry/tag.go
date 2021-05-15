@@ -18,10 +18,17 @@
 
 package registry
 
+import (
+	"strings"
+
+	"github.com/pkg/errors"
+)
+
 type tagsResponse struct {
 	Tags []string `json:"tags"`
 }
 
+// Tags returns the list of tags fo the repository.
 func (registry *Registry) Tags(repository string) (tags []string, err error) {
 	url := registry.url("/v2/%s/tags/list", repository)
 
@@ -37,6 +44,9 @@ func (registry *Registry) Tags(repository string) (tags []string, err error) {
 			tags = append(tags, response.Tags...)
 			continue
 		default:
+			if strings.Contains(err.Error(), "404") {
+				return nil, errors.Wrap(ErrRepositoryNotFound, "list tags")
+			}
 			return nil, err
 		}
 	}

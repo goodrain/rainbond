@@ -152,6 +152,7 @@ type TenantServiceDeleteDao interface {
 	Dao
 	GetTenantServicesDeleteByCreateTime(createTime time.Time) ([]*model.TenantServicesDelete, error)
 	DeleteTenantServicesDelete(record *model.TenantServicesDelete) error
+	List() ([]*model.TenantServicesDelete, error)
 }
 
 //TenantServicesPortDao TenantServicesPortDao
@@ -403,6 +404,7 @@ type VersionInfoDao interface {
 	DeleteVersionInfo(obj *model.VersionInfo) error
 	DeleteFailureVersionInfo(timePoint time.Time, status string, serviceIDList []string) error
 	SearchVersionInfo() ([]*model.VersionInfo, error)
+	ListByServiceIDStatus(serviceID string, finalStatus *bool) ([]*model.VersionInfo, error)
 }
 
 //RegionUserInfoDao UserRegionInfoDao
