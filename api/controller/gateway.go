@@ -312,6 +312,7 @@ func (g *GatewayStruct) RuleConfig(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+
 	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
 	eventID := r.Context().Value(middleware.ContextKey("event_id")).(string)
 	req.ServiceID = sid
