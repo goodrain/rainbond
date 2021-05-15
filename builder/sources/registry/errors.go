@@ -1,5 +1,5 @@
 // RAINBOND, Application Management Platform
-// Copyright (C) 2014-2017 Goodrain Co., Ltd.
+// Copyright (C) 2014-2021 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -18,36 +18,14 @@
 
 package registry
 
-import (
-	"strings"
+import "github.com/pkg/errors"
 
-	"github.com/pkg/errors"
+// registry error
+var (
+	// ErrRepositoryNotFound means the repository can not be found.
+	ErrRepositoryNotFound = errors.New("repository not found")
+
+	ErrManifestNotFound = errors.New("manifest not found")
+
+	ErrOperationIsUnsupported = errors.New("The operation is unsupported")
 )
-
-type tagsResponse struct {
-	Tags []string `json:"tags"`
-}
-
-// Tags returns the list of tags fo the repository.
-func (registry *Registry) Tags(repository string) (tags []string, err error) {
-	url := registry.url("/v2/%s/tags/list", repository)
-
-	var response tagsResponse
-	for {
-		registry.Logf("registry.tags url=%s repository=%s", url, repository)
-		url, err = registry.getPaginatedJson(url, &response)
-		switch err {
-		case ErrNoMorePages:
-			tags = append(tags, response.Tags...)
-			return tags, nil
-		case nil:
-			tags = append(tags, response.Tags...)
-			continue
-		default:
-			if strings.Contains(err.Error(), "404") {
-				return nil, errors.Wrap(ErrRepositoryNotFound, "list tags")
-			}
-			return nil, err
-		}
-	}
-}
