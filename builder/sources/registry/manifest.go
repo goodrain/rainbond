@@ -23,10 +23,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	manifestV1 "github.com/docker/distribution/manifest/schema1"
 	manifestV2 "github.com/docker/distribution/manifest/schema2"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -119,6 +121,42 @@ func (registry *Registry) ManifestDigest(repository, reference string) (digest.D
 	return digest.Parse(resp.Header.Get("Docker-Content-Digest"))
 }
 
+// ManifestDigestV2 -
+func (registry *Registry) ManifestDigestV2(repository, reference string) (digest.Digest, error) {
+	url := registry.url("/v2/%s/manifests/%s", repository, reference)
+	registry.Logf("registry.manifest.head url=%s repository=%s reference=%s", url, repository, reference)
+
+	req, err := http.NewRequest("HEAD", url, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", manifestV2.MediaTypeManifest)
+
+	resp, err := registry.Client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("do request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 404 {
+		return "", errors.Wrap(ErrManifestNotFound, "get digest v2")
+	}
+
+	if resp.StatusCode != 200 {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			logrus.Warningf("read digest v2 body")
+		}
+		msg := fmt.Sprintf("unexpect status code: %d", resp.StatusCode)
+		if len(body) > 0 {
+			msg += "; " + string(body)
+		}
+		return "", errors.New(msg)
+	}
+
+	return digest.Parse(resp.Header.Get("Docker-Content-Digest"))
+}
+
 // DeleteManifest -
 func (registry *Registry) DeleteManifest(repository string, digest digest.Digest) error {
 	url := registry.url("/v2/%s/manifests/%s", repository, digest)
@@ -129,11 +167,14 @@ func (registry *Registry) DeleteManifest(repository string, digest digest.Digest
 		return err
 	}
 	resp, err := registry.Client.Do(req)
+	if err != nil {
+		if strings.Contains(err.Error(), "The operation is unsupported.") {
+			return errors.Wrap(ErrOperationIsUnsupported, "delete manifest")
+		}
+		return errors.Wrap(err, "do request")
+	}
 	if resp != nil {
 		defer resp.Body.Close()
-	}
-	if err != nil {
-		return err
 	}
 	return nil
 }

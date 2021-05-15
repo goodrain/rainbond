@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -82,12 +83,10 @@ func NewInsecure(registryURL, username, password string) (*Registry, error) {
 	return newFromTransport(registryURL, username, password, transport, Log)
 }
 
-/*
- * Given an existing http.RoundTripper such as http.DefaultTransport, build the
- * transport stack necessary to authenticate to the Docker registry API. This
- * adds in support for OAuth bearer tokens and HTTP Basic auth, and sets up
- * error handling this library relies on.
- */
+// WrapTransport returns an existing http.RoundTripper such as http.DefaultTransport,
+// build the transport stack necessary to authenticate to the Docker registry API.
+// This adds in support for OAuth bearer tokens and HTTP Basic auth, and sets up
+// error handling this library relies on.
 func WrapTransport(transport http.RoundTripper, url, username, password string) http.RoundTripper {
 	tokenTransport := &TokenTransport{
 		Transport: transport,
@@ -108,9 +107,12 @@ func WrapTransport(transport http.RoundTripper, url, username, password string) 
 
 func newFromTransport(registryURL, username, password string, transport http.RoundTripper, logf LogfCallback) (*Registry, error) {
 	url := strings.TrimSuffix(registryURL, "/")
-	if !strings.HasPrefix(url, "http") {
+	containsScheme := strings.HasPrefix(url, "http")
+	if !containsScheme {
+		// use https by default
 		url = fmt.Sprintf("https://%s", registryURL)
 	}
+
 	if username != "" {
 		transport = WrapTransport(transport, url, username, password)
 	}
@@ -123,7 +125,15 @@ func newFromTransport(registryURL, username, password string, transport http.Rou
 	}
 
 	if err := registry.Ping(); err != nil {
-		return nil, err
+		if errors.Is(err, ErrRegistryNotFound) && !containsScheme {
+			// try again with http url
+			registry.URL = strings.Replace(url, "https", "http", 1)
+			if err := registry.Ping(); err != nil {
+				return nil, errors.Wrap(err, "registry url "+url)
+			}
+			return registry, nil
+		}
+		return nil, errors.Wrap(err, "registry url "+url)
 	}
 
 	return registry, nil
@@ -135,13 +145,22 @@ func (r *Registry) url(pathTemplate string, args ...interface{}) string {
 	return url
 }
 
-//Ping ping regsstry server
+//Ping ping registry server
 func (r *Registry) Ping() error {
 	url := r.url("/v2/")
 	r.Logf("registry.ping url=%s", url)
 	resp, err := r.Client.Get(url)
+	if err != nil {
+		if strings.Contains(err.Error(), "404") {
+			return errors.Wrap(ErrRegistryNotFound, err.Error())
+		}
+		return err
+	}
 	if resp != nil {
 		defer resp.Body.Close()
+		if resp.StatusCode == 404 {
+			return errors.Wrap(ErrRegistryNotFound, "not found")
+		}
 	}
-	return err
+	return nil
 }
