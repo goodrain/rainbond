@@ -40,6 +40,7 @@ import (
 	"github.com/goodrain/rainbond/worker/server"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/flowcontrol"
 )
 
 //Run start run
@@ -76,6 +77,7 @@ func Run(s *option.Worker) error {
 		logrus.Errorf("create kube rest config error: %s", err.Error())
 		return err
 	}
+	restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(s.Config.KubeApiQPS), s.Config.KubeApiBurst)
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		logrus.Errorf("create kube client error: %s", err.Error())
@@ -103,7 +105,8 @@ func Run(s *option.Worker) error {
 	defer controllerManager.Stop()
 
 	//step 5 : start runtime master
-	masterCon, err := master.NewMasterController(s.Config, cachestore)
+
+	masterCon, err := master.NewMasterController(s.Config, restConfig, cachestore)
 	if err != nil {
 		return err
 	}
