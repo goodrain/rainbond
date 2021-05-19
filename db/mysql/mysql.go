@@ -57,6 +57,9 @@ func CreateManager(config config.Config) (*Manager, error) {
 			return nil, err
 		}
 	}
+	if config.ShowSQL {
+		db = db.Debug()
+	}
 	manager := &Manager{
 		db:      db,
 		config:  config,
@@ -77,6 +80,11 @@ func (m *Manager) CloseManager() error {
 //Begin begin a transaction
 func (m *Manager) Begin() *gorm.DB {
 	return m.db.Begin()
+}
+
+// DB returns the db.
+func (m *Manager) DB() *gorm.DB {
+	return m.db
 }
 
 // EnsureEndTransactionFunc -

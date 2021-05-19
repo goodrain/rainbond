@@ -30,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	perr "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -369,6 +370,9 @@ func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, length int, servic
 		}
 	}
 	tenants, err := t.DB.Raw("SELECT uuid,name,eid from tenants where uuid in (?)", tenantIDs).Rows()
+	if err != nil {
+		return nil, 0, perr.Wrap(err, "list tenants")
+	}
 	defer tenants.Close()
 	for tenants.Next() {
 		var tenantID string
@@ -637,6 +641,9 @@ func (t *TenantServicesPortDaoImpl) DeleteModel(serviceID string, args ...interf
 		//Protocol:      protocol,
 	}
 	if err := t.DB.Where("service_id=? and container_port=?", serviceID, containerPort).Delete(tsp).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return perr.Wrap(bcode.ErrPortNotFound, "delete component port")
+		}
 		return err
 	}
 	return nil

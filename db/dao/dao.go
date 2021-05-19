@@ -458,6 +458,7 @@ type RuleExtensionDao interface {
 	Dao
 	GetRuleExtensionByRuleID(ruleID string) ([]*model.RuleExtension, error)
 	DeleteRuleExtensionByRuleID(ruleID string) error
+	DeleteByRuleIDs(ruleIDs []string) error
 }
 
 // HTTPRuleDao -
@@ -469,7 +470,9 @@ type HTTPRuleDao interface {
 	DeleteHTTPRuleByID(id string) error
 	DeleteHTTPRuleByServiceID(serviceID string) error
 	ListByServiceID(serviceID string) ([]*model.HTTPRule, error)
+	ListByComponentPort(componentID string, port int) ([]*model.HTTPRule, error)
 	ListByCertID(certID string) ([]*model.HTTPRule, error)
+	DeleteByComponentPort(componentID string, port int) error
 }
 
 // TCPRuleDao -
@@ -482,6 +485,7 @@ type TCPRuleDao interface {
 	DeleteTCPRuleByServiceID(serviceID string) error
 	ListByServiceID(serviceID string) ([]*model.TCPRule, error)
 	GetUsedPortsByIP(ip string) ([]*model.TCPRule, error)
+	DeleteByComponentPort(componentID string, port int) error
 }
 
 // EndpointsDao is an interface for defining method
@@ -509,6 +513,7 @@ type GwRuleConfigDao interface {
 	Dao
 	DeleteByRuleID(rid string) error
 	ListByRuleID(rid string) ([]*model.GwRuleConfig, error)
+	DeleteByRuleIDs(ruleIDs []string) error
 }
 
 // TenantServceAutoscalerRulesDao -

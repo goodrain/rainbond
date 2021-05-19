@@ -46,4 +46,5 @@ type GatewayHandler interface {
 	UpdCertificate(req *apimodel.UpdCertificateReq) error
 	GetGatewayIPs() []IPAndAvailablePort
 	ListHTTPRulesByCertID(certID string) ([]*dbmodel.HTTPRule, error)
+	DeleteIngressRulesByComponentPort(tx *gorm.DB, componentID string, port int) error
 }
