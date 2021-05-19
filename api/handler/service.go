@@ -32,6 +32,7 @@ import (
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
+	pkgerr "github.com/pkg/errors"
 
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/util"
@@ -414,6 +415,15 @@ func (s *ServiceAction) ServiceHorizontal(hs *model.HorizontalScalingTaskBody) e
 	if int32(service.Replicas) == hs.Replicas {
 		return nil
 	}
+
+	pods, err := s.statusCli.GetServicePods(service.ServiceID)
+	if err != nil {
+		return pkgerr.Wrap(err, "GetPodByService Error")
+	}
+	if int32(len(pods.NewPods)) == hs.Replicas{
+		return nil
+	}
+
 	service.Replicas = int(hs.Replicas)
 	err = db.GetManager().TenantServiceDao().UpdateModel(service)
 	if err != nil {
