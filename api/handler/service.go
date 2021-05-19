@@ -410,18 +410,15 @@ func (s *ServiceAction) ServiceHorizontal(hs *model.HorizontalScalingTaskBody) e
 		logrus.Errorf("get service by id %s error, %s", service.ServiceID, err)
 		return err
 	}
+
 	// for rollback database
 	oldReplicas := service.Replicas
-	if int32(service.Replicas) == hs.Replicas {
-		return nil
-	}
-
 	pods, err := s.statusCli.GetServicePods(service.ServiceID)
 	if err != nil {
 		return pkgerr.Wrap(err, "GetPodByService Error")
 	}
 	if int32(len(pods.NewPods)) == hs.Replicas{
-		return nil
+		return fmt.Errorf("horizontal service faliure: no change, no update")
 	}
 
 	service.Replicas = int(hs.Replicas)
