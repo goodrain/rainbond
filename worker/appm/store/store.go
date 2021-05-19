@@ -25,25 +25,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/goodrain/rainbond/worker/server/pb"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
-
-	"github.com/goodrain/rainbond/util/constants"
-	monitorv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	"github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/util/constants"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/goodrain/rainbond/worker/appm/f"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/goodrain/rainbond/worker/server/pb"
 	workerutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/jinzhu/gorm"
+	monitorv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
@@ -55,7 +50,9 @@ import (
 	internalinformers "k8s.io/apiextensions-apiserver/pkg/client/informers/externalversions"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
@@ -344,7 +341,7 @@ func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {
 			if ep.Annotations != nil {
 				if domain, ok := ep.Annotations["domain"]; ok && domain != "" {
 					logrus.Debugf("thirdpart service[sid: %s] add domain endpoint[domain: %s] probe", sid, domain)
-					probeInfos = []*ProbeInfo{&ProbeInfo{
+					probeInfos = []*ProbeInfo{{
 						Sid:  sid,
 						UUID: fmt.Sprintf("%s_%d", domain, port.Port),
 						IP:   domain,
@@ -372,36 +369,6 @@ func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {
 		}
 	}
 	return probeInfos
-}
-
-func upgradeProbe(ch chan<- interface{}, old, cur []*ProbeInfo) {
-	oldMap := make(map[string]*ProbeInfo, len(old))
-	for i := 0; i < len(old); i++ {
-		oldMap[old[i].UUID] = old[i]
-	}
-	for _, c := range cur {
-		if info := oldMap[c.UUID]; info != nil {
-			delete(oldMap, c.UUID)
-			logrus.Debugf("UUID: %s; update probe", c.UUID)
-			ch <- Event{
-				Type: UpdateEvent,
-				Obj:  c,
-			}
-		} else {
-			logrus.Debugf("UUID: %s; create probe", c.UUID)
-			ch <- Event{
-				Type: CreateEvent,
-				Obj:  []*ProbeInfo{c},
-			}
-		}
-	}
-	for _, info := range oldMap {
-		logrus.Debugf("UUID: %s; delete probe", info.UUID)
-		ch <- Event{
-			Type: DeleteEvent,
-			Obj:  info,
-		}
-	}
 }
 
 func (a *appRuntimeStore) init() error {
@@ -1110,7 +1077,7 @@ func appStopping(statuses map[string]string) bool {
 
 func (a *appRuntimeStore) GetNeedBillingStatus(serviceIDs []string) map[string]string {
 	statusMap := make(map[string]string, len(serviceIDs))
-	if serviceIDs == nil || len(serviceIDs) == 0 {
+	if len(serviceIDs) == 0 {
 		a.appServices.Range(func(k, v interface{}) bool {
 			appService, _ := v.(*v1.AppService)
 			status := a.GetAppServiceStatus(appService.ServiceID)
@@ -1133,72 +1100,6 @@ func isClosedStatus(curStatus string) bool {
 	return curStatus == v1.BUILDEFAILURE || curStatus == v1.CLOSED || curStatus == v1.UNDEPLOY || curStatus == v1.BUILDING || curStatus == v1.UNKNOW
 }
 
-func getServiceInfoFromPod(pod *corev1.Pod) v1.AbnormalInfo {
-	var ai v1.AbnormalInfo
-	if len(pod.Spec.Containers) > 0 {
-		var i = 0
-		container := pod.Spec.Containers[0]
-		for _, env := range container.Env {
-			if env.Name == "SERVICE_ID" {
-				ai.ServiceID = env.Value
-				i++
-			}
-			if env.Name == "SERVICE_NAME" {
-				ai.ServiceAlias = env.Value
-				i++
-			}
-			if i == 2 {
-				break
-			}
-		}
-	}
-	ai.PodName = pod.Name
-	ai.TenantID = pod.Namespace
-	return ai
-}
-
-func (a *appRuntimeStore) analyzePodStatus(pod *corev1.Pod) {
-	for _, containerStatus := range pod.Status.ContainerStatuses {
-		if containerStatus.LastTerminationState.Terminated != nil {
-			ai := getServiceInfoFromPod(pod)
-			ai.ContainerName = containerStatus.Name
-			ai.Reason = containerStatus.LastTerminationState.Terminated.Reason
-			ai.Message = containerStatus.LastTerminationState.Terminated.Message
-			ai.CreateTime = time.Now()
-			a.addAbnormalInfo(&ai)
-		}
-	}
-}
-
-func (a *appRuntimeStore) addAbnormalInfo(ai *v1.AbnormalInfo) {
-	switch ai.Reason {
-	case "OOMKilled":
-		a.dbmanager.NotificationEventDao().AddModel(&model.NotificationEvent{
-			Kind:        "service",
-			KindID:      ai.ServiceID,
-			Hash:        ai.Hash(),
-			Type:        "UnNormal",
-			Message:     fmt.Sprintf("Container %s OOMKilled %s", ai.ContainerName, ai.Message),
-			Reason:      "OOMKilled",
-			Count:       ai.Count,
-			ServiceName: ai.ServiceAlias,
-			TenantName:  ai.TenantID,
-		})
-	default:
-		db.GetManager().NotificationEventDao().AddModel(&model.NotificationEvent{
-			Kind:        "service",
-			KindID:      ai.ServiceID,
-			Hash:        ai.Hash(),
-			Type:        "UnNormal",
-			Message:     fmt.Sprintf("Container %s restart %s", ai.ContainerName, ai.Message),
-			Reason:      ai.Reason,
-			Count:       ai.Count,
-			ServiceName: ai.ServiceAlias,
-			TenantName:  ai.TenantID,
-		})
-	}
-
-}
 func (a *appRuntimeStore) GetPodLister() listcorev1.PodLister {
 	return a.listers.Pod
 }
@@ -1403,7 +1304,11 @@ func (a *appRuntimeStore) RegistPodUpdateListener(name string, ch chan<- *corev1
 	defer a.podUpdateListenerLock.Unlock()
 	a.podUpdateListeners[name] = ch
 }
+
 func (a *appRuntimeStore) UnRegistPodUpdateListener(name string) {
+	logger := logrus.WithField("WHO", "appRuntimeStore")
+	logger.Infof("unregist pod update lisener: %s", name)
+
 	a.podUpdateListenerLock.Lock()
 	defer a.podUpdateListenerLock.Unlock()
 	delete(a.podUpdateListeners, name)
