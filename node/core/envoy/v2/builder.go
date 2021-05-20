@@ -47,6 +47,8 @@ import (
 
 //DefaultLocalhostListenerAddress -
 var DefaultLocalhostListenerAddress = "127.0.0.1"
+
+// DefaultLocalhostListenerPort -
 var DefaultLocalhostListenerPort uint32 = 80
 
 //CreateTCPListener listener builder
