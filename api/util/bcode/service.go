@@ -11,5 +11,5 @@ var (
 	// ErrSyncOperation -
 	ErrSyncOperation = newByMessage(409, 10103, "The asynchronous operation is executing")
 	// ErrHorizontalDueToNoChange
-	ErrHorizontalDueToNoChange = newByMessage(409, 10104, "The number of components has not changed, no need to scale")
+	ErrHorizontalDueToNoChange = newByMessage(400, 10104, "The number of components has not changed, no need to scale")
 )
