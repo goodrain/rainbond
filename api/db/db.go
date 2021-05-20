@@ -49,6 +49,7 @@ func CreateDBManager(conf option.Config) error {
 	dbCfg := config.Config{
 		MysqlConnectionInfo: conf.DBConnectionInfo,
 		DBType:              conf.DBType,
+		ShowSQL:             conf.ShowSQL,
 	}
 	if err := db.CreateManager(dbCfg); err != nil {
 		logrus.Errorf("get db manager failed,%s", err.Error())
@@ -63,7 +64,6 @@ func CreateDBManager(conf option.Config) error {
 //CreateEventManager create event manager
 func CreateEventManager(conf option.Config) error {
 	var tryTime time.Duration
-	tryTime = 0
 	var err error
 	etcdClientArgs := &etcdutil.ClientArgs{
 		Endpoints: conf.EtcdEndpoint,

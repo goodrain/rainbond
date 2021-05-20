@@ -20,6 +20,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/coreos/etcd/clientv3"
 	apimodel "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/mq/client"
@@ -800,4 +802,51 @@ func (g *GatewayAction) GetGatewayIPs() []IPAndAvailablePort {
 		})
 	}
 	return defaultIps
+}
+
+// DeleteIngressRulesByComponentPort deletes ingress rules, including http rules and tcp rules, based on the given componentID and port.
+func (g *GatewayAction) DeleteIngressRulesByComponentPort(tx *gorm.DB, componentID string, port int) error {
+	httpRuleIDs, err := g.listHTTPRuleIDs(componentID, port)
+	if err != nil {
+		return err
+	}
+
+	// delete rule configs
+	if err := db.GetManager().GwRuleConfigDaoTransactions(tx).DeleteByRuleIDs(httpRuleIDs); err != nil {
+		return err
+	}
+
+	// delete rule extentions
+	if err := db.GetManager().RuleExtensionDaoTransactions(tx).DeleteByRuleIDs(httpRuleIDs); err != nil {
+		return err
+	}
+
+	// delete http rules
+	if err := db.GetManager().HTTPRuleDaoTransactions(tx).DeleteByComponentPort(componentID, port); err != nil {
+		if !errors.Is(err, bcode.ErrIngressHTTPRuleNotFound) {
+			return err
+		}
+	}
+
+	// delete tcp rules
+	if err := db.GetManager().TCPRuleDaoTransactions(tx).DeleteByComponentPort(componentID, port); err != nil {
+		if !errors.Is(err, bcode.ErrIngressTCPRuleNotFound) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (g *GatewayAction) listHTTPRuleIDs(componentID string, port int) ([]string, error) {
+	httpRules, err := db.GetManager().HTTPRuleDao().ListByComponentPort(componentID, port)
+	if err != nil {
+		return nil, err
+	}
+
+	var ruleIDs []string
+	for _, rule := range httpRules {
+		ruleIDs = append(ruleIDs, rule.UUID)
+	}
+	return ruleIDs, nil
 }
