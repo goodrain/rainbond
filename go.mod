@@ -101,7 +101,7 @@ require (
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/yaml.v2 v2.4.0
-	istio.io/pkg v0.0.0-20210519012641-d57c32f9ee9c
+	istio.io/pkg v0.0.0-20210519012641-d57c32f9ee9c // indirect
 	k8s.io/api v0.20.1
 	k8s.io/apiextensions-apiserver v0.20.1
 	k8s.io/apimachinery v0.20.1

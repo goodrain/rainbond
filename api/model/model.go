@@ -1250,7 +1250,7 @@ type AddTenantServiceEnvVar struct {
 	ContainerPort int    `validate:"container_port|numeric_between:1,65535" json:"container_port"`
 	Name          string `validate:"name" json:"name"`
 	AttrName      string `validate:"env_name|required" json:"env_name"`
-	AttrValue     string `validate:"env_value|required" json:"env_value"`
+	AttrValue     string `validate:"env_value" json:"env_value"`
 	IsChange      bool   `validate:"is_change|bool" json:"is_change"`
 	Scope         string `validate:"scope|in:outer,inner,both,build" json:"scope"`
 }

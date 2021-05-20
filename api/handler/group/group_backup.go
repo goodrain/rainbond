@@ -238,7 +238,7 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string, force bool) erro
 		}
 		status := h.statusCli.GetStatus(id)
 		logrus.Debugf("service: %s is state: %v", service.ServiceAlias, service.IsState())
-		if !force && status != v1.CLOSED && service.IsState() { // state running service force backup
+		if !force && status != v1.CLOSED && status != v1.UNDEPLOY && service.IsState() { // state running service force backup
 			return fmt.Errorf("state app must be closed before backup")
 		}
 		data.ServiceStatus = status

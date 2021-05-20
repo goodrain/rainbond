@@ -223,6 +223,7 @@ type MavenSetting struct {
 	CreateTime string `json:"create_time"`
 	UpdateTime string `json:"update_time"`
 	Content    string `json:"content" validate:"required"`
+	IsDefault  bool   `json:"is_default"`
 }
 
 //MavenSettingList maven setting list
@@ -234,11 +235,16 @@ func (c *clusterAction) MavenSettingList(ctx context.Context) (re []MavenSetting
 		logrus.Errorf("list maven setting config list failure %s", err.Error())
 	}
 	for _, sm := range cms.Items {
+		isDefault := false
+		if sm.Labels["default"] == "true" {
+			isDefault = true
+		}
 		re = append(re, MavenSetting{
 			Name:       sm.Name,
 			CreateTime: sm.CreationTimestamp.Format(time.RFC3339),
 			UpdateTime: sm.Labels["updateTime"],
 			Content:    sm.Data["mavensetting"],
+			IsDefault:  isDefault,
 		})
 	}
 	return
