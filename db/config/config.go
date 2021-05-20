@@ -27,4 +27,5 @@ type Config struct {
 	EtcdCertFile        string
 	EtcdKeyFile         string
 	EtcdTimeout         int
+	ShowSQL             bool
 }

@@ -1082,6 +1082,23 @@ func (s *ServiceAction) CreatePorts(tenantID, serviceID string, vps *api_model.S
 	return nil
 }
 
+func (s *ServiceAction) deletePorts(componentID string, ports *api_model.ServicePorts) error {
+	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		for _, port := range ports.Port {
+			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DeleteModel(componentID, port.ContainerPort); err != nil {
+				return err
+			}
+
+			// delete related ingress rules
+			if err := GetGatewayHandler().DeleteIngressRulesByComponentPort(tx, componentID, port.ContainerPort); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
 //PortVar port var
 func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_model.ServicePorts, oldPort int) error {
 	crt, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
@@ -1093,25 +1110,7 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 	}
 	switch action {
 	case "delete":
-		tx := db.GetManager().Begin()
-		defer func() {
-			if r := recover(); r != nil {
-				logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-				tx.Rollback()
-			}
-		}()
-		for _, vp := range vps.Port {
-			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DeleteModel(serviceID, vp.ContainerPort); err != nil {
-				logrus.Errorf("delete port var error, %v", err)
-				tx.Rollback()
-				return err
-			}
-		}
-		if err := tx.Commit().Error; err != nil {
-			tx.Rollback()
-			logrus.Debugf("commit delete port error, %v", err)
-			return err
-		}
+		return s.deletePorts(serviceID, vps)
 	case "update":
 		tx := db.GetManager().Begin()
 		defer func() {

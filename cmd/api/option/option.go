@@ -61,6 +61,7 @@ type Config struct {
 	KubeConfigPath         string
 	PrometheusEndpoint     string
 	RbdNamespace           string
+	ShowSQL                bool
 }
 
 //APIServer  apiserver server
@@ -113,6 +114,7 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.KuberentesDashboardAPI, "k8s-dashboard-api", "kubernetes-dashboard.rbd-system:443", "The service DNS name of Kubernetes dashboard. Default to kubernetes-dashboard.kubernetes-dashboard")
 	fs.StringVar(&a.PrometheusEndpoint, "prom-api", "rbd-monitor:9999", "The service DNS name of Prometheus api. Default to rbd-monitor:9999")
 	fs.StringVar(&a.RbdNamespace, "rbd-namespace", "rbd-system", "rbd component namespace")
+	fs.BoolVar(&a.ShowSQL, "show-sql", false, "The trigger for showing sql.")
 }
 
 //SetLog 设置log
