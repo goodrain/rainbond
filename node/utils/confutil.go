@@ -98,7 +98,7 @@ func extendFileContent(dir string, content []byte) (data []byte, err error) {
 		match = match[len(extendTag)+1 : len(match)-1]
 		sb, e := extendFile(filepath.Join(dir, string(match)))
 		if e != nil {
-			err = fmt.Errorf("替换json配置[%s]失败：%s\n", match, e.Error())
+			err = fmt.Errorf("替换json配置[%s]失败：%s", match, e.Error())
 		}
 		return sb
 	})

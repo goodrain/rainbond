@@ -28,7 +28,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	apiv2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	auth "github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	cluster "github.com/envoyproxy/go-control-plane/envoy/api/v2/cluster"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
@@ -353,8 +352,7 @@ func CreateRouteWithHostRewrite(host, clusterName, prefix string, headers []*rou
 
 //CreateRoute create http route
 func CreateRoute(clusterName, prefix string, headers []*route.HeaderMatcher, weight uint32) *route.Route {
-	var rout *route.Route
-	rout = &route.Route{
+	rout := &route.Route{
 		Match: &route.RouteMatch{
 			PathSpecifier: &route.RouteMatch_Prefix{
 				Prefix: prefix,
@@ -442,7 +440,7 @@ type ClusterOptions struct {
 	CircuitBreakers          *cluster.CircuitBreakers
 	Hosts                    []*core.Address
 	HealthyPanicThreshold    int64
-	TLSContext               *auth.UpstreamTlsContext
+	TransportSocket          *core.TransportSocket
 	LoadAssignment           *apiv2.ClusterLoadAssignment
 	Protocol                 string
 	// grpc service name of health check
@@ -495,8 +493,8 @@ func CreateCluster(options ClusterOptions) *apiv2.Cluster {
 				}})
 		}
 	}
-	if options.TLSContext != nil {
-		cluster.TlsContext = options.TLSContext
+	if options.TransportSocket != nil {
+		cluster.TransportSocket = options.TransportSocket
 	}
 	if options.LoadAssignment != nil {
 		cluster.LoadAssignment = options.LoadAssignment
@@ -524,22 +522,6 @@ func GetServiceAliasByService(service *corev1.Service) string {
 	return ""
 }
 
-func getEndpointsByLables(endpoints []*corev1.Endpoints, slabels map[string]string) (re []*corev1.Endpoints) {
-	for _, en := range endpoints {
-		existLength := 0
-		for k, v := range slabels {
-			v2, ok := en.Labels[k]
-			if ok && v == v2 {
-				existLength++
-			}
-		}
-		if existLength == len(slabels) {
-			re = append(re, en)
-		}
-	}
-	return
-}
-
 //CreateDNSLoadAssignment create dns loadAssignment
 func CreateDNSLoadAssignment(serviceAlias, namespace, domain string, service *corev1.Service) *apiv2.ClusterLoadAssignment {
 	destServiceAlias := GetServiceAliasByService(service)
@@ -550,7 +532,7 @@ func CreateDNSLoadAssignment(serviceAlias, namespace, domain string, service *co
 
 	clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, service.Spec.Ports[0].Port)
 	var lendpoints []*endpoint.LocalityLbEndpoints
-	protocol, _ := service.Labels["port_protocol"]
+	protocol := service.Labels["port_protocol"]
 	port := service.Spec.Ports[0].Port
 	var lbe []*endpoint.LbEndpoint
 	envoyAddress := CreateSocketAddress(protocol, domain, uint32(port))
