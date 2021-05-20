@@ -30,7 +30,7 @@ import (
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
-	perr "github.com/pkg/errors"
+	pkgerr "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -371,7 +371,7 @@ func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, length int, servic
 	}
 	tenants, err := t.DB.Raw("SELECT uuid,name,eid from tenants where uuid in (?)", tenantIDs).Rows()
 	if err != nil {
-		return nil, 0, perr.Wrap(err, "list tenants")
+		return nil, 0, pkgerr.Wrap(err, "list tenants")
 	}
 	defer tenants.Close()
 	for tenants.Next() {
@@ -598,6 +598,15 @@ func (t *TenantServicesDeleteImpl) DeleteTenantServicesDelete(record *model.Tena
 	return nil
 }
 
+// List returns a list of TenantServicesDeletes.
+func (t *TenantServicesDeleteImpl) List() ([]*model.TenantServicesDelete, error) {
+	var components []*model.TenantServicesDelete
+	if err := t.DB.Find(&components).Error; err != nil {
+		return nil, pkgerr.Wrap(err, "list deleted components")
+	}
+	return components, nil
+}
+
 //TenantServicesPortDaoImpl 租户应用端口操作
 type TenantServicesPortDaoImpl struct {
 	DB *gorm.DB
@@ -642,7 +651,7 @@ func (t *TenantServicesPortDaoImpl) DeleteModel(serviceID string, args ...interf
 	}
 	if err := t.DB.Where("service_id=? and container_port=?", serviceID, containerPort).Delete(tsp).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return perr.Wrap(bcode.ErrPortNotFound, "delete component port")
+			return pkgerr.Wrap(bcode.ErrPortNotFound, "delete component port")
 		}
 		return err
 	}
