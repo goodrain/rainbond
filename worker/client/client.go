@@ -62,6 +62,9 @@ func NewClient(ctx context.Context, conf AppRuntimeSyncClientConf) (*AppRuntimeS
 		KeyFile:   conf.EtcdKeyFile,
 	}
 	c, err := etcdutil.NewClient(ctx, etcdClientArgs)
+	if err != nil {
+		return nil, err
+	}
 	r := &grpcutil.GRPCResolver{Client: c}
 	b := grpc.RoundRobin(r)
 	arsc.cc, err = grpc.DialContext(ctx, "/rainbond/discover/app_sync_runtime_server", grpc.WithBalancer(b), grpc.WithInsecure(), grpc.WithBlock())

@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2014-2021 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,16 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package config
+package utils
 
-//Config db config
-type Config struct {
-	MysqlConnectionInfo string
-	DBType              string
-	EtcdEndPoints       []string
-	EtcdCaFile          string // TODO db module do not use etcd at all
-	EtcdCertFile        string
-	EtcdKeyFile         string
-	EtcdTimeout         int
-	ShowSQL             bool
-}
+const (
+	// EnvoyTLSSocketName matched with hardcoded built-in Envoy transport name which determines endpoint
+	// level tls transport socket configuration
+	EnvoyTLSSocketName = "envoy.transport_sockets.tls"
+)

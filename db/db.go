@@ -34,6 +34,7 @@ import (
 type Manager interface {
 	CloseManager() error
 	Begin() *gorm.DB
+	DB() *gorm.DB
 	EnsureEndTransactionFunc() func(tx *gorm.DB)
 	VolumeTypeDao() dao.VolumeTypeDao
 	LicenseDao() dao.LicenseDao

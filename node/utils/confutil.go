@@ -35,23 +35,24 @@ var (
 	root      = ""
 )
 
-// 设置扩展标识，如果不设置，默认为 '@extend:'
+// SetExtendTag 设置扩展标识，如果不设置，默认为 '@extend:'
 func SetExtendTag(tag string) {
 	extendTag = tag
 }
 
+// SetRoot -
 func SetRoot(r string) {
 	root = r
 }
 
-// 设置当前路径标识，如果不设置，默认为 '@pwd@'
+// SetPathTag 设置当前路径标识，如果不设置，默认为 '@pwd@'
 // @pwd@ 会被替换成当前文件的路径，
 // 至于是绝对路径还是相对路径，取决于读取文件时，传入的是绝对路径还是相对路径
 func SetPathTag(tag string) {
 	pwdTag = tag
 }
 
-//加载json（可配置扩展字段）配置文件
+// LoadExtendConf 加载json（可配置扩展字段）配置文件
 func LoadExtendConf(filePath string, v interface{}) error {
 	data, err := extendFile(filePath)
 	if err != nil {
@@ -98,7 +99,7 @@ func extendFileContent(dir string, content []byte) (data []byte, err error) {
 		match = match[len(extendTag)+1 : len(match)-1]
 		sb, e := extendFile(filepath.Join(dir, string(match)))
 		if e != nil {
-			err = fmt.Errorf("替换json配置[%s]失败：%s\n", match, e.Error())
+			err = fmt.Errorf("替换json配置[%s]失败：%s", match, e.Error())
 		}
 		return sb
 	})
