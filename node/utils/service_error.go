@@ -20,9 +20,9 @@ package utils
 
 import (
 	"fmt"
-	httputil "github.com/goodrain/rainbond/util/http"
 	"net/http"
 
+	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
 )
 
@@ -63,5 +63,4 @@ func (a *APIHandleError) Handle(r *http.Request, w http.ResponseWriter) {
 		return
 	}
 	httputil.ReturnError(r, w, a.Code, a.Error())
-	return
 }
