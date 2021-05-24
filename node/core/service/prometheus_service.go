@@ -21,7 +21,6 @@ package service
 import (
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/api/model"
-	"github.com/goodrain/rainbond/node/masterserver"
 	"github.com/goodrain/rainbond/node/utils"
 )
 
@@ -29,18 +28,16 @@ import (
 type PrometheusService struct {
 	prometheusAPI *model.PrometheusAPI
 	conf          *option.Conf
-	ms            *masterserver.MasterServer
 }
 
 var prometheusService *PrometheusService
 
 //CreatePrometheusService create prometheus service
-func CreatePrometheusService(c *option.Conf, ms *masterserver.MasterServer) *PrometheusService {
+func CreatePrometheusService(c *option.Conf) *PrometheusService {
 	if prometheusService == nil {
 		prometheusService = &PrometheusService{
 			prometheusAPI: &model.PrometheusAPI{API: c.PrometheusAPI},
 			conf:          c,
-			ms:            ms,
 		}
 	}
 	return prometheusService
