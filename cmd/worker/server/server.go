@@ -77,7 +77,7 @@ func Run(s *option.Worker) error {
 		logrus.Errorf("create kube rest config error: %s", err.Error())
 		return err
 	}
-	restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(s.Config.KubeApiQPS), s.Config.KubeApiBurst)
+	restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(s.Config.KubeAPIQPS), s.Config.KubeAPIBurst)
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		logrus.Errorf("create kube client error: %s", err.Error())
