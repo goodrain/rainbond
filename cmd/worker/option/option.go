@@ -41,6 +41,8 @@ type Config struct {
 	PrometheusMetricPath    string
 	EventLogServers         []string
 	KubeConfig              string
+	KubeAPIQPS              int
+	KubeAPIBurst            int
 	MaxTasks                int
 	MQAPI                   string
 	NodeName                string
@@ -81,6 +83,8 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.MysqlConnectionInfo, "mysql", "root:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
 	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"127.0.0.1:6366"}, "event log server address. simple lb")
 	fs.StringVar(&a.KubeConfig, "kube-config", "", "kubernetes api server config file")
+	fs.IntVar(&a.KubeAPIQPS, "kube-api-qps", 50, "kube client qps")
+	fs.IntVar(&a.KubeAPIBurst, "kube-api-burst", 10, "kube clint burst")
 	fs.IntVar(&a.MaxTasks, "max-tasks", 50, "the max tasks for per node")
 	fs.StringVar(&a.MQAPI, "mq-api", "127.0.0.1:6300", "acp_mq api")
 	fs.StringVar(&a.RunMode, "run", "sync", "sync data when worker start")
