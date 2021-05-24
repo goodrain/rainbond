@@ -68,7 +68,7 @@ func RunAsLeader(ctx context.Context, clientset kubernetes.Interface, namespace 
 				startFunc(ctx)
 			},
 			OnStoppedLeading: func() {
-				logrus.Info("Stopped leading")
+				logrus.Warning("Stopped leading")
 				stopFunc()
 			},
 			OnNewLeader: func(identity string) {
