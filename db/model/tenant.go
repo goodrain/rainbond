@@ -364,7 +364,7 @@ type TenantServiceEnvVar struct {
 	ContainerPort int    `gorm:"column:container_port" validate:"container_port|numeric_between:1,65535" json:"container_port"`
 	Name          string `gorm:"column:name;size:1024" validate:"name" json:"name"`
 	AttrName      string `gorm:"column:attr_name;size:1024" validate:"env_name|required" json:"attr_name"`
-	AttrValue     string `gorm:"column:attr_value;type:longtext" validate:"env_value|required" json:"attr_value"`
+	AttrValue     string `gorm:"column:attr_value;type:text" validate:"env_value|required" json:"attr_value"`
 	IsChange      bool   `gorm:"column:is_change" validate:"is_change|bool" json:"is_change"`
 	Scope         string `gorm:"column:scope;default:'outer'" validate:"scope|in:outer,inner,both" json:"scope"`
 }
