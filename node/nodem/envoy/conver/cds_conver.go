@@ -23,13 +23,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
-
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	auth "github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
+	"github.com/golang/protobuf/ptypes"
 	api_model "github.com/goodrain/rainbond/api/model"
 	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
+	"github.com/goodrain/rainbond/node/utils"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -104,8 +105,7 @@ func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_mod
 			if strings.HasPrefix(domain, "https://") {
 				splitDomain := strings.Split(domain, "https://")
 				if len(splitDomain) == 2 {
-					logrus.Debugf("https domain tlsContext: %s", splitDomain[1])
-					clusterOption.TLSContext = &auth.UpstreamTlsContext{Sni: splitDomain[1]}
+					clusterOption.TransportSocket = transportSocket(clusterOption.Name, splitDomain[1])
 				}
 			}
 		} else {
@@ -114,7 +114,7 @@ func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_mod
 		clusterOption.HealthyPanicThreshold = options.HealthyPanicThreshold
 		clusterOption.ConnectionTimeout = envoyv2.ConverTimeDuration(options.ConnectionTimeout)
 		// set port realy protocol
-		portProtocol, _ := service.Labels["port_protocol"]
+		portProtocol := service.Labels["port_protocol"]
 		clusterOption.Protocol = portProtocol
 		clusterOption.GrpcHealthServiceName = options.GrpcHealthServiceName
 		clusterOption.HealthTimeout = options.HealthCheckTimeout
@@ -126,6 +126,24 @@ func upstreamClusters(serviceAlias, namespace string, dependsServices []*api_mod
 		}
 	}
 	return
+}
+
+func transportSocket(name, domain string) *core.TransportSocket {
+	logrus.Debugf("https domain tlsContext: %s", domain)
+	// refer to: https://www.envoyproxy.io/docs/envoy/v1.17.2/api-v2/api/v2/auth/tls.proto#auth-upstreamtlscontext
+	tlsContext, err := ptypes.MarshalAny(&auth.UpstreamTlsContext{Sni: domain})
+	if err != nil {
+		logrus.Errorf("error marshaling tls context to transport_socket config for cluster %s, err=%v",
+			name, err)
+		// no tls context for the cluster
+		return nil
+	}
+	return &core.TransportSocket{
+		Name: utils.EnvoyTLSSocketName,
+		ConfigType: &core.TransportSocket_TypedConfig{
+			TypedConfig: tlsContext,
+		},
+	}
 }
 
 //downstreamClusters handle app self cluster

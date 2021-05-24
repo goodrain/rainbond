@@ -28,11 +28,6 @@ import (
 	"time"
 
 	"github.com/coreos/etcd/clientv3"
-	"github.com/jinzhu/gorm"
-	"github.com/pquerna/ffjson/ffjson"
-	"github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
-
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
@@ -44,6 +39,10 @@ import (
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/goodrain/rainbond/worker/server"
 	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/jinzhu/gorm"
+	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
+	"github.com/twinj/uuid"
 
 	api_model "github.com/goodrain/rainbond/api/model"
 	dberrors "github.com/goodrain/rainbond/db/errors"
@@ -406,14 +405,21 @@ func (s *ServiceAction) ServiceVertical(vs *model.VerticalScalingTaskBody) error
 func (s *ServiceAction) ServiceHorizontal(hs *model.HorizontalScalingTaskBody) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(hs.ServiceID)
 	if err != nil {
-		logrus.Errorf("get service by id %s error, %s", service.ServiceID, err)
+		logrus.Errorf("get service by id %s error, %s", hs.ServiceID, err)
 		return err
 	}
+
 	// for rollback database
 	oldReplicas := service.Replicas
-	if int32(service.Replicas) == hs.Replicas {
-		return nil
+	pods, err := s.statusCli.GetServicePods(service.ServiceID)
+	if err != nil {
+		logrus.Errorf("get service pods error: %v", err)
+		return fmt.Errorf("horizontal service faliure:%s", err.Error())
 	}
+	if int32(len(pods.NewPods)) == hs.Replicas{
+		return bcode.ErrHorizontalDueToNoChange
+	}
+
 	service.Replicas = int(hs.Replicas)
 	err = db.GetManager().TenantServiceDao().UpdateModel(service)
 	if err != nil {
