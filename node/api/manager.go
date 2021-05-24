@@ -19,33 +19,29 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
-
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"github.com/goodrain/rainbond/discover"
-	"github.com/goodrain/rainbond/node/kubecache"
-	"github.com/goodrain/rainbond/node/masterserver"
-	"github.com/goodrain/rainbond/node/statsd"
-
-	"github.com/goodrain/rainbond/node/api/controller"
-	"github.com/goodrain/rainbond/node/api/router"
-
-	"context"
 	"strings"
-
-	"github.com/goodrain/rainbond/cmd/node/option"
-	nodeclient "github.com/goodrain/rainbond/node/nodem/client"
-
-	_ "net/http/pprof"
 
 	client "github.com/coreos/etcd/clientv3"
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/discover"
+	"github.com/goodrain/rainbond/node/api/controller"
+	"github.com/goodrain/rainbond/node/api/router"
+	"github.com/goodrain/rainbond/node/kubecache"
+	"github.com/goodrain/rainbond/node/masterserver"
+	nodeclient "github.com/goodrain/rainbond/node/nodem/client"
+	"github.com/goodrain/rainbond/node/statsd"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
+
+	// pprof
+	_ "net/http/pprof"
 )
 
 //Manager api manager
@@ -145,9 +141,6 @@ func (m *Manager) GetRouter() *chi.Mux {
 func (m *Manager) HandleClusterScrape(w http.ResponseWriter, r *http.Request) {
 	gatherers := prometheus.Gatherers{
 		prometheus.DefaultGatherer,
-	}
-	if m.ms != nil {
-		gatherers = append(gatherers, m.ms.GetRegistry())
 	}
 	// Delegate http serving to Prometheus client library, which will call collector.Collect.
 	h := promhttp.HandlerFor(gatherers,

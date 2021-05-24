@@ -38,7 +38,7 @@ var kubecli kubecache.KubeClient
 //Init 初始化
 func Init(c *option.Conf, ms *masterserver.MasterServer, kube kubecache.KubeClient) {
 	if ms != nil {
-		prometheusService = service.CreatePrometheusService(c, ms)
+		prometheusService = service.CreatePrometheusService(c)
 		datacenterConfig = config.GetDataCenterConfig()
 		nodeService = service.CreateNodeService(c, ms.Cluster, kube)
 	}
