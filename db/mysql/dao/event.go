@@ -131,7 +131,7 @@ func (c *EventDaoImpl) GetEventsByTarget(target, targetID string, offset, limit 
 	if err := db.Model(&model.ServiceEvent{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := db.Offset(offset).Limit(limit).Order("create_time DESC").Find(&result).Error; err != nil {
+	if err := db.Offset(offset).Limit(limit).Order("create_time DESC, ID DESC").Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, 0, nil
 		}
@@ -143,20 +143,17 @@ func (c *EventDaoImpl) GetEventsByTarget(target, targetID string, offset, limit 
 
 // GetEventsByTenantID get event by tenantID
 func (c *EventDaoImpl) GetEventsByTenantID(tenantID string, offset, limit int) ([]*model.ServiceEvent, int, error) {
-	var result []*model.ServiceEvent
 	var total int
-	start := time.Now()
 	if err := c.DB.Model(&model.ServiceEvent{}).Where("tenant_id=?", tenantID).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	logrus.Debugf("query event count %d take time %s", total, time.Now().Sub(start))
-	if err := c.DB.Where("tenant_id=?", tenantID).Offset(offset).Limit(limit).Order("start_time DESC").Find(&result).Error; err != nil {
+	var result []*model.ServiceEvent
+	if err := c.DB.Where("tenant_id=?", tenantID).Offset(offset).Limit(limit).Order("start_time DESC, ID DESC").Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, 0, nil
 		}
 		return nil, 0, err
 	}
-	logrus.Debugf("query event list take time %s", time.Now().Sub(start))
 	return result, total, nil
 }
 
