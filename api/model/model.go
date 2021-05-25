@@ -341,8 +341,8 @@ type ServiceStruct struct {
 	PortsInfo         []dbmodel.TenantServicesPort         `json:"ports_info" validate:"ports_info"`
 	Endpoints         *Endpoints                           `json:"endpoints" validate:"endpoints"`
 	AppID             string                               `json:"app_id" validate:"required"`
-	ComponentProbes   []ServiceProbe         `json:"component_probes" validate:"component_probes"`
-	ComponentMonitors []AddServiceMonitorRequestStruct       `json:"component_monitors" validate:"component_monitors"`
+	ComponentProbes   []ServiceProbe                       `json:"component_probes" validate:"component_probes"`
+	ComponentMonitors []AddServiceMonitorRequestStruct     `json:"component_monitors" validate:"component_monitors"`
 	HTTPRules         []AddHTTPRuleStruct                  `json:"http_rules" validate:"http_rules"`
 	TCPRules          []AddTCPRuleStruct                   `json:"tcp_rules" validate:"tcp_rules"`
 }
