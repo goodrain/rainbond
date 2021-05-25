@@ -134,7 +134,6 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tx *gorm.DB, tenantID, se
 					p.Port,
 				)
 				if err != nil {
-					tx.Rollback()
 					logrus.Errorf(fmt.Sprintf("set upstream port %d error, %v", p.Port, err))
 					return nil, util.CreateAPIHandleErrorFromDBError(
 						fmt.Sprintf("set upstream port %d error ", p.Port),
@@ -146,12 +145,10 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tx *gorm.DB, tenantID, se
 			}
 		}
 		if err := s.SavePluginConfig(serviceID, plugin.PluginID, pss.Body.ConfigEnvs.ComplexEnvs); err != nil {
-			tx.Rollback()
 			return nil, util.CreateAPIHandleError(500, fmt.Errorf("set complex error, %v", err))
 		}
 	}
 	if err := s.normalEnvs(tx, serviceID, plugin.PluginID, pss.Body.ConfigEnvs.NormalEnvs); err != nil {
-		tx.Rollback()
 		return nil, util.CreateAPIHandleErrorFromDBError("set service plugin env error ", err)
 	}
 	relation := &dbmodel.TenantServicePluginRelation{
@@ -164,12 +161,7 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tx *gorm.DB, tenantID, se
 		ContainerMemory: pluginversion.ContainerMemory,
 	}
 	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).AddModel(relation); err != nil {
-		tx.Rollback()
 		return nil, util.CreateAPIHandleErrorFromDBError("set service plugin relation", err)
-	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return nil, util.CreateAPIHandleErrorFromDBError("commit set service plugin relation", err)
 	}
 	return relation, nil
 }

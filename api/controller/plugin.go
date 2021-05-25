@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"fmt"
 	"github.com/goodrain/rainbond/db"
 	"net/http"
 
@@ -468,7 +469,13 @@ func (t *TenantStruct) addPluginSet(w http.ResponseWriter, r *http.Request) {
 	tx := db.GetManager().Begin()
 	re, err := handler.GetServiceManager().SetTenantServicePluginRelation(tx, tenantID, serviceID, &pss)
 	if err != nil {
+		tx.Rollback()
 		err.Handle(r, w)
+		return
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("commit transaction err: %v", err))
 		return
 	}
 	httputil.ReturnSuccess(r, w, re)

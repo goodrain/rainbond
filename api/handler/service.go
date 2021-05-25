@@ -515,8 +515,8 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		probes        = sc.ComponentProbes
 		plugins       = sc.ComponentPlugins
 		monitors      = sc.ComponentMonitors
-		httpRules     = sc.HttpRules
-		tcpRules      = sc.TcpRules
+		httpRules     = sc.HTTPRules
+		tcpRules      = sc.TCPRules
 	)
 	ts.AppID = sc.AppID
 	ts.DeployVersion = ""

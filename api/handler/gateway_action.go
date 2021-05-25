@@ -83,7 +83,6 @@ func (g *GatewayAction) AddHTTPRule(tx *gorm.DB, req *apimodel.AddHTTPRuleStruct
 		}
 	}()
 	if err := db.GetManager().HTTPRuleDaoTransactions(tx).AddModel(httpRule); err != nil {
-		tx.Rollback()
 		return fmt.Errorf("create http rule: %v", err)
 	}
 
@@ -95,7 +94,6 @@ func (g *GatewayAction) AddHTTPRule(tx *gorm.DB, req *apimodel.AddHTTPRuleStruct
 			PrivateKey:      req.PrivateKey,
 		}
 		if err := db.GetManager().CertificateDaoTransactions(tx).AddOrUpdate(cert); err != nil {
-			tx.Rollback()
 			return fmt.Errorf("create or update http rule: %v", err)
 		}
 	}
@@ -108,15 +106,8 @@ func (g *GatewayAction) AddHTTPRule(tx *gorm.DB, req *apimodel.AddHTTPRuleStruct
 			Value:  ruleExtension.Value,
 		}
 		if err := db.GetManager().RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
-			tx.Rollback()
 			return fmt.Errorf("create rule extensions: %v", err)
 		}
-	}
-
-	// end transaction
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return fmt.Errorf("commit transaction: %v", err)
 	}
 	// Effective immediately
 	if err := g.SendTask(map[string]interface{}{
@@ -345,7 +336,6 @@ func (g *GatewayAction) AddTCPRule(tx *gorm.DB, req *apimodel.AddTCPRuleStruct) 
 		Port:          req.Port,
 	}
 	if err := g.dbmanager.TCPRuleDaoTransactions(tx).AddModel(tcpRule); err != nil {
-		tx.Rollback()
 		return err
 	}
 	// add rule extensions
@@ -356,7 +346,6 @@ func (g *GatewayAction) AddTCPRule(tx *gorm.DB, req *apimodel.AddTCPRuleStruct) 
 			Value:  ruleExtension.Value,
 		}
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
-			tx.Rollback()
 			return err
 		}
 	}

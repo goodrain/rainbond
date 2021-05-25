@@ -103,10 +103,15 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 	tx := db.GetManager().Begin()
 	err := h.AddHTTPRule(tx, &req)
 	if err != nil {
+		tx.Rollback()
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while adding http rule: %v", err))
 		return
 	}
-
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("commit transaction err: %v", err))
+		return
+	}
 	httputil.ReturnSuccess(r, w, req)
 }
 
@@ -232,6 +237,13 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 	tx := db.GetManager().Begin()
 	err := h.AddTCPRule(tx, &req)
 	if err != nil {
+		tx.Rollback()
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
+			"adding tcp rule: %v", err))
+		return
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"adding tcp rule: %v", err))
 		return

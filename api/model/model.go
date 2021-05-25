@@ -344,8 +344,8 @@ type ServiceStruct struct {
 	ComponentProbes   []dbmodel.TenantServiceProbe         `json:"component_probes" validate:"component_probes"`
 	ComponentPlugins  []PluginSetStruct                    `json:"component_plugins" validate:"component_plugins"`
 	ComponentMonitors []dbmodel.TenantServiceMonitor       `json:"component_monitors" validate:"component_monitors"`
-	HttpRules         []AddHTTPRuleStruct                  `json:"http_rules" validate:"http_rules"`
-	TcpRules          []AddTCPRuleStruct                   `json:"tcp_rules" validate:"tcp_rules"`
+	HTTPRules         []AddHTTPRuleStruct                  `json:"http_rules" validate:"http_rules"`
+	TCPRules          []AddTCPRuleStruct                   `json:"tcp_rules" validate:"tcp_rules"`
 }
 
 // Endpoints holds third-party service endpoints or configuraion to get endpoints.
