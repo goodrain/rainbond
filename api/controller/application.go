@@ -10,6 +10,7 @@ import (
 	"github.com/goodrain/rainbond/api/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/sirupsen/logrus"
 )
 
 // ApplicationController -
@@ -130,6 +131,11 @@ func (a *ApplicationController) ListServices(w http.ResponseWriter, r *http.Requ
 func (a *ApplicationController) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "app_id")
 
+	var req model.EtcdCleanReq
+	if httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
+		logrus.Debugf("delete app etcd keys : %+v", req.Keys)
+		handler.GetEtcdHandler().CleanAllServiceData(req.Keys)
+	}
 	// Delete application
 	err := handler.GetApplicationHandler().DeleteApp(appID)
 	if err != nil {
