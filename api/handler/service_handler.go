@@ -19,6 +19,7 @@
 package handler
 
 import (
+	"github.com/jinzhu/gorm"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/exector"
@@ -68,7 +69,7 @@ type ServiceHandler interface {
 	TransServieToDelete(tenantID, serviceID string) error
 	TenantServiceDeletePluginRelation(tenantID, serviceID, pluginID string) *util.APIHandleError
 	GetTenantServicePluginRelation(serviceID string) ([]*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
-	SetTenantServicePluginRelation(tenantID, serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
+	SetTenantServicePluginRelation(tx *gorm.DB, tenantID, serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
 	UpdateTenantServicePluginRelation(serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
 	UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError
 	DeletePluginConfig(serviceID, pluginID string) *util.APIHandleError

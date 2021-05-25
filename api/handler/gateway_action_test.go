@@ -20,6 +20,7 @@ package handler
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/db"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -57,9 +58,10 @@ func TestSelectAvailablePort(t *testing.T) {
 }
 
 func TestAddHTTPRule(t *testing.T) {
+	tx := db.GetManager().Begin()
 	for i := 200; i < 500; i++ {
 		domain := fmt.Sprintf("5000-%d.gr5d6478.aq0g1f8i.4f3597.grapps.cn", i)
-		err := gm.AddHTTPRule(&apimodel.AddHTTPRuleStruct{
+		err := gm.AddHTTPRule(tx, &apimodel.AddHTTPRuleStruct{
 			HTTPRuleID:    util.NewUUID(),
 			ServiceID:     "68f1b4f28d49baeb68a06e1c5f5d6478",
 			ContainerPort: 5000,
@@ -101,9 +103,10 @@ func waitReady(domain string) bool {
 	}
 }
 func TestAddTCPRule(t *testing.T) {
+	tx := db.GetManager().Begin()
 	for i := 1; i < 200; i++ {
 		address := fmt.Sprintf("192.168.56.101:%d", 10000+i)
-		gm.AddTCPRule(&apimodel.AddTCPRuleStruct{
+		gm.AddTCPRule(tx, &apimodel.AddTCPRuleStruct{
 			TCPRuleID:     util.NewUUID(),
 			ServiceID:     "68f1b4f28d49baeb68a06e1c5f5d6478",
 			ContainerPort: 5000,

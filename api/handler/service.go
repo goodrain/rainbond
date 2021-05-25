@@ -366,7 +366,7 @@ func (s *ServiceAction) StartStopService(sss *api_model.StartStopStruct) error {
 func (s *ServiceAction) ServiceVertical(vs *model.VerticalScalingTaskBody) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(vs.ServiceID)
 	if err != nil {
-		logrus.Errorf("get service by id %s error, %s", service.ServiceID, err)
+		logrus.Errorf("get service by id %s error, %s", vs.ServiceID, err)
 		return err
 	}
 	oldMemory := service.ContainerMemory
@@ -416,7 +416,7 @@ func (s *ServiceAction) ServiceHorizontal(hs *model.HorizontalScalingTaskBody) e
 		logrus.Errorf("get service pods error: %v", err)
 		return fmt.Errorf("horizontal service faliure:%s", err.Error())
 	}
-	if int32(len(pods.NewPods)) == hs.Replicas{
+	if int32(len(pods.NewPods)) == hs.Replicas {
 		return bcode.ErrHorizontalDueToNoChange
 	}
 
@@ -506,11 +506,18 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		ts.ServiceName = ts.ServiceAlias
 	}
 	ts.UpdateTime = time.Now()
-	ports := sc.PortsInfo
-	envs := sc.EnvsInfo
-	volumns := sc.VolumesInfo
-	dependVolumes := sc.DepVolumesInfo
-	dependIds := sc.DependIDs
+	var (
+		ports         = sc.PortsInfo
+		envs          = sc.EnvsInfo
+		volumns       = sc.VolumesInfo
+		dependVolumes = sc.DepVolumesInfo
+		dependIds     = sc.DependIDs
+		probes        = sc.ComponentProbes
+		plugins       = sc.ComponentPlugins
+		monitors      = sc.ComponentMonitors
+		httpRules     = sc.HttpRules
+		tcpRules      = sc.TcpRules
+	)
 	ts.AppID = sc.AppID
 	ts.DeployVersion = ""
 	tx := db.GetManager().Begin()
@@ -750,6 +757,52 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			}
 		}
 	}
+	if len(probes) > 0 {
+		for _, probe := range probes {
+			if err := db.GetManager().ServiceProbeDaoTransactions(tx).AddModel(&probe); err != nil {
+				logrus.Errorf("add probe %v error, %v", probe.ProbeID, err)
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+	if len(monitors) > 0 {
+		for _, monitor := range monitors {
+			if err := db.GetManager().TenantServiceMonitorDaoTransactions(tx).AddModel(&monitor); err != nil {
+				logrus.Errorf("add monitor %v error, %v", monitor.Name, err)
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+	if len(plugins) > 0 {
+		for _, plugin := range plugins {
+			if _, err := GetServiceManager().SetTenantServicePluginRelation(tx, sc.TenantID, sc.ServiceID, &plugin); err != nil {
+				logrus.Errorf("set service plugin error %v", err)
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+	if len(httpRules) > 0 {
+		for _, httpRule := range httpRules {
+			if err := GetGatewayHandler().AddHTTPRule(tx, &httpRule); err != nil {
+				logrus.Errorf("add service http rule error %v", err)
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+	if len(tcpRules) > 0 {
+		for _, tcpRule := range tcpRules {
+			if err := GetGatewayHandler().AddTCPRule(tx, &tcpRule); err != nil {
+				logrus.Errorf("add service tcp rule error %v", err)
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+
 	// TODO: create default probe for third-party service.
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()

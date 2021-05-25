@@ -329,18 +329,23 @@ type ServiceStruct struct {
 	//OSType runtime os type
 	// in: body
 	// required: false
-	OSType         string                               `json:"os_type" validate:"os_type|in:windows,linux"`
-	ServiceLabel   string                               `json:"service_label"  validate:"service_label|in:StatelessServiceType,StatefulServiceType"`
-	NodeLabel      string                               `json:"node_label"  validate:"node_label"`
-	Operator       string                               `json:"operator"  validate:"operator"`
-	RepoURL        string                               `json:"repo_url" validate:"repo_url"`
-	DependIDs      []dbmodel.TenantServiceRelation      `json:"depend_ids" validate:"depend_ids"`
-	VolumesInfo    []TenantServiceVolumeStruct          `json:"volumes_info" validate:"volumes_info"`
-	DepVolumesInfo []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info" validate:"dep_volumes_info"`
-	EnvsInfo       []dbmodel.TenantServiceEnvVar        `json:"envs_info" validate:"envs_info"`
-	PortsInfo      []dbmodel.TenantServicesPort         `json:"ports_info" validate:"ports_info"`
-	Endpoints      *Endpoints                           `json:"endpoints" validate:"endpoints"`
-	AppID          string                               `json:"app_id" validate:"required"`
+	OSType            string                               `json:"os_type" validate:"os_type|in:windows,linux"`
+	ServiceLabel      string                               `json:"service_label"  validate:"service_label|in:StatelessServiceType,StatefulServiceType"`
+	NodeLabel         string                               `json:"node_label"  validate:"node_label"`
+	Operator          string                               `json:"operator"  validate:"operator"`
+	RepoURL           string                               `json:"repo_url" validate:"repo_url"`
+	DependIDs         []dbmodel.TenantServiceRelation      `json:"depend_ids" validate:"depend_ids"`
+	VolumesInfo       []TenantServiceVolumeStruct          `json:"volumes_info" validate:"volumes_info"`
+	DepVolumesInfo    []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info" validate:"dep_volumes_info"`
+	EnvsInfo          []dbmodel.TenantServiceEnvVar        `json:"envs_info" validate:"envs_info"`
+	PortsInfo         []dbmodel.TenantServicesPort         `json:"ports_info" validate:"ports_info"`
+	Endpoints         *Endpoints                           `json:"endpoints" validate:"endpoints"`
+	AppID             string                               `json:"app_id" validate:"required"`
+	ComponentProbes   []dbmodel.TenantServiceProbe         `json:"component_probes" validate:"component_probes"`
+	ComponentPlugins  []PluginSetStruct                    `json:"component_plugins" validate:"component_plugins"`
+	ComponentMonitors []dbmodel.TenantServiceMonitor       `json:"component_monitors" validate:"component_monitors"`
+	HttpRules         []AddHTTPRuleStruct                  `json:"http_rules" validate:"http_rules"`
+	TcpRules          []AddTCPRuleStruct                   `json:"tcp_rules" validate:"tcp_rules"`
 }
 
 // Endpoints holds third-party service endpoints or configuraion to get endpoints.

@@ -56,7 +56,7 @@ func CreateGatewayManager(dbmanager db.Manager, mqclient client.MQClient, etcdCl
 }
 
 // AddHTTPRule adds http rule to db if it doesn't exists.
-func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
+func (g *GatewayAction) AddHTTPRule(tx *gorm.DB, req *apimodel.AddHTTPRuleStruct) error {
 	httpRule := &model.HTTPRule{
 		UUID:          req.HTTPRuleID,
 		ServiceID:     req.ServiceID,
@@ -76,7 +76,6 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 	}
 
 	// begin transaction
-	tx := db.GetManager().Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
@@ -329,9 +328,8 @@ func (g *GatewayAction) UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRu
 }
 
 // AddTCPRule adds tcp rule.
-func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
+func (g *GatewayAction) AddTCPRule(tx *gorm.DB, req *apimodel.AddTCPRuleStruct) error {
 	// begin transaction
-	tx := db.GetManager().Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)

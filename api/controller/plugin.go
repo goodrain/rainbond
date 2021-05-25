@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"github.com/goodrain/rainbond/db"
 	"net/http"
 
 	"github.com/goodrain/rainbond/api/handler/share"
@@ -464,7 +465,8 @@ func (t *TenantStruct) addPluginSet(w http.ResponseWriter, r *http.Request) {
 	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
 	pss.ServiceAlias = serviceAlias
 	pss.TenantName = tenantName
-	re, err := handler.GetServiceManager().SetTenantServicePluginRelation(tenantID, serviceID, &pss)
+	tx := db.GetManager().Begin()
+	re, err := handler.GetServiceManager().SetTenantServicePluginRelation(tx, tenantID, serviceID, &pss)
 	if err != nil {
 		err.Handle(r, w)
 		return

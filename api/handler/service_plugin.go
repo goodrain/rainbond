@@ -86,7 +86,7 @@ func (s *ServiceAction) TenantServiceDeletePluginRelation(tenantID, serviceID, p
 }
 
 //SetTenantServicePluginRelation SetTenantServicePluginRelation
-func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError) {
+func (s *ServiceAction) SetTenantServicePluginRelation(tx *gorm.DB, tenantID, serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError) {
 	plugin, err := db.GetManager().TenantPluginDao().GetPluginByID(pss.Body.PluginID, tenantID)
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("get plugin by plugin id", err)
@@ -117,7 +117,7 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 			}
 		}
 	}
-	tx := db.GetManager().Begin()
+
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)

@@ -20,6 +20,7 @@ package controller
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/db"
 	"net/http"
 	"net/url"
 	"strings"
@@ -99,7 +100,8 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h := handler.GetGatewayHandler()
-	err := h.AddHTTPRule(&req)
+	tx := db.GetManager().Begin()
+	err := h.AddHTTPRule(tx, &req)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while adding http rule: %v", err))
 		return
@@ -227,7 +229,8 @@ func (g *GatewayStruct) AddTCPRule(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnValidationError(r, w, values)
 		return
 	}
-	err := h.AddTCPRule(&req)
+	tx := db.GetManager().Begin()
+	err := h.AddTCPRule(tx, &req)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"adding tcp rule: %v", err))
