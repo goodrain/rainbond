@@ -28,6 +28,7 @@ import (
 	gclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
 	dmodel "github.com/goodrain/rainbond/worker/discover/model"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -55,214 +56,164 @@ func CreateOperationHandler(mqCli gclient.MQClient) *OperationHandler {
 
 //Build service build,will create new version
 //if deploy version not define, will create by time
-func (o *OperationHandler) Build(buildInfo model.BuildInfoRequestStruct) (re OperationResult) {
-	service, err := db.GetManager().TenantServiceDao().GetServiceByID(buildInfo.ServiceID)
+func (o *OperationHandler) Build(batchOpReq model.ComponentOpReq) (*model.ComponentOpResult, error) {
+	res := batchOpReq.BatchOpFailureItem()
+	if err := o.build(batchOpReq); err != nil {
+		res.ErrMsg = err.Error()
+	} else {
+		res.Success()
+	}
+	return res, nil
+}
+
+func (o *OperationHandler) build(batchOpReq model.ComponentOpReq) error {
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(batchOpReq.GetComponentID())
 	if err != nil {
-		re.ErrMsg = fmt.Sprintf("find service %s failure", buildInfo.ServiceID)
-		return
+		return err
 	}
 	if dbmodel.ServiceKind(service.Kind) == dbmodel.ServiceKindThirdParty {
-		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", buildInfo.ServiceID)
-		return
+		return nil
 	}
-	buildInfo.DeployVersion = util.CreateVersionByTime()
-	re.DeployVersion = buildInfo.DeployVersion
+
+	buildReq := batchOpReq.(*model.ComponentBuildReq)
+	buildReq.DeployVersion = util.CreateVersionByTime()
+
 	version := dbmodel.VersionInfo{
-		EventID:      buildInfo.EventID,
-		ServiceID:    buildInfo.ServiceID,
-		RepoURL:      buildInfo.CodeInfo.RepoURL,
-		Kind:         buildInfo.Kind,
-		BuildVersion: buildInfo.DeployVersion,
-		Cmd:          buildInfo.ImageInfo.Cmd,
-		Author:       buildInfo.Operator,
+		EventID:      buildReq.GetEventID(),
+		ServiceID:    buildReq.ServiceID,
+		RepoURL:      buildReq.CodeInfo.RepoURL,
+		Kind:         buildReq.Kind,
+		BuildVersion: buildReq.DeployVersion,
+		Cmd:          buildReq.ImageInfo.Cmd,
+		Author:       buildReq.Operator,
 		FinishTime:   time.Now(),
-		PlanVersion:  buildInfo.PlanVersion,
+		PlanVersion:  buildReq.PlanVersion,
 	}
-	if buildInfo.CodeInfo.Cmd != "" {
-		version.Cmd = buildInfo.CodeInfo.Cmd
+	if buildReq.CodeInfo.Cmd != "" {
+		version.Cmd = buildReq.CodeInfo.Cmd
 	}
-	serviceID := buildInfo.ServiceID
-	err = db.GetManager().VersionInfoDao().AddModel(&version)
-	if err != nil {
-		logrus.Errorf("error add version %v ,details %s", version, err.Error())
-		re.ErrMsg = fmt.Sprintf("create service %s new version %s failure", serviceID, buildInfo.DeployVersion)
-		return
+	if err = db.GetManager().VersionInfoDao().AddModel(&version); err != nil {
+		return err
 	}
-	re.EventID = buildInfo.EventID
-	re.Operation = "build"
-	re.ServiceID = service.ServiceID
-	re.Status = "failure"
-	switch buildInfo.Kind {
+
+	switch buildReq.Kind {
 	case model.FromImageBuildKing:
-		if err := o.buildFromImage(buildInfo, service); err != nil {
-			logrus.Errorf("build service %s failure %s", serviceID, err.Error())
-			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)
-			return
+		if err := o.buildFromImage(buildReq, service); err != nil {
+			return err
 		}
 	case model.FromCodeBuildKing:
-		if err := o.buildFromSourceCode(buildInfo, service); err != nil {
-			logrus.Errorf("build service %s failure %s", serviceID, err.Error())
-			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)
-			return
+		if err := o.buildFromSourceCode(buildReq, service); err != nil {
+			return err
 		}
 	case model.FromMarketImageBuildKing:
-		if err := o.buildFromImage(buildInfo, service); err != nil {
-			logrus.Errorf("build service %s failure %s", serviceID, err.Error())
-			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)
-			return
+		if err := o.buildFromImage(buildReq, service); err != nil {
+			return err
 		}
-
 	case model.FromMarketSlugBuildKing:
-		if err := o.buildFromMarketSlug(buildInfo, service); err != nil {
-			logrus.Errorf("build service %s failure %s", serviceID, err.Error())
-			re.ErrMsg = fmt.Sprintf("build service %s failure", serviceID)
-			return
+		if err := o.buildFromMarketSlug(buildReq, service); err != nil {
+			return err
 		}
 	default:
-		re.ErrMsg = fmt.Sprintf("build service %s failure,kind %s is unsupport", serviceID, buildInfo.Kind)
-		return
+		return errors.New("unsupported build kind: " + buildReq.Kind)
 	}
-	re.Status = "success"
-	return
+	return nil
 }
 
 //Stop service stop
-func (o *OperationHandler) Stop(stopInfo model.StartOrStopInfoRequestStruct) (re OperationResult) {
-	re.EventID = stopInfo.EventID
-	re.Operation = "stop"
-	re.ServiceID = stopInfo.ServiceID
-	re.Status = "failure"
-	service, err := db.GetManager().TenantServiceDao().GetServiceByID(stopInfo.ServiceID)
+func (o *OperationHandler) Stop(batchOpReq model.ComponentOpReq) error {
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(batchOpReq.GetComponentID())
 	if err != nil {
-		logrus.Errorf("get service by id error, %v", err)
-		re.ErrMsg = fmt.Sprintf("get service %s failure", stopInfo.ServiceID)
-		return
+		return err
 	}
 	if dbmodel.ServiceKind(service.Kind) == dbmodel.ServiceKindThirdParty {
-		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", stopInfo.ServiceID)
-		return
+		return nil
 	}
-	TaskBody := dmodel.StopTaskBody{
-		TenantID:      service.TenantID,
-		ServiceID:     service.ServiceID,
-		DeployVersion: service.DeployVersion,
-		EventID:       re.EventID,
-		Configs:       stopInfo.Configs,
-	}
+	body := batchOpReq.TaskBody(service)
 	err = o.mqCli.SendBuilderTopic(gclient.TaskStruct{
 		TaskType: "stop",
-		TaskBody: TaskBody,
+		TaskBody: body,
 		Topic:    gclient.WorkerTopic,
 	})
 	if err != nil {
-		logrus.Errorf("equque mq error, %v", err)
-		re.ErrMsg = fmt.Sprintf("start service %s failure", stopInfo.ServiceID)
-		return
+		return err
 	}
-	re.Status = "success"
-	return
+	return nil
 }
 
 //Start service start
-func (o *OperationHandler) Start(startInfo model.StartOrStopInfoRequestStruct) (re OperationResult) {
-	re.Operation = "start"
-	re.ServiceID = startInfo.ServiceID
-	re.Status = "failure"
-	service, err := db.GetManager().TenantServiceDao().GetServiceByID(startInfo.ServiceID)
+func (o *OperationHandler) Start(batchOpReq model.ComponentOpReq) error {
+	service, err := db.GetManager().TenantServiceDao().GetServiceByID(batchOpReq.GetComponentID())
 	if err != nil {
-		logrus.Errorf("get service by id error, %v", err)
-		re.ErrMsg = fmt.Sprintf("get service %s failure", startInfo.ServiceID)
-		return
+		return err
 	}
 	if dbmodel.ServiceKind(service.Kind) == dbmodel.ServiceKindThirdParty {
-		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", startInfo.ServiceID)
-		return
+		return nil
 	}
-	re.EventID = startInfo.EventID
-	TaskBody := dmodel.StartTaskBody{
-		TenantID:              service.TenantID,
-		ServiceID:             service.ServiceID,
-		DeployVersion:         service.DeployVersion,
-		EventID:               startInfo.EventID,
-		Configs:               startInfo.Configs,
-		DepServiceIDInBootSeq: startInfo.DepServiceIDInBootSeq,
-	}
+
+	body := batchOpReq.TaskBody(service)
 	err = o.mqCli.SendBuilderTopic(gclient.TaskStruct{
 		TaskType: "start",
-		TaskBody: TaskBody,
+		TaskBody: body,
 		Topic:    gclient.WorkerTopic,
 	})
 	if err != nil {
-		logrus.Errorf("equque mq error, %v", err)
-		re.ErrMsg = fmt.Sprintf("start service %s failure", startInfo.ServiceID)
-		return
+		return err
 	}
-	re.Status = "success"
-	return
+	return nil
 }
 
 //Upgrade service upgrade
-func (o *OperationHandler) Upgrade(ru model.UpgradeInfoRequestStruct) (re OperationResult) {
-	re.Operation = "upgrade"
-	re.ServiceID = ru.ServiceID
-	re.EventID = ru.EventID
-	re.Status = "failure"
-	services, err := db.GetManager().TenantServiceDao().GetServiceByID(ru.ServiceID)
-	if err != nil {
-		logrus.Errorf("get service by id %s error %s", ru.ServiceID, err.Error())
-		re.ErrMsg = fmt.Sprintf("get service %s failure", ru.ServiceID)
-		return
+func (o *OperationHandler) Upgrade(batchOpReq model.ComponentOpReq) (*model.ComponentOpResult, error) {
+	res := batchOpReq.BatchOpFailureItem()
+	if err := o.upgrade(batchOpReq); err != nil {
+		res.ErrMsg = err.Error()
+	} else {
+		res.Success()
 	}
-	if dbmodel.ServiceKind(services.Kind) == dbmodel.ServiceKindThirdParty {
-		re.ErrMsg = fmt.Sprintf("service %s is thirdpart service", ru.ServiceID)
-		return
+	return res, nil
+}
+func (o *OperationHandler) upgrade(batchOpReq model.ComponentOpReq) error {
+	component, err := db.GetManager().TenantServiceDao().GetServiceByID(batchOpReq.GetComponentID())
+	if err != nil {
+		return err
+	}
+	if dbmodel.ServiceKind(component.Kind) == dbmodel.ServiceKindThirdParty {
+		return err
 	}
 
-	// By default, the same version is updated
-	if ru.UpgradeVersion == "" {
-		ru.UpgradeVersion = services.DeployVersion
-	}
-	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(ru.UpgradeVersion, ru.ServiceID)
+	batchOpReq.SetVersion(component.DeployVersion)
+
+	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(batchOpReq.GetVersion(), batchOpReq.GetComponentID())
 	if err != nil {
-		logrus.Errorf("get service version by id %s version %s error, %s", ru.ServiceID, ru.UpgradeVersion, err.Error())
-		re.ErrMsg = fmt.Sprintf("get service %s version %s failure", ru.ServiceID, ru.UpgradeVersion)
-		return
+		return err
 	}
-	oldDeployVersion := services.DeployVersion
+	oldDeployVersion := component.DeployVersion
 	var rollback = func() {
-		services.DeployVersion = oldDeployVersion
-		_ = db.GetManager().TenantServiceDao().UpdateModel(services)
+		component.DeployVersion = oldDeployVersion
+		_ = db.GetManager().TenantServiceDao().UpdateModel(component)
 	}
+
 	if version.FinalStatus != "success" {
-		logrus.Warnf("deploy version %s is not build success,can not change deploy version in this upgrade event", ru.UpgradeVersion)
+		logrus.Warnf("deploy version %s is not build success,can not change deploy version in this upgrade event", batchOpReq.GetVersion())
 	} else {
-		services.DeployVersion = ru.UpgradeVersion
-		err = db.GetManager().TenantServiceDao().UpdateModel(services)
+		component.DeployVersion = batchOpReq.GetVersion()
+		err = db.GetManager().TenantServiceDao().UpdateModel(component)
 		if err != nil {
-			logrus.Errorf("update service deploy version error. %v", err)
-			re.ErrMsg = fmt.Sprintf("update service %s deploy version failure", ru.ServiceID)
-			return
+			return err
 		}
 	}
+
+	body := batchOpReq.TaskBody(component)
 	err = o.mqCli.SendBuilderTopic(gclient.TaskStruct{
-		TaskBody: dmodel.RollingUpgradeTaskBody{
-			TenantID:         services.TenantID,
-			ServiceID:        services.ServiceID,
-			NewDeployVersion: ru.UpgradeVersion,
-			EventID:          re.EventID,
-			Configs:          ru.Configs,
-		},
+		TaskBody: body,
 		TaskType: "rolling_upgrade",
 		Topic:    gclient.WorkerTopic,
 	})
 	if err != nil {
 		rollback()
-		logrus.Errorf("equque upgrade message error, %v", err)
-		re.ErrMsg = fmt.Sprintf("send service %s upgrade message failure", ru.ServiceID)
-		return
+		return err
 	}
-	re.Status = "success"
-	return
+	return nil
 }
 
 //RollBack service rollback
@@ -316,16 +267,10 @@ func (o *OperationHandler) RollBack(rollback model.RollbackInfoRequestStruct) (r
 	return
 }
 
-//Restart service restart
-//TODO
-func (o *OperationHandler) Restart(restartInfo model.StartOrStopInfoRequestStruct) (re OperationResult) {
-	return
-}
-
-func (o *OperationHandler) buildFromMarketSlug(r model.BuildInfoRequestStruct, service *dbmodel.TenantServices) error {
+func (o *OperationHandler) buildFromMarketSlug(r *model.ComponentBuildReq, service *dbmodel.TenantServices) error {
 	body := make(map[string]interface{})
 	body["deploy_version"] = r.DeployVersion
-	body["event_id"] = r.EventID
+	body["event_id"] = r.GetEventID()
 	body["action"] = r.Action
 	body["tenant_name"] = r.TenantName
 	body["tenant_id"] = service.TenantID
@@ -347,7 +292,7 @@ func (o *OperationHandler) sendBuildTopic(serviceID, taskType string, body map[s
 	})
 }
 
-func (o *OperationHandler) buildFromImage(r model.BuildInfoRequestStruct, service *dbmodel.TenantServices) error {
+func (o *OperationHandler) buildFromImage(r *model.ComponentBuildReq, service *dbmodel.TenantServices) error {
 	if r.ImageInfo.ImageURL == "" || r.DeployVersion == "" {
 		return fmt.Errorf("build from image failure, args error")
 	}
@@ -356,7 +301,7 @@ func (o *OperationHandler) buildFromImage(r model.BuildInfoRequestStruct, servic
 	body["service_id"] = service.ServiceID
 	body["deploy_version"] = r.DeployVersion
 	body["namespace"] = service.Namespace
-	body["event_id"] = r.EventID
+	body["event_id"] = r.GetEventID()
 	body["tenant_name"] = r.TenantName
 	body["service_alias"] = service.ServiceAlias
 	body["action"] = r.Action
@@ -369,7 +314,7 @@ func (o *OperationHandler) buildFromImage(r model.BuildInfoRequestStruct, servic
 	return o.sendBuildTopic(service.ServiceID, "build_from_image", body)
 }
 
-func (o *OperationHandler) buildFromSourceCode(r model.BuildInfoRequestStruct, service *dbmodel.TenantServices) error {
+func (o *OperationHandler) buildFromSourceCode(r *model.ComponentBuildReq, service *dbmodel.TenantServices) error {
 	if r.CodeInfo.RepoURL == "" || r.CodeInfo.Branch == "" || r.DeployVersion == "" {
 		return fmt.Errorf("build from code failure, args error")
 	}
@@ -381,7 +326,7 @@ func (o *OperationHandler) buildFromSourceCode(r model.BuildInfoRequestStruct, s
 	body["lang"] = r.CodeInfo.Lang
 	body["runtime"] = r.CodeInfo.Runtime
 	body["deploy_version"] = r.DeployVersion
-	body["event_id"] = r.EventID
+	body["event_id"] = r.GetEventID()
 	body["envs"] = r.BuildENVs
 	body["tenant_name"] = r.TenantName
 	body["branch"] = r.CodeInfo.Branch

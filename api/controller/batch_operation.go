@@ -22,90 +22,88 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
-	"github.com/goodrain/rainbond/api/util"
-
 	"github.com/goodrain/rainbond/api/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	rutil "github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/sirupsen/logrus"
 )
 
 //BatchOperation batch operation for tenant
 //support operation is : start,build,stop,update
 func BatchOperation(w http.ResponseWriter, r *http.Request) {
-	var build model.BeatchOperationRequestStruct
+	var build model.BatchOperationReq
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build.Body, nil)
 	if !ok {
 		logrus.Errorf("start batch operation validate request body failure")
 		return
 	}
 
-	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		defer rutil.Elapsed("BatchOperation-" + build.Body.Operation)()
+	}
 
-	// create event for each operation
-	eventRe := createBatchEvents(&build, tenantID, build.Operator)
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
 
-	var re handler.BatchOperationResult
+	var res model.BatchOpResult
+	var err error
+	// TODO: merge the code below
 	switch build.Body.Operation {
 	case "build":
-		for i := range build.Body.BuildInfos {
-			build.Body.BuildInfos[i].TenantName = tenantName
+		var batchOpReqs []model.ComponentOpReq
+		for _, build := range build.Body.Builds {
+			build := build
+			build.TenantName = tenant.Name
+			batchOpReqs = append(batchOpReqs, build)
 		}
-		re = handler.GetBatchOperationHandler().Build(build.Body.BuildInfos)
+		if len(batchOpReqs) > 1024 {
+			batchOpReqs = batchOpReqs[0:1024]
+		}
+		res, err = handler.GetBatchOperationHandler().Build(r.Context(), tenant, build.Operator, batchOpReqs)
 	case "start":
-		re = handler.GetBatchOperationHandler().Start(build.Body.StartInfos)
+		var batchOpReqs []model.ComponentOpReq
+		for _, start := range build.Body.Starts {
+			start := start
+			batchOpReqs = append(batchOpReqs, start)
+		}
+		if len(batchOpReqs) > 1024 {
+			batchOpReqs = batchOpReqs[0:1024]
+		}
+		res, err = handler.GetBatchOperationHandler().Start(r.Context(), tenant, build.Operator, batchOpReqs)
 	case "stop":
-		re = handler.GetBatchOperationHandler().Stop(build.Body.StopInfos)
+		var batchOpReqs []model.ComponentOpReq
+		for _, stop := range build.Body.Stops {
+			stop := stop
+			batchOpReqs = append(batchOpReqs, stop)
+		}
+		if len(batchOpReqs) > 1024 {
+			batchOpReqs = batchOpReqs[0:1024]
+		}
+		res, err = handler.GetBatchOperationHandler().Stop(r.Context(), tenant, build.Operator, batchOpReqs)
 	case "upgrade":
-		re = handler.GetBatchOperationHandler().Upgrade(build.Body.UpgradeInfos)
+		var batchOpReqs []model.ComponentOpReq
+		for _, upgrade := range build.Body.Upgrades {
+			upgrade := upgrade
+			batchOpReqs = append(batchOpReqs, upgrade)
+		}
+		if len(batchOpReqs) > 1024 {
+			batchOpReqs = batchOpReqs[0:1024]
+		}
+		res, err = handler.GetBatchOperationHandler().Upgrade(r.Context(), tenant, build.Operator, batchOpReqs)
 	default:
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("operation %s do not support batch", build.Body.Operation))
 		return
 	}
 
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
 	// append every create event result to re and then return
-	re.BatchResult = append(re.BatchResult, eventRe.BatchResult...)
-	httputil.ReturnSuccess(r, w, re)
-}
-
-func createBatchEvents(build *model.BeatchOperationRequestStruct, tenantID, operator string) (re handler.BatchOperationResult) {
-	for i := range build.Body.BuildInfos {
-		event, err := util.CreateEvent(dbmodel.TargetTypeService, "build-service", build.Body.BuildInfos[i].ServiceID, tenantID, "", operator, dbmodel.ASYNEVENTTYPE)
-		if err != nil {
-			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.BuildInfos[i].ServiceID})
-			continue
-		}
-		build.Body.BuildInfos[i].EventID = event.EventID
-
-	}
-	for i := range build.Body.StartInfos {
-		event, err := util.CreateEvent(dbmodel.TargetTypeService, "start-service", build.Body.StartInfos[i].ServiceID, tenantID, "", operator, dbmodel.ASYNEVENTTYPE)
-		if err != nil {
-			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.StartInfos[i].ServiceID})
-			continue
-		}
-		build.Body.StartInfos[i].EventID = event.EventID
-	}
-	for i := range build.Body.StopInfos {
-		event, err := util.CreateEvent(dbmodel.TargetTypeService, "stop-service", build.Body.StopInfos[i].ServiceID, tenantID, "", operator, dbmodel.ASYNEVENTTYPE)
-		if err != nil {
-			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.StopInfos[i].ServiceID})
-			continue
-		}
-		build.Body.StopInfos[i].EventID = event.EventID
-	}
-	for i := range build.Body.UpgradeInfos {
-		event, err := util.CreateEvent(dbmodel.TargetTypeService, "upgrade-service", build.Body.UpgradeInfos[i].ServiceID, tenantID, "", operator, dbmodel.ASYNEVENTTYPE)
-		if err != nil {
-			re.BatchResult = append(re.BatchResult, handler.OperationResult{ErrMsg: "create event failure", ServiceID: build.Body.UpgradeInfos[i].ServiceID})
-			continue
-		}
-		build.Body.UpgradeInfos[i].EventID = event.EventID
-	}
-
-	return
+	httputil.ReturnSuccess(r, w, map[string]interface{}{
+		"batch_result": res,
+	})
 }

@@ -377,6 +377,7 @@ type CodeCheckResultDao interface {
 //EventDao EventDao
 type EventDao interface {
 	Dao
+	CreateEventsInBatch(events []*model.ServiceEvent) error
 	GetEventByEventID(eventID string) (*model.ServiceEvent, error)
 	GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEvent, error)
 	GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error)
