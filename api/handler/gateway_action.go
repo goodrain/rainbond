@@ -74,6 +74,7 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 	return nil
 }
 
+// CreateHTTPRule Create http rules through transactions
 func (g *GatewayAction) CreateHTTPRule(tx *gorm.DB, req *apimodel.AddHTTPRuleStruct) error {
 	httpRule := &model.HTTPRule{
 		UUID:          req.HTTPRuleID,
@@ -337,6 +338,7 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
 	return nil
 }
 
+// CreateTCPRule Create tcp rules through transactions
 func (g *GatewayAction) CreateTCPRule(tx *gorm.DB, req *apimodel.AddTCPRuleStruct) error {
 	// add tcp rule
 	tcpRule := &model.TCPRule{
