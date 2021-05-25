@@ -350,10 +350,6 @@ func (g *GatewayAction) AddTCPRule(tx *gorm.DB, req *apimodel.AddTCPRuleStruct) 
 		}
 	}
 
-	// end transaction
-	if err := tx.Commit().Error; err != nil {
-		return err
-	}
 	if err := g.SendTask(map[string]interface{}{
 		"service_id": tcpRule.ServiceID,
 		"action":     "add-tcp-rule",
