@@ -245,6 +245,7 @@ func (s *ServiceAction) isWindowsService(serviceID string) bool {
 
 //AddLabel add labels
 func (s *ServiceAction) AddLabel(l *api_model.LabelsStruct, serviceID string) error {
+
 	tx := db.GetManager().Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -796,6 +797,18 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				return err
 			}
 		}
+	}
+	labelModel := dbmodel.TenantServiceLable{
+		ServiceID:  ts.ServiceID,
+		LabelKey:   dbmodel.LabelKeyServiceType,
+		LabelValue: core_util.StatelessServiceType,
+	}
+	if ts.IsState(){
+		labelModel.LabelValue = core_util.StatefulServiceType
+	}
+	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&labelModel); err != nil {
+		tx.Rollback()
+		return err
 	}
 
 	// TODO: create default probe for third-party service.
