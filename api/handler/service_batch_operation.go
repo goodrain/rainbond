@@ -33,7 +33,6 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/retryutil"
 	"github.com/goodrain/rainbond/worker/client"
-	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -473,8 +472,7 @@ func alreadyInLinkedList(l *list.List, depsid string) bool {
 // AllocMemory represents a allocatable memory.
 type AllocMemory struct {
 	tenant          *dbmodel.Tenants
-	tenantResource  *pb.TenantResource
-	allcm           int64
+	allcm           *int64
 	components      map[string]*dbmodel.TenantServices
 	batchOpResult   model.BatchOpResult
 	batchOpRequests model.BatchOpRequesters
@@ -486,20 +484,22 @@ func NewAllocMemory(ctx context.Context, statusCli *client.AppRuntimeSyncClient,
 		defer util.Elapsed("[NewAllocMemory] check allocatable memory")()
 	}
 
-	tenantUsedResource, err := statusCli.GetTenantResource(tenant.UUID)
-	if err != nil {
-		return nil, err
-	}
-
-	allcm, err := ClusterAllocMemory(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	am := &AllocMemory{
-		tenant:         tenant,
-		tenantResource: tenantUsedResource,
-		allcm:          allcm,
+		tenant: tenant,
+	}
+
+	if tenant.LimitMemory != 0 {
+		tenantUsedResource, err := statusCli.GetTenantResource(tenant.UUID)
+		if err != nil {
+			return nil, err
+		}
+		am.allcm = util.Int64(tenantUsedResource.MemoryRequest)
+	} else {
+		allcm, err := ClusterAllocMemory(ctx)
+		if err != nil {
+			return nil, err
+		}
+		am.allcm = util.Int64(allcm)
 	}
 
 	components, err := am.listComponents(batchOpReqs.ComponentIDs())
@@ -559,18 +559,13 @@ func (a *AllocMemory) check(componentID string) error {
 	}
 	requestMemory := component.ContainerMemory * component.Replicas
 
-	if a.tenant.LimitMemory != 0 {
-		allocm := a.tenant.LimitMemory - int(a.tenantResource.MemoryLimit)
-		if requestMemory > allocm {
-			logrus.Errorf("no limit tenant memory. request memory is %d, but got %d allocatable memory", requestMemory, allocm)
-			return errors.New("tenant_lack_of_memory")
-		}
+	allom := util.Int64Value(a.allcm)
+	if requestMemory > int(allom) {
+		logrus.Errorf("request memory is %d, but got %d allocatable memory", requestMemory, allom)
+		return errors.New("tenant_lack_of_memory")
 	}
 
-	if int64(requestMemory) > a.allcm {
-		logrus.Errorf("the cluster memory limit is %d, but component(%s) need %d", a.allcm, componentID, requestMemory)
-		return errors.New("cluster_lack_of_memory")
-	}
+	*a.allcm -= int64(requestMemory)
 
 	return nil
 }
