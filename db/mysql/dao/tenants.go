@@ -32,6 +32,7 @@ import (
 	"github.com/jinzhu/gorm"
 	pkgerr "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 )
 
 //TenantDaoImpl 租户信息管理
@@ -638,6 +639,19 @@ func (t *TenantServicesPortDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
+// CreateOrUpdatePortsInBatch Batch insert or update ports variables
+func (t *TenantServicesPortDaoImpl) CreateOrUpdatePortsInBatch(ports []*model.TenantServicesPort) error{
+	var objects []interface{}
+	for _, port := range ports {
+		port := port
+		objects = append(objects, *port)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update ports in batch")
+	}
+	return nil
+}
+
 //DeleteModel 删除端口
 func (t *TenantServicesPortDaoImpl) DeleteModel(serviceID string, args ...interface{}) error {
 	if len(args) < 1 {
@@ -921,6 +935,19 @@ func (t *TenantServiceEnvVarDaoImpl) UpdateModel(mo model.Interface) error {
 		"is_change":  env.IsChange,
 		"scope":      env.Scope,
 	}).Error
+}
+
+// CreateOrUpdateEnvsInBatch Batch insert or update environment variables
+func (t *TenantServiceEnvVarDaoImpl) CreateOrUpdateEnvsInBatch(envs []*model.TenantServiceEnvVar) error{
+	var objects []interface{}
+	for _, env := range envs {
+		env := env
+		objects = append(objects, *env)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update envs in batch")
+	}
+	return nil
 }
 
 //DeleteModel 删除env
