@@ -561,7 +561,7 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.Probe {
 	probe, err := dbmanager.ServiceProbeDao().GetServiceUsedProbe(as.ServiceID, mode)
 	if err == nil && probe != nil {
-		if mode == "liveness" && probe.SuccessThreshold < 1 {
+		if mode == "liveness" {
 			probe.SuccessThreshold = 1
 		}
 		if mode == "readiness" && probe.FailureThreshold < 1 {

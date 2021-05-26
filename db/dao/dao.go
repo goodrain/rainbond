@@ -172,6 +172,7 @@ type TenantServicesPortDao interface {
 	DelByServiceID(sid string) error
 	ListInnerPortsByServiceIDs(serviceIDs []string) ([]*model.TenantServicesPort, error)
 	ListByK8sServiceNames(serviceIDs []string) ([]*model.TenantServicesPort, error)
+	CreateOrUpdatePortsInBatch(ports []*model.TenantServicesPort) error
 }
 
 //TenantPluginDao TenantPluginDao
@@ -287,6 +288,7 @@ type TenantServiceEnvVarDao interface {
 	GetEnv(serviceID, envName string) (*model.TenantServiceEnvVar, error)
 	DELServiceEnvsByServiceID(serviceID string) error
 	DelByServiceIDAndScope(sid, scope string) error
+	CreateOrUpdateEnvsInBatch(envs []*model.TenantServiceEnvVar) error
 }
 
 //TenantServiceMountRelationDao TenantServiceMountRelationDao

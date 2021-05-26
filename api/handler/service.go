@@ -46,7 +46,6 @@ import (
 	"github.com/twinj/uuid"
 
 	api_model "github.com/goodrain/rainbond/api/model"
-	dberrors "github.com/goodrain/rainbond/db/errors"
 	core_model "github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	eventutil "github.com/goodrain/rainbond/eventlog/util"
@@ -247,6 +246,7 @@ func (s *ServiceAction) isWindowsService(serviceID string) bool {
 
 //AddLabel add labels
 func (s *ServiceAction) AddLabel(l *api_model.LabelsStruct, serviceID string) error {
+
 	tx := db.GetManager().Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -367,7 +367,7 @@ func (s *ServiceAction) StartStopService(sss *api_model.StartStopStruct) error {
 func (s *ServiceAction) ServiceVertical(vs *model.VerticalScalingTaskBody) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(vs.ServiceID)
 	if err != nil {
-		logrus.Errorf("get service by id %s error, %s", service.ServiceID, err)
+		logrus.Errorf("get service by id %s error, %s", vs.ServiceID, err)
 		return err
 	}
 	oldMemory := service.ContainerMemory
@@ -507,11 +507,17 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		ts.ServiceName = ts.ServiceAlias
 	}
 	ts.UpdateTime = time.Now()
-	ports := sc.PortsInfo
-	envs := sc.EnvsInfo
-	volumns := sc.VolumesInfo
-	dependVolumes := sc.DepVolumesInfo
-	dependIds := sc.DependIDs
+	var (
+		ports         = sc.PortsInfo
+		envs          = sc.EnvsInfo
+		volumns       = sc.VolumesInfo
+		dependVolumes = sc.DepVolumesInfo
+		dependIds     = sc.DependIDs
+		probes        = sc.ComponentProbes
+		monitors      = sc.ComponentMonitors
+		httpRules     = sc.HTTPRules
+		tcpRules      = sc.TCPRules
+	)
 	ts.AppID = sc.AppID
 	ts.DeployVersion = ""
 	tx := db.GetManager().Begin()
@@ -529,34 +535,30 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	}
 	//set app envs
 	if len(envs) > 0 {
+		var batchEnvs []*dbmodel.TenantServiceEnvVar
 		for _, env := range envs {
 			env.ServiceID = ts.ServiceID
 			env.TenantID = ts.TenantID
-			if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).AddModel(&env); err != nil {
-				logrus.Errorf("add env[name=%s] error, %v", env.AttrName, err)
-				if err != dberrors.ErrRecordAlreadyExist {
-					tx.Rollback()
-					return err
-				}
-				logrus.Warningf("recover env[name=%s]", env.AttrName)
-				// if env already exists, update it
-				if err = db.GetManager().TenantServiceEnvVarDaoTransactions(tx).UpdateModel(&env); err != nil {
-					tx.Rollback()
-					return err
-				}
-			}
+			batchEnvs = append(batchEnvs, &env)
+		}
+		if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).CreateOrUpdateEnvsInBatch(batchEnvs);err != nil {
+			logrus.Errorf("batch add env error, %v", err)
+			tx.Rollback()
+			return err
 		}
 	}
 	//set app port
 	if len(ports) > 0 {
+		var batchPorts []*dbmodel.TenantServicesPort
 		for _, port := range ports {
 			port.ServiceID = ts.ServiceID
 			port.TenantID = ts.TenantID
-			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).AddModel(&port); err != nil {
-				logrus.Errorf("add port %v error, %v", port.ContainerPort, err)
-				tx.Rollback()
-				return err
-			}
+			batchPorts = append(batchPorts, &port)
+		}
+		if err := db.GetManager().TenantServicesPortDaoTransactions(tx).CreateOrUpdatePortsInBatch(batchPorts); err != nil {
+			logrus.Errorf("batch add port error, %v", err)
+			tx.Rollback()
+			return err
 		}
 	}
 	//set app volumns
@@ -751,6 +753,65 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			}
 		}
 	}
+	if len(probes) > 0 {
+		for _, pb := range probes {
+			probe := s.convertProbeModel(&pb, ts.ServiceID)
+			if err := db.GetManager().ServiceProbeDaoTransactions(tx).AddModel(probe); err != nil {
+				logrus.Errorf("add probe %v error, %v", probe.ProbeID, err)
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+	if len(monitors) > 0 {
+		for _, m := range monitors {
+			monitor := dbmodel.TenantServiceMonitor{
+				Name:            m.Name,
+				TenantID:        ts.TenantID,
+				ServiceID:       ts.ServiceID,
+				ServiceShowName: m.ServiceShowName,
+				Port:            m.Port,
+				Path:            m.Path,
+				Interval:        m.Interval,
+			}
+			if err := db.GetManager().TenantServiceMonitorDaoTransactions(tx).AddModel(&monitor); err != nil {
+				logrus.Errorf("add monitor %v error, %v", monitor.Name, err)
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+	if len(httpRules) > 0 {
+		for _, httpRule := range httpRules {
+			if err := GetGatewayHandler().CreateHTTPRule(tx, &httpRule); err != nil {
+				logrus.Errorf("add service http rule error %v", err)
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+	if len(tcpRules) > 0 {
+		for _, tcpRule := range tcpRules {
+			if err := GetGatewayHandler().CreateTCPRule(tx, &tcpRule); err != nil {
+				logrus.Errorf("add service tcp rule error %v", err)
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+	labelModel := dbmodel.TenantServiceLable{
+		ServiceID:  ts.ServiceID,
+		LabelKey:   dbmodel.LabelKeyServiceType,
+		LabelValue: core_util.StatelessServiceType,
+	}
+	if ts.IsState(){
+		labelModel.LabelValue = core_util.StatefulServiceType
+	}
+	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&labelModel); err != nil {
+		tx.Rollback()
+		return err
+	}
+
 	// TODO: create default probe for third-party service.
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
@@ -758,6 +819,26 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	}
 	logrus.Debugf("create a new app %s success", ts.ServiceAlias)
 	return nil
+}
+
+func (s *ServiceAction) convertProbeModel(req *api_model.ServiceProbe, serviceID string) *dbmodel.TenantServiceProbe {
+	return &dbmodel.TenantServiceProbe{
+		ServiceID:          serviceID,
+		Cmd:                req.Cmd,
+		FailureThreshold:   req.FailureThreshold,
+		HTTPHeader:         req.HTTPHeader,
+		InitialDelaySecond: req.InitialDelaySecond,
+		IsUsed:             &req.IsUsed,
+		Mode:               req.Mode,
+		Path:               req.Path,
+		PeriodSecond:       req.PeriodSecond,
+		Port:               req.Port,
+		ProbeID:            req.ProbeID,
+		Scheme:             req.Scheme,
+		SuccessThreshold:   req.SuccessThreshold,
+		TimeoutSecond:      req.TimeoutSecond,
+		FailureAction:      req.FailureAction,
+	}
 }
 
 //ServiceUpdate update service

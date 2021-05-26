@@ -57,6 +57,25 @@ func CreateGatewayManager(dbmanager db.Manager, mqclient client.MQClient, etcdCl
 
 // AddHTTPRule adds http rule to db if it doesn't exists.
 func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
+	if err := db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		return g.CreateHTTPRule(tx, req)
+	}); err != nil {
+		return err
+	}
+
+	// Effective immediately
+	if err := g.SendTask(map[string]interface{}{
+		"service_id": req.ServiceID,
+		"action":     "add-http-rule",
+		"limit":      map[string]string{"domain": req.Domain},
+	}); err != nil {
+		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
+	}
+	return nil
+}
+
+// CreateHTTPRule Create http rules through transactions
+func (g *GatewayAction) CreateHTTPRule(tx *gorm.DB, req *apimodel.AddHTTPRuleStruct) error {
 	httpRule := &model.HTTPRule{
 		UUID:          req.HTTPRuleID,
 		ServiceID:     req.ServiceID,
@@ -74,17 +93,7 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 		IP:            req.IP,
 		CertificateID: req.CertificateID,
 	}
-
-	// begin transaction
-	tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
-		}
-	}()
 	if err := db.GetManager().HTTPRuleDaoTransactions(tx).AddModel(httpRule); err != nil {
-		tx.Rollback()
 		return fmt.Errorf("create http rule: %v", err)
 	}
 
@@ -96,7 +105,6 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 			PrivateKey:      req.PrivateKey,
 		}
 		if err := db.GetManager().CertificateDaoTransactions(tx).AddOrUpdate(cert); err != nil {
-			tx.Rollback()
 			return fmt.Errorf("create or update http rule: %v", err)
 		}
 	}
@@ -109,23 +117,8 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 			Value:  ruleExtension.Value,
 		}
 		if err := db.GetManager().RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
-			tx.Rollback()
 			return fmt.Errorf("create rule extensions: %v", err)
 		}
-	}
-
-	// end transaction
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return fmt.Errorf("commit transaction: %v", err)
-	}
-	// Effective immediately
-	if err := g.SendTask(map[string]interface{}{
-		"service_id": req.ServiceID,
-		"action":     "add-http-rule",
-		"limit":      map[string]string{"domain": req.Domain},
-	}); err != nil {
-		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 	return nil
 }
@@ -330,14 +323,23 @@ func (g *GatewayAction) UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRu
 
 // AddTCPRule adds tcp rule.
 func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
-	// begin transaction
-	tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
-		}
-	}()
+	if err := g.dbmanager.DB().Transaction(func(tx *gorm.DB) error {
+		return g.CreateTCPRule(tx, req)
+	}); err != nil {
+		return err
+	}
+	if err := g.SendTask(map[string]interface{}{
+		"service_id": req.ServiceID,
+		"action":     "add-tcp-rule",
+		"limit":      map[string]string{"tcp-address": fmt.Sprintf("%s:%d", req.IP, req.Port)},
+	}); err != nil {
+		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
+	}
+	return nil
+}
+
+// CreateTCPRule Create tcp rules through transactions
+func (g *GatewayAction) CreateTCPRule(tx *gorm.DB, req *apimodel.AddTCPRuleStruct) error {
 	// add tcp rule
 	tcpRule := &model.TCPRule{
 		UUID:          req.TCPRuleID,
@@ -347,7 +349,6 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
 		Port:          req.Port,
 	}
 	if err := g.dbmanager.TCPRuleDaoTransactions(tx).AddModel(tcpRule); err != nil {
-		tx.Rollback()
 		return err
 	}
 	// add rule extensions
@@ -358,21 +359,8 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
 			Value:  ruleExtension.Value,
 		}
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
-			tx.Rollback()
 			return err
 		}
-	}
-
-	// end transaction
-	if err := tx.Commit().Error; err != nil {
-		return err
-	}
-	if err := g.SendTask(map[string]interface{}{
-		"service_id": tcpRule.ServiceID,
-		"action":     "add-tcp-rule",
-		"limit":      map[string]string{"tcp-address": fmt.Sprintf("%s:%d", tcpRule.IP, tcpRule.Port)},
-	}); err != nil {
-		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
 	}
 	return nil
 }
