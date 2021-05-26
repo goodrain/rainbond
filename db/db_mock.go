@@ -58,6 +58,18 @@ func (mr *MockManagerMockRecorder) Begin() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Begin", reflect.TypeOf((*MockManager)(nil).Begin))
 }
 
+// DB mocks base method
+func (m *MockManager) DB() *gorm.DB {
+	ret := m.ctrl.Call(m, "DB")
+	ret0, _ := ret[0].(*gorm.DB)
+	return ret0
+}
+
+// DB indicates an expected call of DB
+func (mr *MockManagerMockRecorder) DB() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DB", reflect.TypeOf((*MockManager)(nil).DB))
+}
+
 // EnsureEndTransactionFunc mocks base method
 func (m *MockManager) EnsureEndTransactionFunc() func(*gorm.DB) {
 	ret := m.ctrl.Call(m, "EnsureEndTransactionFunc")

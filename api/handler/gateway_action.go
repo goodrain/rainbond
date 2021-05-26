@@ -540,7 +540,8 @@ func (g *GatewayAction) GetAvailablePort(ip string, lock bool) (int, error) {
 	port := selectAvailablePort(ports)
 	if port != 0 {
 		if lock {
-			g.lockPort[port] = time.Now().Add(time.Minute * 1)
+			logrus.Infof("select gateway port %d, lock it 2 min", port)
+			g.lockPort[port] = time.Now().Add(time.Minute * 2)
 		}
 		return port, nil
 	}
