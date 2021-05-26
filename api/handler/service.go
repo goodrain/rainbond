@@ -1952,7 +1952,7 @@ func (s *ServiceAction) GetMultiServicePods(serviceIDs []string) (*K8sPodInfos, 
 	return &re, nil
 }
 
-//GetMultiServicePods get pods
+// GetComponentPodNums get pods
 func (s *ServiceAction) GetComponentPodNums(ctx context.Context, componentIDs []string) (map[string]int32, error) {
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		defer core_util.Elapsed(fmt.Sprintf("[AppRuntimeSyncClient] [GetComponentPodNums] component nums: %d", len(componentIDs)))()

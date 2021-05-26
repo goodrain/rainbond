@@ -249,7 +249,7 @@ func (r *RuntimeServer) GetMultiAppPods(ctx context.Context, re *pb.ServicesRequ
 	return &res, nil
 }
 
-// GetComponentNums -
+// GetComponentPodNums -
 func (r *RuntimeServer) GetComponentPodNums(ctx context.Context, re *pb.ServicesRequest) (*pb.ComponentPodNums, error) {
 	serviceIDs := strings.Split(re.ServiceIds, ",")
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
