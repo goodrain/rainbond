@@ -67,6 +67,10 @@ func (o *OperationHandler) Build(batchOpReq model.ComponentOpReq) (*model.Compon
 }
 
 func (o *OperationHandler) build(batchOpReq model.ComponentOpReq) error {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		util.Elapsed(fmt.Sprintf("build component(%s)", batchOpReq.GetComponentID()))()
+	}
+
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(batchOpReq.GetComponentID())
 	if err != nil {
 		return err
@@ -281,6 +285,7 @@ func (o *OperationHandler) buildFromMarketSlug(r *model.ComponentBuildReq, servi
 	return o.sendBuildTopic(service.ServiceID, "build_from_market_slug", body)
 }
 func (o *OperationHandler) sendBuildTopic(serviceID, taskType string, body map[string]interface{}) error {
+
 	topic := gclient.BuilderTopic
 	if o.isWindowsService(serviceID) {
 		topic = gclient.WindowsBuilderTopic
@@ -293,6 +298,10 @@ func (o *OperationHandler) sendBuildTopic(serviceID, taskType string, body map[s
 }
 
 func (o *OperationHandler) buildFromImage(r *model.ComponentBuildReq, service *dbmodel.TenantServices) error {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		util.Elapsed(fmt.Sprintf("[buildFromImage] build component(%s)", r.GetComponentID()))()
+	}
+
 	if r.ImageInfo.ImageURL == "" || r.DeployVersion == "" {
 		return fmt.Errorf("build from image failure, args error")
 	}

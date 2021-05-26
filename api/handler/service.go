@@ -19,8 +19,8 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -40,6 +40,7 @@ import (
 	"github.com/goodrain/rainbond/worker/server"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
@@ -416,7 +417,7 @@ func (s *ServiceAction) ServiceHorizontal(hs *model.HorizontalScalingTaskBody) e
 		logrus.Errorf("get service pods error: %v", err)
 		return fmt.Errorf("horizontal service faliure:%s", err.Error())
 	}
-	if int32(len(pods.NewPods)) == hs.Replicas{
+	if int32(len(pods.NewPods)) == hs.Replicas {
 		return bcode.ErrHorizontalDueToNoChange
 	}
 
@@ -1949,6 +1950,20 @@ func (s *ServiceAction) GetMultiServicePods(serviceIDs []string) (*K8sPodInfos, 
 		}
 	}
 	return &re, nil
+}
+
+//GetMultiServicePods get pods
+func (s *ServiceAction) GetComponentPodNums(ctx context.Context, componentIDs []string) (map[string]int32, error) {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		defer core_util.Elapsed(fmt.Sprintf("[AppRuntimeSyncClient] [GetComponentPodNums] component nums: %d", len(componentIDs)))()
+	}
+
+	podNums, err := s.statusCli.GetComponentPodNums(ctx, componentIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "get component nums")
+	}
+
+	return podNums, nil
 }
 
 //GetPodContainerMemory Use Prometheus to query memory resources

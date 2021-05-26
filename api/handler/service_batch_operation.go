@@ -258,6 +258,10 @@ func (b *BatchOperationHandler) Upgrade(ctx context.Context, tenant *dbmodel.Ten
 }
 
 func (b *BatchOperationHandler) checkEvents(batchOpReqs model.BatchOpRequesters) (model.BatchOpRequesters, model.BatchOpResult) {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		defer util.Elapsed("[BatchOperationHandler] check events")()
+	}
+
 	var validReqs model.BatchOpRequesters
 	var batchOpResult model.BatchOpResult
 	for _, req := range batchOpReqs {

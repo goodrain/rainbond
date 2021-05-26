@@ -142,6 +142,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Mount("/apps/{app_id}", v2.applicationRouter())
 	//get some service pod info
 	r.Get("/pods", controller.Pods)
+	r.Get("/pod_nums", controller.PodNums)
 	//app backup
 	r.Get("/groupapp/backups", controller.Backups)
 	r.Post("/groupapp/backups", controller.NewBackups)

@@ -230,6 +230,10 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 //GetMultiAppPods get multi app pods
 func (r *RuntimeServer) GetMultiAppPods(ctx context.Context, re *pb.ServicesRequest) (*pb.MultiServiceAppPodList, error) {
 	serviceIDs := strings.Split(re.ServiceIds, ",")
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		defer util.Elapsed(fmt.Sprintf("[RuntimeServer] [GetMultiAppPods] componnt nums: %d ", len(serviceIDs)))()
+	}
+
 	var res pb.MultiServiceAppPodList
 	res.ServicePods = make(map[string]*pb.ServiceAppPodList, len(serviceIDs))
 	for _, id := range serviceIDs {
@@ -243,6 +247,28 @@ func (r *RuntimeServer) GetMultiAppPods(ctx context.Context, re *pb.ServicesRequ
 		}
 	}
 	return &res, nil
+}
+
+// GetComponentNums -
+func (r *RuntimeServer) GetComponentPodNums(ctx context.Context, re *pb.ServicesRequest) (*pb.ComponentPodNums, error) {
+	serviceIDs := strings.Split(re.ServiceIds, ",")
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		defer util.Elapsed(fmt.Sprintf("[RuntimeServer] [GetComponentNums] componnt nums: %d ", len(serviceIDs)))()
+	}
+
+	podNums := make(map[string]int32)
+	for _, componentID := range serviceIDs {
+		app := r.store.GetAppService(componentID)
+		if app == nil {
+			podNums[componentID] = 0
+		} else {
+			pods := app.GetPods(false)
+			podNums[componentID] = int32(len(pods))
+		}
+	}
+	return &pb.ComponentPodNums{
+		PodNums: podNums,
+	}, nil
 }
 
 // translateTimestampSince returns the elapsed time since timestamp in
