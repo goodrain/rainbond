@@ -45,7 +45,6 @@ import (
 	"github.com/twinj/uuid"
 
 	api_model "github.com/goodrain/rainbond/api/model"
-	dberrors "github.com/goodrain/rainbond/db/errors"
 	core_model "github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	eventutil "github.com/goodrain/rainbond/eventlog/util"
@@ -534,34 +533,30 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	}
 	//set app envs
 	if len(envs) > 0 {
+		var batchEnvs []*dbmodel.TenantServiceEnvVar
 		for _, env := range envs {
 			env.ServiceID = ts.ServiceID
 			env.TenantID = ts.TenantID
-			if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).AddModel(&env); err != nil {
-				logrus.Errorf("add env[name=%s] error, %v", env.AttrName, err)
-				if err != dberrors.ErrRecordAlreadyExist {
-					tx.Rollback()
-					return err
-				}
-				logrus.Warningf("recover env[name=%s]", env.AttrName)
-				// if env already exists, update it
-				if err = db.GetManager().TenantServiceEnvVarDaoTransactions(tx).UpdateModel(&env); err != nil {
-					tx.Rollback()
-					return err
-				}
-			}
+			batchEnvs = append(batchEnvs, &env)
+		}
+		if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).CreateOrUpdateEnvsInBatch(batchEnvs);err != nil {
+			logrus.Errorf("batch add env error, %v", err)
+			tx.Rollback()
+			return err
 		}
 	}
 	//set app port
 	if len(ports) > 0 {
+		var batchPorts []*dbmodel.TenantServicesPort
 		for _, port := range ports {
 			port.ServiceID = ts.ServiceID
 			port.TenantID = ts.TenantID
-			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).AddModel(&port); err != nil {
-				logrus.Errorf("add port %v error, %v", port.ContainerPort, err)
-				tx.Rollback()
-				return err
-			}
+			batchPorts = append(batchPorts, &port)
+		}
+		if err := db.GetManager().TenantServicesPortDaoTransactions(tx).CreateOrUpdatePortsInBatch(batchPorts); err != nil {
+			logrus.Errorf("batch add port error, %v", err)
+			tx.Rollback()
+			return err
 		}
 	}
 	//set app volumns
