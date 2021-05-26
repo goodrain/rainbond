@@ -22,8 +22,10 @@ import (
 	"strings"
 	"time"
 
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -58,6 +60,19 @@ func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
 //EventDaoImpl EventLogMessageDaoImpl
 type EventDaoImpl struct {
 	DB *gorm.DB
+}
+
+// CreateEventsInBatch creates events in batch.
+func (c *EventDaoImpl) CreateEventsInBatch(events []*model.ServiceEvent) error {
+	var objects []interface{}
+	for _, event := range events {
+		event := event
+		objects = append(objects, *event)
+	}
+	if err := gormbulkups.BulkUpsert(c.DB, objects, 200); err != nil {
+		return errors.Wrap(err, "create events in batch")
+	}
+	return nil
 }
 
 //GetEventByEventID get event log message

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/util"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -22,17 +23,29 @@ func CheckTenantResource(ctx context.Context, tenant *dbmodel.Tenants, needMemor
 			return errors.New("tenant_lack_of_memory")
 		}
 	}
+
+	allcm, err := ClusterAllocMemory(ctx)
+	if err != nil {
+		return err
+	}
+
+	if int64(needMemory) > allcm {
+		logrus.Errorf("cluster available memory is %d, To apply for %d, not enough", allcm, needMemory)
+		return errors.New("cluster_lack_of_memory")
+	}
+
+	return nil
+}
+
+// ClusterAllocMemory returns the allocatable memory of the cluster.
+func ClusterAllocMemory(ctx context.Context) (int64, error) {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		defer util.Elapsed("ClusterAllocMemory")()
+	}
+
 	clusterInfo, err := GetTenantManager().GetAllocatableResources(ctx)
 	if err != nil {
-		logrus.Errorf("get cluster resources failure for check tenant resource: %v", err.Error())
+		return 0, err
 	}
-	if clusterInfo != nil {
-		clusterAvailMemory := clusterInfo.AllMemory - clusterInfo.RequestMemory
-		logrus.Debugf("cluster allocatedMemory: %v, availmemory %d tenantsUsedMemory; %v", clusterInfo.RequestMemory, clusterAvailMemory, clusterInfo.RequestMemory)
-		if int64(needMemory) > clusterAvailMemory {
-			logrus.Errorf("cluster available memory is %d, To apply for %d, not enough", clusterAvailMemory, needMemory)
-			return errors.New("cluster_lack_of_memory")
-		}
-	}
-	return nil
+	return clusterInfo.AllMemory - clusterInfo.RequestMemory, nil
 }
