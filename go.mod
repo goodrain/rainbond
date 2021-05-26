@@ -9,6 +9,7 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/alecthomas/units v0.0.0-20201120081800-1786d5ef83d4 // indirect
 	github.com/aliyun/aliyun-oss-go-sdk v2.1.5+incompatible
+	github.com/atcdot/gorm-bulk-upsert v1.0.0
 	github.com/aws/aws-sdk-go v1.36.15
 	github.com/barnettZQG/gotty v1.0.1-0.20200904091006-a0a1f7d747dc
 	github.com/beorn7/perks v1.0.1
