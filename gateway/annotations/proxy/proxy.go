@@ -72,7 +72,7 @@ func (s *Config) Validation() error {
 		logrus.Warningf("invalid buffer number: %d; use the default one: %d", s.BuffersNumber, defBackend.ProxyBuffersNumber)
 		s.BuffersNumber = defBackend.ProxyBuffersNumber
 	}
-	if s.validateBuffering(s.RequestBuffering) {
+	if !s.validateBuffering(s.RequestBuffering) {
 		logrus.Warningf("invalid reqeust buffering: %s; use the default one: %s", s.RequestBuffering, defBackend.ProxyRequestBuffering)
 		s.RequestBuffering = defBackend.ProxyRequestBuffering
 	}
