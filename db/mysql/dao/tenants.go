@@ -642,7 +642,13 @@ func (t *TenantServicesPortDaoImpl) UpdateModel(mo model.Interface) error {
 // CreateOrUpdatePortsInBatch Batch insert or update ports variables
 func (t *TenantServicesPortDaoImpl) CreateOrUpdatePortsInBatch(ports []*model.TenantServicesPort) error{
 	var objects []interface{}
+	existPorts := make(map[int]struct{})
 	for _, port := range ports {
+		if _, ok := existPorts[port.ContainerPort]; ok{
+			continue
+		}
+		existPorts[port.ContainerPort] = struct{}{}
+
 		port := port
 		objects = append(objects, *port)
 	}
@@ -940,7 +946,14 @@ func (t *TenantServiceEnvVarDaoImpl) UpdateModel(mo model.Interface) error {
 // CreateOrUpdateEnvsInBatch Batch insert or update environment variables
 func (t *TenantServiceEnvVarDaoImpl) CreateOrUpdateEnvsInBatch(envs []*model.TenantServiceEnvVar) error{
 	var objects []interface{}
+	existEnvs := make(map[string]struct{})
 	for _, env := range envs {
+		key := fmt.Sprintf("%s+%s+%s", env.TenantID, env.ServiceID, env.AttrName)
+		if _, ok := existEnvs[key]; ok{
+			continue
+		}
+		existEnvs[key] = struct{}{}
+
 		env := env
 		objects = append(objects, *env)
 	}
