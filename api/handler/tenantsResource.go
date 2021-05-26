@@ -4,6 +4,7 @@ import (
 	"context"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/util"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -38,6 +39,10 @@ func CheckTenantResource(ctx context.Context, tenant *dbmodel.Tenants, needMemor
 
 // ClusterAllocMemory returns the allocatable memory of the cluster.
 func ClusterAllocMemory(ctx context.Context) (int64, error) {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		defer util.Elapsed("ClusterAllocMemory")()
+	}
+
 	clusterInfo, err := GetTenantManager().GetAllocatableResources(ctx)
 	if err != nil {
 		return 0, err

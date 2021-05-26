@@ -32,6 +32,8 @@ import (
 	gclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/retryutil"
+	"github.com/goodrain/rainbond/worker/client"
+	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -41,6 +43,7 @@ import (
 type BatchOperationHandler struct {
 	mqCli            gclient.MQClient
 	operationHandler *OperationHandler
+	statusCli        *client.AppRuntimeSyncClient
 }
 
 //BatchOperationResult batch operation result
@@ -49,7 +52,7 @@ type BatchOperationResult struct {
 }
 
 //CreateBatchOperationHandler create batch operation handler
-func CreateBatchOperationHandler(mqCli gclient.MQClient, operationHandler *OperationHandler) *BatchOperationHandler {
+func CreateBatchOperationHandler(mqCli gclient.MQClient, statusCli *client.AppRuntimeSyncClient, operationHandler *OperationHandler) *BatchOperationHandler {
 	return &BatchOperationHandler{
 		mqCli:            mqCli,
 		operationHandler: operationHandler,
@@ -98,7 +101,7 @@ func (b *BatchOperationHandler) Build(ctx context.Context, tenant *dbmodel.Tenan
 	startupSeqConfigs := b.serviceStartupSequence(componentIDs)
 
 	// check allocatable memory
-	allocm, err := NewAllocMemory(ctx, tenant, batchOpReqs)
+	allocm, err := NewAllocMemory(ctx, b.statusCli, tenant, batchOpReqs)
 	if err != nil {
 		return nil, errors.WithMessage(err, "new alloc memory")
 	}
@@ -144,7 +147,7 @@ func (b *BatchOperationHandler) Start(ctx context.Context, tenant *dbmodel.Tenan
 	startupSeqConfigs := b.serviceStartupSequence(componentIDs)
 
 	// chekc allocatable memory
-	allocm, err := NewAllocMemory(ctx, tenant, batchOpReqs)
+	allocm, err := NewAllocMemory(ctx, b.statusCli, tenant, batchOpReqs)
 	if err != nil {
 		return nil, errors.WithMessage(err, "new alloc memory")
 	}
@@ -223,7 +226,7 @@ func (b *BatchOperationHandler) Upgrade(ctx context.Context, tenant *dbmodel.Ten
 	startupSeqConfigs := b.serviceStartupSequence(componentIDs)
 
 	// chekc allocatable memory
-	allocm, err := NewAllocMemory(ctx, tenant, batchOpReqs)
+	allocm, err := NewAllocMemory(ctx, b.statusCli, tenant, batchOpReqs)
 	if err != nil {
 		return nil, errors.WithMessage(err, "new alloc memory")
 	}
@@ -469,7 +472,7 @@ func alreadyInLinkedList(l *list.List, depsid string) bool {
 // AllocMemory represents a allocatable memory.
 type AllocMemory struct {
 	tenant          *dbmodel.Tenants
-	tenantResource  *model.TenantResource
+	tenantResource  *pb.TenantResource
 	allcm           int64
 	components      map[string]*dbmodel.TenantServices
 	batchOpResult   model.BatchOpResult
@@ -477,12 +480,12 @@ type AllocMemory struct {
 }
 
 // NewAllocMemory creates a new AllocMemory.
-func NewAllocMemory(ctx context.Context, tenant *dbmodel.Tenants, batchOpReqs model.BatchOpRequesters) (*AllocMemory, error) {
+func NewAllocMemory(ctx context.Context, statusCli *client.AppRuntimeSyncClient, tenant *dbmodel.Tenants, batchOpReqs model.BatchOpRequesters) (*AllocMemory, error) {
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		defer util.Elapsed("[NewAllocMemory] check allocatable memory")()
 	}
 
-	tenantResource, err := GetServiceManager().GetTenantRes(tenant.UUID)
+	tenantUsedResource, err := statusCli.GetTenantResource(tenant.UUID)
 	if err != nil {
 		return nil, err
 	}
@@ -494,7 +497,7 @@ func NewAllocMemory(ctx context.Context, tenant *dbmodel.Tenants, batchOpReqs mo
 
 	am := &AllocMemory{
 		tenant:         tenant,
-		tenantResource: tenantResource,
+		tenantResource: tenantUsedResource,
 		allcm:          allcm,
 	}
 
@@ -556,7 +559,7 @@ func (a *AllocMemory) check(componentID string) error {
 	requestMemory := component.ContainerMemory * component.Replicas
 
 	if a.tenant.LimitMemory != 0 {
-		allocm := a.tenant.LimitMemory - a.tenantResource.UsedMEM
+		allocm := a.tenant.LimitMemory - int(a.tenantResource.MemoryLimit)
 		if requestMemory > allocm {
 			logrus.Errorf("no limit tenant memory. request memory is %d, but got %d allocatable memory", requestMemory, allocm)
 			return errors.New("tenant_lack_of_memory")

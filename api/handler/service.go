@@ -919,6 +919,10 @@ func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantR
 
 //GetTenantRes get pagedTenantServiceRes(s)
 func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, error) {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		defer core_util.Elapsed("[ServiceAction] get tenant resource")()
+	}
+
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(uuid)
 	if err != nil {
 		logrus.Errorf("get tenant %s info failure %v", uuid, err.Error())
@@ -963,10 +967,45 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 	return &res, nil
 }
 
+// // GetTenantMemoryCPU get pagedTenantServiceRes(s)
+// func (s *ServiceAction) GetAllocableResources(tenantID string) (*api_model.TenantResource, error) {
+// 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+// 		defer core_util.Elapsed("[ServiceAction] get allocable resources")()
+// 	}
+
+// 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	services, err := db.GetManager().TenantServiceDao().GetServicesByTenantID(tenantID)
+// 	if err != nil {
+// 		logrus.Errorf("get service by id error, %v, %v", services, err.Error())
+// 		return nil, err
+// 	}
+
+// 	var serviceIDs string
+// 	var allocatedCPU, allocatedMEM int
+// 	for _, svc := range services {
+// 		allocatedCPU += svc.ContainerCPU * svc.Replicas
+// 		allocatedMEM += svc.ContainerMemory * svc.Replicas
+// 	}
+// 	usedResource, err := s.statusCli.GetTenantResource(tenantID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return &res, nil
+// }
+
 //GetServicesDiskDeprecated get service disk
 //
 // Deprecated
 func GetServicesDiskDeprecated(ids []string, prometheusCli prometheus.Interface) map[string]float64 {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		defer core_util.Elapsed("[GetServicesDiskDeprecated] get tenant resource")()
+	}
+
 	result := make(map[string]float64)
 	//query disk used in prometheus
 	query := fmt.Sprintf(`max(app_resource_appfs{service_id=~"%s"}) by(service_id)`, strings.Join(ids, "|"))
