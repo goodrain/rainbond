@@ -56,6 +56,7 @@ func CreateBatchOperationHandler(mqCli gclient.MQClient, statusCli *client.AppRu
 	return &BatchOperationHandler{
 		mqCli:            mqCli,
 		operationHandler: operationHandler,
+		statusCli:        statusCli,
 	}
 }
 
