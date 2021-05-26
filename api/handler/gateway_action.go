@@ -44,6 +44,7 @@ type GatewayAction struct {
 	dbmanager db.Manager
 	mqclient  client.MQClient
 	etcdCli   *clientv3.Client
+	lockPort  map[int]time.Time
 }
 
 //CreateGatewayManager creates gateway manager.
@@ -52,6 +53,7 @@ func CreateGatewayManager(dbmanager db.Manager, mqclient client.MQClient, etcdCl
 		dbmanager: dbmanager,
 		mqclient:  mqclient,
 		etcdCli:   etcdCli,
+		lockPort:  make(map[int]time.Time),
 	}
 }
 
@@ -528,8 +530,16 @@ func (g *GatewayAction) GetAvailablePort(ip string) (int, error) {
 	for _, p := range roles {
 		ports = append(ports, p.Port)
 	}
+	for p, timeout := range g.lockPort {
+		if timeout.Before(time.Now()) {
+			delete(g.lockPort, p)
+		} else {
+			ports = append(ports, p)
+		}
+	}
 	port := selectAvailablePort(ports)
 	if port != 0 {
+		g.lockPort[port] = time.Now().Add(time.Minute * 1)
 		return port, nil
 	}
 	return 0, fmt.Errorf("no more lb port can be use with ip %s", ip)
