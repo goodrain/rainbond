@@ -41,7 +41,7 @@ type GatewayHandler interface {
 	DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) error
 	DeleteTCPRuleByServiceIDWithTransaction(sid string, tx *gorm.DB) error
 	AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct, tx *gorm.DB) error
-	GetAvailablePort(ip string) (int, error)
+	GetAvailablePort(ip string, lock bool) (int, error)
 	TCPIPPortExists(ip string, port int) bool
 	SendTask(in map[string]interface{}) error
 	RuleConfig(req *apimodel.RuleConfigReq) error

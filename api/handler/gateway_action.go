@@ -521,7 +521,7 @@ func (g *GatewayAction) AddRuleExtensions(ruleID string, ruleExtensions []*apimo
 }
 
 // GetAvailablePort returns a available port
-func (g *GatewayAction) GetAvailablePort(ip string) (int, error) {
+func (g *GatewayAction) GetAvailablePort(ip string, lock bool) (int, error) {
 	roles, err := g.dbmanager.TCPRuleDao().GetUsedPortsByIP(ip)
 	if err != nil {
 		return 0, err
@@ -539,7 +539,9 @@ func (g *GatewayAction) GetAvailablePort(ip string) (int, error) {
 	}
 	port := selectAvailablePort(ports)
 	if port != 0 {
-		g.lockPort[port] = time.Now().Add(time.Minute * 1)
+		if lock {
+			g.lockPort[port] = time.Now().Add(time.Minute * 1)
+		}
 		return port, nil
 	}
 	return 0, fmt.Errorf("no more lb port can be use with ip %s", ip)
@@ -776,7 +778,7 @@ type IPAndAvailablePort struct {
 
 //GetGatewayIPs get all gateway node ips
 func (g *GatewayAction) GetGatewayIPs() []IPAndAvailablePort {
-	defaultAvailablePort, _ := g.GetAvailablePort("0.0.0.0")
+	defaultAvailablePort, _ := g.GetAvailablePort("0.0.0.0", false)
 	defaultIps := []IPAndAvailablePort{{
 		IP:            "0.0.0.0",
 		AvailablePort: defaultAvailablePort,
@@ -793,7 +795,7 @@ func (g *GatewayAction) GetGatewayIPs() []IPAndAvailablePort {
 	}
 	sort.Strings(gatewayIps)
 	for _, v := range gatewayIps {
-		availablePort, _ := g.GetAvailablePort(v)
+		availablePort, _ := g.GetAvailablePort(v, false)
 		defaultIps = append(defaultIps, IPAndAvailablePort{
 			IP:            v,
 			AvailablePort: availablePort,
