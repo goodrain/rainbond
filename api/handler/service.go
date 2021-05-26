@@ -540,7 +540,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			env.TenantID = ts.TenantID
 			batchEnvs = append(batchEnvs, &env)
 		}
-		if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).CreateOrUpdateEnvsInBatch(batchEnvs);err != nil {
+		if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).CreateOrUpdateEnvsInBatch(batchEnvs); err != nil {
 			logrus.Errorf("batch add env error, %v", err)
 			tx.Rollback()
 			return err
@@ -791,6 +791,10 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	}
 	if len(tcpRules) > 0 {
 		for _, tcpRule := range tcpRules {
+			if GetGatewayHandler().TCPIPPortExists(tcpRule.IP, tcpRule.Port) {
+				logrus.Debugf("tcp rule %v:%v exists", tcpRule.IP, tcpRule.Port)
+				continue
+			}
 			if err := GetGatewayHandler().CreateTCPRule(tx, &tcpRule); err != nil {
 				logrus.Errorf("add service tcp rule error %v", err)
 				tx.Rollback()
@@ -803,7 +807,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 		LabelKey:   dbmodel.LabelKeyServiceType,
 		LabelValue: core_util.StatelessServiceType,
 	}
-	if ts.IsState(){
+	if ts.IsState() {
 		labelModel.LabelValue = core_util.StatefulServiceType
 	}
 	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&labelModel); err != nil {
