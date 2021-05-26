@@ -2,26 +2,33 @@ name: pr-ci-build
 
 on:
   pull_request:
-    branches: [ master, V5.3 ]
+    branches: [master, V5.3]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    
-    - name: Setup Go environment
-      uses: actions/setup-go@v2.1.3
-      with:
-        # The Go version to download (if necessary) and use. Supports semver spec and ranges.
-        go-version: 1.13
-    - name: install-golint
-      run: go get -u golang.org/x/lint/golint
+      - uses: actions/checkout@v2
 
-    - name: Go-linter
-      run: ./check.sh
-  
-    - name: Build the Docker image
-      env: 
-        DISABLE_GOPROXY: true
-      run: VERSION=${{ github.base_ref }}-dev ./release.sh all
+      - name: Setup Go environment
+        uses: actions/setup-go@v2.1.3
+        with:
+          # The Go version to download (if necessary) and use. Supports semver spec and ranges.
+          go-version: 1.13
+      - name: install-golint
+        run: go get -u golang.org/x/lint/golint
+
+      - name: Go-linter
+        run: ./check.sh
+
+      - name: SonarQube Scan
+        uses: kitabisa/sonarqube-action@v1.1.0
+        with:
+          host: ${{ secrets.SONARQUBE_HOST }}
+          login: ${{ secrets.SONARQUBE_TOKEN }}
+          projectName: rainbond
+
+      - name: Build the Docker image
+        env:
+          DISABLE_GOPROXY: true
+        run: VERSION=${{ github.base_ref }}-dev ./release.sh all
