@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -26,7 +27,6 @@ import (
 	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	rutil "github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
 )
@@ -41,62 +41,40 @@ func BatchOperation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if logrus.IsLevelEnabled(logrus.DebugLevel) {
-		defer rutil.Elapsed("BatchOperation-" + build.Body.Operation)()
-	}
-
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
 
-	var res model.BatchOpResult
-	var err error
-	// TODO: merge the code below
+	var batchOpReqs []model.ComponentOpReq
+	var f func(ctx context.Context, tenant *dbmodel.Tenants, operator string, batchOpReqs model.BatchOpRequesters) (model.BatchOpResult, error)
 	switch build.Body.Operation {
 	case "build":
-		var batchOpReqs []model.ComponentOpReq
 		for _, build := range build.Body.Builds {
-			build := build
 			build.TenantName = tenant.Name
 			batchOpReqs = append(batchOpReqs, build)
 		}
-		if len(batchOpReqs) > 1024 {
-			batchOpReqs = batchOpReqs[0:1024]
-		}
-		res, err = handler.GetBatchOperationHandler().Build(r.Context(), tenant, build.Operator, batchOpReqs)
+		f = handler.GetBatchOperationHandler().Build
 	case "start":
-		var batchOpReqs []model.ComponentOpReq
 		for _, start := range build.Body.Starts {
-			start := start
 			batchOpReqs = append(batchOpReqs, start)
 		}
-		if len(batchOpReqs) > 1024 {
-			batchOpReqs = batchOpReqs[0:1024]
-		}
-		res, err = handler.GetBatchOperationHandler().Start(r.Context(), tenant, build.Operator, batchOpReqs)
+		f = handler.GetBatchOperationHandler().Start
 	case "stop":
-		var batchOpReqs []model.ComponentOpReq
 		for _, stop := range build.Body.Stops {
-			stop := stop
 			batchOpReqs = append(batchOpReqs, stop)
 		}
-		if len(batchOpReqs) > 1024 {
-			batchOpReqs = batchOpReqs[0:1024]
-		}
-		res, err = handler.GetBatchOperationHandler().Stop(r.Context(), tenant, build.Operator, batchOpReqs)
+		f = handler.GetBatchOperationHandler().Stop
 	case "upgrade":
-		var batchOpReqs []model.ComponentOpReq
 		for _, upgrade := range build.Body.Upgrades {
-			upgrade := upgrade
 			batchOpReqs = append(batchOpReqs, upgrade)
 		}
-		if len(batchOpReqs) > 1024 {
-			batchOpReqs = batchOpReqs[0:1024]
-		}
-		res, err = handler.GetBatchOperationHandler().Upgrade(r.Context(), tenant, build.Operator, batchOpReqs)
+		f = handler.GetBatchOperationHandler().Upgrade
 	default:
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("operation %s do not support batch", build.Body.Operation))
 		return
 	}
-
+	if len(batchOpReqs) > 1024 {
+		batchOpReqs = batchOpReqs[0:1024]
+	}
+	res, err := f(r.Context(), tenant, build.Operator, batchOpReqs)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
