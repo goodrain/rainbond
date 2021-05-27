@@ -493,7 +493,8 @@ func NewAllocMemory(ctx context.Context, statusCli *client.AppRuntimeSyncClient,
 		if err != nil {
 			return nil, err
 		}
-		am.allcm = util.Int64(tenantUsedResource.MemoryRequest)
+		allocm := tenant.LimitMemory - int(tenantUsedResource.MemoryLimit)
+		am.allcm = util.Int64(int64(allocm))
 	} else {
 		allcm, err := ClusterAllocMemory(ctx)
 		if err != nil {
