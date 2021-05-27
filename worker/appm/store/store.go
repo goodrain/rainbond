@@ -1357,6 +1357,10 @@ func (a *appRuntimeStore) listPodsByAppIDLegacy(appID string) ([]*corev1.Pod, er
 		serviceIDs = append(serviceIDs, svc.ServiceID)
 	}
 
+	if len(serviceIDs) == 0 {
+		return nil, nil
+	}
+
 	// list pod based on the given appID
 	requirement, err := labels.NewRequirement("service_id", selection.In, serviceIDs)
 	if err != nil {

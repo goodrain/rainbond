@@ -204,7 +204,7 @@ func ReturnResNotEnough(r *http.Request, w http.ResponseWriter, msg string) {
 //ReturnBcodeError bcode error
 func ReturnBcodeError(r *http.Request, w http.ResponseWriter, err error) {
 	berr := bcode.Err2Coder(err)
-	logrus.Debugf("path %s error code: %d; status: %d; error msg: %s", r.RequestURI, berr.GetCode(), berr.GetStatus(), berr.Error())
+	logrus.Debugf("path %s error code: %d; status: %d; error msg: %+v", r.RequestURI, berr.GetCode(), berr.GetStatus(), err)
 
 	status := berr.GetStatus()
 	result := Result{

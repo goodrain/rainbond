@@ -85,6 +85,17 @@ func Pods(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, allpods)
 }
 
+// PodNums reutrns the number of pods for components.
+func PodNums(w http.ResponseWriter, r *http.Request) {
+	componentIDs := strings.Split(r.FormValue("service_ids"), ",")
+	podNums, err := handler.GetServiceManager().GetComponentPodNums(r.Context(), componentIDs)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, podNums)
+}
+
 // PodDetail -
 func (p *PodController) PodDetail(w http.ResponseWriter, r *http.Request) {
 	podName := chi.URLParam(r, "pod_name")

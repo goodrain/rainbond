@@ -9,6 +9,7 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/alecthomas/units v0.0.0-20201120081800-1786d5ef83d4 // indirect
 	github.com/aliyun/aliyun-oss-go-sdk v2.1.5+incompatible
+	github.com/atcdot/gorm-bulk-upsert v1.0.0
 	github.com/aws/aws-sdk-go v1.36.15
 	github.com/barnettZQG/gotty v1.0.1-0.20200904091006-a0a1f7d747dc
 	github.com/beorn7/perks v1.0.1
@@ -46,6 +47,8 @@ require (
 	github.com/golang/protobuf v1.4.3
 	github.com/goodrain/rainbond-oam v0.0.0-20210206075623-511d0796af43
 	github.com/goodrain/rainbond-operator v1.3.1-0.20210401055914-f8fe4bf89a21
+	github.com/google/go-cmp v0.5.4 // indirect
+	github.com/google/uuid v1.2.0 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20191106031601-ce3c9ade29de // indirect
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uitable v0.0.4
@@ -64,6 +67,7 @@ require (
 	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/mitchellh/mapstructure v1.3.3
 	github.com/ncabatoff/process-exporter v0.7.1
+	github.com/onsi/gomega v1.10.5 // indirect
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/runc v1.0.0-rc91.0.20200707015106-819fcc687efb // indirect
 	github.com/pborman/uuid v1.2.1
@@ -79,11 +83,12 @@ require (
 	github.com/prometheus/node_exporter v1.0.1
 	github.com/prometheus/procfs v0.2.0
 	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b // indirect
-	github.com/shirou/gopsutil v2.20.8+incompatible
+	github.com/shirou/gopsutil v3.21.4+incompatible
 	github.com/sirupsen/logrus v1.6.0
 	github.com/smartystreets/assertions v1.0.1 // indirect
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/pflag v1.0.5
+	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/testcontainers/testcontainers-go v0.8.0
 	github.com/thejerf/suture v3.0.3+incompatible
 	github.com/tidwall/gjson v1.6.1
@@ -93,21 +98,31 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.1.0 // indirect
 	github.com/yudai/umutex v0.0.0-20150817080136-18216d265c6b
+	go.uber.org/multierr v1.6.0 // indirect
+	go.uber.org/zap v1.16.0 // indirect
 	golang.org/x/crypto v0.0.0-20201208171446-5f87f3452ae9
+	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
+	golang.org/x/mod v0.4.1 // indirect
 	golang.org/x/net v0.0.0-20210119194325-5f4716e94777
+	golang.org/x/oauth2 v0.0.0-20210201163806-010130855d6c // indirect
+	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a // indirect
 	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
+	golang.org/x/text v0.3.5 // indirect
 	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324
+	golang.org/x/tools v0.1.0 // indirect
+	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/genproto v0.0.0-20210218151259-fe80b386bf06 // indirect
 	google.golang.org/grpc v1.35.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/yaml.v2 v2.4.0
-	istio.io/pkg v0.0.0-20210519012641-d57c32f9ee9c // indirect
 	k8s.io/api v0.20.1
 	k8s.io/apiextensions-apiserver v0.20.1
 	k8s.io/apimachinery v0.20.1
 	k8s.io/apiserver v0.20.0
 	k8s.io/client-go v0.20.1
 	k8s.io/component-base v0.20.1 // indirect
+	k8s.io/klog/v2 v2.5.0 // indirect
 	sigs.k8s.io/controller-runtime v0.7.0
 )
 

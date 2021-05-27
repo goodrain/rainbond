@@ -20,10 +20,14 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
+	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 //GetServicePods get service pods list
@@ -35,9 +39,27 @@ func (a *AppRuntimeSyncClient) GetServicePods(serviceID string) (*pb.ServiceAppP
 
 //GetMultiServicePods get multi service pods list
 func (a *AppRuntimeSyncClient) GetMultiServicePods(serviceIDs []string) (*pb.MultiServiceAppPodList, error) {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		defer util.Elapsed(fmt.Sprintf("[AppRuntimeSyncClient] [GetMultiServicePods] component nums: %d", len(serviceIDs)))()
+	}
+
 	ctx, cancel := context.WithTimeout(a.ctx, time.Second*5)
 	defer cancel()
 	return a.AppRuntimeSyncClient.GetMultiAppPods(ctx, &pb.ServicesRequest{ServiceIds: strings.Join(serviceIDs, ",")})
+}
+
+// GetComponentPodNums -
+func (a *AppRuntimeSyncClient) GetComponentPodNums(ctx context.Context, componentIDs []string) (map[string]int32, error) {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		defer util.Elapsed(fmt.Sprintf("[AppRuntimeSyncClient] get component pod nums: %d", len(componentIDs)))()
+	}
+
+	res, err := a.AppRuntimeSyncClient.GetComponentPodNums(ctx, &pb.ServicesRequest{ServiceIds: strings.Join(componentIDs, ",")})
+	if err != nil {
+		return nil, errors.Wrap(err, "get component pod nums")
+	}
+
+	return res.PodNums, nil
 }
 
 // GetPodDetail -

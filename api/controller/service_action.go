@@ -315,7 +315,7 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
-	var build api_model.BuildInfoRequestStruct
+	var build api_model.ComponentBuildReq
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build, nil)
 	if !ok {
 		return
@@ -336,12 +336,12 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	re := handler.GetOperationHandler().Build(build)
-	if re.ErrMsg != "" {
-		httputil.ReturnError(r, w, 500, "build server error: "+re.ErrMsg)
+	res, err := handler.GetOperationHandler().Build(&build)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
-	httputil.ReturnSuccess(r, w, re)
+	httputil.ReturnSuccess(r, w, res)
 }
 
 //BuildList BuildList
@@ -532,7 +532,7 @@ func (t *TenantStruct) DeployService(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
-	var upgradeRequest api_model.UpgradeInfoRequestStruct
+	var upgradeRequest api_model.ComponentUpgradeReq
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &upgradeRequest, nil)
 	if !ok {
 		logrus.Errorf("start operation validate request body failure")
@@ -552,8 +552,12 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	re := handler.GetOperationHandler().Upgrade(upgradeRequest)
-	httputil.ReturnSuccess(r, w, re)
+	res, err := handler.GetOperationHandler().Upgrade(&upgradeRequest)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, res)
 }
 
 //CheckCode CheckCode

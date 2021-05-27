@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/jinzhu/gorm"
@@ -296,7 +297,8 @@ func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
 // GetAvailablePort returns a available port
 func (g *GatewayStruct) GetAvailablePort(w http.ResponseWriter, r *http.Request) {
 	h := handler.GetGatewayHandler()
-	res, err := h.GetAvailablePort("0.0.0.0")
+	lock, _ := strconv.ParseBool(r.FormValue("lock"))
+	res, err := h.GetAvailablePort("0.0.0.0", lock)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"getting available port: %v", err))
