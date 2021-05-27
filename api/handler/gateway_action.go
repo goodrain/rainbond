@@ -656,6 +656,11 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 		Key:    "proxy-buffer-numbers",
 		Value:  strconv.Itoa(req.Body.ProxyBufferNumbers),
 	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key:    "proxy-buffering",
+		Value:  req.Body.ProxyBuffering,
+	})
 	setheaders := make(map[string]string)
 	for _, item := range req.Body.SetHeaders {
 		if strings.TrimSpace(item.Key) == "" {
