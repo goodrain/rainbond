@@ -276,16 +276,20 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 	}
 	if len(ports) > 0 {
 		var portStr string
-		for i, port := range ports {
-			if i == 0 {
-				envs = append(envs, corev1.EnvVar{Name: "PORT", Value: strconv.Itoa(ports[0].ContainerPort)})
-				envs = append(envs, corev1.EnvVar{Name: "PROTOCOL", Value: ports[0].Protocol})
+		var minPort int
+		var protocol string
+		for _, port := range ports {
+			if minPort == 0 || minPort > port.ContainerPort {
+				minPort = port.ContainerPort
+				protocol = port.Protocol
 			}
 			if portStr != "" {
 				portStr += ":"
 			}
 			portStr += fmt.Sprintf("%d", port.ContainerPort)
 		}
+		envs = append(envs, corev1.EnvVar{Name: "PORT", Value: strconv.Itoa(minPort)})
+		envs = append(envs, corev1.EnvVar{Name: "PROTOCOL", Value: protocol})
 		menvs := convertRulesToEnvs(as, dbmanager, ports)
 		if len(envs) > 0 {
 			envs = append(envs, menvs...)
