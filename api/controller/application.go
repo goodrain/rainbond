@@ -145,6 +145,7 @@ func (a *ApplicationController) DeleteApp(w http.ResponseWriter, r *http.Request
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+// BatchUpdateComponentPorts -
 func (a *ApplicationController) BatchUpdateComponentPorts(w http.ResponseWriter, r *http.Request) {
 	var appPorts []*model.AppPort
 	if err := httputil.ReadEntity(r, &appPorts); err != nil {
@@ -168,6 +169,7 @@ func (a *ApplicationController) BatchUpdateComponentPorts(w http.ResponseWriter,
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+// GetAppStatus -
 func (a *ApplicationController) GetAppStatus(w http.ResponseWriter, r *http.Request) {
 	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
 
