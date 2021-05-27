@@ -45,7 +45,7 @@ require (
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/mock v1.4.4
 	github.com/golang/protobuf v1.4.3
-	github.com/goodrain/rainbond-oam v0.0.0-20210206075623-511d0796af43
+	github.com/goodrain/rainbond-oam v0.0.0-20210527094216-782b95046e0d
 	github.com/goodrain/rainbond-operator v1.3.1-0.20210401055914-f8fe4bf89a21
 	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/google/uuid v1.2.0 // indirect
