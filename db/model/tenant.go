@@ -319,6 +319,11 @@ type TenantServicesPort struct {
 	K8sServiceName string `gorm:"column:k8s_service_name" json:"k8s_service_name"`
 }
 
+// Key returns the key of TenantServicesPort.
+func (t *TenantServicesPort) Key() string {
+	return fmt.Sprintf("%s/%s/%d", t.TenantID, t.ServiceID, t.ContainerPort)
+}
+
 //TableName 表名
 func (t *TenantServicesPort) TableName() string {
 	return "tenant_services_port"

@@ -1312,8 +1312,7 @@ func (t *TenantStruct) PutPorts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := handler.GetServiceManager().PortVar("update", tenantID, serviceID, &ports, 0); err != nil {
-		logrus.Errorf("update port error. %v", err)
-		httputil.ReturnError(r, w, 500, err.Error())
+		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)

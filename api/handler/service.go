@@ -535,11 +535,11 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	}
 	//set app envs
 	if len(envs) > 0 {
-		var batchEnvs []*dbmodel.TenantServiceEnvVar
+		var batchEnvs []dbmodel.TenantServiceEnvVar
 		for _, env := range envs {
 			env.ServiceID = ts.ServiceID
 			env.TenantID = ts.TenantID
-			batchEnvs = append(batchEnvs, &env)
+			batchEnvs = append(batchEnvs, env)
 		}
 		if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).CreateOrUpdateEnvsInBatch(batchEnvs); err != nil {
 			logrus.Errorf("batch add env error, %v", err)
@@ -549,11 +549,11 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	}
 	//set app port
 	if len(ports) > 0 {
-		var batchPorts []*dbmodel.TenantServicesPort
+		var batchPorts []dbmodel.TenantServicesPort
 		for _, port := range ports {
 			port.ServiceID = ts.ServiceID
 			port.TenantID = ts.TenantID
-			batchPorts = append(batchPorts, &port)
+			batchPorts = append(batchPorts, port)
 		}
 		if err := db.GetManager().TenantServicesPortDaoTransactions(tx).CreateOrUpdatePortsInBatch(batchPorts); err != nil {
 			logrus.Errorf("batch add port error, %v", err)

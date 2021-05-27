@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"time"
 
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/dao"
 	"github.com/goodrain/rainbond/db/errors"
@@ -32,7 +33,6 @@ import (
 	"github.com/jinzhu/gorm"
 	pkgerr "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 )
 
 //TenantDaoImpl 租户信息管理
@@ -640,17 +640,17 @@ func (t *TenantServicesPortDaoImpl) UpdateModel(mo model.Interface) error {
 }
 
 // CreateOrUpdatePortsInBatch Batch insert or update ports variables
-func (t *TenantServicesPortDaoImpl) CreateOrUpdatePortsInBatch(ports []*model.TenantServicesPort) error{
+func (t *TenantServicesPortDaoImpl) CreateOrUpdatePortsInBatch(ports []model.TenantServicesPort) error {
 	var objects []interface{}
-	existPorts := make(map[int]struct{})
+	// dedup
+	existPorts := make(map[string]struct{})
 	for _, port := range ports {
-		if _, ok := existPorts[port.ContainerPort]; ok{
+		if _, ok := existPorts[port.Key()]; ok {
 			continue
 		}
-		existPorts[port.ContainerPort] = struct{}{}
+		existPorts[port.Key()] = struct{}{}
 
-		port := port
-		objects = append(objects, *port)
+		objects = append(objects, port)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update ports in batch")
@@ -725,7 +725,7 @@ func (t *TenantServicesPortDaoImpl) GetPort(serviceID string, port int) (*model.
 	var oldPort model.TenantServicesPort
 	if err := t.DB.Where("service_id = ? and container_port=?", serviceID, port).Find(&oldPort).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, bcode.ErrPortNotFound
+			return nil, pkgerr.Wrap(bcode.ErrPortNotFound, fmt.Sprintf("component id: %s; port: %d; get port: %v", serviceID, port, err))
 		}
 		return nil, err
 	}
@@ -944,18 +944,17 @@ func (t *TenantServiceEnvVarDaoImpl) UpdateModel(mo model.Interface) error {
 }
 
 // CreateOrUpdateEnvsInBatch Batch insert or update environment variables
-func (t *TenantServiceEnvVarDaoImpl) CreateOrUpdateEnvsInBatch(envs []*model.TenantServiceEnvVar) error{
+func (t *TenantServiceEnvVarDaoImpl) CreateOrUpdateEnvsInBatch(envs []model.TenantServiceEnvVar) error {
 	var objects []interface{}
 	existEnvs := make(map[string]struct{})
 	for _, env := range envs {
 		key := fmt.Sprintf("%s+%s+%s", env.TenantID, env.ServiceID, env.AttrName)
-		if _, ok := existEnvs[key]; ok{
+		if _, ok := existEnvs[key]; ok {
 			continue
 		}
 		existEnvs[key] = struct{}{}
 
-		env := env
-		objects = append(objects, *env)
+		objects = append(objects, env)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update envs in batch")
