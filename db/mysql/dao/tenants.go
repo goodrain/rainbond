@@ -1807,7 +1807,8 @@ func (t *TenantServiceScalingRecordsDaoImpl) UpdateOrCreate(new *model.TenantSer
 // ListByServiceID -
 func (t *TenantServiceScalingRecordsDaoImpl) ListByServiceID(serviceID string, offset, limit int) ([]*model.TenantServiceScalingRecords, error) {
 	var records []*model.TenantServiceScalingRecords
-	if err := t.DB.Where("service_id=?", serviceID).Offset(offset).Limit(limit).Order("last_time desc").Find(&records).Error; err != nil {
+	if err := t.DB.Where("service_id=? and reason=?", serviceID, "SuccessfulRescale").
+		Offset(offset).Limit(limit).Order("last_time desc").Find(&records).Error; err != nil {
 		return nil, err
 	}
 
@@ -1818,7 +1819,8 @@ func (t *TenantServiceScalingRecordsDaoImpl) ListByServiceID(serviceID string, o
 func (t *TenantServiceScalingRecordsDaoImpl) CountByServiceID(serviceID string) (int, error) {
 	record := model.TenantServiceScalingRecords{}
 	var count int
-	if err := t.DB.Table(record.TableName()).Where("service_id=?", serviceID).Count(&count).Error; err != nil {
+	if err := t.DB.Table(record.TableName()).Where("service_id=? and reason=?", serviceID, "SuccessfulRescale").
+		Count(&count).Error; err != nil {
 		return 0, err
 	}
 
