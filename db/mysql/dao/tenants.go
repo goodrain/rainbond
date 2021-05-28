@@ -1029,6 +1029,19 @@ func (t *TenantServiceEnvVarDaoImpl) DELServiceEnvsByServiceID(serviceID string)
 	return nil
 }
 
+// DeleteByPort delete env based on compoent id and container port.
+func (t *TenantServiceEnvVarDaoImpl) DeleteByPort(ports []model.TenantServicesPort) error {
+	db := t.DB.Where("1=1")
+	for _, port := range ports {
+		db.Or("service_id=? and container_port=?", port.ServiceID, port.ContainerPort)
+	}
+
+	if err := db.Delete(&model.TenantServiceEnvVar{}).Error; err != nil {
+		return pkgerr.Wrap(err, "delete env by port")
+	}
+	return nil
+}
+
 // DelByServiceIDAndScope deletes TenantServiceEnvVar based on sid(service_id) and scope.
 func (t *TenantServiceEnvVarDaoImpl) DelByServiceIDAndScope(sid, scope string) error {
 	var env model.TenantServiceEnvVar

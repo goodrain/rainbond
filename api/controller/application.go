@@ -152,9 +152,9 @@ func (a *ApplicationController) BatchUpdateComponentPorts(w http.ResponseWriter,
 		}
 	}
 
-	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
 
-	if err := handler.GetApplicationHandler().BatchUpdateComponentPorts(appID, appPorts); err != nil {
+	if err := handler.GetApplicationHandler().BatchUpdateComponentPorts(app, appPorts); err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
@@ -188,5 +188,22 @@ func (a *ApplicationController) BatchBindService(w http.ResponseWriter, r *http.
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+func (a *ApplicationController) UpdatePortsEnvs(w http.ResponseWriter, r *http.Request) {
+	var appPorts []*model.AppPort
+	if err := httputil.ReadEntity(r, &appPorts); err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
+	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+
+	if err := handler.GetApplicationHandler().UpdatePortsEnvs(app, appPorts); err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
 	httputil.ReturnSuccess(r, w, nil)
 }

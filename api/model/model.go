@@ -1825,3 +1825,8 @@ type ListApplicationConfigGroupResp struct {
 	Page        int                          `json:"page"`
 	PageSize    int                          `json:"pageSize"`
 }
+
+// StopComponentsReq -
+type StopComponentsReq struct {
+	Operator string `json:"operator"  validate:"required"`
+}

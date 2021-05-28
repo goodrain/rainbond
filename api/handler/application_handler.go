@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -14,8 +15,8 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/server/pb"
-	"github.com/sirupsen/logrus"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 )
 
 // ApplicationAction -
@@ -37,7 +38,8 @@ type ApplicationHandler interface {
 	AddConfigGroup(appID string, req *model.ApplicationConfigGroup) (*model.ApplicationConfigGroupResp, error)
 	UpdateConfigGroup(appID, configGroupName string, req *model.UpdateAppConfigGroupReq) (*model.ApplicationConfigGroupResp, error)
 
-	BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error
+	BatchUpdateComponentPorts(app *dbmodel.Application, reqPorts []*model.AppPort) error
+	UpdatePortsEnvs(app *dbmodel.Application, reqPorts []*model.AppPort) error
 	GetStatus(appID string) (*model.AppStatus, error)
 
 	DeleteConfigGroup(appID, configGroupName string) error
@@ -166,41 +168,89 @@ func (a *ApplicationAction) DeleteApp(appID string) error {
 }
 
 // BatchUpdateComponentPorts -
-func (a *ApplicationAction) BatchUpdateComponentPorts(appID string, ports []*model.AppPort) error {
-	if err := a.checkPorts(appID, ports); err != nil {
+func (a *ApplicationAction) BatchUpdateComponentPorts(app *dbmodel.Application, reqPorts []*model.AppPort) error {
+	if err := a.checkPorts(app.AppID, reqPorts); err != nil {
 		return err
 	}
 
-	tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
-		}
-	}()
+	ports, err := a.listPorts(reqPorts)
+	if err != nil {
+		return err
+	}
 
-	// update port
+	// update port envs
+	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		if err := db.GetManager().TenantServicesPortDaoTransactions(tx).CreateOrUpdatePortsInBatch(ports); err != nil {
+			return nil
+		}
+
+		return a.updatePortEnvs(tx, app, ports)
+	})
+}
+
+// UpdatePortsEnvs -
+func (a *ApplicationAction) UpdatePortsEnvs(app *dbmodel.Application, reqPorts []*model.AppPort) error {
+	ports, err := a.listPorts(reqPorts)
+	if err != nil {
+		return err
+	}
+
+	// update port envs
+	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		return a.updatePortEnvs(tx, app, ports)
+	})
+}
+
+func (a *ApplicationAction) listPorts(ports []*model.AppPort) ([]dbmodel.TenantServicesPort, error) {
+	var res []dbmodel.TenantServicesPort
 	for _, p := range ports {
-		port, err := db.GetManager().TenantServicesPortDaoTransactions(tx).GetPort(p.ServiceID, p.ContainerPort)
+		port, err := db.GetManager().TenantServicesPortDao().GetPort(p.ServiceID, p.ContainerPort)
 		if err != nil {
-			tx.Rollback()
-			return err
+			if errors.Is(err, bcode.ErrPortNotFound) {
+				continue
+			}
+			return nil, err
 		}
-		port.PortAlias = p.PortAlias
 		port.K8sServiceName = p.K8sServiceName
-		err = db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(port)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
+		port.PortAlias = p.PortAlias
+		res = append(res, *port)
 	}
+	return res, nil
+}
 
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
+func (a *ApplicationAction) updatePortEnvs(tx *gorm.DB, app *dbmodel.Application, ports []dbmodel.TenantServicesPort) error {
+	// delete port envs first
+	if err := a.deletePortsEnvs(tx, ports); err != nil {
 		return err
 	}
 
-	return nil
+	// then, create new ones
+	var envs []dbmodel.TenantServiceEnvVar
+	for _, port := range ports {
+		attrValue := "127.0.0.1"
+		if app.GovernanceMode == dbmodel.GovernanceModeKubernetesNativeService {
+			attrValue = port.K8sServiceName
+		}
+		envs = append(envs, a.createPortEnv(port, "连接地址", port.PortAlias+"_HOST", attrValue))
+		envs = append(envs, a.createPortEnv(port, "端口", port.PortAlias+"_PORT", strconv.Itoa(port.ContainerPort)))
+	}
+	return db.GetManager().TenantServiceEnvVarDaoTransactions(tx).CreateOrUpdateEnvsInBatch(envs)
+}
+
+func (a *ApplicationAction) deletePortsEnvs(tx *gorm.DB, ports []dbmodel.TenantServicesPort) error {
+	return db.GetManager().TenantServiceEnvVarDaoTransactions(tx).DeleteByPort(ports)
+}
+
+func (a *ApplicationAction) createPortEnv(port dbmodel.TenantServicesPort, name, attrName, attrValue string) dbmodel.TenantServiceEnvVar {
+	return dbmodel.TenantServiceEnvVar{
+		TenantID:      port.TenantID,
+		ServiceID:     port.ServiceID,
+		ContainerPort: port.ContainerPort,
+		Name:          name,
+		AttrName:      attrName,
+		AttrValue:     attrValue,
+		Scope:         "outer",
+	}
 }
 
 func (a *ApplicationAction) checkPorts(appID string, ports []*model.AppPort) error {

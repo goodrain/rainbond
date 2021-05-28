@@ -316,6 +316,7 @@ func (v2 *V2) applicationRouter() chi.Router {
 	r.Put("/configgroups/{config_group_name}", controller.GetManager().UpdateConfigGroup)
 
 	r.Put("/ports", controller.GetManager().BatchUpdateComponentPorts)
+	r.Put("/ports-envs", controller.GetManager().UpdatePortsEnvs)
 	r.Put("/status", controller.GetManager().GetAppStatus)
 
 	r.Delete("/configgroups/{config_group_name}", controller.GetManager().DeleteConfigGroup)

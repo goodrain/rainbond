@@ -289,6 +289,7 @@ type TenantServiceEnvVarDao interface {
 	DELServiceEnvsByServiceID(serviceID string) error
 	DelByServiceIDAndScope(sid, scope string) error
 	CreateOrUpdateEnvsInBatch(envs []model.TenantServiceEnvVar) error
+	DeleteByPort(ports []model.TenantServicesPort) error
 }
 
 //TenantServiceMountRelationDao TenantServiceMountRelationDao
