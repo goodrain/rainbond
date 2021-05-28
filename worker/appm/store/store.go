@@ -1008,23 +1008,30 @@ func (a *appRuntimeStore) GetAppStatus(appID string) (pb.AppStatus_Status, error
 
 	appStatus := pb.AppStatus_RUNNING
 	serviceStatuses := a.GetAppServicesStatus(serviceIDs)
+	var statuses []string
+	for _, status := range serviceStatuses {
+		if status != "undeploy" {
+			statuses = append(statuses, status)
+		}
+	}
+
 	switch {
-	case appNil(serviceStatuses):
+	case appNil(statuses):
 		appStatus = pb.AppStatus_NIL
-	case appClosed(serviceStatuses):
+	case appClosed(statuses):
 		appStatus = pb.AppStatus_CLOSED
-	case appAbnormal(serviceStatuses):
+	case appAbnormal(statuses):
 		appStatus = pb.AppStatus_ABNORMAL
-	case appStarting(serviceStatuses):
+	case appStarting(statuses):
 		appStatus = pb.AppStatus_STARTING
-	case appStopping(serviceStatuses):
+	case appStopping(statuses):
 		appStatus = pb.AppStatus_STOPPING
 	}
 
 	return appStatus, nil
 }
 
-func appNil(statuses map[string]string) bool {
+func appNil(statuses []string) bool {
 	for _, status := range statuses {
 		if status != v1.UNDEPLOY {
 			return false
@@ -1033,7 +1040,7 @@ func appNil(statuses map[string]string) bool {
 	return true
 }
 
-func appClosed(statuses map[string]string) bool {
+func appClosed(statuses []string) bool {
 	for _, status := range statuses {
 		if status != v1.CLOSED {
 			return false
@@ -1042,7 +1049,7 @@ func appClosed(statuses map[string]string) bool {
 	return true
 }
 
-func appAbnormal(statuses map[string]string) bool {
+func appAbnormal(statuses []string) bool {
 	for _, status := range statuses {
 		if status == v1.ABNORMAL || status == v1.SOMEABNORMAL {
 			return true
@@ -1051,7 +1058,7 @@ func appAbnormal(statuses map[string]string) bool {
 	return false
 }
 
-func appStarting(statuses map[string]string) bool {
+func appStarting(statuses []string) bool {
 	for _, status := range statuses {
 		if status == v1.STARTING {
 			return true
@@ -1060,7 +1067,7 @@ func appStarting(statuses map[string]string) bool {
 	return false
 }
 
-func appStopping(statuses map[string]string) bool {
+func appStopping(statuses []string) bool {
 	stopping := false
 	for _, status := range statuses {
 		if status == v1.STOPPING {
