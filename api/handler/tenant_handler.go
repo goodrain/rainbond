@@ -48,4 +48,5 @@ type TenantHandler interface {
 	UpdateTenant(*dbmodel.Tenants) error
 	DeleteTenant(tenantID string) error
 	GetClusterResource(ctx context.Context) *ClusterResourceStats
+	StopComponents(tenant *dbmodel.Tenants, operator string) error
 }

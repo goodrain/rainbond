@@ -168,6 +168,8 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	//batch operation
 	r.Post("/batchoperation", controller.BatchOperation)
 
+	r.Post("/stop-components", controller.GetManager().StopComponents)
+
 	return r
 }
 

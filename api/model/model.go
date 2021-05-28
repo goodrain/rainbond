@@ -230,15 +230,6 @@ type UpdateServiceStruct struct {
 	}
 }
 
-//StartStopStruct start struct
-type StartStopStruct struct {
-	ServiceID     string
-	TenantID      string
-	DeployVersion string
-	EventID       string
-	TaskType      string
-}
-
 //LanguageSet set language
 type LanguageSet struct {
 	ServiceID string `json:"service_id"`
@@ -1824,4 +1815,9 @@ type ListApplicationConfigGroupResp struct {
 	Total       int64                        `json:"total"`
 	Page        int                          `json:"page"`
 	PageSize    int                          `json:"pageSize"`
+}
+
+// StopComponentsReq -
+type StopComponentsReq struct {
+	Operator string `json:"operator"  validate:"required"`
 }

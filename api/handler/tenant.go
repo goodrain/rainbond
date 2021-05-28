@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/pkg/multierror"
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
@@ -32,8 +33,10 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
+	coreutil "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -587,4 +590,53 @@ func (t *TenantAction) GetClusterResource(ctx context.Context) *ClusterResourceS
 		return nil
 	}
 	return t.cacheClusterResourceStats
+}
+
+// StopComponents stops all components.
+func (t *TenantAction) StopComponents(tenant *dbmodel.Tenants, operator string) error {
+	components, err := db.GetManager().TenantServiceDao().ListServicesByTenantID(tenant.UUID)
+	if err != nil {
+		return err
+	}
+
+	eventIDs, err := t.createEvents(components, operator)
+	if err != nil {
+		return err
+	}
+
+	var errs []error
+	for _, cpt := range components {
+		eventID := eventIDs[cpt.ServiceID]
+		err := GetServiceManager().StartStopService(cpt, "stop", eventID)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return multierror.Error(errs)
+}
+
+func (t *TenantAction) createEvents(components []*dbmodel.TenantServices, operator string) (map[string]string, error) {
+	var events []*dbmodel.ServiceEvent
+	eventIDs := make(map[string]string)
+	for _, cpt := range components {
+		event := &dbmodel.ServiceEvent{
+			EventID:     coreutil.NewUUID(),
+			TenantID:    cpt.TenantID,
+			Target:      dbmodel.TargetTypeService,
+			TargetID:    cpt.ServiceID,
+			UserName:    operator,
+			StartTime:   time.Now().Format(time.RFC3339),
+			EndTime:     time.Now().Format(time.RFC3339),
+			SynType:     dbmodel.ASYNEVENTTYPE,
+			OptType:     "stop-tenant",
+			FinalStatus: "complete",
+			Status:      "success",
+		}
+		events = append(events, event)
+		eventIDs[cpt.ServiceID] = event.EventID
+	}
+
+	return eventIDs, db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		return db.GetManager().ServiceEventDaoTransactions(tx).CreateEventsInBatch(events)
+	})
 }

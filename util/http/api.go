@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/coreos/pkg/multierror"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
 	"github.com/goodrain/rainbond/api/util/bcode"
@@ -55,8 +56,9 @@ func (e ErrBadRequest) Error() string {
 
 // Result represents a response for restful api.
 type Result struct {
-	Code int    `json:"code"`
-	Msg  string `json:"msg"`
+	Code int         `json:"code"`
+	Msg  string      `json:"msg"`
+	Data interface{} `json:"data"`
 }
 
 //ValidatorStructRequest 验证请求数据
@@ -76,7 +78,7 @@ func ValidatorStructRequest(r *http.Request, data interface{}, message govalidat
 
 //ValidatorMapRequest 验证请求数据从map
 func ValidatorMapRequest(r *http.Request, rule govalidator.MapData, message govalidator.MapData) (map[string]interface{}, url.Values) {
-	data := make(map[string]interface{}, 0)
+	data := make(map[string]interface{})
 	opts := govalidator.Options{
 		Request: r,
 		Data:    &data,
@@ -166,7 +168,6 @@ func ReturnSuccess(r *http.Request, w http.ResponseWriter, datas interface{}) {
 		return
 	}
 	render.DefaultResponder(w, r, ResponseBody{Bean: datas})
-	return
 }
 
 //ReturnList return list with page and count
@@ -207,7 +208,7 @@ func ReturnBcodeError(r *http.Request, w http.ResponseWriter, err error) {
 	logrus.Debugf("path %s error code: %d; status: %d; error msg: %+v", r.RequestURI, berr.GetCode(), berr.GetStatus(), err)
 
 	status := berr.GetStatus()
-	result := Result{
+	result := &Result{
 		Code: berr.GetCode(),
 		Msg:  berr.Error(),
 	}
@@ -218,8 +219,29 @@ func ReturnBcodeError(r *http.Request, w http.ResponseWriter, err error) {
 		result.Msg = err.Error()
 	}
 
+	// multi error
+	if res := convertMultiError(err); res != nil {
+		result = res
+	}
+
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, status))
 	render.DefaultResponder(w, r, result)
+}
+
+func convertMultiError(err error) *Result {
+	// multi error
+	merr, ok := err.(multierror.Error)
+	if ok {
+		var data []string
+		for _, err := range merr {
+			data = append(data, err.Error())
+		}
+		return &Result{
+			Code: 400,
+			Data: data,
+		}
+	}
+	return nil
 }
 
 // ReadEntity reads entity from http.Request

@@ -337,30 +337,20 @@ func (s *ServiceAction) DeleteLabel(l *api_model.LabelsStruct, serviceID string)
 	return nil
 }
 
-//StartStopService start service
-func (s *ServiceAction) StartStopService(sss *api_model.StartStopStruct) error {
-	services, err := db.GetManager().TenantServiceDao().GetServiceByID(sss.ServiceID)
-	if err != nil {
-		logrus.Errorf("get service by id error, %v", err)
-		return err
+// StartStopService starts or stop component.
+func (s *ServiceAction) StartStopService(component *dbmodel.TenantServices, taskType, eventID string) error {
+	body := model.StopTaskBody{
+		TenantID:      component.TenantID,
+		ServiceID:     component.ServiceID,
+		DeployVersion: component.DeployVersion,
+		EventID:       eventID,
 	}
-	TaskBody := model.StopTaskBody{
-		TenantID:      sss.TenantID,
-		ServiceID:     sss.ServiceID,
-		DeployVersion: services.DeployVersion,
-		EventID:       sss.EventID,
-	}
-	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
-		TaskType: sss.TaskType,
-		TaskBody: TaskBody,
+	err := s.MQClient.SendBuilderTopic(gclient.TaskStruct{
+		TaskType: taskType,
+		TaskBody: body,
 		Topic:    gclient.WorkerTopic,
 	})
-	if err != nil {
-		logrus.Errorf("equque mq error, %v", err)
-		return err
-	}
-	logrus.Debugf("equeue mq startstop task success")
-	return nil
+	return errors.Wrapf(err, "send %s task", taskType)
 }
 
 //ServiceVertical vertical service
@@ -1840,13 +1830,7 @@ func (s *ServiceAction) RollBack(rs *api_model.RollbackStruct) error {
 		return err
 	}
 	//发送重启消息到MQ
-	startStopStruct := &api_model.StartStopStruct{
-		TenantID:  rs.TenantID,
-		ServiceID: rs.ServiceID,
-		EventID:   rs.EventID,
-		TaskType:  "rolling_upgrade",
-	}
-	if err := GetServiceManager().StartStopService(startStopStruct); err != nil {
+	if err := GetServiceManager().StartStopService(service, "rolling_upgrade", rs.EventID); err != nil {
 		// rollback
 		service.DeployVersion = oldDeployVersion
 		if err := db.GetManager().TenantServiceDao().UpdateModel(service); err != nil {

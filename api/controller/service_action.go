@@ -24,8 +24,6 @@ import (
 	"net/http"
 	"os"
 
-	validator "github.com/goodrain/rainbond/util/govalidator"
-
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/middleware"
@@ -33,6 +31,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	validator "github.com/goodrain/rainbond/util/govalidator"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
@@ -62,9 +61,6 @@ import (
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
 	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
@@ -73,13 +69,7 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sEvent := r.Context().Value(middleware.ContextKey("event")).(*dbmodel.ServiceEvent)
-	startStopStruct := &api_model.StartStopStruct{
-		TenantID:  tenantID,
-		ServiceID: serviceID,
-		EventID:   sEvent.EventID,
-		TaskType:  "start",
-	}
-	if err := handler.GetServiceManager().StartStopService(startStopStruct); err != nil {
+	if err := handler.GetServiceManager().StartStopService(service, "start", sEvent.EventID); err != nil {
 		httputil.ReturnError(r, w, 500, "get service info error.")
 		return
 	}
@@ -109,18 +99,12 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
 	sEvent := r.Context().Value(middleware.ContextKey("event")).(*dbmodel.ServiceEvent)
 	//save event
 	defer event.CloseManager()
-	startStopStruct := &api_model.StartStopStruct{
-		TenantID:  tenantID,
-		ServiceID: serviceID,
-		EventID:   sEvent.EventID,
-		TaskType:  "stop",
-	}
-	if err := handler.GetServiceManager().StartStopService(startStopStruct); err != nil {
+
+	if err := handler.GetServiceManager().StartStopService(service, "stop", sEvent.EventID); err != nil {
 		httputil.ReturnError(r, w, 500, "get service info error.")
 		return
 	}
@@ -149,30 +133,24 @@ func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
+
 	sEvent := r.Context().Value(middleware.ContextKey("event")).(*dbmodel.ServiceEvent)
 	defer event.CloseManager()
-	startStopStruct := &api_model.StartStopStruct{
-		TenantID:  tenantID,
-		ServiceID: serviceID,
-		EventID:   sEvent.EventID,
-		TaskType:  "restart",
-	}
 
-	curStatus := t.StatusCli.GetStatus(serviceID)
+	taskType := "restart"
+	curStatus := t.StatusCli.GetStatus(service.ServiceID)
 	if curStatus == "closed" {
-		startStopStruct.TaskType = "start"
+		taskType = "start"
 	}
 
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
-	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
 	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
 		httputil.ReturnResNotEnough(r, w, err.Error())
 		return
 	}
 
-	if err := handler.GetServiceManager().StartStopService(startStopStruct); err != nil {
+	if err := handler.GetServiceManager().StartStopService(service, taskType, sEvent.EventID); err != nil {
 		httputil.ReturnError(r, w, 500, "get service info error.")
 		return
 	}
@@ -644,7 +622,6 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 
 	re := handler.GetOperationHandler().RollBack(rollbackRequest)
 	httputil.ReturnSuccess(r, w, re)
-	return
 }
 
 type limitMemory struct {
@@ -748,6 +725,23 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 		}
 		httputil.ReturnSuccess(r, w, sourcesInfo)
 	}
+}
+
+// StopComponents stops components.
+func (t *TenantStruct) StopComponents(w http.ResponseWriter, r *http.Request) {
+	var req api_model.StopComponentsReq
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		logrus.Errorf("invalid stop component request")
+		return
+	}
+
+	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	if err := handler.GetTenantManager().StopComponents(tenant, req.Operator); err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
 }
 
 //GetServiceDeployInfo get service deploy info
