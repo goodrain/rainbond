@@ -1005,18 +1005,22 @@ func (a *appRuntimeStore) GetAppStatus(appID string) (pb.AppStatus_Status, error
 	for _, s := range services {
 		serviceIDs = append(serviceIDs, s.ServiceID)
 	}
+	componentStatuses := a.GetAppServicesStatus(serviceIDs)
 
-	appStatus := pb.AppStatus_RUNNING
-	serviceStatuses := a.GetAppServicesStatus(serviceIDs)
+	return getAppStatus(componentStatuses), nil
+}
+
+func getAppStatus(componentStatuses map[string]string) pb.AppStatus_Status {
 	var statuses []string
-	for _, status := range serviceStatuses {
-		if status != "undeploy" {
+	for _, status := range componentStatuses {
+		if status != v1.UNDEPLOY {
 			statuses = append(statuses, status)
 		}
 	}
 
+	appStatus := pb.AppStatus_RUNNING
 	switch {
-	case appNil(statuses):
+	case len(statuses) == 0 || appNil(statuses):
 		appStatus = pb.AppStatus_NIL
 	case appClosed(statuses):
 		appStatus = pb.AppStatus_CLOSED
@@ -1028,7 +1032,7 @@ func (a *appRuntimeStore) GetAppStatus(appID string) (pb.AppStatus_Status, error
 		appStatus = pb.AppStatus_STOPPING
 	}
 
-	return appStatus, nil
+	return appStatus
 }
 
 func appNil(statuses []string) bool {
