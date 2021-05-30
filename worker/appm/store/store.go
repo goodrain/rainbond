@@ -1183,6 +1183,10 @@ func (a *appRuntimeStore) evtEventHandler() cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			evt := obj.(*corev1.Event)
+			if evt.Reason != "SuccessfulRescale" {
+				return
+			}
+
 			recordType, ok := rc2RecordType[evt.InvolvedObject.Kind]
 			if !ok {
 				return
@@ -1212,6 +1216,10 @@ func (a *appRuntimeStore) evtEventHandler() cache.ResourceEventHandlerFuncs {
 		UpdateFunc: func(old, cur interface{}) {
 			oevt := old.(*corev1.Event)
 			cevt := cur.(*corev1.Event)
+
+			if oevt.Reason != "SuccessfulRescale" {
+				return
+			}
 
 			recordType, ok := rc2RecordType[cevt.InvolvedObject.Kind]
 			if !ok {
