@@ -464,6 +464,11 @@ func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, ac
 			return err
 		}
 		return nil
+	case "deploy":
+		if err := db.GetManager().TenantServiceDao().UpdateDeployVersion(serviceID, newVersion); err != nil {
+			logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), serviceID)
+			return nil
+		}
 	default:
 	}
 	return nil
