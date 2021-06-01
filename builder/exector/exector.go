@@ -308,6 +308,7 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 				configs[k] = v.String()
 			}
 			if err := e.UpdateDeployVersion(i.ServiceID, i.DeployVersion); err != nil {
+				logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), i.ServiceID)
 				break
 			}
 			err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, configs, i.Logger)
@@ -368,6 +369,7 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 			configs[k] = v.String()
 		}
 		if err := e.UpdateDeployVersion(i.ServiceID, i.DeployVersion); err != nil {
+			logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), i.ServiceID)
 			return
 		}
 		err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, configs, i.Logger)
@@ -412,6 +414,7 @@ func (e *exectorManager) buildFromMarketSlug(task *pb.TaskMessage) {
 				}
 			} else {
 				if err := e.UpdateDeployVersion(i.ServiceID, i.DeployVersion); err != nil {
+					logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), i.ServiceID)
 					break
 				}
 				err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, i.Configs, i.Logger)
@@ -590,10 +593,5 @@ func (e *exectorManager) GetCurrentConcurrentTask() float64 {
 }
 
 func (e *exectorManager) UpdateDeployVersion(serviceID, newVersion string) error {
-	if err := db.GetManager().TenantServiceDao().UpdateDeployVersion(serviceID, newVersion); err != nil {
-		logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), serviceID)
-		return err
-	}
-	logrus.Debugf("Update app service deploy version %s success", newVersion)
-	return nil
+	return db.GetManager().TenantServiceDao().UpdateDeployVersion(serviceID, newVersion)
 }
