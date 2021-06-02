@@ -187,8 +187,7 @@ func (m *Manager) CheckTable() {
 }
 
 func (m *Manager) patchTable() {
-	//modify tenant service env max size to 1024
-	if err := m.db.Exec("alter table tenant_services_envs modify column attr_value varchar(1024);").Error; err != nil {
+	if err := m.db.Exec("alter table tenant_services_envs modify column attr_value text;").Error; err != nil {
 		logrus.Errorf("alter table tenant_services_envs error %s", err.Error())
 	}
 
