@@ -67,12 +67,12 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
+	sEvent := r.Context().Value(middleware.ContextKey("event")).(*dbmodel.ServiceEvent)
 	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
-		httputil.ReturnResNotEnough(r, w, err.Error())
+		httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
 		return
 	}
 
-	sEvent := r.Context().Value(middleware.ContextKey("event")).(*dbmodel.ServiceEvent)
 	startStopStruct := &api_model.StartStopStruct{
 		TenantID:  tenantID,
 		ServiceID: serviceID,
@@ -168,7 +168,7 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
 	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
-		httputil.ReturnResNotEnough(r, w, err.Error())
+		httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
 		return
 	}
 
@@ -219,7 +219,7 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
 	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*mem); err != nil {
-		httputil.ReturnResNotEnough(r, w, err.Error())
+		httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
 		return
 	}
 
@@ -274,7 +274,7 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
 	if err := handler.CheckTenantResource(r.Context(), tenant, service.ContainerMemory*int(replicas)); err != nil {
-		httputil.ReturnResNotEnough(r, w, err.Error())
+		httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
 		return
 	}
 
@@ -332,7 +332,7 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
 	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
-		httputil.ReturnResNotEnough(r, w, err.Error())
+		httputil.ReturnResNotEnough(r, w, build.EventID, err.Error())
 		return
 	}
 
@@ -548,7 +548,7 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
 	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
-		httputil.ReturnResNotEnough(r, w, err.Error())
+		httputil.ReturnResNotEnough(r, w, upgradeRequest.EventID, err.Error())
 		return
 	}
 
@@ -638,7 +638,7 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
 	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
-		httputil.ReturnResNotEnough(r, w, err.Error())
+		httputil.ReturnResNotEnough(r, w, rollbackRequest.EventID, err.Error())
 		return
 	}
 

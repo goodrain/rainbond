@@ -75,6 +75,11 @@ func (c *EventDaoImpl) CreateEventsInBatch(events []*model.ServiceEvent) error {
 	return nil
 }
 
+// UpdateReason update reasion.
+func (c *EventDaoImpl) UpdateReason(eventID string, reason string) error {
+	return c.DB.Model(&model.ServiceEvent{}).Where("event_id=?", eventID).UpdateColumn("reason", reason).Error
+}
+
 //GetEventByEventID get event log message
 func (c *EventDaoImpl) GetEventByEventID(eventID string) (*model.ServiceEvent, error) {
 	var result model.ServiceEvent

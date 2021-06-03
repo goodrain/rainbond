@@ -59,27 +59,6 @@ func CreateBatchOperationHandler(mqCli gclient.MQClient, statusCli *client.AppRu
 	}
 }
 
-func setStartupSequenceConfig(configs map[string]string, depsids []string) map[string]string {
-	configs["boot_seq_dep_service_ids"] = strings.Join(depsids, ",")
-	return configs
-}
-
-func checkResourceEnough(serviceID string) error {
-	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
-	if err != nil {
-		logrus.Errorf("get service by id error, %v", err)
-		return err
-	}
-	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(service.TenantID)
-	if err != nil {
-		logrus.Errorf("get tenant by id error: %v", err)
-		return err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-	return CheckTenantResource(ctx, tenant, service.ContainerMemory*service.Replicas)
-}
-
 func (b *BatchOperationHandler) serviceStartupSequence(serviceIDs []string) map[string][]string {
 	sd, err := NewServiceDependency(serviceIDs)
 	if err != nil {
@@ -112,7 +91,7 @@ func (b *BatchOperationHandler) Build(ctx context.Context, tenant *dbmodel.Tenan
 	batchOpResult = append(batchOpResult, batchOpResult2...)
 
 	// create events
-	if err := b.createEvents(tenant.UUID, operator, batchOpReqs); err != nil {
+	if err := b.createEvents(tenant.UUID, operator, batchOpReqs, allocm.badOpRequest, allocm.memoryType); err != nil {
 		return nil, err
 	}
 
@@ -158,7 +137,7 @@ func (b *BatchOperationHandler) Start(ctx context.Context, tenant *dbmodel.Tenan
 	batchOpResult = append(batchOpResult, batchOpResult2...)
 
 	// create events
-	if err := b.createEvents(tenant.UUID, operator, batchOpReqs); err != nil {
+	if err := b.createEvents(tenant.UUID, operator, batchOpReqs, allocm.BadOpRequests(), allocm.memoryType); err != nil {
 		return nil, err
 	}
 
@@ -192,7 +171,7 @@ func (b *BatchOperationHandler) Stop(ctx context.Context, tenant *dbmodel.Tenant
 	batchOpReqs, batchOpResult := b.checkEvents(batchOpReqs)
 
 	// create events
-	if err := b.createEvents(tenant.UUID, operator, batchOpReqs); err != nil {
+	if err := b.createEvents(tenant.UUID, operator, batchOpReqs, nil, ""); err != nil {
 		return nil, err
 	}
 
@@ -237,7 +216,7 @@ func (b *BatchOperationHandler) Upgrade(ctx context.Context, tenant *dbmodel.Ten
 	batchOpResult = append(batchOpResult, batchOpResult2...)
 
 	// create events
-	if err := b.createEvents(tenant.UUID, operator, batchOpReqs); err != nil {
+	if err := b.createEvents(tenant.UUID, operator, batchOpReqs, allocm.BadOpRequests(), allocm.memoryType); err != nil {
 		return nil, err
 	}
 
@@ -279,9 +258,15 @@ func (b *BatchOperationHandler) checkEvents(batchOpReqs model.BatchOpRequesters)
 	}
 	return validReqs, batchOpResult
 }
-func (b *BatchOperationHandler) createEvents(tenantID, operator string, batchOpReqs model.BatchOpRequesters) error {
+
+func (b *BatchOperationHandler) createEvents(tenantID, operator string, batchOpReqs, badOpReqs model.BatchOpRequesters, memoryType string) error {
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		defer util.Elapsed("[BatchOperationHandler] create events")()
+	}
+
+	bads := make(map[string]struct{})
+	for _, req := range badOpReqs {
+		bads[req.GetEventID()] = struct{}{}
 	}
 
 	var events []*dbmodel.ServiceEvent
@@ -295,6 +280,14 @@ func (b *BatchOperationHandler) createEvents(tenantID, operator string, batchOpR
 			StartTime: time.Now().Format(time.RFC3339),
 			SynType:   dbmodel.ASYNEVENTTYPE,
 			OptType:   req.OpType(),
+		}
+		_, ok := bads[req.GetEventID()]
+		if ok {
+			event.Reason = memoryType
+			event.EndTime = event.StartTime
+			event.FinalStatus = "complete"
+			event.Status = "failure"
+
 		}
 		events = append(events, event)
 	}
@@ -432,9 +425,7 @@ func (s *ServiceDependency) buildLinkListByHead(l *list.List) []*list.List {
 		if len(sublists) == 0 {
 			result = append(result, newl)
 		} else {
-			for _, sublist := range sublists {
-				result = append(result, sublist)
-			}
+			result = append(result, sublists...)
 		}
 	}
 
@@ -473,9 +464,11 @@ func alreadyInLinkedList(l *list.List, depsid string) bool {
 type AllocMemory struct {
 	tenant          *dbmodel.Tenants
 	allcm           *int64
+	memoryType      string
 	components      map[string]*dbmodel.TenantServices
 	batchOpResult   model.BatchOpResult
 	batchOpRequests model.BatchOpRequesters
+	badOpRequest    model.BatchOpRequesters
 }
 
 // NewAllocMemory creates a new AllocMemory.
@@ -495,12 +488,14 @@ func NewAllocMemory(ctx context.Context, statusCli *client.AppRuntimeSyncClient,
 		}
 		allocm := tenant.LimitMemory - int(tenantUsedResource.MemoryLimit)
 		am.allcm = util.Int64(int64(allocm))
+		am.memoryType = "tenant_lack_of_memory"
 	} else {
 		allcm, err := ClusterAllocMemory(ctx)
 		if err != nil {
 			return nil, err
 		}
 		am.allcm = util.Int64(allcm)
+		am.memoryType = "cluster_lack_of_memory"
 	}
 
 	components, err := am.listComponents(batchOpReqs.ComponentIDs())
@@ -512,18 +507,21 @@ func NewAllocMemory(ctx context.Context, statusCli *client.AppRuntimeSyncClient,
 	// check alloc memory for every components.
 	var reqs model.BatchOpRequesters
 	var batchOpResult model.BatchOpResult
+	var badOpRequest model.BatchOpRequesters
 	for _, req := range batchOpReqs {
 		req := req
 		if err := am.check(req.GetComponentID()); err != nil {
 			item := req.BatchOpFailureItem()
 			item.ErrMsg = err.Error()
 			batchOpResult = append(batchOpResult, item)
+			badOpRequest = append(badOpRequest, req)
 			continue
 		}
 		reqs = append(reqs, req)
 	}
 	am.batchOpResult = batchOpResult
 	am.batchOpRequests = reqs
+	am.badOpRequest = badOpRequest
 
 	return am, nil
 }
@@ -536,6 +534,11 @@ func (a *AllocMemory) BatchOpResult() model.BatchOpResult {
 // BatchOpRequests returns the batchOpRequests.
 func (a *AllocMemory) BatchOpRequests() model.BatchOpRequesters {
 	return a.batchOpRequests
+}
+
+// BadOpRequests returns the badOpRequests.
+func (a *AllocMemory) BadOpRequests() model.BatchOpRequesters {
+	return a.badOpRequest
 }
 
 func (a *AllocMemory) listComponents(componentIDs []string) (map[string]*dbmodel.TenantServices, error) {
