@@ -390,6 +390,7 @@ type EventDao interface {
 	GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error)
 	UnfinishedEvents(target, targetID string, optTypes ...string) ([]*model.ServiceEvent, error)
 	LatestFailurePodEvent(podName string) (*model.ServiceEvent, error)
+	UpdateReason(eventID string, reason string) error
 }
 
 //VersionInfoDao VersionInfoDao

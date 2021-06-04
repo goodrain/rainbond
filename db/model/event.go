@@ -92,6 +92,7 @@ type ServiceEvent struct {
 	Status      string `gorm:"column:status;size:40"`
 	FinalStatus string `gorm:"column:final_status;size:40"`
 	Message     string `gorm:"column:message"`
+	Reason      string `gorm:"column:reason"`
 }
 
 //TableName 表名
