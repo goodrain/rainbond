@@ -142,6 +142,7 @@ type appRuntimeStore struct {
 	volumeTypeListeners    map[string]chan<- *model.TenantServiceVolumeType
 	volumeTypeListenerLock sync.Mutex
 	resourceCache          *ResourceCache
+	unexpectHPAEventLogger *UnexpectHPAEventLogger
 }
 
 //NewStore new app runtime store
@@ -154,20 +155,21 @@ func NewStore(
 	probeCh *channels.RingChannel) Storer {
 	ctx, cancel := context.WithCancel(context.Background())
 	store := &appRuntimeStore{
-		kubeconfig:          kubeconfig,
-		clientset:           clientset,
-		ctx:                 ctx,
-		cancel:              cancel,
-		informers:           &Informer{CRS: make(map[string]cache.SharedIndexInformer)},
-		listers:             &Lister{},
-		appServices:         sync.Map{},
-		conf:                conf,
-		dbmanager:           dbmanager,
-		crClients:           make(map[string]interface{}),
-		startCh:             startCh,
-		resourceCache:       NewResourceCache(),
-		podUpdateListeners:  make(map[string]chan<- *corev1.Pod, 1),
-		volumeTypeListeners: make(map[string]chan<- *model.TenantServiceVolumeType, 1),
+		kubeconfig:             kubeconfig,
+		clientset:              clientset,
+		ctx:                    ctx,
+		cancel:                 cancel,
+		informers:              &Informer{CRS: make(map[string]cache.SharedIndexInformer)},
+		listers:                &Lister{},
+		appServices:            sync.Map{},
+		conf:                   conf,
+		dbmanager:              dbmanager,
+		crClients:              make(map[string]interface{}),
+		startCh:                startCh,
+		resourceCache:          NewResourceCache(),
+		podUpdateListeners:     make(map[string]chan<- *corev1.Pod, 1),
+		volumeTypeListeners:    make(map[string]chan<- *model.TenantServiceVolumeType, 1),
+		unexpectHPAEventLogger: NewUnexpectHPAEventLogger(),
 	}
 	crdClient, err := internalclientset.NewForConfig(kubeconfig)
 	if err != nil {
@@ -1183,9 +1185,6 @@ func (a *appRuntimeStore) evtEventHandler() cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			evt := obj.(*corev1.Event)
-			if evt.Reason != "SuccessfulRescale" {
-				return
-			}
 
 			recordType, ok := rc2RecordType[evt.InvolvedObject.Kind]
 			if !ok {
@@ -1196,6 +1195,14 @@ func (a *appRuntimeStore) evtEventHandler() cache.ResourceEventHandlerFuncs {
 			if serviceID == "" || ruleID == "" {
 				return
 			}
+
+			if recordType == "hpa" {
+				if evt.Reason != "SuccessfulRescale" {
+					// the error message will be logged in UpdateFunc
+					return
+				}
+			}
+
 			record := &model.TenantServiceScalingRecords{
 				ServiceID:   serviceID,
 				RuleID:      ruleID,
@@ -1217,10 +1224,6 @@ func (a *appRuntimeStore) evtEventHandler() cache.ResourceEventHandlerFuncs {
 			oevt := old.(*corev1.Event)
 			cevt := cur.(*corev1.Event)
 
-			if oevt.Reason != "SuccessfulRescale" {
-				return
-			}
-
 			recordType, ok := rc2RecordType[cevt.InvolvedObject.Kind]
 			if !ok {
 				return
@@ -1233,6 +1236,14 @@ func (a *appRuntimeStore) evtEventHandler() cache.ResourceEventHandlerFuncs {
 			if serviceID == "" || ruleID == "" {
 				return
 			}
+
+			if recordType == "hpa" {
+				if cevt.Reason != "SuccessfulRescale" {
+					a.unexpectHPAEventLogger.Log(serviceID, ruleID, cevt)
+					return
+				}
+			}
+
 			record := &model.TenantServiceScalingRecords{
 				ServiceID:   serviceID,
 				RuleID:      ruleID,
@@ -1458,4 +1469,46 @@ func filterOutNotRainbondNamespace(ns *corev1.Namespace) bool {
 		return ns.Labels["creator"] == "Rainbond"
 	}()
 	return curVersion || oldVersion
+}
+
+// UnexpectHPAEventLogger is responsible for logging unexpected hpa events.
+type UnexpectHPAEventLogger struct {
+	loggedEvents []string
+	index        int
+}
+
+// NewUnexpectHPAEventLogger creates a new UnexpectHPAEventLogger.
+func NewUnexpectHPAEventLogger() *UnexpectHPAEventLogger {
+	return &UnexpectHPAEventLogger{
+		loggedEvents: make([]string, 10000),
+	}
+}
+
+// Log logs unexpected hpa event.
+// Thread unsafe.
+func (u *UnexpectHPAEventLogger) Log(componentID, ruleID string, event *corev1.Event) {
+	// check if the event has been logged.
+	if u.logged(event) {
+		return
+	}
+
+	logrus.Warningf("unexpected hpa event: component id: %s; rule id: %s; event: %s; reason: %s; message: %s",
+		componentID, ruleID, event.GetName(), event.Reason, event.Message)
+
+	// ring array
+	if u.index == len(u.loggedEvents) {
+		u.index = 0
+	}
+
+	u.loggedEvents[u.index] = event.GetName()
+	u.index++
+}
+
+func (u *UnexpectHPAEventLogger) logged(event *corev1.Event) bool {
+	for _, le := range u.loggedEvents {
+		if event.GetName() == le {
+			return true
+		}
+	}
+	return false
 }
