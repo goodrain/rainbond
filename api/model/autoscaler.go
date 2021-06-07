@@ -62,8 +62,8 @@ type AutoScalerRule struct {
 	RuleMetrics []RuleMetric `json:"metrics"`
 }
 
-func (a AutoScalerRule) DbModel(componentID string) dbmodel.TenantServiceAutoscalerRules {
-	return dbmodel.TenantServiceAutoscalerRules{
+func (a AutoScalerRule) DbModel(componentID string) *dbmodel.TenantServiceAutoscalerRules {
+	return &dbmodel.TenantServiceAutoscalerRules{
 		RuleID:      a.RuleID,
 		ServiceID:   componentID,
 		MinReplicas: a.MinReplicas,
@@ -80,8 +80,8 @@ type RuleMetric struct {
 	MetricTargetValue int    `json:"metric_target_value"`
 }
 
-func (r RuleMetric) DbModel(ruleID string) dbmodel.TenantServiceAutoscalerRuleMetrics {
-	return dbmodel.TenantServiceAutoscalerRuleMetrics{
+func (r RuleMetric) DbModel(ruleID string) *dbmodel.TenantServiceAutoscalerRuleMetrics {
+	return &dbmodel.TenantServiceAutoscalerRuleMetrics{
 		RuleID:            ruleID,
 		MetricsType:       r.MetricsType,
 		MetricsName:       r.MetricsName,

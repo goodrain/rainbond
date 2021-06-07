@@ -40,8 +40,8 @@ type AddHTTPRuleStruct struct {
 	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
 }
 
-func (h *AddHTTPRuleStruct) DbModel(serviceID string) dbmodel.HTTPRule {
-	return dbmodel.HTTPRule{
+func (h *AddHTTPRuleStruct) DbModel(serviceID string) *dbmodel.HTTPRule {
+	return &dbmodel.HTTPRule{
 		UUID:          h.HTTPRuleID,
 		ServiceID:     serviceID,
 		ContainerPort: h.ContainerPort,
@@ -92,8 +92,8 @@ type AddTCPRuleStruct struct {
 	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
 }
 
-func (a *AddTCPRuleStruct) DbModel(serviceID string) dbmodel.TCPRule {
-	return dbmodel.TCPRule{
+func (a *AddTCPRuleStruct) DbModel(serviceID string) *dbmodel.TCPRule {
+	return &dbmodel.TCPRule{
 		UUID:          a.TCPRuleID,
 		ServiceID:     serviceID,
 		ContainerPort: a.ContainerPort,

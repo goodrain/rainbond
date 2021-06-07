@@ -322,7 +322,7 @@ func (v2 *V2) applicationRouter() chi.Router {
 	r.Get("/configgroups", controller.GetManager().ListConfigGroups)
 
 	// Synchronize component information, full coverage
-	r.Post("/components", controller.GetManager().SyncComponent)
+	r.Post("/components", controller.GetManager().SyncComponents)
 	return r
 }
 

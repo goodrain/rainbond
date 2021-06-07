@@ -450,8 +450,8 @@ type PluginVersionEnv struct {
 	EnvValue string `json:"env_value" validate:"env_value"`
 }
 
-func (p *PluginVersionEnv) DbModel(componentID, pluginID string) dbmodel.TenantPluginVersionEnv {
-	return dbmodel.TenantPluginVersionEnv{
+func (p *PluginVersionEnv) DbModel(componentID, pluginID string) *dbmodel.TenantPluginVersionEnv {
+	return &dbmodel.TenantPluginVersionEnv{
 		ServiceID: componentID,
 		PluginID:  pluginID,
 		EnvName:   p.EnvName,
@@ -464,8 +464,8 @@ type TenantPluginVersionConfig struct {
 	ConfigStr string `json:"config_str" validate:"config_str"`
 }
 
-func (p *TenantPluginVersionConfig) DbModel(componentID, pluginID string) dbmodel.TenantPluginVersionDiscoverConfig {
-	return dbmodel.TenantPluginVersionDiscoverConfig{
+func (p *TenantPluginVersionConfig) DbModel(componentID, pluginID string) *dbmodel.TenantPluginVersionDiscoverConfig {
+	return &dbmodel.TenantPluginVersionDiscoverConfig{
 		ServiceID: componentID,
 		PluginID:  pluginID,
 		ConfigStr: p.ConfigStr,
@@ -484,8 +484,8 @@ type ComponentPlugin struct {
 	PluginVersionEnvs []PluginVersionEnv        `json:"tenant_plugin_version_envs"`
 }
 
-func (p *ComponentPlugin) DbModel(componentID string) dbmodel.TenantServicePluginRelation {
-	return dbmodel.TenantServicePluginRelation{
+func (p *ComponentPlugin) DbModel(componentID string) *dbmodel.TenantServicePluginRelation {
+	return &dbmodel.TenantServicePluginRelation{
 		VersionID:       p.VersionID,
 		ServiceID:       componentID,
 		PluginID:        p.PluginID,

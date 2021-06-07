@@ -119,10 +119,10 @@ func (a *AppConfigGroupServiceDaoImpl) DeleteByComponentIDs(componentIDs []strin
 }
 
 // CreateOrUpdateConfigGroupServicesInBatch -
-func (a *AppConfigGroupServiceDaoImpl) CreateOrUpdateConfigGroupServicesInBatch(cgservices []model.ConfigGroupService) error {
+func (a *AppConfigGroupServiceDaoImpl) CreateOrUpdateConfigGroupServicesInBatch(cgservices []*model.ConfigGroupService) error {
 	var objects []interface{}
 	for _, cgs := range cgservices {
-		objects = append(objects, cgs)
+		objects = append(objects, *cgs)
 	}
 	if err := gormbulkups.BulkUpsert(a.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update config group services in batch")

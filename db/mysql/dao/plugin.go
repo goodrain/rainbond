@@ -405,10 +405,10 @@ func (t *PluginVersionEnvDaoImpl) DeleteByComponentIDs(componentIDs []string) er
 }
 
 // CreateOrUpdatePluginVersionEnvsInBatch -
-func (t *PluginVersionEnvDaoImpl) CreateOrUpdatePluginVersionEnvsInBatch(versionEnvs []model.TenantPluginVersionEnv) error {
+func (t *PluginVersionEnvDaoImpl) CreateOrUpdatePluginVersionEnvsInBatch(versionEnvs []*model.TenantPluginVersionEnv) error {
 	var objects []interface{}
 	for _, env := range versionEnvs {
-		objects = append(objects, env)
+		objects = append(objects, *env)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update plugin version env in batch")
@@ -491,10 +491,10 @@ func (t *PluginVersionConfigDaoImpl) DeleteByComponentIDs(componentIDs []string)
 }
 
 // CreateOrUpdatePluginVersionConfigsInBatch -
-func (t *PluginVersionConfigDaoImpl) CreateOrUpdatePluginVersionConfigsInBatch(versionConfigs []model.TenantPluginVersionDiscoverConfig) error {
+func (t *PluginVersionConfigDaoImpl) CreateOrUpdatePluginVersionConfigsInBatch(versionConfigs []*model.TenantPluginVersionDiscoverConfig) error {
 	var objects []interface{}
 	for _, config := range versionConfigs {
-		objects = append(objects, config)
+		objects = append(objects, *config)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update plugin version config in batch")
@@ -612,10 +612,10 @@ func (t *TenantServicePluginRelationDaoImpl) DeleteByComponentIDs(componentIDs [
 }
 
 // CreateOrUpdatePluginRelsInBatch -
-func (t *TenantServicePluginRelationDaoImpl) CreateOrUpdatePluginRelsInBatch(relations []model.TenantServicePluginRelation) error {
+func (t *TenantServicePluginRelationDaoImpl) CreateOrUpdatePluginRelsInBatch(relations []*model.TenantServicePluginRelation) error {
 	var objects []interface{}
 	for _, relation := range relations {
-		objects = append(objects, relation)
+		objects = append(objects, *relation)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update plugin relation in batch")

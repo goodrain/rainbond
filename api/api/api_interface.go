@@ -168,7 +168,7 @@ type ApplicationInterface interface {
 
 	DeleteConfigGroup(w http.ResponseWriter, r *http.Request)
 	ListConfigGroups(w http.ResponseWriter, r *http.Request)
-	SyncComponent(w http.ResponseWriter, r *http.Request)
+	SyncComponents(w http.ResponseWriter, r *http.Request)
 }
 
 //Gatewayer gateway api interface

@@ -554,10 +554,10 @@ func (t *TenantServicesDaoImpl) BindAppByServiceIDs(appID string, serviceIDs []s
 }
 
 // CreateOrUpdateComponentsInBatch Batch insert or update component
-func (t *TenantServicesDaoImpl) CreateOrUpdateComponentsInBatch(components []model.TenantServices) error {
+func (t *TenantServicesDaoImpl) CreateOrUpdateComponentsInBatch(components []*model.TenantServices) error {
 	var objects []interface{}
 	for _, component := range components {
-		objects = append(objects, component)
+		objects = append(objects, *component)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update component in batch")
@@ -660,7 +660,7 @@ func (t *TenantServicesPortDaoImpl) UpdateModel(mo model.Interface) error {
 }
 
 // CreateOrUpdatePortsInBatch Batch insert or update ports variables
-func (t *TenantServicesPortDaoImpl) CreateOrUpdatePortsInBatch(ports []model.TenantServicesPort) error {
+func (t *TenantServicesPortDaoImpl) CreateOrUpdatePortsInBatch(ports []*model.TenantServicesPort) error {
 	var objects []interface{}
 	// dedup
 	existPorts := make(map[string]struct{})
@@ -670,7 +670,7 @@ func (t *TenantServicesPortDaoImpl) CreateOrUpdatePortsInBatch(ports []model.Ten
 		}
 		existPorts[port.Key()] = struct{}{}
 
-		objects = append(objects, port)
+		objects = append(objects, *port)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update ports in batch")
@@ -887,10 +887,10 @@ func (t *TenantServiceRelationDaoImpl) DeleteByComponentIDs(componentIDs []strin
 }
 
 // CreateOrUpdateRelationsInBatch -
-func (t *TenantServiceRelationDaoImpl) CreateOrUpdateRelationsInBatch(relations []model.TenantServiceRelation) error {
+func (t *TenantServiceRelationDaoImpl) CreateOrUpdateRelationsInBatch(relations []*model.TenantServiceRelation) error {
 	var objects []interface{}
 	for _, relation := range relations {
-		objects = append(objects, relation)
+		objects = append(objects, *relation)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update relation in batch")
@@ -991,7 +991,7 @@ func (t *TenantServiceEnvVarDaoImpl) DeleteByComponentIDs(componentIDs []string)
 }
 
 // CreateOrUpdateEnvsInBatch Batch insert or update environment variables
-func (t *TenantServiceEnvVarDaoImpl) CreateOrUpdateEnvsInBatch(envs []model.TenantServiceEnvVar) error {
+func (t *TenantServiceEnvVarDaoImpl) CreateOrUpdateEnvsInBatch(envs []*model.TenantServiceEnvVar) error {
 	var objects []interface{}
 	existEnvs := make(map[string]struct{})
 	for _, env := range envs {
@@ -1001,7 +1001,7 @@ func (t *TenantServiceEnvVarDaoImpl) CreateOrUpdateEnvsInBatch(envs []model.Tena
 		}
 		existEnvs[key] = struct{}{}
 
-		objects = append(objects, env)
+		objects = append(objects, *env)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update envs in batch")
@@ -1167,10 +1167,10 @@ func (t *TenantServiceMountRelationDaoImpl) DeleteByComponentIDs(componentIDs []
 }
 
 // CreateOrUpdateVolumeRelsInBatch -
-func (t *TenantServiceMountRelationDaoImpl) CreateOrUpdateVolumeRelsInBatch(volRels []model.TenantServiceMountRelation) error {
+func (t *TenantServiceMountRelationDaoImpl) CreateOrUpdateVolumeRelsInBatch(volRels []*model.TenantServiceMountRelation) error {
 	var objects []interface{}
 	for _, volRel := range volRels {
-		objects = append(objects, volRel)
+		objects = append(objects, *volRel)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update volume relation in batch")
@@ -1242,16 +1242,16 @@ func (t *TenantServiceVolumeDaoImpl) ListVolumesByComponentIDs(componentIDs []st
 	return volumes, nil
 }
 
-//DeleteByComponentIDVolNames -
-func (t *TenantServiceVolumeDaoImpl) DeleteByComponentIDVolNames(componentIDs, volumeNames []string) error {
-	return t.DB.Where("service_id in (?) and volume_name in (?)", componentIDs, volumeNames).Delete(&model.TenantServiceVolume{}).Error
+//DeleteByVolumeIDs -
+func (t *TenantServiceVolumeDaoImpl) DeleteByVolumeIDs(volumeIDs []uint) error {
+	return t.DB.Where("ID in (?)", volumeIDs).Delete(&model.TenantServiceVolume{}).Error
 }
 
 // CreateOrUpdateVolumesInBatch -
-func (t *TenantServiceVolumeDaoImpl) CreateOrUpdateVolumesInBatch(volumes []model.TenantServiceVolume) error {
+func (t *TenantServiceVolumeDaoImpl) CreateOrUpdateVolumesInBatch(volumes []*model.TenantServiceVolume) error {
 	var objects []interface{}
 	for _, volume := range volumes {
-		objects = append(objects, volume)
+		objects = append(objects, *volume)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update volumes in batch")
@@ -1393,10 +1393,10 @@ func (t *TenantServiceConfigFileDaoImpl) DeleteByComponentIDs(componentIDs []str
 }
 
 // CreateOrUpdateConfigFilesInBatch -
-func (t *TenantServiceConfigFileDaoImpl) CreateOrUpdateConfigFilesInBatch(configFiles []model.TenantServiceConfigFile) error {
+func (t *TenantServiceConfigFileDaoImpl) CreateOrUpdateConfigFilesInBatch(configFiles []*model.TenantServiceConfigFile) error {
 	var objects []interface{}
 	for _, configFile := range configFiles {
-		objects = append(objects, configFile)
+		objects = append(objects, *configFile)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update config files in batch")
@@ -1758,10 +1758,10 @@ func (t *ServiceLabelDaoImpl) DeleteByComponentIDs(componentIDs []string) error 
 }
 
 // CreateOrUpdateLabelsInBatch -
-func (t *ServiceLabelDaoImpl) CreateOrUpdateLabelsInBatch(labels []model.TenantServiceLable) error {
+func (t *ServiceLabelDaoImpl) CreateOrUpdateLabelsInBatch(labels []*model.TenantServiceLable) error {
 	var objects []interface{}
 	for _, label := range labels {
-		objects = append(objects, label)
+		objects = append(objects, *label)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update label in batch")
@@ -1830,10 +1830,10 @@ func (t *TenantServceAutoscalerRulesDaoImpl) DeleteByComponentIDs(componentIDs [
 }
 
 // CreateOrUpdateLabelsInBatch -
-func (t *TenantServceAutoscalerRulesDaoImpl) CreateOrUpdateScaleRulesInBatch(rules []model.TenantServiceAutoscalerRules) error {
+func (t *TenantServceAutoscalerRulesDaoImpl) CreateOrUpdateScaleRulesInBatch(rules []*model.TenantServiceAutoscalerRules) error {
 	var objects []interface{}
 	for _, rule := range rules {
-		objects = append(objects, rule)
+		objects = append(objects, *rule)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update scale rule in batch")
@@ -1910,10 +1910,10 @@ func (t *TenantServceAutoscalerRuleMetricsDaoImpl) DeleteByRuleIDs(ruleIDs []str
 }
 
 // CreateOrUpdateScaleRulesInBatch -
-func (t *TenantServceAutoscalerRuleMetricsDaoImpl) CreateOrUpdateScaleRuleMetricsInBatch(metrics []model.TenantServiceAutoscalerRuleMetrics) error {
+func (t *TenantServceAutoscalerRuleMetricsDaoImpl) CreateOrUpdateScaleRuleMetricsInBatch(metrics []*model.TenantServiceAutoscalerRuleMetrics) error {
 	var objects []interface{}
 	for _, metric := range metrics {
-		objects = append(objects, metric)
+		objects = append(objects, *metric)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update rule metric in batch")

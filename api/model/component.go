@@ -73,8 +73,8 @@ type ComponentBase struct {
 }
 
 // DbModel -
-func (c *ComponentBase) DbModel(tenantID, appID string) dbmodel.TenantServices {
-	return dbmodel.TenantServices{
+func (c *ComponentBase) DbModel(tenantID, appID string) *dbmodel.TenantServices {
+	return &dbmodel.TenantServices{
 		TenantID:        tenantID,
 		ServiceID:       c.ComponentID,
 		ServiceAlias:    c.ComponentAlias,
@@ -102,8 +102,8 @@ type TenantComponentRelation struct {
 	DependOrder       int    `json:"dep_order"`
 }
 
-func (t *TenantComponentRelation) DbModel(tenantID, componentID string) dbmodel.TenantServiceRelation {
-	return dbmodel.TenantServiceRelation{
+func (t *TenantComponentRelation) DbModel(tenantID, componentID string) *dbmodel.TenantServiceRelation {
+	return &dbmodel.TenantServiceRelation{
 		TenantID:          tenantID,
 		ServiceID:         componentID,
 		DependServiceID:   t.DependServiceID,
@@ -117,8 +117,8 @@ type ComponentConfigFile struct {
 	FileContent string `json:"filename"`
 }
 
-func (c *ComponentConfigFile) DbModel(componentID string) dbmodel.TenantServiceConfigFile {
-	return dbmodel.TenantServiceConfigFile{
+func (c *ComponentConfigFile) DbModel(componentID string) *dbmodel.TenantServiceConfigFile {
+	return &dbmodel.TenantServiceConfigFile{
 		ServiceID:   componentID,
 		VolumeName:  c.VolumeName,
 		FileContent: c.FileContent,
@@ -133,8 +133,8 @@ type VolumeRelation struct {
 	VolumeType      string `json:"volume_type"`
 }
 
-func (v *VolumeRelation) DbModel(tenantID, componentID string) dbmodel.TenantServiceMountRelation {
-	return dbmodel.TenantServiceMountRelation{
+func (v *VolumeRelation) DbModel(tenantID, componentID string) *dbmodel.TenantServiceMountRelation {
+	return &dbmodel.TenantServiceMountRelation{
 		TenantID:        tenantID,
 		ServiceID:       componentID,
 		DependServiceID: v.DependServiceID,
@@ -161,8 +161,8 @@ type ComponentVolume struct {
 	VolumeProviderName string `json:"volume_provider_name"`
 }
 
-func (v *ComponentVolume) DbModel(componentID string) dbmodel.TenantServiceVolume {
-	return dbmodel.TenantServiceVolume{
+func (v *ComponentVolume) DbModel(componentID string) *dbmodel.TenantServiceVolume {
+	return &dbmodel.TenantServiceVolume{
 		ServiceID:          componentID,
 		Category:           v.Category,
 		VolumeType:         v.VolumeType,
@@ -185,8 +185,8 @@ type ComponentLabel struct {
 	LabelValue string `json:"label_value"`
 }
 
-func (l *ComponentLabel) DbModel(componentID string) dbmodel.TenantServiceLable {
-	return dbmodel.TenantServiceLable{
+func (l *ComponentLabel) DbModel(componentID string) *dbmodel.TenantServiceLable {
+	return &dbmodel.TenantServiceLable{
 		ServiceID:  componentID,
 		LabelKey:   l.LabelKey,
 		LabelValue: l.LabelValue,
@@ -214,5 +214,5 @@ type Component struct {
 
 // SyncComponentReq -
 type SyncComponentReq struct {
-	Components []Component `json:"components"`
+	Components []*Component `json:"-"`
 }

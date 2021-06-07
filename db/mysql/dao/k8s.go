@@ -121,10 +121,10 @@ func (t *ServiceProbeDaoImpl) DeleteByComponentIDs(componentIDs []string) error 
 }
 
 // CreateOrUpdateProbesInBatch -
-func (t *ServiceProbeDaoImpl) CreateOrUpdateProbesInBatch(probes []model.TenantServiceProbe) error {
+func (t *ServiceProbeDaoImpl) CreateOrUpdateProbesInBatch(probes []*model.TenantServiceProbe) error {
 	var objects []interface{}
 	for _, probe := range probes {
-		objects = append(objects, probe)
+		objects = append(objects, *probe)
 	}
 	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
 		return pkgerr.Wrap(err, "create or update probe in batch")

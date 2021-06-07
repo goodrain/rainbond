@@ -89,16 +89,16 @@ type ServiceHandler interface {
 	DeleteServiceMonitor(tenantID, serviceID, name string) (*dbmodel.TenantServiceMonitor, error)
 	AddServiceMonitor(tenantID, serviceID string, add api_model.AddServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error)
 
-	SyncComponentBasicInfo(tx *gorm.DB, tenantID, appID string, componentIDs []string, components []dbmodel.TenantServices) error
-	SyncComponentMonitors(tx *gorm.DB, componentIDs []string, monitors []dbmodel.TenantServiceMonitor) error
-	SyncComponentPorts(tx *gorm.DB, componentsIDs []string, ports []dbmodel.TenantServicesPort) error
-	SyncComponentRelations(tx *gorm.DB, componentIDs []string, relations []dbmodel.TenantServiceRelation) error
-	SyncComponentEnvs(tx *gorm.DB, componentIDs []string, envs []dbmodel.TenantServiceEnvVar) error
-	SyncComponentVolumeRels(tx *gorm.DB, componentIDs []string, volRels []dbmodel.TenantServiceMountRelation) error
-	SyncComponentVolumes(tx *gorm.DB, componentIDs []string, volumes []dbmodel.TenantServiceVolume) error
-	SyncComponentConfigFiles(tx *gorm.DB, componentIDs []string, configFiles []dbmodel.TenantServiceConfigFile) error
-	SyncComponentProbes(tx *gorm.DB, componentIDs []string, probes []dbmodel.TenantServiceProbe) error
-	SyncComponentLabels(tx *gorm.DB, componentIDs []string, labels []dbmodel.TenantServiceLable) error
-	SyncComponentPlugins(tx *gorm.DB, components dbmodel.Components) error
-	SyncComponentScaleRules(tx *gorm.DB, components dbmodel.Components) error
+	SyncComponentBase(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentMonitors(tx *gorm.DB,app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentPorts(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentRelations(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentEnvs(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentVolumeRels(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentVolumes(tx *gorm.DB,  components []*api_model.Component) error
+	SyncComponentConfigFiles(tx *gorm.DB,  components []*api_model.Component) error
+	SyncComponentProbes(tx *gorm.DB,  components []*api_model.Component) error
+	SyncComponentLabels(tx *gorm.DB,  components []*api_model.Component) error
+	SyncComponentPlugins(tx *gorm.DB, components []*api_model.Component) error
+	SyncComponentScaleRules(tx *gorm.DB,  components []*api_model.Component) error
 }

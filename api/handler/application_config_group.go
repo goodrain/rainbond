@@ -264,12 +264,21 @@ func (a *ApplicationAction) ListConfigGroups(appID string, page, pageSize int) (
 }
 
 // SyncComponentConfigGroupRels -
-func (a *ApplicationAction) SyncComponentConfigGroupRels(tx *gorm.DB, componentIDs []string, cgservices []dbmodel.ConfigGroupService) error{
+func (a *ApplicationAction) SyncComponentConfigGroupRels(tx *gorm.DB, app *dbmodel.Application, components []*model.Component) error{
+	var (
+		componentIDs []string
+		cgservices []*dbmodel.ConfigGroupService
+	)
+	for _, component := range components {
+		if component.AppConfigGroupRels != nil {
+			componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+			for _, acgr := range component.AppConfigGroupRels {
+				cgservices = append(cgservices, acgr.DbModel(app.AppID, component.ComponentBase.ComponentID, component.ComponentBase.ComponentAlias))
+			}
+		}
+	}
 	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
 		return err
 	}
-	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).CreateOrUpdateConfigGroupServicesInBatch(cgservices); err != nil {
-		return err
-	}
-	return nil
+	return db.GetManager().AppConfigGroupServiceDaoTransactions(tx).CreateOrUpdateConfigGroupServicesInBatch(cgservices)
 }
