@@ -467,6 +467,11 @@ func (t *TenantServiceVolume) TableName() string {
 	return "tenant_services_volume"
 }
 
+// Key returns the key of TenantServiceVolume.
+func (t *TenantServiceVolume) Key() string {
+	return fmt.Sprintf("%s/%s", t.ServiceID, t.VolumeName)
+}
+
 // TenantServiceConfigFile represents a data in configMap which is one of the types of volumes
 type TenantServiceConfigFile struct {
 	Model
@@ -613,4 +618,44 @@ func (t *TenantServiceScalingRecords) TableName() string {
 // ServiceID -
 type ServiceID struct {
 	ServiceID string `gorm:"column:service_id" json:"-"`
+}
+
+type Components struct {
+	NeedOperatedID                     NeedOperatedID
+	ComponentIDs                       []string                             `json:"-"`
+	ComponentBases                     []TenantServices                     `json:"component_bases"`
+	HTTPRules                          []HTTPRule                           `json:"http_rules"`
+	TCPRules                           []TCPRule                            `json:"tcp_rules"`
+	Monitors                           []TenantServiceMonitor               `json:"monitors"`
+	Ports                              []TenantServicesPort                 `json:"ports"`
+	Relations                          []TenantServiceRelation              `json:"relations"`
+	Envs                               []TenantServiceEnvVar                `json:"envs"`
+	Probes                             []TenantServiceProbe                 `json:"probes"`
+	AppConfigGroupRels                 []ConfigGroupService                 `json:"app_config_groups"`
+	Labels                             []TenantServiceLable                 `json:"labels"`
+	TenantServicePluginRelations       []TenantServicePluginRelation        `json:"plugins"`
+	TenantPluginVersionEnvs            []TenantPluginVersionEnv             `json:"-"`
+	TenantPluginVersionDiscoverConfigs []TenantPluginVersionDiscoverConfig  `json:"-"`
+	AutoScaleRules                     []TenantServiceAutoscalerRules       `json:"auto_scale_rule"`
+	AutoScaleRuleMetrics               []TenantServiceAutoscalerRuleMetrics `json:"-"`
+	ConfigFiles                        []TenantServiceConfigFile            `json:"config_files"`
+	VolumeRelations                    []TenantServiceMountRelation         `json:"volume_relations"`
+	Volumes                            []TenantServiceVolume                `json:"volumes"`
+}
+
+type NeedOperatedID struct {
+	HttpRuleComponentIDs       []string
+	TCPRuleComponentIDs        []string
+	MonitorComponentIDs        []string
+	PortComponentIDs           []string
+	RelationComponentIDs       []string
+	EnvComponentIDs            []string
+	ProbeComponentIDs          []string
+	ConfigGroupComponentIDs    []string
+	LabelComponentIDs          []string
+	PluginComponentIDs         []string
+	AutoScaleRuleIDs           []string
+	ConfigFileComponentIDs     []string
+	VolumeRelationComponentIDs []string
+	VolumeComponentIDs         []string
 }

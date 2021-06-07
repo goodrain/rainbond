@@ -1,9 +1,11 @@
 package dao
 
 import (
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	pkgerr "github.com/pkg/errors"
 )
 
 //TenantServiceMonitorDaoImpl -
@@ -46,6 +48,23 @@ func (t *TenantServiceMonitorDaoImpl) DeleteServiceMonitor(mo *model.TenantServi
 func (t *TenantServiceMonitorDaoImpl) DeleteServiceMonitorByServiceID(serviceID string) error {
 	if err := t.DB.Where("service_id=?", serviceID).Delete(&model.TenantServiceMonitor{}).Error; err != nil {
 		return err
+	}
+	return nil
+}
+
+//DeleteByComponentIDs delete service monitor by component ids
+func (t *TenantServiceMonitorDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
+	return t.DB.Where("service_id in (?)", componentIDs).Delete(&model.TenantServiceMonitor{}).Error
+}
+
+//CreateOrUpdateMonitorInBatch -
+func (t *TenantServiceMonitorDaoImpl) CreateOrUpdateMonitorInBatch(monitors []model.TenantServiceMonitor) error {
+	var objects []interface{}
+	for _, monitor := range monitors {
+		objects = append(objects, monitor)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update component monitors in batch")
 	}
 	return nil
 }

@@ -20,6 +20,7 @@ package dao
 
 import (
 	"fmt"
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"reflect"
 
 	"github.com/goodrain/rainbond/api/util/bcode"
@@ -274,6 +275,23 @@ func (h *HTTPRuleDaoImpl) ListByCertID(certID string) ([]*model.HTTPRule, error)
 	return rules, nil
 }
 
+//DeleteByComponentIDs delete http rule by component ids
+func (h *HTTPRuleDaoImpl) DeleteByComponentIDs(componentIDs []string) error{
+	return h.DB.Where("service_id in (?) ", componentIDs).Delete(&model.HTTPRule{}).Error
+}
+
+// CreateOrUpdateHTTPRuleInBatch Batch insert or update http rule
+func (h *HTTPRuleDaoImpl) CreateOrUpdateHTTPRuleInBatch(httpRules []model.HTTPRule) error {
+	var objects []interface{}
+	for _, httpRule := range httpRules {
+		objects = append(objects, httpRule)
+	}
+	if err := gormbulkups.BulkUpsert(h.DB, objects, 2000); err != nil {
+		return errors.Wrap(err, "create or update http rule in batch")
+	}
+	return nil
+}
+
 // TCPRuleDaoTmpl is a implementation of TcpRuleDao
 type TCPRuleDaoTmpl struct {
 	DB *gorm.DB
@@ -386,6 +404,23 @@ func (t *TCPRuleDaoTmpl) ListByServiceID(serviceID string) ([]*model.TCPRule, er
 		return nil, err
 	}
 	return rules, nil
+}
+
+//DeleteByComponentIDs delete tcp rule by component ids
+func (t *TCPRuleDaoTmpl) DeleteByComponentIDs(componentIDs []string) error{
+	return t.DB.Where("service_id in (?) ", componentIDs).Delete(&model.TCPRule{}).Error
+}
+
+// CreateOrUpdateTCPRuleInBatch Batch insert or update http rule
+func (t *TCPRuleDaoTmpl) CreateOrUpdateTCPRuleInBatch(tcpRules []model.TCPRule) error {
+	var objects []interface{}
+	for _, tcpRule := range tcpRules {
+		objects = append(objects, tcpRule)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return errors.Wrap(err, "create or update tcp rule in batch")
+	}
+	return nil
 }
 
 // GwRuleConfigDaoImpl is a implementation of GwRuleConfigDao.

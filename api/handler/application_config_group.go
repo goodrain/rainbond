@@ -5,6 +5,7 @@ import (
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 )
 
@@ -260,4 +261,15 @@ func (a *ApplicationAction) ListConfigGroups(appID string, page, pageSize int) (
 	resp.Total = total
 	resp.PageSize = pageSize
 	return &resp, nil
+}
+
+// SyncComponentConfigGroupRels -
+func (a *ApplicationAction) SyncComponentConfigGroupRels(tx *gorm.DB, componentIDs []string, cgservices []dbmodel.ConfigGroupService) error{
+	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).CreateOrUpdateConfigGroupServicesInBatch(cgservices); err != nil {
+		return err
+	}
+	return nil
 }

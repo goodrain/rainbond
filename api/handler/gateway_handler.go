@@ -49,4 +49,6 @@ type GatewayHandler interface {
 	GetGatewayIPs() []IPAndAvailablePort
 	ListHTTPRulesByCertID(certID string) ([]*dbmodel.HTTPRule, error)
 	DeleteIngressRulesByComponentPort(tx *gorm.DB, componentID string, port int) error
+	SyncHTTPRules(tx *gorm.DB,componentIDs []string,httpRules []dbmodel.HTTPRule)error
+	SyncTCPRules(tx *gorm.DB, componentIDs []string, tcpRules []dbmodel.TCPRule) error
 }

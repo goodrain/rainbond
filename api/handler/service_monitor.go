@@ -57,3 +57,13 @@ func (s *ServiceAction) AddServiceMonitor(tenantID, serviceID string, add api_mo
 	}
 	return &sm, db.GetManager().TenantServiceMonitorDao().AddModel(&sm)
 }
+
+func (s *ServiceAction) SyncComponentMonitors(tx *gorm.DB, componentIDs []string, monitors []dbmodel.TenantServiceMonitor) error {
+	if err := db.GetManager().TenantServiceMonitorDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServiceMonitorDaoTransactions(tx).CreateOrUpdateMonitorInBatch(monitors); err != nil {
+		return err
+	}
+	return nil
+}

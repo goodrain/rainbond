@@ -1262,6 +1262,19 @@ type AddTenantServiceEnvVar struct {
 	Scope         string `validate:"scope|in:outer,inner,both,build" json:"scope"`
 }
 
+func (a *AddTenantServiceEnvVar) DbModel(tenantID, componentID string) dbmodel.TenantServiceEnvVar {
+	return dbmodel.TenantServiceEnvVar{
+		TenantID:      tenantID,
+		ServiceID:     componentID,
+		Name:          a.Name,
+		AttrName:      a.AttrName,
+		AttrValue:     a.AttrValue,
+		ContainerPort: a.ContainerPort,
+		IsChange:      true,
+		Scope:         a.Scope,
+	}
+}
+
 //DelTenantServiceEnvVar  应用环境变量
 type DelTenantServiceEnvVar struct {
 	Model
@@ -1292,6 +1305,20 @@ type TenantServicesPort struct {
 	K8sServiceName string `gorm:"column:k8s_service_name" json:"k8s_service_name"`
 	IsInnerService bool   `gorm:"column:is_inner_service" validate:"is_inner_service|bool" json:"is_inner_service"`
 	IsOuterService bool   `gorm:"column:is_outer_service" validate:"is_outer_service|bool" json:"is_outer_service"`
+}
+
+func (p *TenantServicesPort) DbModel(tenantID, componentID string) dbmodel.TenantServicesPort {
+	return dbmodel.TenantServicesPort{
+		TenantID:       tenantID,
+		ServiceID:      componentID,
+		ContainerPort:  p.ContainerPort,
+		MappingPort:    p.MappingPort,
+		Protocol:       p.Protocol,
+		PortAlias:      p.PortAlias,
+		IsInnerService: &p.IsInnerService,
+		IsOuterService: &p.IsOuterService,
+		K8sServiceName: p.K8sServiceName,
+	}
 }
 
 // AddServicePort service port
@@ -1360,6 +1387,26 @@ type ServiceProbe struct {
 	//标志为成功的检测次数
 	SuccessThreshold int    `gorm:"column:success_threshold;size:2;default:1" json:"success_threshold" validate:"success_threshold"`
 	FailureAction    string `json:"failure_action" validate:"failure_action"`
+}
+
+func (p *ServiceProbe) DbModel(componentID string) dbmodel.TenantServiceProbe {
+	return dbmodel.TenantServiceProbe{
+		ServiceID:          componentID,
+		Cmd:                p.Cmd,
+		FailureThreshold:   p.FailureThreshold,
+		HTTPHeader:         p.HTTPHeader,
+		InitialDelaySecond: p.InitialDelaySecond,
+		IsUsed:             &p.IsUsed,
+		Mode:               p.Mode,
+		Path:               p.Path,
+		PeriodSecond:       p.PeriodSecond,
+		Port:               p.Port,
+		ProbeID:            p.ProbeID,
+		Scheme:             p.Scheme,
+		SuccessThreshold:   p.SuccessThreshold,
+		TimeoutSecond:      p.TimeoutSecond,
+		FailureAction:      p.FailureAction,
+	}
 }
 
 //TenantServiceVolume 应用持久化记录
@@ -1824,4 +1871,17 @@ type ListApplicationConfigGroupResp struct {
 	Total       int64                        `json:"total"`
 	Page        int                          `json:"page"`
 	PageSize    int                          `json:"pageSize"`
+}
+
+type AppConfigGroupRelations struct {
+	ConfigGroupName string `json:"config_group_name"`
+}
+
+func (a *AppConfigGroupRelations) DbModel(appID, serviceID, serviceAlias string) dbmodel.ConfigGroupService {
+	return dbmodel.ConfigGroupService{
+		AppID:           appID,
+		ConfigGroupName: a.ConfigGroupName,
+		ServiceID:       serviceID,
+		ServiceAlias:    serviceAlias,
+	}
 }

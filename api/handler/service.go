@@ -1230,6 +1230,17 @@ func (s *ServiceAction) deletePorts(componentID string, ports *api_model.Service
 	})
 }
 
+// SyncComponentPorts -
+func (s *ServiceAction) SyncComponentPorts(tx *gorm.DB, componentsIDs []string, ports []dbmodel.TenantServicesPort) error {
+	if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DeleteByComponentIDs(componentsIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServicesPortDaoTransactions(tx).CreateOrUpdatePortsInBatch(ports); err != nil {
+		return err
+	}
+	return nil
+}
+
 //PortVar port var
 func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_model.ServicePorts, oldPort int) error {
 	crt, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
@@ -2427,6 +2438,162 @@ func (s *ServiceAction) ListScalingRecords(serviceID string, page, pageSize int)
 	}
 
 	return records, count, nil
+}
+
+func (s *ServiceAction) SyncComponentBasicInfo(tx *gorm.DB, tenantID, appID string, componentIDs []string, components []dbmodel.TenantServices) error {
+	if err := db.GetManager().TenantServiceDaoTransactions(tx).DeleteByComponentIDs(tenantID, appID, componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServiceDaoTransactions(tx).CreateOrUpdateComponentsInBatch(components); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *ServiceAction) SyncComponentRelations(tx *gorm.DB, componentIDs []string, relations []dbmodel.TenantServiceRelation) error {
+	if err := db.GetManager().TenantServiceRelationDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServiceRelationDaoTransactions(tx).CreateOrUpdateRelationsInBatch(relations); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *ServiceAction) SyncComponentEnvs(tx *gorm.DB, componentIDs []string, envs []dbmodel.TenantServiceEnvVar) error {
+	if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).CreateOrUpdateEnvsInBatch(envs); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *ServiceAction) SyncComponentVolumeRels(tx *gorm.DB, componentIDs []string, volRels []dbmodel.TenantServiceMountRelation) error {
+	if err := db.GetManager().TenantServiceMountRelationDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServiceMountRelationDaoTransactions(tx).CreateOrUpdateVolumeRelsInBatch(volRels); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *ServiceAction) SyncComponentVolumes(tx *gorm.DB, componentIDs []string, volumes []dbmodel.TenantServiceVolume) error {
+	var (
+		deleteComponentIDs []string
+		deleteVolumeNames  []string
+		createVolumes      []dbmodel.TenantServiceVolume
+	)
+	allVolumes := make(map[string]struct{})
+	existVolumes := make(map[string]struct{})
+	// Get related storage based on the component ID of the operation
+	oldVolumes, err := db.GetManager().TenantServiceVolumeDao().ListVolumesByComponentIDs(componentIDs)
+	if err != nil {
+		return err
+	}
+	for _, ov := range oldVolumes {
+		existVolumes[ov.Key()] = struct{}{}
+	}
+	// If the incoming storage already exists, update it
+	for _, volume := range volumes {
+		allVolumes[volume.Key()] = struct{}{}
+		if _, ok := existVolumes[volume.Key()]; ok {
+			if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).UpdateModel(&volume); err != nil {
+				return err
+			}
+			continue
+		}
+		createVolumes = append(createVolumes, volume)
+	}
+	// If the old storage is not in the incoming list, it means it needs to be deleted
+	for _, ov := range oldVolumes {
+		if _, ok := allVolumes[ov.Key()]; !ok {
+			deleteComponentIDs = append(deleteComponentIDs, ov.ServiceID)
+			deleteVolumeNames = append(deleteVolumeNames, ov.VolumeName)
+		}
+	}
+	if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteByComponentIDVolNames(deleteComponentIDs, deleteVolumeNames); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).CreateOrUpdateVolumesInBatch(createVolumes); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *ServiceAction) SyncComponentConfigFiles(tx *gorm.DB, componentIDs []string, configFiles []dbmodel.TenantServiceConfigFile) error {
+	if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).CreateOrUpdateConfigFilesInBatch(configFiles); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *ServiceAction) SyncComponentProbes(tx *gorm.DB, componentIDs []string, probes []dbmodel.TenantServiceProbe) error {
+	if err := db.GetManager().ServiceProbeDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().ServiceProbeDaoTransactions(tx).CreateOrUpdateProbesInBatch(probes); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *ServiceAction) SyncComponentLabels(tx *gorm.DB, componentIDs []string, labels []dbmodel.TenantServiceLable) error {
+	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).CreateOrUpdateLabelsInBatch(labels); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *ServiceAction) SyncComponentPlugins(tx *gorm.DB, dbComponents dbmodel.Components) error {
+	componentIDs := dbComponents.NeedOperatedID.PluginComponentIDs
+	// TODO: plugin stream port delete and create
+	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+
+	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).CreateOrUpdatePluginRelsInBatch(dbComponents.TenantServicePluginRelations); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).CreateOrUpdatePluginVersionEnvsInBatch(dbComponents.TenantPluginVersionEnvs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).CreateOrUpdatePluginVersionConfigsInBatch(dbComponents.TenantPluginVersionDiscoverConfigs); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *ServiceAction) SyncComponentScaleRules(tx *gorm.DB, dbComponents dbmodel.Components) error {
+	if err := db.GetManager().TenantServceAutoscalerRulesDaoTransactions(tx).DeleteByComponentIDs(dbComponents.ComponentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).DeleteByRuleIDs(dbComponents.NeedOperatedID.AutoScaleRuleIDs); err != nil {
+		return err
+	}
+
+	if err := db.GetManager().TenantServceAutoscalerRulesDaoTransactions(tx).CreateOrUpdateScaleRulesInBatch(dbComponents.AutoScaleRules); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).CreateOrUpdateScaleRuleMetricsInBatch(dbComponents.AutoScaleRuleMetrics); err != nil {
+		return err
+	}
+	return nil
 }
 
 //TransStatus trans service status

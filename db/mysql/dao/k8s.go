@@ -20,6 +20,8 @@ package dao
 
 import (
 	"fmt"
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
+	pkgerr "github.com/pkg/errors"
 
 	"github.com/goodrain/rainbond/db/model"
 
@@ -109,6 +111,23 @@ func (t *ServiceProbeDaoImpl) DELServiceProbesByServiceID(serviceID string) erro
 	}
 	if err := t.DB.Where("service_id=?", serviceID).Delete(probes).Error; err != nil {
 		return err
+	}
+	return nil
+}
+
+// DeleteByComponentIDs deletes TenantServiceProbe based on componentIDs
+func (t *ServiceProbeDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
+	return t.DB.Where("service_id in (?)", componentIDs).Delete(&model.TenantServiceProbe{}).Error
+}
+
+// CreateOrUpdateProbesInBatch -
+func (t *ServiceProbeDaoImpl) CreateOrUpdateProbesInBatch(probes []model.TenantServiceProbe) error {
+	var objects []interface{}
+	for _, probe := range probes {
+		objects = append(objects, probe)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update probe in batch")
 	}
 	return nil
 }

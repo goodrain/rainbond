@@ -18,6 +18,11 @@
 
 package model
 
+import (
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	"strings"
+)
+
 //AddHTTPRuleStruct is used to add http rule, certificate and rule extensions
 type AddHTTPRuleStruct struct {
 	HTTPRuleID     string                 `json:"http_rule_id" validate:"http_rule_id|required"`
@@ -33,6 +38,26 @@ type AddHTTPRuleStruct struct {
 	Certificate    string                 `json:"certificate"`
 	PrivateKey     string                 `json:"private_key"`
 	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
+}
+
+func (h *AddHTTPRuleStruct) DbModel(serviceID string) dbmodel.HTTPRule {
+	return dbmodel.HTTPRule{
+		UUID:          h.HTTPRuleID,
+		ServiceID:     serviceID,
+		ContainerPort: h.ContainerPort,
+		Domain:        h.Domain,
+		Path: func() string {
+			if !strings.HasPrefix(h.Path, "/") {
+				return "/" + h.Path
+			}
+			return h.Path
+		}(),
+		Header:        h.Header,
+		Cookie:        h.Cookie,
+		Weight:        h.Weight,
+		IP:            h.IP,
+		CertificateID: h.CertificateID,
+	}
 }
 
 //UpdateHTTPRuleStruct is used to update http rule, certificate and rule extensions
@@ -65,6 +90,16 @@ type AddTCPRuleStruct struct {
 	IP             string                 `json:"ip"`
 	Port           int                    `json:"port" validate:"service_id|required"`
 	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
+}
+
+func (a *AddTCPRuleStruct) DbModel(serviceID string) dbmodel.TCPRule {
+	return dbmodel.TCPRule{
+		UUID:          a.TCPRuleID,
+		ServiceID:     serviceID,
+		ContainerPort: a.ContainerPort,
+		IP:            a.IP,
+		Port:          a.Port,
+	}
 }
 
 // UpdateTCPRuleStruct is used to update tcp rule and rule extensions

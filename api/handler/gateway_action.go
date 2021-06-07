@@ -856,3 +856,23 @@ func (g *GatewayAction) listHTTPRuleIDs(componentID string, port int) ([]string,
 	}
 	return ruleIDs, nil
 }
+
+func (g *GatewayAction) SyncHTTPRules(tx *gorm.DB, componentIDs []string, httpRules []model.HTTPRule) error {
+	if err := db.GetManager().HTTPRuleDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().HTTPRuleDaoTransactions(tx).CreateOrUpdateHTTPRuleInBatch(httpRules); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (g *GatewayAction) SyncTCPRules(tx *gorm.DB, componentIDs []string, tcpRules []model.TCPRule) error {
+	if err := db.GetManager().TCPRuleDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TCPRuleDaoTransactions(tx).CreateOrUpdateTCPRuleInBatch(tcpRules); err != nil {
+		return err
+	}
+	return nil
+}

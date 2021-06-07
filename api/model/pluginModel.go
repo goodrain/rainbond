@@ -18,6 +18,8 @@
 
 package model
 
+import dbmodel "github.com/goodrain/rainbond/db/model"
+
 //CreatePluginStruct CreatePluginStruct
 //swagger:parameters createPlugin
 type CreatePluginStruct struct {
@@ -440,4 +442,64 @@ type TransPlugins struct {
 		// required: true
 		PluginsID []string `json:"plugins_id" validate:"plugins_id"`
 	}
+}
+
+// PluginVersionEnv -
+type PluginVersionEnv struct {
+	EnvName  string `json:"env_name" validate:"env_name"`
+	EnvValue string `json:"env_value" validate:"env_value"`
+}
+
+func (p *PluginVersionEnv) DbModel(componentID, pluginID string) dbmodel.TenantPluginVersionEnv {
+	return dbmodel.TenantPluginVersionEnv{
+		ServiceID: componentID,
+		PluginID:  pluginID,
+		EnvName:   p.EnvName,
+		EnvValue:  p.EnvValue,
+	}
+}
+
+// TenantPluginVersionConfig -
+type TenantPluginVersionConfig struct {
+	ConfigStr string `json:"config_str" validate:"config_str"`
+}
+
+func (p *TenantPluginVersionConfig) DbModel(componentID, pluginID string) dbmodel.TenantPluginVersionDiscoverConfig {
+	return dbmodel.TenantPluginVersionDiscoverConfig{
+		ServiceID: componentID,
+		PluginID:  pluginID,
+		ConfigStr: p.ConfigStr,
+	}
+}
+
+// ComponentPlugin -
+type ComponentPlugin struct {
+	PluginID          string                    `json:"plugin_id"`
+	VersionID         string                    `json:"version_id"`
+	PluginModel       string                    `json:"plugin_model"`
+	ContainerCPU      int                       `json:"container_cpu"`
+	ContainerMemory   int                       `json:"container_memory"`
+	Switch            bool                      `json:"switch"`
+	VersionConfig     TenantPluginVersionConfig `json:"tenant_plugin_version_config"`
+	PluginVersionEnvs []PluginVersionEnv        `json:"tenant_plugin_version_envs"`
+}
+
+func (p *ComponentPlugin) DbModel(componentID string) dbmodel.TenantServicePluginRelation {
+	return dbmodel.TenantServicePluginRelation{
+		VersionID:       p.VersionID,
+		ServiceID:       componentID,
+		PluginID:        p.PluginID,
+		Switch:          p.Switch,
+		PluginModel:     p.PluginModel,
+		ContainerCPU:    p.ContainerCPU,
+		ContainerMemory: p.ContainerMemory,
+	}
+}
+
+type TenantServicesStreamPluginPort struct {
+	TenantID      string `json:"tenant_id"`
+	ServiceID     string `json:"service_id"`
+	PluginModel   string `json:"plugin_model"`
+	ContainerPort int    `json:"container_port"`
+	PluginPort    int    `json:"plugin_port"`
 }

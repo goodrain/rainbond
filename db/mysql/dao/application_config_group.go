@@ -1,9 +1,11 @@
 package dao
 
 import (
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	pkgerr "github.com/pkg/errors"
 )
 
 // AppConfigGroupDaoImpl -
@@ -109,6 +111,23 @@ func (a *AppConfigGroupServiceDaoImpl) DeleteConfigGroupService(appID, configGro
 //DeleteEffectiveServiceByServiceID -
 func (a *AppConfigGroupServiceDaoImpl) DeleteEffectiveServiceByServiceID(serviceID string) error {
 	return a.DB.Where("service_id = ?", serviceID).Delete(model.ConfigGroupService{}).Error
+}
+
+//DeleteByComponentIDs -
+func (a *AppConfigGroupServiceDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
+	return a.DB.Where("service_id in (?)", componentIDs).Delete(model.ConfigGroupService{}).Error
+}
+
+// CreateOrUpdateConfigGroupServicesInBatch -
+func (a *AppConfigGroupServiceDaoImpl) CreateOrUpdateConfigGroupServicesInBatch(cgservices []model.ConfigGroupService) error {
+	var objects []interface{}
+	for _, cgs := range cgservices {
+		objects = append(objects, cgs)
+	}
+	if err := gormbulkups.BulkUpsert(a.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update config group services in batch")
+	}
+	return nil
 }
 
 // AppConfigGroupItemDaoImpl -

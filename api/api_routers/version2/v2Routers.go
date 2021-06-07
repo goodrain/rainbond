@@ -321,6 +321,8 @@ func (v2 *V2) applicationRouter() chi.Router {
 	r.Delete("/configgroups/{config_group_name}", controller.GetManager().DeleteConfigGroup)
 	r.Get("/configgroups", controller.GetManager().ListConfigGroups)
 
+	// Synchronize component information, full coverage
+	r.Post("/components", controller.GetManager().SyncComponent)
 	return r
 }
 
