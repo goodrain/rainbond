@@ -214,5 +214,5 @@ type Component struct {
 
 // SyncComponentReq -
 type SyncComponentReq struct {
-	Components []*Component `json:"-"`
+	Components []*Component `json:"components"`
 }
