@@ -58,6 +58,7 @@ func (s *ServiceAction) AddServiceMonitor(tenantID, serviceID string, add api_mo
 	return &sm, db.GetManager().TenantServiceMonitorDao().AddModel(&sm)
 }
 
+// SyncComponentMonitors -
 func (s *ServiceAction) SyncComponentMonitors(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error {
 	var (
 		componentIDs []string

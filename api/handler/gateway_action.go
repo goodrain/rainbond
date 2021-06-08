@@ -857,6 +857,7 @@ func (g *GatewayAction) listHTTPRuleIDs(componentID string, port int) ([]string,
 	return ruleIDs, nil
 }
 
+// SyncHTTPRules -
 func (g *GatewayAction) SyncHTTPRules(tx *gorm.DB, components []*apimodel.Component) error {
 	var (
 		componentIDs []string
@@ -877,6 +878,7 @@ func (g *GatewayAction) SyncHTTPRules(tx *gorm.DB, components []*apimodel.Compon
 	return db.GetManager().HTTPRuleDaoTransactions(tx).CreateOrUpdateHTTPRuleInBatch(httpRules)
 }
 
+// SyncTCPRules -
 func (g *GatewayAction) SyncTCPRules(tx *gorm.DB, components []*apimodel.Component) error {
 	var (
 		componentIDs []string

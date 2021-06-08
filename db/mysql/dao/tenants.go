@@ -1829,7 +1829,7 @@ func (t *TenantServceAutoscalerRulesDaoImpl) DeleteByComponentIDs(componentIDs [
 	return t.DB.Where("service_id in (?)", componentIDs).Delete(&model.TenantServiceAutoscalerRules{}).Error
 }
 
-// CreateOrUpdateLabelsInBatch -
+// CreateOrUpdateScaleRulesInBatch -
 func (t *TenantServceAutoscalerRulesDaoImpl) CreateOrUpdateScaleRulesInBatch(rules []*model.TenantServiceAutoscalerRules) error {
 	var objects []interface{}
 	for _, rule := range rules {
@@ -1909,7 +1909,7 @@ func (t *TenantServceAutoscalerRuleMetricsDaoImpl) DeleteByRuleIDs(ruleIDs []str
 	return t.DB.Where("rule_id in (?)", ruleIDs).Delete(&model.TenantServiceAutoscalerRuleMetrics{}).Error
 }
 
-// CreateOrUpdateScaleRulesInBatch -
+// CreateOrUpdateScaleRuleMetricsInBatch -
 func (t *TenantServceAutoscalerRuleMetricsDaoImpl) CreateOrUpdateScaleRuleMetricsInBatch(metrics []*model.TenantServiceAutoscalerRuleMetrics) error {
 	var objects []interface{}
 	for _, metric := range metrics {

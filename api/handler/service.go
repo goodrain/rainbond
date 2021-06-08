@@ -2452,6 +2452,7 @@ func (s *ServiceAction) ListScalingRecords(serviceID string, page, pageSize int)
 	return records, count, nil
 }
 
+// SyncComponentBase -
 func (s *ServiceAction) SyncComponentBase(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error {
 	var (
 		componentIDs []string
@@ -2467,6 +2468,7 @@ func (s *ServiceAction) SyncComponentBase(tx *gorm.DB, app *dbmodel.Application,
 	return db.GetManager().TenantServiceDaoTransactions(tx).CreateOrUpdateComponentsInBatch(dbComponents)
 }
 
+// SyncComponentRelations -
 func (s *ServiceAction) SyncComponentRelations(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error {
 	var (
 		componentIDs []string
@@ -2487,6 +2489,7 @@ func (s *ServiceAction) SyncComponentRelations(tx *gorm.DB, app *dbmodel.Applica
 	return db.GetManager().TenantServiceRelationDaoTransactions(tx).CreateOrUpdateRelationsInBatch(relations)
 }
 
+// SyncComponentEnvs -
 func (s *ServiceAction) SyncComponentEnvs(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error {
 	var (
 		componentIDs []string
@@ -2507,6 +2510,7 @@ func (s *ServiceAction) SyncComponentEnvs(tx *gorm.DB, app *dbmodel.Application,
 	return db.GetManager().TenantServiceEnvVarDaoTransactions(tx).CreateOrUpdateEnvsInBatch(envs)
 }
 
+// SyncComponentVolumeRels -
 func (s *ServiceAction) SyncComponentVolumeRels(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error {
 	var (
 		componentIDs []string
@@ -2527,6 +2531,7 @@ func (s *ServiceAction) SyncComponentVolumeRels(tx *gorm.DB, app *dbmodel.Applic
 	return db.GetManager().TenantServiceMountRelationDaoTransactions(tx).CreateOrUpdateVolumeRelsInBatch(volRels)
 }
 
+// SyncComponentVolumes -
 func (s *ServiceAction) SyncComponentVolumes(tx *gorm.DB, components []*api_model.Component) error {
 	var (
 		componentIDs []string
@@ -2588,6 +2593,7 @@ func (s *ServiceAction) getDeleteVolumeIDs(existVolumes map[string]*dbmodel.Tena
 	return deleteVolumeIDs
 }
 
+// SyncComponentConfigFiles -
 func (s *ServiceAction) SyncComponentConfigFiles(tx *gorm.DB, components []*api_model.Component) error {
 	var (
 		componentIDs []string
@@ -2608,6 +2614,7 @@ func (s *ServiceAction) SyncComponentConfigFiles(tx *gorm.DB, components []*api_
 	return db.GetManager().TenantServiceConfigFileDaoTransactions(tx).CreateOrUpdateConfigFilesInBatch(configFiles)
 }
 
+// SyncComponentProbes -
 func (s *ServiceAction) SyncComponentProbes(tx *gorm.DB, components []*api_model.Component) error {
 	var (
 		componentIDs []string
@@ -2628,6 +2635,7 @@ func (s *ServiceAction) SyncComponentProbes(tx *gorm.DB, components []*api_model
 	return db.GetManager().ServiceProbeDaoTransactions(tx).CreateOrUpdateProbesInBatch(probes)
 }
 
+// SyncComponentLabels -
 func (s *ServiceAction) SyncComponentLabels(tx *gorm.DB, components []*api_model.Component) error {
 	var (
 		componentIDs []string
@@ -2648,6 +2656,7 @@ func (s *ServiceAction) SyncComponentLabels(tx *gorm.DB, components []*api_model
 	return db.GetManager().TenantServiceLabelDaoTransactions(tx).CreateOrUpdateLabelsInBatch(labels)
 }
 
+// SyncComponentPlugins -
 func (s *ServiceAction) SyncComponentPlugins(tx *gorm.DB, components []*api_model.Component) error {
 	var (
 		componentIDs         []string
@@ -2688,6 +2697,7 @@ func (s *ServiceAction) SyncComponentPlugins(tx *gorm.DB, components []*api_mode
 	return db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).CreateOrUpdatePluginVersionConfigsInBatch(pluginVersionConfigs)
 }
 
+// SyncComponentScaleRules -
 func (s *ServiceAction) SyncComponentScaleRules(tx *gorm.DB, components []*api_model.Component) error {
 	var (
 		componentIDs         []string

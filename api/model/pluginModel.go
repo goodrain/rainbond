@@ -450,6 +450,7 @@ type PluginVersionEnv struct {
 	EnvValue string `json:"env_value" validate:"env_value"`
 }
 
+// DbModel return database model
 func (p *PluginVersionEnv) DbModel(componentID, pluginID string) *dbmodel.TenantPluginVersionEnv {
 	return &dbmodel.TenantPluginVersionEnv{
 		ServiceID: componentID,
@@ -464,6 +465,7 @@ type TenantPluginVersionConfig struct {
 	ConfigStr string `json:"config_str" validate:"config_str"`
 }
 
+// DbModel return database model
 func (p *TenantPluginVersionConfig) DbModel(componentID, pluginID string) *dbmodel.TenantPluginVersionDiscoverConfig {
 	return &dbmodel.TenantPluginVersionDiscoverConfig{
 		ServiceID: componentID,
@@ -484,6 +486,7 @@ type ComponentPlugin struct {
 	PluginVersionEnvs []PluginVersionEnv        `json:"tenant_plugin_version_envs"`
 }
 
+// DbModel return database model
 func (p *ComponentPlugin) DbModel(componentID string) *dbmodel.TenantServicePluginRelation {
 	return &dbmodel.TenantServicePluginRelation{
 		VersionID:       p.VersionID,
@@ -494,12 +497,4 @@ func (p *ComponentPlugin) DbModel(componentID string) *dbmodel.TenantServicePlug
 		ContainerCPU:    p.ContainerCPU,
 		ContainerMemory: p.ContainerMemory,
 	}
-}
-
-type TenantServicesStreamPluginPort struct {
-	TenantID      string `json:"tenant_id"`
-	ServiceID     string `json:"service_id"`
-	PluginModel   string `json:"plugin_model"`
-	ContainerPort int    `json:"container_port"`
-	PluginPort    int    `json:"plugin_port"`
 }

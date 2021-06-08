@@ -26,6 +26,7 @@ type AddServiceMonitorRequestStruct struct {
 	Interval string `json:"interval" validate:"interval|required"`
 }
 
+// DbModel return database model
 func (a *AddServiceMonitorRequestStruct) DbModel(tenantID, serviceID string) *dbmodel.TenantServiceMonitor {
 	return &dbmodel.TenantServiceMonitor{
 		Name:            a.Name,

@@ -40,6 +40,7 @@ type AddHTTPRuleStruct struct {
 	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
 }
 
+// DbModel return database model
 func (h *AddHTTPRuleStruct) DbModel(serviceID string) *dbmodel.HTTPRule {
 	return &dbmodel.HTTPRule{
 		UUID:          h.HTTPRuleID,
@@ -92,6 +93,7 @@ type AddTCPRuleStruct struct {
 	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
 }
 
+// DbModel return database model
 func (a *AddTCPRuleStruct) DbModel(serviceID string) *dbmodel.TCPRule {
 	return &dbmodel.TCPRule{
 		UUID:          a.TCPRuleID,

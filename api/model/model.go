@@ -1262,6 +1262,7 @@ type AddTenantServiceEnvVar struct {
 	Scope         string `validate:"scope|in:outer,inner,both,build" json:"scope"`
 }
 
+// DbModel return database model
 func (a *AddTenantServiceEnvVar) DbModel(tenantID, componentID string) *dbmodel.TenantServiceEnvVar {
 	return &dbmodel.TenantServiceEnvVar{
 		TenantID:      tenantID,
@@ -1307,6 +1308,7 @@ type TenantServicesPort struct {
 	IsOuterService bool   `gorm:"column:is_outer_service" validate:"is_outer_service|bool" json:"is_outer_service"`
 }
 
+// DbModel return database model
 func (p *TenantServicesPort) DbModel(tenantID, componentID string) *dbmodel.TenantServicesPort {
 	return &dbmodel.TenantServicesPort{
 		TenantID:       tenantID,
@@ -1389,6 +1391,7 @@ type ServiceProbe struct {
 	FailureAction    string `json:"failure_action" validate:"failure_action"`
 }
 
+// DbModel return database model
 func (p *ServiceProbe) DbModel(componentID string) *dbmodel.TenantServiceProbe {
 	return &dbmodel.TenantServiceProbe{
 		ServiceID:          componentID,
@@ -1873,10 +1876,12 @@ type ListApplicationConfigGroupResp struct {
 	PageSize    int                          `json:"pageSize"`
 }
 
+// AppConfigGroupRelations -
 type AppConfigGroupRelations struct {
 	ConfigGroupName string `json:"config_group_name"`
 }
 
+// DbModel return database model
 func (a *AppConfigGroupRelations) DbModel(appID, serviceID, serviceAlias string) *dbmodel.ConfigGroupService {
 	return &dbmodel.ConfigGroupService{
 		AppID:           appID,

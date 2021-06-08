@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// ComponentBase -
 type ComponentBase struct {
 	// in: body
 	// required: true
@@ -72,7 +73,7 @@ type ComponentBase struct {
 	Kind          string `json:"kind" validate:"kind|in:internal,third_party"`
 }
 
-// DbModel -
+// DbModel return database model
 func (c *ComponentBase) DbModel(tenantID, appID string) *dbmodel.TenantServices {
 	return &dbmodel.TenantServices{
 		TenantID:        tenantID,
@@ -96,12 +97,14 @@ func (c *ComponentBase) DbModel(tenantID, appID string) *dbmodel.TenantServices 
 	}
 }
 
+// TenantComponentRelation -
 type TenantComponentRelation struct {
 	DependServiceID   string `json:"depend_service_id"`
 	DependServiceType string `json:"dep_service_type"`
 	DependOrder       int    `json:"dep_order"`
 }
 
+// DbModel return database model
 func (t *TenantComponentRelation) DbModel(tenantID, componentID string) *dbmodel.TenantServiceRelation {
 	return &dbmodel.TenantServiceRelation{
 		TenantID:          tenantID,
@@ -112,11 +115,13 @@ func (t *TenantComponentRelation) DbModel(tenantID, componentID string) *dbmodel
 	}
 }
 
+// ComponentConfigFile -
 type ComponentConfigFile struct {
 	VolumeName  string `json:"volume_name"`
-	FileContent string `json:"filename"`
+	FileContent string `json:"file_content"`
 }
 
+// DbModel return database model
 func (c *ComponentConfigFile) DbModel(componentID string) *dbmodel.TenantServiceConfigFile {
 	return &dbmodel.TenantServiceConfigFile{
 		ServiceID:   componentID,
@@ -125,6 +130,7 @@ func (c *ComponentConfigFile) DbModel(componentID string) *dbmodel.TenantService
 	}
 }
 
+// VolumeRelation -
 type VolumeRelation struct {
 	DependServiceID string `json:"dep_service_id"`
 	VolumePath      string `json:"mnt_name"`
@@ -133,6 +139,7 @@ type VolumeRelation struct {
 	VolumeType      string `json:"volume_type"`
 }
 
+// DbModel return database model
 func (v *VolumeRelation) DbModel(tenantID, componentID string) *dbmodel.TenantServiceMountRelation {
 	return &dbmodel.TenantServiceMountRelation{
 		TenantID:        tenantID,
@@ -145,6 +152,7 @@ func (v *VolumeRelation) DbModel(tenantID, componentID string) *dbmodel.TenantSe
 	}
 }
 
+// ComponentVolume -
 type ComponentVolume struct {
 	Category           string `json:"category"`
 	VolumeType         string `json:"volume_type"`
@@ -161,6 +169,7 @@ type ComponentVolume struct {
 	VolumeProviderName string `json:"volume_provider_name"`
 }
 
+// DbModel return database model
 func (v *ComponentVolume) DbModel(componentID string) *dbmodel.TenantServiceVolume {
 	return &dbmodel.TenantServiceVolume{
 		ServiceID:          componentID,
@@ -180,11 +189,13 @@ func (v *ComponentVolume) DbModel(componentID string) *dbmodel.TenantServiceVolu
 	}
 }
 
+// ComponentLabel -
 type ComponentLabel struct {
 	LabelKey   string `json:"label_key"`
 	LabelValue string `json:"label_value"`
 }
 
+// DbModel return database model
 func (l *ComponentLabel) DbModel(componentID string) *dbmodel.TenantServiceLable {
 	return &dbmodel.TenantServiceLable{
 		ServiceID:  componentID,

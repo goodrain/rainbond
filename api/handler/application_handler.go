@@ -290,7 +290,7 @@ func (a *ApplicationAction) BatchBindService(appID string, req model.BindService
 	return db.GetManager().TenantServiceDao().BindAppByServiceIDs(appID, serviceIDs)
 }
 
-// SyncComponent -
+// SyncComponents -
 func (a *ApplicationAction) SyncComponents(app *dbmodel.Application, components []*model.Component) error {
 	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
 		if err := GetServiceManager().SyncComponentBase(tx, app, components); err != nil {

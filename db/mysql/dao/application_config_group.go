@@ -41,6 +41,7 @@ func (a *AppConfigGroupDaoImpl) GetConfigGroupByID(appID, configGroupName string
 	return &oldApp, nil
 }
 
+// ListByServiceID -
 func (a *AppConfigGroupDaoImpl) ListByServiceID(sid string) ([]*model.ApplicationConfigGroup, error) {
 	var groups []*model.ApplicationConfigGroup
 	if err := a.DB.Model(model.ApplicationConfigGroup{}).Select("app_config_group.*").Joins("left join app_config_group_service on app_config_group.app_id = app_config_group_service.app_id and app_config_group.config_group_name = app_config_group_service.config_group_name").
@@ -165,6 +166,7 @@ func (a *AppConfigGroupItemDaoImpl) GetConfigGroupItemsByID(appID, configGroupNa
 	return oldApp, nil
 }
 
+// ListByServiceID -
 func (a *AppConfigGroupItemDaoImpl) ListByServiceID(sid string) ([]*model.ConfigGroupItem, error) {
 	var items []*model.ConfigGroupItem
 	if err := a.DB.Model(model.ConfigGroupItem{}).Select("app_config_group_item.*").Joins("left join app_config_group_service on app_config_group_item.app_id = app_config_group_service.app_id and app_config_group_item.config_group_name = app_config_group_service.config_group_name").

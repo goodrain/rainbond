@@ -109,7 +109,7 @@ func (a *ApplicationController) ListConfigGroups(w http.ResponseWriter, r *http.
 	httputil.ReturnSuccess(r, w, resp)
 }
 
-// SyncComponent -
+// SyncComponents -
 func (a *ApplicationController)SyncComponents(w http.ResponseWriter, r *http.Request){
 	var syncComponentReq model.SyncComponentReq
 	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)

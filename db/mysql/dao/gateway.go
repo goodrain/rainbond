@@ -411,7 +411,7 @@ func (t *TCPRuleDaoTmpl) DeleteByComponentIDs(componentIDs []string) error{
 	return t.DB.Where("service_id in (?) ", componentIDs).Delete(&model.TCPRule{}).Error
 }
 
-// CreateOrUpdateTCPRuleInBatch Batch insert or update http rule
+// CreateOrUpdateTCPRuleInBatch Batch insert or update tcp rule
 func (t *TCPRuleDaoTmpl) CreateOrUpdateTCPRuleInBatch(tcpRules []*model.TCPRule) error {
 	var objects []interface{}
 	for _, tcpRule := range tcpRules {
