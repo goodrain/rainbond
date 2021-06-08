@@ -270,11 +270,12 @@ func (a *ApplicationAction) SyncComponentConfigGroupRels(tx *gorm.DB, app *dbmod
 		cgservices []*dbmodel.ConfigGroupService
 	)
 	for _, component := range components {
-		if component.AppConfigGroupRels != nil {
-			componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
-			for _, acgr := range component.AppConfigGroupRels {
-				cgservices = append(cgservices, acgr.DbModel(app.AppID, component.ComponentBase.ComponentID, component.ComponentBase.ComponentAlias))
-			}
+		if component.AppConfigGroupRels == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, acgr := range component.AppConfigGroupRels {
+			cgservices = append(cgservices, acgr.DbModel(app.AppID, component.ComponentBase.ComponentID, component.ComponentBase.ComponentAlias))
 		}
 	}
 	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {

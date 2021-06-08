@@ -1239,11 +1239,12 @@ func (s *ServiceAction) SyncComponentPorts(tx *gorm.DB, app *dbmodel.Application
 		ports        []*dbmodel.TenantServicesPort
 	)
 	for _, component := range components {
-		if component.Ports != nil {
-			componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
-			for _, port := range component.Ports {
-				ports = append(ports, port.DbModel(app.TenantID, component.ComponentBase.ComponentID))
-			}
+		if component.Ports == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, port := range component.Ports {
+			ports = append(ports, port.DbModel(app.TenantID, component.ComponentBase.ComponentID))
 		}
 	}
 	if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
@@ -2472,11 +2473,12 @@ func (s *ServiceAction) SyncComponentRelations(tx *gorm.DB, app *dbmodel.Applica
 		relations    []*dbmodel.TenantServiceRelation
 	)
 	for _, component := range components {
-		if component.Relations != nil {
-			componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
-			for _, relation := range component.Relations {
-				relations = append(relations, relation.DbModel(app.TenantID, component.ComponentBase.ComponentID))
-			}
+		if component.Relations == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, relation := range component.Relations {
+			relations = append(relations, relation.DbModel(app.TenantID, component.ComponentBase.ComponentID))
 		}
 	}
 	if err := db.GetManager().TenantServiceRelationDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
@@ -2491,11 +2493,12 @@ func (s *ServiceAction) SyncComponentEnvs(tx *gorm.DB, app *dbmodel.Application,
 		envs         []*dbmodel.TenantServiceEnvVar
 	)
 	for _, component := range components {
-		if component.Envs != nil {
-			componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
-			for _, env := range component.Envs {
-				envs = append(envs, env.DbModel(app.TenantID, component.ComponentBase.ComponentID))
-			}
+		if component.Envs == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, env := range component.Envs {
+			envs = append(envs, env.DbModel(app.TenantID, component.ComponentBase.ComponentID))
 		}
 	}
 	if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
@@ -2510,11 +2513,12 @@ func (s *ServiceAction) SyncComponentVolumeRels(tx *gorm.DB, app *dbmodel.Applic
 		volRels      []*dbmodel.TenantServiceMountRelation
 	)
 	for _, component := range components {
-		if component.VolumeRelations != nil {
-			componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
-			for _, volumeRelation := range component.VolumeRelations {
-				volRels = append(volRels, volumeRelation.DbModel(app.TenantID, component.ComponentBase.ComponentID))
-			}
+		if component.VolumeRelations == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, volumeRelation := range component.VolumeRelations {
+			volRels = append(volRels, volumeRelation.DbModel(app.TenantID, component.ComponentBase.ComponentID))
 		}
 	}
 	if err := db.GetManager().TenantServiceMountRelationDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
@@ -2529,11 +2533,12 @@ func (s *ServiceAction) SyncComponentVolumes(tx *gorm.DB, components []*api_mode
 		volumes      []*dbmodel.TenantServiceVolume
 	)
 	for _, component := range components {
-		if component.Volumes != nil {
-			componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
-			for _, volume := range component.Volumes {
-				volumes = append(volumes, volume.DbModel(component.ComponentBase.ComponentID))
-			}
+		if component.Volumes == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, volume := range component.Volumes {
+			volumes = append(volumes, volume.DbModel(component.ComponentBase.ComponentID))
 		}
 	}
 	existVolumes, err := s.getExistVolumes(componentIDs)
@@ -2589,11 +2594,12 @@ func (s *ServiceAction) SyncComponentConfigFiles(tx *gorm.DB, components []*api_
 		configFiles  []*dbmodel.TenantServiceConfigFile
 	)
 	for _, component := range components {
-		if component.ConfigFiles != nil {
-			componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
-			for _, configFile := range component.ConfigFiles {
-				configFiles = append(configFiles, configFile.DbModel(component.ComponentBase.ComponentID))
-			}
+		if component.ConfigFiles == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, configFile := range component.ConfigFiles {
+			configFiles = append(configFiles, configFile.DbModel(component.ComponentBase.ComponentID))
 		}
 	}
 	if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
@@ -2608,11 +2614,12 @@ func (s *ServiceAction) SyncComponentProbes(tx *gorm.DB, components []*api_model
 		probes       []*dbmodel.TenantServiceProbe
 	)
 	for _, component := range components {
-		if component.Probes != nil {
-			componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
-			for _, probe := range component.Probes {
-				probes = append(probes, probe.DbModel(component.ComponentBase.ComponentID))
-			}
+		if component.Probes == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, probe := range component.Probes {
+			probes = append(probes, probe.DbModel(component.ComponentBase.ComponentID))
 		}
 	}
 	if err := db.GetManager().ServiceProbeDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
@@ -2627,11 +2634,12 @@ func (s *ServiceAction) SyncComponentLabels(tx *gorm.DB, components []*api_model
 		labels       []*dbmodel.TenantServiceLable
 	)
 	for _, component := range components {
-		if component.Labels != nil {
-			componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
-			for _, label := range component.Labels {
-				labels = append(labels, label.DbModel(component.ComponentBase.ComponentID))
-			}
+		if component.Labels == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, label := range component.Labels {
+			labels = append(labels, label.DbModel(component.ComponentBase.ComponentID))
 		}
 	}
 	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
@@ -2648,14 +2656,15 @@ func (s *ServiceAction) SyncComponentPlugins(tx *gorm.DB, components []*api_mode
 		pluginVersionConfigs []*dbmodel.TenantPluginVersionDiscoverConfig
 	)
 	for _, component := range components {
-		if component.Plugins != nil {
-			componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
-			for _, plugin := range component.Plugins {
-				pluginRelations = append(pluginRelations, plugin.DbModel(component.ComponentBase.ComponentID))
-				pluginVersionConfigs = append(pluginVersionConfigs, plugin.VersionConfig.DbModel(component.ComponentBase.ComponentID, plugin.PluginID))
-				for _, versionEnv := range plugin.PluginVersionEnvs {
-					pluginVersionEnvs = append(pluginVersionEnvs, versionEnv.DbModel(component.ComponentBase.ComponentID, plugin.PluginID))
-				}
+		if component.Plugins == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, plugin := range component.Plugins {
+			pluginRelations = append(pluginRelations, plugin.DbModel(component.ComponentBase.ComponentID))
+			pluginVersionConfigs = append(pluginVersionConfigs, plugin.VersionConfig.DbModel(component.ComponentBase.ComponentID, plugin.PluginID))
+			for _, versionEnv := range plugin.PluginVersionEnvs {
+				pluginVersionEnvs = append(pluginVersionEnvs, versionEnv.DbModel(component.ComponentBase.ComponentID, plugin.PluginID))
 			}
 		}
 	}
