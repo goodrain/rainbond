@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"time"
 )
@@ -128,23 +129,26 @@ func (c *ComponentConfigFile) DbModel(componentID string) *dbmodel.TenantService
 
 // VolumeRelation -
 type VolumeRelation struct {
-	DependServiceID string `json:"dep_service_id"`
-	VolumePath      string `json:"mnt_name"`
-	HostPath        string `json:"mnt_dir"`
-	VolumeName      string `json:"volume_name"`
-	VolumeType      string `json:"volume_type"`
+	MountPath        string `json:"mount_path"`
+	DependServiceID  string `json:"dep_service_id"`
+	DependVolumeName string `json:"dep_volume_name"`
+}
+
+// Key returns the key of VolumeRelation.
+func (v *VolumeRelation) Key() string {
+	return fmt.Sprintf("%s/%s", v.DependServiceID, v.DependVolumeName)
 }
 
 // DbModel return database model
-func (v *VolumeRelation) DbModel(tenantID, componentID string) *dbmodel.TenantServiceMountRelation {
+func (v *VolumeRelation) DbModel(tenantID, componentID, hostPath, volumeType string) *dbmodel.TenantServiceMountRelation {
 	return &dbmodel.TenantServiceMountRelation{
 		TenantID:        tenantID,
 		ServiceID:       componentID,
 		DependServiceID: v.DependServiceID,
-		VolumePath:      v.VolumePath,
-		HostPath:        v.HostPath,
-		VolumeName:      v.VolumeName,
-		VolumeType:      v.VolumeType,
+		VolumePath:      v.MountPath,
+		HostPath:        hostPath,
+		VolumeName:      v.DependVolumeName,
+		VolumeType:      volumeType,
 	}
 }
 

@@ -2516,13 +2516,31 @@ func (s *ServiceAction) SyncComponentVolumeRels(tx *gorm.DB, app *dbmodel.Applic
 		componentIDs []string
 		volRels      []*dbmodel.TenantServiceMountRelation
 	)
+	// Get the storage of all components under the application
+	appComponents, err := db.GetManager().TenantServiceDao().ListByAppID(app.AppID)
+	if err != nil {
+		return err
+	}
+	var appComponentIDs []string
+	for _, ac := range appComponents {
+		appComponentIDs = append(appComponentIDs, ac.ServiceID)
+	}
+	existVolume, err := s.getExistVolumes(appComponentIDs)
+	if err != nil {
+		return err
+	}
+
 	for _, component := range components {
 		if component.VolumeRelations == nil {
 			continue
 		}
 		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		//The hostpath attribute should not be recorded in the mount relationship table,
+		//and should be processed when the worker takes effect
 		for _, volumeRelation := range component.VolumeRelations {
-			volRels = append(volRels, volumeRelation.DbModel(app.TenantID, component.ComponentBase.ComponentID))
+			if vol, ok := existVolume[volumeRelation.Key()]; ok {
+				volRels = append(volRels, volumeRelation.DbModel(app.TenantID, component.ComponentBase.ComponentID, vol.HostPath, vol.VolumeType))
+			}
 		}
 	}
 	if err := db.GetManager().TenantServiceMountRelationDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
