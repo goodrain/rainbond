@@ -44,7 +44,7 @@ type ApplicationHandler interface {
 	ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error)
 	SyncComponents(app *dbmodel.Application, components []*model.Component) error
 	SyncComponentConfigGroupRels(tx *gorm.DB, app *dbmodel.Application, components []*model.Component) error
-	SyncAppConfigGroups(app *dbmodel.Application, appConfigGroups []model.ApplicationConfigGroup) error
+	SyncAppConfigGroups(app *dbmodel.Application, appConfigGroups []model.AppConfigGroup) error
 }
 
 // NewApplicationHandler creates a new Tenant Application Handler.

@@ -1867,12 +1867,20 @@ type ApplicationConfigGroup struct {
 	DeployType          string               `json:"deploy_type" validate:"required,oneof=env configfile"`
 	ServiceIDs          []string             `json:"service_ids"`
 	ConfigItems         []ConfigItem         `json:"config_items"`
+	Enable              bool                 `json:"enable"`
+}
+
+// AppConfigGroup Interface for synchronizing application configuration groups
+type AppConfigGroup struct {
+	ConfigGroupName     string               `json:"config_group_name" validate:"required,alphanum,min=2,max=64"`
+	DeployType          string               `json:"deploy_type" validate:"required,oneof=env configfile"`
+	ConfigItems         []ConfigItem         `json:"config_items"`
 	ConfigGroupServices []ConfigGroupService `json:"config_group_services"`
 	Enable              bool                 `json:"enable"`
 }
 
 // DbModel return database model
-func (a ApplicationConfigGroup) DbModel(appID string) *dbmodel.ApplicationConfigGroup {
+func (a AppConfigGroup) DbModel(appID string) *dbmodel.ApplicationConfigGroup {
 	return &dbmodel.ApplicationConfigGroup{
 		AppID:           appID,
 		ConfigGroupName: a.ConfigGroupName,
@@ -1924,5 +1932,5 @@ func (a *AppConfigGroupRelations) DbModel(appID, serviceID, serviceAlias string)
 
 // SyncAppConfigGroup -
 type SyncAppConfigGroup struct {
-	AppConfigGroups []ApplicationConfigGroup `json:"app_config_groups"`
+	AppConfigGroups []AppConfigGroup `json:"app_config_groups"`
 }

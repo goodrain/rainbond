@@ -285,7 +285,7 @@ func (a *ApplicationAction) SyncComponentConfigGroupRels(tx *gorm.DB, app *dbmod
 }
 
 // SyncAppConfigGroups -
-func (a *ApplicationAction) SyncAppConfigGroups(app *dbmodel.Application, appConfigGroups []model.ApplicationConfigGroup) error {
+func (a *ApplicationAction) SyncAppConfigGroups(app *dbmodel.Application, appConfigGroups []model.AppConfigGroup) error {
 	var (
 		cgroups    []*dbmodel.ApplicationConfigGroup
 		cgitems    []*dbmodel.ConfigGroupItem
