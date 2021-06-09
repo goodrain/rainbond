@@ -1826,8 +1826,6 @@ type BindServiceRequest struct {
 
 // ConfigGroupService -
 type ConfigGroupService struct {
-	AppID           string `json:"app_id"`
-	ConfigGroupName string `json:"config_group_name"`
 	ServiceID       string `json:"service_id"`
 	ServiceAlias    string `json:"service_alias"`
 }
