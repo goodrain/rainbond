@@ -1832,6 +1832,16 @@ type ConfigGroupService struct {
 	ServiceAlias    string `json:"service_alias"`
 }
 
+// DbModel return database model
+func (c ConfigGroupService) DbModel(appID, configGroupName string) *dbmodel.ConfigGroupService {
+	return &dbmodel.ConfigGroupService{
+		AppID:           appID,
+		ConfigGroupName: configGroupName,
+		ServiceID:       c.ServiceID,
+		ServiceAlias:    c.ServiceAlias,
+	}
+}
+
 // ConfigItem -
 type ConfigItem struct {
 	AppID           string `json:"-"`
@@ -1840,14 +1850,35 @@ type ConfigItem struct {
 	ItemValue       string `json:"item_value" validate:"required,max=65535"`
 }
 
+// DbModel return database model
+func (c ConfigItem) DbModel(appID, configGroupName string) *dbmodel.ConfigGroupItem {
+	return &dbmodel.ConfigGroupItem{
+		AppID:           appID,
+		ConfigGroupName: configGroupName,
+		ItemKey:         c.ItemKey,
+		ItemValue:       c.ItemValue,
+	}
+}
+
 // ApplicationConfigGroup -
 type ApplicationConfigGroup struct {
-	AppID           string       `json:"app_id"`
-	ConfigGroupName string       `json:"config_group_name" validate:"required,alphanum,min=2,max=64"`
-	DeployType      string       `json:"deploy_type" validate:"required,oneof=env configfile"`
-	ServiceIDs      []string     `json:"service_ids"`
-	ConfigItems     []ConfigItem `json:"config_items"`
-	Enable          bool         `json:"enable"`
+	AppID               string               `json:"app_id"`
+	ConfigGroupName     string               `json:"config_group_name" validate:"required,alphanum,min=2,max=64"`
+	DeployType          string               `json:"deploy_type" validate:"required,oneof=env configfile"`
+	ServiceIDs          []string             `json:"service_ids"`
+	ConfigItems         []ConfigItem         `json:"config_items"`
+	ConfigGroupServices []ConfigGroupService `json:"config_group_services"`
+	Enable              bool                 `json:"enable"`
+}
+
+// DbModel return database model
+func (a ApplicationConfigGroup) DbModel(appID string) *dbmodel.ApplicationConfigGroup {
+	return &dbmodel.ApplicationConfigGroup{
+		AppID:           appID,
+		ConfigGroupName: a.ConfigGroupName,
+		DeployType:      a.DeployType,
+		Enable:          a.Enable,
+	}
 }
 
 // ApplicationConfigGroupResp -
@@ -1889,4 +1920,9 @@ func (a *AppConfigGroupRelations) DbModel(appID, serviceID, serviceAlias string)
 		ServiceID:       serviceID,
 		ServiceAlias:    serviceAlias,
 	}
+}
+
+// SyncAppConfigGroup -
+type SyncAppConfigGroup struct {
+	AppConfigGroups []ApplicationConfigGroup `json:"app_config_groups"`
 }

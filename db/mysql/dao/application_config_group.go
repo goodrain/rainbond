@@ -72,6 +72,23 @@ func (a *AppConfigGroupDaoImpl) DeleteConfigGroup(appID, configGroupName string)
 	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ApplicationConfigGroup{}).Error
 }
 
+//DeleteByAppID -
+func (a *AppConfigGroupDaoImpl) DeleteByAppID(appID string) error {
+	return a.DB.Where("app_id = ?", appID).Delete(model.ApplicationConfigGroup{}).Error
+}
+
+// CreateOrUpdateConfigGroupsInBatch -
+func (a *AppConfigGroupDaoImpl) CreateOrUpdateConfigGroupsInBatch(cgroups []*model.ApplicationConfigGroup) error {
+	var objects []interface{}
+	for _, cg := range cgroups {
+		objects = append(objects, *cg)
+	}
+	if err := gormbulkups.BulkUpsert(a.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update config groups in batch")
+	}
+	return nil
+}
+
 // AppConfigGroupServiceDaoImpl -
 type AppConfigGroupServiceDaoImpl struct {
 	DB *gorm.DB
@@ -117,6 +134,11 @@ func (a *AppConfigGroupServiceDaoImpl) DeleteEffectiveServiceByServiceID(service
 //DeleteByComponentIDs -
 func (a *AppConfigGroupServiceDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
 	return a.DB.Where("service_id in (?)", componentIDs).Delete(model.ConfigGroupService{}).Error
+}
+
+//DeleteByAppID -
+func (a *AppConfigGroupServiceDaoImpl) DeleteByAppID(appID string) error {
+	return a.DB.Where("app_id = ?", appID).Delete(model.ConfigGroupService{}).Error
 }
 
 // CreateOrUpdateConfigGroupServicesInBatch -
@@ -179,4 +201,21 @@ func (a *AppConfigGroupItemDaoImpl) ListByServiceID(sid string) ([]*model.Config
 //DeleteConfigGroupItem -
 func (a *AppConfigGroupItemDaoImpl) DeleteConfigGroupItem(appID, configGroupName string) error {
 	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ConfigGroupItem{}).Error
+}
+
+//DeleteByAppID -
+func (a *AppConfigGroupItemDaoImpl) DeleteByAppID(appID string) error {
+	return a.DB.Where("app_id = ?", appID).Delete(model.ConfigGroupItem{}).Error
+}
+
+// CreateOrUpdateConfigGroupItemsInBatch -
+func (a *AppConfigGroupItemDaoImpl) CreateOrUpdateConfigGroupItemsInBatch(cgitems []*model.ConfigGroupItem) error {
+	var objects []interface{}
+	for _, cgi := range cgitems {
+		objects = append(objects, *cgi)
+	}
+	if err := gormbulkups.BulkUpsert(a.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update config group items in batch")
+	}
+	return nil
 }

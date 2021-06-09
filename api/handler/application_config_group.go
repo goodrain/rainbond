@@ -264,10 +264,10 @@ func (a *ApplicationAction) ListConfigGroups(appID string, page, pageSize int) (
 }
 
 // SyncComponentConfigGroupRels -
-func (a *ApplicationAction) SyncComponentConfigGroupRels(tx *gorm.DB, app *dbmodel.Application, components []*model.Component) error{
+func (a *ApplicationAction) SyncComponentConfigGroupRels(tx *gorm.DB, app *dbmodel.Application, components []*model.Component) error {
 	var (
 		componentIDs []string
-		cgservices []*dbmodel.ConfigGroupService
+		cgservices   []*dbmodel.ConfigGroupService
 	)
 	for _, component := range components {
 		if component.AppConfigGroupRels == nil {
@@ -282,4 +282,41 @@ func (a *ApplicationAction) SyncComponentConfigGroupRels(tx *gorm.DB, app *dbmod
 		return err
 	}
 	return db.GetManager().AppConfigGroupServiceDaoTransactions(tx).CreateOrUpdateConfigGroupServicesInBatch(cgservices)
+}
+
+// SyncAppConfigGroups -
+func (a *ApplicationAction) SyncAppConfigGroups(app *dbmodel.Application, appConfigGroups []model.ApplicationConfigGroup) error {
+	var (
+		cgroups    []*dbmodel.ApplicationConfigGroup
+		cgitems    []*dbmodel.ConfigGroupItem
+		cgservices []*dbmodel.ConfigGroupService
+	)
+	for _, configGroup := range appConfigGroups {
+		cgroups = append(cgroups, configGroup.DbModel(app.AppID))
+		for _, item := range configGroup.ConfigItems {
+			cgitems = append(cgitems, item.DbModel(app.AppID, configGroup.ConfigGroupName))
+		}
+		for _, cgservice := range configGroup.ConfigGroupServices {
+			cgservices = append(cgservices, cgservice.DbModel(app.AppID, configGroup.ConfigGroupName))
+		}
+	}
+	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		if err := db.GetManager().AppConfigGroupDaoTransactions(tx).DeleteByAppID(app.AppID); err != nil {
+			return err
+		}
+		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteByAppID(app.AppID); err != nil {
+			return err
+		}
+		if err := db.GetManager().AppConfigGroupItemDaoTransactions(tx).DeleteByAppID(app.AppID); err != nil {
+			return err
+		}
+
+		if err := db.GetManager().AppConfigGroupDaoTransactions(tx).CreateOrUpdateConfigGroupsInBatch(cgroups); err != nil {
+			return err
+		}
+		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).CreateOrUpdateConfigGroupServicesInBatch(cgservices); err != nil {
+			return err
+		}
+		return db.GetManager().AppConfigGroupItemDaoTransactions(tx).CreateOrUpdateConfigGroupItemsInBatch(cgitems)
+	})
 }
