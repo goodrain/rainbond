@@ -9,7 +9,7 @@ import (
 type ComponentBase struct {
 	// in: body
 	// required: true
-	ComponentID string `json:"component_id" validate:"component_id"`
+	ComponentID string `json:"component_id" validate:"required"`
 	// 服务名称，用于有状态服务DNS
 	// in: body
 	// required: false
@@ -17,7 +17,7 @@ type ComponentBase struct {
 	// 服务别名
 	// in: body
 	// required: true
-	ComponentAlias string `json:"component_alias" validate:"component_alias"`
+	ComponentAlias string `json:"component_alias" validate:"required"`
 	// 服务描述
 	// in: body
 	// required: false
@@ -62,10 +62,6 @@ type ComponentBase struct {
 	// in: body
 	// required: false
 	Namespace string `json:"namespace" validate:"namespace"`
-	// 更新时间
-	// in: body
-	// required: false
-	UpdateTime time.Time `json:"update_time" validate:"update_time"`
 	// 服务创建类型cloud云市服务,assistant云帮服务
 	// in: body
 	// required: false
@@ -99,7 +95,7 @@ func (c *ComponentBase) DbModel(tenantID, appID string) *dbmodel.TenantServices 
 
 // TenantComponentRelation -
 type TenantComponentRelation struct {
-	DependServiceID   string `json:"depend_service_id"`
+	DependServiceID   string `json:"dep_service_id"`
 	DependServiceType string `json:"dep_service_type"`
 	DependOrder       int    `json:"dep_order"`
 }
@@ -204,6 +200,30 @@ func (l *ComponentLabel) DbModel(componentID string) *dbmodel.TenantServiceLable
 	}
 }
 
+//ComponentEnv  -
+type ComponentEnv struct {
+	ContainerPort int    `validate:"container_port|numeric_between:1,65535" json:"container_port"`
+	Name          string `validate:"name" json:"name"`
+	AttrName      string `validate:"attr_name|required" json:"attr_name"`
+	AttrValue     string `validate:"attr_value" json:"attr_value"`
+	IsChange      bool   `validate:"is_change|bool" json:"is_change"`
+	Scope         string `validate:"scope|in:outer,inner,both,build" json:"scope"`
+}
+
+// DbModel return database model
+func (e *ComponentEnv) DbModel(tenantID, componentID string) *dbmodel.TenantServiceEnvVar {
+	return &dbmodel.TenantServiceEnvVar{
+		TenantID:      tenantID,
+		ServiceID:     componentID,
+		Name:          e.Name,
+		AttrName:      e.AttrName,
+		AttrValue:     e.AttrValue,
+		ContainerPort: e.ContainerPort,
+		IsChange:      true,
+		Scope:         e.Scope,
+	}
+}
+
 // Component All attributes related to the component
 type Component struct {
 	ComponentBase      ComponentBase                    `json:"component_base"`
@@ -212,8 +232,8 @@ type Component struct {
 	Monitors           []AddServiceMonitorRequestStruct `json:"monitors"`
 	Ports              []TenantServicesPort             `json:"ports"`
 	Relations          []TenantComponentRelation        `json:"relations"`
-	Envs               []AddTenantServiceEnvVar         `json:"envs"`
-	Probes             []ServiceProbe                   `json:"probes"`
+	Envs               []ComponentEnv                   `json:"envs"`
+	Probe              ServiceProbe                     `json:"probe"`
 	AppConfigGroupRels []AppConfigGroupRelations        `json:"app_config_groups"`
 	Labels             []ComponentLabel                 `json:"labels"`
 	Plugins            []ComponentPlugin                `json:"plugins"`
