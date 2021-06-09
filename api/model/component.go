@@ -169,6 +169,11 @@ type ComponentVolume struct {
 	VolumeProviderName string `json:"volume_provider_name"`
 }
 
+// Key returns the key of ComponentVolume.
+func (v *ComponentVolume) Key(componentID string) string {
+	return fmt.Sprintf("%s/%s", componentID, v.VolumeName)
+}
+
 // DbModel return database model
 func (v *ComponentVolume) DbModel(componentID string) *dbmodel.TenantServiceVolume {
 	return &dbmodel.TenantServiceVolume{

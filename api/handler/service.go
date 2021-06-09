@@ -2529,6 +2529,18 @@ func (s *ServiceAction) SyncComponentVolumeRels(tx *gorm.DB, app *dbmodel.Applic
 	if err != nil {
 		return err
 	}
+	// Get the storage that needs to be newly created
+	for _, component := range components {
+		componentID := component.ComponentBase.ComponentID
+		if component.Volumes == nil {
+			continue
+		}
+		for _, vol :=range component.Volumes{
+			if _, ok := existVolume[vol.Key(componentID)]; !ok{
+				existVolume[vol.Key(componentID)] = vol.DbModel(componentID)
+			}
+		}
+	}
 
 	for _, component := range components {
 		if component.VolumeRelations == nil {
