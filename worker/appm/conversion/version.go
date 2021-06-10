@@ -38,6 +38,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -134,9 +135,16 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 			},
 		})
 	}
-
 	args := createArgs(version, envs)
 	resources := createResources(as)
+	if as.ExtensionSet["nvidia_gpu"] != "" {
+		limit, err := resource.ParseQuantity(as.ExtensionSet["nvidia_gpu"])
+		if err != nil {
+			logrus.Warningf("format nvidia gpu setting failure %s", err.Error())
+		} else {
+			resources.Limits["nvidia.com/gpu"] = limit
+		}
+	}
 	ports := createPorts(as, dbmanager)
 	imagename := version.ImageName
 	if imagename == "" {
