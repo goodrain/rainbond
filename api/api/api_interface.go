@@ -170,6 +170,7 @@ type ApplicationInterface interface {
 	ListConfigGroups(w http.ResponseWriter, r *http.Request)
 	SyncComponents(w http.ResponseWriter, r *http.Request)
 	SyncAppConfigGroups(w http.ResponseWriter, r *http.Request)
+	SyncPlugins(w http.ResponseWriter, r *http.Request)
 }
 
 //Gatewayer gateway api interface

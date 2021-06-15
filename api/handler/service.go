@@ -2686,6 +2686,7 @@ func (s *ServiceAction) SyncComponentPlugins(tx *gorm.DB, app *dbmodel.Applicati
 	var (
 		componentIDs           []string
 		portConfigComponentIDs []string
+		envComponentIDs        []string
 		pluginRelations        []*dbmodel.TenantServicePluginRelation
 		pluginVersionEnvs      []*dbmodel.TenantPluginVersionEnv
 		pluginVersionConfigs   []*dbmodel.TenantPluginVersionDiscoverConfig
@@ -2698,9 +2699,13 @@ func (s *ServiceAction) SyncComponentPlugins(tx *gorm.DB, app *dbmodel.Applicati
 		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
 		for _, plugin := range component.Plugins {
 			pluginRelations = append(pluginRelations, plugin.DbModel(component.ComponentBase.ComponentID))
-			for _, versionEnv := range plugin.ConfigEnvs.NormalEnvs {
-				pluginVersionEnvs = append(pluginVersionEnvs, versionEnv.DbModel(component.ComponentBase.ComponentID, plugin.PluginID))
+			if plugin.ConfigEnvs.NormalEnvs != nil {
+				envComponentIDs = append(envComponentIDs, component.ComponentBase.ComponentID)
+				for _, versionEnv := range plugin.ConfigEnvs.NormalEnvs {
+					pluginVersionEnvs = append(pluginVersionEnvs, versionEnv.DbModel(component.ComponentBase.ComponentID, plugin.PluginID))
+				}
 			}
+
 			if configs := plugin.ConfigEnvs.ComplexEnvs; configs != nil {
 				portConfigComponentIDs = append(portConfigComponentIDs, component.ComponentBase.ComponentID)
 				if configs.BasePorts != nil && checkPluginHaveInbound(plugin.PluginModel) {
@@ -2729,7 +2734,7 @@ func (s *ServiceAction) SyncComponentPlugins(tx *gorm.DB, app *dbmodel.Applicati
 	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
 		return err
 	}
-	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteByComponentIDs(envComponentIDs); err != nil {
 		return err
 	}
 
@@ -2761,7 +2766,7 @@ func (s *ServiceAction) handlePluginMappingPort(tenantID, componentID, pluginMod
 			PluginModel:   pluginModel,
 			ContainerPort: port.Port,
 		}
-		if _, ok := existPorts[minPort]; ok{
+		if _, ok := existPorts[minPort]; ok {
 			minPort = minPort + 1
 		}
 		newPluginPort := minPort

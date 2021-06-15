@@ -2,6 +2,7 @@ package controller
 
 import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/jinzhu/gorm"
 	"net/http"
 	"strconv"
 
@@ -110,10 +111,10 @@ func (a *ApplicationController) ListConfigGroups(w http.ResponseWriter, r *http.
 }
 
 // SyncComponents -
-func (a *ApplicationController)SyncComponents(w http.ResponseWriter, r *http.Request){
+func (a *ApplicationController) SyncComponents(w http.ResponseWriter, r *http.Request) {
 	var syncComponentReq model.SyncComponentReq
 	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
-	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &syncComponentReq, nil){
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &syncComponentReq, nil) {
 		return
 	}
 	err := handler.GetApplicationHandler().SyncComponents(app, syncComponentReq.Components)
@@ -125,14 +126,30 @@ func (a *ApplicationController)SyncComponents(w http.ResponseWriter, r *http.Req
 }
 
 // SyncAppConfigGroups -
-func (a *ApplicationController)SyncAppConfigGroups(w http.ResponseWriter, r *http.Request){
+func (a *ApplicationController) SyncAppConfigGroups(w http.ResponseWriter, r *http.Request) {
 	var syncAppConfigGroupReq model.SyncAppConfigGroup
 	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
-	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &syncAppConfigGroupReq, nil){
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &syncAppConfigGroupReq, nil) {
 		return
 	}
 	err := handler.GetApplicationHandler().SyncAppConfigGroups(app, syncAppConfigGroupReq.AppConfigGroups)
 	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+// SyncPlugins -
+func (a *ApplicationController) SyncPlugins(w http.ResponseWriter, r *http.Request) {
+	var syncComponentReq model.SyncComponentReq
+	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &syncComponentReq, nil) {
+		return
+	}
+	if err := db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		return handler.GetServiceManager().SyncComponentPlugins(tx, app, syncComponentReq.Components)
+	}); err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
