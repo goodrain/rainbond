@@ -492,9 +492,6 @@ type ComponentPlugin struct {
 	ContainerCPU    int    `json:"container_cpu"`
 	ContainerMemory int    `json:"container_memory"`
 	Switch          bool   `json:"switch"`
-	//VersionConfig     TenantPluginVersionConfig `json:"tenant_plugin_version_config"`
-	//PluginVersionEnvs []PluginVersionEnv        `json:"tenant_plugin_version_envs"`
-	//PluginStreamPorts []BasePort                `json:"stream_ports"`
 	ConfigEnvs ConfigEnvs `json:"config_envs" validate:"config_envs"`
 }
 
