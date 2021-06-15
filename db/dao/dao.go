@@ -294,6 +294,8 @@ type TenantServicesStreamPluginPortDao interface {
 		containerPort int,
 	) (*model.TenantServicesStreamPluginPort, error)
 	ListByServiceID(sid string) ([]*model.TenantServicesStreamPluginPort, error)
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdateStreamPluginPortsInBatch(spPorts []*model.TenantServicesStreamPluginPort) error
 }
 
 //TenantServiceEnvVarDao TenantServiceEnvVarDao

@@ -783,3 +783,20 @@ func (t *TenantServicesStreamPluginPortDaoImpl) ListByServiceID(sid string) ([]*
 	}
 	return result, nil
 }
+
+//DeleteByComponentIDs -
+func (t *TenantServicesStreamPluginPortDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
+	return t.DB.Where("service_id in (?)", componentIDs).Delete(&model.TenantServicesStreamPluginPort{}).Error
+}
+
+// CreateOrUpdateStreamPluginPortsInBatch -
+func (t *TenantServicesStreamPluginPortDaoImpl) CreateOrUpdateStreamPluginPortsInBatch(spPorts []*model.TenantServicesStreamPluginPort) error {
+	var objects []interface{}
+	for _, volRel := range spPorts {
+		objects = append(objects, *volRel)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update stream plugin port failed in batch")
+	}
+	return nil
+}

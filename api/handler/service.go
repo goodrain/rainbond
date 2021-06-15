@@ -2535,8 +2535,8 @@ func (s *ServiceAction) SyncComponentVolumeRels(tx *gorm.DB, app *dbmodel.Applic
 		if component.Volumes == nil {
 			continue
 		}
-		for _, vol :=range component.Volumes{
-			if _, ok := existVolume[vol.Key(componentID)]; !ok{
+		for _, vol := range component.Volumes {
+			if _, ok := existVolume[vol.Key(componentID)]; !ok {
 				existVolume[vol.Key(componentID)] = vol.DbModel(componentID)
 			}
 		}
@@ -2682,12 +2682,14 @@ func (s *ServiceAction) SyncComponentLabels(tx *gorm.DB, components []*api_model
 }
 
 // SyncComponentPlugins -
-func (s *ServiceAction) SyncComponentPlugins(tx *gorm.DB, components []*api_model.Component) error {
+func (s *ServiceAction) SyncComponentPlugins(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error {
 	var (
-		componentIDs         []string
-		pluginRelations      []*dbmodel.TenantServicePluginRelation
-		pluginVersionEnvs    []*dbmodel.TenantPluginVersionEnv
-		pluginVersionConfigs []*dbmodel.TenantPluginVersionDiscoverConfig
+		componentIDs           []string
+		portConfigComponentIDs []string
+		pluginRelations        []*dbmodel.TenantServicePluginRelation
+		pluginVersionEnvs      []*dbmodel.TenantPluginVersionEnv
+		pluginVersionConfigs   []*dbmodel.TenantPluginVersionDiscoverConfig
+		pluginStreamPorts      []*dbmodel.TenantServicesStreamPluginPort
 	)
 	for _, component := range components {
 		if component.Plugins == nil {
@@ -2696,20 +2698,38 @@ func (s *ServiceAction) SyncComponentPlugins(tx *gorm.DB, components []*api_mode
 		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
 		for _, plugin := range component.Plugins {
 			pluginRelations = append(pluginRelations, plugin.DbModel(component.ComponentBase.ComponentID))
-			pluginVersionConfigs = append(pluginVersionConfigs, plugin.VersionConfig.DbModel(component.ComponentBase.ComponentID, plugin.PluginID))
-			for _, versionEnv := range plugin.PluginVersionEnvs {
+			for _, versionEnv := range plugin.ConfigEnvs.NormalEnvs {
 				pluginVersionEnvs = append(pluginVersionEnvs, versionEnv.DbModel(component.ComponentBase.ComponentID, plugin.PluginID))
+			}
+			if configs := plugin.ConfigEnvs.ComplexEnvs; configs != nil {
+				portConfigComponentIDs = append(portConfigComponentIDs, component.ComponentBase.ComponentID)
+				if configs.BasePorts != nil && checkPluginHaveInbound(plugin.PluginModel) {
+					psPorts := s.handlePluginMappingPort(app.TenantID, component.ComponentBase.ComponentID, plugin.PluginModel, configs.BasePorts)
+					pluginStreamPorts = append(pluginStreamPorts, psPorts...)
+				}
+				config, err := ffjson.Marshal(configs)
+				if err != nil {
+					return err
+				}
+				pluginVersionConfigs = append(pluginVersionConfigs, &dbmodel.TenantPluginVersionDiscoverConfig{
+					PluginID:  plugin.PluginID,
+					ServiceID: component.ComponentBase.ComponentID,
+					ConfigStr: string(config),
+				})
 			}
 		}
 	}
-	// TODO: plugin stream port delete and create
+
+	if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteByComponentIDs(portConfigComponentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).DeleteByComponentIDs(portConfigComponentIDs); err != nil {
+		return err
+	}
 	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
 		return err
 	}
 	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
-		return err
-	}
-	if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
 		return err
 	}
 
@@ -2719,7 +2739,43 @@ func (s *ServiceAction) SyncComponentPlugins(tx *gorm.DB, components []*api_mode
 	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).CreateOrUpdatePluginVersionEnvsInBatch(pluginVersionEnvs); err != nil {
 		return err
 	}
+	if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).CreateOrUpdateStreamPluginPortsInBatch(pluginStreamPorts); err != nil {
+		return err
+	}
 	return db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).CreateOrUpdatePluginVersionConfigsInBatch(pluginVersionConfigs)
+}
+
+//handlePluginMappingPort -
+func (s *ServiceAction) handlePluginMappingPort(tenantID, componentID, pluginModel string, ports []*api_model.BasePort) []*dbmodel.TenantServicesStreamPluginPort {
+	existPorts := make(map[int]struct{})
+	for _, port := range ports {
+		existPorts[port.Port] = struct{}{}
+	}
+
+	minPort := 65301
+	var newPorts []*dbmodel.TenantServicesStreamPluginPort
+	for _, port := range ports {
+		newPort := &dbmodel.TenantServicesStreamPluginPort{
+			TenantID:      tenantID,
+			ServiceID:     componentID,
+			PluginModel:   pluginModel,
+			ContainerPort: port.Port,
+		}
+		if _, ok := existPorts[minPort]; ok{
+			minPort = minPort + 1
+		}
+		newPluginPort := minPort
+		if _, ok := existPorts[newPluginPort]; ok {
+			minPort = minPort + 1
+			newPluginPort = minPort
+		}
+
+		existPorts[newPluginPort] = struct{}{}
+		port.ListenPort = newPluginPort
+		newPort.PluginPort = newPluginPort
+		newPorts = append(newPorts, newPort)
+	}
+	return newPorts
 }
 
 // SyncComponentScaleRules -

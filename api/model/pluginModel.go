@@ -426,6 +426,16 @@ type VersionEnv struct {
 	EnvValue string `json:"env_value" validate:"env_value"`
 }
 
+// DbModel return database model
+func (v *VersionEnv) DbModel(componentID, pluginID string) *dbmodel.TenantPluginVersionEnv {
+	return &dbmodel.TenantPluginVersionEnv{
+		ServiceID: componentID,
+		PluginID:  pluginID,
+		EnvName:   v.EnvName,
+		EnvValue:  v.EnvValue,
+	}
+}
+
 //TransPlugins TransPlugins
 type TransPlugins struct {
 	// in: path
@@ -476,14 +486,16 @@ func (p *TenantPluginVersionConfig) DbModel(componentID, pluginID string) *dbmod
 
 // ComponentPlugin -
 type ComponentPlugin struct {
-	PluginID          string                    `json:"plugin_id"`
-	VersionID         string                    `json:"version_id"`
-	PluginModel       string                    `json:"plugin_model"`
-	ContainerCPU      int                       `json:"container_cpu"`
-	ContainerMemory   int                       `json:"container_memory"`
-	Switch            bool                      `json:"switch"`
-	VersionConfig     TenantPluginVersionConfig `json:"tenant_plugin_version_config"`
-	PluginVersionEnvs []PluginVersionEnv        `json:"tenant_plugin_version_envs"`
+	PluginID        string `json:"plugin_id"`
+	VersionID       string `json:"version_id"`
+	PluginModel     string `json:"plugin_model"`
+	ContainerCPU    int    `json:"container_cpu"`
+	ContainerMemory int    `json:"container_memory"`
+	Switch          bool   `json:"switch"`
+	//VersionConfig     TenantPluginVersionConfig `json:"tenant_plugin_version_config"`
+	//PluginVersionEnvs []PluginVersionEnv        `json:"tenant_plugin_version_envs"`
+	//PluginStreamPorts []BasePort                `json:"stream_ports"`
+	ConfigEnvs ConfigEnvs `json:"config_envs" validate:"config_envs"`
 }
 
 // DbModel return database model

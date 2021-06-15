@@ -306,7 +306,7 @@ func (a *ApplicationAction) SyncComponents(app *dbmodel.Application, components 
 		if err := GetServiceManager().SyncComponentMonitors(tx, app, components); err != nil {
 			return err
 		}
-		if err := GetServiceManager().SyncComponentPlugins(tx, components); err != nil {
+		if err := GetServiceManager().SyncComponentPlugins(tx, app, components); err != nil {
 			return err
 		}
 		if err := GetServiceManager().SyncComponentPorts(tx, app, components); err != nil {

@@ -99,6 +99,6 @@ type ServiceHandler interface {
 	SyncComponentConfigFiles(tx *gorm.DB,  components []*api_model.Component) error
 	SyncComponentProbes(tx *gorm.DB,  components []*api_model.Component) error
 	SyncComponentLabels(tx *gorm.DB,  components []*api_model.Component) error
-	SyncComponentPlugins(tx *gorm.DB, components []*api_model.Component) error
+	SyncComponentPlugins(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
 	SyncComponentScaleRules(tx *gorm.DB,  components []*api_model.Component) error
 }
