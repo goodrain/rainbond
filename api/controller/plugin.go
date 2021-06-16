@@ -641,7 +641,7 @@ func (t *TenantStruct) SharePluginResult(w http.ResponseWriter, r *http.Request)
 	httputil.ReturnSuccess(r, w, res)
 }
 
-//BatchInstallPlugin -
+//BatchInstallPlugins -
 func (t *TenantStruct) BatchInstallPlugins(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
 	var req api_model.BatchCreatePlugins
