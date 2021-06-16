@@ -107,6 +107,18 @@ func (t *PluginDaoImpl) ListByTenantID(tenantID string) ([]*model.TenantPlugin, 
 	return plugins, nil
 }
 
+// CreateOrUpdatePluginsInBatch -
+func (t *PluginDaoImpl) CreateOrUpdatePluginsInBatch(plugins []*model.TenantPlugin) error {
+	var objects []interface{}
+	for _, plugin := range plugins {
+		objects = append(objects, *plugin)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update plugins in batch")
+	}
+	return nil
+}
+
 //PluginDefaultENVDaoImpl PluginDefaultENVDaoImpl
 type PluginDefaultENVDaoImpl struct {
 	DB *gorm.DB

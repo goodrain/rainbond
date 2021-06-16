@@ -193,6 +193,7 @@ type TenantPluginDao interface {
 	GetPluginsByTenantID(tenantID string) ([]*model.TenantPlugin, error)
 	ListByIDs(ids []string) ([]*model.TenantPlugin, error)
 	ListByTenantID(tenantID string) ([]*model.TenantPlugin, error)
+	CreateOrUpdatePluginsInBatch(plugins []*model.TenantPlugin) error
 }
 
 //TenantPluginDefaultENVDao TenantPluginDefaultENVDao

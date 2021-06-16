@@ -48,6 +48,18 @@ func CreatePluginManager(mqClient client.MQClient) *PluginAction {
 	}
 }
 
+// BatchCreatePlugins -
+func (p *PluginAction) BatchCreatePlugins(tenantID string, plugins []*api_model.Plugin) *util.APIHandleError {
+	var dbPlugins []*dbmodel.TenantPlugin
+	for _, plugin := range plugins {
+		dbPlugins = append(dbPlugins, plugin.DbModel(tenantID))
+	}
+	if err := db.GetManager().TenantPluginDao().CreateOrUpdatePluginsInBatch(dbPlugins); err != nil {
+		return util.CreateAPIHandleErrorFromDBError("batch create plugins", err)
+	}
+	return nil
+}
+
 //CreatePluginAct PluginAct
 func (p *PluginAction) CreatePluginAct(cps *api_model.CreatePluginStruct) *util.APIHandleError {
 	tp := &dbmodel.TenantPlugin{

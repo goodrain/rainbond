@@ -640,3 +640,17 @@ func (t *TenantStruct) SharePluginResult(w http.ResponseWriter, r *http.Request)
 	}
 	httputil.ReturnSuccess(r, w, res)
 }
+
+//BatchInstallPlugin -
+func (t *TenantStruct) BatchInstallPlugins(w http.ResponseWriter, r *http.Request) {
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	var req api_model.BatchCreatePlugins
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
+		return
+	}
+	if err := handler.GetPluginManager().BatchCreatePlugins(tenantID, req.Plugins); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}

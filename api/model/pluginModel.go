@@ -20,6 +20,37 @@ package model
 
 import dbmodel "github.com/goodrain/rainbond/db/model"
 
+// Plugin -
+type Plugin struct {
+	PluginID    string `json:"plugin_id" validate:"plugin_id|required"`
+	PluginName  string `json:"plugin_name" validate:"plugin_name|required"`
+	PluginInfo  string `json:"plugin_info" validate:"plugin_info"`
+	ImageURL    string `json:"image_url" validate:"image_url"`
+	GitURL      string `json:"git_url" validate:"git_url"`
+	BuildModel  string `json:"build_model" validate:"build_model"`
+	PluginModel string `json:"plugin_model" validate:"plugin_model"`
+	TenantID    string `json:"tenant_id" validate:"tenant_id"`
+}
+
+// DbModel return database model
+func (p *Plugin) DbModel(tenantID string) *dbmodel.TenantPlugin {
+	return &dbmodel.TenantPlugin{
+		PluginID:    p.PluginID,
+		PluginName:  p.PluginName,
+		PluginInfo:  p.PluginInfo,
+		ImageURL:    p.ImageURL,
+		GitURL:      p.GitURL,
+		BuildModel:  p.BuildModel,
+		PluginModel: p.PluginModel,
+		TenantID:    tenantID,
+	}
+}
+
+// BatchCreatePlugins -
+type BatchCreatePlugins struct {
+	Plugins []*Plugin `json:"plugins"`
+}
+
 //CreatePluginStruct CreatePluginStruct
 //swagger:parameters createPlugin
 type CreatePluginStruct struct {
@@ -486,13 +517,13 @@ func (p *TenantPluginVersionConfig) DbModel(componentID, pluginID string) *dbmod
 
 // ComponentPlugin -
 type ComponentPlugin struct {
-	PluginID        string `json:"plugin_id"`
-	VersionID       string `json:"version_id"`
-	PluginModel     string `json:"plugin_model"`
-	ContainerCPU    int    `json:"container_cpu"`
-	ContainerMemory int    `json:"container_memory"`
-	Switch          bool   `json:"switch"`
-	ConfigEnvs ConfigEnvs `json:"config_envs" validate:"config_envs"`
+	PluginID        string     `json:"plugin_id"`
+	VersionID       string     `json:"version_id"`
+	PluginModel     string     `json:"plugin_model"`
+	ContainerCPU    int        `json:"container_cpu"`
+	ContainerMemory int        `json:"container_memory"`
+	Switch          bool       `json:"switch"`
+	ConfigEnvs      ConfigEnvs `json:"config_envs" validate:"config_envs"`
 }
 
 // DbModel return database model

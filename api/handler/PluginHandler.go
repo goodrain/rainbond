@@ -39,4 +39,5 @@ type PluginHandler interface {
 	DeletePluginBuildVersion(pluginID, versionID string) *util.APIHandleError
 	GetDefaultEnv(pluginID, versionID string) ([]*dbmodel.TenantPluginDefaultENV, *util.APIHandleError)
 	GetEnvsWhichCanBeSet(serviceID, pluginID string) (interface{}, *util.APIHandleError)
+	BatchCreatePlugins(tenantID string, plugins []*api_model.Plugin) *util.APIHandleError
 }
