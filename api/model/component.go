@@ -71,7 +71,7 @@ type ComponentBase struct {
 }
 
 // DbModel return database model
-func (c *ComponentBase) DbModel(tenantID, appID string) *dbmodel.TenantServices {
+func (c *ComponentBase) DbModel(tenantID, appID, deployVersion string) *dbmodel.TenantServices {
 	return &dbmodel.TenantServices{
 		TenantID:        tenantID,
 		ServiceID:       c.ComponentID,
@@ -83,7 +83,7 @@ func (c *ComponentBase) DbModel(tenantID, appID string) *dbmodel.TenantServices 
 		ContainerMemory: c.ContainerMemory,
 		ExtendMethod:    c.ExtendMethod,
 		Replicas:        c.Replicas,
-		DeployVersion:   c.DeployVersion,
+		DeployVersion:   deployVersion,
 		Category:        c.Category,
 		EventID:         c.EventID,
 		Namespace:       tenantID,

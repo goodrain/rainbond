@@ -18,7 +18,10 @@
 
 package model
 
-import dbmodel "github.com/goodrain/rainbond/db/model"
+import (
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	"time"
+)
 
 // Plugin -
 type Plugin struct {
@@ -284,6 +287,62 @@ type BuildPluginStruct struct {
 			IsTrust     bool   `json:"is_trust,omitempty"`
 		} `json:"ImageInfo" validate:"ImageInfo"`
 	}
+}
+
+// BuildPluginReq -
+type BuildPluginReq struct {
+	PluginID      string `json:"plugin_id" validate:"plugin_id"`
+	EventID       string `json:"event_id" validate:"event_id"`
+	PluginCPU     int    `json:"plugin_cpu" validate:"plugin_cpu|required"`
+	PluginMemory  int    `json:"plugin_memory" validate:"plugin_memory|required"`
+	PluginCMD     string `json:"plugin_cmd" validate:"plugin_cmd"`
+	BuildVersion  string `json:"build_version" validate:"build_version|required"`
+	DeployVersion string `json:"deploy_version" validate:"deploy_version"`
+	RepoURL       string `json:"repo_url" validate:"repo_url"`
+	Username      string `json:"username"`
+	Password      string `json:"password"`
+	Info          string `json:"info" validate:"info"`
+	Operator      string `json:"operator" validate:"operator"`
+	TenantID      string `json:"tenant_id" validate:"tenant_id"`
+	BuildImage    string `json:"build_image" validate:"build_image"`
+	ImageInfo     struct {
+		HubURL      string `json:"hub_url"`
+		HubUser     string `json:"hub_user"`
+		HubPassword string `json:"hub_password"`
+		Namespace   string `json:"namespace"`
+		IsTrust     bool   `json:"is_trust,omitempty"`
+	} `json:"ImageInfo" validate:"ImageInfo"`
+}
+
+// DbModel return database model
+func (b BuildPluginReq) DbModel(plugin *dbmodel.TenantPlugin) *dbmodel.TenantPluginBuildVersion {
+	buildVersion := &dbmodel.TenantPluginBuildVersion{
+		VersionID:       b.BuildVersion,
+		DeployVersion:   b.DeployVersion,
+		PluginID:        b.PluginID,
+		Kind:            plugin.BuildModel,
+		Repo:            b.RepoURL,
+		GitURL:          plugin.GitURL,
+		BaseImage:       plugin.ImageURL,
+		ContainerCPU:    b.PluginCPU,
+		ContainerMemory: b.PluginMemory,
+		ContainerCMD:    b.PluginCMD,
+		BuildTime:       time.Now().Format(time.RFC3339),
+		Info:            b.Info,
+		Status:          "building",
+	}
+	if b.PluginCPU == 0 {
+		buildVersion.ContainerCPU = 125
+	}
+	if b.PluginMemory == 0 {
+		buildVersion.ContainerMemory = 50
+	}
+	return buildVersion
+}
+
+// BatchBuildPlugins -
+type BatchBuildPlugins struct {
+	Plugins []*BuildPluginReq `json:"plugins"`
 }
 
 //PluginBuildVersionStruct PluginBuildVersionStruct

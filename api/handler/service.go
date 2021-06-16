@@ -2460,7 +2460,21 @@ func (s *ServiceAction) SyncComponentBase(tx *gorm.DB, app *dbmodel.Application,
 	)
 	for _, component := range components {
 		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
-		dbComponents = append(dbComponents, component.ComponentBase.DbModel(app.TenantID, app.AppID))
+	}
+	oldComponents, err := db.GetManager().TenantServiceDao().GetServiceByIDs(componentIDs)
+	if err != nil {
+		return err
+	}
+	existComponents := make(map[string]*dbmodel.TenantServices)
+	for _, oc := range oldComponents {
+		existComponents[oc.ServiceID] = oc
+	}
+	for _, component := range components {
+		var deployVersion string
+		if oldComponent, ok := existComponents[component.ComponentBase.ComponentID]; ok {
+			deployVersion = oldComponent.DeployVersion
+		}
+		dbComponents = append(dbComponents, component.ComponentBase.DbModel(app.TenantID, app.AppID, deployVersion))
 	}
 	if err := db.GetManager().TenantServiceDaoTransactions(tx).DeleteByComponentIDs(app.TenantID, app.AppID, componentIDs); err != nil {
 		return err

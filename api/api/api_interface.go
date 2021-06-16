@@ -132,6 +132,7 @@ type PluginInterface interface {
 	SharePlugin(w http.ResponseWriter, r *http.Request)
 	SharePluginResult(w http.ResponseWriter, r *http.Request)
 	BatchInstallPlugins(w http.ResponseWriter, r *http.Request)
+	BatchBuildPlugins(w http.ResponseWriter, r *http.Request)
 }
 
 //RulesInterface RulesInterface

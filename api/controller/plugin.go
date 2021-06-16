@@ -654,3 +654,19 @@ func (t *TenantStruct) BatchInstallPlugins(w http.ResponseWriter, r *http.Reques
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
+
+// BatchBuildPlugins -
+func (t *TenantStruct) BatchBuildPlugins(w http.ResponseWriter, r *http.Request) {
+	var builds api_model.BatchBuildPlugins
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &builds, nil)
+	if !ok {
+		return
+	}
+	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	err := handler.GetPluginManager().BatchBuildPlugins(&builds, tenantID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}

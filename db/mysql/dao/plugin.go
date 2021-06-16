@@ -323,6 +323,18 @@ func (t *PluginBuildVersionDaoImpl) GetLastBuildVersionByVersionID(pluginID, ver
 	return &version, nil
 }
 
+// CreateOrUpdatePluginBuildVersionsInBatch -
+func (t *PluginBuildVersionDaoImpl) CreateOrUpdatePluginBuildVersionsInBatch(buildVersions []*model.TenantPluginBuildVersion) error {
+	var objects []interface{}
+	for _, version := range buildVersions {
+		objects = append(objects, *version)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update plugin build versions in batch")
+	}
+	return nil
+}
+
 //PluginVersionEnvDaoImpl PluginVersionEnvDaoImpl
 type PluginVersionEnvDaoImpl struct {
 	DB *gorm.DB
