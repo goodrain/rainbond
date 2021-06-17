@@ -5,7 +5,6 @@ set -o errexit
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME:-'rainbond'}
-# DOMESTIC_BASE_NAME=${DOMESTIC_BASE_NAME:-'registry.cn-hangzhou.aliyuncs.com'}
 DOMESTIC_NAMESPACE=${DOMESTIC_NAMESPACE:-'goodrain'}
 
 GO_VERSION=1.13
