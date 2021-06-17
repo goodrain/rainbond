@@ -19,6 +19,7 @@
 package dao
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -391,6 +392,7 @@ type EventDao interface {
 	UnfinishedEvents(target, targetID string, optTypes ...string) ([]*model.ServiceEvent, error)
 	LatestFailurePodEvent(podName string) (*model.ServiceEvent, error)
 	UpdateReason(eventID string, reason string) error
+	SetEventStatus(ctx context.Context, status model.EventStatus) error
 }
 
 //VersionInfoDao VersionInfoDao

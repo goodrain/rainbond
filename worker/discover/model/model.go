@@ -238,8 +238,9 @@ type HorizontalScalingTaskBody struct {
 type VerticalScalingTaskBody struct {
 	TenantID        string `json:"tenant_id"`
 	ServiceID       string `json:"service_id"`
-	ContainerCPU    int    `json:"container_cpu"`
-	ContainerMemory int    `json:"container_memory"`
+	ContainerCPU    *int   `json:"container_cpu"`
+	ContainerMemory *int   `json:"container_memory"`
+	ContainerGPU    *int   `json:"container_gpu"`
 	EventID         string `json:"event_id"`
 }
 

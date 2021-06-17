@@ -25,7 +25,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -60,7 +60,7 @@ type PodController struct{}
 func Pods(w http.ResponseWriter, r *http.Request) {
 	serviceIDs := strings.Split(r.FormValue("service_ids"), ",")
 	if serviceIDs == nil || len(serviceIDs) == 0 {
-		tenant := r.Context().Value(middleware.ContextKey("tenant")).(*model.Tenants)
+		tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*model.Tenants)
 		services, _ := db.GetManager().TenantServiceDao().GetServicesByTenantID(tenant.UUID)
 		for _, s := range services {
 			serviceIDs = append(serviceIDs, s.ServiceID)
@@ -99,7 +99,7 @@ func PodNums(w http.ResponseWriter, r *http.Request) {
 // PodDetail -
 func (p *PodController) PodDetail(w http.ResponseWriter, r *http.Request) {
 	podName := chi.URLParam(r, "pod_name")
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	pd, err := handler.GetPodHandler().PodDetail(serviceID, podName)
 	if err != nil {
 		logrus.Errorf("error getting pod detail: %v", err)

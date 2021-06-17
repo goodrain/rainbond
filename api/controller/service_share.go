@@ -23,8 +23,8 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -56,8 +56,8 @@ func (t *TenantStruct) Share(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	ccs.Body.EventID = r.Context().Value(middleware.ContextKey("event_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	ccs.Body.EventID = r.Context().Value(ctxutil.ContextKey("event_id")).(string)
 	res, errS := handler.GetShareHandle().Share(serviceID, ccs)
 	if errS != nil {
 		errS.Handle(r, w)

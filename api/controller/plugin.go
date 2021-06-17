@@ -25,10 +25,10 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/util"
 
 	api_model "github.com/goodrain/rainbond/api/model"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -68,8 +68,8 @@ func (t *TenantStruct) CreatePlugin(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	tenantName := r.Context().Value(ctxutil.ContextKey("tenant_name")).(string)
 	var cps api_model.CreatePluginStruct
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &cps.Body, nil); !ok {
 		return
@@ -106,8 +106,8 @@ func (t *TenantStruct) UpdatePlugin(w http.ResponseWriter, r *http.Request) {
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 
-	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	pluginID := r.Context().Value(ctxutil.ContextKey("plugin_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	var ups api_model.UpdatePluginStruct
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ups.Body, nil); !ok {
 		return
@@ -141,8 +141,8 @@ func (t *TenantStruct) DeletePlugin(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	pluginID := r.Context().Value(ctxutil.ContextKey("plugin_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	if err := handler.GetPluginManager().DeletePluginAct(pluginID, tenantID); err != nil {
 		err.Handle(r, w)
 		return
@@ -172,7 +172,7 @@ func (t *TenantStruct) GetPlugins(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	plugins, err := handler.GetPluginManager().GetPlugins(tenantID)
 	if err != nil {
 		err.Handle(r, w)
@@ -195,7 +195,7 @@ func (t *TenantStruct) PluginDefaultENV(w http.ResponseWriter, r *http.Request) 
 
 //AddDefatultENV AddDefatultENV
 func (t *TenantStruct) AddDefatultENV(w http.ResponseWriter, r *http.Request) {
-	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
+	pluginID := r.Context().Value(ctxutil.ContextKey("plugin_id")).(string)
 	versionID := chi.URLParam(r, "version_id")
 	var est api_model.ENVStruct
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &est.Body, nil); !ok {
@@ -211,7 +211,7 @@ func (t *TenantStruct) AddDefatultENV(w http.ResponseWriter, r *http.Request) {
 
 //DeleteDefaultENV DeleteDefaultENV
 func (t *TenantStruct) DeleteDefaultENV(w http.ResponseWriter, r *http.Request) {
-	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
+	pluginID := r.Context().Value(ctxutil.ContextKey("plugin_id")).(string)
 	envName := chi.URLParam(r, "env_name")
 	versionID := chi.URLParam(r, "version_id")
 	if err := handler.GetPluginManager().DeleteDefaultEnv(pluginID, versionID, envName); err != nil {
@@ -223,7 +223,7 @@ func (t *TenantStruct) DeleteDefaultENV(w http.ResponseWriter, r *http.Request) 
 //UpdateDefaultENV UpdateDefaultENV
 func (t *TenantStruct) UpdateDefaultENV(w http.ResponseWriter, r *http.Request) {
 
-	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
+	pluginID := r.Context().Value(ctxutil.ContextKey("plugin_id")).(string)
 	versionID := chi.URLParam(r, "version_id")
 	var est api_model.ENVStruct
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &est.Body, nil); !ok {
@@ -239,7 +239,7 @@ func (t *TenantStruct) UpdateDefaultENV(w http.ResponseWriter, r *http.Request) 
 
 //GetPluginDefaultEnvs GetPluginDefaultEnvs
 func (t *TenantStruct) GetPluginDefaultEnvs(w http.ResponseWriter, r *http.Request) {
-	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
+	pluginID := r.Context().Value(ctxutil.ContextKey("plugin_id")).(string)
 	versionID := chi.URLParam(r, "version_id")
 	envs, err := handler.GetPluginManager().GetDefaultEnv(pluginID, versionID)
 	if err != nil {
@@ -276,9 +276,9 @@ func (t *TenantStruct) PluginBuild(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
+	tenantName := r.Context().Value(ctxutil.ContextKey("tenant_name")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	pluginID := r.Context().Value(ctxutil.ContextKey("plugin_id")).(string)
 	build.TenantName = tenantName
 	build.PluginID = pluginID
 	build.Body.TenantID = tenantID
@@ -312,7 +312,7 @@ func (t *TenantStruct) PluginBuild(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) GetAllPluginBuildVersions(w http.ResponseWriter, r *http.Request) {
-	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
+	pluginID := r.Context().Value(ctxutil.ContextKey("plugin_id")).(string)
 	versions, err := handler.GetPluginManager().GetAllPluginBuildVersions(pluginID)
 	if err != nil {
 		err.Handle(r, w)
@@ -343,7 +343,7 @@ func (t *TenantStruct) GetAllPluginBuildVersions(w http.ResponseWriter, r *http.
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) GetPluginBuildVersion(w http.ResponseWriter, r *http.Request) {
-	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
+	pluginID := r.Context().Value(ctxutil.ContextKey("plugin_id")).(string)
 	versionID := chi.URLParam(r, "version_id")
 	version, err := handler.GetPluginManager().GetPluginBuildVersion(pluginID, versionID)
 	if err != nil {
@@ -375,7 +375,7 @@ func (t *TenantStruct) GetPluginBuildVersion(w http.ResponseWriter, r *http.Requ
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) DeletePluginBuildVersion(w http.ResponseWriter, r *http.Request) {
-	pluginID := r.Context().Value(middleware.ContextKey("plugin_id")).(string)
+	pluginID := r.Context().Value(ctxutil.ContextKey("plugin_id")).(string)
 	versionID := chi.URLParam(r, "version_id")
 	err := handler.GetPluginManager().DeletePluginBuildVersion(pluginID, versionID)
 	if err != nil {
@@ -423,7 +423,7 @@ func (t *TenantStruct) updatePluginSet(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	relation, err := handler.GetServiceManager().UpdateTenantServicePluginRelation(serviceID, &pss)
 	if err != nil {
 		err.Handle(r, w)
@@ -458,10 +458,10 @@ func (t *TenantStruct) addPluginSet(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
-	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	serviceAlias := r.Context().Value(ctxutil.ContextKey("service_alias")).(string)
+	tenantName := r.Context().Value(ctxutil.ContextKey("tenant_name")).(string)
 	pss.ServiceAlias = serviceAlias
 	pss.TenantName = tenantName
 	re, err := handler.GetServiceManager().SetTenantServicePluginRelation(tenantID, serviceID, &pss)
@@ -493,7 +493,7 @@ func (t *TenantStruct) addPluginSet(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) getPluginSet(w http.ResponseWriter, r *http.Request) {
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	gps, err := handler.GetServiceManager().GetTenantServicePluginRelation(serviceID)
 	if err != nil {
 		err.Handle(r, w)
@@ -526,8 +526,8 @@ func (t *TenantStruct) getPluginSet(w http.ResponseWriter, r *http.Request) {
 //     description: 统一返回格式
 func (t *TenantStruct) DeletePluginRelation(w http.ResponseWriter, r *http.Request) {
 	pluginID := chi.URLParam(r, "plugin_id")
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	if err := handler.GetServiceManager().TenantServiceDeletePluginRelation(tenantID, serviceID, pluginID); err != nil {
 		err.Handle(r, w)
 		return
@@ -557,7 +557,7 @@ func (t *TenantStruct) DeletePluginRelation(w http.ResponseWriter, r *http.Reque
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) GePluginEnvWhichCanBeSet(w http.ResponseWriter, r *http.Request) {
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	pluginID := chi.URLParam(r, "plugin_id")
 	envs, err := handler.GetPluginManager().GetEnvsWhichCanBeSet(serviceID, pluginID)
 	if err != nil {
@@ -594,9 +594,9 @@ func (t *TenantStruct) UpdateVersionEnv(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	serviceAlias := r.Context().Value(ctxutil.ContextKey("service_alias")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	pluginID := chi.URLParam(r, "plugin_id")
 	uve.PluginID = pluginID
 	uve.Body.TenantID = tenantID
@@ -616,7 +616,7 @@ func (t *TenantStruct) SharePlugin(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	sp.TenantID = tenantID
 	sp.PluginID = chi.URLParam(r, "plugin_id")
 	if sp.Body.EventID == "" {

@@ -96,6 +96,7 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 		as.DeployVersion = tenantService.DeployVersion
 	}
 	as.ContainerCPU = tenantService.ContainerCPU
+	as.ContainerGPU = tenantService.ContainerGPU
 	as.AppID = tenantService.AppID
 	as.ContainerMemory = tenantService.ContainerMemory
 	as.Replicas = tenantService.Replicas

@@ -137,14 +137,6 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 	}
 	args := createArgs(version, envs)
 	resources := createResources(as)
-	if as.ExtensionSet["nvidia_gpu"] != "" {
-		limit, err := resource.ParseQuantity(as.ExtensionSet["nvidia_gpu"])
-		if err != nil {
-			logrus.Warningf("format nvidia gpu setting failure %s", err.Error())
-		} else {
-			resources.Limits["nvidia.com/gpu"] = limit
-		}
-	}
 	ports := createPorts(as, dbmanager)
 	imagename := version.ImageName
 	if imagename == "" {
@@ -506,7 +498,24 @@ func createResources(as *v1.AppService) corev1.ResourceRequirements {
 			cpuRequest = int64(requestint)
 		}
 	}
-	return createResourcesByDefaultCPU(as.ContainerMemory, cpuRequest, cpuLimit)
+	rr := createResourcesByDefaultCPU(as.ContainerMemory, cpuRequest, cpuLimit)
+	// support set gpu, support application of single GPU video memory.
+	if as.ContainerGPU > 0 {
+		gpuLimit, err := resource.ParseQuantity(fmt.Sprintf("%d", as.ContainerGPU))
+		if err != nil {
+			logrus.Errorf("gpu request is invalid")
+		} else {
+			rr.Limits[getGPULableKey()] = gpuLimit
+		}
+	}
+	return rr
+}
+
+func getGPULableKey() corev1.ResourceName {
+	if os.Getenv("GPU_LABLE_KEY") != "" {
+		return corev1.ResourceName(os.Getenv("GPU_LABLE_KEY"))
+	}
+	return "rainbond.com/gpu-mem"
 }
 
 func checkUpstreamPluginRelation(serviceID string, dbmanager db.Manager) (bool, error) {

@@ -26,8 +26,8 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db/errors"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -49,7 +49,7 @@ func (t *TenantStruct) addAutoscalerRule(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	req.ServiceID = serviceID
 	if err := handler.GetServiceManager().AddAutoscalerRule(&req); err != nil {
 		if err == errors.ErrRecordAlreadyExist {
@@ -115,7 +115,7 @@ func (t *TenantStruct) listScalingRecords(w http.ResponseWriter, r *http.Request
 		pageSize = 10
 	}
 
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	records, count, err := handler.GetServiceManager().ListScalingRecords(serviceID, page, pageSize)
 	if err != nil {
 		logrus.Errorf("list scaling rule: %v", err)

@@ -6,8 +6,8 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -23,7 +23,7 @@ func (a *ApplicationController) CreateApp(w http.ResponseWriter, r *http.Request
 	}
 
 	// get current tenant
-	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	tenantReq.TenantID = tenant.UUID
 
 	// create app
@@ -44,7 +44,7 @@ func (a *ApplicationController) BatchCreateApp(w http.ResponseWriter, r *http.Re
 	}
 
 	// get current tenant
-	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	respList, err := handler.GetApplicationHandler().BatchCreateApp(&apps, tenant.UUID)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
@@ -59,7 +59,7 @@ func (a *ApplicationController) UpdateApp(w http.ResponseWriter, r *http.Request
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &updateAppReq, nil) {
 		return
 	}
-	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
 
 	// update app
 	app, err := handler.GetApplicationHandler().UpdateApp(app, updateAppReq)
@@ -88,7 +88,7 @@ func (a *ApplicationController) ListApps(w http.ResponseWriter, r *http.Request)
 	}
 
 	// get current tenantID
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 
 	// List apps
 	resp, err := handler.GetApplicationHandler().ListApps(tenantID, appName, page, pageSize)
@@ -152,7 +152,7 @@ func (a *ApplicationController) BatchUpdateComponentPorts(w http.ResponseWriter,
 		}
 	}
 
-	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+	appID := r.Context().Value(ctxutil.ContextKey("app_id")).(string)
 
 	if err := handler.GetApplicationHandler().BatchUpdateComponentPorts(appID, appPorts); err != nil {
 		httputil.ReturnBcodeError(r, w, err)
@@ -163,7 +163,7 @@ func (a *ApplicationController) BatchUpdateComponentPorts(w http.ResponseWriter,
 }
 
 func (a *ApplicationController) GetAppStatus(w http.ResponseWriter, r *http.Request) {
-	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+	appID := r.Context().Value(ctxutil.ContextKey("app_id")).(string)
 
 	res, err := handler.GetApplicationHandler().GetStatus(appID)
 	if err != nil {
