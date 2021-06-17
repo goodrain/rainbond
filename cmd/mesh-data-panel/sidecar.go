@@ -21,6 +21,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -38,6 +39,45 @@ import (
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "version" {
 		cmd.ShowVersion("sidecar")
+	}
+	if len(os.Args) > 1 && os.Args[1] == "wait" {
+		var timeoutSeconds = 60
+		var envoyReadyUrl = "http://127.0.0.1:65533/ready"
+		var envoyListennerReadyUrl = "http://127.0.0.1:65533/listeners"
+		var periodMillis = 500
+		var requestTimeoutMillis = 500
+		client := &http.Client{
+			Timeout: time.Duration(requestTimeoutMillis) * time.Millisecond,
+		}
+		logrus.Infof("Waiting for Envoy proxy to be ready (timeout: %d seconds)...", timeoutSeconds)
+
+		var err error
+		timeoutAt := time.Now().Add(time.Duration(timeoutSeconds) * time.Second)
+		for time.Now().Before(timeoutAt) {
+			err = checkEnvoyIfReady(client, envoyReadyUrl)
+			if err == nil {
+				logrus.Infof("Sidecar server is ready!")
+				break
+			}
+			logrus.Infof("Not ready yet: %v", err)
+			time.Sleep(time.Duration(periodMillis) * time.Millisecond)
+		}
+		if len(os.Args) > 2 && os.Args[2] != "0" {
+			for time.Now().Before(timeoutAt) {
+				err = checkEnvoyListenerIfReady(client, envoyListennerReadyUrl, os.Args[2])
+				if err == nil {
+					logrus.Infof("Sidecar is ready!")
+					os.Exit(0)
+				}
+				logrus.Infof("Not ready yet: %v", err)
+				time.Sleep(time.Duration(periodMillis) * time.Millisecond)
+			}
+		} else {
+			logrus.Infof("Sidecar is ready!")
+			os.Exit(0)
+		}
+		logrus.Errorf("timeout waiting for Envoy proxy to become ready. Last error: %v", err)
+		os.Exit(1)
 	}
 	if len(os.Args) > 1 && os.Args[1] == "run" {
 		if err := run(); err != nil {
@@ -165,4 +205,44 @@ func writeHosts(ipnames map[string]string) error {
 		hosts.Add(ip, name)
 	}
 	return hosts.Flush()
+}
+
+func checkEnvoyIfReady(client *http.Client, envoyReadyUrl string) error {
+	req, err := http.NewRequest(http.MethodGet, envoyReadyUrl, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	reBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 || string(reBody) != "LIVE" {
+		return fmt.Errorf("HTTP status code %v ,body: %s", resp.StatusCode, string(reBody))
+	}
+	return nil
+}
+
+func checkEnvoyListenerIfReady(client *http.Client, url string, port string) error {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	reBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 || !strings.Contains(string(reBody), fmt.Sprintf(":%s", port)) {
+		return fmt.Errorf("Check Listeners HTTP status code %v, body is %s", resp.StatusCode, string(reBody))
+	}
+	return nil
 }
