@@ -1310,6 +1310,8 @@ type TenantServicesPort struct {
 
 // DbModel return database model
 func (p *TenantServicesPort) DbModel(tenantID, componentID string) *dbmodel.TenantServicesPort {
+	isInnerService := p.IsInnerService
+	isOuterService := p.IsOuterService
 	return &dbmodel.TenantServicesPort{
 		TenantID:       tenantID,
 		ServiceID:      componentID,
@@ -1317,8 +1319,8 @@ func (p *TenantServicesPort) DbModel(tenantID, componentID string) *dbmodel.Tena
 		MappingPort:    p.MappingPort,
 		Protocol:       p.Protocol,
 		PortAlias:      p.PortAlias,
-		IsInnerService: &p.IsInnerService,
-		IsOuterService: &p.IsOuterService,
+		IsInnerService: &isInnerService,
+		IsOuterService: &isOuterService,
 		K8sServiceName: p.K8sServiceName,
 	}
 }
