@@ -112,7 +112,7 @@ func (a *ApplicationController) ListConfigGroups(w http.ResponseWriter, r *http.
 // SyncComponents -
 func (a *ApplicationController) SyncComponents(w http.ResponseWriter, r *http.Request) {
 	var syncComponentReq model.SyncComponentReq
-	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &syncComponentReq, nil) {
 		return
 	}
@@ -127,7 +127,7 @@ func (a *ApplicationController) SyncComponents(w http.ResponseWriter, r *http.Re
 // SyncAppConfigGroups -
 func (a *ApplicationController) SyncAppConfigGroups(w http.ResponseWriter, r *http.Request) {
 	var syncAppConfigGroupReq model.SyncAppConfigGroup
-	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &syncAppConfigGroupReq, nil) {
 		return
 	}
