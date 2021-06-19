@@ -24,8 +24,8 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -55,7 +55,7 @@ func Check(w http.ResponseWriter, r *http.Request) {
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &gt.Body, nil); !ok {
 		return
 	}
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	gt.Body.TenantID = tenantID
 	result, eventID, err := handler.GetServiceManager().ServiceCheck(&gt)
 	if err != nil {

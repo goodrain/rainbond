@@ -163,6 +163,9 @@ type TenantServices struct {
 	ContainerCPU int `gorm:"column:container_cpu;default:500" json:"container_cpu"`
 	// 容器最大内存
 	ContainerMemory int `gorm:"column:container_memory;default:128" json:"container_memory"`
+	// container GPU, The amount of video memory applied for GPU. The unit is MiB
+	// default is 0, That means no GPU is required
+	ContainerGPU int `gorm:"column:container_gpu;default:0" json:"container_gpu"`
 	//UpgradeMethod service upgrade controller type
 	//such as : `Rolling` `OnDelete`
 	UpgradeMethod string `gorm:"column:upgrade_method;default:'Rolling'" json:"upgrade_method"`
@@ -271,6 +274,9 @@ type TenantServicesDelete struct {
 	ContainerCPU int `gorm:"column:container_cpu;default:500" json:"container_cpu"`
 	// 容器最大内存
 	ContainerMemory int `gorm:"column:container_memory;default:128" json:"container_memory"`
+	// container GPU, The amount of video memory applied for GPU. The unit is MiB
+	// default is 0, That means no GPU is required
+	ContainerGPU int `gorm:"column:container_gpu;default:0" json:"container_gpu"`
 	//UpgradeMethod service upgrade controller type
 	//such as : `Rolling` `OnDelete`
 	UpgradeMethod string `gorm:"column:upgrade_method;default:'Rolling'" json:"upgrade_method"`

@@ -7,8 +7,8 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
@@ -17,7 +17,7 @@ import (
 // AddConfigGroup -
 func (a *ApplicationController) AddConfigGroup(w http.ResponseWriter, r *http.Request) {
 	var configReq model.ApplicationConfigGroup
-	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+	appID := r.Context().Value(ctxutil.ContextKey("app_id")).(string)
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &configReq, nil) {
 		return
 	}
@@ -37,7 +37,7 @@ func (a *ApplicationController) AddConfigGroup(w http.ResponseWriter, r *http.Re
 func (a *ApplicationController) UpdateConfigGroup(w http.ResponseWriter, r *http.Request) {
 	var updateReq model.UpdateAppConfigGroupReq
 	configGroupname := chi.URLParam(r, "config_group_name")
-	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+	appID := r.Context().Value(ctxutil.ContextKey("app_id")).(string)
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &updateReq, nil) {
 		return
 	}
@@ -73,7 +73,7 @@ func checkServiceExist(appID string, serviceIDs []string) {
 // DeleteConfigGroup -
 func (a *ApplicationController) DeleteConfigGroup(w http.ResponseWriter, r *http.Request) {
 	configGroupname := chi.URLParam(r, "config_group_name")
-	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+	appID := r.Context().Value(ctxutil.ContextKey("app_id")).(string)
 
 	// delete app ConfigGroups
 	err := handler.GetApplicationHandler().DeleteConfigGroup(appID, configGroupname)
@@ -86,7 +86,7 @@ func (a *ApplicationController) DeleteConfigGroup(w http.ResponseWriter, r *http
 
 // ListConfigGroups -
 func (a *ApplicationController) ListConfigGroups(w http.ResponseWriter, r *http.Request) {
-	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+	appID := r.Context().Value(ctxutil.ContextKey("app_id")).(string)
 	query := r.URL.Query()
 	pageQuery := query.Get("page")
 	pageSizeQuery := query.Get("pageSize")

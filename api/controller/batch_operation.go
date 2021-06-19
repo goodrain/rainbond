@@ -24,8 +24,8 @@ import (
 	"net/http"
 
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
@@ -41,7 +41,7 @@ func BatchOperation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 
 	var batchOpReqs []model.ComponentOpReq
 	var f func(ctx context.Context, tenant *dbmodel.Tenants, operator string, batchOpReqs model.BatchOpRequesters) (model.BatchOpResult, error)

@@ -24,8 +24,8 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
@@ -65,8 +65,8 @@ func (t *TenantStruct) AddVolumeDependency(w http.ResponseWriter, r *http.Reques
 	//     description: 统一返回格式
 
 	logrus.Debugf("trans add volumn dependency service ")
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	var tsr api_model.V2AddVolumeDependencyStruct
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsr.Body, nil); !ok {
 		return
@@ -108,8 +108,8 @@ func (t *TenantStruct) DeleteVolumeDependency(w http.ResponseWriter, r *http.Req
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	var tsr api_model.V2DelVolumeDependencyStruct
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsr.Body, nil); !ok {
 		return
@@ -149,8 +149,8 @@ func (t *TenantStruct) AddVolume(w http.ResponseWriter, r *http.Request) {
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	avs := &api_model.V2AddVolumeStruct{}
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &avs.Body, nil); !ok {
 		return
@@ -186,7 +186,7 @@ func (t *TenantStruct) UpdVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	sid := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	if err := handler.GetServiceManager().UpdVolume(sid, &req); err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 	}
@@ -216,8 +216,8 @@ func (t *TenantStruct) DeleteVolume(w http.ResponseWriter, r *http.Request) {
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	avs := &api_model.V2DelVolumeStruct{}
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &avs.Body, nil); !ok {
 		return
@@ -260,8 +260,8 @@ func AddVolumeDependency(w http.ResponseWriter, r *http.Request) {
 	//     description: 统一返回格式
 
 	logrus.Debugf("trans add volumn dependency service ")
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	var tsr api_model.AddVolumeDependencyStruct
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsr.Body, nil); !ok {
 		return
@@ -305,8 +305,8 @@ func DeleteVolumeDependency(w http.ResponseWriter, r *http.Request) {
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	var tsr api_model.DeleteVolumeDependencyStruct
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsr.Body, nil); !ok {
 		return
@@ -347,8 +347,8 @@ func AddVolume(w http.ResponseWriter, r *http.Request) {
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	avs := &api_model.AddVolumeStruct{}
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &avs.Body, nil); !ok {
 		return
@@ -406,8 +406,8 @@ func DeleteVolume(w http.ResponseWriter, r *http.Request) {
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	tsv := &dbmodel.TenantServiceVolume{}
 	tsv.ServiceID = serviceID
 	tsv.VolumeName = chi.URLParam(r, "volume_name")
@@ -440,7 +440,7 @@ func GetVolume(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	volumes, err := handler.GetServiceManager().GetVolumes(serviceID)
 	if err != nil {
 		err.Handle(r, w)
@@ -471,7 +471,7 @@ func GetDepVolume(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	volumes, err := handler.GetServiceManager().GetDepVolumes(serviceID)
 	if err != nil {
 		err.Handle(r, w)

@@ -311,13 +311,14 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 	}
 	appService.ContainerCPU = service.ContainerCPU
 	appService.ContainerMemory = service.ContainerMemory
+	appService.ContainerGPU = service.ContainerGPU
 	appService.Logger = logger
 	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID, nil)
 	if err != nil {
 		logrus.Errorf("Application init create failure:%s", err.Error())
 		logger.Error("Application init create failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("Application init create failure")
+		return fmt.Errorf("application init create failure")
 	}
 	newAppService.Logger = logger
 	appService.SetUpgradePatch(newAppService)
@@ -326,7 +327,7 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 		logrus.Errorf("Application run  vertical scaling(upgrade) controller failure:%s", err.Error())
 		logger.Info("Application run vertical scaling(upgrade) controller failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("Application vertical scaling(upgrade) failure")
+		return fmt.Errorf("application vertical scaling(upgrade) failure")
 	}
 	logrus.Infof("service(%s) %s working is running.", body.ServiceID, "vertical scaling")
 	return nil

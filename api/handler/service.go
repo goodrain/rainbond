@@ -31,6 +31,7 @@ import (
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
+	"github.com/goodrain/rainbond/api/util/license"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
@@ -364,28 +365,44 @@ func (s *ServiceAction) StartStopService(sss *api_model.StartStopStruct) error {
 }
 
 //ServiceVertical vertical service
-func (s *ServiceAction) ServiceVertical(vs *model.VerticalScalingTaskBody) error {
+func (s *ServiceAction) ServiceVertical(ctx context.Context, vs *model.VerticalScalingTaskBody) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(vs.ServiceID)
 	if err != nil {
 		logrus.Errorf("get service by id %s error, %s", vs.ServiceID, err)
+		db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusFailure)
 		return err
 	}
 	oldMemory := service.ContainerMemory
 	oldCPU := service.ContainerCPU
+	oldGPU := service.ContainerGPU
 	var rollback = func() {
 		service.ContainerMemory = oldMemory
 		service.ContainerCPU = oldCPU
+		service.ContainerGPU = oldGPU
 		_ = db.GetManager().TenantServiceDao().UpdateModel(service)
 	}
-	if service.ContainerMemory == vs.ContainerMemory && service.ContainerCPU == vs.ContainerCPU {
+	if vs.ContainerCPU != nil {
+		service.ContainerCPU = *vs.ContainerCPU
+	}
+	if vs.ContainerMemory != nil {
+		service.ContainerMemory = *vs.ContainerMemory
+	}
+	if vs.ContainerGPU != nil {
+		service.ContainerGPU = *vs.ContainerGPU
+	}
+	licenseInfo := license.ReadLicense()
+	if licenseInfo == nil || !licenseInfo.HaveFeature("GPU") {
+		service.ContainerGPU = 0
+	}
+	if service.ContainerMemory == oldMemory && service.ContainerCPU == oldCPU && service.ContainerGPU == oldGPU {
+		db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusSuccess)
 		return nil
 	}
-	service.ContainerMemory = vs.ContainerMemory
-	service.ContainerCPU = vs.ContainerCPU
 	err = db.GetManager().TenantServiceDao().UpdateModel(service)
 	if err != nil {
+		db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusFailure)
 		logrus.Errorf("update service memory and cpu failure. %v", err)
-		return fmt.Errorf("Vertical service faliure:%s", err.Error())
+		return fmt.Errorf("vertical service faliure:%s", err.Error())
 	}
 	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		TaskType: "vertical_scaling",
@@ -396,6 +413,7 @@ func (s *ServiceAction) ServiceVertical(vs *model.VerticalScalingTaskBody) error
 		// roll back service
 		rollback()
 		logrus.Errorf("equque mq error, %v", err)
+		db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusFailure)
 		return err
 	}
 	logrus.Debugf("equeue mq vertical task success")
@@ -505,6 +523,15 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	}
 	if ts.ServiceName == "" {
 		ts.ServiceName = ts.ServiceAlias
+	}
+	if ts.ContainerCPU < 0 {
+		ts.ContainerCPU = 0
+	}
+	if ts.ContainerMemory < 0 {
+		ts.ContainerMemory = 0
+	}
+	if ts.ContainerGPU < 0 {
+		ts.ContainerGPU = 0
 	}
 	ts.UpdateTime = time.Now()
 	var (
@@ -853,9 +880,14 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
-	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(ts.DeployVersion, ts.ServiceID)
-	if memory, ok := sc["container_memory"].(int); ok && memory != 0 {
+	if memory, ok := sc["container_memory"].(int); ok && memory >= 0 {
 		ts.ContainerMemory = memory
+	}
+	if cpu, ok := sc["container_cpu"].(int); ok && cpu >= 0 {
+		ts.ContainerCPU = cpu
+	}
+	if gpu, ok := sc["container_gpu"].(int); ok {
+		ts.ContainerCPU = gpu
 	}
 	if name, ok := sc["service_name"].(string); ok && name != "" {
 		ts.ServiceName = name
@@ -892,17 +924,10 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 		ts.ExtendMethod = extendMethod
 		ts.ServiceType = extendMethod
 	}
-	//update service
+	//update component
 	if err := db.GetManager().TenantServiceDao().UpdateModel(ts); err != nil {
 		logrus.Errorf("update service error, %v", err)
 		return err
-	}
-	//update service version
-	if version != nil {
-		if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
-			logrus.Errorf("update version error, %v", err)
-			return err
-		}
 	}
 	return nil
 }
