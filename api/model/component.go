@@ -254,5 +254,6 @@ type Component struct {
 
 // SyncComponentReq -
 type SyncComponentReq struct {
-	Components []*Component `json:"components"`
+	Components         []*Component `json:"components"`
+	DeleteComponentIDs []string     `json:"delete_componentIDs"`
 }

@@ -42,7 +42,7 @@ type ApplicationHandler interface {
 
 	DeleteConfigGroup(appID, configGroupName string) error
 	ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error)
-	SyncComponents(app *dbmodel.Application, components []*model.Component) error
+	SyncComponents(app *dbmodel.Application, components []*model.Component, deleteComponentIDs []string) error
 	SyncComponentConfigGroupRels(tx *gorm.DB, app *dbmodel.Application, components []*model.Component) error
 	SyncAppConfigGroups(app *dbmodel.Application, appConfigGroups []model.AppConfigGroup) error
 }
@@ -292,7 +292,7 @@ func (a *ApplicationAction) BatchBindService(appID string, req model.BindService
 }
 
 // SyncComponents -
-func (a *ApplicationAction) SyncComponents(app *dbmodel.Application, components []*model.Component) error {
+func (a *ApplicationAction) SyncComponents(app *dbmodel.Application, components []*model.Component, deleteComponentIDs []string) error {
 	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
 		if err := GetServiceManager().SyncComponentBase(tx, app, components); err != nil {
 			return err
@@ -336,6 +336,78 @@ func (a *ApplicationAction) SyncComponents(app *dbmodel.Application, components 
 		if err := GetServiceManager().SyncComponentLabels(tx, components); err != nil {
 			return err
 		}
-		return GetServiceManager().SyncComponentScaleRules(tx, components)
+		if err := GetServiceManager().SyncComponentScaleRules(tx, components); err != nil {
+			return err
+		}
+		if len(deleteComponentIDs) != 0 {
+			return a.deleteByComponentIDs(tx, app, deleteComponentIDs)
+		}
+		return nil
 	})
+}
+
+func (a *ApplicationAction) deleteByComponentIDs(tx *gorm.DB, app *dbmodel.Application, componentIDs []string) error {
+	if err := db.GetManager().TenantServiceDaoTransactions(tx).DeleteByComponentIDs(app.TenantID, app.AppID, componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().HTTPRuleDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TCPRuleDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServiceMonitorDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServiceRelationDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServiceMountRelationDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().ServiceProbeDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	autoScaleRules, err := db.GetManager().TenantServceAutoscalerRulesDaoTransactions(tx).ListByComponentIDs(componentIDs)
+	if err != nil {
+		return err
+	}
+	var autoScaleRuleIDs []string
+	for _, rule := range autoScaleRules {
+		autoScaleRuleIDs = append(autoScaleRuleIDs, rule.RuleID)
+	}
+	if err = db.GetManager().TenantServceAutoscalerRulesDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).DeleteByRuleIDs(autoScaleRuleIDs)
 }

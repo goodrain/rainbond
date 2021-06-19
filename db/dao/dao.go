@@ -339,6 +339,7 @@ type TenantServiceVolumeDao interface {
 	DelShareableBySID(sid string) error
 	ListVolumesByComponentIDs(componentIDs []string) ([]*model.TenantServiceVolume, error)
 	DeleteByVolumeIDs(volumeIDs []uint) error
+	DeleteByComponentIDs(componentIDs []string) error
 	CreateOrUpdateVolumesInBatch(volumes []*model.TenantServiceVolume) error
 }
 
@@ -568,6 +569,7 @@ type TenantServceAutoscalerRulesDao interface {
 	GetByRuleID(ruleID string) (*model.TenantServiceAutoscalerRules, error)
 	ListByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error)
 	ListEnableOnesByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error)
+	ListByComponentIDs(componentIDs []string) ([]*model.TenantServiceAutoscalerRules, error)
 	DeleteByComponentIDs(componentIDs []string) error
 	CreateOrUpdateScaleRulesInBatch(rules []*model.TenantServiceAutoscalerRules) error
 }

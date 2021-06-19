@@ -1247,6 +1247,11 @@ func (t *TenantServiceVolumeDaoImpl) DeleteByVolumeIDs(volumeIDs []uint) error {
 	return t.DB.Where("ID in (?)", volumeIDs).Delete(&model.TenantServiceVolume{}).Error
 }
 
+//DeleteByComponentIDs -
+func (t *TenantServiceVolumeDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
+	return t.DB.Where("service_id in (?)", componentIDs).Delete(&model.TenantServiceVolume{}).Error
+}
+
 // CreateOrUpdateVolumesInBatch -
 func (t *TenantServiceVolumeDaoImpl) CreateOrUpdateVolumesInBatch(volumes []*model.TenantServiceVolume) error {
 	var objects []interface{}
@@ -1819,6 +1824,15 @@ func (t *TenantServceAutoscalerRulesDaoImpl) ListByServiceID(serviceID string) (
 func (t *TenantServceAutoscalerRulesDaoImpl) ListEnableOnesByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error) {
 	var rules []*model.TenantServiceAutoscalerRules
 	if err := t.DB.Where("service_id=? and enable=?", serviceID, true).Find(&rules).Error; err != nil {
+		return nil, err
+	}
+	return rules, nil
+}
+
+// ListByComponentIDs -
+func (t *TenantServceAutoscalerRulesDaoImpl) ListByComponentIDs(componentIDs []string) ([]*model.TenantServiceAutoscalerRules, error) {
+	var rules []*model.TenantServiceAutoscalerRules
+	if err := t.DB.Where("service_id in (?)", componentIDs).Find(&rules).Error; err != nil {
 		return nil, err
 	}
 	return rules, nil
