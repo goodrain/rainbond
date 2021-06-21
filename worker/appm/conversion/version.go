@@ -664,6 +664,7 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 	podAffinity := make([]corev1.PodAffinityTerm, 0)
 	podAntAffinity := make([]corev1.PodAffinityTerm, 0)
 	osWindowsSelect := false
+	enableGPU := as.ContainerGPU > 0
 	labels, err := dbmanager.TenantServiceLabelDao().GetTenantServiceAffinityLabel(as.ServiceID)
 	if err == nil && labels != nil && len(labels) > 0 {
 		for _, l := range labels {
@@ -724,11 +725,24 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 			Values:   []string{"windows"},
 		})
 	}
+	if !enableGPU {
+		nsr = append(nsr, corev1.NodeSelectorRequirement{
+			Key:      client.LabelGPU,
+			Values:   []string{"true"},
+			Operator: corev1.NodeSelectorOpNotIn,
+		})
+	} else {
+		nsr = append(nsr, corev1.NodeSelectorRequirement{
+			Key:      client.LabelGPU,
+			Values:   []string{"true"},
+			Operator: corev1.NodeSelectorOpIn,
+		})
+	}
 	if len(nsr) > 0 {
 		affinity.NodeAffinity = &corev1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 				NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					corev1.NodeSelectorTerm{MatchExpressions: nsr},
+					{MatchExpressions: nsr},
 				},
 			},
 		}
