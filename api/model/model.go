@@ -283,6 +283,10 @@ type ServiceStruct struct {
 	// in: body
 	// required: false
 	ContainerMemory int `json:"container_memory" validate:"container_memory"`
+	// component gpu video memory
+	// in: body
+	// required: false
+	ContainerGPU int `json:"container_gpu" validate:"container_gpu"`
 	// 容器启动命令
 	// in: body
 	// required: false
@@ -1262,6 +1266,20 @@ type AddTenantServiceEnvVar struct {
 	Scope         string `validate:"scope|in:outer,inner,both,build" json:"scope"`
 }
 
+// DbModel return database model
+func (a *AddTenantServiceEnvVar) DbModel(tenantID, componentID string) *dbmodel.TenantServiceEnvVar {
+	return &dbmodel.TenantServiceEnvVar{
+		TenantID:      tenantID,
+		ServiceID:     componentID,
+		Name:          a.Name,
+		AttrName:      a.AttrName,
+		AttrValue:     a.AttrValue,
+		ContainerPort: a.ContainerPort,
+		IsChange:      true,
+		Scope:         a.Scope,
+	}
+}
+
 //DelTenantServiceEnvVar  应用环境变量
 type DelTenantServiceEnvVar struct {
 	Model
@@ -1292,6 +1310,23 @@ type TenantServicesPort struct {
 	K8sServiceName string `gorm:"column:k8s_service_name" json:"k8s_service_name"`
 	IsInnerService bool   `gorm:"column:is_inner_service" validate:"is_inner_service|bool" json:"is_inner_service"`
 	IsOuterService bool   `gorm:"column:is_outer_service" validate:"is_outer_service|bool" json:"is_outer_service"`
+}
+
+// DbModel return database model
+func (p *TenantServicesPort) DbModel(tenantID, componentID string) *dbmodel.TenantServicesPort {
+	isInnerService := p.IsInnerService
+	isOuterService := p.IsOuterService
+	return &dbmodel.TenantServicesPort{
+		TenantID:       tenantID,
+		ServiceID:      componentID,
+		ContainerPort:  p.ContainerPort,
+		MappingPort:    p.MappingPort,
+		Protocol:       p.Protocol,
+		PortAlias:      p.PortAlias,
+		IsInnerService: &isInnerService,
+		IsOuterService: &isOuterService,
+		K8sServiceName: p.K8sServiceName,
+	}
 }
 
 // AddServicePort service port
@@ -1360,6 +1395,27 @@ type ServiceProbe struct {
 	//标志为成功的检测次数
 	SuccessThreshold int    `gorm:"column:success_threshold;size:2;default:1" json:"success_threshold" validate:"success_threshold"`
 	FailureAction    string `json:"failure_action" validate:"failure_action"`
+}
+
+// DbModel return database model
+func (p *ServiceProbe) DbModel(componentID string) *dbmodel.TenantServiceProbe {
+	return &dbmodel.TenantServiceProbe{
+		ServiceID:          componentID,
+		Cmd:                p.Cmd,
+		FailureThreshold:   p.FailureThreshold,
+		HTTPHeader:         p.HTTPHeader,
+		InitialDelaySecond: p.InitialDelaySecond,
+		IsUsed:             &p.IsUsed,
+		Mode:               p.Mode,
+		Path:               p.Path,
+		PeriodSecond:       p.PeriodSecond,
+		Port:               p.Port,
+		ProbeID:            p.ProbeID,
+		Scheme:             p.Scheme,
+		SuccessThreshold:   p.SuccessThreshold,
+		TimeoutSecond:      p.TimeoutSecond,
+		FailureAction:      p.FailureAction,
+	}
 }
 
 //TenantServiceVolume 应用持久化记录
@@ -1776,10 +1832,18 @@ type BindServiceRequest struct {
 
 // ConfigGroupService -
 type ConfigGroupService struct {
-	AppID           string `json:"app_id"`
-	ConfigGroupName string `json:"config_group_name"`
 	ServiceID       string `json:"service_id"`
 	ServiceAlias    string `json:"service_alias"`
+}
+
+// DbModel return database model
+func (c ConfigGroupService) DbModel(appID, configGroupName string) *dbmodel.ConfigGroupService {
+	return &dbmodel.ConfigGroupService{
+		AppID:           appID,
+		ConfigGroupName: configGroupName,
+		ServiceID:       c.ServiceID,
+		ServiceAlias:    c.ServiceAlias,
+	}
 }
 
 // ConfigItem -
@@ -1790,14 +1854,43 @@ type ConfigItem struct {
 	ItemValue       string `json:"item_value" validate:"required,max=65535"`
 }
 
+// DbModel return database model
+func (c ConfigItem) DbModel(appID, configGroupName string) *dbmodel.ConfigGroupItem {
+	return &dbmodel.ConfigGroupItem{
+		AppID:           appID,
+		ConfigGroupName: configGroupName,
+		ItemKey:         c.ItemKey,
+		ItemValue:       c.ItemValue,
+	}
+}
+
 // ApplicationConfigGroup -
 type ApplicationConfigGroup struct {
-	AppID           string       `json:"app_id"`
-	ConfigGroupName string       `json:"config_group_name" validate:"required,alphanum,min=2,max=64"`
-	DeployType      string       `json:"deploy_type" validate:"required,oneof=env configfile"`
-	ServiceIDs      []string     `json:"service_ids"`
-	ConfigItems     []ConfigItem `json:"config_items"`
-	Enable          bool         `json:"enable"`
+	AppID               string               `json:"app_id"`
+	ConfigGroupName     string               `json:"config_group_name" validate:"required,alphanum,min=2,max=64"`
+	DeployType          string               `json:"deploy_type" validate:"required,oneof=env configfile"`
+	ServiceIDs          []string             `json:"service_ids"`
+	ConfigItems         []ConfigItem         `json:"config_items"`
+	Enable              bool                 `json:"enable"`
+}
+
+// AppConfigGroup Interface for synchronizing application configuration groups
+type AppConfigGroup struct {
+	ConfigGroupName     string               `json:"config_group_name" validate:"required,alphanum,min=2,max=64"`
+	DeployType          string               `json:"deploy_type" validate:"required,oneof=env configfile"`
+	ConfigItems         []ConfigItem         `json:"config_items"`
+	ConfigGroupServices []ConfigGroupService `json:"config_group_services"`
+	Enable              bool                 `json:"enable"`
+}
+
+// DbModel return database model
+func (a AppConfigGroup) DbModel(appID string) *dbmodel.ApplicationConfigGroup {
+	return &dbmodel.ApplicationConfigGroup{
+		AppID:           appID,
+		ConfigGroupName: a.ConfigGroupName,
+		DeployType:      a.DeployType,
+		Enable:          a.Enable,
+	}
 }
 
 // ApplicationConfigGroupResp -
@@ -1824,4 +1917,24 @@ type ListApplicationConfigGroupResp struct {
 	Total       int64                        `json:"total"`
 	Page        int                          `json:"page"`
 	PageSize    int                          `json:"pageSize"`
+}
+
+// AppConfigGroupRelations -
+type AppConfigGroupRelations struct {
+	ConfigGroupName string `json:"config_group_name"`
+}
+
+// DbModel return database model
+func (a *AppConfigGroupRelations) DbModel(appID, serviceID, serviceAlias string) *dbmodel.ConfigGroupService {
+	return &dbmodel.ConfigGroupService{
+		AppID:           appID,
+		ConfigGroupName: a.ConfigGroupName,
+		ServiceID:       serviceID,
+		ServiceAlias:    serviceAlias,
+	}
+}
+
+// SyncAppConfigGroup -
+type SyncAppConfigGroup struct {
+	AppConfigGroups []AppConfigGroup `json:"app_config_groups"`
 }

@@ -21,6 +21,8 @@ package middleware
 import (
 	"context"
 	"net/http"
+
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 )
 
 //APIVersion api版本
@@ -30,7 +32,7 @@ func APIVersion(next http.Handler) http.Handler {
 		if apiVersion == "" {
 			apiVersion = "default"
 		}
-		ctx := context.WithValue(r.Context(), ContextKey("api_version"), apiVersion)
+		ctx := context.WithValue(r.Context(), ctxutil.ContextKey("api_version"), apiVersion)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)

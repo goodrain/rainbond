@@ -18,6 +18,8 @@
 
 package model
 
+import dbmodel "github.com/goodrain/rainbond/db/model"
+
 // AutoscalerRuleReq -
 type AutoscalerRuleReq struct {
 	RuleID      string `json:"rule_id" validate:"rule_id|required"`
@@ -48,4 +50,45 @@ type AutoscalerRuleResp struct {
 		MetricTargetType  string `json:"metric_target_type"`
 		MetricTargetValue int    `json:"metric_target_value"`
 	} `json:"metrics"`
+}
+
+// AutoScalerRule -
+type AutoScalerRule struct {
+	RuleID      string       `json:"rule_id"`
+	Enable      bool         `json:"enable"`
+	XPAType     string       `json:"xpa_type"`
+	MinReplicas int          `json:"min_replicas"`
+	MaxReplicas int          `json:"max_replicas"`
+	RuleMetrics []RuleMetric `json:"metrics"`
+}
+
+// DbModel return database model
+func (a AutoScalerRule) DbModel(componentID string) *dbmodel.TenantServiceAutoscalerRules {
+	return &dbmodel.TenantServiceAutoscalerRules{
+		RuleID:      a.RuleID,
+		ServiceID:   componentID,
+		MinReplicas: a.MinReplicas,
+		MaxReplicas: a.MaxReplicas,
+		Enable:      a.Enable,
+		XPAType:     a.XPAType,
+	}
+}
+
+// RuleMetric -
+type RuleMetric struct {
+	MetricsType       string `json:"metric_type"`
+	MetricsName       string `json:"metric_name"`
+	MetricTargetType  string `json:"metric_target_type"`
+	MetricTargetValue int    `json:"metric_target_value"`
+}
+
+// DbModel return database model
+func (r RuleMetric) DbModel(ruleID string) *dbmodel.TenantServiceAutoscalerRuleMetrics {
+	return &dbmodel.TenantServiceAutoscalerRuleMetrics{
+		RuleID:            ruleID,
+		MetricsType:       r.MetricsType,
+		MetricsName:       r.MetricsName,
+		MetricTargetType:  r.MetricTargetType,
+		MetricTargetValue: r.MetricTargetValue,
+	}
 }

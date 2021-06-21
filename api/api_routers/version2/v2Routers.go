@@ -130,6 +130,9 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/plugins/{plugin_id}/share", controller.GetManager().SharePlugin)
 	r.Get("/plugins/{plugin_id}/share/{share_id}", controller.GetManager().SharePluginResult)
 	r.Get("/plugin", controller.GetManager().PluginAction)
+	// batch install and build plugins
+	r.Post("/plugins", controller.GetManager().BatchInstallPlugins)
+	r.Post("/batch-build-plugins", controller.GetManager().BatchBuildPlugins)
 	r.Post("/services_status", controller.GetManager().StatusServiceList)
 	r.Mount("/services/{service_alias}", v2.serviceRouter())
 	r.Mount("/plugin/{plugin_id}", v2.pluginRouter())
@@ -193,6 +196,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	//应用伸缩
 	r.Put("/vertical", middleware.WrapEL(controller.GetManager().VerticalService, dbmodel.TargetTypeService, "vertical-service", dbmodel.ASYNEVENTTYPE))
 	r.Put("/horizontal", middleware.WrapEL(controller.GetManager().HorizontalService, dbmodel.TargetTypeService, "horizontal-service", dbmodel.ASYNEVENTTYPE))
+
 	//设置应用语言(act)
 	r.Post("/language", middleware.WrapEL(controller.GetManager().SetLanguage, dbmodel.TargetTypeService, "set-language", dbmodel.SYNEVENTTYPE))
 	//应用信息获取修改与删除(source)
@@ -321,6 +325,9 @@ func (v2 *V2) applicationRouter() chi.Router {
 	r.Delete("/configgroups/{config_group_name}", controller.GetManager().DeleteConfigGroup)
 	r.Get("/configgroups", controller.GetManager().ListConfigGroups)
 
+	// Synchronize component information, full coverage
+	r.Post("/components", controller.GetManager().SyncComponents)
+	r.Post("/app-config-groups", controller.GetManager().SyncAppConfigGroups)
 	return r
 }
 

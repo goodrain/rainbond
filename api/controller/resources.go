@@ -30,9 +30,9 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util/bcode"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/errors"
@@ -548,7 +548,7 @@ func (t *TenantStruct) GetTenants(w http.ResponseWriter, r *http.Request) {
 
 //DeleteTenant DeleteTenant
 func (t *TenantStruct) DeleteTenant(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 
 	if err := handler.GetTenantManager().DeleteTenant(tenantID); err != nil {
 		if err == handler.ErrTenantStillHasServices || err == handler.ErrTenantStillHasPlugins {
@@ -575,7 +575,7 @@ func (t *TenantStruct) UpdateTenant(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	tenant.LimitMemory = ts.Body.LimitMemory
 	if err := handler.GetTenantManager().UpdateTenant(tenant); err != nil {
 		httputil.ReturnError(r, w, 500, "update tenant error")
@@ -586,7 +586,7 @@ func (t *TenantStruct) UpdateTenant(w http.ResponseWriter, r *http.Request) {
 
 //GetTenant get one tenant
 func (t *TenantStruct) GetTenant(w http.ResponseWriter, r *http.Request) {
-	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	list := handler.GetTenantManager().BindTenantsResource([]*dbmodel.Tenants{tenant})
 	httputil.ReturnSuccess(r, w, list[0])
 }
@@ -633,7 +633,7 @@ func (t *TenantStruct) ServicesInfo(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	services, err := handler.GetServiceManager().GetService(tenantID)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, "get tenant services error")
@@ -675,7 +675,7 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	ss.TenantID = tenantID
 	if err := handler.GetServiceManager().ServiceCreate(&ss); err != nil {
 		if strings.Contains(err.Error(), "is exist in tenant") {
@@ -723,7 +723,7 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	data["service_id"] = serviceID
 
 	// Check if the application ID exists
@@ -775,7 +775,7 @@ func (t *TenantStruct) SetLanguage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	langS.Language = data["language"].(string)
-	langS.ServiceID = r.Context().Value(middleware.ContextKey("service_id")).(string)
+	langS.ServiceID = r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	if err := handler.GetServiceManager().LanguageSet(langS); err != nil {
 		httputil.ReturnError(r, w, 500, "set language error.")
 		return
@@ -806,7 +806,7 @@ func (t *TenantStruct) StatusService(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	statusList, err := handler.GetServiceManager().GetStatus(serviceID)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get service list error,%v", err))
@@ -850,7 +850,7 @@ func (t *TenantStruct) StatusServiceList(w http.ResponseWriter, r *http.Request)
 	}
 	//logrus.Info(services.Body.ServiceIDs)
 	serviceList := services.Body.ServiceIDs
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	info := handler.GetServiceManager().GetServicesStatus(tenantID, serviceList)
 
 	httputil.ReturnSuccess(r, w, info)
@@ -897,7 +897,7 @@ func (t *TenantStruct) Label(w http.ResponseWriter, r *http.Request) {
 // AddLabel adds label
 func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request, labels *api_model.LabelsStruct) {
 	logrus.Debugf("add label")
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	if err := handler.GetServiceManager().AddLabel(labels, serviceID); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("add label error, %v", err))
 		return
@@ -907,7 +907,7 @@ func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request, labels *
 
 // DeleteLabel deletes labels
 func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request, labels *api_model.LabelsStruct) {
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	if err := handler.GetServiceManager().DeleteLabel(labels, serviceID); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete node label failure, %v", err))
 		return
@@ -917,7 +917,7 @@ func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request, label
 
 //UpdateLabel Update updates labels
 func (t *TenantStruct) UpdateLabel(w http.ResponseWriter, r *http.Request, labels *api_model.LabelsStruct) {
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	if err := handler.GetServiceManager().UpdateLabel(labels, serviceID); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("error updating label: %v", err))
 		return
@@ -963,10 +963,10 @@ func (t *TenantStruct) GetSingleServiceInfo(w http.ResponseWriter, r *http.Reque
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
 
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
-	serviceName := r.Context().Value(middleware.ContextKey("service_alias")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantName := r.Context().Value(ctxutil.ContextKey("tenant_name")).(string)
+	serviceName := r.Context().Value(ctxutil.ContextKey("service_alias")).(string)
 	result := make(map[string]string)
 	result["tenantName"] = tenantName
 	result["serviceAlias"] = serviceName
@@ -997,8 +997,8 @@ func (t *TenantStruct) GetSingleServiceInfo(w http.ResponseWriter, r *http.Reque
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) DeleteSingleServiceInfo(w http.ResponseWriter, r *http.Request) {
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	var req api_model.EtcdCleanReq
 	if httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
 		logrus.Debugf("delete service etcd keys : %+v", req.Keys)
@@ -1058,8 +1058,8 @@ func (t *TenantStruct) AddDependency(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ds := &api_model.DependService{
-		TenantID:       r.Context().Value(middleware.ContextKey("tenant_id")).(string),
-		ServiceID:      r.Context().Value(middleware.ContextKey("service_id")).(string),
+		TenantID:       r.Context().Value(ctxutil.ContextKey("tenant_id")).(string),
+		ServiceID:      r.Context().Value(ctxutil.ContextKey("service_id")).(string),
 		DepServiceID:   data["dep_service_id"].(string),
 		DepServiceType: data["dep_service_type"].(string),
 	}
@@ -1103,8 +1103,8 @@ func (t *TenantStruct) DeleteDependency(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	ds := &api_model.DependService{
-		TenantID:     r.Context().Value(middleware.ContextKey("tenant_id")).(string),
-		ServiceID:    r.Context().Value(middleware.ContextKey("service_id")).(string),
+		TenantID:     r.Context().Value(ctxutil.ContextKey("tenant_id")).(string),
+		ServiceID:    r.Context().Value(ctxutil.ContextKey("service_id")).(string),
 		DepServiceID: data["dep_service_id"].(string),
 	}
 	if err := handler.GetServiceManager().ServiceDepend("delete", ds); err != nil {
@@ -1152,8 +1152,8 @@ func (t *TenantStruct) AddEnv(w http.ResponseWriter, r *http.Request) {
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &envM, nil) {
 		return
 	}
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	var envD dbmodel.TenantServiceEnvVar
 	envD.AttrName = envM.AttrName
 	envD.AttrValue = envM.AttrValue
@@ -1201,8 +1201,8 @@ func (t *TenantStruct) UpdateEnv(w http.ResponseWriter, r *http.Request) {
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &envM, nil) {
 		return
 	}
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	var envD dbmodel.TenantServiceEnvVar
 	envD.AttrName = envM.AttrName
 	envD.AttrValue = envM.AttrValue
@@ -1246,8 +1246,8 @@ func (t *TenantStruct) DeleteEnv(w http.ResponseWriter, r *http.Request) {
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &envM, nil) {
 		return
 	}
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	envM.TenantID = tenantID
 	envM.ServiceID = serviceID
 	var envD dbmodel.TenantServiceEnvVar
@@ -1305,8 +1305,8 @@ func (t *TenantStruct) Ports(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) PutPorts(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	var ports api_model.ServicePorts
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ports, nil); !ok {
 		return
@@ -1340,8 +1340,8 @@ func (t *TenantStruct) PutPorts(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) addPortController(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	var ports api_model.ServicePorts
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ports, nil); !ok {
 		return
@@ -1376,8 +1376,8 @@ func (t *TenantStruct) addPortController(w http.ResponseWriter, r *http.Request)
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) updatePortController(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	portStr := chi.URLParam(r, "port")
 	oldPort, err := strconv.Atoi(portStr)
 	if err != nil {
@@ -1418,8 +1418,8 @@ func (t *TenantStruct) updatePortController(w http.ResponseWriter, r *http.Reque
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) deletePortController(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	portStr := chi.URLParam(r, "port")
 	oldPort, err := strconv.Atoi(portStr)
 	if err != nil {
@@ -1471,8 +1471,8 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	service := r.Context().Value(middleware.ContextKey("service")).(*dbmodel.TenantServices)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
 	if dbmodel.ServiceKind(service.Kind) == dbmodel.ServiceKindThirdParty {
 		endpoints, err := db.GetManager().EndpointsDao().List(serviceID)
 		if err != nil {
@@ -1489,7 +1489,7 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
+	tenantName := r.Context().Value(ctxutil.ContextKey("tenant_name")).(string)
 	portStr := chi.URLParam(r, "port")
 	containerPort, err := strconv.Atoi(portStr)
 	if err != nil {
@@ -1562,8 +1562,8 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &(data.Body), nil) {
 		return
 	}
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantName := r.Context().Value(ctxutil.ContextKey("tenant_name")).(string)
 	portStr := chi.URLParam(r, "port")
 	containerPort, err := strconv.Atoi(portStr)
 	if err != nil {
@@ -1617,7 +1617,7 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) Pods(w http.ResponseWriter, r *http.Request) {
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	pods, err := handler.GetServiceManager().GetPods(serviceID)
 	if err != nil {
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
@@ -1666,7 +1666,7 @@ func (t *TenantStruct) Probe(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	var tsp api_model.ServiceProbe
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsp, nil); !ok {
 		return
@@ -1717,7 +1717,7 @@ func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	var tsp api_model.ServiceProbe
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsp, nil); !ok {
 		return
@@ -1771,7 +1771,7 @@ func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) DeleteProbe(w http.ResponseWriter, r *http.Request) {
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	var tsp api_model.ServiceProbe
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsp, nil); !ok {
 		return
@@ -1839,7 +1839,7 @@ func (t *TenantStruct) UpdatePort(w http.ResponseWriter, r *http.Request) {
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) SingleTenantResources(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	//11ms
 	services, err := handler.GetServiceManager().GetService(tenantID)
 	if err != nil {
@@ -1918,8 +1918,8 @@ func (t *TenantStruct) TransPlugins(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	tenantName := r.Context().Value(ctxutil.ContextKey("tenant_name")).(string)
 	rc := make(map[string]string)
 	err := handler.GetTenantManager().TransPlugins(tenantID, tenantName, tps.Body.FromTenantName, tps.Body.PluginsID)
 	if err != nil {

@@ -23,8 +23,8 @@ import (
 	"net/http"
 
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/errors"
 	validation "github.com/goodrain/rainbond/util/endpoint"
@@ -56,7 +56,7 @@ func (t *ThirdPartyServiceController) addEndpoints(w http.ResponseWriter, r *htt
 	}
 	// if address is not ip, and then it is domain
 	address := validation.SplitEndpointAddress(data.Address)
-	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	sid := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	if validation.IsDomainNotIP(address) {
 		// handle domain, check can add new endpoint or not
 		if !canAddDomainEndpoint(sid, true) {
@@ -122,7 +122,7 @@ func (t *ThirdPartyServiceController) delEndpoints(w http.ResponseWriter, r *htt
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &data, nil) {
 		return
 	}
-	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	sid := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	if err := handler.Get3rdPartySvcHandler().DelEndpoints(data.EpID, sid); err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
@@ -131,7 +131,7 @@ func (t *ThirdPartyServiceController) delEndpoints(w http.ResponseWriter, r *htt
 }
 
 func (t *ThirdPartyServiceController) listEndpoints(w http.ResponseWriter, r *http.Request) {
-	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	sid := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	res, err := handler.Get3rdPartySvcHandler().ListEndpoints(sid)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, err.Error())
