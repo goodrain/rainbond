@@ -221,8 +221,8 @@ func checkEnvoyIfReady(client *http.Client, envoyReadyUrl string) error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 || string(reBody) != "LIVE" {
-		return fmt.Errorf("HTTP status code %v ,body: %s", resp.StatusCode, string(reBody))
+	if resp.StatusCode != 200 || !strings.Contains(string(reBody), "LIVE") {
+		return fmt.Errorf("HTTP status code %d, body: %s", resp.StatusCode, string(reBody))
 	}
 	return nil
 }
@@ -242,7 +242,7 @@ func checkEnvoyListenerIfReady(client *http.Client, url string, port string) err
 		return err
 	}
 	if resp.StatusCode != 200 || !strings.Contains(string(reBody), fmt.Sprintf(":%s", port)) {
-		return fmt.Errorf("Check Listeners HTTP status code %v, body is %s", resp.StatusCode, string(reBody))
+		return fmt.Errorf("check Listeners HTTP status code %v, body is %s", resp.StatusCode, string(reBody))
 	}
 	return nil
 }
