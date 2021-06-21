@@ -40,22 +40,27 @@ import (
 
 //TenantServicePlugin conv service all plugin
 func TenantServicePlugin(as *typesv1.AppService, dbmanager db.Manager) error {
-	initContainers, pluginContainers, bootSeqContainer, err := conversionServicePlugin(as, dbmanager)
+	initContainers, preContainers, postContainers, err := conversionServicePlugin(as, dbmanager)
 	if err != nil {
+		logrus.Errorf("create plugin containers for component %s failure: %s", as.ServiceID, err.Error())
 		return err
 	}
-	as.BootSeqContainer = bootSeqContainer
 	podtemplate := as.GetPodTemplate()
 	if podtemplate != nil {
-		podtemplate.Spec.Containers = append(podtemplate.Spec.Containers, pluginContainers...)
+		if len(preContainers) > 0 {
+			podtemplate.Spec.Containers = append(preContainers, podtemplate.Spec.Containers...)
+		}
+		if len(postContainers) > 0 {
+			podtemplate.Spec.Containers = append(podtemplate.Spec.Containers, postContainers...)
+		}
 		podtemplate.Spec.InitContainers = initContainers
 		return nil
 	}
 	return fmt.Errorf("pod templete is nil before define plugin")
 }
 
-func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1.Container, []v1.Container, *v1.Container, error) {
-	var containers []v1.Container
+func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1.Container, []v1.Container, []v1.Container, error) {
+	var precontainers, postcontainers []v1.Container
 	var initContainers []v1.Container
 	appPlugins, err := dbmanager.TenantServicePluginRelationDao().GetALLRelationByServiceID(as.ServiceID)
 	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
@@ -73,7 +78,8 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 	var inBoundPlugin *model.TenantServicePluginRelation
 	for _, pluginR := range appPlugins {
 		//if plugin not enable,ignore it
-		if pluginR.Switch == false {
+		if !pluginR.Switch {
+			logrus.Debugf("plugin %s is disable in component %s", pluginR.PluginID, as.ServiceID)
 			continue
 		}
 		versionInfo, err := dbmanager.TenantPluginBuildVersionDao().GetLastBuildVersionByVersionID(pluginR.PluginID, pluginR.VersionID)
@@ -119,12 +125,30 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("get plugin model info failure %s", err.Error())
 		}
+		var preconatiner = false
 		if pluginModel == model.InBoundAndOutBoundNetPlugin || pluginModel == model.InBoundNetPlugin {
 			inBoundPlugin = pluginR
+			preconatiner = true
 		}
 		if pluginModel == model.OutBoundNetPlugin || pluginModel == model.InBoundAndOutBoundNetPlugin {
 			netPlugin = true
 			meshPluginID = pluginR.PluginID
+			preconatiner = true
+		}
+		if netPlugin {
+			config, err := dbmanager.TenantPluginVersionConfigDao().GetPluginConfig(as.ServiceID, pluginR.PluginID)
+			if err != nil && err != gorm.ErrRecordNotFound {
+				logrus.Errorf("get service plugin config from db failure %s", err.Error())
+			}
+			if config != nil {
+				var resourceConfig api_model.ResourceSpec
+				if err := json.Unmarshal([]byte(config.ConfigStr), &resourceConfig); err != nil {
+					logrus.Warningf("load mesh plugin %s config of componet %s failure %s")
+				}
+				if len(resourceConfig.BaseServices) > 0 {
+					setSidecarContainerLifecycle(as, &pc, &resourceConfig)
+				}
+			}
 		}
 		if pluginModel == model.InitPlugin {
 			if strings.ToLower(os.Getenv("DISABLE_INIT_CONTAINER_ENABLE_SECURITY")) != "true" {
@@ -132,8 +156,10 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 				pc.SecurityContext = &corev1.SecurityContext{Privileged: util.Bool(true)}
 			}
 			initContainers = append(initContainers, pc)
+		} else if preconatiner {
+			precontainers = append(precontainers, pc)
 		} else {
-			containers = append(containers, pc)
+			postcontainers = append(postcontainers, pc)
 		}
 	}
 	var inboundPluginConfig *api_model.ResourceSpec
@@ -157,12 +183,12 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 	}
 	//if need proxy but not install net plugin
 	if as.NeedProxy && !netPlugin {
-		pluginID, err := applyDefaultMeshPluginConfig(as, dbmanager)
+		pluginID, pluginConfig, err := applyDefaultMeshPluginConfig(as, dbmanager)
 		if err != nil {
 			logrus.Errorf("apply default mesh plugin config failure %s", err.Error())
 		}
-		c2 := createTCPDefaultPluginContainer(as, pluginID, mainContainer.Env)
-		containers = append(containers, c2)
+		defaultSidecarContainer := createTCPDefaultPluginContainer(as, pluginID, mainContainer.Env, pluginConfig)
+		precontainers = append(precontainers, defaultSidecarContainer)
 		meshPluginID = pluginID
 	}
 
@@ -170,21 +196,59 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 	if bootSeqDepServiceIds := as.ExtensionSet["boot_seq_dep_service_ids"]; as.NeedProxy && bootSeqDepServiceIds != "" {
 		initContainers = append(initContainers, bootSequence)
 	}
-	return initContainers, containers, &bootSequence, nil
+	as.BootSeqContainer = &bootSequence
+	return initContainers, precontainers, postcontainers, nil
 }
 
-func createTCPDefaultPluginContainer(as *typesv1.AppService, pluginID string, envs []v1.EnvVar) v1.Container {
+func createTCPDefaultPluginContainer(as *typesv1.AppService, pluginID string, envs []v1.EnvVar, pluginConfig *api_model.ResourceSpec) v1.Container {
 	envs = append(envs, v1.EnvVar{Name: "PLUGIN_ID", Value: pluginID})
 	xdsHost, xdsHostPort, apiHostPort := getXDSHostIPAndPort()
 	envs = append(envs, xdsHostIPEnv(xdsHost))
 	envs = append(envs, v1.EnvVar{Name: "API_HOST_PORT", Value: apiHostPort})
 	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_PORT", Value: xdsHostPort})
 
-	return v1.Container{
+	container := v1.Container{
 		Name:      "default-tcpmesh-" + as.ServiceID[len(as.ServiceID)-20:],
 		Env:       envs,
 		Image:     typesv1.GetTCPMeshImageName(),
 		Resources: createTCPUDPMeshRecources(as),
+	}
+	setSidecarContainerLifecycle(as, &container, pluginConfig)
+	return container
+}
+
+func setSidecarContainerLifecycle(as *typesv1.AppService, con *corev1.Container, pluginConfig *api_model.ResourceSpec) {
+	if strings.ToLower(as.ExtensionSet["DISABLE_SIDECAR_CHECK"]) != "true" {
+		var port int
+		if as.ExtensionSet["SIDECAR_CHECK_PORT"] != "" {
+			cport, _ := strconv.Atoi(as.ExtensionSet["SIDECAR_CHECK_PORT"])
+			if cport != 0 {
+				port = cport
+			}
+		}
+		if port == 0 {
+			for _, dep := range pluginConfig.BaseServices {
+				if strings.ToLower(dep.Protocol) != "udp" {
+					port = dep.Port
+					break
+				}
+			}
+			if port == 0 {
+				for _, bport := range pluginConfig.BasePorts {
+					if strings.ToLower(bport.Protocol) != "udp" {
+						port = bport.Port
+						break
+					}
+				}
+			}
+		}
+		con.Lifecycle = &corev1.Lifecycle{
+			PostStart: &corev1.Handler{
+				Exec: &v1.ExecAction{
+					Command: []string{"/root/rainbond-mesh-data-panel", "wait", strconv.Itoa(port)},
+				},
+			},
+		}
 	}
 }
 
@@ -246,7 +310,7 @@ func ApplyPluginConfig(as *typesv1.AppService, servicePluginRelation *model.Tena
 }
 
 //applyDefaultMeshPluginConfig applyDefaultMeshPluginConfig
-func applyDefaultMeshPluginConfig(as *typesv1.AppService, dbmanager db.Manager) (string, error) {
+func applyDefaultMeshPluginConfig(as *typesv1.AppService, dbmanager db.Manager) (string, *api_model.ResourceSpec, error) {
 	var baseServices []*api_model.BaseService
 	deps, err := dbmanager.TenantServiceRelationDao().GetTenantServiceRelations(as.ServiceID)
 	if err != nil {
@@ -280,7 +344,7 @@ func applyDefaultMeshPluginConfig(as *typesv1.AppService, dbmanager db.Manager) 
 	}
 	resJSON, err := json.Marshal(res)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	pluginID := "def-mesh" + as.ServiceID
 	cm := &v1.ConfigMap{
@@ -297,7 +361,7 @@ func applyDefaultMeshPluginConfig(as *typesv1.AppService, dbmanager db.Manager) 
 		},
 	}
 	as.SetConfigMap(cm)
-	return pluginID, nil
+	return pluginID, res, nil
 }
 
 func getPluginModel(pluginID, tenantID string, dbmanager db.Manager) (string, error) {
@@ -373,19 +437,6 @@ func createPluginEnvs(pluginID, tenantID, serviceAlias string, mainEnvs []v1.Env
 		envs[i].Value = util.ParseVariable(env.Value, config)
 	}
 	return &envs, nil
-}
-
-func pluginWeight(pluginModel string) int {
-	switch pluginModel {
-	case model.InBoundNetPlugin:
-		return 9
-	case model.OutBoundNetPlugin:
-		return 8
-	case model.GeneralPlugin:
-		return 1
-	default:
-		return 0
-	}
 }
 
 func createPluginResources(memory int, cpu int) v1.ResourceRequirements {
