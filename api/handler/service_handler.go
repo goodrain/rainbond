@@ -20,6 +20,7 @@ package handler
 
 import (
 	"context"
+	"github.com/jinzhu/gorm"
 
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
@@ -87,4 +88,17 @@ type ServiceHandler interface {
 	UpdateServiceMonitor(tenantID, serviceID, name string, update api_model.UpdateServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error)
 	DeleteServiceMonitor(tenantID, serviceID, name string) (*dbmodel.TenantServiceMonitor, error)
 	AddServiceMonitor(tenantID, serviceID string, add api_model.AddServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error)
+
+	SyncComponentBase(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentMonitors(tx *gorm.DB,app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentPorts(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentRelations(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentEnvs(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentVolumeRels(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentVolumes(tx *gorm.DB,  components []*api_model.Component) error
+	SyncComponentConfigFiles(tx *gorm.DB,  components []*api_model.Component) error
+	SyncComponentProbes(tx *gorm.DB,  components []*api_model.Component) error
+	SyncComponentLabels(tx *gorm.DB,  components []*api_model.Component) error
+	SyncComponentPlugins(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentScaleRules(tx *gorm.DB,  components []*api_model.Component) error
 }

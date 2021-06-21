@@ -116,8 +116,6 @@ github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPd
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5/go.mod h1:wHh0iHkYZB8zMSxRWpUBQtwG5a7fFgvEO+odwuTv2gs=
 github.com/aryann/difflib v0.0.0-20170710044230-e206f873d14a/go.mod h1:DAHtR1m6lCRdSC2Tm3DSWRPvIPr6xNKyeHdqDQSQT+A=
 github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a/go.mod h1:lB+ZfQJz7igIIfQNfa7Ml4HSf2uFQQRzpGGRXenZAgY=
-github.com/atcdot/gorm-bulk-upsert v1.0.0 h1:K+lS2jHHwXZjZSdiPjBiyQi8W9nnpTbdz69/YR1CI6s=
-github.com/atcdot/gorm-bulk-upsert v1.0.0/go.mod h1:b7/GgeVNbf/SFw4FYIWslxNV5I10C9Mhf/++3jsDk3M=
 github.com/aws/aws-lambda-go v1.13.3/go.mod h1:4UKl9IzQMoD+QF79YdCuzCwp8VbmG4VAQwij/eHl5CU=
 github.com/aws/aws-sdk-go v1.15.78/go.mod h1:E3/ieXAlvM0XWO57iftYVDLLvQ824smPP3ATZkfNZeM=
 github.com/aws/aws-sdk-go v1.27.0/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
@@ -416,6 +414,8 @@ github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db/go.mod h1:/XxbfmMg8l
 github.com/golangplus/bytes v0.0.0-20160111154220-45c989fe5450/go.mod h1:Bk6SMAONeMXrxql8uvOKuAZSu8aM5RUGv+1C6IJaEho=
 github.com/golangplus/fmt v0.0.0-20150411045040-2a5d6d7d2995/go.mod h1:lJgMEyOkYFkPcDKwRXegd+iM6E7matEszMG5HhwytU8=
 github.com/golangplus/testing v0.0.0-20180327235837-af21d9c3145e/go.mod h1:0AA//k/eakGydO4jKRoRL2j92ZKSzTgj9tclaCrvXHk=
+github.com/goodrain/gorm-bulk-upsert v1.0.1-0.20210608013724-7e7870d16357 h1:kdSSrpA5yNvgqbfpMlEr8bvQWiLc1Uz9g0vYf3JVT7s=
+github.com/goodrain/gorm-bulk-upsert v1.0.1-0.20210608013724-7e7870d16357/go.mod h1:b7/GgeVNbf/SFw4FYIWslxNV5I10C9Mhf/++3jsDk3M=
 github.com/goodrain/rainbond-oam v0.0.0-20210206075623-511d0796af43 h1:xhUwEWQKk+maL6CmV5Y6kxKb+jA/RvN6SZcDbNm51FM=
 github.com/goodrain/rainbond-oam v0.0.0-20210206075623-511d0796af43/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
 github.com/goodrain/rainbond-oam v0.0.0-20210527094216-782b95046e0d h1:zusxPiXu9m+FoC8DEpVeYm7+wiQlx6F4vzg0TiLH8SA=
@@ -1000,6 +1000,12 @@ github.com/xeipuuv/gojsonschema v0.0.0-20160323030313-93e72a773fad/go.mod h1:5yf
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2 h1:eY9dn8+vbi4tKz5Qo6v2eYzo7kUS51QINcR5jNpbZS8=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
+github.com/yangkaa/gorm-bulk-upsert v1.0.1-0.20210607094105-4e7e44857db8 h1:+MZdg5RvjAUJDxgcMNLLjyqz/p1PPWxmxELBwlpj2uU=
+github.com/yangkaa/gorm-bulk-upsert v1.0.1-0.20210607094105-4e7e44857db8/go.mod h1:b7/GgeVNbf/SFw4FYIWslxNV5I10C9Mhf/++3jsDk3M=
+github.com/yangkaa/gorm-bulk-upsert v1.0.1-0.20210607100637-59956a736699 h1:ftzbDZm+Vhrat+Um7CTEXSp6Byr4ClvH0Pxnj1Fkhf8=
+github.com/yangkaa/gorm-bulk-upsert v1.0.1-0.20210607100637-59956a736699/go.mod h1:b7/GgeVNbf/SFw4FYIWslxNV5I10C9Mhf/++3jsDk3M=
+github.com/yangkaa/gorm-bulk-upsert v1.0.1-0.20210607101504-af79bf40fe77 h1:ntCQ2pHys/sQ7ULdZ29MU9LuEs+pqpEZsifQYBXvZ9A=
+github.com/yangkaa/gorm-bulk-upsert v1.0.1-0.20210607101504-af79bf40fe77/go.mod h1:b7/GgeVNbf/SFw4FYIWslxNV5I10C9Mhf/++3jsDk3M=
 github.com/yudai/hcl v0.0.0-20151013225006-5fa2393b3552/go.mod h1:hg0ZaCmQL3rze1cH8Fh2g0a9q8vQs0uN8ESpePEwSEw=
 github.com/yudai/umutex v0.0.0-20150817080136-18216d265c6b h1:5/txHOjeYQCspaoZzyqanb7On7ZBSndTanlfFfOIEiE=
 github.com/yudai/umutex v0.0.0-20150817080136-18216d265c6b/go.mod h1:OR9LtYACUuYfnQwp/brOYClaZwAo7CIJoaWTbcgqo2o=

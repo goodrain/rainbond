@@ -640,3 +640,33 @@ func (t *TenantStruct) SharePluginResult(w http.ResponseWriter, r *http.Request)
 	}
 	httputil.ReturnSuccess(r, w, res)
 }
+
+//BatchInstallPlugins -
+func (t *TenantStruct) BatchInstallPlugins(w http.ResponseWriter, r *http.Request) {
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	var req api_model.BatchCreatePlugins
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
+		return
+	}
+	if err := handler.GetPluginManager().BatchCreatePlugins(tenantID, req.Plugins); err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+// BatchBuildPlugins -
+func (t *TenantStruct) BatchBuildPlugins(w http.ResponseWriter, r *http.Request) {
+	var builds api_model.BatchBuildPlugins
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &builds, nil)
+	if !ok {
+		return
+	}
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	err := handler.GetPluginManager().BatchBuildPlugins(&builds, tenantID)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}

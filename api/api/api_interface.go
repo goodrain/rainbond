@@ -131,6 +131,8 @@ type PluginInterface interface {
 	GetPluginDefaultEnvs(w http.ResponseWriter, r *http.Request)
 	SharePlugin(w http.ResponseWriter, r *http.Request)
 	SharePluginResult(w http.ResponseWriter, r *http.Request)
+	BatchInstallPlugins(w http.ResponseWriter, r *http.Request)
+	BatchBuildPlugins(w http.ResponseWriter, r *http.Request)
 }
 
 //RulesInterface RulesInterface
@@ -168,6 +170,8 @@ type ApplicationInterface interface {
 
 	DeleteConfigGroup(w http.ResponseWriter, r *http.Request)
 	ListConfigGroups(w http.ResponseWriter, r *http.Request)
+	SyncComponents(w http.ResponseWriter, r *http.Request)
+	SyncAppConfigGroups(w http.ResponseWriter, r *http.Request)
 }
 
 //Gatewayer gateway api interface

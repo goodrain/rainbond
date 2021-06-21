@@ -1,6 +1,7 @@
 package controller
 
 import (
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	"net/http"
 	"strconv"
 
@@ -106,4 +107,34 @@ func (a *ApplicationController) ListConfigGroups(w http.ResponseWriter, r *http.
 		return
 	}
 	httputil.ReturnSuccess(r, w, resp)
+}
+
+// SyncComponents -
+func (a *ApplicationController) SyncComponents(w http.ResponseWriter, r *http.Request) {
+	var syncComponentReq model.SyncComponentReq
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &syncComponentReq, nil) {
+		return
+	}
+	err := handler.GetApplicationHandler().SyncComponents(app, syncComponentReq.Components, syncComponentReq.DeleteComponentIDs)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+// SyncAppConfigGroups -
+func (a *ApplicationController) SyncAppConfigGroups(w http.ResponseWriter, r *http.Request) {
+	var syncAppConfigGroupReq model.SyncAppConfigGroup
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &syncAppConfigGroupReq, nil) {
+		return
+	}
+	err := handler.GetApplicationHandler().SyncAppConfigGroups(app, syncAppConfigGroupReq.AppConfigGroups)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
 }

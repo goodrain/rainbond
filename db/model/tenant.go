@@ -451,7 +451,7 @@ type TenantServiceVolume struct {
 	//挂载地址
 	VolumePath string `gorm:"column:volume_path" json:"volume_path"`
 	//是否只读
-	IsReadOnly bool `gorm:"column:is_read_only;default:false" json:"is_read_only"`
+	IsReadOnly bool `gorm:"column:is_read_only;default:0" json:"is_read_only"`
 	// VolumeCapacity 存储大小
 	VolumeCapacity int64 `gorm:"column:volume_capacity" json:"volume_capacity"`
 	// AccessMode 读写模式（Important! A volume can only be mounted using one access mode at a time, even if it supports many. For example, a GCEPersistentDisk can be mounted as ReadWriteOnce by a single node or ReadOnlyMany by many nodes, but not at the same time. #https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes）
@@ -465,12 +465,17 @@ type TenantServiceVolume struct {
 	// AllowExpansion 是否支持扩展
 	AllowExpansion bool `gorm:"column:allow_expansion" json:"allow_expansion"`
 	// VolumeProviderName 使用的存储驱动别名
-	VolumeProviderName string `gorm:"collumn:volume_provider_name" json:"volume_provider_name"`
+	VolumeProviderName string `gorm:"column:volume_provider_name" json:"volume_provider_name"`
 }
 
 //TableName 表名
 func (t *TenantServiceVolume) TableName() string {
 	return "tenant_services_volume"
+}
+
+// Key returns the key of TenantServiceVolume.
+func (t *TenantServiceVolume) Key() string {
+	return fmt.Sprintf("%s/%s", t.ServiceID, t.VolumeName)
 }
 
 // TenantServiceConfigFile represents a data in configMap which is one of the types of volumes

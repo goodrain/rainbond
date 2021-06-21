@@ -18,6 +18,42 @@
 
 package model
 
+import (
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	"time"
+)
+
+// Plugin -
+type Plugin struct {
+	PluginID    string `json:"plugin_id" validate:"plugin_id|required"`
+	PluginName  string `json:"plugin_name" validate:"plugin_name|required"`
+	PluginInfo  string `json:"plugin_info" validate:"plugin_info"`
+	ImageURL    string `json:"image_url" validate:"image_url"`
+	GitURL      string `json:"git_url" validate:"git_url"`
+	BuildModel  string `json:"build_model" validate:"build_model"`
+	PluginModel string `json:"plugin_model" validate:"plugin_model"`
+	TenantID    string `json:"tenant_id" validate:"tenant_id"`
+}
+
+// DbModel return database model
+func (p *Plugin) DbModel(tenantID string) *dbmodel.TenantPlugin {
+	return &dbmodel.TenantPlugin{
+		PluginID:    p.PluginID,
+		PluginName:  p.PluginName,
+		PluginInfo:  p.PluginInfo,
+		ImageURL:    p.ImageURL,
+		GitURL:      p.GitURL,
+		BuildModel:  p.BuildModel,
+		PluginModel: p.PluginModel,
+		TenantID:    tenantID,
+	}
+}
+
+// BatchCreatePlugins -
+type BatchCreatePlugins struct {
+	Plugins []*Plugin `json:"plugins"`
+}
+
 //CreatePluginStruct CreatePluginStruct
 //swagger:parameters createPlugin
 type CreatePluginStruct struct {
@@ -253,6 +289,62 @@ type BuildPluginStruct struct {
 	}
 }
 
+// BuildPluginReq -
+type BuildPluginReq struct {
+	PluginID      string `json:"plugin_id" validate:"plugin_id"`
+	EventID       string `json:"event_id" validate:"event_id"`
+	PluginCPU     int    `json:"plugin_cpu" validate:"plugin_cpu|required"`
+	PluginMemory  int    `json:"plugin_memory" validate:"plugin_memory|required"`
+	PluginCMD     string `json:"plugin_cmd" validate:"plugin_cmd"`
+	BuildVersion  string `json:"build_version" validate:"build_version|required"`
+	DeployVersion string `json:"deploy_version" validate:"deploy_version"`
+	RepoURL       string `json:"repo_url" validate:"repo_url"`
+	Username      string `json:"username"`
+	Password      string `json:"password"`
+	Info          string `json:"info" validate:"info"`
+	Operator      string `json:"operator" validate:"operator"`
+	TenantID      string `json:"tenant_id" validate:"tenant_id"`
+	BuildImage    string `json:"build_image" validate:"build_image"`
+	ImageInfo     struct {
+		HubURL      string `json:"hub_url"`
+		HubUser     string `json:"hub_user"`
+		HubPassword string `json:"hub_password"`
+		Namespace   string `json:"namespace"`
+		IsTrust     bool   `json:"is_trust,omitempty"`
+	} `json:"ImageInfo" validate:"ImageInfo"`
+}
+
+// DbModel return database model
+func (b BuildPluginReq) DbModel(plugin *dbmodel.TenantPlugin) *dbmodel.TenantPluginBuildVersion {
+	buildVersion := &dbmodel.TenantPluginBuildVersion{
+		VersionID:       b.BuildVersion,
+		DeployVersion:   b.DeployVersion,
+		PluginID:        b.PluginID,
+		Kind:            plugin.BuildModel,
+		Repo:            b.RepoURL,
+		GitURL:          plugin.GitURL,
+		BaseImage:       plugin.ImageURL,
+		ContainerCPU:    b.PluginCPU,
+		ContainerMemory: b.PluginMemory,
+		ContainerCMD:    b.PluginCMD,
+		BuildTime:       time.Now().Format(time.RFC3339),
+		Info:            b.Info,
+		Status:          "building",
+	}
+	if b.PluginCPU == 0 {
+		buildVersion.ContainerCPU = 125
+	}
+	if b.PluginMemory == 0 {
+		buildVersion.ContainerMemory = 50
+	}
+	return buildVersion
+}
+
+// BatchBuildPlugins -
+type BatchBuildPlugins struct {
+	Plugins []*BuildPluginReq `json:"plugins"`
+}
+
 //PluginBuildVersionStruct PluginBuildVersionStruct
 //swagger:parameters deletePluginVersion pluginVersion
 type PluginBuildVersionStruct struct {
@@ -424,6 +516,16 @@ type VersionEnv struct {
 	EnvValue string `json:"env_value" validate:"env_value"`
 }
 
+// DbModel return database model
+func (v *VersionEnv) DbModel(componentID, pluginID string) *dbmodel.TenantPluginVersionEnv {
+	return &dbmodel.TenantPluginVersionEnv{
+		ServiceID: componentID,
+		PluginID:  pluginID,
+		EnvName:   v.EnvName,
+		EnvValue:  v.EnvValue,
+	}
+}
+
 //TransPlugins TransPlugins
 type TransPlugins struct {
 	// in: path
@@ -439,5 +541,59 @@ type TransPlugins struct {
 		// in: body
 		// required: true
 		PluginsID []string `json:"plugins_id" validate:"plugins_id"`
+	}
+}
+
+// PluginVersionEnv -
+type PluginVersionEnv struct {
+	EnvName  string `json:"env_name" validate:"env_name"`
+	EnvValue string `json:"env_value" validate:"env_value"`
+}
+
+// DbModel return database model
+func (p *PluginVersionEnv) DbModel(componentID, pluginID string) *dbmodel.TenantPluginVersionEnv {
+	return &dbmodel.TenantPluginVersionEnv{
+		ServiceID: componentID,
+		PluginID:  pluginID,
+		EnvName:   p.EnvName,
+		EnvValue:  p.EnvValue,
+	}
+}
+
+// TenantPluginVersionConfig -
+type TenantPluginVersionConfig struct {
+	ConfigStr string `json:"config_str" validate:"config_str"`
+}
+
+// DbModel return database model
+func (p *TenantPluginVersionConfig) DbModel(componentID, pluginID string) *dbmodel.TenantPluginVersionDiscoverConfig {
+	return &dbmodel.TenantPluginVersionDiscoverConfig{
+		ServiceID: componentID,
+		PluginID:  pluginID,
+		ConfigStr: p.ConfigStr,
+	}
+}
+
+// ComponentPlugin -
+type ComponentPlugin struct {
+	PluginID        string     `json:"plugin_id"`
+	VersionID       string     `json:"version_id"`
+	PluginModel     string     `json:"plugin_model"`
+	ContainerCPU    int        `json:"container_cpu"`
+	ContainerMemory int        `json:"container_memory"`
+	Switch          bool       `json:"switch"`
+	ConfigEnvs      ConfigEnvs `json:"config_envs" validate:"config_envs"`
+}
+
+// DbModel return database model
+func (p *ComponentPlugin) DbModel(componentID string) *dbmodel.TenantServicePluginRelation {
+	return &dbmodel.TenantServicePluginRelation{
+		VersionID:       p.VersionID,
+		ServiceID:       componentID,
+		PluginID:        p.PluginID,
+		Switch:          p.Switch,
+		PluginModel:     p.PluginModel,
+		ContainerCPU:    p.ContainerCPU,
+		ContainerMemory: p.ContainerMemory,
 	}
 }

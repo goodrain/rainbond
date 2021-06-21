@@ -856,3 +856,45 @@ func (g *GatewayAction) listHTTPRuleIDs(componentID string, port int) ([]string,
 	}
 	return ruleIDs, nil
 }
+
+// SyncHTTPRules -
+func (g *GatewayAction) SyncHTTPRules(tx *gorm.DB, components []*apimodel.Component) error {
+	var (
+		componentIDs []string
+		httpRules    []*model.HTTPRule
+	)
+	for _, component := range components {
+		if component.HTTPRules == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, httpRule := range component.HTTPRules {
+			httpRules = append(httpRules, httpRule.DbModel(component.ComponentBase.ComponentID))
+		}
+	}
+	if err := db.GetManager().HTTPRuleDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().HTTPRuleDaoTransactions(tx).CreateOrUpdateHTTPRuleInBatch(httpRules)
+}
+
+// SyncTCPRules -
+func (g *GatewayAction) SyncTCPRules(tx *gorm.DB, components []*apimodel.Component) error {
+	var (
+		componentIDs []string
+		tcpRules     []*model.TCPRule
+	)
+	for _, component := range components {
+		if component.TCPRules == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, tcpRule := range component.TCPRules {
+			tcpRules = append(tcpRules, tcpRule.DbModel(component.ComponentBase.ComponentID))
+		}
+	}
+	if err := db.GetManager().TCPRuleDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().TCPRuleDaoTransactions(tx).CreateOrUpdateTCPRuleInBatch(tcpRules)
+}

@@ -128,6 +128,7 @@ require (
 
 // Pinned to kubernetes-1.20.0
 replace (
+	github.com/atcdot/gorm-bulk-upsert => github.com/goodrain/gorm-bulk-upsert v1.0.1-0.20210608013724-7e7870d16357
 	github.com/coreos/etcd => github.com/coreos/etcd v3.2.31+incompatible
 	github.com/docker/cli => github.com/docker/cli v0.0.0-20181026144139-6b71e84ec8bf
 	github.com/docker/docker => github.com/docker/engine v0.0.0-20181106193140-f5749085e9cb
