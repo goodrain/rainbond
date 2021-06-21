@@ -52,6 +52,7 @@ type ControlLoop struct {
 	repo       *helm.Repo
 	repoFile   string
 	repoCache  string
+	chartCache string
 }
 
 // NewControlLoop -
@@ -62,6 +63,7 @@ func NewControlLoop(ctx context.Context,
 	workQueue workqueue.Interface,
 	repoFile string,
 	repoCache string,
+	chartCache string,
 ) *ControlLoop {
 	repo := helm.NewRepo(repoFile, repoCache)
 	return &ControlLoop{
@@ -74,6 +76,7 @@ func NewControlLoop(ctx context.Context,
 		repo:       repo,
 		repoFile:   repoFile,
 		repoCache:  repoCache,
+		chartCache: chartCache,
 	}
 }
 
@@ -124,7 +127,7 @@ func nameNamespace(key string) (string, string) {
 
 // Reconcile -
 func (c *ControlLoop) Reconcile(helmApp *v1alpha1.HelmApp) error {
-	app, err := NewApp(c.ctx, c.kubeClient, c.clientset, helmApp, c.repoFile, c.repoCache)
+	app, err := NewApp(c.ctx, c.kubeClient, c.clientset, helmApp, c.repoFile, c.repoCache, c.chartCache)
 	if err != nil {
 		return err
 	}

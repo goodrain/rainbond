@@ -32,7 +32,7 @@ func (a *ApplicationController) CreateApp(w http.ResponseWriter, r *http.Request
 			httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("the field 'app_template_name' is required"))
 			return
 		}
-		if tenantReq.AppTemplateName == "" {
+		if tenantReq.AppName == "" {
 			httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("the field 'helm_app_name' is required"))
 			return
 		}

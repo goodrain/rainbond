@@ -58,9 +58,10 @@ type Config struct {
 
 // Helm helm configuration.
 type Helm struct {
-	DataDir   string
-	RepoFile  string
-	RepoCache string
+	DataDir    string
+	RepoFile   string
+	RepoCache  string
+	ChartCache string
 }
 
 //Worker  worker server
@@ -107,6 +108,7 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	}
 	a.Helm.RepoFile = path.Join(a.Helm.DataDir, "repo/repositories.yaml")
 	a.Helm.RepoCache = path.Join(a.Helm.DataDir, "cache")
+	a.Helm.ChartCache = path.Join(a.Helm.DataDir, "chart")
 }
 
 //SetLog 设置log

@@ -40,7 +40,6 @@ import (
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/util/commonutil"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/goodrain/rainbond/worker/server"
@@ -762,7 +761,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 func (s *ServiceAction) openInnerPorts(componentID string, ports []dbmodel.TenantServicesPort) {
 	// TODO: support open multiple ports in one task.
 	for _, port := range ports {
-		if !commonutil.BoolValue(port.IsInnerService) {
+		if !port.IsOpen(){
 			continue
 		}
 
@@ -2057,17 +2056,6 @@ func (s *ServiceAction) isServiceClosed(serviceID string) error {
 	if service.Kind != dbmodel.ServiceKindThirdParty.String() {
 		if !s.statusCli.IsClosedStatus(status) {
 			return ErrServiceNotClosed
-		}
-	}
-	return nil
-}
-
-// DeleteComponentInBatch deletes components in batch.
-func (s *ServiceAction) DeleteComponentInBatch(tx *gorm.DB, components []*dbmodel.TenantServices) error {
-	for _, cpt := range components {
-		err := s.deleteComponent(tx, cpt)
-		if err != nil {
-			return err
 		}
 	}
 	return nil

@@ -37,6 +37,7 @@ type Finalizer struct {
 	queue      workqueue.Interface
 	repoFile   string
 	repoCache  string
+	chartCache string
 }
 
 // NewFinalizer creates a new finalizer.
@@ -46,6 +47,7 @@ func NewFinalizer(ctx context.Context,
 	workQueue workqueue.Interface,
 	repoFile string,
 	repoCache string,
+	chartCache string,
 ) *Finalizer {
 	return &Finalizer{
 		ctx:        ctx,
@@ -55,6 +57,7 @@ func NewFinalizer(ctx context.Context,
 		queue:      workQueue,
 		repoFile:   repoFile,
 		repoCache:  repoCache,
+		chartCache: chartCache,
 	}
 }
 
@@ -89,7 +92,7 @@ func (c *Finalizer) run(obj interface{}) error {
 
 	logrus.Infof("start uninstall helm app: %s/%s", helmApp.Name, helmApp.Namespace)
 
-	app, err := NewApp(c.ctx, c.kubeClient, c.clientset, helmApp, c.repoFile, c.repoCache)
+	app, err := NewApp(c.ctx, c.kubeClient, c.clientset, helmApp, c.repoFile, c.repoCache, c.chartCache)
 	if err != nil {
 		return err
 	}

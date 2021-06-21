@@ -73,7 +73,7 @@ var _ = BeforeSuite(func() {
 	rainbondClient = versioned.NewForConfigOrDie(restConfig)
 	kubeClient = clientset.NewForConfigOrDie(restConfig)
 
-	ctrl := NewController(ctx, stopCh, kubeClient, rainbondClient, 5*time.Second, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache")
+	ctrl := NewController(ctx, stopCh, kubeClient, rainbondClient, 5*time.Second, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache", "/tmp/helm/chart")
 	go ctrl.Start()
 
 	// create namespace

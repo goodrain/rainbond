@@ -68,7 +68,7 @@ func (a *App) Chart() string {
 }
 
 // NewApp creates a new app.
-func NewApp(ctx context.Context, kubeClient clientset.Interface, rainbondClient versioned.Interface, helmApp *v1alpha1.HelmApp, repoFile, repoCache string) (*App, error) {
+func NewApp(ctx context.Context, kubeClient clientset.Interface, rainbondClient versioned.Interface, helmApp *v1alpha1.HelmApp, repoFile, repoCache, chartCache string) (*App, error) {
 	helmCmd, err := helm.NewHelm(helmApp.GetNamespace(), repoFile, repoCache)
 	if err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func NewApp(ctx context.Context, kubeClient clientset.Interface, rainbondClient 
 		overrides:       helmApp.Spec.Overrides,
 		helmCmd:         helmCmd,
 		repo:            repo,
-		chartDir:        path.Join("/tmp/helm/chart", helmApp.Namespace, helmApp.Name, helmApp.Spec.Version),
+		chartDir:        path.Join(chartCache, helmApp.Namespace, helmApp.Name, helmApp.Spec.Version),
 	}, nil
 }
 

@@ -121,6 +121,7 @@ replace (
 	github.com/coreos/etcd => github.com/coreos/etcd v3.2.31+incompatible
 	github.com/docker/distribution => github.com/docker/distribution v0.0.0-20191216044856-a8371794149d
 	github.com/docker/docker => github.com/docker/docker v17.12.0-ce-rc1.0.20200916142827-bd33bbf0497b+incompatible
+	github.com/godbus/dbus => github.com/godbus/dbus/v5 v5.0.4
 	google.golang.org/grpc => google.golang.org/grpc v1.29.0
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.0
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.0
@@ -129,5 +130,4 @@ replace (
 	k8s.io/client-go => k8s.io/client-go v0.20.0
 	k8s.io/code-generator => k8s.io/code-generator v0.20.0
 	k8s.io/component-base => k8s.io/component-base v0.20.0
-	github.com/godbus/dbus => github.com/godbus/dbus/v5 v5.0.4
 )
