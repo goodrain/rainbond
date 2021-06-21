@@ -27,8 +27,8 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/proxy"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/util/constants"
 	"github.com/sirupsen/logrus"
 )
@@ -209,7 +209,7 @@ func (d PubSubControll) Get(w http.ResponseWriter, r *http.Request) {
 
 //GetHistoryLog get service docker logs
 func (d PubSubControll) GetHistoryLog(w http.ResponseWriter, r *http.Request) {
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	name, _ := handler.GetEventHandler().GetLogInstance(serviceID)
 	if name != "" {
 		r.URL.Query().Add("host_id", name)

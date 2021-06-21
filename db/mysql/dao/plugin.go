@@ -20,6 +20,8 @@ package dao
 
 import (
 	"fmt"
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
+	pkgerr "github.com/pkg/errors"
 
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
@@ -103,6 +105,18 @@ func (t *PluginDaoImpl) ListByTenantID(tenantID string) ([]*model.TenantPlugin, 
 	}
 
 	return plugins, nil
+}
+
+// CreateOrUpdatePluginsInBatch -
+func (t *PluginDaoImpl) CreateOrUpdatePluginsInBatch(plugins []*model.TenantPlugin) error {
+	var objects []interface{}
+	for _, plugin := range plugins {
+		objects = append(objects, *plugin)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update plugins in batch")
+	}
+	return nil
 }
 
 //PluginDefaultENVDaoImpl PluginDefaultENVDaoImpl
@@ -309,6 +323,18 @@ func (t *PluginBuildVersionDaoImpl) GetLastBuildVersionByVersionID(pluginID, ver
 	return &version, nil
 }
 
+// CreateOrUpdatePluginBuildVersionsInBatch -
+func (t *PluginBuildVersionDaoImpl) CreateOrUpdatePluginBuildVersionsInBatch(buildVersions []*model.TenantPluginBuildVersion) error {
+	var objects []interface{}
+	for _, version := range buildVersions {
+		objects = append(objects, *version)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update plugin build versions in batch")
+	}
+	return nil
+}
+
 //PluginVersionEnvDaoImpl PluginVersionEnvDaoImpl
 type PluginVersionEnvDaoImpl struct {
 	DB *gorm.DB
@@ -397,6 +423,23 @@ func (t *PluginVersionEnvDaoImpl) ListByServiceID(serviceID string) ([]*model.Te
 	return envs, nil
 }
 
+//DeleteByComponentIDs -
+func (t *PluginVersionEnvDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
+	return t.DB.Where("service_id in (?)", componentIDs).Delete(&model.TenantPluginVersionEnv{}).Error
+}
+
+// CreateOrUpdatePluginVersionEnvsInBatch -
+func (t *PluginVersionEnvDaoImpl) CreateOrUpdatePluginVersionEnvsInBatch(versionEnvs []*model.TenantPluginVersionEnv) error {
+	var objects []interface{}
+	for _, env := range versionEnvs {
+		objects = append(objects, *env)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update plugin version env in batch")
+	}
+	return nil
+}
+
 //PluginVersionConfigDaoImpl PluginVersionEnvDaoImpl
 type PluginVersionConfigDaoImpl struct {
 	DB *gorm.DB
@@ -464,6 +507,23 @@ func (t *PluginVersionConfigDaoImpl) GetPluginConfigs(serviceID string) ([]*mode
 		return nil, err
 	}
 	return oldconfigs, nil
+}
+
+//DeleteByComponentIDs -
+func (t *PluginVersionConfigDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
+	return t.DB.Where("service_id in (?)", componentIDs).Delete(&model.TenantPluginVersionDiscoverConfig{}).Error
+}
+
+// CreateOrUpdatePluginVersionConfigsInBatch -
+func (t *PluginVersionConfigDaoImpl) CreateOrUpdatePluginVersionConfigsInBatch(versionConfigs []*model.TenantPluginVersionDiscoverConfig) error {
+	var objects []interface{}
+	for _, config := range versionConfigs {
+		objects = append(objects, *config)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update plugin version config in batch")
+	}
+	return nil
 }
 
 //TenantServicePluginRelationDaoImpl TenantServicePluginRelationDaoImpl
@@ -568,6 +628,23 @@ func (t *TenantServicePluginRelationDaoImpl) GetRelateionByServiceIDAndPluginID(
 		return nil, err
 	}
 	return relation, nil
+}
+
+//DeleteByComponentIDs -
+func (t *TenantServicePluginRelationDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
+	return t.DB.Where("service_id in (?)", componentIDs).Delete(&model.TenantServicePluginRelation{}).Error
+}
+
+// CreateOrUpdatePluginRelsInBatch -
+func (t *TenantServicePluginRelationDaoImpl) CreateOrUpdatePluginRelsInBatch(relations []*model.TenantServicePluginRelation) error {
+	var objects []interface{}
+	for _, relation := range relations {
+		objects = append(objects, *relation)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update plugin relation in batch")
+	}
+	return nil
 }
 
 //TenantServicesStreamPluginPortDaoImpl TenantServicesStreamPluginPortDaoImpl
@@ -729,4 +806,21 @@ func (t *TenantServicesStreamPluginPortDaoImpl) ListByServiceID(sid string) ([]*
 		return nil, err
 	}
 	return result, nil
+}
+
+//DeleteByComponentIDs -
+func (t *TenantServicesStreamPluginPortDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
+	return t.DB.Where("service_id in (?)", componentIDs).Delete(&model.TenantServicesStreamPluginPort{}).Error
+}
+
+// CreateOrUpdateStreamPluginPortsInBatch -
+func (t *TenantServicesStreamPluginPortDaoImpl) CreateOrUpdateStreamPluginPortsInBatch(spPorts []*model.TenantServicesStreamPluginPort) error {
+	var objects []interface{}
+	for _, volRel := range spPorts {
+		objects = append(objects, *volRel)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update stream plugin port failed in batch")
+	}
+	return nil
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/util"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
@@ -36,9 +37,6 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 )
-
-//ContextKey ctx key type
-type ContextKey string
 
 var pool []string
 
@@ -68,9 +66,9 @@ func InitTenant(next http.Handler) http.Handler {
 			httputil.ReturnError(r, w, 500, "get assign tenant uuid failed")
 			return
 		}
-		ctx := context.WithValue(r.Context(), ContextKey("tenant_name"), tenantName)
-		ctx = context.WithValue(ctx, ContextKey("tenant_id"), tenant.UUID)
-		ctx = context.WithValue(ctx, ContextKey("tenant"), tenant)
+		ctx := context.WithValue(r.Context(), ctxutil.ContextKey("tenant_name"), tenantName)
+		ctx = context.WithValue(ctx, ctxutil.ContextKey("tenant_id"), tenant.UUID)
+		ctx = context.WithValue(ctx, ctxutil.ContextKey("tenant"), tenant)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)
@@ -84,7 +82,7 @@ func InitService(next http.Handler) http.Handler {
 			httputil.ReturnError(r, w, 404, "cant find service alias")
 			return
 		}
-		tenantID := r.Context().Value(ContextKey("tenant_id"))
+		tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id"))
 		service, err := db.GetManager().TenantServiceDao().GetServiceByTenantIDAndServiceAlias(tenantID.(string), serviceAlias)
 		if err != nil {
 			if err.Error() == gorm.ErrRecordNotFound.Error() {
@@ -96,9 +94,9 @@ func InitService(next http.Handler) http.Handler {
 			return
 		}
 		serviceID := service.ServiceID
-		ctx := context.WithValue(r.Context(), ContextKey("service_alias"), serviceAlias)
-		ctx = context.WithValue(ctx, ContextKey("service_id"), serviceID)
-		ctx = context.WithValue(ctx, ContextKey("service"), service)
+		ctx := context.WithValue(r.Context(), ctxutil.ContextKey("service_alias"), serviceAlias)
+		ctx = context.WithValue(ctx, ctxutil.ContextKey("service_id"), serviceID)
+		ctx = context.WithValue(ctx, ctxutil.ContextKey("service"), service)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)
@@ -114,8 +112,8 @@ func InitApplication(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), ContextKey("app_id"), tenantApp.AppID)
-		ctx = context.WithValue(ctx, ContextKey("application"), tenantApp)
+		ctx := context.WithValue(r.Context(), ctxutil.ContextKey("app_id"), tenantApp.AppID)
+		ctx = context.WithValue(ctx, ctxutil.ContextKey("application"), tenantApp)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)
@@ -127,7 +125,7 @@ func InitPlugin(next http.Handler) http.Handler {
 		debugRequestBody(r)
 
 		pluginID := chi.URLParam(r, "plugin_id")
-		tenantID := r.Context().Value(ContextKey("tenant_id")).(string)
+		tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 		if pluginID == "" {
 			httputil.ReturnError(r, w, 404, "need plugin id")
 			return
@@ -142,7 +140,7 @@ func InitPlugin(next http.Handler) http.Handler {
 			httputil.ReturnError(r, w, 500, "get plugin error")
 			return
 		}
-		ctx := context.WithValue(r.Context(), ContextKey("plugin_id"), pluginID)
+		ctx := context.WithValue(r.Context(), ctxutil.ContextKey("plugin_id"), pluginID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(fn)
@@ -154,7 +152,7 @@ func SetLog(next http.Handler) http.Handler {
 		eventID := chi.URLParam(r, "event_id")
 		if eventID != "" {
 			logger := event.GetManager().GetLogger(eventID)
-			ctx := context.WithValue(r.Context(), ContextKey("logger"), logger)
+			ctx := context.WithValue(r.Context(), ctxutil.ContextKey("logger"), logger)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 	}
@@ -249,7 +247,7 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 			r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 			var targetID string
 			var ok bool
-			if targetID, ok = r.Context().Value(ContextKey("service_id")).(string); !ok {
+			if targetID, ok = r.Context().Value(ctxutil.ContextKey("service_id")).(string); !ok {
 				var reqDataMap map[string]interface{}
 				if err = json.Unmarshal(body, &reqDataMap); err != nil {
 					httputil.ReturnError(r, w, 400, "操作对象未指定")
@@ -279,7 +277,7 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 			}
 
 			// tenantID can not null
-			tenantID := r.Context().Value(ContextKey("tenant_id")).(string)
+			tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 			var ctx context.Context
 
 			event, err := util.CreateEvent(target, optType, targetID, tenantID, string(body), operator, synType)
@@ -288,8 +286,8 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 				httputil.ReturnError(r, w, 500, "操作失败")
 				return
 			}
-			ctx = context.WithValue(r.Context(), ContextKey("event"), event)
-			ctx = context.WithValue(ctx, ContextKey("event_id"), event.EventID)
+			ctx = context.WithValue(r.Context(), ctxutil.ContextKey("event"), event)
+			ctx = context.WithValue(ctx, ctxutil.ContextKey("event_id"), event.EventID)
 			rw := &resWriter{origWriter: w}
 			f(rw, r.WithContext(ctx))
 			if synType == dbmodel.SYNEVENTTYPE || (synType == dbmodel.ASYNEVENTTYPE && rw.statusCode >= 400) { // status code 2XX/3XX all equal to success

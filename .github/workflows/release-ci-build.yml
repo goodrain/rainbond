@@ -19,6 +19,7 @@ jobs:
       - name: Build the Docker image
         env:
           DISABLE_GOPROXY: true
+          DOMESTIC_BASE_NAME: registry.cn-hangzhou.aliyuncs.com
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}

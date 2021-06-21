@@ -7,8 +7,8 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -19,8 +19,8 @@ func (t *TenantStruct) AddServiceMonitors(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	tsm, err := handler.GetServiceManager().AddServiceMonitor(tenantID, serviceID, add)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
@@ -31,8 +31,8 @@ func (t *TenantStruct) AddServiceMonitors(w http.ResponseWriter, r *http.Request
 
 //DeleteServiceMonitors delete service monitor
 func (t *TenantStruct) DeleteServiceMonitors(w http.ResponseWriter, r *http.Request) {
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	name := chi.URLParam(r, "name")
 	tsm, err := handler.GetServiceManager().DeleteServiceMonitor(tenantID, serviceID, name)
 	if err != nil {
@@ -50,8 +50,8 @@ func (t *TenantStruct) UpdateServiceMonitors(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	name := chi.URLParam(r, "name")
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	tsm, err := handler.GetServiceManager().UpdateServiceMonitor(tenantID, serviceID, name, update)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)

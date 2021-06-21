@@ -31,9 +31,9 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/proxy"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 )
 
 //EventLogStruct eventlog struct
@@ -44,8 +44,8 @@ type EventLogStruct struct {
 //HistoryLogs get service history logs
 //proxy
 func (e *EventLogStruct) HistoryLogs(w http.ResponseWriter, r *http.Request) {
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	serviceAlias := r.Context().Value(ctxutil.ContextKey("service_alias")).(string)
 	name, _ := handler.GetEventHandler().GetLogInstance(serviceID)
 	if name != "" {
 		r.URL.Query().Add("host_id", name)
@@ -75,7 +75,7 @@ func (e *EventLogStruct) LogList(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	fileList, err := handler.GetEventHandler().GetLogList(GetServiceAliasID(serviceID))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -109,7 +109,7 @@ func (e *EventLogStruct) LogFile(w http.ResponseWriter, r *http.Request) {
 	//     description: 统一返回格式
 
 	fileName := chi.URLParam(r, "file_name")
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	logPath, _, err := handler.GetEventHandler().GetLogFile(GetServiceAliasID(serviceID), fileName)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -141,7 +141,7 @@ func (e *EventLogStruct) LogSocket(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	value, err := handler.GetEventHandler().GetLogInstance(serviceID)
 	if err != nil {
 		if strings.Contains(err.Error(), "Key not found") {

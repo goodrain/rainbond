@@ -19,10 +19,12 @@
 package dao
 
 import (
+	"context"
 	"strings"
 	"time"
 
 	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
@@ -204,6 +206,16 @@ func (c *EventDaoImpl) LatestFailurePodEvent(podName string) (*model.ServiceEven
 		return nil, err
 	}
 	return &event, nil
+}
+
+func (c *EventDaoImpl) SetEventStatus(ctx context.Context, status model.EventStatus) error {
+	event, _ := ctx.Value(ctxutil.ContextKey("event")).(*model.ServiceEvent)
+	if event != nil {
+		event.FinalStatus = "complete"
+		event.Status = string(status)
+		return c.UpdateModel(event)
+	}
+	return nil
 }
 
 //NotificationEventDaoImpl NotificationEventDaoImpl
