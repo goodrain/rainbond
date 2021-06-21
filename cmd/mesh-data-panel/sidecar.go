@@ -42,8 +42,8 @@ func main() {
 	}
 	if len(os.Args) > 1 && os.Args[1] == "wait" {
 		var timeoutSeconds = 60
-		var envoyReadyUrl = "http://127.0.0.1:65533/ready"
-		var envoyListennerReadyUrl = "http://127.0.0.1:65533/listeners"
+		var envoyReadyURL = "http://127.0.0.1:65533/ready"
+		var envoyListennerReadyURL = "http://127.0.0.1:65533/listeners"
 		var periodMillis = 500
 		var requestTimeoutMillis = 500
 		client := &http.Client{
@@ -54,7 +54,7 @@ func main() {
 		var err error
 		timeoutAt := time.Now().Add(time.Duration(timeoutSeconds) * time.Second)
 		for time.Now().Before(timeoutAt) {
-			err = checkEnvoyIfReady(client, envoyReadyUrl)
+			err = checkEnvoyIfReady(client, envoyReadyURL)
 			if err == nil {
 				logrus.Infof("Sidecar server is ready!")
 				break
@@ -64,7 +64,7 @@ func main() {
 		}
 		if len(os.Args) > 2 && os.Args[2] != "0" {
 			for time.Now().Before(timeoutAt) {
-				err = checkEnvoyListenerIfReady(client, envoyListennerReadyUrl, os.Args[2])
+				err = checkEnvoyListenerIfReady(client, envoyListennerReadyURL, os.Args[2])
 				if err == nil {
 					logrus.Infof("Sidecar is ready!")
 					os.Exit(0)
@@ -119,8 +119,6 @@ func Run() error {
 	}
 }
 
-var oldHosts = make(map[string]string)
-
 func run() error {
 	configs := discoverConfig()
 	if configs != nil {
@@ -128,30 +126,11 @@ func run() error {
 			if err := writeHosts(hosts); err != nil {
 				logrus.Errorf("write hosts failure %s", err.Error())
 				return err
-			} else {
-				logrus.Debugf("rewrite hosts file success, %+v", hosts)
-				oldHosts = hosts
 			}
+			logrus.Debugf("rewrite hosts file success, %+v", hosts)
 		}
 	}
 	return nil
-}
-
-func haveChange(hosts, oldHosts map[string]string) bool {
-	if len(hosts) != len(oldHosts) {
-		return true
-	}
-	for k, v := range hosts {
-		if ov, exist := oldHosts[k]; !exist || v != ov {
-			return true
-		}
-	}
-	for k, v := range oldHosts {
-		if ov, exist := hosts[k]; !exist || v != ov {
-			return true
-		}
-	}
-	return false
 }
 
 func discoverConfig() *api_model.ResourceSpec {
@@ -207,8 +186,8 @@ func writeHosts(ipnames map[string]string) error {
 	return hosts.Flush()
 }
 
-func checkEnvoyIfReady(client *http.Client, envoyReadyUrl string) error {
-	req, err := http.NewRequest(http.MethodGet, envoyReadyUrl, nil)
+func checkEnvoyIfReady(client *http.Client, envoyReadyURL string) error {
+	req, err := http.NewRequest(http.MethodGet, envoyReadyURL, nil)
 	if err != nil {
 		return err
 	}
