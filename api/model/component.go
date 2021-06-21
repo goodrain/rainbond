@@ -81,6 +81,7 @@ func (c *ComponentBase) DbModel(tenantID, appID, deployVersion string) *dbmodel.
 		Comment:         c.Comment,
 		ContainerCPU:    c.ContainerCPU,
 		ContainerMemory: c.ContainerMemory,
+		ContainerGPU:    c.ContainerGPU,
 		ExtendMethod:    c.ExtendMethod,
 		Replicas:        c.Replicas,
 		DeployVersion:   deployVersion,
