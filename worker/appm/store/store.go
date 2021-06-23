@@ -100,6 +100,9 @@ type Storer interface {
 	ListPods(namespace string, selector labels.Selector) ([]*corev1.Pod, error)
 	ListReplicaSets(namespace string, selector labels.Selector) ([]*appsv1.ReplicaSet, error)
 	ListServices(namespace string, selector labels.Selector) ([]*corev1.Service, error)
+
+	Informer() *Informer
+	Lister() *Lister
 }
 
 // EventType type of event associated with an informer
@@ -340,6 +343,14 @@ func NewStore(
 	store.informers.Events.AddEventHandlerWithResyncPeriod(store.evtEventHandler(), time.Second*10)
 	store.informers.HorizontalPodAutoscaler.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	return store
+}
+
+func (a *appRuntimeStore) Informer() *Informer {
+	return a.informers
+}
+
+func (a *appRuntimeStore) Lister() *Lister {
+	return a.listers
 }
 
 func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {

@@ -23,11 +23,8 @@ import (
 	"time"
 
 	rainbondv1alpha1 "github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
-	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
-	"github.com/goodrain/rainbond/pkg/generated/informers/externalversions"
 	"github.com/goodrain/rainbond/pkg/generated/listers/rainbond/v1alpha1"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -45,17 +42,10 @@ type store struct {
 }
 
 // NewStorer creates a new storer.
-func NewStorer(clientset versioned.Interface,
-	resyncPeriod time.Duration,
+func NewStorer(informer cache.SharedIndexInformer,
+	lister v1alpha1.HelmAppLister,
 	workqueue workqueue.Interface,
 	finalizerQueue workqueue.Interface) Storer {
-	// create informers factory, enable and assign required informers
-	sharedInformer := externalversions.NewSharedInformerFactoryWithOptions(clientset, resyncPeriod,
-		externalversions.WithNamespace(corev1.NamespaceAll))
-
-	lister := sharedInformer.Rainbond().V1alpha1().HelmApps().Lister()
-
-	informer := sharedInformer.Rainbond().V1alpha1().HelmApps().Informer()
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			helmApp := obj.(*rainbondv1alpha1.HelmApp)
@@ -72,7 +62,6 @@ func NewStorer(clientset versioned.Interface,
 			finalizerQueue.Add(obj)
 		},
 	})
-
 	return &store{
 		informer: informer,
 		lister:   lister,

@@ -131,7 +131,7 @@ func (a *ApplicationAction) createHelmApp(ctx context.Context, app *dbmodel.Appl
 	defer cancel()
 	_, err := a.kubeClient.CoreV1().Namespaces().Create(ctx1, &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   app.AppName,
+			Name:   app.TenantID,
 			Labels: labels,
 		},
 	}, metav1.CreateOptions{})

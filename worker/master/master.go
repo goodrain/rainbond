@@ -99,7 +99,8 @@ func NewMasterController(conf option.Config, store store.Storer, kubeClient kube
 	}, serverVersion.GitVersion)
 	stopCh := make(chan struct{})
 
-	helmAppController := helmapp.NewController(ctx, stopCh, kubeClient, rainbondClient, 5*time.Second, conf.Helm.RepoFile, conf.Helm.RepoCache, conf.Helm.RepoCache)
+	helmAppController := helmapp.NewController(ctx, stopCh, kubeClient, rainbondClient,
+		store.Informer().HelmApp, store.Lister().HelmApp, conf.Helm.RepoFile, conf.Helm.RepoCache, conf.Helm.RepoCache)
 
 	return &Controller{
 		conf:              conf,

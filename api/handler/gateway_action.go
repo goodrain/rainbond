@@ -59,21 +59,23 @@ func CreateGatewayManager(dbmanager db.Manager, mqclient client.MQClient, etcdCl
 
 // AddHTTPRule adds http rule to db if it doesn't exists.
 func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
-	if err := db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
-		return g.CreateHTTPRule(tx, req)
-	}); err != nil {
-		return err
-	}
+	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		if err := g.CreateHTTPRule(tx, req); err != nil {
+			return err
+		}
 
-	// Effective immediately
-	if err := g.SendTaskDeprecated(map[string]interface{}{
-		"service_id": req.ServiceID,
-		"action":     "add-http-rule",
-		"limit":      map[string]string{"domain": req.Domain},
-	}); err != nil {
-		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
-	}
-	return nil
+		// Effective immediately
+		err := g.SendTaskDeprecated(map[string]interface{}{
+			"service_id": req.ServiceID,
+			"action":     "add-http-rule",
+			"limit":      map[string]string{"domain": req.Domain},
+		})
+		if err != nil {
+			return fmt.Errorf("send http rule task: %v", err)
+		}
+
+		return nil
+	})
 }
 
 // CreateHTTPRule Create http rules through transactions
@@ -123,19 +125,6 @@ func (g *GatewayAction) CreateHTTPRule(tx *gorm.DB, req *apimodel.AddHTTPRuleStr
 		}
 	}
 
-	// end transaction
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return fmt.Errorf("commit transaction: %v", err)
-	}
-	// Effective immediately
-	if err := g.SendTaskDeprecated(map[string]interface{}{
-		"service_id": req.ServiceID,
-		"action":     "add-http-rule",
-		"limit":      map[string]string{"domain": req.Domain},
-	}); err != nil {
-		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
-	}
 	return nil
 }
 
@@ -234,14 +223,6 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
 	return nil
 }
 
-func (g *GatewayAction) isCertificateBeingUsed(certID string) (bool, error) {
-	rules, err := g.dbmanager.HTTPRuleDao().GetHTTPRulesByCertificateID(certID)
-	if err != nil {
-		return false, fmt.Errorf("list rules by certificate id: %v", err)
-	}
-	return len(rules) > 0, nil
-}
-
 // DeleteHTTPRule deletes http rule, including certificate and rule extensions
 func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error {
 	// begin transaction
@@ -328,7 +309,7 @@ func (g *GatewayAction) UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRu
 		return err
 	}
 	if cert == nil {
-		return fmt.Errorf("Certificate doesn't exist based on certificateID(%s)", req.CertificateID)
+		return fmt.Errorf("certificate doesn't exist based on certificateID(%s)", req.CertificateID)
 	}
 
 	cert.CertificateName = fmt.Sprintf("cert-%s", util.NewUUID()[0:8])
@@ -339,19 +320,22 @@ func (g *GatewayAction) UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRu
 
 // AddTCPRule adds tcp rule.
 func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
-	if err := g.dbmanager.DB().Transaction(func(tx *gorm.DB) error {
-		return g.CreateTCPRule(tx, req)
-	}); err != nil {
-		return err
-	}
-	if err := g.SendTaskDeprecated(map[string]interface{}{
-		"service_id": req.ServiceID,
-		"action":     "add-tcp-rule",
-		"limit":      map[string]string{"tcp-address": fmt.Sprintf("%s:%d", req.IP, req.Port)},
-	}); err != nil {
-		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
-	}
-	return nil
+	return g.dbmanager.DB().Transaction(func(tx *gorm.DB) error {
+		if err := g.CreateTCPRule(tx, req); err != nil {
+			return err
+		}
+
+		err := g.SendTaskDeprecated(map[string]interface{}{
+			"service_id": req.ServiceID,
+			"action":     "add-tcp-rule",
+			"limit":      map[string]string{"tcp-address": fmt.Sprintf("%s:%d", req.IP, req.Port)},
+		})
+		if err != nil {
+			return fmt.Errorf("send tcp rule task: %v", err)
+		}
+
+		return nil
+	})
 }
 
 // CreateTCPRule Create tcp rules through transactions
@@ -379,17 +363,6 @@ func (g *GatewayAction) CreateTCPRule(tx *gorm.DB, req *apimodel.AddTCPRuleStruc
 		}
 	}
 
-	// end transaction
-	if err := tx.Commit().Error; err != nil {
-		return err
-	}
-	if err := g.SendTaskDeprecated(map[string]interface{}{
-		"service_id": tcpRule.ServiceID,
-		"action":     "add-tcp-rule",
-		"limit":      map[string]string{"tcp-address": fmt.Sprintf("%s:%d", tcpRule.IP, tcpRule.Port)},
-	}); err != nil {
-		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
-	}
 	return nil
 }
 
@@ -630,7 +603,7 @@ func (g *GatewayAction) SendTaskDeprecated(in map[string]interface{}) error {
 	sid := in["service_id"].(string)
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(sid)
 	if err != nil {
-		return fmt.Errorf("Unexpected error occurred while getting Service by ServiceID(%s): %v", sid, err)
+		return fmt.Errorf("unexpected error occurred while getting Service by ServiceID(%s): %v", sid, err)
 	}
 	body := make(map[string]interface{})
 	body["deploy_version"] = service.DeployVersion
@@ -643,7 +616,7 @@ func (g *GatewayAction) SendTaskDeprecated(in map[string]interface{}) error {
 		TaskBody: body,
 	})
 	if err != nil {
-		return fmt.Errorf("Unexpected error occurred while sending task: %v", err)
+		return fmt.Errorf("unexpected error occurred while sending task: %v", err)
 	}
 	return nil
 }

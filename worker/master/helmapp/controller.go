@@ -20,11 +20,11 @@ package helmapp
 
 import (
 	"context"
-	"time"
-
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
+	"github.com/goodrain/rainbond/pkg/generated/listers/rainbond/v1alpha1"
 	"github.com/sirupsen/logrus"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -37,11 +37,16 @@ type Controller struct {
 }
 
 // NewController creates a new helm app controller.
-func NewController(ctx context.Context, stopCh chan struct{}, kubeClient clientset.Interface, clientset versioned.Interface, resyncPeriod time.Duration,
+func NewController(ctx context.Context,
+	stopCh chan struct{},
+	kubeClient clientset.Interface,
+	clientset versioned.Interface,
+	informer cache.SharedIndexInformer,
+	lister v1alpha1.HelmAppLister,
 	repoFile, repoCache, chartCache string) *Controller {
 	workQueue := workqueue.New()
 	finalizerQueue := workqueue.New()
-	storer := NewStorer(clientset, resyncPeriod, workQueue, finalizerQueue)
+	storer := NewStorer(informer, lister, workQueue, finalizerQueue)
 
 	controlLoop := NewControlLoop(ctx, kubeClient, clientset, storer, workQueue, repoFile, repoCache, chartCache)
 	finalizer := NewFinalizer(ctx, kubeClient, clientset, finalizerQueue, repoFile, repoCache, chartCache)
