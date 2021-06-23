@@ -236,6 +236,7 @@ func (c *controller) GetLanguageBuildSetting(ctx context.Context, lang code.Lang
 	config, err := c.KubeClient.CoreV1().ConfigMaps(c.namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("get configmap %s failure  %s", name, err.Error())
+		return ""
 	}
 	if config != nil {
 		return name
@@ -248,12 +249,22 @@ func (c *controller) GetDefaultLanguageBuildSetting(ctx context.Context, lang co
 		LabelSelector: "default=true",
 	})
 	if err != nil {
-		logrus.Errorf("get  default maven setting configmap failure  %s", err.Error())
+		logrus.Errorf("get default maven setting configmap failure  %s", err.Error())
+		return ""
 	}
-	if config != nil {
-		for _, c := range config.Items {
-			return c.Name
-		}
+	for _, c := range config.Items {
+		return c.Name
+	}
+	// Use the first maven setting when there is no default Maven configuration
+	allConfig, err := c.KubeClient.CoreV1().ConfigMaps(c.namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "configtype=mavensetting",
+	})
+	if err != nil {
+		logrus.Errorf("get all maven setting configmap failure  %s", err.Error())
+		return ""
+	}
+	for _, ac := range allConfig.Items {
+		return ac.Name
 	}
 	return ""
 }

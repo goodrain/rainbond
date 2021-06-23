@@ -29,6 +29,7 @@ import (
 
 	"github.com/coreos/etcd/clientv3"
 	apimodel "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/mq/client"
@@ -43,6 +44,7 @@ type GatewayAction struct {
 	dbmanager db.Manager
 	mqclient  client.MQClient
 	etcdCli   *clientv3.Client
+	lockPort  map[int]time.Time
 }
 
 //CreateGatewayManager creates gateway manager.
@@ -51,11 +53,31 @@ func CreateGatewayManager(dbmanager db.Manager, mqclient client.MQClient, etcdCl
 		dbmanager: dbmanager,
 		mqclient:  mqclient,
 		etcdCli:   etcdCli,
+		lockPort:  make(map[int]time.Time),
 	}
 }
 
 // AddHTTPRule adds http rule to db if it doesn't exists.
 func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
+	if err := db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		return g.CreateHTTPRule(tx, req)
+	}); err != nil {
+		return err
+	}
+
+	// Effective immediately
+	if err := g.SendTaskDeprecated(map[string]interface{}{
+		"service_id": req.ServiceID,
+		"action":     "add-http-rule",
+		"limit":      map[string]string{"domain": req.Domain},
+	}); err != nil {
+		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
+	}
+	return nil
+}
+
+// CreateHTTPRule Create http rules through transactions
+func (g *GatewayAction) CreateHTTPRule(tx *gorm.DB, req *apimodel.AddHTTPRuleStruct) error {
 	httpRule := &model.HTTPRule{
 		UUID:          req.HTTPRuleID,
 		ServiceID:     req.ServiceID,
@@ -73,17 +95,7 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 		IP:            req.IP,
 		CertificateID: req.CertificateID,
 	}
-
-	// begin transaction
-	tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
-		}
-	}()
 	if err := db.GetManager().HTTPRuleDaoTransactions(tx).AddModel(httpRule); err != nil {
-		tx.Rollback()
 		return fmt.Errorf("create http rule: %v", err)
 	}
 
@@ -95,7 +107,6 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 			PrivateKey:      req.PrivateKey,
 		}
 		if err := db.GetManager().CertificateDaoTransactions(tx).AddOrUpdate(cert); err != nil {
-			tx.Rollback()
 			return fmt.Errorf("create or update http rule: %v", err)
 		}
 	}
@@ -108,7 +119,6 @@ func (g *GatewayAction) AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error {
 			Value:  ruleExtension.Value,
 		}
 		if err := db.GetManager().RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
-			tx.Rollback()
 			return fmt.Errorf("create rule extensions: %v", err)
 		}
 	}
@@ -329,14 +339,23 @@ func (g *GatewayAction) UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRu
 
 // AddTCPRule adds tcp rule.
 func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
-	// begin transaction
-	tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
-		}
-	}()
+	if err := g.dbmanager.DB().Transaction(func(tx *gorm.DB) error {
+		return g.CreateTCPRule(tx, req)
+	}); err != nil {
+		return err
+	}
+	if err := g.SendTaskDeprecated(map[string]interface{}{
+		"service_id": req.ServiceID,
+		"action":     "add-tcp-rule",
+		"limit":      map[string]string{"tcp-address": fmt.Sprintf("%s:%d", req.IP, req.Port)},
+	}); err != nil {
+		logrus.Errorf("send runtime message about gateway failure %s", err.Error())
+	}
+	return nil
+}
+
+// CreateTCPRule Create tcp rules through transactions
+func (g *GatewayAction) CreateTCPRule(tx *gorm.DB, req *apimodel.AddTCPRuleStruct) error {
 	// add tcp rule
 	tcpRule := &model.TCPRule{
 		UUID:          req.TCPRuleID,
@@ -346,7 +365,6 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
 		Port:          req.Port,
 	}
 	if err := g.dbmanager.TCPRuleDaoTransactions(tx).AddModel(tcpRule); err != nil {
-		tx.Rollback()
 		return err
 	}
 	// add rule extensions
@@ -357,7 +375,6 @@ func (g *GatewayAction) AddTCPRule(req *apimodel.AddTCPRuleStruct) error {
 			Value:  ruleExtension.Value,
 		}
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).AddModel(re); err != nil {
-			tx.Rollback()
 			return err
 		}
 	}
@@ -530,7 +547,7 @@ func (g *GatewayAction) AddRuleExtensions(ruleID string, ruleExtensions []*apimo
 }
 
 // GetAvailablePort returns a available port
-func (g *GatewayAction) GetAvailablePort(ip string) (int, error) {
+func (g *GatewayAction) GetAvailablePort(ip string, lock bool) (int, error) {
 	roles, err := g.dbmanager.TCPRuleDao().GetUsedPortsByIP(ip)
 	if err != nil {
 		return 0, err
@@ -539,8 +556,19 @@ func (g *GatewayAction) GetAvailablePort(ip string) (int, error) {
 	for _, p := range roles {
 		ports = append(ports, p.Port)
 	}
+	for p, timeout := range g.lockPort {
+		if timeout.Before(time.Now()) {
+			delete(g.lockPort, p)
+		} else {
+			ports = append(ports, p)
+		}
+	}
 	port := selectAvailablePort(ports)
 	if port != 0 {
+		if lock {
+			logrus.Infof("select gateway port %d, lock it 2 min", port)
+			g.lockPort[port] = time.Now().Add(time.Minute * 2)
+		}
 		return port, nil
 	}
 	return 0, fmt.Errorf("no more lb port can be use with ip %s", ip)
@@ -667,6 +695,11 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 		Key:    "proxy-buffer-numbers",
 		Value:  strconv.Itoa(req.Body.ProxyBufferNumbers),
 	})
+	configs = append(configs, &model.GwRuleConfig{
+		RuleID: req.RuleID,
+		Key:    "proxy-buffering",
+		Value:  req.Body.ProxyBuffering,
+	})
 	setheaders := make(map[string]string)
 	for _, item := range req.Body.SetHeaders {
 		if strings.TrimSpace(item.Key) == "" {
@@ -790,7 +823,7 @@ type IPAndAvailablePort struct {
 
 //GetGatewayIPs get all gateway node ips
 func (g *GatewayAction) GetGatewayIPs() []IPAndAvailablePort {
-	defaultAvailablePort, _ := g.GetAvailablePort("0.0.0.0")
+	defaultAvailablePort, _ := g.GetAvailablePort("0.0.0.0", false)
 	defaultIps := []IPAndAvailablePort{{
 		IP:            "0.0.0.0",
 		AvailablePort: defaultAvailablePort,
@@ -807,11 +840,100 @@ func (g *GatewayAction) GetGatewayIPs() []IPAndAvailablePort {
 	}
 	sort.Strings(gatewayIps)
 	for _, v := range gatewayIps {
-		availablePort, _ := g.GetAvailablePort(v)
+		availablePort, _ := g.GetAvailablePort(v, false)
 		defaultIps = append(defaultIps, IPAndAvailablePort{
 			IP:            v,
 			AvailablePort: availablePort,
 		})
 	}
 	return defaultIps
+}
+
+// DeleteIngressRulesByComponentPort deletes ingress rules, including http rules and tcp rules, based on the given componentID and port.
+func (g *GatewayAction) DeleteIngressRulesByComponentPort(tx *gorm.DB, componentID string, port int) error {
+	httpRuleIDs, err := g.listHTTPRuleIDs(componentID, port)
+	if err != nil {
+		return err
+	}
+
+	// delete rule configs
+	if err := db.GetManager().GwRuleConfigDaoTransactions(tx).DeleteByRuleIDs(httpRuleIDs); err != nil {
+		return err
+	}
+
+	// delete rule extentions
+	if err := db.GetManager().RuleExtensionDaoTransactions(tx).DeleteByRuleIDs(httpRuleIDs); err != nil {
+		return err
+	}
+
+	// delete http rules
+	if err := db.GetManager().HTTPRuleDaoTransactions(tx).DeleteByComponentPort(componentID, port); err != nil {
+		if !errors.Is(err, bcode.ErrIngressHTTPRuleNotFound) {
+			return err
+		}
+	}
+
+	// delete tcp rules
+	if err := db.GetManager().TCPRuleDaoTransactions(tx).DeleteByComponentPort(componentID, port); err != nil {
+		if !errors.Is(err, bcode.ErrIngressTCPRuleNotFound) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (g *GatewayAction) listHTTPRuleIDs(componentID string, port int) ([]string, error) {
+	httpRules, err := db.GetManager().HTTPRuleDao().ListByComponentPort(componentID, port)
+	if err != nil {
+		return nil, err
+	}
+
+	var ruleIDs []string
+	for _, rule := range httpRules {
+		ruleIDs = append(ruleIDs, rule.UUID)
+	}
+	return ruleIDs, nil
+}
+
+// SyncHTTPRules -
+func (g *GatewayAction) SyncHTTPRules(tx *gorm.DB, components []*apimodel.Component) error {
+	var (
+		componentIDs []string
+		httpRules    []*model.HTTPRule
+	)
+	for _, component := range components {
+		if component.HTTPRules == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, httpRule := range component.HTTPRules {
+			httpRules = append(httpRules, httpRule.DbModel(component.ComponentBase.ComponentID))
+		}
+	}
+	if err := db.GetManager().HTTPRuleDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().HTTPRuleDaoTransactions(tx).CreateOrUpdateHTTPRuleInBatch(httpRules)
+}
+
+// SyncTCPRules -
+func (g *GatewayAction) SyncTCPRules(tx *gorm.DB, components []*apimodel.Component) error {
+	var (
+		componentIDs []string
+		tcpRules     []*model.TCPRule
+	)
+	for _, component := range components {
+		if component.TCPRules == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, tcpRule := range component.TCPRules {
+			tcpRules = append(tcpRules, tcpRule.DbModel(component.ComponentBase.ComponentID))
+		}
+	}
+	if err := db.GetManager().TCPRuleDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().TCPRuleDaoTransactions(tx).CreateOrUpdateTCPRuleInBatch(tcpRules)
 }

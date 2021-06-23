@@ -442,11 +442,14 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	if mavenSettingName != "" && re.Lang.String() == code.JavaMaven.String() {
 		if setting := jobc.GetJobController().GetLanguageBuildSetting(re.Ctx, code.JavaMaven, mavenSettingName); setting != "" {
 			mavenSettingConfigName = setting
+		}
+	}
+	if mavenSettingConfigName == "" {
+		if settingName := jobc.GetJobController().GetDefaultLanguageBuildSetting(re.Ctx, code.JavaMaven); settingName != "" {
+			mavenSettingConfigName = settingName
 		} else {
 			logrus.Warnf("maven setting config %s not found", mavenSettingName)
 		}
-	} else if settingName := jobc.GetJobController().GetDefaultLanguageBuildSetting(re.Ctx, code.JavaMaven); settingName != "" {
-		mavenSettingConfigName = settingName
 	}
 	if mavenSettingConfigName != "" {
 		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{

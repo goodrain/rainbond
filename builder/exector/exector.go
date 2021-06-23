@@ -307,6 +307,10 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 			for k, v := range i.Configs {
 				configs[k] = v.String()
 			}
+			if err := e.UpdateDeployVersion(i.ServiceID, i.DeployVersion); err != nil {
+				logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), i.ServiceID)
+				break
+			}
 			err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, configs, i.Logger)
 			if err != nil {
 				i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
@@ -364,6 +368,10 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 		for k, v := range i.Configs {
 			configs[k] = v.String()
 		}
+		if err := e.UpdateDeployVersion(i.ServiceID, i.DeployVersion); err != nil {
+			logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), i.ServiceID)
+			return
+		}
 		err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, configs, i.Logger)
 		if err != nil {
 			i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
@@ -405,6 +413,10 @@ func (e *exectorManager) buildFromMarketSlug(task *pb.TaskMessage) {
 					i.Logger.Error("Build app version from market slug failure", map[string]string{"step": "callback", "status": "failure"})
 				}
 			} else {
+				if err := e.UpdateDeployVersion(i.ServiceID, i.DeployVersion); err != nil {
+					logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), i.ServiceID)
+					break
+				}
 				err = e.sendAction(i.TenantID, i.ServiceID, i.EventID, i.DeployVersion, i.Action, i.Configs, i.Logger)
 				if err != nil {
 					i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
@@ -443,10 +455,6 @@ func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, ac
 		}
 		if err := db.GetManager().ServiceEventDao().AddModel(event); err != nil {
 			logrus.Errorf("create upgrade event failure %s, service %s do not auto upgrade", err.Error(), serviceID)
-			return nil
-		}
-		if err := db.GetManager().TenantServiceDao().UpdateDeployVersion(serviceID, newVersion); err != nil {
-			logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), serviceID)
 			return nil
 		}
 		body := workermodel.RollingUpgradeTaskBody{
@@ -582,4 +590,8 @@ func (e *exectorManager) GetMaxConcurrentTask() float64 {
 }
 func (e *exectorManager) GetCurrentConcurrentTask() float64 {
 	return float64(len(e.tasks))
+}
+
+func (e *exectorManager) UpdateDeployVersion(serviceID, newVersion string) error {
+	return db.GetManager().TenantServiceDao().UpdateDeployVersion(serviceID, newVersion)
 }

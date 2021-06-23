@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/util"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	grpcutil "github.com/goodrain/rainbond/util/grpc"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -63,6 +64,9 @@ func NewClient(ctx context.Context, conf AppRuntimeSyncClientConf) (*AppRuntimeS
 		KeyFile:   conf.EtcdKeyFile,
 	}
 	c, err := etcdutil.NewClient(ctx, etcdClientArgs)
+	if err != nil {
+		return nil, err
+	}
 	r := &grpcutil.GRPCResolver{Client: c}
 	b := grpc.RoundRobin(r)
 	dialOpts := []grpc.DialOption{
@@ -166,6 +170,10 @@ func (a *AppRuntimeSyncClient) IsClosedStatus(curStatus string) bool {
 
 //GetTenantResource get tenant resource
 func (a *AppRuntimeSyncClient) GetTenantResource(tenantID string) (*pb.TenantResource, error) {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		defer util.Elapsed("[AppRuntimeSyncClient] get tenant resource")()
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	return a.AppRuntimeSyncClient.GetTenantResource(ctx, &pb.TenantRequest{TenantId: tenantID})

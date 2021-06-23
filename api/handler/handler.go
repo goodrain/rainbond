@@ -77,7 +77,7 @@ func InitHandle(conf option.Config,
 	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, etcdcli)
 	def3rdPartySvcHandler = Create3rdPartySvcHandler(dbmanager, statusCli)
 	operationHandler = CreateOperationHandler(mqClient)
-	batchOperationHandler = CreateBatchOperationHandler(mqClient, operationHandler)
+	batchOperationHandler = CreateBatchOperationHandler(mqClient, statusCli, operationHandler)
 	defaultAppRestoreHandler = NewAppRestoreHandler()
 	defPodHandler = NewPodHandler(statusCli)
 	defClusterHandler = NewClusterHandler(kubeClient, conf.RbdNamespace)

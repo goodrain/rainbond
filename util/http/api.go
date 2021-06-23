@@ -30,7 +30,9 @@ import (
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
 	"github.com/goodrain/rainbond/api/util/bcode"
+	"github.com/goodrain/rainbond/db"
 	govalidator "github.com/goodrain/rainbond/util/govalidator"
+	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
@@ -195,8 +197,14 @@ func ReturnNoFomart(r *http.Request, w http.ResponseWriter, code int, reb interf
 }
 
 //ReturnResNotEnough http return node resource not enough, http code = 412
-func ReturnResNotEnough(r *http.Request, w http.ResponseWriter, msg string) {
+func ReturnResNotEnough(r *http.Request, w http.ResponseWriter, eventID, msg string) {
 	logrus.Debugf("resource not enough, msg: %s", msg)
+	if err := db.GetManager().ServiceEventDao().UpdateReason(eventID, msg); err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			logrus.Warningf("update event reason: %v", err)
+		}
+	}
+
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, 412))
 	render.DefaultResponder(w, r, ResponseBody{Msg: msg})
 }
@@ -204,7 +212,7 @@ func ReturnResNotEnough(r *http.Request, w http.ResponseWriter, msg string) {
 //ReturnBcodeError bcode error
 func ReturnBcodeError(r *http.Request, w http.ResponseWriter, err error) {
 	berr := bcode.Err2Coder(err)
-	logrus.Debugf("path %s error code: %d; status: %d; error msg: %s", r.RequestURI, berr.GetCode(), berr.GetStatus(), berr.Error())
+	logrus.Debugf("path %s error code: %d; status: %d; error msg: %+v", r.RequestURI, berr.GetCode(), berr.GetStatus(), err)
 
 	status := berr.GetStatus()
 	result := Result{

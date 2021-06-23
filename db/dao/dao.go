@@ -19,6 +19,7 @@
 package dao
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -84,6 +85,7 @@ type AppConfigGroupDao interface {
 	GetConfigGroupsByAppID(appID string, page, pageSize int) ([]*model.ApplicationConfigGroup, int64, error)
 	DeleteConfigGroup(appID, configGroupName string) error
 	DeleteByAppID(appID string) error
+	CreateOrUpdateConfigGroupsInBatch(cgroups []*model.ApplicationConfigGroup) error
 }
 
 //AppConfigGroupServiceDao service config group Dao
@@ -92,6 +94,8 @@ type AppConfigGroupServiceDao interface {
 	GetConfigGroupServicesByID(appID, configGroupName string) ([]*model.ConfigGroupService, error)
 	DeleteConfigGroupService(appID, configGroupName string) error
 	DeleteEffectiveServiceByServiceID(serviceID string) error
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdateConfigGroupServicesInBatch(cgservices []*model.ConfigGroupService) error
 	DeleteByAppID(appID string) error
 }
 
@@ -102,6 +106,7 @@ type AppConfigGroupItemDao interface {
 	ListByServiceID(sid string) ([]*model.ConfigGroupItem, error)
 	DeleteConfigGroupItem(appID, configGroupName string) error
 	DeleteByAppID(appID string) error
+	CreateOrUpdateConfigGroupItemsInBatch(cgitems []*model.ConfigGroupItem) error
 }
 
 // VolumeTypeDao volume type dao
@@ -148,6 +153,8 @@ type TenantServiceDao interface {
 	GetServiceTypeByID(serviceID string) (*model.TenantServices, error)
 	ListByAppID(appID string) ([]*model.TenantServices, error)
 	BindAppByServiceIDs(appID string, serviceIDs []string) error
+	CreateOrUpdateComponentsInBatch(components []*model.TenantServices) error
+	DeleteByComponentIDs(tenantID, appID string, componentIDs []string) error
 }
 
 //TenantServiceDeleteDao TenantServiceDeleteDao
@@ -155,6 +162,7 @@ type TenantServiceDeleteDao interface {
 	Dao
 	GetTenantServicesDeleteByCreateTime(createTime time.Time) ([]*model.TenantServicesDelete, error)
 	DeleteTenantServicesDelete(record *model.TenantServicesDelete) error
+	List() ([]*model.TenantServicesDelete, error)
 }
 
 //TenantServicesPortDao TenantServicesPortDao
@@ -174,6 +182,8 @@ type TenantServicesPortDao interface {
 	DelByServiceID(sid string) error
 	ListInnerPortsByServiceIDs(serviceIDs []string) ([]*model.TenantServicesPort, error)
 	ListByK8sServiceNames(serviceIDs []string) ([]*model.TenantServicesPort, error)
+	CreateOrUpdatePortsInBatch(ports []*model.TenantServicesPort) error
+	DeleteByComponentIDs(componentIDs []string) error
 }
 
 //TenantPluginDao TenantPluginDao
@@ -184,6 +194,7 @@ type TenantPluginDao interface {
 	GetPluginsByTenantID(tenantID string) ([]*model.TenantPlugin, error)
 	ListByIDs(ids []string) ([]*model.TenantPlugin, error)
 	ListByTenantID(tenantID string) ([]*model.TenantPlugin, error)
+	CreateOrUpdatePluginsInBatch(plugins []*model.TenantPlugin) error
 }
 
 //TenantPluginDefaultENVDao TenantPluginDefaultENVDao
@@ -209,6 +220,7 @@ type TenantPluginBuildVersionDao interface {
 	GetLastBuildVersionByVersionID(pluginID, versionID string) (*model.TenantPluginBuildVersion, error)
 	GetBuildVersionByDeployVersion(pluginID, versionID, deployVersion string) (*model.TenantPluginBuildVersion, error)
 	ListSuccessfulOnesByPluginIDs(pluginIDs []string) ([]*model.TenantPluginBuildVersion, error)
+	CreateOrUpdatePluginBuildVersionsInBatch(buildVersions []*model.TenantPluginBuildVersion) error
 }
 
 //TenantPluginVersionEnvDao TenantPluginVersionEnvDao
@@ -220,6 +232,8 @@ type TenantPluginVersionEnvDao interface {
 	GetVersionEnvByServiceID(serviceID string, pluginID string) ([]*model.TenantPluginVersionEnv, error)
 	ListByServiceID(serviceID string) ([]*model.TenantPluginVersionEnv, error)
 	GetVersionEnvByEnvName(serviceID, pluginID, envName string) (*model.TenantPluginVersionEnv, error)
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdatePluginVersionEnvsInBatch(versionEnvs []*model.TenantPluginVersionEnv) error
 }
 
 //TenantPluginVersionConfigDao service plugin config that can be dynamic discovery dao interface
@@ -229,6 +243,8 @@ type TenantPluginVersionConfigDao interface {
 	GetPluginConfigs(serviceID string) ([]*model.TenantPluginVersionDiscoverConfig, error)
 	DeletePluginConfig(serviceID, pluginID string) error
 	DeletePluginConfigByServiceID(serviceID string) error
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdatePluginVersionConfigsInBatch(versionConfigs []*model.TenantPluginVersionDiscoverConfig) error
 }
 
 //TenantServicePluginRelationDao TenantServicePluginRelationDao
@@ -241,6 +257,8 @@ type TenantServicePluginRelationDao interface {
 	GetRelateionByServiceIDAndPluginID(serviceID, pluginID string) (*model.TenantServicePluginRelation, error)
 	CheckSomeModelPluginByServiceID(serviceID, pluginModel string) (bool, error)
 	CheckSomeModelLikePluginByServiceID(serviceID, pluginModel string) (bool, error)
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdatePluginRelsInBatch(relations []*model.TenantServicePluginRelation) error
 }
 
 //TenantServiceRelationDao TenantServiceRelationDao
@@ -253,6 +271,8 @@ type TenantServiceRelationDao interface {
 	HaveRelations(serviceID string) bool
 	DELRelationsByServiceID(serviceID string) error
 	DeleteRelationByDepID(serviceID, depID string) error
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdateRelationsInBatch(relations []*model.TenantServiceRelation) error
 }
 
 //TenantServicesStreamPluginPortDao TenantServicesStreamPluginPortDao
@@ -277,6 +297,8 @@ type TenantServicesStreamPluginPortDao interface {
 		containerPort int,
 	) (*model.TenantServicesStreamPluginPort, error)
 	ListByServiceID(sid string) ([]*model.TenantServicesStreamPluginPort, error)
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdateStreamPluginPortsInBatch(spPorts []*model.TenantServicesStreamPluginPort) error
 }
 
 //TenantServiceEnvVarDao TenantServiceEnvVarDao
@@ -289,6 +311,8 @@ type TenantServiceEnvVarDao interface {
 	GetEnv(serviceID, envName string) (*model.TenantServiceEnvVar, error)
 	DELServiceEnvsByServiceID(serviceID string) error
 	DelByServiceIDAndScope(sid, scope string) error
+	CreateOrUpdateEnvsInBatch(envs []*model.TenantServiceEnvVar) error
+	DeleteByComponentIDs(componentIDs []string) error
 }
 
 //TenantServiceMountRelationDao TenantServiceMountRelationDao
@@ -298,6 +322,8 @@ type TenantServiceMountRelationDao interface {
 	DElTenantServiceMountRelationByServiceAndName(serviceID, mntDir string) error
 	DELTenantServiceMountRelationByServiceID(serviceID string) error
 	DElTenantServiceMountRelationByDepService(serviceID, depServiceID string) error
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdateVolumeRelsInBatch(volRels []*model.TenantServiceMountRelation) error
 }
 
 //TenantServiceVolumeDao TenantServiceVolumeDao
@@ -311,6 +337,10 @@ type TenantServiceVolumeDao interface {
 	GetAllVolumes() ([]*model.TenantServiceVolume, error)
 	GetVolumeByID(id int) (*model.TenantServiceVolume, error)
 	DelShareableBySID(sid string) error
+	ListVolumesByComponentIDs(componentIDs []string) ([]*model.TenantServiceVolume, error)
+	DeleteByVolumeIDs(volumeIDs []uint) error
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdateVolumesInBatch(volumes []*model.TenantServiceVolume) error
 }
 
 //TenantServiceConfigFileDao tenant service config file dao interface
@@ -320,6 +350,8 @@ type TenantServiceConfigFileDao interface {
 	GetByVolumeName(sid, volumeName string) (*model.TenantServiceConfigFile, error)
 	DelByVolumeID(sid string, volumeName string) error
 	DelByServiceID(sid string) error
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdateConfigFilesInBatch(configFiles []*model.TenantServiceConfigFile) error
 }
 
 //TenantServiceLBMappingPortDao vs lb mapping port dao
@@ -351,6 +383,8 @@ type TenantServiceLabelDao interface {
 	DelTenantServiceLabelsByServiceIDKeyValue(serviceID string, labelKey string, labelValue string) error
 	GetLabelByNodeSelectorKey(serviceID string, labelValue string) (*model.TenantServiceLable, error)
 	GetPrivilegedLabel(serviceID string) (*model.TenantServiceLable, error)
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdateLabelsInBatch(labels []*model.TenantServiceLable) error
 }
 
 //LocalSchedulerDao 本地调度信息
@@ -367,6 +401,8 @@ type ServiceProbeDao interface {
 	GetServiceUsedProbe(serviceID, mode string) (*model.TenantServiceProbe, error)
 	DELServiceProbesByServiceID(serviceID string) error
 	DelByServiceID(sid string) error
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdateProbesInBatch(probes []*model.TenantServiceProbe) error
 }
 
 //CodeCheckResultDao CodeCheckResultDao
@@ -379,6 +415,7 @@ type CodeCheckResultDao interface {
 //EventDao EventDao
 type EventDao interface {
 	Dao
+	CreateEventsInBatch(events []*model.ServiceEvent) error
 	GetEventByEventID(eventID string) (*model.ServiceEvent, error)
 	GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEvent, error)
 	GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error)
@@ -389,6 +426,8 @@ type EventDao interface {
 	GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error)
 	UnfinishedEvents(target, targetID string, optTypes ...string) ([]*model.ServiceEvent, error)
 	LatestFailurePodEvent(podName string) (*model.ServiceEvent, error)
+	UpdateReason(eventID string, reason string) error
+	SetEventStatus(ctx context.Context, status model.EventStatus) error
 }
 
 //VersionInfoDao VersionInfoDao
@@ -406,6 +445,7 @@ type VersionInfoDao interface {
 	DeleteVersionInfo(obj *model.VersionInfo) error
 	DeleteFailureVersionInfo(timePoint time.Time, status string, serviceIDList []string) error
 	SearchVersionInfo() ([]*model.VersionInfo, error)
+	ListByServiceIDStatus(serviceID string, finalStatus *bool) ([]*model.VersionInfo, error)
 }
 
 //RegionUserInfoDao UserRegionInfoDao
@@ -461,6 +501,7 @@ type RuleExtensionDao interface {
 	Dao
 	GetRuleExtensionByRuleID(ruleID string) ([]*model.RuleExtension, error)
 	DeleteRuleExtensionByRuleID(ruleID string) error
+	DeleteByRuleIDs(ruleIDs []string) error
 }
 
 // HTTPRuleDao -
@@ -472,7 +513,11 @@ type HTTPRuleDao interface {
 	DeleteHTTPRuleByID(id string) error
 	DeleteHTTPRuleByServiceID(serviceID string) error
 	ListByServiceID(serviceID string) ([]*model.HTTPRule, error)
+	ListByComponentPort(componentID string, port int) ([]*model.HTTPRule, error)
 	ListByCertID(certID string) ([]*model.HTTPRule, error)
+	DeleteByComponentPort(componentID string, port int) error
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdateHTTPRuleInBatch(httpRules []*model.HTTPRule) error
 }
 
 // TCPRuleDao -
@@ -485,6 +530,9 @@ type TCPRuleDao interface {
 	DeleteTCPRuleByServiceID(serviceID string) error
 	ListByServiceID(serviceID string) ([]*model.TCPRule, error)
 	GetUsedPortsByIP(ip string) ([]*model.TCPRule, error)
+	DeleteByComponentPort(componentID string, port int) error
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdateTCPRuleInBatch(tcpRules []*model.TCPRule) error
 }
 
 // EndpointsDao is an interface for defining method
@@ -512,6 +560,7 @@ type GwRuleConfigDao interface {
 	Dao
 	DeleteByRuleID(rid string) error
 	ListByRuleID(rid string) ([]*model.GwRuleConfig, error)
+	DeleteByRuleIDs(ruleIDs []string) error
 }
 
 // TenantServceAutoscalerRulesDao -
@@ -520,6 +569,9 @@ type TenantServceAutoscalerRulesDao interface {
 	GetByRuleID(ruleID string) (*model.TenantServiceAutoscalerRules, error)
 	ListByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error)
 	ListEnableOnesByServiceID(serviceID string) ([]*model.TenantServiceAutoscalerRules, error)
+	ListByComponentIDs(componentIDs []string) ([]*model.TenantServiceAutoscalerRules, error)
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdateScaleRulesInBatch(rules []*model.TenantServiceAutoscalerRules) error
 }
 
 // TenantServceAutoscalerRuleMetricsDao -
@@ -528,6 +580,8 @@ type TenantServceAutoscalerRuleMetricsDao interface {
 	UpdateOrCreate(metric *model.TenantServiceAutoscalerRuleMetrics) error
 	ListByRuleID(ruleID string) ([]*model.TenantServiceAutoscalerRuleMetrics, error)
 	DeleteByRuleID(ruldID string) error
+	DeleteByRuleIDs(ruleIDs []string) error
+	CreateOrUpdateScaleRuleMetricsInBatch(metrics []*model.TenantServiceAutoscalerRuleMetrics) error
 }
 
 // TenantServiceScalingRecordsDao -
@@ -545,4 +599,6 @@ type TenantServiceMonitorDao interface {
 	GetByServiceID(serviceID string) ([]*model.TenantServiceMonitor, error)
 	DeleteServiceMonitor(mo *model.TenantServiceMonitor) error
 	DeleteServiceMonitorByServiceID(serviceID string) error
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdateMonitorInBatch(monitors []*model.TenantServiceMonitor) error
 }

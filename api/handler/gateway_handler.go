@@ -35,6 +35,7 @@ type ComponentIngressTask struct {
 //GatewayHandler gateway api handler
 type GatewayHandler interface {
 	AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error
+	CreateHTTPRule(tx *gorm.DB, req *apimodel.AddHTTPRuleStruct) error
 	UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
 	DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error
 	DeleteHTTPRuleByServiceIDWithTransaction(sid string, tx *gorm.DB) error
@@ -43,11 +44,12 @@ type GatewayHandler interface {
 	UpdateCertificate(req apimodel.AddHTTPRuleStruct, httpRule *dbmodel.HTTPRule, tx *gorm.DB) error
 
 	AddTCPRule(req *apimodel.AddTCPRuleStruct) error
+	CreateTCPRule(tx *gorm.DB, req *apimodel.AddTCPRuleStruct) error
 	UpdateTCPRule(req *apimodel.UpdateTCPRuleStruct, minPort int) error
 	DeleteTCPRule(req *apimodel.DeleteTCPRuleStruct) error
 	DeleteTCPRuleByServiceIDWithTransaction(sid string, tx *gorm.DB) error
 	AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct, tx *gorm.DB) error
-	GetAvailablePort(ip string) (int, error)
+	GetAvailablePort(ip string, lock bool) (int, error)
 	TCPIPPortExists(ip string, port int) bool
 	// Deprecated.
 	SendTaskDeprecated(in map[string]interface{}) error
@@ -56,4 +58,7 @@ type GatewayHandler interface {
 	UpdCertificate(req *apimodel.UpdCertificateReq) error
 	GetGatewayIPs() []IPAndAvailablePort
 	ListHTTPRulesByCertID(certID string) ([]*dbmodel.HTTPRule, error)
+	DeleteIngressRulesByComponentPort(tx *gorm.DB, componentID string, port int) error
+	SyncHTTPRules(tx *gorm.DB, components []*apimodel.Component) error
+	SyncTCPRules(tx *gorm.DB, components []*apimodel.Component) error
 }

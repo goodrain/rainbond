@@ -19,8 +19,8 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -28,14 +28,10 @@ import (
 	"time"
 
 	"github.com/coreos/etcd/clientv3"
-	"github.com/jinzhu/gorm"
-	"github.com/pquerna/ffjson/ffjson"
-	"github.com/sirupsen/logrus"
-	"github.com/twinj/uuid"
-
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
+	"github.com/goodrain/rainbond/api/util/license"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
@@ -44,9 +40,13 @@ import (
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/goodrain/rainbond/worker/server"
 	"github.com/goodrain/rainbond/worker/server/pb"
+	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
+	"github.com/pquerna/ffjson/ffjson"
+	"github.com/sirupsen/logrus"
+	"github.com/twinj/uuid"
 
 	api_model "github.com/goodrain/rainbond/api/model"
-	dberrors "github.com/goodrain/rainbond/db/errors"
 	core_model "github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	eventutil "github.com/goodrain/rainbond/eventlog/util"
@@ -247,6 +247,7 @@ func (s *ServiceAction) isWindowsService(serviceID string) bool {
 
 //AddLabel add labels
 func (s *ServiceAction) AddLabel(l *api_model.LabelsStruct, serviceID string) error {
+
 	tx := db.GetManager().Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -364,28 +365,44 @@ func (s *ServiceAction) StartStopService(sss *api_model.StartStopStruct) error {
 }
 
 //ServiceVertical vertical service
-func (s *ServiceAction) ServiceVertical(vs *model.VerticalScalingTaskBody) error {
+func (s *ServiceAction) ServiceVertical(ctx context.Context, vs *model.VerticalScalingTaskBody) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(vs.ServiceID)
 	if err != nil {
-		logrus.Errorf("get service by id %s error, %s", service.ServiceID, err)
+		logrus.Errorf("get service by id %s error, %s", vs.ServiceID, err)
+		db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusFailure)
 		return err
 	}
 	oldMemory := service.ContainerMemory
 	oldCPU := service.ContainerCPU
+	oldGPU := service.ContainerGPU
 	var rollback = func() {
 		service.ContainerMemory = oldMemory
 		service.ContainerCPU = oldCPU
+		service.ContainerGPU = oldGPU
 		_ = db.GetManager().TenantServiceDao().UpdateModel(service)
 	}
-	if service.ContainerMemory == vs.ContainerMemory && service.ContainerCPU == vs.ContainerCPU {
+	if vs.ContainerCPU != nil {
+		service.ContainerCPU = *vs.ContainerCPU
+	}
+	if vs.ContainerMemory != nil {
+		service.ContainerMemory = *vs.ContainerMemory
+	}
+	if vs.ContainerGPU != nil {
+		service.ContainerGPU = *vs.ContainerGPU
+	}
+	licenseInfo := license.ReadLicense()
+	if licenseInfo == nil || !licenseInfo.HaveFeature("GPU") {
+		service.ContainerGPU = 0
+	}
+	if service.ContainerMemory == oldMemory && service.ContainerCPU == oldCPU && service.ContainerGPU == oldGPU {
+		db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusSuccess)
 		return nil
 	}
-	service.ContainerMemory = vs.ContainerMemory
-	service.ContainerCPU = vs.ContainerCPU
 	err = db.GetManager().TenantServiceDao().UpdateModel(service)
 	if err != nil {
+		db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusFailure)
 		logrus.Errorf("update service memory and cpu failure. %v", err)
-		return fmt.Errorf("Vertical service faliure:%s", err.Error())
+		return fmt.Errorf("vertical service faliure:%s", err.Error())
 	}
 	err = s.MQClient.SendBuilderTopic(gclient.TaskStruct{
 		TaskType: "vertical_scaling",
@@ -396,6 +413,7 @@ func (s *ServiceAction) ServiceVertical(vs *model.VerticalScalingTaskBody) error
 		// roll back service
 		rollback()
 		logrus.Errorf("equque mq error, %v", err)
+		db.GetManager().ServiceEventDao().SetEventStatus(ctx, dbmodel.EventStatusFailure)
 		return err
 	}
 	logrus.Debugf("equeue mq vertical task success")
@@ -406,14 +424,21 @@ func (s *ServiceAction) ServiceVertical(vs *model.VerticalScalingTaskBody) error
 func (s *ServiceAction) ServiceHorizontal(hs *model.HorizontalScalingTaskBody) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(hs.ServiceID)
 	if err != nil {
-		logrus.Errorf("get service by id %s error, %s", service.ServiceID, err)
+		logrus.Errorf("get service by id %s error, %s", hs.ServiceID, err)
 		return err
 	}
+
 	// for rollback database
 	oldReplicas := service.Replicas
-	if int32(service.Replicas) == hs.Replicas {
-		return nil
+	pods, err := s.statusCli.GetServicePods(service.ServiceID)
+	if err != nil {
+		logrus.Errorf("get service pods error: %v", err)
+		return fmt.Errorf("horizontal service faliure:%s", err.Error())
 	}
+	if int32(len(pods.NewPods)) == hs.Replicas {
+		return bcode.ErrHorizontalDueToNoChange
+	}
+
 	service.Replicas = int(hs.Replicas)
 	err = db.GetManager().TenantServiceDao().UpdateModel(service)
 	if err != nil {
@@ -499,12 +524,27 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	if ts.ServiceName == "" {
 		ts.ServiceName = ts.ServiceAlias
 	}
+	if ts.ContainerCPU < 0 {
+		ts.ContainerCPU = 0
+	}
+	if ts.ContainerMemory < 0 {
+		ts.ContainerMemory = 0
+	}
+	if ts.ContainerGPU < 0 {
+		ts.ContainerGPU = 0
+	}
 	ts.UpdateTime = time.Now()
-	ports := sc.PortsInfo
-	envs := sc.EnvsInfo
-	volumns := sc.VolumesInfo
-	dependVolumes := sc.DepVolumesInfo
-	dependIds := sc.DependIDs
+	var (
+		ports         = sc.PortsInfo
+		envs          = sc.EnvsInfo
+		volumns       = sc.VolumesInfo
+		dependVolumes = sc.DepVolumesInfo
+		dependIds     = sc.DependIDs
+		probes        = sc.ComponentProbes
+		monitors      = sc.ComponentMonitors
+		httpRules     = sc.HTTPRules
+		tcpRules      = sc.TCPRules
+	)
 	ts.AppID = sc.AppID
 	ts.DeployVersion = ""
 	tx := db.GetManager().Begin()
@@ -522,34 +562,32 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	}
 	//set app envs
 	if len(envs) > 0 {
+		var batchEnvs []*dbmodel.TenantServiceEnvVar
 		for _, env := range envs {
+			env := env
 			env.ServiceID = ts.ServiceID
 			env.TenantID = ts.TenantID
-			if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).AddModel(&env); err != nil {
-				logrus.Errorf("add env[name=%s] error, %v", env.AttrName, err)
-				if err != dberrors.ErrRecordAlreadyExist {
-					tx.Rollback()
-					return err
-				}
-				logrus.Warningf("recover env[name=%s]", env.AttrName)
-				// if env already exists, update it
-				if err = db.GetManager().TenantServiceEnvVarDaoTransactions(tx).UpdateModel(&env); err != nil {
-					tx.Rollback()
-					return err
-				}
-			}
+			batchEnvs = append(batchEnvs, &env)
+		}
+		if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).CreateOrUpdateEnvsInBatch(batchEnvs); err != nil {
+			logrus.Errorf("batch add env error, %v", err)
+			tx.Rollback()
+			return err
 		}
 	}
 	//set app port
 	if len(ports) > 0 {
+		var batchPorts []*dbmodel.TenantServicesPort
 		for _, port := range ports {
+			port := port
 			port.ServiceID = ts.ServiceID
 			port.TenantID = ts.TenantID
-			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).AddModel(&port); err != nil {
-				logrus.Errorf("add port %v error, %v", port.ContainerPort, err)
-				tx.Rollback()
-				return err
-			}
+			batchPorts = append(batchPorts, &port)
+		}
+		if err := db.GetManager().TenantServicesPortDaoTransactions(tx).CreateOrUpdatePortsInBatch(batchPorts); err != nil {
+			logrus.Errorf("batch add port error, %v", err)
+			tx.Rollback()
+			return err
 		}
 	}
 	//set app volumns
@@ -744,6 +782,69 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			}
 		}
 	}
+	if len(probes) > 0 {
+		for _, pb := range probes {
+			probe := s.convertProbeModel(&pb, ts.ServiceID)
+			if err := db.GetManager().ServiceProbeDaoTransactions(tx).AddModel(probe); err != nil {
+				logrus.Errorf("add probe %v error, %v", probe.ProbeID, err)
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+	if len(monitors) > 0 {
+		for _, m := range monitors {
+			monitor := dbmodel.TenantServiceMonitor{
+				Name:            m.Name,
+				TenantID:        ts.TenantID,
+				ServiceID:       ts.ServiceID,
+				ServiceShowName: m.ServiceShowName,
+				Port:            m.Port,
+				Path:            m.Path,
+				Interval:        m.Interval,
+			}
+			if err := db.GetManager().TenantServiceMonitorDaoTransactions(tx).AddModel(&monitor); err != nil {
+				logrus.Errorf("add monitor %v error, %v", monitor.Name, err)
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+	if len(httpRules) > 0 {
+		for _, httpRule := range httpRules {
+			if err := GetGatewayHandler().CreateHTTPRule(tx, &httpRule); err != nil {
+				logrus.Errorf("add service http rule error %v", err)
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+	if len(tcpRules) > 0 {
+		for _, tcpRule := range tcpRules {
+			if GetGatewayHandler().TCPIPPortExists(tcpRule.IP, tcpRule.Port) {
+				logrus.Debugf("tcp rule %v:%v exists", tcpRule.IP, tcpRule.Port)
+				continue
+			}
+			if err := GetGatewayHandler().CreateTCPRule(tx, &tcpRule); err != nil {
+				logrus.Errorf("add service tcp rule error %v", err)
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+	labelModel := dbmodel.TenantServiceLable{
+		ServiceID:  ts.ServiceID,
+		LabelKey:   dbmodel.LabelKeyServiceType,
+		LabelValue: core_util.StatelessServiceType,
+	}
+	if ts.IsState() {
+		labelModel.LabelValue = core_util.StatefulServiceType
+	}
+	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).AddModel(&labelModel); err != nil {
+		tx.Rollback()
+		return err
+	}
+
 	// TODO: create default probe for third-party service.
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
@@ -761,20 +862,40 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 func (s *ServiceAction) openInnerPorts(componentID string, ports []dbmodel.TenantServicesPort) {
 	// TODO: support open multiple ports in one task.
 	for _, port := range ports {
-		if !port.IsOpen(){
+		if !port.IsOpen() {
 			continue
 		}
 
 		logrus.Infof("component: %s; port: %d; open inner ports", componentID, port.ContainerPort)
 		task := &ComponentIngressTask{
 			ComponentID: componentID,
-			Action: "port-open",
-			Port: port.ContainerPort,
-			IsInner: true,
+			Action:      "port-open",
+			Port:        port.ContainerPort,
+			IsInner:     true,
 		}
 		if err := GetGatewayHandler().SendTask(task); err != nil {
 			logrus.Warningf("send runtime message about gateway failure %s", err.Error())
 		}
+	}
+}
+
+func (s *ServiceAction) convertProbeModel(req *api_model.ServiceProbe, serviceID string) *dbmodel.TenantServiceProbe {
+	return &dbmodel.TenantServiceProbe{
+		ServiceID:          serviceID,
+		Cmd:                req.Cmd,
+		FailureThreshold:   req.FailureThreshold,
+		HTTPHeader:         req.HTTPHeader,
+		InitialDelaySecond: req.InitialDelaySecond,
+		IsUsed:             &req.IsUsed,
+		Mode:               req.Mode,
+		Path:               req.Path,
+		PeriodSecond:       req.PeriodSecond,
+		Port:               req.Port,
+		ProbeID:            req.ProbeID,
+		Scheme:             req.Scheme,
+		SuccessThreshold:   req.SuccessThreshold,
+		TimeoutSecond:      req.TimeoutSecond,
+		FailureAction:      req.FailureAction,
 	}
 }
 
@@ -784,9 +905,14 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
-	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(ts.DeployVersion, ts.ServiceID)
-	if memory, ok := sc["container_memory"].(int); ok && memory != 0 {
+	if memory, ok := sc["container_memory"].(int); ok && memory >= 0 {
 		ts.ContainerMemory = memory
+	}
+	if cpu, ok := sc["container_cpu"].(int); ok && cpu >= 0 {
+		ts.ContainerCPU = cpu
+	}
+	if gpu, ok := sc["container_gpu"].(int); ok {
+		ts.ContainerCPU = gpu
 	}
 	if name, ok := sc["service_name"].(string); ok && name != "" {
 		ts.ServiceName = name
@@ -823,17 +949,10 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 		ts.ExtendMethod = extendMethod
 		ts.ServiceType = extendMethod
 	}
-	//update service
+	//update component
 	if err := db.GetManager().TenantServiceDao().UpdateModel(ts); err != nil {
 		logrus.Errorf("update service error, %v", err)
 		return err
-	}
-	//update service version
-	if version != nil {
-		if err := db.GetManager().VersionInfoDao().UpdateModel(version); err != nil {
-			logrus.Errorf("update version error, %v", err)
-			return err
-		}
 	}
 	return nil
 }
@@ -937,6 +1056,10 @@ func (s *ServiceAction) GetPagedTenantRes(offset, len int) ([]*api_model.TenantR
 
 //GetTenantRes get pagedTenantServiceRes(s)
 func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, error) {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		defer core_util.Elapsed("[ServiceAction] get tenant resource")()
+	}
+
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(uuid)
 	if err != nil {
 		logrus.Errorf("get tenant %s info failure %v", uuid, err.Error())
@@ -981,10 +1104,45 @@ func (s *ServiceAction) GetTenantRes(uuid string) (*api_model.TenantResource, er
 	return &res, nil
 }
 
+// // GetTenantMemoryCPU get pagedTenantServiceRes(s)
+// func (s *ServiceAction) GetAllocableResources(tenantID string) (*api_model.TenantResource, error) {
+// 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+// 		defer core_util.Elapsed("[ServiceAction] get allocable resources")()
+// 	}
+
+// 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	services, err := db.GetManager().TenantServiceDao().GetServicesByTenantID(tenantID)
+// 	if err != nil {
+// 		logrus.Errorf("get service by id error, %v, %v", services, err.Error())
+// 		return nil, err
+// 	}
+
+// 	var serviceIDs string
+// 	var allocatedCPU, allocatedMEM int
+// 	for _, svc := range services {
+// 		allocatedCPU += svc.ContainerCPU * svc.Replicas
+// 		allocatedMEM += svc.ContainerMemory * svc.Replicas
+// 	}
+// 	usedResource, err := s.statusCli.GetTenantResource(tenantID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return &res, nil
+// }
+
 //GetServicesDiskDeprecated get service disk
 //
 // Deprecated
 func GetServicesDiskDeprecated(ids []string, prometheusCli prometheus.Interface) map[string]float64 {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		defer core_util.Elapsed("[GetServicesDiskDeprecated] get tenant resource")()
+	}
+
 	result := make(map[string]float64)
 	//query disk used in prometheus
 	query := fmt.Sprintf(`max(app_resource_appfs{service_id=~"%s"}) by(service_id)`, strings.Join(ids, "|"))
@@ -1107,6 +1265,44 @@ func (s *ServiceAction) CreatePorts(tenantID, serviceID string, vps *api_model.S
 	return nil
 }
 
+func (s *ServiceAction) deletePorts(componentID string, ports *api_model.ServicePorts) error {
+	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		for _, port := range ports.Port {
+			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DeleteModel(componentID, port.ContainerPort); err != nil {
+				return err
+			}
+
+			// delete related ingress rules
+			if err := GetGatewayHandler().DeleteIngressRulesByComponentPort(tx, componentID, port.ContainerPort); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+// SyncComponentPorts -
+func (s *ServiceAction) SyncComponentPorts(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error {
+	var (
+		componentIDs []string
+		ports        []*dbmodel.TenantServicesPort
+	)
+	for _, component := range components {
+		if component.Ports == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, port := range component.Ports {
+			ports = append(ports, port.DbModel(app.TenantID, component.ComponentBase.ComponentID))
+		}
+	}
+	if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().TenantServicesPortDaoTransactions(tx).CreateOrUpdatePortsInBatch(ports)
+}
+
 //PortVar port var
 func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_model.ServicePorts, oldPort int) error {
 	crt, err := db.GetManager().TenantServicePluginRelationDao().CheckSomeModelPluginByServiceID(
@@ -1118,25 +1314,7 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 	}
 	switch action {
 	case "delete":
-		tx := db.GetManager().Begin()
-		defer func() {
-			if r := recover(); r != nil {
-				logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-				tx.Rollback()
-			}
-		}()
-		for _, vp := range vps.Port {
-			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).DeleteModel(serviceID, vp.ContainerPort); err != nil {
-				logrus.Errorf("delete port var error, %v", err)
-				tx.Rollback()
-				return err
-			}
-		}
-		if err := tx.Commit().Error; err != nil {
-			tx.Rollback()
-			logrus.Debugf("commit delete port error, %v", err)
-			return err
-		}
+		return s.deletePorts(serviceID, vps)
 	case "update":
 		tx := db.GetManager().Begin()
 		defer func() {
@@ -1956,24 +2134,8 @@ func (s *ServiceAction) GetMultiServicePods(serviceIDs []string) (*K8sPodInfos, 
 			podInfo.PodIP = v.PodIp
 			podInfo.PodStatus = v.PodStatus
 			podInfo.ServiceID = serviceID
-			containerInfos := make(map[string]map[string]string, 10)
-			for _, container := range v.Containers {
-				containerInfos[container.ContainerName] = map[string]string{
-					"memory_limit": fmt.Sprintf("%d", container.MemoryLimit),
-					"memory_usage": "0",
-				}
-			}
-			podInfo.Container = containerInfos
 			podNames = append(podNames, v.PodName)
 			podsInfoList = append(podsInfoList, &podInfo)
-		}
-		containerMemInfo, _ := s.GetPodContainerMemory(podNames)
-		for _, c := range podsInfoList {
-			for k := range c.Container {
-				if info, exist := containerMemInfo[c.PodName][k]; exist {
-					c.Container[k]["memory_usage"] = info
-				}
-			}
 		}
 		return podsInfoList
 	}
@@ -1985,6 +2147,20 @@ func (s *ServiceAction) GetMultiServicePods(serviceIDs []string) (*K8sPodInfos, 
 		}
 	}
 	return &re, nil
+}
+
+// GetComponentPodNums get pods
+func (s *ServiceAction) GetComponentPodNums(ctx context.Context, componentIDs []string) (map[string]int32, error) {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		defer core_util.Elapsed(fmt.Sprintf("[AppRuntimeSyncClient] [GetComponentPodNums] component nums: %d", len(componentIDs)))()
+	}
+
+	podNums, err := s.statusCli.GetComponentPodNums(ctx, componentIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "get component nums")
+	}
+
+	return podNums, nil
 }
 
 //GetPodContainerMemory Use Prometheus to query memory resources
@@ -2315,6 +2491,380 @@ func (s *ServiceAction) ListScalingRecords(serviceID string, page, pageSize int)
 	}
 
 	return records, count, nil
+}
+
+// SyncComponentBase -
+func (s *ServiceAction) SyncComponentBase(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error {
+	var (
+		componentIDs []string
+		dbComponents []*dbmodel.TenantServices
+	)
+	for _, component := range components {
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+	}
+	oldComponents, err := db.GetManager().TenantServiceDao().GetServiceByIDs(componentIDs)
+	if err != nil {
+		return err
+	}
+	existComponents := make(map[string]*dbmodel.TenantServices)
+	for _, oc := range oldComponents {
+		existComponents[oc.ServiceID] = oc
+	}
+	for _, component := range components {
+		var deployVersion string
+		if oldComponent, ok := existComponents[component.ComponentBase.ComponentID]; ok {
+			deployVersion = oldComponent.DeployVersion
+		}
+		dbComponents = append(dbComponents, component.ComponentBase.DbModel(app.TenantID, app.AppID, deployVersion))
+	}
+	if err := db.GetManager().TenantServiceDaoTransactions(tx).DeleteByComponentIDs(app.TenantID, app.AppID, componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().TenantServiceDaoTransactions(tx).CreateOrUpdateComponentsInBatch(dbComponents)
+}
+
+// SyncComponentRelations -
+func (s *ServiceAction) SyncComponentRelations(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error {
+	var (
+		componentIDs []string
+		relations    []*dbmodel.TenantServiceRelation
+	)
+	for _, component := range components {
+		if component.Relations == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, relation := range component.Relations {
+			relations = append(relations, relation.DbModel(app.TenantID, component.ComponentBase.ComponentID))
+		}
+	}
+	if err := db.GetManager().TenantServiceRelationDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().TenantServiceRelationDaoTransactions(tx).CreateOrUpdateRelationsInBatch(relations)
+}
+
+// SyncComponentEnvs -
+func (s *ServiceAction) SyncComponentEnvs(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error {
+	var (
+		componentIDs []string
+		envs         []*dbmodel.TenantServiceEnvVar
+	)
+	for _, component := range components {
+		if component.Envs == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, env := range component.Envs {
+			envs = append(envs, env.DbModel(app.TenantID, component.ComponentBase.ComponentID))
+		}
+	}
+	if err := db.GetManager().TenantServiceEnvVarDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().TenantServiceEnvVarDaoTransactions(tx).CreateOrUpdateEnvsInBatch(envs)
+}
+
+// SyncComponentVolumeRels -
+func (s *ServiceAction) SyncComponentVolumeRels(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error {
+	var (
+		componentIDs []string
+		volRels      []*dbmodel.TenantServiceMountRelation
+	)
+	// Get the storage of all components under the application
+	appComponents, err := db.GetManager().TenantServiceDao().ListByAppID(app.AppID)
+	if err != nil {
+		return err
+	}
+	var appComponentIDs []string
+	for _, ac := range appComponents {
+		appComponentIDs = append(appComponentIDs, ac.ServiceID)
+	}
+	existVolume, err := s.getExistVolumes(appComponentIDs)
+	if err != nil {
+		return err
+	}
+	// Get the storage that needs to be newly created
+	for _, component := range components {
+		componentID := component.ComponentBase.ComponentID
+		if component.Volumes == nil {
+			continue
+		}
+		for _, vol := range component.Volumes {
+			if _, ok := existVolume[vol.Key(componentID)]; !ok {
+				existVolume[vol.Key(componentID)] = vol.DbModel(componentID)
+			}
+		}
+	}
+
+	for _, component := range components {
+		if component.VolumeRelations == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		//The hostpath attribute should not be recorded in the mount relationship table,
+		//and should be processed when the worker takes effect
+		for _, volumeRelation := range component.VolumeRelations {
+			if vol, ok := existVolume[volumeRelation.Key()]; ok {
+				volRels = append(volRels, volumeRelation.DbModel(app.TenantID, component.ComponentBase.ComponentID, vol.HostPath, vol.VolumeType))
+			}
+		}
+	}
+	if err := db.GetManager().TenantServiceMountRelationDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().TenantServiceMountRelationDaoTransactions(tx).CreateOrUpdateVolumeRelsInBatch(volRels)
+}
+
+// SyncComponentVolumes -
+func (s *ServiceAction) SyncComponentVolumes(tx *gorm.DB, components []*api_model.Component) error {
+	var (
+		componentIDs []string
+		volumes      []*dbmodel.TenantServiceVolume
+	)
+	for _, component := range components {
+		if component.Volumes == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, volume := range component.Volumes {
+			volumes = append(volumes, volume.DbModel(component.ComponentBase.ComponentID))
+		}
+	}
+	existVolumes, err := s.getExistVolumes(componentIDs)
+	if err != nil {
+		return err
+	}
+	deleteVolumeIDs := s.getDeleteVolumeIDs(existVolumes, volumes)
+	createOrUpdates := s.getCreateOrUpdateVolumes(existVolumes, volumes)
+	if err := db.GetManager().TenantServiceVolumeDaoTransactions(tx).DeleteByVolumeIDs(deleteVolumeIDs); err != nil {
+		return err
+	}
+	return db.GetManager().TenantServiceVolumeDaoTransactions(tx).CreateOrUpdateVolumesInBatch(createOrUpdates)
+}
+
+func (s *ServiceAction) getExistVolumes(componentIDs []string) (existVolumes map[string]*dbmodel.TenantServiceVolume, err error) {
+	existVolumes = make(map[string]*dbmodel.TenantServiceVolume)
+	volumes, err := db.GetManager().TenantServiceVolumeDao().ListVolumesByComponentIDs(componentIDs)
+	if err != nil {
+		return nil, err
+	}
+	for _, volume := range volumes {
+		existVolumes[volume.Key()] = volume
+	}
+	return existVolumes, nil
+}
+
+func (s *ServiceAction) getCreateOrUpdateVolumes(existVolumes map[string]*dbmodel.TenantServiceVolume, incomeVolumes []*dbmodel.TenantServiceVolume) (volumes []*dbmodel.TenantServiceVolume) {
+	for _, incomeVolume := range incomeVolumes {
+		if _, ok := existVolumes[incomeVolume.Key()]; ok {
+			incomeVolume.ID = existVolumes[incomeVolume.Key()].ID
+		}
+		volumes = append(volumes, incomeVolume)
+	}
+	return volumes
+}
+
+func (s *ServiceAction) getDeleteVolumeIDs(existVolumes map[string]*dbmodel.TenantServiceVolume, incomeVolumes []*dbmodel.TenantServiceVolume) (deleteVolumeIDs []uint) {
+	newVolumes := make(map[string]struct{})
+	for _, volume := range incomeVolumes {
+		newVolumes[volume.Key()] = struct{}{}
+	}
+	for existKey, existVolume := range existVolumes {
+		if _, ok := newVolumes[existKey]; !ok {
+			deleteVolumeIDs = append(deleteVolumeIDs, existVolume.ID)
+		}
+	}
+	return deleteVolumeIDs
+}
+
+// SyncComponentConfigFiles -
+func (s *ServiceAction) SyncComponentConfigFiles(tx *gorm.DB, components []*api_model.Component) error {
+	var (
+		componentIDs []string
+		configFiles  []*dbmodel.TenantServiceConfigFile
+	)
+	for _, component := range components {
+		if component.ConfigFiles == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, configFile := range component.ConfigFiles {
+			configFiles = append(configFiles, configFile.DbModel(component.ComponentBase.ComponentID))
+		}
+	}
+	if err := db.GetManager().TenantServiceConfigFileDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().TenantServiceConfigFileDaoTransactions(tx).CreateOrUpdateConfigFilesInBatch(configFiles)
+}
+
+// SyncComponentProbes -
+func (s *ServiceAction) SyncComponentProbes(tx *gorm.DB, components []*api_model.Component) error {
+	var (
+		componentIDs []string
+		probes       []*dbmodel.TenantServiceProbe
+	)
+	for _, component := range components {
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		probes = append(probes, component.Probe.DbModel(component.ComponentBase.ComponentID))
+	}
+	if err := db.GetManager().ServiceProbeDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().ServiceProbeDaoTransactions(tx).CreateOrUpdateProbesInBatch(probes)
+}
+
+// SyncComponentLabels -
+func (s *ServiceAction) SyncComponentLabels(tx *gorm.DB, components []*api_model.Component) error {
+	var (
+		componentIDs []string
+		labels       []*dbmodel.TenantServiceLable
+	)
+	for _, component := range components {
+		if component.Labels == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, label := range component.Labels {
+			labels = append(labels, label.DbModel(component.ComponentBase.ComponentID))
+		}
+	}
+	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().TenantServiceLabelDaoTransactions(tx).CreateOrUpdateLabelsInBatch(labels)
+}
+
+// SyncComponentPlugins -
+func (s *ServiceAction) SyncComponentPlugins(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error {
+	var (
+		componentIDs           []string
+		portConfigComponentIDs []string
+		envComponentIDs        []string
+		pluginRelations        []*dbmodel.TenantServicePluginRelation
+		pluginVersionEnvs      []*dbmodel.TenantPluginVersionEnv
+		pluginVersionConfigs   []*dbmodel.TenantPluginVersionDiscoverConfig
+		pluginStreamPorts      []*dbmodel.TenantServicesStreamPluginPort
+	)
+	for _, component := range components {
+		if component.Plugins == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, plugin := range component.Plugins {
+			pluginRelations = append(pluginRelations, plugin.DbModel(component.ComponentBase.ComponentID))
+			if plugin.ConfigEnvs.NormalEnvs != nil {
+				envComponentIDs = append(envComponentIDs, component.ComponentBase.ComponentID)
+				for _, versionEnv := range plugin.ConfigEnvs.NormalEnvs {
+					pluginVersionEnvs = append(pluginVersionEnvs, versionEnv.DbModel(component.ComponentBase.ComponentID, plugin.PluginID))
+				}
+			}
+
+			if configs := plugin.ConfigEnvs.ComplexEnvs; configs != nil {
+				portConfigComponentIDs = append(portConfigComponentIDs, component.ComponentBase.ComponentID)
+				if configs.BasePorts != nil && checkPluginHaveInbound(plugin.PluginModel) {
+					psPorts := s.handlePluginMappingPort(app.TenantID, component.ComponentBase.ComponentID, plugin.PluginModel, configs.BasePorts)
+					pluginStreamPorts = append(pluginStreamPorts, psPorts...)
+				}
+				config, err := ffjson.Marshal(configs)
+				if err != nil {
+					return err
+				}
+				pluginVersionConfigs = append(pluginVersionConfigs, &dbmodel.TenantPluginVersionDiscoverConfig{
+					PluginID:  plugin.PluginID,
+					ServiceID: component.ComponentBase.ComponentID,
+					ConfigStr: string(config),
+				})
+			}
+		}
+	}
+
+	if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).DeleteByComponentIDs(portConfigComponentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).DeleteByComponentIDs(portConfigComponentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteByComponentIDs(envComponentIDs); err != nil {
+		return err
+	}
+
+	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).CreateOrUpdatePluginRelsInBatch(pluginRelations); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).CreateOrUpdatePluginVersionEnvsInBatch(pluginVersionEnvs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).CreateOrUpdateStreamPluginPortsInBatch(pluginStreamPorts); err != nil {
+		return err
+	}
+	return db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).CreateOrUpdatePluginVersionConfigsInBatch(pluginVersionConfigs)
+}
+
+//handlePluginMappingPort -
+func (s *ServiceAction) handlePluginMappingPort(tenantID, componentID, pluginModel string, ports []*api_model.BasePort) []*dbmodel.TenantServicesStreamPluginPort {
+	existPorts := make(map[int]struct{})
+	for _, port := range ports {
+		existPorts[port.Port] = struct{}{}
+	}
+
+	minPort := 65301
+	var newPorts []*dbmodel.TenantServicesStreamPluginPort
+	for _, port := range ports {
+		newPort := &dbmodel.TenantServicesStreamPluginPort{
+			TenantID:      tenantID,
+			ServiceID:     componentID,
+			PluginModel:   pluginModel,
+			ContainerPort: port.Port,
+		}
+		if _, ok := existPorts[minPort]; ok {
+			minPort = minPort + 1
+		}
+		newPluginPort := minPort
+		if _, ok := existPorts[newPluginPort]; ok {
+			minPort = minPort + 1
+			newPluginPort = minPort
+		}
+
+		existPorts[newPluginPort] = struct{}{}
+		port.ListenPort = newPluginPort
+		newPort.PluginPort = newPluginPort
+		newPorts = append(newPorts, newPort)
+	}
+	return newPorts
+}
+
+// SyncComponentScaleRules -
+func (s *ServiceAction) SyncComponentScaleRules(tx *gorm.DB, components []*api_model.Component) error {
+	var (
+		componentIDs         []string
+		autoScaleRuleIDs     []string
+		autoScaleRules       []*dbmodel.TenantServiceAutoscalerRules
+		autoScaleRuleMetrics []*dbmodel.TenantServiceAutoscalerRuleMetrics
+	)
+	for _, component := range components {
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		autoScaleRuleIDs = append(autoScaleRuleIDs, component.AutoScaleRule.RuleID)
+		autoScaleRules = append(autoScaleRules, component.AutoScaleRule.DbModel(component.ComponentBase.ComponentID))
+
+		for _, metric := range component.AutoScaleRule.RuleMetrics {
+			autoScaleRuleMetrics = append(autoScaleRuleMetrics, metric.DbModel(component.AutoScaleRule.RuleID))
+		}
+	}
+	if err := db.GetManager().TenantServceAutoscalerRulesDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).DeleteByRuleIDs(autoScaleRuleIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().TenantServceAutoscalerRulesDaoTransactions(tx).CreateOrUpdateScaleRulesInBatch(autoScaleRules); err != nil {
+		return err
+	}
+	return db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).CreateOrUpdateScaleRuleMetricsInBatch(autoScaleRuleMetrics)
 }
 
 //TransStatus trans service status

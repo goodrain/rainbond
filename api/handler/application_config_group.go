@@ -5,6 +5,7 @@ import (
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 )
 
@@ -135,6 +136,10 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 			ServiceAlias:    s.ServiceAlias,
 		}
 		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).AddModel(&serviceConfigGroup); err != nil {
+			if err == bcode.ErrConfigGroupServiceExist {
+				logrus.Debugf("config group \"%s\" under this service \"%s\" already exists.", serviceConfigGroup.ConfigGroupName, serviceConfigGroup.ServiceID)
+				continue
+			}
 			tx.Rollback()
 			return nil, err
 		}
@@ -153,6 +158,10 @@ func (a *ApplicationAction) UpdateConfigGroup(appID, configGroupName string, req
 			ItemValue:       it.ItemValue,
 		}
 		if err := db.GetManager().AppConfigGroupItemDaoTransactions(tx).AddModel(configItem); err != nil {
+			if err == bcode.ErrConfigItemExist {
+				logrus.Debugf("config item \"%s\" under this config group \"%s\" already exists.", configItem.ItemKey, configItem.ConfigGroupName)
+				continue
+			}
 			tx.Rollback()
 			return nil, err
 		}
@@ -248,4 +257,62 @@ func (a *ApplicationAction) ListConfigGroups(appID string, page, pageSize int) (
 	resp.Total = total
 	resp.PageSize = pageSize
 	return &resp, nil
+}
+
+// SyncComponentConfigGroupRels -
+func (a *ApplicationAction) SyncComponentConfigGroupRels(tx *gorm.DB, app *dbmodel.Application, components []*model.Component) error {
+	var (
+		componentIDs []string
+		cgservices   []*dbmodel.ConfigGroupService
+	)
+	for _, component := range components {
+		if component.AppConfigGroupRels == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, acgr := range component.AppConfigGroupRels {
+			cgservices = append(cgservices, acgr.DbModel(app.AppID, component.ComponentBase.ComponentID, component.ComponentBase.ComponentAlias))
+		}
+	}
+	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().AppConfigGroupServiceDaoTransactions(tx).CreateOrUpdateConfigGroupServicesInBatch(cgservices)
+}
+
+// SyncAppConfigGroups -
+func (a *ApplicationAction) SyncAppConfigGroups(app *dbmodel.Application, appConfigGroups []model.AppConfigGroup) error {
+	var (
+		cgroups    []*dbmodel.ApplicationConfigGroup
+		cgitems    []*dbmodel.ConfigGroupItem
+		cgservices []*dbmodel.ConfigGroupService
+	)
+	for _, configGroup := range appConfigGroups {
+		cgroups = append(cgroups, configGroup.DbModel(app.AppID))
+		for _, item := range configGroup.ConfigItems {
+			cgitems = append(cgitems, item.DbModel(app.AppID, configGroup.ConfigGroupName))
+		}
+		for _, cgservice := range configGroup.ConfigGroupServices {
+			cgservices = append(cgservices, cgservice.DbModel(app.AppID, configGroup.ConfigGroupName))
+		}
+	}
+	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		if err := db.GetManager().AppConfigGroupDaoTransactions(tx).DeleteByAppID(app.AppID); err != nil {
+			return err
+		}
+		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).DeleteByAppID(app.AppID); err != nil {
+			return err
+		}
+		if err := db.GetManager().AppConfigGroupItemDaoTransactions(tx).DeleteByAppID(app.AppID); err != nil {
+			return err
+		}
+
+		if err := db.GetManager().AppConfigGroupDaoTransactions(tx).CreateOrUpdateConfigGroupsInBatch(cgroups); err != nil {
+			return err
+		}
+		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).CreateOrUpdateConfigGroupServicesInBatch(cgservices); err != nil {
+			return err
+		}
+		return db.GetManager().AppConfigGroupItemDaoTransactions(tx).CreateOrUpdateConfigGroupItemsInBatch(cgitems)
+	})
 }

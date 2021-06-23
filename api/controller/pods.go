@@ -25,7 +25,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -60,7 +60,7 @@ type PodController struct{}
 func Pods(w http.ResponseWriter, r *http.Request) {
 	serviceIDs := strings.Split(r.FormValue("service_ids"), ",")
 	if serviceIDs == nil || len(serviceIDs) == 0 {
-		tenant := r.Context().Value(middleware.ContextKey("tenant")).(*model.Tenants)
+		tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*model.Tenants)
 		services, _ := db.GetManager().TenantServiceDao().GetServicesByTenantID(tenant.UUID)
 		for _, s := range services {
 			serviceIDs = append(serviceIDs, s.ServiceID)
@@ -85,10 +85,21 @@ func Pods(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, allpods)
 }
 
+// PodNums reutrns the number of pods for components.
+func PodNums(w http.ResponseWriter, r *http.Request) {
+	componentIDs := strings.Split(r.FormValue("service_ids"), ",")
+	podNums, err := handler.GetServiceManager().GetComponentPodNums(r.Context(), componentIDs)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, podNums)
+}
+
 // PodDetail -
 func (p *PodController) PodDetail(w http.ResponseWriter, r *http.Request) {
 	podName := chi.URLParam(r, "pod_name")
-	namespace := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	namespace := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	pd, err := handler.GetPodHandler().PodDetail(namespace, podName)
 	if err != nil {
 		logrus.Errorf("error getting pod detail: %v", err)

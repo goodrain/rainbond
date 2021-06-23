@@ -311,27 +311,6 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Name: "ClusterHealth",
 					Rules: []*RulesConfig{
 						&RulesConfig{
-							Alert:       "RbdNodeUnhealth",
-							Expr:        "rainbond_cluster_node_health != 0",
-							For:         "3m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"description": "cluster node {{ $labels.node_ip }} is unhealth"},
-						},
-						&RulesConfig{
-							Alert:       "KubeNodeUnhealth",
-							Expr:        "rainbond_cluster_component_health{component=\"KubeNodeReady\"} != 0",
-							For:         "3m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"description": "kubernetes cluster node {{ $labels.node_ip }} is unhealth"},
-						},
-						&RulesConfig{
-							Alert:       "ClusterCollectorTimeout",
-							Expr:        "rainbond_cluster_collector_duration_seconds > 10",
-							For:         "3m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"description": "Cluster collector '{{ $labels.instance }}' more than 10s"},
-						},
-						&RulesConfig{
 							Alert:  "InsufficientClusteMemoryResources",
 							Expr:   "max(rbd_api_exporter_cluster_memory_total) - max(sum(namespace_resource_memory_request) by (instance)) < 2048",
 							For:    "2m",

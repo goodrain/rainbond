@@ -28,7 +28,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 
-	"github.com/goodrain/rainbond/api/middleware"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -54,7 +54,7 @@ import (
 //       "$ref": "#/responses/commandResponse"
 //     description: 状态码非200，表示验证过程发生错误。状态码200，msg代表实际状态：success, illegal_quantity, missing_tenant, owned_fee, region_unauthorized, lack_of_memory
 func ChargesVerifyController(w http.ResponseWriter, r *http.Request) {
-	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*model.Tenants)
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*model.Tenants)
 	if tenant.EID == "" {
 		eid := r.FormValue("eid")
 		if eid == "" {

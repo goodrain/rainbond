@@ -7,6 +7,7 @@ service AppRuntimeSync {
   rpc GetAppStatus (AppStatusReq) returns (AppStatus) {}
   rpc GetAppPods (ServiceRequest) returns (ServiceAppPodList) {}
   rpc GetMultiAppPods (ServicesRequest) returns (MultiServiceAppPodList) {}
+  rpc GetComponentPodNums (ServicesRequest) returns (ComponentPodNums) {}
   rpc GetDeployInfo (ServiceRequest) returns (DeployInfo) {}
   rpc GetTenantResource (TenantRequest) returns (TenantResource) {}
   rpc GetTenantResources (Empty) returns (TenantResourceList) {}
@@ -56,6 +57,10 @@ message ServiceAppPodList {
 
 message MultiServiceAppPodList {
   map<string, ServiceAppPodList> servicePods = 1;
+}
+
+message ComponentPodNums {
+  map<string, int32> podNums = 1;
 }
 
 message ServiceAppPod {

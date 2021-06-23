@@ -20,10 +20,13 @@ package dao
 
 import (
 	"fmt"
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"reflect"
 
+	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -36,7 +39,7 @@ type CertificateDaoImpl struct {
 func (c *CertificateDaoImpl) AddModel(mo model.Interface) error {
 	certificate, ok := mo.(*model.Certificate)
 	if !ok {
-		return fmt.Errorf("Can't convert %s to %s", reflect.TypeOf(mo).String(), "*model.Certificate")
+		return fmt.Errorf("can't convert %s to %s", reflect.TypeOf(mo).String(), "*model.Certificate")
 	}
 	var old model.Certificate
 	if ok := c.DB.Where("uuid = ?", certificate.UUID).Find(&old).RecordNotFound(); ok {
@@ -44,8 +47,7 @@ func (c *CertificateDaoImpl) AddModel(mo model.Interface) error {
 			return err
 		}
 	} else {
-		return fmt.Errorf("Certificate already exists based on certificateID(%s)",
-			certificate.UUID)
+		return fmt.Errorf("certificate already exists based on certificateID(%s)", certificate.UUID)
 	}
 	return nil
 }
@@ -54,7 +56,7 @@ func (c *CertificateDaoImpl) AddModel(mo model.Interface) error {
 func (c *CertificateDaoImpl) UpdateModel(mo model.Interface) error {
 	cert, ok := mo.(*model.Certificate)
 	if !ok {
-		return fmt.Errorf("Failed to convert %s to *model.Certificate", reflect.TypeOf(mo).String())
+		return fmt.Errorf("failed to convert %s to *model.Certificate", reflect.TypeOf(mo).String())
 	}
 	return c.DB.Table(cert.TableName()).
 		Where("uuid = ?", cert.UUID).
@@ -65,7 +67,7 @@ func (c *CertificateDaoImpl) UpdateModel(mo model.Interface) error {
 func (c *CertificateDaoImpl) AddOrUpdate(mo model.Interface) error {
 	cert, ok := mo.(*model.Certificate)
 	if !ok {
-		return fmt.Errorf("Failed to convert %s to *model.Certificate", reflect.TypeOf(mo).String())
+		return fmt.Errorf("failed to convert %s to *model.Certificate", reflect.TypeOf(mo).String())
 	}
 
 	var old model.Certificate
@@ -104,7 +106,7 @@ type RuleExtensionDaoImpl struct {
 func (c *RuleExtensionDaoImpl) AddModel(mo model.Interface) error {
 	re, ok := mo.(*model.RuleExtension)
 	if !ok {
-		return fmt.Errorf("Can't convert %s to %s", reflect.TypeOf(mo).String(), "*model.RuleExtension")
+		return fmt.Errorf("can't convert %s to %s", reflect.TypeOf(mo).String(), "*model.RuleExtension")
 	}
 	var old model.RuleExtension
 	if ok := c.DB.Where("rule_id = ? and value = ?", re.RuleID, re.Value).Find(&old).RecordNotFound(); ok {
@@ -139,6 +141,14 @@ func (c *RuleExtensionDaoImpl) DeleteRuleExtensionByRuleID(ruleID string) error 
 	return c.DB.Where("rule_id=?", ruleID).Delete(re).Error
 }
 
+// DeleteByRuleIDs deletes rule extentions based on the given ruleIDs.
+func (c *RuleExtensionDaoImpl) DeleteByRuleIDs(ruleIDs []string) error {
+	if err := c.DB.Where("rule_id in (?)", ruleIDs).Delete(&model.RuleExtension{}).Error; err != nil {
+		return errors.Wrap(err, "delete rule extentions")
+	}
+	return nil
+}
+
 //HTTPRuleDaoImpl http rule
 type HTTPRuleDaoImpl struct {
 	DB *gorm.DB
@@ -148,7 +158,7 @@ type HTTPRuleDaoImpl struct {
 func (h *HTTPRuleDaoImpl) AddModel(mo model.Interface) error {
 	httpRule, ok := mo.(*model.HTTPRule)
 	if !ok {
-		return fmt.Errorf("Can't not convert %s to *model.HTTPRule", reflect.TypeOf(mo).String())
+		return fmt.Errorf("can't not convert %s to *model.HTTPRule", reflect.TypeOf(mo).String())
 	}
 	var oldHTTPRule model.HTTPRule
 	if ok := h.DB.Where("uuid=?", httpRule.UUID).Find(&oldHTTPRule).RecordNotFound(); ok {
@@ -165,7 +175,7 @@ func (h *HTTPRuleDaoImpl) AddModel(mo model.Interface) error {
 func (h *HTTPRuleDaoImpl) UpdateModel(mo model.Interface) error {
 	hr, ok := mo.(*model.HTTPRule)
 	if !ok {
-		return fmt.Errorf("Failed to convert %s to *model.HTTPRule", reflect.TypeOf(mo).String())
+		return fmt.Errorf("failed to convert %s to *model.HTTPRule", reflect.TypeOf(mo).String())
 	}
 	return h.DB.Save(hr).Error
 }
@@ -218,6 +228,17 @@ func (h *HTTPRuleDaoImpl) DeleteHTTPRuleByID(id string) error {
 	return nil
 }
 
+// DeleteByComponentPort deletes http rules based on componentID and port.
+func (h *HTTPRuleDaoImpl) DeleteByComponentPort(componentID string, port int) error {
+	if err := h.DB.Where("service_id=? and container_port=?", componentID, port).Delete(&model.HTTPRule{}).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return errors.Wrap(bcode.ErrIngressHTTPRuleNotFound, "delete http rules")
+		}
+		return err
+	}
+	return nil
+}
+
 //DeleteHTTPRuleByServiceID delete http rule by service id
 func (h *HTTPRuleDaoImpl) DeleteHTTPRuleByServiceID(serviceID string) error {
 	httpRule := &model.HTTPRule{}
@@ -236,6 +257,15 @@ func (h *HTTPRuleDaoImpl) ListByServiceID(serviceID string) ([]*model.HTTPRule, 
 	return rules, nil
 }
 
+// ListByComponentPort lists http rules based on the given componentID and port.
+func (h *HTTPRuleDaoImpl) ListByComponentPort(componentID string, port int) ([]*model.HTTPRule, error) {
+	var rules []*model.HTTPRule
+	if err := h.DB.Where("service_id=? and container_port=?", componentID, port).Find(&rules).Error; err != nil {
+		return nil, errors.Wrap(err, "list http rules")
+	}
+	return rules, nil
+}
+
 // ListByCertID lists all HTTPRules matching certificate id
 func (h *HTTPRuleDaoImpl) ListByCertID(certID string) ([]*model.HTTPRule, error) {
 	var rules []*model.HTTPRule
@@ -243,6 +273,23 @@ func (h *HTTPRuleDaoImpl) ListByCertID(certID string) ([]*model.HTTPRule, error)
 		return nil, err
 	}
 	return rules, nil
+}
+
+//DeleteByComponentIDs delete http rule by component ids
+func (h *HTTPRuleDaoImpl) DeleteByComponentIDs(componentIDs []string) error{
+	return h.DB.Where("service_id in (?) ", componentIDs).Delete(&model.HTTPRule{}).Error
+}
+
+// CreateOrUpdateHTTPRuleInBatch Batch insert or update http rule
+func (h *HTTPRuleDaoImpl) CreateOrUpdateHTTPRuleInBatch(httpRules []*model.HTTPRule) error {
+	var objects []interface{}
+	for _, httpRule := range httpRules {
+		objects = append(objects, *httpRule)
+	}
+	if err := gormbulkups.BulkUpsert(h.DB, objects, 2000); err != nil {
+		return errors.Wrap(err, "create or update http rule in batch")
+	}
+	return nil
 }
 
 // TCPRuleDaoTmpl is a implementation of TcpRuleDao
@@ -268,7 +315,7 @@ func (t *TCPRuleDaoTmpl) AddModel(mo model.Interface) error {
 func (t *TCPRuleDaoTmpl) UpdateModel(mo model.Interface) error {
 	tr, ok := mo.(*model.TCPRule)
 	if !ok {
-		return fmt.Errorf("Failed to convert %s to *model.TCPRule", reflect.TypeOf(mo).String())
+		return fmt.Errorf("failed to convert %s to *model.TCPRule", reflect.TypeOf(mo).String())
 	}
 
 	return t.DB.Save(tr).Error
@@ -323,6 +370,17 @@ func (t *TCPRuleDaoTmpl) DeleteTCPRuleByServiceID(serviceID string) error {
 	return t.DB.Where("service_id = ?", serviceID).Delete(tcpRule).Error
 }
 
+// DeleteByComponentPort deletes tcp rules based on the given component id and port.
+func (t *TCPRuleDaoTmpl) DeleteByComponentPort(componentID string, port int) error {
+	if err := t.DB.Where("service_id=? and container_port=?", componentID, port).Delete(&model.TCPRule{}).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return errors.Wrap(bcode.ErrIngressTCPRuleNotFound, "delete tcp rules")
+		}
+		return errors.Wrap(err, "delete tcp rules")
+	}
+	return nil
+}
+
 //GetUsedPortsByIP get used port by ip
 //sort by port
 func (t *TCPRuleDaoTmpl) GetUsedPortsByIP(ip string) ([]*model.TCPRule, error) {
@@ -346,6 +404,23 @@ func (t *TCPRuleDaoTmpl) ListByServiceID(serviceID string) ([]*model.TCPRule, er
 		return nil, err
 	}
 	return rules, nil
+}
+
+//DeleteByComponentIDs delete tcp rule by component ids
+func (t *TCPRuleDaoTmpl) DeleteByComponentIDs(componentIDs []string) error{
+	return t.DB.Where("service_id in (?) ", componentIDs).Delete(&model.TCPRule{}).Error
+}
+
+// CreateOrUpdateTCPRuleInBatch Batch insert or update tcp rule
+func (t *TCPRuleDaoTmpl) CreateOrUpdateTCPRuleInBatch(tcpRules []*model.TCPRule) error {
+	var objects []interface{}
+	for _, tcpRule := range tcpRules {
+		objects = append(objects, *tcpRule)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return errors.Wrap(err, "create or update tcp rule in batch")
+	}
+	return nil
 }
 
 // GwRuleConfigDaoImpl is a implementation of GwRuleConfigDao.
@@ -386,4 +461,12 @@ func (t *GwRuleConfigDaoImpl) ListByRuleID(rid string) ([]*model.GwRuleConfig, e
 		return nil, err
 	}
 	return res, nil
+}
+
+// DeleteByRuleIDs deletes rule configs based on the given ruleIDs.
+func (t *GwRuleConfigDaoImpl) DeleteByRuleIDs(ruleIDs []string) error {
+	if err := t.DB.Where("rule_id in (?)", ruleIDs).Delete(&model.GwRuleConfig{}).Error; err != nil {
+		return errors.Wrap(err, "delete rule configs")
+	}
+	return nil
 }

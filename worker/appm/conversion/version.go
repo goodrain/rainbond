@@ -38,6 +38,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -134,7 +135,6 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 			},
 		})
 	}
-
 	args := createArgs(version, envs)
 	resources := createResources(as)
 	ports := createPorts(as, dbmanager)
@@ -276,16 +276,20 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 	}
 	if len(ports) > 0 {
 		var portStr string
-		for i, port := range ports {
-			if i == 0 {
-				envs = append(envs, corev1.EnvVar{Name: "PORT", Value: strconv.Itoa(ports[0].ContainerPort)})
-				envs = append(envs, corev1.EnvVar{Name: "PROTOCOL", Value: ports[0].Protocol})
+		var minPort int
+		var protocol string
+		for _, port := range ports {
+			if minPort == 0 || minPort > port.ContainerPort {
+				minPort = port.ContainerPort
+				protocol = port.Protocol
 			}
 			if portStr != "" {
 				portStr += ":"
 			}
 			portStr += fmt.Sprintf("%d", port.ContainerPort)
 		}
+		envs = append(envs, corev1.EnvVar{Name: "PORT", Value: strconv.Itoa(minPort)})
+		envs = append(envs, corev1.EnvVar{Name: "PROTOCOL", Value: protocol})
 		menvs := convertRulesToEnvs(as, dbmanager, ports)
 		if len(envs) > 0 {
 			envs = append(envs, menvs...)
@@ -494,7 +498,24 @@ func createResources(as *v1.AppService) corev1.ResourceRequirements {
 			cpuRequest = int64(requestint)
 		}
 	}
-	return createResourcesByDefaultCPU(as.ContainerMemory, cpuRequest, cpuLimit)
+	rr := createResourcesByDefaultCPU(as.ContainerMemory, cpuRequest, cpuLimit)
+	// support set gpu, support application of single GPU video memory.
+	if as.ContainerGPU > 0 {
+		gpuLimit, err := resource.ParseQuantity(fmt.Sprintf("%d", as.ContainerGPU))
+		if err != nil {
+			logrus.Errorf("gpu request is invalid")
+		} else {
+			rr.Limits[getGPULableKey()] = gpuLimit
+		}
+	}
+	return rr
+}
+
+func getGPULableKey() corev1.ResourceName {
+	if os.Getenv("GPU_LABLE_KEY") != "" {
+		return corev1.ResourceName(os.Getenv("GPU_LABLE_KEY"))
+	}
+	return "rainbond.com/gpu-mem"
 }
 
 func checkUpstreamPluginRelation(serviceID string, dbmanager db.Manager) (bool, error) {
@@ -561,7 +582,7 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.Probe {
 	probe, err := dbmanager.ServiceProbeDao().GetServiceUsedProbe(as.ServiceID, mode)
 	if err == nil && probe != nil {
-		if mode == "liveness" && probe.SuccessThreshold < 1 {
+		if mode == "liveness" {
 			probe.SuccessThreshold = 1
 		}
 		if mode == "readiness" && probe.FailureThreshold < 1 {
@@ -643,6 +664,7 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 	podAffinity := make([]corev1.PodAffinityTerm, 0)
 	podAntAffinity := make([]corev1.PodAffinityTerm, 0)
 	osWindowsSelect := false
+	enableGPU := as.ContainerGPU > 0
 	labels, err := dbmanager.TenantServiceLabelDao().GetTenantServiceAffinityLabel(as.ServiceID)
 	if err == nil && labels != nil && len(labels) > 0 {
 		for _, l := range labels {
@@ -703,11 +725,24 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 			Values:   []string{"windows"},
 		})
 	}
+	if !enableGPU {
+		nsr = append(nsr, corev1.NodeSelectorRequirement{
+			Key:      client.LabelGPU,
+			Values:   []string{"true"},
+			Operator: corev1.NodeSelectorOpNotIn,
+		})
+	} else {
+		nsr = append(nsr, corev1.NodeSelectorRequirement{
+			Key:      client.LabelGPU,
+			Values:   []string{"true"},
+			Operator: corev1.NodeSelectorOpIn,
+		})
+	}
 	if len(nsr) > 0 {
 		affinity.NodeAffinity = &corev1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 				NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					corev1.NodeSelectorTerm{MatchExpressions: nsr},
+					{MatchExpressions: nsr},
 				},
 			},
 		}

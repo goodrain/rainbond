@@ -18,16 +18,15 @@ package proxy
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
-
-	"golang.org/x/net/http/httpguts"
-
-	"github.com/goodrain/rainbond/gateway/controller/config"
-	"github.com/sirupsen/logrus"
-	extensions "k8s.io/api/extensions/v1beta1"
 
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
+	"github.com/goodrain/rainbond/gateway/controller/config"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/net/http/httpguts"
+	extensions "k8s.io/api/extensions/v1beta1"
 )
 
 // Config returns the proxy timeout to use in the upstream server/s
@@ -61,16 +60,20 @@ func (s *Config) Validation() error {
 			return fmt.Errorf("header %s value %s is valid", k, v)
 		}
 	}
-	if s.ProxyBuffering == "" {
+	if !s.validateBuffering(s.ProxyBuffering) {
+		logrus.Warningf("invalid proxy buffering: %s; use the default one: %s", s.ProxyBuffering, defBackend.ProxyBuffering)
 		s.ProxyBuffering = defBackend.ProxyBuffering
 	}
-	if s.BufferSize == "" {
+	if !s.validateBufferSize() {
+		logrus.Warningf("invalid proxy buffer size: %s; use the default one: %s", s.BufferSize, defBackend.ProxyBufferSize)
 		s.BufferSize = defBackend.ProxyBufferSize
 	}
-	if s.BuffersNumber == 0 {
+	if s.BuffersNumber <= 0 {
+		logrus.Warningf("invalid buffer number: %d; use the default one: %d", s.BuffersNumber, defBackend.ProxyBuffersNumber)
 		s.BuffersNumber = defBackend.ProxyBuffersNumber
 	}
-	if s.RequestBuffering == "" {
+	if !s.validateBuffering(s.RequestBuffering) {
+		logrus.Warningf("invalid reqeust buffering: %s; use the default one: %s", s.RequestBuffering, defBackend.ProxyRequestBuffering)
 		s.RequestBuffering = defBackend.ProxyRequestBuffering
 	}
 	if s.CookieDomain == "" {
@@ -80,6 +83,15 @@ func (s *Config) Validation() error {
 		s.CookiePath = defBackend.ProxyCookiePath
 	}
 	return nil
+}
+
+func (s *Config) validateBufferSize() bool {
+	reg := regexp.MustCompile(`^[1-9]\d*k$`)
+	return reg.MatchString(s.BufferSize)
+}
+
+func (s *Config) validateBuffering(buffering string) bool {
+	return buffering == "off" || buffering == "on"
 }
 
 //NewProxyConfig new proxy config

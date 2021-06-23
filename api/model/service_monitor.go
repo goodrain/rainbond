@@ -1,5 +1,7 @@
 package model
 
+import dbmodel "github.com/goodrain/rainbond/db/model"
+
 //AddServiceMonitorRequestStruct add service monitor request
 type AddServiceMonitorRequestStruct struct {
 	// name
@@ -22,6 +24,19 @@ type AddServiceMonitorRequestStruct struct {
 	// in: body
 	// required: true
 	Interval string `json:"interval" validate:"interval|required"`
+}
+
+// DbModel return database model
+func (a *AddServiceMonitorRequestStruct) DbModel(tenantID, serviceID string) *dbmodel.TenantServiceMonitor {
+	return &dbmodel.TenantServiceMonitor{
+		Name:            a.Name,
+		TenantID:        tenantID,
+		ServiceID:       serviceID,
+		ServiceShowName: a.ServiceShowName,
+		Port:            a.Port,
+		Path:            a.Path,
+		Interval:        a.Interval,
+	}
 }
 
 //UpdateServiceMonitorRequestStruct update service monitor request

@@ -6,9 +6,9 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util/bcode"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
@@ -43,7 +43,7 @@ func (a *ApplicationController) CreateApp(w http.ResponseWriter, r *http.Request
 	}
 
 	// get current tenant
-	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	tenantReq.TenantID = tenant.UUID
 
 	// create app
@@ -65,7 +65,7 @@ func (a *ApplicationController) BatchCreateApp(w http.ResponseWriter, r *http.Re
 	}
 
 	// get current tenant
-	tenant := r.Context().Value(middleware.ContextKey("tenant")).(*dbmodel.Tenants)
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	respList, err := handler.GetApplicationHandler().BatchCreateApp(r.Context(), &apps, tenant.UUID)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
@@ -80,7 +80,7 @@ func (a *ApplicationController) UpdateApp(w http.ResponseWriter, r *http.Request
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &updateAppReq, nil) {
 		return
 	}
-	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
 
 	// update app
 	app, err := handler.GetApplicationHandler().UpdateApp(r.Context(), app, updateAppReq)
@@ -109,7 +109,7 @@ func (a *ApplicationController) ListApps(w http.ResponseWriter, r *http.Request)
 	}
 
 	// get current tenantID
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 
 	// List apps
 	resp, err := handler.GetApplicationHandler().ListApps(tenantID, appName, page, pageSize)
@@ -149,7 +149,7 @@ func (a *ApplicationController) ListComponents(w http.ResponseWriter, r *http.Re
 
 // DeleteApp -
 func (a *ApplicationController) DeleteApp(w http.ResponseWriter, r *http.Request) {
-	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
 
 	// Delete application
 	err := handler.GetApplicationHandler().DeleteApp(r.Context(), app)
@@ -174,7 +174,7 @@ func (a *ApplicationController) BatchUpdateComponentPorts(w http.ResponseWriter,
 		}
 	}
 
-	appID := r.Context().Value(middleware.ContextKey("app_id")).(string)
+	appID := r.Context().Value(ctxutil.ContextKey("app_id")).(string)
 
 	if err := handler.GetApplicationHandler().BatchUpdateComponentPorts(appID, appPorts); err != nil {
 		httputil.ReturnBcodeError(r, w, err)
@@ -186,7 +186,7 @@ func (a *ApplicationController) BatchUpdateComponentPorts(w http.ResponseWriter,
 
 // GetAppStatus returns the status of the application.
 func (a *ApplicationController) GetAppStatus(w http.ResponseWriter, r *http.Request) {
-	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
 
 	res, err := handler.GetApplicationHandler().GetStatus(r.Context(), app)
 	if err != nil {
@@ -199,7 +199,7 @@ func (a *ApplicationController) GetAppStatus(w http.ResponseWriter, r *http.Requ
 
 // Install installs the application.
 func (a *ApplicationController) Install(w http.ResponseWriter, r *http.Request) {
-	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
 
 	var installAppReq model.InstallAppReq
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &installAppReq, nil) {
@@ -214,7 +214,7 @@ func (a *ApplicationController) Install(w http.ResponseWriter, r *http.Request) 
 
 // ListServices returns the list fo the application.
 func (a *ApplicationController) ListServices(w http.ResponseWriter, r *http.Request) {
-	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
 
 	services, err := handler.GetApplicationHandler().ListServices(r.Context(), app)
 	if err != nil {
@@ -244,7 +244,7 @@ func (a *ApplicationController) BatchBindService(w http.ResponseWriter, r *http.
 
 // ListHelmAppReleases returns the list of helm releases.
 func (a *ApplicationController) ListHelmAppReleases(w http.ResponseWriter, r *http.Request) {
-	app := r.Context().Value(middleware.ContextKey("application")).(*dbmodel.Application)
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
 
 	releases, err := handler.GetApplicationHandler().ListHelmAppReleases(r.Context(), app)
 	if err != nil {

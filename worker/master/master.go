@@ -38,6 +38,7 @@ import (
 	"github.com/goodrain/rainbond/worker/master/volumes/sync"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -60,17 +61,24 @@ type Controller struct {
 	helmAppController   *helmapp.Controller
 	isLeader            bool
 
+	kubeClient kubernetes.Interface
+
 	stopCh          chan struct{}
 	podEvent        *podevent.PodEvent
 	volumeTypeEvent *sync.VolumeTypeEvent
+
+	version      *version.Info
+	rainbondsssc controller.Provisioner
+	rainbondsslc controller.Provisioner
 }
 
 //NewMasterController new master controller
 func NewMasterController(conf option.Config, store store.Storer, kubeClient kubernetes.Interface, rainbondClient versioned.Interface) (*Controller, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+
 	// The controller needs to know what the server version is because out-of-tree
 	// provisioners aren't officially supported until 1.5
-	serverVersion, err := conf.KubeClient.Discovery().ServerVersion()
+	serverVersion, err := kubeClient.Discovery().ServerVersion()
 	if err != nil {
 		logrus.Errorf("Error getting server version: %v", err)
 		cancel()
@@ -82,10 +90,10 @@ func NewMasterController(conf option.Config, store store.Storer, kubeClient kube
 	//statefulset share controller
 	rainbondssscProvisioner := provider.NewRainbondssscProvisioner()
 	//statefulset local controller
-	rainbondsslcProvisioner := provider.NewRainbondsslcProvisioner(conf.KubeClient, store)
+	rainbondsslcProvisioner := provider.NewRainbondsslcProvisioner(kubeClient, store)
 	// Start the provision controller which will dynamically provision hostPath
 	// PVs
-	pc := controller.NewProvisionController(conf.KubeClient, &conf, map[string]controller.Provisioner{
+	pc := controller.NewProvisionController(kubeClient, &conf, map[string]controller.Provisioner{
 		rainbondssscProvisioner.Name(): rainbondssscProvisioner,
 		rainbondsslcProvisioner.Name(): rainbondsslcProvisioner,
 	}, serverVersion.GitVersion)
@@ -140,6 +148,10 @@ func NewMasterController(conf option.Config, store store.Storer, kubeClient kube
 		diskCache:       statistical.CreatDiskCache(ctx),
 		podEvent:        podevent.New(conf.KubeClient, stopCh),
 		volumeTypeEvent: sync.New(stopCh),
+		kubeClient:      kubeClient,
+		rainbondsssc:    rainbondssscProvisioner,
+		rainbondsslc:    rainbondsslcProvisioner,
+		version:         serverVersion,
 	}, nil
 }
 
@@ -152,17 +164,21 @@ func (m *Controller) IsLeader() bool {
 func (m *Controller) Start() error {
 	logrus.Debug("master controller starting")
 	start := func(ctx context.Context) {
+		pc := controller.NewProvisionController(m.kubeClient, &m.conf, map[string]controller.Provisioner{
+			m.rainbondsslc.Name(): m.rainbondsslc,
+			m.rainbondsssc.Name(): m.rainbondsssc,
+		}, m.version.GitVersion)
+
 		m.isLeader = true
 		defer func() {
 			m.isLeader = false
 		}()
 		go m.diskCache.Start()
 		defer m.diskCache.Stop()
-		go m.pc.Run(ctx)
+		go pc.Run(ctx)
 		m.store.RegistPodUpdateListener("podEvent", m.podEvent.GetChan())
 		defer m.store.UnRegistPodUpdateListener("podEvent")
 		go m.podEvent.Handle()
-
 		m.store.RegisterVolumeTypeListener("volumeTypeEvent", m.volumeTypeEvent.GetChan())
 		defer m.store.UnRegisterVolumeTypeListener("volumeTypeEvent")
 		go m.volumeTypeEvent.Handle()
@@ -188,7 +204,27 @@ func (m *Controller) Start() error {
 	}
 	// Name of config map with leader election lock
 	lockName := "rainbond-appruntime-worker-leader"
-	go leader.RunAsLeader(m.ctx, m.conf.KubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {})
+
+	// Become leader again on stop leading.
+	leaderCh := make(chan struct{}, 1)
+	go func() {
+		for {
+			select {
+			case <-m.ctx.Done():
+				return
+			case <-leaderCh:
+				logrus.Info("run as leader")
+				ctx, cancel := context.WithCancel(m.ctx)
+				defer cancel()
+				leader.RunAsLeader(ctx, m.kubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {
+					leaderCh <- struct{}{}
+					logrus.Info("restart leader")
+				})
+			}
+		}
+	}()
+
+	leaderCh <- struct{}{}
 
 	return nil
 }

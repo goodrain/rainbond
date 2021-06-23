@@ -22,18 +22,18 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
-	"github.com/jinzhu/gorm"
-	"github.com/sirupsen/logrus"
-	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
-
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/mq/client"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
+	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 )
 
 // GatewayStruct -
@@ -296,7 +296,8 @@ func (g *GatewayStruct) deleteTCPRule(w http.ResponseWriter, r *http.Request) {
 // GetAvailablePort returns a available port
 func (g *GatewayStruct) GetAvailablePort(w http.ResponseWriter, r *http.Request) {
 	h := handler.GetGatewayHandler()
-	res, err := h.GetAvailablePort("0.0.0.0")
+	lock, _ := strconv.ParseBool(r.FormValue("lock"))
+	res, err := h.GetAvailablePort("0.0.0.0", lock)
 	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while "+
 			"getting available port: %v", err))
@@ -312,8 +313,9 @@ func (g *GatewayStruct) RuleConfig(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	sid := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	eventID := r.Context().Value(middleware.ContextKey("event_id")).(string)
+
+	sid := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	eventID := r.Context().Value(ctxutil.ContextKey("event_id")).(string)
 	req.ServiceID = sid
 	req.EventID = eventID
 	if err := handler.GetGatewayHandler().RuleConfig(&req); err != nil {

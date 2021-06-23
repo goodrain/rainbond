@@ -22,7 +22,10 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/goodrain/rainbond/util"
+
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	dmodel "github.com/goodrain/rainbond/worker/discover/model"
 )
 
 // AppType
@@ -286,6 +289,10 @@ type ServiceStruct struct {
 	// in: body
 	// required: false
 	ContainerMemory int `json:"container_memory" validate:"container_memory"`
+	// component gpu video memory
+	// in: body
+	// required: false
+	ContainerGPU int `json:"container_gpu" validate:"container_gpu"`
 	// 容器启动命令
 	// in: body
 	// required: false
@@ -335,18 +342,22 @@ type ServiceStruct struct {
 	//OSType runtime os type
 	// in: body
 	// required: false
-	OSType         string                               `json:"os_type" validate:"os_type|in:windows,linux"`
-	ServiceLabel   string                               `json:"service_label"  validate:"service_label|in:StatelessServiceType,StatefulServiceType"`
-	NodeLabel      string                               `json:"node_label"  validate:"node_label"`
-	Operator       string                               `json:"operator"  validate:"operator"`
-	RepoURL        string                               `json:"repo_url" validate:"repo_url"`
-	DependIDs      []dbmodel.TenantServiceRelation      `json:"depend_ids" validate:"depend_ids"`
-	VolumesInfo    []TenantServiceVolumeStruct          `json:"volumes_info" validate:"volumes_info"`
-	DepVolumesInfo []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info" validate:"dep_volumes_info"`
-	EnvsInfo       []dbmodel.TenantServiceEnvVar        `json:"envs_info" validate:"envs_info"`
-	PortsInfo      []dbmodel.TenantServicesPort         `json:"ports_info" validate:"ports_info"`
-	Endpoints      *Endpoints                           `json:"endpoints" validate:"endpoints"`
-	AppID          string                               `json:"app_id" validate:"required"`
+	OSType            string                               `json:"os_type" validate:"os_type|in:windows,linux"`
+	ServiceLabel      string                               `json:"service_label"  validate:"service_label|in:StatelessServiceType,StatefulServiceType"`
+	NodeLabel         string                               `json:"node_label"  validate:"node_label"`
+	Operator          string                               `json:"operator"  validate:"operator"`
+	RepoURL           string                               `json:"repo_url" validate:"repo_url"`
+	DependIDs         []dbmodel.TenantServiceRelation      `json:"depend_ids" validate:"depend_ids"`
+	VolumesInfo       []TenantServiceVolumeStruct          `json:"volumes_info" validate:"volumes_info"`
+	DepVolumesInfo    []dbmodel.TenantServiceMountRelation `json:"dep_volumes_info" validate:"dep_volumes_info"`
+	EnvsInfo          []dbmodel.TenantServiceEnvVar        `json:"envs_info" validate:"envs_info"`
+	PortsInfo         []dbmodel.TenantServicesPort         `json:"ports_info" validate:"ports_info"`
+	Endpoints         *Endpoints                           `json:"endpoints" validate:"endpoints"`
+	AppID             string                               `json:"app_id" validate:"required"`
+	ComponentProbes   []ServiceProbe                       `json:"component_probes" validate:"component_probes"`
+	ComponentMonitors []AddServiceMonitorRequestStruct     `json:"component_monitors" validate:"component_monitors"`
+	HTTPRules         []AddHTTPRuleStruct                  `json:"http_rules" validate:"http_rules"`
+	TCPRules          []AddTCPRuleStruct                   `json:"tcp_rules" validate:"tcp_rules"`
 }
 
 // Endpoints holds third-party service endpoints or configuraion to get endpoints.
@@ -1256,9 +1267,23 @@ type AddTenantServiceEnvVar struct {
 	ContainerPort int    `validate:"container_port|numeric_between:1,65535" json:"container_port"`
 	Name          string `validate:"name" json:"name"`
 	AttrName      string `validate:"env_name|required" json:"env_name"`
-	AttrValue     string `validate:"env_value|required" json:"env_value"`
+	AttrValue     string `validate:"env_value" json:"env_value"`
 	IsChange      bool   `validate:"is_change|bool" json:"is_change"`
 	Scope         string `validate:"scope|in:outer,inner,both,build" json:"scope"`
+}
+
+// DbModel return database model
+func (a *AddTenantServiceEnvVar) DbModel(tenantID, componentID string) *dbmodel.TenantServiceEnvVar {
+	return &dbmodel.TenantServiceEnvVar{
+		TenantID:      tenantID,
+		ServiceID:     componentID,
+		Name:          a.Name,
+		AttrName:      a.AttrName,
+		AttrValue:     a.AttrValue,
+		ContainerPort: a.ContainerPort,
+		IsChange:      true,
+		Scope:         a.Scope,
+	}
 }
 
 //DelTenantServiceEnvVar  应用环境变量
@@ -1291,6 +1316,23 @@ type TenantServicesPort struct {
 	K8sServiceName string `gorm:"column:k8s_service_name" json:"k8s_service_name"`
 	IsInnerService bool   `gorm:"column:is_inner_service" validate:"is_inner_service|bool" json:"is_inner_service"`
 	IsOuterService bool   `gorm:"column:is_outer_service" validate:"is_outer_service|bool" json:"is_outer_service"`
+}
+
+// DbModel return database model
+func (p *TenantServicesPort) DbModel(tenantID, componentID string) *dbmodel.TenantServicesPort {
+	isInnerService := p.IsInnerService
+	isOuterService := p.IsOuterService
+	return &dbmodel.TenantServicesPort{
+		TenantID:       tenantID,
+		ServiceID:      componentID,
+		ContainerPort:  p.ContainerPort,
+		MappingPort:    p.MappingPort,
+		Protocol:       p.Protocol,
+		PortAlias:      p.PortAlias,
+		IsInnerService: &isInnerService,
+		IsOuterService: &isOuterService,
+		K8sServiceName: p.K8sServiceName,
+	}
 }
 
 // AddServicePort service port
@@ -1361,6 +1403,27 @@ type ServiceProbe struct {
 	FailureAction    string `json:"failure_action" validate:"failure_action"`
 }
 
+// DbModel return database model
+func (p *ServiceProbe) DbModel(componentID string) *dbmodel.TenantServiceProbe {
+	return &dbmodel.TenantServiceProbe{
+		ServiceID:          componentID,
+		Cmd:                p.Cmd,
+		FailureThreshold:   p.FailureThreshold,
+		HTTPHeader:         p.HTTPHeader,
+		InitialDelaySecond: p.InitialDelaySecond,
+		IsUsed:             &p.IsUsed,
+		Mode:               p.Mode,
+		Path:               p.Path,
+		PeriodSecond:       p.PeriodSecond,
+		Port:               p.Port,
+		ProbeID:            p.ProbeID,
+		Scheme:             p.Scheme,
+		SuccessThreshold:   p.SuccessThreshold,
+		TimeoutSecond:      p.TimeoutSecond,
+		FailureAction:      p.FailureAction,
+	}
+}
+
 //TenantServiceVolume 应用持久化记录
 type TenantServiceVolume struct {
 	Model
@@ -1427,16 +1490,16 @@ type ExportAppStruct struct {
 	}
 }
 
-//BeatchOperationRequestStruct beatch operation request body
-type BeatchOperationRequestStruct struct {
+// BatchOperationReq beatch operation request body
+type BatchOperationReq struct {
 	Operator   string `json:"operator"`
 	TenantName string `json:"tenant_name"`
 	Body       struct {
-		Operation    string                         `json:"operation" validate:"operation|required|in:start,stop,build,upgrade"`
-		BuildInfos   []BuildInfoRequestStruct       `json:"build_infos,omitempty"`
-		StartInfos   []StartOrStopInfoRequestStruct `json:"start_infos,omitempty"`
-		StopInfos    []StartOrStopInfoRequestStruct `json:"stop_infos,omitempty"`
-		UpgradeInfos []UpgradeInfoRequestStruct     `json:"upgrade_infos,omitempty"`
+		Operation string                 `json:"operation" validate:"operation|required|in:start,stop,build,upgrade"`
+		Builds    []*ComponentBuildReq   `json:"build_infos,omitempty"`
+		Starts    []*ComponentStartReq   `json:"start_infos,omitempty"`
+		Stops     []*ComponentStopReq    `json:"stop_infos,omitempty"`
+		Upgrades  []*ComponentUpgradeReq `json:"upgrade_infos,omitempty"`
 	}
 }
 
@@ -1497,8 +1560,9 @@ var FromMarketImageBuildKing = "build_from_market_image"
 //FromMarketSlugBuildKing build from market slug
 var FromMarketSlugBuildKing = "build_from_market_slug"
 
-//BuildInfoRequestStruct -
-type BuildInfoRequestStruct struct {
+// ComponentBuildReq -
+type ComponentBuildReq struct {
+	ComponentOpGeneralReq
 	// 变量
 	// in: body
 	// required: false
@@ -1511,8 +1575,6 @@ type BuildInfoRequestStruct struct {
 	// in: body
 	// required: false
 	Action string `json:"action" validate:"action"`
-	//Event trace ID
-	EventID string `json:"event_id"`
 	// Plan Version
 	PlanVersion string `json:"plan_version"`
 	// Deployed version number, The version is generated by the API
@@ -1528,9 +1590,51 @@ type BuildInfoRequestStruct struct {
 	//用于云市代码包创建
 	SlugInfo BuildSlugInfo `json:"slug_info,omitempty"`
 	//tenantName
-	TenantName string            `json:"-"`
-	ServiceID  string            `json:"service_id"`
-	Configs    map[string]string `json:"configs"`
+	TenantName string `json:"-"`
+}
+
+// GetEventID -
+func (b *ComponentBuildReq) GetEventID() string {
+	if b.EventID == "" {
+		b.EventID = util.NewUUID()
+	}
+	return b.EventID
+}
+
+// BatchOpFailureItem -
+func (b *ComponentBuildReq) BatchOpFailureItem() *ComponentOpResult {
+	return &ComponentOpResult{
+		ServiceID: b.ServiceID,
+		EventID:   b.EventID,
+		Operation: "build",
+		Status:    BatchOpResultItemStatusFailure,
+	}
+}
+
+// GetVersion -
+func (b *ComponentBuildReq) GetVersion() string {
+	return b.DeployVersion
+}
+
+// SetVersion -
+func (b *ComponentBuildReq) SetVersion(string) {
+	// no need
+	return
+}
+
+// OpType -
+func (b *ComponentBuildReq) OpType() string {
+	return "build-service"
+}
+
+// GetComponentID -
+func (b *ComponentBuildReq) GetComponentID() string {
+	return b.ServiceID
+}
+
+// TaskBody returns a task body.
+func (b *ComponentBuildReq) TaskBody(cpt *dbmodel.TenantServices) interface{} {
+	return nil
 }
 
 // UpdateBuildVersionReq -
@@ -1538,15 +1642,63 @@ type UpdateBuildVersionReq struct {
 	PlanVersion string `json:"plan_version" validate:"required"`
 }
 
-//UpgradeInfoRequestStruct -
-type UpgradeInfoRequestStruct struct {
+//ComponentUpgradeReq -
+type ComponentUpgradeReq struct {
+	ComponentOpGeneralReq
 	//UpgradeVersion The target version of the upgrade
 	//If empty, the same version is upgraded
 	UpgradeVersion string `json:"upgrade_version"`
-	//Event trace ID
-	EventID   string            `json:"event_id"`
-	ServiceID string            `json:"service_id"`
-	Configs   map[string]string `json:"configs"`
+}
+
+// GetEventID -
+func (u *ComponentUpgradeReq) GetEventID() string {
+	if u.EventID == "" {
+		u.EventID = util.NewUUID()
+	}
+	return u.EventID
+}
+
+// BatchOpFailureItem -
+func (u *ComponentUpgradeReq) BatchOpFailureItem() *ComponentOpResult {
+	return &ComponentOpResult{
+		ServiceID: u.ServiceID,
+		EventID:   u.GetEventID(),
+		Operation: "upgrade",
+		Status:    BatchOpResultItemStatusFailure,
+	}
+}
+
+// GetVersion -
+func (u *ComponentUpgradeReq) GetVersion() string {
+	return u.UpgradeVersion
+}
+
+// SetVersion -
+func (u *ComponentUpgradeReq) SetVersion(version string) {
+	if u.UpgradeVersion == "" {
+		u.UpgradeVersion = version
+	}
+}
+
+// GetComponentID -
+func (u *ComponentUpgradeReq) GetComponentID() string {
+	return u.ServiceID
+}
+
+// TaskBody returns the task body.
+func (u *ComponentUpgradeReq) TaskBody(cpt *dbmodel.TenantServices) interface{} {
+	return &dmodel.RollingUpgradeTaskBody{
+		TenantID:         cpt.TenantID,
+		ServiceID:        cpt.ServiceID,
+		NewDeployVersion: u.UpgradeVersion,
+		EventID:          u.GetEventID(),
+		Configs:          u.Configs,
+	}
+}
+
+// OpType -
+func (u *ComponentUpgradeReq) OpType() string {
+	return "upgrade-service"
 }
 
 //RollbackInfoRequestStruct -
@@ -1557,16 +1709,6 @@ type RollbackInfoRequestStruct struct {
 	EventID   string            `json:"event_id"`
 	ServiceID string            `json:"service_id"`
 	Configs   map[string]string `json:"configs"`
-}
-
-//StartOrStopInfoRequestStruct -
-type StartOrStopInfoRequestStruct struct {
-	//Event trace ID
-	EventID   string            `json:"event_id"`
-	ServiceID string            `json:"service_id"`
-	Configs   map[string]string `json:"configs"`
-	// When determining the startup sequence of services, you need to know the services they depend on
-	DepServiceIDInBootSeq []string `json:"dep_service_ids_in_boot_seq"`
 }
 
 //BuildMQBodyFrom -
@@ -1720,10 +1862,18 @@ type ParseAppServicesReq struct {
 
 // ConfigGroupService -
 type ConfigGroupService struct {
-	AppID           string `json:"app_id"`
-	ConfigGroupName string `json:"config_group_name"`
-	ServiceID       string `json:"service_id"`
-	ServiceAlias    string `json:"service_alias"`
+	ServiceID    string `json:"service_id"`
+	ServiceAlias string `json:"service_alias"`
+}
+
+// DbModel return database model
+func (c ConfigGroupService) DbModel(appID, configGroupName string) *dbmodel.ConfigGroupService {
+	return &dbmodel.ConfigGroupService{
+		AppID:           appID,
+		ConfigGroupName: configGroupName,
+		ServiceID:       c.ServiceID,
+		ServiceAlias:    c.ServiceAlias,
+	}
 }
 
 // ConfigItem -
@@ -1734,6 +1884,16 @@ type ConfigItem struct {
 	ItemValue       string `json:"item_value" validate:"required,max=65535"`
 }
 
+// DbModel return database model
+func (c ConfigItem) DbModel(appID, configGroupName string) *dbmodel.ConfigGroupItem {
+	return &dbmodel.ConfigGroupItem{
+		AppID:           appID,
+		ConfigGroupName: configGroupName,
+		ItemKey:         c.ItemKey,
+		ItemValue:       c.ItemValue,
+	}
+}
+
 // ApplicationConfigGroup -
 type ApplicationConfigGroup struct {
 	AppID           string       `json:"app_id"`
@@ -1742,6 +1902,25 @@ type ApplicationConfigGroup struct {
 	ServiceIDs      []string     `json:"service_ids"`
 	ConfigItems     []ConfigItem `json:"config_items"`
 	Enable          bool         `json:"enable"`
+}
+
+// AppConfigGroup Interface for synchronizing application configuration groups
+type AppConfigGroup struct {
+	ConfigGroupName     string               `json:"config_group_name" validate:"required,alphanum,min=2,max=64"`
+	DeployType          string               `json:"deploy_type" validate:"required,oneof=env configfile"`
+	ConfigItems         []ConfigItem         `json:"config_items"`
+	ConfigGroupServices []ConfigGroupService `json:"config_group_services"`
+	Enable              bool                 `json:"enable"`
+}
+
+// DbModel return database model
+func (a AppConfigGroup) DbModel(appID string) *dbmodel.ApplicationConfigGroup {
+	return &dbmodel.ApplicationConfigGroup{
+		AppID:           appID,
+		ConfigGroupName: a.ConfigGroupName,
+		DeployType:      a.DeployType,
+		Enable:          a.Enable,
+	}
 }
 
 // ApplicationConfigGroupResp -
@@ -1789,4 +1968,24 @@ type HelmAppRelease struct {
 	Chart       string `json:"chart"`
 	AppVersion  string `json:"app_version"`
 	Description string `json:"description"`
+}
+
+// AppConfigGroupRelations -
+type AppConfigGroupRelations struct {
+	ConfigGroupName string `json:"config_group_name"`
+}
+
+// DbModel return database model
+func (a *AppConfigGroupRelations) DbModel(appID, serviceID, serviceAlias string) *dbmodel.ConfigGroupService {
+	return &dbmodel.ConfigGroupService{
+		AppID:           appID,
+		ConfigGroupName: a.ConfigGroupName,
+		ServiceID:       serviceID,
+		ServiceAlias:    serviceAlias,
+	}
+}
+
+// SyncAppConfigGroup -
+type SyncAppConfigGroup struct {
+	AppConfigGroups []AppConfigGroup `json:"app_config_groups"`
 }

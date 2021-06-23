@@ -21,10 +21,6 @@ package masterserver
 import (
 	"context"
 
-	"github.com/prometheus/client_golang/prometheus"
-
-	"github.com/goodrain/rainbond/node/masterserver/monitor"
-
 	"github.com/sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/node/kubecache"
@@ -43,7 +39,6 @@ type MasterServer struct {
 	ctx              context.Context
 	cancel           context.CancelFunc
 	datacenterConfig *config.DataCenterConfig
-	clusterMonitor   monitor.Manager
 }
 
 //NewMasterServer 创建master节点
@@ -51,11 +46,6 @@ func NewMasterServer(modelnode *client.HostNode, kubecli kubecache.KubeClient) (
 	datacenterConfig := config.GetDataCenterConfig()
 	ctx, cancel := context.WithCancel(context.Background())
 	nodecluster := node.CreateCluster(kubecli, modelnode, datacenterConfig)
-	clusterMonitor, err := monitor.CreateManager(nodecluster)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
 	ms := &MasterServer{
 		Client:           store.DefalutClient,
 		HostNode:         modelnode,
@@ -63,7 +53,6 @@ func NewMasterServer(modelnode *client.HostNode, kubecli kubecache.KubeClient) (
 		ctx:              ctx,
 		cancel:           cancel,
 		datacenterConfig: datacenterConfig,
-		clusterMonitor:   clusterMonitor,
 	}
 	return ms, nil
 }
@@ -75,7 +64,7 @@ func (m *MasterServer) Start(errchan chan error) error {
 		logrus.Error("node cluster start error,", err.Error())
 		return err
 	}
-	return m.clusterMonitor.Start(errchan)
+	return nil
 }
 
 //Stop 停止
@@ -83,13 +72,5 @@ func (m *MasterServer) Stop(i interface{}) {
 	if m.Cluster != nil {
 		m.Cluster.Stop(i)
 	}
-	if m.clusterMonitor != nil {
-		m.clusterMonitor.Stop()
-	}
 	m.cancel()
-}
-
-//GetRegistry get monitor metric registry
-func (m *MasterServer) GetRegistry() *prometheus.Registry {
-	return m.clusterMonitor.GetRegistry()
 }

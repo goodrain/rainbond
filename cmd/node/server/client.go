@@ -92,7 +92,7 @@ func ParseClientCommnad(args []string) {
 			App := cli.NewApp()
 			App.Version = "0.1"
 			App.Commands = []cli.Command{
-				cli.Command{
+				{
 					Name: "upgrade",
 					Flags: []cli.Flag{
 						cli.StringFlag{

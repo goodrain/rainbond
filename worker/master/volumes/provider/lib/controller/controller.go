@@ -639,8 +639,10 @@ func (ctrl *ProvisionController) Run(ctx context.Context) {
 		go wait.Until(ctrl.runClaimWorker, time.Second, stop)
 		go wait.Until(ctrl.runVolumeWorker, time.Second, stop)
 	}
-	logrus.Infof("Started provisioner controller %s!", ctrl.component)
+	logger := logrus.WithField("WHO", "ProvisionController")
+	logger.Infof("Started provisioner controller %s!", ctrl.component)
 	<-stop
+	logger.Info("stop provisioner controller: %s", ctrl.component)
 }
 
 func (ctrl *ProvisionController) runClaimWorker() {

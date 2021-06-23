@@ -19,11 +19,15 @@
 package dao
 
 import (
+	"context"
 	"strings"
 	"time"
 
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -58,6 +62,24 @@ func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
 //EventDaoImpl EventLogMessageDaoImpl
 type EventDaoImpl struct {
 	DB *gorm.DB
+}
+
+// CreateEventsInBatch creates events in batch.
+func (c *EventDaoImpl) CreateEventsInBatch(events []*model.ServiceEvent) error {
+	var objects []interface{}
+	for _, event := range events {
+		event := event
+		objects = append(objects, *event)
+	}
+	if err := gormbulkups.BulkUpsert(c.DB, objects, 200); err != nil {
+		return errors.Wrap(err, "create events in batch")
+	}
+	return nil
+}
+
+// UpdateReason update reasion.
+func (c *EventDaoImpl) UpdateReason(eventID string, reason string) error {
+	return c.DB.Model(&model.ServiceEvent{}).Where("event_id=?", eventID).UpdateColumn("reason", reason).Error
 }
 
 //GetEventByEventID get event log message
@@ -131,7 +153,7 @@ func (c *EventDaoImpl) GetEventsByTarget(target, targetID string, offset, limit 
 	if err := db.Model(&model.ServiceEvent{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := db.Offset(offset).Limit(limit).Order("create_time DESC").Find(&result).Error; err != nil {
+	if err := db.Offset(offset).Limit(limit).Order("create_time DESC, ID DESC").Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, 0, nil
 		}
@@ -143,20 +165,17 @@ func (c *EventDaoImpl) GetEventsByTarget(target, targetID string, offset, limit 
 
 // GetEventsByTenantID get event by tenantID
 func (c *EventDaoImpl) GetEventsByTenantID(tenantID string, offset, limit int) ([]*model.ServiceEvent, int, error) {
-	var result []*model.ServiceEvent
 	var total int
-	start := time.Now()
 	if err := c.DB.Model(&model.ServiceEvent{}).Where("tenant_id=?", tenantID).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	logrus.Debugf("query event count %d take time %s", total, time.Now().Sub(start))
-	if err := c.DB.Where("tenant_id=?", tenantID).Offset(offset).Limit(limit).Order("start_time DESC").Find(&result).Error; err != nil {
+	var result []*model.ServiceEvent
+	if err := c.DB.Where("tenant_id=?", tenantID).Offset(offset).Limit(limit).Order("start_time DESC, ID DESC").Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, 0, nil
 		}
 		return nil, 0, err
 	}
-	logrus.Debugf("query event list take time %s", time.Now().Sub(start))
 	return result, total, nil
 }
 
@@ -187,6 +206,16 @@ func (c *EventDaoImpl) LatestFailurePodEvent(podName string) (*model.ServiceEven
 		return nil, err
 	}
 	return &event, nil
+}
+
+func (c *EventDaoImpl) SetEventStatus(ctx context.Context, status model.EventStatus) error {
+	event, _ := ctx.Value(ctxutil.ContextKey("event")).(*model.ServiceEvent)
+	if event != nil {
+		event.FinalStatus = "complete"
+		event.Status = string(status)
+		return c.UpdateModel(event)
+	}
+	return nil
 }
 
 //NotificationEventDaoImpl NotificationEventDaoImpl

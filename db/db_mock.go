@@ -64,7 +64,6 @@ func (mr *MockManagerMockRecorder) Begin() *gomock.Call {
 
 // DB mocks base method
 func (m *MockManager) DB() *gorm.DB {
-	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DB")
 	ret0, _ := ret[0].(*gorm.DB)
 	return ret0
@@ -72,7 +71,6 @@ func (m *MockManager) DB() *gorm.DB {
 
 // DB indicates an expected call of DB
 func (mr *MockManagerMockRecorder) DB() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DB", reflect.TypeOf((*MockManager)(nil).DB))
 }
 

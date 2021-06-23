@@ -799,3 +799,11 @@ func Getenv(key, def string) string {
 	}
 	return value
 }
+
+// Elapsed measures the execution time.
+func Elapsed(what string) func() {
+	start := time.Now()
+	return func() {
+		logrus.Debugf("%s took %v", what, time.Since(start))
+	}
+}

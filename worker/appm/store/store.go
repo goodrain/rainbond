@@ -357,7 +357,7 @@ func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {
 			if ep.Annotations != nil {
 				if domain, ok := ep.Annotations["domain"]; ok && domain != "" {
 					logrus.Debugf("thirdpart service[sid: %s] add domain endpoint[domain: %s] probe", sid, domain)
-					probeInfos = []*ProbeInfo{&ProbeInfo{
+					probeInfos = []*ProbeInfo{{
 						Sid:  sid,
 						UUID: fmt.Sprintf("%s_%d", domain, port.Port),
 						IP:   domain,
@@ -385,36 +385,6 @@ func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {
 		}
 	}
 	return probeInfos
-}
-
-func upgradeProbe(ch chan<- interface{}, old, cur []*ProbeInfo) {
-	oldMap := make(map[string]*ProbeInfo, len(old))
-	for i := 0; i < len(old); i++ {
-		oldMap[old[i].UUID] = old[i]
-	}
-	for _, c := range cur {
-		if info := oldMap[c.UUID]; info != nil {
-			delete(oldMap, c.UUID)
-			logrus.Debugf("UUID: %s; update probe", c.UUID)
-			ch <- Event{
-				Type: UpdateEvent,
-				Obj:  c,
-			}
-		} else {
-			logrus.Debugf("UUID: %s; create probe", c.UUID)
-			ch <- Event{
-				Type: CreateEvent,
-				Obj:  []*ProbeInfo{c},
-			}
-		}
-	}
-	for _, info := range oldMap {
-		logrus.Debugf("UUID: %s; delete probe", info.UUID)
-		ch <- Event{
-			Type: DeleteEvent,
-			Obj:  info,
-		}
-	}
 }
 
 func (a *appRuntimeStore) init() error {
@@ -1055,26 +1025,37 @@ func (a *appRuntimeStore) GetAppStatus(appID string) (pb.AppStatus_Status, error
 	for _, s := range services {
 		serviceIDs = append(serviceIDs, s.ServiceID)
 	}
+	componentStatuses := a.GetAppServicesStatus(serviceIDs)
+
+	return getAppStatus(componentStatuses), nil
+}
+
+func getAppStatus(componentStatuses map[string]string) pb.AppStatus_Status {
+	var statuses []string
+	for _, status := range componentStatuses {
+		if status != v1.UNDEPLOY {
+			statuses = append(statuses, status)
+		}
+	}
 
 	appStatus := pb.AppStatus_RUNNING
-	serviceStatuses := a.GetAppServicesStatus(serviceIDs)
 	switch {
-	case appNil(serviceStatuses):
+	case len(statuses) == 0 || appNil(statuses):
 		appStatus = pb.AppStatus_NIL
-	case appClosed(serviceStatuses):
+	case appClosed(statuses):
 		appStatus = pb.AppStatus_CLOSED
-	case appAbnormal(serviceStatuses):
+	case appAbnormal(statuses):
 		appStatus = pb.AppStatus_ABNORMAL
-	case appStarting(serviceStatuses):
+	case appStarting(statuses):
 		appStatus = pb.AppStatus_STARTING
-	case appStopping(serviceStatuses):
+	case appStopping(statuses):
 		appStatus = pb.AppStatus_STOPPING
 	}
 
-	return appStatus, nil
+	return appStatus
 }
 
-func appNil(statuses map[string]string) bool {
+func appNil(statuses []string) bool {
 	for _, status := range statuses {
 		if status != v1.UNDEPLOY {
 			return false
@@ -1083,7 +1064,7 @@ func appNil(statuses map[string]string) bool {
 	return true
 }
 
-func appClosed(statuses map[string]string) bool {
+func appClosed(statuses []string) bool {
 	for _, status := range statuses {
 		if status != v1.CLOSED {
 			return false
@@ -1092,7 +1073,7 @@ func appClosed(statuses map[string]string) bool {
 	return true
 }
 
-func appAbnormal(statuses map[string]string) bool {
+func appAbnormal(statuses []string) bool {
 	for _, status := range statuses {
 		if status == v1.ABNORMAL || status == v1.SOMEABNORMAL {
 			return true
@@ -1101,7 +1082,7 @@ func appAbnormal(statuses map[string]string) bool {
 	return false
 }
 
-func appStarting(statuses map[string]string) bool {
+func appStarting(statuses []string) bool {
 	for _, status := range statuses {
 		if status == v1.STARTING {
 			return true
@@ -1110,7 +1091,7 @@ func appStarting(statuses map[string]string) bool {
 	return false
 }
 
-func appStopping(statuses map[string]string) bool {
+func appStopping(statuses []string) bool {
 	stopping := false
 	for _, status := range statuses {
 		if status == v1.STOPPING {
@@ -1127,7 +1108,7 @@ func appStopping(statuses map[string]string) bool {
 
 func (a *appRuntimeStore) GetNeedBillingStatus(serviceIDs []string) map[string]string {
 	statusMap := make(map[string]string, len(serviceIDs))
-	if serviceIDs == nil || len(serviceIDs) == 0 {
+	if len(serviceIDs) == 0 {
 		a.appServices.Range(func(k, v interface{}) bool {
 			appService, _ := v.(*v1.AppService)
 			status := a.GetAppServiceStatus(appService.ServiceID)
@@ -1214,7 +1195,6 @@ func (a *appRuntimeStore) addAbnormalInfo(ai *v1.AbnormalInfo) {
 			TenantName:  ai.TenantID,
 		})
 	}
-
 }
 
 //GetTenantResource get tenant resource
@@ -1417,7 +1397,11 @@ func (a *appRuntimeStore) RegistPodUpdateListener(name string, ch chan<- *corev1
 	defer a.podUpdateListenerLock.Unlock()
 	a.podUpdateListeners[name] = ch
 }
+
 func (a *appRuntimeStore) UnRegistPodUpdateListener(name string) {
+	logger := logrus.WithField("WHO", "appRuntimeStore")
+	logger.Infof("unregist pod update lisener: %s", name)
+
 	a.podUpdateListenerLock.Lock()
 	defer a.podUpdateListenerLock.Unlock()
 	delete(a.podUpdateListeners, name)
@@ -1464,6 +1448,10 @@ func (a *appRuntimeStore) listPodsByAppIDLegacy(appID string) ([]*corev1.Pod, er
 	var serviceIDs []string
 	for _, svc := range services {
 		serviceIDs = append(serviceIDs, svc.ServiceID)
+	}
+
+	if len(serviceIDs) == 0 {
+		return nil, nil
 	}
 
 	// list pod based on the given appID

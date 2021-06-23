@@ -90,6 +90,7 @@ type AppServiceBase struct {
 	DeployVersion    string
 	ContainerCPU     int
 	ContainerMemory  int
+	ContainerGPU     int
 	UpgradeMethod    TypeUpgradeMethod
 	Replicas         int
 	NeedProxy        bool

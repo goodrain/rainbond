@@ -158,7 +158,7 @@ type TenantServicePluginRelation struct {
 	ContainerCPU int `gorm:"column:container_cpu;default:125" json:"container_cpu"`
 	// container default memory  v3.5.1 add
 	ContainerMemory int  `gorm:"column:container_memory;default:64" json:"container_memory"`
-	Switch          bool `gorm:"column:switch;default:false" json:"switch"`
+	Switch          bool `gorm:"column:switch;default:0" json:"switch"`
 }
 
 //TableName table name

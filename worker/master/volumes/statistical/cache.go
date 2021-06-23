@@ -22,14 +22,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"time"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -41,7 +39,6 @@ type DiskCache struct {
 	}
 	dbmanager db.Manager
 	ctx       context.Context
-	lock      sync.Mutex
 	cancel    context.CancelFunc
 }
 
@@ -73,6 +70,7 @@ func (d *DiskCache) Start() {
 
 //Stop stop
 func (d *DiskCache) Stop() {
+	logrus.Info("stop disk cache statistics")
 	d.cancel()
 }
 func (d *DiskCache) setcache() {
@@ -87,7 +85,7 @@ func (d *DiskCache) setcache() {
 		logrus.Errorln("Error get tenant service when select db :", err)
 		return
 	}
-	volumes, err := d.dbmanager.TenantServiceVolumeDao().GetAllVolumes()
+	_, err = d.dbmanager.TenantServiceVolumeDao().GetAllVolumes()
 	if err != nil {
 		logrus.Errorln("Error get tenant service volume when select db :", err)
 		return
@@ -111,13 +109,8 @@ func (d *DiskCache) setcache() {
 		}
 		cache[service.ServiceID] = service
 	}
-	for _, v := range volumes {
-		if v.VolumeType == string(model.LocalVolumeType) {
-			//TODO
-		}
-	}
 	d.cache = diskcache
-	logrus.Infof("end get all service disk size,time consum %2.f s", time.Now().Sub(start).Seconds())
+	logrus.Infof("end get all service disk size,time consum %2.f s", time.Since(start).Seconds())
 }
 
 //Get 获取磁盘统计结果

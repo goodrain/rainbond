@@ -19,13 +19,9 @@
 package license
 
 import (
-	"net/http"
-
 	"github.com/goodrain/rainbond/api/controller"
 
 	"github.com/go-chi/chi"
-
-	"github.com/sirupsen/logrus"
 )
 
 //License license struct
@@ -34,19 +30,6 @@ type License struct{}
 //Routes routes
 func Routes() chi.Router {
 	r := chi.NewRouter()
-	r.Post("/", controller.GetLicenseManager().AnalystLicense)
+	r.Get("/features", controller.GetLicenseManager().GetlicenseFeature)
 	return r
-}
-
-//CheckLicense 验证
-func CheckLicense(next http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-		licenseCome := r.Header.Get("License")
-		logrus.Debug("License is :" + licenseCome)
-		next.ServeHTTP(w, r)
-		return
-		// util.CloseRequest(r)
-		// w.WriteHeader(http.StatusUnauthorized)
-	}
-	return http.HandlerFunc(fn)
 }

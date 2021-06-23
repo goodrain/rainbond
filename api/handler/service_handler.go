@@ -19,6 +19,9 @@
 package handler
 
 import (
+	"context"
+	"github.com/jinzhu/gorm"
+
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/exector"
@@ -34,7 +37,7 @@ type ServiceHandler interface {
 	DeleteLabel(l *api_model.LabelsStruct, serviceID string) error
 	UpdateLabel(l *api_model.LabelsStruct, serviceID string) error
 	StartStopService(s *api_model.StartStopStruct) error
-	ServiceVertical(v *model.VerticalScalingTaskBody) error
+	ServiceVertical(ctx context.Context, v *model.VerticalScalingTaskBody) error
 	ServiceHorizontal(h *model.HorizontalScalingTaskBody) error
 	ServiceUpgrade(r *model.RollingUpgradeTaskBody) error
 	ServiceCreate(ts *api_model.ServiceStruct) error
@@ -65,6 +68,7 @@ type ServiceHandler interface {
 	CreateTenandIDAndName(eid string) (string, string, error)
 	GetPods(serviceID string) (*K8sPodInfos, error)
 	GetMultiServicePods(serviceIDs []string) (*K8sPodInfos, error)
+	GetComponentPodNums(ctx context.Context, componentIDs []string) (map[string]int32, error)
 	TransServieToDelete(tenantID, serviceID string) error
 	TenantServiceDeletePluginRelation(tenantID, serviceID, pluginID string) *util.APIHandleError
 	GetTenantServicePluginRelation(serviceID string) ([]*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
@@ -84,4 +88,17 @@ type ServiceHandler interface {
 	UpdateServiceMonitor(tenantID, serviceID, name string, update api_model.UpdateServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error)
 	DeleteServiceMonitor(tenantID, serviceID, name string) (*dbmodel.TenantServiceMonitor, error)
 	AddServiceMonitor(tenantID, serviceID string, add api_model.AddServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error)
+
+	SyncComponentBase(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentMonitors(tx *gorm.DB,app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentPorts(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentRelations(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentEnvs(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentVolumeRels(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentVolumes(tx *gorm.DB,  components []*api_model.Component) error
+	SyncComponentConfigFiles(tx *gorm.DB,  components []*api_model.Component) error
+	SyncComponentProbes(tx *gorm.DB,  components []*api_model.Component) error
+	SyncComponentLabels(tx *gorm.DB,  components []*api_model.Component) error
+	SyncComponentPlugins(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentScaleRules(tx *gorm.DB,  components []*api_model.Component) error
 }

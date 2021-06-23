@@ -22,8 +22,8 @@ import (
 	"net/http"
 
 	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/middleware"
 	api_model "github.com/goodrain/rainbond/api/model"
+	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
@@ -54,10 +54,10 @@ func (t *TenantStruct) SetDownStreamRule(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
-	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantName := r.Context().Value(ctxutil.ContextKey("tenant_name")).(string)
+	serviceAlias := r.Context().Value(ctxutil.ContextKey("service_alias")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	rs.TenantName = tenantName
 	rs.ServiceAlias = serviceAlias
 	rs.Body.Rules.ServiceID = serviceID
@@ -90,10 +90,10 @@ func (t *TenantStruct) SetDownStreamRule(w http.ResponseWriter, r *http.Request)
 //       "$ref": "#/responses/commandResponse"
 //     description: 统一返回格式
 func (t *TenantStruct) GetDownStreamRule(w http.ResponseWriter, r *http.Request) {
-	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
-	destServiceAlias := r.Context().Value(middleware.ContextKey("dest_service_alias")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	port := r.Context().Value(middleware.ContextKey("port")).(string)
+	serviceAlias := r.Context().Value(ctxutil.ContextKey("service_alias")).(string)
+	destServiceAlias := r.Context().Value(ctxutil.ContextKey("dest_service_alias")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	port := r.Context().Value(ctxutil.ContextKey("port")).(string)
 
 	nrs, err := handler.GetRulesManager().GetDownStreamNetRule(
 		tenantID,
@@ -137,12 +137,12 @@ func (t *TenantStruct) UpdateDownStreamRule(w http.ResponseWriter, r *http.Reque
 	if !ok {
 		return
 	}
-	serviceID := r.Context().Value(middleware.ContextKey("service_id")).(string)
-	tenantName := r.Context().Value(middleware.ContextKey("tenant_name")).(string)
-	serviceAlias := r.Context().Value(middleware.ContextKey("service_alias")).(string)
-	tenantID := r.Context().Value(middleware.ContextKey("tenant_id")).(string)
-	destServiceAlias := r.Context().Value(middleware.ContextKey("dest_service_alias")).(string)
-	port := r.Context().Value(middleware.ContextKey("tenant_id")).(int)
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	tenantName := r.Context().Value(ctxutil.ContextKey("tenant_name")).(string)
+	serviceAlias := r.Context().Value(ctxutil.ContextKey("service_alias")).(string)
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	destServiceAlias := r.Context().Value(ctxutil.ContextKey("dest_service_alias")).(string)
+	port := r.Context().Value(ctxutil.ContextKey("tenant_id")).(int)
 
 	urs.DestServiceAlias = destServiceAlias
 	urs.Port = port
