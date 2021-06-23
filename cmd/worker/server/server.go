@@ -28,6 +28,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm"
@@ -85,11 +86,13 @@ func Run(s *option.Worker) error {
 	}
 	s.Config.KubeClient = clientset
 
+	rainbondClient := versioned.NewForConfigOrDie(restConfig)
+
 	//step 3: create resource store
 	startCh := channels.NewRingChannel(1024)
 	updateCh := channels.NewRingChannel(1024)
 	probeCh := channels.NewRingChannel(1024)
-	cachestore := store.NewStore(restConfig, clientset, db.GetManager(), s.Config, startCh, probeCh)
+	cachestore := store.NewStore(restConfig, clientset, rainbondClient, db.GetManager(), s.Config, startCh, probeCh)
 	appmController := appm.NewAPPMController(clientset, cachestore, startCh, updateCh, probeCh)
 	if err := appmController.Start(); err != nil {
 		logrus.Errorf("error starting appm controller: %v", err)
@@ -105,8 +108,7 @@ func Run(s *option.Worker) error {
 	defer controllerManager.Stop()
 
 	//step 5 : start runtime master
-
-	masterCon, err := master.NewMasterController(s.Config, restConfig, cachestore)
+	masterCon, err := master.NewMasterController(s.Config, cachestore, clientset, rainbondClient)
 	if err != nil {
 		return err
 	}

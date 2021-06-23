@@ -7,7 +7,7 @@ import (
 
 // PodHandler defines handler methods about k8s pods.
 type PodHandler interface {
-	PodDetail(serviceID, podName string) (*pb.PodDetail, error)
+	PodDetail(namespace, podName string) (*pb.PodDetail, error)
 }
 
 // NewPodHandler creates a new PodHandler.

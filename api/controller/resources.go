@@ -30,6 +30,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/api/model"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
@@ -680,6 +681,7 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 	if err := handler.GetServiceManager().ServiceCreate(&ss); err != nil {
 		if strings.Contains(err.Error(), "is exist in tenant") {
 			httputil.ReturnError(r, w, 400, fmt.Sprintf("create service error, %v", err))
+			return
 		}
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("create service error, %v", err))
 		return
@@ -1524,7 +1526,7 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 		rc["port"] = fmt.Sprintf("%v", vsPort.Port)
 	}
 
-	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
+	if err := handler.GetGatewayHandler().SendTaskDeprecated(map[string]interface{}{
 		"service_id": serviceID,
 		"action":     "port-" + data.Body.Operation,
 		"port":       containerPort,
@@ -1583,7 +1585,7 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	if err := handler.GetGatewayHandler().SendTask(map[string]interface{}{
+	if err := handler.GetGatewayHandler().SendTaskDeprecated(map[string]interface{}{
 		"service_id": serviceID,
 		"action":     "port-" + data.Body.Operation,
 		"port":       containerPort,
@@ -1928,5 +1930,22 @@ func (t *TenantStruct) TransPlugins(w http.ResponseWriter, r *http.Request) {
 	}
 	rc["result"] = "success"
 	httputil.ReturnSuccess(r, w, rc)
-	return
+}
+
+// CheckResourceName checks the resource name.
+func (t *TenantStruct) CheckResourceName(w http.ResponseWriter, r *http.Request) {
+	var req model.CheckResourceNameReq
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
+		return
+	}
+
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
+
+	res, err := handler.GetTenantManager().CheckResourceName(r.Context(), tenant.UUID, &req)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, res)
 }

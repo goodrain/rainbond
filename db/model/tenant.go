@@ -23,6 +23,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/util/commonutil"
 )
 
 //Model 默认字段
@@ -333,6 +335,11 @@ func (t *TenantServicesPort) Key() string {
 //TableName 表名
 func (t *TenantServicesPort) TableName() string {
 	return "tenant_services_port"
+}
+
+// IsOpen checks if the port is opened.
+func (t *TenantServicesPort) IsOpen() bool {
+	return commonutil.BoolValue(t.IsOuterService) || commonutil.BoolValue(t.IsInnerService)
 }
 
 //TenantServiceLBMappingPort stream应用端口映射情况

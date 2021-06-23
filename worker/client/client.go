@@ -43,6 +43,7 @@ type AppRuntimeSyncClient struct {
 
 //AppRuntimeSyncClientConf client conf
 type AppRuntimeSyncClientConf struct {
+	NonBlock             bool
 	EtcdEndpoints        []string
 	EtcdCaFile           string
 	EtcdCertFile         string
@@ -68,7 +69,14 @@ func NewClient(ctx context.Context, conf AppRuntimeSyncClientConf) (*AppRuntimeS
 	}
 	r := &grpcutil.GRPCResolver{Client: c}
 	b := grpc.RoundRobin(r)
-	arsc.cc, err = grpc.DialContext(ctx, "/rainbond/discover/app_sync_runtime_server", grpc.WithBalancer(b), grpc.WithInsecure(), grpc.WithBlock())
+	dialOpts := []grpc.DialOption{
+		grpc.WithBalancer(b),
+		grpc.WithInsecure(),
+	}
+	if !conf.NonBlock {
+		dialOpts = append(dialOpts, grpc.WithBlock())
+	}
+	arsc.cc, err = grpc.DialContext(ctx, "/rainbond/discover/app_sync_runtime_server", dialOpts...)
 	if err != nil {
 		return nil, err
 	}

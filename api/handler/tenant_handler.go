@@ -21,6 +21,7 @@ package handler
 import (
 	"context"
 
+	"github.com/goodrain/rainbond/api/model"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -48,4 +49,5 @@ type TenantHandler interface {
 	UpdateTenant(*dbmodel.Tenants) error
 	DeleteTenant(tenantID string) error
 	GetClusterResource(ctx context.Context) *ClusterResourceStats
+	CheckResourceName(ctx context.Context, namespace string, req *model.CheckResourceNameReq) (*model.CheckResourceNameResp, error)
 }

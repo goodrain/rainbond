@@ -282,7 +282,7 @@ func TestListConfigGroups(t *testing.T) {
 			db.SetTestManager(manager)
 			tc.mockFunc(manager, ctrl)
 
-			appAction := NewApplicationHandler(nil, nil)
+			appAction := NewApplicationHandler(nil, nil, nil, nil)
 			resp, err := appAction.ListConfigGroups(tc.appID, 1, 10)
 			if (err != nil) != tc.wanterr {
 				t.Errorf("Unexpected error = %v, wantErr %v", err, tc.wanterr)
