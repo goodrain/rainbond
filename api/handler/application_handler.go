@@ -210,9 +210,7 @@ func (a *ApplicationAction) updateHelmApp(ctx context.Context, app *dbmodel.Appl
 		}
 		return errors.Wrap(err, "update app")
 	}
-	if len(req.Overrides) > 0 {
-		helmApp.Spec.Overrides = req.Overrides
-	}
+	helmApp.Spec.Overrides = req.Overrides
 	if req.Version != "" {
 		helmApp.Spec.Version = req.Version
 	}
@@ -485,7 +483,7 @@ func (a *ApplicationAction) ListServices(ctx context.Context, app *dbmodel.Appli
 
 		svc.Pods = a.convertPods(service.Pods)
 		svc.OldPods = a.convertPods(service.OldPods)
-		svc.TCPPorts = append(svc.TCPPorts, service.TcpPorts...)
+		svc.Ports = append(svc.Ports, service.Ports...)
 		services = append(services, svc)
 	}
 

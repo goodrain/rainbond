@@ -32,7 +32,7 @@ type AppStatusCondition struct {
 type AppService struct {
 	ServiceName string    `json:"service_name"`
 	Address     string    `json:"address"`
-	TCPPorts    []int32   `json:"tcp_ports"`
+	Ports       []int32   `json:"tcp_ports"`
 	OldPods     []*AppPod `json:"oldPods"`
 	Pods        []*AppPod `json:"pods"`
 }

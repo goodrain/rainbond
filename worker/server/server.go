@@ -712,15 +712,9 @@ func (r *RuntimeServer) ListAppServices(ctx context.Context, in *pb.AppReq) (*pb
 func (r *RuntimeServer) convertServices(services []*corev1.Service) []*pb.AppService {
 	var appServices []*pb.AppService
 	for _, svc := range services {
-		var tcpPorts []int32
-		var udpPorts []int32
+		var ports []int32
 		for _, port := range svc.Spec.Ports {
-			if port.Protocol == corev1.ProtocolUDP {
-				udpPorts = append(udpPorts, port.Port)
-			}
-			if port.Protocol == corev1.ProtocolTCP || port.Protocol == "" {
-				tcpPorts = append(tcpPorts, port.Port)
-			}
+			ports = append(ports, port.Port)
 		}
 		selector := labels.NewSelector()
 		for key, val := range svc.Spec.Selector {
@@ -760,12 +754,11 @@ func (r *RuntimeServer) convertServices(services []*corev1.Service) []*pb.AppSer
 		}
 
 		appServices = append(appServices, &pb.AppService{
-			Name:     svc.Name,
-			Address:  address,
-			TcpPorts: tcpPorts,
-			UdpPorts: udpPorts,
-			OldPods:  oldPods,
-			Pods:     newPods,
+			Name:    svc.Name,
+			Address: address,
+			Ports:   ports,
+			OldPods: oldPods,
+			Pods:    newPods,
 		})
 	}
 	return appServices
