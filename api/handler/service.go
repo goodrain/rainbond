@@ -47,6 +47,7 @@ import (
 	"github.com/twinj/uuid"
 
 	api_model "github.com/goodrain/rainbond/api/model"
+	dberr "github.com/goodrain/rainbond/db/errors"
 	core_model "github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	eventutil "github.com/goodrain/rainbond/eventlog/util"
@@ -1158,6 +1159,9 @@ func (s *ServiceAction) ServiceDepend(action string, ds *api_model.DependService
 		}
 		if err := db.GetManager().TenantServiceRelationDao().AddModel(tsr); err != nil {
 			logrus.Errorf("add depend error, %v", err)
+			if err == dberr.ErrRecordAlreadyExist {
+				return nil
+			}
 			return err
 		}
 	case "delete":
