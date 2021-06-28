@@ -221,9 +221,9 @@ func setSidecarContainerLifecycle(as *typesv1.AppService, con *corev1.Container,
 	if strings.ToLower(as.ExtensionSet["DISABLE_SIDECAR_CHECK"]) != "true" {
 		var port int
 		if as.ExtensionSet["SIDECAR_CHECK_PORT"] != "" {
-			c_port, _ := strconv.Atoi(as.ExtensionSet["SIDECAR_CHECK_PORT"])
-			if c_port != 0 {
-				port = c_port
+			cport, _ := strconv.Atoi(as.ExtensionSet["SIDECAR_CHECK_PORT"])
+			if cport != 0 {
+				port = cport
 			}
 		}
 		if port == 0 {
@@ -234,9 +234,9 @@ func setSidecarContainerLifecycle(as *typesv1.AppService, con *corev1.Container,
 				}
 			}
 			if port == 0 {
-				for _, b_port := range pluginConfig.BasePorts {
-					if strings.ToLower(b_port.Protocol) != "udp" {
-						port = b_port.Port
+				for _, bport := range pluginConfig.BasePorts {
+					if strings.ToLower(bport.Protocol) != "udp" {
+						port = bport.Port
 						break
 					}
 				}
