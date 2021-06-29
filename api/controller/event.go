@@ -24,12 +24,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/jinzhu/gorm"
-
 	"github.com/bitly/go-simplejson"
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/db"
 	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 )
 
@@ -59,18 +59,20 @@ func (t *TenantStruct) Event(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnError(r, w, 400, "bad request")
 		return
 	}
-	eventIDS, err := j.Get("event_ids").StringArray()
+	eventIDs, err := j.Get("event_ids").StringArray()
 	if err != nil {
 		logrus.Errorf("error get event_id in json,details %s", err.Error())
 		httputil.ReturnError(r, w, 400, "bad request")
 		return
 	}
-	serviceEvents, err := db.GetManager().ServiceEventDao().GetEventByEventIDs(eventIDS)
+
+	events, err := handler.GetServiceEventHandler().ListByEventIDs(eventIDs)
 	if err != nil {
-		logrus.Warnf("can't find event by given id ,details %s", err.Error())
-		httputil.ReturnError(r, w, 500, err.Error())
+		httputil.ReturnBcodeError(r, w, err)
+		return
 	}
-	httputil.ReturnSuccess(r, w, serviceEvents)
+
+	httputil.ReturnSuccess(r, w, events)
 }
 
 //GetNotificationEvents GetNotificationEvent

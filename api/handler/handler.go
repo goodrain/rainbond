@@ -81,6 +81,7 @@ func InitHandle(conf option.Config,
 	defaultEtcdHandler = NewEtcdHandler(etcdcli)
 	defaultmonitorHandler = NewMonitorHandler(prometheusCli)
 	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli)
+	defServiceEventHandler = NewServiceEventHandler()
 	return nil
 }
 
@@ -219,4 +220,11 @@ var defApplicationHandler ApplicationHandler
 // GetApplicationHandler  returns the default tenant application handler.
 func GetApplicationHandler() ApplicationHandler {
 	return defApplicationHandler
+}
+
+var defServiceEventHandler *ServiceEventHandler
+
+// GetServiceEventHandler -
+func GetServiceEventHandler() *ServiceEventHandler {
+	return defServiceEventHandler
 }

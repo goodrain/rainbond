@@ -19,97 +19,65 @@
 package handler
 
 import (
-	"fmt"
-
-	"github.com/jinzhu/gorm"
-
 	"time"
 
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	tutil "github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
 )
 
-//TIMELAYOUT timelayout
-const TIMELAYOUT = "2006-01-02T15:04:05"
-
-//ErrEventIsRuning  last event is running
-var ErrEventIsRuning = fmt.Errorf("event is running")
-
-//ErrEventIDIsExist event id is exist
-var ErrEventIDIsExist = fmt.Errorf("event_id is exist")
-
-func createEvent(eventID, serviceID, optType, tenantID string) (*dbmodel.ServiceEvent, error) {
-	if eventID == "" {
-		eventID = tutil.NewUUID()
-	}
-	event := dbmodel.ServiceEvent{}
-	event.EventID = eventID
-	event.ServiceID = serviceID
-	event.OptType = optType
-	event.TenantID = tenantID
-	now := time.Now()
-	timeNow := now.Format(TIMELAYOUT)
-	event.StartTime = timeNow
-	event.UserName = "system"
-	events, err := db.GetManager().ServiceEventDao().GetEventByServiceID(serviceID)
-	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
-		return nil, err
-	}
-	err = checkCanAddEvent(serviceID, event.EventID, events)
-	if err != nil {
-		logrus.Errorf("error check event %s", err.Error())
-		return nil, err
-	}
-	if err := db.GetManager().ServiceEventDao().AddModel(&event); err != nil {
-		return nil, err
-	}
-	return &event, nil
+// ServiceEventHandler -
+type ServiceEventHandler struct {
 }
 
-func checkCanAddEvent(serviceID, eventID string, existEvents []*dbmodel.ServiceEvent) error {
-	if len(existEvents) == 0 {
-		return nil
-	}
-	latestEvent := existEvents[0]
-	if latestEvent.EventID == eventID {
-		return ErrEventIDIsExist
-	}
-	if latestEvent.FinalStatus == "" {
-		//未完成
-		timeOut, err := checkEventTimeOut(latestEvent)
-		if err != nil {
-			return err
-		}
-		logrus.Debugf("event %s timeOut %v", latestEvent.EventID, timeOut)
-		if timeOut {
-			return nil
-		}
-		return ErrEventIsRuning
-	}
-	return nil
+// NewServiceEventHandler -
+func NewServiceEventHandler() *ServiceEventHandler {
+	return &ServiceEventHandler{}
 }
-func checkEventTimeOut(event *dbmodel.ServiceEvent) (bool, error) {
-	startTime := event.StartTime
-	start, err := time.ParseInLocation(TIMELAYOUT, startTime, time.Local)
+
+// ListByEventIDs -
+func (s *ServiceEventHandler) ListByEventIDs(eventIDs []string) ([]*dbmodel.ServiceEvent, error) {
+	events, err := db.GetManager().ServiceEventDao().GetEventByEventIDs(eventIDs)
 	if err != nil {
-		return true, err
+		return nil, err
 	}
+
+	// timeout events
+	var timeoutEvents []*dbmodel.ServiceEvent
+	for _, event := range events {
+		if !s.isTimeout(event) {
+			continue
+		}
+		event.Status = "timeout"
+		event.FinalStatus = "complete"
+		timeoutEvents = append(timeoutEvents, event)
+	}
+
+	return events, db.GetManager().ServiceEventDao().UpdateInBatch(timeoutEvents)
+}
+
+func (s *ServiceEventHandler) isTimeout(event *dbmodel.ServiceEvent) bool {
+	if event.FinalStatus != "" {
+		return false
+	}
+
+	startTime, err := time.ParseInLocation(time.RFC3339, event.StartTime, time.Local)
+	if err != nil {
+		logrus.Errorf("[ServiceEventHandler] [isTimeout] parse start time(%s): %v", event.StartTime, err)
+		return false
+	}
+
 	if event.OptType == "deploy" || event.OptType == "create" || event.OptType == "build" || event.OptType == "upgrade" {
-		end := start.Add(3 * time.Minute)
+		end := startTime.Add(3 * time.Minute)
 		if time.Now().After(end) {
-			event.FinalStatus = "timeout"
-			err = db.GetManager().ServiceEventDao().UpdateModel(event)
-			return true, err
+			return true
 		}
 	} else {
-		end := start.Add(30 * time.Second)
+		end := startTime.Add(30 * time.Second)
 		if time.Now().After(end) {
-			event.FinalStatus = "timeout"
-			err = db.GetManager().ServiceEventDao().UpdateModel(event)
-			return true, err
+			return true
 		}
 	}
-	return false, nil
+
+	return false
 }
