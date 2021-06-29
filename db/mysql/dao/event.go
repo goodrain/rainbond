@@ -98,9 +98,22 @@ func (c *EventDaoImpl) GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEv
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
-		return nil, err
+		return nil, errors.Wrap(err, "list events")
 	}
 	return result, nil
+}
+
+// UpdateInBatch -
+func (c *EventDaoImpl) UpdateInBatch(events []*model.ServiceEvent) error {
+	var objects []interface{}
+	for _, event := range events {
+		event := event
+		objects = append(objects, *event)
+	}
+	if err := gormbulkups.BulkUpsert(c.DB, objects, 2000); err != nil {
+		return errors.Wrap(err, "update events in batch")
+	}
+	return nil
 }
 
 //GetEventByServiceID get event log message
@@ -208,6 +221,7 @@ func (c *EventDaoImpl) LatestFailurePodEvent(podName string) (*model.ServiceEven
 	return &event, nil
 }
 
+// SetEventStatus -
 func (c *EventDaoImpl) SetEventStatus(ctx context.Context, status model.EventStatus) error {
 	event, _ := ctx.Value(ctxutil.ContextKey("event")).(*model.ServiceEvent)
 	if event != nil {
