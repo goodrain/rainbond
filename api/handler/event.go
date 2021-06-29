@@ -67,5 +67,17 @@ func (s *ServiceEventHandler) isTimeout(event *dbmodel.ServiceEvent) bool {
 		return false
 	}
 
-	return time.Now().After(startTime.Add(5 * time.Minute))
+	if event.OptType == "deploy" || event.OptType == "create" || event.OptType == "build" || event.OptType == "upgrade" {
+		end := startTime.Add(3 * time.Minute)
+		if time.Now().After(end) {
+			return true
+		}
+	} else {
+		end := startTime.Add(30 * time.Second)
+		if time.Now().After(end) {
+			return true
+		}
+	}
+
+	return false
 }
