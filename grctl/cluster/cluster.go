@@ -26,6 +26,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond/grctl/clients"
+	"github.com/oam-dev/kubevela/pkg/utils/apply"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -84,7 +85,7 @@ func (c *Cluster) createCrds() []string {
 			errs = append(errs, err.Error())
 		}
 	}
-	logrus.Info("crds created")
+	logrus.Info("crds applyed")
 	return errs
 }
 
@@ -93,18 +94,15 @@ func (c *Cluster) createCrd(crdStr string) error {
 	if err := yaml.Unmarshal([]byte(crdStr), &crd); err != nil {
 		return fmt.Errorf("unmarshal crd: %v", err)
 	}
-
-	if err := clients.RainbondKubeClient.Create(context.Background(), &crd); err != nil {
-		return fmt.Errorf("create crd: %v", err)
+	applyer := apply.NewAPIApplicator(clients.RainbondKubeClient)
+	if err := applyer.Apply(context.Background(), &crd); err != nil {
+		return fmt.Errorf("apply crd: %v", err)
 	}
-
 	return nil
 }
 
 func (c *Cluster) getCrds() ([]string, error) {
-	key := c.rainbondCluster.Spec.InstallVersion + "-" + c.newVersion
-	logrus.Infof("key: %s", key)
-	version, ok := versions[key]
+	version, ok := versions[c.newVersion]
 	if !ok {
 		return nil, fmt.Errorf("unsupport new version %s", c.newVersion)
 	}
