@@ -20,6 +20,8 @@ package dao
 
 import (
 	"fmt"
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
+	pkgerr "github.com/pkg/errors"
 	"reflect"
 	"strings"
 
@@ -151,4 +153,21 @@ func (t *ThirdPartySvcDiscoveryCfgDaoImpl) GetByServiceID(sid string) (*model.Th
 // DeleteByServiceID delete discovery config based on service id.
 func (t *ThirdPartySvcDiscoveryCfgDaoImpl) DeleteByServiceID(sid string) error {
 	return t.DB.Where("service_id=?", sid).Delete(&model.ThirdPartySvcDiscoveryCfg{}).Error
+}
+
+// DeleteByComponentIDs delete discovery config based on componentIDs.
+func (t *ThirdPartySvcDiscoveryCfgDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
+	return t.DB.Where("service_id in (?)", componentIDs).Delete(&model.ThirdPartySvcDiscoveryCfg{}).Error
+}
+
+// CreateOrUpdate3rdSvcDiscoveryCfgInBatch -
+func (t *ThirdPartySvcDiscoveryCfgDaoImpl) CreateOrUpdate3rdSvcDiscoveryCfgInBatch(cfgs []*model.ThirdPartySvcDiscoveryCfg) error {
+	var objects []interface{}
+	for _, cfg := range cfgs {
+		objects = append(objects, *cfg)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update third party svc discovery config in batch")
+	}
+	return nil
 }

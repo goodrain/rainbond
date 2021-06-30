@@ -101,4 +101,5 @@ type ServiceHandler interface {
 	SyncComponentLabels(tx *gorm.DB,  components []*api_model.Component) error
 	SyncComponentPlugins(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
 	SyncComponentScaleRules(tx *gorm.DB,  components []*api_model.Component) error
+	SyncComponentEndpoints(tx *gorm.DB, components []*api_model.Component) error
 }
