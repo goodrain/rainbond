@@ -22,6 +22,7 @@ import (
 	"context"
 
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -29,12 +30,27 @@ import (
 //InitStorageclass init storage class
 func (a *appRuntimeStore) initStorageclass() error {
 	for _, storageclass := range v1.GetInitStorageClass() {
-		if _, err := a.conf.KubeClient.StorageV1().StorageClasses().Get(context.Background(), storageclass.Name, metav1.GetOptions{}); err != nil {
+		old, err := a.conf.KubeClient.StorageV1().StorageClasses().Get(context.Background(), storageclass.Name, metav1.GetOptions{})
+		if err != nil {
 			if errors.IsNotFound(err) {
 				_, err = a.conf.KubeClient.StorageV1().StorageClasses().Create(context.Background(), storageclass, metav1.CreateOptions{})
 			}
 			if err != nil {
 				return err
+			}
+			logrus.Info("create storageclass %s", storageclass.Name)
+		} else {
+			if old.VolumeBindingMode != storageclass.VolumeBindingMode || old.ReclaimPolicy != storageclass.ReclaimPolicy {
+				err := a.conf.KubeClient.StorageV1().StorageClasses().Delete(context.Background(), storageclass.Name, metav1.DeleteOptions{})
+				if err == nil {
+					_, err := a.conf.KubeClient.StorageV1().StorageClasses().Create(context.Background(), storageclass, metav1.CreateOptions{})
+					if err != nil {
+						logrus.Errorf("recreate strageclass %s failure %s", storageclass.Name, err.Error())
+					}
+					logrus.Info("update storageclass %s success", storageclass.Name)
+				} else {
+					logrus.Errorf("recreate strageclass %s failure %s", err.Error())
+				}
 			}
 		}
 	}

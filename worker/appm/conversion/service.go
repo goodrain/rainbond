@@ -119,6 +119,11 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 		as.IsWindowsService = true
 	}
 
+	// component resource config
+	as.ContainerCPU = tenantService.ContainerCPU
+	as.ContainerGPU = tenantService.ContainerGPU
+	as.ContainerMemory = tenantService.ContainerMemory
+	as.Replicas = tenantService.Replicas
 	if !tenantService.IsState() {
 		initBaseDeployment(as, tenantService)
 		return nil
@@ -127,11 +132,6 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 		initBaseStatefulSet(as, tenantService)
 		return nil
 	}
-	// component resource and
-	as.ContainerCPU = tenantService.ContainerCPU
-	as.ContainerGPU = tenantService.ContainerGPU
-	as.ContainerMemory = tenantService.ContainerMemory
-	as.Replicas = tenantService.Replicas
 	return fmt.Errorf("kind: %s; do not decision build type for service %s", tenantService.Kind, as.ServiceAlias)
 }
 
