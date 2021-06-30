@@ -28,6 +28,7 @@ import (
 
 	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond/grctl/clients"
+	"github.com/goodrain/rainbond/grctl/cluster"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util/termtables"
 	"github.com/gosuri/uitable"
@@ -42,7 +43,7 @@ func NewCmdCluster() cli.Command {
 		Name:  "cluster",
 		Usage: "show curren cluster datacenter info",
 		Subcommands: []cli.Command{
-			cli.Command{
+			{
 				Name:  "config",
 				Usage: "prints the current cluster configuration",
 				Flags: []cli.Flag{
@@ -55,6 +56,30 @@ func NewCmdCluster() cli.Command {
 				Action: func(c *cli.Context) error {
 					Common(c)
 					return printConfig(c)
+				},
+			},
+			{
+				Name:  "upgrade",
+				Usage: "upgrade cluster",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "namespace, ns",
+						Usage: "rainbond default namespace",
+						Value: "rbd-system",
+					},
+					cli.StringFlag{
+						Name:     "new-version",
+						Usage:    "the new version of rainbond cluster",
+						Required: true,
+					},
+				},
+				Action: func(c *cli.Context) error {
+					Common(c)
+					cluster, err := cluster.NewCluster(c.String("namespace"), c.String("new-version"))
+					if err != nil {
+						return err
+					}
+					return cluster.Upgrade()
 				},
 			},
 		},
