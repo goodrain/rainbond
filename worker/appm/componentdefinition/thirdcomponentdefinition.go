@@ -80,7 +80,7 @@ var thirdComponetDefine = v1alpha1.ComponentDefinition{
 				Kind:       "ThirdComponent",
 			},
 		},
-		Schematic: &common.Schematic{
+		Schematic: &v1alpha1.Schematic{
 			CUE: &common.CUE{
 				Template: cueTemplate,
 			},

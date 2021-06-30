@@ -137,6 +137,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			appService:   apps,
 			manager:      m,
 			stopChan:     make(chan struct{}),
+			ctx:          context.Background(),
 		}
 	case TypeRestartController:
 		controller = &restartController{
@@ -197,37 +198,4 @@ func (s *sequencelist) Contains(id string) bool {
 }
 func (s *sequencelist) Add(ids []*v1.AppService) {
 	*s = append(*s, ids)
-}
-
-func foundsequence(source map[string]*v1.AppService, sl *sequencelist) {
-	if len(source) == 0 {
-		return
-	}
-	var deleteKey []string
-source:
-	for _, s := range source {
-		for _, d := range s.Dependces {
-			if !sl.Contains(d) {
-				continue source
-			}
-		}
-		deleteKey = append(deleteKey, s.ServiceID)
-	}
-	var list []*v1.AppService
-	for _, d := range deleteKey {
-		list = append(list, source[d])
-		delete(source, d)
-	}
-	sl.Add(list)
-	foundsequence(source, sl)
-}
-
-func decisionSequence(appService []*v1.AppService) sequencelist {
-	var sourceIDs = make(map[string]*v1.AppService, len(appService))
-	for _, a := range appService {
-		sourceIDs[a.ServiceID] = a
-	}
-	var sl sequencelist
-	foundsequence(sourceIDs, &sl)
-	return sl
 }

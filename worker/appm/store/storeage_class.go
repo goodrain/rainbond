@@ -40,14 +40,27 @@ func (a *appRuntimeStore) initStorageclass() error {
 			}
 			logrus.Info("create storageclass %s", storageclass.Name)
 		} else {
-			if old.VolumeBindingMode != storageclass.VolumeBindingMode || old.ReclaimPolicy != storageclass.ReclaimPolicy {
+			update := false
+			if old.VolumeBindingMode == nil {
+				update = true
+			}
+			if !update && old.ReclaimPolicy == nil {
+				update = true
+			}
+			if !update && string(*old.VolumeBindingMode) != string(*storageclass.VolumeBindingMode) {
+				update = true
+			}
+			if !update && string(*old.ReclaimPolicy) != string(*storageclass.ReclaimPolicy) {
+				update = true
+			}
+			if update {
 				err := a.conf.KubeClient.StorageV1().StorageClasses().Delete(context.Background(), storageclass.Name, metav1.DeleteOptions{})
 				if err == nil {
 					_, err := a.conf.KubeClient.StorageV1().StorageClasses().Create(context.Background(), storageclass, metav1.CreateOptions{})
 					if err != nil {
 						logrus.Errorf("recreate strageclass %s failure %s", storageclass.Name, err.Error())
 					}
-					logrus.Info("update storageclass %s success", storageclass.Name)
+					logrus.Infof("update storageclass %s success", storageclass.Name)
 				} else {
 					logrus.Errorf("recreate strageclass %s failure %s", err.Error())
 				}

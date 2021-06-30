@@ -50,12 +50,18 @@ type ComponentDefinitionSpec struct {
 
 	// Schematic defines the data format and template of the encapsulation of the workload
 	// +optional
-	Schematic *common.Schematic `json:"schematic,omitempty"`
+	Schematic *Schematic `json:"schematic,omitempty"`
 
 	// Extension is used for extension needs by OAM platform builders
 	// +optional
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Extension *runtime.RawExtension `json:"extension,omitempty"`
+}
+
+// Schematic defines the encapsulation of this capability(workload/trait/scope),
+// the encapsulation can be defined in different ways, e.g. CUE/HCL(terraform)/KUBE(K8s Object)/HELM, etc...
+type Schematic struct {
+	CUE *common.CUE `json:"cue,omitempty"`
 }
 
 // ComponentDefinitionStatus is the status of ComponentDefinition

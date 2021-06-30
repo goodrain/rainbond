@@ -41,8 +41,8 @@ type refreshXPAController struct {
 func (a *refreshXPAController) Begin() {
 	var wait sync.WaitGroup
 	for _, service := range a.appService {
+		wait.Add(1)
 		go func(service v1.AppService) {
-			wait.Add(1)
 			defer wait.Done()
 			if err := a.applyOne(a.manager.client, &service); err != nil {
 				logrus.Errorf("apply rules for service %s failure: %s", service.ServiceAlias, err.Error())

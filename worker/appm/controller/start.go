@@ -51,7 +51,6 @@ func (s *startController) Begin() {
 	}
 	var sl sequencelist
 	sl = append(sl, list) // should be delete when using foundsequence
-	//foundsequence(sourceIDs, &sl)
 	for _, slist := range sl {
 		var wait sync.WaitGroup
 		for _, service := range slist {

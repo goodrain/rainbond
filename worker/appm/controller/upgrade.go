@@ -41,13 +41,14 @@ type upgradeController struct {
 	controllerID string
 	appService   []v1.AppService
 	manager      *Manager
+	ctx          context.Context
 }
 
 func (s *upgradeController) Begin() {
 	var wait sync.WaitGroup
 	for _, service := range s.appService {
+		wait.Add(1)
 		go func(service v1.AppService) {
-			wait.Add(1)
 			defer wait.Done()
 			service.Logger.Info("App runtime begin upgrade app service "+service.ServiceAlias, event.GetLoggerOption("starting"))
 			if err := s.upgradeOne(service); err != nil {
@@ -79,7 +80,7 @@ func (s *upgradeController) upgradeConfigMap(newapp v1.AppService) {
 	for _, new := range newConfigMaps {
 		if nowConfig, ok := nowConfigMapMaps[new.Name]; ok {
 			new.UID = nowConfig.UID
-			newc, err := s.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Update(context.Background(), new, metav1.UpdateOptions{})
+			newc, err := s.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Update(s.ctx, new, metav1.UpdateOptions{})
 			if err != nil {
 				logrus.Errorf("update config map failure %s", err.Error())
 			}
@@ -87,7 +88,7 @@ func (s *upgradeController) upgradeConfigMap(newapp v1.AppService) {
 			nowConfigMapMaps[new.Name] = nil
 			logrus.Debugf("update configmap %s for service %s", new.Name, newapp.ServiceID)
 		} else {
-			newc, err := s.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Create(context.Background(), new, metav1.CreateOptions{})
+			newc, err := s.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Create(s.ctx, new, metav1.CreateOptions{})
 			if err != nil {
 				logrus.Errorf("update config map failure %s", err.Error())
 			}
@@ -97,7 +98,7 @@ func (s *upgradeController) upgradeConfigMap(newapp v1.AppService) {
 	}
 	for name, handle := range nowConfigMapMaps {
 		if handle != nil {
-			if err := s.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Delete(context.Background(), name, metav1.DeleteOptions{}); err != nil {
+			if err := s.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Delete(s.ctx, name, metav1.DeleteOptions{}); err != nil {
 				logrus.Errorf("delete config map failure %s", err.Error())
 			}
 			logrus.Debugf("delete configmap %s for service %s", name, newapp.ServiceID)
@@ -119,7 +120,7 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 			nowConfig.Spec.Ports = new.Spec.Ports
 			nowConfig.Spec.Type = new.Spec.Type
 			nowConfig.Labels = new.Labels
-			newc, err := s.manager.client.CoreV1().Services(nowApp.TenantID).Update(context.Background(), nowConfig, metav1.UpdateOptions{})
+			newc, err := s.manager.client.CoreV1().Services(nowApp.TenantID).Update(s.ctx, nowConfig, metav1.UpdateOptions{})
 			if err != nil {
 				logrus.Errorf("update service failure %s", err.Error())
 			}
@@ -137,59 +138,36 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 	}
 	for name, handle := range nowServiceMaps {
 		if handle != nil {
-			if err := s.manager.client.CoreV1().Services(nowApp.TenantID).Delete(context.Background(), name, metav1.DeleteOptions{}); err != nil {
+			if err := s.manager.client.CoreV1().Services(nowApp.TenantID).Delete(s.ctx, name, metav1.DeleteOptions{}); err != nil {
 				logrus.Errorf("delete service failure %s", err.Error())
 			}
 			logrus.Debugf("delete service %s for service %s", name, newapp.ServiceID)
 		}
 	}
 }
-func (s *upgradeController) upgradeClaim(newapp v1.AppService) {
-	nowApp := s.manager.store.GetAppService(newapp.ServiceID)
-	nowClaims := nowApp.GetClaims()
-	newClaims := newapp.GetClaims()
-	var nowClaimMaps = make(map[string]*corev1.PersistentVolumeClaim, len(nowClaims))
-	for i, now := range nowClaims {
-		nowClaimMaps[now.Name] = nowClaims[i]
-	}
-	for _, n := range newClaims {
-		if o, ok := nowClaimMaps[n.Name]; ok {
-			n.UID = o.UID
-			n.ResourceVersion = o.ResourceVersion
-			claim, err := s.manager.client.CoreV1().PersistentVolumeClaims(n.Namespace).Update(context.Background(), n, metav1.UpdateOptions{})
-			if err != nil {
-				logrus.Errorf("update claim[%s] error: %s", n.GetName(), err.Error())
-				continue
-			}
-			nowApp.SetClaim(claim)
-			delete(nowClaimMaps, o.Name)
-			logrus.Debugf("ServiceID: %s; successfully update claim: %s", nowApp.ServiceID, n.Name)
-		} else {
-			claim, err := s.manager.client.CoreV1().PersistentVolumeClaims(n.Namespace).Create(context.Background(), n, metav1.CreateOptions{})
-			if err != nil {
-				logrus.Errorf("error create claim: %+v: err: %v", claim.GetName(), err)
-				continue
-			}
-			logrus.Debugf("ServiceID: %s; successfully create claim: %s", nowApp.ServiceID, claim.Name)
-			nowApp.SetClaim(claim)
-		}
-	}
-}
 
 func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	//first: check and create namespace
-	_, err := s.manager.client.CoreV1().Namespaces().Get(context.Background(), app.TenantID, metav1.GetOptions{})
+	_, err := s.manager.client.CoreV1().Namespaces().Get(s.ctx, app.TenantID, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			_, err = s.manager.client.CoreV1().Namespaces().Create(context.Background(), app.GetTenant(), metav1.CreateOptions{})
+			_, err = s.manager.client.CoreV1().Namespaces().Create(s.ctx, app.GetTenant(), metav1.CreateOptions{})
 		}
 		if err != nil {
 			return fmt.Errorf("create or check namespace failure %s", err.Error())
 		}
 	}
+	// for custom component
+	if len(app.GetManifests()) > 0 {
+		for _, manifest := range app.GetManifests() {
+			if err := s.manager.apply.Apply(s.ctx, manifest); err != nil {
+				return fmt.Errorf("apply custom component manifest %s/%s failure %s", manifest.GetKind(), manifest.GetName(), err.Error())
+			}
+		}
+	}
 	s.upgradeConfigMap(app)
 	if deployment := app.GetDeployment(); deployment != nil {
-		_, err = s.manager.client.AppsV1().Deployments(deployment.Namespace).Patch(context.Background(), deployment.Name, types.MergePatchType, app.UpgradePatch["deployment"], metav1.PatchOptions{})
+		_, err = s.manager.client.AppsV1().Deployments(deployment.Namespace).Patch(s.ctx, deployment.Name, types.MergePatchType, app.UpgradePatch["deployment"], metav1.PatchOptions{})
 		if err != nil {
 			app.Logger.Error(fmt.Sprintf("upgrade deployment %s failure %s", app.ServiceAlias, err.Error()), event.GetLoggerOption("failure"))
 			return fmt.Errorf("upgrade deployment %s failure %s", app.ServiceAlias, err.Error())
@@ -199,14 +177,14 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	// create claims
 	for _, claim := range app.GetClaimsManually() {
 		logrus.Debugf("create claim: %s", claim.Name)
-		_, err := s.manager.client.CoreV1().PersistentVolumeClaims(app.TenantID).Create(context.Background(), claim, metav1.CreateOptions{})
+		_, err := s.manager.client.CoreV1().PersistentVolumeClaims(app.TenantID).Create(s.ctx, claim, metav1.CreateOptions{})
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("create claims: %v", err)
 		}
 	}
 
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		_, err = s.manager.client.AppsV1().StatefulSets(statefulset.Namespace).Patch(context.Background(), statefulset.Name, types.MergePatchType, app.UpgradePatch["statefulset"], metav1.PatchOptions{})
+		_, err = s.manager.client.AppsV1().StatefulSets(statefulset.Namespace).Patch(s.ctx, statefulset.Name, types.MergePatchType, app.UpgradePatch["statefulset"], metav1.PatchOptions{})
 		if err != nil {
 			logrus.Errorf("patch statefulset error : %s", err.Error())
 			app.Logger.Error(fmt.Sprintf("upgrade statefulset %s failure %s", app.ServiceAlias, err.Error()), event.GetLoggerOption("failure"))
