@@ -3,8 +3,8 @@ module github.com/goodrain/rainbond
 go 1.15
 
 require (
+	cuelang.org/go v0.2.2
 	github.com/DATA-DOG/go-sqlmock v1.5.0
-	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/alecthomas/units v0.0.0-20201120081800-1786d5ef83d4 // indirect
 	github.com/aliyun/aliyun-oss-go-sdk v2.1.5+incompatible
@@ -17,6 +17,7 @@ require (
 	github.com/cockroachdb/cmux v0.0.0-20170110192607-30d10be49292 // indirect
 	github.com/coreos/etcd v3.3.17+incompatible
 	github.com/creack/pty v1.1.11 // indirect
+	github.com/crossplane/crossplane-runtime v0.10.0
 	github.com/docker/cli v20.10.3+incompatible
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v20.10.2+incompatible
@@ -35,7 +36,7 @@ require (
 	github.com/go-kit/kit v0.10.0
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/go-playground/assert/v2 v2.0.1
-	github.com/go-playground/validator/v10 v10.2.0
+	github.com/go-playground/validator/v10 v10.4.1
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/godbus/dbus v4.1.0+incompatible // indirect
 	github.com/gofrs/flock v0.8.0
@@ -47,7 +48,6 @@ require (
 	github.com/goodrain/rainbond-operator v1.3.1-0.20210401055914-f8fe4bf89a21
 	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/gopherjs/gopherjs v0.0.0-20191106031601-ce3c9ade29de // indirect
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uitable v0.0.4
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
@@ -57,14 +57,14 @@ require (
 	github.com/json-iterator/go v1.1.10
 	github.com/kr/pretty v0.2.1 // indirect
 	github.com/kr/pty v1.1.8
-	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/mattn/go-runewidth v0.0.6
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/mitchellh/mapstructure v1.3.3
 	github.com/ncabatoff/process-exporter v0.7.1
+	github.com/oam-dev/kubevela v1.1.0-alpha.4.0.20210625105426-e176fcfc56f0
 	github.com/onsi/ginkgo v1.14.1
-	github.com/onsi/gomega v1.10.2
+	github.com/onsi/gomega v1.10.3
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/runc v1.0.0-rc91.0.20200707015106-819fcc687efb // indirect
 	github.com/pborman/uuid v1.2.1
@@ -79,20 +79,17 @@ require (
 	github.com/prometheus/common v0.15.0
 	github.com/prometheus/node_exporter v1.0.1
 	github.com/prometheus/procfs v0.2.0
-	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b // indirect
 	github.com/shirou/gopsutil v3.21.3+incompatible
 	github.com/sirupsen/logrus v1.7.0
-	github.com/smartystreets/assertions v1.0.1 // indirect
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	github.com/testcontainers/testcontainers-go v0.8.0
 	github.com/thejerf/suture v3.0.3+incompatible
-	github.com/tidwall/gjson v1.6.1
+	github.com/tidwall/gjson v1.6.8
 	github.com/twinj/uuid v1.0.0
 	github.com/urfave/cli v1.22.2
 	github.com/yudai/umutex v0.0.0-20150817080136-18216d265c6b
-	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/net v0.0.0-20201224014010-6772e930b67b
 	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5 // indirect
@@ -131,4 +128,5 @@ replace (
 	k8s.io/client-go => k8s.io/client-go v0.20.0
 	k8s.io/code-generator => k8s.io/code-generator v0.20.0
 	k8s.io/component-base => k8s.io/component-base v0.20.0
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.6.2
 )

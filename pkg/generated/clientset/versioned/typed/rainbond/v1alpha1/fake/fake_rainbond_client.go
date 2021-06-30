@@ -30,8 +30,16 @@ type FakeRainbondV1alpha1 struct {
 	*testing.Fake
 }
 
+func (c *FakeRainbondV1alpha1) ComponentDefinitions(namespace string) v1alpha1.ComponentDefinitionInterface {
+	return &FakeComponentDefinitions{c, namespace}
+}
+
 func (c *FakeRainbondV1alpha1) HelmApps(namespace string) v1alpha1.HelmAppInterface {
 	return &FakeHelmApps{c, namespace}
+}
+
+func (c *FakeRainbondV1alpha1) ThirdComponents(namespace string) v1alpha1.ThirdComponentInterface {
+	return &FakeThirdComponents{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

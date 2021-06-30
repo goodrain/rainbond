@@ -20,6 +20,14 @@
 
 package v1alpha1
 
+// ComponentDefinitionListerExpansion allows custom methods to be added to
+// ComponentDefinitionLister.
+type ComponentDefinitionListerExpansion interface{}
+
+// ComponentDefinitionNamespaceListerExpansion allows custom methods to be added to
+// ComponentDefinitionNamespaceLister.
+type ComponentDefinitionNamespaceListerExpansion interface{}
+
 // HelmAppListerExpansion allows custom methods to be added to
 // HelmAppLister.
 type HelmAppListerExpansion interface{}
@@ -27,3 +35,11 @@ type HelmAppListerExpansion interface{}
 // HelmAppNamespaceListerExpansion allows custom methods to be added to
 // HelmAppNamespaceLister.
 type HelmAppNamespaceListerExpansion interface{}
+
+// ThirdComponentListerExpansion allows custom methods to be added to
+// ThirdComponentLister.
+type ThirdComponentListerExpansion interface{}
+
+// ThirdComponentNamespaceListerExpansion allows custom methods to be added to
+// ThirdComponentNamespaceLister.
+type ThirdComponentNamespaceListerExpansion interface{}

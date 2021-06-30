@@ -20,14 +20,17 @@ package helmapp
 
 import (
 	"context"
-	"github.com/goodrain/rainbond/util"
-	clientset "k8s.io/client-go/kubernetes"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/goodrain/rainbond/util"
+	corev1 "k8s.io/api/core/v1"
+	clientset "k8s.io/client-go/kubernetes"
+
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
+	"github.com/goodrain/rainbond/pkg/generated/informers/externalversions"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -72,8 +75,10 @@ var _ = BeforeSuite(func() {
 
 	rainbondClient = versioned.NewForConfigOrDie(restConfig)
 	kubeClient = clientset.NewForConfigOrDie(restConfig)
+	rainbondInformer := externalversions.NewSharedInformerFactoryWithOptions(rainbondClient, 10*time.Second,
+		externalversions.WithNamespace(corev1.NamespaceAll))
 
-	ctrl := NewController(ctx, stopCh, kubeClient, rainbondClient, 5*time.Second, "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache", "/tmp/helm/chart")
+	ctrl := NewController(ctx, stopCh, kubeClient, rainbondClient, rainbondInformer.Rainbond().V1alpha1().HelmApps().Informer(), rainbondInformer.Rainbond().V1alpha1().HelmApps().Lister(), "/tmp/helm/repo/repositories.yaml", "/tmp/helm/cache", "/tmp/helm/chart")
 	go ctrl.Start()
 
 	// create namespace

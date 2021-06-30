@@ -26,8 +26,12 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// ComponentDefinitions returns a ComponentDefinitionInformer.
+	ComponentDefinitions() ComponentDefinitionInformer
 	// HelmApps returns a HelmAppInformer.
 	HelmApps() HelmAppInformer
+	// ThirdComponents returns a ThirdComponentInformer.
+	ThirdComponents() ThirdComponentInformer
 }
 
 type version struct {
@@ -41,7 +45,17 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
+// ComponentDefinitions returns a ComponentDefinitionInformer.
+func (v *version) ComponentDefinitions() ComponentDefinitionInformer {
+	return &componentDefinitionInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
 // HelmApps returns a HelmAppInformer.
 func (v *version) HelmApps() HelmAppInformer {
 	return &helmAppInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ThirdComponents returns a ThirdComponentInformer.
+func (v *version) ThirdComponents() ThirdComponentInformer {
+	return &thirdComponentInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

@@ -666,14 +666,16 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 	handler.GetEtcdHandler().CleanServiceCheckData(ss.EtcdKey)
 
 	values := url.Values{}
-	if ss.Endpoints != nil && strings.TrimSpace(ss.Endpoints.Static) != "" {
-		if strings.Contains(ss.Endpoints.Static, "127.0.0.1") {
-			values["ip"] = []string{"The ip field is can't contains '127.0.0.1'"}
+	if ss.Endpoints != nil {
+		for _, endpoint := range ss.Endpoints.Static {
+			if strings.Contains(endpoint, "127.0.0.1") {
+				values["ip"] = []string{"The ip field is can't contains '127.0.0.1'"}
+			}
 		}
-	}
-	if len(values) > 0 {
-		httputil.ReturnValidationError(r, w, values)
-		return
+		if len(values) > 0 {
+			httputil.ReturnValidationError(r, w, values)
+			return
+		}
 	}
 
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)

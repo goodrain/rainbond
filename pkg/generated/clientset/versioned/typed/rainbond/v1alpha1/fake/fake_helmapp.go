@@ -38,9 +38,9 @@ type FakeHelmApps struct {
 	ns   string
 }
 
-var helmappsResource = schema.GroupVersionResource{Group: "rainbond.goodrain.io", Version: "v1alpha1", Resource: "helmapps"}
+var helmappsResource = schema.GroupVersionResource{Group: "rainbond.io", Version: "v1alpha1", Resource: "helmapps"}
 
-var helmappsKind = schema.GroupVersionKind{Group: "rainbond.goodrain.io", Version: "v1alpha1", Kind: "HelmApp"}
+var helmappsKind = schema.GroupVersionKind{Group: "rainbond.io", Version: "v1alpha1", Kind: "HelmApp"}
 
 // Get takes name of the helmApp, and returns the corresponding helmApp object, and an error if there is any.
 func (c *FakeHelmApps) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.HelmApp, err error) {

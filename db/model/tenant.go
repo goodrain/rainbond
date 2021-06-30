@@ -83,6 +83,9 @@ var ServiceKindThirdParty ServiceKind = "third_party"
 // ServiceKindInternal means internal service
 var ServiceKindInternal ServiceKind = "internal"
 
+// ServiceKindCustom means custom component define
+var ServiceKindCustom ServiceKind = "custom.componentdefinition."
+
 func (s ServiceKind) String() string {
 	return string(s)
 }
@@ -191,7 +194,7 @@ type TenantServices struct {
 	UpdateTime time.Time `gorm:"column:update_time" json:"update_time"`
 	// 服务创建类型cloud云市服务,assistant云帮服务
 	ServiceOrigin string `gorm:"column:service_origin;default:'assistant'" json:"service_origin"`
-	// kind of service. option: internal, third_party
+	// kind of service. option: internal, third_party, custom
 	Kind string `gorm:"column:kind;default:'internal'" json:"kind"`
 	// service bind appID
 	AppID string `gorm:"column:app_id" json:"app_id"`

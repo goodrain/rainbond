@@ -26,7 +26,9 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/oam-dev/kubevela/pkg/utils/apply"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 //Controller service operating controller interface
@@ -64,23 +66,27 @@ var TypeControllerRefreshHPA TypeController = "refreshhpa"
 
 //Manager controller manager
 type Manager struct {
-	ctx         context.Context
-	cancel      context.CancelFunc
-	client      kubernetes.Interface
-	controllers map[string]Controller
-	store       store.Storer
-	lock        sync.Mutex
+	ctx           context.Context
+	cancel        context.CancelFunc
+	client        kubernetes.Interface
+	runtimeClient client.Client
+	apply         apply.Applicator
+	controllers   map[string]Controller
+	store         store.Storer
+	lock          sync.Mutex
 }
 
 //NewManager new manager
-func NewManager(store store.Storer, client kubernetes.Interface) *Manager {
+func NewManager(store store.Storer, client kubernetes.Interface, runtimeClient client.Client) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
-		ctx:         ctx,
-		cancel:      cancel,
-		client:      client,
-		controllers: make(map[string]Controller),
-		store:       store,
+		ctx:           ctx,
+		cancel:        cancel,
+		client:        client,
+		apply:         apply.NewAPIApplicator(runtimeClient),
+		runtimeClient: runtimeClient,
+		controllers:   make(map[string]Controller),
+		store:         store,
 	}
 }
 
@@ -108,6 +114,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			appService:   apps,
 			manager:      m,
 			stopChan:     make(chan struct{}),
+			ctx:          context.Background(),
 		}
 	case TypeStopController:
 		controller = &stopController{
@@ -115,6 +122,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			appService:   apps,
 			manager:      m,
 			stopChan:     make(chan struct{}),
+			ctx:          context.Background(),
 		}
 	case TypeScalingController:
 		controller = &scalingController{

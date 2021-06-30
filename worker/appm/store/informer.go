@@ -41,6 +41,8 @@ type Informer struct {
 	HorizontalPodAutoscaler cache.SharedIndexInformer
 	CRD                     cache.SharedIndexInformer
 	HelmApp                 cache.SharedIndexInformer
+	ComponentDefinition     cache.SharedIndexInformer
+	ThirdComponent          cache.SharedIndexInformer
 	CRS                     map[string]cache.SharedIndexInformer
 }
 
@@ -70,6 +72,8 @@ func (i *Informer) Start(stop chan struct{}) {
 	go i.Claims.Run(stop)
 	go i.CRD.Run(stop)
 	go i.HelmApp.Run(stop)
+	go i.ComponentDefinition.Run(stop)
+	go i.ThirdComponent.Run(stop)
 }
 
 //Ready if all kube informers is syncd, store is ready

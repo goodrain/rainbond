@@ -45,4 +45,6 @@ type Lister struct {
 	HorizontalPodAutoscaler autoscalingv2.HorizontalPodAutoscalerLister
 	CRD                     crdlisters.CustomResourceDefinitionLister
 	HelmApp                 v1alpha1.HelmAppLister
+	ComponentDefinition     v1alpha1.ComponentDefinitionLister
+	ThirdComponent          v1alpha1.ThirdComponentLister
 }

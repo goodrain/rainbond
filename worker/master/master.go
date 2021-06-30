@@ -27,10 +27,12 @@ import (
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/common"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/util/leader"
 	"github.com/goodrain/rainbond/worker/appm/store"
-	"github.com/goodrain/rainbond/worker/master/helmapp"
+	"github.com/goodrain/rainbond/worker/master/controller/helmapp"
+	"github.com/goodrain/rainbond/worker/master/controller/thirdcomponent"
 	"github.com/goodrain/rainbond/worker/master/podevent"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
@@ -40,6 +42,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 //Controller app runtime master controller
@@ -70,10 +74,11 @@ type Controller struct {
 	version      *version.Info
 	rainbondsssc controller.Provisioner
 	rainbondsslc controller.Provisioner
+	mgr          ctrl.Manager
 }
 
 //NewMasterController new master controller
-func NewMasterController(conf option.Config, store store.Storer, kubeClient kubernetes.Interface, rainbondClient versioned.Interface) (*Controller, error) {
+func NewMasterController(conf option.Config, store store.Storer, kubeClient kubernetes.Interface, rainbondClient versioned.Interface, restConfig *rest.Config) (*Controller, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// The controller needs to know what the server version is because out-of-tree
@@ -99,6 +104,17 @@ func NewMasterController(conf option.Config, store store.Storer, kubeClient kube
 	}, serverVersion.GitVersion)
 	stopCh := make(chan struct{})
 
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
+		Scheme:           common.Scheme,
+		LeaderElection:   false,
+		LeaderElectionID: "controllers.rainbond.io",
+	})
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	thirdcomponent.Setup(ctx, mgr)
+
 	helmAppController := helmapp.NewController(ctx, stopCh, kubeClient, rainbondClient,
 		store.Informer().HelmApp, store.Lister().HelmApp, conf.Helm.RepoFile, conf.Helm.RepoCache, conf.Helm.RepoCache)
 
@@ -111,6 +127,7 @@ func NewMasterController(conf option.Config, store store.Storer, kubeClient kube
 		cancel:            cancel,
 		ctx:               ctx,
 		dbmanager:         db.GetManager(),
+		mgr:               mgr,
 		memoryUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "app_resource",
 			Name:      "appmemory",
@@ -187,11 +204,17 @@ func (m *Controller) Start() error {
 		// helm app controller
 		go m.helmAppController.Start()
 		defer m.helmAppController.Stop()
+		// start controller
+		stopchan := make(chan struct{})
+		go m.mgr.Start(stopchan)
+
+		defer func() { stopchan <- struct{}{} }()
 
 		select {
 		case <-ctx.Done():
 		case <-m.ctx.Done():
 		}
+
 	}
 	// Leader election was requested.
 	if m.conf.LeaderElectionNamespace == "" {

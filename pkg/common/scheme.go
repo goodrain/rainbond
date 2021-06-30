@@ -1,5 +1,5 @@
 // RAINBOND, Application Management Platform
-// Copyright (C) 2014-2017 Goodrain Co., Ltd.
+// Copyright (C) 2021-2021 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,15 +16,27 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package common
 
-import "testing"
+import (
+	rainbondv1alpha1 "github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	oamcore "github.com/oam-dev/kubevela/apis/core.oam.dev"
+	oamstandard "github.com/oam-dev/kubevela/apis/standard.oam.dev/v1alpha1"
+	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+)
 
-func TestHaveChange(t *testing.T) {
-	old := make(map[string]string)
-	t.Log(haveChange(map[string]string{"console": "127.0.0.1"}, old))
-	t.Log(haveChange(map[string]string{"console": "127.0.0.1"}, map[string]string{"console": "127.0.0.1"}))
-	t.Log(haveChange(map[string]string{"console": "127.0.0.2"}, map[string]string{"console": "127.0.0.1"}))
-	t.Log(haveChange(map[string]string{"console": "127.0.0.2", "console1": "127.0.0.1"}, map[string]string{"console": "127.0.0.1"}))
-	t.Log(haveChange(map[string]string{"console": "127.0.0.2"}, map[string]string{"console2": "127.0.0.1", "console1": "127.0.0.1"}))
+var (
+	// Scheme defines the default KubeVela schema
+	Scheme = k8sruntime.NewScheme()
+)
+
+func init() {
+	_ = clientgoscheme.AddToScheme(Scheme)
+	_ = crdv1.AddToScheme(Scheme)
+	_ = oamcore.AddToScheme(Scheme)
+	_ = oamstandard.AddToScheme(Scheme)
+	_ = rainbondv1alpha1.AddToScheme(Scheme)
+	// +kubebuilder:scaffold:scheme
 }

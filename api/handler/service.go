@@ -718,20 +718,12 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			tx.Rollback()
 			return fmt.Errorf("endpoints can not be empty for third-party service")
 		}
-		if config := strings.Replace(sc.Endpoints.Discovery, " ", "", -1); config != "" {
-			var cfg dCfg
-			err := json.Unmarshal([]byte(config), &cfg)
-			if err != nil {
-				tx.Rollback()
-				return err
-			}
+		if sc.Endpoints.Kubernetes != nil {
 			c := &dbmodel.ThirdPartySvcDiscoveryCfg{
-				ServiceID: sc.ServiceID,
-				Type:      cfg.Type,
-				Servers:   strings.Join(cfg.Servers, ","),
-				Key:       cfg.Key,
-				Username:  cfg.Username,
-				Password:  cfg.Password,
+				ServiceID:   sc.ServiceID,
+				Type:        string(dbmodel.DiscorveryTypeKubernetes),
+				Namespace:   sc.Endpoints.Kubernetes.Namespace,
+				ServiceName: sc.Endpoints.Kubernetes.ServiceName,
 			}
 			if err := db.GetManager().ThirdPartySvcDiscoveryCfgDaoTransactions(tx).
 				AddModel(c); err != nil {
@@ -739,15 +731,10 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 				tx.Rollback()
 				return err
 			}
-		} else if static := strings.Replace(sc.Endpoints.Static, " ", "", -1); static != "" {
-			var obj []string
-			err := json.Unmarshal([]byte(static), &obj)
-			if err != nil {
-				tx.Rollback()
-				return err
-			}
+		}
+		if sc.Endpoints.Static != nil {
 			trueValue := true
-			for _, o := range obj {
+			for _, o := range sc.Endpoints.Static {
 				ep := &dbmodel.Endpoint{
 					ServiceID: sc.ServiceID,
 					UUID:      core_util.NewUUID(),
@@ -852,31 +839,7 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	}
 	logrus.Debugf("create a new app %s success", ts.ServiceAlias)
 
-	if sc.Kind == dbmodel.ServiceKindThirdParty.String() {
-		s.openInnerPorts(ts.ServiceID, ports)
-	}
-
 	return nil
-}
-
-func (s *ServiceAction) openInnerPorts(componentID string, ports []dbmodel.TenantServicesPort) {
-	// TODO: support open multiple ports in one task.
-	for _, port := range ports {
-		if !port.IsOpen() {
-			continue
-		}
-
-		logrus.Infof("component: %s; port: %d; open inner ports", componentID, port.ContainerPort)
-		task := &ComponentIngressTask{
-			ComponentID: componentID,
-			Action:      "port-open",
-			Port:        port.ContainerPort,
-			IsInner:     true,
-		}
-		if err := GetGatewayHandler().SendTask(task); err != nil {
-			logrus.Warningf("send runtime message about gateway failure %s", err.Error())
-		}
-	}
 }
 
 func (s *ServiceAction) convertProbeModel(req *api_model.ServiceProbe, serviceID string) *dbmodel.TenantServiceProbe {

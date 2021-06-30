@@ -90,12 +90,13 @@ var (
 
 //GetServiceStatus get service status
 func (a *AppService) GetServiceStatus() string {
+	//TODO: support custom component status
+
 	if a.ServiceKind == model.ServiceKindThirdParty {
 		endpoints := a.GetEndpoints(false)
 		if len(endpoints) == 0 {
 			return CLOSED
 		}
-
 		var readyEndpointSize int
 		for _, ed := range endpoints {
 			for _, s := range ed.Subsets {

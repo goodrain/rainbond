@@ -25,7 +25,7 @@ type Application struct {
 	TenantID        string `gorm:"column:tenant_id" json:"tenant_id"`
 	AppName         string `gorm:"column:app_name" json:"app_name"`
 	AppID           string `gorm:"column:app_id" json:"app_id"`
-	AppType         string `gorm:"column:app_type;default:rainbond" json:"app_type"`
+	AppType         string `gorm:"column:app_type;default:'rainbond'" json:"app_type"`
 	AppStoreName    string `gorm:"column:app_store_name" json:"app_store_name"`
 	AppStoreURL     string `gorm:"column:app_store_url" json:"app_store_url"`
 	AppTemplateName string `gorm:"column:app_template_name" json:"app_template_name"`

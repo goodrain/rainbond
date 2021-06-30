@@ -40,6 +40,9 @@ type DiscorveryType string
 // DiscorveryTypeEtcd etcd
 var DiscorveryTypeEtcd DiscorveryType = "etcd"
 
+// DiscorveryTypeKubernetes kubernetes service
+var DiscorveryTypeKubernetes DiscorveryType = "kubernetes"
+
 func (d DiscorveryType) String() string {
 	return string(d)
 }
@@ -55,6 +58,9 @@ type ThirdPartySvcDiscoveryCfg struct {
 	Key       string `gorm:"key"`
 	Username  string `gorm:"username"`
 	Password  string `gorm:"password"`
+	//for kubernetes service
+	Namespace   string `gorm:"namespace"`
+	ServiceName string `gorm:"serviceName"`
 }
 
 // TableName returns table name of ThirdPartySvcDiscoveryCfg.

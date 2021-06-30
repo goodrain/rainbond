@@ -98,7 +98,7 @@ func (a *ApplicationAction) CreateApp(ctx context.Context, req *model.Applicatio
 		}
 
 		if appReq.AppType == model.AppTypeHelm {
-			// create helmapp.rainbond.goodrain.io
+			// create helmapp.rainbond.io
 			return a.createHelmApp(ctx, appReq)
 		}
 		return nil

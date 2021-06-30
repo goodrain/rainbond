@@ -28,16 +28,26 @@ import (
 
 type RainbondV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	ComponentDefinitionsGetter
 	HelmAppsGetter
+	ThirdComponentsGetter
 }
 
-// RainbondV1alpha1Client is used to interact with features provided by the rainbond.goodrain.io group.
+// RainbondV1alpha1Client is used to interact with features provided by the rainbond.io group.
 type RainbondV1alpha1Client struct {
 	restClient rest.Interface
 }
 
+func (c *RainbondV1alpha1Client) ComponentDefinitions(namespace string) ComponentDefinitionInterface {
+	return newComponentDefinitions(c, namespace)
+}
+
 func (c *RainbondV1alpha1Client) HelmApps(namespace string) HelmAppInterface {
 	return newHelmApps(c, namespace)
+}
+
+func (c *RainbondV1alpha1Client) ThirdComponents(namespace string) ThirdComponentInterface {
+	return newThirdComponents(c, namespace)
 }
 
 // NewForConfig creates a new RainbondV1alpha1Client for the given config.

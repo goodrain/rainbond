@@ -61,6 +61,8 @@ generate: controller-gen
 	chmod +x vendor/k8s.io/code-generator/generate-groups.sh
 	./hack/k8s/codegen/update-generated.sh
 	$(CONTROLLER_GEN) object:headerFile="hack/k8s/codegen/boilerplate.go.txt" paths="./pkg/apis/..."
+	cp -r github.com/goodrain/rainbond/pkg/ ./pkg/
+	rm -rf github.com/
 
 # find or download controller-gen
 # download controller-gen if necessary

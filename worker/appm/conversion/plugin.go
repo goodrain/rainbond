@@ -218,10 +218,10 @@ func createTCPDefaultPluginContainer(as *typesv1.AppService, pluginID string, en
 }
 
 func setSidecarContainerLifecycle(as *typesv1.AppService, con *corev1.Container, pluginConfig *api_model.ResourceSpec) {
-	if strings.ToLower(as.ExtensionSet["DISABLE_SIDECAR_CHECK"]) != "true" {
+	if strings.ToLower(as.ExtensionSet["disable_sidecar_check"]) != "true" {
 		var port int
-		if as.ExtensionSet["SIDECAR_CHECK_PORT"] != "" {
-			cport, _ := strconv.Atoi(as.ExtensionSet["SIDECAR_CHECK_PORT"])
+		if as.ExtensionSet["sidecar_check_port"] != "" {
+			cport, _ := strconv.Atoi(as.ExtensionSet["sidecar_check_port"])
 			if cport != 0 {
 				port = cport
 			}

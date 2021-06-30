@@ -54,9 +54,13 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=rainbond.goodrain.io, Version=v1alpha1
+	// Group=rainbond.io, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithResource("componentdefinitions"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Rainbond().V1alpha1().ComponentDefinitions().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("helmapps"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Rainbond().V1alpha1().HelmApps().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("thirdcomponents"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Rainbond().V1alpha1().ThirdComponents().Informer()}, nil
 
 	}
 

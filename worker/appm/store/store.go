@@ -35,6 +35,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/generated/informers/externalversions"
 	"github.com/goodrain/rainbond/util/constants"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
+	"github.com/goodrain/rainbond/worker/appm/componentdefinition"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/goodrain/rainbond/worker/appm/f"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -137,6 +138,7 @@ type appRuntimeStore struct {
 	kubeconfig             *rest.Config
 	clientset              kubernetes.Interface
 	crdClient              *internalclientset.Clientset
+	rainbondClient         rainbondversioned.Interface
 	crClients              map[string]interface{}
 	ctx                    context.Context
 	cancel                 context.CancelFunc
@@ -169,6 +171,7 @@ func NewStore(
 	store := &appRuntimeStore{
 		kubeconfig:          kubeconfig,
 		clientset:           clientset,
+		rainbondClient:      rainbondClient,
 		ctx:                 ctx,
 		cancel:              cancel,
 		informers:           &Informer{CRS: make(map[string]cache.SharedIndexInformer)},
@@ -196,11 +199,6 @@ func NewStore(
 	// create informers factory, enable and assign required informers
 	infFactory := informers.NewSharedInformerFactoryWithOptions(conf.KubeClient, 10*time.Second,
 		informers.WithNamespace(corev1.NamespaceAll))
-
-	sharedInformer := externalversions.NewSharedInformerFactoryWithOptions(rainbondClient, 10*time.Second,
-		externalversions.WithNamespace(corev1.NamespaceAll))
-	store.listers.HelmApp = sharedInformer.Rainbond().V1alpha1().HelmApps().Lister()
-	store.informers.HelmApp = sharedInformer.Rainbond().V1alpha1().HelmApps().Informer()
 
 	store.informers.Namespace = infFactory.Core().V1().Namespaces().Informer()
 
@@ -244,6 +242,17 @@ func NewStore(
 
 	store.informers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2beta2().HorizontalPodAutoscalers().Informer()
 	store.listers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2beta2().HorizontalPodAutoscalers().Lister()
+
+	// rainbond custom resource
+	rainbondInformer := externalversions.NewSharedInformerFactoryWithOptions(rainbondClient, 10*time.Second,
+		externalversions.WithNamespace(corev1.NamespaceAll))
+	store.listers.HelmApp = rainbondInformer.Rainbond().V1alpha1().HelmApps().Lister()
+	store.informers.HelmApp = rainbondInformer.Rainbond().V1alpha1().HelmApps().Informer()
+	store.listers.ThirdComponent = rainbondInformer.Rainbond().V1alpha1().ThirdComponents().Lister()
+	store.informers.ThirdComponent = rainbondInformer.Rainbond().V1alpha1().ThirdComponents().Informer()
+	store.listers.ComponentDefinition = rainbondInformer.Rainbond().V1alpha1().ComponentDefinitions().Lister()
+	store.informers.ComponentDefinition = rainbondInformer.Rainbond().V1alpha1().ComponentDefinitions().Informer()
+	store.informers.ComponentDefinition.AddEventHandlerWithResyncPeriod(componentdefinition.GetComponentDefinitionBuilder(), time.Second*300)
 
 	isThirdParty := func(ep *corev1.Endpoints) bool {
 		return ep.Labels["service-kind"] == model.ServiceKindThirdParty.String()
@@ -427,6 +436,8 @@ func (a *appRuntimeStore) Start() error {
 	go a.clean()
 	for !a.Ready() {
 	}
+	// init core componentdefinition
+	componentdefinition.GetComponentDefinitionBuilder().InitCoreComponentDefinition(a.rainbondClient)
 	go func() {
 		a.initThirdPartyService()
 		a.initCustomResourceInformer(stopch)
@@ -989,6 +1000,13 @@ func (a *appRuntimeStore) GetAllAppServices() (apps []*v1.AppService) {
 func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
 	app := a.GetAppService(serviceID)
 	if app == nil {
+		component, _ := a.dbmanager.TenantServiceDao().GetServiceByID(serviceID)
+		if component == nil {
+			return v1.UNKNOW
+		}
+		if component.Kind == model.ServiceKindThirdParty.String() {
+			return v1.CLOSED
+		}
 		versions, err := a.dbmanager.VersionInfoDao().GetVersionByServiceID(serviceID)
 		if (err != nil && err == gorm.ErrRecordNotFound) || len(versions) == 0 {
 			return v1.UNDEPLOY

@@ -18,12 +18,26 @@
 
 package v1alpha1
 
+import (
+	"fmt"
+	"net"
+	"strconv"
+	"strings"
+
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+func init() {
+	SchemeBuilder.Register(&ThirdComponent{}, &ThirdComponentList{})
+}
+
 // +genclient
 // +kubebuilder:object:root=true
 
 // HelmApp -
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:path=thirdcomponent,scope=Namespaced
+// +kubebuilder:resource:path=thirdcomponents,scope=Namespaced
 type ThirdComponent struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -32,19 +46,28 @@ type ThirdComponent struct {
 	Status ThirdComponentStatus `json:"status,omitempty"`
 }
 
+// +kubebuilder:object:root=true
+
+// ThirdComponentList contains a list of ThirdComponent
+type ThirdComponentList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []ThirdComponent `json:"items"`
+}
+
 type ThirdComponentSpec struct {
 	// health check probe
 	// +optional
-	HealthProbe *HealthProbe `json:"health_probe,omitempty"`
+	Probe *HealthProbe `json:"probe,omitempty"`
 	// component regist ports
 	Ports []*ComponentPort `json:"ports"`
 	// endpoint source config
-	EndpointSource ThirdComponentEndpointSource `json:"endpoint_source"`
+	EndpointSource ThirdComponentEndpointSource `json:"endpointSource"`
 }
 
 type ThirdComponentEndpointSource struct {
 	StaticEndpoints   []*ThirdComponentEndpoint `json:"endpoints,omitempty"`
-	KubernetesService KubernetesServiceSource   `json:"kubernetes_service,omitempty"`
+	KubernetesService *KubernetesServiceSource  `json:"kubernetesService,omitempty"`
 	//other source
 	// NacosSource
 	// EurekaSource
@@ -60,7 +83,7 @@ type ThirdComponentEndpoint struct {
 	Protocol string `json:"protocol,omitempty"`
 	// Specify a private certificate when the protocol is HTTPS
 	// +optional
-	ClentSecret string `json:"client_secret,omitempty"`
+	ClentSecret string `json:"clientSecret,omitempty"`
 }
 
 type KubernetesServiceSource struct {
@@ -81,7 +104,12 @@ type HealthProbe struct {
 	TCPSocket *TCPSocketAction `json:"tcpSocket,omitempty"`
 }
 
+//ComponentPort component port define
 type ComponentPort struct {
+	Name      string `json:"name"`
+	Port      int    `json:"port"`
+	OpenInner bool   `json:"openInner"`
+	OpenOuter bool   `json:"openOuter"`
 }
 
 //TCPSocketAction enable tcp check
@@ -92,10 +120,10 @@ type TCPSocketAction struct {
 type HTTPGetAction struct {
 	// Path to access on the HTTP server.
 	// +optional
-	Path string `json:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
+	Path string `json:"path,omitempty"`
 	// Custom headers to set in the request. HTTP allows repeated headers.
 	// +optional
-	HTTPHeaders []HTTPHeader `json:"httpHeaders,omitempty" protobuf:"bytes,5,rep,name=httpHeaders"`
+	HTTPHeaders []HTTPHeader `json:"httpHeaders,omitempty"`
 }
 
 // HTTPHeader describes a custom header to be used in HTTP probes
@@ -121,6 +149,7 @@ const (
 
 type ThirdComponentStatus struct {
 	Phase     ComponentPhase                  `json:"phase"`
+	Reason    string                          `json:"reason,omitempty"`
 	Endpoints []*ThirdComponentEndpointStatus `json:"endpoints"`
 }
 
@@ -133,15 +162,45 @@ const (
 	EndpointNotReady EndpointStatus = "NotReady"
 )
 
+type EndpointAddress string
+
+func (e EndpointAddress) GetIP() string {
+	info := strings.Split(string(e), ":")
+	if len(info) == 2 {
+		return info[0]
+	}
+	return ""
+}
+
+func (e EndpointAddress) GetPort() int {
+	info := strings.Split(string(e), ":")
+	if len(info) == 2 {
+		port, _ := strconv.Atoi(info[1])
+		return port
+	}
+	return 0
+}
+
+func NewEndpointAddress(host string, port int) *EndpointAddress {
+	if net.ParseIP(host) == nil {
+		return nil
+	}
+	if port < 0 || port > 65533 {
+		return nil
+	}
+	ea := EndpointAddress(fmt.Sprintf("%s:%d", host, port))
+	return &ea
+}
+
 //ThirdComponentEndpointStatus endpoint status
 type ThirdComponentEndpointStatus struct {
 	// The address including the port number.
-	Address string `json:"address"`
-	//PodName means endpoint come from kubernetes pod
+	Address EndpointAddress `json:"address"`
+	// Reference to object providing the endpoint.
 	// +optional
-	PodName string `json:"pod_name"`
+	TargetRef *v1.ObjectReference `json:"targetRef,omitempty" protobuf:"bytes,2,opt,name=targetRef"`
 	//Status endpoint status
 	Status EndpointStatus `json:"status"`
 	//Reason probe not passed reason
-	Reason string `json:"reason"`
+	Reason string `json:"reason,omitempty"`
 }

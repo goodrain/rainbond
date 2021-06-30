@@ -362,8 +362,13 @@ type ServiceStruct struct {
 
 // Endpoints holds third-party service endpoints or configuraion to get endpoints.
 type Endpoints struct {
-	Static    string `json:"static" validate:"static"`
-	Discovery string `json:"discovery" validate:"discovery"`
+	Static     []string            `json:"static" validate:"static"`
+	Kubernetes *EndpointKubernetes `json:"kubernetes" validate:"kubernetes"`
+}
+
+type EndpointKubernetes struct {
+	Namespace   string `json:"namespace"`
+	ServiceName string `json:"serviceName"`
 }
 
 //TenantServiceVolumeStruct -
