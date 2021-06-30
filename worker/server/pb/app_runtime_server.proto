@@ -283,9 +283,14 @@ message AppService {
         string status=2;
     }
 
+    message Port {
+        int32 port=1;
+        string protocol=2;
+    }
+
     string name=1;
     string address=2;
-    repeated int32 ports=3;
+    repeated Port ports=3;
     repeated Pod pods=4;
     repeated Pod oldPods=5;
 }

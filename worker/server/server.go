@@ -712,9 +712,12 @@ func (r *RuntimeServer) ListAppServices(ctx context.Context, in *pb.AppReq) (*pb
 func (r *RuntimeServer) convertServices(services []*corev1.Service) []*pb.AppService {
 	var appServices []*pb.AppService
 	for _, svc := range services {
-		var ports []int32
+		var ports []*pb.AppService_Port
 		for _, port := range svc.Spec.Ports {
-			ports = append(ports, port.Port)
+			ports = append(ports, &pb.AppService_Port{
+				Port:     port.Port,
+				Protocol: string(port.Protocol),
+			})
 		}
 		selector := labels.NewSelector()
 		for key, val := range svc.Spec.Selector {
