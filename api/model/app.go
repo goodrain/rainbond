@@ -1,5 +1,7 @@
 package model
 
+import "github.com/goodrain/rainbond/worker/server/pb"
+
 // AppPort -
 type AppPort struct {
 	ServiceID      string `json:"service_id" validate:"required"`
@@ -30,11 +32,11 @@ type AppStatusCondition struct {
 
 // AppService -
 type AppService struct {
-	ServiceName string    `json:"service_name"`
-	Address     string    `json:"address"`
-	TCPPorts    []int32   `json:"tcp_ports"`
-	OldPods     []*AppPod `json:"oldPods"`
-	Pods        []*AppPod `json:"pods"`
+	ServiceName string                `json:"service_name"`
+	Address     string                `json:"address"`
+	Ports       []*pb.AppService_Port `json:"ports"`
+	OldPods     []*AppPod             `json:"oldPods"`
+	Pods        []*AppPod             `json:"pods"`
 }
 
 // ByServiceName implements sort.Interface for []*AppService based on

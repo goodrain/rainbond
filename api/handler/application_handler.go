@@ -210,9 +210,7 @@ func (a *ApplicationAction) updateHelmApp(ctx context.Context, app *dbmodel.Appl
 		}
 		return errors.Wrap(err, "update app")
 	}
-	if len(req.Overrides) > 0 {
-		helmApp.Spec.Overrides = req.Overrides
-	}
+	helmApp.Spec.Overrides = req.Overrides
 	if req.Version != "" {
 		helmApp.Spec.Version = req.Version
 	}
@@ -485,7 +483,7 @@ func (a *ApplicationAction) ListServices(ctx context.Context, app *dbmodel.Appli
 
 		svc.Pods = a.convertPods(service.Pods)
 		svc.OldPods = a.convertPods(service.OldPods)
-		svc.TCPPorts = append(svc.TCPPorts, service.TcpPorts...)
+		svc.Ports = append(svc.Ports, service.Ports...)
 		services = append(services, svc)
 	}
 
@@ -610,6 +608,9 @@ func (a *ApplicationAction) SyncComponents(app *dbmodel.Application, components 
 		if err := GetServiceManager().SyncComponentScaleRules(tx, components); err != nil {
 			return err
 		}
+		if err := GetServiceManager().SyncComponentEndpoints(tx, components); err != nil {
+			return err
+		}
 		if len(deleteComponentIDs) != 0 {
 			return a.deleteByComponentIDs(tx, app, deleteComponentIDs)
 		}
@@ -667,6 +668,9 @@ func (a *ApplicationAction) deleteByComponentIDs(tx *gorm.DB, app *dbmodel.Appli
 		return err
 	}
 	if err := db.GetManager().TenantServiceLabelDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	if err := db.GetManager().ThirdPartySvcDiscoveryCfgDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
 		return err
 	}
 	autoScaleRules, err := db.GetManager().TenantServceAutoscalerRulesDaoTransactions(tx).ListByComponentIDs(componentIDs)
