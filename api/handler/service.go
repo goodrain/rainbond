@@ -2830,6 +2830,28 @@ func (s *ServiceAction) SyncComponentScaleRules(tx *gorm.DB, components []*api_m
 	return db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).CreateOrUpdateScaleRuleMetricsInBatch(autoScaleRuleMetrics)
 }
 
+// SyncComponentEndpoints -
+func (s *ServiceAction) SyncComponentEndpoints(tx *gorm.DB, components []*api_model.Component) error {
+	var (
+		componentIDs               []string
+		thirdPartySvcDiscoveryCfgs []*dbmodel.ThirdPartySvcDiscoveryCfg
+	)
+	for _, component := range components {
+		if component.Endpoint == nil {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		if component.Endpoint.Kubernetes != nil {
+			thirdPartySvcDiscoveryCfgs = append(thirdPartySvcDiscoveryCfgs, component.Endpoint.DbModel(component.ComponentBase.ComponentID))
+		}
+	}
+
+	if err := db.GetManager().ThirdPartySvcDiscoveryCfgDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().ThirdPartySvcDiscoveryCfgDaoTransactions(tx).CreateOrUpdate3rdSvcDiscoveryCfgInBatch(thirdPartySvcDiscoveryCfgs)
+}
+
 //TransStatus trans service status
 func TransStatus(eStatus string) string {
 	switch eStatus {
