@@ -712,6 +712,11 @@ func (r *RuntimeServer) ListAppServices(ctx context.Context, in *pb.AppReq) (*pb
 func (r *RuntimeServer) convertServices(services []*corev1.Service) []*pb.AppService {
 	var appServices []*pb.AppService
 	for _, svc := range services {
+		if svc.Spec.ClusterIP == "None" {
+			// ignore headless service
+			continue
+		}
+
 		var ports []*pb.AppService_Port
 		for _, port := range svc.Spec.Ports {
 			ports = append(ports, &pb.AppService_Port{
