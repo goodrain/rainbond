@@ -528,6 +528,10 @@ spec:
                   reason:
                     description: Reason probe not passed reason
                     type: string
+                  servicePort:
+                    description: ServicePort if address build from kubernetes endpoint,
+                      The corresponding service port
+                    type: integer
                   status:
                     description: Status endpoint status
                     type: string
@@ -592,6 +596,4 @@ status:
     plural: ""
   conditions: []
   storedVersions: []
-
-
 `

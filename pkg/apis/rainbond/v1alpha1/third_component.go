@@ -199,6 +199,8 @@ type ThirdComponentEndpointStatus struct {
 	// Reference to object providing the endpoint.
 	// +optional
 	TargetRef *v1.ObjectReference `json:"targetRef,omitempty" protobuf:"bytes,2,opt,name=targetRef"`
+	// ServicePort if address build from kubernetes endpoint, The corresponding service port
+	ServicePort int `json:"servicePort,omitempty"`
 	//Status endpoint status
 	Status EndpointStatus `json:"status"`
 	//Reason probe not passed reason

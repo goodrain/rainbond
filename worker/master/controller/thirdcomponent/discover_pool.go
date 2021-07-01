@@ -26,6 +26,7 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/sirupsen/logrus"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -64,6 +65,10 @@ func (d *DiscoverPool) Start() {
 				d.reconciler.Client.Get(ctx, name, &old)
 				if !reflect.DeepEqual(component.Status.Endpoints, old.Status.Endpoints) {
 					if err := d.reconciler.updateStatus(ctx, component); err != nil {
+						if apierrors.IsNotFound(err) {
+							d.RemoveDiscover(component)
+							return
+						}
 						logrus.Errorf("update component status failure", err.Error())
 					}
 					logrus.Infof("update component %s status success by discover pool", name)
@@ -143,16 +148,13 @@ func (d *DiscoverPool) AddDiscover(dis Discover) {
 	d.discoverWorker[key] = worker
 }
 
-func (d *DiscoverPool) RemoveDiscover(dis Discover) {
+func (d *DiscoverPool) RemoveDiscover(component *v1alpha1.ThirdComponent) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	component := dis.GetComponent()
-	if component == nil {
-		return
-	}
 	key := component.Namespace + component.Name
 	olddis, exist := d.discoverWorker[key]
 	if exist {
 		olddis.Stop()
+		delete(d.discoverWorker, key)
 	}
 }

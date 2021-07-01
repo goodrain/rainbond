@@ -127,6 +127,13 @@ func (a AppServiceBase) IsCustomComponent() bool {
 	return false
 }
 
+func (a AppServiceBase) IsThirdComponent() bool {
+	if a.ServiceKind.String() == dbmodel.ServiceKindThirdParty.String() {
+		return true
+	}
+	return false
+}
+
 func (a *AppServiceBase) SetDiscoveryCfg(discoveryCfg *dbmodel.ThirdPartySvcDiscoveryCfg) {
 	a.discoveryCfg = discoveryCfg
 }
