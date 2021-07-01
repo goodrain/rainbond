@@ -129,9 +129,6 @@ func (o *OperationHandler) Stop(batchOpReq model.ComponentOpReq) error {
 	if err != nil {
 		return err
 	}
-	if dbmodel.ServiceKind(service.Kind) == dbmodel.ServiceKindThirdParty {
-		return nil
-	}
 	body := batchOpReq.TaskBody(service)
 	err = o.mqCli.SendBuilderTopic(gclient.TaskStruct{
 		TaskType: "stop",
@@ -149,9 +146,6 @@ func (o *OperationHandler) Start(batchOpReq model.ComponentOpReq) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(batchOpReq.GetComponentID())
 	if err != nil {
 		return err
-	}
-	if dbmodel.ServiceKind(service.Kind) == dbmodel.ServiceKindThirdParty {
-		return nil
 	}
 
 	body := batchOpReq.TaskBody(service)
