@@ -1548,7 +1548,7 @@ func (a *appRuntimeStore) secretByKey(key types.NamespacedName) (*corev1.Secret,
 
 func (a *appRuntimeStore) GetHelmApp(namespace, name string) (*v1alpha1.HelmApp, error) {
 	helmApp, err := a.listers.HelmApp.HelmApps(namespace).Get(name)
-	if err != nil && k8sErrors.IsNotFound(err) {
+	if err != nil && !k8sErrors.IsNotFound(err) {
 		err = errors.Wrap(bcode.ErrApplicationNotFound, "get helm app")
 	}
 	return helmApp, err

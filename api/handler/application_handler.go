@@ -409,7 +409,7 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 	var conditions []*model.AppStatusCondition
 	for _, cdt := range status.Conditions {
 		conditions = append(conditions, &model.AppStatusCondition{
-			Type:    string(cdt.Type),
+			Type:    cdt.Type,
 			Status:  cdt.Status,
 			Reason:  cdt.Reason,
 			Message: cdt.Message,
