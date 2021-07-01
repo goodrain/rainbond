@@ -37,6 +37,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -74,6 +75,7 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 	}
 	if component.DeletionTimestamp != nil {
 		log.Infof("component %s will be deleted", req)
+		r.discoverPool.RemoveDiscover(component)
 		return ctrl.Result{}, nil
 	}
 	logrus.Infof("start to reconcile component %s/%s", component.Namespace, component.Name)
@@ -95,7 +97,7 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 		component.Status.Phase = v1alpha1.ComponentFailed
 		component.Status.Reason = err.Error()
 		r.updateStatus(ctx, component)
-		return commonResult, nil
+		return ctrl.Result{}, nil
 	}
 	r.discoverPool.AddDiscover(discover)
 
@@ -103,7 +105,7 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 		component.Status.Phase = v1alpha1.ComponentPending
 		component.Status.Reason = "endpoints not found"
 		r.updateStatus(ctx, component)
-		return commonResult, nil
+		return ctrl.Result{}, nil
 	}
 
 	// create endpoints for service
@@ -114,7 +116,7 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 		}))
 		if err != nil {
 			logrus.Errorf("create selector failure %s", err.Error())
-			return commonResult, err
+			return ctrl.Result{}, err
 		}
 		err = r.Client.List(ctx, &services, &client.ListOptions{LabelSelector: selector})
 		if err != nil {
@@ -128,7 +130,11 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 		// init component port
 		var portMap = make(map[int][]*v1alpha1.ThirdComponentEndpointStatus)
 		for _, end := range component.Status.Endpoints {
-			portMap[end.Address.GetPort()] = append(portMap[end.Address.GetPort()], end)
+			port := end.Address.GetPort()
+			if end.ServicePort != 0 {
+				port = end.ServicePort
+			}
+			portMap[port] = append(portMap[end.Address.GetPort()], end)
 		}
 		// create endpoint for component service
 		for _, service := range services.Items {
@@ -136,6 +142,7 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 				// if component port not exist in endpoint port list, ignore it.
 				if sourceEndpoint, ok := portMap[int(port.Port)]; ok {
 					endpoint := createEndpoint(component, &service, sourceEndpoint, int(port.Port))
+					controllerutil.SetControllerReference(component, &endpoint, r.Scheme)
 					var old corev1.Endpoints
 					var apply = true
 					if err := r.Client.Get(ctx, types.NamespacedName{Namespace: endpoint.Namespace, Name: endpoint.Name}, &old); err == nil {
@@ -164,6 +171,12 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 }
 
 func createEndpoint(component *v1alpha1.ThirdComponent, service *corev1.Service, sourceEndpoint []*v1alpha1.ThirdComponentEndpointStatus, port int) corev1.Endpoints {
+	spep := make(map[int]int, len(sourceEndpoint))
+	for _, endpoint := range sourceEndpoint {
+		if endpoint.ServicePort != 0 {
+			spep[endpoint.ServicePort] = endpoint.Address.GetPort()
+		}
+	}
 	endpoints := corev1.Endpoints{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Endpoints",
@@ -179,12 +192,17 @@ func createEndpoint(component *v1alpha1.ThirdComponent, service *corev1.Service,
 				{
 					Ports: func() (re []corev1.EndpointPort) {
 						for _, servicePort := range service.Spec.Ports {
-							re = append(re, corev1.EndpointPort{
+							ep := corev1.EndpointPort{
 								Name:        servicePort.Name,
 								Port:        servicePort.Port,
 								Protocol:    servicePort.Protocol,
 								AppProtocol: servicePort.AppProtocol,
-							})
+							}
+							endPort, exist := spep[int(servicePort.Port)]
+							if exist {
+								ep.Port = int32(endPort)
+							}
+							re = append(re, ep)
 						}
 						return
 					}(),

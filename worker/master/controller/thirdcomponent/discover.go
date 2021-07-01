@@ -116,6 +116,14 @@ func (k *kubernetesDiscover) DiscoverOne(ctx context.Context) ([]*v1alpha1.Third
 		}
 		return nil, fmt.Errorf("load kubernetes endpoints failure %s", err.Error())
 	}
+	getServicePort := func(portName string) int {
+		for _, port := range service.Spec.Ports {
+			if port.Name == portName {
+				return int(port.Port)
+			}
+		}
+		return 0
+	}
 	var es = []*v1alpha1.ThirdComponentEndpointStatus{}
 	for _, endpoint := range endpoints.Items {
 		for _, subset := range endpoint.Subsets {
@@ -124,9 +132,10 @@ func (k *kubernetesDiscover) DiscoverOne(ctx context.Context) ([]*v1alpha1.Third
 					ed := v1alpha1.NewEndpointAddress(address.IP, int(port.Port))
 					if ed != nil {
 						es = append(es, &v1alpha1.ThirdComponentEndpointStatus{
-							Address:   *ed,
-							TargetRef: address.TargetRef,
-							Status:    v1alpha1.EndpointReady,
+							ServicePort: getServicePort(port.Name),
+							Address:     *ed,
+							TargetRef:   address.TargetRef,
+							Status:      v1alpha1.EndpointReady,
 						})
 					}
 				}
@@ -134,9 +143,10 @@ func (k *kubernetesDiscover) DiscoverOne(ctx context.Context) ([]*v1alpha1.Third
 					ed := v1alpha1.NewEndpointAddress(address.IP, int(port.Port))
 					if ed != nil {
 						es = append(es, &v1alpha1.ThirdComponentEndpointStatus{
-							Address:   *ed,
-							TargetRef: address.TargetRef,
-							Status:    v1alpha1.EndpointReady,
+							Address:     *ed,
+							ServicePort: getServicePort(port.Name),
+							TargetRef:   address.TargetRef,
+							Status:      v1alpha1.EndpointReady,
 						})
 					}
 				}
