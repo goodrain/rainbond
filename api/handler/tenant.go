@@ -153,7 +153,7 @@ func (t *TenantAction) UpdateTenant(tenant *dbmodel.Tenants) error {
 // DeleteTenant deletes tenant based on the given tenantID.
 //
 // tenant can only be deleted without service or plugin
-func (t *TenantAction) DeleteTenant(tenantID string) error {
+func (t *TenantAction) DeleteTenant(ctx context.Context, tenantID string) error {
 	// check if there are still services
 	services, err := db.GetManager().TenantServiceDao().ListServicesByTenantID(tenantID)
 	if err != nil {
@@ -161,7 +161,7 @@ func (t *TenantAction) DeleteTenant(tenantID string) error {
 	}
 	if len(services) > 0 {
 		for _, service := range services {
-			GetServiceManager().TransServieToDelete(tenantID, service.ServiceID)
+			GetServiceManager().TransServieToDelete(ctx, tenantID, service.ServiceID)
 		}
 	}
 

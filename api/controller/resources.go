@@ -551,7 +551,7 @@ func (t *TenantStruct) GetTenants(w http.ResponseWriter, r *http.Request) {
 func (t *TenantStruct) DeleteTenant(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 
-	if err := handler.GetTenantManager().DeleteTenant(tenantID); err != nil {
+	if err := handler.GetTenantManager().DeleteTenant(r.Context(), tenantID); err != nil {
 		if err == handler.ErrTenantStillHasServices || err == handler.ErrTenantStillHasPlugins {
 			httputil.ReturnError(r, w, 400, err.Error())
 			return
@@ -1009,7 +1009,7 @@ func (t *TenantStruct) DeleteSingleServiceInfo(w http.ResponseWriter, r *http.Re
 		handler.GetEtcdHandler().CleanAllServiceData(req.Keys)
 	}
 
-	if err := handler.GetServiceManager().TransServieToDelete(tenantID, serviceID); err != nil {
+	if err := handler.GetServiceManager().TransServieToDelete(r.Context(), tenantID, serviceID); err != nil {
 		if err == handler.ErrServiceNotClosed {
 			httputil.ReturnError(r, w, 400, fmt.Sprintf("Service must be closed"))
 			return

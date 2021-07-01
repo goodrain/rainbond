@@ -36,6 +36,7 @@ import (
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/goodrain/rainbond/worker/server"
@@ -45,6 +46,8 @@ import (
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	api_model "github.com/goodrain/rainbond/api/model"
 	core_model "github.com/goodrain/rainbond/db/model"
@@ -60,11 +63,12 @@ var ErrServiceNotClosed = errors.New("Service has not been closed")
 
 //ServiceAction service act
 type ServiceAction struct {
-	MQClient      gclient.MQClient
-	EtcdCli       *clientv3.Client
-	statusCli     *client.AppRuntimeSyncClient
-	prometheusCli prometheus.Interface
-	conf          option.Config
+	MQClient       gclient.MQClient
+	EtcdCli        *clientv3.Client
+	statusCli      *client.AppRuntimeSyncClient
+	prometheusCli  prometheus.Interface
+	conf           option.Config
+	rainbondClient versioned.Interface
 }
 
 type dCfg struct {
@@ -76,14 +80,19 @@ type dCfg struct {
 }
 
 //CreateManager create Manger
-func CreateManager(conf option.Config, mqClient gclient.MQClient,
-	etcdCli *clientv3.Client, statusCli *client.AppRuntimeSyncClient, prometheusCli prometheus.Interface) *ServiceAction {
+func CreateManager(conf option.Config,
+	mqClient gclient.MQClient,
+	etcdCli *clientv3.Client,
+	statusCli *client.AppRuntimeSyncClient,
+	prometheusCli prometheus.Interface,
+	rainbondClient versioned.Interface) *ServiceAction {
 	return &ServiceAction{
-		MQClient:      mqClient,
-		EtcdCli:       etcdCli,
-		statusCli:     statusCli,
-		conf:          conf,
-		prometheusCli: prometheusCli,
+		MQClient:       mqClient,
+		EtcdCli:        etcdCli,
+		statusCli:      statusCli,
+		conf:           conf,
+		prometheusCli:  prometheusCli,
+		rainbondClient: rainbondClient,
 	}
 }
 
@@ -2152,7 +2161,7 @@ func (s *ServiceAction) GetPodContainerMemory(podNames []string) (map[string]map
 }
 
 //TransServieToDelete trans service info to delete table
-func (s *ServiceAction) TransServieToDelete(tenantID, serviceID string) error {
+func (s *ServiceAction) TransServieToDelete(ctx context.Context, tenantID, serviceID string) error {
 	_, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil && gorm.ErrRecordNotFound == err {
 		logrus.Infof("service[%s] of tenant[%s] do not exist, ignore it", serviceID, tenantID)
@@ -2167,7 +2176,7 @@ func (s *ServiceAction) TransServieToDelete(tenantID, serviceID string) error {
 		return fmt.Errorf("GC task body: %v", err)
 	}
 
-	if err := s.delServiceMetadata(serviceID); err != nil {
+	if err := s.delServiceMetadata(ctx, serviceID); err != nil {
 		return fmt.Errorf("delete service-related metadata: %v", err)
 	}
 
@@ -2245,15 +2254,44 @@ func (s *ServiceAction) deleteComponent(tx *gorm.DB, service *dbmodel.TenantServ
 }
 
 // delServiceMetadata deletes service-related metadata in the database.
-func (s *ServiceAction) delServiceMetadata(serviceID string) error {
+func (s *ServiceAction) delServiceMetadata(ctx context.Context, serviceID string) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
 		return err
 	}
 	logrus.Infof("delete service %s %s", serviceID, service.ServiceAlias)
 	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		if err := s.deleteThirdComponent(ctx, service); err != nil {
+			return err
+		}
 		return s.deleteComponent(tx, service)
 	})
+}
+
+func (s *ServiceAction) deleteThirdComponent(ctx context.Context, component *dbmodel.TenantServices) error {
+	if component.Kind != "third_party" {
+		return nil
+	}
+
+	thirdPartySvcDiscoveryCfg, err := db.GetManager().ThirdPartySvcDiscoveryCfgDao().GetByServiceID(component.ServiceID)
+	if err != nil {
+		return err
+	}
+	if thirdPartySvcDiscoveryCfg == nil {
+		return nil
+	}
+	if thirdPartySvcDiscoveryCfg.Type != string(dbmodel.DiscorveryTypeKubernetes) {
+		return nil
+	}
+
+	newCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	err = s.rainbondClient.RainbondV1alpha1().ThirdComponents(component.TenantID).Delete(newCtx, component.ServiceID, metav1.DeleteOptions{})
+	if err != nil && !k8sErrors.IsNotFound(err) {
+		return err
+	}
+	return nil
 }
 
 // delLogFile deletes persistent data related to the service based on serviceID.
