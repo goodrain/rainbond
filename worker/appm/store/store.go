@@ -516,10 +516,9 @@ func (a *appRuntimeStore) checkReplicasetWhetherDelete(app *v1.AppService, rs *a
 func (a *appRuntimeStore) OnAdd(obj interface{}) {
 	if thirdComponent, ok := obj.(*v1alpha1.ThirdComponent); ok {
 		serviceID := thirdComponent.Labels["service_id"]
-		version := thirdComponent.Labels["version"]
 		createrID := thirdComponent.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
-			appservice, _ := a.getAppService(serviceID, version, createrID, true)
+		if serviceID != "" && createrID != "" {
+			appservice, _ := a.getAppService(serviceID, "", createrID, true)
 			if appservice != nil {
 				appservice.SetWorkload(thirdComponent)
 				return

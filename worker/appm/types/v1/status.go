@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	"github.com/sirupsen/logrus"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -99,9 +100,10 @@ func conversionThirdComponent(obj runtime.Object) *v1alpha1.ThirdComponent {
 		return third
 	}
 	if struc, ok := obj.(*unstructured.Unstructured); ok {
-		data, _ := json.Marshal(struc)
+		data, _ := struc.MarshalJSON()
 		var third v1alpha1.ThirdComponent
 		if err := json.Unmarshal(data, &third); err != nil {
+			logrus.Errorf("unmarshal object to ThirdComponent failure")
 			return nil
 		}
 		return &third
@@ -127,6 +129,7 @@ func (a *AppService) GetServiceStatus() string {
 						return STARTING
 					}
 				}
+				return RUNNING
 			default:
 				return RUNNING
 			}

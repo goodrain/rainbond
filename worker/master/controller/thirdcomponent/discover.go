@@ -109,7 +109,8 @@ func (k *kubernetesDiscover) DiscoverOne(ctx context.Context) ([]*v1alpha1.Third
 	if err != nil {
 		return nil, fmt.Errorf("load kubernetes service failure %s", err.Error())
 	}
-	endpoints, err := k.client.CoreV1().Endpoints(namespace).List(ctx, metav1.ListOptions{LabelSelector: labels.FormatLabels(service.Spec.Selector)})
+	// service name must be same with endpoint name
+	endpoint, err := k.client.CoreV1().Endpoints(namespace).Get(ctx, service.Name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
@@ -125,30 +126,28 @@ func (k *kubernetesDiscover) DiscoverOne(ctx context.Context) ([]*v1alpha1.Third
 		return 0
 	}
 	var es = []*v1alpha1.ThirdComponentEndpointStatus{}
-	for _, endpoint := range endpoints.Items {
-		for _, subset := range endpoint.Subsets {
-			for _, port := range subset.Ports {
-				for _, address := range subset.Addresses {
-					ed := v1alpha1.NewEndpointAddress(address.IP, int(port.Port))
-					if ed != nil {
-						es = append(es, &v1alpha1.ThirdComponentEndpointStatus{
-							ServicePort: getServicePort(port.Name),
-							Address:     *ed,
-							TargetRef:   address.TargetRef,
-							Status:      v1alpha1.EndpointReady,
-						})
-					}
+	for _, subset := range endpoint.Subsets {
+		for _, port := range subset.Ports {
+			for _, address := range subset.Addresses {
+				ed := v1alpha1.NewEndpointAddress(address.IP, int(port.Port))
+				if ed != nil {
+					es = append(es, &v1alpha1.ThirdComponentEndpointStatus{
+						ServicePort: getServicePort(port.Name),
+						Address:     *ed,
+						TargetRef:   address.TargetRef,
+						Status:      v1alpha1.EndpointReady,
+					})
 				}
-				for _, address := range subset.NotReadyAddresses {
-					ed := v1alpha1.NewEndpointAddress(address.IP, int(port.Port))
-					if ed != nil {
-						es = append(es, &v1alpha1.ThirdComponentEndpointStatus{
-							Address:     *ed,
-							ServicePort: getServicePort(port.Name),
-							TargetRef:   address.TargetRef,
-							Status:      v1alpha1.EndpointReady,
-						})
-					}
+			}
+			for _, address := range subset.NotReadyAddresses {
+				ed := v1alpha1.NewEndpointAddress(address.IP, int(port.Port))
+				if ed != nil {
+					es = append(es, &v1alpha1.ThirdComponentEndpointStatus{
+						Address:     *ed,
+						ServicePort: getServicePort(port.Name),
+						TargetRef:   address.TargetRef,
+						Status:      v1alpha1.EndpointReady,
+					})
 				}
 			}
 		}

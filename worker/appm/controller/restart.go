@@ -60,9 +60,10 @@ func (s *restartController) Begin() {
 func (s *restartController) restartOne(app v1.AppService) error {
 	//Restart the control set timeout interval is 5m
 	stopController := &stopController{
-		manager: s.manager,
-		waiting: time.Minute * 5,
-		ctx:     s.ctx,
+		manager:      s.manager,
+		waiting:      time.Minute * 5,
+		ctx:          s.ctx,
+		controllerID: s.controllerID,
 	}
 	if err := stopController.stopOne(app); err != nil {
 		if err != ErrWaitTimeOut {
@@ -81,7 +82,9 @@ func (s *restartController) restartOne(app v1.AppService) error {
 		}
 	}
 	startController := startController{
-		manager: s.manager,
+		manager:      s.manager,
+		ctx:          s.ctx,
+		controllerID: s.controllerID,
 	}
 	newAppService, err := conversion.InitAppService(db.GetManager(), app.ServiceID, app.ExtensionSet)
 	if err != nil {
