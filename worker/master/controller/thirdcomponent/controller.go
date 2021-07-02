@@ -61,7 +61,7 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 	defer cancel()
 	defer func() {
 		if retErr == nil {
-			log.Infof("finished reconciling")
+			log.Debugf("finished reconciling")
 		} else {
 			log.Errorf("Failed to reconcile %v", retErr)
 		}
@@ -69,7 +69,7 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 
 	if err := r.Client.Get(ctx, req.NamespacedName, component); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Infof("thirdcomponent %s does not exist", req)
+			log.Warningf("thirdcomponent %s does not exist", req)
 		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -78,7 +78,7 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 		r.discoverPool.RemoveDiscover(component)
 		return ctrl.Result{}, nil
 	}
-	logrus.Infof("start to reconcile component %s/%s", component.Namespace, component.Name)
+	logrus.Debugf("start to reconcile component %s/%s", component.Namespace, component.Name)
 	discover, err := NewDiscover(component, r.restConfig)
 	if err != nil {
 		component.Status.Phase = v1alpha1.ComponentFailed

@@ -59,7 +59,7 @@ func ApplyOne(ctx context.Context, apply apply.Applicator, clientset kubernetes.
 		}
 	}
 	// for custom component
-	if len(app.GetManifests()) > 0 {
+	if len(app.GetManifests()) > 0 && apply != nil {
 		for _, manifest := range app.GetManifests() {
 			if err := apply.Apply(ctx, manifest); err != nil {
 				return fmt.Errorf("apply custom component manifest %s/%s failure %s", manifest.GetKind(), manifest.GetName(), err.Error())

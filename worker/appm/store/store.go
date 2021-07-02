@@ -481,7 +481,7 @@ func (a *appRuntimeStore) InitOneThirdPartService(service *model.TenantServices)
 		return err
 	}
 	a.RegistAppService(appService)
-	err = f.ApplyOne(a.clientset, appService)
+	err = f.ApplyOne(context.Background(), nil, a.clientset, appService)
 	if err != nil {
 		logrus.Errorf("error applying rule: %v", err)
 		return err
