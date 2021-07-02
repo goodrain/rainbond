@@ -144,9 +144,11 @@ func (r *RuntimeServer) getRainbondAppStatus(app *model.Application) (*pb.AppSta
 	}
 
 	return &pb.AppStatus{
-		Status: string(status),
-		Cpu:    cpu,
-		Memory: memory,
+		Status:    status.String(),
+		SetCPU:    true,
+		Cpu:       cpu,
+		SetMemory: true,
+		Memory:    memory,
 	}, nil
 }
 
