@@ -33,6 +33,7 @@ import (
 	extensions "k8s.io/api/extensions/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db/model"
@@ -128,10 +129,7 @@ func (a AppServiceBase) IsCustomComponent() bool {
 }
 
 func (a AppServiceBase) IsThirdComponent() bool {
-	if a.ServiceKind.String() == dbmodel.ServiceKindThirdParty.String() {
-		return true
-	}
-	return false
+	return a.ServiceKind.String() == dbmodel.ServiceKindThirdParty.String()
 }
 
 func (a *AppServiceBase) SetDiscoveryCfg(discoveryCfg *dbmodel.ThirdPartySvcDiscoveryCfg) {
@@ -144,6 +142,7 @@ type AppService struct {
 	tenant         *corev1.Namespace
 	statefulset    *v1.StatefulSet
 	deployment     *v1.Deployment
+	workload       runtime.Object
 	hpas           []*autoscalingv2.HorizontalPodAutoscaler
 	delHPAs        []*autoscalingv2.HorizontalPodAutoscaler
 	replicasets    []*v1.ReplicaSet
@@ -193,6 +192,7 @@ func (a AppService) GetDeployment() *v1.Deployment {
 //SetDeployment set kubernetes deployment model
 func (a *AppService) SetDeployment(d *v1.Deployment) {
 	a.deployment = d
+	a.workload = d
 	if v, ok := d.Spec.Template.Labels["version"]; ok && v != "" {
 		a.DeployVersion = v
 	}
@@ -213,6 +213,7 @@ func (a AppService) GetStatefulSet() *v1.StatefulSet {
 //SetStatefulSet set kubernetes statefulset model
 func (a *AppService) SetStatefulSet(d *v1.StatefulSet) {
 	a.statefulset = d
+	a.workload = d
 	if v, ok := d.Spec.Template.Labels["version"]; ok && v != "" {
 		a.DeployVersion = v
 	}
@@ -840,6 +841,16 @@ func (a *AppService) GetManifests() []*unstructured.Unstructured {
 //GetManifests get component custom manifest
 func (a *AppService) SetManifests(manifests []*unstructured.Unstructured) {
 	a.manifests = manifests
+}
+
+//SetWorkload set component workload
+func (a *AppService) SetWorkload(workload runtime.Object) {
+	a.workload = workload
+}
+
+//DeleteWorkload delete component workload
+func (a *AppService) DeleteWorkload(workload runtime.Object) {
+	a.workload = nil
 }
 
 func (a *AppService) String() string {

@@ -145,6 +145,9 @@ func (c *ComponentDefinitionBuilder) BuildWorkloadResource(as *v1.AppService, db
 	}
 	ctx.SetContextValue(manifests)
 	as.SetManifests(manifests)
+	if len(manifests) > 0 {
+		as.SetWorkload(manifests[0])
+	}
 	return nil
 }
 

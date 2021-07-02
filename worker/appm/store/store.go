@@ -351,6 +351,8 @@ func NewStore(
 	store.informers.Claims.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Events.AddEventHandlerWithResyncPeriod(store.evtEventHandler(), time.Second*10)
 	store.informers.HorizontalPodAutoscaler.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.ThirdComponent.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+
 	return store
 }
 
@@ -512,6 +514,18 @@ func (a *appRuntimeStore) checkReplicasetWhetherDelete(app *v1.AppService, rs *a
 }
 
 func (a *appRuntimeStore) OnAdd(obj interface{}) {
+	if thirdComponent, ok := obj.(*v1alpha1.ThirdComponent); ok {
+		serviceID := thirdComponent.Labels["service_id"]
+		version := thirdComponent.Labels["version"]
+		createrID := thirdComponent.Labels["creater_id"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, _ := a.getAppService(serviceID, version, createrID, true)
+			if appservice != nil {
+				appservice.SetWorkload(thirdComponent)
+				return
+			}
+		}
+	}
 	if deployment, ok := obj.(*appsv1.Deployment); ok {
 		serviceID := deployment.Labels["service_id"]
 		version := deployment.Labels["version"]
@@ -722,6 +736,21 @@ func (a *appRuntimeStore) OnDelete(objs interface{}) {
 func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 	for i := range objs {
 		obj := objs[i]
+		if thirdComponent, ok := obj.(*v1alpha1.ThirdComponent); ok {
+			serviceID := thirdComponent.Labels["service_id"]
+			version := thirdComponent.Labels["version"]
+			createrID := thirdComponent.Labels["creater_id"]
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, true)
+				if appservice != nil {
+					appservice.DeleteWorkload(thirdComponent)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
+				}
+			}
+		}
 		if deployment, ok := obj.(*appsv1.Deployment); ok {
 			serviceID := deployment.Labels["service_id"]
 			version := deployment.Labels["version"]
