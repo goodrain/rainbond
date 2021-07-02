@@ -136,7 +136,7 @@ func (a *AppConfigGroupServiceDaoImpl) DeleteByComponentIDs(componentIDs []strin
 	return a.DB.Where("service_id in (?)", componentIDs).Delete(model.ConfigGroupService{}).Error
 }
 
-//DeleteByAppID -
+// DeleteByAppID deletes ConfigGroupService based on the given appID.
 func (a *AppConfigGroupServiceDaoImpl) DeleteByAppID(appID string) error {
 	return a.DB.Where("app_id = ?", appID).Delete(model.ConfigGroupService{}).Error
 }

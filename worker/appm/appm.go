@@ -20,7 +20,6 @@ package appm
 
 import (
 	"github.com/eapache/channels"
-	opt "github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/worker/appm/prober"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty"
@@ -49,8 +48,6 @@ func NewAPPMController(clientset kubernetes.Interface,
 
 // Controller describes a new appm controller.
 type Controller struct {
-	cfg opt.Config
-
 	store      store.Storer
 	thirdparty thirdparty.ThirdPartier
 	prober     prober.Prober

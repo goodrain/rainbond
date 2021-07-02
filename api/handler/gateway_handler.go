@@ -24,6 +24,14 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+// ComponentIngressTask -
+type ComponentIngressTask struct {
+	ComponentID string `json:"service_id"`
+	Action      string `json:"action"`
+	Port        int    `json:"port"`
+	IsInner     bool   `json:"is_inner"`
+}
+
 //GatewayHandler gateway api handler
 type GatewayHandler interface {
 	AddHTTPRule(req *apimodel.AddHTTPRuleStruct) error
@@ -43,7 +51,9 @@ type GatewayHandler interface {
 	AddRuleExtensions(ruleID string, ruleExtensions []*apimodel.RuleExtensionStruct, tx *gorm.DB) error
 	GetAvailablePort(ip string, lock bool) (int, error)
 	TCPIPPortExists(ip string, port int) bool
-	SendTask(in map[string]interface{}) error
+	// Deprecated.
+	SendTaskDeprecated(in map[string]interface{}) error
+	SendTask(task *ComponentIngressTask) error
 	RuleConfig(req *apimodel.RuleConfigReq) error
 	UpdCertificate(req *apimodel.UpdCertificateReq) error
 	GetGatewayIPs() []IPAndAvailablePort

@@ -1,5 +1,5 @@
 // Copyright (C) 2nilfmt.Errorf("a")4-2nilfmt.Errorf("a")8 Goodrain Co., Ltd.
-// RAINBOND, Application Management Platform
+// RAINBOND, component Management Platform
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -78,10 +78,7 @@ func NewManager(ctx context.Context,
 var ErrCallback = fmt.Errorf("callback task to mq")
 
 func (m *Manager) checkCount() bool {
-	if m.controllerManager.GetControllerSize() > m.cfg.MaxTasks {
-		return true
-	}
-	return false
+	return m.controllerManager.GetControllerSize() > m.cfg.MaxTasks
 }
 
 //AnalystToExec analyst exec
@@ -146,28 +143,28 @@ func (m *Manager) startExec(task *model.Task) error {
 	logger := event.GetManager().GetLogger(body.EventID)
 	appService := m.store.GetAppService(body.ServiceID)
 	if appService != nil && !appService.IsClosed() {
-		logger.Info("Application is not closed, can not start", event.GetLastLoggerOption())
+		logger.Info("component is not closed, can not start", event.GetLastLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return nil
 	}
 	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID, body.Configs)
 	if err != nil {
-		logrus.Errorf("Application init create failure:%s", err.Error())
-		logger.Error("Application init create failure", event.GetCallbackLoggerOption())
+		logrus.Errorf("component init create failure:%s", err.Error())
+		logger.Error("component init create failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("Application init create failure")
+		return fmt.Errorf("application init create failure")
 	}
 	newAppService.Logger = logger
 	//regist new app service
 	m.store.RegistAppService(newAppService)
 	err = m.controllerManager.StartController(controller.TypeStartController, *newAppService)
 	if err != nil {
-		logrus.Errorf("Application run  start controller failure:%s", err.Error())
-		logger.Error("Application run start controller failure", event.GetCallbackLoggerOption())
+		logrus.Errorf("component run start controller failure:%s", err.Error())
+		logger.Error("component run start controller failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("Application start failure")
+		return fmt.Errorf("component start failure")
 	}
-	logrus.Infof("service(%s) %s working is running.", body.ServiceID, "start")
+	logrus.Infof("component(%s) %s working is running.", body.ServiceID, "start")
 	return nil
 }
 
@@ -180,7 +177,7 @@ func (m *Manager) stopExec(task *model.Task) error {
 	logger := event.GetManager().GetLogger(body.EventID)
 	appService := m.store.GetAppService(body.ServiceID)
 	if appService == nil {
-		logger.Info("Application is closed, can not stop", event.GetLastLoggerOption())
+		logger.Info("component is closed, can not stop", event.GetLastLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return nil
 	}
@@ -190,10 +187,10 @@ func (m *Manager) stopExec(task *model.Task) error {
 	}
 	err := m.controllerManager.StartController(controller.TypeStopController, *appService)
 	if err != nil {
-		logrus.Errorf("Application run  stop controller failure:%s", err.Error())
-		logger.Info("Application run stop controller failure", event.GetCallbackLoggerOption())
+		logrus.Errorf("component run  stop controller failure:%s", err.Error())
+		logger.Info("component run stop controller failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("Application stop failure")
+		return fmt.Errorf("component stop failure")
 	}
 	logrus.Infof("service(%s) %s working is running.", body.ServiceID, "stop")
 	return nil
@@ -208,7 +205,7 @@ func (m *Manager) restartExec(task *model.Task) error {
 	logger := event.GetManager().GetLogger(body.EventID)
 	appService := m.store.GetAppService(body.ServiceID)
 	if appService == nil {
-		logger.Info("Application is closed, can not stop", event.GetLastLoggerOption())
+		logger.Info("component is closed, can not stop", event.GetLastLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return nil
 	}
@@ -219,10 +216,10 @@ func (m *Manager) restartExec(task *model.Task) error {
 	//first stop app
 	err := m.controllerManager.StartController(controller.TypeRestartController, *appService)
 	if err != nil {
-		logrus.Errorf("Application run restart controller failure:%s", err.Error())
-		logger.Info("Application run restart controller failure", event.GetCallbackLoggerOption())
+		logrus.Errorf("component run restart controller failure:%s", err.Error())
+		logger.Info("component run restart controller failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("Application restart failure")
+		return fmt.Errorf("component restart failure")
 	}
 	logrus.Infof("service(%s) %s working is running.", body.ServiceID, "restart")
 	return nil
@@ -280,8 +277,8 @@ func (m *Manager) horizontalScalingExec(task *model.Task) (err error) {
 	appService.Replicas = service.Replicas
 	err = m.controllerManager.StartController(controller.TypeScalingController, *appService)
 	if err != nil {
-		logrus.Errorf("Application run  scaling controller failure:%s", err.Error())
-		logger.Info("Application run scaling controller failure", event.GetCallbackLoggerOption())
+		logrus.Errorf("component run  scaling controller failure:%s", err.Error())
+		logger.Info("component run scaling controller failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return
 	}
@@ -315,8 +312,8 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 	appService.Logger = logger
 	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID, nil)
 	if err != nil {
-		logrus.Errorf("Application init create failure:%s", err.Error())
-		logger.Error("Application init create failure", event.GetCallbackLoggerOption())
+		logrus.Errorf("component init create failure:%s", err.Error())
+		logger.Error("component init create failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("application init create failure")
 	}
@@ -324,8 +321,8 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 	appService.SetUpgradePatch(newAppService)
 	err = m.controllerManager.StartController(controller.TypeUpgradeController, *newAppService)
 	if err != nil {
-		logrus.Errorf("Application run  vertical scaling(upgrade) controller failure:%s", err.Error())
-		logger.Info("Application run vertical scaling(upgrade) controller failure", event.GetCallbackLoggerOption())
+		logrus.Errorf("component run  vertical scaling(upgrade) controller failure:%s", err.Error())
+		logger.Info("component run vertical scaling(upgrade) controller failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("application vertical scaling(upgrade) failure")
 	}
@@ -342,10 +339,10 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 	logger := event.GetManager().GetLogger(body.EventID)
 	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID, body.Configs)
 	if err != nil {
-		logrus.Errorf("Application init create failure:%s", err.Error())
-		logger.Error("Application init create failure", event.GetCallbackLoggerOption())
+		logrus.Errorf("component init create failure:%s", err.Error())
+		logger.Error("component init create failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("Application init create failure")
+		return fmt.Errorf("component init create failure")
 	}
 	newAppService.Logger = logger
 	oldAppService := m.store.GetAppService(body.ServiceID)
@@ -355,30 +352,30 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 		m.store.RegistAppService(newAppService)
 		err = m.controllerManager.StartController(controller.TypeStartController, *newAppService)
 		if err != nil {
-			logrus.Errorf("Application run  start controller failure:%s", err.Error())
-			logger.Info("Application run start controller failure", event.GetCallbackLoggerOption())
+			logrus.Errorf("component run  start controller failure:%s", err.Error())
+			logger.Info("component run start controller failure", event.GetCallbackLoggerOption())
 			event.GetManager().ReleaseLogger(logger)
-			return fmt.Errorf("Application start failure")
+			return fmt.Errorf("component start failure")
 		}
 		logrus.Infof("service(%s) %s working is running.", body.ServiceID, "start")
 		return nil
 	}
 	if err := oldAppService.SetUpgradePatch(newAppService); err != nil {
 		if err.Error() == "no upgrade" {
-			logger.Info("Application no change no need upgrade.", event.GetLastLoggerOption())
+			logger.Info("component no change no need upgrade.", event.GetLastLoggerOption())
 			return nil
 		}
-		logrus.Errorf("Application get upgrade info error:%s", err.Error())
-		logger.Error(fmt.Sprintf("Application get upgrade info error:%s", err.Error()), event.GetCallbackLoggerOption())
+		logrus.Errorf("component get upgrade info error:%s", err.Error())
+		logger.Error(fmt.Sprintf("component get upgrade info error:%s", err.Error()), event.GetCallbackLoggerOption())
 		return nil
 	}
 	//if service already deploy,upgrade it:
 	err = m.controllerManager.StartController(controller.TypeUpgradeController, *newAppService)
 	if err != nil {
-		logrus.Errorf("Application run  upgrade controller failure:%s", err.Error())
-		logger.Info("Application run upgrade controller failure", event.GetCallbackLoggerOption())
+		logrus.Errorf("component run  upgrade controller failure:%s", err.Error())
+		logger.Info("component run upgrade controller failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("Application upgrade failure")
+		return fmt.Errorf("component upgrade failure")
 	}
 	logrus.Infof("service(%s) %s working is running.", body.ServiceID, "upgrade")
 	return nil
@@ -388,7 +385,7 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	body, ok := task.Body.(*model.ApplyRuleTaskBody)
 	if !ok {
 		logrus.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
-		return fmt.Errorf("Can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
+		return fmt.Errorf("can't convert %s to *model.ApplyRuleTaskBody", reflect.TypeOf(task.Body))
 	}
 	svc, err := db.GetManager().TenantServiceDao().GetServiceByID(body.ServiceID)
 	if err != nil {
@@ -414,10 +411,10 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 		newAppService, err = conversion.InitAppService(m.dbmanager, body.ServiceID, nil)
 	}
 	if err != nil {
-		logrus.Errorf("Application init create failure:%s", err.Error())
-		logger.Error("Application init create failure", event.GetCallbackLoggerOption())
+		logrus.Errorf("component init create failure:%s", err.Error())
+		logger.Error("component init create failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("Application init create failure")
+		return fmt.Errorf("component init create failure")
 	}
 	newAppService.Logger = logger
 	newAppService.SetDeletedResources(m.store.GetAppService(body.ServiceID))
@@ -425,8 +422,8 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	newAppService.CustomParams = body.Limit
 	err = m.controllerManager.StartController(controller.TypeApplyRuleController, *newAppService)
 	if err != nil {
-		logrus.Errorf("Application apply rule controller failure:%s", err.Error())
-		return fmt.Errorf("Application apply rule controller failure:%s", err.Error())
+		logrus.Errorf("component apply rule controller failure:%s", err.Error())
+		return fmt.Errorf("component apply rule controller failure:%s", err.Error())
 	}
 
 	if svc.Kind == dbmodel.ServiceKindThirdParty.String() && strings.HasPrefix(body.Action, "port") {
@@ -463,7 +460,7 @@ func (m *Manager) applyPluginConfig(task *model.Task) error {
 	body, ok := task.Body.(*model.ApplyPluginConfigTaskBody)
 	if !ok {
 		logrus.Errorf("Can't convert %s to *model.ApplyPluginConfigTaskBody", reflect.TypeOf(task.Body))
-		return fmt.Errorf("Can't convert %s to *model.ApplyPluginConfigTaskBody", reflect.TypeOf(task.Body))
+		return fmt.Errorf("can't convert %s to *model.ApplyPluginConfigTaskBody", reflect.TypeOf(task.Body))
 	}
 	oldAppService := m.store.GetAppService(body.ServiceID)
 	if oldAppService == nil || oldAppService.IsClosed() {
@@ -472,13 +469,13 @@ func (m *Manager) applyPluginConfig(task *model.Task) error {
 	}
 	newApp, err := conversion.InitAppService(m.dbmanager, body.ServiceID, nil, "ServiceSource", "TenantServiceBase", "TenantServicePlugin")
 	if err != nil {
-		logrus.Errorf("Application apply plugin config controller failure:%s", err.Error())
+		logrus.Errorf("component apply plugin config controller failure:%s", err.Error())
 		return err
 	}
 	err = m.controllerManager.StartController(controller.TypeApplyConfigController, *newApp)
 	if err != nil {
-		logrus.Errorf("Application apply plugin config controller failure:%s", err.Error())
-		return fmt.Errorf("Application apply plugin config controller failure:%s", err.Error())
+		logrus.Errorf("component apply plugin config controller failure:%s", err.Error())
+		return fmt.Errorf("component apply plugin config controller failure:%s", err.Error())
 	}
 	return nil
 }
@@ -519,7 +516,7 @@ func (m *Manager) deleteTenant(task *model.Task) (err error) {
 		tenant.Status = dbmodel.TenantStatusDeleteFailed.String()
 		err := db.GetManager().TenantDao().UpdateModel(tenant)
 		if err != nil {
-			err = fmt.Errorf("update tenant_status to '%s': %v", tenant.Status, err)
+			logrus.Errorf("update tenant_status to '%s': %v", tenant.Status, err)
 			return
 		}
 	}()
@@ -559,18 +556,18 @@ func (m *Manager) ExecRefreshHPATask(task *model.Task) error {
 
 	newAppService, err := conversion.InitAppService(m.dbmanager, body.ServiceID, nil)
 	if err != nil {
-		logrus.Errorf("Application init create failure:%s", err.Error())
-		logger.Error("Application init create failure", event.GetCallbackLoggerOption())
+		logrus.Errorf("component init create failure:%s", err.Error())
+		logger.Error("component init create failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
-		return fmt.Errorf("Application init create failure")
+		return fmt.Errorf("component init create failure")
 	}
 	newAppService.Logger = logger
 	newAppService.SetDeletedResources(oldAppService)
 
 	err = m.controllerManager.StartController(controller.TypeControllerRefreshHPA, *newAppService)
 	if err != nil {
-		logrus.Errorf("Application run  refreshhpa controller failure: %s", err.Error())
-		logger.Error("Application run refreshhpa controller failure", event.GetCallbackLoggerOption())
+		logrus.Errorf("component run  refreshhpa controller failure: %s", err.Error())
+		logger.Error("component run refreshhpa controller failure", event.GetCallbackLoggerOption())
 		event.GetManager().ReleaseLogger(logger)
 		return fmt.Errorf("refresh hpa: %v", err)
 	}

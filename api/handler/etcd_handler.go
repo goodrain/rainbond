@@ -29,6 +29,7 @@ func NewEtcdHandler(etcdCli *clientv3.Client) *EtcdHandler {
 	return &EtcdHandler{etcdCli}
 }
 
+// CleanAllServiceData -
 func (h *EtcdHandler) CleanAllServiceData(keys []string) {
 	for _, key := range keys {
 		h.cleanEtcdByKey(key, ServiceCheckEtcdKey, ShareResultEtcdKey, BackupRestoreEtcdKey)

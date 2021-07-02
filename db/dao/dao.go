@@ -553,6 +553,8 @@ type ThirdPartySvcDiscoveryCfgDao interface {
 	Dao
 	GetByServiceID(sid string) (*model.ThirdPartySvcDiscoveryCfg, error)
 	DeleteByServiceID(sid string) error
+	DeleteByComponentIDs(componentIDs []string) error
+	CreateOrUpdate3rdSvcDiscoveryCfgInBatch(cfgs []*model.ThirdPartySvcDiscoveryCfg) error
 }
 
 // GwRuleConfigDao is the interface that wraps the required methods to execute

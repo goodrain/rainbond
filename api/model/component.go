@@ -251,6 +251,7 @@ type Component struct {
 	ConfigFiles        []ComponentConfigFile            `json:"config_files"`
 	VolumeRelations    []VolumeRelation                 `json:"volume_relations"`
 	Volumes            []ComponentVolume                `json:"volumes"`
+	Endpoint           *Endpoints                       `json:"endpoint"`
 }
 
 // SyncComponentReq -

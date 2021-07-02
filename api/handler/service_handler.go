@@ -69,7 +69,7 @@ type ServiceHandler interface {
 	GetPods(serviceID string) (*K8sPodInfos, error)
 	GetMultiServicePods(serviceIDs []string) (*K8sPodInfos, error)
 	GetComponentPodNums(ctx context.Context, componentIDs []string) (map[string]int32, error)
-	TransServieToDelete(tenantID, serviceID string) error
+	TransServieToDelete(ctx context.Context, tenantID, serviceID string) error
 	TenantServiceDeletePluginRelation(tenantID, serviceID, pluginID string) *util.APIHandleError
 	GetTenantServicePluginRelation(serviceID string) ([]*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
 	SetTenantServicePluginRelation(tenantID, serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
@@ -101,4 +101,5 @@ type ServiceHandler interface {
 	SyncComponentLabels(tx *gorm.DB,  components []*api_model.Component) error
 	SyncComponentPlugins(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
 	SyncComponentScaleRules(tx *gorm.DB,  components []*api_model.Component) error
+	SyncComponentEndpoints(tx *gorm.DB, components []*api_model.Component) error
 }

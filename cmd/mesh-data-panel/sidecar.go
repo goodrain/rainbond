@@ -37,6 +37,10 @@ import (
 )
 
 func main() {
+	if os.Getenv("LOG_LEVEL") != "" {
+		level, _ := logrus.ParseLevel(os.Getenv("LOG_LEVEL"))
+		logrus.SetLevel(level)
+	}
 	if len(os.Args) > 1 && os.Args[1] == "version" {
 		cmd.ShowVersion("sidecar")
 	}
@@ -49,7 +53,7 @@ func main() {
 		client := &http.Client{
 			Timeout: time.Duration(requestTimeoutMillis) * time.Millisecond,
 		}
-		logrus.Infof("Waiting for Envoy proxy to be ready (timeout: %d seconds)...", timeoutSeconds)
+		logrus.Debugf("Waiting for Envoy proxy to be ready (timeout: %d seconds)...", timeoutSeconds)
 
 		var err error
 		timeoutAt := time.Now().Add(time.Duration(timeoutSeconds) * time.Second)
@@ -59,7 +63,7 @@ func main() {
 				logrus.Infof("Sidecar server is ready!")
 				break
 			}
-			logrus.Infof("Not ready yet: %v", err)
+			logrus.Debugf("Not ready yet: %v", err)
 			time.Sleep(time.Duration(periodMillis) * time.Millisecond)
 		}
 		if len(os.Args) > 2 && os.Args[2] != "0" {
@@ -69,14 +73,14 @@ func main() {
 					logrus.Infof("Sidecar is ready!")
 					os.Exit(0)
 				}
-				logrus.Infof("Not ready yet: %v", err)
+				logrus.Debugf("Not ready yet: %v", err)
 				time.Sleep(time.Duration(periodMillis) * time.Millisecond)
 			}
 		} else {
 			logrus.Infof("Sidecar is ready!")
 			os.Exit(0)
 		}
-		logrus.Errorf("timeout waiting for Envoy proxy to become ready. Last error: %v", err)
+		logrus.Errorf("timeout waiting for Mesh Sidecar to become ready. Last error: %v", err)
 		os.Exit(1)
 	}
 	if len(os.Args) > 1 && os.Args[1] == "run" {
@@ -106,7 +110,7 @@ func Run() error {
 	ticker := time.NewTicker(time.Second * 5)
 	defer ticker.Stop()
 	//step finally: listen Signal
-	term := make(chan os.Signal)
+	term := make(chan os.Signal, 1)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
 	for {
 		select {

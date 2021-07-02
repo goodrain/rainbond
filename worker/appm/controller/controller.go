@@ -26,7 +26,9 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/oam-dev/kubevela/pkg/utils/apply"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 //Controller service operating controller interface
@@ -64,23 +66,27 @@ var TypeControllerRefreshHPA TypeController = "refreshhpa"
 
 //Manager controller manager
 type Manager struct {
-	ctx         context.Context
-	cancel      context.CancelFunc
-	client      kubernetes.Interface
-	controllers map[string]Controller
-	store       store.Storer
-	lock        sync.Mutex
+	ctx           context.Context
+	cancel        context.CancelFunc
+	client        kubernetes.Interface
+	runtimeClient client.Client
+	apply         apply.Applicator
+	controllers   map[string]Controller
+	store         store.Storer
+	lock          sync.Mutex
 }
 
 //NewManager new manager
-func NewManager(store store.Storer, client kubernetes.Interface) *Manager {
+func NewManager(store store.Storer, client kubernetes.Interface, runtimeClient client.Client) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
-		ctx:         ctx,
-		cancel:      cancel,
-		client:      client,
-		controllers: make(map[string]Controller),
-		store:       store,
+		ctx:           ctx,
+		cancel:        cancel,
+		client:        client,
+		apply:         apply.NewAPIApplicator(runtimeClient),
+		runtimeClient: runtimeClient,
+		controllers:   make(map[string]Controller),
+		store:         store,
 	}
 }
 
@@ -108,6 +114,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			appService:   apps,
 			manager:      m,
 			stopChan:     make(chan struct{}),
+			ctx:          context.Background(),
 		}
 	case TypeStopController:
 		controller = &stopController{
@@ -115,6 +122,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			appService:   apps,
 			manager:      m,
 			stopChan:     make(chan struct{}),
+			ctx:          context.Background(),
 		}
 	case TypeScalingController:
 		controller = &scalingController{
@@ -129,6 +137,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			appService:   apps,
 			manager:      m,
 			stopChan:     make(chan struct{}),
+			ctx:          context.Background(),
 		}
 	case TypeRestartController:
 		controller = &restartController{
@@ -136,6 +145,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			appService:   apps,
 			manager:      m,
 			stopChan:     make(chan struct{}),
+			ctx:          context.Background(),
 		}
 	case TypeApplyRuleController:
 		controller = &applyRuleController{
@@ -143,6 +153,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			appService:   apps,
 			manager:      m,
 			stopChan:     make(chan struct{}),
+			ctx:          context.Background(),
 		}
 	case TypeApplyConfigController:
 		controller = &applyConfigController{
@@ -150,6 +161,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			appService:   apps[0],
 			manager:      m,
 			stopChan:     make(chan struct{}),
+			ctx:          context.Background(),
 		}
 	case TypeControllerRefreshHPA:
 		controller = &refreshXPAController{
@@ -157,6 +169,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			appService:   apps,
 			manager:      m,
 			stopChan:     make(chan struct{}),
+			ctx:          context.Background(),
 		}
 	default:
 		return fmt.Errorf("No support controller")
@@ -189,37 +202,4 @@ func (s *sequencelist) Contains(id string) bool {
 }
 func (s *sequencelist) Add(ids []*v1.AppService) {
 	*s = append(*s, ids)
-}
-
-func foundsequence(source map[string]*v1.AppService, sl *sequencelist) {
-	if len(source) == 0 {
-		return
-	}
-	var deleteKey []string
-source:
-	for _, s := range source {
-		for _, d := range s.Dependces {
-			if !sl.Contains(d) {
-				continue source
-			}
-		}
-		deleteKey = append(deleteKey, s.ServiceID)
-	}
-	var list []*v1.AppService
-	for _, d := range deleteKey {
-		list = append(list, source[d])
-		delete(source, d)
-	}
-	sl.Add(list)
-	foundsequence(source, sl)
-}
-
-func decisionSequence(appService []*v1.AppService) sequencelist {
-	var sourceIDs = make(map[string]*v1.AppService, len(appService))
-	for _, a := range appService {
-		sourceIDs[a.ServiceID] = a
-	}
-	var sl sequencelist
-	foundsequence(sourceIDs, &sl)
-	return sl
 }

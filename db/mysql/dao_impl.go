@@ -410,6 +410,13 @@ func (m *Manager) ApplicationDao() dao.ApplicationDao {
 	}
 }
 
+//ApplicationDaoTransactions -
+func (m *Manager) ApplicationDaoTransactions(db *gorm.DB) dao.ApplicationDao {
+	return &mysqldao.ApplicationDaoImpl{
+		DB: db,
+	}
+}
+
 // AppConfigGroupDao -
 func (m *Manager) AppConfigGroupDao() dao.AppConfigGroupDao {
 	return &mysqldao.AppConfigGroupDaoImpl{
