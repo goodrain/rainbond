@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -36,6 +37,7 @@ type restartController struct {
 	controllerID string
 	appService   []v1.AppService
 	manager      *Manager
+	ctx          context.Context
 }
 
 func (s *restartController) Begin() {
@@ -60,6 +62,7 @@ func (s *restartController) restartOne(app v1.AppService) error {
 	stopController := &stopController{
 		manager: s.manager,
 		waiting: time.Minute * 5,
+		ctx:     s.ctx,
 	}
 	if err := stopController.stopOne(app); err != nil {
 		if err != ErrWaitTimeOut {

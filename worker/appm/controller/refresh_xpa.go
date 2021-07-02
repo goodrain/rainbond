@@ -35,6 +35,7 @@ type refreshXPAController struct {
 	appService   []v1.AppService
 	manager      *Manager
 	stopChan     chan struct{}
+	ctx          context.Context
 }
 
 // Begin begins applying rule

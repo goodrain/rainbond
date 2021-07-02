@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"context"
 	"sync"
 
 	"github.com/goodrain/rainbond/worker/appm/f"
@@ -31,6 +32,7 @@ type applyRuleController struct {
 	appService   []v1.AppService
 	manager      *Manager
 	stopChan     chan struct{}
+	ctx          context.Context
 }
 
 // Begin begins applying rule
@@ -40,7 +42,7 @@ func (a *applyRuleController) Begin() {
 		wait.Add(1)
 		go func(service v1.AppService) {
 			defer wait.Done()
-			if err := f.ApplyOne(a.manager.client, &service); err != nil {
+			if err := f.ApplyOne(a.ctx, a.manager.apply, a.manager.client, &service); err != nil {
 				logrus.Errorf("apply rules for service %s failure: %s", service.ServiceAlias, err.Error())
 			}
 		}(service)

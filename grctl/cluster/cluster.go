@@ -74,9 +74,9 @@ func (c *Cluster) Upgrade() error {
 }
 
 func (c *Cluster) createCrds() []string {
-	crds, err := c.getCrds()
-	if err != nil {
-		return []string{err.Error()}
+	crds := c.getCrds()
+	if crds == nil {
+		return nil
 	}
 	logrus.Info("start creating crds")
 	var errs []string
@@ -101,12 +101,13 @@ func (c *Cluster) createCrd(crdStr string) error {
 	return nil
 }
 
-func (c *Cluster) getCrds() ([]string, error) {
-	version, ok := versions[c.newVersion]
-	if !ok {
-		return nil, fmt.Errorf("unsupport new version %s", c.newVersion)
+func (c *Cluster) getCrds() []string {
+	for v, versionConfig := range versions {
+		if strings.Contains(c.newVersion, v) {
+			return versionConfig.CRDs
+		}
 	}
-	return version.CRDs, nil
+	return nil
 }
 
 func (c *Cluster) updateRbdComponents() []string {

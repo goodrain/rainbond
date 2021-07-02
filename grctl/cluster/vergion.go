@@ -1,7 +1,7 @@
 package cluster
 
 var versions = map[string]Version{
-	"v5.3.1-release": {
+	"5.3.1": {
 		CRDs: []string{
 			componentdefinitionsCRD531,
 			helmappCRD531,

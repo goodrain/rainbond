@@ -145,6 +145,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			appService:   apps,
 			manager:      m,
 			stopChan:     make(chan struct{}),
+			ctx:          context.Background(),
 		}
 	case TypeApplyRuleController:
 		controller = &applyRuleController{
@@ -152,6 +153,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			appService:   apps,
 			manager:      m,
 			stopChan:     make(chan struct{}),
+			ctx:          context.Background(),
 		}
 	case TypeApplyConfigController:
 		controller = &applyConfigController{
@@ -159,6 +161,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			appService:   apps[0],
 			manager:      m,
 			stopChan:     make(chan struct{}),
+			ctx:          context.Background(),
 		}
 	case TypeControllerRefreshHPA:
 		controller = &refreshXPAController{
@@ -166,6 +169,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			appService:   apps,
 			manager:      m,
 			stopChan:     make(chan struct{}),
+			ctx:          context.Background(),
 		}
 	default:
 		return fmt.Errorf("No support controller")
