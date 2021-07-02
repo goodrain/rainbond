@@ -688,6 +688,7 @@ func (r *RuntimeServer) GetAppVolumeStatus(ctx context.Context, re *pb.ServiceRe
 	return ret, nil
 }
 
+// ListAppServices -
 func (r *RuntimeServer) ListAppServices(ctx context.Context, in *pb.AppReq) (*pb.AppServices, error) {
 	app, err := db.GetManager().ApplicationDao().GetAppByID(in.AppId)
 	if err != nil {
@@ -774,6 +775,7 @@ func (r *RuntimeServer) convertServices(services []*corev1.Service) []*pb.AppSer
 	return appServices
 }
 
+// ListHelmAppRelease -
 func (r *RuntimeServer) ListHelmAppRelease(ctx context.Context, req *pb.AppReq) (*pb.HelmAppReleases, error) {
 	app, err := db.GetManager().ApplicationDao().GetAppByID(req.AppId)
 	if err != nil {
