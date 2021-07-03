@@ -44,7 +44,6 @@ type GatewayAction struct {
 	dbmanager db.Manager
 	mqclient  client.MQClient
 	etcdCli   *clientv3.Client
-	lockPort  map[int]time.Time
 }
 
 //CreateGatewayManager creates gateway manager.
@@ -53,7 +52,6 @@ func CreateGatewayManager(dbmanager db.Manager, mqclient client.MQClient, etcdCl
 		dbmanager: dbmanager,
 		mqclient:  mqclient,
 		etcdCli:   etcdCli,
-		lockPort:  make(map[int]time.Time),
 	}
 }
 
@@ -529,18 +527,33 @@ func (g *GatewayAction) GetAvailablePort(ip string, lock bool) (int, error) {
 	for _, p := range roles {
 		ports = append(ports, p.Port)
 	}
-	for p, timeout := range g.lockPort {
-		if timeout.Before(time.Now()) {
-			delete(g.lockPort, p)
-		} else {
-			ports = append(ports, p)
+	resp, err := clientv3.KV(g.etcdCli).Get(context.TODO(), "/rainbond/gateway/lockports", clientv3.WithPrefix())
+	if err != nil {
+		logrus.Info("get lock ports failed")
+	}
+	for _, etcdValue := range resp.Kvs {
+		port, err := strconv.Atoi(string(etcdValue.Value))
+		if err != nil {
+			continue
 		}
+		ports = append(ports, port)
 	}
 	port := selectAvailablePort(ports)
 	if port != 0 {
 		if lock {
+			lease := clientv3.NewLease(g.etcdCli)
+			leaseResp, err := lease.Grant(context.Background(), 120)
+			if err != nil {
+				logrus.Info("set lease failed")
+				return port, nil
+			}
+			lockPortKey := fmt.Sprintf("/rainbond/gateway/lockports/%d", port)
+			_, err = g.etcdCli.Put(context.Background(), lockPortKey, fmt.Sprintf("%d", port), clientv3.WithLease(leaseResp.ID))
+			if err != nil {
+				logrus.Infof("set lock port key %s failed", lockPortKey)
+				return port, nil
+			}
 			logrus.Infof("select gateway port %d, lock it 2 min", port)
-			g.lockPort[port] = time.Now().Add(time.Minute * 2)
 		}
 		return port, nil
 	}
