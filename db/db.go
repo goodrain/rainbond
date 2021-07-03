@@ -40,6 +40,7 @@ type Manager interface {
 	LicenseDao() dao.LicenseDao
 	AppDao() dao.AppDao
 	ApplicationDao() dao.ApplicationDao
+	ApplicationDaoTransactions(db *gorm.DB) dao.ApplicationDao
 	AppConfigGroupDao() dao.AppConfigGroupDao
 	AppConfigGroupDaoTransactions(db *gorm.DB) dao.AppConfigGroupDao
 	AppConfigGroupServiceDao() dao.AppConfigGroupServiceDao

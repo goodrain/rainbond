@@ -23,6 +23,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/goodrain/rainbond/util/commonutil"
 )
 
 //Model 默认字段
@@ -80,6 +82,9 @@ var ServiceKindThirdParty ServiceKind = "third_party"
 
 // ServiceKindInternal means internal service
 var ServiceKindInternal ServiceKind = "internal"
+
+// ServiceKindCustom means custom component define
+var ServiceKindCustom ServiceKind = "custom.componentdefinition."
 
 func (s ServiceKind) String() string {
 	return string(s)
@@ -189,7 +194,7 @@ type TenantServices struct {
 	UpdateTime time.Time `gorm:"column:update_time" json:"update_time"`
 	// 服务创建类型cloud云市服务,assistant云帮服务
 	ServiceOrigin string `gorm:"column:service_origin;default:'assistant'" json:"service_origin"`
-	// kind of service. option: internal, third_party
+	// kind of service. option: internal, third_party, custom
 	Kind string `gorm:"column:kind;default:'internal'" json:"kind"`
 	// service bind appID
 	AppID string `gorm:"column:app_id" json:"app_id"`
@@ -333,6 +338,11 @@ func (t *TenantServicesPort) Key() string {
 //TableName 表名
 func (t *TenantServicesPort) TableName() string {
 	return "tenant_services_port"
+}
+
+// IsOpen checks if the port is opened.
+func (t *TenantServicesPort) IsOpen() bool {
+	return commonutil.BoolValue(t.IsOuterService) || commonutil.BoolValue(t.IsInnerService)
 }
 
 //TenantServiceLBMappingPort stream应用端口映射情况

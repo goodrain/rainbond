@@ -1,0 +1,159 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.3.0
+  creationTimestamp: null
+  name: helmapps.rainbond.io
+spec:
+  group: rainbond.io
+  names:
+    kind: HelmApp
+    listKind: HelmAppList
+    plural: helmapps
+    singular: helmapp
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: HelmApp -
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: HelmAppSpec defines the desired state of HelmApp
+          properties:
+            appStore:
+              description: The helm app store.
+              properties:
+                branch:
+                  description: The branch of a git repo.
+                  type: string
+                name:
+                  description: The name of app store.
+                  type: string
+                password:
+                  description: The chart repository password where to locate the requested
+                    chart
+                  type: string
+                url:
+                  description: The url of helm repo, sholud be a helm native repo
+                    url or a git url.
+                  type: string
+                username:
+                  description: The chart repository username where to locate the requested
+                    chart
+                  type: string
+                version:
+                  description: The verision of the helm app store.
+                  type: string
+              required:
+              - name
+              - url
+              - version
+              type: object
+            eid:
+              type: string
+            overrides:
+              description: Overrides will overrides the values in the chart.
+              items:
+                type: string
+              type: array
+            preStatus:
+              description: The prerequisite status.
+              enum:
+              - NotConfigured
+              - Configured
+              type: string
+            revision:
+              description: The application revision.
+              type: integer
+            templateName:
+              description: The application name.
+              type: string
+            version:
+              description: The application version.
+              type: string
+          required:
+          - appStore
+          - eid
+          - templateName
+          - version
+          type: object
+        status:
+          description: HelmAppStatus defines the observed state of HelmApp
+          properties:
+            conditions:
+              description: Current state of helm app.
+              items:
+                description: HelmAppCondition contains details for the current condition
+                  of this helm application.
+                properties:
+                  lastTransitionTime:
+                    description: Last time the condition transitioned from one status
+                      to another.
+                    format: date-time
+                    type: string
+                  message:
+                    description: Human-readable message indicating details about last
+                      transition.
+                    type: string
+                  reason:
+                    description: Unique, one-word, CamelCase reason for the condition's
+                      last transition.
+                    type: string
+                  status:
+                    description: 'Status is the status of the condition. Can be True,
+                      False, Unknown. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-conditions'
+                    type: string
+                  type:
+                    description: Type is the type of the condition.
+                    type: string
+                required:
+                - status
+                - type
+                type: object
+              type: array
+            currentVersion:
+              description: The version infect.
+              type: string
+            overrides:
+              description: Overrides in effect.
+              items:
+                type: string
+              type: array
+            phase:
+              description: The phase of the helm app.
+              type: string
+            status:
+              description: The status of helm app.
+              type: string
+          required:
+          - phase
+          - status
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

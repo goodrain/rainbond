@@ -20,12 +20,16 @@ package v1
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	"github.com/sirupsen/logrus"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 //IsEmpty is empty
@@ -45,7 +49,10 @@ func (a *AppService) IsEmpty() bool {
 
 //IsClosed is closed
 func (a *AppService) IsClosed() bool {
-	if a.ServiceKind == model.ServiceKindThirdParty {
+	if a.IsCustomComponent() {
+		return a.workload == nil
+	}
+	if a.IsThirdComponent() {
 		if a.endpoints == nil || len(a.endpoints) == 0 {
 			return true
 		}
@@ -88,14 +95,52 @@ var (
 	UNDEPLOY = "undeploy"
 )
 
+func conversionThirdComponent(obj runtime.Object) *v1alpha1.ThirdComponent {
+	if third, ok := obj.(*v1alpha1.ThirdComponent); ok {
+		return third
+	}
+	if struc, ok := obj.(*unstructured.Unstructured); ok {
+		data, _ := struc.MarshalJSON()
+		var third v1alpha1.ThirdComponent
+		if err := json.Unmarshal(data, &third); err != nil {
+			logrus.Errorf("unmarshal object to ThirdComponent failure")
+			return nil
+		}
+		return &third
+	}
+	return nil
+}
+
 //GetServiceStatus get service status
 func (a *AppService) GetServiceStatus() string {
-	if a.ServiceKind == model.ServiceKindThirdParty {
+	//TODO: support custom component status
+	if a.IsCustomComponent() {
+		if a.workload != nil {
+			switch a.workload.GetObjectKind().GroupVersionKind().Kind {
+			case "ThirdComponent":
+				third := conversionThirdComponent(a.workload)
+				if third != nil {
+					switch third.Status.Phase {
+					case v1alpha1.ComponentFailed:
+						return ABNORMAL
+					case v1alpha1.ComponentRunning:
+						return RUNNING
+					case v1alpha1.ComponentPending:
+						return STARTING
+					}
+				}
+				return RUNNING
+			default:
+				return RUNNING
+			}
+		}
+		return CLOSED
+	}
+	if a.IsThirdComponent() {
 		endpoints := a.GetEndpoints(false)
 		if len(endpoints) == 0 {
 			return CLOSED
 		}
-
 		var readyEndpointSize int
 		for _, ed := range endpoints {
 			for _, s := range ed.Subsets {

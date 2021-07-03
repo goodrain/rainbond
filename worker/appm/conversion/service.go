@@ -95,11 +95,7 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	if as.DeployVersion == "" {
 		as.DeployVersion = tenantService.DeployVersion
 	}
-	as.ContainerCPU = tenantService.ContainerCPU
-	as.ContainerGPU = tenantService.ContainerGPU
 	as.AppID = tenantService.AppID
-	as.ContainerMemory = tenantService.ContainerMemory
-	as.Replicas = tenantService.Replicas
 	as.ServiceAlias = tenantService.ServiceAlias
 	as.UpgradeMethod = v1.TypeUpgradeMethod(tenantService.UpgradeMethod)
 	if as.CreaterID == "" {
@@ -110,12 +106,24 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 		return fmt.Errorf("conversion tenant info failure %s", err.Error())
 	}
 	if tenantService.Kind == dbmodel.ServiceKindThirdParty.String() {
+		disCfg, _ := dbmanager.ThirdPartySvcDiscoveryCfgDao().GetByServiceID(as.ServiceID)
+		as.SetDiscoveryCfg(disCfg)
 		return nil
 	}
-	label, err := dbmanager.TenantServiceLabelDao().GetLabelByNodeSelectorKey(as.ServiceID, "windows")
+
+	if tenantService.Kind == dbmodel.ServiceKindCustom.String() {
+		return nil
+	}
+	label, _ := dbmanager.TenantServiceLabelDao().GetLabelByNodeSelectorKey(as.ServiceID, "windows")
 	if label != nil {
 		as.IsWindowsService = true
 	}
+
+	// component resource config
+	as.ContainerCPU = tenantService.ContainerCPU
+	as.ContainerGPU = tenantService.ContainerGPU
+	as.ContainerMemory = tenantService.ContainerMemory
+	as.Replicas = tenantService.Replicas
 	if !tenantService.IsState() {
 		initBaseDeployment(as, tenantService)
 		return nil
@@ -124,8 +132,7 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 		initBaseStatefulSet(as, tenantService)
 		return nil
 	}
-	return fmt.Errorf("Kind: %s; do not decision build type for service %s",
-		tenantService.Kind, as.ServiceAlias)
+	return fmt.Errorf("kind: %s; do not decision build type for service %s", tenantService.Kind, as.ServiceAlias)
 }
 
 func initTenant(as *v1.AppService, tenant *dbmodel.Tenants) error {

@@ -18,9 +18,15 @@ service AppRuntimeSync {
   rpc GetPodDetail(GetPodDetailReq) returns (PodDetail) {}
   rpc GetStorageClasses(Empty) returns (StorageClasses) {}
   rpc GetAppVolumeStatus(ServiceRequest) returns(ServiceVolumeStatusMessage){}
+  rpc ListAppServices(AppReq) returns(AppServices){}
+  rpc ListHelmAppRelease(AppReq) returns(HelmAppReleases){}
 }
 
 message Empty {}
+
+message AppReq {
+  string app_id = 1;
+}
 
 message AppStatusReq {
   string app_id = 1;
@@ -245,15 +251,63 @@ message ServiceVolumeStatusMessage {
 
 message AppStatus {
   enum Status {
-    NIL = 0;
-    RUNNING = 1;
-    CLOSED = 2;
-    ABNORMAL = 3;
-    STARTING = 4;
-    STOPPING = 5;
+      NIL = 0;
+      RUNNING = 1;
+      CLOSED = 2;
+      ABNORMAL = 3;
+      STARTING = 4;
+      STOPPING = 5;
   }
 
-  Status status = 1;
-  int64 cpu = 2;
-  int64 memory = 3;
+  string status = 1;
+  int64  cpu = 2;
+  int64  memory = 3;
+  bool setCPU = 4;
+  bool setMemory = 5;
+  string phase = 6;
+  repeated string overrides = 7;
+  string version = 8;
+  repeated AppStatusCondition conditions=9;
+}
+
+message AppStatusCondition {
+    string type = 1;
+    bool status = 2;
+    string reason = 3;
+    string message = 4;
+}
+
+message AppService {
+    message Pod {
+        string name=1;
+        string status=2;
+    }
+
+    message Port {
+        int32 port=1;
+        string protocol=2;
+    }
+
+    string name=1;
+    string address=2;
+    repeated Port ports=3;
+    repeated Pod pods=4;
+    repeated Pod oldPods=5;
+}
+
+message AppServices {
+  repeated AppService services=1;
+}
+
+message HelmAppReleases {
+  repeated HelmAppRelease helmAppRelease=1;
+}
+
+message HelmAppRelease {
+  int32 revision=1;
+  string updated=2;
+  string status=3;
+  string chart=4;
+  string appVersion=5;
+  string description=6;
 }

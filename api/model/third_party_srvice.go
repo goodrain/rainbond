@@ -49,7 +49,7 @@ type EndpointResp struct {
 // ThridPartyServiceProbe is the json obejct in the request
 // to update or fetch the ThridPartyServiceProbe.
 type ThridPartyServiceProbe struct {
-	Scheme       string `json:"scheme;"`
+	Scheme       string `json:"scheme"`
 	Path         string `json:"path"`
 	Port         int    `json:"port"`
 	TimeInterval int    `json:"time_interval"`

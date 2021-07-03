@@ -25,6 +25,7 @@ import (
 
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/oam-dev/kubevela/pkg/utils/apply"
 	monitorv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/sirupsen/logrus"
@@ -44,7 +45,7 @@ const (
 )
 
 // ApplyOne applies one rule.
-func ApplyOne(clientset kubernetes.Interface, app *v1.AppService) error {
+func ApplyOne(ctx context.Context, apply apply.Applicator, clientset kubernetes.Interface, app *v1.AppService) error {
 	_, err := clientset.CoreV1().Namespaces().Get(context.Background(), app.TenantID, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
@@ -55,6 +56,14 @@ func ApplyOne(clientset kubernetes.Interface, app *v1.AppService) error {
 		}
 		if err != nil {
 			return fmt.Errorf("error checking namespace: %v", err)
+		}
+	}
+	// for custom component
+	if len(app.GetManifests()) > 0 && apply != nil {
+		for _, manifest := range app.GetManifests() {
+			if err := apply.Apply(ctx, manifest); err != nil {
+				return fmt.Errorf("apply custom component manifest %s/%s failure %s", manifest.GetKind(), manifest.GetName(), err.Error())
+			}
 		}
 	}
 	if app.CustomParams != nil {

@@ -14,6 +14,8 @@ var (
 	ErrDeleteDueToBindService = newByMessage(400, 11005, "the application cannot be deleted because there are bound services")
 
 	ErrK8sServiceNameExists = newByMessage(400, 11006, "kubernetes service name already exists")
+
+	ErrInvalidHelmAppValues = newByMessage(400, 11007, "invalid helm app values")
 )
 
 // app config group 11100~11199

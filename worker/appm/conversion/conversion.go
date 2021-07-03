@@ -25,25 +25,22 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/worker/appm/componentdefinition"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
+	"github.com/sirupsen/logrus"
 )
 
 func init() {
-	//first conv service source
-	RegistConversion("ServiceSource", ServiceSource)
-	//step2 conv service base
-	RegistConversion("TenantServiceBase", TenantServiceBase)
+	// core component conversion
 	// convert config group to env secrets
 	RegistConversion("TenantServiceConfigGroup", TenantServiceConfigGroup)
-	//step3 conv service pod base info
+	//step1 conv service pod base info
 	RegistConversion("TenantServiceVersion", TenantServiceVersion)
-	//step4 conv service plugin
+	//step2 conv service plugin
 	RegistConversion("TenantServicePlugin", TenantServicePlugin)
-	//step5 conv service inner and outer regist
-	RegistConversion("TenantServiceRegist", TenantServiceRegist)
-	//step6 -
+	//step3 -
 	RegistConversion("TenantServiceAutoscaler", TenantServiceAutoscaler)
-	//step7 conv service monitor
+	//step4 conv service monitor
 	RegistConversion("TenantServiceMonitor", TenantServiceMonitor)
 }
 
@@ -88,7 +85,25 @@ func InitAppService(dbmanager db.Manager, serviceID string, configs map[string]s
 	if app != nil {
 		appService.AppServiceBase.GovernanceMode = app.GovernanceMode
 	}
-
+	if err := TenantServiceBase(appService, dbmanager); err != nil {
+		logrus.Errorf("init component base config failure %s", err.Error())
+		return nil, err
+	}
+	// all component can regist server.
+	if err := TenantServiceRegist(appService, dbmanager); err != nil {
+		logrus.Errorf("init component server regist config failure %s", err.Error())
+		return nil, err
+	}
+	if appService.IsCustomComponent() {
+		if err := componentdefinition.GetComponentDefinitionBuilder().BuildWorkloadResource(appService, dbmanager); err != nil {
+			logrus.Errorf("init component by component definition build failure %s", err.Error())
+			return nil, err
+		}
+		return appService, nil
+	}
+	if appService.IsThirdComponent() {
+		return appService, nil
+	}
 	for _, c := range conversionList {
 		if len(enableConversionList) == 0 || util.StringArrayContains(enableConversionList, c.Name) {
 			if err := c.Conversion(appService, dbmanager); err != nil {

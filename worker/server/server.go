@@ -27,11 +27,15 @@ import (
 
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/worker/option"
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	discover "github.com/goodrain/rainbond/discover.v2"
+	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	"github.com/goodrain/rainbond/pkg/helm"
 	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/util/constants"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
-	"github.com/goodrain/rainbond/util/k8s"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -40,8 +44,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	appv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/client-go/kubernetes"
 )
@@ -113,20 +120,87 @@ func (r *RuntimeServer) GetAppStatusDeprecated(ctx context.Context, re *pb.Servi
 
 // GetAppStatus returns the status of application based on the given appId.
 func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (*pb.AppStatus, error) {
-	status, err := r.store.GetAppStatus(in.AppId)
+	app, err := db.GetManager().ApplicationDao().GetAppByID(in.AppId)
 	if err != nil {
 		return nil, err
 	}
 
-	cpu, memory, err := r.store.GetAppResources(in.AppId)
+	if app.AppType == model.AppTypeHelm {
+		return r.getHelmAppStatus(app)
+	}
+
+	return r.getRainbondAppStatus(app)
+}
+
+func (r *RuntimeServer) getRainbondAppStatus(app *model.Application) (*pb.AppStatus, error) {
+	status, err := r.store.GetAppStatus(app.AppID)
+	if err != nil {
+		return nil, err
+	}
+
+	cpu, memory, err := r.store.GetAppResources(app.AppID)
 	if err != nil {
 		return nil, err
 	}
 
 	return &pb.AppStatus{
-		Status: status,
-		Cpu:    cpu,
-		Memory: memory,
+		Status:    status.String(),
+		SetCPU:    true,
+		Cpu:       cpu,
+		SetMemory: true,
+		Memory:    memory,
+	}, nil
+}
+
+func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus, error) {
+	helmApp, err := r.store.GetHelmApp(app.TenantID, app.AppName)
+	if err != nil {
+		return nil, err
+	}
+
+	phase := string(v1alpha1.HelmAppStatusPhaseDetecting)
+	if string(helmApp.Status.Phase) != "" {
+		phase = string(helmApp.Status.Phase)
+	}
+
+	var conditions []*pb.AppStatusCondition
+	for _, cdt := range helmApp.Status.Conditions {
+		conditions = append(conditions, &pb.AppStatusCondition{
+			Type:    string(cdt.Type),
+			Status:  cdt.Status == corev1.ConditionTrue,
+			Reason:  cdt.Reason,
+			Message: cdt.Message,
+		})
+	}
+
+	selector := labels.NewSelector()
+	instanceReq, _ := labels.NewRequirement(constants.ResourceInstanceLabel, selection.Equals, []string{app.AppName})
+	selector = selector.Add(*instanceReq)
+	managedReq, _ := labels.NewRequirement(constants.ResourceManagedByLabel, selection.Equals, []string{"Helm"})
+	selector = selector.Add(*managedReq)
+	pods, err := r.store.ListPods(app.TenantID, selector)
+	if err != nil {
+		return nil, err
+	}
+
+	var cpu, memory int64
+	for _, pod := range pods {
+		for _, c := range pod.Spec.Containers {
+			cpu += c.Resources.Requests.Cpu().MilliValue()
+			memory += c.Resources.Requests.Memory().Value() / 1024 / 1024
+		}
+	}
+
+	return &pb.AppStatus{
+		Status:     string(helmApp.Status.Status),
+		Phase:      phase,
+		Cpu:        cpu,
+		SetCPU:     cpu > 0,
+		Memory:     memory,
+		SetMemory:  memory > 0,
+		Version:    helmApp.Status.CurrentVersion,
+		Overrides:  helmApp.Status.Overrides,
+		Conditions: conditions,
 	}, nil
 }
 
@@ -212,7 +286,7 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 			PodVolumes: volumes,
 		}
 		podStatus := &pb.PodStatus{}
-		wutil.DescribePodStatus(r.clientset, pod, podStatus, k8s.DefListEventsByPod)
+		wutil.DescribePodStatus(r.clientset, pod, podStatus, k8sutil.DefListEventsByPod)
 		sapod.PodStatus = podStatus.Type.String()
 		if app.DistinguishPod(pod) {
 			newpods = append(newpods, sapod)
@@ -279,15 +353,6 @@ func translateTimestampSince(timestamp metav1.Time) string {
 	}
 
 	return duration.HumanDuration(time.Since(timestamp.Time))
-}
-
-// formatEventSource formats EventSource as a comma separated string excluding Host when empty
-func formatEventSource(es corev1.EventSource) string {
-	EventSourceString := []string{es.Component}
-	if len(es.Host) > 0 {
-		EventSourceString = append(EventSourceString, es.Host)
-	}
-	return strings.Join(EventSourceString, ", ")
 }
 
 // DescribeEvents -
@@ -502,7 +567,7 @@ func (r *RuntimeServer) UpdThirdPartyEndpoint(ctx context.Context, re *pb.UpdThi
 		Port:     int(re.Port),
 		IsOnline: re.IsOnline,
 	}
-	if re.IsOnline == false {
+	if !re.IsOnline {
 		r.updateCh.In() <- discovery.Event{
 			Type: discovery.DeleteEvent,
 			Obj:  rbdep,
@@ -592,7 +657,7 @@ func (r *RuntimeServer) GetAppVolumeStatus(ctx context.Context, re *pb.ServiceRe
 		}
 
 		podStatus := &pb.PodStatus{}
-		wutil.DescribePodStatus(r.clientset, pod, podStatus, k8s.DefListEventsByPod)
+		wutil.DescribePodStatus(r.clientset, pod, podStatus, k8sutil.DefListEventsByPod)
 
 		for _, volume := range pod.Spec.Volumes {
 			volumeName := volume.Name
@@ -621,4 +686,145 @@ func (r *RuntimeServer) GetAppVolumeStatus(ctx context.Context, re *pb.ServiceRe
 	}
 
 	return ret, nil
+}
+
+// ListAppServices -
+func (r *RuntimeServer) ListAppServices(ctx context.Context, in *pb.AppReq) (*pb.AppServices, error) {
+	app, err := db.GetManager().ApplicationDao().GetAppByID(in.AppId)
+	if err != nil {
+		return nil, err
+	}
+
+	selector := labels.NewSelector()
+	instanceReq, _ := labels.NewRequirement(constants.ResourceInstanceLabel, selection.Equals, []string{app.AppName})
+	selector = selector.Add(*instanceReq)
+	managedReq, _ := labels.NewRequirement(constants.ResourceManagedByLabel, selection.Equals, []string{"Helm"})
+	selector = selector.Add(*managedReq)
+	services, err := r.store.ListServices(app.TenantID, selector)
+	if err != nil {
+		return nil, err
+	}
+
+	appServices := r.convertServices(services)
+
+	return &pb.AppServices{
+		Services: appServices,
+	}, nil
+}
+
+func (r *RuntimeServer) convertServices(services []*corev1.Service) []*pb.AppService {
+	var appServices []*pb.AppService
+	for _, svc := range services {
+		if svc.Spec.ClusterIP == "None" {
+			// ignore headless service
+			continue
+		}
+
+		var ports []*pb.AppService_Port
+		for _, port := range svc.Spec.Ports {
+			ports = append(ports, &pb.AppService_Port{
+				Port:     port.Port,
+				Protocol: string(port.Protocol),
+			})
+		}
+		selector := labels.NewSelector()
+		for key, val := range svc.Spec.Selector {
+			req, _ := labels.NewRequirement(key, selection.Equals, []string{val})
+			selector = selector.Add(*req)
+		}
+
+		var oldPods, newPods []*pb.AppService_Pod
+		pods, err := r.store.ListPods(svc.Namespace, selector)
+		if err != nil {
+			logrus.Warningf("parse services: %v", err)
+		} else {
+			for _, pod := range pods {
+				podStatus := &pb.PodStatus{}
+				wutil.DescribePodStatus(r.clientset, pod, podStatus, k8sutil.DefListEventsByPod)
+				po := &pb.AppService_Pod{
+					Name:   pod.Name,
+					Status: podStatus.TypeStr,
+				}
+
+				rss, err := r.store.ListReplicaSets(svc.Namespace, selector)
+				if err != nil {
+					logrus.Warningf("[RuntimeServer] convert services: list replica sets: %v", err)
+				}
+
+				if isOldPod(pod, rss) {
+					oldPods = append(oldPods, po)
+				} else {
+					newPods = append(newPods, po)
+				}
+			}
+		}
+
+		address := svc.Spec.ClusterIP
+		if address == "" || address == "None" {
+			address = svc.Name + "." + svc.Namespace
+		}
+
+		appServices = append(appServices, &pb.AppService{
+			Name:    svc.Name,
+			Address: address,
+			Ports:   ports,
+			OldPods: oldPods,
+			Pods:    newPods,
+		})
+	}
+	return appServices
+}
+
+// ListHelmAppRelease -
+func (r *RuntimeServer) ListHelmAppRelease(ctx context.Context, req *pb.AppReq) (*pb.HelmAppReleases, error) {
+	app, err := db.GetManager().ApplicationDao().GetAppByID(req.AppId)
+	if err != nil {
+		return nil, err
+	}
+
+	h, err := helm.NewHelm(app.TenantID, r.conf.Helm.RepoFile, r.conf.Helm.RepoCache)
+	if err != nil {
+		return nil, err
+	}
+
+	rels, err := h.History(app.AppName)
+	if err != nil {
+		return nil, err
+	}
+
+	var releases []*pb.HelmAppRelease
+	for _, rel := range rels {
+		releases = append(releases, &pb.HelmAppRelease{
+			Revision:    int32(rel.Revision),
+			Updated:     rel.Updated.String(),
+			Status:      rel.Status,
+			Chart:       rel.Chart,
+			AppVersion:  rel.AppVersion,
+			Description: rel.Description,
+		})
+	}
+
+	logrus.Debugf("%d releases were found for app %s", len(releases), app.AppName+"/"+app.TenantID)
+
+	return &pb.HelmAppReleases{
+		HelmAppRelease: releases,
+	}, nil
+}
+
+func isOldPod(pod *corev1.Pod, rss []*appv1.ReplicaSet) bool {
+	if len(rss) == 0 {
+		return false
+	}
+
+	var newrs *appv1.ReplicaSet
+	for _, rs := range rss {
+		if newrs == nil {
+			newrs = rs
+			continue
+		}
+		if newrs.ObjectMeta.CreationTimestamp.Before(&rs.ObjectMeta.CreationTimestamp) {
+			newrs = rs
+		}
+	}
+	return pod.ObjectMeta.CreationTimestamp.Before(&newrs.ObjectMeta.CreationTimestamp)
 }

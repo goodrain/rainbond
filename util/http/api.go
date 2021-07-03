@@ -226,6 +226,10 @@ func ReturnBcodeError(r *http.Request, w http.ResponseWriter, err error) {
 		result.Msg = err.Error()
 	}
 
+	if berr.GetStatus() == 500 {
+		logrus.Errorf("path: %s\n: %+v", r.RequestURI, err)
+	}
+
 	r = r.WithContext(context.WithValue(r.Context(), render.StatusCtxKey, status))
 	render.DefaultResponder(w, r, result)
 }

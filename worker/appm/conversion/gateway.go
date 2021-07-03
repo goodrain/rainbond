@@ -138,12 +138,15 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 			return nil, fmt.Errorf("find upstream plugin mapping port error, %s", err.Error())
 		}
 		ports, pp, err = a.CreateUpstreamPluginMappingPort(ports, pluginPorts)
+		if err != nil {
+			logrus.Errorf("create mapping port failure %s", err.Error())
+		}
 	}
 
 	var services []*corev1.Service
 	var ingresses []*extensions.Ingress
 	var secrets []*corev1.Secret
-	if ports != nil && len(ports) > 0 {
+	if len(ports) > 0 {
 		for i := range ports {
 			port := ports[i]
 			if *port.IsInnerService {

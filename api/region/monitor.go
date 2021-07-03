@@ -32,7 +32,7 @@ import (
 	"os"
 )
 
-//ClusterInterface cluster api
+// MonitorInterface cluster api
 type MonitorInterface interface {
 	GetRule(name string) (*model.AlertingNameConfig, *util.APIHandleError)
 	GetAllRule() (*model.AlertingRulesConfig, *util.APIHandleError)

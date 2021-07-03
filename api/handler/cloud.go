@@ -159,7 +159,7 @@ func (c *CloudAction) CertDispatcher(gt *api_model.GetUserToken) ([]byte, []byte
 		SerialNumber: big.NewInt(1), //证书序列号
 		Subject: pkix.Name{
 			CommonName: fmt.Sprintf("%s@%d", gt.Body.EID, time.Now().Unix()),
-			Locality:   []string{fmt.Sprintf("%s", c.RegionTag)},
+			Locality:   []string{c.RegionTag},
 		},
 		NotBefore:             time.Now(),                                                                 //证书有效期开始时间
 		NotAfter:              time.Now().Add(time.Second * time.Duration(validHourTime)),                 //证书有效期结束时间
