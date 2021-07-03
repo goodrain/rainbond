@@ -30,6 +30,7 @@ import (
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -66,14 +67,6 @@ func (s *stopController) Begin() {
 }
 func (s *stopController) stopOne(app v1.AppService) error {
 
-	// for custom component
-	if len(app.GetManifests()) > 0 {
-		for _, manifest := range app.GetManifests() {
-			if err := s.manager.runtimeClient.Delete(s.ctx, manifest); err != nil && !errors.IsNotFound(err) {
-				logrus.Errorf("delete custom component manifest %s/%s failure %s", manifest.GetKind(), manifest.GetName(), err.Error())
-			}
-		}
-	}
 	var zero int64
 	//step 1: delete services
 	if services := app.GetServices(true); services != nil {
@@ -125,6 +118,23 @@ func (s *stopController) stopOne(app v1.AppService) error {
 					return fmt.Errorf("delete config map failure:%s", err.Error())
 				}
 			}
+		}
+	}
+	// for custom component
+	if len(app.GetManifests()) > 0 {
+		for _, manifest := range app.GetManifests() {
+			if err := s.manager.runtimeClient.Delete(s.ctx, manifest); err != nil && !errors.IsNotFound(err) {
+				logrus.Errorf("delete custom component manifest %s/%s failure %s", manifest.GetKind(), manifest.GetName(), err.Error())
+			}
+		}
+	}
+	// for workload
+	if workload := app.GetWorkload(); workload != nil {
+		if err := s.manager.runtimeClient.Delete(s.ctx, workload); err != nil && !errors.IsNotFound(err) {
+			ma := meta.NewAccessor()
+			name, _ := ma.Name(workload)
+			kind, _ := ma.Kind(workload)
+			logrus.Errorf("delete custom component manifest %s/%s failure %s", kind, name, err.Error())
 		}
 	}
 	//step 5: delete statefulset or deployment

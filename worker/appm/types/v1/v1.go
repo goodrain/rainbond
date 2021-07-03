@@ -848,6 +848,11 @@ func (a *AppService) SetWorkload(workload runtime.Object) {
 	a.workload = workload
 }
 
+//GetWorkload get component workload
+func (a *AppService) GetWorkload() runtime.Object {
+	return a.workload
+}
+
 //DeleteWorkload delete component workload
 func (a *AppService) DeleteWorkload(workload runtime.Object) {
 	a.workload = nil

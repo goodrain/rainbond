@@ -27,6 +27,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -48,7 +49,11 @@ func NewDiscoverPool(ctx context.Context, reconciler *Reconciler) *DiscoverPool 
 	go dp.Start()
 	return dp
 }
-
+func (d *DiscoverPool) GetSize() float64 {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	return float64(len(d.discoverWorker))
+}
 func (d *DiscoverPool) Start() {
 	logrus.Infof("third component discover pool started")
 	for {
@@ -152,6 +157,17 @@ func (d *DiscoverPool) RemoveDiscover(component *v1alpha1.ThirdComponent) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 	key := component.Namespace + component.Name
+	olddis, exist := d.discoverWorker[key]
+	if exist {
+		olddis.Stop()
+		delete(d.discoverWorker, key)
+	}
+}
+
+func (d *DiscoverPool) RemoveDiscoverByName(req types.NamespacedName) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	key := req.Namespace + req.Name
 	olddis, exist := d.discoverWorker[key]
 	if exist {
 		olddis.Stop()

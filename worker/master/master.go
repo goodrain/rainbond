@@ -31,6 +31,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/util/leader"
 	"github.com/goodrain/rainbond/worker/appm/store"
+	mcontroller "github.com/goodrain/rainbond/worker/master/controller"
 	"github.com/goodrain/rainbond/worker/master/controller/helmapp"
 	"github.com/goodrain/rainbond/worker/master/controller/thirdcomponent"
 	"github.com/goodrain/rainbond/worker/master/podevent"
@@ -63,6 +64,7 @@ type Controller struct {
 	namespaceCPULimit   *prometheus.GaugeVec
 	pc                  *controller.ProvisionController
 	helmAppController   *helmapp.Controller
+	controllers         []mcontroller.Controller
 	isLeader            bool
 
 	kubeClient kubernetes.Interface
@@ -113,7 +115,11 @@ func NewMasterController(conf option.Config, store store.Storer, kubeClient kube
 		cancel()
 		return nil, err
 	}
-	thirdcomponent.Setup(ctx, mgr)
+	thirdcomponentController, err := thirdcomponent.Setup(ctx, mgr)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
 
 	helmAppController := helmapp.NewController(ctx, stopCh, kubeClient, rainbondClient,
 		store.Informer().HelmApp, store.Lister().HelmApp, conf.Helm.RepoFile, conf.Helm.RepoCache, conf.Helm.RepoCache)
@@ -122,6 +128,7 @@ func NewMasterController(conf option.Config, store store.Storer, kubeClient kube
 		conf:              conf,
 		pc:                pc,
 		helmAppController: helmAppController,
+		controllers:       []mcontroller.Controller{thirdcomponentController},
 		store:             store,
 		stopCh:            stopCh,
 		cancel:            cancel,
@@ -297,5 +304,12 @@ func (m *Controller) Scrape(ch chan<- prometheus.Metric, scrapeDurationDesc *pro
 	m.namespaceCPULimit.Collect(ch)
 	m.namespaceMemRequest.Collect(ch)
 	m.namespaceCPURequest.Collect(ch)
+	for _, contro := range m.controllers {
+		contro.Collect(ch)
+	}
 	logrus.Infof("success collect worker master metric")
+}
+
+func (m *Controller) GetStore() store.Storer {
+	return m.store
 }
