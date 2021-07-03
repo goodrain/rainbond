@@ -1,5 +1,5 @@
 FROM goodrainapps/alpine:3.4
-
+ARG RELEASE_DESC
 ENV PORT 7070
 
 ADD rainbond-webcli /usr/bin/rainbond-webcli

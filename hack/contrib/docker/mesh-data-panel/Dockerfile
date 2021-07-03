@@ -1,4 +1,5 @@
 FROM  envoyproxy/envoy:v1.13.1
+ARG RELEASE_DESC
 LABEL "author"="zengqg@goodrain.com"
 RUN apt-get update && apt-get install -y bash curl net-tools wget vim && \
     wget https://github.com/barnettZQG/env2file/releases/download/0.1.1/env2file-linux -O /usr/bin/env2file    

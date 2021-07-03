@@ -1,5 +1,4 @@
 FROM goodrainapps/alpine:3.4
-
 ARG RELEASE_DESC
 COPY rainbond-worker /run/rainbond-worker
 COPY entrypoint.sh /run/entrypoint.sh

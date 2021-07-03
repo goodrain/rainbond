@@ -1,5 +1,5 @@
 FROM nginx:1.19
-
+ARG RELEASE_DESC
 VOLUME ["/data/nginx/cache"]
 ENV RELEASE_DESC=${RELEASE_DESC}
 
