@@ -8,6 +8,7 @@
 
 | ![notification](./docs/bell-outline-badge.svg) What is NEW!                                                      |
 | ---------------------------------------------------------------------------------------------------------------- |
+| 2021 年 7 月 05 日 Rainbond 5.3.1 正式发布 [查看发布文案](https://mp.weixin.qq.com/s/KJRyEC6EFQIRy7nueSTVaA)     |
 | 2021 年 2 月 21 日 Rainbond 5.3.0 正式发布 [查看发布文案](https://www.rainbond.com/docs/upgrade/5.3.0-upgrade/)  |
 | 2020 年 8 月 24 日 Rainbond 5.2 稳定版正式发布 [查看发布文案](https://mp.weixin.qq.com/s/q1sgEaBPaepsuUOfk1un-w) |
 
