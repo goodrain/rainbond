@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"github.com/goodrain/rainbond/api/region"
 	"net/http"
 
 	"github.com/goodrain/rainbond/api/util/license"
@@ -26,7 +27,9 @@ import (
 )
 
 //LicenseManager license manager
-type LicenseManager struct{}
+type LicenseManager struct {
+	RegionClient region.Region
+}
 
 var licenseManager *LicenseManager
 
@@ -35,7 +38,12 @@ func GetLicenseManager() *LicenseManager {
 	if licenseManager != nil {
 		return licenseManager
 	}
-	licenseManager = &LicenseManager{}
+	regionClient, _ := region.NewRegion(region.APIConf{
+		Endpoints: []string{"http://127.0.0.1:8888"},
+	})
+	licenseManager = &LicenseManager{
+		RegionClient: regionClient,
+	}
 	return licenseManager
 }
 
@@ -49,4 +57,18 @@ func (l *LicenseManager) GetlicenseFeature(w http.ResponseWriter, r *http.Reques
 		features = lic.Features
 	}
 	httputil.ReturnSuccess(r, w, features)
+}
+
+func (l *LicenseManager) Getlicense(w http.ResponseWriter, r *http.Request) {
+	var resp = license.LicenseResp{}
+	if lic := license.ReadLicense(); lic != nil {
+		resp.License = lic
+	}
+	nodes, err := l.RegionClient.Nodes().List()
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	resp.ActualNode = int64(len(nodes))
+	httputil.ReturnSuccess(r, w, resp)
 }

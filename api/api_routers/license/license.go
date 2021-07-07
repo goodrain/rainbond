@@ -30,6 +30,7 @@ type License struct{}
 //Routes routes
 func Routes() chi.Router {
 	r := chi.NewRouter()
+	r.Get("/", controller.GetLicenseManager().Getlicense)
 	r.Get("/features", controller.GetLicenseManager().GetlicenseFeature)
 	return r
 }

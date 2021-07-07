@@ -42,6 +42,12 @@ type LicenseInfo struct {
 	Features  []Feature `json:"features"`
 }
 
+//LicenseResp license data
+type LicenseResp struct {
+	License *LicenseInfo
+	ActualNode int64 `json:"actual_node"`
+}
+
 func (l *LicenseInfo) HaveFeature(code string) bool {
 	for _, f := range l.Features {
 		if f.Code == strings.ToUpper(code) {
