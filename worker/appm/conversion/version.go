@@ -738,10 +738,10 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 			Operator: corev1.NodeSelectorOpIn,
 		})
 	}
-	if nodeName, ok := as.ExtensionSet["selecthost"]; ok {
+	if hostname, ok := as.ExtensionSet["selecthost"]; ok {
 		nsr = append(nsr, corev1.NodeSelectorRequirement{
 			Key:      "kubernetes.io/hostname",
-			Values:   []string{nodeName},
+			Values:   []string{hostname},
 			Operator: corev1.NodeSelectorOpIn,
 		})
 	}
