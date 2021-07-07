@@ -60,10 +60,12 @@ func (l *LicenseManager) GetlicenseFeature(w http.ResponseWriter, r *http.Reques
 }
 
 func (l *LicenseManager) Getlicense(w http.ResponseWriter, r *http.Request) {
-	var resp = license.LicenseResp{}
-	if lic := license.ReadLicense(); lic != nil {
-		resp.License = lic
+	lic := license.ReadLicense()
+	if lic == nil {
+		httputil.ReturnSuccess(r, w, nil)
+		return
 	}
+	resp := lic.SetResp()
 	nodes, err := l.RegionClient.Nodes().List()
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
