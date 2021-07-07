@@ -94,6 +94,12 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				}
 				return ""
 			}(),
+			NodeName: func() string {
+				if nodeID, ok := as.ExtensionSet["selectnode"]; ok {
+					return nodeID
+				}
+				return ""
+			}(),
 			HostNetwork: func() bool {
 				if _, ok := as.ExtensionSet["hostnetwork"]; ok {
 					return true
@@ -732,7 +738,7 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 			Operator: corev1.NodeSelectorOpIn,
 		})
 	}
-	if nodeName, ok := as.ExtensionSet["selectnode"]; ok {
+	if nodeName, ok := as.ExtensionSet["selecthost"]; ok {
 		nsr = append(nsr, corev1.NodeSelectorRequirement{
 			Key:      "kubernetes.io/hostname",
 			Values:   []string{nodeName},
