@@ -24,6 +24,7 @@ import (
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/releaseutil"
 	"helm.sh/helm/v3/pkg/repo"
+	"helm.sh/helm/v3/pkg/storage/driver"
 	"helm.sh/helm/v3/pkg/strvals"
 	helmtime "helm.sh/helm/v3/pkg/time"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -305,7 +306,10 @@ func (h *Helm) History(name string) (ReleaseHistory, error) {
 
 	hist, err := client.Run(name)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, driver.ErrReleaseNotFound) {
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "list helm app history")
 	}
 
 	releaseutil.Reverse(hist, releaseutil.SortByRevision)
