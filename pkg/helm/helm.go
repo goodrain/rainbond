@@ -30,6 +30,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
+// ReleaseInfo -
 type ReleaseInfo struct {
 	Revision    int           `json:"revision"`
 	Updated     helmtime.Time `json:"updated"`
@@ -39,8 +40,10 @@ type ReleaseInfo struct {
 	Description string        `json:"description"`
 }
 
+// ReleaseHistory -
 type ReleaseHistory []ReleaseInfo
 
+// Helm -
 type Helm struct {
 	cfg       *action.Configuration
 	settings  *cli.EnvSettings
@@ -86,11 +89,13 @@ func NewHelm(namespace, repoFile, repoCache string) (*Helm, error) {
 	}, nil
 }
 
+// PreInstall -
 func (h *Helm) PreInstall(name, chart, version string) error {
 	_, err := h.install(name, chart, version, nil, true, ioutil.Discard)
 	return err
 }
 
+// Install -
 func (h *Helm) Install(name, chart, version string, overrides []string) error {
 	_, err := h.install(name, chart, version, overrides, false, ioutil.Discard)
 	return err
@@ -237,6 +242,8 @@ func (h *Helm) parseOverrides(overrides []string) (map[string]interface{}, error
 	}
 	return vals, nil
 }
+
+// Upgrade -
 func (h *Helm) Upgrade(name string, chart, version string, overrides []string) error {
 	client := action.NewUpgrade(h.cfg)
 	client.Namespace = h.namespace
@@ -274,6 +281,7 @@ func (h *Helm) Upgrade(name string, chart, version string, overrides []string) e
 	return err
 }
 
+// Status -
 func (h *Helm) Status(name string) (*release.Release, error) {
 	// helm status RELEASE_NAME [flags]
 	client := action.NewStatus(h.cfg)
@@ -281,6 +289,7 @@ func (h *Helm) Status(name string) (*release.Release, error) {
 	return rel, errors.Wrap(err, "helm status")
 }
 
+// Uninstall -
 func (h *Helm) Uninstall(name string) error {
 	logrus.Infof("uninstall helm app(%s/%s)", h.namespace, name)
 	uninstall := action.NewUninstall(h.cfg)
@@ -288,6 +297,7 @@ func (h *Helm) Uninstall(name string) error {
 	return err
 }
 
+// Rollback -
 func (h *Helm) Rollback(name string, revision int) error {
 	logrus.Infof("name: %s; revision: %d; rollback helm app", name, revision)
 	client := action.NewRollback(h.cfg)
@@ -299,6 +309,7 @@ func (h *Helm) Rollback(name string, revision int) error {
 	return nil
 }
 
+// History -
 func (h *Helm) History(name string) (ReleaseHistory, error) {
 	logrus.Debugf("name: %s; list helm app history", name)
 	client := action.NewHistory(h.cfg)
@@ -334,6 +345,7 @@ func (h *Helm) Load(chart, version string) (string, error) {
 	return h.locateChart(chart, version)
 }
 
+// ChartPathOptions -
 type ChartPathOptions struct {
 	action.ChartPathOptions
 }
