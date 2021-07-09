@@ -87,8 +87,7 @@ func ReadLicense() *LicenseInfo {
 	if licenseInfo != nil {
 		return licenseInfo
 	}
-	//licenseFile := os.Getenv("LICENSE_PATH")
-	licenseFile := "/grdata/海军工程大学-goodrain-LICENSE.yb"
+	licenseFile := os.Getenv("LICENSE_PATH")
 	if licenseFile == "" {
 		return nil
 	}
@@ -105,8 +104,7 @@ func ReadLicense() *LicenseInfo {
 	}
 
 	//step2 decryption info
-	//key := os.Getenv("LICENSE_KEY")
-	key := "1234567890"
+	key := os.Getenv("LICENSE_KEY")
 	if key == "" {
 		logrus.Error("not define license Key")
 		return nil
