@@ -33,24 +33,26 @@ import (
 
 //LicenseInfo license data
 type LicenseInfo struct {
-	Code      string    `json:"code"`
-	Company   string    `json:"company"`
-	Node      int64     `json:"node"`
-	Memory    int64     `json:"memory"`
-	EndTime   string    `json:"end_time"`
-	StartTime string    `json:"start_time"`
-	Features  []Feature `json:"features"`
+	Code        string    `json:"code"`
+	Company     string    `json:"company"`
+	Node        int64     `json:"node"`
+	Memory      int64     `json:"memory"`
+	EndTime     string    `json:"end_time"`
+	StartTime   string    `json:"start_time"`
+	Features    []Feature `json:"features"`
+	IsPermanent bool      `json:"is_permanent" description:"是否为永久授权"`
 }
 
 func (l *LicenseInfo) SetResp() *LicenseResp {
 	return &LicenseResp{
-		Code:       l.Code,
-		Company:    l.Company,
-		ExpectNode: l.Node,
-		Memory:     l.Memory,
-		EndTime:    l.EndTime,
-		StartTime:  l.StartTime,
-		Features:   l.Features,
+		Code:        l.Code,
+		Company:     l.Company,
+		ExpectNode:  l.Node,
+		Memory:      l.Memory,
+		EndTime:     l.EndTime,
+		StartTime:   l.StartTime,
+		Features:    l.Features,
+		IsPermanent: l.IsPermanent,
 	}
 }
 
@@ -125,6 +127,7 @@ func ReadLicense() *LicenseInfo {
 	return &info
 }
 
+// Decrypt -
 func Decrypt(key []byte, encrypted string) ([]byte, error) {
 	ciphertext, err := base64.RawURLEncoding.DecodeString(encrypted)
 	if err != nil {

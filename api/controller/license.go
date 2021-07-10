@@ -59,6 +59,7 @@ func (l *LicenseManager) GetlicenseFeature(w http.ResponseWriter, r *http.Reques
 	httputil.ReturnSuccess(r, w, features)
 }
 
+// Getlicense -
 func (l *LicenseManager) Getlicense(w http.ResponseWriter, r *http.Request) {
 	lic := license.ReadLicense()
 	if lic == nil {
