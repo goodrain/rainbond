@@ -241,6 +241,9 @@ func (a *App) UpdateSpec() error {
 func (a *App) Detect() error {
 	detector := NewDetector(a.helmApp, a, a.repo)
 	if err := detector.Detect(); err != nil {
+		if err := a.UpdateStatus(); err != nil {
+			logrus.Warningf("[App] detect app: %v", err)
+		}
 		return errors.WithMessage(err, "detect helm app")
 	}
 	return a.UpdateStatus()
