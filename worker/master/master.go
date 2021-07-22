@@ -52,6 +52,7 @@ type Controller struct {
 	ctx                 context.Context
 	cancel              context.CancelFunc
 	conf                option.Config
+	restConfig          *rest.Config
 	store               store.Storer
 	dbmanager           db.Manager
 	memoryUse           *prometheus.GaugeVec
@@ -106,35 +107,19 @@ func NewMasterController(conf option.Config, store store.Storer, kubeClient kube
 	}, serverVersion.GitVersion)
 	stopCh := make(chan struct{})
 
-	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-		Scheme:           common.Scheme,
-		LeaderElection:   false,
-		LeaderElectionID: "controllers.rainbond.io",
-	})
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-	thirdcomponentController, err := thirdcomponent.Setup(ctx, mgr)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-
 	helmAppController := helmapp.NewController(ctx, stopCh, kubeClient, rainbondClient,
 		store.Informer().HelmApp, store.Lister().HelmApp, conf.Helm.RepoFile, conf.Helm.RepoCache, conf.Helm.RepoCache)
 
 	return &Controller{
 		conf:              conf,
+		restConfig:        restConfig,
 		pc:                pc,
 		helmAppController: helmAppController,
-		controllers:       []mcontroller.Controller{thirdcomponentController},
 		store:             store,
 		stopCh:            stopCh,
 		cancel:            cancel,
 		ctx:               ctx,
 		dbmanager:         db.GetManager(),
-		mgr:               mgr,
 		memoryUse: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: "app_resource",
 			Name:      "appmemory",
@@ -211,7 +196,24 @@ func (m *Controller) Start() error {
 		// helm app controller
 		go m.helmAppController.Start()
 		defer m.helmAppController.Stop()
+
 		// start controller
+		mgr, err := ctrl.NewManager(m.restConfig, ctrl.Options{
+			Scheme:           common.Scheme,
+			LeaderElection:   false,
+			LeaderElectionID: "controllers.rainbond.io",
+		})
+		if err != nil {
+			logrus.Errorf("create new manager: %v", err)
+			return
+		}
+		thirdComponentController, err := thirdcomponent.Setup(ctx, mgr)
+		if err != nil {
+			logrus.Errorf("setup third component controller: %v", err)
+			return
+		}
+		m.mgr = mgr
+		m.controllers = append(m.controllers, thirdComponentController)
 		stopchan := make(chan struct{})
 		go m.mgr.Start(stopchan)
 
@@ -310,6 +312,7 @@ func (m *Controller) Scrape(ch chan<- prometheus.Metric, scrapeDurationDesc *pro
 	logrus.Infof("success collect worker master metric")
 }
 
+// GetStore -
 func (m *Controller) GetStore() store.Storer {
 	return m.store
 }
