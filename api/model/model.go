@@ -366,6 +366,7 @@ type Endpoints struct {
 	Kubernetes *EndpointKubernetes `json:"kubernetes" validate:"kubernetes"`
 }
 
+// DbModel -
 func (e *Endpoints) DbModel(componentID string) *dbmodel.ThirdPartySvcDiscoveryCfg {
 	return &dbmodel.ThirdPartySvcDiscoveryCfg{
 		ServiceID:   componentID,
@@ -375,6 +376,7 @@ func (e *Endpoints) DbModel(componentID string) *dbmodel.ThirdPartySvcDiscoveryC
 	}
 }
 
+// EndpointKubernetes -
 type EndpointKubernetes struct {
 	Namespace   string `json:"namespace"`
 	ServiceName string `json:"serviceName"`
