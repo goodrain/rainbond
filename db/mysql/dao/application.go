@@ -84,3 +84,12 @@ func (a *ApplicationDaoImpl) DeleteApp(appID string) error {
 	}
 	return a.DB.Delete(&app).Error
 }
+
+// ListByAppIDs -
+func (a *ApplicationDaoImpl) ListByAppIDs(appIDs []string) ([]*model.Application, error) {
+	var datas []*model.Application
+	if err := a.DB.Where("app_id in (?)", appIDs).Find(&datas).Error; err != nil {
+		return nil, err
+	}
+	return datas, nil
+}

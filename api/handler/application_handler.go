@@ -60,6 +60,7 @@ type ApplicationHandler interface {
 	SyncComponents(app *dbmodel.Application, components []*model.Component, deleteComponentIDs []string) error
 	SyncComponentConfigGroupRels(tx *gorm.DB, app *dbmodel.Application, components []*model.Component) error
 	SyncAppConfigGroups(app *dbmodel.Application, appConfigGroups []model.AppConfigGroup) error
+	ListAppStatuses(ctx context.Context, appIDs []string) ([]*model.AppStatus, error)
 }
 
 // NewApplicationHandler creates a new Tenant Application Handler.
@@ -436,6 +437,8 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 		Overrides:  status.Overrides,
 		Version:    status.Version,
 		Conditions: conditions,
+		AppID:      app.AppID,
+		AppName:    app.AppName,
 	}
 	return res, nil
 }
@@ -685,4 +688,46 @@ func (a *ApplicationAction) deleteByComponentIDs(tx *gorm.DB, app *dbmodel.Appli
 		return err
 	}
 	return db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).DeleteByRuleIDs(autoScaleRuleIDs)
+}
+
+// ListAppStatuses -
+func (a *ApplicationAction) ListAppStatuses(ctx context.Context, appIDs []string) ([]*model.AppStatus, error) {
+	var appstatuses []*model.AppStatus
+	apps, err := db.GetManager().ApplicationDao().ListByAppIDs(appIDs)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	for _, app := range apps {
+		status, err := a.statusCli.GetAppStatus(ctx, &pb.AppStatusReq{
+			AppId: app.AppID,
+		})
+		if err != nil {
+			logrus.Errorf("get app status failed %v", err)
+			continue
+		}
+		diskUsage := a.getDiskUsage(app.AppID)
+		var cpu *int64
+		if status.SetCPU {
+			cpu = commonutil.Int64(status.Cpu)
+		}
+		var memory *int64
+		if status.SetMemory {
+			memory = commonutil.Int64(status.Memory)
+		}
+
+		appstatuses = append(appstatuses, &model.AppStatus{
+			Status:    status.Status,
+			CPU:       cpu,
+			Memory:    memory,
+			Disk:      int64(diskUsage),
+			Phase:     status.Phase,
+			Overrides: status.Overrides,
+			Version:   status.Version,
+			AppID:     app.AppID,
+			AppName:   app.AppName,
+		})
+	}
+	return appstatuses, nil
 }

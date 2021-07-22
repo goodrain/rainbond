@@ -2003,3 +2003,8 @@ func (a *AppConfigGroupRelations) DbModel(appID, serviceID, serviceAlias string)
 type SyncAppConfigGroup struct {
 	AppConfigGroups []AppConfigGroup `json:"app_config_groups"`
 }
+
+// AppStatusesReq -
+type AppStatusesReq struct {
+	AppIDs []string `json:"app_ids"`
+}
