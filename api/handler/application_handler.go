@@ -692,42 +692,36 @@ func (a *ApplicationAction) deleteByComponentIDs(tx *gorm.DB, app *dbmodel.Appli
 
 // ListAppStatuses -
 func (a *ApplicationAction) ListAppStatuses(ctx context.Context, appIDs []string) ([]*model.AppStatus, error) {
-	var appstatuses []*model.AppStatus
-	apps, err := db.GetManager().ApplicationDao().ListByAppIDs(appIDs)
+	var resp []*model.AppStatus
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	appStatuses, err := a.statusCli.ListAppStatuses(ctx, &pb.AppStatusesReq{
+		AppIds: appIDs,
+	})
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	for _, app := range apps {
-		status, err := a.statusCli.GetAppStatus(ctx, &pb.AppStatusReq{
-			AppId: app.AppID,
-		})
-		if err != nil {
-			logrus.Errorf("get app status failed %v", err)
-			continue
-		}
-		diskUsage := a.getDiskUsage(app.AppID)
+	for _, appStatus := range appStatuses.AppStatuses {
+		diskUsage := a.getDiskUsage(appStatus.AppId)
 		var cpu *int64
-		if status.SetCPU {
-			cpu = commonutil.Int64(status.Cpu)
+		if appStatus.SetCPU {
+			cpu = commonutil.Int64(appStatus.Cpu)
 		}
 		var memory *int64
-		if status.SetMemory {
-			memory = commonutil.Int64(status.Memory)
+		if appStatus.SetMemory {
+			memory = commonutil.Int64(appStatus.Memory)
 		}
-
-		appstatuses = append(appstatuses, &model.AppStatus{
-			Status:    status.Status,
+		resp = append(resp, &model.AppStatus{
+			Status:    appStatus.Status,
 			CPU:       cpu,
 			Memory:    memory,
 			Disk:      int64(diskUsage),
-			Phase:     status.Phase,
-			Overrides: status.Overrides,
-			Version:   status.Version,
-			AppID:     app.AppID,
-			AppName:   app.AppName,
+			Phase:     appStatus.Phase,
+			Overrides: appStatus.Overrides,
+			Version:   appStatus.Version,
+			AppID:     appStatus.AppId,
+			AppName:   appStatus.AppName,
 		})
 	}
-	return appstatuses, nil
+	return resp, nil
 }
