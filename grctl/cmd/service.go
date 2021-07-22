@@ -498,7 +498,7 @@ func showServiceDeployInfo(c *cli.Context) error {
 							volumeTable.AddRow(volumeMount, "nfs", "server: "+pv.Spec.NFS.Server)
 							volumeTable.AddRow("", "", "path: "+pv.Spec.NFS.Path)
 						case pv.Spec.Glusterfs != nil:
-							volumeTable.AddRow(volumeMount, "nfs", "endpoints: "+pv.Spec.Glusterfs.EndpointsName)
+							volumeTable.AddRow(volumeMount, "glusterfs", "endpoints: "+pv.Spec.Glusterfs.EndpointsName)
 							volumeTable.AddRow("", "", "path: "+pv.Spec.Glusterfs.Path)
 							if pv.Spec.Glusterfs.EndpointsNamespace != nil {
 								volumeTable.AddRow("", "", "endpointsNamespace: "+*pv.Spec.Glusterfs.EndpointsNamespace)

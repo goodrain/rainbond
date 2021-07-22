@@ -93,6 +93,12 @@ github.com/DATA-DOG/go-sqlmock v1.4.1/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q
 github.com/DATA-DOG/go-sqlmock v1.5.0 h1:Shsta01QNfFxHCfpW6YH2STWB0MudeXXEWMr20OEh60=
 github.com/DATA-DOG/go-sqlmock v1.5.0/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
+github.com/GLYASAI/rainbond-oam v0.0.0-20210720142412-6faa7418c0ab h1:IvNXJNJhmZeMPbulJ7SMtcR9DduQIj0FyUsS5dcLqAQ=
+github.com/GLYASAI/rainbond-oam v0.0.0-20210720142412-6faa7418c0ab/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
+github.com/GLYASAI/rainbond-oam v0.0.0-20210720150350-96daaa6aec86 h1:wCxXRbtOrsCjw9+gp8n5t1kTFy9/xsWyuZOPR5zvypY=
+github.com/GLYASAI/rainbond-oam v0.0.0-20210720150350-96daaa6aec86/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
+github.com/GLYASAI/rainbond-oam v0.0.0-20210721020036-158e1be667dc h1:UMR1n8LoCY79PvroSDDlGfSSomqEgeQAgZ+k8MBgcYk=
+github.com/GLYASAI/rainbond-oam v0.0.0-20210721020036-158e1be667dc/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/KyleBanks/depth v1.2.1/go.mod h1:jzSb9d0L43HxTQfT+oSA1EEp2q+ne2uh6XgeJcm8brE=
 github.com/MakeNowJust/heredoc v0.0.0-20170808103936-bb23615498cd h1:sjQovDkwrZp8u+gxLtPgKGjk5hCxuy2hrRejBTA9xFU=
@@ -695,6 +701,10 @@ github.com/goodrain/gorm-bulk-upsert v1.0.1-0.20210608013724-7e7870d16357 h1:kdS
 github.com/goodrain/gorm-bulk-upsert v1.0.1-0.20210608013724-7e7870d16357/go.mod h1:b7/GgeVNbf/SFw4FYIWslxNV5I10C9Mhf/++3jsDk3M=
 github.com/goodrain/rainbond-oam v0.0.0-20210206075623-511d0796af43 h1:xhUwEWQKk+maL6CmV5Y6kxKb+jA/RvN6SZcDbNm51FM=
 github.com/goodrain/rainbond-oam v0.0.0-20210206075623-511d0796af43/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
+github.com/goodrain/rainbond-oam v0.0.0-20210531110322-0fc33198e2d1 h1:XnipcyrdVCxtKYpy7APoaQwXOX4WGwxgZVpy1XvYb/A=
+github.com/goodrain/rainbond-oam v0.0.0-20210531110322-0fc33198e2d1/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
+github.com/goodrain/rainbond-oam v0.0.0-20210721020036-158e1be667dc h1:hCtxb/Yy4G+wEc2n+yaXx3j4SF/s34zNI8XK5qkHqXk=
+github.com/goodrain/rainbond-oam v0.0.0-20210721020036-158e1be667dc/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
 github.com/goodrain/rainbond-operator v1.3.1-0.20210401055914-f8fe4bf89a21 h1:iCPI96slvJv88iPc1NJW8zhpkiza0kwB0jtsuZIJLRQ=
 github.com/goodrain/rainbond-operator v1.3.1-0.20210401055914-f8fe4bf89a21/go.mod h1:jcQfNoxO67nkLalCmgihYrdWF82TKyuPW032tgGdqVY=
 github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
