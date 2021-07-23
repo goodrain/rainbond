@@ -20,6 +20,7 @@ service AppRuntimeSync {
   rpc GetAppVolumeStatus(ServiceRequest) returns(ServiceVolumeStatusMessage){}
   rpc ListAppServices(AppReq) returns(AppServices){}
   rpc ListHelmAppRelease(AppReq) returns(HelmAppReleases){}
+  rpc ListAppStatuses(AppStatusesReq) returns(AppStatuses){}
 }
 
 message Empty {}
@@ -268,6 +269,9 @@ message AppStatus {
   repeated string overrides = 7;
   string version = 8;
   repeated AppStatusCondition conditions=9;
+  int64 gpu = 10;
+  string app_id = 11;
+  string app_name = 12;
 }
 
 message AppStatusCondition {
@@ -310,4 +314,12 @@ message HelmAppRelease {
   string chart=4;
   string appVersion=5;
   string description=6;
+}
+
+message AppStatusesReq {
+  repeated string app_ids = 1;
+}
+
+message AppStatuses {
+  repeated AppStatus app_statuses = 1;
 }

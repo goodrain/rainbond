@@ -12,8 +12,11 @@ type AppPort struct {
 
 // AppStatus -
 type AppStatus struct {
+	AppID      string                `json:"app_id"`
+	AppName    string                `json:"app_name"`
 	Status     string                `json:"status"`
 	CPU        *int64                `json:"cpu"`
+	GPU        *int64                `json:"gpu"`
 	Memory     *int64                `json:"memory"`
 	Disk       int64                 `json:"disk"`
 	Phase      string                `json:"phase"`
