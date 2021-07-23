@@ -75,6 +75,7 @@ type ApplicationDao interface {
 	GetAppByID(appID string) (*model.Application, error)
 	DeleteApp(appID string) error
 	GetByServiceID(sid string) (*model.Application, error)
+	ListByAppIDs(appIDs []string) ([]*model.Application, error)
 }
 
 //AppConfigGroupDao Application config group Dao

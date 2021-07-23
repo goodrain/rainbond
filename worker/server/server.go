@@ -149,6 +149,8 @@ func (r *RuntimeServer) getRainbondAppStatus(app *model.Application) (*pb.AppSta
 		Cpu:       cpu,
 		SetMemory: true,
 		Memory:    memory,
+		AppId:     app.AppID,
+		AppName:   app.AppName,
 	}, nil
 }
 
@@ -201,6 +203,8 @@ func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus,
 		Version:    helmApp.Status.CurrentVersion,
 		Overrides:  helmApp.Status.Overrides,
 		Conditions: conditions,
+		AppId:      app.AppID,
+		AppName:    app.AppName,
 	}, nil
 }
 
@@ -827,4 +831,33 @@ func isOldPod(pod *corev1.Pod, rss []*appv1.ReplicaSet) bool {
 		}
 	}
 	return pod.ObjectMeta.CreationTimestamp.Before(&newrs.ObjectMeta.CreationTimestamp)
+}
+
+// ListAppStatuses returns the statuses of application based on the given appIds.
+func (r *RuntimeServer) ListAppStatuses(ctx context.Context, in *pb.AppStatusesReq) (*pb.AppStatuses, error) {
+	apps, err := db.GetManager().ApplicationDao().ListByAppIDs(in.AppIds)
+	if err != nil {
+		return nil, err
+	}
+	var appStatuses []*pb.AppStatus
+	for _, app := range apps {
+		if app.AppType == model.AppTypeHelm {
+			helmAppStatus, err := r.getHelmAppStatus(app)
+			if err != nil {
+				logrus.Errorf("get helm app (%s)[%s] failed", app.AppName, app.AppID)
+				continue
+			}
+			appStatuses = append(appStatuses, helmAppStatus)
+			continue
+		}
+		appStatus, err := r.getRainbondAppStatus(app)
+		if err != nil {
+			logrus.Errorf("get rainbond app (%s)[%s] failed", app.AppName, app.AppID)
+			continue
+		}
+		appStatuses = append(appStatuses, appStatus)
+	}
+	return &pb.AppStatuses{
+		AppStatuses: appStatuses,
+	}, nil
 }

@@ -254,3 +254,17 @@ func (a *ApplicationController) ListHelmAppReleases(w http.ResponseWriter, r *ht
 
 	httputil.ReturnSuccess(r, w, releases)
 }
+
+// ListAppStatuses returns the status of the applications.
+func (a *ApplicationController) ListAppStatuses(w http.ResponseWriter, r *http.Request) {
+	var req model.AppStatusesReq
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
+		return
+	}
+	res, err := handler.GetApplicationHandler().ListAppStatuses(r.Context(), req.AppIDs)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, res)
+}

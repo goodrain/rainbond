@@ -4,6 +4,7 @@ import (
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 )
 
 // ApplicationDaoImpl -
@@ -83,4 +84,13 @@ func (a *ApplicationDaoImpl) DeleteApp(appID string) error {
 		return err
 	}
 	return a.DB.Delete(&app).Error
+}
+
+// ListByAppIDs -
+func (a *ApplicationDaoImpl) ListByAppIDs(appIDs []string) ([]*model.Application, error) {
+	var datas []*model.Application
+	if err := a.DB.Where("app_id in (?)", appIDs).Find(&datas).Error; err != nil {
+		return nil, errors.Wrap(err, "list app by app_ids")
+	}
+	return datas, nil
 }

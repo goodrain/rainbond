@@ -60,6 +60,7 @@ type ApplicationHandler interface {
 	SyncComponents(app *dbmodel.Application, components []*model.Component, deleteComponentIDs []string) error
 	SyncComponentConfigGroupRels(tx *gorm.DB, app *dbmodel.Application, components []*model.Component) error
 	SyncAppConfigGroups(app *dbmodel.Application, appConfigGroups []model.AppConfigGroup) error
+	ListAppStatuses(ctx context.Context, appIDs []string) ([]*model.AppStatus, error)
 }
 
 // NewApplicationHandler creates a new Tenant Application Handler.
@@ -436,6 +437,8 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 		Overrides:  status.Overrides,
 		Version:    status.Version,
 		Conditions: conditions,
+		AppID:      app.AppID,
+		AppName:    app.AppName,
 	}
 	return res, nil
 }
@@ -685,4 +688,40 @@ func (a *ApplicationAction) deleteByComponentIDs(tx *gorm.DB, app *dbmodel.Appli
 		return err
 	}
 	return db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).DeleteByRuleIDs(autoScaleRuleIDs)
+}
+
+// ListAppStatuses -
+func (a *ApplicationAction) ListAppStatuses(ctx context.Context, appIDs []string) ([]*model.AppStatus, error) {
+	var resp []*model.AppStatus
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	appStatuses, err := a.statusCli.ListAppStatuses(ctx, &pb.AppStatusesReq{
+		AppIds: appIDs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, appStatus := range appStatuses.AppStatuses {
+		diskUsage := a.getDiskUsage(appStatus.AppId)
+		var cpu *int64
+		if appStatus.SetCPU {
+			cpu = commonutil.Int64(appStatus.Cpu)
+		}
+		var memory *int64
+		if appStatus.SetMemory {
+			memory = commonutil.Int64(appStatus.Memory)
+		}
+		resp = append(resp, &model.AppStatus{
+			Status:    appStatus.Status,
+			CPU:       cpu,
+			Memory:    memory,
+			Disk:      int64(diskUsage),
+			Phase:     appStatus.Phase,
+			Overrides: appStatus.Overrides,
+			Version:   appStatus.Version,
+			AppID:     appStatus.AppId,
+			AppName:   appStatus.AppName,
+		})
+	}
+	return resp, nil
 }
