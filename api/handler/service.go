@@ -2712,8 +2712,14 @@ func (s *ServiceAction) SyncComponentProbes(tx *gorm.DB, components []*api_model
 	)
 	for _, component := range components {
 		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		modes := make(map[string]struct{})
 		for _, probe := range component.Probes {
+			_, ok := modes[probe.Mode]
+			if ok {
+				continue
+			}
 			probes = append(probes, probe.DbModel(component.ComponentBase.ComponentID))
+			modes[probe.Mode] = struct{}{}
 		}
 	}
 	if err := db.GetManager().ServiceProbeDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
