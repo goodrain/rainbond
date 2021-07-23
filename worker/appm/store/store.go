@@ -1066,11 +1066,30 @@ func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
 // GetAppServiceStatuses -
 func (a *appRuntimeStore) GetAppServiceStatuses(serviceIDs []string) map[string]string {
 	statusMap := make(map[string]string, len(serviceIDs))
-	components, err := a.dbmanager.TenantServiceDao().GetServiceByIDs(serviceIDs)
+	var queryComponentIDs []string
+	for _, serviceID := range serviceIDs {
+		app := a.GetAppService(serviceID)
+		if app == nil {
+			queryComponentIDs = append(queryComponentIDs, serviceID)
+			continue
+		}
+		status := app.GetServiceStatus()
+		if status == v1.UNKNOW {
+			app := a.UpdateGetAppService(serviceID)
+			if app == nil {
+				queryComponentIDs = append(queryComponentIDs, serviceID)
+				continue
+			}
+			statusMap[serviceID] = app.GetServiceStatus()
+			continue
+		}
+		statusMap[serviceID] = status
+	}
+	components, err := a.dbmanager.TenantServiceDao().GetServiceByIDs(queryComponentIDs)
 	if err != nil {
 		logrus.Errorf("get components by serviceIDs failed: %s", err.Error())
 	}
-	versions, err := a.dbmanager.VersionInfoDao().ListVersionsByComponentIDs(serviceIDs)
+	versions, err := a.dbmanager.VersionInfoDao().ListVersionsByComponentIDs(queryComponentIDs)
 	if err != nil {
 		logrus.Errorf("get component versions by serviceIDs failed: %s", err.Error())
 	}
@@ -1082,39 +1101,20 @@ func (a *appRuntimeStore) GetAppServiceStatuses(serviceIDs []string) map[string]
 	for _, version := range versions {
 		existVersions[version.ServiceID] = version
 	}
-	for _, serviceID := range serviceIDs {
-		app := a.GetAppService(serviceID)
-		if app == nil {
-			if _, ok := existComponents[serviceID]; !ok {
-				statusMap[serviceID] = v1.UNKNOW
-				continue
-			}
-			if existComponents[serviceID].Kind == model.ServiceKindThirdParty.String() {
-				statusMap[serviceID] = v1.CLOSED
-				continue
-			}
-			if _, ok := existVersions[serviceID]; !ok {
-				statusMap[serviceID] = v1.UNDEPLOY
-				continue
-			}
-			statusMap[serviceID] = v1.CLOSED
+	for _, componentID := range queryComponentIDs {
+		if _, ok := existComponents[componentID]; !ok {
+			statusMap[componentID] = v1.UNKNOW
 			continue
 		}
-		status := app.GetServiceStatus()
-		if status == v1.UNKNOW {
-			app := a.UpdateGetAppService(serviceID)
-			if app == nil {
-				if _, ok := existVersions[serviceID]; !ok {
-					statusMap[serviceID] = v1.UNDEPLOY
-					continue
-				}
-				statusMap[serviceID] = v1.CLOSED
-				continue
-			}
-			statusMap[serviceID] = app.GetServiceStatus()
+		if existComponents[componentID].Kind == model.ServiceKindThirdParty.String() {
+			statusMap[componentID] = v1.CLOSED
 			continue
 		}
-		statusMap[serviceID] = status
+		if _, ok := existVersions[componentID]; !ok {
+			statusMap[componentID] = v1.UNDEPLOY
+			continue
+		}
+		statusMap[componentID] = v1.CLOSED
 	}
 	return statusMap
 }
