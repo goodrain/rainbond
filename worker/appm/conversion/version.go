@@ -738,6 +738,13 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 			Operator: corev1.NodeSelectorOpIn,
 		})
 	}
+	if hostname, ok := as.ExtensionSet["selecthost"]; ok {
+		nsr = append(nsr, corev1.NodeSelectorRequirement{
+			Key:      "kubernetes.io/hostname",
+			Values:   []string{hostname},
+			Operator: corev1.NodeSelectorOpIn,
+		})
+	}
 	if len(nsr) > 0 {
 		affinity.NodeAffinity = &corev1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
