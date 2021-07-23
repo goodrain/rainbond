@@ -173,8 +173,8 @@ type Body struct {
 
 //SetHeader set header
 type SetHeader struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+	Key   string `json:"item_key"`
+	Value string `json:"item_value"`
 }
 
 // Rewrite is a embeded sturct of Body.
