@@ -188,3 +188,12 @@ func (c *VersionInfoDaoImpl) SearchVersionInfo() ([]*model.VersionInfo, error) {
 	}
 	return result, nil
 }
+
+// ListVersionsByComponentIDs -
+func (c *VersionInfoDaoImpl) ListVersionsByComponentIDs(componentIDs []string) ([]*model.VersionInfo, error) {
+	var result []*model.VersionInfo
+	if err := c.DB.Where("service_id in (?) and final_status=?", componentIDs, "success").Find(&result).Error; err != nil {
+		return nil, pkgerr.Wrap(err, "list versions by componentIDs")
+	}
+	return result, nil
+}

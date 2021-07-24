@@ -81,6 +81,7 @@ type Storer interface {
 	UpdateGetAppService(serviceID string) *v1.AppService
 	GetAllAppServices() []*v1.AppService
 	GetAppServiceStatus(serviceID string) string
+	GetAppServiceStatuses(serviceIDs []string) map[string]string
 	GetAppServicesStatus(serviceIDs []string) map[string]string
 	GetTenantResource(tenantID string) TenantResource
 	GetTenantResourceList() []TenantResource
@@ -1062,6 +1063,62 @@ func (a *appRuntimeStore) GetAppServiceStatus(serviceID string) string {
 	return status
 }
 
+// GetAppServiceStatuses -
+func (a *appRuntimeStore) GetAppServiceStatuses(serviceIDs []string) map[string]string {
+	statusMap := make(map[string]string, len(serviceIDs))
+	var queryComponentIDs []string
+	for _, serviceID := range serviceIDs {
+		app := a.GetAppService(serviceID)
+		if app == nil {
+			queryComponentIDs = append(queryComponentIDs, serviceID)
+			continue
+		}
+		status := app.GetServiceStatus()
+		if status == v1.UNKNOW {
+			app := a.UpdateGetAppService(serviceID)
+			if app == nil {
+				queryComponentIDs = append(queryComponentIDs, serviceID)
+				continue
+			}
+			statusMap[serviceID] = app.GetServiceStatus()
+			continue
+		}
+		statusMap[serviceID] = status
+	}
+	components, err := a.dbmanager.TenantServiceDao().GetServiceByIDs(queryComponentIDs)
+	if err != nil {
+		logrus.Errorf("get components by serviceIDs failed: %s", err.Error())
+	}
+	versions, err := a.dbmanager.VersionInfoDao().ListVersionsByComponentIDs(queryComponentIDs)
+	if err != nil {
+		logrus.Errorf("get component versions by serviceIDs failed: %s", err.Error())
+	}
+	existComponents := make(map[string]*model.TenantServices)
+	for _, component := range components {
+		existComponents[component.ServiceID] = component
+	}
+	existVersions := make(map[string]*model.VersionInfo)
+	for _, version := range versions {
+		existVersions[version.ServiceID] = version
+	}
+	for _, componentID := range queryComponentIDs {
+		if _, ok := existComponents[componentID]; !ok {
+			statusMap[componentID] = v1.UNKNOW
+			continue
+		}
+		if existComponents[componentID].Kind == model.ServiceKindThirdParty.String() {
+			statusMap[componentID] = v1.CLOSED
+			continue
+		}
+		if _, ok := existVersions[componentID]; !ok {
+			statusMap[componentID] = v1.UNDEPLOY
+			continue
+		}
+		statusMap[componentID] = v1.CLOSED
+	}
+	return statusMap
+}
+
 func (a *appRuntimeStore) GetAppServicesStatus(serviceIDs []string) map[string]string {
 	statusMap := make(map[string]string, len(serviceIDs))
 	if len(serviceIDs) == 0 {
@@ -1073,9 +1130,7 @@ func (a *appRuntimeStore) GetAppServicesStatus(serviceIDs []string) map[string]s
 		})
 		return statusMap
 	}
-	for _, serviceID := range serviceIDs {
-		statusMap[serviceID] = a.GetAppServiceStatus(serviceID)
-	}
+	statusMap = a.GetAppServiceStatuses(serviceIDs)
 	return statusMap
 }
 
