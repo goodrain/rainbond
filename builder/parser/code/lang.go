@@ -115,6 +115,9 @@ var Grails Lang = "Grails"
 //NetCore Lang
 var NetCore Lang = ".NetCore"
 
+//OSS Lang
+var OSS Lang = "OSS"
+
 //GetLangType check code lang
 func GetLangType(homepath string) (Lang, error) {
 	if ok, _ := util.FileExists(homepath); !ok {
