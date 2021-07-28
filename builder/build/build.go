@@ -25,6 +25,7 @@ import (
 
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
+	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"k8s.io/client-go/kubernetes"
 
@@ -43,6 +44,7 @@ func init() {
 	buildcreaters[code.Python] = slugBuilder
 	buildcreaters[code.Nodejs] = slugBuilder
 	buildcreaters[code.Golang] = slugBuilder
+	buildcreaters[code.OSS] = slugBuilder
 }
 
 var buildcreaters map[code.Lang]CreaterBuild
@@ -82,6 +84,7 @@ type Request struct {
 	CacheDir      string
 	TGZDir        string
 	RepositoryURL string
+	CodeSouceInfo sources.CodeSourceInfo
 	Branch        string
 	ServiceAlias  string
 	ServiceID     string

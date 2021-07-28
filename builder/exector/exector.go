@@ -287,7 +287,7 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 	}()
 	start := time.Now()
 	defer func() {
-		logrus.Debugf("complete build from source code, consuming time %s", time.Now().Sub(start).String())
+		logrus.Debugf("complete build from source code, consuming time %s", time.Since(start).String())
 	}()
 	for n := 0; n < 2; n++ {
 		err := i.Run(time.Minute * 30)
