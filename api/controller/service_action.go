@@ -68,9 +68,11 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
 	sEvent := r.Context().Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent)
-	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
-		httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
-		return
+	if service.Kind != "third_party" {
+		if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
+			httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
+			return
+		}
 	}
 
 	startStopStruct := &api_model.StartStopStruct{
