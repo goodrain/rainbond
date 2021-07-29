@@ -527,6 +527,16 @@ func Zip(source, target string) error {
 	return err
 }
 
+func UnTar(archive, target string, zip bool) error {
+	parameter := "-x"
+	if zip {
+		parameter = "-zx"
+	}
+	command := []string{"tar", parameter, "-C", target, "-f", archive}
+	cmd := exec.Command(command[0], command[1:]...)
+	return cmd.Run()
+}
+
 //Unzip archive file to target dir
 func Unzip(archive, target string) error {
 	reader, err := zip.OpenDirectReader(archive)

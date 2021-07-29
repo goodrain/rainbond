@@ -93,12 +93,6 @@ github.com/DATA-DOG/go-sqlmock v1.4.1/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q
 github.com/DATA-DOG/go-sqlmock v1.5.0 h1:Shsta01QNfFxHCfpW6YH2STWB0MudeXXEWMr20OEh60=
 github.com/DATA-DOG/go-sqlmock v1.5.0/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
-github.com/GLYASAI/rainbond-oam v0.0.0-20210720142412-6faa7418c0ab h1:IvNXJNJhmZeMPbulJ7SMtcR9DduQIj0FyUsS5dcLqAQ=
-github.com/GLYASAI/rainbond-oam v0.0.0-20210720142412-6faa7418c0ab/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
-github.com/GLYASAI/rainbond-oam v0.0.0-20210720150350-96daaa6aec86 h1:wCxXRbtOrsCjw9+gp8n5t1kTFy9/xsWyuZOPR5zvypY=
-github.com/GLYASAI/rainbond-oam v0.0.0-20210720150350-96daaa6aec86/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
-github.com/GLYASAI/rainbond-oam v0.0.0-20210721020036-158e1be667dc h1:UMR1n8LoCY79PvroSDDlGfSSomqEgeQAgZ+k8MBgcYk=
-github.com/GLYASAI/rainbond-oam v0.0.0-20210721020036-158e1be667dc/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/KyleBanks/depth v1.2.1/go.mod h1:jzSb9d0L43HxTQfT+oSA1EEp2q+ne2uh6XgeJcm8brE=
 github.com/MakeNowJust/heredoc v0.0.0-20170808103936-bb23615498cd h1:sjQovDkwrZp8u+gxLtPgKGjk5hCxuy2hrRejBTA9xFU=
@@ -384,6 +378,7 @@ github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3
 github.com/dsnet/compress v0.0.1/go.mod h1:Aw8dCMJ7RioblQeTqt88akK31OvO8Dhf5JflhBbQEHo=
 github.com/dsnet/golib v0.0.0-20171103203638-1ea166775780/go.mod h1:Lj+Z9rebOhdfkVLjJ8T6VcRQv3SXugXy999NBtR9aFY=
 github.com/dustin/go-humanize v0.0.0-20171111073723-bb3d318650d4/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
+github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4zYo=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/eapache/channels v1.1.0 h1:F1taHcn7/F0i8DYqKXJnyhJcVpp2kgFcNePxXtnyu4k=
 github.com/eapache/channels v1.1.0/go.mod h1:jMm2qB5Ubtg9zLd+inMZd2/NUvXgzmWXsDaLyQIGfH0=
@@ -699,10 +694,6 @@ github.com/golangplus/fmt v0.0.0-20150411045040-2a5d6d7d2995/go.mod h1:lJgMEyOkY
 github.com/golangplus/testing v0.0.0-20180327235837-af21d9c3145e/go.mod h1:0AA//k/eakGydO4jKRoRL2j92ZKSzTgj9tclaCrvXHk=
 github.com/goodrain/gorm-bulk-upsert v1.0.1-0.20210608013724-7e7870d16357 h1:kdSSrpA5yNvgqbfpMlEr8bvQWiLc1Uz9g0vYf3JVT7s=
 github.com/goodrain/gorm-bulk-upsert v1.0.1-0.20210608013724-7e7870d16357/go.mod h1:b7/GgeVNbf/SFw4FYIWslxNV5I10C9Mhf/++3jsDk3M=
-github.com/goodrain/rainbond-oam v0.0.0-20210206075623-511d0796af43 h1:xhUwEWQKk+maL6CmV5Y6kxKb+jA/RvN6SZcDbNm51FM=
-github.com/goodrain/rainbond-oam v0.0.0-20210206075623-511d0796af43/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
-github.com/goodrain/rainbond-oam v0.0.0-20210531110322-0fc33198e2d1 h1:XnipcyrdVCxtKYpy7APoaQwXOX4WGwxgZVpy1XvYb/A=
-github.com/goodrain/rainbond-oam v0.0.0-20210531110322-0fc33198e2d1/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
 github.com/goodrain/rainbond-oam v0.0.0-20210721020036-158e1be667dc h1:hCtxb/Yy4G+wEc2n+yaXx3j4SF/s34zNI8XK5qkHqXk=
 github.com/goodrain/rainbond-oam v0.0.0-20210721020036-158e1be667dc/go.mod h1:/dRehR3e1pGexOaIDjA44AHBlVPbb7v+O7GWAVyo740=
 github.com/goodrain/rainbond-operator v1.3.1-0.20210401055914-f8fe4bf89a21 h1:iCPI96slvJv88iPc1NJW8zhpkiza0kwB0jtsuZIJLRQ=
@@ -1081,6 +1072,8 @@ github.com/mdlayher/netlink v1.1.0 h1:mpdLgm+brq10nI9zM1BpX1kpDbh3NLl3RSnVq6ZSkf
 github.com/mdlayher/netlink v1.1.0/go.mod h1:H4WCitaheIsdF9yOYu8CFmCgQthAPIWZmcKp9uZHgmY=
 github.com/mdlayher/wifi v0.0.0-20190303161829-b1436901ddee h1:hZDujBrW3ye2xxdKNFYT59D4yCH5Q0zLuNBNtysKtok=
 github.com/mdlayher/wifi v0.0.0-20190303161829-b1436901ddee/go.mod h1:Evt/EIne46u9PtQbeTx2NTcqURpr5K4SvKtGmBuDPN8=
+github.com/melbahja/got v0.5.0 h1:tFp5WasOUeZ/SiW82G4SS8clb5Q/Pw6IFYvOcLgt/ZY=
+github.com/melbahja/got v0.5.0/go.mod h1:z/sG672dxMFNDZtZ9CHBbfuYeTzV0Xqilq6BUEw41oY=
 github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b/go.mod h1:01TrycV0kFyexm33Z7vhZRXopbI8J3TDReVlkTgMUxE=
 github.com/mholt/archiver/v3 v3.3.0/go.mod h1:YnQtqsp+94Rwd0D/rk5cnLrxusUBUXg+08Ebtr1Mqao=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
@@ -1499,6 +1492,8 @@ github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtX
 github.com/urfave/cli v1.22.2 h1:gsqYFH8bb9ekPA12kRo0hfjngWQjkJPlN9R0N78BoUo=
 github.com/urfave/cli v1.22.2/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/urfave/cli/v2 v2.1.1/go.mod h1:SE9GqnLQmjVa0iPEY0f1w3ygNIYcIJ0OKPMoW2caLfQ=
+github.com/urfave/cli/v2 v2.2.0 h1:JTTnM6wKzdA0Jqodd966MVj4vWbbquZykeX1sKbe2C4=
+github.com/urfave/cli/v2 v2.2.0/go.mod h1:SE9GqnLQmjVa0iPEY0f1w3ygNIYcIJ0OKPMoW2caLfQ=
 github.com/vektah/gqlparser v1.1.2/go.mod h1:1ycwN7Ij5njmMkPPAOaRFY4rET2Enx7IkVv3vaXspKw=
 github.com/vishvananda/netlink v1.1.0/go.mod h1:cTgwzPIzzgDAYoQrMm0EdrjRUBkTqKYppBueQtXaqoE=
 github.com/vishvananda/netns v0.0.0-20191106174202-0a2b9b5464df/go.mod h1:JP3t17pCcGlemwknint6hfoeCVQrEMVwxRLRjXpq+BU=
@@ -1545,6 +1540,11 @@ github.com/zclconf/go-cty v1.8.0/go.mod h1:vVKLxnk3puL4qRAv72AO+W99LUD4da90g3uUA
 github.com/zclconf/go-cty-debug v0.0.0-20191215020915-b22d67c1ba0b/go.mod h1:ZRKQfBXbGkpdV6QMzT3rU1kSTAnfu1dO8dPKjYprgj8=
 github.com/ziutek/mymysql v1.5.4 h1:GB0qdRGsTwQSBVYuVShFBKaXSnSnYYC2d9knnE1LHFs=
 github.com/ziutek/mymysql v1.5.4/go.mod h1:LMSpPZ6DbqWFxNCHW77HeMg9I646SAhApZ/wKdgO/C0=
+gitlab.com/poldi1405/go-ansi v1.1.0 h1:BrWoD9TivJKjdnQUwiHVzyqAemDiRpDVBCbbNOPoySQ=
+gitlab.com/poldi1405/go-ansi v1.1.0/go.mod h1:TLoRttGdPaq5H2qfF7I1cC5Lt2WXtQeIkFurjbUf6OI=
+gitlab.com/poldi1405/go-indicators v0.0.0-20200820134929-9b373aa411a5/go.mod h1:jn34qwBiXTHz73wD9neAMeJGCeMijVro+WCqk1RJXL4=
+gitlab.com/poldi1405/go-indicators v1.0.0 h1:miZ7CisCvAH6G16OuY6ATtC8QUUjVCYabNgVsRYjJIs=
+gitlab.com/poldi1405/go-indicators v1.0.0/go.mod h1:jn34qwBiXTHz73wD9neAMeJGCeMijVro+WCqk1RJXL4=
 go.elastic.co/apm v1.5.0/go.mod h1:OdB9sPtM6Vt7oz3VXt7+KR96i9li74qrxBGHTQygFvk=
 go.elastic.co/apm/module/apmhttp v1.5.0/go.mod h1:1FbmNuyD3ddauwzgVwFB0fqY6KbZt3JkV187tGCYYhY=
 go.elastic.co/apm/module/apmot v1.5.0/go.mod h1:d2KYwhJParTpyw2WnTNy8geNlHKKFX+4oK3YLlsesWE=

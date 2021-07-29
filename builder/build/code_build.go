@@ -19,11 +19,9 @@
 package build
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -33,14 +31,11 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/eapache/channels"
-	"github.com/fsnotify/fsnotify"
 	"github.com/goodrain/rainbond/builder"
 	jobc "github.com/goodrain/rainbond/builder/job"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/sources"
-	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
-	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,7 +48,6 @@ func slugBuilder() (Build, error) {
 type slugBuild struct {
 	tgzDir        string
 	buildCacheDir string
-	sourceDir     string
 	re            *Request
 }
 
@@ -107,8 +101,14 @@ func (s *slugBuild) Build(re *Request) (*Response, error) {
 func (s *slugBuild) writeRunDockerfile(sourceDir, packageName string, envs map[string]string) error {
 	runDockerfile := `
 	 FROM %s
+	 ARG CODE_COMMIT_HASH
+	 ARG CODE_COMMIT_USER
+	 ARG CODE_COMMIT_MESSAGE
 	 COPY %s /tmp/slug/slug.tgz
 	 RUN chown rain:rain /tmp/slug/slug.tgz
+	 ENV CODE_COMMIT_HASH=${CODE_COMMIT_HASH}
+	 ENV CODE_COMMIT_USER=${CODE_COMMIT_USER}
+	 ENV CODE_COMMIT_MESSAGE=${CODE_COMMIT_MESSAGE}
 	 ENV VERSION=%s
 	`
 	result := util.ParseVariable(fmt.Sprintf(runDockerfile, builder.RUNNERIMAGENAME, packageName, s.re.DeployVersion), envs)
@@ -138,6 +138,11 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 	}
 	//build runtime image
 	runbuildOptions := types.ImageBuildOptions{
+		BuildArgs: map[string]*string{
+			"CODE_COMMIT_HASH":    &s.re.Commit.Hash,
+			"CODE_COMMIT_USER":    &s.re.Commit.User,
+			"CODE_COMMIT_MESSAGE": &s.re.Commit.Message,
+		},
 		Tags:   []string{imageName},
 		Remove: true,
 	}
@@ -178,56 +183,6 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 	return imageName, nil
 }
 
-func (s *slugBuild) readLogFile(logfile string, logger event.Logger, closed chan struct{}) {
-	file, _ := os.Open(logfile)
-	watcher, _ := fsnotify.NewWatcher()
-	defer watcher.Close()
-	_ = watcher.Add(logfile)
-	readerr := bufio.NewReader(file)
-	for {
-		line, _, err := readerr.ReadLine()
-		if err != nil {
-			if err != io.EOF {
-				logrus.Errorf("Read build container log error:%s", err.Error())
-				return
-			}
-			wait := func() error {
-				for {
-					select {
-					case <-closed:
-						return nil
-					case evt := <-watcher.Events:
-						if evt.Op&fsnotify.Write == fsnotify.Write {
-							return nil
-						}
-					case err := <-watcher.Errors:
-						return err
-					}
-				}
-			}
-			if err := wait(); err != nil {
-				logrus.Errorf("Read build container log error:%s", err.Error())
-				return
-			}
-		}
-		if logger != nil {
-			var message = make(map[string]string)
-			if err := ffjson.Unmarshal(line, &message); err == nil {
-				if m, ok := message["log"]; ok {
-					logger.Info(m, map[string]string{"step": "build-exector"})
-				}
-			} else {
-				fmt.Println(err.Error())
-			}
-		}
-		select {
-		case <-closed:
-			return
-		default:
-		}
-	}
-}
-
 func (s *slugBuild) getSourceCodeTarFile(re *Request) (string, error) {
 	var cmd []string
 	sourceTarFile := fmt.Sprintf("%s/%s-%s.tar", util.GetParentDirectory(re.SourceDir), re.ServiceID, re.DeployVersion)
@@ -253,7 +208,7 @@ func (s *slugBuild) stopPreBuildJob(re *Request) error {
 	if err != nil {
 		logrus.Errorf("get pre build job for service %s failure ,%s", re.ServiceID, err.Error())
 	}
-	if jobList != nil && len(jobList) > 0 {
+	if len(jobList) > 0 {
 		for _, job := range jobList {
 			jobc.GetJobController().DeleteJob(job.Name)
 		}
@@ -263,6 +218,7 @@ func (s *slugBuild) stopPreBuildJob(re *Request) error {
 
 func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	slugSubPath := strings.TrimPrefix(re.TGZDir, "/grdata/")
+	lazyloading := sourceTarFileName == ""
 	sourceTarPath := strings.TrimPrefix(sourceTarFileName, "/cache/")
 	cacheSubPath := strings.TrimPrefix(re.CacheDir, "/cache/")
 
@@ -279,10 +235,12 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 				MountPath: "/tmp/slug",
 				SubPath:   slugSubPath,
 			},
-			{
+		}
+		if !lazyloading {
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
 				Name:      "source-file",
 				MountPath: "/tmp/app-source.tar",
-			},
+			})
 		}
 		volumes = []corev1.Volume{
 			{
@@ -302,7 +260,9 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 					},
 				},
 			},
-			{
+		}
+		if !lazyloading {
+			volumes = append(volumes, corev1.Volume{
 				Name: "source-file",
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
@@ -311,7 +271,7 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 						Type: &unset,
 					},
 				},
-			},
+			})
 		}
 	} else {
 		volumes = []corev1.Volume{
@@ -343,11 +303,13 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 				MountPath: "/tmp/slug",
 				SubPath:   slugSubPath,
 			},
-			{
+		}
+		if !lazyloading {
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
 				Name:      "app",
 				MountPath: "/tmp/app-source.tar",
 				SubPath:   sourceTarPath,
-			},
+			})
 		}
 	}
 	return volumes, volumeMounts
@@ -357,16 +319,21 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	//prepare build code dir
 	re.Logger.Info(util.Translation("Start make code package"), map[string]string{"step": "build-exector"})
 	start := time.Now()
-	sourceTarFileName, err := s.getSourceCodeTarFile(re)
-	if err != nil {
-		return fmt.Errorf("create source code tar file error:%s", err.Error())
+	var sourceTarFileName string
+	if re.ServerType != "oss" {
+		var err error
+		sourceTarFileName, err = s.getSourceCodeTarFile(re)
+		if err != nil {
+			return fmt.Errorf("create source code tar file error:%s", err.Error())
+		}
+		// remove source cache tar file
+		defer func() {
+			os.Remove(sourceTarFileName)
+		}()
 	}
 	re.Logger.Info(util.Translation("make code package success"), map[string]string{"step": "build-exector"})
 	logrus.Infof("package code for building service %s version %s successful, take time %s", re.ServiceID, re.DeployVersion, time.Now().Sub(start))
-	// remove source cache tar file
-	defer func() {
-		os.Remove(sourceTarFileName)
-	}()
+
 	name := fmt.Sprintf("%s-%s", re.ServiceID, re.DeployVersion)
 	namespace := re.RbdNamespace
 	job := corev1.Pod{
@@ -383,7 +350,15 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		{Name: "SLUG_VERSION", Value: re.DeployVersion},
 		{Name: "SERVICE_ID", Value: re.ServiceID},
 		{Name: "TENANT_ID", Value: re.TenantID},
+		{Name: "CODE_COMMIT_HASH", Value: re.Commit.Hash},
+		{Name: "CODE_COMMIT_USER", Value: re.Commit.User},
+		{Name: "CODE_COMMIT_MESSAGE", Value: re.Commit.Message},
 		{Name: "LANGUAGE", Value: re.Lang.String()},
+	}
+	if re.ServerType == "oss" {
+		envs = append(envs, corev1.EnvVar{Name: "PACKAGE_DOWNLOAD_URL", Value: re.RepositoryURL})
+		envs = append(envs, corev1.EnvVar{Name: "PACKAGE_DOWNLOAD_USER", Value: re.CodeSouceInfo.User})
+		envs = append(envs, corev1.EnvVar{Name: "PACKAGE_DOWNLOAD_PASS", Value: re.CodeSouceInfo.Password})
 	}
 	var mavenSettingName string
 	for k, v := range re.BuildEnvs {
@@ -489,7 +464,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	logrus.Debugf("create job[name: %s; namespace: %s]", job.Name, job.Namespace)
-	err = jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
+	err := jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
 	if err != nil {
 		logrus.Errorf("create new job:%s failed: %s", name, err.Error())
 		return err
