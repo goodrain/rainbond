@@ -950,3 +950,34 @@ func (g *GatewayAction) SyncTCPRules(tx *gorm.DB, components []*apimodel.Compone
 	}
 	return db.GetManager().TCPRuleDaoTransactions(tx).CreateOrUpdateTCPRuleInBatch(tcpRules)
 }
+
+// SyncRuleConfigs -
+func (g *GatewayAction) SyncRuleConfigs(tx *gorm.DB, components []*apimodel.Component) error {
+	var configs []*model.GwRuleConfig
+	var componentIDs []string
+	for _, component := range components {
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		if len(component.HTTPRuleConfigs) == 0 {
+			continue
+		}
+
+		for _, httpRuleConfig := range component.HTTPRuleConfigs {
+			configs = append(configs, httpRuleConfig.DbModel()...)
+		}
+	}
+
+	// http rule ids
+	rules, err := db.GetManager().HTTPRuleDao().ListByComponentIDs(componentIDs)
+	if err != nil {
+		return err
+	}
+	var ruleIDs []string
+	for _, rule := range rules {
+		ruleIDs = append(ruleIDs, rule.UUID)
+	}
+
+	if err := db.GetManager().GwRuleConfigDaoTransactions(tx).DeleteByRuleIDs(ruleIDs); err != nil {
+		return err
+	}
+	return db.GetManager().GwRuleConfigDaoTransactions(tx).CreateOrUpdateGwRuleConfigsInBatch(configs)
+}

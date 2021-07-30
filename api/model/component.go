@@ -2,8 +2,9 @@ package model
 
 import (
 	"fmt"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	"time"
+
+	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
 // ComponentBase -
@@ -239,6 +240,7 @@ type Component struct {
 	ComponentBase      ComponentBase                    `json:"component_base"`
 	HTTPRules          []AddHTTPRuleStruct              `json:"http_rules"`
 	TCPRules           []AddTCPRuleStruct               `json:"tcp_rules"`
+	HTTPRuleConfigs    []HTTPRuleConfig                 `json:"http_rule_configs"`
 	Monitors           []AddServiceMonitorRequestStruct `json:"monitors"`
 	Ports              []TenantServicesPort             `json:"ports"`
 	Relations          []TenantComponentRelation        `json:"relations"`

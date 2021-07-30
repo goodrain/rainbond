@@ -61,4 +61,5 @@ type GatewayHandler interface {
 	DeleteIngressRulesByComponentPort(tx *gorm.DB, componentID string, port int) error
 	SyncHTTPRules(tx *gorm.DB, components []*apimodel.Component) error
 	SyncTCPRules(tx *gorm.DB, components []*apimodel.Component) error
+	SyncRuleConfigs(tx *gorm.DB, components []*apimodel.Component) error
 }

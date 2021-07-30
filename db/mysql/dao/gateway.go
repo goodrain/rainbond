@@ -149,7 +149,7 @@ func (c *RuleExtensionDaoImpl) DeleteByRuleIDs(ruleIDs []string) error {
 	return nil
 }
 
-// RuleExtensionDaoImpl creates or updates rule extensions in batch.
+// CreateOrUpdateRuleExtensionsInBatch -
 func (c *RuleExtensionDaoImpl) CreateOrUpdateRuleExtensionsInBatch(exts []*model.RuleExtension) error {
 	var objects []interface{}
 	for _, ext := range exts {
@@ -302,6 +302,15 @@ func (h *HTTPRuleDaoImpl) CreateOrUpdateHTTPRuleInBatch(httpRules []*model.HTTPR
 		return errors.Wrap(err, "create or update http rule in batch")
 	}
 	return nil
+}
+
+// ListByComponentIDs -
+func (h *HTTPRuleDaoImpl) ListByComponentIDs(componentIDs []string) ([]*model.HTTPRule, error) {
+	var rules []*model.HTTPRule
+	if err := h.DB.Where("service_id in (?) ", componentIDs).Find(&rules).Error; err != nil {
+		return nil, err
+	}
+	return rules, nil
 }
 
 // TCPRuleDaoTmpl is a implementation of TcpRuleDao
@@ -479,6 +488,18 @@ func (t *GwRuleConfigDaoImpl) ListByRuleID(rid string) ([]*model.GwRuleConfig, e
 func (t *GwRuleConfigDaoImpl) DeleteByRuleIDs(ruleIDs []string) error {
 	if err := t.DB.Where("rule_id in (?)", ruleIDs).Delete(&model.GwRuleConfig{}).Error; err != nil {
 		return errors.Wrap(err, "delete rule configs")
+	}
+	return nil
+}
+
+// CreateOrUpdateGwRuleConfigsInBatch creates or updates rule configs in batch.
+func (t *GwRuleConfigDaoImpl) CreateOrUpdateGwRuleConfigsInBatch(ruleConfigs []*model.GwRuleConfig) error {
+	var objects []interface{}
+	for _, ruleConfig := range ruleConfigs {
+		objects = append(objects, *ruleConfig)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return errors.Wrap(err, "create or update rule configs in batch")
 	}
 	return nil
 }

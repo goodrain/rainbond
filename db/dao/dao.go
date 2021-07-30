@@ -522,6 +522,7 @@ type HTTPRuleDao interface {
 	DeleteByComponentPort(componentID string, port int) error
 	DeleteByComponentIDs(componentIDs []string) error
 	CreateOrUpdateHTTPRuleInBatch(httpRules []*model.HTTPRule) error
+	ListByComponentIDs(componentIDs []string) ([]*model.HTTPRule, error)
 }
 
 // TCPRuleDao -
@@ -567,6 +568,7 @@ type GwRuleConfigDao interface {
 	DeleteByRuleID(rid string) error
 	ListByRuleID(rid string) ([]*model.GwRuleConfig, error)
 	DeleteByRuleIDs(ruleIDs []string) error
+	CreateOrUpdateGwRuleConfigsInBatch(ruleConfigs []*model.GwRuleConfig) error
 }
 
 // TenantServceAutoscalerRulesDao -
