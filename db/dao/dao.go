@@ -505,6 +505,7 @@ type RuleExtensionDao interface {
 	GetRuleExtensionByRuleID(ruleID string) ([]*model.RuleExtension, error)
 	DeleteRuleExtensionByRuleID(ruleID string) error
 	DeleteByRuleIDs(ruleIDs []string) error
+	CreateOrUpdateRuleExtensionsInBatch(exts []*model.RuleExtension) error
 }
 
 // HTTPRuleDao -

@@ -20,9 +20,9 @@ package dao
 
 import (
 	"fmt"
-	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"reflect"
 
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
@@ -145,6 +145,18 @@ func (c *RuleExtensionDaoImpl) DeleteRuleExtensionByRuleID(ruleID string) error 
 func (c *RuleExtensionDaoImpl) DeleteByRuleIDs(ruleIDs []string) error {
 	if err := c.DB.Where("rule_id in (?)", ruleIDs).Delete(&model.RuleExtension{}).Error; err != nil {
 		return errors.Wrap(err, "delete rule extentions")
+	}
+	return nil
+}
+
+// RuleExtensionDaoImpl creates or updates rule extensions in batch.
+func (c *RuleExtensionDaoImpl) CreateOrUpdateRuleExtensionsInBatch(exts []*model.RuleExtension) error {
+	var objects []interface{}
+	for _, ext := range exts {
+		objects = append(objects, *ext)
+	}
+	if err := gormbulkups.BulkUpsert(c.DB, objects, 2000); err != nil {
+		return errors.Wrap(err, "create or update rule extensions in batch")
 	}
 	return nil
 }
@@ -276,7 +288,7 @@ func (h *HTTPRuleDaoImpl) ListByCertID(certID string) ([]*model.HTTPRule, error)
 }
 
 //DeleteByComponentIDs delete http rule by component ids
-func (h *HTTPRuleDaoImpl) DeleteByComponentIDs(componentIDs []string) error{
+func (h *HTTPRuleDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
 	return h.DB.Where("service_id in (?) ", componentIDs).Delete(&model.HTTPRule{}).Error
 }
 
@@ -407,7 +419,7 @@ func (t *TCPRuleDaoTmpl) ListByServiceID(serviceID string) ([]*model.TCPRule, er
 }
 
 //DeleteByComponentIDs delete tcp rule by component ids
-func (t *TCPRuleDaoTmpl) DeleteByComponentIDs(componentIDs []string) error{
+func (t *TCPRuleDaoTmpl) DeleteByComponentIDs(componentIDs []string) error {
 	return t.DB.Where("service_id in (?) ", componentIDs).Delete(&model.TCPRule{}).Error
 }
 
