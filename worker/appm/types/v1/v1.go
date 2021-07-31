@@ -24,20 +24,19 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/event"
 	monitorv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/goodrain/rainbond/builder"
-	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/event"
 )
 
 // EventType type of event
@@ -118,6 +117,7 @@ func (a AppServiceBase) GetComponentDefinitionName() string {
 	return ""
 }
 
+// IsCustomComponent -
 func (a AppServiceBase) IsCustomComponent() bool {
 	if strings.HasPrefix(a.ServiceKind.String(), dbmodel.ServiceKindCustom.String()) {
 		return true
@@ -128,10 +128,12 @@ func (a AppServiceBase) IsCustomComponent() bool {
 	return false
 }
 
+// IsThirdComponent -
 func (a AppServiceBase) IsThirdComponent() bool {
 	return a.ServiceKind.String() == dbmodel.ServiceKindThirdParty.String()
 }
 
+// SetDiscoveryCfg -
 func (a *AppServiceBase) SetDiscoveryCfg(discoveryCfg *dbmodel.ThirdPartySvcDiscoveryCfg) {
 	a.discoveryCfg = discoveryCfg
 }
@@ -150,8 +152,8 @@ type AppService struct {
 	delServices    []*corev1.Service
 	endpoints      []*corev1.Endpoints
 	configMaps     []*corev1.ConfigMap
-	ingresses      []*extensions.Ingress
-	delIngs        []*extensions.Ingress // ingresses which need to be deleted
+	ingresses      []*networkingv1.Ingress
+	delIngs        []*networkingv1.Ingress // ingresses which need to be deleted
 	secrets        []*corev1.Secret
 	delSecrets     []*corev1.Secret // secrets which need to be deleted
 	pods           []*corev1.Pod
@@ -406,9 +408,9 @@ func (a *AppService) DelEndpoints(ep *corev1.Endpoints) {
 }
 
 //GetIngress get ingress
-func (a *AppService) GetIngress(canCopy bool) []*extensions.Ingress {
+func (a *AppService) GetIngress(canCopy bool) []*networkingv1.Ingress {
 	if canCopy {
-		cr := make([]*extensions.Ingress, len(a.ingresses))
+		cr := make([]*networkingv1.Ingress, len(a.ingresses))
 		copy(cr, a.ingresses[0:])
 		return cr
 	}
@@ -416,12 +418,12 @@ func (a *AppService) GetIngress(canCopy bool) []*extensions.Ingress {
 }
 
 //GetDelIngs gets delIngs which need to be deleted
-func (a *AppService) GetDelIngs() []*extensions.Ingress {
+func (a *AppService) GetDelIngs() []*networkingv1.Ingress {
 	return a.delIngs
 }
 
 //SetIngress set kubernetes ingress model
-func (a *AppService) SetIngress(d *extensions.Ingress) {
+func (a *AppService) SetIngress(d *networkingv1.Ingress) {
 	if len(a.ingresses) > 0 {
 		for i, ingress := range a.ingresses {
 			if ingress.GetName() == d.GetName() {
@@ -434,12 +436,12 @@ func (a *AppService) SetIngress(d *extensions.Ingress) {
 }
 
 // SetIngresses sets k8s ingress list
-func (a *AppService) SetIngresses(i []*extensions.Ingress) {
+func (a *AppService) SetIngresses(i []*networkingv1.Ingress) {
 	a.ingresses = i
 }
 
 //DeleteIngress delete kubernetes ingress model
-func (a *AppService) DeleteIngress(d *extensions.Ingress) {
+func (a *AppService) DeleteIngress(d *networkingv1.Ingress) {
 	for i, c := range a.ingresses {
 		if c.GetName() == d.GetName() {
 			a.ingresses = append(a.ingresses[0:i], a.ingresses[i+1:]...)
@@ -838,7 +840,7 @@ func (a *AppService) GetManifests() []*unstructured.Unstructured {
 	return a.manifests
 }
 
-//GetManifests get component custom manifest
+//SetManifests get component custom manifest
 func (a *AppService) SetManifests(manifests []*unstructured.Unstructured) {
 	a.manifests = manifests
 }
@@ -876,7 +878,7 @@ func (a *AppService) String() string {
 		a.statefulset,
 		a.deployment,
 		len(a.pods),
-		func(ing []*extensions.Ingress) string {
+		func(ing []*networkingv1.Ingress) string {
 			result := ""
 			for _, i := range ing {
 				result += i.Name + ","
@@ -911,7 +913,7 @@ type TenantResource struct {
 type K8sResources struct {
 	Services  []*corev1.Service
 	Secrets   []*corev1.Secret
-	Ingresses []*extensions.Ingress
+	Ingresses []*networkingv1.Ingress
 }
 
 //GetTCPMeshImageName get tcp mesh image name
