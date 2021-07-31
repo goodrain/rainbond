@@ -58,6 +58,7 @@ require (
 	github.com/kr/pretty v0.2.1 // indirect
 	github.com/kr/pty v1.1.8
 	github.com/mattn/go-runewidth v0.0.6
+	github.com/melbahja/got v0.5.0
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/go-wordwrap v1.0.0
 	github.com/mitchellh/mapstructure v1.3.3
