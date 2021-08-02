@@ -359,7 +359,7 @@ func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *api_model.Te
 			disk = int(mv.Sample.Value() / 1024)
 		}
 		if tenantID != "" {
-			result[tenantID]["disk"] = disk / 1024
+			result[tenantID]["disk"] = disk
 		}
 	}
 	return result, nil
