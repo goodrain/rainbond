@@ -27,11 +27,10 @@ import (
 	"github.com/goodrain/rainbond/gateway/controller"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	api_meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -174,7 +173,7 @@ func TestHttps(t *testing.T) {
 		Type: corev1.SecretTypeOpaque,
 	}, clientSet, t)
 
-	ingress := &extensions.Ingress{
+	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "https-ing",
 			Namespace: ns.Name,
@@ -182,24 +181,28 @@ func TestHttps(t *testing.T) {
 				parser.GetAnnotationWithPrefix("force-ssl-redirect"): "true",
 			},
 		},
-		Spec: extensions.IngressSpec{
-			TLS: []v1beta1.IngressTLS{
+		Spec: networkingv1.IngressSpec{
+			TLS: []networkingv1.IngressTLS{
 				{
 					Hosts:      []string{"www.https.com"},
 					SecretName: secr.Name,
 				},
 			},
-			Rules: []extensions.IngressRule{
+			Rules: []networkingv1.IngressRule{
 				{
 					Host: "www.https.com",
-					IngressRuleValue: extensions.IngressRuleValue{
-						HTTP: &extensions.HTTPIngressRuleValue{
-							Paths: []extensions.HTTPIngressPath{
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
 								{
 									Path: "/https",
-									Backend: extensions.IngressBackend{
-										ServiceName: "default-svc",
-										ServicePort: intstr.FromInt(80),
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: "default-svc",
+											Port: networkingv1.ServiceBackendPort{
+												Number: 80,
+											},
+										},
 									},
 								},
 							},
@@ -276,15 +279,15 @@ func ensureService(service *corev1.Service, clientSet kubernetes.Interface, t *t
 
 }
 
-func ensureIngress(ingress *extensions.Ingress, clientSet kubernetes.Interface, t *testing.T) *extensions.Ingress {
+func ensureIngress(ingress *networkingv1.Ingress, clientSet kubernetes.Interface, t *testing.T) *networkingv1.Ingress {
 	t.Helper()
-	ing, err := clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Update(context.TODO(), ingress, metav1.UpdateOptions{})
+	ing, err := clientSet.NetworkingV1().Ingresses(ingress.Namespace).Update(context.TODO(), ingress, metav1.UpdateOptions{})
 
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			t.Logf("Ingress %v not found, creating", ingress)
 
-			ing, err = clientSet.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(context.TODO(), ingress, metav1.CreateOptions{})
+			ing, err = clientSet.NetworkingV1().Ingresses(ingress.Namespace).Create(context.TODO(), ingress, metav1.CreateOptions{})
 			if err != nil {
 				t.Fatalf("error creating ingress %+v: %v", ingress, err)
 			}
