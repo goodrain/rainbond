@@ -74,7 +74,7 @@ func TestSourceCode(t *testing.T) {
 func TestOSSCheck(t *testing.T) {
 	sc := sources.CodeSourceInfo{
 		ServerType:    "oss",
-		RepositoryURL: "http://8081.gr021644.64q1jlfb.17f4cc.grapps.cn/artifactory/dev/java-war-demo-master.tar.gz",
+		RepositoryURL: "http://8081.gr021644.64q1jlfb.17f4cc.grapps.cn/artifactory/dev/java-war-demo-master.tar",
 		User:          "demo",
 		Password:      "gr123465!",
 	}
