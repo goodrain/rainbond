@@ -22,14 +22,14 @@ import (
 	"fmt"
 
 	"github.com/goodrain/rainbond/util/ingress-nginx/k8s"
-	"k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 )
 
 type secretIngressMap struct {
 	v map[string][]string
 }
 
-func (m *secretIngressMap) update(ing *v1beta1.Ingress) {
+func (m *secretIngressMap) update(ing *networkingv1.Ingress) {
 	ingKey := k8s.MetaNamespaceKey(ing)
 	for _, tls := range ing.Spec.TLS {
 		secretKey := fmt.Sprintf("%s/%s", ing.Namespace, tls.SecretName)
