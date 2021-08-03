@@ -12,4 +12,7 @@ var (
 	ErrSyncOperation = newByMessage(409, 10103, "The asynchronous operation is executing")
 	// ErrHorizontalDueToNoChange
 	ErrHorizontalDueToNoChange = newByMessage(400, 10104, "The number of components has not changed, no need to scale")
+	ErrReadComponentLogs       = newByMessage(400, 10105, "Failed to read the component log from reader")
+	ErrWriteComponentLogs      = newByMessage(400, 10106, "Failed to write the component log to the streaming response")
+	ErrPodNotFound             = newByMessage(404, 10107, "pod not found")
 )

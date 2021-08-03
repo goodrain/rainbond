@@ -24,8 +24,6 @@ import (
 	"net/http"
 	"os"
 
-	validator "github.com/goodrain/rainbond/util/govalidator"
-
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	api_model "github.com/goodrain/rainbond/api/model"
@@ -33,6 +31,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	validator "github.com/goodrain/rainbond/util/govalidator"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
@@ -772,4 +771,17 @@ func GetServiceDeployInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, info)
+}
+
+// Log -
+func (t *TenantStruct) Log(w http.ResponseWriter, r *http.Request) {
+	component := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
+	podName := r.URL.Query().Get("podName")
+	containerName := r.URL.Query().Get("containerName")
+
+	err := handler.GetServiceManager().Log(w, r, component, podName, containerName)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
 }
