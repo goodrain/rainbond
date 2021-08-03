@@ -1,18 +1,20 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
+	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/goodrain/rainbond/mq/client"
-
-	"regexp"
-
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/mq/client"
+	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
@@ -100,6 +102,29 @@ func (a *AppAction) ImportApp(importApp *model.ImportAppStruct) error {
 	logrus.Debugf("equeue mq build plugin from image success")
 
 	return nil
+}
+
+// DeleteExportApp deletes the export app.
+func (a *AppAction) DeleteExportApp(ctx context.Context, eventID string) error {
+	exportApp, err := db.GetManager().AppDao().GetByEventId(eventID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return errors.Wrap(err, "get export app")
+	}
+
+	os.RemoveAll(exportApp.SourceDir)
+
+	if len(exportApp.TarFileHref) == 0 {
+		return nil
+	}
+	fileItems := strings.Split(exportApp.TarFileHref, "/")
+	filename := fileItems[len(fileItems)-1]
+	filepath := path.Join("/grdata/app", exportApp.Format, filename)
+	os.RemoveAll(filepath)
+
+	return db.GetManager().AppDao().DeleteModelByEventId(eventID)
 }
 
 func saveMetadata(tr *model.ExportAppStruct) error {

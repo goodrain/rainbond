@@ -72,6 +72,16 @@ func (a *AppStruct) ExportApp(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// DeleteExportedApp -
+func (a *AppStruct) DeleteExportedApp(w http.ResponseWriter, r *http.Request) {
+	eventID := chi.URLParam(r, "eventID")
+	err := handler.GetAppHandler().DeleteExportApp(r.Context(), eventID)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+}
+
 //Download -
 func (a *AppStruct) Download(w http.ResponseWriter, r *http.Request) {
 	format := strings.TrimSpace(chi.URLParam(r, "format"))

@@ -361,6 +361,7 @@ func (v2 *V2) appRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/export", controller.GetManager().ExportApp)
 	r.Get("/export/{eventID}", controller.GetManager().ExportApp)
+	r.Delete("/export/{eventID}", controller.GetManager().DeleteExportedApp)
 
 	r.Get("/download/{format}/{fileName}", controller.GetManager().Download)
 	r.Post("/upload/{eventID}", controller.GetManager().NewUpload)

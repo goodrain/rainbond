@@ -147,6 +147,7 @@ type RulesInterface interface {
 //AppInterface app handle interface
 type AppInterface interface {
 	ExportApp(w http.ResponseWriter, r *http.Request)
+	DeleteExportedApp(w http.ResponseWriter, r *http.Request)
 	Download(w http.ResponseWriter, r *http.Request)
 	Upload(w http.ResponseWriter, r *http.Request)
 	NewUpload(w http.ResponseWriter, r *http.Request)
