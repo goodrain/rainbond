@@ -50,7 +50,10 @@ func init() {
 }
 
 //CheckCodeSpecification 检查语言规范
-func CheckCodeSpecification(buildPath string, lang Lang) Specification {
+func CheckCodeSpecification(buildPath string, lang Lang, serverType string) Specification {
+	if serverType == "oss" && lang == JavaJar {
+		return common()
+	}
 	if check, ok := specification[lang]; ok {
 		return check(buildPath)
 	}

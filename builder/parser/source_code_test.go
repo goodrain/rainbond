@@ -70,3 +70,25 @@ func TestSourceCode(t *testing.T) {
 	body, _ := json.Marshal(re)
 	fmt.Printf("%s \n", string(body))
 }
+
+func TestOSSCheck(t *testing.T) {
+	sc := sources.CodeSourceInfo{
+		ServerType:    "oss",
+		RepositoryURL: "http://8081.gr021644.64q1jlfb.17f4cc.grapps.cn/artifactory/dev/java-war-demo-master.tar",
+		User:          "demo",
+		Password:      "gr123465!",
+	}
+	b, _ := json.Marshal(sc)
+	p := CreateSourceCodeParse(string(b), nil)
+	err := p.Parse()
+	if err != nil && err.IsFatalError() {
+		t.Fatal(err)
+	}
+	re := ServiceCheckResult{
+		CheckStatus: "Success",
+		ErrorInfos:  err,
+		ServiceInfo: p.GetServiceInfo(),
+	}
+	body, _ := json.Marshal(re)
+	fmt.Printf("%s \n", string(body))
+}

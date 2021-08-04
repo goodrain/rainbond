@@ -26,7 +26,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/controller/config"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/http/httpguts"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 )
 
 // Config returns the proxy timeout to use in the upstream server/s
@@ -191,7 +191,7 @@ func NewParser(r resolver.Resolver) parser.IngressAnnotation {
 
 // ParseAnnotations parses the annotations contained in the ingress
 // rule used to configure upstream check parameters
-func (a proxy) Parse(ing *extensions.Ingress) (interface{}, error) {
+func (a proxy) Parse(ing *networkingv1.Ingress) (interface{}, error) {
 	defBackend := a.r.GetDefaultBackend()
 	config := &Config{}
 
