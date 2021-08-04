@@ -35,7 +35,7 @@ func init() {
 // +genclient
 // +kubebuilder:object:root=true
 
-// HelmApp -
+// ThirdComponent -
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=thirdcomponents,scope=Namespaced
 type ThirdComponent struct {
@@ -55,6 +55,7 @@ type ThirdComponentList struct {
 	Items           []ThirdComponent `json:"items"`
 }
 
+// ThirdComponentSpec -
 type ThirdComponentSpec struct {
 	// health check probe
 	// +optional
@@ -65,6 +66,7 @@ type ThirdComponentSpec struct {
 	EndpointSource ThirdComponentEndpointSource `json:"endpointSource"`
 }
 
+// ThirdComponentEndpointSource -
 type ThirdComponentEndpointSource struct {
 	StaticEndpoints   []*ThirdComponentEndpoint `json:"endpoints,omitempty"`
 	KubernetesService *KubernetesServiceSource  `json:"kubernetesService,omitempty"`
@@ -75,6 +77,7 @@ type ThirdComponentEndpointSource struct {
 	// CustomAPISource
 }
 
+// ThirdComponentEndpoint -
 type ThirdComponentEndpoint struct {
 	// The address including the port number.
 	Address string `json:"address"`
@@ -83,9 +86,10 @@ type ThirdComponentEndpoint struct {
 	Protocol string `json:"protocol,omitempty"`
 	// Specify a private certificate when the protocol is HTTPS
 	// +optional
-	ClentSecret string `json:"clientSecret,omitempty"`
+	ClientSecret string `json:"clientSecret,omitempty"`
 }
 
+// KubernetesServiceSource -
 type KubernetesServiceSource struct {
 	// If not specified, the namespace is the namespace of the current resource
 	// +optional
@@ -93,6 +97,7 @@ type KubernetesServiceSource struct {
 	Name      string `json:"name"`
 }
 
+// HealthProbe -
 type HealthProbe struct {
 	// HTTPGet specifies the http request to perform.
 	// +optional
@@ -134,6 +139,7 @@ type HTTPHeader struct {
 	Value string `json:"value"`
 }
 
+// ComponentPhase -
 type ComponentPhase string
 
 // These are the valid statuses of pods.
@@ -147,12 +153,14 @@ const (
 	ComponentFailed ComponentPhase = "Failed"
 )
 
+// ThirdComponentStatus -
 type ThirdComponentStatus struct {
 	Phase     ComponentPhase                  `json:"phase"`
 	Reason    string                          `json:"reason,omitempty"`
 	Endpoints []*ThirdComponentEndpointStatus `json:"endpoints"`
 }
 
+// EndpointStatus -
 type EndpointStatus string
 
 const (
@@ -162,8 +170,10 @@ const (
 	EndpointNotReady EndpointStatus = "NotReady"
 )
 
+// EndpointAddress -
 type EndpointAddress string
 
+// GetIP -
 func (e EndpointAddress) GetIP() string {
 	info := strings.Split(string(e), ":")
 	if len(info) == 2 {
@@ -172,6 +182,7 @@ func (e EndpointAddress) GetIP() string {
 	return ""
 }
 
+// GetPort -
 func (e EndpointAddress) GetPort() int {
 	info := strings.Split(string(e), ":")
 	if len(info) == 2 {
@@ -181,6 +192,7 @@ func (e EndpointAddress) GetPort() int {
 	return 0
 }
 
+// NewEndpointAddress -
 func NewEndpointAddress(host string, port int) *EndpointAddress {
 	if net.ParseIP(host) == nil {
 		return nil

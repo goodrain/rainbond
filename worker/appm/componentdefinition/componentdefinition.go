@@ -33,10 +33,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// ErrNotSupport -
 var ErrNotSupport = fmt.Errorf("not support component definition")
+// ErrOnlyCUESupport -
 var ErrOnlyCUESupport = fmt.Errorf("component definition only support cue template")
 
+// ComponentDefinitionBuilder -
 type ComponentDefinitionBuilder struct {
+	logger      *logrus.Entry
 	definitions map[string]*v1alpha1.ComponentDefinition
 	namespace   string
 	lock        sync.Mutex
@@ -44,18 +48,22 @@ type ComponentDefinitionBuilder struct {
 
 var componentDefinitionBuilder *ComponentDefinitionBuilder
 
+// NewComponentDefinitionBuilder -
 func NewComponentDefinitionBuilder(namespace string) *ComponentDefinitionBuilder {
 	componentDefinitionBuilder = &ComponentDefinitionBuilder{
+		logger:      logrus.WithField("WHO", "ComponentDefinitionBuilder"),
 		definitions: make(map[string]*v1alpha1.ComponentDefinition),
 		namespace:   namespace,
 	}
 	return componentDefinitionBuilder
 }
 
+// GetComponentDefinitionBuilder -
 func GetComponentDefinitionBuilder() *ComponentDefinitionBuilder {
 	return componentDefinitionBuilder
 }
 
+// OnAdd -
 func (c *ComponentDefinitionBuilder) OnAdd(obj interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -65,6 +73,8 @@ func (c *ComponentDefinitionBuilder) OnAdd(obj interface{}) {
 		c.definitions[cd.Name] = cd
 	}
 }
+
+// OnUpdate -
 func (c *ComponentDefinitionBuilder) OnUpdate(oldObj, newObj interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -74,6 +84,8 @@ func (c *ComponentDefinitionBuilder) OnUpdate(oldObj, newObj interface{}) {
 		c.definitions[cd.Name] = cd
 	}
 }
+
+// OnDelete -
 func (c *ComponentDefinitionBuilder) OnDelete(obj interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -84,16 +96,18 @@ func (c *ComponentDefinitionBuilder) OnDelete(obj interface{}) {
 	}
 }
 
+// GetComponentDefinition -
 func (c *ComponentDefinitionBuilder) GetComponentDefinition(name string) *v1alpha1.ComponentDefinition {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	return c.definitions[name]
 }
 
+// GetComponentProperties -
 func (c *ComponentDefinitionBuilder) GetComponentProperties(as *v1.AppService, dbm db.Manager, cd *v1alpha1.ComponentDefinition) interface{} {
 	//TODO: support custom component properties
 	switch cd.Name {
-	case thirdComponetDefineName:
+	case thirdComponentDefineName:
 		properties := &ThirdComponentProperties{}
 		tpsd, err := dbm.ThirdPartySvcDiscoveryCfgDao().GetByServiceID(as.ServiceID)
 		if err != nil {
@@ -102,17 +116,24 @@ func (c *ComponentDefinitionBuilder) GetComponentProperties(as *v1.AppService, d
 		if tpsd != nil {
 			// support other source type
 			if tpsd.Type == dbmodel.DiscorveryTypeKubernetes.String() {
-				properties.Kubernetes = ThirdComponentKubernetes{
+				properties.Kubernetes = &ThirdComponentKubernetes{
 					Name:      tpsd.ServiceName,
 					Namespace: tpsd.Namespace,
 				}
 			}
 		}
+
+		// static endpoints
+		endpoints, err := c.listStaticEndpoints(as.ServiceID)
+		if err != nil {
+			c.logger.Errorf("component id: %s; list static endpoints: %v", as.ServiceID, err)
+		}
+		properties.Endpoints = endpoints
+
 		ports, err := dbm.TenantServicesPortDao().GetPortsByServiceID(as.ServiceID)
 		if err != nil {
 			logrus.Errorf("query component %s ports failure %s", as.ServiceID, err.Error())
 		}
-
 		for _, port := range ports {
 			properties.Port = append(properties.Port, &ThirdComponentPort{
 				Port:      port.ContainerPort,
@@ -124,12 +145,29 @@ func (c *ComponentDefinitionBuilder) GetComponentProperties(as *v1.AppService, d
 		if properties.Port == nil {
 			properties.Port = []*ThirdComponentPort{}
 		}
+
 		return properties
 	default:
 		return nil
 	}
 }
 
+func (c *ComponentDefinitionBuilder) listStaticEndpoints(componentID string) ([]*ThirdComponentEndpoint, error) {
+	endpoints, err := db.GetManager().EndpointsDao().List(componentID)
+	if err != nil {
+		return nil, err
+	}
+
+	var res []*ThirdComponentEndpoint
+	for _, ep := range endpoints {
+		res = append(res, &ThirdComponentEndpoint{
+			Address: ep.Address(),
+		})
+	}
+	return res, nil
+}
+
+// BuildWorkloadResource -
 func (c *ComponentDefinitionBuilder) BuildWorkloadResource(as *v1.AppService, dbm db.Manager) error {
 	cd := c.GetComponentDefinition(as.GetComponentDefinitionName())
 	if cd == nil {
@@ -154,7 +192,7 @@ func (c *ComponentDefinitionBuilder) BuildWorkloadResource(as *v1.AppService, db
 //InitCoreComponentDefinition init the built-in component type definition.
 //Should be called after the store is initialized.
 func (c *ComponentDefinitionBuilder) InitCoreComponentDefinition(rainbondClient rainbondversioned.Interface) {
-	coreComponentDefinition := []*v1alpha1.ComponentDefinition{&thirdComponetDefine}
+	coreComponentDefinition := []*v1alpha1.ComponentDefinition{&thirdComponentDefine}
 	for _, ccd := range coreComponentDefinition {
 		if c.GetComponentDefinition(ccd.Name) == nil {
 			logrus.Infof("create core componentdefinition %s", ccd.Name)

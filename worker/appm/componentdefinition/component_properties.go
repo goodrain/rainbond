@@ -20,10 +20,12 @@ package componentdefinition
 
 //ThirdComponentProperties third component properties
 type ThirdComponentProperties struct {
-	Kubernetes ThirdComponentKubernetes `json:"kubernetes"`
-	Port       []*ThirdComponentPort    `json:"port"`
+	Kubernetes *ThirdComponentKubernetes `json:"kubernetes,omitempty"`
+	Endpoints  []*ThirdComponentEndpoint `json:"endpoints,omitempty"`
+	Port       []*ThirdComponentPort     `json:"port"`
 }
 
+// ThirdComponentPort -
 type ThirdComponentPort struct {
 	Name      string `json:"name"`
 	Port      int    `json:"port"`
@@ -31,7 +33,15 @@ type ThirdComponentPort struct {
 	OpenOuter bool   `json:"openOuter"`
 }
 
+// ThirdComponentKubernetes -
 type ThirdComponentKubernetes struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
+}
+
+// ThirdComponentEndpoint -
+type ThirdComponentEndpoint struct {
+	Address      string `json:"address"`
+	Protocol     string `json:"protocol,omitempty"`
+	ClientSecret string `json:"clientSecret,omitempty"`
 }

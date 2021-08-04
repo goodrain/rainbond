@@ -111,7 +111,7 @@ func (a AppServiceBase) GetComponentDefinitionName() string {
 	if strings.HasPrefix(a.ServiceKind.String(), dbmodel.ServiceKindCustom.String()) {
 		return strings.Replace(a.ServiceKind.String(), dbmodel.ServiceKindCustom.String(), "", 1)
 	}
-	if a.discoveryCfg != nil && a.discoveryCfg.Type == dbmodel.DiscorveryTypeKubernetes.String() {
+	if a.ServiceKind == model.ServiceKindThirdParty {
 		return "core-thirdcomponent"
 	}
 	return ""
@@ -122,7 +122,7 @@ func (a AppServiceBase) IsCustomComponent() bool {
 	if strings.HasPrefix(a.ServiceKind.String(), dbmodel.ServiceKindCustom.String()) {
 		return true
 	}
-	if a.discoveryCfg != nil && a.discoveryCfg.Type == dbmodel.DiscorveryTypeKubernetes.String() {
+	if a.ServiceKind == model.ServiceKindThirdParty {
 		return true
 	}
 	return false

@@ -101,9 +101,6 @@ func InitAppService(dbmanager db.Manager, serviceID string, configs map[string]s
 		}
 		return appService, nil
 	}
-	if appService.IsThirdComponent() {
-		return appService, nil
-	}
 	for _, c := range conversionList {
 		if len(enableConversionList) == 0 || util.StringArrayContains(enableConversionList, c.Name) {
 			if err := c.Conversion(appService, dbmanager); err != nil {
