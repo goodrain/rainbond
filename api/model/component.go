@@ -168,6 +168,7 @@ type ComponentVolume struct {
 	ReclaimPolicy      string `json:"reclaim_policy"`
 	AllowExpansion     bool   `json:"allow_expansion"`
 	VolumeProviderName string `json:"volume_provider_name"`
+	Mode               *int32 `json:"mode"`
 }
 
 // Key returns the key of ComponentVolume.
@@ -192,6 +193,7 @@ func (v *ComponentVolume) DbModel(componentID string) *dbmodel.TenantServiceVolu
 		ReclaimPolicy:      v.ReclaimPolicy,
 		AllowExpansion:     v.AllowExpansion,
 		VolumeProviderName: v.VolumeProviderName,
+		Mode:               v.Mode,
 	}
 }
 
