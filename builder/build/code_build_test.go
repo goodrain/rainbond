@@ -11,12 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goodrain/rainbond/builder/parser/code"
-	"github.com/goodrain/rainbond/cmd/builder/option"
-	"github.com/goodrain/rainbond/event"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	jobc "github.com/goodrain/rainbond/builder/job"
+	"github.com/goodrain/rainbond/builder/parser/code"
+	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/cmd/builder/option"
+	"github.com/goodrain/rainbond/event"
 
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
@@ -125,4 +126,47 @@ func TestDockerClient(t *testing.T) {
 	// for _, image := range images {
 	// 	t.Log("image is : ", image.ID)
 	// }
+}
+
+func TestBuildFromOSS(t *testing.T) {
+	restConfig, err := k8sutil.NewRestConfig("/Users/barnett/.kube/config")
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Setenv("IMAGE_PULL_SECRET", "rbd-hub-credentials")
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stop := make(chan struct{})
+	if err := jobc.InitJobController("rbd-system", stop, clientset); err != nil {
+		t.Fatal(err)
+	}
+	logger := event.GetTestLogger()
+	req := &Request{
+		ServerType:    "oss",
+		RepositoryURL: "http://8081.gr021644.64q1jlfb.17f4cc.grapps.cn/artifactory/dev/java-war-demo-master.zip",
+		CodeSouceInfo: sources.CodeSourceInfo{
+			User:     "demo",
+			Password: "gr123465!",
+		},
+		KubeClient:    clientset,
+		Ctx:           context.Background(),
+		ServiceID:     "d9b8d718510dc53118af1e1219e36d3a",
+		DeployVersion: "123asdadsadsasdasd1",
+		TenantID:      "7c89455140284fd7b263038b44dc65bc",
+		Lang:          code.OSS,
+		Logger:        logger,
+		GRDataPVCName: "rbd-cpt-grdata",
+		CachePVCName:  "rbd-chaos-cache",
+	}
+	build, err := GetBuild(code.OSS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := build.Build(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(res.MediumPath)
 }
