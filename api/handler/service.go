@@ -2910,7 +2910,7 @@ func (s *ServiceAction) SyncComponentEndpoints(tx *gorm.DB, components []*api_mo
 }
 
 // Log returns the logs reader for a container in a pod, a pod or a component.
-func (s *ServiceAction) Log(w http.ResponseWriter, r *http.Request, component *dbmodel.TenantServices, podName, containerName string) error {
+func (s *ServiceAction) Log(w http.ResponseWriter, r *http.Request, component *dbmodel.TenantServices, podName, containerName string, follow bool) error {
 	// If podName and containerName is missing, return the logs reader for the component
 	// If containerName is missing, return the logs reader for the pod.
 	if podName == "" || containerName == "" {
@@ -2920,7 +2920,7 @@ func (s *ServiceAction) Log(w http.ResponseWriter, r *http.Request, component *d
 
 	request := s.kubeClient.CoreV1().Pods(component.TenantID).GetLogs(podName, &corev1.PodLogOptions{
 		Container: containerName,
-		Follow:    true,
+		Follow:    follow,
 	})
 
 	out, err := request.Stream(context.TODO())

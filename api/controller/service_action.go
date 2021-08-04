@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
@@ -778,8 +779,9 @@ func (t *TenantStruct) Log(w http.ResponseWriter, r *http.Request) {
 	component := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
 	podName := r.URL.Query().Get("podName")
 	containerName := r.URL.Query().Get("containerName")
+	follow, _ := strconv.ParseBool(r.URL.Query().Get("follow"))
 
-	err := handler.GetServiceManager().Log(w, r, component, podName, containerName)
+	err := handler.GetServiceManager().Log(w, r, component, podName, containerName, follow)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
