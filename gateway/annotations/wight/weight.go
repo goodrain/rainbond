@@ -22,7 +22,7 @@ import (
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
 	"github.com/sirupsen/logrus"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"strconv"
 )
 
@@ -40,7 +40,7 @@ func NewParser(r resolver.Resolver) parser.IngressAnnotation {
 	return weight{r}
 }
 
-func (c weight) Parse(ing *extensions.Ingress) (interface{}, error) {
+func (c weight) Parse(ing *networkingv1.Ingress) (interface{}, error) {
 	wstr, err := parser.GetStringAnnotation("weight", ing)
 	var w int
 	if err != nil || wstr == "" {

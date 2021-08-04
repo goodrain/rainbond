@@ -19,13 +19,15 @@
 package parser
 
 import (
+	"context"
+	"encoding/base64"
 	"fmt"
+	"os"
 	"path"
 	"runtime"
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	multi "github.com/goodrain/rainbond/builder/parser/code/multisvc"
@@ -34,6 +36,7 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
+	"github.com/melbahja/got"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/src-d/go-git.v4/plumbing"
@@ -42,18 +45,17 @@ import (
 
 //SourceCodeParse docker run 命令解析或直接镜像名解析
 type SourceCodeParse struct {
-	ports        map[int]*types.Port
-	volumes      map[string]*types.Volume
-	envs         map[string]*types.Env
-	source       string
-	memory       int
-	image        Image
-	args         []string
-	branchs      []string
-	errors       []ParseError
-	dockerclient *client.Client
-	logger       event.Logger
-	Lang         code.Lang
+	ports   map[int]*types.Port
+	volumes map[string]*types.Volume
+	envs    map[string]*types.Env
+	source  string
+	memory  int
+	image   Image
+	args    []string
+	branchs []string
+	errors  []ParseError
+	logger  event.Logger
+	Lang    code.Lang
 
 	Runtime      bool `json:"runtime"`
 	Dependencies bool `json:"dependencies"`
@@ -83,6 +85,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		d.errappend(Errorf(FatalError, "source can not be empty"))
 		return d.errors
 	}
+	logrus.Debugf("component source check info: %s", d.source)
 	var csi sources.CodeSourceInfo
 	err := ffjson.Unmarshal([]byte(d.source), &csi)
 	if err != nil {
@@ -105,6 +108,14 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		d.errappend(ErrorAndSolve(FatalError, "Git项目仓库地址格式错误", SolveAdvice("modify_url", "请确认并修改仓库地址")))
 		return d.errors
 	}
+	// The source code is useless after the test is completed, and needs to be deleted.
+	defer func() {
+		if sources.CheckFileExist(buildInfo.GetCodeHome()) {
+			if err := sources.RemoveDir(buildInfo.GetCodeHome()); err != nil {
+				logrus.Warningf("remove source code: %v", err)
+			}
+		}
+	}()
 	gitFunc := func() ParseErrorList {
 		//get code
 		if !util.DirIsEmpty(buildInfo.GetCodeHome()) {
@@ -131,26 +142,26 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			}
 			if err == transport.ErrRepositoryNotFound {
 				solve := SolveAdvice("modify_repo", "请确认仓库地址是否正确")
-				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("Git项目仓库不存在"), solve))
+				d.errappend(ErrorAndSolve(FatalError, "Git项目仓库不存在", solve))
 				return d.errors
 			}
 			if err == transport.ErrEmptyRemoteRepository {
 				solve := SolveAdvice("open_repo", "请确认已提交代码")
-				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("Git项目仓库无有效文件"), solve))
+				d.errappend(ErrorAndSolve(FatalError, "Git项目仓库无有效文件", solve))
 				return d.errors
 			}
 			if strings.Contains(err.Error(), "ssh: unable to authenticate") {
 				solve := SolveAdvice("get_publickey", "请获取授权Key配置到你的仓库项目试试？")
-				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("远程仓库SSH验证错误"), solve))
+				d.errappend(ErrorAndSolve(FatalError, "远程仓库SSH验证错误", solve))
 				return d.errors
 			}
 			if strings.Contains(err.Error(), "context deadline exceeded") {
 				solve := "请确认源码仓库能否正常访问"
-				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("获取代码超时"), solve))
+				d.errappend(ErrorAndSolve(FatalError, "获取代码超时", solve))
 				return d.errors
 			}
 			logrus.Errorf("git clone error,%s", err.Error())
-			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("获取代码失败"), "请确认仓库能否正常访问，或联系客服咨询"))
+			d.errappend(ErrorAndSolve(FatalError, "获取代码失败"+err.Error(), "请确认仓库能否正常访问。"))
 			return d.errors
 		}
 		//获取分支
@@ -172,7 +183,6 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	svnFunc := func() ParseErrorList {
 		if sources.CheckFileExist(buildInfo.GetCodeHome()) {
 			if err := sources.RemoveDir(buildInfo.GetCodeHome()); err != nil {
-				//d.errappend(ErrorAndSolve(err, "清理cache dir错误", "请提交代码到仓库"))
 				return d.errors
 			}
 		}
@@ -186,14 +196,56 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 				return d.errors
 			}
 			logrus.Errorf("svn checkout or update error,%s", err.Error())
-			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("获取代码失败"), "请确认仓库能否正常访问，或查看社区文档"))
+			d.errappend(ErrorAndSolve(FatalError, "获取代码失败"+err.Error(), "请确认仓库能否正常访问，或查看社区文档"))
 			return d.errors
 		}
 		//get branchs
 		d.branchs = rs.Branchs
 		return nil
 	}
-	logrus.Debugf("start get service code by %s server type", csi.ServerType)
+	ossFunc := func() ParseErrorList {
+		g := got.NewWithContext(context.Background())
+		util.CheckAndCreateDir(buildInfo.GetCodeHome())
+		fileName := path.Join(buildInfo.GetCodeHome(), path.Base(csi.RepositoryURL))
+		if err := g.Do(&got.Download{
+			URL:  csi.RepositoryURL,
+			Dest: fileName,
+			Header: []got.GotHeader{
+				{Key: "Authorization", Value: "Basic " + basicAuth(csi.User, csi.Password)},
+			},
+		}); err != nil {
+			logrus.Errorf("download package file from oss failure %s", err.Error())
+			d.errappend(ErrorAndSolve(FatalError, "文件下载失败:"+err.Error(), "请确认该文件可以被正常下载"))
+			return d.errors
+		}
+		fi, err := os.Stat(fileName)
+		if err != nil {
+			d.errappend(ErrorAndSolve(FatalError, "文件下载失败:"+err.Error(), "请确认该文件可以被正常下载"))
+			return d.errors
+		}
+		logrus.Infof("download package file success, size %d MB", fi.Size()/1024/1024)
+		ext := path.Ext(csi.RepositoryURL)
+		switch ext {
+		case ".tar":
+			if err := util.UnTar(fileName, buildInfo.GetCodeHome(), false); err != nil {
+				logrus.Errorf("untar package file failure %s", err.Error())
+				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为tar规范文件"))
+			}
+		case ".tgz", ".tar.gz":
+			if err := util.UnTar(fileName, buildInfo.GetCodeHome(), true); err != nil {
+				logrus.Errorf("untar package file failure %s", err.Error())
+				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为tgz规范文件"))
+			}
+		case ".zip":
+			if err := util.Unzip(fileName, buildInfo.GetCodeHome()); err != nil {
+				logrus.Errorf("untar package file failure %s", err.Error())
+				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为zip规范文件"))
+			}
+		}
+		logrus.Infof("unpack package file success")
+		return d.errors
+	}
+	logrus.Debugf("start get service %s code by %s server type", csi.ServiceID, csi.ServerType)
 	//获取代码仓库
 	switch csi.ServerType {
 	case "git":
@@ -204,6 +256,10 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		if err := svnFunc(); err != nil && err.IsFatalError() {
 			return err
 		}
+	case "oss":
+		if err := ossFunc(); err != nil && err.IsFatalError() {
+			return err
+		}
 	default:
 		//default git
 		logrus.Warningf("do not get void server type,default use git")
@@ -211,14 +267,6 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			return err
 		}
 	}
-	// The source code is useless after the test is completed, and needs to be deleted.
-	defer func() {
-		if sources.CheckFileExist(buildInfo.GetCodeHome()) {
-			if err := sources.RemoveDir(buildInfo.GetCodeHome()); err != nil {
-				logrus.Warningf("remove source code: %v", err)
-			}
-		}
-	}()
 
 	//read rainbondfile
 	rbdfileConfig, err := code.ReadRainbondFile(buildInfo.GetCodeBuildAbsPath())
@@ -252,7 +300,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		return d.errors
 	}
 	//check code Specification
-	spec := code.CheckCodeSpecification(buildPath, lang)
+	spec := code.CheckCodeSpecification(buildPath, lang, csi.ServerType)
 	if spec.Advice != nil {
 		for k, v := range spec.Advice {
 			d.errappend(ErrorAndSolve(NegligibleError, k, v))
@@ -303,7 +351,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("error listing modules: %v", err), "check source code for multi-modules"))
 			return d.errors
 		}
-		if services != nil && len(services) > 1 {
+		if len(services) > 1 {
 			d.isMulti = true
 			d.services = services
 		}
@@ -578,4 +626,9 @@ func (d *SourceCodeParse) parseDockerfileInfo(dockerfile string) bool {
 	// dockerfile empty args
 	d.args = []string{}
 	return true
+}
+
+func basicAuth(username, password string) string {
+	auth := username + ":" + password
+	return base64.StdEncoding.EncodeToString([]byte(auth))
 }

@@ -31,13 +31,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/goodrain/rainbond/gateway/cluster"
-
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/annotations"
 	"github.com/goodrain/rainbond/gateway/annotations/l4"
 	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
+	"github.com/goodrain/rainbond/gateway/cluster"
 	"github.com/goodrain/rainbond/gateway/controller/config"
 	"github.com/goodrain/rainbond/gateway/defaults"
 	"github.com/goodrain/rainbond/gateway/util"
@@ -47,8 +46,7 @@ import (
 	ik8s "github.com/goodrain/rainbond/util/ingress-nginx/k8s"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -89,7 +87,7 @@ type Storer interface {
 	// list virtual service
 	ListVirtualService() ([]*v1.VirtualService, []*v1.VirtualService)
 
-	ListIngresses() []*extensions.Ingress
+	ListIngresses() []*networkingv1.Ingress
 
 	GetIngressAnnotations(key string) (*annotations.Ingress, error)
 
@@ -177,7 +175,7 @@ func New(client kubernetes.Interface,
 			options.LabelSelector = "creator=Rainbond"
 		})
 
-	store.informers.Ingress = store.sharedInformer.Extensions().V1beta1().Ingresses().Informer()
+	store.informers.Ingress = store.sharedInformer.Networking().V1().Ingresses().Informer()
 	store.listers.Ingress.Store = store.informers.Ingress.GetStore()
 
 	store.informers.Service = store.sharedInformer.Core().V1().Services().Informer()
@@ -191,7 +189,7 @@ func New(client kubernetes.Interface,
 
 	ingEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			ing := obj.(*extensions.Ingress)
+			ing := obj.(*networkingv1.Ingress)
 
 			// updating annotations information for ingress
 			store.extractAnnotations(ing)
@@ -212,8 +210,8 @@ func New(client kubernetes.Interface,
 			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			oldIng := old.(*extensions.Ingress)
-			curIng := cur.(*extensions.Ingress)
+			oldIng := old.(*networkingv1.Ingress)
+			curIng := cur.(*networkingv1.Ingress)
 			// ignore the same secret as the old one
 			if oldIng.ResourceVersion == curIng.ResourceVersion || reflect.DeepEqual(oldIng, curIng) {
 				return
@@ -344,7 +342,7 @@ func New(client kubernetes.Interface,
 }
 
 // checkIngress checks whether the given ing is valid.
-func (s *k8sStore) checkIngress(ing *extensions.Ingress) bool {
+func (s *k8sStore) checkIngress(ing *networkingv1.Ingress) bool {
 	i, err := l4.NewParser(s).Parse(ing)
 	if err != nil {
 		logrus.Warningf("Uxpected error with ingress: %v", err)
@@ -367,7 +365,7 @@ func (s *k8sStore) checkIngress(ing *extensions.Ingress) bool {
 
 // extractAnnotations parses ingress annotations converting the value of the
 // annotation to a go struct and also information about the referenced secrets
-func (s *k8sStore) extractAnnotations(ing *extensions.Ingress) {
+func (s *k8sStore) extractAnnotations(ing *networkingv1.Ingress) {
 	key := ik8s.MetaNamespaceKey(ing)
 	logrus.Debugf("updating annotations information for ingress %v", key)
 
@@ -466,7 +464,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 	// ServerName-LocationPath -> location
 	srvLocMap := make(map[string]*v1.Location)
 	for _, item := range s.listers.Ingress.List() {
-		ing := item.(*extensions.Ingress)
+		ing := item.(*networkingv1.Ingress)
 		if !s.ingressIsValid(ing) {
 			continue
 		}
@@ -493,8 +491,8 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 					continue
 				}
 			}
-			svcKey := fmt.Sprintf("%v/%v", ing.Namespace, ing.Spec.Backend.ServiceName)
-			protocol := s.GetServiceProtocol(svcKey, ing.Spec.Backend.ServicePort.IntVal)
+			svcKey := fmt.Sprintf("%v/%v", ing.Namespace, ing.Spec.DefaultBackend.Service.Name)
+			protocol := s.GetServiceProtocol(svcKey, ing.Spec.DefaultBackend.Service.Port.Number)
 			listening := fmt.Sprintf("%s:%v", host, anns.L4.L4Port)
 			if string(protocol) == string(v1.ProtocolUDP) {
 				listening = fmt.Sprintf("%s %s", listening, "udp")
@@ -524,11 +522,11 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			}
 			vs.Namespace = anns.Namespace
 			vs.ServiceID = anns.Labels["service_id"]
-			l4PoolMap[ing.Spec.Backend.ServiceName] = struct{}{}
+			l4PoolMap[ing.Spec.DefaultBackend.Service.Name] = struct{}{}
 			l4vsMap[listening] = vs
 			l4vs = append(l4vs, vs)
 			backend := backend{name: backendName, weight: anns.Weight.Weight}
-			l4PoolBackendMap[ing.Spec.Backend.ServiceName] = append(l4PoolBackendMap[ing.Spec.Backend.ServiceName], backend)
+			l4PoolBackendMap[ing.Spec.DefaultBackend.Service.Name] = append(l4PoolBackendMap[ing.Spec.DefaultBackend.Service.Name], backend)
 			// endregion
 		} else {
 			// region l7
@@ -593,7 +591,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				for _, path := range rule.IngressRuleValue.HTTP.Paths {
 					locKey := fmt.Sprintf("%s_%s", virSrvName, path.Path)
 					location := srvLocMap[locKey]
-					l7PoolMap[path.Backend.ServiceName] = struct{}{}
+					l7PoolMap[path.Backend.Service.Name] = struct{}{}
 					// if location do not exists, then creates a new one
 					if location == nil {
 						location = &v1.Location{
@@ -631,7 +629,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 					if anns.UpstreamHashBy != "" {
 						backend.hashBy = anns.UpstreamHashBy
 					}
-					l7PoolBackendMap[path.Backend.ServiceName] = append(l7PoolBackendMap[path.Backend.ServiceName], backend)
+					l7PoolBackendMap[path.Backend.Service.Name] = append(l7PoolBackendMap[path.Backend.Service.Name], backend)
 				}
 			}
 			// endregion
@@ -639,7 +637,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 	}
 
 	for _, item := range s.listers.Ingress.List() {
-		ing := item.(*extensions.Ingress)
+		ing := item.(*networkingv1.Ingress)
 		if !s.ingressIsValid(ing) {
 			continue
 		}
@@ -701,15 +699,15 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 }
 
 // ingressIsValid checks if the specified ingress is valid
-func (s *k8sStore) ingressIsValid(ing *extensions.Ingress) bool {
+func (s *k8sStore) ingressIsValid(ing *networkingv1.Ingress) bool {
 	var endpointKey string
-	if ing.Spec.Backend != nil { // stream
-		endpointKey = fmt.Sprintf("%s/%s", ing.Namespace, ing.Spec.Backend.ServiceName)
+	if ing.Spec.DefaultBackend != nil { // stream
+		endpointKey = fmt.Sprintf("%s/%s", ing.Namespace, ing.Spec.DefaultBackend.Service.Name)
 	} else { // http
 	Loop:
 		for _, rule := range ing.Spec.Rules {
 			for _, path := range rule.IngressRuleValue.HTTP.Paths {
-				endpointKey = fmt.Sprintf("%s/%s", ing.Namespace, path.Backend.ServiceName)
+				endpointKey = fmt.Sprintf("%s/%s", ing.Namespace, path.Backend.Service.Name)
 				if endpointKey != "" {
 					break Loop
 				}
@@ -752,16 +750,16 @@ func hasReadyAddresses(endpoints *corev1.Endpoints) bool {
 }
 
 // GetIngress returns the Ingress matching key.
-func (s *k8sStore) GetIngress(key string) (*extensions.Ingress, error) {
+func (s *k8sStore) GetIngress(key string) (*networkingv1.Ingress, error) {
 	return s.listers.Ingress.ByKey(key)
 }
 
 // ListIngresses returns the list of Ingresses
-func (s *k8sStore) ListIngresses() []*extensions.Ingress {
+func (s *k8sStore) ListIngresses() []*networkingv1.Ingress {
 	// filter ingress rules
-	var ingresses []*extensions.Ingress
+	var ingresses []*networkingv1.Ingress
 	for _, item := range s.listers.Ingress.List() {
-		ing := item.(*extensions.Ingress)
+		ing := item.(*networkingv1.Ingress)
 
 		ingresses = append(ingresses, ing)
 	}
@@ -803,7 +801,7 @@ func (s *k8sStore) Run(stopCh chan struct{}) {
 
 // syncSecrets synchronizes data from all Secrets referenced by the given
 // Ingress with the local store and file system.
-func (s *k8sStore) syncSecrets(ing *extensions.Ingress) {
+func (s *k8sStore) syncSecrets(ing *networkingv1.Ingress) {
 	key := ik8s.MetaNamespaceKey(ing)
 	for _, secrKey := range s.secretIngressMap.getSecretKeys(key) {
 		s.syncSecret(secrKey)
@@ -895,7 +893,7 @@ func (s *k8sStore) loopUpdateIngress() {
 	for ipevent := range s.node.IPManager().NeedUpdateGatewayPolicy() {
 		ingress := s.listers.Ingress.List()
 		for i := range ingress {
-			curIng, ok := ingress[i].(*v1beta1.Ingress)
+			curIng, ok := ingress[i].(*networkingv1.Ingress)
 			if ok && curIng != nil && s.annotations.Extract(curIng).L4.L4Host == ipevent.IP.String() {
 				s.extractAnnotations(curIng)
 				s.secretIngressMap.update(curIng)
