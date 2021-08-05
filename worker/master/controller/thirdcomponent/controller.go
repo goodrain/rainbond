@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	rainbondlistersv1alpha1 "github.com/goodrain/rainbond/pkg/generated/listers/rainbond/v1alpha1"
 	dis "github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/discover"
+	"github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/prober"
 	"github.com/oam-dev/kubevela/pkg/utils/apply"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -38,6 +39,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	runtimecache "sigs.k8s.io/controller-runtime/pkg/cache"
@@ -60,6 +62,9 @@ type Reconciler struct {
 
 	informer runtimecache.Informer
 	lister   rainbondlistersv1alpha1.ThirdComponentLister
+
+	recorder      record.EventRecorder
+	proberManager prober.Manager
 }
 
 // Reconcile is the main logic of appDeployment controller
@@ -87,10 +92,14 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 	if component.DeletionTimestamp != nil {
 		log.Infof("component %s will be deleted", req)
 		r.discoverPool.RemoveDiscover(component)
+		r.proberManager.RemoveThirdComponent(component)
 		return ctrl.Result{}, nil
 	}
+
+	r.proberManager.AddThirdComponent(component)
+
 	logrus.Debugf("start to reconcile component %s/%s", component.Namespace, component.Name)
-	discover, err := dis.NewDiscover(component, r.restConfig, r.lister)
+	discover, err := dis.NewDiscover(component, r.restConfig, r.lister, r.proberManager)
 	if err != nil {
 		component.Status.Phase = v1alpha1.ComponentFailed
 		component.Status.Reason = err.Error()
@@ -297,6 +306,10 @@ func Setup(ctx context.Context, mgr ctrl.Manager) (*Reconciler, error) {
 	}
 	lister := rainbondlistersv1alpha1.NewThirdComponentLister(informer.(cache.SharedIndexInformer).GetIndexer())
 
+	recorder := mgr.GetEventRecorderFor("thirdcomponent-controller")
+
+	proberManager := prober.NewManager(recorder)
+
 	r := &Reconciler{
 		Client:     mgr.GetClient(),
 		restConfig: mgr.GetConfig(),
@@ -307,7 +320,10 @@ func Setup(ctx context.Context, mgr ctrl.Manager) (*Reconciler, error) {
 			Name:      "third_component_discover_number",
 			Help:      "Number of running endpoint discover worker of third component.",
 		}),
-		lister: lister,
+		informer:      informer,
+		lister:        lister,
+		proberManager: proberManager,
+		recorder:      recorder,
 	}
 	dp := NewDiscoverPool(ctx, r)
 	r.discoverPool = dp

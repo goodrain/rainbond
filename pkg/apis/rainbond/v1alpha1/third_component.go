@@ -52,6 +52,16 @@ func (in *ThirdComponent) GetComponentID() string {
 	return in.Name
 }
 
+// GetEndpointID -
+func (in *ThirdComponent) GetEndpointID(endpoint *ThirdComponentEndpointStatus) string {
+	return fmt.Sprintf("%s/%s/%s", in.Namespace, in.Name, string(endpoint.Address))
+}
+
+// GetNamespaceName -
+func (in *ThirdComponent) GetNamespaceName() string {
+	return fmt.Sprintf("%s/%s", in.Namespace, in.Name)
+}
+
 // +kubebuilder:object:root=true
 
 // ThirdComponentList contains a list of ThirdComponent
@@ -70,6 +80,17 @@ type ThirdComponentSpec struct {
 	Ports []*ComponentPort `json:"ports"`
 	// endpoint source config
 	EndpointSource ThirdComponentEndpointSource `json:"endpointSource"`
+}
+
+// NeedProbe -
+func (in ThirdComponentSpec) NeedProbe() bool {
+	if in.Probe == nil {
+		return false
+	}
+	if in.EndpointSource.StaticEndpoints != nil && *in.EndpointSource.StaticEndpoints == true {
+		return true
+	}
+	return false
 }
 
 // ThirdComponentEndpointSource -
@@ -126,6 +147,24 @@ type Probe struct {
 	FailureThreshold int32 `json:"failureThreshold,omitempty" protobuf:"varint,6,opt,name=failureThreshold"`
 }
 
+// Equals -
+func (in *Probe) Equals(target *Probe) bool {
+	if in.TimeoutSeconds != target.TimeoutSeconds {
+		return false
+	}
+	if in.PeriodSeconds != target.PeriodSeconds {
+		return false
+	}
+	if in.SuccessThreshold != target.SuccessThreshold {
+		return false
+	}
+	if in.FailureThreshold != target.FailureThreshold {
+		return false
+	}
+
+	return in.Handler.Equals(&target.Handler)
+}
+
 // Handler defines a specific action that should be taken
 type Handler struct {
 	// HTTPGet specifies the http request to perform.
@@ -136,6 +175,21 @@ type Handler struct {
 	// TODO: implement a realistic TCP lifecycle hook
 	// +optional
 	TCPSocket *TCPSocketAction `json:"tcpSocket,omitempty"`
+}
+
+// Equals -
+func (in *Handler) Equals(target *Handler) bool {
+	if in == nil && target == nil {
+		return true
+	}
+	if in == nil || target == nil {
+		return false
+	}
+
+	if !in.HTTPGet.Equals(target.HTTPGet) {
+		return false
+	}
+	return in.TCPSocket.Equals(target.TCPSocket)
 }
 
 //ComponentPort component port define
@@ -150,6 +204,11 @@ type ComponentPort struct {
 type TCPSocketAction struct {
 }
 
+// Equals -
+func (in *TCPSocketAction) Equals(target *TCPSocketAction) bool {
+	return true
+}
+
 //HTTPGetAction enable http check
 type HTTPGetAction struct {
 	// Path to access on the HTTP server.
@@ -160,15 +219,37 @@ type HTTPGetAction struct {
 	HTTPHeaders []HTTPHeader `json:"httpHeaders,omitempty"`
 }
 
-// URIScheme identifies the scheme used for connection to a host for Get actions
-type URIScheme string
+// Equals -
+func (in *HTTPGetAction) Equals(target *HTTPGetAction) bool {
+	if in == nil && target == nil {
+		return true
+	}
+	if in == nil || target == nil {
+		return false
+	}
 
-const (
-	// URISchemeHTTP means that the scheme used will be http://
-	URISchemeHTTP URIScheme = "HTTP"
-	// URISchemeHTTPS means that the scheme used will be https://
-	URISchemeHTTPS URIScheme = "HTTPS"
-)
+	if in.Path != target.Path {
+		return false
+	}
+	if len(in.HTTPHeaders) != len(target.HTTPHeaders) {
+		return false
+	}
+
+	headers := make(map[string]string)
+	for _, header := range in.HTTPHeaders {
+		headers[header.Name] = header.Value
+	}
+	for _, header := range target.HTTPHeaders {
+		value, ok := headers[header.Name]
+		if !ok {
+			return false
+		}
+		if header.Value != value {
+			return false
+		}
+	}
+	return true
+}
 
 // HTTPHeader describes a custom header to be used in HTTP probes
 type HTTPHeader struct {
