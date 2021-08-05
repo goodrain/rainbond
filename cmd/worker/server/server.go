@@ -32,7 +32,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
-	"github.com/goodrain/rainbond/worker/appm"
 	"github.com/goodrain/rainbond/worker/appm/componentdefinition"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/store"
@@ -98,15 +97,8 @@ func Run(s *option.Worker) error {
 	componentdefinition.NewComponentDefinitionBuilder(s.Config.RBDNamespace)
 
 	//step 4: create component resource store
-	startCh := channels.NewRingChannel(1024)
 	updateCh := channels.NewRingChannel(1024)
-	probeCh := channels.NewRingChannel(1024)
-	cachestore := store.NewStore(restConfig, clientset, rainbondClient, db.GetManager(), s.Config, startCh, probeCh)
-	appmController := appm.NewAPPMController(clientset, cachestore, startCh, updateCh, probeCh)
-	if err := appmController.Start(); err != nil {
-		logrus.Errorf("error starting appm controller: %v", err)
-	}
-	defer appmController.Stop()
+	cachestore := store.NewStore(restConfig, clientset, rainbondClient, db.GetManager(), s.Config)
 	if err := cachestore.Start(); err != nil {
 		logrus.Error("start kube cache store error", err)
 		return err
@@ -128,7 +120,7 @@ func Run(s *option.Worker) error {
 
 	//step 7 : create discover module
 	garbageCollector := gc.NewGarbageCollector(clientset)
-	taskManager := discover.NewTaskManager(s.Config, cachestore, controllerManager, garbageCollector, startCh)
+	taskManager := discover.NewTaskManager(s.Config, cachestore, controllerManager, garbageCollector)
 	if err := taskManager.Start(); err != nil {
 		return err
 	}
