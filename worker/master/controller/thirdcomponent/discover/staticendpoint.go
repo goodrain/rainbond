@@ -19,7 +19,11 @@ func (s *staticEndpoint) GetComponent() *v1alpha1.ThirdComponent {
 }
 
 func (s *staticEndpoint) Discover(ctx context.Context, update chan *v1alpha1.ThirdComponent) ([]*v1alpha1.ThirdComponentEndpointStatus, error) {
-	return nil, nil
+	endpointStatues, err := s.DiscoverOne(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return endpointStatues, nil
 }
 
 func (s *staticEndpoint) DiscoverOne(ctx context.Context) ([]*v1alpha1.ThirdComponentEndpointStatus, error) {
