@@ -19,7 +19,7 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: HelmApp -
+      description: ThirdComponent -
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -34,29 +34,15 @@ spec:
         metadata:
           type: object
         spec:
+          description: ThirdComponentSpec -
           properties:
             endpointSource:
               description: endpoint source config
               properties:
                 endpoints:
-                  items:
-                    properties:
-                      address:
-                        description: The address including the port number.
-                        type: string
-                      clientSecret:
-                        description: Specify a private certificate when the protocol
-                          is HTTPS
-                        type: string
-                      protocol:
-                        description: 'Address protocols, including: HTTP, TCP, UDP,
-                          HTTPS'
-                        type: string
-                    required:
-                    - address
-                    type: object
-                  type: array
+                  type: boolean
                 kubernetesService:
+                  description: KubernetesServiceSource -
                   properties:
                     name:
                       type: string
@@ -127,6 +113,7 @@ spec:
           - ports
           type: object
         status:
+          description: ThirdComponentStatus -
           properties:
             endpoints:
               items:
@@ -187,6 +174,7 @@ spec:
                 type: object
               type: array
             phase:
+              description: ComponentPhase -
               type: string
             reason:
               type: string

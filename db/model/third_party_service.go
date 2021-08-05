@@ -18,7 +18,9 @@
 
 package model
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // Endpoint is a persistent object for table 3rd_party_svc_endpoints.
 type Endpoint struct {
@@ -36,8 +38,8 @@ func (Endpoint) TableName() string {
 	return "tenant_service_3rd_party_endpoints"
 }
 
-// Address -
-func (e *Endpoint) Address() string {
+// GetAddress -
+func (e *Endpoint) GetAddress() string {
 	if e.Port == 0 {
 		return e.IP
 	}

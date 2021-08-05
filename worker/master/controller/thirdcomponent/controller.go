@@ -24,7 +24,10 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	rainbondlistersv1alpha1 "github.com/goodrain/rainbond/pkg/generated/listers/rainbond/v1alpha1"
+	dis "github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/discover"
 	"github.com/oam-dev/kubevela/pkg/utils/apply"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -34,8 +37,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
+	runtimecache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -52,6 +57,9 @@ type Reconciler struct {
 	applyer              apply.Applicator
 	discoverPool         *DiscoverPool
 	discoverNum          prometheus.Gauge
+
+	informer runtimecache.Informer
+	lister   rainbondlistersv1alpha1.ThirdComponentLister
 }
 
 // Reconcile is the main logic of appDeployment controller
@@ -82,7 +90,7 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 		return ctrl.Result{}, nil
 	}
 	logrus.Debugf("start to reconcile component %s/%s", component.Namespace, component.Name)
-	discover, err := NewDiscover(component, r.restConfig)
+	discover, err := dis.NewDiscover(component, r.restConfig, r.lister)
 	if err != nil {
 		component.Status.Phase = v1alpha1.ComponentFailed
 		component.Status.Reason = err.Error()
@@ -283,17 +291,23 @@ func (r *Reconciler) Collect(ch chan<- prometheus.Metric) {
 
 // Setup adds a controller that reconciles AppDeployment.
 func Setup(ctx context.Context, mgr ctrl.Manager) (*Reconciler, error) {
-	applyer := apply.NewAPIApplicator(mgr.GetClient())
+	informer, err := mgr.GetCache().GetInformerForKind(ctx, v1alpha1.SchemeGroupVersion.WithKind("ThirdComponent"))
+	if err != nil {
+		return nil, errors.WithMessage(err, "get informer for thirdcomponent")
+	}
+	lister := rainbondlistersv1alpha1.NewThirdComponentLister(informer.(cache.SharedIndexInformer).GetIndexer())
+
 	r := &Reconciler{
 		Client:     mgr.GetClient(),
 		restConfig: mgr.GetConfig(),
 		Scheme:     mgr.GetScheme(),
-		applyer:    applyer,
+		applyer:    apply.NewAPIApplicator(mgr.GetClient()),
 		discoverNum: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: "controller",
 			Name:      "third_component_discover_number",
 			Help:      "Number of running endpoint discover worker of third component.",
 		}),
+		lister: lister,
 	}
 	dp := NewDiscoverPool(ctx, r)
 	r.discoverPool = dp

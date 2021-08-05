@@ -28,13 +28,16 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	rainbondversioned "github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
+	"github.com/goodrain/rainbond/util/commonutil"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ErrNotSupport -
 var ErrNotSupport = fmt.Errorf("not support component definition")
+
 // ErrOnlyCUESupport -
 var ErrOnlyCUESupport = fmt.Errorf("component definition only support cue template")
 
@@ -124,11 +127,11 @@ func (c *ComponentDefinitionBuilder) GetComponentProperties(as *v1.AppService, d
 		}
 
 		// static endpoints
-		endpoints, err := c.listStaticEndpoints(as.ServiceID)
+		containsEndpoints, err := c.containsEndpoints(as.ServiceID)
 		if err != nil {
 			c.logger.Errorf("component id: %s; list static endpoints: %v", as.ServiceID, err)
 		}
-		properties.Endpoints = endpoints
+		properties.Endpoints = commonutil.Bool(containsEndpoints)
 
 		ports, err := dbm.TenantServicesPortDao().GetPortsByServiceID(as.ServiceID)
 		if err != nil {
@@ -152,19 +155,12 @@ func (c *ComponentDefinitionBuilder) GetComponentProperties(as *v1.AppService, d
 	}
 }
 
-func (c *ComponentDefinitionBuilder) listStaticEndpoints(componentID string) ([]*ThirdComponentEndpoint, error) {
+func (c *ComponentDefinitionBuilder) containsEndpoints(componentID string) (bool, error) {
 	endpoints, err := db.GetManager().EndpointsDao().List(componentID)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-
-	var res []*ThirdComponentEndpoint
-	for _, ep := range endpoints {
-		res = append(res, &ThirdComponentEndpoint{
-			Address: ep.Address(),
-		})
-	}
-	return res, nil
+	return len(endpoints) > 0, nil
 }
 
 // BuildWorkloadResource -
@@ -196,7 +192,7 @@ func (c *ComponentDefinitionBuilder) InitCoreComponentDefinition(rainbondClient 
 	for _, ccd := range coreComponentDefinition {
 		if c.GetComponentDefinition(ccd.Name) == nil {
 			logrus.Infof("create core componentdefinition %s", ccd.Name)
-			if _, err := rainbondClient.RainbondV1alpha1().ComponentDefinitions(c.namespace).Create(context.Background(), ccd, metav1.CreateOptions{}); err != nil {
+			if _, err := rainbondClient.RainbondV1alpha1().ComponentDefinitions(c.namespace).Create(context.Background(), ccd, metav1.CreateOptions{}); err != nil && !k8sErrors.IsNotFound(err) {
 				logrus.Errorf("create core componentdefinition %s failire %s", ccd.Name, err.Error())
 			}
 		}

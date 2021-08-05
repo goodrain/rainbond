@@ -46,6 +46,11 @@ type ThirdComponent struct {
 	Status ThirdComponentStatus `json:"status,omitempty"`
 }
 
+// GetComponentID -
+func (in *ThirdComponent) GetComponentID() string {
+	return in.Name
+}
+
 // +kubebuilder:object:root=true
 
 // ThirdComponentList contains a list of ThirdComponent
@@ -68,8 +73,8 @@ type ThirdComponentSpec struct {
 
 // ThirdComponentEndpointSource -
 type ThirdComponentEndpointSource struct {
-	StaticEndpoints   []*ThirdComponentEndpoint `json:"endpoints,omitempty"`
-	KubernetesService *KubernetesServiceSource  `json:"kubernetesService,omitempty"`
+	StaticEndpoints   *bool                    `json:"endpoints,omitempty"`
+	KubernetesService *KubernetesServiceSource `json:"kubernetesService,omitempty"`
 	//other source
 	// NacosSource
 	// EurekaSource

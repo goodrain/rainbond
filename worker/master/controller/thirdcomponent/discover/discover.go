@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package thirdcomponent
+package discover
 
 import (
 	"context"
@@ -24,6 +24,8 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	rainbondlistersv1alpha1 "github.com/goodrain/rainbond/pkg/generated/listers/rainbond/v1alpha1"
+	"github.com/goodrain/rainbond/util/commonutil"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,7 +40,7 @@ type Discover interface {
 	Discover(ctx context.Context, update chan *v1alpha1.ThirdComponent) ([]*v1alpha1.ThirdComponentEndpointStatus, error)
 }
 
-func NewDiscover(component *v1alpha1.ThirdComponent, restConfig *rest.Config) (Discover, error) {
+func NewDiscover(component *v1alpha1.ThirdComponent, restConfig *rest.Config, lister rainbondlistersv1alpha1.ThirdComponentLister) (Discover, error) {
 	if component.Spec.EndpointSource.KubernetesService != nil {
 		clientset, err := kubernetes.NewForConfig(restConfig)
 		if err != nil {
@@ -48,6 +50,12 @@ func NewDiscover(component *v1alpha1.ThirdComponent, restConfig *rest.Config) (D
 		return &kubernetesDiscover{
 			component: component,
 			client:    clientset,
+		}, nil
+	}
+	if commonutil.BoolValue(component.Spec.EndpointSource.StaticEndpoints) {
+		return &staticEndpoint{
+			component: component,
+			lister:    lister,
 		}, nil
 	}
 	return nil, fmt.Errorf("not support source type")
@@ -86,6 +94,7 @@ func (k *kubernetesDiscover) Discover(ctx context.Context, update chan *v1alpha1
 		case <-ctx.Done():
 			return nil, nil
 		case <-re.ResultChan():
+			logrus.Infof("endpoint(%s/%s) changed", namespace, service.Name)
 			func() {
 				ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 				defer cancel()

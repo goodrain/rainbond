@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	dis "github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/discover"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -86,7 +87,7 @@ func (d *DiscoverPool) Start() {
 }
 
 type Worker struct {
-	discover   Discover
+	discover   dis.Discover
 	cancel     context.CancelFunc
 	ctx        context.Context
 	updateChan chan *v1alpha1.ThirdComponent
@@ -110,7 +111,7 @@ func (w *Worker) Start() {
 	}
 }
 
-func (w *Worker) UpdateDiscover(discover Discover) {
+func (w *Worker) UpdateDiscover(discover dis.Discover) {
 	w.discover = discover
 }
 
@@ -122,7 +123,7 @@ func (w *Worker) IsStop() bool {
 	return w.stoped
 }
 
-func (d *DiscoverPool) newWorker(dis Discover) *Worker {
+func (d *DiscoverPool) newWorker(dis dis.Discover) *Worker {
 	ctx, cancel := context.WithCancel(d.ctx)
 	return &Worker{
 		ctx:        ctx,
@@ -132,7 +133,7 @@ func (d *DiscoverPool) newWorker(dis Discover) *Worker {
 	}
 }
 
-func (d *DiscoverPool) AddDiscover(dis Discover) {
+func (d *DiscoverPool) AddDiscover(dis dis.Discover) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 	component := dis.GetComponent()
