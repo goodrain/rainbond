@@ -94,7 +94,6 @@ func (k *kubernetesDiscover) Discover(ctx context.Context, update chan *v1alpha1
 		case <-ctx.Done():
 			return nil, nil
 		case <-re.ResultChan():
-			logrus.Infof("endpoint(%s/%s) changed", namespace, service.Name)
 			func() {
 				ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 				defer cancel()

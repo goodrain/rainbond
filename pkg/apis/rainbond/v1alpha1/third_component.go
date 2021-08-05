@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 
+	validation "github.com/goodrain/rainbond/util/endpoint"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -64,7 +65,7 @@ type ThirdComponentList struct {
 type ThirdComponentSpec struct {
 	// health check probe
 	// +optional
-	Probe *HealthProbe `json:"probe,omitempty"`
+	Probe *Probe `json:"probe,omitempty"`
 	// component regist ports
 	Ports []*ComponentPort `json:"ports"`
 	// endpoint source config
@@ -102,8 +103,31 @@ type KubernetesServiceSource struct {
 	Name      string `json:"name"`
 }
 
-// HealthProbe -
-type HealthProbe struct {
+// Probe describes a health check to be performed against a container to determine whether it is
+// alive or ready to receive traffic.
+type Probe struct {
+	// The action taken to determine the health of a container
+	Handler `json:",inline" protobuf:"bytes,1,opt,name=handler"`
+	// Number of seconds after which the probe times out.
+	// Defaults to 1 second. Minimum value is 1.
+	// More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
+	// +optional
+	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty" protobuf:"varint,3,opt,name=timeoutSeconds"`
+	// How often (in seconds) to perform the probe.
+	// Default to 10 seconds. Minimum value is 1.
+	// +optional
+	PeriodSeconds int32 `json:"periodSeconds,omitempty" protobuf:"varint,4,opt,name=periodSeconds"`
+	// Minimum consecutive successes for the probe to be considered successful after having failed.
+	// +optional
+	SuccessThreshold int32 `json:"successThreshold,omitempty" protobuf:"varint,5,opt,name=successThreshold"`
+	// Minimum consecutive failures for the probe to be considered failed after having succeeded.
+	// Defaults to 3. Minimum value is 1.
+	// +optional
+	FailureThreshold int32 `json:"failureThreshold,omitempty" protobuf:"varint,6,opt,name=failureThreshold"`
+}
+
+// Handler defines a specific action that should be taken
+type Handler struct {
 	// HTTPGet specifies the http request to perform.
 	// +optional
 	HTTPGet *HTTPGetAction `json:"httpGet,omitempty"`
@@ -135,6 +159,16 @@ type HTTPGetAction struct {
 	// +optional
 	HTTPHeaders []HTTPHeader `json:"httpHeaders,omitempty"`
 }
+
+// URIScheme identifies the scheme used for connection to a host for Get actions
+type URIScheme string
+
+const (
+	// URISchemeHTTP means that the scheme used will be http://
+	URISchemeHTTP URIScheme = "HTTP"
+	// URISchemeHTTPS means that the scheme used will be https://
+	URISchemeHTTPS URIScheme = "HTTPS"
+)
 
 // HTTPHeader describes a custom header to be used in HTTP probes
 type HTTPHeader struct {
@@ -180,6 +214,14 @@ type EndpointAddress string
 
 // GetIP -
 func (e EndpointAddress) GetIP() string {
+	ip := e.getIP()
+	if validation.IsDomainNotIP(ip) {
+		return "1.1.1.1"
+	}
+	return ip
+}
+
+func (e EndpointAddress) getIP() string {
 	info := strings.Split(string(e), ":")
 	if len(info) == 2 {
 		return info[0]
