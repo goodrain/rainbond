@@ -82,13 +82,9 @@ func (m *manager) AddThirdComponent(thirdComponent *v1alpha1.ThirdComponent) {
 		key := string(ep.Address)
 		worker := newWorker(m, thirdComponent, *ep)
 		oldWorker, ok := workers[key]
-		if ok {
+		if ok && worker.spec.Equals(oldWorker.spec) {
+			newWorkers[key] = oldWorker
 			delete(workers, key)
-			if !worker.spec.Equals(oldWorker.spec) {
-				// update probe
-				oldWorker.spec = worker.spec
-				newWorkers[key] = oldWorker
-			}
 			continue
 		}
 		// run new worker

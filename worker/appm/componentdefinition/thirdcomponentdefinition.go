@@ -73,6 +73,8 @@ parameter: {
 				vale?: string
 			}]
 		}
+		tcpSocket?:{
+		}
 		timeoutSeconds?: >0 & <=65533
 		periodSeconds?: >0 & <=65533
 		successThreshold?: >0 & <=65533
