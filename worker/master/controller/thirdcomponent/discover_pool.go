@@ -75,7 +75,7 @@ func (d *DiscoverPool) Start() {
 							d.RemoveDiscover(component)
 							return
 						}
-						logrus.Errorf("update component status failure", err.Error())
+						logrus.Errorf("update component status failure: %s", err.Error())
 					}
 					logrus.Infof("update component %s status success by discover pool", name)
 				}

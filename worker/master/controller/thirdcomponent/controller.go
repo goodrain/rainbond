@@ -25,6 +25,7 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	rainbondlistersv1alpha1 "github.com/goodrain/rainbond/pkg/generated/listers/rainbond/v1alpha1"
+	validation "github.com/goodrain/rainbond/util/endpoint"
 	dis "github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/discover"
 	"github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/prober"
 	"github.com/oam-dev/kubevela/pkg/utils/apply"
@@ -158,6 +159,7 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 		}
 		// create endpoint for component service
 		for _, service := range services.Items {
+			service := service
 			for _, port := range service.Spec.Ports {
 				// if component port not exist in endpoint port list, ignore it.
 				if sourceEndpoint, ok := portMap[int(port.Port)]; ok {
@@ -175,6 +177,10 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 						if err := r.applyer.Apply(ctx, &endpoint); err != nil {
 							log.Errorf("apply endpoint for service %s failure %s", service.Name, err.Error())
 						}
+						service.Annotations = endpoint.Annotations
+						if err := r.applyer.Apply(ctx, &service); err != nil {
+							log.Errorf("apply service(%s) for updating annotation: %v", service.Name, err)
+						}
 						log.Infof("apply endpoint for service %s success", service.Name)
 					}
 				}
@@ -183,6 +189,7 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 	}
 	component.Status.Endpoints = endpoints
 	component.Status.Phase = v1alpha1.ComponentRunning
+	component.Status.Reason = ""
 	if err := r.updateStatus(ctx, component); err != nil {
 		log.Errorf("update status failure %s", err.Error())
 		return commonResult, nil
@@ -197,6 +204,8 @@ func createEndpoint(component *v1alpha1.ThirdComponent, service *corev1.Service,
 			spep[endpoint.ServicePort] = endpoint.Address.GetPort()
 		}
 	}
+
+	var domain string
 	endpoints := corev1.Endpoints{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Endpoints",
@@ -228,6 +237,9 @@ func createEndpoint(component *v1alpha1.ThirdComponent, service *corev1.Service,
 					}(),
 					Addresses: func() (re []corev1.EndpointAddress) {
 						for _, se := range sourceEndpoint {
+							if validation.IsDomainNotIP(string(se.Address)) {
+								domain = string(se.Address)
+							}
 							if se.Status == v1alpha1.EndpointReady {
 								re = append(re, corev1.EndpointAddress{
 									IP: se.Address.GetIP(),
@@ -266,6 +278,13 @@ func createEndpoint(component *v1alpha1.ThirdComponent, service *corev1.Service,
 			}
 		}(),
 	}
+
+	if domain != "" {
+		endpoints.Annotations = map[string]string{
+			"domain": domain,
+		}
+	}
+
 	return endpoints
 }
 

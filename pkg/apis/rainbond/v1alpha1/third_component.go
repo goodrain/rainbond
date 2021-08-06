@@ -21,10 +21,12 @@ package v1alpha1
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"strconv"
 	"strings"
 
 	validation "github.com/goodrain/rainbond/util/endpoint"
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -87,7 +89,7 @@ func (in ThirdComponentSpec) NeedProbe() bool {
 	if in.Probe == nil {
 		return false
 	}
-	if in.EndpointSource.StaticEndpoints != nil && *in.EndpointSource.StaticEndpoints == true {
+	if in.EndpointSource.StaticEndpoints != nil && *in.EndpointSource.StaticEndpoints {
 		return true
 	}
 	return false
@@ -312,12 +314,26 @@ func (e EndpointAddress) getIP() string {
 
 // GetPort -
 func (e EndpointAddress) GetPort() int {
-	info := strings.Split(string(e), ":")
-	if len(info) == 2 {
-		port, _ := strconv.Atoi(info[1])
-		return port
+	if !validation.IsDomainNotIP(string(e)) {
+		info := strings.Split(string(e), ":")
+		if len(info) == 2 {
+			port, _ := strconv.Atoi(info[1])
+			return port
+		}
+		return 0
 	}
-	return 0
+
+	u, err := url.Parse(e.EnsureScheme())
+	if err != nil {
+		logrus.Errorf("parse address %s: %v", e.EnsureScheme(), err)
+		return 0
+	}
+	logrus.Infof("url: %s; scheme: %s", e.EnsureScheme(), u.Scheme)
+	if u.Scheme == "https" {
+		return 443
+	}
+
+	return 80
 }
 
 // EnsureScheme -
@@ -332,13 +348,23 @@ func (e EndpointAddress) EnsureScheme() string {
 
 // NewEndpointAddress -
 func NewEndpointAddress(host string, port int) *EndpointAddress {
-	if net.ParseIP(host) == nil {
+	if !validation.IsDomainNotIP(host) {
+		if net.ParseIP(host) == nil {
+			return nil
+		}
+		if port < 0 || port > 65533 {
+			return nil
+		}
+		ea := EndpointAddress(fmt.Sprintf("%s:%d", host, port))
+		return &ea
+	}
+
+	u, err := url.Parse(host)
+	if err != nil {
 		return nil
 	}
-	if port < 0 || port > 65533 {
-		return nil
-	}
-	ea := EndpointAddress(fmt.Sprintf("%s:%d", host, port))
+	u.Path = ""
+	ea := EndpointAddress(u.String())
 	return &ea
 }
 
