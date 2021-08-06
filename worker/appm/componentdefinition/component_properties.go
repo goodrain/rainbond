@@ -18,11 +18,14 @@
 
 package componentdefinition
 
+import "github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+
 //ThirdComponentProperties third component properties
 type ThirdComponentProperties struct {
 	Kubernetes *ThirdComponentKubernetes `json:"kubernetes,omitempty"`
 	Endpoints  *bool                     `json:"endpoints,omitempty"`
 	Port       []*ThirdComponentPort     `json:"port"`
+	Probe      *v1alpha1.Probe           `json:"probe,omitempty"`
 }
 
 // ThirdComponentPort -

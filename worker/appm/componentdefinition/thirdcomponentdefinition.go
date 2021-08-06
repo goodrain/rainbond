@@ -47,6 +47,9 @@ output: {
 		if parameter["port"] != _|_ {
 			ports: parameter["port"]
 		}
+		if parameter["probe"] != _|_ {
+			probe: parameter["probe"]
+		}
 	}
 }
 
@@ -62,6 +65,19 @@ parameter: {
 		openInner: bool
 		openOuter: bool
 	}]
+	probe?: {
+		httpGet?: {
+			path?: string
+            httpHeaders?: [...{
+				name?: string
+				vale?: string
+			}]
+		}
+		timeoutSeconds?: >0 & <=65533
+		periodSeconds?: >0 & <=65533
+		successThreshold?: >0 & <=65533
+		failureThreshold?: >0 & <=65533
+	}
 }
 `
 var thirdComponentDefineName = "core-thirdcomponent"

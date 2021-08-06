@@ -20,6 +20,7 @@ package componentdefinition
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -149,6 +150,18 @@ func (c *ComponentDefinitionBuilder) GetComponentProperties(as *v1.AppService, d
 			properties.Port = []*ThirdComponentPort{}
 		}
 
+		// probe
+		probe, err := c.createProbe(as.ServiceID)
+		if err != nil {
+			c.logger.Warningf("create probe: %v", err)
+		}
+		properties.Probe = probe
+
+		bytes, err := json.Marshal(properties)
+		if err == nil {
+			logrus.Infof("properties: %s", bytes)
+		}
+
 		return properties
 	default:
 		return nil
@@ -198,4 +211,59 @@ func (c *ComponentDefinitionBuilder) InitCoreComponentDefinition(rainbondClient 
 		}
 	}
 	logrus.Infof("success check core componentdefinition from cluster")
+}
+
+func (c *ComponentDefinitionBuilder) createProbe(componentID string) (*v1alpha1.Probe, error) {
+	probe, err := db.GetManager().ServiceProbeDao().GetServiceUsedProbe(componentID, "readiness")
+	if err != nil {
+		return nil, err
+	}
+	if probe == nil {
+		return nil, nil
+	}
+
+	p := &v1alpha1.Probe{
+		TimeoutSeconds:   int32(probe.TimeoutSecond),
+		PeriodSeconds:    int32(probe.PeriodSecond),
+		SuccessThreshold: int32(probe.SuccessThreshold),
+		FailureThreshold: int32(probe.FailureThreshold),
+	}
+	if probe.Scheme == "tcp" {
+		p.TCPSocket = c.createTCPGetAction(probe)
+	} else {
+		p.HTTPGet = c.createHTTPGetAction(probe)
+	}
+
+	return p, nil
+}
+
+func (c *ComponentDefinitionBuilder) createHTTPGetAction(probe *dbmodel.TenantServiceProbe) *v1alpha1.HTTPGetAction {
+	action := &v1alpha1.HTTPGetAction{Path: probe.Path}
+	if probe.HTTPHeader != "" {
+		hds := strings.Split(probe.HTTPHeader, ",")
+		var headers []v1alpha1.HTTPHeader
+		for _, hd := range hds {
+			kv := strings.Split(hd, "=")
+			if len(kv) == 1 {
+				header := v1alpha1.HTTPHeader{
+					Name:  kv[0],
+					Value: "",
+				}
+				headers = append(headers, header)
+			} else if len(kv) == 2 {
+				header := v1alpha1.HTTPHeader{
+					Name:  kv[0],
+					Value: kv[1],
+				}
+				headers = append(headers, header)
+			}
+		}
+		action.HTTPHeaders = headers
+	}
+	return action
+}
+
+func (c *ComponentDefinitionBuilder) createTCPGetAction(probe *dbmodel.TenantServiceProbe) *v1alpha1.TCPSocketAction {
+	return &v1alpha1.TCPSocketAction{
+	}
 }

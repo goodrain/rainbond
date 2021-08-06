@@ -2,6 +2,7 @@ package discover
 
 import (
 	"context"
+	"time"
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
@@ -22,11 +23,19 @@ func (s *staticEndpoint) GetComponent() *v1alpha1.ThirdComponent {
 }
 
 func (s *staticEndpoint) Discover(ctx context.Context, update chan *v1alpha1.ThirdComponent) ([]*v1alpha1.ThirdComponentEndpointStatus, error) {
-	endpointStatues, err := s.DiscoverOne(ctx)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	endpoints, err := s.DiscoverOne(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return endpointStatues, nil
+
+	newComponent := s.component.DeepCopy()
+	newComponent.Status.Endpoints = endpoints
+	update <- newComponent
+
+	return endpoints, nil
 }
 
 func (s *staticEndpoint) DiscoverOne(ctx context.Context) ([]*v1alpha1.ThirdComponentEndpointStatus, error) {
@@ -51,11 +60,10 @@ func (s *staticEndpoint) DiscoverOne(ctx context.Context) ([]*v1alpha1.ThirdComp
 		res = append(res, es)
 
 		result, found := s.proberManager.GetResult(s.component.GetEndpointID(es))
-		if found || result != results.Success {
+		es.Status = v1alpha1.EndpointReady
+		if found && result != results.Success {
 			es.Status = v1alpha1.EndpointNotReady
 		}
-		// not found means no need probe, set status to ready as default
-		es.Status = v1alpha1.EndpointReady
 	}
 
 	return res, nil

@@ -320,6 +320,16 @@ func (e EndpointAddress) GetPort() int {
 	return 0
 }
 
+// EnsureScheme -
+func (e EndpointAddress) EnsureScheme() string {
+	address := string(e)
+	if strings.HasPrefix(address, "http://") || strings.HasPrefix(address, "https://") {
+		return address
+	}
+	// The default scheme is http
+	return "http://" + address
+}
+
 // NewEndpointAddress -
 func NewEndpointAddress(host string, port int) *EndpointAddress {
 	if net.ParseIP(host) == nil {

@@ -23,6 +23,7 @@ type prober struct {
 	http httpprobe.Prober
 	tcp  tcpprobe.Prober
 
+	logger   *logrus.Entry
 	recorder record.EventRecorder
 }
 
@@ -30,6 +31,7 @@ type prober struct {
 func newProber(
 	recorder record.EventRecorder) *prober {
 	return &prober{
+		logger:   logrus.WithField("WHO", "Thirdcomponent Prober"),
 		http:     httpprobe.New(),
 		tcp:      tcpprobe.New(),
 		recorder: recorder,
@@ -41,7 +43,7 @@ func (pb *prober) probe(thirdComponent *v1alpha1.ThirdComponent, endpointStatus 
 	probeSpec := thirdComponent.Spec.Probe
 
 	if probeSpec == nil {
-		logrus.Warningf("probe for %s is nil", endpointID)
+		pb.logger.Warningf("probe for %s is nil", endpointID)
 		return results.Success, nil
 	}
 
@@ -49,10 +51,10 @@ func (pb *prober) probe(thirdComponent *v1alpha1.ThirdComponent, endpointStatus 
 	if err != nil || (result != probe.Success) {
 		// Probe failed in one way or another.
 		if err != nil {
-			logrus.Infof("probe for %q errored: %v", endpointID, err)
+			pb.logger.Infof("probe for %q errored: %v", endpointID, err)
 			pb.recordContainerEvent(thirdComponent, v1.EventTypeWarning, "EndpointUnhealthy", "probe errored: %v", err)
 		} else { // result != probe.Success
-			logrus.Infof("probe for %q failed (%v): %s", endpointID, result, output)
+			pb.logger.Debugf("probe for %q failed (%v): %s", endpointID, result, output)
 			pb.recordContainerEvent(thirdComponent, v1.EventTypeWarning, "EndpointUnhealthy", "probe failed: %s", output)
 		}
 		return results.Failure, err
@@ -79,11 +81,10 @@ func (pb *prober) runProbe(p *v1alpha1.Probe, thirdComponent *v1alpha1.ThirdComp
 	timeout := time.Duration(p.TimeoutSeconds) * time.Second
 
 	if p.HTTPGet != nil {
-		u, err := url.Parse(string(endpointStatus.Address))
+		u, err := url.Parse(endpointStatus.Address.EnsureScheme())
 		if err != nil {
 			return probe.Unknown, "", err
 		}
-		u.Path = p.HTTPGet.Path
 		headers := buildHeader(p.HTTPGet.HTTPHeaders)
 		return pb.http.Probe(u, headers, timeout)
 	}
@@ -92,7 +93,7 @@ func (pb *prober) runProbe(p *v1alpha1.Probe, thirdComponent *v1alpha1.ThirdComp
 		return pb.tcp.Probe(endpointStatus.Address.GetIP(), endpointStatus.Address.GetPort(), timeout)
 	}
 
-	logrus.Warningf("Failed to find probe builder for endpoint address: %v", endpointID)
+	pb.logger.Warningf("Failed to find probe builder for endpoint address: %v", endpointID)
 	return probe.Unknown, "", fmt.Errorf("missing probe handler for %s/%s", thirdComponent.Namespace, thirdComponent.Name)
 }
 

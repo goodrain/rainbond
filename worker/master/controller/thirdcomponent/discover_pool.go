@@ -78,8 +78,6 @@ func (d *DiscoverPool) Start() {
 						logrus.Errorf("update component status failure", err.Error())
 					}
 					logrus.Infof("update component %s status success by discover pool", name)
-				} else {
-					logrus.Debugf("component %s status endpoints not change", name)
 				}
 			}()
 		}
@@ -101,6 +99,7 @@ func (w *Worker) Start() {
 	}()
 	w.stoped = false
 	logrus.Infof("discover endpoint list worker %s/%s  started", w.discover.GetComponent().Namespace, w.discover.GetComponent().Name)
+	// TODO: rate limit
 	for {
 		w.discover.Discover(w.ctx, w.updateChan)
 		select {
