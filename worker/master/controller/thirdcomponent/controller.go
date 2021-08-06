@@ -52,6 +52,7 @@ import (
 
 const reconcileTimeOut = 60 * time.Second
 
+// Reconciler -
 type Reconciler struct {
 	Client               client.Client
 	restConfig           *rest.Config
@@ -313,6 +314,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+// Collect -
 func (r *Reconciler) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(r.discoverNum.Desc(), prometheus.GaugeValue, r.discoverPool.GetSize())
 }

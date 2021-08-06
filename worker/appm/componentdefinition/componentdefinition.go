@@ -42,20 +42,20 @@ var ErrNotSupport = fmt.Errorf("not support component definition")
 // ErrOnlyCUESupport -
 var ErrOnlyCUESupport = fmt.Errorf("component definition only support cue template")
 
-// ComponentDefinitionBuilder -
-type ComponentDefinitionBuilder struct {
+// Builder -
+type Builder struct {
 	logger      *logrus.Entry
 	definitions map[string]*v1alpha1.ComponentDefinition
 	namespace   string
 	lock        sync.Mutex
 }
 
-var componentDefinitionBuilder *ComponentDefinitionBuilder
+var componentDefinitionBuilder *Builder
 
 // NewComponentDefinitionBuilder -
-func NewComponentDefinitionBuilder(namespace string) *ComponentDefinitionBuilder {
-	componentDefinitionBuilder = &ComponentDefinitionBuilder{
-		logger:      logrus.WithField("WHO", "ComponentDefinitionBuilder"),
+func NewComponentDefinitionBuilder(namespace string) *Builder {
+	componentDefinitionBuilder = &Builder{
+		logger:      logrus.WithField("WHO", "Builder"),
 		definitions: make(map[string]*v1alpha1.ComponentDefinition),
 		namespace:   namespace,
 	}
@@ -63,12 +63,12 @@ func NewComponentDefinitionBuilder(namespace string) *ComponentDefinitionBuilder
 }
 
 // GetComponentDefinitionBuilder -
-func GetComponentDefinitionBuilder() *ComponentDefinitionBuilder {
+func GetComponentDefinitionBuilder() *Builder {
 	return componentDefinitionBuilder
 }
 
 // OnAdd -
-func (c *ComponentDefinitionBuilder) OnAdd(obj interface{}) {
+func (c *Builder) OnAdd(obj interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	cd, ok := obj.(*v1alpha1.ComponentDefinition)
@@ -79,7 +79,7 @@ func (c *ComponentDefinitionBuilder) OnAdd(obj interface{}) {
 }
 
 // OnUpdate -
-func (c *ComponentDefinitionBuilder) OnUpdate(oldObj, newObj interface{}) {
+func (c *Builder) OnUpdate(oldObj, newObj interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	cd, ok := newObj.(*v1alpha1.ComponentDefinition)
@@ -90,7 +90,7 @@ func (c *ComponentDefinitionBuilder) OnUpdate(oldObj, newObj interface{}) {
 }
 
 // OnDelete -
-func (c *ComponentDefinitionBuilder) OnDelete(obj interface{}) {
+func (c *Builder) OnDelete(obj interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	cd, ok := obj.(*v1alpha1.ComponentDefinition)
@@ -101,14 +101,14 @@ func (c *ComponentDefinitionBuilder) OnDelete(obj interface{}) {
 }
 
 // GetComponentDefinition -
-func (c *ComponentDefinitionBuilder) GetComponentDefinition(name string) *v1alpha1.ComponentDefinition {
+func (c *Builder) GetComponentDefinition(name string) *v1alpha1.ComponentDefinition {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	return c.definitions[name]
 }
 
 // GetComponentProperties -
-func (c *ComponentDefinitionBuilder) GetComponentProperties(as *v1.AppService, dbm db.Manager, cd *v1alpha1.ComponentDefinition) interface{} {
+func (c *Builder) GetComponentProperties(as *v1.AppService, dbm db.Manager, cd *v1alpha1.ComponentDefinition) interface{} {
 	//TODO: support custom component properties
 	switch cd.Name {
 	case thirdComponentDefineName:
@@ -168,7 +168,7 @@ func (c *ComponentDefinitionBuilder) GetComponentProperties(as *v1.AppService, d
 	}
 }
 
-func (c *ComponentDefinitionBuilder) containsEndpoints(componentID string) (bool, error) {
+func (c *Builder) containsEndpoints(componentID string) (bool, error) {
 	endpoints, err := db.GetManager().EndpointsDao().List(componentID)
 	if err != nil {
 		return false, err
@@ -177,7 +177,7 @@ func (c *ComponentDefinitionBuilder) containsEndpoints(componentID string) (bool
 }
 
 // BuildWorkloadResource -
-func (c *ComponentDefinitionBuilder) BuildWorkloadResource(as *v1.AppService, dbm db.Manager) error {
+func (c *Builder) BuildWorkloadResource(as *v1.AppService, dbm db.Manager) error {
 	cd := c.GetComponentDefinition(as.GetComponentDefinitionName())
 	if cd == nil {
 		return ErrNotSupport
@@ -200,7 +200,7 @@ func (c *ComponentDefinitionBuilder) BuildWorkloadResource(as *v1.AppService, db
 
 //InitCoreComponentDefinition init the built-in component type definition.
 //Should be called after the store is initialized.
-func (c *ComponentDefinitionBuilder) InitCoreComponentDefinition(rainbondClient rainbondversioned.Interface) {
+func (c *Builder) InitCoreComponentDefinition(rainbondClient rainbondversioned.Interface) {
 	coreComponentDefinition := []*v1alpha1.ComponentDefinition{&thirdComponentDefine}
 	for _, ccd := range coreComponentDefinition {
 		if c.GetComponentDefinition(ccd.Name) == nil {
@@ -213,7 +213,7 @@ func (c *ComponentDefinitionBuilder) InitCoreComponentDefinition(rainbondClient 
 	logrus.Infof("success check core componentdefinition from cluster")
 }
 
-func (c *ComponentDefinitionBuilder) createProbe(componentID string) (*v1alpha1.Probe, error) {
+func (c *Builder) createProbe(componentID string) (*v1alpha1.Probe, error) {
 	probe, err := db.GetManager().ServiceProbeDao().GetServiceUsedProbe(componentID, "readiness")
 	if err != nil {
 		return nil, err
@@ -237,7 +237,7 @@ func (c *ComponentDefinitionBuilder) createProbe(componentID string) (*v1alpha1.
 	return p, nil
 }
 
-func (c *ComponentDefinitionBuilder) createHTTPGetAction(probe *dbmodel.TenantServiceProbe) *v1alpha1.HTTPGetAction {
+func (c *Builder) createHTTPGetAction(probe *dbmodel.TenantServiceProbe) *v1alpha1.HTTPGetAction {
 	action := &v1alpha1.HTTPGetAction{Path: probe.Path}
 	if probe.HTTPHeader != "" {
 		hds := strings.Split(probe.HTTPHeader, ",")
@@ -263,7 +263,7 @@ func (c *ComponentDefinitionBuilder) createHTTPGetAction(probe *dbmodel.TenantSe
 	return action
 }
 
-func (c *ComponentDefinitionBuilder) createTCPGetAction(probe *dbmodel.TenantServiceProbe) *v1alpha1.TCPSocketAction {
+func (c *Builder) createTCPGetAction(probe *dbmodel.TenantServiceProbe) *v1alpha1.TCPSocketAction {
 	return &v1alpha1.TCPSocketAction{
 	}
 }

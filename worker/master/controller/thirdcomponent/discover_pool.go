@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// DiscoverPool -
 type DiscoverPool struct {
 	ctx            context.Context
 	lock           sync.Mutex
@@ -40,6 +41,7 @@ type DiscoverPool struct {
 	reconciler     *Reconciler
 }
 
+// NewDiscoverPool -
 func NewDiscoverPool(ctx context.Context, reconciler *Reconciler) *DiscoverPool {
 	dp := &DiscoverPool{
 		ctx:            ctx,
@@ -50,11 +52,15 @@ func NewDiscoverPool(ctx context.Context, reconciler *Reconciler) *DiscoverPool 
 	go dp.Start()
 	return dp
 }
+
+// GetSize -
 func (d *DiscoverPool) GetSize() float64 {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 	return float64(len(d.discoverWorker))
 }
+
+// Start -
 func (d *DiscoverPool) Start() {
 	logrus.Infof("third component discover pool started")
 	for {
@@ -84,6 +90,7 @@ func (d *DiscoverPool) Start() {
 	}
 }
 
+// Worker -
 type Worker struct {
 	discover   dis.Discover
 	cancel     context.CancelFunc
@@ -92,6 +99,7 @@ type Worker struct {
 	stoped     bool
 }
 
+// Start -
 func (w *Worker) Start() {
 	defer func() {
 		logrus.Infof("discover endpoint list worker %s/%s stoed", w.discover.GetComponent().Namespace, w.discover.GetComponent().Name)
@@ -110,14 +118,17 @@ func (w *Worker) Start() {
 	}
 }
 
+// UpdateDiscover -
 func (w *Worker) UpdateDiscover(discover dis.Discover) {
 	w.discover = discover
 }
 
+// Stop -
 func (w *Worker) Stop() {
 	w.cancel()
 }
 
+// IsStop -
 func (w *Worker) IsStop() bool {
 	return w.stoped
 }
@@ -132,6 +143,7 @@ func (d *DiscoverPool) newWorker(dis dis.Discover) *Worker {
 	}
 }
 
+// AddDiscover -
 func (d *DiscoverPool) AddDiscover(dis dis.Discover) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
@@ -153,6 +165,7 @@ func (d *DiscoverPool) AddDiscover(dis dis.Discover) {
 	d.discoverWorker[key] = worker
 }
 
+// RemoveDiscover -
 func (d *DiscoverPool) RemoveDiscover(component *v1alpha1.ThirdComponent) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
@@ -164,6 +177,7 @@ func (d *DiscoverPool) RemoveDiscover(component *v1alpha1.ThirdComponent) {
 	}
 }
 
+// RemoveDiscoverByName -
 func (d *DiscoverPool) RemoveDiscoverByName(req types.NamespacedName) {
 	d.lock.Lock()
 	defer d.lock.Unlock()

@@ -35,12 +35,14 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// Discover -
 type Discover interface {
 	GetComponent() *v1alpha1.ThirdComponent
 	DiscoverOne(ctx context.Context) ([]*v1alpha1.ThirdComponentEndpointStatus, error)
 	Discover(ctx context.Context, update chan *v1alpha1.ThirdComponent) ([]*v1alpha1.ThirdComponentEndpointStatus, error)
 }
 
+// NewDiscover -
 func NewDiscover(component *v1alpha1.ThirdComponent,
 	restConfig *rest.Config,
 	lister rainbondlistersv1alpha1.ThirdComponentLister, proberManager prober.Manager) (Discover, error) {
