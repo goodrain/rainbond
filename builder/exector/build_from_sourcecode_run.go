@@ -40,9 +40,8 @@ import (
 	"github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson" //"github.com/docker/docker/api/types"
+	"github.com/tidwall/gjson"
 	"k8s.io/client-go/kubernetes"
-	//"github.com/docker/docker/client"
 )
 
 //SourceCodeBuildItem SouceCodeBuildItem
@@ -59,8 +58,7 @@ type SourceCodeBuildItem struct {
 	Logger        event.Logger `json:"logger"`
 	EventID       string       `json:"event_id"`
 	CacheDir      string       `json:"cache_dir"`
-	//SourceDir     string       `json:"source_dir"`
-	TGZDir        string `json:"tgz_dir"`
+	TGZDir        string       `json:"tgz_dir"`
 	DockerClient  *client.Client
 	KubeClient    kubernetes.Interface
 	RbdNamespace  string
@@ -139,7 +137,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	i.RepoInfo = rbi
 	if err := i.prepare(); err != nil {
 		logrus.Errorf("prepare build code error: %s", err.Error())
-		i.Logger.Error(fmt.Sprintf("准备源码构建失败"), map[string]string{"step": "builder-exector", "status": "failure"})
+		i.Logger.Error("准备源码构建失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	i.CodeSouceInfo.RepositoryURL = rbi.RepostoryURL
@@ -163,19 +161,21 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 			Message: rs.Logs.CommitEntrys[0].Msg,
 			Author:  rs.Logs.CommitEntrys[0].Author,
 		}
+	case "oss":
+		i.commit = Commit{}
 	default:
 		//default git
 		rs, err := sources.GitCloneOrPull(i.CodeSouceInfo, rbi.GetCodeHome(), i.Logger, 5)
 		if err != nil {
 			logrus.Errorf("pull git code error: %s", err.Error())
-			i.Logger.Error(fmt.Sprintf("拉取代码失败，请确保代码可以被正常下载"), map[string]string{"step": "builder-exector", "status": "failure"})
+			i.Logger.Error("拉取代码失败，请确保代码可以被正常下载", map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
 		//get last commit
 		commit, err := sources.GetLastCommit(rs)
 		if err != nil || commit == nil {
 			logrus.Errorf("get code commit info error: %s", err.Error())
-			i.Logger.Error(fmt.Sprintf("读取代码版本信息失败"), map[string]string{"step": "builder-exector", "status": "failure"})
+			i.Logger.Error("读取代码版本信息失败", map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
 		i.commit = Commit{
@@ -241,6 +241,7 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		CacheDir:      i.CacheDir,
 		TGZDir:        i.TGZDir,
 		RepositoryURL: i.RepoInfo.RepostoryURL,
+		CodeSouceInfo: i.CodeSouceInfo,
 		ServiceAlias:  i.ServiceAlias,
 		ServiceID:     i.ServiceID,
 		TenantID:      i.TenantID,
@@ -263,21 +264,6 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 	}
 	res, err := codeBuild.Build(buildReq)
 	return res, err
-}
-
-func (i *SourceCodeBuildItem) getExtraHosts() (extraHosts []string, err error) {
-	endpoints, err := i.KubeClient.CoreV1().Endpoints(i.RbdNamespace).Get(context.Background(), i.RbdRepoName, metav1.GetOptions{})
-	if err != nil {
-		logrus.Errorf("do not found ep by name: %s in namespace: %s", i.RbdRepoName, i.Namespace)
-		return nil, err
-	}
-	for _, subset := range endpoints.Subsets {
-		for _, addr := range subset.Addresses {
-			extraHosts = append(extraHosts, fmt.Sprintf("maven.goodrain.me:%s", addr.IP))
-			extraHosts = append(extraHosts, fmt.Sprintf("lang.goodrain.me:%s", addr.IP))
-		}
-	}
-	return
 }
 
 func (i *SourceCodeBuildItem) getHostAlias() (hostAliasList []build.HostAlias, err error) {
