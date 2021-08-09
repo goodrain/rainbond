@@ -40,7 +40,24 @@ spec:
               description: endpoint source config
               properties:
                 endpoints:
-                  type: boolean
+                  items:
+                    description: ThirdComponentEndpoint -
+                    properties:
+                      address:
+                        description: The address including the port number.
+                        type: string
+                      clientSecret:
+                        description: Specify a private certificate when the protocol
+                          is HTTPS
+                        type: string
+                      protocol:
+                        description: 'Address protocols, including: HTTP, TCP, UDP,
+                          HTTPS'
+                        type: string
+                    required:
+                    - address
+                    type: object
+                  type: array
                 kubernetesService:
                   description: KubernetesServiceSource -
                   properties:

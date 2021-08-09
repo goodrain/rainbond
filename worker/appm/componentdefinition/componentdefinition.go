@@ -29,7 +29,6 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	rainbondversioned "github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
-	"github.com/goodrain/rainbond/util/commonutil"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -128,11 +127,11 @@ func (c *Builder) GetComponentProperties(as *v1.AppService, dbm db.Manager, cd *
 		}
 
 		// static endpoints
-		containsEndpoints, err := c.containsEndpoints(as.ServiceID)
+		endpoints, err := c.listStaticEndpoints(as.ServiceID)
 		if err != nil {
 			c.logger.Errorf("component id: %s; list static endpoints: %v", as.ServiceID, err)
 		}
-		properties.Endpoints = commonutil.Bool(containsEndpoints)
+		properties.Endpoints = endpoints
 
 		ports, err := dbm.TenantServicesPortDao().GetPortsByServiceID(as.ServiceID)
 		if err != nil {
@@ -168,12 +167,19 @@ func (c *Builder) GetComponentProperties(as *v1.AppService, dbm db.Manager, cd *
 	}
 }
 
-func (c *Builder) containsEndpoints(componentID string) (bool, error) {
+func (c *Builder) listStaticEndpoints(componentID string) ([]*v1alpha1.ThirdComponentEndpoint, error) {
 	endpoints, err := db.GetManager().EndpointsDao().List(componentID)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	return len(endpoints) > 0, nil
+
+	var res []*v1alpha1.ThirdComponentEndpoint
+	for _, ep := range endpoints {
+		res = append(res, &v1alpha1.ThirdComponentEndpoint{
+			Address: ep.GetAddress(),
+		})
+	}
+	return res, nil
 }
 
 // BuildWorkloadResource -

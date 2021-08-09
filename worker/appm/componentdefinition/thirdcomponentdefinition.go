@@ -58,7 +58,11 @@ parameter: {
 		namespace?: string
 		name: string
 	}
-	endpoints?: bool
+	endpoints?: [...{
+		address:     string
+		protocol?:   string
+		clientSecret?: string
+	}]
 	port?: [...{
 		name:   string
 		port:   >0 & <=65533

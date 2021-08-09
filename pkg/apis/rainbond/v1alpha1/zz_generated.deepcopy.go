@@ -476,8 +476,14 @@ func (in *ThirdComponentEndpointSource) DeepCopyInto(out *ThirdComponentEndpoint
 	*out = *in
 	if in.StaticEndpoints != nil {
 		in, out := &in.StaticEndpoints, &out.StaticEndpoints
-		*out = new(bool)
-		**out = **in
+		*out = make([]*ThirdComponentEndpoint, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(ThirdComponentEndpoint)
+				**out = **in
+			}
+		}
 	}
 	if in.KubernetesService != nil {
 		in, out := &in.KubernetesService, &out.KubernetesService

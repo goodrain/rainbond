@@ -25,7 +25,6 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	rainbondlistersv1alpha1 "github.com/goodrain/rainbond/pkg/generated/listers/rainbond/v1alpha1"
-	"github.com/goodrain/rainbond/util/commonutil"
 	"github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/prober"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -57,7 +56,7 @@ func NewDiscover(component *v1alpha1.ThirdComponent,
 			client:    clientset,
 		}, nil
 	}
-	if commonutil.BoolValue(component.Spec.EndpointSource.StaticEndpoints) {
+	if len(component.Spec.EndpointSource.StaticEndpoints) > 0 {
 		return &staticEndpoint{
 			component:     component,
 			lister:        lister,

@@ -4,12 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	rainbondlistersv1alpha1 "github.com/goodrain/rainbond/pkg/generated/listers/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/prober"
 	"github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/prober/results"
-	"github.com/pkg/errors"
 )
 
 type staticEndpoint struct {
@@ -39,30 +37,38 @@ func (s *staticEndpoint) Discover(ctx context.Context, update chan *v1alpha1.Thi
 }
 
 func (s *staticEndpoint) DiscoverOne(ctx context.Context) ([]*v1alpha1.ThirdComponentEndpointStatus, error) {
-	// Optimization: reduce the press of database if necessary.
-	endpoints, err := db.GetManager().EndpointsDao().ListIsOnline(s.component.GetComponentID())
+	component, err := s.lister.ThirdComponents(s.component.Namespace).Get(s.component.Name)
 	if err != nil {
-		return nil, errors.WithMessage(err, "list online static endpoints")
+		return nil, err
 	}
 
 	var res []*v1alpha1.ThirdComponentEndpointStatus
-	for _, ep := range endpoints {
-		ed := v1alpha1.NewEndpointAddress(ep.IP, ep.Port)
-		if ed == nil {
+	for _, ep := range component.Spec.EndpointSource.StaticEndpoints {
+		var addresses []*v1alpha1.EndpointAddress
+		if ep.GetPort() != 0 {
+			addresses = append(addresses, v1alpha1.NewEndpointAddress(ep.Address, ep.GetPort()))
+		} else {
+			for _, port := range component.Spec.Ports {
+				addresses = append(addresses, v1alpha1.NewEndpointAddress(ep.Address, port.Port))
+			}
+		}
+		if len(addresses) == 0 {
 			continue
 		}
 
-		es := &v1alpha1.ThirdComponentEndpointStatus{
-			ServicePort: ep.Port,
-			Address:     v1alpha1.EndpointAddress(ep.GetAddress()),
-			Status:      v1alpha1.EndpointReady,
-		}
-		res = append(res, es)
+		for _, address := range addresses {
+			address := address
+			es := &v1alpha1.ThirdComponentEndpointStatus{
+				Address: *address,
+				Status:  v1alpha1.EndpointReady,
+			}
+			res = append(res, es)
 
-		result, found := s.proberManager.GetResult(s.component.GetEndpointID(es))
-		es.Status = v1alpha1.EndpointReady
-		if found && result != results.Success {
-			es.Status = v1alpha1.EndpointNotReady
+			result, found := s.proberManager.GetResult(s.component.GetEndpointID(es))
+			es.Status = v1alpha1.EndpointReady
+			if found && result != results.Success {
+				es.Status = v1alpha1.EndpointNotReady
+			}
 		}
 	}
 

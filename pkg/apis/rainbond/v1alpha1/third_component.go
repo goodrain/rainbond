@@ -89,7 +89,7 @@ func (in ThirdComponentSpec) NeedProbe() bool {
 	if in.Probe == nil {
 		return false
 	}
-	if in.EndpointSource.StaticEndpoints != nil && *in.EndpointSource.StaticEndpoints {
+	if len(in.EndpointSource.StaticEndpoints) > 0 {
 		return true
 	}
 	return false
@@ -97,8 +97,8 @@ func (in ThirdComponentSpec) NeedProbe() bool {
 
 // ThirdComponentEndpointSource -
 type ThirdComponentEndpointSource struct {
-	StaticEndpoints   *bool                    `json:"endpoints,omitempty"`
-	KubernetesService *KubernetesServiceSource `json:"kubernetesService,omitempty"`
+	StaticEndpoints   []*ThirdComponentEndpoint `json:"endpoints,omitempty"`
+	KubernetesService *KubernetesServiceSource  `json:"kubernetesService,omitempty"`
 	//other source
 	// NacosSource
 	// EurekaSource
@@ -116,6 +116,17 @@ type ThirdComponentEndpoint struct {
 	// Specify a private certificate when the protocol is HTTPS
 	// +optional
 	ClientSecret string `json:"clientSecret,omitempty"`
+}
+
+// GetPort -
+func (in *ThirdComponentEndpoint) GetPort() int {
+	arr := strings.Split(in.Address, ":")
+	if len(arr) != 2 {
+		return 0
+	}
+
+	port, _ := strconv.Atoi(arr[1])
+	return port
 }
 
 // KubernetesServiceSource -
@@ -314,7 +325,7 @@ func (e EndpointAddress) getIP() string {
 
 // GetPort -
 func (e EndpointAddress) GetPort() int {
-	if !validation.IsDomainNotIP(string(e)) {
+	if !validation.IsDomainNotIP(e.getIP()) {
 		info := strings.Split(string(e), ":")
 		if len(info) == 2 {
 			port, _ := strconv.Atoi(info[1])
