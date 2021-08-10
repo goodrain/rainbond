@@ -2,6 +2,7 @@ package discover
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
@@ -31,24 +32,21 @@ func (s *staticEndpoint) Discover(ctx context.Context, update chan *v1alpha1.Thi
 
 	newComponent := s.component.DeepCopy()
 	newComponent.Status.Endpoints = endpoints
-	update <- newComponent
+	if !reflect.DeepEqual(endpoints, s.component.Status.Endpoints) {
+		update <- newComponent
+	}
 
 	return endpoints, nil
 }
 
 func (s *staticEndpoint) DiscoverOne(ctx context.Context) ([]*v1alpha1.ThirdComponentEndpointStatus, error) {
-	component, err := s.lister.ThirdComponents(s.component.Namespace).Get(s.component.Name)
-	if err != nil {
-		return nil, err
-	}
-
 	var res []*v1alpha1.ThirdComponentEndpointStatus
-	for _, ep := range component.Spec.EndpointSource.StaticEndpoints {
+	for _, ep := range s.component.Spec.EndpointSource.StaticEndpoints {
 		var addresses []*v1alpha1.EndpointAddress
 		if ep.GetPort() != 0 {
 			addresses = append(addresses, v1alpha1.NewEndpointAddress(ep.Address, ep.GetPort()))
 		} else {
-			for _, port := range component.Spec.Ports {
+			for _, port := range s.component.Spec.Ports {
 				addresses = append(addresses, v1alpha1.NewEndpointAddress(ep.Address, port.Port))
 			}
 		}
