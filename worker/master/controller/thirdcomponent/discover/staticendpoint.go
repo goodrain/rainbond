@@ -31,20 +31,17 @@ func (s *staticEndpoint) Discover(ctx context.Context, update chan *v1alpha1.Thi
 		case <-ctx.Done():
 			return nil, nil
 		case <-ticker.C:
-			// The method DiscoverOne of staticEndpoint does not need context.
-			endpoints, _ := s.DiscoverOne(context.TODO())
-			if !reflect.DeepEqual(endpoints, s.component.Status.Endpoints) {
-				newComponent := s.component.DeepCopy()
-				newComponent.Status.Endpoints = endpoints
-				update <- newComponent
-			}
+			s.discoverOne(update)
+		case <-s.proberManager.Updates():
+			s.discoverOne(update)
 		}
 	}
 }
 
 func (s *staticEndpoint) DiscoverOne(ctx context.Context) ([]*v1alpha1.ThirdComponentEndpointStatus, error) {
+	component := s.component
 	var res []*v1alpha1.ThirdComponentEndpointStatus
-	for _, ep := range s.component.Spec.EndpointSource.StaticEndpoints {
+	for _, ep := range component.Spec.EndpointSource.StaticEndpoints {
 		var addresses []*v1alpha1.EndpointAddress
 		if ep.GetPort() != 0 {
 			address := v1alpha1.NewEndpointAddress(ep.GetIP(), ep.GetPort())
@@ -52,7 +49,7 @@ func (s *staticEndpoint) DiscoverOne(ctx context.Context) ([]*v1alpha1.ThirdComp
 				addresses = append(addresses, address)
 			}
 		} else {
-			for _, port := range s.component.Spec.Ports {
+			for _, port := range component.Spec.Ports {
 				address := v1alpha1.NewEndpointAddress(ep.Address, port.Port)
 				if address != nil {
 					addresses = append(addresses, address)
@@ -89,4 +86,15 @@ func (s *staticEndpoint) SetProberManager(proberManager prober.Manager) {
 	s.pmlock.Lock()
 	defer s.pmlock.Unlock()
 	s.proberManager = proberManager
+}
+
+func (s *staticEndpoint) discoverOne(update chan *v1alpha1.ThirdComponent) {
+	component := s.component
+	// The method DiscoverOne of staticEndpoint does not need context.
+	endpoints, _ := s.DiscoverOne(context.TODO())
+	if !reflect.DeepEqual(endpoints, component.Status.Endpoints) {
+		newComponent := s.component.DeepCopy()
+		newComponent.Status.Endpoints = endpoints
+		update <- newComponent
+	}
 }

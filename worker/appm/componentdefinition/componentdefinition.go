@@ -20,7 +20,6 @@ package componentdefinition
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -155,11 +154,6 @@ func (c *Builder) GetComponentProperties(as *v1.AppService, dbm db.Manager, cd *
 			c.logger.Warningf("create probe: %v", err)
 		}
 		properties.Probe = probe
-
-		bytes, err := json.Marshal(properties)
-		if err == nil {
-			logrus.Infof("properties: %s", bytes)
-		}
 
 		return properties
 	default:

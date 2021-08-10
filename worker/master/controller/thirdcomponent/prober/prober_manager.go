@@ -35,6 +35,11 @@ type Manager interface {
 	GetResult(endpointID string) (results.Result, bool)
 
 	Stop()
+
+	// Updates creates a channel that receives an Update whenever its result changes (but not
+	// removed).
+	// NOTE: The current implementation only supports a single updates channel.
+	Updates() <-chan results.Update
 }
 
 type manager struct {
@@ -48,17 +53,21 @@ type manager struct {
 
 	// prober executes the probe actions.
 	prober *prober
+
+	// channel of updates
+	updates chan results.Update
 }
 
 // NewManager creates a Manager for pod probing.
 func NewManager(
 	recorder record.EventRecorder) Manager {
-	prober := newProber(recorder)
-	readinessManager := results.NewManager()
+	updates := make(chan results.Update)
+	readinessManager := results.NewManager(updates)
 	return &manager{
-		prober:           prober,
+		prober:           newProber(recorder),
 		readinessManager: readinessManager,
 		workers:          make(map[string]*worker),
+		updates:          updates,
 	}
 }
 
@@ -111,4 +120,8 @@ func (m *manager) removeWorker(endpoint *v1alpha1.ThirdComponentEndpointStatus) 
 	m.workerLock.Lock()
 	defer m.workerLock.Unlock()
 	delete(m.workers, string(endpoint.Address))
+}
+
+func (m *manager) Updates() <-chan results.Update {
+	return m.updates
 }

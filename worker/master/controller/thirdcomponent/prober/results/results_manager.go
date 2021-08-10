@@ -51,20 +51,29 @@ func (r Result) ToPrometheusType() float64 {
 	}
 }
 
+// Update is an enum of the types of updates sent over the Updates channel.
+type Update struct {
+	EndpointID string
+	Result     Result
+}
+
 // Manager implementation.
 type manager struct {
 	// guards the cache
 	sync.RWMutex
 	// map of endpoint ID -> probe Result
 	cache map[string]Result
+	// channel of updates
+	updates chan Update
 }
 
 var _ Manager = &manager{}
 
 // NewManager creates and returns an empty results manager.
-func NewManager() Manager {
+func NewManager(updates chan Update) Manager {
 	return &manager{
-		cache: make(map[string]Result),
+		cache:   make(map[string]Result),
+		updates: updates,
 	}
 }
 
@@ -76,12 +85,20 @@ func (m *manager) Get(id string) (Result, bool) {
 }
 
 func (m *manager) Set(id string, result Result) {
+	if m.setInternal(id, result) {
+		m.updates <- Update{EndpointID: id, Result: result}
+	}
+}
+
+func (m *manager) setInternal(id string, result Result) bool {
 	m.Lock()
 	defer m.Unlock()
 	prev, exists := m.cache[id]
 	if !exists || prev != result {
 		m.cache[id] = result
+		return true
 	}
+	return false
 }
 
 func (m *manager) Remove(id string) {
