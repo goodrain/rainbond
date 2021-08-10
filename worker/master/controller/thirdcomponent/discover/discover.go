@@ -39,12 +39,13 @@ type Discover interface {
 	GetComponent() *v1alpha1.ThirdComponent
 	DiscoverOne(ctx context.Context) ([]*v1alpha1.ThirdComponentEndpointStatus, error)
 	Discover(ctx context.Context, update chan *v1alpha1.ThirdComponent) ([]*v1alpha1.ThirdComponentEndpointStatus, error)
+	SetProberManager(proberManager prober.Manager)
 }
 
 // NewDiscover -
 func NewDiscover(component *v1alpha1.ThirdComponent,
 	restConfig *rest.Config,
-	lister rainbondlistersv1alpha1.ThirdComponentLister, proberManager prober.Manager) (Discover, error) {
+	lister rainbondlistersv1alpha1.ThirdComponentLister) (Discover, error) {
 	if component.Spec.EndpointSource.KubernetesService != nil {
 		clientset, err := kubernetes.NewForConfig(restConfig)
 		if err != nil {
@@ -58,9 +59,8 @@ func NewDiscover(component *v1alpha1.ThirdComponent,
 	}
 	if len(component.Spec.EndpointSource.StaticEndpoints) > 0 {
 		return &staticEndpoint{
-			component:     component,
-			lister:        lister,
-			proberManager: proberManager,
+			component: component,
+			lister:    lister,
 		}, nil
 	}
 	return nil, fmt.Errorf("not support source type")
@@ -166,4 +166,8 @@ func (k *kubernetesDiscover) DiscoverOne(ctx context.Context) ([]*v1alpha1.Third
 		}
 	}
 	return es, nil
+}
+
+func (k *kubernetesDiscover) SetProberManager(proberManager prober.Manager) {
+
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/docker/go-metrics"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/prober/results"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/runtime"
 )
 
@@ -89,6 +90,8 @@ func newWorker(
 
 // run periodically probes the endpoint.
 func (w *worker) run() {
+	logrus.Infof("start prober worker %s", w.thirdComponent.GetEndpointID(&w.endpoint))
+
 	probeTickerPeriod := time.Duration(w.spec.PeriodSeconds) * time.Second
 
 	// If kubelet restarted the probes could be started in rapid succession.
@@ -102,7 +105,7 @@ func (w *worker) run() {
 		probeTicker.Stop()
 		w.resultsManager.Remove(w.thirdComponent.GetEndpointID(&w.endpoint))
 
-		w.probeManager.removeWorker(w.thirdComponent, &w.endpoint)
+		w.probeManager.removeWorker(&w.endpoint)
 		ProberResults.Delete(w.proberResultsSuccessfulMetricLabels)
 		ProberResults.Delete(w.proberResultsFailedMetricLabels)
 		ProberResults.Delete(w.proberResultsUnknownMetricLabels)

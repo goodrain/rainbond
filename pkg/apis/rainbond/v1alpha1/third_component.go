@@ -129,6 +129,16 @@ func (in *ThirdComponentEndpoint) GetPort() int {
 	return port
 }
 
+// GetIP -
+func (in *ThirdComponentEndpoint) GetIP() string {
+	arr := strings.Split(in.Address, ":")
+	if len(arr) != 2 {
+		return ""
+	}
+
+	return arr[0]
+}
+
 // KubernetesServiceSource -
 type KubernetesServiceSource struct {
 	// If not specified, the namespace is the namespace of the current resource

@@ -26,9 +26,11 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	dis "github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/discover"
+	"github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/prober"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -39,15 +41,20 @@ type DiscoverPool struct {
 	discoverWorker map[string]*Worker
 	updateChan     chan *v1alpha1.ThirdComponent
 	reconciler     *Reconciler
+
+	recorder record.EventRecorder
 }
 
 // NewDiscoverPool -
-func NewDiscoverPool(ctx context.Context, reconciler *Reconciler) *DiscoverPool {
+func NewDiscoverPool(ctx context.Context,
+	reconciler *Reconciler,
+	recorder record.EventRecorder) *DiscoverPool {
 	dp := &DiscoverPool{
 		ctx:            ctx,
 		discoverWorker: make(map[string]*Worker),
 		updateChan:     make(chan *v1alpha1.ThirdComponent, 1024),
 		reconciler:     reconciler,
+		recorder:       recorder,
 	}
 	go dp.Start()
 	return dp
@@ -90,56 +97,16 @@ func (d *DiscoverPool) Start() {
 	}
 }
 
-// Worker -
-type Worker struct {
-	discover   dis.Discover
-	cancel     context.CancelFunc
-	ctx        context.Context
-	updateChan chan *v1alpha1.ThirdComponent
-	stoped     bool
-}
-
-// Start -
-func (w *Worker) Start() {
-	defer func() {
-		logrus.Infof("discover endpoint list worker %s/%s stoed", w.discover.GetComponent().Namespace, w.discover.GetComponent().Name)
-		w.stoped = true
-	}()
-	w.stoped = false
-	logrus.Infof("discover endpoint list worker %s/%s  started", w.discover.GetComponent().Namespace, w.discover.GetComponent().Name)
-	// TODO: rate limit
-	for {
-		w.discover.Discover(w.ctx, w.updateChan)
-		select {
-		case <-w.ctx.Done():
-			return
-		default:
-		}
-	}
-}
-
-// UpdateDiscover -
-func (w *Worker) UpdateDiscover(discover dis.Discover) {
-	w.discover = discover
-}
-
-// Stop -
-func (w *Worker) Stop() {
-	w.cancel()
-}
-
-// IsStop -
-func (w *Worker) IsStop() bool {
-	return w.stoped
-}
-
 func (d *DiscoverPool) newWorker(dis dis.Discover) *Worker {
 	ctx, cancel := context.WithCancel(d.ctx)
+	proberManager := prober.NewManager(d.recorder)
+	dis.SetProberManager(proberManager)
 	return &Worker{
-		ctx:        ctx,
-		discover:   dis,
-		cancel:     cancel,
-		updateChan: d.updateChan,
+		ctx:           ctx,
+		discover:      dis,
+		cancel:        cancel,
+		updateChan:    d.updateChan,
+		proberManager: proberManager,
 	}
 }
 
@@ -161,6 +128,7 @@ func (d *DiscoverPool) AddDiscover(dis dis.Discover) {
 		return
 	}
 	worker := d.newWorker(dis)
+	worker.proberManager.AddThirdComponent(dis.GetComponent())
 	go worker.Start()
 	d.discoverWorker[key] = worker
 }

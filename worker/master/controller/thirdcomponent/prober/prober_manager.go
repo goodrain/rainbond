@@ -31,17 +31,15 @@ type Manager interface {
 	// AddThirdComponent creates new probe workers for every endpoint address probe.
 	AddThirdComponent(thirdComponent *v1alpha1.ThirdComponent)
 
-	// RemoveThirdComponent handles cleaning up the removed thirdcomponent state, including terminating probe workers and
-	// deleting cached results.
-	RemoveThirdComponent(thirdComponent *v1alpha1.ThirdComponent)
-
 	// GetResult returns the probe result based on the given ID.
 	GetResult(endpointID string) (results.Result, bool)
+
+	Stop()
 }
 
 type manager struct {
 	// Map of active workers for probes
-	workers map[string]map[string]*worker
+	workers map[string]*worker
 	// Lock for accessing & mutating workers
 	workerLock sync.RWMutex
 
@@ -60,7 +58,7 @@ func NewManager(
 	return &manager{
 		prober:           prober,
 		readinessManager: readinessManager,
-		workers:          make(map[string]map[string]*worker),
+		workers:          make(map[string]*worker),
 	}
 }
 
@@ -72,19 +70,14 @@ func (m *manager) AddThirdComponent(thirdComponent *v1alpha1.ThirdComponent) {
 	m.workerLock.Lock()
 	defer m.workerLock.Unlock()
 
-	workers, ok := m.workers[thirdComponent.GetNamespaceName()]
-	if !ok {
-		m.workers[thirdComponent.Name] = make(map[string]*worker)
-	}
-
 	newWorkers := make(map[string]*worker)
 	for _, ep := range thirdComponent.Status.Endpoints {
 		key := string(ep.Address)
 		worker := newWorker(m, thirdComponent, *ep)
-		oldWorker, ok := workers[key]
+		oldWorker, ok := m.workers[key]
 		if ok && worker.spec.Equals(oldWorker.spec) {
 			newWorkers[key] = oldWorker
-			delete(workers, key)
+			delete(m.workers, key)
 			continue
 		}
 		// run new worker
@@ -93,35 +86,20 @@ func (m *manager) AddThirdComponent(thirdComponent *v1alpha1.ThirdComponent) {
 	}
 
 	// stop unused workers
-	for _, worker := range workers {
+	for _, worker := range m.workers {
 		worker.stop()
 	}
 
-	m.workers[thirdComponent.GetNamespaceName()] = newWorkers
+	m.workers = newWorkers
 }
 
-func (m *manager) RemoveThirdComponent(thirdComponent *v1alpha1.ThirdComponent) {
-	if !thirdComponent.Spec.NeedProbe() {
-		return
-	}
-
+func (m *manager) Stop() {
 	m.workerLock.Lock()
 	defer m.workerLock.Unlock()
 
-	workers, ok := m.workers[thirdComponent.GetNamespaceName()]
-	if !ok {
-		return
-	}
-
-	for _, ep := range thirdComponent.Status.Endpoints {
-		worker, ok := workers[string(ep.Address)]
-		if !ok {
-			continue
-		}
+	for _, worker := range m.workers {
 		worker.stop()
 	}
-
-	delete(m.workers, thirdComponent.GetNamespaceName())
 }
 
 func (m *manager) GetResult(endpointID string) (results.Result, bool) {
@@ -129,9 +107,8 @@ func (m *manager) GetResult(endpointID string) (results.Result, bool) {
 }
 
 // Called by the worker after exiting.
-func (m *manager) removeWorker(thirdComponent *v1alpha1.ThirdComponent, endpoint *v1alpha1.ThirdComponentEndpointStatus) {
+func (m *manager) removeWorker(endpoint *v1alpha1.ThirdComponentEndpointStatus) {
 	m.workerLock.Lock()
 	defer m.workerLock.Unlock()
-	workers := m.workers[thirdComponent.GetNamespaceName()]
-	delete(workers, string(endpoint.Address))
+	delete(m.workers, string(endpoint.Address))
 }
