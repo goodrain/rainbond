@@ -305,6 +305,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Put("/service-monitors/{name}", middleware.WrapEL(controller.GetManager().UpdateServiceMonitors, dbmodel.TargetTypeService, "update-app-service-monitor", dbmodel.SYNEVENTTYPE))
 	r.Delete("/service-monitors/{name}", middleware.WrapEL(controller.GetManager().DeleteServiceMonitors, dbmodel.TargetTypeService, "delete-app-service-monitor", dbmodel.SYNEVENTTYPE))
 
+	r.Get("/log", controller.GetManager().Log)
+
 	return r
 }
 

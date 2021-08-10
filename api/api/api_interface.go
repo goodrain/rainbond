@@ -53,6 +53,7 @@ type TenantInterface interface {
 	LimitTenantMemory(w http.ResponseWriter, r *http.Request)
 	TenantResourcesStatus(w http.ResponseWriter, r *http.Request)
 	CheckResourceName(w http.ResponseWriter, r *http.Request)
+	Log(w http.ResponseWriter, r *http.Request)
 }
 
 //ServiceInterface ServiceInterface
