@@ -25,6 +25,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -183,6 +184,11 @@ func (t *TenantStruct) AddVolume(w http.ResponseWriter, r *http.Request) {
 func (t *TenantStruct) UpdVolume(w http.ResponseWriter, r *http.Request) {
 	var req api_model.UpdVolumeReq
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
+		return
+	}
+
+	if req.Mode != nil && (*req.Mode > 777 || *req.Mode < 0) {
+		httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("mode be a number between 0 and 777 (octal)"))
 		return
 	}
 
@@ -354,6 +360,11 @@ func AddVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if avs.Body.Mode != nil && (*avs.Body.Mode > 777 || *avs.Body.Mode < 0) {
+		httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("mode be a number between 0 and 777 (octal)"))
+		return
+	}
+
 	tsv := &dbmodel.TenantServiceVolume{
 		ServiceID:          serviceID,
 		VolumeName:         avs.Body.VolumeName,
@@ -368,6 +379,7 @@ func AddVolume(w http.ResponseWriter, r *http.Request) {
 		BackupPolicy:       avs.Body.BackupPolicy,
 		ReclaimPolicy:      avs.Body.ReclaimPolicy,
 		AllowExpansion:     avs.Body.AllowExpansion,
+		Mode:               avs.Body.Mode,
 	}
 
 	// TODO fanyangyang validate VolumeCapacity  AccessMode SharePolicy BackupPolicy ReclaimPolicy AllowExpansion

@@ -118,6 +118,9 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	if err := util.CheckAndCreateDir(cacheDir); err != nil {
 		return fmt.Errorf("create cache dir error %s", err.Error())
 	}
+	// delete the cache data
+	defer os.RemoveAll(cacheDir)
+
 	b.cacheDir = cacheDir
 	switch backup.BackupMode {
 	case "full-online":
