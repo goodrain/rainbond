@@ -4,7 +4,6 @@ import (
 	"context"
 	"reflect"
 	"sync"
-	"time"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	rainbondlistersv1alpha1 "github.com/goodrain/rainbond/pkg/generated/listers/rainbond/v1alpha1"
@@ -25,13 +24,10 @@ func (s *staticEndpoint) GetComponent() *v1alpha1.ThirdComponent {
 }
 
 func (s *staticEndpoint) Discover(ctx context.Context, update chan *v1alpha1.ThirdComponent) ([]*v1alpha1.ThirdComponentEndpointStatus, error) {
-	ticker := time.NewTicker(5 * time.Second)
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, nil
-		case <-ticker.C:
-			s.discoverOne(update)
 		case <-s.proberManager.Updates():
 			s.discoverOne(update)
 		}
