@@ -99,15 +99,22 @@ func (d *DiscoverPool) Start() {
 
 func (d *DiscoverPool) newWorker(dis dis.Discover) *Worker {
 	ctx, cancel := context.WithCancel(d.ctx)
-	proberManager := prober.NewManager(d.recorder)
-	dis.SetProberManager(proberManager)
-	return &Worker{
-		ctx:           ctx,
-		discover:      dis,
-		cancel:        cancel,
-		updateChan:    d.updateChan,
-		proberManager: proberManager,
+
+	worker := &Worker{
+		ctx:        ctx,
+		discover:   dis,
+		cancel:     cancel,
+		updateChan: d.updateChan,
 	}
+
+	component := dis.GetComponent()
+	if component.Spec.IsStaticEndpoints() {
+		proberManager := prober.NewManager(d.recorder)
+		dis.SetProberManager(proberManager)
+		worker.proberManager = proberManager
+	}
+
+	return worker
 }
 
 // AddDiscover -
@@ -128,7 +135,9 @@ func (d *DiscoverPool) AddDiscover(dis dis.Discover) {
 		return
 	}
 	worker := d.newWorker(dis)
-	worker.proberManager.AddThirdComponent(dis.GetComponent())
+	if component.Spec.IsStaticEndpoints() {
+		worker.proberManager.AddThirdComponent(dis.GetComponent())
+	}
 	go worker.Start()
 	d.discoverWorker[key] = worker
 }

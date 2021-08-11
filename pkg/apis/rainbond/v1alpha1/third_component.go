@@ -89,10 +89,12 @@ func (in ThirdComponentSpec) NeedProbe() bool {
 	if in.Probe == nil {
 		return false
 	}
-	if len(in.EndpointSource.StaticEndpoints) > 0 {
-		return true
-	}
-	return false
+	return in.IsStaticEndpoints()
+}
+
+// IsStaticEndpoints -
+func (in ThirdComponentSpec) IsStaticEndpoints() bool {
+	return len(in.EndpointSource.StaticEndpoints) > 0
 }
 
 // ThirdComponentEndpointSource -

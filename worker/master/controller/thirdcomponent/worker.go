@@ -25,7 +25,9 @@ func (w *Worker) Start() {
 	defer func() {
 		logrus.Infof("discover endpoint list worker %s/%s stoed", w.discover.GetComponent().Namespace, w.discover.GetComponent().Name)
 		w.stoped = true
-		w.proberManager.Stop()
+		if w.proberManager != nil {
+			w.proberManager.Stop()
+		}
 	}()
 	w.stoped = false
 	logrus.Infof("discover endpoint list worker %s/%s  started", w.discover.GetComponent().Namespace, w.discover.GetComponent().Name)
@@ -41,15 +43,20 @@ func (w *Worker) Start() {
 
 // UpdateDiscover -
 func (w *Worker) UpdateDiscover(discover dis.Discover) {
-	discover.SetProberManager(w.proberManager)
+	component := discover.GetComponent()
+	if component.Spec.IsStaticEndpoints() {
+		w.proberManager.AddThirdComponent(discover.GetComponent())
+		discover.SetProberManager(w.proberManager)
+	}
 	w.discover = discover
-	w.proberManager.AddThirdComponent(discover.GetComponent())
 }
 
 // Stop -
 func (w *Worker) Stop() {
 	w.cancel()
-	w.proberManager.Stop()
+	if w.proberManager != nil {
+		w.proberManager.Stop()
+	}
 }
 
 // IsStop -
