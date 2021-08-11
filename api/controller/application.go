@@ -151,6 +151,11 @@ func (a *ApplicationController) ListComponents(w http.ResponseWriter, r *http.Re
 func (a *ApplicationController) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
 
+	var req model.EtcdCleanReq
+	if httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
+		logrus.Debugf("delete app etcd keys : %+v", req.Keys)
+		handler.GetEtcdHandler().CleanAllServiceData(req.Keys)
+	}
 	// Delete application
 	err := handler.GetApplicationHandler().DeleteApp(r.Context(), app)
 	if err != nil {
