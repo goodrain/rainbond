@@ -60,7 +60,8 @@ type AddVolumeStruct struct {
 		// ReclaimPolicy 回收策略
 		ReclaimPolicy string `json:"reclaim_policy"`
 		// AllowExpansion 是否支持扩展
-		AllowExpansion bool `json:"allow_expansion"`
+		AllowExpansion bool   `json:"allow_expansion"`
+		Mode           *int32 `json:"mode"`
 	}
 }
 
@@ -243,6 +244,7 @@ type UpdVolumeReq struct {
 	VolumeType  string `json:"volume_type" validate:"volume_type|required"`
 	FileContent string `json:"file_content"`
 	VolumePath  string `json:"volume_path" validate:"volume_path|required"`
+	Mode        *int32 `json:"mode"`
 }
 
 // VolumeWithStatusResp volume status

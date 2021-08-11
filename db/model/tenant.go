@@ -476,6 +476,7 @@ type TenantServiceVolume struct {
 	AllowExpansion bool `gorm:"column:allow_expansion" json:"allow_expansion"`
 	// VolumeProviderName 使用的存储驱动别名
 	VolumeProviderName string `gorm:"column:volume_provider_name" json:"volume_provider_name"`
+	Mode               *int32 `gorm:"column:mode" json:"mode"`
 }
 
 //TableName 表名
