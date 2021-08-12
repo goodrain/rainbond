@@ -20,6 +20,7 @@ package handler
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -27,9 +28,8 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
-	"github.com/sirupsen/logrus"
-
 	"github.com/goodrain/rainbond/worker/client"
+	"github.com/sirupsen/logrus"
 )
 
 // ThirdPartyServiceHanlder handles business logic for all third-party services
@@ -61,7 +61,6 @@ func (t *ThirdPartyServiceHanlder) AddEndpoints(sid string, d *model.AddEndpiont
 		ServiceID: sid,
 		IP:        address,
 		Port:      port,
-		IsOnline:  &d.IsOnline,
 	}
 	if err := t.dbmanager.EndpointsDao().AddModel(ep); err != nil {
 		return err
@@ -84,7 +83,6 @@ func (t *ThirdPartyServiceHanlder) UpdEndpoints(d *model.UpdEndpiontsReq) error 
 		ep.IP = address
 		ep.Port = port
 	}
-	ep.IsOnline = &d.IsOnline
 	if err := t.dbmanager.EndpointsDao().UpdateModel(ep); err != nil {
 		return err
 	}
@@ -148,7 +146,6 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 				return ip
 			}(item.IP, item.Port),
 			Status:   "-",
-			IsOnline: false,
 			IsStatic: true,
 		}
 		m[ep.Address] = ep
@@ -162,7 +159,6 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 		for _, item := range thirdPartyEndpoints.Obj {
 			ep := m[fmt.Sprintf("%s:%d", item.Ip, item.Port)]
 			if ep != nil {
-				ep.IsOnline = true
 				ep.Status = item.Status
 				continue
 			}
@@ -170,7 +166,6 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 				EpID:     item.Uuid,
 				Address:  item.Ip,
 				Status:   item.Status,
-				IsOnline: true,
 				IsStatic: false,
 			}
 			m[rep.Address] = rep
@@ -180,5 +175,6 @@ func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointR
 	for _, item := range m {
 		res = append(res, item)
 	}
+	sort.Sort(model.EndpointResps(res))
 	return res, nil
 }

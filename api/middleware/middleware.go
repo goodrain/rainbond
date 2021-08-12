@@ -236,6 +236,13 @@ func (w *resWriter) WriteHeader(statusCode int) {
 // WrapEL wrap eventlog, handle event log before and after process
 func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		var serviceKind string
+		serviceObj := r.Context().Value(ctxutil.ContextKey("service"))
+		if serviceObj != nil {
+			service := serviceObj.(*dbmodel.TenantServices)
+			serviceKind = service.Kind
+		}
+
 		if r.Method != "GET" {
 			body, err := ioutil.ReadAll(r.Body)
 			if err != nil {
@@ -261,7 +268,7 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 			}
 			//eventLog check the latest event
 
-			if !util.CanDoEvent(optType, synType, target, targetID) {
+			if !util.CanDoEvent(optType, synType, target, targetID, serviceKind) {
 				logrus.Errorf("operation too frequently. uri: %s; target: %s; target id: %s", r.RequestURI, target, targetID)
 				httputil.ReturnError(r, w, 409, "操作过于频繁，请稍后再试") // status code 409 conflict
 				return

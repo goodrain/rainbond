@@ -85,18 +85,6 @@ func (e *EndpointDaoImpl) List(sid string) ([]*model.Endpoint, error) {
 	return eps, nil
 }
 
-// ListIsOnline lists *model.Endpoint according to sid, and filter out the ones that are not online.
-func (e *EndpointDaoImpl) ListIsOnline(sid string) ([]*model.Endpoint, error) {
-	var eps []*model.Endpoint
-	if err := e.DB.Where("service_id=? and is_online=1", sid).Find(&eps).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return eps, nil
-}
-
 // DelByUUID deletes endpoints matching uuid.
 func (e *EndpointDaoImpl) DelByUUID(uuid string) error {
 	if err := e.DB.Where("uuid=?", uuid).Delete(&model.Endpoint{}).Error; err != nil {
