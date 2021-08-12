@@ -559,9 +559,11 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
-	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
-		httputil.ReturnResNotEnough(r, w, upgradeRequest.EventID, err.Error())
-		return
+	if service.Kind != "third_party" {
+		if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
+			httputil.ReturnResNotEnough(r, w, upgradeRequest.EventID, err.Error())
+			return
+		}
 	}
 
 	res, err := handler.GetOperationHandler().Upgrade(&upgradeRequest)

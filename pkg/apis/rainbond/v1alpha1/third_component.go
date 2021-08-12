@@ -21,9 +21,12 @@ package v1alpha1
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"strconv"
 	"strings"
 
+	validation "github.com/goodrain/rainbond/util/endpoint"
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -35,7 +38,7 @@ func init() {
 // +genclient
 // +kubebuilder:object:root=true
 
-// HelmApp -
+// ThirdComponent -
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=thirdcomponents,scope=Namespaced
 type ThirdComponent struct {
@@ -44,6 +47,21 @@ type ThirdComponent struct {
 
 	Spec   ThirdComponentSpec   `json:"spec,omitempty"`
 	Status ThirdComponentStatus `json:"status,omitempty"`
+}
+
+// GetComponentID -
+func (in *ThirdComponent) GetComponentID() string {
+	return in.Name
+}
+
+// GetEndpointID -
+func (in *ThirdComponent) GetEndpointID(endpoint *ThirdComponentEndpointStatus) string {
+	return fmt.Sprintf("%s/%s/%s", in.Namespace, in.Name, string(endpoint.Address))
+}
+
+// GetNamespaceName -
+func (in *ThirdComponent) GetNamespaceName() string {
+	return fmt.Sprintf("%s/%s", in.Namespace, in.Name)
 }
 
 // +kubebuilder:object:root=true
@@ -55,16 +73,31 @@ type ThirdComponentList struct {
 	Items           []ThirdComponent `json:"items"`
 }
 
+// ThirdComponentSpec -
 type ThirdComponentSpec struct {
 	// health check probe
 	// +optional
-	Probe *HealthProbe `json:"probe,omitempty"`
+	Probe *Probe `json:"probe,omitempty"`
 	// component regist ports
 	Ports []*ComponentPort `json:"ports"`
 	// endpoint source config
 	EndpointSource ThirdComponentEndpointSource `json:"endpointSource"`
 }
 
+// NeedProbe -
+func (in ThirdComponentSpec) NeedProbe() bool {
+	if in.Probe == nil {
+		return false
+	}
+	return in.IsStaticEndpoints()
+}
+
+// IsStaticEndpoints -
+func (in ThirdComponentSpec) IsStaticEndpoints() bool {
+	return len(in.EndpointSource.StaticEndpoints) > 0
+}
+
+// ThirdComponentEndpointSource -
 type ThirdComponentEndpointSource struct {
 	StaticEndpoints   []*ThirdComponentEndpoint `json:"endpoints,omitempty"`
 	KubernetesService *KubernetesServiceSource  `json:"kubernetesService,omitempty"`
@@ -75,6 +108,7 @@ type ThirdComponentEndpointSource struct {
 	// CustomAPISource
 }
 
+// ThirdComponentEndpoint -
 type ThirdComponentEndpoint struct {
 	// The address including the port number.
 	Address string `json:"address"`
@@ -83,9 +117,31 @@ type ThirdComponentEndpoint struct {
 	Protocol string `json:"protocol,omitempty"`
 	// Specify a private certificate when the protocol is HTTPS
 	// +optional
-	ClentSecret string `json:"clientSecret,omitempty"`
+	ClientSecret string `json:"clientSecret,omitempty"`
 }
 
+// GetPort -
+func (in *ThirdComponentEndpoint) GetPort() int {
+	arr := strings.Split(in.Address, ":")
+	if len(arr) != 2 {
+		return 0
+	}
+
+	port, _ := strconv.Atoi(arr[1])
+	return port
+}
+
+// GetIP -
+func (in *ThirdComponentEndpoint) GetIP() string {
+	arr := strings.Split(in.Address, ":")
+	if len(arr) != 2 {
+		return ""
+	}
+
+	return arr[0]
+}
+
+// KubernetesServiceSource -
 type KubernetesServiceSource struct {
 	// If not specified, the namespace is the namespace of the current resource
 	// +optional
@@ -93,7 +149,49 @@ type KubernetesServiceSource struct {
 	Name      string `json:"name"`
 }
 
-type HealthProbe struct {
+// Probe describes a health check to be performed against a container to determine whether it is
+// alive or ready to receive traffic.
+type Probe struct {
+	// The action taken to determine the health of a container
+	Handler `json:",inline" protobuf:"bytes,1,opt,name=handler"`
+	// Number of seconds after which the probe times out.
+	// Defaults to 1 second. Minimum value is 1.
+	// More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
+	// +optional
+	TimeoutSeconds int32 `json:"timeoutSeconds,omitempty" protobuf:"varint,3,opt,name=timeoutSeconds"`
+	// How often (in seconds) to perform the probe.
+	// Default to 10 seconds. Minimum value is 1.
+	// +optional
+	PeriodSeconds int32 `json:"periodSeconds,omitempty" protobuf:"varint,4,opt,name=periodSeconds"`
+	// Minimum consecutive successes for the probe to be considered successful after having failed.
+	// +optional
+	SuccessThreshold int32 `json:"successThreshold,omitempty" protobuf:"varint,5,opt,name=successThreshold"`
+	// Minimum consecutive failures for the probe to be considered failed after having succeeded.
+	// Defaults to 3. Minimum value is 1.
+	// +optional
+	FailureThreshold int32 `json:"failureThreshold,omitempty" protobuf:"varint,6,opt,name=failureThreshold"`
+}
+
+// Equals -
+func (in *Probe) Equals(target *Probe) bool {
+	if in.TimeoutSeconds != target.TimeoutSeconds {
+		return false
+	}
+	if in.PeriodSeconds != target.PeriodSeconds {
+		return false
+	}
+	if in.SuccessThreshold != target.SuccessThreshold {
+		return false
+	}
+	if in.FailureThreshold != target.FailureThreshold {
+		return false
+	}
+
+	return in.Handler.Equals(&target.Handler)
+}
+
+// Handler defines a specific action that should be taken
+type Handler struct {
 	// HTTPGet specifies the http request to perform.
 	// +optional
 	HTTPGet *HTTPGetAction `json:"httpGet,omitempty"`
@@ -102,6 +200,21 @@ type HealthProbe struct {
 	// TODO: implement a realistic TCP lifecycle hook
 	// +optional
 	TCPSocket *TCPSocketAction `json:"tcpSocket,omitempty"`
+}
+
+// Equals -
+func (in *Handler) Equals(target *Handler) bool {
+	if in == nil && target == nil {
+		return true
+	}
+	if in == nil || target == nil {
+		return false
+	}
+
+	if !in.HTTPGet.Equals(target.HTTPGet) {
+		return false
+	}
+	return in.TCPSocket.Equals(target.TCPSocket)
 }
 
 //ComponentPort component port define
@@ -116,6 +229,11 @@ type ComponentPort struct {
 type TCPSocketAction struct {
 }
 
+// Equals -
+func (in *TCPSocketAction) Equals(target *TCPSocketAction) bool {
+	return true
+}
+
 //HTTPGetAction enable http check
 type HTTPGetAction struct {
 	// Path to access on the HTTP server.
@@ -126,6 +244,38 @@ type HTTPGetAction struct {
 	HTTPHeaders []HTTPHeader `json:"httpHeaders,omitempty"`
 }
 
+// Equals -
+func (in *HTTPGetAction) Equals(target *HTTPGetAction) bool {
+	if in == nil && target == nil {
+		return true
+	}
+	if in == nil || target == nil {
+		return false
+	}
+
+	if in.Path != target.Path {
+		return false
+	}
+	if len(in.HTTPHeaders) != len(target.HTTPHeaders) {
+		return false
+	}
+
+	headers := make(map[string]string)
+	for _, header := range in.HTTPHeaders {
+		headers[header.Name] = header.Value
+	}
+	for _, header := range target.HTTPHeaders {
+		value, ok := headers[header.Name]
+		if !ok {
+			return false
+		}
+		if header.Value != value {
+			return false
+		}
+	}
+	return true
+}
+
 // HTTPHeader describes a custom header to be used in HTTP probes
 type HTTPHeader struct {
 	// The header field name
@@ -134,6 +284,7 @@ type HTTPHeader struct {
 	Value string `json:"value"`
 }
 
+// ComponentPhase -
 type ComponentPhase string
 
 // These are the valid statuses of pods.
@@ -147,12 +298,14 @@ const (
 	ComponentFailed ComponentPhase = "Failed"
 )
 
+// ThirdComponentStatus -
 type ThirdComponentStatus struct {
 	Phase     ComponentPhase                  `json:"phase"`
 	Reason    string                          `json:"reason,omitempty"`
 	Endpoints []*ThirdComponentEndpointStatus `json:"endpoints"`
 }
 
+// EndpointStatus -
 type EndpointStatus string
 
 const (
@@ -162,9 +315,19 @@ const (
 	EndpointNotReady EndpointStatus = "NotReady"
 )
 
+// EndpointAddress -
 type EndpointAddress string
 
+// GetIP -
 func (e EndpointAddress) GetIP() string {
+	ip := e.getIP()
+	if validation.IsDomainNotIP(ip) {
+		return "1.1.1.1"
+	}
+	return ip
+}
+
+func (e EndpointAddress) getIP() string {
 	info := strings.Split(string(e), ":")
 	if len(info) == 2 {
 		return info[0]
@@ -172,23 +335,59 @@ func (e EndpointAddress) GetIP() string {
 	return ""
 }
 
+// GetPort -
 func (e EndpointAddress) GetPort() int {
-	info := strings.Split(string(e), ":")
-	if len(info) == 2 {
-		port, _ := strconv.Atoi(info[1])
-		return port
+	if !validation.IsDomainNotIP(e.getIP()) {
+		info := strings.Split(string(e), ":")
+		if len(info) == 2 {
+			port, _ := strconv.Atoi(info[1])
+			return port
+		}
+		return 0
 	}
-	return 0
+
+	u, err := url.Parse(e.EnsureScheme())
+	if err != nil {
+		logrus.Errorf("parse address %s: %v", e.EnsureScheme(), err)
+		return 0
+	}
+	logrus.Infof("url: %s; scheme: %s", e.EnsureScheme(), u.Scheme)
+	if u.Scheme == "https" {
+		return 443
+	}
+
+	return 80
 }
 
+// EnsureScheme -
+func (e EndpointAddress) EnsureScheme() string {
+	address := string(e)
+	if strings.HasPrefix(address, "http://") || strings.HasPrefix(address, "https://") {
+		return address
+	}
+	// The default scheme is http
+	return "http://" + address
+}
+
+// NewEndpointAddress -
 func NewEndpointAddress(host string, port int) *EndpointAddress {
-	if net.ParseIP(host) == nil {
+	if !validation.IsDomainNotIP(host) {
+		if net.ParseIP(host) == nil {
+			return nil
+		}
+		if port < 0 || port > 65533 {
+			return nil
+		}
+		ea := EndpointAddress(fmt.Sprintf("%s:%d", host, port))
+		return &ea
+	}
+
+	u, err := url.Parse(host)
+	if err != nil {
 		return nil
 	}
-	if port < 0 || port > 65533 {
-		return nil
-	}
-	ea := EndpointAddress(fmt.Sprintf("%s:%d", host, port))
+	u.Path = ""
+	ea := EndpointAddress(u.String())
 	return &ea
 }
 

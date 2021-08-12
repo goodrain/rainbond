@@ -28,6 +28,7 @@ import (
 	gclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
 	dmodel "github.com/goodrain/rainbond/worker/discover/model"
+	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -175,14 +176,11 @@ func (o *OperationHandler) upgrade(batchOpReq model.ComponentOpReq) error {
 	if err != nil {
 		return err
 	}
-	if dbmodel.ServiceKind(component.Kind) == dbmodel.ServiceKindThirdParty {
-		return err
-	}
 
 	batchOpReq.SetVersion(component.DeployVersion)
 
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(batchOpReq.GetVersion(), batchOpReq.GetComponentID())
-	if err != nil {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
 	oldDeployVersion := component.DeployVersion
@@ -191,13 +189,15 @@ func (o *OperationHandler) upgrade(batchOpReq model.ComponentOpReq) error {
 		_ = db.GetManager().TenantServiceDao().UpdateModel(component)
 	}
 
-	if version.FinalStatus != "success" {
-		logrus.Warnf("deploy version %s is not build success,can not change deploy version in this upgrade event", batchOpReq.GetVersion())
-	} else {
-		component.DeployVersion = batchOpReq.GetVersion()
-		err = db.GetManager().TenantServiceDao().UpdateModel(component)
-		if err != nil {
-			return err
+	if version != nil {
+		if version.FinalStatus != "success" {
+			logrus.Warnf("deploy version %s is not build success,can not change deploy version in this upgrade event", batchOpReq.GetVersion())
+		} else {
+			component.DeployVersion = batchOpReq.GetVersion()
+			err = db.GetManager().TenantServiceDao().UpdateModel(component)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

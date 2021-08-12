@@ -24,7 +24,11 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	rainbondlistersv1alpha1 "github.com/goodrain/rainbond/pkg/generated/listers/rainbond/v1alpha1"
+	validation "github.com/goodrain/rainbond/util/endpoint"
+	dis "github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/discover"
 	"github.com/oam-dev/kubevela/pkg/utils/apply"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -34,8 +38,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
+	runtimecache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -44,6 +51,7 @@ import (
 
 const reconcileTimeOut = 60 * time.Second
 
+// Reconciler -
 type Reconciler struct {
 	Client               client.Client
 	restConfig           *rest.Config
@@ -52,6 +60,11 @@ type Reconciler struct {
 	applyer              apply.Applicator
 	discoverPool         *DiscoverPool
 	discoverNum          prometheus.Gauge
+
+	informer runtimecache.Informer
+	lister   rainbondlistersv1alpha1.ThirdComponentLister
+
+	recorder record.EventRecorder
 }
 
 // Reconcile is the main logic of appDeployment controller
@@ -81,8 +94,9 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 		r.discoverPool.RemoveDiscover(component)
 		return ctrl.Result{}, nil
 	}
+
 	logrus.Debugf("start to reconcile component %s/%s", component.Namespace, component.Name)
-	discover, err := NewDiscover(component, r.restConfig)
+	discover, err := dis.NewDiscover(component, r.restConfig, r.lister)
 	if err != nil {
 		component.Status.Phase = v1alpha1.ComponentFailed
 		component.Status.Reason = err.Error()
@@ -95,6 +109,8 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 		r.updateStatus(ctx, component)
 		return ctrl.Result{}, nil
 	}
+	r.discoverPool.AddDiscover(discover)
+
 	endpoints, err := discover.DiscoverOne(ctx)
 	if err != nil {
 		component.Status.Phase = v1alpha1.ComponentFailed
@@ -102,7 +118,6 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 		r.updateStatus(ctx, component)
 		return ctrl.Result{}, nil
 	}
-	r.discoverPool.AddDiscover(discover)
 
 	if len(endpoints) == 0 {
 		component.Status.Phase = v1alpha1.ComponentPending
@@ -141,6 +156,7 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 		}
 		// create endpoint for component service
 		for _, service := range services.Items {
+			service := service
 			for _, port := range service.Spec.Ports {
 				// if component port not exist in endpoint port list, ignore it.
 				if sourceEndpoint, ok := portMap[int(port.Port)]; ok {
@@ -158,6 +174,10 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 						if err := r.applyer.Apply(ctx, &endpoint); err != nil {
 							log.Errorf("apply endpoint for service %s failure %s", service.Name, err.Error())
 						}
+						service.Annotations = endpoint.Annotations
+						if err := r.applyer.Apply(ctx, &service); err != nil {
+							log.Errorf("apply service(%s) for updating annotation: %v", service.Name, err)
+						}
 						log.Infof("apply endpoint for service %s success", service.Name)
 					}
 				}
@@ -166,6 +186,7 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 	}
 	component.Status.Endpoints = endpoints
 	component.Status.Phase = v1alpha1.ComponentRunning
+	component.Status.Reason = ""
 	if err := r.updateStatus(ctx, component); err != nil {
 		log.Errorf("update status failure %s", err.Error())
 		return commonResult, nil
@@ -180,6 +201,8 @@ func createEndpoint(component *v1alpha1.ThirdComponent, service *corev1.Service,
 			spep[endpoint.ServicePort] = endpoint.Address.GetPort()
 		}
 	}
+
+	var domain string
 	endpoints := corev1.Endpoints{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Endpoints",
@@ -211,6 +234,9 @@ func createEndpoint(component *v1alpha1.ThirdComponent, service *corev1.Service,
 					}(),
 					Addresses: func() (re []corev1.EndpointAddress) {
 						for _, se := range sourceEndpoint {
+							if validation.IsDomainNotIP(string(se.Address)) {
+								domain = string(se.Address)
+							}
 							if se.Status == v1alpha1.EndpointReady {
 								re = append(re, corev1.EndpointAddress{
 									IP: se.Address.GetIP(),
@@ -249,6 +275,13 @@ func createEndpoint(component *v1alpha1.ThirdComponent, service *corev1.Service,
 			}
 		}(),
 	}
+
+	if domain != "" {
+		endpoints.Annotations = map[string]string{
+			"domain": domain,
+		}
+	}
+
 	return endpoints
 }
 
@@ -277,25 +310,36 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+// Collect -
 func (r *Reconciler) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(r.discoverNum.Desc(), prometheus.GaugeValue, r.discoverPool.GetSize())
 }
 
 // Setup adds a controller that reconciles AppDeployment.
 func Setup(ctx context.Context, mgr ctrl.Manager) (*Reconciler, error) {
-	applyer := apply.NewAPIApplicator(mgr.GetClient())
+	informer, err := mgr.GetCache().GetInformerForKind(ctx, v1alpha1.SchemeGroupVersion.WithKind("ThirdComponent"))
+	if err != nil {
+		return nil, errors.WithMessage(err, "get informer for thirdcomponent")
+	}
+	lister := rainbondlistersv1alpha1.NewThirdComponentLister(informer.(cache.SharedIndexInformer).GetIndexer())
+
+	recorder := mgr.GetEventRecorderFor("thirdcomponent-controller")
+
 	r := &Reconciler{
 		Client:     mgr.GetClient(),
 		restConfig: mgr.GetConfig(),
 		Scheme:     mgr.GetScheme(),
-		applyer:    applyer,
+		applyer:    apply.NewAPIApplicator(mgr.GetClient()),
 		discoverNum: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: "controller",
 			Name:      "third_component_discover_number",
 			Help:      "Number of running endpoint discover worker of third component.",
 		}),
+		informer: informer,
+		lister:   lister,
+		recorder: recorder,
 	}
-	dp := NewDiscoverPool(ctx, r)
+	dp := NewDiscoverPool(ctx, r, recorder)
 	r.discoverPool = dp
 	return r, r.SetupWithManager(mgr)
 }

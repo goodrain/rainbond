@@ -21,6 +21,7 @@ require (
 	github.com/docker/cli v20.10.3+incompatible
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v20.10.2+incompatible
+	github.com/docker/go-metrics v0.0.0-20181218153428-b84716841b82
 	github.com/docker/go-units v0.4.0
 	github.com/docker/libcompose v0.4.1-0.20190808084053-143e0f3f1ab9
 	github.com/eapache/channels v1.1.0
@@ -112,6 +113,8 @@ require (
 	k8s.io/cli-runtime v0.20.4
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/code-generator v0.20.4
+	k8s.io/component-base v0.20.4
+	k8s.io/kubernetes v1.13.0
 	sigs.k8s.io/controller-runtime v0.7.0
 	sigs.k8s.io/yaml v1.2.0
 )
