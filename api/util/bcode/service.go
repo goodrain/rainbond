@@ -12,4 +12,5 @@ var (
 	ErrSyncOperation = newByMessage(409, 10103, "The asynchronous operation is executing")
 	// ErrHorizontalDueToNoChange
 	ErrHorizontalDueToNoChange = newByMessage(400, 10104, "The number of components has not changed, no need to scale")
+	ErrPodNotFound             = newByMessage(404, 10105, "pod not found")
 )
