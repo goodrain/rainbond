@@ -156,10 +156,10 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 	}
 	tsprCPU := pluginversion.ContainerCPU
 	tsprMemory := pluginversion.ContainerMemory
-	if pss.Body.PluginCPU != 0 {
+	if pss.Body.PluginCPU >= 0 {
 		tsprCPU = pss.Body.PluginCPU
 	}
-	if pss.Body.PluginMemory != 0 {
+	if pss.Body.PluginMemory >= 0 {
 		tsprMemory = pss.Body.PluginMemory
 	}
 	relation := &dbmodel.TenantServicePluginRelation{
@@ -190,10 +190,10 @@ func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss 
 	}
 	relation.VersionID = pss.Body.VersionID
 	relation.Switch = pss.Body.Switch
-	if pss.Body.PluginCPU != 0 {
+	if pss.Body.PluginCPU >= 0 {
 		relation.ContainerCPU = pss.Body.PluginCPU
 	}
-	if pss.Body.PluginMemory != 0 {
+	if pss.Body.PluginMemory >= 0 {
 		relation.ContainerMemory = pss.Body.PluginMemory
 	}
 	err = db.GetManager().TenantServicePluginRelationDao().UpdateModel(relation)

@@ -30,17 +30,21 @@ func createResourcesByDefaultCPU(memory int, setCPURequest, setCPULimit int64) c
 	if base <= 0 {
 		base = 1
 	}
-	if memory < 512 {
-		cpuRequest, cpuLimit = base*30, base*80
-	} else if memory <= 1024 {
-		cpuRequest, cpuLimit = base*30, base*160
+	if memory > 0 {
+		if memory < 512 {
+			cpuRequest, cpuLimit = base*30, base*80
+		} else if memory <= 1024 {
+			cpuRequest, cpuLimit = base*30, base*160
+		} else {
+			cpuRequest, cpuLimit = base*30, (int64(memory)-1024)/1024*500+1280
+		}
 	} else {
-		cpuRequest, cpuLimit = base*30, ((int64(memory)-1024)/1024*500 + 1280)
+		memory = 0
 	}
-	if setCPULimit > 0 {
+	if setCPULimit >= 0 {
 		cpuLimit = setCPULimit
 	}
-	if setCPURequest > 0 {
+	if setCPURequest >= 0 {
 		cpuRequest = setCPURequest
 	}
 
