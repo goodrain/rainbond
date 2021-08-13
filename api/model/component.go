@@ -2,8 +2,9 @@ package model
 
 import (
 	"fmt"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	"time"
+
+	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
 // ComponentBase -
@@ -168,6 +169,7 @@ type ComponentVolume struct {
 	ReclaimPolicy      string `json:"reclaim_policy"`
 	AllowExpansion     bool   `json:"allow_expansion"`
 	VolumeProviderName string `json:"volume_provider_name"`
+	Mode               *int32 `json:"mode"`
 }
 
 // Key returns the key of ComponentVolume.
@@ -192,6 +194,7 @@ func (v *ComponentVolume) DbModel(componentID string) *dbmodel.TenantServiceVolu
 		ReclaimPolicy:      v.ReclaimPolicy,
 		AllowExpansion:     v.AllowExpansion,
 		VolumeProviderName: v.VolumeProviderName,
+		Mode:               v.Mode,
 	}
 }
 
@@ -239,6 +242,7 @@ type Component struct {
 	ComponentBase      ComponentBase                    `json:"component_base"`
 	HTTPRules          []AddHTTPRuleStruct              `json:"http_rules"`
 	TCPRules           []AddTCPRuleStruct               `json:"tcp_rules"`
+	HTTPRuleConfigs    []HTTPRuleConfig                 `json:"http_rule_configs"`
 	Monitors           []AddServiceMonitorRequestStruct `json:"monitors"`
 	Ports              []TenantServicesPort             `json:"ports"`
 	Relations          []TenantComponentRelation        `json:"relations"`
