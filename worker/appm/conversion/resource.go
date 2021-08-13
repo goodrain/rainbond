@@ -19,43 +19,34 @@
 package conversion
 
 import (
+	"fmt"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-//Allocate the CPU at the ratio of 4g memory to 1 core CPU
-func createResourcesByDefaultCPU(memory int, setCPURequest, setCPULimit int64) corev1.ResourceRequirements {
-	var cpuRequest, cpuLimit int64
-	base := int64(memory) / 128
-	if base <= 0 {
-		base = 1
-	}
-	if memory > 0 {
-		if memory < 512 {
-			cpuRequest, cpuLimit = base*30, base*80
-		} else if memory <= 1024 {
-			cpuRequest, cpuLimit = base*30, base*160
-		} else {
-			cpuRequest, cpuLimit = base*30, (int64(memory)-1024)/1024*500+1280
-		}
-	} else {
-		memory = 0
-	}
-	if setCPULimit >= 0 {
-		cpuLimit = setCPULimit
-	}
-	if setCPURequest >= 0 {
-		cpuRequest = setCPURequest
-	}
-
+func createResourcesBySetting(memory int, setCPURequest, setCPULimit, setGPULimit int64) corev1.ResourceRequirements {
 	limits := corev1.ResourceList{}
-	limits[corev1.ResourceCPU] = *resource.NewMilliQuantity(cpuLimit, resource.DecimalSI)
-	limits[corev1.ResourceMemory] = *resource.NewQuantity(int64(memory*1024*1024), resource.BinarySI)
-
 	request := corev1.ResourceList{}
-	request[corev1.ResourceCPU] = *resource.NewMilliQuantity(cpuRequest, resource.DecimalSI)
-	request[corev1.ResourceMemory] = *resource.NewQuantity(int64(memory*1024*1024), resource.BinarySI)
 
+	if memory > 0 {
+		limits[corev1.ResourceMemory] = *resource.NewQuantity(int64(memory*1024*1024), resource.BinarySI)
+	}
+	if setCPULimit > 0 {
+		limits[corev1.ResourceCPU] = *resource.NewMilliQuantity(setCPULimit, resource.DecimalSI)
+	}
+	if setGPULimit > 0 {
+		gpuLimit, err := resource.ParseQuantity(fmt.Sprintf("%d", setGPULimit))
+		if err != nil {
+			logrus.Errorf("gpu request is invalid")
+		} else {
+			limits[getGPULableKey()] = gpuLimit
+		}
+	}
+
+	if setCPURequest > 0 {
+		request[corev1.ResourceCPU] = *resource.NewMilliQuantity(setCPURequest, resource.DecimalSI)
+	}
 	return corev1.ResourceRequirements{
 		Limits:   limits,
 		Requests: request,

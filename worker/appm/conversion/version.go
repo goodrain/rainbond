@@ -38,7 +38,6 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -502,16 +501,7 @@ func createResources(as *v1.AppService) corev1.ResourceRequirements {
 		cpuLimit = int64(as.ContainerCPU)
 		cpuRequest = int64(as.ContainerCPU)
 	}
-	rr := createResourcesByDefaultCPU(as.ContainerMemory, cpuRequest, cpuLimit)
-	// support set gpu, support application of single GPU video memory.
-	if as.ContainerGPU > 0 {
-		gpuLimit, err := resource.ParseQuantity(fmt.Sprintf("%d", as.ContainerGPU))
-		if err != nil {
-			logrus.Errorf("gpu request is invalid")
-		} else {
-			rr.Limits[getGPULableKey()] = gpuLimit
-		}
-	}
+	rr := createResourcesBySetting(as.ContainerMemory, cpuRequest, cpuLimit, int64(as.ContainerGPU))
 	return rr
 }
 
