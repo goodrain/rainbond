@@ -89,9 +89,9 @@ type TenantPluginBuildVersion struct {
 	Info            string `gorm:"column:info" json:"info"`
 	Status          string `gorm:"column:status;size:24" json:"status"`
 	// container default cpu
-	ContainerCPU int `gorm:"column:container_cpu;default:125" json:"container_cpu"`
+	ContainerCPU int `gorm:"column:container_cpu;default:0" json:"container_cpu"`
 	// container default memory
-	ContainerMemory int `gorm:"column:container_memory;default:64" json:"container_memory"`
+	ContainerMemory int `gorm:"column:container_memory;default:0" json:"container_memory"`
 	// container args
 	ContainerCMD string `gorm:"column:container_cmd;size:2048" json:"container_cmd"`
 }
@@ -155,9 +155,9 @@ type TenantServicePluginRelation struct {
 	ServiceID   string `gorm:"column:service_id;size:32" json:"service_id"`
 	PluginModel string `gorm:"column:plugin_model;size:24" json:"plugin_model"`
 	// container default cpu  v3.5.1 add
-	ContainerCPU int `gorm:"column:container_cpu;default:125" json:"container_cpu"`
+	ContainerCPU int `gorm:"column:container_cpu;default:0" json:"container_cpu"`
 	// container default memory  v3.5.1 add
-	ContainerMemory int  `gorm:"column:container_memory;default:64" json:"container_memory"`
+	ContainerMemory int  `gorm:"column:container_memory;default:0" json:"container_memory"`
 	Switch          bool `gorm:"column:switch;default:0" json:"switch"`
 }
 

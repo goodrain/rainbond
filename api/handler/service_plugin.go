@@ -154,14 +154,22 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 		tx.Rollback()
 		return nil, util.CreateAPIHandleErrorFromDBError("set service plugin env error ", err)
 	}
+	tsprCPU := pluginversion.ContainerCPU
+	tsprMemory := pluginversion.ContainerMemory
+	if pss.Body.PluginCPU >= 0 {
+		tsprCPU = pss.Body.PluginCPU
+	}
+	if pss.Body.PluginMemory >= 0 {
+		tsprMemory = pss.Body.PluginMemory
+	}
 	relation := &dbmodel.TenantServicePluginRelation{
 		VersionID:       pss.Body.VersionID,
 		ServiceID:       serviceID,
 		PluginID:        pss.Body.PluginID,
 		Switch:          pss.Body.Switch,
 		PluginModel:     plugin.PluginModel,
-		ContainerCPU:    pluginversion.ContainerCPU,
-		ContainerMemory: pluginversion.ContainerMemory,
+		ContainerCPU:    tsprCPU,
+		ContainerMemory: tsprMemory,
 	}
 	if err := db.GetManager().TenantServicePluginRelationDaoTransactions(tx).AddModel(relation); err != nil {
 		tx.Rollback()
@@ -182,10 +190,10 @@ func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss 
 	}
 	relation.VersionID = pss.Body.VersionID
 	relation.Switch = pss.Body.Switch
-	if pss.Body.PluginCPU != 0 {
+	if pss.Body.PluginCPU >= 0 {
 		relation.ContainerCPU = pss.Body.PluginCPU
 	}
-	if pss.Body.PluginMemory != 0 {
+	if pss.Body.PluginMemory >= 0 {
 		relation.ContainerMemory = pss.Body.PluginMemory
 	}
 	err = db.GetManager().TenantServicePluginRelationDao().UpdateModel(relation)
