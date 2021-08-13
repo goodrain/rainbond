@@ -547,7 +547,6 @@ type EndpointsDao interface {
 	GetByUUID(uuid string) (*model.Endpoint, error)
 	DelByUUID(uuid string) error
 	List(sid string) ([]*model.Endpoint, error)
-	ListIsOnline(sid string) ([]*model.Endpoint, error)
 	DeleteByServiceID(sid string) error
 }
 

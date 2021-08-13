@@ -20,15 +20,13 @@ package model
 
 // AddEndpiontsReq is one of the Endpoints in the request to add the endpints.
 type AddEndpiontsReq struct {
-	Address  string `json:"address" validate:"address|required"`
-	IsOnline bool   `json:"is_online" validate:"required"`
+	Address string `json:"address" validate:"address|required"`
 }
 
 // UpdEndpiontsReq is one of the Endpoints in the request to update the endpints.
 type UpdEndpiontsReq struct {
-	EpID     string `json:"ep_id" validate:"required|len:32"`
-	Address  string `json:"address"`
-	IsOnline bool   `json:"is_online" validate:"required"`
+	EpID    string `json:"ep_id" validate:"required|len:32"`
+	Address string `json:"address"`
 }
 
 // DelEndpiontsReq is one of the Endpoints in the request to update the endpints.
@@ -42,8 +40,25 @@ type EndpointResp struct {
 	EpID     string `json:"ep_id"`
 	Address  string `json:"address"`
 	Status   string `json:"status"`
-	IsOnline bool   `json:"is_online"`
 	IsStatic bool   `json:"is_static"`
+}
+
+// EndpointResps -
+type EndpointResps []*EndpointResp
+
+// Len is part of sort.Interface.
+func (e EndpointResps) Len() int {
+	return len(e)
+}
+
+// Swap is part of sort.Interface.
+func (e EndpointResps) Swap(i, j int) {
+	e[i], e[j] = e[j], e[i]
+}
+
+// Less is part of sort.Interface. It is implemented by calling the "by" closure in the sorter.
+func (e EndpointResps) Less(i, j int) bool {
+	return e[i].Address < e[j].Address
 }
 
 // ThridPartyServiceProbe is the json obejct in the request

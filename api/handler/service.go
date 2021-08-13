@@ -748,12 +748,10 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 			}
 		}
 		if sc.Endpoints.Static != nil {
-			trueValue := true
 			for _, o := range sc.Endpoints.Static {
 				ep := &dbmodel.Endpoint{
 					ServiceID: sc.ServiceID,
 					UUID:      core_util.NewUUID(),
-					IsOnline:  &trueValue,
 				}
 				address := o
 				port := 0
