@@ -440,7 +440,7 @@ func createPluginEnvs(pluginID, tenantID, serviceAlias string, mainEnvs []v1.Env
 }
 
 func createPluginResources(memory int, cpu int) v1.ResourceRequirements {
-	return createResourcesByDefaultCPU(memory, int64(cpu), int64(cpu))
+	return createResourcesBySetting(memory, int64(cpu), int64(cpu), 0)
 }
 
 func createTCPUDPMeshRecources(as *typesv1.AppService) v1.ResourceRequirements {
@@ -458,12 +458,12 @@ func createTCPUDPMeshRecources(as *typesv1.AppService) v1.ResourceRequirements {
 			memory = requestint
 		}
 	}
-	return createResourcesByDefaultCPU(memory, cpu, func() int64 {
+	return createResourcesBySetting(memory, cpu, func() int64 {
 		if cpu < 120 {
 			return 120
 		}
 		return cpu
-	}())
+	}(), 0)
 }
 
 func xdsHostIPEnv(xdsHost string) corev1.EnvVar {

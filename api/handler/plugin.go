@@ -328,10 +328,10 @@ func (p *PluginAction) buildPlugin(b *api_model.BuildPluginStruct, plugin *dbmod
 		Info:            b.Body.Info,
 		Status:          "building",
 	}
-	if b.Body.PluginCPU == 0 {
+	if b.Body.PluginCPU < 0 {
 		pbv.ContainerCPU = 125
 	}
-	if b.Body.PluginMemory == 0 {
+	if b.Body.PluginMemory < 0 {
 		pbv.ContainerMemory = 50
 	}
 	if err := db.GetManager().TenantPluginBuildVersionDao().AddModel(pbv); err != nil {
