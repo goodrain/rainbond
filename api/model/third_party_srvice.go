@@ -34,30 +34,30 @@ type DelEndpiontsReq struct {
 	EpID string `json:"ep_id" validate:"required|len:32"`
 }
 
-// EndpointResp is one of the Endpoints list in the response to list, add,
+// ThirdEndpoint is one of the Endpoints list in the response to list, add,
 // update or delete the endpints.
-type EndpointResp struct {
+type ThirdEndpoint struct {
 	EpID     string `json:"ep_id"`
 	Address  string `json:"address"`
 	Status   string `json:"status"`
 	IsStatic bool   `json:"is_static"`
 }
 
-// EndpointResps -
-type EndpointResps []*EndpointResp
+// ThirdEndpoints -
+type ThirdEndpoints []*ThirdEndpoint
 
 // Len is part of sort.Interface.
-func (e EndpointResps) Len() int {
+func (e ThirdEndpoints) Len() int {
 	return len(e)
 }
 
 // Swap is part of sort.Interface.
-func (e EndpointResps) Swap(i, j int) {
+func (e ThirdEndpoints) Swap(i, j int) {
 	e[i], e[j] = e[j], e[i]
 }
 
 // Less is part of sort.Interface. It is implemented by calling the "by" closure in the sorter.
-func (e EndpointResps) Less(i, j int) bool {
+func (e ThirdEndpoints) Less(i, j int) bool {
 	return e[i].Address < e[j].Address
 }
 

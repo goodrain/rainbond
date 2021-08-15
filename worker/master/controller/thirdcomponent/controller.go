@@ -189,7 +189,8 @@ func (r *Reconciler) applyEndpointService(ctx context.Context, log *logrus.Entry
 	var old corev1.Endpoints
 	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: ep.Namespace, Name: ep.Name}, &old); err == nil {
 		// no change not apply
-		if reflect.DeepEqual(old.Subsets, ep.Subsets) {
+		if reflect.DeepEqual(old.Subsets, ep.Subsets) &&
+			reflect.DeepEqual(old.Annotations, ep.Annotations) {
 			return
 		}
 	}

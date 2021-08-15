@@ -59,8 +59,9 @@ parameter: {
 		name: string
 	}
 	endpoints?: [...{
-		address:     string
-		protocol?:   string
+		address:       string
+		name?:         string
+		protocol?:     string
 		clientSecret?: string
 	}]
 	port?: [...{

@@ -137,7 +137,7 @@ func (t *ThirdPartyServiceController) listEndpoints(w http.ResponseWriter, r *ht
 		return
 	}
 	if len(res) == 0 {
-		httputil.ReturnSuccess(r, w, []*model.EndpointResp{})
+		httputil.ReturnSuccess(r, w, []*model.ThirdEndpoint{})
 		return
 	}
 	httputil.ReturnSuccess(r, w, res)
