@@ -57,20 +57,28 @@ func (s *staticEndpoint) DiscoverOne(ctx context.Context) ([]*v1alpha1.ThirdComp
 				}
 			}
 		}
-		if len(endpoints) == 0 {
-			continue
-		}
 
 		for _, ep := range endpoints {
 			// Make ready as the default status
 			ep.Status = v1alpha1.EndpointReady
-			if s.proberManager != nil {
-				result, found := s.proberManager.GetResult(s.component.GetEndpointID(ep))
-				if found && result != results.Success {
-					ep.Status = v1alpha1.EndpointNotReady
-				}
-			}
 		}
+	}
+
+	// Update status with probe result
+	if s.proberManager != nil {
+		var newEndpoints []*v1alpha1.ThirdComponentEndpointStatus
+		for _, ep := range endpoints {
+			result, found := s.proberManager.GetResult(s.component.GetEndpointID(ep))
+			if !found {
+				// NotReady means the endpoint should not be online.
+				ep.Status = v1alpha1.EndpointNotReady
+			}
+			if result != results.Success {
+				ep.Status = v1alpha1.EndpointUnhealthy
+			}
+			newEndpoints = append(newEndpoints, ep)
+		}
+		return newEndpoints, nil
 	}
 
 	return endpoints, nil

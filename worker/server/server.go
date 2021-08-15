@@ -494,10 +494,16 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 			ComponentID: as.ServiceID,
 			Address:     string(ep.Address),
 			Status: func() string {
-				if ep.Status == v1alpha1.EndpointReady {
+				switch ep.Status {
+				case v1alpha1.EndpointReady:
 					return "healthy"
+				case v1alpha1.EndpointNotReady:
+					return "notready"
+				case v1alpha1.EndpointUnhealthy:
+					return "unhealthy"
+				default:
+					return "-" // offline
 				}
-				return "unhealthy"
 			}(),
 		})
 	}

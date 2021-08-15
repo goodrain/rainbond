@@ -316,6 +316,8 @@ const (
 	EndpointReady EndpointStatus = "Ready"
 	//EndpointNotReady it means the probe not passed.
 	EndpointNotReady EndpointStatus = "NotReady"
+	// EndpointUnhealthy means that the health prober failed.
+	EndpointUnhealthy EndpointStatus = "Unhealthy"
 )
 
 // EndpointAddress -
