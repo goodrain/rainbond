@@ -171,6 +171,7 @@ func (c *Builder) listStaticEndpoints(componentID string) ([]*v1alpha1.ThirdComp
 	for _, ep := range endpoints {
 		res = append(res, &v1alpha1.ThirdComponentEndpoint{
 			Address: ep.GetAddress(),
+			Name:    ep.UUID,
 		})
 	}
 	return res, nil

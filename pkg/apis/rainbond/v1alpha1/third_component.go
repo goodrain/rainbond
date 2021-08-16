@@ -112,6 +112,9 @@ type ThirdComponentEndpointSource struct {
 type ThirdComponentEndpoint struct {
 	// The address including the port number.
 	Address string `json:"address"`
+	// Then Name of the Endpoint.
+	// +optional
+	Name string `json:"name"`
 	// Address protocols, including: HTTP, TCP, UDP, HTTPS
 	// +optional
 	Protocol string `json:"protocol,omitempty"`
@@ -313,6 +316,8 @@ const (
 	EndpointReady EndpointStatus = "Ready"
 	//EndpointNotReady it means the probe not passed.
 	EndpointNotReady EndpointStatus = "NotReady"
+	// EndpointUnhealthy means that the health prober failed.
+	EndpointUnhealthy EndpointStatus = "Unhealthy"
 )
 
 // EndpointAddress -
@@ -362,6 +367,10 @@ func (e EndpointAddress) GetPort() int {
 // EnsureScheme -
 func (e EndpointAddress) EnsureScheme() string {
 	address := string(e)
+	return ensureScheme(address)
+}
+
+func ensureScheme(address string) string {
 	if strings.HasPrefix(address, "http://") || strings.HasPrefix(address, "https://") {
 		return address
 	}
@@ -382,12 +391,11 @@ func NewEndpointAddress(host string, port int) *EndpointAddress {
 		return &ea
 	}
 
-	u, err := url.Parse(host)
+	_, err := url.Parse(ensureScheme(host))
 	if err != nil {
 		return nil
 	}
-	u.Path = ""
-	ea := EndpointAddress(u.String())
+	ea := EndpointAddress(host)
 	return &ea
 }
 
@@ -395,6 +403,9 @@ func NewEndpointAddress(host string, port int) *EndpointAddress {
 type ThirdComponentEndpointStatus struct {
 	// The address including the port number.
 	Address EndpointAddress `json:"address"`
+	// Then Name of the Endpoint.
+	// +optional
+	Name string `json:"name"`
 	// Reference to object providing the endpoint.
 	// +optional
 	TargetRef *v1.ObjectReference `json:"targetRef,omitempty" protobuf:"bytes,2,opt,name=targetRef"`

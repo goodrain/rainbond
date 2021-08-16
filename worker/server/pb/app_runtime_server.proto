@@ -133,16 +133,14 @@ message DelThirdPartyEndpointsReq {
 }
 
 message ThirdPartyEndpoint {
-  string uuid = 1;
-  string sid = 2;
-  string ip = 3;
-  int32 port = 4;
-  string status = 5;
-  bool is_online = 6;
+  string name = 1;
+  string componentID = 2;
+  string address = 3;
+  string status = 4;
 }
 
 message ThirdPartyEndpoints {
-  repeated ThirdPartyEndpoint obj = 1;
+  repeated ThirdPartyEndpoint items = 1;
 }
 
 message ListPodsBySIDReq {

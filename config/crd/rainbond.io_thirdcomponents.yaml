@@ -50,6 +50,9 @@ spec:
                         description: Specify a private certificate when the protocol
                           is HTTPS
                         type: string
+                      name:
+                        description: Then Name of the Endpoint.
+                        type: string
                       protocol:
                         description: 'Address protocols, including: HTTP, TCP, UDP,
                           HTTPS'
@@ -159,6 +162,9 @@ spec:
                 properties:
                   address:
                     description: The address including the port number.
+                    type: string
+                  name:
+                    description: Then Name of the Endpoint.
                     type: string
                   reason:
                     description: Reason probe not passed reason

@@ -189,7 +189,8 @@ func (r *Reconciler) applyEndpointService(ctx context.Context, log *logrus.Entry
 	var old corev1.Endpoints
 	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: ep.Namespace, Name: ep.Name}, &old); err == nil {
 		// no change not apply
-		if reflect.DeepEqual(old.Subsets, ep.Subsets) {
+		if reflect.DeepEqual(old.Subsets, ep.Subsets) &&
+			reflect.DeepEqual(old.Annotations, ep.Annotations) {
 			return
 		}
 	}
@@ -334,7 +335,7 @@ func createEndpoint(component *v1alpha1.ThirdComponent, service *corev1.Service,
 					}(),
 					NotReadyAddresses: func() (re []corev1.EndpointAddress) {
 						for _, se := range sourceEndpoint {
-							if se.Status == v1alpha1.EndpointNotReady {
+							if se.Status == v1alpha1.EndpointNotReady || se.Status == v1alpha1.EndpointUnhealthy {
 								re = append(re, corev1.EndpointAddress{
 									IP: se.Address.GetIP(),
 									TargetRef: &corev1.ObjectReference{

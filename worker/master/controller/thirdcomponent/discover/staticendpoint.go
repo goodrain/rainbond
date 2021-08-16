@@ -36,46 +36,52 @@ func (s *staticEndpoint) Discover(ctx context.Context, update chan *v1alpha1.Thi
 
 func (s *staticEndpoint) DiscoverOne(ctx context.Context) ([]*v1alpha1.ThirdComponentEndpointStatus, error) {
 	component := s.component
-	var res []*v1alpha1.ThirdComponentEndpointStatus
+	var endpoints []*v1alpha1.ThirdComponentEndpointStatus
 	for _, ep := range component.Spec.EndpointSource.StaticEndpoints {
-		var addresses []*v1alpha1.EndpointAddress
 		if ep.GetPort() != 0 {
 			address := v1alpha1.NewEndpointAddress(ep.GetIP(), ep.GetPort())
 			if address != nil {
-				addresses = append(addresses, address)
+				endpoints = append(endpoints, &v1alpha1.ThirdComponentEndpointStatus{
+					Address: *address,
+					Name:    ep.Name,
+				})
 			}
 		} else {
 			for _, port := range component.Spec.Ports {
 				address := v1alpha1.NewEndpointAddress(ep.Address, port.Port)
 				if address != nil {
-					addresses = append(addresses, address)
+					endpoints = append(endpoints, &v1alpha1.ThirdComponentEndpointStatus{
+						Address: *address,
+						Name:    ep.Name,
+					})
 				}
 			}
 		}
-		if len(addresses) == 0 {
-			continue
-		}
 
-		for _, address := range addresses {
-			address := address
-			es := &v1alpha1.ThirdComponentEndpointStatus{
-				Address: *address,
-				Status:  v1alpha1.EndpointReady,
-			}
-			res = append(res, es)
-
+		for _, ep := range endpoints {
 			// Make ready as the default status
-			es.Status = v1alpha1.EndpointReady
-			if s.proberManager != nil {
-				result, found := s.proberManager.GetResult(s.component.GetEndpointID(es))
-				if found && result != results.Success {
-					es.Status = v1alpha1.EndpointNotReady
-				}
-			}
+			ep.Status = v1alpha1.EndpointReady
 		}
 	}
 
-	return res, nil
+	// Update status with probe result
+	if s.proberManager != nil {
+		var newEndpoints []*v1alpha1.ThirdComponentEndpointStatus
+		for _, ep := range endpoints {
+			result, found := s.proberManager.GetResult(s.component.GetEndpointID(ep))
+			if !found {
+				// NotReady means the endpoint should not be online.
+				ep.Status = v1alpha1.EndpointNotReady
+			}
+			if result != results.Success {
+				ep.Status = v1alpha1.EndpointUnhealthy
+			}
+			newEndpoints = append(newEndpoints, ep)
+		}
+		return newEndpoints, nil
+	}
+
+	return endpoints, nil
 }
 
 func (s *staticEndpoint) SetProberManager(proberManager prober.Manager) {
