@@ -97,6 +97,7 @@ var thirdComponentDefine = v1alpha1.ComponentDefinition{
 		Name: thirdComponentDefineName,
 		Annotations: map[string]string{
 			"definition.oam.dev/description": "Rainbond built-in component type that defines third-party service components.",
+			"version":                        "2.0",
 		},
 	},
 	Spec: v1alpha1.ComponentDefinitionSpec{

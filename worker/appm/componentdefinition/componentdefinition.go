@@ -204,14 +204,49 @@ func (c *Builder) BuildWorkloadResource(as *v1.AppService, dbm db.Manager) error
 func (c *Builder) InitCoreComponentDefinition(rainbondClient rainbondversioned.Interface) {
 	coreComponentDefinition := []*v1alpha1.ComponentDefinition{&thirdComponentDefine}
 	for _, ccd := range coreComponentDefinition {
-		if c.GetComponentDefinition(ccd.Name) == nil {
+		oldCoreComponentDefinition := c.GetComponentDefinition(ccd.Name)
+		if oldCoreComponentDefinition == nil {
 			logrus.Infof("create core componentdefinition %s", ccd.Name)
 			if _, err := rainbondClient.RainbondV1alpha1().ComponentDefinitions(c.namespace).Create(context.Background(), ccd, metav1.CreateOptions{}); err != nil && !k8sErrors.IsNotFound(err) {
 				logrus.Errorf("create core componentdefinition %s failire %s", ccd.Name, err.Error())
 			}
+		} else {
+			err := c.updateComponentDefinition(rainbondClient, oldCoreComponentDefinition, ccd)
+			if err != nil {
+				logrus.Errorf("update core componentdefinition(%s): %v", ccd.Name, err)
+			}
 		}
 	}
 	logrus.Infof("success check core componentdefinition from cluster")
+}
+
+func (c *Builder) updateComponentDefinition(rainbondClient rainbondversioned.Interface, oldComponentDefinition, newComponentDefinition *v1alpha1.ComponentDefinition) error {
+	newVersion := getComponentDefinitionVersion(newComponentDefinition)
+	oldVersion := getComponentDefinitionVersion(oldComponentDefinition)
+	if newVersion == "" || !(oldVersion == "" || newVersion > oldVersion) {
+		return nil
+	}
+
+	logrus.Infof("update core componentdefinition %s", newComponentDefinition.Name)
+	newComponentDefinition.ResourceVersion = oldComponentDefinition.ResourceVersion
+	if _, err := rainbondClient.RainbondV1alpha1().ComponentDefinitions(c.namespace).Update(context.Background(), newComponentDefinition, metav1.UpdateOptions{}); err != nil {
+		if k8sErrors.IsNotFound(err) {
+			_, err := rainbondClient.RainbondV1alpha1().ComponentDefinitions(c.namespace).Create(context.Background(), newComponentDefinition, metav1.CreateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+		return err
+	}
+
+	return nil
+}
+
+func getComponentDefinitionVersion(componentDefinition *v1alpha1.ComponentDefinition) string {
+	if componentDefinition.ObjectMeta.Annotations == nil {
+		return ""
+	}
+	return componentDefinition.ObjectMeta.Annotations["version"]
 }
 
 func (c *Builder) createProbe(componentID string) (*v1alpha1.Probe, error) {
@@ -265,6 +300,5 @@ func (c *Builder) createHTTPGetAction(probe *dbmodel.TenantServiceProbe) *v1alph
 }
 
 func (c *Builder) createTCPGetAction(probe *dbmodel.TenantServiceProbe) *v1alpha1.TCPSocketAction {
-	return &v1alpha1.TCPSocketAction{
-	}
+	return &v1alpha1.TCPSocketAction{}
 }
