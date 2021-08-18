@@ -19,7 +19,7 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: HelmApp -
+      description: ThirdComponent -
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -34,12 +34,14 @@ spec:
         metadata:
           type: object
         spec:
+          description: ThirdComponentSpec -
           properties:
             endpointSource:
               description: endpoint source config
               properties:
                 endpoints:
                   items:
+                    description: ThirdComponentEndpoint -
                     properties:
                       address:
                         description: The address including the port number.
@@ -47,6 +49,9 @@ spec:
                       clientSecret:
                         description: Specify a private certificate when the protocol
                           is HTTPS
+                        type: string
+                      name:
+                        description: Then Name of the Endpoint.
                         type: string
                       protocol:
                         description: 'Address protocols, including: HTTP, TCP, UDP,
@@ -57,6 +62,7 @@ spec:
                     type: object
                   type: array
                 kubernetesService:
+                  description: KubernetesServiceSource -
                   properties:
                     name:
                       type: string
@@ -91,6 +97,12 @@ spec:
             probe:
               description: health check probe
               properties:
+                failureThreshold:
+                  description: Minimum consecutive failures for the probe to be considered
+                    failed after having succeeded. Defaults to 3. Minimum value is
+                    1.
+                  format: int32
+                  type: integer
                 httpGet:
                   description: HTTPGet specifies the http request to perform.
                   properties:
@@ -116,17 +128,33 @@ spec:
                       description: Path to access on the HTTP server.
                       type: string
                   type: object
+                periodSeconds:
+                  description: How often (in seconds) to perform the probe. Default
+                    to 10 seconds. Minimum value is 1.
+                  format: int32
+                  type: integer
+                successThreshold:
+                  description: Minimum consecutive successes for the probe to be considered
+                    successful after having failed.
+                  format: int32
+                  type: integer
                 tcpSocket:
                   description: 'TCPSocket specifies an action involving a TCP port.
                     TCP hooks not yet supported TODO: implement a realistic TCP lifecycle
                     hook'
                   type: object
+                timeoutSeconds:
+                  description: 'Number of seconds after which the probe times out.
+                    Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
+                  format: int32
+                  type: integer
               type: object
           required:
           - endpointSource
           - ports
           type: object
         status:
+          description: ThirdComponentStatus -
           properties:
             endpoints:
               items:
@@ -134,6 +162,9 @@ spec:
                 properties:
                   address:
                     description: The address including the port number.
+                    type: string
+                  name:
+                    description: Then Name of the Endpoint.
                     type: string
                   reason:
                     description: Reason probe not passed reason
@@ -187,6 +218,7 @@ spec:
                 type: object
               type: array
             phase:
+              description: ComponentPhase -
               type: string
             reason:
               type: string

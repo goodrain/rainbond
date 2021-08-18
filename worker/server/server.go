@@ -55,8 +55,11 @@ import (
 
 //RuntimeServer app runtime grpc server
 type RuntimeServer struct {
-	ctx       context.Context
-	cancel    context.CancelFunc
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	logger *logrus.Entry
+
 	store     store.Storer
 	conf      option.Config
 	server    *grpc.Server
@@ -76,6 +79,7 @@ func CreaterRuntimeServer(conf option.Config,
 		conf:      conf,
 		ctx:       ctx,
 		cancel:    cancel,
+		logger:    logrus.WithField("WHO", "RuntimeServer"),
 		server:    grpc.NewServer(),
 		hostIP:    conf.HostIP,
 		store:     store,
@@ -480,63 +484,51 @@ func (r *RuntimeServer) ListThirdPartyEndpoints(ctx context.Context, re *pb.Serv
 	if as == nil {
 		return new(pb.ThirdPartyEndpoints), nil
 	}
-	var pbeps []*pb.ThirdPartyEndpoint
-	// The same IP may correspond to two endpoints, which are internal and external endpoints.
-	// So it is need to filter the same IP.
-	exists := make(map[string]bool)
-	addEndpoint := func(tpe *pb.ThirdPartyEndpoint) {
-		if !exists[fmt.Sprintf("%s:%d", tpe.Ip, tpe.Port)] {
-			pbeps = append(pbeps, tpe)
-			exists[fmt.Sprintf("%s:%d", tpe.Ip, tpe.Port)] = true
-		}
-	}
-	for _, ep := range as.GetEndpoints(false) {
-		if ep.Subsets == nil || len(ep.Subsets) == 0 {
-			logrus.Debugf("Key: %s; empty subsets", fmt.Sprintf("%s/%s", ep.Namespace, ep.Name))
-			continue
-		}
-		for _, subset := range ep.Subsets {
-			for _, port := range subset.Ports {
-				for _, address := range subset.Addresses {
-					ip := address.IP
-					if ip == "1.1.1.1" {
-						if len(as.GetServices(false)) > 0 {
-							ip = as.GetServices(false)[0].Annotations["domain"]
-						}
-					}
-					addEndpoint(&pb.ThirdPartyEndpoint{
-						Uuid: port.Name,
-						Sid:  ep.GetLabels()["service_id"],
-						Ip:   ip,
-						Port: port.Port,
-						Status: func() string {
-							return "healthy"
-						}(),
-					})
+
+	endpoints := r.listThirdEndpoints(as)
+
+	var items []*pb.ThirdPartyEndpoint
+	for _, ep := range endpoints {
+		items = append(items, &pb.ThirdPartyEndpoint{
+			Name:        ep.Name,
+			ComponentID: as.ServiceID,
+			Address:     string(ep.Address),
+			Status: func() string {
+				switch ep.Status {
+				case v1alpha1.EndpointReady:
+					return "healthy"
+				case v1alpha1.EndpointNotReady:
+					return "notready"
+				case v1alpha1.EndpointUnhealthy:
+					return "unhealthy"
+				default:
+					return "-" // offline
 				}
-				for _, address := range subset.NotReadyAddresses {
-					ip := address.IP
-					if ip == "1.1.1.1" {
-						if len(as.GetServices(false)) > 0 {
-							ip = as.GetServices(false)[0].Annotations["domain"]
-						}
-					}
-					addEndpoint(&pb.ThirdPartyEndpoint{
-						Uuid: port.Name,
-						Sid:  ep.GetLabels()["service_id"],
-						Ip:   ip,
-						Port: port.Port,
-						Status: func() string {
-							return "unhealthy"
-						}(),
-					})
-				}
-			}
-		}
+			}(),
+		})
 	}
 	return &pb.ThirdPartyEndpoints{
-		Obj: pbeps,
+		Items: items,
 	}, nil
+}
+
+func (r *RuntimeServer) listThirdEndpoints(as *v1.AppService) []*v1alpha1.ThirdComponentEndpointStatus {
+	logger := r.logger.WithField("Method", "listThirdComponentEndpoints").
+		WithField("ComponentID", as.ServiceID)
+
+	workload := as.GetWorkload()
+	if workload == nil {
+		// workload not found
+		return nil
+	}
+
+	component, ok := workload.(*v1alpha1.ThirdComponent)
+	if !ok {
+		logger.Warningf("expect thirdcomponents.rainbond.io, but got %s", workload.GetObjectKind())
+		return nil
+	}
+
+	return component.Status.Endpoints
 }
 
 // AddThirdPartyEndpoint creates a create event.

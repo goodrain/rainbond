@@ -40,9 +40,15 @@ output: {
 					name: parameter["kubernetes"]["name"]
 				}
 			}
+			if parameter["endpoints"] != _|_ {
+				endpoints: parameter["endpoints"]
+			}
 		}
 		if parameter["port"] != _|_ {
 			ports: parameter["port"]
+		}
+		if parameter["probe"] != _|_ {
+			probe: parameter["probe"]
 		}
 	}
 }
@@ -52,24 +58,46 @@ parameter: {
 		namespace?: string
 		name: string
 	}
+	endpoints?: [...{
+		address:       string
+		name?:         string
+		protocol?:     string
+		clientSecret?: string
+	}]
 	port?: [...{
 		name:   string
 		port:   >0 & <=65533
 		openInner: bool
 		openOuter: bool
 	}]
+	probe?: {
+		httpGet?: {
+			path?: string
+            httpHeaders?: [...{
+				name?: string
+				vale?: string
+			}]
+		}
+		tcpSocket?:{
+		}
+		timeoutSeconds?: >0 & <=65533
+		periodSeconds?: >0 & <=65533
+		successThreshold?: >0 & <=65533
+		failureThreshold?: >0 & <=65533
+	}
 }
 `
-var thirdComponetDefineName = "core-thirdcomponent"
-var thirdComponetDefine = v1alpha1.ComponentDefinition{
+var thirdComponentDefineName = "core-thirdcomponent"
+var thirdComponentDefine = v1alpha1.ComponentDefinition{
 	TypeMeta: v1.TypeMeta{
 		Kind:       "ComponentDefinition",
 		APIVersion: "rainbond.io/v1alpha1",
 	},
 	ObjectMeta: v1.ObjectMeta{
-		Name: thirdComponetDefineName,
+		Name: thirdComponentDefineName,
 		Annotations: map[string]string{
 			"definition.oam.dev/description": "Rainbond built-in component type that defines third-party service components.",
+			"version":                        "0.2",
 		},
 	},
 	Spec: v1alpha1.ComponentDefinitionSpec{

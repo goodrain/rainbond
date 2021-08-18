@@ -29,8 +29,8 @@ import (
 )
 
 // CanDoEvent check can do event or not
-func CanDoEvent(optType string, synType int, target, targetID string) bool {
-	if synType == dbmodel.SYNEVENTTYPE {
+func CanDoEvent(optType string, synType int, target, targetID string, componentKind string) bool {
+	if synType == dbmodel.SYNEVENTTYPE || componentKind == "third_party" {
 		return true
 	}
 	event, err := db.GetManager().ServiceEventDao().GetLastASyncEvent(target, targetID)

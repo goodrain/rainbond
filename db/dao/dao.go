@@ -505,6 +505,7 @@ type RuleExtensionDao interface {
 	GetRuleExtensionByRuleID(ruleID string) ([]*model.RuleExtension, error)
 	DeleteRuleExtensionByRuleID(ruleID string) error
 	DeleteByRuleIDs(ruleIDs []string) error
+	CreateOrUpdateRuleExtensionsInBatch(exts []*model.RuleExtension) error
 }
 
 // HTTPRuleDao -
@@ -521,6 +522,7 @@ type HTTPRuleDao interface {
 	DeleteByComponentPort(componentID string, port int) error
 	DeleteByComponentIDs(componentIDs []string) error
 	CreateOrUpdateHTTPRuleInBatch(httpRules []*model.HTTPRule) error
+	ListByComponentIDs(componentIDs []string) ([]*model.HTTPRule, error)
 }
 
 // TCPRuleDao -
@@ -545,7 +547,6 @@ type EndpointsDao interface {
 	GetByUUID(uuid string) (*model.Endpoint, error)
 	DelByUUID(uuid string) error
 	List(sid string) ([]*model.Endpoint, error)
-	ListIsOnline(sid string) ([]*model.Endpoint, error)
 	DeleteByServiceID(sid string) error
 }
 
@@ -566,6 +567,7 @@ type GwRuleConfigDao interface {
 	DeleteByRuleID(rid string) error
 	ListByRuleID(rid string) ([]*model.GwRuleConfig, error)
 	DeleteByRuleIDs(ruleIDs []string) error
+	CreateOrUpdateGwRuleConfigsInBatch(ruleConfigs []*model.GwRuleConfig) error
 }
 
 // TenantServceAutoscalerRulesDao -

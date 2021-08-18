@@ -19,7 +19,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/goodrain/rainbond/api/handler"
@@ -137,10 +136,8 @@ func (t *ThirdPartyServiceController) listEndpoints(w http.ResponseWriter, r *ht
 		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
-	b, _ := json.Marshal(res)
-	logrus.Debugf("response endpoints: %s", string(b))
-	if res == nil || len(res) == 0 {
-		httputil.ReturnSuccess(r, w, []*model.EndpointResp{})
+	if len(res) == 0 {
+		httputil.ReturnSuccess(r, w, []*model.ThirdEndpoint{})
 		return
 	}
 	httputil.ReturnSuccess(r, w, res)

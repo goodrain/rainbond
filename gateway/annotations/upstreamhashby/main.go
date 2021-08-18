@@ -19,7 +19,7 @@ package upstreamhashby
 import (
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 )
 
 type upstreamhashby struct {
@@ -34,6 +34,6 @@ func NewParser(r resolver.Resolver) parser.IngressAnnotation {
 // Parse parses the annotations contained in the ingress rule
 // used to indicate if the location/s contains a fragment of
 // configuration to be included inside the paths of the rules
-func (a upstreamhashby) Parse(ing *extensions.Ingress) (interface{}, error) {
+func (a upstreamhashby) Parse(ing *networkingv1.Ingress) (interface{}, error) {
 	return parser.GetStringAnnotation("upstream-hash-by", ing)
 }

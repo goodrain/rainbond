@@ -25,11 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/eapache/channels"
-	"github.com/sirupsen/logrus"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -41,6 +36,9 @@ import (
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/goodrain/rainbond/worker/gc"
+	"github.com/sirupsen/logrus"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 //Manager manager
@@ -51,8 +49,6 @@ type Manager struct {
 	dbmanager         db.Manager
 	controllerManager *controller.Manager
 	garbageCollector  *gc.GarbageCollector
-
-	startCh *channels.RingChannel
 }
 
 //NewManager now handle
@@ -60,8 +56,7 @@ func NewManager(ctx context.Context,
 	config option.Config,
 	store store.Storer,
 	controllerManager *controller.Manager,
-	garbageCollector *gc.GarbageCollector,
-	startCh *channels.RingChannel) *Manager {
+	garbageCollector *gc.GarbageCollector) *Manager {
 
 	return &Manager{
 		ctx:               ctx,
@@ -70,7 +65,6 @@ func NewManager(ctx context.Context,
 		store:             store,
 		controllerManager: controllerManager,
 		garbageCollector:  garbageCollector,
-		startCh:           startCh,
 	}
 }
 
@@ -424,32 +418,6 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	if err != nil {
 		logrus.Errorf("component apply rule controller failure:%s", err.Error())
 		return fmt.Errorf("component apply rule controller failure:%s", err.Error())
-	}
-
-	if svc.Kind == dbmodel.ServiceKindThirdParty.String() && strings.HasPrefix(body.Action, "port") {
-		if oldAppService == nil {
-			m.store.RegistAppService(newAppService)
-		}
-		if err = m.store.InitOneThirdPartService(svc); err != nil {
-			logrus.Errorf("application apply service resource failure: %s", err.Error())
-			return fmt.Errorf("application apply service resource failure: %s", err.Error())
-		}
-		if body.Action == "port-open" {
-			m.startCh.In() <- &v1.Event{
-				Type:    v1.StartEvent,
-				Sid:     body.ServiceID,
-				Port:    body.Port,
-				IsInner: body.IsInner,
-			}
-		}
-		if body.Action == "port-close" {
-			if !db.GetManager().TenantServicesPortDao().HasOpenPort(body.ServiceID) {
-				m.startCh.In() <- &v1.Event{
-					Type: v1.StopEvent,
-					Sid:  body.ServiceID,
-				}
-			}
-		}
 	}
 
 	return nil

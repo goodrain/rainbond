@@ -885,8 +885,9 @@ func (g *GatewayAction) listHTTPRuleIDs(componentID string, port int) ([]string,
 // SyncHTTPRules -
 func (g *GatewayAction) SyncHTTPRules(tx *gorm.DB, components []*apimodel.Component) error {
 	var (
-		componentIDs []string
-		httpRules    []*model.HTTPRule
+		componentIDs   []string
+		httpRules      []*model.HTTPRule
+		ruleExtensions []*model.RuleExtension
 	)
 	for _, component := range components {
 		if component.HTTPRules == nil {
@@ -895,12 +896,38 @@ func (g *GatewayAction) SyncHTTPRules(tx *gorm.DB, components []*apimodel.Compon
 		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
 		for _, httpRule := range component.HTTPRules {
 			httpRules = append(httpRules, httpRule.DbModel(component.ComponentBase.ComponentID))
+
+			for _, ext := range httpRule.RuleExtensions {
+				ruleExtensions = append(ruleExtensions, &model.RuleExtension{
+					UUID:   util.NewUUID(),
+					RuleID: httpRule.HTTPRuleID,
+					Key:    ext.Key,
+					Value:  ext.Value,
+				})
+			}
 		}
 	}
+
+	if err := g.syncRuleExtensions(tx, httpRules, ruleExtensions); err != nil {
+		return err
+	}
+
 	if err := db.GetManager().HTTPRuleDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
 		return err
 	}
 	return db.GetManager().HTTPRuleDaoTransactions(tx).CreateOrUpdateHTTPRuleInBatch(httpRules)
+}
+
+func (g *GatewayAction) syncRuleExtensions(tx *gorm.DB, httpRules []*model.HTTPRule, exts []*model.RuleExtension) error {
+	var ruleIDs []string
+	for _, hr := range httpRules {
+		ruleIDs = append(ruleIDs, hr.UUID)
+	}
+
+	if err := db.GetManager().RuleExtensionDaoTransactions(tx).DeleteByRuleIDs(ruleIDs); err != nil {
+		return err
+	}
+	return db.GetManager().RuleExtensionDaoTransactions(tx).CreateOrUpdateRuleExtensionsInBatch(exts)
 }
 
 // SyncTCPRules -
@@ -922,4 +949,35 @@ func (g *GatewayAction) SyncTCPRules(tx *gorm.DB, components []*apimodel.Compone
 		return err
 	}
 	return db.GetManager().TCPRuleDaoTransactions(tx).CreateOrUpdateTCPRuleInBatch(tcpRules)
+}
+
+// SyncRuleConfigs -
+func (g *GatewayAction) SyncRuleConfigs(tx *gorm.DB, components []*apimodel.Component) error {
+	var configs []*model.GwRuleConfig
+	var componentIDs []string
+	for _, component := range components {
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		if len(component.HTTPRuleConfigs) == 0 {
+			continue
+		}
+
+		for _, httpRuleConfig := range component.HTTPRuleConfigs {
+			configs = append(configs, httpRuleConfig.DbModel()...)
+		}
+	}
+
+	// http rule ids
+	rules, err := db.GetManager().HTTPRuleDao().ListByComponentIDs(componentIDs)
+	if err != nil {
+		return err
+	}
+	var ruleIDs []string
+	for _, rule := range rules {
+		ruleIDs = append(ruleIDs, rule.UUID)
+	}
+
+	if err := db.GetManager().GwRuleConfigDaoTransactions(tx).DeleteByRuleIDs(ruleIDs); err != nil {
+		return err
+	}
+	return db.GetManager().GwRuleConfigDaoTransactions(tx).CreateOrUpdateGwRuleConfigsInBatch(configs)
 }

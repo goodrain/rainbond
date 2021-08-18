@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package thirdcomponent
+package discover
 
 import (
 	"context"
@@ -24,6 +24,8 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	rainbondlistersv1alpha1 "github.com/goodrain/rainbond/pkg/generated/listers/rainbond/v1alpha1"
+	"github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/prober"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,13 +34,18 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// Discover -
 type Discover interface {
 	GetComponent() *v1alpha1.ThirdComponent
 	DiscoverOne(ctx context.Context) ([]*v1alpha1.ThirdComponentEndpointStatus, error)
 	Discover(ctx context.Context, update chan *v1alpha1.ThirdComponent) ([]*v1alpha1.ThirdComponentEndpointStatus, error)
+	SetProberManager(proberManager prober.Manager)
 }
 
-func NewDiscover(component *v1alpha1.ThirdComponent, restConfig *rest.Config) (Discover, error) {
+// NewDiscover -
+func NewDiscover(component *v1alpha1.ThirdComponent,
+	restConfig *rest.Config,
+	lister rainbondlistersv1alpha1.ThirdComponentLister) (Discover, error) {
 	if component.Spec.EndpointSource.KubernetesService != nil {
 		clientset, err := kubernetes.NewForConfig(restConfig)
 		if err != nil {
@@ -48,6 +55,12 @@ func NewDiscover(component *v1alpha1.ThirdComponent, restConfig *rest.Config) (D
 		return &kubernetesDiscover{
 			component: component,
 			client:    clientset,
+		}, nil
+	}
+	if len(component.Spec.EndpointSource.StaticEndpoints) > 0 {
+		return &staticEndpoint{
+			component: component,
+			lister:    lister,
 		}, nil
 	}
 	return nil, fmt.Errorf("not support source type")
@@ -153,4 +166,8 @@ func (k *kubernetesDiscover) DiscoverOne(ctx context.Context) ([]*v1alpha1.Third
 		}
 	}
 	return es, nil
+}
+
+func (k *kubernetesDiscover) SetProberManager(proberManager prober.Manager) {
+
 }

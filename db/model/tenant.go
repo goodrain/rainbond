@@ -165,9 +165,11 @@ type TenantServices struct {
 	// 服务描述
 	Comment string `gorm:"column:comment" json:"comment"`
 	// 容器CPU权重
-	ContainerCPU int `gorm:"column:container_cpu;default:500" json:"container_cpu"`
+	// default is 0, This means that CPU resources are not limited
+	ContainerCPU int `gorm:"column:container_cpu;default:0" json:"container_cpu"`
 	// 容器最大内存
-	ContainerMemory int `gorm:"column:container_memory;default:128" json:"container_memory"`
+	// default is 0, This means that Memory resources are not limited
+	ContainerMemory int `gorm:"column:container_memory;default:0" json:"container_memory"`
 	// container GPU, The amount of video memory applied for GPU. The unit is MiB
 	// default is 0, That means no GPU is required
 	ContainerGPU int `gorm:"column:container_gpu;default:0" json:"container_gpu"`
@@ -476,6 +478,7 @@ type TenantServiceVolume struct {
 	AllowExpansion bool `gorm:"column:allow_expansion" json:"allow_expansion"`
 	// VolumeProviderName 使用的存储驱动别名
 	VolumeProviderName string `gorm:"column:volume_provider_name" json:"volume_provider_name"`
+	Mode               *int32 `gorm:"column:mode" json:"mode"`
 }
 
 //TableName 表名

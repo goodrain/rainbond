@@ -30,33 +30,43 @@ import (
 	rainbondversioned "github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// ErrNotSupport -
 var ErrNotSupport = fmt.Errorf("not support component definition")
+
+// ErrOnlyCUESupport -
 var ErrOnlyCUESupport = fmt.Errorf("component definition only support cue template")
 
-type ComponentDefinitionBuilder struct {
+// Builder -
+type Builder struct {
+	logger      *logrus.Entry
 	definitions map[string]*v1alpha1.ComponentDefinition
 	namespace   string
 	lock        sync.Mutex
 }
 
-var componentDefinitionBuilder *ComponentDefinitionBuilder
+var componentDefinitionBuilder *Builder
 
-func NewComponentDefinitionBuilder(namespace string) *ComponentDefinitionBuilder {
-	componentDefinitionBuilder = &ComponentDefinitionBuilder{
+// NewComponentDefinitionBuilder -
+func NewComponentDefinitionBuilder(namespace string) *Builder {
+	componentDefinitionBuilder = &Builder{
+		logger:      logrus.WithField("WHO", "Builder"),
 		definitions: make(map[string]*v1alpha1.ComponentDefinition),
 		namespace:   namespace,
 	}
 	return componentDefinitionBuilder
 }
 
-func GetComponentDefinitionBuilder() *ComponentDefinitionBuilder {
+// GetComponentDefinitionBuilder -
+func GetComponentDefinitionBuilder() *Builder {
 	return componentDefinitionBuilder
 }
 
-func (c *ComponentDefinitionBuilder) OnAdd(obj interface{}) {
+// OnAdd -
+func (c *Builder) OnAdd(obj interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	cd, ok := obj.(*v1alpha1.ComponentDefinition)
@@ -65,7 +75,9 @@ func (c *ComponentDefinitionBuilder) OnAdd(obj interface{}) {
 		c.definitions[cd.Name] = cd
 	}
 }
-func (c *ComponentDefinitionBuilder) OnUpdate(oldObj, newObj interface{}) {
+
+// OnUpdate -
+func (c *Builder) OnUpdate(oldObj, newObj interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	cd, ok := newObj.(*v1alpha1.ComponentDefinition)
@@ -74,7 +86,9 @@ func (c *ComponentDefinitionBuilder) OnUpdate(oldObj, newObj interface{}) {
 		c.definitions[cd.Name] = cd
 	}
 }
-func (c *ComponentDefinitionBuilder) OnDelete(obj interface{}) {
+
+// OnDelete -
+func (c *Builder) OnDelete(obj interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	cd, ok := obj.(*v1alpha1.ComponentDefinition)
@@ -84,16 +98,18 @@ func (c *ComponentDefinitionBuilder) OnDelete(obj interface{}) {
 	}
 }
 
-func (c *ComponentDefinitionBuilder) GetComponentDefinition(name string) *v1alpha1.ComponentDefinition {
+// GetComponentDefinition -
+func (c *Builder) GetComponentDefinition(name string) *v1alpha1.ComponentDefinition {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	return c.definitions[name]
 }
 
-func (c *ComponentDefinitionBuilder) GetComponentProperties(as *v1.AppService, dbm db.Manager, cd *v1alpha1.ComponentDefinition) interface{} {
+// GetComponentProperties -
+func (c *Builder) GetComponentProperties(as *v1.AppService, dbm db.Manager, cd *v1alpha1.ComponentDefinition) interface{} {
 	//TODO: support custom component properties
 	switch cd.Name {
-	case thirdComponetDefineName:
+	case thirdComponentDefineName:
 		properties := &ThirdComponentProperties{}
 		tpsd, err := dbm.ThirdPartySvcDiscoveryCfgDao().GetByServiceID(as.ServiceID)
 		if err != nil {
@@ -102,17 +118,24 @@ func (c *ComponentDefinitionBuilder) GetComponentProperties(as *v1.AppService, d
 		if tpsd != nil {
 			// support other source type
 			if tpsd.Type == dbmodel.DiscorveryTypeKubernetes.String() {
-				properties.Kubernetes = ThirdComponentKubernetes{
+				properties.Kubernetes = &ThirdComponentKubernetes{
 					Name:      tpsd.ServiceName,
 					Namespace: tpsd.Namespace,
 				}
 			}
 		}
+
+		// static endpoints
+		endpoints, err := c.listStaticEndpoints(as.ServiceID)
+		if err != nil {
+			c.logger.Errorf("component id: %s; list static endpoints: %v", as.ServiceID, err)
+		}
+		properties.Endpoints = endpoints
+
 		ports, err := dbm.TenantServicesPortDao().GetPortsByServiceID(as.ServiceID)
 		if err != nil {
 			logrus.Errorf("query component %s ports failure %s", as.ServiceID, err.Error())
 		}
-
 		for _, port := range ports {
 			properties.Port = append(properties.Port, &ThirdComponentPort{
 				Port:      port.ContainerPort,
@@ -124,13 +147,38 @@ func (c *ComponentDefinitionBuilder) GetComponentProperties(as *v1.AppService, d
 		if properties.Port == nil {
 			properties.Port = []*ThirdComponentPort{}
 		}
+
+		// probe
+		probe, err := c.createProbe(as.ServiceID)
+		if err != nil {
+			c.logger.Warningf("create probe: %v", err)
+		}
+		properties.Probe = probe
+
 		return properties
 	default:
 		return nil
 	}
 }
 
-func (c *ComponentDefinitionBuilder) BuildWorkloadResource(as *v1.AppService, dbm db.Manager) error {
+func (c *Builder) listStaticEndpoints(componentID string) ([]*v1alpha1.ThirdComponentEndpoint, error) {
+	endpoints, err := db.GetManager().EndpointsDao().List(componentID)
+	if err != nil {
+		return nil, err
+	}
+
+	var res []*v1alpha1.ThirdComponentEndpoint
+	for _, ep := range endpoints {
+		res = append(res, &v1alpha1.ThirdComponentEndpoint{
+			Address: ep.GetAddress(),
+			Name:    ep.UUID,
+		})
+	}
+	return res, nil
+}
+
+// BuildWorkloadResource -
+func (c *Builder) BuildWorkloadResource(as *v1.AppService, dbm db.Manager) error {
 	cd := c.GetComponentDefinition(as.GetComponentDefinitionName())
 	if cd == nil {
 		return ErrNotSupport
@@ -153,15 +201,104 @@ func (c *ComponentDefinitionBuilder) BuildWorkloadResource(as *v1.AppService, db
 
 //InitCoreComponentDefinition init the built-in component type definition.
 //Should be called after the store is initialized.
-func (c *ComponentDefinitionBuilder) InitCoreComponentDefinition(rainbondClient rainbondversioned.Interface) {
-	coreComponentDefinition := []*v1alpha1.ComponentDefinition{&thirdComponetDefine}
+func (c *Builder) InitCoreComponentDefinition(rainbondClient rainbondversioned.Interface) {
+	coreComponentDefinition := []*v1alpha1.ComponentDefinition{&thirdComponentDefine}
 	for _, ccd := range coreComponentDefinition {
-		if c.GetComponentDefinition(ccd.Name) == nil {
+		oldCoreComponentDefinition := c.GetComponentDefinition(ccd.Name)
+		if oldCoreComponentDefinition == nil {
 			logrus.Infof("create core componentdefinition %s", ccd.Name)
-			if _, err := rainbondClient.RainbondV1alpha1().ComponentDefinitions(c.namespace).Create(context.Background(), ccd, metav1.CreateOptions{}); err != nil {
+			if _, err := rainbondClient.RainbondV1alpha1().ComponentDefinitions(c.namespace).Create(context.Background(), ccd, metav1.CreateOptions{}); err != nil && !k8sErrors.IsNotFound(err) {
 				logrus.Errorf("create core componentdefinition %s failire %s", ccd.Name, err.Error())
+			}
+		} else {
+			err := c.updateComponentDefinition(rainbondClient, oldCoreComponentDefinition, ccd)
+			if err != nil {
+				logrus.Errorf("update core componentdefinition(%s): %v", ccd.Name, err)
 			}
 		}
 	}
 	logrus.Infof("success check core componentdefinition from cluster")
+}
+
+func (c *Builder) updateComponentDefinition(rainbondClient rainbondversioned.Interface, oldComponentDefinition, newComponentDefinition *v1alpha1.ComponentDefinition) error {
+	newVersion := getComponentDefinitionVersion(newComponentDefinition)
+	oldVersion := getComponentDefinitionVersion(oldComponentDefinition)
+	if newVersion == "" || !(oldVersion == "" || newVersion > oldVersion) {
+		return nil
+	}
+
+	logrus.Infof("update core componentdefinition %s", newComponentDefinition.Name)
+	newComponentDefinition.ResourceVersion = oldComponentDefinition.ResourceVersion
+	if _, err := rainbondClient.RainbondV1alpha1().ComponentDefinitions(c.namespace).Update(context.Background(), newComponentDefinition, metav1.UpdateOptions{}); err != nil {
+		if k8sErrors.IsNotFound(err) {
+			_, err := rainbondClient.RainbondV1alpha1().ComponentDefinitions(c.namespace).Create(context.Background(), newComponentDefinition, metav1.CreateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+		return err
+	}
+
+	return nil
+}
+
+func getComponentDefinitionVersion(componentDefinition *v1alpha1.ComponentDefinition) string {
+	if componentDefinition.ObjectMeta.Annotations == nil {
+		return ""
+	}
+	return componentDefinition.ObjectMeta.Annotations["version"]
+}
+
+func (c *Builder) createProbe(componentID string) (*v1alpha1.Probe, error) {
+	probe, err := db.GetManager().ServiceProbeDao().GetServiceUsedProbe(componentID, "readiness")
+	if err != nil {
+		return nil, err
+	}
+	if probe == nil {
+		return nil, nil
+	}
+
+	p := &v1alpha1.Probe{
+		TimeoutSeconds:   int32(probe.TimeoutSecond),
+		PeriodSeconds:    int32(probe.PeriodSecond),
+		SuccessThreshold: int32(probe.SuccessThreshold),
+		FailureThreshold: int32(probe.FailureThreshold),
+	}
+	if probe.Scheme == "tcp" {
+		p.TCPSocket = c.createTCPGetAction(probe)
+	} else {
+		p.HTTPGet = c.createHTTPGetAction(probe)
+	}
+
+	return p, nil
+}
+
+func (c *Builder) createHTTPGetAction(probe *dbmodel.TenantServiceProbe) *v1alpha1.HTTPGetAction {
+	action := &v1alpha1.HTTPGetAction{Path: probe.Path}
+	if probe.HTTPHeader != "" {
+		hds := strings.Split(probe.HTTPHeader, ",")
+		var headers []v1alpha1.HTTPHeader
+		for _, hd := range hds {
+			kv := strings.Split(hd, "=")
+			if len(kv) == 1 {
+				header := v1alpha1.HTTPHeader{
+					Name:  kv[0],
+					Value: "",
+				}
+				headers = append(headers, header)
+			} else if len(kv) == 2 {
+				header := v1alpha1.HTTPHeader{
+					Name:  kv[0],
+					Value: kv[1],
+				}
+				headers = append(headers, header)
+			}
+		}
+		action.HTTPHeaders = headers
+	}
+	return action
+}
+
+func (c *Builder) createTCPGetAction(probe *dbmodel.TenantServiceProbe) *v1alpha1.TCPSocketAction {
+	return &v1alpha1.TCPSocketAction{}
 }

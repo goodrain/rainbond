@@ -25,7 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
@@ -37,7 +36,6 @@ import (
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm/componentdefinition"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
-	"github.com/goodrain/rainbond/worker/appm/f"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	workerutil "github.com/goodrain/rainbond/worker/util"
@@ -49,7 +47,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	internalclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -92,7 +90,6 @@ type Storer interface {
 	UnRegistPodUpdateListener(string)
 	RegisterVolumeTypeListener(string, chan<- *model.TenantServiceVolumeType)
 	UnRegisterVolumeTypeListener(string)
-	InitOneThirdPartService(service *model.TenantServices) error
 	GetCrds() ([]*apiextensions.CustomResourceDefinition, error)
 	GetCrd(name string) (*apiextensions.CustomResourceDefinition, error)
 	GetServiceMonitorClient() (*versioned.Clientset, error)
@@ -125,14 +122,6 @@ type Event struct {
 	Obj  interface{}
 }
 
-// ProbeInfo holds the context of a probe.
-type ProbeInfo struct {
-	Sid  string `json:"sid"`
-	UUID string `json:"uuid"`
-	IP   string `json:"ip"`
-	Port int32  `json:"port"`
-}
-
 //appRuntimeStore app runtime store
 //cache all kubernetes object and appservice
 type appRuntimeStore struct {
@@ -150,7 +139,6 @@ type appRuntimeStore struct {
 	appCount               int32
 	dbmanager              db.Manager
 	conf                   option.Config
-	startCh                *channels.RingChannel
 	stopch                 chan struct{}
 	podUpdateListeners     map[string]chan<- *corev1.Pod
 	podUpdateListenerLock  sync.Mutex
@@ -165,9 +153,7 @@ func NewStore(
 	clientset kubernetes.Interface,
 	rainbondClient rainbondversioned.Interface,
 	dbmanager db.Manager,
-	conf option.Config,
-	startCh *channels.RingChannel,
-	probeCh *channels.RingChannel) Storer {
+	conf option.Config) Storer {
 	ctx, cancel := context.WithCancel(context.Background())
 	store := &appRuntimeStore{
 		kubeconfig:          kubeconfig,
@@ -181,7 +167,6 @@ func NewStore(
 		conf:                conf,
 		dbmanager:           dbmanager,
 		crClients:           make(map[string]interface{}),
-		startCh:             startCh,
 		resourceCache:       NewResourceCache(),
 		podUpdateListeners:  make(map[string]chan<- *corev1.Pod, 1),
 		volumeTypeListeners: make(map[string]chan<- *model.TenantServiceVolumeType, 1),
@@ -222,7 +207,7 @@ func NewStore(
 	store.listers.ConfigMap = infFactory.Core().V1().ConfigMaps().Lister()
 
 	store.informers.Ingress = infFactory.Extensions().V1beta1().Ingresses().Informer()
-	store.listers.Ingress = infFactory.Extensions().V1beta1().Ingresses().Lister()
+	store.listers.Ingress = infFactory.Networking().V1().Ingresses().Lister()
 
 	store.informers.ReplicaSet = infFactory.Apps().V1().ReplicaSets().Informer()
 	store.listers.ReplicaSets = infFactory.Apps().V1().ReplicaSets().Lister()
@@ -255,9 +240,6 @@ func NewStore(
 	store.informers.ComponentDefinition = rainbondInformer.Rainbond().V1alpha1().ComponentDefinitions().Informer()
 	store.informers.ComponentDefinition.AddEventHandlerWithResyncPeriod(componentdefinition.GetComponentDefinitionBuilder(), time.Second*300)
 
-	isThirdParty := func(ep *corev1.Endpoints) bool {
-		return ep.Labels["service-kind"] == model.ServiceKindThirdParty.String()
-	}
 	// Endpoint Event Handler
 	epEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -273,15 +255,6 @@ func NewStore(
 				}
 				if appservice != nil {
 					appservice.AddEndpoints(ep)
-					if isThirdParty(ep) && ep.Subsets != nil && len(ep.Subsets) > 0 {
-						logrus.Debugf("received add endpoints: %+v", ep)
-						probeInfos := listProbeInfos(ep, serviceID)
-						probeCh.In() <- Event{
-							Type: CreateEvent,
-							Obj:  probeInfos,
-						}
-					}
-					return
 				}
 			}
 		},
@@ -297,17 +270,6 @@ func NewStore(
 					if appservice.IsClosed() {
 						logrus.Debugf("ServiceID: %s; Action: DeleteFunc;service is closed", serviceID)
 						store.DeleteAppService(appservice)
-					}
-					if isThirdParty(ep) {
-						logrus.Debugf("received delete endpoints: %+v", ep)
-						var uuids []string
-						for _, item := range ep.Subsets {
-							uuids = append(uuids, item.Ports[0].Name)
-						}
-						probeCh.In() <- Event{
-							Type: DeleteEvent,
-							Obj:  uuids,
-						}
 					}
 				}
 			}
@@ -325,13 +287,6 @@ func NewStore(
 				}
 				if appservice != nil {
 					appservice.AddEndpoints(cep)
-					if isThirdParty(cep) {
-						curInfos := listProbeInfos(cep, serviceID)
-						probeCh.In() <- Event{
-							Type: UpdateEvent,
-							Obj:  curInfos,
-						}
-					}
 				}
 			}
 		},
@@ -363,51 +318,6 @@ func (a *appRuntimeStore) Informer() *Informer {
 
 func (a *appRuntimeStore) Lister() *Lister {
 	return a.listers
-}
-
-func listProbeInfos(ep *corev1.Endpoints, sid string) []*ProbeInfo {
-	var probeInfos []*ProbeInfo
-	addProbe := func(pi *ProbeInfo) {
-		for _, c := range probeInfos {
-			if c.IP == pi.IP && c.Port == pi.Port {
-				return
-			}
-		}
-		probeInfos = append(probeInfos, pi)
-	}
-	for _, subset := range ep.Subsets {
-		for _, port := range subset.Ports {
-			if ep.Annotations != nil {
-				if domain, ok := ep.Annotations["domain"]; ok && domain != "" {
-					logrus.Debugf("thirdpart service[sid: %s] add domain endpoint[domain: %s] probe", sid, domain)
-					probeInfos = []*ProbeInfo{{
-						Sid:  sid,
-						UUID: fmt.Sprintf("%s_%d", domain, port.Port),
-						IP:   domain,
-						Port: port.Port,
-					}}
-					return probeInfos
-				}
-			}
-			for _, address := range subset.NotReadyAddresses {
-				addProbe(&ProbeInfo{
-					Sid:  sid,
-					UUID: fmt.Sprintf("%s_%d", address.IP, port.Port),
-					IP:   address.IP,
-					Port: port.Port,
-				})
-			}
-			for _, address := range subset.Addresses {
-				addProbe(&ProbeInfo{
-					Sid:  sid,
-					UUID: fmt.Sprintf("%s_%d", address.IP, port.Port),
-					IP:   address.IP,
-					Port: port.Port,
-				})
-			}
-		}
-	}
-	return probeInfos
 }
 
 func (a *appRuntimeStore) init() error {
@@ -442,61 +352,8 @@ func (a *appRuntimeStore) Start() error {
 	// init core componentdefinition
 	componentdefinition.GetComponentDefinitionBuilder().InitCoreComponentDefinition(a.rainbondClient)
 	go func() {
-		a.initThirdPartyService()
 		a.initCustomResourceInformer(stopch)
 	}()
-	return nil
-}
-
-func (a *appRuntimeStore) initThirdPartyService() error {
-	logrus.Debugf("begin initializing third-party services.")
-	// TODO: list third party services that have open ports directly.
-	svcs, err := a.dbmanager.TenantServiceDao().ListThirdPartyServices()
-	if err != nil {
-		logrus.Errorf("error listing third-party services: %v", err)
-		return err
-	}
-	for _, svc := range svcs {
-		disCfg, _ := a.dbmanager.ThirdPartySvcDiscoveryCfgDao().GetByServiceID(svc.ServiceID)
-		if disCfg != nil && disCfg.Type == "kubernetes" {
-			continue
-		}
-		if err = a.InitOneThirdPartService(svc); err != nil {
-			logrus.Errorf("init thridpart service error: %v", err)
-			return err
-		}
-
-		a.startCh.In() <- &v1.Event{
-			Type: v1.StartEvent, // TODO: no need to distinguish between event types.
-			Sid:  svc.ServiceID,
-		}
-	}
-	logrus.Infof("initializing third-party services success")
-	return nil
-}
-
-// InitOneThirdPartService init one thridpart service
-func (a *appRuntimeStore) InitOneThirdPartService(service *model.TenantServices) error {
-	// ignore service without open port.
-	if !a.dbmanager.TenantServicesPortDao().HasOpenPort(service.ServiceID) {
-		return nil
-	}
-
-	appService, err := conversion.InitCacheAppService(a.dbmanager, service.ServiceID, "Rainbond")
-	if err != nil {
-		logrus.Errorf("error initializing cache app service: %v", err)
-		return err
-	}
-	if appService.IsCustomComponent() {
-		return nil
-	}
-	a.RegistAppService(appService)
-	err = f.ApplyOne(context.Background(), nil, a.clientset, appService)
-	if err != nil {
-		logrus.Errorf("error applying rule: %v", err)
-		return err
-	}
-	logrus.Infof("init third app %s kubernetes resource", appService.ServiceAlias)
 	return nil
 }
 
@@ -609,7 +466,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 		}
 	}
-	if ingress, ok := obj.(*extensions.Ingress); ok {
+	if ingress, ok := obj.(*networkingv1.Ingress); ok {
 		serviceID := ingress.Labels["service_id"]
 		version := ingress.Labels["version"]
 		createrID := ingress.Labels["creater_id"]
@@ -722,8 +579,8 @@ func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, cr
 }
 func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 	// ingress update maybe change owner component
-	if ingress, ok := newObj.(*extensions.Ingress); ok {
-		oldIngress := oldObj.(*extensions.Ingress)
+	if ingress, ok := newObj.(*networkingv1.Ingress); ok {
+		oldIngress := oldObj.(*networkingv1.Ingress)
 		if oldIngress.Labels["service_id"] != ingress.Labels["service_id"] {
 			logrus.Infof("ingress %s change owner component", oldIngress.Name)
 			serviceID := oldIngress.Labels["service_id"]
@@ -832,7 +689,7 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 				}
 			}
 		}
-		if ingress, ok := obj.(*extensions.Ingress); ok {
+		if ingress, ok := obj.(*networkingv1.Ingress); ok {
 			serviceID := ingress.Labels["service_id"]
 			version := ingress.Labels["version"]
 			createrID := ingress.Labels["creater_id"]

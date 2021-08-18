@@ -23,6 +23,7 @@ import (
 	"os"
 	"path"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
@@ -211,8 +212,7 @@ func (v *Define) SetVolume(VolumeType dbmodel.VolumeType, name, mountPath, hostP
 }
 
 // SetVolumeCMap sets volumes and volumeMounts. The type of volumes is configMap.
-func (v *Define) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isReadOnly bool) {
-	var configFileMode int32 = 0777
+func (v *Define) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isReadOnly bool, mode *int32) {
 	vm := corev1.VolumeMount{
 		MountPath: p,
 		Name:      cmap.Name,
@@ -221,6 +221,11 @@ func (v *Define) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isReadOnly b
 	}
 	v.volumeMounts = append(v.volumeMounts, vm)
 	var defaultMode int32 = 0777
+	if mode != nil {
+		// convert int to octal
+		octal, _ := strconv.ParseInt(strconv.Itoa(int(*mode)), 8, 64)
+		defaultMode = int32(octal)
+	}
 	vo := corev1.Volume{
 		Name: cmap.Name,
 		VolumeSource: corev1.VolumeSource{
@@ -233,7 +238,7 @@ func (v *Define) SetVolumeCMap(cmap *corev1.ConfigMap, k, p string, isReadOnly b
 					{
 						Key:  k,
 						Path: path.Base(p), // subpath
-						Mode: &configFileMode,
+						Mode: &defaultMode,
 					},
 				},
 			},

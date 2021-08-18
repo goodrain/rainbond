@@ -204,11 +204,10 @@ func (a *AppRuntimeSyncClient) AddThirdPartyEndpoint(req *model.Endpoint) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	_, _ = a.AppRuntimeSyncClient.AddThirdPartyEndpoint(ctx, &pb.AddThirdPartyEndpointsReq{
-		Uuid:     req.UUID,
-		Sid:      req.ServiceID,
-		Ip:       req.IP,
-		Port:     int32(req.Port),
-		IsOnline: *req.IsOnline,
+		Uuid: req.UUID,
+		Sid:  req.ServiceID,
+		Ip:   req.IP,
+		Port: int32(req.Port),
 	})
 }
 
@@ -217,11 +216,10 @@ func (a *AppRuntimeSyncClient) UpdThirdPartyEndpoint(req *model.Endpoint) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	_, _ = a.AppRuntimeSyncClient.UpdThirdPartyEndpoint(ctx, &pb.UpdThirdPartyEndpointsReq{
-		Uuid:     req.UUID,
-		Sid:      req.ServiceID,
-		Ip:       req.IP,
-		Port:     int32(req.Port),
-		IsOnline: *req.IsOnline,
+		Uuid: req.UUID,
+		Sid:  req.ServiceID,
+		Ip:   req.IP,
+		Port: int32(req.Port),
 	})
 }
 

@@ -248,7 +248,7 @@ func (b *BatchOperationHandler) checkEvents(batchOpReqs model.BatchOpRequesters)
 	var batchOpResult model.BatchOpResult
 	for _, req := range batchOpReqs {
 		req := req
-		if apiutil.CanDoEvent("", dbmodel.SYNEVENTTYPE, "service", req.GetComponentID()) {
+		if apiutil.CanDoEvent("", dbmodel.SYNEVENTTYPE, "service", req.GetComponentID(), "") {
 			validReqs = append(validReqs, req)
 			continue
 		}

@@ -118,6 +118,9 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	if err := util.CheckAndCreateDir(cacheDir); err != nil {
 		return fmt.Errorf("create cache dir error %s", err.Error())
 	}
+	// delete the cache data
+	defer b.deleteCache(cacheDir)
+
 	b.cacheDir = cacheDir
 	switch backup.BackupMode {
 	case "full-online":
@@ -178,6 +181,23 @@ func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	logrus.Infof("backup id: %s; successfully restore backup.", b.BackupID)
 	b.Logger.Info("恢复成功", map[string]string{"step": "restore_builder", "status": "success"})
 	return nil
+}
+
+func (b *BackupAPPRestore) deleteCache(dir string) error {
+	logrus.Infof("delete cache %s", dir)
+	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		// do not delete the metadata file
+		if strings.HasSuffix(path, "console_apps_metadata.json") {
+			return nil
+		}
+		return os.RemoveAll(path)
+	})
 }
 
 func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appSnapshot *AppSnapshot) error {

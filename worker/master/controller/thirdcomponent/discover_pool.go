@@ -25,35 +25,49 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	dis "github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/discover"
+	"github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/prober"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// DiscoverPool -
 type DiscoverPool struct {
 	ctx            context.Context
 	lock           sync.Mutex
 	discoverWorker map[string]*Worker
 	updateChan     chan *v1alpha1.ThirdComponent
 	reconciler     *Reconciler
+
+	recorder record.EventRecorder
 }
 
-func NewDiscoverPool(ctx context.Context, reconciler *Reconciler) *DiscoverPool {
+// NewDiscoverPool -
+func NewDiscoverPool(ctx context.Context,
+	reconciler *Reconciler,
+	recorder record.EventRecorder) *DiscoverPool {
 	dp := &DiscoverPool{
 		ctx:            ctx,
 		discoverWorker: make(map[string]*Worker),
 		updateChan:     make(chan *v1alpha1.ThirdComponent, 1024),
 		reconciler:     reconciler,
+		recorder:       recorder,
 	}
 	go dp.Start()
 	return dp
 }
+
+// GetSize -
 func (d *DiscoverPool) GetSize() float64 {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 	return float64(len(d.discoverWorker))
 }
+
+// Start -
 func (d *DiscoverPool) Start() {
 	logrus.Infof("third component discover pool started")
 	for {
@@ -74,65 +88,37 @@ func (d *DiscoverPool) Start() {
 							d.RemoveDiscover(component)
 							return
 						}
-						logrus.Errorf("update component status failure", err.Error())
+						logrus.Errorf("update component status failure: %s", err.Error())
 					}
 					logrus.Infof("update component %s status success by discover pool", name)
-				} else {
-					logrus.Debugf("component %s status endpoints not change", name)
 				}
 			}()
 		}
 	}
 }
 
-type Worker struct {
-	discover   Discover
-	cancel     context.CancelFunc
-	ctx        context.Context
-	updateChan chan *v1alpha1.ThirdComponent
-	stoped     bool
-}
-
-func (w *Worker) Start() {
-	defer func() {
-		logrus.Infof("discover endpoint list worker %s/%s stoed", w.discover.GetComponent().Namespace, w.discover.GetComponent().Name)
-		w.stoped = true
-	}()
-	w.stoped = false
-	logrus.Infof("discover endpoint list worker %s/%s  started", w.discover.GetComponent().Namespace, w.discover.GetComponent().Name)
-	for {
-		w.discover.Discover(w.ctx, w.updateChan)
-		select {
-		case <-w.ctx.Done():
-			return
-		default:
-		}
-	}
-}
-
-func (w *Worker) UpdateDiscover(discover Discover) {
-	w.discover = discover
-}
-
-func (w *Worker) Stop() {
-	w.cancel()
-}
-
-func (w *Worker) IsStop() bool {
-	return w.stoped
-}
-
-func (d *DiscoverPool) newWorker(dis Discover) *Worker {
+func (d *DiscoverPool) newWorker(dis dis.Discover) *Worker {
 	ctx, cancel := context.WithCancel(d.ctx)
-	return &Worker{
+
+	worker := &Worker{
 		ctx:        ctx,
 		discover:   dis,
 		cancel:     cancel,
 		updateChan: d.updateChan,
 	}
+
+	component := dis.GetComponent()
+	if component.Spec.IsStaticEndpoints() {
+		proberManager := prober.NewManager(d.recorder)
+		dis.SetProberManager(proberManager)
+		worker.proberManager = proberManager
+	}
+
+	return worker
 }
 
-func (d *DiscoverPool) AddDiscover(dis Discover) {
+// AddDiscover -
+func (d *DiscoverPool) AddDiscover(dis dis.Discover) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 	component := dis.GetComponent()
@@ -149,10 +135,14 @@ func (d *DiscoverPool) AddDiscover(dis Discover) {
 		return
 	}
 	worker := d.newWorker(dis)
+	if component.Spec.IsStaticEndpoints() {
+		worker.proberManager.AddThirdComponent(dis.GetComponent())
+	}
 	go worker.Start()
 	d.discoverWorker[key] = worker
 }
 
+// RemoveDiscover -
 func (d *DiscoverPool) RemoveDiscover(component *v1alpha1.ThirdComponent) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
@@ -164,6 +154,7 @@ func (d *DiscoverPool) RemoveDiscover(component *v1alpha1.ThirdComponent) {
 	}
 }
 
+// RemoveDiscoverByName -
 func (d *DiscoverPool) RemoveDiscoverByName(req types.NamespacedName) {
 	d.lock.Lock()
 	defer d.lock.Unlock()

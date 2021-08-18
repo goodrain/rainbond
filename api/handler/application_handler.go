@@ -572,6 +572,9 @@ func (a *ApplicationAction) SyncComponents(app *dbmodel.Application, components 
 		if err := GetGatewayHandler().SyncHTTPRules(tx, components); err != nil {
 			return err
 		}
+		if err := GetGatewayHandler().SyncRuleConfigs(tx, components); err != nil {
+			return err
+		}
 		if err := GetGatewayHandler().SyncTCPRules(tx, components); err != nil {
 			return err
 		}

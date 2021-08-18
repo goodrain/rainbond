@@ -20,6 +20,7 @@ package handler
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -27,13 +28,14 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
-	"github.com/sirupsen/logrus"
-
 	"github.com/goodrain/rainbond/worker/client"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // ThirdPartyServiceHanlder handles business logic for all third-party services
 type ThirdPartyServiceHanlder struct {
+	logger    *logrus.Entry
 	dbmanager db.Manager
 	statusCli *client.AppRuntimeSyncClient
 }
@@ -41,6 +43,7 @@ type ThirdPartyServiceHanlder struct {
 // Create3rdPartySvcHandler creates a new *ThirdPartyServiceHanlder.
 func Create3rdPartySvcHandler(dbmanager db.Manager, statusCli *client.AppRuntimeSyncClient) *ThirdPartyServiceHanlder {
 	return &ThirdPartyServiceHanlder{
+		logger:    logrus.WithField("WHO", "ThirdPartyServiceHanlder"),
 		dbmanager: dbmanager,
 		statusCli: statusCli,
 	}
@@ -61,7 +64,6 @@ func (t *ThirdPartyServiceHanlder) AddEndpoints(sid string, d *model.AddEndpiont
 		ServiceID: sid,
 		IP:        address,
 		Port:      port,
-		IsOnline:  &d.IsOnline,
 	}
 	if err := t.dbmanager.EndpointsDao().AddModel(ep); err != nil {
 		return err
@@ -84,7 +86,6 @@ func (t *ThirdPartyServiceHanlder) UpdEndpoints(d *model.UpdEndpiontsReq) error 
 		ep.IP = address
 		ep.Port = port
 	}
-	ep.IsOnline = &d.IsOnline
 	if err := t.dbmanager.EndpointsDao().UpdateModel(ep); err != nil {
 		return err
 	}
@@ -132,53 +133,78 @@ func (t *ThirdPartyServiceHanlder) DelEndpoints(epid, sid string) error {
 }
 
 // ListEndpoints lists third-party service endpoints.
-func (t *ThirdPartyServiceHanlder) ListEndpoints(sid string) ([]*model.EndpointResp, error) {
-	endpoints, err := t.dbmanager.EndpointsDao().List(sid)
+func (t *ThirdPartyServiceHanlder) ListEndpoints(componentID string) ([]*model.ThirdEndpoint, error) {
+	logger := t.logger.WithField("Method", "ListEndpoints").
+		WithField("ComponentID", componentID)
+
+	runtimeEndpoints, err := t.listRuntimeEndpoints(componentID)
 	if err != nil {
-		logrus.Warningf("ServiceID: %s; error listing endpoints from db; %v", sid, err)
+		logger.Warning(err.Error())
 	}
-	m := make(map[string]*model.EndpointResp)
-	for _, item := range endpoints {
-		ep := &model.EndpointResp{
-			EpID: item.UUID,
-			Address: func(ip string, p int) string {
-				if p != 0 {
-					return fmt.Sprintf("%s:%d", ip, p)
-				}
-				return ip
-			}(item.IP, item.Port),
+
+	staticEndpoints, err := t.listStaticEndpoints(componentID)
+	if err != nil {
+		staticEndpoints = map[string]*model.ThirdEndpoint{}
+		logger.Warning(err.Error())
+	}
+
+	// Merge runtimeEndpoints with staticEndpoints
+	for _, ep := range runtimeEndpoints {
+		sep, ok := staticEndpoints[ep.EpID]
+		if !ok {
+			continue
+		}
+		ep.IsStatic = sep.IsStatic
+		ep.Address = sep.Address
+		delete(staticEndpoints, ep.EpID)
+	}
+
+	// Add offline static endpoints
+	for _, ep := range staticEndpoints {
+		runtimeEndpoints = append(runtimeEndpoints, ep)
+	}
+
+	sort.Sort(model.ThirdEndpoints(runtimeEndpoints))
+	return runtimeEndpoints, nil
+}
+
+func (t *ThirdPartyServiceHanlder) listRuntimeEndpoints(componentID string) ([]*model.ThirdEndpoint, error) {
+	runtimeEndpoints, err := t.statusCli.ListThirdPartyEndpoints(componentID)
+	if err != nil {
+		return nil, errors.Wrap(err, "list runtime third endpoints")
+	}
+
+	var endpoints []*model.ThirdEndpoint
+	for _, item := range runtimeEndpoints.Items {
+		endpoints = append(endpoints, &model.ThirdEndpoint{
+			EpID:    item.Name,
+			Address: item.Address,
+			Status:  item.Status,
+		})
+	}
+	return endpoints, nil
+}
+
+func (t *ThirdPartyServiceHanlder) listStaticEndpoints(componentID string) (map[string]*model.ThirdEndpoint, error) {
+	staticEndpoints, err := t.dbmanager.EndpointsDao().List(componentID)
+	if err != nil {
+		return nil, errors.Wrap(err, "list static endpoints")
+	}
+
+	endpoints := make(map[string]*model.ThirdEndpoint)
+	for _, item := range staticEndpoints {
+		address := func(ip string, p int) string {
+			if p != 0 {
+				return fmt.Sprintf("%s:%d", ip, p)
+			}
+			return ip
+		}(item.IP, item.Port)
+		endpoints[item.UUID] = &model.ThirdEndpoint{
+			EpID:     item.UUID,
+			Address:  address,
 			Status:   "-",
-			IsOnline: false,
 			IsStatic: true,
 		}
-		m[ep.Address] = ep
 	}
-	thirdPartyEndpoints, err := t.statusCli.ListThirdPartyEndpoints(sid)
-	if err != nil {
-		logrus.Warningf("ServiceID: %s; grpc; error listing third-party endpoints: %v", sid, err)
-		return nil, err
-	}
-	if thirdPartyEndpoints != nil && thirdPartyEndpoints.Obj != nil {
-		for _, item := range thirdPartyEndpoints.Obj {
-			ep := m[fmt.Sprintf("%s:%d", item.Ip, item.Port)]
-			if ep != nil {
-				ep.IsOnline = true
-				ep.Status = item.Status
-				continue
-			}
-			rep := &model.EndpointResp{
-				EpID:     item.Uuid,
-				Address:  item.Ip,
-				Status:   item.Status,
-				IsOnline: true,
-				IsStatic: false,
-			}
-			m[rep.Address] = rep
-		}
-	}
-	var res []*model.EndpointResp
-	for _, item := range m {
-		res = append(res, item)
-	}
-	return res, nil
+	return endpoints, nil
 }

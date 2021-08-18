@@ -23,8 +23,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-
-	validator "github.com/goodrain/rainbond/util/govalidator"
+	"strconv"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
@@ -33,6 +32,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
+	validator "github.com/goodrain/rainbond/util/govalidator"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
@@ -68,9 +68,11 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
 	sEvent := r.Context().Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent)
-	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
-		httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
-		return
+	if service.Kind != "third_party" {
+		if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
+			httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
+			return
+		}
 	}
 
 	startStopStruct := &api_model.StartStopStruct{
@@ -84,7 +86,6 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, sEvent)
-	return
 }
 
 //StopService StopService
@@ -177,7 +178,6 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, sEvent)
-	return
 }
 
 //VerticalService VerticalService
@@ -213,23 +213,23 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	sEvent := r.Context().Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent)
-	var cpu_set, gpu_set, memory_set *int
+	var cpuSet, gpuSet, memorySet *int
 	if cpu, ok := data["container_cpu"].(float64); ok {
-		cpu_int := int(cpu)
-		cpu_set = &cpu_int
+		cpuInt := int(cpu)
+		cpuSet = &cpuInt
 	}
 	if memory, ok := data["container_memory"].(float64); ok {
-		memory_int := int(memory)
-		memory_set = &memory_int
+		memoryInt := int(memory)
+		memorySet = &memoryInt
 	}
 	if gpu, ok := data["container_gpu"].(float64); ok {
-		gpu_int := int(gpu)
-		gpu_set = &gpu_int
+		gpuInt := int(gpu)
+		gpuSet = &gpuInt
 	}
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
-	if memory_set != nil {
-		if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*(*memory_set)); err != nil {
+	if memorySet != nil {
+		if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*(*memorySet)); err != nil {
 			httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
 			return
 		}
@@ -238,9 +238,9 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 		TenantID:        tenantID,
 		ServiceID:       serviceID,
 		EventID:         sEvent.EventID,
-		ContainerCPU:    cpu_set,
-		ContainerMemory: memory_set,
-		ContainerGPU:    gpu_set,
+		ContainerCPU:    cpuSet,
+		ContainerMemory: memorySet,
+		ContainerGPU:    gpuSet,
 	}
 	if err := handler.GetServiceManager().ServiceVertical(r.Context(), verticalTask); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("service vertical error. %v", err))
@@ -475,7 +475,7 @@ func (t *TenantStruct) GetDeployVersion(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err == gorm.ErrRecordNotFound {
-		httputil.ReturnError(r, w, 404, fmt.Sprintf("build version do not exist"))
+		httputil.ReturnError(r, w, 404, "build version do not exist")
 		return
 	}
 	httputil.ReturnSuccess(r, w, version)
@@ -492,7 +492,7 @@ func (t *TenantStruct) GetManyDeployVersion(w http.ResponseWriter, r *http.Reque
 	}
 	serviceIDs, ok := data["service_ids"].([]interface{})
 	if !ok {
-		httputil.ReturnError(r, w, 400, fmt.Sprintf("service ids must be a array"))
+		httputil.ReturnError(r, w, 400, "service ids must be a array")
 		return
 	}
 	var list []string
@@ -501,7 +501,7 @@ func (t *TenantStruct) GetManyDeployVersion(w http.ResponseWriter, r *http.Reque
 	}
 	services, err := db.GetManager().TenantServiceDao().GetServiceByIDs(list)
 	if err != nil {
-		httputil.ReturnError(r, w, 500, fmt.Sprintf(err.Error()))
+		httputil.ReturnError(r, w, 500, err.Error())
 		return
 	}
 	var versionList []*dbmodel.VersionInfo
@@ -559,9 +559,11 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
-	if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
-		httputil.ReturnResNotEnough(r, w, upgradeRequest.EventID, err.Error())
-		return
+	if service.Kind != "third_party" {
+		if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory); err != nil {
+			httputil.ReturnResNotEnough(r, w, upgradeRequest.EventID, err.Error())
+			return
+		}
 	}
 
 	res, err := handler.GetOperationHandler().Upgrade(&upgradeRequest)
@@ -656,7 +658,6 @@ func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 
 	re := handler.GetOperationHandler().RollBack(rollbackRequest)
 	httputil.ReturnSuccess(r, w, re)
-	return
 }
 
 type limitMemory struct {
@@ -772,4 +773,18 @@ func GetServiceDeployInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, info)
+}
+
+// Log -
+func (t *TenantStruct) Log(w http.ResponseWriter, r *http.Request) {
+	component := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
+	podName := r.URL.Query().Get("podName")
+	containerName := r.URL.Query().Get("containerName")
+	follow, _ := strconv.ParseBool(r.URL.Query().Get("follow"))
+
+	err := handler.GetServiceManager().Log(w, r, component, podName, containerName, follow)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
 }
