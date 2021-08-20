@@ -48,12 +48,8 @@ var AllTenant string
 type Region interface {
 	Tenants(name string) TenantInterface
 	Resources() ResourcesInterface
-	Nodes() NodeInterface
 	Cluster() ClusterInterface
-	Configs() ConfigsInterface
 	Version() string
-	Monitor() MonitorInterface
-	Notification() NotificationInterface
 	DoRequest(path, method string, body io.Reader, decode *utilhttp.ResponseBody) (int, error)
 }
 

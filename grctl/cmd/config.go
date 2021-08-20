@@ -44,7 +44,7 @@ func NewCmdConfig() cli.Command {
 				Value: "rbd-system",
 			},
 		},
-		Usage: "show region config file",
+		Usage: "Show region config file",
 		Action: func(c *cli.Context) {
 			Common(c)
 			namespace := c.String("namespace")

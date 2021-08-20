@@ -19,10 +19,6 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"strings"
-
 	conf "github.com/goodrain/rainbond/cmd/grctl/option"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/sirupsen/logrus"
@@ -35,11 +31,8 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdInstall())
 	cmds = append(cmds, NewCmdService())
 	cmds = append(cmds, NewCmdTenant())
-	cmds = append(cmds, NewCmdNode())
 	cmds = append(cmds, NewCmdCluster())
 	cmds = append(cmds, NewSourceBuildCmd())
-	cmds = append(cmds, NewCmdAnsible())
-	cmds = append(cmds, NewCmdLicense())
 	cmds = append(cmds, NewCmdGateway())
 	cmds = append(cmds, NewCmdEnvoy())
 	cmds = append(cmds, NewCmdConfig())
@@ -80,19 +73,6 @@ func CommonWithoutRegion(c *cli.Context) {
 	if err := clients.InitClient(config.Kubernets.KubeConf); err != nil {
 		logrus.Errorf("error config k8s,details %s", err.Error())
 	}
-}
-
-// fatal prints the message (if provided) and then exits. If V(2) or greater,
-// glog.Fatal is invoked for extended information.
-func fatal(msg string, code int) {
-	if len(msg) > 0 {
-		// add newline if needed
-		if !strings.HasSuffix(msg, "\n") {
-			msg += "\n"
-		}
-		fmt.Fprint(os.Stderr, msg)
-	}
-	os.Exit(code)
 }
 
 //GetTenantNamePath Get Tenantname Path

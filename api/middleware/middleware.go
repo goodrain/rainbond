@@ -162,36 +162,8 @@ func SetLog(next http.Handler) http.Handler {
 //Proxy 反向代理中间件
 func Proxy(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.RequestURI, "/v2/nodes") {
-			handler.GetNodeProxy().Proxy(w, r)
-			return
-		}
-		if strings.HasPrefix(r.RequestURI, "/v2/cluster/service-health") {
-			handler.GetNodeProxy().Proxy(w, r)
-			return
-		}
 		if strings.HasPrefix(r.RequestURI, "/v2/builder") {
 			handler.GetBuilderProxy().Proxy(w, r)
-			return
-		}
-		if strings.HasPrefix(r.RequestURI, "/v2/tasks") {
-			handler.GetNodeProxy().Proxy(w, r)
-			return
-		}
-		if strings.HasPrefix(r.RequestURI, "/v2/tasktemps") {
-			handler.GetNodeProxy().Proxy(w, r)
-			return
-		}
-		if strings.HasPrefix(r.RequestURI, "/v2/taskgroups") {
-			handler.GetNodeProxy().Proxy(w, r)
-			return
-		}
-		if strings.HasPrefix(r.RequestURI, "/v2/configs") {
-			handler.GetNodeProxy().Proxy(w, r)
-			return
-		}
-		if strings.HasPrefix(r.RequestURI, "/v2/rules") {
-			handler.GetMonitorProxy().Proxy(w, r)
 			return
 		}
 		if strings.HasPrefix(r.RequestURI, "/kubernetes/dashboard") {

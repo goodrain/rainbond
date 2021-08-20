@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2014-2021 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,33 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package main
+// +build !windows
+
+package server
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/goodrain/rainbond/cmd"
-
+	"github.com/goodrain/rainbond/cmd/node-proxy/option"
 	"github.com/spf13/pflag"
-
-	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/cmd/node/server"
 )
 
-func main() {
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		cmd.ShowVersion("node")
-	}
-	server.ParseClientCommnad(os.Args)
-	option.Config.AddFlags(pflag.CommandLine)
-	server.InstallServiceFlags(pflag.CommandLine)
-	if err := option.Init(); err != nil {
-		fmt.Fprintf(os.Stderr, "init config error: %v\n", err)
-		os.Exit(1)
-	}
-	if err := server.Run(option.Config); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
+//InstallServiceFlags install service flag set
+func InstallServiceFlags(flags *pflag.FlagSet) {
+}
+func initService(c *option.Conf, startfunc, stopfunc func() error) error {
+	return startfunc()
 }

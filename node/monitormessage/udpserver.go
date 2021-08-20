@@ -26,82 +26,34 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/discover"
-	"github.com/goodrain/rainbond/discover/config"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/sirupsen/logrus"
-
-	"github.com/prometheus/common/log"
 )
 
 //UDPServer udp server
 type UDPServer struct {
-	ctx                 context.Context
-	ListenerHost        string
-	ListenerPort        int
-	eventServerEndpoint []string
-	client              net.Conn
-	etcdClientArgs      *etcdutil.ClientArgs
+	ctx             context.Context
+	ListenerHost    string
+	ListenerPort    int
+	client          net.Conn
+	eventServerAddr string
 }
 
 //CreateUDPServer create udpserver
-func CreateUDPServer(ctx context.Context, lisHost string, lisPort int, etcdClientArgs *etcdutil.ClientArgs) *UDPServer {
+func CreateUDPServer(ctx context.Context, lisHost string, lisPort int) *UDPServer {
 	return &UDPServer{
-		ctx:            ctx,
-		ListenerHost:   lisHost,
-		ListenerPort:   lisPort,
-		etcdClientArgs: etcdClientArgs,
+		ctx:             ctx,
+		ListenerHost:    lisHost,
+		ListenerPort:    lisPort,
+		eventServerAddr: "rbd-eventlog.rbd-system:6166",
 	}
 }
 
 //Start start
 func (u *UDPServer) Start() error {
-	dis, err := discover.GetDiscover(config.DiscoverConfig{Ctx: u.ctx, EtcdClientArgs: u.etcdClientArgs})
-	if err != nil {
-		return err
-	}
-	dis.AddProject("event_log_event_udp", u)
 	if err := u.server(); err != nil {
 		return err
 	}
 	return nil
-}
-
-//UpdateEndpoints update event server address
-func (u *UDPServer) UpdateEndpoints(endpoints ...*config.Endpoint) {
-	var eventServerEndpoint []string
-	for _, e := range endpoints {
-		eventServerEndpoint = append(eventServerEndpoint, e.URL)
-		u.eventServerEndpoint = eventServerEndpoint
-	}
-	if len(u.eventServerEndpoint) > 0 {
-		for i := range u.eventServerEndpoint {
-			info := strings.Split(u.eventServerEndpoint[i], ":")
-			if len(info) == 2 {
-				dip := net.ParseIP(info[0])
-				port, err := strconv.Atoi(info[1])
-				if err != nil {
-					continue
-				}
-				srcAddr := &net.UDPAddr{IP: net.IPv4zero, Port: 0}
-				dstAddr := &net.UDPAddr{IP: dip, Port: port}
-				conn, err := net.DialUDP("udp", srcAddr, dstAddr)
-				if err != nil {
-					logrus.Error(err)
-					continue
-				}
-				logrus.Infof("Update event server address is %s", u.eventServerEndpoint[i])
-				u.client = conn
-				break
-			}
-		}
-
-	}
-}
-
-//Error
-func (u *UDPServer) Error(err error) {
-
 }
 
 //Server 服务
@@ -111,7 +63,7 @@ func (u *UDPServer) server() error {
 		fmt.Println(err)
 		return err
 	}
-	log.Infof("UDP Server Listener: %s", listener.LocalAddr().String())
+	logrus.Infof("UDP Server Listener: %s", listener.LocalAddr().String())
 	buf := make([]byte, 65535)
 	go func() {
 		defer listener.Close()
@@ -129,6 +81,27 @@ func (u *UDPServer) server() error {
 }
 
 func (u *UDPServer) handlePacket(packet []byte) {
+	if u.client == nil {
+		domain := u.eventServerAddr
+		port := 6166
+		if strings.Contains(domain, ":") {
+			infos := strings.Split(u.eventServerAddr, ":")
+			domain = infos[0]
+			port, _ = strconv.Atoi(infos[1])
+		}
+		addr, err := net.ResolveIPAddr("ip", domain)
+		if err != nil {
+			logrus.Errorf("resolve event server domain %s failure %s", domain, err.Error())
+			return
+		}
+		srcAddr := &net.UDPAddr{IP: net.IPv4zero, Port: 0}
+		dstAddr := &net.UDPAddr{IP: addr.IP, Port: port}
+		conn, err := net.DialUDP("udp", srcAddr, dstAddr)
+		if err != nil {
+			logrus.Error("connect event udp server failure %s", err.Error())
+		}
+		u.client = conn
+	}
 	lines := strings.Split(string(packet), "\n")
 	for _, line := range lines {
 		if line != "" && u.client != nil {

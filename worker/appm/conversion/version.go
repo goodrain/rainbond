@@ -497,7 +497,7 @@ func createResources(as *v1.AppService) corev1.ResourceRequirements {
 			cpuRequest = int64(requestint)
 		}
 	}
-	if as.ContainerCPU > 0 && cpuRequest == 0 && cpuLimit == 0{
+	if as.ContainerCPU > 0 && cpuRequest == 0 && cpuLimit == 0 {
 		cpuLimit = int64(as.ContainerCPU)
 		cpuRequest = int64(as.ContainerCPU)
 	}

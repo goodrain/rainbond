@@ -24,7 +24,6 @@ import (
 	"github.com/goodrain/rainbond/cmd/api/option"
 )
 
-var nodeProxy proxy.Proxy
 var builderProxy proxy.Proxy
 var prometheusProxy proxy.Proxy
 var monitorProxy proxy.Proxy
@@ -32,10 +31,6 @@ var kubernetesDashboard proxy.Proxy
 
 //InitProxy 初始化
 func InitProxy(conf option.Config) {
-	if nodeProxy == nil {
-		nodeProxy = proxy.CreateProxy("acp_node", "http", conf.NodeAPI)
-		discover.GetEndpointDiscover().AddProject("acp_node", nodeProxy)
-	}
 	if builderProxy == nil {
 		builderProxy = proxy.CreateProxy("builder", "http", conf.BuilderAPI)
 	}
@@ -49,11 +44,6 @@ func InitProxy(conf option.Config) {
 	if kubernetesDashboard == nil {
 		kubernetesDashboard = proxy.CreateProxy("kubernetesdashboard", "http", []string{conf.KuberentesDashboardAPI})
 	}
-}
-
-//GetNodeProxy GetNodeProxy
-func GetNodeProxy() proxy.Proxy {
-	return nodeProxy
 }
 
 //GetBuilderProxy GetNodeProxy

@@ -24,7 +24,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/cmd/node-proxy/option"
 	discover "github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/discover/config"
 	"github.com/goodrain/rainbond/util"

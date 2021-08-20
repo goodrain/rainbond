@@ -1,5 +1,5 @@
+// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
-// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,25 +16,32 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package controller
+package main
 
 import (
-	"github.com/goodrain/rainbond/node/api"
-	"github.com/goodrain/rainbond/node/nodem/client"
-	"github.com/goodrain/rainbond/node/nodem/service"
+	"fmt"
+	"os"
+
+	"github.com/goodrain/rainbond/cmd"
+
+	"github.com/spf13/pflag"
+
+	"github.com/goodrain/rainbond/cmd/node-proxy/option"
+	"github.com/goodrain/rainbond/cmd/node-proxy/server"
 )
 
-//Manager Manager
-type Manager interface {
-	Start(*client.HostNode) error
-	Stop() error
-	GetAllService() ([]*service.Service, error)
-	Online() error
-	Offline() error
-	ReLoadServices() error
-	StartService(serviceName string) error
-	StopService(serviceName string) error
-	SetAPIRoute(apim *api.Manager) error
-	GetService(serviceName string) *service.Service
-	ListServiceImages() []string
+func main() {
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		cmd.ShowVersion("node")
+	}
+	option.Config.AddFlags(pflag.CommandLine)
+	server.InstallServiceFlags(pflag.CommandLine)
+	if err := option.Init(); err != nil {
+		fmt.Fprintf(os.Stderr, "init config error: %v\n", err)
+		os.Exit(1)
+	}
+	if err := server.Run(option.Config); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 }

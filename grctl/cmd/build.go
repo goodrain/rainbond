@@ -24,13 +24,10 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
 	"time"
 
-	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/grctl/clients"
-	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/termtables"
 	"github.com/urfave/cli"
 	corev1 "k8s.io/api/core/v1"
@@ -41,7 +38,7 @@ import (
 func NewSourceBuildCmd() cli.Command {
 	c := cli.Command{
 		Subcommands: []cli.Command{
-			cli.Command{
+			{
 				Name:  "list",
 				Usage: "Lists the building tasks pod currently being performed",
 				Flags: []cli.Flag{
@@ -59,7 +56,7 @@ func NewSourceBuildCmd() cli.Command {
 					cmd.Run()
 				},
 			},
-			cli.Command{
+			{
 				Name:  "log",
 				Usage: "Displays a log of the build task",
 				Flags: []cli.Flag{
@@ -82,11 +79,11 @@ func NewSourceBuildCmd() cli.Command {
 					cmd.Run()
 				},
 			},
-			cli.Command{
+			{
 				Name:  "maven-setting",
 				Usage: "maven setting config file manage",
 				Subcommands: []cli.Command{
-					cli.Command{
+					{
 						Name: "list",
 						Flags: []cli.Flag{
 							cli.StringFlag{
@@ -121,7 +118,7 @@ func NewSourceBuildCmd() cli.Command {
 							fmt.Println(runtable.Render())
 						},
 					},
-					cli.Command{
+					{
 						Name: "get",
 						Flags: []cli.Flag{
 							cli.StringFlag{
@@ -145,7 +142,7 @@ func NewSourceBuildCmd() cli.Command {
 							fmt.Println(cm.Data["mavensetting"])
 						},
 					},
-					cli.Command{
+					{
 						Name:  "update",
 						Usage: "update maven setting config file manage",
 						Flags: []cli.Flag{
@@ -190,7 +187,7 @@ func NewSourceBuildCmd() cli.Command {
 							fmt.Println("Update Success")
 						},
 					},
-					cli.Command{
+					{
 						Name:  "add",
 						Usage: "add maven setting config file manage",
 						Flags: []cli.Flag{
@@ -244,7 +241,7 @@ func NewSourceBuildCmd() cli.Command {
 							fmt.Println("Add Success")
 						},
 					},
-					cli.Command{
+					{
 						Name:  "delete",
 						Usage: "delete maven setting config file manage",
 						Flags: []cli.Flag{
@@ -275,43 +272,4 @@ func NewSourceBuildCmd() cli.Command {
 		Usage: "Commands related to building source code",
 	}
 	return c
-}
-
-func getLang(dir string) (string, error) {
-	lang, err := code.GetLangType(dir)
-	if err != nil {
-		return "", err
-	}
-	return lang.String(), nil
-}
-
-func getSourceCodeTarFile(dir string) (*os.File, error) {
-	util.CheckAndCreateDir("/tmp/.grctl/")
-	var cmd []string
-	cmd = append(cmd, "tar", "-cf", "/tmp/.grctl/sourcebuild.tar", "--exclude=.svn", "--exclude=.git", "./")
-	source := exec.Command(cmd[0], cmd[1:]...)
-	source.Dir = dir
-	if err := source.Run(); err != nil {
-		return nil, err
-	}
-	return os.OpenFile("/tmp/.grctl/sourcebuild.tar", os.O_RDONLY, 0755)
-}
-
-func clear() {
-	os.RemoveAll("/tmp/.grctl/sourcebuild.tar")
-}
-
-func createDockerCli() *client.Client {
-	cli, err := client.NewEnvClient()
-	if err != nil {
-		fatal("docker client create failure:"+err.Error(), 1)
-	}
-	return cli
-}
-
-func prepare(dir string) {
-	util.CheckAndCreateDir(path.Join(dir, ".cache"))
-	util.CheckAndCreateDir(path.Join(dir, ".release"))
-	os.Chown(path.Join(dir, ".cache"), 200, 200)
-	os.Chown(path.Join(dir, ".release"), 200, 200)
 }
