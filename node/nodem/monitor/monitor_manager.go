@@ -60,7 +60,7 @@ func createNodeExporterRestry() (*prometheus.Registry, error) {
 	if runtime.GOOS == "linux" {
 		filters = append(filters, "ipvs", "netclass", "netstat", "nfs",
 			"xfs", "zfs", "mountstats", "arp", "btrfs", "bonding",
-			"schedstat", "pressure", "softnet", "sockstat", "stat", "os", "thermal_zone")
+			"schedstat", "pressure", "softnet", "sockstat", "stat", "thermal_zone")
 	}
 	// init kingpin parse
 	kingpin.CommandLine.Parse([]string{"--collector.mountstats=true"})

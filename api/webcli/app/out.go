@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2014-2020 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,29 +16,44 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package app
 
 import (
-	"fmt"
+	"io"
 	"os"
 
-	"github.com/goodrain/rainbond/cmd"
-	"github.com/goodrain/rainbond/cmd/webcli/option"
-	"github.com/goodrain/rainbond/cmd/webcli/server"
-
-	"github.com/spf13/pflag"
+	"github.com/goodrain/rainbond/api/webcli/term"
+	"github.com/sirupsen/logrus"
 )
 
-func main() {
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		cmd.ShowVersion("webcli")
+//Out out
+type Out struct {
+	Stdin  io.Reader
+	Stdout io.Writer
+	Stderr io.Writer
+}
+
+//CreateOut create out
+func CreateOut(tty *os.File) *Out {
+	return &Out{
+		Stdin:  tty,
+		Stdout: tty,
+		Stderr: tty,
 	}
-	s := option.NewWebCliServer()
-	s.AddFlags(pflag.CommandLine)
-	pflag.Parse()
-	s.SetLog()
-	if err := server.Run(s); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+}
+
+//SetTTY set tty
+func (o *Out) SetTTY() term.TTY {
+	t := term.TTY{
+		Out: o.Stdout,
+		In:  o.Stdin,
 	}
+	if !t.IsTerminalIn() {
+		logrus.Errorf("stdin is not tty")
+		return t
+	}
+	// if we get to here, the user wants to attach stdin, wants a TTY, and o.In is a terminal, so we
+	// can safely set t.Raw to true
+	t.Raw = true
+	return t
 }

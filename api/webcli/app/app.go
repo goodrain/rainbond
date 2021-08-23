@@ -23,24 +23,20 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"strings"
 	"text/template"
 
+	"github.com/go-chi/chi"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/barnettZQG/gotty/server"
 	"github.com/barnettZQG/gotty/webtty"
-	httputil "github.com/goodrain/rainbond/util/http"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/gorilla/websocket"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/yudai/umutex"
 	api "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -92,11 +88,9 @@ var Version = "0.0.2"
 
 //DefaultOptions -
 var DefaultOptions = Options{
-	Address:         "",
-	Port:            "8080",
 	PermitWrite:     true,
 	IndexFile:       "",
-	TitleFormat:     "GRTTY Command",
+	TitleFormat:     "GRTTY Command For Component Instance",
 	EnableReconnect: true,
 	ReconnectTime:   10,
 	CloseSignal:     1, // syscall.SIGHUP
@@ -138,55 +132,9 @@ func New(options *Options) (*App, error) {
 }
 
 //Run Run
-func (app *App) Run() error {
-
-	endpoint := net.JoinHostPort(app.options.Address, app.options.Port)
-
-	wsHandler := http.HandlerFunc(app.handleWS)
-	health := http.HandlerFunc(app.healthCheck)
-
-	var siteMux = http.NewServeMux()
-
-	siteHandler := http.Handler(siteMux)
-
-	siteHandler = wrapHeaders(siteHandler)
-
-	exporter := NewExporter()
-	prometheus.MustRegister(exporter)
-
-	wsMux := http.NewServeMux()
-	wsMux.Handle("/", siteHandler)
-	wsMux.Handle("/docker_console", wsHandler)
-	wsMux.Handle("/health", health)
-	wsMux.Handle("/metrics", promhttp.Handler())
-
-	siteHandler = (http.Handler(wsMux))
-
-	siteHandler = wrapLogger(siteHandler)
-
-	server, err := app.makeServer(endpoint, &siteHandler)
-	if err != nil {
-		return errors.New("Failed to build server: " + err.Error())
-	}
-	go func() {
-		logrus.Printf("webcli listen %s", endpoint)
-		logrus.Fatal(server.ListenAndServe())
-		logrus.Printf("Exiting...")
-	}()
+func (app *App) SetRoute(route *chi.Mux) error {
+	route.Handle("/docker_console", http.HandlerFunc(app.handleWS))
 	return nil
-}
-
-func (app *App) makeServer(addr string, handler *http.Handler) (*http.Server, error) {
-	server := &http.Server{
-		Addr:    addr,
-		Handler: *handler,
-	}
-
-	return server, nil
-}
-
-func (app *App) healthCheck(w http.ResponseWriter, r *http.Request) {
-	httputil.ReturnSuccess(r, w, map[string]string{"status": "health", "info": "webcli service health"})
 }
 
 func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
@@ -278,11 +226,6 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//Exit -
-func (app *App) Exit() (firstCall bool) {
-	return true
-}
-
 func (app *App) createKubeClient() error {
 	config, err := k8sutil.NewRestConfig(app.options.K8SConfPath)
 	if err != nil {
@@ -358,21 +301,6 @@ func (app *App) NewRequest(podName, namespace, containerName string, command []s
 		req.Param("command", c)
 	}
 	return req
-}
-
-func wrapLogger(handler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rw := &responseWrapper{w, 200}
-		handler.ServeHTTP(rw, r)
-		logrus.Printf("%s %d %s %s", r.RemoteAddr, rw.status, r.Method, r.URL.Path)
-	})
-}
-
-func wrapHeaders(handler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Server", "GoTTY/"+Version)
-		handler.ServeHTTP(w, r)
-	})
 }
 
 func md5Func(str string) string {

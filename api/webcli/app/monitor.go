@@ -7,7 +7,7 @@ import (
 // Metric name parts.
 const (
 	// Namespace for all metrics.
-	namespace = "webcli"
+	namespace = "api"
 	// Subsystem(s).
 	exporter = "exporter"
 )

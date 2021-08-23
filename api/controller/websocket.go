@@ -33,32 +33,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//DockerConsole docker console
-type DockerConsole struct {
-	socketproxy proxy.Proxy
-}
-
-var defaultDockerConsoleEndpoints = []string{"127.0.0.1:7171"}
 var defaultEventLogEndpoints = []string{"local=>rbd-eventlog:6363"}
-
-var dockerConsole *DockerConsole
-
-//GetDockerConsole get Docker console
-func GetDockerConsole() *DockerConsole {
-	if dockerConsole != nil {
-		return dockerConsole
-	}
-	dockerConsole = &DockerConsole{
-		socketproxy: proxy.CreateProxy("dockerconsole", "websocket", defaultDockerConsoleEndpoints),
-	}
-	discover.GetEndpointDiscover().AddProject("acp_webcli", dockerConsole.socketproxy)
-	return dockerConsole
-}
-
-//Get get
-func (d DockerConsole) Get(w http.ResponseWriter, r *http.Request) {
-	d.socketproxy.Proxy(w, r)
-}
 
 var dockerLog *DockerLog
 

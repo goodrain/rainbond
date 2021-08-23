@@ -2,7 +2,6 @@ GO_LDFLAGS=-ldflags " -w"
 VERSION=$(shell git symbolic-ref HEAD 2>/dev/null | cut -d"/" -f 3)
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
-BASE_DOCKER=./hack/contrib/docker
 
 default: help
 all: image ## build linux binaries, build images for docker

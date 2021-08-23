@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -30,6 +31,7 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/api/webcli/app"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
@@ -65,17 +67,23 @@ type Manager struct {
 	prometheusProxy proxy.Proxy
 	etcdcli         *clientv3.Client
 	exporter        *metric.Exporter
+	websocketModuls map[string]CustomModule
+}
+
+type CustomModule interface {
+	SetRoute(*chi.Mux) error
 }
 
 //NewManager newManager
-func NewManager(c option.Config, etcdcli *clientv3.Client) *Manager {
+func NewManager(c option.Config, etcdcli *clientv3.Client, webapp *app.App) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	manager := &Manager{
-		ctx:      ctx,
-		cancel:   cancel,
-		conf:     c,
-		stopChan: make(chan struct{}),
-		etcdcli:  etcdcli,
+		ctx:             ctx,
+		cancel:          cancel,
+		conf:            c,
+		stopChan:        make(chan struct{}),
+		etcdcli:         etcdcli,
+		websocketModuls: map[string]CustomModule{"webapp": webapp},
 	}
 	r := chi.NewRouter()
 	manager.r = r
@@ -144,7 +152,7 @@ func (m *Manager) Stop() error {
 }
 
 //Run run
-func (m *Manager) Run() {
+func (m *Manager) Run() error {
 	v2R := &version2.V2{
 		Cfg: &m.conf,
 	}
@@ -161,17 +169,22 @@ func (m *Manager) Run() {
 	m.r.Mount("/license", license.Routes())
 	//兼容老版docker
 	m.r.Get("/v1/etcd/event-log/instances", m.EventLogInstance)
-
 	m.r.Get("/kubernetes/dashboard", m.KuberntesDashboardAPI)
 	//prometheus单节点代理
 	m.r.Get("/api/v1/query", m.PrometheusAPI)
 	m.r.Get("/api/v1/query_range", m.PrometheusAPI)
-	//开启对浏览器的websocket服务和文件服务
+
+	//set websocket route
+	websocketRouter := chi.NewRouter()
+	websocketRouter.Mount("/", websocket.Routes())
+	websocketRouter.Mount("/logs", websocket.LogRoutes())
+	websocketRouter.Mount("/app", websocket.AppRoutes())
+	for _, c := range m.websocketModuls {
+		if err := c.SetRoute(websocketRouter); err != nil {
+			return fmt.Errorf("set websocket custom route failire %s", err.Error())
+		}
+	}
 	go func() {
-		websocketRouter := chi.NewRouter()
-		websocketRouter.Mount("/", websocket.Routes())
-		websocketRouter.Mount("/logs", websocket.LogRoutes())
-		websocketRouter.Mount("/app", websocket.AppRoutes())
 		if m.conf.WebsocketSSL {
 			logrus.Infof("websocket listen on (HTTPs) %s", m.conf.WebsocketAddr)
 			logrus.Fatal(http.ListenAndServeTLS(m.conf.WebsocketAddr, m.conf.WebsocketCertFile, m.conf.WebsocketKeyFile, websocketRouter))
@@ -203,6 +216,7 @@ func (m *Manager) Run() {
 	}
 	logrus.Infof("api listen on (HTTP) %s", m.conf.APIAddr)
 	logrus.Fatal(http.ListenAndServe(m.conf.APIAddr, m.r))
+	return nil
 }
 
 //EventLogInstance 查询event server instance

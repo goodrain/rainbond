@@ -17,15 +17,15 @@ limitations under the License.
 package rewrite
 
 import (
+	"testing"
+
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
 	"github.com/goodrain/rainbond/gateway/defaults"
-	"testing"
 
 	api "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -33,9 +33,10 @@ const (
 )
 
 func buildIngress() *networkingv1.Ingress {
-	defaultBackend := extensions.IngressBackend{
-		ServiceName: "default-backend",
-		ServicePort: intstr.FromInt(80),
+	defaultBackend := networkingv1.IngressBackend{
+		Service: &networkingv1.IngressServiceBackend{
+			Name: "default-backend",
+		},
 	}
 
 	return &networkingv1.Ingress{
@@ -43,17 +44,19 @@ func buildIngress() *networkingv1.Ingress {
 			Name:      "foo",
 			Namespace: api.NamespaceDefault,
 		},
-		Spec: extensions.IngressSpec{
-			Backend: &extensions.IngressBackend{
-				ServiceName: "default-backend",
-				ServicePort: intstr.FromInt(80),
+		Spec: networkingv1.IngressSpec{
+			DefaultBackend: &networkingv1.IngressBackend{
+				Service: &networkingv1.IngressServiceBackend{
+					Name: "default-backend",
+					Port: networkingv1.ServiceBackendPort{Number: 80},
+				},
 			},
-			Rules: []extensions.IngressRule{
+			Rules: []networkingv1.IngressRule{
 				{
 					Host: "foo.bar.com",
-					IngressRuleValue: extensions.IngressRuleValue{
-						HTTP: &extensions.HTTPIngressRuleValue{
-							Paths: []extensions.HTTPIngressPath{
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
 								{
 									Path:    "/foo",
 									Backend: defaultBackend,

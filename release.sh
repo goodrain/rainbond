@@ -37,14 +37,15 @@ buildTime=$(date +%F-%H)
 git_commit=$(git log -n 1 --pretty --format=%h)
 
 release_desc=${VERSION}-${git_commit}-${buildTime}
-build_items=(api chaos gateway monitor mq webcli worker eventlog init-probe mesh-data-panel grctl node-proxy resource-proxy)
+core_modul_items=(api chaos gateway worker node-proxy eventlog mq)
+addon_modul_items=(monitor init-probe mesh-data-panel grctl resource-proxy)
 
 build::binary() {
 	echo "---> build binary:$1"
 	home=$(pwd)
 	local go_mod_cache="${home}/.cache"
 	local OUTPATH="./_output/binary/$GOOS/${BASE_NAME}-$1"
-	local DOCKER_PATH="./hack/contrib/docker/$1"
+	local DOCKER_PATH="./hack/contrib/docker/$2/$1"
 	local build_image="golang:${GO_VERSION}"
 	local build_args="-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"
 	local build_dir="./cmd/$1"
@@ -72,12 +73,12 @@ build::binary() {
 build::image() {
 	local OUTPATH="./_output/binary/$GOOS/${BASE_NAME}-$1"
 	local build_image_dir="./_output/image/$1/"
-	local source_dir="./hack/contrib/docker/$1"
+	local source_dir="./hack/contrib/docker/$3/$1"
 	mkdir -p "${build_image_dir}"
 	chmod 777 "${build_image_dir}"
 	if [ ! -f "${source_dir}/ignorebuild" ]; then
-		if [ !${CACHE} ] || [ ! -f "${OUTPATH}" ]; then
-			build::binary "$1"
+		if [ ! ${CACHE} ] || [ ! -f "${OUTPATH}" ]; then
+			build::binary "$1" "$3"
 		fi
 		cp "${OUTPATH}" "${build_image_dir}"
 	fi
@@ -109,14 +110,34 @@ build::image() {
 }
 
 build::image::all() {
-	for item in "${build_items[@]}"; do
-		build::image "$item" "$1"
+	for item in "${core_modul_items[@]}"; do
+		build::image "$item" "$1" "core"
+	done
+
+	for item in "${addon_modul_items[@]}"; do
+		build::image "$item" "$1" "addon"
+	done
+}
+
+build::image::core() {
+	for item in "${core_modul_items[@]}"; do
+		build::image "$item" "$1" "core"
 	done
 }
 
 build::binary::all() {
-	for item in "${build_items[@]}"; do
-		build::binary "$item" "$1"
+	for item in "${core_modul_items[@]}"; do
+		build::binary "$item" "core"
+	done
+
+	for item in "${addon_modul_items[@]}"; do
+		build::binary "$item" "addon"
+	done
+}
+
+build::binary::core() {
+	for item in "${core_modul_items[@]}"; do
+		build::binary "$item" "core"
 	done
 }
 
@@ -124,15 +145,27 @@ case $1 in
 binary)
 	if [ "$2" = "all" ]; then
 		build::binary::all "$2"
+	elif [ "$2" = "core" ]; then
+		build::binary::core "$2"
 	else
-		build::binary "$2"
+		if [[ "${core_modul_items[*]}" =~ "${1}" ]]; then
+			build::binary "$1" "$2" "core"
+		else
+			build::binary "$1" "$2" "addon"
+		fi
 	fi
 	;;
 *)
 	if [ "$1" = "all" ]; then
 		build::image::all "$2"
+	elif [ "$1" = "core" ]; then
+		build::image::core "$2"
 	else
-		build::image "$1" "$2"
+		if [[ "${core_modul_items[*]}" =~ "${1}" ]]; then
+			build::image "$1" "$2" "core"
+		else
+			build::image "$1" "$2" "addon"
+		fi
 	fi
 	;;
 esac
