@@ -21,6 +21,7 @@ package monitor
 import (
 	"context"
 	"net/http"
+	"runtime"
 
 	"github.com/go-kit/kit/log"
 	"github.com/goodrain/rainbond/cmd/node-proxy/option"
@@ -52,12 +53,14 @@ type manager struct {
 func createNodeExporterRestry() (*prometheus.Registry, error) {
 	registry := prometheus.NewRegistry()
 	filters := []string{"cpu", "diskstats", "filesystem",
-		"ipvs", "loadavg", "meminfo", "netdev",
-		"netclass", "netdev", "netstat",
-		"uname", "mountstats", "nfs", "arp",
-		"btrfs", "bonding", "os", "xfs", "zfs",
-		"time", "thermal_zone", "stat", "softnet", "sockstat",
-		"schedstat", "pressure",
+		"loadavg", "meminfo", "netdev",
+		"netdev", "uname",
+		"time",
+	}
+	if runtime.GOOS == "linux" {
+		filters = append(filters, "ipvs", "netclass", "netstat", "nfs",
+			"xfs", "zfs", "mountstats", "arp", "btrfs", "bonding",
+			"schedstat", "pressure", "softnet", "sockstat", "stat", "os", "thermal_zone")
 	}
 	// init kingpin parse
 	kingpin.CommandLine.Parse([]string{"--collector.mountstats=true"})

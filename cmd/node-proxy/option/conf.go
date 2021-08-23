@@ -67,6 +67,7 @@ type Conf struct {
 	ImageRepositoryHost string
 	GatewayVIP          string
 	HostsFile           string
+	KubeConfigPath      string
 }
 
 //StatsdConfig StatsdConfig
@@ -99,6 +100,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.ImageRepositoryHost, "image-repo-host", "goodrain.me", "The host of image repository")
 	fs.StringVar(&a.GatewayVIP, "gateway-vip", "", "The vip of gateway")
 	fs.StringVar(&a.HostsFile, "hostsfile", "/newetc/hosts", "/etc/hosts mapped path in the container. eg. /etc/hosts:/tmp/hosts. Do not set hostsfile to /etc/hosts")
+	fs.StringVar(&a.KubeConfigPath, "kubeconfig", "", "path to kubeconfig file with authorization and master location information.")
 }
 
 //SetLog 设置log

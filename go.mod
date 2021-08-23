@@ -28,7 +28,6 @@ require (
 	github.com/emicklei/go-restful v2.14.2+incompatible
 	github.com/emicklei/go-restful-swagger12 v0.0.0-20170926063155-7524189396c6
 	github.com/envoyproxy/go-control-plane v0.9.5
-	github.com/fatih/color v1.9.0
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32

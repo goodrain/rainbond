@@ -53,7 +53,7 @@ func Run(cfg *option.Conf) error {
 			return fmt.Errorf("config parse error:%s", err.Error())
 		}
 
-		config, err := k8sutil.NewRestConfig("")
+		config, err := k8sutil.NewRestConfig(cfg.KubeConfigPath)
 		if err != nil {
 			return err
 		}

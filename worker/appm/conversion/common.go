@@ -19,9 +19,8 @@
 package conversion
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
-
 func conversionPortProtocol(protocol string) v1.Protocol {
 	if protocol == "udp" {
 		return v1.ProtocolUDP

@@ -30,7 +30,6 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/envutil"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -636,7 +635,7 @@ func createNodeSelector(as *v1.AppService, dbmanager db.Manager) map[string]stri
 	if err == nil && labels != nil && len(labels) > 0 {
 		for _, l := range labels {
 			if l.LabelValue == "windows" || l.LabelValue == "linux" {
-				selector[client.LabelOS] = l.LabelValue
+				selector[v1.LabelOS] = l.LabelValue
 				continue
 			}
 			if l.LabelValue == model.LabelKeyServicePrivileged {
@@ -671,7 +670,7 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 			if l.LabelKey == dbmodel.LabelKeyNodeAffinity {
 				if l.LabelValue == "windows" {
 					nsr = append(nsr, corev1.NodeSelectorRequirement{
-						Key:      client.LabelOS,
+						Key:      v1.LabelOS,
 						Operator: corev1.NodeSelectorOpIn,
 						Values:   []string{l.LabelValue},
 					})
@@ -714,20 +713,20 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 	}
 	if !osWindowsSelect {
 		nsr = append(nsr, corev1.NodeSelectorRequirement{
-			Key:      client.LabelOS,
+			Key:      v1.LabelOS,
 			Operator: corev1.NodeSelectorOpNotIn,
 			Values:   []string{"windows"},
 		})
 	}
 	if !enableGPU {
 		nsr = append(nsr, corev1.NodeSelectorRequirement{
-			Key:      client.LabelGPU,
+			Key:      v1.LabelGPU,
 			Values:   []string{"true"},
 			Operator: corev1.NodeSelectorOpNotIn,
 		})
 	} else {
 		nsr = append(nsr, corev1.NodeSelectorRequirement{
-			Key:      client.LabelGPU,
+			Key:      v1.LabelGPU,
 			Values:   []string{"true"},
 			Operator: corev1.NodeSelectorOpIn,
 		})
