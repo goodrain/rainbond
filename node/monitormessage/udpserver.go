@@ -99,13 +99,21 @@ func (u *UDPServer) handlePacket(packet []byte) {
 		conn, err := net.DialUDP("udp", srcAddr, dstAddr)
 		if err != nil {
 			logrus.Error("connect event udp server failure %s", err.Error())
+			return
 		}
 		u.client = conn
+		logrus.Infof("connect event udp server %s:%d", addr.IP, port)
 	}
 	lines := strings.Split(string(packet), "\n")
 	for _, line := range lines {
 		if line != "" && u.client != nil {
-			u.client.Write([]byte(line))
+			_, err := u.client.Write([]byte(line))
+			if err != nil {
+				logrus.Errorf("write udp message to event server failure %s", err.Error())
+				u.client.Close()
+				u.client = nil
+				return
+			}
 		}
 	}
 }

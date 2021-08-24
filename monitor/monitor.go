@@ -20,262 +20,68 @@ package monitor
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	v3 "github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
-	discoverv1 "github.com/goodrain/rainbond/discover"
-	discoverv2 "github.com/goodrain/rainbond/discover.v2"
-	"github.com/goodrain/rainbond/discover/config"
-	"github.com/goodrain/rainbond/monitor/callback"
 	"github.com/goodrain/rainbond/monitor/prometheus"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
-	"github.com/goodrain/rainbond/util/watch"
+	externalversions "github.com/prometheus-operator/prometheus-operator/pkg/client/informers/externalversions"
+	"github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 //Monitor monitor
 type Monitor struct {
-	config         *option.Config
-	ctx            context.Context
-	cancel         context.CancelFunc
-	client         *v3.Client
-	timeout        time.Duration
-	manager        *prometheus.Manager
-	discoverv1     discoverv1.Discover
-	discoverv2     discoverv2.Discover
-	serviceMonitor *prometheus.ServiceMonitorController
-	stopCh         chan struct{}
+	config             *option.Config
+	ctx                context.Context
+	cancel             context.CancelFunc
+	manager            *prometheus.Manager
+	prometheusOperator *prometheus.PrometheusOperator
+	stopCh             chan struct{}
 }
 
 //Start start
 func (d *Monitor) Start() {
-	d.discoverv1.AddProject("prometheus", &callback.Prometheus{Prometheus: d.manager})
-	d.discoverv1.AddProject("event_log_event_http", &callback.EventLog{Prometheus: d.manager})
-	d.discoverv1.AddProject("gateway", &callback.GatewayNode{Prometheus: d.manager})
-	d.discoverv2.AddProject("builder", &callback.Builder{Prometheus: d.manager})
-	d.discoverv2.AddProject("mq", &callback.Mq{Prometheus: d.manager})
-	d.discoverv2.AddProject("app_sync_runtime_server", &callback.Worker{Prometheus: d.manager})
-
-	// node and app runtime metrics needs to be monitored separately
-	go d.discoverNodes(&callback.Node{Prometheus: d.manager}, &callback.App{Prometheus: d.manager}, d.ctx.Done())
-
-	// monitor etcd members
-	go d.discoverEtcd(&callback.Etcd{
-		Prometheus: d.manager,
-		Scheme: func() string {
-			if d.config.EtcdCertFile != "" {
-				return "https"
-			}
-			return "http"
-		}(),
-		TLSConfig: prometheus.TLSConfig{
-			CAFile:   d.config.EtcdCaFile,
-			CertFile: d.config.EtcdCertFile,
-			KeyFile:  d.config.EtcdKeyFile,
-		},
-	}, d.ctx.Done())
-
-	// monitor Cadvisor
-	go d.discoverCadvisor(&callback.Cadvisor{
-		Prometheus: d.manager,
-		ListenPort: d.config.CadvisorListenPort,
-	}, d.ctx.Done())
-
-	// kubernetes service discovery
-	rbdapi := callback.RbdAPI{Prometheus: d.manager}
-	rbdapi.UpdateEndpoints(nil)
-
-	// service monitor
-	d.serviceMonitor.Run(d.stopCh)
-}
-
-func (d *Monitor) discoverNodes(node *callback.Node, app *callback.App, done <-chan struct{}) {
-	// start listen node modified
-	watcher := watch.New(d.client, "")
-	w, err := watcher.WatchList(d.ctx, "/rainbond/nodes", "")
-	if err != nil {
-		logrus.Error("failed to watch list for discover all nodes: ", err)
-		return
-	}
-	defer w.Stop()
-
-	for {
-		select {
-		case event, ok := <-w.ResultChan():
-			if !ok {
-				logrus.Warn("the events channel is closed.")
-				return
-			}
-
-			switch event.Type {
-			case watch.Added:
-				node.Add(&event)
-
-				isSlave := gjson.Get(event.GetValueString(), "labels.rainbond_node_rule_compute").String()
-				if isSlave == "true" {
-					app.Add(&event)
-				}
-			case watch.Modified:
-				node.Modify(&event)
-
-				isSlave := gjson.Get(event.GetValueString(), "labels.rainbond_node_rule_compute").String()
-				if isSlave == "true" {
-					app.Modify(&event)
-				}
-			case watch.Deleted:
-				node.Delete(&event)
-
-				isSlave := gjson.Get(event.GetPreValueString(), "labels.rainbond_node_rule_compute").String()
-				if isSlave == "true" {
-					app.Delete(&event)
-				}
-			case watch.Error:
-				logrus.Error("error when read a event from result chan for discover all nodes: ", event.Error)
-			}
-		case <-done:
-			logrus.Info("stop discover nodes because received stop signal.")
-			return
-		}
-
-	}
-
-}
-
-func (d *Monitor) discoverCadvisor(c *callback.Cadvisor, done <-chan struct{}) {
-	// start listen node modified
-	watcher := watch.New(d.client, "")
-	w, err := watcher.WatchList(d.ctx, "/rainbond/nodes", "")
-	if err != nil {
-		logrus.Error("failed to watch list for discover all nodes: ", err)
-		return
-	}
-	defer w.Stop()
-
-	for {
-		select {
-		case event, ok := <-w.ResultChan():
-			if !ok {
-				logrus.Warn("the events channel is closed.")
-				return
-			}
-			switch event.Type {
-			case watch.Added:
-				isSlave := gjson.Get(event.GetValueString(), "labels.rainbond_node_rule_compute").String()
-				if isSlave == "true" {
-					c.Add(&event)
-				}
-			case watch.Modified:
-				isSlave := gjson.Get(event.GetValueString(), "labels.rainbond_node_rule_compute").String()
-				if isSlave == "true" {
-					c.Modify(&event)
-				}
-			case watch.Deleted:
-				isSlave := gjson.Get(event.GetPreValueString(), "labels.rainbond_node_rule_compute").String()
-				if isSlave == "true" {
-					c.Delete(&event)
-				}
-			case watch.Error:
-				logrus.Error("error when read a event from result chan for discover all nodes: ", event.Error)
-			}
-		case <-done:
-			logrus.Info("stop discover nodes because received stop signal.")
-			return
-		}
-
-	}
-
-}
-
-func (d *Monitor) discoverEtcd(e *callback.Etcd, done <-chan struct{}) {
-	t := time.Tick(time.Minute)
-	for {
-		select {
-		case <-done:
-			logrus.Info("stop discover etcd because received stop signal.")
-			return
-		case <-t:
-			resp, err := d.client.MemberList(d.ctx)
-			if err != nil {
-				logrus.Error("Failed to list etcd members for discover etcd.")
-				continue
-			}
-
-			endpoints := make([]*config.Endpoint, 0, 5)
-			for _, member := range resp.Members {
-				if len(member.ClientURLs) >= 1 {
-					url := member.ClientURLs[0]
-					end := &config.Endpoint{
-						URL: url,
-					}
-					endpoints = append(endpoints, end)
-				}
-			}
-			logrus.Debugf("etcd endpoints: %+v", endpoints)
-			e.UpdateEndpoints(endpoints...)
-		}
-	}
+	logrus.Info("start init prometheus operator")
+	d.prometheusOperator.Run(d.stopCh)
+	logrus.Info("init prometheus operator success")
 }
 
 // Stop stop monitor
 func (d *Monitor) Stop() {
-	logrus.Info("Stopping all child process for monitor")
+	d.prometheusOperator.Stop()
 	d.cancel()
-	d.discoverv1.Stop()
-	d.discoverv2.Stop()
-	d.client.Close()
 	close(d.stopCh)
+	logrus.Info("prometheus operator stoped")
 }
 
 // NewMonitor new monitor
-func NewMonitor(opt *option.Config, p *prometheus.Manager) *Monitor {
-	ctx, cancel := context.WithCancel(context.Background())
-	defaultTimeout := time.Second * 3
-
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints:   opt.EtcdEndpoints,
-		DialTimeout: defaultTimeout,
-		CaFile:      opt.EtcdCaFile,
-		CertFile:    opt.EtcdCertFile,
-		KeyFile:     opt.EtcdKeyFile,
-	}
-
-	cli, err := etcdutil.NewClient(ctx, etcdClientArgs)
-	v3.New(v3.Config{})
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	dc1, err := discoverv1.GetDiscover(config.DiscoverConfig{EtcdClientArgs: etcdClientArgs})
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	dc3, err := discoverv2.GetDiscover(config.DiscoverConfig{EtcdClientArgs: etcdClientArgs})
-	if err != nil {
-		logrus.Fatal(err)
-	}
+func NewMonitor(opt *option.Config, p *prometheus.Manager) (*Monitor, error) {
 	restConfig, err := k8sutil.NewRestConfig(opt.KubeConfig)
 	if err != nil {
-		logrus.Fatal(err)
+		return nil, fmt.Errorf("new kube api rest config failure %s", err.Error())
 	}
-
+	ctx, cancel := context.WithCancel(context.Background())
 	d := &Monitor{
-		config:     opt,
-		ctx:        ctx,
-		cancel:     cancel,
-		manager:    p,
-		client:     cli,
-		discoverv1: dc1,
-		discoverv2: dc3,
-		timeout:    defaultTimeout,
-		stopCh:     make(chan struct{}),
+		config:  opt,
+		ctx:     ctx,
+		cancel:  cancel,
+		manager: p,
+		stopCh:  make(chan struct{}),
 	}
-	d.serviceMonitor, err = prometheus.NewServiceMonitorController(ctx, restConfig, p)
+	c, err := versioned.NewForConfig(restConfig)
 	if err != nil {
-		logrus.Fatal(err)
+		return nil, err
 	}
-	return d
+	smFactory := externalversions.NewSharedInformerFactoryWithOptions(c, 5*time.Minute,
+		externalversions.WithTweakListOptions(func(options *metav1.ListOptions) {
+			options.LabelSelector = "creator=Rainbond"
+		}))
+	d.prometheusOperator, err = prometheus.NewPrometheusOperator(ctx, smFactory, p)
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
 }

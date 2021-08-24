@@ -26,8 +26,6 @@ import (
 	"github.com/goodrain/rainbond/cmd/node-proxy/option"
 	"github.com/goodrain/rainbond/node/api/controller"
 	"github.com/goodrain/rainbond/node/api/router"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 
@@ -54,8 +52,6 @@ func NewManager(c option.Conf, kubecli *kubernetes.Clientset) *Manager {
 		conf:   c,
 		router: r,
 	}
-	// set node cluster monitor route
-	m.router.Get("/cluster/metrics", m.HandleClusterScrape)
 	return m
 }
 
@@ -87,18 +83,4 @@ func (m *Manager) Stop() error {
 //GetRouter GetRouter
 func (m *Manager) GetRouter() *chi.Mux {
 	return m.router
-}
-
-//HandleClusterScrape prometheus handle
-func (m *Manager) HandleClusterScrape(w http.ResponseWriter, r *http.Request) {
-	gatherers := prometheus.Gatherers{
-		prometheus.DefaultGatherer,
-	}
-	// Delegate http serving to Prometheus client library, which will call collector.Collect.
-	h := promhttp.HandlerFor(gatherers,
-		promhttp.HandlerOpts{
-			ErrorLog:      logrus.StandardLogger(),
-			ErrorHandling: promhttp.ContinueOnError,
-		})
-	h.ServeHTTP(w, r)
 }

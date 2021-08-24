@@ -29,72 +29,63 @@ import (
 
 	mv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	externalversions "github.com/prometheus-operator/prometheus-operator/pkg/client/informers/externalversions"
-	"github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/common/model"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
 
-//ServiceMonitorController service monitor
-type ServiceMonitorController struct {
-	ctx         context.Context
-	Prometheus  *Manager
-	lastScrapes []*ScrapeConfig
-	smClient    *versioned.Clientset
-	smInf       cache.SharedIndexInformer
-	queue       workqueue.RateLimitingInterface
+//PrometheusOperator service monitor
+type PrometheusOperator struct {
+	ctx        context.Context
+	Prometheus *Manager
+	smInf      cache.SharedIndexInformer
+	prInf      cache.SharedIndexInformer
+	queue      workqueue.RateLimitingInterface
 }
 
-//NewServiceMonitorController new sm controller
-func NewServiceMonitorController(ctx context.Context, config *rest.Config, pm *Manager) (*ServiceMonitorController, error) {
-	var smc ServiceMonitorController
-	c, err := versioned.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	smc.smClient = c
+//NewPrometheusOperator new sm controller
+func NewPrometheusOperator(ctx context.Context, smFactory externalversions.SharedInformerFactory, pm *Manager) (*PrometheusOperator, error) {
+	var smc PrometheusOperator
 	smc.ctx = ctx
-	smFactory := externalversions.NewSharedInformerFactoryWithOptions(c, 5*time.Minute,
-		externalversions.WithTweakListOptions(func(options *metav1.ListOptions) {
-			options.LabelSelector = "creator=Rainbond"
-		}))
-	informer := smFactory.Monitoring().V1().ServiceMonitors().Informer()
-	informer.AddEventHandlerWithResyncPeriod(&smc, time.Second*30)
-	smc.smInf = informer
+	smc.smInf = smFactory.Monitoring().V1().ServiceMonitors().Informer()
+	smc.prInf = smFactory.Monitoring().V1().PrometheusRules().Informer()
+	smc.smInf.AddEventHandlerWithResyncPeriod(&smc, time.Second*30)
+	smc.prInf.AddEventHandlerWithResyncPeriod(&smc, time.Second*30)
 	smc.Prometheus = pm
 	smc.queue = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "sm-monitor")
 	return &smc, nil
 }
 
 //Run run controller
-func (s *ServiceMonitorController) Run(stopCh <-chan struct{}) {
+func (s *PrometheusOperator) Run(stopCh <-chan struct{}) {
 	go s.worker(s.ctx)
-	go func() {
-		defer s.queue.ShutDown()
-		s.smInf.Run(stopCh)
-	}()
-	cache.WaitForCacheSync(stopCh, s.smInf.HasSynced)
-	logrus.Info("service monitor controller start success")
+	go s.smInf.Run(stopCh)
+	go s.prInf.Run(stopCh)
+	cache.WaitForCacheSync(stopCh, s.smInf.HasSynced, s.prInf.HasSynced)
+	logrus.Info("prometheus operator start success")
+}
+
+func (s *PrometheusOperator) Stop() {
+	s.queue.ShutDown()
 }
 
 //OnAdd sm add
-func (s *ServiceMonitorController) OnAdd(obj interface{}) {
+func (s *PrometheusOperator) OnAdd(obj interface{}) {
 	s.enqueue(obj)
 }
 
 //OnUpdate sm update
-func (s *ServiceMonitorController) OnUpdate(oldObj, newObj interface{}) {
+func (s *PrometheusOperator) OnUpdate(oldObj, newObj interface{}) {
 	s.enqueue(newObj)
 }
 
 //OnDelete sm delete
-func (s *ServiceMonitorController) OnDelete(obj interface{}) {
+func (s *PrometheusOperator) OnDelete(obj interface{}) {
 	s.enqueue(obj)
 }
-func (s *ServiceMonitorController) enqueue(obj interface{}) {
+func (s *PrometheusOperator) enqueue(obj interface{}) {
 	if obj == nil {
 		return
 	}
@@ -108,7 +99,7 @@ func (s *ServiceMonitorController) enqueue(obj interface{}) {
 	s.queue.Add(key)
 }
 
-func (s *ServiceMonitorController) keyFunc(obj interface{}) (string, bool) {
+func (s *PrometheusOperator) keyFunc(obj interface{}) (string, bool) {
 	//namespace and name
 	k, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
@@ -118,11 +109,11 @@ func (s *ServiceMonitorController) keyFunc(obj interface{}) (string, bool) {
 	return k, true
 }
 
-func (s *ServiceMonitorController) worker(ctx context.Context) {
+func (s *PrometheusOperator) worker(ctx context.Context) {
 	for s.processNextWorkItem(ctx) {
 	}
 }
-func (s *ServiceMonitorController) processNextWorkItem(ctx context.Context) bool {
+func (s *PrometheusOperator) processNextWorkItem(ctx context.Context) bool {
 	key, quit := s.queue.Get()
 	if quit {
 		return false
@@ -133,7 +124,15 @@ func (s *ServiceMonitorController) processNextWorkItem(ctx context.Context) bool
 	return true
 }
 
-func (s *ServiceMonitorController) sync() {
+func (s *PrometheusOperator) sync() {
+	logrus.Debug("start sync prometheus rule config to prometheus config")
+	prList := s.prInf.GetStore().List()
+	var prometheusRules []*mv1.PrometheusRule
+	for j := range prList {
+		if pr, ok := prList[j].(*mv1.PrometheusRule); ok && pr != nil {
+			prometheusRules = append(prometheusRules, pr)
+		}
+	}
 	logrus.Debug("start sync service monitor config to prometheus config")
 	smList := s.smInf.GetStore().List()
 	var scrapes []*ScrapeConfig
@@ -142,45 +141,36 @@ func (s *ServiceMonitorController) sync() {
 	i := 0
 	for j := range smList {
 		if sm, ok := smList[j].(*mv1.ServiceMonitor); ok && sm != nil {
-			sMonIdentifiers[i] = sm.GetName()
-			sMons[sm.GetName()] = sm
+			sMonIdentifiers[i] = sm.GetNamespace() + "/" + sm.GetName()
+			sMons[sm.GetNamespace()+"/"+sm.GetName()] = sm
 			i++
 		}
 	}
 
 	// Sorting ensures, that we always generate the config in the same order.
 	sort.Strings(sMonIdentifiers)
-	var scrapeMap = make(map[string]*ScrapeConfig, len(sMonIdentifiers))
 	for _, name := range sMonIdentifiers {
 		for i, end := range sMons[name].Spec.Endpoints {
 			scrape := s.createScrapeBySM(sMons[name], end, i)
-			scrapeMap[scrape.JobName] = scrape
 			scrapes = append(scrapes, scrape)
 		}
 	}
-	var remove []*ScrapeConfig
-	for i, ls := range s.lastScrapes {
-		if _, ok := scrapeMap[ls.JobName]; !ok {
-			remove = append(remove, s.lastScrapes[i])
-		}
-	}
-	s.Prometheus.UpdateAndRemoveScrape(remove, scrapes...)
-	s.lastScrapes = scrapes
-	logrus.Debugf("success sync service monitor config and or update %d , remove %d", len(scrapes), len(remove))
+	s.Prometheus.UpdateScrapeAndRule(scrapes, prometheusRules)
+	logrus.Debugf("success sync prometheus configs , scrapes length: %d, rule length: %d", len(scrapes), len(prometheusRules))
 }
 
-func (s *ServiceMonitorController) createScrapeBySM(sm *mv1.ServiceMonitor, ep mv1.Endpoint, i int) *ScrapeConfig {
+func (s *PrometheusOperator) createScrapeBySM(sm *mv1.ServiceMonitor, ep mv1.Endpoint, i int) *ScrapeConfig {
 	var sc = ScrapeConfig{
 		JobName: fmt.Sprintf("%s/%s/%d", sm.Namespace, sm.Name, i),
 		ServiceDiscoveryConfig: ServiceDiscoveryConfig{
 			KubernetesSDConfigs: []*SDConfig{
-				&SDConfig{
+				{
 					Role: RoleEndpoint,
 					NamespaceDiscovery: NamespaceDiscovery{
 						Names: []string{sm.Namespace},
 					},
 					Selectors: []SelectorConfig{
-						SelectorConfig{
+						{
 							Role: RoleEndpoint,
 						},
 					},

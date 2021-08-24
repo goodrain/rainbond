@@ -78,12 +78,14 @@ require (
 	github.com/prometheus/common v0.29.0
 	github.com/prometheus/node_exporter v1.2.2
 	github.com/prometheus/procfs v0.7.2
+	github.com/prometheus/prometheus v1.8.2-0.20200609102542-5d7e3e970602
 	github.com/shirou/gopsutil v3.21.3+incompatible
 	github.com/sirupsen/logrus v1.7.0
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	github.com/testcontainers/testcontainers-go v0.8.0
+	github.com/thanos-io/thanos v0.11.0
 	github.com/thejerf/suture v3.0.3+incompatible
 	github.com/tidwall/gjson v1.6.8
 	github.com/twinj/uuid v1.0.0
