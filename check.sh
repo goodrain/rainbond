@@ -1,5 +1,8 @@
-#!/bin/sh
-pull_number=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
+#!/bin/bash
+
+if [ -z $pull_number ]; then
+  pull_number=$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
+fi
 
 URL="https://api.github.com/repos/goodrain/rainbond/pulls/${pull_number}/files"
 

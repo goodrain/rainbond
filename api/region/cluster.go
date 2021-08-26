@@ -23,6 +23,7 @@ import (
 	utilhttp "github.com/goodrain/rainbond/util/http"
 )
 
+//ClusterResource cluster resource model
 type ClusterResource struct {
 	AllNode        int     `json:"all_node"`
 	NotReadyNode   int     `json:"notready_node"`

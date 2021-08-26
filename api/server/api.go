@@ -67,6 +67,7 @@ type Manager struct {
 	websocketModuls map[string]CustomModule
 }
 
+//CustomModule custom module set route for api
 type CustomModule interface {
 	SetRoute(*chi.Mux) error
 }

@@ -43,7 +43,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	restclient "k8s.io/client-go/rest"
 )
 
 //ExecuteCommandTotal metric
@@ -61,9 +60,9 @@ type App struct {
 	titleTemplate *template.Template
 
 	onceMutex  *umutex.UnblockingMutex
-	restClient *restclient.RESTClient
+	restClient *rest.RESTClient
 	coreClient *kubernetes.Clientset
-	config     *restclient.Config
+	config     *rest.Config
 }
 
 //Options options
@@ -131,7 +130,7 @@ func New(options *Options) (*App, error) {
 	return app, nil
 }
 
-//Run Run
+//SetRoute -
 func (app *App) SetRoute(route *chi.Mux) error {
 	route.Handle("/docker_console", http.HandlerFunc(app.handleWS))
 	return nil
@@ -141,7 +140,7 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 	logrus.Printf("New client connected: %s", r.RemoteAddr)
 
 	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", 405)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -163,7 +162,7 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 
 	var init InitMessage
 
-	err = json.Unmarshal(stream, &init)
+	_ = json.Unmarshal(stream, &init)
 
 	//todo auth
 	if init.PodName == "" {
@@ -238,7 +237,7 @@ func (app *App) createKubeClient() error {
 	}
 	SetConfigDefaults(config)
 	app.config = config
-	restClient, err := restclient.RESTClientFor(config)
+	restClient, err := rest.RESTClientFor(config)
 	if err != nil {
 		return err
 	}
@@ -285,7 +284,7 @@ func (app *App) GetContainerArgs(namespace, podname, containerName string) (stri
 }
 
 //NewRequest new exec request
-func (app *App) NewRequest(podName, namespace, containerName string, command []string) *restclient.Request {
+func (app *App) NewRequest(podName, namespace, containerName string, command []string) *rest.Request {
 	// TODO: consider abstracting into a client invocation or client helper
 	req := app.restClient.Post().
 		Resource("pods").
