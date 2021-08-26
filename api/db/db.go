@@ -92,7 +92,7 @@ type MQManager struct {
 
 //NewMQManager new mq manager
 func (m *MQManager) NewMQManager() (client.MQClient, error) {
-	client, err := client.NewMqClient(m.EtcdClientArgs, m.DefaultServer)
+	client, err := client.NewMqClient(m.DefaultServer)
 	if err != nil {
 		logrus.Errorf("new mq manager error, %v", err)
 		return client, err

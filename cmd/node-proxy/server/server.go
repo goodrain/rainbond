@@ -62,14 +62,13 @@ func Run(cfg *option.Conf) error {
 			return err
 		}
 
-		k8sDiscover := discover.NewK8sDiscover(ctx, clientset, cfg)
-		defer k8sDiscover.Stop()
-
 		nodemanager, err := nodem.NewNodeManager(ctx, cfg)
 		if err != nil {
 			return fmt.Errorf("create node manager failed: %s", err)
 		}
 		if cfg.ImageRepositoryHost == constants.DefImageRepository {
+			k8sDiscover := discover.NewK8sDiscover(ctx, clientset, cfg)
+			defer k8sDiscover.Stop()
 			hostManager, err := initiate.NewHostManager(cfg, k8sDiscover)
 			if err != nil {
 				return fmt.Errorf("create new host manager: %v", err)
@@ -112,7 +111,7 @@ func Run(cfg *option.Conf) error {
 
 		logrus.Debug("create and start api server moudle success")
 		//step finally: listen Signal
-		term := make(chan os.Signal)
+		term := make(chan os.Signal, 1)
 		signal.Notify(term, os.Interrupt, syscall.SIGTERM)
 		select {
 		case <-stoped:

@@ -24,8 +24,6 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
-	grpcutil "github.com/goodrain/rainbond/util/grpc"
 	"github.com/sirupsen/logrus"
 	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
@@ -54,26 +52,13 @@ type mqClient struct {
 }
 
 //NewMqClient new a mq client
-func NewMqClient(etcdClientArgs *etcdutil.ClientArgs, defaultserver string) (MQClient, error) {
+func NewMqClient(defaultserver string) (MQClient, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var conn *grpc.ClientConn
-	if etcdClientArgs != nil && etcdClientArgs.Endpoints != nil && len(defaultserver) > 1 {
-		c, err := etcdutil.NewClient(ctx, etcdClientArgs)
-		if err != nil {
-			return nil, err
-		}
-		r := &grpcutil.GRPCResolver{Client: c}
-		b := grpc.RoundRobin(r)
-		conn, err = grpc.DialContext(ctx, "/rainbond/discover/rainbond_mq", grpc.WithBalancer(b), grpc.WithInsecure())
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		var err error
-		conn, err = grpc.DialContext(ctx, defaultserver, grpc.WithInsecure())
-		if err != nil {
-			return nil, err
-		}
+	var err error
+	conn, err = grpc.DialContext(ctx, defaultserver, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
 	}
 	cli := pb.NewTaskQueueClient(conn)
 	client := &mqClient{

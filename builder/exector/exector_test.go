@@ -71,7 +71,7 @@ func Test_exectorManager_buildFromSourceCode(t *testing.T) {
 	} else {
 		maxConcurrentTask = conf.MaxTasks
 	}
-	mqClient, err := mqclient.NewMqClient(&etcdArgs, conf.MQAPI)
+	mqClient, err := mqclient.NewMqClient(conf.MQAPI)
 	if err != nil {
 		t.Fatal(err)
 	}

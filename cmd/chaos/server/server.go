@@ -36,8 +36,6 @@ import (
 
 	"github.com/goodrain/rainbond/builder/api"
 	"github.com/goodrain/rainbond/builder/clean"
-	discoverv2 "github.com/goodrain/rainbond/discover.v2"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
@@ -50,17 +48,9 @@ func Run(s *option.Builder) error {
 	dbconfig := config.Config{
 		DBType:              s.Config.DBType,
 		MysqlConnectionInfo: s.Config.MysqlConnectionInfo,
-		EtcdEndPoints:       s.Config.EtcdEndPoints,
-		EtcdTimeout:         s.Config.EtcdTimeout,
 	}
 	if err := db.CreateManager(dbconfig); err != nil {
 		return err
-	}
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints: s.Config.EtcdEndPoints,
-		CaFile:    s.Config.EtcdCaFile,
-		CertFile:  s.Config.EtcdCertFile,
-		KeyFile:   s.Config.EtcdKeyFile,
 	}
 	if err := event.NewManager(event.EventConfig{
 		EventLogServers: s.Config.EventLogServers,
@@ -68,7 +58,7 @@ func Run(s *option.Builder) error {
 		return err
 	}
 	defer event.CloseManager()
-	client, err := client.NewMqClient(etcdClientArgs, s.Config.MQAPI)
+	client, err := client.NewMqClient(s.Config.MQAPI)
 	if err != nil {
 		logrus.Errorf("new Mq client error, %v", err)
 		return err
@@ -97,15 +87,6 @@ func Run(s *option.Builder) error {
 		}
 		defer cle.Stop()
 	}
-	keepalive, err := discoverv2.CreateKeepAlive(etcdClientArgs, "builder",
-		"", s.Config.HostIP, s.Config.APIPort)
-	if err != nil {
-		return err
-	}
-	if err := keepalive.Start(); err != nil {
-		return err
-	}
-	defer keepalive.Stop()
 
 	exporter := monitor.NewExporter(exec)
 	prometheus.MustRegister(exporter)
@@ -116,7 +97,7 @@ func Run(s *option.Builder) error {
 
 	logrus.Info("builder begin running...")
 	//step finally: listen Signal
-	term := make(chan os.Signal)
+	term := make(chan os.Signal, 1)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
 	select {
 	case <-term:

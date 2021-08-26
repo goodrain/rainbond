@@ -34,8 +34,6 @@ type V2 struct {
 //Routes routes
 func (v2 *V2) Routes() chi.Router {
 	r := chi.NewRouter()
-	license := middleware.NewLicense(v2.Cfg)
-	r.Use(license.Verify)
 	r.Get("/show", controller.GetManager().Show)
 	r.Post("/show", controller.GetManager().Show)
 	r.Mount("/tenants", v2.tenantRouter())

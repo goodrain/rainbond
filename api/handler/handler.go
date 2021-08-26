@@ -65,7 +65,6 @@ func InitHandle(conf option.Config,
 	defaultAppHandler = CreateAppManager(mqClient)
 	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, kubeClient, prometheusCli, k8sClient)
 	defaultNetRulesHandler = CreateNetRulesManager(etcdcli)
-	defaultCloudHandler = CreateCloudManager(conf)
 	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdcli)
 	defaultEventHandler = CreateLogManager()
 	shareHandler = &share.ServiceShareHandle{MQClient: mqClient, EtcdCli: etcdcli}
@@ -133,13 +132,6 @@ var defaultNetRulesHandler NetRulesHandler
 //GetRulesManager get manager
 func GetRulesManager() NetRulesHandler {
 	return defaultNetRulesHandler
-}
-
-var defaultCloudHandler CloudHandler
-
-//GetCloudManager get manager
-func GetCloudManager() CloudHandler {
-	return defaultCloudHandler
 }
 
 var defaultEventHandler EventHandler

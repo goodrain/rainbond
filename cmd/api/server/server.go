@@ -95,11 +95,8 @@ func Run(s *option.APIServer) error {
 	defer event.CloseManager()
 	//create app status client
 	cli, err := client.NewClient(ctx, client.AppRuntimeSyncClientConf{
-		EtcdEndpoints: s.Config.EtcdEndpoint,
-		EtcdCaFile:    s.Config.EtcdCaFile,
-		EtcdCertFile:  s.Config.EtcdCertFile,
-		EtcdKeyFile:   s.Config.EtcdKeyFile,
-		NonBlock:      s.Config.Debug,
+		DefaultServerAddress: s.Config.WorkerAddress,
+		NonBlock:             s.Config.Debug,
 	})
 	if err != nil {
 		logrus.Errorf("create app status client error, %v", err)

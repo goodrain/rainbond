@@ -25,7 +25,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/goodrain/rainbond/discover/config"
+	"github.com/goodrain/rainbond/discover.v2/config"
 	"github.com/sirupsen/logrus"
 )
 

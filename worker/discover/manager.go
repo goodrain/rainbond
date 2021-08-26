@@ -27,7 +27,6 @@ import (
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/mq/client"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/discover/model"
@@ -74,13 +73,7 @@ func NewTaskManager(cfg option.Config,
 
 //Start 启动
 func (t *TaskManager) Start() error {
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints: t.config.EtcdEndPoints,
-		CaFile:    t.config.EtcdCaFile,
-		CertFile:  t.config.EtcdCertFile,
-		KeyFile:   t.config.EtcdKeyFile,
-	}
-	client, err := client.NewMqClient(etcdClientArgs, t.config.MQAPI)
+	client, err := client.NewMqClient(t.config.MQAPI)
 	if err != nil {
 		logrus.Errorf("new Mq client error, %v", err)
 		healthStatus["status"] = "unusual"

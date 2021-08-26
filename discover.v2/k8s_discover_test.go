@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/cmd/node-proxy/option"
-	"github.com/goodrain/rainbond/discover/config"
+	"github.com/goodrain/rainbond/discover.v2/config"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 

@@ -29,12 +29,10 @@ import (
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
-	discover "github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/helm"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/constants"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
@@ -64,7 +62,6 @@ type RuntimeServer struct {
 	conf      option.Config
 	server    *grpc.Server
 	hostIP    string
-	keepalive *discover.KeepAlive
 	clientset kubernetes.Interface
 	updateCh  *channels.RingChannel
 }
@@ -462,20 +459,7 @@ func (r *RuntimeServer) registServer() error {
 			return nil
 		}, time.Second*3)
 	}
-	if r.keepalive == nil {
-		etcdClientArgs := &etcdutil.ClientArgs{
-			Endpoints: r.conf.EtcdEndPoints,
-			CaFile:    r.conf.EtcdCaFile,
-			CertFile:  r.conf.EtcdCertFile,
-			KeyFile:   r.conf.EtcdKeyFile,
-		}
-		keepalive, err := discover.CreateKeepAlive(etcdClientArgs, "app_sync_runtime_server", "", r.conf.HostIP, r.conf.ServerPort)
-		if err != nil {
-			return fmt.Errorf("create app sync server keepalive error,%s", err.Error())
-		}
-		r.keepalive = keepalive
-	}
-	return r.keepalive.Start()
+	return nil
 }
 
 // ListThirdPartyEndpoints returns a collection of third-part endpoints.
