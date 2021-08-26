@@ -21,14 +21,11 @@ package event
 import (
 	"testing"
 	"time"
-
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 )
 
 func TestLogger(t *testing.T) {
 	err := NewManager(EventConfig{
 		EventLogServers: []string{"192.168.195.1:6366"},
-		DiscoverArgs:    &etcdutil.ClientArgs{Endpoints: []string{"192.168.195.1:2379"}},
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -42,7 +42,16 @@ const (
 )
 
 // RunAsLeader starts this particular external attacher after becoming a leader.
-func RunAsLeader(ctx context.Context, clientset kubernetes.Interface, namespace string, identity string, lockName string, startFunc func(ctx context.Context), stopFunc func()) {
+func RunAsLeader(
+	ctx context.Context,
+	clientset kubernetes.Interface,
+	namespace string,
+	identity string,
+	lockName string,
+	startFunc func(ctx context.Context),
+	stopFunc func(),
+	callbackLeader func(string),
+) {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartRecordingToSink(&corev1.EventSinkImpl{Interface: clientset.CoreV1().Events(namespace)})
 	eventRecorder := broadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: fmt.Sprintf("%s %s", lockName, string(identity))})
@@ -73,6 +82,7 @@ func RunAsLeader(ctx context.Context, clientset kubernetes.Interface, namespace 
 			},
 			OnNewLeader: func(identity string) {
 				logrus.Debugf("Current leader: %s", identity)
+				callbackLeader(identity)
 			},
 		},
 	}

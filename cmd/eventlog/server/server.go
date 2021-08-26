@@ -27,16 +27,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/eventlog/cluster"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/eventlog/entry"
 	"github.com/goodrain/rainbond/eventlog/exit/web"
 	"github.com/goodrain/rainbond/eventlog/store"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"k8s.io/client-go/kubernetes"
 )
 
 // LogServer -
@@ -69,17 +69,10 @@ func (s *LogServer) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&s.Conf.Entry.MonitorMessageServer.CacheMessageSize, "monitor.cache", 200, "the monitor sub server cache the receive message size")
 	fs.StringVar(&s.Conf.Entry.MonitorMessageServer.SubSubscribe, "monitor.subscribe", "ceptop", "the monitor message sub server subscribe info")
 	fs.BoolVar(&s.Conf.ClusterMode, "cluster", true, "Whether open cluster mode")
-	fs.StringVar(&s.Conf.Cluster.Discover.InstanceIP, "cluster.instance.ip", "", "The current instance IP in the cluster can be communications.")
-	fs.StringVar(&s.Conf.Cluster.Discover.Type, "discover.type", "etcd", "the instance in cluster auto discover way.")
-	fs.StringSliceVar(&s.Conf.Cluster.Discover.EtcdAddr, "discover.etcd.addr", []string{"http://127.0.0.1:2379"}, "set all etcd server addr in cluster for message instence auto discover.")
-	fs.StringVar(&s.Conf.Cluster.Discover.EtcdCaFile, "discover.etcd.ca", "", "verify etcd certificates of TLS-enabled secure servers using this CA bundle")
-	fs.StringVar(&s.Conf.Cluster.Discover.EtcdCertFile, "discover.etcd.cert", "", "identify secure etcd client using this TLS certificate file")
-	fs.StringVar(&s.Conf.Cluster.Discover.EtcdKeyFile, "discover.etcd.key", "", "identify secure etcd client using this TLS key file")
-	fs.StringVar(&s.Conf.Cluster.Discover.HomePath, "discover.etcd.homepath", "/event", "etcd home key")
-	fs.StringVar(&s.Conf.Cluster.Discover.EtcdUser, "discover.etcd.user", "", "etcd server user info")
-	fs.StringVar(&s.Conf.Cluster.Discover.EtcdPass, "discover.etcd.pass", "", "etcd server user password")
+	fs.StringVar(&s.Conf.Cluster.HostIP, "cluster.instance.ip", "", "The current instance IP in the cluster can be communications.")
 	fs.StringVar(&s.Conf.Cluster.PubSub.PubBindIP, "cluster.bind.ip", "0.0.0.0", "Cluster communication to listen the IP")
 	fs.IntVar(&s.Conf.Cluster.PubSub.PubBindPort, "cluster.bind.port", 6365, "Cluster communication to listen the Port")
+	fs.IntVar(&s.Conf.Cluster.ClusterPort, "cluster.leader.port", 6367, "leader server bind port")
 	fs.StringVar(&s.Conf.EventStore.MessageType, "message.type", "json", "Receive and transmit the log message type.")
 	fs.StringVar(&s.Conf.EventStore.GarbageMessageSaveType, "message.garbage.save", "file", "garbage message way of storage")
 	fs.StringVar(&s.Conf.EventStore.GarbageMessageFile, "message.garbage.file", "/var/log/envent_garbage_message.log", "save garbage message file path when save type is file")
@@ -111,8 +104,9 @@ func (s *LogServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&s.Conf.EventStore.DB.HomePath, "docker.log.homepath", "/grdata/logs/", "container log persistent home path")
 	fs.StringVar(&s.Conf.Entry.NewMonitorMessageServerConf.ListenerHost, "monitor.udp.host", "0.0.0.0", "receive new monitor udp server host")
 	fs.IntVar(&s.Conf.Entry.NewMonitorMessageServerConf.ListenerPort, "monitor.udp.port", 6166, "receive new monitor udp server port")
-	fs.StringVar(&s.Conf.Cluster.Discover.NodeID, "node-id", "", "the unique ID for this node.")
 	fs.DurationVar(&s.Conf.Cluster.PubSub.PollingTimeout, "zmq4-polling-timeout", 200*time.Millisecond, "The timeout determines the time-out on the polling of sockets")
+	fs.StringVar(&s.Conf.KubeConfigPath, "kubeconfig", "", "path to kubeconfig file with authorization and master location information.")
+	fs.StringVar(&s.Conf.Cluster.LeaderElectionNamespace, "leader-election-namespace", "rbd-system", "Namespace where this attacher runs.")
 }
 
 //InitLog 初始化log
@@ -157,11 +151,9 @@ func (s *LogServer) InitLog() {
 
 //InitConf 初始化配置
 func (s *LogServer) InitConf() {
-	s.Conf.Cluster.Discover.ClusterMode = s.Conf.ClusterMode
-	s.Conf.Cluster.PubSub.ClusterMode = s.Conf.ClusterMode
 	s.Conf.EventStore.ClusterMode = s.Conf.ClusterMode
-	s.Conf.Cluster.Discover.DockerLogPort = s.Conf.Entry.DockerLogServer.BindPort
-	s.Conf.Cluster.Discover.WebPort = s.Conf.WebSocket.BindPort
+	s.Conf.Cluster.DockerLogPort = s.Conf.Entry.DockerLogServer.BindPort
+	s.Conf.Cluster.WebsocketPort = s.Conf.WebSocket.BindPort
 	if os.Getenv("MYSQL_HOST") != "" && os.Getenv("MYSQL_USER") != "" && os.Getenv("MYSQL_PASSWORD") != "" {
 		s.Conf.EventStore.DB.URL = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", os.Getenv("MYSQL_USER"), os.Getenv("MYSQL_PASSWORD"),
 			os.Getenv("MYSQL_HOST"), os.Getenv("MYSQL_PORT"), os.Getenv("MYSQL_DATABASE"))
@@ -176,24 +168,20 @@ func (s *LogServer) Run() error {
 	s.Logger.Debug("Start run server.")
 	log := s.Logger
 
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints: s.Conf.Cluster.Discover.EtcdAddr,
-		CaFile:    s.Conf.Cluster.Discover.EtcdCaFile,
-		CertFile:  s.Conf.Cluster.Discover.EtcdCertFile,
-		KeyFile:   s.Conf.Cluster.Discover.EtcdKeyFile,
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	etcdClient, err := etcdutil.NewClient(ctx, etcdClientArgs)
-	if err != nil {
-		return err
-	}
-
 	//init new db
 	if err := db.CreateDBManager(s.Conf.EventStore.DB); err != nil {
 		logrus.Infof("create db manager error, %v", err)
+		return err
+	}
+
+	config, err := k8sutil.NewRestConfig(s.Conf.KubeConfigPath)
+	if err != nil {
+		return err
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
 		return err
 	}
 
@@ -206,15 +194,12 @@ func (s *LogServer) Run() error {
 		return err
 	}
 	defer storeManager.Stop()
-	if s.Conf.ClusterMode {
-		s.Cluster = cluster.NewCluster(etcdClient, s.Conf.Cluster, log.WithField("module", "Cluster"), storeManager)
-		if err := s.Cluster.Start(); err != nil {
-			return err
-		}
-		defer s.Cluster.Stop()
+	s.Cluster = cluster.NewCluster(ctx, s.Conf.Cluster, clientset, log.WithField("module", "Cluster"), storeManager)
+	if err := s.Cluster.Start(); err != nil {
+		return err
 	}
-	s.SocketServer = web.NewSocket(s.Conf.WebSocket, s.Conf.Cluster.Discover, etcdClient,
-		log.WithField("module", "SocketServer"), storeManager, s.Cluster, healthInfo)
+	defer s.Cluster.Stop()
+	s.SocketServer = web.NewSocket(s.Conf.WebSocket, log.WithField("module", "SocketServer"), storeManager, s.Cluster, healthInfo)
 	if err := s.SocketServer.Run(); err != nil {
 		return err
 	}
@@ -226,38 +211,7 @@ func (s *LogServer) Run() error {
 	}
 	defer s.Entry.Stop()
 
-	//服务注册
-	grpckeepalive, err := discover.CreateKeepAlive(etcdClientArgs, "event_log_event_grpc",
-		s.Conf.Cluster.Discover.NodeID, s.Conf.Cluster.Discover.InstanceIP, s.Conf.Entry.EventLogServer.BindPort)
-	if err != nil {
-		return err
-	}
-	if err := grpckeepalive.Start(); err != nil {
-		return err
-	}
-	defer grpckeepalive.Stop()
-
-	udpkeepalive, err := discover.CreateKeepAlive(etcdClientArgs, "event_log_event_udp",
-		s.Conf.Cluster.Discover.NodeID, s.Conf.Cluster.Discover.InstanceIP, s.Conf.Entry.NewMonitorMessageServerConf.ListenerPort)
-	if err != nil {
-		return err
-	}
-	if err := udpkeepalive.Start(); err != nil {
-		return err
-	}
-	defer udpkeepalive.Stop()
-
-	httpkeepalive, err := discover.CreateKeepAlive(etcdClientArgs, "event_log_event_http",
-		s.Conf.Cluster.Discover.NodeID, s.Conf.Cluster.Discover.InstanceIP, s.Conf.WebSocket.BindPort)
-	if err != nil {
-		return err
-	}
-	if err := httpkeepalive.Start(); err != nil {
-		return err
-	}
-	defer httpkeepalive.Stop()
-
-	term := make(chan os.Signal)
+	term := make(chan os.Signal, 1)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
 	select {
 	case <-term:

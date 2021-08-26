@@ -44,9 +44,7 @@ import (
 	"github.com/goodrain/rainbond/api/api_routers/doc"
 	"github.com/goodrain/rainbond/api/api_routers/license"
 	"github.com/goodrain/rainbond/api/metric"
-	"github.com/goodrain/rainbond/api/proxy"
 
-	"github.com/goodrain/rainbond/api/api_routers/cloud"
 	"github.com/goodrain/rainbond/api/api_routers/version2"
 	"github.com/goodrain/rainbond/api/api_routers/websocket"
 
@@ -64,7 +62,6 @@ type Manager struct {
 	conf            option.Config
 	stopChan        chan struct{}
 	r               *chi.Mux
-	prometheusProxy proxy.Proxy
 	etcdcli         *clientv3.Client
 	exporter        *metric.Exporter
 	websocketModuls map[string]CustomModule
@@ -164,11 +161,8 @@ func (m *Manager) Run() error {
 		res.Write([]byte("ok"))
 	})
 	m.r.Mount("/v2", v2R.Routes())
-	m.r.Mount("/cloud", cloud.Routes())
 	m.r.Mount("/", doc.Routes())
 	m.r.Mount("/license", license.Routes())
-	//兼容老版docker
-	m.r.Get("/v1/etcd/event-log/instances", m.EventLogInstance)
 	m.r.Get("/kubernetes/dashboard", m.KuberntesDashboardAPI)
 	//prometheus单节点代理
 	m.r.Get("/api/v1/query", m.PrometheusAPI)
@@ -219,30 +213,6 @@ func (m *Manager) Run() error {
 	return nil
 }
 
-//EventLogInstance 查询event server instance
-func (m *Manager) EventLogInstance(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(m.ctx)
-	defer cancel()
-
-	res, err := m.etcdcli.Get(ctx, "/event/instance", clientv3.WithPrefix())
-	if err != nil {
-		w.WriteHeader(500)
-		return
-	}
-	if res.Kvs != nil && len(res.Kvs) > 0 {
-		result := `{"data":{"instance":[`
-		for _, kv := range res.Kvs {
-			result += string(kv.Value) + ","
-		}
-		result = result[:len(result)-1] + `]},"ok":true}`
-		w.Write([]byte(result))
-		w.WriteHeader(200)
-		return
-	}
-	w.WriteHeader(404)
-	return
-}
-
 //PrometheusAPI prometheus api 代理
 func (m *Manager) PrometheusAPI(w http.ResponseWriter, r *http.Request) {
 	handler.GetPrometheusProxy().Proxy(w, r)
@@ -268,7 +238,7 @@ func (m *Manager) RequestMetric(next http.Handler) http.Handler {
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 		defer func() {
 			path := r.RequestURI
-			if strings.Index(r.RequestURI, "?") > -1 {
+			if strings.Contains(r.RequestURI, "?") {
 				path = r.RequestURI[:strings.Index(r.RequestURI, "?")]
 			}
 			m.exporter.RequestInc(ww.Status(), path)

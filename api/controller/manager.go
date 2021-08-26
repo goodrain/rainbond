@@ -22,7 +22,6 @@ import (
 	"net/http"
 
 	"github.com/goodrain/rainbond/api/api"
-	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	mqclient "github.com/goodrain/rainbond/mq/client"
@@ -82,8 +81,7 @@ func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2
 	v2r.GatewayStruct.MQClient = mqClient
 	v2r.GatewayStruct.cfg = &conf
 	v2r.LabelController.optconfig = &conf
-	eventServerProxy := proxy.CreateProxy("eventlog", "http", []string{"local=>rbd-eventlog:6363"})
-	discover.GetEndpointDiscover().AddProject("event_log_event_http", eventServerProxy)
+	eventServerProxy := proxy.CreateProxy("eventlog", "http", []string{"rbd-eventlog:6363"})
 	v2r.EventLogStruct.EventlogServerProxy = eventServerProxy
 	return &v2r, nil
 }

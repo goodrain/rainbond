@@ -329,14 +329,14 @@ func getLogAddress(clusterAddress []string) string {
 			logrus.Warningf("Error get host info from %s. %s", address, err)
 			continue
 		}
-		var host = make(map[string]string)
+		var host = make(map[string]interface{})
 		err = json.NewDecoder(res.Body).Decode(&host)
 		if err != nil {
 			logrus.Errorf("Error Decode BEST instance host info: %v", err)
 			continue
 		}
 		if status, ok := host["status"]; ok && status == "success" {
-			return host["host"]
+			return host["host"].(string)
 		}
 		logrus.Warningf("Error get host info from %s. result is not success. body is:%v", address, host)
 	}

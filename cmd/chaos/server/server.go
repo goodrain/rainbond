@@ -26,7 +26,7 @@ import (
 	"github.com/goodrain/rainbond/builder/discover"
 	"github.com/goodrain/rainbond/builder/exector"
 	"github.com/goodrain/rainbond/builder/monitor"
-	"github.com/goodrain/rainbond/cmd/builder/option"
+	"github.com/goodrain/rainbond/cmd/chaos/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
@@ -64,7 +64,6 @@ func Run(s *option.Builder) error {
 	}
 	if err := event.NewManager(event.EventConfig{
 		EventLogServers: s.Config.EventLogServers,
-		DiscoverArgs:    etcdClientArgs,
 	}); err != nil {
 		return err
 	}

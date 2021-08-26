@@ -246,13 +246,17 @@ func (m *Controller) Start() error {
 			case <-m.ctx.Done():
 				return
 			case <-leaderCh:
-				logrus.Info("run as leader")
-				ctx, cancel := context.WithCancel(m.ctx)
-				defer cancel()
-				leader.RunAsLeader(ctx, m.kubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {
-					leaderCh <- struct{}{}
-					logrus.Info("restart leader")
-				})
+				func() {
+					logrus.Info("try run as leader")
+					ctx, cancel := context.WithCancel(m.ctx)
+					defer cancel()
+					leader.RunAsLeader(ctx, m.kubeClient, m.conf.LeaderElectionNamespace, m.conf.LeaderElectionIdentity, lockName, start, func() {
+						leaderCh <- struct{}{}
+						logrus.Info("restart leader")
+					}, func(leader string) {
+						logrus.Infof("leader node is %s", leader)
+					})
+				}()
 			}
 		}
 	}()

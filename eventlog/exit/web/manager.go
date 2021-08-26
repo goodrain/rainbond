@@ -27,14 +27,12 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/eventlog/cluster"
-	"github.com/goodrain/rainbond/eventlog/cluster/discover"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/exit/monitor"
 	"github.com/goodrain/rainbond/eventlog/store"
 	"github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/gorilla/websocket"
@@ -49,7 +47,6 @@ import (
 //SocketServer socket 服务
 type SocketServer struct {
 	conf                 conf.WebSocketConf
-	discoverConf         conf.DiscoverConf
 	log                  *logrus.Entry
 	cancel               func()
 	context              context.Context
@@ -59,12 +56,11 @@ type SocketServer struct {
 	timeout              time.Duration
 	cluster              cluster.Cluster
 	healthInfo           map[string]string
-	etcdClient           *clientv3.Client
 	pubsubCtx            map[string]*PubContext
 }
 
 //NewSocket 创建zmq sub客户端
-func NewSocket(conf conf.WebSocketConf, discoverConf conf.DiscoverConf, etcdClient *clientv3.Client, log *logrus.Entry, storeManager store.Manager, c cluster.Cluster, healthInfo map[string]string) *SocketServer {
+func NewSocket(conf conf.WebSocketConf, log *logrus.Entry, storeManager store.Manager, c cluster.Cluster, healthInfo map[string]string) *SocketServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	d, err := time.ParseDuration(conf.TimeOut)
 	if err != nil {
@@ -73,7 +69,6 @@ func NewSocket(conf conf.WebSocketConf, discoverConf conf.DiscoverConf, etcdClie
 
 	return &SocketServer{
 		conf:         conf,
-		discoverConf: discoverConf,
 		log:          log,
 		cancel:       cancel,
 		context:      ctx,
@@ -83,7 +78,6 @@ func NewSocket(conf conf.WebSocketConf, discoverConf conf.DiscoverConf, etcdClie
 		timeout:      d,
 		cluster:      c,
 		healthInfo:   healthInfo,
-		etcdClient:   etcdClient,
 		pubsubCtx:    make(map[string]*PubContext),
 	}
 }
@@ -467,16 +461,20 @@ func (s *SocketServer) listen() {
 		}
 		s.log.Info("ServiceID:" + ServiceID)
 		instance := s.cluster.GetSuitableInstance(ServiceID)
-		err := discover.SaveDockerLogInInstance(s.etcdClient, s.discoverConf, ServiceID, instance.HostID)
-		if err != nil {
-			s.log.Error("Save docker service and instance id to etcd error.")
-			w.WriteHeader(500)
-			w.Write([]byte(`{"message":"Save docker service and instance id to etcd error.","status":"failure"}`))
-			return
+		if instance != nil {
+			w.WriteHeader(200)
+			res := map[string]interface{}{
+				// Compatibility with old protocols
+				"host":                 fmt.Sprintf("%s:%d", instance.HostIP, instance.DockerLogPort),
+				"ip":                   instance.HostIP,
+				"input_dockerlog_port": instance.DockerLogPort,
+				"websocket_port":       instance.WebsocketPort,
+				"status":               "success",
+			}
+			json.NewEncoder(w).Encode(res)
+		} else {
+			w.WriteHeader(413)
 		}
-		w.WriteHeader(200)
-		url := fmt.Sprintf("tcp://%s:%d", instance.HostIP, instance.DockerLogPort)
-		w.Write([]byte(`{"host":"` + url + `","status":"success"}`))
 	})
 	r.Get("/event_push", s.receiveEventMessage)
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {

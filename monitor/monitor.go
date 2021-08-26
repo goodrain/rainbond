@@ -21,6 +21,7 @@ package monitor
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/goodrain/rainbond/cmd/monitor/option"
@@ -28,6 +29,9 @@ import (
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	externalversions "github.com/prometheus-operator/prometheus-operator/pkg/client/informers/externalversions"
 	"github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
+	mprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/common/version"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -46,6 +50,7 @@ type Monitor struct {
 func (d *Monitor) Start() {
 	logrus.Info("start init prometheus operator")
 	d.prometheusOperator.Run(d.stopCh)
+	go d.metricServer()
 	logrus.Info("init prometheus operator success")
 }
 
@@ -55,6 +60,30 @@ func (d *Monitor) Stop() {
 	d.cancel()
 	close(d.stopCh)
 	logrus.Info("prometheus operator stoped")
+}
+
+func (d *Monitor) metricServer() {
+	mprometheus.MustRegister(version.NewCollector("monitor"))
+	mprometheus.MustRegister(d)
+	http.Handle("/metrics", promhttp.Handler())
+	http.HandleFunc("/monitor/health", func(res http.ResponseWriter, req *http.Request) {
+		if d.manager.Status == prometheus.STARTED {
+			res.WriteHeader(200)
+		} else {
+			res.WriteHeader(400)
+		}
+	})
+	http.ListenAndServe(fmt.Sprintf(":%d", d.config.MetricPort), nil)
+}
+
+//Describe implements prometheus.Collector.
+func (d *Monitor) Describe(ch chan<- *mprometheus.Desc) {
+	//TODO:
+}
+
+// Collect implements prometheus.Collector.
+func (d *Monitor) Collect(ch chan<- mprometheus.Metric) {
+
 }
 
 // NewMonitor new monitor

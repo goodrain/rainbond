@@ -16,10 +16,9 @@ import (
 	jobc "github.com/goodrain/rainbond/builder/job"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/sources"
-	"github.com/goodrain/rainbond/cmd/builder/option"
+	"github.com/goodrain/rainbond/cmd/chaos/option"
 	"github.com/goodrain/rainbond/event"
 
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 
 	"k8s.io/client-go/kubernetes"
@@ -36,7 +35,6 @@ func TestCreateJob(t *testing.T) {
 	}
 	event.NewManager(event.EventConfig{
 		EventLogServers: conf.EventLogServers,
-		DiscoverArgs:    &etcdutil.ClientArgs{Endpoints: conf.EtcdEndPoints},
 	})
 	restConfig, err := k8sutil.NewRestConfig("/Users/fanyangyang/Documents/company/goodrain/remote/192.168.2.206/admin.kubeconfig")
 	if err != nil {

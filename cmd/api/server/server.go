@@ -26,7 +26,6 @@ import (
 
 	"github.com/goodrain/rainbond/api/controller"
 	"github.com/goodrain/rainbond/api/db"
-	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/server"
 	"github.com/goodrain/rainbond/api/webcli/app"
@@ -56,10 +55,6 @@ func Run(s *option.APIServer) error {
 		CaFile:    s.Config.EtcdCaFile,
 		CertFile:  s.Config.EtcdCertFile,
 		KeyFile:   s.Config.EtcdKeyFile,
-	}
-	//启动服务发现
-	if _, err := discover.CreateEndpointDiscover(etcdClientArgs); err != nil {
-		return err
 	}
 	//创建db manager
 	if err := db.CreateDBManager(s.Config); err != nil {
@@ -94,7 +89,6 @@ func Run(s *option.APIServer) error {
 
 	if err := event.NewManager(event.EventConfig{
 		EventLogServers: s.Config.EventLogServers,
-		DiscoverArgs:    etcdClientArgs,
 	}); err != nil {
 		return err
 	}

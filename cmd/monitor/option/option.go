@@ -33,6 +33,7 @@ type Config struct {
 	LogLevel             string
 	BindIP               string
 	Port                 int
+	MetricPort           int
 	StartArgs            []string
 	ConfigFile           string
 	AlertingRulesFileDir string
@@ -91,6 +92,7 @@ func NewConfig() *Config {
 	config := &Config{
 		BindIP:               host,
 		Port:                 9999,
+		MetricPort:           3329,
 		LogLevel:             "info",
 		KubeConfig:           "",
 		ConfigFile:           "/etc/prometheus/prometheus.yml",

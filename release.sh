@@ -57,8 +57,6 @@ build::binary() {
 	if [ "$1" = "eventlog" ]; then
 		docker build -t goodraim.me/event-build:v1 "${DOCKER_PATH}/build"
 		build_image="goodraim.me/event-build:v1"
-	elif [ "$1" = "chaos" ]; then
-		build_dir="./cmd/builder"
 	elif [ "$1" = "gateway" ]; then
 		build_image="golang:1.13-alpine"
 	elif [ "$1" = "monitor" ]; then
@@ -149,9 +147,9 @@ binary)
 		build::binary::core "$2"
 	else
 		if [[ "${core_modul_items[*]}" =~ "${1}" ]]; then
-			build::binary "$1" "$2" "core"
+			build::binary "$2" "$3" "core"
 		else
-			build::binary "$1" "$2" "addon"
+			build::binary "$2" "$3" "addon"
 		fi
 	fi
 	;;

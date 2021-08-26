@@ -16,22 +16,33 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package discover
+package main
 
 import (
-	"net"
-	"time"
+	"fmt"
+	"os"
+
+	"github.com/goodrain/rainbond/cmd"
+	"github.com/goodrain/rainbond/cmd/chaos/option"
+	"github.com/goodrain/rainbond/cmd/chaos/server"
+
+	"github.com/spf13/pflag"
 )
 
-//Instance 实例
-type Instance struct {
-	HostID          string
-	HostIP          net.IP
-	PubPort         int
-	DockerLogPort   int
-	WebPort         int
-	HostName        string
-	Status          string
-	TagNumber       int //当TagNumber大于集群总数的一半，则下线此节点
-	LastHealthCheck time.Time
+func main() {
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		cmd.ShowVersion("chaos")
+	}
+	s := option.NewBuilder()
+	s.AddFlags(pflag.CommandLine)
+	pflag.Parse()
+	s.SetLog()
+	if err := s.CheckConfig(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+	if err := server.Run(s); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 }

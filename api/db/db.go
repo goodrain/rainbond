@@ -65,17 +65,10 @@ func CreateDBManager(conf option.Config) error {
 func CreateEventManager(conf option.Config) error {
 	var tryTime time.Duration
 	var err error
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints: conf.EtcdEndpoint,
-		CaFile:    conf.EtcdCaFile,
-		CertFile:  conf.EtcdCertFile,
-		KeyFile:   conf.EtcdKeyFile,
-	}
 	for tryTime < 4 {
 		tryTime++
 		if err = event.NewManager(event.EventConfig{
 			EventLogServers: conf.EventLogServers,
-			DiscoverArgs:    etcdClientArgs,
 		}); err != nil {
 			logrus.Errorf("get event manager failed, try time is %v,%s", tryTime, err.Error())
 			time.Sleep((5 + tryTime*10) * time.Second)

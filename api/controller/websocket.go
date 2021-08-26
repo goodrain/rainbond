@@ -19,13 +19,11 @@
 package controller
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"path"
 
 	"github.com/go-chi/chi"
-	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/proxy"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
@@ -33,7 +31,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var defaultEventLogEndpoints = []string{"local=>rbd-eventlog:6363"}
+var defaultEventLogEndpoints = []string{"rbd-eventlog:6363"}
 
 var dockerLog *DockerLog
 
@@ -48,7 +46,6 @@ func GetDockerLog() *DockerLog {
 		dockerLog = &DockerLog{
 			socketproxy: proxy.CreateProxy("dockerlog", "websocket", defaultEventLogEndpoints),
 		}
-		discover.GetEndpointDiscover().AddProject("event_log_event_http", dockerLog.socketproxy)
 	}
 	return dockerLog
 }
@@ -71,7 +68,6 @@ func GetMonitorMessage() *MonitorMessage {
 		monitorMessage = &MonitorMessage{
 			socketproxy: proxy.CreateProxy("monitormessage", "websocket", defaultEventLogEndpoints),
 		}
-		discover.GetEndpointDiscover().AddProject("event_log_event_http", monitorMessage.socketproxy)
 	}
 	return monitorMessage
 }
@@ -94,7 +90,6 @@ func GetEventLog() *EventLog {
 		eventLog = &EventLog{
 			socketproxy: proxy.CreateProxy("eventlog", "websocket", defaultEventLogEndpoints),
 		}
-		discover.GetEndpointDiscover().AddProject("event_log_event_http", eventLog.socketproxy)
 	}
 	return eventLog
 }
@@ -142,17 +137,6 @@ func isExist(filename string) bool {
 	return err == nil || os.IsExist(err)
 }
 
-// GetInstallLog get
-func (d LogFile) GetInstallLog(w http.ResponseWriter, r *http.Request) {
-	filename := chi.URLParam(r, "filename")
-	filePath := d.Root + filename
-	if isExist(filePath) {
-		http.ServeFile(w, r, filePath)
-	} else {
-		w.WriteHeader(404)
-	}
-}
-
 var pubSubControll *PubSubControll
 
 //PubSubControll service pub sub
@@ -166,7 +150,6 @@ func GetPubSubControll() *PubSubControll {
 		pubSubControll = &PubSubControll{
 			socketproxy: proxy.CreateProxy("dockerlog", "websocket", defaultEventLogEndpoints),
 		}
-		discover.GetEndpointDiscover().AddProject("event_log_event_http", pubSubControll.socketproxy)
 	}
 	return pubSubControll
 }
@@ -174,10 +157,11 @@ func GetPubSubControll() *PubSubControll {
 //Get pubsub controller
 func (d PubSubControll) Get(w http.ResponseWriter, r *http.Request) {
 	serviceID := chi.URLParam(r, "serviceID")
-	name, _ := handler.GetEventHandler().GetLogInstance(serviceID)
-	if name != "" {
-		r.URL.Query().Add("host_id", name)
-		r = r.WithContext(context.WithValue(r.Context(), proxy.ContextKey("host_id"), name))
+	address, _ := handler.GetEventHandler().GetLogInstance(serviceID)
+	if address != "" {
+		logrus.Infof("pubsub websocket req proxy to eventlog instance %s", address)
+		proxy.CreateProxy("dockerlog", "websocket", []string{address}).Proxy(w, r)
+		return
 	}
 	d.socketproxy.Proxy(w, r)
 }
@@ -185,10 +169,11 @@ func (d PubSubControll) Get(w http.ResponseWriter, r *http.Request) {
 //GetHistoryLog get service docker logs
 func (d PubSubControll) GetHistoryLog(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
-	name, _ := handler.GetEventHandler().GetLogInstance(serviceID)
-	if name != "" {
-		r.URL.Query().Add("host_id", name)
-		r = r.WithContext(context.WithValue(r.Context(), proxy.ContextKey("host_id"), name))
+	address, _ := handler.GetEventHandler().GetLogInstance(serviceID)
+	if address != "" {
+		logrus.Infof("get history container log req proxy to eventlog instance %s", address)
+		proxy.CreateProxy("dockerlog", "websocket", []string{address}).Proxy(w, r)
+		return
 	}
 	d.socketproxy.Proxy(w, r)
 }

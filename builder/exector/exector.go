@@ -35,7 +35,7 @@ import (
 	"github.com/tidwall/gjson"
 
 	"github.com/goodrain/rainbond/builder/job"
-	"github.com/goodrain/rainbond/cmd/builder/option"
+	"github.com/goodrain/rainbond/cmd/chaos/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"

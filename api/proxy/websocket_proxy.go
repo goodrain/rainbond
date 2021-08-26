@@ -162,17 +162,9 @@ func (h *WebSocketProxy) Do(r *http.Request) (*http.Response, error) {
 }
 
 func createWebSocketProxy(name string, endpoints []string) *WebSocketProxy {
-	if name != "dockerlog" {
-		return &WebSocketProxy{
-			name:      name,
-			endpoints: CreateEndpoints(endpoints),
-			lb:        NewRoundRobin(),
-		}
-	}
 	return &WebSocketProxy{
 		name:      name,
 		endpoints: CreateEndpoints(endpoints),
-		lb:        NewSelectBalance(),
+		lb:        NewRoundRobin(),
 	}
-
 }

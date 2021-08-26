@@ -30,7 +30,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/goodrain/rainbond/builder/parser/code"
-	"github.com/goodrain/rainbond/cmd/builder/option"
+	"github.com/goodrain/rainbond/cmd/chaos/option"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 
@@ -51,7 +51,6 @@ func Test_exectorManager_buildFromSourceCode(t *testing.T) {
 	etcdArgs := etcdutil.ClientArgs{Endpoints: conf.EtcdEndPoints}
 	event.NewManager(event.EventConfig{
 		EventLogServers: conf.EventLogServers,
-		DiscoverArgs:    &etcdArgs,
 	})
 	restConfig, err := k8sutil.NewRestConfig("/Users/fanyangyang/Documents/company/goodrain/admin.kubeconfig")
 	if err != nil {
