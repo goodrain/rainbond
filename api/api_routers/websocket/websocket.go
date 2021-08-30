@@ -27,20 +27,15 @@ import (
 //Routes routes
 func Routes() chi.Router {
 	r := chi.NewRouter()
-	r.Get("/docker_console", controller.GetDockerConsole().Get)
-	r.Get("/docker_log", controller.GetDockerLog().Get)
-	r.Get("/monitor_message", controller.GetMonitorMessage().Get)
-	r.Get("/new_monitor_message", controller.GetMonitorMessage().Get)
 	r.Get("/event_log", controller.GetEventLog().Get)
 	r.Get("/services/{serviceID}/pubsub", controller.GetPubSubControll().Get)
 	return r
 }
 
-//LogRoutes 日志下载路由
+//LogRoutes componet log download
 func LogRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/{gid}/{filename}", controller.GetLogFile().Get)
-	r.Get("/install_log/{filename}", controller.GetLogFile().GetInstallLog)
 	return r
 }
 

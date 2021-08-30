@@ -31,7 +31,6 @@ import (
 	"github.com/goodrain/rainbond/worker/monitor/collector"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
 	"github.com/sirupsen/logrus"
 )
 
@@ -90,9 +89,9 @@ func (t *ExporterManager) Start() error {
 		}
 		httputil.ReturnSuccess(r, w, healthStatus)
 	})
-	log.Infoln("Listening on", t.config.Listen)
+	logrus.Infoln("Listening on", t.config.Listen)
 	go func() {
-		log.Fatal(http.ListenAndServe(t.config.Listen, nil))
+		logrus.Fatal(http.ListenAndServe(t.config.Listen, nil))
 	}()
 	logrus.Info("start app resource exporter success.")
 	return nil

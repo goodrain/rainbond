@@ -33,9 +33,6 @@ func CreateProxy(name string, mode string, endpoints []string) Proxy {
 	case "websocket":
 		return createWebSocketProxy(name, endpoints)
 	case "http":
-		if name == "eventlog" {
-			return createHTTPProxy(name, endpoints, NewSelectBalance())
-		}
 		return createHTTPProxy(name, endpoints, nil)
 	default:
 		return createHTTPProxy(name, endpoints, nil)

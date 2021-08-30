@@ -60,6 +60,7 @@ func CreateOperationHandler(mqCli gclient.MQClient) *OperationHandler {
 func (o *OperationHandler) Build(batchOpReq model.ComponentOpReq) (*model.ComponentOpResult, error) {
 	res := batchOpReq.BatchOpFailureItem()
 	if err := o.build(batchOpReq); err != nil {
+		logrus.Errorf("build component failure %s", err.Error())
 		res.ErrMsg = err.Error()
 	} else {
 		res.Success()
@@ -279,7 +280,6 @@ func (o *OperationHandler) buildFromMarketSlug(r *model.ComponentBuildReq, servi
 	return o.sendBuildTopic(service.ServiceID, "build_from_market_slug", body)
 }
 func (o *OperationHandler) sendBuildTopic(serviceID, taskType string, body map[string]interface{}) error {
-
 	topic := gclient.BuilderTopic
 	if o.isWindowsService(serviceID) {
 		topic = gclient.WindowsBuilderTopic

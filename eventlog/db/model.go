@@ -45,8 +45,12 @@ const (
 	ServiceMonitorMessage ClusterMessageType = "monitor_message"
 	//ServiceNewMonitorMessage 新业务监控数据消息
 	ServiceNewMonitorMessage ClusterMessageType = "new_monitor_message"
-	//MonitorMessage 节点监控数据
-	MonitorMessage ClusterMessageType = "monitor"
+	//MonitorMessage node meta data, must send by leader
+	ClusterMetaMessage ClusterMessageType = "cluster_meta_message"
+	//RegistNodeMessage regist node to leader
+	RegistNodeMessage ClusterMessageType = "regist_node_message"
+
+	HealthMessage ClusterMessageType = "health_message"
 )
 
 type ClusterMessage struct {

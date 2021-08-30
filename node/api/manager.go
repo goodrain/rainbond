@@ -20,25 +20,14 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"strconv"
-	"strings"
 
-	client "github.com/coreos/etcd/clientv3"
 	"github.com/go-chi/chi"
-	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/discover"
+	"github.com/goodrain/rainbond/cmd/node-proxy/option"
 	"github.com/goodrain/rainbond/node/api/controller"
 	"github.com/goodrain/rainbond/node/api/router"
-	"github.com/goodrain/rainbond/node/kubecache"
-	"github.com/goodrain/rainbond/node/masterserver"
-	nodeclient "github.com/goodrain/rainbond/node/nodem/client"
-	"github.com/goodrain/rainbond/node/statsd"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/kubernetes"
 
 	// pprof
 	_ "net/http/pprof"
@@ -46,41 +35,23 @@ import (
 
 //Manager api manager
 type Manager struct {
-	ctx            context.Context
-	cancel         context.CancelFunc
-	conf           option.Conf
-	router         *chi.Mux
-	node           *nodeclient.HostNode
-	lID            client.LeaseID // lease id
-	ms             *masterserver.MasterServer
-	keepalive      *discover.KeepAlive
-	exporter       *statsd.Exporter
-	etcdClientArgs *etcdutil.ClientArgs
+	ctx    context.Context
+	cancel context.CancelFunc
+	conf   option.Conf
+	router *chi.Mux
 }
 
 //NewManager api manager
-func NewManager(c option.Conf, node *nodeclient.HostNode, ms *masterserver.MasterServer, kubecli kubecache.KubeClient) *Manager {
-	r := router.Routers(c.RunMode)
+func NewManager(c option.Conf, kubecli *kubernetes.Clientset) *Manager {
+	r := router.Routers()
 	ctx, cancel := context.WithCancel(context.Background())
-	controller.Init(&c, ms, kubecli)
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints:   c.EtcdEndpoints,
-		CaFile:      c.EtcdCaFile,
-		CertFile:    c.EtcdCertFile,
-		KeyFile:     c.EtcdKeyFile,
-		DialTimeout: c.EtcdDialTimeout,
-	}
+	controller.Init(&c, kubecli)
 	m := &Manager{
-		ctx:            ctx,
-		cancel:         cancel,
-		conf:           c,
-		router:         r,
-		node:           node,
-		ms:             ms,
-		etcdClientArgs: etcdClientArgs,
+		ctx:    ctx,
+		cancel: cancel,
+		conf:   c,
+		router: r,
 	}
-	// set node cluster monitor route
-	m.router.Get("/cluster/metrics", m.HandleClusterScrape)
 	return m
 }
 
@@ -99,26 +70,6 @@ func (m *Manager) Start(errChan chan error) error {
 			errChan <- err
 		}
 	}()
-	if m.conf.RunMode == "master" {
-		portinfo := strings.Split(m.conf.APIAddr, ":")
-		var port int
-		if len(portinfo) != 2 {
-			port = 6100
-		} else {
-			var err error
-			port, err = strconv.Atoi(portinfo[1])
-			if err != nil {
-				return fmt.Errorf("get the api port info error.%s", err.Error())
-			}
-		}
-		keepalive, err := discover.CreateKeepAlive(m.etcdClientArgs, "acp_node", m.conf.PodIP, m.conf.PodIP, port)
-		if err != nil {
-			return err
-		}
-		if err := keepalive.Start(); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -126,27 +77,10 @@ func (m *Manager) Start(errChan chan error) error {
 func (m *Manager) Stop() error {
 	logrus.Info("api server is stoping.")
 	m.cancel()
-	if m.keepalive != nil {
-		m.keepalive.Stop()
-	}
 	return nil
 }
 
 //GetRouter GetRouter
 func (m *Manager) GetRouter() *chi.Mux {
 	return m.router
-}
-
-//HandleClusterScrape prometheus handle
-func (m *Manager) HandleClusterScrape(w http.ResponseWriter, r *http.Request) {
-	gatherers := prometheus.Gatherers{
-		prometheus.DefaultGatherer,
-	}
-	// Delegate http serving to Prometheus client library, which will call collector.Collect.
-	h := promhttp.HandlerFor(gatherers,
-		promhttp.HandlerOpts{
-			ErrorLog:      logrus.StandardLogger(),
-			ErrorHandling: promhttp.ContinueOnError,
-		})
-	h.ServeHTTP(w, r)
 }

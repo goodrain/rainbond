@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/goodrain/rainbond/cmd/builder/option"
+	"github.com/goodrain/rainbond/cmd/chaos/option"
 	eventutil "github.com/goodrain/rainbond/eventlog/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"

@@ -26,7 +26,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/cmd/node-proxy/option"
 )
 
 func TestWatchConatainer(t *testing.T) {

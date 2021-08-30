@@ -26,7 +26,6 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/goodrain/rainbond/builder/parser/code"
-	"github.com/goodrain/rainbond/builder/parser/discovery"
 	"github.com/goodrain/rainbond/builder/parser/types"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/sirupsen/logrus"
@@ -184,8 +183,6 @@ type ServiceInfo struct {
 	Memory         int            `json:"memory,omitempty"`
 	Lang           code.Lang      `json:"language,omitempty"`
 	ImageAlias     string         `json:"image_alias,omitempty"`
-	//For third party services
-	Endpoints []*discovery.Endpoint `json:"endpoints,omitempty"`
 	//os type,default linux
 	OS        string `json:"os"`
 	Name      string `json:"name,omitempty"`  // module name

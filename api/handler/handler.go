@@ -44,8 +44,7 @@ func InitHandle(conf option.Config,
 	k8sClient k8sclient.Client,
 ) error {
 	mq := api_db.MQManager{
-		EtcdClientArgs: etcdClientArgs,
-		DefaultServer:  conf.MQAPI,
+		DefaultServer: conf.MQAPI,
 	}
 	mqClient, errMQ := mq.NewMQManager()
 	if errMQ != nil {
@@ -65,9 +64,8 @@ func InitHandle(conf option.Config,
 	defaultAppHandler = CreateAppManager(mqClient)
 	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, kubeClient, prometheusCli, k8sClient)
 	defaultNetRulesHandler = CreateNetRulesManager(etcdcli)
-	defaultCloudHandler = CreateCloudManager(conf)
 	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdcli)
-	defaultEventHandler = CreateLogManager(etcdcli)
+	defaultEventHandler = CreateLogManager()
 	shareHandler = &share.ServiceShareHandle{MQClient: mqClient, EtcdCli: etcdcli}
 	pluginShareHandler = &share.PluginShareHandle{MQClient: mqClient, EtcdCli: etcdcli}
 	if err := CreateTokenIdenHandler(conf); err != nil {
@@ -133,13 +131,6 @@ var defaultNetRulesHandler NetRulesHandler
 //GetRulesManager get manager
 func GetRulesManager() NetRulesHandler {
 	return defaultNetRulesHandler
-}
-
-var defaultCloudHandler CloudHandler
-
-//GetCloudManager get manager
-func GetCloudManager() CloudHandler {
-	return defaultCloudHandler
 }
 
 var defaultEventHandler EventHandler

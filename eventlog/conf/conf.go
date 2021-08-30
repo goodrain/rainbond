@@ -22,14 +22,14 @@ import "time"
 
 // Conf conf
 type Conf struct {
-	Entry       EntryConf
-	EventStore  EventStoreConf
-	Log         LogConf
-	WebSocket   WebSocketConf
-	WebHook     WebHookConf
-	ClusterMode bool
-	Cluster     ClusterConf
-	Kubernetes  KubernetsConf
+	Entry          EntryConf
+	EventStore     EventStoreConf
+	Log            LogConf
+	WebSocket      WebSocketConf
+	WebHook        WebHookConf
+	ClusterMode    bool
+	Cluster        ClusterConf
+	KubeConfigPath string
 }
 
 // WebHookConf webhook conf
@@ -96,12 +96,6 @@ type DockerLogServerConf struct {
 // DiscoverConf discover conf
 type DiscoverConf struct {
 	Type          string
-	EtcdAddr      []string
-	EtcdCaFile    string
-	EtcdCertFile  string
-	EtcdKeyFile   string
-	EtcdUser      string
-	EtcdPass      string
 	ClusterMode   bool
 	InstanceIP    string
 	HomePath      string
@@ -114,7 +108,6 @@ type DiscoverConf struct {
 type PubSubConf struct {
 	PubBindIP      string
 	PubBindPort    int
-	ClusterMode    bool
 	PollingTimeout time.Duration
 }
 
@@ -134,15 +127,14 @@ type EventStoreConf struct {
 	DB                          DBConf
 }
 
-// KubernetsConf kubernetes conf
-type KubernetsConf struct {
-	Master string
-}
-
 // ClusterConf cluster conf
 type ClusterConf struct {
-	PubSub   PubSubConf
-	Discover DiscoverConf
+	PubSub                  PubSubConf
+	ClusterPort             int    `json:"clusterPort"`
+	WebsocketPort           int    `json:"websocketPort"`
+	DockerLogPort           int    `json:"dockerLogPort"`
+	HostIP                  string `json:"hostIP"`
+	LeaderElectionNamespace string `json:"leaderElectionNamespace"`
 }
 
 // MonitorMessageServerConf monitor message server conf

@@ -2347,10 +2347,12 @@ func (s *ServiceAction) ListVersionInfo(serviceID string) (*api_model.BuildListR
 	for idx := range bversions {
 		bv := bversions[idx]
 		if bv.Kind == "build_from_image" || bv.Kind == "build_from_market_image" {
-			image := parser.ParseImageName(bv.RepoURL)
-			bv.ImageDomain = image.GetDomain()
-			bv.ImageRepo = image.GetRepostory()
-			bv.ImageTag = image.GetTag()
+			if bv.RepoURL != "" {
+				image := parser.ParseImageName(bv.RepoURL)
+				bv.ImageDomain = image.GetDomain()
+				bv.ImageRepo = image.GetRepostory()
+				bv.ImageTag = image.GetTag()
+			}
 		}
 	}
 	result := &api_model.BuildListRespVO{

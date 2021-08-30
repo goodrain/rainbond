@@ -21,7 +21,6 @@ package option
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -31,18 +30,13 @@ import (
 
 // Config config
 type Config struct {
-	EtcdEndpointsLine    string
-	EtcdEndpoints        []string
-	EtcdCaFile           string
-	EtcdCertFile         string
-	EtcdKeyFile          string
 	LogLevel             string
-	AdvertiseAddr        string
 	BindIP               string
 	Port                 int
+	MetricPort           int
 	StartArgs            []string
 	ConfigFile           string
-	AlertingRulesFile    string
+	AlertingRulesFileDir string
 	AlertManagerURL      []string
 	LocalStoragePath     string
 	Web                  Web
@@ -54,9 +48,6 @@ type Config struct {
 	QueryLookbackDelta   string
 	QueryTimeout         string
 	QueryMaxConcurrency  string
-	CadvisorListenPort   int
-	MysqldExporter       string
-	KSMExporter          string
 	KubeConfig           string
 }
 
@@ -99,15 +90,13 @@ func NewConfig() *Config {
 	host, _ := os.Hostname()
 
 	config := &Config{
-		EtcdEndpointsLine:    "http://127.0.0.1:2379",
-		EtcdEndpoints:        []string{},
-		AdvertiseAddr:        host + ":9999",
 		BindIP:               host,
 		Port:                 9999,
+		MetricPort:           3329,
 		LogLevel:             "info",
 		KubeConfig:           "",
 		ConfigFile:           "/etc/prometheus/prometheus.yml",
-		AlertingRulesFile:    "/etc/prometheus/rules.yml",
+		AlertingRulesFileDir: "/etc/prometheus/rules",
 		AlertManagerURL:      []string{},
 		LocalStoragePath:     "/prometheusdata",
 		WebTimeout:           "5m",
@@ -128,7 +117,6 @@ func NewConfig() *Config {
 			MinBlockDuration: "2h",
 			Retention:        "7d",
 		},
-		CadvisorListenPort: 10250,
 	}
 
 	return config
@@ -136,15 +124,7 @@ func NewConfig() *Config {
 
 //AddFlag monitor flag
 func (c *Config) AddFlag(cmd *pflag.FlagSet) {
-	cmd.StringVar(&c.EtcdEndpointsLine, "etcd-endpoints", c.EtcdEndpointsLine, "etcd endpoints list.")
-	cmd.StringVar(&c.EtcdCaFile, "etcd-ca", "", "etcd tls ca file ")
-	cmd.StringVar(&c.EtcdCertFile, "etcd-cert", "", "etcd tls cert file")
-	cmd.StringVar(&c.EtcdKeyFile, "etcd-key", "", "etcd http tls cert key file")
-	cmd.StringVar(&c.AdvertiseAddr, "advertise-addr", c.AdvertiseAddr, "advertise address, and registry into etcd.")
-	cmd.IntVar(&c.CadvisorListenPort, "cadvisor-listen-port", c.CadvisorListenPort, "kubelet cadvisor listen port in all node")
 	cmd.StringSliceVar(&c.AlertManagerURL, "alertmanager-address", c.AlertManagerURL, "AlertManager url.")
-	cmd.StringVar(&c.MysqldExporter, "mysqld-exporter", c.MysqldExporter, "mysqld exporter address. eg: 127.0.0.1:9104")
-	cmd.StringVar(&c.KSMExporter, "kube-state-metrics", c.KSMExporter, "kube-state-metrics, current server's kube-state-metrics address")
 	cmd.StringVar(&c.KubeConfig, "kube-config", "", "kubernetes api server config file")
 }
 
@@ -152,7 +132,7 @@ func (c *Config) AddFlag(cmd *pflag.FlagSet) {
 func (c *Config) AddPrometheusFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.ConfigFile, "config.file", c.ConfigFile, "Prometheus configuration file path.")
 
-	cmd.StringVar(&c.AlertingRulesFile, "rules-config.file", c.AlertingRulesFile, "Prometheus alerting rules config file path.")
+	cmd.StringVar(&c.AlertingRulesFileDir, "rules-config.dir", c.AlertingRulesFileDir, "Prometheus alerting rules config file path.")
 
 	cmd.StringVar(&c.Web.ListenAddress, "web.listen-address", c.Web.ListenAddress, "Address to listen on for UI, API, and telemetry.")
 
@@ -202,25 +182,6 @@ func (c *Config) AddPrometheusFlag(cmd *pflag.FlagSet) {
 
 // CompleteConfig complete config
 func (c *Config) CompleteConfig() {
-	// parse etcd urls line to array
-	for _, url := range strings.Split(c.EtcdEndpointsLine, ",") {
-		c.EtcdEndpoints = append(c.EtcdEndpoints, url)
-	}
-
-	if len(c.EtcdEndpoints) < 1 {
-		logrus.Error("Must define the etcd endpoints by --etcd-endpoints")
-		os.Exit(17)
-	}
-
-	// parse values from prometheus options to config
-	ipPort := strings.TrimLeft(c.AdvertiseAddr, "shttp://")
-	ipPortArr := strings.Split(ipPort, ":")
-	c.BindIP = ipPortArr[0]
-	port, err := strconv.Atoi(ipPortArr[1])
-	if err == nil {
-		c.Port = port
-	}
-
 	defaultOptions := "--log.level=%s --web.listen-address=%s --config.file=%s --storage.tsdb.path=%s --storage.tsdb.retention.time=%s"
 	defaultOptions = fmt.Sprintf(defaultOptions, c.LogLevel, c.Web.ListenAddress, c.ConfigFile, c.LocalStoragePath, c.Tsdb.Retention)
 	if c.Tsdb.NoLockfile {

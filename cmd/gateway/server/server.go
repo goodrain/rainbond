@@ -36,7 +36,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/goodrain/rainbond/cmd/gateway/option"
-	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/gateway/cluster"
 	"github.com/goodrain/rainbond/gateway/controller"
 	"github.com/goodrain/rainbond/gateway/metric"
@@ -117,17 +116,6 @@ func Run(s *option.GWServer) error {
 		util.ProfilerSetup(mux)
 	}
 	go startHTTPServer(s.ListenPorts.Health, mux)
-
-	keepalive, err := discover.CreateKeepAlive(etcdClientArgs, "gateway", s.Config.NodeName,
-		s.Config.HostIP, s.ListenPorts.Health)
-	if err != nil {
-		return err
-	}
-	logrus.Debug("start keepalive")
-	if err := keepalive.Start(); err != nil {
-		return err
-	}
-	defer keepalive.Stop()
 
 	logrus.Info("RBD app gateway start success!")
 

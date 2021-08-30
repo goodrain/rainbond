@@ -21,15 +21,13 @@ package connect
 import (
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/eventlog/store"
 
 	"golang.org/x/net/context"
-
-	"sync"
-
-	"github.com/goodrain/rainbond/eventlog/cluster/discover"
 
 	"github.com/pebbe/zmq4"
 	"github.com/sirupsen/logrus"
@@ -41,19 +39,16 @@ type Pub struct {
 	cancel         func()
 	context        context.Context
 	pubServer      *zmq4.Socket
-	pubLock        sync.Mutex
 	storemanager   store.Manager
 	messageChan    chan [][]byte
 	listenErr      chan error
 	Closed         chan struct{}
 	stopPubMessage bool
-	discover       discover.Manager
-	instance       *discover.Instance
 	RadioChan      chan db.ClusterMessage
 }
 
 //NewPub 创建zmq pub服务端
-func NewPub(conf conf.PubSubConf, log *logrus.Entry, storeManager store.Manager, discover discover.Manager) *Pub {
+func NewPub(conf conf.PubSubConf, log *logrus.Entry, storeManager store.Manager) *Pub {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Pub{
 		conf:         conf,
@@ -63,7 +58,6 @@ func NewPub(conf conf.PubSubConf, log *logrus.Entry, storeManager store.Manager,
 		storemanager: storeManager,
 		listenErr:    make(chan error),
 		Closed:       make(chan struct{}),
-		discover:     discover,
 		RadioChan:    make(chan db.ClusterMessage, 5),
 	}
 }
@@ -85,23 +79,24 @@ func (s *Pub) Run() error {
 		return errors.New("pub log message server can not get store message chan ")
 	}
 	go s.handleMessage()
-	s.registInstance()
 	return nil
 }
 
 //Stop 停止
 func (s *Pub) Stop() {
-	if s.instance != nil {
-		s.discover.CancellationInstance(s.instance)
-	}
 	s.cancel()
 	<-s.Closed
 	s.log.Info("Stop pub message server")
 }
 
 func (s *Pub) handleMessage() {
+	ticker := time.NewTicker(time.Second * 3)
+	defer ticker.Stop()
 	for !s.stopPubMessage {
 		select {
+		case <-ticker.C:
+			s.pubServer.SendBytes([]byte(db.HealthMessage), zmq4.SNDMORE)
+			s.pubServer.SendBytes([]byte("1"), 0)
 		case msg := <-s.messageChan:
 			//s.log.Debugf("Message Pub Server PUB a message %s", string(msg.Content))
 			s.pubServer.SendBytes(msg[0], zmq4.SNDMORE)
@@ -118,8 +113,4 @@ func (s *Pub) handleMessage() {
 			close(s.Closed)
 		}
 	}
-}
-
-func (s *Pub) registInstance() {
-	s.instance = s.discover.RegisteredInstance(s.conf.PubBindIP, s.conf.PubBindPort, &s.stopPubMessage)
 }

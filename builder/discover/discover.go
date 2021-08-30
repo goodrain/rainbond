@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/builder/exector"
-	"github.com/goodrain/rainbond/cmd/builder/option"
+	"github.com/goodrain/rainbond/cmd/chaos/option"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/mq/client"
 	"github.com/sirupsen/logrus"

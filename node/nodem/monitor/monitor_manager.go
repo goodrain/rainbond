@@ -21,14 +21,14 @@ package monitor
 import (
 	"context"
 	"net/http"
+	"runtime"
 
 	"github.com/go-kit/kit/log"
-	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/cmd/node-proxy/option"
 	"github.com/goodrain/rainbond/node/api"
 	"github.com/goodrain/rainbond/node/monitormessage"
 	"github.com/goodrain/rainbond/node/statsd"
 	innerprometheus "github.com/goodrain/rainbond/node/statsd/prometheus"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/node_exporter/collector"
@@ -53,9 +53,15 @@ type manager struct {
 func createNodeExporterRestry() (*prometheus.Registry, error) {
 	registry := prometheus.NewRegistry()
 	filters := []string{"cpu", "diskstats", "filesystem",
-		"ipvs", "loadavg", "meminfo", "netdev",
-		"netclass", "netdev", "netstat",
-		"uname", "mountstats", "nfs"}
+		"loadavg", "meminfo", "netdev",
+		"netdev", "uname",
+		"time",
+	}
+	if runtime.GOOS == "linux" {
+		filters = append(filters, "ipvs", "netclass", "netstat", "nfs",
+			"xfs", "zfs", "mountstats", "arp", "btrfs", "bonding",
+			"schedstat", "pressure", "softnet", "sockstat", "stat", "thermal_zone")
+	}
 	// init kingpin parse
 	kingpin.CommandLine.Parse([]string{"--collector.mountstats=true"})
 	nc, err := collector.NewNodeCollector(log.NewNopLogger(), filters...)
@@ -77,13 +83,7 @@ func CreateManager(ctx context.Context, c *option.Conf) (Manager, error) {
 	//statsd exporter
 	statsdRegistry := innerprometheus.NewRegistry()
 	exporter := statsd.CreateExporter(c.StatsdConfig, statsdRegistry)
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints: c.EtcdEndpoints,
-		CaFile:    c.EtcdCaFile,
-		CertFile:  c.EtcdCertFile,
-		KeyFile:   c.EtcdKeyFile,
-	}
-	meserver := monitormessage.CreateUDPServer(ctx, "0.0.0.0", 6666, etcdClientArgs)
+	meserver := monitormessage.CreateUDPServer(ctx, "0.0.0.0", 6666)
 	nodeExporterRestry, err := createNodeExporterRestry()
 	if err != nil {
 		return nil, err

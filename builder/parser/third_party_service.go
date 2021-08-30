@@ -19,22 +19,16 @@
 package parser
 
 import (
-	"encoding/json"
 	"strings"
 
-	"github.com/goodrain/rainbond/builder/parser/discovery"
 	"github.com/goodrain/rainbond/event"
-	"github.com/sirupsen/logrus"
 )
 
 // ThirdPartyServiceParse is one of the implematation of parser.Parser
 type ThirdPartyServiceParse struct {
 	sourceBody string
-
-	endpoints []*discovery.Endpoint
-
-	errors []ParseError
-	logger event.Logger
+	errors     []ParseError
+	logger     event.Logger
 }
 
 // CreateThirdPartyServiceParse creates a new ThirdPartyServiceParse.
@@ -53,41 +47,13 @@ func (t *ThirdPartyServiceParse) Parse() ParseErrorList {
 		return nil
 	}
 
-	var info discovery.Info
-	if err := json.Unmarshal([]byte(t.sourceBody), &info); err != nil {
-		logrus.Errorf("wrong source_body: %v, source_body: %s", err, t.sourceBody)
-		t.logger.Error("第三方检查输入参数错误", map[string]string{"step": "parse"})
-		t.errors = append(t.errors, ParseError{FatalError, "wrong input data", ""})
-		return t.errors
-	}
-	// TODO: validate data
-
-	d := discovery.NewDiscoverier(&info)
-	err := d.Connect()
-	if err != nil {
-		t.logger.Error("error connecting discovery center", map[string]string{"step": "parse"})
-		t.errors = append(t.errors, ParseError{FatalError, "error connecting discovery center", "please make sure " +
-			"the configuration is right and the discovery center is working."})
-		return t.errors
-	}
-	defer d.Close()
-	eps, err := d.Fetch()
-	if err != nil {
-		t.logger.Error("error fetching endpints", map[string]string{"step": "parse"})
-		t.errors = append(t.errors, ParseError{FatalError, "error fetching endpints", "please check the given key."})
-		return t.errors
-	}
-	t.endpoints = eps
-
 	return nil
 }
 
 // GetServiceInfo returns information of third-party service from
 // the receiver *ThirdPartyServiceParse.
 func (t *ThirdPartyServiceParse) GetServiceInfo() []ServiceInfo {
-	serviceInfo := ServiceInfo{
-		Endpoints: t.endpoints,
-	}
+	serviceInfo := ServiceInfo{}
 	return []ServiceInfo{serviceInfo}
 }
 

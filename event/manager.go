@@ -27,12 +27,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/goodrain/rainbond/discover"
-	"github.com/goodrain/rainbond/discover/config"
 	eventclient "github.com/goodrain/rainbond/eventlog/entry/grpc/client"
 	eventpb "github.com/goodrain/rainbond/eventlog/entry/grpc/pb"
 	"github.com/goodrain/rainbond/util"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -50,7 +47,6 @@ type Manager interface {
 // EventConfig event config struct
 type EventConfig struct {
 	EventLogServers []string
-	DiscoverArgs    *etcdutil.ClientArgs
 }
 type manager struct {
 	ctx            context.Context
@@ -62,7 +58,6 @@ type manager struct {
 	lock           sync.Mutex
 	eventServer    []string
 	abnormalServer map[string]string
-	dis            discover.Discover
 }
 
 var defaultManager Manager
@@ -77,13 +72,6 @@ const (
 
 //NewManager 创建manager
 func NewManager(conf EventConfig) error {
-	dis, err := discover.GetDiscover(config.DiscoverConfig{EtcdClientArgs: conf.DiscoverArgs})
-	if err != nil {
-		logrus.Error("create discover manager error.", err.Error())
-		if len(conf.EventLogServers) < 1 {
-			return err
-		}
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defaultManager = &manager{
 		ctx:            ctx,
@@ -92,7 +80,6 @@ func NewManager(conf EventConfig) error {
 		loggers:        make(map[string]Logger, 1024),
 		handles:        make(map[string]handle),
 		eventServer:    conf.EventLogServers,
-		dis:            dis,
 		abnormalServer: make(map[string]string),
 	}
 	return defaultManager.Start()
@@ -129,51 +116,8 @@ func (m *manager) Start() error {
 		m.handles[m.eventServer[i]] = h
 		go h.HandleLog()
 	}
-	if m.dis != nil {
-		m.dis.AddProject("event_log_event_grpc", m)
-	}
 	go m.GC()
 	return nil
-}
-
-func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	if endpoints == nil || len(endpoints) < 1 {
-		return
-	}
-	//清空不可用节点信息，以服务发现为主
-	m.abnormalServer = make(map[string]string)
-	//增加新节点
-	var new = make(map[string]string)
-	for _, end := range endpoints {
-		new[end.URL] = end.URL
-		if _, ok := m.handles[end.URL]; !ok {
-			h := handle{
-				cacheChan: make(chan []byte, buffersize),
-				stop:      make(chan struct{}),
-				server:    end.URL,
-				manager:   m,
-				ctx:       m.ctx,
-			}
-			m.handles[end.URL] = h
-			logrus.Infof("Add event server endpoint,%s", end.URL)
-			go h.HandleLog()
-		}
-	}
-	//删除旧节点
-	for k := range m.handles {
-		if _, ok := new[k]; !ok {
-			delete(m.handles, k)
-			logrus.Infof("Remove event server endpoint,%s", k)
-		}
-	}
-	var eventServer []string
-	for k := range new {
-		eventServer = append(eventServer, k)
-	}
-	m.eventServer = eventServer
-	logrus.Debugf("update event handle core success,handle core count:%d, event server count:%d", len(m.handles), len(m.eventServer))
 }
 
 func (m *manager) Error(err error) {
@@ -181,9 +125,6 @@ func (m *manager) Error(err error) {
 }
 func (m *manager) Close() error {
 	m.cancel()
-	if m.dis != nil {
-		m.dis.Stop()
-	}
 	return nil
 }
 
@@ -284,15 +225,8 @@ func (m *manager) getLBChan() chan []byte {
 	}
 	return nil
 }
-func (m *manager) RemoveHandle(server string) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	if _, ok := m.handles[server]; ok {
-		delete(m.handles, server)
-	}
-}
+
 func (m *handle) HandleLog() error {
-	defer m.manager.RemoveHandle(m.server)
 	return util.Exec(m.ctx, func() error {
 		ctx, cancel := context.WithCancel(m.ctx)
 		defer cancel()
@@ -432,7 +366,7 @@ func (l *loggerWriter) SetFormat(f map[string]interface{}) {
 	l.fmt = f
 }
 func (l *loggerWriter) Write(b []byte) (n int, err error) {
-	if b != nil && len(b) > 0 {
+	if len(b) > 0 {
 		if !strings.HasSuffix(string(b), "\n") {
 			l.tmp = append(l.tmp, b...)
 			return len(b), nil

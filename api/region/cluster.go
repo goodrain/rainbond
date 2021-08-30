@@ -20,13 +20,34 @@ package region
 
 import (
 	"github.com/goodrain/rainbond/api/util"
-	"github.com/goodrain/rainbond/node/api/model"
 	utilhttp "github.com/goodrain/rainbond/util/http"
 )
 
+//ClusterResource cluster resource model
+type ClusterResource struct {
+	AllNode        int     `json:"all_node"`
+	NotReadyNode   int     `json:"notready_node"`
+	ComputeNode    int     `json:"compute_node"`
+	Tenant         int     `json:"tenant"`
+	CapCPU         int     `json:"cap_cpu"`          //可分配CPU总额
+	CapMem         int     `json:"cap_mem"`          //可分配Mem总额
+	HealthCapCPU   int     `json:"health_cap_cpu"`   //健康可分配CPU
+	HealthCapMem   int     `json:"health_cap_mem"`   //健康可分配Mem
+	UnhealthCapCPU int     `json:"unhealth_cap_cpu"` //不健康可分配CPU
+	UnhealthCapMem int     `json:"unhealth_cap_mem"` //不健康可分配Mem
+	ReqCPU         float32 `json:"req_cpu"`          //已使用CPU总额
+	ReqMem         int     `json:"req_mem"`          //已使用Mem总额
+	HealthReqCPU   float32 `json:"health_req_cpu"`   //健康已使用CPU
+	HealthReqMem   int     `json:"health_req_mem"`   //健康已使用Mem
+	UnhealthReqCPU float32 `json:"unhealth_req_cpu"` //不健康已使用CPU
+	UnhealthReqMem int     `json:"unhealth_req_mem"` //不健康已使用Mem
+	CapDisk        uint64  `json:"cap_disk"`
+	ReqDisk        uint64  `json:"req_disk"`
+}
+
 //ClusterInterface cluster api
 type ClusterInterface interface {
-	GetClusterInfo() (*model.ClusterResource, *util.APIHandleError)
+	GetClusterInfo() (*ClusterResource, *util.APIHandleError)
 	GetClusterHealth() (*utilhttp.ResponseBody, *util.APIHandleError)
 }
 
@@ -39,8 +60,8 @@ type cluster struct {
 	prefix string
 }
 
-func (c *cluster) GetClusterInfo() (*model.ClusterResource, *util.APIHandleError) {
-	var cr model.ClusterResource
+func (c *cluster) GetClusterInfo() (*ClusterResource, *util.APIHandleError) {
+	var cr ClusterResource
 	var decode utilhttp.ResponseBody
 	decode.Bean = &cr
 	code, err := c.DoRequest(c.prefix, "GET", nil, &decode)

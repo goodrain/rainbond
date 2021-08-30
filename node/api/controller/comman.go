@@ -21,37 +21,16 @@ package controller
 import (
 	"net/http"
 
-	"github.com/goodrain/rainbond/cmd/node/option"
-	"github.com/goodrain/rainbond/node/core/config"
+	"github.com/goodrain/rainbond/cmd/node-proxy/option"
 	"github.com/goodrain/rainbond/node/core/service"
-	"github.com/goodrain/rainbond/node/kubecache"
-	"github.com/goodrain/rainbond/node/masterserver"
+	"k8s.io/client-go/kubernetes"
 )
 
-var datacenterConfig *config.DataCenterConfig
-var prometheusService *service.PrometheusService
-var appService *service.AppService
-var nodeService *service.NodeService
 var discoverService *service.DiscoverAction
-var kubecli kubecache.KubeClient
 
 //Init 初始化
-func Init(c *option.Conf, ms *masterserver.MasterServer, kube kubecache.KubeClient) {
-	if ms != nil {
-		prometheusService = service.CreatePrometheusService(c)
-		datacenterConfig = config.GetDataCenterConfig()
-		nodeService = service.CreateNodeService(c, ms.Cluster, kube)
-	}
-	appService = service.CreateAppService(c)
+func Init(c *option.Conf, kube *kubernetes.Clientset) {
 	discoverService = service.CreateDiscoverActionManager(c, kube)
-	kubecli = kube
-}
-
-//Exist 退出
-func Exist(i interface{}) {
-	if datacenterConfig != nil {
-		datacenterConfig.Stop()
-	}
 }
 
 //Ping Ping

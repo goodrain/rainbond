@@ -21,12 +21,11 @@
 package initiate
 
 import (
-	"context"
 	"errors"
 
-	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/cmd/node-proxy/option"
 	discover "github.com/goodrain/rainbond/discover.v2"
-	"github.com/goodrain/rainbond/discover/config"
+	"github.com/goodrain/rainbond/discover.v2/config"
 	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
 )
@@ -59,7 +58,6 @@ func NewHostManager(cfg *option.Conf, discover discover.Discover) (HostManager, 
 }
 
 type hostManager struct {
-	ctx          context.Context
 	cfg          *option.Conf
 	discover     discover.Discover
 	hostCallback *hostCallback
@@ -87,8 +85,9 @@ func (h *hostManager) Start() {
 			logrus.Warningf("flush hosts file: %v", err)
 		}
 		return
+	} else {
+		h.discover.AddProject("rbd-gateway", h.hostCallback)
 	}
-	h.discover.AddProject("rbd-gateway", h.hostCallback)
 }
 
 type hostCallback struct {

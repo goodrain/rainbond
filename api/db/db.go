@@ -31,7 +31,6 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/mq/client"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
@@ -65,17 +64,10 @@ func CreateDBManager(conf option.Config) error {
 func CreateEventManager(conf option.Config) error {
 	var tryTime time.Duration
 	var err error
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints: conf.EtcdEndpoint,
-		CaFile:    conf.EtcdCaFile,
-		CertFile:  conf.EtcdCertFile,
-		KeyFile:   conf.EtcdKeyFile,
-	}
 	for tryTime < 4 {
 		tryTime++
 		if err = event.NewManager(event.EventConfig{
 			EventLogServers: conf.EventLogServers,
-			DiscoverArgs:    etcdClientArgs,
 		}); err != nil {
 			logrus.Errorf("get event manager failed, try time is %v,%s", tryTime, err.Error())
 			time.Sleep((5 + tryTime*10) * time.Second)
@@ -93,13 +85,12 @@ func CreateEventManager(conf option.Config) error {
 
 //MQManager mq manager
 type MQManager struct {
-	EtcdClientArgs *etcdutil.ClientArgs
-	DefaultServer  string
+	DefaultServer string
 }
 
 //NewMQManager new mq manager
 func (m *MQManager) NewMQManager() (client.MQClient, error) {
-	client, err := client.NewMqClient(m.EtcdClientArgs, m.DefaultServer)
+	client, err := client.NewMqClient(m.DefaultServer)
 	if err != nil {
 		logrus.Errorf("new mq manager error, %v", err)
 		return client, err

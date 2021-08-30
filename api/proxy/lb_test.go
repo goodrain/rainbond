@@ -23,11 +23,6 @@ import (
 	"testing"
 )
 
-func TestNewSelectBalance(t *testing.T) {
-	sb := NewSelectBalance()
-	t.Log(sb.hostIDMap)
-}
-
 func TestURLParse(t *testing.T) {
 	endURL, err := url.Parse("127.0.0.1:8080")
 	if err != nil {

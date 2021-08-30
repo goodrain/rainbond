@@ -19,63 +19,81 @@
 package connect
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
-	dis "github.com/goodrain/rainbond/eventlog/cluster/discover"
-	"github.com/goodrain/rainbond/eventlog/cluster/distribution"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/eventlog/store"
+	"github.com/goodrain/rainbond/util"
 	"github.com/pebbe/zmq4"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
+type Instance struct {
+	HostIP  string `json:"hostIP"`
+	PubPort int    `json:"pubPort"`
+	//Port that receives container logs.
+	DockerLogPort    int       `json:"dockerLogPort"`
+	WebsocketPort    int       `json:"websocketPort`
+	Status           string    `json:"status"`
+	StatusUpdate     time.Time `json:"statusUpdate"`
+	IsLeader         bool      `json:"isLeader"`
+	ComponentLogChan []string  `json:"componentLogChan"`
+}
+
+func (i *Instance) Key() string {
+	return fmt.Sprintf("%s:%d", i.HostIP, i.PubPort)
+}
+
+type InstanceMessage struct {
+	Instances    []*Instance `json:"instances"`
+	LeaderHostIP string      `json:"leaderHostIP"`
+}
+
 // Sub -
 type Sub struct {
-	conf           conf.PubSubConf
-	log            *logrus.Entry
-	cancel         func()
-	context        context.Context
-	storemanager   store.Manager
-	subMessageChan chan [][]byte
-	listenErr      chan error
-	discover       dis.Manager
-	instanceMap    map[string]*dis.Instance
-	subClient      map[string]*SubClient
-	mapLock        sync.Mutex
-	subLock        sync.Mutex
-	distribution   *distribution.Distribution
+	conf                conf.PubSubConf
+	log                 *logrus.Entry
+	cancel              func()
+	context             context.Context
+	storemanager        store.Manager
+	subMessageChan      chan [][]byte
+	listenErr           chan error
+	instanceMap         map[string]*Instance
+	instanceMessageChan chan *InstanceMessage
+	subClient           map[string]*SubClient
+	mapLock             sync.Mutex
+	subLock             sync.Mutex
+	current             *Instance
 }
 
 // SubClient -
 type SubClient struct {
 	context *zmq4.Context
 	socket  *zmq4.Socket
-	lock    sync.Mutex
 	quit    chan interface{}
 }
 
 //NewSub 创建zmq sub客户端
-func NewSub(conf conf.PubSubConf, log *logrus.Entry, storeManager store.Manager, discover dis.Manager, distribution *distribution.Distribution) *Sub {
+func NewSub(conf conf.PubSubConf, log *logrus.Entry, storeManager store.Manager, current *Instance) *Sub {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Sub{
-		conf:           conf,
-		log:            log,
-		cancel:         cancel,
-		context:        ctx,
-		storemanager:   storeManager,
-		listenErr:      make(chan error),
-		discover:       discover,
-		instanceMap:    make(map[string]*dis.Instance),
-		subClient:      make(map[string]*SubClient),
-		subMessageChan: storeManager.SubMessageChan(),
-		distribution:   distribution,
+		conf:                conf,
+		log:                 log,
+		cancel:              cancel,
+		context:             ctx,
+		storemanager:        storeManager,
+		listenErr:           make(chan error),
+		instanceMessageChan: make(chan *InstanceMessage, 8),
+		instanceMap:         make(map[string]*Instance),
+		subClient:           make(map[string]*SubClient),
+		subMessageChan:      storeManager.SubMessageChan(),
+		current:             current,
 	}
 }
 
@@ -98,21 +116,65 @@ func (s *Sub) Stop() {
 	s.log.Info("Message Sub manager stop")
 }
 
+func (s *Sub) GetIntance(key string) *Instance {
+	return s.instanceMap[key]
+}
+
+func (s *Sub) Sub(instance *Instance) {
+	s.subLock.Lock()
+	defer s.subLock.Unlock()
+	if instance.Key() == s.current.Key() {
+		return
+	}
+	key := fmt.Sprintf("%s:%d", instance.HostIP, instance.PubPort)
+	if _, ok := s.instanceMap[key]; !ok {
+		go s.listen(instance)
+		instance.Status = "unhealth"
+		s.instanceMap[key] = instance
+	}
+}
+func (s *Sub) UpdateIntances() {
+	s.mapLock.Lock()
+	defer s.mapLock.Unlock()
+	for _, v := range s.instanceMap {
+		if v.StatusUpdate.Add(time.Second * 10).Before(time.Now()) {
+			s.log.Infof("instance %s maybe not health", v.HostIP)
+			v.Status = "unhealth"
+			v.StatusUpdate = time.Now()
+		}
+	}
+}
+func (s *Sub) GetIntances(health bool) (re []*Instance) {
+	s.mapLock.Lock()
+	defer s.mapLock.Unlock()
+	for _, v := range s.instanceMap {
+		if v.Status == "health" || !health {
+			re = append(re, v)
+		}
+	}
+	return
+}
+func (s *Sub) GetSubNumber() int {
+	s.subLock.Lock()
+	defer s.subLock.Unlock()
+	return len(s.subClient)
+}
 func (s *Sub) checkHealth() {
-	tike := time.Tick(time.Minute * 2)
+	tike := time.NewTicker(time.Minute * 2)
+	defer tike.Stop()
 	for {
 		select {
 		case <-s.context.Done():
 			return
-		case <-tike:
+		case <-tike.C:
 		}
 		var unHealth []string
 		s.mapLock.Lock()
 		s.subLock.Lock()
 		for k, ins := range s.instanceMap {
 			if _, ok := s.subClient[k]; !ok {
-				unHealth = append(unHealth, ins.HostName)
 				go s.listen(ins)
+				unHealth = append(unHealth, ins.HostIP)
 			}
 		}
 		s.subLock.Unlock()
@@ -128,23 +190,32 @@ func (s *Sub) checkHealth() {
 func (s *Sub) instanceListen() {
 	for {
 		select {
-		case instance := <-s.discover.MonitorAddInstances():
-			key := fmt.Sprintf("%s:%d", instance.HostIP, instance.PubPort)
-			s.mapLock.Lock()
-			if _, ok := s.instanceMap[key]; !ok {
-				go s.listen(instance)
+		case instances := <-s.instanceMessageChan:
+			if instances != nil {
+				func() {
+					s.mapLock.Lock()
+					defer s.mapLock.Unlock()
+					var newKeys []string
+					for _, instance := range instances.Instances {
+						if instance.Key() == s.current.Key() {
+							continue
+						}
+						key := fmt.Sprintf("%s:%d", instance.HostIP, instance.PubPort)
+						if _, ok := s.instanceMap[key]; !ok {
+							go s.listen(instance)
+						}
+						s.instanceMap[key] = instance
+						newKeys = append(newKeys, key)
+					}
+					for k, instance := range s.instanceMap {
+						if !util.StringArrayContains(newKeys, k) {
+							s.log.Infof("sub manager release the subscription to the %s node", instance.HostIP)
+							delete(s.instanceMap, k)
+							s.unlisten(instance)
+						}
+					}
+				}()
 			}
-			s.instanceMap[key] = instance
-			s.mapLock.Unlock()
-		case instance := <-s.discover.MonitorDelInstances():
-			s.log.Debugf("Sub manager receive a del instance %s", instance.HostID)
-			key := fmt.Sprintf("%s:%d", instance.HostIP, instance.PubPort)
-			s.mapLock.Lock()
-			if _, ok := s.instanceMap[key]; ok {
-				delete(s.instanceMap, key)
-			}
-			s.unlisten(instance)
-			s.mapLock.Unlock()
 		case <-s.context.Done():
 			s.mapLock.Lock()
 			s.instanceMap = nil
@@ -155,7 +226,10 @@ func (s *Sub) instanceListen() {
 	}
 }
 
-func (s *Sub) listen(ins *dis.Instance) {
+func (s *Sub) listen(ins *Instance) {
+	if ins.Key() == s.current.Key() {
+		return
+	}
 	chQuit := make(chan interface{})
 	chErr := make(chan error, 2)
 	newInstanceListen := func(sock *zmq4.Socket, instance string) {
@@ -166,19 +240,21 @@ func (s *Sub) listen(ins *dis.Instance) {
 				return err
 			}
 			if len(msgs) == 2 {
-				if string(msgs[0]) == string(db.EventMessage) || string(msgs[0]) == string(db.ServiceMonitorMessage) || string(msgs[0]) == string(db.ServiceNewMonitorMessage) {
+				switch string(msgs[0]) {
+				case string(db.EventMessage), string(db.ServiceMonitorMessage), string(db.ServiceNewMonitorMessage):
 					s.subMessageChan <- msgs
-				} else if string(msgs[0]) == string(db.MonitorMessage) {
-					//s.log.Debug("Receive a monitor message ", string(msgs[1]))
-					data := strings.Split(string(msgs[1]), ",")
-					if len(data) == 3 {
-						serviceSize, _ := strconv.Atoi(data[1])
-						logSize, _ := strconv.Atoi(data[2])
-						s.distribution.Update(db.MonitorData{InstanceID: data[0], ServiceSize: serviceSize, LogSizePeerM: int64(logSize)})
+				case string(db.ClusterMetaMessage):
+					var instances InstanceMessage
+					if err := json.Unmarshal(msgs[1], &instances); err != nil {
+						s.log.Errorf("unmarshal cluster monitor message failure %s, message: %s", err.Error(), string(msgs[1]))
 					} else {
-						s.log.Error("cluster sub receive a message protocol error.")
+						s.instanceMessageChan <- &instances
 					}
-				} else {
+				case string(db.HealthMessage):
+					s.log.Debugf("receive health message from instance %s", ins.HostIP)
+					ins.Status = "health"
+					ins.StatusUpdate = time.Now()
+				default:
 					s.log.Error("cluster sub receive a message protocol error.")
 				}
 			} else {
@@ -206,30 +282,30 @@ func (s *Sub) listen(ins *dis.Instance) {
 		}
 		subscriber, err := context.NewSocket(zmq4.SUB)
 		if err != nil {
-			s.log.Errorf("create sub client to instance %s error %s", ins.HostName, err.Error())
+			s.log.Errorf("create sub client to instance %s error %s", ins.HostIP, err.Error())
 			time.Sleep(time.Second * 5)
 			continue
 		}
 		err = subscriber.Connect(fmt.Sprintf("tcp://%s:%d", ins.HostIP, ins.PubPort))
 		if err != nil {
-			s.log.Errorf("sub client connect to instance %s host %s port %d error", ins.HostName, ins.HostIP, ins.PubPort)
+			s.log.Errorf("sub client connect to instance host %s port %d error", ins.HostIP, ins.PubPort)
 			time.Sleep(time.Second * 5)
 			continue
 		}
 		subscriber.SetSubscribe("")
-		go newInstanceListen(subscriber, ins.HostName)
+		go newInstanceListen(subscriber, ins.HostIP)
 
 		key := fmt.Sprintf("%s:%d", ins.HostIP, ins.PubPort)
 		s.subLock.Lock()
 		client := &SubClient{socket: subscriber, context: context, quit: chQuit}
 		s.subClient[key] = client
 		s.subLock.Unlock()
-		s.log.Infof("message client sub instance %s ", ins.HostName)
+		s.log.Infof("message client sub instance %s ", ins.HostIP)
 		break
 	}
 }
 
-func (s *Sub) unlisten(ins *dis.Instance) {
+func (s *Sub) unlisten(ins *Instance) {
 	s.subLock.Lock()
 	defer s.subLock.Unlock()
 	key := fmt.Sprintf("%s:%d", ins.HostIP, ins.PubPort)

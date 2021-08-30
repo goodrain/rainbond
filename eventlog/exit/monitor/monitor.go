@@ -19,9 +19,10 @@
 package monitor
 
 import (
+	"time"
+
 	"github.com/goodrain/rainbond/eventlog/cluster"
 	"github.com/goodrain/rainbond/eventlog/store"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
@@ -107,7 +108,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
 	scrapeTime := time.Now()
 	e.totalScrapes.Inc()
-	if err := e.storeManager.Scrape(ch, namespace, exporter, e.cluster.GetInstanceHost()); err != nil {
+	if err := e.storeManager.Scrape(ch, namespace, exporter, e.cluster.GetCurrentInstance().HostIP); err != nil {
 		logrus.Error("core manager scrape for prometheus error.", err.Error())
 		e.error.Set(1)
 	}

@@ -23,17 +23,16 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	
-	
-	rainbondscheme "github.com/goodrain/rainbond/pkg/generated/clientset/versioned/scheme"
+
 	"github.com/goodrain/rainbond/api/controller"
 	"github.com/goodrain/rainbond/api/db"
-	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/server"
+	"github.com/goodrain/rainbond/api/webcli/app"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
+	rainbondscheme "github.com/goodrain/rainbond/pkg/generated/clientset/versioned/scheme"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/client"
@@ -56,10 +55,6 @@ func Run(s *option.APIServer) error {
 		CaFile:    s.Config.EtcdCaFile,
 		CertFile:  s.Config.EtcdCertFile,
 		KeyFile:   s.Config.EtcdKeyFile,
-	}
-	//启动服务发现
-	if _, err := discover.CreateEndpointDiscover(etcdClientArgs); err != nil {
-		return err
 	}
 	//创建db manager
 	if err := db.CreateDBManager(s.Config); err != nil {
@@ -94,18 +89,14 @@ func Run(s *option.APIServer) error {
 
 	if err := event.NewManager(event.EventConfig{
 		EventLogServers: s.Config.EventLogServers,
-		DiscoverArgs:    etcdClientArgs,
 	}); err != nil {
 		return err
 	}
 	defer event.CloseManager()
 	//create app status client
 	cli, err := client.NewClient(ctx, client.AppRuntimeSyncClientConf{
-		EtcdEndpoints: s.Config.EtcdEndpoint,
-		EtcdCaFile:    s.Config.EtcdCaFile,
-		EtcdCertFile:  s.Config.EtcdCertFile,
-		EtcdKeyFile:   s.Config.EtcdKeyFile,
-		NonBlock:      s.Config.Debug,
+		DefaultServerAddress: s.Config.WorkerAddress,
+		NonBlock:             s.Config.Debug,
 	})
 	if err != nil {
 		logrus.Errorf("create app status client error, %v", err)
@@ -118,19 +109,30 @@ func Run(s *option.APIServer) error {
 		return err
 	}
 
-	//初始化 middleware
+	//init middleware
 	handler.InitProxy(s.Config)
-	//创建handle
+
+	//create handle
 	if err := handler.InitHandle(s.Config, etcdClientArgs, cli, etcdcli, clientset, rainbondClient, k8sClient); err != nil {
 		logrus.Errorf("init all handle error, %v", err)
 		return err
 	}
-	//创建v2Router manager
+
+	// webcli modul
+	option := app.DefaultOptions
+	option.K8SConfPath = s.Config.KubeConfigPath
+	cliapp, err := app.New(&option)
+	if err != nil {
+		logrus.Errorf("new webcli app failure %v", err)
+		return err
+	}
+
+	// create v2Router manager
 	if err := controller.CreateV2RouterManager(s.Config, cli); err != nil {
 		logrus.Errorf("create v2 route manager error, %v", err)
 	}
-	// 启动api
-	apiManager := server.NewManager(s.Config, etcdcli)
+	// start server listen
+	apiManager := server.NewManager(s.Config, etcdcli, cliapp)
 	if err := apiManager.Start(); err != nil {
 		return err
 	}
@@ -138,7 +140,7 @@ func Run(s *option.APIServer) error {
 	logrus.Info("api router is running...")
 
 	//step finally: listen Signal
-	term := make(chan os.Signal)
+	term := make(chan os.Signal, 1)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
 	select {
 	case s := <-term:

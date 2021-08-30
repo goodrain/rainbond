@@ -21,32 +21,33 @@ package handler
 import (
 	"bytes"
 	"compress/zlib"
-	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/api/model"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	eventdb "github.com/goodrain/rainbond/eventlog/db"
 	"github.com/goodrain/rainbond/util/constants"
+	"github.com/sirupsen/logrus"
 )
 
 //LogAction  log action struct
 type LogAction struct {
-	EtcdCli *clientv3.Client
-	eventdb *eventdb.EventFilePlugin
+	eventdb        *eventdb.EventFilePlugin
+	eventLogServer string
 }
 
 //CreateLogManager get log manager
-func CreateLogManager(cli *clientv3.Client) *LogAction {
+func CreateLogManager() *LogAction {
 	return &LogAction{
-		EtcdCli: cli,
+		eventLogServer: "http://rbd-eventlog:6363",
 		eventdb: &eventdb.EventFilePlugin{
 			HomePath: "/grdata/logs/",
 		},
@@ -97,15 +98,30 @@ func (l *LogAction) GetLogFile(serviceAlias, fileName string) (string, string, e
 
 //GetLogInstance get log web socket instance
 func (l *LogAction) GetLogInstance(serviceID string) (string, error) {
-	value, err := l.EtcdCli.Get(context.Background(), fmt.Sprintf("/event/dockerloginstacne/%s", serviceID))
-	if err != nil {
-		return "", err
+	retry := 1
+	for retry < 3 {
+		address := fmt.Sprintf("%s/docker-instance?service_id=%s&mode=stream", l.eventLogServer, serviceID)
+		res, err := http.DefaultClient.Get(address)
+		if res != nil && res.Body != nil {
+			defer res.Body.Close()
+		}
+		if err != nil {
+			logrus.Warningf("Error get host info from %s. %s", address, err)
+			retry++
+			continue
+		}
+		var host = make(map[string]interface{})
+		err = json.NewDecoder(res.Body).Decode(&host)
+		if err != nil {
+			logrus.Errorf("Error Decode BEST instance host info: %v", err)
+			retry++
+			continue
+		}
+		if status, ok := host["status"]; ok && status == "success" {
+			return fmt.Sprintf("%s:%d", host["ip"], int(host["websocket_port"].(float64))), nil
+		}
 	}
-	if len(value.Kvs) > 0 {
-		return string(value.Kvs[0].Value), nil
-	}
-
-	return "", nil
+	return "", fmt.Errorf("can not select docker log instance")
 }
 
 //GetLevelLog get event log

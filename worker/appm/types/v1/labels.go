@@ -18,6 +18,10 @@
 
 package v1
 
+//LabelOS node label about os
+var LabelOS = "beta.kubernetes.io/os"
+var LabelGPU = "beta.rainbond.com/gpushare"
+
 //GetCommonLabels get common labels
 func (a *AppService) GetCommonLabels(labels ...map[string]string) map[string]string {
 	var resultLabel = make(map[string]string)

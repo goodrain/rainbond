@@ -1,8 +1,8 @@
 # Compile the project
 
-```
-# you must have docker and golang environment
+if you have docker and golang environment
 
+```
 # build all docker image
 make image
 
@@ -12,9 +12,19 @@ make binary
 # build binary for different os
 GOOS=windows make binary
 
-# if you what build one component
+# if you what build one module
 make binary WHAT=api
 make image WHAT=api
+```
+
+in only golang environment
+
+```
+# build all module
+./localbuild.sh all
+
+# build one module
+./localbuild.sh api
 ```
 
 # How to contribute

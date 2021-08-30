@@ -30,7 +30,6 @@ import (
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/dao"
-	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
 
@@ -40,6 +39,7 @@ import (
 
 	httputil "github.com/goodrain/rainbond/util/http"
 
+	typev1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -72,7 +72,7 @@ func (p *rainbondsslcProvisioner) selectNode(ctx context.Context, nodeOS, ignore
 	var selectnode *v1.Node
 	for _, node := range allnode.Items {
 		nodeReady := false
-		if node.Labels[client.LabelOS] != nodeOS {
+		if node.Labels["beta.kubernetes.io/os"] != nodeOS {
 			continue
 		}
 
@@ -202,9 +202,9 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 		if options.Parameters != nil {
 			ignoreNodes = options.Parameters["ignoreNodes"]
 		}
-		options.SelectedNode, err = p.selectNode(context.Background(), options.PVC.Annotations[client.LabelOS], ignoreNodes)
+		options.SelectedNode, err = p.selectNode(context.Background(), options.PVC.Annotations[typev1.LabelOS], ignoreNodes)
 		if err != nil {
-			return nil, fmt.Errorf("node OS: %s; error selecting node: %s", options.PVC.Annotations[client.LabelOS], err.Error())
+			return nil, fmt.Errorf("node OS: %s; error selecting node: %s", options.PVC.Annotations[typev1.LabelOS], err.Error())
 		}
 		if options.SelectedNode == nil {
 			return nil, fmt.Errorf("do not select an appropriate node for local volume")

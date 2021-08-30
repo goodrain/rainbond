@@ -36,7 +36,7 @@ import (
 func NewCmdEnvoy() cli.Command {
 	c := cli.Command{
 		Name:  "envoy",
-		Usage: "envoy management related commands",
+		Usage: "Envoy management related commands",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "address",

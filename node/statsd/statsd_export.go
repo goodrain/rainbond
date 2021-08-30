@@ -28,7 +28,7 @@ import (
 	"github.com/prometheus/common/version"
 	"github.com/sirupsen/logrus"
 
-	"github.com/goodrain/rainbond/cmd/node/option"
+	"github.com/goodrain/rainbond/cmd/node-proxy/option"
 	"github.com/goodrain/rainbond/node/statsd/exporter"
 )
 

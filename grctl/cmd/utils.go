@@ -17,3 +17,30 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package cmd
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/goodrain/rainbond/api/util"
+)
+
+func handleErr(err *util.APIHandleError) {
+	if err != nil {
+		if err.Err != nil {
+			fmt.Printf(err.String())
+			os.Exit(1)
+		} else {
+			fmt.Printf("API return %d", err.Code)
+		}
+	}
+}
+func showError(m string) {
+	fmt.Printf("Error: %s\n", m)
+	os.Exit(1)
+}
+
+func showSuccessMsg(m string) {
+	fmt.Printf("Success: %s\n", m)
+	os.Exit(0)
+}

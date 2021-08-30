@@ -22,8 +22,6 @@ import (
 	"net/http"
 	"strings"
 	"sync/atomic"
-
-	"github.com/sirupsen/logrus"
 )
 
 //ContextKey context key
@@ -146,51 +144,4 @@ func (rr RoundRobin) Select(r *http.Request, endpoints EndpointList) Endpoint {
 	}
 	selec := int(atomic.AddUint64(rr.ops, 1) % l)
 	return endpoints.Selec(selec)
-}
-
-//SelectBalance 选择性负载均衡
-type SelectBalance struct {
-	hostIDMap map[string]string
-}
-
-//NewSelectBalance  创建选择性负载均衡
-func NewSelectBalance() *SelectBalance {
-	return &SelectBalance{
-		hostIDMap: map[string]string{"local": "rbd-eventlog:6363"},
-	}
-}
-
-//Select 负载
-func (s *SelectBalance) Select(r *http.Request, endpoints EndpointList) Endpoint {
-	if r.URL == nil {
-		return Endpoint(s.hostIDMap["local"])
-	}
-
-	id2ip := map[string]string{"local": "rbd-eventlog:6363"}
-	for _, end := range endpoints {
-		if kv := strings.Split(string(end), "=>"); len(kv) > 1 {
-			id2ip[kv[0]] = kv[1]
-		}
-	}
-
-	if r.URL != nil {
-		hostID := r.URL.Query().Get("host_id")
-		if hostID == "" {
-			hostIDFromContext := r.Context().Value(ContextKey("host_id"))
-			if hostIDFromContext != nil {
-				hostID = hostIDFromContext.(string)
-			}
-		}
-		if e, ok := id2ip[hostID]; ok {
-			logrus.Infof("[lb selelct] find host %s from name %s success", e, hostID)
-			return Endpoint(e)
-		}
-	}
-
-	if len(endpoints) > 0 {
-		logrus.Infof("default endpoint is %s", endpoints[len(endpoints)-1])
-		return endpoints[len(endpoints)-1]
-	}
-
-	return Endpoint(s.hostIDMap["local"])
 }

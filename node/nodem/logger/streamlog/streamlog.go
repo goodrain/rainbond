@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"golang.org/x/net/context"
 
@@ -28,44 +27,7 @@ const name = "streamlog"
 const defaultClusterAddress = "http://rbd-eventlog:6363/docker-instance"
 const defaultAddress = "rbd-eventlog:6362"
 
-var etcdV3Endpoints = []string{"rbd-etcd:2379"}
 var clusterAddress = []string{defaultClusterAddress}
-
-//Dis dis manage
-type Dis struct {
-	discoverAddress string
-}
-
-func (c *Dis) discoverEventServer() {
-	for {
-		res, err := http.DefaultClient.Get(c.discoverAddress)
-		if err != nil {
-			logrus.Error("discover event_log_event_http app endpoints error, ", err.Error())
-		}
-		if res != nil && res.Body != nil {
-			re, err := ParseResponseBody(res.Body)
-			if err != nil {
-				logrus.Error("discover event_log_event_http app endpoints parse body error, ", err.Error())
-			}
-			if re.List != nil {
-				var servers []string
-				for _, en := range re.List {
-					if en.URL != "" {
-						if strings.HasPrefix(en.URL, "http") {
-							servers = append(servers, en.URL+"/docker-instance")
-						} else {
-							servers = append(servers, "http://"+en.URL+"/docker-instance")
-						}
-					}
-				}
-				if len(servers) > 0 {
-					clusterAddress = servers
-				}
-			}
-		}
-		time.Sleep(time.Second * 10)
-	}
-}
 
 //ResponseBody api返回数据格式
 type ResponseBody struct {
@@ -105,8 +67,6 @@ func init() {
 	if err := logger.RegisterLogOptValidator(name, ValidateLogOpt); err != nil {
 		logrus.Fatal(err)
 	}
-	dis := Dis{discoverAddress: "http://127.0.0.1:6100/v2/apps/event_log_event_http/discover"}
-	go dis.discoverEventServer()
 }
 
 //StreamLog 消息流log
@@ -115,14 +75,12 @@ type StreamLog struct {
 	serviceID                      string
 	tenantID                       string
 	containerID                    string
-	errorQueue                     [][]byte
 	reConnecting                   chan bool
 	serverAddress                  string
 	ctx                            context.Context
 	cancel                         context.CancelFunc
 	cacheSize                      int
 	cacheQueue                     chan string
-	lock                           sync.Mutex
 	config                         map[string]string
 	intervalSendMicrosecondTime    int64
 	minIntervalSendMicrosecondTime int64
@@ -196,10 +154,7 @@ func getTCPConnConfig(serviceID, address string) string {
 	if address == "" {
 		address = GetLogAddress(serviceID)
 	}
-	if strings.HasPrefix(address, "tcp://") {
-		address = address[6:]
-	}
-	return address
+	return strings.TrimPrefix(address, "tcp://")
 }
 
 //ValidateLogOpt 验证参数
@@ -239,7 +194,6 @@ func (s *StreamLog) send() {
 				continue
 			}
 			s.sendMsg(msg)
-			break
 		case <-s.ctx.Done():
 			close(s.closedChan)
 			return
@@ -291,21 +245,6 @@ func (s *StreamLog) Log(msg *logger.Message) error {
 	buf.Write(msg.Line)
 	s.cache(buf.String())
 	return nil
-}
-
-func isConnectionClosed(err error) bool {
-	if err == errClosed || err == errNoConnect {
-		return true
-	}
-	if strings.HasSuffix(err.Error(), "i/o timeout") {
-		return true
-	}
-	errMsg := err.Error()
-	ok := strings.HasSuffix(errMsg, "connection refused") || strings.HasSuffix(errMsg, "use of closed network connection")
-	if !ok {
-		return strings.HasSuffix(errMsg, "broken pipe") || strings.HasSuffix(errMsg, "connection reset by peer")
-	}
-	return ok
 }
 
 func (s *StreamLog) reConect() {
@@ -390,80 +329,17 @@ func getLogAddress(clusterAddress []string) string {
 			logrus.Warningf("Error get host info from %s. %s", address, err)
 			continue
 		}
-		var host = make(map[string]string)
+		var host = make(map[string]interface{})
 		err = json.NewDecoder(res.Body).Decode(&host)
 		if err != nil {
 			logrus.Errorf("Error Decode BEST instance host info: %v", err)
 			continue
 		}
 		if status, ok := host["status"]; ok && status == "success" {
-			return host["host"]
+			return host["host"].(string)
 		}
 		logrus.Warningf("Error get host info from %s. result is not success. body is:%v", address, host)
 	}
 	logrus.Warning("no cluster is running. return default address")
 	return defaultAddress
-}
-
-func ffjsonWriteJSONBytesAsString(buf *bytes.Buffer, s []byte) {
-	const hex = "0123456789abcdef"
-
-	buf.WriteByte('"')
-	start := 0
-	for i := 0; i < len(s); {
-		if b := s[i]; b < utf8.RuneSelf {
-			if 0x20 <= b && b != '\\' && b != '"' && b != '<' && b != '>' && b != '&' {
-				i++
-				continue
-			}
-			if start < i {
-				buf.Write(s[start:i])
-			}
-			switch b {
-			case '\\', '"':
-				buf.WriteByte('\\')
-				buf.WriteByte(b)
-			case '\n':
-				buf.WriteByte('\\')
-				buf.WriteByte('n')
-			case '\r':
-				buf.WriteByte('\\')
-				buf.WriteByte('r')
-			default:
-
-				buf.WriteString(`\u00`)
-				buf.WriteByte(hex[b>>4])
-				buf.WriteByte(hex[b&0xF])
-			}
-			i++
-			start = i
-			continue
-		}
-		c, size := utf8.DecodeRune(s[i:])
-		if c == utf8.RuneError && size == 1 {
-			if start < i {
-				buf.Write(s[start:i])
-			}
-			buf.WriteString(`\ufffd`)
-			i += size
-			start = i
-			continue
-		}
-
-		if c == '\u2028' || c == '\u2029' {
-			if start < i {
-				buf.Write(s[start:i])
-			}
-			buf.WriteString(`\u202`)
-			buf.WriteByte(hex[c&0xF])
-			i += size
-			start = i
-			continue
-		}
-		i += size
-	}
-	if start < len(s) {
-		buf.Write(s[start:])
-	}
-	buf.WriteByte('"')
 }

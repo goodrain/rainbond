@@ -2,9 +2,10 @@ package k8s
 
 import (
 	"encoding/json"
-	networkingv1 "k8s.io/api/networking/v1"
 	"net"
 	"os"
+
+	networkingv1 "k8s.io/api/networking/v1"
 
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
