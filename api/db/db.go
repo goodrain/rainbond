@@ -31,7 +31,6 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/mq/client"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
@@ -86,8 +85,7 @@ func CreateEventManager(conf option.Config) error {
 
 //MQManager mq manager
 type MQManager struct {
-	EtcdClientArgs *etcdutil.ClientArgs
-	DefaultServer  string
+	DefaultServer string
 }
 
 //NewMQManager new mq manager

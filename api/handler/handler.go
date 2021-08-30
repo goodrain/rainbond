@@ -44,8 +44,7 @@ func InitHandle(conf option.Config,
 	k8sClient k8sclient.Client,
 ) error {
 	mq := api_db.MQManager{
-		EtcdClientArgs: etcdClientArgs,
-		DefaultServer:  conf.MQAPI,
+		DefaultServer: conf.MQAPI,
 	}
 	mqClient, errMQ := mq.NewMQManager()
 	if errMQ != nil {

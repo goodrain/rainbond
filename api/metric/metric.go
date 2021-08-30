@@ -30,7 +30,7 @@ import (
 // Metric name parts.
 const (
 	// Namespace for all metrics.
-	namespace = "rbd_api"
+	namespace = "region_api"
 	// Subsystem(s).
 	exporter = "exporter"
 )

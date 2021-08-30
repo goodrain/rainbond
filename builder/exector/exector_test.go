@@ -35,7 +35,6 @@ import (
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 
 	mqclient "github.com/goodrain/rainbond/mq/client"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 )
 
@@ -48,7 +47,6 @@ func Test_exectorManager_buildFromSourceCode(t *testing.T) {
 		RbdNamespace:        "rbd-system",
 		MysqlConnectionInfo: "EeM2oc:lee7OhQu@tcp(192.168.2.203:3306)/region",
 	}
-	etcdArgs := etcdutil.ClientArgs{Endpoints: conf.EtcdEndPoints}
 	event.NewManager(event.EventConfig{
 		EventLogServers: conf.EventLogServers,
 	})
