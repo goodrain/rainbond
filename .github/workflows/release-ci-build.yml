@@ -2,7 +2,7 @@ name: release-ci-build
 
 on:
   release:
-    branches: [master, V5.3]
+    branches: [master, V5.3, V5.4]
   workflow_dispatch:
 
 jobs:
@@ -24,4 +24,4 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
           DOMESTIC_DOCKER_USERNAME: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
-        run: VERSION=v5.3.3-release ./release.sh all push
+        run: VERSION=v5.4.0-release ./release.sh all push
