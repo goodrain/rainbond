@@ -46,6 +46,7 @@ import (
 	ik8s "github.com/goodrain/rainbond/util/ingress-nginx/k8s"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	betav1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
@@ -87,7 +88,7 @@ type Storer interface {
 	// list virtual service
 	ListVirtualService() ([]*v1.VirtualService, []*v1.VirtualService)
 
-	ListIngresses() []*networkingv1.Ingress
+	ListIngresses() interface{}
 
 	GetIngressAnnotations(key string) (*annotations.Ingress, error)
 
@@ -176,6 +177,8 @@ func New(client kubernetes.Interface,
 		})
 
 	store.informers.Ingress = store.sharedInformer.Networking().V1().Ingresses().Informer()
+	store.informers.Ingress = store.sharedInformer.Extensions().V1beta1().Ingresses().Informer()
+
 	store.listers.Ingress.Store = store.informers.Ingress.GetStore()
 
 	store.informers.Service = store.sharedInformer.Core().V1().Services().Informer()
@@ -189,14 +192,26 @@ func New(client kubernetes.Interface,
 
 	ingEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			ing := obj.(*networkingv1.Ingress)
+			var meta *metav1.ObjectMeta
+			nwkIngress, ok := obj.(*networkingv1.Ingress)
+			if ok {
+				meta = &nwkIngress.ObjectMeta
+				store.secretIngressMap.update(nwkIngress)
+				store.syncSecrets(nwkIngress)
+			} else {
+				betaIngress, ok := obj.(*betav1.Ingress)
+				if ok {
+					meta = &betaIngress.ObjectMeta
+					store.secretIngressMap.update(betaIngress)
+					store.syncSecrets(betaIngress)
+				}
+			}
 
 			// updating annotations information for ingress
-			store.extractAnnotations(ing)
+			store.extractAnnotations(meta)
 			// takes an Ingress and updates all Secret objects it references in secretIngressMap.
-			store.secretIngressMap.update(ing)
+
 			// synchronizes data from all Secrets referenced by the given Ingress with the local store and file system.
-			store.syncSecrets(ing)
 
 			updateCh.In() <- Event{
 				Type: CreateEvent,
@@ -210,15 +225,37 @@ func New(client kubernetes.Interface,
 			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			oldIng := old.(*networkingv1.Ingress)
-			curIng := cur.(*networkingv1.Ingress)
-			// ignore the same secret as the old one
-			if oldIng.ResourceVersion == curIng.ResourceVersion || reflect.DeepEqual(oldIng, curIng) {
-				return
+			var (
+				meta    *metav1.ObjectMeta
+				ingress interface{}
+			)
+			oldNetIng, oldNetOk := old.(*networkingv1.Ingress)
+			curNetIng, curNetOk := cur.(*networkingv1.Ingress)
+			if oldNetOk && curNetOk {
+				// ignore the same secret as the old one
+				if oldNetIng.ResourceVersion == curNetIng.ResourceVersion || reflect.DeepEqual(oldNetIng, curNetIng) {
+					return
+				}
+				meta = &curNetIng.ObjectMeta
+				ingress = curNetIng
+			} else {
+				oldBetaIng, oldBetaOk := old.(*betav1.Ingress)
+				curBetaIng, curBetaOk := cur.(*betav1.Ingress)
+				if oldBetaOk && curBetaOk {
+					// ignore the same secret as the old one
+					if oldBetaIng.ResourceVersion == curBetaIng.ResourceVersion || reflect.DeepEqual(oldBetaIng, curBetaIng) {
+						return
+					}
+					meta = &curBetaIng.ObjectMeta
+					ingress = curBetaIng
+				} else {
+					return
+				}
 			}
-			store.extractAnnotations(curIng)
-			store.secretIngressMap.update(curIng)
-			store.syncSecrets(curIng)
+
+			store.extractAnnotations(meta)
+			store.secretIngressMap.update(ingress)
+			store.syncSecrets(ingress)
 			updateCh.In() <- Event{
 				Type: UpdateEvent,
 				Obj:  cur,
@@ -235,12 +272,12 @@ func New(client kubernetes.Interface,
 			if ings := store.secretIngressMap.getSecretKeys(key); len(ings) > 0 {
 				logrus.Infof("secret %v was added and it is used in ingress annotations. Parsing...", key)
 				for _, ingKey := range ings {
-					ing, err := store.GetIngress(ingKey)
+					ingress, err := store.GetIngress(ingKey)
 					if err != nil {
 						logrus.Errorf("could not find Ingress %v in local store", ingKey)
 						continue
 					}
-					store.syncSecrets(ing)
+					store.syncSecrets(ingress)
 				}
 				updateCh.In() <- Event{
 					Type: CreateEvent,
@@ -342,8 +379,8 @@ func New(client kubernetes.Interface,
 }
 
 // checkIngress checks whether the given ing is valid.
-func (s *k8sStore) checkIngress(ing *networkingv1.Ingress) bool {
-	i, err := l4.NewParser(s).Parse(ing)
+func (s *k8sStore) checkIngress(meta *metav1.ObjectMeta) bool {
+	i, err := l4.NewParser(s).Parse(meta)
 	if err != nil {
 		logrus.Warningf("Uxpected error with ingress: %v", err)
 		return false
@@ -354,7 +391,7 @@ func (s *k8sStore) checkIngress(ing *networkingv1.Ingress) bool {
 		_, err := net.Dial("tcp", fmt.Sprintf("%s:%d", cfg.L4Host, cfg.L4Port))
 		if err == nil {
 			logrus.Warningf("%s, in Ingress(%v), is already in use.",
-				fmt.Sprintf("%s:%d", cfg.L4Host, cfg.L4Port), ing)
+				fmt.Sprintf("%s:%d", cfg.L4Host, cfg.L4Port), meta)
 			return false
 		}
 		return true
@@ -365,11 +402,11 @@ func (s *k8sStore) checkIngress(ing *networkingv1.Ingress) bool {
 
 // extractAnnotations parses ingress annotations converting the value of the
 // annotation to a go struct and also information about the referenced secrets
-func (s *k8sStore) extractAnnotations(ing *networkingv1.Ingress) {
-	key := ik8s.MetaNamespaceKey(ing)
+func (s *k8sStore) extractAnnotations(meta *metav1.ObjectMeta) {
+	key := ik8s.MetaNamespaceKey(meta)
 	logrus.Debugf("updating annotations information for ingress %v", key)
 
-	anns := s.annotations.Extract(ing)
+	anns := s.annotations.Extract(meta)
 
 	err := s.listers.IngressAnnotation.Update(anns)
 	if err != nil {
@@ -699,20 +736,10 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 }
 
 // ingressIsValid checks if the specified ingress is valid
-func (s *k8sStore) ingressIsValid(ing *networkingv1.Ingress) bool {
-	var endpointKey string
-	if ing.Spec.DefaultBackend != nil { // stream
-		endpointKey = fmt.Sprintf("%s/%s", ing.Namespace, ing.Spec.DefaultBackend.Service.Name)
-	} else { // http
-	Loop:
-		for _, rule := range ing.Spec.Rules {
-			for _, path := range rule.IngressRuleValue.HTTP.Paths {
-				endpointKey = fmt.Sprintf("%s/%s", ing.Namespace, path.Backend.Service.Name)
-				if endpointKey != "" {
-					break Loop
-				}
-			}
-		}
+func (s *k8sStore) ingressIsValid(ingress interface{}) bool {
+	endpointKey := getEndpointKey(ingress)
+	if endpointKey == "" {
+		return false
 	}
 	item, exists, err := s.listers.Endpoint.GetByKey(endpointKey)
 	if err != nil {
@@ -740,6 +767,45 @@ func (s *k8sStore) ingressIsValid(ing *networkingv1.Ingress) bool {
 	return true
 }
 
+func getEndpointKey(ingress interface{}) string {
+	var endpointKey string
+	ntwIngress, ok := ingress.(*networkingv1.Ingress)
+	if ok {
+		if ntwIngress.Spec.DefaultBackend != nil { // stream
+			endpointKey = fmt.Sprintf("%s/%s", ntwIngress.Namespace, ntwIngress.Spec.DefaultBackend.Service.Name)
+		} else { // http
+		NtwLoop:
+			for _, rule := range ntwIngress.Spec.Rules {
+				for _, path := range rule.IngressRuleValue.HTTP.Paths {
+					endpointKey = fmt.Sprintf("%s/%s", ntwIngress.Namespace, path.Backend.Service.Name)
+					if endpointKey != "" {
+						break NtwLoop
+					}
+				}
+			}
+		}
+	} else {
+		betaIngress, ok := ingress.(*betav1.Ingress)
+		if !ok {
+			return ""
+		}
+		if betaIngress.Spec.Backend != nil { // stream
+			endpointKey = fmt.Sprintf("%s/%s", betaIngress.Namespace, betaIngress.Spec.Backend.ServiceName)
+		} else { // http
+		Loop:
+			for _, rule := range betaIngress.Spec.Rules {
+				for _, path := range rule.IngressRuleValue.HTTP.Paths {
+					endpointKey = fmt.Sprintf("%s/%s", betaIngress.Namespace, path.Backend.ServiceName)
+					if endpointKey != "" {
+						break Loop
+					}
+				}
+			}
+		}
+	}
+	return endpointKey
+}
+
 func hasReadyAddresses(endpoints *corev1.Endpoints) bool {
 	for _, ep := range endpoints.Subsets {
 		if len(ep.Addresses) > 0 {
@@ -750,12 +816,12 @@ func hasReadyAddresses(endpoints *corev1.Endpoints) bool {
 }
 
 // GetIngress returns the Ingress matching key.
-func (s *k8sStore) GetIngress(key string) (*networkingv1.Ingress, error) {
+func (s *k8sStore) GetIngress(key string) (interface{}, error) {
 	return s.listers.Ingress.ByKey(key)
 }
 
 // ListIngresses returns the list of Ingresses
-func (s *k8sStore) ListIngresses() []*networkingv1.Ingress {
+func (s *k8sStore) ListIngresses() interface{} {
 	// filter ingress rules
 	var ingresses []*networkingv1.Ingress
 	for _, item := range s.listers.Ingress.List() {
@@ -801,8 +867,8 @@ func (s *k8sStore) Run(stopCh chan struct{}) {
 
 // syncSecrets synchronizes data from all Secrets referenced by the given
 // Ingress with the local store and file system.
-func (s *k8sStore) syncSecrets(ing *networkingv1.Ingress) {
-	key := ik8s.MetaNamespaceKey(ing)
+func (s *k8sStore) syncSecrets(ingress interface{}) {
+	key := ik8s.MetaNamespaceKey(ingress)
 	for _, secrKey := range s.secretIngressMap.getSecretKeys(key) {
 		s.syncSecret(secrKey)
 	}
@@ -893,11 +959,29 @@ func (s *k8sStore) loopUpdateIngress() {
 	for ipevent := range s.node.IPManager().NeedUpdateGatewayPolicy() {
 		ingress := s.listers.Ingress.List()
 		for i := range ingress {
-			curIng, ok := ingress[i].(*networkingv1.Ingress)
-			if ok && curIng != nil && s.annotations.Extract(curIng).L4.L4Host == ipevent.IP.String() {
-				s.extractAnnotations(curIng)
-				s.secretIngressMap.update(curIng)
-				s.syncSecrets(curIng)
+			var meta *metav1.ObjectMeta
+			var betaIngress *betav1.Ingress
+			netIngress, ok := ingress[i].(*networkingv1.Ingress)
+			if ok && netIngress != nil {
+				meta = &netIngress.ObjectMeta
+			} else {
+				betaIngress, ok := ingress[i].(*betav1.Ingress)
+				if !ok || betaIngress == nil {
+					return
+				}
+				meta = &betaIngress.ObjectMeta
+			}
+
+			if s.annotations.Extract(meta).L4.L4Host == ipevent.IP.String() {
+				s.extractAnnotations(meta)
+				if netIngress != nil {
+					s.secretIngressMap.update(netIngress)
+					s.syncSecrets(netIngress)
+				} else {
+					s.secretIngressMap.update(betaIngress)
+					s.syncSecrets(betaIngress)
+				}
+
 				s.updateCh.In() <- Event{
 					Type: func() EventType {
 						switch ipevent.Type {

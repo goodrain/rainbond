@@ -20,6 +20,8 @@ package v1
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/util/k8s"
+	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"os"
 	"strconv"
 	"strings"
@@ -34,6 +36,7 @@ import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	betav1 "k8s.io/api/extensions/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -141,24 +144,26 @@ func (a *AppServiceBase) SetDiscoveryCfg(discoveryCfg *dbmodel.ThirdPartySvcDisc
 //AppService a service of rainbond app state in kubernetes
 type AppService struct {
 	AppServiceBase
-	tenant         *corev1.Namespace
-	statefulset    *v1.StatefulSet
-	deployment     *v1.Deployment
-	workload       runtime.Object
-	hpas           []*autoscalingv2.HorizontalPodAutoscaler
-	delHPAs        []*autoscalingv2.HorizontalPodAutoscaler
-	replicasets    []*v1.ReplicaSet
-	services       []*corev1.Service
-	delServices    []*corev1.Service
-	endpoints      []*corev1.Endpoints
-	configMaps     []*corev1.ConfigMap
-	ingresses      []*networkingv1.Ingress
-	delIngs        []*networkingv1.Ingress // ingresses which need to be deleted
-	secrets        []*corev1.Secret
-	delSecrets     []*corev1.Secret // secrets which need to be deleted
-	pods           []*corev1.Pod
-	claims         []*corev1.PersistentVolumeClaim
-	serviceMonitor []*monitorv1.ServiceMonitor
+	tenant           *corev1.Namespace
+	statefulset      *v1.StatefulSet
+	deployment       *v1.Deployment
+	workload         runtime.Object
+	hpas             []*autoscalingv2.HorizontalPodAutoscaler
+	delHPAs          []*autoscalingv2.HorizontalPodAutoscaler
+	replicasets      []*v1.ReplicaSet
+	services         []*corev1.Service
+	delServices      []*corev1.Service
+	endpoints        []*corev1.Endpoints
+	configMaps       []*corev1.ConfigMap
+	ingresses        []*networkingv1.Ingress
+	delIngs          []*networkingv1.Ingress // ingresses which need to be deleted
+	betaIngresses    []*betav1.Ingress
+	delBetaIngresses []*betav1.Ingress // ingresses which need to be deleted
+	secrets          []*corev1.Secret
+	delSecrets       []*corev1.Secret // secrets which need to be deleted
+	pods             []*corev1.Pod
+	claims           []*corev1.PersistentVolumeClaim
+	serviceMonitor   []*monitorv1.ServiceMonitor
 	// claims that needs to be created manually
 	claimsmanual     []*corev1.PersistentVolumeClaim
 	podMemoryRequest int64
@@ -408,31 +413,62 @@ func (a *AppService) DelEndpoints(ep *corev1.Endpoints) {
 }
 
 //GetIngress get ingress
-func (a *AppService) GetIngress(canCopy bool) []*networkingv1.Ingress {
-	if canCopy {
-		cr := make([]*networkingv1.Ingress, len(a.ingresses))
-		copy(cr, a.ingresses[0:])
-		return cr
+func (a *AppService) GetIngress(canCopy bool) ( []*networkingv1.Ingress,[]*betav1.Ingress) {
+	if k8s.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.19.0")) {
+		if canCopy {
+			cr := make([]*networkingv1.Ingress, len(a.ingresses))
+			copy(cr, a.ingresses[0:])
+			return cr,nil
+		}
+		return a.ingresses,nil
+	} else {
+		if canCopy {
+			cr := make([]*betav1.Ingress, len(a.betaIngresses))
+			copy(cr, a.betaIngresses[0:])
+			return nil,cr
+		}
+		return nil,a.betaIngresses
 	}
-	return a.ingresses
 }
 
 //GetDelIngs gets delIngs which need to be deleted
-func (a *AppService) GetDelIngs() []*networkingv1.Ingress {
-	return a.delIngs
+func (a *AppService) GetDelIngs() ([]*networkingv1.Ingress, []*betav1.Ingress) {
+	return a.delIngs, a.delBetaIngresses
 }
 
 //SetIngress set kubernetes ingress model
-func (a *AppService) SetIngress(d *networkingv1.Ingress) {
-	if len(a.ingresses) > 0 {
-		for i, ingress := range a.ingresses {
-			if ingress.GetName() == d.GetName() {
-				a.ingresses[i] = d
-				return
+func (a *AppService) SetIngress(d interface{}) {
+	nwkIngress, ok := d.(*networkingv1.Ingress)
+	if ok {
+		if len(a.ingresses) > 0 {
+			for i, ingress := range a.ingresses {
+				ing := d.(*networkingv1.Ingress)
+				if ing.GetName() == nwkIngress.GetName() {
+					a.ingresses[i] = ingress
+					return
+				}
+			}
+		} else {
+			a.ingresses = append(a.ingresses, nwkIngress)
+		}
+
+	} else {
+		betaIngress, ok := d.(*betav1.Ingress)
+		if ok {
+			if len(a.betaIngresses) > 0 {
+				for i, ingress := range a.betaIngresses {
+					ing := d.(*betav1.Ingress)
+					if ing.GetName() == betaIngress.GetName() {
+						a.betaIngresses[i] = ingress
+						return
+					}
+				}
+			} else {
+				a.betaIngresses = append(a.betaIngresses, betaIngress)
 			}
 		}
 	}
-	a.ingresses = append(a.ingresses, d)
+
 }
 
 // SetIngresses sets k8s ingress list
@@ -609,19 +645,39 @@ func (a *AppService) SetDeletedResources(old *AppService) {
 		logrus.Debugf("empty old app service.")
 		return
 	}
-	for _, o := range old.GetIngress(true) {
-		del := true
-		for _, n := range a.GetIngress(true) {
-			// if service_id is not same, can not delete it
-			if o.Name == n.Name {
-				del = false
-				break
+	oldNwkIngresses, oldBetaIngresses := old.GetIngress(true)
+	nwkIngresses, betaIngresses := a.GetIngress(true)
+	if oldNwkIngresses != nil  && nwkIngresses != nil{
+		for _, o := range oldNwkIngresses {
+			del := true
+			for _, n := range nwkIngresses {
+				// if service_id is not same, can not delete it
+				if o.Name == n.Name {
+					del = false
+					break
+				}
+			}
+			if del {
+				a.delIngs = append(a.delIngs, o)
 			}
 		}
-		if del {
-			a.delIngs = append(a.delIngs, o)
+
+	}else if  oldBetaIngresses != nil  && betaIngresses != nil{
+		for _, o := range oldBetaIngresses {
+			del := true
+			for _, n := range betaIngresses {
+				// if service_id is not same, can not delete it
+				if o.Name == n.Name {
+					del = false
+					break
+				}
+			}
+			if del {
+				a.delBetaIngresses = append(a.delBetaIngresses, o)
+			}
 		}
 	}
+
 	for _, o := range old.GetSecrets(true) {
 		del := true
 		for _, n := range a.GetSecrets(true) {
@@ -913,7 +969,7 @@ type TenantResource struct {
 type K8sResources struct {
 	Services  []*corev1.Service
 	Secrets   []*corev1.Secret
-	Ingresses []*networkingv1.Ingress
+	Ingresses []interface{}
 }
 
 //GetTCPMeshImageName get tcp mesh image name

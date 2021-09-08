@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/util/ingress-nginx/ingress/errors"
-	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -32,7 +32,7 @@ var (
 
 // IngressAnnotation has a method to parse annotations located in Ingress
 type IngressAnnotation interface {
-	Parse(ing *networkingv1.Ingress) (interface{}, error)
+	Parse(meta *metav1.ObjectMeta) (interface{}, error)
 }
 
 type ingAnnotations map[string]string
@@ -69,8 +69,8 @@ func (a ingAnnotations) parseInt(name string) (int, error) {
 	return 0, errors.ErrMissingAnnotations
 }
 
-func checkAnnotation(name string, ing *networkingv1.Ingress) error {
-	if ing == nil || len(ing.GetAnnotations()) == 0 {
+func checkAnnotation(name string, meta *metav1.ObjectMeta) error {
+	if meta == nil || len(meta.GetAnnotations()) == 0 {
 		return errors.ErrMissingAnnotations
 	}
 	if name == "" {
@@ -81,44 +81,44 @@ func checkAnnotation(name string, ing *networkingv1.Ingress) error {
 }
 
 // GetBoolAnnotation extracts a boolean from an Ingress annotation
-func GetBoolAnnotation(name string, ing *networkingv1.Ingress) (bool, error) {
+func GetBoolAnnotation(name string, meta *metav1.ObjectMeta) (bool, error) {
 	v := GetAnnotationWithPrefix(name)
-	err := checkAnnotation(v, ing)
+	err := checkAnnotation(v, meta)
 	if err != nil {
 		return false, err
 	}
-	return ingAnnotations(ing.GetAnnotations()).parseBool(v)
+	return ingAnnotations(meta.GetAnnotations()).parseBool(v)
 }
 
 // GetStringAnnotation extracts a string from an Ingress annotation
-func GetStringAnnotation(name string, ing *networkingv1.Ingress) (string, error) {
+func GetStringAnnotation(name string, meta *metav1.ObjectMeta) (string, error) {
 	v := GetAnnotationWithPrefix(name)
-	err := checkAnnotation(v, ing)
+	err := checkAnnotation(v, meta)
 	if err != nil {
 		return "", err
 	}
-	return ingAnnotations(ing.GetAnnotations()).parseString(v)
+	return ingAnnotations(meta.GetAnnotations()).parseString(v)
 }
 
 // GetIntAnnotation extracts an int from an Ingress annotation
-func GetIntAnnotation(name string, ing *networkingv1.Ingress) (int, error) {
+func GetIntAnnotation(name string, meta *metav1.ObjectMeta) (int, error) {
 	v := GetAnnotationWithPrefix(name)
-	err := checkAnnotation(v, ing)
+	err := checkAnnotation(v, meta)
 	if err != nil {
 		return 0, err
 	}
-	return ingAnnotations(ing.GetAnnotations()).parseInt(v)
+	return ingAnnotations(meta.GetAnnotations()).parseInt(v)
 }
 
 // GetStringAnnotationWithPrefix extracts an string from an Ingress annotation
 // based on the annotation prefix
-func GetStringAnnotationWithPrefix(prefix string, ing *networkingv1.Ingress) (map[string]string, error) {
+func GetStringAnnotationWithPrefix(prefix string, meta *metav1.ObjectMeta) (map[string]string, error) {
 	v := GetAnnotationWithPrefix(prefix)
-	err := checkAnnotation(v, ing)
+	err := checkAnnotation(v, meta)
 	if err != nil {
 		return nil, err
 	}
-	anns := ing.GetAnnotations()
+	anns := meta.GetAnnotations()
 	res := make(map[string]string)
 	for key, val := range anns {
 		if !strings.HasPrefix(key, v) {

@@ -53,9 +53,9 @@ func TestRbdStore_checkIngress(t *testing.T) {
 	for _, testCase := range testCases {
 		ing.SetAnnotations(testCase.data)
 		s := k8sStore{}
-		if s.checkIngress(ing) != testCase.expected {
+		if s.checkIngress(&ing.ObjectMeta) != testCase.expected {
 			t.Errorf("Expected %v for s.checkIngress(ing), but returned %v. data: %v", testCase.expected,
-				s.checkIngress(ing), testCase.data)
+				s.checkIngress(&ing.ObjectMeta), testCase.data)
 		}
 	}
 }
