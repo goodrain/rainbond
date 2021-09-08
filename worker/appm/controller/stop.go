@@ -95,17 +95,27 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 	}
 	//step 3: delete ingress
-	if ingresses := app.GetIngress(true); ingresses != nil {
-		for _, ingress := range ingresses {
-			if ingress != nil && ingress.Name != "" {
-				err := s.manager.client.ExtensionsV1beta1().Ingresses(app.TenantID).Delete(s.ctx, ingress.Name, metav1.DeleteOptions{
-					GracePeriodSeconds: &zero,
-				})
-				if err != nil && !errors.IsNotFound(err) {
-					return fmt.Errorf("delete ingress failure:%s", err.Error())
+	if ingresses, betaIngresses := app.GetIngress(true); ingresses != nil || betaIngresses != nil {
+		if ingresses != nil {
+			for _, ingress := range ingresses {
+				if ingress != nil && ingress.Name != "" {
+					err := s.deleteIngress(app.TenantID, ingress.Name, zero)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		} else {
+			for _, ingress := range betaIngresses {
+				if ingress != nil && ingress.Name != "" {
+					err := s.deleteIngress(app.TenantID, ingress.Name, zero)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
+
 	}
 	//step 4: delete configmap
 	if configs := app.GetConfigMaps(); configs != nil {
@@ -216,6 +226,16 @@ func (s *stopController) WaitingReady(app v1.AppService) error {
 	}
 	if err := WaitStop(s.manager.store, storeAppService, timeout, app.Logger, s.stopChan); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (s *stopController) deleteIngress(tenantId, ingressName string, zero int64) error {
+	err := s.manager.client.ExtensionsV1beta1().Ingresses(tenantId).Delete(s.ctx, ingressName, metav1.DeleteOptions{
+		GracePeriodSeconds: &zero,
+	})
+	if err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("delete ingress failure:%s", err.Error())
 	}
 	return nil
 }
