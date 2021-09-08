@@ -2,7 +2,7 @@ name: pr-ci-build
 
 on:
   pull_request:
-    branches: [master, V5.3]
+    branches: [master, V5.3, V5.4]
 
 jobs:
   build:
