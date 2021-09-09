@@ -511,6 +511,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 	for _, item := range s.listers.Ingress.List() {
 		var ingName, ingNamespace, ingKey, ingServiceName string
 		isBetaIngress := false
+		logrus.Infof("k8s ingress item:%v", item)
 		if ing, ok := item.(*networkingv1.Ingress); ok {
 			ingName = ing.Name
 			ingNamespace = ing.Namespace
