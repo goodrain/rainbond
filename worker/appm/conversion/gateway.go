@@ -601,6 +601,7 @@ func createIngressMeta(name, namespace string, labels map[string]string) metav1.
 }
 
 func createNtwIngress(domain, path, name, namespace, serviceName string, labels map[string]string, pluginContainerPort int) *networkingv1.Ingress {
+	logrus.Infof("start create networking ingress,serviceName is %s",serviceName)
 	return &networkingv1.Ingress{
 		ObjectMeta: createIngressMeta(name, namespace, labels),
 		Spec: networkingv1.IngressSpec{
@@ -631,7 +632,8 @@ func createNtwIngress(domain, path, name, namespace, serviceName string, labels 
 	}
 }
 
-func createBetaIngress(domain, name, path, namespace, serviceName string, labels map[string]string, pluginContainerPort int) *betav1.Ingress {
+func createBetaIngress(domain, path, name, namespace, serviceName string, labels map[string]string, pluginContainerPort int) *betav1.Ingress {
+	logrus.Infof("start create beta ingress,serviceName is %s",serviceName)
 	betaIngress := &betav1.Ingress{
 		ObjectMeta: createIngressMeta(name, namespace, labels),
 		Spec: betav1.IngressSpec{
