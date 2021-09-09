@@ -524,7 +524,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			ingKey = ik8s.MetaNamespaceKey(ing)
 			isBetaIngress = true
 			logrus.Infof("ingServiceName logs value :%v", ing)
-			//ingServiceName = ing.Spec.Backend.ServiceName
+			ingServiceName = ing.Spec.Backend.ServiceName
 		}
 
 		if !s.ingressIsValid(item) {
