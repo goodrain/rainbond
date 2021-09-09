@@ -178,7 +178,7 @@ func New(client kubernetes.Interface,
 			options.LabelSelector = "creator=Rainbond"
 		})
 
-	if k8sutil.GetKubeVersion().LessThan(utilversion.MustParseSemantic("v1.19.0")) {
+	if k8sutil.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.19.0")) {
 		store.informers.Ingress = store.sharedInformer.Networking().V1().Ingresses().Informer()
 	} else {
 		store.informers.Ingress = store.sharedInformer.Networking().V1beta1().Ingresses().Informer()
@@ -505,17 +505,15 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 	// ServerName-LocationPath -> location
 	srvLocMap := make(map[string]*v1.Location)
 
-	version := k8sutil.GetKubeVersion()
-	logrus.Infof("k8s kube version :%v", version)
-
 	for _, item := range s.listers.Ingress.List() {
 		var ingName, ingNamespace, ingKey, ingServiceName string
 		isBetaIngress := false
-		logrus.Infof("k8s ingress item:%v", item)
 		if ing, ok := item.(*networkingv1.Ingress); ok {
 			ingName = ing.Name
 			ingNamespace = ing.Namespace
 			ingKey = ik8s.MetaNamespaceKey(ing)
+			logrus.Infof("ing Spec :%v", ing.Spec)
+			logrus.Infof("ing Spec DefaultBackend :%v", ing.Spec.DefaultBackend)
 			ingServiceName = ing.Spec.DefaultBackend.Service.Name
 		}
 		if ing, ok := item.(*betav1.Ingress); ok {
@@ -523,7 +521,6 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			ingNamespace = ing.Namespace
 			ingKey = ik8s.MetaNamespaceKey(ing)
 			isBetaIngress = true
-			logrus.Infof("ingServiceName logs value :%v", ing)
 			ingServiceName = ing.Spec.Backend.ServiceName
 		}
 
