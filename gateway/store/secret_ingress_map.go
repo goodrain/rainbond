@@ -22,7 +22,7 @@ import (
 	"fmt"
 
 	"github.com/goodrain/rainbond/util/ingress-nginx/k8s"
-	betav1 "k8s.io/api/extensions/v1beta1"
+	betav1 "k8s.io/api/networking/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
 )
 

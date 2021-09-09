@@ -23,7 +23,9 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"io/ioutil"
+	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"net"
 	"os"
 	"reflect"
@@ -46,8 +48,8 @@ import (
 	ik8s "github.com/goodrain/rainbond/util/ingress-nginx/k8s"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	betav1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
+	betav1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -176,9 +178,11 @@ func New(client kubernetes.Interface,
 			options.LabelSelector = "creator=Rainbond"
 		})
 
-	store.informers.Ingress = store.sharedInformer.Networking().V1().Ingresses().Informer()
-	store.informers.Ingress = store.sharedInformer.Extensions().V1beta1().Ingresses().Informer()
-
+	if k8sutil.GetKubeVersion().LessThan(utilversion.MustParseSemantic("v1.19.0")) {
+		store.informers.Ingress = store.sharedInformer.Networking().V1().Ingresses().Informer()
+	} else {
+		store.informers.Ingress = store.sharedInformer.Networking().V1beta1().Ingresses().Informer()
+	}
 	store.listers.Ingress.Store = store.informers.Ingress.GetStore()
 
 	store.informers.Service = store.sharedInformer.Core().V1().Services().Informer()
@@ -501,11 +505,25 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 	// ServerName-LocationPath -> location
 	srvLocMap := make(map[string]*v1.Location)
 	for _, item := range s.listers.Ingress.List() {
-		ing := item.(*networkingv1.Ingress)
-		if !s.ingressIsValid(ing) {
+		var ingName, ingNamespace, ingKey, ingServiceName string
+		isBetaIngress := false
+		if ing, ok := item.(*networkingv1.Ingress); ok {
+			ingName = ing.Name
+			ingNamespace = ing.Namespace
+			ingKey = ik8s.MetaNamespaceKey(ing)
+			ingServiceName = ing.Spec.DefaultBackend.Service.Name
+		}
+		if ing, ok := item.(*betav1.Ingress); ok {
+			ingName = ing.Name
+			ingNamespace = ing.Namespace
+			ingKey = ik8s.MetaNamespaceKey(ing)
+			isBetaIngress = true
+			ingServiceName = ing.Spec.Backend.ServiceName
+		}
+
+		if !s.ingressIsValid(item) {
 			continue
 		}
-		ingKey := ik8s.MetaNamespaceKey(ing)
 		anns, err := s.GetIngressAnnotations(ingKey)
 		if err != nil {
 			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
@@ -520,16 +538,25 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				//Determines whether the current node is in effect
 				ip := net.ParseIP(host)
 				if ip == nil {
-					logrus.Warningf("ingress %s (Namespace:%s) l4 host config is invalid", ing.Name, ing.Namespace)
+					logrus.Warningf("ingress %s (Namespace:%s) l4 host config is invalid", ingName, ingNamespace)
 					continue
 				}
 				if !s.node.IPManager().IPInCurrentHost(ip) {
-					logrus.Debugf("ingress %s (Namespace:%s) l4 host %s does not belong to the current node", ing.Name, ing.Namespace, host)
+					logrus.Debugf("ingress %s (Namespace:%s) l4 host %s does not belong to the current node", ingName, ingNamespace, host)
 					continue
 				}
 			}
-			svcKey := fmt.Sprintf("%v/%v", ing.Namespace, ing.Spec.DefaultBackend.Service.Name)
-			protocol := s.GetServiceProtocol(svcKey, ing.Spec.DefaultBackend.Service.Port.Number)
+
+			var svcKey string
+			var protocol corev1.Protocol
+			if isBetaIngress {
+				svcKey = fmt.Sprintf("%v/%v", item.(*betav1.Ingress).Namespace, item.(*betav1.Ingress).Spec.Backend.ServiceName)
+				protocol = s.GetServiceProtocol(svcKey, item.(*betav1.Ingress).Spec.Backend.ServicePort.IntVal)
+			} else {
+				svcKey := fmt.Sprintf("%v/%v", ingNamespace, item.(*networkingv1.Ingress).Spec.DefaultBackend.Service.Name)
+				protocol = s.GetServiceProtocol(svcKey, item.(*networkingv1.Ingress).Spec.DefaultBackend.Service.Port.Number)
+			}
+
 			listening := fmt.Sprintf("%s:%v", host, anns.L4.L4Port)
 			if string(protocol) == string(v1.ProtocolUDP) {
 				listening = fmt.Sprintf("%s %s", listening, "udp")
@@ -538,7 +565,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			//This is based on the order of the judgment, if the conflict, the latter discarded
 			if anns.L4.L4Port == s.conf.ListenPorts.HTTP || anns.L4.L4Port == s.conf.ListenPorts.HTTPS ||
 				anns.L4.L4Port == s.conf.ListenPorts.Health || anns.L4.L4Port == s.conf.ListenPorts.Status {
-				logrus.Warningf("ingress %s (Namespace:%s) l4 host repeat listening will be ignored", ing.Name, ing.Namespace)
+				logrus.Warningf("ingress %s (Namespace:%s) l4 host repeat listening will be ignored", ingName, ingNamespace)
 				continue
 			}
 			conflictkey := []string{
@@ -547,11 +574,11 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			for _, key := range conflictkey {
 				vs := l4vsMap[key]
 				if vs != nil {
-					logrus.Warningf("ingress %s (Namespace:%s) l4 host repeat listening will be ignored", ing.Name, ing.Namespace)
+					logrus.Warningf("ingress %s (Namespace:%s) l4 host repeat listening will be ignored", ingName, ingNamespace)
 					continue
 				}
 			}
-			backendName := util.BackendName(listening, ing.Namespace)
+			backendName := util.BackendName(listening, ingNamespace)
 			vs := &v1.VirtualService{
 				Listening: []string{listening},
 				PoolName:  backendName,
@@ -559,114 +586,219 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			}
 			vs.Namespace = anns.Namespace
 			vs.ServiceID = anns.Labels["service_id"]
-			l4PoolMap[ing.Spec.DefaultBackend.Service.Name] = struct{}{}
+			l4PoolMap[ingServiceName] = struct{}{}
 			l4vsMap[listening] = vs
 			l4vs = append(l4vs, vs)
 			backend := backend{name: backendName, weight: anns.Weight.Weight}
-			l4PoolBackendMap[ing.Spec.DefaultBackend.Service.Name] = append(l4PoolBackendMap[ing.Spec.DefaultBackend.Service.Name], backend)
+			l4PoolBackendMap[ingServiceName] = append(l4PoolBackendMap[ingServiceName], backend)
 			// endregion
 		} else {
 			// region l7
 			// parse TLS into a map
 			hostSSLMap := make(map[string]*v1.SSLCert)
-			for _, tls := range ing.Spec.TLS {
-				secrKey := fmt.Sprintf("%s/%s", ing.Namespace, tls.SecretName)
-				item, exists := s.sslStore.Get(secrKey)
-				if !exists {
-					logrus.Warnf("Secret named %s does not exist", secrKey)
-					continue
-				}
-				sslCert := item.(*v1.SSLCert)
-				for _, host := range tls.Hosts {
-					hostSSLMap[host] = sslCert
-				}
-				// make the first SSLCert as default
-				if _, exists := hostSSLMap[DefVirSrvName]; !exists {
-					hostSSLMap[DefVirSrvName] = sslCert
-				}
-			}
-
-			for _, rule := range ing.Spec.Rules {
-				var vs *v1.VirtualService
-				// virtual service name
-				virSrvName := strings.Replace(rule.Host, " ", "", -1)
-				if virSrvName == "" {
-					virSrvName = DefVirSrvName
-				}
-				if len(hostSSLMap) != 0 {
-					virSrvName = fmt.Sprintf("tls%s", virSrvName)
-				}
-
-				vs = l7vsMap[virSrvName]
-				if vs == nil {
-					vs = &v1.VirtualService{
-						Listening:    []string{strconv.Itoa(s.conf.ListenPorts.HTTP)},
-						ServerName:   virSrvName,
-						Locations:    []*v1.Location{},
-						SSlProtocols: "TLSv1.2 TLSv1.3",
+			if isBetaIngress {
+				ing := item.(*betav1.Ingress)
+				for _, tls := range ing.Spec.TLS {
+					secrKey := fmt.Sprintf("%s/%s", ingNamespace, tls.SecretName)
+					item, exists := s.sslStore.Get(secrKey)
+					if !exists {
+						logrus.Warnf("Secret named %s does not exist", secrKey)
+						continue
 					}
-					sslProtocols := os.Getenv("SSL_PROTOCOLS")
-					if sslProtocols != "" {
-						vs.SSlProtocols = sslProtocols
+					sslCert := item.(*v1.SSLCert)
+					for _, host := range tls.Hosts {
+						hostSSLMap[host] = sslCert
 					}
+					// make the first SSLCert as default
+					if _, exists := hostSSLMap[DefVirSrvName]; !exists {
+						hostSSLMap[DefVirSrvName] = sslCert
+					}
+				}
 
-					vs.Namespace = ing.Namespace
-					vs.ServiceID = anns.Labels["service_id"]
+				for _, rule := range ing.Spec.Rules {
+					var vs *v1.VirtualService
+					// virtual service name
+					virSrvName := strings.Replace(rule.Host, " ", "", -1)
+					if virSrvName == "" {
+						virSrvName = DefVirSrvName
+					}
 					if len(hostSSLMap) != 0 {
-						vs.Listening = []string{strconv.Itoa(s.conf.ListenPorts.HTTPS), "ssl"}
-						if hostSSLMap[virSrvName] != nil {
-							vs.SSLCert = hostSSLMap[virSrvName]
-						} else { // TODO: if there is necessary to provide a default virtual service name
-							vs.SSLCert = hostSSLMap[DefVirSrvName]
-						}
+						virSrvName = fmt.Sprintf("tls%s", virSrvName)
 					}
 
-					l7vsMap[virSrvName] = vs
-					l7vs = append(l7vs, vs)
+					vs = l7vsMap[virSrvName]
+					if vs == nil {
+						vs = &v1.VirtualService{
+							Listening:    []string{strconv.Itoa(s.conf.ListenPorts.HTTP)},
+							ServerName:   virSrvName,
+							Locations:    []*v1.Location{},
+							SSlProtocols: "TLSv1.2 TLSv1.3",
+						}
+						sslProtocols := os.Getenv("SSL_PROTOCOLS")
+						if sslProtocols != "" {
+							vs.SSlProtocols = sslProtocols
+						}
+
+						vs.Namespace = ing.Namespace
+						vs.ServiceID = anns.Labels["service_id"]
+						if len(hostSSLMap) != 0 {
+							vs.Listening = []string{strconv.Itoa(s.conf.ListenPorts.HTTPS), "ssl"}
+							if hostSSLMap[virSrvName] != nil {
+								vs.SSLCert = hostSSLMap[virSrvName]
+							} else { // TODO: if there is necessary to provide a default virtual service name
+								vs.SSLCert = hostSSLMap[DefVirSrvName]
+							}
+						}
+
+						l7vsMap[virSrvName] = vs
+						l7vs = append(l7vs, vs)
+					}
+
+					for _, path := range rule.IngressRuleValue.HTTP.Paths {
+						locKey := fmt.Sprintf("%s_%s", virSrvName, path.Path)
+						location := srvLocMap[locKey]
+						l7PoolMap[path.Backend.ServiceName] = struct{}{}
+						// if location do not exists, then creates a new one
+						if location == nil {
+							location = &v1.Location{
+								Path:          path.Path,
+								NameCondition: map[string]*v1.Condition{},
+							}
+							srvLocMap[locKey] = location
+							vs.Locations = append(vs.Locations, location)
+							// the first ingress proxy takes effect
+							location.Proxy = anns.Proxy
+						}
+						// If their ServiceName is the same, then the new one will overwrite the old one.
+						nameCondition := &v1.Condition{}
+						var backendName string
+						if anns.Header.Header != nil {
+							nameCondition.Type = v1.HeaderType
+							nameCondition.Value = anns.Header.Header
+							backendName = fmt.Sprintf("%s_%s", locKey, v1.HeaderType)
+						} else if anns.Cookie.Cookie != nil {
+							nameCondition.Type = v1.CookieType
+							nameCondition.Value = anns.Cookie.Cookie
+							backendName = fmt.Sprintf("%s_%s", locKey, v1.CookieType)
+						} else {
+							nameCondition.Type = v1.DefaultType
+							nameCondition.Value = map[string]string{"1": "1"}
+							backendName = fmt.Sprintf("%s_%s", locKey, v1.DefaultType)
+						}
+						backendName = util.BackendName(backendName, ing.Namespace)
+						location.NameCondition[backendName] = nameCondition
+						backend := backend{
+							name:              backendName,
+							weight:            anns.Weight.Weight,
+							loadBalancingType: anns.LoadBalancingType,
+						}
+						if anns.UpstreamHashBy != "" {
+							backend.hashBy = anns.UpstreamHashBy
+						}
+						l7PoolBackendMap[path.Backend.ServiceName] = append(l7PoolBackendMap[path.Backend.ServiceName], backend)
+					}
+				}
+			} else {
+				ing := item.(*networkingv1.Ingress)
+				for _, tls := range ing.Spec.TLS {
+					secrKey := fmt.Sprintf("%s/%s", ingNamespace, tls.SecretName)
+					item, exists := s.sslStore.Get(secrKey)
+					if !exists {
+						logrus.Warnf("Secret named %s does not exist", secrKey)
+						continue
+					}
+					sslCert := item.(*v1.SSLCert)
+					for _, host := range tls.Hosts {
+						hostSSLMap[host] = sslCert
+					}
+					// make the first SSLCert as default
+					if _, exists := hostSSLMap[DefVirSrvName]; !exists {
+						hostSSLMap[DefVirSrvName] = sslCert
+					}
 				}
 
-				for _, path := range rule.IngressRuleValue.HTTP.Paths {
-					locKey := fmt.Sprintf("%s_%s", virSrvName, path.Path)
-					location := srvLocMap[locKey]
-					l7PoolMap[path.Backend.Service.Name] = struct{}{}
-					// if location do not exists, then creates a new one
-					if location == nil {
-						location = &v1.Location{
-							Path:          path.Path,
-							NameCondition: map[string]*v1.Condition{},
+				for _, rule := range ing.Spec.Rules {
+					var vs *v1.VirtualService
+					// virtual service name
+					virSrvName := strings.Replace(rule.Host, " ", "", -1)
+					if virSrvName == "" {
+						virSrvName = DefVirSrvName
+					}
+					if len(hostSSLMap) != 0 {
+						virSrvName = fmt.Sprintf("tls%s", virSrvName)
+					}
+
+					vs = l7vsMap[virSrvName]
+					if vs == nil {
+						vs = &v1.VirtualService{
+							Listening:    []string{strconv.Itoa(s.conf.ListenPorts.HTTP)},
+							ServerName:   virSrvName,
+							Locations:    []*v1.Location{},
+							SSlProtocols: "TLSv1.2 TLSv1.3",
 						}
-						srvLocMap[locKey] = location
-						vs.Locations = append(vs.Locations, location)
-						// the first ingress proxy takes effect
-						location.Proxy = anns.Proxy
+						sslProtocols := os.Getenv("SSL_PROTOCOLS")
+						if sslProtocols != "" {
+							vs.SSlProtocols = sslProtocols
+						}
+
+						vs.Namespace = ing.Namespace
+						vs.ServiceID = anns.Labels["service_id"]
+						if len(hostSSLMap) != 0 {
+							vs.Listening = []string{strconv.Itoa(s.conf.ListenPorts.HTTPS), "ssl"}
+							if hostSSLMap[virSrvName] != nil {
+								vs.SSLCert = hostSSLMap[virSrvName]
+							} else { // TODO: if there is necessary to provide a default virtual service name
+								vs.SSLCert = hostSSLMap[DefVirSrvName]
+							}
+						}
+
+						l7vsMap[virSrvName] = vs
+						l7vs = append(l7vs, vs)
 					}
-					// If their ServiceName is the same, then the new one will overwrite the old one.
-					nameCondition := &v1.Condition{}
-					var backendName string
-					if anns.Header.Header != nil {
-						nameCondition.Type = v1.HeaderType
-						nameCondition.Value = anns.Header.Header
-						backendName = fmt.Sprintf("%s_%s", locKey, v1.HeaderType)
-					} else if anns.Cookie.Cookie != nil {
-						nameCondition.Type = v1.CookieType
-						nameCondition.Value = anns.Cookie.Cookie
-						backendName = fmt.Sprintf("%s_%s", locKey, v1.CookieType)
-					} else {
-						nameCondition.Type = v1.DefaultType
-						nameCondition.Value = map[string]string{"1": "1"}
-						backendName = fmt.Sprintf("%s_%s", locKey, v1.DefaultType)
+
+					for _, path := range rule.IngressRuleValue.HTTP.Paths {
+						locKey := fmt.Sprintf("%s_%s", virSrvName, path.Path)
+						location := srvLocMap[locKey]
+						l7PoolMap[path.Backend.Service.Name] = struct{}{}
+						// if location do not exists, then creates a new one
+						if location == nil {
+							location = &v1.Location{
+								Path:          path.Path,
+								NameCondition: map[string]*v1.Condition{},
+							}
+							srvLocMap[locKey] = location
+							vs.Locations = append(vs.Locations, location)
+							// the first ingress proxy takes effect
+							location.Proxy = anns.Proxy
+						}
+						// If their ServiceName is the same, then the new one will overwrite the old one.
+						nameCondition := &v1.Condition{}
+						var backendName string
+						if anns.Header.Header != nil {
+							nameCondition.Type = v1.HeaderType
+							nameCondition.Value = anns.Header.Header
+							backendName = fmt.Sprintf("%s_%s", locKey, v1.HeaderType)
+						} else if anns.Cookie.Cookie != nil {
+							nameCondition.Type = v1.CookieType
+							nameCondition.Value = anns.Cookie.Cookie
+							backendName = fmt.Sprintf("%s_%s", locKey, v1.CookieType)
+						} else {
+							nameCondition.Type = v1.DefaultType
+							nameCondition.Value = map[string]string{"1": "1"}
+							backendName = fmt.Sprintf("%s_%s", locKey, v1.DefaultType)
+						}
+						backendName = util.BackendName(backendName, ing.Namespace)
+						location.NameCondition[backendName] = nameCondition
+						backend := backend{
+							name:              backendName,
+							weight:            anns.Weight.Weight,
+							loadBalancingType: anns.LoadBalancingType,
+						}
+						if anns.UpstreamHashBy != "" {
+							backend.hashBy = anns.UpstreamHashBy
+						}
+						l7PoolBackendMap[path.Backend.Service.Name] = append(l7PoolBackendMap[path.Backend.Service.Name], backend)
 					}
-					backendName = util.BackendName(backendName, ing.Namespace)
-					location.NameCondition[backendName] = nameCondition
-					backend := backend{
-						name:              backendName,
-						weight:            anns.Weight.Weight,
-						loadBalancingType: anns.LoadBalancingType,
-					}
-					if anns.UpstreamHashBy != "" {
-						backend.hashBy = anns.UpstreamHashBy
-					}
-					l7PoolBackendMap[path.Backend.Service.Name] = append(l7PoolBackendMap[path.Backend.Service.Name], backend)
 				}
 			}
 			// endregion
@@ -674,12 +806,19 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 	}
 
 	for _, item := range s.listers.Ingress.List() {
-		ing := item.(*networkingv1.Ingress)
-		if !s.ingressIsValid(ing) {
+		var ingKey string
+		isBetaIngress := false
+		if ing, ok := item.(*networkingv1.Ingress); ok {
+			ingKey = ik8s.MetaNamespaceKey(ing)
+		}
+		if ing, ok := item.(*betav1.Ingress); ok {
+			ingKey = ik8s.MetaNamespaceKey(ing)
+			isBetaIngress = true
+		}
+		if !s.ingressIsValid(item) {
 			continue
 		}
 
-		ingKey := ik8s.MetaNamespaceKey(ing)
 		anns, err := s.GetIngressAnnotations(ingKey)
 		if err != nil {
 			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
@@ -690,43 +829,87 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 		}
 
 		if !anns.L4.L4Enable || anns.L4.L4Port == 0 {
-			for _, rule := range ing.Spec.Rules {
-				var vs *v1.VirtualService
-				virSrvName := strings.TrimSpace(rule.Host)
-				vs = l7vsMap[virSrvName]
-				if vs == nil {
-					vs = &v1.VirtualService{
-						Listening:  []string{strconv.Itoa(s.conf.ListenPorts.HTTP)},
-						ServerName: virSrvName,
-						Locations:  []*v1.Location{},
+			if isBetaIngress {
+				ing := item.(*betav1.Ingress)
+				for _, rule := range ing.Spec.Rules {
+					var vs *v1.VirtualService
+					virSrvName := strings.TrimSpace(rule.Host)
+					vs = l7vsMap[virSrvName]
+					if vs == nil {
+						vs = &v1.VirtualService{
+							Listening:  []string{strconv.Itoa(s.conf.ListenPorts.HTTP)},
+							ServerName: virSrvName,
+							Locations:  []*v1.Location{},
+						}
+						l7vsMap[virSrvName] = vs
+						l7vs = append(l7vs, vs)
 					}
-					l7vsMap[virSrvName] = vs
-					l7vs = append(l7vs, vs)
-				}
 
-				for _, path := range rule.IngressRuleValue.HTTP.Paths {
-					locKey := fmt.Sprintf("%s_%s", virSrvName, path.Path)
-					location := srvLocMap[locKey]
-					if location != nil {
-						// If location != nil, the http policy for path is already set.
-						// In this case, ForceSSLRedirect should be ignored.
-						continue
-					}
-					location = &v1.Location{
-						Path:             path.Path,
-						DisableProxyPass: true,
-						Rewrite: rewrite.Config{
-							Rewrites: []*rewrite.Rewrite{
-								{
-									Regex:       "^",
-									Replacement: "https://$http_host$request_uri?",
-									Flag:        "permanent",
+					for _, path := range rule.IngressRuleValue.HTTP.Paths {
+						locKey := fmt.Sprintf("%s_%s", virSrvName, path.Path)
+						location := srvLocMap[locKey]
+						if location != nil {
+							// If location != nil, the http policy for path is already set.
+							// In this case, ForceSSLRedirect should be ignored.
+							continue
+						}
+						location = &v1.Location{
+							Path:             path.Path,
+							DisableProxyPass: true,
+							Rewrite: rewrite.Config{
+								Rewrites: []*rewrite.Rewrite{
+									{
+										Regex:       "^",
+										Replacement: "https://$http_host$request_uri?",
+										Flag:        "permanent",
+									},
 								},
 							},
-						},
+						}
+						location.Proxy = anns.Proxy
+						vs.Locations = append(vs.Locations, location)
 					}
-					location.Proxy = anns.Proxy
-					vs.Locations = append(vs.Locations, location)
+				}
+			} else {
+				ing := item.(*networkingv1.Ingress)
+				for _, rule := range ing.Spec.Rules {
+					var vs *v1.VirtualService
+					virSrvName := strings.TrimSpace(rule.Host)
+					vs = l7vsMap[virSrvName]
+					if vs == nil {
+						vs = &v1.VirtualService{
+							Listening:  []string{strconv.Itoa(s.conf.ListenPorts.HTTP)},
+							ServerName: virSrvName,
+							Locations:  []*v1.Location{},
+						}
+						l7vsMap[virSrvName] = vs
+						l7vs = append(l7vs, vs)
+					}
+
+					for _, path := range rule.IngressRuleValue.HTTP.Paths {
+						locKey := fmt.Sprintf("%s_%s", virSrvName, path.Path)
+						location := srvLocMap[locKey]
+						if location != nil {
+							// If location != nil, the http policy for path is already set.
+							// In this case, ForceSSLRedirect should be ignored.
+							continue
+						}
+						location = &v1.Location{
+							Path:             path.Path,
+							DisableProxyPass: true,
+							Rewrite: rewrite.Config{
+								Rewrites: []*rewrite.Rewrite{
+									{
+										Regex:       "^",
+										Replacement: "https://$http_host$request_uri?",
+										Flag:        "permanent",
+									},
+								},
+							},
+						}
+						location.Proxy = anns.Proxy
+						vs.Locations = append(vs.Locations, location)
+					}
 				}
 			}
 			// endregion

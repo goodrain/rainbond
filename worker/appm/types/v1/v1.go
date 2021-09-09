@@ -36,7 +36,7 @@ import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	betav1 "k8s.io/api/extensions/v1beta1"
+	betav1 "k8s.io/api/networking/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -413,21 +413,21 @@ func (a *AppService) DelEndpoints(ep *corev1.Endpoints) {
 }
 
 //GetIngress get ingress
-func (a *AppService) GetIngress(canCopy bool) ( []*networkingv1.Ingress,[]*betav1.Ingress) {
+func (a *AppService) GetIngress(canCopy bool) ([]*networkingv1.Ingress, []*betav1.Ingress) {
 	if k8s.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.19.0")) {
 		if canCopy {
 			cr := make([]*networkingv1.Ingress, len(a.ingresses))
 			copy(cr, a.ingresses[0:])
-			return cr,nil
+			return cr, nil
 		}
-		return a.ingresses,nil
+		return a.ingresses, nil
 	} else {
 		if canCopy {
 			cr := make([]*betav1.Ingress, len(a.betaIngresses))
 			copy(cr, a.betaIngresses[0:])
-			return nil,cr
+			return nil, cr
 		}
-		return nil,a.betaIngresses
+		return nil, a.betaIngresses
 	}
 }
 
@@ -485,6 +485,17 @@ func (a *AppService) DeleteIngress(d *networkingv1.Ingress) {
 		}
 	}
 }
+
+//DeleteIngress delete kubernetes networking v1beta1 ingress model
+func (a *AppService) DeleteBetaIngress(d *betav1.Ingress) {
+	for i, c := range a.betaIngresses {
+		if c.GetName() == d.GetName() {
+			a.betaIngresses = append(a.betaIngresses[0:i], a.betaIngresses[i+1:]...)
+			return
+		}
+	}
+}
+
 func (a *AppService) calculateComponentMemoryRequest() {
 	var memoryRequest int64
 	var cpuRequest int64
@@ -647,7 +658,7 @@ func (a *AppService) SetDeletedResources(old *AppService) {
 	}
 	oldNwkIngresses, oldBetaIngresses := old.GetIngress(true)
 	nwkIngresses, betaIngresses := a.GetIngress(true)
-	if oldNwkIngresses != nil  && nwkIngresses != nil{
+	if oldNwkIngresses != nil && nwkIngresses != nil {
 		for _, o := range oldNwkIngresses {
 			del := true
 			for _, n := range nwkIngresses {
@@ -662,7 +673,7 @@ func (a *AppService) SetDeletedResources(old *AppService) {
 			}
 		}
 
-	}else if  oldBetaIngresses != nil  && betaIngresses != nil{
+	} else if oldBetaIngresses != nil && betaIngresses != nil {
 		for _, o := range oldBetaIngresses {
 			del := true
 			for _, n := range betaIngresses {
@@ -917,6 +928,13 @@ func (a *AppService) DeleteWorkload(workload runtime.Object) {
 }
 
 func (a *AppService) String() string {
+	var ingresses string
+	for _, i := range a.ingresses {
+		ingresses += i.Name + ","
+	}
+	for _, i := range a.betaIngresses {
+		ingresses += i.Name + ","
+	}
 	return fmt.Sprintf(`
 	-----------------------------------------------------
 	App:%s
@@ -934,13 +952,7 @@ func (a *AppService) String() string {
 		a.statefulset,
 		a.deployment,
 		len(a.pods),
-		func(ing []*networkingv1.Ingress) string {
-			result := ""
-			for _, i := range ing {
-				result += i.Name + ","
-			}
-			return result
-		}(a.ingresses),
+		ingresses,
 		func(ing []*corev1.Service) string {
 			result := ""
 			for _, i := range ing {
