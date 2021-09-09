@@ -504,6 +504,10 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 	l4vsMap := make(map[string]*v1.VirtualService)
 	// ServerName-LocationPath -> location
 	srvLocMap := make(map[string]*v1.Location)
+
+	version := k8sutil.GetKubeVersion()
+	logrus.Infof("k8s kube version :%v", version)
+
 	for _, item := range s.listers.Ingress.List() {
 		var ingName, ingNamespace, ingKey, ingServiceName string
 		isBetaIngress := false
@@ -518,7 +522,8 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			ingNamespace = ing.Namespace
 			ingKey = ik8s.MetaNamespaceKey(ing)
 			isBetaIngress = true
-			ingServiceName = ing.Spec.Backend.ServiceName
+			logrus.Infof("ingServiceName logs value :%v", ing)
+			//ingServiceName = ing.Spec.Backend.ServiceName
 		}
 
 		if !s.ingressIsValid(item) {
