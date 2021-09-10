@@ -25,7 +25,6 @@ import (
 	"fmt"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"io/ioutil"
-	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"net"
 	"os"
 	"reflect"
@@ -178,7 +177,7 @@ func New(client kubernetes.Interface,
 			options.LabelSelector = "creator=Rainbond"
 		})
 
-	if k8sutil.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.19.0")) {
+	if k8sutil.IsHighVersion() {
 		store.informers.Ingress = store.sharedInformer.Networking().V1().Ingresses().Informer()
 	} else {
 		store.informers.Ingress = store.sharedInformer.Networking().V1beta1().Ingresses().Informer()
@@ -199,6 +198,7 @@ func New(client kubernetes.Interface,
 			var meta *metav1.ObjectMeta
 			nwkIngress, ok := obj.(*networkingv1.Ingress)
 			if ok {
+				logrus.Infof("ingEventHandler Spec DefaultBackend :%v", nwkIngress.Spec.DefaultBackend)
 				meta = &nwkIngress.ObjectMeta
 				store.secretIngressMap.update(nwkIngress)
 				store.syncSecrets(nwkIngress)
@@ -229,34 +229,30 @@ func New(client kubernetes.Interface,
 			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
+			logrus.Info("来这来了吗3")
 			var (
 				meta    *metav1.ObjectMeta
 				ingress interface{}
 			)
-			oldNetIng, oldNetOk := old.(*networkingv1.Ingress)
-			curNetIng, curNetOk := cur.(*networkingv1.Ingress)
-			if oldNetOk && curNetOk {
+			if k8sutil.IsHighVersion() {
+				oldIng := old.(*networkingv1.Ingress)
+				curIng := cur.(*networkingv1.Ingress)
 				// ignore the same secret as the old one
-				if oldNetIng.ResourceVersion == curNetIng.ResourceVersion || reflect.DeepEqual(oldNetIng, curNetIng) {
+				if oldIng.ResourceVersion == curIng.ResourceVersion || reflect.DeepEqual(oldIng, curIng) {
 					return
 				}
-				meta = &curNetIng.ObjectMeta
-				ingress = curNetIng
-			} else {
-				oldBetaIng, oldBetaOk := old.(*betav1.Ingress)
-				curBetaIng, curBetaOk := cur.(*betav1.Ingress)
-				if oldBetaOk && curBetaOk {
-					// ignore the same secret as the old one
-					if oldBetaIng.ResourceVersion == curBetaIng.ResourceVersion || reflect.DeepEqual(oldBetaIng, curBetaIng) {
-						return
-					}
-					meta = &curBetaIng.ObjectMeta
-					ingress = curBetaIng
-				} else {
+				store.secretIngressMap.update(curIng)
+				store.syncSecrets(curIng)
+			}else {
+				oldIng := old.(*betav1.Ingress)
+				curIng := cur.(*betav1.Ingress)
+				// ignore the same secret as the old one
+				if oldIng.ResourceVersion == curIng.ResourceVersion || reflect.DeepEqual(oldIng, curIng) {
 					return
 				}
+				store.secretIngressMap.update(curIng)
+				store.syncSecrets(curIng)
 			}
-
 			store.extractAnnotations(meta)
 			store.secretIngressMap.update(ingress)
 			store.syncSecrets(ingress)
@@ -512,7 +508,6 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			ingName = ing.Name
 			ingNamespace = ing.Namespace
 			ingKey = ik8s.MetaNamespaceKey(ing)
-			logrus.Infof("ing Spec :%v", ing.Spec)
 			logrus.Infof("ing Spec DefaultBackend :%v", ing.Spec.DefaultBackend)
 			ingServiceName = ing.Spec.DefaultBackend.Service.Name
 		}

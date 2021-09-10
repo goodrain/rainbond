@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 	betav1 "k8s.io/api/networking/v1beta1"
-	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"os"
 	"sync"
 	"time"
@@ -208,7 +207,7 @@ func NewStore(
 	store.informers.ConfigMap = infFactory.Core().V1().ConfigMaps().Informer()
 	store.listers.ConfigMap = infFactory.Core().V1().ConfigMaps().Lister()
 
-	if k8sutil.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.19.0")) {
+	if k8sutil.IsHighVersion() {
 		store.informers.Ingress = infFactory.Networking().V1().Ingresses().Informer()
 		store.listers.Ingress = infFactory.Networking().V1().Ingresses().Lister()
 	} else {

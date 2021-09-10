@@ -20,7 +20,6 @@ package conversion
 
 import (
 	"fmt"
-	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"os"
 	"strconv"
 	"strings"
@@ -256,6 +255,8 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, containerPort, plu
 	namespace := a.tenant.UUID
 	serviceName := service.Name
 
+	logrus.Infof("applyHTTPRule serviceName %:",serviceName)
+
 	// certificate
 	sec, err = a.createSecret(rule, name, namespace, labels)
 	if err != nil {
@@ -268,7 +269,7 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, containerPort, plu
 		return nil, nil, err
 	}
 
-	if k8s.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.19.0")) {
+	if k8s.IsHighVersion() {
 		ntwIngress := createNtwIngress(domain, path, name, namespace, serviceName, labels, pluginContainerPort)
 		ntwIngress.Spec.TLS = []networkingv1.IngressTLS{
 			{
@@ -301,7 +302,7 @@ func (a *AppServiceBuild) applyTCPRule(rule *model.TCPRule, service *corev1.Serv
 
 	// create ingress
 	objectMeta := createIngressMeta(rule.UUID, namespace, a.appService.GetCommonLabels())
-	if k8s.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.19.0")) {
+	if k8s.IsHighVersion() {
 		nwkIngress := &networkingv1.Ingress{
 			ObjectMeta: objectMeta,
 			Spec: networkingv1.IngressSpec{

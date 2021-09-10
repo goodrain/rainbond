@@ -19,8 +19,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/reference"
 )
+
 var once sync.Once
 var clientset kubernetes.Interface
+
 // NewClientset -
 func NewClientset(kubecfg string) (kubernetes.Interface, error) {
 	c, err := clientcmd.BuildConfigFromFlags("", kubecfg)
@@ -129,6 +131,9 @@ func IngressPathType(pathType networkingv1.PathType) *networkingv1.PathType {
 	return &pathType
 }
 
+func IsHighVersion() bool {
+	return GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.19.0"))
+}
 
 // GetKubeVersion returns the version of k8s
 func GetKubeVersion() *utilversion.Version {

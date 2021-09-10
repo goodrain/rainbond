@@ -21,7 +21,6 @@ package v1
 import (
 	"fmt"
 	"github.com/goodrain/rainbond/util/k8s"
-	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"os"
 	"strconv"
 	"strings"
@@ -414,7 +413,7 @@ func (a *AppService) DelEndpoints(ep *corev1.Endpoints) {
 
 //GetIngress get ingress
 func (a *AppService) GetIngress(canCopy bool) ([]*networkingv1.Ingress, []*betav1.Ingress) {
-	if k8s.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.19.0")) {
+	if k8s.IsHighVersion() {
 		if canCopy {
 			cr := make([]*networkingv1.Ingress, len(a.ingresses))
 			copy(cr, a.ingresses[0:])
