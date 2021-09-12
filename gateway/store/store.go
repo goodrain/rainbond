@@ -511,13 +511,21 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 		var ingName, ingNamespace, ingKey, ingServiceName string
 		isBetaIngress := false
 		if ing, ok := item.(*networkingv1.Ingress); ok {
-			logrus.Infof("ing Spec before:%v", ing.Spec)
+			logrus.Infof("ing Spec before:%+v", ing.Spec)
 			ingName = ing.Name
 			ingNamespace = ing.Namespace
 			ingKey = ik8s.MetaNamespaceKey(ing)
-			logrus.Infof("ing alfter before:%v", ing.Spec)
-			logrus.Infof("ing Spec DefaultBackend :%v", ing.Spec.DefaultBackend)
-			ingServiceName = ing.Spec.DefaultBackend.Service.Name
+			logrus.Infof("ing alfer :%+v", ing.Spec)
+			logrus.Infof("ing Spec DefaultBackend :%+v", ing.Spec.DefaultBackend)
+			if ing.Spec.DefaultBackend == nil && ing.Spec.Rules != nil && len(ing.Spec.Rules) > 0 {
+				if len(ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths) == 0 {
+					logrus.Info("[ListVirtualService] not ingress rule value")
+					continue
+				}
+				ingServiceName = ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name
+			} else {
+				ingServiceName = ing.Spec.DefaultBackend.Service.Name
+			}
 		}
 		if ing, ok := item.(*betav1.Ingress); ok {
 			ingName = ing.Name
@@ -925,7 +933,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 // ingressIsValid checks if the specified ingress is valid
 func (s *k8sStore) ingressIsValid(ingress interface{}) bool {
 	endpointKey := getEndpointKey(ingress)
-	logrus.Infof("ingressIsValid endpointKey is %s",endpointKey)
+	logrus.Infof("ingressIsValid endpointKey is %s", endpointKey)
 	if endpointKey == "" {
 		return false
 	}
