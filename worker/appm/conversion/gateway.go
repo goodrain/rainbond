@@ -79,6 +79,7 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 		as.SetSecret(sec)
 	}
 
+	logrus.Infof("TenantServiceRegist --------------------%v",as)
 	return nil
 }
 
@@ -185,10 +186,11 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 		services, _ = a.CreateUpstreamPluginMappingService(services, pp)
 	}
 
+	logrus.Infof("AppServiceBuild build ingresses %v", ingresses)
 	return &v1.K8sResources{
-		Services:      services,
-		Secrets:       secrets,
-		Ingresses:     ingresses,
+		Services:  services,
+		Secrets:   secrets,
+		Ingresses: ingresses,
 	}, nil
 }
 
@@ -213,7 +215,10 @@ func (a AppServiceBuild) ApplyRules(serviceID string, containerPort, pluginConta
 			}
 			//logrus.Debugf("create ingress %s", ingress.Name)
 			ingresses = append(ingresses, ingress)
-			secrets = append(secrets, sec)
+			if sec != nil {
+				secrets = append(secrets, sec)
+			}
+
 		}
 	}
 
@@ -255,7 +260,7 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, containerPort, plu
 	namespace := a.tenant.UUID
 	serviceName := service.Name
 
-	logrus.Infof("applyHTTPRule serviceName %:",serviceName)
+	logrus.Infof("applyHTTPRule serviceName %s", serviceName)
 
 	// certificate
 	sec, err = a.createSecret(rule, name, namespace, labels)
@@ -263,32 +268,39 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, containerPort, plu
 		return nil, nil, err
 	}
 
+	logrus.Infof("applyHTTPRule createSecret %v:", sec)
 	// parse annotations
 	annotations, err := a.parseAnnotations(rule)
 	if err != nil {
 		return nil, nil, err
 	}
+	logrus.Infof("applyHTTPRule annotations %v:", annotations)
 
 	if k8s.IsHighVersion() {
 		ntwIngress := createNtwIngress(domain, path, name, namespace, serviceName, labels, pluginContainerPort)
-		ntwIngress.Spec.TLS = []networkingv1.IngressTLS{
-			{
-				Hosts:      []string{domain},
-				SecretName: sec.Name,
-			},
+		if sec != nil {
+			ntwIngress.Spec.TLS = []networkingv1.IngressTLS{
+				{
+					Hosts:      []string{domain},
+					SecretName: sec.Name,
+				},
+			}
 		}
 		ntwIngress.SetAnnotations(annotations)
-		return ntwIngress,sec,nil
+		logrus.Infof("applyHTTPRule ntwIngress: %v", ntwIngress)
+		return ntwIngress, sec, nil
 	} else {
 		beatIngress := createBetaIngress(domain, path, name, namespace, serviceName, labels, pluginContainerPort)
-		beatIngress.Spec.TLS = []betav1.IngressTLS{
-			{
-				Hosts:      []string{domain},
-				SecretName: sec.Name,
-			},
+		if sec != nil {
+			beatIngress.Spec.TLS = []betav1.IngressTLS{
+				{
+					Hosts:      []string{domain},
+					SecretName: sec.Name,
+				},
+			}
 		}
 		beatIngress.SetAnnotations(annotations)
-		return beatIngress,sec,nil
+		return beatIngress, sec, nil
 	}
 }
 
@@ -317,10 +329,10 @@ func (a *AppServiceBuild) applyTCPRule(rule *model.TCPRule, service *corev1.Serv
 			},
 		}
 		nwkIngress.SetAnnotations(annos)
-		return nwkIngress,nil
+		return nwkIngress, nil
 	} else {
 		betaIngress := &betav1.Ingress{
-			ObjectMeta:objectMeta,
+			ObjectMeta: objectMeta,
 			Spec: betav1.IngressSpec{
 				Backend: &betav1.IngressBackend{
 					ServiceName: service.Name,
@@ -329,7 +341,7 @@ func (a *AppServiceBuild) applyTCPRule(rule *model.TCPRule, service *corev1.Serv
 			},
 		}
 		betaIngress.SetAnnotations(annos)
-		return betaIngress,nil
+		return betaIngress, nil
 	}
 }
 
@@ -574,7 +586,7 @@ func (a *AppServiceBuild) parseAnnotations(rule *model.HTTPRule) (map[string]str
 
 func (a *AppServiceBuild) createSecret(rule *model.HTTPRule, name, namespace string, labels map[string]string) (*corev1.Secret, error) {
 	if rule.CertificateID == "" {
-		return nil, fmt.Errorf("rule certificate id is empty: %s")
+		return nil, nil
 	}
 	cert, err := a.dbmanager.CertificateDao().GetCertificateByID(rule.CertificateID)
 	if err != nil {
@@ -602,7 +614,7 @@ func createIngressMeta(name, namespace string, labels map[string]string) metav1.
 }
 
 func createNtwIngress(domain, path, name, namespace, serviceName string, labels map[string]string, pluginContainerPort int) *networkingv1.Ingress {
-	logrus.Infof("start create networking ingress,serviceName is %s",serviceName)
+	logrus.Infof("start create networking ingress,serviceName is %s", serviceName)
 	return &networkingv1.Ingress{
 		ObjectMeta: createIngressMeta(name, namespace, labels),
 		Spec: networkingv1.IngressSpec{
@@ -629,12 +641,20 @@ func createNtwIngress(domain, path, name, namespace, serviceName string, labels 
 					},
 				},
 			},
+			DefaultBackend: &networkingv1.IngressBackend{
+				Service: &networkingv1.IngressServiceBackend{
+					Name: serviceName,
+					Port: networkingv1.ServiceBackendPort{
+						Number: int32(pluginContainerPort),
+					},
+				},
+			},
 		},
 	}
 }
 
 func createBetaIngress(domain, path, name, namespace, serviceName string, labels map[string]string, pluginContainerPort int) *betav1.Ingress {
-	logrus.Infof("start create beta ingress,serviceName is %s",serviceName)
+	logrus.Infof("start create beta ingress,serviceName is %s", serviceName)
 	betaIngress := &betav1.Ingress{
 		ObjectMeta: createIngressMeta(name, namespace, labels),
 		Spec: betav1.IngressSpec{

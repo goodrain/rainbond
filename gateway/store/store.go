@@ -195,27 +195,25 @@ func New(client kubernetes.Interface,
 
 	ingEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			var meta *metav1.ObjectMeta
 			nwkIngress, ok := obj.(*networkingv1.Ingress)
 			if ok {
-				logrus.Infof("ingEventHandler Spec DefaultBackend :%v", nwkIngress.Spec.DefaultBackend)
-				meta = &nwkIngress.ObjectMeta
+				// updating annotations information for ingress
+				store.extractAnnotations(nwkIngress)
 				store.secretIngressMap.update(nwkIngress)
 				store.syncSecrets(nwkIngress)
+
 			} else {
 				betaIngress, ok := obj.(*betav1.Ingress)
 				if ok {
-					meta = &betaIngress.ObjectMeta
+					// updating annotations information for ingress
+					store.extractAnnotations(betaIngress)
 					store.secretIngressMap.update(betaIngress)
+					// synchronizes data from all Secrets referenced by the given Ingress with the local store and file system.
+					// takes an Ingress and updates all Secret objects it references in secretIngressMap.
 					store.syncSecrets(betaIngress)
+
 				}
 			}
-
-			// updating annotations information for ingress
-			store.extractAnnotations(meta)
-			// takes an Ingress and updates all Secret objects it references in secretIngressMap.
-
-			// synchronizes data from all Secrets referenced by the given Ingress with the local store and file system.
 
 			updateCh.In() <- Event{
 				Type: CreateEvent,
@@ -229,9 +227,7 @@ func New(client kubernetes.Interface,
 			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			logrus.Info("来这来了吗3")
 			var (
-				meta    *metav1.ObjectMeta
 				ingress interface{}
 			)
 			if k8sutil.IsHighVersion() {
@@ -241,19 +237,18 @@ func New(client kubernetes.Interface,
 				if oldIng.ResourceVersion == curIng.ResourceVersion || reflect.DeepEqual(oldIng, curIng) {
 					return
 				}
-				store.secretIngressMap.update(curIng)
-				store.syncSecrets(curIng)
-			}else {
+				ingress = curIng
+
+			} else {
 				oldIng := old.(*betav1.Ingress)
 				curIng := cur.(*betav1.Ingress)
 				// ignore the same secret as the old one
 				if oldIng.ResourceVersion == curIng.ResourceVersion || reflect.DeepEqual(oldIng, curIng) {
 					return
 				}
-				store.secretIngressMap.update(curIng)
-				store.syncSecrets(curIng)
+				ingress = curIng
 			}
-			store.extractAnnotations(meta)
+			store.extractAnnotations(ingress)
 			store.secretIngressMap.update(ingress)
 			store.syncSecrets(ingress)
 			updateCh.In() <- Event{
@@ -402,11 +397,18 @@ func (s *k8sStore) checkIngress(meta *metav1.ObjectMeta) bool {
 
 // extractAnnotations parses ingress annotations converting the value of the
 // annotation to a go struct and also information about the referenced secrets
-func (s *k8sStore) extractAnnotations(meta *metav1.ObjectMeta) {
-	key := ik8s.MetaNamespaceKey(meta)
+func (s *k8sStore) extractAnnotations(ingress interface{}) {
+	key := ik8s.MetaNamespaceKey(ingress)
 	logrus.Debugf("updating annotations information for ingress %v", key)
 
-	anns := s.annotations.Extract(meta)
+	var anns *annotations.Ingress
+	if k8sutil.IsHighVersion() {
+		nwkIngress := ingress.(*networkingv1.Ingress)
+		anns = s.annotations.Extract(&nwkIngress.ObjectMeta)
+	} else {
+		betaIngress := ingress.(*betav1.Ingress)
+		anns = s.annotations.Extract(&betaIngress.ObjectMeta)
+	}
 
 	err := s.listers.IngressAnnotation.Update(anns)
 	if err != nil {
@@ -502,12 +504,18 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 	srvLocMap := make(map[string]*v1.Location)
 
 	for _, item := range s.listers.Ingress.List() {
+		if !s.ingressIsValid(item) {
+			logrus.Info("ListVirtualService is no valid")
+			continue
+		}
 		var ingName, ingNamespace, ingKey, ingServiceName string
 		isBetaIngress := false
 		if ing, ok := item.(*networkingv1.Ingress); ok {
+			logrus.Infof("ing Spec before:%v", ing.Spec)
 			ingName = ing.Name
 			ingNamespace = ing.Namespace
 			ingKey = ik8s.MetaNamespaceKey(ing)
+			logrus.Infof("ing alfter before:%v", ing.Spec)
 			logrus.Infof("ing Spec DefaultBackend :%v", ing.Spec.DefaultBackend)
 			ingServiceName = ing.Spec.DefaultBackend.Service.Name
 		}
@@ -519,9 +527,6 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			ingServiceName = ing.Spec.Backend.ServiceName
 		}
 
-		if !s.ingressIsValid(item) {
-			continue
-		}
 		anns, err := s.GetIngressAnnotations(ingKey)
 		if err != nil {
 			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
@@ -804,6 +809,10 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 	}
 
 	for _, item := range s.listers.Ingress.List() {
+		if !s.ingressIsValid(item) {
+			continue
+		}
+
 		var ingKey string
 		isBetaIngress := false
 		if ing, ok := item.(*networkingv1.Ingress); ok {
@@ -812,9 +821,6 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 		if ing, ok := item.(*betav1.Ingress); ok {
 			ingKey = ik8s.MetaNamespaceKey(ing)
 			isBetaIngress = true
-		}
-		if !s.ingressIsValid(item) {
-			continue
 		}
 
 		anns, err := s.GetIngressAnnotations(ingKey)
@@ -919,6 +925,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 // ingressIsValid checks if the specified ingress is valid
 func (s *k8sStore) ingressIsValid(ingress interface{}) bool {
 	endpointKey := getEndpointKey(ingress)
+	logrus.Infof("ingressIsValid endpointKey is %s",endpointKey)
 	if endpointKey == "" {
 		return false
 	}
