@@ -931,7 +931,6 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 // ingressIsValid checks if the specified ingress is valid
 func (s *k8sStore) ingressIsValid(ingress interface{}) bool {
 	endpointKey := getEndpointKey(ingress)
-	logrus.Infof("ingressIsValid endpointKey is %s", endpointKey)
 	if endpointKey == "" {
 		return false
 	}
