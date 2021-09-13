@@ -1,4 +1,4 @@
-name: release-ci-build
+name: gateway-ci-build
 
 on:
   release:
