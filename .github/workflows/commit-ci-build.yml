@@ -2,7 +2,7 @@ name: commit-ci-build
 
 on:
   push:
-    branches: [master, V5.3]
+    branches: [master, V5.3, V5.4]
 
 jobs:
   build:
