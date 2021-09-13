@@ -511,18 +511,16 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 		var ingName, ingNamespace, ingKey, ingServiceName string
 		isBetaIngress := false
 		if ing, ok := item.(*networkingv1.Ingress); ok {
-			logrus.Infof("ing Spec before:%+v", ing.Spec)
 			ingName = ing.Name
 			ingNamespace = ing.Namespace
 			ingKey = ik8s.MetaNamespaceKey(ing)
-			logrus.Infof("ing alfer :%+v", ing.Spec)
-			logrus.Infof("ing Spec DefaultBackend :%+v", ing.Spec.DefaultBackend)
 			if ing.Spec.DefaultBackend == nil && ing.Spec.Rules != nil && len(ing.Spec.Rules) > 0 {
-				if len(ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths) == 0 {
+				paths := ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths
+				if len(paths) == 0 {
 					logrus.Info("[ListVirtualService] not ingress rule value")
 					continue
 				}
-				ingServiceName = ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Name
+				ingServiceName = paths[0].Backend.Service.Name
 			} else {
 				ingServiceName = ing.Spec.DefaultBackend.Service.Name
 			}
