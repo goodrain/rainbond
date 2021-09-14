@@ -4,8 +4,8 @@ set -o errexit
 # define package name
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
-IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME:-'ljh4260'}
-DOMESTIC_NAMESPACE=${DOMESTIC_NAMESPACE:-'ljh4260'}
+IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME:-'rainbond'}
+DOMESTIC_NAMESPACE=${DOMESTIC_NAMESPACE:-'goodrain'}
 
 GO_VERSION=1.13
 
