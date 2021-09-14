@@ -230,8 +230,8 @@ func (s *stopController) WaitingReady(app v1.AppService) error {
 	return nil
 }
 
-func (s *stopController) deleteIngress(tenantId, ingressName string, zero int64) error {
-	err := s.manager.client.ExtensionsV1beta1().Ingresses(tenantId).Delete(s.ctx, ingressName, metav1.DeleteOptions{
+func (s *stopController) deleteIngress(tenantID, ingressName string, zero int64) error {
+	err := s.manager.client.ExtensionsV1beta1().Ingresses(tenantID).Delete(s.ctx, ingressName, metav1.DeleteOptions{
 		GracePeriodSeconds: &zero,
 	})
 	if err != nil && !errors.IsNotFound(err) {
