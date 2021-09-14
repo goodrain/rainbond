@@ -159,16 +159,24 @@ func (s *startController) startOne(app v1.AppService) error {
 		}
 	}
 	//step 5: create ingress
-	if ingresses := app.GetIngress(true); ingresses != nil {
-		for _, ingress := range ingresses {
-			if len(ingress.ResourceVersion) == 0 {
-				_, err := s.manager.client.NetworkingV1().Ingresses(app.TenantID).Create(s.ctx, ingress, metav1.CreateOptions{})
-				if err != nil && !errors.IsAlreadyExists(err) {
-					return fmt.Errorf("create ingress failure:%s", err.Error())
-				}
+	ingresses, betaIngresses := app.GetIngress(true)
+	for _, ingress := range ingresses {
+		if len(ingress.ResourceVersion) == 0 {
+			_, err := s.manager.client.NetworkingV1().Ingresses(app.TenantID).Create(s.ctx, ingress, metav1.CreateOptions{})
+			if err != nil && !errors.IsAlreadyExists(err) {
+				return fmt.Errorf("create ingress failure:%s", err.Error())
 			}
 		}
 	}
+	for _, ingress := range betaIngresses {
+		if len(ingress.ResourceVersion) == 0 {
+			_, err := s.manager.client.NetworkingV1beta1().Ingresses(app.TenantID).Create(s.ctx, ingress, metav1.CreateOptions{})
+			if err != nil && !errors.IsAlreadyExists(err) {
+				return fmt.Errorf("create ingress failure:%s", err.Error())
+			}
+		}
+	}
+
 	//step 6: create hpa
 	if hpas := app.GetHPAs(); len(hpas) != 0 {
 		for _, hpa := range hpas {

@@ -17,12 +17,12 @@ limitations under the License.
 package rewrite
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
 	"github.com/sirupsen/logrus"
-	networkingv1 "k8s.io/api/networking/v1"
 )
 
 // Config describes the per location redirect config
@@ -85,26 +85,26 @@ func NewParser(r resolver.Resolver) parser.IngressAnnotation {
 
 // ParseAnnotations parses the annotations contained in the ingress
 // rule used to rewrite the defined paths
-func (a rewrite) Parse(ing *networkingv1.Ingress) (interface{}, error) {
+func (a rewrite) Parse(meta *metav1.ObjectMeta) (interface{}, error) {
 	var err error
 	config := &Config{}
 
-	rewrites, err := parser.GetStringAnnotationWithPrefix("rewrite-", ing)
+	rewrites, err := parser.GetStringAnnotationWithPrefix("rewrite-", meta)
 	config.Rewrites = convert(rewrites)
 
-	config.Target, _ = parser.GetStringAnnotation("rewrite-target", ing)
-	config.SSLRedirect, err = parser.GetBoolAnnotation("ssl-redirect", ing)
+	config.Target, _ = parser.GetStringAnnotation("rewrite-target", meta)
+	config.SSLRedirect, err = parser.GetBoolAnnotation("ssl-redirect", meta)
 	if err != nil {
 		config.SSLRedirect = a.r.GetDefaultBackend().SSLRedirect
 	}
 
-	config.ForceSSLRedirect, err = parser.GetBoolAnnotation("force-ssl-redirect", ing)
+	config.ForceSSLRedirect, err = parser.GetBoolAnnotation("force-ssl-redirect", meta)
 	if err != nil {
 		config.ForceSSLRedirect = a.r.GetDefaultBackend().ForceSSLRedirect
 	}
 
-	config.AppRoot, _ = parser.GetStringAnnotation("app-root", ing)
-	config.UseRegex, _ = parser.GetBoolAnnotation("use-regex", ing)
+	config.AppRoot, _ = parser.GetStringAnnotation("app-root", meta)
+	config.UseRegex, _ = parser.GetBoolAnnotation("use-regex", meta)
 
 	return config, nil
 }
