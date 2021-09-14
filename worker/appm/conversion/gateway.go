@@ -79,7 +79,7 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 		as.SetSecret(sec)
 	}
 
-	logrus.Infof("TenantServiceRegist --------------------%v",as)
+	logrus.Infof("TenantServiceRegist --------------------%v", as)
 	return nil
 }
 
@@ -289,19 +289,20 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, containerPort, plu
 		ntwIngress.SetAnnotations(annotations)
 		logrus.Infof("applyHTTPRule ntwIngress: %v", ntwIngress)
 		return ntwIngress, sec, nil
-	} else {
-		beatIngress := createBetaIngress(domain, path, name, namespace, serviceName, labels, pluginContainerPort)
-		if sec != nil {
-			beatIngress.Spec.TLS = []betav1.IngressTLS{
-				{
-					Hosts:      []string{domain},
-					SecretName: sec.Name,
-				},
-			}
-		}
-		beatIngress.SetAnnotations(annotations)
-		return beatIngress, sec, nil
 	}
+
+	beatIngress := createBetaIngress(domain, path, name, namespace, serviceName, labels, pluginContainerPort)
+	if sec != nil {
+		beatIngress.Spec.TLS = []betav1.IngressTLS{
+			{
+				Hosts:      []string{domain},
+				SecretName: sec.Name,
+			},
+		}
+	}
+	beatIngress.SetAnnotations(annotations)
+	return beatIngress, sec, nil
+
 }
 
 // applyTCPRule applies stream rule into ingress
@@ -330,19 +331,19 @@ func (a *AppServiceBuild) applyTCPRule(rule *model.TCPRule, service *corev1.Serv
 		}
 		nwkIngress.SetAnnotations(annos)
 		return nwkIngress, nil
-	} else {
-		betaIngress := &betav1.Ingress{
-			ObjectMeta: objectMeta,
-			Spec: betav1.IngressSpec{
-				Backend: &betav1.IngressBackend{
-					ServiceName: service.Name,
-					ServicePort: intstr.FromInt(int(service.Spec.Ports[0].Port)),
-				},
-			},
-		}
-		betaIngress.SetAnnotations(annos)
-		return betaIngress, nil
 	}
+	
+	betaIngress := &betav1.Ingress{
+		ObjectMeta: objectMeta,
+		Spec: betav1.IngressSpec{
+			Backend: &betav1.IngressBackend{
+				ServiceName: service.Name,
+				ServicePort: intstr.FromInt(int(service.Spec.Ports[0].Port)),
+			},
+		},
+	}
+	betaIngress.SetAnnotations(annos)
+	return betaIngress, nil
 }
 
 //CreateUpstreamPluginMappingPort 检查是否存在upstream插件，接管入口网络
