@@ -332,7 +332,7 @@ func (a *AppServiceBuild) applyTCPRule(rule *model.TCPRule, service *corev1.Serv
 		nwkIngress.SetAnnotations(annos)
 		return nwkIngress, nil
 	}
-	
+
 	betaIngress := &betav1.Ingress{
 		ObjectMeta: objectMeta,
 		Spec: betav1.IngressSpec{

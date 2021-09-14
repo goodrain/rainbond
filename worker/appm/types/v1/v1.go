@@ -420,14 +420,14 @@ func (a *AppService) GetIngress(canCopy bool) ([]*networkingv1.Ingress, []*betav
 			return cr, nil
 		}
 		return a.ingresses, nil
-	} else {
-		if canCopy {
-			cr := make([]*betav1.Ingress, len(a.betaIngresses))
-			copy(cr, a.betaIngresses[0:])
-			return nil, cr
-		}
-		return nil, a.betaIngresses
 	}
+	if canCopy {
+		cr := make([]*betav1.Ingress, len(a.betaIngresses))
+		copy(cr, a.betaIngresses[0:])
+		return nil, cr
+	}
+	return nil, a.betaIngresses
+
 }
 
 //GetDelIngs gets delIngs which need to be deleted
@@ -485,7 +485,7 @@ func (a *AppService) DeleteIngress(d *networkingv1.Ingress) {
 	}
 }
 
-//DeleteIngress delete kubernetes networking v1beta1 ingress model
+//DeleteBetaIngress delete kubernetes networking v1beta1 ingress model
 func (a *AppService) DeleteBetaIngress(d *betav1.Ingress) {
 	for i, c := range a.betaIngresses {
 		if c.GetName() == d.GetName() {
