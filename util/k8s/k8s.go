@@ -131,6 +131,7 @@ func IngressPathType(pathType networkingv1.PathType) *networkingv1.PathType {
 	return &pathType
 }
 
+// IsHighVersion -
 func IsHighVersion() bool {
 	return GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.19.0"))
 }
