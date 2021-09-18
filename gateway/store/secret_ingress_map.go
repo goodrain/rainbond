@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/goodrain/rainbond/util/ingress-nginx/k8s"
+	betav1 "k8s.io/api/networking/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
 )
 
@@ -29,12 +30,25 @@ type secretIngressMap struct {
 	v map[string][]string
 }
 
-func (m *secretIngressMap) update(ing *networkingv1.Ingress) {
-	ingKey := k8s.MetaNamespaceKey(ing)
-	for _, tls := range ing.Spec.TLS {
-		secretKey := fmt.Sprintf("%s/%s", ing.Namespace, tls.SecretName)
-		m.v[ingKey] = append(m.v[ingKey], secretKey)
+func (m *secretIngressMap) update(ingress interface{}) {
+	nwkIngress, ok := ingress.(*networkingv1.Ingress)
+	if ok {
+		ingKey := k8s.MetaNamespaceKey(nwkIngress)
+		for _, tls := range nwkIngress.Spec.TLS {
+			secretKey := fmt.Sprintf("%s/%s", nwkIngress.Namespace, tls.SecretName)
+			m.v[ingKey] = append(m.v[ingKey], secretKey)
+		}
+	} else {
+		betaIngress, ok := ingress.(*betav1.Ingress)
+		if ok {
+			ingKey := k8s.MetaNamespaceKey(betaIngress)
+			for _, tls := range betaIngress.Spec.TLS {
+				secretKey := fmt.Sprintf("%s/%s", betaIngress.Namespace, tls.SecretName)
+				m.v[ingKey] = append(m.v[ingKey], secretKey)
+			}
+		}
 	}
+
 }
 
 func (m *secretIngressMap) getSecretKeys(ingKey string) []string {
