@@ -21,7 +21,6 @@ package conversion
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/builder/sources"
 	"os"
 	"strconv"
 	"strings"
@@ -214,9 +213,6 @@ func createTCPDefaultPluginContainer(as *typesv1.AppService, pluginID string, en
 		Image:     typesv1.GetTCPMeshImageName(),
 		Resources: createTCPUDPMeshRecources(as),
 	}
-	if err := sources.ImagesPullAndPush(typesv1.GetTCPMeshImageName(), typesv1.GetOnlineTCPMeshImageName(), "", "", nil); err != nil {
-		logrus.Errorf("[createTCPDefaultPlugin] failed: %v", err)
-	}
 
 	setSidecarContainerLifecycle(as, &container, pluginConfig)
 	return container
@@ -264,9 +260,6 @@ func createProbeMeshInitContainer(as *typesv1.AppService, pluginID, serviceAlias
 	envs = append(envs, v1.EnvVar{Name: "API_HOST_PORT", Value: apiHostPort})
 	envs = append(envs, v1.EnvVar{Name: "XDS_HOST_PORT", Value: xdsHostPort})
 
-	if err := sources.ImagesPullAndPush(typesv1.GetProbeMeshImageName(), typesv1.GetOnlineProbeMeshImageName(), "", "", nil); err != nil {
-		logrus.Errorf("[createProbeMesh] failed: %v", err)
-	}
 	return v1.Container{
 		Name:      "probe-mesh-" + as.ServiceID[len(as.ServiceID)-20:],
 		Env:       envs,
