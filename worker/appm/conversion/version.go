@@ -20,6 +20,7 @@ package conversion
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/builder/sources"
 	"net"
 	"os"
 	"sort"
@@ -141,6 +142,9 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 	if imagename == "" {
 		if version.DeliveredType == "slug" {
 			imagename = builder.RUNNERIMAGENAME
+			if err := sources.ImagesPullAndPush(builder.RUNNERIMAGENAME, builder.ONLINERUNNERIMAGENAME, "", "", nil); err != nil {
+				logrus.Errorf("[getMainContainer] get runner image failed: %v", err)
+			}
 		} else {
 			imagename = version.DeliveredPath
 		}
@@ -497,7 +501,7 @@ func createResources(as *v1.AppService) corev1.ResourceRequirements {
 			cpuRequest = int64(requestint)
 		}
 	}
-	if as.ContainerCPU > 0 && cpuRequest == 0 && cpuLimit == 0{
+	if as.ContainerCPU > 0 && cpuRequest == 0 && cpuLimit == 0 {
 		cpuLimit = int64(as.ContainerCPU)
 		cpuRequest = int64(as.ContainerCPU)
 	}

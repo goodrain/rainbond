@@ -19,6 +19,7 @@
 package builder
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"strings"
@@ -47,6 +48,9 @@ func init() {
 	}
 
 	BUILDERIMAGENAME = path.Join(REGISTRYDOMAIN, BUILDERIMAGENAME)
+
+	ONLINEBUILDERIMAGENAME = fmt.Sprintf("%s:%s", path.Join(ONLINEREGISTRYDOMAIN, "builder"), CIVERSION)
+	ONLINERUNNERIMAGENAME = fmt.Sprintf("%s:%s", path.Join(ONLINEREGISTRYDOMAIN, "runner"), CIVERSION)
 }
 
 // GetImageUserInfoV2 -
@@ -82,3 +86,15 @@ var RUNNERIMAGENAME string
 
 //BUILDERIMAGENAME builder image name
 var BUILDERIMAGENAME string
+
+// ONLINEREGISTRYDOMAIN online REGISTRY_DOMAIN
+var ONLINEREGISTRYDOMAIN = constants.DefOnlineImageRepository
+
+// ONLINEBUILDERIMAGENAME online builder image name
+var ONLINEBUILDERIMAGENAME string
+
+// ONLINERUNNERIMAGENAME online runner image name
+var ONLINERUNNERIMAGENAME string
+
+// CIVERSION -
+var CIVERSION = "v5.3.3"

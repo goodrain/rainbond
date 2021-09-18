@@ -152,7 +152,7 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 		runbuildOptions.NoCache = false
 	}
 	// pull image runner
-	if _, err := sources.ImagePull(s.re.DockerClient, builder.RUNNERIMAGENAME, builder.REGISTRYUSER, builder.REGISTRYPASS, s.re.Logger, 30); err != nil {
+	if err := sources.ImagesPullAndPush(builder.RUNNERIMAGENAME, builder.ONLINERUNNERIMAGENAME, "", "", s.re.Logger); err != nil {
 		return "", fmt.Errorf("pull image %s: %v", builder.RUNNERIMAGENAME, err)
 	}
 	logrus.Infof("pull image %s successfully.", builder.RUNNERIMAGENAME)
@@ -463,6 +463,12 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	reChan := channels.NewRingChannel(10)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// Get builder image at build time
+	if err := sources.ImagesPullAndPush(builder.BUILDERIMAGENAME, builder.ONLINEBUILDERIMAGENAME, "", "", re.Logger); err != nil {
+		return err
+	}
+
 	logrus.Debugf("create job[name: %s; namespace: %s]", job.Name, job.Namespace)
 	err := jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
 	if err != nil {
