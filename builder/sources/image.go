@@ -23,6 +23,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	dtypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/goodrain/rainbond/builder"
 	"io"
 	"os"
 	"path"
@@ -50,15 +53,13 @@ var ErrorNoImage = fmt.Errorf("image not exist")
 //ImagePull pull docker image
 //timeout minutes of the unit
 func ImagePull(dockerCli *client.Client, image string, username, password string, logger event.Logger, timeout int) (*types.ImageInspect, error) {
-	if logger != nil {
-		logger.Info(fmt.Sprintf("start get image:%s", image), map[string]string{"step": "pullimage"})
-	}
+	printLog(logger, "info", fmt.Sprintf("start get image:%s", image), map[string]string{"step": "pullimage"})
 	var pullipo types.ImagePullOptions
 	if username != "" && password != "" {
 		auth, err := EncodeAuthToBase64(types.AuthConfig{Username: username, Password: password})
 		if err != nil {
 			logrus.Errorf("make auth base63 push image error: %s", err.Error())
-			logger.Error(fmt.Sprintf("Failed to generate a Token to get the image"), map[string]string{"step": "builder-exector", "status": "failure"})
+			printLog(logger, "error", fmt.Sprintf("Failed to generate a Token to get the image"), map[string]string{"step": "builder-exector", "status": "failure"})
 			return nil, err
 		}
 		pullipo = types.ImagePullOptions{
@@ -83,9 +84,7 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 	if err != nil {
 		logrus.Debugf("image name: %s readcloser error: %v", image, err.Error())
 		if strings.HasSuffix(err.Error(), "does not exist or no pull access") {
-			if logger != nil {
-				logger.Error(fmt.Sprintf("image: %s does not exist or is not available", image), map[string]string{"step": "pullimage", "status": "failure"})
-			}
+			printLog(logger, "error", fmt.Sprintf("image: %s does not exist or is not available", image), map[string]string{"step": "pullimage", "status": "failure"})
 			return nil, fmt.Errorf("Image(%s) does not exist or no pull access", image)
 		}
 		return nil, err
@@ -110,27 +109,23 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 			logrus.Debugf("error pulling image: %v", jm.Error)
 			return nil, jm.Error
 		}
-		if logger != nil {
-			logger.Debug(fmt.Sprintf(jm.JSONString()), map[string]string{"step": "progress"})
-		} else {
-			logrus.Debug(jm.JSONString())
-		}
+		printLog(logger, "debug", fmt.Sprintf(jm.JSONString()), map[string]string{"step": "progress"})
+		logrus.Debug(jm.JSONString())
 	}
-	logger.Debug("Get the image information and its raw representation", map[string]string{"step": "progress"})
+	printLog(logger, "debug", "Get the image information and its raw representation", map[string]string{"step": "progress"})
 	ins, _, err := dockerCli.ImageInspectWithRaw(ctx, image)
 	if err != nil {
-		logger.Debug("Fail to get the image information and its raw representation", map[string]string{"step": "progress"})
+		printLog(logger, "debug", "Fail to get the image information and its raw representation", map[string]string{"step": "progress"})
 		return nil, err
 	}
-	logger.Info(fmt.Sprintf("Success Pull Image：%s", image), map[string]string{"step": "pullimage"})
+	printLog(logger, "info", fmt.Sprintf("Success Pull Image：%s", image), map[string]string{"step": "pullimage"})
 	return &ins, nil
 }
 
 //ImageTag change docker image tag
 func ImageTag(dockerCli *client.Client, source, target string, logger event.Logger, timeout int) error {
-	if logger != nil {
-		logger.Info(fmt.Sprintf("change image tag：%s -> %s", source, target), map[string]string{"step": "changetag"})
-	}
+	logrus.Debugf(fmt.Sprintf("change image tag：%s -> %s", source, target))
+	printLog(logger, "info", fmt.Sprintf("change image tag：%s -> %s", source, target), map[string]string{"step": "changetag"})
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
 	defer cancel()
 	err := dockerCli.ImageTag(ctx, source, target)
@@ -138,7 +133,8 @@ func ImageTag(dockerCli *client.Client, source, target string, logger event.Logg
 		logrus.Debugf("image tag err: %s", err.Error())
 		return err
 	}
-	logger.Info("change image tag success", map[string]string{"step": "changetag"})
+	logrus.Debugf("change image tag success")
+	printLog(logger, "info", "change image tag success", map[string]string{"step": "changetag"})
 	return nil
 }
 
@@ -212,9 +208,7 @@ func GenSaveImageName(name string) string {
 //ImagePush push image to registry
 //timeout minutes of the unit
 func ImagePush(dockerCli *client.Client, image, user, pass string, logger event.Logger, timeout int) error {
-	if logger != nil {
-		logger.Info(fmt.Sprintf("start push image：%s", image), map[string]string{"step": "pushimage"})
-	}
+	printLog(logger, "info", fmt.Sprintf("start push image：%s", image), map[string]string{"step": "pushimage"})
 	if timeout < 1 {
 		timeout = 1
 	}
@@ -247,9 +241,7 @@ func ImagePush(dockerCli *client.Client, image, user, pass string, logger event.
 	readcloser, err := dockerCli.ImagePush(ctx, image, opts)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
-			if logger != nil {
-				logger.Error(fmt.Sprintf("image %s does not exist, cannot be pushed", image), map[string]string{"step": "pushimage", "status": "failure"})
-			}
+			printLog(logger, "error", fmt.Sprintf("image %s does not exist, cannot be pushed", image), map[string]string{"step": "pushimage", "status": "failure"})
 			return fmt.Errorf("Image(%s) does not exist", image)
 		}
 		return err
@@ -273,10 +265,10 @@ func ImagePush(dockerCli *client.Client, image, user, pass string, logger event.
 			if jm.Error != nil {
 				return jm.Error
 			}
-			logger.Debug(jm.JSONString(), map[string]string{"step": "progress"})
+			printLog(logger, "debug", jm.JSONString(), map[string]string{"step": "progress"})
 		}
 	}
-	logger.Info(fmt.Sprintf("success push image：%s", image), map[string]string{"step": "pushimage"})
+	printLog(logger, "info", fmt.Sprintf("success push image：%s", image), map[string]string{"step": "pushimage"})
 	return nil
 }
 
@@ -540,4 +532,89 @@ func ImageRemove(dockerCli *client.Client, image string) error {
 	defer cancel()
 	_, err := dockerCli.ImageRemove(ctx, image, types.ImageRemoveOptions{Force: true})
 	return err
+}
+
+// CheckIfImageExists -
+func CheckIfImageExists(dockerCli *client.Client, image string) (imageName string, isExists bool, err error) {
+	repo, err := reference.Parse(image)
+	if err != nil {
+		return "", false, fmt.Errorf("parse image %s: %v", image, err)
+	}
+	named := repo.(reference.Named)
+	tag := "latest"
+	if t, ok := repo.(reference.Tagged); ok {
+		tag = t.Tag()
+	}
+	imageFullName := named.Name() + ":" + tag
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	imageSummarys, err := dockerCli.ImageList(ctx, dtypes.ImageListOptions{
+		Filters: filters.NewArgs(filters.KeyValuePair{Key: "reference", Value: imageFullName}),
+	})
+	if err != nil {
+		return "", false, fmt.Errorf("list images: %v", err)
+	}
+	for _, imageSummary := range imageSummarys {
+		fmt.Printf("%#v", imageSummary.RepoTags)
+	}
+
+	_ = imageSummarys
+
+	return imageFullName, len(imageSummarys) > 0, nil
+}
+
+// ImagesPullAndPush Used to process mirroring of non local components, example: builder, runner, /rbd-mesh-data-panel
+func ImagesPullAndPush(sourceImage, targetImage, username, password string, logger event.Logger) error {
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		logrus.Errorf("create docker client failed: %s", err.Error())
+		return err
+	}
+	sourceImage, exists, err := CheckIfImageExists(dockerClient, sourceImage)
+	if err != nil {
+		logrus.Errorf("failed to check whether the builder mirror exists: %s", err.Error())
+		return err
+	}
+	logrus.Debugf("source image %v, targetImage %v, exists %v", sourceImage, exists)
+	if !exists {
+		hubUser, hubPass := builder.GetImageUserInfoV2(sourceImage, username, password)
+		if _, err := ImagePull(dockerClient, targetImage, hubUser, hubPass, logger, 15); err != nil {
+			printLog(logger, "error", fmt.Sprintf("pull image %s failed %v", targetImage, err), map[string]string{"step": "builder-exector", "status": "failure"})
+			return err
+		}
+		if err := ImageTag(dockerClient, targetImage, sourceImage, logger, 15); err != nil {
+			printLog(logger, "error", fmt.Sprintf("change image tag %s to %s failed", targetImage, sourceImage), map[string]string{"step": "builder-exector", "status": "failure"})
+			return err
+		}
+		if err := ImagePush(dockerClient, sourceImage, hubUser, hubPass, logger, 15); err != nil {
+			printLog(logger, "error", fmt.Sprintf("push image %s failed %v", sourceImage, err), map[string]string{"step": "builder-exector", "status": "failure"})
+			return err
+		}
+	}
+	return nil
+}
+
+func printLog(logger event.Logger, level, msg string, info map[string]string) {
+	switch level {
+	case "info":
+		if logger != nil {
+			logger.Info(msg, info)
+		} else {
+			logrus.Info(msg)
+		}
+	case "debug":
+		if logger != nil {
+			logger.Debug(msg, info)
+		} else {
+			logrus.Debug(msg)
+		}
+	case "error":
+		if logger != nil {
+			logger.Error(msg, info)
+		} else {
+			logrus.Error(msg)
+		}
+	}
 }
