@@ -199,8 +199,10 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 		logrus.Warning(msg)
 		return nil
 	}
+	oldIngresses, oldBetaIngresses := oldApp.GetIngress(true)
+	newIngresses, newBetaIngresses := app.GetIngress(true)
 	_ = f.UpgradeSecrets(s.manager.client, &app, oldApp.GetSecrets(true), app.GetSecrets(true), handleErr)
-	_ = f.UpgradeIngress(s.manager.client, &app, oldApp.GetIngress(true), app.GetIngress(true), handleErr)
+	_ = f.UpgradeIngress(s.manager.client, &app, oldIngresses, newIngresses, oldBetaIngresses, newBetaIngresses, handleErr)
 	for _, secret := range app.GetEnvVarSecrets(true) {
 		err := f.CreateOrUpdateSecret(s.manager.client, secret)
 		if err != nil {

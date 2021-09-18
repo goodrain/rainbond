@@ -21,7 +21,7 @@ package header
 import (
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/resolver"
-	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 )
 
@@ -39,8 +39,8 @@ func NewParser(r resolver.Resolver) parser.IngressAnnotation {
 	return header{r}
 }
 
-func (h header) Parse(ing *networkingv1.Ingress) (interface{}, error) {
-	hr, err := parser.GetStringAnnotation("header", ing)
+func (h header) Parse(meta *metav1.ObjectMeta) (interface{}, error) {
+	hr, err := parser.GetStringAnnotation("header", meta)
 	if err != nil {
 		return nil, err
 	}

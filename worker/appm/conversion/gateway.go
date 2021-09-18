@@ -23,15 +23,16 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	
-	"github.com/goodrain/rainbond/util/k8s"
+
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
+	"github.com/goodrain/rainbond/util/k8s"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	betav1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -78,6 +79,7 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 		as.SetSecret(sec)
 	}
 
+	logrus.Infof("TenantServiceRegist --------------------%v", as)
 	return nil
 }
 
@@ -143,7 +145,7 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 	}
 
 	var services []*corev1.Service
-	var ingresses []*networkingv1.Ingress
+	var ingresses []interface{}
 	var secrets []*corev1.Secret
 	if len(ports) > 0 {
 		for i := range ports {
@@ -184,6 +186,7 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 		services, _ = a.CreateUpstreamPluginMappingService(services, pp)
 	}
 
+	logrus.Infof("AppServiceBuild build ingresses %v", ingresses)
 	return &v1.K8sResources{
 		Services:  services,
 		Secrets:   secrets,
@@ -193,8 +196,8 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 
 // ApplyRules applies http rules and tcp rules
 func (a AppServiceBuild) ApplyRules(serviceID string, containerPort, pluginContainerPort int,
-	service *corev1.Service) ([]*networkingv1.Ingress, []*corev1.Secret, error) {
-	var ingresses []*networkingv1.Ingress
+	service *corev1.Service) ([]interface{}, []*corev1.Secret, error) {
+	var ingresses []interface{}
 	var secrets []*corev1.Secret
 	httpRules, err := a.dbmanager.HTTPRuleDao().GetHTTPRuleByServiceIDAndContainerPort(serviceID, containerPort)
 	if err != nil {
@@ -204,15 +207,18 @@ func (a AppServiceBuild) ApplyRules(serviceID string, containerPort, pluginConta
 	logrus.Debugf("find %d count http rule", len(httpRules))
 	if len(httpRules) > 0 {
 		for _, httpRule := range httpRules {
-			ing, sec, err := a.applyHTTPRule(httpRule, containerPort, pluginContainerPort, service)
+			ingress, sec, err := a.applyHTTPRule(httpRule, containerPort, pluginContainerPort, service)
 			if err != nil {
 				logrus.Errorf("Unexpected error occurred while applying http rule: %v", err)
 				// skip the failed rule
 				continue
 			}
-			logrus.Debugf("create ingress %s", ing.Name)
-			ingresses = append(ingresses, ing)
-			secrets = append(secrets, sec)
+			//logrus.Debugf("create ingress %s", ingress.Name)
+			ingresses = append(ingresses, ingress)
+			if sec != nil {
+				secrets = append(secrets, sec)
+			}
+
 		}
 	}
 
@@ -238,8 +244,8 @@ func (a AppServiceBuild) ApplyRules(serviceID string, containerPort, pluginConta
 
 // applyTCPRule applies stream rule into ingress
 func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, containerPort, pluginContainerPort int,
-	service *corev1.Service) (ing *networkingv1.Ingress, sec *corev1.Secret, err error) {
-	// deal with empty path and domain
+	service *corev1.Service) (ingress interface{}, sec *corev1.Secret, err error) {
+	//deal with empty path and domain
 	path := strings.Replace(rule.Path, " ", "", -1)
 	if path == "" {
 		path = "/"
@@ -248,155 +254,96 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, containerPort, plu
 	if domain == "" {
 		domain = createDefaultDomain(a.tenant.Name, a.service.ServiceAlias, containerPort)
 	}
-
 	// create ingress
-	ing = &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      rule.UUID,
-			Namespace: a.tenant.UUID,
-			Labels:    a.appService.GetCommonLabels(),
-		},
-		Spec: networkingv1.IngressSpec{
-			Rules: []networkingv1.IngressRule{
-				{
-					Host: domain,
-					IngressRuleValue: networkingv1.IngressRuleValue{
-						HTTP: &networkingv1.HTTPIngressRuleValue{
-							Paths: []networkingv1.HTTPIngressPath{
-								{
-									Path:     path,
-									PathType: k8s.IngressPathType(networkingv1.PathTypeExact),
-									Backend: networkingv1.IngressBackend{
-										Service: &networkingv1.IngressServiceBackend{
-											Name: service.Name,
-											Port: networkingv1.ServiceBackendPort{
-												Number: int32(pluginContainerPort),
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
+	labels := a.appService.GetCommonLabels()
+	name := rule.UUID
+	namespace := a.tenant.UUID
+	serviceName := service.Name
+
+	logrus.Infof("applyHTTPRule serviceName %s", serviceName)
+
+	// certificate
+	sec, err = a.createSecret(rule, name, namespace, labels)
+	if err != nil {
+		return nil, nil, err
 	}
 
+	logrus.Infof("applyHTTPRule createSecret %v:", sec)
 	// parse annotations
-	annos := make(map[string]string)
-	// weight
-	if rule.Weight > 1 {
-		annos[parser.GetAnnotationWithPrefix("weight")] = fmt.Sprintf("%d", rule.Weight)
+	annotations, err := a.parseAnnotations(rule)
+	if err != nil {
+		return nil, nil, err
 	}
-	// header
-	if rule.Header != "" {
-		annos[parser.GetAnnotationWithPrefix("header")] = rule.Header
+	logrus.Infof("applyHTTPRule annotations %v:", annotations)
+
+	if k8s.IsHighVersion() {
+		ntwIngress := createNtwIngress(domain, path, name, namespace, serviceName, labels, pluginContainerPort)
+		if sec != nil {
+			ntwIngress.Spec.TLS = []networkingv1.IngressTLS{
+				{
+					Hosts:      []string{domain},
+					SecretName: sec.Name,
+				},
+			}
+		}
+		ntwIngress.SetAnnotations(annotations)
+		logrus.Infof("applyHTTPRule ntwIngress: %v", ntwIngress)
+		return ntwIngress, sec, nil
 	}
-	// cookie
-	if rule.Cookie != "" {
-		annos[parser.GetAnnotationWithPrefix("cookie")] = rule.Cookie
-	}
-	// certificate
-	if rule.CertificateID != "" {
-		cert, err := a.dbmanager.CertificateDao().GetCertificateByID(rule.CertificateID)
-		if err != nil {
-			return nil, nil, fmt.Errorf("cant not get certificate by id(%s): %v", rule.CertificateID, err)
-		}
-		if cert == nil || strings.TrimSpace(cert.Certificate) == "" || strings.TrimSpace(cert.PrivateKey) == "" {
-			return nil, nil, fmt.Errorf("rule id: %s; certificate not found", rule.UUID)
-		}
-		// create secret
-		sec = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      rule.UUID, // TODO: one cert, one secret
-				Namespace: a.tenant.UUID,
-				Labels:    a.appService.GetCommonLabels(),
-			},
-			Data: map[string][]byte{
-				"tls.crt": []byte(cert.Certificate),
-				"tls.key": []byte(cert.PrivateKey),
-			},
-			Type: corev1.SecretTypeOpaque,
-		}
-		ing.Spec.TLS = []networkingv1.IngressTLS{
+
+	beatIngress := createBetaIngress(domain, path, name, namespace, serviceName, labels, pluginContainerPort)
+	if sec != nil {
+		beatIngress.Spec.TLS = []betav1.IngressTLS{
 			{
 				Hosts:      []string{domain},
 				SecretName: sec.Name,
 			},
 		}
 	}
-	// rule extension
-	ruleExtensions, err := a.dbmanager.RuleExtensionDao().GetRuleExtensionByRuleID(rule.UUID)
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, extension := range ruleExtensions {
-		switch extension.Key {
-		case string(model.HTTPToHTTPS):
-			if rule.CertificateID == "" {
-				logrus.Warningf("enable force-ssl-redirect, but with no certificate. rule id is: %s", rule.UUID)
-				break
-			}
-			annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
-		case string(model.LBType):
-			if strings.HasPrefix(extension.Value, "upstream-hash-by") {
-				s := strings.Split(extension.Value, ":")
-				if len(s) < 2 {
-					logrus.Warningf("invalid extension value for upstream-hash-by: %s", extension.Value)
-					break
-				}
-				annos[parser.GetAnnotationWithPrefix("upstream-hash-by")] = s[1]
-				break
-			}
-			annos[parser.GetAnnotationWithPrefix("lb-type")] = extension.Value
+	beatIngress.SetAnnotations(annotations)
+	return beatIngress, sec, nil
 
-		default:
-			logrus.Warnf("Unexpected RuleExtension Key: %s", extension.Key)
-		}
-	}
-
-	configs, err := db.GetManager().GwRuleConfigDao().ListByRuleID(rule.UUID)
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(configs) > 0 {
-		for _, cfg := range configs {
-			annos[parser.GetAnnotationWithPrefix(cfg.Key)] = cfg.Value
-		}
-	}
-	ing.SetAnnotations(annos)
-
-	return ing, sec, nil
 }
 
 // applyTCPRule applies stream rule into ingress
-func (a *AppServiceBuild) applyTCPRule(rule *model.TCPRule, service *corev1.Service, namespace string) (ing *networkingv1.Ingress, err error) {
-	// create ingress
-	ing = &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      rule.UUID,
-			Namespace: namespace,
-			Labels:    a.appService.GetCommonLabels(),
-		},
-		Spec: networkingv1.IngressSpec{
-			DefaultBackend: &networkingv1.IngressBackend{
-				Service: &networkingv1.IngressServiceBackend{
-					Name: service.Name,
-					Port: networkingv1.ServiceBackendPort{
-						Number: int32(service.Spec.Ports[0].Port),
-					},
-				},
-			},
-		},
-	}
+func (a *AppServiceBuild) applyTCPRule(rule *model.TCPRule, service *corev1.Service, namespace string) (ingress interface{}, err error) {
+	//parse annotations
 	annos := make(map[string]string)
 	annos[parser.GetAnnotationWithPrefix("l4-enable")] = "true"
 	annos[parser.GetAnnotationWithPrefix("l4-host")] = rule.IP
 	annos[parser.GetAnnotationWithPrefix("l4-port")] = fmt.Sprintf("%v", rule.Port)
-	ing.SetAnnotations(annos)
 
-	return ing, nil
+	// create ingress
+	objectMeta := createIngressMeta(rule.UUID, namespace, a.appService.GetCommonLabels())
+	if k8s.IsHighVersion() {
+		nwkIngress := &networkingv1.Ingress{
+			ObjectMeta: objectMeta,
+			Spec: networkingv1.IngressSpec{
+				DefaultBackend: &networkingv1.IngressBackend{
+					Service: &networkingv1.IngressServiceBackend{
+						Name: service.Name,
+						Port: networkingv1.ServiceBackendPort{
+							Number: service.Spec.Ports[0].Port,
+						},
+					},
+				},
+			},
+		}
+		nwkIngress.SetAnnotations(annos)
+		return nwkIngress, nil
+	}
+
+	betaIngress := &betav1.Ingress{
+		ObjectMeta: objectMeta,
+		Spec: betav1.IngressSpec{
+			Backend: &betav1.IngressBackend{
+				ServiceName: service.Name,
+				ServicePort: intstr.FromInt(int(service.Spec.Ports[0].Port)),
+			},
+		},
+	}
+	betaIngress.SetAnnotations(annos)
+	return betaIngress, nil
 }
 
 //CreateUpstreamPluginMappingPort 检查是否存在upstream插件，接管入口网络
@@ -579,4 +526,158 @@ func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPor
 	service.Spec = spec
 	service.Annotations = map[string]string{"service.alpha.kubernetes.io/tolerate-unready-endpoints": "true"}
 	return &service
+}
+
+func (a *AppServiceBuild) parseAnnotations(rule *model.HTTPRule) (map[string]string, error) {
+	annos := make(map[string]string)
+	// weight
+	if rule.Weight > 1 {
+		annos[parser.GetAnnotationWithPrefix("weight")] = fmt.Sprintf("%d", rule.Weight)
+	}
+	// header
+	if rule.Header != "" {
+		annos[parser.GetAnnotationWithPrefix("header")] = rule.Header
+	}
+	// cookie
+	if rule.Cookie != "" {
+		annos[parser.GetAnnotationWithPrefix("cookie")] = rule.Cookie
+	}
+
+	// rule extension
+	ruleExtensions, err := a.dbmanager.RuleExtensionDao().GetRuleExtensionByRuleID(rule.UUID)
+	if err != nil {
+		return nil, err
+	}
+	for _, extension := range ruleExtensions {
+		switch extension.Key {
+		case string(model.HTTPToHTTPS):
+			if rule.CertificateID == "" {
+				logrus.Warningf("enable force-ssl-redirect, but with no certificate. rule id is: %s", rule.UUID)
+				break
+			}
+			annos[parser.GetAnnotationWithPrefix("force-ssl-redirect")] = "true"
+		case string(model.LBType):
+			if strings.HasPrefix(extension.Value, "upstream-hash-by") {
+				s := strings.Split(extension.Value, ":")
+				if len(s) < 2 {
+					logrus.Warningf("invalid extension value for upstream-hash-by: %s", extension.Value)
+					break
+				}
+				annos[parser.GetAnnotationWithPrefix("upstream-hash-by")] = s[1]
+				break
+			}
+			annos[parser.GetAnnotationWithPrefix("lb-type")] = extension.Value
+
+		default:
+			logrus.Warnf("Unexpected RuleExtension Key: %s", extension.Key)
+		}
+	}
+
+	configs, err := db.GetManager().GwRuleConfigDao().ListByRuleID(rule.UUID)
+	if err != nil {
+		return nil, err
+	}
+	if len(configs) > 0 {
+		for _, cfg := range configs {
+			annos[parser.GetAnnotationWithPrefix(cfg.Key)] = cfg.Value
+		}
+	}
+	return annos, nil
+}
+
+func (a *AppServiceBuild) createSecret(rule *model.HTTPRule, name, namespace string, labels map[string]string) (*corev1.Secret, error) {
+	if rule.CertificateID == "" {
+		return nil, nil
+	}
+	cert, err := a.dbmanager.CertificateDao().GetCertificateByID(rule.CertificateID)
+	if err != nil {
+		return nil, fmt.Errorf("cant not get certificate by id(%s): %v", rule.CertificateID, err)
+	}
+	if cert == nil || strings.TrimSpace(cert.Certificate) == "" || strings.TrimSpace(cert.PrivateKey) == "" {
+		return nil, fmt.Errorf("rule id: %s; certificate not found", rule.UUID)
+	}
+	return &corev1.Secret{
+		ObjectMeta: createIngressMeta(name, namespace, labels),
+		Data: map[string][]byte{
+			"tls.crt": []byte(cert.Certificate),
+			"tls.key": []byte(cert.PrivateKey),
+		},
+		Type: corev1.SecretTypeOpaque,
+	}, nil
+}
+
+func createIngressMeta(name, namespace string, labels map[string]string) metav1.ObjectMeta {
+	return metav1.ObjectMeta{
+		Name:      name,
+		Namespace: namespace,
+		Labels:    labels,
+	}
+}
+
+func createNtwIngress(domain, path, name, namespace, serviceName string, labels map[string]string, pluginContainerPort int) *networkingv1.Ingress {
+	logrus.Infof("start create networking ingress,serviceName is %s", serviceName)
+	return &networkingv1.Ingress{
+		ObjectMeta: createIngressMeta(name, namespace, labels),
+		Spec: networkingv1.IngressSpec{
+			Rules: []networkingv1.IngressRule{
+				{
+					Host: domain,
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
+								{
+									Path:     path,
+									PathType: k8s.IngressPathType(networkingv1.PathTypeExact),
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: serviceName,
+											Port: networkingv1.ServiceBackendPort{
+												Number: int32(pluginContainerPort),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			DefaultBackend: &networkingv1.IngressBackend{
+				Service: &networkingv1.IngressServiceBackend{
+					Name: serviceName,
+					Port: networkingv1.ServiceBackendPort{
+						Number: int32(pluginContainerPort),
+					},
+				},
+			},
+		},
+	}
+}
+
+func createBetaIngress(domain, path, name, namespace, serviceName string, labels map[string]string, pluginContainerPort int) *betav1.Ingress {
+	logrus.Infof("start create beta ingress,serviceName is %s", serviceName)
+	betaIngress := &betav1.Ingress{
+		ObjectMeta: createIngressMeta(name, namespace, labels),
+		Spec: betav1.IngressSpec{
+			Rules: []betav1.IngressRule{
+				{
+					Host: domain,
+					IngressRuleValue: betav1.IngressRuleValue{
+						HTTP: &betav1.HTTPIngressRuleValue{
+							Paths: []betav1.HTTPIngressPath{
+								{
+									Path: path,
+									Backend: betav1.IngressBackend{
+										ServiceName: serviceName,
+										ServicePort: intstr.FromInt(pluginContainerPort),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	return betaIngress
 }

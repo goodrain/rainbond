@@ -18,6 +18,7 @@ package proxy
 
 import (
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"regexp"
 	"strings"
 
@@ -26,7 +27,6 @@ import (
 	"github.com/goodrain/rainbond/gateway/controller/config"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/http/httpguts"
-	networkingv1 "k8s.io/api/networking/v1"
 )
 
 // Config returns the proxy timeout to use in the upstream server/s
@@ -191,83 +191,83 @@ func NewParser(r resolver.Resolver) parser.IngressAnnotation {
 
 // ParseAnnotations parses the annotations contained in the ingress
 // rule used to configure upstream check parameters
-func (a proxy) Parse(ing *networkingv1.Ingress) (interface{}, error) {
+func (a proxy) Parse(meta *metav1.ObjectMeta) (interface{}, error) {
 	defBackend := a.r.GetDefaultBackend()
 	config := &Config{}
 
 	var err error
 
-	config.ConnectTimeout, err = parser.GetIntAnnotation("proxy-connect-timeout", ing)
+	config.ConnectTimeout, err = parser.GetIntAnnotation("proxy-connect-timeout", meta)
 	if err != nil {
 		config.ConnectTimeout = defBackend.ProxyConnectTimeout
 	}
 
-	config.SendTimeout, err = parser.GetIntAnnotation("proxy-send-timeout", ing)
+	config.SendTimeout, err = parser.GetIntAnnotation("proxy-send-timeout", meta)
 	if err != nil {
 		config.SendTimeout = defBackend.ProxySendTimeout
 	}
 
-	config.ReadTimeout, err = parser.GetIntAnnotation("proxy-read-timeout", ing)
+	config.ReadTimeout, err = parser.GetIntAnnotation("proxy-read-timeout", meta)
 	if err != nil {
 		config.ReadTimeout = defBackend.ProxyReadTimeout
 	}
 
-	config.BuffersNumber, err = parser.GetIntAnnotation("proxy-buffers-number", ing)
+	config.BuffersNumber, err = parser.GetIntAnnotation("proxy-buffers-number", meta)
 	if err != nil {
 		config.BuffersNumber = defBackend.ProxyBuffersNumber
 	}
 
-	config.BufferSize, err = parser.GetStringAnnotation("proxy-buffer-size", ing)
+	config.BufferSize, err = parser.GetStringAnnotation("proxy-buffer-size", meta)
 	if err != nil {
 		config.BufferSize = defBackend.ProxyBufferSize
 	}
 
-	config.CookiePath, err = parser.GetStringAnnotation("proxy-cookie-path", ing)
+	config.CookiePath, err = parser.GetStringAnnotation("proxy-cookie-path", meta)
 	if err != nil {
 		config.CookiePath = defBackend.ProxyCookiePath
 	}
 
-	config.CookieDomain, err = parser.GetStringAnnotation("proxy-cookie-domain", ing)
+	config.CookieDomain, err = parser.GetStringAnnotation("proxy-cookie-domain", meta)
 	if err != nil {
 		config.CookieDomain = defBackend.ProxyCookieDomain
 	}
 
-	config.BodySize, err = parser.GetIntAnnotation("proxy-body-size", ing)
+	config.BodySize, err = parser.GetIntAnnotation("proxy-body-size", meta)
 	if err != nil {
 		config.BodySize = defBackend.ProxyBodySize
 	}
 
-	config.NextUpstream, err = parser.GetStringAnnotation("proxy-next-upstream", ing)
+	config.NextUpstream, err = parser.GetStringAnnotation("proxy-next-upstream", meta)
 	if err != nil {
 		config.NextUpstream = defBackend.ProxyNextUpstream
 	}
 
-	config.NextUpstreamTries, err = parser.GetIntAnnotation("proxy-next-upstream-tries", ing)
+	config.NextUpstreamTries, err = parser.GetIntAnnotation("proxy-next-upstream-tries", meta)
 	if err != nil {
 		config.NextUpstreamTries = defBackend.ProxyNextUpstreamTries
 	}
 
-	config.NextUpstreamTimeout, err = parser.GetIntAnnotation("proxy-next-upstream-timeout", ing)
+	config.NextUpstreamTimeout, err = parser.GetIntAnnotation("proxy-next-upstream-timeout", meta)
 	if err != nil {
 		config.NextUpstreamTimeout = defBackend.ProxyNextUpstreamTimeout
 	}
 
-	config.RequestBuffering, err = parser.GetStringAnnotation("proxy-request-buffering", ing)
+	config.RequestBuffering, err = parser.GetStringAnnotation("proxy-request-buffering", meta)
 	if err != nil {
 		config.RequestBuffering = defBackend.ProxyRequestBuffering
 	}
 
-	config.ProxyRedirectFrom, err = parser.GetStringAnnotation("proxy-redirect-from", ing)
+	config.ProxyRedirectFrom, err = parser.GetStringAnnotation("proxy-redirect-from", meta)
 	if err != nil {
 		config.ProxyRedirectFrom = defBackend.ProxyRedirectFrom
 	}
 
-	config.ProxyRedirectTo, err = parser.GetStringAnnotation("proxy-redirect-to", ing)
+	config.ProxyRedirectTo, err = parser.GetStringAnnotation("proxy-redirect-to", meta)
 	if err != nil {
 		config.ProxyRedirectTo = defBackend.ProxyRedirectTo
 	}
 
-	config.ProxyBuffering, err = parser.GetStringAnnotation("proxy-buffering", ing)
+	config.ProxyBuffering, err = parser.GetStringAnnotation("proxy-buffering", meta)
 	if err != nil {
 		config.ProxyBuffering = defBackend.ProxyBuffering
 	}
@@ -277,7 +277,7 @@ func (a proxy) Parse(ing *networkingv1.Ingress) (interface{}, error) {
 	for k, v := range defBackend.ProxySetHeaders {
 		config.SetHeaders[k] = v
 	}
-	setHeaders, err := parser.GetStringAnnotationWithPrefix("set-header-", ing)
+	setHeaders, err := parser.GetStringAnnotationWithPrefix("set-header-", meta)
 	if err != nil && !strings.Contains(err.Error(), "ingress rule without annotations") {
 		logrus.Debugf("get header annotation failure %s", err.Error())
 	}

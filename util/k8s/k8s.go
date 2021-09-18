@@ -3,8 +3,10 @@ package k8s
 import (
 	"encoding/json"
 	networkingv1 "k8s.io/api/networking/v1"
+	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -17,6 +19,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/reference"
 )
+
+var once sync.Once
+var clientset kubernetes.Interface
 
 // NewClientset -
 func NewClientset(kubecfg string) (kubernetes.Interface, error) {
@@ -124,4 +129,43 @@ func CreatePatch(o, n, datastruct interface{}) ([]byte, error) {
 // IngressPathType -
 func IngressPathType(pathType networkingv1.PathType) *networkingv1.PathType {
 	return &pathType
+}
+
+// IsHighVersion -
+func IsHighVersion() bool {
+	return GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.19.0"))
+}
+
+// GetKubeVersion returns the version of k8s
+func GetKubeVersion() *utilversion.Version {
+	var serverVersion, _ = GetClientSet().Discovery().ServerVersion()
+	return utilversion.MustParseSemantic(serverVersion.GitVersion)
+}
+
+//GetClientSet -
+func GetClientSet() kubernetes.Interface {
+	if clientset == nil {
+		once.Do(func() {
+			config := MustNewKubeConfig("")
+			clientset = kubernetes.NewForConfigOrDie(config)
+		})
+	}
+	return clientset
+}
+
+//MustNewKubeConfig -
+func MustNewKubeConfig(kubeconfigPath string) *rest.Config {
+	if kubeconfigPath != "" {
+		cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+		if err != nil {
+			panic(err)
+		}
+		return cfg
+	}
+
+	cfg, err := InClusterConfig()
+	if err != nil {
+		panic(err)
+	}
+	return cfg
 }

@@ -424,8 +424,16 @@ func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest
 			}
 			deployinfo.Secrets = secretsinfo
 		}
-		if ingresses := appService.GetIngress(false); ingresses != nil {
+		ingresses, betaIngresses := appService.GetIngress(false)
+		if ingresses != nil {
 			ingress := make(map[string]string, len(ingresses))
+			for _, s := range ingresses {
+				ingress[s.Name] = s.Name
+			}
+			deployinfo.Ingresses = ingress
+		}
+		if betaIngresses != nil {
+			ingress := make(map[string]string, len(betaIngresses))
 			for _, s := range ingresses {
 				ingress[s.Name] = s.Name
 			}
