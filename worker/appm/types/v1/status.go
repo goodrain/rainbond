@@ -275,7 +275,7 @@ func (a *AppService) IsWaitting() bool {
 	}
 	var haveProbeInitContainer bool
 	for _, init := range initcontainer {
-		if init.Image == GetProbeMeshImageName() {
+		if init.Image == GetProbeMeshImageName() || init.Image == GetOnlineProbeMeshImageName() {
 			haveProbeInitContainer = true
 			break
 		}
@@ -286,7 +286,7 @@ func (a *AppService) IsWaitting() bool {
 		}
 		firstPod := a.pods[0]
 		for _, initconteir := range firstPod.Status.InitContainerStatuses {
-			if initconteir.Image == GetProbeMeshImageName() {
+			if initconteir.Image == GetProbeMeshImageName() || initconteir.Image == GetOnlineProbeMeshImageName() {
 				if initconteir.State.Terminated == nil || initconteir.State.Terminated.ExitCode != 0 {
 					return true
 				}
