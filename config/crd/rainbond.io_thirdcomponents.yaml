@@ -1,10 +1,10 @@
 
 ---
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.3.0
+    controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
   name: thirdcomponents.rainbond.io
 spec:
@@ -15,223 +15,223 @@ spec:
     plural: thirdcomponents
     singular: thirdcomponent
   scope: Namespaced
-  subresources:
-    status: {}
-  validation:
-    openAPIV3Schema:
-      description: ThirdComponent -
-      properties:
-        apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation
-            of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-          type: string
-        kind:
-          description: 'Kind is a string value representing the REST resource this
-            object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-          type: string
-        metadata:
-          type: object
-        spec:
-          description: ThirdComponentSpec -
-          properties:
-            endpointSource:
-              description: endpoint source config
-              properties:
-                endpoints:
-                  items:
-                    description: ThirdComponentEndpoint -
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ThirdComponent -
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ThirdComponentSpec -
+            properties:
+              endpointSource:
+                description: endpoint source config
+                properties:
+                  endpoints:
+                    items:
+                      description: ThirdComponentEndpoint -
+                      properties:
+                        address:
+                          description: The address including the port number.
+                          type: string
+                        clientSecret:
+                          description: Specify a private certificate when the protocol
+                            is HTTPS
+                          type: string
+                        name:
+                          description: Then Name of the Endpoint.
+                          type: string
+                        protocol:
+                          description: 'Address protocols, including: HTTP, TCP, UDP,
+                            HTTPS'
+                          type: string
+                      required:
+                      - address
+                      type: object
+                    type: array
+                  kubernetesService:
+                    description: KubernetesServiceSource -
                     properties:
-                      address:
-                        description: The address including the port number.
-                        type: string
-                      clientSecret:
-                        description: Specify a private certificate when the protocol
-                          is HTTPS
-                        type: string
                       name:
-                        description: Then Name of the Endpoint.
                         type: string
-                      protocol:
-                        description: 'Address protocols, including: HTTP, TCP, UDP,
-                          HTTPS'
+                      namespace:
+                        description: If not specified, the namespace is the namespace
+                          of the current resource
                         type: string
                     required:
-                    - address
+                    - name
                     type: object
-                  type: array
-                kubernetesService:
-                  description: KubernetesServiceSource -
+                type: object
+              ports:
+                description: component regist ports
+                items:
+                  description: ComponentPort component port define
                   properties:
                     name:
                       type: string
-                    namespace:
-                      description: If not specified, the namespace is the namespace
-                        of the current resource
-                      type: string
+                    openInner:
+                      type: boolean
+                    openOuter:
+                      type: boolean
+                    port:
+                      type: integer
                   required:
                   - name
+                  - openInner
+                  - openOuter
+                  - port
                   type: object
-              type: object
-            ports:
-              description: component regist ports
-              items:
-                description: ComponentPort component port define
+                type: array
+              probe:
+                description: health check probe
                 properties:
-                  name:
-                    type: string
-                  openInner:
-                    type: boolean
-                  openOuter:
-                    type: boolean
-                  port:
+                  failureThreshold:
+                    description: Minimum consecutive failures for the probe to be
+                      considered failed after having succeeded. Defaults to 3. Minimum
+                      value is 1.
+                    format: int32
                     type: integer
-                required:
-                - name
-                - openInner
-                - openOuter
-                - port
-                type: object
-              type: array
-            probe:
-              description: health check probe
-              properties:
-                failureThreshold:
-                  description: Minimum consecutive failures for the probe to be considered
-                    failed after having succeeded. Defaults to 3. Minimum value is
-                    1.
-                  format: int32
-                  type: integer
-                httpGet:
-                  description: HTTPGet specifies the http request to perform.
-                  properties:
-                    httpHeaders:
-                      description: Custom headers to set in the request. HTTP allows
-                        repeated headers.
-                      items:
-                        description: HTTPHeader describes a custom header to be used
-                          in HTTP probes
-                        properties:
-                          name:
-                            description: The header field name
-                            type: string
-                          value:
-                            description: The header field value
-                            type: string
-                        required:
-                        - name
-                        - value
-                        type: object
-                      type: array
-                    path:
-                      description: Path to access on the HTTP server.
-                      type: string
-                  type: object
-                periodSeconds:
-                  description: How often (in seconds) to perform the probe. Default
-                    to 10 seconds. Minimum value is 1.
-                  format: int32
-                  type: integer
-                successThreshold:
-                  description: Minimum consecutive successes for the probe to be considered
-                    successful after having failed.
-                  format: int32
-                  type: integer
-                tcpSocket:
-                  description: 'TCPSocket specifies an action involving a TCP port.
-                    TCP hooks not yet supported TODO: implement a realistic TCP lifecycle
-                    hook'
-                  type: object
-                timeoutSeconds:
-                  description: 'Number of seconds after which the probe times out.
-                    Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
-                  format: int32
-                  type: integer
-              type: object
-          required:
-          - endpointSource
-          - ports
-          type: object
-        status:
-          description: ThirdComponentStatus -
-          properties:
-            endpoints:
-              items:
-                description: ThirdComponentEndpointStatus endpoint status
-                properties:
-                  address:
-                    description: The address including the port number.
-                    type: string
-                  name:
-                    description: Then Name of the Endpoint.
-                    type: string
-                  reason:
-                    description: Reason probe not passed reason
-                    type: string
-                  servicePort:
-                    description: ServicePort if address build from kubernetes endpoint,
-                      The corresponding service port
-                    type: integer
-                  status:
-                    description: Status endpoint status
-                    type: string
-                  targetRef:
-                    description: Reference to object providing the endpoint.
+                  httpGet:
+                    description: HTTPGet specifies the http request to perform.
                     properties:
-                      apiVersion:
-                        description: API version of the referent.
-                        type: string
-                      fieldPath:
-                        description: 'If referring to a piece of an object instead
-                          of an entire object, this string should contain a valid
-                          JSON/Go field access statement, such as desiredState.manifest.containers[2].
-                          For example, if the object reference is to a container within
-                          a pod, this would take on a value like: "spec.containers{name}"
-                          (where "name" refers to the name of the container that triggered
-                          the event) or if no container name is specified "spec.containers[2]"
-                          (container with index 2 in this pod). This syntax is chosen
-                          only to have some well-defined way of referencing a part
-                          of an object. TODO: this design is not final and this field
-                          is subject to change in the future.'
-                        type: string
-                      kind:
-                        description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-                        type: string
-                      name:
-                        description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                        type: string
-                      namespace:
-                        description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
-                        type: string
-                      resourceVersion:
-                        description: 'Specific resourceVersion to which this reference
-                          is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
-                        type: string
-                      uid:
-                        description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                      httpHeaders:
+                        description: Custom headers to set in the request. HTTP allows
+                          repeated headers.
+                        items:
+                          description: HTTPHeader describes a custom header to be
+                            used in HTTP probes
+                          properties:
+                            name:
+                              description: The header field name
+                              type: string
+                            value:
+                              description: The header field value
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      path:
+                        description: Path to access on the HTTP server.
                         type: string
                     type: object
-                required:
-                - address
-                - status
+                  periodSeconds:
+                    description: How often (in seconds) to perform the probe. Default
+                      to 10 seconds. Minimum value is 1.
+                    format: int32
+                    type: integer
+                  successThreshold:
+                    description: Minimum consecutive successes for the probe to be
+                      considered successful after having failed.
+                    format: int32
+                    type: integer
+                  tcpSocket:
+                    description: 'TCPSocket specifies an action involving a TCP port.
+                      TCP hooks not yet supported TODO: implement a realistic TCP
+                      lifecycle hook'
+                    type: object
+                  timeoutSeconds:
+                    description: 'Number of seconds after which the probe times out.
+                      Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes'
+                    format: int32
+                    type: integer
                 type: object
-              type: array
-            phase:
-              description: ComponentPhase -
-              type: string
-            reason:
-              type: string
-          required:
-          - endpoints
-          - phase
-          type: object
-      type: object
-  version: v1alpha1
-  versions:
-  - name: v1alpha1
+            required:
+            - endpointSource
+            - ports
+            type: object
+          status:
+            description: ThirdComponentStatus -
+            properties:
+              endpoints:
+                items:
+                  description: ThirdComponentEndpointStatus endpoint status
+                  properties:
+                    address:
+                      description: The address including the port number.
+                      type: string
+                    name:
+                      description: Then Name of the Endpoint.
+                      type: string
+                    reason:
+                      description: Reason probe not passed reason
+                      type: string
+                    servicePort:
+                      description: ServicePort if address build from kubernetes endpoint,
+                        The corresponding service port
+                      type: integer
+                    status:
+                      description: Status endpoint status
+                      type: string
+                    targetRef:
+                      description: Reference to object providing the endpoint.
+                      properties:
+                        apiVersion:
+                          description: API version of the referent.
+                          type: string
+                        fieldPath:
+                          description: 'If referring to a piece of an object instead
+                            of an entire object, this string should contain a valid
+                            JSON/Go field access statement, such as desiredState.manifest.containers[2].
+                            For example, if the object reference is to a container
+                            within a pod, this would take on a value like: "spec.containers{name}"
+                            (where "name" refers to the name of the container that
+                            triggered the event) or if no container name is specified
+                            "spec.containers[2]" (container with index 2 in this pod).
+                            This syntax is chosen only to have some well-defined way
+                            of referencing a part of an object. TODO: this design
+                            is not final and this field is subject to change in the
+                            future.'
+                          type: string
+                        kind:
+                          description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                          type: string
+                        name:
+                          description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                          type: string
+                        namespace:
+                          description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                          type: string
+                        resourceVersion:
+                          description: 'Specific resourceVersion to which this reference
+                            is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                          type: string
+                        uid:
+                          description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                          type: string
+                      type: object
+                  required:
+                  - address
+                  - status
+                  type: object
+                type: array
+              phase:
+                description: ComponentPhase -
+                type: string
+              reason:
+                type: string
+            required:
+            - endpoints
+            - phase
+            type: object
+        type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""
