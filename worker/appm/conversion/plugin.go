@@ -210,7 +210,7 @@ func createTCPDefaultPluginContainer(as *typesv1.AppService, pluginID string, en
 	container := v1.Container{
 		Name:      "default-tcpmesh-" + as.ServiceID[len(as.ServiceID)-20:],
 		Env:       envs,
-		Image:     typesv1.GetTCPMeshImageName(),
+		Image:     typesv1.GetOnlineTCPMeshImageName(),
 		Resources: createTCPUDPMeshRecources(as),
 	}
 
@@ -263,7 +263,7 @@ func createProbeMeshInitContainer(as *typesv1.AppService, pluginID, serviceAlias
 	return v1.Container{
 		Name:      "probe-mesh-" + as.ServiceID[len(as.ServiceID)-20:],
 		Env:       envs,
-		Image:     typesv1.GetProbeMeshImageName(),
+		Image:     typesv1.GetOnlineProbeMeshImageName(),
 		Resources: createTCPUDPMeshRecources(as),
 	}
 }
