@@ -441,33 +441,26 @@ func (a *AppService) SetIngress(d interface{}) {
 	if ok {
 		if len(a.ingresses) > 0 {
 			for i, ingress := range a.ingresses {
-				ing := d.(*networkingv1.Ingress)
-				if ing.GetName() == nwkIngress.GetName() {
+				if ingress.GetName() == nwkIngress.GetName() {
 					a.ingresses[i] = ingress
 					return
 				}
 			}
-		} else {
-			a.ingresses = append(a.ingresses, nwkIngress)
 		}
-
-	} else {
-		betaIngress, ok := d.(*betav1.Ingress)
-		if ok {
-			if len(a.betaIngresses) > 0 {
-				for i, ingress := range a.betaIngresses {
-					ing := d.(*betav1.Ingress)
-					if ing.GetName() == betaIngress.GetName() {
-						a.betaIngresses[i] = ingress
-						return
-					}
+		a.ingresses = append(a.ingresses, nwkIngress)
+	}
+	betaIngress, ok := d.(*betav1.Ingress)
+	if ok {
+		if len(a.betaIngresses) > 0 {
+			for i, ingress := range a.betaIngresses {
+				if ingress.GetName() == betaIngress.GetName() {
+					a.betaIngresses[i] = ingress
+					return
 				}
-			} else {
-				a.betaIngresses = append(a.betaIngresses, betaIngress)
 			}
 		}
+		a.betaIngresses = append(a.betaIngresses, betaIngress)
 	}
-
 }
 
 // SetIngresses sets k8s ingress list
