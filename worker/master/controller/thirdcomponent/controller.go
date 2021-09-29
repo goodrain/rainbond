@@ -152,7 +152,7 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 		}
 
 		// create endpoint for component service
-		if len(component.Spec.Ports) == 1 && len(component.Spec.EndpointSource.StaticEndpoints) != 0 {
+		if len(component.Spec.Ports) == 1 && len(component.Spec.EndpointSource.StaticEndpoints) > 1 {
 			svc := services.Items[0]
 			ep := createEndpointsOnlyOnePort(component, svc, component.Status.Endpoints)
 			if ep != nil {

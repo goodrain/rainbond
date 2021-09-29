@@ -1169,7 +1169,7 @@ func (s *k8sStore) loopUpdateIngress() {
 			} else {
 				betaIngress, ok := ingress[i].(*betav1.Ingress)
 				if !ok || betaIngress == nil {
-					return
+					continue
 				}
 				superIngress = betaIngress
 				meta = &betaIngress.ObjectMeta
