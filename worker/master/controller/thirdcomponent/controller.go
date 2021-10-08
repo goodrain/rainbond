@@ -248,7 +248,7 @@ func createEndpointsOnlyOnePort(thirdComponent *v1alpha1.ThirdComponent, service
 			},
 		}
 		for _, ep := range eps {
-			if validation.IsDomainNotIP(string(ep.Address)) {
+			if validation.IsDomainNotIP(ep.Address.GetIP()) {
 				domain = string(ep.Address)
 			}
 
@@ -314,7 +314,7 @@ func createEndpoint(component *v1alpha1.ThirdComponent, service *corev1.Service,
 					}(),
 					Addresses: func() (re []corev1.EndpointAddress) {
 						for _, se := range sourceEndpoint {
-							if validation.IsDomainNotIP(string(se.Address)) {
+							if validation.IsDomainNotIP(se.Address.GetIP()) {
 								domain = string(se.Address)
 							}
 							if se.Status == v1alpha1.EndpointReady {
