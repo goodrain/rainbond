@@ -505,7 +505,6 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 
 	for _, item := range s.listers.Ingress.List() {
 		if !s.ingressIsValid(item) {
-			logrus.Info("ListVirtualService is no valid")
 			continue
 		}
 		var ingName, ingNamespace, ingKey, ingServiceName string
@@ -571,7 +570,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				svcKey = fmt.Sprintf("%v/%v", item.(*betav1.Ingress).Namespace, item.(*betav1.Ingress).Spec.Backend.ServiceName)
 				protocol = s.GetServiceProtocol(svcKey, item.(*betav1.Ingress).Spec.Backend.ServicePort.IntVal)
 			} else {
-				svcKey := fmt.Sprintf("%v/%v", ingNamespace, item.(*networkingv1.Ingress).Spec.DefaultBackend.Service.Name)
+				svcKey = fmt.Sprintf("%v/%v", ingNamespace, item.(*networkingv1.Ingress).Spec.DefaultBackend.Service.Name)
 				protocol = s.GetServiceProtocol(svcKey, item.(*networkingv1.Ingress).Spec.DefaultBackend.Service.Port.Number)
 			}
 
@@ -1170,7 +1169,7 @@ func (s *k8sStore) loopUpdateIngress() {
 			} else {
 				betaIngress, ok := ingress[i].(*betav1.Ingress)
 				if !ok || betaIngress == nil {
-					return
+					continue
 				}
 				superIngress = betaIngress
 				meta = &betaIngress.ObjectMeta
