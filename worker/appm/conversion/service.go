@@ -20,6 +20,8 @@ package conversion
 
 import (
 	"fmt"
+	governance_mode "github.com/goodrain/rainbond/api/handler/app_governance_mode"
+	"github.com/sirupsen/logrus"
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
@@ -177,10 +179,11 @@ func initBaseStatefulSet(as *v1.AppService, service *dbmodel.TenantServices) {
 	}
 	stateful.Namespace = service.TenantID
 	stateful.GenerateName = service.ServiceAlias
+	injectLabels := getInjectLabels(as)
 	stateful.Labels = as.GetCommonLabels(stateful.Labels, map[string]string{
 		"name":    service.ServiceAlias,
 		"version": service.DeployVersion,
-	})
+	}, injectLabels)
 	stateful.Spec.UpdateStrategy.Type = appsv1.RollingUpdateStatefulSetStrategyType
 	if as.UpgradeMethod == v1.OnDelete {
 		stateful.Spec.UpdateStrategy.Type = appsv1.OnDeleteStatefulSetStrategyType
@@ -203,13 +206,24 @@ func initBaseDeployment(as *v1.AppService, service *dbmodel.TenantServices) {
 	deployment.Namespace = service.TenantID
 	deployment.Name = service.ServiceID + "-deployment"
 	deployment.GenerateName = strings.Replace(service.ServiceAlias, "_", "-", -1)
+	injectLabels := getInjectLabels(as)
 	deployment.Labels = as.GetCommonLabels(deployment.Labels, map[string]string{
 		"name":    service.ServiceAlias,
 		"version": service.DeployVersion,
-	})
+	}, injectLabels)
 	deployment.Spec.Strategy.Type = appsv1.RollingUpdateDeploymentStrategyType
 	if as.UpgradeMethod == v1.OnDelete {
 		deployment.Spec.Strategy.Type = appsv1.RecreateDeploymentStrategyType
 	}
 	as.SetDeployment(deployment)
+}
+
+func getInjectLabels(as *v1.AppService) map[string]string {
+	mode, err := governance_mode.NewAppGoveranceModeHandler(as.GovernanceMode, nil)
+	if err != nil {
+		logrus.Warningf("getInjectLabels failed: %v", err)
+		return nil
+	}
+	injectLabels := mode.GetInjectLabels()
+	return injectLabels
 }

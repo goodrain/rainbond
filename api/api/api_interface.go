@@ -178,6 +178,7 @@ type ApplicationInterface interface {
 	SyncComponents(w http.ResponseWriter, r *http.Request)
 	SyncAppConfigGroups(w http.ResponseWriter, r *http.Request)
 	ListAppStatuses(w http.ResponseWriter, r *http.Request)
+	CheckGovernanceMode(w http.ResponseWriter, r *http.Request)
 }
 
 //Gatewayer gateway api interface

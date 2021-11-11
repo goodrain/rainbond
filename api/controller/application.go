@@ -273,3 +273,14 @@ func (a *ApplicationController) ListAppStatuses(w http.ResponseWriter, r *http.R
 	}
 	httputil.ReturnSuccess(r, w, res)
 }
+
+// CheckGovernanceMode check governance mode.
+func (a *ApplicationController) CheckGovernanceMode(w http.ResponseWriter, r *http.Request) {
+	governanceMode := r.URL.Query().Get("governance_mode")
+	err := handler.GetApplicationHandler().CheckGovernanceMode(r.Context(), governanceMode)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}

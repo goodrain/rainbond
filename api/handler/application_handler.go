@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	governance_mode "github.com/goodrain/rainbond/api/handler/app_governance_mode"
 	"sort"
 	"strconv"
 	"time"
@@ -61,6 +62,7 @@ type ApplicationHandler interface {
 	SyncComponentConfigGroupRels(tx *gorm.DB, app *dbmodel.Application, components []*model.Component) error
 	SyncAppConfigGroups(app *dbmodel.Application, appConfigGroups []model.AppConfigGroup) error
 	ListAppStatuses(ctx context.Context, appIDs []string) ([]*model.AppStatus, error)
+	CheckGovernanceMode(ctx context.Context, governanceMode string) error
 }
 
 // NewApplicationHandler creates a new Tenant Application Handler.
@@ -178,8 +180,9 @@ func (a *ApplicationAction) UpdateApp(ctx context.Context, app *dbmodel.Applicat
 		app.AppName = req.AppName
 	}
 	if req.GovernanceMode != "" {
-		if !dbmodel.IsGovernanceModeValid(req.GovernanceMode) {
-			return nil, bcode.NewBadRequest(fmt.Sprintf("governance mode '%s' is valid", req.GovernanceMode))
+		if !governance_mode.IsGovernanceModeValid(req.GovernanceMode) {
+			logrus.Errorf("governance mode '%s' is invalid", req.GovernanceMode)
+			return nil, bcode.ErrInvalidGovernanceMode
 		}
 		app.GovernanceMode = req.GovernanceMode
 	}
@@ -727,4 +730,19 @@ func (a *ApplicationAction) ListAppStatuses(ctx context.Context, appIDs []string
 		})
 	}
 	return resp, nil
+}
+
+// CheckGovernanceMode Check whether the governance mode can be switched
+func (a *ApplicationAction) CheckGovernanceMode(ctx context.Context, governanceMode string) error {
+	if !governance_mode.IsGovernanceModeValid(governanceMode) {
+		return bcode.ErrInvalidGovernanceMode
+	}
+	mode, err := governance_mode.NewAppGoveranceModeHandler(governanceMode, a.kubeClient)
+	if err != nil {
+		return err
+	}
+	if !mode.IsInstalledControlPlane() {
+		return bcode.ErrControlPlaneNotInstall
+	}
+	return nil
 }

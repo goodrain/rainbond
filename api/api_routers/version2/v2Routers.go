@@ -314,6 +314,8 @@ func (v2 *V2) applicationRouter() chi.Router {
 	r := chi.NewRouter()
 	// Init Application
 	r.Use(middleware.InitApplication)
+	// app governance mode
+	r.Get("/governance/check", controller.GetManager().CheckGovernanceMode)
 	// Operation application
 	r.Put("/", controller.GetManager().UpdateApp)
 	r.Delete("/", controller.GetManager().DeleteApp)
