@@ -63,6 +63,7 @@ func (r *RuntimeServer) GetPodDetail(ctx context.Context, req *pb.GetPodDetailRe
 	}
 	podDetail.NodeIp = pod.Status.HostIP
 	podDetail.Ip = pod.Status.PodIP
+	podDetail.Namespace = pod.Namespace
 
 	events := r.listPodEventsByPod(pod)
 	if len(events) != 0 {
