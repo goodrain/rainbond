@@ -93,7 +93,7 @@ func (s *startController) errorCallback(app v1.AppService) error {
 }
 func (s *startController) startOne(app v1.AppService) error {
 	//first: check and create namespace
-	_, err := s.manager.client.CoreV1().Namespaces().Get(s.ctx, app.TenantID, metav1.GetOptions{})
+	_, err := s.manager.client.CoreV1().Namespaces().Get(s.ctx, app.GetNamespace(), metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			_, err = s.manager.client.CoreV1().Namespaces().Create(s.ctx, app.GetTenant(), metav1.CreateOptions{})
@@ -114,7 +114,7 @@ func (s *startController) startOne(app v1.AppService) error {
 	//step 1: create configmap
 	if configs := app.GetConfigMaps(); configs != nil {
 		for _, config := range configs {
-			_, err := s.manager.client.CoreV1().ConfigMaps(app.TenantID).Create(s.ctx, config, metav1.CreateOptions{})
+			_, err := s.manager.client.CoreV1().ConfigMaps(app.GetNamespace()).Create(s.ctx, config, metav1.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("create config map failure:%s", err.Error())
 			}
@@ -123,27 +123,27 @@ func (s *startController) startOne(app v1.AppService) error {
 	// create claims
 	for _, claim := range app.GetClaimsManually() {
 		logrus.Debugf("create claim: %s", claim.Name)
-		_, err := s.manager.client.CoreV1().PersistentVolumeClaims(app.TenantID).Create(s.ctx, claim, metav1.CreateOptions{})
+		_, err := s.manager.client.CoreV1().PersistentVolumeClaims(app.GetNamespace()).Create(s.ctx, claim, metav1.CreateOptions{})
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("create claims: %v", err)
 		}
 	}
 	//step 2: create statefulset or deployment
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		_, err = s.manager.client.AppsV1().StatefulSets(app.TenantID).Create(s.ctx, statefulset, metav1.CreateOptions{})
+		_, err = s.manager.client.AppsV1().StatefulSets(app.GetNamespace()).Create(s.ctx, statefulset, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("create statefulset failure:%s", err.Error())
 		}
 	}
 	if deployment := app.GetDeployment(); deployment != nil {
-		_, err = s.manager.client.AppsV1().Deployments(app.TenantID).Create(s.ctx, deployment, metav1.CreateOptions{})
+		_, err = s.manager.client.AppsV1().Deployments(app.GetNamespace()).Create(s.ctx, deployment, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("create deployment failure:%s;", err.Error())
 		}
 	}
 	//step 3: create services
 	if services := app.GetServices(true); services != nil {
-		if err := CreateKubeService(s.manager.client, app.TenantID, services...); err != nil {
+		if err := CreateKubeService(s.manager.client, app.GetNamespace(), services...); err != nil {
 			return fmt.Errorf("create service failure %s", err.Error())
 		}
 	}
@@ -151,7 +151,7 @@ func (s *startController) startOne(app v1.AppService) error {
 	if secrets := append(app.GetSecrets(true), app.GetEnvVarSecrets(true)...); secrets != nil {
 		for _, secret := range secrets {
 			if len(secret.ResourceVersion) == 0 {
-				_, err := s.manager.client.CoreV1().Secrets(app.TenantID).Create(s.ctx, secret, metav1.CreateOptions{})
+				_, err := s.manager.client.CoreV1().Secrets(app.GetNamespace()).Create(s.ctx, secret, metav1.CreateOptions{})
 				if err != nil && !errors.IsAlreadyExists(err) {
 					return fmt.Errorf("create secret failure:%s", err.Error())
 				}
@@ -162,7 +162,7 @@ func (s *startController) startOne(app v1.AppService) error {
 	ingresses, betaIngresses := app.GetIngress(true)
 	for _, ingress := range ingresses {
 		if len(ingress.ResourceVersion) == 0 {
-			_, err := s.manager.client.NetworkingV1().Ingresses(app.TenantID).Create(s.ctx, ingress, metav1.CreateOptions{})
+			_, err := s.manager.client.NetworkingV1().Ingresses(app.GetNamespace()).Create(s.ctx, ingress, metav1.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("create ingress failure:%s", err.Error())
 			}
@@ -170,7 +170,7 @@ func (s *startController) startOne(app v1.AppService) error {
 	}
 	for _, ingress := range betaIngresses {
 		if len(ingress.ResourceVersion) == 0 {
-			_, err := s.manager.client.NetworkingV1beta1().Ingresses(app.TenantID).Create(s.ctx, ingress, metav1.CreateOptions{})
+			_, err := s.manager.client.NetworkingV1beta1().Ingresses(app.GetNamespace()).Create(s.ctx, ingress, metav1.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("create ingress failure:%s", err.Error())
 			}

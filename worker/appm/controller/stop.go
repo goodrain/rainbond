@@ -72,7 +72,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	if services := app.GetServices(true); services != nil {
 		for _, service := range services {
 			if service != nil && service.Name != "" {
-				err := s.manager.client.CoreV1().Services(app.TenantID).Delete(s.ctx, service.Name, metav1.DeleteOptions{
+				err := s.manager.client.CoreV1().Services(app.GetNamespace()).Delete(s.ctx, service.Name, metav1.DeleteOptions{
 					GracePeriodSeconds: &zero,
 				})
 				if err != nil && !errors.IsNotFound(err) {
@@ -85,7 +85,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	if secrets := app.GetSecrets(true); secrets != nil {
 		for _, secret := range secrets {
 			if secret != nil && secret.Name != "" {
-				err := s.manager.client.CoreV1().Secrets(app.TenantID).Delete(s.ctx, secret.Name, metav1.DeleteOptions{
+				err := s.manager.client.CoreV1().Secrets(app.GetNamespace()).Delete(s.ctx, secret.Name, metav1.DeleteOptions{
 					GracePeriodSeconds: &zero,
 				})
 				if err != nil && !errors.IsNotFound(err) {
@@ -99,7 +99,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		if ingresses != nil {
 			for _, ingress := range ingresses {
 				if ingress != nil && ingress.Name != "" {
-					err := s.deleteIngress(app.TenantID, ingress.Name, zero)
+					err := s.deleteIngress(app.GetNamespace(), ingress.Name, zero)
 					if err != nil {
 						return err
 					}
@@ -108,7 +108,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		} else {
 			for _, ingress := range betaIngresses {
 				if ingress != nil && ingress.Name != "" {
-					err := s.deleteIngress(app.TenantID, ingress.Name, zero)
+					err := s.deleteBetaIngress(app.GetNamespace(), ingress.Name, zero)
 					if err != nil {
 						return err
 					}
@@ -121,7 +121,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	if configs := app.GetConfigMaps(); configs != nil {
 		for _, config := range configs {
 			if config != nil && config.Name != "" {
-				err := s.manager.client.CoreV1().ConfigMaps(app.TenantID).Delete(s.ctx, config.Name, metav1.DeleteOptions{
+				err := s.manager.client.CoreV1().ConfigMaps(app.GetNamespace()).Delete(s.ctx, config.Name, metav1.DeleteOptions{
 					GracePeriodSeconds: &zero,
 				})
 				if err != nil && !errors.IsNotFound(err) {
@@ -149,14 +149,14 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	}
 	//step 5: delete statefulset or deployment
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		err := s.manager.client.AppsV1().StatefulSets(app.TenantID).Delete(s.ctx, statefulset.Name, metav1.DeleteOptions{})
+		err := s.manager.client.AppsV1().StatefulSets(app.GetNamespace()).Delete(s.ctx, statefulset.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("delete statefulset failure:%s", err.Error())
 		}
 		s.manager.store.OnDeletes(statefulset)
 	}
 	if deployment := app.GetDeployment(); deployment != nil && deployment.Name != "" {
-		err := s.manager.client.AppsV1().Deployments(app.TenantID).Delete(s.ctx, deployment.Name, metav1.DeleteOptions{})
+		err := s.manager.client.AppsV1().Deployments(app.GetNamespace()).Delete(s.ctx, deployment.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("delete deployment failure:%s", err.Error())
 		}
@@ -167,7 +167,7 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	if pods := app.GetPods(true); pods != nil {
 		for _, pod := range pods {
 			if pod != nil && pod.Name != "" {
-				err := s.manager.client.CoreV1().Pods(app.TenantID).Delete(s.ctx, pod.Name, metav1.DeleteOptions{
+				err := s.manager.client.CoreV1().Pods(app.GetNamespace()).Delete(s.ctx, pod.Name, metav1.DeleteOptions{
 					GracePeriodSeconds: &gracePeriodSeconds,
 				})
 				if err != nil && !errors.IsNotFound(err) {
@@ -230,8 +230,18 @@ func (s *stopController) WaitingReady(app v1.AppService) error {
 	return nil
 }
 
-func (s *stopController) deleteIngress(tenantID, ingressName string, zero int64) error {
-	err := s.manager.client.ExtensionsV1beta1().Ingresses(tenantID).Delete(s.ctx, ingressName, metav1.DeleteOptions{
+func (s *stopController) deleteIngress(namespace, ingressName string, zero int64) error {
+	err := s.manager.client.NetworkingV1().Ingresses(namespace).Delete(s.ctx, ingressName, metav1.DeleteOptions{
+		GracePeriodSeconds: &zero,
+	})
+	if err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("delete ingress failure:%s", err.Error())
+	}
+	return nil
+}
+
+func (s *stopController) deleteBetaIngress(namespace, ingressName string, zero int64) error {
+	err := s.manager.client.ExtensionsV1beta1().Ingresses(namespace).Delete(s.ctx, ingressName, metav1.DeleteOptions{
 		GracePeriodSeconds: &zero,
 	})
 	if err != nil && !errors.IsNotFound(err) {

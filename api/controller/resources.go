@@ -457,6 +457,10 @@ func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 			id = ts.Body.TenantID
 		}
 		dbts.LimitMemory = ts.Body.LimitMemory
+		dbts.Namespace = dbts.UUID
+		if ts.Body.Namespace != "" {
+			dbts.Namespace = ts.Body.Namespace
+		}
 		if err := handler.GetServiceManager().CreateTenant(&dbts); err != nil {
 			if strings.HasSuffix(err.Error(), "is exist") {
 				httputil.ReturnError(r, w, 400, err.Error())
@@ -469,6 +473,7 @@ func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 		rc["tenant_id"] = id
 		rc["tenang_name"] = name
 		rc["eid"] = ts.Body.Eid
+		rc["namespace"] = dbts.Namespace
 		httputil.ReturnSuccess(r, w, rc)
 		return
 	}
@@ -476,6 +481,10 @@ func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 		//兼容旧接口
 		dbts.Name = ts.Body.TenantName
 		dbts.UUID = ts.Body.TenantID
+		dbts.Namespace = ts.Body.TenantID
+		if ts.Body.Namespace != "" {
+			dbts.Namespace = ts.Body.Namespace
+		}
 		if err := handler.GetServiceManager().CreateTenant(&dbts); err != nil {
 			if strings.HasSuffix(err.Error(), "is exist") {
 				httputil.ReturnError(r, w, 400, err.Error())
@@ -716,12 +725,13 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 	//     description: 统一返回格式
 	//目前提供三个元素的修改
 	rules := validator.MapData{
-		"container_cmd":    []string{},
-		"image_name":       []string{},
-		"container_memory": []string{},
-		"service_name":     []string{},
-		"extend_method":    []string{},
-		"app_id":           []string{},
+		"container_cmd":      []string{},
+		"image_name":         []string{},
+		"container_memory":   []string{},
+		"service_name":       []string{},
+		"extend_method":      []string{},
+		"app_id":             []string{},
+		"k8s_component_name": []string{},
 	}
 	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
 	if !ok {

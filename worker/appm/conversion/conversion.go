@@ -84,6 +84,7 @@ func InitAppService(dbmanager db.Manager, serviceID string, configs map[string]s
 	}
 	if app != nil {
 		appService.AppServiceBase.GovernanceMode = app.GovernanceMode
+		appService.AppServiceBase.K8sApp = app.K8sApp
 	}
 	if err := TenantServiceBase(appService, dbmanager); err != nil {
 		logrus.Errorf("init component base config failure %s", err.Error())
@@ -131,6 +132,7 @@ func InitCacheAppService(dbm db.Manager, serviceID, creatorID string) (*v1.AppSe
 	}
 	if app != nil {
 		appService.AppServiceBase.GovernanceMode = app.GovernanceMode
+		appService.AppServiceBase.K8sApp = app.K8sApp
 	}
 
 	if err := TenantServiceBase(appService, dbm); err != nil {

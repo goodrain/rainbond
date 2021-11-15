@@ -19,7 +19,7 @@ func TenantServiceConfigGroup(as *v1.AppService, dbm db.Manager) error {
 
 	var secrets []*corev1.Secret
 	for _, group := range groups {
-		cg := createConfigGroup(as, as.TenantID, group.AppID, group.ConfigGroupName)
+		cg := createConfigGroup(as, as.GetNamespace(), group.AppID, group.ConfigGroupName)
 		secret, err := cg.secretForConfigGroup()
 		if err != nil {
 			return fmt.Errorf("create secret for config group: %v", err)

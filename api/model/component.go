@@ -67,32 +67,34 @@ type ComponentBase struct {
 	// 服务创建类型cloud云市服务,assistant云帮服务
 	// in: body
 	// required: false
-	ServiceOrigin string `json:"service_origin" validate:"service_origin"`
-	Kind          string `json:"kind" validate:"kind|in:internal,third_party"`
+	ServiceOrigin    string `json:"service_origin" validate:"service_origin"`
+	Kind             string `json:"kind" validate:"kind|in:internal,third_party"`
+	K8sComponentName string `json:"k8s_component_name" validate:"k8s_component_name"`
 }
 
 // DbModel return database model
 func (c *ComponentBase) DbModel(tenantID, appID, deployVersion string) *dbmodel.TenantServices {
 	return &dbmodel.TenantServices{
-		TenantID:        tenantID,
-		ServiceID:       c.ComponentID,
-		ServiceAlias:    c.ComponentAlias,
-		ServiceName:     c.ComponentName,
-		ServiceType:     c.ExtendMethod,
-		Comment:         c.Comment,
-		ContainerCPU:    c.ContainerCPU,
-		ContainerMemory: c.ContainerMemory,
-		ContainerGPU:    c.ContainerGPU,
-		ExtendMethod:    c.ExtendMethod,
-		Replicas:        c.Replicas,
-		DeployVersion:   deployVersion,
-		Category:        c.Category,
-		EventID:         c.EventID,
-		Namespace:       tenantID,
-		ServiceOrigin:   c.ServiceOrigin,
-		Kind:            c.Kind,
-		AppID:           appID,
-		UpdateTime:      time.Now(),
+		TenantID:         tenantID,
+		ServiceID:        c.ComponentID,
+		ServiceAlias:     c.ComponentAlias,
+		ServiceName:      c.ComponentName,
+		ServiceType:      c.ExtendMethod,
+		Comment:          c.Comment,
+		ContainerCPU:     c.ContainerCPU,
+		ContainerMemory:  c.ContainerMemory,
+		ContainerGPU:     c.ContainerGPU,
+		ExtendMethod:     c.ExtendMethod,
+		Replicas:         c.Replicas,
+		DeployVersion:    deployVersion,
+		Category:         c.Category,
+		EventID:          c.EventID,
+		Namespace:        tenantID,
+		ServiceOrigin:    c.ServiceOrigin,
+		Kind:             c.Kind,
+		AppID:            appID,
+		UpdateTime:       time.Now(),
+		K8sComponentName: c.K8sComponentName,
 	}
 }
 

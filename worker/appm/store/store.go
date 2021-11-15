@@ -1229,7 +1229,7 @@ func (a *appRuntimeStore) GetTenantResourceList() []TenantResource {
 func (a *appRuntimeStore) GetTenantRunningApp(tenantID string) (list []*v1.AppService) {
 	a.appServices.Range(func(k, v interface{}) bool {
 		appService, _ := v.(*v1.AppService)
-		if appService != nil && (appService.TenantID == tenantID || tenantID == corev1.NamespaceAll) && !appService.IsClosed() {
+		if appService != nil && (appService.TenantID == tenantID || tenantID == corev1.NamespaceAll || appService.GetNamespace() == tenantID) && !appService.IsClosed() {
 			list = append(list, appService)
 		}
 		return true
@@ -1578,7 +1578,7 @@ func filterOutNotRainbondNamespace(ns *corev1.Namespace) bool {
 		if ns.Labels == nil {
 			return false
 		}
-		return ns.Labels["creator"] == "Rainbond"
+		return ns.Labels["creator"] == "Rainbond" || ns.Labels[constants.ResourceManagedByLabel] == constants.Rainbond
 	}()
 	return curVersion || oldVersion
 }

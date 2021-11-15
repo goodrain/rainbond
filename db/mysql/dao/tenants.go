@@ -573,6 +573,16 @@ func (t *TenantServicesDaoImpl) DeleteByComponentIDs(tenantID, appID string, com
 	return nil
 }
 
+//IsK8sComponentNameDuplicate -
+func (t *TenantServicesDaoImpl) IsK8sComponentNameDuplicate(appID, serviceID, k8sComponentName string) bool {
+	var count int64
+	if err := t.DB.Model(&model.TenantServices{}).Where("app_id=? and service_id<>? and k8s_component_name=?", appID, serviceID, k8sComponentName).Count(&count).Error; err != nil {
+		logrus.Errorf("judge K8s Component Name Duplicate failed %v", err)
+		return true
+	}
+	return count > 0
+}
+
 //TenantServicesDeleteImpl TenantServiceDeleteImpl
 type TenantServicesDeleteImpl struct {
 	DB *gorm.DB

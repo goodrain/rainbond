@@ -100,6 +100,10 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	as.AppID = tenantService.AppID
 	as.ServiceAlias = tenantService.ServiceAlias
 	as.UpgradeMethod = v1.TypeUpgradeMethod(tenantService.UpgradeMethod)
+	if tenantService.K8sComponentName == "" {
+		tenantService.K8sComponentName = tenantService.ServiceAlias
+	}
+	as.K8sComponentName = tenantService.K8sComponentName
 	if as.CreaterID == "" {
 		as.CreaterID = string(util.NewTimeVersion())
 	}
@@ -138,12 +142,12 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 }
 
 func initTenant(as *v1.AppService, tenant *dbmodel.Tenants) error {
-	if tenant == nil || tenant.UUID == "" {
+	if tenant == nil || tenant.Namespace == "" {
 		return fmt.Errorf("tenant is invalid")
 	}
 	namespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   tenant.UUID,
+			Name:   tenant.Namespace,
 			Labels: map[string]string{"creator": "Rainbond"},
 		},
 	}
@@ -165,7 +169,7 @@ func initBaseStatefulSet(as *v1.AppService, service *dbmodel.TenantServices) {
 	if stateful == nil {
 		stateful = &appsv1.StatefulSet{}
 	}
-	stateful.Namespace = as.TenantID
+	stateful.Namespace = as.GetNamespace()
 	stateful.Spec.Replicas = int32Ptr(service.Replicas)
 	if stateful.Spec.Selector == nil {
 		stateful.Spec.Selector = &metav1.LabelSelector{}
@@ -174,10 +178,9 @@ func initBaseStatefulSet(as *v1.AppService, service *dbmodel.TenantServices) {
 	stateful.Spec.ServiceName = service.ServiceName
 	stateful.Name = service.ServiceName
 	if stateful.Spec.ServiceName == "" {
-		stateful.Spec.ServiceName = service.ServiceAlias
-		stateful.Name = service.ServiceAlias
+		stateful.Spec.ServiceName = as.GetK8sWorkloadName()
+		stateful.Name = as.GetK8sWorkloadName()
 	}
-	stateful.Namespace = service.TenantID
 	stateful.GenerateName = service.ServiceAlias
 	injectLabels := getInjectLabels(as)
 	stateful.Labels = as.GetCommonLabels(stateful.Labels, map[string]string{
@@ -197,14 +200,13 @@ func initBaseDeployment(as *v1.AppService, service *dbmodel.TenantServices) {
 	if deployment == nil {
 		deployment = &appsv1.Deployment{}
 	}
-	deployment.Namespace = as.TenantID
+	deployment.Namespace = as.GetNamespace()
 	deployment.Spec.Replicas = int32Ptr(service.Replicas)
 	if deployment.Spec.Selector == nil {
 		deployment.Spec.Selector = &metav1.LabelSelector{}
 	}
 	initSelector(deployment.Spec.Selector, service)
-	deployment.Namespace = service.TenantID
-	deployment.Name = service.ServiceID + "-deployment"
+	deployment.Name = as.GetK8sWorkloadName()
 	deployment.GenerateName = strings.Replace(service.ServiceAlias, "_", "-", -1)
 	injectLabels := getInjectLabels(as)
 	deployment.Labels = as.GetCommonLabels(deployment.Labels, map[string]string{

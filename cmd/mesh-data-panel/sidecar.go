@@ -138,7 +138,7 @@ func run() error {
 }
 
 func discoverConfig() *api_model.ResourceSpec {
-	discoverURL := fmt.Sprintf("http://%s:6100/v1/resources/%s/%s/%s", os.Getenv("XDS_HOST_IP"), os.Getenv("TENANT_ID"), os.Getenv("SERVICE_NAME"), os.Getenv("PLUGIN_ID"))
+	discoverURL := fmt.Sprintf("http://%s:6100/v1/resources/%s/%s/%s", os.Getenv("XDS_HOST_IP"), os.Getenv("NAMESPACE"), os.Getenv("SERVICE_NAME"), os.Getenv("PLUGIN_ID"))
 	http.DefaultClient.Timeout = time.Second * 5
 	res, err := http.Get(discoverURL)
 	if err != nil {

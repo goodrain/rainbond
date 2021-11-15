@@ -67,6 +67,7 @@ type Tenants struct {
 	EID         string `gorm:"column:eid"`
 	LimitMemory int    `gorm:"column:limit_memory"`
 	Status      string `gorm:"column:status;default:'normal'"`
+	Namespace   string `gorm:"column:namespace;size:32;unique_index"`
 }
 
 //TableName 返回租户表名称
@@ -200,6 +201,8 @@ type TenantServices struct {
 	Kind string `gorm:"column:kind;default:'internal'" json:"kind"`
 	// service bind appID
 	AppID string `gorm:"column:app_id" json:"app_id"`
+	// Component name in cluster
+	K8sComponentName string `gorm:"column:k8s_component_name" json:"k8s_component_name"`
 }
 
 //Image 镜像
@@ -311,6 +314,8 @@ type TenantServicesDelete struct {
 	Kind string `gorm:"column:kind;default:'internal'" json:"kind"`
 	// service bind appID
 	AppID string `gorm:"column:app_id" json:"app_id"`
+	// Component name in cluster
+	K8sComponentName string `gorm:"column:k8s_component_name" json:"k8s_component_name"`
 }
 
 //TableName 表名

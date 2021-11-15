@@ -229,7 +229,7 @@ func (a AppServiceBuild) ApplyRules(serviceID string, containerPort, pluginConta
 	}
 	if len(tcpRules) > 0 {
 		for _, tcpRule := range tcpRules {
-			ing, err := a.applyTCPRule(tcpRule, service, a.tenant.UUID)
+			ing, err := a.applyTCPRule(tcpRule, service, a.appService.GetNamespace())
 			if err != nil {
 				logrus.Errorf("Unexpected error occurred while applying tcp rule: %v", err)
 				// skip the failed rule
@@ -257,7 +257,7 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, containerPort, plu
 	// create ingress
 	labels := a.appService.GetCommonLabels()
 	name := rule.UUID
-	namespace := a.tenant.UUID
+	namespace := a.appService.GetNamespace()
 	serviceName := service.Name
 
 	logrus.Infof("applyHTTPRule serviceName %s", serviceName)
@@ -412,7 +412,7 @@ func (a *AppServiceBuild) createKubernetesNativeService(port *model.TenantServic
 	svc := a.createInnerService(port)
 	svc.Name = port.K8sServiceName
 	if svc.Name == "" {
-		svc.Name = fmt.Sprintf("%s-%d", a.service.ServiceAlias, port.ContainerPort)
+		svc.Name = fmt.Sprintf("%s-%d", a.appService.GetK8sWorkloadName(), port.ContainerPort)
 	}
 	return svc
 }
@@ -421,9 +421,9 @@ func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *co
 	var service corev1.Service
 	service.Name = port.K8sServiceName
 	if service.Name == "" {
-		service.Name = fmt.Sprintf("service-%d-%d", port.ID, port.ContainerPort)
+		service.Name = fmt.Sprintf("%s-%d-%d", a.appService.GetK8sWorkloadName(), port.ID, port.ContainerPort)
 	}
-	service.Namespace = a.service.TenantID
+	service.Namespace = a.appService.GetNamespace()
 	service.Labels = a.appService.GetCommonLabels(map[string]string{
 		"service_type":  "inner",
 		"name":          a.service.ServiceAlias + "Service",
@@ -460,8 +460,8 @@ func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *co
 
 func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *corev1.Service {
 	var service corev1.Service
-	service.Name = fmt.Sprintf("service-%d-%dout", port.ID, port.ContainerPort)
-	service.Namespace = a.service.TenantID
+	service.Name = fmt.Sprintf("%s-%d-%dout", a.appService.GetK8sWorkloadName(), port.ID, port.ContainerPort)
+	service.Namespace = a.appService.GetNamespace()
 	service.Labels = a.appService.GetCommonLabels(map[string]string{
 		"service_type":  "outer",
 		"name":          a.service.ServiceAlias + "ServiceOUT",
@@ -496,9 +496,9 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPort) *corev1.Service {
 	var service corev1.Service
 	service.Name = a.service.ServiceName
-	service.Namespace = a.service.TenantID
+	service.Namespace = a.appService.GetNamespace()
 	if service.Name == "" {
-		service.Name = a.service.ServiceAlias
+		service.Name = a.appService.GetK8sWorkloadName()
 	}
 	service.Labels = a.appService.GetCommonLabels(map[string]string{
 		"service_type": "stateful",
@@ -519,7 +519,7 @@ func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPor
 	}
 	spec := corev1.ServiceSpec{
 		Ports:                    serviceports,
-		Selector:                 map[string]string{"name": a.service.ServiceAlias},
+		Selector:                 map[string]string{"name": a.appService.GetK8sWorkloadName()},
 		ClusterIP:                "None",
 		PublishNotReadyAddresses: true,
 	}

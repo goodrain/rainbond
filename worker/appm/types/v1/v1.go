@@ -103,9 +103,11 @@ type AppServiceBase struct {
 	IsWindowsService bool
 	CreaterID        string
 	//depend all service id
-	Dependces      []string
-	ExtensionSet   map[string]string
-	GovernanceMode string
+	Dependces        []string
+	ExtensionSet     map[string]string
+	GovernanceMode   string
+	K8sApp           string
+	K8sComponentName string
 }
 
 //GetComponentDefinitionName get component definition name by component kind
@@ -138,6 +140,11 @@ func (a AppServiceBase) IsThirdComponent() bool {
 // SetDiscoveryCfg -
 func (a *AppServiceBase) SetDiscoveryCfg(discoveryCfg *dbmodel.ThirdPartySvcDiscoveryCfg) {
 	a.discoveryCfg = discoveryCfg
+}
+
+// SetDiscoveryCfg -
+func (a *AppServiceBase) GetK8sWorkloadName() string {
+	return fmt.Sprintf("%s-%s", a.K8sApp, a.K8sComponentName)
 }
 
 //AppService a service of rainbond app state in kubernetes
@@ -642,6 +649,11 @@ func (a *AppService) GetTenant() *corev1.Namespace {
 	return a.tenant
 }
 
+//GetNamespace get tenant namespace name
+func (a *AppService) GetNamespace() string {
+	return a.tenant.Name
+}
+
 // SetDeletedResources sets the resources that need to be deleted
 func (a *AppService) SetDeletedResources(old *AppService) {
 	if old == nil {
@@ -741,7 +753,7 @@ func (a *AppService) GetClaimsManually() []*corev1.PersistentVolumeClaim {
 
 // SetClaim set claim
 func (a *AppService) SetClaim(claim *corev1.PersistentVolumeClaim) {
-	claim.Namespace = a.TenantID
+	claim.Namespace = a.GetNamespace()
 	if len(a.claims) > 0 {
 		for i, c := range a.claims {
 			if c.GetName() == claim.GetName() {
@@ -755,7 +767,7 @@ func (a *AppService) SetClaim(claim *corev1.PersistentVolumeClaim) {
 
 // SetClaimManually sets claim that needs to be created manually.
 func (a *AppService) SetClaimManually(claim *corev1.PersistentVolumeClaim) {
-	claim.Namespace = a.TenantID
+	claim.Namespace = a.GetNamespace()
 	if len(a.claimsmanual) > 0 {
 		for i, c := range a.claimsmanual {
 			if c.GetName() == claim.GetName() {

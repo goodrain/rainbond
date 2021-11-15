@@ -201,4 +201,7 @@ func (m *Manager) patchTable() {
 	if err := m.db.Exec("alter table tenant_services_volume modify column volume_type varchar(64);").Error; err != nil {
 		logrus.Errorf("alter table tenant_services_volume error: %s", err.Error())
 	}
+	if err := m.db.Exec("update tenants set namespace=uuid where namespace is NULL;").Error; err != nil {
+		logrus.Errorf("update tenants namespace error: %s", err.Error())
+	}
 }

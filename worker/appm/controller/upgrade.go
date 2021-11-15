@@ -80,7 +80,7 @@ func (s *upgradeController) upgradeConfigMap(newapp v1.AppService) {
 	for _, new := range newConfigMaps {
 		if nowConfig, ok := nowConfigMapMaps[new.Name]; ok {
 			new.UID = nowConfig.UID
-			newc, err := s.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Update(s.ctx, new, metav1.UpdateOptions{})
+			newc, err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Update(s.ctx, new, metav1.UpdateOptions{})
 			if err != nil {
 				logrus.Errorf("update config map failure %s", err.Error())
 			}
@@ -88,7 +88,7 @@ func (s *upgradeController) upgradeConfigMap(newapp v1.AppService) {
 			nowConfigMapMaps[new.Name] = nil
 			logrus.Debugf("update configmap %s for service %s", new.Name, newapp.ServiceID)
 		} else {
-			newc, err := s.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Create(s.ctx, new, metav1.CreateOptions{})
+			newc, err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Create(s.ctx, new, metav1.CreateOptions{})
 			if err != nil {
 				logrus.Errorf("update config map failure %s", err.Error())
 			}
@@ -98,7 +98,7 @@ func (s *upgradeController) upgradeConfigMap(newapp v1.AppService) {
 	}
 	for name, handle := range nowConfigMapMaps {
 		if handle != nil {
-			if err := s.manager.client.CoreV1().ConfigMaps(nowApp.TenantID).Delete(s.ctx, name, metav1.DeleteOptions{}); err != nil {
+			if err := s.manager.client.CoreV1().ConfigMaps(nowApp.GetNamespace()).Delete(s.ctx, name, metav1.DeleteOptions{}); err != nil {
 				logrus.Errorf("delete config map failure %s", err.Error())
 			}
 			logrus.Debugf("delete configmap %s for service %s", name, newapp.ServiceID)
@@ -120,7 +120,7 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 			nowConfig.Spec.Ports = new.Spec.Ports
 			nowConfig.Spec.Type = new.Spec.Type
 			nowConfig.Labels = new.Labels
-			newc, err := s.manager.client.CoreV1().Services(nowApp.TenantID).Update(s.ctx, nowConfig, metav1.UpdateOptions{})
+			newc, err := s.manager.client.CoreV1().Services(nowApp.GetNamespace()).Update(s.ctx, nowConfig, metav1.UpdateOptions{})
 			if err != nil {
 				logrus.Errorf("update service failure %s", err.Error())
 			}
@@ -128,7 +128,7 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 			nowServiceMaps[new.Name] = nil
 			logrus.Debugf("update service %s for service %s", new.Name, newapp.ServiceID)
 		} else {
-			err := CreateKubeService(s.manager.client, nowApp.TenantID, new)
+			err := CreateKubeService(s.manager.client, nowApp.GetNamespace(), new)
 			if err != nil {
 				logrus.Errorf("update service failure %s", err.Error())
 			}
@@ -138,7 +138,7 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 	}
 	for name, handle := range nowServiceMaps {
 		if handle != nil {
-			if err := s.manager.client.CoreV1().Services(nowApp.TenantID).Delete(s.ctx, name, metav1.DeleteOptions{}); err != nil {
+			if err := s.manager.client.CoreV1().Services(nowApp.GetNamespace()).Delete(s.ctx, name, metav1.DeleteOptions{}); err != nil {
 				logrus.Errorf("delete service failure %s", err.Error())
 			}
 			logrus.Debugf("delete service %s for service %s", name, newapp.ServiceID)
@@ -148,7 +148,7 @@ func (s *upgradeController) upgradeService(newapp v1.AppService) {
 
 func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	//first: check and create namespace
-	_, err := s.manager.client.CoreV1().Namespaces().Get(s.ctx, app.TenantID, metav1.GetOptions{})
+	_, err := s.manager.client.CoreV1().Namespaces().Get(s.ctx, app.GetNamespace(), metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			_, err = s.manager.client.CoreV1().Namespaces().Create(s.ctx, app.GetTenant(), metav1.CreateOptions{})
@@ -177,7 +177,7 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	// create claims
 	for _, claim := range app.GetClaimsManually() {
 		logrus.Debugf("create claim: %s", claim.Name)
-		_, err := s.manager.client.CoreV1().PersistentVolumeClaims(app.TenantID).Create(s.ctx, claim, metav1.CreateOptions{})
+		_, err := s.manager.client.CoreV1().PersistentVolumeClaims(app.GetNamespace()).Create(s.ctx, claim, metav1.CreateOptions{})
 		if err != nil && !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("create claims: %v", err)
 		}

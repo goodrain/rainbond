@@ -70,7 +70,7 @@ func createServiceMonitor(as *v1.AppService, dbmanager db.Manager) []*mv1.Servic
 		sm := mv1.ServiceMonitor{}
 		sm.Name = tsm.Name
 		sm.Labels = as.GetCommonLabels()
-		sm.Namespace = as.TenantID
+		sm.Namespace = as.GetNamespace()
 		sm.Spec = mv1.ServiceMonitorSpec{
 			// service label app_name
 			JobLabel:          "app_name",
