@@ -88,12 +88,15 @@ func (a *ApplicationController) UpdateApp(w http.ResponseWriter, r *http.Request
 		return
 	}
 	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
-	if app.K8sApp == "" && updateAppReq.K8sApp == "" {
-		updateAppReq.K8sApp = fmt.Sprintf("app-%s", app.AppID[:8])
-	}
 	if updateAppReq.K8sApp != "" && len(k8svalidation.IsQualifiedName(updateAppReq.K8sApp)) > 0 {
 		httputil.ReturnBcodeError(r, w, bcode.ErrInvaildK8sApp)
 		return
+	}
+	if updateAppReq.K8sApp == "" {
+		updateAppReq.K8sApp = fmt.Sprintf("app-%s", app.AppID[:8])
+		if app.K8sApp != "" {
+			updateAppReq.K8sApp = app.K8sApp
+		}
 	}
 	// update app
 	app, err := handler.GetApplicationHandler().UpdateApp(r.Context(), app, updateAppReq)
