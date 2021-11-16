@@ -159,7 +159,11 @@ func (r *RuntimeServer) getRainbondAppStatus(app *model.Application) (*pb.AppSta
 }
 
 func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus, error) {
-	helmApp, err := r.store.GetHelmApp(app.TenantID, app.AppName)
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(app.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	helmApp, err := r.store.GetHelmApp(tenant.Namespace, app.AppName)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +188,7 @@ func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus,
 	selector = selector.Add(*instanceReq)
 	managedReq, _ := labels.NewRequirement(constants.ResourceManagedByLabel, selection.Equals, []string{"Helm"})
 	selector = selector.Add(*managedReq)
-	pods, err := r.store.ListPods(app.TenantID, selector)
+	pods, err := r.store.ListPods(tenant.Namespace, selector)
 	if err != nil {
 		return nil, err
 	}
