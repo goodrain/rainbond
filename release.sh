@@ -5,7 +5,7 @@ set -o errexit
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME:-'rainbond'}
-DOMESTIC_NAMESPACE=${DOMESTIC_NAMESPACE:-'goodrain'}
+DOMESTIC_NAMESPACE=${DOMESTIC_NAMESPACE:-'yangkaa'}
 
 GO_VERSION=1.13
 
@@ -97,10 +97,10 @@ build::image() {
 		if [ $DOCKER_USERNAME ]; then
 			docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
 		fi
-		docker push "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}"
+#		docker push "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}"
 		if [ "${DOMESTIC_BASE_NAME}" ]; then
 			docker tag "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" "${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-$1:${VERSION}"
-			docker login -u "$DOMESTIC_DOCKER_USERNAME" -p "$DOMESTIC_DOCKER_PASSWORD" "${DOMESTIC_BASE_NAME}"
+#			docker login -u "$DOMESTIC_DOCKER_USERNAME" -p "$DOMESTIC_DOCKER_PASSWORD" "${DOMESTIC_BASE_NAME}"
 			docker push "${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-$1:${VERSION}"
 		fi
 	fi
