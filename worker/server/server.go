@@ -159,6 +159,7 @@ func (r *RuntimeServer) getRainbondAppStatus(app *model.Application) (*pb.AppSta
 }
 
 func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus, error) {
+	// TODO: Query only once in the upper layer and pass in the namespace
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(app.TenantID)
 	if err != nil {
 		return nil, err

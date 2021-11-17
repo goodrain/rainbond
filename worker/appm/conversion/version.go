@@ -71,12 +71,13 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	}
 	nodeSelector := createNodeSelector(as, dbmanager)
 	tolerations := createToleration(nodeSelector)
+	injectLabels := getInjectLabels(as)
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: as.GetCommonLabels(map[string]string{
 				"name":    as.ServiceAlias,
 				"version": as.DeployVersion,
-			}),
+			}, injectLabels),
 			Annotations: createPodAnnotations(as),
 			Name:        as.GetK8sWorkloadName() + "-pod-spec",
 		},
