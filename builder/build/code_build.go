@@ -117,7 +117,7 @@ func (s *slugBuild) writeRunDockerfile(sourceDir, packageName string, envs map[s
 
 //buildRunnerImage Wrap slug in the runner image
 func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
-	imageName := fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, s.re.ServiceID, s.re.DeployVersion)
+	imageName := CreateImageName(s.re.ServiceID, s.re.DeployVersion)
 	cacheDir := path.Join(path.Dir(slugPackage), "."+s.re.DeployVersion)
 	if err := util.CheckAndCreateDir(cacheDir); err != nil {
 		return "", fmt.Errorf("create cache package dir failure %s", err.Error())

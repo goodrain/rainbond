@@ -44,7 +44,7 @@ func CreateManager(config config.Config) (*Manager, error) {
 	var db *gorm.DB
 	if config.DBType == "mysql" {
 		var err error
-		db, err = gorm.Open("mysql", config.MysqlConnectionInfo+"?charset=utf8&parseTime=True&loc=Local")
+		db, err = gorm.Open("mysql", config.MysqlConnectionInfo+"?charset=utf8mb4&parseTime=True&loc=Local")
 		if err != nil {
 			return nil, err
 		}

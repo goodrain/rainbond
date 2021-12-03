@@ -175,12 +175,8 @@ func initBaseStatefulSet(as *v1.AppService, service *dbmodel.TenantServices) {
 		stateful.Spec.Selector = &metav1.LabelSelector{}
 	}
 	initSelector(stateful.Spec.Selector, service)
-	stateful.Spec.ServiceName = service.ServiceName
-	stateful.Name = service.ServiceName
-	if stateful.Spec.ServiceName == "" {
-		stateful.Spec.ServiceName = as.GetK8sWorkloadName()
-		stateful.Name = as.GetK8sWorkloadName()
-	}
+	stateful.Name = as.GetK8sWorkloadName()
+	stateful.Spec.ServiceName = as.GetK8sWorkloadName()
 	stateful.GenerateName = service.ServiceAlias
 	injectLabels := getInjectLabels(as)
 	stateful.Labels = as.GetCommonLabels(stateful.Labels, map[string]string{
