@@ -818,3 +818,13 @@ func Elapsed(what string) func() {
 		logrus.Debugf("%s took %v", what, time.Since(start))
 	}
 }
+
+// IsEndWithNumber Determine whether the stateful component directory name is satisfied, that is, it ends with a number
+func IsEndWithNumber(dir string) (isEndWithNumber bool, suffix string) {
+	reg := regexp.MustCompile(`^*-[0-9]*?$`)
+	if reg == nil {
+		return false, ""
+	}
+	suffix = reg.FindString(dir)
+	return suffix != "", suffix
+}

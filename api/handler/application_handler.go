@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	governance_mode "github.com/goodrain/rainbond/api/handler/app_governance_mode"
+	"io/ioutil"
+	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/api/client/prometheus"
@@ -63,6 +66,7 @@ type ApplicationHandler interface {
 	SyncAppConfigGroups(app *dbmodel.Application, appConfigGroups []model.AppConfigGroup) error
 	ListAppStatuses(ctx context.Context, appIDs []string) ([]*model.AppStatus, error)
 	CheckGovernanceMode(ctx context.Context, governanceMode string) error
+	ChangeVolumes(app *dbmodel.Application) error
 }
 
 // NewApplicationHandler creates a new Tenant Application Handler.
@@ -767,6 +771,71 @@ func (a *ApplicationAction) CheckGovernanceMode(ctx context.Context, governanceM
 	}
 	if !mode.IsInstalledControlPlane() {
 		return bcode.ErrControlPlaneNotInstall
+	}
+	return nil
+}
+
+// ChangeVolumes Since the component name supports modification, the storage directory of stateful components will change.
+// This interface is used to modify the original directory name to the storage directory that will actually be used.
+func (a *ApplicationAction) ChangeVolumes(app *dbmodel.Application) error {
+	components, err := db.GetManager().TenantServiceDao().ListByAppID(app.AppID)
+	if err != nil {
+		return err
+	}
+	sharePath := os.Getenv("SHARE_DATA_PATH")
+	if sharePath == "" {
+		sharePath = "/grdata"
+	}
+
+	var componentIDs []string
+	k8sComponentNames := make(map[string]string)
+	for _, component := range components {
+		if !component.IsState() {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ServiceID)
+		k8sComponentNames[component.ServiceID] = component.K8sComponentName
+	}
+	volumes, err := db.GetManager().TenantServiceVolumeDao().ListVolumesByComponentIDs(componentIDs)
+	if err != nil {
+		return err
+	}
+	componentVolumes := make(map[string][]*dbmodel.TenantServiceVolume)
+	for _, volume := range volumes {
+		componentVolumes[volume.ServiceID] = append(componentVolumes[volume.ServiceID], volume)
+	}
+
+	for componentID, singleComponentVols := range componentVolumes {
+		for _, componentVolume := range singleComponentVols {
+			parentDir := fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, app.TenantID, componentID, componentVolume.VolumePath)
+			newPath := fmt.Sprintf("%s/%s-%s", parentDir, app.K8sApp, k8sComponentNames[componentID])
+			if err := changeVolumeDirectoryNames(parentDir, newPath); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func changeVolumeDirectoryNames(parentDir, newPath string) error {
+	files, _ := ioutil.ReadDir(parentDir)
+	for _, f := range files {
+		if !f.IsDir() {
+			continue
+		}
+		isEndWithNumber, suffix := util.IsEndWithNumber(f.Name())
+		if isEndWithNumber {
+			oldPath := fmt.Sprintf("%s/%s", parentDir, f.Name())
+			newVolPath := newPath + suffix
+			if err := os.Rename(oldPath, newVolPath); err != nil {
+				if err == os.ErrExist || strings.Contains(err.Error(), "file exists"){
+					logrus.Infof("Ingore change volume path err: [%v]", err)
+					continue
+				}
+				return err
+			}
+			logrus.Infof("Success change volume path [%s] to [%s]", oldPath, newVolPath)
+		}
 	}
 	return nil
 }

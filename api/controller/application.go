@@ -300,3 +300,15 @@ func (a *ApplicationController) CheckGovernanceMode(w http.ResponseWriter, r *ht
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
+
+// ChangeVolumes Since the component name supports modification, the storage directory of stateful components will change.
+// This interface is used to modify the original directory name to the storage directory that will actually be used.
+func (a *ApplicationController) ChangeVolumes(w http.ResponseWriter, r *http.Request) {
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
+	err := handler.GetApplicationHandler().ChangeVolumes(app)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
