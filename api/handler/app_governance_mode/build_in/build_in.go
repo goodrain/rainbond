@@ -1,12 +1,20 @@
-package build_in
+package buildin
 
-type BuildInServiceMeshMode struct {
+import appgovernancemode "github.com/goodrain/rainbond/api/handler/app_governance_mode"
+
+type buildInServiceMeshMode struct{}
+
+// New Build In ServiceMeshMode Handler
+func New() appgovernancemode.AppGoveranceModeHandler {
+	return &buildInServiceMeshMode{}
 }
 
-func (b *BuildInServiceMeshMode) IsInstalledControlPlane() bool {
+// IsInstalledControlPlane -
+func (b *buildInServiceMeshMode) IsInstalledControlPlane() bool {
 	return true
 }
 
-func (b *BuildInServiceMeshMode) GetInjectLabels() map[string]string {
+// GetInjectLabels -
+func (b *buildInServiceMeshMode) GetInjectLabels() map[string]string {
 	return nil
 }

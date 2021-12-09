@@ -1,9 +1,9 @@
-package app_governance_mode
+package appgovernancemode
 
 import (
 	"github.com/goodrain/rainbond/api/handler/app_governance_mode/build_in"
 	"github.com/goodrain/rainbond/api/handler/app_governance_mode/istio"
-	"github.com/goodrain/rainbond/api/handler/app_governance_mode/kubernetes_native"
+	kubernetesnative "github.com/goodrain/rainbond/api/handler/app_governance_mode/kubernetes_native"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/model"
 	clientset "k8s.io/client-go/kubernetes"
@@ -19,13 +19,11 @@ type AppGoveranceModeHandler interface {
 func NewAppGoveranceModeHandler(governanceMode string, kubeClient clientset.Interface) (AppGoveranceModeHandler, error) {
 	switch governanceMode {
 	case model.GovernanceModeIstioServiceMesh:
-		return &istio.IstioServiceMeshMode{
-			KubeClient: kubeClient,
-		}, nil
+		return istio.New(kubeClient), nil
 	case model.GovernanceModeBuildInServiceMesh:
-		return &build_in.BuildInServiceMeshMode{}, nil
+		return buildin.New(), nil
 	case model.GovernanceModeKubernetesNativeService:
-		return &kubernetes_native.KubernetesNativeMode{}, nil
+		return kubernetesnative.New(), nil
 	default:
 		return nil, bcode.ErrInvalidGovernanceMode
 	}

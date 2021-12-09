@@ -902,11 +902,11 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	if appID, ok := sc["app_id"].(string); ok && appID != "" {
 		ts.AppID = appID
 	}
-	if k8s_component_name, ok := sc["k8s_component_name"].(string); ok && k8s_component_name != "" {
-		if db.GetManager().TenantServiceDao().IsK8sComponentNameDuplicate(ts.AppID, ts.ServiceID, k8s_component_name) {
+	if k8sComponentName, ok := sc["k8s_component_name"].(string); ok && k8sComponentName != "" {
+		if db.GetManager().TenantServiceDao().IsK8sComponentNameDuplicate(ts.AppID, ts.ServiceID, k8sComponentName) {
 			return bcode.ErrK8sComponentNameExists
 		}
-		ts.K8sComponentName = k8s_component_name
+		ts.K8sComponentName = k8sComponentName
 	}
 	if sc["extend_method"] != nil {
 		extendMethod := sc["extend_method"].(string)
