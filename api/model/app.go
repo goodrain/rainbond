@@ -23,6 +23,7 @@ type AppStatus struct {
 	Version    string                `json:"version"`
 	Overrides  []string              `json:"overrides"`
 	Conditions []*AppStatusCondition `json:"conditions"`
+	K8sApp     string                `json:"k8s_app"`
 }
 
 // AppStatusCondition is the conditon of app status.

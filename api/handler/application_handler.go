@@ -467,6 +467,7 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 		Conditions: conditions,
 		AppID:      app.AppID,
 		AppName:    app.AppName,
+		K8sApp:     app.K8sApp,
 	}
 	return res, nil
 }
@@ -828,7 +829,7 @@ func changeVolumeDirectoryNames(parentDir, newPath string) error {
 			oldPath := fmt.Sprintf("%s/%s", parentDir, f.Name())
 			newVolPath := newPath + suffix
 			if err := os.Rename(oldPath, newVolPath); err != nil {
-				if err == os.ErrExist || strings.Contains(err.Error(), "file exists"){
+				if err == os.ErrExist || strings.Contains(err.Error(), "file exists") {
 					logrus.Infof("Ingore change volume path err: [%v]", err)
 					continue
 				}

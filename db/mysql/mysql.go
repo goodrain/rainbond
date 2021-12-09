@@ -204,4 +204,10 @@ func (m *Manager) patchTable() {
 	if err := m.db.Exec("update tenants set namespace=uuid where namespace is NULL;").Error; err != nil {
 		logrus.Errorf("update tenants namespace error: %s", err.Error())
 	}
+	if err := m.db.Exec("update applications set k8s_app=concat('app-',LEFT(app_id,8)) where k8s_app is NULL;").Error; err != nil {
+		logrus.Errorf("update tenants namespace error: %s", err.Error())
+	}
+	if err := m.db.Exec("update tenant_services set k8s_component_name=service_alias where k8s_component_name is NULL;").Error; err != nil {
+		logrus.Errorf("update tenants namespace error: %s", err.Error())
+	}
 }
