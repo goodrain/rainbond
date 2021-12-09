@@ -1,12 +1,10 @@
-package kubernetesnative
-
-import appgovernancemode "github.com/goodrain/rainbond/api/handler/app_governance_mode"
+package adaptor
 
 type kubernetesNativeMode struct {
 }
 
-// New Kubernetes Native Mode Handler
-func New() appgovernancemode.AppGoveranceModeHandler {
+// NewKubernetesNativeMode -
+func NewKubernetesNativeMode() AppGoveranceModeHandler {
 	return &kubernetesNativeMode{}
 }
 
@@ -15,7 +13,7 @@ func (k *kubernetesNativeMode) IsInstalledControlPlane() bool {
 	return true
 }
 
-// GetInjectLabels-
+// GetInjectLabels -
 func (k *kubernetesNativeMode) GetInjectLabels() map[string]string {
 	return nil
 }

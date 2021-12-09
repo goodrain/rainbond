@@ -20,7 +20,7 @@ package conversion
 
 import (
 	"fmt"
-	governance_mode "github.com/goodrain/rainbond/api/handler/app_governance_mode"
+	"github.com/goodrain/rainbond/api/handler/app_governance_mode/adaptor"
 	"github.com/sirupsen/logrus"
 	"strings"
 
@@ -217,7 +217,7 @@ func initBaseDeployment(as *v1.AppService, service *dbmodel.TenantServices) {
 }
 
 func getInjectLabels(as *v1.AppService) map[string]string {
-	mode, err := governance_mode.NewAppGoveranceModeHandler(as.GovernanceMode, nil)
+	mode, err := adaptor.NewAppGoveranceModeHandler(as.GovernanceMode, nil)
 	if err != nil {
 		logrus.Warningf("getInjectLabels failed: %v", err)
 		return nil
