@@ -162,7 +162,7 @@ func (m *Manager) CheckTable() {
 		for _, md := range m.models {
 			if !m.db.HasTable(md) {
 				if m.config.DBType == "mysql" {
-					err := m.db.Set("gorm:table_options", "ENGINE=InnoDB charset=utf8").CreateTable(md).Error
+					err := m.db.Set("gorm:table_options", "ENGINE=InnoDB charset=utf8mb4").CreateTable(md).Error
 					if err != nil {
 						logrus.Errorf("auto create table %s to db error."+err.Error(), md.TableName())
 					} else {
