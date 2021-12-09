@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"fmt"
+	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 	"net/http"
 	"strconv"
 
@@ -40,12 +42,17 @@ func (a *ApplicationController) CreateApp(w http.ResponseWriter, r *http.Request
 			httputil.ReturnBcodeError(r, w, bcode.NewBadRequest("the field 'version' is required"))
 			return
 		}
+		tenantReq.K8sApp = tenantReq.AppTemplateName
 	}
-
+	if tenantReq.K8sApp != "" {
+		if len(k8svalidation.IsQualifiedName(tenantReq.K8sApp)) > 0 {
+			httputil.ReturnBcodeError(r, w, bcode.ErrInvaildK8sApp)
+			return
+		}
+	}
 	// get current tenant
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	tenantReq.TenantID = tenant.UUID
-
 	// create app
 	app, err := handler.GetApplicationHandler().CreateApp(r.Context(), &tenantReq)
 	if err != nil {
@@ -81,7 +88,16 @@ func (a *ApplicationController) UpdateApp(w http.ResponseWriter, r *http.Request
 		return
 	}
 	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
-
+	if updateAppReq.K8sApp != "" && len(k8svalidation.IsQualifiedName(updateAppReq.K8sApp)) > 0 {
+		httputil.ReturnBcodeError(r, w, bcode.ErrInvaildK8sApp)
+		return
+	}
+	if updateAppReq.K8sApp == "" {
+		updateAppReq.K8sApp = fmt.Sprintf("app-%s", app.AppID[:8])
+		if app.K8sApp != "" {
+			updateAppReq.K8sApp = app.K8sApp
+		}
+	}
 	// update app
 	app, err := handler.GetApplicationHandler().UpdateApp(r.Context(), app, updateAppReq)
 	if err != nil {
@@ -272,4 +288,27 @@ func (a *ApplicationController) ListAppStatuses(w http.ResponseWriter, r *http.R
 		return
 	}
 	httputil.ReturnSuccess(r, w, res)
+}
+
+// CheckGovernanceMode check governance mode.
+func (a *ApplicationController) CheckGovernanceMode(w http.ResponseWriter, r *http.Request) {
+	governanceMode := r.URL.Query().Get("governance_mode")
+	err := handler.GetApplicationHandler().CheckGovernanceMode(r.Context(), governanceMode)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+// ChangeVolumes Since the component name supports modification, the storage directory of stateful components will change.
+// This interface is used to modify the original directory name to the storage directory that will actually be used.
+func (a *ApplicationController) ChangeVolumes(w http.ResponseWriter, r *http.Request) {
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
+	err := handler.GetApplicationHandler().ChangeVolumes(app)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
 }

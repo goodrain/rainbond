@@ -66,12 +66,20 @@ func (r *ResourceCache) SetPodResource(pod *corev1.Pod) {
 	defer r.lock.Unlock()
 	namespace := pod.Namespace
 	re := v1.CalculatePodResource(pod)
-	if nr, ok := r.resources[namespace]; ok && nr != nil {
-		nr.SetPodResource(pod.Name, re)
-	} else {
-		nameR := make(NamespaceResource)
-		nameR.SetPodResource(pod.Name, re)
-		r.resources[namespace] = &nameR
+	// Compatible with resources with tenantID as namespace
+	nsKeys := []string{namespace}
+	labels := pod.Labels
+	if tenantID, ok := labels["tenant_id"]; ok && tenantID != namespace {
+		nsKeys = append(nsKeys, tenantID)
+	}
+	for _, ns := range nsKeys {
+		if nr, ok := r.resources[ns]; ok && nr != nil {
+			nr.SetPodResource(pod.Name, re)
+		} else {
+			nameR := make(NamespaceResource)
+			nameR.SetPodResource(pod.Name, re)
+			r.resources[ns] = &nameR
+		}
 	}
 }
 

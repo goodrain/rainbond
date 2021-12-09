@@ -76,6 +76,7 @@ type ApplicationDao interface {
 	DeleteApp(appID string) error
 	GetByServiceID(sid string) (*model.Application, error)
 	ListByAppIDs(appIDs []string) ([]*model.Application, error)
+	IsK8sAppDuplicate(tenantID, AppID, k8sApp string) bool
 }
 
 //AppConfigGroupDao Application config group Dao
@@ -156,6 +157,7 @@ type TenantServiceDao interface {
 	BindAppByServiceIDs(appID string, serviceIDs []string) error
 	CreateOrUpdateComponentsInBatch(components []*model.TenantServices) error
 	DeleteByComponentIDs(tenantID, appID string, componentIDs []string) error
+	IsK8sComponentNameDuplicate(appID, serviceID, k8sComponentName string) bool
 }
 
 //TenantServiceDeleteDao TenantServiceDeleteDao

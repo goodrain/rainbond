@@ -33,5 +33,6 @@ func (a *AppService) GetCommonLabels(labels ...map[string]string) map[string]str
 	resultLabel["tenant_name"] = a.TenantName
 	resultLabel["tenant_id"] = a.TenantID
 	resultLabel["app_id"] = a.AppID
+	resultLabel["app"] = a.K8sApp
 	return resultLabel
 }

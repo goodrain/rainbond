@@ -60,7 +60,7 @@ func (v *ConfigFileVolume) CreateVolume(define *Define) error {
 	cmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.NewUUID(),
-			Namespace: v.as.TenantID,
+			Namespace: v.as.GetNamespace(),
 			Labels:    v.as.GetCommonLabels(),
 		},
 		Data: make(map[string]string),
@@ -90,7 +90,7 @@ func (v *ConfigFileVolume) CreateDependVolume(define *Define) error {
 	cmap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.NewUUID(),
-			Namespace: v.as.TenantID,
+			Namespace: v.as.GetNamespace(),
 			Labels:    v.as.GetCommonLabels(),
 		},
 		Data: make(map[string]string),

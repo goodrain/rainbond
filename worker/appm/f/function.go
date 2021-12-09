@@ -47,7 +47,7 @@ const (
 
 // ApplyOne applies one rule.
 func ApplyOne(ctx context.Context, apply apply.Applicator, clientset kubernetes.Interface, app *v1.AppService) error {
-	_, err := clientset.CoreV1().Namespaces().Get(context.Background(), app.TenantID, metav1.GetOptions{})
+	_, err := clientset.CoreV1().Namespaces().Get(context.Background(), app.GetNamespace(), metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			_, err = clientset.CoreV1().Namespaces().Create(context.Background(), app.GetTenant(), metav1.CreateOptions{})

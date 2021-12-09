@@ -488,8 +488,12 @@ func (m *Manager) deleteTenant(task *model.Task) (err error) {
 			return
 		}
 	}()
-
-	if err = m.cfg.KubeClient.CoreV1().Namespaces().Delete(context.Background(), body.TenantID, metav1.DeleteOptions{
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(body.TenantID)
+	if err != nil {
+		err = fmt.Errorf("tenant id: %s; find tenant: %v", body.TenantID, err)
+		return
+	}
+	if err = m.cfg.KubeClient.CoreV1().Namespaces().Delete(context.Background(), tenant.Namespace, metav1.DeleteOptions{
 		GracePeriodSeconds: util.Int64(0),
 	}); err != nil && !k8sErrors.IsNotFound(err) {
 		err = fmt.Errorf("delete namespace: %v", err)

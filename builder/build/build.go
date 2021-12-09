@@ -21,6 +21,7 @@ package build
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/db"
 	"strings"
 
 	"github.com/goodrain/rainbond/builder"
@@ -128,5 +129,19 @@ func GetBuild(lang code.Lang) (Build, error) {
 
 //CreateImageName create image name
 func CreateImageName(serviceID, deployversion string) string {
-	return strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, serviceID, deployversion))
+	imageName := strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, serviceID, deployversion))
+	component, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
+	if err != nil {
+		return imageName
+	}
+	app, err := db.GetManager().ApplicationDao().GetByServiceID(serviceID)
+	if err != nil {
+		return imageName
+	}
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(component.TenantID)
+	if err != nil {
+		return imageName
+	}
+	workloadName := fmt.Sprintf("%s-%s-%s", tenant.Namespace, app.K8sApp, component.K8sComponentName)
+	return strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, workloadName, deployversion))
 }

@@ -77,7 +77,7 @@ func newHPAs(as *v1.AppService, dbmanager db.Manager) ([]*autoscalingv2.Horizont
 			"version": as.DeployVersion,
 		})
 
-		hpa := newHPA(as.TenantID, kind, name, labels, rule, metrics)
+		hpa := newHPA(as.GetNamespace(), kind, name, labels, rule, metrics)
 
 		hpas = append(hpas, hpa)
 	}

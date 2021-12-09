@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/util/constants"
 	"io"
 	"net/http"
 	"os"
@@ -548,6 +549,11 @@ func (s *ServiceAction) ServiceCreate(sc *api_model.ServiceStruct) error {
 	if ts.ContainerGPU < 0 {
 		ts.ContainerGPU = 0
 	}
+	if ts.K8sComponentName != "" {
+		if db.GetManager().TenantServiceDao().IsK8sComponentNameDuplicate(ts.AppID, ts.ServiceID, ts.K8sComponentName) {
+			return bcode.ErrK8sComponentNameExists
+		}
+	}
 	ts.UpdateTime = time.Now()
 	var (
 		ports         = sc.PortsInfo
@@ -895,6 +901,12 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 	}
 	if appID, ok := sc["app_id"].(string); ok && appID != "" {
 		ts.AppID = appID
+	}
+	if k8sComponentName, ok := sc["k8s_component_name"].(string); ok && k8sComponentName != "" {
+		if db.GetManager().TenantServiceDao().IsK8sComponentNameDuplicate(ts.AppID, ts.ServiceID, k8sComponentName) {
+			return bcode.ErrK8sComponentNameExists
+		}
+		ts.K8sComponentName = k8sComponentName
 	}
 	if sc["extend_method"] != nil {
 		extendMethod := sc["extend_method"].(string)
@@ -1996,27 +2008,32 @@ func (s *ServiceAction) GetEnterpriseRunningServices(enterpriseID string) ([]str
 
 //CreateTenant create tenant
 func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants) error {
-	if ten, _ := db.GetManager().TenantDao().GetTenantIDByName(t.Name); ten != nil {
+	tenant, _ := db.GetManager().TenantDao().GetTenantIDByName(t.Name)
+	if tenant != nil {
 		return fmt.Errorf("tenant name %s is exist", t.Name)
 	}
-	tx := db.GetManager().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
-			tx.Rollback()
+	labels := map[string]string{
+		constants.ResourceManagedByLabel: constants.Rainbond,
+	}
+	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		if err := db.GetManager().TenantDaoTransactions(tx).AddModel(t); err != nil {
+			if !strings.HasSuffix(err.Error(), "is exist") {
+				return err
+			}
 		}
-	}()
-	if err := db.GetManager().TenantDaoTransactions(tx).AddModel(t); err != nil {
-		if !strings.HasSuffix(err.Error(), "is exist") {
-			tx.Rollback()
+		if _, err := s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   t.Namespace,
+				Labels: labels,
+			},
+		}, metav1.CreateOptions{}); err != nil {
+			if k8sErrors.IsAlreadyExists(err) {
+				return bcode.ErrNamespaceExists
+			}
 			return err
 		}
-	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-	return nil
+		return nil
+	})
 }
 
 //CreateTenandIDAndName create tenant_id and tenant_name
@@ -2276,7 +2293,10 @@ func (s *ServiceAction) deleteThirdComponent(ctx context.Context, component *dbm
 	if component.Kind != "third_party" {
 		return nil
 	}
-
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(component.TenantID)
+	if err != nil {
+		return err
+	}
 	thirdPartySvcDiscoveryCfg, err := db.GetManager().ThirdPartySvcDiscoveryCfgDao().GetByServiceID(component.ServiceID)
 	if err != nil {
 		return err
@@ -2291,7 +2311,7 @@ func (s *ServiceAction) deleteThirdComponent(ctx context.Context, component *dbm
 	newCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	err = s.rainbondClient.RainbondV1alpha1().ThirdComponents(component.TenantID).Delete(newCtx, component.ServiceID, metav1.DeleteOptions{})
+	err = s.rainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).Delete(newCtx, component.ServiceID, metav1.DeleteOptions{})
 	if err != nil && !k8sErrors.IsNotFound(err) {
 		return err
 	}
@@ -2893,8 +2913,11 @@ func (s *ServiceAction) Log(w http.ResponseWriter, r *http.Request, component *d
 		// Only support return the logs reader for a container now.
 		return errors.WithStack(bcode.NewBadRequest("the field 'podName' and 'containerName' is required"))
 	}
-
-	request := s.kubeClient.CoreV1().Pods(component.TenantID).GetLogs(podName, &corev1.PodLogOptions{
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(component.TenantID)
+	if err != nil {
+		return fmt.Errorf("get tenant info failure %s", err.Error())
+	}
+	request := s.kubeClient.CoreV1().Pods(tenant.Namespace).GetLogs(podName, &corev1.PodLogOptions{
 		Container: containerName,
 		Follow:    follow,
 	})

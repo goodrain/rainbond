@@ -44,7 +44,7 @@ func CreateManager(config config.Config) (*Manager, error) {
 	var db *gorm.DB
 	if config.DBType == "mysql" {
 		var err error
-		db, err = gorm.Open("mysql", config.MysqlConnectionInfo+"?charset=utf8&parseTime=True&loc=Local")
+		db, err = gorm.Open("mysql", config.MysqlConnectionInfo+"?charset=utf8mb4&parseTime=True&loc=Local")
 		if err != nil {
 			return nil, err
 		}
@@ -162,7 +162,7 @@ func (m *Manager) CheckTable() {
 		for _, md := range m.models {
 			if !m.db.HasTable(md) {
 				if m.config.DBType == "mysql" {
-					err := m.db.Set("gorm:table_options", "ENGINE=InnoDB charset=utf8").CreateTable(md).Error
+					err := m.db.Set("gorm:table_options", "ENGINE=InnoDB charset=utf8mb4").CreateTable(md).Error
 					if err != nil {
 						logrus.Errorf("auto create table %s to db error."+err.Error(), md.TableName())
 					} else {
@@ -200,5 +200,14 @@ func (m *Manager) patchTable() {
 	}
 	if err := m.db.Exec("alter table tenant_services_volume modify column volume_type varchar(64);").Error; err != nil {
 		logrus.Errorf("alter table tenant_services_volume error: %s", err.Error())
+	}
+	if err := m.db.Exec("update tenants set namespace=uuid where namespace is NULL;").Error; err != nil {
+		logrus.Errorf("update tenants namespace error: %s", err.Error())
+	}
+	if err := m.db.Exec("update applications set k8s_app=concat('app-',LEFT(app_id,8)) where k8s_app is NULL;").Error; err != nil {
+		logrus.Errorf("update tenants namespace error: %s", err.Error())
+	}
+	if err := m.db.Exec("update tenant_services set k8s_component_name=service_alias where k8s_component_name is NULL;").Error; err != nil {
+		logrus.Errorf("update tenants namespace error: %s", err.Error())
 	}
 }

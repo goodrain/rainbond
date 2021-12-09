@@ -71,14 +71,15 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	}
 	nodeSelector := createNodeSelector(as, dbmanager)
 	tolerations := createToleration(nodeSelector)
+	injectLabels := getInjectLabels(as)
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: as.GetCommonLabels(map[string]string{
 				"name":    as.ServiceAlias,
 				"version": as.DeployVersion,
-			}),
+			}, injectLabels),
 			Annotations: createPodAnnotations(as),
-			Name:        as.ServiceID + "-pod-spec",
+			Name:        as.GetK8sWorkloadName() + "-pod-spec",
 		},
 		Spec: corev1.PodSpec{
 			ImagePullSecrets: setImagePullSecrets(),
@@ -151,7 +152,7 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 	}
 
 	c := &corev1.Container{
-		Name:           as.ServiceID,
+		Name:           as.K8sComponentName,
 		Image:          imagename,
 		Args:           args,
 		Ports:          ports,
@@ -313,6 +314,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 	}
 
 	//set default env
+	envs = append(envs, corev1.EnvVar{Name: "NAMESPACE", Value: as.GetNamespace()})
 	envs = append(envs, corev1.EnvVar{Name: "TENANT_ID", Value: as.TenantID})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_ID", Value: as.ServiceID})
 	envs = append(envs, corev1.EnvVar{Name: "MEMORY_SIZE", Value: envutil.GetMemoryType(as.ContainerMemory)})
@@ -702,7 +704,7 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 					LabelSelector: metav1.SetAsLabelSelector(map[string]string{
 						"name": l.LabelValue,
 					}),
-					Namespaces: []string{as.TenantID},
+					Namespaces: []string{as.GetNamespace()},
 				})
 			}
 			if l.LabelKey == dbmodel.LabelKeyServiceAntyAffinity {
@@ -711,7 +713,7 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 						LabelSelector: metav1.SetAsLabelSelector(map[string]string{
 							"name": l.LabelValue,
 						}),
-						Namespaces: []string{as.TenantID},
+						Namespaces: []string{as.GetNamespace()},
 					})
 			}
 		}

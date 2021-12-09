@@ -104,7 +104,7 @@ func (e Extractor) Extract(meta *metav1.ObjectMeta) *Ingress {
 	pia := &Ingress{
 		ObjectMeta: *meta,
 	}
-	err := mergo.MapWithOverwrite(pia, data)
+	err := mergo.Map(pia, data)
 	if err != nil {
 		logrus.Errorf("unexpected error merging extracted annotations: %v", err)
 	}

@@ -356,12 +356,15 @@ func showServiceDeployInfo(c *cli.Context) error {
 	}
 	deployInfo, err := clients.RegionClient.Tenants(tenantName).Services(serviceAlias).GetDeployInfo()
 	handleErr(err)
-
+	tenant, err := clients.RegionClient.Tenants(tenantName).Get()
+	handleErr(err)
+	if tenant == nil {
+		return errors.New("Tenant not exist:" + tenantName)
+	}
 	table := uitable.New()
 	table.Wrap = true // wrap columns
-	tenantID := service.TenantID
 	serviceID := service.ServiceID
-	table.AddRow("Namespace:", tenantID)
+	table.AddRow("Namespace:", tenant.Namespace)
 	table.AddRow("ServiceID:", serviceID)
 	if deployInfo.Deployment != "" {
 		table.AddRow("ReplicationType:", "deployment")
@@ -377,7 +380,7 @@ func showServiceDeployInfo(c *cli.Context) error {
 	serviceTable.AddHeaders("Name", "IP", "Port")
 	for serviceID := range deployInfo.Services {
 		if clients.K8SClient != nil {
-			service, _ := clients.K8SClient.CoreV1().Services(tenantID).Get(context.Background(), serviceID, metav1.GetOptions{})
+			service, _ := clients.K8SClient.CoreV1().Services(tenant.Namespace).Get(context.Background(), serviceID, metav1.GetOptions{})
 			if service != nil {
 				var ports string
 				if service.Spec.Ports != nil && len(service.Spec.Ports) > 0 {
@@ -399,7 +402,7 @@ func showServiceDeployInfo(c *cli.Context) error {
 		epTable.AddHeaders("Name", "IP", "Port", "Protocol")
 		for epname := range deployInfo.Endpoints {
 			if clients.K8SClient != nil {
-				ep, _ := clients.K8SClient.CoreV1().Endpoints(tenantID).Get(context.Background(), epname, metav1.GetOptions{})
+				ep, _ := clients.K8SClient.CoreV1().Endpoints(tenant.Namespace).Get(context.Background(), epname, metav1.GetOptions{})
 				if ep != nil {
 					for i := range ep.Subsets {
 						ss := &ep.Subsets[i]
@@ -428,7 +431,7 @@ func showServiceDeployInfo(c *cli.Context) error {
 	ingressTable.AddHeaders("Name", "Host")
 	for ingressID := range deployInfo.Ingresses {
 		if clients.K8SClient != nil {
-			ingress, _ := clients.K8SClient.ExtensionsV1beta1().Ingresses(tenantID).Get(context.Background(), ingressID, metav1.GetOptions{})
+			ingress, _ := clients.K8SClient.ExtensionsV1beta1().Ingresses(tenant.Namespace).Get(context.Background(), ingressID, metav1.GetOptions{})
 			if ingress != nil {
 				for _, rule := range ingress.Spec.Rules {
 					ingressTable.AddRow(ingress.Name, rule.Host)
@@ -445,7 +448,7 @@ func showServiceDeployInfo(c *cli.Context) error {
 	for podID := range deployInfo.Pods {
 		i++
 		if clients.K8SClient != nil {
-			pod, err := clients.K8SClient.CoreV1().Pods(tenantID).Get(context.Background(), podID, metav1.GetOptions{})
+			pod, err := clients.K8SClient.CoreV1().Pods(tenant.Namespace).Get(context.Background(), podID, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
@@ -485,7 +488,7 @@ func showServiceDeployInfo(c *cli.Context) error {
 				}
 
 				claimName := vol.PersistentVolumeClaim.ClaimName
-				pvc, _ := clients.K8SClient.CoreV1().PersistentVolumeClaims(tenantID).Get(context.Background(), claimName, metav1.GetOptions{})
+				pvc, _ := clients.K8SClient.CoreV1().PersistentVolumeClaims(tenant.Namespace).Get(context.Background(), claimName, metav1.GetOptions{})
 				if pvc != nil {
 					pvn := pvc.Spec.VolumeName
 					volumeMount := name2Path[vol.Name]

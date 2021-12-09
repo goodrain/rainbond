@@ -358,6 +358,7 @@ type ServiceStruct struct {
 	ComponentMonitors []AddServiceMonitorRequestStruct     `json:"component_monitors" validate:"component_monitors"`
 	HTTPRules         []AddHTTPRuleStruct                  `json:"http_rules" validate:"http_rules"`
 	TCPRules          []AddTCPRuleStruct                   `json:"tcp_rules" validate:"tcp_rules"`
+	K8sComponentName  string                               `json:"k8s_component_name" validate:"k8s_component_name"`
 }
 
 // Endpoints holds third-party service endpoints or configuraion to get endpoints.
@@ -609,6 +610,7 @@ type AddTenantStruct struct {
 		Eid         string `json:"eid" validata:"eid"`
 		Token       string `json:"token" validate:"token"`
 		LimitMemory int    `json:"limit_memory" validate:"limit_memory"`
+		Namespace   string `json:"namespace" validate:"namespace"`
 	}
 }
 
@@ -1818,6 +1820,7 @@ type Application struct {
 	AppStoreURL     string   `json:"app_store_url"`
 	AppTemplateName string   `json:"app_template_name"`
 	Version         string   `json:"version"`
+	K8sApp          string   `json:"k8s_app" validate:"required"`
 }
 
 // CreateAppRequest -
@@ -1854,6 +1857,7 @@ type UpdateAppRequest struct {
 	Overrides      []string `json:"overrides"`
 	Version        string   `json:"version"`
 	Revision       int      `json:"revision"`
+	K8sApp         string   `json:"k8s_app"`
 }
 
 // NeedUpdateHelmApp check if necessary to update the helm app.

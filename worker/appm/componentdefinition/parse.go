@@ -71,7 +71,7 @@ func NewTemplateContext(as *v1.AppService, template string, params interface{}) 
 		appName:       as.AppID,
 		componentID:   as.ServiceID,
 		appID:         as.AppID,
-		namespace:     as.TenantID,
+		namespace:     as.GetNamespace(),
 		template:      template,
 		params:        params,
 	}

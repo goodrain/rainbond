@@ -110,6 +110,7 @@ type InitMessage struct {
 	PodName       string `json:"C_id"`
 	ContainerName string `json:"containerName"`
 	Md5           string `json:"Md5"`
+	Namespace     string `json:"namespace"`
 }
 
 func checkSameOrigin(r *http.Request) bool {
@@ -233,14 +234,17 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// base kubernetes api create exec slave
-	containerName, ip, args, err := app.GetContainerArgs(init.TenantID, init.PodName, init.ContainerName)
+	if init.Namespace == "" {
+		init.Namespace = init.TenantID
+	}
+	containerName, ip, args, err := app.GetContainerArgs(init.Namespace, init.PodName, init.ContainerName)
 	if err != nil {
 		logrus.Errorf("get default container failure %s", err.Error())
 		conn.WriteMessage(websocket.TextMessage, []byte("Get default container name failure!"))
 		ExecuteCommandFailed++
 		return
 	}
-	request := app.NewRequest(init.PodName, init.TenantID, containerName, args)
+	request := app.NewRequest(init.PodName, init.Namespace, containerName, args)
 	var slave server.Slave
 	slave, err = NewExecContext(request, app.config)
 	if err != nil {

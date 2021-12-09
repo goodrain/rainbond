@@ -6,16 +6,24 @@ var (
 	ErrApplicationNotFound = newByMessage(404, 11001, "application not found")
 	//ErrApplicationExist -
 	ErrApplicationExist = newByMessage(400, 11002, "application already exist")
-	//ErrCreateNeedCorrectAppID
+	//ErrCreateNeedCorrectAppID -
 	ErrCreateNeedCorrectAppID = newByMessage(404, 11003, "create service need correct application ID")
-	//ErrUpdateNeedCorrectAppID
+	//ErrUpdateNeedCorrectAppID -
 	ErrUpdateNeedCorrectAppID = newByMessage(404, 11004, "update service need correct application ID")
-	//ErrDeleteDueToBindService
+	//ErrDeleteDueToBindService -
 	ErrDeleteDueToBindService = newByMessage(400, 11005, "the application cannot be deleted because there are bound services")
-
+	// ErrK8sServiceNameExists -
 	ErrK8sServiceNameExists = newByMessage(400, 11006, "kubernetes service name already exists")
-
+	// ErrInvalidHelmAppValues -
 	ErrInvalidHelmAppValues = newByMessage(400, 11007, "invalid helm app values")
+	// ErrInvalidGovernanceMode -
+	ErrInvalidGovernanceMode = newByMessage(400, 11008, "invalid governance mode")
+	// ErrControlPlaneNotInstall -
+	ErrControlPlaneNotInstall = newByMessage(400, 11009, "control plane not install")
+	// ErrInvaildK8sApp -
+	ErrInvaildK8sApp = newByMessage(400, 11010, "invalid k8s app name")
+	// ErrK8sAppExists -
+	ErrK8sAppExists = newByMessage(400, 11011, "k8s app name exists")
 )
 
 // app config group 11100~11199

@@ -78,6 +78,9 @@ func ValidateEndpointIP(ipAddress string) []string {
 
 //IsDomainNotIP check address is domain but not is ip
 func IsDomainNotIP(address string) bool {
+	if address == "1.1.1.1" {
+		return true
+	}
 	if errs := ValidateEndpointIP(address); len(errs) > 0 {
 		if strings.Contains(errs[0], "must be a valid IP address") {
 			return true

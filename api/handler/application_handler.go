@@ -3,8 +3,12 @@ package handler
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/api/handler/app_governance_mode/adaptor"
+	"io/ioutil"
+	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/api/client/prometheus"
@@ -61,6 +65,8 @@ type ApplicationHandler interface {
 	SyncComponentConfigGroupRels(tx *gorm.DB, app *dbmodel.Application, components []*model.Component) error
 	SyncAppConfigGroups(app *dbmodel.Application, appConfigGroups []model.AppConfigGroup) error
 	ListAppStatuses(ctx context.Context, appIDs []string) ([]*model.AppStatus, error)
+	CheckGovernanceMode(ctx context.Context, governanceMode string) error
+	ChangeVolumes(app *dbmodel.Application) error
 }
 
 // NewApplicationHandler creates a new Tenant Application Handler.
@@ -75,20 +81,28 @@ func NewApplicationHandler(statusCli *client.AppRuntimeSyncClient, promClient pr
 
 // CreateApp -
 func (a *ApplicationAction) CreateApp(ctx context.Context, req *model.Application) (*model.Application, error) {
+	appID := util.NewUUID()
+	if req.K8sApp == "" {
+		req.K8sApp = fmt.Sprintf("app-%s", appID[:8])
+	}
 	appReq := &dbmodel.Application{
 		EID:             req.EID,
 		TenantID:        req.TenantID,
-		AppID:           util.NewUUID(),
+		AppID:           appID,
 		AppName:         req.AppName,
 		AppType:         req.AppType,
 		AppStoreName:    req.AppStoreName,
 		AppStoreURL:     req.AppStoreURL,
 		AppTemplateName: req.AppTemplateName,
 		Version:         req.Version,
+		K8sApp:          req.K8sApp,
 	}
 	req.AppID = appReq.AppID
 
 	err := db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		if db.GetManager().ApplicationDaoTransactions(tx).IsK8sAppDuplicate(appReq.TenantID, appID, appReq.K8sApp) {
+			return bcode.ErrK8sAppExists
+		}
 		if err := db.GetManager().ApplicationDaoTransactions(tx).AddModel(appReq); err != nil {
 			return err
 		}
@@ -112,10 +126,14 @@ func (a *ApplicationAction) createHelmApp(ctx context.Context, app *dbmodel.Appl
 	labels := map[string]string{
 		constants.ResourceManagedByLabel: constants.Rainbond,
 	}
+	tenant, err := GetTenantManager().GetTenantsByUUID(app.TenantID)
+	if err != nil {
+		return errors.Wrap(err, "get tenant for helm app failed")
+	}
 	helmApp := &v1alpha1.HelmApp{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      app.AppName,
-			Namespace: app.TenantID,
+			Namespace: tenant.Namespace,
 			Labels:    labels,
 		},
 		Spec: v1alpha1.HelmAppSpec{
@@ -127,12 +145,11 @@ func (a *ApplicationAction) createHelmApp(ctx context.Context, app *dbmodel.Appl
 				URL:  app.AppStoreURL,
 			},
 		}}
-
 	ctx1, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	_, err := a.kubeClient.CoreV1().Namespaces().Create(ctx1, &corev1.Namespace{
+	_, err = a.kubeClient.CoreV1().Namespaces().Create(ctx1, &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   app.TenantID,
+			Name:   tenant.Namespace,
 			Labels: labels,
 		},
 	}, metav1.CreateOptions{})
@@ -178,17 +195,21 @@ func (a *ApplicationAction) UpdateApp(ctx context.Context, app *dbmodel.Applicat
 		app.AppName = req.AppName
 	}
 	if req.GovernanceMode != "" {
-		if !dbmodel.IsGovernanceModeValid(req.GovernanceMode) {
-			return nil, bcode.NewBadRequest(fmt.Sprintf("governance mode '%s' is valid", req.GovernanceMode))
+		if !adaptor.IsGovernanceModeValid(req.GovernanceMode) {
+			logrus.Errorf("governance mode '%s' is invalid", req.GovernanceMode)
+			return nil, bcode.ErrInvalidGovernanceMode
 		}
 		app.GovernanceMode = req.GovernanceMode
 	}
+	app.K8sApp = req.K8sApp
 
 	err := db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
-		if err := db.GetManager().ApplicationDao().UpdateModel(app); err != nil {
+		if db.GetManager().ApplicationDaoTransactions(tx).IsK8sAppDuplicate(app.TenantID, app.AppID, req.K8sApp) {
+			return bcode.ErrK8sAppExists
+		}
+		if err := db.GetManager().ApplicationDaoTransactions(tx).UpdateModel(app); err != nil {
 			return err
 		}
-
 		if req.NeedUpdateHelmApp() {
 			if err := a.updateHelmApp(ctx, app, req); err != nil {
 				return err
@@ -202,9 +223,13 @@ func (a *ApplicationAction) UpdateApp(ctx context.Context, app *dbmodel.Applicat
 }
 
 func (a *ApplicationAction) updateHelmApp(ctx context.Context, app *dbmodel.Application, req model.UpdateAppRequest) error {
+	tenant, err := GetTenantManager().GetTenantsByUUID(app.TenantID)
+	if err != nil {
+		return errors.Wrap(err, "get tenant for helm app failed")
+	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	helmApp, err := a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Get(ctx, app.AppName, metav1.GetOptions{})
+	helmApp, err := a.rainbondClient.RainbondV1alpha1().HelmApps(tenant.Namespace).Get(ctx, app.AppName, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			return errors.Wrap(bcode.ErrApplicationNotFound, "update app")
@@ -218,7 +243,7 @@ func (a *ApplicationAction) updateHelmApp(ctx context.Context, app *dbmodel.Appl
 	if req.Revision != 0 {
 		helmApp.Spec.Revision = req.Revision
 	}
-	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Update(ctx, helmApp, metav1.UpdateOptions{})
+	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(tenant.Namespace).Update(ctx, helmApp, metav1.UpdateOptions{})
 	return err
 }
 
@@ -285,13 +310,16 @@ func (a *ApplicationAction) isContainComponents(appID string) error {
 func (a *ApplicationAction) deleteHelmApp(ctx context.Context, app *dbmodel.Application) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-
+	tenant, err := GetTenantManager().GetTenantsByUUID(app.TenantID)
+	if err != nil {
+		return errors.Wrap(err, "get tenant for helm app failed")
+	}
 	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
 		if err := a.deleteApp(tx, app); err != nil {
 			return err
 		}
 
-		if err := a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Delete(ctx, app.AppName, metav1.DeleteOptions{}); err != nil {
+		if err := a.rainbondClient.RainbondV1alpha1().HelmApps(tenant.Namespace).Delete(ctx, app.AppName, metav1.DeleteOptions{}); err != nil {
 			if !k8sErrors.IsNotFound(err) {
 				return err
 			}
@@ -439,6 +467,7 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 		Conditions: conditions,
 		AppID:      app.AppID,
 		AppName:    app.AppName,
+		K8sApp:     app.K8sApp,
 	}
 	return res, nil
 }
@@ -447,8 +476,11 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Application, overrides []string) error {
 	ctx1, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-
-	helmApp, err := a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Get(ctx1, app.AppName, metav1.GetOptions{})
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(app.TenantID)
+	if err != nil {
+		return errors.Wrap(err, "install app")
+	}
+	helmApp, err := a.rainbondClient.RainbondV1alpha1().HelmApps(tenant.Namespace).Get(ctx1, app.AppName, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {
 			return errors.Wrap(bcode.ErrApplicationNotFound, "install app")
@@ -460,7 +492,7 @@ func (a *ApplicationAction) Install(ctx context.Context, app *dbmodel.Applicatio
 	defer cancel()
 	helmApp.Spec.Overrides = overrides
 	helmApp.Spec.PreStatus = v1alpha1.HelmAppPreStatusConfigured
-	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(app.TenantID).Update(ctx3, helmApp, metav1.UpdateOptions{})
+	_, err = a.rainbondClient.RainbondV1alpha1().HelmApps(tenant.Namespace).Update(ctx3, helmApp, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -727,4 +759,84 @@ func (a *ApplicationAction) ListAppStatuses(ctx context.Context, appIDs []string
 		})
 	}
 	return resp, nil
+}
+
+// CheckGovernanceMode Check whether the governance mode can be switched
+func (a *ApplicationAction) CheckGovernanceMode(ctx context.Context, governanceMode string) error {
+	if !adaptor.IsGovernanceModeValid(governanceMode) {
+		return bcode.ErrInvalidGovernanceMode
+	}
+	mode, err := adaptor.NewAppGoveranceModeHandler(governanceMode, a.kubeClient)
+	if err != nil {
+		return err
+	}
+	if !mode.IsInstalledControlPlane() {
+		return bcode.ErrControlPlaneNotInstall
+	}
+	return nil
+}
+
+// ChangeVolumes Since the component name supports modification, the storage directory of stateful components will change.
+// This interface is used to modify the original directory name to the storage directory that will actually be used.
+func (a *ApplicationAction) ChangeVolumes(app *dbmodel.Application) error {
+	components, err := db.GetManager().TenantServiceDao().ListByAppID(app.AppID)
+	if err != nil {
+		return err
+	}
+	sharePath := os.Getenv("SHARE_DATA_PATH")
+	if sharePath == "" {
+		sharePath = "/grdata"
+	}
+
+	var componentIDs []string
+	k8sComponentNames := make(map[string]string)
+	for _, component := range components {
+		if !component.IsState() {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ServiceID)
+		k8sComponentNames[component.ServiceID] = component.K8sComponentName
+	}
+	volumes, err := db.GetManager().TenantServiceVolumeDao().ListVolumesByComponentIDs(componentIDs)
+	if err != nil {
+		return err
+	}
+	componentVolumes := make(map[string][]*dbmodel.TenantServiceVolume)
+	for _, volume := range volumes {
+		componentVolumes[volume.ServiceID] = append(componentVolumes[volume.ServiceID], volume)
+	}
+
+	for componentID, singleComponentVols := range componentVolumes {
+		for _, componentVolume := range singleComponentVols {
+			parentDir := fmt.Sprintf("%s/tenant/%s/service/%s%s", sharePath, app.TenantID, componentID, componentVolume.VolumePath)
+			newPath := fmt.Sprintf("%s/%s-%s", parentDir, app.K8sApp, k8sComponentNames[componentID])
+			if err := changeVolumeDirectoryNames(parentDir, newPath); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func changeVolumeDirectoryNames(parentDir, newPath string) error {
+	files, _ := ioutil.ReadDir(parentDir)
+	for _, f := range files {
+		if !f.IsDir() {
+			continue
+		}
+		isEndWithNumber, suffix := util.IsEndWithNumber(f.Name())
+		if isEndWithNumber {
+			oldPath := fmt.Sprintf("%s/%s", parentDir, f.Name())
+			newVolPath := newPath + suffix
+			if err := os.Rename(oldPath, newVolPath); err != nil {
+				if err == os.ErrExist || strings.Contains(err.Error(), "file exists") {
+					logrus.Infof("Ingore change volume path err: [%v]", err)
+					continue
+				}
+				return err
+			}
+			logrus.Infof("Success change volume path [%s] to [%s]", oldPath, newVolPath)
+		}
+	}
+	return nil
 }

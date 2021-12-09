@@ -1,5 +1,5 @@
 syntax = "proto3";
-package pb;
+option go_package = "worker/server/pb";
 
 service AppRuntimeSync {
   // Deprecated: -
@@ -214,6 +214,7 @@ message PodDetail {
   repeated PodContainer init_containers = 8;
   repeated PodContainer containers = 9;
   repeated PodEvent events = 10;
+  string namespace = 11;
 }
 
 message StorageClasses {
