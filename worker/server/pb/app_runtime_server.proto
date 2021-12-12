@@ -79,6 +79,7 @@ message Container {
   string container_name = 1;
   int64 memory_limit = 2;
   int64 cpu_request = 3;
+  int64 memory_request = 4;
 }
 
 message DeployInfo {

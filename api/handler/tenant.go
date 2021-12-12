@@ -479,7 +479,7 @@ func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re
 		var memory, cpu int64
 		for _, pod := range pods {
 			for _, c := range pod.Containers {
-				memory += c.MemoryLimit
+				memory += c.MemoryRequest
 				cpu += c.CpuRequest
 			}
 		}
