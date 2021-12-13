@@ -1,17 +1,14 @@
 <img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/rainbond%20log_full.png" width="60%">
 
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-![Rainbond version](https://img.shields.io/badge/version-v5.3-brightgreen.svg)
+![Rainbond version](https://img.shields.io/badge/version-v5.5-brightgreen.svg)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
 [项目官网](http://www.rainbond.com) • [文档](https://www.rainbond.com/docs/)
 
 | ![notification](./docs/bell-outline-badge.svg) What is NEW!                                                      |
 | ---------------------------------------------------------------------------------------------------------------- |
-| 2021 年 8 月 20 日 Rainbond 5.3.3 正式发布 [查看发布文案](https://mp.weixin.qq.com/s/WfqamB_R7_vstu9nBMN0qQ)        |
-| 2021 年 7 月 05 日 Rainbond 5.3.1 正式发布 [查看发布文案](https://mp.weixin.qq.com/s/KJRyEC6EFQIRy7nueSTVaA)     |
-| 2021 年 2 月 21 日 Rainbond 5.3.0 正式发布 [查看发布文案](https://www.rainbond.com/docs/upgrade/5.3.0-upgrade/)  |
-| 2020 年 8 月 24 日 Rainbond 5.2 稳定版正式发布 [查看发布文案](https://mp.weixin.qq.com/s/q1sgEaBPaepsuUOfk1un-w) |
+| 2021 年 12 月 13 日 Rainbond 5.5.0 发布 [查看发布文案](https://www.rainbond.com/docs/community/change/5.4.0-5.5.0/)        |
 
 ## Rainbond 初识
 
@@ -89,10 +86,10 @@ Rainbond 完成与龙芯、飞腾、麒麟操作系统等为代表的国产化�
 
 ## 快速开始
 
-1.  [快速安装 Rainbond 集群](https://www.rainbond.com/docs/quick-start/rainbond_install/)
-2.  [创建第一个应用（组件）](https://www.rainbond.com/docs/user-manual/app-creation/)
-3.  [观看教程视频，快速学习 Rainbond](https://www.rainbond.com/video.html)
-4.  [搭建 ServiceMesh 微服务架构](https://www.rainbond.com/docs/advanced-scenarios/micro/)
+1. [快速安装 Rainbond 集群](https://www.rainbond.com/docs/quick-start/rainbond_install/)
+2. [创建第一个应用（组件）](https://www.rainbond.com/docs/get-start/create-app-from-source/)
+3. [搭建 ServiceMesh 微服务架构](https://www.rainbond.com/docs/get-start/create-dependency/)
+4. [观看教程视频，快速学习 Rainbond](https://www.rainbond.com/video.html)
 
 ## 参与社区
 
@@ -100,8 +97,8 @@ Rainbond 完成与龙芯、飞腾、麒麟操作系统等为代表的国产化�
 
 [Rainbond 项目官网](https://www.rainbond.com) 查阅关于 Rainbond 的更多信息。
 
-<center><img width="200px" src="https://static.goodrain.com/images/cloud/weichart.png"/></center>
-<center>添加项目作者微信</center>
+<center><img width="200px" src="https://static.goodrain.com/images/cloud/wechat.png"/></center>
+<center>添加项目维护者微信</center>
 
 <center><img width="200px" src="https://static.goodrain.com/images/dingding.jpeg"/></center>
 <center>加入社区用户钉钉群</center>
