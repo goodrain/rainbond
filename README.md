@@ -2,17 +2,14 @@
 
 [![Rainbond](https://jaywcjlove.github.io/sb/lang/chinese.svg)](README-zh.md)
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-![Rainbond version](https://img.shields.io/badge/version-v5.3-brightgreen.svg)
+![Rainbond version](https://img.shields.io/badge/version-v5.5-brightgreen.svg)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
 [Website](http://www.rainbond.com) • [Documentation](https://www.rainbond.com/docs/)
 
 | ![notification](./docs/bell-outline-badge.svg) What is NEW!                                                                           |
 | ------------------------------------------------------------------------------------------------------------------------------------- |
-| August 20, 2021 ,Rainbond 5.3.3 version is officially released [View Release](https://mp.weixin.qq.com/s/WfqamB_R7_vstu9nBMN0qQ)        |
-| July 05, 2021 ,Rainbond 5.3.1 version is officially released [View Release](https://mp.weixin.qq.com/s/KJRyEC6EFQIRy7nueSTVaA)        |
-| February 21, 2021 ,Rainbond 5.3.0 version is officially released [View Release](https://www.rainbond.com/docs/upgrade/5.3.0-upgrade/) |
-| August 24, 2020 ,Rainbond 5.2 Stable version is officially released [View Release](https://mp.weixin.qq.com/s/q1sgEaBPaepsuUOfk1un-w) |
+| December 13, 2021 ,Rainbond 5.5.0 version is officially released [View Release](https://www.rainbond.com/docs/community/change/5.4.0-5.5.0/)        |
 
 ## Rainbond Introduction
 
@@ -47,7 +44,7 @@ Rainbond is a cloud native and easy-to-use application management platform, a be
 
 1.  [Install Rainbond Cluster](https://www.rainbond.com/docs/quick-start/rainbond_install/)
 2.  [Create an Application and Component](https://www.rainbond.com/docs/user-manual/app-creation/)
-3.  [Learning concepts](https://www.rainbond.com/docs/get-start/)
+3.  [Build ServiceMesh microservice architecture](https://www.rainbond.com/docs/get-start/create-dependency/)
 4.  [Watch the tutorial video](https://www.rainbond.com/video.html)
 
 ## Community
@@ -60,9 +57,9 @@ Rainbond is a cloud native and easy-to-use application management platform, a be
 
 <center>DingDing Group</center>
 
-<center><img width="200px" src="https://static.goodrain.com/images/cloud/weichart.png"/></center>
+<center><img width="200px" src="https://static.goodrain.com/images/cloud/wechat.png"/></center>
 
-<center>Add Maintainer WeChart</center>
+<center>Add Maintainer WeChat</center>
 
 ## Related repositorys
 
