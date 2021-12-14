@@ -43,7 +43,7 @@ Rainbond is a cloud native and easy-to-use application management platform, a be
 ## Quick start
 
 1.  [Install Rainbond Cluster](https://www.rainbond.com/docs/quick-start/rainbond_install/)
-2.  [Create an Application and Component](https://www.rainbond.com/docs/user-manual/app-creation/)
+2.  [Create an Application and Component](https://www.rainbond.com/docs/get-start/create-app-from-source/)
 3.  [Build ServiceMesh microservice architecture](https://www.rainbond.com/docs/get-start/create-dependency/)
 4.  [Watch the tutorial video](https://www.rainbond.com/video.html)
 
