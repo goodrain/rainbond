@@ -100,8 +100,7 @@ Rainbond 完成与龙芯、飞腾、麒麟操作系统等为代表的国产化�
 <center><img width="200px" src="https://static.goodrain.com/images/cloud/wechat.png"/></center>
 <center>添加项目维护者微信</center>
 
-<center><img width="200px" src="https://static.goodrain.com/images/dingding.jpeg"/></center>
-<center>加入社区用户钉钉群</center>
+<center>加入社区用户钉钉群: 31096419</center>
 
 ## 参与贡献
 

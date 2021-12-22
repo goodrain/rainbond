@@ -45,6 +45,12 @@ func NewRainbondssscProvisioner() controller.Provisioner {
 	if sharePath == "" {
 		sharePath = "/grdata"
 	}
+	if os.Getenv("ALLINONE_MODE") == "true" {
+		return &rainbondssscProvisioner{
+			pvDir: sharePath,
+			name:  "rancher.io/local-path",
+		}
+	}
 	return &rainbondssscProvisioner{
 		pvDir: sharePath,
 		name:  "rainbond.io/provisioner-sssc",
@@ -174,6 +180,11 @@ func updatePathForPersistentVolumeSource(persistentVolumeSource *v1.PersistentVo
 			Path:               newPath(persistentVolumeSource.Glusterfs.Path),
 		}
 		source.Glusterfs = glusterfs
+	case persistentVolumeSource.HostPath != nil:
+		source.HostPath = &v1.HostPathVolumeSource{
+			Path: newPath(persistentVolumeSource.HostPath.Path),
+			Type: persistentVolumeSource.HostPath.Type,
+		}
 	default:
 		return nil, fmt.Errorf("unsupported persistence volume source")
 	}
