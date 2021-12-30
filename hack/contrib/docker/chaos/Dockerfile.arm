@@ -1,0 +1,16 @@
+FROM debian:buster
+ARG RELEASE_DESC
+
+
+ENV WORK_DIR=/run
+
+RUN apt update \
+    && apt install -y --no-install-recommends ca-certificates curl openssl openssh-client subversion
+COPY rainbond-chaos entrypoint.sh /run/
+COPY export-app /src/export-app
+
+WORKDIR $WORK_DIR
+
+ENV RELEASE_DESC=${RELEASE_DESC}
+
+ENTRYPOINT ["/run/entrypoint.sh"]

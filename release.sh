@@ -6,6 +6,7 @@ WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME:-'rainbond'}
 DOMESTIC_NAMESPACE=${DOMESTIC_NAMESPACE:-'goodrain'}
+DOCKERFILE_BASE=${BUILD_DOCKERFILE_BASE:-'Dockerfile'}
 
 GO_VERSION=1.13
 
@@ -54,7 +55,7 @@ build::binary() {
 	fi
 	CGO_ENABLED=1
 	if [ "$1" = "eventlog" ]; then
-		docker build -t goodraim.me/event-build:v1 "${DOCKER_PATH}/build"
+		docker build -t goodraim.me/event-build:v1 -f "${DOCKER_PATH}/build/${DOCKERFILE_BASE}" .
 		build_image="goodraim.me/event-build:v1"
 	elif [ "$1" = "chaos" ]; then
 		build_dir="./cmd/builder"
@@ -84,7 +85,10 @@ build::image() {
 	cp -r ${source_dir}/* "${build_image_dir}"
 	pushd "${build_image_dir}"
 	echo "---> build image:$1"
-	docker build --build-arg RELEASE_DESC="${release_desc}" -t "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" -f Dockerfile .
+	if [ "$1" = "resource-proxy" ]; then
+		DOCKERFILE_BASE="Dockerfile"
+	fi
+	docker build --build-arg RELEASE_DESC="${release_desc}" -t "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" -f "${DOCKERFILE_BASE}" .
 	docker run --rm "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" version
 	if [ $? -ne 0 ]; then
 		echo "image version is different ${release_desc}"
