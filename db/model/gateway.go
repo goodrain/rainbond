@@ -82,6 +82,8 @@ type HTTPRule struct {
 	Weight        int    `gorm:"column:weight"`
 	IP            string `gorm:"column:ip"`
 	CertificateID string `gorm:"column:certificate_id"`
+	PathRewrite   bool   `gorm:"column:path_rewrite"`
+	Rewrites      string `gorm:"column:rewrites"`
 }
 
 // TableName returns table name of TCPRule

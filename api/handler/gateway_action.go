@@ -94,6 +94,8 @@ func (g *GatewayAction) CreateHTTPRule(tx *gorm.DB, req *apimodel.AddHTTPRuleStr
 		Weight:        req.Weight,
 		IP:            req.IP,
 		CertificateID: req.CertificateID,
+		PathRewrite:   req.PathRewrite,
+		Rewrites:      req.Rewrites,
 	}
 	if err := db.GetManager().HTTPRuleDaoTransactions(tx).AddModel(httpRule); err != nil {
 		return fmt.Errorf("create http rule: %v", err)
@@ -198,6 +200,8 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
 	rule.Header = req.Header
 	rule.Cookie = req.Cookie
 	rule.Weight = req.Weight
+	rule.PathRewrite = req.PathRewrite
+	rule.Rewrites = req.Rewrites
 	if req.IP != "" {
 		rule.IP = req.IP
 	}

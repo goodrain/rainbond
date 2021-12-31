@@ -40,6 +40,8 @@ type AddHTTPRuleStruct struct {
 	Certificate    string                 `json:"certificate"`
 	PrivateKey     string                 `json:"private_key"`
 	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
+	PathRewrite    bool                   `json:"pathRewrite"`
+	Rewrites       string                 `json:"rewrites"`
 }
 
 // DbModel return database model
@@ -78,6 +80,8 @@ type UpdateHTTPRuleStruct struct {
 	Certificate    string                 `json:"certificate"`
 	PrivateKey     string                 `json:"private_key"`
 	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
+	PathRewrite    bool                   `json:"pathRewrite"`
+	Rewrites       string                 `json:"rewrites"`
 }
 
 //DeleteHTTPRuleStruct contains the id of http rule that will be deleted

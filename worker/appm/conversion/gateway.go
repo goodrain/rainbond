@@ -24,9 +24,11 @@ import (
 	"strconv"
 	"strings"
 
+	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
+	"github.com/goodrain/rainbond/util/commonutil"
 	"github.com/goodrain/rainbond/util/k8s"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
@@ -538,6 +540,24 @@ func (a *AppServiceBuild) parseAnnotations(rule *model.HTTPRule) (map[string]str
 	// cookie
 	if rule.Cookie != "" {
 		annos[parser.GetAnnotationWithPrefix("cookie")] = rule.Cookie
+	}
+
+	// path-rewrite
+	if rule.PathRewrite {
+		annos[parser.GetAnnotationWithPrefix("path_rewrite")] = "true"
+	}
+	if len(rule.Rewrites) > 0 {
+		rewrites, err := commonutil.StringToSlice(rule.Rewrites)
+		if err != nil {
+			logrus.Warnf("Unexpected Rewrites: %s", rule.Rewrites)
+		} else {
+			for i, rewrite := range rewrites {
+				r := rewrite.(api_model.Rewrite)
+				annos[parser.GetAnnotationWithPrefix(fmt.Sprintf("%d-regex", i))] = r.Regex
+				annos[parser.GetAnnotationWithPrefix(fmt.Sprintf("%d-replacement", i))] = r.Replacement
+				annos[parser.GetAnnotationWithPrefix(fmt.Sprintf("%d-flag", i))] = r.Flag
+			}
+		}
 	}
 
 	// rule extension

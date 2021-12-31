@@ -47,6 +47,7 @@ type Location struct {
 	// +optional
 	Proxy            proxy.Config `json:"proxy,omitempty"`
 	DisableProxyPass bool
+	PathRewrite      bool `json:"pathRewrite"`
 }
 
 // Condition is the condition that the traffic can reach the specified backend
@@ -80,6 +81,13 @@ func (l *Location) Equals(c *Location) bool {
 		return false
 	}
 
+	if !l.Rewrite.Equal(&c.Rewrite) {
+		return false
+	}
+
+	if l.PathRewrite != c.PathRewrite {
+		return false
+	}
 	return true
 }
 
