@@ -22,6 +22,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"os"
 )
 
 // kind: StorageClass
@@ -32,6 +33,7 @@ import (
 // volumeBindingMode: WaitForFirstConsumer
 
 var initStorageClass []*storagev1.StorageClass
+var initLocalStorageClass []*storagev1.StorageClass
 
 //RainbondStatefuleShareStorageClass rainbond support statefulset app share volume
 var RainbondStatefuleShareStorageClass = "rainbondsssc"
@@ -59,9 +61,28 @@ func init() {
 		VolumeBindingMode: &columeWaitForFirstConsumer,
 		ReclaimPolicy:     &Retain,
 	})
+	initLocalStorageClass = append(initLocalStorageClass, &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: RainbondStatefuleShareStorageClass,
+		},
+		Provisioner:       "rancher.io/local-path",
+		VolumeBindingMode: &columeWaitForFirstConsumer,
+		ReclaimPolicy:     &Retain,
+	})
+	initLocalStorageClass = append(initLocalStorageClass, &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: RainbondStatefuleLocalStorageClass,
+		},
+		Provisioner:       "rancher.io/local-path",
+		VolumeBindingMode: &columeWaitForFirstConsumer,
+		ReclaimPolicy:     &Retain,
+	})
 }
 
 //GetInitStorageClass get init storageclass list
 func GetInitStorageClass() []*storagev1.StorageClass {
+	if os.Getenv("ALLINONE_MODE") == "true" {
+		return initLocalStorageClass
+	}
 	return initStorageClass
 }

@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -53,6 +54,13 @@ type rainbondsslcProvisioner struct {
 
 // NewRainbondsslcProvisioner creates a new Rainbond statefulset share volume provisioner
 func NewRainbondsslcProvisioner(kubecli kubernetes.Interface, store store.Storer) controller.Provisioner {
+	if os.Getenv("ALLINONE_MODE") == "true" {
+		return &rainbondsslcProvisioner{
+			name:    "rancher.io/local-path",
+			kubecli: kubecli,
+			store:   store,
+		}
+	}
 	return &rainbondsslcProvisioner{
 		name:    "rainbond.io/provisioner-sslc",
 		kubecli: kubecli,

@@ -5,11 +5,11 @@
 ![Rainbond version](https://img.shields.io/badge/version-v5.5-brightgreen.svg)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
-[Website](http://www.rainbond.com) • [Documentation](https://www.rainbond.com/docs/)
+[Website](http://www.rainbond.com?channel=github) • [Documentation](https://www.rainbond.com/docs?channel=github)
 
 | ![notification](./docs/bell-outline-badge.svg) What is NEW!                                                                           |
 | ------------------------------------------------------------------------------------------------------------------------------------- |
-| December 13, 2021 ,Rainbond 5.5.0 version is officially released [View Release](https://www.rainbond.com/docs/community/change/5.4.0-5.5.0/)        |
+| December 13, 2021 ,Rainbond 5.5.0 version is officially released [View Release](https://www.rainbond.com/docs/community/change/5.4.0-5.5.0?channel=github)        |
 
 ## Rainbond Introduction
 
@@ -36,30 +36,29 @@ Rainbond is a cloud native and easy-to-use application management platform, a be
 - Enterprise Technology Center Construction.
 - Kubernetes multi-cloud management.
 
-[Read Rainbond Detailed introduction](https://www.rainbond.com/docs/quick-start/rainbond_overview/)
+[Read Rainbond Detailed introduction](https://www.rainbond.com/docs/quick-start/rainbond_overview?channel=github)
 
 [Rainbond Roadmap](https://github.com/goodrain/rainbond/issues?q=is%3Aissue+is%3Aopen+label%3A%22Feature+Suggestions%22)
 
 ## Quick start
 
-1.  [Install Rainbond Cluster](https://www.rainbond.com/docs/quick-start/rainbond_install/)
-2.  [Create an Application and Component](https://www.rainbond.com/docs/get-start/create-app-from-source/)
-3.  [Build ServiceMesh microservice architecture](https://www.rainbond.com/docs/get-start/create-dependency/)
-4.  [Watch the tutorial video](https://www.rainbond.com/video.html)
+1.  [Install Rainbond Cluster](https://www.rainbond.com/docs/quick-start/rainbond_install?channel=github)
+2.  [Create an Application and Component](https://www.rainbond.com/docs/get-start/create-app-from-source?channel=github)
+3.  [Build ServiceMesh microservice architecture](https://www.rainbond.com/docs/get-start/create-dependency?channel=github)
+4.  [Watch the tutorial video](https://www.rainbond.com/video.html?channel=github)
 
 ## Community
 
 [Rainbond Community](https://t.goodrain.com) You are welcome to read or contribute to the use cases of Rainbond in the community.
 
-[Rainbond Website](https://www.rainbond.com) Read more about Rainbond.
+[Rainbond Website](https://www.rainbond.com?channel=github) Read more about Rainbond.
 
-<center><img width="200px" src="https://static.goodrain.com/images/dingding.jpeg"/></center>
+Wechat scans the code to join the Rainbond Community Group.
 
-<center>DingDing Group</center>
+<img width="300px" src="https://static.goodrain.com/wechat/WechatQRCode.gif"/>
 
-<center><img width="200px" src="https://static.goodrain.com/images/cloud/wechat.png"/></center>
 
-<center>Add Maintainer WeChat</center>
+DingTalk Search Group : 31096419
 
 ## Related repositorys
 
@@ -72,3 +71,4 @@ Rainbond is a cloud native and easy-to-use application management platform, a be
 ## License
 
 Rainbond follow LGPL-3.0 license，Details see[LICENSE](https://github.com/goodrain/rainbond/blob/master/LICENSE) and [Licensing](https://github.com/goodrain/rainbond/blob/master/Licensing.md)
+
