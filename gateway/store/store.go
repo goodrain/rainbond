@@ -798,8 +798,9 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 							}
 							i, err := rewrite.NewParser(s).Parse(&ing.ObjectMeta)
 							if err == nil {
-								cfg := i.(*rewrite.Config)
-								location.Rewrite.Rewrites = cfg.Rewrites
+								if cfg, ok := i.(*rewrite.Config); ok {
+									location.Rewrite.Rewrites = cfg.Rewrites
+								}
 							}
 							pathRewrite, _ := parser.GetBoolAnnotation("path-rewrite", &ing.ObjectMeta)
 							if pathRewrite {
