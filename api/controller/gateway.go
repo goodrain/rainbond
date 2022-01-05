@@ -30,7 +30,6 @@ import (
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/mq/client"
-	"github.com/goodrain/rainbond/util/commonutil"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
@@ -89,18 +88,6 @@ func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
 			values["private_key"] = []string{"The private_key field is required"}
 		}
 	}
-	if len(req.Rewrites) > 0 {
-		rewrites, err := commonutil.StringToSlice(req.Rewrites)
-		if err != nil {
-			values["rewrites"] = []string{"unmarshal rewrites failed"}
-		}
-		for _, r := range rewrites {
-			rewrite := r.(api_model.Rewrite)
-			if strings.TrimSpace(rewrite.Regex) == "" || strings.TrimSpace(rewrite.Replacement) == "" || strings.TrimSpace(rewrite.Flag) == "" {
-				values["rewrites"] = []string{"The item's filed in rewrites can not be empty"}
-			}
-		}
-	}
 	errs := validateDomain(req.Domain)
 	if errs != nil && len(errs) > 0 {
 		logrus.Debugf("Invalid domain: %s", strings.Join(errs, ";"))
@@ -135,18 +122,6 @@ func (g *GatewayStruct) updateHTTPRule(w http.ResponseWriter, r *http.Request) {
 		}
 		if req.PrivateKey == "" {
 			values["private_key"] = []string{"The private_key field is required"}
-		}
-	}
-	if len(req.Rewrites) > 0 {
-		rewrites, err := commonutil.StringToSlice(req.Rewrites)
-		if err != nil {
-			values["rewrites"] = []string{"unmarshal rewrites failed"}
-		}
-		for _, r := range rewrites {
-			rewrite := r.(api_model.Rewrite)
-			if strings.TrimSpace(rewrite.Regex) == "" || strings.TrimSpace(rewrite.Replacement) == "" || strings.TrimSpace(rewrite.Flag) == "" {
-				values["rewrites"] = []string{"The item's filed in rewrites can not be empty"}
-			}
 		}
 	}
 	if len(req.RuleExtensions) > 0 {

@@ -522,6 +522,20 @@ func (m *Manager) HTTPRuleDaoTransactions(db *gorm.DB) dao.HTTPRuleDao {
 	}
 }
 
+// HTTPRuleRewriteDao HTTPRuleRewriteDao
+func (m *Manager) HTTPRuleRewriteDao() dao.HTTPRuleRewriteDao {
+	return &mysqldao.HTTPRuleRewriteDaoTmpl{
+		DB: m.db,
+	}
+}
+
+//HTTPRuleRewriteDaoTransactions -
+func (m *Manager) HTTPRuleRewriteDaoTransactions(db *gorm.DB) dao.HTTPRuleRewriteDao {
+	return &mysqldao.HTTPRuleRewriteDaoTmpl{
+		DB: db,
+	}
+}
+
 //TCPRuleDao TCPRuleDao
 func (m *Manager) TCPRuleDao() dao.TCPRuleDao {
 	return &mysqldao.TCPRuleDaoTmpl{

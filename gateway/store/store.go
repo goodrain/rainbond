@@ -685,7 +685,6 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 							}
 							i, err := rewrite.NewParser(s).Parse(&ing.ObjectMeta)
 							if err == nil {
-								logrus.Warningf("Uxpected error with ingress: %v", err)
 								cfg := i.(*rewrite.Config)
 								location.Rewrite.Rewrites = cfg.Rewrites
 							}
@@ -798,7 +797,6 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 							}
 							i, err := rewrite.NewParser(s).Parse(&ing.ObjectMeta)
 							if err == nil {
-								logrus.Warningf("Uxpected error with ingress: %v", err)
 								cfg := i.(*rewrite.Config)
 								location.Rewrite.Rewrites = cfg.Rewrites
 							}
