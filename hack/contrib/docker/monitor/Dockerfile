@@ -1,4 +1,4 @@
-FROM rainbond/prometheus:v2.20.0
+FROM prom/prometheus:v2.20.0
 ARG RELEASE_DESC
 USER root
 VOLUME ["/prometheusdata"]
