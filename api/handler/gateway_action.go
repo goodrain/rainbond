@@ -284,7 +284,7 @@ func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error
 	}
 
 	// delete http rule rewrites
-	if err := g.dbmanager.HTTPRuleRewriteDaoTransactions(tx).DeleteByHTTPRuleID(httpRule.UUID); err != nil {
+	if err := db.GetManager().HTTPRuleRewriteDaoTransactions(tx).DeleteByHTTPRuleID(httpRule.UUID); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -318,7 +318,7 @@ func (g *GatewayAction) DeleteHTTPRuleByServiceIDWithTransaction(sid string, tx 
 	}
 
 	for _, rule := range rules {
-		if err := g.dbmanager.HTTPRuleRewriteDaoTransactions(tx).DeleteByHTTPRuleID(rule.UUID); err != nil {
+		if err := db.GetManager().HTTPRuleRewriteDaoTransactions(tx).DeleteByHTTPRuleID(rule.UUID); err != nil {
 			return err
 		}
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(rule.UUID); err != nil {

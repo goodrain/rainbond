@@ -329,10 +329,8 @@ func (h *HTTPRuleRewriteDaoTmpl) AddModel(mo model.Interface) error {
 		if err := h.DB.Create(httpRuleRewrite).Error; err != nil {
 			return err
 		}
-	} else {
-		return fmt.Errorf("HTTPRuleRewrite already exists based on uuid(%s)", httpRuleRewrite.UUID)
 	}
-	return nil
+	return fmt.Errorf("HTTPRuleRewrite already exists based on uuid(%s)", httpRuleRewrite.UUID)
 }
 
 //UpdateModel -
