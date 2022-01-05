@@ -1,0 +1,17 @@
+FROM ubuntu:16.04
+ARG RELEASE_DESC
+
+RUN apt-get update && apt-get install -y bash curl net-tools wget vim && \
+    wget https://rainbond-pkg.oss-cn-shanghai.aliyuncs.com/5.3-arm/env2file -O /usr/bin/env2file && \
+    wget https://rainbond-pkg.oss-cn-shanghai.aliyuncs.com/5.3-arm/envoy -O /usr/local/bin/envoy && \
+    chmod +x /usr/local/bin/envoy
+
+ADD . /root/
+RUN chmod 755 /root/start.sh && chmod 755 /usr/bin/env2file
+ENV ENVOY_BINARY="/usr/local/bin/envoy"
+ENV RELEASE_DESC=${RELEASE_DESC}
+WORKDIR /root
+ENTRYPOINT ["./start.sh"]
+
+
+
