@@ -533,6 +533,7 @@ type HTTPRuleRewriteDao interface {
 	CreateOrUpdateHTTPRuleRewriteInBatch(httpRuleRewrites []*model.HTTPRuleRewrite) error
 	ListByHTTPRuleID(httpRuleID string) ([]*model.HTTPRuleRewrite, error)
 	DeleteByHTTPRuleID(httpRuleID string) error
+	DeleteByHTTPRuleIDs(httpRuleIDs []string) error
 }
 
 // TCPRuleDao -

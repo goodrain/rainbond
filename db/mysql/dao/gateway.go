@@ -373,6 +373,14 @@ func (h *HTTPRuleRewriteDaoTmpl) DeleteByHTTPRuleID(httpRuleID string) error {
 	return h.DB.Where("http_rule_id in (?) ", httpRuleID).Delete(&model.HTTPRuleRewrite{}).Error
 }
 
+// DeleteByHTTPRuleIDs deletes http rule rewrites by given httpRuleIDs.
+func (h *HTTPRuleRewriteDaoTmpl) DeleteByHTTPRuleIDs(httpRuleIDs []string) error {
+	if err := h.DB.Where("http_rule_id in (?)", httpRuleIDs).Delete(&model.HTTPRuleRewrite{}).Error; err != nil {
+		return errors.Wrap(err, "delete http rule rewrites")
+	}
+	return nil
+}
+
 // TCPRuleDaoTmpl is a implementation of TcpRuleDao
 type TCPRuleDaoTmpl struct {
 	DB *gorm.DB
