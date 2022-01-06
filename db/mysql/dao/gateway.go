@@ -325,12 +325,10 @@ func (h *HTTPRuleRewriteDaoTmpl) AddModel(mo model.Interface) error {
 		return fmt.Errorf("can't not convert %s to *model.HTTPRuleRewrite", reflect.TypeOf(mo).String())
 	}
 	var oldHTTPRuleRewrite model.HTTPRuleRewrite
-	if ok := h.DB.Where("uuid = ?", httpRuleRewrite.UUID).Find(&oldHTTPRuleRewrite).RecordNotFound(); ok {
-		if err := h.DB.Create(httpRuleRewrite).Error; err != nil {
-			return err
-		}
+	if ok := h.DB.Where("uuid = ?", httpRuleRewrite.UUID).Find(&oldHTTPRuleRewrite).RecordNotFound(); !ok {
+		return fmt.Errorf("HTTPRuleRewrite already exists based on uuid(%s)", httpRuleRewrite.UUID)
 	}
-	return fmt.Errorf("HTTPRuleRewrite already exists based on uuid(%s)", httpRuleRewrite.UUID)
+	return h.DB.Create(httpRuleRewrite).Error
 }
 
 //UpdateModel -
