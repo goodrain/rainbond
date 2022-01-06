@@ -41,7 +41,7 @@ type AddHTTPRuleStruct struct {
 	PrivateKey     string                 `json:"private_key"`
 	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
 	PathRewrite    bool                   `json:"path_rewrite"`
-	Rewrites       []Rewrite              `json:"rewrites"`
+	Rewrites       []*Rewrite             `json:"rewrites"`
 }
 
 // DbModel return database model
@@ -62,6 +62,7 @@ func (h *AddHTTPRuleStruct) DbModel(serviceID string) *dbmodel.HTTPRule {
 		Weight:        h.Weight,
 		IP:            h.IP,
 		CertificateID: h.CertificateID,
+		PathRewrite:   h.PathRewrite,
 	}
 }
 
@@ -81,7 +82,7 @@ type UpdateHTTPRuleStruct struct {
 	PrivateKey     string                 `json:"private_key"`
 	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
 	PathRewrite    bool                   `json:"path_rewrite"`
-	Rewrites       []Rewrite              `json:"rewrites"`
+	Rewrites       []*Rewrite             `json:"rewrites"`
 }
 
 //DeleteHTTPRuleStruct contains the id of http rule that will be deleted
