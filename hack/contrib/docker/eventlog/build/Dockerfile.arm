@@ -1,0 +1,9 @@
+FROM golang:1.13
+
+RUN apt update && apt-get install -y libzmq3-dev
+
+WORKDIR /go
+
+    
+
+

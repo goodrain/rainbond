@@ -6,6 +6,7 @@ WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME:-'rainbond'}
 DOMESTIC_NAMESPACE=${DOMESTIC_NAMESPACE:-'goodrain'}
+GOARCH=${BUILD_GOARCH:-'amd64'}
 
 GO_VERSION=1.13
 
@@ -49,12 +50,16 @@ build::binary() {
 	local build_args="-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"
 	local build_dir="./cmd/$1"
 	local build_tag=""
+	local DOCKERFILE_BASE=${BUILD_DOCKERFILE_BASE:-'Dockerfile'}
 	if [ -f "${DOCKER_PATH}/ignorebuild" ]; then
 		return
 	fi
 	CGO_ENABLED=1
 	if [ "$1" = "eventlog" ]; then
-		docker build -t goodraim.me/event-build:v1 "${DOCKER_PATH}/build"
+		if [ "$GOARCH" = "arm64" ]; then
+			DOCKERFILE_BASE="Dockerfile.arm"
+		fi
+		docker build -t goodraim.me/event-build:v1 -f "${DOCKER_PATH}/build/${DOCKERFILE_BASE}" "${DOCKER_PATH}/build/"
 		build_image="goodraim.me/event-build:v1"
 	elif [ "$1" = "chaos" ]; then
 		build_dir="./cmd/builder"
@@ -73,6 +78,8 @@ build::image() {
 	local OUTPATH="./_output/binary/$GOOS/${BASE_NAME}-$1"
 	local build_image_dir="./_output/image/$1/"
 	local source_dir="./hack/contrib/docker/$1"
+	local BASE_IMAGE_VERSION=${BUILD_BASE_IMAGE_VERSION:-'3.4'}
+	local DOCKERFILE_BASE=${BUILD_DOCKERFILE_BASE:-'Dockerfile'}
 	mkdir -p "${build_image_dir}"
 	chmod 777 "${build_image_dir}"
 	if [ ! -f "${source_dir}/ignorebuild" ]; then
@@ -84,7 +91,20 @@ build::image() {
 	cp -r ${source_dir}/* "${build_image_dir}"
 	pushd "${build_image_dir}"
 	echo "---> build image:$1"
-	docker build --build-arg RELEASE_DESC="${release_desc}" -t "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" -f Dockerfile .
+	if [ "$GOARCH" = "arm64" ]; then
+		if [ "$1" = "gateway" ]; then
+			BASE_IMAGE_VERSION="1.19.3.2-alpine"
+		elif [ "$1" = "eventlog" ];then
+			DOCKERFILE_BASE="Dockerfile.arm"
+		elif [ "$1" = "mesh-data-panel" ];then
+			DOCKERFILE_BASE="Dockerfile.arm"
+		fi
+	else
+		if [ "$1" = "gateway" ]; then
+			BASE_IMAGE_VERSION="1.19.3.2"
+		fi
+	fi
+	docker build --build-arg RELEASE_DESC="${release_desc}" --build-arg BASE_IMAGE_VERSION="${BASE_IMAGE_VERSION}" --build-arg GOARCH="${GOARCH}" -t "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" -f "${DOCKERFILE_BASE}" .
 	docker run --rm "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" version
 	if [ $? -ne 0 ]; then
 		echo "image version is different ${release_desc}"
@@ -96,8 +116,9 @@ build::image() {
 	if [ "$2" = "push" ]; then
 		if [ $DOCKER_USERNAME ]; then
 			docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+			docker push "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}"
 		fi
-		docker push "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}"
+		
 		if [ "${DOMESTIC_BASE_NAME}" ]; then
 			docker tag "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" "${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-$1:${VERSION}"
 			docker login -u "$DOMESTIC_DOCKER_USERNAME" -p "$DOMESTIC_DOCKER_PASSWORD" "${DOMESTIC_BASE_NAME}"

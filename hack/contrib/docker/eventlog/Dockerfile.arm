@@ -1,0 +1,17 @@
+FROM debian:buster
+      
+RUN apt update && apt install -y ca-certificates openssl libssl-dev libsodium-dev libpgm-dev libnorm-dev libgssapi-krb5-2 wget
+    
+RUN wget https://rainbond-pkg.oss-cn-shanghai.aliyuncs.com/5.3-arm/libzmq.so.5 -O /usr/lib/libzmq.so.5
+    
+COPY rainbond-eventlog /run/rainbond-eventlog
+ADD entrypoint.sh /run/entrypoint.sh
+    
+EXPOSE 6366
+EXPOSE 6365
+EXPOSE 6364
+EXPOSE 6363
+EXPOSE 6362
+VOLUME [ "/etc/goodrain" ]
+ENV RELEASE_DESC=${RELEASE_DESC}
+ENTRYPOINT  ["/run/entrypoint.sh"]
