@@ -1,0 +1,48 @@
+kind: pipeline
+name: build arm64
+
+platform:
+  os: linux
+  arch: arm64
+
+trigger:
+  event:
+    include:
+    - custom
+
+steps:
+- name: build rainbond
+  image: rainbond/docker:dind
+  privileged: true
+  volumes:
+  - name: dockersock
+    path: /var/run
+  environment:
+    DOMESTIC_BASE_NAME:
+      from_secret: domestic_base_name
+    DOMESTIC_DOCKER_USERNAME:
+      from_secret: domestic_docker_username
+    DOMESTIC_DOCKER_PASSWORD:
+      from_secret: domestic_docker_password
+    BUILD_VERSION:
+      from_secret: build_version
+    GOOS: linux
+    GOARCH: arm64
+  commands:
+  - sleep 10 # give docker enough time to start
+  - VERSION=$BUILD_VERSION BUILD_GOARCH=arm64 BUILD_BASE_IMAGE_VERSION=3.7 ./release.sh all push
+  when:
+    event:
+      include:
+      - custom
+services:
+- name: docker
+  image: docker:dind
+  privileged: true
+  volumes:
+  - name: dockersock
+    path: /var/run
+
+volumes:
+- name: dockersock
+  temp: {}
