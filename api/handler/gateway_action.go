@@ -161,12 +161,12 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
 		return fmt.Errorf("HTTPRule dosen't exist based on uuid(%s)", req.HTTPRuleID)
 	}
 
+	// delete old http rule rewrites
+	if err := db.GetManager().HTTPRuleRewriteDaoTransactions(tx).DeleteByHTTPRuleID(rule.UUID); err != nil {
+		tx.Rollback()
+		return err
+	}
 	if len(req.Rewrites) > 0 {
-		// delete old http rule rewrites
-		if err := db.GetManager().HTTPRuleRewriteDaoTransactions(tx).DeleteByHTTPRuleID(rule.UUID); err != nil {
-			tx.Rollback()
-			return err
-		}
 		// add new http rule rewrites
 		for _, rewrite := range req.Rewrites {
 			r := &model.HTTPRuleRewrite{
