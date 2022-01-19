@@ -353,9 +353,9 @@ func (h *HTTPRuleRewriteDaoTmpl) CreateOrUpdateHTTPRuleRewriteInBatch(httpRuleRe
 }
 
 // ListByHTTPRuleID -
-func (c *HTTPRuleRewriteDaoTmpl) ListByHTTPRuleID(httpRuleID string) ([]*model.HTTPRuleRewrite, error) {
+func (h *HTTPRuleRewriteDaoTmpl) ListByHTTPRuleID(httpRuleID string) ([]*model.HTTPRuleRewrite, error) {
 	var rewrites []*model.HTTPRuleRewrite
-	if err := c.DB.Where("http_rule_id = ?", httpRuleID).Find(&rewrites).Error; err != nil {
+	if err := h.DB.Where("http_rule_id = ?", httpRuleID).Find(&rewrites).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return rewrites, nil
 		}
