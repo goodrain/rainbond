@@ -119,7 +119,10 @@ func (g *GarbageCollector) DelKubernetesObjects(serviceGCReq model.ServiceGCTask
 		logrus.Warningf("[DelKubernetesObjects] delete statefulsets(%s): %v", serviceGCReq.ServiceID, err)
 	}
 	if err := g.clientset.ExtensionsV1beta1().Ingresses(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
-		logrus.Warningf("[DelKubernetesObjects] delete ingresses(%s): %v", serviceGCReq.ServiceID, err)
+		logrus.Warningf("[DelKubernetesObjects] delete extensions ingresses(%s): %v", serviceGCReq.ServiceID, err)
+	}
+	if err := g.clientset.NetworkingV1().Ingresses(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
+		logrus.Warningf("[DelKubernetesObjects] delete networking ingresses(%s): %v", serviceGCReq.ServiceID, err)
 	}
 	if err := g.clientset.CoreV1().Secrets(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
 		logrus.Warningf("[DelKubernetesObjects] delete secrets(%s): %v", serviceGCReq.ServiceID, err)
