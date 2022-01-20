@@ -135,6 +135,7 @@ type TenantServiceDao interface {
 	GetServiceByServiceAlias(serviceAlias string) (*model.TenantServices, error)
 	GetServiceByIDs(serviceIDs []string) ([]*model.TenantServices, error)
 	GetServiceAliasByIDs(uids []string) ([]*model.TenantServices, error)
+	GetWorkloadNameByIDs(uids []string) ([]*model.ComponentWorkload, error)
 	GetServiceByTenantIDAndServiceAlias(tenantID, serviceName string) (*model.TenantServices, error)
 	SetTenantServiceStatus(serviceID, status string) error
 	GetServicesByTenantID(tenantID string) ([]*model.TenantServices, error)

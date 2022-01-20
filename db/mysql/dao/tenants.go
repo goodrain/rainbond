@@ -402,6 +402,19 @@ func (t *TenantServicesDaoImpl) GetServiceAliasByIDs(uids []string) ([]*model.Te
 	return services, nil
 }
 
+// GetWorkloadNameByIDs -
+func (t *TenantServicesDaoImpl) GetWorkloadNameByIDs(uids []string) ([]*model.ComponentWorkload, error) {
+	var componentWorkload []*model.ComponentWorkload
+	if err := t.DB.Model(&model.TenantServices{}).
+		Select("applications.k8s_app, tenant_services.k8s_component_name, tenant_services.service_id, tenant_services.service_alias").
+		Joins("join applications on applications.app_id=tenant_services.app_id").
+		Where("service_id in (?)", uids).
+		Scan(&componentWorkload).Error; err != nil {
+		return nil, err
+	}
+	return componentWorkload, nil
+}
+
 //GetServiceByIDs get some service by service ids
 func (t *TenantServicesDaoImpl) GetServiceByIDs(uids []string) ([]*model.TenantServices, error) {
 	var services []*model.TenantServices

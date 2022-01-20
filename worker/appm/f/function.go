@@ -412,7 +412,6 @@ func UpgradeIngress(clientset kubernetes.Interface,
 					ing, err), err); err != nil {
 					return err
 				}
-				continue
 			}
 			as.SetIngress(ing)
 			delete(oldBetaMap, o.Name)

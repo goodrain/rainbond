@@ -58,7 +58,7 @@ type DependServiceHealthController struct {
 func NewDependServiceHealthController() (*DependServiceHealthController, error) {
 	clusterID := os.Getenv("ENVOY_NODE_ID")
 	if clusterID == "" {
-		clusterID = fmt.Sprintf("%s_%s_%s", os.Getenv("NAMESPACE"), os.Getenv("PLUGIN_ID"), os.Getenv("SERVICE_NAME"))
+		clusterID = fmt.Sprintf("%s_%s_%s", os.Getenv("NAMESPACE"), os.Getenv("PLUGIN_ID"), os.Getenv("SERVICE_ALIAS"))
 	}
 	dsc := DependServiceHealthController{
 		interval:  time.Second * 5,

@@ -1159,7 +1159,7 @@ func getServiceInfoFromPod(pod *corev1.Pod) v1.AbnormalInfo {
 				ai.ServiceID = env.Value
 				i++
 			}
-			if env.Name == "SERVICE_NAME" {
+			if env.Name == "SERVICE_ALIAS" {
 				ai.ServiceAlias = env.Value
 				i++
 			}

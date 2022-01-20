@@ -516,7 +516,7 @@ func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPor
 	}
 	spec := corev1.ServiceSpec{
 		Ports:                    serviceports,
-		Selector:                 map[string]string{"name": a.appService.GetK8sWorkloadName()},
+		Selector:                 map[string]string{"name": a.service.ServiceAlias},
 		ClusterIP:                "None",
 		PublishNotReadyAddresses: true,
 	}
