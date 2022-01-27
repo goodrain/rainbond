@@ -141,6 +141,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.Certificate{})
 	m.models = append(m.models, &model.RuleExtension{})
 	m.models = append(m.models, &model.HTTPRule{})
+	m.models = append(m.models, &model.HTTPRuleRewrite{})
 	m.models = append(m.models, &model.TCPRule{})
 	m.models = append(m.models, &model.TenantServiceConfigFile{})
 	m.models = append(m.models, &model.Endpoint{})

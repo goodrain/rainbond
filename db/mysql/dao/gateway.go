@@ -313,6 +313,70 @@ func (h *HTTPRuleDaoImpl) ListByComponentIDs(componentIDs []string) ([]*model.HT
 	return rules, nil
 }
 
+// HTTPRuleRewriteDaoTmpl is a implementation of HTTPRuleRewriteDao
+type HTTPRuleRewriteDaoTmpl struct {
+	DB *gorm.DB
+}
+
+//AddModel -
+func (h *HTTPRuleRewriteDaoTmpl) AddModel(mo model.Interface) error {
+	httpRuleRewrite, ok := mo.(*model.HTTPRuleRewrite)
+	if !ok {
+		return fmt.Errorf("can't not convert %s to *model.HTTPRuleRewrite", reflect.TypeOf(mo).String())
+	}
+	var oldHTTPRuleRewrite model.HTTPRuleRewrite
+	if ok := h.DB.Where("uuid = ?", httpRuleRewrite.UUID).Find(&oldHTTPRuleRewrite).RecordNotFound(); !ok {
+		return fmt.Errorf("HTTPRuleRewrite already exists based on uuid(%s)", httpRuleRewrite.UUID)
+	}
+	return h.DB.Create(httpRuleRewrite).Error
+}
+
+//UpdateModel -
+func (h *HTTPRuleRewriteDaoTmpl) UpdateModel(mo model.Interface) error {
+	hr, ok := mo.(*model.HTTPRuleRewrite)
+	if !ok {
+		return fmt.Errorf("failed to convert %s to *model.HTTPRuleRewrite", reflect.TypeOf(mo).String())
+	}
+	return h.DB.Save(hr).Error
+}
+
+// CreateOrUpdateHTTPRuleRewriteInBatch -
+func (h *HTTPRuleRewriteDaoTmpl) CreateOrUpdateHTTPRuleRewriteInBatch(httpRuleRewrites []*model.HTTPRuleRewrite) error {
+	var objects []interface{}
+	for _, httpRuleRewrites := range httpRuleRewrites {
+		objects = append(objects, *httpRuleRewrites)
+	}
+	if err := gormbulkups.BulkUpsert(h.DB, objects, 2000); err != nil {
+		return errors.Wrap(err, "create or update http rule rewrite in batch")
+	}
+	return nil
+}
+
+// ListByHTTPRuleID -
+func (h *HTTPRuleRewriteDaoTmpl) ListByHTTPRuleID(httpRuleID string) ([]*model.HTTPRuleRewrite, error) {
+	var rewrites []*model.HTTPRuleRewrite
+	if err := h.DB.Where("http_rule_id = ?", httpRuleID).Find(&rewrites).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return rewrites, nil
+		}
+		return nil, err
+	}
+	return rewrites, nil
+}
+
+// DeleteByHTTPRuleID -
+func (h *HTTPRuleRewriteDaoTmpl) DeleteByHTTPRuleID(httpRuleID string) error {
+	return h.DB.Where("http_rule_id in (?) ", httpRuleID).Delete(&model.HTTPRuleRewrite{}).Error
+}
+
+// DeleteByHTTPRuleIDs deletes http rule rewrites by given httpRuleIDs.
+func (h *HTTPRuleRewriteDaoTmpl) DeleteByHTTPRuleIDs(httpRuleIDs []string) error {
+	if err := h.DB.Where("http_rule_id in (?)", httpRuleIDs).Delete(&model.HTTPRuleRewrite{}).Error; err != nil {
+		return errors.Wrap(err, "delete http rule rewrites")
+	}
+	return nil
+}
+
 // TCPRuleDaoTmpl is a implementation of TcpRuleDao
 type TCPRuleDaoTmpl struct {
 	DB *gorm.DB

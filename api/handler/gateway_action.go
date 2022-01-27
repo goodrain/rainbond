@@ -94,9 +94,25 @@ func (g *GatewayAction) CreateHTTPRule(tx *gorm.DB, req *apimodel.AddHTTPRuleStr
 		Weight:        req.Weight,
 		IP:            req.IP,
 		CertificateID: req.CertificateID,
+		PathRewrite:   req.PathRewrite,
 	}
 	if err := db.GetManager().HTTPRuleDaoTransactions(tx).AddModel(httpRule); err != nil {
 		return fmt.Errorf("create http rule: %v", err)
+	}
+
+	if len(req.Rewrites) > 0 {
+		for _, rewrite := range req.Rewrites {
+			r := &model.HTTPRuleRewrite{
+				UUID:        util.NewUUID(),
+				HTTPRuleID:  httpRule.UUID,
+				Regex:       rewrite.Regex,
+				Replacement: rewrite.Replacement,
+				Flag:        rewrite.Flag,
+			}
+			if err := db.GetManager().HTTPRuleRewriteDaoTransactions(tx).AddModel(r); err != nil {
+				return fmt.Errorf("create http rule rewrite: %v", err)
+			}
+		}
 	}
 
 	if strings.Replace(req.CertificateID, " ", "", -1) != "" {
@@ -144,6 +160,29 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
 		tx.Rollback()
 		return fmt.Errorf("HTTPRule dosen't exist based on uuid(%s)", req.HTTPRuleID)
 	}
+
+	// delete old http rule rewrites
+	if err := db.GetManager().HTTPRuleRewriteDaoTransactions(tx).DeleteByHTTPRuleID(rule.UUID); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if len(req.Rewrites) > 0 {
+		// add new http rule rewrites
+		for _, rewrite := range req.Rewrites {
+			r := &model.HTTPRuleRewrite{
+				UUID:        util.NewUUID(),
+				HTTPRuleID:  rule.UUID,
+				Regex:       rewrite.Regex,
+				Replacement: rewrite.Replacement,
+				Flag:        rewrite.Flag,
+			}
+			if err := db.GetManager().HTTPRuleRewriteDaoTransactions(tx).AddModel(r); err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+
 	if strings.Replace(req.CertificateID, " ", "", -1) != "" {
 		// add new certificate
 		cert := &model.Certificate{
@@ -198,6 +237,7 @@ func (g *GatewayAction) UpdateHTTPRule(req *apimodel.UpdateHTTPRuleStruct) error
 	rule.Header = req.Header
 	rule.Cookie = req.Cookie
 	rule.Weight = req.Weight
+	rule.PathRewrite = req.PathRewrite
 	if req.IP != "" {
 		rule.IP = req.IP
 	}
@@ -243,6 +283,12 @@ func (g *GatewayAction) DeleteHTTPRule(req *apimodel.DeleteHTTPRuleStruct) error
 		return err
 	}
 
+	// delete http rule rewrites
+	if err := db.GetManager().HTTPRuleRewriteDaoTransactions(tx).DeleteByHTTPRuleID(httpRule.UUID); err != nil {
+		tx.Rollback()
+		return err
+	}
+
 	// delete rule extension
 	if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(httpRule.UUID); err != nil {
 		tx.Rollback()
@@ -272,6 +318,9 @@ func (g *GatewayAction) DeleteHTTPRuleByServiceIDWithTransaction(sid string, tx 
 	}
 
 	for _, rule := range rules {
+		if err := db.GetManager().HTTPRuleRewriteDaoTransactions(tx).DeleteByHTTPRuleID(rule.UUID); err != nil {
+			return err
+		}
 		if err := g.dbmanager.RuleExtensionDaoTransactions(tx).DeleteRuleExtensionByRuleID(rule.UUID); err != nil {
 			return err
 		}
@@ -885,9 +934,10 @@ func (g *GatewayAction) listHTTPRuleIDs(componentID string, port int) ([]string,
 // SyncHTTPRules -
 func (g *GatewayAction) SyncHTTPRules(tx *gorm.DB, components []*apimodel.Component) error {
 	var (
-		componentIDs   []string
-		httpRules      []*model.HTTPRule
-		ruleExtensions []*model.RuleExtension
+		componentIDs     []string
+		httpRules        []*model.HTTPRule
+		ruleExtensions   []*model.RuleExtension
+		httpRuleRewrites []*model.HTTPRuleRewrite
 	)
 	for _, component := range components {
 		if component.HTTPRules == nil {
@@ -896,6 +946,16 @@ func (g *GatewayAction) SyncHTTPRules(tx *gorm.DB, components []*apimodel.Compon
 		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
 		for _, httpRule := range component.HTTPRules {
 			httpRules = append(httpRules, httpRule.DbModel(component.ComponentBase.ComponentID))
+
+			for _, rewrite := range httpRule.Rewrites {
+				httpRuleRewrites = append(httpRuleRewrites, &model.HTTPRuleRewrite{
+					UUID:        util.NewUUID(),
+					HTTPRuleID:  httpRule.HTTPRuleID,
+					Regex:       rewrite.Regex,
+					Replacement: rewrite.Replacement,
+					Flag:        rewrite.Flag,
+				})
+			}
 
 			for _, ext := range httpRule.RuleExtensions {
 				ruleExtensions = append(ruleExtensions, &model.RuleExtension{
@@ -908,6 +968,10 @@ func (g *GatewayAction) SyncHTTPRules(tx *gorm.DB, components []*apimodel.Compon
 		}
 	}
 
+	if err := g.syncHTTPRuleRewrites(tx, httpRules, httpRuleRewrites); err != nil {
+		return err
+	}
+
 	if err := g.syncRuleExtensions(tx, httpRules, ruleExtensions); err != nil {
 		return err
 	}
@@ -916,6 +980,18 @@ func (g *GatewayAction) SyncHTTPRules(tx *gorm.DB, components []*apimodel.Compon
 		return err
 	}
 	return db.GetManager().HTTPRuleDaoTransactions(tx).CreateOrUpdateHTTPRuleInBatch(httpRules)
+}
+
+func (g *GatewayAction) syncHTTPRuleRewrites(tx *gorm.DB, httpRules []*model.HTTPRule, rewrites []*model.HTTPRuleRewrite) error {
+	var ruleIDs []string
+	for _, hr := range httpRules {
+		ruleIDs = append(ruleIDs, hr.UUID)
+	}
+
+	if err := db.GetManager().HTTPRuleRewriteDaoTransactions(tx).DeleteByHTTPRuleIDs(ruleIDs); err != nil {
+		return err
+	}
+	return db.GetManager().HTTPRuleRewriteDaoTransactions(tx).CreateOrUpdateHTTPRuleRewriteInBatch(rewrites)
 }
 
 func (g *GatewayAction) syncRuleExtensions(tx *gorm.DB, httpRules []*model.HTTPRule, exts []*model.RuleExtension) error {

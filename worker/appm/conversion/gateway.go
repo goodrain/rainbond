@@ -540,6 +540,20 @@ func (a *AppServiceBuild) parseAnnotations(rule *model.HTTPRule) (map[string]str
 		annos[parser.GetAnnotationWithPrefix("cookie")] = rule.Cookie
 	}
 
+	// path-rewrite
+	if rule.PathRewrite {
+		annos[parser.GetAnnotationWithPrefix("path-rewrite")] = "true"
+	}
+	httpRuleRewrites, err := a.dbmanager.HTTPRuleRewriteDao().ListByHTTPRuleID(rule.UUID)
+	if err != nil {
+		return nil, err
+	}
+	for i, rewrite := range httpRuleRewrites {
+		annos[parser.GetAnnotationWithPrefix(fmt.Sprintf("rewrite-%d-regex", i))] = rewrite.Regex
+		annos[parser.GetAnnotationWithPrefix(fmt.Sprintf("rewrite-%d-replacement", i))] = rewrite.Replacement
+		annos[parser.GetAnnotationWithPrefix(fmt.Sprintf("rewrite-%d-flag", i))] = rewrite.Flag
+	}
+
 	// rule extension
 	ruleExtensions, err := a.dbmanager.RuleExtensionDao().GetRuleExtensionByRuleID(rule.UUID)
 	if err != nil {

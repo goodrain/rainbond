@@ -82,11 +82,27 @@ type HTTPRule struct {
 	Weight        int    `gorm:"column:weight"`
 	IP            string `gorm:"column:ip"`
 	CertificateID string `gorm:"column:certificate_id"`
+	PathRewrite   bool   `gorm:"column:path_rewrite"`
 }
 
 // TableName returns table name of TCPRule
 func (TCPRule) TableName() string {
 	return "gateway_tcp_rule"
+}
+
+// HTTPRuleRewrite containe http rule rewrites
+type HTTPRuleRewrite struct {
+	Model
+	UUID        string `gorm:"column:uuid"`
+	HTTPRuleID  string `gorm:"column:http_rule_id"`
+	Regex       string `gorm:"column:regex"`
+	Replacement string `gorm:"column:replacement"`
+	Flag        string `gorm:"column:flag"`
+}
+
+// TableName retuens table name of HTTPRuleRewrite
+func (HTTPRuleRewrite) TableName() string {
+	return "gateway_http_rule_rewrite"
 }
 
 // TCPRule contain stream rule

@@ -40,6 +40,8 @@ type AddHTTPRuleStruct struct {
 	Certificate    string                 `json:"certificate"`
 	PrivateKey     string                 `json:"private_key"`
 	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
+	PathRewrite    bool                   `json:"path_rewrite"`
+	Rewrites       []*Rewrite             `json:"rewrites"`
 }
 
 // DbModel return database model
@@ -60,6 +62,7 @@ func (h *AddHTTPRuleStruct) DbModel(serviceID string) *dbmodel.HTTPRule {
 		Weight:        h.Weight,
 		IP:            h.IP,
 		CertificateID: h.CertificateID,
+		PathRewrite:   h.PathRewrite,
 	}
 }
 
@@ -78,6 +81,8 @@ type UpdateHTTPRuleStruct struct {
 	Certificate    string                 `json:"certificate"`
 	PrivateKey     string                 `json:"private_key"`
 	RuleExtensions []*RuleExtensionStruct `json:"rule_extensions"`
+	PathRewrite    bool                   `json:"path_rewrite"`
+	Rewrites       []*Rewrite             `json:"rewrites"`
 }
 
 //DeleteHTTPRuleStruct contains the id of http rule that will be deleted
@@ -254,9 +259,9 @@ type SetHeader struct {
 
 // Rewrite is a embeded sturct of Body.
 type Rewrite struct {
-	Regex       string `json:"regex"`
-	Replacement string `json:"replacement"`
-	Flag        string `json:"flag" validate:"flag|in:last,break,redirect,permanent"`
+	Regex       string `json:"regex" validate:"regex|required"`
+	Replacement string `json:"replacement" validate:"replacement|required"`
+	Flag        string `json:"flag" validate:"flag|in:last,break,redirect,permanent|required"`
 }
 
 // UpdCertificateReq -
