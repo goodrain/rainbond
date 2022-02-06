@@ -68,6 +68,10 @@ DingTalk Search Group : 31096419
 - [Rainbond-Builder](https://github.com/goodrain/builder)
 - [Rainbond-Docs](https://github.com/goodrain/rainbond-docs)
 
+## Contributing
+
+Check out [CONTRIBUTING](https://github.com/goodrain/rainbond/blob/V5.4/CONTRIBUTING.md) to see how to develop with Rainbond.
+
 ## License
 
 Rainbond follow LGPL-3.0 license，Details see[LICENSE](https://github.com/goodrain/rainbond/blob/master/LICENSE) and [Licensing](https://github.com/goodrain/rainbond/blob/master/Licensing.md)
