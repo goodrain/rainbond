@@ -527,6 +527,15 @@ type HTTPRuleDao interface {
 	ListByComponentIDs(componentIDs []string) ([]*model.HTTPRule, error)
 }
 
+// HTTPRuleRewriteDao -
+type HTTPRuleRewriteDao interface {
+	Dao
+	CreateOrUpdateHTTPRuleRewriteInBatch(httpRuleRewrites []*model.HTTPRuleRewrite) error
+	ListByHTTPRuleID(httpRuleID string) ([]*model.HTTPRuleRewrite, error)
+	DeleteByHTTPRuleID(httpRuleID string) error
+	DeleteByHTTPRuleIDs(httpRuleIDs []string) error
+}
+
 // TCPRuleDao -
 type TCPRuleDao interface {
 	Dao

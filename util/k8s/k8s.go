@@ -138,7 +138,11 @@ func IsHighVersion() bool {
 
 // GetKubeVersion returns the version of k8s
 func GetKubeVersion() *utilversion.Version {
-	var serverVersion, _ = GetClientSet().Discovery().ServerVersion()
+	var serverVersion, err = GetClientSet().Discovery().ServerVersion()
+	if err != nil {
+		logrus.Errorf("Get Kubernetes Version failed [%+v]", err)
+		return utilversion.MustParseSemantic("v1.19.6")
+	}
 	return utilversion.MustParseSemantic(serverVersion.GitVersion)
 }
 

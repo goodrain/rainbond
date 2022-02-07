@@ -23,7 +23,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"io/ioutil"
 	"net"
 	"os"
@@ -32,10 +31,13 @@ import (
 	"strings"
 	"sync"
 
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
+
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/annotations"
 	"github.com/goodrain/rainbond/gateway/annotations/l4"
+	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/gateway/annotations/rewrite"
 	"github.com/goodrain/rainbond/gateway/cluster"
 	"github.com/goodrain/rainbond/gateway/controller/config"
@@ -681,6 +683,16 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 								Path:          path.Path,
 								NameCondition: map[string]*v1.Condition{},
 							}
+							i, err := rewrite.NewParser(s).Parse(&ing.ObjectMeta)
+							if err == nil {
+								if cfg, ok := i.(*rewrite.Config); ok {
+									location.Rewrite.Rewrites = cfg.Rewrites
+								}
+							}
+							pathRewrite, _ := parser.GetBoolAnnotation("path-rewrite", &ing.ObjectMeta)
+							if pathRewrite {
+								location.PathRewrite = true
+							}
 							srvLocMap[locKey] = location
 							vs.Locations = append(vs.Locations, location)
 							// the first ingress proxy takes effect
@@ -782,6 +794,17 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 							location = &v1.Location{
 								Path:          path.Path,
 								NameCondition: map[string]*v1.Condition{},
+								Rewrite:       rewrite.Config{},
+							}
+							i, err := rewrite.NewParser(s).Parse(&ing.ObjectMeta)
+							if err == nil {
+								if cfg, ok := i.(*rewrite.Config); ok {
+									location.Rewrite.Rewrites = cfg.Rewrites
+								}
+							}
+							pathRewrite, _ := parser.GetBoolAnnotation("path-rewrite", &ing.ObjectMeta)
+							if pathRewrite {
+								location.PathRewrite = true
 							}
 							srvLocMap[locKey] = location
 							vs.Locations = append(vs.Locations, location)
