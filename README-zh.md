@@ -119,6 +119,10 @@ Rainbond 完成与龙芯、飞腾、麒麟操作系统等为代表的国产化�
 - [Rainbond-Builder](https://github.com/goodrain/builder) Rainbond 源码构建工具集
 - [Rainbond-Docs](https://github.com/goodrain/rainbond-docs) Rainbond 文档
 
+## 贡献
+
+参考 [贡献指南](https://github.com/goodrain/rainbond/blob/V5.4/CONTRIBUTING.md) ，查看如何开发 Rainbond 
+
 ## License
 
 Rainbond 遵循 LGPL-3.0 license 协议发布，详情查看[LICENSE](https://github.com/goodrain/rainbond/blob/master/LICENSE)及[Licensing](https://github.com/goodrain/rainbond/blob/master/Licensing.md)。
