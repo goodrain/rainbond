@@ -89,7 +89,7 @@ func (k *kubernetesDiscover) Discover(ctx context.Context, update chan *v1alpha1
 	if err != nil {
 		return nil, fmt.Errorf("load kubernetes service failure %s", err.Error())
 	}
-	re, err := k.client.CoreV1().Endpoints(namespace).Watch(ctx, metav1.ListOptions{LabelSelector: labels.FormatLabels(service.Spec.Selector)})
+	re, err := k.client.CoreV1().Endpoints(namespace).Watch(ctx, metav1.ListOptions{LabelSelector: labels.FormatLabels(service.Spec.Selector), Watch: true})
 	if err != nil {
 		return nil, fmt.Errorf("watch kubernetes endpoints failure %s", err.Error())
 	}
@@ -111,7 +111,6 @@ func (k *kubernetesDiscover) Discover(ctx context.Context, update chan *v1alpha1
 					logrus.Errorf("discover kubernetes endpoints %s change failure %s", component.Spec.EndpointSource.KubernetesService.Name, err.Error())
 				}
 			}()
-			return k.DiscoverOne(ctx)
 		}
 	}
 }

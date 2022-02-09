@@ -31,14 +31,7 @@ func (w *Worker) Start() {
 	}()
 	w.stoped = false
 	logrus.Infof("discover endpoint list worker %s/%s  started", w.discover.GetComponent().Namespace, w.discover.GetComponent().Name)
-	for {
-		w.discover.Discover(w.ctx, w.updateChan)
-		select {
-		case <-w.ctx.Done():
-			return
-		default:
-		}
-	}
+	w.discover.Discover(w.ctx, w.updateChan)
 }
 
 // UpdateDiscover -
