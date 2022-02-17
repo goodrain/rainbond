@@ -99,6 +99,8 @@ func NewApp(ctx context.Context, kubeClient clientset.Interface, rainbondClient 
 
 func createRecorder(kubeClient clientset.Interface, name, namespace string) record.EventRecorder {
 	eventBroadcaster := record.NewBroadcaster()
+	defer eventBroadcaster.Shutdown()
+
 	eventBroadcaster.StartLogging(logrus.Infof)
 
 	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{
