@@ -643,9 +643,6 @@ func (a *ApplicationAction) SyncComponents(app *dbmodel.Application, components 
 		if err := GetServiceManager().SyncComponentLabels(tx, components); err != nil {
 			return err
 		}
-		if err := GetServiceManager().SyncComponentScaleRules(tx, components); err != nil {
-			return err
-		}
 		if err := GetServiceManager().SyncComponentEndpoints(tx, components); err != nil {
 			return err
 		}
