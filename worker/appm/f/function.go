@@ -366,7 +366,6 @@ func UpgradeIngress(clientset kubernetes.Interface,
 					ing, err), err); err != nil {
 					return err
 				}
-				continue
 			}
 			as.SetIngress(ing)
 			delete(oldMap, o.Name)
@@ -387,7 +386,7 @@ func UpgradeIngress(clientset kubernetes.Interface,
 	}
 	for _, ing := range oldMap {
 		if ing != nil {
-			if err := clientset.ExtensionsV1beta1().Ingresses(ing.Namespace).Delete(context.Background(), ing.Name,
+			if err := clientset.NetworkingV1().Ingresses(ing.Namespace).Delete(context.Background(), ing.Name,
 				metav1.DeleteOptions{}); err != nil {
 				if err := handleErr(fmt.Sprintf("error deleting ingress: %+v: err: %v",
 					ing, err), err); err != nil {
@@ -413,7 +412,6 @@ func UpgradeIngress(clientset kubernetes.Interface,
 					ing, err), err); err != nil {
 					return err
 				}
-				continue
 			}
 			as.SetIngress(ing)
 			delete(oldBetaMap, o.Name)
@@ -466,7 +464,6 @@ func UpgradeSecrets(clientset kubernetes.Interface,
 					sec, err), err); err != nil {
 					return err
 				}
-				continue
 			}
 			as.SetSecret(sec)
 			delete(oldMap, o.Name)

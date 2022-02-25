@@ -224,7 +224,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 			envsAll = append(envsAll, es...)
 		}
 
-		serviceAliases, err := dbmanager.TenantServiceDao().GetServiceAliasByIDs(relationIDs)
+		serviceAliases, err := dbmanager.TenantServiceDao().GetWorkloadNameByIDs(relationIDs)
 		if err != nil {
 			return nil, err
 		}
@@ -234,9 +234,9 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 			if Depend != "" {
 				Depend += ","
 			}
-			Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
+			Depend += fmt.Sprintf("%s-%s:%s", sa.K8sApp, sa.K8sComponentName, sa.ComponentID)
 
-			if bootSeqDepServiceIDs != "" && strings.Contains(bootSeqDepServiceIDs, sa.ServiceID) {
+			if bootSeqDepServiceIDs != "" && strings.Contains(bootSeqDepServiceIDs, sa.ComponentID) {
 				startupSequenceDependencies = append(startupSequenceDependencies, sa.ServiceAlias)
 			}
 		}
@@ -318,7 +318,8 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 	envs = append(envs, corev1.EnvVar{Name: "TENANT_ID", Value: as.TenantID})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_ID", Value: as.ServiceID})
 	envs = append(envs, corev1.EnvVar{Name: "MEMORY_SIZE", Value: envutil.GetMemoryType(as.ContainerMemory)})
-	envs = append(envs, corev1.EnvVar{Name: "SERVICE_NAME", Value: as.ServiceAlias})
+	envs = append(envs, corev1.EnvVar{Name: "SERVICE_NAME", Value: as.GetK8sWorkloadName()})
+	envs = append(envs, corev1.EnvVar{Name: "SERVICE_ALIAS", Value: as.ServiceAlias})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_POD_NUM", Value: strconv.Itoa(as.Replicas)})
 	envs = append(envs, corev1.EnvVar{Name: "HOST_IP", ValueFrom: &corev1.EnvVarSource{
 		FieldRef: &corev1.ObjectFieldSelector{

@@ -205,6 +205,14 @@ type TenantServices struct {
 	K8sComponentName string `gorm:"column:k8s_component_name" json:"k8s_component_name"`
 }
 
+// ComponentWorkload -
+type ComponentWorkload struct {
+	K8sApp           string `gorm:"column:k8s_app"`
+	K8sComponentName string `gorm:"column:k8s_component_name"`
+	ComponentID      string `gorm:"column:service_id"`
+	ServiceAlias     string `gorm:"column:service_alias"`
+}
+
 //Image 镜像
 type Image struct {
 	Host      string

@@ -9,7 +9,7 @@ elif [ "$1" = "run" ]; then
     /root/rainbond-mesh-data-panel run || exit 1
 else
     env2file conversion -f /root/envoy_config.yaml
-    cluster_name=${NAMESPACE}_${PLUGIN_ID}_${SERVICE_NAME}
+    cluster_name=${NAMESPACE}_${PLUGIN_ID}_${SERVICE_ALIAS}
     # start sidecar process
     /root/rainbond-mesh-data-panel &
     # start envoy process
