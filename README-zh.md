@@ -22,8 +22,6 @@ Rainbond 是云原生且易用的云原生应用管理平台，云原生应用�
 
 <b>对于交付人员：</b> 基于 Rainbond 搭建产品版本化管理体系，搭建标准化客户交付环境，使传统的交付流程可以自动化、简单化和可管理。
 
-[我要试用](https://cloud.goodrain.com/enterprise-server/trial)
-
 ### 价值场景
 
 #### <b>企业云原生 DevOps</b>

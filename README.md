@@ -23,8 +23,6 @@ Rainbond is a cloud native and easy-to-use application management platform, a be
 
 <b>For Delivery engineer：</b> Build a product version management system based on Rainbond and build a standardized customer delivery environment, so that the traditional delivery process can be automated, simplified and manageable.
 
-[Request Demo](https://cloud.goodrain.com/enterprise-server/trial)
-
 #### With Rainbond you can:
 
 - Enterprise cloud native DevOps.
