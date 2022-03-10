@@ -6,10 +6,6 @@
 
 [项目官网](http://www.rainbond.com?channel=github) • [文档](https://www.rainbond.com/docs?channel=github)
 
-| ![notification](./docs/bell-outline-badge.svg) What is NEW!                                                      |
-| ---------------------------------------------------------------------------------------------------------------- |
-| 2021 年 12 月 13 日 Rainbond 5.5.0 发布 [查看发布文案](https://www.rainbond.com/docs/community/change/5.4.0-5.5.0?channel=github)        |
-
 ## Rainbond 初识
 
 <b>云原生且易用的应用管理平台</b>
@@ -100,6 +96,10 @@ Rainbond 完成与龙芯、飞腾、麒麟操作系统等为代表的国产化�
 <img width="300px" src="https://static.goodrain.com/wechat/WechatQRCode.gif"/>
 
 钉钉搜索群号加入Rainbond技术交流群: `31096419`
+
+添加微信小助手进入Rainbond交流群:
+
+<img width="300px" src="https://static.goodrain.com/wechat/weChat.jpg"/>
 
 ## 参与贡献
 

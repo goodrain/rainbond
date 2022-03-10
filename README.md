@@ -7,10 +7,6 @@
 
 [Website](http://www.rainbond.com?channel=github) • [Documentation](https://www.rainbond.com/docs?channel=github)
 
-| ![notification](./docs/bell-outline-badge.svg) What is NEW!                                                                           |
-| ------------------------------------------------------------------------------------------------------------------------------------- |
-| December 13, 2021 ,Rainbond 5.5.0 version is officially released [View Release](https://www.rainbond.com/docs/community/change/5.4.0-5.5.0?channel=github)        |
-
 ## Rainbond Introduction
 
 <b>Cloud native and easy-to-use application management platform</b>
@@ -55,8 +51,11 @@ Wechat scans the code to join the Rainbond Community Group.
 
 <img width="300px" src="https://static.goodrain.com/wechat/WechatQRCode.gif"/>
 
-
 DingTalk Search Group : 31096419
+
+Add a WeChat assistant to enter the Rainbond Community Group:
+
+<img width="300px" src="https://static.goodrain.com/wechat/weChat.jpg"/>
 
 ## Related repositorys
 
