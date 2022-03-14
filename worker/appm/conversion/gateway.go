@@ -441,8 +441,7 @@ func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *co
 	} else {
 		servicePort.Protocol = "TCP"
 	}
-	servicePort.Name = fmt.Sprintf("%s-%d",
-		strings.ToLower(string(servicePort.Protocol)), port.ContainerPort)
+	servicePort.Name = generateSVCPortName(port.Protocol, port.ContainerPort)
 	servicePort.TargetPort = intstr.FromInt(port.ContainerPort)
 	servicePort.Port = int32(port.MappingPort)
 	if servicePort.Port == 0 {
@@ -478,8 +477,7 @@ func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *co
 	var servicePort corev1.ServicePort
 	servicePort.Protocol = conversionPortProtocol(port.Protocol)
 	servicePort.TargetPort = intstr.FromInt(port.ContainerPort)
-	servicePort.Name = fmt.Sprintf("%s-%d",
-		strings.ToLower(string(servicePort.Protocol)), port.ContainerPort)
+	servicePort.Name = generateSVCPortName(port.Protocol, port.ContainerPort)
 	servicePort.Port = int32(port.ContainerPort)
 	portType := corev1.ServiceTypeClusterIP
 	spec := corev1.ServiceSpec{
@@ -507,8 +505,7 @@ func (a *AppServiceBuild) createStatefulService(ports []*model.TenantServicesPor
 		servicePort.Protocol = "TCP"
 		servicePort.TargetPort = intstr.FromInt(p.ContainerPort)
 		servicePort.Port = int32(p.MappingPort)
-		servicePort.Name = fmt.Sprintf("%s-%d",
-			strings.ToLower(string(servicePort.Protocol)), p.ContainerPort)
+		servicePort.Name = generateSVCPortName(string(servicePort.Protocol), p.ContainerPort)
 		if servicePort.Port == 0 {
 			servicePort.Port = int32(p.ContainerPort)
 		}
@@ -691,4 +688,19 @@ func createBetaIngress(domain, path, name, namespace, serviceName string, labels
 		},
 	}
 	return betaIngress
+}
+
+func generateSVCPortName(protocol string, containerPort int) string {
+	protocols := map[string]struct{}{
+		"http":  {},
+		"https": {},
+		"tcp":   {},
+		"grpc":  {},
+		"udp":   {},
+		"mysql": {},
+	}
+	if _, ok := protocols[strings.ToLower(protocol)]; !ok {
+		protocol = "tcp"
+	}
+	return fmt.Sprintf("%s-%d", strings.ToLower(protocol), containerPort)
 }
