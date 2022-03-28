@@ -546,7 +546,32 @@ func (r *RuntimeServer) listThirdEndpoints(as *v1.AppService) []*v1alpha1.ThirdC
 		return nil
 	}
 
-	return component.Status.Endpoints
+	endpointNameAddr := make(map[string]string)
+	for _, endpoint := range component.Spec.EndpointSource.StaticEndpoints {
+		endpointNameAddr[endpoint.Name] = endpoint.Address
+	}
+	existEndpoints := make(map[string]struct{})
+	var endpointStatuses []*v1alpha1.ThirdComponentEndpointStatus
+	for _, endpoint := range component.Status.Endpoints {
+		if string(endpoint.Address) == "" {
+			if _, ok := endpointNameAddr[endpoint.Name]; !ok {
+				logger.Warningf("The endpoint name [%s] does not have a corresponding address", endpoint.Name)
+				continue
+			}
+			if _, ok := existEndpoints[endpoint.Name]; ok {
+				logger.Warningf("The endpoint name [%s] exists, ignore it", endpoint.Name)
+				continue
+			}
+			existEndpoints[endpoint.Name] = struct{}{}
+		}
+		endpointStatuses = append(endpointStatuses, &v1alpha1.ThirdComponentEndpointStatus{
+			Name:    endpoint.Name,
+			Address: v1alpha1.EndpointAddress(endpointNameAddr[endpoint.Name]),
+			Status:  endpoint.Status,
+		})
+	}
+
+	return endpointStatuses
 }
 
 // AddThirdPartyEndpoint creates a create event.
