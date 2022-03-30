@@ -564,11 +564,15 @@ func (r *RuntimeServer) listThirdEndpoints(as *v1.AppService) []*v1alpha1.ThirdC
 			}
 			existEndpoints[endpoint.Name] = struct{}{}
 		}
-		endpointStatuses = append(endpointStatuses, &v1alpha1.ThirdComponentEndpointStatus{
+		endPointStatus := &v1alpha1.ThirdComponentEndpointStatus{
 			Name:    endpoint.Name,
 			Address: v1alpha1.EndpointAddress(endpointNameAddr[endpoint.Name]),
 			Status:  endpoint.Status,
-		})
+		}
+		if component.Spec.EndpointSource.KubernetesService != nil {
+			endPointStatus.Address = endpoint.Address
+		}
+		endpointStatuses = append(endpointStatuses, endPointStatus)
 	}
 
 	return endpointStatuses
