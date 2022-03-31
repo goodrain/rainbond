@@ -1013,7 +1013,7 @@ func (g *GatewayAction) SyncTCPRules(tx *gorm.DB, components []*apimodel.Compone
 		tcpRules     []*model.TCPRule
 	)
 	for _, component := range components {
-		if component.TCPRules == nil {
+		if len(component.TCPRules) == 0 {
 			continue
 		}
 		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
