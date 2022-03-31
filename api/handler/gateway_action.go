@@ -940,7 +940,7 @@ func (g *GatewayAction) SyncHTTPRules(tx *gorm.DB, components []*apimodel.Compon
 		httpRuleRewrites []*model.HTTPRuleRewrite
 	)
 	for _, component := range components {
-		if component.HTTPRules == nil {
+		if len(component.HTTPRules) == 0 {
 			continue
 		}
 		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
