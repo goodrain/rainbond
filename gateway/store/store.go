@@ -93,8 +93,6 @@ type Storer interface {
 
 	ListIngresses() interface{}
 
-	GetIngressAnnotations(key string) (*annotations.Ingress, error)
-
 	// Run initiates the synchronization of the controllers
 	Run(stopCh chan struct{})
 
@@ -197,25 +195,9 @@ func New(client kubernetes.Interface,
 
 	ingEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			nwkIngress, ok := obj.(*networkingv1.Ingress)
-			if ok {
-				// updating annotations information for ingress
-				store.extractAnnotations(nwkIngress)
-				store.secretIngressMap.update(nwkIngress)
-				store.syncSecrets(nwkIngress)
-
-			} else {
-				betaIngress, ok := obj.(*betav1.Ingress)
-				if ok {
-					// updating annotations information for ingress
-					store.extractAnnotations(betaIngress)
-					store.secretIngressMap.update(betaIngress)
-					// synchronizes data from all Secrets referenced by the given Ingress with the local store and file system.
-					// takes an Ingress and updates all Secret objects it references in secretIngressMap.
-					store.syncSecrets(betaIngress)
-
-				}
-			}
+			store.extractAnnotations(obj)
+			store.secretIngressMap.update(obj)
+			store.syncSecrets(obj)
 
 			updateCh.In() <- Event{
 				Type: CreateEvent,
@@ -509,12 +491,12 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 		if !s.ingressIsValid(item) {
 			continue
 		}
-		var ingName, ingNamespace, ingKey, ingServiceName string
+		var ingName, ingNamespace, ingServiceName string
 		isBetaIngress := false
+		var anns *annotations.Ingress
 		if ing, ok := item.(*networkingv1.Ingress); ok {
 			ingName = ing.Name
 			ingNamespace = ing.Namespace
-			ingKey = ik8s.MetaNamespaceKey(ing)
 			if ing.Spec.DefaultBackend == nil && ing.Spec.Rules != nil && len(ing.Spec.Rules) > 0 {
 				paths := ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths
 				if len(paths) == 0 {
@@ -525,11 +507,11 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			} else {
 				ingServiceName = ing.Spec.DefaultBackend.Service.Name
 			}
+			anns = s.annotations.Extract(&ing.ObjectMeta)
 		} else {
 			if ing, ok := item.(*betav1.Ingress); ok {
 				ingName = ing.Name
 				ingNamespace = ing.Namespace
-				ingKey = ik8s.MetaNamespaceKey(ing)
 				isBetaIngress = true
 				if ing.Spec.Backend == nil && ing.Spec.Rules != nil && len(ing.Spec.Rules) > 0 {
 					paths := ing.Spec.Rules[0].IngressRuleValue.HTTP.Paths
@@ -542,11 +524,7 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 					ingServiceName = ing.Spec.Backend.ServiceName
 				}
 			}
-		}
-		anns, err := s.GetIngressAnnotations(ingKey)
-		if err != nil {
-			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
-			continue
+			anns = s.annotations.Extract(&ing.ObjectMeta)
 		}
 		if anns.L4.L4Enable && anns.L4.L4Port != 0 {
 			// region l4
@@ -850,19 +828,14 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 			continue
 		}
 
-		var ingKey string
 		isBetaIngress := false
+		var anns *annotations.Ingress
 		if ing, ok := item.(*networkingv1.Ingress); ok {
-			ingKey = ik8s.MetaNamespaceKey(ing)
+			anns = s.annotations.Extract(&ing.ObjectMeta)
 		}
 		if ing, ok := item.(*betav1.Ingress); ok {
-			ingKey = ik8s.MetaNamespaceKey(ing)
 			isBetaIngress = true
-		}
-
-		anns, err := s.GetIngressAnnotations(ingKey)
-		if err != nil {
-			logrus.Errorf("Error getting Ingress annotations %q: %v", ingKey, err)
+			anns = s.annotations.Extract(&ing.ObjectMeta)
 		}
 
 		if !anns.Rewrite.ForceSSLRedirect {
@@ -1070,16 +1043,6 @@ func (s *k8sStore) GetServiceProtocol(key string, port int32) corev1.Protocol {
 	}
 
 	return corev1.ProtocolTCP
-}
-
-// GetIngressAnnotations returns the parsed annotations of an Ingress matching key.
-func (s k8sStore) GetIngressAnnotations(key string) (*annotations.Ingress, error) {
-	ia, err := s.listers.IngressAnnotation.ByKey(key)
-	if err != nil {
-		return &annotations.Ingress{}, err
-	}
-
-	return ia, nil
 }
 
 // Run initiates the synchronization of the informers.
