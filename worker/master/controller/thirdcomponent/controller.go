@@ -125,7 +125,19 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr e
 		r.updateStatus(ctx, component)
 		return ctrl.Result{}, nil
 	}
-
+	isUnhealthy := false
+	for _, c := range component.Status.Endpoints {
+		if c.Status == "Unhealthy" {
+			isUnhealthy = true
+			break
+		}
+	}
+	if isUnhealthy {
+		component.Status.Phase = v1alpha1.ComponentFailed
+		component.Status.Reason = "endpoints has Unhealthy"
+		r.updateStatus(ctx, component)
+		return ctrl.Result{}, nil
+	}
 	// create endpoints for service
 	if len(component.Spec.Ports) > 0 && len(component.Status.Endpoints) > 0 {
 		var services corev1.ServiceList
