@@ -116,7 +116,6 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 		as.SetDiscoveryCfg(disCfg)
 		return nil
 	}
-
 	if tenantService.Kind == dbmodel.ServiceKindCustom.String() {
 		return nil
 	}

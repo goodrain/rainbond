@@ -7,6 +7,8 @@ const (
 	GovernanceModeKubernetesNativeService = "KUBERNETES_NATIVE_SERVICE"
 	// GovernanceModeIstioServiceMesh means the governance mode is ISTIO_SERVICE_MESH
 	GovernanceModeIstioServiceMesh = "ISTIO_SERVICE_MESH"
+	// GovernanceModeLinkerdServiceMesh means the governance mode is LINKERD_SERVICE_MESH
+	GovernanceModeLinkerdServiceMesh = "LINKERD_SERVICE_MESH"
 )
 
 // app type

@@ -21,6 +21,8 @@ func NewAppGoveranceModeHandler(governanceMode string, kubeClient clientset.Inte
 		return NewBuildInServiceMeshMode(), nil
 	case model.GovernanceModeKubernetesNativeService:
 		return NewKubernetesNativeMode(), nil
+	case model.GovernanceModeLinkerdServiceMesh:
+		return NewLinkerdGoveranceMode(kubeClient), nil
 	default:
 		return nil, bcode.ErrInvalidGovernanceMode
 	}
@@ -34,6 +36,8 @@ func IsGovernanceModeValid(governanceMode string) bool {
 	case model.GovernanceModeKubernetesNativeService:
 		return true
 	case model.GovernanceModeIstioServiceMesh:
+		return true
+	case model.GovernanceModeLinkerdServiceMesh:
 		return true
 	}
 	return false
