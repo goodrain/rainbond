@@ -523,8 +523,8 @@ func (s *k8sStore) ListVirtualService() (l7vs []*v1.VirtualService, l4vs []*v1.V
 				} else {
 					ingServiceName = ing.Spec.Backend.ServiceName
 				}
+				anns = s.annotations.Extract(&ing.ObjectMeta)
 			}
-			anns = s.annotations.Extract(&ing.ObjectMeta)
 		}
 		if anns.L4.L4Enable && anns.L4.L4Port != 0 {
 			// region l4
