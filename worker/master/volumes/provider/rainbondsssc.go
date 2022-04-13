@@ -185,6 +185,8 @@ func updatePathForPersistentVolumeSource(persistentVolumeSource *v1.PersistentVo
 			Path: newPath(persistentVolumeSource.HostPath.Path),
 			Type: persistentVolumeSource.HostPath.Type,
 		}
+	case persistentVolumeSource.CSI != nil :
+		source.CSI = persistentVolumeSource.CSI
 	default:
 		return nil, fmt.Errorf("unsupported persistence volume source")
 	}
