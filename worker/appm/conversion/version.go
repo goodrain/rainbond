@@ -330,6 +330,11 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 			FieldPath: "status.podIP",
 		},
 	}})
+	envs = append(envs, corev1.EnvVar{Name: "POD_NAME", ValueFrom: &corev1.EnvVarSource{
+		FieldRef: &corev1.ObjectFieldSelector{
+			FieldPath: "metadata.name",
+		},
+	}})
 	var config = make(map[string]string, len(envs))
 	for _, sec := range envVarSecrets {
 		for k, v := range sec.Data {
