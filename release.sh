@@ -4,7 +4,7 @@ set -o errexit
 # define package name
 WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
-IMAGE_BASE_NAME=${BUILD_IMAGE_BASE_NAME:-'rainbond'}
+IMAGE_BASE_NAME=${IMAGE_NAMESPACE:-'rainbond'}
 DOMESTIC_NAMESPACE=${DOMESTIC_NAMESPACE:-'goodrain'}
 GOARCH=${BUILD_GOARCH:-'amd64'}
 
