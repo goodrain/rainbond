@@ -113,6 +113,22 @@ func conversionThirdComponent(obj runtime.Object) *v1alpha1.ThirdComponent {
 
 //GetServiceStatus get service status
 func (a *AppService) GetServiceStatus() string {
+	if a.IsThirdComponent() {
+		endpoints := a.GetEndpoints(false)
+		if len(endpoints) == 0 {
+			return CLOSED
+		}
+		var readyEndpointSize int
+		for _, ed := range endpoints {
+			for _, s := range ed.Subsets {
+				readyEndpointSize += len(s.Addresses)
+			}
+		}
+		if readyEndpointSize > 0 {
+			return RUNNING
+		}
+		return ABNORMAL
+	}
 	//TODO: support custom component status
 	if a.IsCustomComponent() {
 		if a.workload != nil {
@@ -135,22 +151,6 @@ func (a *AppService) GetServiceStatus() string {
 			}
 		}
 		return CLOSED
-	}
-	if a.IsThirdComponent() {
-		endpoints := a.GetEndpoints(false)
-		if len(endpoints) == 0 {
-			return CLOSED
-		}
-		var readyEndpointSize int
-		for _, ed := range endpoints {
-			for _, s := range ed.Subsets {
-				readyEndpointSize += len(s.Addresses)
-			}
-		}
-		if readyEndpointSize > 0 {
-			return RUNNING
-		}
-		return ABNORMAL
 	}
 	if a == nil {
 		return CLOSED

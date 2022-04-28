@@ -2,7 +2,7 @@ name: pr-ci-build
 
 on:
   pull_request:
-    branches: [master, V5.3, V5.4]
+    branches: [master, V5.3, V5.4, fixbug-560]
 
 jobs:
   build:
@@ -21,12 +21,12 @@ jobs:
       - name: Go-linter
         run: ./check.sh
 
-      - name: SonarQube Scan
-        uses: kitabisa/sonarqube-action@v1.1.0
-        with:
-          host: ${{ secrets.SONARQUBE_HOST }}
-          login: ${{ secrets.SONARQUBE_TOKEN }}
-          projectName: rainbond
+#       - name: SonarQube Scan
+#         uses: kitabisa/sonarqube-action@v1.1.0
+#         with:
+#           host: ${{ secrets.SONARQUBE_HOST }}
+#           login: ${{ secrets.SONARQUBE_TOKEN }}
+#           projectName: rainbond
 
       - name: Build the Docker image
         env:

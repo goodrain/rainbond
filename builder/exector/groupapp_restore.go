@@ -277,9 +277,11 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 					// before version 5.0.4, path name is pvc name, eg manual16-grcaa708-0
 					if len(newNameTmp) == 3 {
 						newNameTmp[1] = b.serviceChange[b.getOldServiceID(app.ServiceID)].ServiceAlias
-						oldVolumeID, _ := strconv.Atoi(newNameTmp[0][6:])
-						if oldVolumeID > 0 {
-							newNameTmp[0] = fmt.Sprintf("manual%d", b.volumeIDMap[uint(oldVolumeID)])
+						if len(newNameTmp[0]) > 6 {
+							oldVolumeID, _ := strconv.Atoi(newNameTmp[0][6:])
+							if oldVolumeID > 0 {
+								newNameTmp[0] = fmt.Sprintf("manual%d", b.volumeIDMap[uint(oldVolumeID)])
+							}
 						}
 					}
 					newName := strings.Join(newNameTmp, "-")
