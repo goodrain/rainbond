@@ -19,7 +19,7 @@ jobs:
           IMAGE_NAMESPACE: ${{ secrets.IMAGE_NAMESPACE }}
           VERSION: ${{ github.event.client_payload.version }}
         run: |
-          if ${{ github.event.action }} == 'GitHub';then
+          if [ ${{ github.event.action }} == 'GitHub' ];then
             git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-ui.git        
           else
             git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-ui-cloud.git        
@@ -54,7 +54,7 @@ jobs:
           IMAGE_NAMESPACE: ${{ secrets.IMAGE_NAMESPACE }}
           DOMESTIC_BASE_NAME: ${{ secrets.DOMESTIC_BASE_NAME }}
         run: |
-          if ${{ github.event.action }} == 'GitHub';then
+          if [ ${{ github.event.action }} == 'GitHub' ];then
             git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console.git       
           else
             git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console-cloud.git  
@@ -87,7 +87,7 @@ jobs:
           DOMESTIC_DOCKER_USERNAME: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
           DOMESTIC_NAMESPACE: ${{ secrets.DOMESTIC_NAMESPACE }}
         run: |
-          if ${{ github.event.action }} == 'GitHub';then
+          if [ ${{ github.event.action }} == 'GitHub' ];then
             git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git    
           else
             git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git 
