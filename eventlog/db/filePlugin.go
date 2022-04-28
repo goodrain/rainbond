@@ -35,6 +35,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type ByteUnit int64
+
+const (
+	B  ByteUnit = 1
+	KB          = 1000 * B
+	MB          = 1000 * KB
+)
+
 type filePlugin struct {
 	homePath string
 }
@@ -59,16 +67,23 @@ func (m *filePlugin) SaveMessage(events []*EventLogMessage) error {
 	if len(events) == 0 {
 		return nil
 	}
+	logMaxSize := 10 * MB
+	if os.Getenv("LOG_MAX_SIZE") != "" {
+		if size, err := strconv.Atoi(os.Getenv("LOG_MAX_SIZE")); err == nil {
+			logMaxSize = ByteUnit(size) * MB
+		}
+	}
 	key := events[0].EventID
 	var logfile *os.File
 	filePathDir, err := m.getStdFilePath(key)
 	if err != nil {
 		return err
 	}
-	logFile, err := os.Stat(path.Join(filePathDir, "stdout.log"))
+	stdoutLogPath := path.Join(filePathDir, "stdout.log")
+	logFile, err := os.Stat(stdoutLogPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logfile, err = os.Create(path.Join(filePathDir, "stdout.log"))
+			logfile, err = os.Create(stdoutLogPath)
 			if err != nil {
 				return err
 			}
@@ -78,30 +93,54 @@ func (m *filePlugin) SaveMessage(events []*EventLogMessage) error {
 		}
 	} else {
 		if logFile.ModTime().Day() != time.Now().Day() {
-			err := MvLogFile(fmt.Sprintf("%s/%d-%d-%d.log.gz", filePathDir, logFile.ModTime().Year(), logFile.ModTime().Month(), logFile.ModTime().Day()), path.Join(filePathDir, "stdout.log"))
+			err := MvLogFile(fmt.Sprintf("%s/%d-%d-%d.log.gz", filePathDir, logFile.ModTime().Year(), logFile.ModTime().Month(), logFile.ModTime().Day()), stdoutLogPath)
 			if err != nil {
 				return err
 			}
 		}
 	}
 	if logfile == nil {
-		logfile, err = os.OpenFile(path.Join(filePathDir, "stdout.log"), os.O_WRONLY|os.O_APPEND, 0666)
+		logfile, err = os.OpenFile(stdoutLogPath, os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
 			return err
 		}
-		defer logfile.Close()
+		if logfile != nil {
+			defer logfile.Close()
+		}
 	} else {
-		defer logfile.Close()
+		if logfile != nil {
+			defer logfile.Close()
+		}
 	}
-	var contant [][]byte
+
+	var content [][]byte
 	for _, e := range events {
-		contant = append(contant, e.Content)
+		content = append(content, e.Content)
 	}
-	body := bytes.Join(contant, []byte("\n"))
+	body := bytes.Join(content, []byte("\n"))
 	body = append(body, []byte("\n")...)
+	if logFile != nil && logFile.Size() > int64(logMaxSize) {
+		legacyLogPath := path.Join(filePathDir, "stdout-legacy.log")
+		err = os.Rename(stdoutLogPath, legacyLogPath)
+		if err != nil {
+			logrus.Errorf("[Savemessage]: Rename %v to %v failed %v", stdoutLogPath, legacyLogPath, err)
+			return err
+		}
+		if logfile != nil {
+			logfile.Close()
+		}
+		logfile, err = os.OpenFile(stdoutLogPath, os.O_WRONLY|os.O_CREATE, 0666)
+		if err != nil {
+			return err
+		}
+		logrus.Debugf("[SaveMessage]: Old log file size %v, Write content size %v", logFile.Size(), len(body))
+		_, err = logfile.Write(body)
+		return err
+	}
 	_, err = logfile.Write(body)
 	return err
 }
+
 func (m *filePlugin) GetMessages(serviceID, level string, length int) (interface{}, error) {
 	if length <= 0 {
 		return nil, nil

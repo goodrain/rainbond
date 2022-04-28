@@ -292,9 +292,8 @@ func (s *storeManager) cleanLog() {
 
 func (s *storeManager) deleteFile(filename string) error {
 	now := time.Now()
-	if strings.HasSuffix(filename, "stdout.log") {
+	if strings.HasSuffix(filename, "stdout.log") || strings.HasSuffix(filename, "stdout-legacy.log") {
 		return nil
-
 	}
 	name := filepath.Base(filename)
 	lis := strings.Split(name, ".")
