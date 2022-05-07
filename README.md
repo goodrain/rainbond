@@ -55,7 +55,7 @@ registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v5.6.0-dind-allinone \
 
 ## 快速开始
 
-1. [Rainbond 简介](https://www.rainbond.com/docs/)
+1. [Rainbond 简介](https://www.rainbond.com)
 2. [创建第一个应用（组件）](https://www.rainbond.com/docs/use-manual/component-create/creation-process?channel=github)
 
 ## 视频教程
