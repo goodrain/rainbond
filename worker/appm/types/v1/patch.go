@@ -117,6 +117,9 @@ func (e *EncodeNode) MarshalJSON() ([]byte, error) {
 		buffer.WriteByte('}')
 		return buffer.Bytes(), nil
 	}
+	if e.body != nil {
+		return e.body, nil
+	}
 	return nil, fmt.Errorf("marshal error")
 }
 
@@ -152,31 +155,95 @@ func getChange(old, new EncodeNode) *EncodeNode {
 			result.Field[k] = *value
 		}
 	}
+
+	// keep the modifies of removed field
+	for k, v := range old.Field {
+		if _, ok := new.Field[k]; !ok {
+			if result.Field == nil {
+				result.Field = make(map[string]EncodeNode)
+			}
+			if _, ok := result.Field[k]; !ok {
+				if v.body[0] == '[' {
+					result.Field[k] = EncodeNode{
+						body: []byte("[]"),
+					}
+				} else {
+					result.Field[k] = EncodeNode{
+						body: []byte("\"\""),
+					}
+				}
+			}
+		}
+	}
+
 	return &result
 }
 
 //stateful label can not be patch
 func getStatefulsetModifiedConfiguration(old, new *v1.StatefulSet) ([]byte, error) {
 	old.Status = new.Status
-	oldNeed := getAllowFields(old)
-	newNeed := getAllowFields(new)
+	oldNeed := getStatefulsetAllowFields(old)
+	newNeed := getStatefulsetAllowFields(new)
 	return getchange(oldNeed, newNeed)
 }
 
 // updates to statefulset spec for fields other than 'replicas', 'template', and 'updateStrategy' are forbidden.
-func getAllowFields(s *v1.StatefulSet) *v1.StatefulSet {
+func getStatefulsetAllowFields(s *v1.StatefulSet) *v1.StatefulSet {
 	return &v1.StatefulSet{
 		Spec: v1.StatefulSetSpec{
-			Replicas:       s.Spec.Replicas,
-			Template:       s.Spec.Template,
+			Replicas: s.Spec.Replicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Volumes:          s.Spec.Template.Spec.Volumes,
+					InitContainers:   s.Spec.Template.Spec.InitContainers,
+					Containers:       s.Spec.Template.Spec.Containers,
+					ImagePullSecrets: s.Spec.Template.Spec.ImagePullSecrets,
+					NodeSelector:     s.Spec.Template.Spec.NodeSelector,
+					Tolerations:      s.Spec.Template.Spec.Tolerations,
+					Affinity:         s.Spec.Template.Spec.Affinity,
+					HostAliases:      s.Spec.Template.Spec.HostAliases,
+					Hostname:         s.Spec.Template.Spec.Hostname,
+					NodeName:         s.Spec.Template.Spec.NodeName,
+					HostNetwork:      s.Spec.Template.Spec.HostNetwork,
+					SchedulerName:    s.Spec.Template.Spec.SchedulerName,
+				},
+			},
 			UpdateStrategy: s.Spec.UpdateStrategy,
 		},
 	}
 }
 
+//deployment label can not be patch
 func getDeploymentModifiedConfiguration(old, new *v1.Deployment) ([]byte, error) {
 	old.Status = new.Status
-	return getchange(old, new)
+	oldNeed := getDeploymentAllowFields(old)
+	newNeed := getDeploymentAllowFields(new)
+	return getchange(oldNeed, newNeed)
+}
+
+// updates to deployment spec for fields other than 'replicas' and 'template' are forbidden.
+func getDeploymentAllowFields(d *v1.Deployment) *v1.Deployment {
+	return &v1.Deployment{
+		Spec: v1.DeploymentSpec{
+			Replicas: d.Spec.Replicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Volumes:          d.Spec.Template.Spec.Volumes,
+					InitContainers:   d.Spec.Template.Spec.InitContainers,
+					Containers:       d.Spec.Template.Spec.Containers,
+					ImagePullSecrets: d.Spec.Template.Spec.ImagePullSecrets,
+					NodeSelector:     d.Spec.Template.Spec.NodeSelector,
+					Tolerations:      d.Spec.Template.Spec.Tolerations,
+					Affinity:         d.Spec.Template.Spec.Affinity,
+					HostAliases:      d.Spec.Template.Spec.HostAliases,
+					Hostname:         d.Spec.Template.Spec.Hostname,
+					NodeName:         d.Spec.Template.Spec.NodeName,
+					HostNetwork:      d.Spec.Template.Spec.HostNetwork,
+					SchedulerName:    d.Spec.Template.Spec.SchedulerName,
+				},
+			},
+		},
+	}
 }
 
 func getchange(old, new interface{}) ([]byte, error) {
