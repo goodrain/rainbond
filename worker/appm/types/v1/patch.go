@@ -117,7 +117,7 @@ func (e *EncodeNode) MarshalJSON() ([]byte, error) {
 		buffer.WriteByte('}')
 		return buffer.Bytes(), nil
 	}
-	return nil, fmt.Errorf("marshal error")
+	return []byte("[]"), nil
 }
 
 //Contrast Compare value
@@ -152,31 +152,69 @@ func getChange(old, new EncodeNode) *EncodeNode {
 			result.Field[k] = *value
 		}
 	}
+
+	// keep the modifies of removed field
+	for k := range old.Field {
+		if _, ok := new.Field[k]; !ok {
+			if result.Field == nil {
+				result.Field = make(map[string]EncodeNode)
+			}
+			if _, ok := result.Field[k]; !ok {
+				result.Field[k] = EncodeNode{}
+			}
+		}
+	}
+
 	return &result
 }
 
 //stateful label can not be patch
 func getStatefulsetModifiedConfiguration(old, new *v1.StatefulSet) ([]byte, error) {
 	old.Status = new.Status
-	oldNeed := getAllowFields(old)
-	newNeed := getAllowFields(new)
+	oldNeed := getStatefulsetAllowFields(old)
+	newNeed := getStatefulsetAllowFields(new)
 	return getchange(oldNeed, newNeed)
 }
 
 // updates to statefulset spec for fields other than 'replicas', 'template', and 'updateStrategy' are forbidden.
-func getAllowFields(s *v1.StatefulSet) *v1.StatefulSet {
+func getStatefulsetAllowFields(s *v1.StatefulSet) *v1.StatefulSet {
 	return &v1.StatefulSet{
 		Spec: v1.StatefulSetSpec{
-			Replicas:       s.Spec.Replicas,
-			Template:       s.Spec.Template,
+			Replicas: s.Spec.Replicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					InitContainers: s.Spec.Template.Spec.InitContainers,
+					Containers:     s.Spec.Template.Spec.Containers,
+					Volumes:        s.Spec.Template.Spec.Volumes,
+				},
+			},
 			UpdateStrategy: s.Spec.UpdateStrategy,
 		},
 	}
 }
 
+//deployment label can not be patch
 func getDeploymentModifiedConfiguration(old, new *v1.Deployment) ([]byte, error) {
 	old.Status = new.Status
-	return getchange(old, new)
+	oldNeed := getDeploymentAllowFields(old)
+	newNeed := getDeploymentAllowFields(new)
+	return getchange(oldNeed, newNeed)
+}
+
+// updates to deployment spec for fields other than 'replicas' and 'template' are forbidden.
+func getDeploymentAllowFields(d *v1.Deployment) *v1.Deployment {
+	return &v1.Deployment{
+		Spec: v1.DeploymentSpec{
+			Replicas: d.Spec.Replicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					InitContainers: d.Spec.Template.Spec.InitContainers,
+					Containers:     d.Spec.Template.Spec.Containers,
+					Volumes:        d.Spec.Template.Spec.Volumes,
+				},
+			},
+		},
+	}
 }
 
 func getchange(old, new interface{}) ([]byte, error) {
