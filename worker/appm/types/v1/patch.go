@@ -117,7 +117,10 @@ func (e *EncodeNode) MarshalJSON() ([]byte, error) {
 		buffer.WriteByte('}')
 		return buffer.Bytes(), nil
 	}
-	return []byte("[]"), nil
+	if e.body != nil {
+		return e.body, nil
+	}
+	return nil, fmt.Errorf("marshal error")
 }
 
 //Contrast Compare value
@@ -154,13 +157,21 @@ func getChange(old, new EncodeNode) *EncodeNode {
 	}
 
 	// keep the modifies of removed field
-	for k := range old.Field {
+	for k, v := range old.Field {
 		if _, ok := new.Field[k]; !ok {
 			if result.Field == nil {
 				result.Field = make(map[string]EncodeNode)
 			}
 			if _, ok := result.Field[k]; !ok {
-				result.Field[k] = EncodeNode{}
+				if v.body[0] == '[' {
+					result.Field[k] = EncodeNode{
+						body: []byte("[]"),
+					}
+				} else {
+					result.Field[k] = EncodeNode{
+						body: []byte("\"\""),
+					}
+				}
 			}
 		}
 	}
@@ -183,9 +194,18 @@ func getStatefulsetAllowFields(s *v1.StatefulSet) *v1.StatefulSet {
 			Replicas: s.Spec.Replicas,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					InitContainers: s.Spec.Template.Spec.InitContainers,
-					Containers:     s.Spec.Template.Spec.Containers,
-					Volumes:        s.Spec.Template.Spec.Volumes,
+					Volumes:          s.Spec.Template.Spec.Volumes,
+					InitContainers:   s.Spec.Template.Spec.InitContainers,
+					Containers:       s.Spec.Template.Spec.Containers,
+					ImagePullSecrets: s.Spec.Template.Spec.ImagePullSecrets,
+					NodeSelector:     s.Spec.Template.Spec.NodeSelector,
+					Tolerations:      s.Spec.Template.Spec.Tolerations,
+					Affinity:         s.Spec.Template.Spec.Affinity,
+					HostAliases:      s.Spec.Template.Spec.HostAliases,
+					Hostname:         s.Spec.Template.Spec.Hostname,
+					NodeName:         s.Spec.Template.Spec.NodeName,
+					HostNetwork:      s.Spec.Template.Spec.HostNetwork,
+					SchedulerName:    s.Spec.Template.Spec.SchedulerName,
 				},
 			},
 			UpdateStrategy: s.Spec.UpdateStrategy,
@@ -208,9 +228,18 @@ func getDeploymentAllowFields(d *v1.Deployment) *v1.Deployment {
 			Replicas: d.Spec.Replicas,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					InitContainers: d.Spec.Template.Spec.InitContainers,
-					Containers:     d.Spec.Template.Spec.Containers,
-					Volumes:        d.Spec.Template.Spec.Volumes,
+					Volumes:          d.Spec.Template.Spec.Volumes,
+					InitContainers:   d.Spec.Template.Spec.InitContainers,
+					Containers:       d.Spec.Template.Spec.Containers,
+					ImagePullSecrets: d.Spec.Template.Spec.ImagePullSecrets,
+					NodeSelector:     d.Spec.Template.Spec.NodeSelector,
+					Tolerations:      d.Spec.Template.Spec.Tolerations,
+					Affinity:         d.Spec.Template.Spec.Affinity,
+					HostAliases:      d.Spec.Template.Spec.HostAliases,
+					Hostname:         d.Spec.Template.Spec.Hostname,
+					NodeName:         d.Spec.Template.Spec.NodeName,
+					HostNetwork:      d.Spec.Template.Spec.HostNetwork,
+					SchedulerName:    d.Spec.Template.Spec.SchedulerName,
 				},
 			},
 		},
