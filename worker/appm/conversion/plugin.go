@@ -107,7 +107,10 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 				},
 			})
 		}
-		args, err := createPluginArgs(versionInfo.ContainerCMD, *envs)
+		args := make([]string, 0)
+		if len(versionInfo.ContainerCMD) > 0 {
+			args = []string{"/bin/sh", "-c", versionInfo.ContainerCMD}
+		}
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -374,16 +377,6 @@ func getPluginModel(pluginID, tenantID string, dbmanager db.Manager) (string, er
 	return plugin.PluginModel, nil
 }
 
-func createPluginArgs(cmd string, envs []v1.EnvVar) ([]string, error) {
-	if cmd == "" {
-		return nil, nil
-	}
-	configs := make(map[string]string, len(envs))
-	for _, env := range envs {
-		configs[env.Name] = env.Value
-	}
-	return strings.Split(util.ParseVariable(cmd, configs), " "), nil
-}
 func getXDSHostIPAndPort() (string, string, string) {
 	xdsHost := ""
 	xdsHostPort := "6101"
