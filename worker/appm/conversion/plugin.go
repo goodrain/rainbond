@@ -107,13 +107,7 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 				},
 			})
 		}
-		args := make([]string, 0)
-		if len(versionInfo.ContainerCMD) > 0 {
-			args = []string{"/bin/sh", "-c", versionInfo.ContainerCMD}
-		}
-		if err != nil {
-			return nil, nil, nil, err
-		}
+
 		pc := v1.Container{
 			Name:                   "plugin-" + pluginR.PluginID,
 			Image:                  versionInfo.BuildLocalImage,
@@ -121,9 +115,14 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 			EnvFrom:                envFromSecrets,
 			Resources:              createPluginResources(pluginR.ContainerMemory, pluginR.ContainerCPU),
 			TerminationMessagePath: "",
-			Args:                   args,
 			VolumeMounts:           mainContainer.VolumeMounts,
 		}
+		
+		if len(versionInfo.ContainerCMD) > 0 {
+			pc.Command = []string{"/bin/sh", "-c"}
+			pc.Args = []string{versionInfo.ContainerCMD}
+		}
+
 		pluginModel, err := getPluginModel(pluginR.PluginID, as.TenantID, dbmanager)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("get plugin model info failure %s", err.Error())
