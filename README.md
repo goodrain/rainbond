@@ -52,6 +52,9 @@ registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v5.6.0-dind-allinone \
 && docker logs -f rainbond-allinone
 ```
 
+## 在线体验
+
+您可访问[试用环境](http://demo.c9f961.grapps.cn/)在线体验平台功能。由于资源有限，您仅有查看权限。如需体验更多功能，请自行部署尝试。
 
 ## 快速开始
 
@@ -61,6 +64,8 @@ registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v5.6.0-dind-allinone \
 ## 视频教程
 1. [Rainbond 安装系列合集](https://www.bilibili.com/video/BV1Vq4y1w7FQ?spm_id_from=333.999.0.0)
 2. [Rainbond 入门教程](https://www.bilibili.com/video/BV1ou411B7ix?spm_id_from=333.999.0.0)
+3. [Rainbond 实现一体化开发环境](https://www.bilibili.com/video/BV1vS4y1w7ps)
+4. [Rainbond 实现企业应用统一管理](https://www.bilibili.com/video/BV1rB4y197X4)
 
 ## 参与社区
 

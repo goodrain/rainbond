@@ -2,7 +2,7 @@ name: commit-ci-build
 
 on:
   push:
-    branches: [master, V5.3, V5.4]
+    branches: [main, V5.*, fixbug*, Develop*]
 
 jobs:
   build:
@@ -14,12 +14,13 @@ jobs:
         with:
           # The Go version to download (if necessary) and use. Supports semver spec and ranges.
           go-version: 1.13
-      - name: SonarQube Scan
-        uses: kitabisa/sonarqube-action@v1.1.0
-        with:
-          host: ${{ secrets.SONARQUBE_HOST }}
-          login: ${{ secrets.SONARQUBE_TOKEN }}
-          projectName: rainbond
+
+#      - name: SonarQube Scan
+#        uses: kitabisa/sonarqube-action@v1.1.0
+#        with:
+#          host: ${{ secrets.SONARQUBE_HOST }}
+#          login: ${{ secrets.SONARQUBE_TOKEN }}
+#          projectName: rainbond
 
       - name: Extract branch name
         shell: bash
