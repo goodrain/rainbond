@@ -51,6 +51,9 @@ registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v5.6.0-dind-allinone \
 && docker logs -f rainbond-allinone
 ```
 
+## Online experience
+
+You can access the [trial environment](http://demo.c9f961.grapps.cn/) online experience platform function. Due to limited resources, you only have view permission. If you need to experience more functions, please deploy it yourself.
 
 ## Quick start
 
@@ -61,6 +64,8 @@ registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v5.6.0-dind-allinone \
 
 1. [Rainbond Installation series collection](https://www.bilibili.com/video/BV1Vq4y1w7FQ?spm_id_from=333.999.0.0)
 2. [Rainbond Introductory tutorial](https://www.bilibili.com/video/BV1ou411B7ix?spm_id_from=333.999.0.0)
+3. [Rainbond Realize integrated development environment](https://www.bilibili.com/video/BV1vS4y1w7ps)
+4. [Rainbond Realize unified management of enterprise applications](https://www.bilibili.com/video/BV1rB4y197X4)
 
 ## Participating communities
 
