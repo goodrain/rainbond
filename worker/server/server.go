@@ -227,11 +227,15 @@ func (r *RuntimeServer) GetTenantResource(ctx context.Context, re *pb.TenantRequ
 	}
 	res := r.store.GetTenantResource(tenant.Namespace)
 	runningApps := r.store.GetTenantRunningApp(re.TenantId)
+	runningApplications := make(map[string]struct{})
 	for _, app := range runningApps {
 		if app.ServiceKind == model.ServiceKindThirdParty {
 			tr.RunningAppThirdNum++
 		} else if app.ServiceKind == model.ServiceKindInternal {
 			tr.RunningAppInternalNum++
+		}
+		if _, ok := runningApplications[app.AppID]; !ok {
+			runningApplications[app.AppID] = struct{}{}
 		}
 	}
 	tr.RunningAppNum = int64(len(runningApps))
@@ -239,6 +243,7 @@ func (r *RuntimeServer) GetTenantResource(ctx context.Context, re *pb.TenantRequ
 	tr.CpuRequest = res.CPURequest
 	tr.MemoryLimit = res.MemoryLimit / 1024 / 1024
 	tr.MemoryRequest = res.MemoryRequest / 1024 / 1024
+	tr.RunningApplications = int64(len(runningApplications))
 	return &tr, nil
 }
 
@@ -249,13 +254,18 @@ func (r *RuntimeServer) GetTenantResources(context.Context, *pb.Empty) (*pb.Tena
 	for _, re := range res {
 		var tr pb.TenantResource
 		runningApps := r.store.GetTenantRunningApp(re.Namespace)
+		runningApplications := make(map[string]struct{})
 		for _, app := range runningApps {
 			if app.ServiceKind == model.ServiceKindThirdParty {
 				tr.RunningAppThirdNum++
 			} else if app.ServiceKind == model.ServiceKindInternal {
 				tr.RunningAppInternalNum++
 			}
+			if _, ok := runningApplications[app.AppID]; !ok {
+				runningApplications[app.AppID] = struct{}{}
+			}
 		}
+		tr.RunningApplications = int64(len(runningApplications))
 		tr.RunningAppNum = int64(len(runningApps))
 		tr.CpuLimit = re.CPULimit
 		tr.CpuRequest = re.CPURequest
