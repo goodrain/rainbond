@@ -107,10 +107,7 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 				},
 			})
 		}
-		args, err := createPluginArgs(versionInfo.ContainerCMD, *envs)
-		if err != nil {
-			return nil, nil, nil, err
-		}
+
 		pc := v1.Container{
 			Name:                   "plugin-" + pluginR.PluginID,
 			Image:                  versionInfo.BuildLocalImage,
@@ -118,9 +115,14 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 			EnvFrom:                envFromSecrets,
 			Resources:              createPluginResources(pluginR.ContainerMemory, pluginR.ContainerCPU),
 			TerminationMessagePath: "",
-			Args:                   args,
 			VolumeMounts:           mainContainer.VolumeMounts,
 		}
+		
+		if len(versionInfo.ContainerCMD) > 0 {
+			pc.Command = []string{"/bin/sh", "-c"}
+			pc.Args = []string{versionInfo.ContainerCMD}
+		}
+
 		pluginModel, err := getPluginModel(pluginR.PluginID, as.TenantID, dbmanager)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("get plugin model info failure %s", err.Error())
@@ -374,16 +376,6 @@ func getPluginModel(pluginID, tenantID string, dbmanager db.Manager) (string, er
 	return plugin.PluginModel, nil
 }
 
-func createPluginArgs(cmd string, envs []v1.EnvVar) ([]string, error) {
-	if cmd == "" {
-		return nil, nil
-	}
-	configs := make(map[string]string, len(envs))
-	for _, env := range envs {
-		configs[env.Name] = env.Value
-	}
-	return strings.Split(util.ParseVariable(cmd, configs), " "), nil
-}
 func getXDSHostIPAndPort() (string, string, string) {
 	xdsHost := ""
 	xdsHostPort := "6101"
