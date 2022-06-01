@@ -117,7 +117,7 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 			TerminationMessagePath: "",
 			VolumeMounts:           mainContainer.VolumeMounts,
 		}
-		
+
 		if len(versionInfo.ContainerCMD) > 0 {
 			pc.Command = []string{"/bin/sh", "-c"}
 			pc.Args = []string{versionInfo.ContainerCMD}
@@ -145,7 +145,7 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 			if config != nil {
 				var resourceConfig api_model.ResourceSpec
 				if err := json.Unmarshal([]byte(config.ConfigStr), &resourceConfig); err != nil {
-					logrus.Warningf("load mesh plugin %s config of componet %s failure %s")
+					logrus.Warningf("load mesh plugin %s config of componet %s failure %v", pluginR.PluginID, as.ServiceID, err.Error())
 				}
 				if len(resourceConfig.BaseServices) > 0 {
 					setSidecarContainerLifecycle(as, &pc, &resourceConfig)
@@ -438,7 +438,7 @@ func createPluginResources(memory int, cpu int) v1.ResourceRequirements {
 }
 
 func createTCPUDPMeshRecources(as *typesv1.AppService) v1.ResourceRequirements {
-	var memory = 128
+	var memory int
 	var cpu int64
 	if limit, ok := as.ExtensionSet["tcpudp_mesh_cpu"]; ok {
 		limitint, _ := strconv.Atoi(limit)
@@ -453,7 +453,7 @@ func createTCPUDPMeshRecources(as *typesv1.AppService) v1.ResourceRequirements {
 		}
 	}
 	return createResourcesBySetting(memory, cpu, func() int64 {
-		if cpu < 120 {
+		if 0 < cpu && cpu < 120 {
 			return 120
 		}
 		return cpu
