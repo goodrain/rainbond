@@ -185,7 +185,7 @@ func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus,
 	}
 
 	selector := labels.NewSelector()
-	instanceReq, _ := labels.NewRequirement(constants.ResourceInstanceLabel, selection.Equals, []string{app.AppName})
+	instanceReq, _ := labels.NewRequirement(constants.ResourceAppLabel, selection.Equals, []string{app.AppName})
 	selector = selector.Add(*instanceReq)
 	managedReq, _ := labels.NewRequirement(constants.ResourceManagedByLabel, selection.Equals, []string{"Helm"})
 	selector = selector.Add(*managedReq)
