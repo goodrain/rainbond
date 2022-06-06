@@ -18,4 +18,5 @@ const (
 const (
 	ResourceManagedByLabel = "app.kubernetes.io/managed-by"
 	ResourceInstanceLabel  = "app.kubernetes.io/instance"
+	ResourceAppLabel       = "app"
 )
