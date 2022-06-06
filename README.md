@@ -9,21 +9,33 @@
 
 ## Rainbond 是什么 ?
 
-Rainbond 是一个云原生多云应用管理平台，使用简单，不需要懂容器、Kubernetes和底层复杂技术，支持管理多个Kubernetes集群，和管理企业应用全生命周期。主要功能包括应用开发环境、应用市场、微服务架构、应用交付、应用运维、应用级多云管理等。
+Rainbond 是一个云原生多云应用管理平台，使用简单，使用简单，无需编写 Yaml 文件，即可轻松部署你的应用到 Kubernetes 中。支持管理多个 Kubernetes 集群，和管理企业应用全生命周期。主要功能包括应用开发环境、应用市场、微服务架构、应用交付、应用运维、应用级多云管理等。
 
 ## 为什么选择 Rainbond ?
 
-Kubernetes 作为一个管理容器化应用程序的系统。它为应用程序的部署、维护和扩展提供了基本机制。但是在用户传统应用向云原生应用转型时，使用 Kubernetes 会遇到如下几个问题：
+### 使用简单
 
-- 企业应用容器化部署
-- Kubernetes 学习曲线陡峭
-- 部署好的应用如何在其他 Kubernetes 环境中交付、升级
+- 只需一个命令安装体验
+- 支持6种常见开发语言，无需编写 Dockerfile 即可一键部署容器化应用
+- 零门槛落地 Kubernetes，无需编写 Yaml 文件部署应用
+- 80 余款开源软件即点即用，一键安装和升级
 
-Rainbond 遵循 **以应用为中心** 的设计理念，统一封装容器、Kubernetes 和底层基础设施相关技术，让使用者专注于业务本身, 避免在业务以外技术上花费大量学习和管理精力。
+### 应用一键交付
 
-- Rainbond 支持[一步将企业应用变成云原生应用](https://www.rainbond.com/docs/#2%E4%B8%80%E6%AD%A5%E5%B0%86%E4%BC%A0%E7%BB%9F%E5%BA%94%E7%94%A8%E5%8F%98%E6%88%90%E4%BA%91%E5%8E%9F%E7%94%9F%E5%BA%94%E7%94%A8)
-- Rainbond 不需要了解 Kubernetes，并且可通过 [Web 界面快速安装 Kubernetes](https://www.rainbond.com/docs/quick-start/quick-install#%E5%9F%BA%E4%BA%8E-web-%E7%95%8C%E9%9D%A2%E5%AE%89%E8%A3%85) ，支持管理多个 Kubernetes 集群
-- Rainbond 支持多云交付、私有交付、SaaS交付、离线交付、个性化交付、应用市场等，实现各种交付流程自动化，可参考文章 [企业应用一键安装与升级](https://mp.weixin.qq.com/s/2chigbtp8TzPdvJM4o7sOw)
+- 企业应用一键安装与升级
+- 功能完备的企业级应用商店，构建行业应用生态
+- 支持多云交付、私有交付、SaaS交付、离线交付、个性化交付、应用市场等，实现各种[交付流程自动化](https://mp.weixin.qq.com/s/2chigbtp8TzPdvJM4o7sOw)
+
+### 云原生转型
+
+- 开箱即用的一体化云原生平台
+- [一步将企业应用变成云原生应用](https://www.rainbond.com/docs/#2%E4%B8%80%E6%AD%A5%E5%B0%86%E4%BC%A0%E7%BB%9F%E5%BA%94%E7%94%A8%E5%8F%98%E6%88%90%E4%BA%91%E5%8E%9F%E7%94%9F%E5%BA%94%E7%94%A8)
+- 无需了解 Kubernetes，即可通过 [Web 界面快速安装 Kubernetes](https://www.rainbond.com/docs/quick-start/quick-install#%E5%9F%BA%E4%BA%8E-web-%E7%95%8C%E9%9D%A2%E5%AE%89%E8%A3%85)
+- 各种数字化能力积累和复用
+
+## Demo 地址
+
+您可访问 [Demo](http://demo.c9f961.grapps.cn/) 在线体验平台功能。由于资源有限，您仅有查看权限。如需体验更多功能，请自行部署尝试。
 
 ## Rainbond 的功能和架构
 
@@ -51,10 +63,6 @@ docker run --privileged -d  -p 7070:7070 -p 80:80 -p 443:443 -p 6060:6060 -p 844
 registry.cn-hangzhou.aliyuncs.com/goodrain/rainbond:v5.6.0-dind-allinone \
 && docker logs -f rainbond-allinone
 ```
-
-## 在线体验
-
-您可访问[试用环境](http://demo.c9f961.grapps.cn/)在线体验平台功能。由于资源有限，您仅有查看权限。如需体验更多功能，请自行部署尝试。
 
 ## 快速开始
 
