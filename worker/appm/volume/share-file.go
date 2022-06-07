@@ -71,7 +71,6 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v1.RainbondStatefuleShareStorageClass, v.svm.VolumeCapacity, labels, annotations)
 		v.as.SetClaim(claim)
 		v.as.SetClaimManually(claim)
-
 		vo := corev1.Volume{Name: volumeMountName}
 		vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
 		define.volumes = append(define.volumes, vo)

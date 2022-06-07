@@ -32,7 +32,7 @@ var translationMetadata = map[string]string{
 	"save image to hub error":                        "保存镜像到仓库失败",
 	"Please try again or contact customer service":   "后端服务开小差，请重试或联系客服",
 	"unzip metadata file error":                      "解压数据失败",
-	"start service error":                            "启动服务失败,请检查集服务信息或查看日志",
+	"start service error":                            "启动服务失败,请检查集群服务信息或查看日志",
 	"start service timeout":                          "启动服务超时,建议观察服务实例运行状态",
 	"stop service error":                             "停止服务失败,建议观察服务实例运行状态",
 	"stop service timeout":                           "停止服务超时,建议观察服务实例运行状态",
