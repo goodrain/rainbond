@@ -440,6 +440,9 @@ var ShareFileVolumeType VolumeType = "share-file"
 //LocalVolumeType 本地文件存储
 var LocalVolumeType VolumeType = "local"
 
+//PluginStorageType 插件存储
+var PluginStorageType VolumeType = "plugin-storage"
+
 //MemoryFSVolumeType 内存文件存储
 var MemoryFSVolumeType VolumeType = "memoryfs"
 

@@ -72,6 +72,8 @@ func NewVolumeManager(as *v1.AppService,
 		v = new(MemoryFSVolume)
 	case dbmodel.LocalVolumeType.String():
 		v = new(LocalVolume)
+	case dbmodel.PluginStorageType.String():
+		v = new(PluginStorageVolume)
 	default:
 		logrus.Warnf("other volume type[%s]", volumeType)
 		v = new(OtherVolume)

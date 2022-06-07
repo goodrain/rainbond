@@ -172,7 +172,6 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		logrus.Infof("service id: %s; enable privileged.", as.ServiceID)
 		c.SecurityContext = &corev1.SecurityContext{Privileged: util.Bool(true)}
 	}
-
 	return c, nil
 }
 
