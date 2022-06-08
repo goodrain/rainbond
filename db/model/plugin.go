@@ -139,7 +139,7 @@ type TenantPluginVersionDiscoverConfig struct {
 	Model
 	PluginID  string `gorm:"column:plugin_id;size:32" json:"plugin_id"`
 	ServiceID string `gorm:"column:service_id;size:32" json:"service_id"`
-	ConfigStr string `gorm:"column:config_str;" sql:"type:text;" json:"config_str"`
+	ConfigStr string `gorm:"column:config_str;" sql:"type:longtext;" json:"config_str"`
 }
 
 //TableName table name
