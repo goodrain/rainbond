@@ -78,6 +78,7 @@ func (s *startController) Begin() {
 		s.manager.callback(s.controllerID, nil)
 	}
 }
+
 func (s *startController) errorCallback(app v1.AppService) error {
 	app.Logger.Info("Begin clean resources that have been created", event.GetLoggerOption("starting"))
 	stopController := stopController{
@@ -91,6 +92,7 @@ func (s *startController) errorCallback(app v1.AppService) error {
 	}
 	return nil
 }
+
 func (s *startController) startOne(app v1.AppService) error {
 	//first: check and create namespace
 	_, err := s.manager.client.CoreV1().Namespaces().Get(s.ctx, app.GetNamespace(), metav1.GetOptions{})
