@@ -10,6 +10,9 @@ trigger:
     include:
     - custom
 
+node:
+  city: sydney
+
 steps:
 - name: build rainbond
   image: rainbond/docker:dind
