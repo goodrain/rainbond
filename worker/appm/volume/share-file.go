@@ -38,7 +38,6 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
 	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := v.svm.IsReadOnly
-	existShareStoragePVC := v.getExistShareStoragePVC()
 
 	var vm *corev1.VolumeMount
 	if v.as.GetStatefulSet() != nil {
@@ -52,14 +51,12 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 			MountPath: volumeMountPath,
 			ReadOnly:  volumeReadOnly,
 		}
-		if _, exist := existShareStoragePVC[claim.GetName()]; !exist {
-			v.as.SetClaim(claim)
-			statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
-			vo := corev1.Volume{Name: volumeMountName}
-			vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
-			define.volumes = append(define.volumes, vo)
-		}
-		v.generateVolumeSubPath(vm)
+		v.as.SetClaim(claim)
+		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
+		vo := corev1.Volume{Name: volumeMountName}
+		vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
+		define.volumes = append(define.volumes, vo)
+		v.generateVolumeSubPath(define, vm)
 	} else {
 		for _, m := range define.volumeMounts {
 			if m.MountPath == volumeMountPath { // TODO move to prepare
@@ -79,14 +76,12 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 			MountPath: volumeMountPath,
 			ReadOnly:  volumeReadOnly,
 		}
-		if _, exist := existShareStoragePVC[claim.GetName()]; !exist {
-			v.as.SetClaim(claim)
-			v.as.SetClaimManually(claim)
-			vo := corev1.Volume{Name: volumeMountName}
-			vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
-			define.volumes = append(define.volumes, vo)
-		}
-		v.generateVolumeSubPath(vm)
+		v.as.SetClaim(claim)
+		v.as.SetClaimManually(claim)
+		vo := corev1.Volume{Name: volumeMountName}
+		vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
+		define.volumes = append(define.volumes, vo)
+		v.generateVolumeSubPath(define, vm)
 	}
 	define.volumeMounts = append(define.volumeMounts, *vm)
 
@@ -113,34 +108,68 @@ func (v *ShareFileVolume) CreateDependVolume(define *Define) error {
 		MountPath: volumeMountPath,
 		ReadOnly:  false,
 	}
-	v.generateVolumeSubPath(vm)
+	v.generateVolumeSubPath(define, vm)
 	define.volumeMounts = append(define.volumeMounts, *vm)
 	return nil
 }
 
-func (v *ShareFileVolume) getExistShareStoragePVC() map[string]struct{} {
-	existShareStoragePVC := make(map[string]struct{})
-	for _, pvc := range v.as.GetClaims() {
-		if *pvc.Spec.StorageClassName != v1.RainbondStatefuleShareStorageClass {
-			continue
-		}
-		if _, ok := existShareStoragePVC[pvc.GetName()]; ok {
-			continue
-		}
-		existShareStoragePVC[pvc.GetName()] = struct{}{}
-	}
-	return existShareStoragePVC
-}
-
-func (v *ShareFileVolume) generateVolumeSubPath(vm *corev1.VolumeMount) *corev1.VolumeMount {
+func (v *ShareFileVolume) generateVolumeSubPath(define *Define, vm *corev1.VolumeMount) *corev1.VolumeMount {
 	if os.Getenv("ENABLE_SUBPATH") != "true" {
 		return vm
 	}
+	var existClaimName string
+	var needDeleteClaim []corev1.PersistentVolumeClaim
+	for _, claim := range v.as.GetClaims() {
+		if existClaimName != "" && *claim.Spec.StorageClassName == v1.RainbondStatefuleShareStorageClass {
+			v.as.DeleteClaim(claim)
+			if v.as.GetStatefulSet() == nil {
+				v.as.DeleteClaimManually(claim)
+			}
+			needDeleteClaim = append(needDeleteClaim, *claim)
+			continue
+		}
+		if *claim.Spec.StorageClassName == v1.RainbondStatefuleShareStorageClass {
+			existClaimName = claim.GetName()
+		}
+	}
 	if v.as.GetStatefulSet() != nil {
+		for _, delClaim := range needDeleteClaim {
+			newClaimTmpls := v.deleteClaim(v.as.GetStatefulSet().Spec.VolumeClaimTemplates, delClaim)
+			v.as.GetStatefulSet().Spec.VolumeClaimTemplates = newClaimTmpls
+			newVolumes := v.deleteVolume(define.volumes, delClaim)
+			define.volumes = newVolumes
+		}
+		vm.Name = existClaimName
 		subPathExpr := path.Join(strings.TrimPrefix(v.svm.HostPath, "/grdata/"), "$(POD_NAME)")
 		vm.SubPathExpr = subPathExpr
 		return vm
 	}
+
+	for _, delClaim := range needDeleteClaim {
+		newVolumes := v.deleteVolume(define.volumes, delClaim)
+		define.volumes = newVolumes
+	}
+	vm.Name = existClaimName
 	vm.SubPath = strings.TrimPrefix(v.svm.HostPath, "/grdata/")
 	return vm
+}
+
+func (v *ShareFileVolume) deleteClaim(claims []corev1.PersistentVolumeClaim, delClaim corev1.PersistentVolumeClaim) []corev1.PersistentVolumeClaim {
+	newClaims := claims
+	for i, claim := range claims {
+		if claim.GetName() == delClaim.GetName() {
+			newClaims = append(newClaims[0:i], newClaims[i+1:]...)
+		}
+	}
+	return newClaims
+}
+
+func (v *ShareFileVolume) deleteVolume(claims []corev1.Volume, delClaim corev1.PersistentVolumeClaim) []corev1.Volume {
+	newClaims := claims
+	for i, claim := range claims {
+		if claim.Name == delClaim.GetName() {
+			newClaims = append(newClaims[0:i], newClaims[i+1:]...)
+		}
+	}
+	return newClaims
 }

@@ -142,7 +142,7 @@ func (a *AppServiceBase) SetDiscoveryCfg(discoveryCfg *dbmodel.ThirdPartySvcDisc
 	a.discoveryCfg = discoveryCfg
 }
 
-// SetDiscoveryCfg -
+// GetK8sWorkloadName -
 func (a *AppServiceBase) GetK8sWorkloadName() string {
 	return fmt.Sprintf("%s-%s", a.K8sApp, a.K8sComponentName)
 }
@@ -777,6 +777,19 @@ func (a *AppService) SetClaimManually(claim *corev1.PersistentVolumeClaim) {
 		}
 	}
 	a.claimsmanual = append(a.claimsmanual, claim)
+}
+
+// DeleteClaimManually delete claim that needs to be created manually.
+func (a *AppService) DeleteClaimManually(claim *corev1.PersistentVolumeClaim) {
+	if len(a.claimsmanual) == 0 {
+		return
+	}
+	for i, c := range a.claimsmanual {
+		if c.GetName() == claim.GetName() {
+			a.claimsmanual = append(a.claimsmanual[0:i], a.claimsmanual[i+1:]...)
+			return
+		}
+	}
 }
 
 // DeleteClaim delete claim
