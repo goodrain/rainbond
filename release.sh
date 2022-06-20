@@ -101,7 +101,7 @@ build::image() {
 		fi
 	else
 		if [ "$1" = "gateway" ]; then
-			BASE_IMAGE_VERSION="1.19.3.2"
+			BASE_IMAGE_VERSION="1.21.4.1"
 		fi
 	fi
 	docker build --build-arg RELEASE_DESC="${release_desc}" --build-arg BASE_IMAGE_VERSION="${BASE_IMAGE_VERSION}" --build-arg GOARCH="${GOARCH}" -t "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" -f "${DOCKERFILE_BASE}" .
