@@ -334,7 +334,13 @@ func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, er
 		_, err = reg.Manifest(imageInfo.Name, imageInfo.Tag)
 		if err != nil {
 			logrus.Errorf("get image %s manifest info failure [%v], it could be not exist", version.DeliveredPath, err)
-			return false, err
+			// Compatible with MediaTypeManifest
+			_, err := reg.ManifestV2(imageInfo.Name, imageInfo.Tag)
+			if err != nil {
+				logrus.Errorf("get image %s manifestV2 info failure [%v], it could be not exist", version.DeliveredPath, err)
+				return false, err
+			}
+			return true, nil
 		}
 		return true, nil
 	}
