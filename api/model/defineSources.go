@@ -93,6 +93,14 @@ type ResourceSpec struct {
 	BaseNormal   BaseEnv        `json:"base_normal"`
 }
 
+//PluginStorage 插件存储结构体
+type PluginStorage struct {
+	VolumeName  string `json:"volume_name"`
+	VolumePath  string `json:"volume_path"`
+	FileContent string `json:"file_content"`
+	AttrType    string `json:"attr_type"`
+}
+
 //BasePort base of current app ports
 type BasePort struct {
 	ServiceAlias string `json:"service_alias"`

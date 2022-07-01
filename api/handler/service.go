@@ -1797,6 +1797,8 @@ func (s *ServiceAction) GetVolumes(serviceID string) ([]*api_model.VolumeWithSta
 	if volumeStatusList != nil && volumeStatusList.GetStatus() != nil {
 		volumeStatus = volumeStatusList.GetStatus()
 	}
+	isMountedShareVolume := false
+	mountStatus := pb.ServiceVolumeStatus_NOT_READY.String()
 	for _, volume := range vs {
 		vws := &api_model.VolumeWithStatusStruct{
 			ServiceID:          volume.ServiceID,
@@ -1817,8 +1819,15 @@ func (s *ServiceAction) GetVolumes(serviceID string) ([]*api_model.VolumeWithSta
 		volumeID := strconv.FormatInt(int64(volume.ID), 10)
 		if phrase, ok := volumeStatus[volumeID]; ok {
 			vws.Status = phrase.String()
+			if os.Getenv("ENABLE_SUBPATH") == "true" && vws.VolumeType == "share-file" && strings.HasPrefix(vws.HostPath, "/grdata") {
+				isMountedShareVolume = true
+				mountStatus = vws.Status
+			}
 		} else {
 			vws.Status = pb.ServiceVolumeStatus_NOT_READY.String()
+			if isMountedShareVolume && strings.HasPrefix(vws.HostPath, "/grdata") {
+				vws.Status = mountStatus
+			}
 		}
 		volumeWithStatusList = append(volumeWithStatusList, vws)
 	}

@@ -77,6 +77,7 @@ type TenantAndResource struct {
 	RunningAppNum         int64 `json:"running_app_num"`
 	RunningAppInternalNum int64 `json:"running_app_internal_num"`
 	RunningAppThirdNum    int64 `json:"running_app_third_num"`
+	RunningApplications   int64 `json:"running_applications"`
 }
 
 //TenantList Tenant list struct

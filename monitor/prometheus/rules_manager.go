@@ -41,11 +41,18 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 	if region == "" {
 		region = "default"
 	}
-	commonLables := map[string]string{
-		"Alert":  "Rainbond",
-		"Region": region,
+	getCommonLabels := func(labels ...map[string]string) map[string]string {
+		var resultLabel = make(map[string]string)
+		for _, l := range labels {
+			for k, v := range l {
+				resultLabel[k] = v
+			}
+		}
+		resultLabel["Alert"] = "Rainbond"
+		resultLabel["Region"] = region
+		return resultLabel
 	}
-	getseverityLables := func(severity string) map[string]string {
+	getseverityLabels := func(severity string) map[string]string {
 		return map[string]string{
 			"Alert":    "Rainbond",
 			"severity": severity,
@@ -55,410 +62,397 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 	a := &AlertingRulesManager{
 		RulesConfig: &AlertingRulesConfig{
 			Groups: []*AlertingNameConfig{
-				&AlertingNameConfig{
+				{
 					Name: "GatewayHealth",
 					Rules: []*RulesConfig{
-						&RulesConfig{
+						{
 							Alert:  "GatewayDown",
 							Expr:   "absent(up{job=\"gateway\"}) or up{job=\"gateway\"}==0",
 							For:    "20s",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "gateway node {{ $labels.instance }} maybe down",
-								"summary":     "gateway is down",
+								"description": "网关组件: {{ $labels.instance }} 出现故障",
+								"summary":     "网关组件故障",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:  "RequestSizeTooMuch",
 							Expr:   "sum by (instance, host) (rate(gateway_request_size_sum[5m])) > 1024*1024*10",
 							For:    "20s",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "http doamin {{ $labels.host }} per-second request size {{ humanize $value }}, more than 10M",
-								"summary":     "Too much traffic",
+								"description": "5分钟内, 请求http域名: {{ $labels.host }} 的请求大小高于10M,为 {{ humanize $value }} M",
+								"summary":     "请求流量过大",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:  "ResponseSizeTooMuch",
 							Expr:   "sum by (instance, host) (rate(gateway_response_size_sum[5m])) > 1024*1024*10",
 							For:    "20s",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "http doamin {{ $labels.host }} per-second response size {{ humanize $value }}, more than 10M",
-								"summary":     "Too much traffic",
+								"description": "5分钟内, http域名: {{ $labels.host }} 的响应大小高于10M,为 {{ humanize $value }} M",
+								"summary":     "响应流量过大",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:       "RequestMany",
 							Expr:        "rate(gateway_requests[5m]) > 200",
 							For:         "10s",
-							Labels:      commonLables,
-							Annotations: map[string]string{"description": "http doamin {{ $labels.host }} per-second requests {{ humanize $value }}, more than 200"},
+							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Annotations: map[string]string{"description": "5分钟内, http域名: {{ $labels.host }} 的请求数高于200,为 {{ humanize $value }}"},
 						},
-						&RulesConfig{
+						{
 							Alert:       "FailureRequestMany",
 							Expr:        "rate(gateway_requests{status=~\"5..\"}[5m]) > 5",
 							For:         "10s",
-							Labels:      commonLables,
-							Annotations: map[string]string{"description": "http doamin {{ $labels.host }} per-second failure requests {{ humanize $value }}, more than 5"},
+							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Annotations: map[string]string{"description": "5分钟内, http域名: {{ $labels.host }} 的失败请求数高于5个,为 {{ humanize $value }} 个,状态码为[5..]"},
 						},
 					},
 				},
-				&AlertingNameConfig{
+				{
 					Name: "BuilderHealth",
 					Rules: []*RulesConfig{
-						&RulesConfig{
+						{
 							Alert:  "BuilderDown",
 							Expr:   "absent(up{component=\"builder\"}) or up{component=\"builder\"}==0",
 							For:    "1m",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "builder(rbd-chaos) node {{ $labels.instance }} maybe down",
-								"summary":     "builder(rbd-chaos) is down",
+								"description": "构建组件(rbd-chaos) {{ $labels.instance }} 出现故障",
+								"summary":     "构建组件(rbd-chaos)故障",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:       "BuilderUnhealthy",
 							Expr:        "builder_exporter_health_status == 0",
 							For:         "3m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"description": "builder unhealthy"},
+							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Annotations: map[string]string{"description": "构建组件(rbd-chaos) {{ $labels.instance }} 不健康"},
 						},
-						&RulesConfig{
+						{
 							Alert:       "BuilderTaskError",
 							Expr:        "builder_exporter_builder_current_concurrent_task == builder_exporter_builder_max_concurrent_task",
 							For:         "20s",
-							Labels:      commonLables,
-							Annotations: map[string]string{"summary": "The build service is performing a maximum number of tasks"},
+							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Annotations: map[string]string{"summary": "构建组件(rbd-chaos)并发执行任务数量达到最大,负载过高"},
 						},
 					},
 				},
-				&AlertingNameConfig{
+				{
 					Name: "WorkerHealth",
 					Rules: []*RulesConfig{
-						&RulesConfig{
+						{
 							Alert:  "WorkerDown",
 							Expr:   "absent(up{component=\"worker\"}) or up{component=\"worker\"}==0",
 							For:    "5m",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "worker node {{ $labels.instance }} maybe down",
-								"summary":     "worker is down",
+								"description": "rbd-worker组件 {{ $labels.instance }} 出现故障",
+								"summary":     "rbd-worker组件故障",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:  "WorkerUnhealthy",
 							Expr:   "app_resource_exporter_health_status == 0",
 							For:    "5m",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"summary":     "worker unhealthy",
-								"description": "worker node {{ $labels.instance }} is unhealthy",
+								"summary":     "rbd-worker组件不健康",
+								"description": "rbd-worker组件 {{ $labels.instance }} 不健康",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:  "WorkerTaskError",
 							Expr:   "app_resource_exporter_worker_task_error > 50",
 							For:    "5m",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "worker node {{ $labels.instance }} execution task error number is greater than 50",
+								"description": "rbd-worker组件 {{ $labels.instance }} 执行任务错误数大于50",
 							},
 						},
 					},
 				},
-				&AlertingNameConfig{
+				{
 					Name: "MqHealth",
 					Rules: []*RulesConfig{
-						&RulesConfig{
+						{
 							Alert:  "MqDown",
 							Expr:   "absent(up{component=\"mq\"}) or up{component=\"mq\"}==0",
 							For:    "2m",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "mq node {{ $labels.instance }} maybe down",
-								"summary":     "mq is down",
+								"description": "消息队列组件(rbd-mq) {{ $labels.instance }} 出现故障",
+								"summary":     "消息队列组件(rbd-mq)出现故障",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:       "MqUnhealthy",
 							Expr:        "acp_mq_exporter_health_status == 0",
 							For:         "3m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"summary": "mq unhealthy"},
+							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Annotations: map[string]string{"summary": "消息队列组件(rbd-mq)不健康"},
 						},
-						&RulesConfig{
+						{
 							Alert:  "MqMessageQueueBlock",
 							Expr:   "acp_mq_queue_message_number > 0",
 							For:    "1m",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"summary":     "message queue blocked",
-								"description": "mq topic {{ $labels.topic }} message queue may be blocked, message size is {{ humanize $value }}",
+								"summary":     "消息队列阻塞",
+								"description": "消息 {{ $labels.topic }} 阻塞, 消息大小为 {{ humanize $value }}",
 							},
 						},
 					},
 				},
-				&AlertingNameConfig{
+				{
 					Name: "EventlogHealth",
 					Rules: []*RulesConfig{
-						&RulesConfig{
+						{
 							Alert:       "EventLogUnhealthy",
 							Expr:        "event_log_exporter_health_status == 0",
 							For:         "3m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"summary": "eventlog unhealthy"},
+							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Annotations: map[string]string{"summary": "rbd-eventlog组件 {{ $labels.instance }} 不健康"},
 						},
-						&RulesConfig{
+						{
 							Alert:  "EventLogDown",
 							Expr:   "absent(up{component=\"eventlog\"}) or up{component=\"eventlog\"}==0",
 							For:    "3m",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "worker node {{ $labels.instance }} maybe down",
-								"summary":     "eventlog service down",
+								"description": "rbd-eventlog组件 {{ $labels.instance }} 出现故障",
+								"summary":     "rbd-eventlog组件出现故障",
 							},
 						},
 					},
 				},
-				&AlertingNameConfig{
+				{
 					Name: "WebcliHealth",
 					Rules: []*RulesConfig{
-						&RulesConfig{
+						{
 							Alert:  "WebcliDown",
 							Expr:   "absent(up{component=\"webcli\"}) or up{component=\"webcli\"}==0",
 							For:    "20s",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "webcli node {{ $labels.instance }} maybe down",
-								"summary":     "webcli is down",
+								"description": "rbd-webcli组件 {{ $labels.instance }} 出现故障",
+								"summary":     "rbd-webcli组件故障",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:       "WebcliUnhealthy",
 							Expr:        "webcli_exporter_health_status == 0",
 							For:         "3m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"summary": "webcli unhealthy"},
+							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Annotations: map[string]string{"summary": "rbd-webcli 组件 {{ $labels.instance }} 不健康"},
 						},
-						&RulesConfig{
+						{
 							Alert:       "WebcliUnhealthy",
 							Expr:        "rate(webcli_exporter_execute_command_failed[5m]) > 5",
 							For:         "3m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"summary": "The number of errors that occurred while executing the command was greater than 5 per-second."},
+							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Annotations: map[string]string{"summary": "5分钟内, rbd-webcli组件执行命令错误数大于5个"},
 						},
 					},
 				},
-				&AlertingNameConfig{
+				{
 					Name: "NodeHealth",
 					Rules: []*RulesConfig{
-						&RulesConfig{
+						{
 							Alert:  "NodeDown",
 							Expr:   "absent(up{component=\"rbd_node\"}) or up{component=\"rbd_node\"} == 0",
 							For:    "30s",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "node {{ $labels.instance }} may be down",
-								"summary":     "rbd_node is down",
+								"description": "rbd_node组件 {{ $labels.instance }} 出现故障",
+								"summary":     "rbd_node组件故障",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:       "HighCpuUsageOnNode",
-							Expr:        "sum by(instance) (rate(process_cpu_seconds_total[5m])) * 100 > 70",
+							Expr:        "sum by(instance) (rate(process_cpu_seconds_total[5m])) * 100 > 85",
 							For:         "5m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"description": "{{ $labels.instance }} is using a LOT of CPU. CPU usage is {{ humanize $value}}%.", "summary": "HIGH CPU USAGE WARNING ON '{{ $labels.instance }}'"},
+							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Annotations: map[string]string{"description": "5分钟内, 节点 {{ $labels.instance }} 使用的CPU资源高于85%. CPU使用量为 {{ humanize $value }}%", "summary": "CPU占用率过高警告"},
 						},
-						&RulesConfig{
+						{
 							Alert:       "HighLoadOnNode",
-							Expr:        "count by (instance) (node_load5) > count by(instance)(count by(job, instance, cpu)(node_cpu))",
+							Expr:        "sum(node_load5) by(instance) > count by(instance) (count by(job, instance, cpu) (node_cpu)) * 0.7",
 							For:         "5m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"description": "{{ $labels.instance }} has a high load average. Load Average 5m is {{ humanize $value}}.", "summary": "HIGH LOAD AVERAGE WARNING ON '{{ $labels.instance }}'"},
+							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Annotations: map[string]string{"description": "节点 {{ $labels.instance }} 正处于高负载状态. 5分钟负载量为 {{ humanize $value}}", "summary": "节点高负载警告"},
 						},
-						&RulesConfig{
+						{
 							Alert:       "InodeFreerateLow",
 							Expr:        "node_filesystem_files_free{fstype=~\"ext4|xfs\"} / node_filesystem_files{fstype=~\"ext4|xfs\"} < 0.3",
 							For:         "5m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"description": "the inode free rate is low of node {{ $labels.instance }}, current value is {{ humanize $value}}."},
+							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Annotations: map[string]string{"description": "节点 {{ $labels.instance }} 上 inode 剩余可用率过低, 当前可用率为 {{ humanize $value }}%"},
 						},
-						&RulesConfig{
+						{
 							Alert:       "HighRootdiskUsageOnNode",
-							Expr:        "(node_filesystem_size{mountpoint='/'} - node_filesystem_free{mountpoint='/'}) * 100 / node_filesystem_size{mountpoint='/'} > 85",
+							Expr:        "(node_filesystem_size{mountpoint='/'} - node_filesystem_free{mountpoint='/'}) * 100 / node_filesystem_size{mountpoint='/'} > 80",
 							For:         "5m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"description": "More than 85% of disk used. Disk usage {{ humanize $value }} mountpoint {{ $labels.mountpoint }}%.", "summary": "LOW DISK SPACE WARING:NODE '{{ $labels.instance }}"},
+							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Annotations: map[string]string{"description": "磁盘使用率高于 80%, 当前使用率为 {{ humanize $value }}%. 被使用磁盘的挂载点为 {{ $labels.mountpoint }}", "summary": "根分区磁盘使用率过高警告"},
 						},
-						&RulesConfig{
+						{
 							Alert:       "HighDockerdiskUsageOnNode",
-							Expr:        "(node_filesystem_size{mountpoint='/var/lib/docker'} - node_filesystem_free{mountpoint='/var/lib/docker'}) * 100 / node_filesystem_size{mountpoint='/var/lib/docker'} > 85",
+							Expr:        "(node_filesystem_size{mountpoint='/var/lib/docker'} - node_filesystem_free{mountpoint='/var/lib/docker'}) * 100 / node_filesystem_size{mountpoint='/var/lib/docker'} > 80",
 							For:         "5m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"description": "More than 85% of disk used. Disk usage {{ humanize $value }} mountpoint {{ $labels.mountpoint }}%.", "summary": "LOW DISK SPACE WARING:NODE '{{ $labels.instance }}"},
+							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Annotations: map[string]string{"description": "磁盘使用率高于 80%, 当前使用率为 {{ humanize $value }}%. 被使用磁盘的挂载点为 {{ $labels.mountpoint }}", "summary": "Docker分区磁盘使用率过高警告"},
 						},
-						&RulesConfig{
+						{
 							Alert:       "HighMemoryUsageOnNode",
 							Expr:        "((node_memory_MemTotal - node_memory_MemAvailable) / node_memory_MemTotal) * 100 > 80",
 							For:         "5m",
-							Labels:      commonLables,
-							Annotations: map[string]string{"description": "{{ $labels.instance }} is using a LOT of MEMORY. MEMORY usage is over {{ humanize $value}}%.", "summary": "HIGH MEMORY USAGE WARNING TASK ON '{{ $labels.instance }}'"},
+							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Annotations: map[string]string{"description": "节点 {{ $labels.instance }} 使用内存过高. 内存使用率大概为 {{ humanize $value}}%", "summary": "内存使用率过高警告"},
+						},
+						{
+							Alert:       "StorageFull",
+							Expr:        "(node_filesystem_size{mountpoint=\"/grdata\"} - node_filesystem_free{mountpoint=\"/grdata\"}) * 100 / node_filesystem_size{mountpoint=\"/grdata\"} > 80",
+							For:         "1m",
+							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Annotations: map[string]string{"description": "节点 {{ $labels.instance }} 上的共享存储空间已经使用80%", "summary": "共享存储使用率过高警告"},
 						},
 					},
 				},
-				&AlertingNameConfig{
+				{
 					Name: "ClusterHealth",
 					Rules: []*RulesConfig{
-						&RulesConfig{
+						{
 							Alert:  "InsufficientClusteMemoryResources",
 							Expr:   "max(rbd_api_exporter_cluster_memory_total) - max(sum(namespace_resource_memory_request) by (instance)) < 2048",
 							For:    "2m",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "Cluster residual scheduled memory is {{ humanize $value }} MB, less than 2048 MB",
-								"summary":     "Insufficient Cluster Memory Resources",
+								"description": "集群剩余调度内存为 {{ humanize $value }} MB, 不足2048MB",
+								"summary":     "集群内存资源不足",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:  "InsufficientClusteCPUResources",
 							Expr:   "max(rbd_api_exporter_cluster_cpu_total) - max(sum(namespace_resource_cpu_request) by (instance)) < 500",
 							For:    "2m",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "Cluster residual scheduled cpu is {{ humanize $value }}, less than 500",
-								"summary":     "Insufficient Cluster CPU Resources",
+								"description": "集群剩余调度cpu资源为 {{ humanize $value }}, 不足500m",
+								"summary":     "集群cpu资源不足",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:  "InsufficientTenantResources",
 							Expr:   "sum(rbd_api_exporter_tenant_memory_limit) by(namespace) - sum(namespace_resource_memory_request)by (namespace) < sum(rbd_api_exporter_tenant_memory_limit) by(namespace) *0.2 and sum(rbd_api_exporter_tenant_memory_limit) by(namespace) > 0",
 							For:    "2m",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "Tenant available memory capacity {{ humanize $value }} MB, less than 20% of the limit",
-								"summary":     "Insufficient Tenant memory Resources",
+								"description": "租户剩余可用内存容量为 {{ humanize $value }} MB, 不足限制的20%",
+								"summary":     "租户内存资源不足",
 							},
 						},
 					},
 				},
-				&AlertingNameConfig{
+				{
 					Name: "EtcdHealth",
 					Rules: []*RulesConfig{
-						&RulesConfig{
+						{
 							Alert:  "EtcdDown",
 							Expr:   "absent(up{component=\"etcd\"}) or up{component=\"etcd\"}==0",
 							For:    "1m",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "etcd node {{ $labels.instance }} may be down",
-								"summary":     "etcd node is down",
+								"description": "etcd组件 {{ $labels.instance }} 出现故障",
+								"summary":     "etcd组件故障",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:  "EtcdLoseLeader",
 							Expr:   "etcd_server_has_leader == 0",
 							For:    "1m",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "etcd node {{ $labels.instance }} is lose leader",
-								"summary":     "etcd lose leader",
+								"description": "etcd组件 {{ $labels.instance }} 丢失leader",
+								"summary":     "etcd组件丢失leader",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:  "InsufficientMembers",
 							Expr:   "count(up{job=\"etcd\"} == 0) > (count(up{job=\"etcd\"}) / 2 - 1)",
 							For:    "1m",
-							Labels: getseverityLables("critical"),
+							Labels: getseverityLabels("critical"),
 							Annotations: map[string]string{
-								"description": "If one more etcd member goes down the cluster will be unavailable",
-								"summary":     "etcd cluster insufficient members",
+								"description": "警告: 如果再有一个etcd节点故障，集群将不可用",
+								"summary":     "etcd集群可用节点不足警告",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:  "HighNumberOfLeaderChanges",
 							Expr:   "increase(etcd_server_leader_changes_seen_total{job=\"etcd\"}[1h]) > 3",
 							For:    "1m",
-							Labels: getseverityLables("warning"),
+							Labels: getseverityLabels("warning"),
 							Annotations: map[string]string{
-								"description": "etcd instance {{ $labels.instance }} has seen {{ $value }} leader changes within the last hour",
-								"summary":     "a high number of leader changes within the etcd cluster are happening",
+								"description": "etcd实例 {{ $labels.instance }} leader最近一小时发生的变更次数:{{ $value }}",
+								"summary":     "etcd集群中出现大量的leader变更",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:  "HighNumberOfFailedGRPCRequests",
 							Expr:   "sum(rate(etcd_grpc_requests_failed_total{job=\"etcd\"}[5m])) BY (grpc_method) / sum(rate(etcd_grpc_total{job=\"etcd\"}[5m])) BY (grpc_method) > 0.05",
 							For:    "5m",
-							Labels: getseverityLables("critical"),
+							Labels: getseverityLabels("critical"),
 							Annotations: map[string]string{
-								"description": "{{ $value }}% of requests for {{ $labels.grpc_method }} failed on etcd instance {{ $labels.instance }}",
-								"summary":     "a high number of gRPC requests are failing",
+								"description": "通过grpc方式 {{ $labels.grpc_method }}, 请求etcd节点: {{ $labels.instance}}, 请求失败数大于0.05,失败数为: {{ $value }}",
+								"summary":     "ETCD grpc失败请求大于0.05",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:  "HighNumberOfFailedHTTPRequests",
 							Expr:   "sum(rate(etcd_http_failed_total{job=\"etcd\"}[5m])) BY (method) / sum(rate(etcd_http_received_total{job=\"etcd\"}[5m]))BY (method) > 0.05",
 							For:    "1m",
-							Labels: getseverityLables("critical"),
+							Labels: getseverityLabels("critical"),
 							Annotations: map[string]string{
-								"description": "{{ $value }}% of requests for {{ $labels.method }} failed on etcd instance {{ $labels.instance }}",
-								"summary":     "a high number of HTTP requests are failing",
+								"description": "etcd节点 {{ $labels.instance }}，http请求方法 {{ $labels.method }}, 失败次数大于0.05,为 {{ $value }}",
+								"summary":     "etcd 1分钟内 HTTP 请求失败数大于0.05",
 							},
 						},
-						&RulesConfig{
+						{
 							Alert:  "GRPCRequestsSlow",
 							Expr:   "histogram_quantile(0.99, rate(etcd_grpc_unary_requests_duration_seconds_bucket[5m])) > 0.15",
 							For:    "1m",
-							Labels: getseverityLables("critical"),
+							Labels: getseverityLabels("critical"),
 							Annotations: map[string]string{
-								"description": "on etcd instance {{ $labels.instance }} gRPC requests to {{ $labels.grpc_method}} are slow",
-								"summary":     "slow gRPC requests",
+								"description": "etcd节点 { $labels.instance }}, grpc查询方法 {{ $labels.grpc_method}} 太慢, 大于0.15",
+								"summary":     "grpc慢查询",
 							},
 						},
-						&RulesConfig{
-							Alert:  "HighNumberOfFailedHTTPRequests",
-							Expr:   "sum(rate(etcd_http_failed_total{job=\"etcd\"}[5m])) BY (method) / sum(rate(etcd_http_received_total{job=\"etcd\"}[5m]))BY (method) > 0.05",
-							For:    "1m",
-							Labels: getseverityLables("critical"),
-							Annotations: map[string]string{
-								"description": "{{ $value }}% of requests for {{ $labels.method }} failed on etcd instance {{ $labels.instance }}",
-								"summary":     "a high number of HTTP requests are failing",
-							},
-						},
-						&RulesConfig{
-							Alert:  "HighNumberOfFailedHTTPRequests",
-							Expr:   "sum(rate(etcd_http_failed_total{job=\"etcd\"}[5m])) BY (method) / sum(rate(etcd_http_received_total{job=\"etcd\"}[5m]))BY (method) > 0.05",
-							For:    "1m",
-							Labels: getseverityLables("critical"),
-							Annotations: map[string]string{
-								"description": "{{ $value }}% of requests for {{ $labels.method }} failed on etcd instance {{ $labels.instance }}",
-								"summary":     "a high number of HTTP requests are failing",
-							},
-						},
-						&RulesConfig{
+						{
 							Alert:  "DatabaseSpaceExceeded",
 							Expr:   "etcd_mvcc_db_total_size_in_bytes/etcd_server_quota_backend_bytes > 0.80",
 							For:    "1m",
-							Labels: getseverityLables("critical"),
+							Labels: getseverityLabels("critical"),
 							Annotations: map[string]string{
-								"description": "{{ $labels.instance }}, {{ $labels.job }} of etcd DB space uses more than 80%",
-								"summary":     "Etcd DB space is overused",
+								"description": "etcd节点 {{ $labels.instance }}, job为 {{ $labels.job }}, 数据库空间使用率高于80%。",
+								"summary":     "etcd数据库空间过度使用",
 								"runbook":     "Please consider manual compaction and defrag. https://github.com/etcd-io/etcd/blob/master/Documentation/op-guide/maintenance.md",
 							},
 						},
 					},
 				},
-				&AlertingNameConfig{
+				{
 					Name: "APIHealth",
 					Rules: []*RulesConfig{
-						&RulesConfig{
+						{
 							Alert:  "APIDown",
 							Expr:   "absent(up{job=\"rbdapi\"}) or up{job=\"rbdapi\"}==0",
 							For:    "1m",
-							Labels: commonLables,
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "rbd api node {{ $labels.instance }} maybe down",
-								"summary":     "rbd api node is down",
+								"description": "rbd-api组件 {{ $labels.instance }} 出现故障",
+								"summary":     "rbd-api组件故障",
 							},
 						},
 					},

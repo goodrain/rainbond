@@ -1,75 +1,83 @@
 <img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/rainbond%20log_full.png" width="60%">
 
-[![Rainbond](https://jaywcjlove.github.io/sb/lang/chinese.svg)](README-zh.md)
+[![Rainbond](https://jaywcjlove.github.io/sb/lang/english.svg)](README-en.md)
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-![Rainbond version](https://img.shields.io/badge/version-v5.5-brightgreen.svg)
+![Rainbond version](https://img.shields.io/badge/version-v5.X-brightgreen.svg)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
-[Website](http://www.rainbond.com?channel=github) • [Documentation](https://www.rainbond.com/docs?channel=github)
+[项目官网](http://www.rainbond.com?channel=github) • [文档](https://www.rainbond.com/docs?channel=github) • [Demo地址](http://demo.c9f961.grapps.cn/)
 
-## Rainbond Introduction
+## Rainbond 是什么
 
-<b>Cloud native and easy-to-use application management platform</b>
+Rainbond 是一个云原生多云应用管理平台，使用简单，不需要懂容器、Kubernetes和底层复杂技术，支持管理多个Kubernetes集群，和管理企业应用全生命周期。主要功能包括应用开发环境、应用市场、微服务架构、应用交付、应用运维、应用级多云管理等。
 
-Rainbond is a cloud native and easy-to-use application management platform, a best practice for cloud native application delivery, and easy to use. Focus on the application-centric concept. Enabling enterprises to build cloud native development cloud, cloud native delivery cloud.
+<details>
+  <summary><b>使用简单</b></summary>
+	<ul>
+    <li>只需一个命令安装体验</li>
+		<li>支持6种常见开发语言，无需编写 Dockerfile 即可一键部署容器化应用</li>
+		<li>零门槛落地 Kubernetes，无需编写 Yaml 文件部署应用</li>
+		<li>80 余款开源软件即点即用，一键安装和升级</li>
+	</ul>
+</details>
 
-<b>For Enterprise：</b> Rainbond is a cloud native platform that can be used directly out of the box，With Rainbond, you can quickly complete the cloud-native transformation of the enterprise R&D and delivery system.
+<details>
+  <summary><b>应用一键交付</b></summary>
+  <ul>
+    <li>企业应用一键安装与升级</li>
+		<li>功能完备的企业级应用商店，构建行业应用生态</li>
+		<li>支持多云交付、私有交付、SaaS交付、离线交付、个性化交付、应用市场等，实现各种<a href="https://mp.weixin.qq.com/s/2chigbtp8TzPdvJM4o7sOw" target="_blank">交付流程自动化</a></li>
+	</ul>
+</details>
 
-<b>For Developers：</b> Develop, test and operate enterprise business applications based on Rainbond，You can get a full range of cloud native technology capabilities out of the box. Including but not limited to continuous integration, service governance, architecture support, multi-dimensional application observation, and traffic management.
+<details>
+  <summary><b>云原生转型</b></summary>
+  <ul>
+    <li>开箱即用的一体化云原生平台</li>
+    <li><a href="https://www.rainbond.com/docs/#2%E4%B8%80%E6%AD%A5%E5%B0%86%E4%BC%A0%E7%BB%9F%E5%BA%94%E7%94%A8%E5%8F%98%E6%88%90%E4%BA%91%E5%8E%9F%E7%94%9F%E5%BA%94%E7%94%A8" target="_blank">一步将企业应用变成云原生应用</a></li>
+    <li>无需了解 Kubernetes，即可通过 <a href="https://www.rainbond.com/docs/quick-start/quick-install#%E5%9F%BA%E4%BA%8E-web-%E7%95%8C%E9%9D%A2%E5%AE%89%E8%A3%85">Web 界面快速安装 Kubernetes</a>   </li>
+    <li>各种数字化能力积累和复用</li>
+  </ul>
+</details>
 
-<b>For Delivery engineer：</b> Build a product version management system based on Rainbond and build a standardized customer delivery environment, so that the traditional delivery process can be automated, simplified and manageable.
 
-#### With Rainbond you can:
 
-- Enterprise cloud native DevOps.
-- Set up To B software delivery system.
-  - Build an online multi-customer continuous delivery system
-  - Build an offline, efficient delivery system.
-- Enterprises transform from delivering software to delivering services.
-- Industry integrator integrated industry application delivery
-- Enterprise Technology Center Construction.
-- Kubernetes multi-cloud management.
+### Rainbond 的功能和架构
 
-[Read Rainbond Detailed introduction](https://www.rainbond.com/docs/quick-start/rainbond_overview?channel=github)
+![Rainbond-Arch](https://grstatic.oss-cn-shanghai.aliyuncs.com/case/2022/03/17/16474283190784.jpg)
 
-[Rainbond Roadmap](https://github.com/goodrain/rainbond/issues?q=is%3Aissue+is%3Aopen+label%3A%22Feature+Suggestions%22)
+有关 Rainbond 功能和架构的更多详细信息，请参阅 [Rainbond架构概述](https://www.rainbond.com/docs/quick-start/architecture/)
 
-## Quick start
+## 快速开始
 
-1.  [Install Rainbond Cluster](https://www.rainbond.com/docs/quick-start/rainbond_install?channel=github)
-2.  [Create an Application and Component](https://www.rainbond.com/docs/get-start/create-app-from-source?channel=github)
-3.  [Build ServiceMesh microservice architecture](https://www.rainbond.com/docs/get-start/create-dependency?channel=github)
-4.  [Watch the tutorial video](https://www.rainbond.com/video.html?channel=github)
+* 请参阅 [快速安装](https://www.rainbond.com/docs/quick-start/quick-install?channel=github)
+* 请参阅 [快速入门](https://www.rainbond.com/docs/quick-start/get-start/?channel=github)
 
-## Community
+## 开源社区
 
-[Rainbond Community](https://t.goodrain.com) You are welcome to read or contribute to the use cases of Rainbond in the community.
+如果你在使用 Rainbond 过程中遇到问题需要帮助，请参阅 [社区支持](https://www.rainbond.com/community/support/)。
 
-[Rainbond Website](https://www.rainbond.com?channel=github) Read more about Rainbond.
+或添加微信小助手加入 Rainbond 技术交流群:
 
-Wechat scans the code to join the Rainbond Community Group.
+<img width="20%" src="https://static.goodrain.com/wechat/weChat.jpg"/>
 
-<img width="300px" src="https://static.goodrain.com/wechat/WechatQRCode.gif"/>
+### 贡献
 
-DingTalk Search Group : 31096419
+我们非常欢迎你参与 Rainbond 社区关于平台使用经验、标准化应用、插件分享等领域的贡献和分享。
 
-Add a WeChat assistant to enter the Rainbond Community Group:
+若你是正在使用 Rainbond 的用户，且对 Rainbond 有深入的了解和技术路线的认同，在你的企业内部有较大的需求，我们非常欢迎你 [参与 Rainbond 贡献](https://www.rainbond.com/community/contribution/?channel=github)
 
-<img width="300px" src="https://static.goodrain.com/wechat/weChat.jpg"/>
+## 周边项目
 
-## Related repositorys
+当前仓库为 Rainbond 数据中心端核心服务实现代码，项目还包括以下子项目：
 
-- [Rainbond-Console](https://github.com/goodrain/rainbond-console)
-- [Rainbond-Console-UI](https://github.com/goodrain/rainbond-ui)
-- [Rainbond-Operator](https://github.com/goodrain/rainbond-operator)
-- [Rainbond-Builder](https://github.com/goodrain/builder)
-- [Rainbond-Docs](https://github.com/goodrain/rainbond-docs)
-
-## Contributing
-
-Check out [CONTRIBUTING](https://github.com/goodrain/rainbond/blob/V5.4/CONTRIBUTING.md) to see how to develop with Rainbond.
+- [Rainbond-Console](https://github.com/goodrain/rainbond-console) Rainbond 控制台服务端项目
+- [Rainbond-Console-UI](https://github.com/goodrain/rainbond-ui) Rainbond 控制台前端项目
+- [Rainbond-Operator](https://github.com/goodrain/rainbond-operator) Rainbond 安装运维项目
+- [Rainbond-Cloud-adaptor](https://github.com/goodrain/cloud-adaptor) Rainbond 集群安装驱动服务
+- [Rainbond-Builder](https://github.com/goodrain/builder) Rainbond 源码构建工具集
+- [Rainbond-Docs](https://github.com/goodrain/rainbond-docs) Rainbond 文档
 
 ## License
 
-Rainbond follow LGPL-3.0 license，Details see[LICENSE](https://github.com/goodrain/rainbond/blob/master/LICENSE) and [Licensing](https://github.com/goodrain/rainbond/blob/master/Licensing.md)
-
+Rainbond 遵循 LGPL-3.0 license 协议发布，详情查看 [LICENSE](https://github.com/goodrain/rainbond/blob/main/LICENSE) 及 [Licensing](https://github.com/goodrain/rainbond/blob/main/Licensing.md) 。

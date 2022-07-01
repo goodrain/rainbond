@@ -1,0 +1,31 @@
+name: 'Commit Message Check'
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+  push:
+    branches: [main, V5.*, fixbug*, Develop*]
+
+jobs:
+  check-commit-message:
+    name: Check Commit Message
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Commit Type
+        uses: gsactions/commit-message-checker@v1
+        with:
+          pattern: '^\s*(feat|fix|docs|style|refactor|test|ci|perf|revert|chore|to)(\(.+\))?\: .+'
+          flags: 'gm'
+          error: 'Your first line has to contain a commit type like "feat: xxx".'
+      - name: Check Line Length
+        uses: gsactions/commit-message-checker@v1
+        with:
+          pattern: '^.{1,72}$'
+          error: 'The maximum line length of 72 characters is exceeded.'
+          excludeDescription: 'true' # optional: this excludes the description body of a pull request
+          excludeTitle: 'true' # optional: this excludes the title of a pull request
+          checkAllCommitMessages: 'true' # optional: this checks all commits associated with a pull request
+          accessToken: ${{ secrets.GITHUB_TOKEN }} # github access token is only required if checkAllCommitMessages is true

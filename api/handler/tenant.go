@@ -120,6 +120,7 @@ func (t *TenantAction) BindTenantsResource(source []*dbmodel.Tenants) api_model.
 			item.RunningAppNum = re.RunningAppNum
 			item.RunningAppInternalNum = re.RunningAppInternalNum
 			item.RunningAppThirdNum = re.RunningAppThirdNum
+			item.RunningApplications = re.RunningApplications
 		}
 		list.Add(item)
 	}
@@ -341,12 +342,14 @@ func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *api_model.Te
 			"service_running_num": 0,
 			"cpu":                 0,
 			"memory":              0,
+			"app_running_num":     0,
 		}
 		tr, _ := resources[tenantID]
 		if tr != nil {
 			result[tenantID]["service_running_num"] = tr.RunningAppNum
 			result[tenantID]["cpu"] = tr.CpuRequest
 			result[tenantID]["memory"] = tr.MemoryRequest
+			result[tenantID]["app_running_num"] = tr.RunningApplications
 		}
 	}
 	//query disk used in prometheus
@@ -367,16 +370,17 @@ func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *api_model.Te
 
 //TenantResourceStats tenant resource stats
 type TenantResourceStats struct {
-	TenantID         string `json:"tenant_id,omitempty"`
-	CPURequest       int64  `json:"cpu_request,omitempty"`
-	CPULimit         int64  `json:"cpu_limit,omitempty"`
-	MemoryRequest    int64  `json:"memory_request,omitempty"`
-	MemoryLimit      int64  `json:"memory_limit,omitempty"`
-	RunningAppNum    int64  `json:"running_app_num"`
-	UnscdCPUReq      int64  `json:"unscd_cpu_req,omitempty"`
-	UnscdCPULimit    int64  `json:"unscd_cpu_limit,omitempty"`
-	UnscdMemoryReq   int64  `json:"unscd_memory_req,omitempty"`
-	UnscdMemoryLimit int64  `json:"unscd_memory_limit,omitempty"`
+	TenantID            string `json:"tenant_id,omitempty"`
+	CPURequest          int64  `json:"cpu_request,omitempty"`
+	CPULimit            int64  `json:"cpu_limit,omitempty"`
+	MemoryRequest       int64  `json:"memory_request,omitempty"`
+	MemoryLimit         int64  `json:"memory_limit,omitempty"`
+	RunningAppNum       int64  `json:"running_app_num"`
+	UnscdCPUReq         int64  `json:"unscd_cpu_req,omitempty"`
+	UnscdCPULimit       int64  `json:"unscd_cpu_limit,omitempty"`
+	UnscdMemoryReq      int64  `json:"unscd_memory_req,omitempty"`
+	UnscdMemoryLimit    int64  `json:"unscd_memory_limit,omitempty"`
+	RunningApplications int64  `json:"running_applications"`
 }
 
 //GetTenantResource get tenant resource
@@ -391,6 +395,7 @@ func (t *TenantAction) GetTenantResource(tenantID string) (ts TenantResourceStat
 	ts.MemoryLimit = tr.MemoryLimit
 	ts.MemoryRequest = tr.MemoryRequest
 	ts.RunningAppNum = tr.RunningAppNum
+	ts.RunningApplications = tr.RunningApplications
 	return
 }
 

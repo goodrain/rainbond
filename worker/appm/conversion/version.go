@@ -172,7 +172,6 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		logrus.Infof("service id: %s; enable privileged.", as.ServiceID)
 		c.SecurityContext = &corev1.SecurityContext{Privileged: util.Bool(true)}
 	}
-
 	return c, nil
 }
 
@@ -329,6 +328,11 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 	envs = append(envs, corev1.EnvVar{Name: "POD_IP", ValueFrom: &corev1.EnvVarSource{
 		FieldRef: &corev1.ObjectFieldSelector{
 			FieldPath: "status.podIP",
+		},
+	}})
+	envs = append(envs, corev1.EnvVar{Name: "POD_NAME", ValueFrom: &corev1.EnvVarSource{
+		FieldRef: &corev1.ObjectFieldSelector{
+			FieldPath: "metadata.name",
 		},
 	}})
 	var config = make(map[string]string, len(envs))

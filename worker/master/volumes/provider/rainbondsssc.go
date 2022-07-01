@@ -19,7 +19,10 @@
 package provider
 
 import (
+	"encoding/json"
 	"fmt"
+	api_model "github.com/goodrain/rainbond/api/model"
+	"github.com/jinzhu/gorm"
 	"os"
 	"path"
 	"strconv"
@@ -68,7 +71,7 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 	_, stateless := options.PVC.Labels["stateless"]
 	// v5.0.4 Previous versions
 	hostpath := path.Join(p.pvDir, "tenant", tenantID, "service", serviceID, options.PVC.Name)
-
+	pluginID, ok := options.PVC.Labels["pluginID"]
 	// after v5.0.4,change host path
 	// Directory path has nothing to do with volume ID
 	// Directory path bound to volume mount path
@@ -84,6 +87,30 @@ func (p *rainbondssscProvisioner) Provision(options controller.VolumeOptions) (*
 			hostpath = volume.HostPath
 			if !stateless {
 				hostpath = path.Join(volume.HostPath, podName)
+			}
+		} else if ok {
+			config, err := db.GetManager().TenantPluginVersionConfigDao().GetPluginConfig(serviceID, pluginID)
+			if err != nil && err != gorm.ErrRecordNotFound {
+				logrus.Errorf("get service plugin config from db failure %s", err.Error())
+			}
+			if config == nil {
+				return nil, fmt.Errorf("can not parse volume id")
+			}
+			configStr := config.ConfigStr
+			var oldConfig api_model.ResourceSpec
+			if err := json.Unmarshal([]byte(configStr), &oldConfig); err == nil {
+				for _, plugin := range oldConfig.BaseNormal.Options {
+					var pluginStorage api_model.PluginStorage
+					jsonValue, ok := plugin.(string)
+					if ok {
+						if err := json.Unmarshal([]byte(jsonValue), &pluginStorage); err == nil {
+							if pluginStorage.VolumeName == options.PVC.Labels["VolumeName"] {
+								hostpath = path.Join("/grdata/tenant/", tenantID, "service", serviceID, pluginStorage.VolumePath, podName)
+							}
+						}
+					}
+				}
+
 			}
 		} else {
 			return nil, fmt.Errorf("can not parse volume id")
@@ -185,6 +212,8 @@ func updatePathForPersistentVolumeSource(persistentVolumeSource *v1.PersistentVo
 			Path: newPath(persistentVolumeSource.HostPath.Path),
 			Type: persistentVolumeSource.HostPath.Type,
 		}
+	case persistentVolumeSource.CSI != nil :
+		source.CSI = persistentVolumeSource.CSI
 	default:
 		return nil, fmt.Errorf("unsupported persistence volume source")
 	}

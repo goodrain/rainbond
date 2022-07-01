@@ -10,6 +10,9 @@ trigger:
     include:
     - custom
 
+node:
+  city: sydney
+
 steps:
 - name: build rainbond
   image: rainbond/docker:dind
@@ -26,6 +29,8 @@ steps:
       from_secret: domestic_docker_password
     BUILD_VERSION:
       from_secret: build_version
+    GOPROXY:
+      from_secret: go_proxy
     GOOS: linux
     GOARCH: arm64
   commands:

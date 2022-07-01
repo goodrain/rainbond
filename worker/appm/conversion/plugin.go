@@ -21,6 +21,7 @@ package conversion
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/worker/appm/volume"
 	"os"
 	"strconv"
 	"strings"
@@ -107,10 +108,7 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 				},
 			})
 		}
-		args, err := createPluginArgs(versionInfo.ContainerCMD, *envs)
-		if err != nil {
-			return nil, nil, nil, err
-		}
+
 		pc := v1.Container{
 			Name:                   "plugin-" + pluginR.PluginID,
 			Image:                  versionInfo.BuildLocalImage,
@@ -118,9 +116,14 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 			EnvFrom:                envFromSecrets,
 			Resources:              createPluginResources(pluginR.ContainerMemory, pluginR.ContainerCPU),
 			TerminationMessagePath: "",
-			Args:                   args,
 			VolumeMounts:           mainContainer.VolumeMounts,
 		}
+
+		if len(versionInfo.ContainerCMD) > 0 {
+			pc.Command = []string{"/bin/sh", "-c"}
+			pc.Args = []string{versionInfo.ContainerCMD}
+		}
+
 		pluginModel, err := getPluginModel(pluginR.PluginID, as.TenantID, dbmanager)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("get plugin model info failure %s", err.Error())
@@ -143,7 +146,7 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 			if config != nil {
 				var resourceConfig api_model.ResourceSpec
 				if err := json.Unmarshal([]byte(config.ConfigStr), &resourceConfig); err != nil {
-					logrus.Warningf("load mesh plugin %s config of componet %s failure %s")
+					logrus.Warningf("load mesh plugin %s config of componet %s failure %v", pluginR.PluginID, as.ServiceID, err.Error())
 				}
 				if len(resourceConfig.BaseServices) > 0 {
 					setSidecarContainerLifecycle(as, &pc, &resourceConfig)
@@ -179,6 +182,31 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 	}
 	//create plugin config to configmap
 	for i := range appPlugins {
+		config, err := dbmanager.TenantPluginVersionConfigDao().GetPluginConfig(appPlugins[i].ServiceID,
+			appPlugins[i].PluginID)
+		if err != nil && err != gorm.ErrRecordNotFound {
+			logrus.Errorf("get service plugin config from db failure %s", err.Error())
+		}
+		if config != nil {
+			configStr := config.ConfigStr
+			var oldConfig api_model.ResourceSpec
+			if err := json.Unmarshal([]byte(configStr), &oldConfig); err == nil {
+				for key, plugin := range oldConfig.BaseNormal.Options {
+					var pluginStorage api_model.PluginStorage
+					jsonValue, ok := plugin.(string)
+					if !ok {
+						continue
+					}
+					if err := json.Unmarshal([]byte(jsonValue), &pluginStorage); err != nil {
+						continue
+					}
+					if pluginStorage.VolumeName != "" || pluginStorage.VolumePath != "" {
+						IsContainMount(&mainContainer.VolumeMounts, as, pluginStorage, config.PluginID)
+						delete(oldConfig.BaseNormal.Options, key)
+					}
+				}
+			}
+		}
 		ApplyPluginConfig(as, appPlugins[i], dbmanager, inboundPluginConfig)
 	}
 	//if need proxy but not install net plugin
@@ -197,6 +225,11 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 		initContainers = append(initContainers, bootSequence)
 	}
 	as.BootSeqContainer = &bootSequence
+	if len(as.GetPodTemplate().Spec.Containers) != 0 {
+		pluginMountVolume(initContainers, as.GetPodTemplate().Spec.Containers[0].VolumeMounts)
+		pluginMountVolume(precontainers, as.GetPodTemplate().Spec.Containers[0].VolumeMounts)
+		pluginMountVolume(postcontainers, as.GetPodTemplate().Spec.Containers[0].VolumeMounts)
+	}
 	return initContainers, precontainers, postcontainers, nil
 }
 
@@ -278,7 +311,6 @@ func ApplyPluginConfig(as *typesv1.AppService, servicePluginRelation *model.Tena
 	}
 	if config != nil {
 		configStr := config.ConfigStr
-		//if have inbound plugin,will Propagate its listner port to other plug-ins
 		if inboundPluginConfig != nil {
 			var oldConfig api_model.ResourceSpec
 			if err := json.Unmarshal([]byte(configStr), &oldConfig); err == nil {
@@ -374,16 +406,6 @@ func getPluginModel(pluginID, tenantID string, dbmanager db.Manager) (string, er
 	return plugin.PluginModel, nil
 }
 
-func createPluginArgs(cmd string, envs []v1.EnvVar) ([]string, error) {
-	if cmd == "" {
-		return nil, nil
-	}
-	configs := make(map[string]string, len(envs))
-	for _, env := range envs {
-		configs[env.Name] = env.Value
-	}
-	return strings.Split(util.ParseVariable(cmd, configs), " "), nil
-}
 func getXDSHostIPAndPort() (string, string, string) {
 	xdsHost := ""
 	xdsHostPort := "6101"
@@ -446,7 +468,7 @@ func createPluginResources(memory int, cpu int) v1.ResourceRequirements {
 }
 
 func createTCPUDPMeshRecources(as *typesv1.AppService) v1.ResourceRequirements {
-	var memory = 128
+	var memory int
 	var cpu int64
 	if limit, ok := as.ExtensionSet["tcpudp_mesh_cpu"]; ok {
 		limitint, _ := strconv.Atoi(limit)
@@ -461,7 +483,7 @@ func createTCPUDPMeshRecources(as *typesv1.AppService) v1.ResourceRequirements {
 		}
 	}
 	return createResourcesBySetting(memory, cpu, func() int64 {
-		if cpu < 120 {
+		if 0 < cpu && cpu < 120 {
 			return 120
 		}
 		return cpu
@@ -477,4 +499,35 @@ func xdsHostIPEnv(xdsHost string) corev1.EnvVar {
 		}}
 	}
 	return v1.EnvVar{Name: "XDS_HOST_IP", Value: xdsHost}
+}
+
+//IsContainMount 判断存储路径是否冲突，以及进一步实现创建存储或配置文件
+func IsContainMount(volumeMounts *[]v1.VolumeMount, as *typesv1.AppService, plugin api_model.PluginStorage, pluginID string) bool {
+
+	for _, mountValue := range *volumeMounts {
+		if mountValue.MountPath == plugin.VolumePath {
+			return false
+		}
+	}
+	volumeMount := v1.VolumeMount{Name: plugin.VolumeName, MountPath: plugin.VolumePath}
+	*volumeMounts = append(*volumeMounts, volumeMount)
+	var define = &volume.Define{}
+	v := new(volume.PluginStorageVolume)
+	v.Plugin = plugin
+	v.AS = as
+	v.PluginID = pluginID
+	if err := v.CreateVolume(define); err != nil {
+		return false
+	}
+	as.GetPodTemplate().Spec.Volumes = append(as.GetPodTemplate().Spec.Volumes, define.GetVolumes()...)
+	if len(as.GetPodTemplate().Spec.Containers) != 0 {
+		as.GetPodTemplate().Spec.Containers[0].VolumeMounts = append(as.GetPodTemplate().Spec.Containers[0].VolumeMounts, define.GetVolumeMounts()...)
+	}
+	return true
+}
+
+func pluginMountVolume(containers []v1.Container, volumeMount []v1.VolumeMount) {
+	for i := range containers {
+		containers[i].VolumeMounts = volumeMount
+	}
 }
