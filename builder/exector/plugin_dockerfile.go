@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/build"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/util"
 
@@ -106,8 +107,9 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 	n1 := strings.Split(mm[len(mm)-1], ".")[0]
 	buildImageName := fmt.Sprintf(builder.REGISTRYDOMAIN+"/plugin_%s_%s:%s", n1, t.PluginID, t.DeployVersion)
 	buildOptions := types.ImageBuildOptions{
-		Tags:   []string{buildImageName},
-		Remove: true,
+		Tags:        []string{buildImageName},
+		Remove:      true,
+		NetworkMode: build.ImageBuildNetworkModeHost,
 	}
 	if noCache := os.Getenv("NO_CACHE"); noCache != "" {
 		buildOptions.NoCache = true
@@ -115,7 +117,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 		buildOptions.NoCache = false
 	}
 	logger.Info("start build image", map[string]string{"step": "builder-exector"})
-	_, err := sources.ImageBuild(e.DockerClient, sourceDir, buildOptions, logger, 5)
+	err := sources.ImageBuild(e.DockerClient, sourceDir, buildOptions, logger, 5)
 	if err != nil {
 		logger.Error(fmt.Sprintf("build image %s failure,find log in rbd-chaos", buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("[plugin]build image error: %s", err.Error())
