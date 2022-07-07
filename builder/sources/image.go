@@ -371,6 +371,7 @@ func ImageBuild(dockerCli *client.Client, contextDir string, options types.Image
 	}
 	err = jsonmessage.DisplayJSONMessagesStream(rc.Body, out, 0, true, nil)
 	if err != nil {
+		out.Write([]byte("\n"))
 		logrus.Errorf("read build log failure %s", err.Error())
 		return err
 	}
