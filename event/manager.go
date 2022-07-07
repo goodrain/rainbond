@@ -424,7 +424,6 @@ type loggerWriter struct {
 	step        string
 	level       string
 	fmt         map[string]interface{}
-	tmp         []byte
 	lastMessage string
 }
 
