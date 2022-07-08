@@ -565,7 +565,7 @@ func (m *Manager) ExecApplyRegistryAuthSecretTask(task *model.Task) error {
 	}
 
 	secretNameFrom := func(secretID string) string {
-		return fmt.Sprintf("wt-registry-auth-%s", secretID)
+		return fmt.Sprintf("rbd-registry-auth-%s", secretID)
 	}
 
 	secret, err := m.cfg.KubeClient.CoreV1().Secrets(tenant.Namespace).Get(m.ctx, secretNameFrom(body.SecretID), metav1.GetOptions{})
@@ -580,7 +580,7 @@ func (m *Manager) ExecApplyRegistryAuthSecretTask(task *model.Task) error {
 						Labels: map[string]string{
 							"tenant_id":                        tenant.UUID,
 							"tenant_name":                      tenant.Name,
-							"creator":                          "Wutong",
+							"creator":                          "Rainbond",
 							"rainbond.io/registry-auth-secret": "true",
 						},
 					},
