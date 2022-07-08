@@ -433,6 +433,7 @@ func (b *BackupAPPRestore) clear() {
 }
 func getNewImageName(imageName string) string {
 	image := parser.ParseImageName(imageName)
+	logrus.Infof("--------REGISTRYDOMAIN ---%s", builder.REGISTRYDOMAIN)
 	if image.GetDomain() != builder.REGISTRYDOMAIN {
 		newImageName := strings.Replace(imageName, image.GetDomain(), builder.REGISTRYDOMAIN, 1)
 		logrus.Infof("[getNewImageName]: imageName: [%s], image.GetDomain() [%s], builder.REGISTRYDOMAIN [%s], newImageName [%s]", imageName, image.GetDomain(), builder.REGISTRYDOMAIN, newImageName)
@@ -497,14 +498,14 @@ func (b *BackupAPPRestore) modify(appSnapshot *AppSnapshot) error {
 			a.ServiceID = newServiceID
 		}
 		for _, a := range app.Versions {
-			if a.DeliveredType == "image" {
-				logrus.Infof("--------------1------------a.ImageName %s", a.ImageName)
-				a.ImageName = getNewImageName(a.ImageName)
-				logrus.Infof("--------------2------------a.ImageName %s", a.ImageName)
-				logrus.Infof("--------------1------------a.DeliveredPath %s", a.DeliveredPath)
-				a.DeliveredPath = getNewImageName(a.DeliveredPath)
-				logrus.Infof("--------------2------------a.DeliveredPath %s", a.DeliveredPath)
-			}
+			//if a.DeliveredType == "image" {
+			//	logrus.Infof("--------------1------------a.ImageName %s", a.ImageName)
+			//	a.ImageName = getNewImageName(a.ImageName)
+			//	logrus.Infof("--------------2------------a.ImageName %s", a.ImageName)
+			//	logrus.Infof("--------------1------------a.DeliveredPath %s", a.DeliveredPath)
+			//	a.DeliveredPath = getNewImageName(a.DeliveredPath)
+			//	logrus.Infof("--------------2------------a.DeliveredPath %s", a.DeliveredPath)
+			//}
 			a.ServiceID = newServiceID
 		}
 
