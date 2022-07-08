@@ -110,6 +110,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 		Tags:        []string{buildImageName},
 		Remove:      true,
 		NetworkMode: build.ImageBuildNetworkModeHost,
+		AuthConfigs: build.GetTenantRegistryAuthSecrets(e.ctx, t.TenantID, e.KubeClient),
 	}
 	if noCache := os.Getenv("NO_CACHE"); noCache != "" {
 		buildOptions.NoCache = true

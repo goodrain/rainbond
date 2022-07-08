@@ -165,6 +165,14 @@ func NewTaskBody(taskType string, body []byte) TaskBody {
 			return nil
 		}
 		return b
+	case "apply_registry_auth_secret":
+		b := ApplyRegistryAuthSecretTaskBody{}
+		err := ffjson.Unmarshal(body, &b)
+		if err != nil {
+			logrus.Debugf("error unmarshal data: %v", err)
+			return nil
+		}
+		return &b
 	default:
 		return DefaultTaskBody{}
 	}
@@ -306,13 +314,13 @@ type GroupStartTaskBody struct {
 
 // ApplyRuleTaskBody contains information for ApplyRuleTask
 type ApplyRuleTaskBody struct {
-	ServiceID     string            `json:"service_id"`
-	EventID       string            `json:"event_id"`
-	ServiceKind   string            `json:"service_kind"`
-	Action        string            `json:"action"`
-	Port          int               `json:"port"`
-	IsInner       bool              `json:"is_inner"`
-	Limit         map[string]string `json:"limit"`
+	ServiceID   string            `json:"service_id"`
+	EventID     string            `json:"event_id"`
+	ServiceKind string            `json:"service_kind"`
+	Action      string            `json:"action"`
+	Port        int               `json:"port"`
+	IsInner     bool              `json:"is_inner"`
+	Limit       map[string]string `json:"limit"`
 }
 
 // ApplyPluginConfigTaskBody apply plugin dynamic discover config
@@ -356,6 +364,16 @@ type RefreshHPATaskBody struct {
 	ServiceID string `json:"service_id"`
 	RuleID    string `json:"rule_id"`
 	EventID   string `json:"eventID"`
+}
+
+// ApplyRegistryAuthSecretTaskBody contains information for ApplyRegistryAuthSecretTask
+type ApplyRegistryAuthSecretTaskBody struct {
+	Action   string `json:"action"`
+	TenantID string `json:"tenant_id"`
+	SecretID string `json:"secret_id"`
+	Domain   string `json:"domain"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 //DefaultTaskBody 默认操作任务主体
