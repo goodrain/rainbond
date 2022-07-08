@@ -424,7 +424,7 @@ func ImageLoad(dockerCli *client.Client, tarFile string, logger event.Logger) er
 		return err
 	}
 	defer reader.Close()
-
+	logrus.Infof("start image Load %s", tarFile)
 	rc, err := dockerCli.ImageLoad(ctx, reader, false)
 	if err != nil {
 		return err
@@ -448,6 +448,7 @@ func ImageLoad(dockerCli *client.Client, tarFile string, logger event.Logger) er
 			if jm.Error != nil {
 				return jm.Error
 			}
+			logrus.Info(jm.JSONString())
 			logger.Info(jm.JSONString(), map[string]string{"step": "build-progress"})
 		}
 	}

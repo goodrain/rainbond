@@ -203,8 +203,10 @@ func (b *BackupAPPRestore) deleteCache(dir string) error {
 func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appSnapshot *AppSnapshot) error {
 	for _, app := range appSnapshot.Services {
 		//backup app image or code slug file
+		logrus.Info(fmt.Sprintf("开始恢复应用(%s)运行环境", app.Service.ServiceAlias), map[string]string{"step": "restore_builder", "status": "starting"})
 		b.Logger.Info(fmt.Sprintf("开始恢复应用(%s)运行环境", app.Service.ServiceAlias), map[string]string{"step": "restore_builder", "status": "starting"})
 		for _, version := range app.Versions {
+			logrus.Infof("version delivery type: %+v, FinalStatus: %v", version.DeliveredType, version.FinalStatus)
 			if version.DeliveredType == "slug" && version.FinalStatus == "success" {
 				if err := b.downloadSlug(backup, app, version); err != nil {
 					logrus.Errorf("download app slug file error.%s", err.Error())
@@ -377,6 +379,7 @@ func (b *BackupAPPRestore) downloadSlug(backup *dbmodel.AppBackup, app *RegionSe
 
 func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
 	dstDir := fmt.Sprintf("%s/app_%s/image_%s.tar", b.cacheDir, b.getOldServiceID(app.ServiceID), version.BuildVersion)
+	logrus.Errorf("dst Dir: %s", dstDir)
 	if err := sources.ImageLoad(b.DockerClient, dstDir, b.Logger); err != nil {
 		b.Logger.Error(util.Translation("load image to local hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
 		logrus.Errorf("load image to local hub error when restore backup app, %s", err.Error())
@@ -387,6 +390,7 @@ func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionS
 		imageName = version.DeliveredPath
 	}
 	newImageName := getNewImageName(imageName)
+	logrus.Infof("imageName: %s, newImageName: %s", imageName, newImageName)
 	if newImageName != imageName {
 		if err := sources.ImageTag(b.DockerClient, imageName, newImageName, b.Logger, 3); err != nil {
 			b.Logger.Error(util.Translation("change image tag error"), map[string]string{"step": "restore_builder", "status": "failure"})
