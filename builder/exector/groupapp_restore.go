@@ -386,6 +386,7 @@ func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionS
 		return err
 	}
 	imageName := version.ImageName
+	logrus.Infof("version.ImageName: [%s], DeliveredPath [%s]", version.ImageName, version.DeliveredPath)
 	if imageName == "" {
 		imageName = version.DeliveredPath
 	}
@@ -434,6 +435,7 @@ func getNewImageName(imageName string) string {
 	image := parser.ParseImageName(imageName)
 	if image.GetDomain() != builder.REGISTRYDOMAIN {
 		newImageName := strings.Replace(imageName, image.GetDomain(), builder.REGISTRYDOMAIN, 1)
+		logrus.Infof("[getNewImageName]: imageName: [%s], image.GetDomain() [%s], builder.REGISTRYDOMAIN [%s], newImageName [%s]", imageName, image.GetDomain(), builder.REGISTRYDOMAIN, newImageName)
 		return newImageName
 	}
 	return imageName
