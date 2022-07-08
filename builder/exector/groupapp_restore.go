@@ -498,8 +498,12 @@ func (b *BackupAPPRestore) modify(appSnapshot *AppSnapshot) error {
 		}
 		for _, a := range app.Versions {
 			if a.DeliveredType == "image" {
+				logrus.Infof("--------------1------------a.ImageName %s", a.ImageName)
 				a.ImageName = getNewImageName(a.ImageName)
+				logrus.Infof("--------------2------------a.ImageName %s", a.ImageName)
+				logrus.Infof("--------------1------------a.DeliveredPath %s", a.DeliveredPath)
 				a.DeliveredPath = getNewImageName(a.DeliveredPath)
+				logrus.Infof("--------------2------------a.DeliveredPath %s", a.DeliveredPath)
 			}
 			a.ServiceID = newServiceID
 		}
