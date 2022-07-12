@@ -19,6 +19,7 @@
 package exector
 
 import (
+	"github.com/goodrain/rainbond/builder"
 	"testing"
 
 	"github.com/pquerna/ffjson/ffjson"
@@ -79,5 +80,41 @@ func TestUnzipAllDataFile(t *testing.T) {
 	allTmpDir := "/tmp/4f25c53e864744ec95d037528acaa708"
 	if err := util.Unzip(allDataFilePath, allTmpDir); err != nil {
 		logrus.Errorf("unzip all data file failure %s", err.Error())
+	}
+}
+
+func TestGetImageName(t *testing.T) {
+	testData := []struct {
+		builderRegistryDomain string
+		imageName             string
+		result                string
+	}{
+		{
+			imageName:             "goodrain.me/nginx:latest",
+			builderRegistryDomain: "goodrain.me",
+			result:                "goodrain.me/nginx:latest",
+		},
+		{
+			imageName:             "registry.cn-hangzhou.aliyuncs.com/nginx:latest",
+			builderRegistryDomain: "goodrain.me",
+			result:                "goodrain.me/nginx:latest",
+		},
+		{
+			imageName:             "goodrain.me/nginx:latest",
+			builderRegistryDomain: "registry.cn-hangzhou.aliyuncs.com/local",
+			result:                "registry.cn-hangzhou.aliyuncs.com/local/nginx:latest",
+		},
+		{
+			imageName:             "goodrain.me/goodrain/nginx:latest",
+			builderRegistryDomain: "registry.cn-hangzhou.aliyuncs.com/local",
+			result:                "registry.cn-hangzhou.aliyuncs.com/local/nginx:latest",
+		},
+	}
+	for _, ts := range testData {
+		builder.REGISTRYDOMAIN = ts.builderRegistryDomain
+		newImage := getNewImageName(ts.imageName)
+		if newImage != ts.result {
+			t.Fatalf("Except [%s], But got [%s]", ts.result, newImage)
+		}
 	}
 }

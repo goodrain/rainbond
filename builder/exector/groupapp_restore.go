@@ -284,6 +284,12 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 							}
 						}
 					}
+					// After version 5.5.0, users are allowed to set the names of components in the cluster.
+					// So the storage location of stateful components has also changed.
+					// eg: app-047d425d-gr9a9626-0 , (k8s-app=app-047d425d, k8s_component_name=gr9a9626)
+					if app.Service.K8sComponentName != "" && strings.Contains(filepath.Base(path), app.Service.K8sComponentName) {
+						newNameTmp = newNameTmp[len(newNameTmp)-2:]
+					}
 					newName := strings.Join(newNameTmp, "-")
 					newpath := filepath.Join(util.GetParentDirectory(path), newName)
 					logrus.Infof("rename %s to %s", path, newpath)
@@ -426,14 +432,16 @@ func (b *BackupAPPRestore) clear() {
 	//clear cache data
 	os.RemoveAll(b.cacheDir)
 }
+
 func getNewImageName(imageName string) string {
 	image := parser.ParseImageName(imageName)
-	if image.GetDomain() != builder.REGISTRYDOMAIN {
-		newImageName := strings.Replace(imageName, image.GetDomain(), builder.REGISTRYDOMAIN, 1)
+	if path.Join(image.GetDomain(), image.GetNamespace()) != builder.REGISTRYDOMAIN {
+		newImageName := strings.Replace(imageName, path.Join(image.GetDomain(), image.GetNamespace()), builder.REGISTRYDOMAIN, 1)
 		return newImageName
 	}
 	return imageName
 }
+
 func (b *BackupAPPRestore) modify(appSnapshot *AppSnapshot) error {
 	for _, app := range appSnapshot.Services {
 		oldServiceID := app.ServiceID

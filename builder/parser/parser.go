@@ -160,6 +160,14 @@ func (i Image) GetSimpleName() string {
 	return i.GetRepostory()
 }
 
+//GetNamespace get namespace
+func (i Image) GetNamespace() string {
+	if strings.Contains(i.GetRepostory(), "/") {
+		return strings.Split(i.GetRepostory(), "/")[0]
+	}
+	return ""
+}
+
 //Parser 解析器
 type Parser interface {
 	Parse() ParseErrorList
