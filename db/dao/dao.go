@@ -77,6 +77,7 @@ type ApplicationDao interface {
 	GetByServiceID(sid string) (*model.Application, error)
 	ListByAppIDs(appIDs []string) ([]*model.Application, error)
 	IsK8sAppDuplicate(tenantID, AppID, k8sApp string) bool
+	GetAppByName(tenantID, appName, k8sAppName string) (*model.Application, error)
 }
 
 //AppConfigGroupDao Application config group Dao

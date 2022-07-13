@@ -101,3 +101,53 @@ func (t *ClusterController) MavenSettingDetail(w http.ResponseWriter, r *http.Re
 	}
 	httputil.ReturnSuccess(r, w, c)
 }
+
+//GetNamespace Get the unconnected namespaces under the current cluster
+func (t *ClusterController) GetNamespace(w http.ResponseWriter, r *http.Request) {
+	content := r.FormValue("content")
+	ns, err := handler.GetClusterHandler().GetNamespace(r.Context(), content)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, ns)
+}
+
+//GetNamespaceResource Get all resources in the current namespace
+func (t *ClusterController) GetNamespaceResource(w http.ResponseWriter, r *http.Request) {
+	content := r.FormValue("content")
+	namespace := r.FormValue("namespace")
+	rs, err := handler.GetClusterHandler().GetNamespaceSource(r.Context(), content, namespace)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rs)
+}
+
+//ConvertResource Get the resources under the current namespace to the rainbond platform
+func (t *ClusterController) ConvertResource(w http.ResponseWriter, r *http.Request) {
+	content := r.FormValue("content")
+	namespace := r.FormValue("namespace")
+	rs, err := handler.GetClusterHandler().GetNamespaceSource(r.Context(), content, namespace)
+	appsServices, err := handler.GetClusterHandler().ConvertResource(r.Context(), namespace, rs)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, appsServices)
+}
+
+//func (t *ClusterController) ResourceImport(w http.ResponseWriter, r *http.Request) {
+//	content := r.FormValue("content")
+//	namespace := r.FormValue("namespace")
+//	eid := r.FormValue("eid")
+//	rs, err := handler.GetClusterHandler().GetNamespaceSource(r.Context(), content, namespace)
+//	appsServices, err := handler.GetClusterHandler().ConvertResource(r.Context(), namespace, rs)
+//	rri, err := handler.GetClusterHandler().ResourceImport(r.Context(), namespace, appsServices, eid)
+//	if err != nil {
+//		err.Handle(r, w)
+//		return
+//	}
+//	httputil.ReturnSuccess(r, w, rri)
+//}

@@ -400,6 +400,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		serviceID := deployment.Labels["service_id"]
 		version := deployment.Labels["version"]
 		createrID := deployment.Labels["creater_id"]
+		migrator := deployment.Labels["migrator"]
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
@@ -407,8 +408,18 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 			if appservice != nil {
 				appservice.SetDeployment(deployment)
+				if migrator == "rainbond" {
+					label := "service_id=" + serviceID
+					pods, _ := a.conf.KubeClient.CoreV1().Pods(deployment.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					if pods != nil {
+						for _, pod := range pods.Items {
+							appservice.SetPods(&pod)
+						}
+					}
+				}
 				return
 			}
+
 		}
 	}
 	if statefulset, ok := obj.(*appsv1.StatefulSet); ok {
