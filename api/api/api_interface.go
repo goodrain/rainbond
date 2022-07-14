@@ -88,6 +88,7 @@ type ServiceInterface interface {
 	AddServiceMonitors(w http.ResponseWriter, r *http.Request)
 	DeleteServiceMonitors(w http.ResponseWriter, r *http.Request)
 	UpdateServiceMonitors(w http.ResponseWriter, r *http.Request)
+	UploadPackage(w http.ResponseWriter, r *http.Request)
 }
 
 //TenantInterfaceWithV1 funcs for both v2 and v1
@@ -153,6 +154,7 @@ type AppInterface interface {
 	NewUpload(w http.ResponseWriter, r *http.Request)
 	ImportID(w http.ResponseWriter, r *http.Request)
 	ImportApp(w http.ResponseWriter, r *http.Request)
+	UploadID(w http.ResponseWriter, r *http.Request)
 }
 
 // ApplicationInterface tenant application interface

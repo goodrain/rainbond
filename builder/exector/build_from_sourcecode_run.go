@@ -21,6 +21,7 @@ package exector
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -163,6 +164,43 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		}
 	case "oss":
 		i.commit = Commit{}
+	case "pkg":
+		pathSplit := strings.Split(i.CodeSouceInfo.RepositoryURL,"/")
+		eventID := pathSplit[len(pathSplit)-1]
+		tarPath := fmt.Sprintf("/grdata/package_build/components/%s/events", i.ServiceID)
+		oldPath := fmt.Sprintf("/grdata/package_build/temp/events/%s", eventID)
+
+		_, err := os.Stat(tarPath)
+		if err != nil {
+			if !os.IsExist(err) {
+				err := os.MkdirAll(tarPath, 0755)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		packages, err := ioutil.ReadDir(oldPath)
+		if err != nil {
+			logrus.Errorf("read dir error: %s", err.Error())
+			return  err
+		}
+		packageArr := make([]string, 0, 10)
+		for _, dir := range packages {
+			if dir.IsDir() {
+				continue
+			}
+			packageArr = append(packageArr, dir.Name())
+		}
+		fileName := packageArr[0]
+		file := tarPath + "/" + fileName
+		fileMD5 := util.MD5(file)
+		i.commit = Commit{
+			Message: fileName,
+			Hash: fileMD5,
+		}
+		if err = util.MoveDir(oldPath, tarPath); err != nil {
+			logrus.Errorf("copy dir error: %s", err.Error())
+		}
 	default:
 		//default git
 		rs, err := sources.GitCloneOrPull(i.CodeSouceInfo, rbi.GetCodeHome(), i.Logger, 5)
@@ -186,8 +224,10 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	}
 	// clean cache code
 	defer func() {
-		if err := os.RemoveAll(rbi.GetCodeHome()); err != nil {
-			logrus.Warningf("remove source code: %v", err)
+		if i.CodeSouceInfo.ServerType != "pkg" {
+			if err := os.RemoveAll(rbi.GetCodeHome()); err != nil {
+				logrus.Warningf("remove source code: %v", err)
+			}
 		}
 	}()
 

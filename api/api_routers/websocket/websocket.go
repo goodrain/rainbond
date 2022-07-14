@@ -52,3 +52,11 @@ func AppRoutes() chi.Router {
 	r.Options("/upload/{eventID}", controller.GetManager().Upload)
 	return r
 }
+
+//ComponentRoutes -
+func PackageBuildRoutes() chi.Router {
+	r := chi.NewRouter()
+	r.Post("/component/events/{eventID}", controller.GetManager().UploadPackage)
+	r.Options("/component/events/{eventID}", controller.GetManager().UploadPackage)
+	return r
+}
