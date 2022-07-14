@@ -110,9 +110,11 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	}
 	// The source code is useless after the test is completed, and needs to be deleted.
 	defer func() {
-		if sources.CheckFileExist(buildInfo.GetCodeHome()) {
-			if err := sources.RemoveDir(buildInfo.GetCodeHome()); err != nil {
-				logrus.Warningf("remove source code: %v", err)
+		if csi.ServerType != "pkg"{
+			if sources.CheckFileExist(buildInfo.GetCodeHome()) {
+				if err := sources.RemoveDir(buildInfo.GetCodeHome()); err != nil {
+					logrus.Warningf("remove source code: %v", err)
+				}
 			}
 		}
 	}()
@@ -203,6 +205,13 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		d.branchs = rs.Branchs
 		return nil
 	}
+	packageFunc :=func() ParseErrorList{
+		csi.RepositoryURL = buildInfo.RepostoryURL
+		pathSplit := strings.Split(buildInfo.RepostoryURL,"/")
+		eventID := pathSplit[len(pathSplit)-1]
+		buildInfo.CodeHome = fmt.Sprintf("/grdata/package_build/temp/events/%s",eventID)
+		return ParseErrorList{}
+	}
 	ossFunc := func() ParseErrorList {
 		g := got.NewWithContext(context.Background())
 		util.CheckAndCreateDir(buildInfo.GetCodeHome())
@@ -258,6 +267,10 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		}
 	case "oss":
 		if err := ossFunc(); err != nil && err.IsFatalError() {
+			return err
+		}
+	case "pkg":
+		if err := packageFunc(); err != nil && err.IsFatalError() {
 			return err
 		}
 	default:

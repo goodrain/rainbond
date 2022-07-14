@@ -359,6 +359,7 @@ type ServiceStruct struct {
 	HTTPRules         []AddHTTPRuleStruct                  `json:"http_rules" validate:"http_rules"`
 	TCPRules          []AddTCPRuleStruct                   `json:"tcp_rules" validate:"tcp_rules"`
 	K8sComponentName  string                               `json:"k8s_component_name" validate:"k8s_component_name"`
+	JobStrategy       string                               `json:"job_strategy" validate:"job_strategy"`
 }
 
 // Endpoints holds third-party service endpoints or configuraion to get endpoints.
@@ -980,7 +981,7 @@ type ServiceCheckStruct struct {
 		//检测来源类型
 		// in: body
 		// required: true
-		SourceType string `json:"source_type" validate:"source_type|required|in:docker-run,docker-compose,sourcecode,third-party-service"`
+		SourceType string `json:"source_type" validate:"source_type|required|in:docker-run,docker-compose,sourcecode,third-party-service,package_build"`
 
 		CheckOS string `json:"check_os"`
 		// 检测来源定义，
@@ -2013,4 +2014,12 @@ type SyncAppConfigGroup struct {
 // AppStatusesReq -
 type AppStatusesReq struct {
 	AppIDs []string `json:"app_ids"`
+}
+
+type JobStrategy struct {
+	Schedule              string `json:"schedule"`
+	BackoffLimit          string `json:"backoff_limit"`
+	Parallelism           string `json:"parallelism"`
+	ActiveDeadlineSeconds string `json:"active_deadline_seconds"`
+	Completions           string `json:"completions"`
 }

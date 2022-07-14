@@ -135,12 +135,15 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		return err
 	}
 	i.RepoInfo = rbi
+	logrus.Info("===rbi===", rbi)
+	logrus.Info("===i.RepoInfo===", i.RepoInfo)
 	if err := i.prepare(); err != nil {
 		logrus.Errorf("prepare build code error: %s", err.Error())
 		i.Logger.Error("准备源码构建失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	i.CodeSouceInfo.RepositoryURL = rbi.RepostoryURL
+	logrus.Info("===rbi.RepostoryURL===", i.CodeSouceInfo.RepositoryURL)
 	switch i.CodeSouceInfo.ServerType {
 	case "svn":
 		csi := i.CodeSouceInfo
@@ -163,6 +166,24 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		}
 	case "oss":
 		i.commit = Commit{}
+	case "pkg":
+		i.commit = Commit{}
+		pathSplit := strings.Split(i.CodeSouceInfo.RepositoryURL,"/")
+		eventID := pathSplit[len(pathSplit)-1]
+		tarPath := fmt.Sprintf("/grdata/package_build/components/%s/events", i.ServiceID)
+		oldPath := fmt.Sprintf("/grdata/package_build/temp/events/%s", eventID)
+		_, err := os.Stat(tarPath)
+		if err != nil {
+			if !os.IsExist(err) {
+				err := os.MkdirAll(tarPath, 0755)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		if  err = util.MoveDir(oldPath, tarPath); err != nil {
+			logrus.Errorf("copy dir error: %s", err.Error())
+		}
 	default:
 		//default git
 		rs, err := sources.GitCloneOrPull(i.CodeSouceInfo, rbi.GetCodeHome(), i.Logger, 5)
@@ -186,8 +207,10 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	}
 	// clean cache code
 	defer func() {
-		if err := os.RemoveAll(rbi.GetCodeHome()); err != nil {
-			logrus.Warningf("remove source code: %v", err)
+		if i.CodeSouceInfo.ServerType != "pkg" {
+			if err := os.RemoveAll(rbi.GetCodeHome()); err != nil {
+				logrus.Warningf("remove source code: %v", err)
+			}
 		}
 	}()
 
