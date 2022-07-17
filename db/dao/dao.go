@@ -621,3 +621,11 @@ type TenantServiceMonitorDao interface {
 	DeleteByComponentIDs(componentIDs []string) error
 	CreateOrUpdateMonitorInBatch(monitors []*model.TenantServiceMonitor) error
 }
+
+// ComponentK8sAttributeDao -
+type ComponentK8sAttributeDao interface {
+	Dao
+	GetByComponentIDAndName(componentID, name string) (*model.ComponentK8sAttributes, error)
+	CreateOrUpdateAttributesInBatch(attributes []*model.ComponentK8sAttributes) error
+	DeleteByComponentIDAndName(componentID, name string) error
+}

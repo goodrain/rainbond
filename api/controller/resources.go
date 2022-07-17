@@ -60,6 +60,7 @@ type V2Routes struct {
 	AppRestoreController
 	PodController
 	ApplicationController
+	K8sAttributeController
 }
 
 //Show test

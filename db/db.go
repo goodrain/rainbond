@@ -137,6 +137,9 @@ type Manager interface {
 
 	TenantServiceMonitorDao() dao.TenantServiceMonitorDao
 	TenantServiceMonitorDaoTransactions(db *gorm.DB) dao.TenantServiceMonitorDao
+
+	ComponentK8sAttributeDao() dao.ComponentK8sAttributeDao
+	ComponentK8sAttributeDaoTransactions(db *gorm.DB) dao.ComponentK8sAttributeDao
 }
 
 var defaultManager Manager
