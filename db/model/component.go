@@ -19,14 +19,22 @@
 package model
 
 const (
-	K8sAttributeNameNodeSelector       = "nodeSelector"
-	K8sAttributeNameLabels             = "labels"
-	K8sAttributeNameTolerations        = "tolerations"
-	K8sAttributeNameVolumes            = "volumes"
+	//K8sAttributeNameNodeSelector -
+	K8sAttributeNameNodeSelector = "nodeSelector"
+	//K8sAttributeNameLabels -
+	K8sAttributeNameLabels = "labels"
+	//K8sAttributeNameTolerations -
+	K8sAttributeNameTolerations = "tolerations"
+	//K8sAttributeNameVolumes -
+	K8sAttributeNameVolumes = "volumes"
+	//K8sAttributeNameServiceAccountName -
 	K8sAttributeNameServiceAccountName = "serviceAccountName"
-	K8sAttributeNamePrivileged         = "privileged"
-	K8sAttributeNameAffinity           = "affinity"
-	K8sAttributeNameVolumeMounts       = "volumeMounts"
+	//K8sAttributeNamePrivileged -
+	K8sAttributeNamePrivileged = "privileged"
+	//K8sAttributeNameAffinity -
+	K8sAttributeNameAffinity = "affinity"
+	//K8sAttributeNameVolumeMounts -
+	K8sAttributeNameVolumeMounts = "volumeMounts"
 )
 
 // ComponentK8sAttributes -

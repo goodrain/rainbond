@@ -43,7 +43,7 @@ type HealthyCheckManagement struct {
 	ProbeID            string `json:"probe_id"`
 	Port               int    `json:"port"`
 	Path               string `json:"path"`
-	HttpHeader         string `json:"http_header"`
+	HTTPHeader         string `json:"http_header"`
 	Command            string `json:"cmd"`
 	DetectionMethod    string `json:"detection_method"`
 	Mode               string `json:"mode"`
@@ -60,11 +60,14 @@ type TelescopicManagement struct {
 	RuleID      string                                      `json:"rule_id"`
 	MinReplicas int32                                       `json:"min_replicas"`
 	MaxReplicas int32                                       `json:"max_replicas"`
-	CpuOrMemory []*model.TenantServiceAutoscalerRuleMetrics `json:"cpu_or_memory"`
+	CPUOrMemory []*model.TenantServiceAutoscalerRuleMetrics `json:"cpu_or_memory"`
 }
 
+//KubernetesResources -
 type KubernetesResources struct {
 }
+
+//ApplicationResource -
 type ApplicationResource struct {
 	KubernetesResources KubernetesResources `json:"kubernetes_resources"`
 	ConvertResource     []ConvertResource   `json:"convert_resource"`

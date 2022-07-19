@@ -628,6 +628,7 @@ func resourceProcessing(processWorkloads model.LabelWorkloadsResourceProcess, pr
 	return labelResource
 }
 
+//Resource -
 type Resource struct {
 	ObjectMeta metav1.ObjectMeta
 	Template   corev1.PodTemplateSpec
@@ -1094,14 +1095,14 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 					MetricTargetValue: int(*cpuUsage),
 				})
 			}
-			CPUAndMemoryJson, ok := hpa.Annotations["autoscaling.alpha.kubernetes.io/metrics"]
+			CPUAndMemoryJSON, ok := hpa.Annotations["autoscaling.alpha.kubernetes.io/metrics"]
 			if ok {
 				type com struct {
 					T        string `json:"type"`
 					Resource map[string]interface{}
 				}
 				var c []com
-				err := json.Unmarshal([]byte(CPUAndMemoryJson), &c)
+				err := json.Unmarshal([]byte(CPUAndMemoryJSON), &c)
 				if err != nil {
 					logrus.Errorf("autoscaling.alpha.kubernetes.io/metrics parsing failed：%v", err)
 					return nil
@@ -1160,7 +1161,7 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 
 				}
 			}
-			t.CpuOrMemory = cpuormemorys
+			t.CPUOrMemory = cpuormemorys
 		}
 
 		//HealthyCheckManagement
@@ -1179,7 +1180,7 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 			if livenessProbe.Exec != nil {
 				hcm.Command = strings.Join(livenessProbe.Exec.Command, " ")
 			}
-			hcm.HttpHeader = strings.Join(httpHeaders, ",")
+			hcm.HTTPHeader = strings.Join(httpHeaders, ",")
 			hcm.Mode = "liveness"
 			hcm.InitialDelaySecond = int(livenessProbe.InitialDelaySeconds)
 			hcm.PeriodSecond = int(livenessProbe.PeriodSeconds)
@@ -1202,7 +1203,7 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 				if readinessProbe.Exec != nil {
 					hcm.Command = strings.Join(readinessProbe.Exec.Command, " ")
 				}
-				hcm.HttpHeader = strings.Join(httpHeaders, ",")
+				hcm.HTTPHeader = strings.Join(httpHeaders, ",")
 				hcm.InitialDelaySecond = int(readinessProbe.InitialDelaySeconds)
 				hcm.PeriodSecond = int(readinessProbe.PeriodSeconds)
 				hcm.TimeoutSecond = int(readinessProbe.TimeoutSeconds)
@@ -1213,7 +1214,7 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 		var attributes []*dbmodel.ComponentK8sAttributes
 
 		if resources.Spec.Template.Spec.Volumes != nil {
-			volumesYaml, err := ObjectToJsonORYam("yaml", resources.Spec.Template.Spec.Volumes)
+			volumesYaml, err := ObjectToJSONORYaml("yaml", resources.Spec.Template.Spec.Volumes)
 			if err != nil {
 				logrus.Errorf("deployment:%v volumes %v", dmName, err)
 				return nil
@@ -1227,7 +1228,7 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 
 		}
 		if resources.Spec.Template.Spec.Containers[0].VolumeMounts != nil {
-			volumeMountsYaml, err := ObjectToJsonORYam("yaml", resources.Spec.Template.Spec.Containers[0].VolumeMounts)
+			volumeMountsYaml, err := ObjectToJSONORYaml("yaml", resources.Spec.Template.Spec.Containers[0].VolumeMounts)
 			if err != nil {
 				logrus.Errorf("deployment:%v volumeMounts %v", dmName, err)
 				return nil
@@ -1248,7 +1249,7 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 			attributes = append(attributes, serviceAccountAttributes)
 		}
 		if resources.Labels != nil {
-			labelsJson, err := ObjectToJsonORYam("json", resources.Labels)
+			labelsJSON, err := ObjectToJSONORYaml("json", resources.Labels)
 			if err != nil {
 				logrus.Errorf("deployment:%v labels %v", dmName, err)
 				return nil
@@ -1256,12 +1257,12 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 			labelsAttributes := &dbmodel.ComponentK8sAttributes{
 				Name:           dbmodel.K8sAttributeNameLabels,
 				SaveType:       "json",
-				AttributeValue: labelsJson,
+				AttributeValue: labelsJSON,
 			}
 			attributes = append(attributes, labelsAttributes)
 		}
 		if resources.Spec.Template.Spec.NodeSelector != nil {
-			NodeSelectorJson, err := ObjectToJsonORYam("json", resources.Spec.Template.Spec.NodeSelector)
+			NodeSelectorJSON, err := ObjectToJSONORYaml("json", resources.Spec.Template.Spec.NodeSelector)
 			if err != nil {
 				logrus.Errorf("deployment:%v nodeSelector %v", dmName, err)
 				return nil
@@ -1269,12 +1270,12 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 			nodeSelectorAttributes := &dbmodel.ComponentK8sAttributes{
 				Name:           dbmodel.K8sAttributeNameNodeSelector,
 				SaveType:       "json",
-				AttributeValue: NodeSelectorJson,
+				AttributeValue: NodeSelectorJSON,
 			}
 			attributes = append(attributes, nodeSelectorAttributes)
 		}
 		if resources.Spec.Template.Spec.Tolerations != nil {
-			tolerationsYaml, err := ObjectToJsonORYam("yaml", resources.Spec.Template.Spec.Tolerations)
+			tolerationsYaml, err := ObjectToJSONORYaml("yaml", resources.Spec.Template.Spec.Tolerations)
 			if err != nil {
 				logrus.Errorf("deployment:%v tolerations %v", dmName, err)
 				return nil
@@ -1287,7 +1288,7 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 			attributes = append(attributes, tolerationsAttributes)
 		}
 		if resources.Spec.Template.Spec.Affinity != nil {
-			affinityYaml, err := ObjectToJsonORYam("yaml", resources.Spec.Template.Spec.Affinity)
+			affinityYaml, err := ObjectToJSONORYaml("yaml", resources.Spec.Template.Spec.Affinity)
 			if err != nil {
 				logrus.Errorf("deployment:%v affinity %v", dmName, err)
 				return nil
@@ -1593,7 +1594,7 @@ func (c *clusterAction) createTelescopic(telescopic model.TelescopicManagement, 
 	if err := db.GetManager().TenantServceAutoscalerRulesDao().AddModel(r); err != nil {
 		logrus.Errorf("%v TenantServiceAutoscalerRules creation failed:%v", service.ServiceAlias, err)
 	}
-	for _, metric := range telescopic.CpuOrMemory {
+	for _, metric := range telescopic.CPUOrMemory {
 		m := &dbmodel.TenantServiceAutoscalerRuleMetrics{
 			RuleID:            r.RuleID,
 			MetricsType:       metric.MetricsType,
@@ -1616,7 +1617,7 @@ func (c *clusterAction) createHealthyCheck(telescopic model.HealthyCheckManageme
 	tspD.ServiceID = service.ServiceID
 	tspD.Cmd = telescopic.Command
 	tspD.FailureThreshold = telescopic.FailureThreshold
-	tspD.HTTPHeader = telescopic.HttpHeader
+	tspD.HTTPHeader = telescopic.HTTPHeader
 	tspD.InitialDelaySecond = telescopic.InitialDelaySecond
 	tspD.IsUsed = &telescopic.Status
 	tspD.Mode = telescopic.Mode
@@ -1645,16 +1646,16 @@ func (c *clusterAction) createSpecial(specials []*dbmodel.ComponentK8sAttributes
 	}
 }
 
-//ObjectToJsonORYam changeType true is Json /false is yaml
-func ObjectToJsonORYam(changeType string, data interface{}) (string, error) {
-	dataJson, err := json.Marshal(data)
+//ObjectToJSONORYaml changeType true is JSON /false is yaml
+func ObjectToJSONORYaml(changeType string, data interface{}) (string, error) {
+	dataJSON, err := json.Marshal(data)
 	if err != nil {
 		return "", fmt.Errorf("json serialization failed err:%v", err)
 	}
 	if changeType == "json" {
-		return string(dataJson), nil
+		return string(dataJSON), nil
 	}
-	dataYaml, err := yaml.JSONToYAML(dataJson)
+	dataYaml, err := yaml.JSONToYAML(dataJSON)
 	if err != nil {
 		return "", fmt.Errorf("yaml serialization failed err:%v", err)
 	}
