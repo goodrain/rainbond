@@ -13,6 +13,7 @@ import (
 	"strings"
 )
 
+// FormatPath format path
 func FormatPath(s string) string {
 	log.Println("runtime.GOOS:", runtime.GOOS)
 	switch runtime.GOOS {
@@ -26,6 +27,7 @@ func FormatPath(s string) string {
 	}
 }
 
+// MoveDir move dir
 func MoveDir(src string, dest string) error {
 	src = FormatPath(src)
 	dest = FormatPath(dest)
@@ -53,6 +55,7 @@ func MoveDir(src string, dest string) error {
 	return nil
 }
 
+// MD5 md5
 func MD5(file string) string {
 	f, err := os.Open(file)
 	if err != nil {
