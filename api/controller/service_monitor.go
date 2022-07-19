@@ -65,6 +65,7 @@ func (t *TenantStruct) UpdateServiceMonitors(w http.ResponseWriter, r *http.Requ
 	httputil.ReturnSuccess(r, w, tsm)
 }
 
+//UploadPackage upload package
 func (t *TenantStruct) UploadPackage(w http.ResponseWriter, r *http.Request) {
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	switch r.Method {

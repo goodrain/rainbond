@@ -107,7 +107,7 @@ func (s ServiceType) IsState() bool {
 	return false
 }
 
-// IsJob
+// IsJob is job
 func (s ServiceType) IsJob() bool {
 	if s == ServiceTypeJob {
 		return true
@@ -115,7 +115,7 @@ func (s ServiceType) IsJob() bool {
 	return false
 }
 
-// IsCronJob
+// IsCronJob is cronjob
 func (s ServiceType) IsCronJob() bool {
 	if s == ServiceTypeCornJob {
 		return true
@@ -143,6 +143,7 @@ func (t *TenantServices) IsState() bool {
 	return ServiceType(t.ExtendMethod).IsState()
 }
 
+// IsJob is job
 func (t *TenantServices) IsJob() bool {
 	if ServiceType(t.ExtendMethod).IsJob() {
 		return true
@@ -150,6 +151,7 @@ func (t *TenantServices) IsJob() bool {
 	return false
 }
 
+// IsCronJob is cronjob
 func (t *TenantServices) IsCronJob() bool {
 	if ServiceType(t.ExtendMethod).IsCronJob() {
 		return true
