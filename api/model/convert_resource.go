@@ -1,6 +1,8 @@
 package model
 
-import "github.com/goodrain/rainbond/db/model"
+import (
+	"github.com/goodrain/rainbond/db/model"
+)
 
 //BasicManagement -
 type BasicManagement struct {
@@ -37,49 +39,60 @@ type ConfigManagement struct {
 
 //HealthyCheckManagement -
 type HealthyCheckManagement struct {
-	Status                string `json:"status"`
-	DetectionMethod       string `json:"detection_method"`
-	UnhealthyHandleMethod string `json:"unhealthy_handle_method"`
+	Status             int    `json:"status"`
+	ProbeID            string `json:"probe_id"`
+	Port               int    `json:"port"`
+	Path               string `json:"path"`
+	HttpHeader         string `json:"http_header"`
+	Command            string `json:"cmd"`
+	DetectionMethod    string `json:"detection_method"`
+	Mode               string `json:"mode"`
+	InitialDelaySecond int    `json:"initial_delay_second"`
+	PeriodSecond       int    `json:"period_second"`
+	TimeoutSecond      int    `json:"timeout_second"`
+	SuccessThreshold   int    `json:"success_threshold"`
+	FailureThreshold   int    `json:"failure_threshold"`
 }
 
 //TelescopicManagement -
 type TelescopicManagement struct {
-	MinReplicas int32  `json:"min_replicas"`
-	MaxReplicas int32  `json:"max_replicas"`
-	CPUUse      string `json:"cpu_use"`
-	MemoryUse   string `json:"memory_use"`
+	Enable      bool                                        `json:"enable"`
+	RuleID      string                                      `json:"rule_id"`
+	MinReplicas int32                                       `json:"min_replicas"`
+	MaxReplicas int32                                       `json:"max_replicas"`
+	CpuOrMemory []*model.TenantServiceAutoscalerRuleMetrics `json:"cpu_or_memory"`
 }
 
-//Toleration -
-type Toleration struct {
+type KubernetesResources struct {
 }
-
-//SpecialManagement -
-type SpecialManagement struct {
-	NodeSelector []map[string]string `json:"node_selector"`
-	Label        []map[string]string `json:"label"`
-	Toleration   []map[string]string `json:"toleration"`
+type ApplicationResource struct {
+	KubernetesResources KubernetesResources `json:"kubernetes_resources"`
+	ConvertResource     []ConvertResource   `json:"convert_resource"`
 }
 
 //ConvertResource -
 type ConvertResource struct {
-	ComponentsName         string                 `json:"components_name"`
-	BasicManagement        BasicManagement        `json:"basic_management"`
-	PortManagement         []PortManagement       `json:"port_management"`
-	ENVManagement          []ENVManagement        `json:"env_management"`
-	ConfigManagement       []ConfigManagement     `json:"config_management"`
-	HealthyCheckManagement HealthyCheckManagement `json:"health_check_management"`
-	TelescopicManagement   TelescopicManagement   `json:"telescopic_management"`
-	SpecialManagement      SpecialManagement      `json:"special_management"`
+	ComponentsName                   string                          `json:"components_name"`
+	BasicManagement                  BasicManagement                 `json:"basic_management"`
+	PortManagement                   []PortManagement                `json:"port_management"`
+	ENVManagement                    []ENVManagement                 `json:"env_management"`
+	ConfigManagement                 []ConfigManagement              `json:"config_management"`
+	HealthyCheckManagement           HealthyCheckManagement          `json:"health_check_management"`
+	TelescopicManagement             TelescopicManagement            `json:"telescopic_management"`
+	ComponentK8sAttributesManagement []*model.ComponentK8sAttributes `json:"component_k8s_attributes_management"`
 }
 
 //ComponentAttributes -
 type ComponentAttributes struct {
-	Ct     *model.TenantServices `json:"ct"`
-	Image  string                `json:"image"`
-	Cmd    string                `json:"cmd"`
-	ENV    []ENVManagement       `json:"env"`
-	Config []ConfigManagement    `json:"config"`
+	Ct                     *model.TenantServices           `json:"ct"`
+	Image                  string                          `json:"image"`
+	Cmd                    string                          `json:"cmd"`
+	ENV                    []ENVManagement                 `json:"env"`
+	Config                 []ConfigManagement              `json:"config"`
+	Port                   []PortManagement                `json:"port"`
+	Telescopic             TelescopicManagement            `json:"telescopic"`
+	HealthyCheck           HealthyCheckManagement          `json:"healthy_check"`
+	ComponentK8sAttributes []*model.ComponentK8sAttributes `json:"component_k8s_attributes"`
 }
 
 //AppComponent -

@@ -92,6 +92,7 @@ type ServiceInterface interface {
 	AddServiceMonitors(w http.ResponseWriter, r *http.Request)
 	DeleteServiceMonitors(w http.ResponseWriter, r *http.Request)
 	UpdateServiceMonitors(w http.ResponseWriter, r *http.Request)
+	K8sAttributes(w http.ResponseWriter, r *http.Request)
 }
 
 //TenantInterfaceWithV1 funcs for both v2 and v1

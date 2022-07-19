@@ -6,8 +6,14 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/db"
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	u "github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/util/constants"
+	"github.com/jinzhu/gorm"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/sirupsen/logrus"
+	"github.com/twinj/uuid"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,6 +22,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"sigs.k8s.io/yaml"
 	"strconv"
 	"strings"
 	"time"
@@ -31,8 +38,8 @@ type ClusterHandler interface {
 	MavenSettingDetail(ctx context.Context, name string) (*MavenSetting, *util.APIHandleError)
 	GetNamespace(ctx context.Context, content string) ([]string, *util.APIHandleError)
 	GetNamespaceSource(ctx context.Context, content string, namespace string) (map[string]model.LabelResource, *util.APIHandleError)
-	ConvertResource(ctx context.Context, namespace string, lr map[string]model.LabelResource) (map[string][]model.ConvertResource, *util.APIHandleError)
-	//ResourceImport(ctx context.Context, namespace string, as map[string][]model.ConvertResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError)
+	ConvertResource(ctx context.Context, namespace string, lr map[string]model.LabelResource) (map[string]model.ApplicationResource, *util.APIHandleError)
+	ResourceImport(ctx context.Context, namespace string, as map[string]model.ApplicationResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError)
 }
 
 // NewClusterHandler -
@@ -352,7 +359,7 @@ func (c *clusterAction) GetNamespace(ctx context.Context, content string) ([]str
 		}
 		rbdNamespace := false
 		for labelKey, labelValue := range ns.Labels {
-			if labelKey == "app.kubernetes.io/managed-by" && labelValue == "rainbond" {
+			if labelKey == constants.ResourceManagedByLabel && labelValue == "rainbond" {
 				rbdNamespace = true
 			}
 		}
@@ -472,7 +479,6 @@ func resourceProcessing(processWorkloads model.LabelWorkloadsResourceProcess, pr
 		}
 
 	}
-	logrus.Infof("labelResource2:%v", labelResource)
 	for label, cronJobs := range processWorkloads.CronJobs {
 		if val, ok := labelResource[label]; ok {
 			val.Workloads.CronJobs = cronJobs
@@ -510,7 +516,6 @@ func resourceProcessing(processWorkloads model.LabelWorkloadsResourceProcess, pr
 		}
 
 	}
-	logrus.Infof("labelResource5:%v", labelResource)
 	for label, pvc := range processOthers.PVC {
 		if val, ok := labelResource[label]; ok {
 			val.Others.PVC = pvc
@@ -524,7 +529,6 @@ func resourceProcessing(processWorkloads model.LabelWorkloadsResourceProcess, pr
 		}
 
 	}
-	logrus.Infof("labelResource6:%v", labelResource)
 	for label, ingresses := range processOthers.Ingresses {
 		if val, ok := labelResource[label]; ok {
 			val.Others.Ingresses = ingresses
@@ -549,7 +553,6 @@ func resourceProcessing(processWorkloads model.LabelWorkloadsResourceProcess, pr
 			},
 		}
 	}
-	logrus.Infof("labelResource8:%v", labelResource)
 	for label, configMaps := range processOthers.ConfigMaps {
 		if val, ok := labelResource[label]; ok {
 			val.Others.ConfigMaps = configMaps
@@ -752,7 +755,6 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 		for _, dm := range resources.Items {
 			tempResources = append(tempResources, &Resource{ObjectMeta: dm.ObjectMeta})
 		}
-		logrus.Infof("serviceaccounts:%v", tempResources)
 	case model.RoleBinding:
 		resources, err := c.clientset.RbacV1alpha1().RoleBindings(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
@@ -762,7 +764,6 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 		for _, dm := range resources.Items {
 			tempResources = append(tempResources, &Resource{ObjectMeta: dm.ObjectMeta})
 		}
-		logrus.Infof("rolebindings:%v", tempResources)
 	case model.HorizontalPodAutoscaler:
 		resources, err := c.clientset.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
@@ -810,7 +811,6 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 				resourceName[app] = []string{hpa.Name}
 			}
 		}
-		logrus.Infof("horizontalpodautoscalers:%v", tempResources)
 		return resourceName, nil, nil
 	case model.Role:
 		resources, err := c.clientset.RbacV1alpha1().Roles(namespace).List(ctx, metav1.ListOptions{})
@@ -911,9 +911,9 @@ func (c *clusterAction) replenishLabel(ctx context.Context, resource *Resource, 
 }
 
 //ConvertResource 处理资源
-func (c *clusterAction) ConvertResource(ctx context.Context, namespace string, lr map[string]model.LabelResource) (map[string][]model.ConvertResource, *util.APIHandleError) {
+func (c *clusterAction) ConvertResource(ctx context.Context, namespace string, lr map[string]model.LabelResource) (map[string]model.ApplicationResource, *util.APIHandleError) {
 	logrus.Infof("ConvertResource function begin")
-	appsServices := make(map[string][]model.ConvertResource)
+	appsServices := make(map[string]model.ApplicationResource)
 	for label, resource := range lr {
 		c.workloadHandle(ctx, appsServices, resource, namespace, label)
 	}
@@ -921,13 +921,16 @@ func (c *clusterAction) ConvertResource(ctx context.Context, namespace string, l
 	return appsServices, nil
 }
 
-func (c *clusterAction) workloadHandle(ctx context.Context, cr map[string][]model.ConvertResource, lr model.LabelResource, namespace string, label string) {
+func (c *clusterAction) workloadHandle(ctx context.Context, cr map[string]model.ApplicationResource, lr model.LabelResource, namespace string, label string) {
 	app := label
 	dmCR := c.workloadDeployments(ctx, lr.Workloads.Deployments, namespace)
 	sfsCR := c.workloadStateFulSets(ctx, lr.Workloads.StateFulSets, namespace)
 	jCR := c.workloadJobs(ctx, lr.Workloads.Jobs, namespace)
 	wCJ := c.workloadCronJobs(ctx, lr.Workloads.CronJobs, namespace)
-	cr[app] = append(dmCR, append(sfsCR, append(jCR, append(wCJ)...)...)...)
+	convertResource := append(dmCR, append(sfsCR, append(jCR, append(wCJ)...)...)...)
+	cr[app] = model.ApplicationResource{
+		ConvertResource: convertResource,
+	}
 }
 
 func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []string, namespace string) []model.ConvertResource {
@@ -938,6 +941,8 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 			logrus.Errorf("Failed to get Deployment %v:%v", dmName, err)
 			return nil
 		}
+
+		//BasicManagement
 		b := model.BasicManagement{
 			ResourceType: model.Deployment,
 			Replicas:     *resources.Spec.Replicas,
@@ -947,6 +952,7 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 			Cmd:          strings.Join(append(resources.Spec.Template.Spec.Containers[0].Command, resources.Spec.Template.Spec.Containers[0].Args...), " "),
 		}
 
+		//Port
 		var ps []model.PortManagement
 		for _, port := range resources.Spec.Template.Spec.Containers[0].Ports {
 			if string(port.Protocol) == "UDP" {
@@ -969,16 +975,20 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 			}
 			logrus.Warningf("Transport protocol type not recognized%v", port.Protocol)
 		}
+
+		//ENV
 		var envs []model.ENVManagement
 		for _, env := range resources.Spec.Template.Spec.Containers[0].Env {
 			if cm := env.ValueFrom; cm == nil {
 				envs = append(envs, model.ENVManagement{
 					ENVKey:     env.Name,
 					ENVValue:   env.Value,
-					ENVExplain: env.Name,
+					ENVExplain: "",
 				})
 			}
 		}
+
+		//Configs
 		var configs []model.ConfigManagement
 		//这一块是处理配置文件
 		//配置文件的名字最终都是configmap里面的key值。
@@ -988,74 +998,75 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 		//第三种是volume不存在items，volumeMount的SubPath不等于空。路径直接是volumeMount里面的mountPath。
 		//第四种是volume不存在items，volumeMount的SubPath等于空。路径则变成volumeMount里面的mountPath拼接上configmap资源里面每一个元素的key值
 		for _, volume := range resources.Spec.Template.Spec.Volumes {
-			if volume.ConfigMap == nil {
-				continue
-			}
-			cm, err := c.clientset.CoreV1().ConfigMaps(namespace).Get(ctx, volume.ConfigMap.Name, metav1.GetOptions{})
-			if err != nil {
-				logrus.Errorf("Failed to get ConfigMap %v:%v", volume.Name, err)
-			}
-			cmData := cm.Data
-			isLog := true
-			for _, volumeMount := range resources.Spec.Template.Spec.Containers[0].VolumeMounts {
-				if volume.ConfigMap.Name != volumeMount.Name {
-					continue
+			if volume.ConfigMap != nil {
+				cm, err := c.clientset.CoreV1().ConfigMaps(namespace).Get(ctx, volume.ConfigMap.Name, metav1.GetOptions{})
+				if err != nil {
+					logrus.Errorf("Failed to get ConfigMap %v:%v", volume.Name, err)
 				}
-				isLog = false
-				if volume.ConfigMap.Items != nil {
-					if volumeMount.SubPath != "" {
-						configName := ""
-						var mode int32
-						for _, item := range volume.ConfigMap.Items {
-							if item.Path == volumeMount.SubPath {
-								configName = item.Key
-								mode = *item.Mode
+				cmData := cm.Data
+				isLog := true
+				for _, volumeMount := range resources.Spec.Template.Spec.Containers[0].VolumeMounts {
+					if volume.Name != volumeMount.Name {
+						continue
+					}
+					isLog = false
+					if volume.ConfigMap.Items != nil {
+						if volumeMount.SubPath != "" {
+							configName := ""
+							var mode int32
+							for _, item := range volume.ConfigMap.Items {
+								if item.Path == volumeMount.SubPath {
+									configName = item.Key
+									mode = *item.Mode
+								}
 							}
+							configs = append(configs, model.ConfigManagement{
+								ConfigName:  configName,
+								ConfigPath:  volumeMount.MountPath,
+								ConfigValue: cmData[configName],
+								Mode:        mode,
+							})
+							continue
 						}
-						configs = append(configs, model.ConfigManagement{
-							ConfigName:  configName,
-							ConfigPath:  volumeMount.MountPath,
-							ConfigValue: cmData[configName],
-							Mode:        mode,
-						})
-						continue
-					}
-					p := volumeMount.MountPath
-					for _, item := range volume.ConfigMap.Items {
-						p := path.Join(p, item.Path)
-						configs = append(configs, model.ConfigManagement{
-							ConfigName:  item.Key,
-							ConfigPath:  p,
-							ConfigValue: cmData[item.Key],
-							Mode:        *item.Mode,
-						})
-					}
-				} else {
-					if volumeMount.SubPath != "" {
-						configs = append(configs, model.ConfigManagement{
-							ConfigName:  volumeMount.SubPath,
-							ConfigPath:  volumeMount.MountPath,
-							ConfigValue: cmData[volumeMount.SubPath],
-							Mode:        *volume.ConfigMap.DefaultMode,
-						})
-						continue
-					}
-					mountPath := volumeMount.MountPath
-					for key, val := range cmData {
-						mountPath = path.Join(mountPath, key)
-						configs = append(configs, model.ConfigManagement{
-							ConfigName:  key,
-							ConfigPath:  mountPath,
-							ConfigValue: val,
-							Mode:        *volume.ConfigMap.DefaultMode,
-						})
+						p := volumeMount.MountPath
+						for _, item := range volume.ConfigMap.Items {
+							p := path.Join(p, item.Path)
+							configs = append(configs, model.ConfigManagement{
+								ConfigName:  item.Key,
+								ConfigPath:  p,
+								ConfigValue: cmData[item.Key],
+								Mode:        *item.Mode,
+							})
+						}
+					} else {
+						if volumeMount.SubPath != "" {
+							configs = append(configs, model.ConfigManagement{
+								ConfigName:  volumeMount.SubPath,
+								ConfigPath:  volumeMount.MountPath,
+								ConfigValue: cmData[volumeMount.SubPath],
+								Mode:        *volume.ConfigMap.DefaultMode,
+							})
+							continue
+						}
+						mountPath := volumeMount.MountPath
+						for key, val := range cmData {
+							mountPath = path.Join(mountPath, key)
+							configs = append(configs, model.ConfigManagement{
+								ConfigName:  key,
+								ConfigPath:  mountPath,
+								ConfigValue: val,
+								Mode:        *volume.ConfigMap.DefaultMode,
+							})
+						}
 					}
 				}
-			}
-			if isLog {
-				logrus.Warningf("configmap type resource %v is not mounted in volumemount", volume.ConfigMap.Name)
+				if isLog {
+					logrus.Warningf("configmap type resource %v is not mounted in volumemount", volume.ConfigMap.Name)
+				}
 			}
 		}
+
+		//TelescopicManagement
 		HPAResource, err := c.clientset.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get HorizontalPodAutoscalers list:%v", err)
@@ -1066,22 +1077,28 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 		//需要注意的一点是hpa的cpu和memory的阈值设置是通过Annotations["autoscaling.alpha.kubernetes.io/metrics"]字段设置
 		//而且它的返回值是个json字符串所以设置了一个结构体进行解析。
 		for _, hpa := range HPAResource.Items {
-			if hpa.Spec.ScaleTargetRef.Kind != model.Deployment {
+			if hpa.Spec.ScaleTargetRef.Kind != model.Deployment || hpa.Spec.ScaleTargetRef.Name != dmName {
+				t.Enable = false
 				continue
 			}
-			if hpa.Spec.ScaleTargetRef.Name != dmName {
-				continue
-			}
+			t.Enable = true
 			t.MinReplicas = *hpa.Spec.MinReplicas
 			t.MaxReplicas = hpa.Spec.MaxReplicas
+			var cpuormemorys []*dbmodel.TenantServiceAutoscalerRuleMetrics
+			cpuUsage := hpa.Spec.TargetCPUUtilizationPercentage
+			if cpuUsage != nil {
+				cpuormemorys = append(cpuormemorys, &dbmodel.TenantServiceAutoscalerRuleMetrics{
+					MetricsType:       "resource_metrics",
+					MetricsName:       "cpu",
+					MetricTargetType:  "utilization",
+					MetricTargetValue: int(*cpuUsage),
+				})
+			}
 			CPUAndMemoryJson, ok := hpa.Annotations["autoscaling.alpha.kubernetes.io/metrics"]
 			if ok {
 				type com struct {
 					T        string `json:"type"`
-					Resource struct {
-						Name               string `json:"name"`
-						TargetAverageValue string `json:"targetAverageValue"`
-					} `json:"resource"`
+					Resource map[string]interface{}
 				}
 				var c []com
 				err := json.Unmarshal([]byte(CPUAndMemoryJson), &c)
@@ -1089,39 +1106,217 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 					logrus.Errorf("autoscaling.alpha.kubernetes.io/metrics parsing failed：%v", err)
 					return nil
 				}
+
 				for _, cpuormemory := range c {
-					switch cpuormemory.Resource.Name {
+					switch cpuormemory.Resource["name"] {
 					case "cpu":
-						t.CPUUse = cpuormemory.Resource.TargetAverageValue
+						cpu := fmt.Sprint(cpuormemory.Resource["targetAverageValue"])
+						if cpu[len(cpu)-1:] == "m" {
+							cpuuse, _ := strconv.Atoi(cpu[:len(cpu)-1])
+							cpuormemorys = append(cpuormemorys, &dbmodel.TenantServiceAutoscalerRuleMetrics{
+								MetricsType:       "resource_metrics",
+								MetricsName:       "cpu",
+								MetricTargetType:  "average_value",
+								MetricTargetValue: cpuuse,
+							})
+						}
+						if cpu[len(cpu)-1:] == "g" || cpu[len(cpu)-1:] == "G" {
+							cpuuse, _ := strconv.Atoi(cpu[:len(cpu)-1])
+							cpuormemorys = append(cpuormemorys, &dbmodel.TenantServiceAutoscalerRuleMetrics{
+								MetricsType:       "resource_metrics",
+								MetricsName:       "cpu",
+								MetricTargetType:  "average_value",
+								MetricTargetValue: cpuuse * 1024,
+							})
+						}
 					case "memory":
-						t.MemoryUse = cpuormemory.Resource.TargetAverageValue
+						memory := fmt.Sprint(cpuormemory.Resource["targetAverageValue"])
+						if memory[len(memory)-1:] == "m" {
+							memoryuse, _ := strconv.Atoi(memory[:len(memory)-1])
+							cpuormemorys = append(cpuormemorys, &dbmodel.TenantServiceAutoscalerRuleMetrics{
+								MetricsType:       "resource_metrics",
+								MetricsName:       "memory",
+								MetricTargetType:  "average_value",
+								MetricTargetValue: memoryuse,
+							})
+						}
+						if memory[len(memory)-1:] == "g" || memory[len(memory)-1:] == "G" {
+							memoryuse, _ := strconv.Atoi(memory[:len(memory)-1])
+							cpuormemorys = append(cpuormemorys, &dbmodel.TenantServiceAutoscalerRuleMetrics{
+								MetricsType:       "resource_metrics",
+								MetricsName:       "memory",
+								MetricTargetType:  "average_value",
+								MetricTargetValue: memoryuse * 1024,
+							})
+						}
+						memoryusage := int(cpuormemory.Resource["targetAverageUtilization"].(float64))
+						cpuormemorys = append(cpuormemorys, &dbmodel.TenantServiceAutoscalerRuleMetrics{
+							MetricsType:       "resource_metrics",
+							MetricsName:       "memory",
+							MetricTargetType:  "utilization",
+							MetricTargetValue: memoryusage,
+						})
 					}
+
 				}
 			}
+			t.CpuOrMemory = cpuormemorys
 		}
+
+		//HealthyCheckManagement
 		var hcm model.HealthyCheckManagement
 		livenessProbe := resources.Spec.Template.Spec.Containers[0].LivenessProbe
 		if livenessProbe != nil {
-			hcm.Status = "已启用"
-			hcm.DetectionMethod = string(livenessProbe.HTTPGet.Scheme)
-			hcm.UnhealthyHandleMethod = "重启"
+			var httpHeaders []string
+			for _, httpHeader := range livenessProbe.HTTPGet.HTTPHeaders {
+				nv := httpHeader.Name + "=" + httpHeader.Value
+				httpHeaders = append(httpHeaders, nv)
+			}
+			hcm.Status = 1
+			hcm.DetectionMethod = strings.ToLower(string(livenessProbe.HTTPGet.Scheme))
+			hcm.Port = int(livenessProbe.HTTPGet.Port.IntVal)
+			hcm.Path = livenessProbe.HTTPGet.Path
+			if livenessProbe.Exec != nil {
+				hcm.Command = strings.Join(livenessProbe.Exec.Command, " ")
+			}
+			hcm.HttpHeader = strings.Join(httpHeaders, ",")
+			hcm.Mode = "liveness"
+			hcm.InitialDelaySecond = int(livenessProbe.InitialDelaySeconds)
+			hcm.PeriodSecond = int(livenessProbe.PeriodSeconds)
+			hcm.TimeoutSecond = int(livenessProbe.TimeoutSeconds)
+			hcm.FailureThreshold = int(livenessProbe.FailureThreshold)
+			hcm.SuccessThreshold = int(livenessProbe.SuccessThreshold)
 		} else {
 			readinessProbe := resources.Spec.Template.Spec.Containers[0].ReadinessProbe
-			if readinessProbe != nil {
-				hcm.Status = "已启用"
-				hcm.DetectionMethod = string(readinessProbe.HTTPGet.Scheme)
-				hcm.UnhealthyHandleMethod = "下线"
+			var httpHeaders []string
+			for _, httpHeader := range readinessProbe.HTTPGet.HTTPHeaders {
+				nv := httpHeader.Name + "=" + httpHeader.Value
+				httpHeaders = append(httpHeaders, nv)
 			}
+			if readinessProbe != nil {
+				hcm.Status = 1
+				hcm.DetectionMethod = strings.ToLower(string(readinessProbe.HTTPGet.Scheme))
+				hcm.Mode = "readiness"
+				hcm.Port = int(livenessProbe.HTTPGet.Port.IntVal)
+				hcm.Path = readinessProbe.HTTPGet.Path
+				if readinessProbe.Exec != nil {
+					hcm.Command = strings.Join(readinessProbe.Exec.Command, " ")
+				}
+				hcm.HttpHeader = strings.Join(httpHeaders, ",")
+				hcm.InitialDelaySecond = int(readinessProbe.InitialDelaySeconds)
+				hcm.PeriodSecond = int(readinessProbe.PeriodSeconds)
+				hcm.TimeoutSecond = int(readinessProbe.TimeoutSeconds)
+				hcm.FailureThreshold = int(readinessProbe.FailureThreshold)
+				hcm.SuccessThreshold = int(readinessProbe.SuccessThreshold)
+			}
+		}
+		var attributes []*dbmodel.ComponentK8sAttributes
+
+		if resources.Spec.Template.Spec.Volumes != nil {
+			volumesYaml, err := ObjectToJsonORYam("yaml", resources.Spec.Template.Spec.Volumes)
+			if err != nil {
+				logrus.Errorf("deployment:%v volumes %v", dmName, err)
+				return nil
+			}
+			volumesAttributes := &dbmodel.ComponentK8sAttributes{
+				Name:           dbmodel.K8sAttributeNameVolumes,
+				SaveType:       "yaml",
+				AttributeValue: volumesYaml,
+			}
+			attributes = append(attributes, volumesAttributes)
+
+		}
+		if resources.Spec.Template.Spec.Containers[0].VolumeMounts != nil {
+			volumeMountsYaml, err := ObjectToJsonORYam("yaml", resources.Spec.Template.Spec.Containers[0].VolumeMounts)
+			if err != nil {
+				logrus.Errorf("deployment:%v volumeMounts %v", dmName, err)
+				return nil
+			}
+			volumeMountsAttributes := &dbmodel.ComponentK8sAttributes{
+				Name:           dbmodel.K8sAttributeNameVolumeMounts,
+				SaveType:       "yaml",
+				AttributeValue: volumeMountsYaml,
+			}
+			attributes = append(attributes, volumeMountsAttributes)
+		}
+		if resources.Spec.Template.Spec.ServiceAccountName != "" {
+			serviceAccountAttributes := &dbmodel.ComponentK8sAttributes{
+				Name:           dbmodel.K8sAttributeNameServiceAccountName,
+				SaveType:       "string",
+				AttributeValue: resources.Spec.Template.Spec.ServiceAccountName,
+			}
+			attributes = append(attributes, serviceAccountAttributes)
+		}
+		if resources.Labels != nil {
+			labelsJson, err := ObjectToJsonORYam("json", resources.Labels)
+			if err != nil {
+				logrus.Errorf("deployment:%v labels %v", dmName, err)
+				return nil
+			}
+			labelsAttributes := &dbmodel.ComponentK8sAttributes{
+				Name:           dbmodel.K8sAttributeNameLabels,
+				SaveType:       "json",
+				AttributeValue: labelsJson,
+			}
+			attributes = append(attributes, labelsAttributes)
+		}
+		if resources.Spec.Template.Spec.NodeSelector != nil {
+			NodeSelectorJson, err := ObjectToJsonORYam("json", resources.Spec.Template.Spec.NodeSelector)
+			if err != nil {
+				logrus.Errorf("deployment:%v nodeSelector %v", dmName, err)
+				return nil
+			}
+			nodeSelectorAttributes := &dbmodel.ComponentK8sAttributes{
+				Name:           dbmodel.K8sAttributeNameNodeSelector,
+				SaveType:       "json",
+				AttributeValue: NodeSelectorJson,
+			}
+			attributes = append(attributes, nodeSelectorAttributes)
+		}
+		if resources.Spec.Template.Spec.Tolerations != nil {
+			tolerationsYaml, err := ObjectToJsonORYam("yaml", resources.Spec.Template.Spec.Tolerations)
+			if err != nil {
+				logrus.Errorf("deployment:%v tolerations %v", dmName, err)
+				return nil
+			}
+			tolerationsAttributes := &dbmodel.ComponentK8sAttributes{
+				Name:           dbmodel.K8sAttributeNameTolerations,
+				SaveType:       "yaml",
+				AttributeValue: tolerationsYaml,
+			}
+			attributes = append(attributes, tolerationsAttributes)
+		}
+		if resources.Spec.Template.Spec.Affinity != nil {
+			affinityYaml, err := ObjectToJsonORYam("yaml", resources.Spec.Template.Spec.Affinity)
+			if err != nil {
+				logrus.Errorf("deployment:%v affinity %v", dmName, err)
+				return nil
+			}
+			affinityAttributes := &dbmodel.ComponentK8sAttributes{
+				Name:           dbmodel.K8sAttributeNameAffinity,
+				SaveType:       "yaml",
+				AttributeValue: affinityYaml,
+			}
+			attributes = append(attributes, affinityAttributes)
+		}
+		if securityContext := resources.Spec.Template.Spec.Containers[0].SecurityContext; securityContext != nil && securityContext.Privileged != nil {
+			privilegedAttributes := &dbmodel.ComponentK8sAttributes{
+				Name:           dbmodel.K8sAttributeNamePrivileged,
+				SaveType:       "string",
+				AttributeValue: strconv.FormatBool(*securityContext.Privileged),
+			}
+			attributes = append(attributes, privilegedAttributes)
 		}
 
 		componentsCR = append(componentsCR, model.ConvertResource{
-			ComponentsName:         dmName,
-			BasicManagement:        b,
-			PortManagement:         ps,
-			ENVManagement:          envs,
-			ConfigManagement:       configs,
-			TelescopicManagement:   t,
-			HealthyCheckManagement: hcm,
+			ComponentsName:                   dmName,
+			BasicManagement:                  b,
+			PortManagement:                   ps,
+			ENVManagement:                    envs,
+			ConfigManagement:                 configs,
+			TelescopicManagement:             t,
+			HealthyCheckManagement:           hcm,
+			ComponentK8sAttributesManagement: attributes,
 		})
 
 	}
@@ -1140,208 +1335,328 @@ func (c *clusterAction) workloadCronJobs(ctx context.Context, cjNames []string, 
 	return nil
 }
 
-//func (c *clusterAction) ResourceImport(ctx context.Context, namespace string, as map[string][]model.ConvertResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError) {
-//	logrus.Infof("ResourceImport function begin")
-//	var returnResourceImport model.ReturnResourceImport
-//	err := db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
-//		tenant, err := c.createTenant(ctx, eid, namespace, tx)
-//		returnResourceImport.Tenant = tenant
-//		if err != nil {
-//			logrus.Errorf("%v", err)
-//			return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create tenant error:%v", err)}
-//		}
-//		for appName, components := range as {
-//			app, err := c.createApp(eid, tx, appName, tenant.UUID)
-//			if err != nil {
-//				logrus.Errorf("%v", err)
-//				return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
-//			}
-//			var ca []model.ComponentAttributes
-//			for _, componentResource := range components {
-//				component, err := c.createComponent(ctx, app, tenant.UUID, componentResource, namespace)
-//				if err != nil {
-//					logrus.Errorf("%v", err)
-//					return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
-//				}
-//				c.createENV(componentResource.ENVManagement, component)
-//				c.createConfig(componentResource.ConfigManagement, component)
-//				ca = append(ca, model.ComponentAttributes{
-//					Ct:     component,
-//					Image:  componentResource.BasicManagement.Image,
-//					Cmd:    componentResource.BasicManagement.Cmd,
-//					ENV:    componentResource.ENVManagement,
-//					Config: componentResource.ConfigManagement,
-//				})
-//			}
-//			application := model.AppComponent{
-//				App:       app,
-//				Component: ca,
-//			}
-//			returnResourceImport.App = append(returnResourceImport.App, application)
-//		}
-//		return nil
-//	})
-//	if err != nil {
-//		return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("resource import error:%v", err)}
-//	}
-//	logrus.Infof("ResourceImport function end")
-//	return &returnResourceImport, nil
-//}
-//
-//func (c *clusterAction) createTenant(ctx context.Context, eid string, namespace string, tx *gorm.DB) (*dbmodel.Tenants, error) {
-//	logrus.Infof("begin create tenant")
-//	var dbts dbmodel.Tenants
-//	id, name, errN := GetServiceManager().CreateTenandIDAndName(eid)
-//	if errN != nil {
-//		return nil, errN
-//	}
-//	dbts.EID = eid
-//	dbts.Namespace = namespace
-//	dbts.Name = name
-//	dbts.UUID = id
-//	dbts.LimitMemory = 0
-//	tenant, _ := db.GetManager().TenantDao().GetTenantIDByName(dbts.Name)
-//	if tenant != nil {
-//		logrus.Warningf("tenant %v already exists", dbts.Name)
-//		return tenant, nil
-//	}
-//	if err := db.GetManager().TenantDaoTransactions(tx).AddModel(&dbts); err != nil {
-//		if !strings.HasSuffix(err.Error(), "is exist") {
-//			return nil, err
-//		}
-//	}
-//	ns, err := c.clientset.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
-//	if err != nil {
-//		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get namespace %v:%v", namespace, err)}
-//	}
-//	ns.Labels[constants.ResourceManagedByLabel] = constants.Rainbond
-//	_, err = c.clientset.CoreV1().Namespaces().Update(ctx, ns, metav1.UpdateOptions{})
-//	if err != nil {
-//		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to add label to namespace %v:%v", namespace, err)}
-//	}
-//	logrus.Infof("end create tenant")
-//	return &dbts, nil
-//}
-//func (c *clusterAction) createApp(eid string, tx *gorm.DB, app string, tenantID string) (*dbmodel.Application, error) {
-//	appID := u.NewUUID()
-//	application, _ := db.GetManager().ApplicationDaoTransactions(tx).GetAppByName(tenantID, app, app)
-//	if application != nil {
-//		logrus.Infof("app %v already exists", app)
-//		return application, nil
-//	}
-//	appReq := &dbmodel.Application{
-//		EID:             eid,
-//		TenantID:        tenantID,
-//		AppID:           appID,
-//		AppName:         app,
-//		AppType:         "rainbond",
-//		AppStoreName:    "",
-//		AppStoreURL:     "",
-//		AppTemplateName: "",
-//		Version:         "",
-//		GovernanceMode:  dbmodel.GovernanceModeKubernetesNativeService,
-//		K8sApp:          app,
-//	}
-//	if err := db.GetManager().ApplicationDaoTransactions(tx).AddModel(appReq); err != nil {
-//		return appReq, err
-//	}
-//	return appReq, nil
-//}
-//
-//func (c *clusterAction) createComponent(ctx context.Context, app *dbmodel.Application, tenantID string, component model.ConvertResource, namespace string) (*dbmodel.TenantServices, error) {
-//	serviceID := strings.Replace(uuid.NewV4().String(), "-", "", -1)
-//	serviceAlias := "gr" + serviceID[len(serviceID)-6:]
-//	ts := dbmodel.TenantServices{
-//		TenantID:         tenantID,
-//		ServiceID:        serviceID,
-//		ServiceAlias:     serviceAlias,
-//		ServiceName:      serviceAlias,
-//		ServiceType:      "application",
-//		Comment:          "docker run application",
-//		ContainerCPU:     int(component.BasicManagement.CPU),
-//		ContainerMemory:  int(component.BasicManagement.Memory),
-//		ContainerGPU:     0,
-//		UpgradeMethod:    "Rolling",
-//		ExtendMethod:     "stateless_multiple",
-//		Replicas:         int(component.BasicManagement.Replicas),
-//		DeployVersion:    time.Now().Format("20060102150405"),
-//		Category:         "app_publish",
-//		CurStatus:        "undeploy",
-//		Status:           0,
-//		Namespace:        namespace,
-//		UpdateTime:       time.Now(),
-//		Kind:             "internal",
-//		AppID:            app.AppID,
-//		K8sComponentName: component.ComponentsName,
-//	}
-//	if err := db.GetManager().TenantServiceDao().AddModel(&ts); err != nil {
-//		logrus.Errorf("add service error, %v", err)
-//		return nil, err
-//	}
-//	dm, err := c.clientset.AppsV1().Deployments(namespace).Get(ctx, component.ComponentsName, metav1.GetOptions{})
-//	if err != nil {
-//		logrus.Errorf("failed to get %v deployment %v:%v", namespace, component.ComponentsName, err)
-//		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get deployment %v:%v", namespace, err)}
-//	}
-//	dm.Labels[constants.ResourceManagedByLabel] = constants.Rainbond
-//	dm.Labels["service_id"] = serviceID
-//	dm.Labels["version"] = ts.DeployVersion
-//	dm.Labels["creater_id"] = string(u.NewTimeVersion())
-//	dm.Labels["migrator"] = "rainbond"
-//	dm.Spec.Template.Labels["service_id"] = serviceID
-//	dm.Spec.Template.Labels["version"] = ts.DeployVersion
-//	dm.Spec.Template.Labels["creater_id"] = string(u.NewTimeVersion())
-//	dm.Spec.Template.Labels["migrator"] = "rainbond"
-//	_, err = c.clientset.AppsV1().Deployments(namespace).Update(ctx, dm, metav1.UpdateOptions{})
-//	if err != nil {
-//		logrus.Errorf("failed to update deployment %v:%v", namespace, err)
-//		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update deployment %v:%v", namespace, err)}
-//	}
-//	return &ts, nil
-//}
-//
-//func (c *clusterAction) createENV(envs []model.ENVManagement, service *dbmodel.TenantServices) {
-//	var envVar []*dbmodel.TenantServiceEnvVar
-//	for _, env := range envs {
-//		var envD dbmodel.TenantServiceEnvVar
-//		envD.AttrName = env.ENVKey
-//		envD.AttrValue = env.ENVValue
-//		envD.TenantID = service.TenantID
-//		envD.ServiceID = service.ServiceID
-//		envD.ContainerPort = 0
-//		envD.IsChange = true
-//		envD.Name = env.ENVExplain
-//		envD.Scope = "inner"
-//		envVar = append(envVar, &envD)
-//	}
-//	if err := db.GetManager().TenantServiceEnvVarDao().CreateOrUpdateEnvsInBatch(envVar); err != nil {
-//		logrus.Errorf("%v Environment variable creation failed", service.ServiceAlias)
-//	}
-//}
-//
-//func (c *clusterAction) createConfig(configs []model.ConfigManagement, service *dbmodel.TenantServices) {
-//	var ts []*dbmodel.TenantServiceVolume
-//	for _, config := range configs {
-//		tsv := &dbmodel.TenantServiceVolume{
-//			ServiceID:          service.ServiceID,
-//			VolumeName:         config.ConfigName,
-//			VolumePath:         config.ConfigPath,
-//			VolumeType:         "config-file",
-//			Category:           "",
-//			VolumeProviderName: "",
-//			IsReadOnly:         false,
-//			VolumeCapacity:     0,
-//			AccessMode:         "RWX",
-//			SharePolicy:        "exclusive",
-//			BackupPolicy:       "exclusive",
-//			ReclaimPolicy:      "exclusive",
-//			AllowExpansion:     false,
-//			Mode:               &config.Mode,
-//		}
-//		ts = append(ts, tsv)
-//	}
-//	err := db.GetManager().TenantServiceVolumeDao().CreateOrUpdateVolumesInBatch(ts)
-//	if err != nil {
-//		logrus.Errorf("%v configuration file creation failed", service.ServiceAlias)
-//	}
-//}
+//ResourceImport Import the converted k8s resources into recognition
+func (c *clusterAction) ResourceImport(ctx context.Context, namespace string, as map[string]model.ApplicationResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError) {
+	logrus.Infof("ResourceImport function begin")
+	var returnResourceImport model.ReturnResourceImport
+	err := db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		tenant, err := c.createTenant(ctx, eid, namespace, tx)
+		returnResourceImport.Tenant = tenant
+		if err != nil {
+			logrus.Errorf("%v", err)
+			return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create tenant error:%v", err)}
+		}
+		for appName, components := range as {
+			app, err := c.createApp(eid, tx, appName, tenant.UUID)
+			if err != nil {
+				logrus.Errorf("%v", err)
+				return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
+			}
+			var ca []model.ComponentAttributes
+			for _, componentResource := range components.ConvertResource {
+				component, err := c.createComponent(ctx, app, tenant.UUID, componentResource, namespace)
+				if err != nil {
+					logrus.Errorf("%v", err)
+					return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
+				}
+				c.createENV(componentResource.ENVManagement, component)
+				c.createConfig(componentResource.ConfigManagement, component)
+				c.createPort(componentResource.PortManagement, component)
+				componentResource.TelescopicManagement.RuleID = c.createTelescopic(componentResource.TelescopicManagement, component)
+				componentResource.HealthyCheckManagement.ProbeID = c.createHealthyCheck(componentResource.HealthyCheckManagement, component)
+				c.createSpecial(componentResource.ComponentK8sAttributesManagement, tenant.UUID, component)
+				ca = append(ca, model.ComponentAttributes{
+					Ct:                     component,
+					Image:                  componentResource.BasicManagement.Image,
+					Cmd:                    componentResource.BasicManagement.Cmd,
+					ENV:                    componentResource.ENVManagement,
+					Config:                 componentResource.ConfigManagement,
+					Port:                   componentResource.PortManagement,
+					Telescopic:             componentResource.TelescopicManagement,
+					HealthyCheck:           componentResource.HealthyCheckManagement,
+					ComponentK8sAttributes: componentResource.ComponentK8sAttributesManagement,
+				})
+			}
+			application := model.AppComponent{
+				App:       app,
+				Component: ca,
+			}
+			returnResourceImport.App = append(returnResourceImport.App, application)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("resource import error:%v", err)}
+	}
+	logrus.Infof("ResourceImport function end")
+	return &returnResourceImport, nil
+}
+
+func (c *clusterAction) createTenant(ctx context.Context, eid string, namespace string, tx *gorm.DB) (*dbmodel.Tenants, error) {
+	logrus.Infof("begin create tenant")
+	var dbts dbmodel.Tenants
+	id, name, errN := GetServiceManager().CreateTenandIDAndName(eid)
+	if errN != nil {
+		return nil, errN
+	}
+	dbts.EID = eid
+	dbts.Namespace = namespace
+	dbts.Name = name
+	dbts.UUID = id
+	dbts.LimitMemory = 0
+	tenant, _ := db.GetManager().TenantDao().GetTenantIDByName(dbts.Name)
+	if tenant != nil {
+		logrus.Warningf("tenant %v already exists", dbts.Name)
+		return tenant, nil
+	}
+	if err := db.GetManager().TenantDaoTransactions(tx).AddModel(&dbts); err != nil {
+		if !strings.HasSuffix(err.Error(), "is exist") {
+			return nil, err
+		}
+	}
+	ns, err := c.clientset.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	if err != nil {
+		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get namespace %v:%v", namespace, err)}
+	}
+	ns.Labels[constants.ResourceManagedByLabel] = constants.Rainbond
+	_, err = c.clientset.CoreV1().Namespaces().Update(ctx, ns, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to add label to namespace %v:%v", namespace, err)}
+	}
+	logrus.Infof("end create tenant")
+	return &dbts, nil
+}
+
+func (c *clusterAction) createApp(eid string, tx *gorm.DB, app string, tenantID string) (*dbmodel.Application, error) {
+	appID := u.NewUUID()
+	application, _ := db.GetManager().ApplicationDaoTransactions(tx).GetAppByName(tenantID, app, app)
+	if application != nil {
+		logrus.Infof("app %v already exists", app)
+		return application, nil
+	}
+	appReq := &dbmodel.Application{
+		EID:             eid,
+		TenantID:        tenantID,
+		AppID:           appID,
+		AppName:         app,
+		AppType:         "rainbond",
+		AppStoreName:    "",
+		AppStoreURL:     "",
+		AppTemplateName: "",
+		Version:         "",
+		GovernanceMode:  dbmodel.GovernanceModeKubernetesNativeService,
+		K8sApp:          app,
+	}
+	if err := db.GetManager().ApplicationDaoTransactions(tx).AddModel(appReq); err != nil {
+		return appReq, err
+	}
+	return appReq, nil
+}
+
+func (c *clusterAction) createComponent(ctx context.Context, app *dbmodel.Application, tenantID string, component model.ConvertResource, namespace string) (*dbmodel.TenantServices, error) {
+	serviceID := strings.Replace(uuid.NewV4().String(), "-", "", -1)
+	serviceAlias := "gr" + serviceID[len(serviceID)-6:]
+	ts := dbmodel.TenantServices{
+		TenantID:         tenantID,
+		ServiceID:        serviceID,
+		ServiceAlias:     serviceAlias,
+		ServiceName:      serviceAlias,
+		ServiceType:      "application",
+		Comment:          "docker run application",
+		ContainerCPU:     int(component.BasicManagement.CPU),
+		ContainerMemory:  int(component.BasicManagement.Memory),
+		ContainerGPU:     0,
+		UpgradeMethod:    "Rolling",
+		ExtendMethod:     "stateless_multiple",
+		Replicas:         int(component.BasicManagement.Replicas),
+		DeployVersion:    time.Now().Format("20060102150405"),
+		Category:         "app_publish",
+		CurStatus:        "undeploy",
+		Status:           0,
+		Namespace:        namespace,
+		UpdateTime:       time.Now(),
+		Kind:             "internal",
+		AppID:            app.AppID,
+		K8sComponentName: component.ComponentsName,
+	}
+	if err := db.GetManager().TenantServiceDao().AddModel(&ts); err != nil {
+		logrus.Errorf("add service error, %v", err)
+		return nil, err
+	}
+	dm, err := c.clientset.AppsV1().Deployments(namespace).Get(ctx, component.ComponentsName, metav1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("failed to get %v deployment %v:%v", namespace, component.ComponentsName, err)
+		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get deployment %v:%v", namespace, err)}
+	}
+	if dm.Labels == nil {
+		dm.Labels = make(map[string]string)
+	}
+	dm.Labels[constants.ResourceManagedByLabel] = constants.Rainbond
+	dm.Labels["service_id"] = serviceID
+	dm.Labels["version"] = ts.DeployVersion
+	dm.Labels["creater_id"] = string(u.NewTimeVersion())
+	dm.Labels["migrator"] = "rainbond"
+	dm.Spec.Template.Labels["service_id"] = serviceID
+	dm.Spec.Template.Labels["version"] = ts.DeployVersion
+	dm.Spec.Template.Labels["creater_id"] = string(u.NewTimeVersion())
+	dm.Spec.Template.Labels["migrator"] = "rainbond"
+	_, err = c.clientset.AppsV1().Deployments(namespace).Update(ctx, dm, metav1.UpdateOptions{})
+	if err != nil {
+		logrus.Errorf("failed to update deployment %v:%v", namespace, err)
+		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update deployment %v:%v", namespace, err)}
+	}
+	return &ts, nil
+
+}
+
+func (c *clusterAction) createENV(envs []model.ENVManagement, service *dbmodel.TenantServices) {
+	var envVar []*dbmodel.TenantServiceEnvVar
+	for _, env := range envs {
+		var envD dbmodel.TenantServiceEnvVar
+		envD.AttrName = env.ENVKey
+		envD.AttrValue = env.ENVValue
+		envD.TenantID = service.TenantID
+		envD.ServiceID = service.ServiceID
+		envD.ContainerPort = 0
+		envD.IsChange = true
+		envD.Name = env.ENVExplain
+		envD.Scope = "inner"
+		envVar = append(envVar, &envD)
+	}
+	if err := db.GetManager().TenantServiceEnvVarDao().CreateOrUpdateEnvsInBatch(envVar); err != nil {
+		logrus.Errorf("%v Environment variable creation failed:%v", service.ServiceAlias, err)
+	}
+}
+
+func (c *clusterAction) createConfig(configs []model.ConfigManagement, service *dbmodel.TenantServices) {
+	var configVar []*dbmodel.TenantServiceVolume
+	for _, config := range configs {
+		tsv := &dbmodel.TenantServiceVolume{
+			ServiceID:          service.ServiceID,
+			VolumeName:         config.ConfigName,
+			VolumePath:         config.ConfigPath,
+			VolumeType:         "config-file",
+			Category:           "",
+			VolumeProviderName: "",
+			IsReadOnly:         false,
+			VolumeCapacity:     0,
+			AccessMode:         "RWX",
+			SharePolicy:        "exclusive",
+			BackupPolicy:       "exclusive",
+			ReclaimPolicy:      "exclusive",
+			AllowExpansion:     false,
+			Mode:               &config.Mode,
+		}
+		configVar = append(configVar, tsv)
+	}
+	err := db.GetManager().TenantServiceVolumeDao().CreateOrUpdateVolumesInBatch(configVar)
+	if err != nil {
+		logrus.Errorf("%v configuration file creation failed:%v", service.ServiceAlias, err)
+	}
+}
+
+func (c *clusterAction) createPort(ports []model.PortManagement, service *dbmodel.TenantServices) {
+	fmt.Println(ports)
+	var portVar []*dbmodel.TenantServicesPort
+	for _, port := range ports {
+		portAlias := strings.Replace(service.ServiceAlias, "-", "_", -1)
+		var vpD dbmodel.TenantServicesPort
+		vpD.ServiceID = service.ServiceID
+		vpD.TenantID = service.TenantID
+		vpD.IsInnerService = &port.Inner
+		vpD.IsOuterService = &port.Outer
+		vpD.ContainerPort = int(port.Port)
+		vpD.MappingPort = int(port.Port)
+		vpD.Protocol = port.Protocol
+		vpD.PortAlias = fmt.Sprintf("%v%v", strings.ToUpper(portAlias), port.Port)
+		vpD.K8sServiceName = fmt.Sprintf("%v-%v", service.ServiceAlias, port.Port)
+		portVar = append(portVar, &vpD)
+	}
+	if err := db.GetManager().TenantServicesPortDao().CreateOrUpdatePortsInBatch(portVar); err != nil {
+		logrus.Errorf("%v port creation failed:%v", service.ServiceAlias, err)
+	}
+}
+
+func (c *clusterAction) createTelescopic(telescopic model.TelescopicManagement, service *dbmodel.TenantServices) string {
+	if !telescopic.Enable {
+		return ""
+	}
+	r := &dbmodel.TenantServiceAutoscalerRules{
+		RuleID:      strings.Replace(uuid.NewV4().String(), "-", "", -1),
+		ServiceID:   service.ServiceID,
+		Enable:      true,
+		XPAType:     "hpa",
+		MinReplicas: int(telescopic.MinReplicas),
+		MaxReplicas: int(telescopic.MaxReplicas),
+	}
+	telescopic.RuleID = r.RuleID
+	if err := db.GetManager().TenantServceAutoscalerRulesDao().AddModel(r); err != nil {
+		logrus.Errorf("%v TenantServiceAutoscalerRules creation failed:%v", service.ServiceAlias, err)
+	}
+	for _, metric := range telescopic.CpuOrMemory {
+		m := &dbmodel.TenantServiceAutoscalerRuleMetrics{
+			RuleID:            r.RuleID,
+			MetricsType:       metric.MetricsType,
+			MetricsName:       metric.MetricsName,
+			MetricTargetType:  metric.MetricTargetType,
+			MetricTargetValue: metric.MetricTargetValue,
+		}
+		if err := db.GetManager().TenantServceAutoscalerRuleMetricsDao().AddModel(m); err != nil {
+			logrus.Errorf("%v TenantServceAutoscalerRuleMetricsDao creation failed:%v", service.ServiceAlias, err)
+		}
+	}
+	return r.RuleID
+}
+
+func (c *clusterAction) createHealthyCheck(telescopic model.HealthyCheckManagement, service *dbmodel.TenantServices) string {
+	if telescopic.Status == 0 {
+		return ""
+	}
+	var tspD dbmodel.TenantServiceProbe
+	tspD.ServiceID = service.ServiceID
+	tspD.Cmd = telescopic.Command
+	tspD.FailureThreshold = telescopic.FailureThreshold
+	tspD.HTTPHeader = telescopic.HttpHeader
+	tspD.InitialDelaySecond = telescopic.InitialDelaySecond
+	tspD.IsUsed = &telescopic.Status
+	tspD.Mode = telescopic.Mode
+	tspD.Path = telescopic.Path
+	tspD.PeriodSecond = telescopic.PeriodSecond
+	tspD.Port = telescopic.Port
+	tspD.ProbeID = strings.Replace(uuid.NewV4().String(), "-", "", -1)
+	tspD.Scheme = telescopic.DetectionMethod
+	tspD.SuccessThreshold = telescopic.SuccessThreshold
+	tspD.TimeoutSecond = telescopic.TimeoutSecond
+	tspD.FailureAction = ""
+	if err := GetServiceManager().ServiceProbe(&tspD, "add"); err != nil {
+		logrus.Errorf("%v createHealthyCheck creation failed:%v", service.ServiceAlias, err)
+	}
+	return tspD.ProbeID
+}
+
+func (c *clusterAction) createSpecial(specials []*dbmodel.ComponentK8sAttributes, tenantID string, component *dbmodel.TenantServices) {
+	for _, specials := range specials {
+		specials.TenantID = tenantID
+		specials.ComponentID = component.ServiceID
+	}
+	err := db.GetManager().ComponentK8sAttributeDao().CreateOrUpdateAttributesInBatch(specials)
+	if err != nil {
+		logrus.Errorf("%v createSpecial creation failed:%v", component.ServiceAlias, err)
+	}
+}
+
+//ObjectToJsonORYam changeType true is Json /false is yaml
+func ObjectToJsonORYam(changeType string, data interface{}) (string, error) {
+	dataJson, err := json.Marshal(data)
+	if err != nil {
+		return "", fmt.Errorf("json serialization failed err:%v", err)
+	}
+	if changeType == "json" {
+		return string(dataJson), nil
+	}
+	dataYaml, err := yaml.JSONToYAML(dataJson)
+	if err != nil {
+		return "", fmt.Errorf("yaml serialization failed err:%v", err)
+	}
+	return string(dataYaml), nil
+}

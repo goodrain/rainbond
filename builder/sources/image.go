@@ -23,15 +23,16 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	dtypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/goodrain/rainbond/builder"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
+
+	dtypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/goodrain/rainbond/builder"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -339,7 +340,7 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 }
 
 //ImageBuild ImageBuild
-func ImageBuild(dockerCli *client.Client, contextDir string, options types.ImageBuildOptions, logger event.Logger, timeout int) (string, error) {
+func ImageBuild(dockerCli *client.Client, contextDir string, options types.ImageBuildOptions, logger event.Logger, timeout int) error {
 	var ctx context.Context
 	if timeout != 0 {
 		var cancel context.CancelFunc
@@ -354,28 +355,27 @@ func ImageBuild(dockerCli *client.Client, contextDir string, options types.Image
 		IncludeFiles:    []string{"."},
 	})
 	if err != nil {
-		return "", err
+		return err
 	}
 	rc, err := dockerCli.ImageBuild(ctx, buildCtx, options)
 	if err != nil {
-		return "", err
+		return err
 	}
+	defer rc.Body.Close()
+
 	var out io.Writer
 	if logger != nil {
 		out = logger.GetWriter("build-progress", "info")
 	} else {
 		out, _ = os.OpenFile("/tmp/build.log", os.O_RDWR|os.O_CREATE, 0755)
 	}
-	var imageID string
-	err = jsonmessage.DisplayJSONMessagesStream(rc.Body, out, 0, true, func(msg jsonmessage.JSONMessage) {
-		var r types.BuildResult
-		imageID = r.ID
-	})
+	err = jsonmessage.DisplayJSONMessagesStream(rc.Body, out, 0, true, nil)
 	if err != nil {
+		out.Write([]byte("\n"))
 		logrus.Errorf("read build log failure %s", err.Error())
-		return "", err
+		return err
 	}
-	return imageID, nil
+	return nil
 }
 
 //ImageInspectWithRaw get image inspect

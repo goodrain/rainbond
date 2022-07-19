@@ -138,16 +138,17 @@ func (t *ClusterController) ConvertResource(w http.ResponseWriter, r *http.Reque
 	httputil.ReturnSuccess(r, w, appsServices)
 }
 
-//func (t *ClusterController) ResourceImport(w http.ResponseWriter, r *http.Request) {
-//	content := r.FormValue("content")
-//	namespace := r.FormValue("namespace")
-//	eid := r.FormValue("eid")
-//	rs, err := handler.GetClusterHandler().GetNamespaceSource(r.Context(), content, namespace)
-//	appsServices, err := handler.GetClusterHandler().ConvertResource(r.Context(), namespace, rs)
-//	rri, err := handler.GetClusterHandler().ResourceImport(r.Context(), namespace, appsServices, eid)
-//	if err != nil {
-//		err.Handle(r, w)
-//		return
-//	}
-//	httputil.ReturnSuccess(r, w, rri)
-//}
+//ResourceImport Import the converted k8s resources into recognition
+func (t *ClusterController) ResourceImport(w http.ResponseWriter, r *http.Request) {
+	content := r.FormValue("content")
+	namespace := r.FormValue("namespace")
+	eid := r.FormValue("eid")
+	rs, err := handler.GetClusterHandler().GetNamespaceSource(r.Context(), content, namespace)
+	appsServices, err := handler.GetClusterHandler().ConvertResource(r.Context(), namespace, rs)
+	rri, err := handler.GetClusterHandler().ResourceImport(r.Context(), namespace, appsServices, eid)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rri)
+}

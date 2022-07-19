@@ -45,10 +45,11 @@ func TestImageName(t *testing.T) {
 func TestBuildImage(t *testing.T) {
 	dc, _ := client.NewEnvClient()
 	buildOptions := types.ImageBuildOptions{
-		Tags:   []string{"java:test"},
-		Remove: true,
+		Tags:        []string{"java:test"},
+		Remove:      true,
+		NetworkMode: "host",
 	}
-	if _, err := ImageBuild(dc, "/Users/barnett/coding/java/Demo-RestAPI-Servlet2", buildOptions, nil, 20); err != nil {
+	if err := ImageBuild(dc, "/Users/barnett/coding/java/Demo-RestAPI-Servlet2", buildOptions, nil, 20); err != nil {
 		t.Fatal(err)
 	}
 }
