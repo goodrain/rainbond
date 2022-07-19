@@ -21,6 +21,7 @@ package exector
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -135,15 +136,12 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		return err
 	}
 	i.RepoInfo = rbi
-	logrus.Info("===rbi===", rbi)
-	logrus.Info("===i.RepoInfo===", i.RepoInfo)
 	if err := i.prepare(); err != nil {
 		logrus.Errorf("prepare build code error: %s", err.Error())
 		i.Logger.Error("准备源码构建失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	i.CodeSouceInfo.RepositoryURL = rbi.RepostoryURL
-	logrus.Info("===rbi.RepostoryURL===", i.CodeSouceInfo.RepositoryURL)
 	switch i.CodeSouceInfo.ServerType {
 	case "svn":
 		csi := i.CodeSouceInfo
@@ -167,11 +165,11 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	case "oss":
 		i.commit = Commit{}
 	case "pkg":
-		i.commit = Commit{}
 		pathSplit := strings.Split(i.CodeSouceInfo.RepositoryURL,"/")
 		eventID := pathSplit[len(pathSplit)-1]
 		tarPath := fmt.Sprintf("/grdata/package_build/components/%s/events", i.ServiceID)
 		oldPath := fmt.Sprintf("/grdata/package_build/temp/events/%s", eventID)
+
 		_, err := os.Stat(tarPath)
 		if err != nil {
 			if !os.IsExist(err) {
@@ -181,7 +179,26 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 				}
 			}
 		}
-		if  err = util.MoveDir(oldPath, tarPath); err != nil {
+		packages, err := ioutil.ReadDir(oldPath)
+		if err != nil {
+			logrus.Errorf("read dir error: %s", err.Error())
+			return  err
+		}
+		packageArr := make([]string, 0, 10)
+		for _, dir := range packages {
+			if dir.IsDir() {
+				continue
+			}
+			packageArr = append(packageArr, dir.Name())
+		}
+		fileName := packageArr[0]
+		file := tarPath + "/" + fileName
+		fileMD5 := util.MD5(file)
+		i.commit = Commit{
+			Message: fileName,
+			Hash: fileMD5,
+		}
+		if err = util.MoveDir(oldPath, tarPath); err != nil {
 			logrus.Errorf("copy dir error: %s", err.Error())
 		}
 	default:

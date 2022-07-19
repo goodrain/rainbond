@@ -1,8 +1,11 @@
 package util
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -48,4 +51,21 @@ func MoveDir(src string, dest string) error {
 		return err
 	}
 	return nil
+}
+
+func MD5(file string) string {
+	f, err := os.Open(file)
+	if err != nil {
+		logrus.Error(err)
+	}
+	defer f.Close()
+
+	h := md5.New()
+	_, err = io.Copy(h, f)
+	if err != nil {
+		logrus.Error(err)
+	}
+	res := hex.EncodeToString(h.Sum(nil))
+	logrus.Info("md5:", res)
+	return res
 }

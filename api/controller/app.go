@@ -305,6 +305,9 @@ func (a *AppStruct) Upload(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (a *AppStruct) UploadYaml(w http.ResponseWriter, r *http.Request){
+
+}
 //ImportApp -
 func (a *AppStruct) ImportApp(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
