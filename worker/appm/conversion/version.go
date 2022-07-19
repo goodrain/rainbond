@@ -19,6 +19,7 @@
 package conversion
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/goodrain/rainbond/builder/sources"
 	"net"
@@ -41,6 +42,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/yaml"
 )
 
 //TenantServiceVersion service deploy version conv. define pod spec
@@ -70,20 +72,18 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		dv.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes", "/grdata/kubernetes", corev1.HostPathDirectoryOrCreate, true)
 	}
 	nodeSelector := createNodeSelector(as, dbmanager)
-	tolerations := createToleration(nodeSelector)
-	injectLabels := getInjectLabels(as)
+	labels := createLabels(as, dbmanager)
+	tolerations := createToleration(nodeSelector, as, dbmanager)
+	volumes := getVolumes(dv, as, dbmanager)
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: as.GetCommonLabels(map[string]string{
-				"name":    as.ServiceAlias,
-				"version": as.DeployVersion,
-			}, injectLabels),
+			Labels:      labels,
 			Annotations: createPodAnnotations(as),
 			Name:        as.GetK8sWorkloadName() + "-pod-spec",
 		},
 		Spec: corev1.PodSpec{
 			ImagePullSecrets: setImagePullSecrets(),
-			Volumes:          dv.GetVolumes(),
+			Volumes:          volumes,
 			Containers:       []corev1.Container{*container},
 			NodeSelector:     nodeSelector,
 			Tolerations:      tolerations,
@@ -113,6 +113,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				}
 				return ""
 			}(),
+			ServiceAccountName: createServiceAccountName(as, dbmanager),
 		},
 	}
 	var terminationGracePeriodSeconds int64 = 10
@@ -158,7 +159,7 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		Ports:          ports,
 		Env:            envs,
 		EnvFrom:        envFromSecrets,
-		VolumeMounts:   dv.GetVolumeMounts(),
+		VolumeMounts:   createVolumeMounts(dv, as, dbmanager),
 		LivenessProbe:  createProbe(as, dbmanager, "liveness"),
 		ReadinessProbe: createProbe(as, dbmanager, "readiness"),
 		Resources:      resources,
@@ -171,6 +172,17 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 	if label != nil {
 		logrus.Infof("service id: %s; enable privileged.", as.ServiceID)
 		c.SecurityContext = &corev1.SecurityContext{Privileged: util.Bool(true)}
+	}
+	privilegedAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNamePrivileged)
+	if err != nil {
+		logrus.Error("get by privileged attribute error", err)
+	}
+	if privilegedAttribute != nil {
+		pril, err := strconv.ParseBool(privilegedAttribute.AttributeValue)
+		if err != nil {
+			logrus.Error("privileged ParseBool error", err)
+		}
+		c.SecurityContext = &corev1.SecurityContext{Privileged: util.Bool(pril)}
 	}
 	return c, nil
 }
@@ -494,6 +506,27 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, envs []corev
 	return define, nil
 }
 
+func getVolumes(dv *volume.Define, as *v1.AppService, dbmanager db.Manager) []corev1.Volume {
+	volumes := dv.GetVolumes()
+	volumeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameVolumes)
+	if err != nil {
+		logrus.Error("get by volumes attribute error", err)
+	}
+	var vs []corev1.Volume
+	if volumeAttribute != nil {
+		VolumeAttributeJSON, err := yaml.YAMLToJSON([]byte(volumeAttribute.AttributeValue))
+		if err != nil {
+			logrus.Error("volumeAttribute yaml to json error", err)
+		}
+		err = json.Unmarshal(VolumeAttributeJSON, &vs)
+		if err != nil {
+			logrus.Error("volumeAttribute json unmarshal error", err)
+		}
+		volumes = append(volumes, vs...)
+	}
+	return volumes
+}
+
 func createResources(as *v1.AppService) corev1.ResourceRequirements {
 	var cpuRequest, cpuLimit int64
 	if limit, ok := as.ExtensionSet["cpulimit"]; ok {
@@ -642,7 +675,17 @@ func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.P
 }
 
 func createNodeSelector(as *v1.AppService, dbmanager db.Manager) map[string]string {
+	selectorAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameNodeSelector)
+	if err != nil {
+		logrus.Error("get by NodeSelector attribute error", err)
+	}
 	selector := make(map[string]string)
+	if selectorAttribute != nil {
+		err := json.Unmarshal([]byte(selectorAttribute.AttributeValue), &selector)
+		if err != nil {
+			logrus.Error("selector json unmarshal error", err)
+		}
+	}
 	labels, err := dbmanager.TenantServiceLabelDao().GetTenantServiceNodeSelectorLabel(as.ServiceID)
 	if err == nil && labels != nil && len(labels) > 0 {
 		for _, l := range labels {
@@ -663,8 +706,43 @@ func createNodeSelector(as *v1.AppService, dbmanager db.Manager) map[string]stri
 	}
 	return selector
 }
+
+func createLabels(as *v1.AppService, dbmanager db.Manager) map[string]string {
+	labels := make(map[string]string)
+	labelsAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLabels)
+	if err != nil {
+		logrus.Error("get by labels attribute error", err)
+	}
+	if labelsAttribute != nil {
+		err := json.Unmarshal([]byte(labelsAttribute.AttributeValue), &labels)
+		if err != nil {
+			logrus.Error("labels json unmarshal error", err)
+		}
+	}
+	labels["name"] = as.ServiceAlias
+	labels["version"] = as.DeployVersion
+	injectLabels := getInjectLabels(as)
+	resultLabel := as.GetCommonLabels(labels, injectLabels)
+	return resultLabel
+}
+
 func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 	var affinity corev1.Affinity
+	affinityAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameAffinity)
+	if err != nil {
+		logrus.Error("get by affinity attribute error", err)
+	}
+	if affinityAttribute != nil {
+		AffinityAttributeJSON, err := yaml.YAMLToJSON([]byte(affinityAttribute.AttributeValue))
+		if err != nil {
+			logrus.Error("Affinity attribute yaml to json error", err)
+		}
+		err = json.Unmarshal(AffinityAttributeJSON, &affinity)
+		if err != nil {
+			logrus.Error("affinity json unmarshal error", err)
+		}
+		return &affinity
+	}
 	nsr := make([]corev1.NodeSelectorRequirement, 0)
 	podAffinity := make([]corev1.PodAffinityTerm, 0)
 	podAntAffinity := make([]corev1.PodAffinityTerm, 0)
@@ -795,8 +873,24 @@ func setImagePullSecrets() []corev1.LocalObjectReference {
 	}
 }
 
-func createToleration(nodeSelector map[string]string) []corev1.Toleration {
+func createToleration(nodeSelector map[string]string, as *v1.AppService, dbmanager db.Manager) []corev1.Toleration {
 	var tolerations []corev1.Toleration
+	tolerationAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameTolerations)
+	if err != nil {
+		logrus.Error("get by toleration attribute error", err)
+	}
+	var tolers []corev1.Toleration
+	if tolerationAttribute != nil {
+		tolerationAttributeJSON, err := yaml.YAMLToJSON([]byte(tolerationAttribute.AttributeValue))
+		if err != nil {
+			logrus.Error("toleration attribute yaml to json error", err)
+		}
+		err = json.Unmarshal(tolerationAttributeJSON, &tolers)
+		if err != nil {
+			logrus.Error("toleration json unmarshal error", err)
+		}
+		tolerations = append(tolerations, tolers...)
+	}
 	if value, exist := nodeSelector["type"]; exist && value == "virtual-kubelet" {
 		tolerations = append(tolerations, corev1.Toleration{
 			Key:      "virtual-kubelet.io/provider",
@@ -824,4 +918,38 @@ func createHostAliases(as *v1.AppService) []corev1.HostAlias {
 		re = append(re, *cache[k])
 	}
 	return re
+}
+
+func createServiceAccountName(as *v1.AppService, dbmanager db.Manager) string {
+	var serviceAN string
+	ServiceAccountNameAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameServiceAccountName)
+	if err != nil {
+		logrus.Error("get by ServiceAccountName attribute error", err)
+	}
+	if ServiceAccountNameAttribute != nil {
+		serviceAN = ServiceAccountNameAttribute.AttributeValue
+		return serviceAN
+	}
+	return ""
+}
+
+func createVolumeMounts(dv *volume.Define, as *v1.AppService, dbmanager db.Manager) []corev1.VolumeMount {
+	volumeMounts := dv.GetVolumeMounts()
+	volumeMountsAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameVolumeMounts)
+	if err != nil {
+		logrus.Error("get by ServiceAccountName attribute error", err)
+	}
+	var vms []corev1.VolumeMount
+	if volumeMountsAttribute != nil {
+		VolumeMountsAttributeJSON, err := yaml.YAMLToJSON([]byte(volumeMountsAttribute.AttributeValue))
+		if err != nil {
+			logrus.Error("volumeMounts attribute yaml to json error", err)
+		}
+		err = json.Unmarshal(VolumeMountsAttributeJSON, &vms)
+		if err != nil {
+			logrus.Error("volumeMounts json unmarshal error", err)
+		}
+		volumeMounts = append(volumeMounts, vms...)
+	}
+	return volumeMounts
 }
