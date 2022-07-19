@@ -269,7 +269,7 @@ type SyncComponentReq struct {
 // ComponentK8sAttribute -
 type ComponentK8sAttribute struct {
 	// Name Define the attribute name, which is currently supported
-	// [nodeSelector/labels/tolerations/volumes/serviceAccountName/privileged/affinity]
+	// [nodeSelector/labels/tolerations/volumes/serviceAccountName/privileged/affinity/volumeMounts]
 	// The field name should be the same as that in the K8s resource yaml file.
 	Name string `json:"name"`
 

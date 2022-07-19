@@ -26,6 +26,7 @@ const (
 	K8sAttributeNameServiceAccountName = "serviceAccountName"
 	K8sAttributeNamePrivileged         = "privileged"
 	K8sAttributeNameAffinity           = "affinity"
+	K8sAttributeNameVolumeMounts       = "volumeMounts"
 )
 
 // ComponentK8sAttributes -
@@ -35,7 +36,7 @@ type ComponentK8sAttributes struct {
 	ComponentID string `gorm:"column:component_id" json:"component_id"`
 
 	// Name Define the attribute name, which is currently supported
-	// [nodeSelector/labels/tolerations/volumes/serviceAccountName/privileged/affinity]
+	// [nodeSelector/labels/tolerations/volumes/serviceAccountName/privileged/affinity/volumeMounts]
 	// The field name should be the same as that in the K8s resource yaml file.
 	Name string `gorm:"column:name" json:"name"`
 

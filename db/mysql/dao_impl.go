@@ -661,3 +661,17 @@ func (m *Manager) ComponentK8sAttributeDaoTransactions(db *gorm.DB) dao.Componen
 		DB: db,
 	}
 }
+
+// K8sResourceDao -
+func (m *Manager) K8sResourceDao() dao.K8sResourceDao {
+	return &mysqldao.K8sResourceDaoImpl{
+		DB: m.db,
+	}
+}
+
+// K8sResourceDaoTransactions -
+func (m *Manager) K8sResourceDaoTransactions(db *gorm.DB) dao.K8sResourceDao {
+	return &mysqldao.K8sResourceDaoImpl{
+		DB: db,
+	}
+}

@@ -629,3 +629,9 @@ type ComponentK8sAttributeDao interface {
 	CreateOrUpdateAttributesInBatch(attributes []*model.ComponentK8sAttributes) error
 	DeleteByComponentIDAndName(componentID, name string) error
 }
+
+// K8sResourceDao -
+type K8sResourceDao interface {
+	Dao
+	ListByAppID(appID string) ([]model.K8sResource, error)
+}

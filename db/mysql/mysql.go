@@ -156,6 +156,7 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.TenantServiceScalingRecords{})
 	m.models = append(m.models, &model.TenantServiceMonitor{})
 	m.models = append(m.models, &model.ComponentK8sAttributes{})
+	m.models = append(m.models, &model.K8sResource{})
 }
 
 //CheckTable check and create tables
