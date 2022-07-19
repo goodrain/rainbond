@@ -53,7 +53,7 @@ func AppRoutes() chi.Router {
 	return r
 }
 
-//ComponentRoutes -
+//PackageBuildRoutes 本地文件上传路由
 func PackageBuildRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/component/events/{eventID}", controller.GetManager().UploadPackage)
