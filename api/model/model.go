@@ -2016,6 +2016,7 @@ type AppStatusesReq struct {
 	AppIDs []string `json:"app_ids"`
 }
 
+// JobStrategy -
 type JobStrategy struct {
 	Schedule              string `json:"schedule"`
 	BackoffLimit          string `json:"backoff_limit"`
