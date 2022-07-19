@@ -160,3 +160,13 @@ func (g *GarbageCollector) listOptionsServiceID(serviceID string) metav1.ListOpt
 		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
 	}
 }
+
+// DelLogFile deletes persistent data related to the service based on serviceID.
+func (g *GarbageCollector) DelComponentPkg(serviceGCReq model.ServiceGCTaskBody) {
+	logrus.Infof("service id: %s; delete component package.", serviceGCReq.ServiceID)
+	// log generated during service running
+	pkgPath := fmt.Sprintf("/grdata/package_build/components/%s", serviceGCReq.ServiceID)
+	if err := os.RemoveAll(pkgPath); err != nil {
+		logrus.Warningf("remove component package: %v", err)
+	}
+}

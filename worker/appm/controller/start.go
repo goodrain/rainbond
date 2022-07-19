@@ -130,8 +130,9 @@ func (s *startController) startOne(app v1.AppService) error {
 			return fmt.Errorf("create claims: %v", err)
 		}
 	}
-	//step 2: create statefulset or deployment
+	//step 2: create statefulset or deployment or job or cronjob
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
+		// s.manager.client.BatchV1beta1().CronJobs().Create()
 		_, err = s.manager.client.AppsV1().StatefulSets(app.GetNamespace()).Create(s.ctx, statefulset, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("create statefulset failure:%s", err.Error())
@@ -141,6 +142,18 @@ func (s *startController) startOne(app v1.AppService) error {
 		_, err = s.manager.client.AppsV1().Deployments(app.GetNamespace()).Create(s.ctx, deployment, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("create deployment failure:%s;", err.Error())
+		}
+	}
+	if job := app.GetJob(); job != nil {
+		_, err = s.manager.client.BatchV1().Jobs(app.GetNamespace()).Create(s.ctx, job, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("create job failure:%s;", err.Error())
+		}
+	}
+	if cronjob := app.GetCronJob(); cronjob != nil {
+		_, err = s.manager.client.BatchV1beta1().CronJobs(app.GetNamespace()).Create(s.ctx, cronjob, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("create cronjob failure:%s;", err.Error())
 		}
 	}
 	//step 3: create services

@@ -20,12 +20,13 @@ package conversion
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/builder/sources"
 	"net"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/goodrain/rainbond/builder/sources"
 
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
@@ -119,7 +120,13 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	if as.GetDeployment() != nil {
 		podtmpSpec.Spec.TerminationGracePeriodSeconds = &terminationGracePeriodSeconds
 	}
-	//set to deployment or statefulset
+	if as.GetJob() != nil {
+		podtmpSpec.Spec.RestartPolicy = "Never"
+	}
+	if as.GetCronJob() != nil {
+		podtmpSpec.Spec.RestartPolicy = "Never"
+	}
+	//set to deployment or statefulset job or cronjob
 	as.SetPodTemplate(podtmpSpec)
 	return nil
 }
