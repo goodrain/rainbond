@@ -143,8 +143,9 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 			"CODE_COMMIT_USER":    &s.re.Commit.User,
 			"CODE_COMMIT_MESSAGE": &s.re.Commit.Message,
 		},
-		Tags:   []string{imageName},
-		Remove: true,
+		Tags:        []string{imageName},
+		Remove:      true,
+		NetworkMode: ImageBuildNetworkModeHost,
 	}
 	if _, ok := s.re.BuildEnvs["NO_CACHE"]; ok {
 		runbuildOptions.NoCache = true
@@ -156,7 +157,7 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 		return "", fmt.Errorf("pull image %s: %v", builder.RUNNERIMAGENAME, err)
 	}
 	logrus.Infof("pull image %s successfully.", builder.RUNNERIMAGENAME)
-	_, err := sources.ImageBuild(s.re.DockerClient, cacheDir, runbuildOptions, s.re.Logger, 30)
+	err := sources.ImageBuild(s.re.DockerClient, cacheDir, runbuildOptions, s.re.Logger, 30)
 	if err != nil {
 		s.re.Logger.Error(fmt.Sprintf("build image %s of new version failure", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())

@@ -21,8 +21,9 @@ package build
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond/db"
 	"strings"
+
+	"github.com/goodrain/rainbond/db"
 
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/parser/code"
@@ -66,6 +67,9 @@ var ImageMediumType MediumType = "image"
 
 //SlugMediumType slug type
 var SlugMediumType MediumType = "slug"
+
+//ImageBuildNetworkModeHost use host network mode during docker build
+var ImageBuildNetworkModeHost = "host"
 
 //Response build result
 type Response struct {

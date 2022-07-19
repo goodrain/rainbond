@@ -166,6 +166,7 @@ func (m *Manager) Run() {
 	//prometheus单节点代理
 	m.r.Get("/api/v1/query", m.PrometheusAPI)
 	m.r.Get("/api/v1/query_range", m.PrometheusAPI)
+	m.r.Get("/api/v1/alerts", m.PrometheusAPI)
 	//开启对浏览器的websocket服务和文件服务
 	go func() {
 		websocketRouter := chi.NewRouter()

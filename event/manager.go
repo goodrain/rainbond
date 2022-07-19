@@ -432,7 +432,7 @@ func (l *loggerWriter) SetFormat(f map[string]interface{}) {
 	l.fmt = f
 }
 func (l *loggerWriter) Write(b []byte) (n int, err error) {
-	if b != nil && len(b) > 0 {
+	if len(b) > 0 {
 		if !strings.HasSuffix(string(b), "\n") {
 			l.tmp = append(l.tmp, b...)
 			return len(b), nil
@@ -444,6 +444,7 @@ func (l *loggerWriter) Write(b []byte) (n int, err error) {
 		} else {
 			message = string(b)
 		}
+
 		// if loggerWriter has format, and then use it format message
 		if len(l.fmt) > 0 {
 			newLineMap := make(map[string]interface{}, len(l.fmt))
