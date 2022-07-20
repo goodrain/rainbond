@@ -2,6 +2,9 @@ package model
 
 import (
 	"github.com/goodrain/rainbond/db/model"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 //BasicManagement -
@@ -65,11 +68,28 @@ type TelescopicManagement struct {
 
 //KubernetesResources -
 type KubernetesResources struct {
+	Name                       string                  `json:"name"`
+	Spec                       v1.ServiceSpec          `json:"spec"`
+	Namespace                  string                  `json:"namespace"`
+	Labels                     map[string]string       `json:"labels"`
+	Annotations                map[string]string       `json:"annotations"`
+	Kind                       string                  `json:"kind"`
+	APIVersion                 string                  `json:"api_version"`
+	GenerateName               string                  `json:"generate_name"`
+	UID                        types.UID               `json:"uid"`
+	ResourceVersion            string                  `json:"resource_version"`
+	Generation                 int64                   `json:"generation"`
+	CreationTimestamp          metav1.Time             `json:"creation_timestamp"`
+	DeletionTimestamp          *metav1.Time            `json:"deletion_timestamp"`
+	DeletionGracePeriodSeconds *int64                  `json:"deletion_grace_period_seconds"`
+	OwnerReferences            []metav1.OwnerReference `json:"owner_references"`
+	Finalizers                 []string                `json:"finalizers"`
+	ClusterName                string                  `json:"cluster_name"`
 }
 
 //ApplicationResource -
 type ApplicationResource struct {
-	KubernetesResources KubernetesResources `json:"kubernetes_resources"`
+	KubernetesResources []model.K8sResource `json:"kubernetes_resources"`
 	ConvertResource     []ConvertResource   `json:"convert_resource"`
 }
 
