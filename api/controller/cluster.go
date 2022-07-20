@@ -130,6 +130,10 @@ func (t *ClusterController) ConvertResource(w http.ResponseWriter, r *http.Reque
 	content := r.FormValue("content")
 	namespace := r.FormValue("namespace")
 	rs, err := handler.GetClusterHandler().GetNamespaceSource(r.Context(), content, namespace)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
 	appsServices, err := handler.GetClusterHandler().ConvertResource(r.Context(), namespace, rs)
 	if err != nil {
 		err.Handle(r, w)
@@ -144,7 +148,15 @@ func (t *ClusterController) ResourceImport(w http.ResponseWriter, r *http.Reques
 	namespace := r.FormValue("namespace")
 	eid := r.FormValue("eid")
 	rs, err := handler.GetClusterHandler().GetNamespaceSource(r.Context(), content, namespace)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
 	appsServices, err := handler.GetClusterHandler().ConvertResource(r.Context(), namespace, rs)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
 	rri, err := handler.GetClusterHandler().ResourceImport(r.Context(), namespace, appsServices, eid)
 	if err != nil {
 		err.Handle(r, w)

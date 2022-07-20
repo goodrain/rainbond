@@ -107,9 +107,9 @@ func (a *ApplicationDaoImpl) IsK8sAppDuplicate(tenantID, AppID, k8sApp string) b
 }
 
 //GetAppByName -
-func (a *ApplicationDaoImpl) GetAppByName(tenantID, appName, k8sAppName string) (*model.Application, error) {
+func (a *ApplicationDaoImpl) GetAppByName(tenantID, k8sAppName string) (*model.Application, error) {
 	var app model.Application
-	if err := a.DB.Where("tenant_id=? and app_name=? and k8s_app=?", tenantID, appName, k8sAppName).Find(&app).Error; err != nil {
+	if err := a.DB.Where("tenant_id=? and k8s_app=?", tenantID, k8sAppName).Find(&app).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, bcode.ErrApplicationNotFound
 		}

@@ -8,7 +8,7 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	u "github.com/goodrain/rainbond/util"
+	rainbondutil "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/constants"
 	"github.com/jinzhu/gorm"
 	"github.com/shirou/gopsutil/disk"
@@ -357,13 +357,7 @@ func (c *clusterAction) GetNamespace(ctx context.Context, content string) ([]str
 		if strings.HasPrefix(ns.Name, "kube-") || ns.Name == "rainbond" || ns.Name == "rbd-system" {
 			continue
 		}
-		rbdNamespace := false
-		for labelKey, labelValue := range ns.Labels {
-			if labelKey == constants.ResourceManagedByLabel && labelValue == "rainbond" {
-				rbdNamespace = true
-			}
-		}
-		if content == "unmanaged" && rbdNamespace {
+		if labelValue, isRBDNamespace := ns.Labels[constants.ResourceManagedByLabel]; isRBDNamespace && labelValue == "rainbond" && content == "unmanaged" {
 			continue
 		}
 		*namespaces = append(*namespaces, ns.Name)
@@ -371,8 +365,8 @@ func (c *clusterAction) GetNamespace(ctx context.Context, content string) ([]str
 	return *namespaces, nil
 }
 
-//MapAddMap map去重合并
-func MapAddMap(map1 map[string][]string, map2 map[string][]string) map[string][]string {
+//MergeMap map去重合并
+func MergeMap(map1 map[string][]string, map2 map[string][]string) map[string][]string {
 	for k, v := range map1 {
 		if _, ok := map2[k]; ok {
 			map2[k] = append(map2[k], v...)
@@ -392,31 +386,31 @@ func (c *clusterAction) GetNamespaceSource(ctx context.Context, content string, 
 	secretsMap := make(map[string][]string)
 	deployments, cmMap, secretMap := c.getResourceName(ctx, namespace, content, model.Deployment)
 	if len(cmsMap) != 0 {
-		cmsMap = MapAddMap(cmMap, cmsMap)
+		cmsMap = MergeMap(cmMap, cmsMap)
 	}
 	if len(secretMap) != 0 {
-		secretsMap = MapAddMap(secretMap, secretsMap)
+		secretsMap = MergeMap(secretMap, secretsMap)
 	}
 	jobs, cmMap, secretMap := c.getResourceName(ctx, namespace, content, model.Job)
 	if len(cmsMap) != 0 {
-		cmsMap = MapAddMap(cmMap, cmsMap)
+		cmsMap = MergeMap(cmMap, cmsMap)
 	}
 	if len(secretMap) != 0 {
-		secretsMap = MapAddMap(secretMap, secretsMap)
+		secretsMap = MergeMap(secretMap, secretsMap)
 	}
 	cronJobs, cmMap, secretMap := c.getResourceName(ctx, namespace, content, model.CronJob)
 	if len(cmsMap) != 0 {
-		cmsMap = MapAddMap(cmMap, cmsMap)
+		cmsMap = MergeMap(cmMap, cmsMap)
 	}
 	if len(secretMap) != 0 {
-		secretsMap = MapAddMap(secretMap, secretsMap)
+		secretsMap = MergeMap(secretMap, secretsMap)
 	}
 	stateFulSets, cmMap, secretMap := c.getResourceName(ctx, namespace, content, model.StateFulSet)
 	if len(cmsMap) != 0 {
-		cmsMap = MapAddMap(cmMap, cmsMap)
+		cmsMap = MergeMap(cmMap, cmsMap)
 	}
 	if len(secretMap) != 0 {
-		secretsMap = MapAddMap(secretMap, secretsMap)
+		secretsMap = MergeMap(secretMap, secretsMap)
 	}
 	processWorkloads := model.LabelWorkloadsResourceProcess{
 		Deployments:  deployments,
@@ -439,8 +433,8 @@ func (c *clusterAction) GetNamespaceSource(ctx context.Context, content string, 
 		PVC:                      pvc,
 		Ingresses:                ingresses,
 		NetworkPolicies:          networkPolicies,
-		ConfigMaps:               MapAddMap(cmsMap, cms),
-		Secrets:                  MapAddMap(secretsMap, secrets),
+		ConfigMaps:               MergeMap(cmsMap, cms),
+		Secrets:                  MergeMap(secretsMap, secrets),
 		ServiceAccounts:          serviceAccounts,
 		RoleBindings:             roleBindings,
 		HorizontalPodAutoscalers: horizontalPodAutoscalers,
@@ -708,7 +702,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 		}
 		logrus.Infof("pvc:%v", tempResources)
 	case model.Ingress:
-		resources, err := c.clientset.ExtensionsV1beta1().Ingresses(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get Ingresses list:%v", err)
 			return nil, cmMap, secretMap
@@ -718,7 +712,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 		}
 		logrus.Infof("ingress:%v", tempResources)
 	case model.NetworkPolicie:
-		resources, err := c.clientset.ExtensionsV1beta1().NetworkPolicies(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.NetworkingV1().NetworkPolicies(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get NetworkPolicies list:%v", err)
 			return nil, cmMap, secretMap
@@ -780,7 +774,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 				if err != nil {
 					logrus.Errorf("The bound deployment does not exist:%v", err)
 				}
-				if labelValue, ok := hpa.ObjectMeta.Labels["creator"]; ok && labelValue == "Rainbond" {
+				if hpa.ObjectMeta.Labels["creator"] == "Rainbond" {
 					rbdResource = true
 				}
 				labels = deploy.ObjectMeta.Labels
@@ -789,7 +783,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 				if err != nil {
 					logrus.Errorf("The bound deployment does not exist:%v", err)
 				}
-				if labelValue, ok := hpa.ObjectMeta.Labels["creator"]; ok && labelValue == "Rainbond" {
+				if hpa.ObjectMeta.Labels["creator"] == "Rainbond" {
 					rbdResource = true
 				}
 				labels = ss.ObjectMeta.Labels
@@ -798,10 +792,9 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 			if content == "unmanaged" && rbdResource {
 				continue
 			}
-			if labelValue, ok := labels["app.kubernetes.io/name"]; ok {
-				app = labelValue
-			} else if lValue, ok := labels["app"]; ok {
-				app = lValue
+			app = labels["app"]
+			if labels["app.kubernetes.io/name"] != "" {
+				app = labels["app.kubernetes.io/name"]
 			}
 			if app == "" {
 				app = "UnLabel"
@@ -826,18 +819,12 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 	}
 	//这一块是统一处理资源，按label划分出来
 	for _, rs := range tempResources {
-		rbdResource := false
-		var app string
-		if labelValue, ok := rs.ObjectMeta.Labels["creator"]; ok && labelValue == "Rainbond" {
-			rbdResource = true
-		}
-		if content == "unmanaged" && rbdResource {
+		if content == "unmanaged" && rs.ObjectMeta.Labels["creator"] == "Rainbond" {
 			continue
 		}
-		if labelValue, ok := rs.ObjectMeta.Labels["app.kubernetes.io/name"]; ok {
-			app = labelValue
-		} else if lValue, ok := rs.ObjectMeta.Labels["app"]; ok {
-			app = lValue
+		app := rs.ObjectMeta.Labels["app"]
+		if rs.ObjectMeta.Labels["app.kubernetes.io/name"] != "" {
+			app = rs.ObjectMeta.Labels["app.kubernetes.io/name"]
 		}
 		if app == "" {
 			app = "UnLabel"
@@ -847,12 +834,14 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 			cmList, secretList := c.replenishLabel(ctx, rs, namespace, app)
 			if _, ok := cmMap[app]; ok {
 				cmMap[app] = append(cmMap[app], cmList...)
+			} else {
+				cmMap[app] = cmList
 			}
-			cmMap[app] = cmList
 			if _, ok := secretMap[app]; ok {
 				secretMap[app] = append(secretMap[app], secretList...)
+			} else {
+				secretMap[app] = secretList
 			}
-			secretMap[app] = secretList
 		}
 		if _, ok := resourceName[app]; ok {
 			resourceName[app] = append(resourceName[app], rs.ObjectMeta.Name)
@@ -1003,6 +992,7 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 				cm, err := c.clientset.CoreV1().ConfigMaps(namespace).Get(ctx, volume.ConfigMap.Name, metav1.GetOptions{})
 				if err != nil {
 					logrus.Errorf("Failed to get ConfigMap %v:%v", volume.Name, err)
+					continue
 				}
 				cmData := cm.Data
 				isLog := true
@@ -1112,50 +1102,37 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 					switch cpuormemory.Resource["name"] {
 					case "cpu":
 						cpu := fmt.Sprint(cpuormemory.Resource["targetAverageValue"])
-						if cpu[len(cpu)-1:] == "m" {
-							cpuuse, _ := strconv.Atoi(cpu[:len(cpu)-1])
-							cpuormemorys = append(cpuormemorys, &dbmodel.TenantServiceAutoscalerRuleMetrics{
-								MetricsType:       "resource_metrics",
-								MetricsName:       "cpu",
-								MetricTargetType:  "average_value",
-								MetricTargetValue: cpuuse,
-							})
+						cpuUnit := cpu[len(cpu)-1:]
+						var cpuUsage int
+						if cpuUnit == "m" {
+							cpuUsage, _ = strconv.Atoi(cpu[:len(cpu)-1])
 						}
-						if cpu[len(cpu)-1:] == "g" || cpu[len(cpu)-1:] == "G" {
-							cpuuse, _ := strconv.Atoi(cpu[:len(cpu)-1])
-							cpuormemorys = append(cpuormemorys, &dbmodel.TenantServiceAutoscalerRuleMetrics{
-								MetricsType:       "resource_metrics",
-								MetricsName:       "cpu",
-								MetricTargetType:  "average_value",
-								MetricTargetValue: cpuuse * 1024,
-							})
+						if cpuUnit == "g" || cpuUnit == "G" {
+							cpuUsage, _ = strconv.Atoi(cpu[:len(cpu)-1])
+							cpuUsage = cpuUsage * 1024
 						}
-					case "memory":
-						memory := fmt.Sprint(cpuormemory.Resource["targetAverageValue"])
-						if memory[len(memory)-1:] == "m" {
-							memoryuse, _ := strconv.Atoi(memory[:len(memory)-1])
-							cpuormemorys = append(cpuormemorys, &dbmodel.TenantServiceAutoscalerRuleMetrics{
-								MetricsType:       "resource_metrics",
-								MetricsName:       "memory",
-								MetricTargetType:  "average_value",
-								MetricTargetValue: memoryuse,
-							})
-						}
-						if memory[len(memory)-1:] == "g" || memory[len(memory)-1:] == "G" {
-							memoryuse, _ := strconv.Atoi(memory[:len(memory)-1])
-							cpuormemorys = append(cpuormemorys, &dbmodel.TenantServiceAutoscalerRuleMetrics{
-								MetricsType:       "resource_metrics",
-								MetricsName:       "memory",
-								MetricTargetType:  "average_value",
-								MetricTargetValue: memoryuse * 1024,
-							})
-						}
-						memoryusage := int(cpuormemory.Resource["targetAverageUtilization"].(float64))
 						cpuormemorys = append(cpuormemorys, &dbmodel.TenantServiceAutoscalerRuleMetrics{
 							MetricsType:       "resource_metrics",
-							MetricsName:       "memory",
-							MetricTargetType:  "utilization",
-							MetricTargetValue: memoryusage,
+							MetricsName:       "cpu",
+							MetricTargetType:  "average_value",
+							MetricTargetValue: cpuUsage,
+						})
+					case "memory":
+						memory := fmt.Sprint(cpuormemory.Resource["targetAverageValue"])
+						memoryUnit := memory[:len(memory)-1]
+						var MemoryUsage int
+						if memoryUnit == "m" {
+							MemoryUsage, _ = strconv.Atoi(memory[:len(memory)-1])
+						}
+						if memoryUnit == "g" || memoryUnit == "G" {
+							MemoryUsage, _ = strconv.Atoi(memory[:len(memory)-1])
+							MemoryUsage = MemoryUsage * 1024
+						}
+						cpuormemorys = append(cpuormemorys, &dbmodel.TenantServiceAutoscalerRuleMetrics{
+							MetricsType:       "resource_metrics",
+							MetricsName:       "cpu",
+							MetricTargetType:  "average_value",
+							MetricTargetValue: MemoryUsage,
 						})
 					}
 
@@ -1365,7 +1342,7 @@ func (c *clusterAction) ResourceImport(ctx context.Context, namespace string, as
 				c.createPort(componentResource.PortManagement, component)
 				componentResource.TelescopicManagement.RuleID = c.createTelescopic(componentResource.TelescopicManagement, component)
 				componentResource.HealthyCheckManagement.ProbeID = c.createHealthyCheck(componentResource.HealthyCheckManagement, component)
-				c.createSpecial(componentResource.ComponentK8sAttributesManagement, tenant.UUID, component)
+				c.createK8sAttributes(componentResource.ComponentK8sAttributesManagement, tenant.UUID, component)
 				ca = append(ca, model.ComponentAttributes{
 					Ct:                     component,
 					Image:                  componentResource.BasicManagement.Image,
@@ -1429,8 +1406,8 @@ func (c *clusterAction) createTenant(ctx context.Context, eid string, namespace 
 }
 
 func (c *clusterAction) createApp(eid string, tx *gorm.DB, app string, tenantID string) (*dbmodel.Application, error) {
-	appID := u.NewUUID()
-	application, _ := db.GetManager().ApplicationDaoTransactions(tx).GetAppByName(tenantID, app, app)
+	appID := rainbondutil.NewUUID()
+	application, _ := db.GetManager().ApplicationDaoTransactions(tx).GetAppByName(tenantID, app)
 	if application != nil {
 		logrus.Infof("app %v already exists", app)
 		return application, nil
@@ -1455,7 +1432,7 @@ func (c *clusterAction) createApp(eid string, tx *gorm.DB, app string, tenantID 
 }
 
 func (c *clusterAction) createComponent(ctx context.Context, app *dbmodel.Application, tenantID string, component model.ConvertResource, namespace string) (*dbmodel.TenantServices, error) {
-	serviceID := strings.Replace(uuid.NewV4().String(), "-", "", -1)
+	serviceID := rainbondutil.NewUUID()
 	serviceAlias := "gr" + serviceID[len(serviceID)-6:]
 	ts := dbmodel.TenantServices{
 		TenantID:         tenantID,
@@ -1495,11 +1472,11 @@ func (c *clusterAction) createComponent(ctx context.Context, app *dbmodel.Applic
 	dm.Labels[constants.ResourceManagedByLabel] = constants.Rainbond
 	dm.Labels["service_id"] = serviceID
 	dm.Labels["version"] = ts.DeployVersion
-	dm.Labels["creater_id"] = string(u.NewTimeVersion())
+	dm.Labels["creater_id"] = string(rainbondutil.NewTimeVersion())
 	dm.Labels["migrator"] = "rainbond"
 	dm.Spec.Template.Labels["service_id"] = serviceID
 	dm.Spec.Template.Labels["version"] = ts.DeployVersion
-	dm.Spec.Template.Labels["creater_id"] = string(u.NewTimeVersion())
+	dm.Spec.Template.Labels["creater_id"] = string(rainbondutil.NewTimeVersion())
 	dm.Spec.Template.Labels["migrator"] = "rainbond"
 	_, err = c.clientset.AppsV1().Deployments(namespace).Update(ctx, dm, metav1.UpdateOptions{})
 	if err != nil {
@@ -1557,7 +1534,6 @@ func (c *clusterAction) createConfig(configs []model.ConfigManagement, service *
 }
 
 func (c *clusterAction) createPort(ports []model.PortManagement, service *dbmodel.TenantServices) {
-	fmt.Println(ports)
 	var portVar []*dbmodel.TenantServicesPort
 	for _, port := range ports {
 		portAlias := strings.Replace(service.ServiceAlias, "-", "_", -1)
@@ -1583,7 +1559,7 @@ func (c *clusterAction) createTelescopic(telescopic model.TelescopicManagement, 
 		return ""
 	}
 	r := &dbmodel.TenantServiceAutoscalerRules{
-		RuleID:      strings.Replace(uuid.NewV4().String(), "-", "", -1),
+		RuleID:      rainbondutil.NewUUID(),
 		ServiceID:   service.ServiceID,
 		Enable:      true,
 		XPAType:     "hpa",
@@ -1593,6 +1569,7 @@ func (c *clusterAction) createTelescopic(telescopic model.TelescopicManagement, 
 	telescopic.RuleID = r.RuleID
 	if err := db.GetManager().TenantServceAutoscalerRulesDao().AddModel(r); err != nil {
 		logrus.Errorf("%v TenantServiceAutoscalerRules creation failed:%v", service.ServiceAlias, err)
+		return ""
 	}
 	for _, metric := range telescopic.CPUOrMemory {
 		m := &dbmodel.TenantServiceAutoscalerRuleMetrics{
@@ -1635,7 +1612,7 @@ func (c *clusterAction) createHealthyCheck(telescopic model.HealthyCheckManageme
 	return tspD.ProbeID
 }
 
-func (c *clusterAction) createSpecial(specials []*dbmodel.ComponentK8sAttributes, tenantID string, component *dbmodel.TenantServices) {
+func (c *clusterAction) createK8sAttributes(specials []*dbmodel.ComponentK8sAttributes, tenantID string, component *dbmodel.TenantServices) {
 	for _, specials := range specials {
 		specials.TenantID = tenantID
 		specials.ComponentID = component.ServiceID
@@ -1646,7 +1623,7 @@ func (c *clusterAction) createSpecial(specials []*dbmodel.ComponentK8sAttributes
 	}
 }
 
-//ObjectToJSONORYaml changeType true is JSON /false is yaml
+//ObjectToJSONORYaml changeType true is json / yaml
 func ObjectToJSONORYaml(changeType string, data interface{}) (string, error) {
 	dataJSON, err := json.Marshal(data)
 	if err != nil {
