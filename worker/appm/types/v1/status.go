@@ -165,10 +165,10 @@ func (a *AppService) GetServiceStatus() string {
 		failed := 0
 		for _, po := range a.pods {
 			if po.Status.Phase == "Succeeded" {
-				succeed += 1
+				succeed++
 			}
-			if po.Status.Phase == "Failed"{
-				failed += 1
+			if po.Status.Phase == "Failed" {
+				failed++
 			}
 		}
 		if len(a.pods) == succeed {
@@ -184,10 +184,10 @@ func (a *AppService) GetServiceStatus() string {
 		failed := 0
 		for _, po := range a.pods {
 			if po.Status.Phase == "Succeeded" {
-				succeed += 1
+				succeed++
 			}
-			if po.Status.Phase == "Failed"{
-				failed += 1
+			if po.Status.Phase == "Failed" {
+				failed++
 			}
 		}
 		if len(a.pods) == succeed {

@@ -151,6 +151,7 @@ func (g *GarbageCollector) DelKubernetesObjects(serviceGCReq model.ServiceGCTask
 	}
 }
 
+// listOptionsServiceID -
 func (g *GarbageCollector) listOptionsServiceID(serviceID string) metav1.ListOptions {
 	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{
 		"creator":    "Rainbond",
@@ -161,7 +162,7 @@ func (g *GarbageCollector) listOptionsServiceID(serviceID string) metav1.ListOpt
 	}
 }
 
-// DelLogFile deletes persistent data related to the service based on serviceID.
+// DelComponentPkg deletes component package
 func (g *GarbageCollector) DelComponentPkg(serviceGCReq model.ServiceGCTaskBody) {
 	logrus.Infof("service id: %s; delete component package.", serviceGCReq.ServiceID)
 	// log generated during service running

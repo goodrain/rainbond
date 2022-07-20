@@ -156,7 +156,7 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//ImportID -
+//UploadID -
 func (a *AppStruct) UploadID(w http.ResponseWriter, r *http.Request) {
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	if eventID == "" {

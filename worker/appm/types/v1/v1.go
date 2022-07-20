@@ -250,7 +250,7 @@ func (a AppService) GetJob() *batchv1.Job {
 	return a.job
 }
 
-//SetStatefulSet set kubernetes job model
+//SetJob set kubernetes job model
 func (a *AppService) SetJob(d *batchv1.Job) {
 	a.job = d
 	a.workload = d
@@ -265,7 +265,7 @@ func (a AppService) GetCronJob() *v1beta1.CronJob {
 	return a.cronjob
 }
 
-//SetStatefulSet set kubernetes cronjob model
+//SetCronJob set kubernetes cronjob model
 func (a *AppService) SetCronJob(d *v1beta1.CronJob) {
 	a.cronjob = d
 	a.workload = d
