@@ -19,8 +19,10 @@
 package dao
 
 import (
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	pkgerr "github.com/pkg/errors"
 )
 
 // K8sResourceDaoImpl k8s resource dao
@@ -45,4 +47,15 @@ func (t *K8sResourceDaoImpl) ListByAppID(appID string) ([]model.K8sResource, err
 		return nil, err
 	}
 	return resources, nil
+}
+
+func (t *K8sResourceDaoImpl) CreateK8sResourceInBatch(k8sResources []*model.K8sResource) error {
+	var objects []interface{}
+	for _, cg := range k8sResources {
+		objects = append(objects, *cg)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create K8sResource groups in batch")
+	}
+	return nil
 }

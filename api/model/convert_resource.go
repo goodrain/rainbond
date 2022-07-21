@@ -120,8 +120,9 @@ type ComponentAttributes struct {
 
 //AppComponent -
 type AppComponent struct {
-	App       *model.Application    `json:"app"`
-	Component []ComponentAttributes `json:"component"`
+	App          *model.Application    `json:"app"`
+	K8sResources []model.K8sResource   `json:"k8s_resources"`
+	Component    []ComponentAttributes `json:"component"`
 }
 
 //ReturnResourceImport -
