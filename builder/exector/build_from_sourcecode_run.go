@@ -96,6 +96,7 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		Password:      gjson.GetBytes(in, "password").String(),
 		TenantID:      gjson.GetBytes(in, "tenant_id").String(),
 		ServiceID:     gjson.GetBytes(in, "service_id").String(),
+		Configs:       gjson.GetBytes(in, "configs").Map(),
 	}
 	envs := gjson.GetBytes(in, "envs").String()
 	be := make(map[string]string)
@@ -165,24 +166,49 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	case "oss":
 		i.commit = Commit{}
 	case "pkg":
-		pathSplit := strings.Split(i.CodeSouceInfo.RepositoryURL,"/")
+		var filePath string
+		filePath = ""
+		pathSplit := strings.Split(i.CodeSouceInfo.RepositoryURL, "/")
 		eventID := pathSplit[len(pathSplit)-1]
+		// 存放目录
 		tarPath := fmt.Sprintf("/grdata/package_build/components/%s/events", i.ServiceID)
+		// 临时目录
 		oldPath := fmt.Sprintf("/grdata/package_build/temp/events/%s", eventID)
+		// 快速复制原目录
+		copyPath := i.CodeSouceInfo.Configs[i.ServiceID]
+		filePath = tarPath + "/" +eventID
 
-		_, err := os.Stat(tarPath)
+		_, err := os.Stat(filePath)
 		if err != nil {
 			if !os.IsExist(err) {
-				err := os.MkdirAll(tarPath, 0755)
-				if err != nil {
-					return err
+				// 上传文件复制
+				if copyPath.Str != "" {
+					splitCopyPath := strings.Split(copyPath.Str, "/")
+					splitRes := pathSplit[0 : len(splitCopyPath)-1]
+					modelPath := strings.Join(splitRes, "/")
+					// 快速复制
+					tarCopyPath := fmt.Sprintf("/grdata/package_build/components/%s", i.ServiceID)
+					err := os.MkdirAll(tarCopyPath, 0755)
+					if err != nil {
+						return err
+					}
+					if err := util.CopyDir(modelPath, tarCopyPath); err != nil {
+						logrus.Errorf("copy dir error: %s", err.Error())
+					}
+					filePath = copyPath.Str
+				} else {
+					err := os.MkdirAll(tarPath, 0755)
+					if err != nil {
+						return err
+					}
+					filePath = oldPath
 				}
 			}
 		}
-		packages, err := ioutil.ReadDir(oldPath)
+		packages, err := ioutil.ReadDir(filePath)
 		if err != nil {
 			logrus.Errorf("read dir error: %s", err.Error())
-			return  err
+			return err
 		}
 		packageArr := make([]string, 0, 10)
 		for _, dir := range packages {
@@ -192,15 +218,18 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 			packageArr = append(packageArr, dir.Name())
 		}
 		fileName := packageArr[0]
-		file := tarPath + "/" + fileName
+		file := tarPath + "/" + eventID + fileName
 		fileMD5 := util.MD5(file)
 		i.commit = Commit{
 			Message: fileName,
-			Hash: fileMD5,
+			Hash:    fileMD5,
 		}
-		if err = util.MoveDir(oldPath, tarPath); err != nil {
-			logrus.Errorf("copy dir error: %s", err.Error())
+		if copyPath.Str == "" {
+			if err = util.MoveDir(oldPath, tarPath); err != nil {
+				logrus.Errorf("copy dir error: %s", err.Error())
+			}
 		}
+
 	default:
 		//default git
 		rs, err := sources.GitCloneOrPull(i.CodeSouceInfo, rbi.GetCodeHome(), i.Logger, 5)

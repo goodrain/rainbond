@@ -72,3 +72,36 @@ func MD5(file string) string {
 	logrus.Info("md5:", res)
 	return res
 }
+
+// CopyDir move dir
+func CopyDir(src string, dest string) error {
+	_, err := os.Stat(dest)
+	if err != nil {
+		if !os.IsExist(err) {
+			err := os.MkdirAll(dest, 0755)
+			if err != nil {
+				logrus.Error("make and copy dir error", err)
+			}
+		}
+	}
+	src = FormatPath(src)
+	dest = FormatPath(dest)
+	logrus.Info("src", src)
+	logrus.Info("dest", dest)
+
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("xcopy", src, dest, "/I", "/E")
+	case "darwin", "linux":
+		cmd = exec.Command("cp", "-R", src, dest)
+	}
+	outPut, err := cmd.Output()
+	if err != nil {
+		logrus.Errorf("Output error: %s", err.Error())
+		return err
+	}
+	fmt.Println(outPut)
+	return nil
+}

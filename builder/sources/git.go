@@ -21,6 +21,7 @@ package sources
 import (
 	"context"
 	"fmt"
+	"github.com/tidwall/gjson"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -53,11 +54,12 @@ import (
 
 //CodeSourceInfo 代码源信息
 type CodeSourceInfo struct {
-	ServerType    string `json:"server_type"`
-	RepositoryURL string `json:"repository_url"`
-	Branch        string `json:"branch"`
-	User          string `json:"user"`
-	Password      string `json:"password"`
+	ServerType    string                  `json:"server_type"`
+	RepositoryURL string                  `json:"repository_url"`
+	Branch        string                  `json:"branch"`
+	User          string                  `json:"user"`
+	Password      string                  `json:"password"`
+	Configs       map[string]gjson.Result `json:"configs"`
 	//避免项目之间冲突，代码缓存目录提高到租户
 	TenantID  string `json:"tenant_id"`
 	ServiceID string `json:"service_id"`
