@@ -34,6 +34,9 @@ type ClusterInterface interface {
 	GetNamespaceResource(w http.ResponseWriter, r *http.Request)
 	ConvertResource(w http.ResponseWriter, r *http.Request)
 	ResourceImport(w http.ResponseWriter, r *http.Request)
+	AddResource(w http.ResponseWriter, r *http.Request)
+	DeleteResource(w http.ResponseWriter, r *http.Request)
+	UpdateResource(w http.ResponseWriter, r *http.Request)
 }
 
 //TenantInterface interface
@@ -177,7 +180,6 @@ type ApplicationInterface interface {
 	Install(w http.ResponseWriter, r *http.Request)
 	ListServices(w http.ResponseWriter, r *http.Request)
 	ListHelmAppReleases(w http.ResponseWriter, r *http.Request)
-
 	DeleteConfigGroup(w http.ResponseWriter, r *http.Request)
 	ListConfigGroups(w http.ResponseWriter, r *http.Request)
 	SyncComponents(w http.ResponseWriter, r *http.Request)

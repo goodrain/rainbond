@@ -24,7 +24,7 @@ func (c *clusterAction) ResourceImport(ctx context.Context, namespace string, as
 	logrus.Infof("ResourceImport function begin")
 	var returnResourceImport model.ReturnResourceImport
 	err := db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
-		tenant, err := c.createTenant(ctx, eid, namespace, tx)
+		tenant, err := c.createTenant(context.Background(), eid, namespace, tx)
 		returnResourceImport.Tenant = tenant
 		if err != nil {
 			logrus.Errorf("%v", err)
@@ -43,7 +43,7 @@ func (c *clusterAction) ResourceImport(ctx context.Context, namespace string, as
 			}
 			var ca []model.ComponentAttributes
 			for _, componentResource := range components.ConvertResource {
-				component, err := c.createComponent(ctx, app, tenant.UUID, componentResource, namespace)
+				component, err := c.createComponent(context.Background(), app, tenant.UUID, componentResource, namespace)
 				if err != nil {
 					logrus.Errorf("%v", err)
 					return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
@@ -104,12 +104,15 @@ func (c *clusterAction) createTenant(ctx context.Context, eid string, namespace 
 			return nil, err
 		}
 	}
-	ns, err := c.clientset.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	ns, err := c.clientset.CoreV1().Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
 	if err != nil {
 		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get namespace %v:%v", namespace, err)}
 	}
+	if ns.Labels == nil {
+		ns.Labels = make(map[string]string)
+	}
 	ns.Labels[constants.ResourceManagedByLabel] = constants.Rainbond
-	_, err = c.clientset.CoreV1().Namespaces().Update(ctx, ns, metav1.UpdateOptions{})
+	_, err = c.clientset.CoreV1().Namespaces().Update(context.Background(), ns, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to add label to namespace %v:%v", namespace, err)}
 	}
@@ -184,7 +187,7 @@ func (c *clusterAction) createComponent(ctx context.Context, app *dbmodel.Applic
 		logrus.Errorf("add service error, %v", err)
 		return nil, err
 	}
-	dm, err := c.clientset.AppsV1().Deployments(namespace).Get(ctx, component.ComponentsName, metav1.GetOptions{})
+	dm, err := c.clientset.AppsV1().Deployments(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("failed to get %v deployment %v:%v", namespace, component.ComponentsName, err)
 		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get deployment %v:%v", namespace, err)}
@@ -201,7 +204,7 @@ func (c *clusterAction) createComponent(ctx context.Context, app *dbmodel.Applic
 	dm.Spec.Template.Labels["version"] = ts.DeployVersion
 	dm.Spec.Template.Labels["creater_id"] = string(rainbondutil.NewTimeVersion())
 	dm.Spec.Template.Labels["migrator"] = "rainbond"
-	_, err = c.clientset.AppsV1().Deployments(namespace).Update(ctx, dm, metav1.UpdateOptions{})
+	_, err = c.clientset.AppsV1().Deployments(namespace).Update(context.Background(), dm, metav1.UpdateOptions{})
 	if err != nil {
 		logrus.Errorf("failed to update deployment %v:%v", namespace, err)
 		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update deployment %v:%v", namespace, err)}
@@ -348,6 +351,9 @@ func (c *clusterAction) createK8sAttributes(specials []*dbmodel.ComponentK8sAttr
 
 //ObjectToJSONORYaml changeType true is json / yaml
 func ObjectToJSONORYaml(changeType string, data interface{}) (string, error) {
+	if data == nil {
+		return "", nil
+	}
 	dataJSON, err := json.Marshal(data)
 	if err != nil {
 		return "", fmt.Errorf("json serialization failed err:%v", err)

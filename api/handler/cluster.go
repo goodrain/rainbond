@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util/constants"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/sirupsen/logrus"
@@ -13,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"os"
 	"runtime"
 	"strconv"
@@ -32,13 +34,17 @@ type ClusterHandler interface {
 	GetNamespaceSource(ctx context.Context, content string, namespace string) (map[string]model.LabelResource, *util.APIHandleError)
 	ConvertResource(ctx context.Context, namespace string, lr map[string]model.LabelResource) (map[string]model.ApplicationResource, *util.APIHandleError)
 	ResourceImport(ctx context.Context, namespace string, as map[string]model.ApplicationResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError)
+	AddAppK8SResource(ctx context.Context, namespace string, appID string, resourceYaml string) ([]*dbmodel.K8sResource, *util.APIHandleError)
+	DeleteAppK8SResource(ctx context.Context, namespace string, appID string, name string, yaml string) *util.APIHandleError
+	UpdateAppK8SResource(ctx context.Context, namespace string, appID string, name string, resourceYaml string) (dbmodel.K8sResource, *util.APIHandleError)
 }
 
 // NewClusterHandler -
-func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace string) ClusterHandler {
+func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace string, config *rest.Config) ClusterHandler {
 	return &clusterAction{
 		namespace: RbdNamespace,
 		clientset: clientset,
+		config:    config,
 	}
 }
 
@@ -47,6 +53,7 @@ type clusterAction struct {
 	clientset        *kubernetes.Clientset
 	clusterInfoCache *model.ClusterResource
 	cacheTime        time.Time
+	config           *rest.Config
 }
 
 func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResource, error) {

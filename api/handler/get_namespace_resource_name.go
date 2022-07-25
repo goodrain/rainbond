@@ -16,7 +16,7 @@ func (c *clusterAction) GetNamespaceSource(ctx context.Context, content string, 
 	cmsMap := make(map[string][]string)
 	//存储workloads们的secrets
 	secretsMap := make(map[string][]string)
-	deployments, cmMap, secretMap := c.getResourceName(ctx, namespace, content, model.Deployment)
+	deployments, cmMap, secretMap := c.getResourceName(context.Background(), namespace, content, model.Deployment)
 	if len(cmsMap) != 0 {
 		cmsMap = MergeMap(cmMap, cmsMap)
 	}
@@ -269,7 +269,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 	secretMap := make(map[string][]string)
 	switch resourcesType {
 	case model.Deployment:
-		resources, err := c.clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.AppsV1().Deployments(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get Deployment list:%v", err)
 			return nil, cmMap, secretMap
@@ -279,7 +279,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 		}
 		isWorkloads = true
 	case model.Job:
-		resources, err := c.clientset.BatchV1().Jobs(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get Job list:%v", err)
 			return nil, cmMap, secretMap
@@ -289,7 +289,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 		}
 		isWorkloads = true
 	case model.CronJob:
-		resources, err := c.clientset.BatchV1beta1().CronJobs(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.BatchV1beta1().CronJobs(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get CronJob list:%v", err)
 			return nil, cmMap, secretMap
@@ -299,7 +299,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 		}
 		isWorkloads = true
 	case model.StateFulSet:
-		resources, err := c.clientset.AppsV1().StatefulSets(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.AppsV1().StatefulSets(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get StateFulSets list:%v", err)
 			return nil, cmMap, secretMap
@@ -309,7 +309,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 		}
 		isWorkloads = true
 	case model.Service:
-		resources, err := c.clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get Services list:%v", err)
 			return nil, cmMap, secretMap
@@ -318,7 +318,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 			tempResources = append(tempResources, &Resource{ObjectMeta: dm.ObjectMeta})
 		}
 	case model.PVC:
-		resources, err := c.clientset.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.CoreV1().PersistentVolumeClaims(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get PersistentVolumeClaims list:%v", err)
 			return nil, cmMap, secretMap
@@ -328,7 +328,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 			tempResources = append(tempResources, &Resource{ObjectMeta: dm.ObjectMeta})
 		}
 	case model.Ingress:
-		resources, err := c.clientset.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.NetworkingV1().Ingresses(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get Ingresses list:%v", err)
 			return nil, cmMap, secretMap
@@ -337,7 +337,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 			tempResources = append(tempResources, &Resource{ObjectMeta: dm.ObjectMeta})
 		}
 	case model.NetworkPolicie:
-		resources, err := c.clientset.NetworkingV1().NetworkPolicies(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.NetworkingV1().NetworkPolicies(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get NetworkPolicies list:%v", err)
 			return nil, cmMap, secretMap
@@ -346,7 +346,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 			tempResources = append(tempResources, &Resource{ObjectMeta: dm.ObjectMeta})
 		}
 	case model.ConfigMap:
-		resources, err := c.clientset.CoreV1().ConfigMaps(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.CoreV1().ConfigMaps(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get ConfigMaps list:%v", err)
 			return nil, cmMap, secretMap
@@ -355,7 +355,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 			tempResources = append(tempResources, &Resource{ObjectMeta: dm.ObjectMeta})
 		}
 	case model.Secret:
-		resources, err := c.clientset.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.CoreV1().Secrets(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get Secrets list:%v", err)
 			return nil, cmMap, secretMap
@@ -364,7 +364,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 			tempResources = append(tempResources, &Resource{ObjectMeta: dm.ObjectMeta})
 		}
 	case model.ServiceAccount:
-		resources, err := c.clientset.CoreV1().ServiceAccounts(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.CoreV1().ServiceAccounts(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get ServiceAccounts list:%v", err)
 			return nil, cmMap, secretMap
@@ -373,7 +373,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 			tempResources = append(tempResources, &Resource{ObjectMeta: dm.ObjectMeta})
 		}
 	case model.RoleBinding:
-		resources, err := c.clientset.RbacV1().RoleBindings(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.RbacV1().RoleBindings(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get RoleBindings list:%v", err)
 			return nil, cmMap, secretMap
@@ -382,7 +382,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 			tempResources = append(tempResources, &Resource{ObjectMeta: dm.ObjectMeta})
 		}
 	case model.HorizontalPodAutoscaler:
-		resources, err := c.clientset.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get HorizontalPodAutoscalers list:%v", err)
 			return nil, cmMap, secretMap
@@ -392,7 +392,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 			labels := make(map[string]string)
 			switch hpa.Spec.ScaleTargetRef.Kind {
 			case model.Deployment:
-				deploy, err := c.clientset.AppsV1().Deployments(namespace).Get(ctx, hpa.Spec.ScaleTargetRef.Name, metav1.GetOptions{})
+				deploy, err := c.clientset.AppsV1().Deployments(namespace).Get(context.Background(), hpa.Spec.ScaleTargetRef.Name, metav1.GetOptions{})
 				if err != nil {
 					logrus.Errorf("The bound deployment does not exist:%v", err)
 				}
@@ -401,7 +401,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 				}
 				labels = deploy.ObjectMeta.Labels
 			case model.StateFulSet:
-				ss, err := c.clientset.AppsV1().StatefulSets(namespace).Get(ctx, hpa.Spec.ScaleTargetRef.Name, metav1.GetOptions{})
+				ss, err := c.clientset.AppsV1().StatefulSets(namespace).Get(context.Background(), hpa.Spec.ScaleTargetRef.Name, metav1.GetOptions{})
 				if err != nil {
 					logrus.Errorf("The bound deployment does not exist:%v", err)
 				}
@@ -419,7 +419,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 				app = labels["app.kubernetes.io/name"]
 			}
 			if app == "" {
-				app = "UnLabel"
+				app = "unclassified"
 			}
 			if _, ok := resourceName[app]; ok {
 				resourceName[app] = append(resourceName[app], hpa.Name)
@@ -429,7 +429,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 		}
 		return resourceName, nil, nil
 	case model.Role:
-		resources, err := c.clientset.RbacV1().Roles(namespace).List(ctx, metav1.ListOptions{})
+		resources, err := c.clientset.RbacV1().Roles(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get Roles list:%v", err)
 			return nil, cmMap, secretMap
@@ -437,7 +437,6 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 		for _, dm := range resources.Items {
 			tempResources = append(tempResources, &Resource{ObjectMeta: dm.ObjectMeta})
 		}
-		logrus.Infof("roles:%v", tempResources)
 	}
 	//这一块是统一处理资源，按label划分出来
 	for _, rs := range tempResources {
@@ -449,7 +448,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 			app = rs.ObjectMeta.Labels["app.kubernetes.io/name"]
 		}
 		if app == "" {
-			app = "UnLabel"
+			app = "unclassified"
 		}
 		//如果是Workloads类型的资源需要检查其内部configmap、secret、PVC（防止没有这三种资源没有label但是用到了）
 		if isWorkloads {
@@ -481,7 +480,7 @@ func (c *clusterAction) replenishLabel(ctx context.Context, resource *Resource, 
 	resourceVolume := resource.Template.Spec.Volumes
 	for _, volume := range resourceVolume {
 		if pvc := volume.PersistentVolumeClaim; pvc != nil {
-			PersistentVolumeClaims, err := c.clientset.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvc.ClaimName, metav1.GetOptions{})
+			PersistentVolumeClaims, err := c.clientset.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), pvc.ClaimName, metav1.GetOptions{})
 			if err != nil {
 				logrus.Errorf("Failed to get PersistentVolumeClaims %s/%s:%v", namespace, pvc.ClaimName, err)
 			}
@@ -493,14 +492,14 @@ func (c *clusterAction) replenishLabel(ctx context.Context, resource *Resource, 
 					PersistentVolumeClaims.Labels["app"] = app
 				}
 			}
-			_, err = c.clientset.CoreV1().PersistentVolumeClaims(namespace).Update(ctx, PersistentVolumeClaims, metav1.UpdateOptions{})
+			_, err = c.clientset.CoreV1().PersistentVolumeClaims(namespace).Update(context.Background(), PersistentVolumeClaims, metav1.UpdateOptions{})
 			if err != nil {
 				logrus.Errorf("PersistentVolumeClaims label update error:%v", err)
 			}
 			continue
 		}
 		if cm := volume.ConfigMap; cm != nil {
-			cm, err := c.clientset.CoreV1().ConfigMaps(namespace).Get(ctx, cm.Name, metav1.GetOptions{})
+			cm, err := c.clientset.CoreV1().ConfigMaps(namespace).Get(context.Background(), cm.Name, metav1.GetOptions{})
 			if err != nil {
 				logrus.Errorf("Failed to get ConfigMap:%v", err)
 			}
@@ -511,7 +510,7 @@ func (c *clusterAction) replenishLabel(ctx context.Context, resource *Resource, 
 			}
 		}
 		if secret := volume.Secret; secret != nil {
-			secret, err := c.clientset.CoreV1().Secrets(namespace).Get(ctx, secret.SecretName, metav1.GetOptions{})
+			secret, err := c.clientset.CoreV1().Secrets(namespace).Get(context.Background(), secret.SecretName, metav1.GetOptions{})
 			if err != nil {
 				logrus.Errorf("Failed to get Scret:%v", err)
 			}

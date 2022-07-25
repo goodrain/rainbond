@@ -164,3 +164,59 @@ func (t *ClusterController) ResourceImport(w http.ResponseWriter, r *http.Reques
 	}
 	httputil.ReturnSuccess(r, w, rri)
 }
+
+func (t *ClusterController) AddResource(w http.ResponseWriter, r *http.Request) {
+	type HandleResource struct {
+		Namespace    string `json:"namespace"`
+		AppID        string `json:"app_id"`
+		ResourceYaml string `json:"resource_yaml"`
+	}
+	var hr HandleResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
+		return
+	}
+	rri, err := handler.GetClusterHandler().AddAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.ResourceYaml)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rri)
+}
+
+func (t *ClusterController) UpdateResource(w http.ResponseWriter, r *http.Request) {
+	type HandelResource struct {
+		Name         string `json:"name"`
+		AppID        string `json:"app_id"`
+		Namespace    string `json:"namespace"`
+		ResourceYaml string `json:"resource_yaml"`
+	}
+	var hr HandelResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
+		return
+	}
+	rri, err := handler.GetClusterHandler().UpdateAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rri)
+}
+
+func (t *ClusterController) DeleteResource(w http.ResponseWriter, r *http.Request) {
+	type HandleResource struct {
+		Namespace    string `json:"namespace"`
+		AppID        string `json:"app_id"`
+		ResourceYaml string `json:"resource_yaml"`
+		Name         string `json:"name"`
+	}
+	var hr HandleResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
+		return
+	}
+	err := handler.GetClusterHandler().DeleteAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}

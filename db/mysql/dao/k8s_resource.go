@@ -59,3 +59,7 @@ func (t *K8sResourceDaoImpl) CreateK8sResourceInBatch(k8sResources []*model.K8sR
 	}
 	return nil
 }
+
+func (t *K8sResourceDaoImpl) DeleteK8sResourceInBatch(appID, name string) error {
+	return t.DB.Where("app_id=? and name=?", appID, name).Delete(&model.K8sResource{}).Error
+}

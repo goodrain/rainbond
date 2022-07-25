@@ -35,6 +35,8 @@ const (
 	K8sAttributeNameAffinity = "affinity"
 	//K8sAttributeNameVolumeMounts -
 	K8sAttributeNameVolumeMounts = "volumeMounts"
+	//K8sAttributeNameENV -
+	K8sAttributeNameENV = "env"
 )
 
 // ComponentK8sAttributes -
