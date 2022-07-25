@@ -2917,6 +2917,28 @@ func (s *ServiceAction) SyncComponentEndpoints(tx *gorm.DB, components []*api_mo
 	return db.GetManager().ThirdPartySvcDiscoveryCfgDaoTransactions(tx).CreateOrUpdate3rdSvcDiscoveryCfgInBatch(thirdPartySvcDiscoveryCfgs)
 }
 
+// SyncComponentK8sAttributes -
+func (s *ServiceAction) SyncComponentK8sAttributes(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error {
+	var (
+		componentIDs  []string
+		k8sAttributes []*dbmodel.ComponentK8sAttributes
+	)
+	for _, component := range components {
+		if component.ComponentK8sAttributes == nil || len(component.ComponentK8sAttributes) == 0 {
+			continue
+		}
+		componentIDs = append(componentIDs, component.ComponentBase.ComponentID)
+		for _, k8sAttribute := range component.ComponentK8sAttributes {
+			k8sAttributes = append(k8sAttributes, k8sAttribute.DbModel(app.TenantID, component.ComponentBase.ComponentID))
+		}
+	}
+
+	if err := db.GetManager().ComponentK8sAttributeDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
+		return err
+	}
+	return db.GetManager().ComponentK8sAttributeDaoTransactions(tx).CreateOrUpdateAttributesInBatch(k8sAttributes)
+}
+
 // Log returns the logs reader for a container in a pod, a pod or a component.
 func (s *ServiceAction) Log(w http.ResponseWriter, r *http.Request, component *dbmodel.TenantServices, podName, containerName string, follow bool) error {
 	// If podName and containerName is missing, return the logs reader for the component
