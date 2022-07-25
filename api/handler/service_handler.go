@@ -107,6 +107,7 @@ type ServiceHandler interface {
 	SyncComponentPlugins(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
 	SyncComponentScaleRules(tx *gorm.DB, components []*api_model.Component) error
 	SyncComponentEndpoints(tx *gorm.DB, components []*api_model.Component) error
+	SyncComponentK8sAttributes(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
 
 	Log(w http.ResponseWriter, r *http.Request, component *dbmodel.TenantServices, podName, containerName string, follow bool) error
 }

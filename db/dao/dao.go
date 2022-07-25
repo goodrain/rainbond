@@ -629,6 +629,7 @@ type ComponentK8sAttributeDao interface {
 	GetByComponentIDAndName(componentID, name string) (*model.ComponentK8sAttributes, error)
 	CreateOrUpdateAttributesInBatch(attributes []*model.ComponentK8sAttributes) error
 	DeleteByComponentIDAndName(componentID, name string) error
+	DeleteByComponentIDs(componentIDs []string) error
 }
 
 // K8sResourceDao -
