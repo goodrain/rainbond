@@ -35,8 +35,7 @@ type RegistryAuthSecretStruct struct {
 	cfg      *option.Config
 }
 
-// HTTPRule is used to add, update or delete http rule which enables
-// external traffic to access applications through the gateway
+// RegistryAuthSecret http handler for registry auth secret
 func (g *RegistryAuthSecretStruct) RegistryAuthSecret(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST", "PUT":
