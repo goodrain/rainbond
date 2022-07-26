@@ -107,6 +107,8 @@ type K8sResource struct {
 	Content string `gorm:"column:content;type:longtext" json:"content"`
 	// resource create status
 	Status string `gorm:"column:status;type:longtext" json:"status"`
+	//whether it was created successfully
+	Success int `gorm:"column:success;type:int" json:"success"`
 }
 
 // TableName return tableName "k8s_resources"
