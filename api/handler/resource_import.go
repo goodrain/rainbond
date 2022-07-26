@@ -171,7 +171,7 @@ func (c *clusterAction) createComponent(ctx context.Context, app *dbmodel.Applic
 		ContainerMemory:  int(component.BasicManagement.Memory),
 		ContainerGPU:     0,
 		UpgradeMethod:    "Rolling",
-		ExtendMethod:     "stateless_multiple",
+		ExtendMethod:     string(dbmodel.ServiceTypeStatelessMultiple),
 		Replicas:         int(component.BasicManagement.Replicas),
 		DeployVersion:    time.Now().Format("20060102150405"),
 		Category:         "app_publish",

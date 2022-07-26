@@ -35,8 +35,8 @@ type ClusterHandler interface {
 	ConvertResource(ctx context.Context, namespace string, lr map[string]model.LabelResource) (map[string]model.ApplicationResource, *util.APIHandleError)
 	ResourceImport(ctx context.Context, namespace string, as map[string]model.ApplicationResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError)
 	AddAppK8SResource(ctx context.Context, namespace string, appID string, resourceYaml string) ([]*dbmodel.K8sResource, *util.APIHandleError)
-	DeleteAppK8SResource(ctx context.Context, namespace string, appID string, name string, yaml string) *util.APIHandleError
-	UpdateAppK8SResource(ctx context.Context, namespace string, appID string, name string, resourceYaml string) (dbmodel.K8sResource, *util.APIHandleError)
+	DeleteAppK8SResource(ctx context.Context, namespace, appID, name, yaml, kind string) *util.APIHandleError
+	UpdateAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) (dbmodel.K8sResource, *util.APIHandleError)
 }
 
 // NewClusterHandler -
@@ -56,6 +56,7 @@ type clusterAction struct {
 	config           *rest.Config
 }
 
+//GetClusterInfo -
 func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResource, error) {
 	timeout, _ := strconv.Atoi(os.Getenv("CLUSTER_INFO_CACHE_TIME"))
 	if timeout == 0 {

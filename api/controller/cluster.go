@@ -165,6 +165,7 @@ func (t *ClusterController) ResourceImport(w http.ResponseWriter, r *http.Reques
 	httputil.ReturnSuccess(r, w, rri)
 }
 
+//AddResource -
 func (t *ClusterController) AddResource(w http.ResponseWriter, r *http.Request) {
 	type HandleResource struct {
 		Namespace    string `json:"namespace"`
@@ -183,10 +184,12 @@ func (t *ClusterController) AddResource(w http.ResponseWriter, r *http.Request) 
 	httputil.ReturnSuccess(r, w, rri)
 }
 
+//UpdateResource -
 func (t *ClusterController) UpdateResource(w http.ResponseWriter, r *http.Request) {
 	type HandelResource struct {
 		Name         string `json:"name"`
 		AppID        string `json:"app_id"`
+		Kind         string `json:"kind"`
 		Namespace    string `json:"namespace"`
 		ResourceYaml string `json:"resource_yaml"`
 	}
@@ -194,7 +197,7 @@ func (t *ClusterController) UpdateResource(w http.ResponseWriter, r *http.Reques
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
 		return
 	}
-	rri, err := handler.GetClusterHandler().UpdateAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml)
+	rri, err := handler.GetClusterHandler().UpdateAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml, hr.Kind)
 	if err != nil {
 		err.Handle(r, w)
 		return
@@ -202,10 +205,12 @@ func (t *ClusterController) UpdateResource(w http.ResponseWriter, r *http.Reques
 	httputil.ReturnSuccess(r, w, rri)
 }
 
+//DeleteResource -
 func (t *ClusterController) DeleteResource(w http.ResponseWriter, r *http.Request) {
 	type HandleResource struct {
 		Namespace    string `json:"namespace"`
 		AppID        string `json:"app_id"`
+		Kind         string `json:"kind"`
 		ResourceYaml string `json:"resource_yaml"`
 		Name         string `json:"name"`
 	}
@@ -213,7 +218,7 @@ func (t *ClusterController) DeleteResource(w http.ResponseWriter, r *http.Reques
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
 		return
 	}
-	err := handler.GetClusterHandler().DeleteAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml)
+	err := handler.GetClusterHandler().DeleteAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml, hr.Kind)
 	if err != nil {
 		err.Handle(r, w)
 		return

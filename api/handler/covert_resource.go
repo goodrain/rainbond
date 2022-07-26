@@ -34,8 +34,8 @@ func (c *clusterAction) workloadHandle(ctx context.Context, cr map[string]model.
 	dmCR := c.workloadDeployments(ctx, lr.Workloads.Deployments, namespace)
 	sfsCR := c.workloadStateFulSets(ctx, lr.Workloads.StateFulSets, namespace)
 	jCR := c.workloadJobs(ctx, lr.Workloads.Jobs, namespace)
-	wCJ := c.workloadCronJobs(ctx, lr.Workloads.CronJobs, namespace)
-	convertResource := append(dmCR, append(sfsCR, append(jCR, append(wCJ)...)...)...)
+	cjCR := c.workloadCronJobs(ctx, lr.Workloads.CronJobs, namespace)
+	convertResource := append(dmCR, append(sfsCR, append(jCR, append(cjCR)...)...)...)
 
 	k8sResources := c.getAppKubernetesResources(ctx, lr.Others, namespace)
 	cr[app] = model.ApplicationResource{
@@ -78,7 +78,7 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 			if string(port.Protocol) == "TCP" {
 				ps = append(ps, model.PortManagement{
 					Port:     port.ContainerPort,
-					Protocol: "UDP",
+					Protocol: "TCP",
 					Inner:    false,
 					Outer:    false,
 				})
@@ -89,13 +89,14 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 
 		//ENV
 		var envs []model.ENVManagement
-		for _, env := range resources.Spec.Template.Spec.Containers[0].Env {
-			if cm := env.ValueFrom; cm == nil {
+		for i := 0; i < len(resources.Spec.Template.Spec.Containers[0].Env); i++ {
+			if cm := resources.Spec.Template.Spec.Containers[0].Env[i].ValueFrom; cm == nil {
 				envs = append(envs, model.ENVManagement{
-					ENVKey:     env.Name,
-					ENVValue:   env.Value,
+					ENVKey:     resources.Spec.Template.Spec.Containers[0].Env[i].Name,
+					ENVValue:   resources.Spec.Template.Spec.Containers[0].Env[i].Value,
 					ENVExplain: "",
 				})
+				resources.Spec.Template.Spec.Containers[0].Env = append(resources.Spec.Template.Spec.Containers[0].Env[:i], resources.Spec.Template.Spec.Containers[0].Env[i+1:]...)
 			}
 		}
 
@@ -317,8 +318,9 @@ func (c *clusterAction) workloadDeployments(ctx context.Context, dmNames []strin
 				hcm.SuccessThreshold = int(readinessProbe.SuccessThreshold)
 			}
 		}
+
 		var attributes []*dbmodel.ComponentK8sAttributes
-		if resources.Spec.Template.Spec.Containers[0].Env != nil {
+		if resources.Spec.Template.Spec.Containers[0].Env != nil && len(resources.Spec.Template.Spec.Containers[0].Env) > 0 {
 			envYaml, err := ObjectToJSONORYaml("yaml", resources.Spec.Template.Spec.Containers[0].Env)
 			if err != nil {
 				logrus.Errorf("deployment:%v env %v", dmName, err)
@@ -455,6 +457,10 @@ func (c *clusterAction) workloadCronJobs(ctx context.Context, cjNames []string, 
 	return nil
 }
 
+func (c *clusterAction) podTemplateSpecResource() {
+
+}
+
 func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others model.OtherResource, namespace string) []dbmodel.K8sResource {
 	var k8sResources []dbmodel.K8sResource
 	servicesMap := make(map[string]corev1.Service)
@@ -468,7 +474,9 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 		}
 		for _, servicesName := range others.Services {
 			services, _ := servicesMap[servicesName]
+			services.Kind = model.Service
 			services.Status = corev1.ServiceStatus{}
+			services.APIVersion = "v1"
 			services.ManagedFields = []metav1.ManagedFieldsEntry{}
 			kubernetesResourcesYAML, err := ObjectToJSONORYaml("yaml", services)
 			if err != nil {
@@ -478,6 +486,7 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				Name:    services.Name,
 				Kind:    model.Service,
 				Content: kubernetesResourcesYAML,
+				Success: 1,
 				Status:  "创建成功",
 			})
 		}
@@ -496,6 +505,8 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 			pvc, _ := pvcMap[pvcName]
 			pvc.Status = corev1.PersistentVolumeClaimStatus{}
 			pvc.ManagedFields = []metav1.ManagedFieldsEntry{}
+			pvc.Kind = model.PVC
+			pvc.APIVersion = "v1"
 			kubernetesResourcesYAML, err := ObjectToJSONORYaml("yaml", pvc)
 			if err != nil {
 				logrus.Errorf("namespace:%v pvc:%v error: %v", namespace, pvc.Name, err)
@@ -504,6 +515,7 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				Name:    pvc.Name,
 				Kind:    model.PVC,
 				Content: kubernetesResourcesYAML,
+				Success: 1,
 				Status:  "创建成功",
 			})
 		}
@@ -522,6 +534,8 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 			ingresses, _ := ingressMap[ingressName]
 			ingresses.Status = networkingv1.IngressStatus{}
 			ingresses.ManagedFields = []metav1.ManagedFieldsEntry{}
+			ingresses.Kind = model.Ingress
+			ingresses.APIVersion = "networking.k8s.io/v1"
 			kubernetesResourcesYAML, err := ObjectToJSONORYaml("yaml", ingresses)
 			if err != nil {
 				logrus.Errorf("namespace:%v ingresses:%v error: %v", namespace, ingresses.Name, err)
@@ -530,6 +544,7 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				Name:    ingresses.Name,
 				Kind:    model.Ingress,
 				Content: kubernetesResourcesYAML,
+				Success: 1,
 				Status:  "创建成功",
 			})
 		}
@@ -547,6 +562,8 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 		for _, networkPoliciesName := range others.NetworkPolicies {
 			networkPolicies, _ := networkPoliciesMap[networkPoliciesName]
 			networkPolicies.ManagedFields = []metav1.ManagedFieldsEntry{}
+			networkPolicies.Kind = model.NetworkPolicie
+			networkPolicies.APIVersion = "networking.k8s.io/v1"
 			kubernetesResourcesYAML, err := ObjectToJSONORYaml("yaml", networkPolicies)
 			if err != nil {
 				logrus.Errorf("namespace:%v NetworkPolicies:%v error: %v", namespace, networkPolicies.Name, err)
@@ -555,6 +572,7 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				Name:    networkPolicies.Name,
 				Kind:    model.NetworkPolicie,
 				Content: kubernetesResourcesYAML,
+				Success: 1,
 				Status:  "创建成功",
 			})
 		}
@@ -572,6 +590,8 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 		for _, configMapsName := range others.ConfigMaps {
 			configMaps, _ := cmMap[configMapsName]
 			configMaps.ManagedFields = []metav1.ManagedFieldsEntry{}
+			configMaps.Kind = model.ConfigMap
+			configMaps.APIVersion = "v1"
 			kubernetesResourcesYAML, err := ObjectToJSONORYaml("yaml", configMaps)
 			if err != nil {
 				logrus.Errorf("namespace:%v ConfigMaps:%v error: %v", namespace, configMaps.Name, err)
@@ -580,6 +600,7 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				Name:    configMaps.Name,
 				Kind:    model.ConfigMap,
 				Content: kubernetesResourcesYAML,
+				Success: 1,
 				Status:  "创建成功",
 			})
 		}
@@ -597,6 +618,8 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 		for _, secretsName := range others.Secrets {
 			secrets, _ := secretsMap[secretsName]
 			secrets.ManagedFields = []metav1.ManagedFieldsEntry{}
+			secrets.Kind = model.Secret
+			secrets.APIVersion = "v1"
 			kubernetesResourcesYAML, err := ObjectToJSONORYaml("yaml", secrets)
 			if err != nil {
 				logrus.Errorf("namespace:%v Secrets:%v error: %v", namespace, secrets.Name, err)
@@ -605,6 +628,7 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				Name:    secrets.Name,
 				Kind:    model.Secret,
 				Content: kubernetesResourcesYAML,
+				Success: 1,
 				Status:  "创建成功",
 			})
 		}
@@ -622,6 +646,8 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 		for _, serviceAccountsName := range others.ServiceAccounts {
 			serviceAccounts, _ := serviceAccountsMap[serviceAccountsName]
 			serviceAccounts.ManagedFields = []metav1.ManagedFieldsEntry{}
+			serviceAccounts.Kind = model.ServiceAccount
+			serviceAccounts.APIVersion = "v1"
 			kubernetesResourcesYAML, err := ObjectToJSONORYaml("yaml", serviceAccounts)
 			if err != nil {
 				logrus.Errorf("namespace:%v ServiceAccounts:%v error: %v", namespace, serviceAccounts.Name, err)
@@ -631,6 +657,7 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				Name:    serviceAccounts.Name,
 				Kind:    model.ServiceAccount,
 				Content: kubernetesResourcesYAML,
+				Success: 1,
 				Status:  "创建成功",
 			})
 		}
@@ -648,6 +675,8 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 		for _, roleBindingsName := range others.RoleBindings {
 			roleBindings, _ := roleBindingsMap[roleBindingsName]
 			roleBindings.ManagedFields = []metav1.ManagedFieldsEntry{}
+			roleBindings.Kind = model.RoleBinding
+			roleBindings.APIVersion = "rbac.authorization.k8s.io/v1"
 			kubernetesResourcesYAML, err := ObjectToJSONORYaml("yaml", roleBindings)
 			if err != nil {
 				logrus.Errorf("namespace:%v RoleBindings:%v error: %v", namespace, roleBindings.Name, err)
@@ -656,6 +685,7 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				Name:    roleBindings.Name,
 				Kind:    model.RoleBinding,
 				Content: kubernetesResourcesYAML,
+				Success: 1,
 				Status:  "创建成功",
 			})
 		}
@@ -674,6 +704,8 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 			hpa, _ := hpaMap[hpaName]
 			hpa.Status = v1.HorizontalPodAutoscalerStatus{}
 			hpa.ManagedFields = []metav1.ManagedFieldsEntry{}
+			hpa.Kind = model.HorizontalPodAutoscaler
+			hpa.APIVersion = "autoscaling/v1"
 			kubernetesResourcesYAML, err := ObjectToJSONORYaml("yaml", hpa)
 			if err != nil {
 				logrus.Errorf("namespace:%v HorizontalPodAutoscalers:%v error: %v", namespace, hpa.Name, err)
@@ -682,6 +714,7 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				Name:    hpa.Name,
 				Kind:    model.HorizontalPodAutoscaler,
 				Content: kubernetesResourcesYAML,
+				Success: 1,
 				Status:  "创建成功",
 			})
 		}
@@ -698,6 +731,8 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 		}
 		for _, rolesName := range others.Roles {
 			roles, _ := rolesMap[rolesName]
+			roles.Kind = model.Role
+			roles.APIVersion = "rbac.authorization.k8s.io/v1"
 			kubernetesResourcesYAML, err := ObjectToJSONORYaml("yaml", roles)
 			if err != nil {
 				logrus.Errorf("namespace:%v roles:%v error: %v", namespace, roles.Name, err)

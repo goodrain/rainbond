@@ -150,6 +150,12 @@ var ServiceTypeStateSingleton ServiceType = "state_singleton"
 // ServiceTypeStateMultiple state_multiple
 var ServiceTypeStateMultiple ServiceType = "state_multiple"
 
+// ServiceTypeJob job
+var ServiceTypeJob ServiceType = "job"
+
+// ServiceTypeCornJob corn_job
+var ServiceTypeCornJob ServiceType = "cronjob"
+
 //TenantServices app service base info
 type TenantServices struct {
 	Model

@@ -636,5 +636,6 @@ type K8sResourceDao interface {
 	Dao
 	ListByAppID(appID string) ([]model.K8sResource, error)
 	CreateK8sResourceInBatch(k8sResources []*model.K8sResource) error
-	DeleteK8sResourceInBatch(appID, name string) error
+	DeleteK8sResourceInBatch(appID, name string, kind string) error
+	GetK8sResourceByNameInBatch(appID, name, kind string) ([]model.K8sResource, error)
 }
