@@ -54,6 +54,7 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 		Remove:      true,
 		BuildArgs:   GetARGs(re.BuildEnvs),
 		NetworkMode: ImageBuildNetworkModeHost,
+		AuthConfigs: GetTenantRegistryAuthSecrets(re.Ctx, re.TenantID, re.KubeClient),
 	}
 	if _, ok := re.BuildEnvs["NO_CACHE"]; ok {
 		buildOptions.NoCache = true

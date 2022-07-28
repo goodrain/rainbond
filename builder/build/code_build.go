@@ -146,6 +146,7 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 		Tags:        []string{imageName},
 		Remove:      true,
 		NetworkMode: ImageBuildNetworkModeHost,
+		AuthConfigs: GetTenantRegistryAuthSecrets(s.re.Ctx, s.re.TenantID, s.re.KubeClient),
 	}
 	if _, ok := s.re.BuildEnvs["NO_CACHE"]; ok {
 		runbuildOptions.NoCache = true

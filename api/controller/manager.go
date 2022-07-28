@@ -49,6 +49,7 @@ type V2Manager interface {
 	api.AppRestoreInterface
 	api.PodInterface
 	api.ApplicationInterface
+	api.RegistryAuthSecretInterface
 }
 
 var defaultV2Manager V2Manager

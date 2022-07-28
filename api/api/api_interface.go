@@ -217,3 +217,8 @@ type AppRestoreInterface interface {
 type PodInterface interface {
 	PodDetail(w http.ResponseWriter, r *http.Request)
 }
+
+//RegistryAuthSecretInterface registry auth secret interface
+type RegistryAuthSecretInterface interface {
+	RegistryAuthSecret(w http.ResponseWriter, r *http.Request)
+}
