@@ -15,13 +15,14 @@
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
+
 package handler
 
 import (
 	apimodel "github.com/goodrain/rainbond/api/model"
 )
 
-//GatewayHandler gateway api handler
+//RegistryAuthSecretHandler registry auth secret handler
 type RegistryAuthSecretHandler interface {
 	AddOrUpdateRegistryAuthSecret(req *apimodel.AddOrUpdateRegistryAuthSecretStruct) error
 	DeleteRegistryAuthSecret(req *apimodel.DeleteRegistryAuthSecretStruct) error
