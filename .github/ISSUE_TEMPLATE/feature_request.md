@@ -3,7 +3,7 @@ name: Feature request
 about: Suggest an idea for this project
 title: ''
 labels: Feature Suggestions
-assignees: barnettZQG
+assignees: yangkaa
 
 ---
 
