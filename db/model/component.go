@@ -19,14 +19,24 @@
 package model
 
 const (
-	K8sAttributeNameNodeSelector       = "nodeSelector"
-	K8sAttributeNameLabels             = "labels"
-	K8sAttributeNameTolerations        = "tolerations"
-	K8sAttributeNameVolumes            = "volumes"
+	//K8sAttributeNameNodeSelector -
+	K8sAttributeNameNodeSelector = "nodeSelector"
+	//K8sAttributeNameLabels -
+	K8sAttributeNameLabels = "labels"
+	//K8sAttributeNameTolerations -
+	K8sAttributeNameTolerations = "tolerations"
+	//K8sAttributeNameVolumes -
+	K8sAttributeNameVolumes = "volumes"
+	//K8sAttributeNameServiceAccountName -
 	K8sAttributeNameServiceAccountName = "serviceAccountName"
-	K8sAttributeNamePrivileged         = "privileged"
-	K8sAttributeNameAffinity           = "affinity"
-	K8sAttributeNameVolumeMounts       = "volumeMounts"
+	//K8sAttributeNamePrivileged -
+	K8sAttributeNamePrivileged = "privileged"
+	//K8sAttributeNameAffinity -
+	K8sAttributeNameAffinity = "affinity"
+	//K8sAttributeNameVolumeMounts -
+	K8sAttributeNameVolumeMounts = "volumeMounts"
+	//K8sAttributeNameENV -
+	K8sAttributeNameENV = "env"
 )
 
 // ComponentK8sAttributes -
@@ -45,7 +55,7 @@ type ComponentK8sAttributes struct {
 
 	// Define the attribute value, which is stored in the database.
 	// The value is stored in the database in the form of `json/yaml/string`.
-	AttributeValue string `gorm:"column:attribute_value" json:"attribute_value"`
+	AttributeValue string `gorm:"column:attribute_value;type:longtext" json:"attribute_value"`
 }
 
 // TableName 表名

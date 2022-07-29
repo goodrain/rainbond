@@ -31,6 +31,7 @@ import (
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -42,6 +43,7 @@ func InitHandle(conf option.Config,
 	kubeClient *kubernetes.Clientset,
 	rainbondClient versioned.Interface,
 	k8sClient k8sclient.Client,
+	config *rest.Config,
 ) error {
 	mq := api_db.MQManager{
 		EtcdClientArgs: etcdClientArgs,
@@ -80,7 +82,7 @@ func InitHandle(conf option.Config,
 	batchOperationHandler = CreateBatchOperationHandler(mqClient, statusCli, operationHandler)
 	defaultAppRestoreHandler = NewAppRestoreHandler()
 	defPodHandler = NewPodHandler(statusCli)
-	defClusterHandler = NewClusterHandler(kubeClient, conf.RbdNamespace)
+	defClusterHandler = NewClusterHandler(kubeClient, conf.RbdNamespace, config)
 	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
 	defaultEtcdHandler = NewEtcdHandler(etcdcli)
 	defaultmonitorHandler = NewMonitorHandler(prometheusCli)

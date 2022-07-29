@@ -101,3 +101,127 @@ func (t *ClusterController) MavenSettingDetail(w http.ResponseWriter, r *http.Re
 	}
 	httputil.ReturnSuccess(r, w, c)
 }
+
+//GetNamespace Get the unconnected namespaces under the current cluster
+func (t *ClusterController) GetNamespace(w http.ResponseWriter, r *http.Request) {
+	content := r.FormValue("content")
+	ns, err := handler.GetClusterHandler().GetNamespace(r.Context(), content)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, ns)
+}
+
+//GetNamespaceResource Get all resources in the current namespace
+func (t *ClusterController) GetNamespaceResource(w http.ResponseWriter, r *http.Request) {
+	content := r.FormValue("content")
+	namespace := r.FormValue("namespace")
+	rs, err := handler.GetClusterHandler().GetNamespaceSource(r.Context(), content, namespace)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rs)
+}
+
+//ConvertResource Get the resources under the current namespace to the rainbond platform
+func (t *ClusterController) ConvertResource(w http.ResponseWriter, r *http.Request) {
+	content := r.FormValue("content")
+	namespace := r.FormValue("namespace")
+	rs, err := handler.GetClusterHandler().GetNamespaceSource(r.Context(), content, namespace)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	appsServices, err := handler.GetClusterHandler().ConvertResource(r.Context(), namespace, rs)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, appsServices)
+}
+
+//ResourceImport Import the converted k8s resources into recognition
+func (t *ClusterController) ResourceImport(w http.ResponseWriter, r *http.Request) {
+	content := r.FormValue("content")
+	namespace := r.FormValue("namespace")
+	eid := r.FormValue("eid")
+	rs, err := handler.GetClusterHandler().GetNamespaceSource(r.Context(), content, namespace)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	appsServices, err := handler.GetClusterHandler().ConvertResource(r.Context(), namespace, rs)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	rri, err := handler.GetClusterHandler().ResourceImport(r.Context(), namespace, appsServices, eid)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rri)
+}
+
+//AddResource -
+func (t *ClusterController) AddResource(w http.ResponseWriter, r *http.Request) {
+	type HandleResource struct {
+		Namespace    string `json:"namespace"`
+		AppID        string `json:"app_id"`
+		ResourceYaml string `json:"resource_yaml"`
+	}
+	var hr HandleResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
+		return
+	}
+	rri, err := handler.GetClusterHandler().AddAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.ResourceYaml)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rri)
+}
+
+//UpdateResource -
+func (t *ClusterController) UpdateResource(w http.ResponseWriter, r *http.Request) {
+	type HandelResource struct {
+		Name         string `json:"name"`
+		AppID        string `json:"app_id"`
+		Kind         string `json:"kind"`
+		Namespace    string `json:"namespace"`
+		ResourceYaml string `json:"resource_yaml"`
+	}
+	var hr HandelResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
+		return
+	}
+	rri, err := handler.GetClusterHandler().UpdateAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml, hr.Kind)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rri)
+}
+
+//DeleteResource -
+func (t *ClusterController) DeleteResource(w http.ResponseWriter, r *http.Request) {
+	type HandleResource struct {
+		Namespace    string `json:"namespace"`
+		AppID        string `json:"app_id"`
+		Kind         string `json:"kind"`
+		ResourceYaml string `json:"resource_yaml"`
+		Name         string `json:"name"`
+	}
+	var hr HandleResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
+		return
+	}
+	err := handler.GetClusterHandler().DeleteAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml, hr.Kind)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
