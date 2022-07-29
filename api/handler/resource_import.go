@@ -20,11 +20,11 @@ import (
 )
 
 //ResourceImport Import the converted k8s resources into recognition
-func (c *clusterAction) ResourceImport(ctx context.Context, namespace string, as map[string]model.ApplicationResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError) {
+func (c *clusterAction) ResourceImport(namespace string, as map[string]model.ApplicationResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError) {
 	logrus.Infof("ResourceImport function begin")
 	var returnResourceImport model.ReturnResourceImport
 	err := db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
-		tenant, err := c.createTenant(context.Background(), eid, namespace, tx)
+		tenant, err := c.createTenant(eid, namespace, tx)
 		returnResourceImport.Tenant = tenant
 		if err != nil {
 			logrus.Errorf("%v", err)
@@ -36,14 +36,14 @@ func (c *clusterAction) ResourceImport(ctx context.Context, namespace string, as
 				logrus.Errorf("create app:%v err:%v", appName, err)
 				return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app:%v error:%v", appName, err)}
 			}
-			k8sResource, err := c.createK8sResource(tx, components.KubernetesResources, app.AppID)
+			k8sResource, err := c.CreateK8sResource(tx, components.KubernetesResources, app.AppID)
 			if err != nil {
 				logrus.Errorf("create K8sResources err:%v", err)
 				return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create K8sResources err:%v", err)}
 			}
-			var ca []model.ComponentAttributes
+			var componentAttributes []model.ComponentAttributes
 			for _, componentResource := range components.ConvertResource {
-				component, err := c.createComponent(context.Background(), app, tenant.UUID, componentResource, namespace)
+				component, err := c.CreateComponent(app, tenant.UUID, componentResource, namespace)
 				if err != nil {
 					logrus.Errorf("%v", err)
 					return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
@@ -54,8 +54,8 @@ func (c *clusterAction) ResourceImport(ctx context.Context, namespace string, as
 				componentResource.TelescopicManagement.RuleID = c.createTelescopic(componentResource.TelescopicManagement, component)
 				componentResource.HealthyCheckManagement.ProbeID = c.createHealthyCheck(componentResource.HealthyCheckManagement, component)
 				c.createK8sAttributes(componentResource.ComponentK8sAttributesManagement, tenant.UUID, component)
-				ca = append(ca, model.ComponentAttributes{
-					Ct:                     component,
+				componentAttributes = append(componentAttributes, model.ComponentAttributes{
+					TS:                     component,
 					Image:                  componentResource.BasicManagement.Image,
 					Cmd:                    componentResource.BasicManagement.Cmd,
 					ENV:                    componentResource.ENVManagement,
@@ -68,7 +68,7 @@ func (c *clusterAction) ResourceImport(ctx context.Context, namespace string, as
 			}
 			application := model.AppComponent{
 				App:          app,
-				Component:    ca,
+				Component:    componentAttributes,
 				K8sResources: k8sResource,
 			}
 			returnResourceImport.App = append(returnResourceImport.App, application)
@@ -82,7 +82,7 @@ func (c *clusterAction) ResourceImport(ctx context.Context, namespace string, as
 	return &returnResourceImport, nil
 }
 
-func (c *clusterAction) createTenant(ctx context.Context, eid string, namespace string, tx *gorm.DB) (*dbmodel.Tenants, error) {
+func (c *clusterAction) createTenant(eid string, namespace string, tx *gorm.DB) (*dbmodel.Tenants, error) {
 	logrus.Infof("begin create tenant")
 	var dbts dbmodel.Tenants
 	id, name, errN := GetServiceManager().CreateTenandIDAndName(eid)
@@ -128,17 +128,13 @@ func (c *clusterAction) createApp(eid string, tx *gorm.DB, app string, tenantID 
 		return application, nil
 	}
 	appReq := &dbmodel.Application{
-		EID:             eid,
-		TenantID:        tenantID,
-		AppID:           appID,
-		AppName:         app,
-		AppType:         "rainbond",
-		AppStoreName:    "",
-		AppStoreURL:     "",
-		AppTemplateName: "",
-		Version:         "",
-		GovernanceMode:  dbmodel.GovernanceModeKubernetesNativeService,
-		K8sApp:          app,
+		EID:            eid,
+		TenantID:       tenantID,
+		AppID:          appID,
+		AppName:        app,
+		AppType:        "rainbond",
+		GovernanceMode: dbmodel.GovernanceModeKubernetesNativeService,
+		K8sApp:         app,
 	}
 	if err := db.GetManager().ApplicationDaoTransactions(tx).AddModel(appReq); err != nil {
 		return appReq, err
@@ -146,7 +142,7 @@ func (c *clusterAction) createApp(eid string, tx *gorm.DB, app string, tenantID 
 	return appReq, nil
 }
 
-func (c *clusterAction) createK8sResource(tx *gorm.DB, k8sResources []dbmodel.K8sResource, AppID string) ([]dbmodel.K8sResource, error) {
+func (c *clusterAction) CreateK8sResource(tx *gorm.DB, k8sResources []dbmodel.K8sResource, AppID string) ([]dbmodel.K8sResource, error) {
 	var k8sResourceList []*dbmodel.K8sResource
 	for _, k8sResource := range k8sResources {
 		k8sResource.AppID = AppID
@@ -157,9 +153,28 @@ func (c *clusterAction) createK8sResource(tx *gorm.DB, k8sResources []dbmodel.K8
 	return k8sResources, err
 }
 
-func (c *clusterAction) createComponent(ctx context.Context, app *dbmodel.Application, tenantID string, component model.ConvertResource, namespace string) (*dbmodel.TenantServices, error) {
+func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID string, component model.ConvertResource, namespace string) (*dbmodel.TenantServices, error) {
+	var extendMethod string
+	switch component.BasicManagement.ResourceType {
+	case model.Deployment:
+		extendMethod = string(dbmodel.ServiceTypeStatelessMultiple)
+	case model.Job:
+		extendMethod = string(dbmodel.ServiceTypeJob)
+	case model.CronJob:
+		extendMethod = string(dbmodel.ServiceTypeCornJob)
+	case model.StateFulSet:
+		extendMethod = string(dbmodel.ServiceTypeStateMultiple)
+	}
 	serviceID := rainbondutil.NewUUID()
 	serviceAlias := "gr" + serviceID[len(serviceID)-6:]
+	replicas := 1
+	if component.BasicManagement.Replicas != nil {
+		replicas = int(*component.BasicManagement.Replicas)
+	}
+	JobStrategy, err := json.Marshal(component.BasicManagement.JobStrategy)
+	if err != nil {
+		logrus.Errorf("component %v BasicManagement.JobStrategy json error%v", component.ComponentsName, err)
+	}
 	ts := dbmodel.TenantServices{
 		TenantID:         tenantID,
 		ServiceID:        serviceID,
@@ -171,8 +186,8 @@ func (c *clusterAction) createComponent(ctx context.Context, app *dbmodel.Applic
 		ContainerMemory:  int(component.BasicManagement.Memory),
 		ContainerGPU:     0,
 		UpgradeMethod:    "Rolling",
-		ExtendMethod:     string(dbmodel.ServiceTypeStatelessMultiple),
-		Replicas:         int(component.BasicManagement.Replicas),
+		ExtendMethod:     extendMethod,
+		Replicas:         replicas,
 		DeployVersion:    time.Now().Format("20060102150405"),
 		Category:         "app_publish",
 		CurStatus:        "undeploy",
@@ -182,32 +197,102 @@ func (c *clusterAction) createComponent(ctx context.Context, app *dbmodel.Applic
 		Kind:             "internal",
 		AppID:            app.AppID,
 		K8sComponentName: component.ComponentsName,
+		JobStrategy:      string(JobStrategy),
 	}
 	if err := db.GetManager().TenantServiceDao().AddModel(&ts); err != nil {
 		logrus.Errorf("add service error, %v", err)
 		return nil, err
 	}
-	dm, err := c.clientset.AppsV1().Deployments(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
-	if err != nil {
-		logrus.Errorf("failed to get %v deployment %v:%v", namespace, component.ComponentsName, err)
-		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get deployment %v:%v", namespace, err)}
+	changeLabel := func(label map[string]string) map[string]string {
+		label[constants.ResourceManagedByLabel] = constants.Rainbond
+		label["service_id"] = serviceID
+		label["version"] = ts.DeployVersion
+		label["creater_id"] = string(rainbondutil.NewTimeVersion())
+		label["migrator"] = "rainbond"
+		label["creator"] = "Rainbond"
+		return label
 	}
-	if dm.Labels == nil {
-		dm.Labels = make(map[string]string)
-	}
-	dm.Labels[constants.ResourceManagedByLabel] = constants.Rainbond
-	dm.Labels["service_id"] = serviceID
-	dm.Labels["version"] = ts.DeployVersion
-	dm.Labels["creater_id"] = string(rainbondutil.NewTimeVersion())
-	dm.Labels["migrator"] = "rainbond"
-	dm.Spec.Template.Labels["service_id"] = serviceID
-	dm.Spec.Template.Labels["version"] = ts.DeployVersion
-	dm.Spec.Template.Labels["creater_id"] = string(rainbondutil.NewTimeVersion())
-	dm.Spec.Template.Labels["migrator"] = "rainbond"
-	_, err = c.clientset.AppsV1().Deployments(namespace).Update(context.Background(), dm, metav1.UpdateOptions{})
-	if err != nil {
-		logrus.Errorf("failed to update deployment %v:%v", namespace, err)
-		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update deployment %v:%v", namespace, err)}
+	switch component.BasicManagement.ResourceType {
+	case model.Deployment:
+		dm, err := c.clientset.AppsV1().Deployments(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
+		if err != nil {
+			logrus.Errorf("failed to get %v Deployments %v:%v", namespace, component.ComponentsName, err)
+			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get Deployments %v:%v", namespace, err)}
+		}
+		if dm.Labels == nil {
+			dm.Labels = make(map[string]string)
+		}
+		if dm.Spec.Template.Labels == nil {
+			dm.Spec.Template.Labels = make(map[string]string)
+		}
+		dm.Labels = changeLabel(dm.Labels)
+		dm.Spec.Template.Labels = changeLabel(dm.Spec.Template.Labels)
+		_, err = c.clientset.AppsV1().Deployments(namespace).Update(context.Background(), dm, metav1.UpdateOptions{})
+		if err != nil {
+			logrus.Errorf("failed to update Deployments %v:%v", namespace, err)
+			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update Deployments %v:%v", namespace, err)}
+		}
+	case model.Job:
+		job, err := c.clientset.BatchV1().Jobs(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
+		if err != nil {
+			logrus.Errorf("failed to get %v Jobs %v:%v", namespace, component.ComponentsName, err)
+			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get Jobs %v:%v", namespace, err)}
+		}
+		if job.Labels == nil {
+			job.Labels = make(map[string]string)
+		}
+		job.Labels = changeLabel(job.Labels)
+		if job.Spec.Template.Labels == nil {
+			job.Spec.Template.Labels = make(map[string]string)
+		}
+		job.Spec.Template.Labels = changeLabel(job.Spec.Template.Labels)
+		_, err = c.clientset.BatchV1().Jobs(namespace).Update(context.Background(), job, metav1.UpdateOptions{})
+		if err != nil {
+			logrus.Errorf("failed to update StatefulSets %v:%v", namespace, err)
+			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update StatefulSets %v:%v", namespace, err)}
+		}
+	case model.CronJob:
+		cr, err := c.clientset.BatchV1beta1().CronJobs(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
+		if err != nil {
+			logrus.Errorf("failed to get %v CronJob %v:%v", namespace, component.ComponentsName, err)
+			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get CronJob %v:%v", namespace, err)}
+		}
+		if cr.Labels == nil {
+			cr.Labels = make(map[string]string)
+		}
+		cr.Labels = changeLabel(cr.Labels)
+		if cr.Spec.JobTemplate.Labels == nil {
+			cr.Spec.JobTemplate.Labels = make(map[string]string)
+		}
+		cr.Spec.JobTemplate.Labels = changeLabel(cr.Spec.JobTemplate.Labels)
+		if cr.Spec.JobTemplate.Spec.Template.Labels == nil {
+			cr.Spec.JobTemplate.Spec.Template.Labels = make(map[string]string)
+		}
+		cr.Spec.JobTemplate.Spec.Template.Labels = changeLabel(cr.Spec.JobTemplate.Spec.Template.Labels)
+		_, err = c.clientset.BatchV1beta1().CronJobs(namespace).Update(context.Background(), cr, metav1.UpdateOptions{})
+		if err != nil {
+			logrus.Errorf("failed to update CronJobs %v:%v", namespace, err)
+			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update CronJobs %v:%v", namespace, err)}
+		}
+	case model.StateFulSet:
+		sfs, err := c.clientset.AppsV1().StatefulSets(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
+		if err != nil {
+			logrus.Errorf("failed to get %v StatefulSets %v:%v", namespace, component.ComponentsName, err)
+			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get StatefulSets %v:%v", namespace, err)}
+		}
+		if sfs.Labels == nil {
+			sfs.Labels = make(map[string]string)
+		}
+		sfs.Labels = changeLabel(sfs.Labels)
+		if sfs.Spec.Template.Labels == nil {
+			sfs.Spec.Template.Labels = make(map[string]string)
+		}
+		sfs.Spec.Template.Labels = changeLabel(sfs.Spec.Template.Labels)
+		_, err = c.clientset.AppsV1().StatefulSets(namespace).Update(context.Background(), sfs, metav1.UpdateOptions{})
+		if err != nil {
+			logrus.Errorf("failed to update StatefulSets %v:%v", namespace, err)
+			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update StatefulSets %v:%v", namespace, err)}
+		}
 	}
 	return &ts, nil
 
