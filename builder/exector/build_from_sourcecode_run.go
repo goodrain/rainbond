@@ -21,6 +21,7 @@ package exector
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/builder/parser"
 	"io/ioutil"
 	"os"
 	"path"
@@ -32,7 +33,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/build"
-	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
@@ -167,7 +167,6 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		i.commit = Commit{}
 	case "pkg":
 		var filePath string
-		filePath = ""
 		pathSplit := strings.Split(i.CodeSouceInfo.RepositoryURL, "/")
 		eventID := pathSplit[len(pathSplit)-1]
 		// 存放目录
@@ -176,34 +175,31 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		oldPath := fmt.Sprintf("/grdata/package_build/temp/events/%s", eventID)
 		// 快速复制原目录
 		copyPath := i.CodeSouceInfo.Configs[i.ServiceID]
-		filePath = tarPath + "/" +eventID
+		filePath = fmt.Sprintf("%s/%s", tarPath, eventID)
 
-		_, err := os.Stat(filePath)
-		if err != nil {
-			if !os.IsExist(err) {
-				// 上传文件复制
-				if copyPath.Str != "" {
-					splitCopyPath := strings.Split(copyPath.Str, "/")
-					splitRes := pathSplit[0 : len(splitCopyPath)-1]
-					modelPath := strings.Join(splitRes, "/")
-					// 快速复制
-					tarCopyPath := fmt.Sprintf("/grdata/package_build/components/%s", i.ServiceID)
-					err := os.MkdirAll(tarCopyPath, 0755)
-					if err != nil {
-						return err
-					}
-					if err := util.CopyDir(modelPath, tarCopyPath); err != nil {
-						logrus.Errorf("copy dir error: %s", err.Error())
-					}
-					filePath = copyPath.Str
-				} else {
-					err := os.MkdirAll(tarPath, 0755)
-					if err != nil {
-						return err
-					}
-					filePath = oldPath
-				}
+		if copyPath.Str == "" {
+			files, err := ioutil.ReadDir(filePath)
+			if err != nil {
+				logrus.Errorf("read dir error: %s", err.Error())
+				return err
 			}
+			if len(files) == 0 {
+				filePath = oldPath
+			}
+		} else {
+			// 快速复制
+			splitCopyPath := strings.Split(copyPath.Str, "/")
+			splitRes := pathSplit[0 : len(splitCopyPath)-1]
+			modelPath := strings.Join(splitRes, "/")
+			tarCopyPath := fmt.Sprintf("/grdata/package_build/components/%s", i.ServiceID)
+			err := os.MkdirAll(tarCopyPath, 0755)
+			if err != nil {
+				return err
+			}
+			if err := util.CopyDir(modelPath, tarCopyPath); err != nil {
+				logrus.Errorf("copy dir error: %s", err.Error())
+			}
+			filePath = copyPath.Str
 		}
 		packages, err := ioutil.ReadDir(filePath)
 		if err != nil {
@@ -218,7 +214,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 			packageArr = append(packageArr, dir.Name())
 		}
 		fileName := packageArr[0]
-		file := tarPath + "/" + eventID + fileName
+		file := tarPath + "/" + eventID + "/" + fileName
 		fileMD5 := util.MD5(file)
 		i.commit = Commit{
 			Message: fileName,
