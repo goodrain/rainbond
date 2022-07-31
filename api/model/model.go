@@ -450,6 +450,50 @@ type DeleteServicePort struct {
 	Port int `json:"port"`
 }
 
+//AddHandleResource -
+type AddHandleResource struct {
+	Namespace    string `json:"namespace"`
+	AppID        string `json:"app_id"`
+	ResourceYaml string `json:"resource_yaml"`
+}
+
+//HandleResource -
+type HandleResource struct {
+	Name         string `json:"name"`
+	AppID        string `json:"app_id"`
+	Kind         string `json:"kind"`
+	Namespace    string `json:"namespace"`
+	ResourceYaml string `json:"resource_yaml"`
+}
+
+//YamlResource -
+type YamlResource struct {
+	EventID   string `json:"event_id"`
+	K8SApp    string `json:"k8s_app"`
+	TenantID  string `json:"tenant_id"`
+	Namespace string `json:"namespace"`
+}
+
+const (
+	//CreateSuccess -
+	CreateSuccess = 1
+	//UpdateSuccess -
+	UpdateSuccess = 2
+	//CreateError -
+	CreateError = 3
+	//UpdateError -
+	UpdateError = 4
+)
+
+// JobStrategy -
+type JobStrategy struct {
+	Schedule              string `json:"schedule"`
+	BackoffLimit          string `json:"backoff_limit"`
+	Parallelism           string `json:"parallelism"`
+	ActiveDeadlineSeconds string `json:"active_deadline_seconds"`
+	Completions           string `json:"completions"`
+}
+
 //TenantResources TenantResources
 // swagger:parameters tenantResources
 type TenantResources struct {

@@ -3,13 +3,10 @@ package handler
 import (
 	"context"
 	"fmt"
-	"os"
-	"runtime"
-	"strconv"
-	"time"
-
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/util/constants"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -17,6 +14,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // ClusterHandler -
@@ -27,13 +30,22 @@ type ClusterHandler interface {
 	MavenSettingUpdate(ctx context.Context, ms *MavenSetting) *util.APIHandleError
 	MavenSettingDelete(ctx context.Context, name string) *util.APIHandleError
 	MavenSettingDetail(ctx context.Context, name string) (*MavenSetting, *util.APIHandleError)
+	GetNamespace(ctx context.Context, content string) ([]string, *util.APIHandleError)
+	GetNamespaceSource(ctx context.Context, content string, namespace string) (map[string]model.LabelResource, *util.APIHandleError)
+	ConvertResource(ctx context.Context, namespace string, lr map[string]model.LabelResource) (map[string]model.ApplicationResource, *util.APIHandleError)
+	ResourceImport(namespace string, as map[string]model.ApplicationResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError)
+	AddAppK8SResource(ctx context.Context, namespace string, appID string, resourceYaml string) ([]*dbmodel.K8sResource, *util.APIHandleError)
+	DeleteAppK8SResource(ctx context.Context, namespace, appID, name, yaml, kind string) *util.APIHandleError
+	UpdateAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) (dbmodel.K8sResource, *util.APIHandleError)
+	//AppYamlResourceName(yamlResource model.YamlResource) (map[string]model.LabelResource, *util.APIHandleError)
 }
 
 // NewClusterHandler -
-func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace string) ClusterHandler {
+func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace string, config *rest.Config) ClusterHandler {
 	return &clusterAction{
 		namespace: RbdNamespace,
 		clientset: clientset,
+		config:    config,
 	}
 }
 
@@ -42,8 +54,10 @@ type clusterAction struct {
 	clientset        *kubernetes.Clientset
 	clusterInfoCache *model.ClusterResource
 	cacheTime        time.Time
+	config           *rest.Config
 }
 
+//GetClusterInfo -
 func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResource, error) {
 	timeout, _ := strconv.Atoi(os.Getenv("CLUSTER_INFO_CACHE_TIME"))
 	if timeout == 0 {
@@ -331,4 +345,35 @@ func (c *clusterAction) MavenSettingDetail(ctx context.Context, name string) (*M
 		UpdateTime: sm.Annotations["updateTime"],
 		Content:    sm.Data["mavensetting"],
 	}, nil
+}
+
+//GetNamespace Get namespace of the current cluster
+func (c *clusterAction) GetNamespace(ctx context.Context, content string) ([]string, *util.APIHandleError) {
+	namespaceList, err := c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get namespace:%v", err)}
+	}
+	namespaces := new([]string)
+	for _, ns := range namespaceList.Items {
+		if strings.HasPrefix(ns.Name, "kube-") || ns.Name == "rainbond" || ns.Name == "rbd-system" {
+			continue
+		}
+		if labelValue, isRBDNamespace := ns.Labels[constants.ResourceManagedByLabel]; isRBDNamespace && labelValue == "rainbond" && content == "unmanaged" {
+			continue
+		}
+		*namespaces = append(*namespaces, ns.Name)
+	}
+	return *namespaces, nil
+}
+
+//MergeMap map去重合并
+func MergeMap(map1 map[string][]string, map2 map[string][]string) map[string][]string {
+	for k, v := range map1 {
+		if _, ok := map2[k]; ok {
+			map2[k] = append(map2[k], v...)
+			continue
+		}
+		map2[k] = v
+	}
+	return map2
 }

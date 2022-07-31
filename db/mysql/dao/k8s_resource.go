@@ -19,8 +19,11 @@
 package dao
 
 import (
+	"fmt"
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	pkgerr "github.com/pkg/errors"
 )
 
 // K8sResourceDaoImpl k8s resource dao
@@ -35,13 +38,43 @@ func (t *K8sResourceDaoImpl) AddModel(mo model.Interface) error {
 
 // UpdateModel update model
 func (t *K8sResourceDaoImpl) UpdateModel(mo model.Interface) error {
-	return nil
+	resource, ok := mo.(*model.K8sResource)
+	if !ok {
+		return fmt.Errorf("mo.(*model.K8sResource) err")
+	}
+	return t.DB.Save(resource).Error
 }
 
 // ListByAppID list by app id
 func (t *K8sResourceDaoImpl) ListByAppID(appID string) ([]model.K8sResource, error) {
 	var resources []model.K8sResource
 	if err := t.DB.Where("app_id = ?", appID).Find(&resources).Error; err != nil {
+		return nil, err
+	}
+	return resources, nil
+}
+
+//CreateK8sResourceInBatch -
+func (t *K8sResourceDaoImpl) CreateK8sResourceInBatch(k8sResources []*model.K8sResource) error {
+	var objects []interface{}
+	for _, cg := range k8sResources {
+		objects = append(objects, *cg)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create K8sResource groups in batch")
+	}
+	return nil
+}
+
+//DeleteK8sResourceInBatch -
+func (t *K8sResourceDaoImpl) DeleteK8sResourceInBatch(appID, name string, kind string) error {
+	return t.DB.Where("app_id=? and name=? and kind=?", appID, name, kind).Delete(&model.K8sResource{}).Error
+}
+
+//GetK8sResourceByNameInBatch -
+func (t *K8sResourceDaoImpl) GetK8sResourceByNameInBatch(appID, name, kind string) ([]model.K8sResource, error) {
+	var resources []model.K8sResource
+	if err := t.DB.Where("app_id=? and name=? and kind=?", appID, name, kind).Find(&resources).Error; err != nil {
 		return nil, err
 	}
 	return resources, nil
