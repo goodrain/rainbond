@@ -177,7 +177,7 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, fmt.Errorf("get by privileged attribute error: %v", err)
 	}
-	if privilegedAttribute != nil{
+	if privilegedAttribute != nil {
 		pril, err := strconv.ParseBool(privilegedAttribute.AttributeValue)
 		if err != nil {
 			return nil, err
@@ -724,6 +724,9 @@ func createLabels(as *v1.AppService, dbmanager db.Manager) map[string]string {
 	if err != nil {
 		logrus.Warn("labels json unmarshal error", err)
 		return resultLabel
+	}
+	for k, v := range labels {
+		resultLabel[k] = v
 	}
 	return resultLabel
 }
