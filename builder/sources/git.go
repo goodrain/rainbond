@@ -430,12 +430,11 @@ func GetPrivateFile(tenantID string) string {
 	}
 	if ok, _ := util.FileExists(path.Join(home, "/.ssh/"+tenantID)); ok {
 		return path.Join(home, "/.ssh/"+tenantID)
-	} else {
-		if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa")); ok {
-			return path.Join(home, "/.ssh/builder_rsa")
-		}
-		return path.Join(home, "/.ssh/id_rsa")
 	}
+	if ok, _ := util.FileExists(path.Join(home, "/.ssh/builder_rsa")); ok {
+		return path.Join(home, "/.ssh/builder_rsa")
+	}
+	return path.Join(home, "/.ssh/id_rsa")
 
 }
 
