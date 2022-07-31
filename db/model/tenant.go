@@ -153,8 +153,8 @@ var ServiceTypeStateMultiple ServiceType = "state_multiple"
 // ServiceTypeJob job
 var ServiceTypeJob ServiceType = "job"
 
-// ServiceTypeCornJob corn_job
-var ServiceTypeCornJob ServiceType = "cronjob"
+// ServiceTypeCronJob cron_job
+var ServiceTypeCronJob ServiceType = "cronjob"
 
 //TenantServices app service base info
 type TenantServices struct {

@@ -161,7 +161,7 @@ func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID strin
 	case model.Job:
 		extendMethod = string(dbmodel.ServiceTypeJob)
 	case model.CronJob:
-		extendMethod = string(dbmodel.ServiceTypeCornJob)
+		extendMethod = string(dbmodel.ServiceTypeCronJob)
 	case model.StateFulSet:
 		extendMethod = string(dbmodel.ServiceTypeStateMultiple)
 	}
