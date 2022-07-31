@@ -2,8 +2,10 @@ package model
 
 //LabelResource -
 type LabelResource struct {
-	Workloads WorkLoadsResource `json:"workloads,omitempty"`
-	Others    OtherResource     `json:"others,omitempty"`
+	Workloads WorkLoadsResource   `json:"workloads,omitempty"`
+	Others    OtherResource       `json:"others,omitempty"`
+	UnSupport map[string][]string `json:"un_support"`
+	Status    string              `json:"status"`
 }
 
 //LabelWorkloadsResourceProcess -

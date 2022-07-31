@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -12,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	yamlt "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/dynamic"
@@ -21,16 +23,15 @@ import (
 //AddAppK8SResource -
 func (c *clusterAction) AddAppK8SResource(ctx context.Context, namespace string, appID string, resourceYaml string) ([]*dbmodel.K8sResource, *util.APIHandleError) {
 	logrus.Info("begin AddAppK8SResource")
-	resourceObjects, err := c.HandleResourceYaml(resourceYaml, namespace, "create", "")
-	if err != nil {
-		return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("failed to parse yaml into k8s resource:%v", err)}
-	}
+	resourceObjects := c.HandleResourceYaml([]byte(resourceYaml), namespace, "create", "")
 	var resourceList []*dbmodel.K8sResource
 	for _, resourceObject := range resourceObjects {
 		resource := resourceObject
-		var rsYaml string
 		if resourceObject.Success == 3 {
-			rsYaml = resourceYaml
+			rsYaml := resourceYaml
+			if resourceObject.Resource != nil {
+				rsYaml, _ = ObjectToJSONORYaml("yaml", resourceObject.Resource)
+			}
 			resourceList = append(resourceList, &dbmodel.K8sResource{
 				AppID:   appID,
 				Name:    "未识别",
@@ -40,7 +41,7 @@ func (c *clusterAction) AddAppK8SResource(ctx context.Context, namespace string,
 				Success: resource.Success,
 			})
 		} else {
-			rsYaml, _ = ObjectToJSONORYaml("yaml", resourceObject.Resource)
+			rsYaml, _ := ObjectToJSONORYaml("yaml", resourceObject.Resource)
 			resourceList = append(resourceList, &dbmodel.K8sResource{
 				AppID:   appID,
 				Name:    resource.Resource.GetName(),
@@ -49,7 +50,7 @@ func (c *clusterAction) AddAppK8SResource(ctx context.Context, namespace string,
 				Status:  resource.Status,
 				Success: resource.Success,
 			})
-			err = db.GetManager().K8sResourceDao().CreateK8sResourceInBatch(resourceList)
+			err := db.GetManager().K8sResourceDao().CreateK8sResourceInBatch(resourceList)
 			if err != nil {
 				return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("CreateK8sResource %v", err)}
 			}
@@ -65,10 +66,7 @@ func (c *clusterAction) UpdateAppK8SResource(ctx context.Context, namespace, app
 	if err != nil {
 		return dbmodel.K8sResource{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("get k8s resource %v", err)}
 	}
-	resourceObjects, err := c.HandleResourceYaml(resourceYaml, namespace, "update", name)
-	if err != nil {
-		return dbmodel.K8sResource{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("failed to parse yaml into k8s resource:%v", err)}
-	}
+	resourceObjects := c.HandleResourceYaml([]byte(resourceYaml), namespace, "update", name)
 	var rsYaml string
 	if resourceObjects[0].Success == 4 {
 		rsYaml = resourceYaml
@@ -89,11 +87,8 @@ func (c *clusterAction) UpdateAppK8SResource(ctx context.Context, namespace, app
 //DeleteAppK8SResource -
 func (c *clusterAction) DeleteAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) *util.APIHandleError {
 	logrus.Info("begin DeleteAppK8SResource")
-	_, err := c.HandleResourceYaml(resourceYaml, namespace, "delete", name)
-	if err != nil {
-		return &util.APIHandleError{Code: 400, Err: fmt.Errorf("DeleteAppK8SResource %v", err)}
-	}
-	err = db.GetManager().K8sResourceDao().DeleteK8sResourceInBatch(appID, name, kind)
+	c.HandleResourceYaml([]byte(resourceYaml), namespace, "delete", name)
+	err := db.GetManager().K8sResourceDao().DeleteK8sResourceInBatch(appID, name, kind)
 	if err != nil {
 		return &util.APIHandleError{Code: 400, Err: fmt.Errorf("DeleteAppK8SResource %v", err)}
 	}
@@ -105,76 +100,94 @@ type BuildResource struct {
 	Resource *unstructured.Unstructured
 	Success  int
 	Status   string
+	Dri      dynamic.ResourceInterface
+	DC       dynamic.Interface
+	GVK      *schema.GroupVersionKind
 }
 
 //HandleResourceYaml -
-func (c *clusterAction) HandleResourceYaml(resourceYaml string, namespace string, change string, name string) ([]BuildResource, error) {
-	var buildResourceList []BuildResource
+func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string, change string, name string) []*BuildResource {
+	var buildResourceList []*BuildResource
+	var status string
+	var success int
+	if change == "create" {
+		status = "创建失败"
+		success = model.CreateError
+	} else if change == "update" {
+		status = "更新失败"
+		success = model.UpdateError
+	}
 	dc, err := dynamic.NewForConfig(c.config)
 	if err != nil {
 		logrus.Errorf("%v", err)
-		return nil, err
+		buildResourceList = []*BuildResource{{
+			Success: success,
+			Status:  fmt.Sprintf("%v%v", status, err),
+		}}
+		return buildResourceList
 	}
-	resourceYamlByte := []byte(resourceYaml)
+	resourceYamlByte := resourceYaml
 	if err != nil {
 		logrus.Errorf("%v", err)
-		return nil, err
+		buildResourceList = []*BuildResource{{
+			Success: success,
+			Status:  fmt.Sprintf("%v%v", status, err),
+		}}
+		return buildResourceList
 	}
 	decoder := yamlt.NewYAMLOrJSONDecoder(bytes.NewReader(resourceYamlByte), 1000)
 	for {
-		var status string
-		var success int
-		if change == "create" {
-			status = "创建失败"
-			success = 3
-		} else if change == "update" {
-			status = "更新失败"
-			success = 4
-		}
 		var rawObj runtime.RawExtension
 		if err = decoder.Decode(&rawObj); err != nil {
 			if err.Error() == "EOF" {
 				break
 			}
 			logrus.Errorf("%v", err)
-			buildResourceList = append(buildResourceList, BuildResource{
-				Resource: nil,
-				Success:  success,
-				Status:   fmt.Sprintf("%v%v", status, err),
-			})
-			return buildResourceList, nil
+			buildResourceList = []*BuildResource{{
+				Success: success,
+				Status:  fmt.Sprintf("%v%v", status, err),
+			}}
+			return buildResourceList
 		}
 		obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).Decode(rawObj.Raw, nil, nil)
+		if err != nil {
+			logrus.Errorf("%v", err)
+			buildResourceList = []*BuildResource{{
+				Success: success,
+				Status:  fmt.Sprintf("%v%v", status, err),
+			}}
+			return buildResourceList
+		}
+		//转化成map
 		unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 		if err != nil {
 			logrus.Errorf("%v", err)
-			buildResourceList = append(buildResourceList, BuildResource{
-				Resource: nil,
-				Success:  success,
-				Status:   fmt.Sprintf("%v%v", status, err),
-			})
-			continue
+			buildResourceList = []*BuildResource{{
+				Success: success,
+				Status:  fmt.Sprintf("%v%v", status, err),
+			}}
+			return buildResourceList
 		}
+		//转化成对象
 		unstructuredObj := &unstructured.Unstructured{Object: unstructuredMap}
 		gr, err := restmapper.GetAPIGroupResources(c.clientset.Discovery())
 		if err != nil {
 			logrus.Errorf("%v", err)
-			buildResourceList = append(buildResourceList, BuildResource{
-				Resource: nil,
-				Success:  success,
-				Status:   fmt.Sprintf("%v%v", status, err),
+			buildResourceList = append(buildResourceList, &BuildResource{
+				Success: success,
+				Status:  fmt.Sprintf("%v%v", status, err),
 			})
 			continue
 		}
 		mapper := restmapper.NewDiscoveryRESTMapper(gr)
 		mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 		if err != nil {
-			buildResourceList = append(buildResourceList, BuildResource{
-				Resource: nil,
-				Success:  success,
-				Status:   fmt.Sprintf("%v%v", status, err),
-			})
-			continue
+			logrus.Errorf("%v", err)
+			buildResourceList = []*BuildResource{{
+				Success: success,
+				Status:  fmt.Sprintf("%v%v", status, err),
+			}}
+			return buildResourceList
 		}
 		var dri dynamic.ResourceInterface
 		if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
@@ -183,50 +196,45 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml string, namespace string
 		} else {
 			dri = dc.Resource(mapping.Resource)
 		}
+		br := &BuildResource{
+			Resource: unstructuredObj,
+			Dri:      dri,
+		}
+		buildResourceList = append(buildResourceList, br)
+	}
+	for _, buildResource := range buildResourceList {
+		unstructuredObj := buildResource.Resource
 		switch change {
 		case "create":
-			obj, err := dri.Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
-			var br BuildResource
+			obj, err := buildResource.Dri.Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
 			if err != nil {
 				logrus.Errorf("k8s resource create error%v", err)
-				br = BuildResource{
-					Resource: obj,
-					Success:  success,
-					Status:   fmt.Sprintf("%v%v", status, err),
-				}
+				buildResource.Resource = unstructuredObj
+				buildResource.Success = success
+				buildResource.Status = fmt.Sprintf("%v%v", status, err)
 			} else {
-				br = BuildResource{
-					Resource: obj,
-					Success:  1,
-					Status:   fmt.Sprintf("创建成功"),
-				}
+				buildResource.Resource = obj
+				buildResource.Success = model.CreateSuccess
+				buildResource.Status = fmt.Sprintf("创建成功")
 			}
-			buildResourceList = append(buildResourceList, br)
 		case "delete":
-			err := dri.Delete(context.TODO(), name, metav1.DeleteOptions{})
+			err := buildResource.Dri.Delete(context.TODO(), name, metav1.DeleteOptions{})
 			if err != nil {
 				logrus.Errorf("delete k8s resource error%v", err)
 			}
 		case "update":
-			obj, err := dri.Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
-			var br BuildResource
+			obj, err := buildResource.Dri.Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
 			if err != nil {
 				logrus.Errorf("update k8s resource error%v", err)
-				br = BuildResource{
-					Resource: obj,
-					Success:  success,
-					Status:   fmt.Sprintf("%v%v", status, err),
-				}
+				buildResource.Resource = unstructuredObj
+				buildResource.Success = success
+				buildResource.Status = fmt.Sprintf("%v%v", status, err)
 			} else {
-				br = BuildResource{
-					Resource: obj,
-					Success:  2,
-					Status:   fmt.Sprintf("更新成功"),
-				}
+				buildResource.Resource = obj
+				buildResource.Success = model.UpdateSuccess
+				buildResource.Status = fmt.Sprintf("更新成功")
 			}
-			buildResourceList = append(buildResourceList, br)
 		}
-
 	}
-	return buildResourceList, nil
+	return buildResourceList
 }

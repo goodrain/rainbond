@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"github.com/goodrain/rainbond/api/model"
 	"net/http"
 
 	"github.com/go-chi/chi"
@@ -157,7 +158,7 @@ func (t *ClusterController) ResourceImport(w http.ResponseWriter, r *http.Reques
 		err.Handle(r, w)
 		return
 	}
-	rri, err := handler.GetClusterHandler().ResourceImport(r.Context(), namespace, appsServices, eid)
+	rri, err := handler.GetClusterHandler().ResourceImport(namespace, appsServices, eid)
 	if err != nil {
 		err.Handle(r, w)
 		return
@@ -167,12 +168,7 @@ func (t *ClusterController) ResourceImport(w http.ResponseWriter, r *http.Reques
 
 //AddResource -
 func (t *ClusterController) AddResource(w http.ResponseWriter, r *http.Request) {
-	type HandleResource struct {
-		Namespace    string `json:"namespace"`
-		AppID        string `json:"app_id"`
-		ResourceYaml string `json:"resource_yaml"`
-	}
-	var hr HandleResource
+	var hr model.AddHandleResource
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
 		return
 	}
@@ -186,14 +182,7 @@ func (t *ClusterController) AddResource(w http.ResponseWriter, r *http.Request) 
 
 //UpdateResource -
 func (t *ClusterController) UpdateResource(w http.ResponseWriter, r *http.Request) {
-	type HandelResource struct {
-		Name         string `json:"name"`
-		AppID        string `json:"app_id"`
-		Kind         string `json:"kind"`
-		Namespace    string `json:"namespace"`
-		ResourceYaml string `json:"resource_yaml"`
-	}
-	var hr HandelResource
+	var hr model.HandleResource
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
 		return
 	}
@@ -207,14 +196,7 @@ func (t *ClusterController) UpdateResource(w http.ResponseWriter, r *http.Reques
 
 //DeleteResource -
 func (t *ClusterController) DeleteResource(w http.ResponseWriter, r *http.Request) {
-	type HandleResource struct {
-		Namespace    string `json:"namespace"`
-		AppID        string `json:"app_id"`
-		Kind         string `json:"kind"`
-		ResourceYaml string `json:"resource_yaml"`
-		Name         string `json:"name"`
-	}
-	var hr HandleResource
+	var hr model.HandleResource
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
 		return
 	}
@@ -225,3 +207,17 @@ func (t *ClusterController) DeleteResource(w http.ResponseWriter, r *http.Reques
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
+
+//YamlResourceName -
+//func (t *ClusterController) YamlResourceName(w http.ResponseWriter, r *http.Request) {
+//	var yr model.YamlResource
+//	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &yr, nil); !ok {
+//		return
+//	}
+//	h, err := handler.GetClusterHandler().AppYamlResourceName(yr)
+//	if err != nil {
+//		err.Handle(r, w)
+//		return
+//	}
+//	httputil.ReturnSuccess(r, w, h)
+//}

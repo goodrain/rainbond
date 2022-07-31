@@ -53,7 +53,7 @@ func (c *clusterAction) GetNamespaceSource(ctx context.Context, content string, 
 	services, _, _ := c.getResourceName(ctx, namespace, content, model.Service)
 	pvc, _, _ := c.getResourceName(ctx, namespace, content, model.PVC)
 	ingresses, _, _ := c.getResourceName(ctx, namespace, content, model.Ingress)
-	networkPolicies, _, _ := c.getResourceName(ctx, namespace, content, model.NetworkPolicie)
+	networkPolicies, _, _ := c.getResourceName(ctx, namespace, content, model.NetworkPolicy)
 	cms, _, _ := c.getResourceName(ctx, namespace, content, model.ConfigMap)
 	secrets, _, _ := c.getResourceName(ctx, namespace, content, model.Secret)
 	serviceAccounts, _, _ := c.getResourceName(ctx, namespace, content, model.ServiceAccount)
@@ -336,7 +336,7 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 		for _, dm := range resources.Items {
 			tempResources = append(tempResources, &Resource{ObjectMeta: dm.ObjectMeta})
 		}
-	case model.NetworkPolicie:
+	case model.NetworkPolicy:
 		resources, err := c.clientset.NetworkingV1().NetworkPolicies(namespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get NetworkPolicies list:%v", err)

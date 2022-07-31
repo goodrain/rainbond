@@ -12,11 +12,11 @@ const (
 	//Service -
 	Service = "Service"
 	//PVC -
-	PVC = "PVC"
+	PVC = "PersistentVolumeClaim"
 	//Ingress -
 	Ingress = "Ingress"
-	//NetworkPolicie -
-	NetworkPolicie = "NetworkPolicie"
+	//NetworkPolicy -
+	NetworkPolicy = "NetworkPolicy"
 	//ConfigMap -
 	ConfigMap = "ConfigMap"
 	//Secret -
