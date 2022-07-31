@@ -213,12 +213,14 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 			}
 			packageArr = append(packageArr, dir.Name())
 		}
-		fileName := packageArr[0]
-		file := tarPath + "/" + eventID + "/" + fileName
-		fileMD5 := util.MD5(file)
-		i.commit = Commit{
-			Message: fileName,
-			Hash:    fileMD5,
+		if len(packageArr) != 0 {
+			fileName := packageArr[0]
+			file := tarPath + "/" + eventID + "/" + fileName
+			fileMD5 := util.MD5(file)
+			i.commit = Commit{
+				Message: fileName,
+				Hash:    fileMD5,
+			}
 		}
 		if copyPath.Str == "" {
 			if err = util.MoveDir(oldPath, tarPath); err != nil {

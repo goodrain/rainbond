@@ -117,7 +117,7 @@ func (s ServiceType) IsJob() bool {
 
 // IsCronJob is cronjob
 func (s ServiceType) IsCronJob() bool {
-	if s == ServiceTypeCornJob {
+	if s == ServiceTypeCronJob {
 		return true
 	}
 	return false
@@ -185,8 +185,8 @@ var ServiceTypeStateMultiple ServiceType = "state_multiple"
 // ServiceTypeJob job
 var ServiceTypeJob ServiceType = "job"
 
-// ServiceTypeCornJob corn_job
-var ServiceTypeCornJob ServiceType = "cronjob"
+// ServiceTypeCronJob cronjob
+var ServiceTypeCronJob ServiceType = "cronjob"
 
 //TenantServices app service base info
 type TenantServices struct {

@@ -705,9 +705,9 @@ func (r *RuntimeServer) GetAppVolumeStatus(ctx context.Context, re *pb.ServiceRe
 		// 	continue
 		// }
 		// // Exception pod information due to node loss is no longer displayed, so volume status is NOT_READY
-		// if v1.IsPodNodeLost(pod) {
-		// 	continue
-		// }
+		if v1.IsPodNodeLost(pod) {
+			continue
+		}
 
 		podStatus := &pb.PodStatus{}
 		wutil.DescribePodStatus(r.clientset, pod, podStatus, k8sutil.DefListEventsByPod)

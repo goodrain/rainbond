@@ -257,34 +257,30 @@ func initBaseJob(as *v1.AppService, service *dbmodel.TenantServices) {
 		}
 		if js.ActiveDeadlineSeconds != "" {
 			ads, err := strconv.ParseInt(js.ActiveDeadlineSeconds, 10, 64)
-			if err != nil {
-				logrus.Error("activeDeadlineSeconds ParseInt error", err)
+			if err == nil {
+				job.Spec.ActiveDeadlineSeconds = &ads
 			}
-			job.Spec.ActiveDeadlineSeconds = &ads
 		}
 		if js.BackoffLimit != "" {
 			res, err := strconv.ParseInt(js.BackoffLimit, 10, 32)
-			if err != nil {
-				logrus.Error("BackoffLimit ParseInt error", err)
+			if err == nil {
+				bkl := int32(res)
+				job.Spec.BackoffLimit = &bkl
 			}
-			bkl := int32(res)
-			job.Spec.BackoffLimit = &bkl
 		}
 		if js.Parallelism != "" {
 			res, err := strconv.ParseInt(js.Parallelism, 10, 32)
-			if err != nil {
-				logrus.Error("Parallelism ParseInt error", err)
+			if err == nil {
+				pll := int32(res)
+				job.Spec.Parallelism = &pll
 			}
-			pll := int32(res)
-			job.Spec.Parallelism = &pll
 		}
 		if js.Completions != "" {
 			res, err := strconv.ParseInt(js.Completions, 10, 32)
-			if err != nil {
-				logrus.Error("Completions ParseInt error", err)
+			if err == nil {
+				cpt := int32(res)
+				job.Spec.Completions = &cpt
 			}
-			cpt := int32(res)
-			job.Spec.Completions = &cpt
 		}
 	}
 	as.SetJob(job)
@@ -312,34 +308,30 @@ func initBaseCronJob(as *v1.AppService, service *dbmodel.TenantServices) {
 		}
 		if js.ActiveDeadlineSeconds != "" {
 			ads, err := strconv.ParseInt(js.ActiveDeadlineSeconds, 10, 64)
-			if err != nil {
-				logrus.Error("activeDeadlineSeconds ParseInt error", err)
+			if err == nil {
+				jobTemp.Spec.ActiveDeadlineSeconds = &ads
 			}
-			jobTemp.Spec.ActiveDeadlineSeconds = &ads
 		}
 		if js.BackoffLimit != "" {
 			res, err := strconv.ParseInt(js.BackoffLimit, 10, 32)
-			if err != nil {
-				logrus.Error("BackoffLimit ParseInt error", err)
+			if err == nil {
+				bkl := int32(res)
+				jobTemp.Spec.BackoffLimit = &bkl
 			}
-			bkl := int32(res)
-			jobTemp.Spec.BackoffLimit = &bkl
 		}
 		if js.Parallelism != "" {
 			res, err := strconv.ParseInt(js.Parallelism, 10, 32)
-			if err != nil {
-				logrus.Error("Parallelism ParseInt error", err)
+			if err == nil {
+				pll := int32(res)
+				jobTemp.Spec.Parallelism = &pll
 			}
-			pll := int32(res)
-			jobTemp.Spec.Parallelism = &pll
 		}
 		if js.Completions != "" {
 			res, err := strconv.ParseInt(js.Completions, 10, 32)
-			if err != nil {
-				logrus.Error("Completions ParseInt error", err)
+			if err == nil {
+				cpt := int32(res)
+				jobTemp.Spec.Completions = &cpt
 			}
-			cpt := int32(res)
-			jobTemp.Spec.Completions = &cpt
 		}
 		cronJob.Spec.Schedule = js.Schedule
 	}

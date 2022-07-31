@@ -132,7 +132,6 @@ func (s *startController) startOne(app v1.AppService) error {
 	}
 	//step 2: create statefulset or deployment or job or cronjob
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
-		// s.manager.client.BatchV1beta1().CronJobs().Create()
 		_, err = s.manager.client.AppsV1().StatefulSets(app.GetNamespace()).Create(s.ctx, statefulset, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("create statefulset failure:%s", err.Error())
