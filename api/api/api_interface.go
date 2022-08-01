@@ -37,6 +37,7 @@ type ClusterInterface interface {
 	AddResource(w http.ResponseWriter, r *http.Request)
 	DeleteResource(w http.ResponseWriter, r *http.Request)
 	UpdateResource(w http.ResponseWriter, r *http.Request)
+	//YamlResourceName(w http.ResponseWriter, r *http.Request)
 }
 
 //TenantInterface interface
@@ -95,6 +96,7 @@ type ServiceInterface interface {
 	AddServiceMonitors(w http.ResponseWriter, r *http.Request)
 	DeleteServiceMonitors(w http.ResponseWriter, r *http.Request)
 	UpdateServiceMonitors(w http.ResponseWriter, r *http.Request)
+	UploadPackage(w http.ResponseWriter, r *http.Request)
 	K8sAttributes(w http.ResponseWriter, r *http.Request)
 }
 
@@ -161,6 +163,7 @@ type AppInterface interface {
 	NewUpload(w http.ResponseWriter, r *http.Request)
 	ImportID(w http.ResponseWriter, r *http.Request)
 	ImportApp(w http.ResponseWriter, r *http.Request)
+	UploadID(w http.ResponseWriter, r *http.Request)
 }
 
 // ApplicationInterface tenant application interface

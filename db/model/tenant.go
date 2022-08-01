@@ -107,6 +107,22 @@ func (s ServiceType) IsState() bool {
 	return false
 }
 
+// IsJob is job
+func (s ServiceType) IsJob() bool {
+	if s == ServiceTypeJob {
+		return true
+	}
+	return false
+}
+
+// IsCronJob is cronjob
+func (s ServiceType) IsCronJob() bool {
+	if s == ServiceTypeCronJob {
+		return true
+	}
+	return false
+}
+
 // IsSingleton is singleton or not
 func (s ServiceType) IsSingleton() bool {
 	if s == "" {
@@ -125,6 +141,22 @@ func (t *TenantServices) IsState() bool {
 		return false
 	}
 	return ServiceType(t.ExtendMethod).IsState()
+}
+
+// IsJob is job
+func (t *TenantServices) IsJob() bool {
+	if ServiceType(t.ExtendMethod).IsJob() {
+		return true
+	}
+	return false
+}
+
+// IsCronJob is cronjob
+func (t *TenantServices) IsCronJob() bool {
+	if ServiceType(t.ExtendMethod).IsCronJob() {
+		return true
+	}
+	return false
 }
 
 // IsSingleton is singleton or multiple service
@@ -153,8 +185,8 @@ var ServiceTypeStateMultiple ServiceType = "state_multiple"
 // ServiceTypeJob job
 var ServiceTypeJob ServiceType = "job"
 
-// ServiceTypeCornJob corn_job
-var ServiceTypeCornJob ServiceType = "cronjob"
+// ServiceTypeCronJob cronjob
+var ServiceTypeCronJob ServiceType = "cronjob"
 
 //TenantServices app service base info
 type TenantServices struct {
@@ -209,6 +241,8 @@ type TenantServices struct {
 	AppID string `gorm:"column:app_id" json:"app_id"`
 	// Component name in cluster
 	K8sComponentName string `gorm:"column:k8s_component_name" json:"k8s_component_name"`
+	// Job任务策略
+	JobStrategy string `gorm:"column:job_strategy" json:"job_strategy"`
 }
 
 // ComponentWorkload -
@@ -330,6 +364,8 @@ type TenantServicesDelete struct {
 	AppID string `gorm:"column:app_id" json:"app_id"`
 	// Component name in cluster
 	K8sComponentName string `gorm:"column:k8s_component_name" json:"k8s_component_name"`
+	// Job任务策略
+	JobStrategy string `gorm:"column:job_strategy" json:"job_strategy"`
 }
 
 //TableName 表名

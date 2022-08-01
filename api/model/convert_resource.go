@@ -9,12 +9,13 @@ import (
 
 //BasicManagement -
 type BasicManagement struct {
-	ResourceType string `json:"resource_type"`
-	Replicas     int32  `json:"replicas"`
-	Image        string `json:"image"`
-	Memory       int64  `json:"memory"`
-	Cmd          string `json:"command"`
-	CPU          int64  `json:"cpu"`
+	ResourceType string      `json:"resource_type"`
+	Replicas     *int32      `json:"replicas"`
+	Image        string      `json:"image"`
+	Memory       int64       `json:"memory"`
+	Cmd          string      `json:"command"`
+	CPU          int64       `json:"cpu"`
+	JobStrategy  JobStrategy `json:"job_strategy"`
 }
 
 //PortManagement -
@@ -107,7 +108,7 @@ type ConvertResource struct {
 
 //ComponentAttributes -
 type ComponentAttributes struct {
-	Ct                     *model.TenantServices           `json:"ct"`
+	TS                     *model.TenantServices           `json:"ts"`
 	Image                  string                          `json:"image"`
 	Cmd                    string                          `json:"cmd"`
 	ENV                    []ENVManagement                 `json:"env"`

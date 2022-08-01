@@ -24,7 +24,7 @@ import (
 
 //IsPodTerminated Exception evicted pod
 func IsPodTerminated(pod *corev1.Pod) bool {
-	if phase := pod.Status.Phase; phase != corev1.PodPending && phase != corev1.PodRunning && phase != corev1.PodUnknown {
+	if phase := pod.Status.Phase; phase != corev1.PodPending && phase != corev1.PodRunning && phase != corev1.PodUnknown && phase != corev1.PodSucceeded && phase != corev1.PodFailed {
 		return true
 	}
 	return false
