@@ -2060,11 +2060,3 @@ type AppStatusesReq struct {
 	AppIDs []string `json:"app_ids"`
 }
 
-// JobStrategy -
-type JobStrategy struct {
-	Schedule              string `json:"schedule"`
-	BackoffLimit          string `json:"backoff_limit"`
-	Parallelism           string `json:"parallelism"`
-	ActiveDeadlineSeconds string `json:"active_deadline_seconds"`
-	Completions           string `json:"completions"`
-}
