@@ -376,6 +376,23 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 			as.ExtensionSet[strings.ToLower(k[3:])] = v
 		}
 	}
+	var customEnvs []corev1.EnvVar
+	envAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameENV)
+	if err != nil {
+		logrus.Warn("get by env attribute error", err)
+		return envs, nil
+	}
+	envAttributeJSON, err := yaml.YAMLToJSON([]byte(envAttribute.AttributeValue))
+	if err != nil {
+		logrus.Warn("envAttribute yaml to json error", err)
+		return envs, nil
+	}
+	err = json.Unmarshal(envAttributeJSON, &customEnvs)
+	if err != nil {
+		logrus.Warn("envAttribute json unmarshal error", err)
+		return envs, nil
+	}
+	envs = append(envs, customEnvs...)
 	return envs, nil
 }
 
