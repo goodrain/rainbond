@@ -469,7 +469,7 @@ type HandleResource struct {
 //YamlResource -
 type YamlResource struct {
 	EventID   string `json:"event_id"`
-	K8SApp    string `json:"k8s_app"`
+	AppID     string `json:"region_app_id"`
 	TenantID  string `json:"tenant_id"`
 	Namespace string `json:"namespace"`
 }
@@ -2059,4 +2059,3 @@ type SyncAppConfigGroup struct {
 type AppStatusesReq struct {
 	AppIDs []string `json:"app_ids"`
 }
-

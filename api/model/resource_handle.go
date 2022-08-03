@@ -1,5 +1,13 @@
 package model
 
+import (
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+)
+
 //LabelResource -
 type LabelResource struct {
 	Workloads WorkLoadsResource   `json:"workloads,omitempty"`
@@ -30,12 +38,41 @@ type LabelOthersResourceProcess struct {
 	Roles                    map[string][]string `json:"roles,omitempty"`
 }
 
+//YamlResourceParameter -
+type YamlResourceParameter struct {
+	ComponentsCR *[]ConvertResource
+	Basic        BasicManagement
+	Template     corev1.PodTemplateSpec
+	Namespace    string
+	Name         string
+	RsLabel      map[string]string
+	CMs          []corev1.ConfigMap
+	HPAs         []autoscalingv1.HorizontalPodAutoscaler
+}
+
+//K8sResourceObject -
+type K8sResourceObject struct {
+	FileName       string
+	BuildResources []BuildResource
+	Error          string
+}
+
 //WorkLoadsResource -
 type WorkLoadsResource struct {
 	Deployments  []string `json:"deployments,omitempty"`
 	Jobs         []string `json:"jobs,omitempty"`
 	CronJobs     []string `json:"cron_jobs,omitempty"`
 	StateFulSets []string `json:"state_ful_sets,omitempty"`
+}
+
+//BuildResource -
+type BuildResource struct {
+	Resource      *unstructured.Unstructured
+	State         int
+	ErrorOverview string
+	Dri           dynamic.ResourceInterface
+	DC            dynamic.Interface
+	GVK           *schema.GroupVersionKind
 }
 
 //OtherResource -

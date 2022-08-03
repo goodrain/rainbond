@@ -105,10 +105,10 @@ type K8sResource struct {
 	Kind string `gorm:"column:kind" json:"kind"`
 	// Yaml file for the storage resource
 	Content string `gorm:"column:content;type:longtext" json:"content"`
-	// resource create status
-	Status string `gorm:"column:status;type:longtext" json:"status"`
+	// resource create error overview
+	ErrorOverview string `gorm:"column:status;type:longtext" json:"error_overview"`
 	//whether it was created successfully
-	Success int `gorm:"column:success;type:int" json:"success"`
+	State int `gorm:"column:success;type:int" json:"state"`
 }
 
 // TableName return tableName "k8s_resources"

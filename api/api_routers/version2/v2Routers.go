@@ -101,8 +101,9 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Post("/k8s-resource", controller.GetManager().AddResource)
 	r.Delete("/k8s-resource", controller.GetManager().DeleteResource)
 	r.Put("/k8s-resource", controller.GetManager().UpdateResource)
-	//r.Get("/yaml_resource_name", controller.GetManager().YamlResourceName)
-
+	r.Get("/yaml_resource_name", controller.GetManager().YamlResourceName)
+	r.Get("/yaml_resource_detailed", controller.GetManager().YamlResourceDetailed)
+	r.Post("/yaml_resource_import", controller.GetManager().YamlResourceImport)
 	return r
 }
 
