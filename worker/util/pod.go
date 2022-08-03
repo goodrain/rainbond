@@ -94,6 +94,19 @@ func DescribePodStatus(clientset kubernetes.Interface, pod *corev1.Pod, podStatu
 				if cstatus.State.Terminated.Reason == "OOMKilled" {
 					podStatus.Advice = PodStatusAdviceOOM.String()
 				}
+				for _, OwnerReference := range pod.OwnerReferences{
+					if OwnerReference.Kind == "Job"{
+						if cstatus.State.Terminated.Reason == "Completed" {
+							podStatus.Type = pb.PodStatus_SUCCEEDED
+						}
+						if cstatus.State.Terminated.Reason == "DeadlineExceeded" {
+							podStatus.Type = pb.PodStatus_FAILED
+						}
+						if cstatus.State.Terminated.Reason == "Error" {
+							podStatus.Type = pb.PodStatus_ABNORMAL
+						}
+					}
+				}
 				return
 			}
 			if !cstatus.Ready {

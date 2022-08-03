@@ -19,13 +19,15 @@
 package conversion
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/builder/sources"
 	"net"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/goodrain/rainbond/builder/sources"
 
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
@@ -41,6 +43,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/yaml"
 )
 
 //TenantServiceVersion service deploy version conv. define pod spec
@@ -70,20 +73,18 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		dv.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes", "/grdata/kubernetes", corev1.HostPathDirectoryOrCreate, true)
 	}
 	nodeSelector := createNodeSelector(as, dbmanager)
-	tolerations := createToleration(nodeSelector)
-	injectLabels := getInjectLabels(as)
+	labels := createLabels(as, dbmanager)
+	tolerations := createToleration(nodeSelector, as, dbmanager)
+	volumes := getVolumes(dv, as, dbmanager)
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: as.GetCommonLabels(map[string]string{
-				"name":    as.ServiceAlias,
-				"version": as.DeployVersion,
-			}, injectLabels),
+			Labels:      labels,
 			Annotations: createPodAnnotations(as),
 			Name:        as.GetK8sWorkloadName() + "-pod-spec",
 		},
 		Spec: corev1.PodSpec{
 			ImagePullSecrets: setImagePullSecrets(),
-			Volumes:          dv.GetVolumes(),
+			Volumes:          volumes,
 			Containers:       []corev1.Container{*container},
 			NodeSelector:     nodeSelector,
 			Tolerations:      tolerations,
@@ -113,13 +114,20 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				}
 				return ""
 			}(),
+			ServiceAccountName: createServiceAccountName(as, dbmanager),
 		},
 	}
 	var terminationGracePeriodSeconds int64 = 10
 	if as.GetDeployment() != nil {
 		podtmpSpec.Spec.TerminationGracePeriodSeconds = &terminationGracePeriodSeconds
 	}
-	//set to deployment or statefulset
+	if as.GetJob() != nil {
+		podtmpSpec.Spec.RestartPolicy = "Never"
+	}
+	if as.GetCronJob() != nil {
+		podtmpSpec.Spec.RestartPolicy = "Never"
+	}
+	//set to deployment or statefulset job or cronjob
 	as.SetPodTemplate(podtmpSpec)
 	return nil
 }
@@ -158,7 +166,7 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		Ports:          ports,
 		Env:            envs,
 		EnvFrom:        envFromSecrets,
-		VolumeMounts:   dv.GetVolumeMounts(),
+		VolumeMounts:   createVolumeMounts(dv, as, dbmanager),
 		LivenessProbe:  createProbe(as, dbmanager, "liveness"),
 		ReadinessProbe: createProbe(as, dbmanager, "readiness"),
 		Resources:      resources,
@@ -171,6 +179,17 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 	if label != nil {
 		logrus.Infof("service id: %s; enable privileged.", as.ServiceID)
 		c.SecurityContext = &corev1.SecurityContext{Privileged: util.Bool(true)}
+	}
+	privilegedAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNamePrivileged)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, fmt.Errorf("get by privileged attribute error: %v", err)
+	}
+	if privilegedAttribute != nil {
+		pril, err := strconv.ParseBool(privilegedAttribute.AttributeValue)
+		if err != nil {
+			return nil, err
+		}
+		c.SecurityContext = &corev1.SecurityContext{Privileged: util.Bool(pril)}
 	}
 	return c, nil
 }
@@ -364,6 +383,23 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 			as.ExtensionSet[strings.ToLower(k[3:])] = v
 		}
 	}
+	var customEnvs []corev1.EnvVar
+	envAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameENV)
+	if err != nil {
+		logrus.Warn("get by env attribute error", err)
+		return envs, nil
+	}
+	envAttributeJSON, err := yaml.YAMLToJSON([]byte(envAttribute.AttributeValue))
+	if err != nil {
+		logrus.Warn("envAttribute yaml to json error", err)
+		return envs, nil
+	}
+	err = json.Unmarshal(envAttributeJSON, &customEnvs)
+	if err != nil {
+		logrus.Warn("envAttribute json unmarshal error", err)
+		return envs, nil
+	}
+	envs = append(envs, customEnvs...)
 	return envs, nil
 }
 
@@ -492,6 +528,28 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, envs []corev
 		define.SetVolume(dbmodel.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", version.DeliveredPath, corev1.HostPathFile, true)
 	}
 	return define, nil
+}
+
+func getVolumes(dv *volume.Define, as *v1.AppService, dbmanager db.Manager) []corev1.Volume {
+	volumes := dv.GetVolumes()
+	volumeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameVolumes)
+	if err != nil {
+		logrus.Warn("get by volumes attribute error", err)
+		return volumes
+	}
+	var vs []corev1.Volume
+	VolumeAttributeJSON, err := yaml.YAMLToJSON([]byte(volumeAttribute.AttributeValue))
+	if err != nil {
+		logrus.Warn("volumeAttribute yaml to json error", err)
+		return volumes
+	}
+	err = json.Unmarshal(VolumeAttributeJSON, &vs)
+	if err != nil {
+		logrus.Warn("volumeAttribute json unmarshal error", err)
+		return volumes
+	}
+	volumes = append(volumes, vs...)
+	return volumes
 }
 
 func createResources(as *v1.AppService) corev1.ResourceRequirements {
@@ -661,8 +719,42 @@ func createNodeSelector(as *v1.AppService, dbmanager db.Manager) map[string]stri
 			}
 		}
 	}
+	selectorAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameNodeSelector)
+	if err != nil {
+		logrus.Warn("get by NodeSelector attribute error", err)
+		return selector
+	}
+	err = json.Unmarshal([]byte(selectorAttribute.AttributeValue), &selector)
+	if err != nil {
+		logrus.Warn("selector json unmarshal error", err)
+		return selector
+	}
 	return selector
 }
+
+func createLabels(as *v1.AppService, dbmanager db.Manager) map[string]string {
+	labels := make(map[string]string)
+	labels["name"] = as.ServiceAlias
+	labels["version"] = as.DeployVersion
+	injectLabels := getInjectLabels(as)
+	resultLabel := as.GetCommonLabels(labels, injectLabels)
+
+	labelsAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLabels)
+	if err != nil {
+		logrus.Warn("get by labels attribute error", err)
+		return resultLabel
+	}
+	err = json.Unmarshal([]byte(labelsAttribute.AttributeValue), &labels)
+	if err != nil {
+		logrus.Warn("labels json unmarshal error", err)
+		return resultLabel
+	}
+	for k, v := range labels {
+		resultLabel[k] = v
+	}
+	return resultLabel
+}
+
 func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 	var affinity corev1.Affinity
 	nsr := make([]corev1.NodeSelectorRequirement, 0)
@@ -769,6 +861,21 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 			RequiredDuringSchedulingIgnoredDuringExecution: podAntAffinity,
 		}
 	}
+	affinityAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameAffinity)
+	if err != nil {
+		logrus.Warn("get by affinity attribute error", err)
+		return &affinity
+	}
+	AffinityAttributeJSON, err := yaml.YAMLToJSON([]byte(affinityAttribute.AttributeValue))
+	if err != nil {
+		logrus.Warn("Affinity attribute yaml to json error", err)
+		return &affinity
+	}
+	err = json.Unmarshal(AffinityAttributeJSON, &affinity)
+	if err != nil {
+		logrus.Warn("affinity json unmarshal error", err)
+		return &affinity
+	}
 	return &affinity
 }
 
@@ -795,7 +902,7 @@ func setImagePullSecrets() []corev1.LocalObjectReference {
 	}
 }
 
-func createToleration(nodeSelector map[string]string) []corev1.Toleration {
+func createToleration(nodeSelector map[string]string, as *v1.AppService, dbmanager db.Manager) []corev1.Toleration {
 	var tolerations []corev1.Toleration
 	if value, exist := nodeSelector["type"]; exist && value == "virtual-kubelet" {
 		tolerations = append(tolerations, corev1.Toleration{
@@ -803,6 +910,24 @@ func createToleration(nodeSelector map[string]string) []corev1.Toleration {
 			Operator: corev1.TolerationOpExists,
 		})
 	}
+	tolerationAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameTolerations)
+	if err != nil {
+		logrus.Warn("get by toleration attribute error", err)
+		return tolerations
+	}
+	var tolers []corev1.Toleration
+	tolerationAttributeJSON, err := yaml.YAMLToJSON([]byte(tolerationAttribute.AttributeValue))
+	if err != nil {
+		logrus.Warn("toleration attribute yaml to json error", err)
+		return tolerations
+	}
+	err = json.Unmarshal(tolerationAttributeJSON, &tolers)
+	if err != nil {
+		logrus.Warn("toleration json unmarshal error", err)
+		return tolerations
+	}
+	tolerations = append(tolerations, tolers...)
+
 	return tolerations
 }
 
@@ -824,4 +949,38 @@ func createHostAliases(as *v1.AppService) []corev1.HostAlias {
 		re = append(re, *cache[k])
 	}
 	return re
+}
+
+func createServiceAccountName(as *v1.AppService, dbmanager db.Manager) string {
+	var serviceAN string
+	sa, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameServiceAccountName)
+	if err != nil {
+		logrus.Warn("get by ServiceAccountName attribute error", err)
+		return ""
+	}
+	serviceAN = sa.AttributeValue
+	return serviceAN
+}
+
+func createVolumeMounts(dv *volume.Define, as *v1.AppService, dbmanager db.Manager) []corev1.VolumeMount {
+	volumeMounts := dv.GetVolumeMounts()
+	volumeMountsAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameVolumeMounts)
+	if err != nil {
+		logrus.Warn("get by volumeMounts attribute error", err)
+		return volumeMounts
+	}
+
+	var vms []corev1.VolumeMount
+	VolumeMountsAttributeJSON, err := yaml.YAMLToJSON([]byte(volumeMountsAttribute.AttributeValue))
+	if err != nil {
+		logrus.Warn("volumeMounts attribute yaml to json error", err)
+		return volumeMounts
+	}
+	err = json.Unmarshal(VolumeMountsAttributeJSON, &vms)
+	if err != nil {
+		logrus.Warn("volumeMounts json unmarshal error", err)
+		return volumeMounts
+	}
+	volumeMounts = append(volumeMounts, vms...)
+	return volumeMounts
 }

@@ -92,6 +92,13 @@ func (r *RepostoryBuildInfo) GetProtocol() string {
 //CreateRepostoryBuildInfo 创建源码编译信息
 //repoType git or svn
 func CreateRepostoryBuildInfo(repoURL, repoType, branch, tenantID string, ServiceID string) (*RepostoryBuildInfo, error) {
+	if repoType == "pkg" {
+		return &RepostoryBuildInfo{
+			RepostoryURL:     repoURL,
+			RepostoryURLType: repoType,
+			CodeHome: repoURL,
+		}, nil
+	}
 	// repoURL= github.com/goodrain/xxx.git?dir=home
 	ep, err := transport.NewEndpoint(repoURL)
 	if err != nil {

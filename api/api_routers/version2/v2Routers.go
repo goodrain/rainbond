@@ -392,6 +392,10 @@ func (v2 *V2) appRouter() chi.Router {
 	r.Post("/import", controller.GetManager().ImportApp)
 	r.Get("/import/{eventID}", controller.GetManager().ImportApp)
 	r.Delete("/import/{eventID}", controller.GetManager().ImportApp)
+
+	r.Post("/upload/events/{eventID}", controller.GetManager().UploadID)
+	r.Get("/upload/events/{eventID}", controller.GetManager().UploadID)
+	r.Delete("/upload/events/{eventID}", controller.GetManager().UploadID)
 	return r
 }
 

@@ -937,6 +937,9 @@ func (s *ServiceAction) ServiceUpdate(sc map[string]interface{}) error {
 		ts.ExtendMethod = extendMethod
 		ts.ServiceType = extendMethod
 	}
+	if js, ok := sc["job_strategy"].(string); ok {
+		ts.JobStrategy = js
+	}
 	//update component
 	if err := db.GetManager().TenantServiceDao().UpdateModel(ts); err != nil {
 		logrus.Errorf("update service error, %v", err)
@@ -2985,6 +2988,8 @@ func TransStatus(eStatus string) string {
 		return "未部署"
 	case "deployed":
 		return "已部署"
+	case "succeeded":
+		return "已完成"
 	}
 	return ""
 }

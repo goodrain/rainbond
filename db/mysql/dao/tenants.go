@@ -2044,7 +2044,7 @@ func (t *ComponentK8sAttributeDaoImpl) UpdateModel(mo model.Interface) error {
 // GetByComponentIDAndName -
 func (t *ComponentK8sAttributeDaoImpl) GetByComponentIDAndName(componentID, name string) (*model.ComponentK8sAttributes, error) {
 	var record model.ComponentK8sAttributes
-	if err := t.DB.Where("component_id=? and name=?", componentID, name).Find(&record).Error; err != nil {
+	if err := t.DB.Where("component_id=? and name=?", componentID, name).Take(&record).Error; err != nil {
 		return nil, err
 	}
 	return &record, nil

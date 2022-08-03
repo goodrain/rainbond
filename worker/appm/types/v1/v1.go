@@ -20,10 +20,12 @@ package v1
 
 import (
 	"fmt"
-	"github.com/goodrain/rainbond/util/k8s"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/goodrain/rainbond/util/k8s"
+	betav1 "k8s.io/api/networking/v1beta1"
 
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db/model"
@@ -33,9 +35,10 @@ import (
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
+	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	betav1 "k8s.io/api/networking/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -70,6 +73,12 @@ var TypeStatefulSet AppServiceType = "statefulset"
 
 //TypeDeployment deployment
 var TypeDeployment AppServiceType = "deployment"
+
+//TypeJob deployment
+var TypeJob AppServiceType = "job"
+
+//TypeCronJob deployment
+var TypeCronJob AppServiceType = "cronjob"
 
 //TypeReplicationController rc
 var TypeReplicationController AppServiceType = "replicationcontroller"
@@ -153,6 +162,8 @@ type AppService struct {
 	tenant           *corev1.Namespace
 	statefulset      *v1.StatefulSet
 	deployment       *v1.Deployment
+	job              *batchv1.Job
+	cronjob          *v1beta1.CronJob
 	workload         runtime.Object
 	hpas             []*autoscalingv2.HorizontalPodAutoscaler
 	delHPAs          []*autoscalingv2.HorizontalPodAutoscaler
@@ -231,6 +242,36 @@ func (a *AppService) SetStatefulSet(d *v1.StatefulSet) {
 		a.DeployVersion = v
 	}
 	a.Replicas = int(*d.Spec.Replicas)
+	a.calculateComponentMemoryRequest()
+}
+
+//GetJob get kubernetes job model
+func (a AppService) GetJob() *batchv1.Job {
+	return a.job
+}
+
+//SetJob set kubernetes job model
+func (a *AppService) SetJob(d *batchv1.Job) {
+	a.job = d
+	a.workload = d
+	if v, ok := d.Spec.Template.Labels["version"]; ok && v != "" {
+		a.DeployVersion = v
+	}
+	a.calculateComponentMemoryRequest()
+}
+
+//GetCronJob get kubernetes cronjob model
+func (a AppService) GetCronJob() *v1beta1.CronJob {
+	return a.cronjob
+}
+
+//SetCronJob set kubernetes cronjob model
+func (a *AppService) SetCronJob(d *v1beta1.CronJob) {
+	a.cronjob = d
+	a.workload = d
+	if v, ok := d.Spec.JobTemplate.Labels["version"]; ok && v != "" {
+		a.DeployVersion = v
+	}
 	a.calculateComponentMemoryRequest()
 }
 
@@ -522,6 +563,12 @@ func (a *AppService) SetPodTemplate(d corev1.PodTemplateSpec) {
 	if a.deployment != nil {
 		a.deployment.Spec.Template = d
 	}
+	if a.job != nil {
+		a.job.Spec.Template = d
+	}
+	if a.cronjob != nil {
+		a.cronjob.Spec.JobTemplate.Spec.Template = d
+	}
 	a.calculateComponentMemoryRequest()
 }
 
@@ -532,6 +579,12 @@ func (a *AppService) GetPodTemplate() *corev1.PodTemplateSpec {
 	}
 	if a.deployment != nil {
 		return &a.deployment.Spec.Template
+	}
+	if a.job != nil {
+		return &a.job.Spec.Template
+	}
+	if a.cronjob != nil {
+		return &a.cronjob.Spec.JobTemplate.Spec.Template
 	}
 	return nil
 }

@@ -1,7 +1,12 @@
 package controller
 
 import (
+	"fmt"
+	"github.com/sirupsen/logrus"
+	"io"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/goodrain/rainbond/api/client/prometheus"
 
@@ -58,6 +63,59 @@ func (t *TenantStruct) UpdateServiceMonitors(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	httputil.ReturnSuccess(r, w, tsm)
+}
+
+//UploadPackage upload package
+func (t *TenantStruct) UploadPackage(w http.ResponseWriter, r *http.Request) {
+	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
+	switch r.Method {
+	case "POST":
+		if eventID == "" {
+			httputil.ReturnError(r, w, 400, "Failed to parse eventID.")
+			return
+		}
+		logrus.Debug("Start receive upload file: ", eventID)
+		reader, header, err := r.FormFile("packageTarFile")
+		if err != nil {
+			logrus.Errorf("Failed to parse upload file: %s", err.Error())
+			httputil.ReturnError(r, w, 501, "Failed to parse upload file.")
+			return
+		}
+		defer reader.Close()
+
+		dirName := fmt.Sprintf("/grdata/package_build/temp/events/%s", eventID)
+		os.MkdirAll(dirName, 0755)
+
+		fileName := fmt.Sprintf("%s/%s", dirName, header.Filename)
+		file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE, 0644)
+		if err != nil {
+			logrus.Errorf("Failed to open file: %s", err.Error())
+			httputil.ReturnError(r, w, 502, "Failed to open file: "+err.Error())
+		}
+		defer file.Close()
+
+		logrus.Debug("Start write file to: ", fileName)
+		if _, err := io.Copy(file, reader); err != nil {
+			logrus.Errorf("Failed to write file：%s", err.Error())
+			httputil.ReturnError(r, w, 503, "Failed to write file: "+err.Error())
+		}
+
+		logrus.Debug("successful write file to: ", fileName)
+		origin := r.Header.Get("Origin")
+		w.Header().Add("Access-Control-Allow-Origin", origin)
+		w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
+		w.Header().Add("Access-Control-Allow-Credentials", "true")
+		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
+		httputil.ReturnSuccess(r, w, nil)
+
+	case "OPTIONS":
+		origin := r.Header.Get("Origin")
+		w.Header().Add("Access-Control-Allow-Origin", origin)
+		w.Header().Add("Access-Control-Allow-Methods", "POST,OPTIONS")
+		w.Header().Add("Access-Control-Allow-Credentials", "true")
+		w.Header().Add("Access-Control-Allow-Headers", "x-requested-with,Content-Type,X-Custom-Header")
+		httputil.ReturnSuccess(r, w, nil)
+	}
 }
 
 //GetMonitorMetrics get monitor metrics

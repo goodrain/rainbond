@@ -115,10 +115,12 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 			yamlbody = string(yamlbyte)
 		}
 		pr = parser.CreateDockerComposeParse(yamlbody, e.DockerClient, input.Username, input.Password, logger)
-	case "sourcecode":
+	case "sourcecode" :
 		pr = parser.CreateSourceCodeParse(input.SourceBody, logger)
 	case "third-party-service":
 		pr = parser.CreateThirdPartyServiceParse(input.SourceBody, logger)
+	case "package_build":
+		pr = parser.CreateSourceCodeParse(input.SourceBody, logger)
 	}
 	if pr == nil {
 		logger.Error("Creating component source types is not supported", map[string]string{"step": "callback", "status": "failure"})

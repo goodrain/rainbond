@@ -48,6 +48,7 @@ func (c *clusterAction) workloadDeployments(dmNames []string, namespace string) 
 			logrus.Errorf("Failed to get Deployment %v:%v", dmName, err)
 			return nil
 		}
+
 		//BasicManagement
 		basic := model.BasicManagement{
 			ResourceType: model.Deployment,

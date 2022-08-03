@@ -19,10 +19,17 @@
 package conversion
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+
+	apimodel "github.com/goodrain/rainbond/api/model"
+
 	"github.com/goodrain/rainbond/api/handler/app_governance_mode/adaptor"
 	"github.com/sirupsen/logrus"
-	"strings"
+	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/api/batch/v1beta1"
 
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -130,6 +137,14 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	as.ContainerGPU = tenantService.ContainerGPU
 	as.ContainerMemory = tenantService.ContainerMemory
 	as.Replicas = tenantService.Replicas
+	if tenantService.IsJob() {
+		initBaseJob(as, tenantService)
+		return nil
+	}
+	if tenantService.IsCronJob() {
+		initBaseCronJob(as, tenantService)
+		return nil
+	}
 	if !tenantService.IsState() {
 		initBaseDeployment(as, tenantService)
 		return nil
@@ -214,6 +229,116 @@ func initBaseDeployment(as *v1.AppService, service *dbmodel.TenantServices) {
 		deployment.Spec.Strategy.Type = appsv1.RecreateDeploymentStrategyType
 	}
 	as.SetDeployment(deployment)
+}
+
+func initBaseJob(as *v1.AppService, service *dbmodel.TenantServices) {
+	as.ServiceType = v1.TypeJob
+	job := as.GetJob()
+	if job == nil {
+		job = &batchv1.Job{}
+	}
+	job.Namespace = as.GetNamespace()
+	if job.Spec.Selector == nil {
+		job.Spec.Selector = &metav1.LabelSelector{}
+	}
+	job.Name = as.GetK8sWorkloadName()
+	job.GenerateName = strings.Replace(service.ServiceAlias, "_", "-", -1)
+	injectLabels := getInjectLabels(as)
+	job.Labels = as.GetCommonLabels(job.Labels, map[string]string{
+		"name":    service.ServiceAlias,
+		"version": service.DeployVersion,
+	}, injectLabels)
+
+	var js *apimodel.JobStrategy
+	if service.JobStrategy != ""{
+		err := json.Unmarshal([]byte(service.JobStrategy), &js)
+		if err != nil {
+			logrus.Error("job strategy json unmarshal error", err)
+		}
+		if js.ActiveDeadlineSeconds != "" {
+			ads, err := strconv.ParseInt(js.ActiveDeadlineSeconds, 10, 64)
+			if err == nil {
+				job.Spec.ActiveDeadlineSeconds = &ads
+			}
+		}
+		if js.BackoffLimit != "" {
+			res, err := strconv.ParseInt(js.BackoffLimit, 10, 32)
+			if err == nil {
+				bkl := int32(res)
+				job.Spec.BackoffLimit = &bkl
+			}
+		}
+		if js.Parallelism != "" {
+			res, err := strconv.ParseInt(js.Parallelism, 10, 32)
+			if err == nil {
+				pll := int32(res)
+				job.Spec.Parallelism = &pll
+			}
+		}
+		if js.Completions != "" {
+			res, err := strconv.ParseInt(js.Completions, 10, 32)
+			if err == nil {
+				cpt := int32(res)
+				job.Spec.Completions = &cpt
+			}
+		}
+	}
+	as.SetJob(job)
+}
+
+func initBaseCronJob(as *v1.AppService, service *dbmodel.TenantServices) {
+	as.ServiceType = v1.TypeCronJob
+	cronJob := as.GetCronJob()
+	if cronJob == nil {
+		cronJob = &v1beta1.CronJob{}
+	}
+	injectLabels := getInjectLabels(as)
+	jobTemp := v1beta1.JobTemplateSpec{}
+	jobTemp.Name = as.GetK8sWorkloadName()
+	jobTemp.Namespace = as.GetNamespace()
+	jobTemp.Labels = as.GetCommonLabels(jobTemp.Labels, map[string]string{
+		"name":    service.ServiceAlias,
+		"version": service.DeployVersion,
+	}, injectLabels)
+	if service.JobStrategy != ""{
+		var js *apimodel.JobStrategy
+		err := json.Unmarshal([]byte(service.JobStrategy), &js)
+		if err != nil {
+			logrus.Error("job strategy json unmarshal error", err)
+		}
+		if js.ActiveDeadlineSeconds != "" {
+			ads, err := strconv.ParseInt(js.ActiveDeadlineSeconds, 10, 64)
+			if err == nil {
+				jobTemp.Spec.ActiveDeadlineSeconds = &ads
+			}
+		}
+		if js.BackoffLimit != "" {
+			res, err := strconv.ParseInt(js.BackoffLimit, 10, 32)
+			if err == nil {
+				bkl := int32(res)
+				jobTemp.Spec.BackoffLimit = &bkl
+			}
+		}
+		if js.Parallelism != "" {
+			res, err := strconv.ParseInt(js.Parallelism, 10, 32)
+			if err == nil {
+				pll := int32(res)
+				jobTemp.Spec.Parallelism = &pll
+			}
+		}
+		if js.Completions != "" {
+			res, err := strconv.ParseInt(js.Completions, 10, 32)
+			if err == nil {
+				cpt := int32(res)
+				jobTemp.Spec.Completions = &cpt
+			}
+		}
+		cronJob.Spec.Schedule = js.Schedule
+	}
+	cronJob.Spec.JobTemplate = jobTemp
+	cronJob.Namespace = as.GetNamespace()
+	cronJob.Name = as.GetK8sWorkloadName()
+	as.SetCronJob(cronJob)
 }
 
 func getInjectLabels(as *v1.AppService) map[string]string {
