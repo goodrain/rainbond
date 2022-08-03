@@ -42,7 +42,7 @@ func (c *clusterAction) ResourceImport(namespace string, as map[string]model.App
 			}
 			var componentAttributes []model.ComponentAttributes
 			for _, componentResource := range components.ConvertResource {
-				component, err := c.CreateComponent(app, tenant.UUID, componentResource, namespace)
+				component, err := c.CreateComponent(app, tenant.UUID, componentResource, namespace, false)
 				if err != nil {
 					logrus.Errorf("%v", err)
 					return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
@@ -152,7 +152,7 @@ func (c *clusterAction) CreateK8sResource(tx *gorm.DB, k8sResources []dbmodel.K8
 	return k8sResources, err
 }
 
-func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID string, component model.ConvertResource, namespace string) (*dbmodel.TenantServices, error) {
+func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID string, component model.ConvertResource, namespace string, isYaml bool) (*dbmodel.TenantServices, error) {
 	var extendMethod string
 	switch component.BasicManagement.ResourceType {
 	case model.Deployment:
@@ -202,95 +202,95 @@ func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID strin
 		logrus.Errorf("add service error, %v", err)
 		return nil, err
 	}
-	changeLabel := func(label map[string]string) map[string]string {
-		label[constants.ResourceManagedByLabel] = constants.Rainbond
-		label["service_id"] = serviceID
-		label["version"] = ts.DeployVersion
-		label["creater_id"] = string(rainbondutil.NewTimeVersion())
-		label["migrator"] = "rainbond"
-		label["creator"] = "Rainbond"
-		return label
-	}
-	switch component.BasicManagement.ResourceType {
-	case model.Deployment:
-		dm, err := c.clientset.AppsV1().Deployments(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
-		if err != nil {
-			logrus.Errorf("failed to get %v Deployments %v:%v", namespace, component.ComponentsName, err)
-			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get Deployments %v:%v", namespace, err)}
+	if !isYaml {
+		changeLabel := func(label map[string]string) map[string]string {
+			label[constants.ResourceManagedByLabel] = constants.Rainbond
+			label["service_id"] = serviceID
+			label["version"] = ts.DeployVersion
+			label["creater_id"] = string(rainbondutil.NewTimeVersion())
+			label["migrator"] = "rainbond"
+			label["creator"] = "Rainbond"
+			return label
 		}
-		if dm.Labels == nil {
-			dm.Labels = make(map[string]string)
-		}
-		if dm.Spec.Template.Labels == nil {
-			dm.Spec.Template.Labels = make(map[string]string)
-		}
-		dm.Labels = changeLabel(dm.Labels)
-		dm.Spec.Template.Labels = changeLabel(dm.Spec.Template.Labels)
-		_, err = c.clientset.AppsV1().Deployments(namespace).Update(context.Background(), dm, metav1.UpdateOptions{})
-		if err != nil {
-			logrus.Errorf("failed to update Deployments %v:%v", namespace, err)
-			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update Deployments %v:%v", namespace, err)}
-		}
-	case model.Job:
-		job, err := c.clientset.BatchV1().Jobs(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
-		if err != nil {
-			logrus.Errorf("failed to get %v Jobs %v:%v", namespace, component.ComponentsName, err)
-			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get Jobs %v:%v", namespace, err)}
-		}
-		if job.Labels == nil {
-			job.Labels = make(map[string]string)
-		}
-		job.Labels = changeLabel(job.Labels)
-		if job.Spec.Template.Labels == nil {
-			job.Spec.Template.Labels = make(map[string]string)
-		}
-		job.Spec.Template.Labels = changeLabel(job.Spec.Template.Labels)
-		_, err = c.clientset.BatchV1().Jobs(namespace).Update(context.Background(), job, metav1.UpdateOptions{})
-		if err != nil {
-			logrus.Errorf("failed to update StatefulSets %v:%v", namespace, err)
-			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update StatefulSets %v:%v", namespace, err)}
-		}
-	case model.CronJob:
-		cr, err := c.clientset.BatchV1beta1().CronJobs(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
-		if err != nil {
-			logrus.Errorf("failed to get %v CronJob %v:%v", namespace, component.ComponentsName, err)
-			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get CronJob %v:%v", namespace, err)}
-		}
-		if cr.Labels == nil {
-			cr.Labels = make(map[string]string)
-		}
-		cr.Labels = changeLabel(cr.Labels)
-		if cr.Spec.JobTemplate.Labels == nil {
-			cr.Spec.JobTemplate.Labels = make(map[string]string)
-		}
-		cr.Spec.JobTemplate.Labels = changeLabel(cr.Spec.JobTemplate.Labels)
-		if cr.Spec.JobTemplate.Spec.Template.Labels == nil {
-			cr.Spec.JobTemplate.Spec.Template.Labels = make(map[string]string)
-		}
-		cr.Spec.JobTemplate.Spec.Template.Labels = changeLabel(cr.Spec.JobTemplate.Spec.Template.Labels)
-		_, err = c.clientset.BatchV1beta1().CronJobs(namespace).Update(context.Background(), cr, metav1.UpdateOptions{})
-		if err != nil {
-			logrus.Errorf("failed to update CronJobs %v:%v", namespace, err)
-			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update CronJobs %v:%v", namespace, err)}
-		}
-	case model.StateFulSet:
-		sfs, err := c.clientset.AppsV1().StatefulSets(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
-		if err != nil {
-			logrus.Errorf("failed to get %v StatefulSets %v:%v", namespace, component.ComponentsName, err)
-			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get StatefulSets %v:%v", namespace, err)}
-		}
-		if sfs.Labels == nil {
-			sfs.Labels = make(map[string]string)
-		}
-		sfs.Labels = changeLabel(sfs.Labels)
-		if sfs.Spec.Template.Labels == nil {
-			sfs.Spec.Template.Labels = make(map[string]string)
-		}
-		sfs.Spec.Template.Labels = changeLabel(sfs.Spec.Template.Labels)
-		_, err = c.clientset.AppsV1().StatefulSets(namespace).Update(context.Background(), sfs, metav1.UpdateOptions{})
-		if err != nil {
-			logrus.Errorf("failed to update StatefulSets %v:%v", namespace, err)
-			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update StatefulSets %v:%v", namespace, err)}
+		switch component.BasicManagement.ResourceType {
+		case model.Deployment:
+			dm, err := c.clientset.AppsV1().Deployments(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
+			if err != nil {
+				logrus.Errorf("failed to get %v Deployments %v:%v", namespace, component.ComponentsName, err)
+				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get Deployments %v:%v", namespace, err)}
+			}
+			if dm.Labels == nil {
+				dm.Labels = make(map[string]string)
+			}
+			if dm.Spec.Template.Labels == nil {
+				dm.Spec.Template.Labels = make(map[string]string)
+			}
+			dm.Labels = changeLabel(dm.Labels)
+			dm.Spec.Template.Labels = changeLabel(dm.Spec.Template.Labels)
+			_, err = c.clientset.AppsV1().Deployments(namespace).Update(context.Background(), dm, metav1.UpdateOptions{})
+			if err != nil {
+				logrus.Errorf("failed to update Deployments %v:%v", namespace, err)
+				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update Deployments %v:%v", namespace, err)}
+			}
+		case model.Job:
+			job, err := c.clientset.BatchV1().Jobs(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
+			if err != nil {
+				logrus.Errorf("failed to get %v Jobs %v:%v", namespace, component.ComponentsName, err)
+				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get Jobs %v:%v", namespace, err)}
+			}
+			if job.Labels == nil {
+				job.Labels = make(map[string]string)
+			}
+			job.Labels = changeLabel(job.Labels)
+			if job.Spec.Template.Labels == nil {
+				job.Spec.Template.Labels = make(map[string]string)
+			}
+			_, err = c.clientset.BatchV1().Jobs(namespace).Update(context.Background(), job, metav1.UpdateOptions{})
+			if err != nil {
+				logrus.Errorf("failed to update StatefulSets %v:%v", namespace, err)
+				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update StatefulSets %v:%v", namespace, err)}
+			}
+		case model.CronJob:
+			cr, err := c.clientset.BatchV1beta1().CronJobs(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
+			if err != nil {
+				logrus.Errorf("failed to get %v CronJob %v:%v", namespace, component.ComponentsName, err)
+				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get CronJob %v:%v", namespace, err)}
+			}
+			if cr.Labels == nil {
+				cr.Labels = make(map[string]string)
+			}
+			cr.Labels = changeLabel(cr.Labels)
+			if cr.Spec.JobTemplate.Labels == nil {
+				cr.Spec.JobTemplate.Labels = make(map[string]string)
+			}
+			cr.Spec.JobTemplate.Labels = changeLabel(cr.Spec.JobTemplate.Labels)
+			if cr.Spec.JobTemplate.Spec.Template.Labels == nil {
+				cr.Spec.JobTemplate.Spec.Template.Labels = make(map[string]string)
+			}
+			_, err = c.clientset.BatchV1beta1().CronJobs(namespace).Update(context.Background(), cr, metav1.UpdateOptions{})
+			if err != nil {
+				logrus.Errorf("failed to update CronJobs %v:%v", namespace, err)
+				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update CronJobs %v:%v", namespace, err)}
+			}
+		case model.StateFulSet:
+			sfs, err := c.clientset.AppsV1().StatefulSets(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
+			if err != nil {
+				logrus.Errorf("failed to get %v StatefulSets %v:%v", namespace, component.ComponentsName, err)
+				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get StatefulSets %v:%v", namespace, err)}
+			}
+			if sfs.Labels == nil {
+				sfs.Labels = make(map[string]string)
+			}
+			sfs.Labels = changeLabel(sfs.Labels)
+			if sfs.Spec.Template.Labels == nil {
+				sfs.Spec.Template.Labels = make(map[string]string)
+			}
+			sfs.Spec.Template.Labels = changeLabel(sfs.Spec.Template.Labels)
+			_, err = c.clientset.AppsV1().StatefulSets(namespace).Update(context.Background(), sfs, metav1.UpdateOptions{})
+			if err != nil {
+				logrus.Errorf("failed to update StatefulSets %v:%v", namespace, err)
+				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update StatefulSets %v:%v", namespace, err)}
+			}
 		}
 	}
 	return &ts, nil
