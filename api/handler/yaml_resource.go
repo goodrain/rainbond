@@ -32,6 +32,7 @@ import (
 
 //AppYamlResourceName -
 func (c *clusterAction) AppYamlResourceName(yamlResource api_model.YamlResource) (map[string]api_model.LabelResource, *util.APIHandleError) {
+	logrus.Infof("AppYamlResourceName begin")
 	fileResource := make(map[string]api_model.LabelResource)
 	k8sResourceObjects := c.YamlToResource(yamlResource)
 	var DeployNames, JobNames, CJNames, SFSNames, RoleNames, HPANames, RBNames, SANames, SecretNames, ServiceNames, CMNames, NetworkPolicyNames, IngressNames, PVCNames []string
@@ -105,11 +106,13 @@ func (c *clusterAction) AppYamlResourceName(yamlResource api_model.YamlResource)
 		},
 		Status: "",
 	}
+	logrus.Infof("AppYamlResourceName end")
 	return fileResource, nil
 }
 
 //AppYamlResourceDetailed -
 func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResource, yamlImport bool) (api_model.ApplicationResource, *util.APIHandleError) {
+	logrus.Infof("AppYamlResourceDetailed begin")
 	k8sResourceObjects := c.YamlToResource(yamlResource)
 	var K8SResource []dbmodel.K8sResource
 	var ConvertResource []api_model.ConvertResource
@@ -236,7 +239,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					resource, err := c.ResourceCreate(buildResource, yamlResource.Namespace)
 					if err != nil {
 						errorOverview = err.Error()
-						state = 3
+						state = api_model.CreateError
 					} else {
 						buildResource.Resource = resource
 					}
@@ -257,7 +260,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					resource, err := c.ResourceCreate(buildResource, yamlResource.Namespace)
 					if err != nil {
 						errorOverview = err.Error()
-						state = 3
+						state = api_model.CreateError
 					} else {
 						buildResource.Resource = resource
 					}
@@ -278,7 +281,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					resource, err := c.ResourceCreate(buildResource, yamlResource.Namespace)
 					if err != nil {
 						errorOverview = err.Error()
-						state = 3
+						state = api_model.CreateError
 					} else {
 						buildResource.Resource = resource
 					}
@@ -299,7 +302,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					resource, err := c.ResourceCreate(buildResource, yamlResource.Namespace)
 					if err != nil {
 						errorOverview = err.Error()
-						state = 3
+						state = api_model.CreateError
 					} else {
 						buildResource.Resource = resource
 					}
@@ -320,7 +323,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					resource, err := c.ResourceCreate(buildResource, yamlResource.Namespace)
 					if err != nil {
 						errorOverview = err.Error()
-						state = 3
+						state = api_model.CreateError
 					} else {
 						buildResource.Resource = resource
 					}
@@ -341,7 +344,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					resource, err := c.ResourceCreate(buildResource, yamlResource.Namespace)
 					if err != nil {
 						errorOverview = err.Error()
-						state = 3
+						state = api_model.CreateError
 					} else {
 						buildResource.Resource = resource
 					}
@@ -362,7 +365,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					resource, err := c.ResourceCreate(buildResource, yamlResource.Namespace)
 					if err != nil {
 						errorOverview = err.Error()
-						state = 3
+						state = api_model.CreateError
 					} else {
 						buildResource.Resource = resource
 					}
@@ -383,7 +386,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					resource, err := c.ResourceCreate(buildResource, yamlResource.Namespace)
 					if err != nil {
 						errorOverview = err.Error()
-						state = 3
+						state = api_model.CreateError
 					} else {
 						buildResource.Resource = resource
 					}
@@ -404,7 +407,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					resource, err := c.ResourceCreate(buildResource, yamlResource.Namespace)
 					if err != nil {
 						errorOverview = err.Error()
-						state = 3
+						state = api_model.CreateError
 					} else {
 						buildResource.Resource = resource
 					}
@@ -425,7 +428,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					resource, err := c.ResourceCreate(buildResource, yamlResource.Namespace)
 					if err != nil {
 						errorOverview = err.Error()
-						state = 3
+						state = api_model.CreateError
 					} else {
 						buildResource.Resource = resource
 					}
@@ -445,6 +448,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 		}
 
 	}
+	logrus.Infof("AppYamlResourceDetailed end")
 	return api_model.ApplicationResource{
 		K8SResource,
 		ConvertResource,
@@ -453,6 +457,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 
 //AppYamlResourceImport -
 func (c *clusterAction) AppYamlResourceImport(yamlResource api_model.YamlResource, components api_model.ApplicationResource) (api_model.AppComponent, *util.APIHandleError) {
+	logrus.Infof("AppYamlResourceImport begin")
 	app, err := db.GetManager().ApplicationDao().GetAppByID(yamlResource.AppID)
 	if err != nil {
 		return api_model.AppComponent{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("GetAppByID error %v", err)}
@@ -466,7 +471,7 @@ func (c *clusterAction) AppYamlResourceImport(yamlResource api_model.YamlResourc
 		}
 		var componentAttributes []api_model.ComponentAttributes
 		for _, componentResource := range components.ConvertResource {
-			component, err := c.CreateComponent(app, yamlResource.TenantID, componentResource, yamlResource.Namespace)
+			component, err := c.CreateComponent(app, yamlResource.TenantID, componentResource, yamlResource.Namespace, true)
 			if err != nil {
 				logrus.Errorf("%v", err)
 				return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
@@ -499,6 +504,7 @@ func (c *clusterAction) AppYamlResourceImport(yamlResource api_model.YamlResourc
 	if err != nil {
 		return api_model.AppComponent{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("app yaml resource import error:%v", err)}
 	}
+	logrus.Infof("AppYamlResourceImport end")
 	return ar, nil
 }
 

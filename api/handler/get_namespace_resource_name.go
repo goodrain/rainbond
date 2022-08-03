@@ -285,6 +285,11 @@ func (c *clusterAction) getResourceName(ctx context.Context, namespace string, c
 			return nil, cmMap, secretMap
 		}
 		for _, dm := range resources.Items {
+			if dm.OwnerReferences != nil {
+				if dm.OwnerReferences[0].Kind == model.CronJob {
+					continue
+				}
+			}
 			tempResources = append(tempResources, &Resource{ObjectMeta: dm.ObjectMeta, Template: dm.Spec.Template})
 		}
 		isWorkloads = true
