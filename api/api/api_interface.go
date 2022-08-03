@@ -37,7 +37,9 @@ type ClusterInterface interface {
 	AddResource(w http.ResponseWriter, r *http.Request)
 	DeleteResource(w http.ResponseWriter, r *http.Request)
 	UpdateResource(w http.ResponseWriter, r *http.Request)
-	//YamlResourceName(w http.ResponseWriter, r *http.Request)
+	YamlResourceName(w http.ResponseWriter, r *http.Request)
+	YamlResourceDetailed(w http.ResponseWriter, r *http.Request)
+	YamlResourceImport(w http.ResponseWriter, r *http.Request)
 }
 
 //TenantInterface interface

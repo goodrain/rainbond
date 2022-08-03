@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
@@ -13,8 +12,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"path"
-	"strconv"
 	"strings"
 )
 
@@ -60,7 +57,15 @@ func (c *clusterAction) workloadDeployments(dmNames []string, namespace string) 
 			Image:        resources.Spec.Template.Spec.Containers[0].Image,
 			Cmd:          strings.Join(append(resources.Spec.Template.Spec.Containers[0].Command, resources.Spec.Template.Spec.Containers[0].Args...), " "),
 		}
-		c.podTemplateSpecResource(&componentsCR, basic, resources.Spec.Template, namespace, dmName, resources.Labels)
+		parameter := model.YamlResourceParameter{
+			ComponentsCR: &componentsCR,
+			Basic:        basic,
+			Template:     resources.Spec.Template,
+			Namespace:    namespace,
+			Name:         dmName,
+			RsLabel:      resources.Labels,
+		}
+		c.PodTemplateSpecResource(parameter)
 	}
 	return componentsCR
 }
@@ -83,7 +88,15 @@ func (c *clusterAction) workloadStateFulSets(sfsNames []string, namespace string
 			Image:        resources.Spec.Template.Spec.Containers[0].Image,
 			Cmd:          strings.Join(append(resources.Spec.Template.Spec.Containers[0].Command, resources.Spec.Template.Spec.Containers[0].Args...), " "),
 		}
-		c.podTemplateSpecResource(&componentsCR, basic, resources.Spec.Template, namespace, sfsName, resources.Labels)
+		parameter := model.YamlResourceParameter{
+			ComponentsCR: &componentsCR,
+			Basic:        basic,
+			Template:     resources.Spec.Template,
+			Namespace:    namespace,
+			Name:         sfsName,
+			RsLabel:      resources.Labels,
+		}
+		c.PodTemplateSpecResource(parameter)
 	}
 	return componentsCR
 }
@@ -126,7 +139,15 @@ func (c *clusterAction) workloadJobs(jobNames []string, namespace string) []mode
 			Cmd:          strings.Join(append(resources.Spec.Template.Spec.Containers[0].Command, resources.Spec.Template.Spec.Containers[0].Args...), " "),
 			JobStrategy:  job,
 		}
-		c.podTemplateSpecResource(&componentsCR, basic, resources.Spec.Template, namespace, jobName, resources.Labels)
+		parameter := model.YamlResourceParameter{
+			ComponentsCR: &componentsCR,
+			Basic:        basic,
+			Template:     resources.Spec.Template,
+			Namespace:    namespace,
+			Name:         jobName,
+			RsLabel:      resources.Labels,
+		}
+		c.PodTemplateSpecResource(parameter)
 	}
 	return componentsCR
 }
@@ -169,380 +190,17 @@ func (c *clusterAction) workloadCronJobs(cjNames []string, namespace string) []m
 			Cmd:          strings.Join(append(resources.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Command, resources.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Args...), " "),
 			JobStrategy:  job,
 		}
-		c.podTemplateSpecResource(&componentsCR, basic, resources.Spec.JobTemplate.Spec.Template, namespace, cjName, resources.Labels)
+		parameter := model.YamlResourceParameter{
+			ComponentsCR: &componentsCR,
+			Basic:        basic,
+			Template:     resources.Spec.JobTemplate.Spec.Template,
+			Namespace:    namespace,
+			Name:         cjName,
+			RsLabel:      resources.Labels,
+		}
+		c.PodTemplateSpecResource(parameter)
 	}
 	return componentsCR
-}
-
-func (c *clusterAction) podTemplateSpecResource(componentsCR *[]model.ConvertResource, basic model.BasicManagement, template corev1.PodTemplateSpec, namespace, name string, rsLabel map[string]string) {
-	//Port
-	var ps []model.PortManagement
-	for _, port := range template.Spec.Containers[0].Ports {
-		if string(port.Protocol) == "UDP" {
-			ps = append(ps, model.PortManagement{
-				Port:     port.ContainerPort,
-				Protocol: "UDP",
-				Inner:    false,
-				Outer:    false,
-			})
-			continue
-		}
-		if string(port.Protocol) == "TCP" {
-			ps = append(ps, model.PortManagement{
-				Port:     port.ContainerPort,
-				Protocol: "TCP",
-				Inner:    false,
-				Outer:    false,
-			})
-			continue
-		}
-		logrus.Warningf("Transport protocol type not recognized%v", port.Protocol)
-	}
-
-	//ENV
-	var envs []model.ENVManagement
-	for i := 0; i < len(template.Spec.Containers[0].Env); i++ {
-		if cm := template.Spec.Containers[0].Env[i].ValueFrom; cm == nil {
-			envs = append(envs, model.ENVManagement{
-				ENVKey:     template.Spec.Containers[0].Env[i].Name,
-				ENVValue:   template.Spec.Containers[0].Env[i].Value,
-				ENVExplain: "",
-			})
-			template.Spec.Containers[0].Env = append(template.Spec.Containers[0].Env[:i], template.Spec.Containers[0].Env[i+1:]...)
-		}
-	}
-
-	//Configs
-	var configs []model.ConfigManagement
-	//这一块是处理配置文件
-	//配置文件的名字最终都是configmap里面的key值。
-	//volume在被挂载后存在四种情况
-	//第一种是volume存在items，volumeMount的SubPath不等于空。路径直接是volumeMount里面的mountPath。
-	//第二种是volume存在items，volumeMount的SubPath等于空。路径则变成volumeMount里面的mountPath拼接上items里面每一个元素的key值。
-	//第三种是volume不存在items，volumeMount的SubPath不等于空。路径直接是volumeMount里面的mountPath。
-	//第四种是volume不存在items，volumeMount的SubPath等于空。路径则变成volumeMount里面的mountPath拼接上configmap资源里面每一个元素的key值
-	cmMap := make(map[string]corev1.ConfigMap)
-	cmList, err := c.clientset.CoreV1().ConfigMaps(namespace).List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("Failed to get ConfigMap%v", err)
-	}
-	for _, volume := range template.Spec.Volumes {
-		for _, cm := range cmList.Items {
-			cmMap[cm.Name] = cm
-		}
-		if volume.ConfigMap != nil && err == nil {
-			cm, _ := cmMap[volume.ConfigMap.Name]
-			cmData := cm.Data
-			isLog := true
-			for _, volumeMount := range template.Spec.Containers[0].VolumeMounts {
-				if volume.Name != volumeMount.Name {
-					continue
-				}
-				isLog = false
-				if volume.ConfigMap.Items != nil {
-					if volumeMount.SubPath != "" {
-						configName := ""
-						var mode int32
-						for _, item := range volume.ConfigMap.Items {
-							if item.Path == volumeMount.SubPath {
-								configName = item.Key
-								mode = *item.Mode
-							}
-						}
-						configs = append(configs, model.ConfigManagement{
-							ConfigName:  configName,
-							ConfigPath:  volumeMount.MountPath,
-							ConfigValue: cmData[configName],
-							Mode:        mode,
-						})
-						continue
-					}
-					p := volumeMount.MountPath
-					for _, item := range volume.ConfigMap.Items {
-						p := path.Join(p, item.Path)
-						var mode int32
-						if item.Mode != nil {
-							mode = *item.Mode
-						}
-						configs = append(configs, model.ConfigManagement{
-							ConfigName:  item.Key,
-							ConfigPath:  p,
-							ConfigValue: cmData[item.Key],
-							Mode:        mode,
-						})
-					}
-				} else {
-					if volumeMount.SubPath != "" {
-						configs = append(configs, model.ConfigManagement{
-							ConfigName:  volumeMount.SubPath,
-							ConfigPath:  volumeMount.MountPath,
-							ConfigValue: cmData[volumeMount.SubPath],
-							Mode:        *volume.ConfigMap.DefaultMode,
-						})
-						continue
-					}
-					mountPath := volumeMount.MountPath
-					for key, val := range cmData {
-						mountPath = path.Join(mountPath, key)
-						configs = append(configs, model.ConfigManagement{
-							ConfigName:  key,
-							ConfigPath:  mountPath,
-							ConfigValue: val,
-							Mode:        *volume.ConfigMap.DefaultMode,
-						})
-					}
-				}
-			}
-			if isLog {
-				logrus.Warningf("configmap type resource %v is not mounted in volumemount", volume.ConfigMap.Name)
-			}
-		}
-	}
-
-	//TelescopicManagement
-	HPAResource, err := c.clientset.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("Failed to get HorizontalPodAutoscalers list:%v", err)
-	}
-	var t model.TelescopicManagement
-	//这一块就是自动伸缩的对应解析，
-	//需要注意的一点是hpa的cpu和memory的阈值设置是通过Annotations["autoscaling.alpha.kubernetes.io/metrics"]字段设置
-	//而且它的返回值是个json字符串所以设置了一个结构体进行解析。
-	for _, hpa := range HPAResource.Items {
-		if hpa.Spec.ScaleTargetRef.Kind != model.Deployment || hpa.Spec.ScaleTargetRef.Name != name {
-			t.Enable = false
-			continue
-		}
-		t.Enable = true
-		t.MinReplicas = *hpa.Spec.MinReplicas
-		t.MaxReplicas = hpa.Spec.MaxReplicas
-		var cpuormemorys []*dbmodel.TenantServiceAutoscalerRuleMetrics
-		cpuUsage := hpa.Spec.TargetCPUUtilizationPercentage
-		if cpuUsage != nil {
-			cpuormemorys = append(cpuormemorys, &dbmodel.TenantServiceAutoscalerRuleMetrics{
-				MetricsType:       "resource_metrics",
-				MetricsName:       "cpu",
-				MetricTargetType:  "utilization",
-				MetricTargetValue: int(*cpuUsage),
-			})
-		}
-		CPUAndMemoryJSON, ok := hpa.Annotations["autoscaling.alpha.kubernetes.io/metrics"]
-		if ok {
-			type com struct {
-				T        string `json:"type"`
-				Resource map[string]interface{}
-			}
-			var c []com
-			err := json.Unmarshal([]byte(CPUAndMemoryJSON), &c)
-			if err != nil {
-				logrus.Errorf("autoscaling.alpha.kubernetes.io/metrics parsing failed：%v", err)
-			}
-
-			for _, cpuormemory := range c {
-				switch cpuormemory.Resource["name"] {
-				case "cpu":
-					cpu := fmt.Sprint(cpuormemory.Resource["targetAverageValue"])
-					cpuUnit := cpu[len(cpu)-1:]
-					var cpuUsage int
-					if cpuUnit == "m" {
-						cpuUsage, _ = strconv.Atoi(cpu[:len(cpu)-1])
-					}
-					if cpuUnit == "g" || cpuUnit == "G" {
-						cpuUsage, _ = strconv.Atoi(cpu[:len(cpu)-1])
-						cpuUsage = cpuUsage * 1024
-					}
-					cpuormemorys = append(cpuormemorys, &dbmodel.TenantServiceAutoscalerRuleMetrics{
-						MetricsType:       "resource_metrics",
-						MetricsName:       "cpu",
-						MetricTargetType:  "average_value",
-						MetricTargetValue: cpuUsage,
-					})
-				case "memory":
-					memory := fmt.Sprint(cpuormemory.Resource["targetAverageValue"])
-					memoryUnit := memory[:len(memory)-1]
-					var MemoryUsage int
-					if memoryUnit == "m" {
-						MemoryUsage, _ = strconv.Atoi(memory[:len(memory)-1])
-					}
-					if memoryUnit == "g" || memoryUnit == "G" {
-						MemoryUsage, _ = strconv.Atoi(memory[:len(memory)-1])
-						MemoryUsage = MemoryUsage * 1024
-					}
-					cpuormemorys = append(cpuormemorys, &dbmodel.TenantServiceAutoscalerRuleMetrics{
-						MetricsType:       "resource_metrics",
-						MetricsName:       "cpu",
-						MetricTargetType:  "average_value",
-						MetricTargetValue: MemoryUsage,
-					})
-				}
-
-			}
-		}
-		t.CPUOrMemory = cpuormemorys
-	}
-
-	//HealthyCheckManagement
-	var hcm model.HealthyCheckManagement
-	livenessProbe := template.Spec.Containers[0].LivenessProbe
-	if livenessProbe != nil {
-		var httpHeaders []string
-		for _, httpHeader := range livenessProbe.HTTPGet.HTTPHeaders {
-			nv := httpHeader.Name + "=" + httpHeader.Value
-			httpHeaders = append(httpHeaders, nv)
-		}
-		hcm.Status = 1
-		hcm.DetectionMethod = strings.ToLower(string(livenessProbe.HTTPGet.Scheme))
-		hcm.Port = int(livenessProbe.HTTPGet.Port.IntVal)
-		hcm.Path = livenessProbe.HTTPGet.Path
-		if livenessProbe.Exec != nil {
-			hcm.Command = strings.Join(livenessProbe.Exec.Command, " ")
-		}
-		hcm.HTTPHeader = strings.Join(httpHeaders, ",")
-		hcm.Mode = "liveness"
-		hcm.InitialDelaySecond = int(livenessProbe.InitialDelaySeconds)
-		hcm.PeriodSecond = int(livenessProbe.PeriodSeconds)
-		hcm.TimeoutSecond = int(livenessProbe.TimeoutSeconds)
-		hcm.FailureThreshold = int(livenessProbe.FailureThreshold)
-		hcm.SuccessThreshold = int(livenessProbe.SuccessThreshold)
-	} else {
-		readinessProbe := template.Spec.Containers[0].ReadinessProbe
-		if readinessProbe != nil {
-			var httpHeaders []string
-			for _, httpHeader := range readinessProbe.HTTPGet.HTTPHeaders {
-				nv := httpHeader.Name + "=" + httpHeader.Value
-				httpHeaders = append(httpHeaders, nv)
-			}
-			hcm.Status = 1
-			hcm.DetectionMethod = strings.ToLower(string(readinessProbe.HTTPGet.Scheme))
-			hcm.Mode = "readiness"
-			hcm.Port = int(readinessProbe.HTTPGet.Port.IntVal)
-			hcm.Path = readinessProbe.HTTPGet.Path
-			if readinessProbe.Exec != nil {
-				hcm.Command = strings.Join(readinessProbe.Exec.Command, " ")
-			}
-			hcm.HTTPHeader = strings.Join(httpHeaders, ",")
-			hcm.InitialDelaySecond = int(readinessProbe.InitialDelaySeconds)
-			hcm.PeriodSecond = int(readinessProbe.PeriodSeconds)
-			hcm.TimeoutSecond = int(readinessProbe.TimeoutSeconds)
-			hcm.FailureThreshold = int(readinessProbe.FailureThreshold)
-			hcm.SuccessThreshold = int(readinessProbe.SuccessThreshold)
-		}
-	}
-
-	var attributes []*dbmodel.ComponentK8sAttributes
-	if template.Spec.Containers[0].Env != nil && len(template.Spec.Containers[0].Env) > 0 {
-		envYaml, err := ObjectToJSONORYaml("yaml", template.Spec.Containers[0].Env)
-		if err != nil {
-			logrus.Errorf("deployment:%v env %v", name, err)
-		}
-		envAttributes := &dbmodel.ComponentK8sAttributes{
-			Name:           dbmodel.K8sAttributeNameENV,
-			SaveType:       "yaml",
-			AttributeValue: envYaml,
-		}
-		attributes = append(attributes, envAttributes)
-	}
-	if template.Spec.Volumes != nil {
-		volumesYaml, err := ObjectToJSONORYaml("yaml", template.Spec.Volumes)
-		if err != nil {
-			logrus.Errorf("deployment:%v volumes %v", name, err)
-		}
-		volumesAttributes := &dbmodel.ComponentK8sAttributes{
-			Name:           dbmodel.K8sAttributeNameVolumes,
-			SaveType:       "yaml",
-			AttributeValue: volumesYaml,
-		}
-		attributes = append(attributes, volumesAttributes)
-
-	}
-	if template.Spec.Containers[0].VolumeMounts != nil {
-		volumeMountsYaml, err := ObjectToJSONORYaml("yaml", template.Spec.Containers[0].VolumeMounts)
-		if err != nil {
-			logrus.Errorf("deployment:%v volumeMounts %v", name, err)
-		}
-		volumeMountsAttributes := &dbmodel.ComponentK8sAttributes{
-			Name:           dbmodel.K8sAttributeNameVolumeMounts,
-			SaveType:       "yaml",
-			AttributeValue: volumeMountsYaml,
-		}
-		attributes = append(attributes, volumeMountsAttributes)
-	}
-	if template.Spec.ServiceAccountName != "" {
-		serviceAccountAttributes := &dbmodel.ComponentK8sAttributes{
-			Name:           dbmodel.K8sAttributeNameServiceAccountName,
-			SaveType:       "string",
-			AttributeValue: template.Spec.ServiceAccountName,
-		}
-		attributes = append(attributes, serviceAccountAttributes)
-	}
-	if rsLabel != nil {
-		labelsJSON, err := ObjectToJSONORYaml("json", rsLabel)
-		if err != nil {
-			logrus.Errorf("deployment:%v labels %v", name, err)
-		}
-		labelsAttributes := &dbmodel.ComponentK8sAttributes{
-			Name:           dbmodel.K8sAttributeNameLabels,
-			SaveType:       "json",
-			AttributeValue: labelsJSON,
-		}
-		attributes = append(attributes, labelsAttributes)
-	}
-
-	if template.Spec.NodeSelector != nil {
-		NodeSelectorJSON, err := ObjectToJSONORYaml("json", template.Spec.NodeSelector)
-		if err != nil {
-			logrus.Errorf("deployment:%v nodeSelector %v", name, err)
-		}
-		nodeSelectorAttributes := &dbmodel.ComponentK8sAttributes{
-			Name:           dbmodel.K8sAttributeNameNodeSelector,
-			SaveType:       "json",
-			AttributeValue: NodeSelectorJSON,
-		}
-		attributes = append(attributes, nodeSelectorAttributes)
-	}
-	if template.Spec.Tolerations != nil {
-		tolerationsYaml, err := ObjectToJSONORYaml("yaml", template.Spec.Tolerations)
-		if err != nil {
-			logrus.Errorf("deployment:%v tolerations %v", name, err)
-		}
-		tolerationsAttributes := &dbmodel.ComponentK8sAttributes{
-			Name:           dbmodel.K8sAttributeNameTolerations,
-			SaveType:       "yaml",
-			AttributeValue: tolerationsYaml,
-		}
-		attributes = append(attributes, tolerationsAttributes)
-	}
-	if template.Spec.Affinity != nil {
-		affinityYaml, err := ObjectToJSONORYaml("yaml", template.Spec.Affinity)
-		if err != nil {
-			logrus.Errorf("deployment:%v affinity %v", name, err)
-		}
-		affinityAttributes := &dbmodel.ComponentK8sAttributes{
-			Name:           dbmodel.K8sAttributeNameAffinity,
-			SaveType:       "yaml",
-			AttributeValue: affinityYaml,
-		}
-		attributes = append(attributes, affinityAttributes)
-	}
-	if securityContext := template.Spec.Containers[0].SecurityContext; securityContext != nil && securityContext.Privileged != nil {
-		privilegedAttributes := &dbmodel.ComponentK8sAttributes{
-			Name:           dbmodel.K8sAttributeNamePrivileged,
-			SaveType:       "string",
-			AttributeValue: strconv.FormatBool(*securityContext.Privileged),
-		}
-		attributes = append(attributes, privilegedAttributes)
-	}
-
-	*componentsCR = append(*componentsCR, model.ConvertResource{
-		ComponentsName:                   name,
-		BasicManagement:                  basic,
-		PortManagement:                   ps,
-		ENVManagement:                    envs,
-		ConfigManagement:                 configs,
-		TelescopicManagement:             t,
-		HealthyCheckManagement:           hcm,
-		ComponentK8sAttributesManagement: attributes,
-	})
 }
 
 func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others model.OtherResource, namespace string) []dbmodel.K8sResource {
@@ -567,11 +225,11 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				logrus.Errorf("namespace:%v service:%v error: %v", namespace, services.Name, err)
 			}
 			k8sResources = append(k8sResources, dbmodel.K8sResource{
-				Name:    services.Name,
-				Kind:    model.Service,
-				Content: kubernetesResourcesYAML,
-				Success: 1,
-				Status:  "创建成功",
+				Name:          services.Name,
+				Kind:          model.Service,
+				Content:       kubernetesResourcesYAML,
+				State:         1,
+				ErrorOverview: "创建成功",
 			})
 		}
 	}
@@ -596,11 +254,11 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				logrus.Errorf("namespace:%v pvc:%v error: %v", namespace, pvc.Name, err)
 			}
 			k8sResources = append(k8sResources, dbmodel.K8sResource{
-				Name:    pvc.Name,
-				Kind:    model.PVC,
-				Content: kubernetesResourcesYAML,
-				Success: 1,
-				Status:  "创建成功",
+				Name:          pvc.Name,
+				Kind:          model.PVC,
+				Content:       kubernetesResourcesYAML,
+				State:         1,
+				ErrorOverview: "创建成功",
 			})
 		}
 	}
@@ -625,11 +283,11 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				logrus.Errorf("namespace:%v ingresses:%v error: %v", namespace, ingresses.Name, err)
 			}
 			k8sResources = append(k8sResources, dbmodel.K8sResource{
-				Name:    ingresses.Name,
-				Kind:    model.Ingress,
-				Content: kubernetesResourcesYAML,
-				Success: 1,
-				Status:  "创建成功",
+				Name:          ingresses.Name,
+				Kind:          model.Ingress,
+				Content:       kubernetesResourcesYAML,
+				State:         1,
+				ErrorOverview: "创建成功",
 			})
 		}
 	}
@@ -653,11 +311,11 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				logrus.Errorf("namespace:%v NetworkPolicies:%v error: %v", namespace, networkPolicies.Name, err)
 			}
 			k8sResources = append(k8sResources, dbmodel.K8sResource{
-				Name:    networkPolicies.Name,
-				Kind:    model.NetworkPolicy,
-				Content: kubernetesResourcesYAML,
-				Success: 1,
-				Status:  "创建成功",
+				Name:          networkPolicies.Name,
+				Kind:          model.NetworkPolicy,
+				Content:       kubernetesResourcesYAML,
+				State:         1,
+				ErrorOverview: "创建成功",
 			})
 		}
 	}
@@ -681,11 +339,11 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				logrus.Errorf("namespace:%v ConfigMaps:%v error: %v", namespace, configMaps.Name, err)
 			}
 			k8sResources = append(k8sResources, dbmodel.K8sResource{
-				Name:    configMaps.Name,
-				Kind:    model.ConfigMap,
-				Content: kubernetesResourcesYAML,
-				Success: 1,
-				Status:  "创建成功",
+				Name:          configMaps.Name,
+				Kind:          model.ConfigMap,
+				Content:       kubernetesResourcesYAML,
+				State:         1,
+				ErrorOverview: "创建成功",
 			})
 		}
 	}
@@ -709,11 +367,11 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				logrus.Errorf("namespace:%v Secrets:%v error: %v", namespace, secrets.Name, err)
 			}
 			k8sResources = append(k8sResources, dbmodel.K8sResource{
-				Name:    secrets.Name,
-				Kind:    model.Secret,
-				Content: kubernetesResourcesYAML,
-				Success: 1,
-				Status:  "创建成功",
+				Name:          secrets.Name,
+				Kind:          model.Secret,
+				Content:       kubernetesResourcesYAML,
+				State:         1,
+				ErrorOverview: "创建成功",
 			})
 		}
 	}
@@ -738,11 +396,11 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				continue
 			}
 			k8sResources = append(k8sResources, dbmodel.K8sResource{
-				Name:    serviceAccounts.Name,
-				Kind:    model.ServiceAccount,
-				Content: kubernetesResourcesYAML,
-				Success: 1,
-				Status:  "创建成功",
+				Name:          serviceAccounts.Name,
+				Kind:          model.ServiceAccount,
+				Content:       kubernetesResourcesYAML,
+				State:         1,
+				ErrorOverview: "创建成功",
 			})
 		}
 	}
@@ -766,11 +424,11 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				logrus.Errorf("namespace:%v RoleBindings:%v error: %v", namespace, roleBindings.Name, err)
 			}
 			k8sResources = append(k8sResources, dbmodel.K8sResource{
-				Name:    roleBindings.Name,
-				Kind:    model.RoleBinding,
-				Content: kubernetesResourcesYAML,
-				Success: 1,
-				Status:  "创建成功",
+				Name:          roleBindings.Name,
+				Kind:          model.RoleBinding,
+				Content:       kubernetesResourcesYAML,
+				State:         1,
+				ErrorOverview: "创建成功",
 			})
 		}
 	}
@@ -795,11 +453,11 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				logrus.Errorf("namespace:%v HorizontalPodAutoscalers:%v error: %v", namespace, hpa.Name, err)
 			}
 			k8sResources = append(k8sResources, dbmodel.K8sResource{
-				Name:    hpa.Name,
-				Kind:    model.HorizontalPodAutoscaler,
-				Content: kubernetesResourcesYAML,
-				Success: 1,
-				Status:  "创建成功",
+				Name:          hpa.Name,
+				Kind:          model.HorizontalPodAutoscaler,
+				Content:       kubernetesResourcesYAML,
+				State:         1,
+				ErrorOverview: "创建成功",
 			})
 		}
 	}
@@ -822,11 +480,11 @@ func (c *clusterAction) getAppKubernetesResources(ctx context.Context, others mo
 				logrus.Errorf("namespace:%v roles:%v error: %v", namespace, roles.Name, err)
 			}
 			k8sResources = append(k8sResources, dbmodel.K8sResource{
-				Name:    roles.Name,
-				Kind:    model.Role,
-				Content: kubernetesResourcesYAML,
-				Status:  "创建成功",
-				Success: 1,
+				Name:          roles.Name,
+				Kind:          model.Role,
+				Content:       kubernetesResourcesYAML,
+				ErrorOverview: "创建成功",
+				State:         1,
 			})
 		}
 	}

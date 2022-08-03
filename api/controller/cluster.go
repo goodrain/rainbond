@@ -209,15 +209,48 @@ func (t *ClusterController) DeleteResource(w http.ResponseWriter, r *http.Reques
 }
 
 //YamlResourceName -
-//func (t *ClusterController) YamlResourceName(w http.ResponseWriter, r *http.Request) {
-//	var yr model.YamlResource
-//	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &yr, nil); !ok {
-//		return
-//	}
-//	h, err := handler.GetClusterHandler().AppYamlResourceName(yr)
-//	if err != nil {
-//		err.Handle(r, w)
-//		return
-//	}
-//	httputil.ReturnSuccess(r, w, h)
-//}
+func (t *ClusterController) YamlResourceName(w http.ResponseWriter, r *http.Request) {
+	var yr model.YamlResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &yr, nil); !ok {
+		return
+	}
+	h, err := handler.GetClusterHandler().AppYamlResourceName(yr)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, h)
+}
+
+//YamlResourceDetailed -
+func (t *ClusterController) YamlResourceDetailed(w http.ResponseWriter, r *http.Request) {
+	var yr model.YamlResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &yr, nil); !ok {
+		return
+	}
+	h, err := handler.GetClusterHandler().AppYamlResourceDetailed(yr, false)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, h)
+}
+
+//YamlResourceImport -
+func (t *ClusterController) YamlResourceImport(w http.ResponseWriter, r *http.Request) {
+	var yr model.YamlResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &yr, nil); !ok {
+		return
+	}
+	ar, err := handler.GetClusterHandler().AppYamlResourceDetailed(yr, true)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	ac, err := handler.GetClusterHandler().AppYamlResourceImport(yr, ar)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, ac)
+}
