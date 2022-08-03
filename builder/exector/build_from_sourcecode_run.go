@@ -215,7 +215,7 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		}
 		if len(packageArr) != 0 {
 			fileName := packageArr[0]
-			file := tarPath + "/" + eventID + "/" + fileName
+			file := filePath + "/" + fileName
 			fileMD5 := util.MD5(file)
 			i.commit = Commit{
 				Message: fileName,
