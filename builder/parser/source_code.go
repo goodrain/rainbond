@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
@@ -206,10 +207,19 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		return nil
 	}
 	packageFunc :=func() ParseErrorList{
-		csi.RepositoryURL = buildInfo.RepostoryURL
+		var checkPath string
+		checkPath = buildInfo.RepostoryURL
 		pathSplit := strings.Split(buildInfo.RepostoryURL,"/")
 		eventID := pathSplit[len(pathSplit)-1]
-		buildInfo.CodeHome = fmt.Sprintf("/grdata/package_build/temp/events/%s",eventID)
+		files, err := ioutil.ReadDir(checkPath)
+		if err != nil {
+			logrus.Warn("check package error", err)
+		}
+		if len(files) == 0 {
+			// 第一次上传在临时目录下检测
+			checkPath = fmt.Sprintf("/grdata/package_build/temp/events/%s", eventID)
+		}
+		buildInfo.CodeHome = checkPath
 		return ParseErrorList{}
 	}
 	ossFunc := func() ParseErrorList {
