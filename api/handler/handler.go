@@ -88,6 +88,7 @@ func InitHandle(conf option.Config,
 	defaultmonitorHandler = NewMonitorHandler(prometheusCli)
 	defServiceEventHandler = NewServiceEventHandler()
 	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli, rainbondClient, kubeClient)
+	defRegistryAuthSecretHandler = CreateRegistryAuthSecretManager(dbmanager, mqClient, etcdcli)
 	return nil
 }
 
@@ -233,4 +234,11 @@ var defServiceEventHandler *ServiceEventHandler
 // GetServiceEventHandler -
 func GetServiceEventHandler() *ServiceEventHandler {
 	return defServiceEventHandler
+}
+
+var defRegistryAuthSecretHandler RegistryAuthSecretHandler
+
+// GetRegistryAuthSecretHandler -
+func GetRegistryAuthSecretHandler() RegistryAuthSecretHandler {
+	return defRegistryAuthSecretHandler
 }
