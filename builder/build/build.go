@@ -20,6 +20,7 @@ package build
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -29,8 +30,10 @@ import (
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 )
 
@@ -148,4 +151,29 @@ func CreateImageName(serviceID, deployversion string) string {
 	}
 	workloadName := fmt.Sprintf("%s-%s-%s", tenant.Namespace, app.K8sApp, component.K8sComponentName)
 	return strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, workloadName, deployversion))
+}
+
+//GetTenantRegistryAuthSecrets GetTenantRegistryAuthSecrets
+func GetTenantRegistryAuthSecrets(ctx context.Context, tenantID string, kcli kubernetes.Interface) map[string]types.AuthConfig {
+	auths := make(map[string]types.AuthConfig)
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
+	if err != nil {
+		return auths
+	}
+	registrySecrets, err := kcli.CoreV1().Secrets(tenant.Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "rainbond.io/registry-auth-secret=true",
+	})
+	if err == nil {
+		for _, secret := range registrySecrets.Items {
+			d := string(secret.Data["Domain"])
+			u := string(secret.Data["Username"])
+			p := string(secret.Data["Password"])
+			auths[d] = types.AuthConfig{
+				Username: u,
+				Password: p,
+				Auth:     base64.StdEncoding.EncodeToString([]byte(u + ":" + p)),
+			}
+		}
+	}
+	return auths
 }

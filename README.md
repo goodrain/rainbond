@@ -5,7 +5,7 @@
 ![Rainbond version](https://img.shields.io/badge/version-v5.X-brightgreen.svg)
 [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
-[项目官网](http://www.rainbond.com?channel=github) • [文档](https://www.rainbond.com/docs?channel=github) • [Demo地址](http://demo.c9f961.grapps.cn/)
+[项目官网](http://www.rainbond.com?channel=github) • [文档](https://www.rainbond.com/docs?channel=github)
 
 ## Rainbond 是什么
 
