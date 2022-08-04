@@ -241,23 +241,24 @@ func (e *ComponentEnv) DbModel(tenantID, componentID string) *dbmodel.TenantServ
 
 // Component All attributes related to the component
 type Component struct {
-	ComponentBase      ComponentBase                    `json:"component_base"`
-	HTTPRules          []AddHTTPRuleStruct              `json:"http_rules"`
-	TCPRules           []AddTCPRuleStruct               `json:"tcp_rules"`
-	HTTPRuleConfigs    []HTTPRuleConfig                 `json:"http_rule_configs"`
-	Monitors           []AddServiceMonitorRequestStruct `json:"monitors"`
-	Ports              []TenantServicesPort             `json:"ports"`
-	Relations          []TenantComponentRelation        `json:"relations"`
-	Envs               []ComponentEnv                   `json:"envs"`
-	Probes             []ServiceProbe                   `json:"probes"`
-	AppConfigGroupRels []AppConfigGroupRelations        `json:"app_config_groups"`
-	Labels             []ComponentLabel                 `json:"labels"`
-	Plugins            []ComponentPlugin                `json:"plugins"`
-	AutoScaleRule      AutoScalerRule                   `json:"auto_scale_rule"`
-	ConfigFiles        []ComponentConfigFile            `json:"config_files"`
-	VolumeRelations    []VolumeRelation                 `json:"volume_relations"`
-	Volumes            []ComponentVolume                `json:"volumes"`
-	Endpoint           *Endpoints                       `json:"endpoint"`
+	ComponentBase          ComponentBase                    `json:"component_base"`
+	HTTPRules              []AddHTTPRuleStruct              `json:"http_rules"`
+	TCPRules               []AddTCPRuleStruct               `json:"tcp_rules"`
+	HTTPRuleConfigs        []HTTPRuleConfig                 `json:"http_rule_configs"`
+	Monitors               []AddServiceMonitorRequestStruct `json:"monitors"`
+	Ports                  []TenantServicesPort             `json:"ports"`
+	Relations              []TenantComponentRelation        `json:"relations"`
+	Envs                   []ComponentEnv                   `json:"envs"`
+	Probes                 []ServiceProbe                   `json:"probes"`
+	AppConfigGroupRels     []AppConfigGroupRelations        `json:"app_config_groups"`
+	Labels                 []ComponentLabel                 `json:"labels"`
+	Plugins                []ComponentPlugin                `json:"plugins"`
+	AutoScaleRule          AutoScalerRule                   `json:"auto_scale_rule"`
+	ConfigFiles            []ComponentConfigFile            `json:"config_files"`
+	VolumeRelations        []VolumeRelation                 `json:"volume_relations"`
+	Volumes                []ComponentVolume                `json:"volumes"`
+	Endpoint               *Endpoints                       `json:"endpoint"`
+	ComponentK8sAttributes []ComponentK8sAttribute          `json:"component_k8s_attributes"`
 }
 
 // SyncComponentReq -

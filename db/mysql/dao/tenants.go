@@ -2066,3 +2066,8 @@ func (t *ComponentK8sAttributeDaoImpl) CreateOrUpdateAttributesInBatch(attribute
 func (t *ComponentK8sAttributeDaoImpl) DeleteByComponentIDAndName(componentID, name string) error {
 	return t.DB.Where("component_id=? and name=?", componentID, name).Delete(&model.ComponentK8sAttributes{}).Error
 }
+
+// DeleteByComponentIDs delete by componentIDs
+func (t *ComponentK8sAttributeDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
+	return t.DB.Where("component_id in (?)", componentIDs).Delete(&model.ComponentK8sAttributes{}).Error
+}

@@ -208,6 +208,20 @@ func (t *ClusterController) DeleteResource(w http.ResponseWriter, r *http.Reques
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+// SyncResource -
+func (t *ClusterController) SyncResource(w http.ResponseWriter, r *http.Request) {
+	var req model.SyncResources
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
+		return
+	}
+	resources, err := handler.GetClusterHandler().SyncAppK8SResources(r.Context(), &req)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, resources)
+}
+
 //YamlResourceName -
 func (t *ClusterController) YamlResourceName(w http.ResponseWriter, r *http.Request) {
 	var yr model.YamlResource

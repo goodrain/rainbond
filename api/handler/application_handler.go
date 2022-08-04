@@ -646,6 +646,9 @@ func (a *ApplicationAction) SyncComponents(app *dbmodel.Application, components 
 		if err := GetServiceManager().SyncComponentEndpoints(tx, components); err != nil {
 			return err
 		}
+		if err := GetServiceManager().SyncComponentK8sAttributes(tx, app, components); err != nil {
+			return err
+		}
 		if len(deleteComponentIDs) != 0 {
 			return a.deleteByComponentIDs(tx, app, deleteComponentIDs)
 		}
@@ -719,7 +722,10 @@ func (a *ApplicationAction) deleteByComponentIDs(tx *gorm.DB, app *dbmodel.Appli
 	if err = db.GetManager().TenantServceAutoscalerRulesDaoTransactions(tx).DeleteByComponentIDs(componentIDs); err != nil {
 		return err
 	}
-	return db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).DeleteByRuleIDs(autoScaleRuleIDs)
+	if err = db.GetManager().TenantServceAutoscalerRuleMetricsDaoTransactions(tx).DeleteByRuleIDs(autoScaleRuleIDs); err != nil {
+		return err
+	}
+	return db.GetManager().ComponentK8sAttributeDaoTransactions(tx).DeleteByComponentIDs(componentIDs)
 }
 
 // ListAppStatuses -
