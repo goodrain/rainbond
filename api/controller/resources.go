@@ -61,6 +61,7 @@ type V2Routes struct {
 	PodController
 	ApplicationController
 	K8sAttributeController
+	RegistryAuthSecretStruct
 }
 
 //Show test

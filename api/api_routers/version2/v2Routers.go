@@ -185,6 +185,11 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	//batch operation
 	r.Post("/batchoperation", controller.BatchOperation)
 
+	// registry auth secret
+	r.Post("/registry/auth", controller.GetManager().RegistryAuthSecret)
+	r.Put("/registry/auth", controller.GetManager().RegistryAuthSecret)
+	r.Delete("/registry/auth", controller.GetManager().RegistryAuthSecret)
+
 	return r
 }
 

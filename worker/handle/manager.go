@@ -37,6 +37,7 @@ import (
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/goodrain/rainbond/worker/gc"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -121,6 +122,9 @@ func (m *Manager) AnalystToExec(task *model.Task) error {
 	case "refreshhpa":
 		logrus.Info("start a 'refreshhpa' task worker")
 		return m.ExecRefreshHPATask(task)
+	case "apply_registry_auth_secret":
+		logrus.Info("start a 'apply_registry_auth_secret' task worker")
+		return m.ExecApplyRegistryAuthSecretTask(task)
 	default:
 		logrus.Warning("task can not execute because no type is identified")
 		return nil
@@ -546,5 +550,69 @@ func (m *Manager) ExecRefreshHPATask(task *model.Task) error {
 	}
 
 	logrus.Infof("rule id: %s; successfully refresh hpa", body.RuleID)
+	return nil
+}
+
+// ExecApplyRegistryAuthSecretTask executes a 'apply registry auth secret' task.
+func (m *Manager) ExecApplyRegistryAuthSecretTask(task *model.Task) error {
+	body, ok := task.Body.(*model.ApplyRegistryAuthSecretTaskBody)
+	if !ok {
+		return fmt.Errorf("can't convert %s to *model.ApplyRegistryAuthSecretTaskBody", reflect.TypeOf(task.Body))
+	}
+	tenant, err := m.dbmanager.TenantDao().GetTenantByUUID(body.TenantID)
+	if err != nil {
+		logrus.Debugf("cant get tenant by uuid: %s", body.TenantID)
+		return err
+	}
+
+	secretNameFrom := func(secretID string) string {
+		return fmt.Sprintf("rbd-registry-auth-%s", secretID)
+	}
+
+	secret, err := m.cfg.KubeClient.CoreV1().Secrets(tenant.Namespace).Get(m.ctx, secretNameFrom(body.SecretID), metav1.GetOptions{})
+	switch body.Action {
+	case "apply":
+		if err != nil {
+			if k8sErrors.IsNotFound(err) {
+				secret = &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      secretNameFrom(body.SecretID),
+						Namespace: tenant.Namespace,
+						Labels: map[string]string{
+							"tenant_id":                        tenant.UUID,
+							"tenant_name":                      tenant.Name,
+							"creator":                          "Rainbond",
+							"rainbond.io/registry-auth-secret": "true",
+						},
+					},
+					Data: map[string][]byte{
+						"Domain":   []byte(body.Domain),
+						"Username": []byte(body.Username),
+						"Password": []byte(body.Password),
+					},
+					Type: corev1.SecretTypeOpaque,
+				}
+				_, err = m.cfg.KubeClient.CoreV1().Secrets(tenant.Namespace).Create(m.ctx, secret, metav1.CreateOptions{})
+			} else {
+				logrus.Errorf("get secret failure: %s", err.Error())
+				return err
+			}
+		} else {
+			secret.Data["Domain"] = []byte(body.Domain)
+			secret.Data["Username"] = []byte(body.Username)
+			secret.Data["Password"] = []byte(body.Password)
+			_, err = m.cfg.KubeClient.CoreV1().Secrets(tenant.Namespace).Update(m.ctx, secret, metav1.UpdateOptions{})
+		}
+		if err != nil {
+			logrus.Errorf("apply secret failure: %s", err.Error())
+			return err
+		}
+	case "delete":
+		err := m.cfg.KubeClient.CoreV1().Secrets(tenant.Namespace).Delete(m.ctx, secretNameFrom(body.SecretID), metav1.DeleteOptions{})
+		if err != nil {
+			logrus.Debugf("delete secret: %s", err.Error())
+		}
+		return err
+	}
 	return nil
 }

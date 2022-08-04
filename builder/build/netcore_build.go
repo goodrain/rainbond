@@ -78,6 +78,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 		Tags:        []string{d.imageName},
 		Remove:      true,
 		NetworkMode: ImageBuildNetworkModeHost,
+		AuthConfigs: GetTenantRegistryAuthSecrets(re.Ctx, re.TenantID, re.KubeClient),
 	}
 	if _, ok := re.BuildEnvs["NO_CACHE"]; ok {
 		runbuildOptions.NoCache = true
