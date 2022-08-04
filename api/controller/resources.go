@@ -60,6 +60,7 @@ type V2Routes struct {
 	AppRestoreController
 	PodController
 	ApplicationController
+	RegistryAuthSecretStruct
 	K8sAttributeController
 }
 
