@@ -466,6 +466,11 @@ type HandleResource struct {
 	ResourceYaml string `json:"resource_yaml"`
 }
 
+// SyncResources -
+type SyncResources struct {
+	K8sResources []HandleResource `json:"k8s_resources"`
+}
+
 //YamlResource -
 type YamlResource struct {
 	EventID   string `json:"event_id"`
