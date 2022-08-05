@@ -229,6 +229,16 @@ func (a *AppService) DeleteDeployment(d *v1.Deployment) {
 	a.deployment = nil
 }
 
+//DeleteJob delete kubernetes job model
+func (a *AppService) DeleteJob(d *batchv1.Job) {
+	a.job = nil
+}
+
+//DeleteCronJob delete kubernetes cronjob model
+func (a *AppService) DeleteCronJob(d *v1beta1.CronJob) {
+	a.cronjob = nil
+}
+
 //GetStatefulSet get kubernetes statefulset model
 func (a AppService) GetStatefulSet() *v1.StatefulSet {
 	return a.statefulset
