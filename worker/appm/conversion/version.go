@@ -734,26 +734,20 @@ func createNodeSelector(as *v1.AppService, dbmanager db.Manager) map[string]stri
 
 func createLabels(as *v1.AppService, dbmanager db.Manager) map[string]string {
 	labels := make(map[string]string)
+	labelsAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLabels)
+	if err == nil {
+		err = json.Unmarshal([]byte(labelsAttribute.AttributeValue), &labels)
+		if err == nil{
+			logrus.Infof("labelsAttribute:%s", labels)
+		}
+	}
 	labels["name"] = as.ServiceAlias
 	labels["version"] = as.DeployVersion
 	injectLabels := getInjectLabels(as)
 	resultLabel := as.GetCommonLabels(labels, injectLabels)
-
-	labelsAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLabels)
-	if err != nil {
-		logrus.Warn("get by labels attribute error", err)
-		return resultLabel
-	}
-	err = json.Unmarshal([]byte(labelsAttribute.AttributeValue), &labels)
-	if err != nil {
-		logrus.Warn("labels json unmarshal error", err)
-		return resultLabel
-	}
-	for k, v := range labels {
-		resultLabel[k] = v
-	}
 	return resultLabel
 }
+
 
 func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 	var affinity corev1.Affinity
