@@ -282,7 +282,7 @@ func (c *clusterAction) AppYamlResourceImport(yamlResource api_model.YamlResourc
 		}
 		var componentAttributes []api_model.ComponentAttributes
 		for _, componentResource := range components.ConvertResource {
-			component, err := c.CreateComponent(app, yamlResource.TenantID, componentResource, yamlResource.Namespace, true)
+			component, err := c.CreateComponent(app, yamlResource.TenantID, componentResource, yamlResource.Namespace, true, "")
 			if err != nil {
 				logrus.Errorf("%v", err)
 				return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
