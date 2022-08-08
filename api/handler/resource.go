@@ -127,7 +127,7 @@ func (c *clusterAction) SyncAppK8SResources(ctx context.Context, req *model.Sync
 func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string, change string, name string) []*model.BuildResource {
 	var buildResourceList []*model.BuildResource
 	var state int
-	if change == "create" {
+	if change == "create" || change == "re-create" {
 		state = model.CreateError
 	} else if change == "update" {
 		state = model.UpdateError
