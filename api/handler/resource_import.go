@@ -242,9 +242,6 @@ func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID strin
 				job.Labels = make(map[string]string)
 			}
 			job.Labels = changeLabel(job.Labels)
-			if job.Spec.Template.Labels == nil {
-				job.Spec.Template.Labels = make(map[string]string)
-			}
 			_, err = c.clientset.BatchV1().Jobs(namespace).Update(context.Background(), job, metav1.UpdateOptions{})
 			if err != nil {
 				logrus.Errorf("failed to update StatefulSets %v:%v", namespace, err)
@@ -264,9 +261,6 @@ func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID strin
 				cr.Spec.JobTemplate.Labels = make(map[string]string)
 			}
 			cr.Spec.JobTemplate.Labels = changeLabel(cr.Spec.JobTemplate.Labels)
-			if cr.Spec.JobTemplate.Spec.Template.Labels == nil {
-				cr.Spec.JobTemplate.Spec.Template.Labels = make(map[string]string)
-			}
 			_, err = c.clientset.BatchV1beta1().CronJobs(namespace).Update(context.Background(), cr, metav1.UpdateOptions{})
 			if err != nil {
 				logrus.Errorf("failed to update CronJobs %v:%v", namespace, err)

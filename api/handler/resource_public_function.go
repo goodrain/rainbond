@@ -26,16 +26,13 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 				Inner:    false,
 				Outer:    false,
 			})
-			continue
-		}
-		if string(port.Protocol) == "TCP" {
+		} else {
 			ps = append(ps, model.PortManagement{
 				Port:     port.ContainerPort,
 				Protocol: "TCP",
 				Inner:    false,
 				Outer:    false,
 			})
-			continue
 		}
 		logrus.Warningf("Transport protocol type not recognized%v", port.Protocol)
 	}
@@ -67,20 +64,22 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 	if err != nil {
 		logrus.Errorf("Failed to get ConfigMap%v", err)
 	}
+	for _, cm := range cmList.Items {
+		cmMap[cm.Name] = cm
+	}
 	cmList.Items = append(cmList.Items, parameter.CMs...)
 	for _, volume := range parameter.Template.Spec.Volumes {
-		for _, cm := range cmList.Items {
-			cmMap[cm.Name] = cm
-		}
 		if volume.ConfigMap != nil && err == nil {
 			cm, _ := cmMap[volume.ConfigMap.Name]
 			cmData := cm.Data
 			isLog := true
-			for _, volumeMount := range parameter.Template.Spec.Containers[0].VolumeMounts {
+			var index int
+			for i, volumeMount := range parameter.Template.Spec.Containers[0].VolumeMounts {
 				if volume.Name != volumeMount.Name {
 					continue
 				}
 				isLog = false
+				index = i
 				if volume.ConfigMap.Items != nil {
 					if volumeMount.SubPath != "" {
 						configName := ""
@@ -141,7 +140,9 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 			}
 			if isLog {
 				logrus.Warningf("configmap type resource %v is not mounted in volumemount", volume.ConfigMap.Name)
+				continue
 			}
+			parameter.Template.Spec.Containers[0].VolumeMounts = append(parameter.Template.Spec.Containers[0].VolumeMounts[:index], parameter.Template.Spec.Containers[0].VolumeMounts[index+1:]...)
 		}
 	}
 
