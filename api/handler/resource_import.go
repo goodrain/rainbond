@@ -42,7 +42,7 @@ func (c *clusterAction) ResourceImport(namespace string, as map[string]model.App
 			}
 			var componentAttributes []model.ComponentAttributes
 			for _, componentResource := range components.ConvertResource {
-				component, err := c.CreateComponent(app, tenant.UUID, componentResource, namespace, false)
+				component, err := c.CreateComponent(app, tenant.UUID, componentResource, namespace, false, tenant.Name)
 				if err != nil {
 					logrus.Errorf("%v", err)
 					return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
@@ -152,7 +152,7 @@ func (c *clusterAction) CreateK8sResource(tx *gorm.DB, k8sResources []dbmodel.K8
 	return k8sResources, err
 }
 
-func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID string, component model.ConvertResource, namespace string, isYaml bool) (*dbmodel.TenantServices, error) {
+func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID string, component model.ConvertResource, namespace string, isYaml bool, tenantName string) (*dbmodel.TenantServices, error) {
 	var extendMethod string
 	switch component.BasicManagement.ResourceType {
 	case model.Deployment:
