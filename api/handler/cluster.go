@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
@@ -44,11 +45,12 @@ type ClusterHandler interface {
 }
 
 // NewClusterHandler -
-func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace string, config *rest.Config) ClusterHandler {
+func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace string, config *rest.Config, mapper meta.RESTMapper) ClusterHandler {
 	return &clusterAction{
 		namespace: RbdNamespace,
 		clientset: clientset,
 		config:    config,
+		mapper:    mapper,
 	}
 }
 
@@ -58,6 +60,7 @@ type clusterAction struct {
 	clusterInfoCache *model.ClusterResource
 	cacheTime        time.Time
 	config           *rest.Config
+	mapper           meta.RESTMapper
 }
 
 //GetClusterInfo -
