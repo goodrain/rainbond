@@ -25,33 +25,33 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-//ResourceCache resource cache
+// ResourceCache resource cache
 type ResourceCache struct {
 	lock      sync.Mutex
 	resources map[string]*NamespaceResource
 }
 
-//NewResourceCache new resource cache
+// NewResourceCache new resource cache
 func NewResourceCache() *ResourceCache {
 	return &ResourceCache{
 		resources: make(map[string]*NamespaceResource),
 	}
 }
 
-//NamespaceResource namespace resource
+// NamespaceResource namespace resource
 type NamespaceResource map[string]*v1.PodResource
 
-//SetPodResource set pod resource
+// SetPodResource set pod resource
 func (r *NamespaceResource) SetPodResource(podName string, pr *v1.PodResource) {
 	(*r)[podName] = pr
 }
 
-//RemovePod remove pod resource
+// RemovePod remove pod resource
 func (r *NamespaceResource) RemovePod(podName string) {
 	delete(*r, podName)
 }
 
-//TenantResource tenant resource
+// TenantResource tenant resource
 type TenantResource struct {
 	Namespace     string
 	MemoryRequest int64
@@ -60,7 +60,7 @@ type TenantResource struct {
 	CPULimit      int64
 }
 
-//SetPodResource set pod resource
+// SetPodResource set pod resource
 func (r *ResourceCache) SetPodResource(pod *corev1.Pod) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
@@ -83,17 +83,24 @@ func (r *ResourceCache) SetPodResource(pod *corev1.Pod) {
 	}
 }
 
-//RemovePod remove pod resource
+// RemovePod remove pod resource
 func (r *ResourceCache) RemovePod(pod *corev1.Pod) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	namespace := pod.Namespace
-	if nr, ok := r.resources[namespace]; ok && nr != nil {
-		nr.RemovePod(pod.Name)
+	nsKeys := []string{namespace}
+	labels := pod.Labels
+	if tenantID, ok := labels["tenant_id"]; ok && tenantID != namespace {
+		nsKeys = append(nsKeys, tenantID)
+	}
+	for _, ns := range nsKeys {
+		if nr, ok := r.resources[ns]; ok && nr != nil {
+			nr.RemovePod(pod.Name)
+		}
 	}
 }
 
-//GetTenantResource get tenant resource
+// GetTenantResource get tenant resource
 func (r *ResourceCache) GetTenantResource(namespace string) (tr TenantResource) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
@@ -115,7 +122,7 @@ func (r *ResourceCache) getTenantResource(namespaceRe *NamespaceResource) (tr Te
 	return
 }
 
-//GetAllTenantResource get all tenant resources
+// GetAllTenantResource get all tenant resources
 func (r *ResourceCache) GetAllTenantResource() (trs []TenantResource) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
