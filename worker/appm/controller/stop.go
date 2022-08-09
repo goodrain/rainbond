@@ -162,6 +162,21 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 		s.manager.store.OnDeletes(deployment)
 	}
+	if job := app.GetJob(); job != nil {
+		err := s.manager.client.BatchV1().Jobs(app.GetNamespace()).Delete(s.ctx, job.Name, metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("delete job failure:%s", err.Error())
+		}
+		s.manager.store.OnDeletes(job)
+	}
+	if cronjob := app.GetCronJob(); cronjob != nil {
+		propagationPolicy := metav1.DeletePropagationBackground
+		err := s.manager.client.BatchV1beta1().CronJobs(app.GetNamespace()).Delete(s.ctx, cronjob.Name, metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+		if err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("delete cronjob failure:%s", err.Error())
+		}
+		s.manager.store.OnDeletes(cronjob)
+	}
 	//step 6: delete all pod
 	var gracePeriodSeconds int64
 	if pods := app.GetPods(true); pods != nil {
