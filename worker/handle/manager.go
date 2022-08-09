@@ -463,6 +463,7 @@ func (m *Manager) ExecServiceGCTask(task *model.Task) error {
 	m.garbageCollector.DelPvPvcByServiceID(serviceGCReq)
 	m.garbageCollector.DelVolumeData(serviceGCReq)
 	m.garbageCollector.DelKubernetesObjects(serviceGCReq)
+	m.garbageCollector.DelComponentPkg(serviceGCReq)
 	return nil
 }
 

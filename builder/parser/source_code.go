@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"runtime"
@@ -110,9 +111,11 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	}
 	// The source code is useless after the test is completed, and needs to be deleted.
 	defer func() {
-		if sources.CheckFileExist(buildInfo.GetCodeHome()) {
-			if err := sources.RemoveDir(buildInfo.GetCodeHome()); err != nil {
-				logrus.Warningf("remove source code: %v", err)
+		if csi.ServerType != "pkg"{
+			if sources.CheckFileExist(buildInfo.GetCodeHome()) {
+				if err := sources.RemoveDir(buildInfo.GetCodeHome()); err != nil {
+					logrus.Warningf("remove source code: %v", err)
+				}
 			}
 		}
 	}()
@@ -203,6 +206,22 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		d.branchs = rs.Branchs
 		return nil
 	}
+	packageFunc :=func() ParseErrorList{
+		var checkPath string
+		checkPath = buildInfo.RepostoryURL
+		pathSplit := strings.Split(buildInfo.RepostoryURL,"/")
+		eventID := pathSplit[len(pathSplit)-1]
+		files, err := ioutil.ReadDir(checkPath)
+		if err != nil {
+			logrus.Warn("check package error", err)
+		}
+		if len(files) == 0 {
+			// 第一次上传在临时目录下检测
+			checkPath = fmt.Sprintf("/grdata/package_build/temp/events/%s", eventID)
+		}
+		buildInfo.CodeHome = checkPath
+		return ParseErrorList{}
+	}
 	ossFunc := func() ParseErrorList {
 		g := got.NewWithContext(context.Background())
 		util.CheckAndCreateDir(buildInfo.GetCodeHome())
@@ -258,6 +277,10 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 		}
 	case "oss":
 		if err := ossFunc(); err != nil && err.IsFatalError() {
+			return err
+		}
+	case "pkg":
+		if err := packageFunc(); err != nil && err.IsFatalError() {
 			return err
 		}
 	default:

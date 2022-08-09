@@ -30,6 +30,17 @@ type ClusterInterface interface {
 	MavenSettingUpdate(w http.ResponseWriter, r *http.Request)
 	MavenSettingDelete(w http.ResponseWriter, r *http.Request)
 	MavenSettingDetail(w http.ResponseWriter, r *http.Request)
+	GetNamespace(w http.ResponseWriter, r *http.Request)
+	GetNamespaceResource(w http.ResponseWriter, r *http.Request)
+	ConvertResource(w http.ResponseWriter, r *http.Request)
+	ResourceImport(w http.ResponseWriter, r *http.Request)
+	AddResource(w http.ResponseWriter, r *http.Request)
+	DeleteResource(w http.ResponseWriter, r *http.Request)
+	UpdateResource(w http.ResponseWriter, r *http.Request)
+	SyncResource(w http.ResponseWriter, r *http.Request)
+	YamlResourceName(w http.ResponseWriter, r *http.Request)
+	YamlResourceDetailed(w http.ResponseWriter, r *http.Request)
+	YamlResourceImport(w http.ResponseWriter, r *http.Request)
 }
 
 //TenantInterface interface
@@ -88,6 +99,8 @@ type ServiceInterface interface {
 	AddServiceMonitors(w http.ResponseWriter, r *http.Request)
 	DeleteServiceMonitors(w http.ResponseWriter, r *http.Request)
 	UpdateServiceMonitors(w http.ResponseWriter, r *http.Request)
+	UploadPackage(w http.ResponseWriter, r *http.Request)
+	K8sAttributes(w http.ResponseWriter, r *http.Request)
 }
 
 //TenantInterfaceWithV1 funcs for both v2 and v1
@@ -153,6 +166,7 @@ type AppInterface interface {
 	NewUpload(w http.ResponseWriter, r *http.Request)
 	ImportID(w http.ResponseWriter, r *http.Request)
 	ImportApp(w http.ResponseWriter, r *http.Request)
+	UploadID(w http.ResponseWriter, r *http.Request)
 }
 
 // ApplicationInterface tenant application interface
@@ -172,7 +186,6 @@ type ApplicationInterface interface {
 	Install(w http.ResponseWriter, r *http.Request)
 	ListServices(w http.ResponseWriter, r *http.Request)
 	ListHelmAppReleases(w http.ResponseWriter, r *http.Request)
-
 	DeleteConfigGroup(w http.ResponseWriter, r *http.Request)
 	ListConfigGroups(w http.ResponseWriter, r *http.Request)
 	SyncComponents(w http.ResponseWriter, r *http.Request)

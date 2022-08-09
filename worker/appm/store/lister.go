@@ -23,9 +23,11 @@ import (
 	crdlisters "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/v1"
 	appsv1 "k8s.io/client-go/listers/apps/v1"
 	autoscalingv2 "k8s.io/client-go/listers/autoscaling/v2beta2"
+	v1 "k8s.io/client-go/listers/batch/v1"
+	v1beta1 "k8s.io/client-go/listers/batch/v1beta1"
 	corev1 "k8s.io/client-go/listers/core/v1"
-	betav1 "k8s.io/client-go/listers/networking/v1beta1"
 	networkingv1 "k8s.io/client-go/listers/networking/v1"
+	betav1 "k8s.io/client-go/listers/networking/v1beta1"
 	storagev1 "k8s.io/client-go/listers/storage/v1"
 )
 
@@ -49,4 +51,6 @@ type Lister struct {
 	HelmApp                 v1alpha1.HelmAppLister
 	ComponentDefinition     v1alpha1.ComponentDefinitionLister
 	ThirdComponent          v1alpha1.ThirdComponentLister
+	Job                     v1.JobLister
+	CronJob                 v1beta1.CronJobLister
 }

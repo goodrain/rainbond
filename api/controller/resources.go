@@ -61,6 +61,7 @@ type V2Routes struct {
 	PodController
 	ApplicationController
 	RegistryAuthSecretStruct
+	K8sAttributeController
 }
 
 //Show test
@@ -733,6 +734,7 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 		"extend_method":      []string{},
 		"app_id":             []string{},
 		"k8s_component_name": []string{},
+		"job_strategy":       []string{},
 	}
 	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
 	if !ok {

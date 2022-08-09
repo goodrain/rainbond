@@ -21,6 +21,8 @@ package store
 import (
 	"context"
 	"fmt"
+	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/api/batch/v1beta1"
 	betav1 "k8s.io/api/networking/v1beta1"
 	"os"
 	"sync"
@@ -206,7 +208,6 @@ func NewStore(
 
 	store.informers.ConfigMap = infFactory.Core().V1().ConfigMaps().Informer()
 	store.listers.ConfigMap = infFactory.Core().V1().ConfigMaps().Lister()
-
 	if k8sutil.IsHighVersion() {
 		store.informers.Ingress = infFactory.Networking().V1().Ingresses().Informer()
 		store.listers.Ingress = infFactory.Networking().V1().Ingresses().Lister()
@@ -245,7 +246,10 @@ func NewStore(
 	store.listers.ComponentDefinition = rainbondInformer.Rainbond().V1alpha1().ComponentDefinitions().Lister()
 	store.informers.ComponentDefinition = rainbondInformer.Rainbond().V1alpha1().ComponentDefinitions().Informer()
 	store.informers.ComponentDefinition.AddEventHandlerWithResyncPeriod(componentdefinition.GetComponentDefinitionBuilder(), time.Second*300)
-
+	store.informers.Job = infFactory.Batch().V1().Jobs().Informer()
+	store.listers.Job = infFactory.Batch().V1().Jobs().Lister()
+	store.informers.CronJob = infFactory.Batch().V1beta1().CronJobs().Informer()
+	store.listers.CronJob = infFactory.Batch().V1beta1().CronJobs().Lister()
 	// Endpoint Event Handler
 	epEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -301,6 +305,8 @@ func NewStore(
 	store.informers.Namespace.AddEventHandler(store.nsEventHandler())
 	store.informers.Deployment.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.StatefulSet.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.Job.AddEventHandlerWithResyncPeriod(store, time.Second*10)
+	store.informers.CronJob.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Pod.AddEventHandlerWithResyncPeriod(store.podEventHandler(), time.Second*10)
 	store.informers.Secret.AddEventHandlerWithResyncPeriod(store, time.Second*10)
 	store.informers.Service.AddEventHandlerWithResyncPeriod(store, time.Second*10)
@@ -400,6 +406,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		serviceID := deployment.Labels["service_id"]
 		version := deployment.Labels["version"]
 		createrID := deployment.Labels["creater_id"]
+		migrator := deployment.Labels["migrator"]
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
@@ -407,14 +414,84 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 			if appservice != nil {
 				appservice.SetDeployment(deployment)
+				if migrator == "rainbond" {
+					label := "service_id=" + serviceID
+					pods, _ := a.conf.KubeClient.CoreV1().Pods(deployment.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					if pods != nil {
+						for _, pod := range pods.Items {
+							pod := pod
+							appservice.SetPods(&pod)
+						}
+					}
+				}
 				return
 			}
+
+		}
+	}
+	if job, ok := obj.(*batchv1.Job); ok {
+		serviceID := job.Labels["service_id"]
+		version := job.Labels["version"]
+		createrID := job.Labels["creater_id"]
+		migrator := job.Labels["migrator"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.BatchV1().Jobs(job.Namespace).Delete(context.Background(), job.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetJob(job)
+				if migrator == "rainbond" {
+					label := "controller-uid=" + job.Spec.Selector.MatchLabels["controller-uid"]
+					pods, _ := a.conf.KubeClient.CoreV1().Pods(job.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					if pods != nil {
+						for _, pod := range pods.Items {
+							pod := pod
+							appservice.SetPods(&pod)
+						}
+					}
+				}
+				return
+			}
+
+		}
+	}
+	if cjob, ok := obj.(*v1beta1.CronJob); ok {
+		serviceID := cjob.Labels["service_id"]
+		version := cjob.Labels["version"]
+		createrID := cjob.Labels["creater_id"]
+		migrator := cjob.Labels["migrator"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.BatchV1beta1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetCronJob(cjob)
+				if migrator == "rainbond" {
+					label := "service_id=" + serviceID
+					jobList, _ := a.conf.KubeClient.BatchV1().Jobs(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					for _, job := range jobList.Items {
+						label := "controller-uid=" + job.Spec.Selector.MatchLabels["controller-uid"]
+						pods, _ := a.conf.KubeClient.CoreV1().Pods(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+						if pods != nil {
+							for _, pod := range pods.Items {
+								pod := pod
+								appservice.SetPods(&pod)
+							}
+						}
+					}
+				}
+				return
+			}
+
 		}
 	}
 	if statefulset, ok := obj.(*appsv1.StatefulSet); ok {
 		serviceID := statefulset.Labels["service_id"]
 		version := statefulset.Labels["version"]
 		createrID := statefulset.Labels["creater_id"]
+		migrator := statefulset.Labels["migrator"]
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
@@ -422,6 +499,16 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 			if appservice != nil {
 				appservice.SetStatefulSet(statefulset)
+				if migrator == "rainbond" {
+					label := "service_id=" + serviceID
+					pods, _ := a.conf.KubeClient.CoreV1().Pods(statefulset.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					if pods != nil {
+						for _, pod := range pods.Items {
+							pod := pod
+							appservice.SetPods(&pod)
+						}
+					}
+				}
 				return
 			}
 		}
@@ -517,6 +604,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 		}
 	}
+
 	if hpa, ok := obj.(*autoscalingv2.HorizontalPodAutoscaler); ok {
 		serviceID := hpa.Labels["service_id"]
 		version := hpa.Labels["version"]
@@ -860,6 +948,24 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 			}
 			if deploy != nil {
 				appService.SetDeployment(deploy)
+			}
+		}
+		if job := appService.GetJob(); job != nil {
+			j, err := a.listers.Job.Jobs(job.Namespace).Get(job.Name)
+			if err != nil && k8sErrors.IsNotFound(err) {
+				appService.DeleteJob(job)
+			}
+			if j != nil {
+				appService.SetJob(j)
+			}
+		}
+		if cronjob := appService.GetCronJob(); cronjob != nil {
+			crjob, err := a.listers.CronJob.CronJobs(cronjob.Namespace).Get(cronjob.Name)
+			if err != nil && k8sErrors.IsNotFound(err) {
+				appService.DeleteCronJob(cronjob)
+			}
+			if crjob != nil {
+				appService.SetCronJob(crjob)
 			}
 		}
 		if services := appService.GetServices(true); services != nil {
@@ -1387,6 +1493,22 @@ func (a *appRuntimeStore) scalingRecordServiceAndRuleID(evt *corev1.Event) (stri
 		}
 		serviceID = deploy.GetLabels()["service_id"]
 		ruleID = deploy.GetLabels()["rule_id"]
+	case "Job":
+		job, err := a.listers.Job.Jobs(evt.InvolvedObject.Namespace).Get(evt.InvolvedObject.Name)
+		if err != nil {
+			logrus.Warningf("retrieve job: %v", err)
+			return "", ""
+		}
+		serviceID = job.GetLabels()["service_id"]
+		ruleID = job.GetLabels()["rule_id"]
+	case "CronJob":
+		cjob, err := a.listers.CronJob.CronJobs(evt.InvolvedObject.Namespace).Get(evt.InvolvedObject.Name)
+		if err != nil {
+			logrus.Warningf("retrieve cronjob: %v", err)
+			return "", ""
+		}
+		serviceID = cjob.GetLabels()["service_id"]
+		ruleID = cjob.GetLabels()["rule_id"]
 	case "Statefulset":
 		statefulset, err := a.listers.StatefulSet.StatefulSets(evt.InvolvedObject.Namespace).Get(evt.InvolvedObject.Name)
 		if err != nil {

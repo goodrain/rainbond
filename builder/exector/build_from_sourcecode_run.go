@@ -21,6 +21,8 @@ package exector
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/builder/parser"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -31,7 +33,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/build"
-	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/builder/parser/code"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
@@ -95,6 +96,7 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		Password:      gjson.GetBytes(in, "password").String(),
 		TenantID:      gjson.GetBytes(in, "tenant_id").String(),
 		ServiceID:     gjson.GetBytes(in, "service_id").String(),
+		Configs:       gjson.GetBytes(in, "configs").Map(),
 	}
 	envs := gjson.GetBytes(in, "envs").String()
 	be := make(map[string]string)
@@ -163,6 +165,69 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		}
 	case "oss":
 		i.commit = Commit{}
+	case "pkg":
+		var filePath string
+		pathSplit := strings.Split(i.CodeSouceInfo.RepositoryURL, "/")
+		eventID := pathSplit[len(pathSplit)-1]
+		// 存放目录
+		tarPath := fmt.Sprintf("/grdata/package_build/components/%s/events", i.ServiceID)
+		// 临时目录
+		oldPath := fmt.Sprintf("/grdata/package_build/temp/events/%s", eventID)
+		// 快速复制原目录
+		copyPath := i.CodeSouceInfo.Configs[i.ServiceID]
+		filePath = fmt.Sprintf("%s/%s", tarPath, eventID)
+
+		if copyPath.Str == "" {
+			files, err := ioutil.ReadDir(filePath)
+			if err != nil {
+				logrus.Errorf("read dir error: %s", err.Error())
+				return err
+			}
+			if len(files) == 0 {
+				filePath = oldPath
+			}
+		} else {
+			// 快速复制
+			splitCopyPath := strings.Split(copyPath.Str, "/")
+			splitRes := pathSplit[0 : len(splitCopyPath)-1]
+			modelPath := strings.Join(splitRes, "/")
+			tarCopyPath := fmt.Sprintf("/grdata/package_build/components/%s", i.ServiceID)
+			err := os.MkdirAll(tarCopyPath, 0755)
+			if err != nil {
+				return err
+			}
+			if err := util.CopyDir(modelPath, tarCopyPath); err != nil {
+				logrus.Errorf("copy dir error: %s", err.Error())
+			}
+			filePath = copyPath.Str
+		}
+		packages, err := ioutil.ReadDir(filePath)
+		if err != nil {
+			logrus.Errorf("read dir error: %s", err.Error())
+			return err
+		}
+		packageArr := make([]string, 0, 10)
+		for _, dir := range packages {
+			if dir.IsDir() {
+				continue
+			}
+			packageArr = append(packageArr, dir.Name())
+		}
+		if len(packageArr) != 0 {
+			fileName := packageArr[0]
+			file := filePath + "/" + fileName
+			fileMD5 := util.MD5(file)
+			i.commit = Commit{
+				Message: fileName,
+				Hash:    fileMD5,
+			}
+		}
+		if copyPath.Str == "" {
+			if err = util.MoveDir(oldPath, tarPath); err != nil {
+				logrus.Errorf("copy dir error: %s", err.Error())
+			}
+		}
+
 	default:
 		//default git
 		rs, err := sources.GitCloneOrPull(i.CodeSouceInfo, rbi.GetCodeHome(), i.Logger, 5)
@@ -186,8 +251,10 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	}
 	// clean cache code
 	defer func() {
-		if err := os.RemoveAll(rbi.GetCodeHome()); err != nil {
-			logrus.Warningf("remove source code: %v", err)
+		if i.CodeSouceInfo.ServerType != "pkg" {
+			if err := os.RemoveAll(rbi.GetCodeHome()); err != nil {
+				logrus.Warningf("remove source code: %v", err)
+			}
 		}
 	}()
 
