@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	yamlt "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/restmapper"
 	"path"
 	"path/filepath"
 	"strings"
@@ -193,7 +192,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 				var cjObject v1beta1.CronJob
 				json.Unmarshal(cjJSON, &cjObject)
 				basic := api_model.BasicManagement{
-					ResourceType: api_model.Job,
+					ResourceType: api_model.CronJob,
 					Replicas:     cjObject.Spec.JobTemplate.Spec.Completions,
 					Memory:       cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value() / 1024 / 1024,
 					CPU:          cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().Value(),
@@ -216,7 +215,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 				var sfsObject appv1.StatefulSet
 				json.Unmarshal(sfsJSON, &sfsObject)
 				basic := api_model.BasicManagement{
-					ResourceType: api_model.Deployment,
+					ResourceType: api_model.StateFulSet,
 					Replicas:     sfsObject.Spec.Replicas,
 					Memory:       sfsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value() / 1024 / 1024,
 					CPU:          sfsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().Value(),
@@ -404,13 +403,7 @@ func (c *clusterAction) YamlToResource(yamlResource api_model.YamlResource) []ap
 
 //ResourceCreate -
 func (c *clusterAction) ResourceCreate(buildResource api_model.BuildResource, namespace string) (*unstructured.Unstructured, error) {
-	gr, err := restmapper.GetAPIGroupResources(c.clientset.Discovery())
-	if err != nil {
-		logrus.Errorf("%v", err)
-		return nil, err
-	}
-	mapper := restmapper.NewDiscoveryRESTMapper(gr)
-	mapping, err := mapper.RESTMapping(buildResource.GVK.GroupKind(), buildResource.GVK.Version)
+	mapping, err := c.mapper.RESTMapping(buildResource.GVK.GroupKind(), buildResource.GVK.Version)
 	if err != nil {
 		logrus.Errorf("%v", err)
 		return nil, err

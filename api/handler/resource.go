@@ -16,7 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	yamlt "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/restmapper"
 )
 
 //AddAppK8SResource -
@@ -185,17 +184,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 		}
 		//转化成对象
 		unstructuredObj := &unstructured.Unstructured{Object: unstructuredMap}
-		gr, err := restmapper.GetAPIGroupResources(c.clientset.Discovery())
-		if err != nil {
-			logrus.Errorf("%v", err)
-			buildResourceList = append(buildResourceList, &model.BuildResource{
-				State:         state,
-				ErrorOverview: err.Error(),
-			})
-			continue
-		}
-		mapper := restmapper.NewDiscoveryRESTMapper(gr)
-		mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+		mapping, err := c.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 		if err != nil {
 			logrus.Errorf("%v", err)
 			buildResourceList = []*model.BuildResource{{
