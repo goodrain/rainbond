@@ -2019,3 +2019,55 @@ func (t *TenantServiceScalingRecordsDaoImpl) CountByServiceID(serviceID string) 
 
 	return count, nil
 }
+
+// ComponentK8sAttributeDaoImpl The K8s attribute value of the component
+type ComponentK8sAttributeDaoImpl struct {
+	DB *gorm.DB
+}
+
+// AddModel -
+func (t *ComponentK8sAttributeDaoImpl) AddModel(mo model.Interface) error {
+	attr := mo.(*model.ComponentK8sAttributes)
+	var old model.ComponentK8sAttributes
+	if ok := t.DB.Where("component_id=? and name=?", attr.ComponentID, attr.Name).Find(&old).RecordNotFound(); ok {
+		return t.DB.Create(attr).Error
+	}
+	return errors.ErrRecordAlreadyExist
+}
+
+// UpdateModel -
+func (t *ComponentK8sAttributeDaoImpl) UpdateModel(mo model.Interface) error {
+	attr := mo.(*model.ComponentK8sAttributes)
+	return t.DB.Save(attr).Error
+}
+
+// GetByComponentIDAndName -
+func (t *ComponentK8sAttributeDaoImpl) GetByComponentIDAndName(componentID, name string) (*model.ComponentK8sAttributes, error) {
+	var record model.ComponentK8sAttributes
+	if err := t.DB.Where("component_id=? and name=?", componentID, name).Take(&record).Error; err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+// CreateOrUpdateAttributesInBatch Batch insert or update component attributes
+func (t *ComponentK8sAttributeDaoImpl) CreateOrUpdateAttributesInBatch(attributes []*model.ComponentK8sAttributes) error {
+	var objects []interface{}
+	for _, attribute := range attributes {
+		objects = append(objects, *attribute)
+	}
+	if err := gormbulkups.BulkUpsert(t.DB, objects, 2000); err != nil {
+		return pkgerr.Wrap(err, "create or update component attributes in batch")
+	}
+	return nil
+}
+
+// DeleteByComponentIDAndName delete by componentID and name
+func (t *ComponentK8sAttributeDaoImpl) DeleteByComponentIDAndName(componentID, name string) error {
+	return t.DB.Where("component_id=? and name=?", componentID, name).Delete(&model.ComponentK8sAttributes{}).Error
+}
+
+// DeleteByComponentIDs delete by componentIDs
+func (t *ComponentK8sAttributeDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
+	return t.DB.Where("component_id in (?)", componentIDs).Delete(&model.ComponentK8sAttributes{}).Error
+}

@@ -156,6 +156,75 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//UploadID -
+func (a *AppStruct) UploadID(w http.ResponseWriter, r *http.Request) {
+	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
+	if eventID == "" {
+		httputil.ReturnError(r, w, 400, "Failed to parse eventID.")
+		return
+	}
+	dirName := fmt.Sprintf("/grdata/package_build/temp/events/%s", eventID)
+
+	switch r.Method {
+	case "POST":
+		err := os.MkdirAll(dirName, 0755)
+		if err != nil {
+			httputil.ReturnError(r, w, 502, "Failed to create directory by event id: "+err.Error())
+			return
+		}
+		httputil.ReturnSuccess(r, w, map[string]string{"path": dirName})
+	case "GET":
+		_, err := os.Stat(dirName)
+		if err != nil {
+			if !os.IsExist(err) {
+				err := os.MkdirAll(dirName, 0755)
+				if err != nil {
+					httputil.ReturnError(r, w, 502, "Failed to create directory by event id: "+err.Error())
+					return
+				}
+			}
+		}
+		packages, err := ioutil.ReadDir(dirName)
+		if err != nil {
+			httputil.ReturnSuccess(r, w, map[string][]string{"packages": {}})
+			return
+		}
+
+		packageArr := make([]string, 0, 10)
+		for _, dir := range packages {
+			if dir.IsDir() {
+				continue
+			}
+			ex := filepath.Ext(dir.Name())
+			if ex != ".jar" && ex != ".war" && ex != ".yaml" && ex != ".yml"{
+				continue
+			}
+			packageArr = append(packageArr, dir.Name())
+		}
+
+		httputil.ReturnSuccess(r, w, map[string][]string{"packages": packageArr})
+	case "DELETE":
+		cmd := exec.Command("rm", "-rf", dirName)
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		err := cmd.Run()
+		if err != nil && err.Error() != "exit status 1" {
+			logrus.Errorf("rm -rf %s failed: %s", dirName, err.Error())
+			httputil.ReturnError(r, w, 501, "Failed to delete directory by id: "+eventID)
+			return
+		}
+		res, err := db.GetManager().AppDao().GetByEventId(eventID)
+		if err != nil {
+			httputil.ReturnError(r, w, 404, fmt.Sprintf("Failed to query status of export app by event id %s: %v", eventID, err))
+			return
+		}
+		res.Status = "cleaned"
+		db.GetManager().AppDao().UpdateModel(res)
+		httputil.ReturnSuccess(r, w, "successful")
+	}
+}
+
+
 //NewUpload -
 func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))

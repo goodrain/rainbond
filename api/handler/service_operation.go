@@ -319,6 +319,7 @@ func (o *OperationHandler) buildFromImage(r *model.ComponentBuildReq, service *d
 
 func (o *OperationHandler) buildFromSourceCode(r *model.ComponentBuildReq, service *dbmodel.TenantServices) error {
 	if r.CodeInfo.RepoURL == "" || r.CodeInfo.Branch == "" || r.DeployVersion == "" {
+		logrus.Infof("r.CodeInfo.RepoURL:%v, r.CodeInfo.Branch:%v, r.DeployVersion:%v", r.CodeInfo.RepoURL, r.CodeInfo.Branch, r.DeployVersion)
 		return fmt.Errorf("build from code failure, args error")
 	}
 	body := make(map[string]interface{})

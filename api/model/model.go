@@ -359,6 +359,7 @@ type ServiceStruct struct {
 	HTTPRules         []AddHTTPRuleStruct                  `json:"http_rules" validate:"http_rules"`
 	TCPRules          []AddTCPRuleStruct                   `json:"tcp_rules" validate:"tcp_rules"`
 	K8sComponentName  string                               `json:"k8s_component_name" validate:"k8s_component_name"`
+	JobStrategy       string                               `json:"job_strategy" validate:"job_strategy"`
 }
 
 // Endpoints holds third-party service endpoints or configuraion to get endpoints.
@@ -447,6 +448,55 @@ type DeleteServicePort struct {
 	// in: path
 	// required: true
 	Port int `json:"port"`
+}
+
+//AddHandleResource -
+type AddHandleResource struct {
+	Namespace    string `json:"namespace"`
+	AppID        string `json:"app_id"`
+	ResourceYaml string `json:"resource_yaml"`
+}
+
+//HandleResource -
+type HandleResource struct {
+	Name         string `json:"name"`
+	AppID        string `json:"app_id"`
+	Kind         string `json:"kind"`
+	Namespace    string `json:"namespace"`
+	ResourceYaml string `json:"resource_yaml"`
+}
+
+// SyncResources -
+type SyncResources struct {
+	K8sResources []HandleResource `json:"k8s_resources"`
+}
+
+//YamlResource -
+type YamlResource struct {
+	EventID   string `json:"event_id"`
+	AppID     string `json:"region_app_id"`
+	TenantID  string `json:"tenant_id"`
+	Namespace string `json:"namespace"`
+}
+
+const (
+	//CreateSuccess -
+	CreateSuccess = 1
+	//UpdateSuccess -
+	UpdateSuccess = 2
+	//CreateError -
+	CreateError = 3
+	//UpdateError -
+	UpdateError = 4
+)
+
+// JobStrategy -
+type JobStrategy struct {
+	Schedule              string `json:"schedule"`
+	BackoffLimit          string `json:"backoff_limit"`
+	Parallelism           string `json:"parallelism"`
+	ActiveDeadlineSeconds string `json:"active_deadline_seconds"`
+	Completions           string `json:"completions"`
 }
 
 //TenantResources TenantResources
@@ -980,7 +1030,7 @@ type ServiceCheckStruct struct {
 		//检测来源类型
 		// in: body
 		// required: true
-		SourceType string `json:"source_type" validate:"source_type|required|in:docker-run,docker-compose,sourcecode,third-party-service"`
+		SourceType string `json:"source_type" validate:"source_type|required|in:docker-run,docker-compose,sourcecode,third-party-service,package_build"`
 
 		CheckOS string `json:"check_os"`
 		// 检测来源定义，

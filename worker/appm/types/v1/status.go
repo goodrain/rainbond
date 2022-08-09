@@ -93,6 +93,8 @@ var (
 	BUILDEFAILURE = "build_failure"
 	//UNDEPLOY init status
 	UNDEPLOY = "undeploy"
+	//SUCCEEDED if job and cronjob is succeeded
+	SUCCEEDED = "succeeded"
 )
 
 func conversionThirdComponent(obj runtime.Object) *v1alpha1.ThirdComponent {
@@ -157,6 +159,44 @@ func (a *AppService) GetServiceStatus() string {
 	}
 	if a.IsClosed() {
 		return CLOSED
+	}
+	if a.job != nil {
+		succeed := 0
+		failed := 0
+		for _, po := range a.pods {
+			if po.Status.Phase == "Succeeded" {
+				succeed++
+			}
+			if po.Status.Phase == "Failed" {
+				failed++
+			}
+		}
+		if len(a.pods) == succeed {
+			return SUCCEEDED
+		}
+		if failed > 0 {
+			return ABNORMAL
+		}
+		return RUNNING
+	}
+	if a.cronjob != nil {
+		succeed := 0
+		failed := 0
+		for _, po := range a.pods {
+			if po.Status.Phase == "Succeeded" {
+				succeed++
+			}
+			if po.Status.Phase == "Failed" {
+				failed++
+			}
+		}
+		if len(a.pods) == succeed {
+			return RUNNING
+		}
+		if failed > 0 {
+			return ABNORMAL
+		}
+		return RUNNING
 	}
 	if a.statefulset == nil && a.deployment == nil && len(a.pods) > 0 {
 		return STOPPING

@@ -210,6 +210,7 @@ func getStatefulsetAllowFields(s *v1.StatefulSet) *v1.StatefulSet {
 			},
 			UpdateStrategy: s.Spec.UpdateStrategy,
 		},
+		ObjectMeta: s.Spec.Template.ObjectMeta,
 	}
 }
 
@@ -241,6 +242,7 @@ func getDeploymentAllowFields(d *v1.Deployment) *v1.Deployment {
 					HostNetwork:      d.Spec.Template.Spec.HostNetwork,
 					SchedulerName:    d.Spec.Template.Spec.SchedulerName,
 				},
+				ObjectMeta: d.Spec.Template.ObjectMeta,
 			},
 		},
 	}

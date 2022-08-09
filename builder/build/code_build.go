@@ -314,6 +314,13 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 			})
 		}
 	}
+	if re.ServerType == "pkg" {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "slug",
+			MountPath: "/tmp/app",
+			SubPath:   strings.TrimPrefix(re.RepositoryURL, "/grdata/"),
+		})
+	}
 	return volumes, volumeMounts
 }
 
@@ -322,7 +329,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	re.Logger.Info(util.Translation("Start make code package"), map[string]string{"step": "build-exector"})
 	start := time.Now()
 	var sourceTarFileName string
-	if re.ServerType != "oss" {
+	if re.ServerType != "oss" && re.ServerType != "pkg" {
 		var err error
 		sourceTarFileName, err = s.getSourceCodeTarFile(re)
 		if err != nil {

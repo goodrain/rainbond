@@ -77,6 +77,7 @@ type ApplicationDao interface {
 	GetByServiceID(sid string) (*model.Application, error)
 	ListByAppIDs(appIDs []string) ([]*model.Application, error)
 	IsK8sAppDuplicate(tenantID, AppID, k8sApp string) bool
+	GetAppByName(tenantID, k8sAppName string) (*model.Application, error)
 }
 
 //AppConfigGroupDao Application config group Dao
@@ -620,4 +621,22 @@ type TenantServiceMonitorDao interface {
 	DeleteServiceMonitorByServiceID(serviceID string) error
 	DeleteByComponentIDs(componentIDs []string) error
 	CreateOrUpdateMonitorInBatch(monitors []*model.TenantServiceMonitor) error
+}
+
+// ComponentK8sAttributeDao -
+type ComponentK8sAttributeDao interface {
+	Dao
+	GetByComponentIDAndName(componentID, name string) (*model.ComponentK8sAttributes, error)
+	CreateOrUpdateAttributesInBatch(attributes []*model.ComponentK8sAttributes) error
+	DeleteByComponentIDAndName(componentID, name string) error
+	DeleteByComponentIDs(componentIDs []string) error
+}
+
+// K8sResourceDao -
+type K8sResourceDao interface {
+	Dao
+	ListByAppID(appID string) ([]model.K8sResource, error)
+	CreateK8sResourceInBatch(k8sResources []*model.K8sResource) error
+	DeleteK8sResourceInBatch(appID, name string, kind string) error
+	GetK8sResourceByNameInBatch(appID, name, kind string) ([]model.K8sResource, error)
 }

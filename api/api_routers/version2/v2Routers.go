@@ -94,6 +94,17 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/builder/mavensetting/{name}", controller.GetManager().MavenSettingDetail)
 	r.Put("/builder/mavensetting/{name}", controller.GetManager().MavenSettingUpdate)
 	r.Delete("/builder/mavensetting/{name}", controller.GetManager().MavenSettingDelete)
+	r.Get("/namespace", controller.GetManager().GetNamespace)
+	r.Get("/resource", controller.GetManager().GetNamespaceResource)
+	r.Get("/convert-resource", controller.GetManager().ConvertResource)
+	r.Post("/convert-resource", controller.GetManager().ResourceImport)
+	r.Post("/k8s-resource", controller.GetManager().AddResource)
+	r.Delete("/k8s-resource", controller.GetManager().DeleteResource)
+	r.Put("/k8s-resource", controller.GetManager().UpdateResource)
+	r.Post("/sync-k8s-resources", controller.GetManager().SyncResource)
+	r.Get("/yaml_resource_name", controller.GetManager().YamlResourceName)
+	r.Get("/yaml_resource_detailed", controller.GetManager().YamlResourceDetailed)
+	r.Post("/yaml_resource_import", controller.GetManager().YamlResourceImport)
 	return r
 }
 
@@ -273,6 +284,10 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Put("/label", middleware.WrapEL(controller.GetManager().Label, dbmodel.TargetTypeService, "update-service-label", dbmodel.SYNEVENTTYPE))
 	r.Delete("/label", middleware.WrapEL(controller.GetManager().Label, dbmodel.TargetTypeService, "delete-service-label", dbmodel.SYNEVENTTYPE))
 
+	// Component K8s properties are modified
+	r.Post("/k8s-attributes", middleware.WrapEL(controller.GetManager().K8sAttributes, dbmodel.TargetTypeService, "create-component-k8s-attributes", dbmodel.SYNEVENTTYPE))
+	r.Put("/k8s-attributes", middleware.WrapEL(controller.GetManager().K8sAttributes, dbmodel.TargetTypeService, "update-component-k8s-attributes", dbmodel.SYNEVENTTYPE))
+	r.Delete("/k8s-attributes", middleware.WrapEL(controller.GetManager().K8sAttributes, dbmodel.TargetTypeService, "delete-component-k8s-attributes", dbmodel.SYNEVENTTYPE))
 	//插件
 	r.Mount("/plugin", v2.serviceRelatePluginRouter())
 
@@ -383,6 +398,10 @@ func (v2 *V2) appRouter() chi.Router {
 	r.Post("/import", controller.GetManager().ImportApp)
 	r.Get("/import/{eventID}", controller.GetManager().ImportApp)
 	r.Delete("/import/{eventID}", controller.GetManager().ImportApp)
+
+	r.Post("/upload/events/{eventID}", controller.GetManager().UploadID)
+	r.Get("/upload/events/{eventID}", controller.GetManager().UploadID)
+	r.Delete("/upload/events/{eventID}", controller.GetManager().UploadID)
 	return r
 }
 

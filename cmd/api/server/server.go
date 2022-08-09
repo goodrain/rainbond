@@ -20,12 +20,11 @@ package server
 
 import (
 	"context"
+	"k8s.io/client-go/restmapper"
 	"os"
 	"os/signal"
 	"syscall"
-	
-	
-	rainbondscheme "github.com/goodrain/rainbond/pkg/generated/clientset/versioned/scheme"
+
 	"github.com/goodrain/rainbond/api/controller"
 	"github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/discover"
@@ -34,6 +33,7 @@ import (
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
+	rainbondscheme "github.com/goodrain/rainbond/pkg/generated/clientset/versioned/scheme"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/client"
@@ -79,6 +79,7 @@ func Run(s *option.APIServer) error {
 	if err != nil {
 		return err
 	}
+
 	rainbondClient := versioned.NewForConfigOrDie(config)
 
 	// k8s runtime client
@@ -91,6 +92,12 @@ func Run(s *option.APIServer) error {
 	if err != nil {
 		return errors.WithMessage(err, "create k8s client")
 	}
+	// rest mapper
+	gr, err := restmapper.GetAPIGroupResources(clientset)
+	if err != nil {
+		return err
+	}
+	mapper := restmapper.NewDiscoveryRESTMapper(gr)
 
 	if err := event.NewManager(event.EventConfig{
 		EventLogServers: s.Config.EventLogServers,
@@ -121,7 +128,7 @@ func Run(s *option.APIServer) error {
 	//初始化 middleware
 	handler.InitProxy(s.Config)
 	//创建handle
-	if err := handler.InitHandle(s.Config, etcdClientArgs, cli, etcdcli, clientset, rainbondClient, k8sClient); err != nil {
+	if err := handler.InitHandle(s.Config, etcdClientArgs, cli, etcdcli, clientset, rainbondClient, k8sClient, config, mapper); err != nil {
 		logrus.Errorf("init all handle error, %v", err)
 		return err
 	}

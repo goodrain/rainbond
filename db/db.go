@@ -47,6 +47,8 @@ type Manager interface {
 	AppConfigGroupServiceDaoTransactions(db *gorm.DB) dao.AppConfigGroupServiceDao
 	AppConfigGroupItemDao() dao.AppConfigGroupItemDao
 	AppConfigGroupItemDaoTransactions(db *gorm.DB) dao.AppConfigGroupItemDao
+	K8sResourceDao() dao.K8sResourceDao
+	K8sResourceDaoTransactions(db *gorm.DB) dao.K8sResourceDao
 	EnterpriseDao() dao.EnterpriseDao
 	TenantDao() dao.TenantDao
 	TenantDaoTransactions(db *gorm.DB) dao.TenantDao
@@ -137,6 +139,9 @@ type Manager interface {
 
 	TenantServiceMonitorDao() dao.TenantServiceMonitorDao
 	TenantServiceMonitorDaoTransactions(db *gorm.DB) dao.TenantServiceMonitorDao
+
+	ComponentK8sAttributeDao() dao.ComponentK8sAttributeDao
+	ComponentK8sAttributeDaoTransactions(db *gorm.DB) dao.ComponentK8sAttributeDao
 }
 
 var defaultManager Manager

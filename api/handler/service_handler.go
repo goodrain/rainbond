@@ -90,6 +90,10 @@ type ServiceHandler interface {
 	DeleteServiceMonitor(tenantID, serviceID, name string) (*dbmodel.TenantServiceMonitor, error)
 	AddServiceMonitor(tenantID, serviceID string, add api_model.AddServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error)
 
+	CreateK8sAttribute(tenantID, componentID string, k8sAttr *api_model.ComponentK8sAttribute) error
+	UpdateK8sAttribute(componentID string, k8sAttributes *api_model.ComponentK8sAttribute) error
+	DeleteK8sAttribute(componentID, name string) error
+
 	SyncComponentBase(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
 	SyncComponentMonitors(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
 	SyncComponentPorts(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
@@ -103,6 +107,7 @@ type ServiceHandler interface {
 	SyncComponentPlugins(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
 	SyncComponentScaleRules(tx *gorm.DB, components []*api_model.Component) error
 	SyncComponentEndpoints(tx *gorm.DB, components []*api_model.Component) error
+	SyncComponentK8sAttributes(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
 
 	Log(w http.ResponseWriter, r *http.Request, component *dbmodel.TenantServices, podName, containerName string, follow bool) error
 }

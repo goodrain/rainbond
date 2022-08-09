@@ -19,6 +19,7 @@
 package controller
 
 import (
+	"github.com/goodrain/rainbond/api/model"
 	"net/http"
 
 	"github.com/go-chi/chi"
@@ -100,4 +101,170 @@ func (t *ClusterController) MavenSettingDetail(w http.ResponseWriter, r *http.Re
 		return
 	}
 	httputil.ReturnSuccess(r, w, c)
+}
+
+//GetNamespace Get the unconnected namespaces under the current cluster
+func (t *ClusterController) GetNamespace(w http.ResponseWriter, r *http.Request) {
+	content := r.FormValue("content")
+	ns, err := handler.GetClusterHandler().GetNamespace(r.Context(), content)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, ns)
+}
+
+//GetNamespaceResource Get all resources in the current namespace
+func (t *ClusterController) GetNamespaceResource(w http.ResponseWriter, r *http.Request) {
+	content := r.FormValue("content")
+	namespace := r.FormValue("namespace")
+	rs, err := handler.GetClusterHandler().GetNamespaceSource(r.Context(), content, namespace)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rs)
+}
+
+//ConvertResource Get the resources under the current namespace to the rainbond platform
+func (t *ClusterController) ConvertResource(w http.ResponseWriter, r *http.Request) {
+	content := r.FormValue("content")
+	namespace := r.FormValue("namespace")
+	rs, err := handler.GetClusterHandler().GetNamespaceSource(r.Context(), content, namespace)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	appsServices, err := handler.GetClusterHandler().ConvertResource(r.Context(), namespace, rs)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, appsServices)
+}
+
+//ResourceImport Import the converted k8s resources into recognition
+func (t *ClusterController) ResourceImport(w http.ResponseWriter, r *http.Request) {
+	content := r.FormValue("content")
+	namespace := r.FormValue("namespace")
+	eid := r.FormValue("eid")
+	rs, err := handler.GetClusterHandler().GetNamespaceSource(r.Context(), content, namespace)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	appsServices, err := handler.GetClusterHandler().ConvertResource(r.Context(), namespace, rs)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	rri, err := handler.GetClusterHandler().ResourceImport(namespace, appsServices, eid)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rri)
+}
+
+//AddResource -
+func (t *ClusterController) AddResource(w http.ResponseWriter, r *http.Request) {
+	var hr model.AddHandleResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
+		return
+	}
+	rri, err := handler.GetClusterHandler().AddAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.ResourceYaml)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rri)
+}
+
+//UpdateResource -
+func (t *ClusterController) UpdateResource(w http.ResponseWriter, r *http.Request) {
+	var hr model.HandleResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
+		return
+	}
+	rri, err := handler.GetClusterHandler().UpdateAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml, hr.Kind)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rri)
+}
+
+//DeleteResource -
+func (t *ClusterController) DeleteResource(w http.ResponseWriter, r *http.Request) {
+	var hr model.HandleResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
+		return
+	}
+	err := handler.GetClusterHandler().DeleteAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml, hr.Kind)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+// SyncResource -
+func (t *ClusterController) SyncResource(w http.ResponseWriter, r *http.Request) {
+	var req model.SyncResources
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
+		return
+	}
+	resources, err := handler.GetClusterHandler().SyncAppK8SResources(r.Context(), &req)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, resources)
+}
+
+//YamlResourceName -
+func (t *ClusterController) YamlResourceName(w http.ResponseWriter, r *http.Request) {
+	var yr model.YamlResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &yr, nil); !ok {
+		return
+	}
+	h, err := handler.GetClusterHandler().AppYamlResourceName(yr)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, h)
+}
+
+//YamlResourceDetailed -
+func (t *ClusterController) YamlResourceDetailed(w http.ResponseWriter, r *http.Request) {
+	var yr model.YamlResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &yr, nil); !ok {
+		return
+	}
+	h, err := handler.GetClusterHandler().AppYamlResourceDetailed(yr, false)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, h)
+}
+
+//YamlResourceImport -
+func (t *ClusterController) YamlResourceImport(w http.ResponseWriter, r *http.Request) {
+	var yr model.YamlResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &yr, nil); !ok {
+		return
+	}
+	ar, err := handler.GetClusterHandler().AppYamlResourceDetailed(yr, true)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	ac, err := handler.GetClusterHandler().AppYamlResourceImport(yr, ar)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, ac)
 }

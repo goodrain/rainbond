@@ -647,3 +647,31 @@ func (m *Manager) TenantServiceMonitorDaoTransactions(db *gorm.DB) dao.TenantSer
 		DB: db,
 	}
 }
+
+// ComponentK8sAttributeDao -
+func (m *Manager) ComponentK8sAttributeDao() dao.ComponentK8sAttributeDao {
+	return &mysqldao.ComponentK8sAttributeDaoImpl{
+		DB: m.db,
+	}
+}
+
+// ComponentK8sAttributeDaoTransactions -
+func (m *Manager) ComponentK8sAttributeDaoTransactions(db *gorm.DB) dao.ComponentK8sAttributeDao {
+	return &mysqldao.ComponentK8sAttributeDaoImpl{
+		DB: db,
+	}
+}
+
+// K8sResourceDao -
+func (m *Manager) K8sResourceDao() dao.K8sResourceDao {
+	return &mysqldao.K8sResourceDaoImpl{
+		DB: m.db,
+	}
+}
+
+// K8sResourceDaoTransactions -
+func (m *Manager) K8sResourceDaoTransactions(db *gorm.DB) dao.K8sResourceDao {
+	return &mysqldao.K8sResourceDaoImpl{
+		DB: db,
+	}
+}

@@ -118,6 +118,12 @@ func (g *GarbageCollector) DelKubernetesObjects(serviceGCReq model.ServiceGCTask
 	if err := g.clientset.AppsV1().StatefulSets(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
 		logrus.Warningf("[DelKubernetesObjects] delete statefulsets(%s): %v", serviceGCReq.ServiceID, err)
 	}
+	if err := g.clientset.BatchV1().Jobs(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
+		logrus.Warningf("[DelKubernetesObjects] delete job(%s): %v", serviceGCReq.ServiceID, err)
+	}
+	if err := g.clientset.BatchV1beta1().CronJobs(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
+		logrus.Warningf("[DelKubernetesObjects] delete cronjob(%s): %v", serviceGCReq.ServiceID, err)
+	}
 	if err := g.clientset.ExtensionsV1beta1().Ingresses(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
 		logrus.Warningf("[DelKubernetesObjects] delete extensions ingresses(%s): %v", serviceGCReq.ServiceID, err)
 	}
@@ -151,6 +157,7 @@ func (g *GarbageCollector) DelKubernetesObjects(serviceGCReq model.ServiceGCTask
 	}
 }
 
+// listOptionsServiceID -
 func (g *GarbageCollector) listOptionsServiceID(serviceID string) metav1.ListOptions {
 	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{
 		"creator":    "Rainbond",
@@ -158,5 +165,15 @@ func (g *GarbageCollector) listOptionsServiceID(serviceID string) metav1.ListOpt
 	}}
 	return metav1.ListOptions{
 		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
+	}
+}
+
+// DelComponentPkg deletes component package
+func (g *GarbageCollector) DelComponentPkg(serviceGCReq model.ServiceGCTaskBody) {
+	logrus.Infof("service id: %s; delete component package.", serviceGCReq.ServiceID)
+	// log generated during service running
+	pkgPath := fmt.Sprintf("/grdata/package_build/components/%s", serviceGCReq.ServiceID)
+	if err := os.RemoveAll(pkgPath); err != nil {
+		logrus.Warningf("remove component package: %v", err)
 	}
 }
