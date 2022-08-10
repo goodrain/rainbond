@@ -95,7 +95,6 @@ func Test1(t *testing.T) {
 	for hdr, err := tr.Next(); err != io.EOF; hdr, err = tr.Next() { // next range tar info
 		if err != nil {
 			t.Fatal(err)
-			continue
 		}
 		// 读取文件信息
 		fi := hdr.FileInfo()
