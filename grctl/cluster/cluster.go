@@ -122,6 +122,7 @@ func (c *Cluster) updateRbdComponents() []string {
 		"rbd-webcli",
 		"rbd-worker",
 		"rbd-monitor",
+		"rbd-app-ui",
 	}
 	var errs []string
 	for _, name := range componentNames {
