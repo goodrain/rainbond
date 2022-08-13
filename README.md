@@ -51,7 +51,7 @@ Rainbond 是一个云原生多云应用管理平台，使用简单，不需要�
 ## 快速开始
 
 * 请参阅 [快速安装](https://www.rainbond.com/docs/quick-start/quick-install?channel=github)
-* 请参阅 [快速入门](https://www.rainbond.com/docs/quick-start/get-start/?channel=github)
+* 请参阅 [快速入门](https://www.rainbond.com/docs/quick-start/getting-started/?channel=github)
 
 ## 开源社区
 
