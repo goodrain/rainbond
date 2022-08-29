@@ -27,6 +27,10 @@ steps:
       from_secret: domestic_docker_username
     DOMESTIC_DOCKER_PASSWORD:
       from_secret: domestic_docker_password
+    DOCKER_USERNAME:
+      from_secret: docker_username
+    DOCKER_PASSWORD:
+      from_secret: docker_password
     BUILD_VERSION:
       from_secret: build_version
     GOPROXY:
