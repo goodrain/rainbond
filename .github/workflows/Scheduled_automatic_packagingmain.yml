@@ -1,5 +1,5 @@
 name: Scheduled automatic packaging
-on: 
+on:
   repository_dispatch:
     types:
       - GitHub
@@ -20,14 +20,14 @@ jobs:
           VERSION: ${{ github.event.client_payload.version }}
         run: |
           if [ ${{ github.event.action }} == 'GitHub' ];then
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-ui.git        
+            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-ui.git
           else
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-ui-cloud.git        
+            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-ui-cloud.git
           fi
           cd rainbond-ui
           chmod +x ./build.sh
           ./build.sh
-          
+
   build-rainbond-allinone:
     needs: build-ui
     runs-on: ubuntu-18.04
@@ -36,12 +36,12 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.6
-          
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install flake8 yapf==0.26.0
-        
+
       - name: Pull code and Build allinone image
         env:
           VERSION: ${{ github.event.client_payload.version }}
@@ -53,16 +53,17 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           IMAGE_NAMESPACE: ${{ secrets.IMAGE_NAMESPACE }}
           DOMESTIC_BASE_NAME: ${{ secrets.DOMESTIC_BASE_NAME }}
+          ADAPTOR_BRANCH: ${{ secrets.ADAPTOR_BRANCH}}
         run: |
           if [ ${{ github.event.action }} == 'GitHub' ];then
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console.git       
+            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console.git
           else
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console-cloud.git  
+            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console-cloud.git
           fi
           cd rainbond-console
           chmod +x  ./release.sh
           ./release.sh allinone
-  
+
   build-rainbond-region:
     runs-on: ubuntu-18.04
     steps:
@@ -78,24 +79,24 @@ jobs:
           VERSION: ${{ github.event.client_payload.version }}
           DISABLE_GOPROXY: true
           DOMESTIC_BASE_NAME: ${{ secrets.DOMESTIC_BASE_NAME }}
-          
+
           IMAGE_NAMESPACE: ${{ secrets.IMAGE_NAMESPACE }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          
+
           DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
           DOMESTIC_DOCKER_USERNAME: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
           DOMESTIC_NAMESPACE: ${{ secrets.DOMESTIC_NAMESPACE }}
         run: |
           if [ ${{ github.event.action }} == 'GitHub' ];then
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git    
+            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git
           else
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git 
+            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git
           fi
           cd rainbond
           chmod +x ./release.sh
           ./release.sh all push
-          
+
   build-operator:
     runs-on: ubuntu-latest
     steps:
@@ -107,7 +108,7 @@ jobs:
           go-version: 1.15
       - name: install-golint
         run: go get -u golang.org/x/lint/golint
-        
+
       - name: Build and push
         env:
           IMAGE_NAMESPACE: ${{ secrets.IMAGE_NAMESPACE }}
@@ -122,38 +123,8 @@ jobs:
           git clone -b release-2.1 ${{ github.event.client_payload.clone_url }}/rainbond-operator.git
           cd rainbond-operator
           chmod +x ./release.sh
-          ./release.sh 
-          
-  build-offline:
-    needs: [build-rainbond-allinone,build-rainbond-region,build-operator]
-    runs-on: ubuntu-18.04
-    steps:
-      - name: Pack offline packages
-        env:
-          IMAGE_NAMESPACE: ${{ secrets.IMAGE_NAMESPACE }}
-          RBD_VER: ${{ github.event.client_payload.version }}
-          TRAVIS_PULL_REQUEST: false
-          DOMESTIC_NAMESPACE: ${{ secrets.DOMESTIC_NAMESPACE }}
-          DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
-          DOMESTIC_DOCKER_USERNAME: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOMESTIC_BASE_NAME: ${{ secrets.DOMESTIC_BASE_NAME }}
-        run: |
-          wget https://rainbond-script.oss-cn-hangzhou.aliyuncs.com/enterprise_offline_package.sh
-          chmod +x ./enterprise_offline_package.sh 
-          ./enterprise_offline_package.sh
-        
-      - name: Setup aliyun oss
-        uses: manyuanrong/setup-ossutil@master
-        with:
-          endpoint: oss-cn-shanghai.aliyuncs.com
-          access-key-id: ${{ secrets.OSS_ACCESS_KEY_ID }}
-          access-key-secret: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
-          
-      - name:  Push to OSS
-        run: ossutil cp -rf rainbond-offline-*.tgz oss://rainbond-pkg/offline/5.X/
-  
+          ./release.sh
+
   build-dind:
     needs: [build-ui,build-rainbond-region,build-operator]
     runs-on: ubuntu-18.04
@@ -163,7 +134,7 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.6
-          
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -176,39 +147,22 @@ jobs:
           DOMESTIC_NAMESPACE: ${{ secrets.DOMESTIC_NAMESPACE }}
           DOMESTIC_BASE_NAME: ${{ secrets.DOMESTIC_BASE_NAME }}
         run: |
-          
           git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console.git   
           cd rainbond-console
-          chmod +x ./build_dind_package.sh
-          ./build_dind_package.sh
-          
-      - name: Setup aliyun oss
-        uses: manyuanrong/setup-ossutil@master
-        with:
-          endpoint: oss-cn-shanghai.aliyuncs.com
-          access-key-id: ${{ secrets.OSS_ACCESS_KEY_ID }}
-          access-key-secret: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
-          
-      - name:  Push to OSS
-      
-        run: |
-          cd rainbond-console
-          ossutil cp -rf ./rainbond*.tar oss://rainbond-pkg/images-pkg/
-        
-      - name: Pull code and Build allinone image
+          chmod +x ./release.sh
+      - name: Build the Docker image
         env:
-          VERSION: ${{ github.event.client_payload.version }}
           TRAVIS_PULL_REQUEST: false
+          IMAGE_NAMESPACE: ${{ secrets.IMAGE_NAMESPACE }}
+          BUILD_IMAGE_NAMESPACE: ${{ secrets.BUILD_IMAGE_NAMESPACE }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOMESTIC_NAMESPACE: ${{ secrets.DOMESTIC_NAMESPACE }}
           DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
           DOMESTIC_DOCKER_USERNAME: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          IMAGE_NAMESPACE: ${{ secrets.IMAGE_NAMESPACE }}
-          DOMESTIC_BASE_NAME: ${{ secrets.DOMESTIC_BASE_NAME }}
-          CLONE_URL: ${{ github.event.client_payload.clone_url }}
-          BRANCH: ${{ github.event.client_payload.branch }}
+          VERSION: ${{ github.event.client_payload.version }}
+          OPERATOR_BRANCH: ${{ secrets.OPERATOR_BRANCH }}
+          ADAPTOR_BRANCH: ${{ secrets.ADAPTOR_BRANCH }}
         run: |
           cd rainbond-console
-          chmod +x  ./release.sh
           ./release.sh dind
