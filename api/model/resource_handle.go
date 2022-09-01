@@ -59,10 +59,10 @@ type K8sResourceObject struct {
 
 //WorkLoadsResource -
 type WorkLoadsResource struct {
-	Deployments  []string `json:"deployments,omitempty"`
-	Jobs         []string `json:"jobs,omitempty"`
-	CronJobs     []string `json:"cron_jobs,omitempty"`
-	StateFulSets []string `json:"state_ful_sets,omitempty"`
+	Deployments  []string `json:"Deployment,omitempty"`
+	Jobs         []string `json:"Job,omitempty"`
+	CronJobs     []string `json:"CronJob,omitempty"`
+	StateFulSets []string `json:"StatefulSet,omitempty"`
 }
 
 //BuildResource -
@@ -77,14 +77,14 @@ type BuildResource struct {
 
 //OtherResource -
 type OtherResource struct {
-	Services                 []string `json:"services,omitempty"`
-	PVC                      []string `json:"pvc,omitempty"`
-	Ingresses                []string `json:"ingresses,omitempty"`
-	NetworkPolicies          []string `json:"network_policies,omitempty"`
-	ConfigMaps               []string `json:"config_maps,omitempty"`
-	Secrets                  []string `json:"secrets,omitempty"`
-	ServiceAccounts          []string `json:"service_accounts,omitempty"`
-	RoleBindings             []string `json:"role_bindings,omitempty"`
-	HorizontalPodAutoscalers []string `json:"horizontal_pod_autoscalers,omitempty"`
-	Roles                    []string `json:"roles,omitempty"`
+	Services                 []string `json:"Service,omitempty"`
+	PVC                      []string `json:"PVC,omitempty"`
+	Ingresses                []string `json:"Ingress,omitempty"`
+	NetworkPolicies          []string `json:"NetworkPolicie,omitempty"`
+	ConfigMaps               []string `json:"ConfigMap,omitempty"`
+	Secrets                  []string `json:"Secret,omitempty"`
+	ServiceAccounts          []string `json:"ServiceAccount,omitempty"`
+	RoleBindings             []string `json:"RoleBinding,omitempty"`
+	HorizontalPodAutoscalers []string `json:"HorizontalPodAutoscaler,omitempty"`
+	Roles                    []string `json:"Role,omitempty"`
 }
