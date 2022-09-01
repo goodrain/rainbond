@@ -636,6 +636,7 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 				ContainerPort: int32(p.ContainerPort),
 				// Must be UDP, TCP, or SCTP.
 				Protocol: conversionPortProtocol(p.Protocol),
+				Name:     p.Name,
 			})
 		}
 	}
@@ -737,7 +738,7 @@ func createLabels(as *v1.AppService, dbmanager db.Manager) map[string]string {
 	labelsAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLabels)
 	if err == nil {
 		err = json.Unmarshal([]byte(labelsAttribute.AttributeValue), &labels)
-		if err == nil{
+		if err == nil {
 			logrus.Infof("labelsAttribute:%s", labels)
 		}
 	}
@@ -747,7 +748,6 @@ func createLabels(as *v1.AppService, dbmanager db.Manager) map[string]string {
 	resultLabel := as.GetCommonLabels(labels, injectLabels)
 	return resultLabel
 }
-
 
 func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 	var affinity corev1.Affinity
