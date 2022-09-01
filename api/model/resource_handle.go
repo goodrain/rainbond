@@ -62,7 +62,7 @@ type WorkLoadsResource struct {
 	Deployments  []string `json:"Deployment,omitempty"`
 	Jobs         []string `json:"Job,omitempty"`
 	CronJobs     []string `json:"CronJob,omitempty"`
-	StateFulSets []string `json:"StateFulSet,omitempty"`
+	StateFulSets []string `json:"StatefulSet,omitempty"`
 }
 
 //BuildResource -
