@@ -149,7 +149,7 @@ jobs:
         run: |
           git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console.git   
           cd rainbond-console
-          chmod +x ./check_code.sh ./release.sh
+          chmod +x ./release.sh
       - name: Build the Docker image
         env:
           TRAVIS_PULL_REQUEST: false
