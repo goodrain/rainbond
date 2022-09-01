@@ -145,11 +145,18 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 				deployJSON, _ := json.Marshal(buildResource.Resource)
 				var deployObject appv1.Deployment
 				json.Unmarshal(deployJSON, &deployObject)
+				memory, cpu := deployObject.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), deployObject.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
+				if memory == 0 {
+					memory = deployObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
+				}
+				if cpu == 0 {
+					cpu = deployObject.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
+				}
 				basic := api_model.BasicManagement{
 					ResourceType: api_model.Deployment,
 					Replicas:     deployObject.Spec.Replicas,
-					Memory:       deployObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value() / 1024 / 1024,
-					CPU:          deployObject.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().Value(),
+					Memory:       memory / 1024 / 1024,
+					CPU:          cpu,
 					Image:        deployObject.Spec.Template.Spec.Containers[0].Image,
 					Cmd:          strings.Join(append(deployObject.Spec.Template.Spec.Containers[0].Command, deployObject.Spec.Template.Spec.Containers[0].Args...), " "),
 				}
@@ -168,11 +175,18 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 				jobJSON, _ := json.Marshal(buildResource.Resource)
 				var jobObject batchv1.Job
 				json.Unmarshal(jobJSON, &jobObject)
+				memory, cpu := jobObject.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), jobObject.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
+				if memory == 0 {
+					memory = jobObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
+				}
+				if cpu == 0 {
+					cpu = jobObject.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
+				}
 				basic := api_model.BasicManagement{
 					ResourceType: api_model.Job,
 					Replicas:     jobObject.Spec.Completions,
-					Memory:       jobObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value() / 1024 / 1024,
-					CPU:          jobObject.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().Value(),
+					Memory:       memory / 1024 / 1024,
+					CPU:          cpu,
 					Image:        jobObject.Spec.Template.Spec.Containers[0].Image,
 					Cmd:          strings.Join(append(jobObject.Spec.Template.Spec.Containers[0].Command, jobObject.Spec.Template.Spec.Containers[0].Args...), " "),
 				}
@@ -191,11 +205,18 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 				cjJSON, _ := json.Marshal(buildResource.Resource)
 				var cjObject v1beta1.CronJob
 				json.Unmarshal(cjJSON, &cjObject)
+				memory, cpu := cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
+				if memory == 0 {
+					memory = cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
+				}
+				if cpu == 0 {
+					cpu = cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
+				}
 				basic := api_model.BasicManagement{
 					ResourceType: api_model.CronJob,
 					Replicas:     cjObject.Spec.JobTemplate.Spec.Completions,
-					Memory:       cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value() / 1024 / 1024,
-					CPU:          cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().Value(),
+					Memory:       memory / 1024 / 1024,
+					CPU:          cpu,
 					Image:        cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Image,
 					Cmd:          strings.Join(append(cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Command, cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Args...), " "),
 				}
@@ -214,11 +235,18 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 				sfsJSON, _ := json.Marshal(buildResource.Resource)
 				var sfsObject appv1.StatefulSet
 				json.Unmarshal(sfsJSON, &sfsObject)
+				memory, cpu := sfsObject.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), sfsObject.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
+				if memory == 0 {
+					memory = sfsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
+				}
+				if cpu == 0 {
+					cpu = sfsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
+				}
 				basic := api_model.BasicManagement{
 					ResourceType: api_model.StateFulSet,
 					Replicas:     sfsObject.Spec.Replicas,
-					Memory:       sfsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value() / 1024 / 1024,
-					CPU:          sfsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().Value(),
+					Memory:       memory / 1024 / 1024,
+					CPU:          cpu,
 					Image:        sfsObject.Spec.Template.Spec.Containers[0].Image,
 					Cmd:          strings.Join(append(sfsObject.Spec.Template.Spec.Containers[0].Command, sfsObject.Spec.Template.Spec.Containers[0].Args...), " "),
 				}

@@ -348,6 +348,7 @@ func (c *clusterAction) createPort(ports []model.PortManagement, service *dbmode
 		vpD.IsOuterService = &port.Outer
 		vpD.ContainerPort = int(port.Port)
 		vpD.MappingPort = int(port.Port)
+		vpD.Name = port.Name
 		vpD.Protocol = port.Protocol
 		vpD.PortAlias = fmt.Sprintf("%v%v", strings.ToUpper(portAlias), port.Port)
 		vpD.K8sServiceName = fmt.Sprintf("%v-%v", service.ServiceAlias, port.Port)

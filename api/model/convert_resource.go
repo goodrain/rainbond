@@ -20,6 +20,7 @@ type BasicManagement struct {
 
 //PortManagement -
 type PortManagement struct {
+	Name     string `json:"name"`
 	Port     int32  `json:"port"`
 	Protocol string `json:"protocol"`
 	Inner    bool   `json:"inner"`

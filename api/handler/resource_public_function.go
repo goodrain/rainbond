@@ -21,6 +21,7 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 	for _, port := range parameter.Template.Spec.Containers[0].Ports {
 		if string(port.Protocol) == "UDP" {
 			ps = append(ps, model.PortManagement{
+				Name:     port.Name,
 				Port:     port.ContainerPort,
 				Protocol: "UDP",
 				Inner:    false,
@@ -28,6 +29,7 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 			})
 		} else {
 			ps = append(ps, model.PortManagement{
+				Name:     port.Name,
 				Port:     port.ContainerPort,
 				Protocol: "TCP",
 				Inner:    false,
