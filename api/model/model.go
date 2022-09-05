@@ -1553,7 +1553,7 @@ type ExportAppStruct struct {
 		EventID       string `json:"event_id"`
 		GroupKey      string `json:"group_key"` // TODO 考虑去掉
 		Version       string `json:"version"`   // TODO 考虑去掉
-		Format        string `json:"format"`    // only rainbond-app/docker-compose
+		Format        string `json:"format"`    // only rainbond-app/docker-compose/slug
 		GroupMetadata string `json:"group_metadata"`
 	}
 }
@@ -1795,7 +1795,7 @@ type MQBody struct {
 	EventID   string `json:"event_id"`
 	GroupKey  string `json:"group_key"`
 	Version   string `json:"version"`
-	Format    string `json:"format"` // only rainbond-app/docker-compose
+	Format    string `json:"format"` // only rainbond-app/docker-compose/slug
 	SourceDir string `json:"source_dir"`
 }
 

@@ -42,7 +42,7 @@ import (
 
 var re = regexp.MustCompile(`\s`)
 
-//ExportApp Export app to specified format(rainbond-app or dockercompose)
+//ExportApp Export app to specified format(rainbond-app or dockercompose or slug)
 type ExportApp struct {
 	EventID      string `json:"event_id"`
 	Format       string `json:"format"`
@@ -101,6 +101,13 @@ func (i *ExportApp) Run(timeout time.Duration) error {
 			i.updateStatus("failed", "")
 			return err
 		}
+	} else if i.Format == "slug" {
+		re, err = i.exportSlug(*ram)
+		if err != nil {
+			logrus.Errorf("export slug app package failure %s", err.Error())
+			i.updateStatus("failed", "")
+			return err
+		}
 	} else {
 		return errors.New("Unsupported the format: " + i.Format)
 	}
@@ -153,6 +160,12 @@ func (i *ExportApp) exportRainbondAPP(ram v1alpha1.RainbondApplicationConfig) (*
 func (i *ExportApp) exportDockerCompose(ram v1alpha1.RainbondApplicationConfig) (*export.Result, error) {
 	ramExporter := export.New(export.DC, i.SourceDir, ram, i.DockerClient, logrus.StandardLogger())
 	return ramExporter.Export()
+}
+
+//  exportDockerCompose export app to docker compose app
+func (i *ExportApp) exportSlug(ram v1alpha1.RainbondApplicationConfig) (*export.Result, error) {
+	slugExporter := export.New(export.SLG, i.SourceDir, ram, i.DockerClient, logrus.StandardLogger())
+	return slugExporter.Export()
 }
 
 //Stop stop
