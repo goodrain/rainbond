@@ -48,7 +48,9 @@ func init() {
 	}
 
 	BUILDERIMAGENAME = path.Join(REGISTRYDOMAIN, BUILDERIMAGENAME)
-
+	if os.Getenv("ABROAD") != "" {
+		ONLINEREGISTRYDOMAIN = "docker.io/rainbond"
+	}
 	ONLINEBUILDERIMAGENAME = fmt.Sprintf("%s:%s", path.Join(ONLINEREGISTRYDOMAIN, "builder"), CIVERSION)
 	ONLINERUNNERIMAGENAME = fmt.Sprintf("%s:%s", path.Join(ONLINEREGISTRYDOMAIN, "runner"), CIVERSION)
 }
@@ -97,4 +99,4 @@ var ONLINEBUILDERIMAGENAME string
 var ONLINERUNNERIMAGENAME string
 
 // CIVERSION -
-var CIVERSION = "v5.7.0-release"
+var CIVERSION = "v5.8.1-release"
