@@ -145,7 +145,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 					Rules: []*RulesConfig{
 						{
 							Alert:  "WorkerDown",
-							Expr:   "absent(up{component=\"worker\"}) or up{component=\"worker\"}==0",
+							Expr:   "absent(worker_exporter_health_status) or worker_exporter_health_status==0",
 							For:    "5m",
 							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
