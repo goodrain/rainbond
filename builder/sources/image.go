@@ -20,29 +20,36 @@ package sources
 
 import (
 	"bufio"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/remotes/docker/config"
+	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
+	"github.com/eapache/channels"
+	"github.com/goodrain/rainbond/builder"
+	jobc "github.com/goodrain/rainbond/builder/job"
+	"github.com/goodrain/rainbond/builder/model"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/net/context"
 	"io"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"time"
-
-	dtypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/goodrain/rainbond/builder"
-
-	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/goodrain/rainbond/builder/model"
-	"github.com/goodrain/rainbond/event"
-	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 //ErrorNoAuth error no auth
@@ -53,22 +60,8 @@ var ErrorNoImage = fmt.Errorf("image not exist")
 
 //ImagePull pull docker image
 //timeout minutes of the unit
-func ImagePull(dockerCli *client.Client, image string, username, password string, logger event.Logger, timeout int) (*types.ImageInspect, error) {
+func ImagePull(containerdClient *containerd.Client, image string, username, password string, logger event.Logger, timeout int) (*images.Image, error) {
 	printLog(logger, "info", fmt.Sprintf("start get image:%s", image), map[string]string{"step": "pullimage"})
-	var pullipo types.ImagePullOptions
-	if username != "" && password != "" {
-		auth, err := EncodeAuthToBase64(types.AuthConfig{Username: username, Password: password})
-		if err != nil {
-			logrus.Errorf("make auth base63 push image error: %s", err.Error())
-			printLog(logger, "error", fmt.Sprintf("Failed to generate a Token to get the image"), map[string]string{"step": "builder-exector", "status": "failure"})
-			return nil, err
-		}
-		pullipo = types.ImagePullOptions{
-			RegistryAuth: auth,
-		}
-	} else {
-		pullipo = types.ImagePullOptions{}
-	}
 	rf, err := reference.ParseAnyReference(image)
 	if err != nil {
 		logrus.Errorf("reference image error: %s", err.Error())
@@ -78,10 +71,28 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 	if timeout < 1 {
 		timeout = 1
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
-	defer cancel()
+	ctx := namespaces.WithNamespace(context.Background(), "rbd-ctr")
+	defaultTLS := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	hostOpt := config.HostOptions{}
+	hostOpt.DefaultTLS = defaultTLS
+	if username != "" && password != "" {
+		hostOpt.Credentials = func(host string) (string, string, error) {
+			return username, password, nil
+		}
+	}
+	options := docker.ResolverOptions{
+		Tracker: docker.NewInMemoryTracker(),
+		Hosts:   config.ConfigureHosts(ctx, hostOpt),
+	}
+	pullOpts := []containerd.RemoteOpt{
+		containerd.WithPullUnpack,
+		containerd.WithResolver(docker.NewResolver(options)),
+	}
+
 	//TODO: 使用1.12版本api的bug “repository name must be canonical”，使用rf.String()完整的镜像地址
-	readcloser, err := dockerCli.ImagePull(ctx, rf.String(), pullipo)
+	_, err = containerdClient.Pull(ctx, rf.String(), pullOpts...)
 	if err != nil {
 		logrus.Debugf("image name: %s readcloser error: %v", image, err.Error())
 		if strings.HasSuffix(err.Error(), "does not exist or no pull access") {
@@ -90,51 +101,45 @@ func ImagePull(dockerCli *client.Client, image string, username, password string
 		}
 		return nil, err
 	}
-	defer readcloser.Close()
-	dec := json.NewDecoder(readcloser)
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-		var jm JSONMessage
-		if err := dec.Decode(&jm); err != nil {
-			if err == io.EOF {
-				break
-			}
-			logrus.Debugf("error decoding jm(JSONMessage): %v", err)
-			return nil, err
-		}
-		if jm.Error != nil {
-			logrus.Debugf("error pulling image: %v", jm.Error)
-			return nil, jm.Error
-		}
-		printLog(logger, "debug", fmt.Sprintf(jm.JSONString()), map[string]string{"step": "progress"})
-		logrus.Debug(jm.JSONString())
-	}
-	printLog(logger, "debug", "Get the image information and its raw representation", map[string]string{"step": "progress"})
-	ins, _, err := dockerCli.ImageInspectWithRaw(ctx, image)
+	imageService := containerdClient.ImageService()
+	imageObj, err := imageService.Get(ctx, rf.String())
 	if err != nil {
-		printLog(logger, "debug", "Fail to get the image information and its raw representation", map[string]string{"step": "progress"})
-		return nil, err
+		return nil, fmt.Errorf("image(%v) pull error", image)
 	}
+	logrus.Infof("pull image taget:", imageObj.Target)
+	//defer readcloser.Close()
 	printLog(logger, "info", fmt.Sprintf("Success Pull Image：%s", image), map[string]string{"step": "pullimage"})
-	return &ins, nil
+	return &imageObj, nil
 }
 
 //ImageTag change docker image tag
-func ImageTag(dockerCli *client.Client, source, target string, logger event.Logger, timeout int) error {
+func ImageTag(containerdClient *containerd.Client, source, target string, logger event.Logger, timeout int) error {
 	logrus.Debugf(fmt.Sprintf("change image tag：%s -> %s", source, target))
 	printLog(logger, "info", fmt.Sprintf("change image tag：%s -> %s", source, target), map[string]string{"step": "changetag"})
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
-	defer cancel()
-	err := dockerCli.ImageTag(ctx, source, target)
+	ctx := namespaces.WithNamespace(context.Background(), "rbd-ctr")
+	imageService := containerdClient.ImageService()
+	image, err := imageService.Get(ctx, source)
 	if err != nil {
-		logrus.Debugf("image tag err: %s", err.Error())
+		logrus.Errorf("imagetag imageService Get error: %s", err.Error())
 		return err
 	}
-	logrus.Debugf("change image tag success")
+	image.Name = target
+	if _, err = imageService.Create(ctx, image); err != nil {
+		if errdefs.IsAlreadyExists(err) {
+			if err = imageService.Delete(ctx, image.Name); err != nil {
+				logrus.Errorf("imagetag imageService Delete error: %s", err.Error())
+				return err
+			}
+			if _, err = imageService.Create(ctx, image); err != nil {
+				logrus.Errorf("imageService Create error: %s", err.Error())
+				return err
+			}
+		} else {
+			logrus.Errorf("imagetag imageService Create error: %s", err.Error())
+			return err
+		}
+	}
+	logrus.Info("change image tag success")
 	printLog(logger, "info", "change image tag success", map[string]string{"step": "changetag"})
 	return nil
 }
@@ -208,7 +213,7 @@ func GenSaveImageName(name string) string {
 
 //ImagePush push image to registry
 //timeout minutes of the unit
-func ImagePush(dockerCli *client.Client, image, user, pass string, logger event.Logger, timeout int) error {
+func ImagePush(containerdClient *containerd.Client, image, user, pass string, logger event.Logger, timeout int) error {
 	printLog(logger, "info", fmt.Sprintf("start push image：%s", image), map[string]string{"step": "pushimage"})
 	if timeout < 1 {
 		timeout = 1
@@ -223,62 +228,45 @@ func ImagePush(dockerCli *client.Client, image, user, pass string, logger event.
 	if err != nil {
 		return err
 	}
-	var opts types.ImagePushOptions
-	pushauth, err := EncodeAuthToBase64(types.AuthConfig{
-		Username:      user,
-		Password:      pass,
-		ServerAddress: reference.Domain(ref),
-	})
+	ctx := namespaces.WithNamespace(context.Background(), "rbd-ctr")
+	getImage, err := containerdClient.GetImage(ctx, ref.String())
 	if err != nil {
-		logrus.Errorf("make auth base63 push image error: %s", err.Error())
-		if logger != nil {
-			logger.Error(fmt.Sprintf("Failed to generate a token to get the image"), map[string]string{"step": "builder-exector", "status": "failure"})
-		}
+		logrus.Errorf("containerdClient get Image error: %s", err.Error())
 		return err
 	}
-	opts.RegistryAuth = pushauth
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
-	defer cancel()
-	readcloser, err := dockerCli.ImagePush(ctx, image, opts)
+	defaultTLS := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	hostOpt := config.HostOptions{}
+	hostOpt.DefaultTLS = defaultTLS
+	hostOpt.Credentials = func(host string) (string, string, error) {
+		return user, pass, nil
+	}
+	options := docker.ResolverOptions{
+		Tracker: docker.NewInMemoryTracker(),
+		Hosts:   config.ConfigureHosts(ctx, hostOpt),
+	}
+	pushOpts := []containerd.RemoteOpt{
+		containerd.WithResolver(docker.NewResolver(options)),
+	}
+
+	logrus.Info("getImage.Target", getImage.Target())
+	err = containerdClient.Push(ctx, image, getImage.Target(), pushOpts...)
 	if err != nil {
-		if strings.Contains(err.Error(), "does not exist") {
-			printLog(logger, "error", fmt.Sprintf("image %s does not exist, cannot be pushed", image), map[string]string{"step": "pushimage", "status": "failure"})
-			return fmt.Errorf("Image(%s) does not exist", image)
-		}
+		logrus.Errorf("containerdClient Push Image error: %s", err.Error())
 		return err
 	}
-	if readcloser != nil {
-		defer readcloser.Close()
-		dec := json.NewDecoder(readcloser)
-		for {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-			}
-			var jm JSONMessage
-			if err := dec.Decode(&jm); err != nil {
-				if err == io.EOF {
-					break
-				}
-				return err
-			}
-			if jm.Error != nil {
-				return jm.Error
-			}
-			printLog(logger, "debug", jm.JSONString(), map[string]string{"step": "progress"})
-		}
-	}
+	// create a container
 	printLog(logger, "info", fmt.Sprintf("success push image：%s", image), map[string]string{"step": "pushimage"})
 	return nil
 }
 
 //TrustedImagePush push image to trusted registry
-func TrustedImagePush(dockerCli *client.Client, image, user, pass string, logger event.Logger, timeout int) error {
+func TrustedImagePush(containerdClient *containerd.Client, image, user, pass string, logger event.Logger, timeout int) error {
 	if err := CheckTrustedRepositories(image, user, pass); err != nil {
 		return err
 	}
-	return ImagePush(dockerCli, image, user, pass, logger, timeout)
+	return ImagePush(containerdClient, image, user, pass, logger, timeout)
 }
 
 //CheckTrustedRepositories check Repositories is exist ,if not create it.
@@ -339,40 +327,63 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	return base64.URLEncoding.EncodeToString(buf), nil
 }
 
-//ImageBuild ImageBuild
-func ImageBuild(dockerCli *client.Client, contextDir string, options types.ImageBuildOptions, logger event.Logger, timeout int) error {
-	var ctx context.Context
-	if timeout != 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), time.Minute*time.Duration(timeout))
-		defer cancel()
-	} else {
-		ctx = context.Background()
-	}
-	buildCtx, err := archive.TarWithOptions(contextDir, &archive.TarOptions{
-		Compression:     archive.Uncompressed,
-		ExcludePatterns: []string{""},
-		IncludeFiles:    []string{"."},
-	})
+//ImageBuild use kaniko build image
+func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType string) error {
+	// create image name
+	buildImageName := CreateImageName(ServiceID, DeployVersion)
+	// The same component retains only one build task to perform
+	jobList, err := jobc.GetJobController().GetServiceJobs(ServiceID)
 	if err != nil {
-		return err
+		logrus.Errorf("get pre build job for service %s failure ,%s", ServiceID, err.Error())
 	}
-	rc, err := dockerCli.ImageBuild(ctx, buildCtx, options)
-	if err != nil {
-		return err
+	if len(jobList) > 0 {
+		for _, job := range jobList {
+			jobc.GetJobController().DeleteJob(job.Name)
+		}
 	}
-	defer rc.Body.Close()
+	name := fmt.Sprintf("%s-%s", ServiceID, DeployVersion)
+	namespace := RbdNamespace
+	job := corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"service": ServiceID,
+				"job":     "codebuild",
+			},
+		},
+	}
+	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
+	volumes, volumeMounts := CreateVolumesAndMounts(contextDir, buildType)
+	podSpec.Volumes = volumes
+	// container config
+	container := corev1.Container{
+		Name:      name,
+		Image:     "yangk/executor:latest",
+		Stdin:     true,
+		StdinOnce: true,
+		Args:      []string{"--context=dir:///workspace", fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify"},
+	}
+	container.VolumeMounts = volumeMounts
+	podSpec.Containers = append(podSpec.Containers, container)
+	job.Spec = podSpec
+	writer := logger.GetWriter("builder", "info")
+	reChan := channels.NewRingChannel(10)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	var out io.Writer
-	if logger != nil {
-		out = logger.GetWriter("build-progress", "info")
-	} else {
-		out, _ = os.OpenFile("/tmp/build.log", os.O_RDWR|os.O_CREATE, 0755)
-	}
-	err = jsonmessage.DisplayJSONMessagesStream(rc.Body, out, 0, true, nil)
+	logrus.Debugf("create job[name: %s; namespace: %s]", job.Name, job.Namespace)
+	err = jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
 	if err != nil {
-		out.Write([]byte("\n"))
-		logrus.Errorf("read build log failure %s", err.Error())
+		logrus.Errorf("create new job:%s failed: %s", name, err.Error())
+		return err
+	}
+	logger.Info(util.Translation("create build code job success"), map[string]string{"step": "build-exector"})
+	// delete job after complete
+	defer jobc.GetJobController().DeleteJob(job.Name)
+	err = WaitingComplete(reChan)
+	if err != nil {
+		logrus.Errorf("waiting complete failed: %s", err.Error())
 		return err
 	}
 	return nil
@@ -527,15 +538,18 @@ func CopyToFile(outfile string, r io.Reader) error {
 }
 
 //ImageRemove remove image
-func ImageRemove(dockerCli *client.Client, image string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-	_, err := dockerCli.ImageRemove(ctx, image, types.ImageRemoveOptions{Force: true})
+func ImageRemove(containerdClient *containerd.Client, image string) error {
+	ctx := namespaces.WithNamespace(context.Background(), "rbd-ctr")
+	imageStore := containerdClient.ImageService()
+	err := imageStore.Delete(ctx, image)
+	if err != nil {
+		logrus.Errorf("image remove ")
+	}
 	return err
 }
 
 // CheckIfImageExists -
-func CheckIfImageExists(dockerCli *client.Client, image string) (imageName string, isExists bool, err error) {
+func CheckIfImageExists(containerdClient *containerd.Client, image string) (imageName string, isExists bool, err error) {
 	repo, err := reference.Parse(image)
 	if err != nil {
 		return "", false, fmt.Errorf("parse image %s: %v", image, err)
@@ -547,17 +561,13 @@ func CheckIfImageExists(dockerCli *client.Client, image string) (imageName strin
 	}
 	imageFullName := named.Name() + ":" + tag
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	imageSummarys, err := dockerCli.ImageList(ctx, dtypes.ImageListOptions{
-		Filters: filters.NewArgs(filters.KeyValuePair{Key: "reference", Value: imageFullName}),
-	})
+	ctx := namespaces.WithNamespace(context.Background(), "rbd-ctr")
+	imageSummarys, err := containerdClient.ListImages(ctx)
 	if err != nil {
 		return "", false, fmt.Errorf("list images: %v", err)
 	}
 	for _, imageSummary := range imageSummarys {
-		fmt.Printf("%#v", imageSummary.RepoTags)
+		fmt.Printf("%#v", imageSummary.Name())
 	}
 
 	_ = imageSummarys
@@ -567,12 +577,17 @@ func CheckIfImageExists(dockerCli *client.Client, image string) (imageName strin
 
 // ImagesPullAndPush Used to process mirroring of non local components, example: builder, runner, /rbd-mesh-data-panel
 func ImagesPullAndPush(sourceImage, targetImage, username, password string, logger event.Logger) error {
-	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
+	var sock string
+	sock = os.Getenv("CONTAINERD_SOCK")
+	if sock == "" {
+		sock = "/run/containerd/containerd.sock"
+	}
+	containerdClient, err := containerd.New(sock)
 	if err != nil {
 		logrus.Errorf("create docker client failed: %s", err.Error())
 		return err
 	}
-	sourceImage, exists, err := CheckIfImageExists(dockerClient, sourceImage)
+	sourceImage, exists, err := CheckIfImageExists(containerdClient, sourceImage)
 	if err != nil {
 		logrus.Errorf("failed to check whether the builder mirror exists: %s", err.Error())
 		return err
@@ -580,15 +595,15 @@ func ImagesPullAndPush(sourceImage, targetImage, username, password string, logg
 	logrus.Debugf("source image %v, targetImage %v, exists %v", sourceImage, exists)
 	if !exists {
 		hubUser, hubPass := builder.GetImageUserInfoV2(sourceImage, username, password)
-		if _, err := ImagePull(dockerClient, targetImage, hubUser, hubPass, logger, 15); err != nil {
+		if _, err := ImagePull(containerdClient, targetImage, hubUser, hubPass, logger, 15); err != nil {
 			printLog(logger, "error", fmt.Sprintf("pull image %s failed %v", targetImage, err), map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
-		if err := ImageTag(dockerClient, targetImage, sourceImage, logger, 15); err != nil {
+		if err := ImageTag(containerdClient, targetImage, sourceImage, logger, 15); err != nil {
 			printLog(logger, "error", fmt.Sprintf("change image tag %s to %s failed", targetImage, sourceImage), map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
-		if err := ImagePush(dockerClient, sourceImage, hubUser, hubPass, logger, 15); err != nil {
+		if err := ImagePush(containerdClient, sourceImage, hubUser, hubPass, logger, 15); err != nil {
 			printLog(logger, "error", fmt.Sprintf("push image %s failed %v", sourceImage, err), map[string]string{"step": "builder-exector", "status": "failure"})
 			return err
 		}
@@ -615,6 +630,147 @@ func printLog(logger event.Logger, level, msg string, info map[string]string) {
 			logger.Error(msg, info)
 		} else {
 			logrus.Error(msg)
+		}
+	}
+}
+
+func CreateImageName(ServiceID, DeployVersion string) string {
+	imageName := strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, ServiceID, DeployVersion))
+	logrus.Info("imageName:", imageName)
+	component, err := db.GetManager().TenantServiceDao().GetServiceByID(ServiceID)
+	if err != nil {
+		logrus.Errorf("image build get service by id error: %v", err)
+		return imageName
+	}
+	app, err := db.GetManager().ApplicationDao().GetByServiceID(ServiceID)
+	if err != nil {
+		logrus.Errorf("image build get app by serviceid error: %v", err)
+		return imageName
+	}
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(component.TenantID)
+	if err != nil {
+		logrus.Errorf("image build get tenant by uuid error: %v", err)
+		return imageName
+	}
+	workloadName := fmt.Sprintf("%s-%s-%s", tenant.Namespace, app.K8sApp, component.K8sComponentName)
+	return strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, workloadName, DeployVersion))
+}
+
+func CreateVolumesAndMounts(contextDir, buildType string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+	pathSplit := strings.Split(contextDir, "/")
+	subPath := strings.Join(pathSplit[2:], "/")
+	hostPathType := corev1.HostPathDirectoryOrCreate
+	hostsFilePathType := corev1.HostPathFile
+	// kaniko volumes volumeMounts config
+	volumes = []corev1.Volume{
+		{
+			Name: "kaniko-secret",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: "rbd-hub-credentials",
+					Items: []corev1.KeyToPath{
+						{
+							Key:  ".dockerconfigjson",
+							Path: "config.json",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "hosts",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/etc/hosts",
+					Type: &hostsFilePathType,
+				},
+			},
+		},
+	}
+	volumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "kaniko-secret",
+			MountPath: "/kaniko/.docker",
+		},
+		{
+			Name:      "hosts",
+			MountPath: "/etc/hosts",
+		},
+	}
+	// Customize it according to how it is built volumes volumeMounts config
+	if buildType == "plug-build" {
+		volume := corev1.Volume{
+			Name: "plug-build",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: contextDir,
+					Type: &hostPathType,
+				},
+			},
+		}
+		volumes = append(volumes, volume)
+		volumeMount := corev1.VolumeMount{
+			Name:      "plug-build",
+			MountPath: "/workspace",
+		}
+		volumeMounts = append(volumeMounts, volumeMount)
+	}
+	if buildType == "run-build" {
+		volume := corev1.Volume{
+			Name: "run-build",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "rbd-cpt-grdata",
+				},
+			},
+		}
+		volumes = append(volumes, volume)
+		volumeMount := corev1.VolumeMount{
+			Name:      "run-build",
+			MountPath: "/workspace",
+			SubPath:   subPath,
+		}
+		volumeMounts = append(volumeMounts, volumeMount)
+	}
+	return volumes, volumeMounts
+}
+
+func WaitingComplete(reChan *channels.RingChannel) (err error) {
+	var logComplete = false
+	var jobComplete = false
+	timeOut := time.NewTimer(time.Minute * 60)
+	for {
+		select {
+		case <-timeOut.C:
+			return fmt.Errorf("build time out (more than 60 minute)")
+		case jobStatus := <-reChan.Out():
+			status := jobStatus.(string)
+			switch status {
+			case "complete":
+				jobComplete = true
+				if logComplete {
+					return nil
+				}
+				logrus.Info(util.Translation("build code job exec completed"), map[string]string{"step": "build-exector"})
+			case "failed":
+				jobComplete = true
+				err = fmt.Errorf("build code job exec failure")
+				if logComplete {
+					return err
+				}
+				logrus.Info(util.Translation("build code job exec failed"), map[string]string{"step": "build-exector"})
+			case "cancel":
+				jobComplete = true
+				err = fmt.Errorf("build code job is canceled")
+				if logComplete {
+					return err
+				}
+			case "logcomplete":
+				logComplete = true
+				if jobComplete {
+					return err
+				}
+			}
 		}
 	}
 }

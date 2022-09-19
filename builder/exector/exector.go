@@ -35,14 +35,15 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
+	"github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
+
 	"github.com/goodrain/rainbond/builder/job"
 	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/util"
-	"github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
@@ -71,10 +72,6 @@ type Manager interface {
 
 //NewManager new manager
 func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
-	dockerClient, err := client.NewEnvClient()
-	if err != nil {
-		return nil, err
-	}
 	sock := os.Getenv("CONTAINERD_SOCK")
 	if sock == "" {
 		sock = "/run/containerd/containerd.sock"
@@ -123,7 +120,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	}
 	logrus.Infof("The maximum number of concurrent build tasks supported by the current node is %d", maxConcurrentTask)
 	return &exectorManager{
-		DockerClient:      dockerClient,
+		ContainerdClient:  containerdClient,
 		KubeClient:        kubeClient,
 		EtcdCli:           etcdCli,
 		mqClient:          mqc,
@@ -142,6 +139,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 
 type exectorManager struct {
 	DockerClient      *client.Client
+	ContainerdClient  *containerd.Client
 	KubeClient        kubernetes.Interface
 	EtcdCli           *clientv3.Client
 	tasks             chan *pb.TaskMessage
@@ -293,7 +291,7 @@ func (e *exectorManager) exec(task *pb.TaskMessage) error {
 //buildFromImage build app from docker image
 func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 	i := NewImageBuildItem(task.TaskBody)
-	i.DockerClient = e.DockerClient
+	i.ContainerdClient = e.ContainerdClient
 	i.Logger.Info("Start with the image build application task", map[string]string{"step": "builder-exector", "status": "starting"})
 	defer event.GetManager().ReleaseLogger(i.Logger)
 	defer func() {
@@ -537,7 +535,7 @@ func (e *exectorManager) slugShare(task *pb.TaskMessage) {
 
 //imageShare share app of docker image
 func (e *exectorManager) imageShare(task *pb.TaskMessage) {
-	i, err := NewImageShareItem(task.TaskBody, e.DockerClient, e.EtcdCli)
+	i, err := NewImageShareItem(task.TaskBody, e.ContainerdClient, e.EtcdCli)
 	if err != nil {
 		logrus.Error("create share image task error.", err.Error())
 		i.Logger.Error(util.Translation("create share image task error"), map[string]string{"step": "builder-exector", "status": "failure"})
