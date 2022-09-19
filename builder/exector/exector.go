@@ -21,6 +21,7 @@ package exector
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond-oam/pkg/export"
 	"os"
 	"runtime/debug"
 	"sync"
@@ -30,20 +31,22 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/namespaces"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 
-	"github.com/containerd/containerd"
 	"github.com/goodrain/rainbond/builder/job"
 	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/db"
-	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
-	mqclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/util"
+
+	dbmodel "github.com/goodrain/rainbond/db/model"
+	mqclient "github.com/goodrain/rainbond/mq/client"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	workermodel "github.com/goodrain/rainbond/worker/discover/model"
 )
@@ -69,8 +72,7 @@ type Manager interface {
 
 //NewManager new manager
 func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
-	var sock string
-		sock = os.Getenv("CONTAINERD_SOCK")
+	sock := os.Getenv("CONTAINERD_SOCK")
 	if sock == "" {
 		sock = "/run/containerd/containerd.sock"
 	}
@@ -78,6 +80,8 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
+	cctx := namespaces.WithNamespace(context.Background(), "rainbond")
+	imageService := containerdClient.ImageService()
 	var restConfig *rest.Config // TODO fanyangyang use k8sutil.NewRestConfig
 	if conf.KubeConfig != "" {
 		restConfig, err = clientcmd.BuildConfigFromFlags("", conf.KubeConfig)
@@ -125,6 +129,11 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 		ctx:               ctx,
 		cancel:            cancel,
 		cfg:               conf,
+		ContainerdCli: export.ContainerdAPI{
+			ImageService:     imageService,
+			CCtx:             cctx,
+			ContainerdClient: containerdClient,
+		},
 	}, nil
 }
 
@@ -141,6 +150,7 @@ type exectorManager struct {
 	cancel            context.CancelFunc
 	runningTask       sync.Map
 	cfg               option.Config
+	ContainerdCli     export.ContainerdAPI
 }
 
 //TaskWorker worker interface

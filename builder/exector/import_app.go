@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/goodrain/rainbond-oam/pkg/export"
 	"io/ioutil"
 	"os"
 	"path"
@@ -55,6 +56,7 @@ type ImportApp struct {
 	DockerClient  *client.Client
 	oldAPPPath    map[string]string
 	oldPluginPath map[string]string
+	ContainerdCli export.ContainerdAPI
 }
 
 //NewImportApp create
@@ -71,6 +73,7 @@ func NewImportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 	logrus.Infof("load app image to hub %s", importApp.ServiceImage.HubURL)
 	importApp.Logger = event.GetManager().GetLogger(importApp.EventID)
 	importApp.DockerClient = m.DockerClient
+	importApp.ContainerdCli = m.ContainerdCli
 	importApp.oldAPPPath = make(map[string]string)
 	importApp.oldPluginPath = make(map[string]string)
 	return &importApp, nil
@@ -121,7 +124,7 @@ func (i *ImportApp) importApp() error {
 			defer wait.Done()
 			appFile := filepath.Join(oldSourceDir, app)
 			tmpDir := path.Join(oldSourceDir, app+"-cache")
-			li := localimport.New(logrus.StandardLogger(), i.DockerClient, tmpDir)
+			li := localimport.New(logrus.StandardLogger(), i.ContainerdCli, tmpDir)
 			if err := i.updateStatusForApp(app, "importing"); err != nil {
 				logrus.Errorf("Failed to update status to importing for app %s: %v", app, err)
 			}
