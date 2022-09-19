@@ -20,10 +20,11 @@ package exector
 
 import (
 	"fmt"
+	"github.com/containerd/containerd"
+	"github.com/docker/distribution/reference"
 	"os"
 	"time"
 
-	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/build"
 	"github.com/goodrain/rainbond/builder/sources"
@@ -35,21 +36,21 @@ import (
 
 //ImageBuildItem ImageBuildItem
 type ImageBuildItem struct {
-	Namespace     string       `json:"namespace"`
-	TenantName    string       `json:"tenant_name"`
-	ServiceAlias  string       `json:"service_alias"`
-	Image         string       `json:"image"`
-	DestImage     string       `json:"dest_image"`
-	Logger        event.Logger `json:"logger"`
-	EventID       string       `json:"event_id"`
-	DockerClient  *client.Client
-	TenantID      string
-	ServiceID     string
-	DeployVersion string
-	HubUser       string
-	HubPassword   string
-	Action        string
-	Configs       map[string]gjson.Result `json:"configs"`
+	Namespace        string       `json:"namespace"`
+	TenantName       string       `json:"tenant_name"`
+	ServiceAlias     string       `json:"service_alias"`
+	Image            string       `json:"image"`
+	DestImage        string       `json:"dest_image"`
+	Logger           event.Logger `json:"logger"`
+	EventID          string       `json:"event_id"`
+	ContainerdClient *containerd.Client
+	TenantID         string
+	ServiceID        string
+	DeployVersion    string
+	HubUser          string
+	HubPassword      string
+	Action           string
+	Configs          map[string]gjson.Result `json:"configs"`
 }
 
 //NewImageBuildItem 创建实体
@@ -75,31 +76,36 @@ func NewImageBuildItem(in []byte) *ImageBuildItem {
 //Run Run
 func (i *ImageBuildItem) Run(timeout time.Duration) error {
 	user, pass := builder.GetImageUserInfoV2(i.Image, i.HubUser, i.HubPassword)
-	_, err := sources.ImagePull(i.DockerClient, i.Image, user, pass, i.Logger, 30)
+	_, err := sources.ImagePull(i.ContainerdClient, i.Image, user, pass, i.Logger, 30)
 	if err != nil {
 		logrus.Errorf("pull image %s error: %s", i.Image, err.Error())
 		i.Logger.Error(fmt.Sprintf("获取指定镜像: %s失败", i.Image), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
+	rf, err := reference.ParseAnyReference(i.Image)
+	if err != nil {
+		logrus.Errorf("reference image error: %s", err.Error())
+		return err
+	}
 	localImageURL := build.CreateImageName(i.ServiceID, i.DeployVersion)
-	if err := sources.ImageTag(i.DockerClient, i.Image, localImageURL, i.Logger, 1); err != nil {
+	if err := sources.ImageTag(i.ContainerdClient, rf.String(), localImageURL, i.Logger, 1); err != nil {
 		logrus.Errorf("change image tag error: %s", err.Error())
 		i.Logger.Error(fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.Image, localImageURL), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	err = sources.ImagePush(i.DockerClient, localImageURL, builder.REGISTRYUSER, builder.REGISTRYPASS, i.Logger, 30)
+	err = sources.ImagePush(i.ContainerdClient, localImageURL, builder.REGISTRYUSER, builder.REGISTRYPASS, i.Logger, 30)
 	if err != nil {
 		logrus.Errorf("push image into registry error: %s", err.Error())
 		i.Logger.Error("推送镜像至镜像仓库失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 
-	if err := sources.ImageRemove(i.DockerClient, localImageURL); err != nil {
+	if err := sources.ImageRemove(i.ContainerdClient, localImageURL); err != nil {
 		logrus.Errorf("remove image %s failure %s", localImageURL, err.Error())
 	}
 
 	if os.Getenv("DISABLE_IMAGE_CACHE") == "true" {
-		if err := sources.ImageRemove(i.DockerClient, i.Image); err != nil {
+		if err := sources.ImageRemove(i.ContainerdClient, i.Image); err != nil {
 			logrus.Errorf("remove image %s failure %s", i.Image, err.Error())
 		}
 	}

@@ -102,7 +102,7 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 	var pr parser.Parser
 	switch input.SourceType {
 	case "docker-run":
-		pr = parser.CreateDockerRunOrImageParse(input.Username, input.Password, input.SourceBody, e.DockerClient, logger)
+		pr = parser.CreateDockerRunOrImageParse(input.Username, input.Password, input.SourceBody, e.ContainerdClient, logger)
 	case "docker-compose":
 		var yamlbody = input.SourceBody
 		if input.SourceBody[0] == '{' {

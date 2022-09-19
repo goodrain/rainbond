@@ -20,6 +20,7 @@ package clean
 
 import (
 	"context"
+	"github.com/containerd/containerd"
 	"os"
 	"time"
 
@@ -34,9 +35,10 @@ import (
 
 //Manager CleanManager
 type Manager struct {
-	dclient *client.Client
-	ctx     context.Context
-	cancel  context.CancelFunc
+	dclient          *client.Client
+	containerdClient *containerd.Client
+	ctx              context.Context
+	cancel           context.CancelFunc
 }
 
 //CreateCleanManager create clean manager
@@ -87,7 +89,7 @@ func (t *Manager) Start(errchan chan error) error {
 				if v.DeliveredType == "image" {
 					imagePath := v.DeliveredPath
 					//remove local image, However, it is important to note that the version image is stored in the image repository
-					err := sources.ImageRemove(t.dclient, imagePath)
+					err := sources.ImageRemove(t.containerdClient, imagePath)
 					if err != nil {
 						logrus.Error(err)
 					}

@@ -29,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/builder"
 	jobc "github.com/goodrain/rainbond/builder/job"
@@ -111,6 +110,7 @@ func (s *slugBuild) writeRunDockerfile(sourceDir, packageName string, envs map[s
 	 ENV CODE_COMMIT_MESSAGE=${CODE_COMMIT_MESSAGE}
 	 ENV VERSION=%s
 	`
+	logrus.Infof("cacheDir:%v, from:%v, packageName:%v, Dir(slugPackage):%v", sourceDir, builder.RUNNERIMAGENAME, packageName, path.Dir(packageName))
 	result := util.ParseVariable(fmt.Sprintf(runDockerfile, builder.RUNNERIMAGENAME, packageName, s.re.DeployVersion), envs)
 	return ioutil.WriteFile(path.Join(sourceDir, "Dockerfile"), []byte(result), 0755)
 }
@@ -137,50 +137,15 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 		return "", fmt.Errorf("write default runtime dockerfile error:%s", err.Error())
 	}
 	//build runtime image
-	runbuildOptions := types.ImageBuildOptions{
-		BuildArgs: map[string]*string{
-			"CODE_COMMIT_HASH":    &s.re.Commit.Hash,
-			"CODE_COMMIT_USER":    &s.re.Commit.User,
-			"CODE_COMMIT_MESSAGE": &s.re.Commit.Message,
-		},
-		Tags:        []string{imageName},
-		Remove:      true,
-		NetworkMode: ImageBuildNetworkModeHost,
-		AuthConfigs: GetTenantRegistryAuthSecrets(s.re.Ctx, s.re.TenantID, s.re.KubeClient),
-	}
-	if _, ok := s.re.BuildEnvs["NO_CACHE"]; ok {
-		runbuildOptions.NoCache = true
-	} else {
-		runbuildOptions.NoCache = false
-	}
-	// pull image runner
 	if err := sources.ImagesPullAndPush(builder.RUNNERIMAGENAME, builder.ONLINERUNNERIMAGENAME, "", "", s.re.Logger); err != nil {
 		return "", fmt.Errorf("pull image %s: %v", builder.RUNNERIMAGENAME, err)
 	}
 	logrus.Infof("pull image %s successfully.", builder.RUNNERIMAGENAME)
-	err := sources.ImageBuild(s.re.DockerClient, cacheDir, runbuildOptions, s.re.Logger, 30)
+	err := sources.ImageBuild(cacheDir, s.re.RbdNamespace, s.re.ServiceID, s.re.DeployVersion, s.re.Logger, "run-build")
 	if err != nil {
 		s.re.Logger.Error(fmt.Sprintf("build image %s of new version failure", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
 		return "", err
-	}
-	// check build image exist
-	_, err = sources.ImageInspectWithRaw(s.re.DockerClient, imageName)
-	if err != nil {
-		s.re.Logger.Error(fmt.Sprintf("build image %s of service version failure", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
-		logrus.Errorf("get image inspect error: %s", err.Error())
-		return "", err
-	}
-	s.re.Logger.Info("build image of new version success, will push to local registry", map[string]string{"step": "builder-exector"})
-	err = sources.ImagePush(s.re.DockerClient, imageName, builder.REGISTRYUSER, builder.REGISTRYPASS, s.re.Logger, 10)
-	if err != nil {
-		s.re.Logger.Error("push image failure", map[string]string{"step": "builder-exector"})
-		logrus.Errorf("push image error: %s", err.Error())
-		return "", err
-	}
-	s.re.Logger.Info("push image of new version success", map[string]string{"step": "builder-exector"})
-	if err := sources.ImageRemove(s.re.DockerClient, imageName); err != nil {
-		logrus.Errorf("remove image %s failure %s", imageName, err.Error())
 	}
 	return imageName, nil
 }
