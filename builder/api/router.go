@@ -61,7 +61,7 @@ func APIServer() *chi.Mux {
 			r.Get("/", controller.GetEventsByIds)
 		})
 		r.Route("/health", func(r chi.Router) {
-			r.Get("/", controller.CheckHalth)
+			r.Get("/", controller.CheckHealth)
 		})
 	})
 	util.ProfilerSetup(r)

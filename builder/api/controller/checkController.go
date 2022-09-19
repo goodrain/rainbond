@@ -141,7 +141,7 @@ func GetCodeCheck(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, cr)
 }
 
-func CheckHalth(w http.ResponseWriter, r *http.Request) {
+func CheckHealth(w http.ResponseWriter, r *http.Request) {
 	healthInfo := discover.HealthCheck()
 	if healthInfo["status"] != "health" {
 		httputil.ReturnError(r, w, 400, "builder service unusual")
