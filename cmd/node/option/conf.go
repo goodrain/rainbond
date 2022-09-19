@@ -22,12 +22,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	criapis "k8s.io/cri-api/pkg/apis"
+	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"k8s.io/kubernetes/pkg/kubelet/cri/remote"
 	"os"
 	"path"
 	"time"
 
 	client "github.com/coreos/etcd/clientv3"
-	dockercli "github.com/docker/docker/client"
 	"github.com/fsnotify/fsnotify"
 	"github.com/goodrain/rainbond/util"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
@@ -100,8 +102,10 @@ type Conf struct {
 	AutoRegistNode  bool
 	//enable collect docker container log
 	EnableCollectLog bool
-	DockerCli        *dockercli.Client
-	EtcdCli          *client.Client
+	//DockerCli        *dockercli.Client
+	RuntimeServiceCli *runtimeapi.RuntimeServiceClient
+	RuntimeService    criapis.RuntimeService
+	EtcdCli           *client.Client
 
 	LicPath   string
 	LicSoPath string
@@ -217,10 +221,19 @@ func (a *Conf) SetLog() {
 
 //ParseClient handle config and create some api
 func (a *Conf) ParseClient(ctx context.Context, etcdClientArgs *etcdutil.ClientArgs) (err error) {
-	a.DockerCli, err = dockercli.NewEnvClient()
-	if err != nil {
-		return err
+	//a.DockerCli, err = dockercli.NewEnvClient()
+	//if err != nil {
+	//	return err
+	//}
+	address := "unix:///run/docker/containerd/containerd.sock"
+	if os.Getenv("CONTAINERD_ADDRESS") != "" {
+		address = os.Getenv("CONTAINERD_ADDRESS")
 	}
+	runtimeService, err := remote.NewRemoteRuntimeService(address, time.Second*3)
+	if err != nil {
+		return
+	}
+	a.RuntimeService = runtimeService
 	logrus.Infof("begin create etcd client: %s", a.EtcdEndpoints)
 	for {
 		a.EtcdCli, err = etcdutil.NewClient(ctx, etcdClientArgs)
