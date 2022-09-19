@@ -21,6 +21,8 @@ package exector
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond-oam/pkg/export"
+	"os"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -29,17 +31,18 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/namespaces"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
-	"github.com/sirupsen/logrus"
-	"github.com/tidwall/gjson"
-
 	"github.com/goodrain/rainbond/builder/job"
 	"github.com/goodrain/rainbond/cmd/builder/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
+	"github.com/tidwall/gjson"
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
@@ -72,7 +75,16 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	sock := os.Getenv("CONTAINERD_SOCK")
+	if sock == "" {
+		sock = "/run/containerd/containerd.sock"
+	}
+	containerdClient, err := containerd.New(sock)
+	if err != nil {
+		return nil, err
+	}
+	cctx := namespaces.WithNamespace(context.Background(), "rainbond")
+	imageService := containerdClient.ImageService()
 	var restConfig *rest.Config // TODO fanyangyang use k8sutil.NewRestConfig
 	if conf.KubeConfig != "" {
 		restConfig, err = clientcmd.BuildConfigFromFlags("", conf.KubeConfig)
@@ -120,6 +132,11 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 		ctx:               ctx,
 		cancel:            cancel,
 		cfg:               conf,
+		ContainerdCli: export.ContainerdAPI{
+			ImageService:     imageService,
+			CCtx:             cctx,
+			ContainerdClient: containerdClient,
+		},
 	}, nil
 }
 
@@ -135,6 +152,7 @@ type exectorManager struct {
 	cancel            context.CancelFunc
 	runningTask       sync.Map
 	cfg               option.Config
+	ContainerdCli     export.ContainerdAPI
 }
 
 //TaskWorker worker interface
