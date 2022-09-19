@@ -8,9 +8,9 @@ IMAGE_BASE_NAME=${IMAGE_NAMESPACE:-'rainbond'}
 DOMESTIC_NAMESPACE=${DOMESTIC_NAMESPACE:-'goodrain'}
 GOARCH=${BUILD_GOARCH:-'amd64'}
 
-GO_VERSION=1.13
+GO_VERSION=1.17
 
-GOPROXY=${GOPROXY:-'https://goproxy.io'}
+GOPROXY=${GOPROXY:-'https://goproxy.cn'}
 
 if [ "$DISABLE_GOPROXY" == "true" ]; then
 	GOPROXY=
