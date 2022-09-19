@@ -21,6 +21,7 @@ package exector
 import (
 	"context"
 	"fmt"
+	"github.com/containerd/containerd"
 	"io/ioutil"
 	"os"
 	"path"
@@ -55,10 +56,11 @@ type BackupAPPRestore struct {
 	//RestoreMode(cdct) current datacenter and current tenant
 	//RestoreMode(cdot) current datacenter and other tenant
 	//RestoreMode(od)     other datacenter
-	RestoreMode  string `json:"restore_mode"`
-	RestoreID    string `json:"restore_id"`
-	DockerClient *client.Client
-	cacheDir     string
+	RestoreMode      string `json:"restore_mode"`
+	RestoreID        string `json:"restore_id"`
+	DockerClient     *client.Client
+	ContainerdClient *containerd.Client
+	cacheDir         string
 	//serviceChange  key: oldServiceID
 	serviceChange map[string]*Info
 	volumeIDMap   map[uint]uint
@@ -351,7 +353,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 		}
 		imageName := getNewImageName(pb.BuildLocalImage)
 		if imageName != "" {
-			if err := sources.ImagePush(b.DockerClient, imageName, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 30); err != nil {
+			if err := sources.ImagePush(b.ContainerdClient, imageName, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 30); err != nil {
 				b.Logger.Error("push plugin image failure", map[string]string{"step": "restore_builder", "status": "failure"})
 				logrus.Errorf("failure push image %s: %v", imageName, err)
 				return err
@@ -394,7 +396,7 @@ func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionS
 	}
 	newImageName := getNewImageName(imageName)
 	if newImageName != imageName {
-		if err := sources.ImageTag(b.DockerClient, imageName, newImageName, b.Logger, 3); err != nil {
+		if err := sources.ImageTag(b.ContainerdClient, imageName, newImageName, b.Logger, 3); err != nil {
 			b.Logger.Error(util.Translation("change image tag error"), map[string]string{"step": "restore_builder", "status": "failure"})
 			logrus.Errorf("change image tag %s to %s failure, %s", imageName, newImageName, err.Error())
 			return err
@@ -402,7 +404,7 @@ func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionS
 		imageName = newImageName
 	}
 	if imageName != "" {
-		if err := sources.ImagePush(b.DockerClient, imageName, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 30); err != nil {
+		if err := sources.ImagePush(b.ContainerdClient, imageName, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 30); err != nil {
 			b.Logger.Error(util.Translation("push image to local hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
 			logrus.Errorf("push image to local hub error when restore backup app, %s", err.Error())
 			return err

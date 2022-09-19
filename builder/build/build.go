@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/containerd/containerd"
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
@@ -34,7 +35,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 )
 
 func init() {
@@ -82,32 +82,32 @@ type Response struct {
 
 //Request build input
 type Request struct {
-	RbdNamespace  string
-	GRDataPVCName string
-	CachePVCName  string
-	CacheMode     string
-	CachePath     string
-	TenantID      string
-	SourceDir     string
-	CacheDir      string
-	TGZDir        string
-	RepositoryURL string
-	CodeSouceInfo sources.CodeSourceInfo
-	Branch        string
-	ServiceAlias  string
-	ServiceID     string
-	DeployVersion string
-	Runtime       string
-	ServerType    string
-	Commit        Commit
-	Lang          code.Lang
-	BuildEnvs     map[string]string
-	Logger        event.Logger
-	DockerClient  *client.Client
-	KubeClient    kubernetes.Interface
-	ExtraHosts    []string
-	HostAlias     []HostAlias
-	Ctx           context.Context
+	RbdNamespace     string
+	GRDataPVCName    string
+	CachePVCName     string
+	CacheMode        string
+	CachePath        string
+	TenantID         string
+	SourceDir        string
+	CacheDir         string
+	TGZDir           string
+	RepositoryURL    string
+	CodeSouceInfo    sources.CodeSourceInfo
+	Branch           string
+	ServiceAlias     string
+	ServiceID        string
+	DeployVersion    string
+	Runtime          string
+	ServerType       string
+	Commit           Commit
+	Lang             code.Lang
+	BuildEnvs        map[string]string
+	Logger           event.Logger
+	ContainerdClient *containerd.Client
+	KubeClient       kubernetes.Interface
+	ExtraHosts       []string
+	HostAlias        []HostAlias
+	Ctx              context.Context
 }
 
 // HostAlias holds the mapping between IP and hostnames that will be injected as an entry in the
