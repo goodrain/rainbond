@@ -34,6 +34,7 @@ import (
 	"io/ioutil"
 )
 
+// AddCodeCheck code check
 func AddCodeCheck(w http.ResponseWriter, r *http.Request) {
 	//b,_:=ioutil.ReadAll(r.Body)
 	//{\"url_repos\": \"https://github.com/bay1ts/zk_cluster_mini.git\", \"check_type\": \"first_check\", \"code_from\": \"gitlab_manual\", \"service_id\": \"c24dea8300b9401b1461dd975768881a\", \"code_version\": \"master\", \"git_project_id\": 0, \"condition\": \"{\\\"language\\\":\\\"docker\\\",\\\"runtimes\\\":\\\"false\\\", \\\"dependencies\\\":\\\"false\\\",\\\"procfile\\\":\\\"false\\\"}\", \"git_url\": \"--branch master --depth 1 https://github.com/bay1ts/zk_cluster_mini.git\"}
@@ -63,6 +64,8 @@ func AddCodeCheck(w http.ResponseWriter, r *http.Request) {
 	db.GetManager().CodeCheckResultDao().AddModel(dbmodel)
 	httputil.ReturnSuccess(r, w, nil)
 }
+
+// Update update code check results
 func Update(w http.ResponseWriter, r *http.Request) {
 	serviceID := strings.TrimSpace(chi.URLParam(r, "serviceID"))
 	result := new(model.CodeCheckResult)
@@ -97,6 +100,7 @@ func Update(w http.ResponseWriter, r *http.Request) {
 	db.GetManager().CodeCheckResultDao().UpdateModel(dbmodel)
 	httputil.ReturnSuccess(r, w, nil)
 }
+
 func convertModelToDB(result *model.CodeCheckResult) *dbmodel.CodeCheckResult {
 	r := dbmodel.CodeCheckResult{}
 	r.ServiceID = result.ServiceID
@@ -129,6 +133,8 @@ func convertModelToDB(result *model.CodeCheckResult) *dbmodel.CodeCheckResult {
 	r.VolumeMountPath = result.VolumeMountPath
 	return &r
 }
+
+// GetCodeCheck Get the result of code check
 func GetCodeCheck(w http.ResponseWriter, r *http.Request) {
 	serviceID := strings.TrimSpace(chi.URLParam(r, "serviceID"))
 	//findResultByServiceID
@@ -141,7 +147,8 @@ func GetCodeCheck(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, cr)
 }
 
-func CheckHalth(w http.ResponseWriter, r *http.Request) {
+// CheckHealth Health probe
+func CheckHealth(w http.ResponseWriter, r *http.Request) {
 	healthInfo := discover.HealthCheck()
 	if healthInfo["status"] != "health" {
 		httputil.ReturnError(r, w, 400, "builder service unusual")
