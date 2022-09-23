@@ -20,7 +20,12 @@ package logger
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	containerdEventstypes "github.com/containerd/containerd/api/events"
+	"github.com/containerd/containerd/events"
+	"github.com/containerd/typeurl"
+	"github.com/docker/cli/templates"
 	"io"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"strings"
@@ -31,6 +36,10 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/goodrain/rainbond/cmd/node/option"
+	"text/template"
+
+	// Register grpc event types
+	_ "github.com/containerd/containerd/api/events"
 )
 
 //RFC3339NanoFixed time format
@@ -44,6 +53,40 @@ type ContainerLogManage struct {
 	cchan         chan ContainerEvent
 	containerLogs sync.Map
 }
+
+const (
+	// CONTAINER_ACTION_START is start container event action
+	CONTAINER_ACTION_START = "start"
+
+	// CONTAINER_ACTION_STOP is stop container event action
+	CONTAINER_ACTION_STOP = "stop"
+)
+
+const (
+	// CONTAINER_STATE_CREATED is created state
+	CONTAINER_STATE_CREATED = "created"
+
+	// CONTAINER_STATE_RUNNING is running state
+	CONTAINER_STATE_RUNNING = "running"
+
+	// CONTAINER_STATE_PAUSED is paused state
+	CONTAINER_STATE_PAUSED = "paused"
+
+	// CONTAINER_STATE_RESTARTING is restarting state
+	CONTAINER_STATE_RESTARTING = "restarting"
+
+	// CONTAINER_STATE_REMOVING is removing state
+	CONTAINER_STATE_REMOVING = "removing"
+
+	// CONTAINER_STATE_EXITED is exited state
+	CONTAINER_STATE_EXITED = "exited"
+
+	// CONTAINER_STATE_DEAD is dead state
+	CONTAINER_STATE_DEAD = "dead"
+
+	// CONTAINER_STATE_UNKNOWN is unknown state
+	CONTAINER_STATE_UNKNOWN = "unknown"
+)
 
 //CreatContainerLogManage create a container log manage
 func CreatContainerLogManage(conf *option.Conf) *ContainerLogManage {
@@ -112,7 +155,7 @@ func (c *ContainerLogManage) handleLogger() {
 			return
 		case cevent := <-c.cchan:
 			switch cevent.Action {
-			case "start":
+			case CONTAINER_ACTION_START:
 				//loggerType := cevent.Container.HostConfig.LogConfig.Type
 				//if loggerType != "json-file" && loggerType != "syslog" {
 				//	continue
@@ -143,7 +186,7 @@ func (c *ContainerLogManage) handleLogger() {
 								cevent.Container, _ = c.getContainer(cevent.Container.GetId())
 								continue
 							}
-							clog := createContainerLog(c.ctx, cevent.Container, reader)
+							clog := createContainerLog(c.ctx, cevent.Container, reader, c.conf)
 							if err := clog.StartLogging(); err != nil {
 								clog.Stop()
 								if err == ErrNeglectedContainer {
@@ -161,7 +204,7 @@ func (c *ContainerLogManage) handleLogger() {
 						}
 					}()
 				}
-			case "die", "destroy":
+			case CONTAINER_ACTION_STOP:
 				if logger, ok := c.containerLogs.Load(cevent.Container.GetId()); ok {
 					clog, okf := logger.(*ContainerLog)
 					if okf {
@@ -202,12 +245,12 @@ func (c *ContainerLogManage) cacheContainer(cs ...ContainerEvent) {
 //}
 
 func (c *ContainerLogManage) listContainer() []*runtimeapi.Container {
-	containers, err := c.conf.RuntimeService.ListContainers(&runtimeapi.ContainerFilter{})
+	containers, err := c.conf.RuntimeServiceCli.ListContainers(context.Background(), &runtimeapi.ListContainersRequest{})
 	if err != nil {
 		logrus.Errorf("list containers failure.%s", err.Error())
-		containers, _ = c.conf.RuntimeService.ListContainers(&runtimeapi.ContainerFilter{})
+		containers, _ = c.conf.RuntimeServiceCli.ListContainers(context.Background(), &runtimeapi.ListContainersRequest{})
 	}
-	return containers
+	return containers.GetContainers()
 }
 
 func (c *ContainerLogManage) loollist() {
@@ -237,7 +280,7 @@ func (c *ContainerLogManage) loollist() {
 
 func (c *ContainerLogManage) listAndWatchContainer(errchan chan error) {
 	containers := c.listContainer()
-	logrus.Debugf("found %d containers", len(containers))
+	logrus.Infof("found %d containers", len(containers))
 	for _, con := range containers {
 		container, err := c.getContainer(con.GetId())
 		if err != nil {
@@ -259,36 +302,120 @@ func (c *ContainerLogManage) listAndWatchContainer(errchan chan error) {
 	}
 }
 
-func (c *ContainerLogManage) watchContainer() error {
-	return nil
-	//containerFileter := filters.NewArgs()
-	//containerFileter.Add("type", "container")
-	//eventchan, eventerrchan := c.conf.DockerCli.Events(c.ctx, types.EventsOptions{
-	//	Filters: containerFileter,
-	//})
-	//for {
-	//	select {
-	//	case <-c.ctx.Done():
-	//		return nil
-	//	case err := <-eventerrchan:
-	//		return err
-	//	case event, ok := <-eventchan:
-	//		if !ok {
-	//			return fmt.Errorf("event chan is closed")
-	//		}
-	//		if event.Type == events.ContainerEventType && checkEventAction(event.Action) {
-	//			container, err := c.getContainer(event.ID)
-	//			if err != nil {
-	//				if !strings.Contains(err.Error(), "No such container") {
-	//					logrus.Errorf("get container detail info failure %s", err.Error())
-	//				}
-	//				break
-	//			}
-	//			c.cacheContainer(ContainerEvent{Action: event.Action, Container: container})
-	//		}
-	//	}
-	//}
+type Out struct {
+	Timestamp time.Time
+	Namespace string
+	Topic     string
+	Event     string
 }
+
+func parseTemplate(format string) (*template.Template, error) {
+	aliases := map[string]string{
+		"json": "{{json .}}",
+	}
+	if alias, ok := aliases[format]; ok {
+		format = alias
+	}
+	return templates.Parse(format)
+}
+
+func (c *ContainerLogManage) watchContainer() error {
+	eventsClient := c.conf.ContainerdCli.EventService()
+	eventsCh, errCh := eventsClient.Subscribe(context.Background())
+	var err error
+	for {
+		var e *events.Envelope
+		select {
+		case e = <-eventsCh:
+		case err = <-errCh:
+			return err
+		}
+		if e != nil {
+			if e.Event != nil {
+				ev, err := typeurl.UnmarshalAny(e.Event)
+				if err != nil {
+					logrus.Warn("cannot unmarshal an event from Any")
+					continue
+				}
+				switch ev.(type) {
+				case *containerdEventstypes.TaskStart:
+					evVal := ev.(*containerdEventstypes.TaskStart)
+					// PATCH: if it's start event of pause container
+					// we would skip it.
+					// QUESTION: what if someone's container ID equals the other Sandbox ID?
+					targetContainerID := evVal.ContainerID
+					resp, _ := c.conf.RuntimeServiceCli.ListPodSandbox(context.Background(),
+						&runtimeapi.ListPodSandboxRequest{
+							Filter: &runtimeapi.PodSandboxFilter{
+								Id: targetContainerID,
+							},
+						})
+					if resp != nil && len(resp.Items) == 1 {
+						// it's sandbox container! skip this one!
+						logrus.Infof("skipped start event of container %s since it's sandbox container", targetContainerID)
+						return nil
+					}
+					container, err := c.getContainer(targetContainerID)
+					if err != nil {
+						if !strings.Contains(err.Error(), "No such container") {
+							logrus.Errorf("get container detail info failure %s", err.Error())
+						}
+						break
+					}
+					c.cacheContainer(ContainerEvent{Action: CONTAINER_ACTION_START, Container: container})
+				case containerdEventstypes.TaskExit, containerdEventstypes.TaskDelete:
+					var targetContainerID string
+					evVal, ok := ev.(*containerdEventstypes.TaskExit)
+					if ok {
+						targetContainerID = evVal.ContainerID
+					} else {
+						targetContainerID = ev.(*containerdEventstypes.TaskDelete).ContainerID
+					}
+					container, err := c.getContainer(targetContainerID)
+					if err != nil {
+						if !strings.Contains(err.Error(), "No such container") {
+							logrus.Errorf("get container detail info failure %s", err.Error())
+						}
+						break
+					}
+					c.cacheContainer(ContainerEvent{Action: CONTAINER_ACTION_STOP, Container: container})
+				}
+			}
+		}
+	}
+}
+
+//func (c *ContainerLogManage) watchContainer() error {
+//
+//	return nil
+//containerFileter := filters.NewArgs()
+//containerFileter.Add("type", "container")
+//eventchan, eventerrchan := c.conf.DockerCli.Events(c.ctx, types.EventsOptions{
+//	Filters: containerFileter,
+//})
+//for {
+//	select {
+//	case <-c.ctx.Done():
+//		return nil
+//	case err := <-eventerrchan:
+//		return err
+//	case event, ok := <-eventchan:
+//		if !ok {
+//			return fmt.Errorf("event chan is closed")
+//		}
+//		if event.Type == events.ContainerEventType && checkEventAction(event.Action) {
+//			container, err := c.getContainer(event.ID)
+//			if err != nil {
+//				if !strings.Contains(err.Error(), "No such container") {
+//					logrus.Errorf("get container detail info failure %s", err.Error())
+//				}
+//				break
+//			}
+//			c.cacheContainer(ContainerEvent{Action: event.Action, Container: container})
+//		}
+//	}
+//}
+//}
 
 //func (c *ContainerLogManage) getContainer(containerID string) (types.ContainerJSON, error) {
 //	ctx, cancel := context.WithTimeout(c.ctx, time.Second*5)
@@ -297,7 +424,13 @@ func (c *ContainerLogManage) watchContainer() error {
 //}
 
 func (c *ContainerLogManage) getContainer(containerID string) (*runtimeapi.ContainerStatus, error) {
-	return c.conf.RuntimeService.ContainerStatus(containerID)
+	status, err := c.conf.RuntimeServiceCli.ContainerStatus(context.Background(), &runtimeapi.ContainerStatusRequest{
+		ContainerId: containerID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return status.GetStatus(), nil
 }
 
 var handleAction = []string{"create", "start", "stop", "die", "destroy"}
@@ -321,13 +454,14 @@ func checkEventAction(action string) bool {
 //	}
 //}
 
-func createContainerLog(ctx context.Context, container *runtimeapi.ContainerStatus, reader *LogFile) *ContainerLog {
+func createContainerLog(ctx context.Context, container *runtimeapi.ContainerStatus, reader *LogFile, conf *option.Conf) *ContainerLog {
 	cctx, cancel := context.WithCancel(ctx)
 	return &ContainerLog{
 		ctx:             cctx,
 		cancel:          cancel,
 		ContainerStatus: container,
 		reader:          reader,
+		conf:            conf,
 	}
 }
 
@@ -335,6 +469,7 @@ func createContainerLog(ctx context.Context, container *runtimeapi.ContainerStat
 type ContainerLog struct {
 	ctx    context.Context
 	cancel context.CancelFunc
+	conf   *option.Conf
 	//types.ContainerJSON
 	*runtimeapi.ContainerStatus
 	LogCopier *Copier
@@ -404,32 +539,133 @@ func getLoggerConfig(envs []string) []*ContainerLoggerConfig {
 //ErrNeglectedContainer not define logger name
 var ErrNeglectedContainer = fmt.Errorf("Neglected container")
 
+// containerInfo is extra info returned by containerd grpc api
+// it's NOT part of cri-api, so we keep this struct being internal visibility.
+// If we don't care sth details, we will keep it being interface type.
+type containerInfo struct {
+	Sandboxid      string                    `json:"sandboxID"`
+	Pid            int                       `json:"pid"`
+	Removing       bool                      `json:"removing"`
+	Snapshotkey    string                    `json:"snapshotKey"`
+	Snapshotter    string                    `json:"snapshotter"`
+	Runtimetype    string                    `json:"runtimeType"`
+	Runtimeoptions interface{}               `json:"runtimeOptions"`
+	Config         *ContainerInfoConfig      `json:"config"`
+	Runtimespec    *ContainerInfoRuntimeSpec `json:"runtimeSpec"`
+}
+
+// ContainerInfoMetadata ...
+type ContainerInfoMetadata struct {
+	Name string `json:"name"`
+}
+
+// ContainerEnv ...
+type ContainerInfoEnv struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+// ContainerInfoMount ...
+type ContainerInfoMount struct {
+	ContainerPath  string `json:"container_path"`
+	HostPath       string `json:"host_path"`
+	Readonly       bool   `json:"readonly,omitempty"`
+	SelinuxRelabel bool   `json:"selinux_relabel,omitempty"`
+}
+
+// ContainerInfoConfig ...
+type ContainerInfoConfig struct {
+	Metadata    *ContainerInfoMetadata `json:"metadata"`
+	Image       interface{}            `json:"image"`
+	Envs        []*ContainerInfoEnv    `json:"envs"`
+	Mounts      []*ContainerInfoMount  `json:"mounts"`
+	Labels      interface{}            `json:"labels"`
+	Annotations interface{}            `json:"annotations"`
+	LogPath     string                 `json:"log_path"`
+	Linux       interface{}            `json:"linux,omitempty"`
+}
+
+// ContainerInfoRuntimeMount ...
+type ContainerInfoRuntimeMount struct {
+	Destination string   `json:"destination"`
+	Type        string   `json:"type"`
+	Source      string   `json:"source"`
+	Options     []string `json:"options"`
+}
+
+// ContainerInfoRuntimeSpec ...
+type ContainerInfoRuntimeSpec struct {
+	Ociversion  string                       `json:"ociVersion"`
+	Process     interface{}                  `json:"process"`
+	Root        interface{}                  `json:"root"`
+	Mounts      []*ContainerInfoRuntimeMount `json:"mounts"`
+	Annotations interface{}                  `json:"annotations"`
+	Linux       interface{}                  `json:"linux,omitempty"`
+}
+
+// ContainerEnv is container env
+type ContainerEnv struct {
+	Key   string
+	Value string
+}
+
+func (container *ContainerLog) InspectContainer() (*Info, error) {
+	r, err := container.conf.RuntimeServiceCli.ContainerStatus(context.Background(), &runtimeapi.ContainerStatusRequest{
+		ContainerId: container.ContainerStatus.GetId(),
+		Verbose:     true,
+	})
+	if err != nil {
+		logrus.Errorf("failed to get container %s status: %v", container.ContainerStatus.GetMetadata().GetName(), err)
+		return nil, err
+	}
+	logrus.Debugf("container %s status: %v [%v]", container.ContainerStatus.GetMetadata().GetName(), *r.Status, r.Info)
+	// NOTE: unmarshal the extra info to get the container envs and mounts data.
+	// Mounts should include both image volume and container mount.
+	extraContainerInfo := new(containerInfo)
+	err = json.Unmarshal([]byte(r.Info["info"]), extraContainerInfo)
+	if err != nil {
+		logrus.Warnf("failed to unmarshal container info: %v", err)
+	}
+	var containerEnvs []string
+	if extraContainerInfo.Config != nil {
+		for _, ce := range extraContainerInfo.Config.Envs {
+			logrus.Infof("container [%s] env: %s=%s", container.ContainerStatus.GetId(), ce.Key, ce.Value)
+			containerEnvs = append(containerEnvs, fmt.Sprintf("%s=%s", ce.Key, ce.Value))
+		}
+	}
+	createTime, _ := time.Parse(RFC3339NanoFixed, string(container.ContainerStatus.GetCreatedAt()))
+	return &Info{
+		ContainerID:   container.ContainerStatus.GetId(),
+		ContainerName: container.ContainerStatus.GetMetadata().GetName(),
+		//ContainerEntrypoint: container.Path,
+		//ContainerArgs:      container.Args,
+		ContainerImageName: container.ContainerStatus.GetImageRef(),
+		ContainerCreated:   createTime,
+		ContainerEnv:       containerEnvs,
+		ContainerLabels:    container.ContainerStatus.GetLabels(),
+		DaemonName:         "cri",
+	}, nil
+}
+
 // startLogger starts a new logger driver for the container.
 func (container *ContainerLog) startLogger() ([]Logger, error) {
+	info, err := container.InspectContainer()
+	if err != nil {
+		return nil, err
+	}
 	configs := getLoggerConfig([]string{})
 	var loggers []Logger
 	for _, config := range configs {
 		initDriver, err :=
 			GetLogDriver(config.Name)
+		logrus.Infof("get log driver %s", config.Name)
 		if err != nil {
 			logrus.Warnf("get container log driver failure %s", err.Error())
 			continue
 		}
-		createTime, _ := time.Parse(RFC3339NanoFixed, string(container.ContainerStatus.GetCreatedAt()))
-		info := Info{
-			Config:        config.Options,
-			ContainerID:   container.ContainerStatus.GetId(),
-			ContainerName: container.ContainerStatus.GetMetadata().GetName(),
-			//ContainerEntrypoint: container.Path,
-			//ContainerArgs:      container.Args,
-			ContainerImageName: container.ContainerStatus.GetImageRef(),
-			ContainerCreated:   createTime,
-			//CRI Interface does not currently support obtaining container environment variables
-			ContainerEnv:    []string{},
-			ContainerLabels: container.ContainerStatus.GetLabels(),
-			DaemonName:      "cri",
-		}
-		l, err := initDriver(info)
+		info.Config = config.Options
+		info.DaemonName = "cri"
+		l, err := initDriver(*info)
 		if err != nil {
 			logrus.Warnf("init container log driver failure %s", err.Error())
 			continue

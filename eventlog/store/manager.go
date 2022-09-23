@@ -469,6 +469,7 @@ loop:
 			containerID := m[0:12]        //0-12
 			serviceID := string(m[13:45]) //13-45
 			log := m[45:]
+			logrus.Debugf("containerID [%s] serviceID [%s] log [%s]", containerID, serviceID, string(log))
 			buffer := bytes.NewBuffer(containerID)
 			buffer.WriteString(":")
 			buffer.Write(log)
