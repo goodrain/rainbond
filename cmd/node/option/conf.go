@@ -22,9 +22,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	criapis "k8s.io/cri-api/pkg/apis"
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/namespaces"
+	"github.com/goodrain/rainbond/util/criutil"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
-	"k8s.io/kubernetes/pkg/kubelet/cri/remote"
 	"os"
 	"path"
 	"time"
@@ -46,6 +47,12 @@ var (
 
 	watcher  *fsnotify.Watcher
 	exitChan = make(chan struct{})
+)
+
+const (
+	DockerContainerdSock    = "/var/run/docker/containerd/containerd.sock"
+	RunDockerContainerdSock = "/run/docker/containerd/containerd.sock"
+	ContainerdSock          = "/run/containerd/containerd.sock"
 )
 
 //Init  init config
@@ -103,8 +110,8 @@ type Conf struct {
 	//enable collect docker container log
 	EnableCollectLog bool
 	//DockerCli        *dockercli.Client
-	RuntimeServiceCli *runtimeapi.RuntimeServiceClient
-	RuntimeService    criapis.RuntimeService
+	RuntimeServiceCli runtimeapi.RuntimeServiceClient
+	ContainerdCli     *containerd.Client
 	EtcdCli           *client.Client
 
 	LicPath   string
@@ -219,21 +226,38 @@ func (a *Conf) SetLog() {
 	}
 }
 
+func newClient(namespace, address string, opts ...containerd.ClientOpt) (*containerd.Client, context.Context, context.CancelFunc, error) {
+	ctx := namespaces.WithNamespace(context.Background(), namespace)
+	client, err := containerd.New(address, opts...)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithCancel(ctx)
+	return client, ctx, cancel, nil
+}
+
 //ParseClient handle config and create some api
 func (a *Conf) ParseClient(ctx context.Context, etcdClientArgs *etcdutil.ClientArgs) (err error) {
 	//a.DockerCli, err = dockercli.NewEnvClient()
 	//if err != nil {
 	//	return err
 	//}
-	address := "unix:///run/docker/containerd/containerd.sock"
-	if os.Getenv("CONTAINERD_ADDRESS") != "" {
-		address = os.Getenv("CONTAINERD_ADDRESS")
+	address := "unix:///var/run/dockershim.sock"
+	if os.Getenv("RUNTIME_ENDPOINT") != "" {
+		address = os.Getenv("RUNTIME_ENDPOINT")
 	}
-	runtimeService, err := remote.NewRemoteRuntimeService(address, time.Second*3)
+	runtimeClient, _, err := criutil.GetRuntimeClient(context.Background(), address, time.Second*3)
 	if err != nil {
 		return
 	}
-	a.RuntimeService = runtimeService
+	a.RuntimeServiceCli = runtimeClient
+	client, ctx, _, err := newClient("", ContainerdSock)
+	if err != nil {
+		logrus.Errorf("new client failed %v", err)
+		return err
+	}
+	a.ContainerdCli = client
 	logrus.Infof("begin create etcd client: %s", a.EtcdEndpoints)
 	for {
 		a.EtcdCli, err = etcdutil.NewClient(ctx, etcdClientArgs)
