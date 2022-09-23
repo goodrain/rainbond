@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -153,6 +154,13 @@ func New(ctx logger.Info) (logger.Logger, error) {
 	}
 	if serviceID == "" {
 		serviceID = "default"
+	}
+	// The following two environment variables are for debugging only
+	if os.Getenv("TTENANT_ID") != "" {
+		tenantID = os.Getenv("TTENANT_ID")
+	}
+	if os.Getenv("SSERVICE_ID") != "" {
+		serviceID = os.Getenv("SSERVICE_ID")
 	}
 	address := getTCPConnConfig(serviceID, ctx.Config["stream-server"])
 	writer, err := NewClient(address)
