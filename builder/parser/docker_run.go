@@ -113,7 +113,7 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 		}
 		return d.errors
 	}
-	ctx := namespaces.WithNamespace(context.Background(), "rbd-ctr")
+	ctx := namespaces.WithNamespace(context.Background(), "rainbond")
 	image, err := d.containerdClient.GetImage(ctx, d.image.name.String())
 	if err!= nil{
 		fmt.Println("containerd get image error:", err)
