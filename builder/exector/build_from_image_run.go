@@ -21,7 +21,6 @@ package exector
 import (
 	"fmt"
 	"github.com/containerd/containerd"
-	"github.com/docker/distribution/reference"
 	"os"
 	"time"
 
@@ -82,13 +81,8 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 		i.Logger.Error(fmt.Sprintf("获取指定镜像: %s失败", i.Image), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	rf, err := reference.ParseAnyReference(i.Image)
-	if err != nil {
-		logrus.Errorf("reference image error: %s", err.Error())
-		return err
-	}
 	localImageURL := build.CreateImageName(i.ServiceID, i.DeployVersion)
-	if err := sources.ImageTag(i.ContainerdClient, rf.String(), localImageURL, i.Logger, 1); err != nil {
+	if err := sources.ImageTag(i.ContainerdClient, i.Image, localImageURL, i.Logger, 1); err != nil {
 		logrus.Errorf("change image tag error: %s", err.Error())
 		i.Logger.Error(fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.Image, localImageURL), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
