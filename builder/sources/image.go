@@ -25,9 +25,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/containerd/containerd"
+	ctrcontent "github.com/containerd/containerd/cmd/ctr/commands/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/pkg/progress"
+	"github.com/containerd/containerd/platforms"
+	refdocker "github.com/containerd/containerd/reference/docker"
+	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/remotes/docker/config"
 	"github.com/docker/distribution/reference"
@@ -40,8 +45,11 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 	"io"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,6 +57,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
+	"text/tabwriter"
 	"time"
 )
 
@@ -58,72 +68,86 @@ var ErrorNoAuth = fmt.Errorf("pull image require docker login")
 //ErrorNoImage error no image
 var ErrorNoImage = fmt.Errorf("image not exist")
 
+//Namespace containerd image namespace
+var Namespace = "rainbond"
+
 //ImagePull pull docker image
 //timeout minutes of the unit
-func ImagePull(containerdClient *containerd.Client, image string, username, password string, logger event.Logger, timeout int) (*images.Image, error) {
-	printLog(logger, "info", fmt.Sprintf("start get image:%s", image), map[string]string{"step": "pullimage"})
-	rf, err := reference.ParseAnyReference(image)
+func ImagePull(client *containerd.Client, ref string, username, password string, logger event.Logger, timeout int) (*containerd.Image, error) {
+	printLog(logger, "info", fmt.Sprintf("start get image:%s", ref), map[string]string{"step": "pullimage"})
+	srcNamed, err := refdocker.ParseDockerRef(ref)
 	if err != nil {
-		logrus.Errorf("reference image error: %s", err.Error())
 		return nil, err
 	}
-	//最少一分钟
-	if timeout < 1 {
-		timeout = 1
-	}
-	ctx := namespaces.WithNamespace(context.Background(), "rbd-ctr")
+	image := srcNamed.String()
+	ongoing := ctrcontent.NewJobs(image)
+	pctx, stopProgress := context.WithCancel(namespaces.WithNamespace(context.Background(), Namespace))
+	progress := make(chan struct{})
+	go func() {
+		ctrcontent.ShowProgress(pctx, ongoing, client.ContentStore(), os.Stdout)
+		close(progress)
+	}()
+	h := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		if desc.MediaType != images.MediaTypeDockerSchema1Manifest {
+			ongoing.Add(desc)
+		}
+		return nil, nil
+	})
 	defaultTLS := &tls.Config{
 		InsecureSkipVerify: true,
 	}
 	hostOpt := config.HostOptions{}
 	hostOpt.DefaultTLS = defaultTLS
-	if username != "" && password != "" {
-		hostOpt.Credentials = func(host string) (string, string, error) {
-			return username, password, nil
-		}
+	hostOpt.Credentials = func(host string) (string, string, error) {
+		return username, password, nil
 	}
+	Tracker := docker.NewInMemoryTracker()
 	options := docker.ResolverOptions{
-		Tracker: docker.NewInMemoryTracker(),
-		Hosts:   config.ConfigureHosts(ctx, hostOpt),
-	}
-	pullOpts := []containerd.RemoteOpt{
-		containerd.WithPullUnpack,
-		containerd.WithResolver(docker.NewResolver(options)),
+		Tracker: Tracker,
+		Hosts:   config.ConfigureHosts(pctx, hostOpt),
 	}
 
-	//TODO: 使用1.12版本api的bug “repository name must be canonical”，使用rf.String()完整的镜像地址
-	_, err = containerdClient.Pull(ctx, rf.String(), pullOpts...)
+	platformMC := platforms.Ordered([]ocispec.Platform{platforms.DefaultSpec()}...)
+	opts := []containerd.RemoteOpt{
+		containerd.WithImageHandler(h),
+		//nolint:staticcheck
+		containerd.WithSchema1Conversion, //lint:ignore SA1019 nerdctl should support schema1 as well.
+		containerd.WithPlatformMatcher(platformMC),
+		containerd.WithResolver(docker.NewResolver(options)),
+	}
+	var img containerd.Image
+	img, err = client.Pull(pctx, image, opts...)
+	stopProgress()
 	if err != nil {
-		logrus.Debugf("image name: %s readcloser error: %v", image, err.Error())
-		if strings.HasSuffix(err.Error(), "does not exist or no pull access") {
-			printLog(logger, "error", fmt.Sprintf("image: %s does not exist or is not available", image), map[string]string{"step": "pullimage", "status": "failure"})
-			return nil, fmt.Errorf("Image(%s) does not exist or no pull access", image)
-		}
 		return nil, err
 	}
-	imageService := containerdClient.ImageService()
-	imageObj, err := imageService.Get(ctx, rf.String())
-	if err != nil {
-		return nil, fmt.Errorf("image(%v) pull error", image)
-	}
-	logrus.Infof("pull image taget:", imageObj.Target)
-	//defer readcloser.Close()
+	<-progress
 	printLog(logger, "info", fmt.Sprintf("Success Pull Image：%s", image), map[string]string{"step": "pullimage"})
-	return &imageObj, nil
+	return &img, nil
 }
 
 //ImageTag change docker image tag
 func ImageTag(containerdClient *containerd.Client, source, target string, logger event.Logger, timeout int) error {
-	logrus.Debugf(fmt.Sprintf("change image tag：%s -> %s", source, target))
+	srcNamed, err := refdocker.ParseDockerRef(source)
+	if err != nil {
+		return err
+	}
+	srcImage := srcNamed.String()
+	targetNamed, err := refdocker.ParseDockerRef(target)
+	if err != nil {
+		return err
+	}
+	targetImage := targetNamed.String()
+	logrus.Infof(fmt.Sprintf("change image tag：%s -> %s", srcImage, targetImage))
 	printLog(logger, "info", fmt.Sprintf("change image tag：%s -> %s", source, target), map[string]string{"step": "changetag"})
-	ctx := namespaces.WithNamespace(context.Background(), "rbd-ctr")
+	ctx := namespaces.WithNamespace(context.Background(), Namespace)
 	imageService := containerdClient.ImageService()
-	image, err := imageService.Get(ctx, source)
+	image, err := imageService.Get(ctx, srcImage)
 	if err != nil {
 		logrus.Errorf("imagetag imageService Get error: %s", err.Error())
 		return err
 	}
-	image.Name = target
+	image.Name = targetImage
 	if _, err = imageService.Create(ctx, image); err != nil {
 		if errdefs.IsAlreadyExists(err) {
 			if err = imageService.Delete(ctx, image.Name); err != nil {
@@ -204,58 +228,101 @@ func ImageNameWithNamespaceHandle(imageName string) *model.ImageName {
 	return &i
 }
 
-// GenSaveImageName generates the final name of the image, which is the name of
-// the image in the exported tar package.
-func GenSaveImageName(name string) string {
-	imageName := ImageNameWithNamespaceHandle(name)
-	return fmt.Sprintf("%s:%s", imageName.Name, imageName.Tag)
-}
+//// GenSaveImageName generates the final name of the image, which is the name of
+//// the image in the exported tar package.
+//func GenSaveImageName(name string) string {
+//	imageName := ImageNameWithNamespaceHandle(name)
+//	return fmt.Sprintf("%s:%s", imageName.Name, imageName.Tag)
+//}
 
 //ImagePush push image to registry
 //timeout minutes of the unit
-func ImagePush(containerdClient *containerd.Client, image, user, pass string, logger event.Logger, timeout int) error {
-	printLog(logger, "info", fmt.Sprintf("start push image：%s", image), map[string]string{"step": "pushimage"})
-	if timeout < 1 {
-		timeout = 1
-	}
-	if user == "" {
-		user = os.Getenv("LOCAL_HUB_USER")
-	}
-	if pass == "" {
-		pass = os.Getenv("LOCAL_HUB_PASS")
-	}
-	ref, err := reference.ParseNormalizedNamed(image)
+func ImagePush(client *containerd.Client, rawRef, user, pass string, logger event.Logger, timeout int) error {
+	printLog(logger, "info", fmt.Sprintf("start push image：%s", rawRef), map[string]string{"step": "pushimage"})
+	named, err := refdocker.ParseDockerRef(rawRef)
 	if err != nil {
 		return err
 	}
-	ctx := namespaces.WithNamespace(context.Background(), "rbd-ctr")
-	getImage, err := containerdClient.GetImage(ctx, ref.String())
+	image := named.String()
+	ctx := namespaces.WithNamespace(context.Background(), Namespace)
+	img, err := client.ImageService().Get(ctx, image)
 	if err != nil {
-		logrus.Errorf("containerdClient get Image error: %s", err.Error())
-		return err
+		return errors.Wrap(err, "unable to resolve image to manifest")
 	}
-	defaultTLS := &tls.Config{
-		InsecureSkipVerify: true,
+	desc := img.Target
+	cs := client.ContentStore()
+	if manifests, err := images.Children(ctx, cs, desc); err == nil && len(manifests) > 0 {
+		matcher := platforms.NewMatcher(platforms.DefaultSpec())
+		for _, manifest := range manifests {
+			if manifest.Platform != nil && matcher.Match(*manifest.Platform) {
+				if _, err := images.Children(ctx, cs, manifest); err != nil {
+					return errors.Wrap(err, "no matching manifest")
+				}
+				desc = manifest
+				break
+			}
+		}
 	}
-	hostOpt := config.HostOptions{}
-	hostOpt.DefaultTLS = defaultTLS
-	hostOpt.Credentials = func(host string) (string, string, error) {
+	NewTracker := docker.NewInMemoryTracker()
+	options := docker.ResolverOptions{
+		Tracker: NewTracker,
+	}
+	hostOptions := config.HostOptions{
+		DefaultTLS: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+	hostOptions.Credentials = func(host string) (string, string, error) {
 		return user, pass, nil
 	}
-	options := docker.ResolverOptions{
-		Tracker: docker.NewInMemoryTracker(),
-		Hosts:   config.ConfigureHosts(ctx, hostOpt),
-	}
-	pushOpts := []containerd.RemoteOpt{
-		containerd.WithResolver(docker.NewResolver(options)),
-	}
+	options.Hosts = config.ConfigureHosts(ctx, hostOptions)
+	resolver := docker.NewResolver(options)
+	ongoing := newPushJobs(NewTracker)
 
-	logrus.Info("getImage.Target", getImage.Target())
-	err = containerdClient.Push(ctx, image, getImage.Target(), pushOpts...)
-	if err != nil {
-		logrus.Errorf("containerdClient Push Image error: %s", err.Error())
-		return err
-	}
+	eg, ctx := errgroup.WithContext(ctx)
+	// used to notify the progress writer
+	doneCh := make(chan struct{})
+	eg.Go(func() error {
+		defer close(doneCh)
+		jobHandler := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+			ongoing.add(remotes.MakeRefKey(ctx, desc))
+			return nil, nil
+		})
+
+		ropts := []containerd.RemoteOpt{
+			containerd.WithResolver(resolver),
+			containerd.WithImageHandler(jobHandler),
+		}
+		return client.Push(ctx, image, desc, ropts...)
+	})
+
+	eg.Go(func() error {
+		var (
+			ticker = time.NewTicker(100 * time.Millisecond)
+			fw     = progress.NewWriter(os.Stdout)
+			start  = time.Now()
+			done   bool
+		)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				fw.Flush()
+				tw := tabwriter.NewWriter(fw, 1, 8, 1, ' ', 0)
+				ctrcontent.Display(tw, ongoing.status(), start)
+				tw.Flush()
+				if done {
+					fw.Flush()
+					return nil
+				}
+			case <-doneCh:
+				done = true
+			case <-ctx.Done():
+				done = true // allow ui to update once more
+			}
+		}
+	})
 	// create a container
 	printLog(logger, "info", fmt.Sprintf("success push image：%s", image), map[string]string{"step": "pushimage"})
 	return nil
@@ -539,7 +606,7 @@ func CopyToFile(outfile string, r io.Reader) error {
 
 //ImageRemove remove image
 func ImageRemove(containerdClient *containerd.Client, image string) error {
-	ctx := namespaces.WithNamespace(context.Background(), "rbd-ctr")
+	ctx := namespaces.WithNamespace(context.Background(), "rainbond")
 	imageStore := containerdClient.ImageService()
 	err := imageStore.Delete(ctx, image)
 	if err != nil {
@@ -561,7 +628,7 @@ func CheckIfImageExists(containerdClient *containerd.Client, image string) (imag
 	}
 	imageFullName := named.Name() + ":" + tag
 
-	ctx := namespaces.WithNamespace(context.Background(), "rbd-ctr")
+	ctx := namespaces.WithNamespace(context.Background(), "rainbond")
 	imageSummarys, err := containerdClient.ListImages(ctx)
 	if err != nil {
 		return "", false, fmt.Errorf("list images: %v", err)
@@ -773,4 +840,67 @@ func WaitingComplete(reChan *channels.RingChannel) (err error) {
 			}
 		}
 	}
+}
+
+type pushjobs struct {
+	jobs    map[string]struct{}
+	ordered []string
+	tracker docker.StatusTracker
+	mu      sync.Mutex
+}
+
+func newPushJobs(tracker docker.StatusTracker) *pushjobs {
+	return &pushjobs{
+		jobs:    make(map[string]struct{}),
+		tracker: tracker,
+	}
+}
+
+func (j *pushjobs) add(ref string) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	if _, ok := j.jobs[ref]; ok {
+		return
+	}
+	j.ordered = append(j.ordered, ref)
+	j.jobs[ref] = struct{}{}
+}
+
+func (j *pushjobs) status() []ctrcontent.StatusInfo {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	statuses := make([]ctrcontent.StatusInfo, 0, len(j.jobs))
+	for _, name := range j.ordered {
+		si := ctrcontent.StatusInfo{
+			Ref: name,
+		}
+
+		status, err := j.tracker.GetStatus(name)
+		if err != nil {
+			si.Status = "waiting"
+		} else {
+			si.Offset = status.Offset
+			si.Total = status.Total
+			si.StartedAt = status.StartedAt
+			si.UpdatedAt = status.UpdatedAt
+			if status.Offset >= status.Total {
+				if status.UploadUUID == "" {
+					si.Status = "done"
+				} else {
+					si.Status = "committing"
+				}
+			} else {
+				si.Status = "uploading"
+			}
+		}
+		statuses = append(statuses, si)
+	}
+
+	return statuses
+}
+
+func CheckImgName() {
+
 }
