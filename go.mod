@@ -6,7 +6,7 @@ require (
 	cuelang.org/go v0.2.2
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/aliyun/aliyun-oss-go-sdk v2.1.5+incompatible
-	github.com/atcdot/gorm-bulk-upsert v1.0.0
+	github.com/atcdot/gorm-bulk-upsert v0.0.0-00010101000000-000000000000
 	github.com/aws/aws-sdk-go v1.36.15
 	github.com/barnettZQG/gotty v1.0.1-0.20200904091006-a0a1f7d747dc
 	github.com/beorn7/perks v1.0.1
@@ -14,6 +14,7 @@ require (
 	github.com/bluebreezecf/opentsdb-goclient v0.0.0-20190921120552-796138372df3
 	github.com/cockroachdb/cmux v0.0.0-20170110192607-30d10be49292 // indirect
 	github.com/containerd/containerd v1.5.7
+	github.com/containerd/typeurl v1.0.2
 	github.com/coreos/etcd v3.3.17+incompatible
 	github.com/creack/pty v1.1.11 // indirect
 	github.com/crossplane/crossplane-runtime v0.10.0
@@ -51,9 +52,11 @@ require (
 	github.com/howeyc/fsnotify v0.9.0
 	github.com/imdario/mergo v0.3.12
 	github.com/jinzhu/gorm v1.9.16
+	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/json-iterator/go v1.1.10
 	github.com/kr/pty v1.1.8
 	github.com/mattn/go-runewidth v0.0.6
+	github.com/mattn/go-sqlite3 v1.14.12 // indirect
 	github.com/melbahja/got v0.5.0
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/go-wordwrap v1.0.0
@@ -88,7 +91,6 @@ require (
 	github.com/twinj/uuid v1.0.0
 	github.com/urfave/cli v1.22.2
 	github.com/yudai/umutex v0.0.0-20150817080136-18216d265c6b
-	github.com/containerd/typeurl v1.0.2
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
 	golang.org/x/net v0.0.0-20211209124913-491a49abca63
 	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5 // indirect
@@ -99,6 +101,7 @@ require (
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/yaml.v2 v2.4.0
+	gorm.io/gorm v1.23.10 // indirect
 	helm.sh/helm/v3 v3.5.4
 	k8s.io/api v0.20.6
 	k8s.io/apiextensions-apiserver v0.20.4

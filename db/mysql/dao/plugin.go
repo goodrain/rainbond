@@ -21,17 +21,16 @@ package dao
 import (
 	"fmt"
 	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
-	pkgerr "github.com/pkg/errors"
-
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	pkgerr "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
 //PluginDaoImpl PluginDaoImpl
 type PluginDaoImpl struct {
-	DB *gorm.DB
+	DB  *gorm.DB
 }
 
 //AddModel 创建插件
@@ -109,6 +108,16 @@ func (t *PluginDaoImpl) ListByTenantID(tenantID string) ([]*model.TenantPlugin, 
 
 // CreateOrUpdatePluginsInBatch -
 func (t *PluginDaoImpl) CreateOrUpdatePluginsInBatch(plugins []*model.TenantPlugin) error {
+	dbType := t.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, plugin := range plugins {
+			if err := t.DB.Create(&plugin).Error; err != nil {
+				logrus.Error("batch create or update plugin error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, plugin := range plugins {
 		objects = append(objects, *plugin)
@@ -225,7 +234,7 @@ func (t *PluginDefaultENVDaoImpl) GetDefaultEnvWhichCanBeSetByPluginID(pluginID,
 
 //PluginBuildVersionDaoImpl PluginBuildVersionDaoImpl
 type PluginBuildVersionDaoImpl struct {
-	DB *gorm.DB
+	DB  *gorm.DB
 }
 
 //AddModel 添加插件构建版本信息
@@ -325,6 +334,16 @@ func (t *PluginBuildVersionDaoImpl) GetLastBuildVersionByVersionID(pluginID, ver
 
 // CreateOrUpdatePluginBuildVersionsInBatch -
 func (t *PluginBuildVersionDaoImpl) CreateOrUpdatePluginBuildVersionsInBatch(buildVersions []*model.TenantPluginBuildVersion) error {
+	dbType := t.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, version := range buildVersions {
+			if err := t.DB.Create(&version).Error; err != nil {
+				logrus.Error("batch create or update buildVersions error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, version := range buildVersions {
 		objects = append(objects, *version)
@@ -430,6 +449,16 @@ func (t *PluginVersionEnvDaoImpl) DeleteByComponentIDs(componentIDs []string) er
 
 // CreateOrUpdatePluginVersionEnvsInBatch -
 func (t *PluginVersionEnvDaoImpl) CreateOrUpdatePluginVersionEnvsInBatch(versionEnvs []*model.TenantPluginVersionEnv) error {
+	dbType := t.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, env := range versionEnvs {
+			if err := t.DB.Create(&env).Error; err != nil {
+				logrus.Error("batch create or update versionEnvs error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, env := range versionEnvs {
 		objects = append(objects, *env)
@@ -516,6 +545,16 @@ func (t *PluginVersionConfigDaoImpl) DeleteByComponentIDs(componentIDs []string)
 
 // CreateOrUpdatePluginVersionConfigsInBatch -
 func (t *PluginVersionConfigDaoImpl) CreateOrUpdatePluginVersionConfigsInBatch(versionConfigs []*model.TenantPluginVersionDiscoverConfig) error {
+	dbType := t.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, config := range versionConfigs {
+			if err := t.DB.Create(&config).Error; err != nil {
+				logrus.Error("batch create or update versionConfigs error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, config := range versionConfigs {
 		objects = append(objects, *config)
@@ -637,6 +676,16 @@ func (t *TenantServicePluginRelationDaoImpl) DeleteByComponentIDs(componentIDs [
 
 // CreateOrUpdatePluginRelsInBatch -
 func (t *TenantServicePluginRelationDaoImpl) CreateOrUpdatePluginRelsInBatch(relations []*model.TenantServicePluginRelation) error {
+	dbType := t.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, relation := range relations {
+			if err := t.DB.Create(&relation).Error; err != nil {
+				logrus.Error("batch create or update relations error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, relation := range relations {
 		objects = append(objects, *relation)
@@ -815,6 +864,16 @@ func (t *TenantServicesStreamPluginPortDaoImpl) DeleteByComponentIDs(componentID
 
 // CreateOrUpdateStreamPluginPortsInBatch -
 func (t *TenantServicesStreamPluginPortDaoImpl) CreateOrUpdateStreamPluginPortsInBatch(spPorts []*model.TenantServicesStreamPluginPort) error {
+	dbType := t.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, volRel := range spPorts {
+			if err := t.DB.Create(&volRel).Error; err != nil {
+				logrus.Error("batch create or update spPorts error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, volRel := range spPorts {
 		objects = append(objects, *volRel)

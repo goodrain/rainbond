@@ -24,6 +24,7 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 	pkgerr "github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // K8sResourceDaoImpl k8s resource dao
@@ -56,6 +57,16 @@ func (t *K8sResourceDaoImpl) ListByAppID(appID string) ([]model.K8sResource, err
 
 //CreateK8sResourceInBatch -
 func (t *K8sResourceDaoImpl) CreateK8sResourceInBatch(k8sResources []*model.K8sResource) error {
+	dbType := t.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, cg := range k8sResources {
+			if err := t.DB.Create(&cg).Error; err != nil {
+				logrus.Error("batch Update or update k8sResources error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, cg := range k8sResources {
 		objects = append(objects, *cg)
