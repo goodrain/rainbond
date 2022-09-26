@@ -21,6 +21,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"strings"
 
 	"github.com/docker/distribution/reference"
@@ -29,7 +30,6 @@ import (
 	"github.com/oam-dev/kubevela/pkg/utils/apply"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/yaml"
 )
