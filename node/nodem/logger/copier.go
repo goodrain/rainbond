@@ -19,6 +19,8 @@
 package logger
 
 import (
+	"context"
+	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"sync"
 	"time"
 
@@ -33,28 +35,37 @@ const (
 // Copier can copy logs from specified sources to Logger and attach Timestamp.
 // Writes are concurrent, so you need implement some sync in your logger.
 type Copier struct {
-	logfile *LogFile
-	dst     []Logger
-	closed  chan struct{}
-	reader  *LogWatcher
-	since   time.Time
-	once    sync.Once
+	logfile       *LogFile
+	dst           []Logger
+	closed        chan struct{}
+	reader        *LogWatcher
+	since         time.Time
+	once          sync.Once
+	containerID   string
+	runtimeClient *runtimeapi.RuntimeServiceClient
 }
 
 // NewCopier creates a new Copier
-func NewCopier(logfile *LogFile, dst []Logger, since time.Time) *Copier {
+func NewCopier(logfile *LogFile, dst []Logger, since time.Time, containerID string, runtimeClient *runtimeapi.RuntimeServiceClient) *Copier {
 	return &Copier{
-		logfile: logfile,
-		reader:  NewLogWatcher(),
-		dst:     dst,
-		since:   since,
+		logfile:       logfile,
+		reader:        NewLogWatcher(),
+		dst:           dst,
+		since:         since,
+		containerID:   containerID,
+		runtimeClient: runtimeClient,
 	}
 }
 
 // Run starts logs copying
 func (c *Copier) Run() {
 	c.closed = make(chan struct{})
-	go c.logfile.ReadLogs(ReadConfig{Follow: true, Since: c.since, Tail: 0}, c.reader)
+	if c.runtimeClient != nil {
+		// When using the CRI runtime, use this interface to get non-json logs
+		go ReadLogs(context.Background(), c.logfile.logPath, c.containerID, &ReadConfig{Follow: true, Since: c.since, Tail: -1}, *c.runtimeClient, c.reader)
+	} else {
+		go c.logfile.ReadLogs(ReadConfig{Follow: true, Since: c.since, Tail: 0}, c.reader)
+	}
 	go c.copySrc()
 }
 

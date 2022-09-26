@@ -327,7 +327,8 @@ func (container *ContainerLog) StartLogging() error {
 		}
 		return fmt.Errorf("failed to initialize logging driver: %v", err)
 	}
-	copier := NewCopier(container.reader, loggers, container.since)
+	runtimeClient, _ := container.conf.ContainerImageCli.GetRuntimeClient()
+	copier := NewCopier(container.reader, loggers, container.since, container.GetId(), runtimeClient)
 	container.LogCopier = copier
 	copier.Run()
 	container.LogDriver = loggers
@@ -534,7 +535,8 @@ func (container *ContainerLog) startLogger() ([]Logger, error) {
 //Restart restart
 func (container *ContainerLog) Restart() {
 	if *container.stoped {
-		copier := NewCopier(container.reader, container.LogDriver, container.since)
+		runtimeClient, _ := container.conf.ContainerImageCli.GetRuntimeClient()
+		copier := NewCopier(container.reader, container.LogDriver, container.since, container.GetId(), runtimeClient)
 		container.LogCopier = copier
 		copier.Run()
 	}
