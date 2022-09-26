@@ -15,7 +15,6 @@ import (
 	appv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	batchv1 "k8s.io/api/batch/v1"
-	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -203,7 +202,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 				c.PodTemplateSpecResource(parameter)
 			case api_model.CronJob:
 				cjJSON, _ := json.Marshal(buildResource.Resource)
-				var cjObject v1beta1.CronJob
+				var cjObject batchv1.CronJob
 				json.Unmarshal(cjJSON, &cjObject)
 				memory, cpu := cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), cjObject.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 				if memory == 0 {

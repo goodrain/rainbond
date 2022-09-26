@@ -64,7 +64,7 @@ build::binary() {
 	elif [ "$1" = "chaos" ]; then
 		build_dir="./cmd/builder"
 	elif [ "$1" = "gateway" ]; then
-		build_image="golang:1.13-alpine"
+		build_image="golang:1.17-alpine"
 	elif [ "$1" = "monitor" ]; then
 		CGO_ENABLED=0
 	fi

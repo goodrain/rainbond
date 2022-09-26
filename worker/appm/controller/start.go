@@ -150,7 +150,7 @@ func (s *startController) startOne(app v1.AppService) error {
 		}
 	}
 	if cronjob := app.GetCronJob(); cronjob != nil {
-		_, err = s.manager.client.BatchV1beta1().CronJobs(app.GetNamespace()).Create(s.ctx, cronjob, metav1.CreateOptions{})
+		_, err = s.manager.client.BatchV1().CronJobs(app.GetNamespace()).Create(s.ctx, cronjob, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("create cronjob failure:%s;", err.Error())
 		}

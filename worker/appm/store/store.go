@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 	batchv1 "k8s.io/api/batch/v1"
-	"k8s.io/api/batch/v1beta1"
 	betav1 "k8s.io/api/networking/v1beta1"
 	"os"
 	"sync"
@@ -248,8 +247,8 @@ func NewStore(
 	store.informers.ComponentDefinition.AddEventHandlerWithResyncPeriod(componentdefinition.GetComponentDefinitionBuilder(), time.Second*300)
 	store.informers.Job = infFactory.Batch().V1().Jobs().Informer()
 	store.listers.Job = infFactory.Batch().V1().Jobs().Lister()
-	store.informers.CronJob = infFactory.Batch().V1beta1().CronJobs().Informer()
-	store.listers.CronJob = infFactory.Batch().V1beta1().CronJobs().Lister()
+	store.informers.CronJob = infFactory.Batch().V1().CronJobs().Informer()
+	store.listers.CronJob = infFactory.Batch().V1().CronJobs().Lister()
 	// Endpoint Event Handler
 	epEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -456,7 +455,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 
 		}
 	}
-	if cjob, ok := obj.(*v1beta1.CronJob); ok {
+	if cjob, ok := obj.(*batchv1.CronJob); ok {
 		serviceID := cjob.Labels["service_id"]
 		version := cjob.Labels["version"]
 		createrID := cjob.Labels["creater_id"]
