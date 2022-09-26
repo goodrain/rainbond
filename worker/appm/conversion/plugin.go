@@ -277,7 +277,7 @@ func setSidecarContainerLifecycle(as *typesv1.AppService, con *corev1.Container,
 			}
 		}
 		con.Lifecycle = &corev1.Lifecycle{
-			PostStart: &corev1.Handler{
+			PostStart: &corev1.LifecycleHandler{
 				Exec: &v1.ExecAction{
 					Command: []string{"/root/rainbond-mesh-data-panel", "wait", strconv.Itoa(port)},
 				},

@@ -25,9 +25,9 @@ import (
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	rainbondlistersv1alpha1 "github.com/goodrain/rainbond/pkg/generated/listers/rainbond/v1alpha1"
+	"github.com/goodrain/rainbond/util/apply"
 	validation "github.com/goodrain/rainbond/util/endpoint"
 	dis "github.com/goodrain/rainbond/worker/master/controller/thirdcomponent/discover"
-	"github.com/oam-dev/kubevela/pkg/utils/apply"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
@@ -68,7 +68,7 @@ type Reconciler struct {
 }
 
 // Reconcile is the main logic of appDeployment controller
-func (r *Reconciler) Reconcile(req ctrl.Request) (res reconcile.Result, retErr error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (res reconcile.Result, retErr error) {
 	log := logrus.WithField("thirdcomponent", req)
 	commonResult := ctrl.Result{RequeueAfter: time.Second * 5}
 	component := &v1alpha1.ThirdComponent{}
