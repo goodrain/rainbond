@@ -14,6 +14,7 @@ require (
 	github.com/bluebreezecf/opentsdb-goclient v0.0.0-20190921120552-796138372df3
 	github.com/cockroachdb/cmux v0.0.0-20170110192607-30d10be49292 // indirect
 	github.com/containerd/containerd v1.5.7
+	github.com/containerd/typeurl v1.0.2
 	github.com/coreos/etcd v3.3.17+incompatible
 	github.com/creack/pty v1.1.11 // indirect
 	github.com/crossplane/crossplane-runtime v0.10.0
@@ -88,7 +89,6 @@ require (
 	github.com/twinj/uuid v1.0.0
 	github.com/urfave/cli v1.22.2
 	github.com/yudai/umutex v0.0.0-20150817080136-18216d265c6b
-	github.com/containerd/typeurl v1.0.2
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
 	golang.org/x/net v0.0.0-20211209124913-491a49abca63
 	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5 // indirect
@@ -114,7 +114,11 @@ require (
 	sigs.k8s.io/yaml v1.2.0
 )
 
-require golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+require (
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	k8s.io/klog/v2 v2.5.0
+	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
+)
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
@@ -269,10 +273,8 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 	k8s.io/gengo v0.0.0-20201113003025-83324d819ded // indirect
-	k8s.io/klog/v2 v2.5.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd // indirect
 	k8s.io/kubectl v0.20.4 // indirect
-	k8s.io/utils v0.0.0-20201110183641-67b214c5f920 // indirect
 	sigs.k8s.io/kustomize v2.0.3+incompatible // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.0.2 // indirect
 )
