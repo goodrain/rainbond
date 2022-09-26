@@ -37,7 +37,6 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	batchv1 "k8s.io/api/batch/v1"
-	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -164,7 +163,7 @@ type AppService struct {
 	statefulset      *v1.StatefulSet
 	deployment       *v1.Deployment
 	job              *batchv1.Job
-	cronjob          *v1beta1.CronJob
+	cronjob          *batchv1.CronJob
 	workload         client.Object
 	hpas             []*autoscalingv2.HorizontalPodAutoscaler
 	delHPAs          []*autoscalingv2.HorizontalPodAutoscaler
@@ -236,7 +235,7 @@ func (a *AppService) DeleteJob(d *batchv1.Job) {
 }
 
 //DeleteCronJob delete kubernetes cronjob model
-func (a *AppService) DeleteCronJob(d *v1beta1.CronJob) {
+func (a *AppService) DeleteCronJob(d *batchv1.CronJob) {
 	a.cronjob = nil
 }
 
@@ -272,12 +271,12 @@ func (a *AppService) SetJob(d *batchv1.Job) {
 }
 
 //GetCronJob get kubernetes cronjob model
-func (a AppService) GetCronJob() *v1beta1.CronJob {
+func (a AppService) GetCronJob() *batchv1.CronJob {
 	return a.cronjob
 }
 
 //SetCronJob set kubernetes cronjob model
-func (a *AppService) SetCronJob(d *v1beta1.CronJob) {
+func (a *AppService) SetCronJob(d *batchv1.CronJob) {
 	a.cronjob = d
 	a.workload = d
 	if v, ok := d.Spec.JobTemplate.Labels["version"]; ok && v != "" {
