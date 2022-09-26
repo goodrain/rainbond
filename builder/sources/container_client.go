@@ -72,6 +72,7 @@ type ContainerImageCli interface {
 	ListContainers() ([]*runtimeapi.Container, error)
 	InspectContainer(containerID string) (*ContainerDesc, error)
 	WatchContainers(ctx context.Context, cchan chan ContainerEvent) error
+	GetRuntimeClient() (*runtimeapi.RuntimeServiceClient, error)
 }
 
 // ClientFactory client factory

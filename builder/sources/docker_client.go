@@ -116,3 +116,7 @@ func (d *dockerClientImpl) WatchContainers(ctx context.Context, cchan chan Conta
 		}
 	}
 }
+
+func (d *dockerClientImpl) GetRuntimeClient() (*runtimeapi.RuntimeServiceClient, error) {
+	return nil, fmt.Errorf("docker client not support get runtime client")
+}

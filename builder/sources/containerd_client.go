@@ -143,3 +143,7 @@ func (c *containerdClientImpl) WatchContainers(ctx context.Context, cchan chan C
 		}
 	}
 }
+
+func (c *containerdClientImpl) GetRuntimeClient() (*runtimeapi.RuntimeServiceClient, error) {
+	return &c.runtimeClient, nil
+}
