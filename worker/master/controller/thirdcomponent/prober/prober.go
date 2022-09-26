@@ -32,7 +32,7 @@ func newProber(
 	recorder record.EventRecorder) *prober {
 	return &prober{
 		logger:   logrus.WithField("WHO", "Thirdcomponent Prober"),
-		http:     httpprobe.New(),
+		http:     httpprobe.New(true),
 		tcp:      tcpprobe.New(),
 		recorder: recorder,
 	}
