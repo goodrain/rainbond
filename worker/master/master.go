@@ -215,7 +215,7 @@ func (m *Controller) Start() error {
 		m.mgr = mgr
 		m.controllers = append(m.controllers, thirdComponentController)
 		stopchan := make(chan struct{})
-		go m.mgr.Start(stopchan)
+		go m.mgr.Start(ctx)
 
 		defer func() { stopchan <- struct{}{} }()
 

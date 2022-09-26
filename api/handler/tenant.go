@@ -44,7 +44,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -60,7 +59,7 @@ type TenantAction struct {
 	cacheTime                 time.Time
 	prometheusCli             prometheus.Interface
 	k8sClient                 k8sclient.Client
-	resources                 map[string]runtime.Object
+	resources                 map[string]k8sclient.Object
 }
 
 //CreateTenManager create Manger
@@ -70,7 +69,7 @@ func CreateTenManager(mqc mqclient.MQClient, statusCli *client.AppRuntimeSyncCli
 	prometheusCli prometheus.Interface,
 	k8sClient k8sclient.Client) *TenantAction {
 
-	resources := map[string]runtime.Object{
+	resources := map[string]k8sclient.Object{
 		"helmApp": &v1alpha1.HelmApp{},
 		"service": &corev1.Service{},
 	}

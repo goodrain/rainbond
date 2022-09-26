@@ -21,6 +21,7 @@ package v1
 import (
 	"fmt"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
 
@@ -164,7 +165,7 @@ type AppService struct {
 	deployment       *v1.Deployment
 	job              *batchv1.Job
 	cronjob          *v1beta1.CronJob
-	workload         runtime.Object
+	workload         client.Object
 	hpas             []*autoscalingv2.HorizontalPodAutoscaler
 	delHPAs          []*autoscalingv2.HorizontalPodAutoscaler
 	replicasets      []*v1.ReplicaSet
@@ -993,12 +994,12 @@ func (a *AppService) SetManifests(manifests []*unstructured.Unstructured) {
 }
 
 //SetWorkload set component workload
-func (a *AppService) SetWorkload(workload runtime.Object) {
+func (a *AppService) SetWorkload(workload client.Object) {
 	a.workload = workload
 }
 
 //GetWorkload get component workload
-func (a *AppService) GetWorkload() runtime.Object {
+func (a *AppService) GetWorkload() client.Object {
 	return a.workload
 }
 
