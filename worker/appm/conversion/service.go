@@ -27,17 +27,15 @@ import (
 	apimodel "github.com/goodrain/rainbond/api/model"
 
 	"github.com/goodrain/rainbond/api/handler/app_governance_mode/adaptor"
-	"github.com/sirupsen/logrus"
-	batchv1 "k8s.io/api/batch/v1"
-	"k8s.io/api/batch/v1beta1"
-
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/jinzhu/gorm"
+	"github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -250,7 +248,7 @@ func initBaseJob(as *v1.AppService, service *dbmodel.TenantServices) {
 	}, injectLabels)
 
 	var js *apimodel.JobStrategy
-	if service.JobStrategy != ""{
+	if service.JobStrategy != "" {
 		err := json.Unmarshal([]byte(service.JobStrategy), &js)
 		if err != nil {
 			logrus.Error("job strategy json unmarshal error", err)
@@ -290,17 +288,17 @@ func initBaseCronJob(as *v1.AppService, service *dbmodel.TenantServices) {
 	as.ServiceType = v1.TypeCronJob
 	cronJob := as.GetCronJob()
 	if cronJob == nil {
-		cronJob = &v1beta1.CronJob{}
+		cronJob = &batchv1.CronJob{}
 	}
 	injectLabels := getInjectLabels(as)
-	jobTemp := v1beta1.JobTemplateSpec{}
+	jobTemp := batchv1.JobTemplateSpec{}
 	jobTemp.Name = as.GetK8sWorkloadName()
 	jobTemp.Namespace = as.GetNamespace()
 	jobTemp.Labels = as.GetCommonLabels(jobTemp.Labels, map[string]string{
 		"name":    service.ServiceAlias,
 		"version": service.DeployVersion,
 	}, injectLabels)
-	if service.JobStrategy != ""{
+	if service.JobStrategy != "" {
 		var js *apimodel.JobStrategy
 		err := json.Unmarshal([]byte(service.JobStrategy), &js)
 		if err != nil {
