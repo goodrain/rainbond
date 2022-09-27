@@ -21,41 +21,46 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"os/exec"
-
 	"github.com/urfave/cli"
+	"os/exec"
 )
 
 //NewCmdDomain domain cmd
 //v5.2 need refactoring
 func NewCmdDomain() cli.Command {
 	c := cli.Command{
-		Name: "domain",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  "ip",
-				Usage: "ip address",
+		Name:  "domain",
+		Usage: "cluster httpdomain",
+		Subcommands: []cli.Command{
+			{
+				Name:  "get",
+				Usage: "get httpdomain",
+				Flags: []cli.Flag{
+					cli.StringFlag{
+						Name:  "ip",
+						Usage: "ip address",
+					},
+					cli.StringFlag{
+						Name:  "domain",
+						Usage: "domain",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					ip := c.String("ip")
+					if len(ip) == 0 {
+						fmt.Println("ip must not null")
+						return nil
+					}
+					domain := c.String("domain")
+					cmd := exec.Command("bash", "/opt/rainbond/bin/.domain.sh", ip, domain)
+					outbuf := bytes.NewBuffer(nil)
+					cmd.Stdout = outbuf
+					cmd.Run()
+					out := outbuf.String()
+					fmt.Println(out)
+					return nil
+				},
 			},
-			cli.StringFlag{
-				Name:  "domain",
-				Usage: "domain",
-			},
-		},
-		Usage: "Default *.grapps.cn domain resolution",
-		Action: func(c *cli.Context) error {
-			ip := c.String("ip")
-			if len(ip) == 0 {
-				fmt.Println("ip must not null")
-				return nil
-			}
-			domain := c.String("domain")
-			cmd := exec.Command("bash", "/opt/rainbond/bin/.domain.sh", ip, domain)
-			outbuf := bytes.NewBuffer(nil)
-			cmd.Stdout = outbuf
-			cmd.Run()
-			out := outbuf.String()
-			fmt.Println(out)
-			return nil
 		},
 	}
 	return c
