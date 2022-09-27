@@ -2292,6 +2292,12 @@ func (s *ServiceAction) delServiceMetadata(ctx context.Context, serviceID string
 	if err != nil {
 		return err
 	}
+	if db.GetManager().DB().Dialect().GetName() == "sqlite3"{
+		if err := s.deleteThirdComponent(ctx, service); err != nil {
+			return err
+		}
+		return s.deleteComponent(db.GetManager().DB(), service)
+	}
 	logrus.Infof("delete service %s %s", serviceID, service.ServiceAlias)
 	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
 		if err := s.deleteThirdComponent(ctx, service); err != nil {
