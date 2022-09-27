@@ -152,6 +152,7 @@ func init() {
 	supportDrivers = map[string]struct{}{
 		"mysql":       {},
 		"cockroachdb": {},
+		"sqlite": {},
 	}
 }
 
