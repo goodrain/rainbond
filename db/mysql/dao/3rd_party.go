@@ -22,6 +22,7 @@ import (
 	"fmt"
 	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	pkgerr "github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"reflect"
 	"strings"
 
@@ -150,6 +151,16 @@ func (t *ThirdPartySvcDiscoveryCfgDaoImpl) DeleteByComponentIDs(componentIDs []s
 
 // CreateOrUpdate3rdSvcDiscoveryCfgInBatch -
 func (t *ThirdPartySvcDiscoveryCfgDaoImpl) CreateOrUpdate3rdSvcDiscoveryCfgInBatch(cfgs []*model.ThirdPartySvcDiscoveryCfg) error {
+	dbType := t.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, cfg := range cfgs {
+			if err := t.DB.Create(&cfg).Error; err != nil {
+				logrus.Error("batch create or update cfgs error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, cfg := range cfgs {
 		objects = append(objects, *cfg)

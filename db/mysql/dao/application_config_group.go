@@ -6,6 +6,7 @@ import (
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 	pkgerr "github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // AppConfigGroupDaoImpl -
@@ -79,6 +80,16 @@ func (a *AppConfigGroupDaoImpl) DeleteByAppID(appID string) error {
 
 // CreateOrUpdateConfigGroupsInBatch -
 func (a *AppConfigGroupDaoImpl) CreateOrUpdateConfigGroupsInBatch(cgroups []*model.ApplicationConfigGroup) error {
+	dbType := a.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, cg := range cgroups {
+			if err := a.DB.Create(&cg).Error; err != nil {
+				logrus.Error("batch create or update cgroups error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, cg := range cgroups {
 		objects = append(objects, *cg)
@@ -143,6 +154,16 @@ func (a *AppConfigGroupServiceDaoImpl) DeleteByAppID(appID string) error {
 
 // CreateOrUpdateConfigGroupServicesInBatch -
 func (a *AppConfigGroupServiceDaoImpl) CreateOrUpdateConfigGroupServicesInBatch(cgservices []*model.ConfigGroupService) error {
+	dbType := a.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, cgs := range cgservices {
+			if err := a.DB.Create(&cgs).Error; err != nil {
+				logrus.Error("batch create or update cgservices error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, cgs := range cgservices {
 		objects = append(objects, *cgs)
@@ -210,6 +231,16 @@ func (a *AppConfigGroupItemDaoImpl) DeleteByAppID(appID string) error {
 
 // CreateOrUpdateConfigGroupItemsInBatch -
 func (a *AppConfigGroupItemDaoImpl) CreateOrUpdateConfigGroupItemsInBatch(cgitems []*model.ConfigGroupItem) error {
+	dbType := a.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, cgi := range cgitems {
+			if err := a.DB.Create(&cgi).Error; err != nil {
+				logrus.Error("batch create or update cgservices error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, cgi := range cgitems {
 		objects = append(objects, *cgi)

@@ -20,15 +20,14 @@ package dao
 
 import (
 	"context"
-	"strings"
-	"time"
-
 	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"strings"
+	"time"
 )
 
 //AddModel AddModel
@@ -66,6 +65,16 @@ type EventDaoImpl struct {
 
 // CreateEventsInBatch creates events in batch.
 func (c *EventDaoImpl) CreateEventsInBatch(events []*model.ServiceEvent) error {
+	dbType := c.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, event := range events {
+			if err := c.DB.Create(&event).Error; err != nil {
+				logrus.Error("batch create or update events error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, event := range events {
 		event := event
@@ -105,6 +114,16 @@ func (c *EventDaoImpl) GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEv
 
 // UpdateInBatch -
 func (c *EventDaoImpl) UpdateInBatch(events []*model.ServiceEvent) error {
+	dbType := c.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, event := range events {
+			if err := c.DB.Update(&event).Error; err != nil {
+				logrus.Error("batch Update or update events error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, event := range events {
 		event := event
