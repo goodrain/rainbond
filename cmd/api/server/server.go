@@ -20,14 +20,6 @@ package server
 
 import (
 	"context"
-	"fmt"
-	"k8s.io/client-go/restmapper"
-	"net"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
 	"github.com/goodrain/rainbond/api/controller"
 	"github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/discover"
@@ -45,7 +37,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/restmapper"
+	"os"
+	"os/signal"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"syscall"
 )
 
 //Run start run
@@ -60,12 +56,6 @@ func Run(s *option.APIServer) error {
 		CertFile:  s.Config.EtcdCertFile,
 		KeyFile:   s.Config.EtcdKeyFile,
 	}
-	conn, err := net.DialTimeout("tcp", "rbd-resource-proxy:80", 3*time.Second)
-	if err != nil || conn == nil {
-		logrus.Errorf("connection rbd-resource-proxy failed error, %v", err)
-		return fmt.Errorf("connection rbd-resource-proxy failed error")
-	}
-	conn.Close()
 	//启动服务发现
 	if _, err := discover.CreateEndpointDiscover(etcdClientArgs); err != nil {
 		return err

@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"net"
 	"os"
 	"runtime"
 	"strconv"
@@ -154,7 +155,15 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 		diskCap = diskstauts.Total
 		reqDisk = diskstauts.Used
 	}
-
+	var resourceProxyStatus bool
+	conn, err := net.DialTimeout("tcp", "rbd-resource-proxy:80", 3*time.Second)
+	if err != nil || conn == nil {
+		logrus.Errorf("connection rbd-resource-proxy failed error, %v", err)
+		resourceProxyStatus = false
+	} else {
+		resourceProxyStatus = true
+	}
+	conn.Close()
 	result := &model.ClusterResource{
 		CapCPU:                           int(healthCapCPU + unhealthCapCPU),
 		CapMem:                           int(healthCapMem+unhealthCapMem) / 1024 / 1024,
@@ -174,6 +183,7 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 		CapDisk:                          diskCap,
 		ReqDisk:                          reqDisk,
 		MaxAllocatableMemoryNodeResource: maxAllocatableMemory,
+		ResourceProxyStatus:              resourceProxyStatus,
 	}
 
 	result.AllNode = len(nodes)
