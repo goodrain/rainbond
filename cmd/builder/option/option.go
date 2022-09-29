@@ -20,6 +20,7 @@ package option
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/builder/sources"
 	"runtime"
 
 	"github.com/goodrain/rainbond/mq/client"
@@ -55,6 +56,8 @@ type Config struct {
 	CachePVCName         string
 	CacheMode            string
 	CachePath            string
+	ContainerRuntime     string
+	RuntimeEndpoint      string
 }
 
 //Builder  builder server
@@ -98,6 +101,8 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.CachePVCName, "pvc-cache-name", "cache", "pvc name of cache")
 	fs.StringVar(&a.CacheMode, "cache-mode", "sharefile", "volume cache mount type, can be hostpath and sharefile, default is sharefile, which mount using pvc")
 	fs.StringVar(&a.CachePath, "cache-path", "/cache", "volume cache mount path, when cache-mode using hostpath, default path is /cache")
+	fs.StringVar(&a.ContainerRuntime, "container-runtime", sources.ContainerRuntimeContainerd, "container runtime, support docker and containerd")
+	fs.StringVar(&a.RuntimeEndpoint, "runtime-endpoint", sources.RuntimeEndpointContainerd, "container runtime endpoint")
 }
 
 //SetLog 设置log

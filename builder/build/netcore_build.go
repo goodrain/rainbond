@@ -50,6 +50,7 @@ type netcoreBuild struct {
 	sourceDir      string
 	logger         event.Logger
 	serviceID      string
+	imageClient    sources.ImageClient
 }
 
 func netcoreBuilder() (Build, error) {
@@ -62,6 +63,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 	d.serviceID = re.ServiceID
 	d.sourceDir = re.SourceDir
 	d.imageName = CreateImageName(re.ServiceID, re.DeployVersion)
+	d.imageClient = re.ImageClient
 
 	re.Logger.Info("start compiling the source code", map[string]string{"step": "builder-exector"})
 	// write dockerfile
@@ -76,7 +78,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 		return nil, err
 	}
 	re.Logger.Info("push image to push local image registry success", map[string]string{"step": "builder-exector"})
-	if err := sources.ImageRemove(re.ContainerdClient, d.imageName); err != nil {
+	if err := d.imageClient.ImageRemove(d.imageName); err != nil {
 		logrus.Errorf("remove image %s failure %s", d.imageName, err.Error())
 	}
 	return d.createResponse(), nil

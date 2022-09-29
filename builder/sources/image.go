@@ -69,10 +69,10 @@ var ErrorNoAuth = fmt.Errorf("pull image require docker login")
 var ErrorNoImage = fmt.Errorf("image not exist")
 
 //Namespace containerd image namespace
-var Namespace = "rainbond"
+var Namespace = "k8s.io"
 
 //ImagePull pull docker image
-//timeout minutes of the unit
+// Deprecated: use sources.ImageClient.ImagePull instead
 func ImagePull(client *containerd.Client, ref string, username, password string, logger event.Logger, timeout int) (*containerd.Image, error) {
 	printLog(logger, "info", fmt.Sprintf("start get image:%s", ref), map[string]string{"step": "pullimage"})
 	srcNamed, err := refdocker.ParseDockerRef(ref)
@@ -126,7 +126,8 @@ func ImagePull(client *containerd.Client, ref string, username, password string,
 	return &img, nil
 }
 
-//ImageTag change docker image tag
+// ImageTag -
+// Deprecated: use sources.ImageClient.ImagePull instead
 func ImageTag(containerdClient *containerd.Client, source, target string, logger event.Logger, timeout int) error {
 	srcNamed, err := refdocker.ParseDockerRef(source)
 	if err != nil {
@@ -237,6 +238,7 @@ func ImageNameWithNamespaceHandle(imageName string) *model.ImageName {
 
 //ImagePush push image to registry
 //timeout minutes of the unit
+// Deprecated: use sources.ImageClient.ImagePush instead
 func ImagePush(client *containerd.Client, rawRef, user, pass string, logger event.Logger, timeout int) error {
 	printLog(logger, "info", fmt.Sprintf("start push image：%s", rawRef), map[string]string{"step": "pushimage"})
 	named, err := refdocker.ParseDockerRef(rawRef)
@@ -403,12 +405,12 @@ func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logge
 	if err != nil {
 		logrus.Errorf("get pre build job for service %s failure ,%s", ServiceID, err.Error())
 	}
-	if len(jobList) > 0 {
-		for _, job := range jobList {
+	name := fmt.Sprintf("%s-%s-dockerfile", ServiceID, DeployVersion)
+	for _, job := range jobList {
+		if job.Name == name {
 			jobc.GetJobController().DeleteJob(job.Name)
 		}
 	}
-	name := fmt.Sprintf("%s-%s", ServiceID, DeployVersion)
 	namespace := RbdNamespace
 	job := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -606,7 +608,7 @@ func CopyToFile(outfile string, r io.Reader) error {
 
 //ImageRemove remove image
 func ImageRemove(containerdClient *containerd.Client, image string) error {
-	ctx := namespaces.WithNamespace(context.Background(), "rainbond")
+	ctx := namespaces.WithNamespace(context.Background(), Namespace)
 	imageStore := containerdClient.ImageService()
 	err := imageStore.Delete(ctx, image)
 	if err != nil {
@@ -628,8 +630,8 @@ func CheckIfImageExists(containerdClient *containerd.Client, image string) (imag
 	}
 	imageFullName := named.Name() + ":" + tag
 
-	ctx := namespaces.WithNamespace(context.Background(), "rainbond")
-	imageSummarys, err := containerdClient.ListImages(ctx)
+	ctx := namespaces.WithNamespace(context.Background(), Namespace)
+	imageSummarys, err := containerdClient.ListImages(ctx, imageFullName)
 	if err != nil {
 		return "", false, fmt.Errorf("list images: %v", err)
 	}
@@ -643,6 +645,7 @@ func CheckIfImageExists(containerdClient *containerd.Client, image string) (imag
 }
 
 // ImagesPullAndPush Used to process mirroring of non local components, example: builder, runner, /rbd-mesh-data-panel
+// Deprecated: ImagesPullAndPush
 func ImagesPullAndPush(sourceImage, targetImage, username, password string, logger event.Logger) error {
 	var sock string
 	sock = os.Getenv("CONTAINERD_SOCK")

@@ -64,3 +64,13 @@ func GetRuntimeClient(ctx context.Context, endpoint string, timeout time.Duratio
 func getRuntimeClientConnection(ctx context.Context, endpoint string, timeout time.Duration) (*grpc.ClientConn, error) {
 	return getConnection([]string{endpoint}, timeout)
 }
+
+func GetImageClient(ctx context.Context, endpoint string, timeout time.Duration) (v1alpha2.ImageServiceClient, *grpc.ClientConn, error) {
+	// Set up a connection to the server.
+	conn, err := getRuntimeClientConnection(ctx, endpoint, timeout)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "connect")
+	}
+	runtimeClient := v1alpha2.NewImageServiceClient(conn)
+	return runtimeClient, conn, nil
+}

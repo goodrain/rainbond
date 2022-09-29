@@ -21,13 +21,11 @@ package exector
 import (
 	"context"
 	"fmt"
-	"github.com/containerd/containerd"
 	"time"
 
 	"github.com/goodrain/rainbond/builder"
 
 	"github.com/coreos/etcd/clientv3"
-	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/pquerna/ffjson/ffjson"
@@ -49,9 +47,10 @@ type PluginShareItem struct {
 		Namespace   string `json:"namespace"`
 		IsTrust     bool   `json:"is_trust,omitempty"`
 	} `json:"image_info,omitempty"`
-	DockerClient     *client.Client
-	ContainerdClient *containerd.Client
-	EtcdCli          *clientv3.Client
+	//DockerClient     *client.Client
+	//ContainerdClient *containerd.Client
+	ImageClient sources.ImageClient
+	EtcdCli     *clientv3.Client
 }
 
 func init() {
@@ -63,10 +62,11 @@ func SharePluginItemCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	pluginShare := &PluginShareItem{
-		Logger:       logger,
-		EventID:      eventID,
-		DockerClient: m.DockerClient,
-		EtcdCli:      m.EtcdCli,
+		Logger:  logger,
+		EventID: eventID,
+		//DockerClient: m.DockerClient,
+		ImageClient: m.imageClient,
+		EtcdCli:     m.EtcdCli,
 	}
 	if err := ffjson.Unmarshal(in, &pluginShare); err != nil {
 		return nil, err
@@ -76,22 +76,22 @@ func SharePluginItemCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 
 //Run Run
 func (i *PluginShareItem) Run(timeout time.Duration) error {
-	_, err := sources.ImagePull(i.ContainerdClient, i.LocalImageName, builder.REGISTRYUSER, builder.REGISTRYPASS, i.Logger, 10)
+	_, err := i.ImageClient.ImagePull(i.LocalImageName, builder.REGISTRYUSER, builder.REGISTRYPASS, i.Logger, 10)
 	if err != nil {
 		logrus.Errorf("pull image %s error: %s", i.LocalImageName, err.Error())
 		i.Logger.Error(fmt.Sprintf("拉取应用镜像: %s失败", i.LocalImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
-	if err := sources.ImageTag(i.ContainerdClient, i.LocalImageName, i.ImageName, i.Logger, 1); err != nil {
+	if err := i.ImageClient.ImageTag(i.LocalImageName, i.ImageName, i.Logger, 1); err != nil {
 		logrus.Errorf("change image tag error: %s", err.Error())
 		i.Logger.Error(fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.LocalImageName, i.ImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	user, pass := builder.GetImageUserInfoV2(i.ImageName, i.ImageInfo.HubUser, i.ImageInfo.HubPassword)
 	if i.ImageInfo.IsTrust {
-		err = sources.TrustedImagePush(i.ContainerdClient, i.ImageName, user, pass, i.Logger, 10)
+		err = i.ImageClient.TrustedImagePush(i.ImageName, user, pass, i.Logger, 10)
 	} else {
-		err = sources.ImagePush(i.ContainerdClient, i.ImageName, user, pass, i.Logger, 10)
+		err = i.ImageClient.ImagePush(i.ImageName, user, pass, i.Logger, 10)
 	}
 	if err != nil {
 		if err.Error() == "authentication required" {
