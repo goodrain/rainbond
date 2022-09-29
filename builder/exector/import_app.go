@@ -31,7 +31,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond-oam/pkg/localimport"
 	"github.com/goodrain/rainbond-oam/pkg/ram/v1alpha1"
 	"github.com/goodrain/rainbond/api/model"
@@ -53,7 +52,6 @@ type ImportApp struct {
 	Apps          []string           `json:"apps"`
 	ServiceImage  model.ServiceImage `json:"service_image"`
 	Logger        event.Logger
-	DockerClient  *client.Client
 	oldAPPPath    map[string]string
 	oldPluginPath map[string]string
 	ContainerdCli export.ContainerdAPI
@@ -72,7 +70,6 @@ func NewImportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 	}
 	logrus.Infof("load app image to hub %s", importApp.ServiceImage.HubURL)
 	importApp.Logger = event.GetManager().GetLogger(importApp.EventID)
-	importApp.DockerClient = m.DockerClient
 	importApp.ContainerdCli = m.ContainerdCli
 	importApp.oldAPPPath = make(map[string]string)
 	importApp.oldPluginPath = make(map[string]string)

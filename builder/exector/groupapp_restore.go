@@ -21,7 +21,6 @@ package exector
 import (
 	"context"
 	"fmt"
-	"github.com/containerd/containerd"
 	"io/ioutil"
 	"os"
 	"path"
@@ -31,7 +30,6 @@ import (
 	"time"
 
 	"github.com/coreos/etcd/clientv3"
-	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/cloudos"
 	"github.com/goodrain/rainbond/builder/parser"
@@ -56,11 +54,12 @@ type BackupAPPRestore struct {
 	//RestoreMode(cdct) current datacenter and current tenant
 	//RestoreMode(cdot) current datacenter and other tenant
 	//RestoreMode(od)     other datacenter
-	RestoreMode      string `json:"restore_mode"`
-	RestoreID        string `json:"restore_id"`
-	DockerClient     *client.Client
-	ContainerdClient *containerd.Client
-	cacheDir         string
+	RestoreMode string `json:"restore_mode"`
+	RestoreID   string `json:"restore_id"`
+	//DockerClient     *client.Client
+	//ContainerdClient *containerd.Client
+	ImageClient sources.ImageClient
+	cacheDir    string
 	//serviceChange  key: oldServiceID
 	serviceChange map[string]*Info
 	volumeIDMap   map[uint]uint
@@ -94,7 +93,7 @@ func BackupAPPRestoreCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	backupRestore := &BackupAPPRestore{
 		Logger:        logger,
 		EventID:       eventID,
-		DockerClient:  m.DockerClient,
+		ImageClient:   m.imageClient,
 		etcdcli:       m.EtcdCli,
 		serviceChange: make(map[string]*Info, 0),
 		volumeIDMap:   make(map[uint]uint),
@@ -346,14 +345,14 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 	// restore plugin image
 	for _, pb := range appSnapshot.PluginBuildVersions {
 		dstDir := fmt.Sprintf("%s/plugin_%s/image_%s.tar", b.cacheDir, pb.PluginID, pb.DeployVersion)
-		if err := sources.ImageLoad(b.DockerClient, dstDir, b.Logger); err != nil {
+		if err := b.ImageClient.ImageLoad(dstDir, b.Logger); err != nil {
 			b.Logger.Error(util.Translation("load image to local hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
 			logrus.Errorf("dst: %s; failed to load plugin image: %v", dstDir, err)
 			return err
 		}
 		imageName := getNewImageName(pb.BuildLocalImage)
 		if imageName != "" {
-			if err := sources.ImagePush(b.ContainerdClient, imageName, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 30); err != nil {
+			if err := b.ImageClient.ImagePush(imageName, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 30); err != nil {
 				b.Logger.Error("push plugin image failure", map[string]string{"step": "restore_builder", "status": "failure"})
 				logrus.Errorf("failure push image %s: %v", imageName, err)
 				return err
@@ -385,7 +384,7 @@ func (b *BackupAPPRestore) downloadSlug(backup *dbmodel.AppBackup, app *RegionSe
 
 func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
 	dstDir := fmt.Sprintf("%s/app_%s/image_%s.tar", b.cacheDir, b.getOldServiceID(app.ServiceID), version.BuildVersion)
-	if err := sources.ImageLoad(b.DockerClient, dstDir, b.Logger); err != nil {
+	if err := b.ImageClient.ImageLoad(dstDir, b.Logger); err != nil {
 		b.Logger.Error(util.Translation("load image to local hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
 		logrus.Errorf("load image to local hub error when restore backup app, %s", err.Error())
 		return err
@@ -396,7 +395,7 @@ func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionS
 	}
 	newImageName := getNewImageName(imageName)
 	if newImageName != imageName {
-		if err := sources.ImageTag(b.ContainerdClient, imageName, newImageName, b.Logger, 3); err != nil {
+		if err := b.ImageClient.ImageTag(imageName, newImageName, b.Logger, 3); err != nil {
 			b.Logger.Error(util.Translation("change image tag error"), map[string]string{"step": "restore_builder", "status": "failure"})
 			logrus.Errorf("change image tag %s to %s failure, %s", imageName, newImageName, err.Error())
 			return err
@@ -404,7 +403,7 @@ func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionS
 		imageName = newImageName
 	}
 	if imageName != "" {
-		if err := sources.ImagePush(b.ContainerdClient, imageName, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 30); err != nil {
+		if err := b.ImageClient.ImagePush(imageName, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 30); err != nil {
 			b.Logger.Error(util.Translation("push image to local hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
 			logrus.Errorf("push image to local hub error when restore backup app, %s", err.Error())
 			return err

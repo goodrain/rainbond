@@ -137,7 +137,7 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 		return "", fmt.Errorf("write default runtime dockerfile error:%s", err.Error())
 	}
 	//build runtime image
-	if err := sources.ImagesPullAndPush(builder.RUNNERIMAGENAME, builder.ONLINERUNNERIMAGENAME, "", "", s.re.Logger); err != nil {
+	if err := s.re.ImageClient.ImagesPullAndPush(builder.RUNNERIMAGENAME, builder.ONLINERUNNERIMAGENAME, "", "", s.re.Logger); err != nil {
 		return "", fmt.Errorf("pull image %s: %v", builder.RUNNERIMAGENAME, err)
 	}
 	logrus.Infof("pull image %s successfully.", builder.RUNNERIMAGENAME)
@@ -439,7 +439,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	defer cancel()
 
 	// Get builder image at build time
-	if err := sources.ImagesPullAndPush(builder.BUILDERIMAGENAME, builder.ONLINEBUILDERIMAGENAME, "", "", re.Logger); err != nil {
+	if err := s.re.ImageClient.ImagesPullAndPush(builder.BUILDERIMAGENAME, builder.ONLINEBUILDERIMAGENAME, "", "", re.Logger); err != nil {
 		return err
 	}
 
