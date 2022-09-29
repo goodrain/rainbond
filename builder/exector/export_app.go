@@ -28,7 +28,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond-oam/pkg/export"
 	"github.com/goodrain/rainbond-oam/pkg/ram/v1alpha1"
 	ramv1alpha1 "github.com/goodrain/rainbond-oam/pkg/ram/v1alpha1"
@@ -44,11 +43,11 @@ var re = regexp.MustCompile(`\s`)
 
 //ExportApp Export app to specified format(rainbond-app or dockercompose or slug)
 type ExportApp struct {
-	EventID       string `json:"event_id"`
-	Format        string `json:"format"`
-	SourceDir     string `json:"source_dir"`
-	Logger        event.Logger
-	DockerClient  *client.Client
+	EventID   string `json:"event_id"`
+	Format    string `json:"format"`
+	SourceDir string `json:"source_dir"`
+	Logger    event.Logger
+	//DockerClient  *client.Client
 	ContainerdCli export.ContainerdAPI
 }
 
@@ -61,11 +60,11 @@ func NewExportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	return &ExportApp{
-		Format:        gjson.GetBytes(in, "format").String(),
-		SourceDir:     gjson.GetBytes(in, "source_dir").String(),
-		Logger:        logger,
-		EventID:       eventID,
-		DockerClient:  m.DockerClient,
+		Format:    gjson.GetBytes(in, "format").String(),
+		SourceDir: gjson.GetBytes(in, "source_dir").String(),
+		Logger:    logger,
+		EventID:   eventID,
+		//DockerClient:  m.DockerClient,
 		ContainerdCli: m.ContainerdCli,
 	}, nil
 }

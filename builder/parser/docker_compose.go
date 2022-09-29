@@ -83,14 +83,13 @@ func (d *ServiceInfoFromDC) GetEnvs() (envs []types.Env) {
 }
 
 //CreateDockerComposeParse create parser
-func CreateDockerComposeParse(source string, dockerclient *client.Client, user, pass string, logger event.Logger) Parser {
+func CreateDockerComposeParse(source string, user, pass string, logger event.Logger) Parser {
 	return &DockerComposeParse{
-		source:       source,
-		dockerclient: dockerclient,
-		logger:       logger,
-		services:     make(map[string]*ServiceInfoFromDC),
-		user:         user,
-		password:     pass,
+		source:   source,
+		logger:   logger,
+		services: make(map[string]*ServiceInfoFromDC),
+		user:     user,
+		password: pass,
 	}
 }
 
