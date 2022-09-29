@@ -40,32 +40,6 @@ func TestImageName(t *testing.T) {
 	}
 }
 
-func TestBuildImage(t *testing.T) {
-	//dc, _ := client.NewEnvClient()
-	//buildOptions := types.ImageBuildOptions{
-	//	Tags:        []string{"java:test"},
-	//	Remove:      true,
-	//	NetworkMode: "host",
-	//}
-	//if err := ImageBuild(dc, "/Users/barnett/coding/java/Demo-RestAPI-Servlet2", buildOptions, nil, 20); err != nil {
-	//	t.Fatal(err)
-	//}
-}
-
-func TestPushImage(t *testing.T) {
-	//dc, _ := client.NewEnvClient()
-	//if err := ImagePush(dc, "hub.goodrain.com/zengqg-test/etcd:v2.2.0", "zengqg-test", "zengqg-test", nil, 2); err != nil {
-	//	t.Fatal(err)
-	//}
-}
-
-func TestTrustedImagePush(t *testing.T) {
-	//dc, _ := client.NewEnvClient()
-	//if err := TrustedImagePush(dc, "hub.goodrain.com/zengqg-test/etcd:v2.2.0", "zengqg-test", "zengqg-test", nil, 2); err != nil {
-	//	t.Fatal(err)
-	//}
-}
-
 func TestCheckTrustedRepositories(t *testing.T) {
 	err := CheckTrustedRepositories("hub.goodrain.com/zengqg-test/etcd2:v2.2.0", "zengqg-test", "zengqg-test")
 	if err != nil {
@@ -94,12 +68,4 @@ func TestImageImport(t *testing.T) {
 	if err := ImageImport(dc, "hub.goodrain.com/zengqg-test/etcd:v2.2.0", "/tmp/testsaveimage.tar", nil); err != nil {
 		t.Fatal(err)
 	}
-}
-
-func TestImagePull(t *testing.T) {
-	//dc, _ := client.NewEnvClient()
-	//_, err := ImagePull(dc, "barnett/collabora:190422", "", "", event.GetTestLogger(), 60)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
 }

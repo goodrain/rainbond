@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/goodrain/rainbond/builder/sources"
-	"io"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"strings"
 	"sync"
@@ -31,7 +30,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/docker/docker/api/types"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	// Register grpc event types
 	_ "github.com/containerd/containerd/api/events"
@@ -82,31 +80,6 @@ func (c *ContainerLogManage) Stop() {
 		cl.Stop()
 		return true
 	})
-}
-
-func (c *ContainerLogManage) getContainerLogByFile(info types.ContainerJSON) (*LogFile, error) {
-	return nil, nil
-}
-
-func (c *ContainerLogManage) getContainerLogReader(ctx context.Context, containerID string) (io.ReadCloser, io.ReadCloser, error) {
-	return nil, nil, nil
-	//stderr, err := c.conf.DockerCli.ContainerLogs(ctx, containerID, types.ContainerLogsOptions{
-	//	ShowStderr: true,
-	//	Since:      time.Now().Format(RFC3339NanoFixed),
-	//	Follow:     true,
-	//})
-	//if err != nil {
-	//	return nil, nil, fmt.Errorf("Open container stderr output failure,%s", err.Error())
-	//}
-	//stdout, err := c.conf.DockerCli.ContainerLogs(ctx, containerID, types.ContainerLogsOptions{
-	//	ShowStdout: true,
-	//	Since:      time.Now().Format(RFC3339NanoFixed),
-	//	Follow:     true,
-	//})
-	//if err != nil {
-	//	return nil, nil, fmt.Errorf("Open container stdout output failure,%s", err.Error())
-	//}
-	//return stdout, stderr, nil
 }
 
 func (c *ContainerLogManage) handleLogger() {
@@ -188,18 +161,6 @@ func (c *ContainerLogManage) cacheContainer(cs ...sources.ContainerEvent) {
 	}
 }
 
-//func (c *ContainerLogManage) listContainer() []types.Container {
-//	lictctx, cancel := context.WithTimeout(c.ctx, time.Second*60)
-//	defer cancel()
-//
-//	containers, err := c.conf.DockerCli.ContainerList(lictctx, types.ContainerListOptions{})
-//	if err != nil {
-//		logrus.Errorf("list containers failure.%s", err.Error())
-//		containers, _ = c.conf.DockerCli.ContainerList(lictctx, types.ContainerListOptions{})
-//	}
-//	return containers
-//}
-
 func (c *ContainerLogManage) listContainer() []*runtimeapi.Container {
 	containers, err := c.conf.ContainerImageCli.ListContainers()
 	if err != nil {
@@ -271,25 +232,9 @@ func (c *ContainerLogManage) watchContainer() error {
 	return c.conf.ContainerImageCli.WatchContainers(c.ctx, c.cchan)
 }
 
-//func (c *ContainerLogManage) getContainer(containerID string) (types.ContainerJSON, error) {
-//	ctx, cancel := context.WithTimeout(c.ctx, time.Second*5)
-//	defer cancel()
-//	return c.conf.DockerCli.ContainerInspect(ctx, containerID)
-//}
-
 func (c *ContainerLogManage) getContainer(containerID string) (*sources.ContainerDesc, error) {
 	return c.conf.ContainerImageCli.InspectContainer(containerID)
 }
-
-//func createContainerLog(ctx context.Context, container types.ContainerJSON, reader *LogFile) *ContainerLog {
-//	cctx, cancel := context.WithCancel(ctx)
-//	return &ContainerLog{
-//		ctx:           cctx,
-//		cancel:        cancel,
-//		ContainerJSON: container,
-//		reader:        reader,
-//	}
-//}
 
 func createContainerLog(ctx context.Context, container *sources.ContainerDesc, reader *LogFile, conf *option.Conf) *ContainerLog {
 	cctx, cancel := context.WithCancel(ctx)
@@ -307,8 +252,6 @@ type ContainerLog struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	conf   *option.Conf
-	//types.ContainerJSON
-	//*runtimeapi.ContainerStatus
 	*sources.ContainerDesc
 	LogCopier *Copier
 	LogDriver []Logger
@@ -490,10 +433,8 @@ func (container *ContainerLog) provideContainerdLoggerInfo() (*Info, error) {
 	}
 	createTime := time.Unix(container.ContainerStatus.GetCreatedAt(), 0)
 	return &Info{
-		ContainerID:   container.ContainerStatus.GetId(),
-		ContainerName: container.ContainerStatus.GetMetadata().GetName(),
-		//ContainerEntrypoint: container.Path,
-		//ContainerArgs:      container.Args,
+		ContainerID:        container.ContainerStatus.GetId(),
+		ContainerName:      container.ContainerStatus.GetMetadata().GetName(),
 		ContainerImageName: container.ContainerStatus.GetImageRef(),
 		ContainerCreated:   createTime,
 		ContainerEnv:       containerEnvs,

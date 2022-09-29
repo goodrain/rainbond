@@ -64,6 +64,7 @@ type Manager interface {
 	SetReturnTaskChan(func(*pb.TaskMessage))
 	Start() error
 	Stop() error
+	GetImageClient() sources.ImageClient
 }
 
 //NewManager new manager
@@ -78,7 +79,6 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 		return nil, fmt.Errorf("containerd client is nil")
 	}
 
-	//cctx := namespaces.WithNamespace(context.Background(), sources.Namespace)
 	var restConfig *rest.Config // TODO fanyangyang use k8sutil.NewRestConfig
 	if conf.KubeConfig != "" {
 		restConfig, err = clientcmd.BuildConfigFromFlags("", conf.KubeConfig)
@@ -125,18 +125,11 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 		ctx:               ctx,
 		cancel:            cancel,
 		cfg:               conf,
-		//ContainerdCli: export.ContainerdAPI{
-		//	ImageService:     imageService,
-		//	CCtx:             cctx,
-		//	ContainerdClient: containerdClient,
-		//},
-		imageClient: imageClient,
+		imageClient:       imageClient,
 	}, nil
 }
 
 type exectorManager struct {
-	//DockerClient *client.Client
-	//ContainerdClient  *containerd.Client
 	KubeClient        kubernetes.Interface
 	EtcdCli           *clientv3.Client
 	tasks             chan *pb.TaskMessage
@@ -147,8 +140,7 @@ type exectorManager struct {
 	cancel            context.CancelFunc
 	runningTask       sync.Map
 	cfg               option.Config
-	//ContainerdCli     export.ContainerdAPI
-	imageClient sources.ImageClient
+	imageClient       sources.ImageClient
 }
 
 //TaskWorker worker interface
@@ -339,7 +331,6 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	i := NewSouceCodeBuildItem(task.TaskBody)
 	i.ImageClient = e.imageClient
-	//i.DockerClient = e.DockerClient
 	i.KubeClient = e.KubeClient
 	i.RbdNamespace = e.cfg.RbdNamespace
 	i.RbdRepoName = e.cfg.RbdRepoName
@@ -600,9 +591,14 @@ func (e *exectorManager) Stop() error {
 	return nil
 }
 
+func (e *exectorManager) GetImageClient() sources.ImageClient {
+	return e.imageClient
+}
+
 func (e *exectorManager) GetMaxConcurrentTask() float64 {
 	return float64(e.maxConcurrentTask)
 }
+
 func (e *exectorManager) GetCurrentConcurrentTask() float64 {
 	return float64(len(e.tasks))
 }

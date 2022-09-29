@@ -2,10 +2,12 @@ package sources
 
 import (
 	"context"
+	"errors"
 	"github.com/containerd/containerd"
 	containerdEventstypes "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/typeurl"
+	dockercli "github.com/docker/docker/client"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"os"
@@ -146,4 +148,8 @@ func (c *containerdClientImpl) WatchContainers(ctx context.Context, cchan chan C
 
 func (c *containerdClientImpl) GetRuntimeClient() (*runtimeapi.RuntimeServiceClient, error) {
 	return &c.runtimeClient, nil
+}
+
+func (d *containerdClientImpl) GetDockerClient() (*dockercli.Client, error) {
+	return nil, errors.New("not support")
 }

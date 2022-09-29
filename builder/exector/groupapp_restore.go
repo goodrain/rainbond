@@ -56,8 +56,6 @@ type BackupAPPRestore struct {
 	//RestoreMode(od)     other datacenter
 	RestoreMode string `json:"restore_mode"`
 	RestoreID   string `json:"restore_id"`
-	//DockerClient     *client.Client
-	//ContainerdClient *containerd.Client
 	ImageClient sources.ImageClient
 	cacheDir    string
 	//serviceChange  key: oldServiceID

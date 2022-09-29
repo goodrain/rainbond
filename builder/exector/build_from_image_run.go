@@ -34,14 +34,13 @@ import (
 
 //ImageBuildItem ImageBuildItem
 type ImageBuildItem struct {
-	Namespace    string       `json:"namespace"`
-	TenantName   string       `json:"tenant_name"`
-	ServiceAlias string       `json:"service_alias"`
-	Image        string       `json:"image"`
-	DestImage    string       `json:"dest_image"`
-	Logger       event.Logger `json:"logger"`
-	EventID      string       `json:"event_id"`
-	//ContainerdClient *containerd.Client
+	Namespace     string       `json:"namespace"`
+	TenantName    string       `json:"tenant_name"`
+	ServiceAlias  string       `json:"service_alias"`
+	Image         string       `json:"image"`
+	DestImage     string       `json:"dest_image"`
+	Logger        event.Logger `json:"logger"`
+	EventID       string       `json:"event_id"`
 	ImageClient   sources.ImageClient
 	TenantID      string
 	ServiceID     string

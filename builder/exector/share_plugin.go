@@ -47,8 +47,6 @@ type PluginShareItem struct {
 		Namespace   string `json:"namespace"`
 		IsTrust     bool   `json:"is_trust,omitempty"`
 	} `json:"image_info,omitempty"`
-	//DockerClient     *client.Client
-	//ContainerdClient *containerd.Client
 	ImageClient sources.ImageClient
 	EtcdCli     *clientv3.Client
 }
@@ -64,7 +62,7 @@ func SharePluginItemCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	pluginShare := &PluginShareItem{
 		Logger:  logger,
 		EventID: eventID,
-		//DockerClient: m.DockerClient,
+
 		ImageClient: m.imageClient,
 		EtcdCli:     m.EtcdCli,
 	}

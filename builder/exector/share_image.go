@@ -56,8 +56,6 @@ type ImageShareItem struct {
 			IsTrust     bool   `json:"is_trust,omitempty"`
 		} `json:"image_info,omitempty"`
 	} `json:"share_info"`
-	//DockerClient     *client.Client
-	//ContainerdClient *containerd.Client
 	ImageClient sources.ImageClient
 	EtcdCli     *clientv3.Client
 }
