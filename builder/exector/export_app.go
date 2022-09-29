@@ -21,6 +21,7 @@ package exector
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/builder/sources"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -48,7 +49,8 @@ type ExportApp struct {
 	SourceDir string `json:"source_dir"`
 	Logger    event.Logger
 	//DockerClient  *client.Client
-	ContainerdCli export.ContainerdAPI
+	//ContainerdCli export.ContainerdAPI
+	ImageClient sources.ImageClient
 }
 
 func init() {
@@ -65,7 +67,8 @@ func NewExportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 		Logger:    logger,
 		EventID:   eventID,
 		//DockerClient:  m.DockerClient,
-		ContainerdCli: m.ContainerdCli,
+		//ContainerdCli: m.ContainerdCli,
+		ImageClient: m.imageClient,
 	}, nil
 }
 
@@ -153,22 +156,29 @@ func (i *ExportApp) cacheMd5() {
 
 // exportRainbondAPP export offline rainbond app
 func (i *ExportApp) exportRainbondAPP(ram v1alpha1.RainbondApplicationConfig) (*export.Result, error) {
-	//ramExporter := export.New(export.RAM, i.SourceDir, ram, i.DockerClient, logrus.StandardLogger())
-	ramExporter := export.New(export.RAM, i.SourceDir, ram, i.ContainerdCli, logrus.StandardLogger())
+	ramExporter, err := export.New(export.RAM, i.SourceDir, ram, i.ImageClient.GetContainerdClient(), i.ImageClient.GetDockerClient(), logrus.StandardLogger())
+	if err != nil {
+		return nil, err
+	}
 	return ramExporter.Export()
 }
 
-//  exportDockerCompose export app to docker compose app
+// exportDockerCompose export app to docker compose app
 func (i *ExportApp) exportDockerCompose(ram v1alpha1.RainbondApplicationConfig) (*export.Result, error) {
-	//ramExporter := export.New(export.DC, i.SourceDir, ram, i.DockerClient, logrus.StandardLogger())
-	ramExporter := export.New(export.DC, i.SourceDir, ram, i.ContainerdCli, logrus.StandardLogger())
+	ramExporter, err := export.New(export.DC, i.SourceDir, ram, i.ImageClient.GetContainerdClient(), i.ImageClient.GetDockerClient(), logrus.StandardLogger())
+	if err != nil {
+		return nil, err
+	}
 	return ramExporter.Export()
 }
 
-//  exportDockerCompose export app to docker compose app
+// exportDockerCompose export app to docker compose app
 func (i *ExportApp) exportSlug(ram v1alpha1.RainbondApplicationConfig) (*export.Result, error) {
 	//slugExporter := export.New(export.SLG, i.SourceDir, ram, i.DockerClient, logrus.StandardLogger())
-	slugExporter := export.New(export.SLG, i.SourceDir, ram, i.ContainerdCli, logrus.StandardLogger())
+	slugExporter, err := export.New(export.SLG, i.SourceDir, ram, i.ImageClient.GetContainerdClient(), i.ImageClient.GetDockerClient(), logrus.StandardLogger())
+	if err != nil {
+		return nil, err
+	}
 	return slugExporter.Export()
 }
 

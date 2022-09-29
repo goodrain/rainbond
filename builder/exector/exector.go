@@ -21,7 +21,6 @@ package exector
 import (
 	"context"
 	"fmt"
-	"github.com/goodrain/rainbond-oam/pkg/export"
 	"github.com/goodrain/rainbond/builder/sources"
 	"runtime/debug"
 	"sync"
@@ -31,8 +30,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/namespaces"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
@@ -75,16 +72,13 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	var imageService images.Store
+
 	containerdClient := imageClient.GetContainerdClient()
-	if containerdClient != nil {
-		imageService = containerdClient.ImageService()
-	}
 	if containerdClient == nil && conf.ContainerRuntime == sources.ContainerRuntimeContainerd {
 		return nil, fmt.Errorf("containerd client is nil")
 	}
 
-	cctx := namespaces.WithNamespace(context.Background(), sources.Namespace)
+	//cctx := namespaces.WithNamespace(context.Background(), sources.Namespace)
 	var restConfig *rest.Config // TODO fanyangyang use k8sutil.NewRestConfig
 	if conf.KubeConfig != "" {
 		restConfig, err = clientcmd.BuildConfigFromFlags("", conf.KubeConfig)
@@ -131,11 +125,11 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 		ctx:               ctx,
 		cancel:            cancel,
 		cfg:               conf,
-		ContainerdCli: export.ContainerdAPI{
-			ImageService:     imageService,
-			CCtx:             cctx,
-			ContainerdClient: containerdClient,
-		},
+		//ContainerdCli: export.ContainerdAPI{
+		//	ImageService:     imageService,
+		//	CCtx:             cctx,
+		//	ContainerdClient: containerdClient,
+		//},
 		imageClient: imageClient,
 	}, nil
 }
@@ -153,8 +147,8 @@ type exectorManager struct {
 	cancel            context.CancelFunc
 	runningTask       sync.Map
 	cfg               option.Config
-	ContainerdCli     export.ContainerdAPI
-	imageClient       sources.ImageClient
+	//ContainerdCli     export.ContainerdAPI
+	imageClient sources.ImageClient
 }
 
 //TaskWorker worker interface
