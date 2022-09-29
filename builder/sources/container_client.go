@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/docker/docker/api/types"
+	dockercli "github.com/docker/docker/client"
 	"github.com/sirupsen/logrus"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"time"
@@ -73,6 +74,7 @@ type ContainerImageCli interface {
 	InspectContainer(containerID string) (*ContainerDesc, error)
 	WatchContainers(ctx context.Context, cchan chan ContainerEvent) error
 	GetRuntimeClient() (*runtimeapi.RuntimeServiceClient, error)
+	GetDockerClient() (*dockercli.Client, error)
 }
 
 // ClientFactory client factory

@@ -154,7 +154,6 @@ func decodeFunc(rdr io.Reader) func() (*Message, error) {
 				continue
 			}
 			logrus.WithError(err).WithField("retries", retries).Warn("got error while decoding json")
-			break
 		}
 		return msg, err
 	}

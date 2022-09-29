@@ -54,18 +54,16 @@ var maxBackupVersionSize = 3
 
 //BackupAPPNew backup group app new version
 type BackupAPPNew struct {
-	GroupID    string   `json:"group_id" `
-	ServiceIDs []string `json:"service_ids" `
-	Version    string   `json:"version"`
-	EventID    string
-	SourceDir  string `json:"source_dir"`
-	SourceType string `json:"source_type"`
-	BackupID   string `json:"backup_id"`
-	BackupSize int64
-	Logger     event.Logger
-	//DockerClient *client.Client
+	GroupID     string   `json:"group_id" `
+	ServiceIDs  []string `json:"service_ids" `
+	Version     string   `json:"version"`
+	EventID     string
+	SourceDir   string `json:"source_dir"`
+	SourceType  string `json:"source_type"`
+	BackupID    string `json:"backup_id"`
+	BackupSize  int64
+	Logger      event.Logger
 	ImageClient sources.ImageClient
-	//ContainerdClient *containerd.Client
 	//full-online,full-offline
 	Mode     string `json:"mode"`
 	S3Config struct {
@@ -88,7 +86,7 @@ func BackupAPPNewCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	backupNew := &BackupAPPNew{
 		Logger:  logger,
 		EventID: eventID,
-		//DockerClient: m.DockerClient,
+
 		ImageClient: m.imageClient,
 	}
 	if err := ffjson.Unmarshal(in, &backupNew); err != nil {

@@ -89,7 +89,7 @@ func Run(s *option.Builder) error {
 	defer dis.Stop()
 
 	if s.Config.CleanUp {
-		cle, err := clean.CreateCleanManager()
+		cle, err := clean.CreateCleanManager(exec.GetImageClient())
 		if err != nil {
 			return err
 		}

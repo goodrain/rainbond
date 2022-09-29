@@ -102,12 +102,11 @@ type Request struct {
 	Lang          code.Lang
 	BuildEnvs     map[string]string
 	Logger        event.Logger
-	//ContainerdClient *containerd.Client
-	ImageClient sources.ImageClient
-	KubeClient  kubernetes.Interface
-	ExtraHosts  []string
-	HostAlias   []HostAlias
-	Ctx         context.Context
+	ImageClient   sources.ImageClient
+	KubeClient    kubernetes.Interface
+	ExtraHosts    []string
+	HostAlias     []HostAlias
+	Ctx           context.Context
 }
 
 // HostAlias holds the mapping between IP and hostnames that will be injected as an entry in the

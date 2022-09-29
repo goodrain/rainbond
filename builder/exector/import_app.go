@@ -55,8 +55,7 @@ type ImportApp struct {
 	Logger        event.Logger
 	oldAPPPath    map[string]string
 	oldPluginPath map[string]string
-	//ContainerdCli export.ContainerdAPI
-	ImageClient sources.ImageClient
+	ImageClient   sources.ImageClient
 }
 
 //NewImportApp create
@@ -73,7 +72,7 @@ func NewImportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 	logrus.Infof("load app image to hub %s", importApp.ServiceImage.HubURL)
 	importApp.Logger = event.GetManager().GetLogger(importApp.EventID)
 	importApp.ImageClient = m.imageClient
-	//importApp.ContainerdCli = m.ContainerdCli
+
 	importApp.oldAPPPath = make(map[string]string)
 	importApp.oldPluginPath = make(map[string]string)
 	return &importApp, nil

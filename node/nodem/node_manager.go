@@ -72,27 +72,29 @@ func NewNodeManager(ctx context.Context, conf *option.Conf) (*NodeManager, error
 		return nil, fmt.Errorf("Get host id error:%s", err.Error())
 	}
 
-	//imageGCPolicy := gc.ImageGCPolicy{
-	//	MinAge:               conf.ImageMinimumGCAge,
-	//	ImageGCPeriod:        conf.ImageGCPeriod,
-	//	HighThresholdPercent: int(conf.ImageGCHighThresholdPercent),
-	//	LowThresholdPercent:  int(conf.ImageGCLowThresholdPercent),
-	//}
-	//imageGCManager, err := gc.NewImageGCManager(conf.DockerCli, imageGCPolicy, sandboxImage)
-	//if err != nil {
-	//	return nil, fmt.Errorf("create new imageGCManager: %v", err)
-	//}
+	imageGCPolicy := gc.ImageGCPolicy{
+		MinAge:               conf.ImageMinimumGCAge,
+		ImageGCPeriod:        conf.ImageGCPeriod,
+		HighThresholdPercent: int(conf.ImageGCHighThresholdPercent),
+		LowThresholdPercent:  int(conf.ImageGCLowThresholdPercent),
+	}
+	dockerCli, _ := conf.ContainerImageCli.GetDockerClient()
+	// TODO: add image gc manager using containerd client
+	imageGCManager, err := gc.NewImageGCManager(dockerCli, imageGCPolicy, sandboxImage)
+	if err != nil {
+		return nil, fmt.Errorf("create new imageGCManager: %v", err)
+	}
 
 	nodem := &NodeManager{
-		cfg:         conf,
-		ctx:         ctx,
-		cluster:     cluster,
-		monitor:     monitor,
-		healthy:     healthyManager,
-		controller:  controller,
-		clm:         clm,
-		currentNode: &client.HostNode{ID: conf.HostID},
-		//imageGCManager: imageGCManager,
+		cfg:            conf,
+		ctx:            ctx,
+		cluster:        cluster,
+		monitor:        monitor,
+		healthy:        healthyManager,
+		controller:     controller,
+		clm:            clm,
+		currentNode:    &client.HostNode{ID: conf.HostID},
+		imageGCManager: imageGCManager,
 	}
 	return nodem, nil
 }

@@ -49,7 +49,6 @@ type DockerRunOrImageParse struct {
 	image       Image
 	args        []string
 	errors      []ParseError
-	//containerdClient *containerd.Client
 	imageClient sources.ImageClient
 	logger      event.Logger
 }

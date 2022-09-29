@@ -110,7 +110,7 @@ func (s *slugBuild) writeRunDockerfile(sourceDir, packageName string, envs map[s
 	 ENV CODE_COMMIT_MESSAGE=${CODE_COMMIT_MESSAGE}
 	 ENV VERSION=%s
 	`
-	logrus.Infof("cacheDir:%v, from:%v, packageName:%v, Dir(slugPackage):%v", sourceDir, builder.RUNNERIMAGENAME, packageName, path.Dir(packageName))
+	logrus.Debugf("cacheDir:%v, from:%v, packageName:%v, Dir(slugPackage):%v", sourceDir, builder.RUNNERIMAGENAME, packageName, path.Dir(packageName))
 	result := util.ParseVariable(fmt.Sprintf(runDockerfile, builder.RUNNERIMAGENAME, packageName, s.re.DeployVersion), envs)
 	return ioutil.WriteFile(path.Join(sourceDir, "Dockerfile"), []byte(result), 0755)
 }
