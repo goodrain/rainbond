@@ -72,6 +72,10 @@ func (d *dockerImageCliImpl) GetContainerdClient() *containerd.Client {
 	return nil
 }
 
+func (d *dockerImageCliImpl) GetDockerClient() *dockercli.Client {
+	return d.client
+}
+
 func (d *dockerImageCliImpl) ImagePull(image string, username, password string, logger event.Logger, timeout int) (*ocispec.ImageConfig, error) {
 	printLog(logger, "info", fmt.Sprintf("start get image:%s", image), map[string]string{"step": "pullimage"})
 	var pullipo = dtypes.ImagePullOptions{}
