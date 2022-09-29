@@ -97,7 +97,7 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	podSpec.Volumes = volumes
 	container := corev1.Container{
 		Name:      name,
-		Image:     "yangk/executor:latest",
+		Image:     "registry.cn-hangzhou.aliyuncs.com/goodrain/kaniko-executor:latest",
 		Stdin:     true,
 		StdinOnce: true,
 		Args:      []string{"--context=dir:///workspace", fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify"},

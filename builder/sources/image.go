@@ -229,13 +229,6 @@ func ImageNameWithNamespaceHandle(imageName string) *model.ImageName {
 	return &i
 }
 
-//// GenSaveImageName generates the final name of the image, which is the name of
-//// the image in the exported tar package.
-//func GenSaveImageName(name string) string {
-//	imageName := ImageNameWithNamespaceHandle(name)
-//	return fmt.Sprintf("%s:%s", imageName.Name, imageName.Tag)
-//}
-
 //ImagePush push image to registry
 //timeout minutes of the unit
 // Deprecated: use sources.ImageClient.ImagePush instead
@@ -428,7 +421,7 @@ func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logge
 	// container config
 	container := corev1.Container{
 		Name:      name,
-		Image:     "yangk/executor:latest",
+		Image:     "registry.cn-hangzhou.aliyuncs.com/goodrain/kaniko-executor:latest",
 		Stdin:     true,
 		StdinOnce: true,
 		Args:      []string{"--context=dir:///workspace", fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify"},
@@ -902,8 +895,4 @@ func (j *pushjobs) status() []ctrcontent.StatusInfo {
 	}
 
 	return statuses
-}
-
-func CheckImgName() {
-
 }

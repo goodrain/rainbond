@@ -103,9 +103,7 @@ type Conf struct {
 	EnableInitStart bool
 	AutoRegistNode  bool
 	//enable collect docker container log
-	EnableCollectLog bool
-	//DockerCli        *dockercli.Client
-	//ContainerdCli     *containerd.Client
+	EnableCollectLog  bool
 	ContainerRuntime  string
 	RuntimeEndpoint   string
 	ContainerImageCli sources.ContainerImageCli

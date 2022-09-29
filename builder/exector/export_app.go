@@ -44,12 +44,10 @@ var re = regexp.MustCompile(`\s`)
 
 //ExportApp Export app to specified format(rainbond-app or dockercompose or slug)
 type ExportApp struct {
-	EventID   string `json:"event_id"`
-	Format    string `json:"format"`
-	SourceDir string `json:"source_dir"`
-	Logger    event.Logger
-	//DockerClient  *client.Client
-	//ContainerdCli export.ContainerdAPI
+	EventID     string `json:"event_id"`
+	Format      string `json:"format"`
+	SourceDir   string `json:"source_dir"`
+	Logger      event.Logger
 	ImageClient sources.ImageClient
 }
 
@@ -62,12 +60,10 @@ func NewExportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	return &ExportApp{
-		Format:    gjson.GetBytes(in, "format").String(),
-		SourceDir: gjson.GetBytes(in, "source_dir").String(),
-		Logger:    logger,
-		EventID:   eventID,
-		//DockerClient:  m.DockerClient,
-		//ContainerdCli: m.ContainerdCli,
+		Format:      gjson.GetBytes(in, "format").String(),
+		SourceDir:   gjson.GetBytes(in, "source_dir").String(),
+		Logger:      logger,
+		EventID:     eventID,
 		ImageClient: m.imageClient,
 	}, nil
 }
@@ -174,7 +170,6 @@ func (i *ExportApp) exportDockerCompose(ram v1alpha1.RainbondApplicationConfig) 
 
 // exportDockerCompose export app to docker compose app
 func (i *ExportApp) exportSlug(ram v1alpha1.RainbondApplicationConfig) (*export.Result, error) {
-	//slugExporter := export.New(export.SLG, i.SourceDir, ram, i.DockerClient, logrus.StandardLogger())
 	slugExporter, err := export.New(export.SLG, i.SourceDir, ram, i.ImageClient.GetContainerdClient(), i.ImageClient.GetDockerClient(), logrus.StandardLogger())
 	if err != nil {
 		return nil, err

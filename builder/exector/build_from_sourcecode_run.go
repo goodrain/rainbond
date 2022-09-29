@@ -59,8 +59,6 @@ type SourceCodeBuildItem struct {
 	EventID       string       `json:"event_id"`
 	CacheDir      string       `json:"cache_dir"`
 	TGZDir        string       `json:"tgz_dir"`
-	//DockerClient     *client.Client
-	//containerdClient *containerd.Client
 	ImageClient   sources.ImageClient
 	KubeClient    kubernetes.Interface
 	RbdNamespace  string
@@ -321,7 +319,6 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		Lang:          code.Lang(i.Lang),
 		BuildEnvs:     i.BuildEnvs,
 		Logger:        i.Logger,
-		//ContainerdClient: i.containerdClient,
 		ImageClient:   i.ImageClient,
 		KubeClient:    i.KubeClient,
 		HostAlias:     hostAlias,
