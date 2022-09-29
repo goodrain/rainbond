@@ -18,6 +18,7 @@ import (
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/remotes/docker/config"
+	dockercli "github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util/criutil"
@@ -89,6 +90,10 @@ func (c *containerdImageCliImpl) CheckIfImageExists(imageName string) (imageRef 
 
 func (c *containerdImageCliImpl) GetContainerdClient() *containerd.Client {
 	return c.client
+}
+
+func (c *containerdImageCliImpl) GetDockerClient() *dockercli.Client {
+	return nil
 }
 
 func (c *containerdImageCliImpl) ImagePull(image string, username, password string, logger event.Logger, timeout int) (*ocispec.ImageConfig, error) {
