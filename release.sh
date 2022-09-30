@@ -78,7 +78,7 @@ build::image() {
 	local OUTPATH="./_output/binary/$GOOS/${BASE_NAME}-$1"
 	local build_image_dir="./_output/image/$1/"
 	local source_dir="./hack/contrib/docker/$1"
-	local BASE_IMAGE_VERSION=${BUILD_BASE_IMAGE_VERSION:-'3.4'}
+	local BASE_IMAGE_VERSION=${BUILD_BASE_IMAGE_VERSION:-'latest'}
 	local DOCKERFILE_BASE=${BUILD_DOCKERFILE_BASE:-'Dockerfile'}
 	mkdir -p "${build_image_dir}"
 	chmod 777 "${build_image_dir}"

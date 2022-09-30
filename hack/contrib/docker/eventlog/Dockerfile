@@ -1,4 +1,4 @@
-FROM goodrainapps/alpine:3.4
+FROM goodrainapps/alpine:latest
 ARG RELEASE_DESC
 RUN apk --no-cache add libstdc++ ca-certificates openssl openssl-dev
 

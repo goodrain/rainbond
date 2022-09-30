@@ -168,7 +168,7 @@ func (m *Manager) TenantServiceConfigFileDao() dao.TenantServiceConfigFileDao {
 //TenantServiceConfigFileDaoTransactions -
 func (m *Manager) TenantServiceConfigFileDaoTransactions(db *gorm.DB) dao.TenantServiceConfigFileDao {
 	return &mysqldao.TenantServiceConfigFileDaoImpl{
-		DB: m.db,
+		DB: db,
 	}
 }
 
