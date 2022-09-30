@@ -44,6 +44,7 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdEnvoy())
 	cmds = append(cmds, NewCmdConfig())
 	cmds = append(cmds, NewCmdRegistry())
+	cmds = append(cmds, NewCmdReplace())
 	return cmds
 }
 
