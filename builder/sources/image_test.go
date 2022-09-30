@@ -22,10 +22,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/goodrain/rainbond/event"
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 )
 
@@ -39,32 +37,6 @@ func TestImageName(t *testing.T) {
 	for _, i := range imageName {
 		in := ImageNameHandle(i)
 		fmt.Printf("host: %s, name: %s, tag: %s\n", in.Host, in.Name, in.Tag)
-	}
-}
-
-func TestBuildImage(t *testing.T) {
-	dc, _ := client.NewEnvClient()
-	buildOptions := types.ImageBuildOptions{
-		Tags:        []string{"java:test"},
-		Remove:      true,
-		NetworkMode: "host",
-	}
-	if err := ImageBuild(dc, "/Users/barnett/coding/java/Demo-RestAPI-Servlet2", buildOptions, nil, 20); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestPushImage(t *testing.T) {
-	dc, _ := client.NewEnvClient()
-	if err := ImagePush(dc, "hub.goodrain.com/zengqg-test/etcd:v2.2.0", "zengqg-test", "zengqg-test", nil, 2); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestTrustedImagePush(t *testing.T) {
-	dc, _ := client.NewEnvClient()
-	if err := TrustedImagePush(dc, "hub.goodrain.com/zengqg-test/etcd:v2.2.0", "zengqg-test", "zengqg-test", nil, 2); err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -94,14 +66,6 @@ func TestMulitImageSave(t *testing.T) {
 func TestImageImport(t *testing.T) {
 	dc, _ := client.NewEnvClient()
 	if err := ImageImport(dc, "hub.goodrain.com/zengqg-test/etcd:v2.2.0", "/tmp/testsaveimage.tar", nil); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestImagePull(t *testing.T) {
-	dc, _ := client.NewEnvClient()
-	_, err := ImagePull(dc, "barnett/collabora:190422", "", "", event.GetTestLogger(), 60)
-	if err != nil {
 		t.Fatal(err)
 	}
 }

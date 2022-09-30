@@ -573,6 +573,7 @@ type LogFile struct {
 	createDecoder   makeDecoderFunc
 	getTailReader   GetTailReaderFunc
 	perms           os.FileMode
+	logPath         string
 }
 
 //Close file close
@@ -626,5 +627,6 @@ func NewLogFile(logPath string, maxFiles int, compress bool, decodeFunc makeDeco
 		createDecoder:   decodeFunc,
 		perms:           perms,
 		getTailReader:   getTailReader,
+		logPath:         logPath,
 	}, nil
 }

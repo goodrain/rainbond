@@ -21,6 +21,7 @@ package exector
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/builder/sources"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -30,7 +31,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/coreos/etcd/clientv3"
-	"github.com/docker/docker/client"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 
@@ -64,13 +64,19 @@ type Manager interface {
 	SetReturnTaskChan(func(*pb.TaskMessage))
 	Start() error
 	Stop() error
+	GetImageClient() sources.ImageClient
 }
 
 //NewManager new manager
 func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
-	dockerClient, err := client.NewEnvClient()
+	imageClient, err := sources.NewImageClient(conf.ContainerRuntime, conf.RuntimeEndpoint, time.Second*3)
 	if err != nil {
 		return nil, err
+	}
+
+	containerdClient := imageClient.GetContainerdClient()
+	if containerdClient == nil && conf.ContainerRuntime == sources.ContainerRuntimeContainerd {
+		return nil, fmt.Errorf("containerd client is nil")
 	}
 
 	var restConfig *rest.Config // TODO fanyangyang use k8sutil.NewRestConfig
@@ -111,7 +117,6 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	}
 	logrus.Infof("The maximum number of concurrent build tasks supported by the current node is %d", maxConcurrentTask)
 	return &exectorManager{
-		DockerClient:      dockerClient,
 		KubeClient:        kubeClient,
 		EtcdCli:           etcdCli,
 		mqClient:          mqc,
@@ -120,11 +125,11 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 		ctx:               ctx,
 		cancel:            cancel,
 		cfg:               conf,
+		imageClient:       imageClient,
 	}, nil
 }
 
 type exectorManager struct {
-	DockerClient      *client.Client
 	KubeClient        kubernetes.Interface
 	EtcdCli           *clientv3.Client
 	tasks             chan *pb.TaskMessage
@@ -135,6 +140,7 @@ type exectorManager struct {
 	cancel            context.CancelFunc
 	runningTask       sync.Map
 	cfg               option.Config
+	imageClient       sources.ImageClient
 }
 
 //TaskWorker worker interface
@@ -275,7 +281,7 @@ func (e *exectorManager) exec(task *pb.TaskMessage) error {
 //buildFromImage build app from docker image
 func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 	i := NewImageBuildItem(task.TaskBody)
-	i.DockerClient = e.DockerClient
+	i.ImageClient = e.imageClient
 	i.Logger.Info("Start with the image build application task", map[string]string{"step": "builder-exector", "status": "starting"})
 	defer event.GetManager().ReleaseLogger(i.Logger)
 	defer func() {
@@ -324,7 +330,7 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 //support git repository
 func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	i := NewSouceCodeBuildItem(task.TaskBody)
-	i.DockerClient = e.DockerClient
+	i.ImageClient = e.imageClient
 	i.KubeClient = e.KubeClient
 	i.RbdNamespace = e.cfg.RbdNamespace
 	i.RbdRepoName = e.cfg.RbdRepoName
@@ -519,7 +525,7 @@ func (e *exectorManager) slugShare(task *pb.TaskMessage) {
 
 //imageShare share app of docker image
 func (e *exectorManager) imageShare(task *pb.TaskMessage) {
-	i, err := NewImageShareItem(task.TaskBody, e.DockerClient, e.EtcdCli)
+	i, err := NewImageShareItem(task.TaskBody, e.imageClient, e.EtcdCli)
 	if err != nil {
 		logrus.Error("create share image task error.", err.Error())
 		i.Logger.Error(util.Translation("create share image task error"), map[string]string{"step": "builder-exector", "status": "failure"})
@@ -585,9 +591,14 @@ func (e *exectorManager) Stop() error {
 	return nil
 }
 
+func (e *exectorManager) GetImageClient() sources.ImageClient {
+	return e.imageClient
+}
+
 func (e *exectorManager) GetMaxConcurrentTask() float64 {
 	return float64(e.maxConcurrentTask)
 }
+
 func (e *exectorManager) GetCurrentConcurrentTask() float64 {
 	return float64(len(e.tasks))
 }

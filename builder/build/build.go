@@ -34,7 +34,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 )
 
 func init() {
@@ -103,7 +102,7 @@ type Request struct {
 	Lang          code.Lang
 	BuildEnvs     map[string]string
 	Logger        event.Logger
-	DockerClient  *client.Client
+	ImageClient   sources.ImageClient
 	KubeClient    kubernetes.Interface
 	ExtraHosts    []string
 	HostAlias     []HostAlias

@@ -8,9 +8,9 @@ IMAGE_BASE_NAME=${IMAGE_NAMESPACE:-'rainbond'}
 DOMESTIC_NAMESPACE=${DOMESTIC_NAMESPACE:-'goodrain'}
 GOARCH=${BUILD_GOARCH:-'amd64'}
 
-GO_VERSION=1.13
+GO_VERSION=1.17
 
-GOPROXY=${GOPROXY:-'https://goproxy.io'}
+GOPROXY=${GOPROXY:-'https://goproxy.cn'}
 
 if [ "$DISABLE_GOPROXY" == "true" ]; then
 	GOPROXY=
@@ -64,7 +64,7 @@ build::binary() {
 	elif [ "$1" = "chaos" ]; then
 		build_dir="./cmd/builder"
 	elif [ "$1" = "gateway" ]; then
-		build_image="golang:1.13-alpine"
+		build_image="golang:1.17-alpine"
 	elif [ "$1" = "monitor" ]; then
 		CGO_ENABLED=0
 	fi

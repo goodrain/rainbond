@@ -30,7 +30,6 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/build"
 	"github.com/goodrain/rainbond/builder/parser/code"
@@ -60,7 +59,7 @@ type SourceCodeBuildItem struct {
 	EventID       string       `json:"event_id"`
 	CacheDir      string       `json:"cache_dir"`
 	TGZDir        string       `json:"tgz_dir"`
-	DockerClient  *client.Client
+	ImageClient   sources.ImageClient
 	KubeClient    kubernetes.Interface
 	RbdNamespace  string
 	RbdRepoName   string
@@ -320,7 +319,7 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		Lang:          code.Lang(i.Lang),
 		BuildEnvs:     i.BuildEnvs,
 		Logger:        i.Logger,
-		DockerClient:  i.DockerClient,
+		ImageClient:   i.ImageClient,
 		KubeClient:    i.KubeClient,
 		HostAlias:     hostAlias,
 		Ctx:           i.Ctx,

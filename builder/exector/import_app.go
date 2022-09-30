@@ -22,6 +22,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/goodrain/rainbond/builder/sources"
 	"io/ioutil"
 	"os"
 	"path"
@@ -30,7 +32,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond-oam/pkg/localimport"
 	"github.com/goodrain/rainbond-oam/pkg/ram/v1alpha1"
 	"github.com/goodrain/rainbond/api/model"
@@ -52,9 +53,9 @@ type ImportApp struct {
 	Apps          []string           `json:"apps"`
 	ServiceImage  model.ServiceImage `json:"service_image"`
 	Logger        event.Logger
-	DockerClient  *client.Client
 	oldAPPPath    map[string]string
 	oldPluginPath map[string]string
+	ImageClient   sources.ImageClient
 }
 
 //NewImportApp create
@@ -70,7 +71,8 @@ func NewImportApp(in []byte, m *exectorManager) (TaskWorker, error) {
 	}
 	logrus.Infof("load app image to hub %s", importApp.ServiceImage.HubURL)
 	importApp.Logger = event.GetManager().GetLogger(importApp.EventID)
-	importApp.DockerClient = m.DockerClient
+	importApp.ImageClient = m.imageClient
+
 	importApp.oldAPPPath = make(map[string]string)
 	importApp.oldPluginPath = make(map[string]string)
 	return &importApp, nil
@@ -121,7 +123,11 @@ func (i *ImportApp) importApp() error {
 			defer wait.Done()
 			appFile := filepath.Join(oldSourceDir, app)
 			tmpDir := path.Join(oldSourceDir, app+"-cache")
-			li := localimport.New(logrus.StandardLogger(), i.DockerClient, tmpDir)
+			li, err := localimport.New(logrus.StandardLogger(), i.ImageClient.GetContainerdClient(), i.ImageClient.GetDockerClient(), tmpDir)
+			if err != nil {
+				logrus.Errorf("create localimport failure %s", err.Error())
+				return
+			}
 			if err := i.updateStatusForApp(app, "importing"); err != nil {
 				logrus.Errorf("Failed to update status to importing for app %s: %v", app, err)
 			}

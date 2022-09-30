@@ -28,28 +28,23 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/util"
 
-	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder/sources"
 )
 
 //Manager CleanManager
 type Manager struct {
-	dclient *client.Client
-	ctx     context.Context
-	cancel  context.CancelFunc
+	imageClient sources.ImageClient
+	ctx         context.Context
+	cancel      context.CancelFunc
 }
 
 //CreateCleanManager create clean manager
-func CreateCleanManager() (*Manager, error) {
-	dclient, err := client.NewEnvClient()
-	if err != nil {
-		return nil, err
-	}
+func CreateCleanManager(imageClient sources.ImageClient) (*Manager, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Manager{
-		dclient: dclient,
-		ctx:     ctx,
-		cancel:  cancel,
+		imageClient: imageClient,
+		ctx:         ctx,
+		cancel:      cancel,
 	}
 	return c, nil
 }
@@ -87,7 +82,7 @@ func (t *Manager) Start(errchan chan error) error {
 				if v.DeliveredType == "image" {
 					imagePath := v.DeliveredPath
 					//remove local image, However, it is important to note that the version image is stored in the image repository
-					err := sources.ImageRemove(t.dclient, imagePath)
+					err := t.imageClient.ImageRemove(imagePath)
 					if err != nil {
 						logrus.Error(err)
 					}

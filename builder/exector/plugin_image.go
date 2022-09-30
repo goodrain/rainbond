@@ -24,7 +24,6 @@ import (
 
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/model"
-	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
@@ -69,21 +68,21 @@ func (e *exectorManager) pluginImageBuild(task *pb.TaskMessage) {
 
 func (e *exectorManager) run(t *model.BuildPluginTaskBody, logger event.Logger) error {
 	hubUser, hubPass := builder.GetImageUserInfoV2(t.ImageURL, t.ImageInfo.HubUser, t.ImageInfo.HubPassword)
-	if _, err := sources.ImagePull(e.DockerClient, t.ImageURL, hubUser, hubPass, logger, 10); err != nil {
+	if _, err := e.imageClient.ImagePull(t.ImageURL, hubUser, hubPass, logger, 10); err != nil {
 		logrus.Errorf("pull image %v error, %v", t.ImageURL, err)
 		logger.Error("拉取镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	logger.Info("拉取镜像完成", map[string]string{"step": "build-exector", "status": "complete"})
 	newTag := createPluginImageTag(t.ImageURL, t.PluginID, t.DeployVersion)
-	err := sources.ImageTag(e.DockerClient, t.ImageURL, newTag, logger, 1)
+	err := e.imageClient.ImageTag(t.ImageURL, newTag, logger, 1)
 	if err != nil {
 		logrus.Errorf("set plugin image tag error, %v", err)
 		logger.Error("修改镜像tag失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err
 	}
 	logger.Info("修改镜像Tag完成", map[string]string{"step": "build-exector", "status": "complete"})
-	if err := sources.ImagePush(e.DockerClient, newTag, builder.REGISTRYUSER, builder.REGISTRYPASS, logger, 10); err != nil {
+	if err := e.imageClient.ImagePush(newTag, builder.REGISTRYUSER, builder.REGISTRYPASS, logger, 10); err != nil {
 		logrus.Errorf("push image %s error, %v", newTag, err)
 		logger.Error("推送镜像失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		return err

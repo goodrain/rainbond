@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/goodrain/rainbond/gateway/annotations/parser"
+	"github.com/goodrain/rainbond/util/apply"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
-	"github.com/oam-dev/kubevela/pkg/utils/apply"
 	monitorv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/sirupsen/logrus"

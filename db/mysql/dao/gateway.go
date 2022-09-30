@@ -20,9 +20,9 @@ package dao
 
 import (
 	"fmt"
+	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"reflect"
 
-	gormbulkups "github.com/atcdot/gorm-bulk-upsert"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
@@ -151,6 +151,16 @@ func (c *RuleExtensionDaoImpl) DeleteByRuleIDs(ruleIDs []string) error {
 
 // CreateOrUpdateRuleExtensionsInBatch -
 func (c *RuleExtensionDaoImpl) CreateOrUpdateRuleExtensionsInBatch(exts []*model.RuleExtension) error {
+	dbType := c.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, ext := range exts {
+			if err := c.DB.Create(&ext).Error; err != nil {
+				logrus.Error("batch Update or update exts error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, ext := range exts {
 		objects = append(objects, *ext)
@@ -294,6 +304,16 @@ func (h *HTTPRuleDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
 
 // CreateOrUpdateHTTPRuleInBatch Batch insert or update http rule
 func (h *HTTPRuleDaoImpl) CreateOrUpdateHTTPRuleInBatch(httpRules []*model.HTTPRule) error {
+	dbType := h.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, ext := range httpRules {
+			if err := h.DB.Create(&ext).Error; err != nil {
+				logrus.Error("batch Update or update httpRules error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, httpRule := range httpRules {
 		objects = append(objects, *httpRule)
@@ -342,6 +362,16 @@ func (h *HTTPRuleRewriteDaoTmpl) UpdateModel(mo model.Interface) error {
 
 // CreateOrUpdateHTTPRuleRewriteInBatch -
 func (h *HTTPRuleRewriteDaoTmpl) CreateOrUpdateHTTPRuleRewriteInBatch(httpRuleRewrites []*model.HTTPRuleRewrite) error {
+	dbType := h.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, httpRuleRewrites := range httpRuleRewrites {
+			if err := h.DB.Create(&httpRuleRewrites).Error; err != nil {
+				logrus.Error("batch Update or update httpRules error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, httpRuleRewrites := range httpRuleRewrites {
 		objects = append(objects, *httpRuleRewrites)
@@ -498,6 +528,16 @@ func (t *TCPRuleDaoTmpl) DeleteByComponentIDs(componentIDs []string) error {
 
 // CreateOrUpdateTCPRuleInBatch Batch insert or update tcp rule
 func (t *TCPRuleDaoTmpl) CreateOrUpdateTCPRuleInBatch(tcpRules []*model.TCPRule) error {
+	dbType := t.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, tcpRule := range tcpRules {
+			if err := t.DB.Create(&tcpRule).Error; err != nil {
+				logrus.Error("batch Update or update tcpRules error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, tcpRule := range tcpRules {
 		objects = append(objects, *tcpRule)
@@ -558,6 +598,16 @@ func (t *GwRuleConfigDaoImpl) DeleteByRuleIDs(ruleIDs []string) error {
 
 // CreateOrUpdateGwRuleConfigsInBatch creates or updates rule configs in batch.
 func (t *GwRuleConfigDaoImpl) CreateOrUpdateGwRuleConfigsInBatch(ruleConfigs []*model.GwRuleConfig) error {
+	dbType := t.DB.Dialect().GetName()
+	if dbType == "sqlite3" {
+		for _, ruleConfig := range ruleConfigs {
+			if err := t.DB.Create(&ruleConfig).Error; err != nil {
+				logrus.Error("batch Update or update ruleConfigs error:", err)
+				return err
+			}
+		}
+		return nil
+	}
 	var objects []interface{}
 	for _, ruleConfig := range ruleConfigs {
 		objects = append(objects, *ruleConfig)

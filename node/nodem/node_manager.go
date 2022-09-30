@@ -78,7 +78,9 @@ func NewNodeManager(ctx context.Context, conf *option.Conf) (*NodeManager, error
 		HighThresholdPercent: int(conf.ImageGCHighThresholdPercent),
 		LowThresholdPercent:  int(conf.ImageGCLowThresholdPercent),
 	}
-	imageGCManager, err := gc.NewImageGCManager(conf.DockerCli, imageGCPolicy, sandboxImage)
+	dockerCli, _ := conf.ContainerImageCli.GetDockerClient()
+	// TODO: add image gc manager using containerd client
+	imageGCManager, err := gc.NewImageGCManager(dockerCli, imageGCPolicy, sandboxImage)
 	if err != nil {
 		return nil, fmt.Errorf("create new imageGCManager: %v", err)
 	}
@@ -142,8 +144,9 @@ func (n *NodeManager) Start(errchan chan error) error {
 	} else {
 		logrus.Infof("this node(%s) is not compute node or disable collect container log ,do not start container log manage", n.currentNode.Role)
 	}
-
-	if n.cfg.EnableImageGC {
+	//TODO: imageGCManager with containerd
+	if n.cfg.EnableImageGC && n.cfg.ContainerRuntime == "docker" {
+		logrus.Info("Start the image garbage collection mechanism")
 		if n.currentNode.Role.HasRule(client.ManageNode) && !n.currentNode.Role.HasRule(client.ComputeNode) {
 			n.imageGCManager.SetServiceImages(n.controller.ListServiceImages())
 			go n.imageGCManager.Start()

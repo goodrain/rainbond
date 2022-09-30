@@ -24,9 +24,9 @@ import (
 	"sync"
 
 	"github.com/goodrain/rainbond/util"
+	"github.com/goodrain/rainbond/util/apply"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
-	"github.com/oam-dev/kubevela/pkg/utils/apply"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

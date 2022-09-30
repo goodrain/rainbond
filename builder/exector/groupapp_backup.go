@@ -34,7 +34,6 @@ import (
 	"github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/goodrain/rainbond/db"
 
-	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder/cloudos"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
@@ -55,17 +54,16 @@ var maxBackupVersionSize = 3
 
 //BackupAPPNew backup group app new version
 type BackupAPPNew struct {
-	GroupID      string   `json:"group_id" `
-	ServiceIDs   []string `json:"service_ids" `
-	Version      string   `json:"version"`
-	EventID      string
-	SourceDir    string `json:"source_dir"`
-	SourceType   string `json:"source_type"`
-	BackupID     string `json:"backup_id"`
-	BackupSize   int64
-	Logger       event.Logger
-	DockerClient *client.Client
-
+	GroupID     string   `json:"group_id" `
+	ServiceIDs  []string `json:"service_ids" `
+	Version     string   `json:"version"`
+	EventID     string
+	SourceDir   string `json:"source_dir"`
+	SourceType  string `json:"source_type"`
+	BackupID    string `json:"backup_id"`
+	BackupSize  int64
+	Logger      event.Logger
+	ImageClient sources.ImageClient
 	//full-online,full-offline
 	Mode     string `json:"mode"`
 	S3Config struct {
@@ -86,9 +84,10 @@ func BackupAPPNewCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
 	backupNew := &BackupAPPNew{
-		Logger:       logger,
-		EventID:      eventID,
-		DockerClient: m.DockerClient,
+		Logger:  logger,
+		EventID: eventID,
+
+		ImageClient: m.imageClient,
 	}
 	if err := ffjson.Unmarshal(in, &backupNew); err != nil {
 		return nil, err
@@ -309,12 +308,12 @@ func (b *BackupAPPNew) backupPluginInfo(appSnapshot *AppSnapshot) error {
 	for _, pv := range appSnapshot.PluginBuildVersions {
 		dstDir := fmt.Sprintf("%s/plugin_%s/image_%s.tar", b.SourceDir, pv.PluginID, pv.DeployVersion)
 		util.CheckAndCreateDir(filepath.Dir(dstDir))
-		if _, err := sources.ImagePull(b.DockerClient, pv.BuildLocalImage, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 20); err != nil {
+		if _, err := b.ImageClient.ImagePull(pv.BuildLocalImage, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 20); err != nil {
 			b.Logger.Error(fmt.Sprintf("plugin image: %s; failed to pull image", pv.BuildLocalImage), map[string]string{"step": "backup_builder", "status": "failure"})
 			logrus.Errorf("plugin image: %s; failed to pull image: %v", pv.BuildLocalImage, err)
 			return err
 		}
-		if err := sources.ImageSave(b.DockerClient, pv.BuildLocalImage, dstDir, b.Logger); err != nil {
+		if err := b.ImageClient.ImageSave(pv.BuildLocalImage, dstDir); err != nil {
 			b.Logger.Error(util.Translation("save image to local dir error"), map[string]string{"step": "backup_builder", "status": "failure"})
 			logrus.Errorf("plugin image: %s; failed to save image: %v", pv.BuildLocalImage, err)
 			return err
@@ -375,11 +374,11 @@ func (b *BackupAPPNew) saveSlugPkg(app *RegionServiceSnapshot, version *dbmodel.
 func (b *BackupAPPNew) saveImagePkg(app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
 	dstDir := fmt.Sprintf("%s/app_%s/image_%s.tar", b.SourceDir, app.ServiceID, version.BuildVersion)
 	util.CheckAndCreateDir(filepath.Dir(dstDir))
-	if _, err := sources.ImagePull(b.DockerClient, version.DeliveredPath, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 20); err != nil {
+	if _, err := b.ImageClient.ImagePull(version.DeliveredPath, builder.REGISTRYUSER, builder.REGISTRYPASS, b.Logger, 20); err != nil {
 		b.Logger.Error(util.Translation("error pulling image"), map[string]string{"step": "backup_builder", "status": "failure"})
 		logrus.Errorf(fmt.Sprintf("image: %s; error pulling image: %v", version.DeliveredPath, err), version.DeliveredPath, err.Error())
 	}
-	if err := sources.ImageSave(b.DockerClient, version.DeliveredPath, dstDir, b.Logger); err != nil {
+	if err := b.ImageClient.ImageSave(version.DeliveredPath, dstDir); err != nil {
 		b.Logger.Error(util.Translation("save image to local dir error"), map[string]string{"step": "backup_builder", "status": "failure"})
 		logrus.Errorf("save image(%s) to local dir error when backup app, %s", version.DeliveredPath, err.Error())
 		return err

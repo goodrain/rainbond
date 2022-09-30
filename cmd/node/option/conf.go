@@ -22,17 +22,21 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/namespaces"
+	"github.com/goodrain/rainbond/builder/sources"
 	"os"
 	"path"
 	"time"
 
 	client "github.com/coreos/etcd/clientv3"
-	dockercli "github.com/docker/docker/client"
 	"github.com/fsnotify/fsnotify"
 	"github.com/goodrain/rainbond/util"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	// Register grpc event types
+	_ "github.com/containerd/containerd/api/events"
 )
 
 var (
@@ -99,9 +103,11 @@ type Conf struct {
 	EnableInitStart bool
 	AutoRegistNode  bool
 	//enable collect docker container log
-	EnableCollectLog bool
-	DockerCli        *dockercli.Client
-	EtcdCli          *client.Client
+	EnableCollectLog  bool
+	ContainerRuntime  string
+	RuntimeEndpoint   string
+	ContainerImageCli sources.ContainerImageCli
+	EtcdCli           *client.Client
 
 	LicPath   string
 	LicSoPath string
@@ -191,6 +197,8 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.ImageRepositoryHost, "image-repo-host", "goodrain.me", "The host of image repository")
 	fs.StringVar(&a.GatewayVIP, "gateway-vip", "", "The vip of gateway")
 	fs.StringVar(&a.HostsFile, "hostsfile", "/newetc/hosts", "/etc/hosts mapped path in the container. eg. /etc/hosts:/tmp/hosts. Do not set hostsfile to /etc/hosts")
+	fs.StringVar(&a.ContainerRuntime, "container-runtime", sources.ContainerRuntimeContainerd, "container runtime, support docker and containerd")
+	fs.StringVar(&a.RuntimeEndpoint, "runtime-endpoint", sources.RuntimeEndpointContainerd, "container runtime endpoint")
 }
 
 //SetLog 设置log
@@ -215,13 +223,26 @@ func (a *Conf) SetLog() {
 	}
 }
 
+func newClient(namespace, address string, opts ...containerd.ClientOpt) (*containerd.Client, context.Context, context.CancelFunc, error) {
+	ctx := namespaces.WithNamespace(context.Background(), namespace)
+	client, err := containerd.New(address, opts...)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithCancel(ctx)
+	return client, ctx, cancel, nil
+}
+
 //ParseClient handle config and create some api
 func (a *Conf) ParseClient(ctx context.Context, etcdClientArgs *etcdutil.ClientArgs) (err error) {
-	a.DockerCli, err = dockercli.NewEnvClient()
+	logrus.Infof("begin create container image client, runtime [%s] runtime endpoint [%s]", a.ContainerRuntime, a.RuntimeEndpoint, a.EtcdEndpoints)
+	containerImageCli, err := sources.NewContainerImageClient(a.ContainerRuntime, a.RuntimeEndpoint, time.Second*3)
 	if err != nil {
 		return err
 	}
-	logrus.Infof("begin create etcd client: %s", a.EtcdEndpoints)
+	a.ContainerImageCli = containerImageCli
+	logrus.Infof("create container image client success\n begin create etcd client: %s", a.EtcdEndpoints)
 	for {
 		a.EtcdCli, err = etcdutil.NewClient(ctx, etcdClientArgs)
 		if err != nil {

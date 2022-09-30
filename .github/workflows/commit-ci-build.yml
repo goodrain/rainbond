@@ -13,7 +13,7 @@ jobs:
         uses: actions/setup-go@v2.1.3
         with:
           # The Go version to download (if necessary) and use. Supports semver spec and ranges.
-          go-version: 1.13
+          go-version: 1.17
 
 #      - name: SonarQube Scan
 #        uses: kitabisa/sonarqube-action@v1.1.0

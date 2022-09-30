@@ -19,14 +19,19 @@
 package parser
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/images"
 	"github.com/docker/distribution/reference" //"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder/parser/types"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"golang.org/x/net/context"
 	"runtime"
 	"strconv"
 	"strings" //"github.com/docker/docker/client"
@@ -34,35 +39,35 @@ import (
 
 //DockerRunOrImageParse docker run 命令解析或直接镜像名解析
 type DockerRunOrImageParse struct {
-	user, pass   string
-	ports        map[int]*types.Port
-	volumes      map[string]*types.Volume
-	envs         map[string]*types.Env
-	source       string
-	serviceType  string
-	memory       int
-	image        Image
-	args         []string
-	errors       []ParseError
-	dockerclient *client.Client
-	logger       event.Logger
+	user, pass  string
+	ports       map[int]*types.Port
+	volumes     map[string]*types.Volume
+	envs        map[string]*types.Env
+	source      string
+	serviceType string
+	memory      int
+	image       Image
+	args        []string
+	errors      []ParseError
+	imageClient sources.ImageClient
+	logger      event.Logger
 }
 
 //CreateDockerRunOrImageParse create parser
-func CreateDockerRunOrImageParse(user, pass, source string, dockerclient *client.Client, logger event.Logger) *DockerRunOrImageParse {
+func CreateDockerRunOrImageParse(user, pass, source string, imageClient sources.ImageClient, logger event.Logger) *DockerRunOrImageParse {
 	source = strings.TrimLeft(source, " ")
 	source = strings.Replace(source, "\n", "", -1)
 	source = strings.Replace(source, "\\", "", -1)
 	source = strings.Replace(source, "  ", " ", -1)
 	return &DockerRunOrImageParse{
-		user:         user,
-		pass:         pass,
-		source:       source,
-		dockerclient: dockerclient,
-		ports:        make(map[int]*types.Port),
-		volumes:      make(map[string]*types.Volume),
-		envs:         make(map[string]*types.Env),
-		logger:       logger,
+		user:        user,
+		pass:        pass,
+		source:      source,
+		imageClient: imageClient,
+		ports:       make(map[int]*types.Port),
+		volumes:     make(map[string]*types.Volume),
+		envs:        make(map[string]*types.Env),
+		logger:      logger,
 	}
 }
 
@@ -94,7 +99,7 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 		d.image = ParseImageName(d.source)
 	}
 	//获取镜像，验证是否存在
-	imageInspect, err := sources.ImagePull(d.dockerclient, d.image.Source(), d.user, d.pass, d.logger, 10)
+	imageInspect, err := d.imageClient.ImagePull(d.image.Source(), d.user, d.pass, d.logger, 10)
 	if err != nil {
 		if strings.Contains(err.Error(), "No such image") {
 			d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("镜像(%s)不存在", d.image.String()), SolveAdvice("modify_image", "请确认输入镜像名是否正确")))
@@ -107,8 +112,8 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 		}
 		return d.errors
 	}
-	if imageInspect != nil && imageInspect.ContainerConfig != nil {
-		for _, env := range imageInspect.ContainerConfig.Env {
+	if imageInspect != nil {
+		for _, env := range imageInspect.Env {
 			envinfo := strings.Split(env, "=")
 			if len(envinfo) == 2 {
 				if _, ok := d.envs[envinfo[0]]; !ok {
@@ -116,14 +121,22 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 				}
 			}
 		}
-		for k := range imageInspect.ContainerConfig.Volumes {
+		for k := range imageInspect.Volumes {
 			if _, ok := d.volumes[k]; !ok {
 				d.volumes[k] = &types.Volume{VolumePath: k, VolumeType: model.ShareFileVolumeType.String()}
 			}
 		}
-		for k := range imageInspect.ContainerConfig.ExposedPorts {
-			proto := k.Proto()
-			port := k.Int()
+		for k := range imageInspect.ExposedPorts {
+			res := strings.Split(k, "/")
+			if len(res) > 2 {
+				fmt.Println("The exposedPorts format is incorrect")
+			}
+			proto := res[1]
+			port, err := strconv.Atoi(res[0])
+			if err != nil {
+				fmt.Println("port int error", err)
+				return nil
+			}
 			if proto != "udp" {
 				proto = GetPortProtocol(port)
 			}
@@ -288,4 +301,26 @@ func (d *DockerRunOrImageParse) GetServiceInfo() []ServiceInfo {
 		serviceInfo.Memory = 512
 	}
 	return []ServiceInfo{serviceInfo}
+}
+
+func getImageConfig(ctx context.Context, image containerd.Image) (*ocispec.ImageConfig, error) {
+	desc, err := image.Config(ctx)
+	if err != nil {
+		return nil, err
+	}
+	switch desc.MediaType {
+	case ocispec.MediaTypeImageConfig, images.MediaTypeDockerSchema2Config:
+		var ocispecImage ocispec.Image
+		b, err := content.ReadBlob(ctx, image.ContentStore(), desc)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := json.Unmarshal(b, &ocispecImage); err != nil {
+			return nil, err
+		}
+		return &ocispecImage.Config, nil
+	default:
+		return nil, fmt.Errorf("unknown media type %q", desc.MediaType)
+	}
 }

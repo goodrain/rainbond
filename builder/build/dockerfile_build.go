@@ -19,16 +19,17 @@
 package build
 
 import (
+	"context"
 	"fmt"
-	"path"
-	"strconv"
-	"strings"
-
-	"github.com/docker/docker/api/types"
-	"github.com/goodrain/rainbond/builder"
+	"github.com/eapache/channels"
+	jobc "github.com/goodrain/rainbond/builder/job"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"path"
+	"time"
 )
 
 func dockerfileBuilder() (Build, error) {
@@ -48,72 +49,170 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 		return nil, err
 	}
 	buildImageName := CreateImageName(re.ServiceID, re.DeployVersion)
-
-	buildOptions := types.ImageBuildOptions{
-		Tags:        []string{buildImageName},
-		Remove:      true,
-		BuildArgs:   GetARGs(re.BuildEnvs),
-		NetworkMode: ImageBuildNetworkModeHost,
-		AuthConfigs: GetTenantRegistryAuthSecrets(re.Ctx, re.TenantID, re.KubeClient),
+	if err := d.stopPreBuildJob(re); err != nil {
+		logrus.Errorf("stop pre build job for service %s failure %s", re.ServiceID, err.Error())
 	}
-	if _, ok := re.BuildEnvs["NO_CACHE"]; ok {
-		buildOptions.NoCache = true
-	} else {
-		buildOptions.NoCache = false
-	}
-	re.Logger.Info("Start build image from dockerfile", map[string]string{"step": "builder-exector"})
-	timeout, _ := strconv.Atoi(re.BuildEnvs["TIMOUT"])
-	// min 10 minutes
-	if timeout < 10 {
-		timeout = 60
-	}
-	err = sources.ImageBuild(re.DockerClient, re.SourceDir, buildOptions, re.Logger, timeout)
-	if err != nil {
-		re.Logger.Error(fmt.Sprintf("build image %s failure", buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
-		logrus.Errorf("build image error: %s", err.Error())
+	if err := d.runBuildJob(re, buildImageName); err != nil {
+		re.Logger.Error(util.Translation("Compiling the source code failure"), map[string]string{"step": "build-code", "status": "failure"})
+		logrus.Error("build dockerfile job error,", err.Error())
 		return nil, err
 	}
-	// check image exist
-	_, err = sources.ImageInspectWithRaw(re.DockerClient, buildImageName)
-	if err != nil {
-		re.Logger.Error(fmt.Sprintf("Build image %s failure,view build logs", buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
-		logrus.Errorf("get image inspect error: %s", err.Error())
-		return nil, err
-	}
-	re.Logger.Info("The image build is successful and starts pushing the image to the repository", map[string]string{"step": "builder-exector"})
-	err = sources.ImagePush(re.DockerClient, buildImageName, builder.REGISTRYUSER, builder.REGISTRYPASS, re.Logger, 20)
-	if err != nil {
-		re.Logger.Error("Push image failure", map[string]string{"step": "builder-exector"})
-		logrus.Errorf("push image error: %s", err.Error())
-		return nil, err
-	}
-	re.Logger.Info("The image is pushed to the warehouse successfully", map[string]string{"step": "builder-exector"})
-	if err := sources.ImageRemove(re.DockerClient, buildImageName); err != nil {
-		logrus.Errorf("remove image %s failure %s", buildImageName, err.Error())
-	}
+	re.Logger.Info("code build success", map[string]string{"step": "build-exector"})
 	return &Response{
 		MediumPath: buildImageName,
 		MediumType: ImageMediumType,
 	}, nil
 }
 
-//GetARGs get args and parse value
-func GetARGs(buildEnvs map[string]string) map[string]*string {
-	args := make(map[string]*string)
-	argStr := make(map[string]string)
-	for k, v := range buildEnvs {
-		if strings.Replace(v, " ", "", -1) == "" {
-			continue
-		}
-		if ks := strings.Split(k, "ARG_"); len(ks) > 1 {
-			value := v
-			args[ks[1]] = &value
-			argStr[ks[1]] = value
+//The same component retains only one build task to perform
+func (d *dockerfileBuild) stopPreBuildJob(re *Request) error {
+	jobList, err := jobc.GetJobController().GetServiceJobs(re.ServiceID)
+	if err != nil {
+		logrus.Errorf("get pre build job for service %s failure ,%s", re.ServiceID, err.Error())
+	}
+	if len(jobList) > 0 {
+		for _, job := range jobList {
+			jobc.GetJobController().DeleteJob(job.Name)
 		}
 	}
-	for k, arg := range args {
-		value := util.ParseVariable(*arg, argStr)
-		args[k] = &value
+	return nil
+}
+
+// Use kaniko to create a job to build an image
+func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error {
+	name := fmt.Sprintf("%s-%s", re.ServiceID, re.DeployVersion)
+	namespace := re.RbdNamespace
+	job := corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"service": re.ServiceID,
+				"job":     "codebuild",
+			},
+		},
 	}
-	return args
+	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
+	volumes, mounts := d.createVolumeAndMount(re)
+	podSpec.Volumes = volumes
+	container := corev1.Container{
+		Name:      name,
+		Image:     "registry.cn-hangzhou.aliyuncs.com/goodrain/kaniko-executor:latest",
+		Stdin:     true,
+		StdinOnce: true,
+		Args:      []string{"--context=dir:///workspace", fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify"},
+	}
+	container.VolumeMounts = mounts
+	podSpec.Containers = append(podSpec.Containers, container)
+	job.Spec = podSpec
+	writer := re.Logger.GetWriter("builder", "info")
+	reChan := channels.NewRingChannel(10)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	logrus.Debugf("create job[name: %s; namespace: %s]", job.Name, job.Namespace)
+	err := jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
+	if err != nil {
+		logrus.Errorf("create new job:%s failed: %s", name, err.Error())
+		return err
+	}
+	re.Logger.Info(util.Translation("create build code job success"), map[string]string{"step": "build-exector"})
+	// delete job after complete
+	defer jobc.GetJobController().DeleteJob(job.Name)
+	return d.waitingComplete(re, reChan)
+	return nil
+}
+
+func (d *dockerfileBuild) createVolumeAndMount(re *Request) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+	hostPathType := corev1.HostPathDirectoryOrCreate
+	hostsFilePathType := corev1.HostPathFile
+	volumes = []corev1.Volume{
+		{
+			Name: "dockerfile-build",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: re.SourceDir,
+					Type: &hostPathType,
+				},
+			},
+		},
+		{
+			Name: "kaniko-secret",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: "rbd-hub-credentials",
+					Items: []corev1.KeyToPath{
+						{
+							Key:  ".dockerconfigjson",
+							Path: "config.json",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "hosts",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/etc/hosts",
+					Type: &hostsFilePathType,
+				},
+			},
+		},
+	}
+	volumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "dockerfile-build",
+			MountPath: "/workspace",
+		},
+		{
+			Name:      "kaniko-secret",
+			MountPath: "/kaniko/.docker",
+		},
+		{
+			Name:      "hosts",
+			MountPath: "/etc/hosts",
+		},
+	}
+	return volumes, volumeMounts
+}
+
+func (d *dockerfileBuild) waitingComplete(re *Request, reChan *channels.RingChannel) (err error) {
+	var logComplete = false
+	var jobComplete = false
+	timeout := time.NewTimer(time.Minute * 60)
+	for {
+		select {
+		case <-timeout.C:
+			return fmt.Errorf("build time out (more than 60 minute)")
+		case jobStatus := <-reChan.Out():
+			status := jobStatus.(string)
+			switch status {
+			case "complete":
+				jobComplete = true
+				if logComplete {
+					return nil
+				}
+				re.Logger.Info(util.Translation("build code job exec completed"), map[string]string{"step": "build-exector"})
+			case "failed":
+				jobComplete = true
+				err = fmt.Errorf("build code job exec failure")
+				if logComplete {
+					return err
+				}
+				re.Logger.Info(util.Translation("build code job exec failed"), map[string]string{"step": "build-exector"})
+			case "cancel":
+				jobComplete = true
+				err = fmt.Errorf("build code job is canceled")
+				if logComplete {
+					return err
+				}
+			case "logcomplete":
+				logComplete = true
+				if jobComplete {
+					return err
+				}
+			}
+		}
+	}
 }
