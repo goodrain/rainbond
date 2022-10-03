@@ -31,30 +31,37 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"net/http"
+	"net/url"
+	"path"
 	"strings"
 	"time"
 )
 
+// RegionInfo -
 type RegionInfo struct {
 	RegionName string `json:"region_name"`
 	SslCaCert  string `json:"ssl_ca_cert"`
 	KeyFile    string `json:"key_file"`
 	CertFile   string `json:"cert_file"`
-	Url        string `json:"url"`
-	WsUrl      string `json:"ws_url"`
-	HttpDomain string `json:"http_domain"`
-	TcpDomain  string `json:"tcp_domain"`
+	URL        string `json:"url"`
+	WsURL      string `json:"ws_url"`
+	HTTPDomain string `json:"http_domain"`
+	TCPDomain  string `json:"tcp_domain"`
 }
 
+// Response -
 type Response struct {
-	Code    string `json:"code"`
+	Code    int32  `json:"code"`
 	Msg     string `json:"msg"`
 	MsgShow string `json:"msg_show"`
-	Data    string `json:"data"`
 }
 
-const successCode = "200"
+const (
+	successCode = 200
+	namespace   = "rbd-system"
+)
 
 //NewCmdReplace replace cmd
 func NewCmdReplace() cli.Command {
@@ -63,6 +70,7 @@ func NewCmdReplace() cli.Command {
 		domain string
 		token  string
 		name   string
+		suffix string
 	)
 	c := cli.Command{
 		Name:  "replace",
@@ -79,7 +87,7 @@ func NewCmdReplace() cli.Command {
 					},
 					cli.StringFlag{
 						Name:        "domain,d",
-						Usage:       "console domain",
+						Usage:       "console domain You must start with HTTP or HTTPS",
 						Destination: &domain,
 					},
 					cli.StringFlag{
@@ -91,6 +99,12 @@ func NewCmdReplace() cli.Command {
 						Name:        "name,n",
 						Usage:       "region name",
 						Destination: &name,
+					},
+					cli.StringFlag{
+						Name:        "suffix,s",
+						Usage:       "region name",
+						Destination: &suffix,
+						Value:       "false",
 					},
 				},
 				Action: func(c *cli.Context) error {
@@ -142,17 +156,18 @@ func NewCmdReplace() cli.Command {
 						if find := strings.Contains(pod.Name, "rbd-api"); find {
 							apiPodName = pod.Name
 						}
+						// TODO Processing of multiple API Pods
 					}
 					fmt.Println("Please wait while the cluster configuration is updated............")
 					// delete pod rainbond-operator
-					if err := clients.K8SClient.CoreV1().Pods("rbd-system").Delete(context.Background(),
+					if err := clients.K8SClient.CoreV1().Pods(namespace).Delete(context.Background(),
 						operatorPodName, metav1.DeleteOptions{}); err != nil {
 						return errors.Wrap(err, "delete rainbond-operator error")
 					}
 					time.Sleep(time.Second * 3)
 
 					var operatorNewName string
-					if pods, err = clients.K8SClient.CoreV1().Pods("rbd-system").List(context.Background(),
+					if pods, err = clients.K8SClient.CoreV1().Pods(namespace).List(context.Background(),
 						metav1.ListOptions{}); err != nil {
 						return errors.Wrap(err, "get rainbond pod list error")
 					}
@@ -165,7 +180,7 @@ func NewCmdReplace() cli.Command {
 					var newOperatorPod *corev1.Pod
 					// wait operator running
 					for {
-						if newOperatorPod, err = clients.K8SClient.CoreV1().Pods("rbd-system").Get(context.Background(),
+						if newOperatorPod, err = clients.K8SClient.CoreV1().Pods(namespace).Get(context.Background(),
 							operatorNewName, metav1.GetOptions{}); err != nil {
 							return errors.Wrap(err, "get new operator pod error")
 						}
@@ -175,7 +190,7 @@ func NewCmdReplace() cli.Command {
 					}
 
 					// delete pod rainbond-api
-					if err := clients.K8SClient.CoreV1().Pods("rbd-system").Delete(context.Background(),
+					if err := clients.K8SClient.CoreV1().Pods(namespace).Delete(context.Background(),
 						apiPodName, metav1.DeleteOptions{}); err != nil {
 						return errors.Wrap(err, "delete rainbond-api error")
 					}
@@ -183,7 +198,7 @@ func NewCmdReplace() cli.Command {
 					// get new secret
 					var secret *corev1.Secret
 					for {
-						if secret, err = clients.K8SClient.CoreV1().Secrets("rbd-system").Get(context.Background(),
+						if secret, err = clients.K8SClient.CoreV1().Secrets(namespace).Get(context.Background(),
 							"rbd-api-client-cert", metav1.GetOptions{}); err != nil {
 							if strings.Contains(err.Error(), "not found") {
 								continue
@@ -196,7 +211,7 @@ func NewCmdReplace() cli.Command {
 					}
 					// get configmap
 					var configMap *corev1.ConfigMap
-					if configMap, err = clients.K8SClient.CoreV1().ConfigMaps("rbd-system").Get(context.Background(),
+					if configMap, err = clients.K8SClient.CoreV1().ConfigMaps(namespace).Get(context.Background(),
 						"region-config", metav1.GetOptions{}); err != nil {
 						return errors.Wrap(err, "get configMap error")
 					}
@@ -205,12 +220,22 @@ func NewCmdReplace() cli.Command {
 					regionInfo.CertFile = string(secret.Data["client.pem"])
 					regionInfo.KeyFile = string(secret.Data["client.key.pem"])
 					regionInfo.SslCaCert = string(secret.Data["ca.pem"])
-					regionInfo.Url = configMap.Data["apiAddress"]
-					regionInfo.HttpDomain = configMap.Data["defaultDomainSuffix"]
-					regionInfo.TcpDomain = configMap.Data["defaultTCPHost"]
-					regionInfo.WsUrl = configMap.Data["websocketAddress"]
-					// 更新console
-					if  err := SendtoConsole(domain, token, &regionInfo); err != nil {
+					regionInfo.URL = configMap.Data["apiAddress"]
+					regionInfo.HTTPDomain = configMap.Data["defaultDomainSuffix"]
+					regionInfo.TCPDomain = configMap.Data["defaultTCPHost"]
+					regionInfo.WsURL = configMap.Data["websocketAddress"]
+					// A new domain name suffix is generated
+					if suffix == "true" {
+						suffix, err := genSuffixHTTPHost(ip)
+						if err != nil {
+							fmt.Println("get suffix error")
+							return err
+						}
+						regionInfo.HTTPDomain = suffix
+					}
+					// TODO old domain handle if suffix false
+					// send ip config to console
+					if err := SendtoConsole(domain, token, &regionInfo); err != nil {
 						fmt.Println("SendtoConsole error:", err)
 					}
 					return nil
@@ -229,7 +254,7 @@ func SendtoConsole(domain, token string, regionInfo *RegionInfo) (err error) {
 		return err
 	}
 	client := &http.Client{}
-	consoleDomain := fmt.Sprintf("%s/openapi/v1/grctl/ip", domain)
+	consoleDomain := path.Join(domain, "openapi/v1/grctl/ip")
 	request, err := http.NewRequest("POST", consoleDomain,
 		strings.NewReader(string(reqParam)))
 	if err != nil {
@@ -248,11 +273,68 @@ func SendtoConsole(domain, token string, regionInfo *RegionInfo) (err error) {
 	var resp Response
 	if err := json.Unmarshal(body, &resp); err != nil {
 		logrus.Error("response json unmarshal error", err)
+		return err
 	}
-	fmt.Println("resp:", resp)
-	if resp.Code == successCode{
-		fmt.Println("Rainbond Cluster Config Success！！！")
-	}
-	return
+	fmt.Printf("Rainbond Cluster config update %v", resp.Msg)
+	return nil
 }
 
+// genSuffixHTTPHost -
+func genSuffixHTTPHost(ip string) (domain string, err error) {
+	id, auth, err := getOrCreateUUIDAndAuth()
+	if err != nil {
+		return "", err
+	}
+	domain, err = GenerateDomain(ip, id, auth)
+	if err != nil {
+		return "", err
+	}
+	return domain, nil
+}
+
+// getOrCreateUUIDAndAuth -
+func getOrCreateUUIDAndAuth() (id, auth string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	cm := &corev1.ConfigMap{}
+	cm = GenerateSuffixConfigMap("rbd-suffix-host", namespace)
+	if _, err = clients.K8SClient.CoreV1().ConfigMaps(namespace).Update(ctx, cm, metav1.UpdateOptions{}); err != nil {
+		return "", "", err
+	}
+	return cm.Data["uuid"], cm.Data["auth"], nil
+}
+
+// GenerateSuffixConfigMap -
+func GenerateSuffixConfigMap(name, namespace string) *corev1.ConfigMap {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string]string{
+			"uuid": string(uuid.NewUUID()),
+			"auth": string(uuid.NewUUID()),
+		},
+	}
+	return cm
+}
+
+// GenerateDomain generate suffix domain
+func GenerateDomain(iip, id, secretKey string) (string, error) {
+	body := make(url.Values)
+	body["ip"] = []string{iip}
+	body["uuid"] = []string{id}
+	body["type"] = []string{"False"}
+	body["auth"] = []string{secretKey}
+
+	resp, err := http.PostForm("http://domain.grapps.cn/domain/new", body)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
