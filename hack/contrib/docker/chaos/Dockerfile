@@ -1,11 +1,12 @@
 ARG BASE_IMAGE_VERSION
-FROM goodrainapps/alpine:${BASE_IMAGE_VERSION}
+FROM debian:bullseye-slim
 ARG RELEASE_DESC
 
 
 ENV WORK_DIR=/run
 
-RUN apk --no-cache add openssl openssh-client subversion
+RUN apt update \
+    && apt install openssl openssh-client subversion -y 
 COPY rainbond-chaos entrypoint.sh /run/
 COPY export-app /src/export-app
 
