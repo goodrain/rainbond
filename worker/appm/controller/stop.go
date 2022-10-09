@@ -171,6 +171,14 @@ func (s *stopController) stopOne(app v1.AppService) error {
 	}
 	if cronjob := app.GetCronJob(); cronjob != nil {
 		propagationPolicy := metav1.DeletePropagationBackground
+		err := s.manager.client.BatchV1().CronJobs(app.GetNamespace()).Delete(s.ctx, cronjob.Name, metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+		if err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("delete cronjob failure:%s", err.Error())
+		}
+		s.manager.store.OnDeletes(cronjob)
+	}
+	if cronjob := app.GetBetaCronJob(); cronjob != nil {
+		propagationPolicy := metav1.DeletePropagationBackground
 		err := s.manager.client.BatchV1beta1().CronJobs(app.GetNamespace()).Delete(s.ctx, cronjob.Name, metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 		if err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("delete cronjob failure:%s", err.Error())

@@ -22,7 +22,9 @@ import (
 	"context"
 	"fmt"
 	batchv1 "k8s.io/api/batch/v1"
+	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	betav1 "k8s.io/api/networking/v1beta1"
+	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"os"
 	"sync"
 	"time"
@@ -247,8 +249,14 @@ func NewStore(
 	store.informers.ComponentDefinition.AddEventHandlerWithResyncPeriod(componentdefinition.GetComponentDefinitionBuilder(), time.Second*300)
 	store.informers.Job = infFactory.Batch().V1().Jobs().Informer()
 	store.listers.Job = infFactory.Batch().V1().Jobs().Lister()
-	store.informers.CronJob = infFactory.Batch().V1().CronJobs().Informer()
-	store.listers.CronJob = infFactory.Batch().V1().CronJobs().Lister()
+	if k8sutil.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.21.0")) {
+		store.informers.CronJob = infFactory.Batch().V1().CronJobs().Informer()
+		store.listers.CronJob = infFactory.Batch().V1().CronJobs().Lister()
+	} else {
+		store.informers.CronJob = infFactory.Batch().V1beta1().CronJobs().Informer()
+		store.listers.BetaCronJob = infFactory.Batch().V1beta1().CronJobs().Lister()
+	}
+
 	// Endpoint Event Handler
 	epEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -463,7 +471,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.BatchV1beta1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
+				a.conf.KubeClient.BatchV1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
 				appservice.SetCronJob(cjob)
@@ -484,6 +492,36 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 				return
 			}
 
+		}
+	}
+	if cjob, ok := obj.(*batchv1beta1.CronJob); ok {
+		serviceID := cjob.Labels["service_id"]
+		version := cjob.Labels["version"]
+		createrID := cjob.Labels["creater_id"]
+		migrator := cjob.Labels["migrator"]
+		if serviceID != "" && version != "" && createrID != "" {
+			appservice, err := a.getAppService(serviceID, version, createrID, true)
+			if err == conversion.ErrServiceNotFound {
+				a.conf.KubeClient.BatchV1beta1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
+			}
+			if appservice != nil {
+				appservice.SetBetaCronJob(cjob)
+				if migrator == "rainbond" {
+					label := "service_id=" + serviceID
+					jobList, _ := a.conf.KubeClient.BatchV1().Jobs(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+					for _, job := range jobList.Items {
+						label := "controller-uid=" + job.Spec.Selector.MatchLabels["controller-uid"]
+						pods, _ := a.conf.KubeClient.CoreV1().Pods(cjob.Namespace).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+						if pods != nil {
+							for _, pod := range pods.Items {
+								pod := pod
+								appservice.SetPods(&pod)
+							}
+						}
+					}
+				}
+				return
+			}
 		}
 	}
 	if statefulset, ok := obj.(*appsv1.StatefulSet); ok {
@@ -965,6 +1003,15 @@ func (a *appRuntimeStore) UpdateGetAppService(serviceID string) *v1.AppService {
 			}
 			if crjob != nil {
 				appService.SetCronJob(crjob)
+			}
+		}
+		if betaCronJob := appService.GetBetaCronJob(); betaCronJob != nil {
+			crjob, err := a.listers.BetaCronJob.CronJobs(betaCronJob.Namespace).Get(betaCronJob.Name)
+			if err != nil && k8sErrors.IsNotFound(err) {
+				appService.DeleteBetaCronJob(betaCronJob)
+			}
+			if crjob != nil {
+				appService.SetBetaCronJob(crjob)
 			}
 		}
 		if services := appService.GetServices(true); services != nil {
