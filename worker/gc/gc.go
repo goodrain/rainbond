@@ -124,6 +124,9 @@ func (g *GarbageCollector) DelKubernetesObjects(serviceGCReq model.ServiceGCTask
 	if err := g.clientset.BatchV1beta1().CronJobs(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
 		logrus.Warningf("[DelKubernetesObjects] delete cronjob(%s): %v", serviceGCReq.ServiceID, err)
 	}
+	if err := g.clientset.BatchV1().CronJobs(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
+		logrus.Warningf("[DelKubernetesObjects] delete cronjob(%s): %v", serviceGCReq.ServiceID, err)
+	}
 	if err := g.clientset.ExtensionsV1beta1().Ingresses(namespace).DeleteCollection(context.Background(), deleteOpts, listOpts); err != nil {
 		logrus.Warningf("[DelKubernetesObjects] delete extensions ingresses(%s): %v", serviceGCReq.ServiceID, err)
 	}
