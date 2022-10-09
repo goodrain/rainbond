@@ -475,6 +475,9 @@ func (container *ContainerLog) startLogger() ([]Logger, error) {
 
 //Restart restart
 func (container *ContainerLog) Restart() {
+	if container == nil {
+		return
+	}
 	if *container.stoped {
 		runtimeClient, _ := container.conf.ContainerImageCli.GetRuntimeClient()
 		copier := NewCopier(container.reader, container.LogDriver, container.since, container.GetId(), runtimeClient)
