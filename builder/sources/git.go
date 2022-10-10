@@ -20,6 +20,7 @@ package sources
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"github.com/tidwall/gjson"
 	"io/ioutil"
@@ -162,15 +163,16 @@ Loop:
 	} else {
 		// only proxy github
 		// but when setting, other request will be proxyed
+		customClient := &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
+			Timeout: time.Minute * time.Duration(timeout),
+		}
 		if strings.Contains(csi.RepositoryURL, "github.com") && os.Getenv("GITHUB_PROXY") != "" {
 			proxyURL, err := url.Parse(os.Getenv("GITHUB_PROXY"))
 			if err == nil {
-				customClient := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
-				customClient.Timeout = time.Minute * time.Duration(timeout)
-				client.InstallProtocol("https", githttp.NewClient(customClient))
-				defer func() {
-					client.InstallProtocol("https", githttp.DefaultClient)
-				}()
+				customClient.Transport = &http.Transport{Proxy: http.ProxyURL(proxyURL), TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 			} else {
 				logrus.Error(err)
 			}
@@ -182,6 +184,10 @@ Loop:
 			}
 			opts.Auth = httpAuth
 		}
+		client.InstallProtocol("https", githttp.NewClient(customClient))
+		defer func() {
+			client.InstallProtocol("https", githttp.DefaultClient)
+		}()
 		rs, err = git.PlainCloneContext(ctx, sourceDir, false, opts)
 	}
 	if err != nil {

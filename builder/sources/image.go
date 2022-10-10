@@ -655,7 +655,7 @@ func ImagesPullAndPush(sourceImage, targetImage, username, password string, logg
 		logrus.Errorf("failed to check whether the builder mirror exists: %s", err.Error())
 		return err
 	}
-	logrus.Debugf("source image %v, targetImage %v, exists %v", sourceImage, exists)
+	logrus.Debugf("source image %v, targetImage %v, exists %v", sourceImage, targetImage, exists)
 	if !exists {
 		hubUser, hubPass := builder.GetImageUserInfoV2(sourceImage, username, password)
 		if _, err := ImagePull(containerdClient, targetImage, hubUser, hubPass, logger, 15); err != nil {

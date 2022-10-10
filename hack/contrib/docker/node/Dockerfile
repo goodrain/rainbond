@@ -1,5 +1,6 @@
 ARG BASE_IMAGE_VERSION
-FROM goodrainapps/alpine:${BASE_IMAGE_VERSION}
+FROM debian:bullseye-slim
+
 ARG RELEASE_DESC
 ADD . /run
 ENV RELEASE_DESC=${RELEASE_DESC}

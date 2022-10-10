@@ -124,7 +124,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	if as.GetJob() != nil {
 		podtmpSpec.Spec.RestartPolicy = "Never"
 	}
-	if as.GetCronJob() != nil {
+	if as.GetCronJob() != nil || as.GetBetaCronJob() != nil {
 		podtmpSpec.Spec.RestartPolicy = "OnFailure"
 	}
 	//set to deployment or statefulset job or cronjob
