@@ -79,8 +79,6 @@ build::binary() {
 		build_image="goodrain.me/event-build:v1"
 	elif [ "$1" = "chaos" ]; then
 		build_dir="./cmd/builder"
-	elif [ "$1" = "gateway" ]; then
-		build_image="golang:1.17-alpine"
 	elif [ "$1" = "monitor" ]; then
 		CGO_ENABLED=0
 	fi
