@@ -1,4 +1,5 @@
-FROM goodrainapps/alpine:latest
+ARG BASE_IMAGE_VERSION
+FROM goodrainapps/alpine:${BASE_IMAGE_VERSION}
 ARG RELEASE_DESC
 RUN apk --no-cache add libstdc++ ca-certificates openssl openssl-dev
 

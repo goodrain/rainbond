@@ -6,9 +6,16 @@ WORK_DIR=/go/src/github.com/goodrain/rainbond
 BASE_NAME=rainbond
 IMAGE_BASE_NAME=${IMAGE_NAMESPACE:-'rainbond'}
 DOMESTIC_NAMESPACE=${DOMESTIC_NAMESPACE:-'goodrain'}
-GOARCH=${BUILD_GOARCH:-'amd64'}
 
-GO_VERSION=1.17
+if [ "$BUILD_GOARCH" ]; then
+    GOARCH=${BUILD_GOARCH}
+elif [ $(arch) = "aarch64" ] || [ $(arch) = "arm64" ]; then
+    GOARCH=arm64
+elif [ $(arch) = "x86_64" ]; then
+    GOARCH=amd64
+fi
+
+GO_VERSION=1.17-alpine3.16
 
 GOPROXY=${GOPROXY:-'https://goproxy.cn'}
 
@@ -46,21 +53,30 @@ build::binary() {
 	local go_mod_cache="${home}/.cache"
 	local OUTPATH="./_output/binary/$GOOS/${BASE_NAME}-$1"
 	local DOCKER_PATH="./hack/contrib/docker/$1"
-	local build_image="golang:${GO_VERSION}"
-	local build_args="-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"
+	local BUILD_STACK_PATH="./hack/contrib/docker/buildstack"
+	local build_image="goodrain.me/golang-gcc-buildstack:${GO_VERSION}"
 	local build_dir="./cmd/$1"
 	local build_tag=""
 	local DOCKERFILE_BASE=${BUILD_DOCKERFILE_BASE:-'Dockerfile'}
+
+    if [ "$GOARCH" = "amd64" ]; then
+	    local build_args="-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"
+	elif [ "$GOARCH" = "arm64" ]; then
+	    local build_args="-w -s -linkmode external -extldflags '-static' -X github.com/goodrain/rainbond/cmd.version=${release_desc}"
+    fi
+
 	if [ -f "${DOCKER_PATH}/ignorebuild" ]; then
 		return
 	fi
+    docker build -t goodrain.me/golang-gcc-buildstack:${GO_VERSION} --build-arg GO_VERSION="${GO_VERSION}" -f "${BUILD_STACK_PATH}/${DOCKERFILE_BASE}" "${BUILD_STACK_PATH}"
+	
 	CGO_ENABLED=1
 	if [ "$1" = "eventlog" ]; then
 		if [ "$GOARCH" = "arm64" ]; then
 			DOCKERFILE_BASE="Dockerfile.arm"
 		fi
-		docker build -t goodraim.me/event-build:v1 -f "${DOCKER_PATH}/build/${DOCKERFILE_BASE}" "${DOCKER_PATH}/build/"
-		build_image="goodraim.me/event-build:v1"
+		docker build -t goodrain.me/event-build:v1 -f "${DOCKER_PATH}/build/${DOCKERFILE_BASE}" "${DOCKER_PATH}/build/"
+		build_image="goodrain.me/event-build:v1"
 	elif [ "$1" = "chaos" ]; then
 		build_dir="./cmd/builder"
 	elif [ "$1" = "gateway" ]; then
@@ -68,7 +84,7 @@ build::binary() {
 	elif [ "$1" = "monitor" ]; then
 		CGO_ENABLED=0
 	fi
-	docker run --rm -e CGO_ENABLED=${CGO_ENABLED} -e GOPROXY=${GOPROXY} -e GOOS="${GOOS}" -v "${go_mod_cache}":/go/pkg/mod -v "$(pwd)":${WORK_DIR} -w ${WORK_DIR} ${build_image} go build -ldflags "${build_args}" -tags "${build_tag}" -o "${OUTPATH}" ${build_dir}
+	docker run --rm -e CGO_ENABLED=${CGO_ENABLED} -e GOARCH=${GOARCH} -e GOPROXY=${GOPROXY} -e GOOS="${GOOS}" -v "${go_mod_cache}":/go/pkg/mod -v "$(pwd)":${WORK_DIR} -w ${WORK_DIR} ${build_image} go build -ldflags "${build_args}" -tags "${build_tag}" -o "${OUTPATH}" ${build_dir}
 	if [ "$GOOS" = "windows" ]; then
 		mv "$OUTPATH" "${OUTPATH}.exe"
 	fi
@@ -78,7 +94,7 @@ build::image() {
 	local OUTPATH="./_output/binary/$GOOS/${BASE_NAME}-$1"
 	local build_image_dir="./_output/image/$1/"
 	local source_dir="./hack/contrib/docker/$1"
-	local BASE_IMAGE_VERSION=${BUILD_BASE_IMAGE_VERSION:-'latest'}
+	local BASE_IMAGE_VERSION=${BUILD_BASE_IMAGE_VERSION:-'3.16'}
 	local DOCKERFILE_BASE=${BUILD_DOCKERFILE_BASE:-'Dockerfile'}
 	mkdir -p "${build_image_dir}"
 	chmod 777 "${build_image_dir}"

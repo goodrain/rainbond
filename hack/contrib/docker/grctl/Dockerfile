@@ -1,5 +1,5 @@
 ARG BASE_IMAGE_VERSION
-FROM debian:bullseye-slim
+FROM goodrainapps/alpine:${BASE_IMAGE_VERSION}
 ARG RELEASE_DESC
 COPY . /run
 RUN chmod +x /run/rainbond-grctl /run/entrypoint.sh
