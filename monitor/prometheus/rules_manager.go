@@ -69,7 +69,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Alert:  "GatewayDown",
 							Expr:   "absent(up{job=\"gateway\"}) or up{job=\"gateway\"}==0",
 							For:    "20s",
-							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "false"}),
 							Annotations: map[string]string{
 								"description": "网关组件: {{ $labels.instance }} 出现故障",
 								"summary":     "网关组件故障",
@@ -264,7 +264,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Alert:  "NodeDown",
 							Expr:   "absent(up{component=\"rbd_node\"}) or up{component=\"rbd_node\"} == 0",
 							For:    "30s",
-							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "false"}),
 							Annotations: map[string]string{
 								"description": "rbd_node组件 {{ $labels.instance }} 出现故障",
 								"summary":     "rbd_node组件故障",
@@ -328,7 +328,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Alert:  "InsufficientClusteMemoryResources",
 							Expr:   "max(rbd_api_exporter_cluster_memory_total) - max(sum(namespace_resource_memory_request) by (instance)) < 2048",
 							For:    "2m",
-							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "false"}),
 							Annotations: map[string]string{
 								"description": "集群剩余调度内存为 {{ humanize $value }} MB, 不足2048MB",
 								"summary":     "集群内存资源不足",
@@ -338,7 +338,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Alert:  "InsufficientClusteCPUResources",
 							Expr:   "max(rbd_api_exporter_cluster_cpu_total) - max(sum(namespace_resource_cpu_request) by (instance)) < 500",
 							For:    "2m",
-							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "false"}),
 							Annotations: map[string]string{
 								"description": "集群剩余调度cpu资源为 {{ humanize $value }}, 不足500m",
 								"summary":     "集群cpu资源不足",
