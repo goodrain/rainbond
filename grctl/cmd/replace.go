@@ -34,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"net/http"
 	"net/url"
-	"path"
 	"strings"
 	"time"
 )
@@ -254,7 +253,7 @@ func SendtoConsole(domain, token string, regionInfo *RegionInfo) (err error) {
 		return err
 	}
 	client := &http.Client{}
-	consoleDomain := path.Join(domain, "openapi/v1/grctl/ip")
+	consoleDomain := fmt.Sprintf("%s%s", strings.TrimSuffix(domain, "/"), "/openapi/v1/grctl/ip")
 	request, err := http.NewRequest("POST", consoleDomain,
 		strings.NewReader(string(reqParam)))
 	if err != nil {
@@ -263,7 +262,11 @@ func SendtoConsole(domain, token string, regionInfo *RegionInfo) (err error) {
 	}
 	request.Header.Add("Authorization", token)
 	request.Header.Add("Content-Type", "application/json")
-	response, _ := client.Do(request)
+	response, err := client.Do(request)
+	if err != nil {
+		logrus.Error("Request console openapi interface failed", err)
+		return err
+	}
 	defer response.Body.Close()
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {

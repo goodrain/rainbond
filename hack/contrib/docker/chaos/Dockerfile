@@ -4,7 +4,7 @@ ARG RELEASE_DESC
 
 ENV WORK_DIR=/run
 
-RUN apk add --no-cache openssl openssh-client subversion -y
+RUN apk add --no-cache openssl openssh-client subversion
 COPY rainbond-chaos entrypoint.sh /run/
 COPY export-app /src/export-app
 
