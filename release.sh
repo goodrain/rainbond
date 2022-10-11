@@ -77,10 +77,13 @@ build::binary() {
 		fi
 		docker build -t goodrain.me/event-build:v1 -f "${DOCKER_PATH}/build/${DOCKERFILE_BASE}" "${DOCKER_PATH}/build/"
 		build_image="goodrain.me/event-build:v1"
+		local build_args="-w -s -X github.com/goodrain/rainbond/cmd.version=${release_desc}"
 	elif [ "$1" = "chaos" ]; then
 		build_dir="./cmd/builder"
 	elif [ "$1" = "monitor" ]; then
 		CGO_ENABLED=0
+	elif [ "$1" = "grctl" ]; then
+		local build_args="-w -s -linkmode external -extldflags '-static' -X github.com/goodrain/rainbond/cmd.version=${release_desc}"
 	fi
 	docker run --rm -e CGO_ENABLED=${CGO_ENABLED} -e GOARCH=${GOARCH} -e GOPROXY=${GOPROXY} -e GOOS="${GOOS}" -v "${go_mod_cache}":/go/pkg/mod -v "$(pwd)":${WORK_DIR} -w ${WORK_DIR} ${build_image} go build -ldflags "${build_args}" -tags "${build_tag}" -o "${OUTPATH}" ${build_dir}
 	if [ "$GOOS" = "windows" ]; then
