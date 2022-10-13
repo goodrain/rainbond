@@ -59,7 +59,7 @@ Rainbond 是一个云原生多云应用管理平台，使用简单，不需要�
 
 或添加微信小助手加入 Rainbond 技术交流群:
 
-<img width="20%" src="https://static.goodrain.com/wechat/weChat.jpg"/>
+<img width="20%" src="docs/wechat.png"/>
 
 Slack: [Rainbond Slack 频道](https://join.slack.com/t/rainbond-slack/shared_invite/zt-1ft4g75pg-KJ0h_IAtvG9DMgeE_BNjZQ)
 
