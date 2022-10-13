@@ -59,7 +59,7 @@ Slack: [Rainbond Slack Channel](https://join.slack.com/t/rainbond-slack/shared_i
 
 Or add WeChat assistant to join the Rainbond wechat group:
 
-<img width="300px" src="https://static.goodrain.com/wechat/weChat.jpg"/>
+<img width="300px" src="docs/wechat.png"/>
 
 ### Contributing
 
