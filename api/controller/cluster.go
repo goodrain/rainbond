@@ -21,6 +21,7 @@ package controller
 import (
 	"github.com/goodrain/rainbond/api/model"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
@@ -267,4 +268,27 @@ func (t *ClusterController) YamlResourceImport(w http.ResponseWriter, r *http.Re
 		return
 	}
 	httputil.ReturnSuccess(r, w, ac)
+}
+
+// RbdLog -
+func (t *ClusterController) RbdLog(w http.ResponseWriter, r *http.Request) {
+	podName := r.URL.Query().Get("pod_name")
+	follow, _ := strconv.ParseBool(r.URL.Query().Get("follow"))
+	err := handler.GetClusterHandler().RbdLog(w, r, podName, follow)
+
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	return
+}
+
+// GetRbdPods -
+func (t *ClusterController) GetRbdPods(w http.ResponseWriter, r *http.Request) {
+	res, err := handler.GetClusterHandler().GetRbdPods()
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, res)
 }

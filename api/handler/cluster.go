@@ -5,18 +5,23 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util/constants"
+	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/sirupsen/logrus"
+	"io"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apiserver/pkg/util/flushwriter"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"net"
+	"net/http"
 	"os"
 	"runtime"
 	"strconv"
@@ -43,6 +48,8 @@ type ClusterHandler interface {
 	AppYamlResourceName(yamlResource model.YamlResource) (map[string]model.LabelResource, *util.APIHandleError)
 	AppYamlResourceDetailed(yamlResource model.YamlResource, yamlImport bool) (model.ApplicationResource, *util.APIHandleError)
 	AppYamlResourceImport(yamlResource model.YamlResource, components model.ApplicationResource) (model.AppComponent, *util.APIHandleError)
+	RbdLog(w http.ResponseWriter, r *http.Request, podName string, follow bool) error
+	GetRbdPods() (rbds []model.RbdResp, err error)
 }
 
 // NewClusterHandler -
@@ -392,4 +399,63 @@ func MergeMap(map1 map[string][]string, map2 map[string][]string) map[string][]s
 		map2[k] = v
 	}
 	return map2
+}
+
+// RbdLog returns the logs reader for a container in a pod, a pod or a component.
+func (s *clusterAction) RbdLog(w http.ResponseWriter, r *http.Request, podName string, follow bool) error {
+	if podName == "" {
+		// Only support return the logs reader for a container now.
+		return errors.WithStack(bcode.NewBadRequest("the field 'podName' and 'containerName' is required"))
+	}
+	request := s.clientset.CoreV1().Pods("rbd-system").GetLogs(podName, &corev1.PodLogOptions{
+		Follow:    follow,
+	})
+	out, err := request.Stream(context.TODO())
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return errors.Wrap(bcode.ErrPodNotFound, "get pod log")
+		}
+		return errors.Wrap(err, "get stream from request")
+	}
+	defer out.Close()
+
+	w.Header().Set("Transfer-Encoding", "chunked")
+	w.WriteHeader(http.StatusOK)
+
+	// Flush headers, if possible
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
+
+	writer := flushwriter.Wrap(w)
+
+	_, err = io.Copy(writer, out)
+	if err != nil {
+		if strings.HasSuffix(err.Error(), "write: broken pipe") {
+			return nil
+		}
+		logrus.Warningf("write stream to response: %v", err)
+	}
+	return nil
+}
+
+// GetRbdPods -
+func (s *clusterAction) GetRbdPods() (rbds []model.RbdResp, err error) {
+	pods, err := s.clientset.CoreV1().Pods("rbd-system").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		logrus.Error("get rbd pod list error:", err)
+		return nil, err
+	}
+	var rbd model.RbdResp
+	for _, pod := range pods.Items {
+		if strings.Contains(pod.Name, "rbd-chaos") || strings.Contains(pod.Name, "rbd-api") || strings.Contains(pod.Name, "rbd-worker") || strings.Contains(pod.Name, "rbd-gateway") {
+			rbdSplit := strings.Split(pod.Name, "-")
+			rbdName := fmt.Sprintf("%s-%s", rbdSplit[0], rbdSplit[1])
+			rbd.RbdName = rbdName
+			rbd.PodName = pod.Name
+			rbd.NodeName = pod.Spec.NodeName
+			rbds = append(rbds, rbd)
+		}
+	}
+	return rbds, nil
 }

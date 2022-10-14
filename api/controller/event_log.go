@@ -57,6 +57,13 @@ func (e *EventLogStruct) HistoryLogs(w http.ResponseWriter, r *http.Request) {
 	e.EventlogServerProxy.Proxy(w, r)
 }
 
+//HistoryLogs get rbd history logs
+//proxy
+func (e *EventLogStruct) HistoryRbdLogs(w http.ResponseWriter, r *http.Request) {
+	r.URL.Path = strings.Replace(r.URL.Path, "/v2/cluster/", "/", 1)
+	e.EventlogServerProxy.Proxy(w, r)
+}
+
 //LogList GetLogList
 func (e *EventLogStruct) LogList(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET  /v2/tenants/{tenant_name}/services/{service_alias}/log-file v2 logList
@@ -75,7 +82,13 @@ func (e *EventLogStruct) LogList(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	rbdName := r.URL.Query().Get("rbd_name")
+	var serviceID string
+	if rbdName != ""{
+		serviceID = rbdName
+	}else {
+		serviceID = r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	}
 	fileList, err := handler.GetEventHandler().GetLogList(GetServiceAliasID(serviceID))
 	if err != nil {
 		if os.IsNotExist(err) {

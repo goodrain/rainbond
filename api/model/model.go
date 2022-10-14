@@ -2064,3 +2064,10 @@ type SyncAppConfigGroup struct {
 type AppStatusesReq struct {
 	AppIDs []string `json:"app_ids"`
 }
+
+// RbdResp -
+type RbdResp struct {
+	RbdName  string
+	NodeName string
+	PodName  string
+}

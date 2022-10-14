@@ -101,6 +101,7 @@ func (l *LogAction) GetLogInstance(serviceID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	if len(value.Kvs) > 0 {
 		return string(value.Kvs[0].Value), nil
 	}
