@@ -2067,7 +2067,13 @@ type AppStatusesReq struct {
 
 // RbdResp -
 type RbdResp struct {
-	RbdName  string
-	NodeName string
-	PodName  string
+	RbdName  string `json:"rbd_name"`
+	NodeName string `json:"node_name"`
+	PodName  string `json:"pod_name"`
+}
+
+// ShellPod -
+type ShellPod struct {
+	RegionName string `json:"region_name"`
+	PodName    string `json:"pod_name"`
 }

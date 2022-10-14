@@ -109,6 +109,8 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/rbd-resource/pods", controller.GetManager().GetRbdPods)
 	r.Get("/rbd-name/{serviceID}/logs", controller.GetManager().HistoryRbdLogs)
 	r.Get("/log-file", controller.GetManager().LogList)
+	r.Post("/shell-pod", controller.GetManager().CreateShellPod)
+	r.Delete("/shell-pod", controller.GetManager().DeleteShellPod)
 	return r
 }
 

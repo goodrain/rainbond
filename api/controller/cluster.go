@@ -19,13 +19,13 @@
 package controller
 
 import (
-	"github.com/goodrain/rainbond/api/model"
-	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/api/model"
 	"github.com/sirupsen/logrus"
+	"net/http"
 
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -270,6 +270,33 @@ func (t *ClusterController) YamlResourceImport(w http.ResponseWriter, r *http.Re
 	httputil.ReturnSuccess(r, w, ac)
 }
 
+// CreateShellPod
+func (t *ClusterController) CreateShellPod(w http.ResponseWriter, r *http.Request) {
+	var sp model.ShellPod
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &sp, nil); !ok {
+		return
+	}
+	pod, err := handler.GetClusterHandler().CreateShellPod(sp.RegionName)
+	if err !=nil{
+		logrus.Error("create shell pod error:", err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, pod)
+}
+
+// DeleteShellPod
+func (t *ClusterController) DeleteShellPod(w http.ResponseWriter, r *http.Request) {
+	var sp model.ShellPod
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &sp, nil); !ok {
+		return
+	}
+	err := handler.GetClusterHandler().DeleteShellPod(sp.PodName)
+	if err !=nil{
+		logrus.Error("delete shell pod error:", err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, "")
+}
 // RbdLog -
 func (t *ClusterController) RbdLog(w http.ResponseWriter, r *http.Request) {
 	podName := r.URL.Query().Get("pod_name")

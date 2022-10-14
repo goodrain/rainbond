@@ -41,6 +41,8 @@ type ClusterInterface interface {
 	YamlResourceName(w http.ResponseWriter, r *http.Request)
 	YamlResourceDetailed(w http.ResponseWriter, r *http.Request)
 	YamlResourceImport(w http.ResponseWriter, r *http.Request)
+	CreateShellPod(w http.ResponseWriter, r *http.Request)
+	DeleteShellPod(w http.ResponseWriter, r *http.Request)
 	RbdLog(w http.ResponseWriter, r *http.Request)
 	GetRbdPods(w http.ResponseWriter, r *http.Request)
 	HistoryRbdLogs(w http.ResponseWriter, r *http.Request)

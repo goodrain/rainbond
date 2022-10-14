@@ -50,6 +50,8 @@ type ClusterHandler interface {
 	AppYamlResourceImport(yamlResource model.YamlResource, components model.ApplicationResource) (model.AppComponent, *util.APIHandleError)
 	RbdLog(w http.ResponseWriter, r *http.Request, podName string, follow bool) error
 	GetRbdPods() (rbds []model.RbdResp, err error)
+	CreateShellPod(regionName string) (pod *corev1.Pod, err error)
+	DeleteShellPod(podName string) error
 }
 
 // NewClusterHandler -
@@ -399,6 +401,100 @@ func MergeMap(map1 map[string][]string, map2 map[string][]string) map[string][]s
 		map2[k] = v
 	}
 	return map2
+}
+
+// CreateShellPod -
+func (s *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err error) {
+	ctx := context.Background()
+	volumes := []corev1.Volume{
+		{
+			Name: "grctl-config",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+	}
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "grctl-config",
+			MountPath: "/root/.rbd",
+
+		},
+	}
+	shellPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: fmt.Sprintf("shell-%v-", regionName),
+			Namespace:    s.namespace,
+		},
+		Spec: corev1.PodSpec{
+			TerminationGracePeriodSeconds: new(int64),
+			RestartPolicy:                 corev1.RestartPolicyNever,
+			NodeSelector: map[string]string{
+				"kubernetes.io/os": "linux",
+			},
+			ServiceAccountName: "rainbond-operator",
+			Tolerations: []corev1.Toleration{
+				{
+					Key:      "cattle.io/os",
+					Operator: "Equal",
+					Value:    "linux",
+					Effect:   "NoSchedule",
+				},
+				{
+					Key:      "node-role.kubernetes.io/controlplane",
+					Operator: "Equal",
+					Value:    "true",
+					Effect:   "NoSchedule",
+				},
+				{
+					Key:      "node-role.kubernetes.io/etcd",
+					Operator: "Equal",
+					Value:    "true",
+					Effect:   "NoExecute",
+				},
+			},
+			Containers: []corev1.Container{
+				{
+					Name:            "shell",
+					TTY:             true,
+					Stdin:           true,
+					StdinOnce:       true,
+					Image:           "registry.cn-beijing.aliyuncs.com/quyc/rbd-grctl:v1.2",
+					ImagePullPolicy: corev1.PullIfNotPresent,
+					VolumeMounts:    volumeMounts,
+				},
+			},
+			InitContainers: []corev1.Container{
+				{
+					Name:            "init-shell",
+					TTY:             true,
+					Stdin:           true,
+					StdinOnce:       true,
+					Image:           "registry.cn-beijing.aliyuncs.com/quyc/rbd-grctl:v1.2",
+					ImagePullPolicy: corev1.PullIfNotPresent,
+					Command:         []string{"grctl", "install"},
+					VolumeMounts:    volumeMounts,
+				},
+			},
+			Volumes: volumes,
+		},
+	}
+	pod, err = s.clientset.CoreV1().Pods("rbd-system").Create(ctx, shellPod, metav1.CreateOptions{})
+	if err != nil {
+		logrus.Error("create shell pod error:", err)
+		return nil, err
+	}
+	return pod, nil
+}
+
+// DeleteShellPod -
+func (s *clusterAction) DeleteShellPod(podName string) (err error) {
+	err = s.clientset.CoreV1().Pods("rbd-system").Delete(context.Background(), podName, metav1.DeleteOptions{})
+	if err != nil {
+		logrus.Error("delete shell pod error:", err)
+		return err
+	}
+	return nil
 }
 
 // RbdLog returns the logs reader for a container in a pod, a pod or a component.
