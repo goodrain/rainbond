@@ -4,7 +4,7 @@ set -e
 if [ "$1" = "bash" ]; then
     exec /bin/bash
 elif [ "$1" = "version" ]; then
-    echo /root/rainbond-mesh-data-panel version
+    /root/rainbond-mesh-data-panel version
 elif [ "$1" = "run" ]; then
     /root/rainbond-mesh-data-panel run || exit 1
 else
