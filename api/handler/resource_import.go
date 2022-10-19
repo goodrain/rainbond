@@ -10,7 +10,6 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	rainbondutil "github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/constants"
-	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,58 +21,55 @@ import (
 func (c *clusterAction) ResourceImport(namespace string, as map[string]model.ApplicationResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError) {
 	logrus.Infof("ResourceImport function begin")
 	var returnResourceImport model.ReturnResourceImport
-	err := db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
-		tenant, err := c.createTenant(eid, namespace, tx)
-		returnResourceImport.Tenant = tenant
+	tenant, err := c.createTenant(eid, namespace)
+	returnResourceImport.Tenant = tenant
+	if err != nil {
+		logrus.Errorf("%v", err)
+		return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("create tenant error:%v", err)}
+	}
+	for appName, components := range as {
+		app, err := c.createApp(eid, appName, tenant.UUID)
 		if err != nil {
-			logrus.Errorf("%v", err)
-			return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create tenant error:%v", err)}
+			logrus.Errorf("create app:%v err:%v", appName, err)
+			return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app:%v error:%v", appName, err)}
 		}
-		for appName, components := range as {
-			app, err := c.createApp(eid, tx, appName, tenant.UUID)
-			if err != nil {
-				logrus.Errorf("create app:%v err:%v", appName, err)
-				return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app:%v error:%v", appName, err)}
-			}
-			k8sResource, err := c.CreateK8sResource(tx, components.KubernetesResources, app.AppID)
-			if err != nil {
-				logrus.Errorf("create K8sResources err:%v", err)
-				return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create K8sResources err:%v", err)}
-			}
-			var componentAttributes []model.ComponentAttributes
-			for _, componentResource := range components.ConvertResource {
-				component, err := c.CreateComponent(app, tenant.UUID, componentResource, namespace, false)
-				if err != nil {
-					logrus.Errorf("%v", err)
-					return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
-				}
-				c.createENV(componentResource.ENVManagement, component)
-				c.createConfig(componentResource.ConfigManagement, component)
-				c.createPort(componentResource.PortManagement, component)
-				componentResource.TelescopicManagement.RuleID = c.createTelescopic(componentResource.TelescopicManagement, component)
-				componentResource.HealthyCheckManagement.ProbeID = c.createHealthyCheck(componentResource.HealthyCheckManagement, component)
-				c.createK8sAttributes(componentResource.ComponentK8sAttributesManagement, tenant.UUID, component)
-				componentAttributes = append(componentAttributes, model.ComponentAttributes{
-					TS:                     component,
-					Image:                  componentResource.BasicManagement.Image,
-					Cmd:                    componentResource.BasicManagement.Cmd,
-					ENV:                    componentResource.ENVManagement,
-					Config:                 componentResource.ConfigManagement,
-					Port:                   componentResource.PortManagement,
-					Telescopic:             componentResource.TelescopicManagement,
-					HealthyCheck:           componentResource.HealthyCheckManagement,
-					ComponentK8sAttributes: componentResource.ComponentK8sAttributesManagement,
-				})
-			}
-			application := model.AppComponent{
-				App:          app,
-				Component:    componentAttributes,
-				K8sResources: k8sResource,
-			}
-			returnResourceImport.App = append(returnResourceImport.App, application)
+		k8sResource, err := c.CreateK8sResource(components.KubernetesResources, app.AppID)
+		if err != nil {
+			logrus.Errorf("create K8sResources err:%v", err)
+			return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("create K8sResources err:%v", err)}
 		}
-		return nil
-	})
+		var componentAttributes []model.ComponentAttributes
+		for _, componentResource := range components.ConvertResource {
+			component, err := c.CreateComponent(app, tenant.UUID, componentResource, namespace, false)
+			if err != nil {
+				logrus.Errorf("%v", err)
+				return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
+			}
+			c.createENV(componentResource.ENVManagement, component)
+			c.createConfig(componentResource.ConfigManagement, component)
+			c.createPort(componentResource.PortManagement, component)
+			componentResource.TelescopicManagement.RuleID = c.createTelescopic(componentResource.TelescopicManagement, component)
+			componentResource.HealthyCheckManagement.ProbeID = c.createHealthyCheck(componentResource.HealthyCheckManagement, component)
+			c.createK8sAttributes(componentResource.ComponentK8sAttributesManagement, tenant.UUID, component)
+			componentAttributes = append(componentAttributes, model.ComponentAttributes{
+				TS:                     component,
+				Image:                  componentResource.BasicManagement.Image,
+				Cmd:                    componentResource.BasicManagement.Cmd,
+				ENV:                    componentResource.ENVManagement,
+				Config:                 componentResource.ConfigManagement,
+				Port:                   componentResource.PortManagement,
+				Telescopic:             componentResource.TelescopicManagement,
+				HealthyCheck:           componentResource.HealthyCheckManagement,
+				ComponentK8sAttributes: componentResource.ComponentK8sAttributesManagement,
+			})
+		}
+		application := model.AppComponent{
+			App:          app,
+			Component:    componentAttributes,
+			K8sResources: k8sResource,
+		}
+		returnResourceImport.App = append(returnResourceImport.App, application)
+	}
 	if err != nil {
 		return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("resource import error:%v", err)}
 	}
@@ -81,7 +77,7 @@ func (c *clusterAction) ResourceImport(namespace string, as map[string]model.App
 	return &returnResourceImport, nil
 }
 
-func (c *clusterAction) createTenant(eid string, namespace string, tx *gorm.DB) (*dbmodel.Tenants, error) {
+func (c *clusterAction) createTenant(eid string, namespace string) (*dbmodel.Tenants, error) {
 	logrus.Infof("begin create tenant")
 	var dbts dbmodel.Tenants
 	id, name, errN := GetServiceManager().CreateTenandIDAndName(eid)
@@ -98,7 +94,7 @@ func (c *clusterAction) createTenant(eid string, namespace string, tx *gorm.DB) 
 		logrus.Warningf("tenant %v already exists", dbts.Name)
 		return tenant, nil
 	}
-	if err := db.GetManager().TenantDaoTransactions(tx).AddModel(&dbts); err != nil {
+	if err := db.GetManager().TenantDao().AddModel(&dbts); err != nil {
 		if !strings.HasSuffix(err.Error(), "is exist") {
 			return nil, err
 		}
@@ -119,9 +115,9 @@ func (c *clusterAction) createTenant(eid string, namespace string, tx *gorm.DB) 
 	return &dbts, nil
 }
 
-func (c *clusterAction) createApp(eid string, tx *gorm.DB, app string, tenantID string) (*dbmodel.Application, error) {
+func (c *clusterAction) createApp(eid string, app string, tenantID string) (*dbmodel.Application, error) {
 	appID := rainbondutil.NewUUID()
-	application, _ := db.GetManager().ApplicationDaoTransactions(tx).GetAppByName(tenantID, app)
+	application, _ := db.GetManager().ApplicationDao().GetAppByName(tenantID, app)
 	if application != nil {
 		logrus.Infof("app %v already exists", app)
 		return application, nil
@@ -135,20 +131,20 @@ func (c *clusterAction) createApp(eid string, tx *gorm.DB, app string, tenantID 
 		GovernanceMode: dbmodel.GovernanceModeKubernetesNativeService,
 		K8sApp:         app,
 	}
-	if err := db.GetManager().ApplicationDaoTransactions(tx).AddModel(appReq); err != nil {
+	if err := db.GetManager().ApplicationDao().AddModel(appReq); err != nil {
 		return appReq, err
 	}
 	return appReq, nil
 }
 
-func (c *clusterAction) CreateK8sResource(tx *gorm.DB, k8sResources []dbmodel.K8sResource, AppID string) ([]dbmodel.K8sResource, error) {
+func (c *clusterAction) CreateK8sResource(k8sResources []dbmodel.K8sResource, AppID string) ([]dbmodel.K8sResource, error) {
 	var k8sResourceList []*dbmodel.K8sResource
 	for _, k8sResource := range k8sResources {
 		k8sResource.AppID = AppID
 		kr := k8sResource
 		k8sResourceList = append(k8sResourceList, &kr)
 	}
-	err := db.GetManager().K8sResourceDaoTransactions(tx).CreateK8sResourceInBatch(k8sResourceList)
+	err := db.GetManager().K8sResourceDao().CreateK8sResourceInBatch(k8sResourceList)
 	return k8sResources, err
 }
 
