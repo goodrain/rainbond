@@ -9,7 +9,6 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	appv1 "k8s.io/api/apps/v1"
@@ -300,44 +299,42 @@ func (c *clusterAction) AppYamlResourceImport(yamlResource api_model.YamlResourc
 		return api_model.AppComponent{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("GetAppByID error %v", err)}
 	}
 	var ar api_model.AppComponent
-	err = db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
-		k8sResource, err := c.CreateK8sResource(tx, components.KubernetesResources, app.AppID)
+	k8sResource, err := c.CreateK8sResource(components.KubernetesResources, app.AppID)
+	if err != nil {
+		logrus.Errorf("create K8sResources err:%v", err)
+		return ar, &util.APIHandleError{Code: 400, Err: fmt.Errorf("create K8sResources err:%v", err)}
+	}
+	var componentAttributes []api_model.ComponentAttributes
+	for _, componentResource := range components.ConvertResource {
+		component, err := c.CreateComponent(app, yamlResource.TenantID, componentResource, yamlResource.Namespace, true)
 		if err != nil {
-			logrus.Errorf("create K8sResources err:%v", err)
-			return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create K8sResources err:%v", err)}
+			logrus.Errorf("%v", err)
+			return ar, &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
 		}
-		var componentAttributes []api_model.ComponentAttributes
-		for _, componentResource := range components.ConvertResource {
-			component, err := c.CreateComponent(app, yamlResource.TenantID, componentResource, yamlResource.Namespace, true)
-			if err != nil {
-				logrus.Errorf("%v", err)
-				return &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
-			}
-			c.createENV(componentResource.ENVManagement, component)
-			c.createConfig(componentResource.ConfigManagement, component)
-			c.createPort(componentResource.PortManagement, component)
-			componentResource.TelescopicManagement.RuleID = c.createTelescopic(componentResource.TelescopicManagement, component)
-			componentResource.HealthyCheckManagement.ProbeID = c.createHealthyCheck(componentResource.HealthyCheckManagement, component)
-			c.createK8sAttributes(componentResource.ComponentK8sAttributesManagement, yamlResource.TenantID, component)
-			componentAttributes = append(componentAttributes, api_model.ComponentAttributes{
-				TS:                     component,
-				Image:                  componentResource.BasicManagement.Image,
-				Cmd:                    componentResource.BasicManagement.Cmd,
-				ENV:                    componentResource.ENVManagement,
-				Config:                 componentResource.ConfigManagement,
-				Port:                   componentResource.PortManagement,
-				Telescopic:             componentResource.TelescopicManagement,
-				HealthyCheck:           componentResource.HealthyCheckManagement,
-				ComponentK8sAttributes: componentResource.ComponentK8sAttributesManagement,
-			})
-		}
-		ar = api_model.AppComponent{
-			App:          app,
-			K8sResources: k8sResource,
-			Component:    componentAttributes,
-		}
-		return nil
-	})
+		c.createENV(componentResource.ENVManagement, component)
+		c.createConfig(componentResource.ConfigManagement, component)
+		c.createPort(componentResource.PortManagement, component)
+		componentResource.TelescopicManagement.RuleID = c.createTelescopic(componentResource.TelescopicManagement, component)
+		componentResource.HealthyCheckManagement.ProbeID = c.createHealthyCheck(componentResource.HealthyCheckManagement, component)
+		c.createK8sAttributes(componentResource.ComponentK8sAttributesManagement, yamlResource.TenantID, component)
+		componentAttributes = append(componentAttributes, api_model.ComponentAttributes{
+			TS:                     component,
+			Image:                  componentResource.BasicManagement.Image,
+			Cmd:                    componentResource.BasicManagement.Cmd,
+			ENV:                    componentResource.ENVManagement,
+			Config:                 componentResource.ConfigManagement,
+			Port:                   componentResource.PortManagement,
+			Telescopic:             componentResource.TelescopicManagement,
+			HealthyCheck:           componentResource.HealthyCheckManagement,
+			ComponentK8sAttributes: componentResource.ComponentK8sAttributesManagement,
+		})
+	}
+	ar = api_model.AppComponent{
+		App:          app,
+		K8sResources: k8sResource,
+		Component:    componentAttributes,
+	}
+
 	if err != nil {
 		return api_model.AppComponent{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("app yaml resource import error:%v", err)}
 	}
