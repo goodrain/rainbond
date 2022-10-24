@@ -270,7 +270,7 @@ func (t *ClusterController) YamlResourceImport(w http.ResponseWriter, r *http.Re
 	httputil.ReturnSuccess(r, w, ac)
 }
 
-// CreateShellPod
+// CreateShellPod -
 func (t *ClusterController) CreateShellPod(w http.ResponseWriter, r *http.Request) {
 	var sp model.ShellPod
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &sp, nil); !ok {
@@ -284,7 +284,7 @@ func (t *ClusterController) CreateShellPod(w http.ResponseWriter, r *http.Reques
 	httputil.ReturnSuccess(r, w, pod)
 }
 
-// DeleteShellPod
+// DeleteShellPod -
 func (t *ClusterController) DeleteShellPod(w http.ResponseWriter, r *http.Request) {
 	var sp model.ShellPod
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &sp, nil); !ok {
@@ -297,6 +297,7 @@ func (t *ClusterController) DeleteShellPod(w http.ResponseWriter, r *http.Reques
 	}
 	httputil.ReturnSuccess(r, w, "")
 }
+
 // RbdLog -
 func (t *ClusterController) RbdLog(w http.ResponseWriter, r *http.Request) {
 	podName := r.URL.Query().Get("pod_name")
