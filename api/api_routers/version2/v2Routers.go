@@ -74,6 +74,7 @@ func (v2 *V2) monitorRouter() chi.Router {
 func (v2 *V2) enterpriseRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/running-services", controller.GetRunningServices)
+	r.Get("/abnormal_status", controller.GetAbnormalStatus)
 	return r
 }
 
@@ -81,6 +82,8 @@ func (v2 *V2) eventsRouter() chi.Router {
 	r := chi.NewRouter()
 	// get target's event list with page
 	r.Get("/", controller.GetManager().Events)
+	// get my teams event list with page
+	r.Get("/myteam", controller.GetManager().MyTeamsEvents)
 	// get target's event content
 	r.Get("/{eventID}/log", controller.GetManager().EventLog)
 	return r

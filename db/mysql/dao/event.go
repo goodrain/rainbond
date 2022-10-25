@@ -197,12 +197,29 @@ func (c *EventDaoImpl) GetEventsByTarget(target, targetID string, offset, limit 
 
 // GetEventsByTenantID get event by tenantID
 func (c *EventDaoImpl) GetEventsByTenantID(tenantID string, offset, limit int) ([]*model.ServiceEvent, int, error) {
+
 	var total int
 	if err := c.DB.Model(&model.ServiceEvent{}).Where("tenant_id=?", tenantID).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 	var result []*model.ServiceEvent
 	if err := c.DB.Where("tenant_id=?", tenantID).Offset(offset).Limit(limit).Order("start_time DESC, ID DESC").Find(&result).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return result, 0, nil
+		}
+		return nil, 0, err
+	}
+	return result, total, nil
+}
+
+// GetEventsByTenantID get my teams all event by tenantIDs
+func (c *EventDaoImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit int) ([]*model.ServiceEvent, int, error) {
+	var total int
+	if err := c.DB.Model(&model.ServiceEvent{}).Where("tenant_id in (?) and target=?", tenantIDs, "service").Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var result []*model.ServiceEvent
+	if err := c.DB.Where("tenant_id in (?) and target=?", tenantIDs, "service").Offset(offset).Limit(limit).Order("start_time DESC").Find(&result).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return result, 0, nil
 		}

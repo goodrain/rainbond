@@ -360,7 +360,7 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 func (t *TenantStruct) BuildList(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 
-	resp, err := handler.GetServiceManager().ListVersionInfo(serviceID)
+	resp, err := handler.GetServiceManager().ListVersionInfo(serviceID, "")
 
 	if err != nil {
 		logrus.Error("get version info error", err.Error())

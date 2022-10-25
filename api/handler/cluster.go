@@ -19,6 +19,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
 	"time"
@@ -62,6 +63,7 @@ type clusterAction struct {
 	cacheTime        time.Time
 	config           *rest.Config
 	mapper           meta.RESTMapper
+	client           client.Client
 }
 
 //GetClusterInfo -
@@ -85,6 +87,7 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 
 	var healthCapCPU, healthCapMem, unhealthCapCPU, unhealthCapMem int64
 	usedNodeList := make([]*corev1.Node, len(nodes))
+	var nodeReady int32
 	for i := range nodes {
 		node := nodes[i]
 		if !isNodeReady(node) {
@@ -93,14 +96,21 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 			unhealthCapMem += node.Status.Allocatable.Memory().Value()
 			continue
 		}
-
+		nodeReady += 1
 		healthCapCPU += node.Status.Allocatable.Cpu().Value()
 		healthCapMem += node.Status.Allocatable.Memory().Value()
 		if node.Spec.Unschedulable == false {
 			usedNodeList[i] = node
 		}
 	}
-
+	var K8sVersion string
+	for _, n := range nodes {
+		if n.Status.NodeInfo.KubeletVersion == "" {
+			continue
+		}
+		K8sVersion = n.Status.NodeInfo.KubeletVersion
+		break
+	}
 	var healthcpuR, healthmemR, unhealthCPUR, unhealthMemR, rbdMemR, rbdCPUR int64
 	nodeAllocatableResourceList := make(map[string]*model.NodeResource, len(usedNodeList))
 	var maxAllocatableMemory *model.NodeResource
@@ -184,6 +194,8 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 		ReqDisk:                          reqDisk,
 		MaxAllocatableMemoryNodeResource: maxAllocatableMemory,
 		ResourceProxyStatus:              resourceProxyStatus,
+		K8sVersion:                       K8sVersion,
+		NodeReady:                        nodeReady,
 	}
 
 	result.AllNode = len(nodes)
