@@ -16,22 +16,38 @@ import (
 )
 
 func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourceParameter) {
+	logrus.Infof("into PodTemplateSpecResource")
 	//Port
 	var ps []model.PortManagement
+	NameAndPort := make(map[string]int32)
+	var po int32
 	for _, port := range parameter.Template.Spec.Containers[0].Ports {
-		if string(port.Protocol) == "UDP" {
+		NameAndPort[port.Name] = port.ContainerPort
+		switch string(port.Protocol) {
+		case "UDP", "udp":
+			po = port.ContainerPort
 			ps = append(ps, model.PortManagement{
 				Name:     port.Name,
 				Port:     port.ContainerPort,
-				Protocol: "UDP",
+				Protocol: "udp",
 				Inner:    false,
 				Outer:    false,
 			})
-		} else {
+		case "HTTP", "http":
+			po = port.ContainerPort
 			ps = append(ps, model.PortManagement{
 				Name:     port.Name,
 				Port:     port.ContainerPort,
-				Protocol: "TCP",
+				Protocol: "http",
+				Inner:    false,
+				Outer:    false,
+			})
+		default:
+			po = port.ContainerPort
+			ps = append(ps, model.PortManagement{
+				Name:     port.Name,
+				Port:     port.ContainerPort,
+				Protocol: "tcp",
 				Inner:    false,
 				Outer:    false,
 			})
@@ -242,8 +258,20 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 				httpHeaders = append(httpHeaders, nv)
 			}
 			hcm.DetectionMethod = strings.ToLower(string(livenessProbe.HTTPGet.Scheme))
+			if hcm.DetectionMethod == "" {
+				hcm.DetectionMethod = "tcp"
+				if len(httpHeaders) > 0 {
+					hcm.DetectionMethod = "http"
+				}
+			}
 			hcm.Path = livenessProbe.HTTPGet.Path
 			hcm.Port = int(livenessProbe.HTTPGet.Port.IntVal)
+			if hcm.Port == 0 {
+				hcm.Port = int(NameAndPort[livenessProbe.HTTPGet.Port.StrVal])
+			}
+		}
+		if hcm.Port == 0 {
+			hcm.Port = int(po)
 		}
 		hcm.Status = 1
 		if livenessProbe.Exec != nil {
@@ -266,8 +294,23 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 					httpHeaders = append(httpHeaders, nv)
 				}
 				hcm.DetectionMethod = strings.ToLower(string(readinessProbe.HTTPGet.Scheme))
+				if hcm.DetectionMethod == "" {
+					hcm.DetectionMethod = "tcp"
+					if len(httpHeaders) > 0 {
+						hcm.DetectionMethod = "http"
+					}
+				}
 				hcm.Path = readinessProbe.HTTPGet.Path
 				hcm.Port = int(readinessProbe.HTTPGet.Port.IntVal)
+				if hcm.Port == 0 {
+					hcm.Port = int(NameAndPort[livenessProbe.HTTPGet.Port.StrVal])
+				}
+				if hcm.Port == 0 {
+					hcm.Port = int(po)
+				}
+			}
+			if hcm.Port == 0 {
+				hcm.Port = int(po)
 			}
 			hcm.Status = 1
 			hcm.Mode = "readiness"

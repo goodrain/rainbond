@@ -72,6 +72,12 @@ type TenantInterface interface {
 	Log(w http.ResponseWriter, r *http.Request)
 }
 
+type HelmInterface interface {
+	CheckHelmApp(w http.ResponseWriter, r *http.Request)
+	CommandHelm(w http.ResponseWriter, r *http.Request)
+	GetChartInformation(w http.ResponseWriter, r *http.Request)
+}
+
 //ServiceInterface ServiceInterface
 type ServiceInterface interface {
 	SetLanguage(w http.ResponseWriter, r *http.Request)

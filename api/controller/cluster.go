@@ -243,7 +243,7 @@ func (t *ClusterController) YamlResourceDetailed(w http.ResponseWriter, r *http.
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &yr, nil); !ok {
 		return
 	}
-	h, err := handler.GetClusterHandler().AppYamlResourceDetailed(yr, false)
+	h, err := handler.GetClusterHandler().AppYamlResourceDetailed(yr, false, yr.Yaml)
 	if err != nil {
 		err.Handle(r, w)
 		return
@@ -257,7 +257,7 @@ func (t *ClusterController) YamlResourceImport(w http.ResponseWriter, r *http.Re
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &yr, nil); !ok {
 		return
 	}
-	ar, err := handler.GetClusterHandler().AppYamlResourceDetailed(yr, true)
+	ar, err := handler.GetClusterHandler().AppYamlResourceDetailed(yr, true, "")
 	if err != nil {
 		err.Handle(r, w)
 		return

@@ -3,6 +3,7 @@ FROM goodrainapps/alpine:${BASE_IMAGE_VERSION}
 ARG RELEASE_DESC
 
 ADD rainbond-api /run/rainbond-api
+ADD helm /usr/local/bin/helm
 ADD entrypoint.sh /run/entrypoint.sh
 WORKDIR /run
 ENV RELEASE_DESC=${RELEASE_DESC}
