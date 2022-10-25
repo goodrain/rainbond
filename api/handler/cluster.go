@@ -55,12 +55,13 @@ type ClusterHandler interface {
 }
 
 // NewClusterHandler -
-func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace string, config *rest.Config, mapper meta.RESTMapper) ClusterHandler {
+func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper) ClusterHandler {
 	return &clusterAction{
-		namespace: RbdNamespace,
-		clientset: clientset,
-		config:    config,
-		mapper:    mapper,
+		namespace:  RbdNamespace,
+		clientset:  clientset,
+		config:     config,
+		mapper:     mapper,
+		grctlImage: grctlImage,
 	}
 }
 
@@ -71,6 +72,7 @@ type clusterAction struct {
 	cacheTime        time.Time
 	config           *rest.Config
 	mapper           meta.RESTMapper
+	grctlImage       string
 }
 
 //GetClusterInfo -
@@ -404,7 +406,7 @@ func MergeMap(map1 map[string][]string, map2 map[string][]string) map[string][]s
 }
 
 // CreateShellPod -
-func (s *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err error) {
+func (c *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err error) {
 	ctx := context.Background()
 	volumes := []corev1.Volume{
 		{
@@ -418,13 +420,12 @@ func (s *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err 
 		{
 			Name:      "grctl-config",
 			MountPath: "/root/.rbd",
-
 		},
 	}
 	shellPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: fmt.Sprintf("shell-%v-", regionName),
-			Namespace:    s.namespace,
+			Namespace:    c.namespace,
 		},
 		Spec: corev1.PodSpec{
 			TerminationGracePeriodSeconds: new(int64),
@@ -433,33 +434,13 @@ func (s *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err 
 				"kubernetes.io/os": "linux",
 			},
 			ServiceAccountName: "rainbond-operator",
-			Tolerations: []corev1.Toleration{
-				{
-					Key:      "cattle.io/os",
-					Operator: "Equal",
-					Value:    "linux",
-					Effect:   "NoSchedule",
-				},
-				{
-					Key:      "node-role.kubernetes.io/controlplane",
-					Operator: "Equal",
-					Value:    "true",
-					Effect:   "NoSchedule",
-				},
-				{
-					Key:      "node-role.kubernetes.io/etcd",
-					Operator: "Equal",
-					Value:    "true",
-					Effect:   "NoExecute",
-				},
-			},
 			Containers: []corev1.Container{
 				{
 					Name:            "shell",
 					TTY:             true,
 					Stdin:           true,
 					StdinOnce:       true,
-					Image:           "registry.cn-beijing.aliyuncs.com/quyc/rbd-grctl:v1.2",
+					Image:           c.grctlImage,
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					VolumeMounts:    volumeMounts,
 				},
@@ -470,7 +451,7 @@ func (s *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err 
 					TTY:             true,
 					Stdin:           true,
 					StdinOnce:       true,
-					Image:           "registry.cn-beijing.aliyuncs.com/quyc/rbd-grctl:v1.2",
+					Image:           c.grctlImage,
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					Command:         []string{"grctl", "install"},
 					VolumeMounts:    volumeMounts,
@@ -479,7 +460,7 @@ func (s *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err 
 			Volumes: volumes,
 		},
 	}
-	pod, err = s.clientset.CoreV1().Pods("rbd-system").Create(ctx, shellPod, metav1.CreateOptions{})
+	pod, err = c.clientset.CoreV1().Pods("rbd-system").Create(ctx, shellPod, metav1.CreateOptions{})
 	if err != nil {
 		logrus.Error("create shell pod error:", err)
 		return nil, err
@@ -488,8 +469,8 @@ func (s *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err 
 }
 
 // DeleteShellPod -
-func (s *clusterAction) DeleteShellPod(podName string) (err error) {
-	err = s.clientset.CoreV1().Pods("rbd-system").Delete(context.Background(), podName, metav1.DeleteOptions{})
+func (c *clusterAction) DeleteShellPod(podName string) (err error) {
+	err = c.clientset.CoreV1().Pods("rbd-system").Delete(context.Background(), podName, metav1.DeleteOptions{})
 	if err != nil {
 		logrus.Error("delete shell pod error:", err)
 		return err
@@ -498,13 +479,13 @@ func (s *clusterAction) DeleteShellPod(podName string) (err error) {
 }
 
 // RbdLog returns the logs reader for a container in a pod, a pod or a component.
-func (s *clusterAction) RbdLog(w http.ResponseWriter, r *http.Request, podName string, follow bool) error {
+func (c *clusterAction) RbdLog(w http.ResponseWriter, r *http.Request, podName string, follow bool) error {
 	if podName == "" {
 		// Only support return the logs reader for a container now.
 		return errors.WithStack(bcode.NewBadRequest("the field 'podName' and 'containerName' is required"))
 	}
-	request := s.clientset.CoreV1().Pods("rbd-system").GetLogs(podName, &corev1.PodLogOptions{
-		Follow:    follow,
+	request := c.clientset.CoreV1().Pods("rbd-system").GetLogs(podName, &corev1.PodLogOptions{
+		Follow: follow,
 	})
 	out, err := request.Stream(context.TODO())
 	if err != nil {
@@ -536,8 +517,8 @@ func (s *clusterAction) RbdLog(w http.ResponseWriter, r *http.Request, podName s
 }
 
 // GetRbdPods -
-func (s *clusterAction) GetRbdPods() (rbds []model.RbdResp, err error) {
-	pods, err := s.clientset.CoreV1().Pods("rbd-system").List(context.Background(), metav1.ListOptions{})
+func (c *clusterAction) GetRbdPods() (rbds []model.RbdResp, err error) {
+	pods, err := c.clientset.CoreV1().Pods("rbd-system").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		logrus.Error("get rbd pod list error:", err)
 		return nil, err
