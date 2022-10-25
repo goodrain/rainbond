@@ -20,13 +20,14 @@ package clients
 
 import (
 	"fmt"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/client-go/rest"
 	"os"
 	"path"
 
 	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond/builder/sources"
-	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -58,15 +59,20 @@ func InitClient(kubeconfig string) error {
 		homePath, _ := sources.Home()
 		kubeconfig = path.Join(homePath, ".kube/config")
 	}
+	var config *rest.Config
 	_, err := os.Stat(kubeconfig)
 	if err != nil {
-		fmt.Printf("Please make sure the kube-config file(%s) exists\n", kubeconfig)
-		os.Exit(1)
-	}
-	// use the current context in kubeconfig
-	config, err := k8sutil.NewRestConfig(kubeconfig)
-	if err != nil {
-		return err
+		fmt.Printf("Not find kube-config file(%s)\n", kubeconfig)
+		if config, err = rest.InClusterConfig(); err != nil{
+			logrus.Error("get cluster config error:", err)
+			return err
+		}
+	} else {
+		// use the current context in kubeconfig
+		config, err = k8sutil.NewRestConfig(kubeconfig)
+		if err != nil {
+			return err
+		}
 	}
 	config.QPS = 50
 	config.Burst = 100

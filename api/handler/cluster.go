@@ -5,18 +5,23 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/api/util/bcode"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util/constants"
+	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/sirupsen/logrus"
+	"io"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apiserver/pkg/util/flushwriter"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"net"
+	"net/http"
 	"os"
 	"runtime"
 	"strconv"
@@ -43,15 +48,20 @@ type ClusterHandler interface {
 	AppYamlResourceName(yamlResource model.YamlResource) (map[string]model.LabelResource, *util.APIHandleError)
 	AppYamlResourceDetailed(yamlResource model.YamlResource, yamlImport bool) (model.ApplicationResource, *util.APIHandleError)
 	AppYamlResourceImport(yamlResource model.YamlResource, components model.ApplicationResource) (model.AppComponent, *util.APIHandleError)
+	RbdLog(w http.ResponseWriter, r *http.Request, podName string, follow bool) error
+	GetRbdPods() (rbds []model.RbdResp, err error)
+	CreateShellPod(regionName string) (pod *corev1.Pod, err error)
+	DeleteShellPod(podName string) error
 }
 
 // NewClusterHandler -
-func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace string, config *rest.Config, mapper meta.RESTMapper) ClusterHandler {
+func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper) ClusterHandler {
 	return &clusterAction{
-		namespace: RbdNamespace,
-		clientset: clientset,
-		config:    config,
-		mapper:    mapper,
+		namespace:  RbdNamespace,
+		clientset:  clientset,
+		config:     config,
+		mapper:     mapper,
+		grctlImage: grctlImage,
 	}
 }
 
@@ -62,6 +72,7 @@ type clusterAction struct {
 	cacheTime        time.Time
 	config           *rest.Config
 	mapper           meta.RESTMapper
+	grctlImage       string
 }
 
 //GetClusterInfo -
@@ -392,4 +403,136 @@ func MergeMap(map1 map[string][]string, map2 map[string][]string) map[string][]s
 		map2[k] = v
 	}
 	return map2
+}
+
+// CreateShellPod -
+func (c *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err error) {
+	ctx := context.Background()
+	volumes := []corev1.Volume{
+		{
+			Name: "grctl-config",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+	}
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "grctl-config",
+			MountPath: "/root/.rbd",
+		},
+	}
+	shellPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: fmt.Sprintf("shell-%v-", regionName),
+			Namespace:    c.namespace,
+		},
+		Spec: corev1.PodSpec{
+			TerminationGracePeriodSeconds: new(int64),
+			RestartPolicy:                 corev1.RestartPolicyNever,
+			NodeSelector: map[string]string{
+				"kubernetes.io/os": "linux",
+			},
+			ServiceAccountName: "rainbond-operator",
+			Containers: []corev1.Container{
+				{
+					Name:            "shell",
+					TTY:             true,
+					Stdin:           true,
+					StdinOnce:       true,
+					Image:           c.grctlImage,
+					ImagePullPolicy: corev1.PullIfNotPresent,
+					VolumeMounts:    volumeMounts,
+				},
+			},
+			InitContainers: []corev1.Container{
+				{
+					Name:            "init-shell",
+					TTY:             true,
+					Stdin:           true,
+					StdinOnce:       true,
+					Image:           c.grctlImage,
+					ImagePullPolicy: corev1.PullIfNotPresent,
+					Command:         []string{"grctl", "install"},
+					VolumeMounts:    volumeMounts,
+				},
+			},
+			Volumes: volumes,
+		},
+	}
+	pod, err = c.clientset.CoreV1().Pods("rbd-system").Create(ctx, shellPod, metav1.CreateOptions{})
+	if err != nil {
+		logrus.Error("create shell pod error:", err)
+		return nil, err
+	}
+	return pod, nil
+}
+
+// DeleteShellPod -
+func (c *clusterAction) DeleteShellPod(podName string) (err error) {
+	err = c.clientset.CoreV1().Pods("rbd-system").Delete(context.Background(), podName, metav1.DeleteOptions{})
+	if err != nil {
+		logrus.Error("delete shell pod error:", err)
+		return err
+	}
+	return nil
+}
+
+// RbdLog returns the logs reader for a container in a pod, a pod or a component.
+func (c *clusterAction) RbdLog(w http.ResponseWriter, r *http.Request, podName string, follow bool) error {
+	if podName == "" {
+		// Only support return the logs reader for a container now.
+		return errors.WithStack(bcode.NewBadRequest("the field 'podName' and 'containerName' is required"))
+	}
+	request := c.clientset.CoreV1().Pods("rbd-system").GetLogs(podName, &corev1.PodLogOptions{
+		Follow: follow,
+	})
+	out, err := request.Stream(context.TODO())
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return errors.Wrap(bcode.ErrPodNotFound, "get pod log")
+		}
+		return errors.Wrap(err, "get stream from request")
+	}
+	defer out.Close()
+
+	w.Header().Set("Transfer-Encoding", "chunked")
+	w.WriteHeader(http.StatusOK)
+
+	// Flush headers, if possible
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
+
+	writer := flushwriter.Wrap(w)
+
+	_, err = io.Copy(writer, out)
+	if err != nil {
+		if strings.HasSuffix(err.Error(), "write: broken pipe") {
+			return nil
+		}
+		logrus.Warningf("write stream to response: %v", err)
+	}
+	return nil
+}
+
+// GetRbdPods -
+func (c *clusterAction) GetRbdPods() (rbds []model.RbdResp, err error) {
+	pods, err := c.clientset.CoreV1().Pods("rbd-system").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		logrus.Error("get rbd pod list error:", err)
+		return nil, err
+	}
+	var rbd model.RbdResp
+	for _, pod := range pods.Items {
+		if strings.Contains(pod.Name, "rbd-chaos") || strings.Contains(pod.Name, "rbd-api") || strings.Contains(pod.Name, "rbd-worker") || strings.Contains(pod.Name, "rbd-gateway") {
+			rbdSplit := strings.Split(pod.Name, "-")
+			rbdName := fmt.Sprintf("%s-%s", rbdSplit[0], rbdSplit[1])
+			rbd.RbdName = rbdName
+			rbd.PodName = pod.Name
+			rbd.NodeName = pod.Spec.NodeName
+			rbds = append(rbds, rbd)
+		}
+	}
+	return rbds, nil
 }

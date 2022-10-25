@@ -105,6 +105,12 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/yaml_resource_name", controller.GetManager().YamlResourceName)
 	r.Get("/yaml_resource_detailed", controller.GetManager().YamlResourceDetailed)
 	r.Post("/yaml_resource_import", controller.GetManager().YamlResourceImport)
+	r.Get("/rbd-resource/log", controller.GetManager().RbdLog)
+	r.Get("/rbd-resource/pods", controller.GetManager().GetRbdPods)
+	r.Get("/rbd-name/{serviceID}/logs", controller.GetManager().HistoryRbdLogs)
+	r.Get("/log-file", controller.GetManager().LogList)
+	r.Post("/shell-pod", controller.GetManager().CreateShellPod)
+	r.Delete("/shell-pod", controller.GetManager().DeleteShellPod)
 	return r
 }
 
