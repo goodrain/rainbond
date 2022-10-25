@@ -62,6 +62,15 @@ func (v2 *V2) Routes() chi.Router {
 	r.Put("/volume-options/{volume_type}", controller.UpdateVolumeType)
 	r.Mount("/enterprise/{enterprise_id}", v2.enterpriseRouter())
 	r.Mount("/monitor", v2.monitorRouter())
+	r.Mount("/helm", v2.helmRouter())
+	return r
+}
+
+func (v2 *V2) helmRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/check_helm_app", controller.GetManager().CheckHelmApp)
+	r.Get("/command_helm", controller.GetManager().CommandHelm)
+	r.Get("/get_chart_information", controller.GetManager().GetChartInformation)
 	return r
 }
 

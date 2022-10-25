@@ -112,10 +112,16 @@ build::image() {
 			DOCKERFILE_BASE="Dockerfile.arm"
 		elif [ "$1" = "mesh-data-panel" ];then
 			DOCKERFILE_BASE="Dockerfile.arm"
+		elif [ "$1" = "api" ]; then
+		    curl -o helm https://pkg.goodrain.com/pkg/helm-arm64
+		    chmod +x helm
 		fi
 	else
 		if [ "$1" = "gateway" ]; then
 			BASE_IMAGE_VERSION="1.19.3.2"
+		elif [ "$1" = "api" ]; then
+		  curl -o helm https://pkg.goodrain.com/pkg/helm
+		  chmod +x helm
 		fi
 	fi
 	docker build --build-arg RELEASE_DESC="${release_desc}" --build-arg BASE_IMAGE_VERSION="${BASE_IMAGE_VERSION}" --build-arg GOARCH="${GOARCH}" -t "${IMAGE_BASE_NAME}/rbd-$1:${VERSION}" -f "${DOCKERFILE_BASE}" .

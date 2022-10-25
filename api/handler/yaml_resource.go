@@ -32,7 +32,7 @@ import (
 func (c *clusterAction) AppYamlResourceName(yamlResource api_model.YamlResource) (map[string]api_model.LabelResource, *util.APIHandleError) {
 	logrus.Infof("AppYamlResourceName begin")
 	fileResource := make(map[string]api_model.LabelResource)
-	k8sResourceObjects := c.YamlToResource(yamlResource)
+	k8sResourceObjects := c.YamlToResource(yamlResource, api_model.YamlSourceFile, "")
 	var DeployNames, JobNames, CJNames, SFSNames, RoleNames, HPANames, RBNames, SANames, SecretNames, ServiceNames, CMNames, NetworkPolicyNames, IngressNames, PVCNames []string
 	defaultResource := make(map[string][]string)
 	for _, k8sResourceObject := range k8sResourceObjects {
@@ -109,9 +109,9 @@ func (c *clusterAction) AppYamlResourceName(yamlResource api_model.YamlResource)
 }
 
 //AppYamlResourceDetailed -
-func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResource, yamlImport bool) (api_model.ApplicationResource, *util.APIHandleError) {
+func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResource, yamlImport bool, Yaml string) (api_model.ApplicationResource, *util.APIHandleError) {
 	logrus.Infof("AppYamlResourceDetailed begin")
-	k8sResourceObjects := c.YamlToResource(yamlResource)
+	k8sResourceObjects := c.YamlToResource(yamlResource, api_model.YamlSourceHelm, Yaml)
 	var K8SResource []dbmodel.K8sResource
 	var ConvertResource []api_model.ConvertResource
 	for _, k8sResourceObject := range k8sResourceObjects {
@@ -346,22 +346,29 @@ func (c *clusterAction) AppYamlResourceImport(yamlResource api_model.YamlResourc
 }
 
 //YamlToResource -
-func (c *clusterAction) YamlToResource(yamlResource api_model.YamlResource) []api_model.K8sResourceObject {
+func (c *clusterAction) YamlToResource(yamlResource api_model.YamlResource, yamlSource, yamlContent string) []api_model.K8sResourceObject {
 	yamlDirectoryPath := path.Join("/grdata/package_build/temp/events", yamlResource.EventID, "*")
-	yamlFilesPath, _ := filepath.Glob(yamlDirectoryPath)
+	yamlFilesPath := []string{api_model.YamlSourceHelm}
+	if yamlSource == api_model.YamlSourceFile {
+		yamlFilesPath, _ = filepath.Glob(yamlDirectoryPath)
+	}
 	var fileBuildResourceList []api_model.K8sResourceObject
 	for _, yamlFilePath := range yamlFilesPath {
-		pathSplitList := strings.Split(yamlFilePath, "/")
-		fileName := pathSplitList[len(pathSplitList)-1]
-		yamlFileBytes, err := ioutil.ReadFile(yamlFilePath)
-		if err != nil {
-			logrus.Errorf("%v", err)
-			fileBuildResourceList = append(fileBuildResourceList, api_model.K8sResourceObject{
-				FileName:       fileName,
-				BuildResources: nil,
-				Error:          err.Error(),
-			})
-			continue
+		var fileName string
+		yamlFileBytes := []byte(yamlContent)
+		if yamlSource == api_model.YamlSourceFile {
+			fileName = path.Base(yamlFilePath)
+			var err error
+			yamlFileBytes, err = ioutil.ReadFile(yamlFilePath)
+			if err != nil {
+				logrus.Errorf("%v", err)
+				fileBuildResourceList = append(fileBuildResourceList, api_model.K8sResourceObject{
+					FileName:       fileName,
+					BuildResources: nil,
+					Error:          err.Error(),
+				})
+				continue
+			}
 		}
 		dc, err := dynamic.NewForConfig(c.config)
 		if err != nil {
@@ -430,6 +437,7 @@ func (c *clusterAction) YamlToResource(yamlResource api_model.YamlResource) []ap
 
 //ResourceCreate -
 func (c *clusterAction) ResourceCreate(buildResource api_model.BuildResource, namespace string) (*unstructured.Unstructured, error) {
+	logrus.Infof("begin ResourceCreate function")
 	mapping, err := c.mapper.RESTMapping(buildResource.GVK.GroupKind(), buildResource.GVK.Version)
 	if err != nil {
 		logrus.Errorf("%v", err)

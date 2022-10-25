@@ -68,6 +68,7 @@ func InitHandle(conf option.Config,
 	defaultPluginHandler = CreatePluginManager(mqClient)
 	defaultAppHandler = CreateAppManager(mqClient)
 	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, kubeClient, prometheusCli, k8sClient)
+	defaultHelmHandler = CreateHelmManager(kubeClient, rainbondClient)
 	defaultNetRulesHandler = CreateNetRulesManager(etcdcli)
 	defaultCloudHandler = CreateCloudManager(conf)
 	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdcli)
@@ -131,6 +132,13 @@ var defaultTenantHandler TenantHandler
 //GetTenantManager get manager
 func GetTenantManager() TenantHandler {
 	return defaultTenantHandler
+}
+
+var defaultHelmHandler HelmHandler
+
+//GetHelmManager get manager
+func GetHelmManager() HelmHandler {
+	return defaultHelmHandler
 }
 
 var defaultNetRulesHandler NetRulesHandler
