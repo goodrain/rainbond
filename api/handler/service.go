@@ -45,7 +45,6 @@ import (
 	gclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	core_util "github.com/goodrain/rainbond/util"
-	typesv1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/goodrain/rainbond/worker/server"
@@ -1985,8 +1984,8 @@ func (s *ServiceAction) GetServicesStatus(tenantID string, serviceIDs []string) 
 	return info
 }
 
-// GetEnterpriseRunningServices get running services
-func (s *ServiceAction) GetEnterpriseRunningServices(enterpriseID string) ([]string, *util.APIHandleError) {
+// GetEnterpriseServicesStatus get services
+func (s *ServiceAction) GetEnterpriseServicesStatus(enterpriseID string) (map[string]string, *util.APIHandleError) {
 	var tenantIDs []string
 	tenants, err := db.GetManager().EnterpriseDao().GetEnterpriseTenants(enterpriseID)
 	if err != nil {
@@ -2009,13 +2008,7 @@ func (s *ServiceAction) GetEnterpriseRunningServices(enterpriseID string) ([]str
 		serviceIDs = append(serviceIDs, svc.ServiceID)
 	}
 	statusList := s.statusCli.GetStatuss(strings.Join(serviceIDs, ","))
-	retServices := make([]string, 0, 10)
-	for service, status := range statusList {
-		if status == typesv1.RUNNING {
-			retServices = append(retServices, service)
-		}
-	}
-	return retServices, nil
+	return statusList, nil
 }
 
 //CreateTenant create tenant
@@ -2292,7 +2285,7 @@ func (s *ServiceAction) delServiceMetadata(ctx context.Context, serviceID string
 	if err != nil {
 		return err
 	}
-	if db.GetManager().DB().Dialect().GetName() == "sqlite3"{
+	if db.GetManager().DB().Dialect().GetName() == "sqlite3" {
 		if err := s.deleteThirdComponent(ctx, service); err != nil {
 			return err
 		}
@@ -2363,7 +2356,7 @@ func (s *ServiceAction) GetServiceDeployInfo(tenantID, serviceID string) (*pb.De
 }
 
 // ListVersionInfo lists version info
-func (s *ServiceAction) ListVersionInfo(serviceID string) (*api_model.BuildListRespVO, error) {
+func (s *ServiceAction) ListVersionInfo(serviceID string, showCurrentBuildInfo bool) (*api_model.BuildListRespVO, error) {
 	versionInfos, err := db.GetManager().VersionInfoDao().GetAllVersionByServiceID(serviceID)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		logrus.Errorf("error getting all version by service id: %v", err)
@@ -2389,6 +2382,18 @@ func (s *ServiceAction) ListVersionInfo(serviceID string) (*api_model.BuildListR
 			bv.ImageDomain = image.GetDomain()
 			bv.ImageRepo = image.GetRepostory()
 			bv.ImageTag = image.GetTag()
+		}
+	}
+	if showCurrentBuildInfo {
+		for _, bversion := range bversions {
+			if bversion.BuildVersion == svc.DeployVersion {
+				result := &api_model.BuildListRespVO{
+					DeployVersion: svc.DeployVersion,
+					List:          bversion,
+				}
+				return result, nil
+			}
+			continue
 		}
 	}
 	result := &api_model.BuildListRespVO{
