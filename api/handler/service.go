@@ -2285,7 +2285,7 @@ func (s *ServiceAction) delServiceMetadata(ctx context.Context, serviceID string
 	if err != nil {
 		return err
 	}
-	if db.GetManager().DB().Dialect().GetName() == "sqlite3"{
+	if db.GetManager().DB().Dialect().GetName() == "sqlite3" {
 		if err := s.deleteThirdComponent(ctx, service); err != nil {
 			return err
 		}
@@ -2356,7 +2356,7 @@ func (s *ServiceAction) GetServiceDeployInfo(tenantID, serviceID string) (*pb.De
 }
 
 // ListVersionInfo lists version info
-func (s *ServiceAction) ListVersionInfo(serviceID, myTeams string) (*api_model.BuildListRespVO, error) {
+func (s *ServiceAction) ListVersionInfo(serviceID string, showCurrentBuildInfo bool) (*api_model.BuildListRespVO, error) {
 	versionInfos, err := db.GetManager().VersionInfoDao().GetAllVersionByServiceID(serviceID)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		logrus.Errorf("error getting all version by service id: %v", err)
@@ -2384,7 +2384,7 @@ func (s *ServiceAction) ListVersionInfo(serviceID, myTeams string) (*api_model.B
 			bv.ImageTag = image.GetTag()
 		}
 	}
-	if myTeams == "myTeams" {
+	if showCurrentBuildInfo {
 		for _, bversion := range bversions {
 			if bversion.BuildVersion == svc.DeployVersion {
 				result := &api_model.BuildListRespVO{

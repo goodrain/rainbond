@@ -220,9 +220,6 @@ func (c *EventDaoImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit in
 	}
 	var result []*model.ServiceEvent
 	if err := c.DB.Where("tenant_id in (?) and target=?", tenantIDs, "service").Offset(offset).Limit(limit).Order("start_time DESC").Find(&result).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return result, 0, nil
-		}
 		return nil, 0, err
 	}
 	return result, total, nil

@@ -80,7 +80,7 @@ type ServiceHandler interface {
 	ServiceCheck(*api_model.ServiceCheckStruct) (string, string, *util.APIHandleError)
 	GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError)
 	GetServiceDeployInfo(tenantID, serviceID string) (*pb.DeployInfo, *util.APIHandleError)
-	ListVersionInfo(serviceID, myTeams string) (*api_model.BuildListRespVO, error)
+	ListVersionInfo(serviceID string, showCurrentBuildInfo bool) (*api_model.BuildListRespVO, error)
 
 	AddAutoscalerRule(req *api_model.AutoscalerRuleReq) error
 	UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) error

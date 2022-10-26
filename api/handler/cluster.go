@@ -7,6 +7,7 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util/constants"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -103,14 +104,6 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 			usedNodeList[i] = node
 		}
 	}
-	var K8sVersion string
-	for _, n := range nodes {
-		if n.Status.NodeInfo.KubeletVersion == "" {
-			continue
-		}
-		K8sVersion = n.Status.NodeInfo.KubeletVersion
-		break
-	}
 	var healthcpuR, healthmemR, unhealthCPUR, unhealthMemR, rbdMemR, rbdCPUR int64
 	nodeAllocatableResourceList := make(map[string]*model.NodeResource, len(usedNodeList))
 	var maxAllocatableMemory *model.NodeResource
@@ -194,7 +187,7 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 		ReqDisk:                          reqDisk,
 		MaxAllocatableMemoryNodeResource: maxAllocatableMemory,
 		ResourceProxyStatus:              resourceProxyStatus,
-		K8sVersion:                       K8sVersion,
+		K8sVersion:                       k8sutil.GetKubeVersion().String(),
 		NodeReady:                        nodeReady,
 	}
 
