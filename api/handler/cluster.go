@@ -8,6 +8,7 @@ import (
 	"github.com/goodrain/rainbond/api/util/bcode"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util/constants"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/sirupsen/logrus"
@@ -24,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
 	"time"
@@ -73,6 +75,7 @@ type clusterAction struct {
 	config           *rest.Config
 	mapper           meta.RESTMapper
 	grctlImage       string
+	client           client.Client
 }
 
 //GetClusterInfo -
@@ -96,6 +99,7 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 
 	var healthCapCPU, healthCapMem, unhealthCapCPU, unhealthCapMem int64
 	usedNodeList := make([]*corev1.Node, len(nodes))
+	var nodeReady int32
 	for i := range nodes {
 		node := nodes[i]
 		if !isNodeReady(node) {
@@ -104,7 +108,7 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 			unhealthCapMem += node.Status.Allocatable.Memory().Value()
 			continue
 		}
-
+		nodeReady += 1
 		healthCapCPU += node.Status.Allocatable.Cpu().Value()
 		healthCapMem += node.Status.Allocatable.Memory().Value()
 		if node.Spec.Unschedulable == false {
@@ -195,6 +199,8 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 		ReqDisk:                          reqDisk,
 		MaxAllocatableMemoryNodeResource: maxAllocatableMemory,
 		ResourceProxyStatus:              resourceProxyStatus,
+		K8sVersion:                       k8sutil.GetKubeVersion().String(),
+		NodeReady:                        nodeReady,
 	}
 
 	result.AllNode = len(nodes)
