@@ -73,6 +73,7 @@ func CreateManager(config config.Config) (*Manager, error) {
 			return nil, err
 		}
 	}
+	db.Exec("PRAGMA journal_mode = WAL")
 	if config.ShowSQL {
 		db = db.Debug()
 	}
@@ -196,7 +197,7 @@ func (m *Manager) CheckTable() {
 						logrus.Infof("auto create cockroachdb table %s to db success", md.TableName())
 					}
 				}
-				if m.config.DBType == "sqlite"{
+				if m.config.DBType == "sqlite" {
 					err := m.db.CreateTable(md).Error
 					if err != nil {
 						logrus.Errorf("auto create sqlite table %s to db error."+err.Error(), md.TableName())
