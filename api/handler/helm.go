@@ -54,7 +54,7 @@ var (
 
 // GetChartInformation 获取 helm 应用 chart 包的详细版本信息
 func (h *HelmAction) GetChartInformation(chart api_model.ChartInformation) (*[]api_model.HelmChartInformation, *util.APIHandleError) {
-	req, err := http.NewRequest("GET", chart.RepoURL, nil)
+	req, err := http.NewRequest("GET", chart.RepoURL+"/index.yaml", nil)
 	if err != nil {
 		return nil, &util.APIHandleError{Code: 400, Err: errors.Wrap(err, "GetChartInformation NewRequest")}
 	}
@@ -96,10 +96,10 @@ func (h *HelmAction) GetChartInformation(chart api_model.ChartInformation) (*[]a
 }
 
 // CheckHelmApp check helm app
-func (h *HelmAction) CheckHelmApp(checkHelmApp api_model.CheckHelmApp) (string, *util.APIHandleError) {
+func (h *HelmAction) CheckHelmApp(checkHelmApp api_model.CheckHelmApp) (string, error) {
 	helmAppYaml, err := GetHelmAppYaml(checkHelmApp.Name, checkHelmApp.Chart, checkHelmApp.Version, checkHelmApp.Namespace, checkHelmApp.Overrides)
 	if err != nil {
-		return "", &util.APIHandleError{Code: 400, Err: fmt.Errorf("helm app check failed: %v", err)}
+		return "", errors.Wrap(err, "helm app check failed")
 	}
 	return helmAppYaml, nil
 }
