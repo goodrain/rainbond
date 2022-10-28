@@ -137,14 +137,14 @@ func (h *HelmAction) AddHelmRepo(helmRepo api_model.CheckHelmApp) error {
 //GetHelmAppYaml get helm app yaml
 func GetHelmAppYaml(name, chart, version, namespace string, overrides []string) (string, error) {
 	logrus.Info("get into GetHelmAppYaml function")
-	helmCmd, err := helm.NewHelm(namespace, repoFile, repoCache)
+	helmCmd, err := helm.NewHelm("", repoFile, repoCache)
 	if err != nil {
 		logrus.Errorf("Failed to create help client：%v", err)
 		return "", err
 	}
 	release, err := helmCmd.Install(name, chart, version, overrides)
 	if err != nil {
-		logrus.Errorf("Failed to get yaml%v", err)
+		logrus.Errorf("Failed to get yaml %v", err)
 		return "", err
 	}
 	return release.Manifest, nil

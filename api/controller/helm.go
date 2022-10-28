@@ -34,7 +34,7 @@ func (t *HelmStruct) CheckHelmApp(w http.ResponseWriter, r *http.Request) {
 	}
 	data := map[string]string{"checkAdopt": "true"}
 	err := handler.GetHelmManager().AddHelmRepo(checkHelmApp)
-	if err != nil && !errors.Is(err, fmt.Errorf("repository templateName (%s) already exists, please specify a different templateName", checkHelmApp.Name)) {
+	if err != nil && !errors.Is(err, fmt.Errorf("repository templateName (%s) already exists, please specify a different templateName", checkHelmApp.RepoName)) {
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
