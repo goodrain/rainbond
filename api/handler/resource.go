@@ -105,11 +105,15 @@ func (c *clusterAction) SyncAppK8SResources(ctx context.Context, req *model.Sync
 			continue
 		}
 		if len(resourceObjects) == 1 {
+			rsYaml := k8sResource.ResourceYaml
+			if resourceObjects[0].Resource != nil {
+				rsYaml, _ = ObjectToJSONORYaml("yaml", resourceObjects[0].Resource)
+			}
 			resourceList = append(resourceList, &dbmodel.K8sResource{
 				AppID:         k8sResource.AppID,
 				Name:          k8sResource.Name,
 				Kind:          k8sResource.Kind,
-				Content:       k8sResource.ResourceYaml,
+				Content:       rsYaml,
 				ErrorOverview: resourceObjects[0].ErrorOverview,
 				State:         resourceObjects[0].State,
 			})
