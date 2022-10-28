@@ -172,6 +172,7 @@ func (h *Helm) install(name, chart, version string, overrides []string, dryRun b
 	client.Namespace = h.namespace
 	client.Version = version
 	client.DryRun = dryRun
+	client.IsUpgrade = true
 
 	cp, err := h.locateChart(chart, version)
 	if err != nil {
