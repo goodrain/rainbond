@@ -82,22 +82,22 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 	if err != nil {
 		logrus.Errorf("Failed to get ConfigMap%v", err)
 	}
+	cmList.Items = append(cmList.Items, parameter.CMs...)
 	for _, cm := range cmList.Items {
 		cmMap[cm.Name] = cm
 	}
-	cmList.Items = append(cmList.Items, parameter.CMs...)
+	var volumeAttributes []corev1.Volume
+	volumeMountAttributes := parameter.Template.Spec.Containers[0].VolumeMounts
 	for _, volume := range parameter.Template.Spec.Volumes {
 		if volume.ConfigMap != nil && err == nil {
 			cm, _ := cmMap[volume.ConfigMap.Name]
 			cmData := cm.Data
 			isLog := true
-			var index int
-			for i, volumeMount := range parameter.Template.Spec.Containers[0].VolumeMounts {
+			for i, volumeMount := range volumeMountAttributes {
 				if volume.Name != volumeMount.Name {
 					continue
 				}
 				isLog = false
-				index = i
 				if volume.ConfigMap.Items != nil {
 					if volumeMount.SubPath != "" {
 						configName := ""
@@ -151,17 +151,20 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 							ConfigName:  key,
 							ConfigPath:  mountPath,
 							ConfigValue: val,
-							Mode:        *volume.ConfigMap.DefaultMode,
+							Mode:        mode,
 						})
 					}
 				}
+				volumeMountAttributes = append(volumeMountAttributes[:i], volumeMountAttributes[i+1:]...)
+				break
 			}
 			if isLog {
+				volumeAttributes = append(volumeAttributes, volume)
 				logrus.Warningf("configmap type resource %v is not mounted in volumemount", volume.ConfigMap.Name)
-				continue
 			}
-			parameter.Template.Spec.Containers[0].VolumeMounts = append(parameter.Template.Spec.Containers[0].VolumeMounts[:index], parameter.Template.Spec.Containers[0].VolumeMounts[index+1:]...)
+			continue
 		}
+		volumeAttributes = append(volumeAttributes, volume)
 	}
 
 	//TelescopicManagement
@@ -339,8 +342,8 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 		}
 		attributes = append(attributes, envAttributes)
 	}
-	if parameter.Template.Spec.Volumes != nil {
-		volumesYaml, err := ObjectToJSONORYaml("yaml", parameter.Template.Spec.Volumes)
+	if volumeAttributes != nil {
+		volumesYaml, err := ObjectToJSONORYaml("yaml", volumeAttributes)
 		if err != nil {
 			logrus.Errorf("deployment:%v volumes %v", parameter.Name, err)
 		}
@@ -352,8 +355,8 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 		attributes = append(attributes, volumesAttributes)
 
 	}
-	if parameter.Template.Spec.Containers[0].VolumeMounts != nil {
-		volumeMountsYaml, err := ObjectToJSONORYaml("yaml", parameter.Template.Spec.Containers[0].VolumeMounts)
+	if volumeMountAttributes != nil {
+		volumeMountsYaml, err := ObjectToJSONORYaml("yaml", volumeMountAttributes)
 		if err != nil {
 			logrus.Errorf("deployment:%v volumeMounts %v", parameter.Name, err)
 		}
