@@ -207,6 +207,14 @@ func (t *TenantServicesDaoImpl) GetAllServicesID() ([]*model.TenantServices, err
 	return services, nil
 }
 
+func (t *TenantServicesDaoImpl) ListServicesByAppIDs(appIDs []string) ([]*model.TenantServices, error) {
+	var services []*model.TenantServices
+	if err := t.DB.Debug().Where("app_id in (?)", appIDs).Find(&services).Error; err != nil {
+		return nil, err
+	}
+	return services, nil
+}
+
 // ListServicesByTenantID -
 func (t *TenantServicesDaoImpl) ListServicesByTenantID(tenantID string) ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
