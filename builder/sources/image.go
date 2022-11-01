@@ -390,9 +390,14 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 }
 
 //ImageBuild use kaniko build image
-func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType string) error {
+func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName string) error {
 	// create image name
-	buildImageName := CreateImageName(ServiceID, DeployVersion)
+	var buildImageName string
+	if buildType == "plug-build"{
+		buildImageName = plugImageName
+	} else {
+		buildImageName = CreateImageName(ServiceID, DeployVersion)
+	}
 	// The same component retains only one build task to perform
 	jobList, err := jobc.GetJobController().GetServiceJobs(ServiceID)
 	if err != nil {
