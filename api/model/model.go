@@ -34,6 +34,11 @@ const (
 	AppTypeHelm     = "helm"
 )
 
+const (
+	YamlSourceFile = "File"
+	YamlSourceHelm = "Helm"
+)
+
 //ServiceGetCommon path参数
 //swagger:parameters getVolumes getDepVolumes
 type ServiceGetCommon struct {
@@ -477,6 +482,42 @@ type YamlResource struct {
 	AppID     string `json:"region_app_id"`
 	TenantID  string `json:"tenant_id"`
 	Namespace string `json:"namespace"`
+	Yaml      string `json:"yaml"`
+}
+
+//HelmAppInstall -
+type HelmAppInstall struct {
+	Name      string   `json:"name"`
+	Chart     string   `json:"chart"`
+	Version   string   `json:"version"`
+	Overrides []string `json:"overrides"`
+	AppID     string   `json:"app_id"`
+	TenantID  string   `json:"tenant_id"`
+	Namespace string   `json:"namespace"`
+}
+
+//CommandHelmStruct -
+type CommandHelmStruct struct {
+	Command string `json:"command"`
+}
+
+//CheckHelmApp -
+type CheckHelmApp struct {
+	Name      string   `json:"name"`
+	Chart     string   `json:"chart"`
+	Version   string   `json:"version"`
+	Namespace string   `json:"namespace"`
+	Overrides []string `json:"overrides"`
+	RepoName  string   `json:"repo_name"`
+	RepoUrl   string   `json:"repo_url"`
+	Username  string   `json:"username"`
+	Password  string   `json:"password"`
+}
+
+//ChartInformation -
+type ChartInformation struct {
+	RepoURL   string `json:"repo_url"`
+	ChartName string `json:"chart_name"`
 }
 
 const (
@@ -1419,6 +1460,18 @@ type AddServicePort struct {
 	}
 }
 
+type HelmChartInformation struct {
+	Version  string
+	Keywords []string
+	Pic      string
+	Abstract string
+}
+
+type HelmCommandRet struct {
+	Yaml   string `json:"yaml"`
+	Status bool   `json:"status"`
+}
+
 type plugin struct {
 	// the container port for this serviceport
 	// in: body
@@ -2063,4 +2116,17 @@ type SyncAppConfigGroup struct {
 // AppStatusesReq -
 type AppStatusesReq struct {
 	AppIDs []string `json:"app_ids"`
+}
+
+// RbdResp -
+type RbdResp struct {
+	RbdName  string `json:"rbd_name"`
+	NodeName string `json:"node_name"`
+	PodName  string `json:"pod_name"`
+}
+
+// ShellPod -
+type ShellPod struct {
+	RegionName string `json:"region_name"`
+	PodName    string `json:"pod_name"`
 }

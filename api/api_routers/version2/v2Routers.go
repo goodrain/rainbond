@@ -62,6 +62,15 @@ func (v2 *V2) Routes() chi.Router {
 	r.Put("/volume-options/{volume_type}", controller.UpdateVolumeType)
 	r.Mount("/enterprise/{enterprise_id}", v2.enterpriseRouter())
 	r.Mount("/monitor", v2.monitorRouter())
+	r.Mount("/helm", v2.helmRouter())
+	return r
+}
+
+func (v2 *V2) helmRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/check_helm_app", controller.GetManager().CheckHelmApp)
+	r.Get("/command_helm", controller.GetManager().CommandHelm)
+	r.Get("/get_chart_information", controller.GetManager().GetChartInformation)
 	return r
 }
 
@@ -74,6 +83,7 @@ func (v2 *V2) monitorRouter() chi.Router {
 func (v2 *V2) enterpriseRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/running-services", controller.GetRunningServices)
+	r.Get("/abnormal_status", controller.GetAbnormalStatus)
 	return r
 }
 
@@ -81,6 +91,8 @@ func (v2 *V2) eventsRouter() chi.Router {
 	r := chi.NewRouter()
 	// get target's event list with page
 	r.Get("/", controller.GetManager().Events)
+	// get my teams event list with page
+	r.Get("/myteam", controller.GetManager().MyTeamsEvents)
 	// get target's event content
 	r.Get("/{eventID}/log", controller.GetManager().EventLog)
 	return r
@@ -105,6 +117,12 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/yaml_resource_name", controller.GetManager().YamlResourceName)
 	r.Get("/yaml_resource_detailed", controller.GetManager().YamlResourceDetailed)
 	r.Post("/yaml_resource_import", controller.GetManager().YamlResourceImport)
+	r.Get("/rbd-resource/log", controller.GetManager().RbdLog)
+	r.Get("/rbd-resource/pods", controller.GetManager().GetRbdPods)
+	r.Get("/rbd-name/{serviceID}/logs", controller.GetManager().HistoryRbdLogs)
+	r.Get("/log-file", controller.GetManager().LogList)
+	r.Post("/shell-pod", controller.GetManager().CreateShellPod)
+	r.Delete("/shell-pod", controller.GetManager().DeleteShellPod)
 	return r
 }
 

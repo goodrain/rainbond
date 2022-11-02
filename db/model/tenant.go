@@ -518,7 +518,7 @@ type TenantServiceVolume struct {
 	//存储名称
 	VolumeName string `gorm:"column:volume_name;size:40" json:"volume_name"`
 	//主机地址
-	HostPath string `gorm:"column:host_path" json:"host_path"`
+	HostPath string `gorm:"column:host_path;type:text" json:"host_path"`
 	//挂载地址
 	VolumePath string `gorm:"column:volume_path" json:"volume_path"`
 	//是否只读
@@ -554,7 +554,7 @@ func (t *TenantServiceVolume) Key() string {
 type TenantServiceConfigFile struct {
 	Model
 	ServiceID   string `gorm:"column:service_id;size:32" json:"service_id"`
-	VolumeName  string `gorm:"column:volume_name;size:32" json:"volume_name"`
+	VolumeName  string `gorm:"column:volume_name;size:128" json:"volume_name"`
 	FileContent string `gorm:"column:file_content;size:65535" json:"filename"`
 }
 

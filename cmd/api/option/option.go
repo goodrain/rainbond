@@ -62,6 +62,7 @@ type Config struct {
 	PrometheusEndpoint     string
 	RbdNamespace           string
 	ShowSQL                bool
+	GrctlImage             string
 }
 
 //APIServer  apiserver server
@@ -115,6 +116,7 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.PrometheusEndpoint, "prom-api", "rbd-monitor:9999", "The service DNS name of Prometheus api. Default to rbd-monitor:9999")
 	fs.StringVar(&a.RbdNamespace, "rbd-namespace", "rbd-system", "rbd component namespace")
 	fs.BoolVar(&a.ShowSQL, "show-sql", false, "The trigger for showing sql.")
+	fs.StringVar(&a.GrctlImage, "grctl-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-grctl:v5.10.0-release", "use grctl image")
 }
 
 //SetLog 设置log

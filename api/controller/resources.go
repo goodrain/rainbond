@@ -62,6 +62,7 @@ type V2Routes struct {
 	ApplicationController
 	RegistryAuthSecretStruct
 	K8sAttributeController
+	HelmStruct
 }
 
 //Show test

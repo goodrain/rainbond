@@ -41,6 +41,11 @@ type ClusterInterface interface {
 	YamlResourceName(w http.ResponseWriter, r *http.Request)
 	YamlResourceDetailed(w http.ResponseWriter, r *http.Request)
 	YamlResourceImport(w http.ResponseWriter, r *http.Request)
+	CreateShellPod(w http.ResponseWriter, r *http.Request)
+	DeleteShellPod(w http.ResponseWriter, r *http.Request)
+	RbdLog(w http.ResponseWriter, r *http.Request)
+	GetRbdPods(w http.ResponseWriter, r *http.Request)
+	HistoryRbdLogs(w http.ResponseWriter, r *http.Request)
 }
 
 //TenantInterface interface
@@ -65,6 +70,12 @@ type TenantInterface interface {
 	TenantResourcesStatus(w http.ResponseWriter, r *http.Request)
 	CheckResourceName(w http.ResponseWriter, r *http.Request)
 	Log(w http.ResponseWriter, r *http.Request)
+}
+
+type HelmInterface interface {
+	CheckHelmApp(w http.ResponseWriter, r *http.Request)
+	CommandHelm(w http.ResponseWriter, r *http.Request)
+	GetChartInformation(w http.ResponseWriter, r *http.Request)
 }
 
 //ServiceInterface ServiceInterface
@@ -128,6 +139,7 @@ type LogInterface interface {
 	TenantLogByAction(w http.ResponseWriter, r *http.Request)
 	Events(w http.ResponseWriter, r *http.Request)
 	EventLog(w http.ResponseWriter, r *http.Request)
+	MyTeamsEvents(w http.ResponseWriter, r *http.Request)
 }
 
 //PluginInterface plugin interface

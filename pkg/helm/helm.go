@@ -96,9 +96,9 @@ func (h *Helm) PreInstall(name, chart, version string) error {
 }
 
 // Install -
-func (h *Helm) Install(name, chart, version string, overrides []string) error {
-	_, err := h.install(name, chart, version, overrides, false, ioutil.Discard)
-	return err
+func (h *Helm) Install(name, chart, version string, overrides []string) (*release.Release, error) {
+	release, err := h.install(name, chart, version, overrides, true, ioutil.Discard)
+	return release, err
 }
 
 func (h *Helm) locateChart(chart, version string) (string, error) {
@@ -172,6 +172,7 @@ func (h *Helm) install(name, chart, version string, overrides []string, dryRun b
 	client.Namespace = h.namespace
 	client.Version = version
 	client.DryRun = dryRun
+	client.IsUpgrade = true
 
 	cp, err := h.locateChart(chart, version)
 	if err != nil {

@@ -20,6 +20,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"os"
 	"strconv"
@@ -57,6 +58,13 @@ func (e *EventLogStruct) HistoryLogs(w http.ResponseWriter, r *http.Request) {
 	e.EventlogServerProxy.Proxy(w, r)
 }
 
+//HistoryLogs get rbd history logs
+//proxy
+func (e *EventLogStruct) HistoryRbdLogs(w http.ResponseWriter, r *http.Request) {
+	r.URL.Path = strings.Replace(r.URL.Path, "/v2/cluster/", "/", 1)
+	e.EventlogServerProxy.Proxy(w, r)
+}
+
 //LogList GetLogList
 func (e *EventLogStruct) LogList(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET  /v2/tenants/{tenant_name}/services/{service_alias}/log-file v2 logList
@@ -75,7 +83,13 @@ func (e *EventLogStruct) LogList(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	rbdName := r.URL.Query().Get("rbd_name")
+	var serviceID string
+	if rbdName != ""{
+		serviceID = rbdName
+	}else {
+		serviceID = r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	}
 	fileList, err := handler.GetEventHandler().GetLogList(GetServiceAliasID(serviceID))
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -270,4 +284,58 @@ func (e *EventLogStruct) EventLog(w http.ResponseWriter, r *http.Request) {
 
 	httputil.ReturnSuccess(r, w, dl.Data)
 	return
+}
+
+//MyTeamsEvents get my teams events by tenantID list
+func (e *EventLogStruct) MyTeamsEvents(w http.ResponseWriter, r *http.Request) {
+	tenant := r.FormValue("tenant")
+	tenantIDs := r.FormValue("tenant_ids")
+	var MyTeamsEventsReq *api_model.MyTeamsEventsReq
+	var err error
+	err = json.Unmarshal([]byte(tenantIDs), &MyTeamsEventsReq)
+	if err != nil {
+		logrus.Error("MyTeamsEventsReq json unmarshal error", err)
+		return
+	}
+	var page, size int
+	if page, err = strconv.Atoi(r.FormValue("page")); err != nil || page <= 0 {
+		page = 1
+	}
+	if size, err = strconv.Atoi(r.FormValue("size")); err != nil || size <= 0 {
+		size = 10
+	}
+	logrus.Debugf("get my teams events page param[target:%s id:%s page:%d, page_size:%d]", tenant, MyTeamsEventsReq.TenantIDs, page, size)
+	Events, total, err := handler.GetEventHandler().GetMyTeamsEvents(tenant, MyTeamsEventsReq.TenantIDs, page, size)
+	if err != nil {
+		logrus.Errorf("get my teams events log error, %v", err)
+		httputil.ReturnError(r, w, 500, "get log error")
+		return
+	}
+	var (
+		MyTeamsEvent api_model.MyTeamsEvent
+		res          []api_model.MyTeamsEvent
+	)
+	for i, event := range Events {
+		// format start and end time
+		if Events[i].EndTime != "" && len(Events[i].EndTime) > 20 {
+			Events[i].EndTime = strings.Replace(Events[i].EndTime[0:19]+"+08:00", " ", "T", 1)
+		}
+		MyTeamsEvent.ServiceEvent = event
+		buildList, err := handler.GetServiceManager().ListVersionInfo(event.TargetID, true)
+		if err != nil {
+			if err.Error() == "error getting service by uuid: record not found" {
+				logrus.Debugf("ServiceID:%v record not found", event.TargetID)
+				continue
+			}
+			httputil.ReturnError(r, w, 500, "get ListVersionInfo error")
+			return
+		}
+		if buildList == nil{
+			logrus.Info("service not found build list")
+			continue
+		}
+		MyTeamsEvent.BuildList = buildList
+		res = append(res, MyTeamsEvent)
+	}
+	httputil.ReturnList(r, w, total, page, res)
 }

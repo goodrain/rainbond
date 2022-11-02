@@ -64,7 +64,7 @@ type ServiceHandler interface {
 	RollBack(rs *api_model.RollbackStruct) error
 	GetStatus(serviceID string) (*api_model.StatusList, error)
 	GetServicesStatus(tenantID string, services []string) []map[string]interface{}
-	GetEnterpriseRunningServices(enterpriseID string) ([]string, *util.APIHandleError)
+	GetEnterpriseServicesStatus(enterpriseID string) (map[string]string, *util.APIHandleError)
 	CreateTenant(*dbmodel.Tenants) error
 	CreateTenandIDAndName(eid string) (string, string, error)
 	GetPods(serviceID string) (*K8sPodInfos, error)
@@ -80,7 +80,7 @@ type ServiceHandler interface {
 	ServiceCheck(*api_model.ServiceCheckStruct) (string, string, *util.APIHandleError)
 	GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError)
 	GetServiceDeployInfo(tenantID, serviceID string) (*pb.DeployInfo, *util.APIHandleError)
-	ListVersionInfo(serviceID string) (*api_model.BuildListRespVO, error)
+	ListVersionInfo(serviceID string, showCurrentBuildInfo bool) (*api_model.BuildListRespVO, error)
 
 	AddAutoscalerRule(req *api_model.AutoscalerRuleReq) error
 	UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) error

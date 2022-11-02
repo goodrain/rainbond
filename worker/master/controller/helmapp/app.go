@@ -305,7 +305,7 @@ func (a *App) installOrUpdate() error {
 
 	if errors.Is(err, driver.ErrReleaseNotFound) {
 		logrus.Debugf("name: %s; namespace: %s; chart: %s; install helm app", a.name, a.namespace, a.Chart())
-		if err := a.helmCmd.Install(a.name, a.Chart(), a.version, a.overrides); err != nil {
+		if _, err := a.helmCmd.Install(a.name, a.Chart(), a.version, a.overrides); err != nil {
 			return err
 		}
 
