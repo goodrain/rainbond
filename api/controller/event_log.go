@@ -321,7 +321,7 @@ func (e *EventLogStruct) MyTeamsEvents(w http.ResponseWriter, r *http.Request) {
 			Events[i].EndTime = strings.Replace(Events[i].EndTime[0:19]+"+08:00", " ", "T", 1)
 		}
 		MyTeamsEvent.ServiceEvent = event
-		buildList, err := handler.GetServiceManager().ListVersionInfo(event.TargetID, true)
+		buildVersion, err := handler.GetServiceManager().EventBuildVersion(event.TargetID, event.BuildVersion)
 		if err != nil {
 			if err.Error() == "error getting service by uuid: record not found" {
 				logrus.Debugf("ServiceID:%v record not found", event.TargetID)
@@ -330,11 +330,7 @@ func (e *EventLogStruct) MyTeamsEvents(w http.ResponseWriter, r *http.Request) {
 			httputil.ReturnError(r, w, 500, "get ListVersionInfo error")
 			return
 		}
-		if buildList == nil{
-			logrus.Info("service not found build list")
-			continue
-		}
-		MyTeamsEvent.BuildList = buildList
+		MyTeamsEvent.BuildList = buildVersion
 		res = append(res, MyTeamsEvent)
 	}
 	httputil.ReturnList(r, w, total, page, res)

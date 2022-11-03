@@ -135,6 +135,11 @@ func (c *EventDaoImpl) UpdateInBatch(events []*model.ServiceEvent) error {
 	return nil
 }
 
+// UpdateBuildVersion update BuildVersion.
+func (c *EventDaoImpl) UpdateBuildVersion(eventID string, deployVersion string) error {
+	return c.DB.Model(&model.ServiceEvent{}).Where("event_id=?", eventID).UpdateColumn("build_version", deployVersion).Error
+}
+
 //GetEventByServiceID get event log message
 func (c *EventDaoImpl) GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error) {
 	var result []*model.ServiceEvent

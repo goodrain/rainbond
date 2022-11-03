@@ -78,21 +78,22 @@ var EventStatusFailure EventStatus = "failure"
 //ServiceEvent event struct
 type ServiceEvent struct {
 	Model
-	EventID     string `gorm:"column:event_id;size:40"`
-	TenantID    string `gorm:"column:tenant_id;size:40;index:tenant_id"`
-	ServiceID   string `gorm:"column:service_id;size:40;index:service_id"`
-	Target      string `gorm:"column:target;size:40"`
-	TargetID    string `gorm:"column:target_id;size:255;index:target_id"`
-	RequestBody string `gorm:"column:request_body;size:1024"`
-	UserName    string `gorm:"column:user_name;size:40"`
-	StartTime   string `gorm:"column:start_time;size:40"`
-	EndTime     string `gorm:"column:end_time;size:40"`
-	OptType     string `gorm:"column:opt_type;size:40"`
-	SynType     int    `gorm:"column:syn_type;size:1"`
-	Status      string `gorm:"column:status;size:40"`
-	FinalStatus string `gorm:"column:final_status;size:40"`
-	Message     string `gorm:"column:message"`
-	Reason      string `gorm:"column:reason"`
+	EventID      string `gorm:"column:event_id;size:40"`
+	TenantID     string `gorm:"column:tenant_id;size:40;index:tenant_id"`
+	ServiceID    string `gorm:"column:service_id;size:40;index:service_id"`
+	Target       string `gorm:"column:target;size:40"`
+	TargetID     string `gorm:"column:target_id;size:255;index:target_id"`
+	RequestBody  string `gorm:"column:request_body;size:1024"`
+	UserName     string `gorm:"column:user_name;size:40"`
+	StartTime    string `gorm:"column:start_time;size:40"`
+	EndTime      string `gorm:"column:end_time;size:40"`
+	OptType      string `gorm:"column:opt_type;size:40"`
+	SynType      int    `gorm:"column:syn_type;size:1"`
+	Status       string `gorm:"column:status;size:40"`
+	FinalStatus  string `gorm:"column:final_status;size:40"`
+	Message      string `gorm:"column:message"`
+	Reason       string `gorm:"column:reason"`
+	BuildVersion string `gorm:"column:build_version;size:40" json:"build_version"`
 }
 
 //TableName 表名

@@ -236,11 +236,15 @@ func (w *resWriter) WriteHeader(statusCode int) {
 // WrapEL wrap eventlog, handle event log before and after process
 func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var serviceKind string
+		var (
+			serviceKind  string
+			buildVersion string
+		)
 		serviceObj := r.Context().Value(ctxutil.ContextKey("service"))
 		if serviceObj != nil {
 			service := serviceObj.(*dbmodel.TenantServices)
 			serviceKind = service.Kind
+			buildVersion = service.DeployVersion
 		}
 
 		if r.Method != "GET" {
@@ -287,7 +291,7 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 			tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 			var ctx context.Context
 
-			event, err := util.CreateEvent(target, optType, targetID, tenantID, string(body), operator, synType)
+			event, err := util.CreateEvent(target, optType, targetID, tenantID, string(body), operator, buildVersion, synType)
 			if err != nil {
 				logrus.Error("create event error : ", err)
 				httputil.ReturnError(r, w, 500, "操作失败")

@@ -435,6 +435,7 @@ type EventDao interface {
 	UpdateReason(eventID string, reason string) error
 	SetEventStatus(ctx context.Context, status model.EventStatus) error
 	UpdateInBatch(events []*model.ServiceEvent) error
+	UpdateBuildVersion(eventID, deployVersion string) error
 }
 
 //VersionInfoDao VersionInfoDao
