@@ -2356,7 +2356,7 @@ func (s *ServiceAction) GetServiceDeployInfo(tenantID, serviceID string) (*pb.De
 }
 
 // ListVersionInfo lists version info
-func (s *ServiceAction) ListVersionInfo(serviceID string, showCurrentBuildInfo bool) (*api_model.BuildListRespVO, error) {
+func (s *ServiceAction) ListVersionInfo(serviceID string) (*api_model.BuildListRespVO, error) {
 	versionInfos, err := db.GetManager().VersionInfoDao().GetAllVersionByServiceID(serviceID)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		logrus.Errorf("error getting all version by service id: %v", err)
@@ -2384,21 +2384,32 @@ func (s *ServiceAction) ListVersionInfo(serviceID string, showCurrentBuildInfo b
 			bv.ImageTag = image.GetTag()
 		}
 	}
-	if showCurrentBuildInfo {
-		for _, bversion := range bversions {
-			if bversion.BuildVersion == svc.DeployVersion {
-				result := &api_model.BuildListRespVO{
-					DeployVersion: svc.DeployVersion,
-					List:          bversion,
-				}
-				return result, nil
-			}
-			continue
-		}
-	}
 	result := &api_model.BuildListRespVO{
 		DeployVersion: svc.DeployVersion,
 		List:          bversions,
+	}
+	return result, nil
+}
+
+// EventBuildVersion -
+func (s *ServiceAction) EventBuildVersion(serviceID, buildVersion string) (*api_model.BuildListRespVO, error) {
+	versionInfo, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(buildVersion, serviceID)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		logrus.Errorf("error getting all version by service id: %v", err)
+		return nil, fmt.Errorf("error getting all version by service id: %v", err)
+	}
+	b, err := json.Marshal(versionInfo)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling version infos: %v", err)
+	}
+	var bversion *api_model.BuildVersion
+	if err := json.Unmarshal(b, &bversion); err != nil {
+		return nil, fmt.Errorf("error unmarshaling version infos: %v", err)
+	}
+
+	result := &api_model.BuildListRespVO{
+		DeployVersion: buildVersion,
+		List:          bversion,
 	}
 	return result, nil
 }

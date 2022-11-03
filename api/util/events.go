@@ -77,7 +77,7 @@ func checkTimeout(event *dbmodel.ServiceEvent) bool {
 }
 
 // CreateEvent save event
-func CreateEvent(target, optType, targetID, tenantID, reqBody, userName string, synType int) (*dbmodel.ServiceEvent, error) {
+func CreateEvent(target, optType, targetID, tenantID, reqBody, userName, buildVersion string, synType int) (*dbmodel.ServiceEvent, error) {
 	if len(reqBody) > 1024 {
 		reqBody = reqBody[0:1024]
 	}
@@ -91,6 +91,7 @@ func CreateEvent(target, optType, targetID, tenantID, reqBody, userName string, 
 		StartTime:   time.Now().Format(time.RFC3339),
 		SynType:     synType,
 		OptType:     optType,
+		BuildVersion: buildVersion,
 	}
 	err := db.GetManager().ServiceEventDao().AddModel(&event)
 	return &event, err
