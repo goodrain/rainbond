@@ -170,15 +170,12 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 		diskCap = diskstauts.Total
 		reqDisk = diskstauts.Used
 	}
-	var resourceProxyStatus bool
+	resourceProxyStatus := false
 	conn, err := net.DialTimeout("tcp", "rbd-resource-proxy:80", 3*time.Second)
-	if err != nil || conn == nil {
-		logrus.Errorf("connection rbd-resource-proxy failed error, %v", err)
-		resourceProxyStatus = false
-	} else {
+	if conn != nil {
 		resourceProxyStatus = true
+		conn.Close()
 	}
-	conn.Close()
 	result := &model.ClusterResource{
 		CapCPU:                           int(healthCapCPU + unhealthCapCPU),
 		CapMem:                           int(healthCapMem+unhealthCapMem) / 1024 / 1024,
