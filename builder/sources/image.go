@@ -393,7 +393,7 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName string) error {
 	// create image name
 	var buildImageName string
-	if buildType == "plug-build"{
+	if buildType == "plug-build" {
 		buildImageName = plugImageName
 	} else {
 		buildImageName = CreateImageName(ServiceID, DeployVersion)
@@ -425,7 +425,8 @@ func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logge
 	podSpec.Volumes = volumes
 	// container config
 	container := corev1.Container{
-		Name:      name,
+		Name: name,
+		//2022.11.4: latest==1.9.1
 		Image:     "registry.cn-hangzhou.aliyuncs.com/goodrain/kaniko-executor:latest",
 		Stdin:     true,
 		StdinOnce: true,
