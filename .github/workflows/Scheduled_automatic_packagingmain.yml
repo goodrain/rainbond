@@ -167,7 +167,7 @@ jobs:
           cd rainbond-console
           ./release.sh dind
   build-offline:
-    needs: [ build-ui,build-rainbond-region,build-operator ]
+    needs: [ build-ui,build-rainbond-region,build-operator,dind ]
     runs-on: ubuntu-18.04
     if: ${{ github.event.action }} == 'GitHub'
     steps:
