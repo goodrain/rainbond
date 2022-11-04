@@ -96,7 +96,8 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	volumes, mounts := d.createVolumeAndMount(re)
 	podSpec.Volumes = volumes
 	container := corev1.Container{
-		Name:      name,
+		Name: name,
+		//2022.11.4: latest==1.9.1
 		Image:     "registry.cn-hangzhou.aliyuncs.com/goodrain/kaniko-executor:latest",
 		Stdin:     true,
 		StdinOnce: true,

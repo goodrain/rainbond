@@ -166,3 +166,44 @@ jobs:
         run: |
           cd rainbond-console
           ./release.sh dind
+  build-offline:
+    needs: [ build-ui,build-rainbond-region,build-operator ]
+    runs-on: ubuntu-18.04
+    if: ${{ github.event.action }} == 'GitHub'
+    steps:
+      - name: Set up Python 3.6
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 yapf==0.26.0
+      - name: Pack offline packages
+        env:
+          IMAGE_NAMESPACE: ${{ secrets.IMAGE_NAMESPACE }}
+          RBD_VER: ${{ github.event.client_payload.version }}
+          TRAVIS_PULL_REQUEST: false
+          DOMESTIC_NAMESPACE: ${{ secrets.DOMESTIC_NAMESPACE }}
+          DOMESTIC_BASE_NAME: ${{ secrets.DOMESTIC_BASE_NAME }}
+        run: |
+          git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console.git   
+          cd rainbond-console
+          chmod +x ./release.sh
+      - name: Build the Docker image
+        env:
+          TRAVIS_PULL_REQUEST: false
+          IMAGE_NAMESPACE: ${{ secrets.IMAGE_NAMESPACE }}
+          BUILD_IMAGE_NAMESPACE: ${{ secrets.BUILD_IMAGE_NAMESPACE }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOMESTIC_NAMESPACE: ${{ secrets.DOMESTIC_NAMESPACE }}
+          DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+          DOMESTIC_DOCKER_USERNAME: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          VERSION: ${{ github.event.client_payload.version }}
+          OPERATOR_BRANCH: ${{ secrets.OPERATOR_BRANCH }}
+          ADAPTOR_BRANCH: ${{ secrets.ADAPTOR_BRANCH }}
+        run: |
+          cd rainbond-console
+          OFFLINE="true" ./release.sh dind
