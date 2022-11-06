@@ -21,7 +21,6 @@ import (
 	"k8s.io/apiserver/pkg/util/flushwriter"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"net"
 	"net/http"
 	"os"
 	"runtime"
@@ -170,12 +169,7 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 		diskCap = diskstauts.Total
 		reqDisk = diskstauts.Used
 	}
-	resourceProxyStatus := false
-	conn, err := net.DialTimeout("tcp", "rbd-resource-proxy:80", 3*time.Second)
-	if conn != nil {
-		resourceProxyStatus = true
-		conn.Close()
-	}
+
 	result := &model.ClusterResource{
 		CapCPU:                           int(healthCapCPU + unhealthCapCPU),
 		CapMem:                           int(healthCapMem+unhealthCapMem) / 1024 / 1024,
@@ -195,7 +189,7 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 		CapDisk:                          diskCap,
 		ReqDisk:                          reqDisk,
 		MaxAllocatableMemoryNodeResource: maxAllocatableMemory,
-		ResourceProxyStatus:              resourceProxyStatus,
+		ResourceProxyStatus:              true,
 		K8sVersion:                       k8sutil.GetKubeVersion().String(),
 		NodeReady:                        nodeReady,
 	}
