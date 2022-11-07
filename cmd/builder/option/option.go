@@ -38,6 +38,7 @@ type Config struct {
 	EtcdPrefix           string
 	ClusterName          string
 	MysqlConnectionInfo  string
+	KanikoImage          string
 	DBType               string
 	PrometheusMetricPath string
 	EventLogServers      []string
@@ -82,6 +83,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&a.EtcdTimeout, "etcd-timeout", 5, "etcd http timeout seconds")
 	fs.StringVar(&a.EtcdPrefix, "etcd-prefix", "/store", "the etcd data save key prefix ")
 	fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
+	fs.StringVar(&a.KanikoImage, "kaniko-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/kaniko-executor:latest", "kaniko image version")
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
 	fs.StringVar(&a.MysqlConnectionInfo, "mysql", "root:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
 	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"127.0.0.1:6366"}, "event log server address. simple lb")

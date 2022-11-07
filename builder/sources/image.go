@@ -390,7 +390,7 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 }
 
 //ImageBuild use kaniko build image
-func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName string) error {
+func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, KanikoImage string) error {
 	// create image name
 	var buildImageName string
 	if buildType == "plug-build" {
@@ -427,7 +427,7 @@ func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logge
 	container := corev1.Container{
 		Name: name,
 		//2022.11.4: latest==1.9.1
-		Image:     "registry.cn-hangzhou.aliyuncs.com/goodrain/kaniko-executor:latest",
+		Image:     KanikoImage,
 		Stdin:     true,
 		StdinOnce: true,
 		Args:      []string{"--context=dir:///workspace", fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify"},
