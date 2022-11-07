@@ -311,11 +311,6 @@ func getLoggerConfig(envs []string) []*ContainerLoggerConfig {
 		}
 		re = append(re, configs[i])
 	}
-	if len(re) == 0 {
-		return []*ContainerLoggerConfig{{
-			Name: "streamlog",
-		}}
-	}
 	return re
 }
 
