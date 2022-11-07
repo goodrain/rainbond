@@ -81,6 +81,7 @@ type Response struct {
 
 //Request build input
 type Request struct {
+	KanikoImage   string
 	RbdNamespace  string
 	GRDataPVCName string
 	CachePVCName  string
