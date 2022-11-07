@@ -72,7 +72,8 @@ func (c *containerdImageCliImpl) CheckIfImageExists(imageName string) (imageRef 
 		return "", false, fmt.Errorf("parse image %s: %v", imageName, err)
 	}
 	imageFullName := named.String()
-	containers, err := c.imageClient.ListImages(context.Background(), &runtimeapi.ListImagesRequest{})
+	ctx := namespaces.WithNamespace(context.Background(), Namespace)
+	containers, err := c.imageClient.ListImages(ctx, &runtimeapi.ListImagesRequest{})
 	if err != nil {
 		return imageFullName, false, err
 	}
