@@ -28,6 +28,7 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"os"
 	"path"
 	"time"
 )
@@ -92,7 +93,19 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 			},
 		},
 	}
+	logrus.Debugf("dockerfile builder using hostpath, schedule job into current node")
 	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
+	hostIP := os.Getenv("HOST_IP")
+	if hostIP != "" {
+		podSpec.NodeSelector = map[string]string{
+			"kubernetes.io/hostname": hostIP,
+		}
+		podSpec.Tolerations = []corev1.Toleration{
+			{
+				Operator: "Exists",
+			},
+		}
+	}
 	volumes, mounts := d.createVolumeAndMount(re)
 	podSpec.Volumes = volumes
 	container := corev1.Container{
