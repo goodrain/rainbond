@@ -152,12 +152,9 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		})
 	}
 	args := createArgs(version, envs)
-	var resources corev1.ResourceRequirements
-	resources = createResources(as)
+	defaultResources := createResources(as)
 	customResources := createCustomResources(as, dbmanager)
-	if customResources != nil{
-		resources = *customResources
-	}
+	resources := handleResource(defaultResources, customResources)
 	ports := createPorts(as, dbmanager)
 	imagename := version.ImageName
 	if imagename == "" {
@@ -1096,4 +1093,36 @@ func createLifecycle(as *v1.AppService, dbmanager db.Manager) *corev1.Lifecycle 
 		return nil
 	}
 	return &lifecycle
+}
+
+func handleResource(resources corev1.ResourceRequirements, customResources *corev1.ResourceRequirements) (res corev1.ResourceRequirements) {
+	var haveMemory bool
+	if customResources != nil {
+		for resourceName, quantity := range customResources.Limits {
+			if resourceName == "memory" && quantity.String() != "" {
+				haveMemory = true
+			}
+		}
+		for resourceName, quantity := range customResources.Requests {
+			if resourceName == "memory" && quantity.String() != "" {
+				haveMemory = true
+			}
+		}
+		if haveMemory {
+			resources = *customResources
+		} else {
+			for resourceName, quantity := range resources.Limits{
+				if resourceName == "memory"{
+					customResources.Limits["memory"] = quantity
+				}
+			}
+			for resourceName, quantity := range resources.Requests{
+				if resourceName == "memory"{
+					customResources.Requests["memory"] = quantity
+				}
+			}
+			resources = *customResources
+		}
+	}
+	return resources
 }
