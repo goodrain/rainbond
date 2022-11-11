@@ -30,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -42,8 +43,10 @@ type dockerfileBuild struct {
 
 func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 	filepath := path.Join(re.SourceDir, "Dockerfile")
+	// copy file grdata
+	subPath, err := d.copyCacheDockerfile(re.SourceDir, filepath)
 	re.Logger.Info("Start parse Dockerfile", map[string]string{"step": "builder-exector"})
-	_, err := sources.ParseFile(filepath)
+	_, err = sources.ParseFile(filepath)
 	if err != nil {
 		logrus.Error("parse dockerfile error.", err.Error())
 		re.Logger.Error(fmt.Sprintf("Parse dockerfile error"), map[string]string{"step": "builder-exector"})
@@ -53,7 +56,7 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 	if err := d.stopPreBuildJob(re); err != nil {
 		logrus.Errorf("stop pre build job for service %s failure %s", re.ServiceID, err.Error())
 	}
-	if err := d.runBuildJob(re, buildImageName); err != nil {
+	if err := d.runBuildJob(re, buildImageName, subPath); err != nil {
 		re.Logger.Error(util.Translation("Compiling the source code failure"), map[string]string{"step": "build-code", "status": "failure"})
 		logrus.Error("build dockerfile job error,", err.Error())
 		return nil, err
@@ -80,7 +83,7 @@ func (d *dockerfileBuild) stopPreBuildJob(re *Request) error {
 }
 
 // Use kaniko to create a job to build an image
-func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error {
+func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName, subPath string) error {
 	name := fmt.Sprintf("%s-%s", re.ServiceID, re.DeployVersion)
 	namespace := re.RbdNamespace
 	job := corev1.Pod{
@@ -106,7 +109,7 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 			},
 		}
 	}
-	volumes, mounts := d.createVolumeAndMount(re)
+	volumes, mounts := d.createVolumeAndMount(re, subPath)
 	podSpec.Volumes = volumes
 	container := corev1.Container{
 		Name: name,
@@ -133,20 +136,20 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	re.Logger.Info(util.Translation("create build code job success"), map[string]string{"step": "build-exector"})
 	// delete job after complete
 	defer jobc.GetJobController().DeleteJob(job.Name)
+	defer d.deleteGrdataDockerfile(subPath)
 	return d.waitingComplete(re, reChan)
 	return nil
 }
 
-func (d *dockerfileBuild) createVolumeAndMount(re *Request) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
-	hostPathType := corev1.HostPathDirectoryOrCreate
+func (d *dockerfileBuild) createVolumeAndMount(re *Request, subPath string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+	//hostPathType := corev1.HostPathDirectoryOrCreate
 	hostsFilePathType := corev1.HostPathFile
 	volumes = []corev1.Volume{
 		{
 			Name: "dockerfile-build",
 			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: re.SourceDir,
-					Type: &hostPathType,
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "rbd-cpt-grdata",
 				},
 			},
 		},
@@ -178,6 +181,7 @@ func (d *dockerfileBuild) createVolumeAndMount(re *Request) (volumes []corev1.Vo
 		{
 			Name:      "dockerfile-build",
 			MountPath: "/workspace",
+			SubPath:   subPath,
 		},
 		{
 			Name:      "kaniko-secret",
@@ -228,5 +232,30 @@ func (d *dockerfileBuild) waitingComplete(re *Request, reChan *channels.RingChan
 				}
 			}
 		}
+	}
+}
+
+// copyCacheDockerfile copy Cache Dockerfile to grdata
+func (d *dockerfileBuild) copyCacheDockerfile(SourceDir, filepath string) (subPath string, err error) {
+	// filepath: /cache/source/build/4d052cb50a594ca0a81b8f527390ff79/074c4757a0c73f8aed5d88fa32ea4a8b9769feb5/Dockerfile
+	filepathSplit := strings.Split(filepath, "/")
+	createPath := strings.Join(filepathSplit[2:5], "/")
+	// createPath: source/build/4d052cb50a594ca0a81b8f527390ff79
+	subPath = strings.Join(filepathSplit[2:6], "/")
+	// subPath: source/build/4d052cb50a594ca0a81b8f527390ff79/074c4757a0c73f8aed5d88fa32ea4a8b9769feb5
+	tarPath := fmt.Sprintf("/grdata/%v", createPath)
+	if err := util.CheckAndCreateDir(tarPath); err != nil {
+		return "", fmt.Errorf("create cache package dir failure %s", err.Error())
+	}
+	if err := util.CopyDir(SourceDir, tarPath); err != nil {
+		logrus.Errorf("copy dir error: %s", err.Error())
+	}
+	return subPath, err
+}
+
+// deleteGrdataDockerfile -
+func (d *dockerfileBuild) deleteGrdataDockerfile(subPath string) {
+	if err := os.RemoveAll(path.Join("/grdata", subPath)); err != nil {
+		logrus.Error("delete grdata dockerfile error:", err)
 	}
 }
