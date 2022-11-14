@@ -34,6 +34,7 @@ const (
 	AppTypeHelm     = "helm"
 )
 
+// YamlType
 const (
 	YamlSourceFile = "File"
 	YamlSourceHelm = "Helm"
@@ -509,7 +510,7 @@ type CheckHelmApp struct {
 	Namespace string   `json:"namespace"`
 	Overrides []string `json:"overrides"`
 	RepoName  string   `json:"repo_name"`
-	RepoUrl   string   `json:"repo_url"`
+	RepoURL   string   `json:"repo_url"`
 	Username  string   `json:"username"`
 	Password  string   `json:"password"`
 }
@@ -529,6 +530,8 @@ const (
 	CreateError = 3
 	//UpdateError -
 	UpdateError = 4
+	//GetError -
+	GetError = 5
 )
 
 // JobStrategy -
@@ -1460,6 +1463,7 @@ type AddServicePort struct {
 	}
 }
 
+// HelmChartInformation -
 type HelmChartInformation struct {
 	Version  string
 	Keywords []string
@@ -1467,6 +1471,7 @@ type HelmChartInformation struct {
 	Abstract string
 }
 
+// HelmCommandRet -
 type HelmCommandRet struct {
 	Yaml   string `json:"yaml"`
 	Status bool   `json:"status"`
