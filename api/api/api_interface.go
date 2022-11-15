@@ -34,6 +34,7 @@ type ClusterInterface interface {
 	GetNamespaceResource(w http.ResponseWriter, r *http.Request)
 	ConvertResource(w http.ResponseWriter, r *http.Request)
 	ResourceImport(w http.ResponseWriter, r *http.Request)
+	GetResource(w http.ResponseWriter, r *http.Request)
 	AddResource(w http.ResponseWriter, r *http.Request)
 	DeleteResource(w http.ResponseWriter, r *http.Request)
 	UpdateResource(w http.ResponseWriter, r *http.Request)
@@ -72,6 +73,7 @@ type TenantInterface interface {
 	Log(w http.ResponseWriter, r *http.Request)
 }
 
+//HelmInterface HelmInterface
 type HelmInterface interface {
 	CheckHelmApp(w http.ResponseWriter, r *http.Request)
 	CommandHelm(w http.ResponseWriter, r *http.Request)

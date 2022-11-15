@@ -48,7 +48,7 @@ func (c *clusterAction) AddAppK8SResource(ctx context.Context, namespace string,
 				ErrorOverview: resource.ErrorOverview,
 				State:         resource.State,
 			})
-			err := db.GetManager().K8sResourceDao().CreateK8sResourceInBatch(resourceList)
+			err := db.GetManager().K8sResourceDao().CreateK8sResource(resourceList)
 			if err != nil {
 				return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("CreateK8sResource %v", err)}
 			}
@@ -57,36 +57,51 @@ func (c *clusterAction) AddAppK8SResource(ctx context.Context, namespace string,
 	return resourceList, nil
 }
 
+func (c *clusterAction) GetAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) (dbmodel.K8sResource, *util.APIHandleError) {
+	logrus.Info("begin GetAppK8SResource")
+	rs, err := db.GetManager().K8sResourceDao().GetK8sResourceByName(appID, name, kind)
+	if err != nil {
+		return dbmodel.K8sResource{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("get k8s resource %v", err)}
+	}
+	resourceObjects := c.HandleResourceYaml([]byte(rs.Content), namespace, "get", name)
+	
+	if resourceObjects[0].State != model.GetError {
+		rs.Content, _ = ObjectToJSONORYaml("yaml", resourceObjects[0].Resource)
+	}
+
+	db.GetManager().K8sResourceDao().UpdateModel(&rs)
+	return rs, nil
+}
+
 //UpdateAppK8SResource -
 func (c *clusterAction) UpdateAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) (dbmodel.K8sResource, *util.APIHandleError) {
 	logrus.Info("begin UpdateAppK8SResource")
-	rs, err := db.GetManager().K8sResourceDao().GetK8sResourceByNameInBatch(appID, name, kind)
+	rs, err := db.GetManager().K8sResourceDao().GetK8sResourceByName(appID, name, kind)
 	if err != nil {
 		return dbmodel.K8sResource{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("get k8s resource %v", err)}
 	}
 	resourceObjects := c.HandleResourceYaml([]byte(resourceYaml), namespace, "update", name)
 	var rsYaml string
-	if resourceObjects[0].State == 4 {
+	if resourceObjects[0].State == model.UpdateError {
 		rsYaml = resourceYaml
-		rs[0].State = resourceObjects[0].State
-		rs[0].ErrorOverview = resourceObjects[0].ErrorOverview
-		rs[0].Content = rsYaml
-		db.GetManager().K8sResourceDao().UpdateModel(&rs[0])
+		rs.State = resourceObjects[0].State
+		rs.ErrorOverview = resourceObjects[0].ErrorOverview
+		rs.Content = rsYaml
 	} else {
 		rsYaml, _ = ObjectToJSONORYaml("yaml", resourceObjects[0].Resource)
-		rs[0].State = resourceObjects[0].State
-		rs[0].ErrorOverview = resourceObjects[0].ErrorOverview
-		rs[0].Content = rsYaml
-		db.GetManager().K8sResourceDao().UpdateModel(&rs[0])
+		rs.State = resourceObjects[0].State
+		rs.ErrorOverview = resourceObjects[0].ErrorOverview
+		rs.Content = rsYaml
+		db.GetManager().K8sResourceDao().UpdateModel(&rs)
 	}
-	return rs[0], nil
+	return rs, nil
 }
 
 //DeleteAppK8SResource -
 func (c *clusterAction) DeleteAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) *util.APIHandleError {
 	logrus.Info("begin DeleteAppK8SResource")
 	c.HandleResourceYaml([]byte(resourceYaml), namespace, "delete", name)
-	err := db.GetManager().K8sResourceDao().DeleteK8sResourceInBatch(appID, name, kind)
+	err := db.GetManager().K8sResourceDao().DeleteK8sResource(appID, name, kind)
 	if err != nil {
 		return &util.APIHandleError{Code: 400, Err: fmt.Errorf("DeleteAppK8SResource %v", err)}
 	}
@@ -119,7 +134,7 @@ func (c *clusterAction) SyncAppK8SResources(ctx context.Context, req *model.Sync
 			})
 		}
 	}
-	err := db.GetManager().K8sResourceDao().CreateK8sResourceInBatch(resourceList)
+	err := db.GetManager().K8sResourceDao().CreateK8sResource(resourceList)
 	if err != nil {
 		return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("SyncK8sResource %v", err)}
 	}
@@ -213,6 +228,13 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 	for _, buildResource := range buildResourceList {
 		unstructuredObj := buildResource.Resource
 		switch change {
+		case "get":
+			obj, err := buildResource.Dri.Get(context.TODO(), unstructuredObj.GetName(), metav1.GetOptions{})
+			if err != nil {
+				logrus.Errorf("get k8s resource error %v", err)
+				buildResource.State = model.GetError
+			}
+			buildResource.Resource = obj
 		case "re-create":
 			unstructuredObj.SetResourceVersion("")
 			unstructuredObj.SetCreationTimestamp(metav1.Time{})

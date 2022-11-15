@@ -110,6 +110,7 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/resource", controller.GetManager().GetNamespaceResource)
 	r.Get("/convert-resource", controller.GetManager().ConvertResource)
 	r.Post("/convert-resource", controller.GetManager().ResourceImport)
+	r.Get("/k8s-resource", controller.GetManager().GetResource)
 	r.Post("/k8s-resource", controller.GetManager().AddResource)
 	r.Delete("/k8s-resource", controller.GetManager().DeleteResource)
 	r.Put("/k8s-resource", controller.GetManager().UpdateResource)
