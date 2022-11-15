@@ -139,6 +139,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		e.clusterMemoryTotal.Set(float64(resource.AllMemory))
 		e.clusterCPUTotal.Set(float64(resource.AllCPU))
 		e.clusterPodsNumber.Set(float64(resource.AllPods))
+		e.clusterPodMemory.Reset()
+		e.clusterPodCPU.Reset()
+		e.clusterPodStorageEphemeral.Reset()
 		for _, pod := range resource.NodePods {
 			e.clusterPodMemory.WithLabelValues(pod.NodeName, pod.AppID, pod.ServiceID, pod.ResourceVersion).Set(float64(pod.Memory))
 			e.clusterPodCPU.WithLabelValues(pod.NodeName, pod.AppID, pod.ServiceID, pod.ResourceVersion).Set(float64(pod.Cpu))
