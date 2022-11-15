@@ -41,7 +41,7 @@ require (
 	github.com/golang/glog v1.0.0
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
-	github.com/goodrain/rainbond-oam v0.0.0-20220908064513-fed01f0e1a1b
+	github.com/goodrain/rainbond-oam v0.0.0-20221115150510-dd668a6d6765
 	github.com/goodrain/rainbond-operator v1.3.1-0.20210401055914-f8fe4bf89a21
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uitable v0.0.4
