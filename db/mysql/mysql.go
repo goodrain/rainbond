@@ -25,10 +25,12 @@ import (
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	//import sqlite
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/sirupsen/logrus"
 	// import sql driver manually
 	_ "github.com/go-sql-driver/mysql"
+	// import postgres
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
 
