@@ -604,7 +604,7 @@ type TenantServiceProbe struct {
 	Scheme    string `gorm:"column:scheme;default:'scheme'" json:"scheme" validate:"scheme"`
 	Path      string `gorm:"column:path" json:"path" validate:"path"`
 	Port      int    `gorm:"column:port;size:5;default:80" json:"port" validate:"port|required|numeric_between:1,65535"`
-	Cmd       string `gorm:"column:cmd;size:150" json:"cmd" validate:"cmd"`
+	Cmd       string `gorm:"column:cmd;type:longtext;" json:"cmd" validate:"cmd"`
 	//http请求头，key=value,key2=value2
 	HTTPHeader string `gorm:"column:http_header;size:300" json:"http_header" validate:"http_header"`
 	//初始化等候时间
