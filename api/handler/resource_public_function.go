@@ -97,65 +97,86 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 				if volume.Name != volumeMount.Name {
 					continue
 				}
+				volumeMountAttributes = append(volumeMountAttributes[:i], volumeMountAttributes[i+1:]...)
+				if len(volumeMountAttributes) == 0 {
+					volumeMountAttributes = nil
+				}
 				isLog = false
 				if volume.ConfigMap.Items != nil {
 					if volumeMount.SubPath != "" {
 						configName := ""
-						var mode int32
+						var itemMode int32
 						for _, item := range volume.ConfigMap.Items {
 							if item.Path == volumeMount.SubPath {
 								configName = item.Key
-								mode = *item.Mode
+								if item.Mode != nil {
+									itemMode = *item.Mode
+								}
+								break
 							}
+						}
+						mode8 := strconv.FormatInt(int64(itemMode), 8)
+						mode, err := strconv.ParseInt(mode8, 10, 32)
+						if err != nil || mode == 0 {
+							mode = 755
 						}
 						configs = append(configs, model.ConfigManagement{
 							ConfigName:  configName,
 							ConfigPath:  volumeMount.MountPath,
 							ConfigValue: cmData[configName],
-							Mode:        mode,
+							Mode:        int32(mode),
 						})
-						continue
-					}
-					p := volumeMount.MountPath
-					for _, item := range volume.ConfigMap.Items {
-						p := path.Join(p, item.Path)
-						var mode int32
-						if item.Mode != nil {
-							mode = *item.Mode
+					} else {
+						p := volumeMount.MountPath
+						for _, item := range volume.ConfigMap.Items {
+							p := path.Join(p, item.Path)
+							var itemMode int32
+							if item.Mode != nil {
+								itemMode = *item.Mode
+							}
+							mode8 := strconv.FormatInt(int64(itemMode), 8)
+							mode, err := strconv.ParseInt(mode8, 10, 32)
+							if err != nil || mode == 0 {
+								mode = 755
+							}
+							configs = append(configs, model.ConfigManagement{
+								ConfigName:  item.Key,
+								ConfigPath:  p,
+								ConfigValue: cmData[item.Key],
+								Mode:        int32(mode),
+							})
 						}
-						configs = append(configs, model.ConfigManagement{
-							ConfigName:  item.Key,
-							ConfigPath:  p,
-							ConfigValue: cmData[item.Key],
-							Mode:        mode,
-						})
 					}
 				} else {
-					mode := int32(777)
+					var mode10 int32
 					if volume.ConfigMap.DefaultMode != nil {
-						mode = *volume.ConfigMap.DefaultMode
+						mode10 = *volume.ConfigMap.DefaultMode
+					}
+					mode8 := strconv.FormatInt(int64(mode10), 8)
+					mode, err := strconv.ParseInt(mode8, 10, 32)
+					if err != nil || mode == 0 {
+						mode = 755
 					}
 					if volumeMount.SubPath != "" {
 						configs = append(configs, model.ConfigManagement{
 							ConfigName:  volumeMount.SubPath,
 							ConfigPath:  volumeMount.MountPath,
 							ConfigValue: cmData[volumeMount.SubPath],
-							Mode:        mode,
+							Mode:        int32(mode),
 						})
-						continue
-					}
-					mountPath := volumeMount.MountPath
-					for key, val := range cmData {
-						mountPath = path.Join(mountPath, key)
-						configs = append(configs, model.ConfigManagement{
-							ConfigName:  key,
-							ConfigPath:  mountPath,
-							ConfigValue: val,
-							Mode:        mode,
-						})
+					} else {
+						mountPath := volumeMount.MountPath
+						for key, val := range cmData {
+							mountPath = path.Join(mountPath, key)
+							configs = append(configs, model.ConfigManagement{
+								ConfigName:  key,
+								ConfigPath:  mountPath,
+								ConfigValue: val,
+								Mode:        int32(mode),
+							})
+						}
 					}
 				}
-				volumeMountAttributes = append(volumeMountAttributes[:i], volumeMountAttributes[i+1:]...)
 				break
 			}
 			if isLog {
