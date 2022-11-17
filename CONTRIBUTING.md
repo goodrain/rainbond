@@ -1,4 +1,4 @@
-# CONTRIBUTING Guide ｜ [贡献指南](https://www.rainbond.com/docs/quick-start/contributing)
+# CONTRIBUTING Guide ｜ [贡献指南](https://www.rainbond.com/community/contribution/)
 
 First off, thank you for considering contributing to Rainbond. It's people like you that make Rainbond such a great platform.
 
