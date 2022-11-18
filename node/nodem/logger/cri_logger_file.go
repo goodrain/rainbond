@@ -321,7 +321,8 @@ func ReadLogs(ctx context.Context, path, containerID string, opts *ReadConfig, r
 			klog.ErrorS(err, "Failed when parsing line in log file", "path", path, "line", l)
 			continue
 		}
-		watch.Msg <- msg
+		msgTemporary := *msg
+		watch.Msg <- &msgTemporary
 		if limitedMode {
 			limitedNum--
 		}
