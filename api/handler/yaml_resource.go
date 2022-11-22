@@ -450,6 +450,14 @@ func (c *clusterAction) ResourceCreate(buildResource api_model.BuildResource, na
 	} else {
 		buildResource.Dri = buildResource.DC.Resource(mapping.Resource)
 	}
+	if buildResource.Resource.GetKind() == "Service" {
+		labels := buildResource.Resource.GetLabels()
+		if label, ok := labels["app"]; ok {
+			labels["helm_app"] = label
+			delete(labels, "app")
+			buildResource.Resource.SetLabels(labels)
+		}
+	}
 	obj, err := buildResource.Dri.Create(context.Background(), buildResource.Resource, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err

@@ -397,6 +397,10 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 		attributes = append(attributes, serviceAccountAttributes)
 	}
 	if parameter.RsLabel != nil {
+		if appLabel, ok := parameter.RsLabel["app"]; ok {
+			parameter.RsLabel["helm_app"] = appLabel
+			delete(parameter.RsLabel, "app")
+		}
 		labelsJSON, err := ObjectToJSONORYaml("json", parameter.RsLabel)
 		if err != nil {
 			logrus.Errorf("deployment:%v labels %v", parameter.Name, err)
