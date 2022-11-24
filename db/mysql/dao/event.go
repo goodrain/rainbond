@@ -218,16 +218,12 @@ func (c *EventDaoImpl) GetEventsByTenantID(tenantID string, offset, limit int) (
 }
 
 // GetEventsByTenantID get my teams all event by tenantIDs
-func (c *EventDaoImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit int) ([]*model.ServiceEvent, int, error) {
-	var total int
-	if err := c.DB.Model(&model.ServiceEvent{}).Where("tenant_id in (?) and target=?", tenantIDs, "service").Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	var result []*model.ServiceEvent
-	if err := c.DB.Where("tenant_id in (?) and target=?", tenantIDs, "service").Offset(offset).Limit(limit).Order("start_time DESC").Find(&result).Error; err != nil {
-		return nil, 0, err
-	}
-	return result, total, nil
+func (c *EventDaoImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit int) ([]*model.EventAndBuild, error) {
+	var EventAndBuild []*model.EventAndBuild
+	c.DB.Debug().Raw("select a.create_time, a.tenant_id, a.target, a.target_id, a.user_name, a.start_time, a.end_time, a.opt_type, a.syn_type, a.status, a.final_status, a.message, a.reason, " +
+		"b.build_version, b.kind, b.delivered_type, b.delivered_path, b.image_name, b.cmd, b.repo_url, b.code_version, b.code_branch, b.code_commit_msg, b.code_commit_author, b.plan_version "+
+		"from tenant_services_event AS a LEFT JOIN tenant_service_version AS b ON a.target_id = b.service_id where a.target = 'service' and a.tenant_id in (?) ORDER BY start_time DESC", tenantIDs).Limit(limit).Offset(offset).Scan(&EventAndBuild)
+	return EventAndBuild, nil
 }
 
 //GetLastASyncEvent get last sync event

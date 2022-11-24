@@ -428,7 +428,7 @@ type EventDao interface {
 	ListByTargetID(targetID string) ([]*model.ServiceEvent, error)
 	GetEventsByTarget(target, targetID string, offset, liimt int) ([]*model.ServiceEvent, int, error)
 	GetEventsByTenantID(tenantID string, offset, limit int) ([]*model.ServiceEvent, int, error)
-	GetEventsByTenantIDs(tenantID []string, offset, limit int) ([]*model.ServiceEvent, int, error)
+	GetEventsByTenantIDs(tenantID []string, offset, limit int) ([]*model.EventAndBuild, error)
 	GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error)
 	UnfinishedEvents(target, targetID string, optTypes ...string) ([]*model.ServiceEvent, error)
 	LatestFailurePodEvent(podName string) (*model.ServiceEvent, error)

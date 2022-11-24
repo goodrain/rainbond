@@ -85,9 +85,9 @@ func (e *EventLogStruct) LogList(w http.ResponseWriter, r *http.Request) {
 	//     description: 统一返回格式
 	rbdName := r.URL.Query().Get("rbd_name")
 	var serviceID string
-	if rbdName != ""{
+	if rbdName != "" {
 		serviceID = rbdName
-	}else {
+	} else {
 		serviceID = r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	}
 	fileList, err := handler.GetEventHandler().GetLogList(GetServiceAliasID(serviceID))
@@ -305,33 +305,17 @@ func (e *EventLogStruct) MyTeamsEvents(w http.ResponseWriter, r *http.Request) {
 		size = 10
 	}
 	logrus.Debugf("get my teams events page param[target:%s id:%s page:%d, page_size:%d]", tenant, MyTeamsEventsReq.TenantIDs, page, size)
-	Events, total, err := handler.GetEventHandler().GetMyTeamsEvents(tenant, MyTeamsEventsReq.TenantIDs, page, size)
+	res, err := handler.GetEventHandler().GetMyTeamsEvents(tenant, MyTeamsEventsReq.TenantIDs, page, size)
 	if err != nil {
 		logrus.Errorf("get my teams events log error, %v", err)
 		httputil.ReturnError(r, w, 500, "get log error")
 		return
 	}
-	var (
-		MyTeamsEvent api_model.MyTeamsEvent
-		res          []api_model.MyTeamsEvent
-	)
-	for i, event := range Events {
-		// format start and end time
-		if Events[i].EndTime != "" && len(Events[i].EndTime) > 20 {
-			Events[i].EndTime = strings.Replace(Events[i].EndTime[0:19]+"+08:00", " ", "T", 1)
+	// format start and end time
+	for i := range res {
+		if res[i].EndTime != "" && len(res[i].EndTime) > 20 {
+			res[i].EndTime = strings.Replace(res[i].EndTime[0:19]+"+08:00", " ", "T", 1)
 		}
-		MyTeamsEvent.ServiceEvent = event
-		buildVersion, err := handler.GetServiceManager().EventBuildVersion(event.TargetID, event.BuildVersion)
-		if err != nil {
-			if err.Error() == "error getting service by uuid: record not found" {
-				logrus.Debugf("ServiceID:%v record not found", event.TargetID)
-				continue
-			}
-			httputil.ReturnError(r, w, 500, "get ListVersionInfo error")
-			return
-		}
-		MyTeamsEvent.BuildList = buildVersion
-		res = append(res, MyTeamsEvent)
 	}
-	httputil.ReturnList(r, w, total, page, res)
+	httputil.ReturnList(r, w, size, page, res)
 }
