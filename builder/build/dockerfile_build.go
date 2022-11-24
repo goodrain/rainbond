@@ -139,16 +139,26 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 
 func (d *dockerfileBuild) createVolumeAndMount(re *Request) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	hostsFilePathType := corev1.HostPathFile
-	volumes = []corev1.Volume{
-		{
-			Name: "dockerfile-build",
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: re.CachePVCName,
-					ReadOnly:  false,
-				},
+	dockerfileBuildVolume := corev1.Volume{
+		Name: "dockerfile-build",
+		VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: re.CachePVCName,
+				ReadOnly:  false,
 			},
 		},
+	}
+	if re.CacheMode == "hostpath" {
+		hostPathType := corev1.HostPathDirectoryOrCreate
+		dockerfileBuildVolume.VolumeSource = corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/cache",
+				Type: &hostPathType,
+			},
+		}
+	}
+	volumes = []corev1.Volume{
+		dockerfileBuildVolume,
 		{
 			Name: "kaniko-secret",
 			VolumeSource: corev1.VolumeSource{
