@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
@@ -44,10 +45,11 @@ type ClusterHandler interface {
 	ResourceImport(namespace string, as map[string]model.ApplicationResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError)
 	AddAppK8SResource(ctx context.Context, namespace string, appID string, resourceYaml string) ([]*dbmodel.K8sResource, *util.APIHandleError)
 	DeleteAppK8SResource(ctx context.Context, namespace, appID, name, yaml, kind string) *util.APIHandleError
+	GetAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) (dbmodel.K8sResource, *util.APIHandleError)
 	UpdateAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) (dbmodel.K8sResource, *util.APIHandleError)
 	SyncAppK8SResources(ctx context.Context, resources *model.SyncResources) ([]*dbmodel.K8sResource, *util.APIHandleError)
 	AppYamlResourceName(yamlResource model.YamlResource) (map[string]model.LabelResource, *util.APIHandleError)
-	AppYamlResourceDetailed(yamlResource model.YamlResource, yamlImport bool, Yaml string) (model.ApplicationResource, *util.APIHandleError)
+	AppYamlResourceDetailed(yamlResource model.YamlResource, yamlImport bool) (model.ApplicationResource, *util.APIHandleError)
 	AppYamlResourceImport(yamlResource model.YamlResource, components model.ApplicationResource) (model.AppComponent, *util.APIHandleError)
 	RbdLog(w http.ResponseWriter, r *http.Request, podName string, follow bool) error
 	GetRbdPods() (rbds []model.RbdResp, err error)
@@ -56,13 +58,14 @@ type ClusterHandler interface {
 }
 
 // NewClusterHandler -
-func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper) ClusterHandler {
+func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface) ClusterHandler {
 	return &clusterAction{
-		namespace:  RbdNamespace,
-		clientset:  clientset,
-		config:     config,
-		mapper:     mapper,
-		grctlImage: grctlImage,
+		namespace:     RbdNamespace,
+		clientset:     clientset,
+		config:        config,
+		mapper:        mapper,
+		grctlImage:    grctlImage,
+		prometheusCli: prometheusCli,
 	}
 }
 
@@ -75,6 +78,13 @@ type clusterAction struct {
 	mapper           meta.RESTMapper
 	grctlImage       string
 	client           client.Client
+	prometheusCli    prometheus.Interface
+}
+
+type nodePod struct {
+	Memory           prometheus.MetricValue
+	CPU              prometheus.MetricValue
+	EphemeralStorage prometheus.MetricValue
 }
 
 //GetClusterInfo -
@@ -99,6 +109,46 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 	var healthCapCPU, healthCapMem, unhealthCapCPU, unhealthCapMem int64
 	usedNodeList := make([]*corev1.Node, len(nodes))
 	var nodeReady int32
+
+	var healthcpuR, healthmemR, unhealthCPUR, unhealthMemR, rbdMemR, rbdCPUR int64
+	nodeAllocatableResourceList := make(map[string]*model.NodeResource, len(usedNodeList))
+	var maxAllocatableMemory *model.NodeResource
+	query := fmt.Sprint(`rbd_api_exporter_cluster_pod_number`)
+	podNumber := c.prometheusCli.GetMetric(query, time.Now())
+	var instance string
+	for _, podNum := range podNumber.MetricData.MetricValues {
+		instance = podNum.Metadata["instance"]
+	}
+
+	query = fmt.Sprintf(`rbd_api_exporter_cluster_pod_memory{instance="%v"}`, instance)
+	podMemoryMetric := c.prometheusCli.GetMetric(query, time.Now())
+
+	query = fmt.Sprintf(`rbd_api_exporter_cluster_pod_cpu{instance="%v"}`, instance)
+	podCPUMetric := c.prometheusCli.GetMetric(query, time.Now())
+
+	query = fmt.Sprintf(`rbd_api_exporter_cluster_pod_ephemeral_storage{instance="%v"}`, instance)
+	podEphemeralStorageMetric := c.prometheusCli.GetMetric(query, time.Now())
+
+	nodeMap := make(map[string][]nodePod)
+	for i, memory := range podMemoryMetric.MetricData.MetricValues {
+		if nodePodList, ok := nodeMap[memory.Metadata["node_name"]]; ok {
+			nodePodList = append(nodePodList, nodePod{
+				Memory:           memory,
+				CPU:              podCPUMetric.MetricData.MetricValues[i],
+				EphemeralStorage: podEphemeralStorageMetric.MetricData.MetricValues[i],
+			})
+			nodeMap[memory.Metadata["node_name"]] = nodePodList
+			continue
+		}
+		nodeMap[memory.Metadata["node_name"]] = []nodePod{
+			{
+				Memory:           memory,
+				CPU:              podCPUMetric.MetricData.MetricValues[i],
+				EphemeralStorage: podEphemeralStorageMetric.MetricData.MetricValues[i],
+			},
+		}
+	}
+
 	for i := range nodes {
 		node := nodes[i]
 		if !isNodeReady(node) {
@@ -107,53 +157,42 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 			unhealthCapMem += node.Status.Allocatable.Memory().Value()
 			continue
 		}
-		nodeReady += 1
+		nodeReady++
 		healthCapCPU += node.Status.Allocatable.Cpu().Value()
 		healthCapMem += node.Status.Allocatable.Memory().Value()
 		if node.Spec.Unschedulable == false {
 			usedNodeList[i] = node
 		}
-	}
-
-	var healthcpuR, healthmemR, unhealthCPUR, unhealthMemR, rbdMemR, rbdCPUR int64
-	nodeAllocatableResourceList := make(map[string]*model.NodeResource, len(usedNodeList))
-	var maxAllocatableMemory *model.NodeResource
-	for i := range usedNodeList {
-		node := usedNodeList[i]
-
-		pods, err := c.listPods(ctx, node.Name)
-		if err != nil {
-			return nil, fmt.Errorf("list pods: %v", err)
-		}
-
 		nodeAllocatableResource := model.NewResource(node.Status.Allocatable)
-		for _, pod := range pods {
-			nodeAllocatableResource.AllowedPodNumber--
-			for _, c := range pod.Spec.Containers {
-				nodeAllocatableResource.Memory -= c.Resources.Requests.Memory().Value()
-				nodeAllocatableResource.MilliCPU -= c.Resources.Requests.Cpu().MilliValue()
-				nodeAllocatableResource.EphemeralStorage -= c.Resources.Requests.StorageEphemeral().Value()
+		if nodePods, ok := nodeMap[node.Name]; ok {
+			for _, pod := range nodePods {
+				memory := int64(pod.Memory.Sample.Value())
+				cpu := int64(pod.CPU.Sample.Value())
+				ephemeralStorage := int64(pod.EphemeralStorage.Sample.Value())
+				nodeAllocatableResource.AllowedPodNumber--
+				nodeAllocatableResource.Memory -= memory
+				nodeAllocatableResource.MilliCPU -= cpu
+				nodeAllocatableResource.EphemeralStorage -= ephemeralStorage
 				if isNodeReady(node) {
-					healthcpuR += c.Resources.Requests.Cpu().MilliValue()
-					healthmemR += c.Resources.Requests.Memory().Value()
+					healthcpuR += cpu
+					healthmemR += memory
 				} else {
-					unhealthCPUR += c.Resources.Requests.Cpu().MilliValue()
-					unhealthMemR += c.Resources.Requests.Memory().Value()
+					unhealthCPUR += cpu
+					unhealthMemR += memory
 				}
-				if pod.Labels["creator"] == "Rainbond" {
-					rbdMemR += c.Resources.Requests.Memory().Value()
-					rbdCPUR += c.Resources.Requests.Cpu().MilliValue()
+				if _, ok := pod.Memory.Metadata["service_id"]; ok {
+					rbdMemR += memory
+					rbdCPUR += cpu
 				}
+				nodeAllocatableResourceList[node.Name] = nodeAllocatableResource
 			}
-		}
-		nodeAllocatableResourceList[node.Name] = nodeAllocatableResource
-
-		// Gets the node resource with the maximum remaining scheduling memory
-		if maxAllocatableMemory == nil {
-			maxAllocatableMemory = nodeAllocatableResource
-		} else {
-			if nodeAllocatableResource.Memory > maxAllocatableMemory.Memory {
+			// Gets the node resource with the maximum remaining scheduling memory
+			if maxAllocatableMemory == nil {
 				maxAllocatableMemory = nodeAllocatableResource
+			} else {
+				if nodeAllocatableResource.Memory > maxAllocatableMemory.Memory {
+					maxAllocatableMemory = nodeAllocatableResource
+				}
 			}
 		}
 	}

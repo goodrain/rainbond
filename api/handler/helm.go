@@ -126,7 +126,7 @@ func (h *HelmAction) CommandHelm(command string) (*api_model.HelmCommandRet, *ut
 
 //AddHelmRepo add helm repo
 func (h *HelmAction) AddHelmRepo(helmRepo api_model.CheckHelmApp) error {
-	err := h.repo.Add(helmRepo.RepoName, helmRepo.RepoUrl, helmRepo.Username, helmRepo.Password)
+	err := h.repo.Add(helmRepo.RepoName, helmRepo.RepoURL, helmRepo.Username, helmRepo.Password)
 	if err != nil {
 		logrus.Errorf("add helm repo err: %v", err)
 		return err

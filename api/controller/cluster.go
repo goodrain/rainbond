@@ -167,6 +167,20 @@ func (t *ClusterController) ResourceImport(w http.ResponseWriter, r *http.Reques
 	httputil.ReturnSuccess(r, w, rri)
 }
 
+//GetResource -
+func (t *ClusterController) GetResource(w http.ResponseWriter, r *http.Request) {
+	var hr model.HandleResource
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
+		return
+	}
+	rri, err := handler.GetClusterHandler().GetAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml, hr.Kind)
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, rri)
+}
+
 //AddResource -
 func (t *ClusterController) AddResource(w http.ResponseWriter, r *http.Request) {
 	var hr model.AddHandleResource
@@ -243,7 +257,7 @@ func (t *ClusterController) YamlResourceDetailed(w http.ResponseWriter, r *http.
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &yr, nil); !ok {
 		return
 	}
-	h, err := handler.GetClusterHandler().AppYamlResourceDetailed(yr, false, yr.Yaml)
+	h, err := handler.GetClusterHandler().AppYamlResourceDetailed(yr, false)
 	if err != nil {
 		err.Handle(r, w)
 		return
@@ -257,7 +271,7 @@ func (t *ClusterController) YamlResourceImport(w http.ResponseWriter, r *http.Re
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &yr, nil); !ok {
 		return
 	}
-	ar, err := handler.GetClusterHandler().AppYamlResourceDetailed(yr, true, "")
+	ar, err := handler.GetClusterHandler().AppYamlResourceDetailed(yr, true)
 	if err != nil {
 		err.Handle(r, w)
 		return
@@ -277,7 +291,7 @@ func (t *ClusterController) CreateShellPod(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	pod, err := handler.GetClusterHandler().CreateShellPod(sp.RegionName)
-	if err !=nil{
+	if err != nil {
 		logrus.Error("create shell pod error:", err)
 		return
 	}
@@ -291,7 +305,7 @@ func (t *ClusterController) DeleteShellPod(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	err := handler.GetClusterHandler().DeleteShellPod(sp.PodName)
-	if err !=nil{
+	if err != nil {
 		logrus.Error("delete shell pod error:", err)
 		return
 	}

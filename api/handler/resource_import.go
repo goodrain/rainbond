@@ -144,7 +144,7 @@ func (c *clusterAction) CreateK8sResource(k8sResources []dbmodel.K8sResource, Ap
 		kr := k8sResource
 		k8sResourceList = append(k8sResourceList, &kr)
 	}
-	err := db.GetManager().K8sResourceDao().CreateK8sResourceInBatch(k8sResourceList)
+	err := db.GetManager().K8sResourceDao().CreateK8sResource(k8sResourceList)
 	return k8sResources, err
 }
 

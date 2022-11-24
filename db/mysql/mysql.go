@@ -25,10 +25,12 @@ import (
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	//import sqlite
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 	"github.com/sirupsen/logrus"
 	// import sql driver manually
 	_ "github.com/go-sql-driver/mysql"
+	// import postgres
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
 
@@ -241,5 +243,8 @@ func (m *Manager) patchTable() {
 	}
 	if err := m.db.Exec("update tenant_services set k8s_component_name=service_alias where k8s_component_name is NULL;").Error; err != nil {
 		logrus.Errorf("update tenants namespace error: %s", err.Error())
+	}
+	if err := m.db.Exec("alter  table tenant_services_probe modify column cmd longtext;").Error; err != nil {
+		logrus.Errorf("alter table tenant_services_probe error: %s", err.Error())
 	}
 }

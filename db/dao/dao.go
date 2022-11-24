@@ -428,14 +428,13 @@ type EventDao interface {
 	ListByTargetID(targetID string) ([]*model.ServiceEvent, error)
 	GetEventsByTarget(target, targetID string, offset, liimt int) ([]*model.ServiceEvent, int, error)
 	GetEventsByTenantID(tenantID string, offset, limit int) ([]*model.ServiceEvent, int, error)
-	GetEventsByTenantIDs(tenantID []string, offset, limit int) ([]*model.ServiceEvent, int, error)
+	GetEventsByTenantIDs(tenantID []string, offset, limit int) ([]*model.EventAndBuild, error)
 	GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error)
 	UnfinishedEvents(target, targetID string, optTypes ...string) ([]*model.ServiceEvent, error)
 	LatestFailurePodEvent(podName string) (*model.ServiceEvent, error)
 	UpdateReason(eventID string, reason string) error
 	SetEventStatus(ctx context.Context, status model.EventStatus) error
 	UpdateInBatch(events []*model.ServiceEvent) error
-	UpdateBuildVersion(eventID, deployVersion string) error
 }
 
 //VersionInfoDao VersionInfoDao
@@ -638,7 +637,7 @@ type ComponentK8sAttributeDao interface {
 type K8sResourceDao interface {
 	Dao
 	ListByAppID(appID string) ([]model.K8sResource, error)
-	CreateK8sResourceInBatch(k8sResources []*model.K8sResource) error
-	DeleteK8sResourceInBatch(appID, name string, kind string) error
-	GetK8sResourceByNameInBatch(appID, name, kind string) ([]model.K8sResource, error)
+	CreateK8sResource(k8sResources []*model.K8sResource) error
+	DeleteK8sResource(appID, name string, kind string) error
+	GetK8sResourceByName(appID, name, kind string) (model.K8sResource, error)
 }

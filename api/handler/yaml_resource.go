@@ -108,13 +108,13 @@ func (c *clusterAction) AppYamlResourceName(yamlResource api_model.YamlResource)
 }
 
 //AppYamlResourceDetailed -
-func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResource, yamlImport bool, Yaml string) (api_model.ApplicationResource, *util.APIHandleError) {
+func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResource, yamlImport bool) (api_model.ApplicationResource, *util.APIHandleError) {
 	logrus.Infof("AppYamlResourceDetailed begin")
 	source := api_model.YamlSourceFile
-	if Yaml != "" {
+	if yamlResource.Yaml != "" {
 		source = api_model.YamlSourceHelm
 	}
-	k8sResourceObjects := c.YamlToResource(yamlResource, source, Yaml)
+	k8sResourceObjects := c.YamlToResource(yamlResource, source, yamlResource.Yaml)
 	var K8SResource []dbmodel.K8sResource
 	var ConvertResource []api_model.ConvertResource
 	for _, k8sResourceObject := range k8sResourceObjects {

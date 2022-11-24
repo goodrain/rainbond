@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -296,6 +297,11 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	var sourceTarFileName string
 	if re.ServerType != "oss" && re.ServerType != "pkg" {
 		var err error
+		// handle nodejs or static dir
+		if err := s.HandleNodeJsDir(re); err != nil {
+			logrus.Error("handle nodejs code error:", err)
+			return err
+		}
 		sourceTarFileName, err = s.getSourceCodeTarFile(re)
 		if err != nil {
 			return fmt.Errorf("create source code tar file error:%s", err.Error())
@@ -514,4 +520,55 @@ type ErrorBuild struct {
 
 func (e *ErrorBuild) Error() string {
 	return fmt.Sprintf("Run build return %d", e.Code)
+}
+
+func (s *slugBuild) HandleNodeJsDir(re *Request) error {
+	if re.Lang == code.NodeJSStatic {
+		if ok, _ := util.FileExists(path.Join(re.SourceDir, "nodestatic.json")); !ok {
+			filePtr, err := os.Create(path.Join(re.SourceDir, "nodestatic.json"))
+			if err != nil {
+				logrus.Error("create nodestatic json error:", err)
+				return err
+			}
+			defer filePtr.Close()
+			_, err = io.WriteString(filePtr, "{\"path\":\"dist\"}")
+			if err != nil {
+				logrus.Error("write nodestatic json error:", err)
+				return err
+			}
+		}
+	}
+	if re.BuildEnvs["PACKAGE_TOOL"] == "yarn" {
+		if ok, _ := util.FileExists(path.Join(re.SourceDir, "yarn.lock")); !ok {
+			filePtr, err := os.Create(path.Join(re.SourceDir, "yarn.lock"))
+			if err != nil {
+				logrus.Error("create nodestatic json error:", err)
+				return err
+			}
+			defer filePtr.Close()
+		}
+		if ok, _ := util.FileExists(path.Join(re.SourceDir, "package-lock.json")); ok {
+			if err := os.RemoveAll(path.Join(re.SourceDir, "package-lock.json")); err != nil {
+				logrus.Error("remove package-lock json error:", err)
+				return err
+			}
+		}
+	}
+	if re.BuildEnvs["PACKAGE_TOOL"] == "npm" {
+		if ok, _ := util.FileExists(path.Join(re.SourceDir, "package-lock.json")); !ok {
+			filePtr, err := os.Create(path.Join(re.SourceDir, "package-lock.json"))
+			if err != nil {
+				logrus.Error("create package-lock json error:", err)
+				return err
+			}
+			defer filePtr.Close()
+		}
+		if ok, _ := util.FileExists(path.Join(re.SourceDir, "yarn.lock")); ok {
+			if err := os.RemoveAll(path.Join(re.SourceDir, "yarn.lock")); err != nil {
+				logrus.Error("remove yarn.lock error:", err)
+				return err
+			}
+		}
+	}
+	return nil
 }

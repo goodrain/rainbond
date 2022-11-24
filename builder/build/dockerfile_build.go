@@ -114,7 +114,7 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 		Image:     re.KanikoImage,
 		Stdin:     true,
 		StdinOnce: true,
-		Args:      []string{"--context=dir:///workspace", fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify"},
+		Args:      []string{fmt.Sprintf("--context=%v", re.SourceDir), fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify"},
 	}
 	container.VolumeMounts = mounts
 	podSpec.Containers = append(podSpec.Containers, container)
@@ -138,18 +138,27 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 }
 
 func (d *dockerfileBuild) createVolumeAndMount(re *Request) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
-	hostPathType := corev1.HostPathDirectoryOrCreate
 	hostsFilePathType := corev1.HostPathFile
-	volumes = []corev1.Volume{
-		{
-			Name: "dockerfile-build",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: re.SourceDir,
-					Type: &hostPathType,
-				},
+	dockerfileBuildVolume := corev1.Volume{
+		Name: "dockerfile-build",
+		VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: re.CachePVCName,
+				ReadOnly:  false,
 			},
 		},
+	}
+	if re.CacheMode == "hostpath" {
+		hostPathType := corev1.HostPathDirectoryOrCreate
+		dockerfileBuildVolume.VolumeSource = corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/cache",
+				Type: &hostPathType,
+			},
+		}
+	}
+	volumes = []corev1.Volume{
+		dockerfileBuildVolume,
 		{
 			Name: "kaniko-secret",
 			VolumeSource: corev1.VolumeSource{
@@ -177,7 +186,7 @@ func (d *dockerfileBuild) createVolumeAndMount(re *Request) (volumes []corev1.Vo
 	volumeMounts = []corev1.VolumeMount{
 		{
 			Name:      "dockerfile-build",
-			MountPath: "/workspace",
+			MountPath: "/cache",
 		},
 		{
 			Name:      "kaniko-secret",
