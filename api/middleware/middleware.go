@@ -66,6 +66,7 @@ func InitTenant(next http.Handler) http.Handler {
 			httputil.ReturnError(r, w, 500, "get assign tenant uuid failed")
 			return
 		}
+
 		ctx := context.WithValue(r.Context(), ctxutil.ContextKey("tenant_name"), tenantName)
 		ctx = context.WithValue(ctx, ctxutil.ContextKey("tenant_id"), tenant.UUID)
 		ctx = context.WithValue(ctx, ctxutil.ContextKey("tenant"), tenant)
@@ -238,13 +239,11 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 	return func(w http.ResponseWriter, r *http.Request) {
 		var (
 			serviceKind  string
-			buildVersion string
 		)
 		serviceObj := r.Context().Value(ctxutil.ContextKey("service"))
 		if serviceObj != nil {
 			service := serviceObj.(*dbmodel.TenantServices)
 			serviceKind = service.Kind
-			buildVersion = service.DeployVersion
 		}
 
 		if r.Method != "GET" {
@@ -291,7 +290,7 @@ func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.Handle
 			tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 			var ctx context.Context
 
-			event, err := util.CreateEvent(target, optType, targetID, tenantID, string(body), operator, buildVersion, synType)
+			event, err := util.CreateEvent(target, optType, targetID, tenantID, string(body), operator, synType)
 			if err != nil {
 				logrus.Error("create event error : ", err)
 				httputil.ReturnError(r, w, 500, "操作失败")

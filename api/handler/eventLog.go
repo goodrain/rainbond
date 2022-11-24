@@ -61,12 +61,12 @@ func (l *LogAction) GetEvents(target, targetID string, page, size int) ([]*dbmod
 	return db.GetManager().ServiceEventDao().GetEventsByTarget(target, targetID, (page-1)*size, size)
 }
 
-// GetEvents get target logs
-func (l *LogAction) GetMyTeamsEvents(target string, targetIDs []string, page, size int) ([]*dbmodel.ServiceEvent, int, error) {
+// GetMyTeamsEvents get my team events
+func (l *LogAction) GetMyTeamsEvents(target string, tenantIDs []string, page, size int) ([]*dbmodel.EventAndBuild, error) {
 	if target == "tenant" {
-		return db.GetManager().ServiceEventDao().GetEventsByTenantIDs(targetIDs, (page-1)*size, size)
+		return db.GetManager().ServiceEventDao().GetEventsByTenantIDs(tenantIDs, (page-1)*size, size)
 	}
-	return nil, 0, nil
+	return nil, nil
 }
 
 //GetLogList get log list

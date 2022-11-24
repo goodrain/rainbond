@@ -93,7 +93,6 @@ type ServiceEvent struct {
 	FinalStatus  string `gorm:"column:final_status;size:40"`
 	Message      string `gorm:"column:message"`
 	Reason       string `gorm:"column:reason"`
-	BuildVersion string `gorm:"column:build_version;size:40" json:"build_version"`
 }
 
 //TableName 表名
@@ -125,4 +124,33 @@ type NotificationEvent struct {
 //TableName table name
 func (n *NotificationEvent) TableName() string {
 	return "region_notification_event"
+}
+
+// EventAndBuild -
+type EventAndBuild struct {
+	CreateTime       string `json:"create_time" `
+	TenantID         string `json:"tenant_id"`
+	Target           string `json:"target"`
+	TargetID         string `json:"target_id"`
+	UserName         string `json:"user_name"`
+	StartTime        string `json:"start_time"`
+	EndTime          string `json:"end_time"`
+	OptType          string `json:"opt_type"`
+	SynType          string `json:"syn_type"`
+	Status           string `json:"status"`
+	FinalStatus      string `json:"final_status"`
+	Message          string `json:"message"`
+	Reason           string `json:"reason"`
+	BuildVersion     string `json:"build_version"`
+	Kind             string `json:"kind"`
+	DeliveredType    string `json:"delivered_type"`
+	DeliveredPath    string `json:"delivered_path"`
+	ImageName        string `json:"image_name"`
+	Cmd              string `json:"cmd"`
+	RepoURL          string `json:"repo_url"`
+	CodeVersion      string `json:"code_version"`
+	CodeBranch       string `json:"code_branch"`
+	CodeCommitMsg    string `json:"code_commit_msg"`
+	CodeCommitAuthor string `json:"code_commit_author"`
+	PlanVersion      string `json:"plan_version"`
 }

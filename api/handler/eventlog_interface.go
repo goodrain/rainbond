@@ -31,5 +31,5 @@ type EventHandler interface {
 	GetLevelLog(eventID string, level string) (*api_model.DataLog, error)
 	GetLogFile(serviceAlias, fileName string) (string, string, error)
 	GetEvents(target, targetID string, page, size int) ([]*dbmodel.ServiceEvent, int, error)
-	GetMyTeamsEvents(target string, targetIDs []string, page, size int) ([]*dbmodel.ServiceEvent, int, error)
+	GetMyTeamsEvents(target string, targetIDs []string, page, size int) ([]*dbmodel.EventAndBuild, error)
 }
