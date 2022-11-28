@@ -37,7 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-//createDefaultDomain create default domain
+// createDefaultDomain create default domain
 func createDefaultDomain(tenantName, serviceAlias string, servicePort int) string {
 	exDomain := os.Getenv("EX_DOMAIN")
 	if exDomain == "" {
@@ -53,7 +53,7 @@ func createDefaultDomain(tenantName, serviceAlias string, servicePort int) strin
 	return fmt.Sprintf("%d.%s.%s.%s", servicePort, serviceAlias, tenantName, exDomain)
 }
 
-//TenantServiceRegist conv inner and outer service regist
+// TenantServiceRegist conv inner and outer service regist
 func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 	builder, err := AppServiceBuilder(as.ServiceID, string(as.ServiceType), dbmanager, as)
 	if err != nil {
@@ -79,11 +79,10 @@ func TenantServiceRegist(as *v1.AppService, dbmanager db.Manager) error {
 		as.SetSecret(sec)
 	}
 
-	logrus.Infof("TenantServiceRegist --------------------%v", as)
 	return nil
 }
 
-//AppServiceBuild has the ability to build k8s service, ingress and secret
+// AppServiceBuild has the ability to build k8s service, ingress and secret
 type AppServiceBuild struct {
 	serviceID, eventID string
 	tenant             *model.Tenants
@@ -93,7 +92,7 @@ type AppServiceBuild struct {
 	dbmanager          db.Manager
 }
 
-//AppServiceBuilder returns a AppServiceBuild
+// AppServiceBuilder returns a AppServiceBuild
 func AppServiceBuilder(serviceID, replicationType string, dbmanager db.Manager, as *v1.AppService) (*AppServiceBuild, error) {
 	service, err := dbmanager.TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
@@ -121,7 +120,7 @@ func AppServiceBuilder(serviceID, replicationType string, dbmanager db.Manager, 
 	}, nil
 }
 
-//Build builds service, ingress and secret for each port
+// Build builds service, ingress and secret for each port
 func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 	ports, err := a.dbmanager.TenantServicesPortDao().GetPortsByServiceID(a.serviceID)
 	if err != nil {
@@ -186,7 +185,6 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 		services, _ = a.CreateUpstreamPluginMappingService(services, pp)
 	}
 
-	logrus.Infof("AppServiceBuild build ingresses %v", ingresses)
 	return &v1.K8sResources{
 		Services:  services,
 		Secrets:   secrets,
@@ -260,21 +258,19 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, containerPort, plu
 	namespace := a.appService.GetNamespace()
 	serviceName := service.Name
 
-	logrus.Infof("applyHTTPRule serviceName %s", serviceName)
-
 	// certificate
 	sec, err = a.createSecret(rule, name, namespace, labels)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	logrus.Infof("applyHTTPRule createSecret %v:", sec)
 	// parse annotations
 	annotations, err := a.parseAnnotations(rule)
 	if err != nil {
 		return nil, nil, err
 	}
-	logrus.Infof("applyHTTPRule annotations %v:", annotations)
+
+	logrus.Debugf("applyHTTPRule serviceName %s, secret %v, annotations %v", serviceName, sec, annotations)
 
 	if k8s.IsHighVersion() {
 		ntwIngress := createNtwIngress(domain, path, name, namespace, serviceName, labels, pluginContainerPort)
@@ -287,7 +283,6 @@ func (a *AppServiceBuild) applyHTTPRule(rule *model.HTTPRule, containerPort, plu
 			}
 		}
 		ntwIngress.SetAnnotations(annotations)
-		logrus.Infof("applyHTTPRule ntwIngress: %v", ntwIngress)
 		return ntwIngress, sec, nil
 	}
 
@@ -346,7 +341,7 @@ func (a *AppServiceBuild) applyTCPRule(rule *model.TCPRule, service *corev1.Serv
 	return betaIngress, nil
 }
 
-//CreateUpstreamPluginMappingPort 检查是否存在upstream插件，接管入口网络
+// CreateUpstreamPluginMappingPort 检查是否存在upstream插件，接管入口网络
 func (a *AppServiceBuild) CreateUpstreamPluginMappingPort(
 	ports []*model.TenantServicesPort,
 	pluginPorts []*model.TenantServicesStreamPluginPort,
@@ -369,7 +364,7 @@ func (a *AppServiceBuild) CreateUpstreamPluginMappingPort(
 	return ports, pp, nil
 }
 
-//CreateUpstreamPluginMappingService 增加service plugin mapport 标签
+// CreateUpstreamPluginMappingService 增加service plugin mapport 标签
 func (a *AppServiceBuild) CreateUpstreamPluginMappingService(services []*corev1.Service,
 	pp map[int32]int) ([]*corev1.Service, error) {
 	for _, service := range services {
@@ -382,7 +377,7 @@ func (a *AppServiceBuild) CreateUpstreamPluginMappingService(services []*corev1.
 	return services, nil
 }
 
-//BuildOnPort 指定端口创建Service
+// BuildOnPort 指定端口创建Service
 func (a *AppServiceBuild) BuildOnPort(p int, isOut bool) (*corev1.Service, error) {
 	port, err := a.dbmanager.TenantServicesPortDao().GetPort(a.serviceID, p)
 	if err != nil {
@@ -399,7 +394,7 @@ func (a *AppServiceBuild) BuildOnPort(p int, isOut bool) (*corev1.Service, error
 	return nil, fmt.Errorf("tenant service port %d is not exist", p)
 }
 
-//createServiceAnnotations create service annotation
+// createServiceAnnotations create service annotation
 func (a *AppServiceBuild) createServiceAnnotations() map[string]string {
 	var annotations = make(map[string]string)
 	if a.service.Replicas <= 1 {
@@ -623,7 +618,6 @@ func createIngressMeta(name, namespace string, labels map[string]string) metav1.
 }
 
 func createNtwIngress(domain, path, name, namespace, serviceName string, labels map[string]string, pluginContainerPort int) *networkingv1.Ingress {
-	logrus.Infof("start create networking ingress,serviceName is %s", serviceName)
 	return &networkingv1.Ingress{
 		ObjectMeta: createIngressMeta(name, namespace, labels),
 		Spec: networkingv1.IngressSpec{

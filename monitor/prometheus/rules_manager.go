@@ -9,18 +9,18 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-//AlertingRulesConfig alerting rule config
+// AlertingRulesConfig alerting rule config
 type AlertingRulesConfig struct {
 	Groups []*AlertingNameConfig `yaml:"groups" json:"groups"`
 }
 
-//AlertingNameConfig alerting config
+// AlertingNameConfig alerting config
 type AlertingNameConfig struct {
 	Name  string         `yaml:"name" json:"name"`
 	Rules []*RulesConfig `yaml:"rules" json:"rules"`
 }
 
-//RulesConfig rule config
+// RulesConfig rule config
 type RulesConfig struct {
 	Alert       string            `yaml:"alert" json:"alert"`
 	Expr        string            `yaml:"expr" json:"expr"`
@@ -29,13 +29,13 @@ type RulesConfig struct {
 	Annotations map[string]string `yaml:"annotations" json:"annotations"`
 }
 
-//AlertingRulesManager alerting rule manage
+// AlertingRulesManager alerting rule manage
 type AlertingRulesManager struct {
 	RulesConfig *AlertingRulesConfig
 	config      *option.Config
 }
 
-//NewRulesManager new rule manager
+// NewRulesManager new rule manager
 func NewRulesManager(config *option.Config) *AlertingRulesManager {
 	region := os.Getenv("REGION_NAME")
 	if region == "" {
@@ -147,7 +147,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Alert:  "WorkerDown",
 							Expr:   "absent(worker_exporter_health_status) or worker_exporter_health_status==0",
 							For:    "5m",
-							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "false"}),
 							Annotations: map[string]string{
 								"description": "rbd-worker组件 {{ $labels.instance }} 出现故障",
 								"summary":     "rbd-worker组件故障",
@@ -157,7 +157,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Alert:  "WorkerUnhealthy",
 							Expr:   "app_resource_exporter_health_status == 0",
 							For:    "5m",
-							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
+							Labels: getCommonLabels(map[string]string{"PageAlarm": "false"}),
 							Annotations: map[string]string{
 								"summary":     "rbd-worker组件不健康",
 								"description": "rbd-worker组件 {{ $labels.instance }} 不健康",
@@ -464,7 +464,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 	return a
 }
 
-//LoadAlertingRulesConfig load alerting rule config
+// LoadAlertingRulesConfig load alerting rule config
 func (a *AlertingRulesManager) LoadAlertingRulesConfig() error {
 	logrus.Info("Load AlertingRules config file.")
 	content, err := ioutil.ReadFile(a.config.AlertingRulesFile)
@@ -482,7 +482,7 @@ func (a *AlertingRulesManager) LoadAlertingRulesConfig() error {
 	return nil
 }
 
-//SaveAlertingRulesConfig save alerting rule config
+// SaveAlertingRulesConfig save alerting rule config
 func (a *AlertingRulesManager) SaveAlertingRulesConfig() error {
 	logrus.Info("Save alerting rules config file.")
 
@@ -501,14 +501,14 @@ func (a *AlertingRulesManager) SaveAlertingRulesConfig() error {
 	return nil
 }
 
-//AddRules add rule
+// AddRules add rule
 func (a *AlertingRulesManager) AddRules(val AlertingNameConfig) error {
 	group := a.RulesConfig.Groups
 	group = append(group, &val)
 	return nil
 }
 
-//InitRulesConfig init rule config
+// InitRulesConfig init rule config
 func (a *AlertingRulesManager) InitRulesConfig() {
 	_, err := os.Stat(a.config.AlertingRulesFile) //os.Stat获取文件信息
 	if err != nil {
