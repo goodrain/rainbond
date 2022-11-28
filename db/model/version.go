@@ -30,8 +30,8 @@ import (
 type VersionInfo struct {
 	Model
 	BuildVersion string `gorm:"column:build_version;size:40" json:"build_version"` //唯一
-	EventID      string `gorm:"column:event_id;size:40" json:"event_id"`
-	ServiceID    string `gorm:"column:service_id;size:40" json:"service_id"`
+	EventID      string `gorm:"column:event_id;size:40;index:event_id" json:"event_id"`
+	ServiceID    string `gorm:"column:service_id;size:40;index:service_id" json:"service_id"`
 	Kind         string `gorm:"column:kind;size:40" json:"kind"` //kind
 	//DeliveredType app version delivered type
 	//image: this is a docker image
