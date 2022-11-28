@@ -78,7 +78,7 @@ var EventStatusFailure EventStatus = "failure"
 //ServiceEvent event struct
 type ServiceEvent struct {
 	Model
-	EventID      string `gorm:"column:event_id;size:40"`
+	EventID      string `gorm:"column:event_id;size:40;index:event_id"`
 	TenantID     string `gorm:"column:tenant_id;size:40;index:tenant_id"`
 	ServiceID    string `gorm:"column:service_id;size:40;index:service_id"`
 	Target       string `gorm:"column:target;size:40"`
