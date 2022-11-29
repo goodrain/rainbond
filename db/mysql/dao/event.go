@@ -68,6 +68,7 @@ func (c *EventDaoImpl) CreateEventsInBatch(events []*model.ServiceEvent) error {
 	dbType := c.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, event := range events {
+			event := event
 			if err := c.DB.Create(&event).Error; err != nil {
 				logrus.Error("batch create or update events error:", err)
 				return err
@@ -117,7 +118,7 @@ func (c *EventDaoImpl) UpdateInBatch(events []*model.ServiceEvent) error {
 	dbType := c.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, event := range events {
-			if err := c.DB.Update(&event).Error; err != nil {
+			if err := c.DB.Model(&event).Where("ID = ?", event.ID).Update(event).Error; err != nil {
 				logrus.Error("batch Update or update events error:", err)
 				return err
 			}

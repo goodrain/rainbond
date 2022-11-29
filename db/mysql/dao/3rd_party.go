@@ -154,9 +154,16 @@ func (t *ThirdPartySvcDiscoveryCfgDaoImpl) CreateOrUpdate3rdSvcDiscoveryCfgInBat
 	dbType := t.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, cfg := range cfgs {
-			if err := t.DB.Create(&cfg).Error; err != nil {
-				logrus.Error("batch create or update cfgs error:", err)
-				return err
+			if ok := t.DB.Where("ID=? ", cfg.ID).Find(&cfg).RecordNotFound(); !ok {
+				if err := t.DB.Model(&cfg).Where("ID = ?", cfg.ID).Update(cfg).Error; err != nil {
+					logrus.Error("batch Update or update cfg error:", err)
+					return err
+				}
+			} else {
+				if err := t.DB.Create(&cfg).Error; err != nil {
+					logrus.Error("batch create cfg error:", err)
+					return err
+				}
 			}
 		}
 		return nil

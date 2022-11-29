@@ -154,9 +154,16 @@ func (c *RuleExtensionDaoImpl) CreateOrUpdateRuleExtensionsInBatch(exts []*model
 	dbType := c.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, ext := range exts {
-			if err := c.DB.Create(&ext).Error; err != nil {
-				logrus.Error("batch Update or update exts error:", err)
-				return err
+			if ok := c.DB.Where("ID=? ", ext.ID).Find(&ext).RecordNotFound(); !ok {
+				if err := c.DB.Model(&ext).Where("ID = ?", ext.ID).Update(ext).Error; err != nil {
+					logrus.Error("batch Update or update ext error:", err)
+					return err
+				}
+			} else {
+				if err := c.DB.Create(&ext).Error; err != nil {
+					logrus.Error("batch create ext error:", err)
+					return err
+				}
 			}
 		}
 		return nil
@@ -306,10 +313,17 @@ func (h *HTTPRuleDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
 func (h *HTTPRuleDaoImpl) CreateOrUpdateHTTPRuleInBatch(httpRules []*model.HTTPRule) error {
 	dbType := h.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
-		for _, ext := range httpRules {
-			if err := h.DB.Create(&ext).Error; err != nil {
-				logrus.Error("batch Update or update httpRules error:", err)
-				return err
+		for _, httpRule := range httpRules {
+			if ok := h.DB.Where("ID=? ", httpRule.ID).Find(&httpRule).RecordNotFound(); !ok {
+				if err := h.DB.Model(&httpRule).Where("ID = ?", httpRule.ID).Update(httpRule).Error; err != nil {
+					logrus.Error("batch Update or update httpRule error:", err)
+					return err
+				}
+			} else {
+				if err := h.DB.Create(&httpRule).Error; err != nil {
+					logrus.Error("batch create httpRule error:", err)
+					return err
+				}
 			}
 		}
 		return nil
@@ -364,10 +378,17 @@ func (h *HTTPRuleRewriteDaoTmpl) UpdateModel(mo model.Interface) error {
 func (h *HTTPRuleRewriteDaoTmpl) CreateOrUpdateHTTPRuleRewriteInBatch(httpRuleRewrites []*model.HTTPRuleRewrite) error {
 	dbType := h.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
-		for _, httpRuleRewrites := range httpRuleRewrites {
-			if err := h.DB.Create(&httpRuleRewrites).Error; err != nil {
-				logrus.Error("batch Update or update httpRules error:", err)
-				return err
+		for _, httpRuleRewrite := range httpRuleRewrites {
+			if ok := h.DB.Where("ID=? ", httpRuleRewrite.ID).Find(&httpRuleRewrite).RecordNotFound(); !ok {
+				if err := h.DB.Model(&httpRuleRewrite).Where("ID = ?", httpRuleRewrite.ID).Update(httpRuleRewrite).Error; err != nil {
+					logrus.Error("batch Update or update httpRuleRewrite error:", err)
+					return err
+				}
+			} else {
+				if err := h.DB.Create(&httpRuleRewrite).Error; err != nil {
+					logrus.Error("batch create httpRuleRewrite error:", err)
+					return err
+				}
 			}
 		}
 		return nil
@@ -531,9 +552,16 @@ func (t *TCPRuleDaoTmpl) CreateOrUpdateTCPRuleInBatch(tcpRules []*model.TCPRule)
 	dbType := t.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, tcpRule := range tcpRules {
-			if err := t.DB.Create(&tcpRule).Error; err != nil {
-				logrus.Error("batch Update or update tcpRules error:", err)
-				return err
+			if ok := t.DB.Where("ID=? ", tcpRule.ID).Find(&tcpRule).RecordNotFound(); !ok {
+				if err := t.DB.Model(&tcpRule).Where("ID = ?", tcpRule.ID).Update(tcpRule).Error; err != nil {
+					logrus.Error("batch Update or update tcpRule error:", err)
+					return err
+				}
+			} else {
+				if err := t.DB.Create(&tcpRule).Error; err != nil {
+					logrus.Error("batch create tcpRule error:", err)
+					return err
+				}
 			}
 		}
 		return nil
@@ -601,9 +629,16 @@ func (t *GwRuleConfigDaoImpl) CreateOrUpdateGwRuleConfigsInBatch(ruleConfigs []*
 	dbType := t.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, ruleConfig := range ruleConfigs {
-			if err := t.DB.Create(&ruleConfig).Error; err != nil {
-				logrus.Error("batch Update or update ruleConfigs error:", err)
-				return err
+			if ok := t.DB.Where("ID=? ", ruleConfig.ID).Find(&ruleConfig).RecordNotFound(); !ok {
+				if err := t.DB.Model(&ruleConfig).Where("ID = ?", ruleConfig.ID).Update(ruleConfig).Error; err != nil {
+					logrus.Error("batch Update or update ruleConfig error:", err)
+					return err
+				}
+			} else {
+				if err := t.DB.Create(&ruleConfig).Error; err != nil {
+					logrus.Error("batch create ruleConfig error:", err)
+					return err
+				}
 			}
 		}
 		return nil
