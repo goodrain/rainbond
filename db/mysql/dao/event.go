@@ -215,13 +215,15 @@ func (c *EventDaoImpl) GetEventsByTenantID(tenantID string, offset, limit int) (
 // GetEventsByTenantIDs get my teams all event by tenantIDs
 func (c *EventDaoImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit int) ([]*model.EventAndBuild, error) {
 	var EventAndBuild []*model.EventAndBuild
-	if err := c.DB.Debug().Raw("select a.create_time, a.tenant_id, a.target, a.target_id, a.user_name, a.start_time, a.end_time, a.opt_type, a.syn_type, a.status, a.final_status, a.message, a.reason "+
+	if err := c.DB.Raw("select a.create_time, a.tenant_id, a.target, a.target_id, a.user_name, a.start_time, a.end_time, a.opt_type, a.syn_type, a.status, a.final_status, a.message, a.reason "+
 		"build_version, kind, delivered_type, delivered_path, image_name, cmd, repo_url, code_version, code_branch, code_commit_msg, code_commit_author, plan_version "+
-		"from tenant_service_version right join"+
+		"from "+
 		"(select create_time, tenant_id, target, target_id, user_name, start_time, end_time, opt_type, syn_type, status, final_status, message, reason, event_id "+
 		"from tenant_services_event "+
 		"where target = 'service' "+
 		"and tenant_id in (?)) as a "+
+		"left join "+
+		"tenant_service_version "+
 		"on a.target_id = tenant_service_version.service_id and a.event_id = tenant_service_version.event_id", tenantIDs).Order("start_time DESC").Offset(offset).Limit(limit).Scan(&EventAndBuild).Error; err != nil {
 		return nil, err
 	}
