@@ -63,9 +63,16 @@ func (t *TenantServiceMonitorDaoImpl) CreateOrUpdateMonitorInBatch(monitors []*m
 	dbType := t.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, monitor := range monitors {
-			if err := t.DB.Create(&monitor).Error; err != nil {
-				logrus.Error("batch Update or update monitors error:", err)
-				return err
+			if ok := t.DB.Where("ID=?", monitor.ID).Find(&monitor).RecordNotFound(); !ok {
+				if err := t.DB.Model(&monitor).Where("ID = ?", monitor.ID).Update(monitor).Error; err != nil {
+					logrus.Error("batch Update or update monitor error:", err)
+					return err
+				}
+			} else {
+				if err := t.DB.Create(&monitor).Error; err != nil {
+					logrus.Error("batch create monitor error:", err)
+					return err
+				}
 			}
 		}
 		return nil

@@ -126,9 +126,16 @@ func (t *ServiceProbeDaoImpl) CreateOrUpdateProbesInBatch(probes []*model.Tenant
 	dbType := t.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, probe := range probes {
-			if err := t.DB.Create(&probe).Error; err != nil {
-				logrus.Error("batch Update or update probes error:", err)
-				return err
+			if ok := t.DB.Where("ID=? ", probe.ID).Find(&probe).RecordNotFound(); !ok {
+				if err := t.DB.Model(&probe).Where("ID = ?", probe.ID).Update(probe).Error; err != nil {
+					logrus.Error("batch Update or update probe error:", err)
+					return err
+				}
+			} else {
+				if err := t.DB.Create(&probe).Error; err != nil {
+					logrus.Error("batch create probe error:", err)
+					return err
+				}
 			}
 		}
 		return nil

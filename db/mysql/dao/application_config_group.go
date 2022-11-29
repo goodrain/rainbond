@@ -82,10 +82,17 @@ func (a *AppConfigGroupDaoImpl) DeleteByAppID(appID string) error {
 func (a *AppConfigGroupDaoImpl) CreateOrUpdateConfigGroupsInBatch(cgroups []*model.ApplicationConfigGroup) error {
 	dbType := a.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
-		for _, cg := range cgroups {
-			if err := a.DB.Create(&cg).Error; err != nil {
-				logrus.Error("batch create or update cgroups error:", err)
-				return err
+		for _, cgroup := range cgroups {
+			if ok := a.DB.Where("ID=? ", cgroup.ID).Find(&cgroup).RecordNotFound(); !ok {
+				if err := a.DB.Model(&cgroup).Where("ID = ?", cgroup.ID).Update(cgroup).Error; err != nil {
+					logrus.Error("batch Update or update cgroup error:", err)
+					return err
+				}
+			} else {
+				if err := a.DB.Create(&cgroup).Error; err != nil {
+					logrus.Error("batch create cgroup error:", err)
+					return err
+				}
 			}
 		}
 		return nil
@@ -156,10 +163,17 @@ func (a *AppConfigGroupServiceDaoImpl) DeleteByAppID(appID string) error {
 func (a *AppConfigGroupServiceDaoImpl) CreateOrUpdateConfigGroupServicesInBatch(cgservices []*model.ConfigGroupService) error {
 	dbType := a.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
-		for _, cgs := range cgservices {
-			if err := a.DB.Create(&cgs).Error; err != nil {
-				logrus.Error("batch create or update cgservices error:", err)
-				return err
+		for _, cgservice := range cgservices {
+			if ok := a.DB.Where("ID=? ", cgservice.ID).Find(&cgservice).RecordNotFound(); !ok {
+				if err := a.DB.Model(&cgservice).Where("ID = ?", cgservice.ID).Update(cgservice).Error; err != nil {
+					logrus.Error("batch Update or update cgservice error:", err)
+					return err
+				}
+			} else {
+				if err := a.DB.Create(&cgservice).Error; err != nil {
+					logrus.Error("batch create cgservice error:", err)
+					return err
+				}
 			}
 		}
 		return nil
@@ -233,10 +247,17 @@ func (a *AppConfigGroupItemDaoImpl) DeleteByAppID(appID string) error {
 func (a *AppConfigGroupItemDaoImpl) CreateOrUpdateConfigGroupItemsInBatch(cgitems []*model.ConfigGroupItem) error {
 	dbType := a.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
-		for _, cgi := range cgitems {
-			if err := a.DB.Create(&cgi).Error; err != nil {
-				logrus.Error("batch create or update cgservices error:", err)
-				return err
+		for _, cgitem := range cgitems {
+			if ok := a.DB.Where("ID=? ", cgitem.ID).Find(&cgitem).RecordNotFound(); !ok {
+				if err := a.DB.Model(&cgitem).Where("ID = ?", cgitem.ID).Update(cgitem).Error; err != nil {
+					logrus.Error("batch Update or update cgitem error:", err)
+					return err
+				}
+			} else {
+				if err := a.DB.Create(&cgitem).Error; err != nil {
+					logrus.Error("batch create cgitem error:", err)
+					return err
+				}
 			}
 		}
 		return nil

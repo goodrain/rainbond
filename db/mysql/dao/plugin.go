@@ -111,9 +111,16 @@ func (t *PluginDaoImpl) CreateOrUpdatePluginsInBatch(plugins []*model.TenantPlug
 	dbType := t.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, plugin := range plugins {
-			if err := t.DB.Create(&plugin).Error; err != nil {
-				logrus.Error("batch create or update plugin error:", err)
-				return err
+			if ok := t.DB.Where("ID=? ", plugin.ID).Find(&plugin).RecordNotFound(); !ok {
+				if err := t.DB.Model(&plugin).Where("ID = ?", plugin.ID).Update(plugin).Error; err != nil {
+					logrus.Error("batch Update or update plugin error:", err)
+					return err
+				}
+			} else {
+				if err := t.DB.Create(&plugin).Error; err != nil {
+					logrus.Error("batch create plugin error:", err)
+					return err
+				}
 			}
 		}
 		return nil
@@ -336,10 +343,17 @@ func (t *PluginBuildVersionDaoImpl) GetLastBuildVersionByVersionID(pluginID, ver
 func (t *PluginBuildVersionDaoImpl) CreateOrUpdatePluginBuildVersionsInBatch(buildVersions []*model.TenantPluginBuildVersion) error {
 	dbType := t.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
-		for _, version := range buildVersions {
-			if err := t.DB.Create(&version).Error; err != nil {
-				logrus.Error("batch create or update buildVersions error:", err)
-				return err
+		for _, buildVersion := range buildVersions {
+			if ok := t.DB.Where("ID=? ", buildVersion.ID).Find(&buildVersion).RecordNotFound(); !ok {
+				if err := t.DB.Model(&buildVersion).Where("ID = ?", buildVersion.ID).Update(buildVersion).Error; err != nil {
+					logrus.Error("batch Update or update buildVersion error:", err)
+					return err
+				}
+			} else {
+				if err := t.DB.Create(&buildVersion).Error; err != nil {
+					logrus.Error("batch create buildVersion error:", err)
+					return err
+				}
 			}
 		}
 		return nil
@@ -451,10 +465,17 @@ func (t *PluginVersionEnvDaoImpl) DeleteByComponentIDs(componentIDs []string) er
 func (t *PluginVersionEnvDaoImpl) CreateOrUpdatePluginVersionEnvsInBatch(versionEnvs []*model.TenantPluginVersionEnv) error {
 	dbType := t.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
-		for _, env := range versionEnvs {
-			if err := t.DB.Create(&env).Error; err != nil {
-				logrus.Error("batch create or update versionEnvs error:", err)
-				return err
+		for _, versionEnv := range versionEnvs {
+			if ok := t.DB.Where("ID=? ", versionEnv.ID).Find(&versionEnv).RecordNotFound(); !ok {
+				if err := t.DB.Model(&versionEnv).Where("ID = ?", versionEnv.ID).Update(versionEnv).Error; err != nil {
+					logrus.Error("batch Update or update versionEnv error:", err)
+					return err
+				}
+			} else {
+				if err := t.DB.Create(&versionEnv).Error; err != nil {
+					logrus.Error("batch create versionEnv error:", err)
+					return err
+				}
 			}
 		}
 		return nil
@@ -547,10 +568,17 @@ func (t *PluginVersionConfigDaoImpl) DeleteByComponentIDs(componentIDs []string)
 func (t *PluginVersionConfigDaoImpl) CreateOrUpdatePluginVersionConfigsInBatch(versionConfigs []*model.TenantPluginVersionDiscoverConfig) error {
 	dbType := t.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
-		for _, config := range versionConfigs {
-			if err := t.DB.Create(&config).Error; err != nil {
-				logrus.Error("batch create or update versionConfigs error:", err)
-				return err
+		for _, versionConfig := range versionConfigs {
+			if ok := t.DB.Where("ID=? ", versionConfig.ID).Find(&versionConfig).RecordNotFound(); !ok {
+				if err := t.DB.Model(&versionConfig).Where("ID = ?", versionConfig.ID).Update(versionConfig).Error; err != nil {
+					logrus.Error("batch Update or update versionConfig error:", err)
+					return err
+				}
+			} else {
+				if err := t.DB.Create(&versionConfig).Error; err != nil {
+					logrus.Error("batch create versionConfig error:", err)
+					return err
+				}
 			}
 		}
 		return nil
@@ -679,9 +707,16 @@ func (t *TenantServicePluginRelationDaoImpl) CreateOrUpdatePluginRelsInBatch(rel
 	dbType := t.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
 		for _, relation := range relations {
-			if err := t.DB.Create(&relation).Error; err != nil {
-				logrus.Error("batch create or update relations error:", err)
-				return err
+			if ok := t.DB.Where("ID=? ", relation.ID).Find(&relation).RecordNotFound(); !ok {
+				if err := t.DB.Model(&relation).Where("ID = ?", relation.ID).Update(relation).Error; err != nil {
+					logrus.Error("batch Update or update relation error:", err)
+					return err
+				}
+			} else {
+				if err := t.DB.Create(&relation).Error; err != nil {
+					logrus.Error("batch create relation error:", err)
+					return err
+				}
 			}
 		}
 		return nil
@@ -866,10 +901,17 @@ func (t *TenantServicesStreamPluginPortDaoImpl) DeleteByComponentIDs(componentID
 func (t *TenantServicesStreamPluginPortDaoImpl) CreateOrUpdateStreamPluginPortsInBatch(spPorts []*model.TenantServicesStreamPluginPort) error {
 	dbType := t.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
-		for _, volRel := range spPorts {
-			if err := t.DB.Create(&volRel).Error; err != nil {
-				logrus.Error("batch create or update spPorts error:", err)
-				return err
+		for _, spPort := range spPorts {
+			if ok := t.DB.Where("ID=? ", spPort.ID).Find(&spPort).RecordNotFound(); !ok {
+				if err := t.DB.Model(&spPort).Where("ID = ?", spPort.ID).Update(spPort).Error; err != nil {
+					logrus.Error("batch Update or update spPort error:", err)
+					return err
+				}
+			} else {
+				if err := t.DB.Create(&spPort).Error; err != nil {
+					logrus.Error("batch create spPort error:", err)
+					return err
+				}
 			}
 		}
 		return nil
