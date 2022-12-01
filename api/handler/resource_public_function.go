@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourceParameter) {
+func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourceParameter, volumeClaimTemplate []corev1.PersistentVolumeClaim) {
 	logrus.Infof("into PodTemplateSpecResource")
 	//Port
 	var ps []model.PortManagement
@@ -167,10 +167,10 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 					} else {
 						mountPath := volumeMount.MountPath
 						for key, val := range cmData {
-							mountPath = path.Join(mountPath, key)
+							volumeMountPath := path.Join(mountPath, key)
 							configs = append(configs, model.ConfigManagement{
 								ConfigName:  key,
-								ConfigPath:  mountPath,
+								ConfigPath:  volumeMountPath,
 								ConfigValue: val,
 								Mode:        int32(mode),
 							})
@@ -420,6 +420,18 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 			AttributeValue: NodeSelectorJSON,
 		}
 		attributes = append(attributes, nodeSelectorAttributes)
+	}
+	if volumeClaimTemplate != nil {
+		volumeClaimTemplateYaml, err := ObjectToJSONORYaml("yaml", volumeClaimTemplate)
+		if err != nil {
+			logrus.Errorf("deployment:%v volumeClaimTemplate %v", parameter.Name, err)
+		}
+		tolerationsAttributes := &dbmodel.ComponentK8sAttributes{
+			Name:           dbmodel.K8sAttributeNameVolumeClaimTemplate,
+			SaveType:       "yaml",
+			AttributeValue: volumeClaimTemplateYaml,
+		}
+		attributes = append(attributes, tolerationsAttributes)
 	}
 	if parameter.Template.Spec.Tolerations != nil {
 		tolerationsYaml, err := ObjectToJSONORYaml("yaml", parameter.Template.Spec.Tolerations)

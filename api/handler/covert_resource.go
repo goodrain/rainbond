@@ -72,7 +72,7 @@ func (c *clusterAction) workloadDeployments(dmNames []string, namespace string) 
 			Name:         dmName,
 			RsLabel:      resources.Labels,
 		}
-		c.PodTemplateSpecResource(parameter)
+		c.PodTemplateSpecResource(parameter, nil)
 	}
 	return componentsCR
 }
@@ -109,7 +109,7 @@ func (c *clusterAction) workloadStateFulSets(stsNames []string, namespace string
 			Name:         stsName,
 			RsLabel:      resources.Labels,
 		}
-		c.PodTemplateSpecResource(parameter)
+		c.PodTemplateSpecResource(parameter, resources.Spec.VolumeClaimTemplates)
 	}
 	return componentsCR
 }
@@ -167,7 +167,7 @@ func (c *clusterAction) workloadJobs(jobNames []string, namespace string) []mode
 			Name:         jobName,
 			RsLabel:      resources.Labels,
 		}
-		c.PodTemplateSpecResource(parameter)
+		c.PodTemplateSpecResource(parameter, nil)
 	}
 	return componentsCR
 }
@@ -225,7 +225,7 @@ func (c *clusterAction) workloadCronJobs(cjNames []string, namespace string) []m
 			Name:         cjName,
 			RsLabel:      resources.Labels,
 		}
-		c.PodTemplateSpecResource(parameter)
+		c.PodTemplateSpecResource(parameter, nil)
 	}
 	return componentsCR
 }

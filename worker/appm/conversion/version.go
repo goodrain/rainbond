@@ -76,7 +76,11 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	labels := createLabels(as, dbmanager)
 	tolerations := createToleration(nodeSelector, as, dbmanager)
 	volumes := getVolumes(dv, as, dbmanager)
-	dnsPolicy := createDnsPolicy(as, dbmanager)
+	dnsPolicy := createDNSPolicy(as, dbmanager)
+	var vct []corev1.PersistentVolumeClaim
+	if as.GetStatefulSet() != nil {
+		vct = getVolumeClaimTemplate(as, dbmanager)
+	}
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      labels,
@@ -122,7 +126,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		},
 	}
 	if dnsPolicy == "None" {
-		podtmpSpec.Spec.DNSConfig = createDnsConfig(as, dbmanager)
+		podtmpSpec.Spec.DNSConfig = createDNSConfig(as, dbmanager)
 	}
 	var terminationGracePeriodSeconds int64 = 10
 	if as.GetDeployment() != nil {
@@ -135,7 +139,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		podtmpSpec.Spec.RestartPolicy = "OnFailure"
 	}
 	//set to deployment or statefulset job or cronjob
-	as.SetPodTemplate(podtmpSpec)
+	as.SetPodTemplate(podtmpSpec, vct)
 	return nil
 }
 
@@ -539,6 +543,18 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, envs []corev
 		define.SetVolume(dbmodel.ShareFileVolumeType, "slug", "/tmp/slug/slug.tgz", version.DeliveredPath, corev1.HostPathFile, true)
 	}
 	return define, nil
+}
+
+func getVolumeClaimTemplate(as *v1.AppService, dbmanager db.Manager) []corev1.PersistentVolumeClaim {
+	logrus.Infof("component getVolumeClaimTemplateYaml")
+	vctAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameVolumeClaimTemplate)
+	var vct []corev1.PersistentVolumeClaim
+	err = yaml.Unmarshal([]byte(vctAttribute.AttributeValue), &vct)
+	if err != nil {
+		logrus.Debug("VolumeClaimTemplate yaml to object error", err)
+		return vct
+	}
+	return vct
 }
 
 func getVolumes(dv *volume.Define, as *v1.AppService, dbmanager db.Manager) []corev1.Volume {
@@ -1007,8 +1023,8 @@ func createShareProcessNamespace(as *v1.AppService, dbmanager db.Manager) bool {
 	return false
 }
 
-func createDnsPolicy(as *v1.AppService, dbmanager db.Manager) (dnsPolicy string) {
-	dns, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameDnsPolicy)
+func createDNSPolicy(as *v1.AppService, dbmanager db.Manager) (dnsPolicy string) {
+	dns, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameDNSPolicy)
 	if err != nil {
 		logrus.Debug("get by DnsPolicy attribute error", err)
 		return ""
@@ -1017,9 +1033,9 @@ func createDnsPolicy(as *v1.AppService, dbmanager db.Manager) (dnsPolicy string)
 	return dns.AttributeValue
 }
 
-func createDnsConfig(as *v1.AppService, dbmanager db.Manager) (podDnsConfig *corev1.PodDNSConfig) {
+func createDNSConfig(as *v1.AppService, dbmanager db.Manager) (podDNSConfig *corev1.PodDNSConfig) {
 	var dnsCfg corev1.PodDNSConfig
-	dnsConfig, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameDnsConfig)
+	dnsConfig, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameDNSConfig)
 	if err != nil {
 		logrus.Debug("get by dnsConfig error", err)
 		return nil
@@ -1034,8 +1050,8 @@ func createDnsConfig(as *v1.AppService, dbmanager db.Manager) (podDnsConfig *cor
 		logrus.Debug("dnsConfig json unmarshal error", err)
 		return nil
 	}
-	podDnsConfig = &dnsCfg
-	return podDnsConfig
+	podDNSConfig = &dnsCfg
+	return podDNSConfig
 }
 
 func createCustomResources(as *v1.AppService, dbmanager db.Manager) *corev1.ResourceRequirements {
@@ -1111,13 +1127,13 @@ func handleResource(resources corev1.ResourceRequirements, customResources *core
 		if haveMemory {
 			resources = *customResources
 		} else {
-			for resourceName, quantity := range resources.Limits{
-				if resourceName == "memory"{
+			for resourceName, quantity := range resources.Limits {
+				if resourceName == "memory" {
 					customResources.Limits["memory"] = quantity
 				}
 			}
-			for resourceName, quantity := range resources.Requests{
-				if resourceName == "memory"{
+			for resourceName, quantity := range resources.Requests {
+				if resourceName == "memory" {
 					customResources.Requests["memory"] = quantity
 				}
 			}

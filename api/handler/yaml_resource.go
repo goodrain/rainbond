@@ -141,7 +141,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 
 		for _, buildResource := range k8sResourceObject.BuildResources {
 			errorOverview := "创建成功"
-			state := 1
+			state := api_model.CreateSuccess
 			switch buildResource.Resource.GetKind() {
 			case api_model.Deployment:
 				deployJSON, _ := json.Marshal(buildResource.Resource)
@@ -172,7 +172,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					HPAs:         hpas,
 					CMs:          cms,
 				}
-				c.PodTemplateSpecResource(parameter)
+				c.PodTemplateSpecResource(parameter, nil)
 			case api_model.Job:
 				jobJSON, _ := json.Marshal(buildResource.Resource)
 				var jobObject batchv1.Job
@@ -202,7 +202,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					HPAs:         hpas,
 					CMs:          cms,
 				}
-				c.PodTemplateSpecResource(parameter)
+				c.PodTemplateSpecResource(parameter, nil)
 			case api_model.CronJob:
 				cjJSON, _ := json.Marshal(buildResource.Resource)
 				var cjObject batchv1.CronJob
@@ -232,7 +232,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					HPAs:         hpas,
 					CMs:          cms,
 				}
-				c.PodTemplateSpecResource(parameter)
+				c.PodTemplateSpecResource(parameter, nil)
 			case api_model.StateFulSet:
 				stsJSON, _ := json.Marshal(buildResource.Resource)
 				var stsObject appv1.StatefulSet
@@ -262,7 +262,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					HPAs:         hpas,
 					CMs:          cms,
 				}
-				c.PodTemplateSpecResource(parameter)
+				c.PodTemplateSpecResource(parameter, stsObject.Spec.VolumeClaimTemplates)
 			default:
 				if yamlImport {
 					resource, err := c.ResourceCreate(buildResource, yamlResource.Namespace)
@@ -276,6 +276,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 				kubernetesResourcesYAML, err := ObjectToJSONORYaml("yaml", buildResource.Resource)
 				if err != nil {
 					logrus.Errorf("namespace:%v %v:%v error: %v", yamlResource.Namespace, buildResource.Resource.GetKind(), buildResource.Resource.GetName(), err)
+					continue
 				}
 				K8SResource = append(K8SResource, dbmodel.K8sResource{
 					Name:          buildResource.Resource.GetName(),
