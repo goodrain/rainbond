@@ -32,7 +32,7 @@ func (c *clusterAction) AppYamlResourceName(yamlResource api_model.YamlResource)
 	logrus.Infof("AppYamlResourceName begin")
 	fileResource := make(map[string]api_model.LabelResource)
 	k8sResourceObjects := c.YamlToResource(yamlResource, api_model.YamlSourceFile, "")
-	var DeployNames, JobNames, CJNames, SFSNames, RoleNames, HPANames, RBNames, SANames, SecretNames, ServiceNames, CMNames, NetworkPolicyNames, IngressNames, PVCNames []string
+	var DeployNames, JobNames, CJNames, STSNames, RoleNames, HPANames, RBNames, SANames, SecretNames, ServiceNames, CMNames, NetworkPolicyNames, IngressNames, PVCNames []string
 	defaultResource := make(map[string][]string)
 	for _, k8sResourceObject := range k8sResourceObjects {
 		if k8sResourceObject.Error != "" {
@@ -50,7 +50,7 @@ func (c *clusterAction) AppYamlResourceName(yamlResource api_model.YamlResource)
 			case api_model.CronJob:
 				CJNames = append(CJNames, buildResource.Resource.GetName())
 			case api_model.StateFulSet:
-				SFSNames = append(SFSNames, buildResource.Resource.GetName())
+				STSNames = append(STSNames, buildResource.Resource.GetName())
 			case api_model.Role:
 				RoleNames = append(RoleNames, buildResource.Resource.GetName())
 			case api_model.HorizontalPodAutoscaler:
@@ -87,7 +87,7 @@ func (c *clusterAction) AppYamlResourceName(yamlResource api_model.YamlResource)
 			Deployments:  DeployNames,
 			Jobs:         JobNames,
 			CronJobs:     CJNames,
-			StateFulSets: SFSNames,
+			StateFulSets: STSNames,
 		},
 		Others: api_model.OtherResource{
 			Services:                 ServiceNames,
@@ -234,31 +234,31 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 				}
 				c.PodTemplateSpecResource(parameter)
 			case api_model.StateFulSet:
-				sfsJSON, _ := json.Marshal(buildResource.Resource)
-				var sfsObject appv1.StatefulSet
-				json.Unmarshal(sfsJSON, &sfsObject)
-				memory, cpu := sfsObject.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), sfsObject.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
+				stsJSON, _ := json.Marshal(buildResource.Resource)
+				var stsObject appv1.StatefulSet
+				json.Unmarshal(stsJSON, &stsObject)
+				memory, cpu := stsObject.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), stsObject.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 				if memory == 0 {
-					memory = sfsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
+					memory = stsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
 				}
 				if cpu == 0 {
-					cpu = sfsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
+					cpu = stsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
 				}
 				basic := api_model.BasicManagement{
 					ResourceType: api_model.StateFulSet,
-					Replicas:     sfsObject.Spec.Replicas,
+					Replicas:     stsObject.Spec.Replicas,
 					Memory:       memory / 1024 / 1024,
 					CPU:          cpu,
-					Image:        sfsObject.Spec.Template.Spec.Containers[0].Image,
-					Cmd:          strings.Join(append(sfsObject.Spec.Template.Spec.Containers[0].Command, sfsObject.Spec.Template.Spec.Containers[0].Args...), " "),
+					Image:        stsObject.Spec.Template.Spec.Containers[0].Image,
+					Cmd:          strings.Join(append(stsObject.Spec.Template.Spec.Containers[0].Command, stsObject.Spec.Template.Spec.Containers[0].Args...), " "),
 				}
 				parameter := api_model.YamlResourceParameter{
 					ComponentsCR: &ConvertResource,
 					Basic:        basic,
-					Template:     sfsObject.Spec.Template,
+					Template:     stsObject.Spec.Template,
 					Namespace:    yamlResource.Namespace,
 					Name:         buildResource.Resource.GetName(),
-					RsLabel:      sfsObject.Labels,
+					RsLabel:      stsObject.Labels,
 					HPAs:         hpas,
 					CMs:          cms,
 				}
