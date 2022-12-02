@@ -263,20 +263,20 @@ func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID strin
 				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update CronJobs %v:%v", namespace, err)}
 			}
 		case model.StateFulSet:
-			sfs, err := c.clientset.AppsV1().StatefulSets(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
+			sts, err := c.clientset.AppsV1().StatefulSets(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
 			if err != nil {
 				logrus.Errorf("failed to get %v StatefulSets %v:%v", namespace, component.ComponentsName, err)
 				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get StatefulSets %v:%v", namespace, err)}
 			}
-			if sfs.Labels == nil {
-				sfs.Labels = make(map[string]string)
+			if sts.Labels == nil {
+				sts.Labels = make(map[string]string)
 			}
-			sfs.Labels = changeLabel(sfs.Labels)
-			if sfs.Spec.Template.Labels == nil {
-				sfs.Spec.Template.Labels = make(map[string]string)
+			sts.Labels = changeLabel(sts.Labels)
+			if sts.Spec.Template.Labels == nil {
+				sts.Spec.Template.Labels = make(map[string]string)
 			}
-			sfs.Spec.Template.Labels = changeLabel(sfs.Spec.Template.Labels)
-			_, err = c.clientset.AppsV1().StatefulSets(namespace).Update(context.Background(), sfs, metav1.UpdateOptions{})
+			sts.Spec.Template.Labels = changeLabel(sts.Spec.Template.Labels)
+			_, err = c.clientset.AppsV1().StatefulSets(namespace).Update(context.Background(), sts, metav1.UpdateOptions{})
 			if err != nil {
 				logrus.Errorf("failed to update StatefulSets %v:%v", namespace, err)
 				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update StatefulSets %v:%v", namespace, err)}
