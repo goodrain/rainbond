@@ -152,6 +152,14 @@ build::image() {
 	rm -rf "${build_image_dir}"
 }
 
+build:image:rbd-shell (){
+        cp ./_output/binary/$GOOS/rainbond-grctl ./hack/contrib/docker/rbd-shell/grctl
+        cd ./hack/contrib/docker/rbd-shell && docker build -t "${IMAGE_BASE_NAME}/rbd-shell:${VERSION}" .
+        docker tag "${IMAGE_BASE_NAME}/rbd-shell:${VERSION}" "${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-shell:${VERSION}"
+        docker login -u "$DOMESTIC_DOCKER_USERNAME" -p "$DOMESTIC_DOCKER_PASSWORD" "${DOMESTIC_BASE_NAME}"
+        docker push "${DOMESTIC_BASE_NAME}/${DOMESTIC_NAMESPACE}/rbd-shell:${VERSION}"
+}
+
 build::image::all() {
 	for item in "${build_items[@]}"; do
 		build::image "$item" "$1"
@@ -175,8 +183,10 @@ binary)
 *)
 	if [ "$1" = "all" ]; then
 		build::image::all "$2"
+		build:image:rbd-shell
 	else
 		build::image "$1" "$2"
+		build:image:rbd-shell
 	fi
 	;;
 esac
