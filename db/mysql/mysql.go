@@ -247,4 +247,7 @@ func (m *Manager) patchTable() {
 	if err := m.db.Exec("alter  table tenant_services_probe modify column cmd longtext;").Error; err != nil {
 		logrus.Errorf("alter table tenant_services_probe error: %s", err.Error())
 	}
+	if err := m.db.Exec("alter  table app_config_group_item modify column item_value longtext;").Error; err != nil {
+		logrus.Errorf("alter table app_config_group_item error: %s", err.Error())
+	}
 }
