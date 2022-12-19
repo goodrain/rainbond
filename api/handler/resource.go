@@ -18,7 +18,7 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
-//AddAppK8SResource -
+// AddAppK8SResource -
 func (c *clusterAction) AddAppK8SResource(ctx context.Context, namespace string, appID string, resourceYaml string) ([]*dbmodel.K8sResource, *util.APIHandleError) {
 	logrus.Info("begin AddAppK8SResource")
 	resourceObjects := c.HandleResourceYaml([]byte(resourceYaml), namespace, "create", "")
@@ -48,10 +48,10 @@ func (c *clusterAction) AddAppK8SResource(ctx context.Context, namespace string,
 				ErrorOverview: resource.ErrorOverview,
 				State:         resource.State,
 			})
-			err := db.GetManager().K8sResourceDao().CreateK8sResource(resourceList)
-			if err != nil {
-				return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("CreateK8sResource %v", err)}
-			}
+			//err := db.GetManager().K8sResourceDao().CreateK8sResource(resourceList)
+			//if err != nil {
+			//	return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("CreateK8sResource %v", err)}
+			//}
 		}
 	}
 	return resourceList, nil
@@ -64,7 +64,7 @@ func (c *clusterAction) GetAppK8SResource(ctx context.Context, namespace, appID,
 		return dbmodel.K8sResource{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("get k8s resource %v", err)}
 	}
 	resourceObjects := c.HandleResourceYaml([]byte(rs.Content), namespace, "get", name)
-	
+
 	if resourceObjects[0].State != model.GetError {
 		rs.Content, _ = ObjectToJSONORYaml("yaml", resourceObjects[0].Resource)
 	}
@@ -73,7 +73,7 @@ func (c *clusterAction) GetAppK8SResource(ctx context.Context, namespace, appID,
 	return rs, nil
 }
 
-//UpdateAppK8SResource -
+// UpdateAppK8SResource -
 func (c *clusterAction) UpdateAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) (dbmodel.K8sResource, *util.APIHandleError) {
 	logrus.Info("begin UpdateAppK8SResource")
 	rs, err := db.GetManager().K8sResourceDao().GetK8sResourceByName(appID, name, kind)
@@ -97,7 +97,7 @@ func (c *clusterAction) UpdateAppK8SResource(ctx context.Context, namespace, app
 	return rs, nil
 }
 
-//DeleteAppK8SResource -
+// DeleteAppK8SResource -
 func (c *clusterAction) DeleteAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) *util.APIHandleError {
 	logrus.Info("begin DeleteAppK8SResource")
 	c.HandleResourceYaml([]byte(resourceYaml), namespace, "delete", name)
@@ -141,7 +141,7 @@ func (c *clusterAction) SyncAppK8SResources(ctx context.Context, req *model.Sync
 	return resourceList, nil
 }
 
-//HandleResourceYaml -
+// HandleResourceYaml -
 func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string, change string, name string) []*model.BuildResource {
 	var buildResourceList []*model.BuildResource
 	var state int
@@ -152,7 +152,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 	}
 	dc, err := dynamic.NewForConfig(c.config)
 	if err != nil {
-		logrus.Errorf("%v", err)
+		logrus.Errorf("HandleResourceYaml dynamic.NewForConfig error %v", err)
 		buildResourceList = []*model.BuildResource{{
 			State:         state,
 			ErrorOverview: err.Error(),
@@ -160,14 +160,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 		return buildResourceList
 	}
 	resourceYamlByte := resourceYaml
-	if err != nil {
-		logrus.Errorf("%v", err)
-		buildResourceList = []*model.BuildResource{{
-			State:         state,
-			ErrorOverview: err.Error(),
-		}}
-		return buildResourceList
-	}
+
 	decoder := yamlt.NewYAMLOrJSONDecoder(bytes.NewReader(resourceYamlByte), 1000)
 	for {
 		var rawObj runtime.RawExtension
@@ -175,7 +168,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 			if err.Error() == "EOF" {
 				break
 			}
-			logrus.Errorf("%v", err)
+			logrus.Errorf("HandleResourceYaml decoder.Decode error %v", err)
 			buildResourceList = []*model.BuildResource{{
 				State:         state,
 				ErrorOverview: err.Error(),
@@ -184,7 +177,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 		}
 		obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).Decode(rawObj.Raw, nil, nil)
 		if err != nil {
-			logrus.Errorf("%v", err)
+			logrus.Errorf("HandleResourceYaml yaml.NewDecodingSerializer error %v", err)
 			buildResourceList = []*model.BuildResource{{
 				State:         state,
 				ErrorOverview: err.Error(),
@@ -194,7 +187,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 		//转化成map
 		unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 		if err != nil {
-			logrus.Errorf("%v", err)
+			logrus.Errorf("HandleResourceYaml runtime.DefaultUnstructuredConverter.ToUnstructured error %v", err)
 			buildResourceList = []*model.BuildResource{{
 				State:         state,
 				ErrorOverview: err.Error(),
@@ -205,7 +198,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 		unstructuredObj := &unstructured.Unstructured{Object: unstructuredMap}
 		mapping, err := c.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 		if err != nil {
-			logrus.Errorf("%v", err)
+			logrus.Errorf("HandleResourceYaml c.mapper.RESTMapping error %v", err)
 			buildResourceList = []*model.BuildResource{{
 				State:         state,
 				ErrorOverview: err.Error(),

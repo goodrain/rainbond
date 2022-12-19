@@ -34,14 +34,14 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-//WebsocketMessage websocket message
+// WebsocketMessage websocket message
 type WebsocketMessage struct {
 	Event   string      `json:"event"`
 	Data    interface{} `json:"data"`
 	Channel string      `json:"channel,omitempty"`
 }
 
-//Encode return json encode data
+// Encode return json encode data
 func (w *WebsocketMessage) Encode() []byte {
 	reb, _ := ffjson.Marshal(w)
 	return reb
@@ -52,7 +52,7 @@ type sendMessage struct {
 	data        []byte
 }
 
-//PubContext websocket context
+// PubContext websocket context
 type PubContext struct {
 	ID          string
 	upgrader    websocket.Upgrader
@@ -67,7 +67,7 @@ type PubContext struct {
 	once        sync.Once
 }
 
-//Chan handle
+// Chan handle
 type Chan struct {
 	ch      chan *db.EventLogMessage
 	id      string
@@ -78,7 +78,7 @@ type Chan struct {
 	closed  *bool
 }
 
-//NewPubContext create context
+// NewPubContext create context
 func NewPubContext(upgrader websocket.Upgrader,
 	httpWriter http.ResponseWriter,
 	httpRequest *http.Request,
@@ -291,7 +291,8 @@ func (p *PubContext) send(sendClose chan struct{}) {
 				return
 			}
 			p.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := p.conn.WriteMessage(m.messageType, m.data); err != nil {
+			if err := p.conn.WriteMessage(m.
+				messageType, m.data); err != nil {
 				p.server.log.Debugf("write websocket message failure %s", err.Error())
 			}
 		case <-p.close:
@@ -301,13 +302,13 @@ func (p *PubContext) send(sendClose chan struct{}) {
 	}
 }
 
-//SendMessage send websocket message
+// SendMessage send websocket message
 func (p *PubContext) SendMessage(message WebsocketMessage) error {
 	p.sendQueue <- sendMessage{messageType: websocket.TextMessage, data: message.Encode()}
 	return nil
 }
 
-//SendWebsocketMessage send websocket message
+// SendWebsocketMessage send websocket message
 func (p *PubContext) SendWebsocketMessage(message int) error {
 	p.sendQueue <- sendMessage{messageType: message, data: []byte{}}
 	return nil
@@ -324,7 +325,7 @@ func (p *PubContext) sendPing(closed chan struct{}) {
 	}
 }
 
-//Start start context
+// Start start context
 func (p *PubContext) Start() {
 	var err error
 	p.conn, err = p.upgrader.Upgrade(p.httpWriter, p.httpRequest, nil)
@@ -346,7 +347,7 @@ func (p *PubContext) Start() {
 	}
 }
 
-//Stop close context
+// Stop close context
 func (p *PubContext) Stop() {
 	if p.conn != nil {
 		p.conn.Close()
@@ -356,7 +357,7 @@ func (p *PubContext) Stop() {
 	}
 }
 
-//Close close the context
+// Close close the context
 func (p *PubContext) Close() {
 	p.once.Do(func() {
 		close(p.close)
