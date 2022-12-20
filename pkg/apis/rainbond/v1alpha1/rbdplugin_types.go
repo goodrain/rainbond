@@ -32,7 +32,9 @@ type RBDPluginSpec struct {
 
 	// Foo is an example field of RBDPlugin. Edit rbdplugin_types.go to remove/update
 	Author      string `json:"author,omitempty"`
+	Version     string `json:"version,omitempty"`
 	Description string `json:"description,omitempty"`
+	Icon        string `json:"icon,omitempty"`
 }
 
 // RBDPluginStatus defines the observed state of RBDPlugin

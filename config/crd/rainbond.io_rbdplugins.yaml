@@ -42,6 +42,10 @@ spec:
                 type: string
               description:
                 type: string
+              icon:
+                type: string
+              version:
+                type: string
             type: object
           status:
             description: RBDPluginStatus defines the observed state of RBDPlugin
