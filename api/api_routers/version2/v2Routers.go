@@ -26,12 +26,12 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
-//V2 v2
+// V2 v2
 type V2 struct {
 	Cfg *option.Config
 }
 
-//Routes routes
+// Routes routes
 func (v2 *V2) Routes() chi.Router {
 	r := chi.NewRouter()
 	license := middleware.NewLicense(v2.Cfg)
@@ -124,6 +124,7 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/log-file", controller.GetManager().LogList)
 	r.Post("/shell-pod", controller.GetManager().CreateShellPod)
 	r.Delete("/shell-pod", controller.GetManager().DeleteShellPod)
+	r.Get("/plugins", controller.GetManager().ListPlugins)
 	r.Get("/rbd-components", controller.GetManager().ListRainbondComponents)
 	r.Mount("/nodes", v2.nodesRouter())
 	return r
