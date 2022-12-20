@@ -9,6 +9,8 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/util/constants"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/pkg/errors"
@@ -56,18 +58,20 @@ type ClusterHandler interface {
 	GetRbdPods() (rbds []model.RbdResp, err error)
 	CreateShellPod(regionName string) (pod *corev1.Pod, err error)
 	DeleteShellPod(podName string) error
+	ListPlugins() (rbds []v1alpha1.RBDPlugin, err error)
 	ListRainbondComponents(ctx context.Context) (res []*model.RainbondComponent, err error)
 }
 
 // NewClusterHandler -
-func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface) ClusterHandler {
+func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface, rainbondClient versioned.Interface) ClusterHandler {
 	return &clusterAction{
-		namespace:     RbdNamespace,
-		clientset:     clientset,
-		config:        config,
-		mapper:        mapper,
-		grctlImage:    grctlImage,
-		prometheusCli: prometheusCli,
+		namespace:      RbdNamespace,
+		clientset:      clientset,
+		config:         config,
+		mapper:         mapper,
+		grctlImage:     grctlImage,
+		prometheusCli:  prometheusCli,
+		rainbondClient: rainbondClient,
 	}
 }
 
@@ -81,6 +85,7 @@ type clusterAction struct {
 	grctlImage       string
 	client           client.Client
 	prometheusCli    prometheus.Interface
+	rainbondClient   versioned.Interface
 }
 
 type nodePod struct {
@@ -89,7 +94,7 @@ type nodePod struct {
 	EphemeralStorage prometheus.MetricValue
 }
 
-//GetClusterInfo -
+// GetClusterInfo -
 func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResource, error) {
 	timeout, _ := strconv.Atoi(os.Getenv("CLUSTER_INFO_CACHE_TIME"))
 	if timeout == 0 {
@@ -296,7 +301,7 @@ func (c *clusterAction) listPods(ctx context.Context, nodeName string) (pods []c
 	return podList.Items, nil
 }
 
-//MavenSetting maven setting
+// MavenSetting maven setting
 type MavenSetting struct {
 	Name       string `json:"name" validate:"required"`
 	CreateTime string `json:"create_time"`
@@ -305,7 +310,7 @@ type MavenSetting struct {
 	IsDefault  bool   `json:"is_default"`
 }
 
-//MavenSettingList maven setting list
+// MavenSettingList maven setting list
 func (c *clusterAction) MavenSettingList(ctx context.Context) (re []MavenSetting) {
 	cms, err := c.clientset.CoreV1().ConfigMaps(c.namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: "configtype=mavensetting",
@@ -329,7 +334,7 @@ func (c *clusterAction) MavenSettingList(ctx context.Context) (re []MavenSetting
 	return
 }
 
-//MavenSettingAdd maven setting add
+// MavenSettingAdd maven setting add
 func (c *clusterAction) MavenSettingAdd(ctx context.Context, ms *MavenSetting) *util.APIHandleError {
 	config := &corev1.ConfigMap{}
 	config.Name = ms.Name
@@ -357,7 +362,7 @@ func (c *clusterAction) MavenSettingAdd(ctx context.Context, ms *MavenSetting) *
 	return nil
 }
 
-//MavenSettingUpdate maven setting file update
+// MavenSettingUpdate maven setting file update
 func (c *clusterAction) MavenSettingUpdate(ctx context.Context, ms *MavenSetting) *util.APIHandleError {
 	sm, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Get(ctx, ms.Name, metav1.GetOptions{})
 	if err != nil {
@@ -384,7 +389,7 @@ func (c *clusterAction) MavenSettingUpdate(ctx context.Context, ms *MavenSetting
 	return nil
 }
 
-//MavenSettingDelete maven setting file delete
+// MavenSettingDelete maven setting file delete
 func (c *clusterAction) MavenSettingDelete(ctx context.Context, name string) *util.APIHandleError {
 	err := c.clientset.CoreV1().ConfigMaps(c.namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
@@ -397,7 +402,7 @@ func (c *clusterAction) MavenSettingDelete(ctx context.Context, name string) *ut
 	return nil
 }
 
-//MavenSettingDetail maven setting file delete
+// MavenSettingDetail maven setting file delete
 func (c *clusterAction) MavenSettingDetail(ctx context.Context, name string) (*MavenSetting, *util.APIHandleError) {
 	sm, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
@@ -412,7 +417,7 @@ func (c *clusterAction) MavenSettingDetail(ctx context.Context, name string) (*M
 	}, nil
 }
 
-//GetNamespace Get namespace of the current cluster
+// GetNamespace Get namespace of the current cluster
 func (c *clusterAction) GetNamespace(ctx context.Context, content string) ([]string, *util.APIHandleError) {
 	namespaceList, err := c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -431,7 +436,7 @@ func (c *clusterAction) GetNamespace(ctx context.Context, content string) ([]str
 	return *namespaces, nil
 }
 
-//MergeMap map去重合并
+// MergeMap map去重合并
 func MergeMap(map1 map[string][]string, map2 map[string][]string) map[string][]string {
 	for k, v := range map1 {
 		if _, ok := map2[k]; ok {
@@ -633,4 +638,21 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 		})
 	}
 	return res, nil
+}
+
+// ListPlugins -
+func (c *clusterAction) ListPlugins() (rbds []v1alpha1.RBDPlugin, err error) {
+	ns := ""
+	if os.Getenv("PluginNS") != "" {
+		ns = os.Getenv("PluginNS")
+	}
+	list, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(ns).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "get rbd plugins")
+	}
+	for _, plugin := range list.Items {
+		logrus.Infof("plugin Name: %v, namespace %v", plugin.Name, plugin.Namespace)
+		rbds = append(rbds, plugin)
+	}
+	return rbds, nil
 }

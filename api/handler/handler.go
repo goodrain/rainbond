@@ -36,7 +36,7 @@ import (
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-//InitHandle 初始化handle
+// InitHandle 初始化handle
 func InitHandle(conf option.Config,
 	etcdClientArgs *etcdutil.ClientArgs,
 	statusCli *client.AppRuntimeSyncClient,
@@ -85,7 +85,7 @@ func InitHandle(conf option.Config,
 	batchOperationHandler = CreateBatchOperationHandler(mqClient, statusCli, operationHandler)
 	defaultAppRestoreHandler = NewAppRestoreHandler()
 	defPodHandler = NewPodHandler(statusCli)
-	defClusterHandler = NewClusterHandler(kubeClient, conf.RbdNamespace, conf.GrctlImage, config, mapper, prometheusCli)
+	defClusterHandler = NewClusterHandler(kubeClient, conf.RbdNamespace, conf.GrctlImage, config, mapper, prometheusCli, rainbondClient)
 	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
 	defaultEtcdHandler = NewEtcdHandler(etcdcli)
 	defaultmonitorHandler = NewMonitorHandler(prometheusCli)
@@ -101,78 +101,78 @@ var shareHandler *share.ServiceShareHandle
 var pluginShareHandler *share.PluginShareHandle
 var defaultmonitorHandler MonitorHandler
 
-//GetMonitorHandle get monitor handler
+// GetMonitorHandle get monitor handler
 func GetMonitorHandle() MonitorHandler {
 	return defaultmonitorHandler
 }
 
-//GetShareHandle get share handle
+// GetShareHandle get share handle
 func GetShareHandle() *share.ServiceShareHandle {
 	return shareHandler
 }
 
-//GetPluginShareHandle get plugin share handle
+// GetPluginShareHandle get plugin share handle
 func GetPluginShareHandle() *share.PluginShareHandle {
 	return pluginShareHandler
 }
 
-//GetServiceManager get manager
+// GetServiceManager get manager
 func GetServiceManager() ServiceHandler {
 	return defaultServieHandler
 }
 
 var defaultPluginHandler PluginHandler
 
-//GetPluginManager get manager
+// GetPluginManager get manager
 func GetPluginManager() PluginHandler {
 	return defaultPluginHandler
 }
 
 var defaultTenantHandler TenantHandler
 
-//GetTenantManager get manager
+// GetTenantManager get manager
 func GetTenantManager() TenantHandler {
 	return defaultTenantHandler
 }
 
 var defaultHelmHandler HelmHandler
 
-//GetHelmManager get manager
+// GetHelmManager get manager
 func GetHelmManager() HelmHandler {
 	return defaultHelmHandler
 }
 
 var defaultNetRulesHandler NetRulesHandler
 
-//GetRulesManager get manager
+// GetRulesManager get manager
 func GetRulesManager() NetRulesHandler {
 	return defaultNetRulesHandler
 }
 
 var defaultCloudHandler CloudHandler
 
-//GetCloudManager get manager
+// GetCloudManager get manager
 func GetCloudManager() CloudHandler {
 	return defaultCloudHandler
 }
 
 var defaultEventHandler EventHandler
 
-//GetEventHandler get event handler
+// GetEventHandler get event handler
 func GetEventHandler() EventHandler {
 	return defaultEventHandler
 }
 
 var defaultAppHandler *AppAction
 
-//GetAppHandler GetAppHandler
+// GetAppHandler GetAppHandler
 func GetAppHandler() *AppAction {
 	return defaultAppHandler
 }
 
 var defaultAPPBackupHandler *group.BackupHandle
 
-//GetAPPBackupHandler GetAPPBackupHandler
+// GetAPPBackupHandler GetAPPBackupHandler
 func GetAPPBackupHandler() *group.BackupHandle {
 	return defaultAPPBackupHandler
 }
@@ -193,14 +193,14 @@ func Get3rdPartySvcHandler() *ThirdPartyServiceHanlder {
 
 var batchOperationHandler *BatchOperationHandler
 
-//GetBatchOperationHandler get handler
+// GetBatchOperationHandler get handler
 func GetBatchOperationHandler() *BatchOperationHandler {
 	return batchOperationHandler
 }
 
 var operationHandler *OperationHandler
 
-//GetOperationHandler get handler
+// GetOperationHandler get handler
 func GetOperationHandler() *OperationHandler {
 	return operationHandler
 }
