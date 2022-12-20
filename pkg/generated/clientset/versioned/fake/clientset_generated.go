@@ -76,7 +76,10 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 	return c.tracker
 }
 
-var _ clientset.Interface = &Clientset{}
+var (
+	_ clientset.Interface = &Clientset{}
+	_ testing.FakeClient  = &Clientset{}
+)
 
 // RainbondV1alpha1 retrieves the RainbondV1alpha1Client
 func (c *Clientset) RainbondV1alpha1() rainbondv1alpha1.RainbondV1alpha1Interface {
