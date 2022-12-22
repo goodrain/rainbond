@@ -9,10 +9,11 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/util/constants"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
+	workerclient "github.com/goodrain/rainbond/worker/client"
+	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/sirupsen/logrus"
@@ -58,12 +59,12 @@ type ClusterHandler interface {
 	GetRbdPods() (rbds []model.RbdResp, err error)
 	CreateShellPod(regionName string) (pod *corev1.Pod, err error)
 	DeleteShellPod(podName string) error
-	ListPlugins() (rbds []v1alpha1.RBDPlugin, err error)
+	ListPlugins() (rbds []*model.RainbondPlugins, err error)
 	ListRainbondComponents(ctx context.Context) (res []*model.RainbondComponent, err error)
 }
 
 // NewClusterHandler -
-func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface, rainbondClient versioned.Interface) ClusterHandler {
+func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface, rainbondClient versioned.Interface, statusCli *workerclient.AppRuntimeSyncClient) ClusterHandler {
 	return &clusterAction{
 		namespace:      RbdNamespace,
 		clientset:      clientset,
@@ -72,6 +73,7 @@ func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage
 		grctlImage:     grctlImage,
 		prometheusCli:  prometheusCli,
 		rainbondClient: rainbondClient,
+		statusCli:      statusCli,
 	}
 }
 
@@ -86,6 +88,7 @@ type clusterAction struct {
 	client           client.Client
 	prometheusCli    prometheus.Interface
 	rainbondClient   versioned.Interface
+	statusCli        *workerclient.AppRuntimeSyncClient
 }
 
 type nodePod struct {
@@ -641,7 +644,7 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 }
 
 // ListPlugins -
-func (c *clusterAction) ListPlugins() (rbds []v1alpha1.RBDPlugin, err error) {
+func (c *clusterAction) ListPlugins() (plugins []*model.RainbondPlugins, err error) {
 	ns := ""
 	if os.Getenv("PluginNS") != "" {
 		ns = os.Getenv("PluginNS")
@@ -650,9 +653,39 @@ func (c *clusterAction) ListPlugins() (rbds []v1alpha1.RBDPlugin, err error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "get rbd plugins")
 	}
-	for _, plugin := range list.Items {
-		logrus.Infof("plugin Name: %v, namespace %v", plugin.Name, plugin.Namespace)
-		rbds = append(rbds, plugin)
+
+	// list plugin status
+	var appIDs []string
+	for _, item := range list.Items {
+		if item.Labels["app_id"] != "" {
+			appIDs = append(appIDs, item.Labels["app_id"])
+		}
 	}
-	return rbds, nil
+	appStatuses := make(map[string]string)
+	statuses, err := c.statusCli.ListAppStatuses(context.Background(), &pb.AppStatusesReq{
+		AppIds: appIDs,
+	})
+	for _, status := range statuses.AppStatuses {
+		appStatuses[status.AppId] = status.Status
+	}
+
+	for _, plugin := range list.Items {
+		appID := plugin.Labels["app_id"]
+		status := "NIL"
+		if appStatuses[appID] != "" {
+			status = appStatuses[appID]
+		}
+		logrus.Infof("plugin Name: %v, namespace %v", plugin.Name, plugin.Namespace)
+		plugins = append(plugins, &model.RainbondPlugins{
+			RegionAppID: appID,
+			Name:        plugin.Name,
+			Namespace:   plugin.Namespace,
+			Icon:        plugin.Spec.Icon,
+			Description: plugin.Spec.Description,
+			Version:     plugin.Spec.Version,
+			Author:      plugin.Spec.Author,
+			Status:      status,
+		})
+	}
+	return plugins, nil
 }

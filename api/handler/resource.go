@@ -21,7 +21,7 @@ import (
 // AddAppK8SResource -
 func (c *clusterAction) AddAppK8SResource(ctx context.Context, namespace string, appID string, resourceYaml string) ([]*dbmodel.K8sResource, *util.APIHandleError) {
 	logrus.Info("begin AddAppK8SResource")
-	resourceObjects := c.HandleResourceYaml([]byte(resourceYaml), namespace, "create", "")
+	resourceObjects := c.HandleResourceYaml([]byte(resourceYaml), namespace, "create", "", map[string]string{"app_id": appID})
 	var resourceList []*dbmodel.K8sResource
 	for _, resourceObject := range resourceObjects {
 		resource := resourceObject
@@ -48,10 +48,10 @@ func (c *clusterAction) AddAppK8SResource(ctx context.Context, namespace string,
 				ErrorOverview: resource.ErrorOverview,
 				State:         resource.State,
 			})
-			//err := db.GetManager().K8sResourceDao().CreateK8sResource(resourceList)
-			//if err != nil {
-			//	return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("CreateK8sResource %v", err)}
-			//}
+			err := db.GetManager().K8sResourceDao().CreateK8sResource(resourceList)
+			if err != nil {
+				return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("CreateK8sResource %v", err)}
+			}
 		}
 	}
 	return resourceList, nil
@@ -63,7 +63,7 @@ func (c *clusterAction) GetAppK8SResource(ctx context.Context, namespace, appID,
 	if err != nil {
 		return dbmodel.K8sResource{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("get k8s resource %v", err)}
 	}
-	resourceObjects := c.HandleResourceYaml([]byte(rs.Content), namespace, "get", name)
+	resourceObjects := c.HandleResourceYaml([]byte(rs.Content), namespace, "get", name, nil)
 
 	if resourceObjects[0].State != model.GetError {
 		rs.Content, _ = ObjectToJSONORYaml("yaml", resourceObjects[0].Resource)
@@ -80,7 +80,7 @@ func (c *clusterAction) UpdateAppK8SResource(ctx context.Context, namespace, app
 	if err != nil {
 		return dbmodel.K8sResource{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("get k8s resource %v", err)}
 	}
-	resourceObjects := c.HandleResourceYaml([]byte(resourceYaml), namespace, "update", name)
+	resourceObjects := c.HandleResourceYaml([]byte(resourceYaml), namespace, "update", name, map[string]string{"app_id": appID})
 	var rsYaml string
 	if resourceObjects[0].State == model.UpdateError {
 		rsYaml = resourceYaml
@@ -100,7 +100,7 @@ func (c *clusterAction) UpdateAppK8SResource(ctx context.Context, namespace, app
 // DeleteAppK8SResource -
 func (c *clusterAction) DeleteAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) *util.APIHandleError {
 	logrus.Info("begin DeleteAppK8SResource")
-	c.HandleResourceYaml([]byte(resourceYaml), namespace, "delete", name)
+	c.HandleResourceYaml([]byte(resourceYaml), namespace, "delete", name, nil)
 	err := db.GetManager().K8sResourceDao().DeleteK8sResource(appID, name, kind)
 	if err != nil {
 		return &util.APIHandleError{Code: 400, Err: fmt.Errorf("DeleteAppK8SResource %v", err)}
@@ -114,7 +114,7 @@ func (c *clusterAction) SyncAppK8SResources(ctx context.Context, req *model.Sync
 	logrus.Info("begin SyncAppK8SResource")
 	var resourceList []*dbmodel.K8sResource
 	for _, k8sResource := range req.K8sResources {
-		resourceObjects := c.HandleResourceYaml([]byte(k8sResource.ResourceYaml), k8sResource.Namespace, "re-create", k8sResource.Name)
+		resourceObjects := c.HandleResourceYaml([]byte(k8sResource.ResourceYaml), k8sResource.Namespace, "re-create", k8sResource.Name, map[string]string{"app_id": k8sResource.AppID})
 		if len(resourceObjects) > 1 {
 			logrus.Warningf("SyncAppK8SResources resourceObjects [%s] too much, ignore it", k8sResource.Name)
 			continue
@@ -142,7 +142,7 @@ func (c *clusterAction) SyncAppK8SResources(ctx context.Context, req *model.Sync
 }
 
 // HandleResourceYaml -
-func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string, change string, name string) []*model.BuildResource {
+func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string, change string, name string, commonLabels map[string]string) []*model.BuildResource {
 	var buildResourceList []*model.BuildResource
 	var state int
 	if change == "create" || change == "re-create" {
@@ -150,6 +150,20 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 	} else if change == "update" {
 		state = model.UpdateError
 	}
+
+	addLabelsFunc := func(unstructuredObj *unstructured.Unstructured) {
+		if commonLabels != nil {
+			labels := unstructuredObj.GetLabels()
+			if labels == nil {
+				labels = make(map[string]string)
+			}
+			for k, v := range commonLabels {
+				labels[k] = v
+			}
+			unstructuredObj.SetLabels(labels)
+		}
+	}
+
 	dc, err := dynamic.NewForConfig(c.config)
 	if err != nil {
 		logrus.Errorf("HandleResourceYaml dynamic.NewForConfig error %v", err)
@@ -234,6 +248,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 			unstructuredObj.SetUID("")
 			fallthrough
 		case "create":
+			addLabelsFunc(unstructuredObj)
 			obj, err := buildResource.Dri.Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
 			if err != nil {
 				logrus.Errorf("k8s resource create error %v", err)
@@ -251,6 +266,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 				logrus.Errorf("delete k8s resource error %v", err)
 			}
 		case "update":
+			addLabelsFunc(unstructuredObj)
 			obj, err := buildResource.Dri.Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
 			if err != nil {
 				logrus.Errorf("update k8s resource error %v", err)
