@@ -32,6 +32,7 @@ type RainbondV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	ComponentDefinitionsGetter
 	HelmAppsGetter
+	RBDAbilitiesGetter
 	RBDPluginsGetter
 	ThirdComponentsGetter
 }
@@ -47,6 +48,10 @@ func (c *RainbondV1alpha1Client) ComponentDefinitions(namespace string) Componen
 
 func (c *RainbondV1alpha1Client) HelmApps(namespace string) HelmAppInterface {
 	return newHelmApps(c, namespace)
+}
+
+func (c *RainbondV1alpha1Client) RBDAbilities(namespace string) RBDAbilityInterface {
+	return newRBDAbilities(c, namespace)
 }
 
 func (c *RainbondV1alpha1Client) RBDPlugins(namespace string) RBDPluginInterface {
