@@ -36,6 +36,14 @@ type HelmAppListerExpansion interface{}
 // HelmAppNamespaceLister.
 type HelmAppNamespaceListerExpansion interface{}
 
+// RBDAbilityListerExpansion allows custom methods to be added to
+// RBDAbilityLister.
+type RBDAbilityListerExpansion interface{}
+
+// RBDAbilityNamespaceListerExpansion allows custom methods to be added to
+// RBDAbilityNamespaceLister.
+type RBDAbilityNamespaceListerExpansion interface{}
+
 // RBDPluginListerExpansion allows custom methods to be added to
 // RBDPluginLister.
 type RBDPluginListerExpansion interface{}

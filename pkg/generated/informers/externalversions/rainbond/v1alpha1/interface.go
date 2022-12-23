@@ -30,6 +30,8 @@ type Interface interface {
 	ComponentDefinitions() ComponentDefinitionInformer
 	// HelmApps returns a HelmAppInformer.
 	HelmApps() HelmAppInformer
+	// RBDAbilities returns a RBDAbilityInformer.
+	RBDAbilities() RBDAbilityInformer
 	// RBDPlugins returns a RBDPluginInformer.
 	RBDPlugins() RBDPluginInformer
 	// ThirdComponents returns a ThirdComponentInformer.
@@ -55,6 +57,11 @@ func (v *version) ComponentDefinitions() ComponentDefinitionInformer {
 // HelmApps returns a HelmAppInformer.
 func (v *version) HelmApps() HelmAppInformer {
 	return &helmAppInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// RBDAbilities returns a RBDAbilityInformer.
+func (v *version) RBDAbilities() RBDAbilityInformer {
+	return &rBDAbilityInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // RBDPlugins returns a RBDPluginInformer.
