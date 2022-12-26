@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond-operator/util/rbdutil"
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
@@ -55,6 +56,7 @@ type ClusterHandler interface {
 	GetRbdPods() (rbds []model.RbdResp, err error)
 	CreateShellPod(regionName string) (pod *corev1.Pod, err error)
 	DeleteShellPod(podName string) error
+	ListRainbondComponents(ctx context.Context) (res []*model.RainbondComponent, err error)
 }
 
 // NewClusterHandler -
@@ -571,4 +573,64 @@ func (c *clusterAction) GetRbdPods() (rbds []model.RbdResp, err error) {
 		}
 	}
 	return rbds, nil
+}
+
+func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*model.RainbondComponent, err error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	// rainbond components
+	podList, err := c.clientset.CoreV1().Pods("rbd-system").List(ctx, metav1.ListOptions{
+		LabelSelector: fields.SelectorFromSet(rbdutil.LabelsForRainbond(nil)).String(),
+	})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	pods := make(map[string][]corev1.Pod)
+	ComponentAllPods := make(map[string]int)
+	ComponentRunPods := make(map[string]int)
+	appNameMap := make(map[string]int)
+	for _, pod := range podList.Items {
+		labels := pod.Labels
+		appName := labels["name"]
+		if len(appName) == 0 {
+			logrus.Warningf("list rainbond components. label 'name' not found for pod(%s/%s)", pod.Namespace, pod.Name)
+			continue
+		}
+		appNameMap[appName] += 1
+		pods[appName] = append(pods[appName], pod)
+		if pod.Status.Phase == "Running" {
+			ComponentRunPods[appName] += 1
+		}
+		ComponentAllPods[appName] += 1
+	}
+	var appNames []string
+	for name, _ := range appNameMap{
+		appNames = append(appNames, name)
+	}
+	// rainbond operator
+	roPods, err := c.clientset.CoreV1().Pods("rbd-system").List(ctx, metav1.ListOptions{
+		LabelSelector: fields.SelectorFromSet(map[string]string{
+			"release": "rainbond-operator",
+		}).String(),
+	})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	pods["rainbond-operator"] = roPods.Items
+	for _, ropod := range roPods.Items {
+		if ropod.Status.Phase == "Running" {
+			ComponentRunPods["rainbond-operator"] += 1
+		}
+		ComponentAllPods["rainbond-operator"] += 1
+	}
+	appNames = append(appNames, "rainbond-operator")
+	for _, name := range appNames {
+		res = append(res, &model.RainbondComponent{
+			Name:    name,
+			Pods:   pods[name],
+			AllPods: ComponentAllPods[name],
+			RunPods: ComponentRunPods[name],
+		})
+	}
+	return res, nil
 }

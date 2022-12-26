@@ -37,6 +37,7 @@ type V2Manager interface {
 	AlertManagerWebHook(w http.ResponseWriter, r *http.Request)
 	Version(w http.ResponseWriter, r *http.Request)
 	api.ClusterInterface
+	api.NodesInterface
 	api.TenantInterface
 	api.ServiceInterface
 	api.LogInterface

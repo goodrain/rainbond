@@ -19,6 +19,7 @@
 package model
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	"net/url"
 	"time"
 
@@ -2134,4 +2135,12 @@ type RbdResp struct {
 type ShellPod struct {
 	RegionName string `json:"region_name"`
 	PodName    string `json:"pod_name"`
+}
+
+// RainbondComponent rainbond components
+type RainbondComponent struct {
+	Name    string       `json:"name"`
+	Pods    []corev1.Pod `json:"pods"`
+	RunPods int          `json:"run_pods"`
+	AllPods int          `json:"all_pods"`
 }

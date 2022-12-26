@@ -19,7 +19,11 @@
 package controller
 
 import (
+	"github.com/go-chi/chi"
+	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/shirou/gopsutil/disk"
 	"net/http"
+	"runtime"
 
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/core/config"
@@ -57,4 +61,19 @@ func Exist(i interface{}) {
 //Ping Ping
 func Ping(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
+}
+
+//ContainerDisk -
+func ContainerDisk(w http.ResponseWriter, r *http.Request) {
+	containerType := chi.URLParam(r, "container_type")
+	var containerDisk *disk.UsageStat
+	if runtime.GOOS != "windows" {
+		switch containerType {
+		case "docker":
+			containerDisk, _ = disk.Usage("/var/lib/docker")
+		case "containerd":
+			containerDisk, _ = disk.Usage("/var/lib/containerd")
+		}
+	}
+	httputil.ReturnSuccess(r, w, containerDisk)
 }
