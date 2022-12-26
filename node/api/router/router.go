@@ -47,6 +47,9 @@ func Routers(mode string) *chi.Mux {
 	r.Mount("/v1", DisconverRoutes())
 	r.Route("/v2", func(r chi.Router) {
 		r.Get("/ping", controller.Ping)
+		r.Route("/container_disk", func(r chi.Router) {
+			r.Get("/{container_type}", controller.ContainerDisk)
+		})
 		r.Route("/apps", func(r chi.Router) {
 			r.Get("/{app_name}/register", controller.APPRegister)
 			r.Get("/{app_name}/discover", controller.APPDiscover)

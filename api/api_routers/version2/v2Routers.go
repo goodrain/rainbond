@@ -124,6 +124,20 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/log-file", controller.GetManager().LogList)
 	r.Post("/shell-pod", controller.GetManager().CreateShellPod)
 	r.Delete("/shell-pod", controller.GetManager().DeleteShellPod)
+	r.Get("/rbd-components", controller.GetManager().ListRainbondComponents)
+	r.Mount("/nodes", v2.nodesRouter())
+	return r
+}
+
+func (v2 *V2) nodesRouter() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/", controller.GetManager().ListNodes)
+	r.Get("/{node_name}/detail", controller.GetManager().GetNode)
+	r.Post("/{node_name}/action/{action}", controller.GetManager().NodeAction)
+	r.Get("/{node_name}/labels", controller.GetManager().ListLabels)
+	r.Put("/{node_name}/labels", controller.GetManager().UpdateLabels)
+	r.Get("/{node_name}/taints", controller.GetManager().ListTaints)
+	r.Put("/{node_name}/taints", controller.GetManager().UpdateTaints)
 	return r
 }
 
