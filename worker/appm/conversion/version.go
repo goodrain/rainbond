@@ -145,7 +145,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 
 func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volume.Define, envs []corev1.EnvVar, envVarSecrets []*corev1.Secret, dbmanager db.Manager) (*corev1.Container, error) {
 	// secret as container environment variables
-	var envFromSecrets []corev1.EnvFromSource
+	envFromSecrets := getENVFromSource(as, dbmanager)
 	for _, secret := range envVarSecrets {
 		envFromSecrets = append(envFromSecrets, corev1.EnvFromSource{
 			SecretRef: &corev1.SecretEnvSource{
@@ -548,13 +548,33 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, envs []corev
 func getVolumeClaimTemplate(as *v1.AppService, dbmanager db.Manager) []corev1.PersistentVolumeClaim {
 	logrus.Infof("component getVolumeClaimTemplateYaml")
 	vctAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameVolumeClaimTemplate)
+	if err != nil {
+		logrus.Warningf("[%v] get VolumeClaimTemplate failure: %v", as.K8sComponentName, err)
+		return []corev1.PersistentVolumeClaim{}
+	}
 	var vct []corev1.PersistentVolumeClaim
 	err = yaml.Unmarshal([]byte(vctAttribute.AttributeValue), &vct)
 	if err != nil {
-		logrus.Debug("VolumeClaimTemplate yaml to object error", err)
-		return vct
+		logrus.Warningf("VolumeClaimTemplate yaml to object failure: %v", err)
+		return []corev1.PersistentVolumeClaim{}
 	}
 	return vct
+}
+
+func getENVFromSource(as *v1.AppService, dbmanager db.Manager) []corev1.EnvFromSource {
+	logrus.Infof("component getVolumeClaimTemplateYaml")
+	envFromAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameENVFromSource)
+	if err != nil {
+		logrus.Warningf(" %v get ENVFromSource failure: %v", as.K8sComponentName, err)
+		return []corev1.EnvFromSource{}
+	}
+	var envFromSource []corev1.EnvFromSource
+	err = yaml.Unmarshal([]byte(envFromAttribute.AttributeValue), &envFromSource)
+	if err != nil {
+		logrus.Warningf("%v ENVFromSource yaml to object failure: %v", as.K8sComponentName, err)
+		return []corev1.EnvFromSource{}
+	}
+	return envFromSource
 }
 
 func getVolumes(dv *volume.Define, as *v1.AppService, dbmanager db.Manager) []corev1.Volume {
