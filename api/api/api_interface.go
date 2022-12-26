@@ -47,6 +47,18 @@ type ClusterInterface interface {
 	RbdLog(w http.ResponseWriter, r *http.Request)
 	GetRbdPods(w http.ResponseWriter, r *http.Request)
 	HistoryRbdLogs(w http.ResponseWriter, r *http.Request)
+	ListRainbondComponents(w http.ResponseWriter, r *http.Request)
+}
+
+// NodesInterface -
+type NodesInterface interface {
+	ListNodes(w http.ResponseWriter, r *http.Request)
+	GetNode(w http.ResponseWriter, r *http.Request)
+	NodeAction(w http.ResponseWriter, r *http.Request)
+	ListLabels(w http.ResponseWriter, r *http.Request)
+	UpdateLabels(w http.ResponseWriter, r *http.Request)
+	ListTaints(w http.ResponseWriter, r *http.Request)
+	UpdateTaints(w http.ResponseWriter, r *http.Request)
 }
 
 //TenantInterface interface

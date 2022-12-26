@@ -74,7 +74,7 @@ type ConfigGroupItem struct {
 	AppID           string `gorm:"column:app_id" json:"-"`
 	ConfigGroupName string `gorm:"column:config_group_name" json:"-"`
 	ItemKey         string `gorm:"column:item_key" json:"item_key"`
-	ItemValue       string `gorm:"column:item_value" json:"item_value"`
+	ItemValue       string `gorm:"column:item_value;type:longtext" json:"item_value"`
 }
 
 // TableName return tableName "application"

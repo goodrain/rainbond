@@ -92,6 +92,7 @@ func InitHandle(conf option.Config,
 	defServiceEventHandler = NewServiceEventHandler()
 	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli, rainbondClient, kubeClient)
 	defRegistryAuthSecretHandler = CreateRegistryAuthSecretManager(dbmanager, mqClient, etcdcli)
+	defNodesHandler = NewNodesHandler(kubeClient, conf.RbdNamespace, config, mapper, prometheusCli)
 	return nil
 }
 
@@ -230,6 +231,13 @@ var defClusterHandler ClusterHandler
 // GetClusterHandler returns the default cluster handler.
 func GetClusterHandler() ClusterHandler {
 	return defClusterHandler
+}
+
+var defNodesHandler NodesHandler
+
+// GetClusterHandler returns the default cluster handler.
+func GetNodesHandler() NodesHandler {
+	return defNodesHandler
 }
 
 var defApplicationHandler ApplicationHandler

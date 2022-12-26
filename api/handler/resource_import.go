@@ -308,6 +308,7 @@ func (c *clusterAction) createENV(envs []model.ENVManagement, service *dbmodel.T
 
 func (c *clusterAction) createConfig(configs []model.ConfigManagement, service *dbmodel.TenantServices) {
 	var configVar []*dbmodel.TenantServiceVolume
+	var configFiles []*dbmodel.TenantServiceConfigFile
 	for _, config := range configs {
 		tsv := &dbmodel.TenantServiceVolume{
 			ServiceID:          service.ServiceID,
@@ -326,10 +327,21 @@ func (c *clusterAction) createConfig(configs []model.ConfigManagement, service *
 			Mode:               &config.Mode,
 		}
 		configVar = append(configVar, tsv)
+		configfile := &dbmodel.TenantServiceConfigFile{
+			ServiceID:   service.ServiceID,
+			VolumeName:  config.ConfigName,
+			FileContent: config.ConfigValue,
+		}
+		configFiles = append(configFiles, configfile)
 	}
 	err := db.GetManager().TenantServiceVolumeDao().CreateOrUpdateVolumesInBatch(configVar)
 	if err != nil {
-		logrus.Errorf("%v configuration file creation failed:%v", service.ServiceAlias, err)
+		logrus.Errorf("TenantServiceVolume %v configuration file creation failed:%v", service.ServiceAlias, err)
+	}
+
+	err = db.GetManager().TenantServiceConfigFileDao().CreateOrUpdateConfigFilesInBatch(configFiles)
+	if err != nil {
+		logrus.Errorf("TenantServiceConfigFile %v configuration file creation failed:%v", service.ServiceAlias, err)
 	}
 }
 
