@@ -547,12 +547,16 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, envs []corev
 
 func getVolumeClaimTemplate(as *v1.AppService, dbmanager db.Manager) []corev1.PersistentVolumeClaim {
 	logrus.Infof("component getVolumeClaimTemplateYaml")
-	vctAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameVolumeClaimTemplate)
 	var vct []corev1.PersistentVolumeClaim
+	vctAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameVolumeClaimTemplate)
+	if err != nil {
+		logrus.Debug("VolumeClaimTemplate yaml to object error", err)
+		return nil
+	}
 	err = yaml.Unmarshal([]byte(vctAttribute.AttributeValue), &vct)
 	if err != nil {
 		logrus.Debug("VolumeClaimTemplate yaml to object error", err)
-		return vct
+		return nil
 	}
 	return vct
 }
