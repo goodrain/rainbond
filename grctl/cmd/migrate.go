@@ -8,9 +8,12 @@ import (
 	"github.com/urfave/cli"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"strconv"
 	"strings"
 )
 
+//NewCmdMigrateConsole -
 func NewCmdMigrateConsole() cli.Command {
 	c := cli.Command{
 		Name:  "migrate",
@@ -65,6 +68,7 @@ func initConsoleYaml(ctx *cli.Context) error {
 		}
 		labels[labelkv[0]] = labelkv[1]
 	}
+	var MYSQLPORT, MYSQLHOST, MYSQLPASS, MYSQLDB, MYSQLUSER string
 	envs := []corev1.EnvVar{corev1.EnvVar{
 		Name:  "DB_TYPE",
 		Value: "mysql",
@@ -73,6 +77,18 @@ func initConsoleYaml(ctx *cli.Context) error {
 		envkv := strings.Split(env, "=")
 		if len(envkv) != 2 {
 			return fmt.Errorf("env format is incorrect %v", envkv)
+		}
+		switch envkv[0] {
+		case "MYSQL_HOST":
+			MYSQLHOST = envkv[1]
+		case "MYSQL_PORT":
+			MYSQLPORT = envkv[1]
+		case "MYSQL_USER":
+			MYSQLUSER = envkv[1]
+		case "MYSQL_PASS":
+			MYSQLPASS = envkv[1]
+		case "MYSQL_DB":
+			MYSQLDB = envkv[1]
 		}
 		envs = append(envs, corev1.EnvVar{
 			Name:  envkv[0],
@@ -97,6 +113,46 @@ func initConsoleYaml(ctx *cli.Context) error {
 			Args:            ctx.StringSlice("arg"),
 			Env:             envs,
 		},
+	}
+	if MYSQLHOST != "" || MYSQLPORT != "" || MYSQLUSER != "" || MYSQLPASS != "" || MYSQLDB != "" {
+		if MYSQLHOST == "" {
+			showError("MYSQL_HOST is not specified")
+		}
+		if MYSQLPORT == "" {
+			showError("MYSQL_PORT is not specified")
+		}
+		port, err := strconv.Atoi(MYSQLPORT)
+		if err != nil {
+			showError(fmt.Sprintf("Please check whether the value of MYSQL_PORT is standard: %v", err))
+		}
+		if MYSQLUSER == "" {
+			showError("MYSQL_USER is not specified")
+		}
+		if MYSQLPASS == "" {
+			showError("MYSQL_PASS is not specified")
+		}
+		if MYSQLDB == "" {
+			showError("MYSQL_DB is not specified")
+		}
+		var cluster rainbondv1alpha1.RainbondCluster
+		err = clients.RainbondKubeClient.Get(context.Background(),
+			types.NamespacedName{Namespace: namespace, Name: "rainbondcluster"}, &cluster)
+		if err != nil {
+			showError(fmt.Sprintf("get rainbond cluster config failure %s", err.Error()))
+		}
+		if cluster.Spec.UIDatabase == nil {
+			cluster.Spec.UIDatabase = &rainbondv1alpha1.Database{
+				Host:     MYSQLHOST,
+				Port:     port,
+				Username: MYSQLUSER,
+				Password: MYSQLPASS,
+				Name:     MYSQLDB,
+			}
+		}
+		err = clients.RainbondKubeClient.Update(context.Background(), &cluster)
+		if err != nil {
+			showError(fmt.Sprintf("update rainbond cluster config failure %s", err.Error()))
+		}
 	}
 	err := clients.RainbondKubeClient.Create(context.Background(), &consoleObject)
 	if err != nil {
