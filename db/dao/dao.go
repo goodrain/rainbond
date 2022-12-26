@@ -434,6 +434,7 @@ type EventDao interface {
 	LatestFailurePodEvent(podName string) (*model.ServiceEvent, error)
 	UpdateReason(eventID string, reason string) error
 	SetEventStatus(ctx context.Context, status model.EventStatus) error
+	DeleteEvents(eventIDs []string) error
 	UpdateInBatch(events []*model.ServiceEvent) error
 }
 

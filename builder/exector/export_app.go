@@ -77,8 +77,10 @@ func (i *ExportApp) Run(timeout time.Duration) error {
 	// 	return nil
 	// }
 	// Delete the old application group directory and then regenerate the application package
-	if err := i.CleanSourceDir(); err != nil {
-		return err
+	if i.Format != "helm-chart" {
+		if err := i.CleanSourceDir(); err != nil {
+			return err
+		}
 	}
 
 	ram, err := i.parseRAM()
@@ -105,6 +107,13 @@ func (i *ExportApp) Run(timeout time.Duration) error {
 		re, err = i.exportSlug(*ram)
 		if err != nil {
 			logrus.Errorf("export slug app package failure %s", err.Error())
+			i.updateStatus("failed", "")
+			return err
+		}
+	} else if i.Format == "helm-chart" {
+		re, err = i.exportHelmChart(*ram)
+		if err != nil {
+			logrus.Errorf("export helm chart package failure %s", err.Error())
 			i.updateStatus("failed", "")
 			return err
 		}
@@ -175,6 +184,14 @@ func (i *ExportApp) exportSlug(ram v1alpha1.RainbondApplicationConfig) (*export.
 		return nil, err
 	}
 	return slugExporter.Export()
+}
+
+func (i *ExportApp) exportHelmChart(ram v1alpha1.RainbondApplicationConfig) (*export.Result, error) {
+	helmExporter, err := export.New(export.HELM, i.SourceDir, ram, i.ImageClient.GetContainerdClient(), i.ImageClient.GetDockerClient(), logrus.StandardLogger())
+	if err != nil {
+		return nil, err
+	}
+	return helmExporter.Export()
 }
 
 //Stop stop

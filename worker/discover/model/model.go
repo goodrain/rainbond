@@ -285,6 +285,11 @@ type RollingUpgradeTaskBody struct {
 	EventID          string            `json:"event_id"`
 	Strategy         []string          `json:"strategy"`
 	Configs          map[string]string `json:"configs"`
+	DryRun           bool              `json:"dry_run"`
+	AppName          string            `json:"app_name"`
+	AppVersion       string            `json:"app_version"`
+	EventIDs         []string          `json:"event_ids"`
+	End              bool              `json:"end"`
 }
 
 //RollBackTaskBody 回滚操作任务主体

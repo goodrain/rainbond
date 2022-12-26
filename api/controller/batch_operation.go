@@ -67,6 +67,15 @@ func BatchOperation(w http.ResponseWriter, r *http.Request) {
 			batchOpReqs = append(batchOpReqs, upgrade)
 		}
 		f = handler.GetBatchOperationHandler().Upgrade
+	case "export":
+		for _, build := range build.Body.Builds {
+			build.TenantName = tenant.Name
+			batchOpReqs = append(batchOpReqs, build)
+		}
+		b := handler.GetBatchOperationHandler()
+		b.DryRun = true
+		b.HelmChart = build.Body.HelmChart
+		f = b.Build
 	default:
 		httputil.ReturnError(r, w, 400, fmt.Sprintf("operation %s do not support batch", build.Body.Operation))
 		return

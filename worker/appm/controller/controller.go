@@ -103,6 +103,25 @@ func (m *Manager) GetControllerSize() int {
 	return len(m.controllers)
 }
 
+//ExportController -
+func (m *Manager) ExportController(AppName, AppVersion string, EventIDs []string, end bool, apps ...v1.AppService) error {
+	controllerID := util.NewUUID()
+	controller := &exportController{
+		controllerID: controllerID,
+		appService:   apps,
+		manager:      m,
+		stopChan:     make(chan struct{}),
+		ctx:          context.Background(),
+		AppName:      AppName,
+		AppVersion:   AppVersion,
+		EventIDs:     EventIDs,
+		End:          end,
+	}
+	m.controllers[controllerID] = controller
+	controller.Begin()
+	return nil
+}
+
 //StartController create and start service controller
 func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppService) error {
 	var controller Controller

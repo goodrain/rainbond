@@ -87,6 +87,11 @@ func (c *EventDaoImpl) CreateEventsInBatch(events []*model.ServiceEvent) error {
 	return nil
 }
 
+//DeleteEvents delete event
+func (c *EventDaoImpl) DeleteEvents(eventIDs []string) error {
+	return c.DB.Where("event_id in (?)", eventIDs).Delete(&model.ServiceEvent{}).Error
+}
+
 // UpdateReason update reasion.
 func (c *EventDaoImpl) UpdateReason(eventID string, reason string) error {
 	return c.DB.Model(&model.ServiceEvent{}).Where("event_id=?", eventID).UpdateColumn("reason", reason).Error

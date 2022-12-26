@@ -469,8 +469,8 @@ loop:
 			containerID := m[0:12]        //0-12
 			serviceID := string(m[13:45]) //13-45
 			// rbd logs
-			if strings.Contains(serviceID, "rbd-"){
-				nameSlice := strings.Split(serviceID,"time")
+			if strings.Contains(serviceID, "rbd-") {
+				nameSlice := strings.Split(serviceID, "time")
 				serviceID = nameSlice[0]
 			}
 			log := m[45:]

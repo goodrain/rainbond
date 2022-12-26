@@ -1622,11 +1622,12 @@ type BatchOperationReq struct {
 	Operator   string `json:"operator"`
 	TenantName string `json:"tenant_name"`
 	Body       struct {
-		Operation string                 `json:"operation" validate:"operation|required|in:start,stop,build,upgrade"`
+		Operation string                 `json:"operation" validate:"operation|required|in:start,stop,build,upgrade,export"`
 		Builds    []*ComponentBuildReq   `json:"build_infos,omitempty"`
 		Starts    []*ComponentStartReq   `json:"start_infos,omitempty"`
 		Stops     []*ComponentStopReq    `json:"stop_infos,omitempty"`
 		Upgrades  []*ComponentUpgradeReq `json:"upgrade_infos,omitempty"`
+		HelmChart *HelmChart             `json:"helm_chart,omitempty"`
 	}
 }
 
@@ -1684,8 +1685,17 @@ var FromCodeBuildKing = "build_from_source_code"
 //FromMarketImageBuildKing build from market image
 var FromMarketImageBuildKing = "build_from_market_image"
 
+//ExportHelmChart -
+var ExportHelmChart = "export_helm_chart"
+
 //FromMarketSlugBuildKing build from market slug
 var FromMarketSlugBuildKing = "build_from_market_slug"
+
+//HelmChart -
+type HelmChart struct {
+	AppName    string `json:"app_name"`
+	AppVersion string `json:"app_version"`
+}
 
 // ComponentBuildReq -
 type ComponentBuildReq struct {

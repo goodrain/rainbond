@@ -43,6 +43,9 @@ type BatchOperationHandler struct {
 	mqCli            gclient.MQClient
 	operationHandler *OperationHandler
 	statusCli        *client.AppRuntimeSyncClient
+	DryRun           bool
+	HelmChart        *model.HelmChart
+	EventIDs         []string
 }
 
 //BatchOperationResult batch operation result
@@ -94,8 +97,8 @@ func (b *BatchOperationHandler) Build(ctx context.Context, tenant *dbmodel.Tenan
 	if err := b.createEvents(tenant.UUID, operator, batchOpReqs, allocm.badOpRequest, allocm.memoryType); err != nil {
 		return nil, err
 	}
-
-	for _, build := range validBuilds {
+	for i, build := range validBuilds {
+		b.operationHandler.SetHelmParameter(b.DryRun, b.HelmChart, b.EventIDs, i == len(validBuilds)-1)
 		build.UpdateConfig("boot_seq_dep_service_ids", strings.Join(startupSeqConfigs[build.GetComponentID()], ","))
 		err := retryutil.Retry(1*time.Microsecond, 1, func() (bool, error) {
 			if err := b.operationHandler.build(build); err != nil {
@@ -268,7 +271,7 @@ func (b *BatchOperationHandler) createEvents(tenantID, operator string, batchOpR
 	for _, req := range badOpReqs {
 		bads[req.GetEventID()] = struct{}{}
 	}
-
+	var eventIDs []string
 	var events []*dbmodel.ServiceEvent
 	for _, req := range batchOpReqs {
 		event := &dbmodel.ServiceEvent{
@@ -289,9 +292,10 @@ func (b *BatchOperationHandler) createEvents(tenantID, operator string, batchOpR
 			event.Status = "failure"
 
 		}
+		eventIDs = append(eventIDs, event.EventID)
 		events = append(events, event)
 	}
-
+	b.EventIDs = eventIDs
 	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
 		return db.GetManager().ServiceEventDaoTransactions(tx).CreateEventsInBatch(events)
 	})

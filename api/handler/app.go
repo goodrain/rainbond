@@ -52,7 +52,7 @@ func (a *AppAction) Complete(tr *model.ExportAppStruct) error {
 		return err
 	}
 
-	if tr.Body.Format != "rainbond-app" && tr.Body.Format != "docker-compose" && tr.Body.Format != "slug"{
+	if tr.Body.Format != "rainbond-app" && tr.Body.Format != "docker-compose" && tr.Body.Format != "slug" && tr.Body.Format != "helm-chart" {
 		err := errors.New("Unsupported the format: " + tr.Body.Format)
 		logrus.Error(err)
 		return err
