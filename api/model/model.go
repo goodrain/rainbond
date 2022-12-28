@@ -1429,6 +1429,7 @@ type TenantServicesPort struct {
 	K8sServiceName string `gorm:"column:k8s_service_name" json:"k8s_service_name"`
 	IsInnerService bool   `gorm:"column:is_inner_service" validate:"is_inner_service|bool" json:"is_inner_service"`
 	IsOuterService bool   `gorm:"column:is_outer_service" validate:"is_outer_service|bool" json:"is_outer_service"`
+	Name           string
 }
 
 // DbModel return database model
@@ -1445,6 +1446,7 @@ func (p *TenantServicesPort) DbModel(tenantID, componentID string) *dbmodel.Tena
 		IsInnerService: &isInnerService,
 		IsOuterService: &isOuterService,
 		K8sServiceName: p.K8sServiceName,
+		Name:           p.Name,
 	}
 }
 
