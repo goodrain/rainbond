@@ -737,6 +737,9 @@ func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.P
 			}
 			p.HTTPGet = &action
 			return p
+		} else if probe.Scheme == "cmd" {
+			p.Exec = &corev1.ExecAction{Command: strings.Split(probe.Cmd, " ")}
+			return p
 		}
 		return nil
 	}
