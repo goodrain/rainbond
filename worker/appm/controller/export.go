@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/worker/appm/store"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -335,30 +334,6 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 				err = s.write(path.Join(exportTemplatePath, "HorizontalPodAutoscaler.yaml"), hpaBytes, "\n---\n")
 				if err != nil {
 					return fmt.Errorf("write hpa yaml failure %v", err)
-				}
-			}
-		}
-	}
-
-	if crd, _ := s.manager.store.GetCrd(store.ServiceMonitor); crd != nil {
-		if sms := app.GetServiceMonitors(true); len(sms) > 0 {
-			smClient, err := s.manager.store.GetServiceMonitorClient()
-			if err != nil {
-				logrus.Errorf("create service monitor client failure %s", err.Error())
-			}
-			if smClient != nil {
-				for _, sm := range sms {
-					if len(sm.ResourceVersion) == 0 {
-						sm.Kind = "ServiceMonitor"
-						smBytes, err := yaml.Marshal(sm)
-						if err != nil {
-							return fmt.Errorf("sm to yaml failure %v", err)
-						}
-						err = s.write(path.Join(exportTemplatePath, "ServiceMonitor.yaml"), smBytes, "\n---\n")
-						if err != nil {
-							return fmt.Errorf("write sm yaml failure %v", err)
-						}
-					}
 				}
 			}
 		}
