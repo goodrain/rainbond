@@ -158,6 +158,12 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		imageCut := strings.Split(image, "/")
 		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageSource }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
 		statefulset.Spec.Template.Spec.Containers[0].Image = Image
+		for i := range statefulset.Spec.VolumeClaimTemplates {
+			if *statefulset.Spec.VolumeClaimTemplates[i].Spec.StorageClassName != "" {
+				sc := "{{ .Values.storageClass }}"
+				statefulset.Spec.VolumeClaimTemplates[i].Spec.StorageClassName = &sc
+			}
+		}
 		statefulsetBytes, err := yaml.Marshal(statefulset)
 		if err != nil {
 			return fmt.Errorf("statefulset to yaml failure %v", err)
