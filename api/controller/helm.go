@@ -9,6 +9,7 @@ import (
 	"net/http"
 )
 
+//HelmStruct -
 type HelmStruct struct {
 }
 
@@ -39,10 +40,11 @@ func (t *HelmStruct) CheckHelmApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	yaml, err := handler.GetHelmManager().CheckHelmApp(checkHelmApp)
+	data["yaml"] = yaml
 	if err != nil {
 		data["checkAdopt"] = "false"
+		data["yaml"] = err.Error()
 	}
-	data["yaml"] = yaml
 	httputil.ReturnSuccess(r, w, data)
 }
 
