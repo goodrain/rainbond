@@ -45,19 +45,19 @@ func (s *exportController) Begin() {
 			logrus.Errorf("worker export %v failure %v", service.ServiceAlias, err)
 		}
 	}
-	if len(r.ConfigGroups) != 0 {
-		configGroupByte, err := yaml.Marshal(r.ConfigGroups)
-		if err != nil {
-			logrus.Errorf("yaml marshal valueYaml failure %v", err)
-		} else {
-			err = s.write(path.Join(exportPath, "values.yaml"), configGroupByte, "\n")
-			if err != nil {
-				logrus.Errorf("write values.yaml configgroup failure %v", err)
-			}
-		}
-	}
 
 	if s.End {
+		if len(r.ConfigGroups) != 0 {
+			configGroupByte, err := yaml.Marshal(r.ConfigGroups)
+			if err != nil {
+				logrus.Errorf("yaml marshal valueYaml failure %v", err)
+			} else {
+				err = s.write(path.Join(exportPath, "values.yaml"), configGroupByte, "")
+				if err != nil {
+					logrus.Errorf("write values.yaml configgroup failure %v", err)
+				}
+			}
+		}
 		r.StorageClass = "rainbondvolumerwx"
 		volumeYamlByte, err := yaml.Marshal(r)
 		err = s.write(path.Join(exportPath, "values.yaml"), volumeYamlByte, "\n")
@@ -281,41 +281,42 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		StringData        string     `json:"stringData,omitempty" protobuf:"bytes,4,rep,name=stringData"`
 		Type              SecretType `json:"type,omitempty" protobuf:"bytes,3,opt,name=type,casttype=SecretType"`
 	}
-
-	if secrets := app.GetEnvVarSecrets(true); secrets != nil {
-		for _, secret := range secrets {
-			if len(secret.ResourceVersion) == 0 {
-				secret.APIVersion = APIVersionSecret
-				secret.Namespace = ""
-				secret.Type = ""
-				secret.Kind = "Secret"
-				data := secret.Data
-				secret.Data = nil
-				var ySecret YamlSecret
-				jsonSecret, err := json.Marshal(secret)
-				if err != nil {
-					return fmt.Errorf("json.Marshal configGroup secret failure %v", err)
-				}
-				err = json.Unmarshal(jsonSecret, &ySecret)
-				if err != nil {
-					return fmt.Errorf("json.Unmarshal configGroup secret failure %v", err)
-				}
-				templateConfigGroupName := strings.Split(ySecret.Name, "-")[0]
-				templateConfigGroup := make(map[string]string)
-				for key, value := range data {
-					templateConfigGroup[key] = string(value)
-				}
-				r.ConfigGroups[templateConfigGroupName] = templateConfigGroup
-				dataTemplate := fmt.Sprintf("  {{- range $key, $val := .Values.%v }}\n  {{ $key }}: {{ $val | quote}}\n  {{- end }}", templateConfigGroupName)
-				ySecret.StringData = dataTemplate
-				secretBytes, err := yaml.Marshal(ySecret)
-				if err != nil {
-					return fmt.Errorf("configGroup secret to yaml failure %v", err)
-				}
-				secretStr := strings.Replace(string(secretBytes), "|2-", "", 1)
-				err = s.write(path.Join(exportTemplatePath, "Secret.yaml"), []byte(secretStr), "\n---\n")
-				if err != nil {
-					return fmt.Errorf("configGroup write secret yaml failure %v", err)
+	if s.End {
+		if secrets := app.GetEnvVarSecrets(true); secrets != nil {
+			for _, secret := range secrets {
+				if len(secret.ResourceVersion) == 0 {
+					secret.APIVersion = APIVersionSecret
+					secret.Namespace = ""
+					secret.Type = ""
+					secret.Kind = "Secret"
+					data := secret.Data
+					secret.Data = nil
+					var ySecret YamlSecret
+					jsonSecret, err := json.Marshal(secret)
+					if err != nil {
+						return fmt.Errorf("json.Marshal configGroup secret failure %v", err)
+					}
+					err = json.Unmarshal(jsonSecret, &ySecret)
+					if err != nil {
+						return fmt.Errorf("json.Unmarshal configGroup secret failure %v", err)
+					}
+					templateConfigGroupName := strings.Split(ySecret.Name, "-")[0]
+					templateConfigGroup := make(map[string]string)
+					for key, value := range data {
+						templateConfigGroup[key] = string(value)
+					}
+					r.ConfigGroups[templateConfigGroupName] = templateConfigGroup
+					dataTemplate := fmt.Sprintf("  {{- range $key, $val := .Values.%v }}\n  {{ $key }}: {{ $val | quote}}\n  {{- end }}", templateConfigGroupName)
+					ySecret.StringData = dataTemplate
+					secretBytes, err := yaml.Marshal(ySecret)
+					if err != nil {
+						return fmt.Errorf("configGroup secret to yaml failure %v", err)
+					}
+					secretStr := strings.Replace(string(secretBytes), "|2-", "", 1)
+					err = s.write(path.Join(exportTemplatePath, "Secret.yaml"), []byte(secretStr), "\n---\n")
+					if err != nil {
+						return fmt.Errorf("configGroup write secret yaml failure %v", err)
+					}
 				}
 			}
 		}
@@ -370,7 +371,7 @@ func (s *exportController) write(helmChartFilePath string, meta []byte, endStrin
 	if err != nil {
 		return err
 	}
-	if n < len(append(meta, []byte("\n---")...)) {
+	if n < len(append(meta, []byte(endString)...)) {
 		return fmt.Errorf("write insufficient length")
 	}
 	return nil
