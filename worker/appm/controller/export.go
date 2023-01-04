@@ -29,7 +29,7 @@ type exportController struct {
 
 //RainbondExport -
 type RainbondExport struct {
-	ImageSource  string                       `json:"imageSource"`
+	ImageDomain  string                       `json:"imageDomain"`
 	StorageClass string                       `json:"storageClass"`
 	ConfigGroups map[string]map[string]string `json:"-"`
 }
@@ -156,7 +156,7 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		statefulset.Namespace = ""
 		image := statefulset.Spec.Template.Spec.Containers[0].Image
 		imageCut := strings.Split(image, "/")
-		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageSource }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
+		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageDomain }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
 		statefulset.Spec.Template.Spec.Containers[0].Image = Image
 		statefulsetBytes, err := yaml.Marshal(statefulset)
 		if err != nil {
@@ -173,7 +173,7 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		deployment.APIVersion = APIVersionDeployment
 		image := deployment.Spec.Template.Spec.Containers[0].Image
 		imageCut := strings.Split(image, "/")
-		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageSource }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
+		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageDomain }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
 		deployment.Spec.Template.Spec.Containers[0].Image = Image
 		deploymentBytes, err := yaml.Marshal(deployment)
 		if err != nil {
@@ -190,7 +190,7 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		job.APIVersion = APIVersionJob
 		image := job.Spec.Template.Spec.Containers[0].Image
 		imageCut := strings.Split(image, "/")
-		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageSource }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
+		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageDomain }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
 		job.Spec.Template.Spec.Containers[0].Image = Image
 		jobBytes, err := yaml.Marshal(job)
 		if err != nil {
@@ -207,7 +207,7 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		cronjob.APIVersion = APIVersionCronJob
 		image := cronjob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Image
 		imageCut := strings.Split(image, "/")
-		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageSource }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
+		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageDomain }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
 		cronjob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Image = Image
 		cronjobBytes, err := yaml.Marshal(cronjob)
 		if err != nil {
@@ -224,7 +224,7 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		cronjob.Namespace = ""
 		image := cronjob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Image
 		imageCut := strings.Split(image, "/")
-		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageSource }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
+		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageDomain }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
 		cronjob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Image = Image
 		cronjobBytes, err := yaml.Marshal(cronjob)
 		if err != nil {
