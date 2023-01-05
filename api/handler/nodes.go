@@ -32,7 +32,7 @@ const (
 	NodeInternalIP = "InternalIP"
 	// NodeExternalIP -
 	NodeExternalIP = "ExternalIP"
-	// UnSchedulAble-
+	// UnSchedulAble -
 	UnSchedulAble = "unschedulable"
 	// ReSchedulAble -
 	ReSchedulAble = "reschedulable"
@@ -151,8 +151,8 @@ func (n *nodesHandle) HandleNodeInfo(node v1.Node) (nodeinfo model.NodeInfo, err
 	}
 	// get node roles
 	var roles []string
-	for k, _ := range node.Labels {
-		if strings.HasPrefix(k, NodeRolesLabelPrefix){
+	for k := range node.Labels {
+		if strings.HasPrefix(k, NodeRolesLabelPrefix) {
 			// string handle : node-role.kubernetes.io/worker: "true"
 			role := strings.Split(k, "/")[1]
 			roles = append(roles, role)
@@ -326,17 +326,18 @@ func (n *nodesHandle) ListLabels(ctx context.Context, nodeName string) (map[stri
 
 // UpdateLabels -
 func (n *nodesHandle) UpdateLabels(ctx context.Context, nodeName string, labels map[string]string) (map[string]string, error) {
-	labelsByte, err := ffjson.Marshal(labels)
-	if err != nil {
-		return nil, err
-	}
-	data := fmt.Sprintf(`{"metadata":{"labels":%s}}`, string(labelsByte))
-	node, err := n.clientset.CoreV1().Nodes().Patch(ctx, nodeName, types.StrategicMergePatchType, []byte(data), metav1.PatchOptions{})
+	node, err := n.clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
 		logrus.Error("[UpdateLabels] update node labels error:", err)
 		return nil, err
 	}
-	return node.Labels, nil
+	node.Labels = labels
+	res, err := n.clientset.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
+	if err != nil {
+		logrus.Error("[UpdateLabels] update node labels error:", err)
+		return nil, err
+	}
+	return res.Labels, nil
 }
 
 // GetTaint -
