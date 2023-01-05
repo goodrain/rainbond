@@ -343,6 +343,12 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			return d.errors
 		}
 	}
+	if lang == code.Golang {
+		d.envs["BUILD_GOPROXY"] = &types.Env{
+			Name:  "BUILD_GOPROXY",
+			Value: "https://goproxy.cn",
+		}
+	}
 	runtimeInfo, err := code.CheckRuntime(buildPath, lang)
 	if err != nil && err == code.ErrRuntimeNotSupport {
 		d.errappend(ErrorAndSolve(FatalError, "代码选择的运行时版本不支持", "请参考文档查看平台各语言支持的Runtime版本"))
