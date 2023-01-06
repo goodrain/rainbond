@@ -151,6 +151,8 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 	}
 
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
+		statefulset.Name = app.K8sComponentName
+		statefulset.Spec.Template.Name = app.K8sComponentName + "-pod-spec"
 		statefulset.Kind = "StatefulSet"
 		statefulset.APIVersion = APIVersionStatefulSet
 		statefulset.Namespace = ""
@@ -174,6 +176,8 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		}
 	}
 	if deployment := app.GetDeployment(); deployment != nil {
+		deployment.Name = app.K8sComponentName
+		deployment.Spec.Template.Name = app.K8sComponentName + "-pod-spec"
 		deployment.Kind = "Deployment"
 		deployment.Namespace = ""
 		deployment.APIVersion = APIVersionDeployment
@@ -191,6 +195,8 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		}
 	}
 	if job := app.GetJob(); job != nil {
+		job.Name = app.K8sComponentName
+		job.Spec.Template.Name = app.K8sComponentName + "-pod-spec"
 		job.Kind = "Job"
 		job.Namespace = ""
 		job.APIVersion = APIVersionJob
@@ -208,6 +214,9 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		}
 	}
 	if cronjob := app.GetCronJob(); cronjob != nil {
+		cronjob.Name = app.K8sComponentName
+		cronjob.Spec.JobTemplate.Name = app.K8sComponentName
+		cronjob.Spec.JobTemplate.Spec.Template.Name = app.K8sComponentName + "-pod-spec"
 		cronjob.Kind = "CronJob"
 		cronjob.Namespace = ""
 		cronjob.APIVersion = APIVersionCronJob
@@ -225,6 +234,9 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		}
 	}
 	if cronjob := app.GetBetaCronJob(); cronjob != nil {
+		cronjob.Name = app.K8sComponentName
+		cronjob.Spec.JobTemplate.Name = app.K8sComponentName
+		cronjob.Spec.JobTemplate.Spec.Template.Name = app.K8sComponentName + "-pod-spec"
 		cronjob.Kind = "CronJob"
 		cronjob.APIVersion = APIVersionBetaCronJob
 		cronjob.Namespace = ""
