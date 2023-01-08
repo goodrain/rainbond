@@ -35,6 +35,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/restmapper"
@@ -44,7 +45,7 @@ import (
 	"syscall"
 )
 
-//Run start run
+// Run start run
 func Run(s *option.APIServer) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -75,6 +76,10 @@ func Run(s *option.APIServer) error {
 		return err
 	}
 	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return err
 	}
@@ -127,7 +132,7 @@ func Run(s *option.APIServer) error {
 	//初始化 middleware
 	handler.InitProxy(s.Config)
 	//创建handle
-	if err := handler.InitHandle(s.Config, etcdClientArgs, cli, etcdcli, clientset, rainbondClient, k8sClient, config, mapper); err != nil {
+	if err := handler.InitHandle(s.Config, etcdClientArgs, cli, etcdcli, clientset, rainbondClient, k8sClient, config, mapper, dynamicClient); err != nil {
 		logrus.Errorf("init all handle error, %v", err)
 		return err
 	}

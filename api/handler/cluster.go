@@ -23,8 +23,11 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/util/flushwriter"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"net/http"
@@ -61,11 +64,14 @@ type ClusterHandler interface {
 	CreateShellPod(regionName string) (pod *corev1.Pod, err error)
 	DeleteShellPod(podName string) error
 	ListPlugins() (rbds []*model.RainbondPlugins, err error)
+	ListAbilities() (rbds []unstructured.Unstructured, err error)
+	GetAbility(abilityID string) (rbd *unstructured.Unstructured, err error)
+	UpdateAbility(abilityID string, ability *unstructured.Unstructured) error
 	ListRainbondComponents(ctx context.Context) (res []*model.RainbondComponent, err error)
 }
 
 // NewClusterHandler -
-func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface, rainbondClient versioned.Interface, statusCli *workerclient.AppRuntimeSyncClient) ClusterHandler {
+func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface, rainbondClient versioned.Interface, statusCli *workerclient.AppRuntimeSyncClient, dynamicClient dynamic.Interface) ClusterHandler {
 	return &clusterAction{
 		namespace:      RbdNamespace,
 		clientset:      clientset,
@@ -75,6 +81,7 @@ func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage
 		prometheusCli:  prometheusCli,
 		rainbondClient: rainbondClient,
 		statusCli:      statusCli,
+		dynamicClient:  dynamicClient,
 	}
 }
 
@@ -90,6 +97,7 @@ type clusterAction struct {
 	prometheusCli    prometheus.Interface
 	rainbondClient   versioned.Interface
 	statusCli        *workerclient.AppRuntimeSyncClient
+	dynamicClient    dynamic.Interface
 }
 
 type nodePod struct {
@@ -711,4 +719,107 @@ func (c *clusterAction) ListPlugins() (plugins []*model.RainbondPlugins, err err
 		})
 	}
 	return plugins, nil
+}
+
+// ListAbilities -
+func (c *clusterAction) ListAbilities() (rbds []unstructured.Unstructured, err error) {
+	list, err := c.rainbondClient.RainbondV1alpha1().RBDAbilities(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "get rbd abilities")
+	}
+	groupKey := func(apiVersion, kind string) string {
+		return fmt.Sprintf("%s-%s", strings.Replace(apiVersion, "/", "-", -1), kind)
+	}
+
+	var watchGroups = make(map[string]struct{})
+	for _, ability := range list.Items {
+		for _, group := range ability.Spec.WatchGroups {
+			watchGroups[groupKey(group.APIVersion, group.Kind)] = struct{}{}
+		}
+	}
+
+	for key := range watchGroups {
+		split := strings.Split(key, "-")
+		var group, version, kind string
+		if len(split) == 3 {
+			group = split[0]
+			version = split[1]
+			kind = split[2]
+		}
+		if len(split) == 2 {
+			version = split[0]
+			kind = split[1]
+		}
+		logrus.Infof("watch group: %v, %v, %v", group, version, kind)
+		list, err := c.dynamicClient.Resource(schema.GroupVersionResource{
+			Group:   group,
+			Version: version,
+			// TODO: 复数形式不一定是加s
+			Resource: strings.ToLower(kind) + "s",
+		}).Namespace(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return nil, errors.Wrap(err, "get watch group list")
+		}
+		rbds = append(rbds, list.Items...)
+	}
+
+	return rbds, nil
+}
+
+// GetAbility -
+func (c *clusterAction) GetAbility(abilityID string) (*unstructured.Unstructured, error) {
+	// abilityID: group-version-kind-name
+	split := strings.SplitN(abilityID, "-", 4)
+	var group, version, kind, name string
+	if len(split) == 4 {
+		group = split[0]
+		version = split[1]
+		kind = split[2]
+		name = split[3]
+	}
+	if len(split) == 3 {
+		version = split[0]
+		kind = split[1]
+		name = split[2]
+	}
+	logrus.Infof("get ability: %v, %v, %v, %v", group, version, kind, name)
+	res := schema.GroupVersionResource{
+		Group:    group,
+		Version:  version,
+		Resource: strings.ToLower(kind) + "s",
+	}
+	resource, err := c.dynamicClient.Resource(res).Namespace("rbd-system").Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "get ability")
+	}
+	return resource, nil
+}
+
+// UpdateAbility -
+func (c *clusterAction) UpdateAbility(abilityID string, ability *unstructured.Unstructured) error {
+	// abilityID: group-version-kind-name
+	split := strings.SplitN(abilityID, "-", 4)
+	var group, version, kind, name string
+	if len(split) == 4 {
+		group = split[0]
+		version = split[1]
+		kind = split[2]
+		name = split[3]
+	}
+	if len(split) == 3 {
+		version = split[0]
+		kind = split[1]
+		name = split[2]
+	}
+	logrus.Infof("update ability: %v, %v, %v, %v", group, version, kind, name)
+	res := schema.GroupVersionResource{
+		Group:    group,
+		Version:  version,
+		Resource: strings.ToLower(kind) + "s",
+	}
+	_, err := c.dynamicClient.Resource(res).Namespace("rbd-system").Update(context.Background(), ability, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrap(err, "update ability")
+	}
+	return nil
 }

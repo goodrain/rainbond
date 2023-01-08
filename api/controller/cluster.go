@@ -19,7 +19,9 @@
 package controller
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
@@ -354,4 +356,47 @@ func (c *ClusterController) ListPlugins(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	httputil.ReturnSuccess(r, w, res)
+}
+
+// ListAbilities -
+func (c *ClusterController) ListAbilities(w http.ResponseWriter, r *http.Request) {
+	res, err := handler.GetClusterHandler().ListAbilities()
+	if err != nil {
+		httputil.ReturnError(r, w, 400, err.Error())
+		return
+	}
+	var abilities []model.AbilityResp
+	for _, ability := range res {
+		abilities = append(abilities, model.AbilityResp{
+			Name:       ability.GetName(),
+			Kind:       ability.GetKind(),
+			APIVersion: ability.GetAPIVersion(),
+			AbilityID:  fmt.Sprintf("%s-%s-%s", strings.Replace(ability.GetAPIVersion(), "/", "-", -1), ability.GetKind(), ability.GetName()),
+		})
+	}
+	httputil.ReturnSuccess(r, w, abilities)
+}
+
+func (c *ClusterController) GetAbility(w http.ResponseWriter, r *http.Request) {
+	abilityID := chi.URLParam(r, "ability_id")
+	res, err := handler.GetClusterHandler().GetAbility(abilityID)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, res)
+}
+
+// UpdateAbility -
+func (c *ClusterController) UpdateAbility(w http.ResponseWriter, r *http.Request) {
+	abilityID := chi.URLParam(r, "ability_id")
+	var req model.UpdateAbilityReq
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
+		return
+	}
+	if err := handler.GetClusterHandler().UpdateAbility(abilityID, req.Object); err != nil {
+		httputil.ReturnError(r, w, 400, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
 }
