@@ -125,6 +125,9 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Post("/shell-pod", controller.GetManager().CreateShellPod)
 	r.Delete("/shell-pod", controller.GetManager().DeleteShellPod)
 	r.Get("/plugins", controller.GetManager().ListPlugins)
+	r.Get("/abilities", controller.GetManager().ListAbilities)
+	r.Get("/abilities/{ability_id}", controller.GetManager().GetAbility)
+	r.Put("/abilities/{ability_id}", controller.GetManager().UpdateAbility)
 	r.Get("/rbd-components", controller.GetManager().ListRainbondComponents)
 	r.Mount("/nodes", v2.nodesRouter())
 	return r
