@@ -146,16 +146,12 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 	var services []*corev1.Service
 	var ingresses []interface{}
 	var secrets []*corev1.Secret
+	var innerService []*model.TenantServicesPort
 	if len(ports) > 0 {
 		for i := range ports {
 			port := ports[i]
 			if *port.IsInnerService {
-				switch a.appService.GovernanceMode {
-				case model.GovernanceModeKubernetesNativeService:
-					services = append(services, a.createKubernetesNativeService(port))
-				default:
-					services = append(services, a.createInnerService(port))
-				}
+				innerService = append(innerService, port)
 			}
 			if *port.IsOuterService {
 				service := a.createOuterService(port)
@@ -176,7 +172,9 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 			}
 		}
 	}
-
+	if len(innerService) > 0 {
+		services = append(services, a.createInnerService(innerService))
+	}
 	// build stateful service
 	if a.replicationType == model.TypeStatefulSet {
 		services = append(services, a.createStatefulService(ports))
@@ -385,7 +383,7 @@ func (a *AppServiceBuild) BuildOnPort(p int, isOut bool) (*corev1.Service, error
 	}
 	if port != nil {
 		if !isOut && *port.IsInnerService {
-			return a.createInnerService(port), nil
+			return a.createInnerService([]*model.TenantServicesPort{port}), nil
 		}
 		if isOut && *port.IsOuterService {
 			return a.createOuterService(port), nil
@@ -403,47 +401,37 @@ func (a *AppServiceBuild) createServiceAnnotations() map[string]string {
 	return annotations
 }
 
-func (a *AppServiceBuild) createKubernetesNativeService(port *model.TenantServicesPort) *corev1.Service {
-	svc := a.createInnerService(port)
-	svc.Name = port.K8sServiceName
-	if svc.Name == "" {
-		svc.Name = fmt.Sprintf("%s-%d", a.appService.GetK8sWorkloadName(), port.ContainerPort)
-	}
-	return svc
-}
-
-func (a *AppServiceBuild) createInnerService(port *model.TenantServicesPort) *corev1.Service {
+func (a *AppServiceBuild) createInnerService(ports []*model.TenantServicesPort) *corev1.Service {
 	var service corev1.Service
-	service.Name = port.K8sServiceName
-	if service.Name == "" {
-		service.Name = fmt.Sprintf("%s-%d-%d", a.appService.GetK8sWorkloadName(), port.ID, port.ContainerPort)
-	}
+	service.Name = ports[0].K8sServiceName
 	service.Namespace = a.appService.GetNamespace()
 	service.Labels = a.appService.GetCommonLabels(map[string]string{
-		"service_type":  "inner",
-		"name":          a.service.ServiceAlias + "Service",
-		"port_protocol": port.Protocol,
-		"service_port":  strconv.Itoa(port.ContainerPort),
-		"version":       a.service.DeployVersion,
+		"service_type": "inner",
+		"name":         a.service.ServiceAlias + "Service",
+		"version":      a.service.DeployVersion,
 	})
 	if a.service.Replicas <= 1 {
 		service.Labels["rainbond.com/tolerate-unready-endpoints"] = "true"
 	}
 	service.Annotations = a.createServiceAnnotations()
-	var servicePort corev1.ServicePort
-	if port.Protocol == "udp" {
-		servicePort.Protocol = "UDP"
-	} else {
-		servicePort.Protocol = "TCP"
-	}
-	servicePort.Name = generateSVCPortName(port.Protocol, port.ContainerPort)
-	servicePort.TargetPort = intstr.FromInt(port.ContainerPort)
-	servicePort.Port = int32(port.MappingPort)
-	if servicePort.Port == 0 {
-		servicePort.Port = int32(port.ContainerPort)
+	var servicePorts []corev1.ServicePort
+	for _, port := range ports {
+		var servicePort corev1.ServicePort
+		if port.Protocol == "udp" {
+			servicePort.Protocol = "UDP"
+		} else {
+			servicePort.Protocol = "TCP"
+		}
+		servicePort.Name = generateSVCPortName(port.Protocol, port.ContainerPort)
+		servicePort.TargetPort = intstr.FromInt(port.ContainerPort)
+		servicePort.Port = int32(port.MappingPort)
+		if servicePort.Port == 0 {
+			servicePort.Port = int32(port.ContainerPort)
+		}
+		servicePorts = append(servicePorts, servicePort)
 	}
 	spec := corev1.ServiceSpec{
-		Ports: []corev1.ServicePort{servicePort},
+		Ports: servicePorts,
 	}
 	if a.appService.ServiceKind != model.ServiceKindThirdParty {
 		spec.Selector = map[string]string{"name": a.service.ServiceAlias}

@@ -359,7 +359,7 @@ func (c *clusterAction) createPort(ports []model.PortManagement, service *dbmode
 		vpD.Name = port.Name
 		vpD.Protocol = port.Protocol
 		vpD.PortAlias = fmt.Sprintf("%v%v", strings.ToUpper(portAlias), port.Port)
-		vpD.K8sServiceName = fmt.Sprintf("%v-%v", service.ServiceAlias, port.Port)
+		vpD.K8sServiceName = service.ServiceAlias
 		portVar = append(portVar, &vpD)
 	}
 	if err := db.GetManager().TenantServicesPortDao().CreateOrUpdatePortsInBatch(portVar); err != nil {

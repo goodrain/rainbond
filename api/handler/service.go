@@ -1228,7 +1228,7 @@ func (s *ServiceAction) CreatePorts(tenantID, serviceID string, vps *api_model.S
 				tx.Rollback()
 				return err
 			}
-			if port != nil {
+			if port != nil && port.ServiceID != serviceID {
 				tx.Rollback()
 				return bcode.ErrK8sServiceNameExists
 			}
@@ -1333,7 +1333,7 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 					tx.Rollback()
 					return err
 				}
-				if port != nil && vpD.K8sServiceName != vp.K8sServiceName {
+				if port != nil && vpD.K8sServiceName != vp.K8sServiceName && port.ServiceID != serviceID {
 					tx.Rollback()
 					return bcode.ErrK8sServiceNameExists
 				}
