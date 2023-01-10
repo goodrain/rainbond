@@ -27,6 +27,13 @@ const (
 	GovernanceModeIstioServiceMesh = "ISTIO_SERVICE_MESH"
 )
 
+const (
+	// GovernanceModeBuildInServiceMeshDesc -
+	GovernanceModeBuildInServiceMeshDesc = "内置ServiceMesh模式需要用户显示的配置组件间的依赖关系，平台会在下游组件中自动注入sidecar容器组成ServiceMesh微服务架构，业务间通信地址统一为localhost模式"
+	// GovernanceModeKubernetesNativeServiceDesc -
+	GovernanceModeKubernetesNativeServiceDesc = "该模式组件间使用Kubernetes service名称域名进行通信，用户需要配置每个组件端口注册的service名称，治理能力有限"
+)
+
 // app type
 const (
 	AppTypeRainbond = "rainbond"

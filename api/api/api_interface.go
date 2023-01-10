@@ -221,7 +221,11 @@ type ApplicationInterface interface {
 	SyncComponents(w http.ResponseWriter, r *http.Request)
 	SyncAppConfigGroups(w http.ResponseWriter, r *http.Request)
 	ListAppStatuses(w http.ResponseWriter, r *http.Request)
+	ListGovernanceMode(w http.ResponseWriter, r *http.Request)
 	CheckGovernanceMode(w http.ResponseWriter, r *http.Request)
+	CreateGovernanceModeCR(w http.ResponseWriter, r *http.Request)
+	UpdateGovernanceModeCR(w http.ResponseWriter, r *http.Request)
+	DeleteGovernanceModeCR(w http.ResponseWriter, r *http.Request)
 	ChangeVolumes(w http.ResponseWriter, r *http.Request)
 }
 

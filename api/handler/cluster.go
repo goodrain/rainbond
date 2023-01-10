@@ -761,11 +761,12 @@ func (c *clusterAction) GetAbility(abilityID string) (*unstructured.Unstructured
 	}
 	logrus.Infof("get ability: %v, %v, %v, %v", group, version, kind, name)
 	res := schema.GroupVersionResource{
-		Group:    group,
-		Version:  version,
-		Resource: strings.ToLower(kind) + "s",
+		Group:   group,
+		Version: version,
+		// TODO: 根据不同资源转化对应的 Resource
+		Resource: strings.ToLower(kind) + "es",
 	}
-	resource, err := c.dynamicClient.Resource(res).Namespace("rbd-system").Get(context.Background(), name, metav1.GetOptions{})
+	resource, err := c.dynamicClient.Resource(res).Namespace(metav1.NamespaceAll).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "get ability")
 	}
