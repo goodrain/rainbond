@@ -2169,3 +2169,13 @@ type RainbondPlugins struct {
 	Author      string `json:"author"`
 	Status      string `json:"status"`
 }
+
+type CreateUpdateGovernanceModeReq struct {
+	Provisioner string `json:"provisioner" validate:"required"`
+}
+
+type GovernanceMode struct {
+	Name        string `json:"name"`
+	IsDefault   bool   `json:"is_default"`
+	Description string `json:"description"`
+}
