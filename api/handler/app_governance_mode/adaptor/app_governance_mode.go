@@ -1,8 +1,13 @@
 package adaptor
 
 import (
+	"context"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	clientset "k8s.io/client-go/kubernetes"
 )
 
@@ -27,7 +32,7 @@ func NewAppGoveranceModeHandler(governanceMode string, kubeClient clientset.Inte
 }
 
 // IsGovernanceModeValid checks if the governanceMode is valid.
-func IsGovernanceModeValid(governanceMode string) bool {
+func IsGovernanceModeValid(governanceMode string, dynamicClient dynamic.Interface) bool {
 	switch governanceMode {
 	case model.GovernanceModeBuildInServiceMesh:
 		return true
@@ -35,6 +40,29 @@ func IsGovernanceModeValid(governanceMode string) bool {
 		return true
 	case model.GovernanceModeIstioServiceMesh:
 		return true
+	default:
+		found := findGovernanceMode(governanceMode, dynamicClient)
+		logrus.Debugf("find governance mode %s, found: %v", governanceMode, found)
+		if found {
+			return true
+		}
 	}
 	return false
+}
+
+func findGovernanceMode(governanceMode string, dynamicClient dynamic.Interface) (found bool) {
+	if dynamicClient == nil {
+		return false
+	}
+	res := schema.GroupVersionResource{
+		Group:    "rainbond.io",
+		Version:  "v1alpha1",
+		Resource: "servicemeshclasses",
+	}
+	serviceMeshClasses, err := dynamicClient.Resource(res).Get(context.Background(), governanceMode, metav1.GetOptions{})
+	logrus.Debugf("find governance mode %s, list: %v, err: %v", governanceMode, serviceMeshClasses, err)
+	if err != nil {
+		return false
+	}
+	return true
 }

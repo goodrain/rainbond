@@ -26,7 +26,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//ContextKey context key
+// ContextKey context key
 type ContextKey string
 
 // RoundRobin round robin loadBalance impl
@@ -34,19 +34,19 @@ type RoundRobin struct {
 	ops *uint64
 }
 
-//LoadBalance LoadBalance
+// LoadBalance LoadBalance
 type LoadBalance interface {
 	Select(r *http.Request, endpoints EndpointList) Endpoint
 }
 
-//Endpoint Endpoint
+// Endpoint Endpoint
 type Endpoint string
 
 func (e Endpoint) String() string {
 	return string(e)
 }
 
-//GetName get endpoint name
+// GetName get endpoint name
 func (e Endpoint) GetName() string {
 	if kv := strings.Split(string(e), "=>"); len(kv) > 1 {
 		return kv[0]
@@ -54,7 +54,7 @@ func (e Endpoint) GetName() string {
 	return string(e)
 }
 
-//GetAddr get addr
+// GetAddr get addr
 func (e Endpoint) GetAddr() string {
 	if kv := strings.Split(string(e), "=>"); len(kv) > 1 {
 		return kv[1]
@@ -62,7 +62,7 @@ func (e Endpoint) GetAddr() string {
 	return string(e)
 }
 
-//GetHTTPAddr get http url
+// GetHTTPAddr get http url
 func (e Endpoint) GetHTTPAddr() string {
 	if kv := strings.Split(string(e), "=>"); len(kv) > 1 {
 		return withScheme(kv[1])
@@ -77,22 +77,22 @@ func withScheme(s string) string {
 	return "http://" + s
 }
 
-//EndpointList EndpointList
+// EndpointList EndpointList
 type EndpointList []Endpoint
 
-//Len Len
+// Len Len
 func (e *EndpointList) Len() int {
 	return len(*e)
 }
 
-//Add Add
+// Add Add
 func (e *EndpointList) Add(endpoints ...string) {
 	for _, end := range endpoints {
 		*e = append(*e, Endpoint(end))
 	}
 }
 
-//Delete Delete
+// Delete Delete
 func (e *EndpointList) Delete(endpoints ...string) {
 	var new EndpointList
 	for _, endpoint := range endpoints {
@@ -105,12 +105,12 @@ func (e *EndpointList) Delete(endpoints ...string) {
 	*e = new
 }
 
-//Selec Selec
+// Selec Selec
 func (e *EndpointList) Selec(i int) Endpoint {
 	return (*e)[i]
 }
 
-//HaveEndpoint Whether or not there is a endpoint
+// HaveEndpoint Whether or not there is a endpoint
 func (e *EndpointList) HaveEndpoint(endpoint string) bool {
 	for _, en := range *e {
 		if en.String() == endpoint {
@@ -120,7 +120,7 @@ func (e *EndpointList) HaveEndpoint(endpoint string) bool {
 	return false
 }
 
-//CreateEndpoints CreateEndpoints
+// CreateEndpoints CreateEndpoints
 func CreateEndpoints(endpoints []string) EndpointList {
 	var epl EndpointList
 	for _, e := range endpoints {
@@ -148,24 +148,24 @@ func (rr RoundRobin) Select(r *http.Request, endpoints EndpointList) Endpoint {
 	return endpoints.Selec(selec)
 }
 
-//SelectBalance 选择性负载均衡
+// SelectBalance 选择性负载均衡
 type SelectBalance struct {
 	hostIDMap map[string]string
 }
 
-//NewSelectBalance  创建选择性负载均衡
+// NewSelectBalance  创建选择性负载均衡
 func NewSelectBalance() *SelectBalance {
 	return &SelectBalance{
 		hostIDMap: map[string]string{"local": "rbd-eventlog:6363"},
 	}
 }
 
-//Select 负载
+// Select 负载
 func (s *SelectBalance) Select(r *http.Request, endpoints EndpointList) Endpoint {
 	if r.URL == nil {
 		return Endpoint(s.hostIDMap["local"])
 	}
-
+	// ends = []string{"rbd-eventlog:6363"}
 	id2ip := map[string]string{"local": "rbd-eventlog:6363"}
 	for _, end := range endpoints {
 		if kv := strings.Split(string(end), "=>"); len(kv) > 1 {
@@ -175,6 +175,7 @@ func (s *SelectBalance) Select(r *http.Request, endpoints EndpointList) Endpoint
 
 	if r.URL != nil {
 		hostID := r.URL.Query().Get("host_id")
+		// hostID = "rbd-eventlog-0"
 		if hostID == "" {
 			hostIDFromContext := r.Context().Value(ContextKey("host_id"))
 			if hostIDFromContext != nil {

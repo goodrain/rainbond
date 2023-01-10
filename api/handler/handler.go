@@ -92,7 +92,7 @@ func InitHandle(conf option.Config,
 	defaultEtcdHandler = NewEtcdHandler(etcdcli)
 	defaultmonitorHandler = NewMonitorHandler(prometheusCli)
 	defServiceEventHandler = NewServiceEventHandler()
-	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli, rainbondClient, kubeClient)
+	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli, rainbondClient, kubeClient, dynamicClient)
 	defRegistryAuthSecretHandler = CreateRegistryAuthSecretManager(dbmanager, mqClient, etcdcli)
 	defNodesHandler = NewNodesHandler(kubeClient, conf.RbdNamespace, config, mapper, prometheusCli)
 	return nil
