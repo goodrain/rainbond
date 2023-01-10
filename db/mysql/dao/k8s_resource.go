@@ -34,7 +34,11 @@ type K8sResourceDaoImpl struct {
 
 // AddModel add model
 func (t *K8sResourceDaoImpl) AddModel(mo model.Interface) error {
-	return nil
+	resource, ok := mo.(*model.K8sResource)
+	if !ok {
+		return fmt.Errorf("mo.(*model.K8sResource) err")
+	}
+	return t.DB.Create(resource).Error
 }
 
 // UpdateModel update model
@@ -55,7 +59,7 @@ func (t *K8sResourceDaoImpl) ListByAppID(appID string) ([]model.K8sResource, err
 	return resources, nil
 }
 
-//CreateK8sResource -
+// CreateK8sResource -
 func (t *K8sResourceDaoImpl) CreateK8sResource(k8sResources []*model.K8sResource) error {
 	dbType := t.DB.Dialect().GetName()
 	if dbType == "sqlite3" {
@@ -77,12 +81,12 @@ func (t *K8sResourceDaoImpl) CreateK8sResource(k8sResources []*model.K8sResource
 	return nil
 }
 
-//DeleteK8sResource -
+// DeleteK8sResource -
 func (t *K8sResourceDaoImpl) DeleteK8sResource(appID, name string, kind string) error {
 	return t.DB.Where("app_id=? and name=? and kind=?", appID, name, kind).Delete(&model.K8sResource{}).Error
 }
 
-//GetK8sResourceByName -
+// GetK8sResourceByName -
 func (t *K8sResourceDaoImpl) GetK8sResourceByName(appID, name, kind string) (model.K8sResource, error) {
 	var resources model.K8sResource
 	if err := t.DB.Where("app_id=? and name=? and kind=?", appID, name, kind).First(&resources).Error; err != nil {

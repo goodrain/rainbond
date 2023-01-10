@@ -377,6 +377,7 @@ func (c *ClusterController) ListAbilities(w http.ResponseWriter, r *http.Request
 	httputil.ReturnSuccess(r, w, abilities)
 }
 
+// GetAbility -
 func (c *ClusterController) GetAbility(w http.ResponseWriter, r *http.Request) {
 	abilityID := chi.URLParam(r, "ability_id")
 	res, err := handler.GetClusterHandler().GetAbility(abilityID)
