@@ -10,6 +10,7 @@ import (
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/util/constants"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
@@ -67,6 +68,7 @@ type ClusterHandler interface {
 	ListAbilities() (rbds []unstructured.Unstructured, err error)
 	GetAbility(abilityID string) (rbd *unstructured.Unstructured, err error)
 	UpdateAbility(abilityID string, ability *unstructured.Unstructured) error
+	GenerateAbilityID(ability *unstructured.Unstructured) string
 	ListRainbondComponents(ctx context.Context) (res []*model.RainbondComponent, err error)
 }
 
@@ -644,7 +646,7 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 	for _, name := range appNames {
 		res = append(res, &model.RainbondComponent{
 			Name:    name,
-			Pods:   pods[name],
+			Pods:    pods[name],
 			AllPods: ComponentAllPods[name],
 			RunPods: ComponentRunPods[name],
 		})
@@ -727,98 +729,92 @@ func (c *clusterAction) ListAbilities() (rbds []unstructured.Unstructured, err e
 	if err != nil {
 		return nil, errors.Wrap(err, "get rbd abilities")
 	}
-	groupKey := func(apiVersion, kind string) string {
-		return fmt.Sprintf("%s-%s", strings.Replace(apiVersion, "/", "-", -1), kind)
-	}
-
-	var watchGroups = make(map[string]struct{})
-	for _, ability := range list.Items {
-		for _, group := range ability.Spec.WatchGroups {
-			watchGroups[groupKey(group.APIVersion, group.Kind)] = struct{}{}
+	// Remove duplicate watchGroups
+	existWatchGroups := make(map[string]struct{})
+	var watchGroups []v1alpha1.WatchGroup
+	for _, item := range list.Items {
+		for _, wg := range item.Spec.WatchGroups {
+			if wg.APIVersion == "" || wg.Kind == "" {
+				continue
+			}
+			if _, ok := existWatchGroups[wg.APIVersion+wg.Kind]; ok {
+				continue
+			}
+			existWatchGroups[wg.APIVersion+wg.Kind] = struct{}{}
+			watchGroups = append(watchGroups, wg)
 		}
 	}
 
-	for key := range watchGroups {
-		split := strings.Split(key, "-")
-		var group, version, kind string
-		if len(split) == 3 {
-			group = split[0]
-			version = split[1]
-			kind = split[2]
-		}
-		if len(split) == 2 {
-			version = split[0]
-			kind = split[1]
-		}
-		logrus.Infof("watch group: %v, %v, %v", group, version, kind)
-		list, err := c.dynamicClient.Resource(schema.GroupVersionResource{
-			Group:   group,
-			Version: version,
-			// TODO: 复数形式不一定是加s
-			Resource: strings.ToLower(kind) + "s",
-		}).Namespace(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	for _, wg := range watchGroups {
+		gvk := schema.FromAPIVersionAndKind(wg.APIVersion, wg.Kind)
+		mapping, err := c.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 		if err != nil {
-			return nil, errors.Wrap(err, "get watch group list")
+			logrus.Warningf("get rest mapping for %s/%s: %v", wg.APIVersion, wg.Kind, err)
+			continue
+		}
+		list, err := c.dynamicClient.Resource(mapping.Resource).Namespace(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			logrus.Warningf("list %s/%s: %v", wg.APIVersion, wg.Kind, err)
+			continue
 		}
 		rbds = append(rbds, list.Items...)
 	}
-
 	return rbds, nil
+}
+
+func (c *clusterAction) GenerateAbilityID(ability *unstructured.Unstructured) string {
+	// example abilityID: namespace_apiVersion_kind_name
+	return fmt.Sprintf("%s_%s_%s_%s", ability.GetNamespace(), strings.Replace(ability.GetAPIVersion(), "/", "-", -1), ability.GetKind(), ability.GetName())
+}
+
+func (c *clusterAction) ParseAbilityID(abilityID string) (namespace, apiVersion, kind, name string, err error) {
+	// example abilityID: namespace_apiVersion_kind_name
+	split := strings.SplitN(abilityID, "_", 4)
+	if len(split) < 4 {
+		return "", "", "", "", fmt.Errorf("invalid abilityID: %s", abilityID)
+	}
+	namespace, apiVersion, kind, name = split[0], split[1], split[2], split[3]
+	if strings.ContainsAny(apiVersion, "-") {
+		apiVersion = strings.Replace(apiVersion, "-", "/", -1)
+	}
+	return namespace, apiVersion, kind, name, nil
 }
 
 // GetAbility -
 func (c *clusterAction) GetAbility(abilityID string) (*unstructured.Unstructured, error) {
-	// abilityID: group-version-kind-name
-	split := strings.SplitN(abilityID, "-", 4)
-	var group, version, kind, name string
-	if len(split) == 4 {
-		group = split[0]
-		version = split[1]
-		kind = split[2]
-		name = split[3]
+	namespace, apiVersion, kind, name, err := c.ParseAbilityID(abilityID)
+	if err != nil {
+		return nil, err
 	}
-	if len(split) == 3 {
-		version = split[0]
-		kind = split[1]
-		name = split[2]
+	logrus.Debugf("get ability: [%v, %v, %v, %v]", namespace, apiVersion, kind, name)
+
+	gvk := schema.FromAPIVersionAndKind(apiVersion, kind)
+	mapping, err := c.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return nil, errors.Wrap(err, "ability_id invalid")
 	}
-	logrus.Infof("get ability: %v, %v, %v, %v", group, version, kind, name)
-	res := schema.GroupVersionResource{
-		Group:   group,
-		Version: version,
-		// TODO: 根据不同资源转化对应的 Resource
-		Resource: strings.ToLower(kind) + "es",
-	}
-	resource, err := c.dynamicClient.Resource(res).Namespace(metav1.NamespaceAll).Get(context.Background(), name, metav1.GetOptions{})
+	resource, err := c.dynamicClient.Resource(mapping.Resource).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "get ability")
 	}
+	resource.SetManagedFields(nil)
 	return resource, nil
 }
 
 // UpdateAbility -
 func (c *clusterAction) UpdateAbility(abilityID string, ability *unstructured.Unstructured) error {
-	// abilityID: group-version-kind-name
-	split := strings.SplitN(abilityID, "-", 4)
-	var group, version, kind, name string
-	if len(split) == 4 {
-		group = split[0]
-		version = split[1]
-		kind = split[2]
-		name = split[3]
+	namespace, apiVersion, kind, name, err := c.ParseAbilityID(abilityID)
+	if err != nil {
+		return err
 	}
-	if len(split) == 3 {
-		version = split[0]
-		kind = split[1]
-		name = split[2]
+	logrus.Debugf("update ability: [%v, %v, %v, %v]", namespace, apiVersion, kind, name)
+
+	gvk := schema.FromAPIVersionAndKind(apiVersion, kind)
+	mapping, err := c.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return errors.Wrap(err, "ability_id invalid")
 	}
-	logrus.Infof("update ability: %v, %v, %v, %v", group, version, kind, name)
-	res := schema.GroupVersionResource{
-		Group:    group,
-		Version:  version,
-		Resource: strings.ToLower(kind) + "s",
-	}
-	_, err := c.dynamicClient.Resource(res).Namespace("rbd-system").Update(context.Background(), ability, metav1.UpdateOptions{})
+	_, err = c.dynamicClient.Resource(mapping.Resource).Namespace(namespace).Update(context.Background(), ability, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrap(err, "update ability")
 	}
