@@ -19,15 +19,12 @@
 package controller
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
-
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/sirupsen/logrus"
 	"net/http"
+	"strconv"
 
 	httputil "github.com/goodrain/rainbond/util/http"
 )
@@ -371,7 +368,7 @@ func (c *ClusterController) ListAbilities(w http.ResponseWriter, r *http.Request
 			Name:       ability.GetName(),
 			Kind:       ability.GetKind(),
 			APIVersion: ability.GetAPIVersion(),
-			AbilityID:  fmt.Sprintf("%s-%s-%s", strings.Replace(ability.GetAPIVersion(), "/", "-", -1), ability.GetKind(), ability.GetName()),
+			AbilityID:  handler.GetClusterHandler().GenerateAbilityID(&ability),
 		})
 	}
 	httputil.ReturnSuccess(r, w, abilities)

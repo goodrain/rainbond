@@ -257,6 +257,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 				logrus.Errorf("get k8s resource error %v", err)
 				buildResource.State = model.GetError
 			}
+			obj.SetManagedFields(nil)
 			buildResource.Resource = obj
 		case "re-create":
 			unstructuredObj.SetResourceVersion("")
@@ -272,6 +273,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 				buildResource.State = state
 				buildResource.ErrorOverview = err.Error()
 			} else {
+				obj.SetManagedFields(nil)
 				buildResource.Resource = obj
 				buildResource.State = model.CreateSuccess
 				buildResource.ErrorOverview = fmt.Sprintf("创建成功")
@@ -290,6 +292,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 				buildResource.State = state
 				buildResource.ErrorOverview = err.Error()
 			} else {
+				obj.SetManagedFields(nil)
 				buildResource.Resource = obj
 				buildResource.State = model.UpdateSuccess
 				buildResource.ErrorOverview = fmt.Sprintf("更新成功")
