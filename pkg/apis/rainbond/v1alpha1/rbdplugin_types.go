@@ -46,6 +46,7 @@ type RBDPluginStatus struct {
 // +genclient
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:scope=Cluster
 
 // RBDPlugin is the Schema for the rbdplugins API
 type RBDPlugin struct {

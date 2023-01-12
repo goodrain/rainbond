@@ -14,7 +14,7 @@ spec:
     listKind: RBDPluginList
     plural: rbdplugins
     singular: rbdplugin
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1alpha1
     schema:
