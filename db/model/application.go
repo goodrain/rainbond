@@ -45,7 +45,7 @@ type Application struct {
 	AppStoreURL     string `gorm:"column:app_store_url" json:"app_store_url"`
 	AppTemplateName string `gorm:"column:app_template_name" json:"app_template_name"`
 	Version         string `gorm:"column:version" json:"version"`
-	GovernanceMode  string `gorm:"column:governance_mode;default:'BUILD_IN_SERVICE_MESH'" json:"governance_mode"`
+	GovernanceMode  string `gorm:"column:governance_mode;default:'KUBERNETES_NATIVE_SERVICE'" json:"governance_mode"`
 	K8sApp          string `gorm:"column:k8s_app" json:"k8s_app"`
 }
 
