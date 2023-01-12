@@ -295,7 +295,7 @@ func isNodeReady(node *corev1.Node) bool {
 
 func containsTaints(node *corev1.Node) bool {
 	for _, taint := range node.Spec.Taints {
-		if taint.Effect == corev1.TaintEffectNoSchedule {
+		if taint.Effect == corev1.TaintEffectNoSchedule && taint.Key != "node.kubernetes.io/unschedulable" {
 			return true
 		}
 	}

@@ -434,9 +434,6 @@ func (t *TenantAction) initClusterResource(ctx context.Context) error {
 				logrus.Debugf("[GetClusterInfo] node(%s) contains NoSchedule taints", node.GetName())
 				continue
 			}
-			if node.Spec.Unschedulable {
-				continue
-			}
 			usedNodeList[i] = node
 			for _, c := range node.Status.Conditions {
 				if c.Type == v1.NodeReady && c.Status != v1.ConditionTrue {
