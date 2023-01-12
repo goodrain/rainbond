@@ -16,11 +16,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	yamlt "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/restmapper"
 )
 
 // AddAppK8SResource -
 func (c *clusterAction) AddAppK8SResource(ctx context.Context, namespace string, appID string, resourceYaml string) ([]*dbmodel.K8sResource, *util.APIHandleError) {
-	logrus.Info("begin AddAppK8SResource")
 	resourceObjects := c.HandleResourceYaml([]byte(resourceYaml), namespace, "create", "", map[string]string{"app_id": appID})
 	var resourceList []*dbmodel.K8sResource
 	for _, resourceObject := range resourceObjects {
@@ -58,7 +58,6 @@ func (c *clusterAction) AddAppK8SResource(ctx context.Context, namespace string,
 }
 
 func (c *clusterAction) GetAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) (dbmodel.K8sResource, *util.APIHandleError) {
-	logrus.Info("begin GetAppK8SResource")
 	rs, err := db.GetManager().K8sResourceDao().GetK8sResourceByName(appID, name, kind)
 	if err != nil {
 		return dbmodel.K8sResource{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("get k8s resource %v", err)}
@@ -75,7 +74,6 @@ func (c *clusterAction) GetAppK8SResource(ctx context.Context, namespace, appID,
 
 // UpdateAppK8SResource -
 func (c *clusterAction) UpdateAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) (dbmodel.K8sResource, *util.APIHandleError) {
-	logrus.Info("begin UpdateAppK8SResource")
 	rs, err := db.GetManager().K8sResourceDao().GetK8sResourceByName(appID, name, kind)
 	if err != nil {
 		return dbmodel.K8sResource{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("get k8s resource %v", err)}
@@ -99,7 +97,6 @@ func (c *clusterAction) UpdateAppK8SResource(ctx context.Context, namespace, app
 
 // DeleteAppK8SResource -
 func (c *clusterAction) DeleteAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) *util.APIHandleError {
-	logrus.Info("begin DeleteAppK8SResource")
 	c.HandleResourceYaml([]byte(resourceYaml), namespace, "delete", name, nil)
 	err := db.GetManager().K8sResourceDao().DeleteK8sResource(appID, name, kind)
 	if err != nil {
@@ -111,7 +108,6 @@ func (c *clusterAction) DeleteAppK8SResource(ctx context.Context, namespace, app
 // SyncAppK8SResources -
 func (c *clusterAction) SyncAppK8SResources(ctx context.Context, req *model.SyncResources) ([]*dbmodel.K8sResource, *util.APIHandleError) {
 	// Only Add
-	logrus.Info("begin SyncAppK8SResource")
 	var resourceList []*dbmodel.K8sResource
 	for _, k8sResource := range req.K8sResources {
 		resourceObjects := c.HandleResourceYaml([]byte(k8sResource.ResourceYaml), k8sResource.Namespace, "re-create", k8sResource.Name, map[string]string{"app_id": k8sResource.AppID})
@@ -141,6 +137,16 @@ func (c *clusterAction) SyncAppK8SResources(ctx context.Context, req *model.Sync
 	return resourceList, nil
 }
 
+// RefreshMapper -
+func (c *clusterAction) RefreshMapper() error {
+	gr, err := restmapper.GetAPIGroupResources(c.clientset)
+	if err != nil {
+		return err
+	}
+	c.mapper = restmapper.NewDiscoveryRESTMapper(gr)
+	return nil
+}
+
 // HandleResourceYaml -
 func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string, change string, name string, commonLabels map[string]string) []*model.BuildResource {
 	var buildResourceList []*model.BuildResource
@@ -152,7 +158,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 	}
 
 	addLabelsFunc := func(unstructuredObj *unstructured.Unstructured) {
-		if commonLabels != nil {
+		if commonLabels != nil && unstructuredObj != nil {
 			labels := unstructuredObj.GetLabels()
 			if labels == nil {
 				labels = make(map[string]string)
@@ -209,15 +215,25 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 			return buildResourceList
 		}
 		//转化成对象
-		unstructuredObj := &unstructured.Unstructured{Object: unstructuredMap}
+		unstructuredObj := unstructured.Unstructured{Object: unstructuredMap}
 		mapping, err := c.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 		if err != nil {
-			logrus.Errorf("HandleResourceYaml c.mapper.RESTMapping error %v", err)
 			buildResourceList = []*model.BuildResource{{
 				State:         state,
 				ErrorOverview: err.Error(),
 			}}
-			return buildResourceList
+			if !meta.IsNoMatchError(err) {
+				return buildResourceList
+			}
+			err = c.RefreshMapper()
+			if err != nil {
+				return buildResourceList
+			}
+			mapping, err = c.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+			if err != nil {
+				return buildResourceList
+			}
+			buildResourceList = []*model.BuildResource{}
 		}
 		var dri dynamic.ResourceInterface
 		if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
@@ -227,7 +243,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 			dri = dc.Resource(mapping.Resource)
 		}
 		br := &model.BuildResource{
-			Resource: unstructuredObj,
+			Resource: &unstructuredObj,
 			Dri:      dri,
 		}
 		buildResourceList = append(buildResourceList, br)
