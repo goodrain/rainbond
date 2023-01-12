@@ -178,9 +178,7 @@ func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResou
 		nodeReady++
 		healthCapCPU += node.Status.Allocatable.Cpu().Value()
 		healthCapMem += node.Status.Allocatable.Memory().Value()
-		if node.Spec.Unschedulable == false {
-			usedNodeList[i] = node
-		}
+
 		nodeAllocatableResource := model.NewResource(node.Status.Allocatable)
 		if nodePods, ok := nodeMap[node.Name]; ok {
 			for _, pod := range nodePods {
