@@ -51,6 +51,7 @@ type RBDAbilityStatus struct {
 // +genclient
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:scope=Cluster
 
 // RBDAbility is the Schema for the rbdplugins API
 type RBDAbility struct {
