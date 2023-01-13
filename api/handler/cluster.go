@@ -279,7 +279,7 @@ func isNodeReady(node *corev1.Node) bool {
 
 func containsTaints(node *corev1.Node) bool {
 	for _, taint := range node.Spec.Taints {
-		if taint.Effect == corev1.TaintEffectNoSchedule {
+		if taint.Effect == corev1.TaintEffectNoSchedule && taint.Key != "node.kubernetes.io/unschedulable" {
 			return true
 		}
 	}
@@ -596,15 +596,15 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 			logrus.Warningf("list rainbond components. label 'name' not found for pod(%s/%s)", pod.Namespace, pod.Name)
 			continue
 		}
-		appNameMap[appName] += 1
+		appNameMap[appName] ++
 		pods[appName] = append(pods[appName], pod)
 		if pod.Status.Phase == "Running" {
-			ComponentRunPods[appName] += 1
+			ComponentRunPods[appName] ++
 		}
-		ComponentAllPods[appName] += 1
+		ComponentAllPods[appName] ++
 	}
 	var appNames []string
-	for name, _ := range appNameMap{
+	for name := range appNameMap{
 		appNames = append(appNames, name)
 	}
 	// rainbond operator
@@ -619,9 +619,9 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 	pods["rainbond-operator"] = roPods.Items
 	for _, ropod := range roPods.Items {
 		if ropod.Status.Phase == "Running" {
-			ComponentRunPods["rainbond-operator"] += 1
+			ComponentRunPods["rainbond-operator"] ++
 		}
-		ComponentAllPods["rainbond-operator"] += 1
+		ComponentAllPods["rainbond-operator"] ++
 	}
 	appNames = append(appNames, "rainbond-operator")
 	for _, name := range appNames {
