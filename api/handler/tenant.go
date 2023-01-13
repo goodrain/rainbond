@@ -399,13 +399,14 @@ func (t *TenantAction) GetTenantResource(tenantID string) (ts TenantResourceStat
 	return
 }
 
+// PodResourceInformation -
 type PodResourceInformation struct {
 	NodeName         string
 	ServiceID        string
 	AppID            string
 	Memory           int64
 	ResourceVersion  string
-	Cpu              int64
+	CPU              int64
 	StorageEphemeral int64
 }
 
@@ -466,7 +467,7 @@ func (t *TenantAction) initClusterResource(ctx context.Context) error {
 				nodePod.ResourceVersion = pod.ResourceVersion
 				for _, c := range pod.Spec.Containers {
 					nodePod.Memory += c.Resources.Requests.Memory().Value()
-					nodePod.Cpu += c.Resources.Requests.Cpu().MilliValue()
+					nodePod.CPU += c.Resources.Requests.Cpu().MilliValue()
 					nodePod.StorageEphemeral += c.Resources.Requests.StorageEphemeral().Value()
 				}
 				nodePodsList = append(nodePodsList, nodePod)
