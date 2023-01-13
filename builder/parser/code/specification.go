@@ -44,8 +44,6 @@ func init() {
 	specification[JavaJar] = javaJarCheck
 	specification[JavaMaven] = javaMavenCheck
 	specification[PHP] = phpCheck
-	specification[NodeJSStatic] = nodeCheck
-	specification[Nodejs] = nodeCheck
 	specification[Golang] = golangCheck
 }
 
