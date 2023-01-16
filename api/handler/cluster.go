@@ -615,15 +615,15 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 			logrus.Warningf("list rainbond components. label 'name' not found for pod(%s/%s)", pod.Namespace, pod.Name)
 			continue
 		}
-		appNameMap[appName] ++
+		appNameMap[appName]++
 		pods[appName] = append(pods[appName], pod)
 		if pod.Status.Phase == "Running" {
-			ComponentRunPods[appName] ++
+			ComponentRunPods[appName]++
 		}
-		ComponentAllPods[appName] ++
+		ComponentAllPods[appName]++
 	}
 	var appNames []string
-	for name := range appNameMap{
+	for name := range appNameMap {
 		appNames = append(appNames, name)
 	}
 	// rainbond operator
@@ -638,9 +638,9 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 	pods["rainbond-operator"] = roPods.Items
 	for _, ropod := range roPods.Items {
 		if ropod.Status.Phase == "Running" {
-			ComponentRunPods["rainbond-operator"] ++
+			ComponentRunPods["rainbond-operator"]++
 		}
-		ComponentAllPods["rainbond-operator"] ++
+		ComponentAllPods["rainbond-operator"]++
 	}
 	appNames = append(appNames, "rainbond-operator")
 	for _, name := range appNames {
@@ -656,11 +656,7 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 
 // ListPlugins -
 func (c *clusterAction) ListPlugins() (plugins []*model.RainbondPlugins, err error) {
-	ns := ""
-	if os.Getenv("PluginNS") != "" {
-		ns = os.Getenv("PluginNS")
-	}
-	list, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(ns).List(context.Background(), metav1.ListOptions{})
+	list, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "get rbd plugins")
 	}
@@ -708,7 +704,7 @@ func (c *clusterAction) ListPlugins() (plugins []*model.RainbondPlugins, err err
 		if appStatuses[appID] != "" {
 			status = appStatuses[appID]
 		}
-		logrus.Infof("plugin Name: %v, namespace %v", plugin.Name, plugin.Namespace)
+		logrus.Debugf("plugin Name: %v, namespace %v", plugin.Name, plugin.Namespace)
 		plugins = append(plugins, &model.RainbondPlugins{
 			RegionAppID: appID,
 			Name:        plugin.GetName(),

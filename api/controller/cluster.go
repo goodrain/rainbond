@@ -335,7 +335,7 @@ func (c *ClusterController) GetRbdPods(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListRainbondComponents -
-func (t *ClusterController) ListRainbondComponents(w http.ResponseWriter, r *http.Request) {
+func (c *ClusterController) ListRainbondComponents(w http.ResponseWriter, r *http.Request) {
 	components, err := handler.GetClusterHandler().ListRainbondComponents(r.Context())
 	if err != nil {
 		logrus.Errorf("get rainbond components error: %v", err)

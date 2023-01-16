@@ -311,6 +311,7 @@ func (a *ApplicationAction) handleDBK8sResource(app *dbmodel.Application, smcr *
 	return string(contentBytes), nil
 }
 
+// UpdateServiceMeshCR update service mesh custom resources
 func (a *ApplicationAction) UpdateServiceMeshCR(app *dbmodel.Application, governance string) (content string, err error) {
 	team, err := GetTenantManager().GetTenantsByUUID(app.TenantID)
 	if err != nil {
@@ -338,6 +339,7 @@ func (a *ApplicationAction) UpdateServiceMeshCR(app *dbmodel.Application, govern
 	return a.handleDBK8sResource(app, smcr, "update")
 }
 
+// DeleteServiceMeshCR delete service mesh custom resources
 func (a *ApplicationAction) DeleteServiceMeshCR(app *dbmodel.Application) error {
 	team, err := GetTenantManager().GetTenantsByUUID(app.TenantID)
 	if err != nil {
@@ -938,13 +940,6 @@ func (a *ApplicationAction) CheckGovernanceMode(ctx context.Context, governanceM
 	if !adaptor.IsGovernanceModeValid(governanceMode, a.dynamicClient) {
 		return bcode.ErrInvalidGovernanceMode
 	}
-	//mode, err := adaptor.NewAppGoveranceModeHandler(governanceMode, a.kubeClient)
-	//if err != nil {
-	//	return err
-	//}
-	//if !mode.IsInstalledControlPlane() {
-	//	return bcode.ErrControlPlaneNotInstall
-	//}
 	return nil
 }
 

@@ -86,7 +86,6 @@ func createHTTPProxy(name string, endpoints []string, lb LoadBalance) *HTTPProxy
 	for _, end := range endpoints {
 		if kv := strings.Split(end, "=>"); len(kv) > 1 {
 			ends = append(ends, kv[1])
-			//	ends = []string{"rbd-eventlog:6363"}
 		} else {
 			ends = append(ends, end)
 		}

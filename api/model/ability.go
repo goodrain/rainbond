@@ -8,6 +8,7 @@ type UpdateAbilityReq struct {
 	Object *unstructured.Unstructured `json:"object" validate:"required"`
 }
 
+// AbilityResp -
 type AbilityResp struct {
 	Name       string `json:"name"`
 	APIVersion string `json:"api_version"`

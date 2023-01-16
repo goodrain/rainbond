@@ -165,7 +165,6 @@ func (s *SelectBalance) Select(r *http.Request, endpoints EndpointList) Endpoint
 	if r.URL == nil {
 		return Endpoint(s.hostIDMap["local"])
 	}
-	// ends = []string{"rbd-eventlog:6363"}
 	id2ip := map[string]string{"local": "rbd-eventlog:6363"}
 	for _, end := range endpoints {
 		if kv := strings.Split(string(end), "=>"); len(kv) > 1 {
@@ -175,7 +174,6 @@ func (s *SelectBalance) Select(r *http.Request, endpoints EndpointList) Endpoint
 
 	if r.URL != nil {
 		hostID := r.URL.Query().Get("host_id")
-		// hostID = "rbd-eventlog-0"
 		if hostID == "" {
 			hostIDFromContext := r.Context().Value(ContextKey("host_id"))
 			if hostIDFromContext != nil {

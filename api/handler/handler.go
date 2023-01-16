@@ -237,7 +237,7 @@ func GetClusterHandler() ClusterHandler {
 
 var defNodesHandler NodesHandler
 
-// GetClusterHandler returns the default cluster handler.
+// GetNodesHandler returns the default cluster handler.
 func GetNodesHandler() NodesHandler {
 	return defNodesHandler
 }
