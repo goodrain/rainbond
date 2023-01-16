@@ -290,10 +290,61 @@ func (a *ApplicationController) ListAppStatuses(w http.ResponseWriter, r *http.R
 	httputil.ReturnSuccess(r, w, res)
 }
 
+// ListGovernanceMode list governance mode.
+func (a *ApplicationController) ListGovernanceMode(w http.ResponseWriter, r *http.Request) {
+	governance, err := handler.GetApplicationHandler().ListGovernanceMode()
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, governance)
+}
+
 // CheckGovernanceMode check governance mode.
 func (a *ApplicationController) CheckGovernanceMode(w http.ResponseWriter, r *http.Request) {
 	governanceMode := r.URL.Query().Get("governance_mode")
 	err := handler.GetApplicationHandler().CheckGovernanceMode(r.Context(), governanceMode)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+// CreateGovernanceModeCR create governance mode cr.
+func (a *ApplicationController) CreateGovernanceModeCR(w http.ResponseWriter, r *http.Request) {
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
+	var req model.CreateUpdateGovernanceModeReq
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
+		return
+	}
+	content, err := handler.GetApplicationHandler().CreateServiceMeshCR(app, req.Provisioner)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, content)
+}
+
+// UpdateGovernanceModeCR update governance mode cr
+func (a *ApplicationController) UpdateGovernanceModeCR(w http.ResponseWriter, r *http.Request) {
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
+	var req model.CreateUpdateGovernanceModeReq
+	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
+		return
+	}
+	content, err := handler.GetApplicationHandler().UpdateServiceMeshCR(app, req.Provisioner)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, content)
+}
+
+// DeleteGovernanceModeCR delete governance mode cr
+func (a *ApplicationController) DeleteGovernanceModeCR(w http.ResponseWriter, r *http.Request) {
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
+	err := handler.GetApplicationHandler().DeleteServiceMeshCR(app)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return

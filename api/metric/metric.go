@@ -144,7 +144,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		e.clusterPodStorageEphemeral.Reset()
 		for _, pod := range resource.NodePods {
 			e.clusterPodMemory.WithLabelValues(pod.NodeName, pod.AppID, pod.ServiceID, pod.ResourceVersion).Set(float64(pod.Memory))
-			e.clusterPodCPU.WithLabelValues(pod.NodeName, pod.AppID, pod.ServiceID, pod.ResourceVersion).Set(float64(pod.Cpu))
+			e.clusterPodCPU.WithLabelValues(pod.NodeName, pod.AppID, pod.ServiceID, pod.ResourceVersion).Set(float64(pod.CPU))
 			e.clusterPodStorageEphemeral.WithLabelValues(pod.NodeName, pod.AppID, pod.ServiceID, pod.ResourceVersion).Set(float64(pod.StorageEphemeral))
 		}
 	}

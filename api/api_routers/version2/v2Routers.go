@@ -26,12 +26,12 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
-//V2 v2
+// V2 v2
 type V2 struct {
 	Cfg *option.Config
 }
 
-//Routes routes
+// Routes routes
 func (v2 *V2) Routes() chi.Router {
 	r := chi.NewRouter()
 	license := middleware.NewLicense(v2.Cfg)
@@ -124,6 +124,11 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/log-file", controller.GetManager().LogList)
 	r.Post("/shell-pod", controller.GetManager().CreateShellPod)
 	r.Delete("/shell-pod", controller.GetManager().DeleteShellPod)
+	r.Get("/plugins", controller.GetManager().ListPlugins)
+	r.Get("/abilities", controller.GetManager().ListAbilities)
+	r.Get("/abilities/{ability_id}", controller.GetManager().GetAbility)
+	r.Put("/abilities/{ability_id}", controller.GetManager().UpdateAbility)
+	r.Get("/governance-mode", controller.GetManager().ListGovernanceMode)
 	r.Get("/rbd-components", controller.GetManager().ListRainbondComponents)
 	r.Mount("/nodes", v2.nodesRouter())
 	return r
@@ -369,6 +374,9 @@ func (v2 *V2) applicationRouter() chi.Router {
 	r.Use(middleware.InitApplication)
 	// app governance mode
 	r.Get("/governance/check", controller.GetManager().CheckGovernanceMode)
+	r.Post("/governance-cr", controller.GetManager().CreateGovernanceModeCR)
+	r.Put("/governance-cr", controller.GetManager().UpdateGovernanceModeCR)
+	r.Delete("/governance-cr", controller.GetManager().DeleteGovernanceModeCR)
 	// Operation application
 	r.Put("/", controller.GetManager().UpdateApp)
 	r.Delete("/", controller.GetManager().DeleteApp)

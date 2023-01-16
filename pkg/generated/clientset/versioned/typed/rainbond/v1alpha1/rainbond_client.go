@@ -21,6 +21,8 @@
 package v1alpha1
 
 import (
+	"net/http"
+
 	v1alpha1 "github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
@@ -30,6 +32,8 @@ type RainbondV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	ComponentDefinitionsGetter
 	HelmAppsGetter
+	RBDAbilitiesGetter
+	RBDPluginsGetter
 	ThirdComponentsGetter
 }
 
@@ -46,17 +50,41 @@ func (c *RainbondV1alpha1Client) HelmApps(namespace string) HelmAppInterface {
 	return newHelmApps(c, namespace)
 }
 
+func (c *RainbondV1alpha1Client) RBDAbilities(namespace string) RBDAbilityInterface {
+	return newRBDAbilities(c, namespace)
+}
+
+func (c *RainbondV1alpha1Client) RBDPlugins(namespace string) RBDPluginInterface {
+	return newRBDPlugins(c, namespace)
+}
+
 func (c *RainbondV1alpha1Client) ThirdComponents(namespace string) ThirdComponentInterface {
 	return newThirdComponents(c, namespace)
 }
 
 // NewForConfig creates a new RainbondV1alpha1Client for the given config.
+// NewForConfig is equivalent to NewForConfigAndClient(c, httpClient),
+// where httpClient was generated with rest.HTTPClientFor(c).
 func NewForConfig(c *rest.Config) (*RainbondV1alpha1Client, error) {
 	config := *c
 	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
 	}
-	client, err := rest.RESTClientFor(&config)
+	httpClient, err := rest.HTTPClientFor(&config)
+	if err != nil {
+		return nil, err
+	}
+	return NewForConfigAndClient(&config, httpClient)
+}
+
+// NewForConfigAndClient creates a new RainbondV1alpha1Client for the given config and http client.
+// Note the http client provided takes precedence over the configured transport values.
+func NewForConfigAndClient(c *rest.Config, h *http.Client) (*RainbondV1alpha1Client, error) {
+	config := *c
+	if err := setConfigDefaults(&config); err != nil {
+		return nil, err
+	}
+	client, err := rest.RESTClientForConfigAndClient(&config, h)
 	if err != nil {
 		return nil, err
 	}

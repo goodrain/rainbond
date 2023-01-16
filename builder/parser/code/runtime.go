@@ -157,12 +157,6 @@ func readNodeRuntimeInfo(buildPath string) (map[string]string, error) {
 	if ok, _ := util.FileExists(path.Join(buildPath, "package.json")); !ok {
 		return runtimeInfo, nil
 	}
-	if ok, _ := util.FileExists(path.Join(buildPath, "yarn.lock")); ok {
-		runtimeInfo["PACKAGE_TOOL"] = "yarn"
-	}
-	if ok, _ := util.FileExists(path.Join(buildPath, "package-lock.json")); ok {
-		runtimeInfo["PACKAGE_TOOL"] = "npm"
-	}
 	body, err := ioutil.ReadFile(path.Join(buildPath, "package.json"))
 	if err != nil {
 		return runtimeInfo, nil
@@ -181,5 +175,7 @@ func readNodeRuntimeInfo(buildPath string) (map[string]string, error) {
 			runtimeInfo["RUNTIMES"] = nodeVersion
 		}
 	}
+	// default npm
+	runtimeInfo["PACKAGE_TOOL"] = "npm"
 	return runtimeInfo, nil
 }

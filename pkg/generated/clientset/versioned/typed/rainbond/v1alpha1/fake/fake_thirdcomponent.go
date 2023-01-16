@@ -119,7 +119,7 @@ func (c *FakeThirdComponents) UpdateStatus(ctx context.Context, thirdComponent *
 // Delete takes name of the thirdComponent and deletes it. Returns an error if one occurs.
 func (c *FakeThirdComponents) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(thirdcomponentsResource, c.ns, name), &v1alpha1.ThirdComponent{})
+		Invokes(testing.NewDeleteActionWithOptions(thirdcomponentsResource, c.ns, name, opts), &v1alpha1.ThirdComponent{})
 
 	return err
 }

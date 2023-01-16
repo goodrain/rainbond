@@ -38,6 +38,14 @@ func (c *FakeRainbondV1alpha1) HelmApps(namespace string) v1alpha1.HelmAppInterf
 	return &FakeHelmApps{c, namespace}
 }
 
+func (c *FakeRainbondV1alpha1) RBDAbilities(namespace string) v1alpha1.RBDAbilityInterface {
+	return &FakeRBDAbilities{c, namespace}
+}
+
+func (c *FakeRainbondV1alpha1) RBDPlugins(namespace string) v1alpha1.RBDPluginInterface {
+	return &FakeRBDPlugins{c, namespace}
+}
+
 func (c *FakeRainbondV1alpha1) ThirdComponents(namespace string) v1alpha1.ThirdComponentInterface {
 	return &FakeThirdComponents{c, namespace}
 }

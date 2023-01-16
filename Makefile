@@ -56,7 +56,7 @@ CRD_OPTIONS ?= "crd:trivialVersions=true"
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/apis/..." output:crd:artifacts:config=config/crd
 
-# Generate code
+# Generate code, controller-gen version: v0.9.2
 generate: controller-gen
 	chmod +x vendor/k8s.io/code-generator/generate-groups.sh
 	./hack/k8s/codegen/update-generated.sh
