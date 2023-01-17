@@ -64,9 +64,9 @@ func (s *exportController) Begin() {
 		if err != nil {
 			logrus.Errorf("write values.yaml other failure %v", err)
 		}
-		err = s.write(path.Join(exportPath, "end.yaml"), []byte("end"), "\n")
+		err = s.write(path.Join(exportPath, "dependent_image.txt"), []byte(v1.GetOnlineProbeMeshImageName()), "\n")
 		if err != nil {
-			logrus.Errorf("write end.yaml failure %v", err)
+			logrus.Errorf("write dependent_image.txt failure %v", err)
 		}
 		err = db.GetManager().ServiceEventDao().DeleteEvents(s.EventIDs)
 		if err != nil {
