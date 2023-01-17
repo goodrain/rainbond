@@ -186,7 +186,7 @@ type TenantServicesPortDao interface {
 	HasOpenPort(sid string) bool
 	DelByServiceID(sid string) error
 	ListInnerPortsByServiceIDs(serviceIDs []string) ([]*model.TenantServicesPort, error)
-	ListByK8sServiceNames(serviceIDs []string) ([]*model.TenantServicesPort, error)
+	ListByK8sServiceNames(k8sServiceNames []string) ([]*model.TenantServicesPort, error)
 	CreateOrUpdatePortsInBatch(ports []*model.TenantServicesPort) error
 	DeleteByComponentIDs(componentIDs []string) error
 }

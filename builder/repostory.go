@@ -99,4 +99,4 @@ var ONLINEBUILDERIMAGENAME string
 var ONLINERUNNERIMAGENAME string
 
 // CIVERSION -
-var CIVERSION = "v5.8.1-release"
+var CIVERSION = "v5.11.0-release"
