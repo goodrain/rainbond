@@ -144,7 +144,7 @@ func GetHelmAppYaml(name, chart, version, namespace string, overrides []string) 
 	}
 	release, err := helmCmd.Install(name, chart, version, overrides)
 	if err != nil {
-		logrus.Errorf("Failed to get yaml %v", err)
+		logrus.Errorf("helm --dry-run install failure: %v", err)
 		return "", err
 	}
 	return release.Manifest, nil

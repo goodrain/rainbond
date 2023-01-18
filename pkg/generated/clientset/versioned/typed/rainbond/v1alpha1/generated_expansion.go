@@ -24,4 +24,8 @@ type ComponentDefinitionExpansion interface{}
 
 type HelmAppExpansion interface{}
 
+type RBDAbilityExpansion interface{}
+
+type RBDPluginExpansion interface{}
+
 type ThirdComponentExpansion interface{}

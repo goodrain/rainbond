@@ -30,13 +30,14 @@ import (
 	"github.com/goodrain/rainbond/worker/client"
 )
 
-//V2Manager v2 manager
+// V2Manager v2 manager
 type V2Manager interface {
 	Show(w http.ResponseWriter, r *http.Request)
 	Health(w http.ResponseWriter, r *http.Request)
 	AlertManagerWebHook(w http.ResponseWriter, r *http.Request)
 	Version(w http.ResponseWriter, r *http.Request)
 	api.ClusterInterface
+	api.NodesInterface
 	api.TenantInterface
 	api.ServiceInterface
 	api.LogInterface
@@ -55,18 +56,18 @@ type V2Manager interface {
 
 var defaultV2Manager V2Manager
 
-//CreateV2RouterManager 创建manager
+// CreateV2RouterManager 创建manager
 func CreateV2RouterManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (err error) {
 	defaultV2Manager, err = NewManager(conf, statusCli)
 	return err
 }
 
-//GetManager 获取管理器
+// GetManager 获取管理器
 func GetManager() V2Manager {
 	return defaultV2Manager
 }
 
-//NewManager new manager
+// NewManager new manager
 func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2Routes, error) {
 	etcdClientArgs := &etcdutil.ClientArgs{
 		Endpoints: conf.EtcdEndpoint,

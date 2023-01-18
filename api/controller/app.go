@@ -195,10 +195,6 @@ func (a *AppStruct) UploadID(w http.ResponseWriter, r *http.Request) {
 			if dir.IsDir() {
 				continue
 			}
-			ex := filepath.Ext(dir.Name())
-			if ex != ".jar" && ex != ".war" && ex != ".yaml" && ex != ".yml"{
-				continue
-			}
 			packageArr = append(packageArr, dir.Name())
 		}
 
@@ -223,7 +219,6 @@ func (a *AppStruct) UploadID(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnSuccess(r, w, "successful")
 	}
 }
-
 
 //NewUpload -
 func (a *AppStruct) NewUpload(w http.ResponseWriter, r *http.Request) {

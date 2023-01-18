@@ -35,7 +35,11 @@ import (
 
 //OperationHandler operation handler
 type OperationHandler struct {
-	mqCli gclient.MQClient
+	mqCli     gclient.MQClient
+	dryRun    bool
+	helmChart *model.HelmChart
+	eventIDs  []string
+	end       bool
 }
 
 //OperationResult batch operation result
@@ -53,6 +57,14 @@ func CreateOperationHandler(mqCli gclient.MQClient) *OperationHandler {
 	return &OperationHandler{
 		mqCli: mqCli,
 	}
+}
+
+//SetHelmParameter pass the helm parameter
+func (o *OperationHandler) SetHelmParameter(dryRun bool, helmChart *model.HelmChart, eventIDs []string, end bool) {
+	o.helmChart = helmChart
+	o.dryRun = dryRun
+	o.eventIDs = eventIDs
+	o.end = end
 }
 
 //Build service build,will create new version
@@ -116,6 +128,24 @@ func (o *OperationHandler) build(batchOpReq model.ComponentOpReq) error {
 		}
 	case model.FromMarketSlugBuildKing:
 		if err := o.buildFromMarketSlug(buildReq, service); err != nil {
+			return err
+		}
+	case model.ExportHelmChart:
+		version.DeliveredType = "image"
+		version.DeliveredPath = buildReq.ImageInfo.ImageURL
+		version.ImageName = buildReq.ImageInfo.ImageURL
+		version.RepoURL = buildReq.ImageInfo.ImageURL
+		version.FinalStatus = "success"
+		version.FinishTime = time.Now()
+		err = db.GetManager().TenantServiceDao().UpdateDeployVersion(buildReq.ServiceID, buildReq.DeployVersion)
+		if err != nil {
+			return err
+		}
+		err = db.GetManager().VersionInfoDao().UpdateModel(&version)
+		if err != nil {
+			return err
+		}
+		if err = o.exportHelmChart(buildReq, service); err != nil {
 			return err
 		}
 	default:
@@ -287,6 +317,26 @@ func (o *OperationHandler) sendBuildTopic(serviceID, taskType string, body map[s
 	return o.mqCli.SendBuilderTopic(gclient.TaskStruct{
 		Topic:    topic,
 		TaskType: taskType,
+		TaskBody: body,
+	})
+}
+
+func (o *OperationHandler) exportHelmChart(r *model.ComponentBuildReq, service *dbmodel.TenantServices) error {
+	body := dmodel.RollingUpgradeTaskBody{
+		TenantID:         service.TenantID,
+		ServiceID:        service.ServiceID,
+		NewDeployVersion: r.DeployVersion,
+		EventID:          "",
+		Configs:          r.Configs,
+		AppVersion:       o.helmChart.AppVersion,
+		AppName:          o.helmChart.AppName,
+		DryRun:           o.dryRun,
+		EventIDs:         o.eventIDs,
+		End:              o.end,
+	}
+	return o.mqCli.SendBuilderTopic(gclient.TaskStruct{
+		Topic:    gclient.WorkerTopic,
+		TaskType: "rolling_upgrade", // TODO(huangrh 20190816): Separate from build
 		TaskBody: body,
 	})
 }

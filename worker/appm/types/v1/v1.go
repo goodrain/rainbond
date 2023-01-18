@@ -118,6 +118,7 @@ type AppServiceBase struct {
 	GovernanceMode   string
 	K8sApp           string
 	K8sComponentName string
+	DryRun           bool
 }
 
 //GetComponentDefinitionName get component definition name by component kind
@@ -588,9 +589,10 @@ func (a *AppService) calculateComponentMemoryRequest() {
 }
 
 //SetPodTemplate set pod template spec
-func (a *AppService) SetPodTemplate(d corev1.PodTemplateSpec) {
+func (a *AppService) SetPodTemplate(d corev1.PodTemplateSpec, vct []corev1.PersistentVolumeClaim) {
 	if a.statefulset != nil {
 		a.statefulset.Spec.Template = d
+		a.statefulset.Spec.VolumeClaimTemplates = append(a.statefulset.Spec.VolumeClaimTemplates, vct...)
 	}
 	if a.deployment != nil {
 		a.deployment.Spec.Template = d

@@ -91,6 +91,9 @@ func (c *ContainerLogManage) handleLogger() {
 			switch cevent.Action {
 			case sources.CONTAINER_ACTION_START, sources.CONTAINER_ACTION_CREATE:
 				if cevent.Container.ContainerRuntime == sources.ContainerRuntimeDocker {
+					if cevent.Action == sources.CONTAINER_ACTION_CREATE {
+						continue
+					}
 					loggerType := cevent.Container.HostConfig.LogConfig.Type
 					if loggerType != "json-file" && loggerType != "syslog" {
 						continue
@@ -141,6 +144,9 @@ func (c *ContainerLogManage) handleLogger() {
 					}()
 				}
 			case sources.CONTAINER_ACTION_STOP, sources.CONTAINER_ACTION_DESTROY, sources.CONTAINER_ACTION_DIE:
+				if cevent.Container.ContainerRuntime == sources.ContainerRuntimeDocker && cevent.Action != sources.CONTAINER_ACTION_STOP {
+					continue
+				}
 				if logger, ok := c.containerLogs.Load(cevent.Container.GetId()); ok {
 					clog, okf := logger.(*ContainerLog)
 					if okf {
@@ -221,6 +227,7 @@ func (c *ContainerLogManage) listAndWatchContainer(errchan chan error) {
 	}
 }
 
+//Out -
 type Out struct {
 	Timestamp time.Time
 	Namespace string
@@ -337,7 +344,7 @@ type ContainerInfoMetadata struct {
 	Name string `json:"name"`
 }
 
-// ContainerEnv ...
+// ContainerInfoEnv ...
 type ContainerInfoEnv struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
@@ -396,16 +403,16 @@ func (container *ContainerLog) provideLoggerInfo() (*Info, error) {
 
 func (container *ContainerLog) provideDockerdLoggerInfo() (*Info, error) {
 	createTime, _ := time.Parse(RFC3339NanoFixed, container.Created)
-	containerJson := container.ContainerJSON
+	containerJSON := container.ContainerJSON
 	return &Info{
-		ContainerID:         containerJson.ID,
-		ContainerName:       containerJson.Name,
-		ContainerEntrypoint: containerJson.Path,
-		ContainerArgs:       containerJson.Args,
-		ContainerImageName:  containerJson.Config.Image,
+		ContainerID:         containerJSON.ID,
+		ContainerName:       containerJSON.Name,
+		ContainerEntrypoint: containerJSON.Path,
+		ContainerArgs:       containerJSON.Args,
+		ContainerImageName:  containerJSON.Config.Image,
 		ContainerCreated:    createTime,
-		ContainerEnv:        containerJson.Config.Env,
-		ContainerLabels:     containerJson.Config.Labels,
+		ContainerEnv:        containerJSON.Config.Env,
+		ContainerLabels:     containerJSON.Config.Labels,
 		DaemonName:          "docker",
 	}, nil
 }

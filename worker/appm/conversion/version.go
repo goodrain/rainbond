@@ -76,7 +76,11 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	labels := createLabels(as, dbmanager)
 	tolerations := createToleration(nodeSelector, as, dbmanager)
 	volumes := getVolumes(dv, as, dbmanager)
-	dnsPolicy := createDnsPolicy(as, dbmanager)
+	dnsPolicy := createDNSPolicy(as, dbmanager)
+	var vct []corev1.PersistentVolumeClaim
+	if as.GetStatefulSet() != nil {
+		vct = getVolumeClaimTemplate(as, dbmanager)
+	}
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      labels,
@@ -122,7 +126,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		},
 	}
 	if dnsPolicy == "None" {
-		podtmpSpec.Spec.DNSConfig = createDnsConfig(as, dbmanager)
+		podtmpSpec.Spec.DNSConfig = createDNSConfig(as, dbmanager)
 	}
 	var terminationGracePeriodSeconds int64 = 10
 	if as.GetDeployment() != nil {
@@ -135,13 +139,13 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		podtmpSpec.Spec.RestartPolicy = "OnFailure"
 	}
 	//set to deployment or statefulset job or cronjob
-	as.SetPodTemplate(podtmpSpec)
+	as.SetPodTemplate(podtmpSpec, vct)
 	return nil
 }
 
 func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volume.Define, envs []corev1.EnvVar, envVarSecrets []*corev1.Secret, dbmanager db.Manager) (*corev1.Container, error) {
 	// secret as container environment variables
-	var envFromSecrets []corev1.EnvFromSource
+	envFromSecrets := getENVFromSource(as, dbmanager)
 	for _, secret := range envVarSecrets {
 		envFromSecrets = append(envFromSecrets, corev1.EnvFromSource{
 			SecretRef: &corev1.SecretEnvSource{
@@ -541,6 +545,38 @@ func createVolumes(as *v1.AppService, version *dbmodel.VersionInfo, envs []corev
 	return define, nil
 }
 
+func getVolumeClaimTemplate(as *v1.AppService, dbmanager db.Manager) []corev1.PersistentVolumeClaim {
+	logrus.Infof("component getVolumeClaimTemplateYaml")
+	vctAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameVolumeClaimTemplate)
+	if err != nil {
+		logrus.Warningf("[%v] get VolumeClaimTemplate failure: %v", as.K8sComponentName, err)
+		return []corev1.PersistentVolumeClaim{}
+	}
+	var vct []corev1.PersistentVolumeClaim
+	err = yaml.Unmarshal([]byte(vctAttribute.AttributeValue), &vct)
+	if err != nil {
+		logrus.Warningf("VolumeClaimTemplate yaml to object failure: %v", err)
+		return []corev1.PersistentVolumeClaim{}
+	}
+	return vct
+}
+
+func getENVFromSource(as *v1.AppService, dbmanager db.Manager) []corev1.EnvFromSource {
+	logrus.Infof("component getVolumeClaimTemplateYaml")
+	envFromAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameENVFromSource)
+	if err != nil {
+		logrus.Warningf(" %v get ENVFromSource failure: %v", as.K8sComponentName, err)
+		return []corev1.EnvFromSource{}
+	}
+	var envFromSource []corev1.EnvFromSource
+	err = yaml.Unmarshal([]byte(envFromAttribute.AttributeValue), &envFromSource)
+	if err != nil {
+		logrus.Warningf("%v ENVFromSource yaml to object failure: %v", as.K8sComponentName, err)
+		return []corev1.EnvFromSource{}
+	}
+	return envFromSource
+}
+
 func getVolumes(dv *volume.Define, as *v1.AppService, dbmanager db.Manager) []corev1.Volume {
 	volumes := dv.GetVolumes()
 	volumeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameVolumes)
@@ -700,6 +736,9 @@ func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.P
 				action.HTTPHeaders = headers
 			}
 			p.HTTPGet = &action
+			return p
+		} else if probe.Scheme == "cmd" {
+			p.Exec = &corev1.ExecAction{Command: strings.Split(probe.Cmd, " ")}
 			return p
 		}
 		return nil
@@ -1007,8 +1046,8 @@ func createShareProcessNamespace(as *v1.AppService, dbmanager db.Manager) bool {
 	return false
 }
 
-func createDnsPolicy(as *v1.AppService, dbmanager db.Manager) (dnsPolicy string) {
-	dns, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameDnsPolicy)
+func createDNSPolicy(as *v1.AppService, dbmanager db.Manager) (dnsPolicy string) {
+	dns, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameDNSPolicy)
 	if err != nil {
 		logrus.Debug("get by DnsPolicy attribute error", err)
 		return ""
@@ -1017,9 +1056,9 @@ func createDnsPolicy(as *v1.AppService, dbmanager db.Manager) (dnsPolicy string)
 	return dns.AttributeValue
 }
 
-func createDnsConfig(as *v1.AppService, dbmanager db.Manager) (podDnsConfig *corev1.PodDNSConfig) {
+func createDNSConfig(as *v1.AppService, dbmanager db.Manager) (podDNSConfig *corev1.PodDNSConfig) {
 	var dnsCfg corev1.PodDNSConfig
-	dnsConfig, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameDnsConfig)
+	dnsConfig, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameDNSConfig)
 	if err != nil {
 		logrus.Debug("get by dnsConfig error", err)
 		return nil
@@ -1034,8 +1073,8 @@ func createDnsConfig(as *v1.AppService, dbmanager db.Manager) (podDnsConfig *cor
 		logrus.Debug("dnsConfig json unmarshal error", err)
 		return nil
 	}
-	podDnsConfig = &dnsCfg
-	return podDnsConfig
+	podDNSConfig = &dnsCfg
+	return podDNSConfig
 }
 
 func createCustomResources(as *v1.AppService, dbmanager db.Manager) *corev1.ResourceRequirements {
@@ -1111,13 +1150,13 @@ func handleResource(resources corev1.ResourceRequirements, customResources *core
 		if haveMemory {
 			resources = *customResources
 		} else {
-			for resourceName, quantity := range resources.Limits{
-				if resourceName == "memory"{
+			for resourceName, quantity := range resources.Limits {
+				if resourceName == "memory" {
 					customResources.Limits["memory"] = quantity
 				}
 			}
-			for resourceName, quantity := range resources.Requests{
-				if resourceName == "memory"{
+			for resourceName, quantity := range resources.Requests {
+				if resourceName == "memory" {
 					customResources.Requests["memory"] = quantity
 				}
 			}

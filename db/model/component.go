@@ -39,16 +39,20 @@ const (
 	K8sAttributeNameENV = "env"
 	//K8sAttributeNameShareProcessNamespace -
 	K8sAttributeNameShareProcessNamespace = "shareProcessNamespace"
-	//K8sAttributeNameDnsPolicy -
-	K8sAttributeNameDnsPolicy = "dnsPolicy"
-	//K8sAttributeNameDnsPolicy -
-	K8sAttributeNameDnsConfig = "dnsConfig"
+	//K8sAttributeNameDNSPolicy -
+	K8sAttributeNameDNSPolicy = "dnsPolicy"
+	//K8sAttributeNameDNSConfig -
+	K8sAttributeNameDNSConfig = "dnsConfig"
 	//K8sAttributeNameResources -
 	K8sAttributeNameResources = "resources"
-	//K8sAttributeNameResources -
+	//K8sAttributeNameHostIPC -
 	K8sAttributeNameHostIPC = "hostIPC"
 	//K8sAttributeNameLifecycle -
 	K8sAttributeNameLifecycle = "lifecycle"
+	//K8sAttributeNameVolumeClaimTemplate -
+	K8sAttributeNameVolumeClaimTemplate = "volumeClaimTemplate"
+	//K8sAttributeNameENVFromSource -
+	K8sAttributeNameENVFromSource = "envFromSource"
 )
 
 // ComponentK8sAttributes -

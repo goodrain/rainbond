@@ -25,10 +25,11 @@ import (
 	"github.com/spf13/pflag"
 )
 
-//Config config
+// Config config
 type Config struct {
 	DBType                 string
 	APIAddr                string
+	APIHealthzAddr         string
 	APIAddrSSL             string
 	DBConnectionInfo       string
 	EventLogServers        []string
@@ -65,24 +66,25 @@ type Config struct {
 	GrctlImage             string
 }
 
-//APIServer  apiserver server
+// APIServer  apiserver server
 type APIServer struct {
 	Config
 	LogLevel       string
 	StartRegionAPI bool
 }
 
-//NewAPIServer new server
+// NewAPIServer new server
 func NewAPIServer() *APIServer {
 	return &APIServer{}
 }
 
-//AddFlags config
+// AddFlags config
 func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the api log level")
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
 	fs.StringVar(&a.DBConnectionInfo, "mysql", "admin:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
 	fs.StringVar(&a.APIAddr, "api-addr", "127.0.0.1:8888", "the api server listen address")
+	fs.StringVar(&a.APIHealthzAddr, "api-healthz-addr", "0.0.0.0:8889", "the api server health check listen address")
 	fs.StringVar(&a.APIAddrSSL, "api-addr-ssl", "0.0.0.0:8443", "the api server listen address")
 	fs.StringVar(&a.WebsocketAddr, "ws-addr", "0.0.0.0:6060", "the websocket server listen address")
 	fs.BoolVar(&a.APISSL, "api-ssl-enable", false, "whether to enable websocket  SSL")
@@ -116,10 +118,10 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.PrometheusEndpoint, "prom-api", "rbd-monitor:9999", "The service DNS name of Prometheus api. Default to rbd-monitor:9999")
 	fs.StringVar(&a.RbdNamespace, "rbd-namespace", "rbd-system", "rbd component namespace")
 	fs.BoolVar(&a.ShowSQL, "show-sql", false, "The trigger for showing sql.")
-	fs.StringVar(&a.GrctlImage, "shell-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-shell:v5.10.0-release", "use shell image")
+	fs.StringVar(&a.GrctlImage, "shell-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-shell:v5.11.0-release", "use shell image")
 }
 
-//SetLog 设置log
+// SetLog 设置log
 func (a *APIServer) SetLog() {
 	level, err := logrus.ParseLevel(a.LogLevel)
 	if err != nil {

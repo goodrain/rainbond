@@ -32,7 +32,6 @@ require (
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/go-chi/render v1.0.1
 	github.com/go-kit/kit v0.10.0
-	github.com/go-playground/assert/v2 v2.0.1
 	github.com/go-playground/validator/v10 v10.9.0
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/godbus/dbus v4.1.0+incompatible // indirect
@@ -299,7 +298,7 @@ replace (
 	github.com/docker/docker => github.com/docker/docker v20.10.2+incompatible
 	github.com/envoyproxy/go-control-plane => github.com/envoyproxy/go-control-plane v0.9.5
 	github.com/godbus/dbus => github.com/godbus/dbus/v5 v5.0.4
-	github.com/goodrain/rainbond-oam => github.com/goodrain/rainbond-oam v0.0.0-20220929165105-be6653621e55
+	github.com/goodrain/rainbond-oam => github.com/goodrain/rainbond-oam v0.0.0-20230117125005-98bcc9233a7f
 	github.com/prometheus/common => github.com/prometheus/common v0.15.0
 	google.golang.org/grpc => google.golang.org/grpc v1.27.1
 	k8s.io/api => k8s.io/api v0.23.12

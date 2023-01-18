@@ -1228,7 +1228,7 @@ func (s *ServiceAction) CreatePorts(tenantID, serviceID string, vps *api_model.S
 				tx.Rollback()
 				return err
 			}
-			if port != nil {
+			if port != nil && port.ServiceID != serviceID {
 				tx.Rollback()
 				return bcode.ErrK8sServiceNameExists
 			}
@@ -1318,9 +1318,7 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 		}()
 		for _, vp := range vps.Port {
 			//port更新单个请求
-			if oldPort == 0 {
-				oldPort = vp.ContainerPort
-			}
+			oldPort = vp.ContainerPort
 			vpD, err := db.GetManager().TenantServicesPortDao().GetPort(serviceID, oldPort)
 			if err != nil {
 				tx.Rollback()
@@ -1333,7 +1331,7 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 					tx.Rollback()
 					return err
 				}
-				if port != nil && vpD.K8sServiceName != vp.K8sServiceName {
+				if port != nil && vpD.K8sServiceName != vp.K8sServiceName && port.ServiceID != serviceID {
 					tx.Rollback()
 					return bcode.ErrK8sServiceNameExists
 				}
@@ -1348,7 +1346,7 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 			vpD.Protocol = vp.Protocol
 			vpD.PortAlias = vp.PortAlias
 			vpD.K8sServiceName = vp.K8sServiceName
-			if err := db.GetManager().TenantServicesPortDaoTransactions(tx).UpdateModel(vpD); err != nil {
+			if err := db.GetManager().TenantServicesPortDao().UpdateModel(vpD); err != nil {
 				logrus.Errorf("update port var error, %v", err)
 				tx.Rollback()
 				return err
@@ -1371,7 +1369,7 @@ func (s *ServiceAction) PortVar(action, tenantID, serviceID string, vps *api_mod
 				}
 				if goon {
 					pluginPort.ContainerPort = vp.ContainerPort
-					if err := db.GetManager().TenantServicesStreamPluginPortDaoTransactions(tx).UpdateModel(pluginPort); err != nil {
+					if err := db.GetManager().TenantServicesStreamPluginPortDao().UpdateModel(pluginPort); err != nil {
 						logrus.Errorf("update plugin mapping port error:(%s)", err)
 						tx.Rollback()
 						return err

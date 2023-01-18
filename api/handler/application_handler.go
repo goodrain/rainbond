@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond/api/handler/app_governance_mode/adaptor"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"os"
+	"sigs.k8s.io/yaml"
 	"sort"
 	"strconv"
 	"strings"
@@ -38,6 +42,7 @@ type ApplicationAction struct {
 	promClient     prometheus.Interface
 	rainbondClient versioned.Interface
 	kubeClient     clientset.Interface
+	dynamicClient  dynamic.Interface
 }
 
 // ApplicationHandler defines handler methods to TenantApplication.
@@ -65,17 +70,22 @@ type ApplicationHandler interface {
 	SyncComponentConfigGroupRels(tx *gorm.DB, app *dbmodel.Application, components []*model.Component) error
 	SyncAppConfigGroups(app *dbmodel.Application, appConfigGroups []model.AppConfigGroup) error
 	ListAppStatuses(ctx context.Context, appIDs []string) ([]*model.AppStatus, error)
+	ListGovernanceMode() ([]model.GovernanceMode, error)
 	CheckGovernanceMode(ctx context.Context, governanceMode string) error
+	CreateServiceMeshCR(app *dbmodel.Application, governance string) (content string, err error)
+	UpdateServiceMeshCR(app *dbmodel.Application, governance string) (content string, err error)
+	DeleteServiceMeshCR(app *dbmodel.Application) error
 	ChangeVolumes(app *dbmodel.Application) error
 }
 
 // NewApplicationHandler creates a new Tenant Application Handler.
-func NewApplicationHandler(statusCli *client.AppRuntimeSyncClient, promClient prometheus.Interface, rainbondClient versioned.Interface, kubeClient clientset.Interface) ApplicationHandler {
+func NewApplicationHandler(statusCli *client.AppRuntimeSyncClient, promClient prometheus.Interface, rainbondClient versioned.Interface, kubeClient clientset.Interface, dynamicClient dynamic.Interface) ApplicationHandler {
 	return &ApplicationAction{
 		statusCli:      statusCli,
 		promClient:     promClient,
 		rainbondClient: rainbondClient,
 		kubeClient:     kubeClient,
+		dynamicClient:  dynamicClient,
 	}
 }
 
@@ -195,8 +205,7 @@ func (a *ApplicationAction) UpdateApp(ctx context.Context, app *dbmodel.Applicat
 		app.AppName = req.AppName
 	}
 	if req.GovernanceMode != "" {
-		if !adaptor.IsGovernanceModeValid(req.GovernanceMode) {
-			logrus.Errorf("governance mode '%s' is invalid", req.GovernanceMode)
+		if !adaptor.IsGovernanceModeValid(req.GovernanceMode, a.dynamicClient) {
 			return nil, bcode.ErrInvalidGovernanceMode
 		}
 		app.GovernanceMode = req.GovernanceMode
@@ -220,6 +229,137 @@ func (a *ApplicationAction) UpdateApp(ctx context.Context, app *dbmodel.Applicat
 	})
 
 	return app, err
+}
+
+func (a *ApplicationAction) generateServiceMeshObj(app *dbmodel.Application, governance string, team *dbmodel.Tenants) *unstructured.Unstructured {
+	desired := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "rainbond.io/v1alpha1",
+			"kind":       "ServiceMesh",
+			"metadata": map[string]interface{}{
+				"namespace": team.Namespace,
+				"name":      app.K8sApp,
+				"labels": map[string]interface{}{
+					"rainbond.io/app": app.K8sApp,
+					"rainbond_app":    app.K8sApp,
+					"app_id":          app.AppID,
+				},
+			},
+			"provisioner": governance,
+			"selector": map[string]interface{}{
+				"app_id": app.AppID,
+			},
+		},
+	}
+	return desired
+}
+
+// CreateServiceMeshCR create service mesh custom resources
+func (a *ApplicationAction) CreateServiceMeshCR(app *dbmodel.Application, governance string) (content string, err error) {
+	team, err := GetTenantManager().GetTenantsByUUID(app.TenantID)
+	if err != nil {
+		return "", err
+	}
+	var resource = schema.GroupVersionResource{Group: "rainbond.io", Version: "v1alpha1", Resource: "servicemeshes"}
+	desired := a.generateServiceMeshObj(app, governance, team)
+	// get service mesh cr
+	var smcr *unstructured.Unstructured
+	smcr, err = a.dynamicClient.Resource(resource).Namespace(team.Namespace).Get(context.Background(), app.K8sApp, metav1.GetOptions{})
+	if err != nil {
+		if !k8sErrors.IsNotFound(err) {
+			return "", err
+		}
+		smcr, err = a.dynamicClient.Resource(resource).Namespace(team.Namespace).Create(context.Background(), desired, metav1.CreateOptions{})
+		if err != nil {
+			return "", err
+		}
+	}
+	return a.handleDBK8sResource(app, smcr, "create")
+}
+
+func (a *ApplicationAction) handleDBK8sResource(app *dbmodel.Application, smcr *unstructured.Unstructured, action string) (string, error) {
+	contentBytes, err := yaml.Marshal(smcr)
+	if err != nil {
+		logrus.Warningf("marshal service mesh cr error: %v", err)
+	}
+	resource := &dbmodel.K8sResource{
+		AppID:   app.AppID,
+		Name:    app.K8sApp,
+		State:   model.CreateSuccess,
+		Content: string(contentBytes),
+	}
+	switch action {
+	case "create":
+		resource.Kind = smcr.GetKind()
+		if err := db.GetManager().K8sResourceDao().AddModel(resource); err != nil {
+			return "", err
+		}
+	case "update":
+		old, err := db.GetManager().K8sResourceDao().GetK8sResourceByName(app.AppID, app.K8sApp, smcr.GetKind())
+		if err != nil {
+			return "", err
+		}
+		old.Content = string(contentBytes)
+		if err := db.GetManager().K8sResourceDao().UpdateModel(&old); err != nil {
+			return "", err
+		}
+	case "delete":
+		if err := db.GetManager().K8sResourceDao().DeleteK8sResource(app.AppID, app.K8sApp, "ServiceMesh"); err != nil {
+			return "", err
+		}
+	}
+	return string(contentBytes), nil
+}
+
+// UpdateServiceMeshCR update service mesh custom resources
+func (a *ApplicationAction) UpdateServiceMeshCR(app *dbmodel.Application, governance string) (content string, err error) {
+	team, err := GetTenantManager().GetTenantsByUUID(app.TenantID)
+	if err != nil {
+		return "", err
+	}
+	var resource = schema.GroupVersionResource{Group: "rainbond.io", Version: "v1alpha1", Resource: "servicemeshes"}
+	desired := a.generateServiceMeshObj(app, governance, team)
+	// get service mesh cr
+	var smcr *unstructured.Unstructured
+	smcr, err = a.dynamicClient.Resource(resource).Namespace(team.Namespace).Get(context.Background(), app.K8sApp, metav1.GetOptions{})
+	if err != nil {
+		if !k8sErrors.IsNotFound(err) {
+			return "", err
+		}
+		smcr, err = a.dynamicClient.Resource(resource).Namespace(team.Namespace).Create(context.Background(), desired, metav1.CreateOptions{})
+		if err != nil {
+			return "", err
+		}
+	}
+	smcr.Object["provisioner"] = governance
+	smcr, err = a.dynamicClient.Resource(resource).Namespace(team.Namespace).Update(context.Background(), smcr, metav1.UpdateOptions{})
+	if err != nil {
+		return "", err
+	}
+	return a.handleDBK8sResource(app, smcr, "update")
+}
+
+// DeleteServiceMeshCR delete service mesh custom resources
+func (a *ApplicationAction) DeleteServiceMeshCR(app *dbmodel.Application) error {
+	team, err := GetTenantManager().GetTenantsByUUID(app.TenantID)
+	if err != nil {
+		return err
+	}
+	var resource = schema.GroupVersionResource{Group: "rainbond.io", Version: "v1alpha1", Resource: "servicemeshes"}
+	// get service mesh cr
+	_, err = a.dynamicClient.Resource(resource).Namespace(team.Namespace).Get(context.Background(), app.K8sApp, metav1.GetOptions{})
+	if err != nil && !k8sErrors.IsNotFound(err) {
+		return err
+	}
+	err = a.dynamicClient.Resource(resource).Namespace(team.Namespace).Delete(context.Background(), app.K8sApp, metav1.DeleteOptions{})
+	if err != nil && !k8sErrors.IsNotFound(err) {
+		return err
+	}
+	_, err = a.handleDBK8sResource(app, nil, "delete")
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return err
+	}
+	return nil
 }
 
 func (a *ApplicationAction) updateHelmApp(ctx context.Context, app *dbmodel.Application, req model.UpdateAppRequest) error {
@@ -414,7 +554,7 @@ func (a *ApplicationAction) checkPorts(appID string, ports []*model.AppPort) err
 	}
 	for _, port := range servicesPorts {
 		// check if the port is as same as the one in request
-		if _, ok := key2ports[port.ServiceID+strconv.Itoa(port.ContainerPort)]; !ok {
+		if svc, ok := key2ports[port.ServiceID+strconv.Itoa(port.ContainerPort)]; !ok && port.ServiceID != svc.ServiceID {
 			logrus.Errorf("kubernetes service name(%s) already exists", port.K8sServiceName)
 			return bcode.ErrK8sServiceNameExists
 		}
@@ -764,17 +904,41 @@ func (a *ApplicationAction) ListAppStatuses(ctx context.Context, appIDs []string
 	return resp, nil
 }
 
+// ListGovernanceMode -
+func (a *ApplicationAction) ListGovernanceMode() ([]model.GovernanceMode, error) {
+	governanceModes := []model.GovernanceMode{
+		{
+			Name:        dbmodel.GovernanceModeBuildInServiceMesh,
+			IsDefault:   true,
+			Description: dbmodel.GovernanceModeBuildInServiceMeshDesc,
+		},
+		{
+			Name:        dbmodel.GovernanceModeKubernetesNativeService,
+			IsDefault:   true,
+			Description: dbmodel.GovernanceModeKubernetesNativeServiceDesc,
+		},
+	}
+
+	var serviceMeshClassesResource = schema.GroupVersionResource{Group: "rainbond.io", Version: "v1alpha1", Resource: "servicemeshclasses"}
+	list, err := a.dynamicClient.Resource(serviceMeshClassesResource).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		logrus.Warning("list servicemeshclasses error", err.Error())
+		return governanceModes, nil
+	}
+	for _, item := range list.Items {
+		desc, _, _ := unstructured.NestedString(item.Object, "description")
+		governanceModes = append(governanceModes, model.GovernanceMode{
+			Name:        item.GetName(),
+			Description: desc,
+		})
+	}
+	return governanceModes, nil
+}
+
 // CheckGovernanceMode Check whether the governance mode can be switched
 func (a *ApplicationAction) CheckGovernanceMode(ctx context.Context, governanceMode string) error {
-	if !adaptor.IsGovernanceModeValid(governanceMode) {
+	if !adaptor.IsGovernanceModeValid(governanceMode, a.dynamicClient) {
 		return bcode.ErrInvalidGovernanceMode
-	}
-	mode, err := adaptor.NewAppGoveranceModeHandler(governanceMode, a.kubeClient)
-	if err != nil {
-		return err
-	}
-	if !mode.IsInstalledControlPlane() {
-		return bcode.ErrControlPlaneNotInstall
 	}
 	return nil
 }

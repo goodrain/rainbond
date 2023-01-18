@@ -263,20 +263,20 @@ func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID strin
 				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update CronJobs %v:%v", namespace, err)}
 			}
 		case model.StateFulSet:
-			sfs, err := c.clientset.AppsV1().StatefulSets(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
+			sts, err := c.clientset.AppsV1().StatefulSets(namespace).Get(context.Background(), component.ComponentsName, metav1.GetOptions{})
 			if err != nil {
 				logrus.Errorf("failed to get %v StatefulSets %v:%v", namespace, component.ComponentsName, err)
 				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to get StatefulSets %v:%v", namespace, err)}
 			}
-			if sfs.Labels == nil {
-				sfs.Labels = make(map[string]string)
+			if sts.Labels == nil {
+				sts.Labels = make(map[string]string)
 			}
-			sfs.Labels = changeLabel(sfs.Labels)
-			if sfs.Spec.Template.Labels == nil {
-				sfs.Spec.Template.Labels = make(map[string]string)
+			sts.Labels = changeLabel(sts.Labels)
+			if sts.Spec.Template.Labels == nil {
+				sts.Spec.Template.Labels = make(map[string]string)
 			}
-			sfs.Spec.Template.Labels = changeLabel(sfs.Spec.Template.Labels)
-			_, err = c.clientset.AppsV1().StatefulSets(namespace).Update(context.Background(), sfs, metav1.UpdateOptions{})
+			sts.Spec.Template.Labels = changeLabel(sts.Spec.Template.Labels)
+			_, err = c.clientset.AppsV1().StatefulSets(namespace).Update(context.Background(), sts, metav1.UpdateOptions{})
 			if err != nil {
 				logrus.Errorf("failed to update StatefulSets %v:%v", namespace, err)
 				return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to update StatefulSets %v:%v", namespace, err)}
@@ -308,6 +308,7 @@ func (c *clusterAction) createENV(envs []model.ENVManagement, service *dbmodel.T
 
 func (c *clusterAction) createConfig(configs []model.ConfigManagement, service *dbmodel.TenantServices) {
 	var configVar []*dbmodel.TenantServiceVolume
+	var configFiles []*dbmodel.TenantServiceConfigFile
 	for _, config := range configs {
 		tsv := &dbmodel.TenantServiceVolume{
 			ServiceID:          service.ServiceID,
@@ -326,10 +327,21 @@ func (c *clusterAction) createConfig(configs []model.ConfigManagement, service *
 			Mode:               &config.Mode,
 		}
 		configVar = append(configVar, tsv)
+		configfile := &dbmodel.TenantServiceConfigFile{
+			ServiceID:   service.ServiceID,
+			VolumeName:  config.ConfigName,
+			FileContent: config.ConfigValue,
+		}
+		configFiles = append(configFiles, configfile)
 	}
 	err := db.GetManager().TenantServiceVolumeDao().CreateOrUpdateVolumesInBatch(configVar)
 	if err != nil {
-		logrus.Errorf("%v configuration file creation failed:%v", service.ServiceAlias, err)
+		logrus.Errorf("TenantServiceVolume %v configuration file creation failed:%v", service.ServiceAlias, err)
+	}
+
+	err = db.GetManager().TenantServiceConfigFileDao().CreateOrUpdateConfigFilesInBatch(configFiles)
+	if err != nil {
+		logrus.Errorf("TenantServiceConfigFile %v configuration file creation failed:%v", service.ServiceAlias, err)
 	}
 }
 
@@ -347,7 +359,7 @@ func (c *clusterAction) createPort(ports []model.PortManagement, service *dbmode
 		vpD.Name = port.Name
 		vpD.Protocol = port.Protocol
 		vpD.PortAlias = fmt.Sprintf("%v%v", strings.ToUpper(portAlias), port.Port)
-		vpD.K8sServiceName = fmt.Sprintf("%v-%v", service.ServiceAlias, port.Port)
+		vpD.K8sServiceName = service.ServiceAlias
 		portVar = append(portVar, &vpD)
 	}
 	if err := db.GetManager().TenantServicesPortDao().CreateOrUpdatePortsInBatch(portVar); err != nil {

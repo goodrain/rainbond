@@ -15,8 +15,8 @@ import (
 	"strings"
 )
 
-func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourceParameter) {
-	logrus.Infof("into PodTemplateSpecResource")
+func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourceParameter, volumeClaimTemplate []corev1.PersistentVolumeClaim) {
+	logrus.Infof("into function PodTemplateSpecResource")
 	//Port
 	var ps []model.PortManagement
 	NameAndPort := make(map[string]int32)
@@ -167,10 +167,10 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 					} else {
 						mountPath := volumeMount.MountPath
 						for key, val := range cmData {
-							mountPath = path.Join(mountPath, key)
+							volumeMountPath := path.Join(mountPath, key)
 							configs = append(configs, model.ConfigManagement{
 								ConfigName:  key,
-								ConfigPath:  mountPath,
+								ConfigPath:  volumeMountPath,
 								ConfigValue: val,
 								Mode:        int32(mode),
 							})
@@ -191,7 +191,7 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 	//TelescopicManagement
 	HPAList, err := c.clientset.AutoscalingV1().HorizontalPodAutoscalers(parameter.Namespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		logrus.Errorf("Failed to get HorizontalPodAutoscalers list:%v", err)
+		logrus.Errorf("failed to get HorizontalPodAutoscalers list:%v", err)
 	}
 	HPAList.Items = append(HPAList.Items, parameter.HPAs...)
 	var t model.TelescopicManagement
@@ -354,7 +354,7 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 	if parameter.Template.Spec.Containers[0].Env != nil && len(parameter.Template.Spec.Containers[0].Env) > 0 {
 		envYaml, err := ObjectToJSONORYaml("yaml", parameter.Template.Spec.Containers[0].Env)
 		if err != nil {
-			logrus.Errorf("deployment:%v env %v", parameter.Name, err)
+			logrus.Errorf("pod %v template env transformation yaml failure: %v", parameter.Name, err)
 		}
 		envAttributes := &dbmodel.ComponentK8sAttributes{
 			Name:           dbmodel.K8sAttributeNameENV,
@@ -366,7 +366,7 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 	if volumeAttributes != nil {
 		volumesYaml, err := ObjectToJSONORYaml("yaml", volumeAttributes)
 		if err != nil {
-			logrus.Errorf("deployment:%v volumes %v", parameter.Name, err)
+			logrus.Errorf("pod %v template volume transformation yaml failure: %v", parameter.Name, err)
 		}
 		volumesAttributes := &dbmodel.ComponentK8sAttributes{
 			Name:           dbmodel.K8sAttributeNameVolumes,
@@ -379,7 +379,7 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 	if volumeMountAttributes != nil {
 		volumeMountsYaml, err := ObjectToJSONORYaml("yaml", volumeMountAttributes)
 		if err != nil {
-			logrus.Errorf("deployment:%v volumeMounts %v", parameter.Name, err)
+			logrus.Errorf("pod %v template volumemount transformation yaml failure: %v", parameter.Name, err)
 		}
 		volumeMountsAttributes := &dbmodel.ComponentK8sAttributes{
 			Name:           dbmodel.K8sAttributeNameVolumeMounts,
@@ -397,9 +397,9 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 		attributes = append(attributes, serviceAccountAttributes)
 	}
 	if parameter.RsLabel != nil {
-		labelsJSON, err := ObjectToJSONORYaml("json", parameter.RsLabel)
+		labelsJSON, err := ObjectToJSONORYaml("json", parameter.Template.Labels)
 		if err != nil {
-			logrus.Errorf("deployment:%v labels %v", parameter.Name, err)
+			logrus.Errorf("pod %v template label transformation json failure: %v", parameter.Name, err)
 		}
 		labelsAttributes := &dbmodel.ComponentK8sAttributes{
 			Name:           dbmodel.K8sAttributeNameLabels,
@@ -412,7 +412,7 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 	if parameter.Template.Spec.NodeSelector != nil {
 		NodeSelectorJSON, err := ObjectToJSONORYaml("json", parameter.Template.Spec.NodeSelector)
 		if err != nil {
-			logrus.Errorf("deployment:%v nodeSelector %v", parameter.Name, err)
+			logrus.Errorf("pod %v template nodeselector transformation json failure: %v", parameter.Name, err)
 		}
 		nodeSelectorAttributes := &dbmodel.ComponentK8sAttributes{
 			Name:           dbmodel.K8sAttributeNameNodeSelector,
@@ -421,10 +421,37 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 		}
 		attributes = append(attributes, nodeSelectorAttributes)
 	}
+	if volumeClaimTemplate != nil {
+		volumeClaimTemplateYaml, err := ObjectToJSONORYaml("yaml", volumeClaimTemplate)
+		if err != nil {
+			logrus.Errorf("pod %v template volumeClaimTemplate transformation yaml failure: %v", parameter.Name, err)
+		}
+		vctAttributes := &dbmodel.ComponentK8sAttributes{
+			Name:           dbmodel.K8sAttributeNameVolumeClaimTemplate,
+			SaveType:       "yaml",
+			AttributeValue: volumeClaimTemplateYaml,
+		}
+		attributes = append(attributes, vctAttributes)
+	}
+
+	if parameter.Template.Spec.Containers[0].EnvFrom != nil {
+		envFromYaml, err := ObjectToJSONORYaml("yaml", parameter.Template.Spec.Containers[0].EnvFrom)
+		if err != nil {
+			logrus.Errorf("pod %v template envFrom transformation yaml failure: %v", parameter.Name, err)
+		} else {
+			envFromAttributes := &dbmodel.ComponentK8sAttributes{
+				Name:           dbmodel.K8sAttributeNameENVFromSource,
+				SaveType:       "yaml",
+				AttributeValue: envFromYaml,
+			}
+			attributes = append(attributes, envFromAttributes)
+		}
+	}
+
 	if parameter.Template.Spec.Tolerations != nil {
 		tolerationsYaml, err := ObjectToJSONORYaml("yaml", parameter.Template.Spec.Tolerations)
 		if err != nil {
-			logrus.Errorf("deployment:%v tolerations %v", parameter.Name, err)
+			logrus.Errorf("pod %v template Tolerations transformation yaml failure: %v", parameter.Name, err)
 		}
 		tolerationsAttributes := &dbmodel.ComponentK8sAttributes{
 			Name:           dbmodel.K8sAttributeNameTolerations,
@@ -436,7 +463,7 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 	if parameter.Template.Spec.Affinity != nil {
 		affinityYaml, err := ObjectToJSONORYaml("yaml", parameter.Template.Spec.Affinity)
 		if err != nil {
-			logrus.Errorf("deployment:%v affinity %v", parameter.Name, err)
+			logrus.Errorf("pod %v template Affinity transformation yaml failure: %v", parameter.Name, err)
 		}
 		affinityAttributes := &dbmodel.ComponentK8sAttributes{
 			Name:           dbmodel.K8sAttributeNameAffinity,

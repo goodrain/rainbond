@@ -29,10 +29,10 @@ func (c *clusterAction) ConvertResource(ctx context.Context, namespace string, l
 func (c *clusterAction) workloadHandle(ctx context.Context, cr map[string]model.ApplicationResource, lr model.LabelResource, namespace string, label string) {
 	app := label
 	deployResource := c.workloadDeployments(lr.Workloads.Deployments, namespace)
-	sfsResource := c.workloadStateFulSets(lr.Workloads.StateFulSets, namespace)
+	stsResource := c.workloadStateFulSets(lr.Workloads.StateFulSets, namespace)
 	jobResource := c.workloadJobs(lr.Workloads.Jobs, namespace)
 	cjResource := c.workloadCronJobs(lr.Workloads.CronJobs, namespace)
-	convertResource := append(deployResource, append(sfsResource, append(jobResource, append(cjResource)...)...)...)
+	convertResource := append(deployResource, append(stsResource, append(jobResource, append(cjResource)...)...)...)
 	k8sResources := c.getAppKubernetesResources(ctx, lr.Others, namespace)
 	cr[app] = model.ApplicationResource{
 		ConvertResource:     convertResource,
@@ -72,17 +72,17 @@ func (c *clusterAction) workloadDeployments(dmNames []string, namespace string) 
 			Name:         dmName,
 			RsLabel:      resources.Labels,
 		}
-		c.PodTemplateSpecResource(parameter)
+		c.PodTemplateSpecResource(parameter, nil)
 	}
 	return componentsCR
 }
 
-func (c *clusterAction) workloadStateFulSets(sfsNames []string, namespace string) []model.ConvertResource {
+func (c *clusterAction) workloadStateFulSets(stsNames []string, namespace string) []model.ConvertResource {
 	var componentsCR []model.ConvertResource
-	for _, sfsName := range sfsNames {
-		resources, err := c.clientset.AppsV1().StatefulSets(namespace).Get(context.Background(), sfsName, metav1.GetOptions{})
+	for _, stsName := range stsNames {
+		resources, err := c.clientset.AppsV1().StatefulSets(namespace).Get(context.Background(), stsName, metav1.GetOptions{})
 		if err != nil {
-			logrus.Errorf("Failed to get Deployment %v:%v", sfsName, err)
+			logrus.Errorf("Failed to get Deployment %v:%v", stsName, err)
 			return nil
 		}
 		memory, cpu := resources.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), resources.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
@@ -106,10 +106,10 @@ func (c *clusterAction) workloadStateFulSets(sfsNames []string, namespace string
 			Basic:        basic,
 			Template:     resources.Spec.Template,
 			Namespace:    namespace,
-			Name:         sfsName,
+			Name:         stsName,
 			RsLabel:      resources.Labels,
 		}
-		c.PodTemplateSpecResource(parameter)
+		c.PodTemplateSpecResource(parameter, resources.Spec.VolumeClaimTemplates)
 	}
 	return componentsCR
 }
@@ -167,7 +167,7 @@ func (c *clusterAction) workloadJobs(jobNames []string, namespace string) []mode
 			Name:         jobName,
 			RsLabel:      resources.Labels,
 		}
-		c.PodTemplateSpecResource(parameter)
+		c.PodTemplateSpecResource(parameter, nil)
 	}
 	return componentsCR
 }
@@ -225,7 +225,7 @@ func (c *clusterAction) workloadCronJobs(cjNames []string, namespace string) []m
 			Name:         cjName,
 			RsLabel:      resources.Labels,
 		}
-		c.PodTemplateSpecResource(parameter)
+		c.PodTemplateSpecResource(parameter, nil)
 	}
 	return componentsCR
 }

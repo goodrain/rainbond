@@ -27,6 +27,13 @@ const (
 	GovernanceModeIstioServiceMesh = "ISTIO_SERVICE_MESH"
 )
 
+const (
+	// GovernanceModeBuildInServiceMeshDesc -
+	GovernanceModeBuildInServiceMeshDesc = "内置ServiceMesh模式需要用户显示的配置组件间的依赖关系，平台会在下游组件中自动注入sidecar容器组成ServiceMesh微服务架构，业务间通信地址统一为localhost模式"
+	// GovernanceModeKubernetesNativeServiceDesc -
+	GovernanceModeKubernetesNativeServiceDesc = "该模式组件间使用Kubernetes service名称域名进行通信，用户需要配置每个组件端口注册的service名称，治理能力有限"
+)
+
 // app type
 const (
 	AppTypeRainbond = "rainbond"
@@ -45,7 +52,7 @@ type Application struct {
 	AppStoreURL     string `gorm:"column:app_store_url" json:"app_store_url"`
 	AppTemplateName string `gorm:"column:app_template_name" json:"app_template_name"`
 	Version         string `gorm:"column:version" json:"version"`
-	GovernanceMode  string `gorm:"column:governance_mode;default:'BUILD_IN_SERVICE_MESH'" json:"governance_mode"`
+	GovernanceMode  string `gorm:"column:governance_mode;default:'KUBERNETES_NATIVE_SERVICE'" json:"governance_mode"`
 	K8sApp          string `gorm:"column:k8s_app" json:"k8s_app"`
 }
 
@@ -74,7 +81,7 @@ type ConfigGroupItem struct {
 	AppID           string `gorm:"column:app_id" json:"-"`
 	ConfigGroupName string `gorm:"column:config_group_name" json:"-"`
 	ItemKey         string `gorm:"column:item_key" json:"item_key"`
-	ItemValue       string `gorm:"column:item_value" json:"item_value"`
+	ItemValue       string `gorm:"column:item_value;type:longtext" json:"item_value"`
 }
 
 // TableName return tableName "application"

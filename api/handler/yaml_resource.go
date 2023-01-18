@@ -27,12 +27,12 @@ import (
 	"strings"
 )
 
-//AppYamlResourceName -
+// AppYamlResourceName -
 func (c *clusterAction) AppYamlResourceName(yamlResource api_model.YamlResource) (map[string]api_model.LabelResource, *util.APIHandleError) {
 	logrus.Infof("AppYamlResourceName begin")
 	fileResource := make(map[string]api_model.LabelResource)
 	k8sResourceObjects := c.YamlToResource(yamlResource, api_model.YamlSourceFile, "")
-	var DeployNames, JobNames, CJNames, SFSNames, RoleNames, HPANames, RBNames, SANames, SecretNames, ServiceNames, CMNames, NetworkPolicyNames, IngressNames, PVCNames []string
+	var DeployNames, JobNames, CJNames, STSNames, RoleNames, HPANames, RBNames, SANames, SecretNames, ServiceNames, CMNames, NetworkPolicyNames, IngressNames, PVCNames []string
 	defaultResource := make(map[string][]string)
 	for _, k8sResourceObject := range k8sResourceObjects {
 		if k8sResourceObject.Error != "" {
@@ -50,7 +50,7 @@ func (c *clusterAction) AppYamlResourceName(yamlResource api_model.YamlResource)
 			case api_model.CronJob:
 				CJNames = append(CJNames, buildResource.Resource.GetName())
 			case api_model.StateFulSet:
-				SFSNames = append(SFSNames, buildResource.Resource.GetName())
+				STSNames = append(STSNames, buildResource.Resource.GetName())
 			case api_model.Role:
 				RoleNames = append(RoleNames, buildResource.Resource.GetName())
 			case api_model.HorizontalPodAutoscaler:
@@ -87,7 +87,7 @@ func (c *clusterAction) AppYamlResourceName(yamlResource api_model.YamlResource)
 			Deployments:  DeployNames,
 			Jobs:         JobNames,
 			CronJobs:     CJNames,
-			StateFulSets: SFSNames,
+			StateFulSets: STSNames,
 		},
 		Others: api_model.OtherResource{
 			Services:                 ServiceNames,
@@ -107,7 +107,7 @@ func (c *clusterAction) AppYamlResourceName(yamlResource api_model.YamlResource)
 	return fileResource, nil
 }
 
-//AppYamlResourceDetailed -
+// AppYamlResourceDetailed -
 func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResource, yamlImport bool) (api_model.ApplicationResource, *util.APIHandleError) {
 	logrus.Infof("AppYamlResourceDetailed begin")
 	source := api_model.YamlSourceFile
@@ -141,7 +141,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 
 		for _, buildResource := range k8sResourceObject.BuildResources {
 			errorOverview := "创建成功"
-			state := 1
+			state := api_model.CreateSuccess
 			switch buildResource.Resource.GetKind() {
 			case api_model.Deployment:
 				deployJSON, _ := json.Marshal(buildResource.Resource)
@@ -172,7 +172,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					HPAs:         hpas,
 					CMs:          cms,
 				}
-				c.PodTemplateSpecResource(parameter)
+				c.PodTemplateSpecResource(parameter, nil)
 			case api_model.Job:
 				jobJSON, _ := json.Marshal(buildResource.Resource)
 				var jobObject batchv1.Job
@@ -202,7 +202,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					HPAs:         hpas,
 					CMs:          cms,
 				}
-				c.PodTemplateSpecResource(parameter)
+				c.PodTemplateSpecResource(parameter, nil)
 			case api_model.CronJob:
 				cjJSON, _ := json.Marshal(buildResource.Resource)
 				var cjObject batchv1.CronJob
@@ -232,37 +232,37 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 					HPAs:         hpas,
 					CMs:          cms,
 				}
-				c.PodTemplateSpecResource(parameter)
+				c.PodTemplateSpecResource(parameter, nil)
 			case api_model.StateFulSet:
-				sfsJSON, _ := json.Marshal(buildResource.Resource)
-				var sfsObject appv1.StatefulSet
-				json.Unmarshal(sfsJSON, &sfsObject)
-				memory, cpu := sfsObject.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), sfsObject.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
+				stsJSON, _ := json.Marshal(buildResource.Resource)
+				var stsObject appv1.StatefulSet
+				json.Unmarshal(stsJSON, &stsObject)
+				memory, cpu := stsObject.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().Value(), stsObject.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().MilliValue()
 				if memory == 0 {
-					memory = sfsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
+					memory = stsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().Value()
 				}
 				if cpu == 0 {
-					cpu = sfsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
+					cpu = stsObject.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().MilliValue()
 				}
 				basic := api_model.BasicManagement{
 					ResourceType: api_model.StateFulSet,
-					Replicas:     sfsObject.Spec.Replicas,
+					Replicas:     stsObject.Spec.Replicas,
 					Memory:       memory / 1024 / 1024,
 					CPU:          cpu,
-					Image:        sfsObject.Spec.Template.Spec.Containers[0].Image,
-					Cmd:          strings.Join(append(sfsObject.Spec.Template.Spec.Containers[0].Command, sfsObject.Spec.Template.Spec.Containers[0].Args...), " "),
+					Image:        stsObject.Spec.Template.Spec.Containers[0].Image,
+					Cmd:          strings.Join(append(stsObject.Spec.Template.Spec.Containers[0].Command, stsObject.Spec.Template.Spec.Containers[0].Args...), " "),
 				}
 				parameter := api_model.YamlResourceParameter{
 					ComponentsCR: &ConvertResource,
 					Basic:        basic,
-					Template:     sfsObject.Spec.Template,
+					Template:     stsObject.Spec.Template,
 					Namespace:    yamlResource.Namespace,
 					Name:         buildResource.Resource.GetName(),
-					RsLabel:      sfsObject.Labels,
+					RsLabel:      stsObject.Labels,
 					HPAs:         hpas,
 					CMs:          cms,
 				}
-				c.PodTemplateSpecResource(parameter)
+				c.PodTemplateSpecResource(parameter, stsObject.Spec.VolumeClaimTemplates)
 			default:
 				if yamlImport {
 					resource, err := c.ResourceCreate(buildResource, yamlResource.Namespace)
@@ -276,6 +276,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 				kubernetesResourcesYAML, err := ObjectToJSONORYaml("yaml", buildResource.Resource)
 				if err != nil {
 					logrus.Errorf("namespace:%v %v:%v error: %v", yamlResource.Namespace, buildResource.Resource.GetKind(), buildResource.Resource.GetName(), err)
+					continue
 				}
 				K8SResource = append(K8SResource, dbmodel.K8sResource{
 					Name:          buildResource.Resource.GetName(),
@@ -295,7 +296,7 @@ func (c *clusterAction) AppYamlResourceDetailed(yamlResource api_model.YamlResou
 	}, nil
 }
 
-//AppYamlResourceImport -
+// AppYamlResourceImport -
 func (c *clusterAction) AppYamlResourceImport(yamlResource api_model.YamlResource, components api_model.ApplicationResource) (api_model.AppComponent, *util.APIHandleError) {
 	logrus.Infof("AppYamlResourceImport begin")
 	app, err := db.GetManager().ApplicationDao().GetAppByID(yamlResource.AppID)
@@ -346,7 +347,7 @@ func (c *clusterAction) AppYamlResourceImport(yamlResource api_model.YamlResourc
 	return ar, nil
 }
 
-//YamlToResource -
+// YamlToResource -
 func (c *clusterAction) YamlToResource(yamlResource api_model.YamlResource, yamlSource, yamlContent string) []api_model.K8sResourceObject {
 	yamlDirectoryPath := path.Join("/grdata/package_build/temp/events", yamlResource.EventID, "*")
 	yamlFilesPath := []string{api_model.YamlSourceHelm}
@@ -436,13 +437,22 @@ func (c *clusterAction) YamlToResource(yamlResource api_model.YamlResource, yaml
 	return fileBuildResourceList
 }
 
-//ResourceCreate -
+// ResourceCreate -
 func (c *clusterAction) ResourceCreate(buildResource api_model.BuildResource, namespace string) (*unstructured.Unstructured, error) {
 	logrus.Infof("begin ResourceCreate function")
 	mapping, err := c.mapper.RESTMapping(buildResource.GVK.GroupKind(), buildResource.GVK.Version)
 	if err != nil {
-		logrus.Errorf("%v", err)
-		return nil, err
+		if !meta.IsNoMatchError(err) {
+			return nil, err
+		}
+		err = c.RefreshMapper()
+		if err != nil {
+			return nil, err
+		}
+		mapping, err = c.mapper.RESTMapping(buildResource.GVK.GroupKind(), buildResource.GVK.Version)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
 		buildResource.Resource.SetNamespace(namespace)

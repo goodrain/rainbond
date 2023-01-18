@@ -106,8 +106,8 @@ func prepare() {
 func newVolumeClaim(name, volumePath, accessMode, storageClassName string, capacity int64, labels, annotations map[string]string) *corev1.PersistentVolumeClaim {
 	logrus.Debugf("volume annotaion is %+v", annotations)
 	if capacity == 0 {
-		logrus.Warnf("claim[%s] capacity is 0, set 500G default", name)
-		capacity = 500
+		logrus.Warnf("claim[%s] capacity is 0, set 10G default", name)
+		capacity = 10
 	}
 	resourceStorage, _ := resource.ParseQuantity(fmt.Sprintf("%dGi", capacity)) // 统一单位使用G
 	return &corev1.PersistentVolumeClaim{

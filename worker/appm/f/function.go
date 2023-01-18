@@ -200,7 +200,7 @@ func ensureService(new *corev1.Service, clientSet kubernetes.Interface) error {
 func persistUpdate(service *corev1.Service, clientSet kubernetes.Interface) error {
 	var err error
 	for i := 0; i < clientRetryCount; i++ {
-		_, err = clientSet.CoreV1().Services(service.Namespace).UpdateStatus(context.Background(), service, metav1.UpdateOptions{})
+		_, err = clientSet.CoreV1().Services(service.Namespace).Update(context.Background(), service, metav1.UpdateOptions{})
 		if err == nil {
 			return nil
 		}

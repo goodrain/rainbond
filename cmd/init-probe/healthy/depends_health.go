@@ -20,7 +20,9 @@ package healthy
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -52,6 +54,14 @@ type DependServiceHealthController struct {
 	clusterID                       string
 	dependServiceNames              []string
 	ignoreCheckEndpointsClusterName []string
+	dependentComponents             []DependentComponents
+}
+
+//DependentComponents -
+type DependentComponents struct {
+	K8sServiceName string `json:"k8s_service_name"`
+	Port           int    `json:"port"`
+	Protocol       string `json:"protocol"`
 }
 
 //NewDependServiceHealthController create a controller
@@ -79,6 +89,20 @@ func NewDependServiceHealthController() (*DependServiceHealthController, error) 
 	dsc.endpointClient = v2.NewEndpointDiscoveryServiceClient(cli)
 	dsc.clusterClient = v2.NewClusterDiscoveryServiceClient(cli)
 	dsc.dependServiceNames = strings.Split(os.Getenv("STARTUP_SEQUENCE_DEPENDENCIES"), ",")
+	return &dsc, nil
+}
+
+//NewDecouplingDependServiceHealthController create a decoupling controller
+func NewDecouplingDependServiceHealthController() (*DependServiceHealthController, error) {
+	dsc := DependServiceHealthController{
+		interval: time.Second * 5,
+	}
+	dsc.checkFunc = append(dsc.checkFunc, dsc.checkDependentComponentsPorts)
+	dependentComponents := os.Getenv("DependentComponents")
+	err := json.Unmarshal([]byte(dependentComponents), &dsc.dependentComponents)
+	if err != nil {
+		return nil, err
+	}
 	return &dsc, nil
 }
 
@@ -131,6 +155,29 @@ func (d *DependServiceHealthController) checkClusters() bool {
 		}
 	}
 	d.clusters = clusters
+	return true
+}
+
+func (d *DependServiceHealthController) checkDependentComponentsPorts() bool {
+	for _, dependentComponent := range d.dependentComponents {
+		logrus.Infof("start check service %v port %v", dependentComponent.K8sServiceName, dependentComponent.Port)
+		var conn net.Conn
+		var err error
+		address := fmt.Sprintf(dependentComponent.K8sServiceName+":%v", dependentComponent.Port)
+		if dependentComponent.Protocol == "udp" {
+			conn, err = net.DialTimeout("udp", address, 3*time.Second)
+		} else {
+			conn, err = net.DialTimeout("tcp", address, 3*time.Second)
+		}
+		if err != nil {
+			logrus.Errorf("service %v port %v connection failed %v", dependentComponent.K8sServiceName, dependentComponent.Port, err)
+			return false
+		}
+		if conn == nil {
+			logrus.Errorf("service %v port %v connection failed", dependentComponent.K8sServiceName, dependentComponent.Port)
+			return false
+		}
+	}
 	return true
 }
 

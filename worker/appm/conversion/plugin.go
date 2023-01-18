@@ -21,6 +21,7 @@ package conversion
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/cmd/init-probe/healthy"
 	"github.com/goodrain/rainbond/worker/appm/volume"
 	"os"
 	"strconv"
@@ -66,9 +67,6 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 	appPlugins, err := dbmanager.TenantServicePluginRelationDao().GetALLRelationByServiceID(as.ServiceID)
 	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
 		return nil, nil, nil, fmt.Errorf("find plugins error. %v", err.Error())
-	}
-	if len(appPlugins) == 0 && !as.NeedProxy {
-		return nil, nil, nil, nil
 	}
 	netPlugin := false
 	var meshPluginID string
@@ -221,7 +219,32 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 	}
 
 	bootSequence := createProbeMeshInitContainer(as, meshPluginID, as.ServiceAlias, mainContainer.Env)
-	if bootSeqDepServiceIds := as.ExtensionSet["boot_seq_dep_service_ids"]; as.NeedProxy && bootSeqDepServiceIds != "" {
+	if as.GovernanceMode != model.GovernanceModeBuildInServiceMesh {
+		bootSequence.Args = []string{"decoupling_probe"}
+		var dependentComponents []healthy.DependentComponents
+		services, err := db.GetManager().TenantServiceRelationDao().GetTenantServiceRelations(as.ServiceID)
+		var dependServiceIDs []string
+		for _, service := range services {
+			dependServiceIDs = append(dependServiceIDs, service.DependServiceID)
+		}
+		servicePorts, err := db.GetManager().TenantServicesPortDao().ListInnerPortsByServiceIDs(dependServiceIDs)
+		for _, servicePort := range servicePorts {
+			dependentComponents = append(dependentComponents, healthy.DependentComponents{
+				K8sServiceName: servicePort.K8sServiceName,
+				Port:           servicePort.ContainerPort,
+				Protocol:       servicePort.Protocol,
+			})
+		}
+		dependentComponentsBytes, err := json.Marshal(dependentComponents)
+		if err != nil {
+			logrus.Errorf("dependent components serialization failure %s", err.Error())
+		}
+		bootSequence.Env = append(bootSequence.Env, v1.EnvVar{
+			Name:  "DependentComponents",
+			Value: string(dependentComponentsBytes),
+		})
+	}
+	if bootSeqDepServiceIds := as.ExtensionSet["boot_seq_dep_service_ids"]; bootSeqDepServiceIds != "" {
 		initContainers = append(initContainers, bootSequence)
 	}
 	as.BootSeqContainer = &bootSequence

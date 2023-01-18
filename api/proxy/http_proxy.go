@@ -31,7 +31,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//HTTPProxy HTTPProxy
+// HTTPProxy HTTPProxy
 type HTTPProxy struct {
 	name      string
 	endpoints EndpointList
@@ -39,7 +39,7 @@ type HTTPProxy struct {
 	client    *http.Client
 }
 
-//Proxy http proxy
+// Proxy http proxy
 func (h *HTTPProxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	endpoint := h.lb.Select(r, h.endpoints)
 	endURL, err := url.Parse(endpoint.GetHTTPAddr())
@@ -55,7 +55,7 @@ func (h *HTTPProxy) Proxy(w http.ResponseWriter, r *http.Request) {
 	proxy.ServeHTTP(w, r)
 }
 
-//UpdateEndpoints 更新端点
+// UpdateEndpoints 更新端点
 func (h *HTTPProxy) UpdateEndpoints(endpoints ...string) {
 	ends := []string{}
 	for _, end := range endpoints {
@@ -68,7 +68,7 @@ func (h *HTTPProxy) UpdateEndpoints(endpoints ...string) {
 	h.endpoints = CreateEndpoints(ends)
 }
 
-//Do do proxy
+// Do do proxy
 func (h *HTTPProxy) Do(r *http.Request) (*http.Response, error) {
 	endpoint := h.lb.Select(r, h.endpoints)
 	if strings.HasPrefix(endpoint.String(), "http") {

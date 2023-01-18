@@ -51,6 +51,7 @@ import (
 //V2Routes v2Routes
 type V2Routes struct {
 	ClusterController
+	NodesController
 	TenantStruct
 	EventLogStruct
 	AppStruct

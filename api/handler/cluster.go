@@ -3,13 +3,19 @@ package handler
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond-operator/util/rbdutil"
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
+	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
+	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/util/constants"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
+	workerclient "github.com/goodrain/rainbond/worker/client"
+	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/pkg/errors"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/sirupsen/logrus"
@@ -18,8 +24,11 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/util/flushwriter"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"net/http"
@@ -55,17 +64,26 @@ type ClusterHandler interface {
 	GetRbdPods() (rbds []model.RbdResp, err error)
 	CreateShellPod(regionName string) (pod *corev1.Pod, err error)
 	DeleteShellPod(podName string) error
+	ListPlugins() (rbds []*model.RainbondPlugins, err error)
+	ListAbilities() (rbds []unstructured.Unstructured, err error)
+	GetAbility(abilityID string) (rbd *unstructured.Unstructured, err error)
+	UpdateAbility(abilityID string, ability *unstructured.Unstructured) error
+	GenerateAbilityID(ability *unstructured.Unstructured) string
+	ListRainbondComponents(ctx context.Context) (res []*model.RainbondComponent, err error)
 }
 
 // NewClusterHandler -
-func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface) ClusterHandler {
+func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface, rainbondClient versioned.Interface, statusCli *workerclient.AppRuntimeSyncClient, dynamicClient dynamic.Interface) ClusterHandler {
 	return &clusterAction{
-		namespace:     RbdNamespace,
-		clientset:     clientset,
-		config:        config,
-		mapper:        mapper,
-		grctlImage:    grctlImage,
-		prometheusCli: prometheusCli,
+		namespace:      RbdNamespace,
+		clientset:      clientset,
+		config:         config,
+		mapper:         mapper,
+		grctlImage:     grctlImage,
+		prometheusCli:  prometheusCli,
+		rainbondClient: rainbondClient,
+		statusCli:      statusCli,
+		dynamicClient:  dynamicClient,
 	}
 }
 
@@ -79,6 +97,9 @@ type clusterAction struct {
 	grctlImage       string
 	client           client.Client
 	prometheusCli    prometheus.Interface
+	rainbondClient   versioned.Interface
+	statusCli        *workerclient.AppRuntimeSyncClient
+	dynamicClient    dynamic.Interface
 }
 
 type nodePod struct {
@@ -87,7 +108,7 @@ type nodePod struct {
 	EphemeralStorage prometheus.MetricValue
 }
 
-//GetClusterInfo -
+// GetClusterInfo -
 func (c *clusterAction) GetClusterInfo(ctx context.Context) (*model.ClusterResource, error) {
 	timeout, _ := strconv.Atoi(os.Getenv("CLUSTER_INFO_CACHE_TIME"))
 	if timeout == 0 {
@@ -277,7 +298,7 @@ func isNodeReady(node *corev1.Node) bool {
 
 func containsTaints(node *corev1.Node) bool {
 	for _, taint := range node.Spec.Taints {
-		if taint.Effect == corev1.TaintEffectNoSchedule {
+		if taint.Effect == corev1.TaintEffectNoSchedule && taint.Key != "node.kubernetes.io/unschedulable" {
 			return true
 		}
 	}
@@ -294,7 +315,7 @@ func (c *clusterAction) listPods(ctx context.Context, nodeName string) (pods []c
 	return podList.Items, nil
 }
 
-//MavenSetting maven setting
+// MavenSetting maven setting
 type MavenSetting struct {
 	Name       string `json:"name" validate:"required"`
 	CreateTime string `json:"create_time"`
@@ -303,7 +324,7 @@ type MavenSetting struct {
 	IsDefault  bool   `json:"is_default"`
 }
 
-//MavenSettingList maven setting list
+// MavenSettingList maven setting list
 func (c *clusterAction) MavenSettingList(ctx context.Context) (re []MavenSetting) {
 	cms, err := c.clientset.CoreV1().ConfigMaps(c.namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: "configtype=mavensetting",
@@ -327,7 +348,7 @@ func (c *clusterAction) MavenSettingList(ctx context.Context) (re []MavenSetting
 	return
 }
 
-//MavenSettingAdd maven setting add
+// MavenSettingAdd maven setting add
 func (c *clusterAction) MavenSettingAdd(ctx context.Context, ms *MavenSetting) *util.APIHandleError {
 	config := &corev1.ConfigMap{}
 	config.Name = ms.Name
@@ -355,7 +376,7 @@ func (c *clusterAction) MavenSettingAdd(ctx context.Context, ms *MavenSetting) *
 	return nil
 }
 
-//MavenSettingUpdate maven setting file update
+// MavenSettingUpdate maven setting file update
 func (c *clusterAction) MavenSettingUpdate(ctx context.Context, ms *MavenSetting) *util.APIHandleError {
 	sm, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Get(ctx, ms.Name, metav1.GetOptions{})
 	if err != nil {
@@ -382,7 +403,7 @@ func (c *clusterAction) MavenSettingUpdate(ctx context.Context, ms *MavenSetting
 	return nil
 }
 
-//MavenSettingDelete maven setting file delete
+// MavenSettingDelete maven setting file delete
 func (c *clusterAction) MavenSettingDelete(ctx context.Context, name string) *util.APIHandleError {
 	err := c.clientset.CoreV1().ConfigMaps(c.namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
@@ -395,7 +416,7 @@ func (c *clusterAction) MavenSettingDelete(ctx context.Context, name string) *ut
 	return nil
 }
 
-//MavenSettingDetail maven setting file delete
+// MavenSettingDetail maven setting file delete
 func (c *clusterAction) MavenSettingDetail(ctx context.Context, name string) (*MavenSetting, *util.APIHandleError) {
 	sm, err := c.clientset.CoreV1().ConfigMaps(c.namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
@@ -410,7 +431,7 @@ func (c *clusterAction) MavenSettingDetail(ctx context.Context, name string) (*M
 	}, nil
 }
 
-//GetNamespace Get namespace of the current cluster
+// GetNamespace Get namespace of the current cluster
 func (c *clusterAction) GetNamespace(ctx context.Context, content string) ([]string, *util.APIHandleError) {
 	namespaceList, err := c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -429,7 +450,7 @@ func (c *clusterAction) GetNamespace(ctx context.Context, content string) ([]str
 	return *namespaces, nil
 }
 
-//MergeMap map去重合并
+// MergeMap map去重合并
 func MergeMap(map1 map[string][]string, map2 map[string][]string) map[string][]string {
 	for k, v := range map1 {
 		if _, ok := map2[k]; ok {
@@ -571,4 +592,227 @@ func (c *clusterAction) GetRbdPods() (rbds []model.RbdResp, err error) {
 		}
 	}
 	return rbds, nil
+}
+
+func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*model.RainbondComponent, err error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	// rainbond components
+	podList, err := c.clientset.CoreV1().Pods("rbd-system").List(ctx, metav1.ListOptions{
+		LabelSelector: fields.SelectorFromSet(rbdutil.LabelsForRainbond(nil)).String(),
+	})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	pods := make(map[string][]corev1.Pod)
+	ComponentAllPods := make(map[string]int)
+	ComponentRunPods := make(map[string]int)
+	appNameMap := make(map[string]int)
+	for _, pod := range podList.Items {
+		labels := pod.Labels
+		appName := labels["name"]
+		if len(appName) == 0 {
+			logrus.Warningf("list rainbond components. label 'name' not found for pod(%s/%s)", pod.Namespace, pod.Name)
+			continue
+		}
+		appNameMap[appName]++
+		pods[appName] = append(pods[appName], pod)
+		if pod.Status.Phase == "Running" {
+			ComponentRunPods[appName]++
+		}
+		ComponentAllPods[appName]++
+	}
+	var appNames []string
+	for name := range appNameMap {
+		appNames = append(appNames, name)
+	}
+	// rainbond operator
+	roPods, err := c.clientset.CoreV1().Pods("rbd-system").List(ctx, metav1.ListOptions{
+		LabelSelector: fields.SelectorFromSet(map[string]string{
+			"release": "rainbond-operator",
+		}).String(),
+	})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	pods["rainbond-operator"] = roPods.Items
+	for _, ropod := range roPods.Items {
+		if ropod.Status.Phase == "Running" {
+			ComponentRunPods["rainbond-operator"]++
+		}
+		ComponentAllPods["rainbond-operator"]++
+	}
+	appNames = append(appNames, "rainbond-operator")
+	for _, name := range appNames {
+		res = append(res, &model.RainbondComponent{
+			Name:    name,
+			Pods:    pods[name],
+			AllPods: ComponentAllPods[name],
+			RunPods: ComponentRunPods[name],
+		})
+	}
+	return res, nil
+}
+
+// ListPlugins -
+func (c *clusterAction) ListPlugins() (plugins []*model.RainbondPlugins, err error) {
+	list, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "get rbd plugins")
+	}
+
+	// list plugin status
+	var appIDs []string
+	for _, item := range list.Items {
+		if item.Labels["app_id"] != "" {
+			appIDs = append(appIDs, item.Labels["app_id"])
+		}
+	}
+	appStatuses := make(map[string]string)
+	statuses, err := c.statusCli.ListAppStatuses(context.Background(), &pb.AppStatusesReq{
+		AppIds: appIDs,
+	})
+	for _, status := range statuses.AppStatuses {
+		appStatuses[status.AppId] = status.Status
+	}
+
+	// Establish the mapping relationship between appID and teamName
+	apps, err := db.GetManager().ApplicationDao().ListByAppIDs(appIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "get apps by app ids")
+	}
+	tenants, err := db.GetManager().TenantDao().GetALLTenants("")
+	if err != nil {
+		return nil, errors.Wrap(err, "get tenants")
+	}
+
+	var (
+		appTeamIDs = make(map[string]string)
+		teamNames  = make(map[string]string)
+	)
+	for _, app := range apps {
+		appTeamIDs[app.AppID] = app.TenantID
+	}
+	for _, tenant := range tenants {
+		teamNames[tenant.UUID] = tenant.Name
+	}
+
+	// Construct the returned data
+	for _, plugin := range list.Items {
+		appID := plugin.Labels["app_id"]
+		status := "NIL"
+		if appStatuses[appID] != "" {
+			status = appStatuses[appID]
+		}
+		logrus.Debugf("plugin Name: %v, namespace %v", plugin.Name, plugin.Namespace)
+		plugins = append(plugins, &model.RainbondPlugins{
+			RegionAppID: appID,
+			Name:        plugin.GetName(),
+			TeamName:    teamNames[appTeamIDs[appID]],
+			Icon:        plugin.Spec.Icon,
+			Description: plugin.Spec.Description,
+			Version:     plugin.Spec.Version,
+			Author:      plugin.Spec.Author,
+			Status:      status,
+		})
+	}
+	return plugins, nil
+}
+
+// ListAbilities -
+func (c *clusterAction) ListAbilities() (rbds []unstructured.Unstructured, err error) {
+	list, err := c.rainbondClient.RainbondV1alpha1().RBDAbilities(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "get rbd abilities")
+	}
+	// Remove duplicate watchGroups
+	existWatchGroups := make(map[string]struct{})
+	var watchGroups []v1alpha1.WatchGroup
+	for _, item := range list.Items {
+		for _, wg := range item.Spec.WatchGroups {
+			if wg.APIVersion == "" || wg.Kind == "" {
+				continue
+			}
+			if _, ok := existWatchGroups[wg.APIVersion+wg.Kind]; ok {
+				continue
+			}
+			existWatchGroups[wg.APIVersion+wg.Kind] = struct{}{}
+			watchGroups = append(watchGroups, wg)
+		}
+	}
+
+	for _, wg := range watchGroups {
+		gvk := schema.FromAPIVersionAndKind(wg.APIVersion, wg.Kind)
+		mapping, err := c.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+		if err != nil {
+			logrus.Warningf("get rest mapping for %s/%s: %v", wg.APIVersion, wg.Kind, err)
+			continue
+		}
+		list, err := c.dynamicClient.Resource(mapping.Resource).Namespace(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			logrus.Warningf("list %s/%s: %v", wg.APIVersion, wg.Kind, err)
+			continue
+		}
+		rbds = append(rbds, list.Items...)
+	}
+	return rbds, nil
+}
+
+func (c *clusterAction) GenerateAbilityID(ability *unstructured.Unstructured) string {
+	// example abilityID: namespace_apiVersion_kind_name
+	return fmt.Sprintf("%s_%s_%s_%s", ability.GetNamespace(), strings.Replace(ability.GetAPIVersion(), "/", "-", -1), ability.GetKind(), ability.GetName())
+}
+
+func (c *clusterAction) ParseAbilityID(abilityID string) (namespace, apiVersion, kind, name string, err error) {
+	// example abilityID: namespace_apiVersion_kind_name
+	split := strings.SplitN(abilityID, "_", 4)
+	if len(split) < 4 {
+		return "", "", "", "", fmt.Errorf("invalid abilityID: %s", abilityID)
+	}
+	namespace, apiVersion, kind, name = split[0], split[1], split[2], split[3]
+	if strings.ContainsAny(apiVersion, "-") {
+		apiVersion = strings.Replace(apiVersion, "-", "/", -1)
+	}
+	return namespace, apiVersion, kind, name, nil
+}
+
+// GetAbility -
+func (c *clusterAction) GetAbility(abilityID string) (*unstructured.Unstructured, error) {
+	namespace, apiVersion, kind, name, err := c.ParseAbilityID(abilityID)
+	if err != nil {
+		return nil, err
+	}
+	logrus.Debugf("get ability: [%v, %v, %v, %v]", namespace, apiVersion, kind, name)
+
+	gvk := schema.FromAPIVersionAndKind(apiVersion, kind)
+	mapping, err := c.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return nil, errors.Wrap(err, "ability_id invalid")
+	}
+	resource, err := c.dynamicClient.Resource(mapping.Resource).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "get ability")
+	}
+	resource.SetManagedFields(nil)
+	return resource, nil
+}
+
+// UpdateAbility -
+func (c *clusterAction) UpdateAbility(abilityID string, ability *unstructured.Unstructured) error {
+	namespace, apiVersion, kind, name, err := c.ParseAbilityID(abilityID)
+	if err != nil {
+		return err
+	}
+	logrus.Debugf("update ability: [%v, %v, %v, %v]", namespace, apiVersion, kind, name)
+
+	gvk := schema.FromAPIVersionAndKind(apiVersion, kind)
+	mapping, err := c.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return errors.Wrap(err, "ability_id invalid")
+	}
+	_, err = c.dynamicClient.Resource(mapping.Resource).Namespace(namespace).Update(context.Background(), ability, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrap(err, "update ability")
+	}
+	return nil
 }

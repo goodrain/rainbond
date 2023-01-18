@@ -47,9 +47,25 @@ type ClusterInterface interface {
 	RbdLog(w http.ResponseWriter, r *http.Request)
 	GetRbdPods(w http.ResponseWriter, r *http.Request)
 	HistoryRbdLogs(w http.ResponseWriter, r *http.Request)
+	ListPlugins(w http.ResponseWriter, r *http.Request)
+	ListAbilities(w http.ResponseWriter, r *http.Request)
+	GetAbility(w http.ResponseWriter, r *http.Request)
+	UpdateAbility(w http.ResponseWriter, r *http.Request)
+	ListRainbondComponents(w http.ResponseWriter, r *http.Request)
 }
 
-//TenantInterface interface
+// NodesInterface -
+type NodesInterface interface {
+	ListNodes(w http.ResponseWriter, r *http.Request)
+	GetNode(w http.ResponseWriter, r *http.Request)
+	NodeAction(w http.ResponseWriter, r *http.Request)
+	ListLabels(w http.ResponseWriter, r *http.Request)
+	UpdateLabels(w http.ResponseWriter, r *http.Request)
+	ListTaints(w http.ResponseWriter, r *http.Request)
+	UpdateTaints(w http.ResponseWriter, r *http.Request)
+}
+
+// TenantInterface interface
 type TenantInterface interface {
 	TenantInterfaceWithV1
 	AllTenantResources(w http.ResponseWriter, r *http.Request)
@@ -73,14 +89,14 @@ type TenantInterface interface {
 	Log(w http.ResponseWriter, r *http.Request)
 }
 
-//HelmInterface HelmInterface
+// HelmInterface HelmInterface
 type HelmInterface interface {
 	CheckHelmApp(w http.ResponseWriter, r *http.Request)
 	CommandHelm(w http.ResponseWriter, r *http.Request)
 	GetChartInformation(w http.ResponseWriter, r *http.Request)
 }
 
-//ServiceInterface ServiceInterface
+// ServiceInterface ServiceInterface
 type ServiceInterface interface {
 	SetLanguage(w http.ResponseWriter, r *http.Request)
 	SingleServiceInfo(w http.ResponseWriter, r *http.Request)
@@ -116,7 +132,7 @@ type ServiceInterface interface {
 	K8sAttributes(w http.ResponseWriter, r *http.Request)
 }
 
-//TenantInterfaceWithV1 funcs for both v2 and v1
+// TenantInterfaceWithV1 funcs for both v2 and v1
 type TenantInterfaceWithV1 interface {
 	StartService(w http.ResponseWriter, r *http.Request)
 	StopService(w http.ResponseWriter, r *http.Request)
@@ -131,7 +147,7 @@ type TenantInterfaceWithV1 interface {
 	StatusContainerID(w http.ResponseWriter, r *http.Request)
 }
 
-//LogInterface log interface
+// LogInterface log interface
 type LogInterface interface {
 	HistoryLogs(w http.ResponseWriter, r *http.Request)
 	LogList(w http.ResponseWriter, r *http.Request)
@@ -144,7 +160,7 @@ type LogInterface interface {
 	MyTeamsEvents(w http.ResponseWriter, r *http.Request)
 }
 
-//PluginInterface plugin interface
+// PluginInterface plugin interface
 type PluginInterface interface {
 	PluginAction(w http.ResponseWriter, r *http.Request)
 	PluginDefaultENV(w http.ResponseWriter, r *http.Request)
@@ -164,7 +180,7 @@ type PluginInterface interface {
 	BatchBuildPlugins(w http.ResponseWriter, r *http.Request)
 }
 
-//RulesInterface RulesInterface
+// RulesInterface RulesInterface
 type RulesInterface interface {
 	SetDownStreamRule(w http.ResponseWriter, r *http.Request)
 	GetDownStreamRule(w http.ResponseWriter, r *http.Request)
@@ -172,7 +188,7 @@ type RulesInterface interface {
 	UpdateDownStreamRule(w http.ResponseWriter, r *http.Request)
 }
 
-//AppInterface app handle interface
+// AppInterface app handle interface
 type AppInterface interface {
 	ExportApp(w http.ResponseWriter, r *http.Request)
 	Download(w http.ResponseWriter, r *http.Request)
@@ -205,11 +221,15 @@ type ApplicationInterface interface {
 	SyncComponents(w http.ResponseWriter, r *http.Request)
 	SyncAppConfigGroups(w http.ResponseWriter, r *http.Request)
 	ListAppStatuses(w http.ResponseWriter, r *http.Request)
+	ListGovernanceMode(w http.ResponseWriter, r *http.Request)
 	CheckGovernanceMode(w http.ResponseWriter, r *http.Request)
+	CreateGovernanceModeCR(w http.ResponseWriter, r *http.Request)
+	UpdateGovernanceModeCR(w http.ResponseWriter, r *http.Request)
+	DeleteGovernanceModeCR(w http.ResponseWriter, r *http.Request)
 	ChangeVolumes(w http.ResponseWriter, r *http.Request)
 }
 
-//Gatewayer gateway api interface
+// Gatewayer gateway api interface
 type Gatewayer interface {
 	HTTPRule(w http.ResponseWriter, r *http.Request)
 	TCPRule(w http.ResponseWriter, r *http.Request)
@@ -245,7 +265,7 @@ type PodInterface interface {
 	PodDetail(w http.ResponseWriter, r *http.Request)
 }
 
-//RegistryAuthSecretInterface registry auth secret interface
+// RegistryAuthSecretInterface registry auth secret interface
 type RegistryAuthSecretInterface interface {
 	RegistryAuthSecret(w http.ResponseWriter, r *http.Request)
 }

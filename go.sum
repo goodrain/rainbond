@@ -893,8 +893,8 @@ github.com/gomodule/redigo v1.8.2 h1:H5XSIre1MB5NbPYFp+i1NBbb5qN1W8Y8YAQoAYbkm8k
 github.com/gomodule/redigo v1.8.2/go.mod h1:P9dn9mFrCBvWhGE1wpxx6fgq7BAeLBk+UUUzlpkBYO0=
 github.com/goodrain/gorm-bulk-upsert v1.0.1-0.20210608013724-7e7870d16357 h1:kdSSrpA5yNvgqbfpMlEr8bvQWiLc1Uz9g0vYf3JVT7s=
 github.com/goodrain/gorm-bulk-upsert v1.0.1-0.20210608013724-7e7870d16357/go.mod h1:b7/GgeVNbf/SFw4FYIWslxNV5I10C9Mhf/++3jsDk3M=
-github.com/goodrain/rainbond-oam v0.0.0-20220929165105-be6653621e55 h1:2WnofQ83XMWch54pep9Nsbdlfmdesv3H+Hrj3DS6+tA=
-github.com/goodrain/rainbond-oam v0.0.0-20220929165105-be6653621e55/go.mod h1:pJCiDwGK7glzupmRCwfmVmjjzBvZH7dpnOGzb392Tbo=
+github.com/goodrain/rainbond-oam v0.0.0-20230117125005-98bcc9233a7f h1:lP3vUduSD4YlyznmmMkeZW4icM4zNZR7daEdXhqw3uk=
+github.com/goodrain/rainbond-oam v0.0.0-20230117125005-98bcc9233a7f/go.mod h1:LVLCqKFl0n+huV8Q9f1yFNhcBvF9U4c/q5UQF9nba4A=
 github.com/goodrain/rainbond-operator v1.3.1-0.20210401055914-f8fe4bf89a21 h1:iCPI96slvJv88iPc1NJW8zhpkiza0kwB0jtsuZIJLRQ=
 github.com/goodrain/rainbond-operator v1.3.1-0.20210401055914-f8fe4bf89a21/go.mod h1:jcQfNoxO67nkLalCmgihYrdWF82TKyuPW032tgGdqVY=
 github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
