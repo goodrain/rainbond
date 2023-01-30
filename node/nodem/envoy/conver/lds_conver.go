@@ -113,111 +113,113 @@ func upstreamListener(serviceAlias, namespace string, dependsServices []*api_mod
 		if !ok || inner != "inner" {
 			continue
 		}
-		port := service.Spec.Ports[0].Port
-		protocol := service.Spec.Ports[0].Protocol
-		var ListenPort = port
-		//listener real port
-		if value, ok := service.Labels["origin_port"]; ok {
-			origin, _ := strconv.Atoi(value)
-			if origin != 0 {
-				ListenPort = int32(origin)
-			}
-		}
-		clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port)
-		listennerName := fmt.Sprintf("%s_%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), strings.ToLower(string(protocol)), ListenPort)
-		destService := ListennerConfig[listennerName]
-		statPrefix := fmt.Sprintf("%s_%s", serviceAlias, GetServiceAliasByService(service))
-		var options envoyv2.RainbondPluginOptions
-		if destService != nil {
-			options = envoyv2.GetOptionValues(destService.Options)
-		} else {
-			logrus.Warningf("destService is nil for service %s listenner name %s", serviceAlias, listennerName)
-		}
-		// Unique by listen port
-		if _, ok := portMap[ListenPort]; !ok {
-			//listener name depend listner port
-			listenerName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, ListenPort)
-			var listener *v2.Listener
-			protocol := service.Labels["port_protocol"]
-			if domain, ok := service.Annotations["domain"]; ok && domain != "" && (protocol == "https" || protocol == "http" || protocol == "grpc") {
-				route := envoyv2.CreateRouteWithHostRewrite(domain, clusterName, "/", nil, 0)
-				if route != nil {
-					pvh := envoyv2.CreateRouteVirtualHost(
-						fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port),
-						[]string{"*"},
-						nil,
-						route,
-					)
-					if pvh != nil {
-						listener = envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port), envoyv2.DefaultLocalhostListenerAddress, fmt.Sprintf("%s_%d", serviceAlias, port), uint32(port), nil, pvh)
-					} else {
-						logrus.Warnf("create route virtual host of domain listener %s failure", fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port))
-					}
+		for _, p := range service.Spec.Ports {
+			port := p.Port
+			protocol := p.Protocol
+			var ListenPort = port
+			//listener real port
+			if value, ok := service.Labels["origin_port"]; ok {
+				origin, _ := strconv.Atoi(value)
+				if origin != 0 {
+					ListenPort = int32(origin)
 				}
-			} else if protocol == "udp" {
-				listener = envoyv2.CreateUDPListener(listenerName, clusterName, envoyv2.DefaultLocalhostListenerAddress, statPrefix, uint32(ListenPort))
-			} else {
-				listener = envoyv2.CreateTCPListener(listenerName, clusterName, envoyv2.DefaultLocalhostListenerAddress, statPrefix, uint32(ListenPort), options.TCPIdleTimeout)
 			}
-			if listener != nil {
-				ldsL = append(ldsL, listener)
+			clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port)
+			listennerName := fmt.Sprintf("%s_%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), strings.ToLower(string(protocol)), ListenPort)
+			destService := ListennerConfig[listennerName]
+			statPrefix := fmt.Sprintf("%s_%s", serviceAlias, GetServiceAliasByService(service))
+			var options envoyv2.RainbondPluginOptions
+			if destService != nil {
+				options = envoyv2.GetOptionValues(destService.Options)
 			} else {
-				logrus.Warningf("create tcp listenner %s failure", listenerName)
-				continue
+				logrus.Warningf("destService is nil for service %s listenner name %s", serviceAlias, listennerName)
 			}
-			portMap[ListenPort] = len(ldsL) - 1
-		}
-
-		portProtocol, _ := service.Labels["port_protocol"]
-		if destService != nil && destService.Protocol != "" {
-			portProtocol = destService.Protocol
-		}
-
-		if portProtocol != "" {
-			//TODO: support more protocol
-			switch portProtocol {
-			case "http", "https", "grpc":
-				hashKey := options.RouteBasicHash()
-				if oldroute, ok := uniqRoute[hashKey]; ok {
-					oldrr := oldroute.Action.(*route.Route_Route)
-					if oldrrwc, ok := oldrr.Route.ClusterSpecifier.(*route.RouteAction_WeightedClusters); ok {
-						weight := envoyv2.CheckWeightSum(oldrrwc.WeightedClusters.Clusters, options.Weight)
-						oldrrwc.WeightedClusters.Clusters = append(oldrrwc.WeightedClusters.Clusters, &route.WeightedCluster_ClusterWeight{
-							Name:   clusterName,
-							Weight: envoyv2.ConversionUInt32(weight),
-						})
-					}
-				} else {
-					var headerMatchers []*route.HeaderMatcher
-					for _, header := range options.Headers {
-						headerMatcher := envoyv2.CreateHeaderMatcher(header)
-						if headerMatcher != nil {
-							headerMatchers = append(headerMatchers, headerMatcher)
+			// Unique by listen port
+			if _, ok := portMap[ListenPort]; !ok {
+				//listener name depend listner port
+				listenerName := fmt.Sprintf("%s_%s_%d", namespace, serviceAlias, ListenPort)
+				var listener *v2.Listener
+				portProtocol := fmt.Sprintf("port_protocol_%v", port)
+				protocol := service.Labels[portProtocol]
+				if domain, ok := service.Annotations["domain"]; ok && domain != "" && (protocol == "https" || protocol == "http" || protocol == "grpc") {
+					route := envoyv2.CreateRouteWithHostRewrite(domain, clusterName, "/", nil, 0)
+					if route != nil {
+						pvh := envoyv2.CreateRouteVirtualHost(
+							fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, GetServiceAliasByService(service), port),
+							[]string{"*"},
+							nil,
+							route,
+						)
+						if pvh != nil {
+							listener = envoyv2.CreateHTTPListener(fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port), envoyv2.DefaultLocalhostListenerAddress, fmt.Sprintf("%s_%d", serviceAlias, port), uint32(port), nil, pvh)
+						} else {
+							logrus.Warnf("create route virtual host of domain listener %s failure", fmt.Sprintf("%s_%s_http_%d", namespace, serviceAlias, port))
 						}
 					}
-					var route *route.Route
-					if domain, ok := service.Annotations["domain"]; ok && domain != "" {
-						route = envoyv2.CreateRouteWithHostRewrite(domain, clusterName, options.Prefix, headerMatchers, options.Weight)
-					} else {
-						route = envoyv2.CreateRoute(clusterName, options.Prefix, headerMatchers, options.Weight)
-					}
+				} else if protocol == "udp" {
+					listener = envoyv2.CreateUDPListener(listenerName, clusterName, envoyv2.DefaultLocalhostListenerAddress, statPrefix, uint32(ListenPort))
+				} else {
+					listener = envoyv2.CreateTCPListener(listenerName, clusterName, envoyv2.DefaultLocalhostListenerAddress, statPrefix, uint32(ListenPort), options.TCPIdleTimeout)
+				}
+				if listener != nil {
+					ldsL = append(ldsL, listener)
+				} else {
+					logrus.Warningf("create tcp listenner %s failure", listenerName)
+					continue
+				}
+				portMap[ListenPort] = len(ldsL) - 1
+			}
+			portProtocol := service.Labels[fmt.Sprintf("port_protocol_%v", port)]
+			if destService != nil && destService.Protocol != "" {
+				portProtocol = destService.Protocol
+			}
 
-					if route != nil {
-						if pvh := VHLDomainMap[strings.Join(options.Domains, "")]; pvh != nil {
-							pvh.Routes = append(pvh.Routes, route)
+			if portProtocol != "" {
+				//TODO: support more protocol
+				switch portProtocol {
+				case "http", "https", "grpc":
+					hashKey := options.RouteBasicHash()
+					if oldroute, ok := uniqRoute[hashKey]; ok {
+						oldrr := oldroute.Action.(*route.Route_Route)
+						if oldrrwc, ok := oldrr.Route.ClusterSpecifier.(*route.RouteAction_WeightedClusters); ok {
+							weight := envoyv2.CheckWeightSum(oldrrwc.WeightedClusters.Clusters, options.Weight)
+							oldrrwc.WeightedClusters.Clusters = append(oldrrwc.WeightedClusters.Clusters, &route.WeightedCluster_ClusterWeight{
+								Name:   clusterName,
+								Weight: envoyv2.ConversionUInt32(weight),
+							})
+						}
+					} else {
+						var headerMatchers []*route.HeaderMatcher
+						for _, header := range options.Headers {
+							headerMatcher := envoyv2.CreateHeaderMatcher(header)
+							if headerMatcher != nil {
+								headerMatchers = append(headerMatchers, headerMatcher)
+							}
+						}
+						var route *route.Route
+						if domain, ok := service.Annotations["domain"]; ok && domain != "" {
+							route = envoyv2.CreateRouteWithHostRewrite(domain, clusterName, options.Prefix, headerMatchers, options.Weight)
 						} else {
-							pvh := envoyv2.CreateRouteVirtualHost(fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias,
-								GetServiceAliasByService(service), port), envoyv2.CheckDomain(options.Domains, portProtocol), nil, route)
-							if pvh != nil {
-								newVHL = append(newVHL, pvh)
-								uniqRoute[hashKey] = route
-								VHLDomainMap[strings.Join(options.Domains, "")] = pvh
+							route = envoyv2.CreateRoute(clusterName, options.Prefix, headerMatchers, options.Weight)
+						}
+
+						if route != nil {
+							if pvh := VHLDomainMap[strings.Join(options.Domains, "")]; pvh != nil {
+								pvh.Routes = append(pvh.Routes, route)
+							} else {
+								pvh := envoyv2.CreateRouteVirtualHost(fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias,
+									GetServiceAliasByService(service), port), envoyv2.CheckDomain(options.Domains, portProtocol), nil, route)
+								if pvh != nil {
+									newVHL = append(newVHL, pvh)
+									uniqRoute[hashKey] = route
+									VHLDomainMap[strings.Join(options.Domains, "")] = pvh
+								}
 							}
 						}
 					}
+				default:
+					continue
 				}
-			default:
-				continue
 			}
 		}
 	}

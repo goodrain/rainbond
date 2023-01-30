@@ -428,6 +428,8 @@ func (a *AppServiceBuild) createInnerService(ports []*model.TenantServicesPort) 
 		if servicePort.Port == 0 {
 			servicePort.Port = int32(port.ContainerPort)
 		}
+		portProtocol := fmt.Sprintf("port_protocol_%v", servicePort.Port)
+		service.Labels[portProtocol] = port.Protocol
 		servicePorts = append(servicePorts, servicePort)
 	}
 	spec := corev1.ServiceSpec{

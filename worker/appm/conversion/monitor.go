@@ -1,6 +1,8 @@
 package conversion
 
 import (
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/goodrain/rainbond/db"
@@ -71,14 +73,20 @@ func createServiceMonitor(as *v1.AppService, dbmanager db.Manager) []*mv1.Servic
 		sm.Name = tsm.Name
 		sm.Labels = as.GetCommonLabels()
 		sm.Namespace = as.GetNamespace()
+		var portProtocol string
+		for _, p := range service.Spec.Ports {
+			if int(p.Port) == tsm.Port {
+				portProtocol = service.Labels[fmt.Sprintf("port_protocol_%v", p.Port)]
+			}
+		}
 		sm.Spec = mv1.ServiceMonitorSpec{
 			// service label app_name
 			JobLabel:          "app_name",
 			NamespaceSelector: mv1.NamespaceSelector{Any: true},
 			Selector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"service_port":  service.Labels["service_port"],
-					"port_protocol": service.Labels["port_protocol"],
+					"service_port":  strconv.Itoa(tsm.Port),
+					"port_protocol": portProtocol,
 					"name":          service.Labels["name"],
 					"service_type":  service.Labels["service_type"],
 				},
