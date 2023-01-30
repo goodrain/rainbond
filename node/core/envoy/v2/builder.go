@@ -525,17 +525,18 @@ func GetServiceAliasByService(service *corev1.Service) string {
 }
 
 //CreateDNSLoadAssignment create dns loadAssignment
-func CreateDNSLoadAssignment(serviceAlias, namespace, domain string, service *corev1.Service) *apiv2.ClusterLoadAssignment {
+func CreateDNSLoadAssignment(serviceAlias, namespace, domain string, service *corev1.Service, p corev1.ServicePort) *apiv2.ClusterLoadAssignment {
 	destServiceAlias := GetServiceAliasByService(service)
 	if destServiceAlias == "" {
 		logrus.Errorf("service alias is empty in k8s service %s", service.Name)
 		return nil
 	}
 
-	clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, service.Spec.Ports[0].Port)
+	clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, p.Port)
 	var lendpoints []*endpoint.LocalityLbEndpoints
-	protocol := service.Labels["port_protocol"]
-	port := service.Spec.Ports[0].Port
+	port := p.Port
+	portProtocol := fmt.Sprintf("port_protocol_%v", port)
+	protocol := service.Labels[portProtocol]
 	var lbe []*endpoint.LbEndpoint
 	envoyAddress := CreateSocketAddress(protocol, domain, uint32(port))
 	lbe = append(lbe, &endpoint.LbEndpoint{

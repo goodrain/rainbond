@@ -44,7 +44,6 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 			logrus.Errorf("service alias is empty in k8s service %s", service.Name)
 			continue
 		}
-		clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, service.Spec.Ports[0].Port)
 		selectEndpoint := getEndpointsByServiceName(endpoints, service.Name)
 		logrus.Debugf("select endpoints %d for service %s", len(selectEndpoint), service.Name)
 		var lendpoints []*endpoint.LocalityLbEndpoints // localityLbEndpoints just support only one content
@@ -107,14 +106,17 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 				lendpoints = append(lendpoints, &endpoint.LocalityLbEndpoints{LbEndpoints: lbe})
 			}
 		}
-		cla := &v2.ClusterLoadAssignment{
-			ClusterName: clusterName,
-			Endpoints:   lendpoints,
-		}
-		if err := cla.Validate(); err != nil {
-			logrus.Errorf("endpoints discover validate failure %s", err.Error())
-		} else {
-			clusterLoadAssignment = append(clusterLoadAssignment, cla)
+		for _, p := range service.Spec.Ports {
+			clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, p.Port)
+			cla := &v2.ClusterLoadAssignment{
+				ClusterName: clusterName,
+				Endpoints:   lendpoints,
+			}
+			if err := cla.Validate(); err != nil {
+				logrus.Errorf("endpoints discover validate failure %s", err.Error())
+			} else {
+				clusterLoadAssignment = append(clusterLoadAssignment, cla)
+			}
 		}
 	}
 	if len(clusterLoadAssignment) == 0 {
