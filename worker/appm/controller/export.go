@@ -7,6 +7,10 @@ import (
 	"github.com/goodrain/rainbond/db"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
+	appv1 "k8s.io/api/apps/v1"
+	"k8s.io/api/autoscaling/v2beta2"
+	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
@@ -140,6 +144,7 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		claim.Kind = "PersistentVolumeClaim"
 		claim.APIVersion = APIVersionPersistentVolumeClaim
 		claim.Namespace = ""
+		claim.Status = corev1.PersistentVolumeClaimStatus{}
 		pvcBytes, err := yaml.Marshal(claim)
 		if err != nil {
 			return fmt.Errorf("pvc to yaml failure %v", err)
@@ -166,6 +171,7 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 				statefulset.Spec.VolumeClaimTemplates[i].Spec.StorageClassName = &sc
 			}
 		}
+		statefulset.Status = appv1.StatefulSetStatus{}
 		statefulsetBytes, err := yaml.Marshal(statefulset)
 		if err != nil {
 			return fmt.Errorf("statefulset to yaml failure %v", err)
@@ -185,6 +191,7 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		imageCut := strings.Split(image, "/")
 		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageDomain }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
 		deployment.Spec.Template.Spec.Containers[0].Image = Image
+		deployment.Status = appv1.DeploymentStatus{}
 		deploymentBytes, err := yaml.Marshal(deployment)
 		if err != nil {
 			return fmt.Errorf("deployment to yaml failure %v", err)
@@ -204,6 +211,7 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		imageCut := strings.Split(image, "/")
 		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageDomain }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
 		job.Spec.Template.Spec.Containers[0].Image = Image
+		job.Status = batchv1.JobStatus{}
 		jobBytes, err := yaml.Marshal(job)
 		if err != nil {
 			return fmt.Errorf("job to yaml failure %v", err)
@@ -224,6 +232,7 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		imageCut := strings.Split(image, "/")
 		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageDomain }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
 		cronjob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Image = Image
+		cronjob.Status = batchv1.CronJobStatus{}
 		cronjobBytes, err := yaml.Marshal(cronjob)
 		if err != nil {
 			return fmt.Errorf("cronjob to yaml failure %v", err)
@@ -244,6 +253,7 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 		imageCut := strings.Split(image, "/")
 		Image := fmt.Sprintf("{{ default \"%v\" .Values.imageDomain }}/%v", strings.Join(imageCut[:len(imageCut)-1], "/"), imageCut[len(imageCut)-1])
 		cronjob.Spec.JobTemplate.Spec.Template.Spec.Containers[0].Image = Image
+		cronjob.Status = v1beta1.CronJobStatus{}
 		cronjobBytes, err := yaml.Marshal(cronjob)
 		if err != nil {
 			return fmt.Errorf("cronjob to yaml failure %v", err)
@@ -262,6 +272,7 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 			if svc.Labels["service_type"] == "outer" {
 				svc.Spec.Type = corev1.ServiceTypeNodePort
 			}
+			svc.Status = corev1.ServiceStatus{}
 			svcBytes, err := yaml.Marshal(svc)
 			if err != nil {
 				return fmt.Errorf("svc to yaml failure %v", err)
@@ -345,6 +356,7 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 			hpa.Kind = "HorizontalPodAutoscaler"
 			hpa.Namespace = ""
 			hpa.APIVersion = APIVersionHorizontalPodAutoscaler
+			hpa.Status = v2beta2.HorizontalPodAutoscalerStatus{}
 			if len(hpa.ResourceVersion) == 0 {
 				hpaBytes, err := yaml.Marshal(hpa)
 				if err != nil {
