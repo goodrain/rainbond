@@ -38,7 +38,7 @@ steps:
     GOOS: linux
     GOARCH: arm64
   commands:
-  - sleep 10 # give docker enough time to start
+  - sleep 20 # give docker enough time to start
   - VERSION=$BUILD_VERSION BUILD_GOARCH=arm64 BUILD_BASE_IMAGE_VERSION=3.16 ./release.sh all push
   when:
     event:
