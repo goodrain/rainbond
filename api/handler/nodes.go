@@ -161,13 +161,13 @@ func (n *nodesHandle) HandleNodeInfo(node v1.Node) (nodeinfo model.NodeInfo, err
 	}
 	// req resource from Prometheus
 	var query string
-	query = fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_memory{node_name="%v"})`, node.Name)
+	query = fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_memory{node_name="%v"}) by (instance)`, node.Name)
 	podMemoryMetric := n.prometheusCli.GetMetric(query, time.Now())
 
-	query = fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_cpu{node_name="%v"})`, node.Name)
+	query = fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_cpu{node_name="%v"}) by (instance)`, node.Name)
 	podCPUMetric := n.prometheusCli.GetMetric(query, time.Now())
 
-	query = fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_ephemeral_storage{node_name="%v"})`, node.Name)
+	query = fmt.Sprintf(`sum(rbd_api_exporter_cluster_pod_ephemeral_storage{node_name="%v"}) by (instance)`, node.Name)
 	podEphemeralStorageMetric := n.prometheusCli.GetMetric(query, time.Now())
 
 	for i, memory := range podMemoryMetric.MetricData.MetricValues {
