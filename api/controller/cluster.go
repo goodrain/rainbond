@@ -222,6 +222,22 @@ func (c *ClusterController) DeleteResource(w http.ResponseWriter, r *http.Reques
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+//BatchDeleteResource -
+func (c *ClusterController) BatchDeleteResource(w http.ResponseWriter, r *http.Request) {
+	var req model.SyncResources
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
+		return
+	}
+	for _, hr := range req.K8sResources {
+		err := handler.GetClusterHandler().DeleteAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml, hr.Kind)
+		if err != nil {
+			err.Handle(r, w)
+			return
+		}
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
 // SyncResource -
 func (c *ClusterController) SyncResource(w http.ResponseWriter, r *http.Request) {
 	var req model.SyncResources
