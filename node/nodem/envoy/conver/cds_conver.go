@@ -35,7 +35,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-//OneNodeCluster conver cluster of on envoy node
+// OneNodeCluster conver cluster of on envoy node
 func OneNodeCluster(serviceAlias, namespace string, configs *corev1.ConfigMap, services []*corev1.Service) ([]types.Resource, error) {
 	resources, _, err := GetPluginConfigs(configs)
 	if err != nil {
@@ -147,8 +147,8 @@ func transportSocket(name, domain string) *core.TransportSocket {
 	}
 }
 
-//downstreamClusters handle app self cluster
-//only local port
+// downstreamClusters handle app self cluster
+// only local port
 func downstreamClusters(serviceAlias, namespace string, ports []*api_model.BasePort) (cdsClusters []*v2.Cluster) {
 	for i := range ports {
 		port := ports[i]

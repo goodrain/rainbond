@@ -31,7 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-//OneNodeClusterLoadAssignment one envoy node endpoints
+// OneNodeClusterLoadAssignment one envoy node endpoints
 func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*corev1.Endpoints, services []*corev1.Service) (clusterLoadAssignment []types.Resource) {
 	for i := range services {
 		if domain, ok := services[i].Annotations["domain"]; ok && domain != "" {
@@ -108,9 +108,24 @@ func OneNodeClusterLoadAssignment(serviceAlias, namespace string, endpoints []*c
 		}
 		for _, p := range service.Spec.Ports {
 			clusterName := fmt.Sprintf("%s_%s_%s_%d", namespace, serviceAlias, destServiceAlias, p.Port)
+			var (
+				newlendpoints []*endpoint.LocalityLbEndpoints
+				epPort        uint32
+			)
+			for _, ep := range lendpoints {
+				if len(ep.LbEndpoints) > 0 {
+					epPort = ep.LbEndpoints[0].GetEndpoint().GetAddress().GetSocketAddress().GetPortValue()
+				}
+				if int32(epPort) != p.Port {
+					logrus.Debugf("endpoints port [%v] different service port [%v]", epPort, p.Port)
+					continue
+				}
+				newlendpoints = append(newlendpoints, ep)
+			}
+
 			cla := &v2.ClusterLoadAssignment{
 				ClusterName: clusterName,
-				Endpoints:   lendpoints,
+				Endpoints:   newlendpoints,
 			}
 			if err := cla.Validate(); err != nil {
 				logrus.Errorf("endpoints discover validate failure %s", err.Error())
