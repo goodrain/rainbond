@@ -48,7 +48,7 @@ import (
 	kcache "k8s.io/client-go/tools/cache"
 )
 
-//DiscoverServerManager envoy discover server
+// DiscoverServerManager envoy discover server
 type DiscoverServerManager struct {
 	server          server.Server
 	conf            option.Conf
@@ -78,7 +78,7 @@ func (h Hasher) ID(node *envoy_api_v2_core.Node) string {
 	return node.Cluster
 }
 
-//NodeConfig envoy node config cache struct
+// NodeConfig envoy node config cache struct
 type NodeConfig struct {
 	nodeID                         string
 	namespace                      string
@@ -90,13 +90,13 @@ type NodeConfig struct {
 	listeners, clusters, endpoints []types.Resource
 }
 
-//GetID get envoy node config id
+// GetID get envoy node config id
 func (n *NodeConfig) GetID() string {
 	return n.nodeID
 }
 
-//TryUpdate try update resources, if don't care about,direct return false
-//if return true, snapshot need update
+// TryUpdate try update resources, if don't care about,direct return false
+// if return true, snapshot need update
 func (n *NodeConfig) TryUpdate(obj interface{}) (needUpdate bool) {
 	if service, ok := obj.(*corev1.Service); ok {
 		if v, ok := service.Labels["creator"]; !ok || v != "Rainbond" {
@@ -117,13 +117,13 @@ func (n *NodeConfig) TryUpdate(obj interface{}) (needUpdate bool) {
 	return false
 }
 
-//VersionUpdate add version index
+// VersionUpdate add version index
 func (n *NodeConfig) VersionUpdate() {
 	newVersion := atomic.AddInt64(&n.version, 1)
 	n.version = newVersion
 }
 
-//GetVersion get version
+// GetVersion get version
 func (n *NodeConfig) GetVersion() string {
 	return fmt.Sprintf("version_%d", n.version)
 }
@@ -137,7 +137,7 @@ type cacheHandler struct {
 	handler  *ChainHandler
 }
 
-//GetServicesAndEndpoints get service and endpoint
+// GetServicesAndEndpoints get service and endpoint
 func (d *DiscoverServerManager) GetServicesAndEndpoints(namespace string, labelSelector labels.Selector) (ret []*corev1.Service, eret []*corev1.Endpoints) {
 	kcache.ListAllByNamespace(d.services.informer.GetIndexer(), namespace, labelSelector, func(s interface{}) {
 		ret = append(ret, s.(*corev1.Service))
@@ -148,7 +148,7 @@ func (d *DiscoverServerManager) GetServicesAndEndpoints(namespace string, labelS
 	return
 }
 
-//NewNodeConfig new NodeConfig
+// NewNodeConfig new NodeConfig
 func (d *DiscoverServerManager) NewNodeConfig(config *corev1.ConfigMap) (*NodeConfig, error) {
 	logrus.Debugf("cm name: %s; plugin-config: %s", config.GetName(), config.Data["plugin-config"])
 	servicaAlias := config.Labels["service_alias"]
@@ -169,7 +169,7 @@ func (d *DiscoverServerManager) NewNodeConfig(config *corev1.ConfigMap) (*NodeCo
 	return nc, nil
 }
 
-//UpdateNodeConfig update node config
+// UpdateNodeConfig update node config
 func (d *DiscoverServerManager) UpdateNodeConfig(nc *NodeConfig) error {
 	var services []*corev1.Service
 	var endpoint []*corev1.Endpoints
@@ -256,7 +256,7 @@ func (d *DiscoverServerManager) setSnapshot(nc *NodeConfig) error {
 	return nil
 }
 
-//CreateDiscoverServerManager create discover server manager
+// CreateDiscoverServerManager create discover server manager
 func CreateDiscoverServerManager(clientset kubernetes.Interface, conf option.Conf) (*DiscoverServerManager, error) {
 	configcache := cache.NewSnapshotCache(false, Hasher{}, logrus.WithField("module", "config-cache"))
 	ctx, cancel := context.WithCancel(context.Background())
@@ -292,7 +292,7 @@ func CreateDiscoverServerManager(clientset kubernetes.Interface, conf option.Con
 
 const grpcMaxConcurrentStreams = 1000000
 
-//Start server start
+// Start server start
 func (d *DiscoverServerManager) Start(errch chan error) error {
 	go func() {
 		go d.queue.Run(d.ctx.Done())
@@ -331,7 +331,7 @@ func (d *DiscoverServerManager) Start(errch chan error) error {
 	return nil
 }
 
-//Stop stop grpc server
+// Stop stop grpc server
 func (d *DiscoverServerManager) Stop() {
 	//d.grpcServer.GracefulStop()
 	d.cancel()
@@ -387,7 +387,7 @@ func (d *DiscoverServerManager) createEDSCacheHandler(informer kcache.SharedInde
 	return cacheHandler{informer: informer, handler: handler}
 }
 
-//AddNodeConfig add node config cache
+// AddNodeConfig add node config cache
 func (d *DiscoverServerManager) AddNodeConfig(nc *NodeConfig) {
 	var exist bool
 	for i, existNC := range d.cacheNodeConfig {
@@ -406,7 +406,7 @@ func (d *DiscoverServerManager) AddNodeConfig(nc *NodeConfig) {
 	}
 }
 
-//DeleteNodeConfig delete node config cache
+// DeleteNodeConfig delete node config cache
 func (d *DiscoverServerManager) DeleteNodeConfig(nodeID string) {
 	for i, existNC := range d.cacheNodeConfig {
 		if existNC.nodeID == nodeID {
