@@ -26,6 +26,8 @@ import (
 	betav1 "k8s.io/api/networking/v1beta1"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -79,7 +81,9 @@ type Storer interface {
 	Ready() bool
 	GetPod(namespace, name string) (*corev1.Pod, error)
 	RegistAppService(*v1.AppService)
+	RegistOperatorManaged(app *v1.OperatorManaged)
 	GetAppService(serviceID string) *v1.AppService
+	GetOperatorManaged(appID string) *v1.OperatorManaged
 	UpdateGetAppService(serviceID string) *v1.AppService
 	GetAllAppServices() []*v1.AppService
 	GetAppServiceStatus(serviceID string) string
@@ -97,6 +101,9 @@ type Storer interface {
 	GetCrds() ([]*apiextensions.CustomResourceDefinition, error)
 	GetCrd(name string) (*apiextensions.CustomResourceDefinition, error)
 	GetServiceMonitorClient() (*versioned.Clientset, error)
+	HandleOperatorManagedService(app *v1.OperatorManaged) []*pb.ManagedService
+	HandleOperatorManagedDeployment(app *v1.OperatorManaged) []*pb.ManagedDeployment
+	HandleOperatorManagedStatefulSet(app *v1.OperatorManaged) []*pb.ManagedStatefulSet
 	GetAppStatus(appID string) (pb.AppStatus_Status, error)
 	GetAppResources(appID string) (int64, int64, error)
 	GetHelmApp(namespace, name string) (*v1alpha1.HelmApp, error)
@@ -140,6 +147,7 @@ type appRuntimeStore struct {
 	listers                *Lister
 	replicaSets            *Lister
 	appServices            sync.Map
+	operatorManaged        sync.Map
 	appCount               int32
 	dbmanager              db.Manager
 	conf                   option.Config
@@ -414,6 +422,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		version := deployment.Labels["version"]
 		createrID := deployment.Labels["creater_id"]
 		migrator := deployment.Labels["migrator"]
+		appID := deployment.Labels["app_id"]
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
@@ -434,6 +443,12 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 				return
 			}
 
+		} else if deployment.OwnerReferences != nil && appID != "" {
+			operatorManaged := a.getOperatorManaged(appID)
+			if operatorManaged != nil {
+				operatorManaged.SetDeployment(deployment)
+				return
+			}
 		}
 	}
 	if job, ok := obj.(*batchv1.Job); ok {
@@ -529,6 +544,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		version := statefulset.Labels["version"]
 		createrID := statefulset.Labels["creater_id"]
 		migrator := statefulset.Labels["migrator"]
+		appID := statefulset.Labels["app_id"]
 		if serviceID != "" && version != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
@@ -546,6 +562,12 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 						}
 					}
 				}
+				return
+			}
+		} else if statefulset.OwnerReferences != nil && appID != "" {
+			operatorManaged := a.getOperatorManaged(appID)
+			if operatorManaged != nil {
+				operatorManaged.SetStatefulSet(statefulset)
 				return
 			}
 		}
@@ -585,6 +607,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 		serviceID := service.Labels["service_id"]
 		version := service.Labels["version"]
 		createrID := service.Labels["creater_id"]
+		appID := service.Labels["app_id"]
 		if serviceID != "" && createrID != "" {
 			appservice, err := a.getAppService(serviceID, version, createrID, true)
 			if err == conversion.ErrServiceNotFound {
@@ -592,6 +615,12 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 			if appservice != nil {
 				appservice.SetService(service)
+				return
+			}
+		} else if service.OwnerReferences != nil && appID != "" {
+			operatorManaged := a.getOperatorManaged(appID)
+			if operatorManaged != nil {
+				operatorManaged.SetService(service)
 				return
 			}
 		}
@@ -723,6 +752,17 @@ func (a *appRuntimeStore) getAppService(serviceID, version, createrID string, cr
 	}
 	return appservice, nil
 }
+
+func (a *appRuntimeStore) getOperatorManaged(appID string) *v1.OperatorManaged {
+	var operatorManaged *v1.OperatorManaged
+	operatorManaged = a.GetOperatorManaged(appID)
+	if operatorManaged == nil {
+		operatorManaged = conversion.InitCacheOperatorManaged(appID)
+		a.RegistOperatorManaged(operatorManaged)
+	}
+	return operatorManaged
+}
+
 func (a *appRuntimeStore) OnUpdate(oldObj, newObj interface{}) {
 	// ingress update maybe change owner component
 	if ingress, ok := newObj.(*networkingv1.Ingress); ok {
@@ -777,6 +817,7 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 			serviceID := deployment.Labels["service_id"]
 			version := deployment.Labels["version"]
 			createrID := deployment.Labels["creater_id"]
+			appID := deployment.Labels["app_id"]
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, _ := a.getAppService(serviceID, version, createrID, false)
 				if appservice != nil {
@@ -786,12 +827,19 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 					}
 					return
 				}
+			} else if deployment.OwnerReferences != nil && appID != "" {
+				operatorManaged := a.getOperatorManaged(appID)
+				if operatorManaged != nil {
+					operatorManaged.DeleteDeployment(deployment)
+					return
+				}
 			}
 		}
 		if statefulset, ok := obj.(*appsv1.StatefulSet); ok {
 			serviceID := statefulset.Labels["service_id"]
 			version := statefulset.Labels["version"]
 			createrID := statefulset.Labels["creater_id"]
+			appID := statefulset.Labels["app_id"]
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, _ := a.getAppService(serviceID, version, createrID, false)
 				if appservice != nil {
@@ -799,6 +847,12 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 					if appservice.IsClosed() {
 						a.DeleteAppService(appservice)
 					}
+					return
+				}
+			} else if statefulset.OwnerReferences != nil && appID != "" {
+				operatorManaged := a.getOperatorManaged(appID)
+				if operatorManaged != nil {
+					operatorManaged.DeleteStatefulSet(statefulset)
 					return
 				}
 			}
@@ -837,6 +891,7 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 			serviceID := service.Labels["service_id"]
 			version := service.Labels["version"]
 			createrID := service.Labels["creater_id"]
+			appID := service.Labels["app_id"]
 			if serviceID != "" && createrID != "" {
 				appservice, _ := a.getAppService(serviceID, version, createrID, false)
 				if appservice != nil {
@@ -844,6 +899,12 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 					if appservice.IsClosed() {
 						a.DeleteAppService(appservice)
 					}
+					return
+				}
+			} else if service.OwnerReferences != nil && appID != "" {
+				operatorManaged := a.getOperatorManaged(appID)
+				if operatorManaged != nil {
+					operatorManaged.DeleteService(service)
 					return
 				}
 			}
@@ -936,6 +997,10 @@ func (a *appRuntimeStore) RegistAppService(app *v1.AppService) {
 	logrus.Debugf("current have %d app after add \n", a.appCount)
 }
 
+func (a *appRuntimeStore) RegistOperatorManaged(app *v1.OperatorManaged) {
+	a.operatorManaged.Store(v1.GetCacheKeyOnlyAppID(app.AppID), app)
+}
+
 func (a *appRuntimeStore) GetPod(namespace, name string) (*corev1.Pod, error) {
 	return a.listers.Pod.Pods(namespace).Get(name)
 }
@@ -960,6 +1025,16 @@ func (a *appRuntimeStore) GetAppService(serviceID string) *v1.AppService {
 	if ok {
 		appService := app.(*v1.AppService)
 		return appService
+	}
+	return nil
+}
+
+func (a *appRuntimeStore) GetOperatorManaged(appID string) *v1.OperatorManaged {
+	key := v1.GetCacheKeyOnlyAppID(appID)
+	app, ok := a.operatorManaged.Load(key)
+	if ok {
+		operatorManaged := app.(*v1.OperatorManaged)
+		return operatorManaged
 	}
 	return nil
 }
@@ -1184,6 +1259,125 @@ func (a *appRuntimeStore) GetAppServicesStatus(serviceIDs []string) map[string]s
 	}
 	statusMap = a.GetAppServiceStatuses(serviceIDs)
 	return statusMap
+}
+
+func (a *appRuntimeStore) HandleOperatorManagedService(app *v1.OperatorManaged) []*pb.ManagedService {
+	svcs := app.GetService()
+	var serviceList []*pb.ManagedService
+	for _, svc := range svcs {
+		var ports []string
+		labelMap := svc.Spec.Selector
+		var labelSelector []string
+		for labelKey, labelValue := range labelMap {
+			labelSelector = append(labelSelector, labelKey+"="+labelValue)
+		}
+		var relation []string
+		deploys, err := a.clientset.AppsV1().Deployments(svc.GetNamespace()).List(a.ctx, metav1.ListOptions{LabelSelector: strings.Join(labelSelector, ",")})
+		if err != nil {
+			logrus.Errorf("Failed to find deployment according to the selector of the service created by the operator: %v", err)
+		} else if len(deploys.Items) != 0 {
+			for _, deploy := range deploys.Items {
+				relation = append(relation, deploy.GetName())
+			}
+		}
+		statefulSets, err := a.clientset.AppsV1().StatefulSets(svc.GetNamespace()).List(a.ctx, metav1.ListOptions{LabelSelector: strings.Join(labelSelector, ",")})
+		if err != nil {
+			logrus.Errorf("Failed to find statefulSet according to the selector of the service created by the operator: %v", err)
+		} else if len(statefulSets.Items) != 0 {
+			for _, sts := range statefulSets.Items {
+				relation = append(relation, sts.GetName())
+			}
+		}
+		for _, port := range svc.Spec.Ports {
+			ports = append(ports, strconv.Itoa(int(port.Port)))
+		}
+		serviceList = append(serviceList, &pb.ManagedService{
+			Name:     svc.GetName(),
+			Ip:       svc.Spec.ClusterIP,
+			Port:     strings.Join(ports, ","),
+			Relation: relation,
+		})
+	}
+	return serviceList
+}
+
+func (a *appRuntimeStore) HandleOperatorManagedDeployment(app *v1.OperatorManaged) []*pb.ManagedDeployment {
+	deploys := app.GetDeployment()
+	var deployList []*pb.ManagedDeployment
+	if deploys != nil {
+		label := fmt.Sprintf("app_id=%v", app.AppID)
+		operatorPods, err := a.clientset.CoreV1().Pods(deploys[0].GetNamespace()).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+		if err != nil {
+			logrus.Errorf("get pod by label appid failure: %v", err)
+		} else {
+			for _, deploy := range deploys {
+				podList, images := ExtractPodData(operatorPods.Items, deploy.GetName())
+				deployList = append(deployList, &pb.ManagedDeployment{
+					Name:          deploy.GetName(),
+					Image:         images,
+					Runtime:       deploy.CreationTimestamp.String(),
+					ReadyReplicas: deploy.Status.ReadyReplicas,
+					Pods:          podList,
+				})
+			}
+		}
+	}
+	return deployList
+}
+
+func (a *appRuntimeStore) HandleOperatorManagedStatefulSet(app *v1.OperatorManaged) []*pb.ManagedStatefulSet {
+	statefulSets := app.GetStatefulSet()
+	var stsList []*pb.ManagedStatefulSet
+	if statefulSets != nil {
+		label := fmt.Sprintf("app_id=%v", app.AppID)
+		operatorPods, err := a.clientset.CoreV1().Pods(statefulSets[0].GetNamespace()).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+		if err != nil {
+			logrus.Errorf("sts get pod by label appid failure: %v", err)
+		} else {
+			for _, sts := range statefulSets {
+				podList, images := ExtractPodData(operatorPods.Items, sts.GetName())
+				stsList = append(stsList, &pb.ManagedStatefulSet{
+					Name:          sts.GetName(),
+					Image:         images,
+					Runtime:       sts.CreationTimestamp.String(),
+					ReadyReplicas: sts.Status.ReadyReplicas,
+					Pods:          podList,
+				})
+			}
+		}
+	}
+	return stsList
+}
+
+//ExtractPodData processing pod data
+func ExtractPodData(pods []corev1.Pod, deployName string) (podList []*pb.ManagedPod, images []string) {
+	for index, pod := range pods {
+		if value, ok := pod.Labels["creator"]; ok && value == "rainbond" {
+			continue
+		}
+
+		var podMemory int64
+		var podCPU int64
+		var podDisk int64
+		if strings.HasPrefix(pod.GetName(), deployName) {
+			for _, container := range pod.Spec.Containers {
+				if index == 0 {
+					images = append(images, container.Image)
+				}
+				podMemory += container.Resources.Requests.Memory().Value()
+				podCPU += container.Resources.Requests.Cpu().MilliValue()
+				podDisk += container.Resources.Requests.StorageEphemeral().Value()
+			}
+			podList = append(podList, &pb.ManagedPod{
+				Name:   pod.GetName(),
+				Status: strings.ToUpper(string(pod.Status.Phase)),
+				Memory: podMemory,
+				Cpu:    podCPU,
+				Disk:   podDisk,
+			})
+		}
+	}
+	return podList, images
 }
 
 func (a *appRuntimeStore) GetAppStatus(appID string) (pb.AppStatus_Status, error) {
@@ -1627,21 +1821,8 @@ func (a *appRuntimeStore) GetAppResources(appID string) (int64, int64, error) {
 // Compatible with the old version.
 // Versions prior to 5.3.0 have no app_id in the label, only service_id.
 func (a *appRuntimeStore) listPodsByAppIDLegacy(appID string) ([]*corev1.Pod, error) {
-	services, err := a.dbmanager.TenantServiceDao().ListByAppID(appID)
-	if err != nil {
-		return nil, err
-	}
-	var serviceIDs []string
-	for _, svc := range services {
-		serviceIDs = append(serviceIDs, svc.ServiceID)
-	}
-
-	if len(serviceIDs) == 0 {
-		return nil, nil
-	}
-
 	// list pod based on the given appID
-	requirement, err := labels.NewRequirement("service_id", selection.In, serviceIDs)
+	requirement, err := labels.NewRequirement("app_id", selection.Equals, []string{appID})
 	if err != nil {
 		return nil, err
 	}

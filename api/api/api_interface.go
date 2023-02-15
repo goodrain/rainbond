@@ -226,6 +226,7 @@ type ApplicationInterface interface {
 	CreateGovernanceModeCR(w http.ResponseWriter, r *http.Request)
 	UpdateGovernanceModeCR(w http.ResponseWriter, r *http.Request)
 	DeleteGovernanceModeCR(w http.ResponseWriter, r *http.Request)
+	GetWatchOperatorManaged(w http.ResponseWriter, r *http.Request)
 	ChangeVolumes(w http.ResponseWriter, r *http.Request)
 }
 

@@ -116,6 +116,14 @@ func InitAppService(dryRun bool, dbmanager db.Manager, serviceID string, configs
 	return appService, nil
 }
 
+//InitCacheOperatorManaged init cache operator manager
+func InitCacheOperatorManaged(appID string) *v1.OperatorManaged {
+	operatorManaged := &v1.OperatorManaged{
+		AppID: appID,
+	}
+	return operatorManaged
+}
+
 //InitCacheAppService init cache app service.
 //if store manager receive a kube model belong with service and not find in store,will create
 func InitCacheAppService(dbm db.Manager, serviceID, creatorID string) (*v1.AppService, error) {

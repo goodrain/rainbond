@@ -352,6 +352,17 @@ func (a *ApplicationController) DeleteGovernanceModeCR(w http.ResponseWriter, r 
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+//GetWatchOperatorManaged get watch operator managed component
+func (a *ApplicationController) GetWatchOperatorManaged(w http.ResponseWriter, r *http.Request) {
+	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
+	ret, err := handler.GetApplicationHandler().GetAndHandleOperatorManaged(app.AppID)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, ret)
+}
+
 // ChangeVolumes Since the component name supports modification, the storage directory of stateful components will change.
 // This interface is used to modify the original directory name to the storage directory that will actually be used.
 func (a *ApplicationController) ChangeVolumes(w http.ResponseWriter, r *http.Request) {
