@@ -72,6 +72,7 @@ type ApplicationHandler interface {
 	ListAppStatuses(ctx context.Context, appIDs []string) ([]*model.AppStatus, error)
 	ListGovernanceMode() ([]model.GovernanceMode, error)
 	CheckGovernanceMode(ctx context.Context, governanceMode string) error
+	GetAndHandleOperatorManaged(appID string) (*pb.OperatorManaged, error)
 	CreateServiceMeshCR(app *dbmodel.Application, governance string) (content string, err error)
 	UpdateServiceMeshCR(app *dbmodel.Application, governance string) (content string, err error)
 	DeleteServiceMeshCR(app *dbmodel.Application) error
@@ -941,6 +942,15 @@ func (a *ApplicationAction) CheckGovernanceMode(ctx context.Context, governanceM
 		return bcode.ErrInvalidGovernanceMode
 	}
 	return nil
+}
+
+//GetAndHandleOperatorManaged get operator managed component
+func (a *ApplicationAction) GetAndHandleOperatorManaged(appID string) (*pb.OperatorManaged, error) {
+	watchData, err := a.statusCli.GetOperatorWatchData(appID)
+	if err != nil {
+		return nil, err
+	}
+	return watchData, nil
 }
 
 // ChangeVolumes Since the component name supports modification, the storage directory of stateful components will change.

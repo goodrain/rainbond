@@ -136,6 +136,22 @@ func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (
 	return r.getRainbondAppStatus(app)
 }
 
+//GetOperatorWatchManagedData -
+func (r *RuntimeServer) GetOperatorWatchManagedData(ctx context.Context, re *pb.AppStatusReq) (*pb.OperatorManaged, error) {
+	app := r.store.GetOperatorManaged(re.AppId)
+	if app == nil {
+		return &pb.OperatorManaged{}, nil
+	}
+	managedService := r.store.HandleOperatorManagedService(app)
+	managedDeployment := r.store.HandleOperatorManagedDeployment(app)
+	managedStatefulSet := r.store.HandleOperatorManagedStatefulSet(app)
+	return &pb.OperatorManaged{
+		Services:     managedService,
+		Deployments:  managedDeployment,
+		StatefulSets: managedStatefulSet,
+	}, nil
+}
+
 func (r *RuntimeServer) getRainbondAppStatus(app *model.Application) (*pb.AppStatus, error) {
 	status, err := r.store.GetAppStatus(app.AppID)
 	if err != nil {

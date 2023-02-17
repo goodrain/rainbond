@@ -378,6 +378,7 @@ func (v2 *V2) applicationRouter() chi.Router {
 	r.Put("/governance-cr", controller.GetManager().UpdateGovernanceModeCR)
 	r.Delete("/governance-cr", controller.GetManager().DeleteGovernanceModeCR)
 	// Operation application
+	r.Get("/watch_operator_managed", controller.GetManager().GetWatchOperatorManaged)
 	r.Put("/", controller.GetManager().UpdateApp)
 	r.Delete("/", controller.GetManager().DeleteApp)
 	r.Put("/volumes", controller.GetManager().ChangeVolumes)
