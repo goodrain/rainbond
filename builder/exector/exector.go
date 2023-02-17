@@ -118,6 +118,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	logrus.Infof("The maximum number of concurrent build tasks supported by the current node is %d", maxConcurrentTask)
 	return &exectorManager{
 		KanikoImage:       conf.KanikoImage,
+		InsecureBuild:     conf.InsecureBuild,
 		KubeClient:        kubeClient,
 		EtcdCli:           etcdCli,
 		mqClient:          mqc,
@@ -132,6 +133,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 
 type exectorManager struct {
 	KanikoImage       string
+	InsecureBuild     bool
 	KubeClient        kubernetes.Interface
 	EtcdCli           *clientv3.Client
 	tasks             chan *pb.TaskMessage
@@ -334,6 +336,7 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	i := NewSouceCodeBuildItem(task.TaskBody)
 	i.ImageClient = e.imageClient
 	i.KanikoImage = e.KanikoImage
+	i.InsecureBuild = e.InsecureBuild
 	i.KubeClient = e.KubeClient
 	i.RbdNamespace = e.cfg.RbdNamespace
 	i.RbdRepoName = e.cfg.RbdRepoName
@@ -452,15 +455,15 @@ func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, ac
 	case "upgrade":
 		//add upgrade event
 		event := &dbmodel.ServiceEvent{
-			EventID:      util.NewUUID(),
-			TenantID:     tenantID,
-			ServiceID:    serviceID,
-			StartTime:    time.Now().Format(time.RFC3339),
-			OptType:      "upgrade",
-			Target:       "service",
-			TargetID:     serviceID,
-			UserName:     "",
-			SynType:      dbmodel.ASYNEVENTTYPE,
+			EventID:   util.NewUUID(),
+			TenantID:  tenantID,
+			ServiceID: serviceID,
+			StartTime: time.Now().Format(time.RFC3339),
+			OptType:   "upgrade",
+			Target:    "service",
+			TargetID:  serviceID,
+			UserName:  "",
+			SynType:   dbmodel.ASYNEVENTTYPE,
 		}
 		if err := db.GetManager().ServiceEventDao().AddModel(event); err != nil {
 			logrus.Errorf("create upgrade event failure %s, service %s do not auto upgrade", err.Error(), serviceID)
