@@ -357,11 +357,12 @@ func (c *clusterAction) YamlToResource(yamlResource api_model.YamlResource, yaml
 	var fileBuildResourceList []api_model.K8sResourceObject
 	for _, yamlFilePath := range yamlFilesPath {
 		var fileName string
-		yamlFileBytes := []byte(yamlContent)
+		yamlFileBytes := []byte(strings.TrimPrefix(yamlContent, "\n"))
 		if yamlSource == api_model.YamlSourceFile {
 			fileName = path.Base(yamlFilePath)
 			var err error
 			yamlFileBytes, err = ioutil.ReadFile(yamlFilePath)
+			yamlFileBytes = []byte(strings.TrimPrefix(string(yamlFileBytes), "\n"))
 			if err != nil {
 				logrus.Errorf("%v", err)
 				fileBuildResourceList = append(fileBuildResourceList, api_model.K8sResourceObject{
