@@ -786,6 +786,24 @@ func CreateVolumesAndMounts(contextDir, buildType string) (volumes []corev1.Volu
 		}
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
+	if buildType == "nc-build" {
+		volume := corev1.Volume{
+			Name: "nc-build",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/cache",
+					Type: &hostPathType,
+				},
+			},
+		}
+		volumes = append(volumes, volume)
+		volumeMount := corev1.VolumeMount{
+			Name:      "nc-build",
+			MountPath: "/workspace",
+			SubPath:   subPath,
+		}
+		volumeMounts = append(volumeMounts, volumeMount)
+	}
 	if buildType == "run-build" {
 		volume := corev1.Volume{
 			Name: "run-build",
