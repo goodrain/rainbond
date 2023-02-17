@@ -82,7 +82,7 @@ type Response struct {
 //Request build input
 type Request struct {
 	KanikoImage   string
-	InsecureBuild bool
+	KanikoArgs    []string
 	RbdNamespace  string
 	GRDataPVCName string
 	CachePVCName  string

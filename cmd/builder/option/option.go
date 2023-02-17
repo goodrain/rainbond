@@ -39,7 +39,7 @@ type Config struct {
 	ClusterName          string
 	MysqlConnectionInfo  string
 	KanikoImage          string
-	InsecureBuild        bool
+	KanikoArgs           []string
 	DBType               string
 	PrometheusMetricPath string
 	EventLogServers      []string
@@ -106,7 +106,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.CachePath, "cache-path", "/cache", "volume cache mount path, when cache-mode using hostpath, default path is /cache")
 	fs.StringVar(&a.ContainerRuntime, "container-runtime", sources.ContainerRuntimeContainerd, "container runtime, support docker and containerd")
 	fs.StringVar(&a.RuntimeEndpoint, "runtime-endpoint", sources.RuntimeEndpointContainerd, "container runtime endpoint")
-	fs.BoolVar(&a.InsecureBuild, "insecure-build", false, "kaniko build image policy http or https, true is http")
+	fs.StringSliceVar(&a.KanikoArgs, "kaniko-args", []string{}, "kaniko build image container args config")
 }
 
 //SetLog 设置log

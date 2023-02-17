@@ -390,7 +390,7 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 }
 
 //ImageBuild use kaniko build image
-func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, KanikoImage string, InsecureBuild bool) error {
+func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, KanikoImage string, KanikoArgs []string) error {
 	// create image name
 	var buildImageName string
 	if buildType == "plug-build" {
@@ -430,7 +430,10 @@ func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logge
 		Image:     KanikoImage,
 		Stdin:     true,
 		StdinOnce: true,
-		Args:      []string{"--context=dir:///workspace", fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify", fmt.Sprintf("--insecure-pull=%v", InsecureBuild), fmt.Sprintf("--insecure=%v", InsecureBuild)},
+		Args:      []string{"--context=dir:///workspace", fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify"},
+	}
+	if len(KanikoArgs) > 0 {
+		container.Args = append(container.Args, KanikoArgs...)
 	}
 	container.VolumeMounts = volumeMounts
 	podSpec.Containers = append(podSpec.Containers, container)
