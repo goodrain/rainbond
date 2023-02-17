@@ -61,7 +61,7 @@ type SourceCodeBuildItem struct {
 	TGZDir        string       `json:"tgz_dir"`
 	ImageClient   sources.ImageClient
 	KanikoImage   string
-	InsecureBuild bool
+	KanikoArgs    []string
 	KubeClient    kubernetes.Interface
 	RbdNamespace  string
 	RbdRepoName   string
@@ -304,7 +304,7 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		return nil, err
 	}
 	buildReq := &build.Request{
-		InsecureBuild: i.InsecureBuild,
+		KanikoArgs:    i.KanikoArgs,
 		KanikoImage:   i.KanikoImage,
 		RbdNamespace:  i.RbdNamespace,
 		SourceDir:     i.RepoInfo.GetCodeBuildAbsPath(),

@@ -118,7 +118,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	logrus.Infof("The maximum number of concurrent build tasks supported by the current node is %d", maxConcurrentTask)
 	return &exectorManager{
 		KanikoImage:       conf.KanikoImage,
-		InsecureBuild:     conf.InsecureBuild,
+		KanikoArgs:        conf.KanikoArgs,
 		KubeClient:        kubeClient,
 		EtcdCli:           etcdCli,
 		mqClient:          mqc,
@@ -133,7 +133,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 
 type exectorManager struct {
 	KanikoImage       string
-	InsecureBuild     bool
+	KanikoArgs		  []string
 	KubeClient        kubernetes.Interface
 	EtcdCli           *clientv3.Client
 	tasks             chan *pb.TaskMessage
@@ -336,7 +336,7 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	i := NewSouceCodeBuildItem(task.TaskBody)
 	i.ImageClient = e.imageClient
 	i.KanikoImage = e.KanikoImage
-	i.InsecureBuild = e.InsecureBuild
+	i.KanikoArgs = e.KanikoArgs
 	i.KubeClient = e.KubeClient
 	i.RbdNamespace = e.cfg.RbdNamespace
 	i.RbdRepoName = e.cfg.RbdRepoName
