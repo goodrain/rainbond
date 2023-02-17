@@ -194,7 +194,11 @@ func (h *Helm) install(name, chart, version string, overrides []string, dryRun b
 	if err != nil {
 		return nil, err
 	}
-
+	var crdYaml string
+	crds := chartRequested.CRDObjects()
+	for _, crd := range crds {
+		crdYaml += string(crd.File.Data)
+	}
 	if err := checkIfInstallable(chartRequested); err != nil {
 		return nil, err
 	}
@@ -231,8 +235,9 @@ func (h *Helm) install(name, chart, version string, overrides []string, dryRun b
 			}
 		}
 	}
-
-	return client.Run(chartRequested, vals)
+	rel, err := client.Run(chartRequested, vals)
+	rel.Manifest = strings.TrimPrefix(crdYaml+"\n"+rel.Manifest, "\n")
+	return rel, err
 }
 
 func (h *Helm) parseOverrides(overrides []string) (map[string]interface{}, error) {

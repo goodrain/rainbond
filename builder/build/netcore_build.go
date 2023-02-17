@@ -31,14 +31,14 @@ import (
 )
 
 var dockerfileTmpl = `
-FROM microsoft/dotnet:${DOTNET_SDK_VERSION:2.2-sdk-alpine} AS builder
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_SDK_VERSION:2.1-alpine} AS builder
 WORKDIR /app
 
 # copy csproj and restore as distinct layers
 COPY . .
 RUN ${DOTNET_RESTORE_PRE} && ${DOTNET_RESTORE:dotnet restore} && dotnet publish -c Release -o /out
 
-FROM microsoft/dotnet:${DOTNET_RUNTIME_VERSION:2.2-aspnetcore-runtime-alpine}
+FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_RUNTIME_VERSION:2.1-alpine}
 WORKDIR /app
 COPY --from=builder /out/ .
 CMD ["dotnet"]
@@ -71,7 +71,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 		return nil, fmt.Errorf("write default dockerfile error:%s", err.Error())
 	}
 	// build image
-	err := sources.ImageBuild(d.sourceDir, re.RbdNamespace, re.ServiceID, re.DeployVersion, re.Logger, "run-build", "", re.KanikoImage)
+	err := sources.ImageBuild(d.sourceDir, re.RbdNamespace, re.ServiceID, re.DeployVersion, re.Logger, "nc-build", "", re.KanikoImage, re.InsecureBuild)
 	if err != nil {
 		re.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())

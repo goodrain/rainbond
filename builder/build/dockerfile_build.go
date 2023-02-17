@@ -114,7 +114,7 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 		Image:     re.KanikoImage,
 		Stdin:     true,
 		StdinOnce: true,
-		Args:      []string{fmt.Sprintf("--context=%v", re.SourceDir), fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify"},
+		Args:      []string{fmt.Sprintf("--context=%v", re.SourceDir), fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify", fmt.Sprintf("--insecure-pull=%v", re.InsecureBuild), fmt.Sprintf("--insecure=%v", re.InsecureBuild)},
 	}
 	container.VolumeMounts = mounts
 	podSpec.Containers = append(podSpec.Containers, container)
