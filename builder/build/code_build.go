@@ -142,7 +142,7 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 		return "", fmt.Errorf("pull image %s: %v", builder.RUNNERIMAGENAME, err)
 	}
 	logrus.Infof("pull image %s successfully.", builder.RUNNERIMAGENAME)
-	err := sources.ImageBuild(cacheDir, s.re.RbdNamespace, s.re.ServiceID, s.re.DeployVersion, s.re.Logger, "run-build", "", s.re.KanikoImage)
+	err := sources.ImageBuild(cacheDir, s.re.RbdNamespace, s.re.ServiceID, s.re.DeployVersion, s.re.Logger, "run-build", "", s.re.KanikoImage, s.re.InsecureBuild)
 	if err != nil {
 		s.re.Logger.Error(fmt.Sprintf("build image %s of new version failure", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
