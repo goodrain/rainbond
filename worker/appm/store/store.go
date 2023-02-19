@@ -1305,8 +1305,7 @@ func (a *appRuntimeStore) HandleOperatorManagedDeployment(app *v1.OperatorManage
 	deploys := app.GetDeployment()
 	var deployList []*pb.ManagedDeployment
 	if deploys != nil {
-		label := fmt.Sprintf("app_id=%v", app.AppID)
-		operatorPods, err := a.clientset.CoreV1().Pods(deploys[0].GetNamespace()).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+		operatorPods, err := a.clientset.CoreV1().Pods(deploys[0].GetNamespace()).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("get pod by label appid failure: %v", err)
 		} else {
@@ -1329,8 +1328,7 @@ func (a *appRuntimeStore) HandleOperatorManagedStatefulSet(app *v1.OperatorManag
 	statefulSets := app.GetStatefulSet()
 	var stsList []*pb.ManagedStatefulSet
 	if statefulSets != nil {
-		label := fmt.Sprintf("app_id=%v", app.AppID)
-		operatorPods, err := a.clientset.CoreV1().Pods(statefulSets[0].GetNamespace()).List(context.Background(), metav1.ListOptions{LabelSelector: label})
+		operatorPods, err := a.clientset.CoreV1().Pods(statefulSets[0].GetNamespace()).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("sts get pod by label appid failure: %v", err)
 		} else {
