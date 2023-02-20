@@ -390,7 +390,7 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 }
 
 //ImageBuild use kaniko build image
-func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, KanikoImage string, KanikoArgs []string) error {
+func ImageBuild(contextDir, cachePVCName, cacheMode, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, KanikoImage string, KanikoArgs []string) error {
 	// create image name
 	var buildImageName string
 	if buildType == "plug-build" {
@@ -421,7 +421,7 @@ func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logge
 		},
 	}
 	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
-	volumes, volumeMounts := CreateVolumesAndMounts(contextDir, buildType)
+	volumes, volumeMounts := CreateVolumesAndMounts(contextDir, buildType, cacheMode, cachePVCName)
 	podSpec.Volumes = volumes
 	// container config
 	container := corev1.Container{
@@ -730,7 +730,7 @@ func CreateImageName(ServiceID, DeployVersion string) string {
 }
 
 // CreateVolumesAndMounts -
-func CreateVolumesAndMounts(contextDir, buildType string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+func CreateVolumesAndMounts(contextDir, buildType, cacheMode, cachePVCName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	pathSplit := strings.Split(contextDir, "/")
 	subPath := strings.Join(pathSplit[2:], "/")
 	hostPathType := corev1.HostPathDirectoryOrCreate
@@ -793,11 +793,18 @@ func CreateVolumesAndMounts(contextDir, buildType string) (volumes []corev1.Volu
 		volume := corev1.Volume{
 			Name: "nc-build",
 			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: cachePVCName,
+				},
+			},
+		}
+		if cacheMode == "hostpath" {
+			volume.VolumeSource = corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/cache",
 					Type: &hostPathType,
 				},
-			},
+			}
 		}
 		volumes = append(volumes, volume)
 		volumeMount := corev1.VolumeMount{
