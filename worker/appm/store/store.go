@@ -21,6 +21,7 @@ package store
 import (
 	"context"
 	"fmt"
+	model2 "github.com/goodrain/rainbond/api/model"
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	betav1 "k8s.io/api/networking/v1beta1"
@@ -1272,20 +1273,18 @@ func (a *appRuntimeStore) HandleOperatorManagedService(app *v1.OperatorManaged) 
 			labelSelector = append(labelSelector, labelKey+"="+labelValue)
 		}
 		var relation []string
-		deploys, err := a.clientset.AppsV1().Deployments(svc.GetNamespace()).List(a.ctx, metav1.ListOptions{LabelSelector: strings.Join(labelSelector, ",")})
+		pods, err := a.clientset.CoreV1().Pods(svc.GetNamespace()).List(a.ctx, metav1.ListOptions{LabelSelector: strings.Join(labelSelector, ",")})
 		if err != nil {
-			logrus.Errorf("Failed to find deployment according to the selector of the service created by the operator: %v", err)
-		} else if len(deploys.Items) != 0 {
-			for _, deploy := range deploys.Items {
-				relation = append(relation, deploy.GetName())
-			}
-		}
-		statefulSets, err := a.clientset.AppsV1().StatefulSets(svc.GetNamespace()).List(a.ctx, metav1.ListOptions{LabelSelector: strings.Join(labelSelector, ",")})
-		if err != nil {
-			logrus.Errorf("Failed to find statefulSet according to the selector of the service created by the operator: %v", err)
-		} else if len(statefulSets.Items) != 0 {
-			for _, sts := range statefulSets.Items {
-				relation = append(relation, sts.GetName())
+			logrus.Errorf("Failed to find pod according to the selector of the service created by the operator: %v", err)
+		} else if len(pods.Items) != 0 {
+			if or := pods.Items[0].OwnerReferences; or != nil {
+				if or[0].Kind == model2.Deployment {
+					name := strings.Split(or[0].Name, "-")
+					relation = append(relation, strings.Join(name[:len(name)-1], "-"))
+				} else {
+					relation = append(relation, or[0].Name)
+				}
+
 			}
 		}
 		for _, port := range svc.Spec.Ports {
