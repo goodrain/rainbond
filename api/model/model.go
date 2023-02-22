@@ -2185,11 +2185,14 @@ type RainbondPlugins struct {
 	Name        string `json:"name"`
 	TeamName    string `json:"team_name"`
 	//Namespace   string `json:"namespace"`
-	Icon        string `json:"icon"`
-	Description string `json:"description"`
-	Version     string `json:"version"`
-	Author      string `json:"author"`
-	Status      string `json:"status"`
+	Icon         string            `json:"icon"`
+	Description  string            `json:"description"`
+	Version      string            `json:"version"`
+	Author       string            `json:"author"`
+	Status       string            `json:"status"`
+	Alias        string            `json:"alias"`
+	AccessURLs   []string          `json:"access_urls"`
+	Labels       map[string]string `json:"labels"`
 }
 
 // CreateUpdateGovernanceModeReq -

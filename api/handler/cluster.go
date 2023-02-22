@@ -40,6 +40,11 @@ import (
 	"time"
 )
 
+const (
+	// OfficialPluginLabel Those with this label are official plug-ins
+	OfficialPluginLabel = "plugin.rainbond.io/name"
+)
+
 // ClusterHandler -
 type ClusterHandler interface {
 	GetClusterInfo(ctx context.Context) (*model.ClusterResource, error)
@@ -64,7 +69,7 @@ type ClusterHandler interface {
 	GetRbdPods() (rbds []model.RbdResp, err error)
 	CreateShellPod(regionName string) (pod *corev1.Pod, err error)
 	DeleteShellPod(podName string) error
-	ListPlugins() (rbds []*model.RainbondPlugins, err error)
+	ListPlugins(official bool) (rbds []*model.RainbondPlugins, err error)
 	ListAbilities() (rbds []unstructured.Unstructured, err error)
 	GetAbility(abilityID string) (rbd *unstructured.Unstructured, err error)
 	UpdateAbility(abilityID string, ability *unstructured.Unstructured) error
@@ -655,68 +660,21 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 }
 
 // ListPlugins -
-func (c *clusterAction) ListPlugins() (plugins []*model.RainbondPlugins, err error) {
-	list, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+func (c *clusterAction) ListPlugins(official bool) (plugins []*model.RainbondPlugins, err error) {
+	res, err := c.HandlePlugins()
 	if err != nil {
 		return nil, errors.Wrap(err, "get rbd plugins")
 	}
-
-	// list plugin status
-	var appIDs []string
-	for _, item := range list.Items {
-		if item.Labels["app_id"] != "" {
-			appIDs = append(appIDs, item.Labels["app_id"])
+	if official {
+		for _, plugin := range res {
+			if name, ok := plugin.Labels[OfficialPluginLabel]; ok && name != "" {
+				plugin.Name = name
+				plugins = append(plugins, plugin)
+			}
 		}
+		return plugins, nil
 	}
-	appStatuses := make(map[string]string)
-	statuses, err := c.statusCli.ListAppStatuses(context.Background(), &pb.AppStatusesReq{
-		AppIds: appIDs,
-	})
-	for _, status := range statuses.AppStatuses {
-		appStatuses[status.AppId] = status.Status
-	}
-
-	// Establish the mapping relationship between appID and teamName
-	apps, err := db.GetManager().ApplicationDao().ListByAppIDs(appIDs)
-	if err != nil {
-		return nil, errors.Wrap(err, "get apps by app ids")
-	}
-	tenants, err := db.GetManager().TenantDao().GetALLTenants("")
-	if err != nil {
-		return nil, errors.Wrap(err, "get tenants")
-	}
-
-	var (
-		appTeamIDs = make(map[string]string)
-		teamNames  = make(map[string]string)
-	)
-	for _, app := range apps {
-		appTeamIDs[app.AppID] = app.TenantID
-	}
-	for _, tenant := range tenants {
-		teamNames[tenant.UUID] = tenant.Name
-	}
-
-	// Construct the returned data
-	for _, plugin := range list.Items {
-		appID := plugin.Labels["app_id"]
-		status := "NIL"
-		if appStatuses[appID] != "" {
-			status = appStatuses[appID]
-		}
-		logrus.Debugf("plugin Name: %v, namespace %v", plugin.Name, plugin.Namespace)
-		plugins = append(plugins, &model.RainbondPlugins{
-			RegionAppID: appID,
-			Name:        plugin.GetName(),
-			TeamName:    teamNames[appTeamIDs[appID]],
-			Icon:        plugin.Spec.Icon,
-			Description: plugin.Spec.Description,
-			Version:     plugin.Spec.Version,
-			Author:      plugin.Spec.Author,
-			Status:      status,
-		})
-	}
-	return plugins, nil
+	return res, nil
 }
 
 // ListAbilities -
@@ -815,4 +773,71 @@ func (c *clusterAction) UpdateAbility(abilityID string, ability *unstructured.Un
 		return errors.Wrap(err, "update ability")
 	}
 	return nil
+}
+
+// HandlePlugins -
+func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err error) {
+	list, err := c.rainbondClient.RainbondV1alpha1().RBDPlugins(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "get rbd plugins")
+	}
+	// list plugin status
+	var appIDs []string
+	for _, item := range list.Items {
+		if item.Labels["app_id"] != "" {
+			appIDs = append(appIDs, item.Labels["app_id"])
+		}
+	}
+	appStatuses := make(map[string]string)
+	statuses, err := c.statusCli.ListAppStatuses(context.Background(), &pb.AppStatusesReq{
+		AppIds: appIDs,
+	})
+	for _, status := range statuses.AppStatuses {
+		appStatuses[status.AppId] = status.Status
+	}
+
+	// Establish the mapping relationship between appID and teamName
+	apps, err := db.GetManager().ApplicationDao().ListByAppIDs(appIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "get apps by app ids")
+	}
+	tenants, err := db.GetManager().TenantDao().GetALLTenants("")
+	if err != nil {
+		return nil, errors.Wrap(err, "get tenants")
+	}
+
+	var (
+		appTeamIDs = make(map[string]string)
+		teamNames  = make(map[string]string)
+	)
+	for _, app := range apps {
+		appTeamIDs[app.AppID] = app.TenantID
+	}
+	for _, tenant := range tenants {
+		teamNames[tenant.UUID] = tenant.Name
+	}
+
+	// Construct the returned data
+	for _, plugin := range list.Items {
+		appID := plugin.Labels["app_id"]
+		status := "NIL"
+		if appStatuses[appID] != "" {
+			status = appStatuses[appID]
+		}
+		logrus.Debugf("plugin Name: %v, namespace %v", plugin.Name, plugin.Namespace)
+		plugins = append(plugins, &model.RainbondPlugins{
+			RegionAppID: appID,
+			Name:        plugin.GetName(),
+			TeamName:    teamNames[appTeamIDs[appID]],
+			Icon:        plugin.Spec.Icon,
+			Description: plugin.Spec.Description,
+			Version:     plugin.Spec.Version,
+			Author:      plugin.Spec.Author,
+			Status:      status,
+			Alias:       plugin.Spec.Alias,
+			AccessURLs:  plugin.Spec.AccessURLs,
+			Labels:      plugin.Labels,
+		})
+	}
+	return plugins, nil
 }
