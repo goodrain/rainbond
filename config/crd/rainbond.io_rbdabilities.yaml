@@ -36,6 +36,10 @@ spec:
           spec:
             description: RBDAbilitySpec defines the desired state of RBDAbility
             properties:
+              alias:
+                description: Alias The alias is the name used for display, and if
+                  this field is not set, the name in the metadata will be used
+                type: string
               watchGroups:
                 description: Foo is an example field of RBDAbility. Edit rbdplugin_types.go
                   to remove/update
