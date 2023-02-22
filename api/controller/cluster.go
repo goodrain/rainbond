@@ -347,7 +347,8 @@ func (c *ClusterController) ListRainbondComponents(w http.ResponseWriter, r *htt
 
 // ListPlugins -
 func (c *ClusterController) ListPlugins(w http.ResponseWriter, r *http.Request) {
-	res, err := handler.GetClusterHandler().ListPlugins()
+	pip, _ := strconv.ParseBool(r.URL.Query().Get("pipeline"))
+	res, err := handler.GetClusterHandler().ListPlugins(pip)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
