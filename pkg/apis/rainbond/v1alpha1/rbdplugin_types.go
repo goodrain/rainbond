@@ -35,6 +35,11 @@ type RBDPluginSpec struct {
 	Version     string `json:"version,omitempty"`
 	Description string `json:"description,omitempty"`
 	Icon        string `json:"icon,omitempty"`
+	// Alias The alias is the name used for display, and if this field is not set, the name in the metadata will be used
+	Alias string `json:"alias,omitempty"`
+	// AccessUrls Access URL defines the accessible address of the plug-in.
+	// If this field is not set, all accessible addresses under the application will be listed in the platform.
+	AccessURLs []string `json:"access_urls,omitempty"`
 }
 
 // RBDPluginStatus defines the observed state of RBDPlugin
