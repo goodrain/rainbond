@@ -39,11 +39,17 @@ func (t *HelmStruct) CheckHelmApp(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, err)
 		return
 	}
-	yaml, err := handler.GetHelmManager().CheckHelmApp(checkHelmApp)
-	data["yaml"] = yaml
+	err = handler.GetHelmManager().UpdateHelmRepo(checkHelmApp.RepoName)
 	if err != nil {
 		data["checkAdopt"] = "false"
 		data["yaml"] = err.Error()
+	} else {
+		yaml, err := handler.GetHelmManager().CheckHelmApp(checkHelmApp)
+		data["yaml"] = yaml
+		if err != nil {
+			data["checkAdopt"] = "false"
+			data["yaml"] = err.Error()
+		}
 	}
 	httputil.ReturnSuccess(r, w, data)
 }

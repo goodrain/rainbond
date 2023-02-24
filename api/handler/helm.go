@@ -104,6 +104,15 @@ func (h *HelmAction) CheckHelmApp(checkHelmApp api_model.CheckHelmApp) (string, 
 	return helmAppYaml, nil
 }
 
+//UpdateHelmRepo update repo
+func (h *HelmAction) UpdateHelmRepo(names string) error {
+	err := UpdateRepo(names)
+	if err != nil {
+		return errors.Wrap(err, "helm repo update failed")
+	}
+	return nil
+}
+
 // CommandHelm 执行 helm 命令
 func (h *HelmAction) CommandHelm(command string) (*api_model.HelmCommandRet, *util.APIHandleError) {
 	logrus.Infof("execute the help command:%v", command)
@@ -148,4 +157,19 @@ func GetHelmAppYaml(name, chart, version, namespace string, overrides []string) 
 		return "", err
 	}
 	return release.Manifest, nil
+}
+
+//UpdateRepo Update Helm warehouse
+func UpdateRepo(names string) error {
+	helmCmd, err := helm.NewHelm("", repoFile, repoCache)
+	if err != nil {
+		logrus.Errorf("Failed to create helm client：%v", err)
+		return err
+	}
+	err = helmCmd.UpdateRepo(names)
+	if err != nil {
+		logrus.Errorf("helm update failure: %v", err)
+		return err
+	}
+	return nil
 }
