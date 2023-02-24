@@ -89,6 +89,11 @@ func NewHelm(namespace, repoFile, repoCache string) (*Helm, error) {
 	}, nil
 }
 
+//UpdateRepo -
+func (h *Helm) UpdateRepo(names string) error {
+	return h.repoUpdate(names, ioutil.Discard)
+}
+
 // PreInstall -
 func (h *Helm) PreInstall(name, chart, version string) error {
 	_, err := h.install(name, chart, version, nil, true, ioutil.Discard)
