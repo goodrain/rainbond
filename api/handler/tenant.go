@@ -124,7 +124,12 @@ func (t *TenantAction) BindTenantsResource(source []*dbmodel.Tenants) api_model.
 		}
 		list.Add(item)
 	}
-	sort.Sort(list)
+	sort.SliceStable(list, func(i, j int) bool {
+		if list[i].MemoryRequest > list[j].MemoryRequest {
+			return true
+		}
+		return false
+	})
 	return list
 }
 
