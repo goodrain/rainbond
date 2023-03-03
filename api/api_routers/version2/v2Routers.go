@@ -192,6 +192,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/apps", controller.GetManager().CreateApp)
 	r.Post("/batch_create_apps", controller.GetManager().BatchCreateApp)
 	r.Get("/apps", controller.GetManager().ListApps)
+	r.Delete("/k8s-app/{k8s_app}", controller.GetManager().DeleteK8sApp)
 	r.Post("/checkResourceName", controller.GetManager().CheckResourceName)
 	r.Get("/appstatuses", controller.GetManager().ListAppStatuses)
 	r.Mount("/apps/{app_id}", v2.applicationRouter())
