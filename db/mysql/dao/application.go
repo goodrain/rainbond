@@ -87,6 +87,18 @@ func (a *ApplicationDaoImpl) DeleteApp(appID string) error {
 	return a.DB.Delete(&app).Error
 }
 
+// DeleteAppByK8sApp Delete application By k8sApp -
+func (a *ApplicationDaoImpl) DeleteAppByK8sApp(tenantID, k8sApp string) error {
+	var app model.Application
+	if err := a.DB.Where("tenant_id=? and k8s_app=?", tenantID, k8sApp).Find(&app).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return bcode.ErrApplicationNotFound
+		}
+		return err
+	}
+	return a.DB.Delete(&app).Error
+}
+
 // ListByAppIDs -
 func (a *ApplicationDaoImpl) ListByAppIDs(appIDs []string) ([]*model.Application, error) {
 	var datas []*model.Application

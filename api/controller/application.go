@@ -181,6 +181,20 @@ func (a *ApplicationController) DeleteApp(w http.ResponseWriter, r *http.Request
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+// DeleteK8sApp -
+func (a *ApplicationController) DeleteK8sApp(w http.ResponseWriter, r *http.Request) {
+	appID := chi.URLParam(r, "k8s_app")
+	// get current tenant
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
+	// Delete application by k8sapp
+	err := handler.GetApplicationHandler().DeleteAppByK8sApp(tenant.UUID, appID)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
 // BatchUpdateComponentPorts update component ports in batch.
 func (a *ApplicationController) BatchUpdateComponentPorts(w http.ResponseWriter, r *http.Request) {
 	var appPorts []*model.AppPort

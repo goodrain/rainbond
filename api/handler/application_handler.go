@@ -54,6 +54,7 @@ type ApplicationHandler interface {
 	GetAppByID(appID string) (*dbmodel.Application, error)
 	BatchBindService(appID string, req model.BindServiceRequest) error
 	DeleteApp(ctx context.Context, app *dbmodel.Application) error
+	DeleteAppByK8sApp(tenantID, K8sApp string) error
 
 	AddConfigGroup(appID string, req *model.ApplicationConfigGroup) (*model.ApplicationConfigGroupResp, error)
 	UpdateConfigGroup(appID, configGroupName string, req *model.UpdateAppConfigGroupReq) (*model.ApplicationConfigGroupResp, error)
@@ -422,6 +423,15 @@ func (a *ApplicationAction) DeleteApp(ctx context.Context, app *dbmodel.Applicat
 	}
 
 	return a.deleteRainbondApp(app)
+}
+
+// DeleteAppByK8sApp -
+func (a *ApplicationAction) DeleteAppByK8sApp(tenantID, k8sApp string) error {
+	err := db.GetManager().ApplicationDao().DeleteAppByK8sApp(tenantID, k8sApp)
+	if err != nil {
+		return  err
+	}
+	return nil
 }
 
 func (a *ApplicationAction) deleteRainbondApp(app *dbmodel.Application) error {
