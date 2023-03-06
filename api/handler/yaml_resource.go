@@ -9,6 +9,7 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	appv1 "k8s.io/api/apps/v1"
@@ -311,16 +312,38 @@ func (c *clusterAction) AppYamlResourceImport(yamlResource api_model.YamlResourc
 	}
 	var componentAttributes []api_model.ComponentAttributes
 	for _, componentResource := range components.ConvertResource {
-		component, err := c.CreateComponent(app, yamlResource.TenantID, componentResource, yamlResource.Namespace, true)
-		if err != nil {
+		var component *dbmodel.TenantServices
+		component, err = db.GetManager().TenantServiceDao().GetServiceByk8sComponentName(componentResource.ComponentsName)
+		if err != nil && err != gorm.ErrRecordNotFound{
 			logrus.Errorf("%v", err)
-			return ar, &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
+			return ar, &util.APIHandleError{Code: 400, Err: fmt.Errorf("get component error:%v", err)}
+		}
+		if component != nil {
+			_, err = c.DeleteComponentResource(component)
+			if err != nil {
+				logrus.Errorf("%v", err)
+				return ar, &util.APIHandleError{Code: 400, Err: fmt.Errorf("delete component resource err:%v", err)}
+			}
+			componentResource.HealthyCheckManagement.ProbeID = c.createHealthyCheck(componentResource.HealthyCheckManagement, component, "delete")
+			component.ContainerCPU = int(componentResource.BasicManagement.CPU)
+			component.ContainerMemory = int(componentResource.BasicManagement.Memory)
+			component.Replicas = int(*componentResource.BasicManagement.Replicas)
+			if err := db.GetManager().TenantServiceDao().UpdateModel(component); err != nil {
+				logrus.Errorf("update service error, %v", err)
+				return ar, &util.APIHandleError{Code: 400, Err: fmt.Errorf("update component error:%v", err)}
+			}
+		} else {
+			component, err = c.CreateComponent(app, yamlResource.TenantID, componentResource, yamlResource.Namespace, true)
+			if err != nil {
+				logrus.Errorf("%v", err)
+				return ar, &util.APIHandleError{Code: 400, Err: fmt.Errorf("create component error:%v", err)}
+			}
+			componentResource.HealthyCheckManagement.ProbeID = c.createHealthyCheck(componentResource.HealthyCheckManagement, component, "add")
 		}
 		c.createENV(componentResource.ENVManagement, component)
 		c.createConfig(componentResource.ConfigManagement, component)
 		c.createPort(componentResource.PortManagement, component)
 		componentResource.TelescopicManagement.RuleID = c.createTelescopic(componentResource.TelescopicManagement, component)
-		componentResource.HealthyCheckManagement.ProbeID = c.createHealthyCheck(componentResource.HealthyCheckManagement, component)
 		c.createK8sAttributes(componentResource.ComponentK8sAttributesManagement, yamlResource.TenantID, component)
 		componentAttributes = append(componentAttributes, api_model.ComponentAttributes{
 			TS:                     component,
@@ -466,4 +489,41 @@ func (c *clusterAction) ResourceCreate(buildResource api_model.BuildResource, na
 		return nil, err
 	}
 	return obj, nil
+}
+
+// DeleteComponentResource -
+func (c *clusterAction) DeleteComponentResource(service *dbmodel.TenantServices) (*dbmodel.TenantServices, error) {
+	logrus.Infof("begin ResourceCreate function")
+	// delete env
+	err := db.GetManager().TenantServiceEnvVarDao().DELServiceEnvsByServiceID(service.ServiceID)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		logrus.Errorf("delete service env error:%v", err)
+		return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("delete env err:%v", err)}
+	}
+	// delete config
+	err = db.GetManager().TenantServiceConfigFileDao().DelByServiceID(service.ServiceID)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		logrus.Errorf("delete servuce env error:%v", err)
+		return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("delete config err:%v", err)}
+	}
+	// delete port
+	err = db.GetManager().TenantServicesPortDao().DelByServiceID(service.ServiceID)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		logrus.Errorf("delete servuce env error:%v", err)
+		return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("delete port err:%v", err)}
+	}
+	// delete k8s attribute
+	componentIDs := []string{service.ServiceID}
+	err = db.GetManager().ComponentK8sAttributeDao().DeleteByComponentIDs(componentIDs)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		logrus.Errorf("%v delete k8s attribute:%v", service.ServiceAlias, err)
+		return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("delete K8sResources err:%v", err)}
+	}
+	// delete autoScalerRule
+	err = db.GetManager().TenantServceAutoscalerRulesDao().DeleteByComponentIDs(componentIDs)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		logrus.Errorf("%v TenantServiceAutoscalerRules delete failed:%v", service.ServiceAlias, err)
+		return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("delete autoScalerRule err:%v", err)}
+	}
+	return service, nil
 }

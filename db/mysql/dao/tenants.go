@@ -257,6 +257,15 @@ func (t *TenantServicesDaoImpl) GetServiceByID(serviceID string) (*model.TenantS
 	return &service, nil
 }
 
+//GetServiceByk8sComponentName 获取服务通过k8sname
+func (t *TenantServicesDaoImpl) GetServiceByk8sComponentName(k8sComponentName string) (*model.TenantServices, error) {
+	var service model.TenantServices
+	if err := t.DB.Where("k8s_component_name=?", k8sComponentName).Find(&service).Error; err != nil {
+		return nil, err
+	}
+	return &service, nil
+}
+
 //GetServiceByServiceAlias 获取服务通过服务别名
 func (t *TenantServicesDaoImpl) GetServiceByServiceAlias(serviceAlias string) (*model.TenantServices, error) {
 	var service model.TenantServices
