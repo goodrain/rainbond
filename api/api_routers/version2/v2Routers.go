@@ -106,6 +106,7 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/builder/mavensetting/{name}", controller.GetManager().MavenSettingDetail)
 	r.Put("/builder/mavensetting/{name}", controller.GetManager().MavenSettingUpdate)
 	r.Delete("/builder/mavensetting/{name}", controller.GetManager().MavenSettingDelete)
+	r.Get("/batch-gateway", controller.GetManager().BatchGetGateway)
 	r.Get("/namespace", controller.GetManager().GetNamespace)
 	r.Get("/resource", controller.GetManager().GetNamespaceResource)
 	r.Get("/convert-resource", controller.GetManager().ConvertResource)
@@ -215,6 +216,19 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	r.Post("/http-rule", controller.GetManager().HTTPRule)
 	r.Delete("/http-rule", controller.GetManager().HTTPRule)
 	r.Put("/http-rule", controller.GetManager().HTTPRule)
+
+	r.Get("/gateway-http-route", controller.GetManager().GatewayHTTPRoute)
+	r.Post("/gateway-http-route", controller.GetManager().GatewayHTTPRoute)
+	r.Put("/gateway-http-route", controller.GetManager().GatewayHTTPRoute)
+	r.Delete("/gateway-http-route", controller.GetManager().GatewayHTTPRoute)
+
+	r.Get("/batch-gateway-http-route", controller.GetManager().BatchGatewayHTTPRoute)
+
+	r.Post("/gateway-certificate", controller.GetManager().GatewayCertificate)
+	r.Get("/gateway-certificate", controller.GetManager().GatewayCertificate)
+	r.Delete("/gateway-certificate", controller.GetManager().GatewayCertificate)
+	r.Put("/gateway-certificate", controller.GetManager().GatewayCertificate)
+
 	r.Post("/tcp-rule", controller.GetManager().TCPRule)
 	r.Delete("/tcp-rule", controller.GetManager().TCPRule)
 	r.Put("/tcp-rule", controller.GetManager().TCPRule)

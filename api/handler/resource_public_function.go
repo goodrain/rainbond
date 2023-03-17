@@ -396,7 +396,7 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 		}
 		attributes = append(attributes, serviceAccountAttributes)
 	}
-	if parameter.RsLabel != nil {
+	if parameter.Template.Labels != nil {
 		labelsJSON, err := ObjectToJSONORYaml("json", parameter.Template.Labels)
 		if err != nil {
 			logrus.Errorf("pod %v template label transformation json failure: %v", parameter.Name, err)

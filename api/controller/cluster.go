@@ -103,6 +103,16 @@ func (c *ClusterController) MavenSettingDetail(w http.ResponseWriter, r *http.Re
 	httputil.ReturnSuccess(r, w, setting)
 }
 
+//BatchGetGateway batch get resource gateway
+func (c *ClusterController) BatchGetGateway(w http.ResponseWriter, r *http.Request) {
+	ns, err := handler.GetClusterHandler().BatchGetGateway(r.Context())
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, ns)
+}
+
 // GetNamespace Get the unconnected namespaces under the current cluster
 func (c *ClusterController) GetNamespace(w http.ResponseWriter, r *http.Request) {
 	content := r.FormValue("content")
