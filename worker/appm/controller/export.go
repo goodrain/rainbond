@@ -428,4 +428,8 @@ var (
 	APIVersionService = "v1"
 	//APIVersionHorizontalPodAutoscaler -q
 	APIVersionHorizontalPodAutoscaler = "autoscaling/v2"
+	//APIVersionGateway -
+	APIVersionGateway = "gateway.networking.k8s.io/v1beta1"
+	//APIVersionHTTPRoute -
+	APIVersionHTTPRoute = "gateway.networking.k8s.io/v1beta1"
 )

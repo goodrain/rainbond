@@ -94,7 +94,7 @@ func NewApplicationHandler(statusCli *client.AppRuntimeSyncClient, promClient pr
 func (a *ApplicationAction) CreateApp(ctx context.Context, req *model.Application) (*model.Application, error) {
 	appID := util.NewUUID()
 	if req.K8sApp == "" {
-		req.K8sApp = fmt.Sprintf("app-%s", appID[:8])
+		req.K8sApp = fmt.Sprintf("default")
 	}
 	appReq := &dbmodel.Application{
 		EID:             req.EID,

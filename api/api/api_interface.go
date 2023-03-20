@@ -30,6 +30,7 @@ type ClusterInterface interface {
 	MavenSettingUpdate(w http.ResponseWriter, r *http.Request)
 	MavenSettingDelete(w http.ResponseWriter, r *http.Request)
 	MavenSettingDetail(w http.ResponseWriter, r *http.Request)
+	BatchGetGateway(w http.ResponseWriter, r *http.Request)
 	GetNamespace(w http.ResponseWriter, r *http.Request)
 	GetNamespaceResource(w http.ResponseWriter, r *http.Request)
 	ConvertResource(w http.ResponseWriter, r *http.Request)
@@ -37,6 +38,7 @@ type ClusterInterface interface {
 	GetResource(w http.ResponseWriter, r *http.Request)
 	AddResource(w http.ResponseWriter, r *http.Request)
 	DeleteResource(w http.ResponseWriter, r *http.Request)
+	BatchDeleteResource(w http.ResponseWriter, r *http.Request)
 	UpdateResource(w http.ResponseWriter, r *http.Request)
 	SyncResource(w http.ResponseWriter, r *http.Request)
 	YamlResourceName(w http.ResponseWriter, r *http.Request)
@@ -237,6 +239,9 @@ type Gatewayer interface {
 	GetAvailablePort(w http.ResponseWriter, r *http.Request)
 	RuleConfig(w http.ResponseWriter, r *http.Request)
 	Certificate(w http.ResponseWriter, r *http.Request)
+	GatewayHTTPRoute(w http.ResponseWriter, r *http.Request)
+	BatchGatewayHTTPRoute(w http.ResponseWriter, r *http.Request)
+	GatewayCertificate(w http.ResponseWriter, r *http.Request)
 }
 
 // ThirdPartyServicer is an interface for defining methods for third-party service.

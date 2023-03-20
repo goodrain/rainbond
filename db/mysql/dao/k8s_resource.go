@@ -59,6 +59,14 @@ func (t *K8sResourceDaoImpl) ListByAppID(appID string) ([]model.K8sResource, err
 	return resources, nil
 }
 
+//DeleteK8sResourceByIDs -
+func (t *K8sResourceDaoImpl) DeleteK8sResourceByIDs(ids []uint) error {
+	if err := t.DB.Where("ID in (?)", ids).Delete(&model.K8sResource{}).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
 // CreateK8sResource -
 func (t *K8sResourceDaoImpl) CreateK8sResource(k8sResources []*model.K8sResource) error {
 	dbType := t.DB.Dialect().GetName()
