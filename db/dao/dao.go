@@ -638,6 +638,7 @@ type ComponentK8sAttributeDao interface {
 type K8sResourceDao interface {
 	Dao
 	ListByAppID(appID string) ([]model.K8sResource, error)
+	DeleteK8sResourceByIDs(ids []uint) error
 	CreateK8sResource(k8sResources []*model.K8sResource) error
 	DeleteK8sResource(appID, name string, kind string) error
 	GetK8sResourceByName(appID, name, kind string) (model.K8sResource, error)

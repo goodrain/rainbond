@@ -38,6 +38,7 @@ type ClusterInterface interface {
 	GetResource(w http.ResponseWriter, r *http.Request)
 	AddResource(w http.ResponseWriter, r *http.Request)
 	DeleteResource(w http.ResponseWriter, r *http.Request)
+	BatchDeleteResource(w http.ResponseWriter, r *http.Request)
 	UpdateResource(w http.ResponseWriter, r *http.Request)
 	SyncResource(w http.ResponseWriter, r *http.Request)
 	YamlResourceName(w http.ResponseWriter, r *http.Request)
