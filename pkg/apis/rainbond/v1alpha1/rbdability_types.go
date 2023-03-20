@@ -32,6 +32,8 @@ type RBDAbilitySpec struct {
 
 	// Foo is an example field of RBDAbility. Edit rbdplugin_types.go to remove/update
 	WatchGroups []WatchGroup `json:"watchGroups,omitempty"`
+	// Alias The alias is the name used for display, and if this field is not set, the name in the metadata will be used
+	Alias string `json:"alias,omitempty"`
 }
 
 // WatchGroup Defines what types of resources are listed.

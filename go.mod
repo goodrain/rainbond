@@ -110,6 +110,7 @@ require (
 
 require (
 	github.com/coreos/etcd v3.3.13+incompatible
+	github.com/go-playground/assert/v2 v2.0.1
 	github.com/helm/helm v2.17.0+incompatible
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
 	k8s.io/klog/v2 v2.60.1

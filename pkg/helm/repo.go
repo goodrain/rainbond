@@ -43,6 +43,7 @@ func NewRepo(repoFile, repoCache string) *Repo {
 	}
 }
 
+//Add -
 func (o *Repo) Add(name, url, username, password string) error {
 	var buf bytes.Buffer
 	err := o.add(&buf, name, url, username, password)
@@ -139,4 +140,8 @@ func (o *Repo) add(out io.Writer, name, url, username, password string) error {
 	}
 	fmt.Fprintf(out, "%q has been added to your repositories\n", name)
 	return nil
+}
+
+func isNotExist(err error) bool {
+	return os.IsNotExist(errors.Cause(err))
 }

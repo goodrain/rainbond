@@ -390,7 +390,7 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 }
 
 //ImageBuild use kaniko build image
-func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, KanikoImage string) error {
+func ImageBuild(contextDir, cachePVCName, cacheMode, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, KanikoImage string, KanikoArgs []string) error {
 	// create image name
 	var buildImageName string
 	if buildType == "plug-build" {
@@ -421,7 +421,7 @@ func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logge
 		},
 	}
 	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
-	volumes, volumeMounts := CreateVolumesAndMounts(contextDir, buildType)
+	volumes, volumeMounts := CreateVolumesAndMounts(contextDir, buildType, cacheMode, cachePVCName)
 	podSpec.Volumes = volumes
 	// container config
 	container := corev1.Container{
@@ -431,6 +431,9 @@ func ImageBuild(contextDir, RbdNamespace, ServiceID, DeployVersion string, logge
 		Stdin:     true,
 		StdinOnce: true,
 		Args:      []string{"--context=dir:///workspace", fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify"},
+	}
+	if len(KanikoArgs) > 0 {
+		container.Args = append(container.Args, KanikoArgs...)
 	}
 	container.VolumeMounts = volumeMounts
 	podSpec.Containers = append(podSpec.Containers, container)
@@ -703,6 +706,7 @@ func printLog(logger event.Logger, level, msg string, info map[string]string) {
 	}
 }
 
+// CreateImageName -
 func CreateImageName(ServiceID, DeployVersion string) string {
 	imageName := strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, ServiceID, DeployVersion))
 	logrus.Info("imageName:", imageName)
@@ -725,7 +729,8 @@ func CreateImageName(ServiceID, DeployVersion string) string {
 	return strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, workloadName, DeployVersion))
 }
 
-func CreateVolumesAndMounts(contextDir, buildType string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+// CreateVolumesAndMounts -
+func CreateVolumesAndMounts(contextDir, buildType, cacheMode, cachePVCName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	pathSplit := strings.Split(contextDir, "/")
 	subPath := strings.Join(pathSplit[2:], "/")
 	hostPathType := corev1.HostPathDirectoryOrCreate
@@ -784,6 +789,31 @@ func CreateVolumesAndMounts(contextDir, buildType string) (volumes []corev1.Volu
 		}
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
+	if buildType == "nc-build" {
+		volume := corev1.Volume{
+			Name: "nc-build",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: cachePVCName,
+				},
+			},
+		}
+		if cacheMode == "hostpath" {
+			volume.VolumeSource = corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/cache",
+					Type: &hostPathType,
+				},
+			}
+		}
+		volumes = append(volumes, volume)
+		volumeMount := corev1.VolumeMount{
+			Name:      "nc-build",
+			MountPath: "/workspace",
+			SubPath:   subPath,
+		}
+		volumeMounts = append(volumeMounts, volumeMount)
+	}
 	if buildType == "run-build" {
 		volume := corev1.Volume{
 			Name: "run-build",
@@ -804,6 +834,7 @@ func CreateVolumesAndMounts(contextDir, buildType string) (volumes []corev1.Volu
 	return volumes, volumeMounts
 }
 
+// WaitingComplete -
 func WaitingComplete(reChan *channels.RingChannel) (err error) {
 	var logComplete = false
 	var jobComplete = false

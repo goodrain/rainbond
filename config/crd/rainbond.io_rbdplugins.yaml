@@ -36,6 +36,17 @@ spec:
           spec:
             description: RBDPluginSpec defines the desired state of RBDPlugin
             properties:
+              access_urls:
+                description: AccessUrls Access URL defines the accessible address
+                  of the plug-in. If this field is not set, all accessible addresses
+                  under the application will be listed in the platform.
+                items:
+                  type: string
+                type: array
+              alias:
+                description: Alias The alias is the name used for display, and if
+                  this field is not set, the name in the metadata will be used
+                type: string
               author:
                 description: Foo is an example field of RBDPlugin. Edit rbdplugin_types.go
                   to remove/update

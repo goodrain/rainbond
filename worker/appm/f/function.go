@@ -191,7 +191,12 @@ func ensureService(new *corev1.Service, clientSet kubernetes.Interface) error {
 		return err
 	}
 	updateService := old.DeepCopy()
+	var clusterIP string
+	if updateService.Spec.ClusterIP != "" {
+		clusterIP = updateService.Spec.ClusterIP
+	}
 	updateService.Spec = new.Spec
+	updateService.Spec.ClusterIP = clusterIP
 	updateService.Labels = new.Labels
 	updateService.Annotations = new.Annotations
 	return persistUpdate(updateService, clientSet)

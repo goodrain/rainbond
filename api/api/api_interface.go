@@ -209,6 +209,7 @@ type ApplicationInterface interface {
 	ListComponents(w http.ResponseWriter, r *http.Request)
 	BatchBindService(w http.ResponseWriter, r *http.Request)
 	DeleteApp(w http.ResponseWriter, r *http.Request)
+	DeleteK8sApp(w http.ResponseWriter, r *http.Request)
 	AddConfigGroup(w http.ResponseWriter, r *http.Request)
 	UpdateConfigGroup(w http.ResponseWriter, r *http.Request)
 
