@@ -107,7 +107,7 @@ jobs:
           # The Go version to download (if necessary) and use. Supports semver spec and ranges.
           go-version: 1.18
       - name: install-golint
-        run: go get -u golang.org/x/lint/golint
+        run: go intall golang.org/x/lint/golint
 
       - name: Build and push
         env:
