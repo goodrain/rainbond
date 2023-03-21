@@ -4,5 +4,5 @@ if [ "$1" = "bash" ];then
 elif [ "${1}" = 'version' ];then
     echo "kubectl-$(kubectl version --client -o json | jq .clientVersion.gitVersion | sed s/\"//g)-grctl-\"$(grctl version)\""
 else
-    exec /docker-entrypoint.sh "$@"
-fi 
+    exec /usr/local/bin/docker-entrypoint.sh "$@"
+fi
