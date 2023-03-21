@@ -97,13 +97,8 @@ func (c *clusterAction) UpdateAppK8SResource(ctx context.Context, namespace, app
 }
 
 // DeleteAppK8SResource -
-func (c *clusterAction) DeleteAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) *util.APIHandleError {
+func (c *clusterAction) DeleteAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) {
 	c.HandleResourceYaml([]byte(resourceYaml), namespace, "delete", name, nil)
-	err := db.GetManager().K8sResourceDao().DeleteK8sResource(appID, name, kind)
-	if err != nil {
-		return &util.APIHandleError{Code: 400, Err: fmt.Errorf("DeleteAppK8SResource %v", err)}
-	}
-	return nil
 }
 
 // SyncAppK8SResources -

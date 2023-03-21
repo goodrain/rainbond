@@ -42,6 +42,7 @@ import (
 	"os"
 	"os/signal"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
+	gateway "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
 	"syscall"
 )
 
@@ -76,6 +77,10 @@ func Run(s *option.APIServer) error {
 		return err
 	}
 	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+	gatewayClient, err := gateway.NewForConfig(config)
 	if err != nil {
 		return err
 	}
@@ -132,7 +137,7 @@ func Run(s *option.APIServer) error {
 	//初始化 middleware
 	handler.InitProxy(s.Config)
 	//创建handle
-	if err := handler.InitHandle(s.Config, etcdClientArgs, cli, etcdcli, clientset, rainbondClient, k8sClient, config, mapper, dynamicClient); err != nil {
+	if err := handler.InitHandle(s.Config, etcdClientArgs, cli, etcdcli, clientset, rainbondClient, k8sClient, config, mapper, dynamicClient, gatewayClient); err != nil {
 		logrus.Errorf("init all handle error, %v", err)
 		return err
 	}

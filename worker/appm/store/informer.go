@@ -83,7 +83,7 @@ func (i *Informer) Start(stop chan struct{}) {
 //Ready if all kube informers is syncd, store is ready
 func (i *Informer) Ready() bool {
 	if i.Namespace.HasSynced() && i.Ingress.HasSynced() && i.Service.HasSynced() && i.Secret.HasSynced() &&
-		i.StatefulSet.HasSynced() && i.Deployment.HasSynced() && i.Pod.HasSynced() && i.Pod.HasSynced() && i.CronJob.HasSynced() &&
+		i.StatefulSet.HasSynced() && i.Deployment.HasSynced() && i.Pod.HasSynced() && i.CronJob.HasSynced() &&
 		i.ConfigMap.HasSynced() && i.Nodes.HasSynced() && i.Events.HasSynced() &&
 		i.HorizontalPodAutoscaler.HasSynced() && i.StorageClass.HasSynced() && i.Claims.HasSynced() && i.CRD.HasSynced() {
 		return true

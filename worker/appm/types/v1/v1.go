@@ -158,6 +158,14 @@ func (a *AppServiceBase) GetK8sWorkloadName() string {
 	return fmt.Sprintf("%s-%s", a.K8sApp, a.K8sComponentName)
 }
 
+//OperatorManaged -
+type OperatorManaged struct {
+	AppID       string
+	services    []*corev1.Service
+	statefulSet []*v1.StatefulSet
+	deployment  []*v1.Deployment
+}
+
 //AppService a service of rainbond app state in kubernetes
 type AppService struct {
 	AppServiceBase
@@ -209,6 +217,11 @@ func (c CacheKey) Equal(end CacheKey) bool {
 //GetCacheKeyOnlyServiceID get cache key only service id
 func GetCacheKeyOnlyServiceID(serviceID string) CacheKey {
 	return CacheKey(serviceID)
+}
+
+//GetCacheKeyOnlyAppID get cache key only app id
+func GetCacheKeyOnlyAppID(appID string) CacheKey {
+	return CacheKey(appID)
 }
 
 //GetDeployment get kubernetes deployment model
@@ -1066,6 +1079,102 @@ func (a *AppService) String() string {
 		}(a.services),
 		a.endpoints,
 	)
+}
+
+//GetService -
+func (o *OperatorManaged) GetService() []*corev1.Service {
+	if o.services != nil {
+		return o.services
+	}
+	return []*corev1.Service{}
+}
+
+//GetDeployment -
+func (o *OperatorManaged) GetDeployment() []*v1.Deployment {
+	if o.deployment != nil {
+		return o.deployment
+	}
+	return []*v1.Deployment{}
+}
+
+//GetStatefulSet -
+func (o *OperatorManaged) GetStatefulSet() []*v1.StatefulSet {
+	if o.statefulSet != nil {
+		return o.statefulSet
+	}
+	return []*v1.StatefulSet{}
+}
+
+//SetService -
+func (o *OperatorManaged) SetService(d *corev1.Service) {
+	if len(o.services) > 0 {
+		for i, service := range o.services {
+			if service.GetName() == d.GetName() {
+				o.services[i] = d
+				return
+			}
+		}
+	}
+	logrus.Infof("captures service created by operator: %v", d.GetName())
+	o.services = append(o.services, d)
+}
+
+//SetStatefulSet -
+func (o *OperatorManaged) SetStatefulSet(d *v1.StatefulSet) {
+	if len(o.statefulSet) > 0 {
+		for i, sts := range o.statefulSet {
+			if sts.GetName() == d.GetName() {
+				o.statefulSet[i] = d
+				return
+			}
+		}
+	}
+	logrus.Infof("captures statefulSet created by operator: %v", d.GetName())
+	o.statefulSet = append(o.statefulSet, d)
+}
+
+//SetDeployment -
+func (o *OperatorManaged) SetDeployment(d *v1.Deployment) {
+	if len(o.deployment) > 0 {
+		for i, deploy := range o.deployment {
+			if deploy.GetName() == d.GetName() {
+				o.deployment[i] = d
+				return
+			}
+		}
+	}
+	logrus.Infof("captures deployment created by operator: %v", d.GetName())
+	o.deployment = append(o.deployment, d)
+}
+
+//DeleteDeployment -
+func (o *OperatorManaged) DeleteDeployment(d *v1.Deployment) {
+	for i, old := range o.deployment {
+		if old.GetName() == d.GetName() {
+			o.deployment = append(o.deployment[0:i], o.deployment[i+1:]...)
+			return
+		}
+	}
+}
+
+//DeleteService -
+func (o *OperatorManaged) DeleteService(d *corev1.Service) {
+	for i, old := range o.services {
+		if old.GetName() == d.GetName() {
+			o.services = append(o.services[0:i], o.services[i+1:]...)
+			return
+		}
+	}
+}
+
+//DeleteStatefulSet -
+func (o *OperatorManaged) DeleteStatefulSet(d *v1.StatefulSet) {
+	for i, old := range o.statefulSet {
+		if old.GetName() == d.GetName() {
+			o.statefulSet = append(o.statefulSet[0:i], o.statefulSet[i+1:]...)
+			return
+		}
+	}
 }
 
 //TenantResource tenant resource statistical models

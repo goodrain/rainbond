@@ -6,6 +6,7 @@ service AppRuntimeSync {
   rpc GetAppStatusDeprecated (ServicesRequest) returns (StatusMessage) {}
   rpc GetAppStatus (AppStatusReq) returns (AppStatus) {}
   rpc GetAppPods (ServiceRequest) returns (ServiceAppPodList) {}
+  rpc GetOperatorWatchManagedData (AppStatusReq) returns (OperatorManaged) {}
   rpc GetMultiAppPods (ServicesRequest) returns (MultiServiceAppPodList) {}
   rpc GetComponentPodNums (ServicesRequest) returns (ComponentPodNums) {}
   rpc GetDeployInfo (ServiceRequest) returns (DeployInfo) {}
@@ -45,6 +46,43 @@ message TenantRequest {
 
 message StatusMessage {
   map<string, string> status = 1;
+}
+
+message OperatorManaged {
+  repeated ManagedService services = 1;
+  repeated ManagedDeployment deployments = 2;
+  repeated ManagedStatefulSet statefulSets = 3;
+}
+
+message ManagedService {
+  string name = 1;
+  string ip = 2;
+  string port = 3;
+  repeated string relation = 4;
+}
+
+message ManagedDeployment {
+  string name = 1;
+  int32 readyReplicas = 2;
+  string runtime = 3;
+  repeated string image = 4;
+  repeated ManagedPod pods = 5;
+}
+
+message ManagedStatefulSet {
+  string name = 1;
+  int32 readyReplicas = 2;
+  string runtime = 3;
+  repeated string image = 4;
+  repeated ManagedPod pods = 5;
+}
+
+message ManagedPod {
+  string name = 1;
+  string status = 2;
+  int64 memory = 3;
+  int64 cpu = 4;
+  int64 disk = 5;
 }
 
 message DiskMessage {

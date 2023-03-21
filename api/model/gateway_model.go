@@ -44,6 +44,99 @@ type AddHTTPRuleStruct struct {
 	Rewrites       []*Rewrite             `json:"rewrites"`
 }
 
+//GatewayCertificate -
+type GatewayCertificate struct {
+	Name        string `json:"name"`
+	Namespace   string `json:"namespace"`
+	PrivateKey  string `json:"private_key"`
+	Certificate string `json:"certificate"`
+}
+
+//GatewayHTTPRouteConcise -
+type GatewayHTTPRouteConcise struct {
+	Name             string   `json:"name"`
+	Hosts            []string `json:"hosts"`
+	AppID            string   `json:"app_id"`
+	GatewayName      string   `json:"gateway_class_name"`
+	GatewayNamespace string   `json:"gateway_class_namespace"`
+}
+
+//GatewayHTTPRouteStruct -
+type GatewayHTTPRouteStruct struct {
+	Name             string   `json:"name"`
+	AppID            string   `json:"app_id"`
+	SectionName      string   `json:"section_name"`
+	Namespace        string   `json:"namespace"`
+	GatewayName      string   `json:"gateway_name"`
+	GatewayNamespace string   `json:"gateway_namespace"`
+	Hosts            []string `json:"hosts"`
+	Rules            []*Rules `json:"rules"`
+	Exist            bool     `json:"exist"`
+}
+
+//Rules -
+type Rules struct {
+	MatchesRules     []*MatchesRule     `json:"matches_rule"`
+	BackendRefsRules []*BackendRefsRule `json:"backend_refs_rule"`
+	FiltersRules     []*FiltersRule     `json:"filters_rule"`
+}
+
+//FiltersRule -
+type FiltersRule struct {
+	Type                  string                     `json:"type,omitempty"`
+	RequestHeaderModifier *HTTPHeaderFilter          `json:"request_header_modifier,omitempty"`
+	RequestRedirect       *HTTPRequestRedirectFilter `json:"request_redirect,omitempty"`
+}
+
+//HTTPHeaderFilter -
+type HTTPHeaderFilter struct {
+	Set    []*HTTPHeader `json:"set"`
+	Add    []*HTTPHeader `json:"add"`
+	Remove []string      `json:"remove"`
+}
+
+//HTTPHeader -
+type HTTPHeader struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+//HTTPRequestRedirectFilter -
+type HTTPRequestRedirectFilter struct {
+	Scheme     string `json:"scheme"`
+	Hostname   string `json:"hostname"`
+	Port       int    `json:"port"`
+	StatusCode int    `json:"status_code"`
+}
+
+//BackendRefsRule -
+type BackendRefsRule struct {
+	Name      string `json:"name"`
+	Weight    int    `json:"weight"`
+	Kind      string `json:"kind"`
+	Namespace string `json:"namespace"`
+	Port      int    `json:"port"`
+}
+
+//MatchesRule -
+type MatchesRule struct {
+	Path    *MatchesRulePath     `json:"path"`
+	Headers []*MatchesRuleHeader `json:"headers"`
+}
+
+//MatchesRuleHeader -
+type MatchesRuleHeader struct {
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
+
+//MatchesRulePath -
+type MatchesRulePath struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
+
 // DbModel return database model
 func (h *AddHTTPRuleStruct) DbModel(serviceID string) *dbmodel.HTTPRule {
 	return &dbmodel.HTTPRule{

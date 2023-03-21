@@ -19,9 +19,13 @@
 package controller
 
 import (
+	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/db"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
@@ -101,6 +105,16 @@ func (c *ClusterController) MavenSettingDetail(w http.ResponseWriter, r *http.Re
 		return
 	}
 	httputil.ReturnSuccess(r, w, setting)
+}
+
+//BatchGetGateway batch get resource gateway
+func (c *ClusterController) BatchGetGateway(w http.ResponseWriter, r *http.Request) {
+	ns, err := handler.GetClusterHandler().BatchGetGateway(r.Context())
+	if err != nil {
+		err.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, ns)
 }
 
 // GetNamespace Get the unconnected namespaces under the current cluster
@@ -214,9 +228,53 @@ func (c *ClusterController) DeleteResource(w http.ResponseWriter, r *http.Reques
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
 		return
 	}
-	err := handler.GetClusterHandler().DeleteAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml, hr.Kind)
+	handler.GetClusterHandler().DeleteAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml, hr.Kind)
+	err := db.GetManager().K8sResourceDao().DeleteK8sResource(hr.AppID, hr.Name, hr.Kind)
 	if err != nil {
-		err.Handle(r, w)
+		e := &util.APIHandleError{Code: 400, Err: fmt.Errorf("delete app k8s resource failure: %v", err)}
+		e.Handle(r, w)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+//BatchDeleteResource -
+func (c *ClusterController) BatchDeleteResource(w http.ResponseWriter, r *http.Request) {
+	var req model.SyncResources
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
+		return
+	}
+	k8sResources, err := db.GetManager().K8sResourceDao().ListByAppID(req.AppID)
+	if err != nil {
+		e := &util.APIHandleError{Code: 400, Err: fmt.Errorf("get k8s resource failure: %v", err)}
+		e.Handle(r, w)
+		return
+	}
+	resourceMap := make(map[string][]dbmodel.K8sResource)
+	for _, resource := range k8sResources {
+		resourceList, ok := resourceMap[resource.Name]
+		if ok {
+			resourceMap[resource.Name] = append(resourceList, resource)
+			continue
+		}
+		resourceMap[resource.Name] = []dbmodel.K8sResource{resource}
+	}
+	var deleteResourcesID []uint
+	for _, hr := range req.K8sResources {
+		handler.GetClusterHandler().DeleteAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.Name, hr.ResourceYaml, hr.Kind)
+		nameResource, ok := resourceMap[hr.Name]
+		if ok {
+			for _, dbResource := range nameResource {
+				if dbResource.Kind == hr.Kind {
+					deleteResourcesID = append(deleteResourcesID, dbResource.ID)
+				}
+			}
+		}
+	}
+	err = db.GetManager().K8sResourceDao().DeleteK8sResourceByIDs(deleteResourcesID)
+	if err != nil {
+		e := &util.APIHandleError{Code: 400, Err: fmt.Errorf("delete app k8s resource failure: %v", err)}
+		e.Handle(r, w)
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
