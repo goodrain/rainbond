@@ -20,16 +20,20 @@ package build
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/eapache/channels"
 	jobc "github.com/goodrain/rainbond/builder/job"
 	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -106,7 +110,11 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 			},
 		}
 	}
-	volumes, mounts := d.createVolumeAndMount(re)
+	secret, err := d.createAuthSecret(re)
+	if err != nil {
+		return err
+	}
+	volumes, mounts := d.createVolumeAndMount(re, secret.Name)
 	podSpec.Volumes = volumes
 	container := corev1.Container{
 		Name: name,
@@ -128,19 +136,20 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	defer cancel()
 
 	logrus.Debugf("create job[name: %s; namespace: %s]", job.Name, job.Namespace)
-	err := jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
+	err = jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
 	if err != nil {
 		logrus.Errorf("create new job:%s failed: %s", name, err.Error())
 		return err
 	}
 	re.Logger.Info(util.Translation("create build code job success"), map[string]string{"step": "build-exector"})
 	// delete job after complete
+	defer d.deleteAuthSecret(re, secret.Name)
 	defer jobc.GetJobController().DeleteJob(job.Name)
 	return d.waitingComplete(re, reChan)
 	return nil
 }
 
-func (d *dockerfileBuild) createVolumeAndMount(re *Request) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+func (d *dockerfileBuild) createVolumeAndMount(re *Request, secretName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	hostsFilePathType := corev1.HostPathFile
 	dockerfileBuildVolume := corev1.Volume{
 		Name: "dockerfile-build",
@@ -166,7 +175,7 @@ func (d *dockerfileBuild) createVolumeAndMount(re *Request) (volumes []corev1.Vo
 			Name: "kaniko-secret",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: "rbd-hub-credentials",
+					SecretName: secretName,
 					Items: []corev1.KeyToPath{
 						{
 							Key:  ".dockerconfigjson",
@@ -201,6 +210,106 @@ func (d *dockerfileBuild) createVolumeAndMount(re *Request) (volumes []corev1.Vo
 		},
 	}
 	return volumes, volumeMounts
+}
+
+func (d *dockerfileBuild) createAuthSecret(re *Request) (sc corev1.Secret, err error) {
+	var secret corev1.Secret
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(re.TenantID)
+	if err != nil {
+		logrus.Errorf("get tenant failed:%v", err.Error())
+		return secret, err
+	}
+	secrets, err := re.KubeClient.CoreV1().Secrets(tenant.Namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		logrus.Errorf("get secret failed:%v", err.Error())
+		return secret, err
+	}
+	registryAuth := make(map[string]string)
+	authOne := make(map[string]interface{})
+	authAll := make(map[string]map[string]interface{})
+	for _, secret = range secrets.Items {
+		// Obtain the private warehouse configuration under goodrain.me
+		if secret.Name == "rbd-hub-credentials" {
+			configByte := secret.Data[".dockerconfigjson"]
+			configStr := base64.StdEncoding.EncodeToString(configByte)
+			config, err := base64.StdEncoding.DecodeString(configStr)
+			if err != nil {
+				logrus.Errorf("base64 decode domain error:%v", err.Error())
+				continue
+			}
+			auths := make(map[string]interface{})
+			err = json.Unmarshal(config, &auths)
+			if err != nil {
+				logrus.Debug("json unmarshal config str error:%v", err.Error())
+				continue
+			}
+			hubConfig := auths["auths"]
+			if rec, ok := hubConfig.(map[string]interface{}); ok {
+				for key, val := range rec {
+					authOne[key] = val
+					authAll["auths"] = authOne
+				}
+			}
+		}
+		// Obtain the private warehouse configuration under the team
+		if strings.Contains(secret.Name, "rbd-registry-auth") {
+			domainStr := base64.StdEncoding.EncodeToString(secret.Data["Domain"])
+			passwordStr := base64.StdEncoding.EncodeToString(secret.Data["Password"])
+			usernameStr := base64.StdEncoding.EncodeToString(secret.Data["Username"])
+
+			domain, err := base64.StdEncoding.DecodeString(domainStr)
+			if err != nil {
+				logrus.Debug("base64 decode domain error:%v", err.Error())
+				continue
+			}
+			passWord, err := base64.StdEncoding.DecodeString(passwordStr)
+			if err != nil {
+				logrus.Debug("base64 decode password error:%v", err.Error())
+				continue
+			}
+			userName, err := base64.StdEncoding.DecodeString(usernameStr)
+			if err != nil {
+				logrus.Debug("base64 decode username error:%v", err.Error())
+				continue
+			}
+			registryAuth["username"] = string(userName)
+			registryAuth["password"] = string(passWord)
+			authOne[string(domain)] = registryAuth
+			authAll["auths"] = authOne
+		}
+	}
+	authByte, err := json.Marshal(authAll)
+	if err != nil {
+		logrus.Errorf("json unmarshal auth all error:%v", err.Error())
+		return secret, err
+	}
+	secret = corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("rbd-hub-auth-%v", util.NewUUID()),
+			Namespace: re.RbdNamespace,
+			Labels: map[string]string{
+				"creator":                          "Rainbond",
+				"rainbond.io/registry-auth-secret": "true",
+			},
+		},
+		Data: map[string][]byte{
+			".dockerconfigjson": authByte,
+		},
+		Type: corev1.SecretTypeDockerConfigJson,
+	}
+	sec, err := re.KubeClient.CoreV1().Secrets(re.RbdNamespace).Create(context.Background(), &secret, metav1.CreateOptions{})
+	if err != nil {
+		logrus.Errorf("create secret error:%v", err.Error())
+		return secret, nil
+	}
+	return *sec, nil
+}
+
+func (d *dockerfileBuild) deleteAuthSecret(re *Request, secretName string) {
+	err := re.KubeClient.CoreV1().Secrets(re.RbdNamespace).Delete(context.Background(), secretName, metav1.DeleteOptions{})
+	if err != nil {
+		logrus.Errorf("delete auth secret error:%v", err.Error())
+	}
 }
 
 func (d *dockerfileBuild) waitingComplete(re *Request, reChan *channels.RingChannel) (err error) {
