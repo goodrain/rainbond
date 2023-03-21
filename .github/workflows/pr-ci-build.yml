@@ -16,8 +16,10 @@ jobs:
           # The Go version to download (if necessary) and use. Supports semver spec and ranges.
           go-version: 1.18
       - name: install-golint
-        run: go get -u golang.org/x/lint/golint && export PATH=$PATH:$(go env GOPATH)/bin
-
+        run: |
+          git clone https://github.com/golang/lint.git
+          cd lint/golint
+          go install
       - name: Go-linter
         run: ./check.sh
 
