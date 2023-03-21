@@ -488,11 +488,11 @@ func (c *clusterAction) BatchGetGateway(ctx context.Context) ([]*model.GatewayRe
 					if ports != nil {
 						for _, port := range ports {
 							if port.NodePort != 0 {
-								nodePort = append(nodePort, fmt.Sprintf("%v:%v", nodeIP, port.NodePort))
+								nodePort = append(nodePort, fmt.Sprintf("%v:%v(%v)", nodeIP, port.NodePort, port.Name))
 							}
 							if externalIPs != nil {
 								for _, ip := range externalIPs {
-									loadBalancerIP = append(loadBalancerIP, fmt.Sprintf("%v:%v", ip, port.Port))
+									loadBalancerIP = append(loadBalancerIP, fmt.Sprintf("%v:%v(%v)", ip, port.Port, port.Name))
 								}
 							}
 						}
