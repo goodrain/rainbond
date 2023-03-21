@@ -35,6 +35,7 @@ import (
 	"os"
 	"runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	gateway "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
 	"strconv"
 	"strings"
 	"time"
@@ -53,12 +54,13 @@ type ClusterHandler interface {
 	MavenSettingUpdate(ctx context.Context, ms *MavenSetting) *util.APIHandleError
 	MavenSettingDelete(ctx context.Context, name string) *util.APIHandleError
 	MavenSettingDetail(ctx context.Context, name string) (*MavenSetting, *util.APIHandleError)
+	BatchGetGateway(ctx context.Context) ([]*model.GatewayResource, *util.APIHandleError)
 	GetNamespace(ctx context.Context, content string) ([]string, *util.APIHandleError)
 	GetNamespaceSource(ctx context.Context, content string, namespace string) (map[string]model.LabelResource, *util.APIHandleError)
 	ConvertResource(ctx context.Context, namespace string, lr map[string]model.LabelResource) (map[string]model.ApplicationResource, *util.APIHandleError)
 	ResourceImport(namespace string, as map[string]model.ApplicationResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError)
 	AddAppK8SResource(ctx context.Context, namespace string, appID string, resourceYaml string) ([]*dbmodel.K8sResource, *util.APIHandleError)
-	DeleteAppK8SResource(ctx context.Context, namespace, appID, name, yaml, kind string) *util.APIHandleError
+	DeleteAppK8SResource(ctx context.Context, namespace, appID, name, yaml, kind string)
 	GetAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) (dbmodel.K8sResource, *util.APIHandleError)
 	UpdateAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) (dbmodel.K8sResource, *util.APIHandleError)
 	SyncAppK8SResources(ctx context.Context, resources *model.SyncResources) ([]*dbmodel.K8sResource, *util.APIHandleError)
@@ -78,7 +80,7 @@ type ClusterHandler interface {
 }
 
 // NewClusterHandler -
-func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface, rainbondClient versioned.Interface, statusCli *workerclient.AppRuntimeSyncClient, dynamicClient dynamic.Interface) ClusterHandler {
+func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface, rainbondClient versioned.Interface, statusCli *workerclient.AppRuntimeSyncClient, dynamicClient dynamic.Interface, gatewayClient *gateway.GatewayV1beta1Client) ClusterHandler {
 	return &clusterAction{
 		namespace:      RbdNamespace,
 		clientset:      clientset,
@@ -89,6 +91,7 @@ func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage
 		rainbondClient: rainbondClient,
 		statusCli:      statusCli,
 		dynamicClient:  dynamicClient,
+		gatewayClient:  gatewayClient,
 	}
 }
 
@@ -105,6 +108,7 @@ type clusterAction struct {
 	rainbondClient   versioned.Interface
 	statusCli        *workerclient.AppRuntimeSyncClient
 	dynamicClient    dynamic.Interface
+	gatewayClient    *gateway.GatewayV1beta1Client
 }
 
 type nodePod struct {
@@ -434,6 +438,84 @@ func (c *clusterAction) MavenSettingDetail(ctx context.Context, name string) (*M
 		UpdateTime: sm.Annotations["updateTime"],
 		Content:    sm.Data["mavensetting"],
 	}, nil
+}
+
+func (c *clusterAction) BatchGetGateway(ctx context.Context) ([]*model.GatewayResource, *util.APIHandleError) {
+	gateways, err := c.gatewayClient.Gateways(corev1.NamespaceAll).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to batch get gateway:%v", err)}
+	}
+	var gatewayList []*model.GatewayResource
+	nodes, err := c.clientset.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{LabelSelector: "rainbond-gateway-node=true"})
+	if err != nil {
+		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to batch get nodes:%v", err)}
+	}
+	if len(nodes.Items) == 0 {
+		nodes, err = c.clientset.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to batch get nodes:%v", err)}
+		}
+	}
+	nodeIP := "0.0.0.0"
+	if len(nodes.Items) > 0 {
+		addresses := nodes.Items[0].Status.Addresses
+		if addresses != nil {
+			for _, address := range addresses {
+				if address.Type == corev1.NodeExternalIP {
+					nodeIP = address.Address
+					break
+				}
+				if address.Type == corev1.NodeInternalIP {
+					nodeIP = address.Address
+				}
+			}
+		}
+	}
+	for _, gc := range gateways.Items {
+		serviceName, ok := gc.Labels["service-name"]
+		var loadBalancerIP []string
+		var nodePort []string
+		if ok {
+			var gatewaySvc corev1.Service
+			gatewaySvcList, err := c.clientset.CoreV1().Services(gc.Namespace).List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				logrus.Errorf("get gateway(%v) service(%v) failure: %v", gc.Name, serviceName, err)
+			}
+			for _, gatewayService := range gatewaySvcList.Items {
+				if strings.HasPrefix(gatewayService.Name, serviceName) {
+					externalIPs := gatewaySvc.Spec.ExternalIPs
+					ports := gatewayService.Spec.Ports
+					if ports != nil {
+						for _, port := range ports {
+							if port.NodePort != 0 {
+								nodePort = append(nodePort, fmt.Sprintf("%v:%v", nodeIP, port.NodePort))
+							}
+							if externalIPs != nil {
+								for _, ip := range externalIPs {
+									loadBalancerIP = append(loadBalancerIP, fmt.Sprintf("%v:%v", ip, port.Port))
+								}
+							}
+						}
+					}
+					break
+				}
+
+			}
+		}
+		var listenerNames []string
+		for _, listener := range gc.Spec.Listeners {
+			name := string(listener.Name)
+			listenerNames = append(listenerNames, name)
+		}
+		gatewayList = append(gatewayList, &model.GatewayResource{
+			Name:           gc.GetName(),
+			Namespace:      gc.GetNamespace(),
+			LoadBalancerIP: loadBalancerIP,
+			NodePortIP:     nodePort,
+			ListenerNames:  listenerNames,
+		})
+	}
+	return gatewayList, nil
 }
 
 // GetNamespace Get namespace of the current cluster

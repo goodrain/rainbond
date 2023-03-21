@@ -29,4 +29,8 @@ const (
 	HorizontalPodAutoscaler = "HorizontalPodAutoscaler"
 	//Role -
 	Role = "Role"
+	//Gateway -
+	Gateway = "Gateway"
+	//HTTPRoute -
+	HTTPRoute = "HTTPRoute"
 )
