@@ -476,6 +476,7 @@ type HandleResource struct {
 
 // SyncResources -
 type SyncResources struct {
+	AppID        string           `json:"app_id"`
 	K8sResources []HandleResource `json:"k8s_resources"`
 }
 

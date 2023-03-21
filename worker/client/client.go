@@ -102,6 +102,19 @@ func (a *AppRuntimeSyncClient) GetStatus(serviceID string) string {
 	return status.Status[serviceID]
 }
 
+//GetOperatorWatchData get operator watch data
+func (a *AppRuntimeSyncClient) GetOperatorWatchData(appID string) (*pb.OperatorManaged, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	status, err := a.AppRuntimeSyncClient.GetOperatorWatchManagedData(ctx, &pb.AppStatusReq{
+		AppId: appID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return status, nil
+}
+
 //GetStatuss get multiple app status
 func (a *AppRuntimeSyncClient) GetStatuss(serviceIDs string) map[string]string {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)

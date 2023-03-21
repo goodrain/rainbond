@@ -55,6 +55,40 @@ func (g *GatewayStruct) HTTPRule(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//GatewayCertificate k8s gateway certificate related operations
+func (g *GatewayStruct) GatewayCertificate(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "PUT":
+		g.updateGatewayCertificate(w, r)
+	case "POST":
+		g.addGatewayCertificate(w, r)
+	case "DELETE":
+		g.deleteGatewayCertificate(w, r)
+	}
+}
+
+//BatchGatewayHTTPRoute k8s gateway http route batch operation
+func (g *GatewayStruct) BatchGatewayHTTPRoute(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		g.batchGetGatewayHTTPRoute(w, r)
+	}
+}
+
+//GatewayHTTPRoute k8s gateway http route related operations
+func (g *GatewayStruct) GatewayHTTPRoute(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		g.getGatewayHTTPRoute(w, r)
+	case "PUT":
+		g.updateGatewayHTTPRoute(w, r)
+	case "POST":
+		g.addGatewayHTTPRoute(w, r)
+	case "DELETE":
+		g.deleteGatewayHTTPRoute(w, r)
+	}
+}
+
 func validateDomain(domain string) []string {
 	if strings.TrimSpace(domain) == "" {
 		return nil
@@ -66,6 +100,111 @@ func validateDomain(domain string) []string {
 		errs = k8svalidation.IsDNS1123Subdomain(domain)
 	}
 	return errs
+}
+
+func (g *GatewayStruct) addGatewayCertificate(w http.ResponseWriter, r *http.Request) {
+	var req api_model.GatewayCertificate
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	err := handler.GetGatewayHandler().AddGatewayCertificate(&req)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while add gateway certificate: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, "添加成功")
+}
+
+func (g *GatewayStruct) updateGatewayCertificate(w http.ResponseWriter, r *http.Request) {
+	var req api_model.GatewayCertificate
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	err := handler.GetGatewayHandler().UpdateGatewayCertificate(&req)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while update gateway certificate: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, "更新成功")
+}
+
+func (g *GatewayStruct) deleteGatewayCertificate(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+	namespace := r.FormValue("namespace")
+	err := handler.GetGatewayHandler().DeleteGatewayCertificate(name, namespace)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while delete gateway certificate: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, "删除成功")
+}
+
+func (g *GatewayStruct) addGatewayHTTPRoute(w http.ResponseWriter, r *http.Request) {
+	var req api_model.GatewayHTTPRouteStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	res, err := handler.GetGatewayHandler().AddGatewayHTTPRoute(&req)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while adding gateway http rule: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, res)
+}
+
+func (g *GatewayStruct) getGatewayHTTPRoute(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+	namespace := r.FormValue("namespace")
+	route, err := handler.GetGatewayHandler().GetGatewayHTTPRoute(name, namespace)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while get gateway http rule: %v", err))
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, route)
+}
+
+func (g *GatewayStruct) deleteGatewayHTTPRoute(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+	namespace := r.FormValue("namespace")
+	appID := r.FormValue("app_id")
+	err := handler.GetGatewayHandler().DeleteGatewayHTTPRoute(name, namespace, appID)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while delete gateway http rule: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, "删除成功")
+}
+
+func (g *GatewayStruct) updateGatewayHTTPRoute(w http.ResponseWriter, r *http.Request) {
+	var req api_model.GatewayHTTPRouteStruct
+	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
+	if !ok {
+		return
+	}
+	res, err := handler.GetGatewayHandler().UpdateGatewayHTTPRoute(&req)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while update gateway http rule: %v", err))
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, res)
+}
+
+func (g *GatewayStruct) batchGetGatewayHTTPRoute(w http.ResponseWriter, r *http.Request) {
+	namespace := r.FormValue("namespace")
+	appID := r.FormValue("app_id")
+
+	data, err := handler.GetGatewayHandler().BatchGetGatewayHTTPRoute(namespace, appID)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("Unexpected error occorred while batch get gateway http rule: %v", err))
+		return
+	}
+
+	httputil.ReturnSuccess(r, w, data)
 }
 
 func (g *GatewayStruct) addHTTPRule(w http.ResponseWriter, r *http.Request) {
