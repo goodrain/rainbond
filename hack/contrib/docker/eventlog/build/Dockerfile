@@ -1,4 +1,4 @@
-FROM golang:1.17-alpine
+FROM golang:1.18-alpine
 
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && apk --no-cache add pkgconfig gcc musl-dev
 
