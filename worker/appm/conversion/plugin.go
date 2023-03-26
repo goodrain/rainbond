@@ -116,10 +116,13 @@ func conversionServicePlugin(as *typesv1.AppService, dbmanager db.Manager) ([]v1
 			TerminationMessagePath: "",
 			VolumeMounts:           mainContainer.VolumeMounts,
 		}
+		cmds := strings.Split(versionInfo.ContainerCMD, " ")
 
-		if len(versionInfo.ContainerCMD) > 0 {
+		if len(cmds) > 0 {
 			pc.Command = []string{"/bin/sh", "-c"}
-			pc.Args = []string{versionInfo.ContainerCMD}
+			for _, cmd := range cmds {
+				pc.Args = append(pc.Args, cmd)
+			}
 		}
 
 		pluginModel, err := getPluginModel(pluginR.PluginID, as.TenantID, dbmanager)
