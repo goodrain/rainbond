@@ -444,7 +444,7 @@ func (c *clusterAction) BatchGetGateway(ctx context.Context) ([]*model.GatewayRe
 	gateways, err := c.gatewayClient.Gateways(corev1.NamespaceAll).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, nil
+			return []*model.GatewayResource{}, nil
 		}
 		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to batch get gateway:%v", err)}
 	}
