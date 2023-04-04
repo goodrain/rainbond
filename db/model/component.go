@@ -23,6 +23,8 @@ const (
 	K8sAttributeNameNodeSelector = "nodeSelector"
 	//K8sAttributeNameLabels -
 	K8sAttributeNameLabels = "labels"
+	//K8sAttributeNameAnnotations -
+	K8sAttributeNameAnnotations = "annotations"
 	//K8sAttributeNameTolerations -
 	K8sAttributeNameTolerations = "tolerations"
 	//K8sAttributeNameVolumes -

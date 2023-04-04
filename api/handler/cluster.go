@@ -443,6 +443,9 @@ func (c *clusterAction) MavenSettingDetail(ctx context.Context, name string) (*M
 func (c *clusterAction) BatchGetGateway(ctx context.Context) ([]*model.GatewayResource, *util.APIHandleError) {
 	gateways, err := c.gatewayClient.Gateways(corev1.NamespaceAll).List(ctx, metav1.ListOptions{})
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return []*model.GatewayResource{}, nil
+		}
 		return nil, &util.APIHandleError{Code: 404, Err: fmt.Errorf("failed to batch get gateway:%v", err)}
 	}
 	var gatewayList []*model.GatewayResource

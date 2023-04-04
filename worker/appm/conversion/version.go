@@ -84,7 +84,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      labels,
-			Annotations: createPodAnnotations(as),
+			Annotations: createPodAnnotations(as, dbmanager),
 			Name:        as.GetK8sWorkloadName() + "-pod-spec",
 		},
 		Spec: corev1.PodSpec{
@@ -783,15 +783,20 @@ func createNodeSelector(as *v1.AppService, dbmanager db.Manager) map[string]stri
 	return selector
 }
 
-func createLabels(as *v1.AppService, dbmanager db.Manager) map[string]string {
+func getCustomLabel(serviceID string, dbmanager db.Manager) map[string]string {
 	labels := make(map[string]string)
-	labelsAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLabels)
+	labelsAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(serviceID, model.K8sAttributeNameLabels)
 	if err == nil {
 		err = json.Unmarshal([]byte(labelsAttribute.AttributeValue), &labels)
 		if err == nil {
 			logrus.Infof("labelsAttribute:%s", labels)
 		}
 	}
+	return labels
+}
+
+func createLabels(as *v1.AppService, dbmanager db.Manager) map[string]string {
+	labels := getCustomLabel(as.ServiceID, dbmanager)
 	labels["name"] = as.ServiceAlias
 	labels["version"] = as.DeployVersion
 	injectLabels := getInjectLabels(as)
@@ -923,8 +928,16 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) *corev1.Affinity {
 	return &affinity
 }
 
-func createPodAnnotations(as *v1.AppService) map[string]string {
-	var annotations = make(map[string]string)
+func createPodAnnotations(as *v1.AppService, dbmanager db.Manager) map[string]string {
+	annotations := make(map[string]string)
+	annotationsAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameAnnotations)
+	if err == nil {
+		err = json.Unmarshal([]byte(annotationsAttribute.AttributeValue), &annotations)
+		if err == nil {
+			logrus.Infof("annotations Attribute:%s", annotations)
+		}
+	}
+
 	if as.Replicas <= 1 {
 		annotations["rainbond.com/tolerate-unready-endpoints"] = "true"
 	}

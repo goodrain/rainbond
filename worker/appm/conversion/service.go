@@ -138,20 +138,21 @@ func TenantServiceBase(as *v1.AppService, dbmanager db.Manager) error {
 	as.ContainerGPU = tenantService.ContainerGPU
 	as.ContainerMemory = tenantService.ContainerMemory
 	as.Replicas = tenantService.Replicas
+	dbmanager.ComponentK8sAttributeDao()
 	if tenantService.IsJob() {
-		initBaseJob(as, tenantService)
+		initBaseJob(as, tenantService, dbmanager)
 		return nil
 	}
 	if tenantService.IsCronJob() {
-		initBaseCronJob(as, tenantService)
+		initBaseCronJob(as, tenantService, dbmanager)
 		return nil
 	}
 	if !tenantService.IsState() {
-		initBaseDeployment(as, tenantService)
+		initBaseDeployment(as, tenantService, dbmanager)
 		return nil
 	}
 	if tenantService.IsState() {
-		initBaseStatefulSet(as, tenantService)
+		initBaseStatefulSet(as, tenantService, dbmanager)
 		return nil
 	}
 	return fmt.Errorf("kind: %s; do not decision build type for service %s", tenantService.Kind, as.ServiceAlias)
@@ -179,7 +180,7 @@ func initSelector(selector *metav1.LabelSelector, service *dbmodel.TenantService
 	selector.MatchLabels["service_id"] = service.ServiceID
 	//selector.MatchLabels["version"] = service.DeployVersion
 }
-func initBaseStatefulSet(as *v1.AppService, service *dbmodel.TenantServices) {
+func initBaseStatefulSet(as *v1.AppService, service *dbmodel.TenantServices, dbmanager db.Manager) {
 	as.ServiceType = v1.TypeStatefulSet
 	stateful := as.GetStatefulSet()
 	if stateful == nil {
@@ -199,6 +200,13 @@ func initBaseStatefulSet(as *v1.AppService, service *dbmodel.TenantServices) {
 		"name":    service.ServiceAlias,
 		"version": service.DeployVersion,
 	}, injectLabels)
+	customLabels := getCustomLabel(as.ServiceID, dbmanager)
+	for labelKey, labelValue := range customLabels {
+		if _, ok := stateful.Labels[labelKey]; ok {
+			continue
+		}
+		stateful.Labels[labelKey] = labelValue
+	}
 	stateful.Spec.UpdateStrategy.Type = appsv1.RollingUpdateStatefulSetStrategyType
 	if as.UpgradeMethod == v1.OnDelete {
 		stateful.Spec.UpdateStrategy.Type = appsv1.OnDeleteStatefulSetStrategyType
@@ -206,7 +214,7 @@ func initBaseStatefulSet(as *v1.AppService, service *dbmodel.TenantServices) {
 	as.SetStatefulSet(stateful)
 }
 
-func initBaseDeployment(as *v1.AppService, service *dbmodel.TenantServices) {
+func initBaseDeployment(as *v1.AppService, service *dbmodel.TenantServices, dbmanager db.Manager) {
 	as.ServiceType = v1.TypeDeployment
 	deployment := as.GetDeployment()
 	if deployment == nil {
@@ -225,6 +233,13 @@ func initBaseDeployment(as *v1.AppService, service *dbmodel.TenantServices) {
 		"name":    service.ServiceAlias,
 		"version": service.DeployVersion,
 	}, injectLabels)
+	customLabels := getCustomLabel(as.ServiceID, dbmanager)
+	for labelKey, labelValue := range customLabels {
+		if _, ok := deployment.Labels[labelKey]; ok {
+			continue
+		}
+		deployment.Labels[labelKey] = labelValue
+	}
 	deployment.Spec.Strategy.Type = appsv1.RollingUpdateDeploymentStrategyType
 	if as.UpgradeMethod == v1.OnDelete {
 		deployment.Spec.Strategy.Type = appsv1.RecreateDeploymentStrategyType
@@ -232,7 +247,7 @@ func initBaseDeployment(as *v1.AppService, service *dbmodel.TenantServices) {
 	as.SetDeployment(deployment)
 }
 
-func initBaseJob(as *v1.AppService, service *dbmodel.TenantServices) {
+func initBaseJob(as *v1.AppService, service *dbmodel.TenantServices, dbmanager db.Manager) {
 	as.ServiceType = v1.TypeJob
 	job := as.GetJob()
 	if job == nil {
@@ -249,7 +264,13 @@ func initBaseJob(as *v1.AppService, service *dbmodel.TenantServices) {
 		"name":    service.ServiceAlias,
 		"version": service.DeployVersion,
 	}, injectLabels)
-
+	customLabels := getCustomLabel(as.ServiceID, dbmanager)
+	for labelKey, labelValue := range customLabels {
+		if _, ok := job.Labels[labelKey]; ok {
+			continue
+		}
+		job.Labels[labelKey] = labelValue
+	}
 	var js *apimodel.JobStrategy
 	if service.JobStrategy != "" {
 		err := json.Unmarshal([]byte(service.JobStrategy), &js)
@@ -287,7 +308,7 @@ func initBaseJob(as *v1.AppService, service *dbmodel.TenantServices) {
 	as.SetJob(job)
 }
 
-func initBaseCronJob(as *v1.AppService, service *dbmodel.TenantServices) {
+func initBaseCronJob(as *v1.AppService, service *dbmodel.TenantServices, dbmanager db.Manager) {
 	as.ServiceType = v1.TypeCronJob
 	injectLabels := getInjectLabels(as)
 	jobTemp := batchv1.JobTemplateSpec{}
@@ -297,6 +318,13 @@ func initBaseCronJob(as *v1.AppService, service *dbmodel.TenantServices) {
 		"name":    service.ServiceAlias,
 		"version": service.DeployVersion,
 	}, injectLabels)
+	customLabels := getCustomLabel(as.ServiceID, dbmanager)
+	for labelKey, labelValue := range customLabels {
+		if _, ok := jobTemp.Labels[labelKey]; ok {
+			continue
+		}
+		jobTemp.Labels[labelKey] = labelValue
+	}
 	var schedule string
 	if service.JobStrategy != "" {
 		var js *apimodel.JobStrategy
