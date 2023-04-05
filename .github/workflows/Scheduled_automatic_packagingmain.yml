@@ -30,7 +30,7 @@ jobs:
 
   build-rainbond-allinone:
     needs: build-ui
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - name: Set up Python 3.6
         uses: actions/setup-python@v2
@@ -65,7 +65,7 @@ jobs:
           ./release.sh allinone
 
   build-rainbond-region:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Setup Go environment
@@ -130,7 +130,7 @@ jobs:
 
   build-dind:
     needs: [build-ui,build-rainbond-region,build-operator]
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     if: ${{ github.event.action }} == 'GitHub'
     steps:
       - name: Set up Python 3.6
