@@ -30,7 +30,7 @@ jobs:
 
   build-rainbond-allinone:
     needs: build-ui
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Set up Python 3.6
         uses: actions/setup-python@v2
@@ -130,7 +130,7 @@ jobs:
 
   build-dind:
     needs: [build-ui,build-rainbond-region,build-operator]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     if: ${{ github.event.action }} == 'GitHub'
     steps:
       - name: Set up Python 3.6
