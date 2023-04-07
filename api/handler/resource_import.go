@@ -170,6 +170,14 @@ func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID strin
 	if err != nil {
 		logrus.Errorf("component %v BasicManagement.JobStrategy json error%v", component.ComponentsName, err)
 	}
+	serviceDuplicate, err := db.GetManager().TenantServiceDao().GetByAppIDComponentName(app.AppID, component.ComponentsName)
+	if err != nil {
+		return nil, err
+	}
+	componentName := component.ComponentsName
+	if len(serviceDuplicate) > 0 {
+		componentName = serviceAlias
+	}
 	ts := dbmodel.TenantServices{
 		TenantID:         tenantID,
 		ServiceID:        serviceID,
@@ -191,13 +199,14 @@ func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID strin
 		UpdateTime:       time.Now(),
 		Kind:             "internal",
 		AppID:            app.AppID,
-		K8sComponentName: component.ComponentsName,
+		K8sComponentName: componentName,
 		JobStrategy:      string(JobStrategy),
 	}
 	if err := db.GetManager().TenantServiceDao().AddModel(&ts); err != nil {
 		logrus.Errorf("add service error, %v", err)
 		return nil, err
 	}
+	ts.K8sComponentName = fmt.Sprintf("%v,%v", component.ComponentsName, componentName)
 	if !isYaml {
 		changeLabel := func(label map[string]string) map[string]string {
 			label[constants.ResourceManagedByLabel] = constants.Rainbond
