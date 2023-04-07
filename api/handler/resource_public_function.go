@@ -400,13 +400,28 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 		labelsJSON, err := ObjectToJSONORYaml("json", parameter.Template.Labels)
 		if err != nil {
 			logrus.Errorf("pod %v template label transformation json failure: %v", parameter.Name, err)
+		} else {
+			labelsAttributes := &dbmodel.ComponentK8sAttributes{
+				Name:           dbmodel.K8sAttributeNameLabels,
+				SaveType:       "json",
+				AttributeValue: labelsJSON,
+			}
+			attributes = append(attributes, labelsAttributes)
 		}
-		labelsAttributes := &dbmodel.ComponentK8sAttributes{
-			Name:           dbmodel.K8sAttributeNameLabels,
-			SaveType:       "json",
-			AttributeValue: labelsJSON,
+	}
+
+	if parameter.Template.Annotations != nil {
+		annotationsJSON, err := ObjectToJSONORYaml("json", parameter.Template.Annotations)
+		if err != nil {
+			logrus.Errorf("pod %v template annotations transformation json failure: %v", parameter.Name, err)
+		} else {
+			labelsAttributes := &dbmodel.ComponentK8sAttributes{
+				Name:           dbmodel.K8sAttributeNameAnnotations,
+				SaveType:       "json",
+				AttributeValue: annotationsJSON,
+			}
+			attributes = append(attributes, labelsAttributes)
 		}
-		attributes = append(attributes, labelsAttributes)
 	}
 
 	if parameter.Template.Spec.NodeSelector != nil {
