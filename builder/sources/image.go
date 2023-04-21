@@ -430,7 +430,7 @@ func ImageBuild(contextDir, cachePVCName, cacheMode, RbdNamespace, ServiceID, De
 		Image:     KanikoImage,
 		Stdin:     true,
 		StdinOnce: true,
-		Args:      []string{"--context=dir:///workspace", fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify"},
+		Args:      []string{"--context=dir:///workspace", fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify", "--reproducible"},
 	}
 	if len(KanikoArgs) > 0 {
 		container.Args = append(container.Args, KanikoArgs...)
