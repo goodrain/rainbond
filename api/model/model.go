@@ -472,6 +472,7 @@ type HandleResource struct {
 	Kind         string `json:"kind"`
 	Namespace    string `json:"namespace"`
 	ResourceYaml string `json:"resource_yaml"`
+	State        int    `json:"state"`
 }
 
 // SyncResources -
@@ -2186,14 +2187,14 @@ type RainbondPlugins struct {
 	Name        string `json:"name"`
 	TeamName    string `json:"team_name"`
 	//Namespace   string `json:"namespace"`
-	Icon         string            `json:"icon"`
-	Description  string            `json:"description"`
-	Version      string            `json:"version"`
-	Author       string            `json:"author"`
-	Status       string            `json:"status"`
-	Alias        string            `json:"alias"`
-	AccessURLs   []string          `json:"access_urls"`
-	Labels       map[string]string `json:"labels"`
+	Icon        string            `json:"icon"`
+	Description string            `json:"description"`
+	Version     string            `json:"version"`
+	Author      string            `json:"author"`
+	Status      string            `json:"status"`
+	Alias       string            `json:"alias"`
+	AccessURLs  []string          `json:"access_urls"`
+	Labels      map[string]string `json:"labels"`
 }
 
 // CreateUpdateGovernanceModeReq -
