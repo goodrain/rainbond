@@ -1,8 +1,7 @@
 package conversion
 
 import (
-	"fmt"
-	"strconv"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"time"
 
 	"github.com/goodrain/rainbond/db"
@@ -73,32 +72,20 @@ func createServiceMonitor(as *v1.AppService, dbmanager db.Manager) []*mv1.Servic
 		sm.Name = tsm.Name
 		sm.Labels = as.GetCommonLabels()
 		sm.Namespace = as.GetNamespace()
-		var portProtocol string
-		for _, p := range service.Spec.Ports {
-			if int(p.Port) == tsm.Port {
-				portProtocol = service.Labels[fmt.Sprintf("port_protocol_%v", p.Port)]
-			}
-		}
 		sm.Spec = mv1.ServiceMonitorSpec{
 			// service label app_name
 			JobLabel:          "app_name",
 			NamespaceSelector: mv1.NamespaceSelector{Any: true},
 			Selector: metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"service_port":  strconv.Itoa(tsm.Port),
-					"port_protocol": portProtocol,
-					"name":          service.Labels["name"],
-					"service_type":  service.Labels["service_type"],
-				},
+				MatchLabels: map[string]string{"name": service.Labels["name"]},
 			},
 			Endpoints: []mv1.Endpoint{
-				mv1.Endpoint{
-					Port:     service.Spec.Ports[0].Name,
-					Path:     tsm.Path,
-					Interval: tsm.Interval,
+				{
+					TargetPort: &intstr.IntOrString{Type: intstr.Int, IntVal: int32(tsm.Port)},
+					Path:       tsm.Path,
+					Interval:   tsm.Interval,
 				},
 			},
-			TargetLabels: []string{"service_id", "tenant_id", "app_id"},
 		}
 		re = append(re, &sm)
 	}
