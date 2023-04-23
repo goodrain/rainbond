@@ -122,7 +122,7 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 		Image:     re.KanikoImage,
 		Stdin:     true,
 		StdinOnce: true,
-		Args:      []string{fmt.Sprintf("--context=%v", re.SourceDir), fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify"},
+		Args:      []string{fmt.Sprintf("--context=%v", re.SourceDir), fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify", "--reproducible"},
 	}
 	if len(re.KanikoArgs) > 0 {
 		container.Args = append(container.Args, re.KanikoArgs...)
