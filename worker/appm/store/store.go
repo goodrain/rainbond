@@ -1303,7 +1303,7 @@ func (a *appRuntimeStore) HandleOperatorManagedService(app *v1.OperatorManaged) 
 func (a *appRuntimeStore) HandleOperatorManagedDeployment(app *v1.OperatorManaged) []*pb.ManagedDeployment {
 	deploys := app.GetDeployment()
 	var deployList []*pb.ManagedDeployment
-	if deploys != nil {
+	if deploys != nil && len(deploys) > 0 {
 		operatorPods, err := a.clientset.CoreV1().Pods(deploys[0].GetNamespace()).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("get pod by label appid failure: %v", err)
@@ -1326,7 +1326,7 @@ func (a *appRuntimeStore) HandleOperatorManagedDeployment(app *v1.OperatorManage
 func (a *appRuntimeStore) HandleOperatorManagedStatefulSet(app *v1.OperatorManaged) []*pb.ManagedStatefulSet {
 	statefulSets := app.GetStatefulSet()
 	var stsList []*pb.ManagedStatefulSet
-	if statefulSets != nil {
+	if statefulSets != nil && len(statefulSets) > 0 {
 		operatorPods, err := a.clientset.CoreV1().Pods(statefulSets[0].GetNamespace()).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			logrus.Errorf("sts get pod by label appid failure: %v", err)
