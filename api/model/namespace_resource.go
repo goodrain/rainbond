@@ -33,4 +33,6 @@ const (
 	Gateway = "Gateway"
 	//HTTPRoute -
 	HTTPRoute = "HTTPRoute"
+	//ClusterRoleBinding -
+	ClusterRoleBinding = "ClusterRoleBinding"
 )
