@@ -468,6 +468,7 @@ func (m *Manager) ExecServiceGCTask(task *model.Task) error {
 	m.garbageCollector.DelVolumeData(serviceGCReq)
 	m.garbageCollector.DelKubernetesObjects(serviceGCReq)
 	m.garbageCollector.DelComponentPkg(serviceGCReq)
+	m.garbageCollector.DelShellPod()
 	return nil
 }
 
