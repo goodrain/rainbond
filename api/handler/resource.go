@@ -3,12 +3,14 @@ package handler
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/sirupsen/logrus"
+	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -261,6 +263,7 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 			unstructuredObj.SetUID("")
 			fallthrough
 		case "create":
+			unstructuredObj = c.ResourceProcessing(unstructuredObj, namespace)
 			addLabelsFunc(unstructuredObj)
 			obj, err := buildResource.Dri.Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
 			if err != nil {
@@ -296,4 +299,39 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 		}
 	}
 	return buildResourceList
+}
+
+// ResourceProcessing -
+func (c *clusterAction) ResourceProcessing(unstructuredObj *unstructured.Unstructured, namespace string) *unstructured.Unstructured {
+	if unstructuredObj.GetKind() == model.RoleBinding {
+		var rb v1.RoleBinding
+		var subjects []v1.Subject
+		rbJSON, _ := json.Marshal(unstructuredObj)
+		_ = json.Unmarshal(rbJSON, &rb)
+		for _, subject := range rb.Subjects {
+			if subject.Namespace != "" {
+				subject.Namespace = namespace
+				subjects = append(subjects, subject)
+			}
+		}
+		rb.Subjects = subjects
+		unstructuredMap, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(&rb)
+		unstructuredObj.Object = unstructuredMap
+	}
+	if unstructuredObj.GetKind() == model.ClusterRoleBinding {
+		var crb v1.ClusterRoleBinding
+		var subjects []v1.Subject
+		crbJSON, _ := json.Marshal(unstructuredObj)
+		_ = json.Unmarshal(crbJSON, &crb)
+		for _, subject := range crb.Subjects {
+			if subject.Namespace != "" {
+				subject.Namespace = namespace
+				subjects = append(subjects, subject)
+			}
+		}
+		crb.Subjects = subjects
+		unstructuredMap, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(&crb)
+		unstructuredObj.Object = unstructuredMap
+	}
+	return unstructuredObj
 }
