@@ -569,10 +569,13 @@ func (c *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err 
 			MountPath: "/root/.rbd",
 		},
 	}
+	labels := make(map[string]string)
+	labels["app.kubernetes.io/part-of"] = "shell-tool"
 	shellPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: fmt.Sprintf("shell-%v-", regionName),
 			Namespace:    c.namespace,
+			Labels:       labels,
 		},
 		Spec: corev1.PodSpec{
 			TerminationGracePeriodSeconds: new(int64),
