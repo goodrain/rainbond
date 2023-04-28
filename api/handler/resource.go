@@ -10,6 +10,7 @@ import (
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,6 +43,7 @@ func (c *clusterAction) AddAppK8SResource(ctx context.Context, namespace string,
 				State:         resource.State,
 			})
 		} else {
+			resourceObject.Resource = c.ResourceProcessing(resourceObject.Resource, namespace)
 			rsYaml, _ := ObjectToJSONORYaml("yaml", resourceObject.Resource)
 			resourceList = append(resourceList, &dbmodel.K8sResource{
 				AppID:         appID,
@@ -332,6 +334,16 @@ func (c *clusterAction) ResourceProcessing(unstructuredObj *unstructured.Unstruc
 		crb.Subjects = subjects
 		unstructuredMap, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(&crb)
 		unstructuredObj.Object = unstructuredMap
+	}
+	if unstructuredObj.GetKind() == model.Service {
+		var service corev1.Service
+		serviceJSON, _ := json.Marshal(unstructuredObj)
+		_ = json.Unmarshal(serviceJSON, &service)
+		service.Spec.ClusterIP = ""
+		service.Spec.ClusterIPs = nil
+		unstructuredMap, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(&service)
+		unstructuredObj.Object = unstructuredMap
+		return unstructuredObj
 	}
 	return unstructuredObj
 }
