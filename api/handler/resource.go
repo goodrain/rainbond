@@ -9,6 +9,7 @@ import (
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/mq/client"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/rbac/v1"
@@ -102,7 +103,17 @@ func (c *clusterAction) UpdateAppK8SResource(ctx context.Context, namespace, app
 
 // DeleteAppK8SResource -
 func (c *clusterAction) DeleteAppK8SResource(ctx context.Context, namespace, appID, name, resourceYaml, kind string) {
-	c.HandleResourceYaml([]byte(resourceYaml), namespace, "delete", name, nil)
+	body := make(map[string]interface{})
+	body["resource_yaml"] = resourceYaml
+	err := c.mqclient.SendBuilderTopic(client.TaskStruct{
+		Topic:    client.WorkerTopic,
+		TaskType: "delete_k8s_resource",
+		TaskBody: body,
+	})
+	if err != nil {
+		fmt.Errorf("unexpected error occurred while sending task: %v", err)
+		return
+	}
 }
 
 // SyncAppK8SResources -

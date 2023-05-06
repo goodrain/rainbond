@@ -19,6 +19,7 @@
 package server
 
 import (
+	"k8s.io/client-go/restmapper"
 	"os"
 	"os/signal"
 	"syscall"
@@ -92,6 +93,12 @@ func Run(s *option.Worker) error {
 		logrus.Errorf("create kube runtime client error: %s", err.Error())
 		return err
 	}
+	// rest mapper
+	gr, err := restmapper.GetAPIGroupResources(clientset)
+	if err != nil {
+		return err
+	}
+	mapper := restmapper.NewDiscoveryRESTMapper(gr)
 	rainbondClient := versioned.NewForConfigOrDie(restConfig)
 	//step 3: create componentdefinition builder factory
 	componentdefinition.NewComponentDefinitionBuilder(s.Config.RBDNamespace)
@@ -120,7 +127,7 @@ func Run(s *option.Worker) error {
 
 	//step 7 : create discover module
 	garbageCollector := gc.NewGarbageCollector(clientset)
-	taskManager := discover.NewTaskManager(s.Config, cachestore, controllerManager, garbageCollector)
+	taskManager := discover.NewTaskManager(s.Config, cachestore, controllerManager, garbageCollector, restConfig, mapper, clientset)
 	if err := taskManager.Start(); err != nil {
 		return err
 	}
