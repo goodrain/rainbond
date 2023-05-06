@@ -223,7 +223,7 @@ func (a *ApplicationAction) DeleteConfigGroup(appID, configGroupName string) err
 	return nil
 }
 
-// DeleteConfigGroup -
+// BatchDeleteConfigGroup -
 func (a *ApplicationAction) BatchDeleteConfigGroup(appID, configGroupNames string) error {
 	names := strings.Split(configGroupNames, ",")
 	tx := db.GetManager().Begin()
