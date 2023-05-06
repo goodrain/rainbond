@@ -220,6 +220,7 @@ type ApplicationInterface interface {
 	ListServices(w http.ResponseWriter, r *http.Request)
 	ListHelmAppReleases(w http.ResponseWriter, r *http.Request)
 	DeleteConfigGroup(w http.ResponseWriter, r *http.Request)
+	BatchDeleteConfigGroup(w http.ResponseWriter, r *http.Request)
 	ListConfigGroups(w http.ResponseWriter, r *http.Request)
 	SyncComponents(w http.ResponseWriter, r *http.Request)
 	SyncAppConfigGroups(w http.ResponseWriter, r *http.Request)

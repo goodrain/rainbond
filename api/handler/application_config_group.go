@@ -7,6 +7,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
+	"strings"
 )
 
 // AddConfigGroup -
@@ -211,6 +212,39 @@ func (a *ApplicationAction) DeleteConfigGroup(appID, configGroupName string) err
 	}
 	// Delete application configGroup
 	if err := db.GetManager().AppConfigGroupDaoTransactions(tx).DeleteConfigGroup(appID, configGroupName); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	return nil
+}
+
+// DeleteConfigGroup -
+func (a *ApplicationAction) BatchDeleteConfigGroup(appID, configGroupNames string) error {
+	names := strings.Split(configGroupNames, ",")
+	tx := db.GetManager().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Errorf("Unexpected panic occurred, rollback transaction: %v", r)
+			tx.Rollback()
+		}
+	}()
+	// Batch Delete application configGroup-services
+	if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).BatchDeleteConfigGroupService(appID, names); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// Batch Delete application configGroup-configItem
+	if err := db.GetManager().AppConfigGroupItemDaoTransactions(tx).BatchDeleteConfigGroupItem(appID, names); err != nil {
+		tx.Rollback()
+		return err
+	}
+	// Batch Delete application configGroup
+	if err := db.GetManager().AppConfigGroupDaoTransactions(tx).BatchDeleteConfigGroup(appID, names); err != nil {
 		tx.Rollback()
 		return err
 	}

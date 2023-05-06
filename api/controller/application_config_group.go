@@ -84,6 +84,20 @@ func (a *ApplicationController) DeleteConfigGroup(w http.ResponseWriter, r *http
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+// BatchDeleteConfigGroup -
+func (a *ApplicationController) BatchDeleteConfigGroup(w http.ResponseWriter, r *http.Request) {
+	configGroupnames := chi.URLParam(r, "config_group_names")
+	appID := r.Context().Value(ctxutil.ContextKey("app_id")).(string)
+
+	// batch delete app ConfigGroups
+	err := handler.GetApplicationHandler().BatchDeleteConfigGroup(appID, configGroupnames)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
 // ListConfigGroups -
 func (a *ApplicationController) ListConfigGroups(w http.ResponseWriter, r *http.Request) {
 	appID := r.Context().Value(ctxutil.ContextKey("app_id")).(string)
