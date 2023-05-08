@@ -437,11 +437,6 @@ func (a *ApplicationAction) DeleteAppByK8sApp(tenantID, k8sApp string) error {
 }
 
 func (a *ApplicationAction) deleteRainbondApp(app *dbmodel.Application) error {
-	// can't delete rainbond app with components
-	if err := a.isContainComponents(app.AppID); err != nil {
-		return err
-	}
-
 	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
 		return errors.WithMessage(a.deleteApp(tx, app), "delete app from db")
 	})
