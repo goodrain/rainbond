@@ -55,6 +55,8 @@ const (
 	K8sAttributeNameVolumeClaimTemplate = "volumeClaimTemplate"
 	//K8sAttributeNameENVFromSource -
 	K8sAttributeNameENVFromSource = "envFromSource"
+	//K8sAttributeNameSecurityContext -
+	K8sAttributeNameSecurityContext = "securityContext"
 )
 
 // ComponentK8sAttributes -

@@ -215,6 +215,10 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 	if err != nil {
 		return nil, err
 	}
+	security, err := createSecurityContext(as, dbmanager)
+	if err != nil {
+		return nil, err
+	}
 	c := &corev1.Container{
 		Name:           as.K8sComponentName,
 		Image:          imagename,
@@ -226,6 +230,7 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		LivenessProbe:  createProbe(as, dbmanager, "liveness"),
 		ReadinessProbe: createProbe(as, dbmanager, "readiness"),
 		Resources:      resources,
+		SecurityContext: security,
 	}
 	label, err := dbmanager.TenantServiceLabelDao().GetPrivilegedLabel(as.ServiceID)
 	if err != nil && err != gorm.ErrRecordNotFound {
@@ -1197,6 +1202,29 @@ func createLifecycle(as *v1.AppService, dbmanager db.Manager) (*corev1.Lifecycle
 	}
 	return &lifecycle, nil
 }
+
+func createSecurityContext(as *v1.AppService, dbmanager db.Manager) (*corev1.SecurityContext, error) {
+	var securityContext corev1.SecurityContext
+	sc, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameSecurityContext)
+	if err != nil {
+		logrus.Debug("get by securityContext attribute error", err)
+		return nil, err
+	}
+	if sc != nil {
+		securityContextJSON, err := yaml.YAMLToJSON([]byte(sc.AttributeValue))
+		if err != nil {
+			logrus.Debug("securityContext yaml to json error", err)
+			return nil, err
+		}
+		err = json.Unmarshal(securityContextJSON, &securityContext)
+		if err != nil {
+			logrus.Debug("securityContext json unmarshal error", err)
+			return nil, err
+		}
+	}
+	return &securityContext, nil
+}
+
 
 func handleResource(resources corev1.ResourceRequirements, customResources *corev1.ResourceRequirements) (res corev1.ResourceRequirements) {
 	var haveMemory bool
