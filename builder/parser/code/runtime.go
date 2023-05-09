@@ -85,6 +85,10 @@ func readPHPRuntimeInfo(buildPath string) (map[string]string, error) {
 			version = "7.2.26"
 		case "7.3":
 			version = "7.3.13"
+		case "8.1":
+			version = "8.1.18"
+		case "8.2":
+			version = "8.2.5"
 		}
 		return version
 	}
@@ -96,18 +100,18 @@ func readPHPRuntimeInfo(buildPath string) (map[string]string, error) {
 					return nil, ErrRuntimeNotSupport
 				}
 				if version[0:2] == ">=" {
-					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1", "7.3"}, version[2:3]) {
+					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1", "7.3", "8.1", "8.2"}, version[2:3]) {
 						return nil, ErrRuntimeNotSupport
 					}
 					version = getPhpNewVersion(version[2:3])
 				}
 				if version[0] == '~' {
-					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1", "7.3"}, version[1:3]) {
+					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1", "7.3", "8.1", "8.2"}, version[1:3]) {
 						return nil, ErrRuntimeNotSupport
 					}
 					version = getPhpNewVersion(version[1:3])
 				} else {
-					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1", "7.3"}, version[0:3]) {
+					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1", "7.3", "8.1", "8.2"}, version[0:3]) {
 						return nil, ErrRuntimeNotSupport
 					}
 					version = getPhpNewVersion(version[0:3])
