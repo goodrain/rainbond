@@ -10,6 +10,7 @@ import (
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	mqclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/util/constants"
@@ -80,7 +81,7 @@ type ClusterHandler interface {
 }
 
 // NewClusterHandler -
-func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface, rainbondClient versioned.Interface, statusCli *workerclient.AppRuntimeSyncClient, dynamicClient dynamic.Interface, gatewayClient *gateway.GatewayV1beta1Client) ClusterHandler {
+func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface, rainbondClient versioned.Interface, statusCli *workerclient.AppRuntimeSyncClient, dynamicClient dynamic.Interface, gatewayClient *gateway.GatewayV1beta1Client, mqclient mqclient.MQClient) ClusterHandler {
 	return &clusterAction{
 		namespace:      RbdNamespace,
 		clientset:      clientset,
@@ -92,6 +93,7 @@ func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage
 		statusCli:      statusCli,
 		dynamicClient:  dynamicClient,
 		gatewayClient:  gatewayClient,
+		mqclient:       mqclient,
 	}
 }
 
@@ -109,6 +111,7 @@ type clusterAction struct {
 	statusCli        *workerclient.AppRuntimeSyncClient
 	dynamicClient    dynamic.Interface
 	gatewayClient    *gateway.GatewayV1beta1Client
+	mqclient         mqclient.MQClient
 }
 
 type nodePod struct {

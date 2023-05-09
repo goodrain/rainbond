@@ -88,6 +88,7 @@ type AppConfigGroupDao interface {
 	ListByServiceID(sid string) ([]*model.ApplicationConfigGroup, error)
 	GetConfigGroupsByAppID(appID string, page, pageSize int) ([]*model.ApplicationConfigGroup, int64, error)
 	DeleteConfigGroup(appID, configGroupName string) error
+	BatchDeleteConfigGroup(appID string, configGroupName []string) error
 	DeleteByAppID(appID string) error
 	CreateOrUpdateConfigGroupsInBatch(cgroups []*model.ApplicationConfigGroup) error
 }
@@ -97,6 +98,7 @@ type AppConfigGroupServiceDao interface {
 	Dao
 	GetConfigGroupServicesByID(appID, configGroupName string) ([]*model.ConfigGroupService, error)
 	DeleteConfigGroupService(appID, configGroupName string) error
+	BatchDeleteConfigGroupService(appID string, configGroupNames []string) error
 	DeleteEffectiveServiceByServiceID(serviceID string) error
 	DeleteByComponentIDs(componentIDs []string) error
 	CreateOrUpdateConfigGroupServicesInBatch(cgservices []*model.ConfigGroupService) error
@@ -109,6 +111,7 @@ type AppConfigGroupItemDao interface {
 	GetConfigGroupItemsByID(appID, configGroupName string) ([]*model.ConfigGroupItem, error)
 	ListByServiceID(sid string) ([]*model.ConfigGroupItem, error)
 	DeleteConfigGroupItem(appID, configGroupName string) error
+	BatchDeleteConfigGroupItem(appID string, configGroupNames []string) error
 	DeleteByAppID(appID string) error
 	CreateOrUpdateConfigGroupItemsInBatch(cgitems []*model.ConfigGroupItem) error
 }

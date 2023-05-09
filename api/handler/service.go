@@ -2191,9 +2191,6 @@ func (s *ServiceAction) TransServieToDelete(ctx context.Context, tenantID, servi
 		logrus.Infof("service[%s] of tenant[%s] do not exist, ignore it", serviceID, tenantID)
 		return nil
 	}
-	if err := s.isServiceClosed(serviceID); err != nil {
-		return err
-	}
 
 	body, err := s.gcTaskBody(tenantID, serviceID)
 	if err != nil {

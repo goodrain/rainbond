@@ -7,6 +7,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
+	"strings"
 )
 
 // AddConfigGroup -
@@ -220,6 +221,23 @@ func (a *ApplicationAction) DeleteConfigGroup(appID, configGroupName string) err
 		return err
 	}
 	return nil
+}
+
+// BatchDeleteConfigGroup -
+func (a *ApplicationAction) BatchDeleteConfigGroup(appID, configGroupNames string) error {
+	names := strings.Split(configGroupNames, ",")
+	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
+		if err := db.GetManager().AppConfigGroupServiceDaoTransactions(tx).BatchDeleteConfigGroupService(appID, names); err != nil {
+			return err
+		}
+		if err := db.GetManager().AppConfigGroupItemDaoTransactions(tx).BatchDeleteConfigGroupItem(appID, names); err != nil {
+			return err
+		}
+		if err := db.GetManager().AppConfigGroupDaoTransactions(tx).BatchDeleteConfigGroup(appID, names); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // ListConfigGroups -

@@ -66,6 +66,7 @@ type ApplicationHandler interface {
 	ListHelmAppReleases(ctx context.Context, app *dbmodel.Application) ([]*model.HelmAppRelease, error)
 
 	DeleteConfigGroup(appID, configGroupName string) error
+	BatchDeleteConfigGroup(appID, configGroupNames string) error
 	ListConfigGroups(appID string, page, pageSize int) (*model.ListApplicationConfigGroupResp, error)
 	SyncComponents(app *dbmodel.Application, components []*model.Component, deleteComponentIDs []string) error
 	SyncComponentConfigGroupRels(tx *gorm.DB, app *dbmodel.Application, components []*model.Component) error
@@ -436,11 +437,6 @@ func (a *ApplicationAction) DeleteAppByK8sApp(tenantID, k8sApp string) error {
 }
 
 func (a *ApplicationAction) deleteRainbondApp(app *dbmodel.Application) error {
-	// can't delete rainbond app with components
-	if err := a.isContainComponents(app.AppID); err != nil {
-		return err
-	}
-
 	return db.GetManager().DB().Transaction(func(tx *gorm.DB) error {
 		return errors.WithMessage(a.deleteApp(tx, app), "delete app from db")
 	})

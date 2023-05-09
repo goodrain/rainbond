@@ -413,6 +413,7 @@ func (v2 *V2) applicationRouter() chi.Router {
 	r.Get("/releases", controller.GetManager().ListHelmAppReleases)
 
 	r.Delete("/configgroups/{config_group_name}", controller.GetManager().DeleteConfigGroup)
+	r.Delete("/configgroups/{config_group_names}/batch", controller.GetManager().BatchDeleteConfigGroup)
 	r.Get("/configgroups", controller.GetManager().ListConfigGroups)
 
 	// Synchronize component information, full coverage

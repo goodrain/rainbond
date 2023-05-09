@@ -21,6 +21,9 @@ package discover
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"os"
 	"time"
 
@@ -52,16 +55,22 @@ type TaskManager struct {
 	config        option.Config
 	handleManager *handle.Manager
 	client        client.MQClient
+	restConfig    *rest.Config
+	mapper        meta.RESTMapper
+	clientset     *kubernetes.Clientset
 }
 
 //NewTaskManager return *TaskManager
 func NewTaskManager(cfg option.Config,
 	store store.Storer,
 	controllermanager *controller.Manager,
-	garbageCollector *gc.GarbageCollector) *TaskManager {
+	garbageCollector *gc.GarbageCollector,
+	restConfig *rest.Config,
+	mapper meta.RESTMapper,
+	clientset *kubernetes.Clientset) *TaskManager {
 
 	ctx, cancel := context.WithCancel(context.Background())
-	handleManager := handle.NewManager(ctx, cfg, store, controllermanager, garbageCollector)
+	handleManager := handle.NewManager(ctx, cfg, store, controllermanager, garbageCollector, restConfig, mapper)
 	healthStatus["status"] = "health"
 	healthStatus["info"] = "worker service health"
 	return &TaskManager{
@@ -69,6 +78,9 @@ func NewTaskManager(cfg option.Config,
 		cancel:        cancel,
 		config:        cfg,
 		handleManager: handleManager,
+		restConfig:    restConfig,
+		mapper:        mapper,
+		clientset:     clientset,
 	}
 }
 

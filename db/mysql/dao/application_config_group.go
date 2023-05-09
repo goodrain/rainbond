@@ -73,6 +73,11 @@ func (a *AppConfigGroupDaoImpl) DeleteConfigGroup(appID, configGroupName string)
 	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ApplicationConfigGroup{}).Error
 }
 
+//BatchDeleteConfigGroup -
+func (a *AppConfigGroupDaoImpl) BatchDeleteConfigGroup(appID string, configGroupNames []string) error {
+	return a.DB.Where("app_id = ? AND config_group_name in (?)", appID, configGroupNames).Delete(model.ApplicationConfigGroup{}).Error
+}
+
 //DeleteByAppID -
 func (a *AppConfigGroupDaoImpl) DeleteByAppID(appID string) error {
 	return a.DB.Where("app_id = ?", appID).Delete(model.ApplicationConfigGroup{}).Error
@@ -142,6 +147,11 @@ func (a *AppConfigGroupServiceDaoImpl) GetConfigGroupServicesByID(appID, configG
 //DeleteConfigGroupService -
 func (a *AppConfigGroupServiceDaoImpl) DeleteConfigGroupService(appID, configGroupName string) error {
 	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ConfigGroupService{}).Error
+}
+
+//BatchDeleteConfigGroupService -
+func (a *AppConfigGroupServiceDaoImpl) BatchDeleteConfigGroupService(appID string, configGroupNames []string) error {
+	return a.DB.Where("app_id = ? AND config_group_name in (?)", appID, configGroupNames).Delete(model.ConfigGroupService{}).Error
 }
 
 //DeleteEffectiveServiceByServiceID -
@@ -236,6 +246,11 @@ func (a *AppConfigGroupItemDaoImpl) ListByServiceID(sid string) ([]*model.Config
 //DeleteConfigGroupItem -
 func (a *AppConfigGroupItemDaoImpl) DeleteConfigGroupItem(appID, configGroupName string) error {
 	return a.DB.Where("app_id = ? AND config_group_name = ?", appID, configGroupName).Delete(model.ConfigGroupItem{}).Error
+}
+
+//BatchDeleteConfigGroupItem -
+func (a *AppConfigGroupItemDaoImpl) BatchDeleteConfigGroupItem(appID string, configGroupNames []string) error {
+	return a.DB.Where("app_id = ? AND config_group_name in (?)", appID, configGroupNames).Delete(model.ConfigGroupItem{}).Error
 }
 
 //DeleteByAppID -

@@ -19,6 +19,9 @@
 package model
 
 import (
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"time"
 
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
@@ -173,6 +176,13 @@ func NewTaskBody(taskType string, body []byte) TaskBody {
 			return nil
 		}
 		return &b
+	case "delete_k8s_resource":
+		b := &DeleteK8sResourceTaskBody{}
+		err := ffjson.Unmarshal(body, &b)
+		if err != nil {
+			return nil
+		}
+		return b
 	default:
 		return DefaultTaskBody{}
 	}
@@ -380,6 +390,22 @@ type ApplyRegistryAuthSecretTaskBody struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
+
+// DeleteK8sResourceTaskBody -
+type DeleteK8sResourceTaskBody struct {
+	ResourceYaml string `json:"resource_yaml"`
+}
+
+//BuildResource -
+type BuildResource struct {
+	Resource      *unstructured.Unstructured
+	State         int
+	ErrorOverview string
+	Dri           dynamic.ResourceInterface
+	DC            dynamic.Interface
+	GVK           *schema.GroupVersionKind
+}
+
 
 //DefaultTaskBody 默认操作任务主体
 type DefaultTaskBody map[string]interface{}
