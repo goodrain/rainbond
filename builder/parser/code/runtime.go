@@ -73,21 +73,10 @@ func readPHPRuntimeInfo(buildPath string) (map[string]string, error) {
 	getPhpNewVersion := func(v string) string {
 		version := v
 		switch v {
-		case "5.5":
-			version = "5.5.38"
-		case "5.6":
-			version = "5.6.35"
-		case "7.0":
-			version = "7.0.29"
-		case "7.1":
-			version = "7.1.33"
-		case "7.2":
-			version = "7.2.26"
-		case "7.3":
-			version = "7.3.13"
 		case "8.1":
 			version = "8.1.18"
-		case "8.2":
+		// "7.1 compatible with old official demos"
+		case "7.1", "8.2":
 			version = "8.2.5"
 		}
 		return version
@@ -100,18 +89,18 @@ func readPHPRuntimeInfo(buildPath string) (map[string]string, error) {
 					return nil, ErrRuntimeNotSupport
 				}
 				if version[0:2] == ">=" {
-					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1", "7.3", "8.1", "8.2"}, version[2:3]) {
+					if !util.StringArrayContains([]string{"7.1", "8.1", "8.2"}, version[2:3]) {
 						return nil, ErrRuntimeNotSupport
 					}
 					version = getPhpNewVersion(version[2:3])
 				}
 				if version[0] == '~' {
-					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1", "7.3", "8.1", "8.2"}, version[1:3]) {
+					if !util.StringArrayContains([]string{"7.1", "8.1", "8.2"}, version[1:3]) {
 						return nil, ErrRuntimeNotSupport
 					}
 					version = getPhpNewVersion(version[1:3])
 				} else {
-					if !util.StringArrayContains([]string{"5.5", "5.6", "7.0", "7.1", "7.3", "8.1", "8.2"}, version[0:3]) {
+					if !util.StringArrayContains([]string{"7.1", "8.1", "8.2"}, version[0:3]) {
 						return nil, ErrRuntimeNotSupport
 					}
 					version = getPhpNewVersion(version[0:3])
@@ -174,7 +163,7 @@ func readNodeRuntimeInfo(buildPath string) (map[string]string, error) {
 			nodeVersion, _ := v.String()
 			// The latest version is used by default. (11.1.0 is latest version in ui)
 			if strings.HasPrefix(nodeVersion, ">") || strings.HasPrefix(nodeVersion, "*") || strings.HasPrefix(nodeVersion, "^") {
-				nodeVersion = "11.1.0"
+				nodeVersion = "20.0.0"
 			}
 			runtimeInfo["RUNTIMES"] = nodeVersion
 		}
