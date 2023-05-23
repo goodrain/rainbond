@@ -436,6 +436,10 @@ type EventDao interface {
 	GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error)
 	UnfinishedEvents(target, targetID string, optTypes ...string) ([]*model.ServiceEvent, error)
 	LatestFailurePodEvent(podName string) (*model.ServiceEvent, error)
+	GetAppointEvent(serviceID, status, Opt string) (*model.ServiceEvent, error)
+	AbnormalEvent(serviceID, Opt string) (*model.ServiceEvent, error)
+	DelAbnormalEvent(serviceID, Opt string) error
+	DelAllAbnormalEvent(serviceID string, Opts []string) error
 	UpdateReason(eventID string, reason string) error
 	SetEventStatus(ctx context.Context, status model.EventStatus) error
 	DeleteEvents(eventIDs []string) error

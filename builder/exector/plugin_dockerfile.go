@@ -89,7 +89,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 	if err := util.CheckAndCreateDir(sourceDir); err != nil {
 		return err
 	}
-	if _, err := sources.GitClone(sources.CodeSourceInfo{RepositoryURL: t.GitURL, Branch: t.Repo, User: t.GitUsername, Password: t.GitPassword}, sourceDir, logger, 4); err != nil {
+	if _, _, err := sources.GitClone(sources.CodeSourceInfo{RepositoryURL: t.GitURL, Branch: t.Repo, User: t.GitUsername, Password: t.GitPassword}, sourceDir, logger, 4); err != nil {
 		logger.Error("拉取代码失败", map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("[plugin]git clone code error %v", err)
 		return err

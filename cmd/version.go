@@ -37,5 +37,5 @@ func ShowVersion(module string) {
 
 //GetVersion GetVersion
 func GetVersion() string {
-	return version
+	return "v5.14"
 }

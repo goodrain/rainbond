@@ -265,6 +265,45 @@ func (c *EventDaoImpl) LatestFailurePodEvent(podName string) (*model.ServiceEven
 	return &event, nil
 }
 
+//GetAppointEvent get event log message
+func (c *EventDaoImpl) GetAppointEvent(serviceID, status, Opt string) (*model.ServiceEvent, error) {
+	var result model.ServiceEvent
+	if err := c.DB.Where("service_id=? and status=? and opt_type=?", serviceID, status, Opt).Last(&result).Error; err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// AbnormalEvent Abnormal event in components.
+func (c *EventDaoImpl) AbnormalEvent(serviceID, Opt string) (*model.ServiceEvent, error) {
+	var event model.ServiceEvent
+	if err := c.DB.Where("target=? and service_id=? and opt_type=? and status=?", model.TargetTypePod, serviceID, Opt, model.EventStatusFailure.String()).
+		Last(&event).Error; err != nil {
+		return nil, err
+	}
+	return &event, nil
+}
+
+// DelAbnormalEvent delete Abnormal event in components.
+func (c *EventDaoImpl) DelAbnormalEvent(serviceID, Opt string) error {
+	var event model.ServiceEvent
+	if err := c.DB.Where("target=? and service_id=? and opt_type=? and status=?", model.TargetTypePod, serviceID, Opt, model.EventStatusFailure.String()).
+		Delete(&event).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// DelAllAbnormalEvent delete all Abnormal event in components when stop.
+func (c *EventDaoImpl) DelAllAbnormalEvent(serviceID string, Opts []string) error {
+	var event model.ServiceEvent
+	if err := c.DB.Where("target=? and service_id=? and opt_type in (?) and status=?", model.TargetTypePod, serviceID, Opts, model.EventStatusFailure.String()).
+		Delete(&event).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
 // SetEventStatus -
 func (c *EventDaoImpl) SetEventStatus(ctx context.Context, status model.EventStatus) error {
 	event, _ := ctx.Value(ctxutil.ContextKey("event")).(*model.ServiceEvent)

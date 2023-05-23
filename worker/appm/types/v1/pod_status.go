@@ -37,3 +37,4 @@ func IsPodNodeLost(pod *corev1.Pod) bool {
 	}
 	return false
 }
+
