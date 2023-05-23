@@ -2024,16 +2024,18 @@ func (s *ServiceAction) CreateTenant(t *dbmodel.Tenants) error {
 				return err
 			}
 		}
-		if _, err := s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   t.Namespace,
-				Labels: labels,
-			},
-		}, metav1.CreateOptions{}); err != nil {
-			if k8sErrors.IsAlreadyExists(err) {
-				return bcode.ErrNamespaceExists
+		if t.Namespace != "default" {
+			if _, err := s.kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   t.Namespace,
+					Labels: labels,
+				},
+			}, metav1.CreateOptions{}); err != nil {
+				if k8sErrors.IsAlreadyExists(err) {
+					return bcode.ErrNamespaceExists
+				}
+				return err
 			}
-			return err
 		}
 		return nil
 	})
