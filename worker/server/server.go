@@ -338,7 +338,6 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 			oldpods = append(oldpods, sapod)
 		}
 	}
-
 	return &pb.ServiceAppPodList{
 		OldPods: oldpods,
 		NewPods: newpods,

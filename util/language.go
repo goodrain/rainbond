@@ -46,6 +46,13 @@ var translationMetadata = map[string]string{
 	"Check for log location imgae source errors":     "建议查看日志定位镜像源错误",
 	"create share image task error":                  "分享任务失败，请检查服务信息或查看日志",
 	"get rbd-repo ip failure":                        "获取依赖仓库IP地址失败，请检查rbd-repo组件信息",
+	"reparse code lange error":                       "重新解析代码语言错误",
+	"get code commit info error":                     "读取代码版本信息失败",
+	"pull git code error":                            "拉取代码失败",
+	"git project warehouse address format error":     "Git项目仓库地址格式错误",
+	"prepare build code error":                       "准备源码构建失败",
+	"Checkout svn code failed, please make sure the code can be downloaded properly": "检查svn代码失败，请确保代码可以被正常下载",
+
 }
 
 //Translation Translation English to Chinese

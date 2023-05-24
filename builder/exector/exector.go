@@ -307,7 +307,7 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 				i.Logger.Error("The application task to build from the mirror failed to execute，will try", map[string]string{"step": "build-exector", "status": "failure"})
 			} else {
 				MetricErrorTaskNum++
-				i.Logger.Error(util.Translation("Check for log location imgae source errors"), map[string]string{"step": "callback", "status": "failure"})
+				i.Logger.Error(i.FailCause, map[string]string{"step": "callback", "status": "failure"})
 				if err := i.UpdateVersionInfo("failure"); err != nil {
 					logrus.Debugf("update version Info error: %s", err.Error())
 				}
@@ -361,7 +361,7 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	err := i.Run(time.Minute * 30)
 	if err != nil {
 		logrus.Errorf("build from source code error: %s", err.Error())
-		i.Logger.Error(util.Translation("Check for log location code errors"), map[string]string{"step": "callback", "status": "failure"})
+		i.Logger.Error(i.FailCause, map[string]string{"step": "callback", "status": "failure"})
 		vi := &dbmodel.VersionInfo{
 			FinalStatus: "failure",
 			EventID:     i.EventID,
