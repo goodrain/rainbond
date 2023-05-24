@@ -89,6 +89,8 @@ build::binary() {
 	if [ "$GOOS" = "windows" ]; then
 		mv "$OUTPATH" "${OUTPATH}.exe"
 	fi
+	sudo apt-get install -y upx
+	sudo upx --best --lzma "${OUTPATH}"
 }
 
 build::image() {
