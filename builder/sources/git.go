@@ -225,7 +225,7 @@ Loop:
 			}
 			return rs, errMsg, err
 		}
-		if err == plumbing.ErrReferenceNotFound {
+		if err == plumbing.ErrReferenceNotFound || strings.Contains(err.Error(), "couldn't find remote ref") {
 			errMsg := fmt.Sprintf("代码分支(%s)不存在。", csi.Branch)
 			if logger != nil {
 				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
