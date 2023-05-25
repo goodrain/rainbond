@@ -152,10 +152,11 @@ Loop:
 		publichFile := GetPrivateFile(GetPrivateFileParam)
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
+			errMsg := fmt.Sprintf("创建SSH PublicKeys错误")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("Create PublicKeys failure"), map[string]string{"step": "clone-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
-			return nil, "", auerr
+			return nil, errMsg, auerr
 		}
 		sshAuth.HostKeyCallbackHelper.HostKeyCallback = netssh.InsecureIgnoreHostKey()
 		opts.Auth = sshAuth
@@ -301,10 +302,11 @@ Loop:
 		publichFile := GetPrivateFile(GetPrivateFileParam)
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
+			errMsg := fmt.Sprintf("创建SSH PublicKeys错误")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("创建PublicKeys错误"), map[string]string{"step": "pull-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
-			return nil, "", auerr
+			return nil, errMsg, auerr
 		}
 		sshAuth.HostKeyCallbackHelper.HostKeyCallback = netssh.InsecureIgnoreHostKey()
 		opts.Auth = sshAuth
