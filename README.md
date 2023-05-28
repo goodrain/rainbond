@@ -1,4 +1,4 @@
-<img src="https://grstatic.oss-cn-shanghai.aliyuncs.com/images/rainbond%20log_full.png" width="60%">
+<img src="https://static.goodrain.com/logo/logo-long.png" width="60%">
 
 [![Rainbond](https://jaywcjlove.github.io/sb/lang/chinese.svg)](README-zh.md)
 [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
