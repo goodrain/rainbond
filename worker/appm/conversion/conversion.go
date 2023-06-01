@@ -63,17 +63,18 @@ func RegistConversion(name string, fun Conversion) {
 }
 
 //InitAppService init a app service
-func InitAppService(dryRun bool, dbmanager db.Manager, serviceID string, configs map[string]string, enableConversionList ...string) (*v1.AppService, error) {
+func InitAppService(sharedStorageClass string, dryRun bool, dbmanager db.Manager, serviceID string, configs map[string]string, enableConversionList ...string) (*v1.AppService, error) {
 	if configs == nil {
 		configs = make(map[string]string)
 	}
 
 	appService := &v1.AppService{
 		AppServiceBase: v1.AppServiceBase{
-			ServiceID:      serviceID,
-			ExtensionSet:   configs,
-			GovernanceMode: model.GovernanceModeBuildInServiceMesh,
-			DryRun:         dryRun,
+			ServiceID:          serviceID,
+			ExtensionSet:       configs,
+			GovernanceMode:     model.GovernanceModeBuildInServiceMesh,
+			DryRun:             dryRun,
+			SharedStorageClass: sharedStorageClass,
 		},
 		UpgradePatch: make(map[string][]byte, 2),
 	}

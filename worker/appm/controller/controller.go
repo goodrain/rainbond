@@ -21,6 +21,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/cmd/worker/option"
 	"sync"
 
 	"github.com/goodrain/rainbond/util"
@@ -74,10 +75,11 @@ type Manager struct {
 	controllers   map[string]Controller
 	store         store.Storer
 	lock          sync.Mutex
+	config        option.Config
 }
 
 //NewManager new manager
-func NewManager(store store.Storer, client kubernetes.Interface, runtimeClient client.Client) *Manager {
+func NewManager(config option.Config, store store.Storer, client kubernetes.Interface, runtimeClient client.Client) *Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Manager{
 		ctx:           ctx,
@@ -87,6 +89,7 @@ func NewManager(store store.Storer, client kubernetes.Interface, runtimeClient c
 		runtimeClient: runtimeClient,
 		controllers:   make(map[string]Controller),
 		store:         store,
+		config:        config,
 	}
 }
 
@@ -165,6 +168,7 @@ func (m *Manager) StartController(controllerType TypeController, apps ...v1.AppS
 			manager:      m,
 			stopChan:     make(chan struct{}),
 			ctx:          context.Background(),
+			cfg:          m.config,
 		}
 	case TypeApplyRuleController:
 		controller = &applyRuleController{

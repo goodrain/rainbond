@@ -165,7 +165,7 @@ func (m *Manager) startExec(task *model.Task) error {
 		event.GetManager().ReleaseLogger(logger)
 		return nil
 	}
-	newAppService, err := conversion.InitAppService(false, m.dbmanager, body.ServiceID, body.Configs)
+	newAppService, err := conversion.InitAppService(m.cfg.SharedStorageClass, false, m.dbmanager, body.ServiceID, body.Configs)
 	if err != nil {
 		logrus.Errorf("component init create failure:%s", err.Error())
 		logger.Error("component init create failure", event.GetCallbackLoggerOption())
@@ -328,7 +328,7 @@ func (m *Manager) verticalScalingExec(task *model.Task) error {
 	appService.ContainerMemory = service.ContainerMemory
 	appService.ContainerGPU = service.ContainerGPU
 	appService.Logger = logger
-	newAppService, err := conversion.InitAppService(false, m.dbmanager, body.ServiceID, nil)
+	newAppService, err := conversion.InitAppService(m.cfg.SharedStorageClass, false, m.dbmanager, body.ServiceID, nil)
 	if err != nil {
 		logrus.Errorf("component init create failure:%s", err.Error())
 		logger.Error("component init create failure", event.GetCallbackLoggerOption())
@@ -355,7 +355,7 @@ func (m *Manager) rollingUpgradeExec(task *model.Task) error {
 		return fmt.Errorf("rolling_upgrade body convert to taskbody error")
 	}
 	logger := event.GetManager().GetLogger(body.EventID)
-	newAppService, err := conversion.InitAppService(body.DryRun, m.dbmanager, body.ServiceID, body.Configs)
+	newAppService, err := conversion.InitAppService(m.cfg.SharedStorageClass, body.DryRun, m.dbmanager, body.ServiceID, body.Configs)
 	if err != nil {
 		logrus.Errorf("component init create failure:%s", err.Error())
 		logger.Error("component init create failure", event.GetCallbackLoggerOption())
@@ -427,10 +427,10 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	}
 	var newAppService *v1.AppService
 	if svc.Kind == dbmodel.ServiceKindThirdParty.String() {
-		newAppService, err = conversion.InitAppService(false, m.dbmanager, body.ServiceID, nil,
+		newAppService, err = conversion.InitAppService(m.cfg.SharedStorageClass, false, m.dbmanager, body.ServiceID, nil,
 			"ServiceSource", "TenantServiceBase", "TenantServiceRegist")
 	} else {
-		newAppService, err = conversion.InitAppService(false, m.dbmanager, body.ServiceID, nil)
+		newAppService, err = conversion.InitAppService(m.cfg.SharedStorageClass, false, m.dbmanager, body.ServiceID, nil)
 	}
 	if err != nil {
 		logrus.Errorf("component init create failure:%s", err.Error())
@@ -463,7 +463,7 @@ func (m *Manager) applyPluginConfig(task *model.Task) error {
 		logrus.Debugf("service is closed,no need handle")
 		return nil
 	}
-	newApp, err := conversion.InitAppService(false, m.dbmanager, body.ServiceID, nil, "ServiceSource", "TenantServiceBase", "TenantServicePlugin")
+	newApp, err := conversion.InitAppService(m.cfg.SharedStorageClass, false, m.dbmanager, body.ServiceID, nil, "ServiceSource", "TenantServiceBase", "TenantServicePlugin")
 	if err != nil {
 		logrus.Errorf("component apply plugin config controller failure:%s", err.Error())
 		return err
@@ -556,7 +556,7 @@ func (m *Manager) ExecRefreshHPATask(task *model.Task) error {
 		return nil
 	}
 
-	newAppService, err := conversion.InitAppService(false, m.dbmanager, body.ServiceID, nil)
+	newAppService, err := conversion.InitAppService(m.cfg.SharedStorageClass, false, m.dbmanager, body.ServiceID, nil)
 	if err != nil {
 		logrus.Errorf("component init create failure:%s", err.Error())
 		logger.Error("component init create failure", event.GetCallbackLoggerOption())

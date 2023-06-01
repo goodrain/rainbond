@@ -113,12 +113,14 @@ type AppServiceBase struct {
 	IsWindowsService bool
 	CreaterID        string
 	//depend all service id
-	Dependces        []string
-	ExtensionSet     map[string]string
-	GovernanceMode   string
-	K8sApp           string
-	K8sComponentName string
-	DryRun           bool
+	Dependces          []string
+	ExtensionSet       map[string]string
+	GovernanceMode     string
+	K8sApp             string
+	K8sComponentName   string
+	Safety             *dbmodel.TenantServiceSecurityContext
+	DryRun             bool
+	SharedStorageClass string
 }
 
 //GetComponentDefinitionName get component definition name by component kind
