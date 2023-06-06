@@ -220,16 +220,16 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		return nil, err
 	}
 	c := &corev1.Container{
-		Name:           as.K8sComponentName,
-		Image:          imagename,
-		Args:           args,
-		Ports:          ports,
-		Env:            envs,
-		EnvFrom:        envFromSecrets,
-		VolumeMounts:   vm,
-		LivenessProbe:  createProbe(as, dbmanager, "liveness"),
-		ReadinessProbe: createProbe(as, dbmanager, "readiness"),
-		Resources:      resources,
+		Name:            as.K8sComponentName,
+		Image:           imagename,
+		Args:            args,
+		Ports:           ports,
+		Env:             envs,
+		EnvFrom:         envFromSecrets,
+		VolumeMounts:    vm,
+		LivenessProbe:   createProbe(as, dbmanager, "liveness"),
+		ReadinessProbe:  createProbe(as, dbmanager, "readiness"),
+		Resources:       resources,
 		SecurityContext: security,
 	}
 	label, err := dbmanager.TenantServiceLabelDao().GetPrivilegedLabel(as.ServiceID)
@@ -402,7 +402,11 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 	envs = append(envs, corev1.EnvVar{Name: "NAMESPACE", Value: as.GetNamespace()})
 	envs = append(envs, corev1.EnvVar{Name: "TENANT_ID", Value: as.TenantID})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_ID", Value: as.ServiceID})
-	envs = append(envs, corev1.EnvVar{Name: "MEMORY_SIZE", Value: envutil.GetMemoryType(as.ContainerMemory)})
+	if envutil.IsCustomMemory(as.ContainerMemory) {
+		envs = append(envs, corev1.EnvVar{Name: "CUSTOM_MEMORY_SIZE", Value: strconv.Itoa(as.ContainerMemory)})
+	} else {
+		envs = append(envs, corev1.EnvVar{Name: "MEMORY_SIZE", Value: envutil.GetMemoryType(as.ContainerMemory)})
+	}
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_NAME", Value: as.GetK8sWorkloadName()})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_ALIAS", Value: as.ServiceAlias})
 	envs = append(envs, corev1.EnvVar{Name: "SERVICE_POD_NUM", Value: strconv.Itoa(as.Replicas)})
@@ -1224,7 +1228,6 @@ func createSecurityContext(as *v1.AppService, dbmanager db.Manager) (*corev1.Sec
 	}
 	return &securityContext, nil
 }
-
 
 func handleResource(resources corev1.ResourceRequirements, customResources *corev1.ResourceRequirements) (res corev1.ResourceRequirements) {
 	var haveMemory bool

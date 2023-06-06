@@ -1,7 +1,10 @@
 package podevent
 
 import (
+	"context"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"sort"
 	"strings"
 	"time"
@@ -29,6 +32,9 @@ func (p EventType) String() string {
 
 // EventTypeOOMKilled -
 var EventTypeOOMKilled EventType = "OOMKilled"
+
+// EventTypeCrashLoopBackOff -
+var EventTypeCrashLoopBackOff EventType = "CrashLoopBackOff"
 
 // EventTypeAbnormalExited container exits abnormally
 var EventTypeAbnormalExited EventType = "AbnormalExited"
@@ -95,6 +101,9 @@ func (p *PodEvent) Handle() {
 			if time.Now().Sub(pod.CreationTimestamp.Time) > 10*time.Minute {
 				recordUpdateEvent(p.clientset, pod, defDetermineOptType)
 			}
+			if time.Now().Sub(pod.CreationTimestamp.Time) > 10*time.Second {
+				AbnormalEvent(p.clientset, pod)
+			}
 		case <-p.stopCh:
 			return
 		}
@@ -105,6 +114,8 @@ func (p *PodEvent) Handle() {
 func (p *PodEvent) GetChan() chan<- *corev1.Pod {
 	return p.podEventCh
 }
+
+//recordUpdateEvent -
 func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determineOptType) {
 	evt, err := db.GetManager().ServiceEventDao().LatestFailurePodEvent(pod.GetName())
 	if err != nil && err != gorm.ErrRecordNotFound {
@@ -124,7 +135,7 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 		}
 
 		if evt == nil { // create event
-			eventID, err = createSystemEvent(tenantID, serviceID, pod.GetName(), optType.eventType.String(), model.EventStatusFailure.String())
+			eventID, err = createSystemEvent(tenantID, serviceID, pod.GetName(), optType.eventType.String(), model.EventStatusFailure.String(), optType.message)
 			if err != nil {
 				logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), optType.eventType.String(), err)
 				return
@@ -165,7 +176,7 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 				logrus.Warningf("event id: %s; failed to update service event: %v", evt.EventID, err)
 			} else {
 				loggerOpt = event.GetCallbackLoggerOption()
-				_, err := createSystemEvent(tenantID, serviceID, pod.GetName(), EventTypeAbnormalRecovery.String(), model.EventStatusSuccess.String())
+				_, err := createSystemEvent(tenantID, serviceID, pod.GetName(), EventTypeAbnormalRecovery.String(), model.EventStatusSuccess.String(), "")
 				if err != nil {
 					logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), EventTypeAbnormalRecovery.String(), err)
 					return
@@ -176,9 +187,184 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 	}
 }
 
+// AbnormalEvent -
+func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
+	tenantID, serviceID, _, _ := k8sutil.ExtractLabels(pod.GetLabels())
+	if pod != nil && pod.Status.Phase == corev1.PodPending {
+		for _, condition := range pod.Status.Conditions {
+			if condition.Type == corev1.PodScheduled && condition.Status == "False" {
+				var msg string
+				if strings.Contains(condition.Message, "affinity/selector") {
+					msg = "不满足节点亲和性"
+				}
+				if strings.Contains(condition.Message, "cpu") {
+					msg = "节点CPU不足"
+				}
+				if strings.Contains(condition.Message, "memory") {
+					msg = "节点内存不足"
+				}
+				if strings.Contains(condition.Message, "PersistentVolumeClaims") {
+					msg = "当前没有绑定 PVC"
+				}
+				if strings.Contains(condition.Message, "tolerate") {
+					msg = "节点存在污点"
+				}
+				unSchedulableEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "Unschedulable")
+				if err != nil && err != gorm.ErrRecordNotFound {
+					logrus.Warningf("error fetching latest unfinished pod event: %v", err)
+					return
+				}
+				if unSchedulableEvent != nil {
+					return
+				}
+				_, err = createSystemEvent(tenantID, serviceID, pod.Name, condition.Reason, model.EventStatusFailure.String(), msg)
+				if err != nil {
+					logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), EventTypeAbnormalRecovery.String(), err)
+					return
+				}
+			}
+			if condition.Type == corev1.PodInitialized && condition.Status == "False" {
+				serviceRelations, err := db.GetManager().TenantServiceRelationDao().GetTenantServiceRelations(serviceID)
+				if err != nil && err != gorm.ErrRecordNotFound {
+					logrus.Warningf("error fetching service relations: %v", err)
+					return
+				}
+				var serviceIDs []string
+				if serviceRelations != nil {
+					for _, serviceRelation := range serviceRelations {
+						serviceIDs = append(serviceIDs, serviceRelation.DependServiceID)
+					}
+				} else {
+					return
+				}
+				services, err := db.GetManager().TenantServiceDao().GetServiceByIDs(serviceIDs)
+				if err != nil {
+					logrus.Warningf("get service relations ids: %v", err)
+					return
+				}
+				var serviceNames []string
+				for _, service := range services {
+					tenant, err := db.GetManager().TenantDao().GetTenantByUUID(service.TenantID)
+					if err != nil {
+						logrus.Warningf("get service event tenant info error: %v", err)
+					}
+					servicePods, err := clientset.CoreV1().Pods(tenant.Namespace).List(context.Background(), metav1.ListOptions{
+						LabelSelector: fields.SelectorFromSet(map[string]string{
+							"service_id": service.ServiceID,
+						}).String(),
+					})
+					if err != nil {
+						logrus.Warningf("get service relations pods error: %v", err)
+						return
+					}
+					for _, servicePod := range servicePods.Items {
+						if servicePod.Status.Phase == corev1.PodPending {
+							serviceNames = append(serviceNames, service.ServiceAlias)
+						}
+					}
+				}
+				if serviceNames == nil {
+					return
+				}
+				msg := strings.Join(serviceNames, ",")
+				// Update component Waiting for startup events
+				initEvents, err := db.GetManager().ServiceEventDao().GetAppointEvent(serviceID, "failure", "INITIATING")
+				if err != nil && err != gorm.ErrRecordNotFound {
+					logrus.Warningf("get start time out event error: %v", err)
+				}
+				if initEvents != nil {
+					initEvents.Message = msg
+					err = db.GetManager().ServiceEventDao().UpdateModel(initEvents)
+					if err != nil {
+						logrus.Warningf("update start time out event error: %v", err)
+					}
+					return
+				}
+				_, err = createSystemEvent(tenantID, serviceID, pod.Name, "INITIATING", model.EventStatusFailure.String(), msg)
+				if err != nil {
+					logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), EventTypeAbnormalRecovery.String(), err)
+					return
+				}
+			}
+		}
+	}
+	if pod != nil && pod.Status.Phase == corev1.PodRunning {
+		servicePods, err := clientset.CoreV1().Pods(pod.GetNamespace()).List(context.Background(), metav1.ListOptions{
+			FieldSelector: "metadata.namespace!=rbd-system",
+			LabelSelector: fields.SelectorFromSet(map[string]string{
+				"service_id": serviceID,
+			}).String(),
+		})
+		if err != nil {
+			return
+		}
+		allPodRunning := true
+		allCtrRunning := true
+		for _, servicePod := range servicePods.Items {
+			if servicePod.Status.Phase != corev1.PodRunning {
+				allPodRunning = false
+			}
+			for _, containerStatus := range servicePod.Status.ContainerStatuses {
+				if containerStatus.State.Running == nil {
+					allCtrRunning = false
+				}
+			}
+		}
+		if allPodRunning {
+			err = db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, "Unschedulable")
+			if err != nil {
+				logrus.Warningf("Delete component scheduling pod event: %v", err)
+			}
+			// Update last startup component timeout events
+			startEvents, err := db.GetManager().ServiceEventDao().GetAppointEvent(serviceID, "timeout", "start-service")
+			if err != nil && err != gorm.ErrRecordNotFound {
+				logrus.Warningf("get start time out event error: %v", err)
+			}
+			if startEvents != nil {
+				startEvents.Message = "Start service success"
+				startEvents.Status = "success"
+				err = db.GetManager().ServiceEventDao().UpdateModel(startEvents)
+				if err != nil {
+					logrus.Warningf("update start time out event error: %v", err)
+				}
+			}
+			// delete Waiting for start event
+			err = db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, "INITIATING")
+			if err != nil && err != gorm.ErrRecordNotFound {
+				logrus.Warningf("delete INITIATING event error: %v", err)
+				return
+			}
+		}
+		if allCtrRunning {
+			err := db.GetManager().ServiceEventDao().DelAbnormalEvent(serviceID, "CrashLoopBackOff")
+			if err != nil {
+				logrus.Warningf("Delete component scheduling pod event: %v", err)
+			}
+		}
+		for _, containerStatus := range pod.Status.ContainerStatuses {
+			if containerStatus.State.Waiting != nil && containerStatus.State.Waiting.Reason == EventTypeCrashLoopBackOff.String() {
+				unSchedulableEvent, err := db.GetManager().ServiceEventDao().AbnormalEvent(serviceID, "CrashLoopBackOff")
+				if err != nil && err != gorm.ErrRecordNotFound {
+					logrus.Warningf("error fetching latest unfinished pod event: %v", err)
+					return
+				}
+				if unSchedulableEvent != nil {
+					return
+				}
+				_, err = createSystemEvent(tenantID, serviceID, pod.Name, containerStatus.State.Waiting.Reason, model.EventStatusFailure.String(), "服务运行异常，请检查容器日志")
+				if err != nil {
+					logrus.Warningf("pod: %s; type: %s; error creating event: %v", pod.GetName(), EventTypeAbnormalRecovery.String(), err)
+					return
+				}
+			}
+		}
+	}
+}
+
 // determine the type of exception
 type determineOptType func(clientset kubernetes.Interface, pod *corev1.Pod, f k8sutil.ListEventsByPod) *optType
 
+// defDetermineOptType -
 func defDetermineOptType(clientset kubernetes.Interface, pod *corev1.Pod, f k8sutil.ListEventsByPod) *optType {
 	oneContainerOptType := func(state corev1.ContainerState) (EventType, string) {
 		if state.Terminated != nil {
@@ -234,7 +420,8 @@ func defDetermineOptType(clientset kubernetes.Interface, pod *corev1.Pod, f k8su
 	return optTypeMap[keys[0]]
 }
 
-func createSystemEvent(tenantID, serviceID, targetID, optType, status string) (eventID string, err error) {
+// createSystemEvent -
+func createSystemEvent(tenantID, serviceID, targetID, optType, status, msg string) (eventID string, err error) {
 	eventID = util.NewUUID()
 	et := &model.ServiceEvent{
 		EventID:     eventID,
@@ -246,6 +433,7 @@ func createSystemEvent(tenantID, serviceID, targetID, optType, status string) (e
 		OptType:     optType,
 		Status:      status,
 		FinalStatus: model.EventFinalStatusEmpty.String(),
+		Message:     msg,
 	}
 	if err = db.GetManager().ServiceEventDao().AddModel(et); err != nil {
 		return

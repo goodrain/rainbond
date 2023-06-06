@@ -166,10 +166,16 @@ func getPodNameByPVCName(pvcName string) string {
 func getVolumeIDByPVCName(pvcName string) int {
 	logrus.Debug("parse volume id from pvc name", pvcName)
 	pvcNames := strings.SplitN(pvcName, "-", 2)
+	// pvcNames 通常情况下为 "manual15-zk-zk-gr3cd1a1-0" 或 "manual6", 但是在使用 Helm 部署时，由于存储使用集群内部的 StorageClass
+	// 并不是 rainbondsssc 或 rainbondsslc，所以此时的 pvcNames 可能是 "data-sonar-gra7c815-0", 此时就会触发切片越界，但实际上对于
+	// 这类存储，应该交给 K8s 集群中的 StorageClass 处理
 	if len(pvcNames) == 2 {
-		idStr := pvcNames[0][6:]
-		id, _ := strconv.Atoi(idStr)
-		return id
+		if len(pvcNames[0]) > 6 {
+			idStr := pvcNames[0][6:]
+			id, _ := strconv.Atoi(idStr)
+			return id
+		}
+		return 0
 	}
 	if strings.HasPrefix(pvcName, "manual") {
 		idStr := strings.TrimPrefix(pvcName, "manual")
@@ -212,7 +218,7 @@ func updatePathForPersistentVolumeSource(persistentVolumeSource *v1.PersistentVo
 			Path: newPath(persistentVolumeSource.HostPath.Path),
 			Type: persistentVolumeSource.HostPath.Type,
 		}
-	case persistentVolumeSource.CSI != nil :
+	case persistentVolumeSource.CSI != nil:
 		source.CSI = persistentVolumeSource.CSI
 	default:
 		return nil, fmt.Errorf("unsupported persistence volume source")

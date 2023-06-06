@@ -21,6 +21,8 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/db"
+	"github.com/jinzhu/gorm"
 	"sync"
 	"time"
 
@@ -59,6 +61,10 @@ func (s *stopController) Begin() {
 				}
 			} else {
 				service.Logger.Info(fmt.Sprintf("stop service %s success", service.ServiceAlias), event.GetLastLoggerOption())
+				err = db.GetManager().ServiceEventDao().DelAllAbnormalEvent(service.ServiceID, []string{"INITIATING", "CrashLoopBackOff", "Unschedulable"})
+				if err != nil && err != gorm.ErrRecordNotFound {
+					logrus.Error("delete abnormal event error: ", err)
+				}
 			}
 		}(service)
 	}

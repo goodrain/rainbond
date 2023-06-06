@@ -114,7 +114,7 @@ func getShowURL(rurl string) string {
 }
 
 //GitClone git clone code
-func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
+func GitClone(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
 	GetPrivateFileParam := csi.TenantID
 	if !strings.HasSuffix(csi.RepositoryURL, ".git") {
 		csi.RepositoryURL = csi.RepositoryURL + ".git"
@@ -127,7 +127,7 @@ Loop:
 	}
 	ep, err := transport.NewEndpoint(csi.RepositoryURL)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if timeout < 1 {
 		timeout = 1
@@ -152,10 +152,11 @@ Loop:
 		publichFile := GetPrivateFile(GetPrivateFileParam)
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
+			errMsg := fmt.Sprintf("创建SSH PublicKeys错误")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("Create PublicKeys failure"), map[string]string{"step": "clone-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
-			return nil, auerr
+			return nil, errMsg, auerr
 		}
 		sshAuth.HostKeyCallbackHelper.HostKeyCallback = netssh.InsecureIgnoreHostKey()
 		opts.Auth = sshAuth
@@ -192,39 +193,45 @@ Loop:
 	}
 	if err != nil {
 		if reerr := os.RemoveAll(sourceDir); reerr != nil {
+			errMsg := fmt.Sprintf("拉取代码发生错误删除代码目录失败。")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误删除代码目录失败。"), map[string]string{"step": "clone-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
 		}
 		if err == transport.ErrAuthenticationRequired {
+			errMsg := fmt.Sprintf("拉取代码发生错误，代码源需要授权访问。")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源需要授权访问。"), map[string]string{"step": "clone-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
-			return rs, err
+			return rs, errMsg, err
 		}
 		if err == transport.ErrAuthorizationFailed {
+			errMsg := fmt.Sprintf("拉取代码发生错误，代码源鉴权失败。")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，代码源鉴权失败。"), map[string]string{"step": "clone-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
-			return rs, err
+			return rs, errMsg, err
 		}
 		if err == transport.ErrRepositoryNotFound {
+			errMsg := fmt.Sprintf("拉取代码发生错误，仓库不存在。")
 			if logger != nil {
 				logger.Error(fmt.Sprintf("拉取代码发生错误，仓库不存在。"), map[string]string{"step": "clone-code", "status": "failure"})
 			}
-			return rs, err
+			return rs, errMsg, err
 		}
 		if err == transport.ErrEmptyRemoteRepository {
+			errMsg := fmt.Sprintf("拉取代码发生错误，远程仓库为空。")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("拉取代码发生错误，远程仓库为空。"), map[string]string{"step": "clone-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
-			return rs, err
+			return rs, errMsg, err
 		}
-		if err == plumbing.ErrReferenceNotFound {
+		if err == plumbing.ErrReferenceNotFound || strings.Contains(err.Error(), "couldn't find remote ref") {
+			errMsg := fmt.Sprintf("代码分支(%s)不存在。", csi.Branch)
 			if logger != nil {
-				logger.Error(fmt.Sprintf("代码分支(%s)不存在。", csi.Branch), map[string]string{"step": "clone-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
-			return rs, fmt.Errorf("branch %s is not exist", csi.Branch)
+			return rs, errMsg, fmt.Errorf("branch %s is not exist", csi.Branch)
 		}
 		if strings.Contains(err.Error(), "ssh: unable to authenticate") {
 
@@ -233,19 +240,21 @@ Loop:
 				flag = false
 				goto Loop
 			}
+			errMsg := fmt.Sprintf("远程代码库需要配置SSH Key。")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("远程代码库需要配置SSH Key。"), map[string]string{"step": "clone-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
-			return rs, err
+			return rs, errMsg, err
 		}
 		if strings.Contains(err.Error(), "context deadline exceeded") {
+			errMsg := fmt.Sprintf("获取代码超时")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("获取代码超时"), map[string]string{"step": "clone-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "clone-code", "status": "failure"})
 			}
-			return rs, err
+			return rs, errMsg, err
 		}
 	}
-	return rs, err
+	return rs, "", err
 }
 func retryAuth(ep *transport.Endpoint, csi CodeSourceInfo) (transport.AuthMethod, error) {
 	switch ep.Protocol {
@@ -263,7 +272,7 @@ func retryAuth(ep *transport.Endpoint, csi CodeSourceInfo) (transport.AuthMethod
 }
 
 //GitPull git pull code
-func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
+func GitPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
 	GetPrivateFileParam := csi.TenantID
 	flag := true
 Loop:
@@ -287,16 +296,17 @@ Loop:
 	}
 	ep, err := transport.NewEndpoint(csi.RepositoryURL)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if ep.Protocol == "ssh" {
 		publichFile := GetPrivateFile(GetPrivateFileParam)
 		sshAuth, auerr := ssh.NewPublicKeysFromFile("git", publichFile, "")
 		if auerr != nil {
+			errMsg := fmt.Sprintf("创建SSH PublicKeys错误")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("创建PublicKeys错误"), map[string]string{"step": "pull-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
-			return nil, auerr
+			return nil, errMsg, auerr
 		}
 		sshAuth.HostKeyCallbackHelper.HostKeyCallback = netssh.InsecureIgnoreHostKey()
 		opts.Auth = sshAuth
@@ -322,44 +332,48 @@ Loop:
 	}
 	rs, err := git.PlainOpen(sourceDir)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	tree, err := rs.Worktree()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	err = tree.PullContext(ctx, opts)
 	if err != nil {
 		if err == transport.ErrAuthenticationRequired {
+			errMsg := fmt.Sprintf("更新代码发生错误，代码源需要授权访问。")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("更新代码发生错误，代码源需要授权访问。"), map[string]string{"step": "pull-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
-			return rs, err
+			return rs, errMsg, err
 		}
 		if err == transport.ErrAuthorizationFailed {
-
+			errMsg := fmt.Sprintf("更新代码发生错误，代码源鉴权失败。")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("更新代码发生错误，代码源鉴权失败。"), map[string]string{"step": "pull-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
-			return rs, err
+			return rs, errMsg, err
 		}
 		if err == transport.ErrRepositoryNotFound {
+			errMsg := fmt.Sprintf("更新代码发生错误，仓库不存在。")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("更新代码发生错误，仓库不存在。"), map[string]string{"step": "pull-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
-			return rs, err
+			return rs, errMsg, err
 		}
 		if err == transport.ErrEmptyRemoteRepository {
+			errMsg := fmt.Sprintf("更新代码发生错误，远程仓库为空。")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("更新代码发生错误，远程仓库为空。"), map[string]string{"step": "pull-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
-			return rs, err
+			return rs, errMsg, err
 		}
 		if err == plumbing.ErrReferenceNotFound {
+			errMsg := fmt.Sprintf("代码分支(%s)不存在。", csi.Branch)
 			if logger != nil {
-				logger.Error(fmt.Sprintf("代码分支(%s)不存在。", csi.Branch), map[string]string{"step": "pull-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
-			return rs, fmt.Errorf("branch %s is not exist", csi.Branch)
+			return rs, errMsg, fmt.Errorf("branch %s is not exist", csi.Branch)
 		}
 		if strings.Contains(err.Error(), "ssh: unable to authenticate") {
 			if flag {
@@ -367,30 +381,32 @@ Loop:
 				flag = false
 				goto Loop
 			}
+			errMsg := fmt.Sprintf("远程代码库需要配置SSH Key。")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("远程代码库需要配置SSH Key。"), map[string]string{"step": "pull-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
-			return rs, err
+			return rs, errMsg, err
 		}
 		if strings.Contains(err.Error(), "context deadline exceeded") {
+			errMsg := fmt.Sprintf("更新代码超时")
 			if logger != nil {
-				logger.Error(fmt.Sprintf("更新代码超时"), map[string]string{"step": "pull-code", "status": "failure"})
+				logger.Error(errMsg, map[string]string{"step": "pull-code", "status": "failure"})
 			}
-			return rs, err
+			return rs, errMsg, err
 		}
 		if err == git.NoErrAlreadyUpToDate {
-			return rs, nil
+			return rs, "", nil
 		}
 	}
-	return rs, err
+	return rs, "", err
 }
 
 //GitCloneOrPull if code exist in local,use git pull.
-func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, error) {
+func GitCloneOrPull(csi CodeSourceInfo, sourceDir string, logger event.Logger, timeout int) (*git.Repository, string, error) {
 	if ok, err := util.FileExists(path.Join(sourceDir, ".git")); err == nil && ok && !strings.HasPrefix(csi.Branch, "tag:") {
-		re, err := GitPull(csi, sourceDir, logger, timeout)
+		re, msg, err := GitPull(csi, sourceDir, logger, timeout)
 		if err == nil && re != nil {
-			return re, nil
+			return re, msg, nil
 		}
 		logrus.Error("git pull source code error,", err.Error())
 	}

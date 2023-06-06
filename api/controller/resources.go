@@ -48,7 +48,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//V2Routes v2Routes
+// V2Routes v2Routes
 type V2Routes struct {
 	ClusterController
 	NodesController
@@ -66,7 +66,7 @@ type V2Routes struct {
 	HelmStruct
 }
 
-//Show test
+// Show test
 func (v2 *V2Routes) Show(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/show v2 getApiVersion
 	//
@@ -86,12 +86,12 @@ func (v2 *V2Routes) Show(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(cmd.GetVersion()))
 }
 
-//Health show health status
+// Health show health status
 func (v2 *V2Routes) Health(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, map[string]string{"status": "health", "info": "api service health"})
 }
 
-//AlertManagerWebHook -
+// AlertManagerWebHook -
 func (v2 *V2Routes) AlertManagerWebHook(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("=======>webhook")
 	in, err := ioutil.ReadAll(r.Body)
@@ -106,18 +106,18 @@ func (v2 *V2Routes) AlertManagerWebHook(w http.ResponseWriter, r *http.Request) 
 
 }
 
-//Version -
+// Version -
 func (v2 *V2Routes) Version(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, map[string]string{"version": os.Getenv("RELEASE_DESC")})
 }
 
-//TenantStruct tenant struct
+// TenantStruct tenant struct
 type TenantStruct struct {
 	StatusCli *client.AppRuntimeSyncClient
 	MQClient  mqclient.MQClient
 }
 
-//AllTenantResources GetResources
+// AllTenantResources GetResources
 func (t *TenantStruct) AllTenantResources(w http.ResponseWriter, r *http.Request) {
 	tenants, err := handler.GetTenantManager().GetTenants("")
 	if err != nil {
@@ -142,7 +142,7 @@ func (t *TenantStruct) AllTenantResources(w http.ResponseWriter, r *http.Request
 	httputil.ReturnSuccess(r, w, ts.Data)
 }
 
-//TenantResources TenantResources
+// TenantResources TenantResources
 func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/resources/tenants v2 tenantResources
 	//
@@ -181,7 +181,7 @@ func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-//ServiceResources ServiceResources
+// ServiceResources ServiceResources
 func (t *TenantStruct) ServiceResources(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/resources/services v2 serviceResources
 	//
@@ -213,7 +213,7 @@ func (t *TenantStruct) ServiceResources(w http.ResponseWriter, r *http.Request) 
 	return
 }
 
-//TenantsQuery TenantsQuery
+// TenantsQuery TenantsQuery
 func (t *TenantStruct) TenantsQuery(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants/query/{tenant_name} v2 tenants
 	//
@@ -253,7 +253,7 @@ func (t *TenantStruct) TenantsQuery(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-//TenantsGetByName TenantsGetByName
+// TenantsGetByName TenantsGetByName
 func (t *TenantStruct) TenantsGetByName(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants/{tenant_name}/res v2 tenants
 	//
@@ -302,7 +302,7 @@ func (t *TenantStruct) TenantsGetByName(w http.ResponseWriter, r *http.Request) 
 	return
 }
 
-//TenantsWithResource TenantsWithResource
+// TenantsWithResource TenantsWithResource
 func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/resources/tenants/res/page/{curPage}/size/{pageLen} v2 PagedTenantResList
 	//
@@ -360,7 +360,7 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 	return
 }
 
-//SumTenants 统计租户数量
+// SumTenants 统计租户数量
 func (t *TenantStruct) SumTenants(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/resources/tenants/sum v2 sumTenants
 	//
@@ -389,7 +389,7 @@ func (t *TenantStruct) SumTenants(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, rc)
 }
 
-//Tenant one tenant controller
+// Tenant one tenant controller
 func (t *TenantStruct) Tenant(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
@@ -401,7 +401,7 @@ func (t *TenantStruct) Tenant(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//Tenants Tenant
+// Tenants Tenant
 func (t *TenantStruct) Tenants(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
@@ -411,7 +411,7 @@ func (t *TenantStruct) Tenants(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//AddTenant AddTenant
+// AddTenant AddTenant
 func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/tenants v2 addTenant
 	//
@@ -508,7 +508,7 @@ func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-//GetTenants GetTenants
+// GetTenants GetTenants
 func (t *TenantStruct) GetTenants(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants v2 getTenants
 	//
@@ -560,7 +560,7 @@ func (t *TenantStruct) GetTenants(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, re)
 }
 
-//DeleteTenant DeleteTenant
+// DeleteTenant DeleteTenant
 func (t *TenantStruct) DeleteTenant(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 
@@ -581,8 +581,8 @@ func (t *TenantStruct) DeleteTenant(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//UpdateTenant UpdateTenant
-//support update tenant limit memory
+// UpdateTenant UpdateTenant
+// support update tenant limit memory
 func (t *TenantStruct) UpdateTenant(w http.ResponseWriter, r *http.Request) {
 	var ts api_model.UpdateTenantStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ts.Body, nil)
@@ -598,14 +598,14 @@ func (t *TenantStruct) UpdateTenant(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, tenant)
 }
 
-//GetTenant get one tenant
+// GetTenant get one tenant
 func (t *TenantStruct) GetTenant(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	list := handler.GetTenantManager().BindTenantsResource([]*dbmodel.Tenants{tenant})
 	httputil.ReturnSuccess(r, w, list[0])
 }
 
-//ServicesCount Get all apps and status
+// ServicesCount Get all apps and status
 func (t *TenantStruct) ServicesCount(w http.ResponseWriter, r *http.Request) {
 	allStatus := t.StatusCli.GetAllStatus()
 	var closed int
@@ -625,7 +625,7 @@ func (t *TenantStruct) ServicesCount(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, serviceCount)
 }
 
-//ServicesInfo GetServiceInfo
+// ServicesInfo GetServiceInfo
 func (t *TenantStruct) ServicesInfo(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants/{tenant_name}/services v2 getServiceInfo
 	//
@@ -657,7 +657,7 @@ func (t *TenantStruct) ServicesInfo(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-//CreateService create Service
+// CreateService create Service
 func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 	var ss api_model.ServiceStruct
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &ss, nil) {
@@ -694,8 +694,10 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	ss.TenantID = tenantID
 	if err := handler.GetServiceManager().ServiceCreate(&ss); err != nil {
+		// The creation of a component should be idempotent, and if it has been successfully created,
+		// the error that the component already exists should not be thrown.
 		if strings.Contains(err.Error(), "is exist in tenant") {
-			httputil.ReturnError(r, w, 400, fmt.Sprintf("create service error, %v", err))
+			httputil.ReturnSuccess(r, w, nil)
 			return
 		}
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("create service error, %v", err))
@@ -705,7 +707,7 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//UpdateService create Service
+// UpdateService create Service
 func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias} v2 updateService
 	//
@@ -763,7 +765,7 @@ func (t *TenantStruct) UpdateService(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//SetLanguage SetLanguage
+// SetLanguage SetLanguage
 func (t *TenantStruct) SetLanguage(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST  /v2/tenants/{tenant_name}/services/{service_alias}/language v2 setLanguage
 	//
@@ -803,7 +805,7 @@ func (t *TenantStruct) SetLanguage(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-//StatusService StatusService
+// StatusService StatusService
 func (t *TenantStruct) StatusService(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias}/status v2 serviceStatus
 	//
@@ -835,12 +837,12 @@ func (t *TenantStruct) StatusService(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-//PostStatusService PostStatusService
+// PostStatusService PostStatusService
 func (t *TenantStruct) PostStatusService(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("in status service serviceID")
 }
 
-//StatusServiceList service list status
+// StatusServiceList service list status
 func (t *TenantStruct) StatusServiceList(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation POST /v2/tenants/{tenant_name}/services_status v2 serviceStatuslist
 	//
@@ -875,7 +877,7 @@ func (t *TenantStruct) StatusServiceList(w http.ResponseWriter, r *http.Request)
 	httputil.ReturnSuccess(r, w, info)
 }
 
-//Label -
+// Label -
 func (t *TenantStruct) Label(w http.ResponseWriter, r *http.Request) {
 	var req api_model.LabelsStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
@@ -934,7 +936,7 @@ func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request, label
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//UpdateLabel Update updates labels
+// UpdateLabel Update updates labels
 func (t *TenantStruct) UpdateLabel(w http.ResponseWriter, r *http.Request, labels *api_model.LabelsStruct) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	if err := handler.GetServiceManager().UpdateLabel(labels, serviceID); err != nil {
@@ -944,12 +946,12 @@ func (t *TenantStruct) UpdateLabel(w http.ResponseWriter, r *http.Request, label
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//StatusContainerID StatusContainerID
+// StatusContainerID StatusContainerID
 func (t *TenantStruct) StatusContainerID(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("status container IDs list"))
 }
 
-//SingleServiceInfo SingleServiceInfo
+// SingleServiceInfo SingleServiceInfo
 func (t *TenantStruct) SingleServiceInfo(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "DELETE":
@@ -959,7 +961,7 @@ func (t *TenantStruct) SingleServiceInfo(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-//GetSingleServiceInfo GetSingleServiceInfo
+// GetSingleServiceInfo GetSingleServiceInfo
 func (t *TenantStruct) GetSingleServiceInfo(w http.ResponseWriter, r *http.Request) {
 	// swagger:operation GET /v2/tenants/{tenant_name}/services/{service_alias} v2 getService
 	//
@@ -994,7 +996,7 @@ func (t *TenantStruct) GetSingleServiceInfo(w http.ResponseWriter, r *http.Reque
 	httputil.ReturnSuccess(r, w, result)
 }
 
-//DeleteSingleServiceInfo DeleteService
+// DeleteSingleServiceInfo DeleteService
 // swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias} v2 deleteService
 //
 // 删除应用
@@ -1011,10 +1013,11 @@ func (t *TenantStruct) GetSingleServiceInfo(w http.ResponseWriter, r *http.Reque
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) DeleteSingleServiceInfo(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
@@ -1035,7 +1038,7 @@ func (t *TenantStruct) DeleteSingleServiceInfo(w http.ResponseWriter, r *http.Re
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//Dependency Dependency
+// Dependency Dependency
 func (t *TenantStruct) Dependency(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "DELETE":
@@ -1045,7 +1048,7 @@ func (t *TenantStruct) Dependency(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//AddDependency AddDependency
+// AddDependency AddDependency
 // swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/dependency v2 addDependency
 //
 // 增加应用依赖关系
@@ -1062,10 +1065,11 @@ func (t *TenantStruct) Dependency(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) AddDependency(w http.ResponseWriter, r *http.Request) {
 	rules := validator.MapData{
 		"dep_service_id":   []string{"required"},
@@ -1089,7 +1093,7 @@ func (t *TenantStruct) AddDependency(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//DeleteDependency DeleteDependency
+// DeleteDependency DeleteDependency
 // swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/dependency v2 deleteDependency
 //
 // 删除应用依赖关系
@@ -1106,10 +1110,11 @@ func (t *TenantStruct) AddDependency(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) DeleteDependency(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("trans delete depend service ")
 	rules := validator.MapData{
@@ -1133,7 +1138,7 @@ func (t *TenantStruct) DeleteDependency(w http.ResponseWriter, r *http.Request) 
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//Env Env
+// Env Env
 func (t *TenantStruct) Env(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "DELETE":
@@ -1145,7 +1150,7 @@ func (t *TenantStruct) Env(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//AddEnv AddEnv
+// AddEnv AddEnv
 // swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/env v2 addEnv
 //
 // 增加环境变量
@@ -1162,10 +1167,11 @@ func (t *TenantStruct) Env(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) AddEnv(w http.ResponseWriter, r *http.Request) {
 	var envM api_model.AddTenantServiceEnvVar
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &envM, nil) {
@@ -1194,7 +1200,7 @@ func (t *TenantStruct) AddEnv(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//UpdateEnv UpdateEnv
+// UpdateEnv UpdateEnv
 // swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/env v2 update Env
 //
 // 修改环境变量
@@ -1211,10 +1217,11 @@ func (t *TenantStruct) AddEnv(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) UpdateEnv(w http.ResponseWriter, r *http.Request) {
 	var envM api_model.AddTenantServiceEnvVar
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &envM, nil) {
@@ -1239,7 +1246,7 @@ func (t *TenantStruct) UpdateEnv(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//DeleteEnv DeleteEnv
+// DeleteEnv DeleteEnv
 // swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/env v2 deleteEnv
 //
 // 删除环境变量
@@ -1256,10 +1263,11 @@ func (t *TenantStruct) UpdateEnv(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) DeleteEnv(w http.ResponseWriter, r *http.Request) {
 	var envM api_model.DelTenantServiceEnvVar
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &envM, nil) {
@@ -1290,7 +1298,7 @@ func (t *TenantStruct) DeleteEnv(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//Ports 应用端口控制器
+// Ports 应用端口控制器
 func (t *TenantStruct) Ports(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "DELETE":
@@ -1302,7 +1310,7 @@ func (t *TenantStruct) Ports(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//PutPorts PortVar
+// PutPorts PortVar
 // swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports v2 updatePort
 //
 // 更新应用端口信息(旧)
@@ -1319,10 +1327,11 @@ func (t *TenantStruct) Ports(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) PutPorts(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
@@ -1337,7 +1346,7 @@ func (t *TenantStruct) PutPorts(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//AddPortVar PortVar
+// AddPortVar PortVar
 // swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/ports v2 addPort
 //
 // 增加应用端口,默认关闭对内和对外选项，需要开启使用相应接口
@@ -1354,10 +1363,11 @@ func (t *TenantStruct) PutPorts(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) addPortController(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
@@ -1373,7 +1383,7 @@ func (t *TenantStruct) addPortController(w http.ResponseWriter, r *http.Request)
 	httputil.ReturnSuccess(r, w, ports.Port)
 }
 
-//UpdatePortVar PortVar
+// UpdatePortVar PortVar
 // swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port} v2 updatePort
 //
 // 更新应用端口信息
@@ -1390,10 +1400,11 @@ func (t *TenantStruct) addPortController(w http.ResponseWriter, r *http.Request)
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) updatePortController(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
@@ -1415,7 +1426,7 @@ func (t *TenantStruct) updatePortController(w http.ResponseWriter, r *http.Reque
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//DeletePortVar PortVar
+// DeletePortVar PortVar
 // swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port} v2 deletePort
 //
 // 删除端口变量
@@ -1432,10 +1443,11 @@ func (t *TenantStruct) updatePortController(w http.ResponseWriter, r *http.Reque
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) deletePortController(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
@@ -1463,7 +1475,7 @@ func (t *TenantStruct) deletePortController(w http.ResponseWriter, r *http.Reque
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//PortOuterController 开关端口对外服务
+// PortOuterController 开关端口对外服务
 // swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/outer v2 PortOuterController
 //
 // 开关端口对外服务，应用无需重启自动生效
@@ -1480,10 +1492,11 @@ func (t *TenantStruct) deletePortController(w http.ResponseWriter, r *http.Reque
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Request) {
 	var data api_model.ServicePortInnerOrOuter
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &(data.Body), nil) {
@@ -1555,7 +1568,7 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 	httputil.ReturnSuccess(r, w, rc)
 }
 
-//PortInnerController 开关端口对内服务
+// PortInnerController 开关端口对内服务
 // swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/ports/{port}/inner v2 PortInnerController
 //
 // 开关对内服务，应用无需重启，自动生效
@@ -1572,10 +1585,11 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Request) {
 	var data api_model.ServicePortInnerOrOuter
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &(data.Body), nil) {
@@ -1614,7 +1628,7 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//Pods pods
+// Pods pods
 // swagger:operation GET  /v2/tenants/{tenant_name}/services/{service_alias}/pods v2 getPodsInfo
 //
 // 获取pods信息
@@ -1631,10 +1645,11 @@ func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Reques
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) Pods(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	pods, err := handler.GetServiceManager().GetPods(serviceID)
@@ -1651,7 +1666,7 @@ func (t *TenantStruct) Pods(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, pods)
 }
 
-//Probe probe
+// Probe probe
 func (t *TenantStruct) Probe(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "PUT":
@@ -1663,7 +1678,7 @@ func (t *TenantStruct) Probe(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//AddProbe add probe
+// AddProbe add probe
 // swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/probe v2 addProbe
 //
 // 增加应用探针
@@ -1680,10 +1695,11 @@ func (t *TenantStruct) Probe(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	var tsp api_model.ServiceProbe
@@ -1714,7 +1730,7 @@ func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//UpdateProbe update probe
+// UpdateProbe update probe
 // swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/probe v2 updateProbe
 //
 // 更新应用探针信息, *注意此处为全量更新
@@ -1731,10 +1747,11 @@ func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	var tsp api_model.ServiceProbe
@@ -1768,7 +1785,7 @@ func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//DeleteProbe delete probe
+// DeleteProbe delete probe
 // swagger:operation DELETE /v2/tenants/{tenant_name}/services/{service_alias}/probe v2 deleteProbe
 //
 // 删除应用探针
@@ -1785,10 +1802,11 @@ func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) DeleteProbe(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	var tsp api_model.ServiceProbe
@@ -1810,7 +1828,7 @@ func (t *TenantStruct) DeleteProbe(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//Port Port
+// Port Port
 func (t *TenantStruct) Port(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "PUT":
@@ -1822,19 +1840,19 @@ func (t *TenantStruct) Port(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//AddPort add port
+// AddPort add port
 func (t *TenantStruct) AddPort(w http.ResponseWriter, r *http.Request) {
 }
 
-//DeletePort delete port
+// DeletePort delete port
 func (t *TenantStruct) DeletePort(w http.ResponseWriter, r *http.Request) {
 }
 
-//UpdatePort Update port
+// UpdatePort Update port
 func (t *TenantStruct) UpdatePort(w http.ResponseWriter, r *http.Request) {
 }
 
-//SingleTenantResources SingleTenantResources
+// SingleTenantResources SingleTenantResources
 // swagger:operation GET /v2/tenants/{tenant_name}/resources v2 singletenantResources
 //
 // 指定租户资源使用情况
@@ -1846,17 +1864,18 @@ func (t *TenantStruct) UpdatePort(w http.ResponseWriter, r *http.Request) {
 // - application/json
 // - application/xml
 // parameters:
-// - name: tenant_name
-//   in: path
-//   description: tenant name
-//   required: true
-//   type: string
+//   - name: tenant_name
+//     in: path
+//     description: tenant name
+//     required: true
+//     type: string
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) SingleTenantResources(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	//11ms
@@ -1875,7 +1894,7 @@ func (t *TenantStruct) SingleTenantResources(w http.ResponseWriter, r *http.Requ
 	return
 }
 
-//GetSupportProtocols GetSupportProtocols
+// GetSupportProtocols GetSupportProtocols
 // swagger:operation GET /v2/tenants/{tenant_name}/protocols v2 getSupportProtocols
 //
 // 获取当前数据中心支持的protocols
@@ -1887,17 +1906,18 @@ func (t *TenantStruct) SingleTenantResources(w http.ResponseWriter, r *http.Requ
 // - application/json
 // - application/xml
 // parameters:
-// - name: tenant_name
-//   in: path
-//   description: tenant name
-//   required: true
-//   type: string
+//   - name: tenant_name
+//     in: path
+//     description: tenant name
+//     required: true
+//     type: string
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) GetSupportProtocols(w http.ResponseWriter, r *http.Request) {
 	rps, err := handler.GetTenantManager().GetProtocols()
 	if err != nil {
@@ -1908,7 +1928,7 @@ func (t *TenantStruct) GetSupportProtocols(w http.ResponseWriter, r *http.Reques
 	return
 }
 
-//TransPlugins transPlugins
+// TransPlugins transPlugins
 // swagger:operation POST /v2/tenants/{tenant_name}/transplugins v2 transPlugins
 //
 // 安装云帮默认plugins
@@ -1920,17 +1940,18 @@ func (t *TenantStruct) GetSupportProtocols(w http.ResponseWriter, r *http.Reques
 // - application/json
 // - application/xml
 // parameters:
-// - name: tenant_name
-//   in: path
-//   description: tenant name
-//   required: true
-//   type: string
+//   - name: tenant_name
+//     in: path
+//     description: tenant name
+//     required: true
+//     type: string
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) TransPlugins(w http.ResponseWriter, r *http.Request) {
 	var tps api_model.TransPlugins
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tps.Body, nil)

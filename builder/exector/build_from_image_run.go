@@ -49,6 +49,7 @@ type ImageBuildItem struct {
 	HubPassword   string
 	Action        string
 	Configs       map[string]gjson.Result `json:"configs"`
+	FailCause     string
 }
 
 //NewImageBuildItem 创建实体
@@ -77,19 +78,25 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 	_, err := i.ImageClient.ImagePull(i.Image, user, pass, i.Logger, 30)
 	if err != nil {
 		logrus.Errorf("pull image %s error: %s", i.Image, err.Error())
-		i.Logger.Error(fmt.Sprintf("获取指定镜像: %s失败", i.Image), map[string]string{"step": "builder-exector", "status": "failure"})
+		failCause := fmt.Sprintf("获取指定镜像: %s失败", i.Image)
+		i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
+		i.FailCause = failCause
 		return err
 	}
 	localImageURL := build.CreateImageName(i.ServiceID, i.DeployVersion)
 	if err := i.ImageClient.ImageTag(i.Image, localImageURL, i.Logger, 1); err != nil {
 		logrus.Errorf("change image tag error: %s", err.Error())
-		i.Logger.Error(fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.Image, localImageURL), map[string]string{"step": "builder-exector", "status": "failure"})
+		failCause := fmt.Sprintf("修改镜像tag: %s -> %s 失败", i.Image, localImageURL)
+		i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
+		i.FailCause = failCause
 		return err
 	}
 	err = i.ImageClient.ImagePush(localImageURL, builder.REGISTRYUSER, builder.REGISTRYPASS, i.Logger, 30)
 	if err != nil {
 		logrus.Errorf("push image into registry error: %s", err.Error())
-		i.Logger.Error("推送镜像至镜像仓库失败", map[string]string{"step": "builder-exector", "status": "failure"})
+		failCause := "推送镜像至镜像仓库失败"
+		i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
+		i.FailCause = failCause
 		return err
 	}
 
@@ -104,7 +111,9 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 	}
 	if err := i.StorageVersionInfo(localImageURL); err != nil {
 		logrus.Errorf("storage version info error, ignor it: %s", err.Error())
-		i.Logger.Error("更新应用版本信息失败", map[string]string{"step": "builder-exector", "status": "failure"})
+		failCause := "更新应用版本信息失败"
+		i.Logger.Error(failCause, map[string]string{"step": "builder-exector", "status": "failure"})
+		i.FailCause = failCause
 		return err
 	}
 	return nil
