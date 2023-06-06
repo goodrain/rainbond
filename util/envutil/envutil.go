@@ -21,3 +21,12 @@ var memoryLabels = map[int]string{
 	32768: "32xlarge",
 	65536: "64xlarge",
 }
+
+
+// IsCustomMemory -
+func IsCustomMemory(memory int) bool {
+	if _, ok := memoryLabels[memory]; ok {
+		return false
+	}
+	return true
+}
