@@ -524,18 +524,22 @@ func (e *ErrorBuild) Error() string {
 
 func (s *slugBuild) HandleNodeJsDir(re *Request) error {
 	if re.Lang == code.NodeJSStatic {
-		if ok, _ := util.FileExists(path.Join(re.SourceDir, "nodestatic.json")); !ok {
-			filePtr, err := os.Create(path.Join(re.SourceDir, "nodestatic.json"))
-			if err != nil {
-				logrus.Error("create nodestatic json error:", err)
+		if ok, _ := util.FileExists(path.Join(re.SourceDir, "nodestatic.json")); ok {
+			if err := os.RemoveAll(path.Join(re.SourceDir, "nodestatic.json")); err != nil {
+				logrus.Error("remove nodestatic json error:", err)
 				return err
 			}
-			defer filePtr.Close()
-			_, err = io.WriteString(filePtr, "{\"path\":\"dist\"}")
-			if err != nil {
-				logrus.Error("write nodestatic json error:", err)
-				return err
-			}
+		}
+		filePtr, err := os.Create(path.Join(re.SourceDir, "nodestatic.json"))
+		if err != nil {
+			logrus.Error("create nodestatic json error:", err)
+			return err
+		}
+		defer filePtr.Close()
+		_, err = io.WriteString(filePtr, fmt.Sprintf("{\"path\":\"%v\"}", re.BuildEnvs["DIST_DIR"]))
+		if err != nil {
+			logrus.Error("write nodestatic json error:", err)
+			return err
 		}
 	}
 	if re.BuildEnvs["PACKAGE_TOOL"] == "yarn" {
