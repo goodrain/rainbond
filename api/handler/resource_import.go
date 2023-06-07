@@ -49,7 +49,7 @@ func (c *clusterAction) ResourceImport(namespace string, as map[string]model.App
 			c.createConfig(componentResource.ConfigManagement, component)
 			c.createPort(componentResource.PortManagement, component)
 			componentResource.TelescopicManagement.RuleID = c.createTelescopic(componentResource.TelescopicManagement, component)
-			componentResource.HealthyCheckManagement.ProbeID = c.createHealthyCheck(componentResource.HealthyCheckManagement, component)
+			componentResource.HealthyCheckManagement.ProbeID = c.createHealthyCheck(componentResource.HealthyCheckManagement, component, "add")
 			c.createK8sAttributes(componentResource.ComponentK8sAttributesManagement, tenant.UUID, component)
 			componentAttributes = append(componentAttributes, model.ComponentAttributes{
 				TS:                     component,
@@ -399,7 +399,7 @@ func (c *clusterAction) createTelescopic(telescopic model.TelescopicManagement, 
 	return r.RuleID
 }
 
-func (c *clusterAction) createHealthyCheck(telescopic model.HealthyCheckManagement, service *dbmodel.TenantServices) string {
+func (c *clusterAction) createHealthyCheck(telescopic model.HealthyCheckManagement, service *dbmodel.TenantServices, probeAciton string) string {
 	if telescopic.Status == 0 {
 		return ""
 	}
@@ -419,7 +419,7 @@ func (c *clusterAction) createHealthyCheck(telescopic model.HealthyCheckManageme
 	tspD.SuccessThreshold = telescopic.SuccessThreshold
 	tspD.TimeoutSecond = telescopic.TimeoutSecond
 	tspD.FailureAction = ""
-	if err := GetServiceManager().ServiceProbe(&tspD, "add"); err != nil {
+	if err := GetServiceManager().ServiceProbe(&tspD, probeAciton); err != nil {
 		logrus.Errorf("%v createHealthyCheck creation failed:%v", service.ServiceAlias, err)
 	}
 	return tspD.ProbeID
