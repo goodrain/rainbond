@@ -35,10 +35,10 @@ import (
 	_ "github.com/containerd/containerd/api/events"
 )
 
-//RFC3339NanoFixed time format
+// RFC3339NanoFixed time format
 var RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 
-//ContainerLogManage container log manage
+// ContainerLogManage container log manage
 type ContainerLogManage struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
@@ -47,7 +47,7 @@ type ContainerLogManage struct {
 	containerLogs sync.Map
 }
 
-//CreatContainerLogManage create a container log manage
+// CreatContainerLogManage create a container log manage
 func CreatContainerLogManage(conf *option.Conf) *ContainerLogManage {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ContainerLogManage{
@@ -58,7 +58,7 @@ func CreatContainerLogManage(conf *option.Conf) *ContainerLogManage {
 	}
 }
 
-//Start start
+// Start start
 func (c *ContainerLogManage) Start() error {
 	errchan := make(chan error)
 	go func() {
@@ -73,7 +73,7 @@ func (c *ContainerLogManage) Start() error {
 	return nil
 }
 
-//Stop stop all logger
+// Stop stop all logger
 func (c *ContainerLogManage) Stop() {
 	c.containerLogs.Range(func(k, v interface{}) bool {
 		cl := v.(*ContainerLog)
@@ -185,8 +185,8 @@ func (c *ContainerLogManage) loollist() {
 			return
 		case <-ticker.C:
 			for _, container := range c.listContainer() {
-				cj, _ := c.getContainer(container.GetId())
-				if cj.GetLogPath() == "" {
+				cj, err := c.getContainer(container.GetId())
+				if err != nil || cj.GetLogPath() == "" {
 					continue
 				}
 				if cj.ContainerRuntime == sources.ContainerRuntimeDocker {
@@ -227,7 +227,7 @@ func (c *ContainerLogManage) listAndWatchContainer(errchan chan error) {
 	}
 }
 
-//Out -
+// Out -
 type Out struct {
 	Timestamp time.Time
 	Namespace string
@@ -254,7 +254,7 @@ func createContainerLog(ctx context.Context, container *sources.ContainerDesc, r
 	}
 }
 
-//ContainerLog container log struct
+// ContainerLog container log struct
 type ContainerLog struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -267,7 +267,7 @@ type ContainerLog struct {
 	stoped    *bool
 }
 
-//StartLogging start copy log
+// StartLogging start copy log
 func (container *ContainerLog) StartLogging() error {
 	loggers, err := container.startLogger()
 	if err != nil {
@@ -285,7 +285,7 @@ func (container *ContainerLog) StartLogging() error {
 	return nil
 }
 
-//ContainerLoggerConfig logger config
+// ContainerLoggerConfig logger config
 type ContainerLoggerConfig struct {
 	Name    string
 	Options map[string]string
@@ -321,7 +321,7 @@ func getLoggerConfig(envs []string) []*ContainerLoggerConfig {
 	return re
 }
 
-//ErrNeglectedContainer not define logger name
+// ErrNeglectedContainer not define logger name
 var ErrNeglectedContainer = fmt.Errorf("Neglected container")
 
 // containerInfo is extra info returned by containerd grpc api
@@ -475,7 +475,7 @@ func (container *ContainerLog) startLogger() ([]Logger, error) {
 	return loggers, nil
 }
 
-//Restart restart
+// Restart restart
 func (container *ContainerLog) Restart() {
 	if container == nil {
 		return
@@ -488,7 +488,7 @@ func (container *ContainerLog) Restart() {
 	}
 }
 
-//Stop stop copy container log
+// Stop stop copy container log
 func (container *ContainerLog) Stop() {
 	if container.LogCopier != nil {
 		container.LogCopier.Close()
@@ -499,7 +499,7 @@ func (container *ContainerLog) Stop() {
 	logrus.Debugf("rainbond logger stop for container %s", container.ContainerStatus.GetMetadata().GetName())
 }
 
-//Close close
+// Close close
 func (container *ContainerLog) Close() {
 	if container.LogCopier != nil {
 		container.LogCopier.Close()
