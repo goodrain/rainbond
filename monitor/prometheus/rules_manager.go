@@ -319,7 +319,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							Expr:        "(node_filesystem_size_bytes{mountpoint=\"/grdata\"} - node_filesystem_free_bytes{mountpoint=\"/grdata\"}) * 100 / node_filesystem_size_bytes{mountpoint=\"/grdata\"} >" + utils.GetenvDefault("STORAGE_FULL_GOAL", "80"),
 							For:         "1m",
 							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
-							Annotations: map[string]string{"description": "节点 {{ $labels.instance }} 上的共享存储空间已经使用" + utils.GetenvDefault("STORAGE_FULL_GOAL", "80") + "%," "summary": "共享存储使用率过高警告"},
+							Annotations: map[string]string{"description": "节点 {{ $labels.instance }} 上的共享存储空间已经使用" + utils.GetenvDefault("STORAGE_FULL_GOAL", "80") + "%,", "summary": "共享存储使用率过高警告"},
 						},
 					},
 				},
