@@ -387,14 +387,14 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							For:    "1m",
 							Labels: getseverityLabels("critical"),
 							Annotations: map[string]string{
-								"description": "警告: 如果再有一个etcd节点故障，集群将不可用",
+								"description": "警告: 如果再有一个etcd节点故障, 集群将不可用",
 								"summary":     "etcd集群可用节点不足警告",
 							},
 						},
 						{
 							Alert:  "HighNumberOfLeaderChanges",
-							Expr:   "increase(etcd_server_leader_changes_seen_total{job=\"etcd\"}[1h]) > 3",
-							For:    "1m",
+							Expr:   "increase(etcd_server_leader_changes_seen_total{job=\"etcd\"}[1h]) >" + utils.GetenvDefault("HIGH_NUMBER_OF_LEADER_CHANGES_GOAL", "5"),
+							For:    "5m",
 							Labels: getseverityLabels("warning"),
 							Annotations: map[string]string{
 								"description": "etcd实例 {{ $labels.instance }} leader最近一小时发生的变更次数:{{ $value }}",
