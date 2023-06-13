@@ -167,11 +167,11 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 						{
 							Alert:  "WorkerTaskError",
-							Expr:   "worker_exporter_worker_task_error >" + utils.GetenvDefault("WORKER_TASK_ERROR_GOAL", 10),
+							Expr:   "worker_exporter_worker_task_error >" + utils.GetenvDefault("WORKER_TASK_ERROR_GOAL", "10"),
 							For:    "5m",
 							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "rbd-worker组件 {{ $labels.instance }} 执行任务错误数大于" + utils.GetenvDefault("WORKER_TASK_ERROR_GOAL", 10),
+								"description": "rbd-worker组件 {{ $labels.instance }} 执行任务错误数大于" + utils.GetenvDefault("WORKER_TASK_ERROR_GOAL", "10"),
 							},
 						},
 					},
