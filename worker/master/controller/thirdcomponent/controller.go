@@ -60,7 +60,7 @@ type Reconciler struct {
 	concurrentReconciles int
 	applyer              apply.Applicator
 	discoverPool         *DiscoverPool
-	discoverNum          prometheus.Gauge
+	discoverNum          *prometheus.Desc
 
 	informer runtimecache.Informer
 	lister   rainbondlistersv1alpha1.ThirdComponentLister
@@ -409,7 +409,7 @@ func (r *Reconciler) Collect(ch chan<- prometheus.Metric) {
 	if err != nil {
 		hostname = os.Getenv("POD_IP")
 	}
-	ch <- prometheus.MustNewConstMetric(r.discoverNum.Desc(), prometheus.GaugeValue, r.discoverPool.GetSize(), hostname)
+	ch <- prometheus.MustNewConstMetric(r.discoverNum, prometheus.GaugeValue, r.discoverPool.GetSize(), hostname)
 }
 
 // Setup adds a controller that reconciles AppDeployment.
@@ -427,11 +427,9 @@ func Setup(ctx context.Context, mgr ctrl.Manager) (*Reconciler, error) {
 		restConfig: mgr.GetConfig(),
 		Scheme:     mgr.GetScheme(),
 		applyer:    apply.NewAPIApplicator(mgr.GetClient()),
-		discoverNum: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: "controller",
-			Name:      "third_component_discover_number",
-			Help:      "Number of running endpoint discover worker of third component.",
-		}),
+		discoverNum: prometheus.NewDesc(prometheus.BuildFQName("controller", "", "third_component_discover_number"),
+			"Number of running endpoint discover worker of third component.",
+			[]string{"hostname"}, nil),
 		informer: informer,
 		lister:   lister,
 		recorder: recorder,
