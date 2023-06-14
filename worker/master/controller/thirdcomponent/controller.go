@@ -20,6 +20,7 @@ package thirdcomponent
 
 import (
 	"context"
+	"os"
 	"reflect"
 	"time"
 
@@ -404,7 +405,11 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // Collect -
 func (r *Reconciler) Collect(ch chan<- prometheus.Metric) {
-	ch <- prometheus.MustNewConstMetric(r.discoverNum.Desc(), prometheus.GaugeValue, r.discoverPool.GetSize())
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = os.Getenv("POD_IP")
+	}
+	ch <- prometheus.MustNewConstMetric(r.discoverNum.Desc(), prometheus.GaugeValue, r.discoverPool.GetSize(), hostname)
 }
 
 // Setup adds a controller that reconciles AppDeployment.
