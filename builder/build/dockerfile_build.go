@@ -98,7 +98,26 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 		},
 	}
 	logrus.Debugf("dockerfile builder using hostpath, schedule job into current node")
-	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
+	podSpec := corev1.PodSpec{
+		RestartPolicy: corev1.RestartPolicyOnFailure,
+		Affinity: &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/arch",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{re.Arch},
+							},
+						},
+					},
+					},
+				},
+			},
+		},
+	}
+	// only support never and onfailure
 	hostIP := os.Getenv("HOST_IP")
 	if hostIP != "" {
 		podSpec.NodeSelector = map[string]string{

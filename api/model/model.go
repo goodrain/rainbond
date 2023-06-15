@@ -1734,6 +1734,10 @@ type ComponentBuildReq struct {
 	// in: body
 	// required: true
 	Kind string `json:"kind" validate:"kind|required"`
+	// 应用架构
+	// in: body
+	// required: true
+	Arch string `json:"arch" validate:"arch|required"`
 	// 后续动作, 根据该值进行一键部署，如果不传值，则默认只进行构建
 	// in: body
 	// required: false

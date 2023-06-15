@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/goodrain/rainbond/builder/sources"
+	"runtime"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -133,7 +134,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 
 type exectorManager struct {
 	KanikoImage       string
-	KanikoArgs		  []string
+	KanikoArgs        []string
 	KubeClient        kubernetes.Interface
 	EtcdCli           *clientv3.Client
 	tasks             chan *pb.TaskMessage
@@ -181,6 +182,14 @@ func (e *exectorManager) SetReturnTaskChan(re func(*pb.TaskMessage)) {
 //share-slug share app with slug
 //share-image share app with image
 func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
+	if e.callback != nil && task.Arch != "" && task.Arch != runtime.GOARCH {
+		e.callback(task)
+		for len(e.tasks) >= e.maxConcurrentTask {
+			time.Sleep(time.Second * 2)
+		}
+		MetricBackTaskNum++
+		return nil
+	}
 	select {
 	case e.tasks <- task:
 		MetricTaskNum++
@@ -341,6 +350,7 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	i.RbdNamespace = e.cfg.RbdNamespace
 	i.RbdRepoName = e.cfg.RbdRepoName
 	i.Ctx = e.ctx
+	i.Arch = task.Arch
 	i.CachePVCName = e.cfg.CachePVCName
 	i.GRDataPVCName = e.cfg.GRDataPVCName
 	i.CacheMode = e.cfg.CacheMode

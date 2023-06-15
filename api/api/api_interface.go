@@ -59,6 +59,7 @@ type ClusterInterface interface {
 // NodesInterface -
 type NodesInterface interface {
 	ListNodes(w http.ResponseWriter, r *http.Request)
+	ListNodeArch(w http.ResponseWriter, r *http.Request)
 	GetNode(w http.ResponseWriter, r *http.Request)
 	NodeAction(w http.ResponseWriter, r *http.Request)
 	ListLabels(w http.ResponseWriter, r *http.Request)
