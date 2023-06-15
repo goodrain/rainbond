@@ -1,0 +1,18 @@
+name: handle-images-scripts
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: handle images arch
+        env:
+          RBD_VER: ${{ secrets.RBD_VER }}
+          DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+          DOMESTIC_DOCKER_USERNAME: ${{ secrets.DOMESTIC_DOCKER_USERNAME }}
+          DOMESTIC_BASE_NAME: ${{ secrets.DOMESTIC_BASE_NAME }}
+        run: chmod +x ./.github/scripts/arch.sh &&  ./.github/scripts/arch.sh
