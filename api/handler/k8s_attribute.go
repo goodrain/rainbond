@@ -19,9 +19,95 @@
 package handler
 
 import (
+	"encoding/json"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/model"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/yaml"
 )
+
+// ReviseAttributeAffinityByArch -
+func (s *ServiceAction) ReviseAttributeAffinityByArch(attributeValue string, arch string) (string, error) {
+	var affinity corev1.Affinity
+	if attributeValue != "" {
+		AffinityAttributeJSON, err := yaml.YAMLToJSON([]byte(attributeValue))
+		if err != nil {
+		}
+		err = json.Unmarshal(AffinityAttributeJSON, &affinity)
+		if err != nil {
+			return "", err
+		}
+		if affinity.NodeAffinity == nil {
+			affinity.NodeAffinity = &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/arch",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{arch},
+							},
+						},
+					},
+					},
+				},
+			}
+		} else {
+			if affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+				affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/arch",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{arch},
+							},
+						},
+					},
+					},
+				}
+			} else {
+				affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = []corev1.NodeSelectorTerm{
+					{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/arch",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{arch},
+							},
+						},
+					},
+				}
+			}
+		}
+	} else {
+
+		affinity = corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/arch",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{arch},
+							},
+						},
+					},
+					},
+				},
+			},
+		}
+	}
+	affinityByte, err := yaml.Marshal(affinity)
+	return string(affinityByte), err
+}
+
+// GetK8sAttribute -
+func (s *ServiceAction) GetK8sAttribute(componentID, name string) (*model.ComponentK8sAttributes, error) {
+	return db.GetManager().ComponentK8sAttributeDao().GetByComponentIDAndName(componentID, name)
+}
 
 // CreateK8sAttribute -
 func (s *ServiceAction) CreateK8sAttribute(tenantID, componentID string, k8sAttr *api_model.ComponentK8sAttribute) error {

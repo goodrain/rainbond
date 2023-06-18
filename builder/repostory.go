@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"runtime"
 	"strings"
 
 	"github.com/goodrain/rainbond/util/constants"
@@ -37,12 +38,13 @@ func init() {
 	if os.Getenv("BUILD_IMAGE_REPOSTORY_PASS") != "" {
 		REGISTRYPASS = os.Getenv("BUILD_IMAGE_REPOSTORY_PASS")
 	}
-	RUNNERIMAGENAME = "/runner"
+	arch := runtime.GOARCH
+	RUNNERIMAGENAME = fmt.Sprintf("%s:latest-%s", "/runner", arch)
 	if os.Getenv("RUNNER_IMAGE_NAME") != "" {
 		RUNNERIMAGENAME = os.Getenv("RUNNER_IMAGE_NAME")
 	}
 	RUNNERIMAGENAME = path.Join(REGISTRYDOMAIN, RUNNERIMAGENAME)
-	BUILDERIMAGENAME = "builder"
+	BUILDERIMAGENAME = fmt.Sprintf("%s:latest-%s", "/builder", arch)
 	if os.Getenv("BUILDER_IMAGE_NAME") != "" {
 		BUILDERIMAGENAME = os.Getenv("BUILDER_IMAGE_NAME")
 	}
@@ -51,8 +53,8 @@ func init() {
 	if os.Getenv("ABROAD") != "" {
 		ONLINEREGISTRYDOMAIN = "docker.io/rainbond"
 	}
-	ONLINEBUILDERIMAGENAME = fmt.Sprintf("%s:%s", path.Join(ONLINEREGISTRYDOMAIN, "builder"), CIVERSION)
-	ONLINERUNNERIMAGENAME = fmt.Sprintf("%s:%s", path.Join(ONLINEREGISTRYDOMAIN, "runner"), CIVERSION)
+	ONLINEBUILDERIMAGENAME = fmt.Sprintf("%s:%s-%s", path.Join(ONLINEREGISTRYDOMAIN, "builder"), CIVERSION, arch)
+	ONLINERUNNERIMAGENAME = fmt.Sprintf("%s:%s-%s", path.Join(ONLINEREGISTRYDOMAIN, "runner"), CIVERSION, arch)
 }
 
 // GetImageUserInfoV2 -

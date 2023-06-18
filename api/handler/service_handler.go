@@ -81,7 +81,7 @@ type ServiceHandler interface {
 	GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError)
 	GetServiceDeployInfo(tenantID, serviceID string) (*pb.DeployInfo, *util.APIHandleError)
 	ListVersionInfo(serviceID string) (*api_model.BuildListRespVO, error)
-    EventBuildVersion(serviceID, buildVersion string) (*api_model.BuildListRespVO, error)
+	EventBuildVersion(serviceID, buildVersion string) (*api_model.BuildListRespVO, error)
 
 	AddAutoscalerRule(req *api_model.AutoscalerRuleReq) error
 	UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) error
@@ -91,6 +91,8 @@ type ServiceHandler interface {
 	DeleteServiceMonitor(tenantID, serviceID, name string) (*dbmodel.TenantServiceMonitor, error)
 	AddServiceMonitor(tenantID, serviceID string, add api_model.AddServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error)
 
+	ReviseAttributeAffinityByArch(attributeValue string, arch string) (string, error)
+	GetK8sAttribute(componentID, name string) (*dbmodel.ComponentK8sAttributes, error)
 	CreateK8sAttribute(tenantID, componentID string, k8sAttr *api_model.ComponentK8sAttribute) error
 	UpdateK8sAttribute(componentID string, k8sAttributes *api_model.ComponentK8sAttribute) error
 	DeleteK8sAttribute(componentID, name string) error

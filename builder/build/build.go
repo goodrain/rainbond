@@ -109,6 +109,7 @@ type Request struct {
 	ExtraHosts    []string
 	HostAlias     []HostAlias
 	Ctx           context.Context
+	Arch          string
 }
 
 // HostAlias holds the mapping between IP and hostnames that will be injected as an entry in the

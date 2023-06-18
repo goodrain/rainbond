@@ -71,7 +71,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 		return nil, fmt.Errorf("write default dockerfile error:%s", err.Error())
 	}
 	// build image
-	err := sources.ImageBuild(d.sourceDir, re.CachePVCName, re.CacheMode, re.RbdNamespace, re.ServiceID, re.DeployVersion, re.Logger, "nc-build", "", re.KanikoImage, re.KanikoArgs)
+	err := sources.ImageBuild(re.Arch, d.sourceDir, re.CachePVCName, re.CacheMode, re.RbdNamespace, re.ServiceID, re.DeployVersion, re.Logger, "nc-build", "", re.KanikoImage, re.KanikoArgs)
 	if err != nil {
 		re.Logger.Error(fmt.Sprintf("build image %s failure, find log in rbd-chaos", d.buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())

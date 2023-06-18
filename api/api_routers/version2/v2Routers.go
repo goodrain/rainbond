@@ -139,6 +139,7 @@ func (v2 *V2) clusterRouter() chi.Router {
 func (v2 *V2) nodesRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/", controller.GetManager().ListNodes)
+	r.Get("/arch", controller.GetManager().ListNodeArch)
 	r.Get("/{node_name}/detail", controller.GetManager().GetNode)
 	r.Post("/{node_name}/action/{action}", controller.GetManager().NodeAction)
 	r.Get("/{node_name}/labels", controller.GetManager().ListLabels)
@@ -339,6 +340,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Delete("/label", middleware.WrapEL(controller.GetManager().Label, dbmodel.TargetTypeService, "delete-service-label", dbmodel.SYNEVENTTYPE))
 
 	// Component K8s properties are modified
+	r.Get("/k8s-attributes", controller.GetManager().K8sAttributes)
 	r.Post("/k8s-attributes", middleware.WrapEL(controller.GetManager().K8sAttributes, dbmodel.TargetTypeService, "create-component-k8s-attributes", dbmodel.SYNEVENTTYPE))
 	r.Put("/k8s-attributes", middleware.WrapEL(controller.GetManager().K8sAttributes, dbmodel.TargetTypeService, "update-component-k8s-attributes", dbmodel.SYNEVENTTYPE))
 	r.Delete("/k8s-attributes", middleware.WrapEL(controller.GetManager().K8sAttributes, dbmodel.TargetTypeService, "delete-component-k8s-attributes", dbmodel.SYNEVENTTYPE))
