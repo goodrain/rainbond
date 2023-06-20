@@ -92,11 +92,11 @@ build::binary() {
 	if [ "$GOARCH" = "amd64" ]; then
 		sudo apt-get install -y upx
  	  	sudo upx --best --lzma "${OUTPATH}"
-	elif [ "$GOARCH" = "arm64" ]; then
-		wget https://rainbond-pkg.oss-cn-shanghai.aliyuncs.com/upx/upx-4.0.2-arm64_linux/upx
-		chmod +x upx
-		mv upx /usr/local/bin/upx
-		upx --best --lzma "${OUTPATH}"
+#	elif [ "$GOARCH" = "arm64" ]; then
+#		wget https://rainbond-pkg.oss-cn-shanghai.aliyuncs.com/upx/upx-4.0.2-arm64_linux/upx
+#		chmod +x upx
+#		mv upx /usr/local/bin/upx
+#		upx --best --lzma "${OUTPATH}"
 	fi
 }
 
