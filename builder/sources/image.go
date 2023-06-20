@@ -390,7 +390,7 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 }
 
 //ImageBuild use kaniko build image
-func ImageBuild(contextDir, cachePVCName, cacheMode, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, KanikoImage string, KanikoArgs []string) error {
+func ImageBuild(arch, contextDir, cachePVCName, cacheMode, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, KanikoImage string, KanikoArgs []string) error {
 	// create image name
 	var buildImageName string
 	if buildType == "plug-build" {
@@ -420,7 +420,26 @@ func ImageBuild(contextDir, cachePVCName, cacheMode, RbdNamespace, ServiceID, De
 			},
 		},
 	}
-	podSpec := corev1.PodSpec{RestartPolicy: corev1.RestartPolicyOnFailure} // only support never and onfailure
+	podSpec := corev1.PodSpec{
+		RestartPolicy: corev1.RestartPolicyOnFailure,
+		Affinity: &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+						MatchExpressions: []corev1.NodeSelectorRequirement{
+							{
+								Key:      "kubernetes.io/arch",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{arch},
+							},
+						},
+					},
+					},
+				},
+			},
+		},
+	}
+	// only support never and onfailure
 	volumes, volumeMounts := CreateVolumesAndMounts(contextDir, buildType, cacheMode, cachePVCName)
 	podSpec.Volumes = volumes
 	// container config

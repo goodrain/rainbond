@@ -1,5 +1,6 @@
 syntax = "proto3";
 package pb;
+option go_package = "mq/api/grpc/pb";
 
 service TaskQueue {
   rpc Enqueue (EnqueueRequest) returns (TaskReply) {}
@@ -13,6 +14,7 @@ message TaskMessage {
   bytes task_body = 3;
   string create_time = 4;
   string user = 5;
+  string arch = 6;
 }
 
 message EnqueueRequest {

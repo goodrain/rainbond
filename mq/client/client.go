@@ -92,6 +92,7 @@ func (m *mqClient) Close() {
 //TaskStruct task struct
 type TaskStruct struct {
 	Topic    string
+	Arch     string
 	TaskType string
 	TaskBody interface{}
 }
@@ -110,6 +111,7 @@ func buildTask(t TaskStruct) (*pb.EnqueueRequest, error) {
 		CreateTime: time.Now().Format(time.RFC3339),
 		TaskBody:   taskJSON,
 		User:       "rainbond",
+		Arch:       t.Arch,
 	}
 	return &er, nil
 }

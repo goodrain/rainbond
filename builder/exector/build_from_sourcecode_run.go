@@ -54,6 +54,7 @@ type SourceCodeBuildItem struct {
 	CachePath     string       `json:"cache_path"`
 	ServiceAlias  string       `json:"service_alias"`
 	Action        string       `json:"action"`
+	Arch          string       `json:"arch"`
 	DestImage     string       `json:"dest_image"`
 	Logger        event.Logger `json:"logger"`
 	EventID       string       `json:"event_id"`
@@ -112,6 +113,7 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 		TenantID:      gjson.GetBytes(in, "tenant_id").String(),
 		ServiceID:     gjson.GetBytes(in, "service_id").String(),
 		Action:        gjson.GetBytes(in, "action").String(),
+		Arch:          gjson.GetBytes(in, "arch").String(),
 		DeployVersion: gjson.GetBytes(in, "deploy_version").String(),
 		Logger:        logger,
 		EventID:       eventID,
@@ -351,6 +353,7 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		CachePVCName:  i.CachePVCName,
 		CacheMode:     i.CacheMode,
 		CachePath:     i.CachePath,
+		Arch:          i.Arch,
 	}
 	res, err := codeBuild.Build(buildReq)
 	return res, err

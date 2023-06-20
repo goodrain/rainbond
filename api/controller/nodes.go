@@ -44,6 +44,16 @@ func (n *NodesController) ListNodes(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nodes)
 }
 
+// ListNodeArch -
+func (n *NodesController) ListNodeArch(w http.ResponseWriter, r *http.Request) {
+	chaosNodesArch, err := handler.GetNodesHandler().ListChaosNodeArch(context.Background())
+	if err != nil {
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, chaosNodesArch)
+}
+
 // GetNode -
 func (n *NodesController) GetNode(w http.ResponseWriter, r *http.Request) {
 	nodeName := chi.URLParam(r, "node_name")

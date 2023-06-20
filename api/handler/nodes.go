@@ -53,6 +53,7 @@ const (
 // NodesHandler -
 type NodesHandler interface {
 	ListNodes(ctx context.Context) ([]model.NodeInfo, error)
+	ListChaosNodeArch(ctx context.Context) ([]string, error)
 	GetNodeInfo(ctx context.Context, nodeName string) (model.NodeInfo, error)
 	NodeAction(ctx context.Context, nodeName, action string) error
 	ListLabels(ctx context.Context, nodeName string) (map[string]string, error)
@@ -83,7 +84,7 @@ type nodesHandle struct {
 	prometheusCli    prometheus.Interface
 }
 
-//GetNodes -
+//ListNodes -
 func (n *nodesHandle) ListNodes(ctx context.Context) (res []model.NodeInfo, err error) {
 	nodeList, err := n.clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -99,6 +100,36 @@ func (n *nodesHandle) ListNodes(ctx context.Context) (res []model.NodeInfo, err 
 		res = append(res, nodeInfo)
 	}
 	return res, nil
+}
+
+//ListChaosNodeArch -
+func (n *nodesHandle) ListChaosNodeArch(ctx context.Context) ([]string, error) {
+	chaosPods, err := n.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{
+		LabelSelector: "name=rbd-chaos",
+	})
+	if err != nil {
+		logrus.Errorf("get chaos list error: %v", err)
+		return nil, err
+	}
+	chaosNodeIP := make(map[string]int)
+	for _, chaosPod := range chaosPods.Items {
+		chaosNodeIP[chaosPod.Status.HostIP] = 1
+	}
+	nodes, err := n.clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		logrus.Error("get node info handle error:", err)
+		return nil, err
+	}
+	var nodeArchs []string
+	for _, node := range nodes.Items {
+		address := node.Status.Addresses
+		for _, addr := range address {
+			if addr.Type == NodeInternalIP && chaosNodeIP[addr.Address] == 1 {
+				nodeArchs = append(nodeArchs, node.Status.NodeInfo.Architecture)
+			}
+		}
+	}
+	return nodeArchs, nil
 }
 
 //GetNodeInfo -

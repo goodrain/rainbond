@@ -23,6 +23,7 @@ import (
 	"github.com/goodrain/rainbond/api/handler"
 	api_model "github.com/goodrain/rainbond/api/model"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"net/http"
 )
@@ -39,7 +40,41 @@ func (k *K8sAttributeController) K8sAttributes(w http.ResponseWriter, r *http.Re
 		k.updateK8sAttributes(w, r)
 	case "DELETE":
 		k.deleteK8sAttributes(w, r)
+	case "GET":
+		k.getK8sAttributes(w, r)
 	}
+}
+
+func (k *K8sAttributeController) getK8sAttributes(w http.ResponseWriter, r *http.Request) {
+	componentID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	var k8sAttrGet api_model.ComponentK8sAttributeGet
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &k8sAttrGet, nil); !ok {
+		httputil.ReturnBcodeError(r, w, fmt.Errorf("k8s attributes is not valid"))
+		return
+	}
+	atts, err := handler.GetServiceManager().GetK8sAttribute(componentID, k8sAttrGet.Name)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	if k8sAttrGet.Arch != "" {
+		var attsValue string
+		if atts != nil {
+			attsValue, err = handler.GetServiceManager().ReviseAttributeAffinityByArch(atts.AttributeValue, k8sAttrGet.Arch)
+			atts.AttributeValue = attsValue
+		} else {
+			attsValue, err = handler.GetServiceManager().ReviseAttributeAffinityByArch("", k8sAttrGet.Arch)
+			atts = &dbmodel.ComponentK8sAttributes{
+				AttributeValue: attsValue,
+			}
+		}
+		if err != nil {
+			httputil.ReturnBcodeError(r, w, err)
+			return
+		}
+	}
+
+	httputil.ReturnSuccess(r, w, atts)
 }
 
 func (k *K8sAttributeController) createK8sAttributes(w http.ResponseWriter, r *http.Request) {

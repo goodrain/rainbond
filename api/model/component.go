@@ -267,6 +267,12 @@ type SyncComponentReq struct {
 	DeleteComponentIDs []string     `json:"delete_component_ids"`
 }
 
+//ComponentK8sAttributeGet -
+type ComponentK8sAttributeGet struct {
+	Name string `json:"name"`
+	Arch string `json:"arch"`
+}
+
 // ComponentK8sAttribute -
 type ComponentK8sAttribute struct {
 	// Name Define the attribute name, which is currently supported
