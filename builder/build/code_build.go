@@ -555,6 +555,10 @@ func (s *slugBuild) HandleNodeJsDir(re *Request) error {
 			return err
 		}
 		defer filePtr.Close()
+		if dir, ok := re.BuildEnvs["DIST_DIR"]; !ok || dir == ""{
+			re.BuildEnvs["DIST_DIR"] = "dist"
+		}
+
 		_, err = io.WriteString(filePtr, fmt.Sprintf("{\"path\":\"%v\"}", re.BuildEnvs["DIST_DIR"]))
 		if err != nil {
 			logrus.Error("write nodestatic json error:", err)
