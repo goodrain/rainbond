@@ -61,6 +61,11 @@ func (a *AppService) SetUpgradePatch(new *AppService) error {
 		if len(deploymentPatch) == 0 {
 			return fmt.Errorf("no upgrade")
 		}
+		deploymentPatch, err = K8sResourceFormat(deploymentPatch)
+		if err != nil {
+			logrus.Error("service upgrade format deployment patch error:", err)
+			return err
+		}
 		new.UpgradePatch["deployment"] = deploymentPatch
 	}
 	//update cache app service base info by new app service
@@ -282,4 +287,26 @@ func isContainsBootSequence(initContainers []corev1.Container) bool {
 		}
 	}
 	return false
+}
+
+// K8sResourceFormat -
+func K8sResourceFormat(b []byte) ([]byte, error) {
+	var data map[string]interface{}
+	err := json.Unmarshal(b, &data)
+	if err != nil {
+		return nil, err
+	}
+	// if annotations is an empty string, it will be converted to an empty map
+	metadata, ok := data["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"].(map[string]interface{})
+	if ok {
+		annotations, ok := metadata["annotations"].(string)
+		if ok && annotations == "" {
+			metadata["annotations"] = map[string]interface{}{}
+		}
+	}
+	result, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
