@@ -61,3 +61,4 @@ Library
 .cache
 headerfile.py
 localcheck.sh
+go.work

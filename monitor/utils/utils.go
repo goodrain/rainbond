@@ -71,3 +71,11 @@ func ListenStop() {
 	logrus.Warn("monitor manager received signal: ", sig.String())
 	close(sigs)
 }
+
+//GetenvDefault Used to define environment variables and default values.
+func GetenvDefault(key, def string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return def
+}

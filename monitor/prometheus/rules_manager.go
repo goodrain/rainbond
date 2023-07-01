@@ -4,6 +4,8 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/goodrain/rainbond/monitor/utils"
+
 	"github.com/goodrain/rainbond/cmd/monitor/option"
 	"github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
@@ -77,7 +79,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 						{
 							Alert:  "RequestSizeTooMuch",
-							Expr:   "sum by (instance, host) (rate(gateway_request_size_sum[5m])) > 1024*1024*10",
+							Expr:   "sum by (instance, host) (rate(gateway_request_size_sum[5m])) >" + utils.GetenvDefault("REQUEST_SIZE_TOO_MUCH_GOAL", "1024*1024*10"),
 							For:    "20s",
 							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
@@ -87,7 +89,7 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 						{
 							Alert:  "ResponseSizeTooMuch",
-							Expr:   "sum by (instance, host) (rate(gateway_response_size_sum[5m])) > 1024*1024*10",
+							Expr:   "sum by (instance, host) (rate(gateway_response_size_sum[5m])) >" + utils.GetenvDefault("RESPONSE_SIZE_TOO_MUCH_GOAL", "1024*1024*10"),
 							For:    "20s",
 							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
@@ -97,17 +99,17 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 						{
 							Alert:       "RequestMany",
-							Expr:        "rate(gateway_requests[5m]) > 200",
+							Expr:        "rate(gateway_requests[5m]) >" + utils.GetenvDefault("REQUEST_MANY_GOAL", "200"),
 							For:         "10s",
 							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
-							Annotations: map[string]string{"description": "5分钟内, http域名: {{ $labels.host }} 的请求数高于200,为 {{ humanize $value }}"},
+							Annotations: map[string]string{"description": "5分钟内, http域名: {{ $labels.host }} 的请求数高于" + utils.GetenvDefault("REQUEST_MANY_GOAL", "200") + ",为 {{ humanize $value }}"},
 						},
 						{
 							Alert:       "FailureRequestMany",
-							Expr:        "rate(gateway_requests{status=~\"5..\"}[5m]) > 5",
+							Expr:        "rate(gateway_requests{status=~\"5..\"}[5m]) >" + utils.GetenvDefault("FAILURE_REQUEST_MANY_GOAL", "5"),
 							For:         "10s",
 							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
-							Annotations: map[string]string{"description": "5分钟内, http域名: {{ $labels.host }} 的失败请求数高于5个,为 {{ humanize $value }} 个,状态码为[5..]"},
+							Annotations: map[string]string{"description": "5分钟内, http域名: {{ $labels.host }} 的失败请求数高于" + utils.GetenvDefault("FAILURE_REQUEST_MANY_GOAL", "5") + "个,为 {{ humanize $value }} 个,状态码为[5xx]"},
 						},
 					},
 				},
@@ -165,11 +167,11 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 						{
 							Alert:  "WorkerTaskError",
-							Expr:   "app_resource_exporter_worker_task_error > 50",
+							Expr:   "worker_exporter_worker_task_error >" + utils.GetenvDefault("WORKER_TASK_ERROR_GOAL", "10"),
 							For:    "5m",
 							Labels: getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{
-								"description": "rbd-worker组件 {{ $labels.instance }} 执行任务错误数大于50",
+								"description": "rbd-worker组件 {{ $labels.instance }} 执行任务错误数大于" + utils.GetenvDefault("WORKER_TASK_ERROR_GOAL", "10"),
 							},
 						},
 					},
@@ -272,52 +274,52 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 						},
 						{
 							Alert:       "HighCpuUsageOnNode",
-							Expr:        "sum by(instance) (rate(process_cpu_seconds_total[5m])) * 100 > 85",
+							Expr:        "sum by(instance) (rate(process_cpu_seconds_total[5m])) * 100 >" + utils.GetenvDefault("HIGH_CPU_USAGE_ON_NODE_GOAL", "85"),
 							For:         "5m",
 							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
-							Annotations: map[string]string{"description": "5分钟内, 节点 {{ $labels.instance }} 使用的CPU资源高于85%. CPU使用量为 {{ humanize $value }}%", "summary": "CPU占用率过高警告"},
+							Annotations: map[string]string{"description": "5分钟内, 节点 {{ $labels.instance }} 使用的CPU资源高于" + utils.GetenvDefault("HIGH_CPU_USAGE_ON_NODE_GOAL", "85") + "%. CPU使用量为 {{ humanize $value }}%", "summary": "CPU占用率过高警告"},
 						},
 						{
 							Alert:       "HighLoadOnNode",
-							Expr:        "sum(node_load5) by(instance) > count by(instance) (count by(job, instance, cpu) (node_cpu)) * 0.7",
+							Expr:        "sum(node_load5{component=\"rbd_node\"}) by(instance) > count by(instance)(node_cpu_seconds_total{mode=\"idle\",job=\"rbd_node\"}) *" + utils.GetenvDefault("HIGH_LOAD_ON_NODE_FACTOR", "0.7"),
 							For:         "5m",
 							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{"description": "节点 {{ $labels.instance }} 正处于高负载状态. 5分钟负载量为 {{ humanize $value}}", "summary": "节点高负载警告"},
 						},
 						{
 							Alert:       "InodeFreerateLow",
-							Expr:        "node_filesystem_files_free{fstype=~\"ext4|xfs\"} / node_filesystem_files{fstype=~\"ext4|xfs\"} < 0.3",
+							Expr:        "node_filesystem_files_free{fstype=~\"ext4|xfs\",job=\"rbd_node\"} / node_filesystem_files{fstype=~\"ext4|xfs\",job=\"rbd_node\"} <" + utils.GetenvDefault("INODE_FREE_RATE_LOW_FACTOR", "0.3"),
 							For:         "5m",
 							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{"description": "节点 {{ $labels.instance }} 上 inode 剩余可用率过低, 当前可用率为 {{ humanize $value }}%"},
 						},
 						{
 							Alert:       "HighRootdiskUsageOnNode",
-							Expr:        "(node_filesystem_size{mountpoint='/'} - node_filesystem_free{mountpoint='/'}) * 100 / node_filesystem_size{mountpoint='/'} > 80",
+							Expr:        "(node_filesystem_size_bytes{mountpoint='/',job=\"rbd_node\"} - node_filesystem_free_bytes{mountpoint='/',job=\"rbd_node\"}) * 100 / node_filesystem_size_bytes{mountpoint='/',job=\"rbd_node\"} >" + utils.GetenvDefault("HIGH_ROOT_DISK_USAGE_ON_NODE_GOAL", "70"),
 							For:         "5m",
 							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
-							Annotations: map[string]string{"description": "磁盘使用率高于 80%, 当前使用率为 {{ humanize $value }}%. 被使用磁盘的挂载点为 {{ $labels.mountpoint }}", "summary": "根分区磁盘使用率过高警告"},
+							Annotations: map[string]string{"description": "磁盘使用率高于" + utils.GetenvDefault("HIGH_ROOT_DISK_USAGE_ON_NODE_GOAL", "70") + "%, 当前使用率为 {{ humanize $value }}%. 被使用磁盘的挂载点为 {{ $labels.mountpoint }}", "summary": "根分区磁盘使用率过高警告"},
 						},
 						{
 							Alert:       "HighDockerdiskUsageOnNode",
-							Expr:        "(node_filesystem_size{mountpoint='/var/lib/docker'} - node_filesystem_free{mountpoint='/var/lib/docker'}) * 100 / node_filesystem_size{mountpoint='/var/lib/docker'} > 80",
+							Expr:        "(node_filesystem_size_bytes{mountpoint='/var/lib/docker',job=\"rbd_node\"} - node_filesystem_free_bytes{mountpoint='/var/lib/docker',job=\"rbd_node\"}) * 100 / node_filesystem_size_bytes{mountpoint='/var/lib/docker',job=\"rbd_node\"} >" + utils.GetenvDefault("HIGH_DOCKER_DISK_USAGE_ON_NODE_GOAL", "70"),
 							For:         "5m",
 							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
-							Annotations: map[string]string{"description": "磁盘使用率高于 80%, 当前使用率为 {{ humanize $value }}%. 被使用磁盘的挂载点为 {{ $labels.mountpoint }}", "summary": "Docker分区磁盘使用率过高警告"},
+							Annotations: map[string]string{"description": "磁盘使用率高于" + utils.GetenvDefault("HIGH_DOCKER_DISK_USAGE_ON_NODE_GOAL", "70") + "%, 当前使用率为 {{ humanize $value }}%. 被使用磁盘的挂载点为 {{ $labels.mountpoint }}", "summary": "Docker分区磁盘使用率过高警告"},
 						},
 						{
 							Alert:       "HighMemoryUsageOnNode",
-							Expr:        "((node_memory_MemTotal - node_memory_MemAvailable) / node_memory_MemTotal) * 100 > 80",
+							Expr:        "((node_memory_MemTotal_bytes{job=\"rbd_node\"} - node_memory_MemAvailable_bytes{job=\"rbd_node\"}) / node_memory_MemTotal_bytes{job=\"rbd_node\"}) * 100 >" + utils.GetenvDefault("HIGH_MEMORY_USAGE_ON_NODE_GOAL", "80"),
 							For:         "5m",
 							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
 							Annotations: map[string]string{"description": "节点 {{ $labels.instance }} 使用内存过高. 内存使用率大概为 {{ humanize $value}}%", "summary": "内存使用率过高警告"},
 						},
 						{
 							Alert:       "StorageFull",
-							Expr:        "(node_filesystem_size{mountpoint=\"/grdata\"} - node_filesystem_free{mountpoint=\"/grdata\"}) * 100 / node_filesystem_size{mountpoint=\"/grdata\"} > 80",
+							Expr:        "(node_filesystem_size_bytes{mountpoint=\"/grdata\",job=\"rbd_node\"} - node_filesystem_free_bytes{mountpoint=\"/grdata\",job=\"rbd_node\"}) * 100 / node_filesystem_size_bytes{mountpoint=\"/grdata\",job=\"rbd_node\"} >" + utils.GetenvDefault("STORAGE_FULL_GOAL", "80"),
 							For:         "1m",
 							Labels:      getCommonLabels(map[string]string{"PageAlarm": "true"}),
-							Annotations: map[string]string{"description": "节点 {{ $labels.instance }} 上的共享存储空间已经使用80%", "summary": "共享存储使用率过高警告"},
+							Annotations: map[string]string{"description": "节点 {{ $labels.instance }} 上的共享存储空间已经使用" + utils.GetenvDefault("STORAGE_FULL_GOAL", "80") + "%,", "summary": "共享存储使用率过高警告"},
 						},
 					},
 				},
@@ -385,14 +387,14 @@ func NewRulesManager(config *option.Config) *AlertingRulesManager {
 							For:    "1m",
 							Labels: getseverityLabels("critical"),
 							Annotations: map[string]string{
-								"description": "警告: 如果再有一个etcd节点故障，集群将不可用",
+								"description": "警告: 如果再有一个etcd节点故障, 集群将不可用",
 								"summary":     "etcd集群可用节点不足警告",
 							},
 						},
 						{
 							Alert:  "HighNumberOfLeaderChanges",
-							Expr:   "increase(etcd_server_leader_changes_seen_total{job=\"etcd\"}[1h]) > 3",
-							For:    "1m",
+							Expr:   "increase(etcd_server_leader_changes_seen_total{job=\"etcd\"}[1h]) >" + utils.GetenvDefault("HIGH_NUMBER_OF_LEADER_CHANGES_GOAL", "5"),
+							For:    "5m",
 							Labels: getseverityLabels("warning"),
 							Annotations: map[string]string{
 								"description": "etcd实例 {{ $labels.instance }} leader最近一小时发生的变更次数:{{ $value }}",
