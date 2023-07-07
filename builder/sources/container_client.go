@@ -38,6 +38,7 @@ const (
 	CONTAINER_ACTION_DIE = "die"
 )
 
+//ContainerDesc -
 type ContainerDesc struct {
 	ContainerRuntime string
 	// Info is extra information of the Container. The key could be arbitrary string, and
@@ -50,21 +51,23 @@ type ContainerDesc struct {
 	*types.ContainerJSON
 }
 
+//GetLogPath -
 func (c *ContainerDesc) GetLogPath() string {
 	if c.ContainerRuntime == ContainerRuntimeDocker {
-		logrus.Infof("docker container log path %s", c.ContainerJSON.LogPath)
+		logrus.Debugf("docker container log path %s", c.ContainerJSON.LogPath)
 		return c.ContainerJSON.LogPath
 	}
-	logrus.Infof("containerd container log path %s", c.ContainerStatus.GetLogPath())
+	logrus.Debugf("containerd container log path %s", c.ContainerStatus.GetLogPath())
 	return c.ContainerStatus.GetLogPath()
 }
 
+//GetId -
 func (c *ContainerDesc) GetId() string {
 	if c.ContainerRuntime == ContainerRuntimeDocker {
-		logrus.Infof("docker container id %s", c.ContainerJSON.ID)
+		logrus.Debugf("docker container id %s", c.ContainerJSON.ID)
 		return c.ContainerJSON.ID
 	}
-	logrus.Infof("containerd container id %s", c.ContainerStatus.GetId())
+	logrus.Debugf("containerd container id %s", c.ContainerStatus.GetId())
 	return c.ContainerStatus.GetId()
 }
 
@@ -110,6 +113,7 @@ type ContainerEvent struct {
 	Container *ContainerDesc
 }
 
+//CacheContainer cache container
 func CacheContainer(cchan chan ContainerEvent, cs ...ContainerEvent) {
 	for _, container := range cs {
 		logrus.Debugf("found a container %s %s", container.Container.GetMetadata().GetName(), container.Action)
