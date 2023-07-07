@@ -310,8 +310,12 @@ func (c *clusterAction) AppYamlResourceImport(yamlResource api_model.YamlResourc
 		return ar, &util.APIHandleError{Code: 400, Err: fmt.Errorf("create K8sResources err:%v", err)}
 	}
 	var componentAttributes []api_model.ComponentAttributes
+	existComponents, err := db.GetManager().TenantServiceDao().ListByAppID(app.AppID)
+	if err != nil {
+		return api_model.AppComponent{}, &util.APIHandleError{Code: 400, Err: fmt.Errorf("get app service by appID failure: %v", err)}
+	}
 	for _, componentResource := range components.ConvertResource {
-		component, err := c.CreateComponent(app, yamlResource.TenantID, componentResource, yamlResource.Namespace, true)
+		component, err := c.CreateComponent(app, yamlResource.TenantID, componentResource, yamlResource.Namespace, true, existComponents)
 		if err != nil {
 			logrus.Errorf("%v", err)
 			return ar, &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
