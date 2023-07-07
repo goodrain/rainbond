@@ -90,7 +90,7 @@ func (u *UDPServer) UpdateEndpoints(endpoints ...*config.Endpoint) {
 					logrus.Error(err)
 					continue
 				}
-				logrus.Infof("Update event server address is %s", u.eventServerEndpoint[i])
+				logrus.Debugf("Update event server address is %s", u.eventServerEndpoint[i])
 				u.client = conn
 				break
 			}
