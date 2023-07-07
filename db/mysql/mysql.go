@@ -254,4 +254,8 @@ func (m *Manager) patchTable() {
 	if err := m.db.Exec("alter table applications modify column governance_mode varchar(255) DEFAULT 'KUBERNETES_NATIVE_SERVICE';").Error; err != nil {
 		logrus.Errorf("alter table applications error: %s", err.Error())
 	}
+
+	if err := m.db.Exec("alter table tenant_services_volume_type modify column storage_class_detail longtext;").Error; err != nil {
+		logrus.Errorf("alter table applications error: %s", err.Error())
+	}
 }
