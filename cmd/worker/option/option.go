@@ -50,6 +50,7 @@ type Config struct {
 	Listen                  string
 	HostIP                  string
 	ServerPort              int
+	SharedStorageClass      string
 	KubeClient              kubernetes.Interface
 	LeaderElectionNamespace string
 	LeaderElectionIdentity  string
@@ -106,6 +107,7 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.RBDNamespace, "rbd-system-namespace", "rbd-system", "rbd components kubernetes namespace")
 	fs.StringVar(&a.GrdataPVCName, "grdata-pvc-name", "rbd-cpt-grdata", "The name of grdata persistent volume claim")
 	fs.StringVar(&a.Helm.DataDir, "/grdata/helm", "/grdata/helm", "The data directory of Helm.")
+	fs.StringVar(&a.SharedStorageClass, "shared-storageclass", "", "custom shared storage class.use the specified storageclass to create shared storage, if this parameter is not specified, it will use rainbondsssc by default")
 	a.Helm.RepoFile = path.Join(a.Helm.DataDir, "repo/repositories.yaml")
 	a.Helm.RepoCache = path.Join(a.Helm.DataDir, "cache")
 	a.Helm.ChartCache = path.Join(a.Helm.DataDir, "chart")
