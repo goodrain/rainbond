@@ -39,8 +39,12 @@ func (c *clusterAction) ResourceImport(namespace string, as map[string]model.App
 			return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("create K8sResources err:%v", err)}
 		}
 		var componentAttributes []model.ComponentAttributes
+		existComponents, err := db.GetManager().TenantServiceDao().ListByAppID(app.AppID)
+		if err != nil {
+			return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("get app service by appID failure: %v", err)}
+		}
 		for _, componentResource := range components.ConvertResource {
-			component, err := c.CreateComponent(app, tenant.UUID, componentResource, namespace, false)
+			component, err := c.CreateComponent(app, tenant.UUID, componentResource, namespace, false, existComponents)
 			if err != nil {
 				logrus.Errorf("%v", err)
 				return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("create app error:%v", err)}
@@ -148,7 +152,7 @@ func (c *clusterAction) CreateK8sResource(k8sResources []dbmodel.K8sResource, Ap
 	return k8sResources, err
 }
 
-func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID string, component model.ConvertResource, namespace string, isYaml bool) (*dbmodel.TenantServices, error) {
+func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID string, component model.ConvertResource, namespace string, isYaml bool, existComponents []*dbmodel.TenantServices) (*dbmodel.TenantServices, error) {
 	var extendMethod string
 	switch component.BasicManagement.ResourceType {
 	case model.Deployment:
@@ -169,6 +173,13 @@ func (c *clusterAction) CreateComponent(app *dbmodel.Application, tenantID strin
 	JobStrategy, err := json.Marshal(component.BasicManagement.JobStrategy)
 	if err != nil {
 		logrus.Errorf("component %v BasicManagement.JobStrategy json error%v", component.ComponentsName, err)
+	}
+	for _, cpt := range existComponents {
+		if cpt.K8sComponentName == component.ComponentsName {
+			uid := strings.Replace(uuid.NewV4().String(), "-", "", -1)
+			suffix := uid[:6]
+			component.ComponentsName = component.ComponentsName + "-" + suffix
+		}
 	}
 	ts := dbmodel.TenantServices{
 		TenantID:         tenantID,
