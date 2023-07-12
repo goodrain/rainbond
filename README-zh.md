@@ -1,15 +1,19 @@
-<img src="https://static.goodrain.com/logo/logo-long.png" width="60%">
+<div align="center">
+  <img src="https://static.goodrain.com/logo/logo-long.png" width="60%">
 
-[![Rainbond](https://jaywcjlove.github.io/sb/lang/english.svg)](README.md)
-[![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-![Rainbond version](https://img.shields.io/badge/version-v5.X-brightgreen.svg)
-[![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
+  [![Rainbond](https://jaywcjlove.github.io/sb/lang/english.svg)](README.md)
+  [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
+  ![Rainbond version](https://img.shields.io/badge/version-v5.X-brightgreen.svg)
+  [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
-[项目官网](http://www.rainbond.com?channel=github) • [文档](https://www.rainbond.com/docs?channel=github)
+  <h3>不用懂 Kubernetes 的云原生应用管理平台</h3>
+
+  [项目官网](http://www.rainbond.com?channel=github) • [文档](https://www.rainbond.com/docs?channel=github)
+</div>
 
 ## Rainbond 是什么
 
-Rainbond 是一个云原生多云应用管理平台，使用简单，不需要懂容器、Kubernetes和底层复杂技术，支持管理多个Kubernetes集群，和管理企业应用全生命周期。主要功能包括应用开发环境、应用市场、微服务架构、应用交付、应用运维、应用级多云管理等。
+Rainbond 核心100%开源，Serverless体验，支持对接和管理多种 Kubernetes 集群，是国内首个支持国产化信创、适合私有部署的一体化应用管理平台。
 
 <details>
   <summary><b>使用简单</b></summary>

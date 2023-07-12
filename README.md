@@ -1,15 +1,19 @@
-<img src="https://static.goodrain.com/logo/logo-long.png" width="60%">
+<div align="center">
+  <img src="https://static.goodrain.com/logo/logo-long.png" width="60%">
 
-[![Rainbond](https://jaywcjlove.github.io/sb/lang/chinese.svg)](README-zh.md)
-[![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
-![Rainbond version](https://img.shields.io/badge/version-v5.X-brightgreen.svg)
-[![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
+  [![Rainbond](https://jaywcjlove.github.io/sb/lang/chinese.svg)](README-zh.md)
+  [![GitHub stars](https://img.shields.io/github/stars/goodrain/rainbond.svg?style=flat-square)](https://github.com/goodrain/rainbond/stargazers)
+  ![Rainbond version](https://img.shields.io/badge/version-v5.X-brightgreen.svg)
+  [![GoDoc](https://godoc.org/github.com/goodrain/rainbond?status.svg)](https://godoc.org/github.com/goodrain/rainbond)
 
-[Website](https://www.rainbond.com/en?channel=github) • [Documentation](https://www.rainbond.com/en/docs/?channel=github)
+  <h3>No need to know Kubernetes' cloud native application management platform</h3>
+
+  [Website](https://www.rainbond.com/en?channel=github) • [Documentation](https://www.rainbond.com/en/docs/?channel=github)
+</div>
 
 ## What is Rainbond ?
 
-Rainbond is a cloud native multi cloud application management platform, which is easy to use and does not need to understand containers, kubernetes and underlying complex technologies. It supports the management of multiple kubernetes clusters and the management of the whole life cycle of enterprise applications. The main functions include application development environment, application market, micro service architecture, application delivery, application operation and maintenance, application level multi cloud management, etc.
+Rainbond core 100% open source, Serverless experience, support docking and management of a variety of Kubernetes clusters, is first domestic support for the localization Xinchuang and an all-in-one application management platform for private deployments.
 
 <details>
   <summary><b>Easy To Use</b></summary>
