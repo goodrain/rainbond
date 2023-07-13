@@ -13,20 +13,6 @@ import (
 type HelmStruct struct {
 }
 
-//CommandHelm execute helm command
-func (t *HelmStruct) CommandHelm(w http.ResponseWriter, r *http.Request) {
-	var cmd api_model.CommandHelmStruct
-	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &cmd, nil); !ok {
-		return
-	}
-	helmCommandRet, err := handler.GetHelmManager().CommandHelm(cmd.Command)
-	if err != nil {
-		httputil.ReturnBcodeError(r, w, err)
-		return
-	}
-	httputil.ReturnSuccess(r, w, helmCommandRet)
-}
-
 //CheckHelmApp check helm app
 func (t *HelmStruct) CheckHelmApp(w http.ResponseWriter, r *http.Request) {
 	var checkHelmApp api_model.CheckHelmApp
