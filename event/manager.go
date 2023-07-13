@@ -173,6 +173,7 @@ func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
 		eventServer = append(eventServer, k)
 	}
 	m.eventServer = eventServer
+	m.config.EventLogServers = eventServer
 	logrus.Debugf("update event handle core success,handle core count:%d, event server count:%d", len(m.handles), len(m.eventServer))
 }
 
