@@ -41,8 +41,6 @@ func (v *OtherVolume) CreateVolume(define *Define) error {
 		shareFile = true
 	}
 	volumeType, err := db.GetManager().VolumeTypeDao().GetVolumeTypeByType(v.svm.VolumeType)
-	v.svm.VolumeProviderName = volumeType.Provisioner
-
 	if err != nil {
 		logrus.Errorf("get volume type by type error: %s", err.Error())
 		return fmt.Errorf("validate volume capacity error")
@@ -51,6 +49,7 @@ func (v *OtherVolume) CreateVolume(define *Define) error {
 		logrus.Errorf("validate volume capacity[%v] error: %s", v.svm.VolumeCapacity, err.Error())
 		return err
 	}
+	v.svm.VolumeProviderName = volumeType.Provisioner
 	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
 	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := v.svm.IsReadOnly
