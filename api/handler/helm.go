@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -15,10 +14,8 @@ import (
 	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
 	"net/http"
-	"os/exec"
 	"path"
 	"sigs.k8s.io/yaml"
-	"strings"
 )
 
 //AppTemplate -
@@ -111,26 +108,6 @@ func (h *HelmAction) UpdateHelmRepo(names string) error {
 		return errors.Wrap(err, "helm repo update failed")
 	}
 	return nil
-}
-
-// CommandHelm 执行 helm 命令
-func (h *HelmAction) CommandHelm(command string) (*api_model.HelmCommandRet, *util.APIHandleError) {
-	logrus.Infof("execute the help command:%v", command)
-	commands := strings.Split(command, " ")
-	cmd := exec.Command("helm", commands...)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout // 标准输出
-	cmd.Stderr = &stderr // 标准错误
-	err := cmd.Run()
-	var retHelmCommand api_model.HelmCommandRet
-	if err != nil {
-		logrus.Errorf("helm command executive error:%v", err)
-		retHelmCommand.Yaml = string(stderr.Bytes())
-		return &retHelmCommand, nil
-	}
-	retHelmCommand.Yaml = string(stdout.Bytes())
-	retHelmCommand.Status = true
-	return &retHelmCommand, nil
 }
 
 //AddHelmRepo add helm repo

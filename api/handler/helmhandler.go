@@ -7,7 +7,6 @@ import (
 
 //HelmHandler -
 type HelmHandler interface {
-	CommandHelm(command string) (*api_model.HelmCommandRet, *util.APIHandleError)
 	AddHelmRepo(helmRepo api_model.CheckHelmApp) error
 	CheckHelmApp(checkHelmApp api_model.CheckHelmApp) (string, error)
 	GetChartInformation(chart api_model.ChartInformation) (*[]api_model.HelmChartInformation, *util.APIHandleError)

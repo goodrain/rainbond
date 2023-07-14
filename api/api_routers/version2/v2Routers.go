@@ -69,7 +69,6 @@ func (v2 *V2) Routes() chi.Router {
 func (v2 *V2) helmRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/check_helm_app", controller.GetManager().CheckHelmApp)
-	r.Get("/command_helm", controller.GetManager().CommandHelm)
 	r.Get("/get_chart_information", controller.GetManager().GetChartInformation)
 	return r
 }
