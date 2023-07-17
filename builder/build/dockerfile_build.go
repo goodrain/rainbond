@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/eapache/channels"
+	"github.com/goodrain/rainbond/builder"
 	jobc "github.com/goodrain/rainbond/builder/job"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
@@ -83,7 +84,7 @@ func (d *dockerfileBuild) stopPreBuildJob(re *Request) error {
 	return nil
 }
 
-// Use kaniko to create a job to build an image
+// Use buildkit to create a job to build an image
 func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error {
 	name := fmt.Sprintf("%s-%s", re.ServiceID, re.DeployVersion)
 	namespace := re.RbdNamespace
@@ -133,26 +134,44 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	if err != nil {
 		return err
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	err = sources.PrepareBuildKitTomlCM(ctx, re.KubeClient, re.RbdNamespace)
+	if err != nil {
+		return err
+	}
 	volumes, mounts := d.createVolumeAndMount(re, secret.Name)
 	podSpec.Volumes = volumes
+	privileged := true
 	container := corev1.Container{
-		Name: name,
-		//2022.11.4: latest==1.9.1
-		Image:     re.KanikoImage,
+		Name:      name,
+		Image:     re.BuildKitImage,
 		Stdin:     true,
 		StdinOnce: true,
-		Args:      []string{fmt.Sprintf("--context=%v", re.SourceDir), fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify", "--reproducible"},
+		Command:   []string{"buildctl-daemonless.sh"},
+		Args: []string{
+			"build",
+			"--frontend",
+			"dockerfile.v0",
+			"--local",
+			"context=/workspace",
+			"--local",
+			"dockerfile=/workspace",
+			"--output",
+			fmt.Sprintf("type=image,name=%s,push=true", buildImageName),
+		},
+		SecurityContext: &corev1.SecurityContext{
+			Privileged: &privileged,
+		},
 	}
-	if len(re.KanikoArgs) > 0 {
-		container.Args = append(container.Args, re.KanikoArgs...)
+	if len(re.BuildKitArgs) > 0 {
+		container.Args = append(container.Args, re.BuildKitArgs...)
 	}
 	container.VolumeMounts = mounts
 	podSpec.Containers = append(podSpec.Containers, container)
 	job.Spec = podSpec
 	writer := re.Logger.GetWriter("builder", "info")
 	reChan := channels.NewRingChannel(10)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	logrus.Debugf("create job[name: %s; namespace: %s]", job.Name, job.Namespace)
 	err = jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
@@ -191,7 +210,21 @@ func (d *dockerfileBuild) createVolumeAndMount(re *Request, secretName string) (
 	volumes = []corev1.Volume{
 		dockerfileBuildVolume,
 		{
-			Name: "kaniko-secret",
+			Name: "buildkittoml",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: builder.REGISTRYDOMAIN},
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "buildkittoml",
+							Path: "buildkitd.toml",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "buildkit-secret",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: secretName,
@@ -220,12 +253,16 @@ func (d *dockerfileBuild) createVolumeAndMount(re *Request, secretName string) (
 			MountPath: "/cache",
 		},
 		{
-			Name:      "kaniko-secret",
-			MountPath: "/kaniko/.docker",
+			Name:      "buildkit-secret",
+			MountPath: "~/.docker",
 		},
 		{
 			Name:      "hosts",
 			MountPath: "/etc/hosts",
+		},
+		{
+			Name:      "buildkittoml",
+			MountPath: "/etc/buildkit",
 		},
 	}
 	return volumes, volumeMounts

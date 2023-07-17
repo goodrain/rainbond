@@ -61,8 +61,8 @@ type SourceCodeBuildItem struct {
 	CacheDir      string       `json:"cache_dir"`
 	TGZDir        string       `json:"tgz_dir"`
 	ImageClient   sources.ImageClient
-	KanikoImage   string
-	KanikoArgs    []string
+	BuildKitImage string
+	BuildKitArgs  []string
 	KubeClient    kubernetes.Interface
 	RbdNamespace  string
 	RbdRepoName   string
@@ -326,8 +326,8 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		return nil, err
 	}
 	buildReq := &build.Request{
-		KanikoArgs:    i.KanikoArgs,
-		KanikoImage:   i.KanikoImage,
+		BuildKitImage: i.BuildKitImage,
+		BuildKitArgs:  i.BuildKitArgs,
 		RbdNamespace:  i.RbdNamespace,
 		SourceDir:     i.RepoInfo.GetCodeBuildAbsPath(),
 		CacheDir:      i.CacheDir,

@@ -142,7 +142,7 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 		return "", fmt.Errorf("pull image %s: %v", builder.RUNNERIMAGENAME, err)
 	}
 	logrus.Infof("pull image %s successfully.", builder.RUNNERIMAGENAME)
-	err := sources.ImageBuild(s.re.Arch, cacheDir, "", "", s.re.RbdNamespace, s.re.ServiceID, s.re.DeployVersion, s.re.Logger, "run-build", "", s.re.KanikoImage, s.re.KanikoArgs)
+	err := sources.ImageBuild(s.re.Arch, cacheDir, "", "", s.re.RbdNamespace, s.re.ServiceID, s.re.DeployVersion, s.re.Logger, "run-build", "", s.re.BuildKitImage, s.re.BuildKitArgs, s.re.KubeClient)
 	if err != nil {
 		s.re.Logger.Error(fmt.Sprintf("build image %s of new version failure", imageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("build image error: %s", err.Error())
@@ -555,7 +555,7 @@ func (s *slugBuild) HandleNodeJsDir(re *Request) error {
 			return err
 		}
 		defer filePtr.Close()
-		if dir, ok := re.BuildEnvs["DIST_DIR"]; !ok || dir == ""{
+		if dir, ok := re.BuildEnvs["DIST_DIR"]; !ok || dir == "" {
 			re.BuildEnvs["DIST_DIR"] = "dist"
 		}
 
