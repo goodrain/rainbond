@@ -52,7 +52,9 @@ import (
 	"golang.org/x/sync/errgroup"
 	"io"
 	corev1 "k8s.io/api/core/v1"
+	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"os"
 	"path"
 	"path/filepath"
@@ -389,8 +391,8 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	return base64.URLEncoding.EncodeToString(buf), nil
 }
 
-//ImageBuild use kaniko build image
-func ImageBuild(arch, contextDir, cachePVCName, cacheMode, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, KanikoImage string, KanikoArgs []string) error {
+//ImageBuild use buildkit build image
+func ImageBuild(arch, contextDir, cachePVCName, cacheMode, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, BuildKitImage string, BuildKitArgs []string, kubeClient kubernetes.Interface) error {
 	// create image name
 	var buildImageName string
 	if buildType == "plug-build" {
@@ -439,29 +441,47 @@ func ImageBuild(arch, contextDir, cachePVCName, cacheMode, RbdNamespace, Service
 			},
 		},
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	err = PrepareBuildKitTomlCM(ctx, kubeClient, RbdNamespace)
+	if err != nil {
+		return err
+	}
 	// only support never and onfailure
-	volumes, volumeMounts := CreateVolumesAndMounts(contextDir, buildType, cacheMode, cachePVCName)
+	volumes, volumeMounts := CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePVCName)
 	podSpec.Volumes = volumes
+	privileged := true
 	// container config
 	container := corev1.Container{
-		Name: name,
-		//2022.11.4: latest==1.9.1
-		Image:     KanikoImage,
+		Name:      name,
+		Image:     BuildKitImage,
 		Stdin:     true,
 		StdinOnce: true,
-		Args:      []string{"--context=dir:///workspace", fmt.Sprintf("--destination=%s", buildImageName), "--skip-tls-verify", "--reproducible"},
+		Command:   []string{"buildctl-daemonless.sh"},
+		Args: []string{
+			"build",
+			"--frontend",
+			"dockerfile.v0",
+			"--local",
+			"context=/workspace",
+			"--local",
+			"dockerfile=/workspace",
+			"--output",
+			fmt.Sprintf("type=image,name=%s,push=true", buildImageName),
+		},
+		SecurityContext: &corev1.SecurityContext{
+			Privileged: &privileged,
+		},
 	}
-	if len(KanikoArgs) > 0 {
-		container.Args = append(container.Args, KanikoArgs...)
+	logrus.Infof("buildkt args: %v", BuildKitArgs)
+	if len(BuildKitArgs) > 0 {
+		container.Args = append(container.Args, BuildKitArgs...)
 	}
 	container.VolumeMounts = volumeMounts
 	podSpec.Containers = append(podSpec.Containers, container)
 	job.Spec = podSpec
 	writer := logger.GetWriter("builder", "info")
 	reChan := channels.NewRingChannel(10)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	logrus.Debugf("create job[name: %s; namespace: %s]", job.Name, job.Namespace)
 	err = jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
 	if err != nil {
@@ -748,16 +768,49 @@ func CreateImageName(ServiceID, DeployVersion string) string {
 	return strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, workloadName, DeployVersion))
 }
 
+//PrepareBuildKitTomlCM -
+func PrepareBuildKitTomlCM(ctx context.Context, kubeClient kubernetes.Interface, namespace string) error {
+	buildKitTomlCM, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, builder.REGISTRYDOMAIN, metav1.GetOptions{})
+	if err != nil && !k8serror.IsNotFound(err) {
+		return err
+	}
+	if k8serror.IsNotFound(err) {
+		configStr := fmt.Sprintf("debug = true\n[registry.\"%v\"]\n  http = false\n  insecure = true", builder.REGISTRYDOMAIN)
+		buildKitTomlCM = &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: builder.REGISTRYDOMAIN,
+			},
+			Data: map[string]string{
+				"buildkittoml": configStr,
+			},
+		}
+		_, err = kubeClient.CoreV1().ConfigMaps(namespace).Create(ctx, buildKitTomlCM, metav1.CreateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // CreateVolumesAndMounts -
-func CreateVolumesAndMounts(contextDir, buildType, cacheMode, cachePVCName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+func CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePVCName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	pathSplit := strings.Split(contextDir, "/")
 	subPath := strings.Join(pathSplit[2:], "/")
 	hostPathType := corev1.HostPathDirectoryOrCreate
 	hostsFilePathType := corev1.HostPathFile
-	// kaniko volumes volumeMounts config
+	// buildkit volumes volumeMounts config
 	volumes = []corev1.Volume{
 		{
-			Name: "kaniko-secret",
+			Name: "buildkit-db",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: fmt.Sprintf("/cache/buildkit-cache/%v", ServiceID),
+					Type: &hostPathType,
+				},
+			},
+		},
+		{
+			Name: "buildkit-secret",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: "rbd-hub-credentials",
@@ -779,15 +832,37 @@ func CreateVolumesAndMounts(contextDir, buildType, cacheMode, cachePVCName strin
 				},
 			},
 		},
+		{
+			Name: "buildkittoml",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: builder.REGISTRYDOMAIN},
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "buildkittoml",
+							Path: "buildkitd.toml",
+						},
+					},
+				},
+			},
+		},
 	}
 	volumeMounts = []corev1.VolumeMount{
 		{
-			Name:      "kaniko-secret",
-			MountPath: "/kaniko/.docker",
+			Name:      "buildkit-secret",
+			MountPath: "/root/.docker",
 		},
 		{
 			Name:      "hosts",
 			MountPath: "/etc/hosts",
+		},
+		{
+			Name:      "buildkittoml",
+			MountPath: "/etc/buildkit",
+		},
+		{
+			Name:      "buildkit-db",
+			MountPath: "/var/lib/buildkit",
 		},
 	}
 	// Customize it according to how it is built volumes volumeMounts config

@@ -21,11 +21,10 @@ package option
 import (
 	"fmt"
 	"github.com/goodrain/rainbond/builder/sources"
-	"runtime"
-
 	"github.com/goodrain/rainbond/mq/client"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"runtime"
 )
 
 //Config config server
@@ -38,8 +37,8 @@ type Config struct {
 	EtcdPrefix           string
 	ClusterName          string
 	MysqlConnectionInfo  string
-	KanikoImage          string
-	KanikoArgs           []string
+	BuildKitImage        string
+	BuildKitArgs         string
 	DBType               string
 	PrometheusMetricPath string
 	EventLogServers      []string
@@ -84,7 +83,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&a.EtcdTimeout, "etcd-timeout", 5, "etcd http timeout seconds")
 	fs.StringVar(&a.EtcdPrefix, "etcd-prefix", "/store", "the etcd data save key prefix ")
 	fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
-	fs.StringVar(&a.KanikoImage, "kaniko-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/kaniko-executor:latest", "kaniko image version")
+	fs.StringVar(&a.BuildKitImage, "buildkit-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/buildkit:v0.12.0", "buildkit image version")
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
 	fs.StringVar(&a.MysqlConnectionInfo, "mysql", "root:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
 	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"127.0.0.1:6366"}, "event log server address. simple lb")
@@ -106,7 +105,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.CachePath, "cache-path", "/cache", "volume cache mount path, when cache-mode using hostpath, default path is /cache")
 	fs.StringVar(&a.ContainerRuntime, "container-runtime", sources.ContainerRuntimeContainerd, "container runtime, support docker and containerd")
 	fs.StringVar(&a.RuntimeEndpoint, "runtime-endpoint", sources.RuntimeEndpointContainerd, "container runtime endpoint")
-	fs.StringSliceVar(&a.KanikoArgs, "kaniko-args", []string{}, "kaniko build image container args config")
+	fs.StringVar(&a.BuildKitArgs, "buildkit-args", "", "buildkit build image container args config,need '&' split")
 }
 
 //SetLog 设置log
