@@ -8,7 +8,8 @@ import (
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	appv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/autoscaling/v2beta2"
+	autoscalv2beta2 "k8s.io/api/autoscaling/v2beta2"
+	autoscalv2 "k8s.io/api/autoscaling/v2"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -356,7 +357,25 @@ func (s *exportController) exportOne(app v1.AppService, r *RainbondExport) error
 			hpa.Kind = "HorizontalPodAutoscaler"
 			hpa.Namespace = ""
 			hpa.APIVersion = APIVersionHorizontalPodAutoscaler
-			hpa.Status = v2beta2.HorizontalPodAutoscalerStatus{}
+			hpa.Status = autoscalv2.HorizontalPodAutoscalerStatus{}
+			if len(hpa.ResourceVersion) == 0 {
+				hpaBytes, err := yaml.Marshal(hpa)
+				if err != nil {
+					return fmt.Errorf("hpa to yaml failure %v", err)
+				}
+				err = s.write(path.Join(exportTemplatePath, "HorizontalPodAutoscaler.yaml"), hpaBytes, "\n---\n")
+				if err != nil {
+					return fmt.Errorf("write hpa yaml failure %v", err)
+				}
+			}
+		}
+	}
+	if hpas := app.GetHPABeta2s(); len(hpas) != 0 {
+		for _, hpa := range hpas {
+			hpa.Kind = "HorizontalPodAutoscaler"
+			hpa.Namespace = ""
+			hpa.APIVersion = APIVersionHorizontalPodAutoscaler
+			hpa.Status = autoscalv2beta2.HorizontalPodAutoscalerStatus{}
 			if len(hpa.ResourceVersion) == 0 {
 				hpaBytes, err := yaml.Marshal(hpa)
 				if err != nil {

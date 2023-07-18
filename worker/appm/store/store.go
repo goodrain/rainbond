@@ -52,7 +52,8 @@ import (
 	"github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
-	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	autoscalingv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -243,8 +244,13 @@ func NewStore(
 
 	store.informers.Events = infFactory.Core().V1().Events().Informer()
 
-	store.informers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2beta2().HorizontalPodAutoscalers().Informer()
-	store.listers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2beta2().HorizontalPodAutoscalers().Lister()
+	if k8sutil.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.23.0")) {
+		store.informers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2().HorizontalPodAutoscalers().Informer()
+		store.listers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2().HorizontalPodAutoscalers().Lister()
+	} else {
+		store.informers.HorizontalPodAutoscaler = infFactory.Autoscaling().V2beta2().HorizontalPodAutoscalers().Informer()
+		store.listers.HorizontalPodAutoscalerbeta2 = infFactory.Autoscaling().V2beta2().HorizontalPodAutoscalers().Lister()
+	}
 
 	// rainbond custom resource
 	rainbondInformer := externalversions.NewSharedInformerFactoryWithOptions(rainbondClient, 10*time.Second,
@@ -671,23 +677,40 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 			}
 		}
 	}
-
-	if hpa, ok := obj.(*autoscalingv2.HorizontalPodAutoscaler); ok {
-		serviceID := hpa.Labels["service_id"]
-		version := hpa.Labels["version"]
-		createrID := hpa.Labels["creater_id"]
-		if serviceID != "" && version != "" && createrID != "" {
-			appservice, err := a.getAppService(serviceID, version, createrID, true)
-			if err == conversion.ErrServiceNotFound {
-				a.conf.KubeClient.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+	if k8sutil.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.23.0")) {
+		if hpa, ok := obj.(*autoscalingv2.HorizontalPodAutoscaler); ok {
+			serviceID := hpa.Labels["service_id"]
+			version := hpa.Labels["version"]
+			createrID := hpa.Labels["creater_id"]
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, err := a.getAppService(serviceID, version, createrID, true)
+				if err == conversion.ErrServiceNotFound {
+					a.conf.KubeClient.AutoscalingV2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+				}
+				if appservice != nil {
+					appservice.SetHPA(hpa)
+				}
+				return
 			}
-			if appservice != nil {
-				appservice.SetHPA(hpa)
+		}
+	} else {
+		if hpa, ok := obj.(*autoscalingv2beta2.HorizontalPodAutoscaler); ok {
+			serviceID := hpa.Labels["service_id"]
+			version := hpa.Labels["version"]
+			createrID := hpa.Labels["creater_id"]
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, err := a.getAppService(serviceID, version, createrID, true)
+				if err == conversion.ErrServiceNotFound {
+					a.conf.KubeClient.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+				}
+				if appservice != nil {
+					appservice.SetHPAbeta2(hpa)
+				}
+				return
 			}
-
-			return
 		}
 	}
+
 	if sc, ok := obj.(*storagev1.StorageClass); ok {
 		vt := workerutil.TransStorageClass2RBDVolumeType(sc)
 		for _, ch := range a.volumeTypeListeners {
@@ -948,6 +971,21 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 				appservice, _ := a.getAppService(serviceID, version, createrID, false)
 				if appservice != nil {
 					appservice.DelHPA(hpa)
+					if appservice.IsClosed() {
+						a.DeleteAppService(appservice)
+					}
+					return
+				}
+			}
+		}
+		if hpa, ok := obj.(*autoscalingv2beta2.HorizontalPodAutoscaler); ok {
+			serviceID := hpa.Labels["service_id"]
+			version := hpa.Labels["version"]
+			createrID := hpa.Labels["creater_id"]
+			if serviceID != "" && version != "" && createrID != "" {
+				appservice, _ := a.getAppService(serviceID, version, createrID, false)
+				if appservice != nil {
+					appservice.DelHPABeta2(hpa)
 					if appservice.IsClosed() {
 						a.DeleteAppService(appservice)
 					}
@@ -1755,13 +1793,24 @@ func (a *appRuntimeStore) scalingRecordServiceAndRuleID(evt *corev1.Event) (stri
 		serviceID = statefulset.GetLabels()["service_id"]
 		ruleID = statefulset.GetLabels()["rule_id"]
 	case "HorizontalPodAutoscaler":
-		hpa, err := a.listers.HorizontalPodAutoscaler.HorizontalPodAutoscalers(evt.InvolvedObject.Namespace).Get(evt.InvolvedObject.Name)
-		if err != nil {
-			logrus.Warningf("retrieve statefulset: %v", err)
-			return "", ""
+		if k8sutil.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.23.0")) {
+			hpa, err := a.listers.HorizontalPodAutoscaler.HorizontalPodAutoscalers(evt.InvolvedObject.Namespace).Get(evt.InvolvedObject.Name)
+			if err != nil {
+				logrus.Warningf("retrieve statefulset: %v", err)
+				return "", ""
+			}
+			serviceID = hpa.GetLabels()["service_id"]
+			ruleID = hpa.GetLabels()["rule_id"]
+		} else {
+			hpa, err := a.listers.HorizontalPodAutoscalerbeta2.HorizontalPodAutoscalers(evt.InvolvedObject.Namespace).Get(evt.InvolvedObject.Name)
+			if err != nil {
+				logrus.Warningf("retrieve statefulset: %v", err)
+				return "", ""
+			}
+			serviceID = hpa.GetLabels()["service_id"]
+			ruleID = hpa.GetLabels()["rule_id"]
 		}
-		serviceID = hpa.GetLabels()["service_id"]
-		ruleID = hpa.GetLabels()["rule_id"]
+
 	default:
 		logrus.Warningf("unsupported object kind: %s", evt.InvolvedObject.Kind)
 	}

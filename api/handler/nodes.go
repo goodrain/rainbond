@@ -4,15 +4,18 @@ import (
 	"context"
 	"fmt"
 	"github.com/goodrain/rainbond/api/client/prometheus"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
+	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"runtime"
@@ -336,7 +339,22 @@ func (n *nodesHandle) GetNodeScheduler(ctx context.Context, nodeName string) (st
 //evictPod -
 func (n *nodesHandle) evictPod(pod v1.Pod, policyGroupVersion string) error {
 	deleteOptions := &metav1.DeleteOptions{}
-	eviction := &v1beta1.Eviction{
+	if k8sutil.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.21.0")) {
+		eviction := &policyv1.Eviction{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: policyGroupVersion,
+				Kind:       EvictionKind,
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      pod.Name,
+				Namespace: pod.Namespace,
+			},
+			DeleteOptions: deleteOptions,
+		}
+		// Remember to change change the URL manipulation func when Evction's version change
+		return n.clientset.PolicyV1().Evictions(eviction.Namespace).Evict(context.Background(), eviction)
+	}
+	eviction := &policyv1beta1.Eviction{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: policyGroupVersion,
 			Kind:       EvictionKind,

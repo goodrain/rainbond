@@ -20,6 +20,8 @@ package controller
 
 import (
 	"context"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
+	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -55,16 +57,31 @@ func (a *refreshXPAController) Begin() {
 }
 
 func (a *refreshXPAController) applyOne(clientset kubernetes.Interface, app *v1.AppService) error {
-	for _, hpa := range app.GetHPAs() {
-		f.EnsureHPA(hpa, clientset)
-	}
+	if k8sutil.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.23.0")) {
+		for _, hpa := range app.GetHPAs() {
+			f.EnsureHPA(hpa, clientset)
+		}
 
-	for _, hpa := range app.GetDelHPAs() {
-		logrus.Debugf("hpa name: %s; start deleting hpa.", hpa.GetName())
-		err := clientset.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
-		if err != nil {
-			// don't return error, hope it is ok next time
-			logrus.Warningf("error deleting secret(%#v): %v", hpa, err)
+		for _, hpa := range app.GetDelHPAs() {
+			logrus.Debugf("hpa name: %s; start deleting hpa.", hpa.GetName())
+			err := clientset.AutoscalingV2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+			if err != nil {
+				// don't return error, hope it is ok next time
+				logrus.Warningf("error deleting secret(%#v): %v", hpa, err)
+			}
+		}
+	} else {
+		for _, hpa := range app.GetHPABeta2s() {
+			f.EnsureHPABetav2(hpa, clientset)
+		}
+
+		for _, hpa := range app.GetDelHPABeta2s() {
+			logrus.Debugf("hpa name: %s; start deleting hpa.", hpa.GetName())
+			err := clientset.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(context.Background(), hpa.GetName(), metav1.DeleteOptions{})
+			if err != nil {
+				// don't return error, hope it is ok next time
+				logrus.Warningf("error deleting secret(%#v): %v", hpa, err)
+			}
 		}
 	}
 

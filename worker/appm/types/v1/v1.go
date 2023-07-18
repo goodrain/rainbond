@@ -35,7 +35,8 @@ import (
 	monitorv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
-	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	autoscalingv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -177,7 +178,9 @@ type AppService struct {
 	betaCronJob      *batchv1beta1.CronJob
 	workload         client.Object
 	hpas             []*autoscalingv2.HorizontalPodAutoscaler
+	hpasbeta2s       []*autoscalingv2beta2.HorizontalPodAutoscaler
 	delHPAs          []*autoscalingv2.HorizontalPodAutoscaler
+	delHPAbeta2s     []*autoscalingv2beta2.HorizontalPodAutoscaler
 	replicasets      []*v1.ReplicaSet
 	services         []*corev1.Service
 	delServices      []*corev1.Service
@@ -829,6 +832,18 @@ func (a *AppService) SetDeletedResources(old *AppService) {
 			a.delHPAs = append(a.delHPAs, o)
 		}
 	}
+	for _, o := range old.GetHPABeta2s() {
+		del := true
+		for _, n := range a.GetHPABeta2s() {
+			if o.Name == n.Name {
+				del = false
+				break
+			}
+		}
+		if del {
+			a.delHPAbeta2s = append(a.delHPAbeta2s, o)
+		}
+	}
 }
 
 // DistinguishPod uses replica set to distinguish between old and new pods
@@ -923,6 +938,24 @@ func (a *AppService) SetHPA(hpa *autoscalingv2.HorizontalPodAutoscaler) {
 	a.hpas = append(a.hpas, hpa)
 }
 
+// SetHPAbeta2s -
+func (a *AppService) SetHPAbeta2s(hpasbeta2s []*autoscalingv2beta2.HorizontalPodAutoscaler) {
+	a.hpasbeta2s = hpasbeta2s
+}
+
+// SetHPAbeta2 -
+func (a *AppService) SetHPAbeta2(hpasbeta2 *autoscalingv2beta2.HorizontalPodAutoscaler) {
+	if len(a.hpasbeta2s) > 0 {
+		for i, old := range a.hpasbeta2s {
+			if old.GetName() == hpasbeta2.GetName() {
+				a.hpasbeta2s[i] = hpasbeta2
+				return
+			}
+		}
+	}
+	a.hpasbeta2s = append(a.hpasbeta2s, hpasbeta2)
+}
+
 // SetServiceMonitor -
 func (a *AppService) SetServiceMonitor(sm *monitorv1.ServiceMonitor) {
 	for i, s := range a.serviceMonitor {
@@ -965,6 +998,16 @@ func (a *AppService) GetDelHPAs() []*autoscalingv2.HorizontalPodAutoscaler {
 	return a.delHPAs
 }
 
+// GetHPABeta2s -
+func (a *AppService) GetHPABeta2s() []*autoscalingv2beta2.HorizontalPodAutoscaler {
+	return a.hpasbeta2s
+}
+
+// GetDelHPABeta2s -
+func (a *AppService) GetDelHPABeta2s() []*autoscalingv2beta2.HorizontalPodAutoscaler {
+	return a.delHPAbeta2s
+}
+
 // DelHPA -
 func (a *AppService) DelHPA(hpa *autoscalingv2.HorizontalPodAutoscaler) {
 	if len(a.hpas) == 0 {
@@ -973,6 +1016,19 @@ func (a *AppService) DelHPA(hpa *autoscalingv2.HorizontalPodAutoscaler) {
 	for i, old := range a.hpas {
 		if old.GetName() == hpa.GetName() {
 			a.hpas = append(a.hpas[0:i], a.hpas[i+1:]...)
+			return
+		}
+	}
+}
+
+// DelHPABeta2 -
+func (a *AppService) DelHPABeta2(hpa *autoscalingv2beta2.HorizontalPodAutoscaler) {
+	if len(a.hpasbeta2s) == 0 {
+		return
+	}
+	for i, old := range a.hpasbeta2s {
+		if old.GetName() == hpa.GetName() {
+			a.hpasbeta2s = append(a.hpasbeta2s[0:i], a.hpasbeta2s[i+1:]...)
 			return
 		}
 	}

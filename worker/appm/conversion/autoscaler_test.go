@@ -53,7 +53,7 @@ func TestNewHPA(t *testing.T) {
 		t.Fatalf("error creating k8s clientset: %s", err.Error())
 	}
 
-	_, err = clientset.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(context.Background(), hpa, metav1.CreateOptions{})
+	_, err = clientset.AutoscalingV2().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(context.Background(), hpa, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("create hpa: %v", err)
 	}
