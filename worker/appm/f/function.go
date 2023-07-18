@@ -29,7 +29,8 @@ import (
 	monitorv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/sirupsen/logrus"
-	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	autoscalingv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	betav1 "k8s.io/api/networking/v1beta1"
@@ -332,6 +333,27 @@ func EnsureService(new *corev1.Service, clientSet kubernetes.Interface) error {
 
 // EnsureHPA -
 func EnsureHPA(new *autoscalingv2.HorizontalPodAutoscaler, clientSet kubernetes.Interface) {
+	_, err := clientSet.AutoscalingV2().HorizontalPodAutoscalers(new.Namespace).Get(context.Background(), new.Name, metav1.GetOptions{})
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			_, err = clientSet.AutoscalingV2().HorizontalPodAutoscalers(new.Namespace).Create(context.Background(), new, metav1.CreateOptions{})
+			if err != nil {
+				logrus.Warningf("error creating hpa %+v: %v", new, err)
+			}
+			return
+		}
+		logrus.Errorf("error getting hpa(%s): %v", fmt.Sprintf("%s/%s", new.Namespace, new.Name), err)
+		return
+	}
+	_, err = clientSet.AutoscalingV2().HorizontalPodAutoscalers(new.Namespace).Update(context.Background(), new, metav1.UpdateOptions{})
+	if err != nil {
+		logrus.Warningf("error updating hpa %+v: %v", new, err)
+		return
+	}
+}
+
+// EnsureHPABetav2 -
+func EnsureHPABetav2(new *autoscalingv2beta2.HorizontalPodAutoscaler, clientSet kubernetes.Interface) {
 	_, err := clientSet.AutoscalingV2beta2().HorizontalPodAutoscalers(new.Namespace).Get(context.Background(), new.Name, metav1.GetOptions{})
 	if err != nil {
 		if k8sErrors.IsNotFound(err) {

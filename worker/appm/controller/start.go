@@ -21,6 +21,8 @@ package controller
 import (
 	"context"
 	"fmt"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
+	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"sync"
 	"time"
 
@@ -198,13 +200,27 @@ func (s *startController) startOne(app v1.AppService) error {
 	}
 
 	//step 6: create hpa
-	if hpas := app.GetHPAs(); len(hpas) != 0 {
-		for _, hpa := range hpas {
-			if len(hpa.ResourceVersion) == 0 {
-				_, err := s.manager.client.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(s.ctx, hpa, metav1.CreateOptions{})
-				if err != nil && !errors.IsAlreadyExists(err) {
-					logrus.Debugf("hpa: %#v", hpa)
-					return fmt.Errorf("create hpa: %v", err)
+	if k8sutil.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.23.0")) {
+		if hpas := app.GetHPAs(); len(hpas) != 0 {
+			for _, hpa := range hpas {
+				if len(hpa.ResourceVersion) == 0 {
+					_, err := s.manager.client.AutoscalingV2().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(s.ctx, hpa, metav1.CreateOptions{})
+					if err != nil && !errors.IsAlreadyExists(err) {
+						logrus.Debugf("hpa: %#v", hpa)
+						return fmt.Errorf("create hpa: %v", err)
+					}
+				}
+			}
+		}
+	} else {
+		if hpas := app.GetHPABeta2s(); len(hpas) != 0 {
+			for _, hpa := range hpas {
+				if len(hpa.ResourceVersion) == 0 {
+					_, err := s.manager.client.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Create(s.ctx, hpa, metav1.CreateOptions{})
+					if err != nil && !errors.IsAlreadyExists(err) {
+						logrus.Debugf("hpa: %#v", hpa)
+						return fmt.Errorf("create hpa: %v", err)
+					}
 				}
 			}
 		}

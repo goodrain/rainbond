@@ -21,6 +21,8 @@ package kubecache
 import (
 	"context"
 	"fmt"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
+	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"math"
 	"strings"
 	"time"
@@ -35,7 +37,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -195,7 +198,22 @@ func (k *kubeClient) GetPodsByNodes(nodeName string) (pods []v1.Pod, err error) 
 //evictPod 驱离POD
 func (k *kubeClient) evictPod(pod v1.Pod, policyGroupVersion string) error {
 	deleteOptions := &metav1.DeleteOptions{}
-	eviction := &v1beta1.Eviction{
+	if k8sutil.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.21.0")) {
+		eviction := &policyv1.Eviction{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: policyGroupVersion,
+				Kind:       EvictionKind,
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      pod.Name,
+				Namespace: pod.Namespace,
+			},
+			DeleteOptions: deleteOptions,
+		}
+		// Remember to change change the URL manipulation func when Evction's version change
+		return k.kubeclient.PolicyV1().Evictions(eviction.Namespace).Evict(context.Background(), eviction)
+	}
+	eviction := &policyv1beta1.Eviction{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: policyGroupVersion,
 			Kind:       EvictionKind,
