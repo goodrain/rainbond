@@ -72,7 +72,8 @@ func NewManager(ctx context.Context,
 	controllerManager *controller.Manager,
 	garbageCollector *gc.GarbageCollector,
 	restConfig *rest.Config,
-	mapper meta.RESTMapper) *Manager {
+	mapper meta.RESTMapper,
+	clientset *kubernetes.Clientset) *Manager {
 
 	return &Manager{
 		ctx:               ctx,
@@ -83,6 +84,7 @@ func NewManager(ctx context.Context,
 		garbageCollector:  garbageCollector,
 		restConfig:        restConfig,
 		mapper:            mapper,
+		clientset:         clientset,
 	}
 }
 
