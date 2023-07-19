@@ -11,6 +11,7 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/images/archive"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/progress"
 	"github.com/containerd/containerd/platforms"
@@ -22,6 +23,7 @@ import (
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util/criutil"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -29,7 +31,7 @@ import (
 	"google.golang.org/grpc"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"os"
-	"text/tabwriter"
+	"sync"
 	"time"
 )
 
@@ -104,14 +106,14 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 		return nil, err
 	}
 	reference := named.String()
-	ongoing := ctrcontent.NewJobs(reference)
+	ongoing := NewJobs(reference)
 	ctx := namespaces.WithNamespace(context.Background(), Namespace)
 	pctx, stopProgress := context.WithCancel(ctx)
 	progress := make(chan struct{})
 
-	writer := logger.GetWriter("builder", "info")
+
 	go func() {
-		ctrcontent.ShowProgress(pctx, ongoing, c.client.ContentStore(), writer)
+		ShowProgress(pctx, ongoing, c.client.ContentStore(), logger)
 		close(progress)
 	}()
 	h := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
@@ -233,11 +235,9 @@ func (c *containerdImageCliImpl) ImagePush(image, user, pass string, logger even
 		}
 		return c.client.Push(ctx, reference, desc, ropts...)
 	})
-	writer := logger.GetWriter("builder", "info")
 	eg.Go(func() error {
 		var (
 			ticker = time.NewTicker(100 * time.Millisecond)
-			fw     = progress.NewWriter(writer)
 			start  = time.Now()
 			done   bool
 		)
@@ -246,12 +246,8 @@ func (c *containerdImageCliImpl) ImagePush(image, user, pass string, logger even
 		for {
 			select {
 			case <-ticker.C:
-				fw.Flush()
-				tw := tabwriter.NewWriter(fw, 1, 8, 1, ' ', 0)
-				ctrcontent.Display(tw, ongoing.status(), start)
-				tw.Flush()
+				Display(ongoing.status(), start, logger)
 				if done {
-					fw.Flush()
 					return nil
 				}
 			case <-doneCh:
@@ -388,4 +384,213 @@ func (c *containerdImageCliImpl) ImageLoad(tarFile string, logger event.Logger) 
 		return err
 	}
 	return nil
+}
+
+// ShowProgress continuously updates the output with job progress
+// by checking status in the content store.
+func ShowProgress(ctx context.Context, ongoing *Jobs, cs content.Store, logger event.Logger) {
+	var (
+		ticker   = time.NewTicker(100 * time.Millisecond)
+		start    = time.Now()
+		statuses = map[string]ctrcontent.StatusInfo{}
+		done     bool
+	)
+	defer ticker.Stop()
+outer:
+	for {
+		select {
+		case <-ticker.C:
+			resolved := "resolved"
+			if !ongoing.IsResolved() {
+				resolved = "resolving"
+			}
+			statuses[ongoing.name] = ctrcontent.StatusInfo{
+				Ref:    ongoing.name,
+				Status: resolved,
+			}
+			keys := []string{ongoing.name}
+
+			activeSeen := map[string]struct{}{}
+			if !done {
+				actives, err := cs.ListStatuses(ctx, "")
+				if err != nil {
+					log.G(ctx).WithError(err).Error("active check failed")
+					continue
+				}
+				// update status of active entries!
+				for _, active := range actives {
+					statuses[active.Ref] = ctrcontent.StatusInfo{
+						Ref:       active.Ref,
+						Status:    "downloading",
+						Offset:    active.Offset,
+						Total:     active.Total,
+						StartedAt: active.StartedAt,
+						UpdatedAt: active.UpdatedAt,
+					}
+					activeSeen[active.Ref] = struct{}{}
+				}
+			}
+
+			// now, update the items in jobs that are not in active
+			for _, j := range ongoing.Jobs() {
+				key := remotes.MakeRefKey(ctx, j)
+				keys = append(keys, key)
+				if _, ok := activeSeen[key]; ok {
+					continue
+				}
+
+				status, ok := statuses[key]
+				if !done && (!ok || status.Status == "downloading") {
+					info, err := cs.Info(ctx, j.Digest)
+					if err != nil {
+						if !errdefs.IsNotFound(err) {
+							log.G(ctx).WithError(err).Errorf("failed to get content info")
+							continue outer
+						} else {
+							statuses[key] = ctrcontent.StatusInfo{
+								Ref:    key,
+								Status: "waiting",
+							}
+						}
+					} else if info.CreatedAt.After(start) {
+						statuses[key] = ctrcontent.StatusInfo{
+							Ref:       key,
+							Status:    "done",
+							Offset:    info.Size,
+							Total:     info.Size,
+							UpdatedAt: info.CreatedAt,
+						}
+					} else {
+						statuses[key] = ctrcontent.StatusInfo{
+							Ref:    key,
+							Status: "exists",
+						}
+					}
+				} else if done {
+					if ok {
+						if status.Status != "done" && status.Status != "exists" {
+							status.Status = "done"
+							statuses[key] = status
+						}
+					} else {
+						statuses[key] = ctrcontent.StatusInfo{
+							Ref:    key,
+							Status: "done",
+						}
+					}
+				}
+			}
+			var ordered []ctrcontent.StatusInfo
+			for _, key := range keys {
+				ordered = append(ordered, statuses[key])
+			}
+
+			Display(ordered, start, logger)
+
+			if done {
+				//tt.Flush()
+				return
+			}
+		case <-ctx.Done():
+			done = true // allow ui to update once more
+		}
+	}
+}
+
+// Jobs provides a way of identifying the download keys for a particular task
+// encountering during the pull walk.
+//
+// This is very minimal and will probably be replaced with something more
+// featured.
+type Jobs struct {
+	name     string
+	added    map[digest.Digest]struct{}
+	descs    []ocispec.Descriptor
+	mu       sync.Mutex
+	resolved bool
+}
+
+// NewJobs creates a new instance of the job status tracker
+func NewJobs(name string) *Jobs {
+	return &Jobs{
+		name:  name,
+		added: map[digest.Digest]struct{}{},
+	}
+}
+
+// Add adds a descriptor to be tracked
+func (j *Jobs) Add(desc ocispec.Descriptor) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	j.resolved = true
+
+	if _, ok := j.added[desc.Digest]; ok {
+		return
+	}
+	j.descs = append(j.descs, desc)
+	j.added[desc.Digest] = struct{}{}
+}
+
+// Jobs returns a list of all tracked descriptors
+func (j *Jobs) Jobs() []ocispec.Descriptor {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	var descs []ocispec.Descriptor
+	return append(descs, j.descs...)
+}
+
+// IsResolved checks whether a descriptor has been resolved
+func (j *Jobs) IsResolved() bool {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	return j.resolved
+}
+
+// Display pretty prints out the download or upload progress
+func Display(statuses []ctrcontent.StatusInfo, start time.Time, logger event.Logger) {
+	var total int64
+	for _, status := range statuses {
+		total += status.Offset
+		elapsed := fmt.Sprintf("elapsed: %-4.1fs\ttotal: %7.6v\t(%v)\t\n",
+			time.Since(start).Seconds(),
+			// TODO(stevvooe): These calculations are actually way off.
+			// Need to account for previously downloaded data. These
+			// will basically be right for a download the first time
+			// but will be skewed if restarting, as it includes the
+			// data into the start time before.
+			progress.Bytes(total),
+			progress.NewBytesPerSecond(total, time.Since(start)))
+		switch status.Status {
+		case "downloading", "uploading":
+			var bar progress.Bar
+			if status.Total > 0.0 {
+				bar = progress.Bar(float64(status.Offset) / float64(status.Total))
+			}
+			barFormat := fmt.Sprintf("%40r\t%8.8s/%s\t%s", bar, progress.Bytes(status.Offset), progress.Bytes(status.Total), elapsed)
+			containerdLogFormat(status, barFormat, logger)
+		case "resolving", "waiting":
+			bar := progress.Bar(0.0)
+			barFormat := fmt.Sprintf("%40r\t%s", bar, elapsed)
+			containerdLogFormat(status, barFormat, logger)
+		default:
+			bar := progress.Bar(1.0)
+			barFormat := fmt.Sprintf("%40r\t%s", bar, elapsed)
+			containerdLogFormat(status, barFormat, logger)
+		}
+	}
+}
+
+func containerdLogFormat(status ctrcontent.StatusInfo, barFormat string, logger event.Logger)  {
+	var jm JSONMessage
+	jm = JSONMessage{
+		Status: status.Status,
+		Progress: &JSONProgress{
+			Current: status.Offset,
+			Total:   status.Total,
+		},
+		ProgressMessage: barFormat,
+		ID: status.Ref,
+	}
+	printLog(logger, "debug", fmt.Sprintf(jm.JSONString()), map[string]string{"step": "progress"})
 }
