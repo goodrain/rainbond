@@ -123,8 +123,13 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 		return
 	}
 	podstatus := new(pb.PodStatus)
-	wutil.DescribePodStatus(clientset, pod, podstatus, k8sutil.DefListEventsByPod)
+	// Non-platform created components do not log events
 	tenantID, serviceID, _, _ := k8sutil.ExtractLabels(pod.GetLabels())
+	if tenantID == "" || serviceID == "" {
+		logrus.Debugf("pod: %s; tenantID or serviceID is empty", pod.GetName())
+		return
+	}
+	wutil.DescribePodStatus(clientset, pod, podstatus, k8sutil.DefListEventsByPod)
 	// the pod in the pending status has no start time and container statuses
 	if podstatus.Type == pb.PodStatus_ABNORMAL || podstatus.Type == pb.PodStatus_NOTREADY || podstatus.Type == pb.PodStatus_UNHEALTHY {
 		var eventID string
@@ -189,7 +194,12 @@ func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determ
 
 // AbnormalEvent -
 func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
+	// Non-platform created components do not log events
 	tenantID, serviceID, _, _ := k8sutil.ExtractLabels(pod.GetLabels())
+	if tenantID == "" || serviceID == "" {
+		logrus.Debugf("pod: %s; tenantID or serviceID is empty", pod.GetName())
+		return
+	}
 	if pod != nil && pod.Status.Phase == corev1.PodPending {
 		for _, condition := range pod.Status.Conditions {
 			if condition.Type == corev1.PodScheduled && condition.Status == "False" {
