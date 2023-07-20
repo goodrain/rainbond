@@ -368,7 +368,7 @@ func (c *clusterAction) YamlToResource(yamlResource api_model.YamlResource, yaml
 			yamlFileBytes, err = ioutil.ReadFile(yamlFilePath)
 			yamlFileBytes = []byte(strings.TrimPrefix(string(yamlFileBytes), "\n"))
 			if err != nil {
-				logrus.Errorf("%v", err)
+				logrus.Errorf("yaml to resource first step failure: %v", err)
 				fileBuildResourceList = append(fileBuildResourceList, api_model.K8sResourceObject{
 					FileName:       fileName,
 					BuildResources: nil,
@@ -379,7 +379,7 @@ func (c *clusterAction) YamlToResource(yamlResource api_model.YamlResource, yaml
 		}
 		dc, err := dynamic.NewForConfig(c.config)
 		if err != nil {
-			logrus.Errorf("%v", err)
+			logrus.Errorf("yaml to resource second step failure: %v", err)
 			fileBuildResourceList = append(fileBuildResourceList, api_model.K8sResourceObject{
 				FileName:       fileName,
 				BuildResources: nil,
@@ -395,33 +395,33 @@ func (c *clusterAction) YamlToResource(yamlResource api_model.YamlResource, yaml
 				if err.Error() == "EOF" {
 					break
 				}
-				logrus.Errorf("%v", err)
+				logrus.Errorf("yaml to resource third step failure: %v", err)
 				fileBuildResourceList = append(fileBuildResourceList, api_model.K8sResourceObject{
 					FileName:       fileName,
 					BuildResources: nil,
 					Error:          err.Error(),
 				})
-				break
+				continue
 			}
 			obj, gvk, err := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme).Decode(rawObj.Raw, nil, nil)
 			if err != nil {
-				logrus.Errorf("%v", err)
+				logrus.Errorf("yaml to resource fourth step failure: %v", err)
 				fileBuildResourceList = append(fileBuildResourceList, api_model.K8sResourceObject{
 					FileName:       fileName,
 					BuildResources: nil,
 					Error:          err.Error(),
 				})
-				break
+				continue
 			}
 			unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 			if err != nil {
-				logrus.Errorf("%v", err)
+				logrus.Errorf("yaml to resource fifth step failure: %v", err)
 				fileBuildResourceList = append(fileBuildResourceList, api_model.K8sResourceObject{
 					FileName:       fileName,
 					BuildResources: nil,
 					Error:          err.Error(),
 				})
-				break
+				continue
 			}
 			unstructuredObj := &unstructured.Unstructured{Object: unstructuredMap}
 			buildResourceList = append(buildResourceList, api_model.BuildResource{
