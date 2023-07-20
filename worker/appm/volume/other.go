@@ -20,8 +20,8 @@ package volume
 
 import (
 	"fmt"
-
 	"github.com/goodrain/rainbond/db"
+	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/node/nodem/client"
 	workerutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/sirupsen/logrus"
@@ -35,6 +35,11 @@ type OtherVolume struct {
 
 // CreateVolume ceph rbd volume create volume
 func (v *OtherVolume) CreateVolume(define *Define) error {
+	var shareFile bool
+	if v.svm.VolumeType == dbmodel.ShareFileVolumeType.String() {
+		v.svm.VolumeType = v.as.SharedStorageClass
+		shareFile = true
+	}
 	volumeType, err := db.GetManager().VolumeTypeDao().GetVolumeTypeByType(v.svm.VolumeType)
 	if err != nil {
 		logrus.Errorf("get volume type by type error: %s", err.Error())
@@ -44,6 +49,7 @@ func (v *OtherVolume) CreateVolume(define *Define) error {
 		logrus.Errorf("validate volume capacity[%v] error: %s", v.svm.VolumeCapacity, err.Error())
 		return err
 	}
+	v.svm.VolumeProviderName = volumeType.Provisioner
 	volumeMountName := fmt.Sprintf("manual%d", v.svm.ID)
 	volumeMountPath := v.svm.VolumePath
 	volumeReadOnly := v.svm.IsReadOnly
@@ -59,14 +65,18 @@ func (v *OtherVolume) CreateVolume(define *Define) error {
 			return "linux"
 		}(),
 	}
-	v.as.SetClaim(claim)                 // store claim to appService
-	statefulset := v.as.GetStatefulSet() //有状态组件
+	v.as.SetClaim(claim) // store claim to appService
 	vo := corev1.Volume{Name: volumeMountName}
 	vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
 	define.volumes = append(define.volumes, vo)
-	if statefulset != nil {
-		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
-		logrus.Debugf("stateset.Spec.VolumeClaimTemplates: %+v", statefulset.Spec.VolumeClaimTemplates)
+	if shareFile {
+		v.as.SetClaimManually(claim)
+	} else {
+		statefulset := v.as.GetStatefulSet() //有状态组件
+		if statefulset != nil {
+			statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
+			logrus.Debugf("stateset.Spec.VolumeClaimTemplates: %+v", statefulset.Spec.VolumeClaimTemplates)
+		}
 	}
 
 	vm := corev1.VolumeMount{

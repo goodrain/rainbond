@@ -21,19 +21,20 @@ package controller
 import (
 	"context"
 	"fmt"
-	"sync"
-	"time"
-
+	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
+	"sync"
+	"time"
 )
 
 type restartController struct {
 	stopChan     chan struct{}
+	cfg          option.Config
 	controllerID string
 	appService   []v1.AppService
 	manager      *Manager
@@ -86,7 +87,7 @@ func (s *restartController) restartOne(app v1.AppService) error {
 		ctx:          s.ctx,
 		controllerID: s.controllerID,
 	}
-	newAppService, err := conversion.InitAppService(false, db.GetManager(), app.ServiceID, app.ExtensionSet)
+	newAppService, err := conversion.InitAppService(s.cfg.SharedStorageClass, false, db.GetManager(), app.ServiceID, app.ExtensionSet)
 	if err != nil {
 		logrus.Errorf("Application model init create failure:%s", err.Error())
 		app.Logger.Error(util.Translation("(restart)Application model init create failure"), event.GetCallbackLoggerOption())

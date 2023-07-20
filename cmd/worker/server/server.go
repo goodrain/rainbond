@@ -112,7 +112,7 @@ func Run(s *option.Worker) error {
 	}
 
 	//step 5: create controller manager
-	controllerManager := controller.NewManager(cachestore, clientset, runtimeClient)
+	controllerManager := controller.NewManager(s.Config, cachestore, clientset, runtimeClient)
 	defer controllerManager.Stop()
 
 	//step 6 : start runtime master
