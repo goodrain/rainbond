@@ -105,7 +105,8 @@ func Run(s *option.Worker) error {
 
 	//step 4: create component resource store
 	updateCh := channels.NewRingChannel(1024)
-	cachestore := store.NewStore(restConfig, clientset, rainbondClient, db.GetManager(), s.Config)
+	k8sVersion := k8sutil.GetKubeVersion()
+	cachestore := store.NewStore(restConfig, clientset, rainbondClient, db.GetManager(), s.Config, k8sVersion)
 	if err := cachestore.Start(); err != nil {
 		logrus.Error("start kube cache store error", err)
 		return err
