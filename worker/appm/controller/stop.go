@@ -22,9 +22,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/goodrain/rainbond/db"
-	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/jinzhu/gorm"
-	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"sync"
 	"time"
 
@@ -208,26 +206,22 @@ func (s *stopController) stopOne(app v1.AppService) error {
 		}
 	}
 	//step 7: deleta all hpa
-	if k8sutil.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.23.0")) {
-		if hpas := app.GetHPAs(); len(hpas) != 0 {
-			for _, hpa := range hpas {
-				err := s.manager.client.AutoscalingV2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(s.ctx, hpa.GetName(), metav1.DeleteOptions{})
-				if err != nil && !errors.IsNotFound(err) {
-					return fmt.Errorf("delete hpa: %v", err)
-				}
-			}
-		}
-	} else {
-		if hpas := app.GetHPABeta2s(); len(hpas) != 0 {
-			for _, hpa := range hpas {
-				err := s.manager.client.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(s.ctx, hpa.GetName(), metav1.DeleteOptions{})
-				if err != nil && !errors.IsNotFound(err) {
-					return fmt.Errorf("delete hpa: %v", err)
-				}
+	if hpas := app.GetHPAs(); len(hpas) != 0 {
+		for _, hpa := range hpas {
+			err := s.manager.client.AutoscalingV2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(s.ctx, hpa.GetName(), metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("delete hpa: %v", err)
 			}
 		}
 	}
-
+	if hpas := app.GetHPABeta2s(); len(hpas) != 0 {
+		for _, hpa := range hpas {
+			err := s.manager.client.AutoscalingV2beta2().HorizontalPodAutoscalers(hpa.GetNamespace()).Delete(s.ctx, hpa.GetName(), metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("delete hpa: %v", err)
+			}
+		}
+	}
 	//step 8: delete CR resource
 	if crd, _ := s.manager.store.GetCrd(store.ServiceMonitor); crd != nil {
 		if sms := app.GetServiceMonitors(true); len(sms) > 0 {
