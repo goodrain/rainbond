@@ -443,12 +443,13 @@ func ImageBuild(arch, contextDir, cachePVCName, cacheMode, RbdNamespace, Service
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	err = PrepareBuildKitTomlCM(ctx, kubeClient, RbdNamespace)
+	buildKitTomlCMName := GetImageFirstPart(builder.REGISTRYDOMAIN)
+	err = PrepareBuildKitTomlCM(ctx, kubeClient, RbdNamespace, buildKitTomlCMName)
 	if err != nil {
 		return err
 	}
 	// only support never and onfailure
-	volumes, volumeMounts := CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePVCName)
+	volumes, volumeMounts := CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePVCName, buildKitTomlCMName)
 	podSpec.Volumes = volumes
 	privileged := true
 	// container config
@@ -768,17 +769,26 @@ func CreateImageName(ServiceID, DeployVersion string) string {
 	return strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, workloadName, DeployVersion))
 }
 
+//GetImageFirstPart -
+func GetImageFirstPart(str string) string {
+	if strings.Contains(str, "/") {
+		parts := strings.Split(str, "/")
+		return parts[0]
+	}
+	return str
+}
+
 //PrepareBuildKitTomlCM -
-func PrepareBuildKitTomlCM(ctx context.Context, kubeClient kubernetes.Interface, namespace string) error {
-	buildKitTomlCM, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, builder.REGISTRYDOMAIN, metav1.GetOptions{})
+func PrepareBuildKitTomlCM(ctx context.Context, kubeClient kubernetes.Interface, namespace string, buildKitTomlCMName string) error {
+	buildKitTomlCM, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, buildKitTomlCMName, metav1.GetOptions{})
 	if err != nil && !k8serror.IsNotFound(err) {
 		return err
 	}
 	if k8serror.IsNotFound(err) {
-		configStr := fmt.Sprintf("debug = true\n[registry.\"%v\"]\n  http = false\n  insecure = true", builder.REGISTRYDOMAIN)
+		configStr := fmt.Sprintf("debug = true\n[registry.\"%v\"]\n  http = false\n  insecure = true", buildKitTomlCMName)
 		buildKitTomlCM = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: builder.REGISTRYDOMAIN,
+				Name: buildKitTomlCMName,
 			},
 			Data: map[string]string{
 				"buildkittoml": configStr,
@@ -786,14 +796,14 @@ func PrepareBuildKitTomlCM(ctx context.Context, kubeClient kubernetes.Interface,
 		}
 		_, err = kubeClient.CoreV1().ConfigMaps(namespace).Create(ctx, buildKitTomlCM, metav1.CreateOptions{})
 		if err != nil {
-			return err
+			return errors.Wrap(err, "create buildkittoml cm failure")
 		}
 	}
 	return nil
 }
 
 // CreateVolumesAndMounts -
-func CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePVCName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+func CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePVCName string, buildKitTomlCMName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	pathSplit := strings.Split(contextDir, "/")
 	subPath := strings.Join(pathSplit[2:], "/")
 	hostPathType := corev1.HostPathDirectoryOrCreate
@@ -836,7 +846,7 @@ func CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePV
 			Name: "buildkittoml",
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: builder.REGISTRYDOMAIN},
+					LocalObjectReference: corev1.LocalObjectReference{Name: buildKitTomlCMName},
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "buildkittoml",
