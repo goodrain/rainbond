@@ -136,11 +136,12 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	err = sources.PrepareBuildKitTomlCM(ctx, re.KubeClient, re.RbdNamespace)
+	buildKitTomlCMName := sources.GetImageFirstPart(builder.REGISTRYDOMAIN)
+	err = sources.PrepareBuildKitTomlCM(ctx, re.KubeClient, re.RbdNamespace, buildKitTomlCMName)
 	if err != nil {
 		return err
 	}
-	volumes, mounts := d.createVolumeAndMount(re, secret.Name, re.ServiceID)
+	volumes, mounts := d.createVolumeAndMount(re, secret.Name, re.ServiceID, buildKitTomlCMName)
 	podSpec.Volumes = volumes
 	privileged := true
 	container := corev1.Container{
@@ -187,7 +188,7 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	return nil
 }
 
-func (d *dockerfileBuild) createVolumeAndMount(re *Request, secretName, ServiceID string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+func (d *dockerfileBuild) createVolumeAndMount(re *Request, secretName, ServiceID string, buildKitTomlCMName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	hostPathType := corev1.HostPathDirectoryOrCreate
 	hostsFilePathType := corev1.HostPathFile
 	dockerfileBuildVolume := corev1.Volume{
@@ -214,7 +215,7 @@ func (d *dockerfileBuild) createVolumeAndMount(re *Request, secretName, ServiceI
 			Name: "buildkittoml",
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: builder.REGISTRYDOMAIN},
+					LocalObjectReference: corev1.LocalObjectReference{Name: buildKitTomlCMName},
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "buildkittoml",
