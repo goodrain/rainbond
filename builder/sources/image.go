@@ -771,6 +771,7 @@ func CreateImageName(ServiceID, DeployVersion string) string {
 
 //GetImageFirstPart -
 func GetImageFirstPart(str string) string {
+	str = strings.Replace(str, ".", "-", -1)
 	if strings.Contains(str, "/") {
 		parts := strings.Split(str, "/")
 		return parts[0]
