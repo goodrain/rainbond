@@ -443,8 +443,8 @@ func ImageBuild(arch, contextDir, cachePVCName, cacheMode, RbdNamespace, Service
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	buildKitTomlCMName := GetImageFirstPart(builder.REGISTRYDOMAIN)
-	err = PrepareBuildKitTomlCM(ctx, kubeClient, RbdNamespace, buildKitTomlCMName)
+	imageDomain, buildKitTomlCMName := GetImageFirstPart(builder.REGISTRYDOMAIN)
+	err = PrepareBuildKitTomlCM(ctx, kubeClient, RbdNamespace, buildKitTomlCMName, imageDomain)
 	if err != nil {
 		return err
 	}
@@ -770,24 +770,25 @@ func CreateImageName(ServiceID, DeployVersion string) string {
 }
 
 //GetImageFirstPart -
-func GetImageFirstPart(str string) string {
-	str = strings.Replace(str, ".", "-", -1)
-	str = strings.Replace(str, ":", "-", -1)
+func GetImageFirstPart(str string) (string, string) {
+	imageDomain, imageName := str, ""
 	if strings.Contains(str, "/") {
 		parts := strings.Split(str, "/")
-		return parts[0]
+		imageDomain = parts[0]
 	}
-	return str
+	imageName = strings.Replace(imageDomain, ".", "-", -1)
+	imageName = strings.Replace(imageName, ":", "-", -1)
+	return imageDomain, imageName
 }
 
 //PrepareBuildKitTomlCM -
-func PrepareBuildKitTomlCM(ctx context.Context, kubeClient kubernetes.Interface, namespace string, buildKitTomlCMName string) error {
+func PrepareBuildKitTomlCM(ctx context.Context, kubeClient kubernetes.Interface, namespace, buildKitTomlCMName, imageDomain string) error {
 	buildKitTomlCM, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, buildKitTomlCMName, metav1.GetOptions{})
 	if err != nil && !k8serror.IsNotFound(err) {
 		return err
 	}
 	if k8serror.IsNotFound(err) {
-		configStr := fmt.Sprintf("debug = true\n[registry.\"%v\"]\n  http = false\n  insecure = true", buildKitTomlCMName)
+		configStr := fmt.Sprintf("debug = true\n[registry.\"%v\"]\n  http = false\n  insecure = true", imageDomain)
 		buildKitTomlCM = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: buildKitTomlCMName,

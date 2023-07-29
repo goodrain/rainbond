@@ -136,8 +136,8 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	buildKitTomlCMName := sources.GetImageFirstPart(builder.REGISTRYDOMAIN)
-	err = sources.PrepareBuildKitTomlCM(ctx, re.KubeClient, re.RbdNamespace, buildKitTomlCMName)
+	imageDomain, buildKitTomlCMName := sources.GetImageFirstPart(builder.REGISTRYDOMAIN)
+	err = sources.PrepareBuildKitTomlCM(ctx, re.KubeClient, re.RbdNamespace, buildKitTomlCMName, imageDomain)
 	if err != nil {
 		return err
 	}
