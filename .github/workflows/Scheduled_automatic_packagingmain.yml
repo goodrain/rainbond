@@ -203,3 +203,18 @@ jobs:
           git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console.git
           cd rainbond-console
           ./release.sh dind
+  
+  push-arch:
+    if: github.event.action == 'GitHub' && github.event.client_payload.os == 'arm64'
+    needs: [build-ui,build-rainbond-region,build-rainbond-region-grctl-shell,build-operator,build-dind]
+    runs-on: ${{ github.event.client_payload.os }}
+    environment: release-arch
+    steps:
+      - uses: actions/checkout@v2
+      - name: push arch images
+        env:
+          RBD_VER: ${{ vars.RBD_VER }}
+          DOMESTIC_DOCKER_USERNAME: ${{ vars.DOMESTIC_DOCKER_USERNAME }}
+          DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+        run: chmod +x .github/workflows/push-arch.sh && ./.github/workflows/push-arch.sh
+        
