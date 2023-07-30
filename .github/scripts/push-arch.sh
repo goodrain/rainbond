@@ -13,8 +13,7 @@ DOMESTIC_NAMESPACE=${DOMESTIC_NAMESPACE:-'goodrain'}
 
 function push_domestic_amd64 {
 
-  image_list="$IMAGE_NAMESPACE/rainbond:$RBD_VER-allinone
-$IMAGE_NAMESPACE/rbd-node:$RBD_VER
+  image_list="$IMAGE_NAMESPACE/rbd-node:$RBD_VER
 $IMAGE_NAMESPACE/rbd-resource-proxy:$RBD_VER
 $IMAGE_NAMESPACE/rbd-eventlog:$RBD_VER
 $IMAGE_NAMESPACE/rbd-worker:$RBD_VER
