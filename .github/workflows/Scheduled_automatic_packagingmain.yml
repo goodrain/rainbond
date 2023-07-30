@@ -216,5 +216,8 @@ jobs:
           RBD_VER: ${{ vars.RBD_VER }}
           DOMESTIC_DOCKER_USERNAME: ${{ vars.DOMESTIC_DOCKER_USERNAME }}
           DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
-        run: chmod +x .github/workflows/push-arch.sh && ./.github/workflows/push-arch.sh
-        
+          PUSH_ARCH: ${{ vars.PUSH_ARCH }}
+        run: |
+          if [ $PUSH_ARCH == 'true' ];then
+            chmod +x .github/workflows/push-arch.sh && ./.github/workflows/push-arch.sh
+          fi
