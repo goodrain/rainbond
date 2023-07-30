@@ -12,7 +12,6 @@ jobs:
     runs-on: ${{ github.event.client_payload.os }}
     environment: ${{ github.event.client_payload.environment }}
     steps:
-      - uses: actions/checkout@v2
       - name: Build the Docker image
         env:
           BUILD_RBD_APP_UI: false
@@ -75,11 +74,6 @@ jobs:
       matrix:
         component: [api, chaos, gateway, monitor, mq, webcli, worker, eventlog, init-probe, mesh-data-panel, node, resource-proxy]
     steps:
-      - uses: actions/checkout@v2
-      - name: Setup Go environment
-        uses: actions/setup-go@v2.1.3
-        with:
-          go-version: 1.18
       - name: Pull code and Build the Docker image
         env:
           DISABLE_GOPROXY: true
@@ -135,16 +129,6 @@ jobs:
     runs-on: ${{ github.event.client_payload.os }}
     environment: ${{ github.event.client_payload.environment }}
     steps:
-      - uses: actions/checkout@v2
-      - name: Setup Go environment
-        uses: actions/setup-go@v2.1.3
-        with:
-          go-version: 1.18
-      - name: install-golint
-        run: |
-          git clone https://github.com/golang/lint.git
-          cd lint/golint
-          go install
       - name: Build and push
         env:
           ARCH: ${{ vars.ARCH}}
