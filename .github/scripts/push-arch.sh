@@ -41,8 +41,7 @@ $IMAGE_NAMESPACE/rainbond-operator:$RBD_VER"
 
 function push_domestic_arm64 {
 
-  image_list="$IMAGE_NAMESPACE/rainbond:$RBD_VER-arm64-allinone
-$IMAGE_NAMESPACE/rbd-node:$RBD_VER-arm64
+  image_list="$IMAGE_NAMESPACE/rbd-node:$RBD_VER-arm64
 $IMAGE_NAMESPACE/rbd-resource-proxy:$RBD_VER-arm64
 $IMAGE_NAMESPACE/rbd-eventlog:$RBD_VER-arm64
 $IMAGE_NAMESPACE/rbd-worker:$RBD_VER-arm64
@@ -72,8 +71,7 @@ function push_arch() {
   push_domestic_amd64
   push_domestic_arm64
 
-  image_list="$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:$RBD_VER-allinone
-$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rbd-node:$RBD_VER
+  image_list="$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rbd-node:$RBD_VER
 $DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rbd-resource-proxy:$RBD_VER
 $DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rbd-eventlog:$RBD_VER
 $DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rbd-worker:$RBD_VER
@@ -97,18 +95,39 @@ $DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond-operator:$RBD_VER"
     done
 }
 
-function push_dind {
-  docker pull "$IMAGE_NAMESPACE"/rainbond:"$RBD_VER"-dind-allinone || exit 1
-  docker tag "$IMAGE_NAMESPACE"/rainbond:"$RBD_VER"-dind-allinone "$DOMESTIC_NAME"/"$DOMESTIC_NAMESPACE"/rainbond:"$RBD_VER"-dind-allinone
-  docker push "$DOMESTIC_NAME"/"$DOMESTIC_NAMESPACE"/rainbond:"$RBD_VER"-dind-allinone
+function push_arch_allinone {
 
-  docker pull "$IMAGE_NAMESPACE"/rainbond:"$RBD_VER"-arm64-dind-allinone || exit 1
-  docker tag "$IMAGE_NAMESPACE"/rainbond:"$RBD_VER"-arm64-dind-allinone "$DOMESTIC_NAME"/"$DOMESTIC_NAMESPACE"/rainbond:"$RBD_VER"-arm64-dind-allinone
-  docker push "$DOMESTIC_NAME"/"$DOMESTIC_NAMESPACE"/rainbond:"$RBD_VER"-arm64-dind-allinone
+  docker pull "$IMAGE_NAMESPACE/rainbond:${RBD_VER}-allinone" || exit 1
+  docker tag "$IMAGE_NAMESPACE/rainbond:${RBD_VER}-allinone" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-allinone-amd64"
+  docker push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-allinone-amd64"
+
+  docker pull "$IMAGE_NAMESPACE/rainbond:${RBD_VER}-arm64-allinone" || exit 1
+  docker tag "$IMAGE_NAMESPACE/rainbond:${RBD_VER}-arm64-allinone" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-arm64-allinone"
+  docker push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-arm64-allinone"
+
+  docker manifest rm "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-allinone"
+  docker manifest create "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-allinone" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-allinone-amd64" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-arm64-allinone"
+  docker manifest push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-allinone"
+}
+
+function push_arch_dind {
+  docker pull "$IMAGE_NAMESPACE/rainbond:${RBD_VER/-release}-dind-allinone" || exit 1
+  docker tag "$IMAGE_NAMESPACE/rainbond:${RBD_VER/-release}-dind-allinone" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER/-release}-dind-allinone-amd64"
+  docker push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER/-release}-dind-allinone-amd64"
+
+  docker pull "$IMAGE_NAMESPACE/rainbond:${RBD_VER/-release}-arm64-dind-allinone" || exit 1
+  docker tag "$IMAGE_NAMESPACE/rainbond:${RBD_VER/-release}-arm64-dind-allinone" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:$RBD_VER-arm64-dind-allinone"
+  docker push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER/-release}-arm64-dind-allinone"
+
+  docker manifest rm "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER/-release}-dind-allinone"
+  docker manifest create "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER/-release}-dind-allinone" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER/-release}-dind-allinone-amd64" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER/-release}-arm64-dind-allinone"
+  docker manifest push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER/-release}-dind-allinone"
 }
 
 docker login "${DOMESTIC_NAME}" -u "$DOMESTIC_DOCKER_USERNAME" -p "$DOMESTIC_DOCKER_PASSWORD"
 
 push_arch
 
-push_dind
+push_arch_allinone
+
+push_arch_dind
