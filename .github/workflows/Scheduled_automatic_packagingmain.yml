@@ -9,7 +9,7 @@ env:
 
 jobs:
   build-ui:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.client_payload.os }}
     environment: ${{ github.event.client_payload.environment }}
     steps:
       - uses: actions/checkout@v2
@@ -41,7 +41,7 @@ jobs:
 
   build-rainbond-allinone:
     needs: build-ui
-    runs-on: ubuntu-20.04
+    runs-on: ${{ github.event.client_payload.os }}
     environment: ${{ github.event.client_payload.environment }}
     steps:
       - name: Set up Python 3.6
@@ -77,7 +77,7 @@ jobs:
           ./release.sh allinone
 
   build-rainbond-region:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.client_payload.os }}
     environment: ${{ github.event.client_payload.environment }}
     strategy:
       matrix:
@@ -109,7 +109,7 @@ jobs:
           chmod +x ./release.sh
           ./release.sh ${{ matrix.component }} push
   build-rainbond-region-grctl-shell:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.client_payload.os }}
     environment: ${{ github.event.client_payload.environment }}
     steps:
       - uses: actions/checkout@v2
@@ -140,7 +140,7 @@ jobs:
           ./release.sh shell push
 
   build-operator:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.client_payload.os }}
     environment: ${{ github.event.client_payload.environment }}
     steps:
       - uses: actions/checkout@v2
@@ -180,7 +180,7 @@ jobs:
   build-dind:
     if: github.event.action == 'GitHub'
     needs: [build-ui,build-rainbond-region,build-rainbond-region-grctl-shell,build-operator]
-    runs-on: ubuntu-20.04
+    runs-on: ${{ github.event.client_payload.os }}
     environment: ${{ github.event.client_payload.environment }}
     steps:
       - name: Set up Python 3.6
