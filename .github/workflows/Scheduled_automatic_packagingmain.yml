@@ -205,7 +205,7 @@ jobs:
           ./release.sh dind
   
   push-arch:
-    if: github.event.action == 'GitHub' && github.event.client_payload.os == 'arm64'
+    if: github.event.action == 'GitHub' && github.event.client_payload.os == 'self-hosted'
     needs: [build-ui,build-rainbond-region,build-rainbond-region-grctl-shell,build-operator,build-dind]
     runs-on: ${{ github.event.client_payload.os }}
     environment: release-arch
