@@ -206,7 +206,7 @@ jobs:
   
   push-arch:
     if: github.event.action == 'GitHub' && github.event.client_payload.os == 'self-hosted'
-    needs: [build-ui,build-rainbond-region,build-rainbond-region-grctl-shell,build-operator,build-dind]
+    needs: [build-rainbond-allinone,build-rainbond-region,build-rainbond-region-grctl-shell,build-operator,build-dind]
     runs-on: ${{ github.event.client_payload.os }}
     environment: release-arch
     steps:
