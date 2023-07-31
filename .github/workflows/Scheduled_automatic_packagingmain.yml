@@ -86,11 +86,7 @@ jobs:
           DOMESTIC_BASE_NAME: ${{ vars.DOMESTIC_BASE_NAME }}
           DOMESTIC_NAMESPACE: ${{ vars.DOMESTIC_NAMESPACE }}
         run: |
-          if [ ${{ github.event.action }} == 'GitHub' ];then
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git
-          else
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git
-          fi
+          git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git
           cd rainbond
           chmod +x ./release.sh
           ./release.sh ${{ matrix.component }} push
@@ -110,11 +106,7 @@ jobs:
           DOMESTIC_BASE_NAME: ${{ vars.DOMESTIC_BASE_NAME }}
           DOMESTIC_NAMESPACE: ${{ vars.DOMESTIC_NAMESPACE }}
         run: |
-          if [ ${{ github.event.action }} == 'GitHub' ];then
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git
-          else
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git
-          fi
+          git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git
           cd rainbond
           chmod +x ./release.sh
           ./release.sh grctl push
@@ -173,7 +165,6 @@ jobs:
     runs-on: ${{ github.event.client_payload.os }}
     environment: release-arch
     steps:
-      - uses: actions/checkout@v2
       - name: push arch images
         env:
           RBD_VER: ${{ vars.RBD_VER }}
@@ -182,5 +173,7 @@ jobs:
           PUSH_ARCH: ${{ vars.PUSH_ARCH }}
         run: |
           if [ $PUSH_ARCH == 'true' ];then
+            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git
+            cd rainbond
             chmod +x .github/workflows/push-arch.sh && ./.github/workflows/push-arch.sh
           fi
