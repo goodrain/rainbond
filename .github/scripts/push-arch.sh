@@ -115,7 +115,7 @@ function push_arch_dind {
   docker push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER/-release}-dind-allinone-amd64"
 
   docker pull "$IMAGE_NAMESPACE/rainbond:${RBD_VER/-release}-arm64-dind-allinone" || exit 1
-  docker tag "$IMAGE_NAMESPACE/rainbond:${RBD_VER/-release}-arm64-dind-allinone" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:$RBD_VER-arm64-dind-allinone"
+  docker tag "$IMAGE_NAMESPACE/rainbond:${RBD_VER/-release}-arm64-dind-allinone" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER/-release}-arm64-dind-allinone"
   docker push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER/-release}-arm64-dind-allinone"
 
   docker manifest rm "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER/-release}-dind-allinone"
