@@ -47,7 +47,7 @@ jobs:
         env:
           TRAVIS_PULL_REQUEST: false
           ADAPTOR_BRANCH: ${{ vars.ADAPTOR_BRANCH}}
-          ARCH: ${{ vars.ARCH}}
+          BUILD_ARCH: ${{ vars.BUILD_ARCH}}
           # GitHub
           DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
@@ -126,7 +126,7 @@ jobs:
     steps:
       - name: Build and push
         env:
-          ARCH: ${{ vars.ARCH}}
+          BUILD_ARCH: ${{ vars.BUILD_ARCH}}
           # GitHub
           DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
@@ -157,7 +157,7 @@ jobs:
       - name: Build the Docker image
         env:
           TRAVIS_PULL_REQUEST: false
-          ARCH: ${{ vars.ARCH}}
+          BUILD_ARCH: ${{ vars.BUILD_ARCH}}
           ADAPTOR_BRANCH: ${{ vars.ADAPTOR_BRANCH}}
           # GitHub
           DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
