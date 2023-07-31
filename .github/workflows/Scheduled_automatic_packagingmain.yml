@@ -165,6 +165,7 @@ jobs:
     runs-on: ${{ github.event.client_payload.os }}
     environment: release-arch
     steps:
+      - uses: actions/checkout@v2
       - name: push arch images
         env:
           RBD_VER: ${{ vars.RBD_VER }}
@@ -173,7 +174,5 @@ jobs:
           PUSH_ARCH: ${{ vars.PUSH_ARCH }}
         run: |
           if [ $PUSH_ARCH == 'true' ];then
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git
-            cd rainbond
-            chmod +x .github/workflows/push-arch.sh && ./.github/workflows/push-arch.sh
+            chmod +x .github/scripts/push-arch.sh && ./.github/scripts/push-arch.sh
           fi
