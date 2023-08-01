@@ -107,6 +107,9 @@ function push_arch_allinone {
   docker manifest rm "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-allinone"
   docker manifest create "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-allinone" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-allinone-amd64" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-arm64-allinone"
   docker manifest push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-allinone"
+
+  docker manifest create "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-allinone-amd64" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}-arm64-allinone"
+  docker manifest push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER}"
 }
 
 function push_arch_dind {
