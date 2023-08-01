@@ -1,8 +1,7 @@
 name: commit-ci-build
 
 on:
-  push:
-    branches: [main, V5.*, fixbug*, Develop*]
+  workflow_dispatch:
 
 jobs:
   build:
