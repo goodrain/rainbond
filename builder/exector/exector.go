@@ -122,6 +122,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	return &exectorManager{
 		BuildKitImage:     conf.BuildKitImage,
 		BuildKitArgs:      strings.Split(conf.BuildKitArgs, "&"),
+		BuildKitCache:     conf.BuildKitCache,
 		KubeClient:        kubeClient,
 		EtcdCli:           etcdCli,
 		mqClient:          mqc,
@@ -137,6 +138,7 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 type exectorManager struct {
 	BuildKitImage     string
 	BuildKitArgs      []string
+	BuildKitCache     bool
 	KubeClient        kubernetes.Interface
 	EtcdCli           *clientv3.Client
 	tasks             chan *pb.TaskMessage
@@ -348,6 +350,7 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	i.ImageClient = e.imageClient
 	i.BuildKitImage = e.BuildKitImage
 	i.BuildKitArgs = e.BuildKitArgs
+	i.BuildKitCache = e.BuildKitCache
 	i.KubeClient = e.KubeClient
 	i.RbdNamespace = e.cfg.RbdNamespace
 	i.RbdRepoName = e.cfg.RbdRepoName

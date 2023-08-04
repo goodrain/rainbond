@@ -63,6 +63,7 @@ type SourceCodeBuildItem struct {
 	ImageClient   sources.ImageClient
 	BuildKitImage string
 	BuildKitArgs  []string
+	BuildKitCache bool
 	KubeClient    kubernetes.Interface
 	RbdNamespace  string
 	RbdRepoName   string
@@ -328,6 +329,7 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 	buildReq := &build.Request{
 		BuildKitImage: i.BuildKitImage,
 		BuildKitArgs:  i.BuildKitArgs,
+		BuildKitCache: i.BuildKitCache,
 		RbdNamespace:  i.RbdNamespace,
 		SourceDir:     i.RepoInfo.GetCodeBuildAbsPath(),
 		CacheDir:      i.CacheDir,
