@@ -46,6 +46,7 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdRegistry())
 	cmds = append(cmds, NewCmdReplace())
 	cmds = append(cmds, NewCmdMigrateConsole())
+	cmds = append(cmds, NewCmdGPUShare())
 	return cmds
 }
 
