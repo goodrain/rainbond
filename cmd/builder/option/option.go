@@ -39,6 +39,7 @@ type Config struct {
 	MysqlConnectionInfo  string
 	BuildKitImage        string
 	BuildKitArgs         string
+	BuildKitCache        bool
 	DBType               string
 	PrometheusMetricPath string
 	EventLogServers      []string
@@ -106,6 +107,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.ContainerRuntime, "container-runtime", sources.ContainerRuntimeContainerd, "container runtime, support docker and containerd")
 	fs.StringVar(&a.RuntimeEndpoint, "runtime-endpoint", sources.RuntimeEndpointContainerd, "container runtime endpoint")
 	fs.StringVar(&a.BuildKitArgs, "buildkit-args", "", "buildkit build image container args config,need '&' split")
+	fs.BoolVar(&a.BuildKitCache, "buildkit-cache", true, "whether to enable the buildkit image cache")
 }
 
 //SetLog 设置log

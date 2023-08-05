@@ -83,6 +83,7 @@ type Response struct {
 type Request struct {
 	BuildKitImage string
 	BuildKitArgs  []string
+	BuildKitCache bool
 	RbdNamespace  string
 	GRDataPVCName string
 	CachePVCName  string
