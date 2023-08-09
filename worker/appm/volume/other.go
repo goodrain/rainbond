@@ -65,18 +65,18 @@ func (v *OtherVolume) CreateVolume(define *Define) error {
 			return "linux"
 		}(),
 	}
-	v.as.SetClaim(claim) // store claim to appService
+	v.as.SetClaim(claim)                 // store claim to appService
+	statefulset := v.as.GetStatefulSet() //有状态组件
 	vo := corev1.Volume{Name: volumeMountName}
 	vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
-	define.volumes = append(define.volumes, vo)
-	if shareFile {
-		v.as.SetClaimManually(claim)
+	if statefulset != nil {
+		statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
+		logrus.Debugf("stateset.Spec.VolumeClaimTemplates: %+v", statefulset.Spec.VolumeClaimTemplates)
 	} else {
-		statefulset := v.as.GetStatefulSet() //有状态组件
-		if statefulset != nil {
-			statefulset.Spec.VolumeClaimTemplates = append(statefulset.Spec.VolumeClaimTemplates, *claim)
-			logrus.Debugf("stateset.Spec.VolumeClaimTemplates: %+v", statefulset.Spec.VolumeClaimTemplates)
+		if shareFile {
+			v.as.SetClaimManually(claim)
 		}
+		define.volumes = append(define.volumes, vo)
 	}
 
 	vm := corev1.VolumeMount{
