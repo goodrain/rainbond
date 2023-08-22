@@ -525,6 +525,15 @@ type ChartInformation struct {
 	ChartName string `json:"chart_name"`
 }
 
+// GetYamlByChart -
+type GetYamlByChart struct {
+	EventID   string `json:"event_id"`
+	Name      string `json:"name"`
+	FileName  string `json:"file_name"`
+	Version   string `json:"version"`
+	Namespace string `json:"namespace"`
+}
+
 const (
 	//CreateSuccess -
 	CreateSuccess = 1

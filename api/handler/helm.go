@@ -94,7 +94,7 @@ func (h *HelmAction) GetChartInformation(chart api_model.ChartInformation) (*[]a
 
 // CheckHelmApp check helm app
 func (h *HelmAction) CheckHelmApp(checkHelmApp api_model.CheckHelmApp) (string, error) {
-	helmAppYaml, err := GetHelmAppYaml(checkHelmApp.Name, checkHelmApp.Chart, checkHelmApp.Version, checkHelmApp.Namespace, checkHelmApp.Overrides)
+	helmAppYaml, err := GetHelmAppYaml(checkHelmApp.Name, checkHelmApp.Chart, checkHelmApp.Version, checkHelmApp.Namespace, "", checkHelmApp.Overrides)
 	if err != nil {
 		return "", errors.Wrap(err, "helm app check failed")
 	}
@@ -121,14 +121,14 @@ func (h *HelmAction) AddHelmRepo(helmRepo api_model.CheckHelmApp) error {
 }
 
 //GetHelmAppYaml get helm app yaml
-func GetHelmAppYaml(name, chart, version, namespace string, overrides []string) (string, error) {
+func GetHelmAppYaml(name, chart, version, namespace, chartPath string, overrides []string) (string, error) {
 	logrus.Info("get into GetHelmAppYaml function")
 	helmCmd, err := helm.NewHelm(namespace, repoFile, repoCache)
 	if err != nil {
 		logrus.Errorf("Failed to create help client：%v", err)
 		return "", err
 	}
-	release, err := helmCmd.Install(name, chart, version, overrides)
+	release, err := helmCmd.Install(chartPath, name, chart, version, overrides)
 	if err != nil {
 		logrus.Errorf("helm --dry-run install failure: %v", err)
 		return "", err
@@ -149,4 +149,13 @@ func UpdateRepo(names string) error {
 		return err
 	}
 	return nil
+}
+
+// GetYamlByChart get yaml by chart
+func (h *HelmAction) GetYamlByChart(chartPath, namespace, name, version string, overrides []string) (string, error) {
+	helmAppYaml, err := GetHelmAppYaml(name, "", version, namespace, chartPath, overrides)
+	if err != nil {
+		return "", errors.Wrap(err, "helm app check failed")
+	}
+	return helmAppYaml, nil
 }

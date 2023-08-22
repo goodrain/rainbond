@@ -53,3 +53,24 @@ func (t *HelmStruct) GetChartInformation(w http.ResponseWriter, r *http.Request)
 	}
 	httputil.ReturnSuccess(r, w, chartVersion)
 }
+
+//GetYamlByChart -
+func (t *HelmStruct) GetYamlByChart(w http.ResponseWriter, r *http.Request) {
+	var yc api_model.GetYamlByChart
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &yc, nil); !ok {
+		return
+	}
+	data := map[string]string{"checkAdopt": "true"}
+	if yc.EventID == "" {
+		httputil.ReturnError(r, w, 400, "Failed to parse eventID.")
+		return
+	}
+	chartPath := fmt.Sprintf("%s/import/%s/%s", handler.GetAppHandler().GetStaticDir(), yc.EventID, yc.FileName)
+	yaml, err := handler.GetHelmManager().GetYamlByChart(chartPath, yc.Namespace, yc.Name, yc.Version, []string{})
+	if err != nil {
+		data["checkAdopt"] = "false"
+		data["yaml"] = err.Error()
+	}
+	data["yaml"] = yaml
+	httputil.ReturnSuccess(r, w, data)
+}

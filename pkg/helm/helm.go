@@ -96,13 +96,13 @@ func (h *Helm) UpdateRepo(names string) error {
 
 // PreInstall -
 func (h *Helm) PreInstall(name, chart, version string) error {
-	_, err := h.install(name, chart, version, nil, true, ioutil.Discard)
+	_, err := h.install(name, chart, version, "", nil, true, ioutil.Discard)
 	return err
 }
 
 // Install -
-func (h *Helm) Install(name, chart, version string, overrides []string) (*release.Release, error) {
-	release, err := h.install(name, chart, version, overrides, true, ioutil.Discard)
+func (h *Helm) Install(chartPath, name, chart, version string, overrides []string) (*release.Release, error) {
+	release, err := h.install(name, chart, version, chartPath, overrides, true, ioutil.Discard)
 	return release, err
 }
 
@@ -171,7 +171,7 @@ func (h *Helm) getDigest(chart, version string) (string, error) {
 	return "", errors.New(fmt.Sprintf("chart(%s) version(%s) not found", chart, version))
 }
 
-func (h *Helm) install(name, chart, version string, overrides []string, dryRun bool, out io.Writer) (*release.Release, error) {
+func (h *Helm) install(name, chart, version, chartPath string, overrides []string, dryRun bool, out io.Writer) (*release.Release, error) {
 	client := action.NewInstall(h.cfg)
 	client.ReleaseName = name
 	client.Namespace = h.namespace
@@ -179,12 +179,16 @@ func (h *Helm) install(name, chart, version string, overrides []string, dryRun b
 	client.DryRun = dryRun
 	//client.IsUpgrade = true
 	client.ClientOnly = true
-
-	cp, err := h.locateChart(chart, version)
-	if err != nil {
-		return nil, err
+	var cp string
+	if chartPath != ""{
+		cp = chartPath
+	} else {
+		res, err := h.locateChart(chart, version)
+		if err != nil {
+			return nil, err
+		}
+		cp = res
 	}
-
 	logrus.Debugf("CHART PATH: %s\n", cp)
 
 	p := getter.All(h.settings)
