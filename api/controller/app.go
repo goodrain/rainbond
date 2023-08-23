@@ -128,7 +128,7 @@ func (a *AppStruct) ImportID(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			ex := filepath.Ext(dir.Name())
-			if ex != ".zip" && ex != ".tar.gz" && ex != ".gz" {
+			if ex != ".zip" && ex != ".tar.gz" && ex != ".gz" && ex != ".tgz" {
 				continue
 			}
 			appArr = append(appArr, dir.Name())

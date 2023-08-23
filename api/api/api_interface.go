@@ -96,6 +96,7 @@ type TenantInterface interface {
 type HelmInterface interface {
 	CheckHelmApp(w http.ResponseWriter, r *http.Request)
 	GetChartInformation(w http.ResponseWriter, r *http.Request)
+	GetYamlByChart(w http.ResponseWriter, r *http.Request)
 }
 
 // ServiceInterface ServiceInterface
