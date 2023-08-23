@@ -11,4 +11,5 @@ type HelmHandler interface {
 	CheckHelmApp(checkHelmApp api_model.CheckHelmApp) (string, error)
 	GetChartInformation(chart api_model.ChartInformation) (*[]api_model.HelmChartInformation, *util.APIHandleError)
 	UpdateHelmRepo(names string) error
+	GetYamlByChart(chartPath, namespace, name, version string, overrides []string) (string, error)
 }
