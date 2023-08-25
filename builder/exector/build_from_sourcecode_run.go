@@ -46,39 +46,40 @@ import (
 
 //SourceCodeBuildItem SouceCodeBuildItem
 type SourceCodeBuildItem struct {
-	Namespace     string       `json:"namespace"`
-	TenantName    string       `json:"tenant_name"`
-	GRDataPVCName string       `json:"gr_data_pvc_name"`
-	CachePVCName  string       `json:"cache_pvc_name"`
-	CacheMode     string       `json:"cache_mode"`
-	CachePath     string       `json:"cache_path"`
-	ServiceAlias  string       `json:"service_alias"`
-	Action        string       `json:"action"`
-	Arch          string       `json:"arch"`
-	DestImage     string       `json:"dest_image"`
-	Logger        event.Logger `json:"logger"`
-	EventID       string       `json:"event_id"`
-	CacheDir      string       `json:"cache_dir"`
-	TGZDir        string       `json:"tgz_dir"`
-	ImageClient   sources.ImageClient
-	BuildKitImage string
-	BuildKitArgs  []string
-	BuildKitCache bool
-	KubeClient    kubernetes.Interface
-	RbdNamespace  string
-	RbdRepoName   string
-	TenantID      string
-	ServiceID     string
-	DeployVersion string
-	Lang          string
-	Runtime       string
-	BuildEnvs     map[string]string
-	CodeSouceInfo sources.CodeSourceInfo
-	RepoInfo      *sources.RepostoryBuildInfo
-	commit        Commit
-	Configs       map[string]gjson.Result `json:"configs"`
-	Ctx           context.Context
-	FailCause     string
+	Namespace        string       `json:"namespace"`
+	TenantName       string       `json:"tenant_name"`
+	GRDataPVCName    string       `json:"gr_data_pvc_name"`
+	CachePVCName     string       `json:"cache_pvc_name"`
+	CacheMode        string       `json:"cache_mode"`
+	CachePath        string       `json:"cache_path"`
+	ServiceAlias     string       `json:"service_alias"`
+	Action           string       `json:"action"`
+	Arch             string       `json:"arch"`
+	DestImage        string       `json:"dest_image"`
+	Logger           event.Logger `json:"logger"`
+	EventID          string       `json:"event_id"`
+	CacheDir         string       `json:"cache_dir"`
+	TGZDir           string       `json:"tgz_dir"`
+	ImageClient      sources.ImageClient
+	BuildKitImage    string
+	BuildKitArgs     []string
+	BuildKitCache    bool
+	BuildSharedCache bool
+	KubeClient       kubernetes.Interface
+	RbdNamespace     string
+	RbdRepoName      string
+	TenantID         string
+	ServiceID        string
+	DeployVersion    string
+	Lang             string
+	Runtime          string
+	BuildEnvs        map[string]string
+	CodeSouceInfo    sources.CodeSourceInfo
+	RepoInfo         *sources.RepostoryBuildInfo
+	commit           Commit
+	Configs          map[string]gjson.Result `json:"configs"`
+	Ctx              context.Context
+	FailCause        string
 }
 
 //Commit code Commit
@@ -327,35 +328,36 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		return nil, err
 	}
 	buildReq := &build.Request{
-		BuildKitImage: i.BuildKitImage,
-		BuildKitArgs:  i.BuildKitArgs,
-		BuildKitCache: i.BuildKitCache,
-		RbdNamespace:  i.RbdNamespace,
-		SourceDir:     i.RepoInfo.GetCodeBuildAbsPath(),
-		CacheDir:      i.CacheDir,
-		TGZDir:        i.TGZDir,
-		RepositoryURL: i.RepoInfo.RepostoryURL,
-		CodeSouceInfo: i.CodeSouceInfo,
-		ServiceAlias:  i.ServiceAlias,
-		ServiceID:     i.ServiceID,
-		TenantID:      i.TenantID,
-		ServerType:    i.CodeSouceInfo.ServerType,
-		Runtime:       i.Runtime,
-		Branch:        i.CodeSouceInfo.Branch,
-		DeployVersion: i.DeployVersion,
-		Commit:        build.Commit{User: i.commit.Author, Message: i.commit.Message, Hash: i.commit.Hash},
-		Lang:          code.Lang(i.Lang),
-		BuildEnvs:     i.BuildEnvs,
-		Logger:        i.Logger,
-		ImageClient:   i.ImageClient,
-		KubeClient:    i.KubeClient,
-		HostAlias:     hostAlias,
-		Ctx:           i.Ctx,
-		GRDataPVCName: i.GRDataPVCName,
-		CachePVCName:  i.CachePVCName,
-		CacheMode:     i.CacheMode,
-		CachePath:     i.CachePath,
-		Arch:          i.Arch,
+		BuildKitImage:    i.BuildKitImage,
+		BuildKitArgs:     i.BuildKitArgs,
+		BuildKitCache:    i.BuildKitCache,
+		BuildSharedCache: i.BuildSharedCache,
+		RbdNamespace:     i.RbdNamespace,
+		SourceDir:        i.RepoInfo.GetCodeBuildAbsPath(),
+		CacheDir:         i.CacheDir,
+		TGZDir:           i.TGZDir,
+		RepositoryURL:    i.RepoInfo.RepostoryURL,
+		CodeSouceInfo:    i.CodeSouceInfo,
+		ServiceAlias:     i.ServiceAlias,
+		ServiceID:        i.ServiceID,
+		TenantID:         i.TenantID,
+		ServerType:       i.CodeSouceInfo.ServerType,
+		Runtime:          i.Runtime,
+		Branch:           i.CodeSouceInfo.Branch,
+		DeployVersion:    i.DeployVersion,
+		Commit:           build.Commit{User: i.commit.Author, Message: i.commit.Message, Hash: i.commit.Hash},
+		Lang:             code.Lang(i.Lang),
+		BuildEnvs:        i.BuildEnvs,
+		Logger:           i.Logger,
+		ImageClient:      i.ImageClient,
+		KubeClient:       i.KubeClient,
+		HostAlias:        hostAlias,
+		Ctx:              i.Ctx,
+		GRDataPVCName:    i.GRDataPVCName,
+		CachePVCName:     i.CachePVCName,
+		CacheMode:        i.CacheMode,
+		CachePath:        i.CachePath,
+		Arch:             i.Arch,
 	}
 	res, err := codeBuild.Build(buildReq)
 	return res, err

@@ -39,6 +39,7 @@ type Config struct {
 	MysqlConnectionInfo  string
 	BuildKitImage        string
 	BuildKitArgs         string
+	BuildSharedCache     bool
 	BuildKitCache        bool
 	DBType               string
 	PrometheusMetricPath string
@@ -108,6 +109,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.RuntimeEndpoint, "runtime-endpoint", sources.RuntimeEndpointContainerd, "container runtime endpoint")
 	fs.StringVar(&a.BuildKitArgs, "buildkit-args", "", "buildkit build image container args config,need '&' split")
 	fs.BoolVar(&a.BuildKitCache, "buildkit-cache", true, "whether to enable the buildkit image cache")
+	fs.BoolVar(&a.BuildSharedCache, "build-shared-cache", true, "build shared cache")
 }
 
 //SetLog 设置log
