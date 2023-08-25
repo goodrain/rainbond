@@ -184,20 +184,19 @@ func (s *slugBuild) stopPreBuildJob(re *Request) error {
 	return nil
 }
 
-func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string, buildNoCache bool) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	slugSubPath := strings.TrimPrefix(re.TGZDir, "/grdata/")
 	lazyloading := sourceTarFileName == ""
 	sourceTarPath := strings.TrimPrefix(sourceTarFileName, "/cache/")
 	cacheSubPath := strings.TrimPrefix(re.CacheDir, "/cache/")
+	if s.re.BuildSharedCache {
+		cacheSubPath = path.Join("build/cache", re.Lang.String())
+	}
 
 	hostPathType := corev1.HostPathDirectoryOrCreate
 	unset := corev1.HostPathUnset
 	if re.CacheMode == "hostpath" {
 		volumeMounts = []corev1.VolumeMount{
-			{
-				Name:      "cache",
-				MountPath: "/tmp/cache",
-			},
 			{
 				Name:      "slug",
 				MountPath: "/tmp/slug",
@@ -219,15 +218,6 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 					},
 				},
 			},
-			{
-				Name: "cache",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: path.Join(re.CachePath, cacheSubPath),
-						Type: &hostPathType,
-					},
-				},
-			},
 		}
 		if !lazyloading {
 			volumes = append(volumes, corev1.Volume{
@@ -239,6 +229,21 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 						Type: &unset,
 					},
 				},
+			})
+		}
+		if !buildNoCache {
+			volumes = append(volumes, corev1.Volume{
+				Name: "cache",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: path.Join(re.CachePath, cacheSubPath),
+						Type: &hostPathType,
+					},
+				},
+			})
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      "cache",
+				MountPath: "/tmp/cache",
 			})
 		}
 	} else {
@@ -262,11 +267,6 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 		}
 		volumeMounts = []corev1.VolumeMount{
 			{
-				Name:      "app",
-				MountPath: "/tmp/cache",
-				SubPath:   cacheSubPath,
-			},
-			{
 				Name:      "slug",
 				MountPath: "/tmp/slug",
 				SubPath:   slugSubPath,
@@ -277,6 +277,13 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 				Name:      "app",
 				MountPath: "/tmp/app-source.tar",
 				SubPath:   sourceTarPath,
+			})
+		}
+		if !buildNoCache {
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      "app",
+				MountPath: "/tmp/cache",
+				SubPath:   cacheSubPath,
 			})
 		}
 	}
@@ -341,6 +348,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		envs = append(envs, corev1.EnvVar{Name: "PACKAGE_DOWNLOAD_PASS", Value: re.CodeSouceInfo.Password})
 	}
 	var mavenSettingName string
+	var buildNoCache bool
 	for k, v := range re.BuildEnvs {
 		if k == "MAVEN_SETTING_NAME" {
 			mavenSettingName = v
@@ -361,6 +369,9 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 					envs = append(envs, corev1.EnvVar{Name: "RUNTIME", Value: runtime.(string)})
 				}
 			}
+		}
+		if k == "NO_CACHE" && v == "True" {
+			buildNoCache = true
 		}
 	}
 	podSpec := corev1.PodSpec{
@@ -400,7 +411,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	}
 	logrus.Debugf("request is: %+v", re)
 
-	volumes, mounts := s.createVolumeAndMount(re, sourceTarFileName)
+	volumes, mounts := s.createVolumeAndMount(re, sourceTarFileName, buildNoCache)
 	podSpec.Volumes = volumes
 	container := corev1.Container{
 		Name:      name,
