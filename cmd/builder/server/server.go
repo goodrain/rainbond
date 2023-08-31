@@ -19,6 +19,8 @@
 package server
 
 import (
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
+	"k8s.io/client-go/kubernetes"
 	"os"
 	"os/signal"
 	"syscall"
@@ -43,7 +45,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//Run start run
+// Run start run
 func Run(s *option.Builder) error {
 	errChan := make(chan error)
 	//init mysql
@@ -53,6 +55,7 @@ func Run(s *option.Builder) error {
 		EtcdEndPoints:       s.Config.EtcdEndPoints,
 		EtcdTimeout:         s.Config.EtcdTimeout,
 	}
+
 	if err := db.CreateManager(dbconfig); err != nil {
 		return err
 	}
@@ -69,12 +72,12 @@ func Run(s *option.Builder) error {
 		return err
 	}
 	defer event.CloseManager()
-	client, err := client.NewMqClient(etcdClientArgs, s.Config.MQAPI)
+	mqClient, err := client.NewMqClient(etcdClientArgs, s.Config.MQAPI)
 	if err != nil {
-		logrus.Errorf("new Mq client error, %v", err)
+		logrus.Errorf("new Mq mqClient error, %v", err)
 		return err
 	}
-	exec, err := exector.NewManager(s.Config, client)
+	exec, err := exector.NewManager(s.Config, mqClient)
 	if err != nil {
 		return err
 	}
@@ -82,14 +85,23 @@ func Run(s *option.Builder) error {
 		return err
 	}
 	//exec manage stop by discover
-	dis := discover.NewTaskManager(s.Config, client, exec)
+	dis := discover.NewTaskManager(s.Config, mqClient, exec)
 	if err := dis.Start(errChan); err != nil {
 		return err
 	}
 	defer dis.Stop()
 
+	//默认清理策略：保留最新构建成功的5份，过期镜像将会清理本地和rbd-hub
 	if s.Config.CleanUp {
-		cle, err := clean.CreateCleanManager(exec.GetImageClient())
+		restConfig, err := k8sutil.NewRestConfig(s.KubeConfig)
+		if err != nil {
+			return err
+		}
+		clientset, err := kubernetes.NewForConfig(restConfig)
+		if err != nil {
+			return err
+		}
+		cle, err := clean.CreateCleanManager(exec.GetImageClient(), restConfig, clientset, uint(s.KeepCount))
 		if err != nil {
 			return err
 		}

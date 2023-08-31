@@ -20,7 +20,12 @@ package clean
 
 import (
 	"context"
+	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/sources/registry"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -31,83 +36,104 @@ import (
 	"github.com/goodrain/rainbond/builder/sources"
 )
 
-//Manager CleanManager
+// Manager CleanManager
 type Manager struct {
 	imageClient sources.ImageClient
 	ctx         context.Context
 	cancel      context.CancelFunc
+	config      *rest.Config
+	keepCount   uint
+	clientset   *kubernetes.Clientset
 }
 
-//CreateCleanManager create clean manager
-func CreateCleanManager(imageClient sources.ImageClient) (*Manager, error) {
+// CreateCleanManager create clean manager
+func CreateCleanManager(imageClient sources.ImageClient, config *rest.Config, clientset *kubernetes.Clientset, keepCount uint) (*Manager, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Manager{
 		imageClient: imageClient,
 		ctx:         ctx,
 		cancel:      cancel,
+		config:      config,
+		keepCount:   keepCount,
+		clientset:   clientset,
 	}
 	return c, nil
 }
 
-//Start start clean
+// Start start clean
 func (t *Manager) Start(errchan chan error) error {
 	logrus.Info("CleanManager is starting.")
 	run := func() {
 		err := util.Exec(t.ctx, func() error {
-			now := time.Now()
-			datetime := now.AddDate(0, -1, 0)
-			// Find more than five versions
-			results, err := db.GetManager().VersionInfoDao().SearchVersionInfo()
+			//保留份数 默认5份
+			keepCount := t.keepCount
+			// 获取构建成功的 并且大于5个版本的serviceId和具体的版本数
+			services, err := db.GetManager().VersionInfoDao().GetServicesAndCount("success", keepCount)
 			if err != nil {
 				logrus.Error(err)
+				return err
 			}
-			var serviceIDList []string
-			for _, v := range results {
-				serviceIDList = append(serviceIDList, v.ServiceID)
-			}
-			versions, err := db.GetManager().VersionInfoDao().GetVersionInfo(datetime, serviceIDList)
-			if err != nil {
-				logrus.Error(err)
-			}
-
-			for _, v := range versions {
-				versions, err := db.GetManager().VersionInfoDao().GetVersionByServiceID(v.ServiceID)
+			for _, service := range services {
+				// service.Count-5： 超过指定数量的版本数,一定是正整数
+				versions, err := db.GetManager().VersionInfoDao().SearchExpireVersionInfo(service.ServiceID, service.Count-keepCount)
 				if err != nil {
-					logrus.Error("GetVersionByServiceID error: ", err.Error())
+					logrus.Error("SearchExpireVersionInfo error: ", err.Error())
 					continue
 				}
-				if len(versions) <= 5 {
-					continue
-				}
-				if v.DeliveredType == "image" {
-					imagePath := v.DeliveredPath
-					//remove local image, However, it is important to note that the version image is stored in the image repository
-					err := t.imageClient.ImageRemove(imagePath)
-					if err != nil {
-						logrus.Error(err)
-					}
-					if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
-						logrus.Error(err)
+				for _, v := range versions {
+					if v.DeliveredType == "image" {
+						//clean rbd-hub images
+						imageInfo := sources.ImageNameHandle(v.DeliveredPath)
+						if strings.Contains(imageInfo.Host, "goodrain.me") {
+							reg, err := registry.NewInsecure(imageInfo.Host, builder.REGISTRYUSER, builder.REGISTRYPASS)
+							if err != nil {
+								logrus.Error(err)
+								continue
+							} else {
+								err = reg.CleanRepoByTag(imageInfo.Name, imageInfo.Tag)
+								if err != nil {
+									continue
+								}
+							}
+							// registry garbage-collect
+							cmd := []string{"registry", "garbage-collect", "/etc/docker/registry/config.yml"}
+							out, b, err := reg.PodExecCmd(t.config, t.clientset, "rbd-hub", cmd)
+							if err != nil {
+								logrus.Error("rbd-hub exec cmd fail: ", out.String(), b.String(), err.Error())
+								continue
+							} else {
+								logrus.Info("rbd-hub exec cmd success.")
+							}
+						}
+						err := t.imageClient.ImageRemove(v.DeliveredPath)
+						if err != nil {
+							logrus.Error(err)
+							continue
+						}
+						if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
+							logrus.Error(err)
+							continue
+						}
+						logrus.Info("Image deletion successful:", v.DeliveredPath)
 						continue
 					}
-					logrus.Info("Image deletion successful:", imagePath)
-				}
-				if v.DeliveredType == "slug" {
-					filePath := v.DeliveredPath
-					if err := os.Remove(filePath); err != nil {
-						logrus.Error(err)
+					if v.DeliveredType == "slug" {
+						filePath := v.DeliveredPath
+						if err := os.Remove(filePath); err != nil {
+							logrus.Error(err)
+							continue
+						}
+						if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
+							logrus.Error(err)
+							continue
+						}
+						logrus.Info("file deletion successful:", filePath)
 					}
-					if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
-						logrus.Error(err)
-						continue
-					}
-					logrus.Info("file deletion successful:", filePath)
-
 				}
-
 			}
+
 			return nil
-		}, 24*time.Hour)
+		}, 1*time.Hour)
 		if err != nil {
 			errchan <- err
 		}
@@ -116,7 +142,7 @@ func (t *Manager) Start(errchan chan error) error {
 	return nil
 }
 
-//Stop stop
+// Stop stop
 func (t *Manager) Stop() error {
 	logrus.Info("CleanManager is stoping.")
 	t.cancel()

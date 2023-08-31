@@ -24,3 +24,5 @@ func (p *PodAction) PodDetail(namespace, podName string) (*pb.PodDetail, error) 
 	}
 	return pd, nil
 }
+
+// PodExecCmd 进入pod执行命令
