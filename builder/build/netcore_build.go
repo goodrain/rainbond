@@ -20,6 +20,7 @@ package build
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/builder/parser/code"
 	"io/ioutil"
 	"os"
 	"path"
@@ -42,6 +43,37 @@ FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_RUNTIME_VERSION:2.1-alpine}
 WORKDIR /app
 COPY --from=builder /out/ .
 CMD ["dotnet"]
+`
+
+var nodeJSStaticDockerfileTmpl = `
+FROM node:${RUNTIMES:20}-bullseye-slim AS builder
+COPY . /app
+WORKDIR /app
+RUN ${PACKAGE_TOOL:npm} config set registry ${NPM_REGISTRY:https://registry.npmmirror.com} && ${PACKAGE_TOOL:npm} install && ${NODE_BUILD_CMD:npm run build}
+
+FROM nginx:1.21
+COPY nginx.k8s.conf /etc/nginx/conf.d/default.conf
+
+COPY --from=builder /app/${DIST_DIR:dist} /opt/${DIST_DIR:dist}
+`
+
+var nginxTemplate = `
+server {
+    listen       5000;
+    
+    location / {
+        root /opt/${DIST_DIR:dist};
+    }
+
+    location ^~/api {
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_buffering off;
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass http://127.0.0.1;
+    }
+}
 `
 
 type netcoreBuild struct {
@@ -67,7 +99,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 
 	re.Logger.Info("start compiling the source code", map[string]string{"step": "builder-exector"})
 	// write dockerfile
-	if err := d.writeDockerfile(d.sourceDir, re.BuildEnvs); err != nil {
+	if err := d.writeDockerfile(d.sourceDir, re.BuildEnvs, re.Lang); err != nil {
 		return nil, fmt.Errorf("write default dockerfile error:%s", err.Error())
 	}
 	// build image
@@ -84,8 +116,17 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 	return d.createResponse(), nil
 }
 
-func (d *netcoreBuild) writeDockerfile(sourceDir string, envs map[string]string) error {
+func (d *netcoreBuild) writeDockerfile(sourceDir string, envs map[string]string, lang code.Lang) error {
 	dockerfile := util.ParseVariable(dockerfileTmpl, envs)
+	if lang == "NodeJSStatic" && envs["MODE"] == "DOCKERFILE" {
+		if envs["NODE_BUILD_CMD"] == "" {
+			envs["NODE_BUILD_CMD"] = envs["PACKAGE_TOOL"] + " run build"
+		}
+		dockerfile = util.ParseVariable(nodeJSStaticDockerfileTmpl, envs)
+		dPath := path.Join(sourceDir, "nginx.k8s.conf")
+		nginxFile := util.ParseVariable(nginxTemplate, envs)
+		ioutil.WriteFile(dPath, []byte(nginxFile), 0755)
+	}
 	dfpath := path.Join(sourceDir, "Dockerfile")
 	logrus.Debugf("dest: %s; write dockerfile: %s", dfpath, dockerfile)
 	return ioutil.WriteFile(dfpath, []byte(dockerfile), 0755)
