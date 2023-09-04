@@ -20,6 +20,7 @@ package build
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/builder/parser/code"
 	"io/ioutil"
 	"os"
 	"path"
@@ -44,7 +45,29 @@ COPY --from=builder /out/ .
 CMD ["dotnet"]
 `
 
-type netcoreBuild struct {
+var nodeJSStaticDockerfileTmpl = `
+FROM node:${RUNTIMES:20}-bullseye-slim AS builder
+COPY . /app
+WORKDIR /app
+RUN ${PACKAGE_TOOL:npm} config set registry ${NPM_REGISTRY:https://registry.npmmirror.com} && ${PACKAGE_TOOL:npm} install && ${NODE_BUILD_CMD:npm run build}
+
+FROM nginx:alpine
+COPY nginx.k8s.conf /etc/nginx/conf.d/default.conf
+
+COPY --from=builder /app/${DIST_DIR:dist} /opt/${DIST_DIR:dist}
+`
+
+var nginxTemplate = `
+server {
+    listen       5000;
+    
+    location / {
+        root /opt/${DIST_DIR:dist};
+    }
+}
+`
+
+type customDockerfileBuild struct {
 	imageName      string
 	buildImageName string
 	sourceDir      string
@@ -53,11 +76,11 @@ type netcoreBuild struct {
 	imageClient    sources.ImageClient
 }
 
-func netcoreBuilder() (Build, error) {
-	return &netcoreBuild{}, nil
+func customDockerBuilder() (Build, error) {
+	return &customDockerfileBuild{}, nil
 }
 
-func (d *netcoreBuild) Build(re *Request) (*Response, error) {
+func (d *customDockerfileBuild) Build(re *Request) (*Response, error) {
 	defer d.clear()
 	d.logger = re.Logger
 	d.serviceID = re.ServiceID
@@ -67,7 +90,7 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 
 	re.Logger.Info("start compiling the source code", map[string]string{"step": "builder-exector"})
 	// write dockerfile
-	if err := d.writeDockerfile(d.sourceDir, re.BuildEnvs); err != nil {
+	if err := d.writeDockerfile(d.sourceDir, re.BuildEnvs, re.Lang); err != nil {
 		return nil, fmt.Errorf("write default dockerfile error:%s", err.Error())
 	}
 	// build image
@@ -84,20 +107,32 @@ func (d *netcoreBuild) Build(re *Request) (*Response, error) {
 	return d.createResponse(), nil
 }
 
-func (d *netcoreBuild) writeDockerfile(sourceDir string, envs map[string]string) error {
+func (d *customDockerfileBuild) writeDockerfile(sourceDir string, envs map[string]string, lang code.Lang) error {
 	dockerfile := util.ParseVariable(dockerfileTmpl, envs)
+	if lang == "NodeJSStatic" && envs["MODE"] == "DOCKERFILE" {
+		if envs["NODE_BUILD_CMD"] == "" {
+			envs["NODE_BUILD_CMD"] = envs["PACKAGE_TOOL"] + " run build"
+		}
+		dockerfile = util.ParseVariable(nodeJSStaticDockerfileTmpl, envs)
+		dPath := path.Join(sourceDir, "nginx.k8s.conf")
+		nginxFile := util.ParseVariable(nginxTemplate, envs)
+		err := ioutil.WriteFile(dPath, []byte(nginxFile), 0755)
+		if err != nil {
+			return err
+		}
+	}
 	dfpath := path.Join(sourceDir, "Dockerfile")
 	logrus.Debugf("dest: %s; write dockerfile: %s", dfpath, dockerfile)
 	return ioutil.WriteFile(dfpath, []byte(dockerfile), 0755)
 }
 
-func (d *netcoreBuild) createResponse() *Response {
+func (d *customDockerfileBuild) createResponse() *Response {
 	return &Response{
 		MediumType: ImageMediumType,
 		MediumPath: d.imageName,
 	}
 }
 
-func (d *netcoreBuild) clear() {
+func (d *customDockerfileBuild) clear() {
 	os.Remove(path.Join(d.sourceDir, "Dockerfile"))
 }

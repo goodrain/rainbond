@@ -40,7 +40,7 @@ func init() {
 	buildcreaters = make(map[code.Lang]CreaterBuild)
 	buildcreaters[code.Dockerfile] = dockerfileBuilder
 	buildcreaters[code.Docker] = dockerfileBuilder
-	buildcreaters[code.NetCore] = netcoreBuilder
+	buildcreaters[code.NetCore] = customDockerBuilder
 	buildcreaters[code.JavaJar] = slugBuilder
 	buildcreaters[code.JavaMaven] = slugBuilder
 	buildcreaters[code.JaveWar] = slugBuilder
@@ -49,6 +49,7 @@ func init() {
 	buildcreaters[code.Nodejs] = slugBuilder
 	buildcreaters[code.Golang] = slugBuilder
 	buildcreaters[code.OSS] = slugBuilder
+	buildcreaters[code.NodeJSDockerfile] = customDockerBuilder
 }
 
 var buildcreaters map[code.Lang]CreaterBuild

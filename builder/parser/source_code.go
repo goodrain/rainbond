@@ -220,6 +220,30 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 			checkPath = fmt.Sprintf("/grdata/package_build/temp/events/%s", eventID)
 		}
 		buildInfo.CodeHome = checkPath
+
+		fileList, err := ioutil.ReadDir(buildInfo.GetCodeHome())
+		var ext, filePath string
+		if len(fileList) > 0 {
+			filePath = path.Join(buildInfo.GetCodeHome(), fileList[0].Name())
+			ext = path.Ext(fileList[0].Name())
+		}
+		switch ext {
+		case ".tar":
+			if err := util.UnTar(filePath, buildInfo.GetCodeHome(), false); err != nil {
+				logrus.Errorf("untar package file failure %s", err.Error())
+				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为tar规范文件"))
+			}
+		case ".tgz", ".tar.gz":
+			if err := util.UnTar(filePath, buildInfo.GetCodeHome(), true); err != nil {
+				logrus.Errorf("untar package file failure %s", err.Error())
+				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为tgz规范文件"))
+			}
+		case ".zip":
+			if err := util.Unzip(filePath, buildInfo.GetCodeHome(), true); err != nil {
+				logrus.Errorf("untar package file failure %s", err.Error())
+				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为zip规范文件"))
+			}
+		}
 		return ParseErrorList{}
 	}
 	ossFunc := func() ParseErrorList {
@@ -256,7 +280,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为tgz规范文件"))
 			}
 		case ".zip":
-			if err := util.Unzip(fileName, buildInfo.GetCodeHome()); err != nil {
+			if err := util.Unzip(fileName, buildInfo.GetCodeHome(), false); err != nil {
 				logrus.Errorf("untar package file failure %s", err.Error())
 				d.errappend(ErrorAndSolve(FatalError, "文件解压失败", "请确认该文件是否为zip规范文件"))
 			}
@@ -537,6 +561,9 @@ func (d *SourceCodeParse) GetImage() Image {
 
 //GetArgs 启动参数
 func (d *SourceCodeParse) GetArgs() []string {
+	if d.Lang == code.Nodejs {
+		return nil
+	}
 	return d.args
 }
 

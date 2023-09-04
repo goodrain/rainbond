@@ -229,6 +229,12 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		}
 		if len(packageArr) != 0 {
 			fileName := packageArr[0]
+			for _, pa := range packageArr {
+				paExt := path.Ext(pa)
+				if strings.HasSuffix(paExt, `.zip`) || strings.HasSuffix(paExt, `.tar`) || strings.HasSuffix(paExt, `.tar.gz`) || strings.HasSuffix(paExt, `.jar`) || strings.HasSuffix(paExt, `.war`) {
+					fileName = pa
+				}
+			}
 			file := filePath + "/" + fileName
 			fileMD5 := util.MD5(file)
 			i.commit = Commit{
@@ -317,6 +323,9 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 
 func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 	codeBuild, err := build.GetBuild(code.Lang(i.Lang))
+	if i.Lang == "NodeJSStatic" && i.BuildEnvs["MODE"] == "DOCKERFILE" {
+		codeBuild, err = build.GetBuild(code.NodeJSDockerfile)
+	}
 	if err != nil {
 		logrus.Errorf("get code build error: %s lang %s", err.Error(), i.Lang)
 		i.Logger.Error(util.Translation("No way of compiling to support this source type was found"), map[string]string{"step": "builder-exector", "status": "failure"})

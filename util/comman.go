@@ -539,7 +539,7 @@ func UnTar(archive, target string, zip bool) error {
 }
 
 //Unzip archive file to target dir
-func Unzip(archive, target string) error {
+func Unzip(archive, target string, currentDirectory bool) error {
 	reader, err := zip.OpenDirectReader(archive)
 	if err != nil {
 		return fmt.Errorf("error opening archive: %v", err)
@@ -550,6 +550,10 @@ func Unzip(archive, target string) error {
 	for _, file := range reader.File {
 		run := func() error {
 			path := filepath.Join(target, file.Name)
+			if currentDirectory {
+				p := strings.Split(file.Name, "/")[1:]
+				path = filepath.Join(target, strings.Join(p, "/"))
+			}
 			if file.FileInfo().IsDir() {
 				os.MkdirAll(path, file.Mode())
 				if file.Comment != "" && strings.Contains(file.Comment, "/") {
