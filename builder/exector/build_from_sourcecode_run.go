@@ -229,6 +229,12 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		}
 		if len(packageArr) != 0 {
 			fileName := packageArr[0]
+			for _, pa := range packageArr {
+				paExt := path.Ext(pa)
+				if strings.HasSuffix(paExt, `.zip`) || strings.HasSuffix(paExt, `.tar`) || strings.HasSuffix(paExt, `.tar.gz`) || strings.HasSuffix(paExt, `.jar`) || strings.HasSuffix(paExt, `.war`) {
+					fileName = pa
+				}
+			}
 			file := filePath + "/" + fileName
 			fileMD5 := util.MD5(file)
 			i.commit = Commit{
