@@ -27,7 +27,7 @@ import (
 	"runtime"
 )
 
-//Config config server
+// Config config server
 type Config struct {
 	EtcdEndPoints        []string
 	EtcdCaFile           string
@@ -61,21 +61,22 @@ type Config struct {
 	CachePath            string
 	ContainerRuntime     string
 	RuntimeEndpoint      string
+	KeepCount            int
 }
 
-//Builder  builder server
+// Builder  builder server
 type Builder struct {
 	Config
 	LogLevel string
 	RunMode  string //default,sync
 }
 
-//NewBuilder new server
+// NewBuilder new server
 func NewBuilder() *Builder {
 	return &Builder{}
 }
 
-//AddFlags config
+// AddFlags config
 func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the builder log level")
 	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd v3 cluster endpoints.")
@@ -110,9 +111,10 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.BuildKitArgs, "buildkit-args", "", "buildkit build image container args config,need '&' split")
 	fs.BoolVar(&a.BuildKitCache, "buildkit-cache", true, "whether to enable the buildkit image cache")
 	fs.BoolVar(&a.BuildSharedCache, "build-shared-cache", true, "build shared cache")
+	fs.IntVar(&a.KeepCount, "keep-count", 5, "default number of reserved copies for images")
 }
 
-//SetLog 设置log
+// SetLog 设置log
 func (a *Builder) SetLog() {
 	level, err := logrus.ParseLevel(a.LogLevel)
 	if err != nil {
@@ -122,7 +124,7 @@ func (a *Builder) SetLog() {
 	logrus.SetLevel(level)
 }
 
-//CheckConfig check config
+// CheckConfig check config
 func (a *Builder) CheckConfig() error {
 	if a.Topic != client.BuilderTopic && a.Topic != client.WindowsBuilderTopic {
 		return fmt.Errorf("Topic is only suppory `%s` and `%s`", client.BuilderTopic, client.WindowsBuilderTopic)

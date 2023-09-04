@@ -28,7 +28,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//LogfCallback LogfCallback
+// LogfCallback LogfCallback
 type LogfCallback func(format string, args ...interface{})
 
 //Quiet Quiet
@@ -47,7 +47,7 @@ func Log(format string, args ...interface{}) {
 	logrus.Debugf(format, args...)
 }
 
-//Registry the client for  image repostory
+// Registry the client for  image repostory
 type Registry struct {
 	URL    string
 	Client *http.Client
@@ -139,17 +139,17 @@ func newFromTransport(registryURL, username, password string, transport http.Rou
 	return registry, nil
 }
 
-func (r *Registry) url(pathTemplate string, args ...interface{}) string {
+func (registry *Registry) url(pathTemplate string, args ...interface{}) string {
 	pathSuffix := fmt.Sprintf(pathTemplate, args...)
-	url := fmt.Sprintf("%s%s", r.URL, pathSuffix)
+	url := fmt.Sprintf("%s%s", registry.URL, pathSuffix)
 	return url
 }
 
-//Ping ping registry server
-func (r *Registry) Ping() error {
-	url := r.url("/v2/")
-	r.Logf("registry.ping url=%s", url)
-	resp, err := r.Client.Get(url)
+// Ping ping registry server
+func (registry *Registry) Ping() error {
+	url := registry.url("/v2/")
+	registry.Logf("registry.ping url=%s", url)
+	resp, err := registry.Client.Get(url)
 	if err != nil {
 		if strings.Contains(err.Error(), "404") {
 			return errors.Wrap(ErrRegistryNotFound, err.Error())

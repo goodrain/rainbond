@@ -19,15 +19,14 @@
 package dao
 
 import (
-	"time"
-
 	"github.com/goodrain/rainbond/db/errors"
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 	pkgerr "github.com/pkg/errors"
+	"time"
 )
 
-//DeleteVersionByEventID DeleteVersionByEventID
+// DeleteVersionByEventID DeleteVersionByEventID
 func (c *VersionInfoDaoImpl) DeleteVersionByEventID(eventID string) error {
 	version := &model.VersionInfo{
 		EventID: eventID,
@@ -38,7 +37,7 @@ func (c *VersionInfoDaoImpl) DeleteVersionByEventID(eventID string) error {
 	return nil
 }
 
-//DeleteVersionByServiceID DeleteVersionByServiceID
+// DeleteVersionByServiceID DeleteVersionByServiceID
 func (c *VersionInfoDaoImpl) DeleteVersionByServiceID(serviceID string) error {
 	var version model.VersionInfo
 	if err := c.DB.Where("service_id = ? ", serviceID).Delete(&version).Error; err != nil {
@@ -47,7 +46,7 @@ func (c *VersionInfoDaoImpl) DeleteVersionByServiceID(serviceID string) error {
 	return nil
 }
 
-//AddModel AddModel
+// AddModel AddModel
 func (c *VersionInfoDaoImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.VersionInfo)
 	if len(result.CommitMsg) > 1024 {
@@ -63,7 +62,7 @@ func (c *VersionInfoDaoImpl) AddModel(mo model.Interface) error {
 	return errors.ErrRecordAlreadyExist
 }
 
-//UpdateModel UpdateModel
+// UpdateModel UpdateModel
 func (c *VersionInfoDaoImpl) UpdateModel(mo model.Interface) error {
 	result := mo.(*model.VersionInfo)
 	if len(result.CommitMsg) > 1024 {
@@ -75,7 +74,7 @@ func (c *VersionInfoDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
-//VersionInfoDaoImpl VersionInfoDaoImpl
+// VersionInfoDaoImpl VersionInfoDaoImpl
 type VersionInfoDaoImpl struct {
 	DB *gorm.DB
 }
@@ -103,7 +102,7 @@ func (c *VersionInfoDaoImpl) ListByServiceIDStatus(serviceID string, finalStatus
 	return versoins, nil
 }
 
-//GetVersionByEventID get version by event id
+// GetVersionByEventID get version by event id
 func (c *VersionInfoDaoImpl) GetVersionByEventID(eventID string) (*model.VersionInfo, error) {
 	var result model.VersionInfo
 	if err := c.DB.Where("event_id=?", eventID).Find(&result).Error; err != nil {
@@ -115,7 +114,7 @@ func (c *VersionInfoDaoImpl) GetVersionByEventID(eventID string) (*model.Version
 	return &result, nil
 }
 
-//GetVersionByDeployVersion get version by deploy version
+// GetVersionByDeployVersion get version by deploy version
 func (c *VersionInfoDaoImpl) GetVersionByDeployVersion(version, serviceID string) (*model.VersionInfo, error) {
 	var result model.VersionInfo
 	if err := c.DB.Where("build_version =? and service_id = ?", version, serviceID).Find(&result).Error; err != nil {
@@ -124,8 +123,8 @@ func (c *VersionInfoDaoImpl) GetVersionByDeployVersion(version, serviceID string
 	return &result, nil
 }
 
-//GetVersionByServiceID get versions by service id
-//only return success version info
+// GetVersionByServiceID get versions by service id
+// only return success version info
 func (c *VersionInfoDaoImpl) GetVersionByServiceID(serviceID string) ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
 	if err := c.DB.Where("service_id=? and final_status=?", serviceID, "success").Find(&result).Error; err != nil {
@@ -143,7 +142,7 @@ func (c *VersionInfoDaoImpl) GetLatestScsVersion(sid string) (*model.VersionInfo
 	return &result, nil
 }
 
-//GetAllVersionByServiceID get all versions by service id, not only successful
+// GetAllVersionByServiceID get all versions by service id, not only successful
 func (c *VersionInfoDaoImpl) GetAllVersionByServiceID(serviceID string) ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
 	if err := c.DB.Where("service_id=?", serviceID).Find(&result).Error; err != nil {
@@ -152,18 +151,7 @@ func (c *VersionInfoDaoImpl) GetAllVersionByServiceID(serviceID string) ([]*mode
 	return result, nil
 }
 
-//GetVersionInfo get version info by service ids
-func (c *VersionInfoDaoImpl) GetVersionInfo(timePoint time.Time, serviceIDs []string) ([]*model.VersionInfo, error) {
-	var result []*model.VersionInfo
-
-	if err := c.DB.Where("service_id in (?) and create_time  < ?", serviceIDs, timePoint).Find(&result).Order("create_time asc").Error; err != nil {
-		return nil, err
-	}
-	return result, nil
-
-}
-
-//DeleteVersionInfo delete version
+// DeleteVersionInfo delete version
 func (c *VersionInfoDaoImpl) DeleteVersionInfo(obj *model.VersionInfo) error {
 	if err := c.DB.Delete(obj).Error; err != nil {
 		return err
@@ -171,7 +159,7 @@ func (c *VersionInfoDaoImpl) DeleteVersionInfo(obj *model.VersionInfo) error {
 	return nil
 }
 
-//DeleteFailureVersionInfo delete failure version
+// DeleteFailureVersionInfo delete failure version
 func (c *VersionInfoDaoImpl) DeleteFailureVersionInfo(timePoint time.Time, status string, serviceIDs []string) error {
 	if err := c.DB.Where("service_id in (?) and create_time  < ? and final_status = ?", serviceIDs, timePoint, status).Delete(&model.VersionInfo{}).Error; err != nil {
 		return err
@@ -179,11 +167,28 @@ func (c *VersionInfoDaoImpl) DeleteFailureVersionInfo(timePoint time.Time, statu
 	return nil
 }
 
-//SearchVersionInfo query version count >5
-func (c *VersionInfoDaoImpl) SearchVersionInfo() ([]*model.VersionInfo, error) {
+// GetServicesAndCount 获取镜像版本超过指定数量的serviceID和版本总数
+func (c *VersionInfoDaoImpl) GetServicesAndCount(finalStatus string, count uint) ([]*model.VersionInfoCount, error) {
+	var result []*model.VersionInfoCount
+	if err := c.DB.Table("tenant_service_version").
+		Select("service_id, COUNT(*) as count").
+		Where("final_status = ?", finalStatus).
+		Group("service_id").
+		Having("COUNT(*) > ?", count).
+		Scan(&result).Error; err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// SearchExpireVersionInfo 查询所有过期的版本信息
+// SELECT * from tenant_service_version
+// WHERE service_id = ?
+// GROUP BY service_id
+// ORDER BY id LIMIT ?
+func (c *VersionInfoDaoImpl) SearchExpireVersionInfo(serviceID string, count uint) ([]*model.VersionInfo, error) {
 	var result []*model.VersionInfo
-	versionInfo := &model.VersionInfo{}
-	if err := c.DB.Table(versionInfo.TableName()).Select("service_id").Group("service_id").Having("count(ID) > ?", 5).Scan(&result).Error; err != nil {
+	if err := c.DB.Where("service_id=?", serviceID).Limit(count).Find(&result).Error; err != nil {
 		return nil, err
 	}
 	return result, nil
