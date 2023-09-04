@@ -94,6 +94,9 @@ var JavaJar Lang = "Java-jar"
 //Nodejs Lang
 var Nodejs Lang = "Node.js"
 
+//NodeJSDockerfile Lang
+var NodeJSDockerfile Lang = "NodeJSDockerfile"
+
 //NodeJSStatic static Lang
 var NodeJSStatic Lang = "NodeJSStatic"
 
