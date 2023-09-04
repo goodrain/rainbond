@@ -153,7 +153,7 @@ func (p prometheus) GetAppMetadata(namespace, appID string) []Metadata {
 }
 
 func (p prometheus) GetComponentMetadata(namespace, componentID string) []Metadata {
-	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	var meta []Metadata
@@ -178,7 +178,6 @@ func (p prometheus) GetComponentMetadata(namespace, componentID string) []Metada
 			})
 		}
 	}
-
 
 	commonItems, err := p.client.TargetsMetadata(ctx, "{job=~\"gateway|cadvisor\"}", "", "")
 	if err != nil {

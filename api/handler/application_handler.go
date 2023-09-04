@@ -431,7 +431,7 @@ func (a *ApplicationAction) DeleteApp(ctx context.Context, app *dbmodel.Applicat
 func (a *ApplicationAction) DeleteAppByK8sApp(tenantID, k8sApp string) error {
 	err := db.GetManager().ApplicationDao().DeleteAppByK8sApp(tenantID, k8sApp)
 	if err != nil {
-		return  err
+		return err
 	}
 	return nil
 }
@@ -592,8 +592,8 @@ func (a *ApplicationAction) GetStatus(ctx context.Context, app *dbmodel.Applicat
 		})
 	}
 
-	diskUsage := a.getDiskUsage(app.AppID)
-
+	appsDiskUsage := a.getDiskUsage()
+	diskUsage := appsDiskUsage[app.AppID]
 	var cpu *int64
 	if status.SetCPU {
 		cpu = commonutil.Int64(status.Cpu)
@@ -686,14 +686,15 @@ func (a *ApplicationAction) convertPods(pods []*pb.AppService_Pod) []*model.AppP
 	return res
 }
 
-func (a *ApplicationAction) getDiskUsage(appID string) float64 {
-	var result float64
-	query := fmt.Sprintf(`sum(max(app_resource_appfs{app_id=~"%s"}) by(app_id))`, appID)
+func (a *ApplicationAction) getDiskUsage() map[string]float64 {
+	appDisk := make(map[string]float64)
+	query := fmt.Sprintf(`app_resource_appfs`)
 	metric := a.promClient.GetMetric(query, time.Now())
 	for _, m := range metric.MetricData.MetricValues {
-		result += m.Sample.Value()
+		appID := m.Metadata["app_id"]
+		appDisk[appID] = m.Sample.Value()
 	}
-	return result
+	return appDisk
 }
 
 // BatchBindService -
@@ -886,8 +887,9 @@ func (a *ApplicationAction) ListAppStatuses(ctx context.Context, appIDs []string
 	if err != nil {
 		return nil, err
 	}
+	appsDiskUsage := a.getDiskUsage()
 	for _, appStatus := range appStatuses.AppStatuses {
-		diskUsage := a.getDiskUsage(appStatus.AppId)
+		diskUsage := appsDiskUsage[appStatus.AppId]
 		var cpu *int64
 		if appStatus.SetCPU {
 			cpu = commonutil.Int64(appStatus.Cpu)
