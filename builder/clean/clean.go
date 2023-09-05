@@ -21,8 +21,15 @@ package clean
 import (
 	"bytes"
 	"context"
+	"errors"
+	"github.com/containerd/containerd/errdefs"
+	dockercli "github.com/docker/docker/client"
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/builder/sources/registry"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/util"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -33,13 +40,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/sirupsen/logrus"
-
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/util"
-
-	"github.com/goodrain/rainbond/builder/sources"
 )
 
 // Manager CleanManager
@@ -103,9 +103,13 @@ func (t *Manager) Start(errchan chan error) error {
 							}
 						}
 						err := t.imageClient.ImageRemove(v.DeliveredPath)
-						if err != nil {
+
+						// 如果删除镜像失败 并且不是镜像不存在的错误
+						if err != nil && !(errdefs.IsNotFound(err) || dockercli.IsErrNotFound(err)) {
 							logrus.Error(err)
+							continue
 						}
+
 						if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
 							logrus.Error(err)
 							continue
@@ -116,7 +120,11 @@ func (t *Manager) Start(errchan chan error) error {
 					if v.DeliveredType == "slug" {
 						filePath := v.DeliveredPath
 						if err := os.Remove(filePath); err != nil {
-							logrus.Error(err)
+							// 如果删除文件失败 并且不是文件不存在的错误
+							if !errors.Is(err, os.ErrNotExist) {
+								logrus.Error(err)
+								continue
+							}
 						}
 						if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
 							logrus.Error(err)
