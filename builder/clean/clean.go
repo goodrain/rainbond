@@ -19,11 +19,17 @@
 package clean
 
 import (
+	"bytes"
 	"context"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources/registry"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/remotecommand"
 	"os"
 	"strings"
 	"time"
@@ -95,20 +101,10 @@ func (t *Manager) Start(errchan chan error) error {
 									continue
 								}
 							}
-							// registry garbage-collect
-							cmd := []string{"registry", "garbage-collect", "/etc/docker/registry/config.yml"}
-							out, b, err := reg.PodExecCmd(t.config, t.clientset, "rbd-hub", cmd)
-							if err != nil {
-								logrus.Error("rbd-hub exec cmd fail: ", out.String(), b.String(), err.Error())
-								continue
-							} else {
-								logrus.Info("rbd-hub exec cmd success.")
-							}
 						}
 						err := t.imageClient.ImageRemove(v.DeliveredPath)
 						if err != nil {
 							logrus.Error(err)
-							continue
 						}
 						if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
 							logrus.Error(err)
@@ -121,7 +117,6 @@ func (t *Manager) Start(errchan chan error) error {
 						filePath := v.DeliveredPath
 						if err := os.Remove(filePath); err != nil {
 							logrus.Error(err)
-							continue
 						}
 						if err := db.GetManager().VersionInfoDao().DeleteVersionInfo(v); err != nil {
 							logrus.Error(err)
@@ -131,7 +126,14 @@ func (t *Manager) Start(errchan chan error) error {
 					}
 				}
 			}
-
+			// only registry garbage-collect
+			cmd := []string{"registry", "garbage-collect", "/etc/docker/registry/config.yml"}
+			out, b, err := t.PodExecCmd(t.config, t.clientset, "rbd-hub", cmd)
+			if err != nil {
+				logrus.Error("rbd-hub exec cmd fail: ", out.String(), b.String(), err.Error())
+			} else {
+				logrus.Info("rbd-hub exec cmd success.")
+			}
 			return nil
 		}, 1*time.Hour)
 		if err != nil {
@@ -147,4 +149,47 @@ func (t *Manager) Stop() error {
 	logrus.Info("CleanManager is stoping.")
 	t.cancel()
 	return nil
+}
+
+// PodExecCmd registry garbage-collect
+func (t *Manager) PodExecCmd(config *rest.Config, clientset *kubernetes.Clientset, podName string, cmd []string) (stdout bytes.Buffer, stderr bytes.Buffer, err error) {
+	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{"name": podName}}
+	listOptions := metav1.ListOptions{
+		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
+	}
+	pods, err := clientset.CoreV1().Pods("rbd-system").List(context.TODO(), listOptions)
+	if err != nil {
+		return stdout, stderr, err
+	}
+
+	for _, pod := range pods.Items {
+		req := clientset.CoreV1().RESTClient().Post().
+			Namespace("rbd-system").
+			Resource("pods").
+			Name(pod.Name).
+			SubResource("exec").
+			VersionedParams(&corev1.PodExecOptions{
+				Command: cmd,
+				Stdin:   false,
+				Stdout:  true,
+				Stderr:  true,
+				TTY:     false,
+			}, scheme.ParameterCodec)
+
+		exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+		if err != nil {
+			return stdout, stderr, err
+		}
+		err = exec.Stream(remotecommand.StreamOptions{
+			Stdin:  nil,
+			Stdout: &stdout,
+			Stderr: &stderr,
+			Tty:    false,
+		})
+		if err != nil {
+			return stdout, stderr, err
+		}
+		return stdout, stderr, nil
+	}
+	return stdout, stderr, nil
 }
