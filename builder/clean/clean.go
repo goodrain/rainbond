@@ -44,24 +44,26 @@ import (
 
 // Manager CleanManager
 type Manager struct {
-	imageClient sources.ImageClient
-	ctx         context.Context
-	cancel      context.CancelFunc
-	config      *rest.Config
-	keepCount   uint
-	clientset   *kubernetes.Clientset
+	imageClient   sources.ImageClient
+	ctx           context.Context
+	cancel        context.CancelFunc
+	config        *rest.Config
+	keepCount     uint
+	clientset     *kubernetes.Clientset
+	cleanInterval int
 }
 
 // CreateCleanManager create clean manager
-func CreateCleanManager(imageClient sources.ImageClient, config *rest.Config, clientset *kubernetes.Clientset, keepCount uint) (*Manager, error) {
+func CreateCleanManager(imageClient sources.ImageClient, config *rest.Config, clientset *kubernetes.Clientset, keepCount uint, cleanInterval int) (*Manager, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Manager{
-		imageClient: imageClient,
-		ctx:         ctx,
-		cancel:      cancel,
-		config:      config,
-		keepCount:   keepCount,
-		clientset:   clientset,
+		imageClient:   imageClient,
+		ctx:           ctx,
+		cancel:        cancel,
+		config:        config,
+		keepCount:     keepCount,
+		clientset:     clientset,
+		cleanInterval: cleanInterval,
 	}
 	return c, nil
 }
@@ -69,6 +71,7 @@ func CreateCleanManager(imageClient sources.ImageClient, config *rest.Config, cl
 // Start start clean
 func (t *Manager) Start(errchan chan error) error {
 	logrus.Info("CleanManager is starting.")
+	duration := time.Duration(t.cleanInterval) * time.Minute
 	run := func() {
 		err := util.Exec(t.ctx, func() error {
 			//保留份数 默认5份
@@ -96,7 +99,7 @@ func (t *Manager) Start(errchan chan error) error {
 								logrus.Error(err)
 								continue
 							} else {
-								err = reg.CleanRepoByTag(imageInfo.Name, imageInfo.Tag)
+								err = reg.CleanRepoByTag(imageInfo.Name, imageInfo.Tag, keepCount)
 								if err != nil {
 									continue
 								}
@@ -143,7 +146,7 @@ func (t *Manager) Start(errchan chan error) error {
 				logrus.Info("rbd-hub exec cmd success.")
 			}
 			return nil
-		}, 1*time.Hour)
+		}, duration)
 		if err != nil {
 			errchan <- err
 		}

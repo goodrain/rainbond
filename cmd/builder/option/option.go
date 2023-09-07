@@ -62,6 +62,7 @@ type Config struct {
 	ContainerRuntime     string
 	RuntimeEndpoint      string
 	KeepCount            int
+	CleanInterval        int
 }
 
 // Builder  builder server
@@ -112,10 +113,13 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&a.BuildKitCache, "buildkit-cache", true, "whether to enable the buildkit image cache")
 	fs.BoolVar(&a.BuildSharedCache, "build-shared-cache", true, "build shared cache")
 	fs.IntVar(&a.KeepCount, "keep-count", 5, "default number of reserved copies for images")
+	fs.IntVar(&a.CleanInterval, "clean-interval", 60, "clean image interval,default 60 minute")
+
 }
 
 // SetLog 设置log
 func (a *Builder) SetLog() {
+
 	level, err := logrus.ParseLevel(a.LogLevel)
 	if err != nil {
 		fmt.Println("set log level error." + err.Error())
