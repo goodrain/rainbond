@@ -101,7 +101,7 @@ func Run(s *option.Builder) error {
 		if err != nil {
 			return err
 		}
-		cle, err := clean.CreateCleanManager(exec.GetImageClient(), restConfig, clientset, uint(s.KeepCount))
+		cle, err := clean.CreateCleanManager(exec.GetImageClient(), restConfig, clientset, uint(s.KeepCount), s.CleanInterval)
 		if err != nil {
 			return err
 		}
