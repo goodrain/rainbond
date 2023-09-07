@@ -38,15 +38,15 @@ func (registry *Registry) CleanRepoByTag(repository string, tag string, keep uin
 
 	// 取出最后 n 个标签 拿到digests
 	lastTags := tags[uint(len(tags))-keep:]
-	digests := make([]string, len(lastTags))
 
-	for i, tagVal := range lastTags {
+	digestsMap := make(map[string]string)
+	for _, tagVal := range lastTags {
 		digest, err := registry.ManifestDigestV2(repository, tagVal) // 调用 registry.ManifestDigestV2 方法
 		if err != nil {
-			logrus.Error("Error processing tag %s: %v\n", tagVal, err)
+			logrus.Errorf("Error processing tag %s: %v", tagVal, err)
 			continue
 		}
-		digests[i] = digest.String() // 将结果存储到新的切片中
+		digestsMap[digest.String()] = tagVal
 	}
 
 	dig, err := registry.ManifestDigestV2(repository, tag)
@@ -54,12 +54,11 @@ func (registry *Registry) CleanRepoByTag(repository string, tag string, keep uin
 		logrus.Error("get manifest fail: ", repository)
 		return nil
 	}
-	for i, digest := range digests {
-		if digest == dig.String() {
-			logrus.Warnf("delete rbd-hub tag fail, but new tag %s dependents", lastTags[i])
-			return nil
-		}
+	if digestsMap[dig.String()] != "" {
+		logrus.Warnf("delete rbd-hub tag fail, but new tag %s dependents", digestsMap[dig.String()])
+		return nil
 	}
+
 	if err := registry.DeleteManifest(repository, dig); err != nil {
 		logrus.Error(err, "delete rbd-hub fail: ", repository, "; please set env REGISTRY_STORAGE_DELETE_ENABLED=true; see: https://t.goodrain.com/d/21-rbd-hub")
 		return err
