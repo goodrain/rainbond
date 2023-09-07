@@ -165,7 +165,7 @@ func getTailReader(ctx context.Context, r SizeReaderAt, req int) (io.Reader, int
 func newSectionReader(f *os.File) (*io.SectionReader, error) {
 	// seek to the end to get the size
 	// we'll leave this at the end of the file since section reader does not advance the reader
-	size, err := f.Seek(0, os.SEEK_END)
+	size, err := f.Seek(0, io.SeekEnd)
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting current file size")
 	}
@@ -612,7 +612,7 @@ func NewLogFile(logPath string, maxFiles int, compress bool, decodeFunc makeDeco
 		return nil, err
 	}
 
-	size, err := log.Seek(0, os.SEEK_END)
+	size, err := log.Seek(0, io.SeekEnd)
 	if err != nil {
 		return nil, err
 	}
