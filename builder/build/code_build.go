@@ -116,7 +116,7 @@ func (s *slugBuild) writeRunDockerfile(sourceDir, packageName string, envs map[s
 	return ioutil.WriteFile(path.Join(sourceDir, "Dockerfile"), []byte(result), 0755)
 }
 
-//buildRunnerImage Wrap slug in the runner image
+// buildRunnerImage Wrap slug in the runner image
 func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 	imageName := CreateImageName(s.re.ServiceID, s.re.DeployVersion)
 	cacheDir := path.Join(path.Dir(slugPackage), "."+s.re.DeployVersion)
@@ -169,8 +169,8 @@ func (s *slugBuild) getSourceCodeTarFile(re *Request) (string, error) {
 	return sourceTarFile, nil
 }
 
-//stopPreBuildJob Stops previous build tasks for the same component
-//The same component retains only one build task to perform
+// stopPreBuildJob Stops previous build tasks for the same component
+// The same component retains only one build task to perform
 func (s *slugBuild) stopPreBuildJob(re *Request) error {
 	jobList, err := jobc.GetJobController().GetServiceJobs(re.ServiceID)
 	if err != nil {
@@ -386,6 +386,16 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 								Operator: corev1.NodeSelectorOpIn,
 								Values:   []string{re.Arch},
 							},
+							{
+								Key:      "kubernetes.io/hostname",
+								Operator: corev1.NodeSelectorOpExists,
+								Values:   []string{os.Getenv("HOST_IP")},
+							},
+							{
+								Key:      "k3s.io/hostname",
+								Operator: corev1.NodeSelectorOpExists,
+								Values:   []string{os.Getenv("HOST_IP")},
+							},
 						},
 					},
 					},
@@ -393,22 +403,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			},
 		},
 	}
-	// only support never and onfailure
-	// schedule builder
-	if re.CacheMode == "hostpath" {
-		logrus.Debugf("builder cache mode using hostpath, schedule job into current node")
-		hostIP := os.Getenv("HOST_IP")
-		if hostIP != "" {
-			podSpec.NodeSelector = map[string]string{
-				"kubernetes.io/hostname": hostIP,
-			}
-			podSpec.Tolerations = []corev1.Toleration{
-				{
-					Operator: "Exists",
-				},
-			}
-		}
-	}
+
 	logrus.Debugf("request is: %+v", re)
 
 	volumes, mounts := s.createVolumeAndMount(re, sourceTarFileName, buildNoCache)
@@ -543,7 +538,7 @@ func (s *slugBuild) setImagePullSecretsForPod(pod *corev1.Pod) {
 	}
 }
 
-//ErrorBuild build error
+// ErrorBuild build error
 type ErrorBuild struct {
 	Code int
 }

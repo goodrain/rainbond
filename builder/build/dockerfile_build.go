@@ -70,7 +70,7 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 	}, nil
 }
 
-//The same component retains only one build task to perform
+// The same component retains only one build task to perform
 func (d *dockerfileBuild) stopPreBuildJob(re *Request) error {
 	jobList, err := jobc.GetJobController().GetServiceJobs(re.ServiceID)
 	if err != nil {
@@ -111,6 +111,16 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 								Operator: corev1.NodeSelectorOpIn,
 								Values:   []string{re.Arch},
 							},
+							{
+								Key:      "kubernetes.io/hostname",
+								Operator: corev1.NodeSelectorOpExists,
+								Values:   []string{os.Getenv("HOST_IP")},
+							},
+							{
+								Key:      "k3s.io/hostname",
+								Operator: corev1.NodeSelectorOpExists,
+								Values:   []string{os.Getenv("HOST_IP")},
+							},
 						},
 					},
 					},
@@ -118,18 +128,7 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 			},
 		},
 	}
-	// only support never and onfailure
-	hostIP := os.Getenv("HOST_IP")
-	if hostIP != "" {
-		podSpec.NodeSelector = map[string]string{
-			"kubernetes.io/hostname": hostIP,
-		}
-		podSpec.Tolerations = []corev1.Toleration{
-			{
-				Operator: "Exists",
-			},
-		}
-	}
+
 	secret, err := d.createAuthSecret(re)
 	if err != nil {
 		return err
