@@ -38,8 +38,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-//Manager 操作日志，客户端服务
-//客户端负载均衡
+// Manager 操作日志，客户端服务
+// 客户端负载均衡
 type Manager interface {
 	GetLogger(eventID string) Logger
 	Start() error
@@ -75,7 +75,7 @@ const (
 	buffersize = 1000
 )
 
-//NewManager 创建manager
+// NewManager 创建manager
 func NewManager(conf EventConfig) error {
 	dis, err := discover.GetDiscover(config.DiscoverConfig{EtcdClientArgs: conf.DiscoverArgs})
 	if err != nil {
@@ -98,7 +98,7 @@ func NewManager(conf EventConfig) error {
 	return defaultManager.Start()
 }
 
-//GetManager 获取日志服务
+// GetManager 获取日志服务
 func GetManager() Manager {
 	return defaultManager
 }
@@ -108,7 +108,7 @@ func NewTestManager(m Manager) {
 	defaultManager = m
 }
 
-//CloseManager 关闭日志服务
+// CloseManager 关闭日志服务
 func CloseManager() {
 	if defaultManager != nil {
 		defaultManager.Close()
@@ -153,8 +153,10 @@ func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
 				cacheChan: make(chan []byte, buffersize),
 				stop:      make(chan struct{}),
 				server:    end.URL,
-				manager:   m,
-				ctx:       m.ctx,
+				//对于边缘端的rbd-node需要指定 rbd-eventlog-agent:6366
+				//server: rbd-eventlog-agent:6366,
+				manager: m,
+				ctx:     m.ctx,
 			}
 			m.handles[end.URL] = h
 			logrus.Infof("Add event server endpoint,%s", end.URL)
@@ -208,8 +210,8 @@ func (m *manager) GC() {
 	}, time.Second*20)
 }
 
-//GetLogger
-//使用完成后必须调用ReleaseLogger方法
+// GetLogger
+// 使用完成后必须调用ReleaseLogger方法
 func (m *manager) GetLogger(eventID string) Logger {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -336,7 +338,7 @@ func (m *handle) Stop() {
 	close(m.stop)
 }
 
-//Logger 日志发送器
+// Logger 日志发送器
 type Logger interface {
 	Info(string, map[string]string)
 	Error(string, map[string]string)
@@ -406,7 +408,7 @@ func (l *logger) send(message string, info map[string]string) {
 	}
 }
 
-//LoggerWriter logger writer
+// LoggerWriter logger writer
 type LoggerWriter interface {
 	io.Writer
 	SetFormat(map[string]interface{})
@@ -475,7 +477,7 @@ func (l *loggerWriter) Write(b []byte) (n int, err error) {
 	return len(b), nil
 }
 
-//GetTestLogger GetTestLogger
+// GetTestLogger GetTestLogger
 func GetTestLogger() Logger {
 	return &testLogger{}
 }
