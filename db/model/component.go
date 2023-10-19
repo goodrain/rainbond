@@ -49,6 +49,8 @@ const (
 	K8sAttributeNameResources = "resources"
 	//K8sAttributeNameHostIPC -
 	K8sAttributeNameHostIPC = "hostIPC"
+	//K8sAttributeNameHostNetwork -
+	K8sAttributeNameHostHostNetwork = "hostNetwork"
 	//K8sAttributeNameLifecycle -
 	K8sAttributeNameLifecycle = "lifecycle"
 	//K8sAttributeNameVolumeClaimTemplate -

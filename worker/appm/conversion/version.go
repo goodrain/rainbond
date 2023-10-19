@@ -46,7 +46,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-//TenantServiceVersion service deploy version conv. define pod spec
+// TenantServiceVersion service deploy version conv. define pod spec
 func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	version, err := dbmanager.VersionInfoDao().GetVersionByDeployVersion(as.DeployVersion, as.ServiceID)
 	if err != nil {
@@ -137,12 +137,13 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				}
 				return ""
 			}(),
-			HostNetwork: func() bool {
-				if _, ok := as.ExtensionSet["hostnetwork"]; ok {
-					return true
-				}
-				return false
-			}(),
+			//HostNetwork: func() bool {
+			//	if _, ok := as.ExtensionSet["hostnetwork"]; ok {
+			//		return true
+			//	}
+			//	return false
+			//}(),
+			HostNetwork: createHostNetwork(as, dbmanager),
 			SchedulerName: func() string {
 				if name, ok := as.ExtensionSet["shcedulername"]; ok {
 					return name
@@ -275,7 +276,7 @@ func createArgs(version *dbmodel.VersionInfo, envs []corev1.EnvVar) (args []stri
 	return args
 }
 
-//createEnv create service container env
+// createEnv create service container env
 func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.Secret) ([]corev1.EnvVar, error) {
 	var envs []corev1.EnvVar
 	var envsAll []*dbmodel.TenantServiceEnvVar
@@ -1178,6 +1179,23 @@ func createHostIPC(as *v1.AppService, dbmanager db.Manager) bool {
 		value, err := strconv.ParseBool(HostIPC.AttributeValue)
 		if err != nil {
 			logrus.Debug("HostIPC ParseBool error", err)
+			return false
+		}
+		return value
+	}
+	return false
+}
+
+func createHostNetwork(as *v1.AppService, dbmanager db.Manager) bool {
+	HostNetwork, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameHostHostNetwork)
+	if err != nil {
+		logrus.Debug("get by HostNetwork attribute error", err)
+		return false
+	}
+	if HostNetwork != nil {
+		value, err := strconv.ParseBool(HostNetwork.AttributeValue)
+		if err != nil {
+			logrus.Debug("HostNetwork ParseBool error", err)
 			return false
 		}
 		return value
