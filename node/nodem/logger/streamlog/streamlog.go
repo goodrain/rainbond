@@ -51,6 +51,8 @@ func (c *Dis) discoverEventServer() {
 				var servers []string
 				for _, en := range re.List {
 					if en.URL != "" {
+						// 写死为rbd-eventlog-agent
+						en.URL = "rbd-eventlog-agent:6363"
 						if strings.HasPrefix(en.URL, "http") {
 							servers = append(servers, en.URL+"/docker-instance")
 						} else {
