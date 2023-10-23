@@ -152,9 +152,9 @@ func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
 			h := handle{
 				cacheChan: make(chan []byte, buffersize),
 				stop:      make(chan struct{}),
-				server:    end.URL,
+				//server:    end.URL,
 				//对于边缘端的rbd-node需要指定 rbd-eventlog-agent:6366
-				//server: rbd-eventlog-agent:6366,
+				server:  "rbd-eventlog-agent:6366",
 				manager: m,
 				ctx:     m.ctx,
 			}
