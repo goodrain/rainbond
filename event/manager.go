@@ -27,6 +27,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	eventclient "github.com/goodrain/rainbond/eventlog/entry/grpc/client"
@@ -153,8 +154,8 @@ func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
 				cacheChan: make(chan []byte, buffersize),
 				stop:      make(chan struct{}),
 				//server:    end.URL,
-				//对于边缘端的rbd-node需要指定 rbd-eventlog-agent:6366
-				server:  "rbd-eventlog-agent:6366",
+				//暂时 rbd-eventlog-agent:6366
+				server:  option.Config.EventLogServer[0] + ":6363",
 				manager: m,
 				ctx:     m.ctx,
 			}

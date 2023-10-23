@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/goodrain/rainbond/cmd/node/option"
 	"io"
 	"net"
 	"net/http"
@@ -17,10 +18,9 @@ import (
 
 	"strconv"
 
-	"sync"
-
 	"github.com/goodrain/rainbond/node/nodem/logger"
 	"github.com/sirupsen/logrus"
+	"sync"
 )
 
 // STREAMLOGNAME driver name
@@ -51,8 +51,8 @@ func (c *Dis) discoverEventServer() {
 				var servers []string
 				for _, en := range re.List {
 					if en.URL != "" {
-						// 写死为rbd-eventlog-agent
-						en.URL = "rbd-eventlog-agent:6363"
+						// rbd-eventlog-agent:6363
+						en.URL = option.Config.EventLogServer[0] + ":6363"
 						if strings.HasPrefix(en.URL, "http") {
 							servers = append(servers, en.URL+"/docker-instance")
 						} else {
@@ -385,7 +385,8 @@ func GetLogAddress(serviceID string) string {
 		}
 	}
 	//return getLogAddress(cluster)
-	return "rbd-eventlog-agent:6362"
+	//rbd-eventlog-agent:6362
+	return option.Config.EventLogServer[0] + ":6362"
 }
 
 func getLogAddress(clusterAddress []string) string {
