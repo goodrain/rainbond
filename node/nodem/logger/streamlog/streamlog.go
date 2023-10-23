@@ -384,7 +384,8 @@ func GetLogAddress(serviceID string) string {
 			cluster = append(cluster, a+"?service_id="+serviceID+"&mode=stream")
 		}
 	}
-	return getLogAddress(cluster)
+	//return getLogAddress(cluster)
+	return "rbd-eventlog-agent:6362"
 }
 
 func getLogAddress(clusterAddress []string) string {
