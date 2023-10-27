@@ -155,7 +155,7 @@ func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
 				//server:    end.URL,
 				//暂时 rbd-eventlog-agent:6366
 				//server:  option.Config.EventLogServer[0] + ":6363",
-				server:  "rbd-eventlog-agent:6366",
+				server:  "rbd-eventlog-edge:6366",
 				manager: m,
 				ctx:     m.ctx,
 			}
