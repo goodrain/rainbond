@@ -51,7 +51,9 @@ func (c *Dis) discoverEventServer() {
 				var servers []string
 				for _, en := range re.List {
 					if en.URL != "" {
-						en.URL = option.Config.EventLogServer[1]
+						if option.Config.EventServer != "" {
+							en.URL = option.Config.EventServer
+						}
 						if strings.HasPrefix(en.URL, "http") {
 							servers = append(servers, en.URL+"/docker-instance")
 						} else {
@@ -383,8 +385,10 @@ func GetLogAddress(serviceID string) string {
 			cluster = append(cluster, a+"?service_id="+serviceID+"&mode=stream")
 		}
 	}
-	//return getLogAddress(cluster)
-	return option.Config.EventLogServer[0]
+	if option.Config.LogAddress != "" {
+		return option.Config.LogAddress
+	}
+	return getLogAddress(cluster)
 }
 
 func getLogAddress(clusterAddress []string) string {

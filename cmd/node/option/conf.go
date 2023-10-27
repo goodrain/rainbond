@@ -50,7 +50,7 @@ var (
 	exitChan = make(chan struct{})
 )
 
-//Init  init config
+// Init  init config
 func Init() error {
 	if initialized {
 		return nil
@@ -64,7 +64,7 @@ func Init() error {
 	return nil
 }
 
-//Conf Conf
+// Conf Conf
 type Conf struct {
 	APIAddr                         string //api server listen port
 	GrpcAPIAddr                     string //grpc api server listen port
@@ -133,9 +133,13 @@ type Conf struct {
 	ImageRepositoryHost string
 	GatewayVIP          string
 	HostsFile           string
+
+	// rbd-eventlog service
+	EventServer string
+	LogAddress  string
 }
 
-//StatsdConfig StatsdConfig
+// StatsdConfig StatsdConfig
 type StatsdConfig struct {
 	StatsdListenAddress string
 	StatsdListenUDP     string
@@ -144,13 +148,13 @@ type StatsdConfig struct {
 	ReadBuffer          int
 }
 
-//UDPMonitorConfig UDPMonitorConfig
+// UDPMonitorConfig UDPMonitorConfig
 type UDPMonitorConfig struct {
 	ListenHost string
 	ListenPort string
 }
 
-//AddFlags AddFlags
+// AddFlags AddFlags
 func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the log level")
 	fs.StringVar(&a.LogFile, "log-file", "", "the log file path that log output")
@@ -198,10 +202,12 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.GatewayVIP, "gateway-vip", "", "The vip of gateway")
 	fs.StringVar(&a.HostsFile, "hostsfile", "/newetc/hosts", "/etc/hosts mapped path in the container. eg. /etc/hosts:/tmp/hosts. Do not set hostsfile to /etc/hosts")
 	fs.StringVar(&a.ContainerRuntime, "container-runtime", sources.ContainerRuntimeContainerd, "container runtime, support docker and containerd")
-	fs.StringVar(&a.RuntimeEndpoint, "runtime-endpoint", sources.RuntimeEndpointContainerd, "container runtime endpoint")
+	// rbd-eventlog service
+	fs.StringVar(&a.EventServer, "event-server", "", "service name of event-server")
+	fs.StringVar(&a.LogAddress, "log-address", "", "service name of log-address")
 }
 
-//SetLog 设置log
+// SetLog 设置log
 func (a *Conf) SetLog() {
 	level, err := logrus.ParseLevel(a.LogLevel)
 	if err != nil {
@@ -234,7 +240,7 @@ func newClient(namespace, address string, opts ...containerd.ClientOpt) (*contai
 	return client, ctx, cancel, nil
 }
 
-//ParseClient handle config and create some api
+// ParseClient handle config and create some api
 func (a *Conf) ParseClient(ctx context.Context, etcdClientArgs *etcdutil.ClientArgs) (err error) {
 	logrus.Infof("begin create container image client, runtime [%s] runtime endpoint [%s]", a.ContainerRuntime, a.RuntimeEndpoint, a.EtcdEndpoints)
 	containerImageCli, err := sources.NewContainerImageClient(a.ContainerRuntime, a.RuntimeEndpoint, time.Second*3)
@@ -257,7 +263,7 @@ func (a *Conf) ParseClient(ctx context.Context, etcdClientArgs *etcdutil.ClientA
 	return nil
 }
 
-//parse parse
+// parse parse
 func (a *Conf) parse() error {
 	if a.TTL <= 0 {
 		a.TTL = 10
