@@ -51,8 +51,7 @@ func (c *Dis) discoverEventServer() {
 				var servers []string
 				for _, en := range re.List {
 					if en.URL != "" {
-						// rbd-eventlog-agent:6363
-						en.URL = option.Config.EventLogServer[0] + ":6363"
+						en.URL = option.Config.EventLogServer[1]
 						if strings.HasPrefix(en.URL, "http") {
 							servers = append(servers, en.URL+"/docker-instance")
 						} else {
@@ -385,8 +384,7 @@ func GetLogAddress(serviceID string) string {
 		}
 	}
 	//return getLogAddress(cluster)
-	//rbd-eventlog-agent:6362
-	return option.Config.EventLogServer[0] + ":6362"
+	return option.Config.EventLogServer[0]
 }
 
 func getLogAddress(clusterAddress []string) string {
