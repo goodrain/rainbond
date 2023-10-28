@@ -27,7 +27,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	_ "github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	eventclient "github.com/goodrain/rainbond/eventlog/entry/grpc/client"
