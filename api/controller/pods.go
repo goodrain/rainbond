@@ -87,8 +87,9 @@ func Pods(w http.ResponseWriter, r *http.Request) {
 			if pd != nil {
 				pod.NodeIP = pd.NodeIp
 			}
+			logrus.Info("pod: %v", *pod)
+			logrus.Info("pod: %v", &pod)
 			allpods = append(allpods, pod)
-			logrus.Info("allpods", allpods)
 		}
 	}
 	httputil.ReturnSuccess(r, w, allpods)
