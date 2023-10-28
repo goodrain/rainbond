@@ -80,6 +80,8 @@ func Pods(w http.ResponseWriter, r *http.Request) {
 			pods = podinfo.NewPods
 		}
 		for _, pod := range pods {
+			logrus.Info("pod: %v", *pod)
+			logrus.Info("pod: %v", &pod)
 			pd, err := handler.GetPodHandler().PodDetail(tenant.Namespace, pod.PodName)
 			if err != nil {
 				logrus.Errorf("error getting pod detail: %v", err)
