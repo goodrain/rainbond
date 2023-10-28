@@ -196,7 +196,6 @@ func New(ctx logger.Info) (logger.Logger, error) {
 	return logger, nil
 }
 
-// 10.42.0.33:6362
 func getTCPConnConfig(serviceID, address string) string {
 	if address == "" {
 		address = GetLogAddress(serviceID)
@@ -329,12 +328,10 @@ func (s *StreamLog) reConect() {
 			}
 		}
 		//step2 get new server address and reconnect
-		//10.42.0.33:6362
 		logrus.Info("s.config", s.config)
 		logrus.Info("stream-server", s.config["stream-server"])
 		server := getTCPConnConfig(s.serviceID, s.config["stream-server"])
 		if server == s.writer.server {
-			// TODO:bug
 			logrus.Warningf("stream log server address(%s) not change ,will reconnect", server)
 			err := s.writer.ReConnect()
 			if err != nil {

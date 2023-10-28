@@ -21,15 +21,15 @@ package conversion
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/cmd/worker/option"
 	"net"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/goodrain/rainbond/builder/sources"
-
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -111,6 +111,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	if err != nil {
 		return fmt.Errorf("craete service account name failure: %v", err)
 	}
+
 	podtmpSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      labels,
@@ -137,13 +138,12 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				}
 				return ""
 			}(),
-			//HostNetwork: func() bool {
-			//	if _, ok := as.ExtensionSet["hostnetwork"]; ok {
-			//		return true
-			//	}
-			//	return false
-			//}(),
-			HostNetwork: createHostNetwork(as, dbmanager),
+			HostNetwork: func() bool {
+				if _, ok := as.ExtensionSet["hostnetwork"]; ok {
+					return true
+				}
+				return false
+			}(),
 			SchedulerName: func() string {
 				if name, ok := as.ExtensionSet["shcedulername"]; ok {
 					return name
@@ -155,6 +155,11 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			DNSPolicy:             corev1.DNSPolicy(dnsPolicy),
 			HostIPC:               createHostIPC(as, dbmanager),
 		},
+	}
+	// 如果参数配置了IsHostNetwork,那么使用k8s属性去修改
+	var s *option.Worker
+	if s.Config.IsHostNetwork {
+		podtmpSpec.Spec.HostNetwork = createHostNetwork(as, dbmanager)
 	}
 	if dnsPolicy == "None" {
 		dnsConfig, err := createDNSConfig(as, dbmanager)

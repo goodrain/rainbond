@@ -28,7 +28,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-//Config config server
+// Config config server
 type Config struct {
 	EtcdEndPoints           []string
 	EtcdCaFile              string
@@ -57,6 +57,7 @@ type Config struct {
 	RBDNamespace            string
 	GrdataPVCName           string
 	Helm                    Helm
+	IsHostNetwork           bool
 }
 
 // Helm helm configuration.
@@ -67,19 +68,19 @@ type Helm struct {
 	ChartCache string
 }
 
-//Worker  worker server
+// Worker  worker server
 type Worker struct {
 	Config
 	LogLevel string
 	RunMode  string //default,sync
 }
 
-//NewWorker new server
+// NewWorker new server
 func NewWorker() *Worker {
 	return &Worker{}
 }
 
-//AddFlags config
+// AddFlags config
 func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the worker log level")
 	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd v3 cluster endpoints.")
@@ -108,12 +109,14 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.GrdataPVCName, "grdata-pvc-name", "rbd-cpt-grdata", "The name of grdata persistent volume claim")
 	fs.StringVar(&a.Helm.DataDir, "/grdata/helm", "/grdata/helm", "The data directory of Helm.")
 	fs.StringVar(&a.SharedStorageClass, "shared-storageclass", "", "custom shared storage class.use the specified storageclass to create shared storage, if this parameter is not specified, it will use rainbondsssc by default")
+	fs.BoolVar(&a.IsHostNetwork, "is_HostNetwork", false, "deciding whether to use the k8s property to edit the HostNetwork.")
+
 	a.Helm.RepoFile = path.Join(a.Helm.DataDir, "repo/repositories.yaml")
 	a.Helm.RepoCache = path.Join(a.Helm.DataDir, "cache")
 	a.Helm.ChartCache = path.Join(a.Helm.DataDir, "chart")
 }
 
-//SetLog 设置log
+// SetLog 设置log
 func (a *Worker) SetLog() {
 	level, err := logrus.ParseLevel(a.LogLevel)
 	if err != nil {
@@ -123,7 +126,7 @@ func (a *Worker) SetLog() {
 	logrus.SetLevel(level)
 }
 
-//CheckEnv 检测环境变量
+// CheckEnv 检测环境变量
 func (a *Worker) CheckEnv() error {
 	if err := os.Setenv("GRDATA_PVC_NAME", a.Config.GrdataPVCName); err != nil {
 		return fmt.Errorf("set env 'GRDATA_PVC_NAME': %v", err)
