@@ -109,7 +109,7 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.GrdataPVCName, "grdata-pvc-name", "rbd-cpt-grdata", "The name of grdata persistent volume claim")
 	fs.StringVar(&a.Helm.DataDir, "/grdata/helm", "/grdata/helm", "The data directory of Helm.")
 	fs.StringVar(&a.SharedStorageClass, "shared-storageclass", "", "custom shared storage class.use the specified storageclass to create shared storage, if this parameter is not specified, it will use rainbondsssc by default")
-	fs.BoolVar(&a.IsHostNetwork, "is-HostNetwork", false, "deciding whether to use the k8s property to edit the HostNetwork.")
+	fs.BoolVar(&a.IsHostNetwork, "is-hostNetwork", false, "deciding whether to use the k8s property to edit the HostNetwork.")
 
 	a.Helm.RepoFile = path.Join(a.Helm.DataDir, "repo/repositories.yaml")
 	a.Helm.RepoCache = path.Join(a.Helm.DataDir, "cache")
