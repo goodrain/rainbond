@@ -51,6 +51,7 @@ func (c *Dis) discoverEventServer() {
 				var servers []string
 				for _, en := range re.List {
 					if en.URL != "" {
+						// 如果配置了service参数,则不使用pod ip
 						if option.Config.EventServer != "" {
 							en.URL = option.Config.EventServer
 						}
@@ -385,6 +386,7 @@ func GetLogAddress(serviceID string) string {
 			cluster = append(cluster, a+"?service_id="+serviceID+"&mode=stream")
 		}
 	}
+	// 如果配置了service参数,则不使用pod ip
 	if option.Config.LogAddress != "" {
 		return option.Config.LogAddress
 	}
