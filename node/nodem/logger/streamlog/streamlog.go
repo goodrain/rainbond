@@ -17,6 +17,7 @@ import (
 
 	"strconv"
 
+	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/nodem/logger"
 	"github.com/sirupsen/logrus"
 	"sync"
@@ -50,10 +51,9 @@ func (c *Dis) discoverEventServer() {
 				var servers []string
 				for _, en := range re.List {
 					if en.URL != "" {
-						//if option.Config.EventServer != "" {
-						//	en.URL = option.Config.EventServer
-						//}
-						en.URL = "rbd-eventlog-edge:6363"
+						if option.Config.EventServer != "" {
+							en.URL = option.Config.EventServer
+						}
 						if strings.HasPrefix(en.URL, "http") {
 							servers = append(servers, en.URL+"/docker-instance")
 						} else {
@@ -385,11 +385,10 @@ func GetLogAddress(serviceID string) string {
 			cluster = append(cluster, a+"?service_id="+serviceID+"&mode=stream")
 		}
 	}
-	//if option.Config.LogAddress != "" {
-	//	return option.Config.LogAddress
-	//}
-	return "rbd-eventlog-edge:6362"
-	//return getLogAddress(cluster)
+	if option.Config.LogAddress != "" {
+		return option.Config.LogAddress
+	}
+	return getLogAddress(cluster)
 }
 
 func getLogAddress(clusterAddress []string) string {
