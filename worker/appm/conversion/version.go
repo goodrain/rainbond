@@ -21,7 +21,6 @@ package conversion
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/cmd/worker/option"
 	"net"
 	"os"
 	"sort"
@@ -138,12 +137,13 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				}
 				return ""
 			}(),
-			HostNetwork: func() bool {
-				if _, ok := as.ExtensionSet["hostnetwork"]; ok {
-					return true
-				}
-				return false
-			}(),
+			//HostNetwork: func() bool {
+			//	if _, ok := as.ExtensionSet["hostnetwork"]; ok {
+			//		return true
+			//	}
+			//	return false
+			//}(),
+			HostNetwork: createHostNetwork(as, dbmanager),
 			SchedulerName: func() string {
 				if name, ok := as.ExtensionSet["shcedulername"]; ok {
 					return name
@@ -157,10 +157,9 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		},
 	}
 	// 如果参数配置了IsHostNetwork,那么使用k8s属性去修改
-	var s *option.Worker
-	if s.Config.IsHostNetwork {
-		podtmpSpec.Spec.HostNetwork = createHostNetwork(as, dbmanager)
-	}
+	//if 设置了k8s属性的hostNetwork字段 {
+	//	podtmpSpec.Spec.HostNetwork = createHostNetwork(as, dbmanager)
+	//}
 	if dnsPolicy == "None" {
 		dnsConfig, err := createDNSConfig(as, dbmanager)
 		if err != nil {
