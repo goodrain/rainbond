@@ -2069,7 +2069,6 @@ type K8sPodInfos struct {
 type K8sPodInfo struct {
 	PodName   string                       `json:"pod_name"`
 	PodIP     string                       `json:"pod_ip"`
-	NodeIP    string                       `json:"node_ip"`
 	PodStatus string                       `json:"pod_status"`
 	ServiceID string                       `json:"service_id"`
 	Container map[string]map[string]string `json:"container"`

@@ -60,8 +60,8 @@ type PodController struct{}
 //	  description: get some service pods
 func Pods(w http.ResponseWriter, r *http.Request) {
 	serviceIDs := strings.Split(r.FormValue("service_ids"), ",")
-	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*model.Tenants)
 	if serviceIDs == nil || len(serviceIDs) == 0 {
+		tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*model.Tenants)
 		services, _ := db.GetManager().TenantServiceDao().GetServicesByTenantID(tenant.UUID)
 		for _, s := range services {
 			serviceIDs = append(serviceIDs, s.ServiceID)
@@ -80,17 +80,6 @@ func Pods(w http.ResponseWriter, r *http.Request) {
 			pods = podinfo.NewPods
 		}
 		for _, pod := range pods {
-			logrus.Info("pod: %v", *pod)
-			logrus.Info("pod: %v", &pod)
-			pd, err := handler.GetPodHandler().PodDetail(tenant.Namespace, pod.PodName)
-			if err != nil {
-				logrus.Errorf("error getting pod detail: %v", err)
-			}
-			if pd != nil {
-				pod.NodeIP = pd.NodeIp
-			}
-			logrus.Info("pod: %v", *pod)
-			logrus.Info("pod: %v", &pod)
 			allpods = append(allpods, pod)
 		}
 	}
