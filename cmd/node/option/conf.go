@@ -209,7 +209,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogAddress, "log-address", "", "If rbd-node is on an edge node, it must be configured.eg: rbd-eventlog-edge:6362.")
 }
 
-// SetLog 设置log
+//SetLog 设置log
 func (a *Conf) SetLog() {
 	level, err := logrus.ParseLevel(a.LogLevel)
 	if err != nil {
@@ -242,7 +242,7 @@ func newClient(namespace, address string, opts ...containerd.ClientOpt) (*contai
 	return client, ctx, cancel, nil
 }
 
-// ParseClient handle config and create some api
+//ParseClient handle config and create some api
 func (a *Conf) ParseClient(ctx context.Context, etcdClientArgs *etcdutil.ClientArgs) (err error) {
 	logrus.Infof("begin create container image client, runtime [%s] runtime endpoint [%s]", a.ContainerRuntime, a.RuntimeEndpoint, a.EtcdEndpoints)
 	containerImageCli, err := sources.NewContainerImageClient(a.ContainerRuntime, a.RuntimeEndpoint, time.Second*3)
@@ -265,7 +265,7 @@ func (a *Conf) ParseClient(ctx context.Context, etcdClientArgs *etcdutil.ClientA
 	return nil
 }
 
-// parse parse
+//parse parse
 func (a *Conf) parse() error {
 	if a.TTL <= 0 {
 		a.TTL = 10
