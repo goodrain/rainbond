@@ -137,13 +137,12 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				}
 				return ""
 			}(),
-			//HostNetwork: func() bool {
-			//	if _, ok := as.ExtensionSet["hostnetwork"]; ok {
-			//		return true
-			//	}
-			//	return false
-			//}(),
-			HostNetwork: createHostNetwork(as, dbmanager),
+			HostNetwork: func() bool {
+				if _, ok := as.ExtensionSet["hostnetwork"]; ok {
+					return true
+				}
+				return false
+			}(),
 			SchedulerName: func() string {
 				if name, ok := as.ExtensionSet["shcedulername"]; ok {
 					return name
@@ -157,9 +156,10 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		},
 	}
 	// 如果参数配置了IsHostNetwork,那么使用k8s属性去修改
-	//if 设置了k8s属性的hostNetwork字段 {
-	//	podtmpSpec.Spec.HostNetwork = createHostNetwork(as, dbmanager)
-	//}
+	HostNetwork, _ := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameHostHostNetwork)
+	if HostNetwork != nil {
+		podtmpSpec.Spec.HostNetwork = createHostNetwork(HostNetwork)
+	}
 	if dnsPolicy == "None" {
 		dnsConfig, err := createDNSConfig(as, dbmanager)
 		if err != nil {
@@ -1190,21 +1190,13 @@ func createHostIPC(as *v1.AppService, dbmanager db.Manager) bool {
 	return false
 }
 
-func createHostNetwork(as *v1.AppService, dbmanager db.Manager) bool {
-	HostNetwork, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameHostHostNetwork)
+func createHostNetwork(HostNetwork *model.ComponentK8sAttributes) bool {
+	value, err := strconv.ParseBool(HostNetwork.AttributeValue)
 	if err != nil {
-		logrus.Debug("get by HostNetwork attribute error", err)
+		logrus.Debug("HostNetwork ParseBool error", err)
 		return false
 	}
-	if HostNetwork != nil {
-		value, err := strconv.ParseBool(HostNetwork.AttributeValue)
-		if err != nil {
-			logrus.Debug("HostNetwork ParseBool error", err)
-			return false
-		}
-		return value
-	}
-	return false
+	return value
 }
 
 func createLifecycle(as *v1.AppService, dbmanager db.Manager) (*corev1.Lifecycle, error) {

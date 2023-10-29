@@ -134,7 +134,8 @@ type Conf struct {
 	GatewayVIP          string
 	HostsFile           string
 
-	// rbd-eventlog service
+	// The following variables are all the service name of
+	// rbd-eventlog plus a different port.
 	EventServer string
 	LogAddress  string
 }
@@ -163,7 +164,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.HostID, "nodeid", "", "the unique ID for this node. Just specify, don't modify")
 	fs.StringVar(&a.HostIP, "hostIP", "", "the host ip you can define. default get ip from eth0")
 	fs.StringVar(&a.PodIP, "podIP", "", "The pod ip of node.")
-	fs.StringSliceVar(&a.EventLogServer, "event-log-server", []string{"127.0.0.1:6366"}, "host:port slice of event log server")
+	fs.StringSliceVar(&a.EventLogServer, "event-log-server", []string{"127.0.0.1:6366"}, "host:port slice of event log server.And if rbd-node is on an edge node, it must be configured.eg: rbd-eventlog-edge:6366.")
 	fs.StringVar(&a.ConfigStoragePath, "config-path", "/rainbond/acp_configs", "the path of config to store(new)")
 	fs.StringVar(&a.Service, "servicePath", "/traefik/backends", "the path of service info to store")
 	fs.StringSliceVar(&a.EtcdEndpoints, "etcd", []string{"http://127.0.0.1:2379"}, "the path of node in etcd")
@@ -204,8 +205,8 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.ContainerRuntime, "container-runtime", sources.ContainerRuntimeContainerd, "container runtime, support docker and containerd")
 	fs.StringVar(&a.RuntimeEndpoint, "runtime-endpoint", sources.RuntimeEndpointContainerd, "container runtime endpoint")
 	// rbd-eventlog service
-	fs.StringVar(&a.EventServer, "event-server", "", "service name of event-server")
-	fs.StringVar(&a.LogAddress, "log-address", "", "service name of log-address")
+	fs.StringVar(&a.EventServer, "event-server", "", "If rbd-node is on an edge node, it must be configured.eg: rbd-eventlog-edge:6363.")
+	fs.StringVar(&a.LogAddress, "log-address", "", "If rbd-node is on an edge node, it must be configured.eg: rbd-eventlog-edge:6362.")
 }
 
 // SetLog 设置log
