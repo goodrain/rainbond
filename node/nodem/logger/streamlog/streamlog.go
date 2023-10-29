@@ -282,7 +282,7 @@ func (s *StreamLog) ping() {
 	s.sendMsg(pingMsg)
 }
 
-// Log log
+//Log log
 func (s *StreamLog) Log(msg *logger.Message) error {
 	defer func() {
 		if err := recover(); err != nil {
@@ -355,7 +355,7 @@ func (s *StreamLog) reConect() {
 	}
 }
 
-// Close 关闭
+//Close 关闭
 func (s *StreamLog) Close() error {
 	s.cancel()
 	<-s.closedChan
@@ -366,12 +366,12 @@ func (s *StreamLog) Close() error {
 	return nil
 }
 
-// Name 返回logger name
+//Name 返回logger name
 func (s *StreamLog) Name() string {
 	return name
 }
 
-// GetLogAddress 动态获取日志服务端地址
+//GetLogAddress 动态获取日志服务端地址
 func GetLogAddress(serviceID string) string {
 	var cluster []string
 	if len(clusterAddress) < 1 {
