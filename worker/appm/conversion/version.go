@@ -45,7 +45,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// TenantServiceVersion service deploy version conv. define pod spec
+//TenantServiceVersion service deploy version conv. define pod spec
 func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	version, err := dbmanager.VersionInfoDao().GetVersionByDeployVersion(as.DeployVersion, as.ServiceID)
 	if err != nil {
@@ -280,7 +280,7 @@ func createArgs(version *dbmodel.VersionInfo, envs []corev1.EnvVar) (args []stri
 	return args
 }
 
-// createEnv create service container env
+//createEnv create service container env
 func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.Secret) ([]corev1.EnvVar, error) {
 	var envs []corev1.EnvVar
 	var envsAll []*dbmodel.TenantServiceEnvVar
