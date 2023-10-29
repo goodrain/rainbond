@@ -50,7 +50,7 @@ var (
 	exitChan = make(chan struct{})
 )
 
-// Init  init config
+//Init  init config
 func Init() error {
 	if initialized {
 		return nil
@@ -64,7 +64,7 @@ func Init() error {
 	return nil
 }
 
-// Conf Conf
+//Conf Conf
 type Conf struct {
 	APIAddr                         string //api server listen port
 	GrpcAPIAddr                     string //grpc api server listen port
@@ -140,7 +140,7 @@ type Conf struct {
 	LogAddress  string
 }
 
-// StatsdConfig StatsdConfig
+//StatsdConfig StatsdConfig
 type StatsdConfig struct {
 	StatsdListenAddress string
 	StatsdListenUDP     string
@@ -149,13 +149,13 @@ type StatsdConfig struct {
 	ReadBuffer          int
 }
 
-// UDPMonitorConfig UDPMonitorConfig
+//UDPMonitorConfig UDPMonitorConfig
 type UDPMonitorConfig struct {
 	ListenHost string
 	ListenPort string
 }
 
-// AddFlags AddFlags
+//AddFlags AddFlags
 func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the log level")
 	fs.StringVar(&a.LogFile, "log-file", "", "the log file path that log output")
