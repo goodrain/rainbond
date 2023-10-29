@@ -371,7 +371,7 @@ func (s *StreamLog) Name() string {
 	return name
 }
 
-//GetLogAddress 动态获取日志服务端地址
+// GetLogAddress 动态获取日志服务端地址
 func GetLogAddress(serviceID string) string {
 	var cluster []string
 	if len(clusterAddress) < 1 {
