@@ -154,7 +154,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			HostIPC:               createHostIPC(as, dbmanager),
 		},
 	}
-	// 如果参数配置了IsHostNetwork,那么使用k8s属性去修改
+	// 使用k8s属性去修改
 	HostNetwork, _ := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameHostHostNetwork)
 	if HostNetwork != nil {
 		podtmpSpec.Spec.HostNetwork = createHostNetwork(HostNetwork)
