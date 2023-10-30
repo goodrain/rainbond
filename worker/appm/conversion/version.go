@@ -27,9 +27,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/goodrain/rainbond/builder/sources"
-
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -154,6 +153,11 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			DNSPolicy:             corev1.DNSPolicy(dnsPolicy),
 			HostIPC:               createHostIPC(as, dbmanager),
 		},
+	}
+	// 使用k8s属性去修改
+	HostNetwork, _ := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameHostHostNetwork)
+	if HostNetwork != nil {
+		podtmpSpec.Spec.HostNetwork = createHostNetwork(HostNetwork)
 	}
 	if dnsPolicy == "None" {
 		dnsConfig, err := createDNSConfig(as, dbmanager)
@@ -1183,6 +1187,15 @@ func createHostIPC(as *v1.AppService, dbmanager db.Manager) bool {
 		return value
 	}
 	return false
+}
+
+func createHostNetwork(HostNetwork *model.ComponentK8sAttributes) bool {
+	value, err := strconv.ParseBool(HostNetwork.AttributeValue)
+	if err != nil {
+		logrus.Debug("HostNetwork ParseBool error", err)
+		return false
+	}
+	return value
 }
 
 func createLifecycle(as *v1.AppService, dbmanager db.Manager) (*corev1.Lifecycle, error) {

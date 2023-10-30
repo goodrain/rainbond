@@ -156,6 +156,9 @@ func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
 				manager:   m,
 				ctx:       m.ctx,
 			}
+			if len(m.config.EventLogServers) != 0 && m.config.EventLogServers[0] != "127.0.0.1:6366" {
+				h.server = m.config.EventLogServers[0]
+			}
 			m.handles[end.URL] = h
 			logrus.Infof("Add event server endpoint,%s", end.URL)
 			go h.HandleLog()

@@ -17,10 +17,10 @@ import (
 
 	"strconv"
 
-	"sync"
-
+	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/node/nodem/logger"
 	"github.com/sirupsen/logrus"
+	"sync"
 )
 
 //STREAMLOGNAME driver name
@@ -51,6 +51,10 @@ func (c *Dis) discoverEventServer() {
 				var servers []string
 				for _, en := range re.List {
 					if en.URL != "" {
+						// 如果配置了service参数,则不使用pod ip
+						if option.Config.EventServer != "" {
+							en.URL = option.Config.EventServer
+						}
 						if strings.HasPrefix(en.URL, "http") {
 							servers = append(servers, en.URL+"/docker-instance")
 						} else {
@@ -376,6 +380,10 @@ func GetLogAddress(serviceID string) string {
 		for _, a := range clusterAddress {
 			cluster = append(cluster, a+"?service_id="+serviceID+"&mode=stream")
 		}
+	}
+	// 如果配置了service参数,则不使用pod ip
+	if option.Config.LogAddress != "" {
+		return option.Config.LogAddress
 	}
 	return getLogAddress(cluster)
 }
