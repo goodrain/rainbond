@@ -126,10 +126,41 @@ function push_arch_dind {
   docker manifest push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/rainbond:${RBD_VER/-release}-dind-allinone"
 }
 
+function push_arch_runner {
+  docker pull "$IMAGE_NAMESPACE/runner:${RBD_VER}" || exit 1
+  docker tag "$IMAGE_NAMESPACE/runner:${RBD_VER}" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/runner:${RBD_VER}-amd64"
+  docker push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/runner:${RBD_VER}-amd64"
+
+  docker pull "$IMAGE_NAMESPACE/runner:${RBD_VER}-arm64" || exit 1
+  docker tag "$IMAGE_NAMESPACE/runner:${RBD_VER}-arm64" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/runner:${RBD_VER}-arm64"
+  docker push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/runner:${RBD_VER}-arm64"
+
+  docker manifest rm "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/runner:${RBD_VER}"
+  docker manifest create "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/runner:${RBD_VER}" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/runner:${RBD_VER}-amd64" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/runner:${RBD_VER}-arm64"
+  docker manifest push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/runner:${RBD_VER}"
+}
+
+function push_arch_builder {
+  docker pull "$IMAGE_NAMESPACE/builder:${RBD_VER}" || exit 1
+  docker tag "$IMAGE_NAMESPACE/builder:${RBD_VER}" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/builder:${RBD_VER}-amd64"
+  docker push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/builder:${RBD_VER}-amd64"
+
+  docker pull "$IMAGE_NAMESPACE/builder:${RBD_VER}-arm64" || exit 1
+  docker tag "$IMAGE_NAMESPACE/builder:${RBD_VER}-arm64" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/builder:${RBD_VER}-arm64"
+  docker push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/builder:${RBD_VER}-arm64"
+
+  docker manifest rm "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/builder:${RBD_VER}"
+  docker manifest create "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/builder:${RBD_VER}" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/builder:${RBD_VER}-amd64" "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/builder:${RBD_VER}-arm64"
+  docker manifest push "$DOMESTIC_NAME/$DOMESTIC_NAMESPACE/builder:${RBD_VER}"
+}
+
 docker login "${DOMESTIC_NAME}" -u "$DOMESTIC_DOCKER_USERNAME" -p "$DOMESTIC_DOCKER_PASSWORD"
 
-push_arch
-
-push_arch_allinone
-
-push_arch_dind
+if [ "$1" = "builder-runner" ]; then
+  push_arch_runner
+  push_arch_builder
+else
+  push_arch
+  push_arch_allinone
+  push_arch_dind
+fi
