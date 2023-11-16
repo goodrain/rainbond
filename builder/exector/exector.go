@@ -49,16 +49,16 @@ import (
 	workermodel "github.com/goodrain/rainbond/worker/discover/model"
 )
 
-//MetricTaskNum task number
+// MetricTaskNum task number
 var MetricTaskNum float64
 
-//MetricErrorTaskNum error run task number
+// MetricErrorTaskNum error run task number
 var MetricErrorTaskNum float64
 
-//MetricBackTaskNum back task number
+// MetricBackTaskNum back task number
 var MetricBackTaskNum float64
 
-//Manager 任务执行管理器
+// Manager 任务执行管理器
 type Manager interface {
 	GetMaxConcurrentTask() float64
 	GetCurrentConcurrentTask() float64
@@ -69,7 +69,7 @@ type Manager interface {
 	GetImageClient() sources.ImageClient
 }
 
-//NewManager new manager
+// NewManager new manager
 func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	imageClient, err := sources.NewImageClient(conf.ContainerRuntime, conf.RuntimeEndpoint, time.Second*3)
 	if err != nil {
@@ -154,7 +154,7 @@ type exectorManager struct {
 	imageClient       sources.ImageClient
 }
 
-//TaskWorker worker interface
+// TaskWorker worker interface
 type TaskWorker interface {
 	Run(timeout time.Duration) error
 	GetLogger() event.Logger
@@ -166,27 +166,27 @@ type TaskWorker interface {
 
 var workerCreaterList = make(map[string]func([]byte, *exectorManager) (TaskWorker, error))
 
-//RegisterWorker register worker creator
+// RegisterWorker register worker creator
 func RegisterWorker(name string, fun func([]byte, *exectorManager) (TaskWorker, error)) {
 	workerCreaterList[name] = fun
 }
 
-//ErrCallback do not handle this task
+// ErrCallback do not handle this task
 var ErrCallback = fmt.Errorf("callback task to mq")
 
 func (e *exectorManager) SetReturnTaskChan(re func(*pb.TaskMessage)) {
 	e.callback = re
 }
 
-//TaskType:
-//build_from_image build app from docker image
-//build_from_source_code build app from source code
-//build_from_market_slug build app from app market by download slug
-//service_check check service source info
-//plugin_image_build build plugin from image
-//plugin_dockerfile_build build plugin from dockerfile
-//share-slug share app with slug
-//share-image share app with image
+// TaskType:
+// build_from_image build app from docker image
+// build_from_source_code build app from source code
+// build_from_market_slug build app from app market by download slug
+// service_check check service source info
+// plugin_image_build build plugin from image
+// plugin_dockerfile_build build plugin from dockerfile
+// share-slug share app with slug
+// share-image share app with image
 func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 	if e.callback != nil && task.Arch != "" && task.Arch != runtime.GOARCH {
 		e.callback(task)
@@ -247,6 +247,8 @@ func (e *exectorManager) RunTask(task *pb.TaskMessage) {
 	switch task.TaskType {
 	case "build_from_image":
 		go e.runTask(e.buildFromImage, task, false)
+	case "build_from_vm":
+		go e.runTask(e.buildFromVM, task, false)
 	case "build_from_source_code":
 		go e.runTask(e.buildFromSourceCode, task, true)
 	case "build_from_market_slug":
@@ -297,7 +299,7 @@ func (e *exectorManager) exec(task *pb.TaskMessage) error {
 	return nil
 }
 
-//buildFromImage build app from docker image
+// buildFromImage build app from docker image
 func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 	i := NewImageBuildItem(task.TaskBody)
 	i.ImageClient = e.imageClient
@@ -345,8 +347,8 @@ func (e *exectorManager) buildFromImage(task *pb.TaskMessage) {
 	}
 }
 
-//buildFromSourceCode build app from source code
-//support git repository
+// buildFromSourceCode build app from source code
+// support git repository
 func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	i := NewSouceCodeBuildItem(task.TaskBody)
 	i.ImageClient = e.imageClient
@@ -409,7 +411,46 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	}
 }
 
-//buildFromMarketSlug build app from market slug
+// buildFromVM build app from vm
+func (e *exectorManager) buildFromVM(task *pb.TaskMessage) {
+	v := NewVMBuildItem(task.TaskBody)
+	v.ImageClient = e.imageClient
+	v.BuildKitImage = e.BuildKitImage
+	v.BuildKitArgs = e.BuildKitArgs
+	v.BuildKitCache = e.BuildKitCache
+	v.kubeClient = e.KubeClient
+	v.Logger.Info("Start with the vm build application task", map[string]string{"step": "builder-exector", "status": "starting"})
+	defer event.GetManager().ReleaseLogger(v.Logger)
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			v.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "callback", "status": "failure"})
+		}
+	}()
+	start := time.Now()
+	defer func() {
+		logrus.Debugf("complete build from source code, consuming time %s", time.Since(start).String())
+	}()
+	if v.VMImageSource != "" {
+		err := v.RunVMBuild()
+		if err != nil {
+			logrus.Errorf("failure")
+		}
+	}
+	var configs = make(map[string]string, len(v.Configs))
+	for k, u := range v.Configs {
+		configs[k] = u.String()
+	}
+	if err := e.UpdateDeployVersion(v.ServiceID, v.DeployVersion); err != nil {
+		logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), v.ServiceID)
+	}
+	err := e.sendAction(v.TenantID, v.ServiceID, v.EventID, v.DeployVersion, v.Action, configs, v.Logger)
+	if err != nil {
+		v.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
+	}
+}
+
+// buildFromMarketSlug build app from market slug
 func (e *exectorManager) buildFromMarketSlug(task *pb.TaskMessage) {
 	eventID := gjson.GetBytes(task.TaskBody, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
@@ -458,7 +499,7 @@ func (e *exectorManager) buildFromMarketSlug(task *pb.TaskMessage) {
 
 }
 
-//rollingUpgradeTaskBody upgrade message body type
+// rollingUpgradeTaskBody upgrade message body type
 type rollingUpgradeTaskBody struct {
 	TenantID  string   `json:"tenant_id"`
 	ServiceID string   `json:"service_id"`
@@ -507,7 +548,7 @@ func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, ac
 	return nil
 }
 
-//slugShare share app of slug
+// slugShare share app of slug
 func (e *exectorManager) slugShare(task *pb.TaskMessage) {
 	i, err := NewSlugShareItem(task.TaskBody, e.EtcdCli)
 	if err != nil {
@@ -547,7 +588,7 @@ func (e *exectorManager) slugShare(task *pb.TaskMessage) {
 	}()
 }
 
-//imageShare share app of docker image
+// imageShare share app of docker image
 func (e *exectorManager) imageShare(task *pb.TaskMessage) {
 	i, err := NewImageShareItem(task.TaskBody, e.imageClient, e.EtcdCli)
 	if err != nil {

@@ -15,7 +15,7 @@ elif [ $(arch) = "x86_64" ]; then
 	GOARCH=amd64
 fi
 
-GO_VERSION=1.18-alpine3.16
+GO_VERSION=1.19-alpine3.16
 
 GOPROXY=${GOPROXY:-'https://goproxy.cn'}
 

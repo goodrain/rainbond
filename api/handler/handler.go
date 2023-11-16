@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"kubevirt.io/client-go/kubecli"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	gateway "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
 )
@@ -50,6 +51,7 @@ func InitHandle(conf option.Config,
 	mapper meta.RESTMapper,
 	dynamicClient dynamic.Interface,
 	gatewayClient *gateway.GatewayV1beta1Client,
+	kubevirtCli kubecli.KubevirtClient,
 ) error {
 	mq := api_db.MQManager{
 		EtcdClientArgs: etcdClientArgs,
@@ -68,7 +70,7 @@ func InitHandle(conf option.Config,
 		return err
 	}
 	dbmanager := db.GetManager()
-	defaultServieHandler = CreateManager(conf, mqClient, etcdcli, statusCli, prometheusCli, rainbondClient, kubeClient)
+	defaultServieHandler = CreateManager(conf, mqClient, etcdcli, statusCli, prometheusCli, rainbondClient, kubeClient, kubevirtCli, dbmanager)
 	defaultPluginHandler = CreatePluginManager(mqClient)
 	defaultAppHandler = CreateAppManager(mqClient)
 	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, kubeClient, prometheusCli, k8sClient)

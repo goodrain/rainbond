@@ -121,6 +121,8 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		pr = parser.CreateThirdPartyServiceParse(input.SourceBody, logger)
 	case "package_build":
 		pr = parser.CreateSourceCodeParse(input.SourceBody, logger)
+	case "vm-run":
+		pr = parser.CreateVMServiceParse(input.SourceBody, logger)
 	}
 	if pr == nil {
 		logger.Error("Creating component source types is not supported", map[string]string{"step": "callback", "status": "failure"})

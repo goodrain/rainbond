@@ -23,6 +23,7 @@ import (
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 	"os"
 	"path"
 	"strings"
@@ -57,6 +58,54 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
 		define.volumes = append(define.volumes, vo)
 		v.generateVolumeSubPath(define, vm)
+		define.volumeMounts = append(define.volumeMounts, *vm)
+	} else if v.as.GetVirtualMachine() != nil {
+		labels := v.as.GetCommonLabels(map[string]string{
+			"volume_name": volumeMountName,
+			"stateless":   "",
+		})
+		annotations := map[string]string{"volume_name": v.svm.VolumeName}
+		claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v1.RainbondStatefuleShareStorageClass, v.svm.VolumeCapacity, labels, annotations)
+		v.as.SetClaim(claim)
+		v.as.SetClaimManually(claim)
+		vo := kubevirtv1.Volume{
+			Name: volumeMountName,
+			VolumeSource: kubevirtv1.VolumeSource{
+				PersistentVolumeClaim: &kubevirtv1.PersistentVolumeClaimVolumeSource{
+					PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: claim.Name,
+					},
+					Hotpluggable: false,
+				},
+			},
+		}
+		var dd kubevirtv1.DiskDevice
+		switch volumeMountPath {
+		case "/disk":
+			dd = kubevirtv1.DiskDevice{
+				Disk: &kubevirtv1.DiskTarget{
+					Bus: kubevirtv1.DiskBusSATA,
+				},
+			}
+		case "/lun":
+			dd = kubevirtv1.DiskDevice{
+				LUN: &kubevirtv1.LunTarget{
+					Bus: kubevirtv1.DiskBusSATA,
+				},
+			}
+		case "/cdrom":
+			dd = kubevirtv1.DiskDevice{
+				CDRom: &kubevirtv1.CDRomTarget{
+					Bus: kubevirtv1.DiskBusSATA,
+				},
+			}
+		}
+		dk := kubevirtv1.Disk{
+			DiskDevice: dd,
+			Name:       volumeMountName,
+		}
+		define.vmDisk = append(define.vmDisk, dk)
+		define.vmVolume = append(define.vmVolume, vo)
 	} else {
 		for _, m := range define.volumeMounts {
 			if m.MountPath == volumeMountPath { // TODO move to prepare
@@ -82,8 +131,8 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 		vo.PersistentVolumeClaim = &corev1.PersistentVolumeClaimVolumeSource{ClaimName: claim.GetName(), ReadOnly: volumeReadOnly}
 		define.volumes = append(define.volumes, vo)
 		v.generateVolumeSubPath(define, vm)
+		define.volumeMounts = append(define.volumeMounts, *vm)
 	}
-	define.volumeMounts = append(define.volumeMounts, *vm)
 
 	return nil
 }

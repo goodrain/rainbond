@@ -40,7 +40,7 @@ import (
 // RainbondEndpointPrefix is the prefix of the key of the rainbond endpoints in etcd
 const RainbondEndpointPrefix = "/rainbond/endpoint"
 
-//ClusterClient ClusterClient
+// ClusterClient ClusterClient
 type ClusterClient interface {
 	UpdateStatus(*HostNode, []NodeConditionType) error
 	DownNode(*HostNode) error
@@ -54,7 +54,7 @@ type ClusterClient interface {
 	DelEndpoints(key string)
 }
 
-//NewClusterClient new cluster client
+// NewClusterClient new cluster client
 func NewClusterClient(conf *option.Conf) ClusterClient {
 	return &etcdClusterClient{
 		conf: conf,
@@ -157,7 +157,7 @@ func checkURL(source string) bool {
 	return true
 }
 
-//SetEndpoints service name and hostip must set
+// SetEndpoints service name and hostip must set
 func (e *etcdClusterClient) SetEndpoints(serviceName, hostIP string, value []string) {
 	if serviceName == "" {
 		return
@@ -196,7 +196,7 @@ func (e *etcdClusterClient) DelEndpoints(key string) {
 	logrus.Infof("Delete endpoints: %s", key)
 }
 
-//ErrorNotFound node not found.
+// ErrorNotFound node not found.
 var ErrorNotFound = fmt.Errorf("node not found")
 
 func (e *etcdClusterClient) GetNode(nodeID string) (*HostNode, error) {
@@ -225,7 +225,7 @@ func (e *etcdClusterClient) RegistNode(node *HostNode) error {
 	return nil
 }
 
-//Update update node info
+// Update update node info
 func (e *etcdClusterClient) Update(h *HostNode) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
@@ -235,7 +235,7 @@ func (e *etcdClusterClient) Update(h *HostNode) error {
 	return err
 }
 
-//Down node set node status is offline
+// Down node set node status is offline
 func (e *etcdClusterClient) DownNode(h *HostNode) error {
 	existNode, err := e.GetNode(h.ID)
 	if err != nil {

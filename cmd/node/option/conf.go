@@ -50,7 +50,7 @@ var (
 	exitChan = make(chan struct{})
 )
 
-//Init  init config
+// Init  init config
 func Init() error {
 	if initialized {
 		return nil
@@ -64,7 +64,7 @@ func Init() error {
 	return nil
 }
 
-//Conf Conf
+// Conf Conf
 type Conf struct {
 	APIAddr                         string //api server listen port
 	GrpcAPIAddr                     string //grpc api server listen port
@@ -135,7 +135,7 @@ type Conf struct {
 	HostsFile           string
 }
 
-//StatsdConfig StatsdConfig
+// StatsdConfig StatsdConfig
 type StatsdConfig struct {
 	StatsdListenAddress string
 	StatsdListenUDP     string
@@ -144,13 +144,13 @@ type StatsdConfig struct {
 	ReadBuffer          int
 }
 
-//UDPMonitorConfig UDPMonitorConfig
+// UDPMonitorConfig UDPMonitorConfig
 type UDPMonitorConfig struct {
 	ListenHost string
 	ListenPort string
 }
 
-//AddFlags AddFlags
+// AddFlags AddFlags
 func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the log level")
 	fs.StringVar(&a.LogFile, "log-file", "", "the log file path that log output")
@@ -201,7 +201,7 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.RuntimeEndpoint, "runtime-endpoint", sources.RuntimeEndpointContainerd, "container runtime endpoint")
 }
 
-//SetLog 设置log
+// SetLog 设置log
 func (a *Conf) SetLog() {
 	level, err := logrus.ParseLevel(a.LogLevel)
 	if err != nil {
@@ -234,7 +234,7 @@ func newClient(namespace, address string, opts ...containerd.ClientOpt) (*contai
 	return client, ctx, cancel, nil
 }
 
-//ParseClient handle config and create some api
+// ParseClient handle config and create some api
 func (a *Conf) ParseClient(ctx context.Context, etcdClientArgs *etcdutil.ClientArgs) (err error) {
 	logrus.Infof("begin create container image client, runtime [%s] runtime endpoint [%s]", a.ContainerRuntime, a.RuntimeEndpoint, a.EtcdEndpoints)
 	containerImageCli, err := sources.NewContainerImageClient(a.ContainerRuntime, a.RuntimeEndpoint, time.Second*3)
@@ -257,7 +257,7 @@ func (a *Conf) ParseClient(ctx context.Context, etcdClientArgs *etcdutil.ClientA
 	return nil
 }
 
-//parse parse
+// parse parse
 func (a *Conf) parse() error {
 	if a.TTL <= 0 {
 		a.TTL = 10

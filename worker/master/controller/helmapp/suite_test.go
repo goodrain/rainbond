@@ -22,7 +22,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"testing"
 	"time"
 
 	"github.com/goodrain/rainbond/util"
@@ -35,7 +34,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -45,14 +43,6 @@ var kubeClient clientset.Interface
 var rainbondClient versioned.Interface
 var testEnv *envtest.Environment
 var stopCh = make(chan struct{})
-
-func TestAPIs(t *testing.T) {
-	RegisterFailHandler(Fail)
-
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"HelmApp Controller Suite",
-		[]Reporter{printer.NewlineReporter{}})
-}
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))

@@ -263,6 +263,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 	// component build
 	r.Post("/build", middleware.WrapEL(controller.GetManager().BuildService, dbmodel.TargetTypeService, "build-service", dbmodel.ASYNEVENTTYPE))
 	// component start
+	r.Post("/pause", middleware.WrapEL(controller.GetManager().PauseService, dbmodel.TargetTypeService, "pause-service", dbmodel.ASYNEVENTTYPE))
+	r.Post("/un_pause", middleware.WrapEL(controller.GetManager().UNPauseService, dbmodel.TargetTypeService, "unpause-service", dbmodel.ASYNEVENTTYPE))
 	r.Post("/start", middleware.WrapEL(controller.GetManager().StartService, dbmodel.TargetTypeService, "start-service", dbmodel.ASYNEVENTTYPE))
 	// component stop event set to synchronous event, not wait.
 	r.Post("/stop", middleware.WrapEL(controller.GetManager().StopService, dbmodel.TargetTypeService, "stop-service", dbmodel.SYNEVENTTYPE))

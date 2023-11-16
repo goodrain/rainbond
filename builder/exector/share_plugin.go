@@ -33,7 +33,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-//PluginShareItem PluginShareItem
+// PluginShareItem PluginShareItem
 type PluginShareItem struct {
 	EventID        string `json:"event_id"`
 	ImageName      string `json:"image_name"`
@@ -55,7 +55,7 @@ func init() {
 	RegisterWorker("share-plugin", SharePluginItemCreater)
 }
 
-//SharePluginItemCreater create
+// SharePluginItemCreater create
 func SharePluginItemCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
@@ -72,7 +72,7 @@ func SharePluginItemCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	return pluginShare, nil
 }
 
-//Run Run
+// Run Run
 func (i *PluginShareItem) Run(timeout time.Duration) error {
 	_, err := i.ImageClient.ImagePull(i.LocalImageName, builder.REGISTRYUSER, builder.REGISTRYPASS, i.Logger, 10)
 	if err != nil {
@@ -103,27 +103,27 @@ func (i *PluginShareItem) Run(timeout time.Duration) error {
 	return i.updateShareStatus("success")
 }
 
-//Stop
+// Stop
 func (i *PluginShareItem) Stop() error {
 	return nil
 }
 
-//Name return worker name
+// Name return worker name
 func (i *PluginShareItem) Name() string {
 	return "share-plugin"
 }
 
-//GetLogger GetLogger
+// GetLogger GetLogger
 func (i *PluginShareItem) GetLogger() event.Logger {
 	return i.Logger
 }
 
-//ErrorCallBack if run error will callback
+// ErrorCallBack if run error will callback
 func (i *PluginShareItem) ErrorCallBack(err error) {
 	i.updateShareStatus("failure")
 }
 
-//updateShareStatus update share task result
+// updateShareStatus update share task result
 func (i *PluginShareItem) updateShareStatus(status string) error {
 	var ss = ShareStatus{
 		ShareID: i.ShareID,

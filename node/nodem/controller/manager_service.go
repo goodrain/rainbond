@@ -21,12 +21,12 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/coreos/etcd/clientv3"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/builder/parser"
 	"github.com/goodrain/rainbond/cmd/node/option"
 	"github.com/goodrain/rainbond/event"
@@ -41,7 +41,7 @@ var (
 	ArgsReg = regexp.MustCompile(`\$\{(\w+)\|{0,1}(.{0,1})\}`)
 )
 
-//ManagerService manager service
+// ManagerService manager service
 type ManagerService struct {
 	node                 *client.HostNode
 	ctx                  context.Context
@@ -59,12 +59,12 @@ type ManagerService struct {
 	lock                 sync.Mutex
 }
 
-//GetAllService get all service
+// GetAllService get all service
 func (m *ManagerService) GetAllService() ([]*service.Service, error) {
 	return m.allservice, nil
 }
 
-//GetService get service
+// GetService get service
 func (m *ManagerService) GetService(serviceName string) *service.Service {
 	for _, s := range m.allservice {
 		if s.Name == serviceName {
@@ -74,7 +74,7 @@ func (m *ManagerService) GetService(serviceName string) *service.Service {
 	return nil
 }
 
-//Start  start and monitor all service
+// Start  start and monitor all service
 func (m *ManagerService) Start(node *client.HostNode) error {
 	logrus.Info("Starting node controller manager.")
 	m.loadServiceConfig()
@@ -96,13 +96,13 @@ func (m *ManagerService) loadServiceConfig() {
 	m.services = controllerServices
 }
 
-//Stop stop manager
+// Stop stop manager
 func (m *ManagerService) Stop() error {
 	m.cancel()
 	return nil
 }
 
-//Online start all service of on the node
+// Online start all service of on the node
 func (m *ManagerService) Online() error {
 	logrus.Info("Doing node online by node controller manager")
 	if ok := m.ctr.CheckBeforeStart(); !ok {
@@ -129,7 +129,7 @@ func (m *ManagerService) SetEndpoints(hostIP string) {
 	}
 }
 
-//StartServices start services
+// StartServices start services
 func (m *ManagerService) StartServices() {
 	for _, service := range m.services {
 		if !service.Disable {
@@ -154,7 +154,7 @@ func (m *ManagerService) StartServices() {
 	}
 }
 
-//Offline stop all service of on the node
+// Offline stop all service of on the node
 func (m *ManagerService) Offline() error {
 	logrus.Info("Doing node offline by node controller manager")
 	services, _ := m.GetAllService()
@@ -168,7 +168,7 @@ func (m *ManagerService) Offline() error {
 	return nil
 }
 
-//DownOneServiceEndpoint down service endpoint
+// DownOneServiceEndpoint down service endpoint
 func (m *ManagerService) DownOneServiceEndpoint(s *service.Service) {
 	hostIP := m.cluster.GetOptions().HostIP
 	for _, end := range s.Endpoints {
@@ -188,7 +188,7 @@ func (m *ManagerService) DownOneServiceEndpoint(s *service.Service) {
 	logrus.Infof("node %s down service %s endpoints", hostIP, s.Name)
 }
 
-//UpOneServiceEndpoint up service endpoint
+// UpOneServiceEndpoint up service endpoint
 func (m *ManagerService) UpOneServiceEndpoint(s *service.Service) {
 	if s.OnlyHealthCheck || s.Disable {
 		return
@@ -203,7 +203,7 @@ func (m *ManagerService) UpOneServiceEndpoint(s *service.Service) {
 	}
 }
 
-//SyncServiceStatusController synchronize all service status to as we expect
+// SyncServiceStatusController synchronize all service status to as we expect
 func (m *ManagerService) SyncServiceStatusController() {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -322,7 +322,7 @@ func (m *ManagerService) StopSyncService() {
 	}
 }
 
-//WaitStart waiting service healty
+// WaitStart waiting service healty
 func (m *ManagerService) WaitStart(name string, duration time.Duration) bool {
 	max := time.Now().Add(duration)
 	t := time.Tick(time.Second * 3)
@@ -407,7 +407,7 @@ func (m *ManagerService) ReLoadServices() error {
 	return nil
 }
 
-//StartService start a service
+// StartService start a service
 func (m *ManagerService) StartService(serviceName string) error {
 	for _, service := range m.services {
 		if service.Name == serviceName {
@@ -420,7 +420,7 @@ func (m *ManagerService) StartService(serviceName string) error {
 	return nil
 }
 
-//StopService start a service
+// StopService start a service
 func (m *ManagerService) StopService(serviceName string) error {
 	for i, service := range m.services {
 		if service.Name == serviceName {
@@ -439,7 +439,7 @@ func (m *ManagerService) StopService(serviceName string) error {
 	return nil
 }
 
-//WriteServices write services
+// WriteServices write services
 func (m *ManagerService) WriteServices() error {
 	for _, s := range m.services {
 		if s.OnlyHealthCheck {
@@ -483,7 +483,7 @@ func toEndpoint(reg *service.Endpoint, ip string) string {
 	return fmt.Sprintf("%s://%s:%s", reg.Protocol, ip, reg.Port)
 }
 
-//InjectConfig inject config
+// InjectConfig inject config
 func (m *ManagerService) InjectConfig(content string) string {
 	for _, parantheses := range ArgsReg.FindAllString(content, -1) {
 		logrus.Debugf("discover inject args template %s", parantheses)
@@ -540,7 +540,7 @@ func (m *ManagerService) ListServiceImages() []string {
 	return images
 }
 
-//NewManagerService new controller manager
+// NewManagerService new controller manager
 func NewManagerService(conf *option.Conf, healthyManager healthy.Manager, cluster client.ClusterClient) *ManagerService {
 	ctx, cancel := context.WithCancel(context.Background())
 	manager := &ManagerService{

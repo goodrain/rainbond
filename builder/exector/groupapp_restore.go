@@ -44,7 +44,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-//BackupAPPRestore restrore the  group app backup
+// BackupAPPRestore restrore the  group app backup
 type BackupAPPRestore struct {
 	//full-online,full-offline
 	EventID  string
@@ -72,7 +72,7 @@ type BackupAPPRestore struct {
 	} `json:"s3_config"`
 }
 
-//Info service cache info
+// Info service cache info
 type Info struct {
 	ServiceID    string
 	ServiceAlias string
@@ -84,7 +84,7 @@ func init() {
 	RegisterWorker("backup_apps_restore", BackupAPPRestoreCreater)
 }
 
-//BackupAPPRestoreCreater create
+// BackupAPPRestoreCreater create
 func BackupAPPRestoreCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
@@ -102,7 +102,7 @@ func BackupAPPRestoreCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	return backupRestore, nil
 }
 
-//Run Run
+// Run Run
 func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	//download or copy backup data
 	backup, err := db.GetManager().AppBackupDao().GetAppBackup(b.BackupID)
@@ -410,7 +410,7 @@ func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionS
 	return nil
 }
 
-//if restore error, will clear
+// if restore error, will clear
 func (b *BackupAPPRestore) clear() {
 	//clear db
 	manager := db.GetManager()
@@ -769,22 +769,22 @@ func (b *BackupAPPRestore) downloadFromS3(sourceDir string) error {
 	return nil
 }
 
-//Stop stop
+// Stop stop
 func (b *BackupAPPRestore) Stop() error {
 	return nil
 }
 
-//Name return worker name
+// Name return worker name
 func (b *BackupAPPRestore) Name() string {
 	return "backup_apps_restore"
 }
 
-//GetLogger GetLogger
+// GetLogger GetLogger
 func (b *BackupAPPRestore) GetLogger() event.Logger {
 	return b.Logger
 }
 
-//ErrorCallBack if run error will callback
+// ErrorCallBack if run error will callback
 func (b *BackupAPPRestore) ErrorCallBack(err error) {
 	if err != nil {
 		logrus.Errorf("restore backup group app failure %s", err)
@@ -794,7 +794,7 @@ func (b *BackupAPPRestore) ErrorCallBack(err error) {
 	}
 }
 
-//RestoreResult RestoreResult
+// RestoreResult RestoreResult
 type RestoreResult struct {
 	Status        string           `json:"status"`
 	Message       string           `json:"message"`

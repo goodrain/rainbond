@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/coreos/etcd/clientv3"
 	api_model "github.com/goodrain/rainbond/api/model"
 
 	"testing"

@@ -40,8 +40,11 @@ import (
 	typesv1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
-//TenantServicePlugin conv service all plugin
+// TenantServicePlugin conv service all plugin
 func TenantServicePlugin(as *typesv1.AppService, dbmanager db.Manager) error {
+	if as.GetVirtualMachine() != nil {
+		return nil
+	}
 	initContainers, preContainers, postContainers, err := conversionServicePlugin(as, dbmanager)
 	if err != nil {
 		logrus.Errorf("create plugin containers for component %s failure: %s", as.ServiceID, err.Error())
@@ -324,7 +327,7 @@ func createProbeMeshInitContainer(as *typesv1.AppService, pluginID, serviceAlias
 	}
 }
 
-//ApplyPluginConfig applyPluginConfig
+// ApplyPluginConfig applyPluginConfig
 func ApplyPluginConfig(as *typesv1.AppService, servicePluginRelation *model.TenantServicePluginRelation,
 	dbmanager db.Manager, inboundPluginConfig *api_model.ResourceSpec) {
 	config, err := dbmanager.TenantPluginVersionConfigDao().GetPluginConfig(servicePluginRelation.ServiceID,
@@ -366,7 +369,7 @@ func ApplyPluginConfig(as *typesv1.AppService, servicePluginRelation *model.Tena
 	}
 }
 
-//applyDefaultMeshPluginConfig applyDefaultMeshPluginConfig
+// applyDefaultMeshPluginConfig applyDefaultMeshPluginConfig
 func applyDefaultMeshPluginConfig(as *typesv1.AppService, dbmanager db.Manager) (string, *api_model.ResourceSpec, error) {
 	var baseServices []*api_model.BaseService
 	deps, err := dbmanager.TenantServiceRelationDao().GetTenantServiceRelations(as.ServiceID)
@@ -445,7 +448,7 @@ func getXDSHostIPAndPort() (string, string, string) {
 	return xdsHost, xdsHostPort, apiHostPort
 }
 
-//container envs
+// container envs
 func createPluginEnvs(pluginID, tenantID, serviceAlias string, mainEnvs []v1.EnvVar, versionID, serviceID string, dbmanager db.Manager) (*[]v1.EnvVar, error) {
 	versionEnvs, err := dbmanager.TenantPluginVersionENVDao().GetVersionEnvByServiceID(serviceID, pluginID)
 	if err != nil && err.Error() != gorm.ErrRecordNotFound.Error() {
@@ -487,7 +490,8 @@ func createPluginEnvs(pluginID, tenantID, serviceAlias string, mainEnvs []v1.Env
 }
 
 func createPluginResources(memory int, cpu int) v1.ResourceRequirements {
-	return createResourcesBySetting(memory, int64(cpu), int64(cpu), 0)
+	res, _ := createResourcesBySetting(memory, int64(cpu), int64(cpu), 0, false)
+	return *res
 }
 
 func createTCPUDPMeshRecources(as *typesv1.AppService) v1.ResourceRequirements {
@@ -505,12 +509,13 @@ func createTCPUDPMeshRecources(as *typesv1.AppService) v1.ResourceRequirements {
 			memory = requestint
 		}
 	}
-	return createResourcesBySetting(memory, cpu, func() int64 {
+	res, _ := createResourcesBySetting(memory, cpu, func() int64 {
 		if 0 < cpu && cpu < 120 {
 			return 120
 		}
 		return cpu
-	}(), 0)
+	}(), 0, false)
+	return *res
 }
 
 func xdsHostIPEnv(xdsHost string) corev1.EnvVar {
@@ -524,7 +529,7 @@ func xdsHostIPEnv(xdsHost string) corev1.EnvVar {
 	return v1.EnvVar{Name: "XDS_HOST_IP", Value: xdsHost}
 }
 
-//IsContainMount 判断存储路径是否冲突，以及进一步实现创建存储或配置文件
+// IsContainMount 判断存储路径是否冲突，以及进一步实现创建存储或配置文件
 func IsContainMount(volumeMounts *[]v1.VolumeMount, as *typesv1.AppService, plugin api_model.PluginStorage, pluginID string) bool {
 
 	for _, mountValue := range *volumeMounts {
