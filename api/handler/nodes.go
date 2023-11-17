@@ -6,7 +6,6 @@ import (
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/pquerna/ffjson/ffjson"
-	"github.com/shirou/gopsutil/disk"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
@@ -18,7 +17,6 @@ import (
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"runtime"
 	"strings"
 
 	"github.com/goodrain/rainbond/api/model"
@@ -87,7 +85,7 @@ type nodesHandle struct {
 	prometheusCli    prometheus.Interface
 }
 
-//ListNodes -
+// ListNodes -
 func (n *nodesHandle) ListNodes(ctx context.Context) (res []model.NodeInfo, err error) {
 	nodeList, err := n.clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -105,7 +103,7 @@ func (n *nodesHandle) ListNodes(ctx context.Context) (res []model.NodeInfo, err 
 	return res, nil
 }
 
-//ListChaosNodeArch -
+// ListChaosNodeArch -
 func (n *nodesHandle) ListChaosNodeArch(ctx context.Context) ([]string, error) {
 	chaosPods, err := n.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{
 		LabelSelector: "name=rbd-chaos",
@@ -135,7 +133,7 @@ func (n *nodesHandle) ListChaosNodeArch(ctx context.Context) ([]string, error) {
 	return nodeArchs, nil
 }
 
-//GetNodeInfo -
+// GetNodeInfo -
 func (n *nodesHandle) GetNodeInfo(ctx context.Context, nodeName string) (res model.NodeInfo, err error) {
 	node, err := n.clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
@@ -147,19 +145,60 @@ func (n *nodesHandle) GetNodeInfo(ctx context.Context, nodeName string) (res mod
 		logrus.Error("get node info handle error:", err)
 		return res, err
 	}
-	var diskStatus *disk.UsageStat
-	if runtime.GOOS != "windows" {
-		diskStatus, _ = disk.Usage("/")
-	} else {
-		diskStatus, _ = disk.Usage(`z:\\`)
+	address := node.Status.Addresses
+	var ip string
+	for _, addr := range address {
+		if addr.Type == NodeInternalIP {
+			ip = addr.Address
+		}
 	}
-	var diskCap, reqDisk uint64
-	if diskStatus != nil {
-		diskCap = diskStatus.Total
-		reqDisk = diskStatus.Used
+
+	query := fmt.Sprintf(`node_filesystem_size_bytes{mountpoint="/", instance=~"%v:.*"}`, ip)
+	nodeGenCap := n.prometheusCli.GetMetric(query, time.Now())
+
+	query = fmt.Sprintf(`node_filesystem_avail_bytes{mountpoint="/", instance=~"%v:.*"}`, ip)
+	nodeGenAvail := n.prometheusCli.GetMetric(query, time.Now())
+
+	var diskCap uint64
+	var diskAvail uint64
+	for _, dcap := range nodeGenCap.MetricData.MetricValues {
+		diskCap = uint64(dcap.Sample.Value())
+		if container := dcap.Metadata["container"]; container == "prometheus-node-exporter" {
+			break
+		}
 	}
+	for _, avail := range nodeGenAvail.MetricData.MetricValues {
+		diskAvail = uint64(avail.Sample.Value())
+		if container := avail.Metadata["container"]; container == "prometheus-node-exporter" {
+			break
+		}
+	}
+
+	query = fmt.Sprintf(`node_filesystem_size_bytes{mountpoint="/var/lib/container", instance=~"%v:.*"}`, ip)
+	nodeContainerCap := n.prometheusCli.GetMetric(query, time.Now())
+
+	query = fmt.Sprintf(`node_filesystem_avail_bytes{mountpoint="/var/lib/container", instance=~"%v:.*"}`, ip)
+	nodeContainerAvail := n.prometheusCli.GetMetric(query, time.Now())
+
+	var containerDiskCap uint64
+	var containerDiskAvail uint64
+	for _, cap := range nodeContainerCap.MetricData.MetricValues {
+		containerDiskCap = uint64(cap.Sample.Value())
+		if container := cap.Metadata["container"]; container == "prometheus-node-exporter" {
+			break
+		}
+	}
+	for _, avail := range nodeContainerAvail.MetricData.MetricValues {
+		containerDiskAvail = uint64(avail.Sample.Value())
+		if container := avail.Metadata["container"]; container == "prometheus-node-exporter" {
+			break
+		}
+	}
+
 	res.Resource.CapDisk = diskCap
-	res.Resource.ReqDisk = reqDisk
+	res.Resource.ReqDisk = diskCap - diskAvail
+	res.Resource.CapContainerDisk = containerDiskCap
+	res.Resource.ReqContainerDisk = containerDiskCap - containerDiskAvail
 	return res, nil
 }
 
@@ -233,7 +272,7 @@ func (n *nodesHandle) HandleNodeInfo(node v1.Node) (nodeinfo model.NodeInfo, err
 	return nodeinfo, nil
 }
 
-//NodeAction -
+// NodeAction -
 func (n *nodesHandle) NodeAction(ctx context.Context, nodeName, action string) error {
 	var data string
 	switch action {
@@ -265,7 +304,7 @@ func (n *nodesHandle) NodeAction(ctx context.Context, nodeName, action string) e
 	return nil
 }
 
-//DeleteOrEvictPodsSimple Evict the Pod from a node
+// DeleteOrEvictPodsSimple Evict the Pod from a node
 func (n *nodesHandle) DeleteOrEvictPodsSimple(nodeName string) error {
 	nodePods, err := n.GetNodePods(nodeName)
 	if err != nil {
@@ -336,7 +375,7 @@ func (n *nodesHandle) GetNodeScheduler(ctx context.Context, nodeName string) (st
 	return node.Spec.Unschedulable, err
 }
 
-//evictPod -
+// evictPod -
 func (n *nodesHandle) evictPod(pod v1.Pod, policyGroupVersion string) error {
 	deleteOptions := &metav1.DeleteOptions{}
 	if k8sutil.GetKubeVersion().AtLeast(utilversion.MustParseSemantic("v1.21.0")) {
