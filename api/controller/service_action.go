@@ -362,6 +362,7 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, res)
 }
 
+// PauseService virtual machine paused
 func (t *TenantStruct) PauseService(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	sEvent := r.Context().Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent)
@@ -377,6 +378,7 @@ func (t *TenantStruct) PauseService(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, sEvent)
 }
 
+// UNPauseService virtual machine unpaused
 func (t *TenantStruct) UNPauseService(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	sEvent := r.Context().Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent)

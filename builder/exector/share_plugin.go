@@ -103,7 +103,7 @@ func (i *PluginShareItem) Run(timeout time.Duration) error {
 	return i.updateShareStatus("success")
 }
 
-// Stop
+// Stop -
 func (i *PluginShareItem) Stop() error {
 	return nil
 }

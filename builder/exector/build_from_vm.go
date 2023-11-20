@@ -23,6 +23,7 @@ FROM scratch
 ADD ${VM_PATH} /disk/
 `
 
+// VMBuildItem -
 type VMBuildItem struct {
 	Logger        event.Logger `json:"logger"`
 	Arch          string       `json:"arch"`
@@ -41,6 +42,7 @@ type VMBuildItem struct {
 	kubeClient    kubernetes.Interface
 }
 
+// NewVMBuildItem -
 func NewVMBuildItem(in []byte) *VMBuildItem {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
@@ -90,6 +92,7 @@ func (v *VMBuildItem) vmBuild(sourcePath string) error {
 	return nil
 }
 
+// RunVMBuild -
 func (v *VMBuildItem) RunVMBuild() error {
 	if strings.HasPrefix(v.VMImageSource, "/grdata") {
 		defer os.RemoveAll(v.VMImageSource)
@@ -133,6 +136,7 @@ func downloadFile(downPath, url string, Logger event.Logger) error {
 	return err
 }
 
+// MyDownloader -
 type MyDownloader struct {
 	io.Reader              // 读取器
 	Total     int64        // 总大小
