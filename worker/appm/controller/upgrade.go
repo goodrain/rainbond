@@ -223,7 +223,7 @@ func (s *upgradeController) upgradeOne(app v1.AppService) error {
 	return s.WaitingReady(app)
 }
 
-//WaitingReady wait app start or upgrade ready
+// WaitingReady wait app start or upgrade ready
 func (s *upgradeController) WaitingReady(app v1.AppService) error {
 	storeAppService := s.manager.store.GetAppService(app.ServiceID)
 	var initTime int32

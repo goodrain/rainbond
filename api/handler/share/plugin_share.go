@@ -33,20 +33,20 @@ import (
 	"github.com/twinj/uuid"
 )
 
-//PluginShareHandle plugin share
+// PluginShareHandle plugin share
 type PluginShareHandle struct {
 	MQClient client.MQClient
 	EtcdCli  *clientv3.Client
 }
 
-//PluginResult share plugin api return
+// PluginResult share plugin api return
 type PluginResult struct {
 	EventID   string `json:"event_id"`
 	ShareID   string `json:"share_id"`
 	ImageName string `json:"image_name"`
 }
 
-//PluginShare PluginShare
+// PluginShare PluginShare
 type PluginShare struct {
 	// in: path
 	// required: true
@@ -74,7 +74,7 @@ type PluginShare struct {
 	}
 }
 
-//Share share app
+// Share share app
 func (s *PluginShareHandle) Share(ss PluginShare) (*PluginResult, *util.APIHandleError) {
 	_, err := db.GetManager().TenantPluginDao().GetPluginByID(ss.PluginID, ss.TenantID)
 	if err != nil {
@@ -111,7 +111,7 @@ func (s *PluginShareHandle) Share(ss PluginShare) (*PluginResult, *util.APIHandl
 	return &PluginResult{EventID: ss.Body.EventID, ShareID: shareID, ImageName: shareImageName}, nil
 }
 
-//ShareResult 分享应用结果查询
+// ShareResult 分享应用结果查询
 func (s *PluginShareHandle) ShareResult(shareID string) (i exector.ShareStatus, e *util.APIHandleError) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

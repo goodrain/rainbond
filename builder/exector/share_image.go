@@ -21,16 +21,16 @@ package exector
 import (
 	"context"
 	"fmt"
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/builder"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 )
 
-//ImageShareItem ImageShareItem
+// ImageShareItem ImageShareItem
 type ImageShareItem struct {
 	Namespace          string `json:"namespace"`
 	TenantName         string `json:"tenant_name"`
@@ -60,7 +60,7 @@ type ImageShareItem struct {
 	EtcdCli     *clientv3.Client
 }
 
-//NewImageShareItem 创建实体
+// NewImageShareItem 创建实体
 func NewImageShareItem(in []byte, imageClient sources.ImageClient, EtcdCli *clientv3.Client) (*ImageShareItem, error) {
 	var isi ImageShareItem
 	if err := ffjson.Unmarshal(in, &isi); err != nil {
@@ -75,7 +75,7 @@ func NewImageShareItem(in []byte, imageClient sources.ImageClient, EtcdCli *clie
 	return &isi, nil
 }
 
-//ShareService ShareService
+// ShareService ShareService
 func (i *ImageShareItem) ShareService() error {
 	hubuser, hubpass := builder.GetImageUserInfoV2(i.LocalImageName, i.LocalImageUsername, i.LocalImagePassword)
 	_, err := i.ImageClient.ImagePull(i.LocalImageName, hubuser, hubpass, i.Logger, 20)
@@ -107,8 +107,8 @@ func (i *ImageShareItem) ShareService() error {
 	return nil
 }
 
-//ShareStatus share status result
-//ShareStatus share status result
+// ShareStatus share status result
+// ShareStatus share status result
 type ShareStatus struct {
 	ShareID string `json:"share_id,omitempty"`
 	Status  string `json:"status,omitempty"`
@@ -119,7 +119,7 @@ func (s ShareStatus) String() string {
 	return string(b)
 }
 
-//UpdateShareStatus 更新任务执行结果
+// UpdateShareStatus 更新任务执行结果
 func (i *ImageShareItem) UpdateShareStatus(status string) error {
 	var ss = ShareStatus{
 		ShareID: i.ShareID,

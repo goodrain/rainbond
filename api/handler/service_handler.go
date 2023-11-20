@@ -31,13 +31,14 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-//ServiceHandler service handler
+// ServiceHandler service handler
 type ServiceHandler interface {
 	ServiceBuild(tenantID, serviceID string, r *api_model.BuildServiceStruct) error
 	AddLabel(l *api_model.LabelsStruct, serviceID string) error
 	DeleteLabel(l *api_model.LabelsStruct, serviceID string) error
 	UpdateLabel(l *api_model.LabelsStruct, serviceID string) error
 	StartStopService(s *api_model.StartStopStruct) error
+	PauseUNPauseService(serviceID string, pauseORunpause string) error
 	ServiceVertical(ctx context.Context, v *model.VerticalScalingTaskBody) error
 	ServiceHorizontal(h *model.HorizontalScalingTaskBody) error
 	ServiceUpgrade(r *model.RollingUpgradeTaskBody) error

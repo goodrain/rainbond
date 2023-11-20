@@ -39,6 +39,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/restmapper"
+	"kubevirt.io/client-go/kubecli"
 	"os"
 	"os/signal"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -134,10 +135,16 @@ func Run(s *option.APIServer) error {
 		return err
 	}
 
+	kubevirtCli, err := kubecli.GetKubevirtClientFromRESTConfig(config)
+	if err != nil {
+		logrus.Errorf("create kubevirt cli failure: %v", err)
+		return err
+	}
+
 	//初始化 middleware
 	handler.InitProxy(s.Config)
 	//创建handle
-	if err := handler.InitHandle(s.Config, etcdClientArgs, cli, etcdcli, clientset, rainbondClient, k8sClient, config, mapper, dynamicClient, gatewayClient); err != nil {
+	if err := handler.InitHandle(s.Config, etcdClientArgs, cli, etcdcli, clientset, rainbondClient, k8sClient, config, mapper, dynamicClient, gatewayClient, kubevirtCli); err != nil {
 		logrus.Errorf("init all handle error, %v", err)
 		return err
 	}

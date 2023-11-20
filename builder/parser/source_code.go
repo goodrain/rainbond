@@ -44,7 +44,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport" //"github.com/docker/docker/client"
 )
 
-//SourceCodeParse docker run 命令解析或直接镜像名解析
+// SourceCodeParse docker run 命令解析或直接镜像名解析
 type SourceCodeParse struct {
 	ports   map[int]*types.Port
 	volumes map[string]*types.Volume
@@ -66,7 +66,7 @@ type SourceCodeParse struct {
 	services []*types.Service
 }
 
-//CreateSourceCodeParse create parser
+// CreateSourceCodeParse create parser
 func CreateSourceCodeParse(source string, logger event.Logger) Parser {
 	return &SourceCodeParse{
 		source:  source,
@@ -79,7 +79,7 @@ func CreateSourceCodeParse(source string, logger event.Logger) Parser {
 	}
 }
 
-//Parse 获取代码 解析代码 检验代码
+// Parse 获取代码 解析代码 检验代码
 func (d *SourceCodeParse) Parse() ParseErrorList {
 	if d.source == "" {
 		d.logger.Error("源码检查输入参数错误", map[string]string{"step": "parse"})
@@ -481,7 +481,7 @@ func (d *SourceCodeParse) Parse() ParseErrorList {
 	return d.errors
 }
 
-//ReadRbdConfigAndLang read rainbondfile  and lang
+// ReadRbdConfigAndLang read rainbondfile  and lang
 func ReadRbdConfigAndLang(buildInfo *sources.RepostoryBuildInfo) (*code.RainbondFileConfig, code.Lang, error) {
 	rbdfileConfig, err := code.ReadRainbondFile(buildInfo.GetCodeBuildAbsPath())
 	if err != nil {
@@ -520,12 +520,12 @@ func (d *SourceCodeParse) errappend(pe ParseError) {
 	d.errors = append(d.errors, pe)
 }
 
-//GetBranchs 获取分支列表
+// GetBranchs 获取分支列表
 func (d *SourceCodeParse) GetBranchs() []string {
 	return d.branchs
 }
 
-//GetPorts 获取端口列表
+// GetPorts 获取端口列表
 func (d *SourceCodeParse) GetPorts() (ports []types.Port) {
 	for _, cv := range d.ports {
 		ports = append(ports, *cv)
@@ -533,7 +533,7 @@ func (d *SourceCodeParse) GetPorts() (ports []types.Port) {
 	return ports
 }
 
-//GetVolumes 获取存储列表
+// GetVolumes 获取存储列表
 func (d *SourceCodeParse) GetVolumes() (volumes []types.Volume) {
 	for _, cv := range d.volumes {
 		volumes = append(volumes, *cv)
@@ -541,12 +541,12 @@ func (d *SourceCodeParse) GetVolumes() (volumes []types.Volume) {
 	return
 }
 
-//GetValid 获取源是否合法
+// GetValid 获取源是否合法
 func (d *SourceCodeParse) GetValid() bool {
 	return false
 }
 
-//GetEnvs 环境变量
+// GetEnvs 环境变量
 func (d *SourceCodeParse) GetEnvs() (envs []types.Env) {
 	for _, cv := range d.envs {
 		envs = append(envs, *cv)
@@ -554,12 +554,12 @@ func (d *SourceCodeParse) GetEnvs() (envs []types.Env) {
 	return
 }
 
-//GetImage 获取镜像
+// GetImage 获取镜像
 func (d *SourceCodeParse) GetImage() Image {
 	return d.image
 }
 
-//GetArgs 启动参数
+// GetArgs 启动参数
 func (d *SourceCodeParse) GetArgs() []string {
 	if d.Lang == code.Nodejs {
 		return nil
@@ -567,17 +567,17 @@ func (d *SourceCodeParse) GetArgs() []string {
 	return d.args
 }
 
-//GetMemory 获取内存
+// GetMemory 获取内存
 func (d *SourceCodeParse) GetMemory() int {
 	return d.memory
 }
 
-//GetLang 获取识别语言
+// GetLang 获取识别语言
 func (d *SourceCodeParse) GetLang() code.Lang {
 	return d.Lang
 }
 
-//GetServiceInfo 获取service info
+// GetServiceInfo 获取service info
 func (d *SourceCodeParse) GetServiceInfo() []ServiceInfo {
 	serviceInfo := ServiceInfo{
 		Ports:       d.GetPorts(),

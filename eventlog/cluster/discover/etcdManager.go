@@ -20,7 +20,6 @@ package discover
 
 import (
 	"fmt"
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/sirupsen/logrus"
 	"time"
@@ -28,7 +27,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-//SaveDockerLogInInstance 存储service和node 的对应关系
+// SaveDockerLogInInstance 存储service和node 的对应关系
 func SaveDockerLogInInstance(etcdClient *clientv3.Client, conf conf.DiscoverConf, serviceID, instanceID string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -40,7 +39,7 @@ func SaveDockerLogInInstance(etcdClient *clientv3.Client, conf conf.DiscoverConf
 	return nil
 }
 
-//GetDokerLogInInstance 获取应用日志接收节点
+// GetDokerLogInInstance 获取应用日志接收节点
 func GetDokerLogInInstance(etcdClient *clientv3.Client, conf conf.DiscoverConf, serviceID string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()

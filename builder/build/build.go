@@ -50,6 +50,7 @@ func init() {
 	buildcreaters[code.Golang] = slugBuilder
 	buildcreaters[code.OSS] = slugBuilder
 	buildcreaters[code.NodeJSDockerfile] = customDockerBuilder
+	buildcreaters[code.VMDockerfile] = customDockerBuilder
 }
 
 var buildcreaters map[code.Lang]CreaterBuild

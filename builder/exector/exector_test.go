@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/docker/docker/client"
 	"k8s.io/client-go/kubernetes"
 

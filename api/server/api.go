@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"github.com/coreos/etcd/clientv3"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -36,7 +37,6 @@ import (
 
 	"github.com/goodrain/rainbond/util"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/api/option"
 
 	"github.com/goodrain/rainbond/api/api_routers/doc"

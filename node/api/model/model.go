@@ -32,7 +32,7 @@ import (
 	v1 "k8s.io/api/core/v1" //"github.com/sirupsen/logrus"
 )
 
-//Resource 资源
+// Resource 资源
 type Resource struct {
 	CPU  int `json:"cpu"`
 	MemR int `json:"mem"`
@@ -128,7 +128,7 @@ type PrometheusAPI struct {
 	API string
 }
 
-//Query Get
+// Query Get
 func (s *PrometheusAPI) Query(query string) (*Prome, *utils.APIHandleError) {
 	resp, code, err := DoRequest(s.API, query, "query", "GET", nil)
 	if err != nil {
@@ -151,7 +151,7 @@ func (s *PrometheusAPI) Query(query string) (*Prome, *utils.APIHandleError) {
 	return &prome, nil
 }
 
-//QueryRange Get
+// QueryRange Get
 func (s *PrometheusAPI) QueryRange(query string, start, end, step string) (*Prome, *utils.APIHandleError) {
 	//logrus.Infof("prometheus api is %s",s.API)
 	uri := fmt.Sprintf("%v&start=%v&end=%v&step=%v", query, start, end, step)
@@ -204,7 +204,7 @@ func DoRequest(baseAPI, query, queryType, method string, body []byte) ([]byte, i
 	return data, resp.StatusCode, nil
 }
 
-//ClusterResource 资源
+// ClusterResource 资源
 type ClusterResource struct {
 	AllNode                          int           `json:"all_node"`
 	NotReadyNode                     int           `json:"notready_node"`
@@ -227,7 +227,7 @@ type ClusterResource struct {
 	MaxAllocatableMemoryNodeResource *NodeResource `json:"max_allocatable_memory_node_resource"`
 }
 
-//NodeResourceResponse 资源
+// NodeResourceResponse 资源
 type NodeResourceResponse struct {
 	CapCPU int     `json:"cap_cpu"`
 	CapMem int     `json:"cap_mem"`
@@ -259,7 +259,7 @@ type Config struct {
 	Value string `json:"value"`
 }
 
-//ConfigUnit 一个配置单元
+// ConfigUnit 一个配置单元
 type ConfigUnit struct {
 	//配置名称 例如:network
 	Name   string `json:"name" validate:"name|required"`
@@ -279,18 +279,18 @@ func (c ConfigUnit) String() string {
 	return string(res)
 }
 
-//GlobalConfig 全局配置
+// GlobalConfig 全局配置
 type GlobalConfig struct {
 	Configs map[string]*ConfigUnit `json:"configs"`
 }
 
-//String String
+// String String
 func (g *GlobalConfig) String() string {
 	res, _ := ffjson.Marshal(g)
 	return string(res)
 }
 
-//Add 添加配置
+// Add 添加配置
 func (g *GlobalConfig) Add(c ConfigUnit) {
 	//具有依赖配置
 	if c.DependConfig != nil || len(c.DependConfig) > 0 {
@@ -305,25 +305,25 @@ func (g *GlobalConfig) Add(c ConfigUnit) {
 	g.Configs[c.Name] = &c
 }
 
-//Get 获取配置
+// Get 获取配置
 func (g *GlobalConfig) Get(name string) *ConfigUnit {
 	return g.Configs[name]
 }
 
-//Delete 删除配置
+// Delete 删除配置
 func (g *GlobalConfig) Delete(Name string) {
 	if _, ok := g.Configs[Name]; ok {
 		delete(g.Configs, Name)
 	}
 }
 
-//Bytes Bytes
+// Bytes Bytes
 func (g GlobalConfig) Bytes() []byte {
 	res, _ := ffjson.Marshal(&g)
 	return res
 }
 
-//CreateDefaultGlobalConfig 生成默认配置
+// CreateDefaultGlobalConfig 生成默认配置
 func CreateDefaultGlobalConfig() *GlobalConfig {
 	gconfig := &GlobalConfig{
 		Configs: make(map[string]*ConfigUnit),
@@ -413,7 +413,7 @@ func CreateDefaultGlobalConfig() *GlobalConfig {
 	return gconfig
 }
 
-//CreateGlobalConfig 生成配置
+// CreateGlobalConfig 生成配置
 func CreateGlobalConfig(kvs []*mvccpb.KeyValue) (*GlobalConfig, error) {
 	dgc := &GlobalConfig{
 		Configs: make(map[string]*ConfigUnit),
@@ -473,7 +473,7 @@ type Pods struct {
 	Status          string `json:"status"`
 }
 
-//NodeDetails NodeDetails
+// NodeDetails NodeDetails
 type NodeDetails struct {
 	Name               string              `json:"name"`
 	Role               []string            `json:"role"`
@@ -511,7 +511,7 @@ type RulesConfig struct {
 	Annotations map[string]string `yaml:"annotations" json:"annotations"`
 }
 
-//NotificationEvent NotificationEvent
+// NotificationEvent NotificationEvent
 type NotificationEvent struct {
 	//Kind could be service, tenant, cluster, node
 	Kind string `json:"Kind"`

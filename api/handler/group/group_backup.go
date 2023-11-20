@@ -42,7 +42,7 @@ import (
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 )
 
-//Backup GroupBackup
+// Backup GroupBackup
 // swagger:parameters groupBackup
 type Backup struct {
 	// in: path
@@ -69,19 +69,19 @@ type Backup struct {
 	}
 }
 
-//BackupHandle group app backup handle
+// BackupHandle group app backup handle
 type BackupHandle struct {
 	mqcli     mqclient.MQClient
 	statusCli *client.AppRuntimeSyncClient
 	etcdCli   *clientv3.Client
 }
 
-//CreateBackupHandle CreateBackupHandle
+// CreateBackupHandle CreateBackupHandle
 func CreateBackupHandle(MQClient mqclient.MQClient, statusCli *client.AppRuntimeSyncClient, etcdCli *clientv3.Client) *BackupHandle {
 	return &BackupHandle{mqcli: MQClient, statusCli: statusCli, etcdCli: etcdCli}
 }
 
-//NewBackup new backup task
+// NewBackup new backup task
 func (h *BackupHandle) NewBackup(b Backup) (*dbmodel.AppBackup, *util.APIHandleError) {
 	logger := event.GetManager().GetLogger(b.Body.EventID)
 	var appBackup = dbmodel.AppBackup{
@@ -147,7 +147,7 @@ func (h *BackupHandle) NewBackup(b Backup) (*dbmodel.AppBackup, *util.APIHandleE
 	return &appBackup, nil
 }
 
-//GetBackup get one backup info
+// GetBackup get one backup info
 func (h *BackupHandle) GetBackup(backupID string) (*dbmodel.AppBackup, *util.APIHandleError) {
 	backup, err := db.GetManager().AppBackupDao().GetAppBackup(backupID)
 	if err != nil {
@@ -156,7 +156,7 @@ func (h *BackupHandle) GetBackup(backupID string) (*dbmodel.AppBackup, *util.API
 	return backup, nil
 }
 
-//DeleteBackup delete backup
+// DeleteBackup delete backup
 func (h *BackupHandle) DeleteBackup(backupID string) error {
 	backup, err := db.GetManager().AppBackupDao().GetAppBackup(backupID)
 	if err != nil {
@@ -182,7 +182,7 @@ func (h *BackupHandle) DeleteBackup(backupID string) error {
 	return tx.Commit().Error
 }
 
-//GetBackupByGroupID get some backup info by group id
+// GetBackupByGroupID get some backup info by group id
 func (h *BackupHandle) GetBackupByGroupID(groupID string) ([]*dbmodel.AppBackup, *util.APIHandleError) {
 	backups, err := db.GetManager().AppBackupDao().GetAppBackups(groupID)
 	if err != nil {
@@ -198,7 +198,7 @@ type AppSnapshot struct {
 	PluginBuildVersions []*dbmodel.TenantPluginBuildVersion
 }
 
-//RegionServiceSnapshot RegionServiceSnapshot
+// RegionServiceSnapshot RegionServiceSnapshot
 type RegionServiceSnapshot struct {
 	ServiceID          string
 	Service            *dbmodel.TenantServices
@@ -220,7 +220,7 @@ type RegionServiceSnapshot struct {
 	PluginStreamPorts []*dbmodel.TenantServicesStreamPluginPort
 }
 
-//snapshot
+// snapshot
 func (h *BackupHandle) snapshot(ids []string, sourceDir string, force bool) error {
 	var pluginIDs []string
 	var services []*RegionServiceSnapshot
@@ -353,7 +353,7 @@ func (h *BackupHandle) snapshot(ids []string, sourceDir string, force bool) erro
 	return nil
 }
 
-//BackupRestore BackupRestore
+// BackupRestore BackupRestore
 type BackupRestore struct {
 	BackupID string `json:"backup_id"`
 	Body     struct {
@@ -375,7 +375,7 @@ type BackupRestore struct {
 	}
 }
 
-//RestoreResult RestoreResult
+// RestoreResult RestoreResult
 type RestoreResult struct {
 	Status        string           `json:"status"`
 	Message       string           `json:"message"`
@@ -389,7 +389,7 @@ type RestoreResult struct {
 	CacheDir      string           `json:"cache_dir"`
 }
 
-//Info service cache info
+// Info service cache info
 type Info struct {
 	ServiceID    string
 	ServiceAlias string
@@ -397,8 +397,8 @@ type Info struct {
 	LBPorts      map[int]int
 }
 
-//RestoreBackup restore a backup version
-//all app could be closed before restore
+// RestoreBackup restore a backup version
+// all app could be closed before restore
 func (h *BackupHandle) RestoreBackup(br BackupRestore) (*RestoreResult, *util.APIHandleError) {
 	logger := event.GetManager().GetLogger(br.Body.EventID)
 	backup, Aerr := h.GetBackup(br.BackupID)
@@ -448,7 +448,7 @@ func (h *BackupHandle) RestoreBackup(br BackupRestore) (*RestoreResult, *util.AP
 	return rr, nil
 }
 
-//RestoreBackupResult RestoreBackupResult
+// RestoreBackupResult RestoreBackupResult
 func (h *BackupHandle) RestoreBackupResult(restoreID string) (*RestoreResult, *util.APIHandleError) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -474,7 +474,7 @@ func (h *BackupHandle) RestoreBackupResult(restoreID string) (*RestoreResult, *u
 	return &rr, nil
 }
 
-//BackupCopy BackupCopy
+// BackupCopy BackupCopy
 type BackupCopy struct {
 	Body struct {
 		EventID string `json:"event_id" validate:"event_id|required"`
@@ -489,7 +489,7 @@ type BackupCopy struct {
 	}
 }
 
-//BackupCopy BackupCopy
+// BackupCopy BackupCopy
 func (h *BackupHandle) BackupCopy(b BackupCopy) (*dbmodel.AppBackup, *util.APIHandleError) {
 	var ab dbmodel.AppBackup
 	ab.BackupID = core_util.NewUUID()

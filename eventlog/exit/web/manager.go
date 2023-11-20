@@ -34,7 +34,6 @@ import (
 	"github.com/goodrain/rainbond/util"
 	httputil "github.com/goodrain/rainbond/util/http"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/gorilla/websocket"
@@ -46,7 +45,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-//SocketServer socket 服务
+// SocketServer socket 服务
 type SocketServer struct {
 	conf                 conf.WebSocketConf
 	discoverConf         conf.DiscoverConf
@@ -63,7 +62,7 @@ type SocketServer struct {
 	pubsubCtx            map[string]*PubContext
 }
 
-//NewSocket 创建zmq sub客户端
+// NewSocket 创建zmq sub客户端
 func NewSocket(conf conf.WebSocketConf, discoverConf conf.DiscoverConf, etcdClient *clientv3.Client, log *logrus.Entry, storeManager store.Manager, c cluster.Cluster, healthInfo map[string]string) *SocketServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	d, err := time.ParseDuration(conf.TimeOut)
@@ -435,7 +434,7 @@ func (s *SocketServer) reader(ws *websocket.Conn, ch chan struct{}) {
 	close(ch)
 }
 
-//Run 执行
+// Run 执行
 func (s *SocketServer) Run() error {
 	s.log.Info("WebSocker Server start")
 	go s.listen()
@@ -533,18 +532,18 @@ func (s *SocketServer) checkHealth() {
 	}
 }
 
-//ListenError 返回错误通道
+// ListenError 返回错误通道
 func (s *SocketServer) ListenError() chan error {
 	return s.errorStop
 }
 
-//Stop 停止
+// Stop 停止
 func (s *SocketServer) Stop() {
 	s.log.Info("WebSocker Server stop")
 	s.cancel()
 }
 
-//receiveEventMessage 接收操作日志API
+// receiveEventMessage 接收操作日志API
 func (s *SocketServer) receiveEventMessage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -579,7 +578,7 @@ func (s *SocketServer) prometheus(r *chi.Mux) {
 	r.Handle(s.conf.PrometheusMetricPath, promhttp.Handler())
 }
 
-//ResponseType 返回内容
+// ResponseType 返回内容
 type ResponseType struct {
 	Code      int          `json:"code"`
 	Message   string       `json:"msg"`
@@ -587,7 +586,7 @@ type ResponseType struct {
 	Body      ResponseBody `json:"body,omitempty"`
 }
 
-//ResponseBody 返回主体
+// ResponseBody 返回主体
 type ResponseBody struct {
 	Bean     interface{}   `json:"bean,omitempty"`
 	List     []interface{} `json:"list,omitempty"`
@@ -596,7 +595,7 @@ type ResponseBody struct {
 	Total    int           `json:"total,omitempty"`
 }
 
-//NewResponseType 构建返回结构
+// NewResponseType 构建返回结构
 func NewResponseType(code int, message string, messageCN string, bean interface{}, list []interface{}) ResponseType {
 	return ResponseType{
 		Code:      code,
@@ -609,7 +608,7 @@ func NewResponseType(code int, message string, messageCN string, bean interface{
 	}
 }
 
-//NewSuccessResponse 创建成功返回结构
+// NewSuccessResponse 创建成功返回结构
 func NewSuccessResponse(bean interface{}, list []interface{}) ResponseType {
 	return NewResponseType(200, "", "", bean, list)
 }

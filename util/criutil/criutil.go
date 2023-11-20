@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"k8s.io/cri-api/pkg/apis/runtime/v1"
 	"k8s.io/kubernetes/pkg/kubelet/util"
 	"time"
 )
@@ -51,13 +51,13 @@ func getConnection(endPoints []string, timeout time.Duration) (*grpc.ClientConn,
 	return conn, nil
 }
 
-func GetRuntimeClient(ctx context.Context, endpoint string, timeout time.Duration) (v1alpha2.RuntimeServiceClient, *grpc.ClientConn, error) {
+func GetRuntimeClient(ctx context.Context, endpoint string, timeout time.Duration) (v1.RuntimeServiceClient, *grpc.ClientConn, error) {
 	// Set up a connection to the server.
 	conn, err := getRuntimeClientConnection(ctx, endpoint, timeout)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "connect")
 	}
-	runtimeClient := v1alpha2.NewRuntimeServiceClient(conn)
+	runtimeClient := v1.NewRuntimeServiceClient(conn)
 	return runtimeClient, conn, nil
 }
 
@@ -65,12 +65,12 @@ func getRuntimeClientConnection(ctx context.Context, endpoint string, timeout ti
 	return getConnection([]string{endpoint}, timeout)
 }
 
-func GetImageClient(ctx context.Context, endpoint string, timeout time.Duration) (v1alpha2.ImageServiceClient, *grpc.ClientConn, error) {
+func GetImageClient(ctx context.Context, endpoint string, timeout time.Duration) (v1.ImageServiceClient, *grpc.ClientConn, error) {
 	// Set up a connection to the server.
 	conn, err := getRuntimeClientConnection(ctx, endpoint, timeout)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "connect")
 	}
-	runtimeClient := v1alpha2.NewImageServiceClient(conn)
+	runtimeClient := v1.NewImageServiceClient(conn)
 	return runtimeClient, conn, nil
 }

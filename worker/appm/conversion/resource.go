@@ -23,12 +23,12 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
-func createResourcesBySetting(memory int, setCPURequest, setCPULimit, setGPULimit int64) corev1.ResourceRequirements {
+func createResourcesBySetting(memory int, setCPURequest, setCPULimit, setGPULimit int64, vmResource bool) (*corev1.ResourceRequirements, *kubevirtv1.ResourceRequirements) {
 	limits := corev1.ResourceList{}
 	request := corev1.ResourceList{}
-
 	if memory > 0 {
 		limits[corev1.ResourceMemory] = *resource.NewQuantity(int64(memory*1024*1024), resource.BinarySI)
 	}
@@ -47,8 +47,14 @@ func createResourcesBySetting(memory int, setCPURequest, setCPULimit, setGPULimi
 	if setCPURequest > 0 {
 		request[corev1.ResourceCPU] = *resource.NewMilliQuantity(setCPURequest, resource.DecimalSI)
 	}
-	return corev1.ResourceRequirements{
+	if vmResource {
+		return nil, &kubevirtv1.ResourceRequirements{
+			Limits:   limits,
+			Requests: request,
+		}
+	}
+	return &corev1.ResourceRequirements{
 		Limits:   limits,
 		Requests: request,
-	}
+	}, nil
 }

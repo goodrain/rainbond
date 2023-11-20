@@ -31,11 +31,10 @@ import (
 
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/sirupsen/logrus"
 )
 
-//ActionMQ 队列操作
+// ActionMQ 队列操作
 type ActionMQ interface {
 	Enqueue(context.Context, string, string) error
 	Dequeue(context.Context, string) (string, error)
@@ -52,7 +51,7 @@ var EnqueueNumber float64 = 0
 // DequeueNumber dequeue number
 var DequeueNumber float64 = 0
 
-//NewActionMQ new etcd mq
+// NewActionMQ new etcd mq
 func NewActionMQ(ctx context.Context, c option.Config) ActionMQ {
 	etcdQueue := etcdQueue{
 		config: c,
@@ -99,7 +98,7 @@ func (e *etcdQueue) Start() error {
 	return nil
 }
 
-//registerTopic 注册消息队列主题
+// registerTopic 注册消息队列主题
 func (e *etcdQueue) registerTopic(topic string) {
 	e.queuesLock.Lock()
 	defer e.queuesLock.Unlock()
