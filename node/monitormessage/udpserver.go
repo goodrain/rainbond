@@ -30,8 +30,6 @@ import (
 	"github.com/goodrain/rainbond/discover/config"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/sirupsen/logrus"
-
-	"github.com/prometheus/common/log"
 )
 
 //UDPServer udp server
@@ -111,7 +109,7 @@ func (u *UDPServer) server() error {
 		fmt.Println(err)
 		return err
 	}
-	log.Infof("UDP Server Listener: %s", listener.LocalAddr().String())
+	logrus.Infof("UDP Server Listener: %s", listener.LocalAddr().String())
 	buf := make([]byte, 65535)
 	go func() {
 		defer listener.Close()

@@ -281,7 +281,7 @@ require (
 )
 
 require (
-	github.com/alecthomas/units v0.0.0-20201120081800-1786d5ef83d4 // indirect
+	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
@@ -311,8 +311,6 @@ replace (
 	github.com/envoyproxy/go-control-plane => github.com/envoyproxy/go-control-plane v0.9.5
 	github.com/godbus/dbus => github.com/godbus/dbus/v5 v5.0.4
 	github.com/goodrain/rainbond-oam => github.com/goodrain/rainbond-oam v0.0.0-20230823084937-0067a4cf0912
-	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.12.1
-	github.com/prometheus/common => github.com/prometheus/common v0.15.0
 	github.com/prometheus/procfs => github.com/prometheus/procfs v0.7.3
 	google.golang.org/grpc => google.golang.org/grpc v1.27.1
 	helm.sh/helm/v3 => helm.sh/helm/v3 v3.9.0

@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/goodrain/rainbond/grctl/clients"
-	"github.com/prometheus/common/log"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-//DeviceInfo -
+// DeviceInfo -
 type DeviceInfo struct {
 	idx         int
 	pods        []v1.Pod
@@ -27,7 +27,7 @@ type DeviceInfo struct {
 	node        v1.Node
 }
 
-//NodeInfo -
+// NodeInfo -
 type NodeInfo struct {
 	pods           []v1.Pod
 	node           v1.Node
@@ -42,7 +42,7 @@ var (
 	memoryUnit = ""
 )
 
-//NewCmdGPUShare -
+// NewCmdGPUShare -
 func NewCmdGPUShare() cli.Command {
 	c := cli.Command{
 		Name:  "gpushare",
@@ -493,7 +493,7 @@ func (n *NodeInfo) hasPendingGPUMemory() bool {
 	return found
 }
 
-//GetAllocation -
+// GetAllocation -
 func GetAllocation(pod *v1.Pod) map[int]int {
 	podGPUMems := map[int]int{}
 	allocationString := ""
@@ -514,7 +514,7 @@ func GetAllocation(pod *v1.Pod) map[int]int {
 		for id, gpuMem := range containerAllocation {
 			gpuIndex, err := strconv.Atoi(id)
 			if err != nil {
-				log.Errorf("failed to get gpu memory from pod annotation,reason: %v", err)
+				logrus.Errorf("failed to get gpu memory from pod annotation,reason: %v", err)
 				return map[int]int{}
 			}
 			podGPUMems[gpuIndex] += gpuMem
