@@ -21,6 +21,8 @@ package discover
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/coreos/etcd/clientv3"
+	"github.com/coreos/etcd/mvcc/mvccpb"
 	"net"
 	"os"
 	"strings"

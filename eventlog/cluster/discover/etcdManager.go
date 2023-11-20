@@ -20,6 +20,7 @@ package discover
 
 import (
 	"fmt"
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/sirupsen/logrus"
 	"time"

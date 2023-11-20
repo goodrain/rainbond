@@ -19,6 +19,7 @@
 package mq
 
 import (
+	"github.com/coreos/etcd/clientv3"
 	"os"
 	"strings"
 	"sync"

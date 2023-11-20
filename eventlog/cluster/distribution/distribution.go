@@ -19,6 +19,7 @@
 package distribution
 
 import (
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/eventlog/cluster/discover"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/db"
