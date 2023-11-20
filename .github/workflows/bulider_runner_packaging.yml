@@ -1,0 +1,55 @@
+name: builder runner packaging
+on:
+  repository_dispatch:
+    types:
+      - runner-builder
+
+env:
+  VERSION: ${{ github.event.client_payload.version }}
+
+jobs:
+  build-runner:
+    runs-on: ${{ github.event.client_payload.os }}
+    environment: ${{ github.event.client_payload.environment }}
+    steps:
+      - name: Pull code and Build the Docker image
+        env:
+          DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/runner.git
+          cd runner
+          chmod +x ./release.sh
+          ./release.sh
+  
+  build-builder:
+    runs-on: ${{ github.event.client_payload.os }}
+    environment: ${{ github.event.client_payload.environment }}
+    steps:
+      - name: Pull code and Build the Docker image
+        env:
+          DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/builder.git
+          cd builder
+          chmod +x ./release.sh
+          ./release.sh
+          
+  push-arch:
+    if: github.event.client_payload.os == 'self-hosted'
+    needs: [build-runner,build-builder]
+    runs-on: ${{ github.event.client_payload.os }}
+    environment: release-arch
+    steps:
+      - uses: actions/checkout@v2
+      - name: push arch images
+        env:
+          RBD_VER: ${{ vars.RBD_VER }}
+          DOMESTIC_DOCKER_USERNAME: ${{ vars.DOMESTIC_DOCKER_USERNAME }}
+          DOMESTIC_DOCKER_PASSWORD: ${{ secrets.DOMESTIC_DOCKER_PASSWORD }}
+          PUSH_ARCH: ${{ vars.PUSH_ARCH }}
+        run: |
+          if [ $PUSH_ARCH == 'true' ];then
+            chmod +x .github/scripts/push-arch.sh && ./.github/scripts/push-arch.sh builder-runner
+          fi

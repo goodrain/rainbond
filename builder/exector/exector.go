@@ -123,7 +123,6 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 		BuildKitImage:     conf.BuildKitImage,
 		BuildKitArgs:      strings.Split(conf.BuildKitArgs, "&"),
 		BuildKitCache:     conf.BuildKitCache,
-		BuildSharedCache:  conf.BuildSharedCache,
 		KubeClient:        kubeClient,
 		EtcdCli:           etcdCli,
 		mqClient:          mqc,
@@ -140,7 +139,6 @@ type exectorManager struct {
 	BuildKitImage     string
 	BuildKitArgs      []string
 	BuildKitCache     bool
-	BuildSharedCache  bool
 	KubeClient        kubernetes.Interface
 	EtcdCli           *clientv3.Client
 	tasks             chan *pb.TaskMessage
@@ -355,7 +353,6 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	i.BuildKitImage = e.BuildKitImage
 	i.BuildKitArgs = e.BuildKitArgs
 	i.BuildKitCache = e.BuildKitCache
-	i.BuildSharedCache = e.BuildSharedCache
 	i.KubeClient = e.KubeClient
 	i.RbdNamespace = e.cfg.RbdNamespace
 	i.RbdRepoName = e.cfg.RbdRepoName
