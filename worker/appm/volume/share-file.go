@@ -100,7 +100,9 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 				},
 			}
 		}
+		bootOrder := uint(len(define.vmDisk) + 1)
 		dk := kubevirtv1.Disk{
+			BootOrder:  &bootOrder,
 			DiskDevice: dd,
 			Name:       volumeMountName,
 		}

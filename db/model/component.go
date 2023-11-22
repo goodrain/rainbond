@@ -57,6 +57,10 @@ const (
 	K8sAttributeNameENVFromSource = "envFromSource"
 	//K8sAttributeNameSecurityContext -
 	K8sAttributeNameSecurityContext = "securityContext"
+	//K8sAttributeNameReadinessProbe -
+	K8sAttributeNameReadinessProbe = "readinessProbe"
+	//K8sAttributeNameLiveNessProbe -
+	K8sAttributeNameLiveNessProbe = "livenessProbe"
 )
 
 // ComponentK8sAttributes -

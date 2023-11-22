@@ -421,7 +421,7 @@ func (e *exectorManager) buildFromVM(task *pb.TaskMessage) {
 	defer func() {
 		if r := recover(); r != nil {
 			debug.PrintStack()
-			v.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "callback", "status": "failure"})
+			v.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "builder-exector", "status": "starting"})
 		}
 	}()
 	start := time.Now()

@@ -108,6 +108,7 @@ func (v *VMBuildItem) RunVMBuild() error {
 }
 
 func downloadFile(downPath, url string, Logger event.Logger) error {
+	Logger.Info("begin down vm image "+url, map[string]string{"step": "builder-exector"})
 	rsp, err := http.Get(url)
 	defer func() {
 		_ = rsp.Body.Close()
@@ -126,32 +127,12 @@ func downloadFile(downPath, url string, Logger event.Logger) error {
 	defer func() {
 		_ = f.Close()
 	}()
-
-	myDownloader := &MyDownloader{
-		Reader: rsp.Body,
-		Total:  rsp.ContentLength,
-		Logger: Logger,
+	_, err = io.Copy(f, rsp.Body)
+	if err != nil {
+		downError := fmt.Sprintf("download vm image %v failre: %v", url, err.Error())
+		Logger.Error(downError, map[string]string{"step": "builder-exector", "status": "failure"})
+	} else {
+		Logger.Info("down vm image success", map[string]string{"step": "builder-exector"})
 	}
-	_, err = io.Copy(f, myDownloader)
 	return err
-}
-
-// MyDownloader -
-type MyDownloader struct {
-	io.Reader              // 读取器
-	Total     int64        // 总大小
-	Current   int64        // 当前大小
-	Logger    event.Logger `json:"logger"`
-}
-
-func (d *MyDownloader) Read(p []byte) (n int, err error) {
-	n, err = d.Reader.Read(p)
-	d.Current += int64(n)
-	// 这里可以打印下载进度
-	d.Logger.Info(fmt.Sprintf("\r正在下载，下载进度：%.2f%%", float64(d.Current*10000/d.Total)/100), map[string]string{"step": "builder-exector"})
-
-	if d.Current == d.Total {
-		d.Logger.Info(fmt.Sprintf("\r下载完成，下载进度：%.2f%%", float64(d.Current*10000/d.Total)/100), map[string]string{"step": "builder-exector"})
-	}
-	return
 }

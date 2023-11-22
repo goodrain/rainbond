@@ -117,7 +117,6 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				},
 			},
 		}
-		bootOrder := uint(1)
 		volumes := dv.GetVMVolume()
 		volumes = append([]kubevirtv1.Volume{
 			{
@@ -131,13 +130,15 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 			},
 		}, volumes...)
 		disks := dv.GetVMDisk()
-		disks = append([]kubevirtv1.Disk{{
+		bootOrder := uint(len(disks) + 1)
+		disks = append(disks, []kubevirtv1.Disk{{
 			BootOrder: &bootOrder,
 			DiskDevice: kubevirtv1.DiskDevice{CDRom: &kubevirtv1.CDRomTarget{
 				Bus: kubevirtv1.DiskBusSATA,
 			}},
 			Name: "vmimage",
-		}}, disks...)
+		}}...)
+
 		reource := createVMResources(as)
 		vmt = kubevirtv1.VirtualMachineInstanceTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
@@ -863,6 +864,29 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 }
 
 func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.Probe {
+	if mode == "liveness" {
+		var probe *corev1.Probe
+		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLiveNessProbe)
+		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
+			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			if err != nil {
+				logrus.Errorf("create vm probe failure: %v", err)
+				return nil
+			}
+			return probe
+		}
+	} else {
+		var probe *corev1.Probe
+		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameReadinessProbe)
+		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
+			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			if err != nil {
+				logrus.Errorf("create vm probe failure: %v", err)
+				return nil
+			}
+			return probe
+		}
+	}
 	probe, err := dbmanager.ServiceProbeDao().GetServiceUsedProbe(as.ServiceID, mode)
 	if err == nil && probe != nil {
 		if mode == "liveness" {
@@ -923,6 +947,30 @@ func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.P
 }
 
 func createVMProbe(as *v1.AppService, dbmanager db.Manager, mode string) *kubevirtv1.Probe {
+	if mode == "liveness" {
+		var probe *kubevirtv1.Probe
+		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLiveNessProbe)
+		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
+			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			if err != nil {
+				logrus.Errorf("create vm probe failure: %v", err)
+				return nil
+			}
+			return probe
+		}
+	} else {
+		var probe *kubevirtv1.Probe
+		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameReadinessProbe)
+		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
+			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			if err != nil {
+				logrus.Errorf("create vm probe failure: %v", err)
+				return nil
+			}
+			return probe
+		}
+	}
+
 	probe, err := dbmanager.ServiceProbeDao().GetServiceUsedProbe(as.ServiceID, mode)
 	if err == nil && probe != nil {
 		if mode == "liveness" {
