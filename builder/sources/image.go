@@ -459,6 +459,11 @@ func ImageBuild(arch, contextDir, cachePVCName, cacheMode, RbdNamespace, Service
 		Stdin:     true,
 		StdinOnce: true,
 		Command:   []string{"buildctl-daemonless.sh"},
+		Env: []corev1.EnvVar{{
+			Name:  "BUILDCTL_CONNECT_RETRIES_MAX",
+			Value: "20",
+		},
+		},
 		Args: []string{
 			"build",
 			"--frontend",
