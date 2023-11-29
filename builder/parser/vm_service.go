@@ -49,6 +49,9 @@ func CreateVMServiceParse(sourceBody string, logger event.Logger) Parser {
 
 // Parse blablabla
 func (t *VMServiceParse) Parse() ParseErrorList {
+	if t.sourceBody == "" {
+		return []ParseError{}
+	}
 	var fileExt string
 	if strings.HasPrefix(t.sourceBody, "/grdata") {
 		fileInfoList, err := ioutil.ReadDir(t.sourceBody)
