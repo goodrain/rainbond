@@ -4,5 +4,5 @@ if [ "$1" = "bash" ];then
 elif [ "$1" = "version" ];then
     /run/rainbond-mq version
 else
-    exec /run/rainbond-mq $@
+    exec /bin/tini -- /run/rainbond-mq $@
 fi

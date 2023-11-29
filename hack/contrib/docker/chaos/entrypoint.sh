@@ -4,5 +4,5 @@ if [ "$1" = "bash" ];then
 elif [ "$1" = "version" ];then
     /run/rainbond-chaos version
 else
-    exec /run/rainbond-chaos $@
+    exec /bin/tini -- /run/rainbond-chaos $@
 fi
