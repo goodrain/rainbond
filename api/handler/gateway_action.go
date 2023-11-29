@@ -21,6 +21,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
 	"github.com/coreos/etcd/clientv3"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util/bcode"
@@ -51,16 +52,53 @@ type GatewayAction struct {
 	etcdCli       *clientv3.Client
 	gatewayClient *gateway.GatewayV1beta1Client
 	kubeClient    kubernetes.Interface
+	kubeClientset *kubernetes.Clientset
+	config        *rest.Config
+	apisixClient  *apisixversioned.Clientset
 }
 
 // CreateGatewayManager creates gateway manager.
-func CreateGatewayManager(dbmanager db.Manager, mqclient client.MQClient, gatewayClient *gateway.GatewayV1beta1Client, kubeClient kubernetes.Interface) *GatewayAction {
+func CreateGatewayManager(
+	dbmanager db.Manager,
+	mqclient client.MQClient,
+	etcdCli *clientv3.Client,
+	gatewayClient *gateway.GatewayV1beta1Client,
+	kubeClient kubernetes.Interface,
+	kubeClientset *kubernetes.Clientset,
+	config *rest.Config,
+	apisixClient *apisixversioned.Clientset,
+) *GatewayAction {
 	return &GatewayAction{
 		dbmanager:     dbmanager,
 		mqclient:      mqclient,
+		etcdCli:       etcdCli,
 		gatewayClient: gatewayClient,
 		kubeClient:    kubeClient,
+		kubeClientset: kubeClientset,
+		config:        config,
+		apisixClient:  apisixClient,
 	}
+}
+func (g *GatewayAction) GetClient() *apisixversioned.Clientset {
+	return g.apisixClient
+}
+
+func (g *GatewayAction) GetK8sClient() kubernetes.Interface {
+	return g.kubeClient
+}
+
+func (g *GatewayAction) CreateCert(namespace, domain string) error {
+	secretName := strings.Replace(domain, ".", "-", -1)
+
+	// Generate self-signed certificate
+	cert, certKey, err := generateSelfSignedCertificate(domain)
+	if err != nil {
+		logrus.Errorf("Error generating self-signed certificate: %v", err)
+		return err
+	}
+
+	// Create Kubernetes Secret
+	return createK8sSecret(g.kubeClientset, namespace, secretName, cert, certKey)
 }
 
 // BatchGetGatewayHTTPRoute batch get gateway http route

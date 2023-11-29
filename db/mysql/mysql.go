@@ -46,11 +46,13 @@ type Manager struct {
 func CreateManager(config config.Config) (*Manager, error) {
 	var db *gorm.DB
 	if config.DBType == "mysql" {
+		logrus.Info("mysql db driver create")
 		var err error
 		db, err = gorm.Open("mysql", config.MysqlConnectionInfo+"?charset=utf8mb4&parseTime=True&loc=Local")
 		if err != nil {
 			return nil, err
 		}
+
 	}
 	if config.DBType == "cockroachdb" {
 		var err error
@@ -79,14 +81,18 @@ func CreateManager(config config.Config) (*Manager, error) {
 	if config.ShowSQL {
 		db = db.Debug()
 	}
+	logrus.Info("db init success")
 	manager := &Manager{
 		db:      db,
 		config:  config,
 		initOne: sync.Once{},
 	}
+
 	db.SetLogger(manager)
+	logrus.Info("register table model")
 	manager.RegisterTableModel()
-	manager.CheckTable()
+	logrus.Info("check table")
+	//manager.CheckTable()
 	logrus.Debug("mysql db driver create")
 	return manager, nil
 }

@@ -95,6 +95,25 @@ func (o *OpentsdbManager) NewOpentsdbManager() (tsdbClient.Client, error) {
 }
 
 // GetBegin get db transaction
+// BuildTask build task
+func BuildTask(t *TaskStruct) (*pb.EnqueueRequest, error) {
+	var er pb.EnqueueRequest
+	taskJSON, err := json.Marshal(t.TaskBody)
+	if err != nil {
+		logrus.Errorf("tran task json error")
+		return &er, err
+	}
+	er.Topic = "worker"
+	er.Message = &pb.TaskMessage{
+		TaskType:   t.TaskType,
+		CreateTime: time.Now().Format(time.RFC3339),
+		TaskBody:   taskJSON,
+		User:       t.User,
+	}
+	return &er, nil
+}
+
+// GetBegin get db transaction
 func GetBegin() *gorm.DB {
 	return db.GetManager().Begin()
 }

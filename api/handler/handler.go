@@ -19,6 +19,10 @@
 package handler
 
 import (
+	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
+	"github.com/coreos/etcd/clientv3"
+	"github.com/goodrain/rainbond/api/client/prometheus"
+	api_db "github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/handler/group"
 	"github.com/goodrain/rainbond/api/handler/share"
 	"github.com/goodrain/rainbond/cmd/api/option"
@@ -67,6 +71,8 @@ func InitHandle(conf option.Config) error {
 		return err
 	}
 	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, gatewayClient, clientset)
+
+	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, etcdcli, gatewayClient, kubeClient, kubeClient, config, apisixClient)
 	def3rdPartySvcHandler = Create3rdPartySvcHandler(dbmanager, statusCli)
 	operationHandler = CreateOperationHandler(mqClient)
 	batchOperationHandler = CreateBatchOperationHandler(mqClient, statusCli, operationHandler)
@@ -155,6 +161,12 @@ var defaultAPPBackupHandler *group.BackupHandle
 // GetAPPBackupHandler GetAPPBackupHandler
 func GetAPPBackupHandler() *group.BackupHandle {
 	return defaultAPPBackupHandler
+}
+
+var defaultAPIGatewayHandler APIGatewayHandler
+
+func GetAPIGatewayHandler() APIGatewayHandler {
+	return defaultAPIGatewayHandler
 }
 
 var defaultGatewayHandler GatewayHandler

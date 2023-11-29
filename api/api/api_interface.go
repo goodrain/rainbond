@@ -291,3 +291,35 @@ type RegistryInterface interface {
 	GetTagsByRepoName(w http.ResponseWriter, r *http.Request)
 	CheckRegistry(w http.ResponseWriter, r *http.Request)
 }
+
+// APIGatewayInterface api gateway interface
+type APIGatewayInterface interface {
+	APIGatewayRouteInterface
+	APIGatewayServiceInterface
+	APIGatewayCertInterface
+}
+
+// APIGatewayRouteInterface api gateway route interface
+type APIGatewayRouteInterface interface {
+	GetAPIRoute(w http.ResponseWriter, r *http.Request)
+	CreateAPIRoute(w http.ResponseWriter, r *http.Request)
+	UpdateAPIRoute(w http.ResponseWriter, r *http.Request)
+	DeleteAPIRoute(w http.ResponseWriter, r *http.Request)
+}
+
+// APIGatewayServiceInterface api gateway service interface
+type APIGatewayServiceInterface interface {
+	GetRBDService(w http.ResponseWriter, r *http.Request)
+	GetAPIService(w http.ResponseWriter, r *http.Request)
+	CreateAPIService(w http.ResponseWriter, r *http.Request)
+	UpdateAPIService(w http.ResponseWriter, r *http.Request)
+	DeleteAPIService(w http.ResponseWriter, r *http.Request)
+}
+
+// APIGatewayCertInterface api gateway cert interface
+type APIGatewayCertInterface interface {
+	GetCert(w http.ResponseWriter, r *http.Request)
+	CreateCert(w http.ResponseWriter, r *http.Request)
+	UpdateCert(w http.ResponseWriter, r *http.Request)
+	DeleteCert(w http.ResponseWriter, r *http.Request)
+}

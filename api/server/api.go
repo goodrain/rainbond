@@ -27,6 +27,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
+	v1 "github.com/goodrain/rainbond/api/api_routers/gateway"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -151,6 +152,8 @@ func (m *Manager) Run() {
 	m.r.Get("/monitor", func(res http.ResponseWriter, req *http.Request) {
 		res.Write([]byte("ok"))
 	})
+	m.r.Mount("/api-gateway/v1", v1.GatewayRoutes())
+
 	m.r.Mount("/v2", v2R.Routes())
 	m.r.Mount("/", doc.Routes())
 	m.r.Mount("/license", license.Routes())

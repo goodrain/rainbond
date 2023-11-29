@@ -21,6 +21,7 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/api/controller/api_gateway"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -65,6 +66,7 @@ type V2Routes struct {
 	K8sAttributeController
 	HelmStruct
 	Registry
+	api_gateway.APIGatewayStruct
 }
 
 // Show test
@@ -2015,7 +2017,7 @@ func (t *TenantStruct) GetSupportProtocols(w http.ResponseWriter, r *http.Reques
 //	    "$ref": "#/responses/commandResponse"
 //	  description: 统一返回格式
 func (t *TenantStruct) TransPlugins(w http.ResponseWriter, r *http.Request) {
-	var tps apimodel.TransPlugins
+	var tps api_model.TransPlugins
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tps.Body, nil)
 	if !ok {
 		return

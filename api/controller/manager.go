@@ -51,6 +51,7 @@ type V2Manager interface {
 	api.RegistryAuthSecretInterface
 	api.HelmInterface
 	api.RegistryInterface
+	api.APIGatewayInterface
 }
 
 var defaultV2Manager V2Manager
