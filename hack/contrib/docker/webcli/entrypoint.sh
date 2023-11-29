@@ -4,5 +4,5 @@ if [ "$1" = "bash" ];then
 elif [ "$1" = "version" ];then
     /usr/bin/rainbond-webcli version
 else
-    exec /usr/bin/rainbond-webcli $@
+    exec /bin/tini -- /usr/bin/rainbond-webcli $@
 fi
