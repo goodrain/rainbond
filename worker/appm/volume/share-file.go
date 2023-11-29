@@ -65,7 +65,7 @@ func (v *ShareFileVolume) CreateVolume(define *Define) error {
 			"stateless":   "",
 		})
 		annotations := map[string]string{"volume_name": v.svm.VolumeName}
-		claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v1.RainbondStatefuleShareStorageClass, v.svm.VolumeCapacity, labels, annotations)
+		claim := newVolumeClaim(volumeMountName, path.Join(volumeMountPath, volumeMountName), v.svm.AccessMode, v1.RainbondStatefuleShareStorageClass, v.svm.VolumeCapacity, labels, annotations)
 		v.as.SetClaim(claim)
 		v.as.SetClaimManually(claim)
 		vo := kubevirtv1.Volume{
