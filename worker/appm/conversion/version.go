@@ -299,7 +299,7 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 	if imagename == "" {
 		if version.DeliveredType == "slug" {
 			imagename = builder.RUNNERIMAGENAME
-			if err := sources.ImagesPullAndPush(builder.RUNNERIMAGENAME, builder.ONLINERUNNERIMAGENAME, "", "", nil); err != nil {
+			if err := sources.ImagesPullAndPush(builder.RUNNERIMAGENAME, builder.GetRunnerImage(""), "", "", nil); err != nil {
 				logrus.Errorf("[getMainContainer] get runner image failed: %v", err)
 			}
 		} else {

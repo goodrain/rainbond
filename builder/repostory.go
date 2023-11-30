@@ -53,8 +53,13 @@ func init() {
 	if os.Getenv("ABROAD") != "" {
 		ONLINEREGISTRYDOMAIN = "docker.io/rainbond"
 	}
-	ONLINEBUILDERIMAGENAME = fmt.Sprintf("%s:%s-%s", path.Join(ONLINEREGISTRYDOMAIN, "builder"), CIVERSION, arch)
-	ONLINERUNNERIMAGENAME = fmt.Sprintf("%s:%s-%s", path.Join(ONLINEREGISTRYDOMAIN, "runner"), CIVERSION, arch)
+	if release := os.Getenv("RELEASE_DESC"); release != "" {
+		releaseList := strings.Split(release, "-")
+		if len(releaseList) > 0 {
+			CIVERSION = fmt.Sprintf("%v-%v", releaseList[0], releaseList[1])
+		}
+	}
+
 }
 
 // GetImageUserInfoV2 -
@@ -68,7 +73,7 @@ func GetImageUserInfoV2(domain, user, pass string) (string, string) {
 	return "", ""
 }
 
-//GetImageRepo -
+// GetImageRepo -
 func GetImageRepo(imageRepo string) string {
 	if imageRepo == "" {
 		return REGISTRYDOMAIN
@@ -76,29 +81,41 @@ func GetImageRepo(imageRepo string) string {
 	return imageRepo
 }
 
-//REGISTRYDOMAIN REGISTRY_DOMAIN
+// REGISTRYDOMAIN REGISTRY_DOMAIN
 var REGISTRYDOMAIN = constants.DefImageRepository
 
-//REGISTRYUSER REGISTRY USER NAME
+// REGISTRYUSER REGISTRY USER NAME
 var REGISTRYUSER = ""
 
-//REGISTRYPASS REGISTRY PASSWORD
+// REGISTRYPASS REGISTRY PASSWORD
 var REGISTRYPASS = ""
 
-//RUNNERIMAGENAME runner image name
+// RUNNERIMAGENAME runner image name
 var RUNNERIMAGENAME string
 
-//BUILDERIMAGENAME builder image name
+// BUILDERIMAGENAME builder image name
 var BUILDERIMAGENAME string
 
 // ONLINEREGISTRYDOMAIN online REGISTRY_DOMAIN
 var ONLINEREGISTRYDOMAIN = constants.DefOnlineImageRepository
 
-// ONLINEBUILDERIMAGENAME online builder image name
-var ONLINEBUILDERIMAGENAME string
+// GetBuilderImage GetBuilderImage
+func GetBuilderImage(brVersion string) string {
+	arch := runtime.GOARCH
+	if brVersion == "" {
+		brVersion = CIVERSION
+	}
+	return fmt.Sprintf("%s:%s-%s", path.Join(ONLINEREGISTRYDOMAIN, "builder"), brVersion, arch)
+}
 
-// ONLINERUNNERIMAGENAME online runner image name
-var ONLINERUNNERIMAGENAME string
+// GetRunnerImage GetRunnerImage
+func GetRunnerImage(brVersion string) string {
+	arch := runtime.GOARCH
+	if brVersion == "" {
+		brVersion = CIVERSION
+	}
+	return fmt.Sprintf("%s:%s-%s", path.Join(ONLINEREGISTRYDOMAIN, "runner"), brVersion, arch)
+}
 
 // CIVERSION -
-var CIVERSION = "v5.14.0-release"
+var CIVERSION = "v5.16.0-release"
