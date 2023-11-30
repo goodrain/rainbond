@@ -44,84 +44,87 @@ func init() {
 	checkFuncList = append(checkFuncList, netcore)
 }
 
-//ErrCodeNotExist 代码为空错误
+// ErrCodeNotExist 代码为空错误
 var ErrCodeNotExist = fmt.Errorf("code is not exist")
 
-//ErrCodeDirNotExist 代码目录不存在
+// ErrCodeDirNotExist 代码目录不存在
 var ErrCodeDirNotExist = fmt.Errorf("code dir is not exist")
 
-//ErrCodeUnableIdentify 代码无法识别语言
+// ErrCodeUnableIdentify 代码无法识别语言
 var ErrCodeUnableIdentify = fmt.Errorf("code lang unable to identify")
 
-//ErrRainbondFileNotFound rainbond file not found
+// ErrRainbondFileNotFound rainbond file not found
 var ErrRainbondFileNotFound = fmt.Errorf("rainbond file not found")
 
-//Lang 语言类型
+// Lang 语言类型
 type Lang string
 
-//String return lang string
+// String return lang string
 func (l Lang) String() string {
 	return string(l)
 }
 
-//NO 空语言类型
+// NO 空语言类型
 var NO Lang = "no"
 
-//Dockerfile Lang
+// Dockerfile Lang
 var Dockerfile Lang = "dockerfile"
 
-//Docker Lang
+// Docker Lang
 var Docker Lang = "docker"
 
-//Python Lang
+// Python Lang
 var Python Lang = "Python"
 
-//Ruby Lang
+// Ruby Lang
 var Ruby Lang = "Ruby"
 
-//PHP Lang
+// PHP Lang
 var PHP Lang = "PHP"
 
-//JavaMaven Lang
+// JavaMaven Lang
 var JavaMaven Lang = "Java-maven"
 
-//JaveWar Lang
+// JaveWar Lang
 var JaveWar Lang = "Java-war"
 
-//JavaJar Lang
+// JavaJar Lang
 var JavaJar Lang = "Java-jar"
 
-//Nodejs Lang
+// Nodejs Lang
 var Nodejs Lang = "Node.js"
 
-//NodeJSDockerfile Lang
+// NodeJSDockerfile Lang
 var NodeJSDockerfile Lang = "NodeJSDockerfile"
 
-//NodeJSStatic static Lang
+// VMDockerfile Lang
+var VMDockerfile Lang = "VMDockerfile"
+
+// NodeJSStatic static Lang
 var NodeJSStatic Lang = "NodeJSStatic"
 
-//Static Lang
+// Static Lang
 var Static Lang = "static"
 
-//Clojure Lang
+// Clojure Lang
 var Clojure Lang = "Clojure"
 
-//Golang Lang
+// Golang Lang
 var Golang Lang = "Go"
 
-//Gradle Lang
+// Gradle Lang
 var Gradle Lang = "Gradle"
 
-//Grails Lang
+// Grails Lang
 var Grails Lang = "Grails"
 
-//NetCore Lang
+// NetCore Lang
 var NetCore Lang = ".NetCore"
 
-//OSS Lang
+// OSS Lang
 var OSS Lang = "OSS"
 
-//GetLangType check code lang
+// GetLangType check code lang
 func GetLangType(homepath string) (Lang, error) {
 	if ok, _ := util.FileExists(homepath); !ok {
 		return NO, ErrCodeDirNotExist
@@ -212,7 +215,7 @@ func javaWar(homepath string) Lang {
 	return NO
 }
 
-//javaJar Procfile必须定义
+// javaJar Procfile必须定义
 func javaJar(homepath string) Lang {
 	if ok := util.FileExistsWithSuffix(homepath, ".jar"); ok {
 		return JavaJar
@@ -293,7 +296,7 @@ func grails(homepath string) Lang {
 	return NO
 }
 
-//netcore
+// netcore
 func netcore(homepath string) Lang {
 	if ok := util.FileExistsWithSuffix(homepath, ".sln"); ok {
 		return NetCore
@@ -304,7 +307,7 @@ func netcore(homepath string) Lang {
 	return NO
 }
 
-//暂时不支持
+// 暂时不支持
 func scala(homepath string) Lang {
 	return NO
 }

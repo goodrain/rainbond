@@ -378,7 +378,7 @@ func createEndpoint(component *v1alpha1.ThirdComponent, service *corev1.Service,
 }
 
 // UpdateStatus updates ThirdComponent's Status with retry.RetryOnConflict
-func (r *Reconciler) updateStatus(ctx context.Context, appd *v1alpha1.ThirdComponent, opts ...client.UpdateOption) error {
+func (r *Reconciler) updateStatus(ctx context.Context, appd *v1alpha1.ThirdComponent, opts ...client.SubResourceUpdateOption) error {
 	status := appd.DeepCopy().Status
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
 		if err = r.Client.Get(ctx, client.ObjectKey{Namespace: appd.Namespace, Name: appd.Name}, appd); err != nil {

@@ -245,6 +245,8 @@ func (e *exectorManager) RunTask(task *pb.TaskMessage) {
 	switch task.TaskType {
 	case "build_from_image":
 		go e.runTask(e.buildFromImage, task, false)
+	case "build_from_vm":
+		go e.runTask(e.buildFromVM, task, false)
 	case "build_from_source_code":
 		go e.runTask(e.buildFromSourceCode, task, true)
 	case "build_from_market_slug":
@@ -360,6 +362,7 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 	i.GRDataPVCName = e.cfg.GRDataPVCName
 	i.CacheMode = e.cfg.CacheMode
 	i.CachePath = e.cfg.CachePath
+	i.BRVersion = e.cfg.BRVersion
 	i.Logger.Info("Build app version from source code start", map[string]string{"step": "builder-exector", "status": "starting"})
 	start := time.Now()
 	defer event.GetManager().ReleaseLogger(i.Logger)
@@ -403,6 +406,45 @@ func (e *exectorManager) buildFromSourceCode(task *pb.TaskMessage) {
 		if err != nil {
 			i.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
 		}
+	}
+}
+
+// buildFromVM build app from vm
+func (e *exectorManager) buildFromVM(task *pb.TaskMessage) {
+	v := NewVMBuildItem(task.TaskBody)
+	v.ImageClient = e.imageClient
+	v.BuildKitImage = e.BuildKitImage
+	v.BuildKitArgs = e.BuildKitArgs
+	v.BuildKitCache = e.BuildKitCache
+	v.kubeClient = e.KubeClient
+	v.Logger.Info("Start with the vm build application task", map[string]string{"step": "builder-exector", "status": "starting"})
+	defer event.GetManager().ReleaseLogger(v.Logger)
+	defer func() {
+		if r := recover(); r != nil {
+			debug.PrintStack()
+			v.Logger.Error("Back end service drift. Please check the rbd-chaos log", map[string]string{"step": "builder-exector", "status": "starting"})
+		}
+	}()
+	start := time.Now()
+	defer func() {
+		logrus.Debugf("complete build from source code, consuming time %s", time.Since(start).String())
+	}()
+	if v.VMImageSource != "" {
+		err := v.RunVMBuild()
+		if err != nil {
+			logrus.Errorf("failure")
+		}
+	}
+	var configs = make(map[string]string, len(v.Configs))
+	for k, u := range v.Configs {
+		configs[k] = u.String()
+	}
+	if err := e.UpdateDeployVersion(v.ServiceID, v.DeployVersion); err != nil {
+		logrus.Errorf("Update app service deploy version failure %s, service %s do not auto upgrade", err.Error(), v.ServiceID)
+	}
+	err := e.sendAction(v.TenantID, v.ServiceID, v.EventID, v.DeployVersion, v.Action, configs, v.Logger)
+	if err != nil {
+		v.Logger.Error("Send upgrade action failed", map[string]string{"step": "callback", "status": "failure"})
 	}
 }
 

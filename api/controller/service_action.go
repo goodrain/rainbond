@@ -40,7 +40,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//StartService StartService
+// StartService StartService
 // swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/start  v2 startService
 //
 // 启动应用
@@ -57,10 +57,11 @@ import (
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
@@ -88,7 +89,7 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, sEvent)
 }
 
-//StopService StopService
+// StopService StopService
 // swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/stop v2 stopService
 //
 // 关闭应用
@@ -105,10 +106,11 @@ func (t *TenantStruct) StartService(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
@@ -128,7 +130,7 @@ func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, sEvent)
 }
 
-//RestartService RestartService
+// RestartService RestartService
 // swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/restart v2 restartService
 //
 // 重启应用
@@ -145,10 +147,11 @@ func (t *TenantStruct) StopService(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
@@ -180,7 +183,7 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, sEvent)
 }
 
-//VerticalService VerticalService
+// VerticalService VerticalService
 // swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/vertical v2 verticalService
 //
 // 应用垂直伸缩
@@ -197,10 +200,11 @@ func (t *TenantStruct) RestartService(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 	rules := validator.MapData{
 		"container_cpu":    []string{"required"},
@@ -249,7 +253,7 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, sEvent)
 }
 
-//HorizontalService HorizontalService
+// HorizontalService HorizontalService
 // swagger:operation PUT /v2/tenants/{tenant_name}/services/{service_alias}/horizontal v2 horizontalService
 //
 // 应用水平伸缩
@@ -266,10 +270,11 @@ func (t *TenantStruct) VerticalService(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request) {
 	rules := validator.MapData{
 		"node_num": []string{"required"},
@@ -305,7 +310,7 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 	httputil.ReturnSuccess(r, w, sEvent)
 }
 
-//BuildService BuildService
+// BuildService BuildService
 // swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/build v2 serviceBuild
 //
 // 应用构建
@@ -322,10 +327,11 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	var build api_model.ComponentBuildReq
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build, nil)
@@ -356,7 +362,39 @@ func (t *TenantStruct) BuildService(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, res)
 }
 
-//BuildList BuildList
+// PauseService virtual machine paused
+func (t *TenantStruct) PauseService(w http.ResponseWriter, r *http.Request) {
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	sEvent := r.Context().Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent)
+	if err := handler.GetServiceManager().PauseUNPauseService(serviceID, "pause"); err != nil {
+		httputil.ReturnError(r, w, 500, "get service info error.")
+		return
+	}
+	err := db.GetManager().ServiceEventDao().SetEventStatus(r.Context(), dbmodel.EventStatusSuccess)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("pause update event failure: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, sEvent)
+}
+
+// UNPauseService virtual machine unpaused
+func (t *TenantStruct) UNPauseService(w http.ResponseWriter, r *http.Request) {
+	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
+	sEvent := r.Context().Value(ctxutil.ContextKey("event")).(*dbmodel.ServiceEvent)
+	if err := handler.GetServiceManager().PauseUNPauseService(serviceID, "unpause"); err != nil {
+		httputil.ReturnError(r, w, 500, "get service info error.")
+		return
+	}
+	err := db.GetManager().ServiceEventDao().SetEventStatus(r.Context(), dbmodel.EventStatusSuccess)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("unpause update event failure: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, sEvent)
+}
+
+// BuildList BuildList
 func (t *TenantStruct) BuildList(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 
@@ -370,7 +408,7 @@ func (t *TenantStruct) BuildList(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, resp)
 }
 
-//BuildVersionIsExist -
+// BuildVersionIsExist -
 func (t *TenantStruct) BuildVersionIsExist(w http.ResponseWriter, r *http.Request) {
 	statusMap := make(map[string]bool)
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
@@ -389,7 +427,7 @@ func (t *TenantStruct) BuildVersionIsExist(w http.ResponseWriter, r *http.Reques
 
 }
 
-//DeleteBuildVersion -
+// DeleteBuildVersion -
 func (t *TenantStruct) DeleteBuildVersion(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	buildVersion := chi.URLParam(r, "build_version")
@@ -430,7 +468,7 @@ func (t *TenantStruct) DeleteBuildVersion(w http.ResponseWriter, r *http.Request
 
 }
 
-//UpdateBuildVersion -
+// UpdateBuildVersion -
 func (t *TenantStruct) UpdateBuildVersion(w http.ResponseWriter, r *http.Request) {
 	var build api_model.UpdateBuildVersionReq
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build, nil)
@@ -453,7 +491,7 @@ func (t *TenantStruct) UpdateBuildVersion(w http.ResponseWriter, r *http.Request
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//BuildVersionInfo -
+// BuildVersionInfo -
 func (t *TenantStruct) BuildVersionInfo(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "DELETE":
@@ -466,7 +504,7 @@ func (t *TenantStruct) BuildVersionInfo(w http.ResponseWriter, r *http.Request) 
 
 }
 
-//GetDeployVersion GetDeployVersion by service
+// GetDeployVersion GetDeployVersion by service
 func (t *TenantStruct) GetDeployVersion(w http.ResponseWriter, r *http.Request) {
 	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(service.DeployVersion, service.ServiceID)
@@ -481,7 +519,7 @@ func (t *TenantStruct) GetDeployVersion(w http.ResponseWriter, r *http.Request) 
 	httputil.ReturnSuccess(r, w, version)
 }
 
-//GetManyDeployVersion GetDeployVersion by some service id
+// GetManyDeployVersion GetDeployVersion by some service id
 func (t *TenantStruct) GetManyDeployVersion(w http.ResponseWriter, r *http.Request) {
 	rules := validator.MapData{
 		"service_ids": []string{"required"},
@@ -516,13 +554,13 @@ func (t *TenantStruct) GetManyDeployVersion(w http.ResponseWriter, r *http.Reque
 	httputil.ReturnSuccess(r, w, versionList)
 }
 
-//DeployService DeployService
+// DeployService DeployService
 func (t *TenantStruct) DeployService(w http.ResponseWriter, r *http.Request) {
 	logrus.Debugf("trans deploy service")
 	w.Write([]byte("deploy service"))
 }
 
-//UpgradeService UpgradeService
+// UpgradeService UpgradeService
 // swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/upgrade v2 upgradeService
 //
 // 升级应用
@@ -539,10 +577,11 @@ func (t *TenantStruct) DeployService(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 	var upgradeRequest api_model.ComponentUpgradeReq
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &upgradeRequest, nil)
@@ -574,7 +613,7 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, res)
 }
 
-//CheckCode CheckCode
+// CheckCode CheckCode
 // swagger:operation POST /v2/tenants/{tenant_name}/code-check v2 checkCode
 //
 // 应用代码检测
@@ -591,10 +630,11 @@ func (t *TenantStruct) UpgradeService(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) CheckCode(w http.ResponseWriter, r *http.Request) {
 
 	var ccs api_model.CheckCodeStruct
@@ -614,7 +654,7 @@ func (t *TenantStruct) CheckCode(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//RollBack RollBack
+// RollBack RollBack
 // swagger:operation Post /v2/tenants/{tenant_name}/services/{service_alias}/rollback v2 rollback
 //
 // 应用版本回滚
@@ -631,10 +671,11 @@ func (t *TenantStruct) CheckCode(w http.ResponseWriter, r *http.Request) {
 // - application/xml
 //
 // responses:
-//   default:
-//     schema:
-//       "$ref": "#/responses/commandResponse"
-//     description: 统一返回格式
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
 func (t *TenantStruct) RollBack(w http.ResponseWriter, r *http.Request) {
 	var rollbackRequest api_model.RollbackInfoRequestStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &rollbackRequest, nil)
@@ -664,7 +705,7 @@ type limitMemory struct {
 	LimitMemory int `json:"limit_memory"`
 }
 
-//LimitTenantMemory -
+// LimitTenantMemory -
 func (t *TenantStruct) LimitTenantMemory(w http.ResponseWriter, r *http.Request) {
 	var lm limitMemory
 	body, err := ioutil.ReadAll(r.Body)
@@ -693,7 +734,7 @@ func (t *TenantStruct) LimitTenantMemory(w http.ResponseWriter, r *http.Request)
 
 }
 
-//SourcesInfo -
+// SourcesInfo -
 type SourcesInfo struct {
 	TenantID        string `json:"tenant_id"`
 	AvailableMemory int    `json:"available_memory"`
@@ -704,7 +745,7 @@ type SourcesInfo struct {
 	CPUUsed         int    `json:"cpu_used"`
 }
 
-//TenantResourcesStatus tenant resources status
+// TenantResourcesStatus tenant resources status
 func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Request) {
 
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
@@ -763,7 +804,7 @@ func (t *TenantStruct) TenantResourcesStatus(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-//GetServiceDeployInfo get service deploy info
+// GetServiceDeployInfo get service deploy info
 func GetServiceDeployInfo(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)

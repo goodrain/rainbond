@@ -62,6 +62,7 @@ type Config struct {
 	RuntimeEndpoint      string
 	KeepCount            int
 	CleanInterval        int
+	BRVersion            string
 }
 
 // Builder  builder server
@@ -112,7 +113,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&a.BuildKitCache, "buildkit-cache", false, "whether to enable the buildkit image cache")
 	fs.IntVar(&a.KeepCount, "keep-count", 5, "default number of reserved copies for images")
 	fs.IntVar(&a.CleanInterval, "clean-interval", 60, "clean image interval,default 60 minute")
-
+	fs.StringVar(&a.BRVersion, "br-version", "v5.16.0-release", "builder and runner version")
 }
 
 // SetLog 设置log

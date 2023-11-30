@@ -194,6 +194,12 @@ func (n *nodesHandle) GetNodeInfo(ctx context.Context, nodeName string) (res mod
 			break
 		}
 	}
+	if containerDiskCap == 0 {
+		containerDiskCap = diskCap
+	}
+	if containerDiskAvail == 0 {
+		containerDiskAvail = diskAvail
+	}
 
 	res.Resource.CapDisk = diskCap
 	res.Resource.ReqDisk = diskCap - diskAvail

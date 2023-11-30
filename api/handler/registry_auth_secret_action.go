@@ -34,7 +34,7 @@ type RegistryAuthSecretAction struct {
 	etcdCli   *clientv3.Client
 }
 
-//CreateRegistryAuthSecretManager creates registry auth secret manager
+// CreateRegistryAuthSecretManager creates registry auth secret manager
 func CreateRegistryAuthSecretManager(dbmanager db.Manager, mqclient client.MQClient, etcdCli *clientv3.Client) *RegistryAuthSecretAction {
 	return &RegistryAuthSecretAction{
 		dbmanager: dbmanager,
@@ -43,7 +43,7 @@ func CreateRegistryAuthSecretManager(dbmanager db.Manager, mqclient client.MQCli
 	}
 }
 
-//AddOrUpdateRegistryAuthSecret adds or updates registry auth secret
+// AddOrUpdateRegistryAuthSecret adds or updates registry auth secret
 func (g *RegistryAuthSecretAction) AddOrUpdateRegistryAuthSecret(req *apimodel.AddOrUpdateRegistryAuthSecretStruct) error {
 	body := make(map[string]interface{})
 	body["action"] = "apply"

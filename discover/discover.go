@@ -36,7 +36,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//CallbackUpdate 每次返还变化
+// CallbackUpdate 每次返还变化
 type CallbackUpdate interface {
 	//TODO:
 	//weight自动发现更改实现暂时不 Ready
@@ -45,21 +45,21 @@ type CallbackUpdate interface {
 	Error(error)
 }
 
-//Callback 每次返回全部节点
+// Callback 每次返回全部节点
 type Callback interface {
 	UpdateEndpoints(endpoints ...*config.Endpoint)
 	//when watch occurred error,will exec this method
 	Error(error)
 }
 
-//Discover 后端服务自动发现
+// Discover 后端服务自动发现
 type Discover interface {
 	AddProject(name string, callback Callback)
 	AddUpdateProject(name string, callback CallbackUpdate)
 	Stop()
 }
 
-//GetDiscover 获取服务发现管理器
+// GetDiscover 获取服务发现管理器
 func GetDiscover(opt config.DiscoverConfig) (Discover, error) {
 	if opt.Ctx == nil {
 		opt.Ctx = context.Background()

@@ -6,7 +6,7 @@ import (
 	"github.com/docker/docker/api/types"
 	dockercli "github.com/docker/docker/client"
 	"github.com/sirupsen/logrus"
-	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
 	"time"
 )
 
@@ -38,7 +38,7 @@ const (
 	CONTAINER_ACTION_DIE = "die"
 )
 
-//ContainerDesc -
+// ContainerDesc -
 type ContainerDesc struct {
 	ContainerRuntime string
 	// Info is extra information of the Container. The key could be arbitrary string, and
@@ -51,7 +51,7 @@ type ContainerDesc struct {
 	*types.ContainerJSON
 }
 
-//GetLogPath -
+// GetLogPath -
 func (c *ContainerDesc) GetLogPath() string {
 	if c.ContainerRuntime == ContainerRuntimeDocker {
 		logrus.Debugf("docker container log path %s", c.ContainerJSON.LogPath)
@@ -61,7 +61,7 @@ func (c *ContainerDesc) GetLogPath() string {
 	return c.ContainerStatus.GetLogPath()
 }
 
-//GetId -
+// GetId -
 func (c *ContainerDesc) GetId() string {
 	if c.ContainerRuntime == ContainerRuntimeDocker {
 		logrus.Debugf("docker container id %s", c.ContainerJSON.ID)
@@ -107,13 +107,13 @@ func NewContainerImageClient(containerRuntime, endpoint string, timeout time.Dur
 	return
 }
 
-//ContainerEvent container event
+// ContainerEvent container event
 type ContainerEvent struct {
 	Action    string
 	Container *ContainerDesc
 }
 
-//CacheContainer cache container
+// CacheContainer cache container
 func CacheContainer(cchan chan ContainerEvent, cs ...ContainerEvent) {
 	for _, container := range cs {
 		logrus.Debugf("found a container %s %s", container.Container.GetMetadata().GetName(), container.Action)

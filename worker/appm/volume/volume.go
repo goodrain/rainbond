@@ -20,6 +20,7 @@ package volume
 
 import (
 	"fmt"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 	"os"
 	"path"
 	"sort"
@@ -73,6 +74,8 @@ func NewVolumeManager(as *v1.AppService,
 		}
 	case dbmodel.ConfigFileVolumeType.String():
 		v = &ConfigFileVolume{envs: envs, envVarSecrets: envVarSecrets}
+	case dbmodel.VMVolumeType.String():
+		v = new(ShareFileVolume)
 	case dbmodel.MemoryFSVolumeType.String():
 		v = new(MemoryFSVolume)
 	case dbmodel.LocalVolumeType.String():
@@ -135,9 +138,9 @@ func newVolumeClaim(name, volumePath, accessMode, storageClassName string, capac
 }
 
 /*
-	RWO - ReadWriteOnce
-	ROX - ReadOnlyMany
-	RWX - ReadWriteMany
+RWO - ReadWriteOnce
+ROX - ReadOnlyMany
+RWX - ReadWriteMany
 */
 func parseAccessMode(accessMode string) corev1.PersistentVolumeAccessMode {
 	accessMode = strings.ToUpper(accessMode)
@@ -158,11 +161,23 @@ type Define struct {
 	as           *v1.AppService
 	volumeMounts []corev1.VolumeMount
 	volumes      []corev1.Volume
+	vmVolume     []kubevirtv1.Volume
+	vmDisk       []kubevirtv1.Disk
 }
 
 // GetVolumes get define volumes
 func (v *Define) GetVolumes() []corev1.Volume {
 	return v.volumes
+}
+
+// GetVMVolume get define vm volumes
+func (v *Define) GetVMVolume() []kubevirtv1.Volume {
+	return v.vmVolume
+}
+
+// GetVMDisk get define vm devices
+func (v *Define) GetVMDisk() []kubevirtv1.Disk {
+	return v.vmDisk
 }
 
 // GetVolumeMounts get define volume mounts
@@ -335,7 +350,7 @@ func convertRulesToEnvs(as *v1.AppService, dbmanager db.Manager, ports []*dbmode
 	return
 }
 
-//RewriteHostPathInWindows rewrite host path
+// RewriteHostPathInWindows rewrite host path
 func RewriteHostPathInWindows(hostPath string) string {
 	localPath := os.Getenv("LOCAL_DATA_PATH")
 	sharePath := os.Getenv("SHARE_DATA_PATH")
@@ -350,7 +365,7 @@ func RewriteHostPathInWindows(hostPath string) string {
 	return hostPath
 }
 
-//RewriteContainerPathInWindows mount path in windows
+// RewriteContainerPathInWindows mount path in windows
 func RewriteContainerPathInWindows(mountPath string) string {
 	if mountPath == "" {
 		return ""

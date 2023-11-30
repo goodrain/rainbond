@@ -143,6 +143,12 @@ func (s *startController) startOne(app v1.AppService) error {
 			return fmt.Errorf("create deployment failure:%s;", err.Error())
 		}
 	}
+	if vm := app.GetVirtualMachine(); vm != nil {
+		_, err = s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Create(s.ctx, vm)
+		if err != nil {
+			return fmt.Errorf("create vm failure:%s;", err.Error())
+		}
+	}
 	if job := app.GetJob(); job != nil {
 		_, err = s.manager.client.BatchV1().Jobs(app.GetNamespace()).Create(s.ctx, job, metav1.CreateOptions{})
 		if err != nil {
@@ -245,7 +251,7 @@ func (s *startController) startOne(app v1.AppService) error {
 	return s.WaitingReady(app)
 }
 
-//WaitingReady wait app start or upgrade ready
+// WaitingReady wait app start or upgrade ready
 func (s *startController) WaitingReady(app v1.AppService) error {
 	storeAppService := s.manager.store.GetAppService(app.ServiceID)
 	var initTime int32

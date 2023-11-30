@@ -33,7 +33,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//OperationHandler operation handler
+// OperationHandler operation handler
 type OperationHandler struct {
 	mqCli     gclient.MQClient
 	dryRun    bool
@@ -42,7 +42,7 @@ type OperationHandler struct {
 	end       bool
 }
 
-//OperationResult batch operation result
+// OperationResult batch operation result
 type OperationResult struct {
 	ServiceID     string `json:"service_id"`
 	Operation     string `json:"operation"`
@@ -52,14 +52,14 @@ type OperationResult struct {
 	DeployVersion string `json:"deploy_version"`
 }
 
-//CreateOperationHandler create  operation handler
+// CreateOperationHandler create  operation handler
 func CreateOperationHandler(mqCli gclient.MQClient) *OperationHandler {
 	return &OperationHandler{
 		mqCli: mqCli,
 	}
 }
 
-//SetHelmParameter pass the helm parameter
+// SetHelmParameter pass the helm parameter
 func (o *OperationHandler) SetHelmParameter(dryRun bool, helmChart *model.HelmChart, eventIDs []string, end bool) {
 	o.helmChart = helmChart
 	o.dryRun = dryRun
@@ -67,8 +67,8 @@ func (o *OperationHandler) SetHelmParameter(dryRun bool, helmChart *model.HelmCh
 	o.end = end
 }
 
-//Build service build,will create new version
-//if deploy version not define, will create by time
+// Build service build,will create new version
+// if deploy version not define, will create by time
 func (o *OperationHandler) Build(batchOpReq model.ComponentOpReq) (*model.ComponentOpResult, error) {
 	res := batchOpReq.BatchOpFailureItem()
 	if err := o.build(batchOpReq); err != nil {
@@ -148,13 +148,19 @@ func (o *OperationHandler) build(batchOpReq model.ComponentOpReq) error {
 		if err = o.exportHelmChart(buildReq, service); err != nil {
 			return err
 		}
+	case model.FromVMBuildKing:
+		version.ImageName = buildReq.ImageInfo.ImageURL
+		err = db.GetManager().VersionInfoDao().UpdateModel(&version)
+		if err := o.buildFromVM(buildReq, service); err != nil {
+			return err
+		}
 	default:
 		return errors.New("unsupported build kind: " + buildReq.Kind)
 	}
 	return nil
 }
 
-//Stop service stop
+// Stop service stop
 func (o *OperationHandler) Stop(batchOpReq model.ComponentOpReq) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(batchOpReq.GetComponentID())
 	if err != nil {
@@ -172,7 +178,7 @@ func (o *OperationHandler) Stop(batchOpReq model.ComponentOpReq) error {
 	return nil
 }
 
-//Start service start
+// Start service start
 func (o *OperationHandler) Start(batchOpReq model.ComponentOpReq) error {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(batchOpReq.GetComponentID())
 	if err != nil {
@@ -191,7 +197,7 @@ func (o *OperationHandler) Start(batchOpReq model.ComponentOpReq) error {
 	return nil
 }
 
-//Upgrade service upgrade
+// Upgrade service upgrade
 func (o *OperationHandler) Upgrade(batchOpReq model.ComponentOpReq) (*model.ComponentOpResult, error) {
 	res := batchOpReq.BatchOpFailureItem()
 	if err := o.upgrade(batchOpReq); err != nil {
@@ -244,7 +250,7 @@ func (o *OperationHandler) upgrade(batchOpReq model.ComponentOpReq) error {
 	return nil
 }
 
-//RollBack service rollback
+// RollBack service rollback
 func (o *OperationHandler) RollBack(rollback model.RollbackInfoRequestStruct) (re OperationResult) {
 	re.Operation = "rollback"
 	re.ServiceID = rollback.ServiceID
@@ -402,4 +408,25 @@ func (o *OperationHandler) isWindowsService(serviceID string) bool {
 		return false
 	}
 	return true
+}
+
+func (o *OperationHandler) buildFromVM(r *model.ComponentBuildReq, service *dbmodel.TenantServices) error {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		util.Elapsed(fmt.Sprintf("[buildFromImage] build component(%s)", r.GetComponentID()))()
+	}
+
+	if r.ImageInfo.ImageURL == "" || r.DeployVersion == "" {
+		return fmt.Errorf("build from image failure, args error")
+	}
+	body := make(map[string]interface{})
+	body["arch"] = r.Arch
+	body["vm_image_source"] = r.ImageInfo.VMImageSource
+	body["service_id"] = r.ServiceID
+	body["deploy_version"] = r.DeployVersion
+	body["tenant_id"] = service.TenantID
+	body["configs"] = r.Configs
+	body["action"] = r.Action
+	body["event_id"] = r.EventID
+	body["image"] = r.ImageInfo.ImageURL
+	return o.sendBuildTopic(service.ServiceID, "build_from_vm", body, r.Arch)
 }

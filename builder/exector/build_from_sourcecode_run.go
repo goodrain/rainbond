@@ -79,6 +79,7 @@ type SourceCodeBuildItem struct {
 	Configs       map[string]gjson.Result `json:"configs"`
 	Ctx           context.Context
 	FailCause     string
+	BRVersion     string
 }
 
 // Commit code Commit
@@ -365,6 +366,7 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		CacheMode:     i.CacheMode,
 		CachePath:     i.CachePath,
 		Arch:          i.Arch,
+		BRVersion:     i.BRVersion,
 	}
 	res, err := codeBuild.Build(buildReq)
 	return res, err

@@ -55,7 +55,7 @@ type GatewayAction struct {
 	kubeClient    kubernetes.Interface
 }
 
-//CreateGatewayManager creates gateway manager.
+// CreateGatewayManager creates gateway manager.
 func CreateGatewayManager(dbmanager db.Manager, mqclient client.MQClient, etcdCli *clientv3.Client, gatewayClient *gateway.GatewayV1beta1Client, kubeClient kubernetes.Interface) *GatewayAction {
 	return &GatewayAction{
 		dbmanager:     dbmanager,
@@ -66,7 +66,7 @@ func CreateGatewayManager(dbmanager db.Manager, mqclient client.MQClient, etcdCl
 	}
 }
 
-//BatchGetGatewayHTTPRoute batch get gateway http route
+// BatchGetGatewayHTTPRoute batch get gateway http route
 func (g *GatewayAction) BatchGetGatewayHTTPRoute(namespace, appID string) ([]*apimodel.GatewayHTTPRouteConcise, error) {
 	var httpRoutes []v1beta1.HTTPRoute
 	if appID != "" {
@@ -115,7 +115,7 @@ func (g *GatewayAction) BatchGetGatewayHTTPRoute(namespace, appID string) ([]*ap
 	return HTTPRouteConcise, nil
 }
 
-//AddGatewayCertificate create gateway certificate
+// AddGatewayCertificate create gateway certificate
 func (g *GatewayAction) AddGatewayCertificate(req *apimodel.GatewayCertificate) error {
 	_, err := g.kubeClient.CoreV1().Secrets(req.Namespace).Create(context.Background(), &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -139,7 +139,7 @@ func (g *GatewayAction) AddGatewayCertificate(req *apimodel.GatewayCertificate) 
 	return nil
 }
 
-//UpdateGatewayCertificate update gateway certificate
+// UpdateGatewayCertificate update gateway certificate
 func (g *GatewayAction) UpdateGatewayCertificate(req *apimodel.GatewayCertificate) error {
 	secret, err := g.kubeClient.CoreV1().Secrets(req.Namespace).Get(context.Background(), req.Name, metav1.GetOptions{})
 	if err != nil {
@@ -180,7 +180,7 @@ func (g *GatewayAction) UpdateGatewayCertificate(req *apimodel.GatewayCertificat
 	return nil
 }
 
-//DeleteGatewayCertificate delete gateway certificate
+// DeleteGatewayCertificate delete gateway certificate
 func (g *GatewayAction) DeleteGatewayCertificate(name, namespace string) error {
 	err := g.kubeClient.CoreV1().Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
@@ -312,7 +312,7 @@ func handleGatewayRules(req *apimodel.GatewayHTTPRouteStruct) []v1beta1.HTTPRout
 	return rules
 }
 
-//AddGatewayHTTPRoute create gateway http route
+// AddGatewayHTTPRoute create gateway http route
 func (g *GatewayAction) AddGatewayHTTPRoute(req *apimodel.GatewayHTTPRouteStruct) (*model.K8sResource, error) {
 	gatewayNamespace := v1beta1.Namespace(req.GatewayNamespace)
 	var hosts []v1beta1.Hostname
@@ -376,7 +376,7 @@ func (g *GatewayAction) AddGatewayHTTPRoute(req *apimodel.GatewayHTTPRouteStruct
 	return k8sresource[0], nil
 }
 
-//GetGatewayHTTPRoute get gateway http route
+// GetGatewayHTTPRoute get gateway http route
 func (g *GatewayAction) GetGatewayHTTPRoute(name, namespace string) (*apimodel.GatewayHTTPRouteStruct, error) {
 	var req apimodel.GatewayHTTPRouteStruct
 	route, err := g.gatewayClient.HTTPRoutes(namespace).Get(context.Background(), name, metav1.GetOptions{})
@@ -548,7 +548,7 @@ func (g *GatewayAction) GetGatewayHTTPRoute(name, namespace string) (*apimodel.G
 	return &req, nil
 }
 
-//UpdateGatewayHTTPRoute update gateway http route
+// UpdateGatewayHTTPRoute update gateway http route
 func (g *GatewayAction) UpdateGatewayHTTPRoute(req *apimodel.GatewayHTTPRouteStruct) (*model.K8sResource, error) {
 	rules := handleGatewayRules(req)
 	gatewayNamespace := v1beta1.Namespace(req.GatewayNamespace)
@@ -597,7 +597,7 @@ func (g *GatewayAction) UpdateGatewayHTTPRoute(req *apimodel.GatewayHTTPRouteStr
 	return &res, nil
 }
 
-//DeleteGatewayHTTPRoute delete gateway http route
+// DeleteGatewayHTTPRoute delete gateway http route
 func (g *GatewayAction) DeleteGatewayHTTPRoute(name, namespace, appID string) error {
 	err := g.gatewayClient.HTTPRoutes(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
@@ -1407,13 +1407,13 @@ func (g *GatewayAction) ListHTTPRulesByCertID(certID string) ([]*model.HTTPRule,
 	return db.GetManager().HTTPRuleDao().ListByCertID(certID)
 }
 
-//IPAndAvailablePort ip and advice available port
+// IPAndAvailablePort ip and advice available port
 type IPAndAvailablePort struct {
 	IP            string `json:"ip"`
 	AvailablePort int    `json:"available_port"`
 }
 
-//GetGatewayIPs get all gateway node ips
+// GetGatewayIPs get all gateway node ips
 func (g *GatewayAction) GetGatewayIPs() []IPAndAvailablePort {
 	defaultAvailablePort, _ := g.GetAvailablePort("0.0.0.0", false)
 	defaultIps := []IPAndAvailablePort{{

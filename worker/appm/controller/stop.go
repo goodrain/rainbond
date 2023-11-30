@@ -153,6 +153,13 @@ func (s *stopController) stopOne(app v1.AppService) error {
 			logrus.Errorf("delete custom component manifest %s/%s failure %s", kind, name, err.Error())
 		}
 	}
+	if vm := app.GetVirtualMachine(); vm != nil {
+		err := s.manager.kubevirtCli.VirtualMachine(app.GetNamespace()).Delete(s.ctx, vm.Name, &metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("delete vm failure:%s", err.Error())
+		}
+		s.manager.store.OnDeletes(vm)
+	}
 	//step 5: delete statefulset or deployment
 	if statefulset := app.GetStatefulSet(); statefulset != nil {
 		err := s.manager.client.AppsV1().StatefulSets(app.GetNamespace()).Delete(s.ctx, statefulset.Name, metav1.DeleteOptions{})
@@ -249,7 +256,7 @@ func (s *stopController) Stop() error {
 	return nil
 }
 
-//WaitingReady wait app start or upgrade ready
+// WaitingReady wait app start or upgrade ready
 func (s *stopController) WaitingReady(app v1.AppService) error {
 	storeAppService := s.manager.store.GetAppService(app.ServiceID)
 	//at least waiting time is 40 second

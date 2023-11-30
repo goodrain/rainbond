@@ -31,19 +31,19 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//NetRulesAction  rules action struct
+// NetRulesAction  rules action struct
 type NetRulesAction struct {
 	etcdCli *clientv3.Client
 }
 
-//CreateNetRulesManager get net rules manager
+// CreateNetRulesManager get net rules manager
 func CreateNetRulesManager(etcdCli *clientv3.Client) *NetRulesAction {
 	return &NetRulesAction{
 		etcdCli: etcdCli,
 	}
 }
 
-//CreateDownStreamNetRules CreateDownStreamNetRules
+// CreateDownStreamNetRules CreateDownStreamNetRules
 func (n *NetRulesAction) CreateDownStreamNetRules(
 	tenantID string,
 	rs *api_model.SetNetDownStreamRuleStruct) *util.APIHandleError {
@@ -70,7 +70,7 @@ func (n *NetRulesAction) CreateDownStreamNetRules(
 	return nil
 }
 
-//GetDownStreamNetRule GetDownStreamNetRule
+// GetDownStreamNetRule GetDownStreamNetRule
 func (n *NetRulesAction) GetDownStreamNetRule(
 	tenantID,
 	serviceAlias,
@@ -103,7 +103,7 @@ func (n *NetRulesAction) GetDownStreamNetRule(
 	return nil, nil
 }
 
-//UpdateDownStreamNetRule UpdateDownStreamNetRule
+// UpdateDownStreamNetRule UpdateDownStreamNetRule
 func (n *NetRulesAction) UpdateDownStreamNetRule(
 	tenantID string,
 	urs *api_model.UpdateNetDownStreamRuleStruct) *util.APIHandleError {

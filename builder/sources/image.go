@@ -64,16 +64,16 @@ import (
 	"time"
 )
 
-//ErrorNoAuth error no auth
+// ErrorNoAuth error no auth
 var ErrorNoAuth = fmt.Errorf("pull image require docker login")
 
-//ErrorNoImage error no image
+// ErrorNoImage error no image
 var ErrorNoImage = fmt.Errorf("image not exist")
 
-//Namespace containerd image namespace
+// Namespace containerd image namespace
 var Namespace = "k8s.io"
 
-//ImagePull pull docker image
+// ImagePull pull docker image
 // Deprecated: use sources.ImageClient.ImagePull instead
 func ImagePull(client *containerd.Client, ref string, username, password string, logger event.Logger, timeout int) (*containerd.Image, error) {
 	printLog(logger, "info", fmt.Sprintf("start get image:%s", ref), map[string]string{"step": "pullimage"})
@@ -171,7 +171,7 @@ func ImageTag(containerdClient *containerd.Client, source, target string, logger
 	return nil
 }
 
-//ImageNameHandle 解析imagename
+// ImageNameHandle 解析imagename
 func ImageNameHandle(imageName string) *model.ImageName {
 	var i model.ImageName
 	if strings.Contains(imageName, "/") {
@@ -199,7 +199,7 @@ func ImageNameHandle(imageName string) *model.ImageName {
 	return &i
 }
 
-//ImageNameWithNamespaceHandle if have namespace,will parse namespace
+// ImageNameWithNamespaceHandle if have namespace,will parse namespace
 func ImageNameWithNamespaceHandle(imageName string) *model.ImageName {
 	var i model.ImageName
 	if strings.Contains(imageName, "/") {
@@ -231,8 +231,8 @@ func ImageNameWithNamespaceHandle(imageName string) *model.ImageName {
 	return &i
 }
 
-//ImagePush push image to registry
-//timeout minutes of the unit
+// ImagePush push image to registry
+// timeout minutes of the unit
 // Deprecated: use sources.ImageClient.ImagePush instead
 func ImagePush(client *containerd.Client, rawRef, user, pass string, logger event.Logger, timeout int) error {
 	printLog(logger, "info", fmt.Sprintf("start push image：%s", rawRef), map[string]string{"step": "pushimage"})
@@ -325,7 +325,7 @@ func ImagePush(client *containerd.Client, rawRef, user, pass string, logger even
 	return nil
 }
 
-//TrustedImagePush push image to trusted registry
+// TrustedImagePush push image to trusted registry
 func TrustedImagePush(containerdClient *containerd.Client, image, user, pass string, logger event.Logger, timeout int) error {
 	if err := CheckTrustedRepositories(image, user, pass); err != nil {
 		return err
@@ -333,7 +333,7 @@ func TrustedImagePush(containerdClient *containerd.Client, image, user, pass str
 	return ImagePush(containerdClient, image, user, pass, logger, timeout)
 }
 
-//CheckTrustedRepositories check Repositories is exist ,if not create it.
+// CheckTrustedRepositories check Repositories is exist ,if not create it.
 func CheckTrustedRepositories(image, user, pass string) error {
 	ref, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
@@ -391,11 +391,11 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	return base64.URLEncoding.EncodeToString(buf), nil
 }
 
-//ImageBuild use buildkit build image
+// ImageBuild use buildkit build image
 func ImageBuild(arch, contextDir, cachePVCName, cacheMode, RbdNamespace, ServiceID, DeployVersion string, logger event.Logger, buildType, plugImageName, BuildKitImage string, BuildKitArgs []string, BuildKitCache bool, kubeClient kubernetes.Interface) error {
 	// create image name
 	var buildImageName string
-	if buildType == "plug-build" {
+	if buildType == "plug-build" || buildType == "vm-build" {
 		buildImageName = plugImageName
 	} else {
 		buildImageName = CreateImageName(ServiceID, DeployVersion)
@@ -459,6 +459,11 @@ func ImageBuild(arch, contextDir, cachePVCName, cacheMode, RbdNamespace, Service
 		Stdin:     true,
 		StdinOnce: true,
 		Command:   []string{"buildctl-daemonless.sh"},
+		Env: []corev1.EnvVar{{
+			Name:  "BUILDCTL_CONNECT_RETRIES_MAX",
+			Value: "20",
+		},
+		},
 		Args: []string{
 			"build",
 			"--frontend",
@@ -500,7 +505,7 @@ func ImageBuild(arch, contextDir, cachePVCName, cacheMode, RbdNamespace, Service
 	return nil
 }
 
-//ImageInspectWithRaw get image inspect
+// ImageInspectWithRaw get image inspect
 func ImageInspectWithRaw(dockerCli *client.Client, image string) (*types.ImageInspect, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -511,7 +516,7 @@ func ImageInspectWithRaw(dockerCli *client.Client, image string) (*types.ImageIn
 	return &ins, nil
 }
 
-//ImageSave save image to tar file
+// ImageSave save image to tar file
 // destination destination file name eg. /tmp/xxx.tar
 func ImageSave(dockerCli *client.Client, image, destination string, logger event.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -524,7 +529,7 @@ func ImageSave(dockerCli *client.Client, image, destination string, logger event
 	return CopyToFile(destination, rc)
 }
 
-//MultiImageSave save multi image to tar file
+// MultiImageSave save multi image to tar file
 // destination destination file name eg. /tmp/xxx.tar
 func MultiImageSave(ctx context.Context, dockerCli *client.Client, destination string, logger event.Logger, images ...string) error {
 	rc, err := dockerCli.ImageSave(ctx, images)
@@ -535,7 +540,7 @@ func MultiImageSave(ctx context.Context, dockerCli *client.Client, destination s
 	return CopyToFile(destination, rc)
 }
 
-//ImageLoad load image from  tar file
+// ImageLoad load image from  tar file
 // destination destination file name eg. /tmp/xxx.tar
 func ImageLoad(dockerCli *client.Client, tarFile string, logger event.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -577,7 +582,7 @@ func ImageLoad(dockerCli *client.Client, tarFile string, logger event.Logger) er
 	return nil
 }
 
-//ImageImport save image to tar file
+// ImageImport save image to tar file
 // source source file name eg. /tmp/xxx.tar
 func ImageImport(dockerCli *client.Client, image, source string, logger event.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -648,7 +653,7 @@ func CopyToFile(outfile string, r io.Reader) error {
 	return nil
 }
 
-//ImageRemove remove image
+// ImageRemove remove image
 func ImageRemove(containerdClient *containerd.Client, image string) error {
 	ctx := namespaces.WithNamespace(context.Background(), Namespace)
 	imageStore := containerdClient.ImageService()
@@ -769,7 +774,7 @@ func CreateImageName(ServiceID, DeployVersion string) string {
 	return strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, workloadName, DeployVersion))
 }
 
-//GetImageFirstPart -
+// GetImageFirstPart -
 func GetImageFirstPart(str string) (string, string) {
 	imageDomain, imageName := str, ""
 	if strings.Contains(str, "/") {
@@ -781,7 +786,7 @@ func GetImageFirstPart(str string) (string, string) {
 	return imageDomain, imageName
 }
 
-//PrepareBuildKitTomlCM -
+// PrepareBuildKitTomlCM -
 func PrepareBuildKitTomlCM(ctx context.Context, kubeClient kubernetes.Interface, namespace, buildKitTomlCMName, imageDomain string) error {
 	buildKitTomlCM, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, buildKitTomlCMName, metav1.GetOptions{})
 	if err != nil && !k8serror.IsNotFound(err) {
@@ -923,7 +928,7 @@ func CreateVolumesAndMounts(ServiceID, contextDir, buildType, cacheMode, cachePV
 		}
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
-	if buildType == "run-build" {
+	if buildType == "run-build" || buildType == "vm-build" {
 		volume := corev1.Volume{
 			Name: "run-build",
 			VolumeSource: corev1.VolumeSource{

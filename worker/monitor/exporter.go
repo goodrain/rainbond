@@ -31,11 +31,10 @@ import (
 	"github.com/goodrain/rainbond/worker/monitor/collector"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
 	"github.com/sirupsen/logrus"
 )
 
-//ExporterManager app resource exporter
+// ExporterManager app resource exporter
 type ExporterManager struct {
 	ctx               context.Context
 	cancel            context.CancelFunc
@@ -45,7 +44,7 @@ type ExporterManager struct {
 	controllermanager *controller.Manager
 }
 
-//NewManager return *NewManager
+// NewManager return *NewManager
 func NewManager(c option.Config, masterController *master.Controller, controllermanager *controller.Manager) *ExporterManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ExporterManager{
@@ -70,7 +69,7 @@ func (t *ExporterManager) handler(w http.ResponseWriter, r *http.Request) {
 	h.ServeHTTP(w, r)
 }
 
-//Start 启动
+// Start 启动
 func (t *ExporterManager) Start() error {
 	http.HandleFunc(t.config.PrometheusMetricPath, t.handler)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -90,15 +89,15 @@ func (t *ExporterManager) Start() error {
 		}
 		httputil.ReturnSuccess(r, w, healthStatus)
 	})
-	log.Infoln("Listening on", t.config.Listen)
+	logrus.Infoln("Listening on", t.config.Listen)
 	go func() {
-		log.Fatal(http.ListenAndServe(t.config.Listen, nil))
+		logrus.Fatal(http.ListenAndServe(t.config.Listen, nil))
 	}()
 	logrus.Info("start app resource exporter success.")
 	return nil
 }
 
-//Stop 停止
+// Stop 停止
 func (t *ExporterManager) Stop() {
 	t.cancel()
 }

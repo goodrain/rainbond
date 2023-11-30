@@ -20,9 +20,10 @@ package monitor
 
 import (
 	"context"
+	v3 "github.com/coreos/etcd/clientv3"
 	"time"
 
-	v3 "github.com/coreos/etcd/clientv3"
+	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/monitor/option"
 	discoverv1 "github.com/goodrain/rainbond/discover"
 	discoverv2 "github.com/goodrain/rainbond/discover.v2"
@@ -36,12 +37,12 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-//Monitor monitor
+// Monitor monitor
 type Monitor struct {
 	config         *option.Config
 	ctx            context.Context
 	cancel         context.CancelFunc
-	client         *v3.Client
+	client         *clientv3.Client
 	timeout        time.Duration
 	manager        *prometheus.Manager
 	discoverv1     discoverv1.Discover
@@ -50,7 +51,7 @@ type Monitor struct {
 	stopCh         chan struct{}
 }
 
-//Start start
+// Start start
 func (d *Monitor) Start() {
 	d.discoverv1.AddProject("prometheus", &callback.Prometheus{Prometheus: d.manager})
 	d.discoverv1.AddProject("event_log_event_http", &callback.EventLog{Prometheus: d.manager})

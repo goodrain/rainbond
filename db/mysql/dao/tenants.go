@@ -36,12 +36,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//TenantDaoImpl 租户信息管理
+// TenantDaoImpl 租户信息管理
 type TenantDaoImpl struct {
 	DB *gorm.DB
 }
 
-//AddModel 添加租户
+// AddModel 添加租户
 func (t *TenantDaoImpl) AddModel(mo model.Interface) error {
 	tenant := mo.(*model.Tenants)
 	var oldTenant model.Tenants
@@ -55,7 +55,7 @@ func (t *TenantDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel 更新租户
+// UpdateModel 更新租户
 func (t *TenantDaoImpl) UpdateModel(mo model.Interface) error {
 	tenant := mo.(*model.Tenants)
 	if err := t.DB.Save(tenant).Error; err != nil {
@@ -64,7 +64,7 @@ func (t *TenantDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
-//GetTenantByUUID 获取租户
+// GetTenantByUUID 获取租户
 func (t *TenantDaoImpl) GetTenantByUUID(uuid string) (*model.Tenants, error) {
 	var tenant model.Tenants
 	if err := t.DB.Where("uuid = ?", uuid).Find(&tenant).Error; err != nil {
@@ -73,7 +73,7 @@ func (t *TenantDaoImpl) GetTenantByUUID(uuid string) (*model.Tenants, error) {
 	return &tenant, nil
 }
 
-//GetTenantByUUIDIsExist 获取租户
+// GetTenantByUUIDIsExist 获取租户
 func (t *TenantDaoImpl) GetTenantByUUIDIsExist(uuid string) bool {
 	var tenant model.Tenants
 	isExist := t.DB.Where("uuid = ?", uuid).First(&tenant).RecordNotFound()
@@ -81,7 +81,7 @@ func (t *TenantDaoImpl) GetTenantByUUIDIsExist(uuid string) bool {
 
 }
 
-//GetTenantIDByName 获取租户
+// GetTenantIDByName 获取租户
 func (t *TenantDaoImpl) GetTenantIDByName(name string) (*model.Tenants, error) {
 	var tenant model.Tenants
 	if err := t.DB.Where("name = ?", name).Find(&tenant).Error; err != nil {
@@ -90,7 +90,7 @@ func (t *TenantDaoImpl) GetTenantIDByName(name string) (*model.Tenants, error) {
 	return &tenant, nil
 }
 
-//GetALLTenants GetALLTenants
+// GetALLTenants GetALLTenants
 func (t *TenantDaoImpl) GetALLTenants(query string) ([]*model.Tenants, error) {
 	var tenants []*model.Tenants
 	if query != "" {
@@ -105,7 +105,7 @@ func (t *TenantDaoImpl) GetALLTenants(query string) ([]*model.Tenants, error) {
 	return tenants, nil
 }
 
-//GetTenantByEid get tenants by eid
+// GetTenantByEid get tenants by eid
 func (t *TenantDaoImpl) GetTenantByEid(eid, query string) ([]*model.Tenants, error) {
 	var tenants []*model.Tenants
 	if query != "" {
@@ -120,7 +120,7 @@ func (t *TenantDaoImpl) GetTenantByEid(eid, query string) ([]*model.Tenants, err
 	return tenants, nil
 }
 
-//GetTenantIDsByNames get tenant ids by names
+// GetTenantIDsByNames get tenant ids by names
 func (t *TenantDaoImpl) GetTenantIDsByNames(names []string) (re []string, err error) {
 	rows, err := t.DB.Raw("select uuid from tenants where name in (?)", names).Rows()
 	if err != nil {
@@ -135,7 +135,7 @@ func (t *TenantDaoImpl) GetTenantIDsByNames(names []string) (re []string, err er
 	return
 }
 
-//GetTenantLimitsByNames get tenants memory limit
+// GetTenantLimitsByNames get tenants memory limit
 func (t *TenantDaoImpl) GetTenantLimitsByNames(names []string) (limit map[string]int, err error) {
 	limit = make(map[string]int)
 	rows, err := t.DB.Raw("select uuid,limit_memory from tenants where name in (?)", names).Rows()
@@ -170,7 +170,7 @@ func (t *TenantDaoImpl) DelByTenantID(tenantID string) error {
 	return nil
 }
 
-//TenantServicesDaoImpl 租户应用dao
+// TenantServicesDaoImpl 租户应用dao
 type TenantServicesDaoImpl struct {
 	DB *gorm.DB
 }
@@ -196,7 +196,7 @@ func (t *TenantServicesDaoImpl) GetServiceTypeByID(serviceID string) (*model.Ten
 	return &service, nil
 }
 
-//GetAllServicesID get all service sample info
+// GetAllServicesID get all service sample info
 func (t *TenantServicesDaoImpl) GetAllServicesID() ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
 	if err := t.DB.Select("service_id,service_alias,tenant_id,app_id").Find(&services).Error; err != nil {
@@ -218,7 +218,7 @@ func (t *TenantServicesDaoImpl) ListServicesByTenantID(tenantID string) ([]*mode
 	return services, nil
 }
 
-//UpdateDeployVersion update service current deploy version
+// UpdateDeployVersion update service current deploy version
 func (t *TenantServicesDaoImpl) UpdateDeployVersion(serviceID, deployversion string) error {
 	if err := t.DB.Exec("update tenant_services set deploy_version=? where service_id=?", deployversion, serviceID).Error; err != nil {
 		return err
@@ -226,7 +226,7 @@ func (t *TenantServicesDaoImpl) UpdateDeployVersion(serviceID, deployversion str
 	return nil
 }
 
-//AddModel 添加租户应用
+// AddModel 添加租户应用
 func (t *TenantServicesDaoImpl) AddModel(mo model.Interface) error {
 	service := mo.(*model.TenantServices)
 	var oldService model.TenantServices
@@ -240,7 +240,7 @@ func (t *TenantServicesDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel 更新租户应用
+// UpdateModel 更新租户应用
 func (t *TenantServicesDaoImpl) UpdateModel(mo model.Interface) error {
 	service := mo.(*model.TenantServices)
 	if err := t.DB.Save(service).Error; err != nil {
@@ -249,7 +249,7 @@ func (t *TenantServicesDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
-//GetServiceByID 获取服务通过服务id
+// GetServiceByID 获取服务通过服务id
 func (t *TenantServicesDaoImpl) GetServiceByID(serviceID string) (*model.TenantServices, error) {
 	var service model.TenantServices
 	if err := t.DB.Where("service_id=?", serviceID).Find(&service).Error; err != nil {
@@ -258,7 +258,7 @@ func (t *TenantServicesDaoImpl) GetServiceByID(serviceID string) (*model.TenantS
 	return &service, nil
 }
 
-//GetServiceByServiceAlias 获取服务通过服务别名
+// GetServiceByServiceAlias 获取服务通过服务别名
 func (t *TenantServicesDaoImpl) GetServiceByServiceAlias(serviceAlias string) (*model.TenantServices, error) {
 	var service model.TenantServices
 	if err := t.DB.Where("service_alias=?", serviceAlias).Find(&service).Error; err != nil {
@@ -267,7 +267,7 @@ func (t *TenantServicesDaoImpl) GetServiceByServiceAlias(serviceAlias string) (*
 	return &service, nil
 }
 
-//GetServiceMemoryByTenantIDs get service memory by tenant ids
+// GetServiceMemoryByTenantIDs get service memory by tenant ids
 func (t *TenantServicesDaoImpl) GetServiceMemoryByTenantIDs(tenantIDs []string, runningServiceIDs []string) (map[string]map[string]interface{}, error) {
 	rows, err := t.DB.Raw("select tenant_id, sum(container_cpu) as cpu,sum(container_memory * replicas) as memory from tenant_services where tenant_id in (?) and service_id in (?) group by tenant_id", tenantIDs, runningServiceIDs).Rows()
 	if err != nil {
@@ -294,7 +294,7 @@ func (t *TenantServicesDaoImpl) GetServiceMemoryByTenantIDs(tenantIDs []string, 
 	return rc, nil
 }
 
-//GetServiceMemoryByServiceIDs get service memory by service ids
+// GetServiceMemoryByServiceIDs get service memory by service ids
 func (t *TenantServicesDaoImpl) GetServiceMemoryByServiceIDs(serviceIDs []string) (map[string]map[string]interface{}, error) {
 	rows, err := t.DB.Raw("select service_id, container_cpu as cpu, container_memory as memory from tenant_services where service_id in (?)", serviceIDs).Rows()
 	if err != nil {
@@ -321,7 +321,7 @@ func (t *TenantServicesDaoImpl) GetServiceMemoryByServiceIDs(serviceIDs []string
 	return rc, nil
 }
 
-//GetPagedTenantService GetPagedTenantResource
+// GetPagedTenantService GetPagedTenantResource
 func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, length int, serviceIDs []string) ([]map[string]interface{}, int, error) {
 	var count int
 	var service model.TenantServices
@@ -391,7 +391,7 @@ func (t *TenantServicesDaoImpl) GetPagedTenantService(offset, length int, servic
 	return result, count, nil
 }
 
-//GetServiceAliasByIDs 获取应用别名
+// GetServiceAliasByIDs 获取应用别名
 func (t *TenantServicesDaoImpl) GetServiceAliasByIDs(uids []string) ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
 	if err := t.DB.Where("service_id in (?)", uids).Select("service_alias,service_id").Find(&services).Error; err != nil {
@@ -416,7 +416,7 @@ func (t *TenantServicesDaoImpl) GetWorkloadNameByIDs(uids []string) ([]*model.Co
 	return componentWorkload, nil
 }
 
-//GetServiceByIDs get some service by service ids
+// GetServiceByIDs get some service by service ids
 func (t *TenantServicesDaoImpl) GetServiceByIDs(uids []string) ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
 	if err := t.DB.Where("service_id in (?)", uids).Find(&services).Error; err != nil {
@@ -428,7 +428,7 @@ func (t *TenantServicesDaoImpl) GetServiceByIDs(uids []string) ([]*model.TenantS
 	return services, nil
 }
 
-//GetServiceByTenantIDAndServiceAlias 根据租户名和服务名
+// GetServiceByTenantIDAndServiceAlias 根据租户名和服务名
 func (t *TenantServicesDaoImpl) GetServiceByTenantIDAndServiceAlias(tenantID, serviceName string) (*model.TenantServices, error) {
 	var service model.TenantServices
 	if err := t.DB.Where("service_alias = ? and tenant_id=?", serviceName, tenantID).Find(&service).Error; err != nil {
@@ -437,7 +437,7 @@ func (t *TenantServicesDaoImpl) GetServiceByTenantIDAndServiceAlias(tenantID, se
 	return &service, nil
 }
 
-//GetServicesByTenantID GetServicesByTenantID
+// GetServicesByTenantID GetServicesByTenantID
 func (t *TenantServicesDaoImpl) GetServicesByTenantID(tenantID string) ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
 	if err := t.DB.Where("tenant_id=?", tenantID).Find(&services).Error; err != nil {
@@ -449,7 +449,7 @@ func (t *TenantServicesDaoImpl) GetServicesByTenantID(tenantID string) ([]*model
 	return services, nil
 }
 
-//GetServicesByTenantIDs GetServicesByTenantIDs
+// GetServicesByTenantIDs GetServicesByTenantIDs
 func (t *TenantServicesDaoImpl) GetServicesByTenantIDs(tenantIDs []string) ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
 	if err := t.DB.Where("tenant_id in (?)", tenantIDs).Find(&services).Error; err != nil {
@@ -461,7 +461,7 @@ func (t *TenantServicesDaoImpl) GetServicesByTenantIDs(tenantIDs []string) ([]*m
 	return services, nil
 }
 
-//GetServicesAllInfoByTenantID GetServicesAllInfoByTenantID
+// GetServicesAllInfoByTenantID GetServicesAllInfoByTenantID
 func (t *TenantServicesDaoImpl) GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
 	if err := t.DB.Where("tenant_id= ?", tenantID).Find(&services).Error; err != nil {
@@ -511,7 +511,7 @@ func (t *TenantServicesDaoImpl) GetServiceIDsByAppID(appID string) (re []model.S
 	return
 }
 
-//GetServicesByServiceIDs Get Services By ServiceIDs
+// GetServicesByServiceIDs Get Services By ServiceIDs
 func (t *TenantServicesDaoImpl) GetServicesByServiceIDs(serviceIDs []string) ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
 	if err := t.DB.Where("service_id in (?)", serviceIDs).Find(&services).Error; err != nil {
@@ -523,7 +523,7 @@ func (t *TenantServicesDaoImpl) GetServicesByServiceIDs(serviceIDs []string) ([]
 	return services, nil
 }
 
-//SetTenantServiceStatus SetTenantServiceStatus
+// SetTenantServiceStatus SetTenantServiceStatus
 func (t *TenantServicesDaoImpl) SetTenantServiceStatus(serviceID, status string) error {
 	var service model.TenantServices
 	if status == "closed" || status == "undeploy" {
@@ -538,7 +538,7 @@ func (t *TenantServicesDaoImpl) SetTenantServiceStatus(serviceID, status string)
 	return nil
 }
 
-//DeleteServiceByServiceID DeleteServiceByServiceID
+// DeleteServiceByServiceID DeleteServiceByServiceID
 func (t *TenantServicesDaoImpl) DeleteServiceByServiceID(serviceID string) error {
 	ts := &model.TenantServices{
 		ServiceID: serviceID,
@@ -604,7 +604,7 @@ func (t *TenantServicesDaoImpl) DeleteByComponentIDs(tenantID, appID string, com
 	return nil
 }
 
-//IsK8sComponentNameDuplicate -
+// IsK8sComponentNameDuplicate -
 func (t *TenantServicesDaoImpl) IsK8sComponentNameDuplicate(appID, serviceID, k8sComponentName string) bool {
 	var count int64
 	if err := t.DB.Model(&model.TenantServices{}).Where("app_id=? and service_id<>? and k8s_component_name=?", appID, serviceID, k8sComponentName).Count(&count).Error; err != nil {
@@ -614,12 +614,12 @@ func (t *TenantServicesDaoImpl) IsK8sComponentNameDuplicate(appID, serviceID, k8
 	return count > 0
 }
 
-//TenantServicesDeleteImpl TenantServiceDeleteImpl
+// TenantServicesDeleteImpl TenantServiceDeleteImpl
 type TenantServicesDeleteImpl struct {
 	DB *gorm.DB
 }
 
-//AddModel 添加已删除的应用
+// AddModel 添加已删除的应用
 func (t *TenantServicesDeleteImpl) AddModel(mo model.Interface) error {
 	service := mo.(*model.TenantServicesDelete)
 	var oldService model.TenantServicesDelete
@@ -631,7 +631,7 @@ func (t *TenantServicesDeleteImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel 更新租户应用
+// UpdateModel 更新租户应用
 func (t *TenantServicesDeleteImpl) UpdateModel(mo model.Interface) error {
 	service := mo.(*model.TenantServicesDelete)
 	if err := t.DB.Save(service).Error; err != nil {
@@ -669,12 +669,12 @@ func (t *TenantServicesDeleteImpl) List() ([]*model.TenantServicesDelete, error)
 	return components, nil
 }
 
-//TenantServicesPortDaoImpl 租户应用端口操作
+// TenantServicesPortDaoImpl 租户应用端口操作
 type TenantServicesPortDaoImpl struct {
 	DB *gorm.DB
 }
 
-//AddModel 添加应用端口
+// AddModel 添加应用端口
 func (t *TenantServicesPortDaoImpl) AddModel(mo model.Interface) error {
 	port := mo.(*model.TenantServicesPort)
 	var oldPort model.TenantServicesPort
@@ -688,7 +688,7 @@ func (t *TenantServicesPortDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel 更新租户
+// UpdateModel 更新租户
 func (t *TenantServicesPortDaoImpl) UpdateModel(mo model.Interface) error {
 	port := mo.(*model.TenantServicesPort)
 	if port.ID == 0 {
@@ -736,7 +736,7 @@ func (t *TenantServicesPortDaoImpl) CreateOrUpdatePortsInBatch(ports []*model.Te
 	return nil
 }
 
-//DeleteModel 删除端口
+// DeleteModel 删除端口
 func (t *TenantServicesPortDaoImpl) DeleteModel(serviceID string, args ...interface{}) error {
 	if len(args) < 1 {
 		return fmt.Errorf("can not provide containerPort")
@@ -765,7 +765,7 @@ func (t *TenantServicesPortDaoImpl) GetByTenantAndName(tenantID, name string) (*
 	return &port, nil
 }
 
-//GetPortsByServiceID 通过服务获取port
+// GetPortsByServiceID 通过服务获取port
 func (t *TenantServicesPortDaoImpl) GetPortsByServiceID(serviceID string) ([]*model.TenantServicesPort, error) {
 	var oldPort []*model.TenantServicesPort
 	if err := t.DB.Where("service_id = ?", serviceID).Find(&oldPort).Error; err != nil {
@@ -777,7 +777,7 @@ func (t *TenantServicesPortDaoImpl) GetPortsByServiceID(serviceID string) ([]*mo
 	return oldPort, nil
 }
 
-//GetOuterPorts  获取对外端口
+// GetOuterPorts  获取对外端口
 func (t *TenantServicesPortDaoImpl) GetOuterPorts(serviceID string) ([]*model.TenantServicesPort, error) {
 	var oldPort []*model.TenantServicesPort
 	if err := t.DB.Where("service_id = ? and is_outer_service=?", serviceID, true).Find(&oldPort).Error; err != nil {
@@ -789,7 +789,7 @@ func (t *TenantServicesPortDaoImpl) GetOuterPorts(serviceID string) ([]*model.Te
 	return oldPort, nil
 }
 
-//GetInnerPorts 获取对内端口
+// GetInnerPorts 获取对内端口
 func (t *TenantServicesPortDaoImpl) GetInnerPorts(serviceID string) ([]*model.TenantServicesPort, error) {
 	var oldPort []*model.TenantServicesPort
 	if err := t.DB.Where("service_id = ? and is_inner_service=?", serviceID, true).Find(&oldPort).Error; err != nil {
@@ -798,7 +798,7 @@ func (t *TenantServicesPortDaoImpl) GetInnerPorts(serviceID string) ([]*model.Te
 	return oldPort, nil
 }
 
-//GetPort get port
+// GetPort get port
 func (t *TenantServicesPortDaoImpl) GetPort(serviceID string, port int) (*model.TenantServicesPort, error) {
 	var oldPort model.TenantServicesPort
 	if err := t.DB.Where("service_id = ? and container_port=?", serviceID, port).Find(&oldPort).Error; err != nil {
@@ -820,7 +820,7 @@ func (t *TenantServicesPortDaoImpl) GetOpenedPorts(serviceID string) ([]*model.T
 	return ports, nil
 }
 
-//DELPortsByServiceID DELPortsByServiceID
+// DELPortsByServiceID DELPortsByServiceID
 func (t *TenantServicesPortDaoImpl) DELPortsByServiceID(serviceID string) error {
 	var port model.TenantServicesPort
 	if err := t.DB.Where("service_id=?", serviceID).Delete(&port).Error; err != nil {
@@ -842,7 +842,7 @@ func (t *TenantServicesPortDaoImpl) HasOpenPort(sid string) bool {
 	return true
 }
 
-//GetDepUDPPort get all depend service udp port
+// GetDepUDPPort get all depend service udp port
 func (t *TenantServicesPortDaoImpl) GetDepUDPPort(serviceID string) ([]*model.TenantServicesPort, error) {
 	var portInfos []*model.TenantServicesPort
 	var port model.TenantServicesPort
@@ -882,12 +882,12 @@ func (t *TenantServicesPortDaoImpl) ListByK8sServiceNames(k8sServiceNames []stri
 	return ports, nil
 }
 
-//TenantServiceRelationDaoImpl TenantServiceRelationDaoImpl
+// TenantServiceRelationDaoImpl TenantServiceRelationDaoImpl
 type TenantServiceRelationDaoImpl struct {
 	DB *gorm.DB
 }
 
-//AddModel 添加应用依赖关系
+// AddModel 添加应用依赖关系
 func (t *TenantServiceRelationDaoImpl) AddModel(mo model.Interface) error {
 	relation := mo.(*model.TenantServiceRelation)
 	var oldRelation model.TenantServiceRelation
@@ -901,7 +901,7 @@ func (t *TenantServiceRelationDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel 更新应用依赖关系
+// UpdateModel 更新应用依赖关系
 func (t *TenantServiceRelationDaoImpl) UpdateModel(mo model.Interface) error {
 	relation := mo.(*model.TenantServiceRelation)
 	if relation.ID == 0 {
@@ -913,7 +913,7 @@ func (t *TenantServiceRelationDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
-//DeleteModel 删除依赖
+// DeleteModel 删除依赖
 func (t *TenantServiceRelationDaoImpl) DeleteModel(serviceID string, args ...interface{}) error {
 	depServiceID := args[0].(string)
 	relation := &model.TenantServiceRelation{
@@ -927,7 +927,7 @@ func (t *TenantServiceRelationDaoImpl) DeleteModel(serviceID string, args ...int
 	return nil
 }
 
-//DeleteRelationByDepID DeleteRelationByDepID
+// DeleteRelationByDepID DeleteRelationByDepID
 func (t *TenantServiceRelationDaoImpl) DeleteRelationByDepID(serviceID, depID string) error {
 	relation := &model.TenantServiceRelation{
 		ServiceID:       serviceID,
@@ -939,7 +939,7 @@ func (t *TenantServiceRelationDaoImpl) DeleteRelationByDepID(serviceID, depID st
 	return nil
 }
 
-//DeleteByComponentIDs -
+// DeleteByComponentIDs -
 func (t *TenantServiceRelationDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
 	return t.DB.Where("service_id in (?)", componentIDs).Delete(&model.TenantServiceRelation{}).Error
 }
@@ -973,7 +973,7 @@ func (t *TenantServiceRelationDaoImpl) CreateOrUpdateRelationsInBatch(relations 
 	return nil
 }
 
-//GetTenantServiceRelations 获取应用依赖关系
+// GetTenantServiceRelations 获取应用依赖关系
 func (t *TenantServiceRelationDaoImpl) GetTenantServiceRelations(serviceID string) ([]*model.TenantServiceRelation, error) {
 	var oldRelation []*model.TenantServiceRelation
 	if err := t.DB.Where("service_id = ?", serviceID).Find(&oldRelation).Error; err != nil {
@@ -995,7 +995,7 @@ func (t *TenantServiceRelationDaoImpl) ListByServiceIDs(serviceIDs []string) ([]
 	return relations, nil
 }
 
-//HaveRelations 是否有依赖
+// HaveRelations 是否有依赖
 func (t *TenantServiceRelationDaoImpl) HaveRelations(serviceID string) bool {
 	var oldRelation []*model.TenantServiceRelation
 	if err := t.DB.Where("service_id = ?", serviceID).Find(&oldRelation).Error; err != nil {
@@ -1007,7 +1007,7 @@ func (t *TenantServiceRelationDaoImpl) HaveRelations(serviceID string) bool {
 	return false
 }
 
-//DELRelationsByServiceID DELRelationsByServiceID
+// DELRelationsByServiceID DELRelationsByServiceID
 func (t *TenantServiceRelationDaoImpl) DELRelationsByServiceID(serviceID string) error {
 	relation := &model.TenantServiceRelation{
 		ServiceID: serviceID,
@@ -1019,7 +1019,7 @@ func (t *TenantServiceRelationDaoImpl) DELRelationsByServiceID(serviceID string)
 	return nil
 }
 
-//GetTenantServiceRelationsByDependServiceID 获取全部依赖当前服务的应用
+// GetTenantServiceRelationsByDependServiceID 获取全部依赖当前服务的应用
 func (t *TenantServiceRelationDaoImpl) GetTenantServiceRelationsByDependServiceID(dependServiceID string) ([]*model.TenantServiceRelation, error) {
 	var oldRelation []*model.TenantServiceRelation
 	if err := t.DB.Where("dep_service_id = ?", dependServiceID).Find(&oldRelation).Error; err != nil {
@@ -1028,12 +1028,12 @@ func (t *TenantServiceRelationDaoImpl) GetTenantServiceRelationsByDependServiceI
 	return oldRelation, nil
 }
 
-//TenantServiceEnvVarDaoImpl TenantServiceEnvVarDaoImpl
+// TenantServiceEnvVarDaoImpl TenantServiceEnvVarDaoImpl
 type TenantServiceEnvVarDaoImpl struct {
 	DB *gorm.DB
 }
 
-//AddModel 添加应用环境变量
+// AddModel 添加应用环境变量
 func (t *TenantServiceEnvVarDaoImpl) AddModel(mo model.Interface) error {
 	relation := mo.(*model.TenantServiceEnvVar)
 	var oldRelation model.TenantServiceEnvVar
@@ -1050,7 +1050,7 @@ func (t *TenantServiceEnvVarDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel update env support attr_value\is_change\scope
+// UpdateModel update env support attr_value\is_change\scope
 func (t *TenantServiceEnvVarDaoImpl) UpdateModel(mo model.Interface) error {
 	env := mo.(*model.TenantServiceEnvVar)
 	return t.DB.Table(env.TableName()).Where("service_id=? and attr_name = ?", env.ServiceID, env.AttrName).Update(map[string]interface{}{
@@ -1060,7 +1060,7 @@ func (t *TenantServiceEnvVarDaoImpl) UpdateModel(mo model.Interface) error {
 	}).Error
 }
 
-//DeleteByComponentIDs -
+// DeleteByComponentIDs -
 func (t *TenantServiceEnvVarDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
 	return t.DB.Where("service_id in (?)", componentIDs).Delete(&model.TenantServiceEnvVar{}).Error
 }
@@ -1101,7 +1101,7 @@ func (t *TenantServiceEnvVarDaoImpl) CreateOrUpdateEnvsInBatch(envs []*model.Ten
 	return nil
 }
 
-//DeleteModel 删除env
+// DeleteModel 删除env
 func (t *TenantServiceEnvVarDaoImpl) DeleteModel(serviceID string, args ...interface{}) error {
 	envName := args[0].(string)
 	relation := &model.TenantServiceEnvVar{
@@ -1114,7 +1114,7 @@ func (t *TenantServiceEnvVarDaoImpl) DeleteModel(serviceID string, args ...inter
 	return nil
 }
 
-//GetDependServiceEnvs 获取依赖服务的环境变量
+// GetDependServiceEnvs 获取依赖服务的环境变量
 func (t *TenantServiceEnvVarDaoImpl) GetDependServiceEnvs(serviceIDs []string, scopes []string) ([]*model.TenantServiceEnvVar, error) {
 	var envs []*model.TenantServiceEnvVar
 	if err := t.DB.Where("service_id in (?) and scope in (?)", serviceIDs, scopes).Find(&envs).Error; err != nil {
@@ -1126,7 +1126,7 @@ func (t *TenantServiceEnvVarDaoImpl) GetDependServiceEnvs(serviceIDs []string, s
 	return envs, nil
 }
 
-//GetServiceEnvs 获取服务环境变量
+// GetServiceEnvs 获取服务环境变量
 func (t *TenantServiceEnvVarDaoImpl) GetServiceEnvs(serviceID string, scopes []string) ([]*model.TenantServiceEnvVar, error) {
 	var envs []*model.TenantServiceEnvVar
 	if scopes == nil {
@@ -1147,7 +1147,7 @@ func (t *TenantServiceEnvVarDaoImpl) GetServiceEnvs(serviceID string, scopes []s
 	return envs, nil
 }
 
-//GetEnv 获取某个环境变量
+// GetEnv 获取某个环境变量
 func (t *TenantServiceEnvVarDaoImpl) GetEnv(serviceID, envName string) (*model.TenantServiceEnvVar, error) {
 	var env model.TenantServiceEnvVar
 	if err := t.DB.Where("service_id=? and attr_name=? ", serviceID, envName).Find(&env).Error; err != nil {
@@ -1156,7 +1156,7 @@ func (t *TenantServiceEnvVarDaoImpl) GetEnv(serviceID, envName string) (*model.T
 	return &env, nil
 }
 
-//DELServiceEnvsByServiceID 通过serviceID 删除envs
+// DELServiceEnvsByServiceID 通过serviceID 删除envs
 func (t *TenantServiceEnvVarDaoImpl) DELServiceEnvsByServiceID(serviceID string) error {
 	var env model.TenantServiceEnvVar
 	if err := t.DB.Where("service_id=?", serviceID).Find(&env).Error; err != nil {
@@ -1177,12 +1177,12 @@ func (t *TenantServiceEnvVarDaoImpl) DelByServiceIDAndScope(sid, scope string) e
 	return nil
 }
 
-//TenantServiceMountRelationDaoImpl 依赖存储
+// TenantServiceMountRelationDaoImpl 依赖存储
 type TenantServiceMountRelationDaoImpl struct {
 	DB *gorm.DB
 }
 
-//AddModel 添加应用依赖挂载
+// AddModel 添加应用依赖挂载
 func (t *TenantServiceMountRelationDaoImpl) AddModel(mo model.Interface) error {
 	relation := mo.(*model.TenantServiceMountRelation)
 	var oldRelation model.TenantServiceMountRelation
@@ -1196,7 +1196,7 @@ func (t *TenantServiceMountRelationDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel 更新应用依赖挂载
+// UpdateModel 更新应用依赖挂载
 func (t *TenantServiceMountRelationDaoImpl) UpdateModel(mo model.Interface) error {
 	relation := mo.(*model.TenantServiceMountRelation)
 	if relation.ID == 0 {
@@ -1208,7 +1208,7 @@ func (t *TenantServiceMountRelationDaoImpl) UpdateModel(mo model.Interface) erro
 	return nil
 }
 
-//DElTenantServiceMountRelationByServiceAndName DElTenantServiceMountRelationByServiceAndName
+// DElTenantServiceMountRelationByServiceAndName DElTenantServiceMountRelationByServiceAndName
 func (t *TenantServiceMountRelationDaoImpl) DElTenantServiceMountRelationByServiceAndName(serviceID, name string) error {
 	var relation model.TenantServiceMountRelation
 	if err := t.DB.Where("service_id=? and volume_name=? ", serviceID, name).Find(&relation).Error; err != nil {
@@ -1220,7 +1220,7 @@ func (t *TenantServiceMountRelationDaoImpl) DElTenantServiceMountRelationByServi
 	return nil
 }
 
-//DElTenantServiceMountRelationByDepService del mount relation
+// DElTenantServiceMountRelationByDepService del mount relation
 func (t *TenantServiceMountRelationDaoImpl) DElTenantServiceMountRelationByDepService(serviceID, depServiceID string) error {
 	var relation model.TenantServiceMountRelation
 	if err := t.DB.Where("service_id=? and dep_service_id=?", serviceID, depServiceID).Find(&relation).Error; err != nil {
@@ -1232,7 +1232,7 @@ func (t *TenantServiceMountRelationDaoImpl) DElTenantServiceMountRelationByDepSe
 	return nil
 }
 
-//DELTenantServiceMountRelationByServiceID DELTenantServiceMountRelationByServiceID
+// DELTenantServiceMountRelationByServiceID DELTenantServiceMountRelationByServiceID
 func (t *TenantServiceMountRelationDaoImpl) DELTenantServiceMountRelationByServiceID(serviceID string) error {
 	var relation model.TenantServiceMountRelation
 	if err := t.DB.Where("service_id=?", serviceID).Delete(&relation).Error; err != nil {
@@ -1241,7 +1241,7 @@ func (t *TenantServiceMountRelationDaoImpl) DELTenantServiceMountRelationByServi
 	return nil
 }
 
-//GetTenantServiceMountRelationsByService 获取应用的所有挂载依赖
+// GetTenantServiceMountRelationsByService 获取应用的所有挂载依赖
 func (t *TenantServiceMountRelationDaoImpl) GetTenantServiceMountRelationsByService(serviceID string) ([]*model.TenantServiceMountRelation, error) {
 	var relations []*model.TenantServiceMountRelation
 	if err := t.DB.Where("service_id=? ", serviceID).Find(&relations).Error; err != nil {
@@ -1287,12 +1287,12 @@ func (t *TenantServiceMountRelationDaoImpl) CreateOrUpdateVolumeRelsInBatch(volR
 	return nil
 }
 
-//TenantServiceVolumeDaoImpl 应用存储
+// TenantServiceVolumeDaoImpl 应用存储
 type TenantServiceVolumeDaoImpl struct {
 	DB *gorm.DB
 }
 
-//GetAllVolumes 获取全部存储信息
+// GetAllVolumes 获取全部存储信息
 func (t *TenantServiceVolumeDaoImpl) GetAllVolumes() ([]*model.TenantServiceVolume, error) {
 	var volumes []*model.TenantServiceVolume
 	if err := t.DB.Find(&volumes).Error; err != nil {
@@ -1304,21 +1304,27 @@ func (t *TenantServiceVolumeDaoImpl) GetAllVolumes() ([]*model.TenantServiceVolu
 	return volumes, nil
 }
 
-//AddModel 添加应用挂载
+// AddModel 添加应用挂载
 func (t *TenantServiceVolumeDaoImpl) AddModel(mo model.Interface) error {
 	volume := mo.(*model.TenantServiceVolume)
 	var oldvolume model.TenantServiceVolume
-	if ok := t.DB.Where("(volume_name=? or volume_path = ?) and service_id=?", volume.VolumeName, volume.VolumePath, volume.ServiceID).Find(&oldvolume).RecordNotFound(); ok {
+	if volume.VolumeType == model.VMVolumeType.String() {
 		if err := t.DB.Create(volume).Error; err != nil {
 			return err
 		}
 	} else {
-		return fmt.Errorf("service  %s volume name %s  path  %s is exist ", volume.ServiceID, volume.VolumeName, volume.VolumePath)
+		if ok := t.DB.Where("(volume_name=? or volume_path = ?) and service_id=?", volume.VolumeName, volume.VolumePath, volume.ServiceID).Find(&oldvolume).RecordNotFound(); ok {
+			if err := t.DB.Create(volume).Error; err != nil {
+				return err
+			}
+		} else {
+			return fmt.Errorf("service  %s volume name %s  path  %s is exist ", volume.ServiceID, volume.VolumeName, volume.VolumePath)
+		}
 	}
 	return nil
 }
 
-//UpdateModel 更��应用挂载
+// UpdateModel 更��应用挂载
 func (t *TenantServiceVolumeDaoImpl) UpdateModel(mo model.Interface) error {
 	volume := mo.(*model.TenantServiceVolume)
 	if volume.ID == 0 {
@@ -1330,7 +1336,7 @@ func (t *TenantServiceVolumeDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
-//GetTenantServiceVolumesByServiceID 获取应用挂载
+// GetTenantServiceVolumesByServiceID 获取应用挂载
 func (t *TenantServiceVolumeDaoImpl) GetTenantServiceVolumesByServiceID(serviceID string) ([]*model.TenantServiceVolume, error) {
 	var volumes []*model.TenantServiceVolume
 	if err := t.DB.Where("service_id=? ", serviceID).Find(&volumes).Error; err != nil {
@@ -1351,12 +1357,12 @@ func (t *TenantServiceVolumeDaoImpl) ListVolumesByComponentIDs(componentIDs []st
 	return volumes, nil
 }
 
-//DeleteByVolumeIDs -
+// DeleteByVolumeIDs -
 func (t *TenantServiceVolumeDaoImpl) DeleteByVolumeIDs(volumeIDs []uint) error {
 	return t.DB.Where("ID in (?)", volumeIDs).Delete(&model.TenantServiceVolume{}).Error
 }
 
-//DeleteByComponentIDs -
+// DeleteByComponentIDs -
 func (t *TenantServiceVolumeDaoImpl) DeleteByComponentIDs(componentIDs []string) error {
 	return t.DB.Where("service_id in (?)", componentIDs).Delete(&model.TenantServiceVolume{}).Error
 }
@@ -1390,7 +1396,7 @@ func (t *TenantServiceVolumeDaoImpl) CreateOrUpdateVolumesInBatch(volumes []*mod
 	return nil
 }
 
-//DeleteModel 删除挂载
+// DeleteModel 删除挂载
 func (t *TenantServiceVolumeDaoImpl) DeleteModel(serviceID string, args ...interface{}) error {
 	var volume model.TenantServiceVolume
 	volumeName := args[0].(string)
@@ -1403,7 +1409,7 @@ func (t *TenantServiceVolumeDaoImpl) DeleteModel(serviceID string, args ...inter
 	return nil
 }
 
-//DeleteByServiceIDAndVolumePath 删除挂载通过挂载的目录
+// DeleteByServiceIDAndVolumePath 删除挂载通过挂载的目录
 func (t *TenantServiceVolumeDaoImpl) DeleteByServiceIDAndVolumePath(serviceID string, volumePath string) error {
 	var volume model.TenantServiceVolume
 	if err := t.DB.Where("volume_path = ? and service_id=?", volumePath, serviceID).Find(&volume).Error; err != nil {
@@ -1415,7 +1421,7 @@ func (t *TenantServiceVolumeDaoImpl) DeleteByServiceIDAndVolumePath(serviceID st
 	return nil
 }
 
-//GetVolumeByServiceIDAndName 获取存储信息
+// GetVolumeByServiceIDAndName 获取存储信息
 func (t *TenantServiceVolumeDaoImpl) GetVolumeByServiceIDAndName(serviceID, name string) (*model.TenantServiceVolume, error) {
 	var volume model.TenantServiceVolume
 	if err := t.DB.Where("service_id=? and volume_name=? ", serviceID, name).Find(&volume).Error; err != nil {
@@ -1424,7 +1430,7 @@ func (t *TenantServiceVolumeDaoImpl) GetVolumeByServiceIDAndName(serviceID, name
 	return &volume, nil
 }
 
-//GetVolumeByID get volume by id
+// GetVolumeByID get volume by id
 func (t *TenantServiceVolumeDaoImpl) GetVolumeByID(id int) (*model.TenantServiceVolume, error) {
 	var volume model.TenantServiceVolume
 	if err := t.DB.Where("ID=?", id).Find(&volume).Error; err != nil {
@@ -1436,7 +1442,7 @@ func (t *TenantServiceVolumeDaoImpl) GetVolumeByID(id int) (*model.TenantService
 	return &volume, nil
 }
 
-//DeleteTenantServiceVolumesByServiceID 删除挂载
+// DeleteTenantServiceVolumesByServiceID 删除挂载
 func (t *TenantServiceVolumeDaoImpl) DeleteTenantServiceVolumesByServiceID(serviceID string) error {
 	var volume model.TenantServiceVolume
 	if err := t.DB.Where("service_id=? ", serviceID).Delete(&volume).Error; err != nil {
@@ -1451,7 +1457,7 @@ func (t *TenantServiceVolumeDaoImpl) DelShareableBySID(sid string) error {
 	return t.DB.Where(query, sid).Delete(&model.TenantServiceVolume{}).Error
 }
 
-//TenantServiceConfigFileDaoImpl is a implementation of TenantServiceConfigFileDao
+// TenantServiceConfigFileDaoImpl is a implementation of TenantServiceConfigFileDao
 type TenantServiceConfigFileDaoImpl struct {
 	DB *gorm.DB
 }
@@ -1552,12 +1558,12 @@ func (t *TenantServiceConfigFileDaoImpl) CreateOrUpdateConfigFilesInBatch(config
 	return nil
 }
 
-//TenantServiceLBMappingPortDaoImpl stream服务映射
+// TenantServiceLBMappingPortDaoImpl stream服务映射
 type TenantServiceLBMappingPortDaoImpl struct {
 	DB *gorm.DB
 }
 
-//AddModel 添加应用端口映射
+// AddModel 添加应用端口映射
 func (t *TenantServiceLBMappingPortDaoImpl) AddModel(mo model.Interface) error {
 	mapPort := mo.(*model.TenantServiceLBMappingPort)
 	var oldMapPort model.TenantServiceLBMappingPort
@@ -1571,7 +1577,7 @@ func (t *TenantServiceLBMappingPortDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel 更新应用端口映射
+// UpdateModel 更新应用端口映射
 func (t *TenantServiceLBMappingPortDaoImpl) UpdateModel(mo model.Interface) error {
 	mapPort := mo.(*model.TenantServiceLBMappingPort)
 	if mapPort.ID == 0 {
@@ -1583,7 +1589,7 @@ func (t *TenantServiceLBMappingPortDaoImpl) UpdateModel(mo model.Interface) erro
 	return nil
 }
 
-//GetTenantServiceLBMappingPort 获取端口映射
+// GetTenantServiceLBMappingPort 获取端口映射
 func (t *TenantServiceLBMappingPortDaoImpl) GetTenantServiceLBMappingPort(serviceID string, containerPort int) (*model.TenantServiceLBMappingPort, error) {
 	var mapPort model.TenantServiceLBMappingPort
 	if err := t.DB.Where("service_id=? and container_port=?", serviceID, containerPort).Find(&mapPort).Error; err != nil {
@@ -1610,7 +1616,7 @@ func (t *TenantServiceLBMappingPortDaoImpl) GetLBPortsASC() ([]*model.TenantServ
 	return ports, nil
 }
 
-//CreateTenantServiceLBMappingPort 创建负载均衡VS端口,如果端口分配已存在，直接返回
+// CreateTenantServiceLBMappingPort 创建负载均衡VS端口,如果端口分配已存在，直接返回
 func (t *TenantServiceLBMappingPortDaoImpl) CreateTenantServiceLBMappingPort(serviceID string, containerPort int) (*model.TenantServiceLBMappingPort, error) {
 	var mapPorts []*model.TenantServiceLBMappingPort
 	var mapPort model.TenantServiceLBMappingPort
@@ -1695,7 +1701,7 @@ func (t *TenantServiceLBMappingPortDaoImpl) CreateTenantServiceLBMappingPort(ser
 	return nil, fmt.Errorf("no more lb port can be use,max port is %d", maxPort)
 }
 
-//GetTenantServiceLBMappingPortByService 获取端口映射
+// GetTenantServiceLBMappingPortByService 获取端口映射
 func (t *TenantServiceLBMappingPortDaoImpl) GetTenantServiceLBMappingPortByService(serviceID string) ([]*model.TenantServiceLBMappingPort, error) {
 	var mapPort []*model.TenantServiceLBMappingPort
 	if err := t.DB.Where("service_id=?", serviceID).Find(&mapPort).Error; err != nil {
@@ -1704,7 +1710,7 @@ func (t *TenantServiceLBMappingPortDaoImpl) GetTenantServiceLBMappingPortByServi
 	return mapPort, nil
 }
 
-//DELServiceLBMappingPortByServiceID DELServiceLBMappingPortByServiceID
+// DELServiceLBMappingPortByServiceID DELServiceLBMappingPortByServiceID
 func (t *TenantServiceLBMappingPortDaoImpl) DELServiceLBMappingPortByServiceID(serviceID string) error {
 	mapPorts := &model.TenantServiceLBMappingPort{
 		ServiceID: serviceID,
@@ -1715,7 +1721,7 @@ func (t *TenantServiceLBMappingPortDaoImpl) DELServiceLBMappingPortByServiceID(s
 	return nil
 }
 
-//DELServiceLBMappingPortByServiceIDAndPort DELServiceLBMappingPortByServiceIDAndPort
+// DELServiceLBMappingPortByServiceIDAndPort DELServiceLBMappingPortByServiceIDAndPort
 func (t *TenantServiceLBMappingPortDaoImpl) DELServiceLBMappingPortByServiceIDAndPort(serviceID string, lbport int) error {
 	var mapPorts model.TenantServiceLBMappingPort
 	if err := t.DB.Where("service_id=? and port=?", serviceID, lbport).Delete(&mapPorts).Error; err != nil {
@@ -1739,12 +1745,12 @@ func (t *TenantServiceLBMappingPortDaoImpl) PortExists(port int) bool {
 	return !t.DB.Where("port=?", port).Find(&mapPorts).RecordNotFound()
 }
 
-//ServiceLabelDaoImpl ServiceLabelDaoImpl
+// ServiceLabelDaoImpl ServiceLabelDaoImpl
 type ServiceLabelDaoImpl struct {
 	DB *gorm.DB
 }
 
-//AddModel 添加应用Label
+// AddModel 添加应用Label
 func (t *ServiceLabelDaoImpl) AddModel(mo model.Interface) error {
 	label := mo.(*model.TenantServiceLable)
 	var oldLabel model.TenantServiceLable
@@ -1758,7 +1764,7 @@ func (t *ServiceLabelDaoImpl) AddModel(mo model.Interface) error {
 	return nil
 }
 
-//UpdateModel 更新应用Label
+// UpdateModel 更新应用Label
 func (t *ServiceLabelDaoImpl) UpdateModel(mo model.Interface) error {
 	label := mo.(*model.TenantServiceLable)
 	if label.ID == 0 {
@@ -1770,7 +1776,7 @@ func (t *ServiceLabelDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
-//DeleteModel 删除应用label
+// DeleteModel 删除应用label
 func (t *ServiceLabelDaoImpl) DeleteModel(serviceID string, args ...interface{}) error {
 	label := &model.TenantServiceLable{
 		ServiceID:  serviceID,
@@ -1784,7 +1790,7 @@ func (t *ServiceLabelDaoImpl) DeleteModel(serviceID string, args ...interface{})
 	return nil
 }
 
-//DeleteLabelByServiceID 删除应用全部label
+// DeleteLabelByServiceID 删除应用全部label
 func (t *ServiceLabelDaoImpl) DeleteLabelByServiceID(serviceID string) error {
 	label := &model.TenantServiceLable{
 		ServiceID: serviceID,
@@ -1795,7 +1801,7 @@ func (t *ServiceLabelDaoImpl) DeleteLabelByServiceID(serviceID string) error {
 	return nil
 }
 
-//GetTenantServiceLabel GetTenantServiceLabel
+// GetTenantServiceLabel GetTenantServiceLabel
 func (t *ServiceLabelDaoImpl) GetTenantServiceLabel(serviceID string) ([]*model.TenantServiceLable, error) {
 	var labels []*model.TenantServiceLable
 	if err := t.DB.Where("service_id=?", serviceID).Find(&labels).Error; err != nil {
@@ -1807,7 +1813,7 @@ func (t *ServiceLabelDaoImpl) GetTenantServiceLabel(serviceID string) ([]*model.
 	return labels, nil
 }
 
-//GetTenantServiceNodeSelectorLabel GetTenantServiceNodeSelectorLabel
+// GetTenantServiceNodeSelectorLabel GetTenantServiceNodeSelectorLabel
 func (t *ServiceLabelDaoImpl) GetTenantServiceNodeSelectorLabel(serviceID string) ([]*model.TenantServiceLable, error) {
 	var labels []*model.TenantServiceLable
 	if err := t.DB.Where("service_id=? and label_key=?", serviceID, model.LabelKeyNodeSelector).Find(&labels).Error; err != nil {
@@ -1829,7 +1835,7 @@ func (t *ServiceLabelDaoImpl) GetLabelByNodeSelectorKey(serviceID string, labelV
 	return &label, nil
 }
 
-//GetTenantNodeAffinityLabel returns TenantServiceLable matching serviceID and LabelKeyNodeAffinity
+// GetTenantNodeAffinityLabel returns TenantServiceLable matching serviceID and LabelKeyNodeAffinity
 func (t *ServiceLabelDaoImpl) GetTenantNodeAffinityLabel(serviceID string) (*model.TenantServiceLable, error) {
 	var label model.TenantServiceLable
 	if err := t.DB.Where("service_id=? and label_key = ?", serviceID, model.LabelKeyNodeAffinity).
@@ -1842,7 +1848,7 @@ func (t *ServiceLabelDaoImpl) GetTenantNodeAffinityLabel(serviceID string) (*mod
 	return &label, nil
 }
 
-//GetTenantServiceAffinityLabel GetTenantServiceAffinityLabel
+// GetTenantServiceAffinityLabel GetTenantServiceAffinityLabel
 func (t *ServiceLabelDaoImpl) GetTenantServiceAffinityLabel(serviceID string) ([]*model.TenantServiceLable, error) {
 	var labels []*model.TenantServiceLable
 	if err := t.DB.Where("service_id=? and label_key in (?)", serviceID, []string{model.LabelKeyNodeSelector, model.LabelKeyNodeAffinity,
@@ -1855,7 +1861,7 @@ func (t *ServiceLabelDaoImpl) GetTenantServiceAffinityLabel(serviceID string) ([
 	return labels, nil
 }
 
-//GetTenantServiceTypeLabel GetTenantServiceTypeLabel
+// GetTenantServiceTypeLabel GetTenantServiceTypeLabel
 // no usages func. get tenant service type use TenantServiceDao.GetServiceTypeByID(serviceID string)
 func (t *ServiceLabelDaoImpl) GetTenantServiceTypeLabel(serviceID string) (*model.TenantServiceLable, error) {
 	var label model.TenantServiceLable
@@ -1871,7 +1877,7 @@ func (t *ServiceLabelDaoImpl) GetPrivilegedLabel(serviceID string) (*model.Tenan
 	return &label, nil
 }
 
-//DelTenantServiceLabelsByLabelValuesAndServiceID DELTenantServiceLabelsByLabelvaluesAndServiceID
+// DelTenantServiceLabelsByLabelValuesAndServiceID DELTenantServiceLabelsByLabelvaluesAndServiceID
 func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByLabelValuesAndServiceID(serviceID string) error {
 	var label model.TenantServiceLable
 	if err := t.DB.Where("service_id=? and label_value=?", serviceID, model.LabelKeyNodeSelector).Delete(&label).Error; err != nil {
@@ -1880,7 +1886,7 @@ func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByLabelValuesAndServiceID(se
 	return nil
 }
 
-//DelTenantServiceLabelsByServiceIDKeyValue deletes labels
+// DelTenantServiceLabelsByServiceIDKeyValue deletes labels
 func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByServiceIDKeyValue(serviceID string, labelKey string,
 	labelValue string) error {
 	var label model.TenantServiceLable
@@ -1891,7 +1897,7 @@ func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByServiceIDKeyValue(serviceI
 	return nil
 }
 
-//DelTenantServiceLabelsByServiceIDKey deletes labels by serviceID and labelKey
+// DelTenantServiceLabelsByServiceIDKey deletes labels by serviceID and labelKey
 func (t *ServiceLabelDaoImpl) DelTenantServiceLabelsByServiceIDKey(serviceID string, labelKey string) error {
 	var label model.TenantServiceLable
 	if err := t.DB.Where("service_id=? and label_key=?", serviceID, labelKey).Delete(&label).Error; err != nil {
