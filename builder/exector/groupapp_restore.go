@@ -343,7 +343,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 	// restore plugin image
 	for _, pb := range appSnapshot.PluginBuildVersions {
 		dstDir := fmt.Sprintf("%s/plugin_%s/image_%s.tar", b.cacheDir, pb.PluginID, pb.DeployVersion)
-		if err := b.ImageClient.ImageLoad(dstDir, b.Logger); err != nil {
+		if _, err := b.ImageClient.ImageLoad(dstDir, b.Logger); err != nil {
 			b.Logger.Error(util.Translation("load image to local hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
 			logrus.Errorf("dst: %s; failed to load plugin image: %v", dstDir, err)
 			return err
@@ -382,7 +382,7 @@ func (b *BackupAPPRestore) downloadSlug(backup *dbmodel.AppBackup, app *RegionSe
 
 func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
 	dstDir := fmt.Sprintf("%s/app_%s/image_%s.tar", b.cacheDir, b.getOldServiceID(app.ServiceID), version.BuildVersion)
-	if err := b.ImageClient.ImageLoad(dstDir, b.Logger); err != nil {
+	if _, err := b.ImageClient.ImageLoad(dstDir, b.Logger); err != nil {
 		b.Logger.Error(util.Translation("load image to local hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
 		logrus.Errorf("load image to local hub error when restore backup app, %s", err.Error())
 		return err

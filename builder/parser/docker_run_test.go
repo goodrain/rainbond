@@ -37,14 +37,14 @@ var dockerrun = `docker run -d -P -v /usr/share/ca-certificates/:/etc/ssl/certs 
 -initial-cluster etcd0=http://127.0.0.1:2380 \
 -initial-cluster-state new`
 
-var test_case = `docker run -d --restart=always --name powerjob-server -p 7700:7700 -p 10086:10086 -e TZ="Asia/Shanghai" -e JVMOPTIONS="" -e PARAMS="--spring.profiles.active=product --spring.datasource.core.jdbc-url=jdbc:postgresql://127.0.0.1:5432/powerjob-product?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai --spring.datasource.core.username=admin --spring.datasource.core.password=d9e6c012 --oms.mongodb.enable=false --oms.mongodb.enable=false --spring.data.mongodb.uri=mongodb://127.0.0.1:27017/powerjob-product" -v ~/docker/powerjob-server:/root/powerjob-server -v ~/.m2:/root/.m2 tjqq/powerjob-server:latest`
+var testCase = `docker run -d --restart=always --name powerjob-server -p 7700:7700 -p 10086:10086 -e TZ="Asia/Shanghai" -e JVMOPTIONS="" -e PARAMS="--spring.profiles.active=product --spring.datasource.core.jdbc-url=jdbc:postgresql://127.0.0.1:5432/powerjob-product?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai --spring.datasource.core.username=admin --spring.datasource.core.password=d9e6c012 --oms.mongodb.enable=false --oms.mongodb.enable=false --spring.data.mongodb.uri=mongodb://127.0.0.1:27017/powerjob-product" -v ~/docker/powerjob-server:/root/powerjob-server -v ~/.m2:/root/.m2 tjqq/powerjob-server:latest`
 
 func TestParse(t *testing.T) {
 	dockerclient, err := client.NewEnvClient()
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := CreateDockerRunOrImageParse("d", "", test_case, dockerclient, nil)
-	p.ParseDockerun(test_case)
+	p := CreateDockerRunOrImageParse("d", "", testCase, dockerclient, nil, "")
+	p.ParseDockerun(testCase)
 	fmt.Printf("ServiceInfo:%+v \n", p.GetServiceInfo())
 }

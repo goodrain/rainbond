@@ -25,7 +25,7 @@ import (
 
 var version string
 
-//ShowVersion 显示版本
+// ShowVersion 显示版本
 func ShowVersion(module string) {
 	if version != "" {
 		fmt.Printf("Rainbond %s %s\n", module, version)
@@ -35,7 +35,7 @@ func ShowVersion(module string) {
 	os.Exit(0)
 }
 
-//GetVersion GetVersion
+// GetVersion GetVersion
 func GetVersion() string {
-	return version
+	return "test"
 }

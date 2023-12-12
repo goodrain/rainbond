@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/goodrain/rainbond/util/constants"
 	"io"
 	v1 "kubevirt.io/api/core/v1"
@@ -77,6 +78,7 @@ type ServiceAction struct {
 	kubeClient     kubernetes.Interface
 	kubevirtClient kubecli.KubevirtClient
 	dbmanager      db.Manager
+	registryCli    *registry.Registry
 }
 
 type dCfg struct {
@@ -96,7 +98,8 @@ func CreateManager(conf option.Config,
 	rainbondClient versioned.Interface,
 	kubeClient kubernetes.Interface,
 	kubevirtClient kubecli.KubevirtClient,
-	dbmanager db.Manager) *ServiceAction {
+	dbmanager db.Manager,
+	registryCli *registry.Registry) *ServiceAction {
 	return &ServiceAction{
 		MQClient:       mqClient,
 		EtcdCli:        etcdCli,
@@ -107,6 +110,7 @@ func CreateManager(conf option.Config,
 		kubeClient:     kubeClient,
 		kubevirtClient: kubevirtClient,
 		dbmanager:      dbmanager,
+		registryCli:    registryCli,
 	}
 }
 

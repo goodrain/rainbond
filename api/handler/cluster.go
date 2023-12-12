@@ -67,7 +67,7 @@ type ClusterHandler interface {
 	SyncAppK8SResources(ctx context.Context, resources *model.SyncResources) ([]*dbmodel.K8sResource, *util.APIHandleError)
 	AppYamlResourceName(yamlResource model.YamlResource) (map[string]model.LabelResource, *util.APIHandleError)
 	AppYamlResourceDetailed(yamlResource model.YamlResource, yamlImport bool) (model.ApplicationResource, *util.APIHandleError)
-	AppYamlResourceImport(yamlResource model.YamlResource, components model.ApplicationResource) (model.AppComponent, *util.APIHandleError)
+	AppYamlResourceImport(namespace, tenantID, appID string, components model.ApplicationResource) (model.AppComponent, *util.APIHandleError)
 	RbdLog(w http.ResponseWriter, r *http.Request, podName string, follow bool) error
 	GetRbdPods() (rbds []model.RbdResp, err error)
 	CreateShellPod(regionName string) (pod *corev1.Pod, err error)

@@ -35,7 +35,7 @@ func (registry *Registry) Tags(repository string) (tags []string, err error) {
 	var response tagsResponse
 	for {
 		registry.Logf("registry.tags url=%s repository=%s", url, repository)
-		url, err = registry.getPaginatedJson(url, &response)
+		url, err = registry.getPaginatedJSON(url, &response)
 		switch err {
 		case ErrNoMorePages:
 			tags = append(tags, response.Tags...)

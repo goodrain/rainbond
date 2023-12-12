@@ -28,20 +28,26 @@ type Service struct {
 	Ports     map[int]*Port   `json:"ports,omitempty"`
 }
 
-//Port -
+// Port -
 type Port struct {
 	ContainerPort int    `json:"container_port"`
 	Protocol      string `json:"protocol"`
 }
 
-//Volume -
+// Volume -
 type Volume struct {
 	VolumePath string `json:"volume_path"`
 	VolumeType string `json:"volume_type"`
 }
 
-//Env env desc
+// Env env desc
 type Env struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
+}
+
+// Image -
+type Image struct {
+	Name   string `json:"name"`
+	Prefix string `json:"prefix"`
 }

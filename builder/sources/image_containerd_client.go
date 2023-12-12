@@ -372,17 +372,22 @@ func (c *containerdImageCliImpl) TrustedImagePush(image, user, pass string, logg
 
 // ImageLoad load image from  tar file
 // destination destination file name eg. /tmp/xxx.tar
-func (c *containerdImageCliImpl) ImageLoad(tarFile string, logger event.Logger) error {
+func (c *containerdImageCliImpl) ImageLoad(tarFile string, logger event.Logger) ([]string, error) {
 	ctx := namespaces.WithNamespace(context.Background(), Namespace)
 	reader, err := os.OpenFile(tarFile, os.O_RDONLY, 0644)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer reader.Close()
-	if _, err = c.client.Import(ctx, reader); err != nil {
-		return err
+	imgs, err := c.client.Import(ctx, reader)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	var imageNames []string
+	for _, img := range imgs {
+		imageNames = append(imageNames, img.Name)
+	}
+	return imageNames, nil
 }
 
 // ShowProgress continuously updates the output with job progress
