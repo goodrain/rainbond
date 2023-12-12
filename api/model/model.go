@@ -523,6 +523,8 @@ type CheckHelmApp struct {
 type ChartInformation struct {
 	RepoURL   string `json:"repo_url"`
 	ChartName string `json:"chart_name"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
 }
 
 // GetYamlByChart -
