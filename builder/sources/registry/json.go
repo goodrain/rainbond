@@ -26,10 +26,11 @@ import (
 )
 
 var (
+	//ErrNoMorePages -
 	ErrNoMorePages = errors.New("No more pages")
 )
 
-func (registry *Registry) getJson(url string, response interface{}) error {
+func (registry *Registry) getJSON(url string, response interface{}) error {
 	resp, err := registry.Client.Get(url)
 	if err != nil {
 		return err
@@ -45,10 +46,10 @@ func (registry *Registry) getJson(url string, response interface{}) error {
 	return nil
 }
 
-// getPaginatedJson accepts a string and a pointer, and returns the
+// getPaginatedJSON accepts a string and a pointer, and returns the
 // next page URL while updating pointed-to variable with a parsed JSON
 // value. When there are no more pages it returns `ErrNoMorePages`.
-func (registry *Registry) getPaginatedJson(url string, response interface{}) (string, error) {
+func (registry *Registry) getPaginatedJSON(url string, response interface{}) (string, error) {
 	resp, err := registry.Client.Get(url)
 	if err != nil {
 		return "", err
@@ -66,7 +67,7 @@ func (registry *Registry) getPaginatedJson(url string, response interface{}) (st
 // Matches an RFC 5988 (https://tools.ietf.org/html/rfc5988#section-5)
 // Link header. For example,
 //
-//    <http://registry.example.com/v2/_catalog?n=5&last=tag5>; type="application/json"; rel="next"
+//	<http://registry.example.com/v2/_catalog?n=5&last=tag5>; type="application/json"; rel="next"
 //
 // The URL is _supposed_ to be wrapped by angle brackets `< ... >`,
 // but e.g., quay.io does not include them. Similarly, params like

@@ -71,6 +71,11 @@ func (v2 *V2) helmRouter() chi.Router {
 	r.Get("/check_helm_app", controller.GetManager().CheckHelmApp)
 	r.Get("/get_chart_information", controller.GetManager().GetChartInformation)
 	r.Get("/get_chart_yaml", controller.GetManager().GetYamlByChart)
+	r.Get("/get_upload_chart_information", controller.GetManager().GetUploadChartInformation)
+	r.Post("/check_upload_chart", controller.GetManager().CheckUploadChart)
+	r.Get("/get_upload_chart_resource", controller.GetManager().GetUploadChartResource)
+	r.Post("/import_upload_chart_resource", controller.GetManager().ImportUploadChartResource)
+	r.Get("/get_upload_chart_value", controller.GetManager().GetUploadChartValue)
 	return r
 }
 
@@ -173,6 +178,8 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	//代码检测
 	r.Post("/code-check", controller.GetManager().CheckCode)
 	r.Post("/servicecheck", controller.Check)
+	r.Get("/image-repositories", controller.RegistryImageRepositories)
+	r.Get("/image-tags", controller.RegistryImageTags)
 	r.Get("/servicecheck/{uuid}", controller.GetServiceCheckInfo)
 	r.Get("/resources", controller.GetManager().SingleTenantResources)
 	r.Get("/services", controller.GetManager().ServicesInfo)

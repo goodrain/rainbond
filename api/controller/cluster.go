@@ -107,7 +107,7 @@ func (c *ClusterController) MavenSettingDetail(w http.ResponseWriter, r *http.Re
 	httputil.ReturnSuccess(r, w, setting)
 }
 
-//BatchGetGateway batch get resource gateway
+// BatchGetGateway batch get resource gateway
 func (c *ClusterController) BatchGetGateway(w http.ResponseWriter, r *http.Request) {
 	ns, err := handler.GetClusterHandler().BatchGetGateway(r.Context())
 	if err != nil {
@@ -241,7 +241,7 @@ func (c *ClusterController) DeleteResource(w http.ResponseWriter, r *http.Reques
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//BatchDeleteResource -
+// BatchDeleteResource -
 func (c *ClusterController) BatchDeleteResource(w http.ResponseWriter, r *http.Request) {
 	var req model.SyncResources
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
@@ -338,7 +338,7 @@ func (c *ClusterController) YamlResourceImport(w http.ResponseWriter, r *http.Re
 		err.Handle(r, w)
 		return
 	}
-	ac, err := handler.GetClusterHandler().AppYamlResourceImport(yr, ar)
+	ac, err := handler.GetClusterHandler().AppYamlResourceImport(yr.Namespace, yr.TenantID, yr.AppID, ar)
 	if err != nil {
 		err.Handle(r, w)
 		return

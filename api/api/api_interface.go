@@ -97,6 +97,11 @@ type HelmInterface interface {
 	CheckHelmApp(w http.ResponseWriter, r *http.Request)
 	GetChartInformation(w http.ResponseWriter, r *http.Request)
 	GetYamlByChart(w http.ResponseWriter, r *http.Request)
+	GetUploadChartInformation(w http.ResponseWriter, r *http.Request)
+	CheckUploadChart(w http.ResponseWriter, r *http.Request)
+	GetUploadChartResource(w http.ResponseWriter, r *http.Request)
+	ImportUploadChartResource(w http.ResponseWriter, r *http.Request)
+	GetUploadChartValue(w http.ResponseWriter, r *http.Request)
 }
 
 // ServiceInterface ServiceInterface

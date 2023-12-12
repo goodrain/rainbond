@@ -43,6 +43,7 @@ type ServiceCheckInput struct {
 	// docker-run: docker run --name xxx nginx:latest nginx
 	// docker-compose: compose全文
 	SourceBody string `json:"source_body"`
+	Namespace  string `json:"namespace"`
 	Username   string `json:"username"`
 	Password   string `json:"password"`
 	TenantID   string
@@ -102,7 +103,7 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 	var pr parser.Parser
 	switch input.SourceType {
 	case "docker-run":
-		pr = parser.CreateDockerRunOrImageParse(input.Username, input.Password, input.SourceBody, e.imageClient, logger)
+		pr = parser.CreateDockerRunOrImageParse(input.Username, input.Password, input.SourceBody, e.imageClient, logger, input.Namespace)
 	case "docker-compose":
 		var yamlbody = input.SourceBody
 		if input.SourceBody[0] == '{' {

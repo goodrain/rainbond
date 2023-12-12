@@ -9,13 +9,15 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"path"
 	"sigs.k8s.io/yaml"
 	"strconv"
 	"strings"
 )
 
-func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourceParameter, volumeClaimTemplate []corev1.PersistentVolumeClaim) {
+// PodTemplateSpecResource -
+func PodTemplateSpecResource(parameter model.YamlResourceParameter, volumeClaimTemplate []corev1.PersistentVolumeClaim, clientset *kubernetes.Clientset) {
 	logrus.Infof("into function PodTemplateSpecResource")
 	//Port
 	var ps []model.PortManagement
@@ -78,7 +80,7 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 	//第三种是volume不存在items，volumeMount的SubPath不等于空。路径直接是volumeMount里面的mountPath。
 	//第四种是volume不存在items，volumeMount的SubPath等于空。路径则变成volumeMount里面的mountPath拼接上configmap资源里面每一个元素的key值
 	cmMap := make(map[string]corev1.ConfigMap)
-	cmList, err := c.clientset.CoreV1().ConfigMaps(parameter.Namespace).List(context.Background(), metav1.ListOptions{})
+	cmList, err := clientset.CoreV1().ConfigMaps(parameter.Namespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Failed to get ConfigMap%v", err)
 	}
@@ -189,7 +191,7 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 	}
 
 	//TelescopicManagement
-	HPAList, err := c.clientset.AutoscalingV1().HorizontalPodAutoscalers(parameter.Namespace).List(context.Background(), metav1.ListOptions{})
+	HPAList, err := clientset.AutoscalingV1().HorizontalPodAutoscalers(parameter.Namespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("failed to get HorizontalPodAutoscalers list:%v", err)
 	}
@@ -508,7 +510,7 @@ func (c *clusterAction) PodTemplateSpecResource(parameter model.YamlResourcePara
 	})
 }
 
-//ObjectToJSONORYaml changeType true is json / yaml
+// ObjectToJSONORYaml changeType true is json / yaml
 func ObjectToJSONORYaml(changeType string, data interface{}) (string, error) {
 	if data == nil {
 		return "", nil

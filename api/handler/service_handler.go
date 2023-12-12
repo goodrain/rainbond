@@ -79,6 +79,8 @@ type ServiceHandler interface {
 	UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError
 	DeletePluginConfig(serviceID, pluginID string) *util.APIHandleError
 	ServiceCheck(*api_model.ServiceCheckStruct) (string, string, *util.APIHandleError)
+	RegistryImageRepositories(namespace string) ([]string, *util.APIHandleError)
+	RegistryImageTags(repository string) ([]string, *util.APIHandleError)
 	GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError)
 	GetServiceDeployInfo(tenantID, serviceID string) (*pb.DeployInfo, *util.APIHandleError)
 	ListVersionInfo(serviceID string) (*api_model.BuildListRespVO, error)

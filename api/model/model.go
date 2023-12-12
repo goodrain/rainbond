@@ -1109,6 +1109,7 @@ type ServiceCheckStruct struct {
 		// in: body
 		// required: true
 		SourceBody string `json:"source_body"`
+		Namespace  string `json:"namespace"`
 		TenantID   string
 		Username   string `json:"username"`
 		Password   string `json:"password"`
@@ -1501,6 +1502,7 @@ type AddServicePort struct {
 
 // HelmChartInformation -
 type HelmChartInformation struct {
+	Name     string `json:"name"`
 	Version  string
 	Keywords []string
 	Pic      string
@@ -2224,4 +2226,19 @@ type GovernanceMode struct {
 	Name        string `json:"name"`
 	IsDefault   bool   `json:"is_default"`
 	Description string `json:"description"`
+}
+
+// UploadChart -
+type UploadChart struct {
+	EventID   string   `json:"event_id"`
+	Name      string   `json:"name"`
+	Version   string   `json:"version"`
+	Namespace string   `json:"namespace"`
+	Overrides []string `json:"overrides"`
+}
+
+// UploadChartValueYaml -
+type UploadChartValueYaml struct {
+	Values map[string]string `json:"values"`
+	Readme string            `json:"readme"`
 }

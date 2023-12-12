@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	yamlt "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/restmapper"
 	"strings"
 )
@@ -149,13 +150,13 @@ func (c *clusterAction) SyncAppK8SResources(ctx context.Context, req *model.Sync
 }
 
 // RefreshMapper -
-func (c *clusterAction) RefreshMapper() error {
-	gr, err := restmapper.GetAPIGroupResources(c.clientset)
+func RefreshMapper(clientset *kubernetes.Clientset) (meta.RESTMapper, error) {
+	gr, err := restmapper.GetAPIGroupResources(clientset)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	c.mapper = restmapper.NewDiscoveryRESTMapper(gr)
-	return nil
+	mapper := restmapper.NewDiscoveryRESTMapper(gr)
+	return mapper, nil
 }
 
 // HandleResourceYaml -
@@ -236,10 +237,11 @@ func (c *clusterAction) HandleResourceYaml(resourceYaml []byte, namespace string
 			if !meta.IsNoMatchError(err) {
 				return buildResourceList
 			}
-			err = c.RefreshMapper()
+			mapper, err := RefreshMapper(c.clientset)
 			if err != nil {
 				return buildResourceList
 			}
+			c.mapper = mapper
 			mapping, err = c.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 			if err != nil {
 				return buildResourceList

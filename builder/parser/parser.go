@@ -33,26 +33,26 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-//ParseError 错误信息
+// ParseError 错误信息
 type ParseError struct {
 	ErrorType   ParseErrorType `json:"error_type"`
 	ErrorInfo   string         `json:"error_info"`
 	SolveAdvice string         `json:"solve_advice"`
 }
 
-//ParseErrorList 错误列表
+// ParseErrorList 错误列表
 type ParseErrorList []ParseError
 
-//ParseErrorType 错误类型
+// ParseErrorType 错误类型
 type ParseErrorType string
 
-//FatalError 致命错误
+// FatalError 致命错误
 var FatalError ParseErrorType = "FatalError"
 
-//NegligibleError 可忽略错误
+// NegligibleError 可忽略错误
 var NegligibleError ParseErrorType = "NegligibleError"
 
-//Errorf error create
+// Errorf error create
 func Errorf(errtype ParseErrorType, format string, a ...interface{}) ParseError {
 	parseError := ParseError{
 		ErrorType: errtype,
@@ -61,7 +61,7 @@ func Errorf(errtype ParseErrorType, format string, a ...interface{}) ParseError 
 	return parseError
 }
 
-//ErrorAndSolve error create
+// ErrorAndSolve error create
 func ErrorAndSolve(errtype ParseErrorType, errorInfo, SolveAdvice string) ParseError {
 	parseError := ParseError{
 		ErrorType:   errtype,
@@ -71,7 +71,7 @@ func ErrorAndSolve(errtype ParseErrorType, errorInfo, SolveAdvice string) ParseE
 	return parseError
 }
 
-//SolveAdvice 构建a标签建议
+// SolveAdvice 构建a标签建议
 func SolveAdvice(actionType, message string) string {
 	return fmt.Sprintf("<a action_type=\"%s\">%s</a>", actionType, message)
 }
@@ -87,7 +87,7 @@ func (ps ParseErrorList) Error() string {
 	return re
 }
 
-//IsFatalError 是否具有致命错误
+// IsFatalError 是否具有致命错误
 func (ps ParseErrorList) IsFatalError() bool {
 	for _, p := range ps {
 		if p.ErrorType == FatalError {
@@ -97,7 +97,7 @@ func (ps ParseErrorList) IsFatalError() bool {
 	return false
 }
 
-//Image 镜像
+// Image 镜像
 type Image struct {
 	name   reference.Named
 	source string
@@ -105,7 +105,7 @@ type Image struct {
 	Tag    string `json:"tag"`
 }
 
-//String -
+// String -
 func (i Image) String() string {
 	if i.name == nil {
 		return ""
@@ -113,17 +113,17 @@ func (i Image) String() string {
 	return i.name.String()
 }
 
-//Source return the name before resolution
+// Source return the name before resolution
 func (i Image) Source() string {
 	return i.source
 }
 
-//GetTag get tag
+// GetTag get tag
 func (i Image) GetTag() string {
 	return i.Tag
 }
 
-//GetRepostory get repostory
+// GetRepostory get repostory
 func (i Image) GetRepostory() string {
 	if i.name == nil {
 		return ""
@@ -131,7 +131,7 @@ func (i Image) GetRepostory() string {
 	return reference.Path(i.name)
 }
 
-//GetDomain get image registry domain
+// GetDomain get image registry domain
 func (i Image) GetDomain() string {
 	if i.name == nil {
 		return ""
@@ -143,7 +143,7 @@ func (i Image) GetDomain() string {
 	return domain
 }
 
-//IsOfficial is official image
+// IsOfficial is official image
 func (i Image) IsOfficial() bool {
 	domain := reference.Domain(i.name)
 	if domain == "docker.io" {
@@ -152,7 +152,7 @@ func (i Image) IsOfficial() bool {
 	return false
 }
 
-//GetSimpleName get image name without tag and organizations
+// GetSimpleName get image name without tag and organizations
 func (i Image) GetSimpleName() string {
 	if strings.Contains(i.GetRepostory(), "/") {
 		return strings.Split(i.GetRepostory(), "/")[1]
@@ -160,7 +160,7 @@ func (i Image) GetSimpleName() string {
 	return i.GetRepostory()
 }
 
-//GetNamespace get namespace
+// GetNamespace get namespace
 func (i Image) GetNamespace() string {
 	if strings.Contains(i.GetRepostory(), "/") {
 		return strings.Split(i.GetRepostory(), "/")[0]
@@ -168,17 +168,17 @@ func (i Image) GetNamespace() string {
 	return ""
 }
 
-//Parser 解析器
+// Parser 解析器
 type Parser interface {
 	Parse() ParseErrorList
 	GetServiceInfo() []ServiceInfo
 	GetImage() Image
 }
 
-//Lang 语言类型
+// Lang 语言类型
 type Lang string
 
-//ServiceInfo 智能获取的应用信息
+// ServiceInfo 智能获取的应用信息
 type ServiceInfo struct {
 	ID             string         `json:"id,omitempty"`
 	Ports          []types.Port   `json:"ports,omitempty"`
@@ -192,6 +192,7 @@ type ServiceInfo struct {
 	Memory         int            `json:"memory,omitempty"`
 	Lang           code.Lang      `json:"language,omitempty"`
 	ImageAlias     string         `json:"image_alias,omitempty"`
+	TarImages      []*types.Image `json:"tar_images,omitempty"`
 	//For third party services
 	Endpoints []*discovery.Endpoint `json:"endpoints,omitempty"`
 	//os type,default linux
@@ -201,13 +202,13 @@ type ServiceInfo struct {
 	Packaging string `json:"packaging,omitempty"`
 }
 
-//GetServiceInfo GetServiceInfo
+// GetServiceInfo GetServiceInfo
 type GetServiceInfo struct {
 	UUID   string `json:"uuid"`
 	Source string `json:"source"`
 }
 
-//GetPortProtocol 获取端口协议
+// GetPortProtocol 获取端口协议
 func GetPortProtocol(port int) string {
 	if port == 80 {
 		return "http"
@@ -247,7 +248,7 @@ var dbImageKey = []string{
 	"percona", "mysql-server", "mysql-cluster",
 }
 
-//DetermineDeployType Determine the deployment type
+// DetermineDeployType Determine the deployment type
 // if image like db image,return stateful type
 func DetermineDeployType(imageName Image) string {
 	for _, key := range dbImageKey {
@@ -258,11 +259,11 @@ func DetermineDeployType(imageName Image) string {
 	return dbmodel.ServiceTypeStatelessMultiple.String()
 }
 
-//readmemory
-//10m 10
-//10g 10*1024
-//10k 128
-//10b 128
+// readmemory
+// 10m 10
+// 10g 10*1024
+// 10k 128
+// 10b 128
 func readmemory(s string) int {
 	def := 512
 	s = strings.ToLower(s)
@@ -310,7 +311,7 @@ func readmemory(s string) int {
 	return def
 }
 
-//ParseImageName parse image name
+// ParseImageName parse image name
 func ParseImageName(s string) (i Image) {
 	ref, err := reference.ParseAnyReference(s)
 	if err != nil {

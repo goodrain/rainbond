@@ -47,13 +47,13 @@ func init() {
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 }
 
-//K8SClient K8SClient
+// K8SClient K8SClient
 var K8SClient kubernetes.Interface
 
-//RainbondKubeClient rainbond custom resource client
+// RainbondKubeClient rainbond custom resource client
 var RainbondKubeClient client.Client
 
-//InitClient init k8s client
+// InitClient init k8s client
 func InitClient(kubeconfig string) error {
 	if kubeconfig == "" {
 		homePath, _ := sources.Home()
@@ -63,7 +63,7 @@ func InitClient(kubeconfig string) error {
 	_, err := os.Stat(kubeconfig)
 	if err != nil {
 		fmt.Printf("Not find kube-config file(%s)\n", kubeconfig)
-		if config, err = rest.InClusterConfig(); err != nil{
+		if config, err = rest.InClusterConfig(); err != nil {
 			logrus.Error("get cluster config error:", err)
 			return err
 		}
@@ -82,6 +82,19 @@ func InitClient(kubeconfig string) error {
 		logrus.Error("Create kubernetes client error.", err.Error())
 		return err
 	}
+	mapper, err := apiutil.NewDynamicRESTMapper(config, apiutil.WithLazyDiscovery)
+	if err != nil {
+		return fmt.Errorf("NewDynamicRESTMapper failure %+v", err)
+	}
+	runtimeClient, err := client.New(config, client.Options{Scheme: scheme, Mapper: mapper})
+	if err != nil {
+		return fmt.Errorf("New kube client failure %+v", err)
+	}
+	RainbondKubeClient = runtimeClient
+	return nil
+}
+
+func K8SClientInitClient(k8sClient kubernetes.Interface, config *rest.Config) error {
 	mapper, err := apiutil.NewDynamicRESTMapper(config, apiutil.WithLazyDiscovery)
 	if err != nil {
 		return fmt.Errorf("NewDynamicRESTMapper failure %+v", err)
