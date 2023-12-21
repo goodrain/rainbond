@@ -19,48 +19,50 @@
 package model
 
 const (
-	//K8sAttributeNameNodeSelector -
+	// K8sAttributeNameNodeSelector -
 	K8sAttributeNameNodeSelector = "nodeSelector"
-	//K8sAttributeNameLabels -
+	// K8sAttributeNameLabels -
 	K8sAttributeNameLabels = "labels"
-	//K8sAttributeNameAnnotations -
+	// K8sAttributeNameAnnotations -
 	K8sAttributeNameAnnotations = "annotations"
-	//K8sAttributeNameTolerations -
+	// K8sAttributeNameTolerations -
 	K8sAttributeNameTolerations = "tolerations"
-	//K8sAttributeNameVolumes -
+	// K8sAttributeNameVolumes -
 	K8sAttributeNameVolumes = "volumes"
-	//K8sAttributeNameServiceAccountName -
+	// K8sAttributeNameServiceAccountName -
 	K8sAttributeNameServiceAccountName = "serviceAccountName"
-	//K8sAttributeNamePrivileged -
+	// K8sAttributeNamePrivileged -
 	K8sAttributeNamePrivileged = "privileged"
-	//K8sAttributeNameAffinity -
+	// K8sAttributeNameAffinity -
 	K8sAttributeNameAffinity = "affinity"
-	//K8sAttributeNameVolumeMounts -
+	// K8sAttributeNameVolumeMounts -
 	K8sAttributeNameVolumeMounts = "volumeMounts"
-	//K8sAttributeNameENV -
+	// K8sAttributeNameENV -
 	K8sAttributeNameENV = "env"
-	//K8sAttributeNameShareProcessNamespace -
+	// K8sAttributeNameShareProcessNamespace -
 	K8sAttributeNameShareProcessNamespace = "shareProcessNamespace"
-	//K8sAttributeNameDNSPolicy -
+	// K8sAttributeNameDNSPolicy -
 	K8sAttributeNameDNSPolicy = "dnsPolicy"
-	//K8sAttributeNameDNSConfig -
+	// K8sAttributeNameDNSConfig -
 	K8sAttributeNameDNSConfig = "dnsConfig"
-	//K8sAttributeNameResources -
+	// K8sAttributeNameResources -
 	K8sAttributeNameResources = "resources"
-	//K8sAttributeNameHostIPC -
+	// K8sAttributeNameHostIPC -
 	K8sAttributeNameHostIPC = "hostIPC"
-	//K8sAttributeNameLifecycle -
+	// K8sAttributeNameLifecycle -
 	K8sAttributeNameLifecycle = "lifecycle"
-	//K8sAttributeNameVolumeClaimTemplate -
+	// K8sAttributeNameVolumeClaimTemplate -
 	K8sAttributeNameVolumeClaimTemplate = "volumeClaimTemplate"
-	//K8sAttributeNameENVFromSource -
+	// K8sAttributeNameENVFromSource -
 	K8sAttributeNameENVFromSource = "envFromSource"
-	//K8sAttributeNameSecurityContext -
+	// K8sAttributeNameSecurityContext -
 	K8sAttributeNameSecurityContext = "securityContext"
-	//K8sAttributeNameReadinessProbe -
+	// K8sAttributeNameReadinessProbe -
 	K8sAttributeNameReadinessProbe = "readinessProbe"
-	//K8sAttributeNameLiveNessProbe -
+	// K8sAttributeNameLiveNessProbe -
 	K8sAttributeNameLiveNessProbe = "livenessProbe"
+	// K8sAttributeNameHostAliases -
+	K8sAttributeNameHostAliases = "hostAliases"
 )
 
 // ComponentK8sAttributes -
