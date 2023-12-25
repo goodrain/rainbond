@@ -1124,6 +1124,7 @@ func (t *TenantStruct) AddDependency(w http.ResponseWriter, r *http.Request) {
 //	    "$ref": "#/responses/commandResponse"
 //	  description: 统一返回格式
 
+// AddDependencys -
 func (t *TenantStruct) AddDependencys(w http.ResponseWriter, r *http.Request) {
 	rules := validator.MapData{
 		"dep_service_ids":  []string{"required"},
@@ -1135,11 +1136,11 @@ func (t *TenantStruct) AddDependencys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	depServiceIds := data["dep_service_id"].(string)
-	for _, depServiceId := range strings.Split(",", depServiceIds) {
+	for _, depServiceID := range strings.Split(",", depServiceIds) {
 		ds := &api_model.DependService{
 			TenantID:       r.Context().Value(ctxutil.ContextKey("tenant_id")).(string),
 			ServiceID:      r.Context().Value(ctxutil.ContextKey("service_id")).(string),
-			DepServiceID:   depServiceId,
+			DepServiceID:   depServiceID,
 			DepServiceType: data["dep_service_type"].(string),
 		}
 		if err := handler.GetServiceManager().ServiceDepend("add", ds); err != nil {
