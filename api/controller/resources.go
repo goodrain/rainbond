@@ -1127,20 +1127,20 @@ func (t *TenantStruct) AddDependency(w http.ResponseWriter, r *http.Request) {
 // AddDependencys -
 func (t *TenantStruct) AddDependencys(w http.ResponseWriter, r *http.Request) {
 	rules := validator.MapData{
-		"dep_service_ids":  []string{"required"},
-		"dep_service_type": []string{"required"},
-		"dep_order":        []string{},
+		"be_dep_service_ids": []string{"required"}, //被依赖的id列表
+		"dep_service_type":   []string{"required"},
+		"dep_order":          []string{},
 	}
 	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
 	if !ok {
 		return
 	}
-	depServiceIds := data["dep_service_id"].(string)
-	for _, depServiceID := range strings.Split(",", depServiceIds) {
+	beDepServiceIds := data["be_dep_service_ids"].(string)
+	for _, beDepServiceID := range strings.Split(",", beDepServiceIds) {
 		ds := &api_model.DependService{
 			TenantID:       r.Context().Value(ctxutil.ContextKey("tenant_id")).(string),
-			ServiceID:      r.Context().Value(ctxutil.ContextKey("service_id")).(string),
-			DepServiceID:   depServiceID,
+			ServiceID:      beDepServiceID,
+			DepServiceID:   r.Context().Value(ctxutil.ContextKey("service_id")).(string),
 			DepServiceType: data["dep_service_type"].(string),
 		}
 		if err := handler.GetServiceManager().ServiceDepend("add", ds); err != nil {
