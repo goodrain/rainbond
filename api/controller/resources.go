@@ -1048,6 +1048,14 @@ func (t *TenantStruct) Dependency(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Dependencys Dependencys batch add dependency
+func (t *TenantStruct) Dependencys(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		t.AddDependencys(w, r)
+	}
+}
+
 // AddDependency AddDependency
 // swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/dependency v2 addDependency
 //
@@ -1089,6 +1097,55 @@ func (t *TenantStruct) AddDependency(w http.ResponseWriter, r *http.Request) {
 	if err := handler.GetServiceManager().ServiceDepend("add", ds); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("add dependency error, %v", err))
 		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+// AddDependencys AddDependencys
+// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/dependencys v2 addDependencys
+//
+// 批量增加应用依赖关系
+//
+// add dependency
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
+
+func (t *TenantStruct) AddDependencys(w http.ResponseWriter, r *http.Request) {
+	rules := validator.MapData{
+		"dep_service_ids":  []string{"required"},
+		"dep_service_type": []string{"required"},
+		"dep_order":        []string{},
+	}
+	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
+	if !ok {
+		return
+	}
+	depServiceIds := data["dep_service_id"].(string)
+	for _, depServiceId := range strings.Split(",", depServiceIds) {
+		ds := &api_model.DependService{
+			TenantID:       r.Context().Value(ctxutil.ContextKey("tenant_id")).(string),
+			ServiceID:      r.Context().Value(ctxutil.ContextKey("service_id")).(string),
+			DepServiceID:   depServiceId,
+			DepServiceType: data["dep_service_type"].(string),
+		}
+		if err := handler.GetServiceManager().ServiceDepend("add", ds); err != nil {
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("add dependency error, %v", err))
+			return
+		}
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }

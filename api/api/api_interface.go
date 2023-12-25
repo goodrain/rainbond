@@ -114,6 +114,8 @@ type ServiceInterface interface {
 	CreateService(w http.ResponseWriter, r *http.Request)
 	UpdateService(w http.ResponseWriter, r *http.Request)
 	Dependency(w http.ResponseWriter, r *http.Request)
+	Dependencys(w http.ResponseWriter, r *http.Request)
+
 	Env(w http.ResponseWriter, r *http.Request)
 	Ports(w http.ResponseWriter, r *http.Request)
 	PutPorts(w http.ResponseWriter, r *http.Request)
