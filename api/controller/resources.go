@@ -1136,7 +1136,7 @@ func (t *TenantStruct) AddDependencys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	beDepServiceIds := data["be_dep_service_ids"].(string)
-	for _, beDepServiceID := range strings.Split(",", beDepServiceIds) {
+	for _, beDepServiceID := range strings.Split(beDepServiceIds, ",") {
 		ds := &api_model.DependService{
 			TenantID:       r.Context().Value(ctxutil.ContextKey("tenant_id")).(string),
 			ServiceID:      beDepServiceID,
