@@ -1133,20 +1133,23 @@ func (t *TenantStruct) AddDependencys(w http.ResponseWriter, r *http.Request) {
 	}
 	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
 	if !ok {
+		httputil.ReturnError(r, w, 500, "add dependency error")
 		return
 	}
-	beDepServiceIds := data["be_dep_service_ids"].(string)
-	for _, beDepServiceID := range strings.Split(beDepServiceIds, ",") {
-		ds := &api_model.DependService{
-			TenantID:       r.Context().Value(ctxutil.ContextKey("tenant_id")).(string),
-			ServiceID:      beDepServiceID,
-			DepServiceID:   r.Context().Value(ctxutil.ContextKey("service_id")).(string),
-			DepServiceType: data["dep_service_type"].(string),
-		}
-		if err := handler.GetServiceManager().ServiceDepend("add", ds); err != nil {
-			httputil.ReturnError(r, w, 500, fmt.Sprintf("add dependency error, %v", err))
-			return
-		}
+	var relations []*dbmodel.TenantServiceRelation
+	for _, beDepServiceID := range strings.Split(data["be_dep_service_ids"].(string), ",") {
+		relations = append(relations, &dbmodel.TenantServiceRelation{
+			TenantID:          r.Context().Value(ctxutil.ContextKey("tenant_id")).(string),
+			ServiceID:         beDepServiceID,
+			DependServiceID:   r.Context().Value(ctxutil.ContextKey("service_id")).(string),
+			DependServiceType: data["dep_service_type"].(string),
+			DependOrder:       1,
+		})
+	}
+	err := db.GetManager().TenantServiceRelationDao().CreateOrUpdateRelationsInBatch(relations)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("add dependency error, %v", err))
+		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
 }
