@@ -169,6 +169,7 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	if len(re.BuildKitArgs) > 0 {
 		container.Args = append(container.Args, re.BuildKitArgs...)
 	}
+	logrus.Info("这是我的env参数", re.BuildEnvs)
 	logrus.Info("这是我的构建参数", container.Args)
 	container.VolumeMounts = mounts
 	podSpec.Containers = append(podSpec.Containers, container)
