@@ -160,7 +160,6 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 			fmt.Sprintf("dockerfile=%v", re.SourceDir),
 			"--output",
 			fmt.Sprintf("type=image,name=%s,push=true", buildImageName),
-			//"--opt=build-arg:MY_ARG=VALUE1",
 		},
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &privileged,
@@ -169,8 +168,13 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	if len(re.BuildKitArgs) > 0 {
 		container.Args = append(container.Args, re.BuildKitArgs...)
 	}
-	logrus.Info("这是我的env参数", re.BuildEnvs)
-	logrus.Info("这是我的构建参数", container.Args)
+	for key := range re.BuildEnvs {
+		if strings.HasPrefix(key, "ARG_") {
+			envKey := strings.Replace(key, "ARG_", "", -1)
+			container.Args = append(container.Args, fmt.Sprintf("--opt=build-arg:%s=%s", envKey, re.BuildEnvs[key]))
+		}
+	}
+
 	container.VolumeMounts = mounts
 	podSpec.Containers = append(podSpec.Containers, container)
 	job.Spec = podSpec
