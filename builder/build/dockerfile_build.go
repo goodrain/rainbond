@@ -70,7 +70,7 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 	}, nil
 }
 
-//The same component retains only one build task to perform
+// The same component retains only one build task to perform
 func (d *dockerfileBuild) stopPreBuildJob(re *Request) error {
 	jobList, err := jobc.GetJobController().GetServiceJobs(re.ServiceID)
 	if err != nil {
@@ -160,6 +160,8 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 			fmt.Sprintf("dockerfile=%v", re.SourceDir),
 			"--output",
 			fmt.Sprintf("type=image,name=%s,push=true", buildImageName),
+			"--build-arg",
+			"MY_ARG=VALUE1",
 		},
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &privileged,
