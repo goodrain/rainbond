@@ -165,8 +165,6 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 			fmt.Sprintf("dockerfile=%v", re.SourceDir),
 			"--output",
 			fmt.Sprintf("type=image,name=%s,push=true", buildImageName),
-			"--build-arg",
-			"MY_ARG=VALUE1",
 		},
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: &privileged,
