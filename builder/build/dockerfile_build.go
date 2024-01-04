@@ -113,7 +113,7 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 							},
 							{
 								Key:      "kubernetes.io/hostname",
-								Operator: corev1.NodeSelectorOpExists,
+								Operator: corev1.NodeSelectorOpIn,
 								Values:   []string{os.Getenv("HOST_IP")},
 							},
 						},

@@ -436,7 +436,7 @@ func ImageBuild(arch, contextDir, cachePVCName, cacheMode, RbdNamespace, Service
 							},
 							{
 								Key:      "kubernetes.io/hostname",
-								Operator: corev1.NodeSelectorOpExists,
+								Operator: corev1.NodeSelectorOpIn,
 								Values:   []string{os.Getenv("HOST_IP")},
 							},
 						},
