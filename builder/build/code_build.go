@@ -385,7 +385,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 							},
 							{
 								Key:      "kubernetes.io/hostname",
-								Operator: corev1.NodeSelectorOpGt,
+								Operator: corev1.NodeSelectorOpExists,
 								Values:   []string{os.Getenv("HOST_IP")},
 							},
 						},
