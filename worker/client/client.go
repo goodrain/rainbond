@@ -20,13 +20,11 @@ package client
 
 import (
 	"context"
-	"github.com/coreos/etcd/clientv3"
 	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/util"
-	grpcutil "github.com/goodrain/rainbond/util/grpc"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
 	"github.com/sirupsen/logrus"
@@ -36,38 +34,18 @@ import (
 // AppRuntimeSyncClient grpc client
 type AppRuntimeSyncClient struct {
 	pb.AppRuntimeSyncClient
-	AppRuntimeSyncClientConf
 	cc  *grpc.ClientConn
 	ctx context.Context
 }
 
-// AppRuntimeSyncClientConf client conf
-type AppRuntimeSyncClientConf struct {
-	NonBlock             bool
-	EtcdEndpoints        []string
-	EtcdCaFile           string
-	EtcdCertFile         string
-	EtcdKeyFile          string
-	DefaultServerAddress []string
-}
-
 // NewClient new client
 // ctx must be cancel where client not used
-func NewClient(ctx context.Context, conf AppRuntimeSyncClientConf, etcdClient *clientv3.Client) (c *AppRuntimeSyncClient, err error) {
+func NewClient(ctx context.Context, grpcServer string) (c *AppRuntimeSyncClient, err error) {
 	var arsc AppRuntimeSyncClient
-	arsc.AppRuntimeSyncClientConf = conf
 	arsc.ctx = ctx
 
-	r := &grpcutil.GRPCResolver{Client: etcdClient}
-	b := grpc.RoundRobin(r)
-	dialOpts := []grpc.DialOption{
-		grpc.WithBalancer(b),
-		grpc.WithInsecure(),
-	}
-	if !conf.NonBlock {
-		dialOpts = append(dialOpts, grpc.WithBlock())
-	}
-	arsc.cc, err = grpc.DialContext(ctx, "/rainbond/discover/app_sync_runtime_server", dialOpts...)
+	arsc.cc, err = grpc.Dial(grpcServer, grpc.WithInsecure())
+
 	if err != nil {
 		return nil, err
 	}

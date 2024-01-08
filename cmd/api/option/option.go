@@ -65,6 +65,7 @@ type Config struct {
 	ShowSQL                bool
 	GrctlImage             string
 	RbdHub                 string
+	RbdWorker              string
 }
 
 // APIServer  apiserver server
@@ -121,7 +122,8 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.PrometheusEndpoint, "prom-api", "rbd-monitor:9999", "The service DNS name of Prometheus api. Default to rbd-monitor:9999")
 	fs.StringVar(&a.RbdHub, "hub-api", "http://rbd-hub:5000", "the rbd-hub server api")
 	fs.StringSliceVar(&a.NodeAPI, "node-api", []string{"rbd-node:6100"}, "the rbd-node server api")
-	fs.StringVar(&a.MQAPI, "mq-api", "127.0.0.1:6300", "the rbd-mq server api")
+	fs.StringVar(&a.MQAPI, "mq-api", "rbd-mq:6300", "the rbd-mq server api")
+	fs.StringVar(&a.RbdWorker, "worker-api", "rbd-worker:6535", "the rbd-mq server api")
 
 }
 

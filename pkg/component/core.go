@@ -9,6 +9,7 @@ import (
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/pkg/component/etcd"
+	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/rainbond"
@@ -35,6 +36,11 @@ func HubRegistry() rainbond.Component {
 // Etcd -
 func Etcd() rainbond.Component {
 	return etcd.Etcd()
+}
+
+// Grpc -
+func Grpc() rainbond.Component {
+	return grpc.Grpc()
 }
 
 // Event -
@@ -79,7 +85,7 @@ func Handler() rainbond.FuncComponent {
 
 func Router() rainbond.FuncComponent {
 	return func(ctx context.Context, cfg *configs.Config) error {
-		if err := controller.CreateV2RouterManager(cfg.APIConfig, etcd.Default().StatusClient); err != nil {
+		if err := controller.CreateV2RouterManager(cfg.APIConfig, grpc.Default().StatusClient); err != nil {
 			logrus.Errorf("create v2 route manager error, %v", err)
 		}
 		// 启动api

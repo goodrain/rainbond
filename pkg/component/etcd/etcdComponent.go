@@ -7,7 +7,6 @@ import (
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/gogo"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
-	"github.com/goodrain/rainbond/worker/client"
 	"github.com/sirupsen/logrus"
 	"time"
 )
@@ -15,8 +14,7 @@ import (
 var defaultEtcdComponent *Component
 
 type Component struct {
-	EtcdClient   *clientv3.Client
-	StatusClient *client.AppRuntimeSyncClient
+	EtcdClient *clientv3.Client
 }
 
 func Etcd() *Component {
@@ -77,17 +75,7 @@ func (e Component) Start(ctx context.Context, cfg *configs.Config) error {
 			etcdClient, err = clientv3.New(config)
 			if err == nil {
 				e.EtcdClient = etcdClient
-				e.StatusClient, err = client.NewClient(ctx, client.AppRuntimeSyncClientConf{
-					EtcdEndpoints: clientArgs.Endpoints,
-					EtcdCaFile:    clientArgs.CaFile,
-					EtcdCertFile:  clientArgs.CertFile,
-					EtcdKeyFile:   clientArgs.KeyFile,
-					NonBlock:      cfg.APIConfig.Debug,
-				}, etcdClient)
-				if err == nil {
-					logrus.Infof("etcd.v3 client is ready")
-					return nil
-				}
+				return nil
 			}
 			logrus.Errorf("create etcd.v3 client failed, try time is %d,%s", 10, err.Error())
 			time.Sleep(10 * time.Second)
