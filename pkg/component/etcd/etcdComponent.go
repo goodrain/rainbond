@@ -9,7 +9,6 @@ import (
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/worker/client"
 	"github.com/sirupsen/logrus"
-	"log"
 	"time"
 )
 
@@ -71,21 +70,26 @@ func (e Component) Start(ctx context.Context, cfg *configs.Config) error {
 		}
 		config.TLS = tlsConfig
 	}
-	c, err := clientv3.New(config)
-	if err != nil {
-		log.Println(err)
-	}
-	e.EtcdClient = c
-
 	gogo.Go(func(ctx context.Context) error {
-		e.StatusClient, err = client.NewClient(ctx, client.AppRuntimeSyncClientConf{
-			EtcdEndpoints: clientArgs.Endpoints,
-			EtcdCaFile:    clientArgs.CaFile,
-			EtcdCertFile:  clientArgs.CertFile,
-			EtcdKeyFile:   clientArgs.KeyFile,
-			NonBlock:      cfg.APIConfig.Debug,
-		})
-		return err
+		var etcdClient *clientv3.Client
+		var err error
+		for {
+			etcdClient, err = clientv3.New(config)
+			if err == nil {
+				logrus.Infof("etcd.v3 client is ready")
+				e.EtcdClient = etcdClient
+				e.StatusClient, err = client.NewClient(ctx, client.AppRuntimeSyncClientConf{
+					EtcdEndpoints: clientArgs.Endpoints,
+					EtcdCaFile:    clientArgs.CaFile,
+					EtcdCertFile:  clientArgs.CertFile,
+					EtcdKeyFile:   clientArgs.KeyFile,
+					NonBlock:      cfg.APIConfig.Debug,
+				}, etcdClient)
+				return nil
+			}
+			logrus.Errorf("create etcd.v3 client failed, try time is %d,%s", 10, err.Error())
+			time.Sleep(10 * time.Second)
+		}
 	})
 	return nil
 }
