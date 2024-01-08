@@ -69,12 +69,10 @@ func (e *Component) Start(ctx context.Context, cfg *configs.Config) error {
 		config.TLS = tlsConfig
 	}
 	gogo.Go(func(ctx context.Context) error {
-		var etcdClient *clientv3.Client
 		var err error
 		for {
-			etcdClient, err = clientv3.New(config)
+			e.EtcdClient, err = clientv3.New(config)
 			if err == nil {
-				e.EtcdClient = etcdClient
 				logrus.Infof("create etcd.v3 client success")
 				return nil
 			}
