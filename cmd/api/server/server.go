@@ -34,6 +34,7 @@ func Run(s *option.APIServer) error {
 	}
 	return rainbond.New(context.Background(), cfg).
 		Registry(component.Database()).
+		Registry(component.Grpc()).
 		//Registry(component.Event()).
 		Registry(component.K8sClient()).
 		Registry(component.HubRegistry()).
