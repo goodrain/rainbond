@@ -26,6 +26,7 @@ import (
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/pkg/component/etcd"
+	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/sirupsen/logrus"
@@ -34,7 +35,7 @@ import (
 // InitHandle 初始化handle
 func InitHandle(conf option.Config) error {
 	etcdcli := etcd.Default().EtcdClient
-	statusCli := etcd.Default().StatusClient
+	statusCli := grpc.Default().StatusClient
 	clientset := k8s.Default().Clientset
 	rainbondClient := k8s.Default().RainbondClient
 	k8sClient := k8s.K8sClient().K8sClient
