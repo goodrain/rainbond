@@ -31,7 +31,7 @@ var (
 	defaultAotuSyncInterval = 10 * time.Second
 )
 
-func (e Component) Start(ctx context.Context, cfg *configs.Config) error {
+func (e *Component) Start(ctx context.Context, cfg *configs.Config) error {
 	logrus.Info("start etcd client...")
 	clientArgs := &etcdutil.ClientArgs{
 		Endpoints: cfg.APIConfig.EtcdEndpoint,
@@ -84,5 +84,5 @@ func (e Component) Start(ctx context.Context, cfg *configs.Config) error {
 	return nil
 }
 
-func (e Component) CloseHandle() {
+func (e *Component) CloseHandle() {
 }

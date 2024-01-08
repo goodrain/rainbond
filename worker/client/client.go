@@ -41,16 +41,17 @@ type AppRuntimeSyncClient struct {
 // NewClient new client
 // ctx must be cancel where client not used
 func NewClient(ctx context.Context, grpcServer string) (c *AppRuntimeSyncClient, err error) {
-	var arsc AppRuntimeSyncClient
-	arsc.ctx = ctx
+	c = new(AppRuntimeSyncClient)
+	c.ctx = ctx
 	logrus.Infof("discover app runtime sync server address %s", grpcServer)
-	arsc.cc, err = grpc.Dial(grpcServer)
+	c.cc, err = grpc.Dial(grpcServer, grpc.WithInsecure())
 
 	if err != nil {
 		return nil, err
 	}
-	arsc.AppRuntimeSyncClient = pb.NewAppRuntimeSyncClient(arsc.cc)
-	return &arsc, nil
+	c.AppRuntimeSyncClient = pb.NewAppRuntimeSyncClient(c.cc)
+
+	return c, nil
 }
 
 // when watch occurred error,will exec this method

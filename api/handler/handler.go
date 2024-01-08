@@ -38,12 +38,12 @@ func InitHandle(conf option.Config) error {
 	statusCli := grpc.Default().StatusClient
 	clientset := k8s.Default().Clientset
 	rainbondClient := k8s.Default().RainbondClient
-	k8sClient := k8s.K8sClient().K8sClient
-	restconfig := k8s.K8sClient().RestConfig
-	dynamicClient := k8s.K8sClient().DynamicClient
-	gatewayClient := k8s.K8sClient().GatewayClient
-	kubevirtCli := k8s.K8sClient().KubevirtCli
-	mapper := k8s.K8sClient().Mapper
+	k8sClient := k8s.Default().K8sClient
+	restconfig := k8s.Default().RestConfig
+	dynamicClient := k8s.Default().DynamicClient
+	gatewayClient := k8s.Default().GatewayClient
+	kubevirtCli := k8s.Default().KubevirtCli
+	mapper := k8s.Default().Mapper
 	registryCli := hubregistry.Default().RegistryCli
 
 	mq := api_db.MQManager{

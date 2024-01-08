@@ -23,7 +23,7 @@ func HubRegistry() *RegistryComponent {
 	return defaultRegistryComponent
 }
 
-func (r RegistryComponent) Start(ctx context.Context, cfg *configs.Config) error {
+func (r *RegistryComponent) Start(ctx context.Context, cfg *configs.Config) error {
 	logrus.Infof("init hub registry...")
 	var cluster rainbondv1alpha1.RainbondCluster
 
