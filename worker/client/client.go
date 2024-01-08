@@ -43,7 +43,7 @@ type AppRuntimeSyncClient struct {
 func NewClient(ctx context.Context, grpcServer string) (c *AppRuntimeSyncClient, err error) {
 	var arsc AppRuntimeSyncClient
 	arsc.ctx = ctx
-
+	logrus.Infof("discover app runtime sync server address %s", grpcServer)
 	arsc.cc, err = grpc.Dial(grpcServer, grpc.WithInsecure())
 
 	if err != nil {
