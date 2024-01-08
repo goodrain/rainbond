@@ -20,6 +20,7 @@ package event
 
 import (
 	"fmt"
+	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"io"
 	"os"
 	"strings"
@@ -48,7 +49,7 @@ type Manager interface {
 // EventConfig event config struct
 type EventConfig struct {
 	EventLogServers []string
-	//DiscoverArgs    *etcdutil.ClientArgs
+	DiscoverArgs    *etcdutil.ClientArgs
 }
 type manager struct {
 	ctx            context.Context
