@@ -37,14 +37,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//ConDB struct
+// ConDB struct
 type ConDB struct {
 	ConnectionInfo string
 	DBType         string
 }
 
-//CreateDBManager get db manager
-//TODO: need to try when happened error, try 4 times
+// CreateDBManager get db manager
+// TODO: need to try when happened error, try 4 times
 func CreateDBManager(conf option.Config) error {
 	dbCfg := config.Config{
 		MysqlConnectionInfo: conf.DBConnectionInfo,
@@ -61,7 +61,7 @@ func CreateDBManager(conf option.Config) error {
 	return nil
 }
 
-//CreateEventManager create event manager
+// CreateEventManager create event manager
 func CreateEventManager(conf option.Config) error {
 	var tryTime time.Duration
 	var err error
@@ -83,6 +83,7 @@ func CreateEventManager(conf option.Config) error {
 			break
 		}
 	}
+
 	if err != nil {
 		logrus.Errorf("get event manager failed. %v", err.Error())
 		return err
@@ -91,15 +92,14 @@ func CreateEventManager(conf option.Config) error {
 	return nil
 }
 
-//MQManager mq manager
+// MQManager mq manager
 type MQManager struct {
-	EtcdClientArgs *etcdutil.ClientArgs
-	DefaultServer  string
+	DefaultServer string
 }
 
-//NewMQManager new mq manager
+// NewMQManager new mq manager
 func (m *MQManager) NewMQManager() (client.MQClient, error) {
-	client, err := client.NewMqClient(m.EtcdClientArgs, m.DefaultServer)
+	client, err := client.NewMqClient(m.DefaultServer)
 	if err != nil {
 		logrus.Errorf("new mq manager error, %v", err)
 		return client, err
@@ -107,19 +107,19 @@ func (m *MQManager) NewMQManager() (client.MQClient, error) {
 	return client, nil
 }
 
-//TaskStruct task struct
+// TaskStruct task struct
 type TaskStruct struct {
 	TaskType string
 	TaskBody model.TaskBody
 	User     string
 }
 
-//OpentsdbManager OpentsdbManager
+// OpentsdbManager OpentsdbManager
 type OpentsdbManager struct {
 	Endpoint string
 }
 
-//NewOpentsdbManager NewOpentsdbManager
+// NewOpentsdbManager NewOpentsdbManager
 func (o *OpentsdbManager) NewOpentsdbManager() (tsdbClient.Client, error) {
 	opentsdbCfg := tsdbConfig.OpenTSDBConfig{
 		OpentsdbHost: o.Endpoint,
@@ -131,7 +131,7 @@ func (o *OpentsdbManager) NewOpentsdbManager() (tsdbClient.Client, error) {
 	return tc, nil
 }
 
-//BuildTask build task
+// BuildTask build task
 func BuildTask(t *TaskStruct) (*pb.EnqueueRequest, error) {
 	var er pb.EnqueueRequest
 	taskJSON, err := json.Marshal(t.TaskBody)
@@ -149,7 +149,7 @@ func BuildTask(t *TaskStruct) (*pb.EnqueueRequest, error) {
 	return &er, nil
 }
 
-//GetBegin get db transaction
+// GetBegin get db transaction
 func GetBegin() *gorm.DB {
 	return db.GetManager().Begin()
 }

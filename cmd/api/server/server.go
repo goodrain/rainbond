@@ -20,179 +20,26 @@ package server
 
 import (
 	"context"
-	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
-	"github.com/goodrain/rainbond/api/controller"
-	"github.com/goodrain/rainbond/api/db"
-	"github.com/goodrain/rainbond/api/discover"
-	"github.com/goodrain/rainbond/api/handler"
-	"github.com/goodrain/rainbond/api/server"
-	registry "github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/goodrain/rainbond/cmd/api/option"
-	"github.com/goodrain/rainbond/event"
-	"github.com/goodrain/rainbond/grctl/clients"
-	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
-	rainbondscheme "github.com/goodrain/rainbond/pkg/generated/clientset/versioned/scheme"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
-	k8sutil "github.com/goodrain/rainbond/util/k8s"
-	"github.com/goodrain/rainbond/worker/client"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/restmapper"
-	"kubevirt.io/client-go/kubecli"
-	"os"
-	"os/signal"
-	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
-	gateway "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
-	"syscall"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/pkg/component"
+	"github.com/goodrain/rainbond/pkg/rainbond"
 )
 
 // Run start run
 func Run(s *option.APIServer) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	errChan := make(chan error)
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints: s.Config.EtcdEndpoint,
-		CaFile:    s.Config.EtcdCaFile,
-		CertFile:  s.Config.EtcdCertFile,
-		KeyFile:   s.Config.EtcdKeyFile,
+	cfg := &configs.Config{
+		AppName:   "rbd-api",
+		APIConfig: s.Config,
 	}
-	//启动服务发现
-	if _, err := discover.CreateEndpointDiscover(etcdClientArgs); err != nil {
-		return err
-	}
-	//创建db manager
-	if err := db.CreateDBManager(s.Config); err != nil {
-		logrus.Debugf("create db manager error, %v", err)
-		return err
-	}
-	//创建event manager
-	if err := db.CreateEventManager(s.Config); err != nil {
-		logrus.Debugf("create event manager error, %v", err)
-	}
-
-	config, err := k8sutil.NewRestConfig(s.KubeConfigPath)
-	if err != nil {
-		return err
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-	gatewayClient, err := gateway.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-	dynamicClient, err := dynamic.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-
-	rainbondClient := versioned.NewForConfigOrDie(config)
-
-	// k8s runtime client
-	scheme := runtime.NewScheme()
-	clientgoscheme.AddToScheme(scheme)
-	rainbondscheme.AddToScheme(scheme)
-	k8sClient, err := k8sclient.New(config, k8sclient.Options{
-		Scheme: scheme,
-	})
-	if err != nil {
-		return errors.WithMessage(err, "create k8s client")
-	}
-	// rest mapper
-	gr, err := restmapper.GetAPIGroupResources(clientset)
-	if err != nil {
-		return err
-	}
-	mapper := restmapper.NewDiscoveryRESTMapper(gr)
-
-	if err := event.NewManager(event.EventConfig{
-		EventLogServers: s.Config.EventLogServers,
-		DiscoverArgs:    etcdClientArgs,
-	}); err != nil {
-		return err
-	}
-	defer event.CloseManager()
-	//create app status client
-	cli, err := client.NewClient(ctx, client.AppRuntimeSyncClientConf{
-		EtcdEndpoints: s.Config.EtcdEndpoint,
-		EtcdCaFile:    s.Config.EtcdCaFile,
-		EtcdCertFile:  s.Config.EtcdCertFile,
-		EtcdKeyFile:   s.Config.EtcdKeyFile,
-		NonBlock:      s.Config.Debug,
-	})
-	if err != nil {
-		logrus.Errorf("create app status client error, %v", err)
-		return err
-	}
-
-	etcdcli, err := etcdutil.NewClient(ctx, etcdClientArgs)
-	if err != nil {
-		logrus.Errorf("create etcd client v3 error, %v", err)
-		return err
-	}
-
-	kubevirtCli, err := kubecli.GetKubevirtClientFromRESTConfig(config)
-	if err != nil {
-		logrus.Errorf("create kubevirt cli failure: %v", err)
-		return err
-	}
-
-	var cluster rainbondv1alpha1.RainbondCluster
-	err = clients.K8SClientInitClient(clientset, config)
-	if err != nil {
-		logrus.Errorf("k8s client init rainbondClient failure: %v", err)
-		return err
-	}
-	if err := clients.RainbondKubeClient.Get(context.Background(), types.NamespacedName{Namespace: "rbd-system", Name: "rainbondcluster"}, &cluster); err != nil {
-		return errors.Wrap(err, "get configuration from rainbond cluster")
-	}
-
-	registryConfig := cluster.Spec.ImageHub
-	if registryConfig.Domain == "goodrain.me" {
-		registryConfig.Domain = "http://rbd-hub:5000"
-	}
-
-	registryCli, err := registry.NewInsecure(registryConfig.Domain, registryConfig.Username, registryConfig.Password)
-	if err != nil {
-		return errors.WithMessage(err, "create registry cleaner")
-	}
-
-	//初始化 middleware
-	handler.InitProxy(s.Config)
-	//创建handle
-	if err := handler.InitHandle(s.Config, etcdClientArgs, cli, etcdcli, clientset, rainbondClient, k8sClient, config, mapper, dynamicClient, gatewayClient, kubevirtCli, registryCli); err != nil {
-		logrus.Errorf("init all handle error, %v", err)
-		return err
-	}
-	//创建v2Router manager
-	if err := controller.CreateV2RouterManager(s.Config, cli); err != nil {
-		logrus.Errorf("create v2 route manager error, %v", err)
-	}
-	// 启动api
-	apiManager := server.NewManager(s.Config, etcdcli)
-	if err := apiManager.Start(); err != nil {
-		return err
-	}
-	defer apiManager.Stop()
-	logrus.Info("api router is running...")
-
-	//step finally: listen Signal
-	term := make(chan os.Signal)
-	signal.Notify(term, os.Interrupt, syscall.SIGTERM)
-	select {
-	case s := <-term:
-		logrus.Infof("Received a Signal  %s, exiting gracefully...", s.String())
-	case err := <-errChan:
-		logrus.Errorf("Received a error %s, exiting gracefully...", err.Error())
-	}
-	logrus.Info("See you next time!")
-	return nil
+	return rainbond.New(context.Background(), cfg).
+		Registry(component.Database()).
+		//Registry(component.Event()).
+		Registry(component.K8sClient()).
+		Registry(component.HubRegistry()).
+		Registry(component.Proxy()).
+		Registry(component.Etcd()).
+		Registry(component.Handler()).
+		Registry(component.Router()).
+		Start()
 }

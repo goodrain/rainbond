@@ -72,7 +72,7 @@ func Run(s *option.Builder) error {
 		return err
 	}
 	defer event.CloseManager()
-	mqClient, err := client.NewMqClient(etcdClientArgs, s.Config.MQAPI)
+	mqClient, err := client.NewMqClient(s.Config.MQAPI)
 	if err != nil {
 		logrus.Errorf("new Mq mqClient error, %v", err)
 		return err

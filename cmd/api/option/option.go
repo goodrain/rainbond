@@ -64,6 +64,7 @@ type Config struct {
 	RbdNamespace           string
 	ShowSQL                bool
 	GrctlImage             string
+	RbdHub                 string
 }
 
 // APIServer  apiserver server
@@ -95,10 +96,8 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.WebsocketCertFile, "ws-ssl-certfile", "/etc/ssl/goodrain.com/goodrain.com.crt", "websocket and fileserver ssl cert file")
 	fs.StringVar(&a.WebsocketKeyFile, "ws-ssl-keyfile", "/etc/ssl/goodrain.com/goodrain.com.key", "websocket and fileserver ssl key file")
 	fs.StringVar(&a.V1API, "v1-api", "127.0.0.1:8887", "the region v1 api")
-	fs.StringSliceVar(&a.NodeAPI, "node-api", []string{"127.0.0.1:6100"}, "the node server api")
 	fs.StringSliceVar(&a.BuilderAPI, "builder-api", []string{"rbd-chaos:3228"}, "the builder api")
 	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"127.0.0.1:6366"}, "event log server address. simple lb")
-	fs.StringVar(&a.MQAPI, "mq-api", "127.0.0.1:6300", "acp_mq api")
 	fs.BoolVar(&a.StartRegionAPI, "start", false, "Whether to start region old api")
 	fs.StringSliceVar(&a.EtcdEndpoint, "etcd", []string{"http://127.0.0.1:2379"}, "etcd server or proxy address")
 	fs.StringVar(&a.EtcdCaFile, "etcd-ca", "", "verify etcd certificates of TLS-enabled secure servers using this CA bundle")
@@ -115,10 +114,15 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogPath, "log-path", "/grdata/logs", "Where Docker log files and event log files are stored.")
 	fs.StringVar(&a.KubeConfigPath, "kube-config", "", "kube config file path, No setup is required to run in a cluster.")
 	fs.StringVar(&a.KuberentesDashboardAPI, "k8s-dashboard-api", "kubernetes-dashboard.rbd-system:443", "The service DNS name of Kubernetes dashboard. Default to kubernetes-dashboard.kubernetes-dashboard")
-	fs.StringVar(&a.PrometheusEndpoint, "prom-api", "rbd-monitor:9999", "The service DNS name of Prometheus api. Default to rbd-monitor:9999")
 	fs.StringVar(&a.RbdNamespace, "rbd-namespace", "rbd-system", "rbd component namespace")
 	fs.BoolVar(&a.ShowSQL, "show-sql", false, "The trigger for showing sql.")
 	fs.StringVar(&a.GrctlImage, "shell-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-shell:v5.13.0-release", "use shell image")
+
+	fs.StringVar(&a.PrometheusEndpoint, "prom-api", "rbd-monitor:9999", "The service DNS name of Prometheus api. Default to rbd-monitor:9999")
+	fs.StringVar(&a.RbdHub, "hub-api", "http://rbd-hub:5000", "the rbd-hub server api")
+	fs.StringSliceVar(&a.NodeAPI, "node-api", []string{"rbd-node:6100"}, "the rbd-node server api")
+	fs.StringVar(&a.MQAPI, "mq-api", "127.0.0.1:6300", "the rbd-mq server api")
+
 }
 
 // SetLog 设置log
