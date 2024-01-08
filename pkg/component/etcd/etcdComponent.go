@@ -19,7 +19,7 @@ type Component struct {
 
 func Etcd() *Component {
 	defaultEtcdComponent = &Component{}
-	return &Component{}
+	return defaultEtcdComponent
 }
 
 func Default() *Component {
