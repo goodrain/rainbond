@@ -75,6 +75,7 @@ func (e *Component) Start(ctx context.Context, cfg *configs.Config) error {
 			etcdClient, err = clientv3.New(config)
 			if err == nil {
 				e.EtcdClient = etcdClient
+				logrus.Infof("create etcd.v3 client success")
 				return nil
 			}
 			logrus.Errorf("create etcd.v3 client failed, try time is %d,%s", 10, err.Error())
