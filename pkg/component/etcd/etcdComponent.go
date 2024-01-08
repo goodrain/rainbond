@@ -8,6 +8,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/gogo"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 	"time"
 )
 
@@ -67,6 +68,8 @@ func (e *Component) Start(ctx context.Context, cfg *configs.Config) error {
 			return err
 		}
 		config.TLS = tlsConfig
+		config.DialOptions = []grpc.DialOption{grpc.WithInsecure()}
+
 	}
 	gogo.Go(func(ctx context.Context) error {
 		var err error
@@ -80,6 +83,7 @@ func (e *Component) Start(ctx context.Context, cfg *configs.Config) error {
 			time.Sleep(10 * time.Second)
 		}
 	})
+	time.Sleep(5 * time.Second)
 	return nil
 }
 
