@@ -22,7 +22,7 @@ func (c *Component) CloseHandle() {
 
 func Grpc() *Component {
 	defaultGrpcComponent = &Component{}
-	return &Component{}
+	return defaultGrpcComponent
 }
 
 func Default() *Component {
