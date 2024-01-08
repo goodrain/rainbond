@@ -44,7 +44,7 @@ func NewClient(ctx context.Context, grpcServer string) (c *AppRuntimeSyncClient,
 	var arsc AppRuntimeSyncClient
 	arsc.ctx = ctx
 	logrus.Infof("discover app runtime sync server address %s", grpcServer)
-	arsc.cc, err = grpc.Dial(grpcServer, grpc.WithInsecure())
+	arsc.cc, err = grpc.Dial(grpcServer)
 
 	if err != nil {
 		return nil, err
