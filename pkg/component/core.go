@@ -13,7 +13,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/rainbond"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/sirupsen/logrus"
 	"time"
 )
@@ -49,17 +48,10 @@ func Event() rainbond.FuncComponent {
 	return func(ctx context.Context, cfg *configs.Config) error {
 		var tryTime time.Duration
 		var err error
-		etcdClientArgs := &etcdutil.ClientArgs{
-			Endpoints: cfg.APIConfig.EtcdEndpoint,
-			CaFile:    cfg.APIConfig.EtcdCaFile,
-			CertFile:  cfg.APIConfig.EtcdCertFile,
-			KeyFile:   cfg.APIConfig.EtcdKeyFile,
-		}
 		for tryTime < 4 {
 			tryTime++
 			if err = event.NewManager(event.EventConfig{
 				EventLogServers: cfg.APIConfig.EventLogServers,
-				DiscoverArgs:    etcdClientArgs,
 			}); err != nil {
 				logrus.Errorf("get event manager failed, try time is %v,%s", tryTime, err.Error())
 				time.Sleep((5 + tryTime*10) * time.Second)

@@ -27,19 +27,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	eventclient "github.com/goodrain/rainbond/eventlog/entry/grpc/client"
 	eventpb "github.com/goodrain/rainbond/eventlog/entry/grpc/pb"
 	"github.com/goodrain/rainbond/util"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
-//Manager 操作日志，客户端服务
-//客户端负载均衡
+// Manager 操作日志，客户端服务
+// 客户端负载均衡
 type Manager interface {
 	GetLogger(eventID string) Logger
 	Start() error
@@ -50,7 +48,7 @@ type Manager interface {
 // EventConfig event config struct
 type EventConfig struct {
 	EventLogServers []string
-	DiscoverArgs    *etcdutil.ClientArgs
+	//DiscoverArgs    *etcdutil.ClientArgs
 }
 type manager struct {
 	ctx            context.Context
@@ -62,7 +60,7 @@ type manager struct {
 	lock           sync.Mutex
 	eventServer    []string
 	abnormalServer map[string]string
-	dis            discover.Discover
+	//dis            discover.Discover
 }
 
 var defaultManager Manager
@@ -75,30 +73,30 @@ const (
 	buffersize = 1000
 )
 
-//NewManager 创建manager
+// NewManager 创建manager
 func NewManager(conf EventConfig) error {
-	dis, err := discover.GetDiscover(config.DiscoverConfig{EtcdClientArgs: conf.DiscoverArgs})
-	if err != nil {
-		logrus.Error("create discover manager error.", err.Error())
-		if len(conf.EventLogServers) < 1 {
-			return err
-		}
-	}
+	//dis, err := discover.GetDiscover(config.DiscoverConfig{EtcdClientArgs: conf.DiscoverArgs})
+	//if err != nil {
+	//	logrus.Error("create discover manager error.", err.Error())
+	//	if len(conf.EventLogServers) < 1 {
+	//		return err
+	//	}
+	//}
 	ctx, cancel := context.WithCancel(context.Background())
 	defaultManager = &manager{
-		ctx:            ctx,
-		cancel:         cancel,
-		config:         conf,
-		loggers:        make(map[string]Logger, 1024),
-		handles:        make(map[string]handle),
-		eventServer:    conf.EventLogServers,
-		dis:            dis,
+		ctx:         ctx,
+		cancel:      cancel,
+		config:      conf,
+		loggers:     make(map[string]Logger, 1024),
+		handles:     make(map[string]handle),
+		eventServer: conf.EventLogServers,
+		//dis:            dis,
 		abnormalServer: make(map[string]string),
 	}
 	return defaultManager.Start()
 }
 
-//GetManager 获取日志服务
+// GetManager 获取日志服务
 func GetManager() Manager {
 	return defaultManager
 }
@@ -108,7 +106,7 @@ func NewTestManager(m Manager) {
 	defaultManager = m
 }
 
-//CloseManager 关闭日志服务
+// CloseManager 关闭日志服务
 func CloseManager() {
 	if defaultManager != nil {
 		defaultManager.Close()
@@ -129,9 +127,9 @@ func (m *manager) Start() error {
 		m.handles[m.eventServer[i]] = h
 		go h.HandleLog()
 	}
-	if m.dis != nil {
-		m.dis.AddProject("event_log_event_grpc", m)
-	}
+	//if m.dis != nil {
+	//	m.dis.AddProject("event_log_event_grpc", m)
+	//}
 	go m.GC()
 	return nil
 }
@@ -182,9 +180,9 @@ func (m *manager) Error(err error) {
 }
 func (m *manager) Close() error {
 	m.cancel()
-	if m.dis != nil {
-		m.dis.Stop()
-	}
+	//if m.dis != nil {
+	//	m.dis.Stop()
+	//}
 	return nil
 }
 
@@ -208,8 +206,8 @@ func (m *manager) GC() {
 	}, time.Second*20)
 }
 
-//GetLogger
-//使用完成后必须调用ReleaseLogger方法
+// GetLogger
+// 使用完成后必须调用ReleaseLogger方法
 func (m *manager) GetLogger(eventID string) Logger {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -336,7 +334,7 @@ func (m *handle) Stop() {
 	close(m.stop)
 }
 
-//Logger 日志发送器
+// Logger 日志发送器
 type Logger interface {
 	Info(string, map[string]string)
 	Error(string, map[string]string)
@@ -406,7 +404,7 @@ func (l *logger) send(message string, info map[string]string) {
 	}
 }
 
-//LoggerWriter logger writer
+// LoggerWriter logger writer
 type LoggerWriter interface {
 	io.Writer
 	SetFormat(map[string]interface{})
@@ -475,7 +473,7 @@ func (l *loggerWriter) Write(b []byte) (n int, err error) {
 	return len(b), nil
 }
 
-//GetTestLogger GetTestLogger
+// GetTestLogger GetTestLogger
 func GetTestLogger() Logger {
 	return &testLogger{}
 }
