@@ -76,7 +76,6 @@ func (e Component) Start(ctx context.Context, cfg *configs.Config) error {
 		for {
 			etcdClient, err = clientv3.New(config)
 			if err == nil {
-				logrus.Infof("etcd.v3 client is ready")
 				e.EtcdClient = etcdClient
 				e.StatusClient, err = client.NewClient(ctx, client.AppRuntimeSyncClientConf{
 					EtcdEndpoints: clientArgs.Endpoints,
@@ -85,7 +84,10 @@ func (e Component) Start(ctx context.Context, cfg *configs.Config) error {
 					EtcdKeyFile:   clientArgs.KeyFile,
 					NonBlock:      cfg.APIConfig.Debug,
 				}, etcdClient)
-				return nil
+				if err == nil {
+					logrus.Infof("etcd.v3 client is ready")
+					return nil
+				}
 			}
 			logrus.Errorf("create etcd.v3 client failed, try time is %d,%s", 10, err.Error())
 			time.Sleep(10 * time.Second)

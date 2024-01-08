@@ -20,6 +20,7 @@ package etcd
 
 import (
 	"context"
+	"github.com/coreos/etcd/clientv3"
 	"sync"
 
 	"github.com/goodrain/rainbond/db/config"

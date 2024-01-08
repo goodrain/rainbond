@@ -20,7 +20,6 @@ package controller
 
 import (
 	"context"
-	"github.com/goodrain/rainbond/api/discover"
 	"net/http"
 	"os"
 	"path"
@@ -51,7 +50,7 @@ func GetDockerConsole() *DockerConsole {
 	dockerConsole = &DockerConsole{
 		socketproxy: proxy.CreateProxy("dockerconsole", "websocket", defaultDockerConsoleEndpoints),
 	}
-	discover.GetEndpointDiscover().AddProject("acp_webcli", dockerConsole.socketproxy)
+	//discover.GetEndpointDiscover().AddProject("acp_webcli", dockerConsole.socketproxy)
 	return dockerConsole
 }
 
@@ -73,7 +72,7 @@ func GetDockerLog() *DockerLog {
 		dockerLog = &DockerLog{
 			socketproxy: proxy.CreateProxy("dockerlog", "websocket", defaultEventLogEndpoints),
 		}
-		discover.GetEndpointDiscover().AddProject("event_log_event_http", dockerLog.socketproxy)
+		//discover.GetEndpointDiscover().AddProject("event_log_event_http", dockerLog.socketproxy)
 	}
 	return dockerLog
 }
@@ -96,7 +95,7 @@ func GetMonitorMessage() *MonitorMessage {
 		monitorMessage = &MonitorMessage{
 			socketproxy: proxy.CreateProxy("monitormessage", "websocket", defaultEventLogEndpoints),
 		}
-		discover.GetEndpointDiscover().AddProject("event_log_event_http", monitorMessage.socketproxy)
+		//discover.GetEndpointDiscover().AddProject("event_log_event_http", monitorMessage.socketproxy)
 	}
 	return monitorMessage
 }
@@ -119,7 +118,7 @@ func GetEventLog() *EventLog {
 		eventLog = &EventLog{
 			socketproxy: proxy.CreateProxy("eventlog", "websocket", defaultEventLogEndpoints),
 		}
-		discover.GetEndpointDiscover().AddProject("event_log_event_http", eventLog.socketproxy)
+		//discover.GetEndpointDiscover().AddProject("event_log_event_http", eventLog.socketproxy)
 	}
 	return eventLog
 }
@@ -191,7 +190,7 @@ func GetPubSubControll() *PubSubControll {
 		pubSubControll = &PubSubControll{
 			socketproxy: proxy.CreateProxy("dockerlog", "websocket", defaultEventLogEndpoints),
 		}
-		discover.GetEndpointDiscover().AddProject("event_log_event_http", pubSubControll.socketproxy)
+		//discover.GetEndpointDiscover().AddProject("event_log_event_http", pubSubControll.socketproxy)
 	}
 	return pubSubControll
 }
