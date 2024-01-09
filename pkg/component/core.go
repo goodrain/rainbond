@@ -12,6 +12,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/component/mq"
+	"github.com/goodrain/rainbond/pkg/component/prom"
 	"github.com/goodrain/rainbond/pkg/rainbond"
 	"github.com/sirupsen/logrus"
 	"time"
@@ -35,6 +37,16 @@ func HubRegistry() rainbond.Component {
 // Etcd -
 func Etcd() rainbond.Component {
 	return etcd.Etcd()
+}
+
+// MQ -
+func MQ() rainbond.Component {
+	return mq.MQ()
+}
+
+// Prometheus -
+func Prometheus() rainbond.Component {
+	return prom.Prometheus()
 }
 
 // Grpc -

@@ -41,6 +41,8 @@ func main() {
 	s.AddFlags(pflag.CommandLine)
 	pflag.Parse()
 	s.SetLog()
+
+	// 启动 rbd-api
 	err := rainbond.New(context.Background(), &configs.Config{
 		AppName:   "rbd-api",
 		APIConfig: s.Config,
@@ -51,6 +53,8 @@ func main() {
 		Registry(component.HubRegistry()).
 		Registry(component.Proxy()).
 		Registry(component.Etcd()).
+		Registry(component.MQ()).
+		Registry(component.Prometheus()).
 		Registry(component.Handler()).
 		Registry(component.Router()).
 		Start()

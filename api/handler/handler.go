@@ -19,8 +19,6 @@
 package handler
 
 import (
-	"github.com/goodrain/rainbond/api/client/prometheus"
-	api_db "github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/handler/group"
 	"github.com/goodrain/rainbond/api/handler/share"
 	"github.com/goodrain/rainbond/cmd/api/option"
@@ -29,6 +27,8 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/component/mq"
+	"github.com/goodrain/rainbond/pkg/component/prom"
 	"github.com/sirupsen/logrus"
 )
 
@@ -45,22 +45,9 @@ func InitHandle(conf option.Config) error {
 	kubevirtCli := k8s.Default().KubevirtCli
 	mapper := k8s.Default().Mapper
 	registryCli := hubregistry.Default().RegistryCli
+	mqClient := mq.Default().MqClient
+	prometheusCli := prom.Default().PrometheusCli
 
-	mq := api_db.MQManager{
-		DefaultServer: conf.MQAPI,
-	}
-	mqClient, errMQ := mq.NewMQManager()
-	if errMQ != nil {
-		logrus.Errorf("new MQ manager failed, %v", errMQ)
-		return errMQ
-	}
-	prometheusCli, err := prometheus.NewPrometheus(&prometheus.Options{
-		Endpoint: conf.PrometheusEndpoint,
-	})
-	if err != nil {
-		logrus.Errorf("new prometheus client failure, %v", err)
-		return err
-	}
 	dbmanager := db.GetManager()
 	defaultServieHandler = CreateManager(conf, mqClient, etcdcli, statusCli, prometheusCli, rainbondClient, clientset, kubevirtCli, dbmanager, registryCli)
 	defaultPluginHandler = CreatePluginManager(mqClient)
