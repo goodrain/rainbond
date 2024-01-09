@@ -3,14 +3,12 @@ package interceptors
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi/middleware"
 	"github.com/goodrain/rainbond/pkg/component/etcd"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"github.com/goodrain/rainbond/pkg/component/prom"
 	"net/http"
-	"runtime/debug"
 	"strings"
 )
 
@@ -19,21 +17,7 @@ func Recoverer(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rvr := recover(); rvr != nil && rvr != http.ErrAbortHandler {
-				// Check if the panic is a nil pointer exception
-				if isNilPointerException(rvr) {
-					handleServiceUnavailable(w, r)
-					return
-				}
-
-				// Handle other types of panics or re-panic
-				logEntry := middleware.GetLogEntry(r)
-				if logEntry != nil {
-					logEntry.Panic(rvr, debug.Stack())
-				} else {
-					middleware.PrintPrettyStack(rvr)
-				}
-				w.WriteHeader(http.StatusInternalServerError)
-
+				handleServiceUnavailable(w, r)
 			}
 		}()
 
