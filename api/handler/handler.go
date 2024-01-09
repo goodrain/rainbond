@@ -81,7 +81,7 @@ func InitHandle(conf option.Config) error {
 	defaultmonitorHandler = NewMonitorHandler(prometheusCli)
 	defServiceEventHandler = NewServiceEventHandler()
 	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli, rainbondClient, clientset, dynamicClient)
-	defRegistryAuthSecretHandler = CreateRegistryAuthSecretManager(dbmanager, mqClient, etcdcli)
+	defRegistryAuthSecretHandler = CreateRegistryAuthSecretManager(dbmanager, mqClient)
 	defNodesHandler = NewNodesHandler(clientset, conf.RbdNamespace, restconfig, mapper, prometheusCli)
 	return nil
 }
