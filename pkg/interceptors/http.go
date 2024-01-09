@@ -48,7 +48,7 @@ func isNilPointerException(p interface{}) bool {
 	}
 
 	errMsg := fmt.Sprintf("%v", p)
-	return strings.Contains(errMsg, "runtime error: invalid memory address or nil pointer dereference")
+	return strings.Contains(errMsg, "runtime error: invalid memory address or nil pointer dereference") || strings.Contains(errMsg, "runtime error: slice bounds out of range")
 }
 
 // handleServiceUnavailable -

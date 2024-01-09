@@ -14,15 +14,18 @@ import (
 
 var defaultRegistryComponent *RegistryComponent
 
+// RegistryComponent -
 type RegistryComponent struct {
 	RegistryCli *registry.Registry
 }
 
+// HubRegistry -
 func HubRegistry() *RegistryComponent {
 	defaultRegistryComponent = &RegistryComponent{}
 	return defaultRegistryComponent
 }
 
+// Start -
 func (r *RegistryComponent) Start(ctx context.Context, cfg *configs.Config) error {
 	logrus.Infof("init hub registry...")
 	var cluster rainbondv1alpha1.RainbondCluster
@@ -46,10 +49,12 @@ func (r *RegistryComponent) Start(ctx context.Context, cfg *configs.Config) erro
 	return err
 }
 
-func (r RegistryComponent) CloseHandle() {
+// CloseHandle -
+func (r *RegistryComponent) CloseHandle() {
 
 }
 
+// Default -
 func Default() *RegistryComponent {
 	return defaultRegistryComponent
 }

@@ -8,6 +8,7 @@ import (
 
 var defaultPromComponent *Component
 
+// Component -
 type Component struct {
 	PrometheusCli prometheus.Interface
 }

@@ -14,24 +14,23 @@ import (
 
 var defaultEtcdComponent *Component
 
+// Component -
 type Component struct {
 	EtcdClient *clientv3.Client
 }
 
+// Etcd -
 func Etcd() *Component {
 	defaultEtcdComponent = &Component{}
 	return defaultEtcdComponent
 }
 
+// Default -
 func Default() *Component {
 	return defaultEtcdComponent
 }
 
-var (
-	defaultDialTimeout      = 5 * time.Second
-	defaultAotuSyncInterval = 10 * time.Second
-)
-
+// Start -
 func (e *Component) Start(ctx context.Context, cfg *configs.Config) error {
 	logrus.Info("start etcd client...")
 	clientArgs := &etcdutil.ClientArgs{
@@ -41,10 +40,10 @@ func (e *Component) Start(ctx context.Context, cfg *configs.Config) error {
 		KeyFile:   cfg.APIConfig.EtcdKeyFile,
 	}
 	if clientArgs.DialTimeout <= 5 {
-		clientArgs.DialTimeout = defaultDialTimeout
+		clientArgs.DialTimeout = 5 * time.Second
 	}
 	if clientArgs.AutoSyncInterval <= 30 {
-		clientArgs.AutoSyncInterval = defaultAotuSyncInterval
+		clientArgs.AutoSyncInterval = 10 * time.Second
 	}
 
 	config := clientv3.Config{
@@ -87,5 +86,6 @@ func (e *Component) Start(ctx context.Context, cfg *configs.Config) error {
 	return nil
 }
 
+// CloseHandle -
 func (e *Component) CloseHandle() {
 }
