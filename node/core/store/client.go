@@ -35,7 +35,6 @@ import (
 )
 
 var (
-	//DefalutClient etcd client
 	DefalutClient *Client
 )
 
