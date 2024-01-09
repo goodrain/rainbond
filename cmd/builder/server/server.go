@@ -67,7 +67,6 @@ func Run(s *option.Builder) error {
 	}
 	if err := event.NewManager(event.EventConfig{
 		EventLogServers: s.Config.EventLogServers,
-		DiscoverArgs:    etcdClientArgs,
 	}); err != nil {
 		return err
 	}

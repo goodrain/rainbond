@@ -20,7 +20,6 @@ package event
 
 import (
 	"fmt"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"io"
 	"os"
 	"strings"
@@ -49,7 +48,6 @@ type Manager interface {
 // EventConfig event config struct
 type EventConfig struct {
 	EventLogServers []string
-	DiscoverArgs    *etcdutil.ClientArgs
 }
 type manager struct {
 	ctx            context.Context
@@ -76,13 +74,6 @@ const (
 
 // NewManager 创建manager
 func NewManager(conf EventConfig) error {
-	//dis, err := discover.GetDiscover(config.DiscoverConfig{EtcdClientArgs: conf.DiscoverArgs})
-	//if err != nil {
-	//	logrus.Error("create discover manager error.", err.Error())
-	//	if len(conf.EventLogServers) < 1 {
-	//		return err
-	//	}
-	//}
 	ctx, cancel := context.WithCancel(context.Background())
 	defaultManager = &manager{
 		ctx:         ctx,
