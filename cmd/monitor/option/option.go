@@ -99,7 +99,7 @@ func NewConfig() *Config {
 	host, _ := os.Hostname()
 
 	config := &Config{
-		EtcdEndpointsLine:    "http://127.0.0.1:2379",
+		EtcdEndpointsLine:    "http://rbd-etcd:2379",
 		EtcdEndpoints:        []string{},
 		AdvertiseAddr:        host + ":9999",
 		BindIP:               host,
@@ -134,7 +134,7 @@ func NewConfig() *Config {
 	return config
 }
 
-//AddFlag monitor flag
+// AddFlag monitor flag
 func (c *Config) AddFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.EtcdEndpointsLine, "etcd-endpoints", c.EtcdEndpointsLine, "etcd endpoints list.")
 	cmd.StringVar(&c.EtcdCaFile, "etcd-ca", "", "etcd tls ca file ")
@@ -148,7 +148,7 @@ func (c *Config) AddFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.KubeConfig, "kube-config", "", "kubernetes api server config file")
 }
 
-//AddPrometheusFlag prometheus flag
+// AddPrometheusFlag prometheus flag
 func (c *Config) AddPrometheusFlag(cmd *pflag.FlagSet) {
 	cmd.StringVar(&c.ConfigFile, "config.file", c.ConfigFile, "Prometheus configuration file path.")
 

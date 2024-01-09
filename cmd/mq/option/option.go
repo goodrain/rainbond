@@ -22,7 +22,7 @@ import "github.com/spf13/pflag"
 import "github.com/sirupsen/logrus"
 import "fmt"
 
-//Config config server
+// Config config server
 type Config struct {
 	EtcdEndPoints        []string
 	EtcdCaFile           string
@@ -38,21 +38,20 @@ type Config struct {
 	HostName             string
 }
 
-//MQServer lb worker server
+// MQServer lb worker server
 type MQServer struct {
 	Config
 	LogLevel string
 }
 
-//NewMQServer new server
+// NewMQServer new server
 func NewMQServer() *MQServer {
 	return &MQServer{}
 }
 
-//AddFlags config
+// AddFlags config
 func (a *MQServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the mq log level")
-	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd v3 cluster endpoints.")
 	fs.IntVar(&a.EtcdTimeout, "etcd-timeout", 10, "etcd http timeout seconds")
 	fs.StringVar(&a.EtcdCaFile, "etcd-ca", "", "etcd tls ca file ")
 	fs.StringVar(&a.EtcdCertFile, "etcd-cert", "", "etcd tls cert file")
@@ -63,9 +62,12 @@ func (a *MQServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
 	fs.StringVar(&a.HostIP, "hostIP", "", "Current node Intranet IP")
 	fs.StringVar(&a.HostName, "hostName", "", "Current node host name")
+
+	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://rbd-etcd:2379"}, "etcd v3 cluster endpoints.")
+
 }
 
-//SetLog 设置log
+// SetLog 设置log
 func (a *MQServer) SetLog() {
 	level, err := logrus.ParseLevel(a.LogLevel)
 	if err != nil {
