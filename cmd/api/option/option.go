@@ -123,7 +123,7 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&a.NodeAPI, "node-api", []string{"rbd-node:6100"}, "the rbd-node server api")
 	fs.StringVar(&a.MQAPI, "mq-api", "rbd-mq:6300", "the rbd-mq server api")
 	fs.StringVar(&a.RbdWorker, "worker-api", "rbd-worker:6535", "the rbd-worker server api")
-	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"rbd-eventlog:6363"}, "event log server address. simple lb")
+	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"rbd-eventlog:6366"}, "event log server address. simple lb")
 
 }
 

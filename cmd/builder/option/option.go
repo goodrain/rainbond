@@ -112,7 +112,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&a.CleanInterval, "clean-interval", 60, "clean image interval,default 60 minute")
 	fs.StringVar(&a.BRVersion, "br-version", "v5.16.0-release", "builder and runner version")
 
-	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"rbd-eventlog:6363"}, "event log server address. simple lb")
+	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"rbd-eventlog:6366"}, "event log server address. simple lb")
 	fs.StringVar(&a.MQAPI, "mq-api", "rbd-mq:6300", "acp_mq api")
 	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://rbd-etcd:2379"}, "etcd v3 cluster endpoints.")
 
