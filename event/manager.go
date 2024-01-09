@@ -59,7 +59,6 @@ type manager struct {
 	lock           sync.Mutex
 	eventServer    []string
 	abnormalServer map[string]string
-	//dis            discover.Discover
 }
 
 var defaultManager Manager
@@ -76,13 +75,12 @@ const (
 func NewManager(conf EventConfig) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defaultManager = &manager{
-		ctx:         ctx,
-		cancel:      cancel,
-		config:      conf,
-		loggers:     make(map[string]Logger, 1024),
-		handles:     make(map[string]handle),
-		eventServer: conf.EventLogServers,
-		//dis:            dis,
+		ctx:            ctx,
+		cancel:         cancel,
+		config:         conf,
+		loggers:        make(map[string]Logger, 1024),
+		handles:        make(map[string]handle),
+		eventServer:    conf.EventLogServers,
 		abnormalServer: make(map[string]string),
 	}
 	return defaultManager.Start()
@@ -105,6 +103,7 @@ func CloseManager() {
 	}
 }
 
+// Start -
 func (m *manager) Start() error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -126,6 +125,7 @@ func (m *manager) Start() error {
 	return nil
 }
 
+// UpdateEndpoints -
 func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -167,17 +167,18 @@ func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
 	logrus.Debugf("update event handle core success,handle core count:%d, event server count:%d", len(m.handles), len(m.eventServer))
 }
 
+// Error -
 func (m *manager) Error(err error) {
 
 }
+
+// Close -
 func (m *manager) Close() error {
 	m.cancel()
-	//if m.dis != nil {
-	//	m.dis.Stop()
-	//}
 	return nil
 }
 
+// GC -
 func (m *manager) GC() {
 	util.IntermittentExec(m.ctx, func() {
 		m.lock.Lock()
@@ -198,8 +199,7 @@ func (m *manager) GC() {
 	}, time.Second*20)
 }
 
-// GetLogger
-// 使用完成后必须调用ReleaseLogger方法
+// GetLogger 使用完成后必须调用ReleaseLogger方法
 func (m *manager) GetLogger(eventID string) Logger {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -214,6 +214,7 @@ func (m *manager) GetLogger(eventID string) Logger {
 	return l
 }
 
+// ReleaseLogger 释放logger
 func (m *manager) ReleaseLogger(l Logger) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -230,6 +231,7 @@ type handle struct {
 	manager   *manager
 }
 
+// DiscardedLoggerChan -
 func (m *manager) DiscardedLoggerChan(cacheChan chan []byte) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -275,6 +277,8 @@ func (m *manager) getLBChan() chan []byte {
 	}
 	return nil
 }
+
+// RemoveHandle -
 func (m *manager) RemoveHandle(server string) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -282,6 +286,8 @@ func (m *manager) RemoveHandle(server string) {
 		delete(m.handles, server)
 	}
 }
+
+// HandleLog -
 func (m *handle) HandleLog() error {
 	defer m.manager.RemoveHandle(m.server)
 	return util.Exec(m.ctx, func() error {
@@ -322,6 +328,7 @@ func (m *handle) HandleLog() error {
 	}, time.Second*3)
 }
 
+// Stop -
 func (m *handle) Stop() {
 	close(m.stop)
 }
@@ -353,9 +360,12 @@ type logger struct {
 	createTime time.Time
 }
 
+// GetChan -
 func (l *logger) GetChan() chan []byte {
 	return l.sendChan
 }
+
+// SetChan -
 func (l *logger) SetChan(ch chan []byte) {
 	l.sendChan = ch
 }

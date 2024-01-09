@@ -80,7 +80,6 @@ func NewBuilder() *Builder {
 // AddFlags config
 func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the builder log level")
-	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd v3 cluster endpoints.")
 	fs.StringVar(&a.EtcdCaFile, "etcd-ca", "", "")
 	fs.StringVar(&a.EtcdCertFile, "etcd-cert", "", "")
 	fs.StringVar(&a.EtcdKeyFile, "etcd-key", "", "")
@@ -90,11 +89,9 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.BuildKitImage, "buildkit-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/buildkit:v0.12.0", "buildkit image version")
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
 	fs.StringVar(&a.MysqlConnectionInfo, "mysql", "root:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
-	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"127.0.0.1:6366"}, "event log server address. simple lb")
 	fs.StringVar(&a.KubeConfig, "kube-config", "", "kubernetes api server config file")
 	fs.IntVar(&a.MaxTasks, "max-tasks", 50, "Maximum number of simultaneous build tasks")
 	fs.IntVar(&a.APIPort, "api-port", 3228, "the port for api server")
-	fs.StringVar(&a.MQAPI, "mq-api", "127.0.0.1:6300", "acp_mq api")
 	fs.StringVar(&a.RunMode, "run", "sync", "sync data when worker start")
 	fs.StringVar(&a.DockerEndpoint, "dockerd", "127.0.0.1:2376", "dockerd endpoint")
 	fs.StringVar(&a.HostIP, "hostIP", "", "Current node Intranet IP")
@@ -114,6 +111,11 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&a.KeepCount, "keep-count", 5, "default number of reserved copies for images")
 	fs.IntVar(&a.CleanInterval, "clean-interval", 60, "clean image interval,default 60 minute")
 	fs.StringVar(&a.BRVersion, "br-version", "v5.16.0-release", "builder and runner version")
+
+	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"rbd-eventlog:6363"}, "event log server address. simple lb")
+	fs.StringVar(&a.MQAPI, "mq-api", "rbd-mq:6300", "acp_mq api")
+	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://rbd-etcd:2379"}, "etcd v3 cluster endpoints.")
+
 }
 
 // SetLog 设置log
