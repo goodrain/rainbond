@@ -34,7 +34,7 @@ import (
 	"github.com/twinj/uuid"
 )
 
-//ServiceCheck check service build source
+// ServiceCheck check service build source
 func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string, string, *util.APIHandleError) {
 	checkUUID := uuid.NewV4().String()
 	scs.Body.CheckUUID = checkUUID
@@ -76,11 +76,11 @@ func maybeIsWindowsContainerImage(source string) bool {
 
 }
 
-//GetServiceCheckInfo get application source detection information
+// GetServiceCheckInfo get application source detection information
 func (s *ServiceAction) GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError) {
 	k := fmt.Sprintf("/servicecheck/%s", uuid)
 	var si exector.ServiceCheckResult
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	resp, err := s.EtcdCli.Get(ctx, k)
 	if err != nil {
