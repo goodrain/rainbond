@@ -67,7 +67,7 @@ func handleServiceUnavailable(w http.ResponseWriter, r *http.Request) {
 	} else if mq.Default().MqClient == nil {
 		errorMessage = "mq 服务不可用"
 	} else if prom.Default().PrometheusCli == nil {
-		errorMessage = "prometheus 服务不可用"
+		errorMessage = "monitor 服务不可用"
 	}
 
 	// Create a response JSON
