@@ -83,6 +83,7 @@ func main() {
 
 }
 
+// AddFlags -
 func AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&server, "server", "127.0.0.1:6300", "mq server")
 	fs.StringVar(&topic, "topic", "builder", "mq topic")
