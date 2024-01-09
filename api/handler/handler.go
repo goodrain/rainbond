@@ -34,6 +34,11 @@ import (
 
 // InitHandle 初始化handle
 func InitHandle(conf option.Config) error {
+
+	// 注意：以下 client 将不要再次通过参数形式传递 ！！！直接在你想调用的地方调用即可
+	// 注意：以下 client 将不要再次通过参数形式传递 ！！！直接在你想调用的地方调用即可
+	// 注意：以下 client 将不要再次通过参数形式传递 ！！！直接在你想调用的地方调用即可
+
 	etcdcli := etcd.Default().EtcdClient
 	statusCli := grpc.Default().StatusClient
 	clientset := k8s.Default().Clientset

@@ -19,6 +19,12 @@ func Recoverer(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rvr := recover(); rvr != nil && rvr != http.ErrAbortHandler {
+				// Check if the panic is a nil pointer exception
+				if isNilPointerException(rvr) {
+					handleServiceUnavailable(w, r)
+					return
+				}
+
 				// Handle other types of panics or re-panic
 				logEntry := middleware.GetLogEntry(r)
 				if logEntry != nil {
@@ -26,12 +32,8 @@ func Recoverer(next http.Handler) http.Handler {
 				} else {
 					middleware.PrintPrettyStack(rvr)
 				}
-				// Check if the panic is a nil pointer exception
-				if isNilPointerException(rvr) {
-					handleServiceUnavailable(w, r)
-				} else {
-					w.WriteHeader(http.StatusInternalServerError)
-				}
+				w.WriteHeader(http.StatusInternalServerError)
+
 			}
 		}()
 
