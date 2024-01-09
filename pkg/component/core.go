@@ -75,6 +75,7 @@ func Handler() rainbond.FuncComponent {
 	}
 }
 
+// Router -
 func Router() rainbond.FuncComponent {
 	return func(ctx context.Context, cfg *configs.Config) error {
 		if err := controller.CreateV2RouterManager(cfg.APIConfig, grpc.Default().StatusClient); err != nil {
@@ -85,12 +86,12 @@ func Router() rainbond.FuncComponent {
 		if err := apiManager.Start(); err != nil {
 			return err
 		}
-		//defer apiManager.Stop()
 		logrus.Info("api router is running...")
 		return nil
 	}
 }
 
+// Proxy -
 func Proxy() rainbond.FuncComponent {
 	return func(ctx context.Context, cfg *configs.Config) error {
 		handler.InitProxy(cfg.APIConfig)

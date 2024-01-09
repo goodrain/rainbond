@@ -23,6 +23,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"github.com/coreos/etcd/clientv3"
+	"github.com/goodrain/rainbond/pkg/interceptors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -105,7 +106,7 @@ func (m *Manager) SetMiddleware() {
 		r.Use(middleware.DefaultLogger)
 	}
 	//Gracefully absorb panics and prints the stack trace
-	r.Use(middleware.Recoverer)
+	r.Use(interceptors.Recoverer)
 	//request time out
 	r.Use(middleware.Timeout(time.Second * 5))
 	//simple authz
