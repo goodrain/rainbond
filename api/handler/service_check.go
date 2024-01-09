@@ -85,7 +85,7 @@ func (s *ServiceAction) GetServiceCheckInfo(uuid string) (*exector.ServiceCheckR
 	resp, err := s.EtcdCli.Get(ctx, k)
 	if err != nil {
 		logrus.Errorf("get etcd k %s error, %v", k, err)
-		return nil, util.CreateAPIHandleError(500, err)
+		return nil, util.CreateAPIHandleError(503, err)
 	}
 	if resp.Count == 0 {
 		return &si, nil
