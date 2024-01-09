@@ -93,7 +93,7 @@ build::binary() {
 		if [ ! $(which upx) ]; then
 		  sudo apt-get install -y upx
 		fi
- 	  	sudo upx --best --lzma "${OUTPATH}"
+# 	  	sudo upx --best --lzma "${OUTPATH}"
 #	elif [ "$GOARCH" = "arm64" ]; then
 #		wget https://rainbond-pkg.oss-cn-shanghai.aliyuncs.com/upx/upx-4.0.2-arm64_linux/upx
 #		chmod +x upx
