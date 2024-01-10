@@ -1,3 +1,21 @@
+// RAINBOND, Application Management Platform
+// Copyright (C) 2021-2024 Goodrain Co., Ltd.
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version. For any non-GPL usage of Rainbond,
+// one or multiple Commercial Licenses authorized by Goodrain Co., Ltd.
+// must be obtained first.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
+
 package k8s
 
 import (
@@ -20,8 +38,8 @@ import (
 	gateway "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
 )
 
-// k8sComponent -
-type K8sComponent struct {
+// Component -
+type Component struct {
 	RestConfig    *rest.Config
 	Clientset     *kubernetes.Clientset
 	GatewayClient *v1beta1.GatewayV1beta1Client
@@ -34,14 +52,16 @@ type K8sComponent struct {
 	Mapper meta.RESTMapper
 }
 
-var defaultK8sComponent *K8sComponent
+var defaultK8sComponent *Component
 
-func K8sClient() *K8sComponent {
-	defaultK8sComponent = &K8sComponent{}
+// Client -
+func Client() *Component {
+	defaultK8sComponent = &Component{}
 	return defaultK8sComponent
 }
 
-func (k *K8sComponent) Start(ctx context.Context, cfg *configs.Config) error {
+// Start -
+func (k *Component) Start(ctx context.Context, cfg *configs.Config) error {
 	logrus.Infof("init k8s client...")
 	config, err := k8sutil.NewRestConfig(cfg.APIConfig.KubeConfigPath)
 	k.RestConfig = config
@@ -93,9 +113,11 @@ func (k *K8sComponent) Start(ctx context.Context, cfg *configs.Config) error {
 	return nil
 }
 
-func (k *K8sComponent) CloseHandle() {
+// CloseHandle -
+func (k *Component) CloseHandle() {
 }
 
-func Default() *K8sComponent {
+// Default -
+func Default() *Component {
 	return defaultK8sComponent
 }

@@ -19,16 +19,15 @@
 package db
 
 import (
-	"encoding/json"
+	"context"
+	"github.com/goodrain/rainbond/config/configs"
 	"time"
 
 	tsdbClient "github.com/bluebreezecf/opentsdb-goclient/client"
 	tsdbConfig "github.com/bluebreezecf/opentsdb-goclient/config"
-	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/config"
 	dbModel "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/worker/discover/model"
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
@@ -40,13 +39,18 @@ type ConDB struct {
 	DBType         string
 }
 
-// CreateDBManager get db manager
-// TODO: need to try when happened error, try 4 times
-func CreateDBManager(conf option.Config) error {
+// Database -
+func Database() *ConDB {
+	return &ConDB{}
+}
+
+// Start -
+func (d *ConDB) Start(ctx context.Context, cfg *configs.Config) error {
+	logrus.Info("start db client...")
 	dbCfg := config.Config{
-		MysqlConnectionInfo: conf.DBConnectionInfo,
-		DBType:              conf.DBType,
-		ShowSQL:             conf.ShowSQL,
+		MysqlConnectionInfo: cfg.APIConfig.DBConnectionInfo,
+		DBType:              cfg.APIConfig.DBType,
+		ShowSQL:             cfg.APIConfig.ShowSQL,
 	}
 	if err := db.CreateManager(dbCfg); err != nil {
 		logrus.Errorf("get db manager failed,%s", err.Error())
@@ -56,6 +60,14 @@ func CreateDBManager(conf option.Config) error {
 	go dataInitialization()
 
 	return nil
+}
+
+// CloseHandle -
+func (d *ConDB) CloseHandle() {
+	err := db.CloseManager()
+	if err != nil {
+		logrus.Errorf("close db manager failed,%s", err.Error())
+	}
 }
 
 // TaskStruct task struct
@@ -80,24 +92,6 @@ func (o *OpentsdbManager) NewOpentsdbManager() (tsdbClient.Client, error) {
 		return nil, err
 	}
 	return tc, nil
-}
-
-// BuildTask build task
-func BuildTask(t *TaskStruct) (*pb.EnqueueRequest, error) {
-	var er pb.EnqueueRequest
-	taskJSON, err := json.Marshal(t.TaskBody)
-	if err != nil {
-		logrus.Errorf("tran task json error")
-		return &er, err
-	}
-	er.Topic = "worker"
-	er.Message = &pb.TaskMessage{
-		TaskType:   t.TaskType,
-		CreateTime: time.Now().Format(time.RFC3339),
-		TaskBody:   taskJSON,
-		User:       t.User,
-	}
-	return &er, nil
 }
 
 // GetBegin get db transaction
