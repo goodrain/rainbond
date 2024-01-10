@@ -287,3 +287,9 @@ type PodInterface interface {
 type RegistryAuthSecretInterface interface {
 	RegistryAuthSecret(w http.ResponseWriter, r *http.Request)
 }
+
+// RegistryInterface registry  interface
+type RegistryInterface interface {
+	GetAllRepo(w http.ResponseWriter, r *http.Request)
+	GetTagsByRepoName(w http.ResponseWriter, r *http.Request)
+}
