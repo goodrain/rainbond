@@ -38,9 +38,6 @@ type DockerConsole struct {
 	socketproxy proxy.Proxy
 }
 
-var defaultDockerConsoleEndpoints = configs.Default().APIConfig.DockerConsoleServers
-var defaultEventLogEndpoints = configs.Default().APIConfig.EventLogEndpoints
-
 var dockerConsole *DockerConsole
 
 // GetDockerConsole get Docker console
@@ -49,7 +46,7 @@ func GetDockerConsole() *DockerConsole {
 		return dockerConsole
 	}
 	dockerConsole = &DockerConsole{
-		socketproxy: proxy.CreateProxy("dockerconsole", "websocket", defaultDockerConsoleEndpoints),
+		socketproxy: proxy.CreateProxy("dockerconsole", "websocket", configs.Default().APIConfig.DockerConsoleServers),
 	}
 	//discover.GetEndpointDiscover().AddProject("acp_webcli", dockerConsole.socketproxy)
 	return dockerConsole
@@ -71,7 +68,7 @@ type DockerLog struct {
 func GetDockerLog() *DockerLog {
 	if dockerLog == nil {
 		dockerLog = &DockerLog{
-			socketproxy: proxy.CreateProxy("dockerlog", "websocket", defaultEventLogEndpoints),
+			socketproxy: proxy.CreateProxy("dockerlog", "websocket", configs.Default().APIConfig.EventLogEndpoints),
 		}
 		//discover.GetEndpointDiscover().AddProject("event_log_event_http", dockerLog.socketproxy)
 	}
@@ -94,7 +91,7 @@ var monitorMessage *MonitorMessage
 func GetMonitorMessage() *MonitorMessage {
 	if monitorMessage == nil {
 		monitorMessage = &MonitorMessage{
-			socketproxy: proxy.CreateProxy("monitormessage", "websocket", defaultEventLogEndpoints),
+			socketproxy: proxy.CreateProxy("monitormessage", "websocket", configs.Default().APIConfig.EventLogEndpoints),
 		}
 		//discover.GetEndpointDiscover().AddProject("event_log_event_http", monitorMessage.socketproxy)
 	}
@@ -117,7 +114,7 @@ var eventLog *EventLog
 func GetEventLog() *EventLog {
 	if eventLog == nil {
 		eventLog = &EventLog{
-			socketproxy: proxy.CreateProxy("eventlog", "websocket", defaultEventLogEndpoints),
+			socketproxy: proxy.CreateProxy("eventlog", "websocket", configs.Default().APIConfig.EventLogEndpoints),
 		}
 		//discover.GetEndpointDiscover().AddProject("event_log_event_http", eventLog.socketproxy)
 	}
@@ -189,7 +186,7 @@ type PubSubControll struct {
 func GetPubSubControll() *PubSubControll {
 	if pubSubControll == nil {
 		pubSubControll = &PubSubControll{
-			socketproxy: proxy.CreateProxy("dockerlog", "websocket", defaultEventLogEndpoints),
+			socketproxy: proxy.CreateProxy("dockerlog", "websocket", configs.Default().APIConfig.EventLogEndpoints),
 		}
 		//discover.GetEndpointDiscover().AddProject("event_log_event_http", pubSubControll.socketproxy)
 	}

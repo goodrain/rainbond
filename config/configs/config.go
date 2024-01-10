@@ -16,10 +16,12 @@ type Config struct {
 
 var defaultConfig *Config
 
+// Default -
 func Default() *Config {
 	return defaultConfig
 }
 
+// SetDefault -
 func SetDefault(cfg *Config) {
 	defaultConfig = cfg
 }
