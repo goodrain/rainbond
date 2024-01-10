@@ -13,3 +13,13 @@ type Config struct {
 	Debug     bool
 	APIConfig option.Config
 }
+
+var defaultConfig *Config
+
+func Default() *Config {
+	return defaultConfig
+}
+
+func SetDefault(cfg *Config) {
+	defaultConfig = cfg
+}

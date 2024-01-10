@@ -33,6 +33,8 @@ type Config struct {
 	APIAddrSSL             string
 	DBConnectionInfo       string
 	EventLogServers        []string
+	DockerConsoleServers   []string
+	EventLogEndpoints      []string
 	NodeAPI                []string
 	BuilderAPI             []string
 	V1API                  string
@@ -99,7 +101,6 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.V1API, "v1-api", "127.0.0.1:8887", "the region v1 api")
 	fs.StringSliceVar(&a.BuilderAPI, "builder-api", []string{"rbd-chaos:3228"}, "the builder api")
 	fs.BoolVar(&a.StartRegionAPI, "start", false, "Whether to start region old api")
-	fs.StringSliceVar(&a.EtcdEndpoint, "etcd", []string{"http://127.0.0.1:2379"}, "etcd server or proxy address")
 	fs.StringVar(&a.EtcdCaFile, "etcd-ca", "", "verify etcd certificates of TLS-enabled secure servers using this CA bundle")
 	fs.StringVar(&a.EtcdCertFile, "etcd-cert", "", "identify secure etcd client using this TLS certificate file")
 	fs.StringVar(&a.EtcdKeyFile, "etcd-key", "", "identify secure etcd client using this TLS key file")
@@ -118,12 +119,15 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&a.ShowSQL, "show-sql", false, "The trigger for showing sql.")
 	fs.StringVar(&a.GrctlImage, "shell-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-shell:v5.13.0-release", "use shell image")
 
+	fs.StringSliceVar(&a.EtcdEndpoint, "etcd", []string{"http://rbd-etcd:2379"}, "etcd server or proxy address")
+	fs.StringSliceVar(&a.DockerConsoleServers, "docker-console", []string{"rbd-webcli:7171"}, "docker console address")
 	fs.StringVar(&a.PrometheusEndpoint, "prom-api", "rbd-monitor:9999", "The service DNS name of Prometheus api. Default to rbd-monitor:9999")
 	fs.StringVar(&a.RbdHub, "hub-api", "http://rbd-hub:5000", "the rbd-hub server api")
 	fs.StringSliceVar(&a.NodeAPI, "node-api", []string{"rbd-node:6100"}, "the rbd-node server api")
 	fs.StringVar(&a.MQAPI, "mq-api", "rbd-mq:6300", "the rbd-mq server api")
 	fs.StringVar(&a.RbdWorker, "worker-api", "rbd-worker:6535", "the rbd-worker server api")
-	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"rbd-eventlog:6366"}, "event log server address. simple lb")
+	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"rbd-eventlog:6366"}, "event log server address")
+	fs.StringSliceVar(&a.EventLogEndpoints, "event-log", []string{"local=>rbd-eventlog:6363"}, "event log websocket address")
 
 }
 

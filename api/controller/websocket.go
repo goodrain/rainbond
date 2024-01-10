@@ -20,6 +20,7 @@ package controller
 
 import (
 	"context"
+	"github.com/goodrain/rainbond/config/configs"
 	"net/http"
 	"os"
 	"path"
@@ -37,8 +38,8 @@ type DockerConsole struct {
 	socketproxy proxy.Proxy
 }
 
-var defaultDockerConsoleEndpoints = []string{"rbd-webcli:7171"}
-var defaultEventLogEndpoints = []string{"local=>rbd-eventlog:6363"}
+var defaultDockerConsoleEndpoints = configs.Default().APIConfig.DockerConsoleServers
+var defaultEventLogEndpoints = configs.Default().APIConfig.EventLogEndpoints
 
 var dockerConsole *DockerConsole
 
