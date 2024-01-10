@@ -46,7 +46,7 @@ func init() {
 	}
 }
 
-//InitTenant 实现中间件
+// InitTenant 实现中间件
 func InitTenant(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		debugRequestBody(r)
@@ -75,7 +75,7 @@ func InitTenant(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-//InitService 实现serviceinit中间件
+// InitService 实现serviceinit中间件
 func InitService(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		serviceAlias := chi.URLParam(r, "service_alias")
@@ -120,7 +120,7 @@ func InitApplication(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-//InitPlugin 实现plugin init中间件
+// InitPlugin 实现plugin init中间件
 func InitPlugin(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		debugRequestBody(r)
@@ -147,7 +147,7 @@ func InitPlugin(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-//SetLog SetLog
+// SetLog SetLog
 func SetLog(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		eventID := chi.URLParam(r, "event_id")
@@ -160,7 +160,7 @@ func SetLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-//Proxy 反向代理中间件
+// Proxy 反向代理中间件
 func Proxy(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.RequestURI, "/v2/nodes") {
@@ -191,10 +191,10 @@ func Proxy(next http.Handler) http.Handler {
 			handler.GetNodeProxy().Proxy(w, r)
 			return
 		}
-		if strings.HasPrefix(r.RequestURI, "/v2/rules") {
-			handler.GetMonitorProxy().Proxy(w, r)
-			return
-		}
+		//if strings.HasPrefix(r.RequestURI, "/v2/rules") {
+		//	handler.GetMonitorProxy().Proxy(w, r)
+		//	return
+		//}
 		if strings.HasPrefix(r.RequestURI, "/kubernetes/dashboard") {
 			proxy := handler.GetKubernetesDashboardProxy()
 			r.URL.Path = strings.Replace(r.URL.Path, "/kubernetes/dashboard", "", 1)
@@ -242,7 +242,7 @@ func (w *resWriter) WriteHeader(statusCode int) {
 func WrapEL(f http.HandlerFunc, target, optType string, synType int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var (
-			serviceKind  string
+			serviceKind string
 		)
 		serviceObj := r.Context().Value(ctxutil.ContextKey("service"))
 		if serviceObj != nil {

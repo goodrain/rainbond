@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2021-2024 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,30 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package event
+package gogo
 
-import (
-	"testing"
-	"time"
+import "context"
 
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
-)
+type Option func(*Options)
 
-func TestLogger(t *testing.T) {
-	err := NewManager(EventConfig{
-		EventLogServers: []string{"192.168.195.1:6366"},
-		DiscoverArgs:    &etcdutil.ClientArgs{Endpoints: []string{"192.168.195.1:2379"}},
-	})
-	if err != nil {
-		t.Fatal(err)
+type Options struct {
+	ctx context.Context
+}
+
+func WithContext(ctx context.Context) Option {
+	return func(o *Options) {
+		o.ctx = ctx
 	}
-	defer GetManager().Close()
-	time.Sleep(time.Second * 3)
-	for i := 0; i < 500; i++ {
-		GetManager().GetLogger("qwdawdasdasasfafa").Info("hello word", nil)
-		GetManager().GetLogger("asdasdasdasdads").Debug("hello word", nil)
-		GetManager().GetLogger("1234124124124").Error("hello word", nil)
-		time.Sleep(time.Millisecond * 1)
-	}
-	select {}
 }

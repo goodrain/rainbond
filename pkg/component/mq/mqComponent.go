@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2021-2024 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,34 +16,39 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package handler
+package mq
 
 import (
-	"fmt"
-	"github.com/goodrain/rainbond/api/db"
-	"github.com/goodrain/rainbond/cmd/api/option"
-	"testing"
+	"context"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/mq/client"
 )
 
-func TestLicenseInfo(t *testing.T) {
-	conf := option.Config{
-		DBType:           "mysql",
-		DBConnectionInfo: "admin:admin@tcp(127.0.0.1:3306)/region",
-	}
-	//创建db manager
-	if err := db.CreateDBManager(conf); err != nil {
-		fmt.Printf("create db manager error, %v", err)
+var defaultMqComponent *Component
 
-	}
-	//创建license验证 manager
-	if err := CreateLicensesInfoManager(); err != nil {
-		fmt.Printf("create license check manager error, %v", err)
-	}
-	lists, err := GetLicensesInfosHandler().ShowInfos()
-	if err != nil {
-		fmt.Printf("get list error, %v", err)
-	}
-	for _, v := range lists {
-		fmt.Printf("license value is %v", v)
-	}
+// Component -
+type Component struct {
+	MqClient client.MQClient
+}
+
+// Start -
+func (c *Component) Start(ctx context.Context, cfg *configs.Config) error {
+	mqClient, err := client.NewMqClient(cfg.APIConfig.MQAPI)
+	c.MqClient = mqClient
+	return err
+}
+
+// CloseHandle -
+func (c *Component) CloseHandle() {
+}
+
+// MQ -
+func MQ() *Component {
+	defaultMqComponent = &Component{}
+	return defaultMqComponent
+}
+
+// Default -
+func Default() *Component {
+	return defaultMqComponent
 }

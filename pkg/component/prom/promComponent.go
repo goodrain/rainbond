@@ -1,5 +1,5 @@
-// Copyright (C) 2014-2018 Goodrain Co., Ltd.
 // RAINBOND, Application Management Platform
+// Copyright (C) 2021-2024 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,4 +16,41 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package store
+package prom
+
+import (
+	"context"
+	"github.com/goodrain/rainbond/api/client/prometheus"
+	"github.com/goodrain/rainbond/config/configs"
+)
+
+var defaultPromComponent *Component
+
+// Component -
+type Component struct {
+	PrometheusCli prometheus.Interface
+}
+
+// Prometheus -
+func Prometheus() *Component {
+	defaultPromComponent = &Component{}
+	return defaultPromComponent
+}
+
+// Start -
+func (c *Component) Start(ctx context.Context, cfg *configs.Config) error {
+	prometheusCli, err := prometheus.NewPrometheus(&prometheus.Options{
+		Endpoint: cfg.APIConfig.PrometheusEndpoint,
+	})
+	c.PrometheusCli = prometheusCli
+	return err
+}
+
+// CloseHandle -
+func (c *Component) CloseHandle() {
+}
+
+// Default -
+func Default() *Component {
+	return defaultPromComponent
+}

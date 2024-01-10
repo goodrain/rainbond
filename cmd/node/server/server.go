@@ -44,7 +44,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-//Run start run
+// Run start run
 func Run(cfg *option.Conf) error {
 	var stoped = make(chan struct{})
 	stopfunc := func() error {
@@ -88,7 +88,6 @@ func Run(cfg *option.Conf) error {
 
 		err = eventLog.NewManager(eventLog.EventConfig{
 			EventLogServers: cfg.EventLogServer,
-			DiscoverArgs:    etcdClientArgs,
 		})
 		if err != nil {
 			logrus.Errorf("error creating eventlog manager")

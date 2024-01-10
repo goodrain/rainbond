@@ -19,64 +19,46 @@
 package handler
 
 import (
-	"github.com/coreos/etcd/clientv3"
-	"github.com/goodrain/rainbond/api/client/prometheus"
-	api_db "github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/handler/group"
 	"github.com/goodrain/rainbond/api/handler/share"
-	"github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
-	"github.com/goodrain/rainbond/worker/client"
+	"github.com/goodrain/rainbond/pkg/component/etcd"
+	"github.com/goodrain/rainbond/pkg/component/grpc"
+	"github.com/goodrain/rainbond/pkg/component/hubregistry"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/component/mq"
+	"github.com/goodrain/rainbond/pkg/component/prom"
 	"github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"kubevirt.io/client-go/kubecli"
-	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
-	gateway "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
 )
 
 // InitHandle 初始化handle
-func InitHandle(conf option.Config,
-	etcdClientArgs *etcdutil.ClientArgs,
-	statusCli *client.AppRuntimeSyncClient,
-	etcdcli *clientv3.Client,
-	kubeClient *kubernetes.Clientset,
-	rainbondClient versioned.Interface,
-	k8sClient k8sclient.Client,
-	config *rest.Config,
-	mapper meta.RESTMapper,
-	dynamicClient dynamic.Interface,
-	gatewayClient *gateway.GatewayV1beta1Client,
-	kubevirtCli kubecli.KubevirtClient,
-	registryCli *registry.Registry,
-) error {
-	mq := api_db.MQManager{
-		EtcdClientArgs: etcdClientArgs,
-		DefaultServer:  conf.MQAPI,
-	}
-	mqClient, errMQ := mq.NewMQManager()
-	if errMQ != nil {
-		logrus.Errorf("new MQ manager failed, %v", errMQ)
-		return errMQ
-	}
-	prometheusCli, err := prometheus.NewPrometheus(&prometheus.Options{
-		Endpoint: conf.PrometheusEndpoint,
-	})
-	if err != nil {
-		logrus.Errorf("new prometheus client failure, %v", err)
-		return err
-	}
+func InitHandle(conf option.Config) error {
+
+	// 注意：以下 client 将不要再次通过参数形式传递 ！！！直接在你想调用的地方调用即可
+	// 注意：以下 client 将不要再次通过参数形式传递 ！！！直接在你想调用的地方调用即可
+	// 注意：以下 client 将不要再次通过参数形式传递 ！！！直接在你想调用的地方调用即可
+
+	etcdcli := etcd.Default().EtcdClient
+	statusCli := grpc.Default().StatusClient
+	clientset := k8s.Default().Clientset
+	rainbondClient := k8s.Default().RainbondClient
+	k8sClient := k8s.Default().K8sClient
+	restconfig := k8s.Default().RestConfig
+	dynamicClient := k8s.Default().DynamicClient
+	gatewayClient := k8s.Default().GatewayClient
+	kubevirtCli := k8s.Default().KubevirtCli
+	mapper := k8s.Default().Mapper
+	registryCli := hubregistry.Default().RegistryCli
+	mqClient := mq.Default().MqClient
+	prometheusCli := prom.Default().PrometheusCli
+
 	dbmanager := db.GetManager()
-	defaultServieHandler = CreateManager(conf, mqClient, etcdcli, statusCli, prometheusCli, rainbondClient, kubeClient, kubevirtCli, dbmanager, registryCli)
+	defaultServieHandler = CreateManager(conf, mqClient, etcdcli, statusCli, prometheusCli, rainbondClient, clientset, kubevirtCli, dbmanager, registryCli)
 	defaultPluginHandler = CreatePluginManager(mqClient)
 	defaultAppHandler = CreateAppManager(mqClient)
-	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, kubeClient, prometheusCli, k8sClient)
-	defaultHelmHandler = CreateHelmManager(kubeClient, rainbondClient, config, mapper)
+	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, clientset, prometheusCli, k8sClient)
+	defaultHelmHandler = CreateHelmManager(clientset, rainbondClient, restconfig, mapper)
 	defaultNetRulesHandler = CreateNetRulesManager(etcdcli)
 	defaultCloudHandler = CreateCloudManager(conf)
 	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdcli)
@@ -87,20 +69,20 @@ func InitHandle(conf option.Config,
 		logrus.Errorf("create token identification mannager error, %v", err)
 		return err
 	}
-	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, etcdcli, gatewayClient, kubeClient)
+	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, etcdcli, gatewayClient, clientset)
 	def3rdPartySvcHandler = Create3rdPartySvcHandler(dbmanager, statusCli)
 	operationHandler = CreateOperationHandler(mqClient)
 	batchOperationHandler = CreateBatchOperationHandler(mqClient, statusCli, operationHandler)
 	defaultAppRestoreHandler = NewAppRestoreHandler()
 	defPodHandler = NewPodHandler(statusCli)
-	defClusterHandler = NewClusterHandler(kubeClient, conf.RbdNamespace, conf.GrctlImage, config, mapper, prometheusCli, rainbondClient, statusCli, dynamicClient, gatewayClient, mqClient)
+	defClusterHandler = NewClusterHandler(clientset, conf.RbdNamespace, conf.GrctlImage, restconfig, mapper, prometheusCli, rainbondClient, statusCli, dynamicClient, gatewayClient, mqClient)
 	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
 	defaultEtcdHandler = NewEtcdHandler(etcdcli)
 	defaultmonitorHandler = NewMonitorHandler(prometheusCli)
 	defServiceEventHandler = NewServiceEventHandler()
-	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli, rainbondClient, kubeClient, dynamicClient)
-	defRegistryAuthSecretHandler = CreateRegistryAuthSecretManager(dbmanager, mqClient, etcdcli)
-	defNodesHandler = NewNodesHandler(kubeClient, conf.RbdNamespace, config, mapper, prometheusCli)
+	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli, rainbondClient, clientset, dynamicClient)
+	defRegistryAuthSecretHandler = CreateRegistryAuthSecretManager(dbmanager, mqClient)
+	defNodesHandler = NewNodesHandler(clientset, conf.RbdNamespace, restconfig, mapper, prometheusCli)
 	return nil
 }
 

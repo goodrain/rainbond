@@ -21,7 +21,6 @@ package handler
 import (
 	"fmt"
 
-	"github.com/coreos/etcd/clientv3"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/mq/client"
@@ -31,15 +30,13 @@ import (
 type RegistryAuthSecretAction struct {
 	dbmanager db.Manager
 	mqclient  client.MQClient
-	etcdCli   *clientv3.Client
 }
 
 // CreateRegistryAuthSecretManager creates registry auth secret manager
-func CreateRegistryAuthSecretManager(dbmanager db.Manager, mqclient client.MQClient, etcdCli *clientv3.Client) *RegistryAuthSecretAction {
+func CreateRegistryAuthSecretManager(dbmanager db.Manager, mqclient client.MQClient) *RegistryAuthSecretAction {
 	return &RegistryAuthSecretAction{
 		dbmanager: dbmanager,
 		mqclient:  mqclient,
-		etcdCli:   etcdCli,
 	}
 }
 

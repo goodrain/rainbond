@@ -1,5 +1,5 @@
 // RAINBOND, Application Management Platform
-// Copyright (C) 2014-2017 Goodrain Co., Ltd.
+// Copyright (C) 2021-2024 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,22 +16,33 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package build
+package gogo
 
 import (
-	"testing"
+	"context"
+	"sync"
 )
 
-func TestGetARGs(t *testing.T) {
-	buildEnvs := make(map[string]string)
-	buildEnvs["ARG_TEST"] = "abcdefg"
-	buildEnvs["PROC_ENV"] = "{\"procfile\": \"\", \"dependencies\": {}, \"language\": \"dockerfile\", \"runtimes\": \"\"}"
+var wg sync.WaitGroup
 
-	args := GetARGs(buildEnvs)
-	if v := buildEnvs["ARG_TEST"]; *args["TEST"] != v {
-		t.Errorf("Expected %s for arg[\"%s\"], but returned %s", buildEnvs["ARG_TEST"], "ARG_TEST", *args["TEST"])
+// Go 框架处理协程,用于优雅启停
+func Go(fun func(ctx context.Context) error, opts ...Option) error {
+	wg.Add(1)
+	options := &Options{}
+	for _, o := range opts {
+		o(options)
 	}
-	if procEnv := args["PROC_ENV"]; procEnv != nil {
-		t.Errorf("Expected nil for  args[\"PROC_ENV\"], but returned %v", procEnv)
+	if options.ctx == nil {
+		options.ctx = context.Background()
 	}
+	go func() {
+		defer wg.Done()
+		_ = fun(options.ctx)
+	}()
+	return nil
+}
+
+// Wait 等待所有协程结束
+func Wait() {
+	wg.Wait()
 }

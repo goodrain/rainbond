@@ -30,7 +30,6 @@ import (
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"github.com/goodrain/rainbond/mq/client"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/worker/appm/controller"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/discover/model"
@@ -42,13 +41,13 @@ import (
 
 var healthStatus = make(map[string]string, 1)
 
-//TaskNum exec task number
+// TaskNum exec task number
 var TaskNum float64
 
-//TaskError exec error task number
+// TaskError exec error task number
 var TaskError float64
 
-//TaskManager task
+// TaskManager task
 type TaskManager struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
@@ -60,7 +59,7 @@ type TaskManager struct {
 	clientset     *kubernetes.Clientset
 }
 
-//NewTaskManager return *TaskManager
+// NewTaskManager return *TaskManager
 func NewTaskManager(cfg option.Config,
 	store store.Storer,
 	controllermanager *controller.Manager,
@@ -84,15 +83,9 @@ func NewTaskManager(cfg option.Config,
 	}
 }
 
-//Start 启动
+// Start 启动
 func (t *TaskManager) Start() error {
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints: t.config.EtcdEndPoints,
-		CaFile:    t.config.EtcdCaFile,
-		CertFile:  t.config.EtcdCertFile,
-		KeyFile:   t.config.EtcdKeyFile,
-	}
-	client, err := client.NewMqClient(etcdClientArgs, t.config.MQAPI)
+	client, err := client.NewMqClient(t.config.MQAPI)
 	if err != nil {
 		logrus.Errorf("new Mq client error, %v", err)
 		healthStatus["status"] = "unusual"
@@ -105,7 +98,7 @@ func (t *TaskManager) Start() error {
 	return nil
 }
 
-//Do do
+// Do do
 func (t *TaskManager) Do() {
 	logrus.Info("start receive task from mq")
 	hostname, _ := os.Hostname()
@@ -164,7 +157,7 @@ func (t *TaskManager) Do() {
 	}
 }
 
-//Stop 停止
+// Stop 停止
 func (t *TaskManager) Stop() error {
 	logrus.Info("discover manager is stoping.")
 	t.cancel()
@@ -174,7 +167,7 @@ func (t *TaskManager) Stop() error {
 	return nil
 }
 
-//HealthCheck health check
+// HealthCheck health check
 func HealthCheck() map[string]string {
 	return healthStatus
 }
