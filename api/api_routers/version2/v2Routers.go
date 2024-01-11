@@ -63,6 +63,15 @@ func (v2 *V2) Routes() chi.Router {
 	r.Mount("/enterprise/{enterprise_id}", v2.enterpriseRouter())
 	r.Mount("/monitor", v2.monitorRouter())
 	r.Mount("/helm", v2.helmRouter())
+	r.Mount("/proxy-pass", v2.proxyRoute())
+
+	return r
+}
+
+func (v2 *V2) proxyRoute() chi.Router {
+	r := chi.NewRouter()
+	r.Post("/registry/repos", controller.GetManager().GetAllRepo)
+	r.Post("/registry/tags", controller.GetManager().GetTagsByRepoName)
 	return r
 }
 
