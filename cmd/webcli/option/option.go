@@ -25,7 +25,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-//Config config server
+// Config config server
 type Config struct {
 	EtcdEndPoints        []string
 	EtcdCaFile           string
@@ -40,21 +40,21 @@ type Config struct {
 	K8SConfPath          string
 }
 
-//WebCliServer container webcli server
+// WebCliServer container webcli server
 type WebCliServer struct {
 	Config
 	LogLevel string
 }
 
-//NewWebCliServer new server
+// NewWebCliServer new server
 func NewWebCliServer() *WebCliServer {
 	return &WebCliServer{}
 }
 
-//AddFlags config
+// AddFlags config
 func (a *WebCliServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the webcli log level")
-	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd v3 cluster endpoints.")
+	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://rbd-etcd:2379"}, "etcd v3 cluster endpoints.")
 	fs.StringVar(&a.EtcdCaFile, "etcd-ca", "", "etcd tls ca file ")
 	fs.StringVar(&a.EtcdCertFile, "etcd-cert", "", "etcd tls cert file")
 	fs.StringVar(&a.EtcdKeyFile, "etcd-key", "", "etcd http tls cert key file")
@@ -66,7 +66,7 @@ func (a *WebCliServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
 }
 
-//SetLog 设置log
+// SetLog 设置log
 func (a *WebCliServer) SetLog() {
 	level, err := logrus.ParseLevel(a.LogLevel)
 	if err != nil {

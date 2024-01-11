@@ -35,7 +35,6 @@ import (
 )
 
 var (
-	//DefalutClient etcd client
 	DefalutClient *Client
 )
 
@@ -66,8 +65,7 @@ func NewClient(ctx context.Context, cfg *conf.Conf, etcdClientArgs *etcdutil.Cli
 // ErrKeyExists key exist error
 var ErrKeyExists = errors.New("key already exists")
 
-// Post attempts to create the given key, only succeeding if the key did
-// not yet exist.
+// Post attempts to create the given key, only succeeding if the key did not yet exist.
 func (c *Client) Post(key, val string, opts ...client.OpOption) (*client.PutResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
 	defer cancel()

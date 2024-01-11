@@ -64,6 +64,7 @@ type V2Routes struct {
 	RegistryAuthSecretStruct
 	K8sAttributeController
 	HelmStruct
+	Registry
 }
 
 // Show test
@@ -1048,6 +1049,14 @@ func (t *TenantStruct) Dependency(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Dependencys Dependencys batch add dependency
+func (t *TenantStruct) Dependencys(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST":
+		t.AddDependencys(w, r)
+	}
+}
+
 // AddDependency AddDependency
 // swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/dependency v2 addDependency
 //
@@ -1087,6 +1096,59 @@ func (t *TenantStruct) AddDependency(w http.ResponseWriter, r *http.Request) {
 		DepServiceType: data["dep_service_type"].(string),
 	}
 	if err := handler.GetServiceManager().ServiceDepend("add", ds); err != nil {
+		httputil.ReturnError(r, w, 500, fmt.Sprintf("add dependency error, %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, nil)
+}
+
+// AddDependencys AddDependencys
+// swagger:operation POST /v2/tenants/{tenant_name}/services/{service_alias}/dependencys v2 addDependencys
+//
+// 批量增加应用依赖关系
+//
+// add dependency
+//
+// ---
+// consumes:
+// - application/json
+// - application/x-protobuf
+//
+// produces:
+// - application/json
+// - application/xml
+//
+// responses:
+//
+//	default:
+//	  schema:
+//	    "$ref": "#/responses/commandResponse"
+//	  description: 统一返回格式
+
+// AddDependencys -
+func (t *TenantStruct) AddDependencys(w http.ResponseWriter, r *http.Request) {
+	rules := validator.MapData{
+		"be_dep_service_ids": []string{"required"}, //被依赖的id列表
+		"dep_service_type":   []string{"required"},
+		"dep_order":          []string{},
+	}
+	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
+	if !ok {
+		httputil.ReturnError(r, w, 500, "add dependency error")
+		return
+	}
+	var relations []*dbmodel.TenantServiceRelation
+	for _, beDepServiceID := range strings.Split(data["be_dep_service_ids"].(string), ",") {
+		relations = append(relations, &dbmodel.TenantServiceRelation{
+			TenantID:          r.Context().Value(ctxutil.ContextKey("tenant_id")).(string),
+			ServiceID:         beDepServiceID,
+			DependServiceID:   r.Context().Value(ctxutil.ContextKey("service_id")).(string),
+			DependServiceType: data["dep_service_type"].(string),
+			DependOrder:       1,
+		})
+	}
+	err := db.GetManager().TenantServiceRelationDao().CreateOrUpdateRelationsInBatch(relations)
+	if err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("add dependency error, %v", err))
 		return
 	}

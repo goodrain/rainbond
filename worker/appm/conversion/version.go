@@ -205,6 +205,14 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		if err != nil {
 			return fmt.Errorf("conv service main container failure %s", err.Error())
 		}
+
+		aliases, err := getHostAliases(as, dbmanager)
+		if err != nil {
+			return fmt.Errorf("hostAliases service main container failure %s", err.Error())
+		}
+		if len(aliases) == 0 {
+			aliases = append(aliases, createHostAliases(as)...)
+		}
 		podtmpSpec = corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels:      labels,
@@ -218,7 +226,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 				NodeSelector:     nodeSelector,
 				Tolerations:      tolerations,
 				Affinity:         affinity,
-				HostAliases:      createHostAliases(as),
+				HostAliases:      aliases,
 				Hostname: func() string {
 					if nodeID, ok := as.ExtensionSet["hostname"]; ok {
 						return nodeID
@@ -728,6 +736,26 @@ func getENVFromSource(as *v1.AppService, dbmanager db.Manager) ([]corev1.EnvFrom
 	return envFromSource, nil
 }
 
+func getHostAliases(as *v1.AppService, dbmanager db.Manager) ([]corev1.HostAlias, error) {
+	hostAliasesAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameHostAliases)
+	if err != nil {
+		return nil, err
+	}
+	var ha []corev1.HostAlias
+	if hostAliasesAttribute != nil {
+		VolumeAttributeJSON, err := yaml.YAMLToJSON([]byte(hostAliasesAttribute.AttributeValue))
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(VolumeAttributeJSON, &ha)
+		if err != nil {
+			logrus.Debug("hostAliasesAttribute json unmarshal error", err)
+			return nil, err
+		}
+	}
+	return ha, nil
+}
+
 func getVolumes(dv *volume.Define, as *v1.AppService, dbmanager db.Manager) ([]corev1.Volume, error) {
 	volumes := dv.GetVolumes()
 	volumeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameVolumes)
@@ -865,7 +893,7 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 
 func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.Probe {
 	if mode == "liveness" {
-		var probe *corev1.Probe
+		probe := new(corev1.Probe)
 		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLiveNessProbe)
 		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
 			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
@@ -876,7 +904,7 @@ func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.P
 			return probe
 		}
 	} else {
-		var probe *corev1.Probe
+		probe := new(corev1.Probe)
 		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameReadinessProbe)
 		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
 			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)

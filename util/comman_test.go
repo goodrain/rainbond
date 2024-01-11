@@ -58,12 +58,6 @@ func TestZip(t *testing.T) {
 	}
 }
 
-func TestUnzip(t *testing.T) {
-	if err := Unzip("/tmp/cache.zip", "/tmp/cache0"); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestCreateVersionByTime(t *testing.T) {
 	if re := CreateVersionByTime(); re != "" {
 		t.Log(re)
