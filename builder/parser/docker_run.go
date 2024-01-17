@@ -158,11 +158,13 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 		d.image = ParseImageName(d.source)
 	}
 	//获取镜像，验证是否存在
-	if d.user == "" {
-		d.user = builder.REGISTRYUSER
-	}
-	if d.pass == "" {
-		d.pass = builder.REGISTRYPASS
+	if strings.HasPrefix(d.image.Source(), builder.REGISTRYDOMAIN) {
+		if d.user == "" {
+			d.user = builder.REGISTRYUSER
+		}
+		if d.pass == "" {
+			d.pass = builder.REGISTRYPASS
+		}
 	}
 	imageInspect, err := d.imageClient.ImagePull(d.image.Source(), d.user, d.pass, d.logger, 10)
 	if err != nil {
