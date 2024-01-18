@@ -101,7 +101,7 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 		tarPath := path.Join("/grdata/package_build/temp/events", eventID)
 		files, _ := filepath.Glob(path.Join(tarPath, "*"))
 		if len(files) == 1 {
-			if !strings.HasSuffix(files[0], ".tar") {
+			if !strings.HasSuffix(files[0], ".tar") && !strings.HasSuffix(files[0], ".tar.gz") {
 				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("文件格式不正确"), SolveAdvice("modify_image", "请确认上传的文件格式是否正确")))
 				return d.errors
 			}
