@@ -71,11 +71,10 @@ func (r *RegistryComponent) Start(ctx context.Context, cfg *configs.Config) erro
 				logrus.Infof("create hub client success")
 				return nil
 			}
-			logrus.Errorf("create etcd.v3 client failed, try time is %d,%s", 10, err.Error())
+			logrus.Errorf("create hub client failed, try time is %d,%s", 10, err.Error())
 			time.Sleep(10 * time.Second)
 		}
 	})
-	logrus.Info("init hub registry success")
 	return nil
 }
 
