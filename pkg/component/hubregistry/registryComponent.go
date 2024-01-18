@@ -25,9 +25,11 @@ import (
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/grctl/clients"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
+	"github.com/goodrain/rainbond/pkg/gogo"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/types"
+	"time"
 )
 
 var defaultRegistryComponent *RegistryComponent
@@ -61,10 +63,19 @@ func (r *RegistryComponent) Start(ctx context.Context, cfg *configs.Config) erro
 	if registryConfig.Domain == "goodrain.me" {
 		registryConfig.Domain = cfg.APIConfig.RbdHub
 	}
-
-	r.RegistryCli, err = registry.NewInsecure(registryConfig.Domain, registryConfig.Username, registryConfig.Password)
-	logrus.Info("init hub registry success")
-	return err
+	gogo.Go(func(ctx context.Context) error {
+		var err error
+		for {
+			r.RegistryCli, err = registry.NewInsecure(registryConfig.Domain, registryConfig.Username, registryConfig.Password)
+			if err == nil {
+				logrus.Infof("create hub client success")
+				return nil
+			}
+			logrus.Errorf("create hub client failed, try time is %d,%s", 10, err.Error())
+			time.Sleep(10 * time.Second)
+		}
+	})
+	return nil
 }
 
 // CloseHandle -
