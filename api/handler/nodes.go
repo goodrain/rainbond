@@ -6,6 +6,7 @@ import (
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/pquerna/ffjson/ffjson"
+	"github.com/shirou/gopsutil/disk"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
@@ -17,6 +18,7 @@ import (
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"runtime"
 	"strings"
 
 	"github.com/goodrain/rainbond/api/model"
@@ -205,6 +207,24 @@ func (n *nodesHandle) GetNodeInfo(ctx context.Context, nodeName string) (res mod
 	res.Resource.ReqDisk = diskCap - diskAvail
 	res.Resource.CapContainerDisk = containerDiskCap
 	res.Resource.ReqContainerDisk = containerDiskCap - containerDiskAvail
+
+	if res.Resource.CapDisk == 0 {
+		var diskStatus *disk.UsageStat
+		if runtime.GOOS != "windows" {
+			diskStatus, _ = disk.Usage("/")
+		} else {
+			diskStatus, _ = disk.Usage(`z:\\`)
+		}
+		var diskCap, reqDisk uint64
+		if diskStatus != nil {
+			diskCap = diskStatus.Total
+			reqDisk = diskStatus.Used
+		}
+		res.Resource.CapDisk = diskCap
+		res.Resource.ReqDisk = reqDisk
+		res.Resource.CapContainerDisk = diskCap
+		res.Resource.ReqContainerDisk = reqDisk
+	}
 	return res, nil
 }
 
