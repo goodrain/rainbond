@@ -32,7 +32,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//ServiceCheckInput 任务输入数据
+// ServiceCheckInput 任务输入数据
 type ServiceCheckInput struct {
 	CheckUUID string `json:"uuid"`
 	//检测来源类型
@@ -43,13 +43,14 @@ type ServiceCheckInput struct {
 	// docker-run: docker run --name xxx nginx:latest nginx
 	// docker-compose: compose全文
 	SourceBody string `json:"source_body"`
+	Namespace  string `json:"namespace"`
 	Username   string `json:"username"`
 	Password   string `json:"password"`
 	TenantID   string
 	EventID    string `json:"event_id"`
 }
 
-//ServiceCheckResult 应用检测结果
+// ServiceCheckResult 应用检测结果
 type ServiceCheckResult struct {
 	//检测状态 Success Failure
 	CheckStatus string                `json:"check_status"`
@@ -57,7 +58,7 @@ type ServiceCheckResult struct {
 	ServiceInfo []parser.ServiceInfo  `json:"service_info"`
 }
 
-//CreateResult 创建检测结果
+// CreateResult 创建检测结果
 func CreateResult(ErrorInfos parser.ParseErrorList, ServiceInfo []parser.ServiceInfo) (ServiceCheckResult, error) {
 	var sr ServiceCheckResult
 	if ErrorInfos != nil && ErrorInfos.IsFatalError() {
@@ -77,7 +78,7 @@ func CreateResult(ErrorInfos parser.ParseErrorList, ServiceInfo []parser.Service
 	return sr, nil
 }
 
-//serviceCheck 应用创建源检测
+// serviceCheck 应用创建源检测
 func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 	//step1 判断应用源类型
 	//step2 获取应用源介质，镜像Or源码
@@ -102,7 +103,7 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 	var pr parser.Parser
 	switch input.SourceType {
 	case "docker-run":
-		pr = parser.CreateDockerRunOrImageParse(input.Username, input.Password, input.SourceBody, e.imageClient, logger)
+		pr = parser.CreateDockerRunOrImageParse(input.Username, input.Password, input.SourceBody, e.imageClient, logger, input.Namespace)
 	case "docker-compose":
 		var yamlbody = input.SourceBody
 		if input.SourceBody[0] == '{' {
@@ -121,6 +122,8 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		pr = parser.CreateThirdPartyServiceParse(input.SourceBody, logger)
 	case "package_build":
 		pr = parser.CreateSourceCodeParse(input.SourceBody, logger)
+	case "vm-run":
+		pr = parser.CreateVMServiceParse(input.SourceBody, logger)
 	}
 	if pr == nil {
 		logger.Error("Creating component source types is not supported", map[string]string{"step": "callback", "status": "failure"})
@@ -128,7 +131,10 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 	}
 	errList := pr.Parse()
 	for i, err := range errList {
-		if err.SolveAdvice == "" && input.SourceType != "sourcecode" {
+		if err.SolveAdvice == "" && input.SourceType == "vm-run" {
+			errList[i].SolveAdvice = "镜像地址或镜像格式不正确，请检查镜像地址和镜像格式"
+		}
+		if err.SolveAdvice == "" && input.SourceType != "sourcecode" && input.SourceType != "vm-run" {
 			errList[i].SolveAdvice = fmt.Sprintf("解析器认为镜像名为:%s,请确认是否正确或镜像是否存在", pr.GetImage())
 		}
 		if err.SolveAdvice == "" && input.SourceType == "sourcecode" {

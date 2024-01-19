@@ -20,6 +20,7 @@ package etcd
 
 import (
 	"context"
+	"github.com/coreos/etcd/clientv3"
 	"sync"
 
 	"github.com/goodrain/rainbond/db/config"
@@ -27,11 +28,10 @@ import (
 
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/sirupsen/logrus"
 )
 
-//Manager db manager
+// Manager db manager
 type Manager struct {
 	client  *clientv3.Client
 	config  config.Config
@@ -39,7 +39,7 @@ type Manager struct {
 	models  []model.Interface
 }
 
-//CreateManager 创建manager
+// CreateManager 创建manager
 func CreateManager(config config.Config) (*Manager, error) {
 	etcdClientArgs := &etcdutil.ClientArgs{
 		Endpoints: config.EtcdEndPoints,
@@ -61,7 +61,7 @@ func CreateManager(config config.Config) (*Manager, error) {
 	return manager, nil
 }
 
-//CloseManager 关闭管理器
+// CloseManager 关闭管理器
 func (m *Manager) CloseManager() error {
 	return m.client.Close()
 }

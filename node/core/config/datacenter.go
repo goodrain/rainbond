@@ -34,7 +34,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//DataCenterConfig 数据中心配置
+// DataCenterConfig 数据中心配置
 type DataCenterConfig struct {
 	config  *model.GlobalConfig
 	options *option.Conf
@@ -46,7 +46,7 @@ type DataCenterConfig struct {
 
 var dataCenterConfig *DataCenterConfig
 
-//GetDataCenterConfig 获取
+// GetDataCenterConfig 获取
 func GetDataCenterConfig() *DataCenterConfig {
 	if dataCenterConfig == nil {
 		return CreateDataCenterConfig()
@@ -54,7 +54,7 @@ func GetDataCenterConfig() *DataCenterConfig {
 	return dataCenterConfig
 }
 
-//CreateDataCenterConfig 创建
+// CreateDataCenterConfig 创建
 func CreateDataCenterConfig() *DataCenterConfig {
 	ctx, cancel := context.WithCancel(context.Background())
 	dataCenterConfig = &DataCenterConfig{
@@ -85,7 +85,7 @@ func CreateDataCenterConfig() *DataCenterConfig {
 	return dataCenterConfig
 }
 
-//Start 启动，监听配置变化
+// Start 启动，监听配置变化
 func (d *DataCenterConfig) Start() {
 	go util.Exec(d.ctx, func() error {
 		ctx, cancel := context.WithCancel(d.ctx)
@@ -106,18 +106,18 @@ func (d *DataCenterConfig) Start() {
 	}, 1)
 }
 
-//Stop 停止监听
+// Stop 停止监听
 func (d *DataCenterConfig) Stop() {
 	d.cancel()
 	logrus.Info("datacenter config listener stop")
 }
 
-//GetDataCenterConfig 获取配置
+// GetDataCenterConfig 获取配置
 func (d *DataCenterConfig) GetDataCenterConfig() (*model.GlobalConfig, error) {
 	return d.config, nil
 }
 
-//PutDataCenterConfig 更改配置
+// PutDataCenterConfig 更改配置
 func (d *DataCenterConfig) PutDataCenterConfig(c *model.GlobalConfig) (err error) {
 	if c == nil {
 		return
@@ -129,12 +129,12 @@ func (d *DataCenterConfig) PutDataCenterConfig(c *model.GlobalConfig) (err error
 	return err
 }
 
-//GetConfig 获取全局配置
+// GetConfig 获取全局配置
 func (d *DataCenterConfig) GetConfig(name string) *model.ConfigUnit {
 	return d.config.Get(name)
 }
 
-//CacheConfig 更新配置缓存
+// CacheConfig 更新配置缓存
 func (d *DataCenterConfig) CacheConfig(c *model.ConfigUnit) error {
 	if c.Name == "" {
 		return fmt.Errorf("config name can not be empty")
@@ -170,7 +170,7 @@ func (d *DataCenterConfig) CacheConfig(c *model.ConfigUnit) error {
 	return nil
 }
 
-//PutConfig 增加or更新配置
+// PutConfig 增加or更新配置
 func (d *DataCenterConfig) PutConfig(c *model.ConfigUnit) error {
 	if c.Name == "" {
 		return fmt.Errorf("config name can not be empty")
@@ -212,7 +212,7 @@ func (d *DataCenterConfig) PutConfig(c *model.ConfigUnit) error {
 	return nil
 }
 
-//PutConfigKV 更新
+// PutConfigKV 更新
 func (d *DataCenterConfig) PutConfigKV(kv *mvccpb.KeyValue) {
 	var cn model.ConfigUnit
 	if err := ffjson.Unmarshal(kv.Value, &cn); err == nil {
@@ -222,12 +222,12 @@ func (d *DataCenterConfig) PutConfigKV(kv *mvccpb.KeyValue) {
 	}
 }
 
-//DeleteConfig 删除配置
+// DeleteConfig 删除配置
 func (d *DataCenterConfig) DeleteConfig(name string) {
 	d.config.Delete(name)
 }
 
-//GetGroupConfig get group config
+// GetGroupConfig get group config
 func (d *DataCenterConfig) GetGroupConfig(groupID string) *GroupContext {
 	if c, ok := d.groupConfigs[groupID]; ok {
 		return c

@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-//BasicManagement -
+// BasicManagement -
 type BasicManagement struct {
 	ResourceType string      `json:"resource_type"`
 	Replicas     *int32      `json:"replicas"`
@@ -18,7 +18,7 @@ type BasicManagement struct {
 	JobStrategy  JobStrategy `json:"job_strategy"`
 }
 
-//PortManagement -
+// PortManagement -
 type PortManagement struct {
 	Name     string `json:"name"`
 	Port     int32  `json:"port"`
@@ -27,14 +27,14 @@ type PortManagement struct {
 	Outer    bool   `json:"outer"`
 }
 
-//ENVManagement -
+// ENVManagement -
 type ENVManagement struct {
 	ENVKey     string `json:"env_key"`
 	ENVValue   string `json:"env_value"`
 	ENVExplain string `json:"env_explain"`
 }
 
-//ConfigManagement -
+// ConfigManagement -
 type ConfigManagement struct {
 	ConfigName  string `json:"config_name"`
 	ConfigPath  string `json:"config_path"`
@@ -42,7 +42,7 @@ type ConfigManagement struct {
 	ConfigValue string `json:"config_value"`
 }
 
-//HealthyCheckManagement -
+// HealthyCheckManagement -
 type HealthyCheckManagement struct {
 	Status             int    `json:"status"`
 	ProbeID            string `json:"probe_id"`
@@ -59,7 +59,7 @@ type HealthyCheckManagement struct {
 	FailureThreshold   int    `json:"failure_threshold"`
 }
 
-//TelescopicManagement -
+// TelescopicManagement -
 type TelescopicManagement struct {
 	Enable      bool                                        `json:"enable"`
 	RuleID      string                                      `json:"rule_id"`
@@ -68,7 +68,7 @@ type TelescopicManagement struct {
 	CPUOrMemory []*model.TenantServiceAutoscalerRuleMetrics `json:"cpu_or_memory"`
 }
 
-//KubernetesResources -
+// KubernetesResources -
 type KubernetesResources struct {
 	Name                       string                  `json:"name"`
 	Spec                       v1.ServiceSpec          `json:"spec"`
@@ -89,13 +89,13 @@ type KubernetesResources struct {
 	ClusterName                string                  `json:"cluster_name"`
 }
 
-//ApplicationResource -
+// ApplicationResource -
 type ApplicationResource struct {
 	KubernetesResources []model.K8sResource `json:"kubernetes_resources"`
 	ConvertResource     []ConvertResource   `json:"convert_resource"`
 }
 
-//ConvertResource -
+// ConvertResource -
 type ConvertResource struct {
 	ComponentsName                   string                          `json:"components_name"`
 	BasicManagement                  BasicManagement                 `json:"basic_management"`
@@ -107,7 +107,7 @@ type ConvertResource struct {
 	ComponentK8sAttributesManagement []*model.ComponentK8sAttributes `json:"component_k8s_attributes_management"`
 }
 
-//ComponentAttributes -
+// ComponentAttributes -
 type ComponentAttributes struct {
 	TS                     *model.TenantServices           `json:"ts"`
 	Image                  string                          `json:"image"`
@@ -120,15 +120,23 @@ type ComponentAttributes struct {
 	ComponentK8sAttributes []*model.ComponentK8sAttributes `json:"component_k8s_attributes"`
 }
 
-//AppComponent -
+// AppComponent -
 type AppComponent struct {
 	App          *model.Application    `json:"app"`
 	K8sResources []model.K8sResource   `json:"k8s_resources"`
 	Component    []ComponentAttributes `json:"component"`
 }
 
-//ReturnResourceImport -
+// ReturnResourceImport -
 type ReturnResourceImport struct {
 	Tenant *model.Tenants `json:"tenant"`
 	App    []AppComponent `json:"app"`
+}
+
+// UploadChartImport -
+type UploadChartImport struct {
+	Namespace string              `json:"namespace"`
+	TenantID  string              `json:"tenant_id"`
+	AppID     string              `json:"app_id"`
+	AR        ApplicationResource `json:"ar"`
 }

@@ -32,13 +32,14 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-//ImageBuildItem ImageBuildItem
+// ImageBuildItem ImageBuildItem
 type ImageBuildItem struct {
 	Namespace     string       `json:"namespace"`
 	TenantName    string       `json:"tenant_name"`
 	ServiceAlias  string       `json:"service_alias"`
 	Image         string       `json:"image"`
 	DestImage     string       `json:"dest_image"`
+	VMImageSource string       `json:"vm_image_source"`
 	Logger        event.Logger `json:"logger"`
 	EventID       string       `json:"event_id"`
 	ImageClient   sources.ImageClient
@@ -52,7 +53,7 @@ type ImageBuildItem struct {
 	FailCause     string
 }
 
-//NewImageBuildItem 创建实体
+// NewImageBuildItem 创建实体
 func NewImageBuildItem(in []byte) *ImageBuildItem {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
@@ -72,7 +73,7 @@ func NewImageBuildItem(in []byte) *ImageBuildItem {
 	}
 }
 
-//Run Run
+// Run Run
 func (i *ImageBuildItem) Run(timeout time.Duration) error {
 	user, pass := builder.GetImageUserInfoV2(i.Image, i.HubUser, i.HubPassword)
 	_, err := i.ImageClient.ImagePull(i.Image, user, pass, i.Logger, 30)
@@ -119,7 +120,7 @@ func (i *ImageBuildItem) Run(timeout time.Duration) error {
 	return nil
 }
 
-//StorageVersionInfo 存储version信息
+// StorageVersionInfo 存储version信息
 func (i *ImageBuildItem) StorageVersionInfo(imageURL string) error {
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(i.DeployVersion, i.ServiceID)
 	if err != nil {
@@ -137,7 +138,7 @@ func (i *ImageBuildItem) StorageVersionInfo(imageURL string) error {
 	return nil
 }
 
-//UpdateVersionInfo 更新任务执行结果
+// UpdateVersionInfo 更新任务执行结果
 func (i *ImageBuildItem) UpdateVersionInfo(status string) error {
 	version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(i.EventID)
 	if err != nil {

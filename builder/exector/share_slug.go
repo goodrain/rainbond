@@ -33,7 +33,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//SlugShareItem SlugShareItem
+// SlugShareItem SlugShareItem
 type SlugShareItem struct {
 	Namespace     string `json:"namespace"`
 	TenantName    string `json:"tenant_name"`
@@ -61,7 +61,7 @@ type SlugShareItem struct {
 	PackageName string
 }
 
-//NewSlugShareItem 创建实体
+// NewSlugShareItem 创建实体
 func NewSlugShareItem(in []byte, etcdCli *clientv3.Client) (*SlugShareItem, error) {
 	var ssi SlugShareItem
 	if err := ffjson.Unmarshal(in, &ssi); err != nil {
@@ -73,7 +73,7 @@ func NewSlugShareItem(in []byte, etcdCli *clientv3.Client) (*SlugShareItem, erro
 	return &ssi, nil
 }
 
-//ShareService  Run
+// ShareService  Run
 func (i *SlugShareItem) ShareService() error {
 
 	logrus.Debugf("share app local slug path: %s ,target path: %s", i.LocalSlugPath, i.SlugPath)
@@ -111,7 +111,7 @@ func createMD5(packageName string) (string, error) {
 	return md5Path, nil
 }
 
-//ShareToFTP ShareToFTP
+// ShareToFTP ShareToFTP
 func (i *SlugShareItem) ShareToFTP() error {
 	i.Logger.Info("开始上传应用介质到FTP服务器", map[string]string{"step": "slug-share"})
 	sFTPClient, err := sources.NewSFTPClient(i.ShareInfo.SlugInfo.FTPUser, i.ShareInfo.SlugInfo.FTPPassword, i.ShareInfo.SlugInfo.FTPHost, i.ShareInfo.SlugInfo.FTPPort)
@@ -128,7 +128,7 @@ func (i *SlugShareItem) ShareToFTP() error {
 	return nil
 }
 
-//ShareToLocal ShareToLocal
+// ShareToLocal ShareToLocal
 func (i *SlugShareItem) ShareToLocal() error {
 	file := i.LocalSlugPath
 	i.Logger.Info("开始分享应用到本地目录", map[string]string{"step": "slug-share"})
@@ -154,7 +154,7 @@ func (i *SlugShareItem) ShareToLocal() error {
 	return nil
 }
 
-//UpdateShareStatus 更新任务执行结果
+// UpdateShareStatus 更新任务执行结果
 func (i *SlugShareItem) UpdateShareStatus(status string) error {
 	var ss = ShareStatus{
 		ShareID: i.ShareID,
@@ -175,7 +175,7 @@ func (i *SlugShareItem) UpdateShareStatus(status string) error {
 	return nil
 }
 
-//CheckMD5FileExist CheckMD5FileExist
+// CheckMD5FileExist CheckMD5FileExist
 func (i *SlugShareItem) CheckMD5FileExist(md5path, packageName string) bool {
 	return false
 }

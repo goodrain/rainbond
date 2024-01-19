@@ -40,7 +40,7 @@ func init() {
 	buildcreaters = make(map[code.Lang]CreaterBuild)
 	buildcreaters[code.Dockerfile] = dockerfileBuilder
 	buildcreaters[code.Docker] = dockerfileBuilder
-	buildcreaters[code.NetCore] = netcoreBuilder
+	buildcreaters[code.NetCore] = customDockerBuilder
 	buildcreaters[code.JavaJar] = slugBuilder
 	buildcreaters[code.JavaMaven] = slugBuilder
 	buildcreaters[code.JaveWar] = slugBuilder
@@ -49,37 +49,39 @@ func init() {
 	buildcreaters[code.Nodejs] = slugBuilder
 	buildcreaters[code.Golang] = slugBuilder
 	buildcreaters[code.OSS] = slugBuilder
+	buildcreaters[code.NodeJSDockerfile] = customDockerBuilder
+	buildcreaters[code.VMDockerfile] = customDockerBuilder
 }
 
 var buildcreaters map[code.Lang]CreaterBuild
 
-//Build app build pack
+// Build app build pack
 type Build interface {
 	Build(*Request) (*Response, error)
 }
 
-//CreaterBuild CreaterBuild
+// CreaterBuild CreaterBuild
 type CreaterBuild func() (Build, error)
 
-//MediumType Build output medium type
+// MediumType Build output medium type
 type MediumType string
 
-//ImageMediumType image type
+// ImageMediumType image type
 var ImageMediumType MediumType = "image"
 
-//SlugMediumType slug type
+// SlugMediumType slug type
 var SlugMediumType MediumType = "slug"
 
-//ImageBuildNetworkModeHost use host network mode during docker build
+// ImageBuildNetworkModeHost use host network mode during docker build
 var ImageBuildNetworkModeHost = "host"
 
-//Response build result
+// Response build result
 type Response struct {
 	MediumPath string
 	MediumType MediumType
 }
 
-//Request build input
+// Request build input
 type Request struct {
 	BuildKitImage string
 	BuildKitArgs  []string
@@ -111,6 +113,7 @@ type Request struct {
 	HostAlias     []HostAlias
 	Ctx           context.Context
 	Arch          string
+	BRVersion     string
 }
 
 // HostAlias holds the mapping between IP and hostnames that will be injected as an entry in the
@@ -122,14 +125,14 @@ type HostAlias struct {
 	Hostnames []string `json:"hostnames,omitempty" protobuf:"bytes,2,rep,name=hostnames"`
 }
 
-//Commit Commit
+// Commit Commit
 type Commit struct {
 	User    string
 	Message string
 	Hash    string
 }
 
-//GetBuild GetBuild
+// GetBuild GetBuild
 func GetBuild(lang code.Lang) (Build, error) {
 	if fun, ok := buildcreaters[lang]; ok {
 		return fun()
@@ -137,7 +140,7 @@ func GetBuild(lang code.Lang) (Build, error) {
 	return slugBuilder()
 }
 
-//CreateImageName create image name
+// CreateImageName create image name
 func CreateImageName(serviceID, deployversion string) string {
 	imageName := strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, serviceID, deployversion))
 	component, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
@@ -156,7 +159,7 @@ func CreateImageName(serviceID, deployversion string) string {
 	return strings.ToLower(fmt.Sprintf("%s/%s:%s", builder.REGISTRYDOMAIN, workloadName, deployversion))
 }
 
-//GetTenantRegistryAuthSecrets GetTenantRegistryAuthSecrets
+// GetTenantRegistryAuthSecrets GetTenantRegistryAuthSecrets
 func GetTenantRegistryAuthSecrets(ctx context.Context, tenantID string, kcli kubernetes.Interface) map[string]types.AuthConfig {
 	auths := make(map[string]types.AuthConfig)
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)

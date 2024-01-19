@@ -22,11 +22,9 @@ import (
 	"net/http"
 
 	"github.com/goodrain/rainbond/api/api"
-	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/proxy"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	mqclient "github.com/goodrain/rainbond/mq/client"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/goodrain/rainbond/worker/client"
 )
 
@@ -52,6 +50,7 @@ type V2Manager interface {
 	api.ApplicationInterface
 	api.RegistryAuthSecretInterface
 	api.HelmInterface
+	api.RegistryInterface
 }
 
 var defaultV2Manager V2Manager
@@ -69,13 +68,7 @@ func GetManager() V2Manager {
 
 // NewManager new manager
 func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2Routes, error) {
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints: conf.EtcdEndpoint,
-		CaFile:    conf.EtcdCaFile,
-		CertFile:  conf.EtcdCertFile,
-		KeyFile:   conf.EtcdKeyFile,
-	}
-	mqClient, err := mqclient.NewMqClient(etcdClientArgs, conf.MQAPI)
+	mqClient, err := mqclient.NewMqClient(conf.MQAPI)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +79,7 @@ func NewManager(conf option.Config, statusCli *client.AppRuntimeSyncClient) (*V2
 	v2r.GatewayStruct.cfg = &conf
 	v2r.LabelController.optconfig = &conf
 	eventServerProxy := proxy.CreateProxy("eventlog", "http", []string{"local=>rbd-eventlog:6363"})
-	discover.GetEndpointDiscover().AddProject("event_log_event_http", eventServerProxy)
+	//discover.GetEndpointDiscover().AddProject("event_log_event_http", eventServerProxy)
 	v2r.EventLogStruct.EventlogServerProxy = eventServerProxy
 	return &v2r, nil
 }

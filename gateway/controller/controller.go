@@ -21,12 +21,12 @@ package controller
 import (
 	"context"
 	"fmt"
+	client "github.com/coreos/etcd/clientv3"
 	"sync"
 	"time"
 
 	"github.com/goodrain/rainbond/gateway/cluster"
 
-	client "github.com/coreos/etcd/clientv3"
 	"github.com/eapache/channels"
 	"github.com/goodrain/rainbond/cmd/gateway/option"
 	"github.com/goodrain/rainbond/gateway/controller/openresty"
@@ -177,7 +177,7 @@ func (gwc *GWController) syncGateway(key interface{}) error {
 	return nil
 }
 
-//NewGWController new Gateway controller
+// NewGWController new Gateway controller
 func NewGWController(ctx context.Context, clientset kubernetes.Interface, cfg *option.Config, mc metric.Collector, node *cluster.NodeManager) (*GWController, error) {
 	gwc := &GWController{
 		updateCh:        channels.NewRingChannel(1024),

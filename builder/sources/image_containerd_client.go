@@ -29,7 +29,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
-	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
 	"os"
 	"sync"
 	"time"
@@ -110,7 +110,6 @@ func (c *containerdImageCliImpl) ImagePull(image string, username, password stri
 	ctx := namespaces.WithNamespace(context.Background(), Namespace)
 	pctx, stopProgress := context.WithCancel(ctx)
 	progress := make(chan struct{})
-
 
 	go func() {
 		ShowProgress(pctx, ongoing, c.client.ContentStore(), logger)
@@ -262,7 +261,7 @@ func (c *containerdImageCliImpl) ImagePush(image, user, pass string, logger even
 	return nil
 }
 
-//ImageTag change docker image tag
+// ImageTag change docker image tag
 func (c *containerdImageCliImpl) ImageTag(source, target string, logger event.Logger, timeout int) error {
 	srcNamed, err := refdocker.ParseDockerRef(source)
 	if err != nil {
@@ -330,7 +329,7 @@ func (c *containerdImageCliImpl) ImagesPullAndPush(sourceImage, targetImage, use
 	return nil
 }
 
-//ImageRemove remove image
+// ImageRemove remove image
 func (c *containerdImageCliImpl) ImageRemove(image string) error {
 	named, err := refdocker.ParseDockerRef(image)
 	if err != nil {
@@ -346,7 +345,7 @@ func (c *containerdImageCliImpl) ImageRemove(image string) error {
 	return err
 }
 
-//ImageSave save image to tar file
+// ImageSave save image to tar file
 // destination destination file name eg. /tmp/xxx.tar
 func (c *containerdImageCliImpl) ImageSave(image, destination string) error {
 	named, err := refdocker.ParseDockerRef(image)
@@ -363,7 +362,7 @@ func (c *containerdImageCliImpl) ImageSave(image, destination string) error {
 	return c.client.Export(ctx, w, exportOpts...)
 }
 
-//TrustedImagePush push image to trusted registry
+// TrustedImagePush push image to trusted registry
 func (c *containerdImageCliImpl) TrustedImagePush(image, user, pass string, logger event.Logger, timeout int) error {
 	if err := CheckTrustedRepositories(image, user, pass); err != nil {
 		return err
@@ -371,19 +370,24 @@ func (c *containerdImageCliImpl) TrustedImagePush(image, user, pass string, logg
 	return c.ImagePush(image, user, pass, logger, timeout)
 }
 
-//ImageLoad load image from  tar file
+// ImageLoad load image from  tar file
 // destination destination file name eg. /tmp/xxx.tar
-func (c *containerdImageCliImpl) ImageLoad(tarFile string, logger event.Logger) error {
+func (c *containerdImageCliImpl) ImageLoad(tarFile string, logger event.Logger) ([]string, error) {
 	ctx := namespaces.WithNamespace(context.Background(), Namespace)
 	reader, err := os.OpenFile(tarFile, os.O_RDONLY, 0644)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer reader.Close()
-	if _, err = c.client.Import(ctx, reader); err != nil {
-		return err
+	imgs, err := c.client.Import(ctx, reader)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	var imageNames []string
+	for _, img := range imgs {
+		imageNames = append(imageNames, img.Name)
+	}
+	return imageNames, nil
 }
 
 // ShowProgress continuously updates the output with job progress
@@ -581,7 +585,7 @@ func Display(statuses []ctrcontent.StatusInfo, start time.Time, logger event.Log
 	}
 }
 
-func containerdLogFormat(status ctrcontent.StatusInfo, barFormat string, logger event.Logger)  {
+func containerdLogFormat(status ctrcontent.StatusInfo, barFormat string, logger event.Logger) {
 	var jm JSONMessage
 	jm = JSONMessage{
 		Status: status.Status,
@@ -590,7 +594,7 @@ func containerdLogFormat(status ctrcontent.StatusInfo, barFormat string, logger 
 			Total:   status.Total,
 		},
 		ProgressMessage: barFormat,
-		ID: status.Ref,
+		ID:              status.Ref,
 	}
 	printLog(logger, "debug", fmt.Sprintf(jm.JSONString()), map[string]string{"step": "progress"})
 }

@@ -21,6 +21,7 @@ package conversion
 import (
 	"encoding/json"
 	"fmt"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 	"net"
 	"os"
 	"sort"
@@ -46,7 +47,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-//TenantServiceVersion service deploy version conv. define pod spec
+// TenantServiceVersion service deploy version conv. define pod spec
 func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	version, err := dbmanager.VersionInfoDao().GetVersionByDeployVersion(as.DeployVersion, as.ServiceID)
 	if err != nil {
@@ -64,10 +65,6 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	if err != nil {
 		return fmt.Errorf("create volume in pod template error :%s", err.Error())
 	}
-	container, err := getMainContainer(as, version, dv, envs, envVarSecrets, dbmanager)
-	if err != nil {
-		return fmt.Errorf("conv service main container failure %s", err.Error())
-	}
 	//need service mesh sidecar, volume kubeconfig
 	if as.NeedProxy {
 		dv.SetVolume(dbmodel.ShareFileVolumeType, "kube-config", "/etc/kubernetes", "/grdata/kubernetes", corev1.HostPathDirectoryOrCreate, true)
@@ -83,10 +80,6 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	tolerations, err := createToleration(nodeSelector, as, dbmanager)
 	if err != nil {
 		return fmt.Errorf("create toleration %v", err)
-	}
-	volumes, err := getVolumes(dv, as, dbmanager)
-	if err != nil {
-		return fmt.Errorf("get volume failure: %v", err)
 	}
 	dnsPolicy, err := createDNSPolicy(as, dbmanager)
 	if err != nil {
@@ -111,50 +104,161 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	if err != nil {
 		return fmt.Errorf("craete service account name failure: %v", err)
 	}
-	podtmpSpec := corev1.PodTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels:      labels,
-			Annotations: annotations,
-			Name:        as.GetK8sWorkloadName() + "-pod-spec",
-		},
-		Spec: corev1.PodSpec{
-			ImagePullSecrets: setImagePullSecrets(),
-			Volumes:          volumes,
-			Containers:       []corev1.Container{*container},
-			NodeSelector:     nodeSelector,
-			Tolerations:      tolerations,
-			Affinity:         affinity,
-			HostAliases:      createHostAliases(as),
-			Hostname: func() string {
-				if nodeID, ok := as.ExtensionSet["hostname"]; ok {
-					return nodeID
-				}
-				return ""
-			}(),
-			NodeName: func() string {
-				if nodeID, ok := as.ExtensionSet["selectnode"]; ok {
-					return nodeID
-				}
-				return ""
-			}(),
-			HostNetwork: func() bool {
-				if _, ok := as.ExtensionSet["hostnetwork"]; ok {
-					return true
-				}
-				return false
-			}(),
-			SchedulerName: func() string {
-				if name, ok := as.ExtensionSet["shcedulername"]; ok {
-					return name
-				}
-				return ""
-			}(),
-			ServiceAccountName:    san,
-			ShareProcessNamespace: util.Bool(createShareProcessNamespace(as, dbmanager)),
-			DNSPolicy:             corev1.DNSPolicy(dnsPolicy),
-			HostIPC:               createHostIPC(as, dbmanager),
-		},
+	var terminationGracePeriodSeconds int64 = 10
+	vmt := kubevirtv1.VirtualMachineInstanceTemplateSpec{}
+	podtmpSpec := corev1.PodTemplateSpec{}
+	if as.GetVirtualMachine() != nil {
+		labels["kubevirt.io/domain"] = as.GetK8sWorkloadName()
+		network := []kubevirtv1.Network{
+			{
+				Name: "default",
+				NetworkSource: kubevirtv1.NetworkSource{
+					Pod: &kubevirtv1.PodNetwork{},
+				},
+			},
+		}
+		volumes := dv.GetVMVolume()
+		volumes = append([]kubevirtv1.Volume{
+			{
+				Name: "vmimage",
+				VolumeSource: kubevirtv1.VolumeSource{
+					ContainerDisk: &kubevirtv1.ContainerDiskSource{
+						Image:           fmt.Sprintf("%v/%v", builder.REGISTRYDOMAIN, version.ImageName),
+						ImagePullSecret: os.Getenv("IMAGE_PULL_SECRET"),
+					},
+				},
+			},
+		}, volumes...)
+		disks := dv.GetVMDisk()
+		bootOrder := uint(len(disks) + 1)
+		disks = append(disks, []kubevirtv1.Disk{{
+			BootOrder: &bootOrder,
+			DiskDevice: kubevirtv1.DiskDevice{CDRom: &kubevirtv1.CDRomTarget{
+				Bus: kubevirtv1.DiskBusSATA,
+			}},
+			Name: "vmimage",
+		}}...)
+
+		reource := createVMResources(as)
+		vmt = kubevirtv1.VirtualMachineInstanceTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        as.GetK8sWorkloadName() + "-vmi-spec",
+				Labels:      labels,
+				Annotations: annotations,
+			},
+			Spec: kubevirtv1.VirtualMachineInstanceSpec{
+				Domain: kubevirtv1.DomainSpec{
+					Resources: reource,
+					CPU: &kubevirtv1.CPU{
+						Cores: 2,
+					},
+					Machine: &kubevirtv1.Machine{Type: "q35"},
+					Devices: kubevirtv1.Devices{
+						Disks: disks,
+						Interfaces: []kubevirtv1.Interface{
+							{
+								Name:  "default",
+								Model: "e1000",
+								InterfaceBindingMethod: kubevirtv1.InterfaceBindingMethod{
+									Masquerade: &kubevirtv1.InterfaceMasquerade{},
+								},
+							},
+						},
+					},
+				},
+				NodeSelector:   nodeSelector,
+				ReadinessProbe: createVMProbe(as, dbmanager, "liveness"),
+				LivenessProbe:  createVMProbe(as, dbmanager, "readiness"),
+				Affinity:       affinity,
+				SchedulerName: func() string {
+					if name, ok := as.ExtensionSet["shcedulername"]; ok {
+						return name
+					}
+					return ""
+				}(),
+				Tolerations:                   tolerations,
+				TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+				Volumes:                       volumes,
+				Hostname: func() string {
+					if nodeID, ok := as.ExtensionSet["hostname"]; ok {
+						return nodeID
+					}
+					return ""
+				}(),
+				Networks:  network,
+				DNSPolicy: corev1.DNSPolicy(dnsPolicy),
+			},
+		}
+		if dnsPolicy == "None" {
+			dnsConfig, err := createDNSConfig(as, dbmanager)
+			if err != nil {
+				return fmt.Errorf("create dns config %v", err)
+			}
+			vmt.Spec.DNSConfig = dnsConfig
+		}
+	} else {
+		volumes, err := getVolumes(dv, as, dbmanager)
+		if err != nil {
+			return fmt.Errorf("get volume failure: %v", err)
+		}
+		container, err := getMainContainer(as, version, dv, envs, envVarSecrets, dbmanager)
+		if err != nil {
+			return fmt.Errorf("conv service main container failure %s", err.Error())
+		}
+
+		aliases, err := getHostAliases(as, dbmanager)
+		if err != nil {
+			return fmt.Errorf("hostAliases service main container failure %s", err.Error())
+		}
+		if len(aliases) == 0 {
+			aliases = append(aliases, createHostAliases(as)...)
+		}
+		podtmpSpec = corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels:      labels,
+				Annotations: annotations,
+				Name:        as.GetK8sWorkloadName() + "-pod-spec",
+			},
+			Spec: corev1.PodSpec{
+				ImagePullSecrets: setImagePullSecrets(),
+				Volumes:          volumes,
+				Containers:       []corev1.Container{*container},
+				NodeSelector:     nodeSelector,
+				Tolerations:      tolerations,
+				Affinity:         affinity,
+				HostAliases:      aliases,
+				Hostname: func() string {
+					if nodeID, ok := as.ExtensionSet["hostname"]; ok {
+						return nodeID
+					}
+					return ""
+				}(),
+				NodeName: func() string {
+					if nodeID, ok := as.ExtensionSet["selectnode"]; ok {
+						return nodeID
+					}
+					return ""
+				}(),
+				HostNetwork: func() bool {
+					if _, ok := as.ExtensionSet["hostnetwork"]; ok {
+						return true
+					}
+					return false
+				}(),
+				SchedulerName: func() string {
+					if name, ok := as.ExtensionSet["shcedulername"]; ok {
+						return name
+					}
+					return ""
+				}(),
+				ServiceAccountName:    san,
+				ShareProcessNamespace: util.Bool(createShareProcessNamespace(as, dbmanager)),
+				DNSPolicy:             corev1.DNSPolicy(dnsPolicy),
+				HostIPC:               createHostIPC(as, dbmanager),
+			},
+		}
 	}
+
 	if dnsPolicy == "None" {
 		dnsConfig, err := createDNSConfig(as, dbmanager)
 		if err != nil {
@@ -162,7 +266,6 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		}
 		podtmpSpec.Spec.DNSConfig = dnsConfig
 	}
-	var terminationGracePeriodSeconds int64 = 10
 	if as.GetDeployment() != nil {
 		podtmpSpec.Spec.TerminationGracePeriodSeconds = &terminationGracePeriodSeconds
 	}
@@ -173,7 +276,7 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		podtmpSpec.Spec.RestartPolicy = "OnFailure"
 	}
 	//set to deployment or statefulset job or cronjob
-	as.SetPodTemplate(podtmpSpec, vct)
+	as.SetPodAndVMTemplate(podtmpSpec, vmt, vct)
 	return nil
 }
 
@@ -204,7 +307,7 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 	if imagename == "" {
 		if version.DeliveredType == "slug" {
 			imagename = builder.RUNNERIMAGENAME
-			if err := sources.ImagesPullAndPush(builder.RUNNERIMAGENAME, builder.ONLINERUNNERIMAGENAME, "", "", nil); err != nil {
+			if err := sources.ImagesPullAndPush(builder.RUNNERIMAGENAME, builder.GetRunnerImage(""), "", "", nil); err != nil {
 				logrus.Errorf("[getMainContainer] get runner image failed: %v", err)
 			}
 		} else {
@@ -275,7 +378,7 @@ func createArgs(version *dbmodel.VersionInfo, envs []corev1.EnvVar) (args []stri
 	return args
 }
 
-//createEnv create service container env
+// createEnv create service container env
 func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.Secret) ([]corev1.EnvVar, error) {
 	var envs []corev1.EnvVar
 	var envsAll []*dbmodel.TenantServiceEnvVar
@@ -633,6 +736,26 @@ func getENVFromSource(as *v1.AppService, dbmanager db.Manager) ([]corev1.EnvFrom
 	return envFromSource, nil
 }
 
+func getHostAliases(as *v1.AppService, dbmanager db.Manager) ([]corev1.HostAlias, error) {
+	hostAliasesAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameHostAliases)
+	if err != nil {
+		return nil, err
+	}
+	var ha []corev1.HostAlias
+	if hostAliasesAttribute != nil {
+		VolumeAttributeJSON, err := yaml.YAMLToJSON([]byte(hostAliasesAttribute.AttributeValue))
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(VolumeAttributeJSON, &ha)
+		if err != nil {
+			logrus.Debug("hostAliasesAttribute json unmarshal error", err)
+			return nil, err
+		}
+	}
+	return ha, nil
+}
+
 func getVolumes(dv *volume.Define, as *v1.AppService, dbmanager db.Manager) ([]corev1.Volume, error) {
 	volumes := dv.GetVolumes()
 	volumeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameVolumes)
@@ -655,6 +778,28 @@ func getVolumes(dv *volume.Define, as *v1.AppService, dbmanager db.Manager) ([]c
 	return volumes, nil
 }
 
+func createVMResources(as *v1.AppService) kubevirtv1.ResourceRequirements {
+	var cpuRequest, cpuLimit int64
+	if limit, ok := as.ExtensionSet["cpulimit"]; ok {
+		limitint, _ := strconv.Atoi(limit)
+		if limitint > 0 {
+			cpuLimit = int64(limitint)
+		}
+	}
+	if request, ok := as.ExtensionSet["cpurequest"]; ok {
+		requestint, _ := strconv.Atoi(request)
+		if requestint > 0 {
+			cpuRequest = int64(requestint)
+		}
+	}
+	if as.ContainerCPU > 0 && cpuRequest == 0 && cpuLimit == 0 {
+		cpuLimit = int64(as.ContainerCPU)
+		cpuRequest = int64(as.ContainerCPU)
+	}
+	_, res := createResourcesBySetting(as.ContainerMemory, cpuRequest, cpuLimit, int64(as.ContainerGPU), true)
+	return *res
+}
+
 func createResources(as *v1.AppService) corev1.ResourceRequirements {
 	var cpuRequest, cpuLimit int64
 	if limit, ok := as.ExtensionSet["cpulimit"]; ok {
@@ -673,8 +818,8 @@ func createResources(as *v1.AppService) corev1.ResourceRequirements {
 		cpuLimit = int64(as.ContainerCPU)
 		cpuRequest = int64(as.ContainerCPU)
 	}
-	rr := createResourcesBySetting(as.ContainerMemory, cpuRequest, cpuLimit, int64(as.ContainerGPU))
-	return rr
+	res, _ := createResourcesBySetting(as.ContainerMemory, cpuRequest, cpuLimit, int64(as.ContainerGPU), false)
+	return *res
 }
 
 func getGPULableKey() corev1.ResourceName {
@@ -747,6 +892,29 @@ func createPorts(as *v1.AppService, dbmanager db.Manager) (ports []corev1.Contai
 }
 
 func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.Probe {
+	if mode == "liveness" {
+		probe := new(corev1.Probe)
+		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLiveNessProbe)
+		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
+			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			if err != nil {
+				logrus.Errorf("create vm probe failure: %v", err)
+				return nil
+			}
+			return probe
+		}
+	} else {
+		probe := new(corev1.Probe)
+		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameReadinessProbe)
+		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
+			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			if err != nil {
+				logrus.Errorf("create vm probe failure: %v", err)
+				return nil
+			}
+			return probe
+		}
+	}
 	probe, err := dbmanager.ServiceProbeDao().GetServiceUsedProbe(as.ServiceID, mode)
 	if err == nil && probe != nil {
 		if mode == "liveness" {
@@ -756,6 +924,90 @@ func createProbe(as *v1.AppService, dbmanager db.Manager, mode string) *corev1.P
 			probe.FailureThreshold = 3
 		}
 		p := &corev1.Probe{
+			FailureThreshold:    int32(probe.FailureThreshold),
+			SuccessThreshold:    int32(probe.SuccessThreshold),
+			InitialDelaySeconds: int32(probe.InitialDelaySecond),
+			TimeoutSeconds:      int32(probe.TimeoutSecond),
+			PeriodSeconds:       int32(probe.PeriodSecond),
+		}
+		if probe.Scheme == "tcp" {
+			tcp := &corev1.TCPSocketAction{
+				Port: intstr.FromInt(probe.Port),
+			}
+			p.TCPSocket = tcp
+			return p
+		} else if probe.Scheme == "http" {
+			action := corev1.HTTPGetAction{Path: probe.Path, Port: intstr.FromInt(probe.Port)}
+			if probe.HTTPHeader != "" {
+				hds := strings.Split(probe.HTTPHeader, ",")
+				var headers []corev1.HTTPHeader
+				for _, hd := range hds {
+					kv := strings.Split(hd, "=")
+					if len(kv) == 1 {
+						header := corev1.HTTPHeader{
+							Name:  kv[0],
+							Value: "",
+						}
+						headers = append(headers, header)
+					} else if len(kv) == 2 {
+						header := corev1.HTTPHeader{
+							Name:  kv[0],
+							Value: kv[1],
+						}
+						headers = append(headers, header)
+					}
+				}
+				action.HTTPHeaders = headers
+			}
+			p.HTTPGet = &action
+			return p
+		} else if probe.Scheme == "cmd" {
+			p.Exec = &corev1.ExecAction{Command: strings.Split(probe.Cmd, " ")}
+			return p
+		}
+		return nil
+	}
+	if err != nil {
+		logrus.Error("query probe error:", err.Error())
+	}
+	//TODO:create default probe
+	return nil
+}
+
+func createVMProbe(as *v1.AppService, dbmanager db.Manager, mode string) *kubevirtv1.Probe {
+	if mode == "liveness" {
+		var probe *kubevirtv1.Probe
+		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameLiveNessProbe)
+		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
+			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			if err != nil {
+				logrus.Errorf("create vm probe failure: %v", err)
+				return nil
+			}
+			return probe
+		}
+	} else {
+		var probe *kubevirtv1.Probe
+		probeAttribute, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameReadinessProbe)
+		if probeAttribute != nil && probeAttribute.AttributeValue != "" {
+			err = yaml.Unmarshal([]byte(probeAttribute.AttributeValue), probe)
+			if err != nil {
+				logrus.Errorf("create vm probe failure: %v", err)
+				return nil
+			}
+			return probe
+		}
+	}
+
+	probe, err := dbmanager.ServiceProbeDao().GetServiceUsedProbe(as.ServiceID, mode)
+	if err == nil && probe != nil {
+		if mode == "liveness" {
+			probe.SuccessThreshold = 1
+		}
+		if mode == "readiness" && probe.FailureThreshold < 1 {
+			probe.FailureThreshold = 3
+		}
+		p := &kubevirtv1.Probe{
 			FailureThreshold:    int32(probe.FailureThreshold),
 			SuccessThreshold:    int32(probe.SuccessThreshold),
 			InitialDelaySeconds: int32(probe.InitialDelaySecond),

@@ -38,13 +38,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//ServiceShareHandle service share
+// ServiceShareHandle service share
 type ServiceShareHandle struct {
 	MQClient client.MQClient
 	EtcdCli  *clientv3.Client
 }
 
-//APIResult 分享接口返回
+// APIResult 分享接口返回
 type APIResult struct {
 	EventID   string `json:"event_id"`
 	ShareID   string `json:"share_id"`
@@ -52,7 +52,7 @@ type APIResult struct {
 	SlugPath  string `json:"slug_path,omitempty"`
 }
 
-//Share 分享应用
+// Share 分享应用
 func (s *ServiceShareHandle) Share(serviceID string, ss api_model.ServiceShare) (*APIResult, *util.APIHandleError) {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
@@ -121,7 +121,7 @@ func (s *ServiceShareHandle) Share(serviceID string, ss api_model.ServiceShare) 
 	return &APIResult{EventID: ss.Body.EventID, ShareID: shareID, ImageName: shareImageName, SlugPath: slugPath}, nil
 }
 
-//ShareResult 分享应用结果查询
+// ShareResult 分享应用结果查询
 func (s *ServiceShareHandle) ShareResult(shareID string) (i exector.ShareStatus, e *util.APIHandleError) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

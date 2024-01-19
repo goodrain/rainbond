@@ -63,6 +63,15 @@ func (v2 *V2) Routes() chi.Router {
 	r.Mount("/enterprise/{enterprise_id}", v2.enterpriseRouter())
 	r.Mount("/monitor", v2.monitorRouter())
 	r.Mount("/helm", v2.helmRouter())
+	r.Mount("/proxy-pass", v2.proxyRoute())
+
+	return r
+}
+
+func (v2 *V2) proxyRoute() chi.Router {
+	r := chi.NewRouter()
+	r.Post("/registry/repos", controller.GetManager().GetAllRepo)
+	r.Post("/registry/tags", controller.GetManager().GetTagsByRepoName)
 	return r
 }
 
@@ -70,6 +79,12 @@ func (v2 *V2) helmRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/check_helm_app", controller.GetManager().CheckHelmApp)
 	r.Get("/get_chart_information", controller.GetManager().GetChartInformation)
+	r.Get("/get_chart_yaml", controller.GetManager().GetYamlByChart)
+	r.Get("/get_upload_chart_information", controller.GetManager().GetUploadChartInformation)
+	r.Post("/check_upload_chart", controller.GetManager().CheckUploadChart)
+	r.Get("/get_upload_chart_resource", controller.GetManager().GetUploadChartResource)
+	r.Post("/import_upload_chart_resource", controller.GetManager().ImportUploadChartResource)
+	r.Get("/get_upload_chart_value", controller.GetManager().GetUploadChartValue)
 	return r
 }
 
@@ -172,6 +187,8 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	//代码检测
 	r.Post("/code-check", controller.GetManager().CheckCode)
 	r.Post("/servicecheck", controller.Check)
+	r.Get("/image-repositories", controller.RegistryImageRepositories)
+	r.Get("/image-tags", controller.RegistryImageTags)
 	r.Get("/servicecheck/{uuid}", controller.GetServiceCheckInfo)
 	r.Get("/resources", controller.GetManager().SingleTenantResources)
 	r.Get("/services", controller.GetManager().ServicesInfo)
@@ -262,6 +279,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 	// component build
 	r.Post("/build", middleware.WrapEL(controller.GetManager().BuildService, dbmodel.TargetTypeService, "build-service", dbmodel.ASYNEVENTTYPE))
 	// component start
+	r.Post("/pause", middleware.WrapEL(controller.GetManager().PauseService, dbmodel.TargetTypeService, "pause-service", dbmodel.ASYNEVENTTYPE))
+	r.Post("/un_pause", middleware.WrapEL(controller.GetManager().UNPauseService, dbmodel.TargetTypeService, "unpause-service", dbmodel.ASYNEVENTTYPE))
 	r.Post("/start", middleware.WrapEL(controller.GetManager().StartService, dbmodel.TargetTypeService, "start-service", dbmodel.ASYNEVENTTYPE))
 	// component stop event set to synchronous event, not wait.
 	r.Post("/stop", middleware.WrapEL(controller.GetManager().StopService, dbmodel.TargetTypeService, "stop-service", dbmodel.SYNEVENTTYPE))
@@ -296,6 +315,8 @@ func (v2 *V2) serviceRouter() chi.Router {
 
 	//应用依赖关系增加与删除(source)
 	r.Post("/dependency", middleware.WrapEL(controller.GetManager().Dependency, dbmodel.TargetTypeService, "add-service-dependency", dbmodel.SYNEVENTTYPE))
+	r.Post("/dependencys", middleware.WrapEL(controller.GetManager().Dependencys, dbmodel.TargetTypeService, "add-service-dependency", dbmodel.SYNEVENTTYPE))
+
 	r.Delete("/dependency", middleware.WrapEL(controller.GetManager().Dependency, dbmodel.TargetTypeService, "delete-service-dependency", dbmodel.SYNEVENTTYPE))
 	//环境变量增删改(source)
 	r.Post("/env", middleware.WrapEL(controller.GetManager().Env, dbmodel.TargetTypeService, "add-service-env", dbmodel.SYNEVENTTYPE))

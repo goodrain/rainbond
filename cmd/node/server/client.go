@@ -41,7 +41,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-//ParseClientCommnad parse client command
+// ParseClientCommnad parse client command
 // node service xxx :Operation of the guard component
 // node reg : Register the daemon configuration for node
 // node run: daemon start node server
@@ -133,14 +133,14 @@ func ParseClientCommnad(args []string) {
 	}
 }
 
-//upgrade image name
+// upgrade image name
 func upgradeImages(ctx *cli.Context) error {
 	services := service.LoadServicesWithFileFromLocal(ctx.String("c"))
 	for i, serviceList := range services {
 		for j, service := range serviceList.Services {
 			if util.StringArrayContains(ctx.StringSlice("s"), service.Name) &&
 				service.Start != "" && !service.OnlyHealthCheck {
-				par := parser.CreateDockerRunOrImageParse("", "", service.Start, nil, event.GetTestLogger())
+				par := parser.CreateDockerRunOrImageParse("", "", service.Start, nil, event.GetTestLogger(), "")
 				par.ParseDockerun(service.Start)
 				image := par.GetImage()
 				if image.Name == "" {

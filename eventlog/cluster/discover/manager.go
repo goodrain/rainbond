@@ -21,13 +21,13 @@ package discover
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/coreos/etcd/clientv3"
+	"github.com/coreos/etcd/mvcc/mvccpb"
 	"net"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/coreos/etcd/clientv3"
-	"github.com/coreos/etcd/mvcc/mvccpb"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/goodrain/rainbond/eventlog/util"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
@@ -36,7 +36,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-//Manager 节点动态发现管理器
+// Manager 节点动态发现管理器
 type Manager interface {
 	RegisteredInstance(host string, port int, stopRegister *bool) *Instance
 	CancellationInstance(instance *Instance)
@@ -51,7 +51,7 @@ type Manager interface {
 	Scrape(ch chan<- prometheus.Metric, namespace, exporter string) error
 }
 
-//EtcdDiscoverManager 基于ETCD自动发现
+// EtcdDiscoverManager 基于ETCD自动发现
 type EtcdDiscoverManager struct {
 	cancel         func()
 	context        context.Context
@@ -66,7 +66,7 @@ type EtcdDiscoverManager struct {
 	stopDiscover   bool
 }
 
-//New 创建
+// New 创建
 func New(etcdClient *clientv3.Client, conf conf.DiscoverConf, log *logrus.Entry) Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &EtcdDiscoverManager{
@@ -82,12 +82,12 @@ func New(etcdClient *clientv3.Client, conf conf.DiscoverConf, log *logrus.Entry)
 	}
 }
 
-//GetCurrentInstance 获取当前节点
+// GetCurrentInstance 获取当前节点
 func (d *EtcdDiscoverManager) GetCurrentInstance() Instance {
 	return *d.selfInstance
 }
 
-//RegisteredInstance 注册实例
+// RegisteredInstance 注册实例
 func (d *EtcdDiscoverManager) RegisteredInstance(host string, port int, stopRegister *bool) *Instance {
 	instance := &Instance{}
 	for !*stopRegister {
@@ -143,22 +143,22 @@ func (d *EtcdDiscoverManager) RegisteredInstance(host string, port int, stopRegi
 	return nil
 }
 
-//MonitorAddInstances 实例通知
+// MonitorAddInstances 实例通知
 func (d *EtcdDiscoverManager) MonitorAddInstances() chan *Instance {
 	return d.addChan
 }
 
-//MonitorDelInstances 实例通知
+// MonitorDelInstances 实例通知
 func (d *EtcdDiscoverManager) MonitorDelInstances() chan *Instance {
 	return d.delChan
 }
 
-//MonitorUpdateInstances 实例通知
+// MonitorUpdateInstances 实例通知
 func (d *EtcdDiscoverManager) MonitorUpdateInstances() chan *Instance {
 	return d.updateChan
 }
 
-//Run 启动
+// Run 启动
 func (d *EtcdDiscoverManager) Run() error {
 	d.log.Info("Discover manager start ")
 	etcdClientArgs := &etcdutil.ClientArgs{
@@ -176,7 +176,7 @@ func (d *EtcdDiscoverManager) Run() error {
 	return nil
 }
 
-//Discover 发现
+// Discover 发现
 func (d *EtcdDiscoverManager) discover() {
 	tike := time.NewTicker(time.Second * 5)
 	defer tike.Stop()
@@ -307,7 +307,7 @@ func (d *EtcdDiscoverManager) update(node *Node) {
 
 }
 
-//DeleteSlice 从数组中删除某元素
+// DeleteSlice 从数组中删除某元素
 func DeleteSlice(source []*Instance, index int) []*Instance {
 	if len(source) == 1 {
 		return make([]*Instance, 0)
@@ -321,14 +321,14 @@ func DeleteSlice(source []*Instance, index int) []*Instance {
 	return append(source[0:index-1], source[index+1:]...)
 }
 
-//Stop 停止
+// Stop 停止
 func (d *EtcdDiscoverManager) Stop() {
 	d.stopDiscover = true
 	d.cancel()
 	d.log.Info("Stop the discover manager.")
 }
 
-//CancellationInstance 注销实例
+// CancellationInstance 注销实例
 func (d *EtcdDiscoverManager) CancellationInstance(instance *Instance) {
 	ctx, cancel := context.WithTimeout(d.context, time.Second*5)
 	defer cancel()
@@ -340,7 +340,7 @@ func (d *EtcdDiscoverManager) CancellationInstance(instance *Instance) {
 	}
 }
 
-//UpdateInstance 更新实例
+// UpdateInstance 更新实例
 func (d *EtcdDiscoverManager) UpdateInstance(instance *Instance) {
 	instance.Status = "update"
 	data, err := json.Marshal(instance)
@@ -356,10 +356,10 @@ func (d *EtcdDiscoverManager) UpdateInstance(instance *Instance) {
 	}
 }
 
-//InstanceCheckHealth 将由distribution调用，当发现节点不正常时
-//此处检查，如果节点已经下线，返回 delete
-//如果节点未下线标记为异常,返回 abnormal
-//如果节点被集群判断为故障,返回 delete
+// InstanceCheckHealth 将由distribution调用，当发现节点不正常时
+// 此处检查，如果节点已经下线，返回 delete
+// 如果节点未下线标记为异常,返回 abnormal
+// 如果节点被集群判断为故障,返回 delete
 func (d *EtcdDiscoverManager) InstanceCheckHealth(instanceID string) string {
 	d.log.Info("Start check instance health.")
 	if d.selfInstance.HostID == instanceID {
@@ -383,7 +383,7 @@ func (d *EtcdDiscoverManager) InstanceCheckHealth(instanceID string) string {
 	return "delete"
 }
 
-//GetInstance 获取实例
+// GetInstance 获取实例
 func (d *EtcdDiscoverManager) GetInstance(id string) *Instance {
 	if id == d.selfInstance.HostID {
 		return d.selfInstance
@@ -396,7 +396,7 @@ func (d *EtcdDiscoverManager) GetInstance(id string) *Instance {
 	return nil
 }
 
-//Scrape prometheus monitor metrics
+// Scrape prometheus monitor metrics
 func (d *EtcdDiscoverManager) Scrape(ch chan<- prometheus.Metric, namespace, exporter string) error {
 	instanceDesc := prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, exporter, "instance_up"),

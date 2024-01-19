@@ -22,6 +22,8 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"github.com/coreos/etcd/clientv3"
+	"github.com/goodrain/rainbond/pkg/interceptors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -36,7 +38,6 @@ import (
 
 	"github.com/goodrain/rainbond/util"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/cmd/api/option"
 
 	"github.com/goodrain/rainbond/api/api_routers/doc"
@@ -105,7 +106,7 @@ func (m *Manager) SetMiddleware() {
 		r.Use(middleware.DefaultLogger)
 	}
 	//Gracefully absorb panics and prints the stack trace
-	r.Use(middleware.Recoverer)
+	r.Use(interceptors.Recoverer)
 	//request time out
 	r.Use(middleware.Timeout(time.Second * 5))
 	//simple authz

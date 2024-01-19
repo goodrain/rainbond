@@ -35,17 +35,16 @@ import (
 )
 
 var (
-	//DefalutClient etcd client
 	DefalutClient *Client
 )
 
-//Client etcd client
+// Client etcd client
 type Client struct {
 	*client.Client
 	reqTimeout time.Duration
 }
 
-//NewClient 创建client
+// NewClient 创建client
 func NewClient(ctx context.Context, cfg *conf.Conf, etcdClientArgs *etcdutil.ClientArgs) (err error) {
 	cli, err := etcdutil.NewClient(ctx, etcdClientArgs)
 	if err != nil {
@@ -63,11 +62,10 @@ func NewClient(ctx context.Context, cfg *conf.Conf, etcdClientArgs *etcdutil.Cli
 	return
 }
 
-//ErrKeyExists key exist error
+// ErrKeyExists key exist error
 var ErrKeyExists = errors.New("key already exists")
 
-// Post attempts to create the given key, only succeeding if the key did
-// not yet exist.
+// Post attempts to create the given key, only succeeding if the key did not yet exist.
 func (c *Client) Post(key, val string, opts ...client.OpOption) (*client.PutResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
 	defer cancel()
@@ -83,28 +81,28 @@ func (c *Client) Post(key, val string, opts ...client.OpOption) (*client.PutResp
 	return txnresp.OpResponse().Put(), nil
 }
 
-//Put etcd v3 Put
+// Put etcd v3 Put
 func (c *Client) Put(key, val string, opts ...client.OpOption) (*client.PutResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
 	defer cancel()
 	return c.Client.Put(ctx, key, val, opts...)
 }
 
-//NewRunnable NewRunnable
+// NewRunnable NewRunnable
 func (c *Client) NewRunnable(key, val string, opts ...client.OpOption) (*client.PutResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
 	defer cancel()
 	return c.Client.Put(ctx, key, val, opts...)
 }
 
-//DelRunnable DelRunnable
+// DelRunnable DelRunnable
 func (c *Client) DelRunnable(key string, opts ...client.OpOption) (*client.DeleteResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
 	defer cancel()
 	return c.Client.Delete(ctx, key, opts...)
 }
 
-//PutWithModRev PutWithModRev
+// PutWithModRev PutWithModRev
 func (c *Client) PutWithModRev(key, val string, rev int64) (*client.PutResponse, error) {
 	if rev == 0 {
 		return c.Put(key, val)
@@ -128,7 +126,7 @@ func (c *Client) PutWithModRev(key, val string, rev int64) (*client.PutResponse,
 	return &resp, nil
 }
 
-//IsRunnable IsRunnable
+// IsRunnable IsRunnable
 func (c *Client) IsRunnable(key string, opts ...client.OpOption) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
 	defer cancel()
@@ -144,38 +142,38 @@ func (c *Client) IsRunnable(key string, opts ...client.OpOption) bool {
 	return true
 }
 
-//Get get
+// Get get
 func (c *Client) Get(key string, opts ...client.OpOption) (*client.GetResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
 	defer cancel()
 	return c.Client.Get(ctx, key, opts...)
 }
 
-//Delete delete v3 etcd
+// Delete delete v3 etcd
 func (c *Client) Delete(key string, opts ...client.OpOption) (*client.DeleteResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
 	defer cancel()
 	return c.Client.Delete(ctx, key, opts...)
 }
 
-//Watch etcd v3 watch
+// Watch etcd v3 watch
 func (c *Client) Watch(key string, opts ...client.OpOption) client.WatchChan {
 	return c.Client.Watch(context.Background(), key, opts...)
 }
 
-//WatchByCtx watch by ctx
+// WatchByCtx watch by ctx
 func (c *Client) WatchByCtx(ctx context.Context, key string, opts ...client.OpOption) client.WatchChan {
 	return c.Client.Watch(ctx, key, opts...)
 }
 
-//KeepAliveOnce etcd v3 KeepAliveOnce
+// KeepAliveOnce etcd v3 KeepAliveOnce
 func (c *Client) KeepAliveOnce(id client.LeaseID) (*client.LeaseKeepAliveResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
 	defer cancel()
 	return c.Client.KeepAliveOnce(ctx, id)
 }
 
-//GetLock GetLock
+// GetLock GetLock
 func (c *Client) GetLock(key string, id client.LeaseID) (bool, error) {
 	key = conf.Config.LockPath + key
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
@@ -192,20 +190,20 @@ func (c *Client) GetLock(key string, id client.LeaseID) (bool, error) {
 	return resp.Succeeded, nil
 }
 
-//DelLock DelLock
+// DelLock DelLock
 func (c *Client) DelLock(key string) error {
 	_, err := c.Delete(conf.Config.LockPath + key)
 	return err
 }
 
-//Grant etcd v3 Grant
+// Grant etcd v3 Grant
 func (c *Client) Grant(ttl int64) (*client.LeaseGrantResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.reqTimeout)
 	defer cancel()
 	return c.Client.Grant(ctx, ttl)
 }
 
-//IsValidAsKeyPath IsValidAsKeyPath
+// IsValidAsKeyPath IsValidAsKeyPath
 func IsValidAsKeyPath(s string) bool {
 	return strings.IndexByte(s, '/') == -1
 }

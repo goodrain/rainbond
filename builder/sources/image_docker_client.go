@@ -221,7 +221,7 @@ func (d *dockerImageCliImpl) ImagePush(image, user, pass string, logger event.Lo
 	return nil
 }
 
-//ImageTag change docker image tag
+// ImageTag change docker image tag
 func (d *dockerImageCliImpl) ImageTag(source, target string, logger event.Logger, timeout int) error {
 	logrus.Debugf(fmt.Sprintf("change image tag：%s -> %s", source, target))
 	printLog(logger, "info", fmt.Sprintf("change image tag：%s -> %s", source, target), map[string]string{"step": "changetag"})
@@ -263,7 +263,7 @@ func (d *dockerImageCliImpl) ImagesPullAndPush(sourceImage, targetImage, usernam
 	return nil
 }
 
-//ImageRemove remove image
+// ImageRemove remove image
 func (d *dockerImageCliImpl) ImageRemove(image string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
@@ -271,7 +271,7 @@ func (d *dockerImageCliImpl) ImageRemove(image string) error {
 	return err
 }
 
-//ImageSave save image to tar file
+// ImageSave save image to tar file
 // destination destination file name eg. /tmp/xxx.tar
 func (d *dockerImageCliImpl) ImageSave(image, destination string) error {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -284,7 +284,7 @@ func (d *dockerImageCliImpl) ImageSave(image, destination string) error {
 	return CopyToFile(destination, rc)
 }
 
-//TrustedImagePush push image to trusted registry
+// TrustedImagePush push image to trusted registry
 func (d *dockerImageCliImpl) TrustedImagePush(image, user, pass string, logger event.Logger, timeout int) error {
 	if err := CheckTrustedRepositories(image, user, pass); err != nil {
 		return err
@@ -292,29 +292,30 @@ func (d *dockerImageCliImpl) TrustedImagePush(image, user, pass string, logger e
 	return d.ImagePush(image, user, pass, logger, timeout)
 }
 
-//ImageLoad load image from  tar file
+// ImageLoad load image from  tar file
 // destination destination file name eg. /tmp/xxx.tar
-func (d *dockerImageCliImpl) ImageLoad(tarFile string, logger event.Logger) error {
+func (d *dockerImageCliImpl) ImageLoad(tarFile string, logger event.Logger) ([]string, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	reader, err := os.OpenFile(tarFile, os.O_RDONLY, 0644)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer reader.Close()
 
 	rc, err := d.client.ImageLoad(ctx, reader, false)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	var images []string
 	if rc.Body != nil {
 		defer rc.Body.Close()
 		dec := json.NewDecoder(rc.Body)
 		for {
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return nil, ctx.Err()
 			default:
 			}
 			var jm JSONMessage
@@ -322,13 +323,17 @@ func (d *dockerImageCliImpl) ImageLoad(tarFile string, logger event.Logger) erro
 				if err == io.EOF {
 					break
 				}
-				return err
+				return nil, err
 			}
 			if jm.Error != nil {
-				return jm.Error
+				return nil, jm.Error
 			}
+			image := strings.Replace(jm.Stream, "\n", "", -1)
+			strList := strings.Split(image, " ")
+			imageName := strList[2]
+			images = append(images, imageName)
 			logger.Info(jm.JSONString(), map[string]string{"step": "build-progress"})
 		}
 	}
-	return nil
+	return images, nil
 }

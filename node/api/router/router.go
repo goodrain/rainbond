@@ -19,6 +19,7 @@
 package router
 
 import (
+	"github.com/goodrain/rainbond/pkg/interceptors"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -30,7 +31,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 )
 
-//Routers 路由
+// Routers 路由
 func Routers(mode string) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID) //每个请求的上下文中注册一个id
@@ -41,7 +42,7 @@ func Routers(mode string) *chi.Mux {
 	logger.SetLevel(logrus.GetLevel())
 	r.Use(log.NewStructuredLogger(logger))
 	//Gracefully absorb panics and prints the stack trace
-	r.Use(middleware.Recoverer)
+	r.Use(interceptors.Recoverer)
 	//request time out
 	r.Use(middleware.Timeout(time.Second * 5))
 	r.Mount("/v1", DisconverRoutes())

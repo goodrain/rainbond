@@ -44,7 +44,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-//SourceCodeBuildItem SouceCodeBuildItem
+// SourceCodeBuildItem SouceCodeBuildItem
 type SourceCodeBuildItem struct {
 	Namespace     string       `json:"namespace"`
 	TenantName    string       `json:"tenant_name"`
@@ -79,16 +79,17 @@ type SourceCodeBuildItem struct {
 	Configs       map[string]gjson.Result `json:"configs"`
 	Ctx           context.Context
 	FailCause     string
+	BRVersion     string
 }
 
-//Commit code Commit
+// Commit code Commit
 type Commit struct {
 	Hash    string
 	Author  string
 	Message string
 }
 
-//NewSouceCodeBuildItem create
+// NewSouceCodeBuildItem create
 func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
@@ -130,7 +131,7 @@ func NewSouceCodeBuildItem(in []byte) *SourceCodeBuildItem {
 	return scb
 }
 
-//Run Run
+// Run Run
 func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 	// 1.clone
 	// 2.check dockerfile/ source_code
@@ -228,6 +229,12 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 		}
 		if len(packageArr) != 0 {
 			fileName := packageArr[0]
+			for _, pa := range packageArr {
+				paExt := path.Ext(pa)
+				if strings.HasSuffix(paExt, `.zip`) || strings.HasSuffix(paExt, `.tar`) || strings.HasSuffix(paExt, `.tar.gz`) || strings.HasSuffix(paExt, `.jar`) || strings.HasSuffix(paExt, `.war`) {
+					fileName = pa
+				}
+			}
 			file := filePath + "/" + fileName
 			fileMD5 := util.MD5(file)
 			i.commit = Commit{
@@ -316,6 +323,9 @@ func (i *SourceCodeBuildItem) Run(timeout time.Duration) error {
 
 func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 	codeBuild, err := build.GetBuild(code.Lang(i.Lang))
+	if i.Lang == "NodeJSStatic" && i.BuildEnvs["MODE"] == "DOCKERFILE" {
+		codeBuild, err = build.GetBuild(code.NodeJSDockerfile)
+	}
 	if err != nil {
 		logrus.Errorf("get code build error: %s lang %s", err.Error(), i.Lang)
 		i.Logger.Error(util.Translation("No way of compiling to support this source type was found"), map[string]string{"step": "builder-exector", "status": "failure"})
@@ -356,6 +366,7 @@ func (i *SourceCodeBuildItem) codeBuild() (*build.Response, error) {
 		CacheMode:     i.CacheMode,
 		CachePath:     i.CachePath,
 		Arch:          i.Arch,
+		BRVersion:     i.BRVersion,
 	}
 	res, err := codeBuild.Build(buildReq)
 	return res, err
@@ -376,7 +387,7 @@ func (i *SourceCodeBuildItem) getHostAlias() (hostAliasList []build.HostAlias, e
 	return
 }
 
-//IsDockerfile CheckDockerfile
+// IsDockerfile CheckDockerfile
 func (i *SourceCodeBuildItem) IsDockerfile() bool {
 	filepath := path.Join(i.RepoInfo.GetCodeBuildAbsPath(), "Dockerfile")
 	_, err := os.Stat(filepath)
@@ -412,7 +423,7 @@ func (i *SourceCodeBuildItem) prepare() error {
 	return nil
 }
 
-//UpdateVersionInfo Update build application service version info
+// UpdateVersionInfo Update build application service version info
 func (i *SourceCodeBuildItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
 	version, err := db.GetManager().VersionInfoDao().GetVersionByDeployVersion(i.DeployVersion, i.ServiceID)
 	if err != nil {
@@ -441,7 +452,7 @@ func (i *SourceCodeBuildItem) UpdateVersionInfo(vi *dbmodel.VersionInfo) error {
 	return nil
 }
 
-//UpdateBuildVersionInfo update service build version info to db
+// UpdateBuildVersionInfo update service build version info to db
 func (i *SourceCodeBuildItem) UpdateBuildVersionInfo(res *build.Response) error {
 	vi := &dbmodel.VersionInfo{
 		DeliveredType: string(res.MediumType),
@@ -463,7 +474,7 @@ func (i *SourceCodeBuildItem) UpdateBuildVersionInfo(res *build.Response) error 
 	return nil
 }
 
-//UpdateCheckResult UpdateCheckResult
+// UpdateCheckResult UpdateCheckResult
 func (i *SourceCodeBuildItem) UpdateCheckResult(result *dbmodel.CodeCheckResult) error {
 	return nil
 }

@@ -35,31 +35,22 @@ import (
 	"github.com/goodrain/rainbond/node/utils"
 	"github.com/goodrain/rainbond/util"
 	ansibleUtil "github.com/goodrain/rainbond/util/ansible"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	licutil "github.com/goodrain/rainbond/util/license"
 	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
 )
 
-//NodeService node service
+// NodeService node service
 type NodeService struct {
 	c           *option.Conf
 	nodecluster *node.Cluster
 	kubecli     kubecache.KubeClient
 }
 
-//CreateNodeService create
+// CreateNodeService create
 func CreateNodeService(c *option.Conf, nodecluster *node.Cluster, kubecli kubecache.KubeClient) *NodeService {
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints:   c.EtcdEndpoints,
-		CaFile:      c.EtcdCaFile,
-		CertFile:    c.EtcdCertFile,
-		KeyFile:     c.EtcdKeyFile,
-		DialTimeout: c.EtcdDialTimeout,
-	}
 	if err := event.NewManager(event.EventConfig{
 		EventLogServers: c.EventLogServer,
-		DiscoverArgs:    etcdClientArgs,
 	}); err != nil {
 		logrus.Errorf("create event manager faliure")
 	}
@@ -70,7 +61,7 @@ func CreateNodeService(c *option.Conf, nodecluster *node.Cluster, kubecli kubeca
 	}
 }
 
-//AddNode add node
+// AddNode add node
 func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *utils.APIHandleError) {
 	if n.nodecluster == nil {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
@@ -108,7 +99,7 @@ func (n *NodeService) AddNode(node *client.APIHostNode) (*client.HostNode, *util
 	return rbnode, nil
 }
 
-//InstallNode install node
+// InstallNode install node
 func (n *NodeService) InstallNode(node *client.HostNode) *utils.APIHandleError {
 	node.Status = client.Installing
 	node.NodeStatus.Status = client.Installing
@@ -153,7 +144,7 @@ func (n *NodeService) writeHostsFile() error {
 	return nil
 }
 
-//UpdateNodeStatus update node status
+// UpdateNodeStatus update node status
 func (n *NodeService) UpdateNodeStatus(nodeID, status string) *utils.APIHandleError {
 	node := n.nodecluster.GetNode(nodeID)
 	if node == nil {
@@ -168,7 +159,7 @@ func (n *NodeService) UpdateNodeStatus(nodeID, status string) *utils.APIHandleEr
 	return nil
 }
 
-//AsynchronousInstall AsynchronousInstall
+// AsynchronousInstall AsynchronousInstall
 func (n *NodeService) AsynchronousInstall(node *client.HostNode, eventID string) {
 	// write ansible hosts file
 	err := n.writeHostsFile()
@@ -206,8 +197,8 @@ func (n *NodeService) AsynchronousInstall(node *client.HostNode, eventID string)
 	logrus.Infof("Install node %s successful", node.ID)
 }
 
-//DeleteNode delete node
-//only node status is offline and node can be deleted
+// DeleteNode delete node
+// only node status is offline and node can be deleted
 func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 	node := n.nodecluster.GetNode(nodeID)
 	if node == nil {
@@ -224,7 +215,7 @@ func (n *NodeService) DeleteNode(nodeID string) *utils.APIHandleError {
 	return nil
 }
 
-//GetNode get node info
+// GetNode get node info
 func (n *NodeService) GetNode(nodeID string) (*client.HostNode, *utils.APIHandleError) {
 	node := n.nodecluster.GetNode(nodeID)
 	if node == nil {
@@ -233,7 +224,7 @@ func (n *NodeService) GetNode(nodeID string) (*client.HostNode, *utils.APIHandle
 	return node, nil
 }
 
-//GetAllNode get all node
+// GetAllNode get all node
 func (n *NodeService) GetAllNode() ([]*client.HostNode, *utils.APIHandleError) {
 	if n.nodecluster == nil {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
@@ -243,7 +234,7 @@ func (n *NodeService) GetAllNode() ([]*client.HostNode, *utils.APIHandleError) {
 	return nodes, nil
 }
 
-//GetServicesHealthy get service health
+// GetServicesHealthy get service health
 func (n *NodeService) GetServicesHealthy() (map[string][]map[string]string, *utils.APIHandleError) {
 	if n.nodecluster == nil {
 		return nil, utils.CreateAPIHandleError(400, fmt.Errorf("this node can not support this api"))
@@ -266,7 +257,7 @@ func (n *NodeService) GetServicesHealthy() (map[string][]map[string]string, *uti
 	return StatusMap, nil
 }
 
-//CordonNode set node is unscheduler
+// CordonNode set node is unscheduler
 func (n *NodeService) CordonNode(nodeID string, unschedulable bool) *utils.APIHandleError {
 	hostNode, apierr := n.GetNode(nodeID)
 	if apierr != nil {
@@ -302,7 +293,7 @@ func (n *NodeService) GetNodeLabels(nodeID string) (*model.LabelsResp, *utils.AP
 	return labels, nil
 }
 
-//PutNodeLabel update node label
+// PutNodeLabel update node label
 func (n *NodeService) PutNodeLabel(nodeID string, labels map[string]string) (map[string]string, *utils.APIHandleError) {
 	hostNode, apierr := n.GetNode(nodeID)
 	if apierr != nil {
@@ -327,7 +318,7 @@ func (n *NodeService) PutNodeLabel(nodeID string, labels map[string]string) (map
 	return hostNode.CustomLabels, nil
 }
 
-//DeleteNodeLabel delete node label
+// DeleteNodeLabel delete node label
 func (n *NodeService) DeleteNodeLabel(nodeID string, labels map[string]string) (map[string]string, *utils.APIHandleError) {
 	hostNode, apierr := n.GetNode(nodeID)
 	if apierr != nil {
@@ -353,7 +344,7 @@ func (n *NodeService) DeleteNodeLabel(nodeID string, labels map[string]string) (
 	return hostNode.CustomLabels, nil
 }
 
-//DownNode down node
+// DownNode down node
 func (n *NodeService) DownNode(nodeID string) (*client.HostNode, *utils.APIHandleError) {
 	hostNode, apierr := n.GetNode(nodeID)
 	if apierr != nil {
@@ -373,7 +364,7 @@ func (n *NodeService) DownNode(nodeID string) (*client.HostNode, *utils.APIHandl
 	return hostNode, nil
 }
 
-//UpNode up node
+// UpNode up node
 func (n *NodeService) UpNode(nodeID string) (*client.HostNode, *utils.APIHandleError) {
 	hostNode, apierr := n.GetNode(nodeID)
 	if apierr != nil {
@@ -396,7 +387,7 @@ func (n *NodeService) UpNode(nodeID string) (*client.HostNode, *utils.APIHandleE
 	return hostNode, nil
 }
 
-//GetNodeResource get node resource
+// GetNodeResource get node resource
 func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *utils.APIHandleError) {
 	node, err := n.GetNode(nodeUID)
 	if err != nil {
@@ -448,13 +439,13 @@ func (n *NodeService) GetNodeResource(nodeUID string) (*model.NodePodResource, *
 	return &res, nil
 }
 
-//CheckNode check node install status
+// CheckNode check node install status
 func (n *NodeService) CheckNode(nodeUID string) (*model.InstallStatus, *utils.APIHandleError) {
 
 	return nil, nil
 }
 
-//DeleteNodeCondition delete node condition
+// DeleteNodeCondition delete node condition
 func (n *NodeService) DeleteNodeCondition(nodeUID string, condition client.NodeConditionType) (*client.HostNode, *utils.APIHandleError) {
 	node, err := n.GetNode(nodeUID)
 	if err != nil {

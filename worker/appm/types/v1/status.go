@@ -22,6 +22,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	v1 "kubevirt.io/api/core/v1"
 	"time"
 
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
@@ -32,7 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-//IsEmpty is empty
+// IsEmpty is empty
 func (a *AppService) IsEmpty() bool {
 	empty := len(a.pods) == 0
 	if !empty {
@@ -47,7 +48,7 @@ func (a *AppService) IsEmpty() bool {
 	return empty
 }
 
-//IsClosed is closed
+// IsClosed is closed
 func (a *AppService) IsClosed() bool {
 	if a.IsCustomComponent() {
 		return a.workload == nil
@@ -64,6 +65,9 @@ func (a *AppService) IsClosed() bool {
 			return true
 		}
 		if a.IsEmpty() && a.deployment != nil && a.deployment.ResourceVersion == "" {
+			return true
+		}
+		if a.IsEmpty() && a.virtualmachine != nil && a.virtualmachine.ResourceVersion == "" {
 			return true
 		}
 	}
@@ -95,6 +99,8 @@ var (
 	UNDEPLOY = "undeploy"
 	//SUCCEEDED if job and cronjob is succeeded
 	SUCCEEDED = "succeeded"
+	//PAUSED -
+	PAUSED = "paused"
 )
 
 func conversionThirdComponent(obj runtime.Object) *v1alpha1.ThirdComponent {
@@ -113,7 +119,7 @@ func conversionThirdComponent(obj runtime.Object) *v1alpha1.ThirdComponent {
 	return nil
 }
 
-//GetServiceStatus get service status
+// GetServiceStatus get service status
 func (a *AppService) GetServiceStatus() string {
 	if a.IsThirdComponent() {
 		endpoints := a.GetEndpoints(false)
@@ -159,6 +165,31 @@ func (a *AppService) GetServiceStatus() string {
 	}
 	if a.IsClosed() {
 		return CLOSED
+	}
+	if a.virtualmachine != nil {
+		if a.virtualmachine.Status.PrintableStatus == v1.VirtualMachineStatusPaused {
+			return PAUSED
+		}
+		succeed := 0
+		failed := 0
+		for _, po := range a.pods {
+			if po.Status.Phase == "Succeeded" {
+				succeed++
+			}
+			if po.Status.Phase == "Failed" {
+				failed++
+			}
+			if po.Status.Phase == "Pending" {
+				failed++
+			}
+		}
+		if len(a.pods) == succeed {
+			return SUCCEEDED
+		}
+		if failed > 0 {
+			return ABNORMAL
+		}
+		return RUNNING
 	}
 	if a.job != nil {
 		succeed := 0
@@ -282,7 +313,7 @@ func isHaveNormalTerminatedContainer(pods []*corev1.Pod) bool {
 	return false
 }
 
-//Ready Whether ready
+// Ready Whether ready
 func (a *AppService) Ready() bool {
 	if a.statefulset != nil {
 		if a.statefulset.Status.ReadyReplicas >= int32(a.Replicas) {
@@ -294,11 +325,16 @@ func (a *AppService) Ready() bool {
 			return true
 		}
 	}
+	if a.virtualmachine != nil {
+		if a.virtualmachine.Status.Ready {
+			return true
+		}
+	}
 	return false
 }
 
-//IsWaitting service status is waitting
-//init container init-probe is running
+// IsWaitting service status is waitting
+// init container init-probe is running
 func (a *AppService) IsWaitting() bool {
 	var initcontainer []corev1.Container
 	if a.statefulset != nil {
@@ -336,7 +372,7 @@ func (a *AppService) IsWaitting() bool {
 	return false
 }
 
-//GetReadyReplicas get already ready pod number
+// GetReadyReplicas get already ready pod number
 func (a *AppService) GetReadyReplicas() int32 {
 	if a.statefulset != nil {
 		return a.statefulset.Status.ReadyReplicas
@@ -347,7 +383,7 @@ func (a *AppService) GetReadyReplicas() int32 {
 	return 0
 }
 
-//GetRunningVersion get running version
+// GetRunningVersion get running version
 func (a *AppService) GetRunningVersion() string {
 	if a.statefulset != nil {
 		return a.statefulset.Labels["version"]
@@ -358,7 +394,7 @@ func (a *AppService) GetRunningVersion() string {
 	return ""
 }
 
-//UpgradeComlete upgrade comlete
+// UpgradeComlete upgrade comlete
 func (a *AppService) UpgradeComlete() bool {
 	for _, pod := range a.pods {
 		if pod.Labels["version"] != a.DeployVersion {
@@ -368,8 +404,8 @@ func (a *AppService) UpgradeComlete() bool {
 	return a.Ready()
 }
 
-//AbnormalInfo pod Abnormal info
-//Record the container exception exit information in pod.
+// AbnormalInfo pod Abnormal info
+// Record the container exception exit information in pod.
 type AbnormalInfo struct {
 	ServiceID     string    `json:"service_id"`
 	TenantID      string    `json:"tenant_id"`
@@ -382,7 +418,7 @@ type AbnormalInfo struct {
 	Count         int       `json:"count"`
 }
 
-//Hash get AbnormalInfo hash
+// Hash get AbnormalInfo hash
 func (a AbnormalInfo) Hash() string {
 	hash := sha256.New()
 	hash.Write([]byte(a.ServiceID + a.ServiceAlias))

@@ -38,7 +38,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-//Controller build job controller
+// Controller build job controller
 type Controller interface {
 	ExecJob(ctx context.Context, job *corev1.Pod, logger io.Writer, result *channels.RingChannel) error
 	GetJob(string) (*corev1.Pod, error)
@@ -58,7 +58,7 @@ type controller struct {
 
 var jobController *controller
 
-//InitJobController init job controller
+// InitJobController init job controller
 func InitJobController(rbdNamespace string, stop chan struct{}, kubeClient kubernetes.Interface) error {
 	jobController = &controller{
 		KubeClient: kubeClient,
@@ -76,13 +76,13 @@ func InitJobController(rbdNamespace string, stop chan struct{}, kubeClient kuber
 				ch := val.(*channels.RingChannel)
 				ch.In() <- "cancel"
 			}
+
 			logrus.Infof("[Watch] Build job pod %s deleted", job.Name)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			job, _ := cur.(*corev1.Pod)
 			if len(job.Status.ContainerStatuses) > 0 {
 				buildContainer := job.Status.ContainerStatuses[0]
-				logrus.Infof("job %s container %s state %+v", job.Name, buildContainer.Name, buildContainer.State)
 				terminated := buildContainer.State.Terminated
 				if terminated != nil && terminated.ExitCode == 0 {
 					if val, exist := jobController.subJobStatus.Load(job.Name); exist {
@@ -133,7 +133,7 @@ func InitJobController(rbdNamespace string, stop chan struct{}, kubeClient kuber
 	return jobController.Start(stop)
 }
 
-//GetJobController get job controller
+// GetJobController get job controller
 func GetJobController() Controller {
 	return jobController
 }

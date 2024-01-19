@@ -20,12 +20,12 @@ package controller
 
 import (
 	"context"
+	"github.com/goodrain/rainbond/config/configs"
 	"net/http"
 	"os"
 	"path"
 
 	"github.com/go-chi/chi"
-	"github.com/goodrain/rainbond/api/discover"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/proxy"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
@@ -33,110 +33,107 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//DockerConsole docker console
+// DockerConsole docker console
 type DockerConsole struct {
 	socketproxy proxy.Proxy
 }
 
-var defaultDockerConsoleEndpoints = []string{"127.0.0.1:7171"}
-var defaultEventLogEndpoints = []string{"local=>rbd-eventlog:6363"}
-
 var dockerConsole *DockerConsole
 
-//GetDockerConsole get Docker console
+// GetDockerConsole get Docker console
 func GetDockerConsole() *DockerConsole {
 	if dockerConsole != nil {
 		return dockerConsole
 	}
 	dockerConsole = &DockerConsole{
-		socketproxy: proxy.CreateProxy("dockerconsole", "websocket", defaultDockerConsoleEndpoints),
+		socketproxy: proxy.CreateProxy("dockerconsole", "websocket", configs.Default().APIConfig.DockerConsoleServers),
 	}
-	discover.GetEndpointDiscover().AddProject("acp_webcli", dockerConsole.socketproxy)
+	//discover.GetEndpointDiscover().AddProject("acp_webcli", dockerConsole.socketproxy)
 	return dockerConsole
 }
 
-//Get get
+// Get get
 func (d DockerConsole) Get(w http.ResponseWriter, r *http.Request) {
 	d.socketproxy.Proxy(w, r)
 }
 
 var dockerLog *DockerLog
 
-//DockerLog docker log
+// DockerLog docker log
 type DockerLog struct {
 	socketproxy proxy.Proxy
 }
 
-//GetDockerLog get docker log
+// GetDockerLog get docker log
 func GetDockerLog() *DockerLog {
 	if dockerLog == nil {
 		dockerLog = &DockerLog{
-			socketproxy: proxy.CreateProxy("dockerlog", "websocket", defaultEventLogEndpoints),
+			socketproxy: proxy.CreateProxy("dockerlog", "websocket", configs.Default().APIConfig.EventLogEndpoints),
 		}
-		discover.GetEndpointDiscover().AddProject("event_log_event_http", dockerLog.socketproxy)
+		//discover.GetEndpointDiscover().AddProject("event_log_event_http", dockerLog.socketproxy)
 	}
 	return dockerLog
 }
 
-//Get get
+// Get get
 func (d DockerLog) Get(w http.ResponseWriter, r *http.Request) {
 	d.socketproxy.Proxy(w, r)
 }
 
-//MonitorMessage monitor message
+// MonitorMessage monitor message
 type MonitorMessage struct {
 	socketproxy proxy.Proxy
 }
 
 var monitorMessage *MonitorMessage
 
-//GetMonitorMessage get MonitorMessage
+// GetMonitorMessage get MonitorMessage
 func GetMonitorMessage() *MonitorMessage {
 	if monitorMessage == nil {
 		monitorMessage = &MonitorMessage{
-			socketproxy: proxy.CreateProxy("monitormessage", "websocket", defaultEventLogEndpoints),
+			socketproxy: proxy.CreateProxy("monitormessage", "websocket", configs.Default().APIConfig.EventLogEndpoints),
 		}
-		discover.GetEndpointDiscover().AddProject("event_log_event_http", monitorMessage.socketproxy)
+		//discover.GetEndpointDiscover().AddProject("event_log_event_http", monitorMessage.socketproxy)
 	}
 	return monitorMessage
 }
 
-//Get get
+// Get get
 func (d MonitorMessage) Get(w http.ResponseWriter, r *http.Request) {
 	d.socketproxy.Proxy(w, r)
 }
 
-//EventLog event log
+// EventLog event log
 type EventLog struct {
 	socketproxy proxy.Proxy
 }
 
 var eventLog *EventLog
 
-//GetEventLog get event log
+// GetEventLog get event log
 func GetEventLog() *EventLog {
 	if eventLog == nil {
 		eventLog = &EventLog{
-			socketproxy: proxy.CreateProxy("eventlog", "websocket", defaultEventLogEndpoints),
+			socketproxy: proxy.CreateProxy("eventlog", "websocket", configs.Default().APIConfig.EventLogEndpoints),
 		}
-		discover.GetEndpointDiscover().AddProject("event_log_event_http", eventLog.socketproxy)
+		//discover.GetEndpointDiscover().AddProject("event_log_event_http", eventLog.socketproxy)
 	}
 	return eventLog
 }
 
-//Get get
+// Get get
 func (d EventLog) Get(w http.ResponseWriter, r *http.Request) {
 	d.socketproxy.Proxy(w, r)
 }
 
-//LogFile log file down server
+// LogFile log file down server
 type LogFile struct {
 	Root string
 }
 
 var logFile *LogFile
 
-//GetLogFile get  log file
+// GetLogFile get  log file
 func GetLogFile() *LogFile {
 	root := os.Getenv("SERVICE_LOG_ROOT")
 	if root == "" {
@@ -151,7 +148,7 @@ func GetLogFile() *LogFile {
 	return logFile
 }
 
-//Get get
+// Get get
 func (d LogFile) Get(w http.ResponseWriter, r *http.Request) {
 	gid := chi.URLParam(r, "gid")
 	filename := chi.URLParam(r, "filename")
@@ -180,23 +177,23 @@ func (d LogFile) GetInstallLog(w http.ResponseWriter, r *http.Request) {
 
 var pubSubControll *PubSubControll
 
-//PubSubControll service pub sub
+// PubSubControll service pub sub
 type PubSubControll struct {
 	socketproxy proxy.Proxy
 }
 
-//GetPubSubControll get service pub sub controller
+// GetPubSubControll get service pub sub controller
 func GetPubSubControll() *PubSubControll {
 	if pubSubControll == nil {
 		pubSubControll = &PubSubControll{
-			socketproxy: proxy.CreateProxy("dockerlog", "websocket", defaultEventLogEndpoints),
+			socketproxy: proxy.CreateProxy("dockerlog", "websocket", configs.Default().APIConfig.EventLogEndpoints),
 		}
-		discover.GetEndpointDiscover().AddProject("event_log_event_http", pubSubControll.socketproxy)
+		//discover.GetEndpointDiscover().AddProject("event_log_event_http", pubSubControll.socketproxy)
 	}
 	return pubSubControll
 }
 
-//Get pubsub controller
+// Get pubsub controller
 func (d PubSubControll) Get(w http.ResponseWriter, r *http.Request) {
 	serviceID := chi.URLParam(r, "serviceID")
 	name, _ := handler.GetEventHandler().GetLogInstance(serviceID)
@@ -207,7 +204,7 @@ func (d PubSubControll) Get(w http.ResponseWriter, r *http.Request) {
 	d.socketproxy.Proxy(w, r)
 }
 
-//GetHistoryLog get service docker logs
+// GetHistoryLog get service docker logs
 func (d PubSubControll) GetHistoryLog(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	name, _ := handler.GetEventHandler().GetLogInstance(serviceID)

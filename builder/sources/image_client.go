@@ -21,7 +21,7 @@ type ImageClient interface {
 	ImagesPullAndPush(sourceImage, targetImage, username, password string, logger event.Logger) error
 	ImageRemove(image string) error
 	ImageSave(image, destination string) error
-	ImageLoad(tarFile string, logger event.Logger) error
+	ImageLoad(tarFile string, logger event.Logger) ([]string, error)
 	TrustedImagePush(image, user, pass string, logger event.Logger, timeout int) error
 }
 

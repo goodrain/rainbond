@@ -96,6 +96,12 @@ type TenantInterface interface {
 type HelmInterface interface {
 	CheckHelmApp(w http.ResponseWriter, r *http.Request)
 	GetChartInformation(w http.ResponseWriter, r *http.Request)
+	GetYamlByChart(w http.ResponseWriter, r *http.Request)
+	GetUploadChartInformation(w http.ResponseWriter, r *http.Request)
+	CheckUploadChart(w http.ResponseWriter, r *http.Request)
+	GetUploadChartResource(w http.ResponseWriter, r *http.Request)
+	ImportUploadChartResource(w http.ResponseWriter, r *http.Request)
+	GetUploadChartValue(w http.ResponseWriter, r *http.Request)
 }
 
 // ServiceInterface ServiceInterface
@@ -108,6 +114,8 @@ type ServiceInterface interface {
 	CreateService(w http.ResponseWriter, r *http.Request)
 	UpdateService(w http.ResponseWriter, r *http.Request)
 	Dependency(w http.ResponseWriter, r *http.Request)
+	Dependencys(w http.ResponseWriter, r *http.Request)
+
 	Env(w http.ResponseWriter, r *http.Request)
 	Ports(w http.ResponseWriter, r *http.Request)
 	PutPorts(w http.ResponseWriter, r *http.Request)
@@ -142,6 +150,8 @@ type TenantInterfaceWithV1 interface {
 	VerticalService(w http.ResponseWriter, r *http.Request)
 	HorizontalService(w http.ResponseWriter, r *http.Request)
 	BuildService(w http.ResponseWriter, r *http.Request)
+	PauseService(w http.ResponseWriter, r *http.Request)
+	UNPauseService(w http.ResponseWriter, r *http.Request)
 	DeployService(w http.ResponseWriter, r *http.Request)
 	UpgradeService(w http.ResponseWriter, r *http.Request)
 	StatusService(w http.ResponseWriter, r *http.Request)
@@ -276,4 +286,10 @@ type PodInterface interface {
 // RegistryAuthSecretInterface registry auth secret interface
 type RegistryAuthSecretInterface interface {
 	RegistryAuthSecret(w http.ResponseWriter, r *http.Request)
+}
+
+// RegistryInterface registry  interface
+type RegistryInterface interface {
+	GetAllRepo(w http.ResponseWriter, r *http.Request)
+	GetTagsByRepoName(w http.ResponseWriter, r *http.Request)
 }

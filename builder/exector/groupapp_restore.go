@@ -44,7 +44,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-//BackupAPPRestore restrore the  group app backup
+// BackupAPPRestore restrore the  group app backup
 type BackupAPPRestore struct {
 	//full-online,full-offline
 	EventID  string
@@ -72,7 +72,7 @@ type BackupAPPRestore struct {
 	} `json:"s3_config"`
 }
 
-//Info service cache info
+// Info service cache info
 type Info struct {
 	ServiceID    string
 	ServiceAlias string
@@ -84,7 +84,7 @@ func init() {
 	RegisterWorker("backup_apps_restore", BackupAPPRestoreCreater)
 }
 
-//BackupAPPRestoreCreater create
+// BackupAPPRestoreCreater create
 func BackupAPPRestoreCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
@@ -102,7 +102,7 @@ func BackupAPPRestoreCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	return backupRestore, nil
 }
 
-//Run Run
+// Run Run
 func (b *BackupAPPRestore) Run(timeout time.Duration) error {
 	//download or copy backup data
 	backup, err := db.GetManager().AppBackupDao().GetAppBackup(b.BackupID)
@@ -228,7 +228,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 		allTmpDir := fmt.Sprintf("/grdata/tmp/%s", app.ServiceID)
 		if exist, _ := util.FileExists(allDataFilePath); exist {
 			logrus.Infof("unzip all data from %s to %s", allDataFilePath, allTmpDir)
-			if err := util.Unzip(allDataFilePath, allTmpDir); err != nil {
+			if err := util.Unzip(allDataFilePath, allTmpDir, false); err != nil {
 				logrus.Errorf("unzip all data file failure %s", err.Error())
 			} else {
 				allDataRestore = true
@@ -243,7 +243,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 				dstDir := fmt.Sprintf("%s/data_%s/%s.zip", b.cacheDir, b.getOldServiceID(app.ServiceID), strings.Replace(volume.VolumeName, "/", "", -1))
 				tmpDir = fmt.Sprintf("/grdata/tmp/%s_%d", volume.ServiceID, volume.ID)
 				logrus.Infof("unzip %s to %s", dstDir, tmpDir)
-				if err := util.Unzip(dstDir, tmpDir); err != nil {
+				if err := util.Unzip(dstDir, tmpDir, false); err != nil {
 					if !strings.Contains(err.Error(), "no such file") {
 						logrus.Errorf("restore service(%s) volume(%s) data error.%s", app.ServiceID, volume.VolumeName, err.Error())
 						return err
@@ -343,7 +343,7 @@ func (b *BackupAPPRestore) restoreVersionAndData(backup *dbmodel.AppBackup, appS
 	// restore plugin image
 	for _, pb := range appSnapshot.PluginBuildVersions {
 		dstDir := fmt.Sprintf("%s/plugin_%s/image_%s.tar", b.cacheDir, pb.PluginID, pb.DeployVersion)
-		if err := b.ImageClient.ImageLoad(dstDir, b.Logger); err != nil {
+		if _, err := b.ImageClient.ImageLoad(dstDir, b.Logger); err != nil {
 			b.Logger.Error(util.Translation("load image to local hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
 			logrus.Errorf("dst: %s; failed to load plugin image: %v", dstDir, err)
 			return err
@@ -382,7 +382,7 @@ func (b *BackupAPPRestore) downloadSlug(backup *dbmodel.AppBackup, app *RegionSe
 
 func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionServiceSnapshot, version *dbmodel.VersionInfo) error {
 	dstDir := fmt.Sprintf("%s/app_%s/image_%s.tar", b.cacheDir, b.getOldServiceID(app.ServiceID), version.BuildVersion)
-	if err := b.ImageClient.ImageLoad(dstDir, b.Logger); err != nil {
+	if _, err := b.ImageClient.ImageLoad(dstDir, b.Logger); err != nil {
 		b.Logger.Error(util.Translation("load image to local hub error"), map[string]string{"step": "restore_builder", "status": "failure"})
 		logrus.Errorf("load image to local hub error when restore backup app, %s", err.Error())
 		return err
@@ -410,7 +410,7 @@ func (b *BackupAPPRestore) downloadImage(backup *dbmodel.AppBackup, app *RegionS
 	return nil
 }
 
-//if restore error, will clear
+// if restore error, will clear
 func (b *BackupAPPRestore) clear() {
 	//clear db
 	manager := db.GetManager()
@@ -712,7 +712,7 @@ func (b *BackupAPPRestore) restoreMetadata(appSnapshot *AppSnapshot) error {
 
 func (b *BackupAPPRestore) downloadFromLocal(backup *dbmodel.AppBackup) error {
 	sourceDir := backup.SourceDir
-	err := util.Unzip(sourceDir, b.cacheDir)
+	err := util.Unzip(sourceDir, b.cacheDir, false)
 	if err != nil {
 		b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "backup_builder", "status": "failure"})
 		logrus.Errorf("unzip file error when restore backup app , %s", err.Error())
@@ -752,7 +752,7 @@ func (b *BackupAPPRestore) downloadFromS3(sourceDir string) error {
 	}
 	logrus.Debugf("successfully downloading backup file: %s", disDir)
 
-	err = util.Unzip(disDir, b.cacheDir)
+	err = util.Unzip(disDir, b.cacheDir, false)
 	if err != nil {
 		// b.Logger.Error(util.Translation("unzip metadata file error"), map[string]string{"step": "backup_builder", "status": "failure"})
 		logrus.Errorf("error unzipping backup file: %v", err)
@@ -769,22 +769,22 @@ func (b *BackupAPPRestore) downloadFromS3(sourceDir string) error {
 	return nil
 }
 
-//Stop stop
+// Stop stop
 func (b *BackupAPPRestore) Stop() error {
 	return nil
 }
 
-//Name return worker name
+// Name return worker name
 func (b *BackupAPPRestore) Name() string {
 	return "backup_apps_restore"
 }
 
-//GetLogger GetLogger
+// GetLogger GetLogger
 func (b *BackupAPPRestore) GetLogger() event.Logger {
 	return b.Logger
 }
 
-//ErrorCallBack if run error will callback
+// ErrorCallBack if run error will callback
 func (b *BackupAPPRestore) ErrorCallBack(err error) {
 	if err != nil {
 		logrus.Errorf("restore backup group app failure %s", err)
@@ -794,7 +794,7 @@ func (b *BackupAPPRestore) ErrorCallBack(err error) {
 	}
 }
 
-//RestoreResult RestoreResult
+// RestoreResult RestoreResult
 type RestoreResult struct {
 	Status        string           `json:"status"`
 	Message       string           `json:"message"`

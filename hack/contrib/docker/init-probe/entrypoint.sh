@@ -4,5 +4,5 @@ if [ "$1" = "bash" ];then
 elif [ "$1" = "version" ];then
     /run/rainbond-init-probe version
 else
-    exec /run/rainbond-init-probe $@
+    exec /bin/tini -- /run/rainbond-init-probe $@
 fi

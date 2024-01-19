@@ -20,6 +20,7 @@ package event
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/gogo"
 	"io"
 	"os"
 	"strings"
@@ -27,19 +28,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/goodrain/rainbond/discover"
 	"github.com/goodrain/rainbond/discover/config"
 	eventclient "github.com/goodrain/rainbond/eventlog/entry/grpc/client"
 	eventpb "github.com/goodrain/rainbond/eventlog/entry/grpc/pb"
 	"github.com/goodrain/rainbond/util"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
-//Manager 操作日志，客户端服务
-//客户端负载均衡
+// Manager 操作日志，客户端服务
+// 客户端负载均衡
 type Manager interface {
 	GetLogger(eventID string) Logger
 	Start() error
@@ -50,7 +49,6 @@ type Manager interface {
 // EventConfig event config struct
 type EventConfig struct {
 	EventLogServers []string
-	DiscoverArgs    *etcdutil.ClientArgs
 }
 type manager struct {
 	ctx            context.Context
@@ -62,28 +60,14 @@ type manager struct {
 	lock           sync.Mutex
 	eventServer    []string
 	abnormalServer map[string]string
-	dis            discover.Discover
 }
 
 var defaultManager Manager
 
-const (
-	//REQUESTTIMEOUT  time out
-	REQUESTTIMEOUT = 1000 * time.Millisecond
-	//MAXRETRIES 重试
-	MAXRETRIES = 3 //  Before we abandon
-	buffersize = 1000
-)
+const buffersize = 1000
 
-//NewManager 创建manager
+// NewManager 创建manager
 func NewManager(conf EventConfig) error {
-	dis, err := discover.GetDiscover(config.DiscoverConfig{EtcdClientArgs: conf.DiscoverArgs})
-	if err != nil {
-		logrus.Error("create discover manager error.", err.Error())
-		if len(conf.EventLogServers) < 1 {
-			return err
-		}
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defaultManager = &manager{
 		ctx:            ctx,
@@ -92,13 +76,12 @@ func NewManager(conf EventConfig) error {
 		loggers:        make(map[string]Logger, 1024),
 		handles:        make(map[string]handle),
 		eventServer:    conf.EventLogServers,
-		dis:            dis,
 		abnormalServer: make(map[string]string),
 	}
 	return defaultManager.Start()
 }
 
-//GetManager 获取日志服务
+// GetManager 获取日志服务
 func GetManager() Manager {
 	return defaultManager
 }
@@ -108,86 +91,68 @@ func NewTestManager(m Manager) {
 	defaultManager = m
 }
 
-//CloseManager 关闭日志服务
+// CloseManager 关闭日志服务
 func CloseManager() {
 	if defaultManager != nil {
 		defaultManager.Close()
 	}
 }
 
+// Start -
 func (m *manager) Start() error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	for i := 0; i < len(m.eventServer); i++ {
-		h := handle{
-			cacheChan: make(chan []byte, buffersize),
-			stop:      make(chan struct{}),
-			server:    m.eventServer[i],
-			manager:   m,
-			ctx:       m.ctx,
+	if len(m.eventServer) == 0 {
+		logrus.Errorf("event log server is empty , plase set it in config file.")
+		return nil
+	}
+	defaultServer := m.eventServer[0]
+
+	err := gogo.Go(func(ctx context.Context) error {
+		for {
+			h := handle{
+				cacheChan: make(chan []byte, buffersize),
+				stop:      make(chan struct{}),
+				server:    defaultServer,
+				manager:   m,
+				ctx:       m.ctx,
+			}
+			m.handles[defaultServer] = h
+			err := h.HandleLog()
+			if err != nil {
+				time.Sleep(time.Second * 10)
+				logrus.Warnf("event log server %s connect error: %v. auto retry after 10 seconds ", defaultServer, err)
+				continue
+			}
+			return nil
 		}
-		m.handles[m.eventServer[i]] = h
-		go h.HandleLog()
+	})
+
+	if err != nil {
+		logrus.Errorf("event log server %s connect error, %v", defaultServer, err)
+		return err
 	}
-	if m.dis != nil {
-		m.dis.AddProject("event_log_event_grpc", m)
-	}
+
 	go m.GC()
 	return nil
 }
 
+// UpdateEndpoints - 不需要去更新节点信息
 func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	if endpoints == nil || len(endpoints) < 1 {
-		return
-	}
-	//清空不可用节点信息，以服务发现为主
-	m.abnormalServer = make(map[string]string)
-	//增加新节点
-	var new = make(map[string]string)
-	for _, end := range endpoints {
-		new[end.URL] = end.URL
-		if _, ok := m.handles[end.URL]; !ok {
-			h := handle{
-				cacheChan: make(chan []byte, buffersize),
-				stop:      make(chan struct{}),
-				server:    end.URL,
-				manager:   m,
-				ctx:       m.ctx,
-			}
-			m.handles[end.URL] = h
-			logrus.Infof("Add event server endpoint,%s", end.URL)
-			go h.HandleLog()
-		}
-	}
-	//删除旧节点
-	for k := range m.handles {
-		if _, ok := new[k]; !ok {
-			delete(m.handles, k)
-			logrus.Infof("Remove event server endpoint,%s", k)
-		}
-	}
-	var eventServer []string
-	for k := range new {
-		eventServer = append(eventServer, k)
-	}
-	m.eventServer = eventServer
-	m.config.EventLogServers = eventServer
-	logrus.Debugf("update event handle core success,handle core count:%d, event server count:%d", len(m.handles), len(m.eventServer))
 }
 
+// Error -
 func (m *manager) Error(err error) {
 
 }
+
+// Close -
 func (m *manager) Close() error {
 	m.cancel()
-	if m.dis != nil {
-		m.dis.Stop()
-	}
 	return nil
 }
 
+// GC -
 func (m *manager) GC() {
 	util.IntermittentExec(m.ctx, func() {
 		m.lock.Lock()
@@ -208,8 +173,7 @@ func (m *manager) GC() {
 	}, time.Second*20)
 }
 
-//GetLogger
-//使用完成后必须调用ReleaseLogger方法
+// GetLogger 使用完成后必须调用ReleaseLogger方法
 func (m *manager) GetLogger(eventID string) Logger {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -224,6 +188,7 @@ func (m *manager) GetLogger(eventID string) Logger {
 	return l
 }
 
+// ReleaseLogger 释放logger
 func (m *manager) ReleaseLogger(l Logger) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -240,6 +205,7 @@ type handle struct {
 	manager   *manager
 }
 
+// DiscardedLoggerChan -
 func (m *manager) DiscardedLoggerChan(cacheChan chan []byte) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -285,6 +251,8 @@ func (m *manager) getLBChan() chan []byte {
 	}
 	return nil
 }
+
+// RemoveHandle -
 func (m *manager) RemoveHandle(server string) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -292,6 +260,8 @@ func (m *manager) RemoveHandle(server string) {
 		delete(m.handles, server)
 	}
 }
+
+// HandleLog -
 func (m *handle) HandleLog() error {
 	defer m.manager.RemoveHandle(m.server)
 	return util.Exec(m.ctx, func() error {
@@ -332,11 +302,12 @@ func (m *handle) HandleLog() error {
 	}, time.Second*3)
 }
 
+// Stop -
 func (m *handle) Stop() {
 	close(m.stop)
 }
 
-//Logger 日志发送器
+// Logger 日志发送器
 type Logger interface {
 	Info(string, map[string]string)
 	Error(string, map[string]string)
@@ -363,9 +334,12 @@ type logger struct {
 	createTime time.Time
 }
 
+// GetChan -
 func (l *logger) GetChan() chan []byte {
 	return l.sendChan
 }
+
+// SetChan -
 func (l *logger) SetChan(ch chan []byte) {
 	l.sendChan = ch
 }
@@ -406,7 +380,7 @@ func (l *logger) send(message string, info map[string]string) {
 	}
 }
 
-//LoggerWriter logger writer
+// LoggerWriter logger writer
 type LoggerWriter interface {
 	io.Writer
 	SetFormat(map[string]interface{})
@@ -475,7 +449,7 @@ func (l *loggerWriter) Write(b []byte) (n int, err error) {
 	return len(b), nil
 }
 
-//GetTestLogger GetTestLogger
+// GetTestLogger GetTestLogger
 func GetTestLogger() Logger {
 	return &testLogger{}
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	dockercli "github.com/docker/docker/client"
 	"github.com/sirupsen/logrus"
-	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
 	"os"
 	"strings"
 	"time"

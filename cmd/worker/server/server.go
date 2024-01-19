@@ -20,6 +20,7 @@ package server
 
 import (
 	"k8s.io/client-go/restmapper"
+	"kubevirt.io/client-go/kubecli"
 	"os"
 	"os/signal"
 	"syscall"
@@ -31,7 +32,6 @@ import (
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/pkg/common"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm/componentdefinition"
 	"github.com/goodrain/rainbond/worker/appm/controller"
@@ -47,7 +47,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-//Run start run
+// Run start run
 func Run(s *option.Worker) error {
 	errChan := make(chan error, 2)
 	dbconfig := config.Config{
@@ -61,15 +61,8 @@ func Run(s *option.Worker) error {
 		return err
 	}
 	defer db.CloseManager()
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints: s.Config.EtcdEndPoints,
-		CaFile:    s.Config.EtcdCaFile,
-		CertFile:  s.Config.EtcdCertFile,
-		KeyFile:   s.Config.EtcdKeyFile,
-	}
 	if err := event.NewManager(event.EventConfig{
 		EventLogServers: s.Config.EventLogServers,
-		DiscoverArgs:    etcdClientArgs,
 	}); err != nil {
 		return err
 	}
@@ -82,6 +75,7 @@ func Run(s *option.Worker) error {
 		return err
 	}
 	restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(s.Config.KubeAPIQPS), s.Config.KubeAPIBurst)
+	kubevirtCli, err := kubecli.GetKubevirtClientFromRESTConfig(restConfig)
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		logrus.Errorf("create kube client error: %s", err.Error())
@@ -106,14 +100,14 @@ func Run(s *option.Worker) error {
 	//step 4: create component resource store
 	updateCh := channels.NewRingChannel(1024)
 	k8sVersion := k8sutil.GetKubeVersion()
-	cachestore := store.NewStore(restConfig, clientset, rainbondClient, db.GetManager(), s.Config, k8sVersion)
+	cachestore := store.NewStore(restConfig, clientset, rainbondClient, db.GetManager(), s.Config, k8sVersion, kubevirtCli)
 	if err := cachestore.Start(); err != nil {
 		logrus.Error("start kube cache store error", err)
 		return err
 	}
 
 	//step 5: create controller manager
-	controllerManager := controller.NewManager(s.Config, cachestore, clientset, runtimeClient)
+	controllerManager := controller.NewManager(s.Config, cachestore, clientset, runtimeClient, kubevirtCli)
 	defer controllerManager.Stop()
 
 	//step 6 : start runtime master

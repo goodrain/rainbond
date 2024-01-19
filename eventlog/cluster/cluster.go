@@ -38,7 +38,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//Cluster 集群模块对外服务
+// Cluster 集群模块对外服务
 type Cluster interface {
 	//获取一个承接日志的节点
 	GetSuitableInstance(serviceID string) *discover.Instance
@@ -51,7 +51,7 @@ type Cluster interface {
 	Scrape(ch chan<- prometheus.Metric, namespace, exporter string) error
 }
 
-//ClusterManager 控制器
+// ClusterManager 控制器
 type ClusterManager struct {
 	discover     discover.Manager
 	zmqPub       *connect.Pub
@@ -65,7 +65,7 @@ type ClusterManager struct {
 	etcdClient   *clientv3.Client
 }
 
-//NewCluster 创建集群控制器
+// NewCluster 创建集群控制器
 func NewCluster(etcdClient *clientv3.Client, conf conf.ClusterConf, log *logrus.Entry, storeManager store.Manager) Cluster {
 	ctx, cancel := context.WithCancel(context.Background())
 	discover := discover.New(etcdClient, conf.Discover, log.WithField("module", "Discover"))
@@ -87,7 +87,7 @@ func NewCluster(etcdClient *clientv3.Client, conf conf.ClusterConf, log *logrus.
 	}
 }
 
-//Start 启动
+// Start 启动
 func (s *ClusterManager) Start() error {
 	if err := s.discover.Run(); err != nil {
 		return err
@@ -105,7 +105,7 @@ func (s *ClusterManager) Start() error {
 	return nil
 }
 
-//Stop 停止
+// Stop 停止
 func (s *ClusterManager) Stop() {
 	s.cancel()
 	s.distribution.Stop()
@@ -114,12 +114,12 @@ func (s *ClusterManager) Stop() {
 	s.discover.Stop()
 }
 
-//GetSuitableInstance 获取适合的日志接收节点
+// GetSuitableInstance 获取适合的日志接收节点
 func (s *ClusterManager) GetSuitableInstance(serviceID string) *discover.Instance {
 	return s.distribution.GetSuitableInstance(serviceID)
 }
 
-//MessageRadio 消息广播
+// MessageRadio 消息广播
 func (s *ClusterManager) MessageRadio(mes ...db.ClusterMessage) {
 	for _, m := range mes {
 		s.zmqPub.RadioChan <- m
@@ -153,7 +153,7 @@ func (s *ClusterManager) monitor() {
 	}
 }
 
-//Scrape prometheus monitor metrics
+// Scrape prometheus monitor metrics
 func (s *ClusterManager) Scrape(ch chan<- prometheus.Metric, namespace, exporter string) error {
 	s.discover.Scrape(ch, namespace, exporter)
 	return nil

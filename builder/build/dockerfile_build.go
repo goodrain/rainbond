@@ -70,7 +70,7 @@ func (d *dockerfileBuild) Build(re *Request) (*Response, error) {
 	}, nil
 }
 
-//The same component retains only one build task to perform
+// The same component retains only one build task to perform
 func (d *dockerfileBuild) stopPreBuildJob(re *Request) error {
 	jobList, err := jobc.GetJobController().GetServiceJobs(re.ServiceID)
 	if err != nil {
@@ -110,6 +110,11 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 								Key:      "kubernetes.io/arch",
 								Operator: corev1.NodeSelectorOpIn,
 								Values:   []string{re.Arch},
+							},
+							{
+								Key:      "kubernetes.io/hostname",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{os.Getenv("HOST_IP")},
 							},
 						},
 					},
@@ -168,6 +173,13 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 	if len(re.BuildKitArgs) > 0 {
 		container.Args = append(container.Args, re.BuildKitArgs...)
 	}
+	for key := range re.BuildEnvs {
+		if strings.HasPrefix(key, "ARG_") {
+			envKey := strings.Replace(key, "ARG_", "", -1)
+			container.Args = append(container.Args, fmt.Sprintf("--opt=build-arg:%s=%s", envKey, re.BuildEnvs[key]))
+		}
+	}
+
 	container.VolumeMounts = mounts
 	podSpec.Containers = append(podSpec.Containers, container)
 	job.Spec = podSpec
@@ -212,6 +224,14 @@ func (d *dockerfileBuild) createVolumeAndMount(re *Request, secretName, ServiceI
 	volumes = []corev1.Volume{
 		dockerfileBuildVolume,
 		{
+			Name: "grdata",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "rbd-cpt-grdata",
+				},
+			},
+		},
+		{
 			Name: "buildkittoml",
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -250,6 +270,10 @@ func (d *dockerfileBuild) createVolumeAndMount(re *Request, secretName, ServiceI
 		},
 	}
 	volumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "grdata",
+			MountPath: "/grdata",
+		},
 		{
 			Name:      "dockerfile-build",
 			MountPath: "/cache",

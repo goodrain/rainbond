@@ -116,7 +116,7 @@ func (s *slugBuild) writeRunDockerfile(sourceDir, packageName string, envs map[s
 	return ioutil.WriteFile(path.Join(sourceDir, "Dockerfile"), []byte(result), 0755)
 }
 
-//buildRunnerImage Wrap slug in the runner image
+// buildRunnerImage Wrap slug in the runner image
 func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 	imageName := CreateImageName(s.re.ServiceID, s.re.DeployVersion)
 	cacheDir := path.Join(path.Dir(slugPackage), "."+s.re.DeployVersion)
@@ -138,7 +138,7 @@ func (s *slugBuild) buildRunnerImage(slugPackage string) (string, error) {
 		return "", fmt.Errorf("write default runtime dockerfile error:%s", err.Error())
 	}
 	//build runtime image
-	if err := s.re.ImageClient.ImagesPullAndPush(builder.RUNNERIMAGENAME, builder.ONLINERUNNERIMAGENAME, "", "", s.re.Logger); err != nil {
+	if err := s.re.ImageClient.ImagesPullAndPush(builder.RUNNERIMAGENAME, builder.GetRunnerImage(s.re.BRVersion), "", "", s.re.Logger); err != nil {
 		return "", fmt.Errorf("pull image %s: %v", builder.RUNNERIMAGENAME, err)
 	}
 	logrus.Infof("pull image %s successfully.", builder.RUNNERIMAGENAME)
@@ -169,8 +169,8 @@ func (s *slugBuild) getSourceCodeTarFile(re *Request) (string, error) {
 	return sourceTarFile, nil
 }
 
-//stopPreBuildJob Stops previous build tasks for the same component
-//The same component retains only one build task to perform
+// stopPreBuildJob Stops previous build tasks for the same component
+// The same component retains only one build task to perform
 func (s *slugBuild) stopPreBuildJob(re *Request) error {
 	jobList, err := jobc.GetJobController().GetServiceJobs(re.ServiceID)
 	if err != nil {
@@ -184,7 +184,7 @@ func (s *slugBuild) stopPreBuildJob(re *Request) error {
 	return nil
 }
 
-func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string, buildNoCache bool) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 	slugSubPath := strings.TrimPrefix(re.TGZDir, "/grdata/")
 	lazyloading := sourceTarFileName == ""
 	sourceTarPath := strings.TrimPrefix(sourceTarFileName, "/cache/")
@@ -194,10 +194,6 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 	unset := corev1.HostPathUnset
 	if re.CacheMode == "hostpath" {
 		volumeMounts = []corev1.VolumeMount{
-			{
-				Name:      "cache",
-				MountPath: "/tmp/cache",
-			},
 			{
 				Name:      "slug",
 				MountPath: "/tmp/slug",
@@ -219,15 +215,6 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 					},
 				},
 			},
-			{
-				Name: "cache",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: path.Join(re.CachePath, cacheSubPath),
-						Type: &hostPathType,
-					},
-				},
-			},
 		}
 		if !lazyloading {
 			volumes = append(volumes, corev1.Volume{
@@ -239,6 +226,21 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 						Type: &unset,
 					},
 				},
+			})
+		}
+		if !buildNoCache {
+			volumes = append(volumes, corev1.Volume{
+				Name: "cache",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: path.Join(re.CachePath, cacheSubPath),
+						Type: &hostPathType,
+					},
+				},
+			})
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      "cache",
+				MountPath: "/tmp/cache",
 			})
 		}
 	} else {
@@ -262,11 +264,6 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 		}
 		volumeMounts = []corev1.VolumeMount{
 			{
-				Name:      "app",
-				MountPath: "/tmp/cache",
-				SubPath:   cacheSubPath,
-			},
-			{
 				Name:      "slug",
 				MountPath: "/tmp/slug",
 				SubPath:   slugSubPath,
@@ -277,6 +274,13 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string) 
 				Name:      "app",
 				MountPath: "/tmp/app-source.tar",
 				SubPath:   sourceTarPath,
+			})
+		}
+		if !buildNoCache {
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      "app",
+				MountPath: "/tmp/cache",
+				SubPath:   cacheSubPath,
 			})
 		}
 	}
@@ -341,6 +345,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		envs = append(envs, corev1.EnvVar{Name: "PACKAGE_DOWNLOAD_PASS", Value: re.CodeSouceInfo.Password})
 	}
 	var mavenSettingName string
+	var buildNoCache bool
 	for k, v := range re.BuildEnvs {
 		if k == "MAVEN_SETTING_NAME" {
 			mavenSettingName = v
@@ -362,6 +367,9 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 				}
 			}
 		}
+		if k == "NO_CACHE" && v == "True" {
+			buildNoCache = true
+		}
 	}
 	podSpec := corev1.PodSpec{
 		RestartPolicy: corev1.RestartPolicyOnFailure,
@@ -374,6 +382,11 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 								Key:      "kubernetes.io/arch",
 								Operator: corev1.NodeSelectorOpIn,
 								Values:   []string{re.Arch},
+							},
+							{
+								Key:      "kubernetes.io/hostname",
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{os.Getenv("HOST_IP")},
 							},
 						},
 					},
@@ -400,7 +413,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	}
 	logrus.Debugf("request is: %+v", re)
 
-	volumes, mounts := s.createVolumeAndMount(re, sourceTarFileName)
+	volumes, mounts := s.createVolumeAndMount(re, sourceTarFileName, buildNoCache)
 	podSpec.Volumes = volumes
 	container := corev1.Container{
 		Name:      name,
@@ -464,7 +477,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	defer cancel()
 
 	// Get builder image at build time
-	if err := s.re.ImageClient.ImagesPullAndPush(builder.BUILDERIMAGENAME, builder.ONLINEBUILDERIMAGENAME, "", "", re.Logger); err != nil {
+	if err := s.re.ImageClient.ImagesPullAndPush(builder.BUILDERIMAGENAME, builder.GetBuilderImage(s.re.BRVersion), "", "", re.Logger); err != nil {
 		return err
 	}
 
@@ -532,7 +545,7 @@ func (s *slugBuild) setImagePullSecretsForPod(pod *corev1.Pod) {
 	}
 }
 
-//ErrorBuild build error
+// ErrorBuild build error
 type ErrorBuild struct {
 	Code int
 }

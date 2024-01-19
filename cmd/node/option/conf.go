@@ -50,7 +50,7 @@ var (
 	exitChan = make(chan struct{})
 )
 
-//Init  init config
+// Init  init config
 func Init() error {
 	if initialized {
 		return nil
@@ -64,7 +64,7 @@ func Init() error {
 	return nil
 }
 
-//Conf Conf
+// Conf Conf
 type Conf struct {
 	APIAddr                         string //api server listen port
 	GrpcAPIAddr                     string //grpc api server listen port
@@ -135,7 +135,7 @@ type Conf struct {
 	HostsFile           string
 }
 
-//StatsdConfig StatsdConfig
+// StatsdConfig StatsdConfig
 type StatsdConfig struct {
 	StatsdListenAddress string
 	StatsdListenUDP     string
@@ -144,25 +144,22 @@ type StatsdConfig struct {
 	ReadBuffer          int
 }
 
-//UDPMonitorConfig UDPMonitorConfig
+// UDPMonitorConfig UDPMonitorConfig
 type UDPMonitorConfig struct {
 	ListenHost string
 	ListenPort string
 }
 
-//AddFlags AddFlags
+// AddFlags AddFlags
 func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the log level")
 	fs.StringVar(&a.LogFile, "log-file", "", "the log file path that log output")
-	fs.StringVar(&a.PrometheusAPI, "prometheus", "http://rbd-monitor:9999", "the prometheus server address")
 	fs.StringVar(&a.NodePath, "nodePath", "/rainbond/nodes", "the path of node in etcd")
 	fs.StringVar(&a.HostID, "nodeid", "", "the unique ID for this node. Just specify, don't modify")
 	fs.StringVar(&a.HostIP, "hostIP", "", "the host ip you can define. default get ip from eth0")
 	fs.StringVar(&a.PodIP, "podIP", "", "The pod ip of node.")
-	fs.StringSliceVar(&a.EventLogServer, "event-log-server", []string{"127.0.0.1:6366"}, "host:port slice of event log server")
 	fs.StringVar(&a.ConfigStoragePath, "config-path", "/rainbond/acp_configs", "the path of config to store(new)")
 	fs.StringVar(&a.Service, "servicePath", "/traefik/backends", "the path of service info to store")
-	fs.StringSliceVar(&a.EtcdEndpoints, "etcd", []string{"http://127.0.0.1:2379"}, "the path of node in etcd")
 	fs.StringVar(&a.EtcdCaFile, "etcd-ca", "", "verify etcd certificates of TLS-enabled secure servers using this CA bundle")
 	fs.StringVar(&a.EtcdCertFile, "etcd-cert", "", "identify secure etcd client using this TLS certificate file")
 	fs.StringVar(&a.EtcdKeyFile, "etcd-key", "", "identify secure etcd client using this TLS key file")
@@ -199,9 +196,14 @@ func (a *Conf) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.HostsFile, "hostsfile", "/newetc/hosts", "/etc/hosts mapped path in the container. eg. /etc/hosts:/tmp/hosts. Do not set hostsfile to /etc/hosts")
 	fs.StringVar(&a.ContainerRuntime, "container-runtime", sources.ContainerRuntimeContainerd, "container runtime, support docker and containerd")
 	fs.StringVar(&a.RuntimeEndpoint, "runtime-endpoint", sources.RuntimeEndpointContainerd, "container runtime endpoint")
+
+	fs.StringSliceVar(&a.EventLogServer, "event-log-server", []string{"rbd-eventlog:6366"}, "host:port slice of event log server")
+	fs.StringSliceVar(&a.EtcdEndpoints, "etcd", []string{"http://rbd-etcd:2379"}, "the path of node in etcd")
+	fs.StringVar(&a.PrometheusAPI, "prometheus", "http://rbd-monitor:9999", "the prometheus server address")
+
 }
 
-//SetLog 设置log
+// SetLog 设置log
 func (a *Conf) SetLog() {
 	level, err := logrus.ParseLevel(a.LogLevel)
 	if err != nil {
@@ -234,7 +236,7 @@ func newClient(namespace, address string, opts ...containerd.ClientOpt) (*contai
 	return client, ctx, cancel, nil
 }
 
-//ParseClient handle config and create some api
+// ParseClient handle config and create some api
 func (a *Conf) ParseClient(ctx context.Context, etcdClientArgs *etcdutil.ClientArgs) (err error) {
 	logrus.Infof("begin create container image client, runtime [%s] runtime endpoint [%s]", a.ContainerRuntime, a.RuntimeEndpoint, a.EtcdEndpoints)
 	containerImageCli, err := sources.NewContainerImageClient(a.ContainerRuntime, a.RuntimeEndpoint, time.Second*3)
@@ -257,7 +259,7 @@ func (a *Conf) ParseClient(ctx context.Context, etcdClientArgs *etcdutil.ClientA
 	return nil
 }
 
-//parse parse
+// parse parse
 func (a *Conf) parse() error {
 	if a.TTL <= 0 {
 		a.TTL = 10

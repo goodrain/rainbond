@@ -28,7 +28,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-//Config config server
+// Config config server
 type Config struct {
 	EtcdEndPoints           []string
 	EtcdCaFile              string
@@ -67,22 +67,21 @@ type Helm struct {
 	ChartCache string
 }
 
-//Worker  worker server
+// Worker  worker server
 type Worker struct {
 	Config
 	LogLevel string
 	RunMode  string //default,sync
 }
 
-//NewWorker new server
+// NewWorker new server
 func NewWorker() *Worker {
 	return &Worker{}
 }
 
-//AddFlags config
+// AddFlags config
 func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the worker log level")
-	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://127.0.0.1:2379"}, "etcd v3 cluster endpoints.")
 	fs.StringVar(&a.EtcdCaFile, "etcd-ca", "", "")
 	fs.StringVar(&a.EtcdCertFile, "etcd-cert", "", "")
 	fs.StringVar(&a.EtcdKeyFile, "etcd-key", "", "")
@@ -92,12 +91,10 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.Listen, "listen", ":6369", "prometheus listen host and port")
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
 	fs.StringVar(&a.MysqlConnectionInfo, "mysql", "root:admin@tcp(127.0.0.1:3306)/region", "mysql db connection info")
-	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"127.0.0.1:6366"}, "event log server address. simple lb")
 	fs.StringVar(&a.KubeConfig, "kube-config", "", "kubernetes api server config file")
 	fs.IntVar(&a.KubeAPIQPS, "kube-api-qps", 50, "kube client qps")
 	fs.IntVar(&a.KubeAPIBurst, "kube-api-burst", 10, "kube clint burst")
 	fs.IntVar(&a.MaxTasks, "max-tasks", 50, "the max tasks for per node")
-	fs.StringVar(&a.MQAPI, "mq-api", "127.0.0.1:6300", "acp_mq api")
 	fs.StringVar(&a.RunMode, "run", "sync", "sync data when worker start")
 	fs.StringVar(&a.NodeName, "node-name", "", "the name of this worker,it must be global unique name")
 	fs.StringVar(&a.HostIP, "host-ip", "", "the ip of this worker,it must be global connected ip")
@@ -108,12 +105,17 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.GrdataPVCName, "grdata-pvc-name", "rbd-cpt-grdata", "The name of grdata persistent volume claim")
 	fs.StringVar(&a.Helm.DataDir, "/grdata/helm", "/grdata/helm", "The data directory of Helm.")
 	fs.StringVar(&a.SharedStorageClass, "shared-storageclass", "", "custom shared storage class.use the specified storageclass to create shared storage, if this parameter is not specified, it will use rainbondsssc by default")
+
+	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://rbd-etcd:2379"}, "etcd v3 cluster endpoints.")
+	fs.StringVar(&a.MQAPI, "mq-api", "rbd-mq:6300", "acp_mq api")
+	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"rbd-eventlog:6366"}, "event log server address. simple lb")
+
 	a.Helm.RepoFile = path.Join(a.Helm.DataDir, "repo/repositories.yaml")
 	a.Helm.RepoCache = path.Join(a.Helm.DataDir, "cache")
 	a.Helm.ChartCache = path.Join(a.Helm.DataDir, "chart")
 }
 
-//SetLog 设置log
+// SetLog 设置log
 func (a *Worker) SetLog() {
 	level, err := logrus.ParseLevel(a.LogLevel)
 	if err != nil {
@@ -123,7 +125,7 @@ func (a *Worker) SetLog() {
 	logrus.SetLevel(level)
 }
 
-//CheckEnv 检测环境变量
+// CheckEnv 检测环境变量
 func (a *Worker) CheckEnv() error {
 	if err := os.Setenv("GRDATA_PVC_NAME", a.Config.GrdataPVCName); err != nil {
 		return fmt.Errorf("set env 'GRDATA_PVC_NAME': %v", err)

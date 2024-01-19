@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-//ConvertResource 处理资源
+// ConvertResource 处理资源
 func (c *clusterAction) ConvertResource(ctx context.Context, namespace string, lr map[string]model.LabelResource) (map[string]model.ApplicationResource, *util.APIHandleError) {
 	logrus.Infof("ConvertResource function begin")
 	appsServices := make(map[string]model.ApplicationResource)
@@ -72,7 +72,7 @@ func (c *clusterAction) workloadDeployments(dmNames []string, namespace string) 
 			Name:         dmName,
 			RsLabel:      resources.Labels,
 		}
-		c.PodTemplateSpecResource(parameter, nil)
+		PodTemplateSpecResource(parameter, nil, c.clientset)
 	}
 	return componentsCR
 }
@@ -109,7 +109,7 @@ func (c *clusterAction) workloadStateFulSets(stsNames []string, namespace string
 			Name:         stsName,
 			RsLabel:      resources.Labels,
 		}
-		c.PodTemplateSpecResource(parameter, resources.Spec.VolumeClaimTemplates)
+		PodTemplateSpecResource(parameter, resources.Spec.VolumeClaimTemplates, c.clientset)
 	}
 	return componentsCR
 }
@@ -167,7 +167,7 @@ func (c *clusterAction) workloadJobs(jobNames []string, namespace string) []mode
 			Name:         jobName,
 			RsLabel:      resources.Labels,
 		}
-		c.PodTemplateSpecResource(parameter, nil)
+		PodTemplateSpecResource(parameter, nil, c.clientset)
 	}
 	return componentsCR
 }
@@ -225,7 +225,7 @@ func (c *clusterAction) workloadCronJobs(cjNames []string, namespace string) []m
 			Name:         cjName,
 			RsLabel:      resources.Labels,
 		}
-		c.PodTemplateSpecResource(parameter, nil)
+		PodTemplateSpecResource(parameter, nil, c.clientset)
 	}
 	return componentsCR
 }

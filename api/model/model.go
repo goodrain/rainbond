@@ -523,6 +523,17 @@ type CheckHelmApp struct {
 type ChartInformation struct {
 	RepoURL   string `json:"repo_url"`
 	ChartName string `json:"chart_name"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+}
+
+// GetYamlByChart -
+type GetYamlByChart struct {
+	EventID   string `json:"event_id"`
+	Name      string `json:"name"`
+	FileName  string `json:"file_name"`
+	Version   string `json:"version"`
+	Namespace string `json:"namespace"`
 }
 
 const (
@@ -1090,7 +1101,7 @@ type ServiceCheckStruct struct {
 		//检测来源类型
 		// in: body
 		// required: true
-		SourceType string `json:"source_type" validate:"source_type|required|in:docker-run,docker-compose,sourcecode,third-party-service,package_build"`
+		SourceType string `json:"source_type" validate:"source_type|required|in:docker-run,vm-run,docker-compose,sourcecode,third-party-service,package_build"`
 
 		CheckOS string `json:"check_os"`
 		// 检测来源定义，
@@ -1100,6 +1111,7 @@ type ServiceCheckStruct struct {
 		// in: body
 		// required: true
 		SourceBody string `json:"source_body"`
+		Namespace  string `json:"namespace"`
 		TenantID   string
 		Username   string `json:"username"`
 		Password   string `json:"password"`
@@ -1492,6 +1504,7 @@ type AddServicePort struct {
 
 // HelmChartInformation -
 type HelmChartInformation struct {
+	Name     string `json:"name"`
 	Version  string
 	Keywords []string
 	Pic      string
@@ -1662,10 +1675,11 @@ type BuildImageInfo struct {
 	// 镜像地址
 	// in: body
 	// required: false
-	ImageURL string `json:"image_url" validate:"image_url"`
-	User     string `json:"user" validate:"user"`
-	Password string `json:"password" validate:"password"`
-	Cmd      string `json:"cmd"`
+	ImageURL      string `json:"image_url" validate:"image_url"`
+	User          string `json:"user" validate:"user"`
+	Password      string `json:"password" validate:"password"`
+	Cmd           string `json:"cmd"`
+	VMImageSource string `json:"vm_image_source"`
 }
 
 // BuildCodeInfo -
@@ -1704,6 +1718,9 @@ type BuildSlugInfo struct {
 
 // FromImageBuildKing build from image
 var FromImageBuildKing = "build_from_image"
+
+// FromVMBuildKing build from vm
+var FromVMBuildKing = "build_from_vm"
 
 // FromCodeBuildKing build from code
 var FromCodeBuildKing = "build_from_source_code"
@@ -2211,4 +2228,19 @@ type GovernanceMode struct {
 	Name        string `json:"name"`
 	IsDefault   bool   `json:"is_default"`
 	Description string `json:"description"`
+}
+
+// UploadChart -
+type UploadChart struct {
+	EventID   string   `json:"event_id"`
+	Name      string   `json:"name"`
+	Version   string   `json:"version"`
+	Namespace string   `json:"namespace"`
+	Overrides []string `json:"overrides"`
+}
+
+// UploadChartValueYaml -
+type UploadChartValueYaml struct {
+	Values map[string]string `json:"values"`
+	Readme string            `json:"readme"`
 }
