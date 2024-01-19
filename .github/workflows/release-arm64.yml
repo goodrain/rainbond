@@ -36,7 +36,6 @@ on:
       gh_token:
         description: 'gh_token'
         required: true
-        default: 'AO6VOB64OOE5QU7TBWCQFG3FVJ4UU'
 env:
   VERSION: ${{ github.event.inputs.version }}
 
