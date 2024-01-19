@@ -1,4 +1,5 @@
-name: Release Arm64 Docker image
+name: Release arm64 Docker image
+
 on:
   workflow_dispatch:
     inputs:
@@ -13,15 +14,7 @@ on:
       version:
         description: 'version'
         required: true
-        default: 'v5.17.0-release-arm64'
-      os:
-        description: 'os'
-        required: false
-        default: 'ubuntu-22.04'
-        type: choice
-        options:
-          - ubuntu-22.04
-          - self-hosted
+        default: 'v5.18.0-release-arm64'
       environment:
         description: 'environment'
         required: false
@@ -30,17 +23,67 @@ on:
         options:
           - release-arm
           - release
+          - release-arch
+          - enterprise-arm
+          - enterprise
+      action:
+        description: 'action'
+        required: false
+        default: 'GitHub'
+        type: choice
+        options:
+          - GitHub
+          - GitLab
       gh_token:
         description: 'gh_token'
         required: false
-        default: 'AYDLY6APW2YOR6ZHIILEYHTFVJC4Q'
+        default: 'AO6VOB64OOE5QU7TBWCQFG3FVJ4UU'
 env:
-  VERSION: ${{ github.event.client_payload.version }}
+  VERSION: ${{ github.event.inputs.version }}
 
 jobs:
+  create-ecs:
+    strategy:
+      matrix:
+        server: [ runner1, runner2,runner3, runner4,runner5, runner6 ]
+    runs-on: 'ubuntu-22.04'
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Download and extract aliyun-cli
+        run: |
+          wget https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
+          sudo tar -zxvf aliyun-cli-linux-latest-amd64.tgz -C /usr/bin/
+          aliyun configure set --profile akProfile --mode AK  --region ap-southeast-1 --access-key-id ${{ secrets.ALI_KEY }}  --access-key-secret ${{ secrets.ALI_SECRET }}
+          instanceIds=($(aliyun ecs DescribeInstanceStatus --region ap-southeast-1 --PageSize 50 --RegionId 'ap-southeast-1' | jq -r '.InstanceStatuses.InstanceStatus | map(.InstanceId)[]'))
+          if [ ${#instanceIds[@]} -gt 5 ]; then
+            echo "已经有${#instanceIds[@]}台服务器，不再进行创建"
+            exit 0
+          fi
+
+          create=$(aliyun ecs RunInstances --region ap-southeast-1 --RegionId 'ap-southeast-1' --ImageId 'ubuntu_22_04_arm64_20G_alibase_20230712.vhd' --InstanceType '${{ vars.ECS }}' --SecurityGroupId 'sg-t4n8sj6bpvaxfe3s47po' --VSwitchId 'vsw-t4nsosaaw6fw28vpjd2n7'  --SystemDisk.Category cloud_essd --Description '打包arm64发布' --InstanceChargeType PostPaid --CreditSpecification Unlimited --InternetChargeType PayByTraffic --PasswordInherit false --Password 'gr123465!' --UniqueSuffix true --InternetMaxBandwidthOut 100 --InternetMaxBandwidthIn 100 --SystemDisk.Size 50 --SpotStrategy SpotAsPriceGo --SpotDuration 1)
+          instanceId=$(echo "$create" | jq -r '.InstanceIdSets.InstanceIdSet[0]')
+          echo "创建服务器成功，实例ID为 $instanceId，等待5秒后开始查询公网IP"
+          sleep 5
+          # 查询服务器信息
+          info=$(aliyun ecs DescribeInstanceAttribute --region ap-southeast-1 --InstanceId "$instanceId")
+          publishIp=$(echo "$info" | jq -r '.PublicIpAddress.IpAddress[0]')
+          echo "查询公网IP为 $publishIp，等待60s后执行github runner"
+          echo "PUBLISH_IP=$publishIp" >> $GITHUB_ENV
+          sleep 60
+      - name: SSH To Server And Run Github Action Script
+        if: contains(env.PUBLISH_IP, '.')
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.PUBLISH_IP }}
+          username: root
+          password: gr123465!
+          port: 22
+          script: |
+            export GH_TOKEN="${{ github.event.inputs.gh_token }}" && curl https://rainbond-script.oss-cn-hangzhou.aliyuncs.com/runner.sh | bash
   build-ui:
-    runs-on: ${{ github.event.client_payload.os }}
-    environment: ${{ github.event.client_payload.environment }}
+    needs: create-ecs
+    runs-on: self-hosted
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Build the Docker image
         env:
@@ -54,12 +97,12 @@ jobs:
           ALLINONE: ${{ vars.ALLINONE }}
           ROUTE_MODE: ${{ vars.ROUTE_MODE }}
         run: |
-          if [ ${{ github.event.action }} == 'GitHub' ];then
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-ui.git
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-ui.git
             cd rainbond-ui
             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
           else
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-ui-cloud.git
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-ui-cloud.git
             cd rainbond-ui-cloud
             echo "$UI_DOCKER_PASSWORD" | docker login -u "$UI_DOCKER_USERNAME" --password-stdin
           fi
@@ -69,9 +112,11 @@ jobs:
           docker push rainbond/rainbond-ui:$VERSION
 
   build-rainbond-allinone:
-    needs: build-ui
-    runs-on: ${{ github.event.client_payload.os }}
-    environment: ${{ github.event.client_payload.environment }}
+    needs:
+      - create-ecs
+      - build-ui
+    runs-on: self-hosted
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Pull code and Build allinone image
         env:
@@ -87,22 +132,24 @@ jobs:
           DOMESTIC_BASE_NAME: ${{ vars.DOMESTIC_BASE_NAME }}
           DOMESTIC_NAMESPACE: ${{ vars.DOMESTIC_NAMESPACE }}
         run: |
-          if [ ${{ github.event.action }} == 'GitHub' ];then
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console.git
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-console.git
             cd rainbond-console
           else
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console-cloud.git
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-console-cloud.git
             cd rainbond-console-cloud
           fi
           chmod +x  ./release.sh
           ./release.sh allinone
 
   build-rainbond-region:
-    runs-on: ${{ github.event.client_payload.os }}
-    environment: ${{ github.event.client_payload.environment }}
+    needs:
+      - create-ecs
+    runs-on: self-hosted
+    environment: ${{ github.event.inputs.environment }}
     strategy:
       matrix:
-        component: [api, chaos, gateway, monitor, mq, webcli, worker, eventlog, init-probe, mesh-data-panel, node, resource-proxy]
+        component: [ api, chaos, gateway, monitor, mq, webcli, worker, eventlog, init-probe, mesh-data-panel, node, resource-proxy ]
     steps:
       - name: Pull code and Build the Docker image
         env:
@@ -116,13 +163,15 @@ jobs:
           DOMESTIC_BASE_NAME: ${{ vars.DOMESTIC_BASE_NAME }}
           DOMESTIC_NAMESPACE: ${{ vars.DOMESTIC_NAMESPACE }}
         run: |
-          git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git
+          git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond.git
           cd rainbond
           chmod +x ./release.sh
           ./release.sh ${{ matrix.component }} push
   build-rainbond-region-grctl-shell:
-    runs-on: ${{ github.event.client_payload.os }}
-    environment: ${{ github.event.client_payload.environment }}
+    needs:
+      - create-ecs
+    runs-on: self-hosted
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Pull code and Build the Docker image
         env:
@@ -136,15 +185,17 @@ jobs:
           DOMESTIC_BASE_NAME: ${{ vars.DOMESTIC_BASE_NAME }}
           DOMESTIC_NAMESPACE: ${{ vars.DOMESTIC_NAMESPACE }}
         run: |
-          git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git
+          git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond.git
           cd rainbond
           chmod +x ./release.sh
           ./release.sh grctl push
           ./release.sh shell push
 
   build-operator:
-    runs-on: ${{ github.event.client_payload.os }}
-    environment: ${{ github.event.client_payload.environment }}
+    needs:
+      - create-ecs
+    runs-on: self-hosted
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Build and push
         env:
@@ -160,8 +211,8 @@ jobs:
           OPERATOR_BRANCH: ${{ vars.OPERATOR_BRANCH }}
           OPERATOR_URL: ${{ vars.OPERATOR_URL }}
         run: |
-          if [ ${{ github.event.action }} == 'GitHub' ];then
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-operator.git
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-operator.git
             cd rainbond-operator
           else
             git clone -b $OPERATOR_BRANCH $OPERATOR_URL/rainbond-operator.git
@@ -171,10 +222,10 @@ jobs:
           ./release.sh
 
   build-dind:
-    if: github.event.action == 'GitHub'
-    needs: [build-ui,build-rainbond-region,build-rainbond-region-grctl-shell,build-operator]
-    runs-on: ${{ github.event.client_payload.os }}
-    environment: ${{ github.event.client_payload.environment }}
+    if: github.event.inputs.action == 'GitHub'
+    needs: [ create-ecs,build-ui,build-rainbond-region,build-rainbond-region-grctl-shell,build-operator ]
+    runs-on: self-hosted
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Build the Docker image
         env:
@@ -185,14 +236,14 @@ jobs:
           DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
-          git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console.git
+          git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-console.git
           cd rainbond-console
           ./release.sh dind
 
   push-arch:
-    if: github.event.action == 'GitHub' && github.event.client_payload.os == 'self-hosted'
-    needs: [build-rainbond-allinone,build-rainbond-region,build-rainbond-region-grctl-shell,build-operator,build-dind]
-    runs-on: ${{ github.event.client_payload.os }}
+    if: github.event.inputs.action == 'GitHub'
+    needs: [ create-ecs,build-rainbond-allinone,build-rainbond-region,build-rainbond-region-grctl-shell,build-operator,build-dind ]
+    runs-on: self-hosted
     environment: release-arch
     steps:
       - uses: actions/checkout@v2
@@ -206,3 +257,18 @@ jobs:
           if [ $PUSH_ARCH == 'true' ];then
             chmod +x .github/scripts/push-arch.sh && ./.github/scripts/push-arch.sh
           fi
+  close-ecs:
+    needs: push-arch
+    runs-on: 'ubuntu-22.04'
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Download and extract aliyun-cli
+        run: |
+          wget https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
+          sudo tar -zxvf aliyun-cli-linux-latest-amd64.tgz -C /usr/bin/
+          aliyun configure set --profile akProfile --mode AK  --region ap-southeast-1 --access-key-id ${{ secrets.ALI_KEY }}  --access-key-secret ${{ secrets.ALI_SECRET }}
+          instanceIds=($(aliyun ecs DescribeInstanceStatus --region ap-southeast-1 --PageSize 50 --RegionId 'ap-southeast-1' | jq -r '.InstanceStatuses.InstanceStatus | map(.InstanceId)[]'))
+          for id in "${instanceIds[@]}"; do
+            echo "开始释放云服务器: $id"
+            aliyun ecs DeleteInstance --region ap-southeast-1 --InstanceId "$id" --Force true --TerminateSubscription true
+          done
