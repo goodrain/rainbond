@@ -32,7 +32,7 @@ func (m *Manager) VolumeTypeDao() dao.VolumeTypeDao {
 	}
 }
 
-//LicenseDao LicenseDao
+// LicenseDao LicenseDao
 func (m *Manager) LicenseDao() dao.LicenseDao {
 	return &mysqldao.LicenseDaoImpl{
 		DB: m.db,
@@ -46,357 +46,357 @@ func (m *Manager) EnterpriseDao() dao.EnterpriseDao {
 	}
 }
 
-//TenantDao 租户数据
+// TenantDao 租户数据
 func (m *Manager) TenantDao() dao.TenantDao {
 	return &mysqldao.TenantDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantDaoTransactions 租户数据，带操作事务
+// TenantDaoTransactions 租户数据，带操作事务
 func (m *Manager) TenantDaoTransactions(db *gorm.DB) dao.TenantDao {
 	return &mysqldao.TenantDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantServiceDao TenantServiceDao
+// TenantServiceDao TenantServiceDao
 func (m *Manager) TenantServiceDao() dao.TenantServiceDao {
 	return &mysqldao.TenantServicesDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantServiceDaoTransactions TenantServiceDaoTransactions
+// TenantServiceDaoTransactions TenantServiceDaoTransactions
 func (m *Manager) TenantServiceDaoTransactions(db *gorm.DB) dao.TenantServiceDao {
 	return &mysqldao.TenantServicesDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantServiceDeleteDao TenantServiceDeleteDao
+// TenantServiceDeleteDao TenantServiceDeleteDao
 func (m *Manager) TenantServiceDeleteDao() dao.TenantServiceDeleteDao {
 	return &mysqldao.TenantServicesDeleteImpl{
 		DB: m.db,
 	}
 }
 
-//TenantServiceDeleteDaoTransactions TenantServiceDeleteDaoTransactions
+// TenantServiceDeleteDaoTransactions TenantServiceDeleteDaoTransactions
 func (m *Manager) TenantServiceDeleteDaoTransactions(db *gorm.DB) dao.TenantServiceDeleteDao {
 	return &mysqldao.TenantServicesDeleteImpl{
 		DB: db,
 	}
 }
 
-//TenantServicesPortDao TenantServicesPortDao
+// TenantServicesPortDao TenantServicesPortDao
 func (m *Manager) TenantServicesPortDao() dao.TenantServicesPortDao {
 	return &mysqldao.TenantServicesPortDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantServicesPortDaoTransactions TenantServicesPortDaoTransactions
+// TenantServicesPortDaoTransactions TenantServicesPortDaoTransactions
 func (m *Manager) TenantServicesPortDaoTransactions(db *gorm.DB) dao.TenantServicesPortDao {
 	return &mysqldao.TenantServicesPortDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantServiceRelationDao TenantServiceRelationDao
+// TenantServiceRelationDao TenantServiceRelationDao
 func (m *Manager) TenantServiceRelationDao() dao.TenantServiceRelationDao {
 	return &mysqldao.TenantServiceRelationDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantServiceRelationDaoTransactions TenantServiceRelationDaoTransactions
+// TenantServiceRelationDaoTransactions TenantServiceRelationDaoTransactions
 func (m *Manager) TenantServiceRelationDaoTransactions(db *gorm.DB) dao.TenantServiceRelationDao {
 	return &mysqldao.TenantServiceRelationDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantServiceEnvVarDao TenantServiceEnvVarDao
+// TenantServiceEnvVarDao TenantServiceEnvVarDao
 func (m *Manager) TenantServiceEnvVarDao() dao.TenantServiceEnvVarDao {
 	return &mysqldao.TenantServiceEnvVarDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantServiceEnvVarDaoTransactions TenantServiceEnvVarDaoTransactions
+// TenantServiceEnvVarDaoTransactions TenantServiceEnvVarDaoTransactions
 func (m *Manager) TenantServiceEnvVarDaoTransactions(db *gorm.DB) dao.TenantServiceEnvVarDao {
 	return &mysqldao.TenantServiceEnvVarDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantServiceMountRelationDao TenantServiceMountRelationDao
+// TenantServiceMountRelationDao TenantServiceMountRelationDao
 func (m *Manager) TenantServiceMountRelationDao() dao.TenantServiceMountRelationDao {
 	return &mysqldao.TenantServiceMountRelationDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantServiceMountRelationDaoTransactions TenantServiceMountRelationDaoTransactions
+// TenantServiceMountRelationDaoTransactions TenantServiceMountRelationDaoTransactions
 func (m *Manager) TenantServiceMountRelationDaoTransactions(db *gorm.DB) dao.TenantServiceMountRelationDao {
 	return &mysqldao.TenantServiceMountRelationDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantServiceVolumeDao TenantServiceVolumeDao
+// TenantServiceVolumeDao TenantServiceVolumeDao
 func (m *Manager) TenantServiceVolumeDao() dao.TenantServiceVolumeDao {
 	return &mysqldao.TenantServiceVolumeDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantServiceVolumeDaoTransactions TenantServiceVolumeDaoTransactions
+// TenantServiceVolumeDaoTransactions TenantServiceVolumeDaoTransactions
 func (m *Manager) TenantServiceVolumeDaoTransactions(db *gorm.DB) dao.TenantServiceVolumeDao {
 	return &mysqldao.TenantServiceVolumeDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantServiceConfigFileDao TenantServiceConfigFileDao
+// TenantServiceConfigFileDao TenantServiceConfigFileDao
 func (m *Manager) TenantServiceConfigFileDao() dao.TenantServiceConfigFileDao {
 	return &mysqldao.TenantServiceConfigFileDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantServiceConfigFileDaoTransactions -
+// TenantServiceConfigFileDaoTransactions -
 func (m *Manager) TenantServiceConfigFileDaoTransactions(db *gorm.DB) dao.TenantServiceConfigFileDao {
 	return &mysqldao.TenantServiceConfigFileDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantServiceLabelDao TenantServiceLabelDao
+// TenantServiceLabelDao TenantServiceLabelDao
 func (m *Manager) TenantServiceLabelDao() dao.TenantServiceLabelDao {
 	return &mysqldao.ServiceLabelDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantServiceLabelDaoTransactions TenantServiceLabelDaoTransactions
+// TenantServiceLabelDaoTransactions TenantServiceLabelDaoTransactions
 func (m *Manager) TenantServiceLabelDaoTransactions(db *gorm.DB) dao.TenantServiceLabelDao {
 	return &mysqldao.ServiceLabelDaoImpl{
 		DB: db,
 	}
 }
 
-//ServiceProbeDao ServiceProbeDao
+// ServiceProbeDao ServiceProbeDao
 func (m *Manager) ServiceProbeDao() dao.ServiceProbeDao {
 	return &mysqldao.ServiceProbeDaoImpl{
 		DB: m.db,
 	}
 }
 
-//ServiceProbeDaoTransactions ServiceProbeDaoTransactions
+// ServiceProbeDaoTransactions ServiceProbeDaoTransactions
 func (m *Manager) ServiceProbeDaoTransactions(db *gorm.DB) dao.ServiceProbeDao {
 	return &mysqldao.ServiceProbeDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantServiceLBMappingPortDao TenantServiceLBMappingPortDao
+// TenantServiceLBMappingPortDao TenantServiceLBMappingPortDao
 func (m *Manager) TenantServiceLBMappingPortDao() dao.TenantServiceLBMappingPortDao {
 	return &mysqldao.TenantServiceLBMappingPortDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantServiceLBMappingPortDaoTransactions TenantServiceLBMappingPortDaoTransactions
+// TenantServiceLBMappingPortDaoTransactions TenantServiceLBMappingPortDaoTransactions
 func (m *Manager) TenantServiceLBMappingPortDaoTransactions(db *gorm.DB) dao.TenantServiceLBMappingPortDao {
 	return &mysqldao.TenantServiceLBMappingPortDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantPluginDao TenantPluginDao
+// TenantPluginDao TenantPluginDao
 func (m *Manager) TenantPluginDao() dao.TenantPluginDao {
 	return &mysqldao.PluginDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantPluginDaoTransactions TenantPluginDaoTransactions
+// TenantPluginDaoTransactions TenantPluginDaoTransactions
 func (m *Manager) TenantPluginDaoTransactions(db *gorm.DB) dao.TenantPluginDao {
 	return &mysqldao.PluginDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantPluginBuildVersionDao TenantPluginBuildVersionDao
+// TenantPluginBuildVersionDao TenantPluginBuildVersionDao
 func (m *Manager) TenantPluginBuildVersionDao() dao.TenantPluginBuildVersionDao {
 	return &mysqldao.PluginBuildVersionDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantPluginBuildVersionDaoTransactions TenantPluginBuildVersionDaoTransactions
+// TenantPluginBuildVersionDaoTransactions TenantPluginBuildVersionDaoTransactions
 func (m *Manager) TenantPluginBuildVersionDaoTransactions(db *gorm.DB) dao.TenantPluginBuildVersionDao {
 	return &mysqldao.PluginBuildVersionDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantPluginDefaultENVDao TenantPluginDefaultENVDao
+// TenantPluginDefaultENVDao TenantPluginDefaultENVDao
 func (m *Manager) TenantPluginDefaultENVDao() dao.TenantPluginDefaultENVDao {
 	return &mysqldao.PluginDefaultENVDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantPluginDefaultENVDaoTransactions TenantPluginDefaultENVDaoTransactions
+// TenantPluginDefaultENVDaoTransactions TenantPluginDefaultENVDaoTransactions
 func (m *Manager) TenantPluginDefaultENVDaoTransactions(db *gorm.DB) dao.TenantPluginDefaultENVDao {
 	return &mysqldao.PluginDefaultENVDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantPluginVersionENVDao TenantPluginVersionENVDao
+// TenantPluginVersionENVDao TenantPluginVersionENVDao
 func (m *Manager) TenantPluginVersionENVDao() dao.TenantPluginVersionEnvDao {
 	return &mysqldao.PluginVersionEnvDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantPluginVersionENVDaoTransactions TenantPluginVersionENVDaoTransactions
+// TenantPluginVersionENVDaoTransactions TenantPluginVersionENVDaoTransactions
 func (m *Manager) TenantPluginVersionENVDaoTransactions(db *gorm.DB) dao.TenantPluginVersionEnvDao {
 	return &mysqldao.PluginVersionEnvDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantPluginVersionConfigDao TenantPluginVersionENVDao
+// TenantPluginVersionConfigDao TenantPluginVersionENVDao
 func (m *Manager) TenantPluginVersionConfigDao() dao.TenantPluginVersionConfigDao {
 	return &mysqldao.PluginVersionConfigDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantPluginVersionConfigDaoTransactions TenantPluginVersionConfigDaoTransactions
+// TenantPluginVersionConfigDaoTransactions TenantPluginVersionConfigDaoTransactions
 func (m *Manager) TenantPluginVersionConfigDaoTransactions(db *gorm.DB) dao.TenantPluginVersionConfigDao {
 	return &mysqldao.PluginVersionConfigDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantServicePluginRelationDao TenantServicePluginRelationDao
+// TenantServicePluginRelationDao TenantServicePluginRelationDao
 func (m *Manager) TenantServicePluginRelationDao() dao.TenantServicePluginRelationDao {
 	return &mysqldao.TenantServicePluginRelationDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantServicePluginRelationDaoTransactions TenantServicePluginRelationDaoTransactions
+// TenantServicePluginRelationDaoTransactions TenantServicePluginRelationDaoTransactions
 func (m *Manager) TenantServicePluginRelationDaoTransactions(db *gorm.DB) dao.TenantServicePluginRelationDao {
 	return &mysqldao.TenantServicePluginRelationDaoImpl{
 		DB: db,
 	}
 }
 
-//TenantServicesStreamPluginPortDao TenantServicesStreamPluginPortDao
+// TenantServicesStreamPluginPortDao TenantServicesStreamPluginPortDao
 func (m *Manager) TenantServicesStreamPluginPortDao() dao.TenantServicesStreamPluginPortDao {
 	return &mysqldao.TenantServicesStreamPluginPortDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantServicesStreamPluginPortDaoTransactions TenantServicesStreamPluginPortDaoTransactions
+// TenantServicesStreamPluginPortDaoTransactions TenantServicesStreamPluginPortDaoTransactions
 func (m *Manager) TenantServicesStreamPluginPortDaoTransactions(db *gorm.DB) dao.TenantServicesStreamPluginPortDao {
 	return &mysqldao.TenantServicesStreamPluginPortDaoImpl{
 		DB: db,
 	}
 }
 
-//CodeCheckResultDao CodeCheckResultDao
+// CodeCheckResultDao CodeCheckResultDao
 func (m *Manager) CodeCheckResultDao() dao.CodeCheckResultDao {
 	return &mysqldao.CodeCheckResultDaoImpl{
 		DB: m.db,
 	}
 }
 
-//CodeCheckResultDaoTransactions CodeCheckResultDaoTransactions
+// CodeCheckResultDaoTransactions CodeCheckResultDaoTransactions
 func (m *Manager) CodeCheckResultDaoTransactions(db *gorm.DB) dao.CodeCheckResultDao {
 	return &mysqldao.CodeCheckResultDaoImpl{
 		DB: db,
 	}
 }
 
-//ServiceEventDao TenantServicePluginRelationDao
+// ServiceEventDao TenantServicePluginRelationDao
 func (m *Manager) ServiceEventDao() dao.EventDao {
 	return &mysqldao.EventDaoImpl{
 		DB: m.db,
 	}
 }
 
-//ServiceEventDaoTransactions TenantServicePluginRelationDaoTransactions
+// ServiceEventDaoTransactions TenantServicePluginRelationDaoTransactions
 func (m *Manager) ServiceEventDaoTransactions(db *gorm.DB) dao.EventDao {
 	return &mysqldao.EventDaoImpl{
 		DB: db,
 	}
 }
 
-//VersionInfoDao VersionInfoDao
+// VersionInfoDao VersionInfoDao
 func (m *Manager) VersionInfoDao() dao.VersionInfoDao {
 	return &mysqldao.VersionInfoDaoImpl{
 		DB: m.db,
 	}
 }
 
-//VersionInfoDaoTransactions VersionInfoDaoTransactions
+// VersionInfoDaoTransactions VersionInfoDaoTransactions
 func (m *Manager) VersionInfoDaoTransactions(db *gorm.DB) dao.VersionInfoDao {
 	return &mysqldao.VersionInfoDaoImpl{
 		DB: db,
 	}
 }
 
-//LocalSchedulerDao 本地调度信息
+// LocalSchedulerDao 本地调度信息
 func (m *Manager) LocalSchedulerDao() dao.LocalSchedulerDao {
 	return &mysqldao.LocalSchedulerDaoImpl{
 		DB: m.db,
 	}
 }
 
-//RegionUserInfoDao RegionUserInfoDao
+// RegionUserInfoDao RegionUserInfoDao
 func (m *Manager) RegionUserInfoDao() dao.RegionUserInfoDao {
 	return &mysqldao.RegionUserInfoDaoImpl{
 		DB: m.db,
 	}
 }
 
-//RegionUserInfoDaoTransactions RegionUserInfoDaoTransactions
+// RegionUserInfoDaoTransactions RegionUserInfoDaoTransactions
 func (m *Manager) RegionUserInfoDaoTransactions(db *gorm.DB) dao.RegionUserInfoDao {
 	return &mysqldao.RegionUserInfoDaoImpl{
 		DB: db,
 	}
 }
 
-//RegionAPIClassDao RegionAPIClassDao
+// RegionAPIClassDao RegionAPIClassDao
 func (m *Manager) RegionAPIClassDao() dao.RegionAPIClassDao {
 	return &mysqldao.RegionAPIClassDaoImpl{
 		DB: m.db,
 	}
 }
 
-//RegionAPIClassDaoTransactions RegionAPIClassDaoTransactions
+// RegionAPIClassDaoTransactions RegionAPIClassDaoTransactions
 func (m *Manager) RegionAPIClassDaoTransactions(db *gorm.DB) dao.RegionAPIClassDao {
 	return &mysqldao.RegionAPIClassDaoImpl{
 		DB: db,
 	}
 }
 
-//NotificationEventDao NotificationEventDao
+// NotificationEventDao NotificationEventDao
 func (m *Manager) NotificationEventDao() dao.NotificationEventDao {
 	return &mysqldao.NotificationEventDaoImpl{
 		DB: m.db,
 	}
 }
 
-//AppDao app export and import info
+// AppDao app export and import info
 func (m *Manager) AppDao() dao.AppDao {
 	return &mysqldao.AppDaoImpl{
 		DB: m.db,
@@ -410,7 +410,7 @@ func (m *Manager) ApplicationDao() dao.ApplicationDao {
 	}
 }
 
-//ApplicationDaoTransactions -
+// ApplicationDaoTransactions -
 func (m *Manager) ApplicationDaoTransactions(db *gorm.DB) dao.ApplicationDao {
 	return &mysqldao.ApplicationDaoImpl{
 		DB: db,
@@ -424,7 +424,7 @@ func (m *Manager) AppConfigGroupDao() dao.AppConfigGroupDao {
 	}
 }
 
-//AppConfigGroupDaoTransactions -
+// AppConfigGroupDaoTransactions -
 func (m *Manager) AppConfigGroupDaoTransactions(db *gorm.DB) dao.AppConfigGroupDao {
 	return &mysqldao.AppConfigGroupDaoImpl{
 		DB: db,
@@ -438,7 +438,7 @@ func (m *Manager) AppConfigGroupServiceDao() dao.AppConfigGroupServiceDao {
 	}
 }
 
-//AppConfigGroupServiceDaoTransactions -
+// AppConfigGroupServiceDaoTransactions -
 func (m *Manager) AppConfigGroupServiceDaoTransactions(db *gorm.DB) dao.AppConfigGroupServiceDao {
 	return &mysqldao.AppConfigGroupServiceDaoImpl{
 		DB: db,
@@ -452,14 +452,14 @@ func (m *Manager) AppConfigGroupItemDao() dao.AppConfigGroupItemDao {
 	}
 }
 
-//AppConfigGroupItemDaoTransactions -
+// AppConfigGroupItemDaoTransactions -
 func (m *Manager) AppConfigGroupItemDaoTransactions(db *gorm.DB) dao.AppConfigGroupItemDao {
 	return &mysqldao.AppConfigGroupItemDaoImpl{
 		DB: db,
 	}
 }
 
-//AppBackupDao group app backup info
+// AppBackupDao group app backup info
 func (m *Manager) AppBackupDao() dao.AppBackupDao {
 	return &mysqldao.AppBackupDaoImpl{
 		DB: m.db,
@@ -473,49 +473,49 @@ func (m *Manager) AppBackupDaoTransactions(db *gorm.DB) dao.AppBackupDao {
 	}
 }
 
-//ServiceSourceDao service source db impl
+// ServiceSourceDao service source db impl
 func (m *Manager) ServiceSourceDao() dao.ServiceSourceDao {
 	return &mysqldao.ServiceSourceImpl{
 		DB: m.db,
 	}
 }
 
-//CertificateDao CertificateDao
+// CertificateDao CertificateDao
 func (m *Manager) CertificateDao() dao.CertificateDao {
 	return &mysqldao.CertificateDaoImpl{
 		DB: m.db,
 	}
 }
 
-//CertificateDaoTransactions CertificateDaoTransactions
+// CertificateDaoTransactions CertificateDaoTransactions
 func (m *Manager) CertificateDaoTransactions(db *gorm.DB) dao.CertificateDao {
 	return &mysqldao.CertificateDaoImpl{
 		DB: db,
 	}
 }
 
-//RuleExtensionDao RuleExtensionDao
+// RuleExtensionDao RuleExtensionDao
 func (m *Manager) RuleExtensionDao() dao.RuleExtensionDao {
 	return &mysqldao.RuleExtensionDaoImpl{
 		DB: m.db,
 	}
 }
 
-//RuleExtensionDaoTransactions RuleExtensionDaoTransactions
+// RuleExtensionDaoTransactions RuleExtensionDaoTransactions
 func (m *Manager) RuleExtensionDaoTransactions(db *gorm.DB) dao.RuleExtensionDao {
 	return &mysqldao.RuleExtensionDaoImpl{
 		DB: db,
 	}
 }
 
-//HTTPRuleDao HTTPRuleDao
+// HTTPRuleDao HTTPRuleDao
 func (m *Manager) HTTPRuleDao() dao.HTTPRuleDao {
 	return &mysqldao.HTTPRuleDaoImpl{
 		DB: m.db,
 	}
 }
 
-//HTTPRuleDaoTransactions -
+// HTTPRuleDaoTransactions -
 func (m *Manager) HTTPRuleDaoTransactions(db *gorm.DB) dao.HTTPRuleDao {
 	return &mysqldao.HTTPRuleDaoImpl{
 		DB: db,
@@ -529,21 +529,21 @@ func (m *Manager) HTTPRuleRewriteDao() dao.HTTPRuleRewriteDao {
 	}
 }
 
-//HTTPRuleRewriteDaoTransactions -
+// HTTPRuleRewriteDaoTransactions -
 func (m *Manager) HTTPRuleRewriteDaoTransactions(db *gorm.DB) dao.HTTPRuleRewriteDao {
 	return &mysqldao.HTTPRuleRewriteDaoTmpl{
 		DB: db,
 	}
 }
 
-//TCPRuleDao TCPRuleDao
+// TCPRuleDao TCPRuleDao
 func (m *Manager) TCPRuleDao() dao.TCPRuleDao {
 	return &mysqldao.TCPRuleDaoTmpl{
 		DB: m.db,
 	}
 }
 
-//TCPRuleDaoTransactions TCPRuleDaoTransactions
+// TCPRuleDaoTransactions TCPRuleDaoTransactions
 func (m *Manager) TCPRuleDaoTransactions(db *gorm.DB) dao.TCPRuleDao {
 	return &mysqldao.TCPRuleDaoTmpl{
 		DB: db,
@@ -634,14 +634,14 @@ func (m *Manager) TenantServiceScalingRecordsDaoTransactions(db *gorm.DB) dao.Te
 	}
 }
 
-//TenantServiceMonitorDao monitor dao
+// TenantServiceMonitorDao monitor dao
 func (m *Manager) TenantServiceMonitorDao() dao.TenantServiceMonitorDao {
 	return &mysqldao.TenantServiceMonitorDaoImpl{
 		DB: m.db,
 	}
 }
 
-//TenantServiceMonitorDaoTransactions monitor dao
+// TenantServiceMonitorDaoTransactions monitor dao
 func (m *Manager) TenantServiceMonitorDaoTransactions(db *gorm.DB) dao.TenantServiceMonitorDao {
 	return &mysqldao.TenantServiceMonitorDaoImpl{
 		DB: db,
@@ -672,6 +672,20 @@ func (m *Manager) K8sResourceDao() dao.K8sResourceDao {
 // K8sResourceDaoTransactions -
 func (m *Manager) K8sResourceDaoTransactions(db *gorm.DB) dao.K8sResourceDao {
 	return &mysqldao.K8sResourceDaoImpl{
+		DB: db,
+	}
+}
+
+// LongVersionDao 语言包信息
+func (m *Manager) LongVersionDao() dao.LongVersionDao {
+	return &mysqldao.LongVersionDaoImpl{
+		DB: m.db,
+	}
+}
+
+// LongVersionDaoTransactions 语言包信息 事务
+func (m *Manager) LongVersionDaoTransactions(db *gorm.DB) dao.LongVersionDao {
+	return &mysqldao.LongVersionDaoImpl{
 		DB: db,
 	}
 }

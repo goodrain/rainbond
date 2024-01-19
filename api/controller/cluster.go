@@ -28,6 +28,8 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/sirupsen/logrus"
 	"net/http"
+	"os"
+	"path"
 	"strconv"
 
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -461,4 +463,65 @@ func (c *ClusterController) UpdateAbility(w http.ResponseWriter, r *http.Request
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
+}
+
+// GetLangVersion Get the unconnected namespaces under the current cluster
+func (c *ClusterController) GetLangVersion(w http.ResponseWriter, r *http.Request) {
+	language := r.URL.Query().Get("language")
+	versions, err := db.GetManager().LongVersionDao().ListVersionByLanguage(language)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, fmt.Errorf("update lang version failure: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, versions)
+}
+
+// UpdateLangVersion -
+func (c *ClusterController) UpdateLangVersion(w http.ResponseWriter, r *http.Request) {
+	var lang model.UpdateLangVersion
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &lang, nil); !ok {
+		httputil.ReturnError(r, w, 400, "failed to parse parameters")
+		return
+	}
+	err := db.GetManager().LongVersionDao().DefaultLangVersion(lang.Lang, lang.Version)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("update lang version failure: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, "更新成功")
+}
+
+// CreateLangVersion -
+func (c *ClusterController) CreateLangVersion(w http.ResponseWriter, r *http.Request) {
+	var lang model.UpdateLangVersion
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &lang, nil); !ok {
+		httputil.ReturnError(r, w, 400, "failed to parse parameters")
+		return
+	}
+	err := db.GetManager().LongVersionDao().CreateLangVersion(lang.Lang, lang.Version, lang.EventID, lang.FileName)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("create lang version failure: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, "创建成功")
+}
+
+// DeleteLangVersion -
+func (c *ClusterController) DeleteLangVersion(w http.ResponseWriter, r *http.Request) {
+	var lang model.UpdateLangVersion
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &lang, nil); !ok {
+		httputil.ReturnError(r, w, 400, "failed to parse parameters")
+		return
+	}
+	eventID, err := db.GetManager().LongVersionDao().DeleteLangVersion(lang.Lang, lang.Version)
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("delete lang version failure: %v", err))
+		return
+	}
+	err = os.RemoveAll(path.Join(BaseUploadPath, eventID))
+	if err != nil {
+		httputil.ReturnError(r, w, 400, fmt.Sprintf("delete lang version pack failure: %v", err))
+		return
+	}
+	httputil.ReturnSuccess(r, w, "删除成功")
 }

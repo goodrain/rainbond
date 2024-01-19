@@ -2244,3 +2244,11 @@ type UploadChartValueYaml struct {
 	Values map[string]string `json:"values"`
 	Readme string            `json:"readme"`
 }
+
+// UpdateLangVersion -
+type UpdateLangVersion struct {
+	Lang     string `json:"lang"`
+	Version  string `json:"version"`
+	EventID  string `json:"event_id"`
+	FileName string `json:"file_name"`
+}

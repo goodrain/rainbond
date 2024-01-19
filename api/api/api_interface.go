@@ -54,6 +54,10 @@ type ClusterInterface interface {
 	GetAbility(w http.ResponseWriter, r *http.Request)
 	UpdateAbility(w http.ResponseWriter, r *http.Request)
 	ListRainbondComponents(w http.ResponseWriter, r *http.Request)
+	GetLangVersion(w http.ResponseWriter, r *http.Request)
+	UpdateLangVersion(w http.ResponseWriter, r *http.Request)
+	CreateLangVersion(w http.ResponseWriter, r *http.Request)
+	DeleteLangVersion(w http.ResponseWriter, r *http.Request)
 }
 
 // NodesInterface -
@@ -209,6 +213,13 @@ type AppInterface interface {
 	ImportID(w http.ResponseWriter, r *http.Request)
 	ImportApp(w http.ResponseWriter, r *http.Request)
 	UploadID(w http.ResponseWriter, r *http.Request)
+}
+
+// LongVersionInterface long version interface
+type LongVersionInterface interface {
+	UploadLongVersion(w http.ResponseWriter, r *http.Request)
+	OptionLongVersion(w http.ResponseWriter, r *http.Request)
+	DownloadLongVersion(w http.ResponseWriter, r *http.Request)
 }
 
 // ApplicationInterface tenant application interface

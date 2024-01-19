@@ -19,9 +19,8 @@
 package websocket
 
 import (
-	"github.com/goodrain/rainbond/api/controller"
-
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond/api/controller"
 )
 
 // Routes routes
@@ -58,5 +57,16 @@ func PackageBuildRoutes() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/component/events/{eventID}", controller.GetManager().UploadPackage)
 	r.Options("/component/events/{eventID}", controller.GetManager().UploadPackage)
+	return r
+}
+
+// LongVersionRoutes 语言包处理
+func LongVersionRoutes() chi.Router {
+	r := chi.NewRouter()
+	r.Options("/upload", controller.GetManager().OptionLongVersion)
+	r.Post("/upload", controller.GetManager().UploadLongVersion)
+	//r.Options("/download/{language}/{version}", controller.GetManager().OptionLongVersion)
+	r.Get("/download/{language}/{version}", controller.GetManager().DownloadLongVersion)
+	r.Head("/download/{language}/{version}", controller.GetManager().DownloadLongVersion)
 	return r
 }

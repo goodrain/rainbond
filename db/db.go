@@ -50,6 +50,8 @@ type Manager interface {
 	K8sResourceDao() dao.K8sResourceDao
 	K8sResourceDaoTransactions(db *gorm.DB) dao.K8sResourceDao
 	EnterpriseDao() dao.EnterpriseDao
+	LongVersionDao() dao.LongVersionDao
+	LongVersionDaoTransactions(db *gorm.DB) dao.LongVersionDao
 	TenantDao() dao.TenantDao
 	TenantDaoTransactions(db *gorm.DB) dao.TenantDao
 	TenantServiceDao() dao.TenantServiceDao

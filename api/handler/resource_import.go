@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-//ResourceImport Import the converted k8s resources into recognition
+// ResourceImport Import the converted k8s resources into recognition
 func (c *clusterAction) ResourceImport(namespace string, as map[string]model.ApplicationResource, eid string) (*model.ReturnResourceImport, *util.APIHandleError) {
 	logrus.Infof("ResourceImport function begin")
 	var returnResourceImport model.ReturnResourceImport
