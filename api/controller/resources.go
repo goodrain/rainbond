@@ -55,6 +55,7 @@ type V2Routes struct {
 	TenantStruct
 	EventLogStruct
 	AppStruct
+	LongVersionStruct
 	GatewayStruct
 	ThirdPartyServiceController
 	LabelController

@@ -147,6 +147,10 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Get("/governance-mode", controller.GetManager().ListGovernanceMode)
 	r.Get("/rbd-components", controller.GetManager().ListRainbondComponents)
 	r.Mount("/nodes", v2.nodesRouter())
+	r.Get("/langVersion", controller.GetManager().GetLangVersion)
+	r.Post("/langVersion", controller.GetManager().CreateLangVersion)
+	r.Put("/langVersion", controller.GetManager().UpdateLangVersion)
+	r.Delete("/langVersion", controller.GetManager().DeleteLangVersion)
 	return r
 }
 

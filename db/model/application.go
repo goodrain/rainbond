@@ -122,3 +122,19 @@ type K8sResource struct {
 func (k *K8sResource) TableName() string {
 	return "k8s_resources"
 }
+
+// EnterpriseLanguageVersion language model
+type EnterpriseLanguageVersion struct {
+	Model
+	Lang        string `gorm:"column:lang" json:"lang"`
+	Version     string `gorm:"column:version" json:"version"`
+	FirstChoice bool   `gorm:"column:first_choice" json:"first_choice"`
+	EventID     string `gorm:"column:event_id" json:"event_id"`
+	FileName    string `gorm:"column:file_name" json:"file_name"`
+	System      bool   `gorm:"column:system" json:"system"`
+}
+
+// TableName return tableName "k8s_resources"
+func (k *EnterpriseLanguageVersion) TableName() string {
+	return "enterprise_language_version"
+}

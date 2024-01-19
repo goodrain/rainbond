@@ -68,6 +68,7 @@ func (h *HelmAction) GetChartInformation(chart api_model.ChartInformation) (*[]a
 		return nil, &util.APIHandleError{Code: 400, Err: errors.Wrap(err, "GetChartInformation NewRequest")}
 	}
 	client := &http.Client{}
+	req.SetBasicAuth(chart.Username, chart.Password)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, &util.APIHandleError{Code: 400, Err: errors.Wrap(err, "GetChartInformation client.Do")}

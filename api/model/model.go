@@ -523,6 +523,8 @@ type CheckHelmApp struct {
 type ChartInformation struct {
 	RepoURL   string `json:"repo_url"`
 	ChartName string `json:"chart_name"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
 }
 
 // GetYamlByChart -
@@ -2241,4 +2243,12 @@ type UploadChart struct {
 type UploadChartValueYaml struct {
 	Values map[string]string `json:"values"`
 	Readme string            `json:"readme"`
+}
+
+// UpdateLangVersion -
+type UpdateLangVersion struct {
+	Lang     string `json:"lang"`
+	Version  string `json:"version"`
+	EventID  string `json:"event_id"`
+	FileName string `json:"file_name"`
 }
