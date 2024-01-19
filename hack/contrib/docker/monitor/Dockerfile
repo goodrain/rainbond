@@ -8,9 +8,9 @@ ENV RELEASE_DESC=${RELEASE_DESC}
 COPY rainbond-monitor /run/rainbond-monitor
 
 RUN if [ $(arch) = "arm64" ] || [ $(arch) = "aarch64" ]; then \
-        wget https://pkg.goodrain.com/pkg/tini/v0.19.0/tini-arm -O /bin/tini && chmod +x /bin/tini; \
+        wget --no-check-certificate https://pkg.goodrain.com/pkg/tini/v0.19.0/tini-static-arm64 -O /bin/tini && chmod +x /bin/tini; \
     else \
-        wget https://pkg.goodrain.com/pkg/tini/v0.19.0/tini -O /bin/tini && chmod +x /bin/tini; \
+        wget --no-check-certificate https://pkg.goodrain.com/pkg/tini/v0.19.0/tini-static-amd64 -O /bin/tini && chmod +x /bin/tini; \
     fi
 
 ADD entrypoint.sh /run/entrypoint.sh

@@ -101,7 +101,7 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 		tarPath := path.Join("/grdata/package_build/temp/events", eventID)
 		files, _ := filepath.Glob(path.Join(tarPath, "*"))
 		if len(files) == 1 {
-			if !strings.HasSuffix(files[0], ".tar") {
+			if !strings.HasSuffix(files[0], ".tar") && !strings.HasSuffix(files[0], ".tar.gz") {
 				d.errappend(ErrorAndSolve(FatalError, fmt.Sprintf("文件格式不正确"), SolveAdvice("modify_image", "请确认上传的文件格式是否正确")))
 				return d.errors
 			}
@@ -158,11 +158,13 @@ func (d *DockerRunOrImageParse) Parse() ParseErrorList {
 		d.image = ParseImageName(d.source)
 	}
 	//获取镜像，验证是否存在
-	if d.user == "" {
-		d.user = builder.REGISTRYUSER
-	}
-	if d.pass == "" {
-		d.pass = builder.REGISTRYPASS
+	if strings.HasPrefix(d.image.Source(), builder.REGISTRYDOMAIN) {
+		if d.user == "" {
+			d.user = builder.REGISTRYUSER
+		}
+		if d.pass == "" {
+			d.pass = builder.REGISTRYPASS
+		}
 	}
 	imageInspect, err := d.imageClient.ImagePull(d.image.Source(), d.user, d.pass, d.logger, 10)
 	if err != nil {
