@@ -106,13 +106,13 @@ func (r2 *Registry) GetTagsByRepoName(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var regUrl string
+	var regURL string
 	if strings.HasSuffix(req.Domain, "/") {
-		regUrl = req.Domain + r.URL.Query().Get("repo")
+		regURL = req.Domain + r.URL.Query().Get("repo")
 	} else {
-		regUrl = req.Domain + "/" + r.URL.Query().Get("repo")
+		regURL = req.Domain + "/" + r.URL.Query().Get("repo")
 	}
-	repo, err := name.NewRepository(regUrl)
+	repo, err := name.NewRepository(regURL)
 	if err != nil {
 		logrus.Errorf("parse registry error %s", err.Error())
 		httputil.ReturnBcodeError(r, w, bcode.NewBadRequest(err.Error()))
