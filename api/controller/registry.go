@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -37,7 +38,7 @@ func (r2 *Registry) CheckRegistry(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	url, err := url.Parse(req.Domain)
+	parse, err := url.Parse(req.Domain)
 	if err != nil {
 		logrus.Errorf("parse url error %s", err.Error())
 		httputil.ReturnBcodeError(r, w, bcode.NewBadRequest(err.Error()))
@@ -45,13 +46,14 @@ func (r2 *Registry) CheckRegistry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	options := make([]name.Option, 0)
-	if url.Scheme == "http" {
+	if parse.Scheme == "http" {
 		options = append(options, name.Insecure)
 	}
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
-	registryCfg, err := name.NewRegistry(url.Host, options...)
+	fmt.Println(parse.Host)
+	registryCfg, err := name.NewRegistry(req.Domain, options...)
 	if err != nil {
 		logrus.Errorf("parse registry error %s", err.Error())
 		httputil.ReturnBcodeError(r, w, bcode.NewBadRequest(err.Error()))
