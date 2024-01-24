@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -52,7 +51,6 @@ func (r2 *Registry) CheckRegistry(w http.ResponseWriter, r *http.Request) {
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 
-	fmt.Println(parse.Host)
 	registryCfg, err := name.NewRegistry(req.Domain, options...)
 	if err != nil {
 		logrus.Errorf("parse registry error %s", err.Error())
