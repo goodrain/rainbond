@@ -111,6 +111,7 @@ require (
 	github.com/coreos/etcd v3.3.13+incompatible
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-playground/assert/v2 v2.0.1
+	github.com/google/go-containerregistry v0.5.1
 	github.com/helm/helm v2.17.0+incompatible
 	golang.org/x/sync v0.2.0
 	k8s.io/apimachinery v0.28.3

@@ -72,6 +72,7 @@ func (v2 *V2) proxyRoute() chi.Router {
 	r := chi.NewRouter()
 	r.Post("/registry/repos", controller.GetManager().GetAllRepo)
 	r.Post("/registry/tags", controller.GetManager().GetTagsByRepoName)
+	r.Post("/registry/check", controller.GetManager().CheckRegistry)
 	return r
 }
 
