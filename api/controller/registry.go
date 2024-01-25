@@ -7,6 +7,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"strings"
+	"time"
 
 	"crypto/tls"
 	apimodel "github.com/goodrain/rainbond/api/model"
@@ -62,8 +63,9 @@ func (r2 *Registry) CheckRegistry(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnBcodeError(r, w, bcode.NewBadRequest(err.Error()))
 		return
 	}
-
-	ctx := context.TODO()
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
 	_, err = transport.NewWithContext(ctx, registryCfg, &authn.Basic{
 		Username: req.UserName,
 		Password: req.Password,
