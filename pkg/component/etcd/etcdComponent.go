@@ -85,8 +85,8 @@ func (e *Component) Start(ctx context.Context, cfg *configs.Config) error {
 			return err
 		}
 		config.TLS = tlsConfig
+	} else {
 		config.DialOptions = []grpc.DialOption{grpc.WithInsecure()}
-
 	}
 	gogo.Go(func(ctx context.Context) error {
 		var err error
