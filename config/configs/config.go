@@ -1,6 +1,9 @@
 package configs
 
-import "github.com/goodrain/rainbond/cmd/api/option"
+import (
+	apiconfig "github.com/goodrain/rainbond/cmd/api/option"
+	mqconfig "github.com/goodrain/rainbond/cmd/mq/option"
+)
 
 // Env -
 type Env string
@@ -11,7 +14,8 @@ type Config struct {
 	Version   string
 	Env       Env
 	Debug     bool
-	APIConfig option.Config
+	APIConfig apiconfig.Config
+	MQConfig  mqconfig.Config
 }
 
 var defaultConfig *Config
