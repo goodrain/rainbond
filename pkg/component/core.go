@@ -132,14 +132,17 @@ func Proxy() rainbond.FuncComponent {
 	}
 }
 
+// MQHealthServer -
 func MQHealthServer() rainbond.ComponentCancel {
 	return metrics.NewMetricsServer()
 }
 
+// MQGrpcServer -
 func MQGrpcServer() rainbond.ComponentCancel {
 	return grpcserver.NewGrpcServer()
 }
 
+// MQClient -
 func MQClient() rainbond.Component {
 	return mqclient.MQClient()
 }
