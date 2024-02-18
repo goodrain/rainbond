@@ -281,6 +281,7 @@ type AppRestoreInterface interface {
 // PodInterface defines api methods about k8s pods.
 type PodInterface interface {
 	PodDetail(w http.ResponseWriter, r *http.Request)
+	PodLogs(w http.ResponseWriter, r *http.Request)
 }
 
 // RegistryAuthSecretInterface registry auth secret interface
