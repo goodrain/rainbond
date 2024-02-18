@@ -33,6 +33,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/goodrain/rainbond/util"
 
@@ -106,7 +107,7 @@ func (m *Manager) SetMiddleware() {
 	//Gracefully absorb panics and prints the stack trace
 	r.Use(interceptors.Recoverer)
 	//request time out
-	//r.Use(middleware.Timeout(time.Second * 5))
+	r.Use(interceptors.Timeout(time.Second * 5))
 	//simple authz
 	if os.Getenv("TOKEN") != "" {
 		r.Use(apimiddleware.FullToken)
