@@ -1,0 +1,33 @@
+package mqclient
+
+import (
+	"context"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/mq/api/mq"
+)
+
+var defaultMQClientComponent *Component
+
+type Component struct {
+	actionMQ mq.ActionMQ
+}
+
+func Default() *Component {
+	return defaultMQClientComponent
+}
+func (m *Component) ActionMQ() mq.ActionMQ {
+	return m.actionMQ
+}
+
+func (m *Component) Start(ctx context.Context, cfg *configs.Config) error {
+	m.actionMQ = mq.NewActionMQ(ctx, cfg.MQConfig)
+	return m.actionMQ.Start()
+}
+
+func (m *Component) CloseHandle() {
+}
+
+func MQClient() *Component {
+	defaultMQClientComponent = &Component{}
+	return defaultMQClientComponent
+}

@@ -23,18 +23,16 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"github.com/coreos/etcd/clientv3"
+	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/pkg/interceptors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/common/version"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strings"
-	"time"
-
-	"github.com/goodrain/rainbond/api/handler"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/version"
 
 	"github.com/goodrain/rainbond/util"
 
@@ -108,7 +106,7 @@ func (m *Manager) SetMiddleware() {
 	//Gracefully absorb panics and prints the stack trace
 	r.Use(interceptors.Recoverer)
 	//request time out
-	r.Use(middleware.Timeout(time.Second * 5))
+	//r.Use(middleware.Timeout(time.Second * 5))
 	//simple authz
 	if os.Getenv("TOKEN") != "" {
 		r.Use(apimiddleware.FullToken)

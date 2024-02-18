@@ -19,18 +19,21 @@
 package controller
 
 import (
+	"bufio"
 	"fmt"
-	"net/http"
-	"strings"
-
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/goodrain/rainbond/worker/server"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	"net/http"
+	"strings"
+	"time"
 )
 
 // PodController is an implementation of PodInterface
@@ -113,4 +116,58 @@ func (p *PodController) PodDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, pd)
+}
+
+// PodLogs -
+func (p *PodController) PodLogs(w http.ResponseWriter, r *http.Request) {
+	podNamespace := r.URL.Query().Get("pod_ns")
+	podName := r.URL.Query().Get("pod_name")
+	// Get Kubernetes pod logs
+	lines := int64(1280)
+	req := k8s.Default().Clientset.CoreV1().Pods(podNamespace).GetLogs(podName, &corev1.PodLogOptions{
+		Follow:     true,
+		Timestamps: true,
+		TailLines:  &lines,
+	})
+	stream, err := req.Stream(r.Context())
+	if err != nil {
+		logrus.Errorf("Error opening log stream: %v", err)
+		http.Error(w, "Error opening log stream", http.StatusInternalServerError)
+		return
+	}
+	defer stream.Close()
+	// Use Flusher to send headers to the client
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		logrus.Errorf("Streaming not supported")
+		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+	// Set headers for SSE
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	scanner := bufio.NewScanner(stream)
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+
+	var messages []string
+
+	for {
+		select {
+		case <-ticker.C:
+			fmt.Fprintf(w, strings.Join(messages, "\n\n"))
+			messages = messages[:0] // Clear the slice
+			flusher.Flush()
+		case <-r.Context().Done():
+			logrus.Warningf("Request context done: %v", r.Context().Err())
+			return
+		default:
+			if len(messages) < 128 && scanner.Scan() {
+				messages = append(messages, "data: "+scanner.Text())
+			}
+		}
+	}
 }

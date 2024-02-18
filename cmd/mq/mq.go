@@ -19,13 +19,15 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/pkg/component"
+	"github.com/goodrain/rainbond/pkg/rainbond"
+	"github.com/sirupsen/logrus"
 	"os"
 
 	"github.com/goodrain/rainbond/cmd"
 	"github.com/goodrain/rainbond/cmd/mq/option"
-	"github.com/goodrain/rainbond/cmd/mq/server"
-
 	"github.com/spf13/pflag"
 )
 
@@ -37,8 +39,17 @@ func main() {
 	s.AddFlags(pflag.CommandLine)
 	pflag.Parse()
 	s.SetLog()
-	if err := server.Run(s); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+
+	configs.SetDefault(&configs.Config{
+		AppName:  "rbd-mq",
+		MQConfig: s.Config,
+	})
+	err := rainbond.New(context.Background(), configs.Default()).
+		Registry(component.MQClient()).
+		RegistryCancel(component.MQGrpcServer()).
+		RegistryCancel(component.MQHealthServer()).
+		Start()
+	if err != nil {
+		logrus.Errorf("start rbd mq error %s", err.Error())
 	}
 }

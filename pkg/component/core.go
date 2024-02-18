@@ -26,6 +26,9 @@ import (
 	"github.com/goodrain/rainbond/api/server"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/event"
+	"github.com/goodrain/rainbond/mq/mqcomponent/grpcserver"
+	"github.com/goodrain/rainbond/mq/mqcomponent/metrics"
+	"github.com/goodrain/rainbond/mq/mqcomponent/mqclient"
 	"github.com/goodrain/rainbond/pkg/component/etcd"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
@@ -127,4 +130,16 @@ func Proxy() rainbond.FuncComponent {
 		handler.InitProxy(cfg.APIConfig)
 		return nil
 	}
+}
+
+func MQHealthServer() rainbond.ComponentCancel {
+	return metrics.NewMetricsServer()
+}
+
+func MQGrpcServer() rainbond.ComponentCancel {
+	return grpcserver.NewGrpcServer()
+}
+
+func MQClient() rainbond.Component {
+	return mqclient.MQClient()
 }

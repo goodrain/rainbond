@@ -20,8 +20,6 @@ package router
 
 import (
 	"github.com/goodrain/rainbond/pkg/interceptors"
-	"time"
-
 	"github.com/sirupsen/logrus"
 
 	"github.com/goodrain/rainbond/node/api/controller"
@@ -44,7 +42,7 @@ func Routers(mode string) *chi.Mux {
 	//Gracefully absorb panics and prints the stack trace
 	r.Use(interceptors.Recoverer)
 	//request time out
-	r.Use(middleware.Timeout(time.Second * 5))
+	//r.Use(middleware.Timeout(time.Second * 5))
 	r.Mount("/v1", DisconverRoutes())
 	r.Route("/v2", func(r chi.Router) {
 		r.Get("/ping", controller.Ping)
