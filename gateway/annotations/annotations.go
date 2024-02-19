@@ -42,6 +42,7 @@ const DeniedKeyName = "Denied"
 type Ingress struct {
 	metav1.ObjectMeta
 	Header            header.Config
+	ResponseHeader    header.Config
 	Cookie            cookie.Config
 	Weight            weight.Config
 	Rewrite           rewrite.Config

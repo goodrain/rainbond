@@ -47,9 +47,10 @@ type Config struct {
 	RequestBuffering    string            `json:"requestBuffering"`
 	ProxyBuffering      string            `json:"proxyBuffering"`
 	SetHeaders          map[string]string `json:"setHeaders"`
+	ResponseHeaders     map[string]string `json:"responseHeaders"`
 }
 
-//Validation validation nginx parameters
+// Validation validation nginx parameters
 func (s *Config) Validation() error {
 	defBackend := config.NewDefault()
 	for k, v := range s.SetHeaders {
@@ -60,6 +61,16 @@ func (s *Config) Validation() error {
 			return fmt.Errorf("header %s value %s is valid", k, v)
 		}
 	}
+
+	for k, v := range s.ResponseHeaders {
+		if !httpguts.ValidHeaderFieldName(k) {
+			return fmt.Errorf("response header %s name is valid", k)
+		}
+		if !httpguts.ValidHeaderFieldValue(v) {
+			return fmt.Errorf("response header %s value %s is valid", k, v)
+		}
+	}
+
 	if !s.validateBuffering(s.ProxyBuffering) {
 		logrus.Warningf("invalid proxy buffering: %s; use the default one: %s", s.ProxyBuffering, defBackend.ProxyBuffering)
 		s.ProxyBuffering = defBackend.ProxyBuffering
@@ -92,29 +103,6 @@ func (s *Config) validateBufferSize() bool {
 
 func (s *Config) validateBuffering(buffering string) bool {
 	return buffering == "off" || buffering == "on"
-}
-
-//NewProxyConfig new proxy config
-func NewProxyConfig() Config {
-	defBackend := config.NewDefault()
-	return Config{
-		BodySize:            defBackend.ProxyBodySize,
-		ConnectTimeout:      defBackend.ProxyConnectTimeout,
-		SendTimeout:         defBackend.ProxySendTimeout,
-		ReadTimeout:         defBackend.ProxyReadTimeout,
-		BuffersNumber:       defBackend.ProxyBuffersNumber,
-		BufferSize:          defBackend.ProxyBufferSize,
-		CookieDomain:        defBackend.ProxyCookieDomain,
-		CookiePath:          defBackend.ProxyCookiePath,
-		NextUpstream:        defBackend.ProxyNextUpstream,
-		NextUpstreamTries:   defBackend.ProxyNextUpstreamTries,
-		NextUpstreamTimeout: defBackend.ProxyNextUpstreamTimeout,
-		RequestBuffering:    defBackend.ProxyRequestBuffering,
-		ProxyRedirectFrom:   defBackend.ProxyRedirectFrom,
-		ProxyRedirectTo:     defBackend.ProxyRedirectTo,
-		ProxyBuffering:      defBackend.ProxyBuffering,
-		SetHeaders:          defBackend.ProxySetHeaders,
-	}
 }
 
 // Equal tests for equality between two Configuration types
@@ -171,12 +159,21 @@ func (s *Config) Equal(l2 *Config) bool {
 	if len(s.SetHeaders) != len(l2.SetHeaders) {
 		return false
 	}
+
+	if len(s.ResponseHeaders) != len(l2.ResponseHeaders) {
+		return false
+	}
 	for k, v := range s.SetHeaders {
 		if l2.SetHeaders[k] != v {
 			return false
 		}
 	}
 
+	for k, v := range s.ResponseHeaders {
+		if l2.ResponseHeaders[k] != v {
+			return false
+		}
+	}
 	return true
 }
 
@@ -277,6 +274,8 @@ func (a proxy) Parse(meta *metav1.ObjectMeta) (interface{}, error) {
 	for k, v := range defBackend.ProxySetHeaders {
 		config.SetHeaders[k] = v
 	}
+
+	// request headers
 	setHeaders, err := parser.GetStringAnnotationWithPrefix("set-header-", meta)
 	if err != nil && !strings.Contains(err.Error(), "ingress rule without annotations") {
 		logrus.Debugf("get header annotation failure %s", err.Error())
@@ -286,6 +285,19 @@ func (a proxy) Parse(meta *metav1.ObjectMeta) (interface{}, error) {
 			v = ""
 		}
 		config.SetHeaders[k] = v
+	}
+
+	// response header
+	config.ResponseHeaders = make(map[string]string)
+	responseHeaders, err := parser.GetStringAnnotationWithPrefix("resp-header-", meta)
+	if err != nil && !strings.Contains(err.Error(), "ingress rule without annotations") {
+		logrus.Debugf("get header annotation failure %s", err.Error())
+	}
+	for k, v := range responseHeaders {
+		if v == "empty" {
+			v = ""
+		}
+		config.ResponseHeaders[k] = v
 	}
 	return config, nil
 }
