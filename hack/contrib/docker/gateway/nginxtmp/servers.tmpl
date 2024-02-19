@@ -65,7 +65,7 @@ server {
         proxy_set_header    {{$k}}    {{$v}};
         {{ end }}
 
-        # set response headers
+        # custom set response headers
         {{ range $k1, $v1 := $loc.Proxy.ResponseHeaders }}
         add_header    {{$k1}}    {{$v1}};
         {{ end }}

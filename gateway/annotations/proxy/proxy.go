@@ -288,6 +288,7 @@ func (a proxy) Parse(meta *metav1.ObjectMeta) (interface{}, error) {
 	}
 
 	// response header
+	config.ResponseHeaders = make(map[string]string)
 	responseHeaders, err := parser.GetStringAnnotationWithPrefix("resp-header-", meta)
 	if err != nil && !strings.Contains(err.Error(), "ingress rule without annotations") {
 		logrus.Debugf("get header annotation failure %s", err.Error())

@@ -1321,7 +1321,7 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 			item.Value = "empty"
 		}
 		// filter same key
-		setheaders["resp-header-"+item.Key] = item.Value
+		responseHeaders["resp-header-"+item.Key] = item.Value
 	}
 	for k, v := range responseHeaders {
 		configs = append(configs, &model.GwRuleConfig{
