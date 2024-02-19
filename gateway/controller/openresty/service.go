@@ -152,10 +152,10 @@ func (o *OrService) PersistConfig(conf *v1.Config) error {
 	o.configManage.WriteServer(*o.ocfg, "stream", "", l4srv...)
 
 	// reload nginx
-	//if err := nginxcmd.Reload(); err != nil {
-	//	logrus.Errorf("Nginx reloads falure %s", err.Error())
-	//	return err
-	//}
+	if err := nginxcmd.Reload(); err != nil {
+		logrus.Errorf("Nginx reloads falure %s", err.Error())
+		return err
+	}
 	logrus.Debug("Nginx reloads successfully.")
 	return nil
 }
