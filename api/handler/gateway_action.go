@@ -1311,6 +1311,26 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 		})
 	}
 
+	// response headers
+	responseHeaders := make(map[string]string)
+	for _, item := range req.Body.ResponseHeaders {
+		if strings.TrimSpace(item.Key) == "" {
+			continue
+		}
+		if strings.TrimSpace(item.Value) == "" {
+			item.Value = "empty"
+		}
+		// filter same key
+		setheaders["resp-header-"+item.Key] = item.Value
+	}
+	for k, v := range responseHeaders {
+		configs = append(configs, &model.GwRuleConfig{
+			RuleID: req.RuleID,
+			Key:    k,
+			Value:  v,
+		})
+	}
+
 	rule, err := g.dbmanager.HTTPRuleDao().GetHTTPRuleByID(req.RuleID)
 	if err != nil {
 		return err
