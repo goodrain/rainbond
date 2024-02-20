@@ -21,6 +21,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/db"
 	"net"
 	"sync"
 	"time"
@@ -131,7 +132,7 @@ func (i *ipManager) updateIP(ips ...net.IP) error {
 			logrus.Errorf("put gateway ip to etcd failure %s", err.Error())
 			continue
 		}
-		_, err = i.etcdCli.Put(ctx, fmt.Sprintf("/rainbond/gateway/ips/%s", ip.String()), ip.String(), clientv3.WithLease(res.ID))
+		err = db.GetManager().KeyValueDao().Put(fmt.Sprintf("/rainbond/gateway/ips/%s", ip.String()), ip.String())
 		if err != nil {
 			logrus.Errorf("put gateway ip to etcd failure %s", err.Error())
 			continue
@@ -143,12 +144,10 @@ func (i *ipManager) updateIP(ips ...net.IP) error {
 }
 
 func (i *ipManager) deleteIP(ips ...net.IP) {
-	ctx, cancel := context.WithTimeout(i.ctx, time.Second*30)
-	defer cancel()
 	i.lock.Lock()
 	defer i.lock.Unlock()
 	for _, ip := range ips {
-		_, err := i.etcdCli.Delete(ctx, fmt.Sprintf("/rainbond/gateway/ips/%s", ip.String()))
+		err := db.GetManager().KeyValueDao().Delete(fmt.Sprintf("/rainbond/gateway/ips/%s", ip.String()))
 		if err != nil {
 			logrus.Errorf("put gateway ip to etcd failure %s", err.Error())
 		}

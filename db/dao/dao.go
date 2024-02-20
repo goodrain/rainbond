@@ -72,6 +72,7 @@ type AppDao interface {
 type KeyValueDao interface {
 	Put(key, value string) error
 	Get(key string) (*model.KeyValue, error)
+	WithPrefix(prefix string) ([]model.KeyValue, error)
 	Delete(key string) error
 }
 

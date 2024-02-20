@@ -10,6 +10,17 @@ type KeyValueImpl struct {
 	DB *gorm.DB
 }
 
+// WithPrefix -
+func (k KeyValueImpl) WithPrefix(prefix string) ([]dbmodel.KeyValue, error) {
+	var keyValues = make([]dbmodel.KeyValue, 0)
+
+	if err := k.DB.Where("k LIKE ?", prefix+"%").Find(&keyValues).Error; err != nil {
+		return nil, err
+	}
+
+	return keyValues, nil
+}
+
 // Put -
 func (k KeyValueImpl) Put(key, value string) error {
 	keyValue := dbmodel.KeyValue{K: key, V: value}
