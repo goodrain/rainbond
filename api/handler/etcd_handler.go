@@ -19,27 +19,27 @@ const (
 )
 
 // EtcdHandler defines handler methods about k8s pods.
-type EtcdHandler struct {
+type CleanDateBaseHandler struct {
 }
 
 // NewEtcdHandler creates a new PodHandler.
-func NewEtcdHandler() *EtcdHandler {
-	return &EtcdHandler{}
+func NewCleanDateBaseHandler() *CleanDateBaseHandler {
+	return &CleanDateBaseHandler{}
 }
 
 // CleanAllServiceData -
-func (h *EtcdHandler) CleanAllServiceData(keys []string) {
+func (h *CleanDateBaseHandler) CleanAllServiceData(keys []string) {
 	for _, key := range keys {
 		h.cleanDateBaseByKey(key, ServiceCheckEtcdKey, ShareResultEtcdKey, BackupRestoreEtcdKey)
 	}
 }
 
 // CleanServiceCheckData clean service check etcd data
-func (h *EtcdHandler) CleanServiceCheckData(key string) {
+func (h *CleanDateBaseHandler) CleanServiceCheckData(key string) {
 	h.cleanDateBaseByKey(key, ServiceCheckEtcdKey)
 }
 
-func (h *EtcdHandler) cleanDateBaseByKey(key string, keyTypes ...EtcdKeyType) {
+func (h *CleanDateBaseHandler) cleanDateBaseByKey(key string, keyTypes ...EtcdKeyType) {
 	if key == "" {
 		logrus.Warn("get empty etcd data key, ignore it")
 		return
@@ -59,7 +59,7 @@ func (h *EtcdHandler) cleanDateBaseByKey(key string, keyTypes ...EtcdKeyType) {
 
 }
 
-func (h *EtcdHandler) cleanDateBaseData(prefix string) {
+func (h *CleanDateBaseHandler) cleanDateBaseData(prefix string) {
 	err := db.GetManager().KeyValueDao().DeleteWithPrefix(prefix)
 	if err != nil {
 		logrus.Warnf("delete db key[%s] failed: %s", prefix, err.Error())

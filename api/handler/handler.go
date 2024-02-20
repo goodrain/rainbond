@@ -74,7 +74,7 @@ func InitHandle(conf option.Config) error {
 	defPodHandler = NewPodHandler(statusCli)
 	defClusterHandler = NewClusterHandler(clientset, conf.RbdNamespace, conf.GrctlImage, restconfig, mapper, prometheusCli, rainbondClient, statusCli, dynamicClient, gatewayClient, mqClient)
 	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
-	defaultEtcdHandler = NewEtcdHandler()
+	defaultCleanDateBaseHandler = NewCleanDateBaseHandler()
 	defaultmonitorHandler = NewMonitorHandler(prometheusCli)
 	defServiceEventHandler = NewServiceEventHandler()
 	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli, rainbondClient, clientset, dynamicClient)
@@ -199,11 +199,11 @@ func GetPodHandler() PodHandler {
 	return defPodHandler
 }
 
-var defaultEtcdHandler *EtcdHandler
+var defaultCleanDateBaseHandler *CleanDateBaseHandler
 
-// GetEtcdHandler returns the default etcd handler.
-func GetEtcdHandler() *EtcdHandler {
-	return defaultEtcdHandler
+// GetCleanDateBaseHandler returns the default db clean handler.
+func GetCleanDateBaseHandler() *CleanDateBaseHandler {
+	return defaultCleanDateBaseHandler
 }
 
 var defClusterHandler ClusterHandler

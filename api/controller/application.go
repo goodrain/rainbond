@@ -170,7 +170,7 @@ func (a *ApplicationController) DeleteApp(w http.ResponseWriter, r *http.Request
 	var req model.EtcdCleanReq
 	if httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
 		logrus.Debugf("delete app etcd keys : %+v", req.Keys)
-		handler.GetEtcdHandler().CleanAllServiceData(req.Keys)
+		handler.GetCleanDateBaseHandler().CleanAllServiceData(req.Keys)
 	}
 	// Delete application
 	err := handler.GetApplicationHandler().DeleteApp(r.Context(), app)
@@ -366,7 +366,7 @@ func (a *ApplicationController) DeleteGovernanceModeCR(w http.ResponseWriter, r 
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-//GetWatchOperatorManaged get watch operator managed component
+// GetWatchOperatorManaged get watch operator managed component
 func (a *ApplicationController) GetWatchOperatorManaged(w http.ResponseWriter, r *http.Request) {
 	app := r.Context().Value(ctxutil.ContextKey("application")).(*dbmodel.Application)
 	ret, err := handler.GetApplicationHandler().GetAndHandleOperatorManaged(app.AppID)
