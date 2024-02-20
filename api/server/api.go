@@ -43,7 +43,6 @@ import (
 	"github.com/goodrain/rainbond/api/metric"
 	"github.com/goodrain/rainbond/api/proxy"
 
-	"github.com/goodrain/rainbond/api/api_routers/cloud"
 	"github.com/goodrain/rainbond/api/api_routers/version2"
 	"github.com/goodrain/rainbond/api/api_routers/websocket"
 
@@ -153,7 +152,6 @@ func (m *Manager) Run() {
 		res.Write([]byte("ok"))
 	})
 	m.r.Mount("/v2", v2R.Routes())
-	m.r.Mount("/cloud", cloud.Routes())
 	m.r.Mount("/", doc.Routes())
 	m.r.Mount("/license", license.Routes())
 	m.r.Get("/kubernetes/dashboard", m.KuberntesDashboardAPI)
