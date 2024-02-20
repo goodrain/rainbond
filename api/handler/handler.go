@@ -59,7 +59,6 @@ func InitHandle(conf option.Config) error {
 	defaultAppHandler = CreateAppManager(mqClient)
 	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, clientset, prometheusCli, k8sClient)
 	defaultHelmHandler = CreateHelmManager(clientset, rainbondClient, restconfig, mapper)
-	defaultNetRulesHandler = CreateNetRulesManager(etcdcli)
 	defaultCloudHandler = CreateCloudManager(conf)
 	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdcli)
 	defaultEventHandler = CreateLogManager(conf, etcdcli)
@@ -130,13 +129,6 @@ var defaultHelmHandler HelmHandler
 // GetHelmManager get manager
 func GetHelmManager() HelmHandler {
 	return defaultHelmHandler
-}
-
-var defaultNetRulesHandler NetRulesHandler
-
-// GetRulesManager get manager
-func GetRulesManager() NetRulesHandler {
-	return defaultNetRulesHandler
 }
 
 var defaultCloudHandler CloudHandler

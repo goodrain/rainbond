@@ -194,10 +194,6 @@ type PluginInterface interface {
 
 // RulesInterface RulesInterface
 type RulesInterface interface {
-	SetDownStreamRule(w http.ResponseWriter, r *http.Request)
-	GetDownStreamRule(w http.ResponseWriter, r *http.Request)
-	DeleteDownStreamRule(w http.ResponseWriter, r *http.Request)
-	UpdateDownStreamRule(w http.ResponseWriter, r *http.Request)
 }
 
 // AppInterface app handle interface
