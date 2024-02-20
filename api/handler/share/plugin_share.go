@@ -19,12 +19,10 @@
 package share
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/goodrain/rainbond/mq/client"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/exector"
 	"github.com/goodrain/rainbond/db"
@@ -36,7 +34,6 @@ import (
 // PluginShareHandle plugin share
 type PluginShareHandle struct {
 	MQClient client.MQClient
-	EtcdCli  *clientv3.Client
 }
 
 // PluginResult share plugin api return
@@ -113,16 +110,17 @@ func (s *PluginShareHandle) Share(ss PluginShare) (*PluginResult, *util.APIHandl
 
 // ShareResult 分享应用结果查询
 func (s *PluginShareHandle) ShareResult(shareID string) (i exector.ShareStatus, e *util.APIHandleError) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	res, err := s.EtcdCli.Get(ctx, fmt.Sprintf("/rainbond/shareresult/%s", shareID))
+	res, err := db.GetManager().KeyValueDao().Get(fmt.Sprintf("/rainbond/shareresult/%s", shareID))
+	if err != nil {
+		return exector.ShareStatus{}, nil
+	}
 	if err != nil {
 		e = util.CreateAPIHandleError(500, err)
 	} else {
-		if res.Count == 0 {
+		if res == nil {
 			i.ShareID = shareID
 		} else {
-			if err := ffjson.Unmarshal(res.Kvs[0].Value, &i); err != nil {
+			if err := ffjson.Unmarshal([]byte(res.V), &i); err != nil {
 				return i, util.CreateAPIHandleError(500, err)
 			}
 		}

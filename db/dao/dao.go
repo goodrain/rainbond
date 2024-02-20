@@ -74,6 +74,7 @@ type KeyValueDao interface {
 	Get(key string) (*model.KeyValue, error)
 	WithPrefix(prefix string) ([]model.KeyValue, error)
 	Delete(key string) error
+	DeleteWithPrefix(prefix string) error
 }
 
 // ApplicationDao tenant Application Dao

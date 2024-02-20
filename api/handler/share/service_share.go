@@ -19,29 +19,20 @@
 package share
 
 import (
-	"context"
 	"fmt"
-
-	"github.com/goodrain/rainbond/mq/client"
-
-	"github.com/goodrain/rainbond/builder/exector"
-
-	"github.com/twinj/uuid"
-
-	"github.com/pquerna/ffjson/ffjson"
-
-	"github.com/goodrain/rainbond/db"
-
-	"github.com/coreos/etcd/clientv3"
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
+	"github.com/goodrain/rainbond/builder/exector"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/mq/client"
+	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
+	"github.com/twinj/uuid"
 )
 
 // ServiceShareHandle service share
 type ServiceShareHandle struct {
 	MQClient client.MQClient
-	EtcdCli  *clientv3.Client
 }
 
 // APIResult 分享接口返回
@@ -53,7 +44,7 @@ type APIResult struct {
 }
 
 // Share 分享应用
-func (s *ServiceShareHandle) Share(serviceID string, ss api_model.ServiceShare) (*APIResult, *util.APIHandleError) {
+func (s *ServiceShareHandle) Share(serviceID string, ss apimodel.ServiceShare) (*APIResult, *util.APIHandleError) {
 	service, err := db.GetManager().TenantServiceDao().GetServiceByID(serviceID)
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("查询应用出错", err)
@@ -123,18 +114,15 @@ func (s *ServiceShareHandle) Share(serviceID string, ss api_model.ServiceShare) 
 
 // ShareResult 分享应用结果查询
 func (s *ServiceShareHandle) ShareResult(shareID string) (i exector.ShareStatus, e *util.APIHandleError) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	res, err := s.EtcdCli.Get(ctx, fmt.Sprintf("/rainbond/shareresult/%s", shareID))
+	res, err := db.GetManager().KeyValueDao().Get(fmt.Sprintf("/rainbond/shareresult/%s", shareID))
 	if err != nil {
-		e = util.CreateAPIHandleError(500, err)
+		return exector.ShareStatus{}, nil
+	}
+	if res == nil {
+		i.ShareID = shareID
 	} else {
-		if res.Count == 0 {
-			i.ShareID = shareID
-		} else {
-			if err := ffjson.Unmarshal(res.Kvs[0].Value, &i); err != nil {
-				return i, util.CreateAPIHandleError(500, err)
-			}
+		if err := ffjson.Unmarshal([]byte(res.V), &i); err != nil {
+			return i, util.CreateAPIHandleError(500, err)
 		}
 	}
 	return

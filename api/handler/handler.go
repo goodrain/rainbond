@@ -23,7 +23,6 @@ import (
 	"github.com/goodrain/rainbond/api/handler/share"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/pkg/component/etcd"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
@@ -39,7 +38,6 @@ func InitHandle(conf option.Config) error {
 	// 注意：以下 client 将不要再次通过参数形式传递 ！！！直接在你想调用的地方调用即可
 	// 注意：以下 client 将不要再次通过参数形式传递 ！！！直接在你想调用的地方调用即可
 
-	etcdcli := etcd.Default().EtcdClient
 	statusCli := grpc.Default().StatusClient
 	clientset := k8s.Default().Clientset
 	rainbondClient := k8s.Default().RainbondClient
@@ -62,8 +60,8 @@ func InitHandle(conf option.Config) error {
 	defaultCloudHandler = CreateCloudManager(conf)
 	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli)
 	defaultEventHandler = CreateLogManager(conf)
-	shareHandler = &share.ServiceShareHandle{MQClient: mqClient, EtcdCli: etcdcli}
-	pluginShareHandler = &share.PluginShareHandle{MQClient: mqClient, EtcdCli: etcdcli}
+	shareHandler = &share.ServiceShareHandle{MQClient: mqClient}
+	pluginShareHandler = &share.PluginShareHandle{MQClient: mqClient}
 	if err := CreateTokenIdenHandler(conf); err != nil {
 		logrus.Errorf("create token identification mannager error, %v", err)
 		return err
@@ -76,7 +74,7 @@ func InitHandle(conf option.Config) error {
 	defPodHandler = NewPodHandler(statusCli)
 	defClusterHandler = NewClusterHandler(clientset, conf.RbdNamespace, conf.GrctlImage, restconfig, mapper, prometheusCli, rainbondClient, statusCli, dynamicClient, gatewayClient, mqClient)
 	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
-	defaultEtcdHandler = NewEtcdHandler(etcdcli)
+	defaultEtcdHandler = NewEtcdHandler()
 	defaultmonitorHandler = NewMonitorHandler(prometheusCli)
 	defServiceEventHandler = NewServiceEventHandler()
 	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli, rainbondClient, clientset, dynamicClient)

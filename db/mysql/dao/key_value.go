@@ -10,6 +10,11 @@ type KeyValueImpl struct {
 	DB *gorm.DB
 }
 
+// DeleteWithPrefix -
+func (k KeyValueImpl) DeleteWithPrefix(prefix string) error {
+	return k.DB.Where("k LIKE ?", prefix+"%").Delete(dbmodel.KeyValue{}).Error
+}
+
 // WithPrefix -
 func (k KeyValueImpl) WithPrefix(prefix string) ([]dbmodel.KeyValue, error) {
 	var keyValues = make([]dbmodel.KeyValue, 0)

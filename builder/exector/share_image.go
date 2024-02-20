@@ -19,10 +19,10 @@
 package exector
 
 import (
-	"context"
 	"fmt"
 	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/builder"
+	"github.com/goodrain/rainbond/db"
 
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
@@ -125,9 +125,7 @@ func (i *ImageShareItem) UpdateShareStatus(status string) error {
 		ShareID: i.ShareID,
 		Status:  status,
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	_, err := i.EtcdCli.Put(ctx, fmt.Sprintf("/rainbond/shareresult/%s", i.ShareID), ss.String())
+	err := db.GetManager().KeyValueDao().Put(fmt.Sprintf("/rainbond/shareresult/%s", i.ShareID), ss.String())
 	if err != nil {
 		logrus.Errorf("put shareresult  %s into etcd error, %v", i.ShareID, err)
 		i.Logger.Error("存储分享结果失败。", map[string]string{"step": "callback", "status": "failure"})
