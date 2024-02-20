@@ -21,7 +21,17 @@ package handler
 import (
 	"context"
 	"fmt"
+	"github.com/coreos/etcd/clientv3"
+	apimodel "github.com/goodrain/rainbond/api/model"
+	"github.com/goodrain/rainbond/api/util/bcode"
+	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/mq/client"
+	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/worker/appm/controller"
+	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,18 +42,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/coreos/etcd/clientv3"
-	apimodel "github.com/goodrain/rainbond/api/model"
-	"github.com/goodrain/rainbond/api/util/bcode"
-	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/mq/client"
-	"github.com/goodrain/rainbond/util"
-	"github.com/jinzhu/gorm"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // GatewayAction -
@@ -56,11 +54,10 @@ type GatewayAction struct {
 }
 
 // CreateGatewayManager creates gateway manager.
-func CreateGatewayManager(dbmanager db.Manager, mqclient client.MQClient, etcdCli *clientv3.Client, gatewayClient *gateway.GatewayV1beta1Client, kubeClient kubernetes.Interface) *GatewayAction {
+func CreateGatewayManager(dbmanager db.Manager, mqclient client.MQClient, gatewayClient *gateway.GatewayV1beta1Client, kubeClient kubernetes.Interface) *GatewayAction {
 	return &GatewayAction{
 		dbmanager:     dbmanager,
 		mqclient:      mqclient,
-		etcdCli:       etcdCli,
 		gatewayClient: gatewayClient,
 		kubeClient:    kubeClient,
 	}
@@ -1311,6 +1308,26 @@ func (g *GatewayAction) RuleConfig(req *apimodel.RuleConfigReq) error {
 		})
 	}
 
+	// response headers
+	responseHeaders := make(map[string]string)
+	for _, item := range req.Body.ResponseHeaders {
+		if strings.TrimSpace(item.Key) == "" {
+			continue
+		}
+		if strings.TrimSpace(item.Value) == "" {
+			item.Value = "empty"
+		}
+		// filter same key
+		responseHeaders["resp-header-"+item.Key] = item.Value
+	}
+	for k, v := range responseHeaders {
+		configs = append(configs, &model.GwRuleConfig{
+			RuleID: req.RuleID,
+			Key:    k,
+			Value:  v,
+		})
+	}
+
 	rule, err := g.dbmanager.HTTPRuleDao().GetHTTPRuleByID(req.RuleID)
 	if err != nil {
 		return err
@@ -1420,15 +1437,14 @@ func (g *GatewayAction) GetGatewayIPs() []IPAndAvailablePort {
 		IP:            "0.0.0.0",
 		AvailablePort: defaultAvailablePort,
 	}}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	res, err := clientv3.NewKV(g.etcdCli).Get(ctx, "/rainbond/gateway/ips", clientv3.WithPrefix())
-	if err != nil {
+	res, err := db.GetManager().KeyValueDao().WithPrefix("/rainbond/gateway/ips")
+	if err != nil || len(res) == 0 {
 		return defaultIps
 	}
-	gatewayIps := []string{}
-	for _, v := range res.Kvs {
-		gatewayIps = append(gatewayIps, string(v.Value))
+
+	var gatewayIps = make([]string, 0)
+	for _, v := range res {
+		gatewayIps = append(gatewayIps, v.V)
 	}
 	sort.Strings(gatewayIps)
 	for _, v := range gatewayIps {

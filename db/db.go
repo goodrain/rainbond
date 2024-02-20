@@ -39,6 +39,7 @@ type Manager interface {
 	VolumeTypeDao() dao.VolumeTypeDao
 	LicenseDao() dao.LicenseDao
 	AppDao() dao.AppDao
+	KeyValueDao() dao.KeyValueDao
 	ApplicationDao() dao.ApplicationDao
 	ApplicationDaoTransactions(db *gorm.DB) dao.ApplicationDao
 	AppConfigGroupDao() dao.AppConfigGroupDao

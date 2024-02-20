@@ -19,14 +19,12 @@
 package group
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/jinzhu/gorm"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
@@ -73,12 +71,11 @@ type Backup struct {
 type BackupHandle struct {
 	mqcli     mqclient.MQClient
 	statusCli *client.AppRuntimeSyncClient
-	etcdCli   *clientv3.Client
 }
 
 // CreateBackupHandle CreateBackupHandle
-func CreateBackupHandle(MQClient mqclient.MQClient, statusCli *client.AppRuntimeSyncClient, etcdCli *clientv3.Client) *BackupHandle {
-	return &BackupHandle{mqcli: MQClient, statusCli: statusCli, etcdCli: etcdCli}
+func CreateBackupHandle(MQClient mqclient.MQClient, statusCli *client.AppRuntimeSyncClient) *BackupHandle {
+	return &BackupHandle{mqcli: MQClient, statusCli: statusCli}
 }
 
 // NewBackup new backup task
@@ -438,9 +435,7 @@ func (h *BackupHandle) RestoreBackup(br BackupRestore) (*RestoreResult, *util.AP
 		RestoreID:   restoreID,
 	}
 	body, _ := ffjson.Marshal(rr)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	_, err = h.etcdCli.Put(ctx, "/rainbond/backup_restore/"+restoreID, string(body))
+	err = db.GetManager().KeyValueDao().Put("/rainbond/backup_restore/"+restoreID, string(body))
 	if err != nil {
 		logrus.Errorf("save backup restore history error.")
 		return nil, util.CreateAPIHandleError(500, err)
@@ -450,17 +445,18 @@ func (h *BackupHandle) RestoreBackup(br BackupRestore) (*RestoreResult, *util.AP
 
 // RestoreBackupResult RestoreBackupResult
 func (h *BackupHandle) RestoreBackupResult(restoreID string) (*RestoreResult, *util.APIHandleError) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	res, err := h.etcdCli.Get(ctx, "/rainbond/backup_restore/"+restoreID)
+	res, err := db.GetManager().KeyValueDao().Get("/rainbond/backup_restore/" + restoreID)
+	if err != nil {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
-	if res.Count == 0 {
+	if res == nil {
 		return nil, util.CreateAPIHandleError(404, fmt.Errorf("restore result not exist "))
 	}
 	var rr RestoreResult
-	if err := ffjson.Unmarshal(res.Kvs[0].Value, &rr); err != nil {
+	if err := ffjson.Unmarshal([]byte(res.V), &rr); err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
 	if rr.Status == "success" {

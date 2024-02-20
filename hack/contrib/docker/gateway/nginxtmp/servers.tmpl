@@ -64,6 +64,11 @@ server {
         {{ range $k, $v := $loc.Proxy.SetHeaders }}
         proxy_set_header    {{$k}}    {{$v}};
         {{ end }}
+
+        # custom set response headers
+        {{ range $k1, $v1 := $loc.Proxy.ResponseHeaders }}
+        add_header    {{$k1}}    {{$v1}};
+        {{ end }}
         proxy_connect_timeout                   {{ $loc.Proxy.ConnectTimeout }}s;
         proxy_send_timeout                      {{ $loc.Proxy.SendTimeout }}s;
         proxy_read_timeout                      {{ $loc.Proxy.ReadTimeout }}s;

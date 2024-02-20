@@ -115,7 +115,7 @@ func Router() rainbond.FuncComponent {
 			logrus.Errorf("create v2 route manager error, %v", err)
 		}
 		// 启动api
-		apiManager := server.NewManager(cfg.APIConfig, etcd.Default().EtcdClient)
+		apiManager := server.NewManager(cfg.APIConfig)
 		if err := apiManager.Start(); err != nil {
 			return err
 		}

@@ -19,7 +19,6 @@
 package exector
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -820,7 +819,8 @@ func (b *BackupAPPRestore) saveResult(status, message string) {
 		CacheDir:      b.cacheDir,
 	}
 	body, _ := ffjson.Marshal(rr)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	b.etcdcli.Put(ctx, "/rainbond/backup_restore/"+rr.RestoreID, string(body))
+	err := db.GetManager().KeyValueDao().Put("/rainbond/backup_restore/"+rr.RestoreID, string(body))
+	if err != nil {
+		logrus.Errorf("save restore result error %s", err.Error())
+	}
 }

@@ -25,7 +25,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -34,7 +34,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//GetTenantServicePluginRelation GetTenantServicePluginRelation
+// GetTenantServicePluginRelation GetTenantServicePluginRelation
 func (s *ServiceAction) GetTenantServicePluginRelation(serviceID string) ([]*dbmodel.TenantServicePluginRelation, *util.APIHandleError) {
 	gps, err := db.GetManager().TenantServicePluginRelationDao().GetALLRelationByServiceID(serviceID)
 	if err != nil {
@@ -43,7 +43,7 @@ func (s *ServiceAction) GetTenantServicePluginRelation(serviceID string) ([]*dbm
 	return gps, nil
 }
 
-//TenantServiceDeletePluginRelation uninstall plugin for app
+// TenantServiceDeletePluginRelation uninstall plugin for app
 func (s *ServiceAction) TenantServiceDeletePluginRelation(tenantID, serviceID, pluginID string) *util.APIHandleError {
 	tx := db.GetManager().Begin()
 	defer func() {
@@ -85,8 +85,8 @@ func (s *ServiceAction) TenantServiceDeletePluginRelation(tenantID, serviceID, p
 	return nil
 }
 
-//SetTenantServicePluginRelation SetTenantServicePluginRelation
-func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError) {
+// SetTenantServicePluginRelation SetTenantServicePluginRelation
+func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID string, pss *apimodel.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError) {
 	plugin, err := db.GetManager().TenantPluginDao().GetPluginByID(pss.Body.PluginID, tenantID)
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("get plugin by plugin id", err)
@@ -182,8 +182,8 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 	return relation, nil
 }
 
-//UpdateTenantServicePluginRelation UpdateTenantServicePluginRelation
-func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError) {
+// UpdateTenantServicePluginRelation UpdateTenantServicePluginRelation
+func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss *apimodel.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError) {
 	relation, err := db.GetManager().TenantServicePluginRelationDao().GetRelateionByServiceIDAndPluginID(serviceID, pss.Body.PluginID)
 	if err != nil {
 		return nil, util.CreateAPIHandleErrorFromDBError("get relation by serviceid and pluginid", err)
@@ -203,7 +203,7 @@ func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss 
 	return relation, nil
 }
 
-func (s *ServiceAction) normalEnvs(tx *gorm.DB, serviceID, pluginID string, envs []*api_model.VersionEnv) error {
+func (s *ServiceAction) normalEnvs(tx *gorm.DB, serviceID, pluginID string, envs []*apimodel.VersionEnv) error {
 	for _, env := range envs {
 		tpv := &dbmodel.TenantPluginVersionEnv{
 			PluginID:  pluginID,
@@ -221,8 +221,8 @@ func checkPluginHaveInbound(model string) bool {
 	return model == dbmodel.InBoundNetPlugin || model == dbmodel.InBoundAndOutBoundNetPlugin
 }
 
-//UpdateVersionEnv UpdateVersionEnv
-func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError {
+// UpdateVersionEnv UpdateVersionEnv
+func (s *ServiceAction) UpdateVersionEnv(uve *apimodel.SetVersionEnv) *util.APIHandleError {
 	plugin, err := db.GetManager().TenantPluginDao().GetPluginByID(uve.PluginID, uve.Body.TenantID)
 	if err != nil {
 		return util.CreateAPIHandleErrorFromDBError("get plugin by plugin id", err)
@@ -277,7 +277,7 @@ func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.API
 	return nil
 }
 
-func (s *ServiceAction) upNormalEnvs(tx *gorm.DB, uve *api_model.SetVersionEnv) *util.APIHandleError {
+func (s *ServiceAction) upNormalEnvs(tx *gorm.DB, uve *apimodel.SetVersionEnv) *util.APIHandleError {
 	err := db.GetManager().TenantPluginVersionENVDaoTransactions(tx).DeleteEnvByPluginID(uve.Body.ServiceID, uve.PluginID)
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
@@ -290,8 +290,8 @@ func (s *ServiceAction) upNormalEnvs(tx *gorm.DB, uve *api_model.SetVersionEnv) 
 	return nil
 }
 
-//SavePluginConfig save plugin dynamic discovery config
-func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *api_model.ResourceSpec) *util.APIHandleError {
+// SavePluginConfig save plugin dynamic discovery config
+func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *apimodel.ResourceSpec) *util.APIHandleError {
 	if config == nil {
 		return nil
 	}
@@ -327,7 +327,7 @@ func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *api
 	return nil
 }
 
-//DeletePluginConfig delete service plugin dynamic discovery config
+// DeletePluginConfig delete service plugin dynamic discovery config
 func (s *ServiceAction) DeletePluginConfig(serviceID, pluginID string) *util.APIHandleError {
 	tx := db.GetManager().Begin()
 	err := s.deletePluginConfig(tx, serviceID, pluginID)
@@ -343,7 +343,7 @@ func (s *ServiceAction) DeletePluginConfig(serviceID, pluginID string) *util.API
 	return nil
 }
 
-//DeletePluginConfig delete service plugin dynamic discovery config
+// DeletePluginConfig delete service plugin dynamic discovery config
 func (s *ServiceAction) deletePluginConfig(tx *gorm.DB, serviceID, pluginID string) *util.APIHandleError {
 	if tx != nil {
 		if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).DeletePluginConfig(serviceID, pluginID); err != nil {

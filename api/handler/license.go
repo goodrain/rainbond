@@ -19,7 +19,7 @@
 package handler
 
 import (
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 
@@ -28,15 +28,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//LicenseAction LicenseAction
+// LicenseAction LicenseAction
 type LicenseAction struct{}
 
-//PackLicense PackLicense
+// PackLicense PackLicense
 func (l *LicenseAction) PackLicense(encrypted string) ([]byte, error) {
 	return decrypt(key, encrypted)
 }
 
-//StoreLicense StoreLicense
+// StoreLicense StoreLicense
 func (l *LicenseAction) StoreLicense(license, token string) error {
 
 	ls := &dbmodel.LicenseInfo{
@@ -49,28 +49,28 @@ func (l *LicenseAction) StoreLicense(license, token string) error {
 	return nil
 }
 
-//LicensesInfos LicensesInfos
-//验证
+// LicensesInfos LicensesInfos
+// 验证
 type LicensesInfos struct {
-	Infos map[string]*api_model.LicenseInfo
+	Infos map[string]*apimodel.LicenseInfo
 }
 
-//ShowInfos ShowInfos
-func (l *LicensesInfos) ShowInfos() (map[string]*api_model.LicenseInfo, error) {
+// ShowInfos ShowInfos
+func (l *LicensesInfos) ShowInfos() (map[string]*apimodel.LicenseInfo, error) {
 	return l.Infos, nil
 }
 
-//ListLicense lise license
-func ListLicense() (map[string]*api_model.LicenseInfo, error) {
+// ListLicense lise license
+func ListLicense() (map[string]*apimodel.LicenseInfo, error) {
 	licenses, err := db.GetManager().LicenseDao().ListLicenses()
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, err
 		}
 	}
-	LMlicense := make(map[string]*api_model.LicenseInfo)
+	LMlicense := make(map[string]*apimodel.LicenseInfo)
 	for _, license := range licenses {
-		mLicense := &api_model.LicenseInfo{}
+		mLicense := &apimodel.LicenseInfo{}
 		lc, err := GetLicenseHandler().PackLicense(license.License)
 		if err != nil {
 			logrus.Errorf("init license error.")

@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/pkg/component/etcd"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
 	"github.com/goodrain/rainbond/pkg/component/mq"
@@ -62,9 +61,7 @@ func handleServiceUnavailable(w http.ResponseWriter, r *http.Request) {
 	// Additional information about why etcd service is not available
 	errorMessage := "部分服务不可用"
 
-	if etcd.Default().EtcdClient == nil {
-		errorMessage = "Etcd 服务不可用"
-	} else if grpc.Default().StatusClient == nil {
+	if grpc.Default().StatusClient == nil {
 		errorMessage = "worker 服务不可用"
 	} else if hubregistry.Default().RegistryCli == nil {
 		errorMessage = "私有镜像仓库 服务不可用"

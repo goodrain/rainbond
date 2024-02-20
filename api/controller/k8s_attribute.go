@@ -21,7 +21,7 @@ package controller
 import (
 	"fmt"
 	"github.com/goodrain/rainbond/api/handler"
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -47,7 +47,7 @@ func (k *K8sAttributeController) K8sAttributes(w http.ResponseWriter, r *http.Re
 
 func (k *K8sAttributeController) getK8sAttributes(w http.ResponseWriter, r *http.Request) {
 	componentID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
-	var k8sAttrGet api_model.ComponentK8sAttributeGet
+	var k8sAttrGet apimodel.ComponentK8sAttributeGet
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &k8sAttrGet, nil); !ok {
 		httputil.ReturnBcodeError(r, w, fmt.Errorf("k8s attributes is not valid"))
 		return
@@ -80,7 +80,7 @@ func (k *K8sAttributeController) getK8sAttributes(w http.ResponseWriter, r *http
 func (k *K8sAttributeController) createK8sAttributes(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	componentID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
-	var k8sAttr api_model.ComponentK8sAttribute
+	var k8sAttr apimodel.ComponentK8sAttribute
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &k8sAttr, nil); !ok {
 		httputil.ReturnBcodeError(r, w, fmt.Errorf("k8s attributes is not valid"))
 		return
@@ -94,7 +94,7 @@ func (k *K8sAttributeController) createK8sAttributes(w http.ResponseWriter, r *h
 
 func (k *K8sAttributeController) updateK8sAttributes(w http.ResponseWriter, r *http.Request) {
 	componentID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
-	var k8sAttr api_model.ComponentK8sAttribute
+	var k8sAttr apimodel.ComponentK8sAttribute
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &k8sAttr, nil); !ok {
 		httputil.ReturnBcodeError(r, w, fmt.Errorf("k8s attributes is not valid"))
 		return
@@ -108,7 +108,7 @@ func (k *K8sAttributeController) updateK8sAttributes(w http.ResponseWriter, r *h
 
 func (k *K8sAttributeController) deleteK8sAttributes(w http.ResponseWriter, r *http.Request) {
 	componentID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
-	var req api_model.DeleteK8sAttributeReq
+	var req apimodel.DeleteK8sAttributeReq
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil); !ok {
 		httputil.ReturnBcodeError(r, w, fmt.Errorf("k8s attributes is not valid"))
 		return

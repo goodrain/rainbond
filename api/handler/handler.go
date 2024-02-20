@@ -23,7 +23,6 @@ import (
 	"github.com/goodrain/rainbond/api/handler/share"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
-	"github.com/goodrain/rainbond/pkg/component/etcd"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
@@ -39,7 +38,6 @@ func InitHandle(conf option.Config) error {
 	// 注意：以下 client 将不要再次通过参数形式传递 ！！！直接在你想调用的地方调用即可
 	// 注意：以下 client 将不要再次通过参数形式传递 ！！！直接在你想调用的地方调用即可
 
-	etcdcli := etcd.Default().EtcdClient
 	statusCli := grpc.Default().StatusClient
 	clientset := k8s.Default().Clientset
 	rainbondClient := k8s.Default().RainbondClient
@@ -54,22 +52,21 @@ func InitHandle(conf option.Config) error {
 	prometheusCli := prom.Default().PrometheusCli
 
 	dbmanager := db.GetManager()
-	defaultServieHandler = CreateManager(conf, mqClient, etcdcli, statusCli, prometheusCli, rainbondClient, clientset, kubevirtCli, dbmanager, registryCli)
+	defaultServieHandler = CreateManager(conf, mqClient, statusCli, prometheusCli, rainbondClient, clientset, kubevirtCli, dbmanager, registryCli)
 	defaultPluginHandler = CreatePluginManager(mqClient)
 	defaultAppHandler = CreateAppManager(mqClient)
 	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, clientset, prometheusCli, k8sClient)
 	defaultHelmHandler = CreateHelmManager(clientset, rainbondClient, restconfig, mapper)
-	defaultNetRulesHandler = CreateNetRulesManager(etcdcli)
 	defaultCloudHandler = CreateCloudManager(conf)
-	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdcli)
-	defaultEventHandler = CreateLogManager(conf, etcdcli)
-	shareHandler = &share.ServiceShareHandle{MQClient: mqClient, EtcdCli: etcdcli}
-	pluginShareHandler = &share.PluginShareHandle{MQClient: mqClient, EtcdCli: etcdcli}
+	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli)
+	defaultEventHandler = CreateLogManager(conf)
+	shareHandler = &share.ServiceShareHandle{MQClient: mqClient}
+	pluginShareHandler = &share.PluginShareHandle{MQClient: mqClient}
 	if err := CreateTokenIdenHandler(conf); err != nil {
 		logrus.Errorf("create token identification mannager error, %v", err)
 		return err
 	}
-	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, etcdcli, gatewayClient, clientset)
+	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, gatewayClient, clientset)
 	def3rdPartySvcHandler = Create3rdPartySvcHandler(dbmanager, statusCli)
 	operationHandler = CreateOperationHandler(mqClient)
 	batchOperationHandler = CreateBatchOperationHandler(mqClient, statusCli, operationHandler)
@@ -77,7 +74,7 @@ func InitHandle(conf option.Config) error {
 	defPodHandler = NewPodHandler(statusCli)
 	defClusterHandler = NewClusterHandler(clientset, conf.RbdNamespace, conf.GrctlImage, restconfig, mapper, prometheusCli, rainbondClient, statusCli, dynamicClient, gatewayClient, mqClient)
 	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
-	defaultEtcdHandler = NewEtcdHandler(etcdcli)
+	defaultCleanDateBaseHandler = NewCleanDateBaseHandler()
 	defaultmonitorHandler = NewMonitorHandler(prometheusCli)
 	defServiceEventHandler = NewServiceEventHandler()
 	defApplicationHandler = NewApplicationHandler(statusCli, prometheusCli, rainbondClient, clientset, dynamicClient)
@@ -130,13 +127,6 @@ var defaultHelmHandler HelmHandler
 // GetHelmManager get manager
 func GetHelmManager() HelmHandler {
 	return defaultHelmHandler
-}
-
-var defaultNetRulesHandler NetRulesHandler
-
-// GetRulesManager get manager
-func GetRulesManager() NetRulesHandler {
-	return defaultNetRulesHandler
 }
 
 var defaultCloudHandler CloudHandler
@@ -209,11 +199,11 @@ func GetPodHandler() PodHandler {
 	return defPodHandler
 }
 
-var defaultEtcdHandler *EtcdHandler
+var defaultCleanDateBaseHandler *CleanDateBaseHandler
 
-// GetEtcdHandler returns the default etcd handler.
-func GetEtcdHandler() *EtcdHandler {
-	return defaultEtcdHandler
+// GetCleanDateBaseHandler returns the default db clean handler.
+func GetCleanDateBaseHandler() *CleanDateBaseHandler {
+	return defaultCleanDateBaseHandler
 }
 
 var defClusterHandler ClusterHandler

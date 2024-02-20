@@ -20,7 +20,7 @@ package handler
 
 import (
 	"encoding/json"
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	corev1 "k8s.io/api/core/v1"
@@ -110,12 +110,12 @@ func (s *ServiceAction) GetK8sAttribute(componentID, name string) (*model.Compon
 }
 
 // CreateK8sAttribute -
-func (s *ServiceAction) CreateK8sAttribute(tenantID, componentID string, k8sAttr *api_model.ComponentK8sAttribute) error {
+func (s *ServiceAction) CreateK8sAttribute(tenantID, componentID string, k8sAttr *apimodel.ComponentK8sAttribute) error {
 	return db.GetManager().ComponentK8sAttributeDao().AddModel(k8sAttr.DbModel(tenantID, componentID))
 }
 
 // UpdateK8sAttribute -
-func (s *ServiceAction) UpdateK8sAttribute(componentID string, k8sAttributes *api_model.ComponentK8sAttribute) error {
+func (s *ServiceAction) UpdateK8sAttribute(componentID string, k8sAttributes *apimodel.ComponentK8sAttribute) error {
 	attr, err := db.GetManager().ComponentK8sAttributeDao().GetByComponentIDAndName(componentID, k8sAttributes.Name)
 	if err != nil {
 		return err

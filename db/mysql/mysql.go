@@ -34,7 +34,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 )
 
-//Manager db manager
+// Manager db manager
 type Manager struct {
 	db      *gorm.DB
 	config  config.Config
@@ -42,7 +42,7 @@ type Manager struct {
 	models  []model.Interface
 }
 
-//CreateManager create manager
+// CreateManager create manager
 func CreateManager(config config.Config) (*Manager, error) {
 	var db *gorm.DB
 	if config.DBType == "mysql" {
@@ -91,12 +91,12 @@ func CreateManager(config config.Config) (*Manager, error) {
 	return manager, nil
 }
 
-//CloseManager 关闭管理器
+// CloseManager 关闭管理器
 func (m *Manager) CloseManager() error {
 	return m.db.Close()
 }
 
-//Begin begin a transaction
+// Begin begin a transaction
 func (m *Manager) Begin() *gorm.DB {
 	return m.db.Begin()
 }
@@ -116,12 +116,12 @@ func (m *Manager) EnsureEndTransactionFunc() func(tx *gorm.DB) {
 	}
 }
 
-//Print Print
+// Print Print
 func (m *Manager) Print(v ...interface{}) {
 	logrus.Info(v...)
 }
 
-//RegisterTableModel register table model
+// RegisterTableModel register table model
 func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.Tenants{})
 	m.models = append(m.models, &model.TenantServices{})
@@ -176,9 +176,10 @@ func (m *Manager) RegisterTableModel() {
 	m.models = append(m.models, &model.TenantServiceMonitor{})
 	m.models = append(m.models, &model.ComponentK8sAttributes{})
 	m.models = append(m.models, &model.K8sResource{})
+	m.models = append(m.models, &model.KeyValue{})
 }
 
-//CheckTable check and create tables
+// CheckTable check and create tables
 func (m *Manager) CheckTable() {
 	m.initOne.Do(func() {
 		for _, md := range m.models {

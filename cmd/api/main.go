@@ -54,7 +54,6 @@ func main() {
 		Registry(component.K8sClient()).
 		Registry(component.HubRegistry()).
 		Registry(component.Proxy()).
-		Registry(component.Etcd()).
 		Registry(component.MQ()).
 		Registry(component.Prometheus()).
 		Registry(component.Handler()).

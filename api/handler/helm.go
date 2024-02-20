@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	"github.com/goodrain/rainbond/pkg/helm"
@@ -62,7 +62,7 @@ var (
 )
 
 // GetChartInformation 获取 helm 应用 chart 包的详细版本信息
-func (h *HelmAction) GetChartInformation(chart api_model.ChartInformation) (*[]api_model.HelmChartInformation, *util.APIHandleError) {
+func (h *HelmAction) GetChartInformation(chart apimodel.ChartInformation) (*[]apimodel.HelmChartInformation, *util.APIHandleError) {
 	req, err := http.NewRequest("GET", chart.RepoURL+"/index.yaml", nil)
 	if err != nil {
 		return nil, &util.APIHandleError{Code: 400, Err: errors.Wrap(err, "GetChartInformation NewRequest")}
@@ -90,11 +90,11 @@ func (h *HelmAction) GetChartInformation(chart api_model.ChartInformation) (*[]a
 	if len(indexFile.Entries) == 0 {
 		return nil, &util.APIHandleError{Code: 400, Err: fmt.Errorf("entries not found")}
 	}
-	var chartInformations []api_model.HelmChartInformation
+	var chartInformations []apimodel.HelmChartInformation
 	if chart, ok := indexFile.Entries[chart.ChartName]; ok {
 		for _, version := range chart {
 			v := version
-			chartInformations = append(chartInformations, api_model.HelmChartInformation{
+			chartInformations = append(chartInformations, apimodel.HelmChartInformation{
 				Version:  v.Version,
 				Keywords: v.Keywords,
 				Pic:      v.Icon,
@@ -106,7 +106,7 @@ func (h *HelmAction) GetChartInformation(chart api_model.ChartInformation) (*[]a
 }
 
 // CheckHelmApp check helm app
-func (h *HelmAction) CheckHelmApp(checkHelmApp api_model.CheckHelmApp) (string, error) {
+func (h *HelmAction) CheckHelmApp(checkHelmApp apimodel.CheckHelmApp) (string, error) {
 	helmAppYaml, err := GetHelmAppYaml(checkHelmApp.Name, checkHelmApp.Chart, checkHelmApp.Version, checkHelmApp.Namespace, "", checkHelmApp.Overrides)
 	if err != nil {
 		return "", errors.Wrap(err, "helm app check failed")
@@ -124,7 +124,7 @@ func (h *HelmAction) UpdateHelmRepo(names string) error {
 }
 
 // AddHelmRepo add helm repo
-func (h *HelmAction) AddHelmRepo(helmRepo api_model.CheckHelmApp) error {
+func (h *HelmAction) AddHelmRepo(helmRepo apimodel.CheckHelmApp) error {
 	err := h.repo.Add(helmRepo.RepoName, helmRepo.RepoURL, helmRepo.Username, helmRepo.Password)
 	if err != nil {
 		logrus.Errorf("add helm repo err: %v", err)
@@ -173,7 +173,7 @@ func (h *HelmAction) GetYamlByChart(chartPath, namespace, name, version string, 
 }
 
 // GetUploadChartInformation -
-func (h *HelmAction) GetUploadChartInformation(eventID string) ([]api_model.HelmChartInformation, error) {
+func (h *HelmAction) GetUploadChartInformation(eventID string) ([]apimodel.HelmChartInformation, error) {
 	basePath := path.Join("/grdata/package_build/temp/events", eventID)
 	files, err := filepath.Glob(path.Join(basePath, "*"))
 	if err != nil {
@@ -212,9 +212,9 @@ func (h *HelmAction) GetUploadChartInformation(eventID string) ([]api_model.Helm
 		logrus.Errorf("load upload helm chart failure: %v", err)
 		return nil, errors.Wrap(err, "load upload helm chart failure")
 	}
-	var chartInformation []api_model.HelmChartInformation
+	var chartInformation []apimodel.HelmChartInformation
 	if chart != nil && chart.Metadata != nil {
-		chartInformation = append(chartInformation, api_model.HelmChartInformation{
+		chartInformation = append(chartInformation, apimodel.HelmChartInformation{
 			Name:     chart.Metadata.Name,
 			Version:  chart.Metadata.Version,
 			Keywords: chart.Metadata.Keywords,
@@ -266,7 +266,7 @@ func (h *HelmAction) GetUploadChartResource(name, version, namespace, eventID st
 }
 
 // GetUploadChartValue -
-func (h *HelmAction) GetUploadChartValue(eventID string) (*api_model.UploadChartValueYaml, error) {
+func (h *HelmAction) GetUploadChartValue(eventID string) (*apimodel.UploadChartValueYaml, error) {
 	basePath := path.Join("/grdata/package_build/temp/events", eventID)
 	files, err := filepath.Glob(path.Join(basePath, "*"))
 	if err != nil {
@@ -280,12 +280,12 @@ func (h *HelmAction) GetUploadChartValue(eventID string) (*api_model.UploadChart
 	readmePath := path.Join(files[0], "README.md")
 	readmeYaml, err := os.ReadFile(readmePath)
 	if err != nil {
-		return &api_model.UploadChartValueYaml{
+		return &apimodel.UploadChartValueYaml{
 			Values: map[string]string{"value.yaml": base64.StdEncoding.EncodeToString(valueYaml)},
 			Readme: "",
 		}, nil
 	}
-	return &api_model.UploadChartValueYaml{
+	return &apimodel.UploadChartValueYaml{
 		Values: map[string]string{"values.yaml": base64.StdEncoding.EncodeToString(valueYaml)},
 		Readme: base64.StdEncoding.EncodeToString(readmeYaml),
 	}, nil

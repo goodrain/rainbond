@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"encoding/json"
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	"github.com/goodrain/rainbond/worker/server/pb"
@@ -79,7 +79,7 @@ func transferCustomVolumeOptionName2Kind(opts ...interface{}) *dbmodel.VolumeTyp
 }
 
 // HackVolumeOptionDetailFromDB hack volumeOptionDetail from db
-func HackVolumeOptionDetailFromDB(detail *api_model.VolumeTypeStruct, data *dbmodel.TenantServiceVolumeType) {
+func HackVolumeOptionDetailFromDB(detail *apimodel.VolumeTypeStruct, data *dbmodel.TenantServiceVolumeType) {
 	if data != nil {
 		detail.Description = data.Description
 		detail.NameShow = data.NameShow
@@ -105,7 +105,7 @@ func init() {
 }
 
 // HackVolumeOptionDetail hack volume Option detail, like accessMode, sharePolicy, backupPolicy
-func HackVolumeOptionDetail(volumeType string, detail *api_model.VolumeTypeStruct, more ...interface{}) {
+func HackVolumeOptionDetail(volumeType string, detail *apimodel.VolumeTypeStruct, more ...interface{}) {
 	/*
 		RWO - ReadWriteOnce
 		ROX - ReadOnlyMany
@@ -166,7 +166,6 @@ func hackVolumeOptionCapacityValidation(volumeType string) map[string]interface{
 }
 
 /*
-
 ## volume accessMode
 ---
 
@@ -192,7 +191,6 @@ VsphereVolume		| ✓					   | -						  | - (works when Pods are collocated)
 PortworxVolume		| ✓					   | -						  | ✓
 ScaleIO				| ✓					   | ✓						  | -
 StorageOS			| ✓					   | -						  | -
-
 */
 func hackVolumeOptionAccessMode(vt string) []string {
 	volumeType := dbmodel.VolumeType(vt)

@@ -31,7 +31,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/model"
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	"github.com/goodrain/rainbond/cmd"
@@ -127,7 +127,7 @@ func (t *TenantStruct) AllTenantResources(w http.ResponseWriter, r *http.Request
 		}
 		httputil.Return(r, w, 500, msg)
 	}
-	ts := &api_model.TotalStatsInfo{}
+	ts := &apimodel.TotalStatsInfo{}
 	for _, tenant := range tenants {
 		services, err := handler.GetServiceManager().GetService(tenant.UUID)
 		if err != nil {
@@ -161,7 +161,7 @@ func (t *TenantStruct) TenantResources(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	var tr api_model.TenantResources
+	var tr apimodel.TenantResources
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tr.Body, nil)
 	if !ok {
 		return
@@ -200,7 +200,7 @@ func (t *TenantStruct) ServiceResources(w http.ResponseWriter, r *http.Request) 
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	var tr api_model.ServicesResources
+	var tr apimodel.ServicesResources
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tr.Body, nil)
 	if !ok {
 		return
@@ -354,7 +354,7 @@ func (t *TenantStruct) TenantsWithResource(w http.ResponseWriter, r *http.Reques
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("get tenants  error, %v", err))
 		return
 	}
-	var ret api_model.PagedTenantResList
+	var ret apimodel.PagedTenantResList
 	ret.List = resource
 	ret.Length = count
 	httputil.ReturnSuccess(r, w, ret)
@@ -434,7 +434,7 @@ func (t *TenantStruct) AddTenant(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	var ts api_model.AddTenantStruct
+	var ts apimodel.AddTenantStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ts.Body, nil)
 	if !ok {
 		return
@@ -585,7 +585,7 @@ func (t *TenantStruct) DeleteTenant(w http.ResponseWriter, r *http.Request) {
 // UpdateTenant UpdateTenant
 // support update tenant limit memory
 func (t *TenantStruct) UpdateTenant(w http.ResponseWriter, r *http.Request) {
-	var ts api_model.UpdateTenantStruct
+	var ts apimodel.UpdateTenantStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ts.Body, nil)
 	if !ok {
 		return
@@ -660,7 +660,7 @@ func (t *TenantStruct) ServicesInfo(w http.ResponseWriter, r *http.Request) {
 
 // CreateService create Service
 func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
-	var ss api_model.ServiceStruct
+	var ss apimodel.ServiceStruct
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &ss, nil) {
 		return
 	}
@@ -676,8 +676,8 @@ func (t *TenantStruct) CreateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// clean etcd data(source check)
-	handler.GetEtcdHandler().CleanServiceCheckData(ss.EtcdKey)
+	// clean database data(source check)
+	handler.GetCleanDateBaseHandler().CleanServiceCheckData(ss.EtcdKey)
 
 	values := url.Values{}
 	if ss.Endpoints != nil {
@@ -791,7 +791,7 @@ func (t *TenantStruct) SetLanguage(w http.ResponseWriter, r *http.Request) {
 	rules := validator.MapData{
 		"language": []string{"required"},
 	}
-	langS := &api_model.LanguageSet{}
+	langS := &apimodel.LanguageSet{}
 	data, ok := httputil.ValidatorRequestMapAndErrorResponse(r, w, rules, nil)
 	if !ok {
 		return
@@ -865,7 +865,7 @@ func (t *TenantStruct) StatusServiceList(w http.ResponseWriter, r *http.Request)
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	var services api_model.StatusServiceListStruct
+	var services apimodel.StatusServiceListStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &services.Body, nil)
 	if !ok {
 		return
@@ -880,7 +880,7 @@ func (t *TenantStruct) StatusServiceList(w http.ResponseWriter, r *http.Request)
 
 // Label -
 func (t *TenantStruct) Label(w http.ResponseWriter, r *http.Request) {
-	var req api_model.LabelsStruct
+	var req apimodel.LabelsStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil)
 	if !ok {
 		return
@@ -917,7 +917,7 @@ func (t *TenantStruct) Label(w http.ResponseWriter, r *http.Request) {
 }
 
 // AddLabel adds label
-func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request, labels *api_model.LabelsStruct) {
+func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request, labels *apimodel.LabelsStruct) {
 	logrus.Debugf("add label")
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	if err := handler.GetServiceManager().AddLabel(labels, serviceID); err != nil {
@@ -928,7 +928,7 @@ func (t *TenantStruct) AddLabel(w http.ResponseWriter, r *http.Request, labels *
 }
 
 // DeleteLabel deletes labels
-func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request, labels *api_model.LabelsStruct) {
+func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request, labels *apimodel.LabelsStruct) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	if err := handler.GetServiceManager().DeleteLabel(labels, serviceID); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("delete node label failure, %v", err))
@@ -938,7 +938,7 @@ func (t *TenantStruct) DeleteLabel(w http.ResponseWriter, r *http.Request, label
 }
 
 // UpdateLabel Update updates labels
-func (t *TenantStruct) UpdateLabel(w http.ResponseWriter, r *http.Request, labels *api_model.LabelsStruct) {
+func (t *TenantStruct) UpdateLabel(w http.ResponseWriter, r *http.Request, labels *apimodel.LabelsStruct) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	if err := handler.GetServiceManager().UpdateLabel(labels, serviceID); err != nil {
 		httputil.ReturnError(r, w, 500, fmt.Sprintf("error updating label: %v", err))
@@ -1022,10 +1022,10 @@ func (t *TenantStruct) GetSingleServiceInfo(w http.ResponseWriter, r *http.Reque
 func (t *TenantStruct) DeleteSingleServiceInfo(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
-	var req api_model.EtcdCleanReq
+	var req apimodel.EtcdCleanReq
 	if httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
 		logrus.Debugf("delete service etcd keys : %+v", req.Keys)
-		handler.GetEtcdHandler().CleanAllServiceData(req.Keys)
+		handler.GetCleanDateBaseHandler().CleanAllServiceData(req.Keys)
 	}
 
 	if err := handler.GetServiceManager().TransServieToDelete(r.Context(), tenantID, serviceID); err != nil {
@@ -1089,7 +1089,7 @@ func (t *TenantStruct) AddDependency(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	ds := &api_model.DependService{
+	ds := &apimodel.DependService{
 		TenantID:       r.Context().Value(ctxutil.ContextKey("tenant_id")).(string),
 		ServiceID:      r.Context().Value(ctxutil.ContextKey("service_id")).(string),
 		DepServiceID:   data["dep_service_id"].(string),
@@ -1188,7 +1188,7 @@ func (t *TenantStruct) DeleteDependency(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
-	ds := &api_model.DependService{
+	ds := &apimodel.DependService{
 		TenantID:     r.Context().Value(ctxutil.ContextKey("tenant_id")).(string),
 		ServiceID:    r.Context().Value(ctxutil.ContextKey("service_id")).(string),
 		DepServiceID: data["dep_service_id"].(string),
@@ -1235,7 +1235,7 @@ func (t *TenantStruct) Env(w http.ResponseWriter, r *http.Request) {
 //	    "$ref": "#/responses/commandResponse"
 //	  description: 统一返回格式
 func (t *TenantStruct) AddEnv(w http.ResponseWriter, r *http.Request) {
-	var envM api_model.AddTenantServiceEnvVar
+	var envM apimodel.AddTenantServiceEnvVar
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &envM, nil) {
 		return
 	}
@@ -1285,7 +1285,7 @@ func (t *TenantStruct) AddEnv(w http.ResponseWriter, r *http.Request) {
 //	    "$ref": "#/responses/commandResponse"
 //	  description: 统一返回格式
 func (t *TenantStruct) UpdateEnv(w http.ResponseWriter, r *http.Request) {
-	var envM api_model.AddTenantServiceEnvVar
+	var envM apimodel.AddTenantServiceEnvVar
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &envM, nil) {
 		return
 	}
@@ -1331,7 +1331,7 @@ func (t *TenantStruct) UpdateEnv(w http.ResponseWriter, r *http.Request) {
 //	    "$ref": "#/responses/commandResponse"
 //	  description: 统一返回格式
 func (t *TenantStruct) DeleteEnv(w http.ResponseWriter, r *http.Request) {
-	var envM api_model.DelTenantServiceEnvVar
+	var envM apimodel.DelTenantServiceEnvVar
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &envM, nil) {
 		return
 	}
@@ -1397,7 +1397,7 @@ func (t *TenantStruct) Ports(w http.ResponseWriter, r *http.Request) {
 func (t *TenantStruct) PutPorts(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
-	var ports api_model.ServicePorts
+	var ports apimodel.ServicePorts
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ports, nil); !ok {
 		return
 	}
@@ -1433,7 +1433,7 @@ func (t *TenantStruct) PutPorts(w http.ResponseWriter, r *http.Request) {
 func (t *TenantStruct) addPortController(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
-	var ports api_model.ServicePorts
+	var ports apimodel.ServicePorts
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ports, nil); !ok {
 		return
 	}
@@ -1476,7 +1476,7 @@ func (t *TenantStruct) updatePortController(w http.ResponseWriter, r *http.Reque
 		httputil.ReturnError(r, w, 400, "port must be a number")
 		return
 	}
-	var ports api_model.ServicePorts
+	var ports apimodel.ServicePorts
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &ports, nil); !ok {
 		return
 	}
@@ -1519,12 +1519,12 @@ func (t *TenantStruct) deletePortController(w http.ResponseWriter, r *http.Reque
 		httputil.ReturnError(r, w, 400, "port must be a number")
 		return
 	}
-	var port = &api_model.TenantServicesPort{
+	var port = &apimodel.TenantServicesPort{
 		TenantID:      tenantID,
 		ServiceID:     serviceID,
 		ContainerPort: oldPort,
 	}
-	var ports api_model.ServicePorts
+	var ports apimodel.ServicePorts
 	ports.Port = append(ports.Port, port)
 	if err := handler.GetServiceManager().PortVar("delete", tenantID, serviceID, &ports, oldPort); err != nil {
 		if err.Error() == gorm.ErrRecordNotFound.Error() {
@@ -1560,7 +1560,7 @@ func (t *TenantStruct) deletePortController(w http.ResponseWriter, r *http.Reque
 //	    "$ref": "#/responses/commandResponse"
 //	  description: 统一返回格式
 func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Request) {
-	var data api_model.ServicePortInnerOrOuter
+	var data apimodel.ServicePortInnerOrOuter
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &(data.Body), nil) {
 		return
 	}
@@ -1653,7 +1653,7 @@ func (t *TenantStruct) PortOuterController(w http.ResponseWriter, r *http.Reques
 //	    "$ref": "#/responses/commandResponse"
 //	  description: 统一返回格式
 func (t *TenantStruct) PortInnerController(w http.ResponseWriter, r *http.Request) {
-	var data api_model.ServicePortInnerOrOuter
+	var data apimodel.ServicePortInnerOrOuter
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &(data.Body), nil) {
 		return
 	}
@@ -1764,7 +1764,7 @@ func (t *TenantStruct) Probe(w http.ResponseWriter, r *http.Request) {
 //	  description: 统一返回格式
 func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
-	var tsp api_model.ServiceProbe
+	var tsp apimodel.ServiceProbe
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsp, nil); !ok {
 		return
 	}
@@ -1816,7 +1816,7 @@ func (t *TenantStruct) AddProbe(w http.ResponseWriter, r *http.Request) {
 //	  description: 统一返回格式
 func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
-	var tsp api_model.ServiceProbe
+	var tsp apimodel.ServiceProbe
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsp, nil); !ok {
 		return
 	}
@@ -1871,7 +1871,7 @@ func (t *TenantStruct) UpdateProbe(w http.ResponseWriter, r *http.Request) {
 //	  description: 统一返回格式
 func (t *TenantStruct) DeleteProbe(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
-	var tsp api_model.ServiceProbe
+	var tsp apimodel.ServiceProbe
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tsp, nil); !ok {
 		return
 	}
@@ -2015,7 +2015,7 @@ func (t *TenantStruct) GetSupportProtocols(w http.ResponseWriter, r *http.Reques
 //	    "$ref": "#/responses/commandResponse"
 //	  description: 统一返回格式
 func (t *TenantStruct) TransPlugins(w http.ResponseWriter, r *http.Request) {
-	var tps api_model.TransPlugins
+	var tps apimodel.TransPlugins
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tps.Body, nil)
 	if !ok {
 		return

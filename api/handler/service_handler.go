@@ -22,7 +22,7 @@ import (
 	"context"
 	"net/http"
 
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/exector"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -33,37 +33,37 @@ import (
 
 // ServiceHandler service handler
 type ServiceHandler interface {
-	ServiceBuild(tenantID, serviceID string, r *api_model.BuildServiceStruct) error
-	AddLabel(l *api_model.LabelsStruct, serviceID string) error
-	DeleteLabel(l *api_model.LabelsStruct, serviceID string) error
-	UpdateLabel(l *api_model.LabelsStruct, serviceID string) error
-	StartStopService(s *api_model.StartStopStruct) error
+	ServiceBuild(tenantID, serviceID string, r *apimodel.BuildServiceStruct) error
+	AddLabel(l *apimodel.LabelsStruct, serviceID string) error
+	DeleteLabel(l *apimodel.LabelsStruct, serviceID string) error
+	UpdateLabel(l *apimodel.LabelsStruct, serviceID string) error
+	StartStopService(s *apimodel.StartStopStruct) error
 	PauseUNPauseService(serviceID string, pauseORunpause string) error
 	ServiceVertical(ctx context.Context, v *model.VerticalScalingTaskBody) error
 	ServiceHorizontal(h *model.HorizontalScalingTaskBody) error
 	ServiceUpgrade(r *model.RollingUpgradeTaskBody) error
-	ServiceCreate(ts *api_model.ServiceStruct) error
+	ServiceCreate(ts *apimodel.ServiceStruct) error
 	ServiceUpdate(sc map[string]interface{}) error
-	LanguageSet(langS *api_model.LanguageSet) error
+	LanguageSet(langS *apimodel.LanguageSet) error
 	GetService(tenantID string) ([]*dbmodel.TenantServices, error)
-	GetServicesByAppID(appID string, page, pageSize int) (*api_model.ListServiceResponse, error)
-	GetPagedTenantRes(offset, len int) ([]*api_model.TenantResource, int, error)
-	GetTenantRes(uuid string) (*api_model.TenantResource, error)
-	CodeCheck(c *api_model.CheckCodeStruct) error
-	ServiceDepend(action string, ds *api_model.DependService) error
+	GetServicesByAppID(appID string, page, pageSize int) (*apimodel.ListServiceResponse, error)
+	GetPagedTenantRes(offset, len int) ([]*apimodel.TenantResource, int, error)
+	GetTenantRes(uuid string) (*apimodel.TenantResource, error)
+	CodeCheck(c *apimodel.CheckCodeStruct) error
+	ServiceDepend(action string, ds *apimodel.DependService) error
 	EnvAttr(action string, at *dbmodel.TenantServiceEnvVar) error
-	PortVar(action string, tenantID, serviceID string, vp *api_model.ServicePorts, oldPort int) error
-	CreatePorts(tenantID, serviceID string, vps *api_model.ServicePorts) error
-	PortOuter(tenantName, serviceID string, containerPort int, servicePort *api_model.ServicePortInnerOrOuter) (*dbmodel.TenantServiceLBMappingPort, string, error)
+	PortVar(action string, tenantID, serviceID string, vp *apimodel.ServicePorts, oldPort int) error
+	CreatePorts(tenantID, serviceID string, vps *apimodel.ServicePorts) error
+	PortOuter(tenantName, serviceID string, containerPort int, servicePort *apimodel.ServicePortInnerOrOuter) (*dbmodel.TenantServiceLBMappingPort, string, error)
 	PortInner(tenantName, serviceID, operation string, port int) error
 	VolumnVar(avs *dbmodel.TenantServiceVolume, tenantID, fileContent, action string) *util.APIHandleError
-	UpdVolume(sid string, req *api_model.UpdVolumeReq) error
+	UpdVolume(sid string, req *apimodel.UpdVolumeReq) error
 	VolumeDependency(tsr *dbmodel.TenantServiceMountRelation, action string) *util.APIHandleError
 	GetDepVolumes(serviceID string) ([]*dbmodel.TenantServiceMountRelation, *util.APIHandleError)
-	GetVolumes(serviceID string) ([]*api_model.VolumeWithStatusStruct, *util.APIHandleError)
+	GetVolumes(serviceID string) ([]*apimodel.VolumeWithStatusStruct, *util.APIHandleError)
 	ServiceProbe(tsp *dbmodel.TenantServiceProbe, action string) error
-	RollBack(rs *api_model.RollbackStruct) error
-	GetStatus(serviceID string) (*api_model.StatusList, error)
+	RollBack(rs *apimodel.RollbackStruct) error
+	GetStatus(serviceID string) (*apimodel.StatusList, error)
 	GetServicesStatus(tenantID string, services []string) []map[string]interface{}
 	GetEnterpriseServicesStatus(enterpriseID string) (map[string]string, *util.APIHandleError)
 	CreateTenant(*dbmodel.Tenants) error
@@ -74,46 +74,46 @@ type ServiceHandler interface {
 	TransServieToDelete(ctx context.Context, tenantID, serviceID string) error
 	TenantServiceDeletePluginRelation(tenantID, serviceID, pluginID string) *util.APIHandleError
 	GetTenantServicePluginRelation(serviceID string) ([]*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
-	SetTenantServicePluginRelation(tenantID, serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
-	UpdateTenantServicePluginRelation(serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
-	UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError
+	SetTenantServicePluginRelation(tenantID, serviceID string, pss *apimodel.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
+	UpdateTenantServicePluginRelation(serviceID string, pss *apimodel.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError)
+	UpdateVersionEnv(uve *apimodel.SetVersionEnv) *util.APIHandleError
 	DeletePluginConfig(serviceID, pluginID string) *util.APIHandleError
-	ServiceCheck(*api_model.ServiceCheckStruct) (string, string, *util.APIHandleError)
+	ServiceCheck(*apimodel.ServiceCheckStruct) (string, string, *util.APIHandleError)
 	RegistryImageRepositories(namespace string) ([]string, *util.APIHandleError)
 	RegistryImageTags(repository string) ([]string, *util.APIHandleError)
 	GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError)
 	GetServiceDeployInfo(tenantID, serviceID string) (*pb.DeployInfo, *util.APIHandleError)
-	ListVersionInfo(serviceID string) (*api_model.BuildListRespVO, error)
-	EventBuildVersion(serviceID, buildVersion string) (*api_model.BuildListRespVO, error)
+	ListVersionInfo(serviceID string) (*apimodel.BuildListRespVO, error)
+	EventBuildVersion(serviceID, buildVersion string) (*apimodel.BuildListRespVO, error)
 
-	AddAutoscalerRule(req *api_model.AutoscalerRuleReq) error
-	UpdAutoscalerRule(req *api_model.AutoscalerRuleReq) error
+	AddAutoscalerRule(req *apimodel.AutoscalerRuleReq) error
+	UpdAutoscalerRule(req *apimodel.AutoscalerRuleReq) error
 	ListScalingRecords(serviceID string, page, pageSize int) ([]*dbmodel.TenantServiceScalingRecords, int, error)
 
-	UpdateServiceMonitor(tenantID, serviceID, name string, update api_model.UpdateServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error)
+	UpdateServiceMonitor(tenantID, serviceID, name string, update apimodel.UpdateServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error)
 	DeleteServiceMonitor(tenantID, serviceID, name string) (*dbmodel.TenantServiceMonitor, error)
-	AddServiceMonitor(tenantID, serviceID string, add api_model.AddServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error)
+	AddServiceMonitor(tenantID, serviceID string, add apimodel.AddServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error)
 
 	ReviseAttributeAffinityByArch(attributeValue string, arch string) (string, error)
 	GetK8sAttribute(componentID, name string) (*dbmodel.ComponentK8sAttributes, error)
-	CreateK8sAttribute(tenantID, componentID string, k8sAttr *api_model.ComponentK8sAttribute) error
-	UpdateK8sAttribute(componentID string, k8sAttributes *api_model.ComponentK8sAttribute) error
+	CreateK8sAttribute(tenantID, componentID string, k8sAttr *apimodel.ComponentK8sAttribute) error
+	UpdateK8sAttribute(componentID string, k8sAttributes *apimodel.ComponentK8sAttribute) error
 	DeleteK8sAttribute(componentID, name string) error
 
-	SyncComponentBase(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
-	SyncComponentMonitors(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
-	SyncComponentPorts(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
-	SyncComponentRelations(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
-	SyncComponentEnvs(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
-	SyncComponentVolumeRels(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
-	SyncComponentVolumes(tx *gorm.DB, components []*api_model.Component) error
-	SyncComponentConfigFiles(tx *gorm.DB, components []*api_model.Component) error
-	SyncComponentProbes(tx *gorm.DB, components []*api_model.Component) error
-	SyncComponentLabels(tx *gorm.DB, components []*api_model.Component) error
-	SyncComponentPlugins(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
-	SyncComponentScaleRules(tx *gorm.DB, components []*api_model.Component) error
-	SyncComponentEndpoints(tx *gorm.DB, components []*api_model.Component) error
-	SyncComponentK8sAttributes(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error
+	SyncComponentBase(tx *gorm.DB, app *dbmodel.Application, components []*apimodel.Component) error
+	SyncComponentMonitors(tx *gorm.DB, app *dbmodel.Application, components []*apimodel.Component) error
+	SyncComponentPorts(tx *gorm.DB, app *dbmodel.Application, components []*apimodel.Component) error
+	SyncComponentRelations(tx *gorm.DB, app *dbmodel.Application, components []*apimodel.Component) error
+	SyncComponentEnvs(tx *gorm.DB, app *dbmodel.Application, components []*apimodel.Component) error
+	SyncComponentVolumeRels(tx *gorm.DB, app *dbmodel.Application, components []*apimodel.Component) error
+	SyncComponentVolumes(tx *gorm.DB, components []*apimodel.Component) error
+	SyncComponentConfigFiles(tx *gorm.DB, components []*apimodel.Component) error
+	SyncComponentProbes(tx *gorm.DB, components []*apimodel.Component) error
+	SyncComponentLabels(tx *gorm.DB, components []*apimodel.Component) error
+	SyncComponentPlugins(tx *gorm.DB, app *dbmodel.Application, components []*apimodel.Component) error
+	SyncComponentScaleRules(tx *gorm.DB, components []*apimodel.Component) error
+	SyncComponentEndpoints(tx *gorm.DB, components []*apimodel.Component) error
+	SyncComponentK8sAttributes(tx *gorm.DB, app *dbmodel.Application, components []*apimodel.Component) error
 
 	Log(w http.ResponseWriter, r *http.Request, component *dbmodel.TenantServices, podName, containerName string, follow bool) error
 }

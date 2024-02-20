@@ -24,7 +24,7 @@ import (
 
 	"fmt"
 
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/goodrain/rainbond/worker/client"
@@ -33,27 +33,27 @@ import (
 	// pb "github.com/goodrain/rainibond/worker/server/pb"
 )
 
-//VolumeTypeHandler LicenseAction
+// VolumeTypeHandler LicenseAction
 type VolumeTypeHandler interface {
 	VolumeTypeVar(action string, vtm *dbmodel.TenantServiceVolumeType) error
-	GetAllVolumeTypes() ([]*api_model.VolumeTypeStruct, error)
-	GetAllVolumeTypesByPage(page int, pageSize int) ([]*api_model.VolumeTypeStruct, error)
+	GetAllVolumeTypes() ([]*apimodel.VolumeTypeStruct, error)
+	GetAllVolumeTypesByPage(page int, pageSize int) ([]*apimodel.VolumeTypeStruct, error)
 	GetVolumeTypeByType(volumeType string) (*dbmodel.TenantServiceVolumeType, error)
 	GetAllStorageClasses() ([]*pb.StorageClassDetail, error)
 	VolumeTypeAction(action, volumeTypeID string) error
 	DeleteVolumeType(volumeTypeID string) error
-	SetVolumeType(vtm *api_model.VolumeTypeStruct) error
-	UpdateVolumeType(dbVolume *dbmodel.TenantServiceVolumeType, vol *api_model.VolumeTypeStruct) error
+	SetVolumeType(vtm *apimodel.VolumeTypeStruct) error
+	UpdateVolumeType(dbVolume *dbmodel.TenantServiceVolumeType, vol *apimodel.VolumeTypeStruct) error
 }
 
 var defaultVolumeTypeHandler VolumeTypeHandler
 
-//CreateVolumeTypeManger create VolumeType manager
+// CreateVolumeTypeManger create VolumeType manager
 func CreateVolumeTypeManger(statusCli *client.AppRuntimeSyncClient) *VolumeTypeAction {
 	return &VolumeTypeAction{statusCli: statusCli}
 }
 
-//GetVolumeTypeHandler get volumeType handler
+// GetVolumeTypeHandler get volumeType handler
 func GetVolumeTypeHandler() VolumeTypeHandler {
 	return defaultVolumeTypeHandler
 }
@@ -75,8 +75,8 @@ func (vta *VolumeTypeAction) VolumeTypeVar(action string, vtm *dbmodel.TenantSer
 }
 
 // GetAllVolumeTypes get all volume types
-func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*api_model.VolumeTypeStruct, error) {
-	var optionList []*api_model.VolumeTypeStruct
+func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*apimodel.VolumeTypeStruct, error) {
+	var optionList []*apimodel.VolumeTypeStruct
 	volumeTypeMap := make(map[string]*dbmodel.TenantServiceVolumeType)
 	volumeTypes, err := db.GetManager().VolumeTypeDao().GetAllVolumeTypes()
 	if err != nil {
@@ -106,7 +106,7 @@ func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*api_model.VolumeTypeStruct,
 		accessMode := strings.Split(vt.AccessMode, ",")
 		sharePolicy := strings.Split(vt.SharePolicy, ",")
 		backupPolicy := strings.Split(vt.BackupPolicy, ",")
-		optionList = append(optionList, &api_model.VolumeTypeStruct{
+		optionList = append(optionList, &apimodel.VolumeTypeStruct{
 			VolumeType:         vt.VolumeType,
 			NameShow:           vt.NameShow,
 			Provisioner:        vt.Provisioner,
@@ -126,9 +126,9 @@ func (vta *VolumeTypeAction) GetAllVolumeTypes() ([]*api_model.VolumeTypeStruct,
 }
 
 // GetAllVolumeTypesByPage get all volume types by page
-func (vta *VolumeTypeAction) GetAllVolumeTypesByPage(page int, pageSize int) ([]*api_model.VolumeTypeStruct, error) {
+func (vta *VolumeTypeAction) GetAllVolumeTypesByPage(page int, pageSize int) ([]*apimodel.VolumeTypeStruct, error) {
 
-	var optionList []*api_model.VolumeTypeStruct
+	var optionList []*apimodel.VolumeTypeStruct
 	volumeTypeMap := make(map[string]*dbmodel.TenantServiceVolumeType)
 	volumeTypes, err := db.GetManager().VolumeTypeDao().GetAllVolumeTypesByPage(page, pageSize)
 	if err != nil {
@@ -158,7 +158,7 @@ func (vta *VolumeTypeAction) GetAllVolumeTypesByPage(page int, pageSize int) ([]
 		accessMode := strings.Split(vt.AccessMode, ",")
 		sharePolicy := strings.Split(vt.SharePolicy, ",")
 		backupPolicy := strings.Split(vt.BackupPolicy, ",")
-		optionList = append(optionList, &api_model.VolumeTypeStruct{
+		optionList = append(optionList, &apimodel.VolumeTypeStruct{
 			VolumeType:         vt.VolumeType,
 			NameShow:           vt.NameShow,
 			CapacityValidation: capacityValidation,
@@ -202,7 +202,7 @@ func (vta *VolumeTypeAction) DeleteVolumeType(volumeType string) error {
 }
 
 // SetVolumeType set volume type
-func (vta *VolumeTypeAction) SetVolumeType(vol *api_model.VolumeTypeStruct) error {
+func (vta *VolumeTypeAction) SetVolumeType(vol *apimodel.VolumeTypeStruct) error {
 	var accessMode []string
 	var sharePolicy []string
 	var backupPolicy []string
@@ -244,7 +244,7 @@ func (vta *VolumeTypeAction) SetVolumeType(vol *api_model.VolumeTypeStruct) erro
 }
 
 // UpdateVolumeType update volume type
-func (vta *VolumeTypeAction) UpdateVolumeType(dbVolume *dbmodel.TenantServiceVolumeType, vol *api_model.VolumeTypeStruct) error {
+func (vta *VolumeTypeAction) UpdateVolumeType(dbVolume *dbmodel.TenantServiceVolumeType, vol *apimodel.VolumeTypeStruct) error {
 	var accessMode []string
 	var sharePolicy []string
 	var backupPolicy []string

@@ -20,29 +20,16 @@ package version2
 
 import (
 	"github.com/go-chi/chi"
-	"github.com/goodrain/rainbond/api/controller"
 )
 
-//PluginRouter plugin router
+// PluginRouter plugin router
 func (v2 *V2) rulesRouter() chi.Router {
 	r := chi.NewRouter()
 	// service rule
 	// url: v2/tenant/{tenant_name}/services/{service_alias}/net-rule/xxx
 	// -- --
-	//downstream
-	r.Mount("/downstream", v2.downstreamRouter())
 	//upstream
 	r.Mount("/upstream", v2.upstreamRouter())
-	return r
-}
-
-func (v2 *V2) downstreamRouter() chi.Router {
-	r := chi.NewRouter()
-	r.Post("/", controller.GetManager().SetDownStreamRule)
-	//r.Get("/")
-	r.Get("/{dest_service_alias}/{port}", controller.GetManager().GetDownStreamRule)
-	r.Put("/{dest_service_alias}/{port}", controller.GetManager().UpdateDownStreamRule)
-	//r.Delete("/{service_alias}/{port}")
 	return r
 }
 

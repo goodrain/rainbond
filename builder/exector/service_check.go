@@ -19,8 +19,8 @@
 package exector
 
 import (
-	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/db"
 	"runtime/debug"
 
 	"github.com/ghodss/yaml"
@@ -154,11 +154,9 @@ func (e *exectorManager) serviceCheck(task *pb.TaskMessage) {
 		logrus.Errorf("mashal servicecheck value error, %v", err)
 		logger.Error("格式化检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	_, err = e.EtcdCli.Put(ctx, k, string(vj))
-	cancel()
+	err = db.GetManager().KeyValueDao().Put(k, string(vj))
 	if err != nil {
-		logrus.Errorf("put servicecheck k %s into etcd error, %v", k, err)
+		logrus.Errorf("put servicecheck k %s into db error, %v", k, err)
 		logger.Error("存储检测结果失败。", map[string]string{"step": "callback", "status": "failure"})
 	}
 	logrus.Infof("check service by type: %s  success", input.SourceType)

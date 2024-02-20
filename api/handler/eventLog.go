@@ -21,16 +21,14 @@ package handler
 import (
 	"bytes"
 	"compress/zlib"
-	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/api/model"
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -40,14 +38,12 @@ import (
 
 // LogAction  log action struct
 type LogAction struct {
-	EtcdCli *clientv3.Client
 	eventdb *eventdb.EventFilePlugin
 }
 
 // CreateLogManager get log manager
-func CreateLogManager(conf option.Config, cli *clientv3.Client) *LogAction {
+func CreateLogManager(conf option.Config) *LogAction {
 	return &LogAction{
-		EtcdCli: cli,
 		eventdb: &eventdb.EventFilePlugin{
 			HomePath: conf.LogPath,
 		},
@@ -106,20 +102,16 @@ func (l *LogAction) GetLogFile(serviceAlias, fileName string) (string, string, e
 
 // GetLogInstance get log web socket instance
 func (l *LogAction) GetLogInstance(serviceID string) (string, error) {
-	value, err := l.EtcdCli.Get(context.Background(), fmt.Sprintf("/event/dockerloginstacne/%s", serviceID))
-	if err != nil {
+	k := fmt.Sprintf("/event/dockerloginstacne/%s", serviceID)
+	res, err := db.GetManager().KeyValueDao().Get(k)
+	if err != nil || res == nil {
 		return "", err
 	}
-
-	if len(value.Kvs) > 0 {
-		return string(value.Kvs[0].Value), nil
-	}
-
-	return "", nil
+	return res.V, nil
 }
 
 // GetLevelLog get event log
-func (l *LogAction) GetLevelLog(eventID string, level string) (*api_model.DataLog, error) {
+func (l *LogAction) GetLevelLog(eventID string, level string) (*apimodel.DataLog, error) {
 	re, err := l.eventdb.GetMessages(eventID, level, 0)
 	if err != nil {
 		return nil, err
@@ -127,13 +119,13 @@ func (l *LogAction) GetLevelLog(eventID string, level string) (*api_model.DataLo
 	if re != nil {
 		messageList, ok := re.(eventdb.MessageDataList)
 		if ok {
-			return &api_model.DataLog{
+			return &apimodel.DataLog{
 				Status: "success",
 				Data:   messageList,
 			}, nil
 		}
 	}
-	return &api_model.DataLog{
+	return &apimodel.DataLog{
 		Status: "success",
 		Data:   nil,
 	}, nil
@@ -189,7 +181,7 @@ func uncompress(source []byte) (re []byte, err error) {
 	return buffer.Bytes(), nil
 }
 
-func bubSort(d []api_model.MessageData) []api_model.MessageData {
+func bubSort(d []apimodel.MessageData) []apimodel.MessageData {
 	for i := 0; i < len(d); i++ {
 		for j := i + 1; j < len(d); j++ {
 			if d[i].Unixtime > d[j].Unixtime {

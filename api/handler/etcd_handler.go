@@ -1,9 +1,8 @@
 package handler
 
 import (
-	"context"
 	"fmt"
-	"github.com/coreos/etcd/clientv3"
+	"github.com/goodrain/rainbond/db"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,31 +18,31 @@ const (
 	BackupRestoreEtcdKey
 )
 
-// EtcdHandler defines handler methods about k8s pods.
-type EtcdHandler struct {
-	etcdCli *clientv3.Client
+// CleanDateBaseHandler -
+type CleanDateBaseHandler struct {
 }
 
-// NewEtcdHandler creates a new PodHandler.
-func NewEtcdHandler(etcdCli *clientv3.Client) *EtcdHandler {
-	return &EtcdHandler{etcdCli}
+// NewCleanDateBaseHandler -
+func NewCleanDateBaseHandler() *CleanDateBaseHandler {
+	return &CleanDateBaseHandler{}
 }
 
 // CleanAllServiceData -
-func (h *EtcdHandler) CleanAllServiceData(keys []string) {
+func (h *CleanDateBaseHandler) CleanAllServiceData(keys []string) {
 	for _, key := range keys {
-		h.cleanEtcdByKey(key, ServiceCheckEtcdKey, ShareResultEtcdKey, BackupRestoreEtcdKey)
+		h.cleanDateBaseByKey(key, ServiceCheckEtcdKey, ShareResultEtcdKey, BackupRestoreEtcdKey)
 	}
 }
 
 // CleanServiceCheckData clean service check etcd data
-func (h *EtcdHandler) CleanServiceCheckData(key string) {
-	h.cleanEtcdByKey(key, ServiceCheckEtcdKey)
+func (h *CleanDateBaseHandler) CleanServiceCheckData(key string) {
+	h.cleanDateBaseByKey(key, ServiceCheckEtcdKey)
 }
 
-func (h *EtcdHandler) cleanEtcdByKey(key string, keyTypes ...EtcdKeyType) {
+func (h *CleanDateBaseHandler) cleanDateBaseByKey(key string, keyTypes ...EtcdKeyType) {
 	if key == "" {
 		logrus.Warn("get empty etcd data key, ignore it")
+		return
 	}
 	for _, keyType := range keyTypes {
 		prefix := ""
@@ -55,17 +54,14 @@ func (h *EtcdHandler) cleanEtcdByKey(key string, keyTypes ...EtcdKeyType) {
 		case BackupRestoreEtcdKey:
 			prefix = fmt.Sprintf("/rainbond/backup_restore/%s", key)
 		}
-		h.cleanEtcdData(prefix)
+		h.cleanDateBaseData(prefix)
 	}
 
 }
 
-func (h *EtcdHandler) cleanEtcdData(prefix string) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	logrus.Debugf("ready for delete etcd key:%s", prefix)
-	_, err := h.etcdCli.Delete(ctx, prefix)
+func (h *CleanDateBaseHandler) cleanDateBaseData(prefix string) {
+	err := db.GetManager().KeyValueDao().DeleteWithPrefix(prefix)
 	if err != nil {
-		logrus.Warnf("delete etcd key[%s] failed: %s", prefix, err.Error())
+		logrus.Warnf("delete db key[%s] failed: %s", prefix, err.Error())
 	}
 }
