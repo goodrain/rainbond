@@ -21,34 +21,34 @@ package handler
 import (
 	"os"
 
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
-//TokenMapHandler DefaultTokenMapHandler
+// TokenMapHandler DefaultTokenMapHandler
 type TokenMapHandler interface {
 	AddTokenIntoMap(rui *dbmodel.RegionUserInfo)
 	DeleteTokenFromMap(oldtoken string, rui *dbmodel.RegionUserInfo)
 	CheckToken(token, uri string) bool
 	GetAPIManager() map[string][]*dbmodel.RegionAPIClass
-	AddAPIManager(am *api_model.APIManager) *util.APIHandleError
-	DeleteAPIManager(am *api_model.APIManager) *util.APIHandleError
+	AddAPIManager(am *apimodel.APIManager) *util.APIHandleError
+	DeleteAPIManager(am *apimodel.APIManager) *util.APIHandleError
 	InitTokenMap() error
 }
 
 var defaultTokenIdenHandler TokenMapHandler
 
-//TokenMap TokenMap
+// TokenMap TokenMap
 type TokenMap map[string]*dbmodel.RegionUserInfo
 
 var defaultTokenMap map[string]*dbmodel.RegionUserInfo
 
 var defaultSourceURI map[string][]*dbmodel.RegionAPIClass
 
-//CreateTokenIdenHandler create token identification handler
+// CreateTokenIdenHandler create token identification handler
 func CreateTokenIdenHandler(conf option.Config) error {
 	CreateDefaultTokenMap(conf)
 	var err error
@@ -90,7 +90,7 @@ func resourceURI() (map[string][]*dbmodel.RegionAPIClass, error) {
 	return sourceMap, nil
 }
 
-//CreateDefaultTokenMap CreateDefaultTokenMap
+// CreateDefaultTokenMap CreateDefaultTokenMap
 func CreateDefaultTokenMap(conf option.Config) {
 	createDefaultSourceURI()
 	if defaultTokenMap != nil {
@@ -111,22 +111,22 @@ func CreateDefaultTokenMap(conf option.Config) {
 	return
 }
 
-//GetTokenIdenHandler GetTokenIdenHandler
+// GetTokenIdenHandler GetTokenIdenHandler
 func GetTokenIdenHandler() TokenMapHandler {
 	return defaultTokenIdenHandler
 }
 
-//GetDefaultTokenMap GetDefaultTokenMap
+// GetDefaultTokenMap GetDefaultTokenMap
 func GetDefaultTokenMap() map[string]*dbmodel.RegionUserInfo {
 	return defaultTokenMap
 }
 
-//SetTokenCache SetTokenCache
+// SetTokenCache SetTokenCache
 func SetTokenCache(info *dbmodel.RegionUserInfo) {
 	defaultTokenMap[info.Token] = info
 }
 
-//GetDefaultSourceURI GetDefaultSourceURI
+// GetDefaultSourceURI GetDefaultSourceURI
 func GetDefaultSourceURI() map[string][]*dbmodel.RegionAPIClass {
 	return defaultSourceURI
 }

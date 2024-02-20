@@ -28,7 +28,7 @@ import (
 	"path"
 
 	"github.com/goodrain/rainbond/api/model"
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -111,7 +111,7 @@ func (l *LogAction) GetLogInstance(serviceID string) (string, error) {
 }
 
 // GetLevelLog get event log
-func (l *LogAction) GetLevelLog(eventID string, level string) (*api_model.DataLog, error) {
+func (l *LogAction) GetLevelLog(eventID string, level string) (*apimodel.DataLog, error) {
 	re, err := l.eventdb.GetMessages(eventID, level, 0)
 	if err != nil {
 		return nil, err
@@ -119,13 +119,13 @@ func (l *LogAction) GetLevelLog(eventID string, level string) (*api_model.DataLo
 	if re != nil {
 		messageList, ok := re.(eventdb.MessageDataList)
 		if ok {
-			return &api_model.DataLog{
+			return &apimodel.DataLog{
 				Status: "success",
 				Data:   messageList,
 			}, nil
 		}
 	}
-	return &api_model.DataLog{
+	return &apimodel.DataLog{
 		Status: "success",
 		Data:   nil,
 	}, nil
@@ -181,7 +181,7 @@ func uncompress(source []byte) (re []byte, err error) {
 	return buffer.Bytes(), nil
 }
 
-func bubSort(d []api_model.MessageData) []api_model.MessageData {
+func bubSort(d []apimodel.MessageData) []apimodel.MessageData {
 	for i := 0; i < len(d); i++ {
 		for j := i + 1; j < len(d); j++ {
 			if d[i].Unixtime > d[j].Unixtime {

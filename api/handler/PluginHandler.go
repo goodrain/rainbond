@@ -19,26 +19,26 @@
 package handler
 
 import (
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
-//PluginHandler plugin handler
+// PluginHandler plugin handler
 type PluginHandler interface {
-	CreatePluginAct(cps *api_model.CreatePluginStruct) *util.APIHandleError
-	UpdatePluginAct(pluginID, tenantID string, cps *api_model.UpdatePluginStruct) *util.APIHandleError
+	CreatePluginAct(cps *apimodel.CreatePluginStruct) *util.APIHandleError
+	UpdatePluginAct(pluginID, tenantID string, cps *apimodel.UpdatePluginStruct) *util.APIHandleError
 	DeletePluginAct(pluginID, tenantID string) *util.APIHandleError
 	GetPlugins(tenantID string) ([]*dbmodel.TenantPlugin, *util.APIHandleError)
-	AddDefaultEnv(est *api_model.ENVStruct) *util.APIHandleError
-	UpdateDefaultEnv(est *api_model.ENVStruct) *util.APIHandleError
+	AddDefaultEnv(est *apimodel.ENVStruct) *util.APIHandleError
+	UpdateDefaultEnv(est *apimodel.ENVStruct) *util.APIHandleError
 	DeleteDefaultEnv(pluginID, versionID, envName string) *util.APIHandleError
-	BuildPluginManual(bps *api_model.BuildPluginStruct) (*dbmodel.TenantPluginBuildVersion, *util.APIHandleError)
+	BuildPluginManual(bps *apimodel.BuildPluginStruct) (*dbmodel.TenantPluginBuildVersion, *util.APIHandleError)
 	GetAllPluginBuildVersions(pluginID string) ([]*dbmodel.TenantPluginBuildVersion, *util.APIHandleError)
 	GetPluginBuildVersion(pluginID, versionID string) (*dbmodel.TenantPluginBuildVersion, *util.APIHandleError)
 	DeletePluginBuildVersion(pluginID, versionID string) *util.APIHandleError
 	GetDefaultEnv(pluginID, versionID string) ([]*dbmodel.TenantPluginDefaultENV, *util.APIHandleError)
 	GetEnvsWhichCanBeSet(serviceID, pluginID string) (interface{}, *util.APIHandleError)
-	BatchCreatePlugins(tenantID string, plugins []*api_model.Plugin) *util.APIHandleError
-	BatchBuildPlugins(req *api_model.BatchBuildPlugins, tenantID string) *util.APIHandleError
+	BatchCreatePlugins(tenantID string, plugins []*apimodel.Plugin) *util.APIHandleError
+	BatchBuildPlugins(req *apimodel.BatchBuildPlugins, tenantID string) *util.APIHandleError
 }

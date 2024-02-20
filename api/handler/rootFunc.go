@@ -23,38 +23,38 @@ import (
 	"strconv"
 	"strings"
 
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/cmd/api/option"
 
 	"github.com/sirupsen/logrus"
 )
 
-//RootAction  root function action struct
+// RootAction  root function action struct
 type RootAction struct{}
 
-//CreateRootFuncManager get root func manager
+// CreateRootFuncManager get root func manager
 func CreateRootFuncManager(conf option.Config) *RootAction {
 	return &RootAction{}
 }
 
-//VersionInfo VersionInfo
+// VersionInfo VersionInfo
 type VersionInfo struct {
 	Version []*LangInfo `json:"version"`
 }
 
-//LangInfo LangInfo
+// LangInfo LangInfo
 type LangInfo struct {
 	Lang  string `json:"lang"`
 	Major []*MajorInfo
 }
 
-//MajorInfo MajorInfo
+// MajorInfo MajorInfo
 type MajorInfo struct {
 	Major int `json:"major"`
 	Minor []*MinorInfo
 }
 
-//MinorInfo MinorInfo
+// MinorInfo MinorInfo
 type MinorInfo struct {
 	Minor int   `json:"minor"`
 	Patch []int `json:"patch"`
@@ -65,8 +65,8 @@ type MinorInfo struct {
 //MajorVersion := make(map[string]minorVersion)
 //ListVersion := make(map[string](make(map[string](make(map[string]int)))))
 
-//ResolvePHP php 应用构建
-func (r *RootAction) ResolvePHP(cs *api_model.ComposerStruct) (string, error) {
+// ResolvePHP php 应用构建
+func (r *RootAction) ResolvePHP(cs *apimodel.ComposerStruct) (string, error) {
 	lang := cs.Body.Lang
 	data := cs.Body.Data
 	logrus.Debugf("Composer got default_runtime=%v, json body=%v", lang, data)
@@ -124,7 +124,7 @@ func (r *RootAction) ResolvePHP(cs *api_model.ComposerStruct) (string, error) {
 	return fmt.Sprintf("{%s|default|*|%s}", lang, maxVersion), nil
 }
 
-func createListVersion(cs *api_model.ComposerStruct) (map[string]*VersionInfo, error) {
+func createListVersion(cs *apimodel.ComposerStruct) (map[string]*VersionInfo, error) {
 	//listVersions := make(map[string]*VersionInfo)
 	/*
 		listVersions := make(map[string]interface{})

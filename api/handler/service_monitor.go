@@ -1,15 +1,15 @@
 package handler
 
 import (
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
 )
 
-//UpdateServiceMonitor update service monitor
-func (s *ServiceAction) UpdateServiceMonitor(tenantID, serviceID, name string, update api_model.UpdateServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error) {
+// UpdateServiceMonitor update service monitor
+func (s *ServiceAction) UpdateServiceMonitor(tenantID, serviceID, name string, update apimodel.UpdateServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error) {
 	sm, err := db.GetManager().TenantServiceMonitorDao().GetByName(serviceID, name)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -28,7 +28,7 @@ func (s *ServiceAction) UpdateServiceMonitor(tenantID, serviceID, name string, u
 	return sm, db.GetManager().TenantServiceMonitorDao().UpdateModel(sm)
 }
 
-//DeleteServiceMonitor delete
+// DeleteServiceMonitor delete
 func (s *ServiceAction) DeleteServiceMonitor(tenantID, serviceID, name string) (*dbmodel.TenantServiceMonitor, error) {
 	sm, err := db.GetManager().TenantServiceMonitorDao().GetByName(serviceID, name)
 	if err != nil {
@@ -40,8 +40,8 @@ func (s *ServiceAction) DeleteServiceMonitor(tenantID, serviceID, name string) (
 	return sm, db.GetManager().TenantServiceMonitorDao().DeleteServiceMonitor(sm)
 }
 
-//AddServiceMonitor add service monitor
-func (s *ServiceAction) AddServiceMonitor(tenantID, serviceID string, add api_model.AddServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error) {
+// AddServiceMonitor add service monitor
+func (s *ServiceAction) AddServiceMonitor(tenantID, serviceID string, add apimodel.AddServiceMonitorRequestStruct) (*dbmodel.TenantServiceMonitor, error) {
 	_, err := db.GetManager().TenantServicesPortDao().GetPort(serviceID, add.Port)
 	if err != nil {
 		return nil, bcode.ErrPortNotFound
@@ -59,7 +59,7 @@ func (s *ServiceAction) AddServiceMonitor(tenantID, serviceID string, add api_mo
 }
 
 // SyncComponentMonitors -
-func (s *ServiceAction) SyncComponentMonitors(tx *gorm.DB, app *dbmodel.Application, components []*api_model.Component) error {
+func (s *ServiceAction) SyncComponentMonitors(tx *gorm.DB, app *dbmodel.Application, components []*apimodel.Component) error {
 	var (
 		componentIDs []string
 		monitors     []*dbmodel.TenantServiceMonitor

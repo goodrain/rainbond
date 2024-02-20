@@ -19,14 +19,14 @@
 package handler
 
 import (
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
-//CloudHandler define source handler
+// CloudHandler define source handler
 type CloudHandler interface {
-	TokenDispatcher(gt *api_model.GetUserToken) (*api_model.TokenInfo, *util.APIHandleError)
+	TokenDispatcher(gt *apimodel.GetUserToken) (*apimodel.TokenInfo, *util.APIHandleError)
 	GetTokenInfo(eid string) (*dbmodel.RegionUserInfo, *util.APIHandleError)
 	UpdateTokenTime(eid string, vd int) *util.APIHandleError
 }

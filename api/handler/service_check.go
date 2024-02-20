@@ -20,7 +20,7 @@ package handler
 
 import (
 	"fmt"
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/exector"
 	"github.com/goodrain/rainbond/db"
@@ -33,7 +33,7 @@ import (
 )
 
 // ServiceCheck check service build source
-func (s *ServiceAction) ServiceCheck(scs *api_model.ServiceCheckStruct) (string, string, *util.APIHandleError) {
+func (s *ServiceAction) ServiceCheck(scs *apimodel.ServiceCheckStruct) (string, string, *util.APIHandleError) {
 	checkUUID := uuid.NewV4().String()
 	scs.Body.CheckUUID = checkUUID
 	if scs.Body.EventID == "" {

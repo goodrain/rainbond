@@ -28,7 +28,7 @@ import (
 
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/model"
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/cmd/api/option"
@@ -50,7 +50,7 @@ import (
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-//TenantAction tenant act
+// TenantAction tenant act
 type TenantAction struct {
 	MQClient                  mqclient.MQClient
 	statusCli                 *client.AppRuntimeSyncClient
@@ -63,7 +63,7 @@ type TenantAction struct {
 	resources                 map[string]k8sclient.Object
 }
 
-//CreateTenManager create Manger
+// CreateTenManager create Manger
 func CreateTenManager(mqc mqclient.MQClient, statusCli *client.AppRuntimeSyncClient,
 	optCfg *option.Config,
 	kubeClient *kubernetes.Clientset,
@@ -86,9 +86,9 @@ func CreateTenManager(mqc mqclient.MQClient, statusCli *client.AppRuntimeSyncCli
 	}
 }
 
-//BindTenantsResource query tenant resource used and sort
-func (t *TenantAction) BindTenantsResource(source []*dbmodel.Tenants) api_model.TenantList {
-	var list api_model.TenantList
+// BindTenantsResource query tenant resource used and sort
+func (t *TenantAction) BindTenantsResource(source []*dbmodel.Tenants) apimodel.TenantList {
+	var list apimodel.TenantList
 	var resources = make(map[string]*pb.TenantResource, len(source))
 	if len(source) == 1 {
 		re, err := t.statusCli.GetTenantResource(source[0].UUID)
@@ -108,7 +108,7 @@ func (t *TenantAction) BindTenantsResource(source []*dbmodel.Tenants) api_model.
 		}
 	}
 	for i, ten := range source {
-		var item = &api_model.TenantAndResource{
+		var item = &apimodel.TenantAndResource{
 			Tenants: *source[i],
 		}
 		re := resources[ten.UUID]
@@ -133,7 +133,7 @@ func (t *TenantAction) BindTenantsResource(source []*dbmodel.Tenants) api_model.
 	return list
 }
 
-//GetTenants get tenants
+// GetTenants get tenants
 func (t *TenantAction) GetTenants(query string) ([]*dbmodel.Tenants, error) {
 	tenants, err := db.GetManager().TenantDao().GetALLTenants(query)
 	if err != nil {
@@ -142,7 +142,7 @@ func (t *TenantAction) GetTenants(query string) ([]*dbmodel.Tenants, error) {
 	return tenants, err
 }
 
-//GetTenantsByEid GetTenantsByEid
+// GetTenantsByEid GetTenantsByEid
 func (t *TenantAction) GetTenantsByEid(eid, query string) ([]*dbmodel.Tenants, error) {
 	tenants, err := db.GetManager().TenantDao().GetTenantByEid(eid, query)
 	if err != nil {
@@ -151,7 +151,7 @@ func (t *TenantAction) GetTenantsByEid(eid, query string) ([]*dbmodel.Tenants, e
 	return tenants, err
 }
 
-//UpdateTenant update tenant info
+// UpdateTenant update tenant info
 func (t *TenantAction) UpdateTenant(tenant *dbmodel.Tenants) error {
 	return db.GetManager().TenantDao().UpdateModel(tenant)
 }
@@ -213,8 +213,8 @@ func (t *TenantAction) DeleteTenant(ctx context.Context, tenantID string) error 
 	return nil
 }
 
-//TotalMemCPU StatsMemCPU
-func (t *TenantAction) TotalMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error) {
+// TotalMemCPU StatsMemCPU
+func (t *TenantAction) TotalMemCPU(services []*dbmodel.TenantServices) (*apimodel.StatsInfo, error) {
 	cpus := 0
 	mem := 0
 	for _, service := range services {
@@ -222,14 +222,14 @@ func (t *TenantAction) TotalMemCPU(services []*dbmodel.TenantServices) (*api_mod
 		cpus += service.ContainerCPU
 		mem += service.ContainerMemory
 	}
-	si := &api_model.StatsInfo{
+	si := &apimodel.StatsInfo{
 		CPU: cpus,
 		MEM: mem,
 	}
 	return si, nil
 }
 
-//GetTenantsName get tenants name
+// GetTenantsName get tenants name
 func (t *TenantAction) GetTenantsName() ([]string, error) {
 	tenants, err := db.GetManager().TenantDao().GetALLTenants("")
 	if err != nil {
@@ -242,7 +242,7 @@ func (t *TenantAction) GetTenantsName() ([]string, error) {
 	return result, err
 }
 
-//GetTenantsByName get tenants
+// GetTenantsByName get tenants
 func (t *TenantAction) GetTenantsByName(name string) (*dbmodel.Tenants, error) {
 	tenant, err := db.GetManager().TenantDao().GetTenantIDByName(name)
 	if err != nil {
@@ -251,7 +251,7 @@ func (t *TenantAction) GetTenantsByName(name string) (*dbmodel.Tenants, error) {
 	return tenant, err
 }
 
-//GetTenantsByUUID get tenants
+// GetTenantsByUUID get tenants
 func (t *TenantAction) GetTenantsByUUID(uuid string) (*dbmodel.Tenants, error) {
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(uuid)
 	if err != nil {
@@ -261,8 +261,8 @@ func (t *TenantAction) GetTenantsByUUID(uuid string) (*dbmodel.Tenants, error) {
 	return tenant, err
 }
 
-//StatsMemCPU StatsMemCPU
-func (t *TenantAction) StatsMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error) {
+// StatsMemCPU StatsMemCPU
+func (t *TenantAction) StatsMemCPU(services []*dbmodel.TenantServices) (*apimodel.StatsInfo, error) {
 	cpus := 0
 	mem := 0
 	for _, service := range services {
@@ -273,7 +273,7 @@ func (t *TenantAction) StatsMemCPU(services []*dbmodel.TenantServices) (*api_mod
 		cpus += service.ContainerCPU
 		mem += service.ContainerMemory
 	}
-	si := &api_model.StatsInfo{
+	si := &apimodel.StatsInfo{
 		CPU: cpus,
 		MEM: mem,
 	}
@@ -289,8 +289,8 @@ type QueryResult struct {
 	Status string `json:"status"`
 }
 
-//GetTenantsResources Gets the resource usage of the specified tenant.
-func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *api_model.TenantResources) (map[string]map[string]interface{}, error) {
+// GetTenantsResources Gets the resource usage of the specified tenant.
+func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *apimodel.TenantResources) (map[string]map[string]interface{}, error) {
 	ids, err := db.GetManager().TenantDao().GetTenantIDsByNames(tr.Body.TenantNames)
 	if err != nil {
 		return nil, err
@@ -373,7 +373,7 @@ func (t *TenantAction) GetTenantsResources(ctx context.Context, tr *api_model.Te
 	return result, nil
 }
 
-//TenantResourceStats tenant resource stats
+// TenantResourceStats tenant resource stats
 type TenantResourceStats struct {
 	TenantID            string `json:"tenant_id,omitempty"`
 	CPURequest          int64  `json:"cpu_request,omitempty"`
@@ -388,7 +388,7 @@ type TenantResourceStats struct {
 	RunningApplications int64  `json:"running_applications"`
 }
 
-//GetTenantResource get tenant resource
+// GetTenantResource get tenant resource
 func (t *TenantAction) GetTenantResource(tenantID string) (ts TenantResourceStats, err error) {
 	tr, err := t.statusCli.GetTenantResource(tenantID)
 	if err != nil {
@@ -415,7 +415,7 @@ type PodResourceInformation struct {
 	StorageEphemeral int64
 }
 
-//ClusterResourceStats cluster resource stats
+// ClusterResourceStats cluster resource stats
 type ClusterResourceStats struct {
 	AllCPU        int64
 	AllMemory     int64
@@ -507,8 +507,8 @@ func (t *TenantAction) GetAllocatableResources(ctx context.Context) (*ClusterRes
 	return re, nil
 }
 
-//GetServicesResources Gets the resource usage of the specified service.
-func (t *TenantAction) GetServicesResources(tr *api_model.ServicesResources) (re map[string]map[string]interface{}, err error) {
+// GetServicesResources Gets the resource usage of the specified service.
+func (t *TenantAction) GetServicesResources(tr *apimodel.ServicesResources) (re map[string]map[string]interface{}, err error) {
 	status := t.statusCli.GetStatuss(strings.Join(tr.Body.ServiceIDs, ","))
 	var running, closed []string
 	for k, v := range status {
@@ -567,7 +567,7 @@ func (t *TenantAction) getPodNums(serviceID string) int {
 	return len(pods.OldPods) + len(pods.NewPods)
 }
 
-//TenantsSum TenantsSum
+// TenantsSum TenantsSum
 func (t *TenantAction) TenantsSum() (int, error) {
 	s, err := db.GetManager().TenantDao().GetALLTenants("")
 	if err != nil {
@@ -576,7 +576,7 @@ func (t *TenantAction) TenantsSum() (int, error) {
 	return len(s), nil
 }
 
-//GetProtocols GetProtocols
+// GetProtocols GetProtocols
 func (t *TenantAction) GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHandleError) {
 	return []*dbmodel.RegionProcotols{
 		{
@@ -609,7 +609,7 @@ func (t *TenantAction) GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHand
 	}, nil
 }
 
-//TransPlugins TransPlugins
+// TransPlugins TransPlugins
 func (t *TenantAction) TransPlugins(tenantID, tenantName, fromTenant string, pluginList []string) *util.APIHandleError {
 	tenantInfo, err := db.GetManager().TenantDao().GetTenantIDByName(fromTenant)
 	if err != nil {
@@ -651,12 +651,12 @@ func (t *TenantAction) GetServicesStatus(ids string) map[string]string {
 	return t.statusCli.GetStatuss(ids)
 }
 
-//IsClosedStatus checks if the status is closed status.
+// IsClosedStatus checks if the status is closed status.
 func (t *TenantAction) IsClosedStatus(status string) bool {
 	return t.statusCli.IsClosedStatus(status)
 }
 
-//GetClusterResource get cluster resource
+// GetClusterResource get cluster resource
 func (t *TenantAction) GetClusterResource(ctx context.Context) *ClusterResourceStats {
 	if t.initClusterResource(ctx) != nil {
 		return nil

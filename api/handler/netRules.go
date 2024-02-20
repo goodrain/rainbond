@@ -26,7 +26,7 @@ import (
 	"github.com/pquerna/ffjson/ffjson"
 
 	"github.com/coreos/etcd/clientv3"
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/sirupsen/logrus"
 )
@@ -46,10 +46,10 @@ func CreateNetRulesManager(etcdCli *clientv3.Client) *NetRulesAction {
 // CreateDownStreamNetRules CreateDownStreamNetRules
 func (n *NetRulesAction) CreateDownStreamNetRules(
 	tenantID string,
-	rs *api_model.SetNetDownStreamRuleStruct) *util.APIHandleError {
+	rs *apimodel.SetNetDownStreamRuleStruct) *util.APIHandleError {
 	k := fmt.Sprintf("/netRules/%s/%s/downstream/%s/%v",
 		tenantID, rs.ServiceAlias, rs.Body.DestServiceAlias, rs.Body.Port)
-	sb := &api_model.NetRulesDownStreamBody{
+	sb := &apimodel.NetRulesDownStreamBody{
 		DestService:      rs.Body.DestService,
 		DestServiceAlias: rs.Body.DestServiceAlias,
 		Port:             rs.Body.Port,
@@ -75,7 +75,7 @@ func (n *NetRulesAction) GetDownStreamNetRule(
 	tenantID,
 	serviceAlias,
 	destServiceAlias,
-	port string) (*api_model.NetRulesDownStreamBody, *util.APIHandleError) {
+	port string) (*apimodel.NetRulesDownStreamBody, *util.APIHandleError) {
 	k := fmt.Sprintf(
 		"/netRules/%s/%s/downstream/%s/%v",
 		tenantID,
@@ -91,7 +91,7 @@ func (n *NetRulesAction) GetDownStreamNetRule(
 	}
 	if resp.Count != 0 {
 		v := resp.Kvs[0].Value
-		var sb api_model.NetRulesDownStreamBody
+		var sb apimodel.NetRulesDownStreamBody
 		if err := ffjson.Unmarshal(v, &sb); err != nil {
 			logrus.Errorf("unmashal etcd v error, %v", err)
 			return nil, util.CreateAPIHandleError(500, err)
@@ -106,9 +106,9 @@ func (n *NetRulesAction) GetDownStreamNetRule(
 // UpdateDownStreamNetRule UpdateDownStreamNetRule
 func (n *NetRulesAction) UpdateDownStreamNetRule(
 	tenantID string,
-	urs *api_model.UpdateNetDownStreamRuleStruct) *util.APIHandleError {
+	urs *apimodel.UpdateNetDownStreamRuleStruct) *util.APIHandleError {
 
-	srs := &api_model.SetNetDownStreamRuleStruct{
+	srs := &apimodel.SetNetDownStreamRuleStruct{
 		TenantName:   urs.TenantName,
 		ServiceAlias: urs.ServiceAlias,
 	}

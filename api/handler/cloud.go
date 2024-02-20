@@ -34,14 +34,14 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
-//CloudAction  cloud action struct
+// CloudAction  cloud action struct
 type CloudAction struct {
 	RegionTag string
 	APISSL    bool
@@ -49,7 +49,7 @@ type CloudAction struct {
 	KeyPath   string
 }
 
-//CreateCloudManager get cloud manager
+// CreateCloudManager get cloud manager
 func CreateCloudManager(conf option.Config) *CloudAction {
 	return &CloudAction{
 		APISSL:    conf.APISSL,
@@ -59,11 +59,11 @@ func CreateCloudManager(conf option.Config) *CloudAction {
 	}
 }
 
-//TokenDispatcher token
-func (c *CloudAction) TokenDispatcher(gt *api_model.GetUserToken) (*api_model.TokenInfo, *util.APIHandleError) {
+// TokenDispatcher token
+func (c *CloudAction) TokenDispatcher(gt *apimodel.GetUserToken) (*apimodel.TokenInfo, *util.APIHandleError) {
 	//TODO: product token, 启动api时需要添加该参数
 	//token包含 eid，数据中心标识，可控范围，有效期
-	ti := &api_model.TokenInfo{
+	ti := &apimodel.TokenInfo{
 		EID: gt.Body.EID,
 	}
 	token := c.createToken(gt)
@@ -118,7 +118,7 @@ CREATE:
 	return ti, nil
 }
 
-//GetTokenInfo GetTokenInfo
+// GetTokenInfo GetTokenInfo
 func (c *CloudAction) GetTokenInfo(eid string) (*dbmodel.RegionUserInfo, *util.APIHandleError) {
 	tokenInfos, err := db.GetManager().RegionUserInfoDao().GetTokenByEid(eid)
 	if err != nil {
@@ -127,7 +127,7 @@ func (c *CloudAction) GetTokenInfo(eid string) (*dbmodel.RegionUserInfo, *util.A
 	return tokenInfos, nil
 }
 
-//UpdateTokenTime UpdateTokenTime
+// UpdateTokenTime UpdateTokenTime
 func (c *CloudAction) UpdateTokenTime(eid string, vd int) *util.APIHandleError {
 	tokenInfos, err := db.GetManager().RegionUserInfoDao().GetTokenByEid(eid)
 	if err != nil {
@@ -141,8 +141,8 @@ func (c *CloudAction) UpdateTokenTime(eid string, vd int) *util.APIHandleError {
 	return nil
 }
 
-//CertDispatcher Cert
-func (c *CloudAction) CertDispatcher(gt *api_model.GetUserToken) ([]byte, []byte, error) {
+// CertDispatcher Cert
+func (c *CloudAction) CertDispatcher(gt *apimodel.GetUserToken) ([]byte, []byte, error) {
 	cert, err := analystCaKey(c.CAPath, "ca")
 	if err != nil {
 		return nil, nil, err
@@ -218,7 +218,7 @@ func analystCaKey(path, kind string) (interface{}, error) {
 	return "", nil
 }
 
-func (c *CloudAction) createToken(gt *api_model.GetUserToken) string {
+func (c *CloudAction) createToken(gt *apimodel.GetUserToken) string {
 	fullStr := fmt.Sprintf("%s-%s-%s-%d-%d", gt.Body.EID, c.RegionTag, gt.Body.Range, gt.Body.ValidityPeriod, int(time.Now().Unix()))
 	h := md5.New()
 	h.Write([]byte(fullStr))

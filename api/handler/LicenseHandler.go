@@ -18,9 +18,9 @@
 
 package handler
 
-import api_model "github.com/goodrain/rainbond/api/model"
+import apimodel "github.com/goodrain/rainbond/api/model"
 
-//LicenseHandler LicenseAction
+// LicenseHandler LicenseAction
 type LicenseHandler interface {
 	PackLicense(encrypted string) ([]byte, error)
 	StoreLicense(license, token string) error
@@ -28,27 +28,27 @@ type LicenseHandler interface {
 
 var defaultLicenseHandler LicenseHandler
 
-//CreateLicenseManger create service manager
+// CreateLicenseManger create service manager
 func CreateLicenseManger() error {
 	defaultLicenseHandler = &LicenseAction{}
 	return nil
 }
 
-//GetLicenseHandler get license handler
+// GetLicenseHandler get license handler
 func GetLicenseHandler() LicenseHandler {
 	return defaultLicenseHandler
 }
 
 //license验证
 
-//LicenseInfoHandler LicenseInfoHandler
+// LicenseInfoHandler LicenseInfoHandler
 type LicenseInfoHandler interface {
-	ShowInfos() (map[string]*api_model.LicenseInfo, error)
+	ShowInfos() (map[string]*apimodel.LicenseInfo, error)
 }
 
 var defaultLicensesInfosHandler LicenseInfoHandler
 
-//CreateLicensesInfoManager CreateLicensesInfoManager
+// CreateLicensesInfoManager CreateLicensesInfoManager
 func CreateLicensesInfoManager() error {
 	if defaultLicensesInfosHandler == nil {
 		listInfos, err := ListLicense()
@@ -62,7 +62,7 @@ func CreateLicensesInfoManager() error {
 	return nil
 }
 
-//GetLicensesInfosHandler GetLicensesInfosHandler
+// GetLicensesInfosHandler GetLicensesInfosHandler
 func GetLicensesInfosHandler() LicenseInfoHandler {
 	return defaultLicensesInfosHandler
 }

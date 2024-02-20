@@ -23,41 +23,41 @@ import (
 	"strings"
 	"time"
 
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/cmd/api/option"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
-//TokenIdenAction  TokenIdenAction
+// TokenIdenAction  TokenIdenAction
 type TokenIdenAction struct{}
 
-//CreateTokenIdenManager token identification
+// CreateTokenIdenManager token identification
 func CreateTokenIdenManager(conf option.Config) (*TokenIdenAction, error) {
 	return &TokenIdenAction{}, nil
 }
 
-//AddTokenIntoMap AddTokenIntoMap
+// AddTokenIntoMap AddTokenIntoMap
 func (t *TokenIdenAction) AddTokenIntoMap(rui *dbmodel.RegionUserInfo) {
 	m := GetDefaultTokenMap()
 	m[rui.Token] = rui
 }
 
-//DeleteTokenFromMap DeleteTokenFromMap
+// DeleteTokenFromMap DeleteTokenFromMap
 func (t *TokenIdenAction) DeleteTokenFromMap(oldtoken string, rui *dbmodel.RegionUserInfo) {
 	m := GetDefaultTokenMap()
 	t.AddTokenIntoMap(rui)
 	delete(m, oldtoken)
 }
 
-//GetAPIManager GetAPIManager
+// GetAPIManager GetAPIManager
 func (t *TokenIdenAction) GetAPIManager() map[string][]*dbmodel.RegionAPIClass {
 	return GetDefaultSourceURI()
 }
 
-//AddAPIManager AddAPIManager
-func (t *TokenIdenAction) AddAPIManager(am *api_model.APIManager) *util.APIHandleError {
+// AddAPIManager AddAPIManager
+func (t *TokenIdenAction) AddAPIManager(am *apimodel.APIManager) *util.APIHandleError {
 	m := GetDefaultSourceURI()
 	ra := &dbmodel.RegionAPIClass{
 		ClassLevel: am.Body.ClassLevel,
@@ -79,8 +79,8 @@ func (t *TokenIdenAction) AddAPIManager(am *api_model.APIManager) *util.APIHandl
 	return nil
 }
 
-//DeleteAPIManager DeleteAPIManager
-func (t *TokenIdenAction) DeleteAPIManager(am *api_model.APIManager) *util.APIHandleError {
+// DeleteAPIManager DeleteAPIManager
+func (t *TokenIdenAction) DeleteAPIManager(am *apimodel.APIManager) *util.APIHandleError {
 	m := GetDefaultSourceURI()
 	if sourceList, ok := m[am.Body.ClassLevel]; ok {
 		var newL []*dbmodel.RegionAPIClass
@@ -105,7 +105,7 @@ func (t *TokenIdenAction) DeleteAPIManager(am *api_model.APIManager) *util.APIHa
 	return nil
 }
 
-//CheckToken CheckToken
+// CheckToken CheckToken
 func (t *TokenIdenAction) CheckToken(token, uri string) bool {
 	m := GetDefaultTokenMap()
 	//logrus.Debugf("default token map is %v", m)
@@ -154,7 +154,7 @@ func (t *TokenIdenAction) CheckToken(token, uri string) bool {
 	return false
 }
 
-//InitTokenMap InitTokenMap
+// InitTokenMap InitTokenMap
 func (t *TokenIdenAction) InitTokenMap() error {
 	ruis, err := db.GetManager().RegionUserInfoDao().GetALLTokenInValidityPeriod()
 	if err != nil {

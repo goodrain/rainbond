@@ -22,30 +22,30 @@ import (
 	"context"
 
 	"github.com/goodrain/rainbond/api/model"
-	api_model "github.com/goodrain/rainbond/api/model"
+	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
-//TenantHandler tenant handler
+// TenantHandler tenant handler
 type TenantHandler interface {
 	GetTenants(query string) ([]*dbmodel.Tenants, error)
 	GetTenantsByName(name string) (*dbmodel.Tenants, error)
 	GetTenantsByEid(eid, query string) ([]*dbmodel.Tenants, error)
 	GetTenantsByUUID(uuid string) (*dbmodel.Tenants, error)
 	GetTenantsName() ([]string, error)
-	StatsMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)
-	TotalMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)
-	GetTenantsResources(ctx context.Context, tr *api_model.TenantResources) (map[string]map[string]interface{}, error)
+	StatsMemCPU(services []*dbmodel.TenantServices) (*apimodel.StatsInfo, error)
+	TotalMemCPU(services []*dbmodel.TenantServices) (*apimodel.StatsInfo, error)
+	GetTenantsResources(ctx context.Context, tr *apimodel.TenantResources) (map[string]map[string]interface{}, error)
 	GetTenantResource(tenantID string) (TenantResourceStats, error)
 	GetAllocatableResources(ctx context.Context) (*ClusterResourceStats, error)
-	GetServicesResources(tr *api_model.ServicesResources) (map[string]map[string]interface{}, error)
+	GetServicesResources(tr *apimodel.ServicesResources) (map[string]map[string]interface{}, error)
 	TenantsSum() (int, error)
 	GetProtocols() ([]*dbmodel.RegionProcotols, *util.APIHandleError)
 	TransPlugins(tenantID, tenantName, fromTenant string, pluginList []string) *util.APIHandleError
 	GetServicesStatus(ids string) map[string]string
 	IsClosedStatus(status string) bool
-	BindTenantsResource(source []*dbmodel.Tenants) api_model.TenantList
+	BindTenantsResource(source []*dbmodel.Tenants) apimodel.TenantList
 	UpdateTenant(*dbmodel.Tenants) error
 	DeleteTenant(ctx context.Context, tenantID string) error
 	GetClusterResource(ctx context.Context) *ClusterResourceStats
