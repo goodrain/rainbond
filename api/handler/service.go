@@ -33,7 +33,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
@@ -70,7 +69,6 @@ var ErrServiceNotClosed = errors.New("Service has not been closed")
 // ServiceAction service act
 type ServiceAction struct {
 	MQClient       gclient.MQClient
-	EtcdCli        *clientv3.Client
 	statusCli      *client.AppRuntimeSyncClient
 	prometheusCli  prometheus.Interface
 	conf           option.Config
@@ -92,7 +90,6 @@ type dCfg struct {
 // CreateManager create Manger
 func CreateManager(conf option.Config,
 	mqClient gclient.MQClient,
-	etcdCli *clientv3.Client,
 	statusCli *client.AppRuntimeSyncClient,
 	prometheusCli prometheus.Interface,
 	rainbondClient versioned.Interface,
@@ -102,7 +99,6 @@ func CreateManager(conf option.Config,
 	registryCli *registry.Registry) *ServiceAction {
 	return &ServiceAction{
 		MQClient:       mqClient,
-		EtcdCli:        etcdCli,
 		statusCli:      statusCli,
 		conf:           conf,
 		prometheusCli:  prometheusCli,

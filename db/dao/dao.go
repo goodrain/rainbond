@@ -68,6 +68,13 @@ type AppDao interface {
 	DeleteModelByEventId(eventID string) error
 }
 
+// AppDao tenant dao
+type KeyValueDao interface {
+	Put(key, value string) error
+	Get(key string) (*model.KeyValue, error)
+	Delete(key string) error
+}
+
 // ApplicationDao tenant Application Dao
 type ApplicationDao interface {
 	Dao

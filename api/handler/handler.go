@@ -54,7 +54,7 @@ func InitHandle(conf option.Config) error {
 	prometheusCli := prom.Default().PrometheusCli
 
 	dbmanager := db.GetManager()
-	defaultServieHandler = CreateManager(conf, mqClient, etcdcli, statusCli, prometheusCli, rainbondClient, clientset, kubevirtCli, dbmanager, registryCli)
+	defaultServieHandler = CreateManager(conf, mqClient, statusCli, prometheusCli, rainbondClient, clientset, kubevirtCli, dbmanager, registryCli)
 	defaultPluginHandler = CreatePluginManager(mqClient)
 	defaultAppHandler = CreateAppManager(mqClient)
 	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, clientset, prometheusCli, k8sClient)

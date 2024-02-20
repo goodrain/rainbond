@@ -19,19 +19,17 @@
 package handler
 
 import (
-	"context"
 	"fmt"
-	"strings"
-	"time"
-
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/builder/exector"
+	"github.com/goodrain/rainbond/db"
 	client "github.com/goodrain/rainbond/mq/client"
 	tutil "github.com/goodrain/rainbond/util"
 	"github.com/pquerna/ffjson/ffjson"
 	"github.com/sirupsen/logrus"
 	"github.com/twinj/uuid"
+	"strings"
 )
 
 // ServiceCheck check service build source
@@ -80,18 +78,12 @@ func maybeIsWindowsContainerImage(source string) bool {
 func (s *ServiceAction) GetServiceCheckInfo(uuid string) (*exector.ServiceCheckResult, *util.APIHandleError) {
 	k := fmt.Sprintf("/servicecheck/%s", uuid)
 	var si exector.ServiceCheckResult
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	resp, err := s.EtcdCli.Get(ctx, k)
-	if err != nil {
-		logrus.Errorf("get etcd k %s error, %v", k, err)
-		return nil, util.CreateAPIHandleError(503, err)
-	}
-	if resp.Count == 0 {
+	resp, err := db.GetManager().KeyValueDao().Get(k)
+	if err != nil || resp == nil {
 		return &si, nil
 	}
-	v := resp.Kvs[0].Value
-	if err := ffjson.Unmarshal(v, &si); err != nil {
+
+	if err := ffjson.Unmarshal([]byte(resp.V), &si); err != nil {
 		return nil, util.CreateAPIHandleError(500, err)
 	}
 	if si.CheckStatus == "" {
