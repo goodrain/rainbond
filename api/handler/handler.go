@@ -60,7 +60,7 @@ func InitHandle(conf option.Config) error {
 	defaultTenantHandler = CreateTenManager(mqClient, statusCli, &conf, clientset, prometheusCli, k8sClient)
 	defaultHelmHandler = CreateHelmManager(clientset, rainbondClient, restconfig, mapper)
 	defaultCloudHandler = CreateCloudManager(conf)
-	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli, etcdcli)
+	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli)
 	defaultEventHandler = CreateLogManager(conf, etcdcli)
 	shareHandler = &share.ServiceShareHandle{MQClient: mqClient, EtcdCli: etcdcli}
 	pluginShareHandler = &share.PluginShareHandle{MQClient: mqClient, EtcdCli: etcdcli}
