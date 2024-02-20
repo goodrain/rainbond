@@ -18,11 +18,11 @@ const (
 	BackupRestoreEtcdKey
 )
 
-// EtcdHandler defines handler methods about k8s pods.
+// CleanDateBaseHandler -
 type CleanDateBaseHandler struct {
 }
 
-// NewEtcdHandler creates a new PodHandler.
+// NewCleanDateBaseHandler -
 func NewCleanDateBaseHandler() *CleanDateBaseHandler {
 	return &CleanDateBaseHandler{}
 }
