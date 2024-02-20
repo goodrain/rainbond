@@ -21,18 +21,14 @@ package discover
 import (
 	"fmt"
 	"github.com/coreos/etcd/clientv3"
+	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/sirupsen/logrus"
-	"time"
-
-	"golang.org/x/net/context"
 )
 
 // SaveDockerLogInInstance 存储service和node 的对应关系
 func SaveDockerLogInInstance(etcdClient *clientv3.Client, conf conf.DiscoverConf, serviceID, instanceID string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	_, err := etcdClient.Put(ctx, conf.HomePath+"/dockerloginstacne/"+serviceID, instanceID)
+	err := db.GetManager().KeyValueDao().Put(conf.HomePath+"/dockerloginstacne/"+serviceID, instanceID)
 	if err != nil {
 		logrus.Errorf("Failed to put dockerlog instance %v", err)
 		return err
@@ -42,14 +38,12 @@ func SaveDockerLogInInstance(etcdClient *clientv3.Client, conf conf.DiscoverConf
 
 // GetDokerLogInInstance 获取应用日志接收节点
 func GetDokerLogInInstance(etcdClient *clientv3.Client, conf conf.DiscoverConf, serviceID string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	res, err := etcdClient.Get(ctx, conf.HomePath+"/dockerloginstacne/"+serviceID)
+	res, err := db.GetManager().KeyValueDao().Get(conf.HomePath + "/dockerloginstacne/" + serviceID)
 	if err != nil {
 		return "", err
 	}
-	if len(res.Kvs) == 0 {
+	if err != nil || res == nil {
 		return "", fmt.Errorf("get docker log instance failed")
 	}
-	return string(res.Kvs[0].Value), nil
+	return res.K, nil
 }

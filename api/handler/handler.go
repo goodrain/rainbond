@@ -61,7 +61,7 @@ func InitHandle(conf option.Config) error {
 	defaultHelmHandler = CreateHelmManager(clientset, rainbondClient, restconfig, mapper)
 	defaultCloudHandler = CreateCloudManager(conf)
 	defaultAPPBackupHandler = group.CreateBackupHandle(mqClient, statusCli)
-	defaultEventHandler = CreateLogManager(conf, etcdcli)
+	defaultEventHandler = CreateLogManager(conf)
 	shareHandler = &share.ServiceShareHandle{MQClient: mqClient, EtcdCli: etcdcli}
 	pluginShareHandler = &share.PluginShareHandle{MQClient: mqClient, EtcdCli: etcdcli}
 	if err := CreateTokenIdenHandler(conf); err != nil {

@@ -21,14 +21,12 @@ package handler
 import (
 	"bytes"
 	"compress/zlib"
-	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/api/model"
 	api_model "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/cmd/api/option"
@@ -40,14 +38,12 @@ import (
 
 // LogAction  log action struct
 type LogAction struct {
-	EtcdCli *clientv3.Client
 	eventdb *eventdb.EventFilePlugin
 }
 
 // CreateLogManager get log manager
-func CreateLogManager(conf option.Config, cli *clientv3.Client) *LogAction {
+func CreateLogManager(conf option.Config) *LogAction {
 	return &LogAction{
-		EtcdCli: cli,
 		eventdb: &eventdb.EventFilePlugin{
 			HomePath: conf.LogPath,
 		},
@@ -106,16 +102,12 @@ func (l *LogAction) GetLogFile(serviceAlias, fileName string) (string, string, e
 
 // GetLogInstance get log web socket instance
 func (l *LogAction) GetLogInstance(serviceID string) (string, error) {
-	value, err := l.EtcdCli.Get(context.Background(), fmt.Sprintf("/event/dockerloginstacne/%s", serviceID))
-	if err != nil {
+	k := fmt.Sprintf("/event/dockerloginstacne/%s", serviceID)
+	res, err := db.GetManager().KeyValueDao().Get(k)
+	if err != nil || res == nil {
 		return "", err
 	}
-
-	if len(value.Kvs) > 0 {
-		return string(value.Kvs[0].Value), nil
-	}
-
-	return "", nil
+	return res.V, nil
 }
 
 // GetLevelLog get event log
