@@ -52,7 +52,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//Manager manager
+// Manager manager
 type Manager struct {
 	ctx               context.Context
 	cfg               option.Config
@@ -65,7 +65,7 @@ type Manager struct {
 	clientset         *kubernetes.Clientset
 }
 
-//NewManager now handle
+// NewManager now handle
 func NewManager(ctx context.Context,
 	config option.Config,
 	store store.Storer,
@@ -88,14 +88,14 @@ func NewManager(ctx context.Context,
 	}
 }
 
-//ErrCallback do not handle this task
+// ErrCallback do not handle this task
 var ErrCallback = fmt.Errorf("callback task to mq")
 
 func (m *Manager) checkCount() bool {
 	return m.controllerManager.GetControllerSize() > m.cfg.MaxTasks
 }
 
-//AnalystToExec analyst exec
+// AnalystToExec analyst exec
 func (m *Manager) AnalystToExec(task *model.Task) error {
 	if task == nil {
 		return nil
@@ -108,6 +108,8 @@ func (m *Manager) AnalystToExec(task *model.Task) error {
 		return ErrCallback
 	}
 	switch task.Type {
+	case "":
+		return nil
 	case "start":
 		logrus.Info("start a 'start' task worker")
 		return m.startExec(task)
@@ -153,7 +155,7 @@ func (m *Manager) AnalystToExec(task *model.Task) error {
 	}
 }
 
-//startExec exec start service task
+// startExec exec start service task
 func (m *Manager) startExec(task *model.Task) error {
 	body, ok := task.Body.(model.StartTaskBody)
 	if !ok {
@@ -453,7 +455,7 @@ func (m *Manager) applyRuleExec(task *model.Task) error {
 	return nil
 }
 
-//applyPluginConfig apply service plugin config
+// applyPluginConfig apply service plugin config
 func (m *Manager) applyPluginConfig(task *model.Task) error {
 	body, ok := task.Body.(*model.ApplyPluginConfigTaskBody)
 	if !ok {
