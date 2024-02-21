@@ -39,7 +39,6 @@ type Config struct {
 	BuilderAPI             []string
 	V1API                  string
 	MQAPI                  string
-	EtcdEndpoint           []string
 	EtcdCaFile             string
 	EtcdCertFile           string
 	EtcdKeyFile            string
@@ -119,7 +118,6 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&a.ShowSQL, "show-sql", false, "The trigger for showing sql.")
 	fs.StringVar(&a.GrctlImage, "shell-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-shell:v5.13.0-release", "use shell image")
 
-	fs.StringSliceVar(&a.EtcdEndpoint, "etcd", []string{"http://rbd-etcd:2379"}, "etcd server or proxy address")
 	fs.StringSliceVar(&a.DockerConsoleServers, "docker-console", []string{"rbd-webcli:7171"}, "docker console address")
 	fs.StringVar(&a.PrometheusEndpoint, "prom-api", "rbd-monitor:9999", "The service DNS name of Prometheus api. Default to rbd-monitor:9999")
 	fs.StringVar(&a.RbdHub, "hub-api", "http://rbd-hub:5000", "the rbd-hub server api")
@@ -138,6 +136,5 @@ func (a *APIServer) SetLog() {
 		fmt.Println("set log level error." + err.Error())
 		return
 	}
-	logrus.Infof("Etcd Server : %+v", a.Config.EtcdEndpoint)
 	logrus.SetLevel(level)
 }

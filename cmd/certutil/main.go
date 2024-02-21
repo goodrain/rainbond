@@ -31,7 +31,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-//Config Config
+// Config Config
 type Config struct {
 	CrtName, KeyName  string
 	Address           []string
@@ -129,7 +129,7 @@ func create(ctx *cli.Context) error {
 	return nil
 }
 
-//CreateCertInformation CreateCertInformation
+// CreateCertInformation CreateCertInformation
 func (c *Config) CreateCertInformation() CertInformation {
 	baseinfo := CertInformation{
 		Country:            []string{"CN"},

@@ -20,14 +20,13 @@ package discover
 
 import (
 	"fmt"
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/eventlog/conf"
 	"github.com/sirupsen/logrus"
 )
 
 // SaveDockerLogInInstance 存储service和node 的对应关系
-func SaveDockerLogInInstance(etcdClient *clientv3.Client, conf conf.DiscoverConf, serviceID, instanceID string) error {
+func SaveDockerLogInInstance(conf conf.DiscoverConf, serviceID, instanceID string) error {
 	err := db.GetManager().KeyValueDao().Put(conf.HomePath+"/dockerloginstacne/"+serviceID, instanceID)
 	if err != nil {
 		logrus.Errorf("Failed to put dockerlog instance %v", err)
@@ -37,7 +36,7 @@ func SaveDockerLogInInstance(etcdClient *clientv3.Client, conf conf.DiscoverConf
 }
 
 // GetDokerLogInInstance 获取应用日志接收节点
-func GetDokerLogInInstance(etcdClient *clientv3.Client, conf conf.DiscoverConf, serviceID string) (string, error) {
+func GetDokerLogInInstance(conf conf.DiscoverConf, serviceID string) (string, error) {
 	res, err := db.GetManager().KeyValueDao().Get(conf.HomePath + "/dockerloginstacne/" + serviceID)
 	if err != nil {
 		return "", err

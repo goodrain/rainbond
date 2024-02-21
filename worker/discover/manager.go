@@ -159,7 +159,7 @@ func (t *TaskManager) Do() {
 
 // Stop 停止
 func (t *TaskManager) Stop() error {
-	logrus.Info("discover manager is stoping.")
+	logrus.Info("discover manager is stoping")
 	t.cancel()
 	if t.client != nil {
 		t.client.Close()

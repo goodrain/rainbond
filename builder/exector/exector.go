@@ -32,7 +32,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
 
@@ -45,7 +44,6 @@ import (
 
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	mqclient "github.com/goodrain/rainbond/mq/client"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	workermodel "github.com/goodrain/rainbond/worker/discover/model"
 )
 
@@ -94,18 +92,9 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints: conf.EtcdEndPoints,
-		CaFile:    conf.EtcdCaFile,
-		CertFile:  conf.EtcdCertFile,
-		KeyFile:   conf.EtcdKeyFile,
-	}
+
 	ctx, cancel := context.WithCancel(context.Background())
-	etcdCli, err := etcdutil.NewClient(ctx, etcdClientArgs)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
+
 	var maxConcurrentTask int
 	if conf.MaxTasks == 0 {
 		maxConcurrentTask = 50
@@ -124,7 +113,6 @@ func NewManager(conf option.Config, mqc mqclient.MQClient) (Manager, error) {
 		BuildKitArgs:      strings.Split(conf.BuildKitArgs, "&"),
 		BuildKitCache:     conf.BuildKitCache,
 		KubeClient:        kubeClient,
-		EtcdCli:           etcdCli,
 		mqClient:          mqc,
 		tasks:             make(chan *pb.TaskMessage, maxConcurrentTask),
 		maxConcurrentTask: maxConcurrentTask,
@@ -140,7 +128,6 @@ type exectorManager struct {
 	BuildKitArgs      []string
 	BuildKitCache     bool
 	KubeClient        kubernetes.Interface
-	EtcdCli           *clientv3.Client
 	tasks             chan *pb.TaskMessage
 	callback          func(*pb.TaskMessage)
 	maxConcurrentTask int
@@ -548,7 +535,7 @@ func (e *exectorManager) sendAction(tenantID, serviceID, eventID, newVersion, ac
 
 // slugShare share app of slug
 func (e *exectorManager) slugShare(task *pb.TaskMessage) {
-	i, err := NewSlugShareItem(task.TaskBody, e.EtcdCli)
+	i, err := NewSlugShareItem(task.TaskBody)
 	if err != nil {
 		logrus.Error("create share image task error.", err.Error())
 		return
@@ -588,7 +575,7 @@ func (e *exectorManager) slugShare(task *pb.TaskMessage) {
 
 // imageShare share app of docker image
 func (e *exectorManager) imageShare(task *pb.TaskMessage) {
-	i, err := NewImageShareItem(task.TaskBody, e.imageClient, e.EtcdCli)
+	i, err := NewImageShareItem(task.TaskBody, e.imageClient)
 	if err != nil {
 		logrus.Error("create share image task error.", err.Error())
 		i.Logger.Error(util.Translation("create share image task error"), map[string]string{"step": "builder-exector", "status": "failure"})

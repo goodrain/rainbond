@@ -26,14 +26,13 @@ import (
 
 	"github.com/coreos/etcd/clientv3"
 	client "github.com/coreos/etcd/clientv3"
-	"github.com/goodrain/rainbond/util"
 	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	grpcutil "github.com/goodrain/rainbond/util/grpc"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/naming"
 )
 
-//KeepAlive 服务注册
+// KeepAlive 服务注册
 type KeepAlive struct {
 	cancel         context.CancelFunc
 	EtcdClientArgs *etcdutil.ClientArgs
@@ -48,45 +47,7 @@ type KeepAlive struct {
 	once           sync.Once
 }
 
-//CreateKeepAlive create keepalive for server
-func CreateKeepAlive(etcdClientArgs *etcdutil.ClientArgs, ServerName string, Protocol string, HostIP string, Port int) (*KeepAlive, error) {
-	if ServerName == "" || Port == 0 {
-		return nil, fmt.Errorf("servername or serverport can not be empty")
-	}
-	if HostIP == "" {
-		ip, err := util.LocalIP()
-		if err != nil {
-			logrus.Errorf("get ip failed,details %s", err.Error())
-			return nil, err
-		}
-		HostIP = ip.String()
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	etcdclient, err := etcdutil.NewClient(ctx, etcdClientArgs)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-
-	k := &KeepAlive{
-		EtcdClientArgs: etcdClientArgs,
-		ServerName:     ServerName,
-		Endpoint:       fmt.Sprintf("%s:%d", HostIP, Port),
-		TTL:            5,
-		Done:           make(chan struct{}),
-		etcdClient:     etcdclient,
-		cancel:         cancel,
-	}
-	if Protocol == "" {
-		k.Endpoint = fmt.Sprintf("%s:%d", HostIP, Port)
-	} else {
-		k.Endpoint = fmt.Sprintf("%s://%s:%d", Protocol, HostIP, Port)
-	}
-	return k, nil
-}
-
-//Start 开始
+// Start 开始
 func (k *KeepAlive) Start() error {
 	duration := time.Duration(k.TTL) * time.Second
 	timer := time.NewTimer(duration)
@@ -143,7 +104,7 @@ func (k *KeepAlive) reg() error {
 	return nil
 }
 
-//Stop 结束
+// Stop 结束
 func (k *KeepAlive) Stop() {
 	k.once.Do(func() {
 		close(k.Done)

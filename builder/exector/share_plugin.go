@@ -25,7 +25,6 @@ import (
 
 	"github.com/goodrain/rainbond/builder"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/pquerna/ffjson/ffjson"
@@ -48,7 +47,6 @@ type PluginShareItem struct {
 		IsTrust     bool   `json:"is_trust,omitempty"`
 	} `json:"image_info,omitempty"`
 	ImageClient sources.ImageClient
-	EtcdCli     *clientv3.Client
 }
 
 func init() {
@@ -64,7 +62,6 @@ func SharePluginItemCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 		EventID: eventID,
 
 		ImageClient: m.imageClient,
-		EtcdCli:     m.EtcdCli,
 	}
 	if err := ffjson.Unmarshal(in, &pluginShare); err != nil {
 		return nil, err

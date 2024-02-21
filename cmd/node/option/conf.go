@@ -22,8 +22,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/namespaces"
 	"github.com/goodrain/rainbond/builder/sources"
 	"os"
 	"path"
@@ -223,17 +221,6 @@ func (a *Conf) SetLog() {
 		}
 		logrus.SetOutput(logfile)
 	}
-}
-
-func newClient(namespace, address string, opts ...containerd.ClientOpt) (*containerd.Client, context.Context, context.CancelFunc, error) {
-	ctx := namespaces.WithNamespace(context.Background(), namespace)
-	client, err := containerd.New(address, opts...)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithCancel(ctx)
-	return client, ctx, cancel, nil
 }
 
 // ParseClient handle config and create some api

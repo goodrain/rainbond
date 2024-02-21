@@ -62,7 +62,6 @@ type ClusterManager struct {
 	storeManager store.Manager
 	cancel       func()
 	context      context.Context
-	etcdClient   *clientv3.Client
 }
 
 // NewCluster 创建集群控制器
@@ -83,7 +82,6 @@ func NewCluster(etcdClient *clientv3.Client, conf conf.ClusterConf, log *logrus.
 		storeManager: storeManager,
 		cancel:       cancel,
 		context:      ctx,
-		etcdClient:   etcdClient,
 	}
 }
 

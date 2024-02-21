@@ -24,12 +24,7 @@ import "fmt"
 
 // Config config server
 type Config struct {
-	EtcdEndPoints        []string
-	EtcdCaFile           string
-	EtcdCertFile         string
-	EtcdKeyFile          string
-	EtcdTimeout          int
-	EtcdPrefix           string
+	KeyPrefix            string
 	ClusterName          string
 	APIPort              int
 	PrometheusMetricPath string
@@ -52,19 +47,12 @@ func NewMQServer() *MQServer {
 // AddFlags config
 func (a *MQServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the mq log level")
-	fs.IntVar(&a.EtcdTimeout, "etcd-timeout", 10, "etcd http timeout seconds")
-	fs.StringVar(&a.EtcdCaFile, "etcd-ca", "", "etcd tls ca file ")
-	fs.StringVar(&a.EtcdCertFile, "etcd-cert", "", "etcd tls cert file")
-	fs.StringVar(&a.EtcdKeyFile, "etcd-key", "", "etcd http tls cert key file")
-	fs.StringVar(&a.EtcdPrefix, "etcd-prefix", "/mq", "the etcd data save key prefix ")
+	fs.StringVar(&a.KeyPrefix, "key-prefix", "/mq", "key prefix ")
 	fs.IntVar(&a.APIPort, "api-port", 6300, "the api server listen port")
 	fs.StringVar(&a.RunMode, "mode", "grpc", "the api server run mode grpc or http")
 	fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
 	fs.StringVar(&a.HostIP, "hostIP", "", "Current node Intranet IP")
 	fs.StringVar(&a.HostName, "hostName", "", "Current node host name")
-
-	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://rbd-etcd:2379"}, "etcd v3 cluster endpoints.")
-
 }
 
 // SetLog 设置log
