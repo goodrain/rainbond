@@ -48,7 +48,6 @@ func GetDockerConsole() *DockerConsole {
 	dockerConsole = &DockerConsole{
 		socketproxy: proxy.CreateProxy("dockerconsole", "websocket", configs.Default().APIConfig.DockerConsoleServers),
 	}
-	//discover.GetEndpointDiscover().AddProject("acp_webcli", dockerConsole.socketproxy)
 	return dockerConsole
 }
 
@@ -70,7 +69,6 @@ func GetDockerLog() *DockerLog {
 		dockerLog = &DockerLog{
 			socketproxy: proxy.CreateProxy("dockerlog", "websocket", configs.Default().APIConfig.EventLogEndpoints),
 		}
-		//discover.GetEndpointDiscover().AddProject("event_log_event_http", dockerLog.socketproxy)
 	}
 	return dockerLog
 }
@@ -93,7 +91,6 @@ func GetMonitorMessage() *MonitorMessage {
 		monitorMessage = &MonitorMessage{
 			socketproxy: proxy.CreateProxy("monitormessage", "websocket", configs.Default().APIConfig.EventLogEndpoints),
 		}
-		//discover.GetEndpointDiscover().AddProject("event_log_event_http", monitorMessage.socketproxy)
 	}
 	return monitorMessage
 }
@@ -116,7 +113,6 @@ func GetEventLog() *EventLog {
 		eventLog = &EventLog{
 			socketproxy: proxy.CreateProxy("eventlog", "websocket", configs.Default().APIConfig.EventLogEndpoints),
 		}
-		//discover.GetEndpointDiscover().AddProject("event_log_event_http", eventLog.socketproxy)
 	}
 	return eventLog
 }
@@ -188,7 +184,6 @@ func GetPubSubControll() *PubSubControll {
 		pubSubControll = &PubSubControll{
 			socketproxy: proxy.CreateProxy("dockerlog", "websocket", configs.Default().APIConfig.EventLogEndpoints),
 		}
-		//discover.GetEndpointDiscover().AddProject("event_log_event_http", pubSubControll.socketproxy)
 	}
 	return pubSubControll
 }

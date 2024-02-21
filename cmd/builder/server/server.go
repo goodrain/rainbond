@@ -19,12 +19,8 @@
 package server
 
 import (
-	k8sutil "github.com/goodrain/rainbond/util/k8s"
-	"k8s.io/client-go/kubernetes"
-	"os"
-	"os/signal"
-	"syscall"
-
+	"github.com/goodrain/rainbond/builder/api"
+	"github.com/goodrain/rainbond/builder/clean"
 	"github.com/goodrain/rainbond/builder/discover"
 	"github.com/goodrain/rainbond/builder/exector"
 	"github.com/goodrain/rainbond/builder/monitor"
@@ -33,16 +29,15 @@ import (
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/client"
-
-	"net/http"
-
-	"github.com/goodrain/rainbond/builder/api"
-	"github.com/goodrain/rainbond/builder/clean"
-	discoverv2 "github.com/goodrain/rainbond/discover.v2"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
+	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/kubernetes"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 // Run start run
@@ -52,19 +47,12 @@ func Run(s *option.Builder) error {
 	dbconfig := config.Config{
 		DBType:              s.Config.DBType,
 		MysqlConnectionInfo: s.Config.MysqlConnectionInfo,
-		EtcdEndPoints:       s.Config.EtcdEndPoints,
-		EtcdTimeout:         s.Config.EtcdTimeout,
 	}
 
 	if err := db.CreateManager(dbconfig); err != nil {
 		return err
 	}
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints: s.Config.EtcdEndPoints,
-		CaFile:    s.Config.EtcdCaFile,
-		CertFile:  s.Config.EtcdCertFile,
-		KeyFile:   s.Config.EtcdKeyFile,
-	}
+
 	if err := event.NewManager(event.EventConfig{
 		EventLogServers: s.Config.EventLogServers,
 	}); err != nil {
@@ -109,15 +97,6 @@ func Run(s *option.Builder) error {
 		}
 		defer cle.Stop()
 	}
-	keepalive, err := discoverv2.CreateKeepAlive(etcdClientArgs, "builder",
-		"", s.Config.HostIP, s.Config.APIPort)
-	if err != nil {
-		return err
-	}
-	if err := keepalive.Start(); err != nil {
-		return err
-	}
-	defer keepalive.Stop()
 
 	exporter := monitor.NewExporter(exec)
 	prometheus.MustRegister(exporter)

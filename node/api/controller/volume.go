@@ -31,7 +31,7 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
-//CreateLocalVolume crete local volume dir
+// CreateLocalVolume crete local volume dir
 func CreateLocalVolume(w http.ResponseWriter, r *http.Request) {
 	var requestopt = make(map[string]string)
 	if err := json.NewDecoder(r.Body).Decode(&requestopt); err != nil {

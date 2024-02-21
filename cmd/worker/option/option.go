@@ -30,12 +30,6 @@ import (
 
 // Config config server
 type Config struct {
-	EtcdEndPoints           []string
-	EtcdCaFile              string
-	EtcdCertFile            string
-	EtcdKeyFile             string
-	EtcdTimeout             int
-	EtcdPrefix              string
 	ClusterName             string
 	MysqlConnectionInfo     string
 	DBType                  string
@@ -82,11 +76,7 @@ func NewWorker() *Worker {
 // AddFlags config
 func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the worker log level")
-	fs.StringVar(&a.EtcdCaFile, "etcd-ca", "", "")
-	fs.StringVar(&a.EtcdCertFile, "etcd-cert", "", "")
-	fs.StringVar(&a.EtcdKeyFile, "etcd-key", "", "")
-	fs.IntVar(&a.EtcdTimeout, "etcd-timeout", 5, "etcd http timeout seconds")
-	fs.StringVar(&a.EtcdPrefix, "etcd-prefix", "/store", "the etcd data save key prefix ")
+
 	fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
 	fs.StringVar(&a.Listen, "listen", ":6369", "prometheus listen host and port")
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
@@ -106,7 +96,6 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.Helm.DataDir, "/grdata/helm", "/grdata/helm", "The data directory of Helm.")
 	fs.StringVar(&a.SharedStorageClass, "shared-storageclass", "", "custom shared storage class.use the specified storageclass to create shared storage, if this parameter is not specified, it will use rainbondsssc by default")
 
-	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://rbd-etcd:2379"}, "etcd v3 cluster endpoints.")
 	fs.StringVar(&a.MQAPI, "mq-api", "rbd-mq:6300", "acp_mq api")
 	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"rbd-eventlog:6366"}, "event log server address. simple lb")
 

@@ -109,7 +109,7 @@ func (e *etcdQueue) Stop() error {
 	return nil
 }
 func (e *etcdQueue) queueKey(topic string) string {
-	return e.config.EtcdPrefix + "/" + topic
+	return e.config.KeyPrefix + "/" + topic
 }
 func (e *etcdQueue) Enqueue(ctx context.Context, topic, value string) error {
 	EnqueueNumber++

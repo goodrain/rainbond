@@ -53,8 +53,6 @@ func Run(s *option.Worker) error {
 	dbconfig := config.Config{
 		DBType:              s.Config.DBType,
 		MysqlConnectionInfo: s.Config.MysqlConnectionInfo,
-		EtcdEndPoints:       s.Config.EtcdEndPoints,
-		EtcdTimeout:         s.Config.EtcdTimeout,
 	}
 	//step 1:db manager init ,event log client init
 	if err := db.CreateManager(dbconfig); err != nil {

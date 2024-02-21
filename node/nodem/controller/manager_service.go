@@ -21,7 +21,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/coreos/etcd/clientv3"
 	"regexp"
 	"strings"
 	"sync"
@@ -54,7 +53,6 @@ type ManagerService struct {
 	healthyManager       healthy.Manager
 	services             []*service.Service
 	allservice           []*service.Service
-	etcdcli              *clientv3.Client
 	autoStatusController map[string]statusController
 	lock                 sync.Mutex
 }
@@ -549,7 +547,6 @@ func NewManagerService(conf *option.Conf, healthyManager healthy.Manager, cluste
 		conf:           conf,
 		cluster:        cluster,
 		healthyManager: healthyManager,
-		etcdcli:        conf.EtcdCli,
 	}
 	manager.ctr = NewController(conf, manager)
 	return manager

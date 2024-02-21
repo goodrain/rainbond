@@ -16,27 +16,37 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package mq
+package controller
 
 import (
-	"context"
-	"github.com/goodrain/rainbond/cmd/mq/option"
-	"testing"
+	"net/http"
+
+	"github.com/goodrain/rainbond/node/api/model"
+
+	httputil "github.com/goodrain/rainbond/util/http"
+	"github.com/sirupsen/logrus"
 )
 
-func TestEnqueue(t *testing.T) {
-	mq := NewActionMQ(context.TODO(), option.Config{
-		EtcdEndPoints: []string{"http://127.0.0.1:2379"},
-		EtcdPrefix:    "/mq",
-		EtcdTimeout:   5,
-	})
-	err := mq.Start()
+// GetDatacenterConfig 获取数据中心配置
+func GetDatacenterConfig(w http.ResponseWriter, r *http.Request) {
+	c, err := datacenterConfig.GetDataCenterConfig()
 	if err != nil {
-		t.Fatal(err)
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
 	}
-	defer mq.Stop()
-	err = mq.Enqueue(context.Background(), "manager", "hello word")
-	if err != nil {
-		t.Fatal(err)
+	logrus.Infof("task details is %v", c)
+	httputil.ReturnSuccess(r, w, c)
+}
+
+// PutDatacenterConfig 更新数据中心配置
+func PutDatacenterConfig(w http.ResponseWriter, r *http.Request) {
+	var gconfig model.GlobalConfig
+	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &gconfig, nil); !ok {
+		return
 	}
+	if err := datacenterConfig.PutDataCenterConfig(&gconfig); err != nil {
+		httputil.ReturnError(r, w, 500, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, &gconfig)
 }

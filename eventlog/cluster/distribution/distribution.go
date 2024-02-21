@@ -127,7 +127,7 @@ func (d *Distribution) GetSuitableInstance(serviceID string) *discover.Instance 
 	defer d.lock.Unlock()
 	var suitableInstance *discover.Instance
 
-	instanceID, err := discover.GetDokerLogInInstance(d.etcdClient, d.conf, serviceID)
+	instanceID, err := discover.GetDokerLogInInstance(d.conf, serviceID)
 	if err != nil {
 		d.log.Error("Get docker log in instance id error ", err.Error())
 	}

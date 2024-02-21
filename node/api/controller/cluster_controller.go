@@ -38,7 +38,7 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
-//GetNodeDetails GetNodeDetails
+// GetNodeDetails GetNodeDetails
 func GetNodeDetails(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
 	hostNode, err := nodeService.GetNode(nodeUID)
@@ -255,7 +255,7 @@ func getFinalRate(cpu bool, value string, capCPU, capMemMB string) (result strin
 	return
 }
 
-//GetNodeBasic GetNodeBasic
+// GetNodeBasic GetNodeBasic
 func GetNodeBasic(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node"))
 	hostnode, err := nodeService.GetNode(nodeUID)
@@ -267,7 +267,7 @@ func GetNodeBasic(w http.ResponseWriter, r *http.Request) {
 	outRespSuccess(w, hostnode, nil)
 }
 
-//Resources specified node scheduler resources info
+// Resources specified node scheduler resources info
 func Resources(w http.ResponseWriter, r *http.Request) {
 	result := new(model.Resource)
 	cpuR := 0
@@ -287,7 +287,7 @@ func Resources(w http.ResponseWriter, r *http.Request) {
 	api.ReturnSuccess(r, w, result)
 }
 
-//CapRes CapRes
+// CapRes CapRes
 func CapRes(w http.ResponseWriter, r *http.Request) {
 	nodes, err := kubecli.GetNodes()
 	if err != nil {
@@ -308,7 +308,7 @@ func CapRes(w http.ResponseWriter, r *http.Request) {
 	api.ReturnSuccess(r, w, result)
 }
 
-//ClusterInfo ClusterInfo
+// ClusterInfo ClusterInfo
 func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 	nodes, err := kubecli.GetNodes()
 	if err != nil {
@@ -430,7 +430,7 @@ func outSuccess(w http.ResponseWriter) {
 	fmt.Fprint(w, s)
 }
 
-//GetServicesHealthy get service healthy
+// GetServicesHealthy get service healthy
 func GetServicesHealthy(w http.ResponseWriter, r *http.Request) {
 	healthMap, err := nodeService.GetServicesHealthy()
 	if err != nil {
@@ -440,7 +440,7 @@ func GetServicesHealthy(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, healthMap)
 }
 
-//GetNodeResource -
+// GetNodeResource -
 func GetNodeResource(w http.ResponseWriter, r *http.Request) {
 	nodeUID := strings.TrimSpace(chi.URLParam(r, "node_id"))
 	hostNode, apierr := nodeService.GetNode(nodeUID)

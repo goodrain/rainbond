@@ -40,10 +40,6 @@ func InitProxy(conf option.Config) {
 	if prometheusProxy == nil {
 		prometheusProxy = proxy.CreateProxy("prometheus", "http", []string{conf.PrometheusEndpoint})
 	}
-	//if monitorProxy == nil {
-	//	monitorProxy = proxy.CreateProxy("monitor", "http", []string{"127.0.0.1:3329"})
-	//	discover.GetEndpointDiscover().AddProject("monitor", monitorProxy)
-	//}
 	if kubernetesDashboard == nil {
 		kubernetesDashboard = proxy.CreateProxy("kubernetesdashboard", "http", []string{conf.KuberentesDashboardAPI})
 	}

@@ -26,7 +26,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/event"
 	"github.com/pquerna/ffjson/ffjson"
@@ -57,19 +56,17 @@ type SlugShareItem struct {
 			FTPPassword string `json:"ftp_password"`
 		} `json:"slug_info,omitempty"`
 	} `json:"share_info"`
-	EtcdCli     *clientv3.Client
 	PackageName string
 }
 
 // NewSlugShareItem 创建实体
-func NewSlugShareItem(in []byte, etcdCli *clientv3.Client) (*SlugShareItem, error) {
+func NewSlugShareItem(in []byte) (*SlugShareItem, error) {
 	var ssi SlugShareItem
 	if err := ffjson.Unmarshal(in, &ssi); err != nil {
 		return nil, err
 	}
 	eventID := ssi.ShareInfo.EventID
 	ssi.Logger = event.GetManager().GetLogger(eventID)
-	ssi.EtcdCli = etcdCli
 	return &ssi, nil
 }
 
@@ -111,7 +108,7 @@ func createMD5(packageName string) (string, error) {
 	return md5Path, nil
 }
 
-// ShareToFTP ShareToFTP
+// ShareToFTP - ShareToFTP
 func (i *SlugShareItem) ShareToFTP() error {
 	i.Logger.Info("开始上传应用介质到FTP服务器", map[string]string{"step": "slug-share"})
 	sFTPClient, err := sources.NewSFTPClient(i.ShareInfo.SlugInfo.FTPUser, i.ShareInfo.SlugInfo.FTPPassword, i.ShareInfo.SlugInfo.FTPHost, i.ShareInfo.SlugInfo.FTPPort)
@@ -128,7 +125,7 @@ func (i *SlugShareItem) ShareToFTP() error {
 	return nil
 }
 
-// ShareToLocal ShareToLocal
+// ShareToLocal - ShareToLocal
 func (i *SlugShareItem) ShareToLocal() error {
 	file := i.LocalSlugPath
 	i.Logger.Info("开始分享应用到本地目录", map[string]string{"step": "slug-share"})

@@ -29,7 +29,6 @@ import (
 	"github.com/goodrain/rainbond/mq/mqcomponent/grpcserver"
 	"github.com/goodrain/rainbond/mq/mqcomponent/metrics"
 	"github.com/goodrain/rainbond/mq/mqcomponent/mqclient"
-	"github.com/goodrain/rainbond/pkg/component/etcd"
 	"github.com/goodrain/rainbond/pkg/component/grpc"
 	"github.com/goodrain/rainbond/pkg/component/hubregistry"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
@@ -53,11 +52,6 @@ func K8sClient() rainbond.Component {
 // HubRegistry -
 func HubRegistry() rainbond.Component {
 	return hubregistry.HubRegistry()
-}
-
-// Etcd -
-func Etcd() rainbond.Component {
-	return etcd.Etcd()
 }
 
 // MQ -

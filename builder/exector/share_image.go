@@ -20,7 +20,6 @@ package exector
 
 import (
 	"fmt"
-	"github.com/coreos/etcd/clientv3"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/db"
 
@@ -57,11 +56,10 @@ type ImageShareItem struct {
 		} `json:"image_info,omitempty"`
 	} `json:"share_info"`
 	ImageClient sources.ImageClient
-	EtcdCli     *clientv3.Client
 }
 
 // NewImageShareItem 创建实体
-func NewImageShareItem(in []byte, imageClient sources.ImageClient, EtcdCli *clientv3.Client) (*ImageShareItem, error) {
+func NewImageShareItem(in []byte, imageClient sources.ImageClient) (*ImageShareItem, error) {
 	var isi ImageShareItem
 	if err := ffjson.Unmarshal(in, &isi); err != nil {
 		return nil, err
@@ -71,7 +69,6 @@ func NewImageShareItem(in []byte, imageClient sources.ImageClient, EtcdCli *clie
 	eventID := isi.ShareInfo.EventID
 	isi.Logger = event.GetManager().GetLogger(eventID)
 	isi.ImageClient = imageClient
-	isi.EtcdCli = EtcdCli
 	return &isi, nil
 }
 

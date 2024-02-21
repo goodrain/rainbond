@@ -172,8 +172,6 @@ func CreateManager(config config.Config) (err error) {
 		logrus.Errorf("get db manager failed, try time is %d,%s", 10, err.Error())
 		time.Sleep(10 * time.Second)
 	}
-	//TODO:etcd db plugin
-	//defaultManager, err = etcd.CreateManager(config)
 	return
 }
 

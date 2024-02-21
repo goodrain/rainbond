@@ -34,7 +34,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/helm"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/constants"
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/appm/thirdparty/discovery"
@@ -53,7 +52,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-//RuntimeServer app runtime grpc server
+// RuntimeServer app runtime grpc server
 type RuntimeServer struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -69,7 +68,7 @@ type RuntimeServer struct {
 	updateCh  *channels.RingChannel
 }
 
-//CreaterRuntimeServer create a runtime grpc server
+// CreaterRuntimeServer create a runtime grpc server
 func CreaterRuntimeServer(conf option.Config,
 	store store.Storer,
 	clientset kubernetes.Interface,
@@ -92,7 +91,7 @@ func CreaterRuntimeServer(conf option.Config,
 	return rs
 }
 
-//Start start runtime server
+// Start start runtime server
 func (r *RuntimeServer) Start(errchan chan error) {
 	go func() {
 		lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", r.conf.HostIP, r.conf.ServerPort))
@@ -103,11 +102,8 @@ func (r *RuntimeServer) Start(errchan chan error) {
 		if err := r.server.Serve(lis); err != nil {
 			errchan <- err
 		}
+		logrus.Infof("runtime server start success")
 	}()
-	if err := r.registServer(); err != nil {
-		errchan <- err
-	}
-	logrus.Infof("runtime server start success")
 }
 
 // GetAppStatusDeprecated get app service status
@@ -136,7 +132,7 @@ func (r *RuntimeServer) GetAppStatus(ctx context.Context, in *pb.AppStatusReq) (
 	return r.getRainbondAppStatus(app)
 }
 
-//GetOperatorWatchManagedData -
+// GetOperatorWatchManagedData -
 func (r *RuntimeServer) GetOperatorWatchManagedData(ctx context.Context, re *pb.AppStatusReq) (*pb.OperatorManaged, error) {
 	app := r.store.GetOperatorManaged(re.AppId)
 	if app == nil {
@@ -233,8 +229,8 @@ func (r *RuntimeServer) getHelmAppStatus(app *model.Application) (*pb.AppStatus,
 	}, nil
 }
 
-//GetTenantResource get tenant resource
-//if TenantId is "" will return the sum of the all tenant
+// GetTenantResource get tenant resource
+// if TenantId is "" will return the sum of the all tenant
 func (r *RuntimeServer) GetTenantResource(ctx context.Context, re *pb.TenantRequest) (*pb.TenantResource, error) {
 	var tr pb.TenantResource
 	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(re.TenantId)
@@ -263,7 +259,7 @@ func (r *RuntimeServer) GetTenantResource(ctx context.Context, re *pb.TenantRequ
 	return &tr, nil
 }
 
-//GetTenantResources get tenant resources
+// GetTenantResources get tenant resources
 func (r *RuntimeServer) GetTenantResources(context.Context, *pb.Empty) (*pb.TenantResourceList, error) {
 	res := r.store.GetTenantResourceList()
 	var trs = make(map[string]*pb.TenantResource)
@@ -292,7 +288,7 @@ func (r *RuntimeServer) GetTenantResources(context.Context, *pb.Empty) (*pb.Tena
 	return &pb.TenantResourceList{Resources: trs}, nil
 }
 
-//GetAppPods get app pod list
+// GetAppPods get app pod list
 func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (*pb.ServiceAppPodList, error) {
 	app := r.store.GetAppService(re.ServiceId)
 	if app == nil {
@@ -344,7 +340,7 @@ func (r *RuntimeServer) GetAppPods(ctx context.Context, re *pb.ServiceRequest) (
 	}, nil
 }
 
-//GetMultiAppPods get multi app pods
+// GetMultiAppPods get multi app pods
 func (r *RuntimeServer) GetMultiAppPods(ctx context.Context, re *pb.ServicesRequest) (*pb.MultiServiceAppPodList, error) {
 	serviceIDs := strings.Split(re.ServiceIds, ",")
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
@@ -423,7 +419,7 @@ func DescribeEvents(el *corev1.EventList) []*pb.PodEvent {
 	return podEvents
 }
 
-//GetDeployInfo get deploy info
+// GetDeployInfo get deploy info
 func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest) (*pb.DeployInfo, error) {
 	var deployinfo pb.DeployInfo
 	appService := r.store.GetAppService(re.ServiceId)
@@ -491,34 +487,6 @@ func (r *RuntimeServer) GetDeployInfo(ctx context.Context, re *pb.ServiceRequest
 		deployinfo.Status = appService.GetServiceStatus()
 	}
 	return &deployinfo, nil
-}
-
-//registServer
-//regist sync server to etcd
-func (r *RuntimeServer) registServer() error {
-	if !r.store.Ready() {
-		util.Exec(r.ctx, func() error {
-			if r.store.Ready() {
-				return fmt.Errorf("Ready")
-			}
-			logrus.Debugf("store module is not ready,runtime server is  waiting")
-			return nil
-		}, time.Second*3)
-	}
-	if r.keepalive == nil {
-		etcdClientArgs := &etcdutil.ClientArgs{
-			Endpoints: r.conf.EtcdEndPoints,
-			CaFile:    r.conf.EtcdCaFile,
-			CertFile:  r.conf.EtcdCertFile,
-			KeyFile:   r.conf.EtcdKeyFile,
-		}
-		keepalive, err := discover.CreateKeepAlive(etcdClientArgs, "app_sync_runtime_server", "", r.conf.HostIP, r.conf.ServerPort)
-		if err != nil {
-			return fmt.Errorf("create app sync server keepalive error,%s", err.Error())
-		}
-		r.keepalive = keepalive
-	}
-	return r.keepalive.Start()
 }
 
 // ListThirdPartyEndpoints returns a collection of third-part endpoints.

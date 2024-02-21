@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-//Package etcdlock Master election using etcd.
+// Package etcdlock Master election using etcd.
 package etcdlock
 
 import (
@@ -31,7 +31,7 @@ import (
 	"github.com/coreos/etcd/clientv3/concurrency"
 )
 
-//MasterEventType Various event types for the events channel.
+// MasterEventType Various event types for the events channel.
 type MasterEventType int
 
 const (
@@ -52,7 +52,7 @@ type MasterEvent struct {
 	Error  error
 }
 
-//MasterInterface Interface used by the etcd master lock clients.
+// MasterInterface Interface used by the etcd master lock clients.
 type MasterInterface interface {
 	// Start the election and attempt to acquire the lock. If acquired, the
 	// lock is refreshed periodically based on the ttl.
@@ -71,7 +71,6 @@ type MasterInterface interface {
 type masterLock struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
-	client        *clientv3.Client
 	electionname  string
 	prop          string
 	etcdEndpoints []string
@@ -83,7 +82,7 @@ type masterLock struct {
 	once          sync.Once
 }
 
-//CreateMasterLock  create master lock
+// CreateMasterLock  create master lock
 func CreateMasterLock(etcdEndpoints []string, election string, prop string, ttl int64) (MasterInterface, error) {
 	if etcdEndpoints == nil || len(etcdEndpoints) == 0 {
 		etcdEndpoints = []string{"http://127.0.0.1:2379"}
@@ -111,7 +110,6 @@ func CreateMasterLock(etcdEndpoints []string, election string, prop string, ttl 
 	ml := &masterLock{
 		ctx:           ctx,
 		cancel:        cancel,
-		client:        client,
 		electionname:  election,
 		prop:          prop,
 		etcdEndpoints: etcdEndpoints,

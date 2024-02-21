@@ -29,12 +29,6 @@ import (
 
 // Config config server
 type Config struct {
-	EtcdEndPoints        []string
-	EtcdCaFile           string
-	EtcdCertFile         string
-	EtcdKeyFile          string
-	EtcdTimeout          int
-	EtcdPrefix           string
 	ClusterName          string
 	MysqlConnectionInfo  string
 	BuildKitImage        string
@@ -80,11 +74,6 @@ func NewBuilder() *Builder {
 // AddFlags config
 func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the builder log level")
-	fs.StringVar(&a.EtcdCaFile, "etcd-ca", "", "")
-	fs.StringVar(&a.EtcdCertFile, "etcd-cert", "", "")
-	fs.StringVar(&a.EtcdKeyFile, "etcd-key", "", "")
-	fs.IntVar(&a.EtcdTimeout, "etcd-timeout", 5, "etcd http timeout seconds")
-	fs.StringVar(&a.EtcdPrefix, "etcd-prefix", "/store", "the etcd data save key prefix ")
 	fs.StringVar(&a.PrometheusMetricPath, "metric", "/metrics", "prometheus metrics path")
 	fs.StringVar(&a.BuildKitImage, "buildkit-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/buildkit:v0.12.0", "buildkit image version")
 	fs.StringVar(&a.DBType, "db-type", "mysql", "db type mysql or etcd")
@@ -114,13 +103,11 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 
 	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"rbd-eventlog:6366"}, "event log server address. simple lb")
 	fs.StringVar(&a.MQAPI, "mq-api", "rbd-mq:6300", "acp_mq api")
-	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://rbd-etcd:2379"}, "etcd v3 cluster endpoints.")
 
 }
 
 // SetLog 设置log
 func (a *Builder) SetLog() {
-
 	level, err := logrus.ParseLevel(a.LogLevel)
 	if err != nil {
 		fmt.Println("set log level error." + err.Error())

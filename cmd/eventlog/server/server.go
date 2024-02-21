@@ -213,7 +213,7 @@ func (s *LogServer) Run() error {
 		}
 		defer s.Cluster.Stop()
 	}
-	s.SocketServer = web.NewSocket(s.Conf.WebSocket, s.Conf.Cluster.Discover, etcdClient,
+	s.SocketServer = web.NewSocket(s.Conf.WebSocket, s.Conf.Cluster.Discover,
 		log.WithField("module", "SocketServer"), storeManager, s.Cluster, healthInfo)
 	if err := s.SocketServer.Run(); err != nil {
 		return err
