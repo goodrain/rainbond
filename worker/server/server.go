@@ -93,15 +93,17 @@ func CreaterRuntimeServer(conf option.Config,
 
 // Start start runtime server
 func (r *RuntimeServer) Start(errchan chan error) {
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", r.conf.HostIP, r.conf.ServerPort))
-	if err != nil {
-		logrus.Errorf("failed to listen: %v", err)
-		errchan <- err
-	}
-	if err := r.server.Serve(lis); err != nil {
-		errchan <- err
-	}
-	logrus.Infof("runtime server start success")
+	go func() {
+		lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", r.conf.HostIP, r.conf.ServerPort))
+		if err != nil {
+			logrus.Errorf("failed to listen: %v", err)
+			errchan <- err
+		}
+		if err := r.server.Serve(lis); err != nil {
+			errchan <- err
+		}
+		logrus.Infof("runtime server start success")
+	}()
 }
 
 // GetAppStatusDeprecated get app service status
