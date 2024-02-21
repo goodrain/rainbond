@@ -108,8 +108,6 @@ func (m *Manager) AnalystToExec(task *model.Task) error {
 		return ErrCallback
 	}
 	switch task.Type {
-	case "":
-		return nil
 	case "start":
 		logrus.Info("start a 'start' task worker")
 		return m.startExec(task)
@@ -150,7 +148,9 @@ func (m *Manager) AnalystToExec(task *model.Task) error {
 		logrus.Info("start a 'delete_k8s_resource' task worker")
 		return m.DeleteK8sResource(task)
 	default:
-		logrus.Warning("task can not execute because no type is identified")
+		if task.Type != "" {
+			logrus.Warning("task can not execute because no type is identified ->", task.Type)
+		}
 		return nil
 	}
 }
