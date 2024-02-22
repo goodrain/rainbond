@@ -55,7 +55,7 @@ type OrService struct {
 	configManage  *template.NginxConfigFileTemplete
 }
 
-//CreateOpenrestyService create openresty service
+// CreateOpenrestyService create openresty service
 func CreateOpenrestyService(config *option.Config, isShuttingDown *bool) *OrService {
 	gws := &OrService{
 		IsShuttingDown: isShuttingDown,
