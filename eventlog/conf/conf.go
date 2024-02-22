@@ -22,14 +22,13 @@ import "time"
 
 // Conf conf
 type Conf struct {
-	Entry       EntryConf
-	EventStore  EventStoreConf
-	Log         LogConf
-	WebSocket   WebSocketConf
-	WebHook     WebHookConf
-	ClusterMode bool
-	Cluster     ClusterConf
-	Kubernetes  KubernetsConf
+	Entry      EntryConf
+	EventStore EventStoreConf
+	Log        LogConf
+	WebSocket  WebSocketConf
+	WebHook    WebHookConf
+	Cluster    ClusterConf
+	Kubernetes KubernetsConf
 }
 
 // WebHookConf webhook conf
@@ -96,13 +95,6 @@ type DockerLogServerConf struct {
 // DiscoverConf discover conf
 type DiscoverConf struct {
 	Type          string
-	EtcdAddr      []string
-	EtcdCaFile    string
-	EtcdCertFile  string
-	EtcdKeyFile   string
-	EtcdUser      string
-	EtcdPass      string
-	ClusterMode   bool
 	InstanceIP    string
 	HomePath      string
 	DockerLogPort int
@@ -114,7 +106,6 @@ type DiscoverConf struct {
 type PubSubConf struct {
 	PubBindIP      string
 	PubBindPort    int
-	ClusterMode    bool
 	PollingTimeout time.Duration
 }
 
@@ -127,7 +118,6 @@ type EventStoreConf struct {
 	PeerEventMaxLogNumber       int64 //每个event最多日志条数。
 	PeerEventMaxCacheLogNumber  int
 	PeerDockerMaxCacheLogNumber int64
-	ClusterMode                 bool
 	HandleMessageCoreNumber     int
 	HandleSubMessageCoreNumber  int
 	HandleDockerLogCoreNumber   int

@@ -213,7 +213,11 @@ func (e *exectorManager) runTask(f func(task *pb.TaskMessage), task *pb.TaskMess
 	e.runningTask.Delete(task.TaskId)
 	logrus.Infof("Build task %s is completed", task.TaskId)
 }
+
 func (e *exectorManager) runTaskWithErr(f func(task *pb.TaskMessage) error, task *pb.TaskMessage, concurrencyControl bool) {
+	if task.TaskType == "" || task.TaskId == "" {
+		return
+	}
 	logrus.Infof("Build task %s in progress", task.TaskId)
 	e.runningTask.LoadOrStore(task.TaskId, task)
 	//Remove a task that is being executed, not necessarily a task that is currently completed
