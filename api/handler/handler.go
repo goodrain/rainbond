@@ -75,7 +75,7 @@ func InitHandle(conf option.Config) error {
 	batchOperationHandler = CreateBatchOperationHandler(mqClient, statusCli, operationHandler)
 	defaultAppRestoreHandler = NewAppRestoreHandler()
 	defPodHandler = NewPodHandler(statusCli)
-	defClusterHandler = NewClusterHandler(clientset, conf.RbdNamespace, conf.GrctlImage, restconfig, mapper, prometheusCli, rainbondClient, statusCli, dynamicClient, gatewayClient, mqClient)
+	defClusterHandler = NewClusterHandler(k8sClient, clientset, conf.RbdNamespace, conf.GrctlImage, restconfig, mapper, prometheusCli, rainbondClient, statusCli, dynamicClient, gatewayClient, mqClient)
 	defaultVolumeTypeHandler = CreateVolumeTypeManger(statusCli)
 	defaultEtcdHandler = NewEtcdHandler(etcdcli)
 	defaultmonitorHandler = NewMonitorHandler(prometheusCli)

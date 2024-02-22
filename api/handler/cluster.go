@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond-operator/util/rbdutil"
 	"github.com/goodrain/rainbond/api/client/prometheus"
 	"github.com/goodrain/rainbond/api/model"
@@ -10,6 +11,7 @@ import (
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/grctl/clients"
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
@@ -28,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apiserver/pkg/util/flushwriter"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -78,15 +81,17 @@ type ClusterHandler interface {
 	UpdateAbility(abilityID string, ability *unstructured.Unstructured) error
 	GenerateAbilityID(ability *unstructured.Unstructured) string
 	ListRainbondComponents(ctx context.Context) (res []*model.RainbondComponent, err error)
+	GetClusterRegionStatus() (map[string]interface{}, error)
 }
 
 // NewClusterHandler -
-func NewClusterHandler(clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface, rainbondClient versioned.Interface, statusCli *workerclient.AppRuntimeSyncClient, dynamicClient dynamic.Interface, gatewayClient *gateway.GatewayV1beta1Client, mqclient mqclient.MQClient) ClusterHandler {
+func NewClusterHandler(k8sClient client.Client, clientset *kubernetes.Clientset, RbdNamespace, grctlImage string, config *rest.Config, mapper meta.RESTMapper, prometheusCli prometheus.Interface, rainbondClient versioned.Interface, statusCli *workerclient.AppRuntimeSyncClient, dynamicClient dynamic.Interface, gatewayClient *gateway.GatewayV1beta1Client, mqclient mqclient.MQClient) ClusterHandler {
 	return &clusterAction{
 		namespace:      RbdNamespace,
 		clientset:      clientset,
 		config:         config,
 		mapper:         mapper,
+		client:         k8sClient,
 		grctlImage:     grctlImage,
 		prometheusCli:  prometheusCli,
 		rainbondClient: rainbondClient,
@@ -931,4 +936,61 @@ func (c *clusterAction) HandlePlugins() (plugins []*model.RainbondPlugins, err e
 		})
 	}
 	return plugins, nil
+}
+
+func (c *clusterAction) GetClusterRegionStatus() (map[string]interface{}, error) {
+	secret := &corev1.Secret{}
+	if err := c.client.Get(context.Background(), types.NamespacedName{Namespace: c.namespace, Name: "rbd-api-server-cert"}, secret); err != nil {
+		return nil, err
+	}
+	var cluster rainbondv1alpha1.RainbondCluster
+	if err := clients.RainbondKubeClient.Get(context.Background(), types.NamespacedName{Namespace: c.namespace, Name: "rainbondcluster"}, &cluster); err != nil {
+		return nil, err
+	}
+	var gatewayIngressIP string
+	if len(cluster.Spec.GatewayIngressIPs) > 0 && cluster.Spec.GatewayIngressIPs[0] != "" {
+		gatewayIngressIP = cluster.Spec.GatewayIngressIPs[0]
+	} else if len(cluster.Spec.NodesForGateway) > 0 {
+		gatewayIngressIP = cluster.Spec.NodesForGateway[0].InternalIP
+	}
+
+	if secret != nil {
+		var ips = strings.ReplaceAll(strings.Join(cluster.GatewayIngressIPs(), "-"), ".", "_")
+		if availableips, ok := secret.Labels["availableips"]; ok && availableips == ips {
+			caPem := secret.Data["ca.pem"]
+			clientPem := secret.Data["server.pem"]
+			clientKey := secret.Data["server.key.pem"]
+			regionInfo := make(map[string]interface{})
+			regionInfo["regionName"] = time.Now().Unix()
+			regionInfo["regionType"] = []string{"custom"}
+			regionInfo["sslCaCert"] = string(caPem)
+			regionInfo["keyFile"] = string(clientKey)
+			regionInfo["certFile"] = string(clientPem)
+			regionInfo["url"] = fmt.Sprintf("https://%s:%s", gatewayIngressIP, "8443")
+			regionInfo["wsUrl"] = fmt.Sprintf("ws://%s:%s", gatewayIngressIP, "6060")
+			regionInfo["httpDomain"] = cluster.Spec.SuffixHTTPHost
+			regionInfo["tcpDomain"] = cluster.GatewayIngressIP()
+			regionInfo["desc"] = "Helm"
+			regionInfo["regionAlias"] = "对接集群"
+			regionInfo["provider"] = "helm"
+			regionInfo["providerClusterId"] = ""
+			regionInfo["token"] = os.Getenv("HELM_TOKEN")
+			if os.Getenv("ENTERPRISE_ID") != "" {
+				regionInfo["enterpriseId"] = os.Getenv("ENTERPRISE_ID")
+			}
+			if os.Getenv("CLOUD_SERVER") != "" {
+				cloud := os.Getenv("CLOUD_SERVER")
+				switch cloud {
+				case "aliyun":
+					regionInfo["regionType"] = []string{"aliyun"}
+				case "huawei":
+					regionInfo["regionType"] = []string{"huawei"}
+				case "tencent":
+					regionInfo["regionType"] = []string{"tencent"}
+				}
+			}
+			return regionInfo, nil
+		}
+	}
+	return nil, fmt.Errorf("get rbd-api-server-cert secret is nil")
 }

@@ -17,7 +17,7 @@ import (
 	httputil "github.com/goodrain/rainbond/util/http"
 )
 
-//AddServiceMonitors add service monitor
+// AddServiceMonitors add service monitor
 func (t *TenantStruct) AddServiceMonitors(w http.ResponseWriter, r *http.Request) {
 	var add api_model.AddServiceMonitorRequestStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &add, nil)
@@ -34,7 +34,7 @@ func (t *TenantStruct) AddServiceMonitors(w http.ResponseWriter, r *http.Request
 	httputil.ReturnSuccess(r, w, tsm)
 }
 
-//DeleteServiceMonitors delete service monitor
+// DeleteServiceMonitors delete service monitor
 func (t *TenantStruct) DeleteServiceMonitors(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
@@ -47,7 +47,7 @@ func (t *TenantStruct) DeleteServiceMonitors(w http.ResponseWriter, r *http.Requ
 	httputil.ReturnSuccess(r, w, tsm)
 }
 
-//UpdateServiceMonitors update service monitor
+// UpdateServiceMonitors update service monitor
 func (t *TenantStruct) UpdateServiceMonitors(w http.ResponseWriter, r *http.Request) {
 	var update api_model.UpdateServiceMonitorRequestStruct
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &update, nil)
@@ -65,7 +65,7 @@ func (t *TenantStruct) UpdateServiceMonitors(w http.ResponseWriter, r *http.Requ
 	httputil.ReturnSuccess(r, w, tsm)
 }
 
-//UploadPackage upload package
+// UploadPackage upload package
 func (t *TenantStruct) UploadPackage(w http.ResponseWriter, r *http.Request) {
 	eventID := strings.TrimSpace(chi.URLParam(r, "eventID"))
 	switch r.Method {
@@ -118,7 +118,7 @@ func (t *TenantStruct) UploadPackage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//GetMonitorMetrics get monitor metrics
+// GetMonitorMetrics get monitor metrics
 func GetMonitorMetrics(w http.ResponseWriter, r *http.Request) {
 	target := r.FormValue("target")
 	var metricMetadatas []prometheus.Metadata

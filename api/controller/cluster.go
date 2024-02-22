@@ -28,6 +28,7 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/sirupsen/logrus"
 	"net/http"
+	"os"
 	"strconv"
 
 	httputil "github.com/goodrain/rainbond/util/http"
@@ -461,4 +462,18 @@ func (c *ClusterController) UpdateAbility(w http.ResponseWriter, r *http.Request
 		return
 	}
 	httputil.ReturnSuccess(r, w, nil)
+}
+
+func (c *ClusterController) GetRegionStatus(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+	if token != os.Getenv("HELM_TOKEN") {
+		httputil.ReturnError(r, w, 400, "failed to verify token")
+		return
+	}
+	regionInfo, err := handler.GetClusterHandler().GetClusterRegionStatus()
+	if err != nil {
+		httputil.ReturnError(r, w, 400, err.Error())
+		return
+	}
+	httputil.ReturnSuccess(r, w, regionInfo)
 }
