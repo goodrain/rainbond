@@ -360,11 +360,6 @@ loop:
 			if msg == nil {
 				continue
 			}
-			//s.log.Debugf("receive message %s", string(message.Content))
-			if s.conf.ClusterMode {
-				//消息直接集群共享
-				s.pubChan <- [][]byte{[]byte(db.ServiceNewMonitorMessage), msg}
-			}
 			s.newmonitorMessageStore.InsertMessage(&db.EventLogMessage{MonitorData: msg})
 		}
 	}
@@ -386,11 +381,6 @@ loop:
 			if msg == nil {
 				s.log.Debug("handle receive message core stop.")
 				continue
-			}
-			//s.log.Debugf("receive message %s", string(message.Content))
-			if s.conf.ClusterMode {
-				//消息直接集群共享
-				s.pubChan <- [][]byte{[]byte(db.EventMessage), msg}
 			}
 			message, err := s.parsingMessage(msg, s.conf.MessageType)
 			if err != nil {
