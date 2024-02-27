@@ -180,7 +180,6 @@ type PluginInterface interface {
 	GetAllPluginBuildVersions(w http.ResponseWriter, r *http.Request)
 	GetPluginBuildVersion(w http.ResponseWriter, r *http.Request)
 	DeletePluginBuildVersion(w http.ResponseWriter, r *http.Request)
-	//plugin
 	PluginSet(w http.ResponseWriter, r *http.Request)
 	DeletePluginRelation(w http.ResponseWriter, r *http.Request)
 	GePluginEnvWhichCanBeSet(w http.ResponseWriter, r *http.Request)

@@ -133,7 +133,6 @@ func (g APIGatewayStruct) UpdateCert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.ReturnSuccess(r, w, update.Spec)
-
 }
 
 func (g APIGatewayStruct) DeleteCert(w http.ResponseWriter, r *http.Request) {
