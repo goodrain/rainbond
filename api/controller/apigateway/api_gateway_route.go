@@ -12,7 +12,8 @@ import (
 	"net/http"
 )
 
-func (g APIGatewayStruct) UpdateAPIRoute(w http.ResponseWriter, r *http.Request) {
+// UpdateAPIRoute -
+func (g Struct) UpdateAPIRoute(w http.ResponseWriter, r *http.Request) {
 	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
 	get, err := c.ApisixRoutes(r.URL.Query().Get("namespace")).Get(r.Context(), chi.URLParam(r, "name"), v1.GetOptions{})
 	if err != nil {
@@ -36,7 +37,8 @@ func (g APIGatewayStruct) UpdateAPIRoute(w http.ResponseWriter, r *http.Request)
 	httputil.ReturnSuccess(r, w, update)
 }
 
-func (g APIGatewayStruct) GetAPIRoute(w http.ResponseWriter, r *http.Request) {
+// GetAPIRoute -
+func (g Struct) GetAPIRoute(w http.ResponseWriter, r *http.Request) {
 	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
 
 	list, err := c.ApisixRoutes(r.URL.Query().Get("namespace")).List(r.Context(), v1.ListOptions{})
@@ -56,7 +58,9 @@ func (g APIGatewayStruct) GetAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 	httputil.ReturnSuccess(r, w, resp)
 }
-func (g APIGatewayStruct) CreateAPIRoute(w http.ResponseWriter, r *http.Request) {
+
+// CreateAPIRoute -
+func (g Struct) CreateAPIRoute(w http.ResponseWriter, r *http.Request) {
 	var spec v2.ApisixRouteSpec
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &spec, nil) {
 		return
@@ -86,7 +90,8 @@ func (g APIGatewayStruct) CreateAPIRoute(w http.ResponseWriter, r *http.Request)
 	httputil.ReturnSuccess(r, w, route)
 }
 
-func (g APIGatewayStruct) DeleteAPIRoute(w http.ResponseWriter, r *http.Request) {
+// DeleteAPIRoute -
+func (g Struct) DeleteAPIRoute(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
 

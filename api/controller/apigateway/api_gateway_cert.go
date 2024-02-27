@@ -16,7 +16,8 @@ import (
 	"net/http"
 )
 
-func (g APIGatewayStruct) GetCert(w http.ResponseWriter, r *http.Request) {
+// GetCert -
+func (g Struct) GetCert(w http.ResponseWriter, r *http.Request) {
 	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
 	list, err := c.ApisixTlses(r.URL.Query().Get("namespace")).List(r.Context(), v1.ListOptions{})
 	if err != nil {
@@ -34,7 +35,8 @@ func (g APIGatewayStruct) GetCert(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, resp)
 }
 
-func (g APIGatewayStruct) CreateCert(w http.ResponseWriter, r *http.Request) {
+// CreateCert -
+func (g Struct) CreateCert(w http.ResponseWriter, r *http.Request) {
 	certName := r.URL.Query().Get("certName")
 	clientset := handler.GetAPIGatewayHandler().GetK8sClient()
 
@@ -114,7 +116,8 @@ func getCertificateDomains(tlsCert *v1k8s.Secret) ([]v2.HostType, error) {
 	return domains, nil
 }
 
-func (g APIGatewayStruct) UpdateCert(w http.ResponseWriter, r *http.Request) {
+// UpdateCert -
+func (g Struct) UpdateCert(w http.ResponseWriter, r *http.Request) {
 	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
 	get, err := c.ApisixTlses(r.URL.Query().Get("namespace")).Get(r.Context(), r.URL.Query().Get("certName"), v1.GetOptions{})
 	if err != nil {
@@ -135,7 +138,8 @@ func (g APIGatewayStruct) UpdateCert(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, update.Spec)
 }
 
-func (g APIGatewayStruct) DeleteCert(w http.ResponseWriter, r *http.Request) {
+// DeleteCert -
+func (g Struct) DeleteCert(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
 	err := c.ApisixTlses(r.URL.Query().Get("namespace")).Delete(r.Context(), name, v1.DeleteOptions{})

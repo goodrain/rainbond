@@ -12,7 +12,8 @@ import (
 	"net/http"
 )
 
-func (g APIGatewayStruct) GetRBDService(w http.ResponseWriter, r *http.Request) {
+// GetRBDService -
+func (g Struct) GetRBDService(w http.ResponseWriter, r *http.Request) {
 	//TODO implement me
 	c := handler.GetAPIGatewayHandler().GetK8sClient()
 	list, err := c.CoreV1().Services(r.URL.Query().Get("namespace")).List(r.Context(), v1.ListOptions{})
@@ -31,7 +32,8 @@ func (g APIGatewayStruct) GetRBDService(w http.ResponseWriter, r *http.Request) 
 
 }
 
-func (g APIGatewayStruct) GetAPIService(w http.ResponseWriter, r *http.Request) {
+// GetAPIService -
+func (g Struct) GetAPIService(w http.ResponseWriter, r *http.Request) {
 	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
 
 	list, err := c.ApisixUpstreams(r.URL.Query().Get("namespace")).List(r.Context(), v1.ListOptions{})
@@ -52,7 +54,8 @@ func (g APIGatewayStruct) GetAPIService(w http.ResponseWriter, r *http.Request) 
 	httputil.ReturnSuccess(r, w, resp)
 }
 
-func (g APIGatewayStruct) UpdateAPIService(w http.ResponseWriter, r *http.Request) {
+// UpdateAPIService-
+func (g Struct) UpdateAPIService(w http.ResponseWriter, r *http.Request) {
 	var spec v2.ApisixUpstreamSpec
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &spec, nil) {
 		return
@@ -74,7 +77,8 @@ func (g APIGatewayStruct) UpdateAPIService(w http.ResponseWriter, r *http.Reques
 	httputil.ReturnSuccess(r, w, update)
 }
 
-func (g APIGatewayStruct) CreateAPIService(w http.ResponseWriter, r *http.Request) {
+// CreateAPIService -
+func (g Struct) CreateAPIService(w http.ResponseWriter, r *http.Request) {
 	var spec v2.ApisixUpstreamSpec
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &spec, nil) {
 		return
@@ -94,7 +98,8 @@ func (g APIGatewayStruct) CreateAPIService(w http.ResponseWriter, r *http.Reques
 	httputil.ReturnSuccess(r, w, create)
 }
 
-func (g APIGatewayStruct) DeleteAPIService(w http.ResponseWriter, r *http.Request) {
+// DeleteAPIService -
+func (g Struct) DeleteAPIService(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
 	err := c.ApisixUpstreams(r.URL.Query().Get("namespace")).Delete(r.Context(), name, v1.DeleteOptions{})

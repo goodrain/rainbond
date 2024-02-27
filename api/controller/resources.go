@@ -66,7 +66,7 @@ type V2Routes struct {
 	K8sAttributeController
 	HelmStruct
 	Registry
-	apigateway.APIGatewayStruct
+	apigateway.Struct
 }
 
 // Show test
