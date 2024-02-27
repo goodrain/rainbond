@@ -19,12 +19,8 @@
 package monitor
 
 import (
-	"github.com/goodrain/rainbond/eventlog/cluster"
 	"github.com/goodrain/rainbond/eventlog/store"
-	"time"
-
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
 )
 
 // Metric name parts.
@@ -44,42 +40,15 @@ var (
 	)
 )
 
-//Exporter collects entrance metrics. It implements prometheus.Collector.
+// Exporter collects entrance metrics. It implements prometheus.Collector.
 type Exporter struct {
 	error        prometheus.Gauge
 	totalScrapes prometheus.Counter
 	scrapeErrors *prometheus.CounterVec
 	storeManager store.Manager
-	cluster      cluster.Cluster
 }
 
-//NewExporter new a exporter
-func NewExporter(storeManager store.Manager, cluster cluster.Cluster) *Exporter {
-	return &Exporter{
-		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: exporter,
-			Name:      "scrapes_total",
-			Help:      "Total number of times Entrance was scraped for metrics.",
-		}),
-		scrapeErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: exporter,
-			Name:      "scrape_errors_total",
-			Help:      "Total number of times an error occurred scraping a Entrance.",
-		}, []string{"collector"}),
-		error: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: exporter,
-			Name:      "last_scrape_error",
-			Help:      "Whether the last scrape of metrics from Entrance resulted in an error (1 for error, 0 for success).",
-		}),
-		storeManager: storeManager,
-		cluster:      cluster,
-	}
-}
-
-//Describe implements prometheus.Collector.
+// Describe implements prometheus.Collector.
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	metricCh := make(chan prometheus.Metric)
 	doneCh := make(chan struct{})
@@ -105,21 +74,5 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (e *Exporter) scrape(ch chan<- prometheus.Metric) {
-	scrapeTime := time.Now()
-	e.totalScrapes.Inc()
-	if err := e.storeManager.Scrape(ch, namespace, exporter, e.cluster.GetInstanceHost()); err != nil {
-		logrus.Error("core manager scrape for prometheus error.", err.Error())
-		e.error.Set(1)
-	}
-	if err := e.cluster.Scrape(ch, namespace, exporter); err != nil {
-		logrus.Error("core manager scrape for prometheus error.", err.Error())
-		e.error.Set(1)
-	}
-	//step last: scrape time
-	scrapeDurationDesc := prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, exporter, "collector_duration_seconds"),
-		"Collector time duration.",
-		nil, nil,
-	)
-	ch <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, time.Since(scrapeTime).Seconds())
+
 }

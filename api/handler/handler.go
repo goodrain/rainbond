@@ -19,10 +19,6 @@
 package handler
 
 import (
-	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
-	"github.com/coreos/etcd/clientv3"
-	"github.com/goodrain/rainbond/api/client/prometheus"
-	api_db "github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/handler/group"
 	"github.com/goodrain/rainbond/api/handler/share"
 	"github.com/goodrain/rainbond/cmd/api/option"
@@ -70,9 +66,8 @@ func InitHandle(conf option.Config) error {
 		logrus.Errorf("create token identification mannager error, %v", err)
 		return err
 	}
-	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, gatewayClient, clientset)
 
-	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, etcdcli, gatewayClient, kubeClient, kubeClient, config, apisixClient)
+	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, gatewayClient, clientset, clientset, nil, nil)
 	def3rdPartySvcHandler = Create3rdPartySvcHandler(dbmanager, statusCli)
 	operationHandler = CreateOperationHandler(mqClient)
 	batchOperationHandler = CreateBatchOperationHandler(mqClient, statusCli, operationHandler)

@@ -2017,7 +2017,7 @@ func (t *TenantStruct) GetSupportProtocols(w http.ResponseWriter, r *http.Reques
 //	    "$ref": "#/responses/commandResponse"
 //	  description: 统一返回格式
 func (t *TenantStruct) TransPlugins(w http.ResponseWriter, r *http.Request) {
-	var tps api_model.TransPlugins
+	var tps apimodel.TransPlugins
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &tps.Body, nil)
 	if !ok {
 		return

@@ -2244,3 +2244,9 @@ type UploadChartValueYaml struct {
 	Values map[string]string `json:"values"`
 	Readme string            `json:"readme"`
 }
+
+type FlowEntryRule struct {
+	HeaderKey   string `json:"header_key"`
+	HeaderType  string `json:"header_type"`
+	HeaderValue string `json:"header_value"`
+}

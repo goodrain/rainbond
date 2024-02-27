@@ -23,11 +23,8 @@ require (
 	github.com/docker/libcompose v0.4.1-0.20190808084053-143e0f3f1ab9
 	github.com/eapache/channels v1.1.0
 	github.com/emicklei/go-restful v2.15.0+incompatible
-	github.com/emicklei/go-restful-swagger12 v0.0.0-20170926063155-7524189396c6
-	github.com/envoyproxy/go-control-plane v0.10.1
-	github.com/fatih/color v1.15.0
 	github.com/envoyproxy/go-control-plane v0.10.3
-	github.com/fatih/color v1.13.0
+	github.com/fatih/color v1.15.0
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
@@ -86,32 +83,23 @@ require (
 	github.com/twinj/uuid v1.0.0
 	github.com/urfave/cli v1.22.4
 	github.com/yudai/umutex v0.0.0-20150817080136-18216d265c6b
-	golang.org/x/crypto v0.12.0
-	golang.org/x/net v0.14.0
-	golang.org/x/sys v0.11.0
 	golang.org/x/crypto v0.14.0
 	golang.org/x/net v0.17.0
 	golang.org/x/sys v0.13.0
 	golang.org/x/time v0.3.0
-	google.golang.org/grpc v1.54.0
-	google.golang.org/protobuf v1.30.0
+	google.golang.org/grpc v1.57.0
+	google.golang.org/protobuf v1.31.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/yaml.v2 v2.4.0
 	helm.sh/helm/v3 v3.8.2
-	k8s.io/api v0.28.1
-	k8s.io/apiextensions-apiserver v0.28.1
-	k8s.io/apimachinery v0.28.1
-	k8s.io/apiserver v0.24.1
-	k8s.io/cli-runtime v0.24.1
 	k8s.io/api v0.28.3
 	k8s.io/apiextensions-apiserver v0.28.3
+	k8s.io/apimachinery v0.28.3
 	k8s.io/apiserver v0.28.3
 	k8s.io/cli-runtime v0.26.4
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/code-generator v0.28.1
-	k8s.io/component-base v0.24.1
-	k8s.io/code-generator v0.26.4
 	k8s.io/component-base v0.28.3
 	k8s.io/cri-api v0.23.1
 	k8s.io/kubernetes v1.23.12
@@ -122,24 +110,17 @@ require (
 require (
 	github.com/apache/apisix-ingress-controller v1.7.1
 	github.com/coreos/etcd v3.3.13+incompatible
-	github.com/gin-gonic/gin v1.9.1
-	github.com/go-playground/assert/v2 v2.2.0
 	github.com/dustin/go-humanize v1.0.0
-	github.com/go-playground/assert/v2 v2.0.1
+	github.com/go-playground/assert/v2 v2.2.0
 	github.com/google/go-containerregistry v0.5.1
 	github.com/helm/helm v2.17.0+incompatible
 	github.com/openkruise/kruise-api v1.4.0-rc.0
 	golang.org/x/sync v0.3.0
-	istio.io/api v1.19.0-alpha.1.0.20230911213929-405bf0a1a262
-	istio.io/client-go v1.19.0-alpha.1.0.20230911214830-2ca8f9cb44fb
-	golang.org/x/sync v0.2.0
-	k8s.io/apimachinery v0.28.3
 	k8s.io/klog/v2 v2.100.1
-	k8s.io/metrics v0.24.1
-	sigs.k8s.io/gateway-api v0.8.0
+	k8s.io/metrics v0.26.4
 	kubevirt.io/api v1.1.0
 	kubevirt.io/client-go v1.1.0
-	sigs.k8s.io/gateway-api v0.6.1
+	sigs.k8s.io/gateway-api v0.8.0
 )
 
 require (
@@ -159,14 +140,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beevik/ntp v0.3.0 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
-	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
-	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
-	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/chai2010/gettext-go v0.0.0-20160711120539-c6fed771bfd5 // indirect
-	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
-	github.com/cncf/udpa/go v0.0.0-20210930031921-04548b0d99d4 // indirect
-	github.com/cncf/xds/go v0.0.0-20211130200136-a8f946100490 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
@@ -190,18 +164,14 @@ require (
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/elazarl/go-bindata-assetfs v1.0.0 // indirect
 	github.com/ema/qdisc v0.0.0-20190904071900-b82c76788043 // indirect
-	github.com/emicklei/go-restful/v3 v3.10.2 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v0.9.1 // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
-	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
-	github.com/gin-contrib/sse v0.1.0 // indirect
-	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-gorp/gorp/v3 v3.0.2 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
@@ -213,7 +183,6 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/btree v1.1.2 // indirect
@@ -232,7 +201,6 @@ require (
 	github.com/jmoiron/sqlx v1.3.4 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
-	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v0.0.0-20191119172530-79f836b90111 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.2.0 // indirect
@@ -245,8 +213,6 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
-	github.com/mattn/go-colorable v0.1.12 // indirect
-	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mattn/go-xmlrpc v0.0.3 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mdlayher/genetlink v1.0.0 // indirect
@@ -275,7 +241,6 @@ require (
 	github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47 // indirect
 	github.com/openshift/custom-resource-status v1.1.2 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
-	github.com/pelletier/go-toml/v2 v2.0.9 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
@@ -290,8 +255,6 @@ require (
 	github.com/src-d/gcfg v1.4.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
-	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
-	github.com/ugorji/go/codec v1.2.11 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
@@ -299,28 +262,18 @@ require (
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.25.0 // indirect
-	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
-	golang.org/x/term v0.11.0 // indirect
-	golang.org/x/text v0.12.0 // indirect
-	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
-	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.25.0 // indirect
-	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230815205213-6bfd019c3878 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230815205213-6bfd019c3878 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20230525234035-dd9d682886f9 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/src-d/go-billy.v4 v4.3.2 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/gengo v0.0.0-20230306165830-ab3349d207d4 // indirect
 	k8s.io/gengo v0.0.0-20230829151522-9cce18d56c01 // indirect
 	k8s.io/helm v2.17.0+incompatible // indirect
 	k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9 // indirect
@@ -330,7 +283,7 @@ require (
 	oras.land/oras-go v1.1.1 // indirect
 	sigs.k8s.io/kustomize/api v0.12.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.9 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.3.0 // indirect
 )
 
 require (
@@ -342,17 +295,14 @@ require (
 	github.com/kevinburke/ssh_config v0.0.0-20201106050909-4977a11b4351 // indirect
 	github.com/klauspost/compress v1.16.6 // indirect
 	github.com/mattn/go-sqlite3 v1.14.17 // indirect
-	github.com/klauspost/compress v1.15.9 // indirect
-	github.com/mattn/go-sqlite3 v1.14.14 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.1
 	github.com/spf13/cobra v1.7.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
 	golang.org/x/oauth2 v0.8.0 // indirect
 	golang.org/x/tools v0.12.0 // indirect
-	golang.org/x/tools v0.9.3 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
-	google.golang.org/genproto v0.0.0-20230526161137-0005af68ea54 // indirect
+	google.golang.org/genproto v0.0.0-20230815205213-6bfd019c3878 // indirect
 	k8s.io/kubectl v0.24.0 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 )
@@ -369,7 +319,6 @@ replace (
 	github.com/goodrain/rainbond-oam => github.com/goodrain/rainbond-oam v0.0.0-20231018121534-c530a1a0918c
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/common => github.com/prometheus/common v0.15.0
-	github.com/goodrain/rainbond-oam => github.com/goodrain/rainbond-oam v0.0.0-20230823084937-0067a4cf0912
 	github.com/prometheus/procfs => github.com/prometheus/procfs v0.7.3
 	google.golang.org/grpc => google.golang.org/grpc v1.27.1
 	helm.sh/helm/v3 => helm.sh/helm/v3 v3.9.0
@@ -401,7 +350,5 @@ replace (
 	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.26.4
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.26.4
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client => sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.0.24
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.11.0
-
 	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.14.7
 )

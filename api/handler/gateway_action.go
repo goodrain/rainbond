@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
-	"github.com/coreos/etcd/clientv3"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
@@ -37,6 +36,7 @@ import (
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"os"
 	"sigs.k8s.io/gateway-api/apis/v1beta1"
 	gateway "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
@@ -49,7 +49,6 @@ import (
 type GatewayAction struct {
 	dbmanager     db.Manager
 	mqclient      client.MQClient
-	etcdCli       *clientv3.Client
 	gatewayClient *gateway.GatewayV1beta1Client
 	kubeClient    kubernetes.Interface
 	kubeClientset *kubernetes.Clientset
@@ -61,7 +60,6 @@ type GatewayAction struct {
 func CreateGatewayManager(
 	dbmanager db.Manager,
 	mqclient client.MQClient,
-	etcdCli *clientv3.Client,
 	gatewayClient *gateway.GatewayV1beta1Client,
 	kubeClient kubernetes.Interface,
 	kubeClientset *kubernetes.Clientset,
@@ -71,7 +69,6 @@ func CreateGatewayManager(
 	return &GatewayAction{
 		dbmanager:     dbmanager,
 		mqclient:      mqclient,
-		etcdCli:       etcdCli,
 		gatewayClient: gatewayClient,
 		kubeClient:    kubeClient,
 		kubeClientset: kubeClientset,
@@ -1168,36 +1165,36 @@ func (g *GatewayAction) GetAvailablePort(ip string, lock bool) (int, error) {
 	for _, p := range roles {
 		ports = append(ports, p.Port)
 	}
-	resp, err := clientv3.KV(g.etcdCli).Get(context.TODO(), "/rainbond/gateway/lockports", clientv3.WithPrefix())
-	if err != nil {
-		logrus.Info("get lock ports failed")
-	}
-	for _, etcdValue := range resp.Kvs {
-		port, err := strconv.Atoi(string(etcdValue.Value))
-		if err != nil {
-			continue
-		}
-		ports = append(ports, port)
-	}
-	port := selectAvailablePort(ports)
-	if port != 0 {
-		if lock {
-			lease := clientv3.NewLease(g.etcdCli)
-			leaseResp, err := lease.Grant(context.Background(), 120)
-			if err != nil {
-				logrus.Info("set lease failed")
-				return port, nil
-			}
-			lockPortKey := fmt.Sprintf("/rainbond/gateway/lockports/%d", port)
-			_, err = g.etcdCli.Put(context.Background(), lockPortKey, fmt.Sprintf("%d", port), clientv3.WithLease(leaseResp.ID))
-			if err != nil {
-				logrus.Infof("set lock port key %s failed", lockPortKey)
-				return port, nil
-			}
-			logrus.Infof("select gateway port %d, lock it 2 min", port)
-		}
-		return port, nil
-	}
+	//resp, err := clientv3.KV(g.etcdCli).Get(context.TODO(), "/rainbond/gateway/lockports", clientv3.WithPrefix())
+	//if err != nil {
+	//	logrus.Info("get lock ports failed")
+	//}
+	//for _, etcdValue := range resp.Kvs {
+	//	port, err := strconv.Atoi(string(etcdValue.Value))
+	//	if err != nil {
+	//		continue
+	//	}
+	//	ports = append(ports, port)
+	//}
+	//port := selectAvailablePort(ports)
+	//if port != 0 {
+	//	if lock {
+	//		lease := clientv3.NewLease(g.etcdCli)
+	//		leaseResp, err := lease.Grant(context.Background(), 120)
+	//		if err != nil {
+	//			logrus.Info("set lease failed")
+	//			return port, nil
+	//		}
+	//		lockPortKey := fmt.Sprintf("/rainbond/gateway/lockports/%d", port)
+	//		_, err = g.etcdCli.Put(context.Background(), lockPortKey, fmt.Sprintf("%d", port), clientv3.WithLease(leaseResp.ID))
+	//		if err != nil {
+	//			logrus.Infof("set lock port key %s failed", lockPortKey)
+	//			return port, nil
+	//		}
+	//		logrus.Infof("select gateway port %d, lock it 2 min", port)
+	//	}
+	//	return port, nil
+	//}
 	return 0, fmt.Errorf("no more lb port can be use with ip %s", ip)
 }
 

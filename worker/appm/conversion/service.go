@@ -19,12 +19,22 @@
 package conversion
 
 import (
+	kruise_versioned "github.com/openkruise/kruise-api/client/clientset/versioned"
+
+	"context"
 	"encoding/json"
 	"fmt"
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	"time"
+
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
+	"github.com/openkruise/kruise-api/rollouts/v1alpha1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
+	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	utilversion "k8s.io/apimachinery/pkg/util/version"
 	kubevirtv1 "kubevirt.io/api/core/v1"
+	"sigs.k8s.io/gateway-api/apis/v1alpha2"
+	"sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
 	"strconv"
 	"strings"
 
@@ -461,7 +471,7 @@ func CreateHttproute(k8sApp, namespace, appID string, service []*dbmodel.TenantS
 	return name, nil
 }
 
-func CreateRollout(k8sApp, namespace string, service []*dbmodel.TenantServicesPort, component *dbmodel.TenantServices, gray *dbmodel.AppGrayRelease, kruiseClient *versioned.Clientset, gatewayClient *v1beta1.GatewayV1beta1Client) error {
+func CreateRollout(k8sApp, namespace string, service []*dbmodel.TenantServicesPort, component *dbmodel.TenantServices, gray *dbmodel.AppGrayRelease, kruiseClient *kruise_versioned.Clientset, gatewayClient *v1beta1.GatewayV1beta1Client) error {
 	annotations := make(map[string]string)
 	annotations["rollouts.kruise.io/rolling-style"] = "partition"
 	name := k8sApp + "-" + component.K8sComponentName
