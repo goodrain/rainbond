@@ -282,6 +282,13 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string, 
 				MountPath: "/tmp/cache",
 				SubPath:   cacheSubPath,
 			})
+			if re.Lang.String() == "NodeJSStatic" {
+				volumeMounts = append(volumeMounts, corev1.VolumeMount{
+					Name:      "app",
+					MountPath: "/tmp/build/node_modules",
+					SubPath:   path.Join(cacheSubPath, "node/node_modules"),
+				})
+			}
 		}
 	}
 	if re.ServerType == "pkg" {
