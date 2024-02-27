@@ -76,14 +76,18 @@ func CreateGatewayManager(
 		apisixClient:  apisixClient,
 	}
 }
+
+// GetClient -
 func (g *GatewayAction) GetClient() *apisixversioned.Clientset {
 	return g.apisixClient
 }
 
+// GetK8sClient -
 func (g *GatewayAction) GetK8sClient() kubernetes.Interface {
 	return g.kubeClient
 }
 
+// CreateCert -
 func (g *GatewayAction) CreateCert(namespace, domain string) error {
 	secretName := strings.Replace(domain, ".", "-", -1)
 
