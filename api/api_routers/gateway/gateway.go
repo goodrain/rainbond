@@ -5,6 +5,7 @@ import (
 	"github.com/goodrain/rainbond/api/controller"
 )
 
+// GatewayRoutes -
 func GatewayRoutes() chi.Router {
 	r := chi.NewRouter()
 	// 关于路由的接口
