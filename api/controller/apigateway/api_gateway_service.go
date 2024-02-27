@@ -54,7 +54,7 @@ func (g Struct) GetAPIService(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, resp)
 }
 
-// UpdateAPIService-
+// UpdateAPIService -
 func (g Struct) UpdateAPIService(w http.ResponseWriter, r *http.Request) {
 	var spec v2.ApisixUpstreamSpec
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &spec, nil) {
