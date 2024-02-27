@@ -33,7 +33,9 @@ const (
 	Gateway = "Gateway"
 	//HTTPRoute -
 	HTTPRoute = "HTTPRoute"
-	Rollout   = "Rollout"
+
+	// Rollout -
+	Rollout = "Rollout"
 
 	//ClusterRoleBinding -
 	ClusterRoleBinding = "ClusterRoleBinding"
