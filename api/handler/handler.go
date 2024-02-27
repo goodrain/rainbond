@@ -160,6 +160,7 @@ func GetAPPBackupHandler() *group.BackupHandle {
 
 var defaultAPIGatewayHandler APIGatewayHandler
 
+// GetAPIGatewayHandler -
 func GetAPIGatewayHandler() APIGatewayHandler {
 	return defaultAPIGatewayHandler
 }
