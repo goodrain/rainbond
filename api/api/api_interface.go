@@ -291,23 +291,23 @@ type RegistryInterface interface {
 	CheckRegistry(w http.ResponseWriter, r *http.Request)
 }
 
-// APIGatewayInterface api gateway interface
-type APIGatewayInterface interface {
-	APIGatewayRouteInterface
-	APIGatewayServiceInterface
-	APIGatewayCertInterface
+// GatewayInterface api gateway interface
+type GatewayInterface interface {
+	GatewayRouteInterface
+	GatewayServiceInterface
+	GatewayCertInterface
 }
 
-// APIGatewayRouteInterface api gateway route interface
-type APIGatewayRouteInterface interface {
+// GatewayRouteInterface api gateway route interface
+type GatewayRouteInterface interface {
 	GetAPIRoute(w http.ResponseWriter, r *http.Request)
 	CreateAPIRoute(w http.ResponseWriter, r *http.Request)
 	UpdateAPIRoute(w http.ResponseWriter, r *http.Request)
 	DeleteAPIRoute(w http.ResponseWriter, r *http.Request)
 }
 
-// APIGatewayServiceInterface api gateway service interface
-type APIGatewayServiceInterface interface {
+// GatewayServiceInterface api gateway service interface
+type GatewayServiceInterface interface {
 	GetRBDService(w http.ResponseWriter, r *http.Request)
 	GetAPIService(w http.ResponseWriter, r *http.Request)
 	CreateAPIService(w http.ResponseWriter, r *http.Request)
@@ -315,8 +315,8 @@ type APIGatewayServiceInterface interface {
 	DeleteAPIService(w http.ResponseWriter, r *http.Request)
 }
 
-// APIGatewayCertInterface api gateway cert interface
-type APIGatewayCertInterface interface {
+// GatewayCertInterface api gateway cert interface
+type GatewayCertInterface interface {
 	GetCert(w http.ResponseWriter, r *http.Request)
 	CreateCert(w http.ResponseWriter, r *http.Request)
 	UpdateCert(w http.ResponseWriter, r *http.Request)
