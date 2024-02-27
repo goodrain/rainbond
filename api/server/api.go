@@ -152,7 +152,7 @@ func (m *Manager) Run() {
 	m.r.Get("/monitor", func(res http.ResponseWriter, req *http.Request) {
 		res.Write([]byte("ok"))
 	})
-	m.r.Mount("/api-gateway/v1", gateway.GatewayRoutes())
+	m.r.Mount("/api-gateway/v1", gateway.Routes())
 
 	m.r.Mount("/v2", v2R.Routes())
 	m.r.Mount("/", doc.Routes())
