@@ -18,7 +18,7 @@ func (g Struct) UpdateAPIRoute(w http.ResponseWriter, r *http.Request) {
 	get, err := c.ApisixRoutes(r.URL.Query().Get("namespace")).Get(r.Context(), chi.URLParam(r, "name"), v1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("get route error %s", err.Error())
-		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFount)
+		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
 		return
 	}
 	var spec v2.ApisixRouteSpec
@@ -44,7 +44,7 @@ func (g Struct) GetAPIRoute(w http.ResponseWriter, r *http.Request) {
 	list, err := c.ApisixRoutes(r.URL.Query().Get("namespace")).List(r.Context(), v1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("get route error %s", err.Error())
-		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFount)
+		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
 		return
 	}
 

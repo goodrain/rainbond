@@ -21,7 +21,7 @@ func (g Struct) GetCert(w http.ResponseWriter, r *http.Request) {
 	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
 	list, err := c.ApisixTlses(r.URL.Query().Get("namespace")).List(r.Context(), v1.ListOptions{})
 	if err != nil {
-		httputil.ReturnBcodeError(r, w, bcode.ErrCertNotFount)
+		httputil.ReturnBcodeError(r, w, bcode.ErrCertNotFound)
 		return
 	}
 	resp := make([]responseBody, 0)
@@ -122,7 +122,7 @@ func (g Struct) UpdateCert(w http.ResponseWriter, r *http.Request) {
 	get, err := c.ApisixTlses(r.URL.Query().Get("namespace")).Get(r.Context(), r.URL.Query().Get("certName"), v1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("get cert error %s", err.Error())
-		httputil.ReturnBcodeError(r, w, bcode.ErrorAPISixCertNotFount)
+		httputil.ReturnBcodeError(r, w, bcode.ErrorAPISixCertNotFound)
 		return
 	}
 
