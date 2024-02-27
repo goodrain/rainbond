@@ -21,7 +21,7 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	apigateway "github.com/goodrain/rainbond/api/controller/api_gateway"
+	apigateway "github.com/goodrain/rainbond/api/controller/apigateway"
 	"io/ioutil"
 	"net/http"
 	"net/url"

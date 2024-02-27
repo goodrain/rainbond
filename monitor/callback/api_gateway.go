@@ -23,7 +23,7 @@ func (in *APIGateway) Error(err error) {
 }
 
 func (in *APIGateway) Name() string {
-	return "api_gateway"
+	return "apigateway"
 }
 
 func (in *APIGateway) UpdateEndpoints(endpoints ...*config.Endpoint) {

@@ -1,4 +1,4 @@
-package api_gateway
+package apigateway
 
 // APIGatewayStruct -
 type APIGatewayStruct struct{}

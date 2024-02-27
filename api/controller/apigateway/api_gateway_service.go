@@ -1,4 +1,4 @@
-package api_gateway
+package apigateway
 
 import (
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
