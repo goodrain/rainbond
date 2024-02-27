@@ -96,7 +96,6 @@ func (o *OpentsdbManager) NewOpentsdbManager() (tsdbClient.Client, error) {
 	return tc, nil
 }
 
-// GetBegin get db transaction
 // BuildTask build task
 func BuildTask(t *TaskStruct) (*pb.EnqueueRequest, error) {
 	var er pb.EnqueueRequest

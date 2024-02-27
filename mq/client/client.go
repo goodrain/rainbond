@@ -99,6 +99,7 @@ func buildTask(t TaskStruct) (*pb.EnqueueRequest, error) {
 	return &er, nil
 }
 
+// SendBuilderTopic -
 func (m *mqClient) SendBuilderTopic(t TaskStruct) error {
 	request, err := buildTask(t)
 	if err != nil {
