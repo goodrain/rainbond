@@ -21,7 +21,7 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/api/controller/api_gateway"
+	apigateway "github.com/goodrain/rainbond/api/controller/api_gateway"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -66,7 +66,7 @@ type V2Routes struct {
 	K8sAttributeController
 	HelmStruct
 	Registry
-	api_gateway.APIGatewayStruct
+	apigateway.APIGatewayStruct
 }
 
 // Show test
