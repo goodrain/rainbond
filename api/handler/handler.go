@@ -66,7 +66,8 @@ func InitHandle(conf option.Config) error {
 		logrus.Errorf("create token identification mannager error, %v", err)
 		return err
 	}
-	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, gatewayClient, clientset)
+
+	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, gatewayClient, clientset, clientset, nil, nil)
 	def3rdPartySvcHandler = Create3rdPartySvcHandler(dbmanager, statusCli)
 	operationHandler = CreateOperationHandler(mqClient)
 	batchOperationHandler = CreateBatchOperationHandler(mqClient, statusCli, operationHandler)
@@ -155,6 +156,13 @@ var defaultAPPBackupHandler *group.BackupHandle
 // GetAPPBackupHandler GetAPPBackupHandler
 func GetAPPBackupHandler() *group.BackupHandle {
 	return defaultAPPBackupHandler
+}
+
+var defaultAPIGatewayHandler APIGatewayHandler
+
+// GetAPIGatewayHandler -
+func GetAPIGatewayHandler() APIGatewayHandler {
+	return defaultAPIGatewayHandler
 }
 
 var defaultGatewayHandler GatewayHandler

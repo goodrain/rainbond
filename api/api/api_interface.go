@@ -180,7 +180,6 @@ type PluginInterface interface {
 	GetAllPluginBuildVersions(w http.ResponseWriter, r *http.Request)
 	GetPluginBuildVersion(w http.ResponseWriter, r *http.Request)
 	DeletePluginBuildVersion(w http.ResponseWriter, r *http.Request)
-	//plugin
 	PluginSet(w http.ResponseWriter, r *http.Request)
 	DeletePluginRelation(w http.ResponseWriter, r *http.Request)
 	GePluginEnvWhichCanBeSet(w http.ResponseWriter, r *http.Request)
@@ -290,4 +289,36 @@ type RegistryInterface interface {
 	GetAllRepo(w http.ResponseWriter, r *http.Request)
 	GetTagsByRepoName(w http.ResponseWriter, r *http.Request)
 	CheckRegistry(w http.ResponseWriter, r *http.Request)
+}
+
+// GatewayInterface api gateway interface
+type GatewayInterface interface {
+	GatewayRouteInterface
+	GatewayServiceInterface
+	GatewayCertInterface
+}
+
+// GatewayRouteInterface api gateway route interface
+type GatewayRouteInterface interface {
+	GetAPIRoute(w http.ResponseWriter, r *http.Request)
+	CreateAPIRoute(w http.ResponseWriter, r *http.Request)
+	UpdateAPIRoute(w http.ResponseWriter, r *http.Request)
+	DeleteAPIRoute(w http.ResponseWriter, r *http.Request)
+}
+
+// GatewayServiceInterface api gateway service interface
+type GatewayServiceInterface interface {
+	GetRBDService(w http.ResponseWriter, r *http.Request)
+	GetAPIService(w http.ResponseWriter, r *http.Request)
+	CreateAPIService(w http.ResponseWriter, r *http.Request)
+	UpdateAPIService(w http.ResponseWriter, r *http.Request)
+	DeleteAPIService(w http.ResponseWriter, r *http.Request)
+}
+
+// GatewayCertInterface api gateway cert interface
+type GatewayCertInterface interface {
+	GetCert(w http.ResponseWriter, r *http.Request)
+	CreateCert(w http.ResponseWriter, r *http.Request)
+	UpdateCert(w http.ResponseWriter, r *http.Request)
+	DeleteCert(w http.ResponseWriter, r *http.Request)
 }

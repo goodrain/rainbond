@@ -53,6 +53,7 @@ type Monitor struct {
 
 // Start start
 func (d *Monitor) Start() {
+	d.discoverv1.AddProject("apigateway", &callback.APIGateway{Prometheus: d.manager})
 	d.discoverv1.AddProject("prometheus", &callback.Prometheus{Prometheus: d.manager})
 	d.discoverv1.AddProject("event_log_event_http", &callback.EventLog{Prometheus: d.manager})
 	d.discoverv1.AddProject("acp_webcli", &callback.Webcli{Prometheus: d.manager})

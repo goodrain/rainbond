@@ -162,8 +162,9 @@ func CreateManager(config config.Config) (err error) {
 	if _, ok := supportDrivers[config.DBType]; !ok {
 		return fmt.Errorf("DB drivers: %s not supported", config.DBType)
 	}
-
+	logrus.Info("db manager initialization starting...")
 	for {
+
 		defaultManager, err = mysql.CreateManager(config)
 		if err == nil {
 			logrus.Infof("db manager is ready")

@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"github.com/goodrain/rainbond/api/api_routers/gateway"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/pkg/interceptors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -151,6 +152,8 @@ func (m *Manager) Run() {
 	m.r.Get("/monitor", func(res http.ResponseWriter, req *http.Request) {
 		res.Write([]byte("ok"))
 	})
+	m.r.Mount("/api-gateway/v1", gateway.Routes())
+
 	m.r.Mount("/v2", v2R.Routes())
 	m.r.Mount("/", doc.Routes())
 	m.r.Mount("/license", license.Routes())

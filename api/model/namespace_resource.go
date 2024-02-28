@@ -33,6 +33,41 @@ const (
 	Gateway = "Gateway"
 	//HTTPRoute -
 	HTTPRoute = "HTTPRoute"
+
+	// Rollout -
+	Rollout = "Rollout"
+
 	//ClusterRoleBinding -
 	ClusterRoleBinding = "ClusterRoleBinding"
+)
+
+const (
+	//APIVersionSecret -
+	APIVersionSecret = "v1"
+	//APIVersionConfigMap -
+	APIVersionConfigMap = "v1"
+	//APIVersionServiceAccount -
+	APIVersionServiceAccount = "v1"
+	//APIVersionPersistentVolumeClaim -
+	APIVersionPersistentVolumeClaim = "v1"
+	//APIVersionStatefulSet -
+	APIVersionStatefulSet = "apps/v1"
+	//APIVersionDeployment -
+	APIVersionDeployment = "apps/v1"
+	//APIVersionJob -
+	APIVersionJob = "batch/v1"
+	//APIVersionCronJob -
+	APIVersionCronJob = "batch/v1"
+	//APIVersionBetaCronJob -
+	APIVersionBetaCronJob = "batch/v1beta1"
+	//APIVersionService -
+	APIVersionService = "v1"
+	//APIVersionHorizontalPodAutoscaler -q
+	APIVersionHorizontalPodAutoscaler = "autoscaling/v2"
+	//APIVersionGateway -
+	APIVersionGateway = "gateway.networking.k8s.io/v1beta1"
+	//APIVersionHTTPRoute -
+	APIVersionHTTPRoute = "gateway.networking.k8s.io/v1beta1"
+	//APIVersionRollout -
+	APIVersionRollout = "rollouts.kruise.io/v1alpha1"
 )

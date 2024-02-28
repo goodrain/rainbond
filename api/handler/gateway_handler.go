@@ -19,9 +19,11 @@
 package handler
 
 import (
+	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
 	apimodel "github.com/goodrain/rainbond/api/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
 	"github.com/jinzhu/gorm"
+	"k8s.io/client-go/kubernetes"
 )
 
 // ComponentIngressTask -
@@ -73,4 +75,12 @@ type GatewayHandler interface {
 	SyncHTTPRules(tx *gorm.DB, components []*apimodel.Component) error
 	SyncTCPRules(tx *gorm.DB, components []*apimodel.Component) error
 	SyncRuleConfigs(tx *gorm.DB, components []*apimodel.Component) error
+}
+
+// APIGatewayHandler api gateway handler
+type APIGatewayHandler interface {
+	// Don't imitate me for lazy writing
+	GetClient() *apisixversioned.Clientset
+	GetK8sClient() kubernetes.Interface
+	CreateCert(namespace, domain string) error
 }

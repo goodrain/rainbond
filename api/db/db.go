@@ -20,7 +20,9 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/goodrain/rainbond/config/configs"
+	"github.com/goodrain/rainbond/mq/api/grpc/pb"
 	"time"
 
 	tsdbClient "github.com/bluebreezecf/opentsdb-goclient/client"
@@ -92,6 +94,24 @@ func (o *OpentsdbManager) NewOpentsdbManager() (tsdbClient.Client, error) {
 		return nil, err
 	}
 	return tc, nil
+}
+
+// BuildTask build task
+func BuildTask(t *TaskStruct) (*pb.EnqueueRequest, error) {
+	var er pb.EnqueueRequest
+	taskJSON, err := json.Marshal(t.TaskBody)
+	if err != nil {
+		logrus.Errorf("tran task json error")
+		return &er, err
+	}
+	er.Topic = "worker"
+	er.Message = &pb.TaskMessage{
+		TaskType:   t.TaskType,
+		CreateTime: time.Now().Format(time.RFC3339),
+		TaskBody:   taskJSON,
+		User:       t.User,
+	}
+	return &er, nil
 }
 
 // GetBegin get db transaction
