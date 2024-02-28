@@ -92,7 +92,7 @@ func CreateManager(config config.Config) (*Manager, error) {
 	logrus.Info("register table model")
 	manager.RegisterTableModel()
 	logrus.Info("check table")
-	//manager.CheckTable()
+	manager.CheckTable()
 	logrus.Debug("mysql db driver create")
 	return manager, nil
 }
