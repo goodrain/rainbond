@@ -464,6 +464,7 @@ func (c *ClusterController) UpdateAbility(w http.ResponseWriter, r *http.Request
 	httputil.ReturnSuccess(r, w, nil)
 }
 
+// GetRegionStatus -
 func (c *ClusterController) GetRegionStatus(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	if token != os.Getenv("HELM_TOKEN") {
