@@ -1,4 +1,4 @@
-name: Scheduled automatic packaging
+name: "release-amd64-v6.0"
 on:
   repository_dispatch:
     types:
