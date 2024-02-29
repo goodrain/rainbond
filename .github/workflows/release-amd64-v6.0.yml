@@ -132,9 +132,11 @@ jobs:
         run: |
           if [ ${{ github.event.action }} == 'GitHub' ];then
             git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-operator.git
+            git pull
             cd rainbond-operator
           else
             git clone -b $OPERATOR_BRANCH $OPERATOR_URL/rainbond-operator.git
+            git pull
             cd rainbond-operator
           fi
           chmod +x ./release.sh
