@@ -242,6 +242,10 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string, 
 				Name:      "cache",
 				MountPath: "/tmp/cache",
 			})
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      "cache",
+				MountPath: "/tmp/build/node_modules",
+			})
 		}
 	} else {
 		volumes = []corev1.Volume{
@@ -375,6 +379,9 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 			}
 		}
 		if k == "NO_CACHE" && v == "True" {
+			buildNoCache = true
+		}
+		if k == "NODE_MODULES_CACHE" && v == "True" {
 			buildNoCache = true
 		}
 	}
