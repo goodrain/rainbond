@@ -1,16 +1,48 @@
 name: Scheduled automatic packaging
 on:
-  repository_dispatch:
-    types:
-      - GitHub
-      - GitLab
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'branch'
+        required: false
+        default: 'main'
+      clone_url:
+        description: 'clone_url'
+        required: false
+        default: 'https://github.com/goodrain'
+      version:
+        description: 'version'
+        required: true
+      environment:
+        description: 'environment'
+        required: false
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - release-arm
+          - enterprise
+          - enterprise-arm
+      action:
+        description: 'action'
+        required: false
+        default: 'GitHub'
+        type: choice
+        options:
+          - GitHub
+          - GitLab
+      os:
+        description: 'os'
+        required: false
+        default: 'ubuntu-22.04'
 env:
-  VERSION: ${{ github.event.client_payload.version }}
+  VERSION: ${{ github.event.inputs.version }}
+  GITLAB_CLONE_URL: ${{ secrets.GITLAB_CLONE_URL }}
 
 jobs:
   build-ui:
-    runs-on: ${{ github.event.client_payload.os }}
-    environment: ${{ github.event.client_payload.environment }}
+    runs-on: ${{ github.event.inputs.os }}
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Build the Docker image
         env:
@@ -24,12 +56,12 @@ jobs:
           ALLINONE: ${{ vars.ALLINONE }}
           ROUTE_MODE: ${{ vars.ROUTE_MODE }}
         run: |
-          if [ ${{ github.event.action }} == 'GitHub' ];then
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-ui.git
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-ui.git
             cd rainbond-ui
             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
           else
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-ui-cloud.git
+            git clone -b ${{ github.event.inputs.branch }} $GITLAB_CLONE_URL/rainbond-ui-cloud.git
             cd rainbond-ui-cloud
             echo "$UI_DOCKER_PASSWORD" | docker login -u "$UI_DOCKER_USERNAME" --password-stdin
           fi
@@ -40,8 +72,8 @@ jobs:
 
   build-rainbond-allinone:
     needs: build-ui
-    runs-on: ${{ github.event.client_payload.os }}
-    environment: ${{ github.event.client_payload.environment }}
+    runs-on: ${{ github.event.inputs.os }}
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Pull code and Build allinone image
         env:
@@ -57,19 +89,19 @@ jobs:
           DOMESTIC_BASE_NAME: ${{ vars.DOMESTIC_BASE_NAME }}
           DOMESTIC_NAMESPACE: ${{ vars.DOMESTIC_NAMESPACE }}
         run: |
-          if [ ${{ github.event.action }} == 'GitHub' ];then
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console.git
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-console.git
             cd rainbond-console
           else
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console-cloud.git
+            git clone -b ${{ github.event.inputs.branch }} $GITLAB_CLONE_URL/rainbond-console-cloud.git
             cd rainbond-console-cloud
           fi
           chmod +x  ./release.sh
           ./release.sh allinone
 
   build-rainbond-region:
-    runs-on: ${{ github.event.client_payload.os }}
-    environment: ${{ github.event.client_payload.environment }}
+    runs-on: ${{ github.event.inputs.os }}
+    environment: ${{ github.event.inputs.environment }}
     strategy:
       matrix:
         component: [api, chaos, gateway, monitor, mq, webcli, worker, eventlog, init-probe, mesh-data-panel, node, resource-proxy]
@@ -86,13 +118,17 @@ jobs:
           DOMESTIC_BASE_NAME: ${{ vars.DOMESTIC_BASE_NAME }}
           DOMESTIC_NAMESPACE: ${{ vars.DOMESTIC_NAMESPACE }}
         run: |
-          git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond.git
+          else
+            git clone -b ${{ github.event.inputs.branch }} $GITLAB_CLONE_URL/rainbond.git
+          fi
           cd rainbond
           chmod +x ./release.sh
           ./release.sh ${{ matrix.component }} push
   build-rainbond-region-grctl-shell:
-    runs-on: ${{ github.event.client_payload.os }}
-    environment: ${{ github.event.client_payload.environment }}
+    runs-on: ${{ github.event.inputs.os }}
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Pull code and Build the Docker image
         env:
@@ -106,15 +142,19 @@ jobs:
           DOMESTIC_BASE_NAME: ${{ vars.DOMESTIC_BASE_NAME }}
           DOMESTIC_NAMESPACE: ${{ vars.DOMESTIC_NAMESPACE }}
         run: |
-          git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond.git
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond.git
+          else
+            git clone -b ${{ github.event.inputs.branch }} $GITLAB_CLONE_URL/rainbond.git
+          fi
           cd rainbond
           chmod +x ./release.sh
           ./release.sh grctl push
           ./release.sh shell push
 
   build-operator:
-    runs-on: ${{ github.event.client_payload.os }}
-    environment: ${{ github.event.client_payload.environment }}
+    runs-on: ${{ github.event.inputs.os }}
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Build and push
         env:
@@ -130,8 +170,8 @@ jobs:
           OPERATOR_BRANCH: ${{ vars.OPERATOR_BRANCH }}
           OPERATOR_URL: ${{ vars.OPERATOR_URL }}
         run: |
-          if [ ${{ github.event.action }} == 'GitHub' ];then
-            git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-operator.git
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-operator.git
             cd rainbond-operator
           else
             git clone -b $OPERATOR_BRANCH $OPERATOR_URL/rainbond-operator.git
@@ -141,10 +181,10 @@ jobs:
           ./release.sh
 
   build-dind:
-    if: github.event.action == 'GitHub'
+    if: github.event.inputs.action == 'GitHub'
     needs: [build-ui,build-rainbond-region,build-rainbond-region-grctl-shell,build-operator]
-    runs-on: ${{ github.event.client_payload.os }}
-    environment: ${{ github.event.client_payload.environment }}
+    runs-on: ${{ github.event.inputs.os }}
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Build the Docker image
         env:
@@ -155,14 +195,14 @@ jobs:
           DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
-          git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/rainbond-console.git
+          git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-console.git
           cd rainbond-console
           ./release.sh dind
   
   push-arch:
-    if: github.event.action == 'GitHub' && github.event.client_payload.os == 'self-hosted'
+    if: github.event.inputs.action == 'GitHub' && github.event.inputs.os == 'self-hosted'
     needs: [build-rainbond-allinone,build-rainbond-region,build-rainbond-region-grctl-shell,build-operator,build-dind]
-    runs-on: ${{ github.event.client_payload.os }}
+    runs-on: ${{ github.event.inputs.os }}
     environment: release-arch
     steps:
       - uses: actions/checkout@v2
