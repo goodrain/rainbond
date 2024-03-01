@@ -38,6 +38,7 @@ on:
         required: true
 env:
   VERSION: ${{ github.event.inputs.version }}
+  GITLAB_CLONE_URL: ${{ secrets.GITLAB_CLONE_URL }}
 
 jobs:
   create-ecs:
@@ -100,7 +101,7 @@ jobs:
             cd rainbond-ui
             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
           else
-            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-ui-cloud.git
+            git clone -b ${{ github.event.inputs.branch }} $GITLAB_CLONE_URL/rainbond-ui-cloud.git
             cd rainbond-ui-cloud
             echo "$UI_DOCKER_PASSWORD" | docker login -u "$UI_DOCKER_USERNAME" --password-stdin
           fi
@@ -134,7 +135,7 @@ jobs:
             git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-console.git
             cd rainbond-console
           else
-            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond-console-cloud.git
+            git clone -b ${{ github.event.inputs.branch }} $GITLAB_CLONE_URL/rainbond-console-cloud.git
             cd rainbond-console-cloud
           fi
           chmod +x  ./release.sh
@@ -161,7 +162,11 @@ jobs:
           DOMESTIC_BASE_NAME: ${{ vars.DOMESTIC_BASE_NAME }}
           DOMESTIC_NAMESPACE: ${{ vars.DOMESTIC_NAMESPACE }}
         run: |
-          git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond.git
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond.git
+          else
+            git clone -b ${{ github.event.inputs.branch }} $GITLAB_CLONE_URL/rainbond.git
+          fi
           cd rainbond
           chmod +x ./release.sh
           ./release.sh ${{ matrix.component }} push
@@ -183,7 +188,11 @@ jobs:
           DOMESTIC_BASE_NAME: ${{ vars.DOMESTIC_BASE_NAME }}
           DOMESTIC_NAMESPACE: ${{ vars.DOMESTIC_NAMESPACE }}
         run: |
-          git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond.git
+          if [ ${{ github.event.inputs.action }} == 'GitHub' ];then
+            git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/rainbond.git
+          else
+            git clone -b ${{ github.event.inputs.branch }} $GITLAB_CLONE_URL/rainbond.git
+          fi
           cd rainbond
           chmod +x ./release.sh
           ./release.sh grctl push
