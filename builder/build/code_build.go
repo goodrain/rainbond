@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"io"
 	"io/ioutil"
 	"os"
@@ -296,6 +295,7 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string, 
 }
 
 func (s *slugBuild) runBuildJob(re *Request) error {
+
 	//prepare build code dir
 	re.Logger.Info(util.Translation("Start make code package"), map[string]string{"step": "build-exector"})
 	start := time.Now()
@@ -472,7 +472,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	}
 
 	// 增加对goodrain.me 的域名解析
-	list, err := k8s.Default().Clientset.CoreV1().Pods("rbd-system").List(context.Background(), metav1.ListOptions{
+	list, err := s.re.KubeClient.CoreV1().Pods("rbd-system").List(context.Background(), metav1.ListOptions{
 		LabelSelector: "name=rbd-chaos",
 	})
 	if err != nil && len(list.Items) > 0 {
