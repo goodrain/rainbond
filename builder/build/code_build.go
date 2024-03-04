@@ -469,6 +469,9 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	for _, ha := range re.HostAlias {
 		podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: ha.IP, Hostnames: ha.Hostnames})
 	}
+	// 增加对goodrain.me 的域名解析
+	podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: "8.130.120.240", Hostnames: []string{"goodrain.me"}})
+
 	job.Spec = podSpec
 	s.setImagePullSecretsForPod(&job)
 	writer := re.Logger.GetWriter("builder", "info")
