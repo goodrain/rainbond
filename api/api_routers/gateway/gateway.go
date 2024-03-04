@@ -3,11 +3,13 @@ package gateway
 import (
 	"github.com/go-chi/chi"
 	"github.com/goodrain/rainbond/api/controller"
+	"github.com/goodrain/rainbond/api/middleware"
 )
 
 // Routes -
 func Routes() chi.Router {
 	r := chi.NewRouter()
+	r.Use(middleware.InitTenant)
 	// 关于路由的接口
 	r.Route("/routes", func(r chi.Router) {
 		r.Get("/domains", controller.GetManager().GetBindDomains)
