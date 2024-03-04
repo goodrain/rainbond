@@ -10,10 +10,18 @@ func Routes() chi.Router {
 	r := chi.NewRouter()
 	// 关于路由的接口
 	r.Route("/routes", func(r chi.Router) {
-		r.Get("/", controller.GetManager().GetAPIRoute)
-		r.Post("/", controller.GetManager().CreateAPIRoute)
-		r.Put("/{name}", controller.GetManager().UpdateAPIRoute)
-		r.Delete("/{name}", controller.GetManager().DeleteAPIRoute)
+		r.Get("/domains", controller.GetManager().GetBindDomains)
+		r.Get("/port", controller.GetManager().OpenOrCloseDomains)
+		r.Get("/", controller.GetManager().GetHTTPAPIRoute)
+		r.Post("/", controller.GetManager().CreateHTTPAPIRoute)
+		r.Delete("/{name}", controller.GetManager().DeleteHTTPAPIRoute)
+	})
+
+	// 关于路由的接口
+	r.Route("/routes/tcp", func(r chi.Router) {
+		r.Get("/", controller.GetManager().GetTCPRoute)
+		r.Post("/", controller.GetManager().CreateTCPRoute)
+		r.Delete("/{name}", controller.GetManager().DeleteTCPRoute)
 	})
 
 	// 关于目标服务的接口

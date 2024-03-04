@@ -28,8 +28,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//EventBarrel 事件桶
-//不能在此结构上起协程
+// EventBarrel 事件桶
+// 不能在此结构上起协程
 type EventBarrel struct {
 	eventID           string
 	barrel            []*db.EventLogMessage
@@ -44,7 +44,7 @@ type EventBarrel struct {
 	updateTime        time.Time
 }
 
-//insert 插入消息
+// insert 插入消息
 func (e *EventBarrel) insert(m *db.EventLogMessage) error {
 	if e.size > e.maxNumber {
 		return errors.New("received message number more than peer event max message number")
@@ -62,7 +62,7 @@ func (e *EventBarrel) insert(m *db.EventLogMessage) error {
 	return nil
 }
 
-//值归零，放回对象池
+// 值归零，放回对象池
 func (e *EventBarrel) empty() {
 	e.size = 0
 	e.eventID = ""
@@ -72,7 +72,7 @@ func (e *EventBarrel) empty() {
 	e.isCallback = false
 }
 
-//analysis 实时分析
+// analysis 实时分析
 func (e *EventBarrel) analysis(newMessage *db.EventLogMessage) {
 	if newMessage.Step == "last" || newMessage.Step == "callback" {
 		e.persistence()
@@ -83,7 +83,7 @@ func (e *EventBarrel) analysis(newMessage *db.EventLogMessage) {
 	}
 }
 
-//persistence 持久化
+// persistence 持久化
 func (e *EventBarrel) persistence() {
 	e.persistencelock.Lock()
 	defer e.persistencelock.Unlock()
@@ -97,7 +97,7 @@ func (e *EventBarrel) persistence() {
 	}
 }
 
-//调用者加锁
+// 调用者加锁
 func (e *EventBarrel) gcPersistence() {
 	e.needPersistence = true
 	e.persistenceBarrel = append(e.persistenceBarrel, e.barrel...) //数据转到持久化等候队列
@@ -147,7 +147,7 @@ func (r *readEventBarrel) pushCashMessage(ch chan *db.EventLogMessage, subID str
 	r.subSocketChan[subID] = ch
 }
 
-//增加socket订阅
+// 增加socket订阅
 func (r *readEventBarrel) addSubChan(subID string) chan *db.EventLogMessage {
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
@@ -159,7 +159,7 @@ func (r *readEventBarrel) addSubChan(subID string) chan *db.EventLogMessage {
 	return ch
 }
 
-//删除socket订阅
+// 删除socket订阅
 func (r *readEventBarrel) delSubChan(subID string) {
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
@@ -226,7 +226,7 @@ func (r *dockerLogEventBarrel) pushCashMessage(ch chan *db.EventLogMessage, subI
 	r.subSocketChan[subID] = ch
 }
 
-//增加socket订阅
+// 增加socket订阅
 func (r *dockerLogEventBarrel) addSubChan(subID string) chan *db.EventLogMessage {
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
@@ -238,7 +238,7 @@ func (r *dockerLogEventBarrel) addSubChan(subID string) chan *db.EventLogMessage
 	return ch
 }
 
-//删除socket订阅
+// 删除socket订阅
 func (r *dockerLogEventBarrel) delSubChan(subID string) {
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
@@ -248,7 +248,7 @@ func (r *dockerLogEventBarrel) delSubChan(subID string) {
 	}
 }
 
-//persistence 持久化
+// persistence 持久化
 func (r *dockerLogEventBarrel) persistence() {
 	r.persistencelock.Lock()
 	defer r.persistencelock.Unlock()
@@ -263,7 +263,7 @@ func (r *dockerLogEventBarrel) persistence() {
 	}
 }
 
-//调用者加锁
+// 调用者加锁
 func (r *dockerLogEventBarrel) gcPersistence() {
 	r.needPersistence = true
 	r.persistenceBarrel = append(r.persistenceBarrel, r.barrel...) //数据转到持久化等候队列
@@ -312,7 +312,7 @@ func (r *monitorMessageBarrel) pushCashMessage(ch chan *db.EventLogMessage, subI
 	r.subSocketChan[subID] = ch
 }
 
-//增加socket订阅
+// 增加socket订阅
 func (r *monitorMessageBarrel) addSubChan(subID string) chan *db.EventLogMessage {
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
@@ -324,7 +324,7 @@ func (r *monitorMessageBarrel) addSubChan(subID string) chan *db.EventLogMessage
 	return ch
 }
 
-//删除socket订阅
+// 删除socket订阅
 func (r *monitorMessageBarrel) delSubChan(subID string) {
 	r.subLock.Lock()
 	defer r.subLock.Unlock()
