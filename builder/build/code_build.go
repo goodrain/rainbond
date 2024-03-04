@@ -471,16 +471,6 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: ha.IP, Hostnames: ha.Hostnames})
 	}
 
-	// 增加对goodrain.me 的域名解析
-	list, err := s.re.KubeClient.CoreV1().Pods("rbd-system").List(context.Background(), metav1.ListOptions{
-		LabelSelector: "name=rbd-chaos",
-	})
-	if err != nil && len(list.Items) > 0 {
-		podSpec.HostAliases = append(podSpec.HostAliases, list.Items[0].Spec.HostAliases...)
-	}
-
-	//podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: "8.130.120.240", Hostnames: []string{"goodrain.me"}})
-
 	job.Spec = podSpec
 	s.setImagePullSecretsForPod(&job)
 	writer := re.Logger.GetWriter("builder", "info")
@@ -494,7 +484,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	}
 
 	logrus.Debugf("create job[name: %s; namespace: %s]", job.Name, job.Namespace)
-	err = jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
+	err := jobc.GetJobController().ExecJob(ctx, &job, writer, reChan)
 	if err != nil {
 		logrus.Errorf("create new job:%s failed: %s", name, err.Error())
 		return err

@@ -384,6 +384,16 @@ func (i *SourceCodeBuildItem) getHostAlias() (hostAliasList []build.HostAlias, e
 			hostAliasList = append(hostAliasList, build.HostAlias{IP: addr.IP, Hostnames: hostNames})
 		}
 	}
+
+	// 增加对goodrain.me 的域名解析
+	list, err := i.KubeClient.CoreV1().Pods("rbd-system").List(context.Background(), metav1.ListOptions{
+		LabelSelector: "name=rbd-gateway",
+	})
+	logrus.Info("获取到了pod", list)
+	if err != nil && len(list.Items) > 0 {
+		hostAliasList = append(hostAliasList, build.HostAlias{IP: list.Items[0].Status.HostIP, Hostnames: []string{"goodrain.me"}})
+	}
+
 	return
 }
 
