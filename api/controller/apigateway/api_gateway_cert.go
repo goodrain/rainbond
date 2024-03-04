@@ -10,6 +10,7 @@ import (
 	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
 	v1k8s "k8s.io/api/core/v1"
@@ -22,7 +23,7 @@ import (
 // GetCert -
 func (g Struct) GetCert(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
-	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
+	c := k8s.Default().ApiSixClient.ApisixV2()
 	list, err := c.ApisixTlses(tenant.Namespace).List(r.Context(), v1.ListOptions{})
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, bcode.ErrRouteNotFound)
@@ -50,7 +51,7 @@ func (g Struct) CreateCert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
+	c := k8s.Default().ApiSixClient.ApisixV2()
 	create, err := c.ApisixTlses(tenant.Namespace).Create(r.Context(), &v2.ApisixTls{
 		TypeMeta: v1.TypeMeta{
 			Kind:       ApisixTls,
@@ -152,7 +153,7 @@ func getCertificateDomains(tlsCert *v1k8s.Secret) ([]v2.HostType, error) {
 // UpdateCert -
 func (g Struct) UpdateCert(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
-	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
+	c := k8s.Default().ApiSixClient.ApisixV2()
 	get, err := c.ApisixTlses(tenant.Namespace).Get(r.Context(), r.URL.Query().Get("certName"), v1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("get cert error %s", err.Error())
@@ -177,7 +178,7 @@ func (g Struct) UpdateCert(w http.ResponseWriter, r *http.Request) {
 func (g Struct) DeleteCert(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	name := chi.URLParam(r, "name")
-	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
+	c := k8s.Default().ApiSixClient.ApisixV2()
 	err := c.ApisixTlses(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
 
 	if err != nil && !errors.IsNotFound(err) {
@@ -206,7 +207,7 @@ func (g Struct) AutoCreateCert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
+	c := k8s.Default().ApiSixClient.ApisixV2()
 	create, err := c.ApisixTlses(tenant.Namespace).Create(r.Context(), &v2.ApisixTls{
 		ObjectMeta: v1.ObjectMeta{
 			GenerateName: "rbd",

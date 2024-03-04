@@ -27,6 +27,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"github.com/goodrain/rainbond/pkg/component/prom"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"time"
 )
@@ -36,6 +37,7 @@ func Recoverer(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rvr := recover(); rvr != nil && rvr != http.ErrAbortHandler {
+				debug.PrintStack()
 				handleServiceUnavailable(w, r)
 			}
 		}()

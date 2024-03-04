@@ -3,10 +3,10 @@ package apigateway
 import (
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/go-chi/chi"
-	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// GetRBDService-
+// GetRBDService -
 func (g Struct) GetRBDService(w http.ResponseWriter, r *http.Request) {
 	panic("implement me")
 }
@@ -30,7 +30,7 @@ func (g Struct) GetAPIService(w http.ResponseWriter, r *http.Request) {
 		labelSelector = "app_id=" + appID
 	}
 
-	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
+	c := k8s.Default().ApiSixClient.ApisixV2()
 
 	list, err := c.ApisixUpstreams(tenant.Namespace).List(r.Context(), v1.ListOptions{
 		LabelSelector: labelSelector,
@@ -58,7 +58,7 @@ func (g Struct) CreateAPIService(w http.ResponseWriter, r *http.Request) {
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &spec, nil) {
 		return
 	}
-	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
+	c := k8s.Default().ApiSixClient.ApisixV2()
 	create, err := c.ApisixUpstreams(tenant.Namespace).Create(r.Context(), &v2.ApisixUpstream{
 		TypeMeta: v1.TypeMeta{
 			Kind:       ApisixUpstream,
@@ -111,7 +111,7 @@ func marshalApisixUpstream(r *v2.ApisixUpstream) map[string]interface{} {
 func (g Struct) DeleteAPIService(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	name := chi.URLParam(r, "name")
-	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
+	c := k8s.Default().ApiSixClient.ApisixV2()
 	err := c.ApisixUpstreams(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {

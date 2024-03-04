@@ -3,7 +3,6 @@ package apigateway
 import (
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/go-chi/chi"
-	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -20,7 +19,7 @@ import (
 
 // OpenOrCloseDomains -
 func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
-	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
+	c := k8s.Default().ApiSixClient.ApisixV2()
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	list, _ := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
 		LabelSelector: "service_alias=" + r.URL.Query().Get("service_alias"),
@@ -54,7 +53,7 @@ func (g Struct) OpenOrCloseDomains(w http.ResponseWriter, r *http.Request) {
 
 // GetBindDomains -
 func (g Struct) GetBindDomains(w http.ResponseWriter, r *http.Request) {
-	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
+	c := k8s.Default().ApiSixClient.ApisixV2()
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 
 	list, err := c.ApisixRoutes(tenant.Namespace).List(r.Context(), v1.ListOptions{
@@ -66,7 +65,7 @@ func (g Struct) GetBindDomains(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var hosts []string
+	var hosts = make([]string, 0)
 	for _, item := range list.Items {
 		var has bool
 		for _, plugin := range item.Spec.HTTP[0].Plugins {
@@ -87,7 +86,7 @@ func (g Struct) GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	var resp = make([]*v2.ApisixRouteHTTP, 0)
 
-	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
+	c := k8s.Default().ApiSixClient.ApisixV2()
 	appID := r.URL.Query().Get("appID")
 	labelSelector := ""
 	if appID != "" {
@@ -144,7 +143,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		"service_alias": service_alias,
 		"host":          apisixRouteHTTP.Match.Hosts[0],
 	}
-	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
+	c := k8s.Default().ApiSixClient.ApisixV2()
 
 	routeName := r.URL.Query().Get("intID") + apisixRouteHTTP.Match.Hosts[0] + apisixRouteHTTP.Match.Paths[0]
 
@@ -219,7 +218,7 @@ func (g Struct) DeleteHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	name := chi.URLParam(r, "name")
 
-	c := handler.GetAPIGatewayHandler().GetClient().ApisixV2()
+	c := k8s.Default().ApiSixClient.ApisixV2()
 
 	err := c.ApisixRoutes(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
 	if err == nil {

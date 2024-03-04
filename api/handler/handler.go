@@ -44,6 +44,8 @@ func InitHandle(conf option.Config) error {
 	k8sClient := k8s.Default().K8sClient
 	restconfig := k8s.Default().RestConfig
 	dynamicClient := k8s.Default().DynamicClient
+
+	apiSixClient := k8s.Default().ApiSixClient
 	gatewayClient := k8s.Default().GatewayClient
 	kubevirtCli := k8s.Default().KubevirtCli
 	mapper := k8s.Default().Mapper
@@ -67,7 +69,7 @@ func InitHandle(conf option.Config) error {
 		return err
 	}
 
-	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, gatewayClient, clientset, clientset, nil, nil)
+	defaultGatewayHandler = CreateGatewayManager(dbmanager, mqClient, gatewayClient, clientset, clientset, restconfig, apiSixClient)
 	def3rdPartySvcHandler = Create3rdPartySvcHandler(dbmanager, statusCli)
 	operationHandler = CreateOperationHandler(mqClient)
 	batchOperationHandler = CreateBatchOperationHandler(mqClient, statusCli, operationHandler)
