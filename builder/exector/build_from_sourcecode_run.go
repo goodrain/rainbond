@@ -389,7 +389,7 @@ func (i *SourceCodeBuildItem) getHostAlias() (hostAliasList []build.HostAlias, e
 	list, err := i.KubeClient.CoreV1().Pods("rbd-system").List(context.Background(), metav1.ListOptions{
 		LabelSelector: "name=rbd-gateway",
 	})
-	if err != nil && len(list.Items) > 0 {
+	if err == nil && len(list.Items) > 0 {
 		logrus.Info("获取到了pod", list.Items[0].Status.HostIP, list.Items[0].Status.PodIP)
 
 		hostAliasList = append(hostAliasList, build.HostAlias{IP: list.Items[0].Status.HostIP, Hostnames: []string{"goodrain.me"}})
