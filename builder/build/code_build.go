@@ -479,7 +479,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 		podSpec.HostAliases = append(podSpec.HostAliases, list.Items[0].Spec.HostAliases...)
 	}
 
-	podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: "8.130.120.240", Hostnames: []string{"goodrain.me"}})
+	//podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: "8.130.120.240", Hostnames: []string{"goodrain.me"}})
 
 	job.Spec = podSpec
 	s.setImagePullSecretsForPod(&job)
