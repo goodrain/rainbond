@@ -20,9 +20,7 @@ package discover
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/goodrain/rainbond/builder/exector"
@@ -33,12 +31,12 @@ import (
 	grpc1 "google.golang.org/grpc"
 )
 
-//WTOPIC is builder
+// WTOPIC is builder
 const WTOPIC string = "builder"
 
 var healthStatus = make(map[string]string, 1)
 
-//TaskManager task
+// TaskManager task
 type TaskManager struct {
 	ctx, discoverCtx       context.Context
 	cancel, discoverCancel context.CancelFunc
@@ -48,7 +46,7 @@ type TaskManager struct {
 	callbackChan           chan *pb.TaskMessage
 }
 
-//NewTaskManager return *TaskManager
+// NewTaskManager return *TaskManager
 func NewTaskManager(c option.Config, client client.MQClient, exec exector.Manager) *TaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	discoverCtx, discoverCancel := context.WithCancel(ctx)
@@ -69,7 +67,7 @@ func NewTaskManager(c option.Config, client client.MQClient, exec exector.Manage
 	return taskManager
 }
 
-//Start 启动
+// Start 启动
 func (t *TaskManager) Start(errChan chan error) error {
 	go t.Do(errChan)
 	logrus.Info("start discover success.")
@@ -88,7 +86,7 @@ func (t *TaskManager) callback(task *pb.TaskMessage) {
 	logrus.Infof("The build controller returns an indigestible task(%s) to the messaging system", task.TaskId)
 }
 
-//Do do
+// Do do
 func (t *TaskManager) Do(errChan chan error) {
 	hostName, _ := os.Hostname()
 	for {
@@ -104,19 +102,9 @@ func (t *TaskManager) Do(errChan chan error) {
 					logrus.Warn(err.Error())
 					continue
 				}
-				if grpc1.ErrorDesc(err) == "context canceled" {
-					logrus.Warn("grpc dequeue context canceled")
-					healthStatus["status"] = "unusual"
-					healthStatus["info"] = "grpc dequeue context canceled"
-					return
-				}
 				if grpc1.ErrorDesc(err) == "context timeout" {
 					logrus.Warn(err.Error())
 					continue
-				}
-				if strings.Contains(err.Error(), "there is no connection available") {
-					errChan <- fmt.Errorf("message dequeue failure %s", err.Error())
-					return
 				}
 				logrus.Errorf("message dequeue failure %s, will retry", err.Error())
 				time.Sleep(time.Second * 2)
@@ -131,7 +119,7 @@ func (t *TaskManager) Do(errChan chan error) {
 	}
 }
 
-//Stop 停止
+// Stop 停止
 func (t *TaskManager) Stop() error {
 	t.discoverCancel()
 	if err := t.exec.Stop(); err != nil {
