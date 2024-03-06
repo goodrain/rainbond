@@ -129,6 +129,7 @@ func addResponseRewritePlugin(apisixRouteHTTP v2.ApisixRouteHTTP) v2.ApisixRoute
 	return apisixRouteHTTP
 }
 
+// CreateHTTPAPIRoute -
 func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
@@ -212,6 +213,7 @@ func marshalApisixRoute(r *v2.ApisixRoute) map[string]interface{} {
 	return resp
 }
 
+// DeleteHTTPAPIRoute -
 func (g Struct) DeleteHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 	var deleteName = make([]string, 0)
@@ -243,6 +245,7 @@ func (g Struct) DeleteHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnBcodeError(r, w, bcode.ErrRouteDelete)
 }
 
+// GetTCPRoute -
 func (g Struct) GetTCPRoute(w http.ResponseWriter, r *http.Request) {
 
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
@@ -273,6 +276,7 @@ func (g Struct) GetTCPRoute(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, resp)
 }
 
+// CreateTCPRoute -
 func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 
@@ -330,11 +334,13 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, update.Spec.Ports[0].NodePort)
 }
 
+// UpdateTCPRoute -
 func (g Struct) UpdateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	//TODO implement me
 	panic("implement me")
 }
 
+// DeleteTCPRoute -
 func (g Struct) DeleteTCPRoute(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	name := chi.URLParam(r, "name")
