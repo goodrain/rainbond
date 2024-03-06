@@ -137,11 +137,11 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 	if !httputil.ValidatorRequestStructAndErrorResponse(r, w, &apisixRouteHTTP, nil) {
 		return
 	}
-	service_alias := strings.ReplaceAll(r.URL.Query().Get("service_alias"), ",", "-")
+	s := strings.ReplaceAll(r.URL.Query().Get("service_alias"), ",", "-")
 	label := map[string]string{
 		"creator":       "Rainbond",
 		"app_id":        r.URL.Query().Get("appID"),
-		"service_alias": service_alias,
+		"service_alias": s,
 		"host":          apisixRouteHTTP.Match.Hosts[0],
 	}
 	c := k8s.Default().ApiSixClient.ApisixV2()
