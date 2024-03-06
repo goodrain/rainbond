@@ -160,7 +160,7 @@ func RegisterWorker(name string, fun func([]byte, *exectorManager) (TaskWorker, 
 var ErrCallback = fmt.Errorf("callback task to mq")
 
 func (e *exectorManager) SetReturnTaskChan(re func(*pb.TaskMessage)) {
-	MetricTaskNum--
+	MetricTaskNum-- //如果无法处理任务，需要将任务数减一
 	e.callback = re
 }
 
