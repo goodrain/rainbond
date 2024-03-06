@@ -184,6 +184,9 @@ func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
 	}
 	select {
 	case e.tasks <- task:
+		if task.TaskType == "" {
+			return nil
+		}
 		MetricTaskNum++
 		e.RunTask(task)
 		return nil
