@@ -295,6 +295,7 @@ func (s *slugBuild) createVolumeAndMount(re *Request, sourceTarFileName string, 
 }
 
 func (s *slugBuild) runBuildJob(re *Request) error {
+
 	//prepare build code dir
 	re.Logger.Info(util.Translation("Start make code package"), map[string]string{"step": "build-exector"})
 	start := time.Now()
@@ -469,6 +470,7 @@ func (s *slugBuild) runBuildJob(re *Request) error {
 	for _, ha := range re.HostAlias {
 		podSpec.HostAliases = append(podSpec.HostAliases, corev1.HostAlias{IP: ha.IP, Hostnames: ha.Hostnames})
 	}
+
 	job.Spec = podSpec
 	s.setImagePullSecretsForPod(&job)
 	writer := re.Logger.GetWriter("builder", "info")

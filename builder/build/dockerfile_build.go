@@ -123,6 +123,7 @@ func (d *dockerfileBuild) runBuildJob(re *Request, buildImageName string) error 
 			},
 		},
 	}
+
 	// only support never and onfailure
 	hostIP := os.Getenv("HOST_IP")
 	if hostIP != "" {

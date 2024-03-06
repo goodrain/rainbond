@@ -300,10 +300,18 @@ type GatewayInterface interface {
 
 // GatewayRouteInterface api gateway route interface
 type GatewayRouteInterface interface {
-	GetAPIRoute(w http.ResponseWriter, r *http.Request)
-	CreateAPIRoute(w http.ResponseWriter, r *http.Request)
-	UpdateAPIRoute(w http.ResponseWriter, r *http.Request)
-	DeleteAPIRoute(w http.ResponseWriter, r *http.Request)
+	GetBindDomains(w http.ResponseWriter, r *http.Request)
+	OpenOrCloseDomains(w http.ResponseWriter, r *http.Request)
+
+	GetHTTPAPIRoute(w http.ResponseWriter, r *http.Request)
+	CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request)
+	UpdateHTTPAPIRoute(w http.ResponseWriter, r *http.Request)
+	DeleteHTTPAPIRoute(w http.ResponseWriter, r *http.Request)
+
+	GetTCPRoute(w http.ResponseWriter, r *http.Request)
+	CreateTCPRoute(w http.ResponseWriter, r *http.Request)
+	UpdateTCPRoute(w http.ResponseWriter, r *http.Request)
+	DeleteTCPRoute(w http.ResponseWriter, r *http.Request)
 }
 
 // GatewayServiceInterface api gateway service interface
