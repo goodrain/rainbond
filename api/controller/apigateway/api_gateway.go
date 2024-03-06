@@ -16,8 +16,8 @@ const ApisixUpstream = "ApisixUpstream"
 // ApisixRoute -
 const ApisixRoute = "ApisixRoute"
 
-// ApisixTls -
-const ApisixTls = "ApisixTls"
+// ApisixTLS -
+const ApisixTLS = "ApisixTls"
 
 // ResponseRewrite -
 const ResponseRewrite = "response-rewrite"

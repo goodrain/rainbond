@@ -54,7 +54,7 @@ func (g Struct) CreateCert(w http.ResponseWriter, r *http.Request) {
 	c := k8s.Default().ApiSixClient.ApisixV2()
 	create, err := c.ApisixTlses(tenant.Namespace).Create(r.Context(), &v2.ApisixTls{
 		TypeMeta: v1.TypeMeta{
-			Kind:       ApisixTls,
+			Kind:       ApisixTLS,
 			APIVersion: APIVersion,
 		},
 		ObjectMeta: v1.ObjectMeta{
