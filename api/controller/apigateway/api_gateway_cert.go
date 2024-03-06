@@ -198,7 +198,7 @@ func (g Struct) DeleteCert(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, nil)
 }
 
-// AutoCreateCert
+// AutoCreateCert -
 func (g Struct) AutoCreateCert(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	domain := r.URL.Query().Get("domain")
