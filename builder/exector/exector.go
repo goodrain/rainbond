@@ -173,6 +173,9 @@ func (e *exectorManager) SetReturnTaskChan(re func(*pb.TaskMessage)) {
 // share-slug share app with slug
 // share-image share app with image
 func (e *exectorManager) AddTask(task *pb.TaskMessage) error {
+	if task.TaskType == "" {
+		return nil
+	}
 	if e.callback != nil && task.Arch != "" && task.Arch != runtime.GOARCH {
 		e.callback(task)
 		for len(e.tasks) >= e.maxConcurrentTask {

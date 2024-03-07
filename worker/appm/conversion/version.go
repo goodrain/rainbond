@@ -428,9 +428,9 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 				startupSequenceDependencies = append(startupSequenceDependencies, sa.ServiceAlias)
 			}
 		}
-		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE", Value: Depend})
-		envs = append(envs, corev1.EnvVar{Name: "DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliases))})
-		envs = append(envs, corev1.EnvVar{Name: "STARTUP_SEQUENCE_DEPENDENCIES", Value: strings.Join(startupSequenceDependencies, ",")})
+		envs = append(envs, corev1.EnvVar{Name: "_DEPEND_SERVICE", Value: Depend})
+		envs = append(envs, corev1.EnvVar{Name: "_DEPEND_SERVICE_COUNT", Value: strconv.Itoa(len(serviceAliases))})
+		envs = append(envs, corev1.EnvVar{Name: "_STARTUP_SEQUENCE_DEPENDENCIES", Value: strings.Join(startupSequenceDependencies, ",")})
 
 		if as.GovernanceMode == model.GovernanceModeBuildInServiceMesh {
 			as.NeedProxy = true
@@ -458,7 +458,7 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 			}
 			Depend += fmt.Sprintf("%s:%s", sa.ServiceAlias, sa.ServiceID)
 		}
-		envs = append(envs, corev1.EnvVar{Name: "REVERSE_DEPEND_SERVICE", Value: Depend})
+		envs = append(envs, corev1.EnvVar{Name: "_REVERSE_DEPEND_SERVICE", Value: Depend})
 	}
 
 	//set app port and net env
@@ -480,13 +480,13 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 			}
 			portStr += fmt.Sprintf("%d", port.ContainerPort)
 		}
-		envs = append(envs, corev1.EnvVar{Name: "PORT", Value: strconv.Itoa(minPort)})
-		envs = append(envs, corev1.EnvVar{Name: "PROTOCOL", Value: protocol})
+		envs = append(envs, corev1.EnvVar{Name: "_PORT", Value: strconv.Itoa(minPort)})
+		envs = append(envs, corev1.EnvVar{Name: "_PROTOCOL", Value: protocol})
 		menvs := convertRulesToEnvs(as, dbmanager, ports)
 		if len(envs) > 0 {
 			envs = append(envs, menvs...)
 		}
-		envs = append(envs, corev1.EnvVar{Name: "MONITOR_PORT", Value: portStr})
+		envs = append(envs, corev1.EnvVar{Name: "_MONITOR_PORT", Value: portStr})
 	}
 
 	//set app custom envs
@@ -502,28 +502,28 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 	}
 
 	//set default env
-	envs = append(envs, corev1.EnvVar{Name: "NAMESPACE", Value: as.GetNamespace()})
-	envs = append(envs, corev1.EnvVar{Name: "TENANT_ID", Value: as.TenantID})
-	envs = append(envs, corev1.EnvVar{Name: "SERVICE_ID", Value: as.ServiceID})
+	envs = append(envs, corev1.EnvVar{Name: "_NAMESPACE", Value: as.GetNamespace()})
+	envs = append(envs, corev1.EnvVar{Name: "_TENANT_ID", Value: as.TenantID})
+	envs = append(envs, corev1.EnvVar{Name: "_SERVICE_ID", Value: as.ServiceID})
 	if envutil.IsCustomMemory(as.ContainerMemory) {
 		envs = append(envs, corev1.EnvVar{Name: "CUSTOM_MEMORY_SIZE", Value: strconv.Itoa(as.ContainerMemory)})
 	} else {
 		envs = append(envs, corev1.EnvVar{Name: "MEMORY_SIZE", Value: envutil.GetMemoryType(as.ContainerMemory)})
 	}
-	envs = append(envs, corev1.EnvVar{Name: "SERVICE_NAME", Value: as.GetK8sWorkloadName()})
-	envs = append(envs, corev1.EnvVar{Name: "SERVICE_ALIAS", Value: as.ServiceAlias})
-	envs = append(envs, corev1.EnvVar{Name: "SERVICE_POD_NUM", Value: strconv.Itoa(as.Replicas)})
-	envs = append(envs, corev1.EnvVar{Name: "HOST_IP", ValueFrom: &corev1.EnvVarSource{
+	envs = append(envs, corev1.EnvVar{Name: "_SERVICE_NAME", Value: as.GetK8sWorkloadName()})
+	envs = append(envs, corev1.EnvVar{Name: "_SERVICE_ALIAS", Value: as.ServiceAlias})
+	envs = append(envs, corev1.EnvVar{Name: "_SERVICE_POD_NUM", Value: strconv.Itoa(as.Replicas)})
+	envs = append(envs, corev1.EnvVar{Name: "_HOST_IP", ValueFrom: &corev1.EnvVarSource{
 		FieldRef: &corev1.ObjectFieldSelector{
 			FieldPath: "status.hostIP",
 		},
 	}})
-	envs = append(envs, corev1.EnvVar{Name: "POD_IP", ValueFrom: &corev1.EnvVarSource{
+	envs = append(envs, corev1.EnvVar{Name: "_POD_IP", ValueFrom: &corev1.EnvVarSource{
 		FieldRef: &corev1.ObjectFieldSelector{
 			FieldPath: "status.podIP",
 		},
 	}})
-	envs = append(envs, corev1.EnvVar{Name: "POD_NAME", ValueFrom: &corev1.EnvVarSource{
+	envs = append(envs, corev1.EnvVar{Name: "_POD_NAME", ValueFrom: &corev1.EnvVarSource{
 		FieldRef: &corev1.ObjectFieldSelector{
 			FieldPath: "metadata.name",
 		},

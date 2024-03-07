@@ -112,12 +112,6 @@ func (t *TaskManager) Do() {
 				if grpc1.ErrorDesc(err) == context.DeadlineExceeded.Error() {
 					continue
 				}
-				if grpc1.ErrorDesc(err) == "context canceled" {
-					logrus.Info("receive task core context canceled")
-					healthStatus["status"] = "unusual"
-					healthStatus["info"] = "receive task core context canceled"
-					return
-				}
 				if grpc1.ErrorDesc(err) == "context timeout" {
 					continue
 				}

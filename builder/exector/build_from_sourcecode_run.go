@@ -390,8 +390,6 @@ func (i *SourceCodeBuildItem) getHostAlias() (hostAliasList []build.HostAlias, e
 		LabelSelector: "name=rbd-gateway",
 	})
 	if err == nil && len(list.Items) > 0 {
-		logrus.Info("获取到了pod", list.Items[0].Status.HostIP, list.Items[0].Status.PodIP)
-
 		hostAliasList = append(hostAliasList, build.HostAlias{IP: list.Items[0].Status.HostIP, Hostnames: []string{"goodrain.me"}})
 	}
 
