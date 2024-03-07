@@ -506,9 +506,9 @@ func createEnv(as *v1.AppService, dbmanager db.Manager, envVarSecrets []*corev1.
 	envs = append(envs, corev1.EnvVar{Name: "_TENANT_ID", Value: as.TenantID})
 	envs = append(envs, corev1.EnvVar{Name: "_SERVICE_ID", Value: as.ServiceID})
 	if envutil.IsCustomMemory(as.ContainerMemory) {
-		envs = append(envs, corev1.EnvVar{Name: "_CUSTOM_MEMORY_SIZE", Value: strconv.Itoa(as.ContainerMemory)})
+		envs = append(envs, corev1.EnvVar{Name: "CUSTOM_MEMORY_SIZE", Value: strconv.Itoa(as.ContainerMemory)})
 	} else {
-		envs = append(envs, corev1.EnvVar{Name: "_MEMORY_SIZE", Value: envutil.GetMemoryType(as.ContainerMemory)})
+		envs = append(envs, corev1.EnvVar{Name: "MEMORY_SIZE", Value: envutil.GetMemoryType(as.ContainerMemory)})
 	}
 	envs = append(envs, corev1.EnvVar{Name: "_SERVICE_NAME", Value: as.GetK8sWorkloadName()})
 	envs = append(envs, corev1.EnvVar{Name: "_SERVICE_ALIAS", Value: as.ServiceAlias})
