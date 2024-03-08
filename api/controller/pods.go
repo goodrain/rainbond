@@ -32,6 +32,7 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -121,14 +122,16 @@ func (p *PodController) PodDetail(w http.ResponseWriter, r *http.Request) {
 func (p *PodController) PodLogs(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*model.Tenants)
 	podName := chi.URLParam(r, "pod_name")
-
-	// Get Kubernetes pod logs
-	lines := int64(1280)
+	lines, err := strconv.Atoi(r.URL.Query().Get("lines"))
+	if err != nil {
+		lines = 100
+	}
+	linesint64 := int64(lines)
 
 	req := k8s.Default().Clientset.CoreV1().Pods(tenant.Namespace).GetLogs(podName, &corev1.PodLogOptions{
 		Follow:     true,
 		Timestamps: true,
-		TailLines:  &lines,
+		TailLines:  &linesint64,
 	})
 	logrus.Infof("Opening log stream for pod %s", podName)
 
