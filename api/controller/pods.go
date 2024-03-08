@@ -126,12 +126,12 @@ func (p *PodController) PodLogs(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		lines = 100
 	}
-	linesint64 := int64(lines)
+	tailLines := int64(lines)
 
 	req := k8s.Default().Clientset.CoreV1().Pods(tenant.Namespace).GetLogs(podName, &corev1.PodLogOptions{
 		Follow:     true,
 		Timestamps: true,
-		TailLines:  &linesint64,
+		TailLines:  &tailLines,
 	})
 	logrus.Infof("Opening log stream for pod %s", podName)
 
