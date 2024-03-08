@@ -98,7 +98,7 @@ func handleServiceUnavailable(w http.ResponseWriter, r *http.Request) {
 func Timeout(timeout time.Duration) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
-			if strings.Contains(r.URL.Path, "pods/logs") {
+			if strings.Contains(r.URL.Path, "logs") {
 				timeout = 1 * time.Hour
 			}
 			ctx, cancel := context.WithTimeout(r.Context(), timeout)

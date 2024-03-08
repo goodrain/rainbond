@@ -32,8 +32,8 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"net/http"
+	"strconv"
 	"strings"
-	"time"
 )
 
 // PodController is an implementation of PodInterface
@@ -120,15 +120,21 @@ func (p *PodController) PodDetail(w http.ResponseWriter, r *http.Request) {
 
 // PodLogs -
 func (p *PodController) PodLogs(w http.ResponseWriter, r *http.Request) {
-	podNamespace := r.URL.Query().Get("pod_ns")
-	podName := r.URL.Query().Get("pod_name")
-	// Get Kubernetes pod logs
-	lines := int64(1280)
-	req := k8s.Default().Clientset.CoreV1().Pods(podNamespace).GetLogs(podName, &corev1.PodLogOptions{
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*model.Tenants)
+	podName := chi.URLParam(r, "pod_name")
+	lines, err := strconv.Atoi(r.URL.Query().Get("lines"))
+	if err != nil {
+		lines = 100
+	}
+	tailLines := int64(lines)
+
+	req := k8s.Default().Clientset.CoreV1().Pods(tenant.Namespace).GetLogs(podName, &corev1.PodLogOptions{
 		Follow:     true,
 		Timestamps: true,
-		TailLines:  &lines,
+		TailLines:  &tailLines,
 	})
+	logrus.Infof("Opening log stream for pod %s", podName)
+
 	stream, err := req.Stream(r.Context())
 	if err != nil {
 		logrus.Errorf("Error opening log stream: %v", err)
@@ -150,23 +156,18 @@ func (p *PodController) PodLogs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 
 	scanner := bufio.NewScanner(stream)
-	ticker := time.NewTicker(50 * time.Millisecond)
-	defer ticker.Stop()
 
-	var messages []string
-
-	for {
+	for scanner.Scan() {
 		select {
-		case <-ticker.C:
-			fmt.Fprintf(w, strings.Join(messages, "\n\n"))
-			messages = messages[:0] // Clear the slice
-			flusher.Flush()
 		case <-r.Context().Done():
 			logrus.Warningf("Request context done: %v", r.Context().Err())
 			return
 		default:
-			if len(messages) < 128 && scanner.Scan() {
-				messages = append(messages, "data: "+scanner.Text())
+			msg := "data: " + scanner.Text() + "\n\n"
+			_, err := fmt.Fprintf(w, msg)
+			flusher.Flush()
+			if err != nil {
+				logrus.Errorf("Error writing to response: %v", err)
 			}
 		}
 	}

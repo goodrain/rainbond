@@ -392,6 +392,7 @@ func (v2 *V2) serviceRouter() chi.Router {
 	r.Post("/app-restore/plugins", middleware.WrapEL(controller.GetManager().RestorePlugins, dbmodel.TargetTypeService, "app-restore-plugins", dbmodel.SYNEVENTTYPE))
 
 	r.Get("/pods/{pod_name}/detail", controller.GetManager().PodDetail)
+	r.Get("/pods/{pod_name}/logs", controller.GetManager().PodLogs)
 
 	// autoscaler
 	r.Post("/xparules", middleware.WrapEL(controller.GetManager().AutoscalerRules, dbmodel.TargetTypeService, "add-app-autoscaler-rule", dbmodel.SYNEVENTTYPE))
