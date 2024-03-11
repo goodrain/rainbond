@@ -28,10 +28,8 @@ func Routes() chi.Router {
 
 	// 关于目标服务的接口
 	r.Route("/service", func(r chi.Router) {
-		r.Get("/rbd", controller.GetManager().GetRBDService)
 		r.Get("/", controller.GetManager().GetAPIService)
-		r.Post("/", controller.GetManager().CreateAPIService)
-		r.Put("/{name}", controller.GetManager().UpdateAPIService)
+		r.Post("/{name}", controller.GetManager().CreateAPIService)
 		r.Delete("/{name}", controller.GetManager().DeleteAPIService)
 	})
 
