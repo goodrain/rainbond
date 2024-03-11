@@ -75,11 +75,10 @@ func (s *static) List() ([]*v1.RbdEndpoint, error) {
 	var res []*v1.RbdEndpoint
 	for _, ep := range eps {
 		res = append(res, &v1.RbdEndpoint{
-			UUID:     ep.UUID,
-			Sid:      ep.ServiceID,
-			IP:       ep.IP,
-			Port:     ep.Port,
-			IsOnline: *ep.IsOnline,
+			UUID: ep.UUID,
+			Sid:  ep.ServiceID,
+			IP:   ep.IP,
+			Port: ep.Port,
 		})
 	}
 	return res, nil
