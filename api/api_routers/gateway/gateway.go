@@ -37,8 +37,7 @@ func Routes() chi.Router {
 
 	r.Route("/cert", func(r chi.Router) {
 		r.Get("/", controller.GetManager().GetCert)
-		r.Post("/", controller.GetManager().CreateCert)
-		r.Put("/{name}", controller.GetManager().UpdateCert)
+		r.Post("/{name}", controller.GetManager().CreateCert)
 		r.Delete("/{name}", controller.GetManager().DeleteCert)
 	})
 
