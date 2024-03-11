@@ -36,9 +36,8 @@ func (g Struct) GetCert(w http.ResponseWriter, r *http.Request) {
 func (g Struct) CreateCert(w http.ResponseWriter, r *http.Request) {
 	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
 	name := chi.URLParam(r, "name")
-	clientset := handler.GetAPIGatewayHandler().GetK8sClient()
 
-	tlsCert, err := clientset.CoreV1().Secrets(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
+	tlsCert, err := k8s.Default().Clientset.CoreV1().Secrets(tenant.Namespace).Get(r.Context(), name, v1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("get cert error %s", err.Error())
 		httputil.ReturnBcodeError(r, w, bcode.ErrorK8sGetSecret)
