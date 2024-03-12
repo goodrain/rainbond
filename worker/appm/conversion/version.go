@@ -74,8 +74,14 @@ func updateAPISixRoute(as *v1.AppService) error {
 					backends = append(backends, backend)
 				}
 			}
-			apisixroute.Spec.HTTP[0].Backends = backends //重新定义的后端地址
-			_, err2 := otherclient.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).Update(context.Background(), &apisixroute, metav1.UpdateOptions{})
+
+			get, err := otherclient.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).Get(context.Background(), apisixroute.Name, metav1.GetOptions{})
+			if err != nil {
+				logrus.Errorf("get apisix route error: %v", err)
+				continue
+			}
+			get.Spec.HTTP[0].Backends = backends //重新定义的后端地址
+			_, err2 := otherclient.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).Update(context.Background(), get, metav1.UpdateOptions{})
 			if err2 != nil {
 				logrus.Errorf("update apisix route error: %v", err)
 				continue
