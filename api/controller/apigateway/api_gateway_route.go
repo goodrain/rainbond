@@ -138,11 +138,15 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s := strings.ReplaceAll(r.URL.Query().Get("service_alias"), ",", "-")
-	label := map[string]string{
-		"creator":       "Rainbond",
-		"app_id":        r.URL.Query().Get("appID"),
-		"service_alias": s,
-		"host":          apisixRouteHTTP.Match.Hosts[0],
+
+	// 如果没有绑定appId，那么不要加这个lable
+	labels := make(map[string]string)
+	labels["creator"] = "Rainbond"
+	if r.URL.Query().Get("appID") != "" {
+		labels["app_id"] = r.URL.Query().Get("appID")
+	}
+	if s != "" {
+		labels["service_alias"] = s
 	}
 	c := k8s.Default().ApiSixClient.ApisixV2()
 
@@ -162,7 +166,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 			APIVersion: APIVersion,
 		},
 		ObjectMeta: v1.ObjectMeta{
-			Labels:       label,
+			Labels:       labels,
 			Name:         routeName,
 			GenerateName: "rbd",
 		},
@@ -189,7 +193,7 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	get.Spec.HTTP[0] = apisixRouteHTTP
-	get.ObjectMeta.Labels = label
+	get.ObjectMeta.Labels = labels
 
 	update, err := c.ApisixRoutes(tenant.Namespace).Update(r.Context(), get, v1.UpdateOptions{})
 	if err != nil {
