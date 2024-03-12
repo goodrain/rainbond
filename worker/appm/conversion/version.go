@@ -52,7 +52,7 @@ import (
 
 func updateAPISixRoute(as *v1.AppService) error {
 	// 找到这个端口对应的真实的k8s svc的 namne
-	ports, err := db.GetManager().TenantServicesPortDao().GetPortsByServiceID(as.ServiceID)
+	ports, err := db.GetManager().TenantServicesPortDao().GetOuterPorts(as.ServiceID)
 	if err != nil {
 		return err
 	}
@@ -60,6 +60,7 @@ func updateAPISixRoute(as *v1.AppService) error {
 		LabelSelector: "service_alias=" + as.ServiceAlias,
 	})
 
+	logrus.Info(ports)
 	if err1 != nil {
 		logrus.Errorf("get apisix route error: %v", err1)
 		return err
