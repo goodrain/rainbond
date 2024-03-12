@@ -49,7 +49,6 @@ func HubRegistry() *RegistryComponent {
 
 // Start -
 func (r *RegistryComponent) Start(ctx context.Context, cfg *configs.Config) error {
-	logrus.Infof("init hub registry...")
 	var cluster rainbondv1alpha1.RainbondCluster
 
 	err := clients.K8SClientInitClient(k8s.Default().Clientset, k8s.Default().RestConfig)
@@ -69,7 +68,7 @@ func (r *RegistryComponent) Start(ctx context.Context, cfg *configs.Config) erro
 		for {
 			registryCli, err := registry.NewInsecure(registryConfig.Domain, registryConfig.Username, registryConfig.Password)
 			if err == nil {
-				r.RegistryCli = registryCli
+				*r.RegistryCli = *registryCli
 				logrus.Infof("create hub client success")
 				return nil
 			}
