@@ -20,7 +20,7 @@ package server
 
 import (
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
-	"github.com/goodrain/rainbond/pkg/component"
+	"github.com/goodrain/rainbond/pkg/otherclient"
 	"k8s.io/client-go/restmapper"
 	"kubevirt.io/client-go/kubecli"
 	"os"
@@ -83,7 +83,7 @@ func Run(s *option.Worker) error {
 		logrus.Errorf("create apisix clientset error, %v", err)
 		return err
 	}
-	component.SetAPISixClient(apisixclient)
+	otherclient.SetAPISixClient(apisixclient)
 
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {

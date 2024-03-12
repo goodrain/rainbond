@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
-	"github.com/goodrain/rainbond/pkg/component"
+	"github.com/goodrain/rainbond/pkg/otherclient"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	"net"
 	"os"
@@ -57,7 +57,7 @@ func updateApiSixRoute(as *v1.AppService) error {
 		return err
 	}
 	for _, port := range ports {
-		apisixRoutes, err1 := component.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).List(context.Background(), metav1.ListOptions{
+		apisixRoutes, err1 := otherclient.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).List(context.Background(), metav1.ListOptions{
 			LabelSelector: "service_alias=" + as.ServiceAlias,
 		})
 		if err1 != nil {
@@ -74,7 +74,7 @@ func updateApiSixRoute(as *v1.AppService) error {
 				}
 			}
 			apisixroute.Spec.HTTP[0].Backends = backends //重新定义的后端地址
-			_, err2 := component.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).Update(context.Background(), &apisixroute, metav1.UpdateOptions{})
+			_, err2 := otherclient.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).Update(context.Background(), &apisixroute, metav1.UpdateOptions{})
 			if err2 != nil {
 				logrus.Errorf("update apisix route error: %v", err)
 				continue

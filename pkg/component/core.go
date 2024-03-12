@@ -20,7 +20,6 @@ package component
 
 import (
 	"context"
-	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
 	"github.com/goodrain/rainbond/api/controller"
 	"github.com/goodrain/rainbond/api/db"
 	"github.com/goodrain/rainbond/api/handler"
@@ -140,17 +139,4 @@ func MQGrpcServer() rainbond.ComponentCancel {
 // MQClient -
 func MQClient() rainbond.Component {
 	return mqclient.MQClient()
-}
-
-// APISixClient - worker 想要使用 APISixClient 但是不好传递此参数，后续优化worker启动的逻辑
-var apisixclient *apisixversioned.Clientset
-
-// GetAPISixClient -
-func GetAPISixClient() *apisixversioned.Clientset {
-	return apisixclient
-}
-
-// SetAPISixClient -
-func SetAPISixClient(c *apisixversioned.Clientset) {
-	apisixclient = c
 }
