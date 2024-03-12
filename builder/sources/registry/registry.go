@@ -141,8 +141,7 @@ func newFromTransport(registryURL, username, password string, transport http.Rou
 
 func (registry *Registry) url(pathTemplate string, args ...interface{}) string {
 	pathSuffix := fmt.Sprintf(pathTemplate, args...)
-	url := fmt.Sprintf("%s%s", registry.URL, pathSuffix)
-	return url
+	return fmt.Sprintf("%s%s", registry.URL, pathSuffix)
 }
 
 // Ping ping registry server
