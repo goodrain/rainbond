@@ -74,6 +74,7 @@ func updateAPISixRoute(as *v1.AppService) error {
 					backends = append(backends, backend)
 				}
 			}
+			logrus.Infof("apisix backends: %v", backends)
 
 			get, err := otherclient.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).Get(context.Background(), apisixroute.Name, metav1.GetOptions{})
 			if err != nil {
