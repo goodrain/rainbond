@@ -41,7 +41,9 @@ type RegistryComponent struct {
 
 // HubRegistry -
 func HubRegistry() *RegistryComponent {
-	defaultRegistryComponent = &RegistryComponent{}
+	defaultRegistryComponent = &RegistryComponent{
+		RegistryCli: new(registry.Registry),
+	}
 	return defaultRegistryComponent
 }
 
@@ -66,9 +68,10 @@ func (r *RegistryComponent) Start(ctx context.Context, cfg *configs.Config) erro
 	gogo.Go(func(ctx context.Context) error {
 		for {
 			logrus.Info("初始化镜像仓库 ", registryConfig.Domain, registryConfig.Username, registryConfig.Password)
-			r.RegistryCli, err = registry.NewInsecure(registryConfig.Domain, registryConfig.Username, registryConfig.Password)
+			registryCli, err := registry.NewInsecure(registryConfig.Domain, registryConfig.Username, registryConfig.Password)
 			logrus.Info("初始化成功", r.RegistryCli == nil)
 			if err == nil {
+				*r.RegistryCli = *registryCli
 				logrus.Infof("create hub client success")
 				return nil
 			}
