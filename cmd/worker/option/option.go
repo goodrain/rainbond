@@ -20,7 +20,6 @@ package option
 
 import (
 	"fmt"
-	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
 	"os"
 	"path"
 
@@ -52,7 +51,6 @@ type Config struct {
 	RBDNamespace            string
 	GrdataPVCName           string
 	Helm                    Helm
-	ApiSixClient            *apisixversioned.Clientset
 }
 
 // Helm helm configuration.

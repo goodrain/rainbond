@@ -145,10 +145,12 @@ func MQClient() rainbond.Component {
 // APISixClient - worker 想要使用 APISixClient 但是不好传递此参数，后续优化worker启动的逻辑
 var apisixclient *apisixversioned.Clientset
 
+// GetAPISixClient -
 func GetAPISixClient() *apisixversioned.Clientset {
 	return apisixclient
 }
 
+// SetAPISixClient -
 func SetAPISixClient(c *apisixversioned.Clientset) {
 	apisixclient = c
 }
