@@ -67,6 +67,7 @@ func (r *RegistryComponent) Start(ctx context.Context, cfg *configs.Config) erro
 		for {
 			logrus.Info("初始化镜像仓库 ", registryConfig.Domain, registryConfig.Username, registryConfig.Password)
 			r.RegistryCli, err = registry.NewInsecure(registryConfig.Domain, registryConfig.Username, registryConfig.Password)
+			logrus.Info("初始化成功", r.RegistryCli == nil)
 			if err == nil {
 				logrus.Infof("create hub client success")
 				return nil
