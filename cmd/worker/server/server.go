@@ -20,7 +20,7 @@ package server
 
 import (
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
-	"github.com/goodrain/rainbond/pkg/otherclient"
+	"github.com/goodrain/rainbond/otherclient"
 	"k8s.io/client-go/restmapper"
 	"kubevirt.io/client-go/kubecli"
 	"os"

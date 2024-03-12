@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
-	"github.com/goodrain/rainbond/pkg/otherclient"
+	"github.com/goodrain/rainbond/otherclient"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	"net"
 	"os"
