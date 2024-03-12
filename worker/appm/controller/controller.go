@@ -21,7 +21,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"kubevirt.io/client-go/kubecli"
 	"sync"
@@ -79,7 +78,6 @@ type Manager struct {
 	lock          sync.Mutex
 	config        option.Config
 	kubevirtCli   kubecli.KubevirtClient
-	ApiSixClient  *apisixversioned.Clientset
 }
 
 // NewManager new manager

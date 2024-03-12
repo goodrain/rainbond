@@ -56,14 +56,15 @@ func updateApiSixRoute(as *v1.AppService) error {
 	if err != nil {
 		return err
 	}
+	apisixRoutes, err1 := otherclient.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).List(context.Background(), metav1.ListOptions{
+		LabelSelector: "service_alias=" + as.ServiceAlias,
+	})
+
+	if err1 != nil {
+		logrus.Errorf("get apisix route error: %v", err1)
+		return err
+	}
 	for _, port := range ports {
-		apisixRoutes, err1 := otherclient.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).List(context.Background(), metav1.ListOptions{
-			LabelSelector: "service_alias=" + as.ServiceAlias,
-		})
-		if err1 != nil {
-			logrus.Errorf("get apisix route error: %v", err1)
-			continue
-		}
 		// 重新绑定他的后端地址
 		var backends []v2.ApisixRouteHTTPBackend
 		for _, apisixroute := range apisixRoutes.Items {
