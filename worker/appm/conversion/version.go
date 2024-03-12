@@ -50,7 +50,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func updateApiSixRoute(as *v1.AppService) error {
+func updateAPISixRoute(as *v1.AppService) error {
 	// 找到这个端口对应的真实的k8s svc的 namne
 	ports, err := db.GetManager().TenantServicesPortDao().GetPortsByServiceID(as.ServiceID)
 	if err != nil {
@@ -92,9 +92,9 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 		return fmt.Errorf("get service deploy version %s failure %s", as.DeployVersion, err.Error())
 	}
 
-	updateApiSixRouteErr := updateApiSixRoute(as)
-	if updateApiSixRouteErr != nil {
-		logrus.Errorf("update apisix route error: %v", updateApiSixRouteErr)
+	updateAPISixRouteErr := updateAPISixRoute(as)
+	if updateAPISixRouteErr != nil {
+		logrus.Errorf("update apisix route error: %v", updateAPISixRouteErr)
 	}
 
 	envVarSecrets := as.GetEnvVarSecrets(true)
