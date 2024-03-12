@@ -10,7 +10,6 @@ import (
 // RegistryImageRepositories -
 func (s *ServiceAction) RegistryImageRepositories(namespace string) ([]string, *util.APIHandleError) {
 	var tenantRepositories []string
-	logrus.Info(s.registryCli == nil)
 	repositories, err := s.registryCli.Repositories()
 	if err != nil {
 		logrus.Errorf("get tenant repositories failure: %v", err)
