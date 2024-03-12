@@ -19,8 +19,11 @@
 package conversion
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
+	"github.com/goodrain/rainbond/pkg/component"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	"net"
 	"os"
@@ -47,12 +50,52 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+func updateApiSixRoute(as *v1.AppService) error {
+	// 找到这个端口对应的真实的k8s svc的 namne
+	ports, err := db.GetManager().TenantServicesPortDao().GetPortsByServiceID(as.ServiceID)
+	if err != nil {
+		return err
+	}
+	for _, port := range ports {
+		apisixRoutes, err1 := component.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).List(context.Background(), metav1.ListOptions{
+			LabelSelector: "service_alias=" + as.ServiceAlias,
+		})
+		if err1 != nil {
+			logrus.Errorf("get apisix route error: %v", err1)
+			continue
+		}
+		// 重新绑定他的后端地址
+		var backends []v2.ApisixRouteHTTPBackend
+		for _, apisixroute := range apisixRoutes.Items {
+			for _, backend := range apisixroute.Spec.HTTP[0].Backends {
+				if backend.ServicePort.IntVal == int32(port.ContainerPort) {
+					backend.ServiceName = port.K8sServiceName
+					backends = append(backends, backend)
+				}
+			}
+			apisixroute.Spec.HTTP[0].Backends = backends //重新定义的后端地址
+			_, err2 := component.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).Update(context.Background(), &apisixroute, metav1.UpdateOptions{})
+			if err2 != nil {
+				logrus.Errorf("update apisix route error: %v", err)
+				continue
+			}
+		}
+	}
+	return nil
+}
+
 // TenantServiceVersion service deploy version conv. define pod spec
 func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	version, err := dbmanager.VersionInfoDao().GetVersionByDeployVersion(as.DeployVersion, as.ServiceID)
 	if err != nil {
 		return fmt.Errorf("get service deploy version %s failure %s", as.DeployVersion, err.Error())
 	}
+
+	updateApiSixRouteErr := updateApiSixRoute(as)
+	if updateApiSixRouteErr != nil {
+		logrus.Errorf("update apisix route error: %v", updateApiSixRouteErr)
+	}
+
 	envVarSecrets := as.GetEnvVarSecrets(true)
 	logrus.Debugf("[getMainContainer] %d secrets as envs were found.", len(envVarSecrets))
 
