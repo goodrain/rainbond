@@ -186,8 +186,7 @@ func (g Struct) DeleteCert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientset := handler.GetAPIGatewayHandler().GetK8sClient()
-	err = clientset.CoreV1().Secrets(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
+	err = k8s.Default().Clientset.CoreV1().Secrets(tenant.Namespace).Delete(r.Context(), name, v1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		logrus.Errorf("delete cert error %s", err.Error())
 		httputil.ReturnBcodeError(r, w, bcode.ErrorK8sDeleteSecret)

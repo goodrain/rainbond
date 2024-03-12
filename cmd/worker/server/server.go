@@ -19,6 +19,8 @@
 package server
 
 import (
+	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
+	"github.com/goodrain/rainbond/otherclient"
 	"k8s.io/client-go/restmapper"
 	"kubevirt.io/client-go/kubecli"
 	"os"
@@ -74,12 +76,22 @@ func Run(s *option.Worker) error {
 	}
 	restConfig.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(float32(s.Config.KubeAPIQPS), s.Config.KubeAPIBurst)
 	kubevirtCli, err := kubecli.GetKubevirtClientFromRESTConfig(restConfig)
+
+	// 初始化 apisix client
+	apisixclient, err := apisixversioned.NewForConfig(restConfig)
+	if err != nil {
+		logrus.Errorf("create apisix clientset error, %v", err)
+		return err
+	}
+	otherclient.SetAPISixClient(apisixclient)
+
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		logrus.Errorf("create kube client error: %s", err.Error())
 		return err
 	}
 	s.Config.KubeClient = clientset
+
 	runtimeClient, err := client.New(restConfig, client.Options{Scheme: common.Scheme})
 	if err != nil {
 		logrus.Errorf("create kube runtime client error: %s", err.Error())

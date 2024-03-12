@@ -41,13 +41,14 @@ type RegistryComponent struct {
 
 // HubRegistry -
 func HubRegistry() *RegistryComponent {
-	defaultRegistryComponent = &RegistryComponent{}
+	defaultRegistryComponent = &RegistryComponent{
+		RegistryCli: new(registry.Registry),
+	}
 	return defaultRegistryComponent
 }
 
 // Start -
 func (r *RegistryComponent) Start(ctx context.Context, cfg *configs.Config) error {
-	logrus.Infof("init hub registry...")
 	var cluster rainbondv1alpha1.RainbondCluster
 
 	err := clients.K8SClientInitClient(k8s.Default().Clientset, k8s.Default().RestConfig)
@@ -64,10 +65,10 @@ func (r *RegistryComponent) Start(ctx context.Context, cfg *configs.Config) erro
 		registryConfig.Domain = cfg.APIConfig.RbdHub
 	}
 	gogo.Go(func(ctx context.Context) error {
-		var err error
 		for {
-			r.RegistryCli, err = registry.NewInsecure(registryConfig.Domain, registryConfig.Username, registryConfig.Password)
+			registryCli, err := registry.NewInsecure(registryConfig.Domain, registryConfig.Username, registryConfig.Password)
 			if err == nil {
+				*r.RegistryCli = *registryCli
 				logrus.Infof("create hub client success")
 				return nil
 			}

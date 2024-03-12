@@ -59,6 +59,13 @@ func (g Struct) CreateAPIService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c := k8s.Default().ApiSixClient.ApisixV2()
+
+	// 如果没有绑定appId，那么不要加这个lable
+	labels := make(map[string]string)
+	labels["creator"] = "Rainbond"
+	if r.URL.Query().Get("appID") != "" {
+		labels["app_id"] = r.URL.Query().Get("appID")
+	}
 	create, err := c.ApisixUpstreams(tenant.Namespace).Create(r.Context(), &v2.ApisixUpstream{
 		TypeMeta: v1.TypeMeta{
 			Kind:       ApisixUpstream,
@@ -67,10 +74,7 @@ func (g Struct) CreateAPIService(w http.ResponseWriter, r *http.Request) {
 		ObjectMeta: v1.ObjectMeta{
 			Name:         chi.URLParam(r, "name"),
 			GenerateName: "rbd",
-			Labels: map[string]string{
-				"creator": "Rainbond",
-				"app_id":  r.URL.Query().Get("appID"),
-			},
+			Labels:       labels,
 		},
 		Spec: &spec,
 	}, v1.CreateOptions{})

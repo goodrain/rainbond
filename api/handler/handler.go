@@ -50,6 +50,7 @@ func InitHandle(conf option.Config) error {
 	kubevirtCli := k8s.Default().KubevirtCli
 	mapper := k8s.Default().Mapper
 	registryCli := hubregistry.Default().RegistryCli
+
 	mqClient := mq.Default().MqClient
 	prometheusCli := prom.Default().PrometheusCli
 

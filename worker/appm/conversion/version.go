@@ -19,8 +19,11 @@
 package conversion
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
+	"github.com/goodrain/rainbond/otherclient"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	"net"
 	"os"
@@ -47,12 +50,58 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+func updateAPISixRoute(as *v1.AppService) error {
+	// 找到这个端口对应的真实的k8s svc的 namne
+	ports, err := db.GetManager().TenantServicesPortDao().GetOuterPorts(as.ServiceID)
+	if err != nil {
+		return err
+	}
+	apisixRoutes, err1 := otherclient.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).List(context.Background(), metav1.ListOptions{
+		LabelSelector: "service_alias=" + as.ServiceAlias,
+	})
+
+	if err1 != nil {
+		logrus.Errorf("get apisix route error: %v", err1)
+		return err
+	}
+	for _, port := range ports {
+		// 重新绑定他的后端地址
+		var backends []v2.ApisixRouteHTTPBackend
+		for _, apisixroute := range apisixRoutes.Items {
+			for _, backend := range apisixroute.Spec.HTTP[0].Backends {
+				if backend.ServicePort.IntVal == int32(port.ContainerPort) {
+					backend.ServiceName = port.K8sServiceName
+					backends = append(backends, backend)
+				}
+			}
+			get, err := otherclient.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).Get(context.Background(), apisixroute.Name, metav1.GetOptions{})
+			if err != nil {
+				logrus.Errorf("get apisix route error: %v", err)
+				continue
+			}
+			get.Spec.HTTP[0].Backends = backends //重新定义的后端地址
+			_, err2 := otherclient.GetAPISixClient().ApisixV2().ApisixRoutes(as.GetNamespace()).Update(context.Background(), get, metav1.UpdateOptions{})
+			if err2 != nil {
+				logrus.Errorf("update apisix route error: %v", err)
+				continue
+			}
+		}
+	}
+	return nil
+}
+
 // TenantServiceVersion service deploy version conv. define pod spec
 func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 	version, err := dbmanager.VersionInfoDao().GetVersionByDeployVersion(as.DeployVersion, as.ServiceID)
 	if err != nil {
 		return fmt.Errorf("get service deploy version %s failure %s", as.DeployVersion, err.Error())
 	}
+
+	updateAPISixRouteErr := updateAPISixRoute(as)
+	if updateAPISixRouteErr != nil {
+		logrus.Errorf("update apisix route error: %v", updateAPISixRouteErr)
+	}
+
 	envVarSecrets := as.GetEnvVarSecrets(true)
 	logrus.Debugf("[getMainContainer] %d secrets as envs were found.", len(envVarSecrets))
 
