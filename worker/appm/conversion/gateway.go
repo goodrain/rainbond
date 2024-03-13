@@ -21,7 +21,6 @@ package conversion
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/goodrain/rainbond/db"
@@ -152,23 +151,6 @@ func (a *AppServiceBuild) Build() (*v1.K8sResources, error) {
 			port := ports[i]
 			if *port.IsInnerService {
 				innerService = append(innerService, port)
-			}
-			if *port.IsOuterService {
-				service := a.createOuterService(port)
-				services = append(services, service)
-				relContainerPort := pp[int32(port.ContainerPort)]
-				if relContainerPort == 0 {
-					relContainerPort = port.ContainerPort
-				}
-				ings, secrs, err := a.ApplyRules(port.ServiceID, relContainerPort, port.ContainerPort, service)
-				if err != nil {
-					logrus.Errorf("error applying rules: %s", err.Error())
-					return nil, err
-				}
-				ingresses = append(ingresses, ings...)
-				if secrs != nil {
-					secrets = append(secrets, secrs...)
-				}
 			}
 		}
 	}
@@ -385,9 +367,6 @@ func (a *AppServiceBuild) BuildOnPort(p int, isOut bool) (*corev1.Service, error
 		if !isOut && *port.IsInnerService {
 			return a.createInnerService([]*model.TenantServicesPort{port}), nil
 		}
-		if isOut && *port.IsOuterService {
-			return a.createOuterService(port), nil
-		}
 	}
 	return nil, fmt.Errorf("tenant service port %d is not exist", p)
 }
@@ -434,40 +413,6 @@ func (a *AppServiceBuild) createInnerService(ports []*model.TenantServicesPort) 
 	}
 	spec := corev1.ServiceSpec{
 		Ports: servicePorts,
-	}
-	if a.appService.ServiceKind != model.ServiceKindThirdParty {
-		spec.Selector = map[string]string{"name": a.service.ServiceAlias}
-	}
-	service.Spec = spec
-	return &service
-}
-
-func (a *AppServiceBuild) createOuterService(port *model.TenantServicesPort) *corev1.Service {
-	var service corev1.Service
-	service.Name = fmt.Sprintf("%s-%d-%dout", a.appService.GetK8sWorkloadName(), port.ID, port.ContainerPort)
-	service.Namespace = a.appService.GetNamespace()
-	service.Labels = a.appService.GetCommonLabels(map[string]string{
-		"service_type":  "outer",
-		"name":          a.service.ServiceAlias + "ServiceOUT",
-		"tenant_name":   a.tenant.Name,
-		"protocol":      port.Protocol,
-		"port_protocol": port.Protocol,
-		"service_port":  strconv.Itoa(port.ContainerPort),
-		"event_id":      a.eventID,
-		"version":       a.service.DeployVersion,
-	})
-	if a.service.Replicas <= 1 {
-		service.Labels["rainbond.com/tolerate-unready-endpoints"] = "true"
-	}
-	var servicePort corev1.ServicePort
-	servicePort.Protocol = conversionPortProtocol(port.Protocol)
-	servicePort.TargetPort = intstr.FromInt(port.ContainerPort)
-	servicePort.Name = generateSVCPortName(port.Protocol, port.ContainerPort)
-	servicePort.Port = int32(port.ContainerPort)
-	portType := corev1.ServiceTypeClusterIP
-	spec := corev1.ServiceSpec{
-		Ports: []corev1.ServicePort{servicePort},
-		Type:  portType,
 	}
 	if a.appService.ServiceKind != model.ServiceKindThirdParty {
 		spec.Selector = map[string]string{"name": a.service.ServiceAlias}
