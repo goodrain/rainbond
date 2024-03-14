@@ -31,6 +31,7 @@ import (
 	"github.com/goodrain/rainbond/worker/server"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"strconv"
 	"strings"
@@ -100,6 +101,20 @@ func PodNums(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, podNums)
 }
 
+// SystemPodDetail -
+func (p *PodController) SystemPodDetail(w http.ResponseWriter, r *http.Request) {
+	ns := r.URL.Query().Get("ns")
+	name := r.URL.Query().Get("name")
+	list, err := k8s.Default().Clientset.CoreV1().Pods(ns).List(r.Context(), metav1.ListOptions{
+		LabelSelector: "name=" + name,
+	})
+	if err != nil {
+		logrus.Errorf("error getting pod detail: %v", err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, list)
+}
+
 // PodDetail -
 func (p *PodController) PodDetail(w http.ResponseWriter, r *http.Request) {
 	podName := chi.URLParam(r, "pod_name")
@@ -118,17 +133,14 @@ func (p *PodController) PodDetail(w http.ResponseWriter, r *http.Request) {
 	httputil.ReturnSuccess(r, w, pd)
 }
 
-// PodLogs -
-func (p *PodController) PodLogs(w http.ResponseWriter, r *http.Request) {
-	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*model.Tenants)
-	podName := chi.URLParam(r, "pod_name")
+func logs(w http.ResponseWriter, r *http.Request, podName string, namespace string) {
 	lines, err := strconv.Atoi(r.URL.Query().Get("lines"))
 	if err != nil {
 		lines = 100
 	}
 	tailLines := int64(lines)
 
-	req := k8s.Default().Clientset.CoreV1().Pods(tenant.Namespace).GetLogs(podName, &corev1.PodLogOptions{
+	req := k8s.Default().Clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
 		Follow:     true,
 		Timestamps: true,
 		TailLines:  &tailLines,
@@ -171,4 +183,17 @@ func (p *PodController) PodLogs(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+// SystemPodLogs -
+func (p *PodController) SystemPodLogs(w http.ResponseWriter, r *http.Request) {
+	ns := r.URL.Query().Get("ns")
+	name := r.URL.Query().Get("name")
+	logs(w, r, name, ns)
+}
+
+// PodLogs -
+func (p *PodController) PodLogs(w http.ResponseWriter, r *http.Request) {
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*model.Tenants)
+	logs(w, r, chi.URLParam(r, "pod_name"), tenant.Namespace)
 }
