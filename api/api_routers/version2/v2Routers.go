@@ -37,6 +37,8 @@ func (v2 *V2) Routes() chi.Router {
 	license := middleware.NewLicense(v2.Cfg)
 	r.Use(license.Verify)
 	r.Get("/show", controller.GetManager().Show)
+	r.Get("/system/pods", controller.GetManager().SystemPodDetail)
+	r.Get("/system/logs", controller.GetManager().SystemPodLogs)
 	r.Post("/show", controller.GetManager().Show)
 	r.Mount("/tenants", v2.tenantRouter())
 	r.Mount("/cluster", v2.clusterRouter())
