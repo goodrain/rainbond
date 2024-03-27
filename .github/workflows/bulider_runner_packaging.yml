@@ -1,45 +1,72 @@
 name: builder runner packaging
 on:
-  repository_dispatch:
-    types:
-      - runner-builder
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'branch'
+        required: true
+        default: 'master'
+      clone_url:
+        description: 'clone_url'
+        required: true
+        default: 'https://github.com/goodrain'
+      version:
+        description: 'version'
+        default: 'v5.17.1-release'
+        required: true
+      environment:
+        description: 'environment'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - release-arm
+      os:
+        description: 'os'
+        required: true
+        default: 'ubuntu-22.04'
+        type: choice
+        options:
+          - ubuntu-22.04
+          - self-hosted
 
 env:
-  VERSION: ${{ github.event.client_payload.version }}
+  VERSION: ${{ github.event.inputs.version }}
 
 jobs:
   build-runner:
-    runs-on: ${{ github.event.client_payload.os }}
-    environment: ${{ github.event.client_payload.environment }}
+    runs-on: ${{ github.event.inputs.os }}
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Pull code and Build the Docker image
         env:
           DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
-          git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/runner.git
+          git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/runner.git
           cd runner
           chmod +x ./release.sh
           ./release.sh
   
   build-builder:
-    runs-on: ${{ github.event.client_payload.os }}
-    environment: ${{ github.event.client_payload.environment }}
+    runs-on: ${{ github.event.inputs.os }}
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Pull code and Build the Docker image
         env:
           DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
-          git clone -b ${{ github.event.client_payload.branch }} ${{ github.event.client_payload.clone_url }}/builder.git
+          git clone -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.clone_url }}/builder.git
           cd builder
           chmod +x ./release.sh
           ./release.sh
           
   push-arch:
-    if: github.event.client_payload.os == 'self-hosted'
+    if: github.event.inputs.os == 'self-hosted'
     needs: [build-runner,build-builder]
-    runs-on: ${{ github.event.client_payload.os }}
+    runs-on: ${{ github.event.inputs.os }}
     environment: release-arch
     steps:
       - uses: actions/checkout@v2
