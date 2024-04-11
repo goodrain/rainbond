@@ -292,7 +292,6 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serviceName := apisixRouteStream.Backend.ServiceName
-
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{
 			{
@@ -303,26 +302,60 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 				NodePort:   apisixRouteStream.Match.IngressPort,
 			},
 		},
-		Selector: map[string]string{
-			"service_alias": serviceName,
-		},
 		Type: "NodePort",
+	}
+	serviceID := r.URL.Query().Get("service_id")
+
+	// 如果不是第三方组件，需要绑定 service_alias，第三方组件会从ep中自动读取
+	if r.URL.Query().Get("service_type") != "third_party" {
+		spec.Selector = map[string]string{
+			"service_alias": serviceName,
+		}
+	} else {
+		// 创建一个空的endpoint
+		k.Endpoints(tenant.Namespace).Create(r.Context(), &corev1.Endpoints{
+			ObjectMeta: v1.ObjectMeta{
+				Name: serviceName + "-tcp",
+				Labels: map[string]string{
+					"tcp":        "true",
+					"app_id":     r.URL.Query().Get("appID"),
+					"service_id": r.URL.Query().Get("service_id"),
+				},
+			},
+		}, v1.CreateOptions{})
 	}
 	e, err := k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
 		ObjectMeta: v1.ObjectMeta{
 			Labels: map[string]string{
-				"tcp":    "true",
-				"app_id": r.URL.Query().Get("appID"),
+				"tcp":        "true",
+				"app_id":     r.URL.Query().Get("appID"),
+				"service_id": r.URL.Query().Get("service_id"),
 			},
 			Name: serviceName + "-tcp",
 		},
 		Spec: spec,
 	}, v1.CreateOptions{})
 	if err == nil {
+		// 找到这个第三方组件，去更新状态
+		list, err := k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).List(r.Context(), v1.ListOptions{
+			LabelSelector: "service_id=" + serviceID,
+		})
+		if err != nil {
+			logrus.Errorf("get route error %s", err.Error())
+			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+			return
+		}
+		for _, v := range list.Items {
+			for i := range v.Spec.Ports {
+				v.Spec.Ports[i].OpenOuter = !v.Spec.Ports[i].OpenOuter
+				k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).Update(r.Context(), &v, v1.UpdateOptions{})
+			}
+		}
+
 		httputil.ReturnSuccess(r, w, e.Spec.Ports[0].NodePort)
 		return
 	}
-	get, err := k.Services(tenant.Namespace).Get(r.Context(), serviceName, v1.GetOptions{})
+	get, err := k.Services(tenant.Namespace).Get(r.Context(), serviceName+"-tcp", v1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("get route error %s", err.Error())
 		httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
