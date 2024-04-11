@@ -292,7 +292,6 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serviceName := apisixRouteStream.Backend.ServiceName
-
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{
 			{
@@ -308,11 +307,19 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		},
 		Type: "NodePort",
 	}
+
+	// 如果不是第三方组件，需要绑定 service_alias，第三方组件会从ep中自动读取
+	if r.URL.Query().Get("service_type") != "third_party" {
+		spec.Selector = map[string]string{
+			"service_alias": serviceName,
+		}
+	}
 	e, err := k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
 		ObjectMeta: v1.ObjectMeta{
 			Labels: map[string]string{
-				"tcp":    "true",
-				"app_id": r.URL.Query().Get("appID"),
+				"tcp":        "true",
+				"app_id":     r.URL.Query().Get("appID"),
+				"service_id": r.URL.Query().Get("service_id"),
 			},
 			Name: serviceName + "-tcp",
 		},
@@ -322,7 +329,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		httputil.ReturnSuccess(r, w, e.Spec.Ports[0].NodePort)
 		return
 	}
-	get, err := k.Services(tenant.Namespace).Get(r.Context(), serviceName, v1.GetOptions{})
+	get, err := k.Services(tenant.Namespace).Get(r.Context(), serviceName+"-tcp", v1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("get route error %s", err.Error())
 		httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
