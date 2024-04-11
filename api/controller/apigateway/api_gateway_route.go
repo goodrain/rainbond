@@ -304,6 +304,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 		},
 		Type: "NodePort",
 	}
+	serviceID := r.URL.Query().Get("service_id")
 
 	// 如果不是第三方组件，需要绑定 service_alias，第三方组件会从ep中自动读取
 	if r.URL.Query().Get("service_type") != "third_party" {
@@ -311,6 +312,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 			"service_alias": serviceName,
 		}
 	} else {
+		// 创建一个空的endpoint
 		k.Endpoints(tenant.Namespace).Create(r.Context(), &corev1.Endpoints{
 			ObjectMeta: v1.ObjectMeta{
 				Name: serviceName + "-tcp",
@@ -321,6 +323,22 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 				},
 			},
 		}, v1.CreateOptions{})
+
+		// 找到这个第三方组件，去更新状态
+		list, err := k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).List(r.Context(), v1.ListOptions{
+			LabelSelector: "service_id=" + serviceID,
+		})
+		if err != nil {
+			logrus.Errorf("get route error %s", err.Error())
+			httputil.ReturnBcodeError(r, w, bcode.ErrRouteUpdate)
+			return
+		}
+		for _, v := range list.Items {
+			for i := range v.Spec.Ports {
+				v.Spec.Ports[i].OpenOuter = !v.Spec.Ports[i].OpenOuter
+				k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).Update(r.Context(), &v, v1.UpdateOptions{})
+			}
+		}
 	}
 	e, err := k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
 		ObjectMeta: v1.ObjectMeta{
