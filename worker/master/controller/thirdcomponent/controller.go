@@ -206,6 +206,12 @@ func (r *Reconciler) applyEndpointService(ctx context.Context, log *logrus.Entry
 			return
 		}
 	}
+
+	if err := r.applyer.Apply(ctx, ep); err != nil {
+		log.Errorf("apply endpoint for service %s failure %s", svc.Name, err.Error())
+	}
+
+	ep.Name = ep.Name + "-tcp"
 	if err := r.applyer.Apply(ctx, ep); err != nil {
 		log.Errorf("apply endpoint for service %s failure %s", svc.Name, err.Error())
 	}

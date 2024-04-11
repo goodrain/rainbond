@@ -302,9 +302,6 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 				NodePort:   apisixRouteStream.Match.IngressPort,
 			},
 		},
-		Selector: map[string]string{
-			"service_alias": serviceName,
-		},
 		Type: "NodePort",
 	}
 
