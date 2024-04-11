@@ -323,7 +323,19 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 				},
 			},
 		}, v1.CreateOptions{})
-
+	}
+	e, err := k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
+		ObjectMeta: v1.ObjectMeta{
+			Labels: map[string]string{
+				"tcp":        "true",
+				"app_id":     r.URL.Query().Get("appID"),
+				"service_id": r.URL.Query().Get("service_id"),
+			},
+			Name: serviceName + "-tcp",
+		},
+		Spec: spec,
+	}, v1.CreateOptions{})
+	if err == nil {
 		// 找到这个第三方组件，去更新状态
 		list, err := k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).List(r.Context(), v1.ListOptions{
 			LabelSelector: "service_id=" + serviceID,
@@ -339,19 +351,7 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 				k8s.Default().RainbondClient.RainbondV1alpha1().ThirdComponents(tenant.Namespace).Update(r.Context(), &v, v1.UpdateOptions{})
 			}
 		}
-	}
-	e, err := k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
-		ObjectMeta: v1.ObjectMeta{
-			Labels: map[string]string{
-				"tcp":        "true",
-				"app_id":     r.URL.Query().Get("appID"),
-				"service_id": r.URL.Query().Get("service_id"),
-			},
-			Name: serviceName + "-tcp",
-		},
-		Spec: spec,
-	}, v1.CreateOptions{})
-	if err == nil {
+
 		httputil.ReturnSuccess(r, w, e.Spec.Ports[0].NodePort)
 		return
 	}
