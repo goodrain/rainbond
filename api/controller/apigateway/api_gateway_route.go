@@ -3,7 +3,6 @@ package apigateway
 import (
 	v2 "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/apis/config/v2"
 	"github.com/go-chi/chi"
-	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/util/bcode"
 	ctxutil "github.com/goodrain/rainbond/api/util/ctx"
 	dbmodel "github.com/goodrain/rainbond/db/model"
@@ -312,14 +311,16 @@ func (g Struct) CreateTCPRoute(w http.ResponseWriter, r *http.Request) {
 			"service_alias": serviceName,
 		}
 	} else {
-		if err := handler.GetGatewayHandler().SendTaskDeprecated(map[string]interface{}{
-			"service_id": r.URL.Query().Get("service_id"),
-			"action":     "port-open",
-			"port":       apisixRouteStream.Backend.ServicePort,
-			"is_inner":   true,
-		}); err != nil {
-			logrus.Errorf("send runtime message about gateway failure %s", err.Error())
-		}
+		k.Endpoints(tenant.Namespace).Create(r.Context(), &corev1.Endpoints{
+			ObjectMeta: v1.ObjectMeta{
+				Name: serviceName + "-tcp",
+				Labels: map[string]string{
+					"tcp":        "true",
+					"app_id":     r.URL.Query().Get("appID"),
+					"service_id": r.URL.Query().Get("service_id"),
+				},
+			},
+		}, v1.CreateOptions{})
 	}
 	e, err := k.Services(tenant.Namespace).Create(r.Context(), &corev1.Service{
 		ObjectMeta: v1.ObjectMeta{
