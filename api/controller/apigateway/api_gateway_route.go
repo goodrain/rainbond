@@ -9,6 +9,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	httputil "github.com/goodrain/rainbond/util/http"
 	"github.com/sirupsen/logrus"
+	"github.com/twinj/uuid"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -154,11 +155,8 @@ func (g Struct) CreateHTTPAPIRoute(w http.ResponseWriter, r *http.Request) {
 
 	routeName = strings.ReplaceAll(routeName, "/", "p-p")
 	routeName = strings.ReplaceAll(routeName, "*", "s-s")
-	if len(routeName) > 30 {
-		apisixRouteHTTP.Name = routeName[:30]
-	} else {
-		apisixRouteHTTP.Name = routeName
-	}
+
+	apisixRouteHTTP.Name = uuid.NewV4().String()[0:8] //每次都让他变化，让 apisix controller去更新
 
 	route, err := c.ApisixRoutes(tenant.Namespace).Create(r.Context(), &v2.ApisixRoute{
 		TypeMeta: v1.TypeMeta{
