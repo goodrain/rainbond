@@ -21,6 +21,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond-operator/util/constants"
+	"github.com/goodrain/rainbond/monitor/utils"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -37,7 +39,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//NewSourceBuildCmd cmd for source build test
+// NewSourceBuildCmd cmd for source build test
 func NewSourceBuildCmd() cli.Command {
 	c := cli.Command{
 		Subcommands: []cli.Command{
@@ -48,7 +50,7 @@ func NewSourceBuildCmd() cli.Command {
 					cli.StringFlag{
 						Name:  "namespace,ns",
 						Usage: "rainbond default namespace",
-						Value: "rbd-system",
+						Value: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 					},
 				},
 				Action: func(ctx *cli.Context) {
@@ -66,7 +68,7 @@ func NewSourceBuildCmd() cli.Command {
 					cli.StringFlag{
 						Name:  "namespace,ns",
 						Usage: "rainbond default namespace",
-						Value: "rbd-system",
+						Value: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 					},
 				},
 				Action: func(ctx *cli.Context) {
@@ -92,7 +94,7 @@ func NewSourceBuildCmd() cli.Command {
 							cli.StringFlag{
 								Name:  "namespace,ns",
 								Usage: "rainbond default namespace",
-								Value: "rbd-system",
+								Value: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 							},
 						},
 						Usage: "list maven setting config file manage",
@@ -127,7 +129,7 @@ func NewSourceBuildCmd() cli.Command {
 							cli.StringFlag{
 								Name:  "namespace,ns",
 								Usage: "rainbond default namespace",
-								Value: "rbd-system",
+								Value: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 							},
 						},
 						Usage: "get maven setting config file manage",
@@ -157,7 +159,7 @@ func NewSourceBuildCmd() cli.Command {
 							cli.StringFlag{
 								Name:  "namespace,ns",
 								Usage: "rainbond default namespace",
-								Value: "rbd-system",
+								Value: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 							},
 						},
 						Action: func(ctx *cli.Context) {
@@ -206,7 +208,7 @@ func NewSourceBuildCmd() cli.Command {
 							cli.StringFlag{
 								Name:  "namespace,ns",
 								Usage: "rainbond default namespace",
-								Value: "rbd-system",
+								Value: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 							},
 						},
 						Action: func(ctx *cli.Context) {
@@ -251,7 +253,7 @@ func NewSourceBuildCmd() cli.Command {
 							cli.StringFlag{
 								Name:  "namespace,ns",
 								Usage: "rainbond default namespace",
-								Value: "rbd-system",
+								Value: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 							},
 						},
 						Action: func(ctx *cli.Context) {

@@ -21,6 +21,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond-operator/util/constants"
+	"github.com/goodrain/rainbond/monitor/utils"
 	"os"
 
 	"github.com/goodrain/rainbond/grctl/clients"
@@ -29,7 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//NewCmdConfig config command
+// NewCmdConfig config command
 func NewCmdConfig() cli.Command {
 	c := cli.Command{
 		Name: "config",
@@ -41,7 +43,7 @@ func NewCmdConfig() cli.Command {
 			cli.StringFlag{
 				Name:  "namespace,ns",
 				Usage: "rainbond default namespace",
-				Value: "rbd-system",
+				Value: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 			},
 		},
 		Usage: "show region config file",

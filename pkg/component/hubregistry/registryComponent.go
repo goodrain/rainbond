@@ -21,9 +21,11 @@ package hubregistry
 import (
 	"context"
 	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
+	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/grctl/clients"
+	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/gogo"
 	"github.com/pkg/errors"
@@ -56,7 +58,7 @@ func (r *RegistryComponent) Start(ctx context.Context, cfg *configs.Config) erro
 		logrus.Errorf("k8s client init rainbondClient failure: %v", err)
 		return err
 	}
-	if err := clients.RainbondKubeClient.Get(context.Background(), types.NamespacedName{Namespace: "rbd-system", Name: "rainbondcluster"}, &cluster); err != nil {
+	if err := clients.RainbondKubeClient.Get(context.Background(), types.NamespacedName{Namespace: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), Name: "rainbondcluster"}, &cluster); err != nil {
 		return errors.Wrap(err, "get configuration from rainbond cluster")
 	}
 

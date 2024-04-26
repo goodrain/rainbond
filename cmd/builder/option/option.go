@@ -20,7 +20,9 @@ package option
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/builder/sources"
+	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/goodrain/rainbond/mq/client"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -87,7 +89,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&a.CleanUp, "clean-up", true, "Turn on build version cleanup")
 	fs.StringVar(&a.Topic, "topic", "builder", "Topic in mq,you coule choose `builder` or `windows_builder`")
 	fs.StringVar(&a.LogPath, "log-path", "/grdata/logs", "Where Docker log files and event log files are stored.")
-	fs.StringVar(&a.RbdNamespace, "rbd-namespace", "rbd-system", "rbd component namespace")
+	fs.StringVar(&a.RbdNamespace, "rbd-namespace", utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), "rbd component namespace")
 	fs.StringVar(&a.RbdRepoName, "rbd-repo", "rbd-repo", "rbd component repo's name")
 	fs.StringVar(&a.GRDataPVCName, "pvc-grdata-name", "grdata", "pvc name of grdata")
 	fs.StringVar(&a.CachePVCName, "pvc-cache-name", "cache", "pvc name of cache")

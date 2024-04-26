@@ -22,7 +22,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/goodrain/rainbond-operator/api/v1alpha1"
+	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/grctl/clients"
+	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -62,7 +64,7 @@ const (
 	namespace   = "rbd-system"
 )
 
-//NewCmdReplace replace cmd
+// NewCmdReplace replace cmd
 func NewCmdReplace() cli.Command {
 	var (
 		ip     string
@@ -120,7 +122,7 @@ func NewCmdReplace() cli.Command {
 					var rc v1alpha1.RainbondCluster
 					// get rainbondcluster info
 					if err := clients.RainbondKubeClient.Get(context.Background(),
-						types.NamespacedName{Namespace: "rbd-system", Name: "rainbondcluster"}, &rc); err != nil {
+						types.NamespacedName{Namespace: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), Name: "rainbondcluster"}, &rc); err != nil {
 						return errors.Wrap(err, "get rainbondcluster info")
 					}
 					//update ip
@@ -129,17 +131,17 @@ func NewCmdReplace() cli.Command {
 						return errors.Wrap(err, "update rainbond cluster")
 					}
 					// delete rbd-api-client-cert
-					if err := clients.K8SClient.CoreV1().Secrets("rbd-system").Delete(context.Background(),
+					if err := clients.K8SClient.CoreV1().Secrets(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).Delete(context.Background(),
 						"rbd-api-client-cert", metav1.DeleteOptions{}); err != nil {
 						return errors.Wrap(err, "delete rbd-api-client-cert")
 					}
 					// delete rbd-api-server-cert
-					if err := clients.K8SClient.CoreV1().Secrets("rbd-system").Delete(context.Background(),
+					if err := clients.K8SClient.CoreV1().Secrets(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).Delete(context.Background(),
 						"rbd-api-server-cert", metav1.DeleteOptions{}); err != nil {
 						return errors.Wrap(err, "delete rbd-api-server-cert error")
 					}
 					// get pod list
-					pods, err := clients.K8SClient.CoreV1().Pods("rbd-system").List(context.Background(),
+					pods, err := clients.K8SClient.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).List(context.Background(),
 						metav1.ListOptions{})
 					if err != nil {
 						return errors.Wrap(err, "get rainbond pod list error")

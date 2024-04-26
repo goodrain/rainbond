@@ -21,7 +21,9 @@ package gc
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/monitor/utils"
 	"os"
 	"path"
 	"time"
@@ -187,7 +189,7 @@ func (g *GarbageCollector) DelComponentPkg(serviceGCReq model.ServiceGCTaskBody)
 
 // DelShellPod deletes shell pod
 func (g *GarbageCollector) DelShellPod() {
-	podList, err := g.clientset.CoreV1().Pods("rbd-system").List(context.Background(), metav1.ListOptions{
+	podList, err := g.clientset.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).List(context.Background(), metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/part-of=shell-tool",
 	})
 	if err != nil {
@@ -196,7 +198,7 @@ func (g *GarbageCollector) DelShellPod() {
 	for _, pod := range podList.Items {
 		duration := time.Since(pod.CreationTimestamp.Time)
 		if duration.Hours() > 6 {
-			err = g.clientset.CoreV1().Pods("rbd-system").Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
+			err = g.clientset.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).Delete(context.Background(), pod.Name, metav1.DeleteOptions{})
 			if err != nil {
 				logrus.Error("delete shell pod error:", err)
 			}

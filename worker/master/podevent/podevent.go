@@ -3,6 +3,8 @@ package podevent
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond-operator/util/constants"
+	"github.com/goodrain/rainbond/monitor/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"sort"
@@ -115,7 +117,7 @@ func (p *PodEvent) GetChan() chan<- *corev1.Pod {
 	return p.podEventCh
 }
 
-//recordUpdateEvent -
+// recordUpdateEvent -
 func recordUpdateEvent(clientset kubernetes.Interface, pod *corev1.Pod, f determineOptType) {
 	evt, err := db.GetManager().ServiceEventDao().LatestFailurePodEvent(pod.GetName())
 	if err != nil && err != gorm.ErrRecordNotFound {
@@ -300,7 +302,7 @@ func AbnormalEvent(clientset kubernetes.Interface, pod *corev1.Pod) {
 	}
 	if pod != nil && pod.Status.Phase == corev1.PodRunning {
 		servicePods, err := clientset.CoreV1().Pods(pod.GetNamespace()).List(context.Background(), metav1.ListOptions{
-			FieldSelector: "metadata.namespace!=rbd-system",
+			FieldSelector: "metadata.namespace!=" + utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 			LabelSelector: fields.SelectorFromSet(map[string]string{
 				"service_id": serviceID,
 			}).String(),
