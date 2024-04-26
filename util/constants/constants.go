@@ -1,6 +1,8 @@
 package constants
 
 const (
+	// Namespace -
+	Namespace = "rbd-system"
 	// Rainbond -
 	Rainbond = "rainbond"
 	// DefImageRepository default private image repository
