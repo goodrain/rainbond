@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
+	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/grctl/clients"
+	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/urfave/cli"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,7 +15,7 @@ import (
 	"strings"
 )
 
-//NewCmdMigrateConsole -
+// NewCmdMigrateConsole -
 func NewCmdMigrateConsole() cli.Command {
 	c := cli.Command{
 		Name:  "migrate",
@@ -103,7 +105,7 @@ func initConsoleYaml(ctx *cli.Context) error {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rbd-app-ui",
-			Namespace: "rbd-system",
+			Namespace: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 			Labels:    labels,
 		},
 		Spec: rainbondv1alpha1.RbdComponentSpec{
@@ -136,7 +138,7 @@ func initConsoleYaml(ctx *cli.Context) error {
 		}
 		var cluster rainbondv1alpha1.RainbondCluster
 		err = clients.RainbondKubeClient.Get(context.Background(),
-			types.NamespacedName{Namespace: namespace, Name: "rainbondcluster"}, &cluster)
+			types.NamespacedName{Namespace: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), Name: "rainbondcluster"}, &cluster)
 		if err != nil {
 			showError(fmt.Sprintf("get rainbond cluster config failure %s", err.Error()))
 		}

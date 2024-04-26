@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond-operator/util/constants"
+	"github.com/goodrain/rainbond/monitor/utils"
 	"io/ioutil"
 	"os"
 	"path"
@@ -32,7 +34,7 @@ func init() {
 	clientCAPemPath = path.Join(pemDirPath, "ca.pem")
 }
 
-//NewCmdInstall -
+// NewCmdInstall -
 func NewCmdInstall() cli.Command {
 	c := cli.Command{
 		Name:   "install",
@@ -47,7 +49,7 @@ func NewCmdInstall() cli.Command {
 				Name:   "namespace,ns",
 				Usage:  "rainbond namespace",
 				EnvVar: "RBDNamespace",
-				Value:  "rbd-system",
+				Value:  utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 			},
 		},
 		Usage: "grctl install",

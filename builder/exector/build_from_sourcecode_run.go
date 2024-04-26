@@ -21,7 +21,9 @@ package exector
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/builder/parser"
+	"github.com/goodrain/rainbond/monitor/utils"
 	"io/ioutil"
 	"os"
 	"path"
@@ -386,7 +388,7 @@ func (i *SourceCodeBuildItem) getHostAlias() (hostAliasList []build.HostAlias, e
 	}
 
 	// 增加对goodrain.me 的域名解析
-	list, err := i.KubeClient.CoreV1().Pods("rbd-system").List(context.Background(), metav1.ListOptions{
+	list, err := i.KubeClient.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).List(context.Background(), metav1.ListOptions{
 		LabelSelector: "name=rbd-gateway",
 	})
 	if err == nil && len(list.Items) > 0 {

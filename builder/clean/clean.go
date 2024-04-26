@@ -24,10 +24,12 @@ import (
 	"errors"
 	"github.com/containerd/containerd/errdefs"
 	dockercli "github.com/docker/docker/client"
+	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/builder"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/goodrain/rainbond/db"
+	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -168,14 +170,14 @@ func (t *Manager) PodExecCmd(config *rest.Config, clientset *kubernetes.Clientse
 	listOptions := metav1.ListOptions{
 		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
 	}
-	pods, err := clientset.CoreV1().Pods("rbd-system").List(context.TODO(), listOptions)
+	pods, err := clientset.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).List(context.TODO(), listOptions)
 	if err != nil {
 		return stdout, stderr, err
 	}
 
 	for _, pod := range pods.Items {
 		req := clientset.CoreV1().RESTClient().Post().
-			Namespace("rbd-system").
+			Namespace(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).
 			Resource("pods").
 			Name(pod.Name).
 			SubResource("exec").
