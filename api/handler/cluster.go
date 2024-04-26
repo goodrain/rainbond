@@ -10,6 +10,7 @@ import (
 	"github.com/goodrain/rainbond/api/util/bcode"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/monitor/utils"
 	mqclient "github.com/goodrain/rainbond/mq/client"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
@@ -532,7 +533,7 @@ func (c *clusterAction) GetNamespace(ctx context.Context, content string) ([]str
 	}
 	namespaces := new([]string)
 	for _, ns := range namespaceList.Items {
-		if strings.HasPrefix(ns.Name, "kube-") || ns.Name == "rainbond" || ns.Name == "rbd-system" {
+		if strings.HasPrefix(ns.Name, "kube-") || ns.Name == "rainbond" || ns.Name == utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace) {
 			continue
 		}
 		if labelValue, isRBDNamespace := ns.Labels[constants.ResourceManagedByLabel]; isRBDNamespace && labelValue == "rainbond" && content == "unmanaged" {
@@ -613,7 +614,7 @@ func (c *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err 
 			Volumes: volumes,
 		},
 	}
-	pod, err = c.clientset.CoreV1().Pods("rbd-system").Create(ctx, shellPod, metav1.CreateOptions{})
+	pod, err = c.clientset.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).Create(ctx, shellPod, metav1.CreateOptions{})
 	if err != nil {
 		logrus.Error("create shell pod error:", err)
 		return nil, err
@@ -623,7 +624,7 @@ func (c *clusterAction) CreateShellPod(regionName string) (pod *corev1.Pod, err 
 
 // DeleteShellPod -
 func (c *clusterAction) DeleteShellPod(podName string) (err error) {
-	err = c.clientset.CoreV1().Pods("rbd-system").Delete(context.Background(), podName, metav1.DeleteOptions{})
+	err = c.clientset.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).Delete(context.Background(), podName, metav1.DeleteOptions{})
 	if err != nil {
 		logrus.Error("delete shell pod error:", err)
 		return err
@@ -637,7 +638,7 @@ func (c *clusterAction) RbdLog(w http.ResponseWriter, r *http.Request, podName s
 		// Only support return the logs reader for a container now.
 		return errors.WithStack(bcode.NewBadRequest("the field 'podName' and 'containerName' is required"))
 	}
-	request := c.clientset.CoreV1().Pods("rbd-system").GetLogs(podName, &corev1.PodLogOptions{
+	request := c.clientset.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).GetLogs(podName, &corev1.PodLogOptions{
 		Follow: follow,
 	})
 	out, err := request.Stream(context.TODO())
@@ -671,7 +672,7 @@ func (c *clusterAction) RbdLog(w http.ResponseWriter, r *http.Request, podName s
 
 // GetRbdPods -
 func (c *clusterAction) GetRbdPods() (rbds []model.RbdResp, err error) {
-	pods, err := c.clientset.CoreV1().Pods("rbd-system").List(context.Background(), metav1.ListOptions{})
+	pods, err := c.clientset.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		logrus.Error("get rbd pod list error:", err)
 		return nil, err
@@ -694,7 +695,7 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	// rainbond components
-	podList, err := c.clientset.CoreV1().Pods("rbd-system").List(ctx, metav1.ListOptions{
+	podList, err := c.clientset.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).List(ctx, metav1.ListOptions{
 		LabelSelector: fields.SelectorFromSet(rbdutil.LabelsForRainbond(nil)).String(),
 	})
 	if err != nil {
@@ -723,7 +724,7 @@ func (c *clusterAction) ListRainbondComponents(ctx context.Context) (res []*mode
 		appNames = append(appNames, name)
 	}
 	// rainbond operator
-	roPods, err := c.clientset.CoreV1().Pods("rbd-system").List(ctx, metav1.ListOptions{
+	roPods, err := c.clientset.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).List(ctx, metav1.ListOptions{
 		LabelSelector: fields.SelectorFromSet(map[string]string{
 			"release": "rainbond-operator",
 		}).String(),

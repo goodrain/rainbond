@@ -59,11 +59,6 @@ type Response struct {
 	MsgShow string `json:"msg_show"`
 }
 
-const (
-	successCode = 200
-	namespace   = "rbd-system"
-)
-
 // NewCmdReplace replace cmd
 func NewCmdReplace() cli.Command {
 	var (
@@ -161,14 +156,14 @@ func NewCmdReplace() cli.Command {
 					}
 					fmt.Println("Please wait while the cluster configuration is updated............")
 					// delete pod rainbond-operator
-					if err := clients.K8SClient.CoreV1().Pods(namespace).Delete(context.Background(),
+					if err := clients.K8SClient.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).Delete(context.Background(),
 						operatorPodName, metav1.DeleteOptions{}); err != nil {
 						return errors.Wrap(err, "delete rainbond-operator error")
 					}
 					time.Sleep(time.Second * 3)
 
 					var operatorNewName string
-					if pods, err = clients.K8SClient.CoreV1().Pods(namespace).List(context.Background(),
+					if pods, err = clients.K8SClient.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).List(context.Background(),
 						metav1.ListOptions{}); err != nil {
 						return errors.Wrap(err, "get rainbond pod list error")
 					}
@@ -181,7 +176,7 @@ func NewCmdReplace() cli.Command {
 					var newOperatorPod *corev1.Pod
 					// wait operator running
 					for {
-						if newOperatorPod, err = clients.K8SClient.CoreV1().Pods(namespace).Get(context.Background(),
+						if newOperatorPod, err = clients.K8SClient.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).Get(context.Background(),
 							operatorNewName, metav1.GetOptions{}); err != nil {
 							return errors.Wrap(err, "get new operator pod error")
 						}
@@ -191,7 +186,7 @@ func NewCmdReplace() cli.Command {
 					}
 
 					// delete pod rainbond-api
-					if err := clients.K8SClient.CoreV1().Pods(namespace).Delete(context.Background(),
+					if err := clients.K8SClient.CoreV1().Pods(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).Delete(context.Background(),
 						apiPodName, metav1.DeleteOptions{}); err != nil {
 						return errors.Wrap(err, "delete rainbond-api error")
 					}
@@ -199,7 +194,7 @@ func NewCmdReplace() cli.Command {
 					// get new secret
 					var secret *corev1.Secret
 					for {
-						if secret, err = clients.K8SClient.CoreV1().Secrets(namespace).Get(context.Background(),
+						if secret, err = clients.K8SClient.CoreV1().Secrets(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).Get(context.Background(),
 							"rbd-api-client-cert", metav1.GetOptions{}); err != nil {
 							if strings.Contains(err.Error(), "not found") {
 								continue
@@ -212,7 +207,7 @@ func NewCmdReplace() cli.Command {
 					}
 					// get configmap
 					var configMap *corev1.ConfigMap
-					if configMap, err = clients.K8SClient.CoreV1().ConfigMaps(namespace).Get(context.Background(),
+					if configMap, err = clients.K8SClient.CoreV1().ConfigMaps(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).Get(context.Background(),
 						"region-config", metav1.GetOptions{}); err != nil {
 						return errors.Wrap(err, "get configMap error")
 					}
@@ -302,8 +297,8 @@ func getOrCreateUUIDAndAuth() (id, auth string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	cm := &corev1.ConfigMap{}
-	cm = GenerateSuffixConfigMap("rbd-suffix-host", namespace)
-	if _, err = clients.K8SClient.CoreV1().ConfigMaps(namespace).Update(ctx, cm, metav1.UpdateOptions{}); err != nil {
+	cm = GenerateSuffixConfigMap("rbd-suffix-host", utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace))
+	if _, err = clients.K8SClient.CoreV1().ConfigMaps(utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)).Update(ctx, cm, metav1.UpdateOptions{}); err != nil {
 		return "", "", err
 	}
 	return cm.Data["uuid"], cm.Data["auth"], nil

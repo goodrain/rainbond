@@ -138,7 +138,7 @@ func initConsoleYaml(ctx *cli.Context) error {
 		}
 		var cluster rainbondv1alpha1.RainbondCluster
 		err = clients.RainbondKubeClient.Get(context.Background(),
-			types.NamespacedName{Namespace: namespace, Name: "rainbondcluster"}, &cluster)
+			types.NamespacedName{Namespace: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), Name: "rainbondcluster"}, &cluster)
 		if err != nil {
 			showError(fmt.Sprintf("get rainbond cluster config failure %s", err.Error()))
 		}
