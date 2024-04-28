@@ -22,7 +22,9 @@ import (
 	"encoding/json"
 	"fmt"
 	apigateway "github.com/goodrain/rainbond/api/controller/apigateway"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"io/ioutil"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"net/url"
 	"os"
@@ -1137,6 +1139,17 @@ func (t *TenantStruct) GetSingleServiceInfo(w http.ResponseWriter, r *http.Reque
 func (t *TenantStruct) DeleteSingleServiceInfo(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.Context().Value(ctxutil.ContextKey("service_id")).(string)
 	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+
+	tenant := r.Context().Value(ctxutil.ContextKey("tenant")).(*dbmodel.Tenants)
+	service := r.Context().Value(ctxutil.ContextKey("service")).(*dbmodel.TenantServices)
+
+	err := k8s.Default().ApiSixClient.ApisixV2().ApisixRoutes(tenant.Namespace).DeleteCollection(r.Context(), v1.DeleteOptions{}, v1.ListOptions{
+		LabelSelector: "service_alias=" + service.ServiceAlias,
+	})
+	if err != nil {
+		logrus.Errorf("delete apisix route error: %v", err)
+	}
+
 	var req apimodel.EtcdCleanReq
 	if httputil.ValidatorRequestStructAndErrorResponse(r, w, &req, nil) {
 		logrus.Debugf("delete service etcd keys : %+v", req.Keys)
