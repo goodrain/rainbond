@@ -1658,9 +1658,9 @@ type ExportAppStruct struct {
 
 // BatchOperationReq beatch operation request body
 type BatchOperationReq struct {
-	Operator   string `json:"operator"`
 	TenantName string `json:"tenant_name"`
 	Body       struct {
+		Operator  string                 `json:"operator"`
 		Operation string                 `json:"operation" validate:"operation|required|in:start,stop,build,upgrade,export"`
 		Builds    []*ComponentBuildReq   `json:"build_infos,omitempty"`
 		Starts    []*ComponentStartReq   `json:"start_infos,omitempty"`
