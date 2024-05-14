@@ -31,8 +31,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//BatchOperation batch operation for tenant
-//support operation is : start,build,stop,update
+// BatchOperation batch operation for tenant
+// support operation is : start,build,stop,update
 func BatchOperation(w http.ResponseWriter, r *http.Request) {
 	var build model.BatchOperationReq
 	ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &build.Body, nil)
@@ -83,7 +83,7 @@ func BatchOperation(w http.ResponseWriter, r *http.Request) {
 	if len(batchOpReqs) > 1024 {
 		batchOpReqs = batchOpReqs[0:1024]
 	}
-	res, err := f(r.Context(), tenant, build.Operator, batchOpReqs)
+	res, err := f(r.Context(), tenant, build.Body.Operator, batchOpReqs)
 	if err != nil {
 		httputil.ReturnBcodeError(r, w, err)
 		return
