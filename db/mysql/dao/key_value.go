@@ -28,12 +28,11 @@ func (k KeyValueImpl) WithPrefix(prefix string) ([]dbmodel.KeyValue, error) {
 
 // Put -
 func (k KeyValueImpl) Put(key, value string) error {
-	keyValue := dbmodel.KeyValue{K: key, V: value}
+	result := k.DB.Model(&dbmodel.KeyValue{}).Where("k = ?", key).Assign(dbmodel.KeyValue{V: value}).FirstOrCreate(&dbmodel.KeyValue{K: key, V: value})
 
-	if err := k.DB.Create(&keyValue).Error; err != nil {
-		return err
+	if result != nil {
+		return result.Error
 	}
-
 	return nil
 }
 
