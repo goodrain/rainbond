@@ -21,6 +21,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond-operator/util/constants"
+	"github.com/goodrain/rainbond/monitor/utils"
 
 	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond/db"
@@ -52,7 +54,7 @@ func NewCmdRegistry() cli.Command {
 						Name:   "namespace, ns",
 						Usage:  "rainbond namespace",
 						EnvVar: "RBDNamespace",
-						Value:  "rbd-system",
+						Value:  utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 					},
 				},
 				Action: func(c *cli.Context) error {

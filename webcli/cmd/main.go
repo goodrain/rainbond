@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
-
+	"github.com/goodrain/rainbond-operator/util/constants"
+	"github.com/goodrain/rainbond/monitor/utils"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/webcli/app"
 	"github.com/sirupsen/logrus"
@@ -23,10 +23,7 @@ func main() {
 	if err != nil {
 		logrus.Error(err)
 	}
-	namespace := os.Getenv("RBD_NAMESPACE")
-	if namespace == "" {
-		namespace = "rbd-system"
-	}
+	namespace := utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace)
 	commands := []string{"sh"}
 	req := restClient.Post().
 		Resource("pods").

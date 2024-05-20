@@ -20,6 +20,8 @@ package exector
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond-operator/util/constants"
+	"github.com/goodrain/rainbond/monitor/utils"
 	"os"
 	"strings"
 
@@ -111,7 +113,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 		sourceDir,
 		"",
 		"",
-		"rbd-system",
+		utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 		t.PluginID,
 		t.DeployVersion,
 		logger,
@@ -123,6 +125,7 @@ func (e *exectorManager) runD(t *model.BuildPluginTaskBody, logger event.Logger)
 		e.KubeClient,
 		false,
 	)
+
 	if err != nil {
 		logger.Error(fmt.Sprintf("build image %s failure,find log in rbd-chaos", buildImageName), map[string]string{"step": "builder-exector", "status": "failure"})
 		logrus.Errorf("[plugin]build image error: %s", err.Error())

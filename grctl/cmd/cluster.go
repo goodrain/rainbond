@@ -21,6 +21,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond-operator/util/constants"
+	"github.com/goodrain/rainbond/monitor/utils"
 	"os"
 	"os/exec"
 	"strconv"
@@ -37,7 +39,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-//NewCmdCluster cmd for cluster
+// NewCmdCluster cmd for cluster
 func NewCmdCluster() cli.Command {
 	c := cli.Command{
 		Name:  "cluster",
@@ -50,7 +52,7 @@ func NewCmdCluster() cli.Command {
 					cli.StringFlag{
 						Name:  "namespace, ns",
 						Usage: "rainbond default namespace",
-						Value: "rbd-system",
+						Value: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 					},
 				},
 				Action: func(c *cli.Context) error {
@@ -65,7 +67,7 @@ func NewCmdCluster() cli.Command {
 					cli.StringFlag{
 						Name:  "namespace, ns",
 						Usage: "rainbond default namespace",
-						Value: "rbd-system",
+						Value: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 					},
 					cli.StringFlag{
 						Name:     "new-version",
@@ -87,7 +89,7 @@ func NewCmdCluster() cli.Command {
 			cli.StringFlag{
 				Name:  "namespace,ns",
 				Usage: "rainbond default namespace",
-				Value: "rbd-system",
+				Value: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace),
 			},
 		},
 		Action: func(c *cli.Context) error {

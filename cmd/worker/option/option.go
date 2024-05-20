@@ -20,6 +20,8 @@ package option
 
 import (
 	"fmt"
+	"github.com/goodrain/rainbond-operator/util/constants"
+	"github.com/goodrain/rainbond/monitor/utils"
 	"os"
 	"path"
 
@@ -91,7 +93,7 @@ func (a *Worker) AddFlags(fs *pflag.FlagSet) {
 	fs.IntVar(&a.ServerPort, "server-port", 6535, "the listen port that app runtime server")
 	fs.StringVar(&a.LeaderElectionNamespace, "leader-election-namespace", "rainbond", "Namespace where this attacher runs.")
 	fs.StringVar(&a.LeaderElectionIdentity, "leader-election-identity", "", "Unique idenity of this attcher. Typically name of the pod where the attacher runs.")
-	fs.StringVar(&a.RBDNamespace, "rbd-system-namespace", "rbd-system", "rbd components kubernetes namespace")
+	fs.StringVar(&a.RBDNamespace, "rbd-system-namespace", utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), "rbd components kubernetes namespace")
 	fs.StringVar(&a.GrdataPVCName, "grdata-pvc-name", "rbd-cpt-grdata", "The name of grdata persistent volume claim")
 	fs.StringVar(&a.Helm.DataDir, "/grdata/helm", "/grdata/helm", "The data directory of Helm.")
 	fs.StringVar(&a.SharedStorageClass, "shared-storageclass", "", "custom shared storage class.use the specified storageclass to create shared storage, if this parameter is not specified, it will use rainbondsssc by default")
