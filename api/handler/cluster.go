@@ -1087,6 +1087,7 @@ func (c *clusterAction) GetClusterRegionStatus() (map[string]interface{}, error)
 			regionInfo["provider"] = "helm"
 			regionInfo["providerClusterId"] = ""
 			regionInfo["token"] = os.Getenv("HELM_TOKEN")
+			regionInfo["region_id"] = os.Getenv("REGION_ID")
 			if os.Getenv("ENTERPRISE_ID") != "" {
 				regionInfo["enterpriseId"] = os.Getenv("ENTERPRISE_ID")
 			}
