@@ -696,6 +696,7 @@ type LongVersionDao interface {
 	Dao
 	ListVersionByLanguage(language string, show string) ([]*model.EnterpriseLanguageVersion, error)
 	GetVersionByLanguageAndVersion(language, version string) (*model.EnterpriseLanguageVersion, error)
+	GetDefaultVersionByLanguageAndVersion(language string) (*model.EnterpriseLanguageVersion, error)
 	DefaultLangVersion(lang string, version string, show bool, firstChoice bool) error
 	CreateLangVersion(lang, version, eventID, fileName string, show bool) error
 	DeleteLangVersion(lang, version string) (string, error)
