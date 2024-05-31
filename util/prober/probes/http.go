@@ -21,6 +21,7 @@ package probe
 import (
 	"context"
 	"crypto/tls"
+	"github.com/goodrain/rainbond/pkg/gogo"
 	"net"
 	"net/http"
 	"net/url"
@@ -44,17 +45,23 @@ type HTTPProbe struct {
 	TimeoutSecond int
 }
 
-//Check starts http probe.
+// Check starts http probe.
 func (h *HTTPProbe) Check() {
-	go h.HTTPCheck()
+	err := gogo.Go(func(ctx context.Context) error {
+		h.HTTPCheck()
+		return nil
+	})
+	if err != nil {
+		logrus.Errorf("gogo.Go error:%v", err)
+	}
 }
 
-//Stop stops http probe.
+// Stop stops http probe.
 func (h *HTTPProbe) Stop() {
 	h.Cancel()
 }
 
-//HTTPCheck http check
+// HTTPCheck http check
 func (h *HTTPProbe) HTTPCheck() {
 	if h.TimeInterval == 0 {
 		h.TimeInterval = 5
@@ -90,7 +97,7 @@ func isClientTimeout(err error) bool {
 	return false
 }
 
-//GetHTTPHealth get http health
+// GetHTTPHealth get http health
 func (h *HTTPProbe) GetHTTPHealth() map[string]string {
 	address := h.Address
 	c := &http.Client{

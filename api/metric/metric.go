@@ -21,6 +21,7 @@ package metric
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/gogo"
 	"time"
 
 	"github.com/goodrain/rainbond/api/handler"
@@ -35,7 +36,7 @@ const (
 	exporter = "exporter"
 )
 
-//NewExporter new exporter
+// NewExporter new exporter
 func NewExporter() *Exporter {
 	return &Exporter{
 		apiRequest: prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -89,7 +90,7 @@ func NewExporter() *Exporter {
 	}
 }
 
-//Exporter exporter
+// Exporter exporter
 type Exporter struct {
 	apiRequest                 *prometheus.CounterVec
 	tenantLimit                *prometheus.GaugeVec
@@ -101,22 +102,23 @@ type Exporter struct {
 	clusterMemoryTotal         prometheus.Gauge
 }
 
-//RequestInc request inc
+// RequestInc request inc
 func (e *Exporter) RequestInc(code int, path string) {
 	e.apiRequest.WithLabelValues(fmt.Sprintf("%d", code), path).Inc()
 }
 
-//Describe implements prometheus.Collector.
+// Describe implements prometheus.Collector.
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	metricCh := make(chan prometheus.Metric)
 	doneCh := make(chan struct{})
 
-	go func() {
+	_ = gogo.Go(func(ctx context.Context) error {
 		for m := range metricCh {
 			ch <- m.Desc()
 		}
 		close(doneCh)
-	}()
+		return nil
+	})
 
 	e.Collect(metricCh)
 	close(metricCh)
