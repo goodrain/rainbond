@@ -49,10 +49,10 @@ const (
 	NewMetadata = "NewMetadata"
 )
 
-//maxBackupVersionSize Maximum number of backup versions per service
+// maxBackupVersionSize Maximum number of backup versions per service
 var maxBackupVersionSize = 3
 
-//BackupAPPNew backup group app new version
+// BackupAPPNew backup group app new version
 type BackupAPPNew struct {
 	GroupID     string   `json:"group_id" `
 	ServiceIDs  []string `json:"service_ids" `
@@ -79,7 +79,7 @@ func init() {
 	RegisterWorker("backup_apps_new", BackupAPPNewCreater)
 }
 
-//BackupAPPNewCreater create
+// BackupAPPNewCreater create
 func BackupAPPNewCreater(in []byte, m *exectorManager) (TaskWorker, error) {
 	eventID := gjson.GetBytes(in, "event_id").String()
 	logger := event.GetManager().GetLogger(eventID)
@@ -102,7 +102,7 @@ type AppSnapshot struct {
 	PluginBuildVersions []*dbmodel.TenantPluginBuildVersion
 }
 
-//RegionServiceSnapshot RegionServiceSnapshot
+// RegionServiceSnapshot RegionServiceSnapshot
 type RegionServiceSnapshot struct {
 	ServiceID          string
 	Service            *dbmodel.TenantServices
@@ -124,7 +124,7 @@ type RegionServiceSnapshot struct {
 	PluginStreamPorts []*dbmodel.TenantServicesStreamPluginPort
 }
 
-//Run Run
+// Run Run
 func (b *BackupAPPNew) Run(timeout time.Duration) error {
 	//read region group app metadata
 	metadata, err := ioutil.ReadFile(fmt.Sprintf("%s/region_apps_metadata.json", b.SourceDir))
@@ -337,7 +337,12 @@ func (b *BackupAPPNew) checkVersionExist(version *dbmodel.VersionInfo) (bool, er
 			_, err := reg.ManifestV2(imageInfo.Name, imageInfo.Tag)
 			if err != nil {
 				logrus.Errorf("get image [%s] manifestV2 info failure [%v], it could be not exist", version.DeliveredPath, err)
-				return false, err
+				err = reg.OCIManifest(imageInfo.Name, imageInfo.Tag)
+				if err != nil {
+					logrus.Errorf("get image [%s] ocimanifest info failure [%v], it could be not exist", version.DeliveredPath, err)
+					return false, err
+				}
+				return true, nil
 			}
 			return true, nil
 		}
@@ -386,22 +391,22 @@ func (b *BackupAPPNew) saveImagePkg(app *RegionServiceSnapshot, version *dbmodel
 	return nil
 }
 
-//Stop stop
+// Stop stop
 func (b *BackupAPPNew) Stop() error {
 	return nil
 }
 
-//Name return worker name
+// Name return worker name
 func (b *BackupAPPNew) Name() string {
 	return "backup_apps_new"
 }
 
-//GetLogger GetLogger
+// GetLogger GetLogger
 func (b *BackupAPPNew) GetLogger() event.Logger {
 	return b.Logger
 }
 
-//ErrorCallBack if run error will callback
+// ErrorCallBack if run error will callback
 func (b *BackupAPPNew) ErrorCallBack(err error) {
 	if err != nil {
 		logrus.Errorf("backup group app failure %s", err)
@@ -423,7 +428,7 @@ func (b *BackupAPPNew) updateBackupStatu(status string) error {
 	return db.GetManager().AppBackupDao().UpdateModel(backupstatus)
 }
 
-//GetVolumeDir get volume path prifix
+// GetVolumeDir get volume path prifix
 func GetVolumeDir() (string, string) {
 	localPath := os.Getenv("LOCAL_DATA_PATH")
 	sharePath := os.Getenv("SHARE_DATA_PATH")

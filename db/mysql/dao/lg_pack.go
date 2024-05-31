@@ -56,6 +56,15 @@ func (t *LongVersionDaoImpl) GetVersionByLanguageAndVersion(language, version st
 	return ver, nil
 }
 
+// GetDefaultVersionByLanguageAndVersion -
+func (t *LongVersionDaoImpl) GetDefaultVersionByLanguageAndVersion(language string) (*model.EnterpriseLanguageVersion, error) {
+	ver := new(model.EnterpriseLanguageVersion)
+	if err := t.DB.Where("lang = ? and first_choice = ?", language, true).Find(ver).Error; err != nil {
+		return nil, err
+	}
+	return ver, nil
+}
+
 // DefaultLangVersion -
 func (t *LongVersionDaoImpl) DefaultLangVersion(lang string, version string, show bool, firstChoice bool) error {
 	if firstChoice {

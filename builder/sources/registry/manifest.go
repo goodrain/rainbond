@@ -21,6 +21,7 @@ package registry
 import (
 	"bytes"
 	"fmt"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -91,6 +92,26 @@ func (registry *Registry) ManifestV2(repository, reference string) (*manifestV2.
 		return nil, fmt.Errorf("unmarshal JSON: %v", err)
 	}
 	return deserialized, nil
+}
+
+func (registry *Registry) OCIManifest(repository, reference string) error {
+	url := registry.url("/v2/%s/manifests/%s", repository, reference)
+	logrus.Debugf("registry.manifest.get url=%s repository=%s reference=%s", url, repository, reference)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+	//req.Header.Set("Accept", manifestV2.MediaTypeManifest)
+	req.Header.Set("Accept", v1.MediaTypeImageManifest)
+	resp, err := registry.Client.Do(req)
+	if err != nil {
+		return fmt.Errorf("do request: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusOK {
+		return nil
+	}
+	return fmt.Errorf("not found")
 }
 
 // CheckManifest checks if the manifest of the given image is exist.
