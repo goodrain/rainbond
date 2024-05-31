@@ -1,7 +1,9 @@
 package helm
 
 import (
+	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/gogo"
 	"github.com/pkg/errors"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/getter"
@@ -17,14 +19,15 @@ func updateCharts(repos []*repo.ChartRepository, out io.Writer, failOnRepoUpdate
 	var repoFailList []string
 	for _, re := range repos {
 		wg.Add(1)
-		go func(re *repo.ChartRepository) {
-			defer wg.Done()
+		_ = gogo.Go(func(ctx context.Context) error {
 			if _, err := re.DownloadIndexFile(); err != nil {
 				repoFailList = append(repoFailList, re.Config.URL)
 			}
-		}(re)
+			return nil
+		})
 	}
 	wg.Wait()
+
 	if len(repoFailList) > 0 && failOnRepoUpdateFail {
 		return fmt.Errorf("Failed to update the following repositories: %s",
 			repoFailList)

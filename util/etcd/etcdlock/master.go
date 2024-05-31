@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/gogo"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -164,7 +165,12 @@ func (m *masterLock) resign() error {
 	return m.election.Resign(ctx)
 }
 func (m *masterLock) Start() {
-	go m.campaign()
+	err := gogo.Go(func(ctx context.Context) error {
+		return m.campaign()
+	})
+	if err != nil {
+		logrus.Errorf("gogo.Go error:%v", err)
+	}
 }
 
 func (m *masterLock) Stop() {

@@ -21,6 +21,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/gogo"
 	"regexp"
 	"strings"
 	"sync"
@@ -107,6 +108,10 @@ func (m *ManagerService) Online() error {
 		logrus.Debug("check before starting: false")
 		return nil
 	}
+	_ = gogo.Go(func(ctx context.Context) error {
+		m.StartServices()
+		return nil
+	})
 	go m.StartServices()
 	m.SyncServiceStatusController()
 	// registry local services endpoint into cluster manager

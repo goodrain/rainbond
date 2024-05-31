@@ -24,6 +24,7 @@ import (
 	"crypto/x509"
 	"github.com/goodrain/rainbond/api/api_routers/gateway"
 	"github.com/goodrain/rainbond/api/handler"
+	"github.com/goodrain/rainbond/pkg/gogo"
 	"github.com/goodrain/rainbond/pkg/interceptors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -116,9 +117,11 @@ func (m *Manager) SetMiddleware() {
 
 // Start manager
 func (m *Manager) Start() error {
-	go m.Do()
-	logrus.Info("start api router success.")
-	return nil
+	return gogo.Go(func(ctx context.Context) error {
+		m.Do()
+		logrus.Info("start api router success.")
+		return nil
+	})
 }
 
 // Do do
@@ -164,7 +167,8 @@ func (m *Manager) Run() {
 	m.r.Get("/api/v1/query_range", m.PrometheusAPI)
 	m.r.Get("/api/v1/alerts", m.PrometheusAPI)
 	//开启对浏览器的websocket服务和文件服务
-	go func() {
+
+	_ = gogo.Go(func(ctx context.Context) error {
 		websocketRouter := chi.NewRouter()
 		websocketRouter.Mount("/", websocket.Routes())
 		websocketRouter.Mount("/logs", websocket.LogRoutes())
@@ -177,16 +181,17 @@ func (m *Manager) Run() {
 			logrus.Infof("websocket listen on (HTTP) %s", m.conf.WebsocketAddr)
 			logrus.Fatal(http.ListenAndServe(m.conf.WebsocketAddr, websocketRouter))
 		}
-	}()
+		return nil
+	})
 
 	// api ssl
 	if m.conf.APISSL {
-		go func() {
+		_ = gogo.Go(func(ctx context.Context) error {
 			pool := x509.NewCertPool()
 			caCrt, err := ioutil.ReadFile(m.conf.APICaFile)
 			if err != nil {
 				logrus.Fatal("ReadFile ca err:", err)
-				return
+				return err
 			}
 			pool.AppendCertsFromPEM(caCrt)
 			s := &http.Server{
@@ -199,11 +204,10 @@ func (m *Manager) Run() {
 			}
 			logrus.Infof("api listen on (HTTPs) %s", m.conf.APIAddrSSL)
 			logrus.Fatal(s.ListenAndServeTLS(m.conf.APICertFile, m.conf.APIKeyFile))
-		}()
+			return nil
+		})
 	}
-
-	// health check
-	go func() {
+	_ = gogo.Go(func(ctx context.Context) error {
 		healthzRouter := chi.NewRouter()
 		healthzRouter.Get("/healthz", func(res http.ResponseWriter, req *http.Request) {
 			res.Write([]byte("ok"))
@@ -211,7 +215,8 @@ func (m *Manager) Run() {
 		})
 		logrus.Infof("health check listen on (HTTP) %s", m.conf.APIHealthzAddr)
 		logrus.Fatal(http.ListenAndServe(m.conf.APIHealthzAddr, healthzRouter))
-	}()
+		return nil
+	})
 
 	// api
 	logrus.Infof("api listen on (HTTP) %s", m.conf.APIAddr)

@@ -133,7 +133,10 @@ func (m *manager) Start() error {
 		return err
 	}
 
-	go m.GC()
+	_ = gogo.Go(func(ctx context.Context) error {
+		m.GC()
+		return nil
+	})
 	return nil
 }
 
@@ -242,7 +245,9 @@ func (m *manager) getLBChan() chan []byte {
 			ctx:       m.ctx,
 		}
 		m.handles[server] = h
-		go h.HandleLog()
+		_ = gogo.Go(func(ctx context.Context) error {
+			return h.HandleLog()
+		})
 		return h.cacheChan
 	}
 	//not select, return first handle chan
