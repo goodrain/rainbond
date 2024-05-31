@@ -19,6 +19,8 @@
 package main
 
 import (
+	"context"
+	"github.com/goodrain/rainbond/pkg/gogo"
 	"net/http"
 	"os"
 	"os/signal"
@@ -73,9 +75,10 @@ func main() {
 	defer m.Stop()
 
 	r := api.Server(controllerManager)
+	_ = gogo.Go(func(ctx context.Context) error {
+		return http.ListenAndServe(":3329", r)
+	})
 	logrus.Info("monitor api listen port 3329")
-	go http.ListenAndServe(":3329", r)
-
 	//step finally: listen Signal
 	term := make(chan os.Signal)
 	defer close(term)

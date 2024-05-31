@@ -17,7 +17,10 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/gogo"
+	"github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"net/http"
@@ -210,13 +213,13 @@ func InstrumentHandlerFunc(handlerName string, handlerFunc func(http.ResponseWri
 // If InstrumentHandlerWithOpts is called as follows, it mimics exactly the
 // behavior of InstrumentHandler:
 //
-//     prometheus.InstrumentHandlerWithOpts(
-//         prometheus.SummaryOpts{
-//              Subsystem:   "http",
-//              ConstLabels: prometheus.Labels{"handler": handlerName},
-//         },
-//         handler,
-//     )
+//	prometheus.InstrumentHandlerWithOpts(
+//	    prometheus.SummaryOpts{
+//	         Subsystem:   "http",
+//	         ConstLabels: prometheus.Labels{"handler": handlerName},
+//	    },
+//	    handler,
+//	)
 //
 // Technical detail: "requests_total" is a CounterVec, not a SummaryVec, so it
 // cannot use SummaryOpts. Instead, a CounterOpts struct is created internally,
@@ -326,8 +329,7 @@ func computeApproximateRequestSize(r *http.Request) <-chan int {
 	}
 
 	out := make(chan int, 1)
-
-	go func() {
+	err := gogo.Go(func(ctx context.Context) error {
 		s += len(r.Method)
 		s += len(r.Proto)
 		for name, values := range r.Header {
@@ -345,8 +347,11 @@ func computeApproximateRequestSize(r *http.Request) <-chan int {
 		}
 		out <- s
 		close(out)
-	}()
-
+		return nil
+	})
+	if err != nil {
+		logrus.Errorf("gogo.Go error:%v", err)
+	}
 	return out
 }
 

@@ -21,6 +21,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/gogo"
 	"net/http"
 	"os"
 	"os/signal"
@@ -46,7 +47,7 @@ import (
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 )
 
-//Run start run
+// Run start run
 func Run(s *option.GWServer) error {
 	logrus.Info("start gateway...")
 	errCh := make(chan error, 1)
@@ -116,7 +117,11 @@ func Run(s *option.GWServer) error {
 	if s.Debug {
 		util.ProfilerSetup(mux)
 	}
-	go startHTTPServer(s.ListenPorts.Health, mux)
+
+	_ = gogo.Go(func(ctx context.Context) error {
+		startHTTPServer(s.ListenPorts.Health, mux)
+		return nil
+	})
 
 	keepalive, err := discover.CreateKeepAlive(etcdClientArgs, "gateway", s.Config.NodeName,
 		s.Config.HostIP, s.ListenPorts.Health)

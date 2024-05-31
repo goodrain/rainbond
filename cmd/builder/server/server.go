@@ -19,6 +19,7 @@
 package server
 
 import (
+	"context"
 	"github.com/goodrain/rainbond/builder/api"
 	"github.com/goodrain/rainbond/builder/clean"
 	"github.com/goodrain/rainbond/builder/discover"
@@ -29,6 +30,7 @@ import (
 	"github.com/goodrain/rainbond/db/config"
 	"github.com/goodrain/rainbond/event"
 	"github.com/goodrain/rainbond/mq/client"
+	"github.com/goodrain/rainbond/pkg/gogo"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -103,8 +105,10 @@ func Run(s *option.Builder) error {
 	r := api.APIServer()
 	r.Handle(s.Config.PrometheusMetricPath, promhttp.Handler())
 	logrus.Info("builder api listen port 3228")
-	go http.ListenAndServe(":3228", r)
 
+	_ = gogo.Go(func(ctx context.Context) error {
+		return http.ListenAndServe(":3228", r)
+	})
 	logrus.Info("builder begin running...")
 	//step finally: listen Signal
 	term := make(chan os.Signal)

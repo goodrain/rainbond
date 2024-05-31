@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/mq/api/grpc/pb"
+	"github.com/goodrain/rainbond/pkg/gogo"
 	"time"
 
 	tsdbClient "github.com/bluebreezecf/opentsdb-goclient/client"
@@ -58,9 +59,25 @@ func (d *ConDB) Start(ctx context.Context, cfg *configs.Config) error {
 		logrus.Errorf("get db manager failed,%s", err.Error())
 		return err
 	}
-	// api database initialization
-	go dataInitialization()
 
+	// api database initialization
+	_ = gogo.Go(func(ctx context.Context) error {
+		timer := time.NewTimer(time.Second * 2)
+		defer timer.Stop()
+		for {
+			err := dbInit()
+			if err != nil {
+				logrus.Error("Initializing database failed, ", err)
+			} else {
+				logrus.Info("api database initialization success!")
+				return nil
+			}
+			select {
+			case <-timer.C:
+				timer.Reset(time.Second * 2)
+			}
+		}
+	})
 	return nil
 }
 
@@ -164,22 +181,4 @@ func dbInit() error {
 	}
 
 	return nil
-}
-
-func dataInitialization() {
-	timer := time.NewTimer(time.Second * 2)
-	defer timer.Stop()
-	for {
-		err := dbInit()
-		if err != nil {
-			logrus.Error("Initializing database failed, ", err)
-		} else {
-			logrus.Info("api database initialization success!")
-			return
-		}
-		select {
-		case <-timer.C:
-			timer.Reset(time.Second * 2)
-		}
-	}
 }

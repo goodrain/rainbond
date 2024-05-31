@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	client "github.com/coreos/etcd/clientv3"
+	"github.com/goodrain/rainbond/pkg/gogo"
 	"net/http"
 	"strconv"
 	"strings"
@@ -89,18 +90,21 @@ func NewManager(c option.Conf, node *nodeclient.HostNode, ms *masterserver.Maste
 // Start 启动
 func (m *Manager) Start(errChan chan error) error {
 	logrus.Infof("api server start listening on %s", m.conf.APIAddr)
-	go func() {
+	_ = gogo.Go(func(ctx context.Context) error {
 		if err := http.ListenAndServe(m.conf.APIAddr, m.router); err != nil {
 			logrus.Error("rainbond node api listen error.", err.Error())
 			errChan <- err
 		}
-	}()
-	go func() {
+		return nil
+	})
+	_ = gogo.Go(func(ctx context.Context) error {
 		if err := http.ListenAndServe(":6102", nil); err != nil {
 			logrus.Error("rainbond node debug api listen error.", err.Error())
 			errChan <- err
 		}
-	}()
+		return nil
+	})
+
 	if m.conf.RunMode == "master" {
 		portinfo := strings.Split(m.conf.APIAddr, ":")
 		var port int
