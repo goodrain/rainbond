@@ -20,59 +20,9 @@ package utils
 
 import (
 	"os"
-	"os/signal"
-	"sort"
-	"strings"
-	"syscall"
-
-	"github.com/goodrain/rainbond/discover/config"
-	"github.com/sirupsen/logrus"
 )
 
-//TrimAndSort TrimAndSort
-func TrimAndSort(endpoints []*config.Endpoint) []string {
-	arr := make([]string, 0, len(endpoints))
-	for _, end := range endpoints {
-		if strings.HasPrefix(end.URL, "https://") {
-			url := strings.TrimLeft(end.URL, "https://")
-			arr = append(arr, url)
-			continue
-		}
-		url := strings.TrimLeft(end.URL, "http://")
-		arr = append(arr, url)
-	}
-	sort.Strings(arr)
-	return arr
-}
-
-//ArrCompare ArrCompare
-func ArrCompare(arr1, arr2 []string) bool {
-	if len(arr1) != len(arr2) {
-		return false
-	}
-
-	for i, item := range arr1 {
-		if item != arr2[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
-//ListenStop ListenStop
-func ListenStop() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM)
-
-	sig := <-sigs
-	signal.Ignore(syscall.SIGKILL, syscall.SIGINT, syscall.SIGTERM)
-
-	logrus.Warn("monitor manager received signal: ", sig.String())
-	close(sigs)
-}
-
-//GetenvDefault Used to define environment variables and default values.
+// GetenvDefault Used to define environment variables and default values.
 func GetenvDefault(key, def string) string {
 	if val := os.Getenv(key); val != "" {
 		return val
