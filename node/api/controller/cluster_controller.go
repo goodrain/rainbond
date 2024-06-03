@@ -319,7 +319,7 @@ func ClusterInfo(w http.ResponseWriter, r *http.Request) {
 	var healthCapMem int64
 	var unhealthCapCPU int64
 	var unhealthCapMem int64
-	usedNodeList := make([]*v1.Node, len(nodes))
+	usedNodeList := make([]*v1.Node, 0, len(nodes))
 	for i, v := range nodes {
 		nodeHealth := false
 		for _, con := range v.Status.Conditions {
