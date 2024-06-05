@@ -120,6 +120,15 @@ func (t *TenantDaoImpl) GetTenantByEid(eid, query string) ([]*model.Tenants, err
 	return tenants, nil
 }
 
+// GetTenantByTenantIDs get tenants by tenant ids
+func (t *TenantDaoImpl) GetTenantByTenantIDs(tenantIDs []string) ([]*model.Tenants, error) {
+	var tenants []*model.Tenants
+	if err := t.DB.Where("uuid IN ?", tenantIDs).Find(&tenants).Error; err != nil {
+		return nil, err
+	}
+	return tenants, nil
+}
+
 // GetTenantIDsByNames get tenant ids by names
 func (t *TenantDaoImpl) GetTenantIDsByNames(names []string) (re []string, err error) {
 	rows, err := t.DB.Raw("select uuid from tenants where name in (?)", names).Rows()

@@ -531,7 +531,15 @@ func (t *TenantStruct) GetTenants(w http.ResponseWriter, r *http.Request) {
 	//     schema:
 	//       "$ref": "#/responses/commandResponse"
 	//     description: 统一返回格式
-	value := r.FormValue("eid")
+	jsonTenantIDs := r.FormValue("tenant_ids")
+	var tenantIDS []string
+	if jsonTenantIDs != "" {
+		err := json.Unmarshal([]byte(jsonTenantIDs), &tenantIDS)
+		if err != nil {
+			httputil.ReturnError(r, w, 500, fmt.Sprintf("json unmarshal failure %v", err))
+			return
+		}
+	}
 	page, _ := strconv.Atoi(r.FormValue("page"))
 	if page == 0 {
 		page = 1
@@ -540,21 +548,13 @@ func (t *TenantStruct) GetTenants(w http.ResponseWriter, r *http.Request) {
 	if pageSize == 0 {
 		pageSize = 10
 	}
-	queryName := r.FormValue("query")
 	var tenants []*dbmodel.Tenants
 	var err error
-	if len(value) == 0 {
-		tenants, err = handler.GetTenantManager().GetTenants(queryName)
-		if err != nil {
-			httputil.ReturnError(r, w, 500, "get tenant error")
-			return
-		}
-	} else {
-		tenants, err = handler.GetTenantManager().GetTenantsByEid(value, queryName)
-		if err != nil {
-			httputil.ReturnError(r, w, 500, "get tenant error")
-			return
-		}
+
+	tenants, err = handler.GetTenantManager().GetTenantsByTenantIDs(tenantIDS)
+	if err != nil {
+		httputil.ReturnError(r, w, 500, "get tenant error")
+		return
 	}
 	list := handler.GetTenantManager().BindTenantsResource(tenants)
 	re := list.Paging(page, pageSize)
