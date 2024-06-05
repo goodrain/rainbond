@@ -31,7 +31,6 @@ import (
 
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/dao"
-	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/worker/appm/store"
 	"github.com/goodrain/rainbond/worker/master/volumes/provider/lib/controller"
 
@@ -70,7 +69,7 @@ func NewRainbondsslcProvisioner(kubecli kubernetes.Interface, store store.Storer
 
 var _ controller.Provisioner = &rainbondsslcProvisioner{}
 
-//selectNode select an appropriate node with the largest resource surplus
+// selectNode select an appropriate node with the largest resource surplus
 func (p *rainbondsslcProvisioner) selectNode(ctx context.Context, nodeOS, ignore string) (*v1.Node, error) {
 	allnode, err := p.kubecli.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -80,10 +79,6 @@ func (p *rainbondsslcProvisioner) selectNode(ctx context.Context, nodeOS, ignore
 	var selectnode *v1.Node
 	for _, node := range allnode.Items {
 		nodeReady := false
-		if node.Labels[client.LabelOS] != nodeOS {
-			continue
-		}
-
 		// filter out ignore nodes
 		if strings.Contains(ignore, node.Name) {
 			logrus.Debugf("[rainbondsslcProvisioner] [selectNode] ignore node %s based on %s", node.Name, ignore)
@@ -205,15 +200,6 @@ func (p *rainbondsslcProvisioner) Provision(options controller.VolumeOptions) (*
 	//runtime select an appropriate node with the largest resource surplus
 	// storageclass VolumeBinding set WaitForFirstConsumer, SelectedNode should be assigned.
 	if options.SelectedNode == nil {
-		var err error
-		var ignoreNodes string
-		if options.Parameters != nil {
-			ignoreNodes = options.Parameters["ignoreNodes"]
-		}
-		options.SelectedNode, err = p.selectNode(context.Background(), options.PVC.Annotations[client.LabelOS], ignoreNodes)
-		if err != nil {
-			return nil, fmt.Errorf("node OS: %s; error selecting node: %s", options.PVC.Annotations[client.LabelOS], err.Error())
-		}
 		if options.SelectedNode == nil {
 			return nil, fmt.Errorf("do not select an appropriate node for local volume")
 		}

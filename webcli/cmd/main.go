@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/goodrain/rainbond-operator/util/constants"
-	"github.com/goodrain/rainbond/monitor/utils"
+	utils "github.com/goodrain/rainbond/util"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/goodrain/rainbond/webcli/app"
 	"github.com/sirupsen/logrus"

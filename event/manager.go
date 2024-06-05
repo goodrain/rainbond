@@ -28,7 +28,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/goodrain/rainbond/discover/config"
 	eventclient "github.com/goodrain/rainbond/eventlog/entry/grpc/client"
 	eventpb "github.com/goodrain/rainbond/eventlog/entry/grpc/pb"
 	"github.com/goodrain/rainbond/util"
@@ -141,7 +140,7 @@ func (m *manager) Start() error {
 }
 
 // UpdateEndpoints - 不需要去更新节点信息
-func (m *manager) UpdateEndpoints(endpoints ...*config.Endpoint) {
+func (m *manager) UpdateEndpoints() {
 }
 
 // Error -

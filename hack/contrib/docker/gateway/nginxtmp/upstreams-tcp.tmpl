@@ -1,8 +1,0 @@
-{{ $upstream:=.Upstream }}
-upstream {{$upstream.Name}} {
-    {{ if $upstream.UseLeastConn }} least_conn; {{ end }}
-    {{ range $server := $upstream.Servers }}
-    {{ $params := $server.Params }}
-    server {{ $server.Address }} {{if gt $params.Weight 0}}weight={{$params.Weight}}{{end}} {{if gt $params.MaxFails 0}}max_fails={{$params.MaxFails}}{{end}} {{if $params.FailTimeout }}fail_timeout={{$params.FailTimeout}}{{end}};
-    {{ end }}
-}

@@ -51,7 +51,7 @@ type CertInformation struct {
 	Domains            []string
 }
 
-//CreateCRT create crt
+// CreateCRT create crt
 func CreateCRT(RootCa *x509.Certificate, RootKey *rsa.PrivateKey, info CertInformation) error {
 	Crt := newCertificate(info)
 	Key, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -87,7 +87,7 @@ func CreateCRT(RootCa *x509.Certificate, RootKey *rsa.PrivateKey, info CertInfor
 	return nil
 }
 
-//编码写入文件
+// 编码写入文件
 func write(filename, Type string, p []byte) error {
 	File, err := os.Create(filename)
 	defer File.Close()
@@ -98,7 +98,7 @@ func write(filename, Type string, p []byte) error {
 	return pem.Encode(File, b)
 }
 
-//Parse Parse
+// Parse Parse
 func Parse(crtPath, keyPath string) (rootcertificate *x509.Certificate, rootPrivateKey *rsa.PrivateKey, err error) {
 	rootcertificate, err = ParseCrt(crtPath)
 	if err != nil {
@@ -108,7 +108,7 @@ func Parse(crtPath, keyPath string) (rootcertificate *x509.Certificate, rootPriv
 	return
 }
 
-//ParseCrt ParseCrt
+// ParseCrt ParseCrt
 func ParseCrt(path string) (*x509.Certificate, error) {
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -119,7 +119,7 @@ func ParseCrt(path string) (*x509.Certificate, error) {
 	return x509.ParseCertificate(p.Bytes)
 }
 
-//ParseKey ParseKey
+// ParseKey ParseKey
 func ParseKey(path string) (*rsa.PrivateKey, error) {
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -151,22 +151,4 @@ func newCertificate(info CertInformation) *x509.Certificate {
 		IPAddresses:           info.IPAddresses,
 		DNSNames:              info.Domains,
 	}
-}
-
-//CreateCertInformation CreateCertInformation
-func CreateCertInformation() CertInformation {
-	baseinfo := CertInformation{
-		Country:            []string{"CN"},
-		Organization:       []string{"Goodrain"},
-		OrganizationalUnit: []string{"goodrain rainbond"},
-		EmailAddress:       []string{"zengqg@goodrain.com"},
-		Locality:           []string{"BeiJing"},
-		Province:           []string{"BeiJing"},
-		CommonName:         "rainbond",
-		CrtName:            "",
-		KeyName:            "",
-		Domains:            []string{"goodrain.me"},
-	}
-	baseinfo.IPAddresses = []net.IP{net.ParseIP("127.0.0.1")}
-	return baseinfo
 }

@@ -22,15 +22,6 @@ func ValidateDomain(domain string) []string {
 	return errs
 }
 
-// ValidateEndpointAddress tests that the argument is a valid endpoint address.
-func ValidateEndpointAddress(address string) []string {
-	ip := net.ParseIP(address)
-	if ip == nil {
-		return ValidateDomain(address)
-	}
-	return ValidateEndpointIP(address)
-}
-
 // SplitEndpointAddress split URL to domain or IP
 func SplitEndpointAddress(resourceAddress string) (address string) {
 	if strings.HasPrefix(resourceAddress, "https://") {
@@ -76,7 +67,7 @@ func ValidateEndpointIP(ipAddress string) []string {
 	return err
 }
 
-//IsDomainNotIP check address is domain but not is ip
+// IsDomainNotIP check address is domain but not is ip
 func IsDomainNotIP(address string) bool {
 	if address == "1.1.1.1" {
 		return true

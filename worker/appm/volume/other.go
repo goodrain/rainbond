@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/node/nodem/client"
 	workerutil "github.com/goodrain/rainbond/worker/util"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -57,14 +56,6 @@ func (v *OtherVolume) CreateVolume(define *Define) error {
 	annotations := map[string]string{"volume_name": v.svm.VolumeName}
 	claim := newVolumeClaim(volumeMountName, volumeMountPath, v.svm.AccessMode, v.svm.VolumeType, v.svm.VolumeCapacity, labels, annotations)
 	logrus.Debugf("storage class is : %s, claim value is : %s", v.svm.VolumeType, claim.GetName())
-	claim.Annotations = map[string]string{
-		client.LabelOS: func() string {
-			if v.as.IsWindowsService {
-				return "windows"
-			}
-			return "linux"
-		}(),
-	}
 	v.as.SetClaim(claim)                 // store claim to appService
 	statefulset := v.as.GetStatefulSet() //有状态组件
 	vo := corev1.Volume{Name: volumeMountName}

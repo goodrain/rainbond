@@ -30,17 +30,17 @@ import (
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	endpointapi "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
-	envoyv2 "github.com/goodrain/rainbond/node/core/envoy/v2"
 	"github.com/goodrain/rainbond/util"
+	envoyv2 "github.com/goodrain/rainbond/util/envoy/v2"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
-//DependServiceHealthController Detect the health of the dependent service
-//Health based conditions：
-//------- lds: discover all dependent services
-//------- cds: discover all dependent services
-//------- sds: every service has at least one Ready instance
+// DependServiceHealthController Detect the health of the dependent service
+// Health based conditions：
+// ------- lds: discover all dependent services
+// ------- cds: discover all dependent services
+// ------- sds: every service has at least one Ready instance
 type DependServiceHealthController struct {
 	listeners                       []v2.Listener
 	clusters                        []v2.Cluster
@@ -57,14 +57,14 @@ type DependServiceHealthController struct {
 	dependentComponents             []DependentComponents
 }
 
-//DependentComponents -
+// DependentComponents -
 type DependentComponents struct {
 	K8sServiceName string `json:"k8s_service_name"`
 	Port           int    `json:"port"`
 	Protocol       string `json:"protocol"`
 }
 
-//NewDependServiceHealthController create a controller
+// NewDependServiceHealthController create a controller
 func NewDependServiceHealthController() (*DependServiceHealthController, error) {
 	clusterID := os.Getenv("ENVOY_NODE_ID")
 	if clusterID == "" {
@@ -92,7 +92,7 @@ func NewDependServiceHealthController() (*DependServiceHealthController, error) 
 	return &dsc, nil
 }
 
-//NewDecouplingDependServiceHealthController create a decoupling controller
+// NewDecouplingDependServiceHealthController create a decoupling controller
 func NewDecouplingDependServiceHealthController() (*DependServiceHealthController, error) {
 	dsc := DependServiceHealthController{
 		interval: time.Second * 5,
@@ -106,7 +106,7 @@ func NewDecouplingDependServiceHealthController() (*DependServiceHealthControlle
 	return &dsc, nil
 }
 
-//Check check all conditions
+// Check check all conditions
 func (d *DependServiceHealthController) Check() {
 	logrus.Info("start denpenent health check.")
 	ticker := time.NewTicker(d.interval)

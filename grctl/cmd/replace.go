@@ -24,7 +24,7 @@ import (
 	"github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/grctl/clients"
-	"github.com/goodrain/rainbond/monitor/utils"
+	utils "github.com/goodrain/rainbond/util"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"

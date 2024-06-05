@@ -22,7 +22,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/goodrain/rainbond-operator/util/constants"
-	"github.com/goodrain/rainbond/monitor/utils"
+	utils "github.com/goodrain/rainbond/util"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -277,6 +277,10 @@ func NewSourceBuildCmd() cli.Command {
 		Usage: "Commands related to building source code",
 	}
 	return c
+}
+func showError(m string) {
+	fmt.Printf("Error: %s\n", m)
+	os.Exit(1)
 }
 
 func getLang(dir string) (string, error) {

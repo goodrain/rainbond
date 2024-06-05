@@ -41,7 +41,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//CheckAndCreateDir check and create dir
+// CheckAndCreateDir check and create dir
 func CheckAndCreateDir(path string) error {
 	if subPathExists, err := FileExists(path); err != nil {
 		return fmt.Errorf("Could not determine if subPath %s exists; will not attempt to change its permissions", path)
@@ -61,7 +61,7 @@ func CheckAndCreateDir(path string) error {
 	return nil
 }
 
-//CheckAndCreateDirByMode check and create dir
+// CheckAndCreateDirByMode check and create dir
 func CheckAndCreateDirByMode(path string, mode os.FileMode) error {
 	if subPathExists, err := FileExists(path); err != nil {
 		return fmt.Errorf("Could not determine if subPath %s exists; will not attempt to change its permissions", path)
@@ -81,7 +81,7 @@ func CheckAndCreateDirByMode(path string, mode os.FileMode) error {
 	return nil
 }
 
-//DirIsEmpty 验证目录是否为空
+// DirIsEmpty 验证目录是否为空
 func DirIsEmpty(dir string) bool {
 	infos, err := ioutil.ReadDir(dir)
 	if len(infos) == 0 || err != nil {
@@ -90,12 +90,12 @@ func DirIsEmpty(dir string) bool {
 	return false
 }
 
-//OpenOrCreateFile open or create file
+// OpenOrCreateFile open or create file
 func OpenOrCreateFile(filename string) (*os.File, error) {
 	return os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0777)
 }
 
-//FileExists check file exist
+// FileExists check file exist
 func FileExists(filename string) (bool, error) {
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		return false, nil
@@ -105,14 +105,14 @@ func FileExists(filename string) (bool, error) {
 	return true, nil
 }
 
-//SearchFileBody 搜索文件中是否含有指定字符串
+// SearchFileBody 搜索文件中是否含有指定字符串
 func SearchFileBody(filename, searchStr string) bool {
 	body, _ := ioutil.ReadFile(filename)
 	return strings.Contains(string(body), searchStr)
 }
 
-//IsHaveFile 指定目录是否含有文件
-//.开头文件除外
+// IsHaveFile 指定目录是否含有文件
+// .开头文件除外
 func IsHaveFile(path string) bool {
 	files, _ := ioutil.ReadDir(path)
 	for _, file := range files {
@@ -123,7 +123,7 @@ func IsHaveFile(path string) bool {
 	return false
 }
 
-//SearchFile 搜索指定目录是否有指定文件，指定搜索目录层数，-1为全目录搜索
+// SearchFile 搜索指定目录是否有指定文件，指定搜索目录层数，-1为全目录搜索
 func SearchFile(pathDir, name string, level int) bool {
 	if level == 0 {
 		return false
@@ -151,7 +151,7 @@ func SearchFile(pathDir, name string, level int) bool {
 	return false
 }
 
-//FileExistsWithSuffix 指定目录是否含有指定后缀的文件
+// FileExistsWithSuffix 指定目录是否含有指定后缀的文件
 func FileExistsWithSuffix(pathDir, suffix string) bool {
 	files, _ := ioutil.ReadDir(pathDir)
 	for _, file := range files {
@@ -162,7 +162,7 @@ func FileExistsWithSuffix(pathDir, suffix string) bool {
 	return false
 }
 
-//CmdRunWithTimeout exec cmd with timeout
+// CmdRunWithTimeout exec cmd with timeout
 func CmdRunWithTimeout(cmd *exec.Cmd, timeout time.Duration) (bool, error) {
 	done := make(chan error)
 	if cmd.Process != nil { //还原执行状态
@@ -192,8 +192,8 @@ func CmdRunWithTimeout(cmd *exec.Cmd, timeout time.Duration) (bool, error) {
 	}
 }
 
-//ReadHostID 读取当前机器ID
-//ID是节点的唯一标识，acp_node将把ID与机器信息的绑定关系维护于etcd中
+// ReadHostID 读取当前机器ID
+// ID是节点的唯一标识，acp_node将把ID与机器信息的绑定关系维护于etcd中
 func ReadHostID(filePath string) (string, error) {
 	if filePath == "" {
 		if runtime.GOOS == "windows" {
@@ -228,7 +228,7 @@ func ReadHostID(filePath string) (string, error) {
 	return "", fmt.Errorf("Invalid host uuid from file")
 }
 
-//CreateHostID create host id by mac addr
+// CreateHostID create host id by mac addr
 func CreateHostID() (string, error) {
 	macAddrs := getMacAddrs()
 	if macAddrs == nil || len(macAddrs) == 0 {
@@ -264,7 +264,7 @@ func getMacAddrs() (macAddrs []string) {
 	return macAddrs
 }
 
-//LocalIP 获取本机 ip
+// LocalIP 获取本机 ip
 // 获取第一个非 loopback ip
 func LocalIP() (net.IP, error) {
 	tables, err := net.Interfaces()
@@ -289,7 +289,7 @@ func LocalIP() (net.IP, error) {
 	return nil, fmt.Errorf("cannot find local IP address")
 }
 
-//GetIDFromKey 从 etcd 的 key 中取 id
+// GetIDFromKey 从 etcd 的 key 中取 id
 func GetIDFromKey(key string) string {
 	index := strings.LastIndex(key, "/")
 	if index < 0 {
@@ -302,7 +302,7 @@ func GetIDFromKey(key string) string {
 	return key[index+1:]
 }
 
-//Deweight 去除数组重复
+// Deweight 去除数组重复
 func Deweight(data *[]string) {
 	var result []string
 	if len(*data) < 1024 {
@@ -333,8 +333,8 @@ func Deweight(data *[]string) {
 	*data = result
 }
 
-//GetDirSizeByCmd get dir sizes by du command
-//return kb
+// GetDirSizeByCmd get dir sizes by du command
+// return kb
 func GetDirSizeByCmd(path string) float64 {
 	out, err := CmdExec(fmt.Sprintf("du -sk %s", path))
 	if err != nil {
@@ -350,7 +350,7 @@ func GetDirSizeByCmd(path string) float64 {
 	return float64(i)
 }
 
-//GetFileSize get file size
+// GetFileSize get file size
 func GetFileSize(path string) int64 {
 	if fileInfo, err := os.Stat(path); err == nil {
 		return fileInfo.Size()
@@ -358,7 +358,7 @@ func GetFileSize(path string) int64 {
 	return 0
 }
 
-//GetDirSize kb为单位
+// GetDirSize kb为单位
 func GetDirSize(path string) float64 {
 	if ok, err := FileExists(path); err != nil || !ok {
 		return 0
@@ -390,7 +390,7 @@ loop:
 	return float64(nbytes / 1024)
 }
 
-//获取目录dir下的文件大小
+// 获取目录dir下的文件大小
 func walkDir(dir string, wg *sync.WaitGroup, fileSizes chan<- int64, concurrent chan int) {
 	defer wg.Done()
 	concurrent <- 1
@@ -408,10 +408,10 @@ func walkDir(dir string, wg *sync.WaitGroup, fileSizes chan<- int64, concurrent 
 	}
 }
 
-//sema is a counting semaphore for limiting concurrency in listDir
+// sema is a counting semaphore for limiting concurrency in listDir
 var sema = make(chan struct{}, 20)
 
-//读取目录dir下的文件信息
+// 读取目录dir下的文件信息
 func listDir(dir string) []os.FileInfo {
 	sema <- struct{}{}
 	defer func() { <-sema }()
@@ -442,7 +442,7 @@ func listDirNonSymlink(dir string) []os.FileInfo {
 	return result
 }
 
-//RemoveSpaces 去除空格项
+// RemoveSpaces 去除空格项
 func RemoveSpaces(sources []string) (re []string) {
 	for _, s := range sources {
 		if s != " " && s != "" && s != "\t" && s != "\n" && s != "\r" {
@@ -453,7 +453,7 @@ func RemoveSpaces(sources []string) (re []string) {
 	return
 }
 
-//CmdExec CmdExec
+// CmdExec CmdExec
 func CmdExec(args string) (string, error) {
 	out, err := exec.Command("bash", "-c", args).Output()
 	if err != nil {
@@ -462,7 +462,7 @@ func CmdExec(args string) (string, error) {
 	return string(out), nil
 }
 
-//Zip zip compressing source dir to target file
+// Zip zip compressing source dir to target file
 func Zip(source, target string) error {
 	if err := CheckAndCreateDir(filepath.Dir(target)); err != nil {
 		return err
@@ -538,7 +538,7 @@ func UnTar(archive, target string, zip bool) error {
 	return cmd.Run()
 }
 
-//Unzip archive file to target dir
+// Unzip archive file to target dir
 func Unzip(archive, target string, currentDirectory bool) error {
 	reader, err := zip.OpenDirectReader(archive)
 	if err != nil {
@@ -636,7 +636,7 @@ func CopyFile(source, target string) error {
 	return nil
 }
 
-//GetParentDirectory GetParentDirectory
+// GetParentDirectory GetParentDirectory
 func GetParentDirectory(dirctory string) string {
 	return substr(dirctory, 0, strings.LastIndex(dirctory, "/"))
 }
@@ -650,7 +650,7 @@ func substr(s string, pos, length int) string {
 	return string(runes[pos:l])
 }
 
-//Rename move file
+// Rename move file
 func Rename(old, new string) error {
 	_, err := os.Stat(GetParentDirectory(new))
 	if err != nil {
@@ -665,8 +665,8 @@ func Rename(old, new string) error {
 	return os.Rename(old, new)
 }
 
-//MergeDir MergeDir
-//if Subdirectories already exist, Don't replace
+// MergeDir MergeDir
+// if Subdirectories already exist, Don't replace
 func MergeDir(fromdir, todir string) error {
 	files, err := ioutil.ReadDir(fromdir)
 	if err != nil {
@@ -682,7 +682,7 @@ func MergeDir(fromdir, todir string) error {
 	return nil
 }
 
-//CreateVersionByTime create version number
+// CreateVersionByTime create version number
 func CreateVersionByTime() string {
 	now := time.Now()
 	return now.Format("20060102150405")
@@ -711,7 +711,7 @@ func GetDirList(dirpath string, level int) ([]string, error) {
 	return dirlist, nil
 }
 
-//GetFileList -
+// GetFileList -
 func GetFileList(dirpath string, level int) ([]string, error) {
 	var dirlist []string
 	list, err := ioutil.ReadDir(dirpath)
@@ -755,7 +755,7 @@ func GetDirNameList(dirpath string, level int) ([]string, error) {
 	return dirlist, nil
 }
 
-//GetCurrentDir get current dir
+// GetCurrentDir get current dir
 func GetCurrentDir() string {
 	dir, err := filepath.Abs("./")
 	if err != nil {
@@ -764,7 +764,7 @@ func GetCurrentDir() string {
 	return strings.Replace(dir, "\\", "/", -1)
 }
 
-//IsDir path is dir
+// IsDir path is dir
 func IsDir(path string) (bool, error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -775,7 +775,7 @@ func IsDir(path string) (bool, error) {
 
 var reg = regexp.MustCompile(`(?U)\$\{.*\}`)
 
-//ParseVariable parse and replace variable in source str
+// ParseVariable parse and replace variable in source str
 func ParseVariable(source string, configs map[string]string) string {
 	resultKey := reg.FindAllString(source, -1)
 	for _, sourcekey := range resultKey {
@@ -831,4 +831,12 @@ func IsEndWithNumber(dir string) (isEndWithNumber bool, suffix string) {
 	}
 	suffix = reg.FindString(dir)
 	return suffix != "", suffix
+}
+
+// GetenvDefault -
+func GetenvDefault(key, def string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return def
 }
