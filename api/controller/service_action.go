@@ -339,7 +339,7 @@ func (t *TenantStruct) HorizontalService(w http.ResponseWriter, r *http.Request)
 		noMemory = int(replicas)
 	}
 	if int(replicas) > service.Replicas {
-		if err := handler.CheckTenantResource(r.Context(), tenant, service.ContainerMemory*data["node_num"].(int), service.ContainerCPU*data["node_num"].(int), 0, noMemory, noCPU); err != nil {
+		if err := handler.CheckTenantResource(r.Context(), tenant, service.ContainerMemory*(int(replicas)), service.ContainerCPU*(int(replicas)), 0, noMemory, noCPU); err != nil {
 			httputil.ReturnResNotEnough(r, w, sEvent.EventID, err.Error())
 			return
 		}
