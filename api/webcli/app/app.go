@@ -50,13 +50,13 @@ import (
 	restclient "k8s.io/client-go/rest"
 )
 
-//ExecuteCommandTotal metric
+// ExecuteCommandTotal metric
 var ExecuteCommandTotal float64
 
-//ExecuteCommandFailed metric
+// ExecuteCommandFailed metric
 var ExecuteCommandFailed float64
 
-//App -
+// App -
 type App struct {
 	options *Options
 
@@ -70,7 +70,7 @@ type App struct {
 	config     *restclient.Config
 }
 
-//Options options
+// Options options
 type Options struct {
 	Address     string `hcl:"address"`
 	Port        string `hcl:"port"`
@@ -87,10 +87,10 @@ type Options struct {
 	K8SConfPath     string
 }
 
-//Version -
+// Version -
 var Version = "0.0.2"
 
-//DefaultOptions -
+// DefaultOptions -
 var DefaultOptions = Options{
 	Address:         "",
 	Port:            "8080",
@@ -103,7 +103,7 @@ var DefaultOptions = Options{
 	SessionKey:      "_auth_user_id",
 }
 
-//InitMessage -
+// InitMessage -
 type InitMessage struct {
 	TenantID      string `json:"T_id"`
 	ServiceID     string `json:"S_id"`
@@ -117,7 +117,7 @@ func checkSameOrigin(r *http.Request) bool {
 	return true
 }
 
-//New -
+// New -
 func New(options *Options) (*App, error) {
 	titleTemplate, _ := template.New("title").Parse(options.TitleFormat)
 	app := &App{
@@ -138,7 +138,7 @@ func New(options *Options) (*App, error) {
 	return app, nil
 }
 
-//Run Run
+// Run Run
 func (app *App) Run() error {
 
 	endpoint := net.JoinHostPort(app.options.Address, app.options.Port)
@@ -161,7 +161,7 @@ func (app *App) Run() error {
 	wsMux.Handle("/health", health)
 	wsMux.Handle("/metrics", promhttp.Handler())
 
-	siteHandler = (http.Handler(wsMux))
+	siteHandler = http.Handler(wsMux)
 
 	siteHandler = wrapLogger(siteHandler)
 
@@ -282,7 +282,7 @@ func (app *App) handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//Exit -
+// Exit -
 func (app *App) Exit() (firstCall bool) {
 	return true
 }
@@ -308,7 +308,7 @@ func (app *App) createKubeClient() error {
 	return nil
 }
 
-//SetConfigDefaults -
+// SetConfigDefaults -
 func SetConfigDefaults(config *rest.Config) error {
 	if config.APIPath == "" {
 		config.APIPath = "/api"
@@ -321,7 +321,7 @@ func SetConfigDefaults(config *rest.Config) error {
 	return nil
 }
 
-//GetContainerArgs get default container name
+// GetContainerArgs get default container name
 func (app *App) GetContainerArgs(namespace, podname, containerName string) (string, string, []string, error) {
 	var args = []string{"/bin/sh"}
 	pod, err := app.coreClient.CoreV1().Pods(namespace).Get(context.Background(), podname, metav1.GetOptions{})
@@ -345,7 +345,7 @@ func (app *App) GetContainerArgs(namespace, podname, containerName string) (stri
 	return "", "", args, fmt.Errorf("not have container in pod %s/%s", namespace, podname)
 }
 
-//NewRequest new exec request
+// NewRequest new exec request
 func (app *App) NewRequest(podName, namespace, containerName string, command []string) *restclient.Request {
 	// TODO: consider abstracting into a client invocation or client helper
 	req := app.restClient.Post().

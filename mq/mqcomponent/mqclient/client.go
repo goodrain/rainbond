@@ -33,8 +33,8 @@ func (m *Component) Start(ctx context.Context, cfg *configs.Config) error {
 func (m *Component) CloseHandle() {
 }
 
-// MQClient -
-func MQClient() *Component {
+// New -
+func New() *Component {
 	defaultMQClientComponent = &Component{}
 	return defaultMQClientComponent
 }

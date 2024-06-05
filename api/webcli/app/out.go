@@ -19,21 +19,21 @@
 package app
 
 import (
+	"github.com/goodrain/rainbond/api/webcli/term"
 	"io"
 	"os"
 
-	"github.com/goodrain/rainbond/webcli/term"
 	"github.com/sirupsen/logrus"
 )
 
-//Out out
+// Out out
 type Out struct {
 	Stdin  io.Reader
 	Stdout io.Writer
 	Stderr io.Writer
 }
 
-//CreateOut create out
+// CreateOut create out
 func CreateOut(tty *os.File) *Out {
 	return &Out{
 		Stdin:  tty,
@@ -42,7 +42,7 @@ func CreateOut(tty *os.File) *Out {
 	}
 }
 
-//SetTTY set tty
+// SetTTY set tty
 func (o *Out) SetTTY() term.TTY {
 	t := term.TTY{
 		Out: o.Stdout,

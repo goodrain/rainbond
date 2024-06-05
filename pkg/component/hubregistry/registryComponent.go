@@ -41,8 +41,8 @@ type RegistryComponent struct {
 	RegistryCli *registry.Registry
 }
 
-// HubRegistry -
-func HubRegistry() *RegistryComponent {
+// New -
+func New() *RegistryComponent {
 	defaultRegistryComponent = &RegistryComponent{
 		RegistryCli: new(registry.Registry),
 	}

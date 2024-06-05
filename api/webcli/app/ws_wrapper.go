@@ -22,12 +22,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-//WsWrapper ws wrapper
+// WsWrapper ws wrapper
 type WsWrapper struct {
 	*websocket.Conn
 }
 
-//Write write
+// Write write
 func (wsw *WsWrapper) Write(p []byte) (n int, err error) {
 	writer, err := wsw.Conn.NextWriter(websocket.TextMessage)
 	if err != nil {

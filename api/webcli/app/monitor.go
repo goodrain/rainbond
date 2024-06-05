@@ -12,7 +12,7 @@ const (
 	exporter = "exporter"
 )
 
-//Exporter collects webcli metrics. It implements prometheus.Collector.
+// Exporter collects webcli metrics. It implements prometheus.Collector.
 type Exporter struct {
 	ExecuteCommandTotal  prometheus.Counter
 	ExecuteCommandFailed prometheus.Counter
@@ -24,7 +24,7 @@ var healthDesc = prometheus.NewDesc(
 	[]string{"service_name"}, nil,
 )
 
-//NewExporter new a exporter
+// NewExporter new a exporter
 func NewExporter() *Exporter {
 	return &Exporter{
 		ExecuteCommandTotal: prometheus.NewCounter(prometheus.CounterOpts{
@@ -42,7 +42,7 @@ func NewExporter() *Exporter {
 	}
 }
 
-//Describe implements prometheus.Collector.
+// Describe implements prometheus.Collector.
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	metricCh := make(chan prometheus.Metric)
 	doneCh := make(chan struct{})

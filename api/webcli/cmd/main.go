@@ -3,22 +3,22 @@ package main
 import (
 	"fmt"
 	"github.com/goodrain/rainbond-operator/util/constants"
+	app2 "github.com/goodrain/rainbond/api/webcli/app"
 	utils "github.com/goodrain/rainbond/util"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
-	"github.com/goodrain/rainbond/webcli/app"
 	"github.com/sirupsen/logrus"
 	restclient "k8s.io/client-go/rest"
 )
 
 func main() {
-	option := app.DefaultOptions
+	option := app2.DefaultOptions
 	option.K8SConfPath = "/root/.kube/config"
 	config, err := k8sutil.NewRestConfig(option.K8SConfPath)
 	if err != nil {
 		logrus.Error(err)
 	}
 	config.UserAgent = "rainbond/webcli"
-	app.SetConfigDefaults(config)
+	app2.SetConfigDefaults(config)
 	restClient, err := restclient.RESTClientFor(config)
 	if err != nil {
 		logrus.Error(err)
@@ -38,7 +38,7 @@ func main() {
 		req.Param("command", c)
 	}
 
-	slave, err := app.NewExecContext(req, config)
+	slave, err := app2.NewExecContext(req, config)
 	if err != nil {
 		logrus.Error(err)
 		return

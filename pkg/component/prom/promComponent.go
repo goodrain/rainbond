@@ -31,8 +31,8 @@ type Component struct {
 	PrometheusCli prometheus.Interface
 }
 
-// Prometheus -
-func Prometheus() *Component {
+// New -
+func New() *Component {
 	defaultPromComponent = &Component{}
 	return defaultPromComponent
 }

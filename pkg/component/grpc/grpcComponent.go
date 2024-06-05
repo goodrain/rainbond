@@ -41,8 +41,8 @@ func (c *Component) Start(ctx context.Context, cfg *configs.Config) (err error) 
 func (c *Component) CloseHandle() {
 }
 
-// Grpc -
-func Grpc() *Component {
+// New -
+func New() *Component {
 	defaultGrpcComponent = &Component{}
 	return defaultGrpcComponent
 }

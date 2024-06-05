@@ -19,14 +19,13 @@
 package server
 
 import (
+	"github.com/goodrain/rainbond/api/webcli/app"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 
 	"github.com/goodrain/rainbond/cmd/webcli/option"
-	"github.com/goodrain/rainbond/webcli/app"
-
 	"github.com/sirupsen/logrus"
 )
 
