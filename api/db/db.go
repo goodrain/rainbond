@@ -42,8 +42,8 @@ type ConDB struct {
 	DBType         string
 }
 
-// Database -
-func Database() *ConDB {
+// New -
+func New() *ConDB {
 	return &ConDB{}
 }
 

@@ -25,9 +25,9 @@ import (
 	"github.com/goodrain/rainbond/builder/sources/registry"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/grctl/clients"
-	"github.com/goodrain/rainbond/monitor/utils"
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/gogo"
+	utils "github.com/goodrain/rainbond/util"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/types"
@@ -41,8 +41,8 @@ type RegistryComponent struct {
 	RegistryCli *registry.Registry
 }
 
-// HubRegistry -
-func HubRegistry() *RegistryComponent {
+// New -
+func New() *RegistryComponent {
 	defaultRegistryComponent = &RegistryComponent{
 		RegistryCli: new(registry.Registry),
 	}

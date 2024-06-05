@@ -22,7 +22,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/goodrain/rainbond-operator/util/constants"
-	"github.com/goodrain/rainbond/monitor/utils"
+	utils "github.com/goodrain/rainbond/util"
 
 	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond/db"

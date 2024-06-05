@@ -19,20 +19,17 @@
 package server
 
 import (
+	"github.com/goodrain/rainbond/api/webcli/app"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 
 	"github.com/goodrain/rainbond/cmd/webcli/option"
-	"github.com/goodrain/rainbond/discover"
-	"github.com/goodrain/rainbond/webcli/app"
-
-	etcdutil "github.com/goodrain/rainbond/util/etcd"
 	"github.com/sirupsen/logrus"
 )
 
-//Run start run
+// Run start run
 func Run(s *option.WebCliServer) error {
 	errChan := make(chan error)
 	option := app.DefaultOptions
@@ -49,20 +46,6 @@ func Run(s *option.WebCliServer) error {
 		return err
 	}
 	defer ap.Exit()
-	etcdClientArgs := &etcdutil.ClientArgs{
-		Endpoints: s.EtcdEndPoints,
-		CaFile:    s.EtcdCaFile,
-		CertFile:  s.EtcdCertFile,
-		KeyFile:   s.EtcdKeyFile,
-	}
-	keepalive, err := discover.CreateKeepAlive(etcdClientArgs, "acp_webcli", s.HostName, s.HostIP, s.Port)
-	if err != nil {
-		return err
-	}
-	if err := keepalive.Start(); err != nil {
-		return err
-	}
-	defer keepalive.Stop()
 	//step finally: listen Signal
 	term := make(chan os.Signal)
 	signal.Notify(term, os.Interrupt, syscall.SIGTERM)

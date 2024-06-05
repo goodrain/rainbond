@@ -38,7 +38,6 @@ import (
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
 	dbmodel "github.com/goodrain/rainbond/db/model"
-	"github.com/goodrain/rainbond/node/nodem/client"
 	"github.com/goodrain/rainbond/util"
 	"github.com/goodrain/rainbond/util/envutil"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
@@ -1114,10 +1113,6 @@ func createNodeSelector(as *v1.AppService, dbmanager db.Manager) (map[string]str
 	labels, err := dbmanager.TenantServiceLabelDao().GetTenantServiceNodeSelectorLabel(as.ServiceID)
 	if err == nil && labels != nil && len(labels) > 0 {
 		for _, l := range labels {
-			if l.LabelValue == "windows" || l.LabelValue == "linux" {
-				selector[client.LabelOS] = l.LabelValue
-				continue
-			}
 			if l.LabelValue == model.LabelKeyServicePrivileged {
 				continue
 			}
@@ -1167,25 +1162,20 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) (*corev1.Affinity, 
 	nsr := make([]corev1.NodeSelectorRequirement, 0)
 	podAffinity := make([]corev1.PodAffinityTerm, 0)
 	podAntAffinity := make([]corev1.PodAffinityTerm, 0)
-	osWindowsSelect := false
-	enableGPU := as.ContainerGPU > 0
 	labels, err := dbmanager.TenantServiceLabelDao().GetTenantServiceAffinityLabel(as.ServiceID)
 	if err == nil && labels != nil && len(labels) > 0 {
 		for _, l := range labels {
 			if l.LabelKey == dbmodel.LabelKeyNodeSelector {
 				if l.LabelValue == "windows" {
-					osWindowsSelect = true
 					continue
 				}
 			}
 			if l.LabelKey == dbmodel.LabelKeyNodeAffinity {
 				if l.LabelValue == "windows" {
 					nsr = append(nsr, corev1.NodeSelectorRequirement{
-						Key:      client.LabelOS,
 						Operator: corev1.NodeSelectorOpIn,
 						Values:   []string{l.LabelValue},
 					})
-					osWindowsSelect = true
 					continue
 				}
 				if strings.Contains(l.LabelValue, "=") {
@@ -1221,26 +1211,6 @@ func createAffinity(as *v1.AppService, dbmanager db.Manager) (*corev1.Affinity, 
 					})
 			}
 		}
-	}
-	if !osWindowsSelect {
-		nsr = append(nsr, corev1.NodeSelectorRequirement{
-			Key:      client.LabelOS,
-			Operator: corev1.NodeSelectorOpNotIn,
-			Values:   []string{"windows"},
-		})
-	}
-	if !enableGPU {
-		nsr = append(nsr, corev1.NodeSelectorRequirement{
-			Key:      client.LabelGPU,
-			Values:   []string{"true"},
-			Operator: corev1.NodeSelectorOpNotIn,
-		})
-	} else {
-		nsr = append(nsr, corev1.NodeSelectorRequirement{
-			Key:      client.LabelGPU,
-			Values:   []string{"true"},
-			Operator: corev1.NodeSelectorOpIn,
-		})
 	}
 	if hostname, ok := as.ExtensionSet["selecthost"]; ok {
 		nsr = append(nsr, corev1.NodeSelectorRequirement{

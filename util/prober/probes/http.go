@@ -28,9 +28,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goodrain/rainbond/node/nodem/service"
 	v1 "github.com/goodrain/rainbond/util/prober/types/v1"
 	"github.com/sirupsen/logrus"
+)
+
+const (
+	Stat_Unknow    string = "unknow"    //健康
+	Stat_healthy   string = "healthy"   //健康
+	Stat_unhealthy string = "unhealthy" //出现异常
+	Stat_death     string = "death"     //请求不通
 )
 
 // HTTPProbe probes through the http protocol
@@ -115,7 +121,7 @@ func (h *HTTPProbe) GetHTTPHealth() map[string]string {
 	addr, err := url.Parse(address)
 	if err != nil {
 		logrus.Errorf("%s is invalid %s", address, err.Error())
-		return map[string]string{"status": service.Stat_healthy, "info": "check url is invalid"}
+		return map[string]string{"status": Stat_healthy, "info": "check url is invalid"}
 	}
 	if addr.Scheme == "" {
 		addr.Scheme = "http"
@@ -127,14 +133,14 @@ func (h *HTTPProbe) GetHTTPHealth() map[string]string {
 	}
 	if err != nil {
 		if isClientTimeout(err) {
-			return map[string]string{"status": service.Stat_death, "info": "Request service timeout"}
+			return map[string]string{"status": Stat_death, "info": "Request service timeout"}
 		}
 		logrus.Debugf("http probe request error %s", err.Error())
-		return map[string]string{"status": service.Stat_unhealthy, "info": err.Error()}
+		return map[string]string{"status": Stat_unhealthy, "info": err.Error()}
 	}
 	if resp.StatusCode >= 400 {
 		logrus.Debugf("http probe check address %s return code %d", address, resp.StatusCode)
-		return map[string]string{"status": service.Stat_unhealthy, "info": "Service unhealthy"}
+		return map[string]string{"status": Stat_unhealthy, "info": "Service unhealthy"}
 	}
-	return map[string]string{"status": service.Stat_healthy, "info": "service health"}
+	return map[string]string{"status": "healthy", "info": "service health"}
 }

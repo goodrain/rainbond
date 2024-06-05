@@ -34,6 +34,7 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"github.com/goodrain/rainbond/pkg/component/prom"
+	"github.com/goodrain/rainbond/pkg/component/webcli"
 	"github.com/goodrain/rainbond/pkg/rainbond"
 	"github.com/sirupsen/logrus"
 	"time"
@@ -41,32 +42,32 @@ import (
 
 // Database -
 func Database() rainbond.Component {
-	return db.Database()
+	return db.New()
 }
 
 // K8sClient -
 func K8sClient() rainbond.Component {
-	return k8s.Client()
+	return k8s.New()
 }
 
 // HubRegistry -
 func HubRegistry() rainbond.Component {
-	return hubregistry.HubRegistry()
+	return hubregistry.New()
 }
 
 // MQ -
 func MQ() rainbond.Component {
-	return mq.MQ()
+	return mq.New()
 }
 
 // Prometheus -
 func Prometheus() rainbond.Component {
-	return prom.Prometheus()
+	return prom.New()
 }
 
 // Grpc -
 func Grpc() rainbond.Component {
-	return grpc.Grpc()
+	return grpc.New()
 }
 
 // Event -
@@ -128,15 +129,20 @@ func Proxy() rainbond.FuncComponent {
 
 // MQHealthServer -
 func MQHealthServer() rainbond.ComponentCancel {
-	return metrics.NewMetricsServer()
+	return metrics.New()
 }
 
 // MQGrpcServer -
 func MQGrpcServer() rainbond.ComponentCancel {
-	return grpcserver.NewGrpcServer()
+	return grpcserver.New()
 }
 
 // MQClient -
 func MQClient() rainbond.Component {
-	return mqclient.MQClient()
+	return mqclient.New()
+}
+
+// WebCli -
+func WebCli() rainbond.Component {
+	return webcli.New()
 }

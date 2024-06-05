@@ -10,12 +10,13 @@ type Env string
 
 // Config -
 type Config struct {
-	AppName   string
-	Version   string
-	Env       Env
-	Debug     bool
-	APIConfig apiconfig.Config
-	MQConfig  mqconfig.Config
+	AppName      string
+	Version      string
+	Env          Env
+	Debug        bool
+	APIConfig    apiconfig.Config
+	MQConfig     mqconfig.Config
+	WebCliConfig WebCliConfig
 }
 
 var defaultConfig *Config
@@ -28,4 +29,15 @@ func Default() *Config {
 // SetDefault -
 func SetDefault(cfg *Config) {
 	defaultConfig = cfg
+}
+
+// Config config server
+type WebCliConfig struct {
+	Address              string
+	HostIP               string
+	HostName             string
+	Port                 int
+	SessionKey           string
+	PrometheusMetricPath string
+	K8SConfPath          string
 }

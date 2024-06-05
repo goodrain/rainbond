@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/goodrain/rainbond/gateway/annotations/parser"
 	"github.com/goodrain/rainbond/util/apply"
 	v1 "github.com/goodrain/rainbond/worker/appm/types/v1"
 	monitorv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -94,26 +93,6 @@ func ApplyOne(ctx context.Context, apply apply.Applicator, clientset kubernetes.
 						}
 					}
 					ensureBetaIngress(ing, clientset)
-				}
-			}
-		}
-		if domain, exist := app.CustomParams["tcp-address"]; exist {
-			// update ingress
-			ingresses, betaIngresses := app.GetIngress(true)
-			for _, ing := range ingresses {
-				if host, exist := ing.Annotations[parser.GetAnnotationWithPrefix("l4-host")]; exist {
-					address := fmt.Sprintf("%s:%s", host, ing.Annotations[parser.GetAnnotationWithPrefix("l4-port")])
-					if address == domain {
-						ensureIngress(ing, clientset)
-					}
-				}
-			}
-			for _, ing := range betaIngresses {
-				if host, exist := ing.Annotations[parser.GetAnnotationWithPrefix("l4-host")]; exist {
-					address := fmt.Sprintf("%s:%s", host, ing.Annotations[parser.GetAnnotationWithPrefix("l4-port")])
-					if address == domain {
-						ensureBetaIngress(ing, clientset)
-					}
 				}
 			}
 		}

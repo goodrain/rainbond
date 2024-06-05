@@ -54,10 +54,6 @@ func NewWebCliServer() *WebCliServer {
 // AddFlags config
 func (a *WebCliServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&a.LogLevel, "log-level", "info", "the webcli log level")
-	fs.StringSliceVar(&a.EtcdEndPoints, "etcd-endpoints", []string{"http://rbd-etcd:2379"}, "etcd v3 cluster endpoints.")
-	fs.StringVar(&a.EtcdCaFile, "etcd-ca", "", "etcd tls ca file ")
-	fs.StringVar(&a.EtcdCertFile, "etcd-cert", "", "etcd tls cert file")
-	fs.StringVar(&a.EtcdKeyFile, "etcd-key", "", "etcd http tls cert key file")
 	fs.StringVar(&a.Address, "address", "0.0.0.0", "server listen address")
 	fs.StringVar(&a.HostIP, "hostIP", "", "Current node Intranet IP")
 	fs.StringVar(&a.HostName, "hostName", "", "Current node host name")

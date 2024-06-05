@@ -28,8 +28,8 @@ func (s *Server) Start(ctx context.Context, cfg *configs.Config) error {
 func (s *Server) CloseHandle() {
 }
 
-// NewMetricsServer -
-func NewMetricsServer() *Server {
+// New -
+func New() *Server {
 	return &Server{}
 }
 

@@ -61,8 +61,8 @@ type Component struct {
 
 var defaultK8sComponent *Component
 
-// Client -
-func Client() *Component {
+// New -
+func New() *Component {
 	defaultK8sComponent = &Component{}
 	return defaultK8sComponent
 }

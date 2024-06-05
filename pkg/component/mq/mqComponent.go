@@ -42,8 +42,8 @@ func (c *Component) Start(ctx context.Context, cfg *configs.Config) error {
 func (c *Component) CloseHandle() {
 }
 
-// MQ -
-func MQ() *Component {
+// New -
+func New() *Component {
 	defaultMqComponent = &Component{}
 	return defaultMqComponent
 }

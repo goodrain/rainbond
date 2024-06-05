@@ -29,7 +29,6 @@ import (
 	"github.com/goodrain/rainbond/cmd/worker/option"
 	"github.com/goodrain/rainbond/db"
 	"github.com/goodrain/rainbond/db/model"
-	discover "github.com/goodrain/rainbond/discover.v2"
 	"github.com/goodrain/rainbond/pkg/apis/rainbond/v1alpha1"
 	"github.com/goodrain/rainbond/pkg/helm"
 	"github.com/goodrain/rainbond/util"
@@ -63,7 +62,6 @@ type RuntimeServer struct {
 	conf      option.Config
 	server    *grpc.Server
 	hostIP    string
-	keepalive *discover.KeepAlive
 	clientset kubernetes.Interface
 	updateCh  *channels.RingChannel
 }

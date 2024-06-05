@@ -29,19 +29,11 @@ import (
 	"github.com/urfave/cli"
 )
 
-//GetCmds GetCmds
+// GetCmds GetCmds
 func GetCmds() []cli.Command {
 	cmds := []cli.Command{}
-	cmds = append(cmds, NewCmdInstall())
-	cmds = append(cmds, NewCmdService())
-	cmds = append(cmds, NewCmdTenant())
-	cmds = append(cmds, NewCmdNode())
-	cmds = append(cmds, NewCmdCluster())
 	cmds = append(cmds, NewSourceBuildCmd())
-	cmds = append(cmds, NewCmdAnsible())
 	cmds = append(cmds, NewCmdLicense())
-	cmds = append(cmds, NewCmdGateway())
-	cmds = append(cmds, NewCmdEnvoy())
 	cmds = append(cmds, NewCmdConfig())
 	cmds = append(cmds, NewCmdRegistry())
 	cmds = append(cmds, NewCmdReplace())
@@ -50,7 +42,7 @@ func GetCmds() []cli.Command {
 	return cmds
 }
 
-//Common Common
+// Common Common
 func Common(c *cli.Context) {
 	config, err := conf.LoadConfig(c)
 	if err != nil {
@@ -63,14 +55,9 @@ func Common(c *cli.Context) {
 	if err := clients.InitClient(config.Kubernets.KubeConf); err != nil {
 		logrus.Errorf("error config k8s,details %s", err.Error())
 	}
-	//clients.SetInfo(config.RegionAPI.URL, config.RegionAPI.Token)
-	if err := clients.InitRegionClient(config.RegionAPI); err != nil {
-		logrus.Fatal("error config region")
-	}
-
 }
 
-//CommonWithoutRegion Common
+// CommonWithoutRegion Common
 func CommonWithoutRegion(c *cli.Context) {
 	config, err := conf.LoadConfig(c)
 	if err != nil {
@@ -98,7 +85,7 @@ func fatal(msg string, code int) {
 	os.Exit(code)
 }
 
-//GetTenantNamePath Get Tenantname Path
+// GetTenantNamePath Get Tenantname Path
 func GetTenantNamePath() string {
 	tenantnamepath, err := conf.GetTenantNamePath()
 	if err != nil {

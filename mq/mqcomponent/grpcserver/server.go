@@ -12,8 +12,8 @@ import (
 	"net"
 )
 
-// NewGrpcServer -
-func NewGrpcServer() *Component {
+// New -
+func New() *Component {
 	return &Component{}
 }
 

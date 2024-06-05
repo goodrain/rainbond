@@ -44,25 +44,25 @@ func init() {
 	RegistConversion("TenantServiceMonitor", TenantServiceMonitor)
 }
 
-//Conversion conversion function
-//Any application attribute implementation is similarly injected
+// Conversion conversion function
+// Any application attribute implementation is similarly injected
 type Conversion func(*v1.AppService, db.Manager) error
 
-//CacheConversion conversion cache struct
+// CacheConversion conversion cache struct
 type CacheConversion struct {
 	Name       string
 	Conversion Conversion
 }
 
-//conversionList conversion function list
+// conversionList conversion function list
 var conversionList []CacheConversion
 
-//RegistConversion regist conversion function list
+// RegistConversion regist conversion function list
 func RegistConversion(name string, fun Conversion) {
 	conversionList = append(conversionList, CacheConversion{Name: name, Conversion: fun})
 }
 
-//InitAppService init a app service
+// InitAppService init a app service
 func InitAppService(sharedStorageClass string, dryRun bool, dbmanager db.Manager, serviceID string, configs map[string]string, enableConversionList ...string) (*v1.AppService, error) {
 	if configs == nil {
 		configs = make(map[string]string)
@@ -95,11 +95,7 @@ func InitAppService(sharedStorageClass string, dryRun bool, dbmanager db.Manager
 		logrus.Errorf("init component base config failure %s", err.Error())
 		return nil, err
 	}
-	// all component can regist server.
-	if err := TenantServiceRegist(appService, dbmanager); err != nil {
-		logrus.Errorf("init component server regist config failure %s", err.Error())
-		return nil, err
-	}
+
 	if appService.IsCustomComponent() {
 		if err := componentdefinition.GetComponentDefinitionBuilder().BuildWorkloadResource(appService, dbmanager); err != nil {
 			logrus.Errorf("init component by component definition build failure %s", err.Error())
@@ -117,7 +113,7 @@ func InitAppService(sharedStorageClass string, dryRun bool, dbmanager db.Manager
 	return appService, nil
 }
 
-//InitCacheOperatorManaged init cache operator manager
+// InitCacheOperatorManaged init cache operator manager
 func InitCacheOperatorManaged(appID string) *v1.OperatorManaged {
 	operatorManaged := &v1.OperatorManaged{
 		AppID: appID,
@@ -125,8 +121,8 @@ func InitCacheOperatorManaged(appID string) *v1.OperatorManaged {
 	return operatorManaged
 }
 
-//InitCacheAppService init cache app service.
-//if store manager receive a kube model belong with service and not find in store,will create
+// InitCacheAppService init cache app service.
+// if store manager receive a kube model belong with service and not find in store,will create
 func InitCacheAppService(dbm db.Manager, serviceID, creatorID string) (*v1.AppService, error) {
 	appService := &v1.AppService{
 		AppServiceBase: v1.AppServiceBase{
@@ -150,15 +146,6 @@ func InitCacheAppService(dbm db.Manager, serviceID, creatorID string) (*v1.AppSe
 
 	if err := TenantServiceBase(appService, dbm); err != nil {
 		return nil, err
-	}
-	svc, err := dbm.TenantServiceDao().GetServiceByID(serviceID)
-	if err != nil {
-		return nil, err
-	}
-	if svc.Kind == model.ServiceKindThirdParty.String() {
-		if err := TenantServiceRegist(appService, dbm); err != nil {
-			return nil, err
-		}
 	}
 
 	return appService, nil

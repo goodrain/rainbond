@@ -1,5 +1,5 @@
 // RAINBOND, Application Management Platform
-// Copyright (C) 2021-2024 Goodrain Co., Ltd.
+// Copyright (C) 2014-2017 Goodrain Co., Ltd.
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,38 +16,38 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-package grpc
+package app
 
 import (
-	"context"
-	"github.com/goodrain/rainbond/config/configs"
-	"github.com/goodrain/rainbond/worker/client"
+	"github.com/gorilla/websocket"
 )
 
-var defaultGrpcComponent *Component
-
-// Component -
-type Component struct {
-	StatusClient *client.AppRuntimeSyncClient
+// WsWrapper ws wrapper
+type WsWrapper struct {
+	*websocket.Conn
 }
 
-// Start -
-func (c *Component) Start(ctx context.Context, cfg *configs.Config) (err error) {
-	c.StatusClient, err = client.NewClient(ctx, cfg.APIConfig.RbdWorker)
-	return err
+// Write write
+func (wsw *WsWrapper) Write(p []byte) (n int, err error) {
+	writer, err := wsw.Conn.NextWriter(websocket.TextMessage)
+	if err != nil {
+		return 0, err
+	}
+	defer writer.Close()
+	return writer.Write(p)
 }
 
-// CloseHandle -
-func (c *Component) CloseHandle() {
-}
+func (wsw *WsWrapper) Read(p []byte) (n int, err error) {
+	for {
+		msgType, reader, err := wsw.Conn.NextReader()
+		if err != nil {
+			return 0, err
+		}
 
-// New -
-func New() *Component {
-	defaultGrpcComponent = &Component{}
-	return defaultGrpcComponent
-}
+		if msgType != websocket.TextMessage {
+			continue
+		}
 
-// Default -
-func Default() *Component {
-	return defaultGrpcComponent
+		return reader.Read(p)
+	}
 }

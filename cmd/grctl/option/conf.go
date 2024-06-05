@@ -19,28 +19,25 @@
 package option
 
 import (
-	"io/ioutil"
-	"os"
-	"path"
-
-	"github.com/goodrain/rainbond/api/region"
 	"github.com/goodrain/rainbond/builder/sources"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	yaml "gopkg.in/yaml.v2"
+	"io/ioutil"
+	"os"
+	"path"
 	//"strings"
 )
 
 var config Config
 
-//Config Config
+// Config Config
 type Config struct {
-	Kubernets     Kubernets      `yaml:"kube"`
-	RegionAPI     region.APIConf `yaml:"region_api"`
-	DockerLogPath string         `yaml:"docker_log_path"`
+	Kubernets     Kubernets `yaml:"kube"`
+	DockerLogPath string    `yaml:"docker_log_path"`
 }
 
-//RegionMysql RegionMysql
+// RegionMysql RegionMysql
 type RegionMysql struct {
 	URL      string `yaml:"url"`
 	Pass     string `yaml:"pass"`
@@ -48,18 +45,13 @@ type RegionMysql struct {
 	Database string `yaml:"database"`
 }
 
-//Kubernets Kubernets
+// Kubernets Kubernets
 type Kubernets struct {
 	KubeConf string `yaml:"kube-conf"`
 }
 
-//LoadConfig 加载配置
+// LoadConfig 加载配置
 func LoadConfig(ctx *cli.Context) (Config, error) {
-	config = Config{
-		RegionAPI: region.APIConf{
-			Endpoints: []string{"http://127.0.0.1:8888"},
-		},
-	}
 	configfile := ctx.GlobalString("config")
 	if configfile == "" {
 		home, _ := sources.Home()
@@ -81,7 +73,7 @@ func LoadConfig(ctx *cli.Context) (Config, error) {
 	return config, nil
 }
 
-//GetConfig GetConfig
+// GetConfig GetConfig
 func GetConfig() Config {
 	return config
 }

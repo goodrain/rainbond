@@ -6,7 +6,7 @@ import (
 	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/grctl/clients"
-	"github.com/goodrain/rainbond/monitor/utils"
+	utils "github.com/goodrain/rainbond/util"
 	"github.com/urfave/cli"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

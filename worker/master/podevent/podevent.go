@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/goodrain/rainbond-operator/util/constants"
-	"github.com/goodrain/rainbond/monitor/utils"
+	utils "github.com/goodrain/rainbond/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"sort"
@@ -112,7 +112,7 @@ func (p *PodEvent) Handle() {
 	}
 }
 
-//GetChan get pod update chan
+// GetChan get pod update chan
 func (p *PodEvent) GetChan() chan<- *corev1.Pod {
 	return p.podEventCh
 }
