@@ -27,11 +27,12 @@ import (
 	dbmodel "github.com/goodrain/rainbond/db/model"
 )
 
-//TenantHandler tenant handler
+// TenantHandler tenant handler
 type TenantHandler interface {
 	GetTenants(query string) ([]*dbmodel.Tenants, error)
 	GetTenantsByName(name string) (*dbmodel.Tenants, error)
 	GetTenantsByEid(eid, query string) ([]*dbmodel.Tenants, error)
+	GetTenantsByTenantIDs(tenantIDS []string) ([]*dbmodel.Tenants, error)
 	GetTenantsByUUID(uuid string) (*dbmodel.Tenants, error)
 	GetTenantsName() ([]string, error)
 	StatsMemCPU(services []*dbmodel.TenantServices) (*api_model.StatsInfo, error)
