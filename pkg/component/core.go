@@ -34,7 +34,6 @@ import (
 	"github.com/goodrain/rainbond/pkg/component/k8s"
 	"github.com/goodrain/rainbond/pkg/component/mq"
 	"github.com/goodrain/rainbond/pkg/component/prom"
-	"github.com/goodrain/rainbond/pkg/component/webcli"
 	"github.com/goodrain/rainbond/pkg/rainbond"
 	"github.com/sirupsen/logrus"
 	"time"
@@ -140,9 +139,4 @@ func MQGrpcServer() rainbond.ComponentCancel {
 // MQClient -
 func MQClient() rainbond.Component {
 	return mqclient.New()
-}
-
-// WebCli -
-func WebCli() rainbond.Component {
-	return webcli.New()
 }

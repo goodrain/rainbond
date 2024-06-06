@@ -20,7 +20,9 @@ package controller
 
 import (
 	"context"
+	webcli "github.com/goodrain/rainbond/api/webcli/app"
 	"github.com/goodrain/rainbond/config/configs"
+	"github.com/gorilla/websocket"
 	"net/http"
 	"os"
 	"path"
@@ -33,22 +35,30 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var app *webcli.App
+
+func GetWebCli() *webcli.App {
+	if app == nil {
+		app = &webcli.App{}
+		app.SetUpgrader(&websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+			Subprotocols:    []string{"webtty"},
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		})
+		//create kube client and config
+		if err := app.CreateKubeClient(); err != nil {
+			logrus.Errorf("create kube client error: %v", err)
+		}
+	}
+	return app
+}
+
 // DockerConsole docker console
 type DockerConsole struct {
 	socketproxy proxy.Proxy
-}
-
-var dockerConsole *DockerConsole
-
-// GetDockerConsole get Docker console
-func GetDockerConsole() *DockerConsole {
-	if dockerConsole != nil {
-		return dockerConsole
-	}
-	dockerConsole = &DockerConsole{
-		socketproxy: proxy.CreateProxy("dockerconsole", "websocket", configs.Default().APIConfig.DockerConsoleServers),
-	}
-	return dockerConsole
 }
 
 // Get get

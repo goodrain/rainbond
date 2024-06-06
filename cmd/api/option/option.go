@@ -35,7 +35,6 @@ type Config struct {
 	APIAddrSSL             string
 	DBConnectionInfo       string
 	EventLogServers        []string
-	DockerConsoleServers   []string
 	EventLogEndpoints      []string
 	NodeAPI                []string
 	BuilderAPI             []string
@@ -114,7 +113,6 @@ func (a *APIServer) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&a.ShowSQL, "show-sql", false, "The trigger for showing sql.")
 	fs.StringVar(&a.GrctlImage, "shell-image", "registry.cn-hangzhou.aliyuncs.com/goodrain/rbd-shell:v5.13.0-release", "use shell image")
 
-	fs.StringSliceVar(&a.DockerConsoleServers, "docker-console", []string{"rbd-webcli:7171"}, "docker console address")
 	fs.StringVar(&a.PrometheusEndpoint, "prom-api", "rbd-monitor:9999", "The service DNS name of Prometheus api. Default to rbd-monitor:9999")
 	fs.StringVar(&a.RbdHub, "hub-api", "http://rbd-hub:5000", "the rbd-hub server api")
 	fs.StringSliceVar(&a.NodeAPI, "node-api", []string{"rbd-node:6100"}, "the rbd-node server api")
