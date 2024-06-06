@@ -32,7 +32,6 @@ import (
 
 	"github.com/barnettZQG/gotty/server"
 	"github.com/barnettZQG/gotty/webtty"
-	httputil "github.com/goodrain/rainbond/util/http"
 	k8sutil "github.com/goodrain/rainbond/util/k8s"
 	"github.com/gorilla/websocket"
 	api "k8s.io/api/core/v1"
@@ -102,19 +101,7 @@ func (app *App) SetUpgrader(u *websocket.Upgrader) {
 	app.upgrader = u
 }
 
-func (app *App) makeServer(addr string, handler *http.Handler) (*http.Server, error) {
-	server := &http.Server{
-		Addr:    addr,
-		Handler: *handler,
-	}
-
-	return server, nil
-}
-
-func (app *App) healthCheck(w http.ResponseWriter, r *http.Request) {
-	httputil.ReturnSuccess(r, w, map[string]string{"status": "health", "info": "webcli service health"})
-}
-
+// HandleWS -
 func (app *App) HandleWS(w http.ResponseWriter, r *http.Request) {
 	logrus.Printf("New client connected: %s", r.RemoteAddr)
 
