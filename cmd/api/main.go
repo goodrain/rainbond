@@ -58,7 +58,6 @@ func main() {
 		Registry(component.Prometheus()).
 		Registry(component.Handler()).
 		Registry(component.Router()).
-		Registry(component.WebCli()).
 		Start()
 	if err != nil {
 		logrus.Errorf("start rbd-api error %s", err.Error())
