@@ -27,7 +27,6 @@ import (
 // Routes routes
 func Routes() chi.Router {
 	r := chi.NewRouter()
-	r.Get("/docker_console", controller.GetDockerConsole().Get)
 	r.Get("/docker_log", controller.GetDockerLog().Get)
 	r.Get("/monitor_message", controller.GetMonitorMessage().Get)
 	r.Get("/new_monitor_message", controller.GetMonitorMessage().Get)

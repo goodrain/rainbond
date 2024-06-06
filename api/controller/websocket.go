@@ -38,19 +38,6 @@ type DockerConsole struct {
 	socketproxy proxy.Proxy
 }
 
-var dockerConsole *DockerConsole
-
-// GetDockerConsole get Docker console
-func GetDockerConsole() *DockerConsole {
-	if dockerConsole != nil {
-		return dockerConsole
-	}
-	dockerConsole = &DockerConsole{
-		socketproxy: proxy.CreateProxy("dockerconsole", "websocket", configs.Default().APIConfig.DockerConsoleServers),
-	}
-	return dockerConsole
-}
-
 // Get get
 func (d DockerConsole) Get(w http.ResponseWriter, r *http.Request) {
 	d.socketproxy.Proxy(w, r)
