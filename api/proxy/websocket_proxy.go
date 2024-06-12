@@ -19,7 +19,9 @@
 package proxy
 
 import (
+	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/pkg/gogo"
 	"log"
 	"net"
 	"net/http"
@@ -30,7 +32,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//WebSocketProxy WebSocketProxy
+// WebSocketProxy WebSocketProxy
 type WebSocketProxy struct {
 	name      string
 	endpoints EndpointList
@@ -38,7 +40,7 @@ type WebSocketProxy struct {
 	upgrader  *websocket.Upgrader
 }
 
-//Proxy websocket proxy
+// Proxy websocket proxy
 func (h *WebSocketProxy) Proxy(w http.ResponseWriter, req *http.Request) {
 	endpoint := h.lb.Select(req, h.endpoints)
 	path := req.RequestURI
@@ -137,8 +139,16 @@ func (h *WebSocketProxy) Proxy(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 	}
-	go replicateWebsocketConn(connPub, connBackend, errClient)
-	go replicateWebsocketConn(connBackend, connPub, errBackend)
+	_ = gogo.Go(func(ctx context.Context) error {
+		replicateWebsocketConn(connPub, connBackend, errClient)
+		return nil
+	})
+
+	_ = gogo.Go(func(ctx context.Context) error {
+		replicateWebsocketConn(connBackend, connPub, errBackend)
+		return nil
+	})
+
 	var message string
 	select {
 	case err = <-errClient:
@@ -151,12 +161,12 @@ func (h *WebSocketProxy) Proxy(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-//UpdateEndpoints 更新后端点
+// UpdateEndpoints 更新后端点
 func (h *WebSocketProxy) UpdateEndpoints(endpoints ...string) {
 	h.endpoints = CreateEndpoints(endpoints)
 }
 
-//Do do proxy
+// Do do proxy
 func (h *WebSocketProxy) Do(r *http.Request) (*http.Response, error) {
 	return nil, fmt.Errorf("do not support")
 }

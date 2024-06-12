@@ -21,6 +21,7 @@ package healthy
 import (
 	"context"
 	"errors"
+	"github.com/goodrain/rainbond/pkg/gogo"
 	"sync"
 	"time"
 
@@ -31,7 +32,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//Manager Manager
+// Manager Manager
 type Manager interface {
 	GetServiceHealthy(serviceName string) (*service.HealthStatus, bool)
 	GetCurrentServiceHealthy(serviceName string) (*service.HealthStatus, error)
@@ -46,7 +47,7 @@ type Manager interface {
 	EnableWatcher(serviceName, watcherID string)
 }
 
-//Watcher watcher
+// Watcher watcher
 type Watcher interface {
 	GetID() string
 	GetServiceName() string
@@ -74,7 +75,7 @@ type probeManager struct {
 	hostNode     *client.HostNode
 }
 
-//CreateManager create manager
+// CreateManager create manager
 func CreateManager() Manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	statusChan := make(chan *service.HealthStatus, 100)
@@ -104,6 +105,10 @@ func (p *probeManager) AddServicesAndUpdate(inner []*service.Service) error {
 func (p *probeManager) Start(hostNode *client.HostNode) error {
 	p.hostNode = hostNode
 	go p.HandleStatus()
+	_ = gogo.Go(func(ctx context.Context) error {
+		p.HandleStatus()
+		return nil
+	})
 	p.updateServiceProbe()
 	return nil
 }

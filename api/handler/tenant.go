@@ -21,6 +21,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"github.com/goodrain/rainbond/util/constants"
 	"github.com/goodrain/rainbond/worker/appm/conversion"
 	"github.com/shirou/gopsutil/disk"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -827,7 +828,7 @@ func ConvertStorage(storage int) string {
 func (t *TenantAction) CheckTenantResourceQuotaAndLimitRange(ctx context.Context, namespace string, noMemory, noCPU int) error {
 	quotas, err := t.kubeClient.CoreV1().ResourceQuotas(namespace).Get(ctx, fmt.Sprintf("%v-%v", namespace, "limits-quota"), metav1.GetOptions{})
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
+		if strings.Contains(err.Error(), constants.NotFound) {
 			return nil
 		}
 		return errors.Wrap(err, "get tenant limit range failure")
@@ -841,7 +842,7 @@ func (t *TenantAction) CheckTenantResourceQuotaAndLimitRange(ctx context.Context
 	surplusMemory := hardMemory.Value() - userMemory.Value()
 	limitRanges, err := t.kubeClient.CoreV1().LimitRanges(namespace).Get(ctx, fmt.Sprintf("%v-%v", namespace, "limits-range"), metav1.GetOptions{})
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
+		if strings.Contains(err.Error(), constants.NotFound) {
 			return nil
 		}
 		return errors.Wrap(err, "get tenant limit range failure")
@@ -853,10 +854,10 @@ func (t *TenantAction) CheckTenantResourceQuotaAndLimitRange(ctx context.Context
 		defaultMemory = limit.Default.Memory().Value()
 	}
 	if ConvertCpuToInt(hardCpu.String()) > 0 && int64(noCPU)*defaultCpu > surplusCPU {
-		return errors.New("tenant_quota_cpu_lack")
+		return errors.New(constants.TenantQuotaCPULack)
 	}
 	if hardMemory.Value() > 0 && int64(noMemory)*defaultMemory > surplusMemory {
-		return errors.New("tenant_quota_memory_lack")
+		return errors.New(constants.TenantQuotaMemoryLack)
 	}
 	return nil
 }
