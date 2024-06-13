@@ -151,6 +151,7 @@ func (v2 *V2) clusterRouter() chi.Router {
 	r.Put("/abilities/{ability_id}", controller.GetManager().UpdateAbility)
 	r.Get("/governance-mode", controller.GetManager().ListGovernanceMode)
 	r.Get("/rbd-components", controller.GetManager().ListRainbondComponents)
+	r.Post("/rbd-upgrade", controller.GetManager().Upgrade)
 	r.Mount("/nodes", v2.nodesRouter())
 	return r
 }

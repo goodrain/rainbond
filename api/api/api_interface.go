@@ -54,6 +54,7 @@ type ClusterInterface interface {
 	GetAbility(w http.ResponseWriter, r *http.Request)
 	UpdateAbility(w http.ResponseWriter, r *http.Request)
 	ListRainbondComponents(w http.ResponseWriter, r *http.Request)
+	Upgrade(w http.ResponseWriter, r *http.Request)
 }
 
 // NodesInterface -
