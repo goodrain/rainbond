@@ -267,12 +267,7 @@ local _M = {
 function _M.call()
   ngx.header["Content-type"] = "text/html"
   local html = ""
-  if (os.getenv("DISABLE_POWER") == "true")
-  then
-    html = string.gsub(_M.defaultHTML, "POWER", "", 1)
-  else
-    html = string.gsub(_M.defaultHTML, "POWER", [[<p class="text2" id="power">Power By <a href="https://www.rainbond.com" target="_blank" rel="noopener noreferrer">Rainbond</a></p>]],1)
-  end
+  html = string.gsub(_M.defaultHTML, "POWER", "", 1)
   ngx.print(html)
 end
 
