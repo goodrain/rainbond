@@ -47,9 +47,9 @@ func init() {
 	BUILDERIMAGENAME = fmt.Sprintf("%s:latest-%s", "/builder", arch)
 	if os.Getenv("BUILDER_IMAGE_NAME") != "" {
 		BUILDERIMAGENAME = os.Getenv("BUILDER_IMAGE_NAME")
+	} else {
+		BUILDERIMAGENAME = path.Join(REGISTRYDOMAIN, BUILDERIMAGENAME)
 	}
-
-	BUILDERIMAGENAME = path.Join(REGISTRYDOMAIN, BUILDERIMAGENAME)
 	if os.Getenv("ABROAD") != "" {
 		ONLINEREGISTRYDOMAIN = "docker.io/rainbond"
 	}
