@@ -283,10 +283,10 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volume.Define, envs []corev1.EnvVar, envVarSecrets []*corev1.Secret, dbmanager db.Manager) (*corev1.Container, error) {
 	cmd, err := createCMD(as, dbmanager)
 	var containerCMD []string
+	containerCMD = []string{cmd}
 	if cmd == "" {
 		containerCMD = nil
 	}
-	containerCMD = []string{cmd}
 	if err != nil {
 		return nil, fmt.Errorf("craete service account name failure: %v", err)
 	}
