@@ -34,7 +34,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-//GetTenantServicePluginRelation GetTenantServicePluginRelation
+// GetTenantServicePluginRelation GetTenantServicePluginRelation
 func (s *ServiceAction) GetTenantServicePluginRelation(serviceID string) ([]*dbmodel.TenantServicePluginRelation, *util.APIHandleError) {
 	gps, err := db.GetManager().TenantServicePluginRelationDao().GetALLRelationByServiceID(serviceID)
 	if err != nil {
@@ -43,7 +43,7 @@ func (s *ServiceAction) GetTenantServicePluginRelation(serviceID string) ([]*dbm
 	return gps, nil
 }
 
-//TenantServiceDeletePluginRelation uninstall plugin for app
+// TenantServiceDeletePluginRelation uninstall plugin for app
 func (s *ServiceAction) TenantServiceDeletePluginRelation(tenantID, serviceID, pluginID string) *util.APIHandleError {
 	tx := db.GetManager().Begin()
 	defer func() {
@@ -85,7 +85,7 @@ func (s *ServiceAction) TenantServiceDeletePluginRelation(tenantID, serviceID, p
 	return nil
 }
 
-//SetTenantServicePluginRelation SetTenantServicePluginRelation
+// SetTenantServicePluginRelation SetTenantServicePluginRelation
 func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError) {
 	plugin, err := db.GetManager().TenantPluginDao().GetPluginByID(pss.Body.PluginID, tenantID)
 	if err != nil {
@@ -145,7 +145,7 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 				p.ListenPort = pluginPort
 			}
 		}
-		if err := s.SavePluginConfig(serviceID, plugin.PluginID, pss.Body.ConfigEnvs.ComplexEnvs); err != nil {
+		if err := s.SavePluginConfig(serviceID, plugin.PluginID, pss.Body.ConfigEnvs.ComplexEnvs, tx); err != nil {
 			tx.Rollback()
 			return nil, util.CreateAPIHandleError(500, fmt.Errorf("set complex error, %v", err))
 		}
@@ -182,7 +182,7 @@ func (s *ServiceAction) SetTenantServicePluginRelation(tenantID, serviceID strin
 	return relation, nil
 }
 
-//UpdateTenantServicePluginRelation UpdateTenantServicePluginRelation
+// UpdateTenantServicePluginRelation UpdateTenantServicePluginRelation
 func (s *ServiceAction) UpdateTenantServicePluginRelation(serviceID string, pss *api_model.PluginSetStruct) (*dbmodel.TenantServicePluginRelation, *util.APIHandleError) {
 	relation, err := db.GetManager().TenantServicePluginRelationDao().GetRelateionByServiceIDAndPluginID(serviceID, pss.Body.PluginID)
 	if err != nil {
@@ -221,7 +221,7 @@ func checkPluginHaveInbound(model string) bool {
 	return model == dbmodel.InBoundNetPlugin || model == dbmodel.InBoundAndOutBoundNetPlugin
 }
 
-//UpdateVersionEnv UpdateVersionEnv
+// UpdateVersionEnv UpdateVersionEnv
 func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.APIHandleError {
 	plugin, err := db.GetManager().TenantPluginDao().GetPluginByID(uve.PluginID, uve.Body.TenantID)
 	if err != nil {
@@ -261,7 +261,7 @@ func (s *ServiceAction) UpdateVersionEnv(uve *api_model.SetVersionEnv) *util.API
 				p.ListenPort = pluginPort
 			}
 		}
-		if err := s.SavePluginConfig(uve.Body.ServiceID, uve.PluginID, uve.Body.ConfigEnvs.ComplexEnvs); err != nil {
+		if err := s.SavePluginConfig(uve.Body.ServiceID, uve.PluginID, uve.Body.ConfigEnvs.ComplexEnvs, tx); err != nil {
 			tx.Rollback()
 			return util.CreateAPIHandleError(500, fmt.Errorf("update complex error, %v", err))
 		}
@@ -290,8 +290,8 @@ func (s *ServiceAction) upNormalEnvs(tx *gorm.DB, uve *api_model.SetVersionEnv) 
 	return nil
 }
 
-//SavePluginConfig save plugin dynamic discovery config
-func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *api_model.ResourceSpec) *util.APIHandleError {
+// SavePluginConfig save plugin dynamic discovery config
+func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *api_model.ResourceSpec, tx *gorm.DB) *util.APIHandleError {
 	if config == nil {
 		return nil
 	}
@@ -300,7 +300,7 @@ func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *api
 		logrus.Errorf("mashal plugin config value error, %v", err)
 		return util.CreateAPIHandleError(500, err)
 	}
-	if err := db.GetManager().TenantPluginVersionConfigDao().AddModel(&dbmodel.TenantPluginVersionDiscoverConfig{
+	if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).AddModel(&dbmodel.TenantPluginVersionDiscoverConfig{
 		PluginID:  pluginID,
 		ServiceID: serviceID,
 		ConfigStr: string(v),
@@ -327,7 +327,7 @@ func (s *ServiceAction) SavePluginConfig(serviceID, pluginID string, config *api
 	return nil
 }
 
-//DeletePluginConfig delete service plugin dynamic discovery config
+// DeletePluginConfig delete service plugin dynamic discovery config
 func (s *ServiceAction) DeletePluginConfig(serviceID, pluginID string) *util.APIHandleError {
 	tx := db.GetManager().Begin()
 	err := s.deletePluginConfig(tx, serviceID, pluginID)
@@ -343,7 +343,7 @@ func (s *ServiceAction) DeletePluginConfig(serviceID, pluginID string) *util.API
 	return nil
 }
 
-//DeletePluginConfig delete service plugin dynamic discovery config
+// DeletePluginConfig delete service plugin dynamic discovery config
 func (s *ServiceAction) deletePluginConfig(tx *gorm.DB, serviceID, pluginID string) *util.APIHandleError {
 	if tx != nil {
 		if err := db.GetManager().TenantPluginVersionConfigDaoTransactions(tx).DeletePluginConfig(serviceID, pluginID); err != nil {
