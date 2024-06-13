@@ -19,14 +19,21 @@
 package controller
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi"
+	"github.com/goodrain/rainbond-operator/api/v1alpha1"
+	"github.com/goodrain/rainbond-operator/util/constants"
 	"github.com/goodrain/rainbond/api/handler"
 	"github.com/goodrain/rainbond/api/model"
 	"github.com/goodrain/rainbond/api/util"
 	"github.com/goodrain/rainbond/db"
 	dbmodel "github.com/goodrain/rainbond/db/model"
+	"github.com/goodrain/rainbond/pkg/component/k8s"
+	utils "github.com/goodrain/rainbond/util"
 	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/types"
 	"net/http"
 	"strconv"
 
@@ -406,6 +413,33 @@ func (c *ClusterController) ListRainbondComponents(w http.ResponseWriter, r *htt
 		return
 	}
 	httputil.ReturnSuccess(r, w, components)
+}
+
+// Upgrade 自动升级集群端的镜像
+func (c *ClusterController) Upgrade(w http.ResponseWriter, r *http.Request) {
+	body := make(map[string]string)
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	res := make([]string, 0)
+	for k, v := range body {
+		var cpt v1alpha1.RbdComponent
+		err := k8s.Default().K8sClient.Get(context.Background(),
+			types.NamespacedName{Namespace: utils.GetenvDefault("RBD_NAMESPACE", constants.Namespace), Name: k}, &cpt)
+		if err != nil {
+			res = append(res, fmt.Sprintf(`%s获取异常%s`, k, err.Error()))
+			continue
+		}
+		cpt.Spec.Image = v
+		err = k8s.Default().K8sClient.Update(context.Background(), &cpt)
+		if err != nil {
+			res = append(res, fmt.Sprintf(`%s更新异常%s`, k, err.Error()))
+			continue
+		}
+	}
+	httputil.ReturnSuccess(r, w, res)
 }
 
 // ListPlugins -
