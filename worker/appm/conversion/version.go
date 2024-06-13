@@ -281,6 +281,10 @@ func TenantServiceVersion(as *v1.AppService, dbmanager db.Manager) error {
 }
 
 func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volume.Define, envs []corev1.EnvVar, envVarSecrets []*corev1.Secret, dbmanager db.Manager) (*corev1.Container, error) {
+	cmd, err := createCMD(as, dbmanager)
+	if err != nil {
+		return nil, fmt.Errorf("craete service account name failure: %v", err)
+	}
 	// secret as container environment variables
 	envFromSecrets, err := getENVFromSource(as, dbmanager)
 	if err != nil {
@@ -328,6 +332,7 @@ func getMainContainer(as *v1.AppService, version *dbmodel.VersionInfo, dv *volum
 		Args:            args,
 		Ports:           ports,
 		Env:             envs,
+		Command:         []string{cmd},
 		EnvFrom:         envFromSecrets,
 		VolumeMounts:    vm,
 		LivenessProbe:   createProbe(as, dbmanager, "liveness"),
@@ -1328,6 +1333,18 @@ func createServiceAccountName(as *v1.AppService, dbmanager db.Manager) (string, 
 		serviceAN = sa.AttributeValue
 	}
 	return serviceAN, nil
+}
+
+func createCMD(as *v1.AppService, dbmanager db.Manager) (string, error) {
+	var cmd string
+	sa, err := dbmanager.ComponentK8sAttributeDao().GetByComponentIDAndName(as.ServiceID, model.K8sAttributeNameCMD)
+	if err != nil {
+		return "", err
+	}
+	if sa != nil {
+		cmd = sa.AttributeValue
+	}
+	return cmd, nil
 }
 
 func createVolumeMounts(dv *volume.Define, as *v1.AppService, dbmanager db.Manager) ([]corev1.VolumeMount, error) {
