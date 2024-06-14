@@ -21,6 +21,7 @@ package k8s
 import (
 	"context"
 	apisixversioned "github.com/apache/apisix-ingress-controller/pkg/kube/apisix/client/clientset/versioned"
+	rainbondv1alpha1 "github.com/goodrain/rainbond-operator/api/v1alpha1"
 	"github.com/goodrain/rainbond/config/configs"
 	"github.com/goodrain/rainbond/pkg/generated/clientset/versioned"
 	rainbondscheme "github.com/goodrain/rainbond/pkg/generated/clientset/versioned/scheme"
@@ -29,6 +30,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -57,6 +59,15 @@ type Component struct {
 	ApiSixClient *apisixversioned.Clientset
 	KruiseClient *kruiseclientset.Clientset
 	MetricClient *metrics.Clientset
+}
+
+var (
+	scheme = runtime.NewScheme()
+)
+
+func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(rainbondv1alpha1.AddToScheme(scheme))
 }
 
 var defaultK8sComponent *Component
