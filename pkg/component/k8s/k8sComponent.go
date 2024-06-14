@@ -68,6 +68,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(rainbondv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(rainbondscheme.AddToScheme(scheme))
 }
 
 var defaultK8sComponent *Component
@@ -117,9 +118,6 @@ func (k *Component) Start(ctx context.Context, cfg *configs.Config) error {
 
 	k.RainbondClient = versioned.NewForConfigOrDie(config)
 
-	scheme := runtime.NewScheme()
-	clientgoscheme.AddToScheme(scheme)
-	rainbondscheme.AddToScheme(scheme)
 	k.K8sClient, err = k8sclient.New(config, k8sclient.Options{
 		Scheme: scheme,
 	})
