@@ -110,7 +110,7 @@ func (a *Builder) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&a.BuildKitCache, "buildkit-cache", false, "whether to enable the buildkit image cache")
 	fs.IntVar(&a.KeepCount, "keep-count", 5, "default number of reserved copies for images")
 	fs.IntVar(&a.CleanInterval, "clean-interval", 60, "clean image interval,default 60 minute")
-	fs.StringVar(&a.BRVersion, "br-version", "v5.17.1-release", "builder and runner version")
+	fs.StringVar(&a.BRVersion, "br-version", "v5.17.2-release", "builder and runner version")
 
 	fs.StringSliceVar(&a.EventLogServers, "event-servers", []string{"rbd-eventlog:6366"}, "event log server address. simple lb")
 	fs.StringVar(&a.MQAPI, "mq-api", "rbd-mq:6300", "acp_mq api")
