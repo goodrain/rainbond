@@ -224,10 +224,7 @@ func (t *TenantServicesDaoImpl) UpdateDeployVersion(serviceID, deployversion str
 }
 
 func (t *TenantServicesDaoImpl) UpdateSafety(serviceID string, safety bool) error {
-	if err := t.DB.Exec("update tenant_services set safety=? where service_id=?", safety, serviceID).Error; err != nil {
-		return err
-	}
-	return nil
+	return t.DB.Exec("update tenant_services set safety=? where service_id=?", safety, serviceID).Error
 }
 
 // AddModel 添加租户应用
