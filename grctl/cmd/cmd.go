@@ -29,7 +29,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-//GetCmds GetCmds
+// GetCmds GetCmds
 func GetCmds() []cli.Command {
 	cmds := []cli.Command{}
 	cmds = append(cmds, NewCmdInstall())
@@ -47,10 +47,11 @@ func GetCmds() []cli.Command {
 	cmds = append(cmds, NewCmdReplace())
 	cmds = append(cmds, NewCmdMigrateConsole())
 	cmds = append(cmds, NewCmdGPUShare())
+	cmds = append(cmds, NewCmdRecover())
 	return cmds
 }
 
-//Common Common
+// Common Common
 func Common(c *cli.Context) {
 	config, err := conf.LoadConfig(c)
 	if err != nil {
@@ -70,7 +71,7 @@ func Common(c *cli.Context) {
 
 }
 
-//CommonWithoutRegion Common
+// CommonWithoutRegion Common
 func CommonWithoutRegion(c *cli.Context) {
 	config, err := conf.LoadConfig(c)
 	if err != nil {
@@ -98,7 +99,7 @@ func fatal(msg string, code int) {
 	os.Exit(code)
 }
 
-//GetTenantNamePath Get Tenantname Path
+// GetTenantNamePath Get Tenantname Path
 func GetTenantNamePath() string {
 	tenantnamepath, err := conf.GetTenantNamePath()
 	if err != nil {

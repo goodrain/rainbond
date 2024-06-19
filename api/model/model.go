@@ -486,6 +486,7 @@ type AddHandleResource struct {
 	Namespace    string `json:"namespace"`
 	AppID        string `json:"app_id"`
 	ResourceYaml string `json:"resource_yaml"`
+	Recover      bool   `json:"recover"`
 }
 
 // HandleResource -

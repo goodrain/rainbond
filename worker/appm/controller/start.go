@@ -69,6 +69,7 @@ func (s *startController) Begin() {
 						service.Logger.Error(util.Translation("start service timeout"), event.GetTimeoutLoggerOption())
 					}
 				} else {
+
 					logrus.Debugf("Start service %s success", service.ServiceAlias)
 					service.Logger.Info(fmt.Sprintf("Start service %s success", service.ServiceAlias), event.GetLastLoggerOption())
 				}

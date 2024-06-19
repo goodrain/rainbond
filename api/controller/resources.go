@@ -2185,3 +2185,55 @@ func (t *TenantStruct) CheckResourceName(w http.ResponseWriter, r *http.Request)
 
 	httputil.ReturnSuccess(r, w, res)
 }
+
+func (t *TenantStruct) TenantStartService(w http.ResponseWriter, r *http.Request) {
+	tenantID := r.Context().Value(ctxutil.ContextKey("tenant_id")).(string)
+	services, err := db.GetManager().TenantServiceDao().GetStartServicesAllInfoByTenantID(tenantID)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	tenant, err := db.GetManager().TenantDao().GetTenantByUUID(tenantID)
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	for _, service := range services {
+		if service.Kind != "third_party" {
+			var noMemory, noCPU, needStorage int
+			if service.ContainerCPU == 0 {
+				noCPU = service.Replicas
+			}
+			if service.ContainerMemory == 0 {
+				noMemory = service.Replicas
+			}
+			storages, err := db.GetManager().TenantServiceVolumeDao().GetTenantServiceVolumesByServiceID(service.ServiceID)
+			if err != nil {
+				break
+			}
+			if storages != nil && len(storages) > 0 {
+				for _, storage := range storages {
+					needStorage += int(storage.VolumeCapacity)
+				}
+			}
+			if err := handler.CheckTenantResource(r.Context(), tenant, service.Replicas*service.ContainerMemory, service.Replicas*service.ContainerCPU, needStorage, noMemory, noCPU); err != nil {
+				break
+			}
+		}
+
+		startStopStruct := &apimodel.StartStopStruct{
+			TenantID:  tenantID,
+			ServiceID: service.ServiceID,
+			EventID:   "",
+			TaskType:  "start",
+		}
+		if err := handler.GetServiceManager().StartStopService(startStopStruct); err != nil {
+			break
+		}
+	}
+	if err != nil {
+		httputil.ReturnBcodeError(r, w, err)
+		return
+	}
+	httputil.ReturnSuccess(r, w, "")
+}

@@ -451,6 +451,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 				a.conf.KubeClient.AppsV1().Deployments(deployment.Namespace).Delete(context.Background(), deployment.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
+				a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
 				appservice.SetDeployment(deployment)
 				if migrator == "rainbond" {
 					label := "service_id=" + serviceID
@@ -484,6 +485,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 				a.conf.KubeClient.BatchV1().Jobs(job.Namespace).Delete(context.Background(), job.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
+				a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
 				appservice.SetJob(job)
 				if migrator == "rainbond" {
 					label := "controller-uid=" + job.Spec.Selector.MatchLabels["controller-uid"]
@@ -511,6 +513,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 				a.conf.KubeClient.BatchV1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
+				a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
 				appservice.SetCronJob(cjob)
 				if migrator == "rainbond" {
 					label := "service_id=" + serviceID
@@ -542,6 +545,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 				a.conf.KubeClient.BatchV1beta1().CronJobs(cjob.Namespace).Delete(context.Background(), cjob.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
+				a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
 				appservice.SetBetaCronJob(cjob)
 				if migrator == "rainbond" {
 					label := "service_id=" + serviceID
@@ -573,6 +577,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 				a.conf.KubeClient.AppsV1().StatefulSets(statefulset.Namespace).Delete(context.Background(), statefulset.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
+				a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
 				appservice.SetStatefulSet(statefulset)
 				if migrator == "rainbond" {
 					label := "service_id=" + serviceID
@@ -604,6 +609,7 @@ func (a *appRuntimeStore) OnAdd(obj interface{}) {
 				a.conf.KubeClient.AppsV1().Deployments(replicaset.Namespace).Delete(context.Background(), replicaset.Name, metav1.DeleteOptions{})
 			}
 			if appservice != nil {
+				a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, true)
 				appservice.SetReplicaSets(replicaset)
 				a.checkReplicasetWhetherDelete(appservice, replicaset)
 				return
@@ -881,6 +887,7 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 			appID := deployment.Labels["app_id"]
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, _ := a.getAppService(serviceID, version, createrID, false, a.kruiseClient, a.gatewayClient)
+				a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, false)
 				if appservice != nil {
 					appservice.DeleteDeployment(deployment)
 					if appservice.IsClosed() {
@@ -904,6 +911,7 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, _ := a.getAppService(serviceID, version, createrID, false, a.kruiseClient, a.gatewayClient)
 				if appservice != nil {
+					a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, false)
 					appservice.DeleteStatefulSet(statefulset)
 					if appservice.IsClosed() {
 						a.DeleteAppService(appservice)
@@ -925,6 +933,7 @@ func (a *appRuntimeStore) OnDeletes(objs ...interface{}) {
 			if serviceID != "" && version != "" && createrID != "" {
 				appservice, _ := a.getAppService(serviceID, version, createrID, false, a.kruiseClient, a.gatewayClient)
 				if appservice != nil {
+					a.dbmanager.TenantServiceDao().UpdateComponentStatusModel(serviceID, false)
 					appservice.DeleteReplicaSet(replicaset)
 					if appservice.IsClosed() {
 						a.DeleteAppService(appservice)

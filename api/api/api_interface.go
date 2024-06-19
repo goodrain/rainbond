@@ -96,6 +96,7 @@ type TenantInterface interface {
 	TenantResourcesStatus(w http.ResponseWriter, r *http.Request)
 	CheckResourceName(w http.ResponseWriter, r *http.Request)
 	Log(w http.ResponseWriter, r *http.Request)
+	TenantStartService(w http.ResponseWriter, r *http.Request)
 }
 
 // HelmInterface HelmInterface

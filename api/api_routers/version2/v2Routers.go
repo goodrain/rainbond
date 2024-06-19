@@ -199,6 +199,7 @@ func (v2 *V2) tenantNameRouter() chi.Router {
 	//代码检测
 	r.Post("/code-check", controller.GetManager().CheckCode)
 	r.Post("/servicecheck", controller.Check)
+	r.Post("/start", controller.GetManager().TenantStartService)
 	r.Get("/image-repositories", controller.RegistryImageRepositories)
 	r.Get("/image-tags", controller.RegistryImageTags)
 	r.Get("/servicecheck/{uuid}", controller.GetServiceCheckInfo)

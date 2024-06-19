@@ -25,7 +25,11 @@ import (
 )
 
 // AddAppK8SResource -
-func (c *clusterAction) AddAppK8SResource(ctx context.Context, namespace string, appID string, resourceYaml string) ([]*dbmodel.K8sResource, *util.APIHandleError) {
+func (c *clusterAction) AddAppK8SResource(ctx context.Context, namespace string, appID string, resourceYaml string, recover bool) ([]*dbmodel.K8sResource, *util.APIHandleError) {
+	if recover {
+		c.HandleResourceYaml([]byte(strings.TrimPrefix(resourceYaml, "\n")), namespace, "re-create", "", map[string]string{})
+		return nil, nil
+	}
 	resourceObjects := c.HandleResourceYaml([]byte(strings.TrimPrefix(resourceYaml, "\n")), namespace, "create", "", map[string]string{"app_id": appID})
 	var resourceList []*dbmodel.K8sResource
 	for _, resourceObject := range resourceObjects {

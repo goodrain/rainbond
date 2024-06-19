@@ -253,6 +253,14 @@ func (t *TenantServicesDaoImpl) UpdateModel(mo model.Interface) error {
 	return nil
 }
 
+func (t *TenantServicesDaoImpl) UpdateComponentStatusModel(serviceID string, status bool) error {
+	return t.DB.Debug().
+		Model(&model.TenantServices{}).
+		Where("service_id = ?", serviceID).
+		Update(model.TenantServices{ComponentStatus: status}).
+		Error
+}
+
 // GetServiceByID 获取服务通过服务id
 func (t *TenantServicesDaoImpl) GetServiceByID(serviceID string) (*model.TenantServices, error) {
 	var service model.TenantServices
@@ -478,6 +486,18 @@ func (t *TenantServicesDaoImpl) GetServicesByTenantIDs(tenantIDs []string) ([]*m
 func (t *TenantServicesDaoImpl) GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error) {
 	var services []*model.TenantServices
 	if err := t.DB.Where("tenant_id= ?", tenantID).Find(&services).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return services, nil
+		}
+		return nil, err
+	}
+	return services, nil
+}
+
+// GetStartServicesAllInfoByTenantID -
+func (t *TenantServicesDaoImpl) GetStartServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error) {
+	var services []*model.TenantServices
+	if err := t.DB.Where("tenant_id= ? and component_status=?", tenantID, true).Find(&services).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return services, nil
 		}

@@ -212,7 +212,7 @@ func (t *ClusterController) AddResource(w http.ResponseWriter, r *http.Request) 
 	if ok := httputil.ValidatorRequestStructAndErrorResponse(r, w, &hr, nil); !ok {
 		return
 	}
-	rri, err := handler.GetClusterHandler().AddAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.ResourceYaml)
+	rri, err := handler.GetClusterHandler().AddAppK8SResource(r.Context(), hr.Namespace, hr.AppID, hr.ResourceYaml, hr.Recover)
 	if err != nil {
 		err.Handle(r, w)
 		return

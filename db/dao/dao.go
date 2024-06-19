@@ -155,6 +155,7 @@ type TenantServiceDao interface {
 	GetServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServicesByTenantIDs(tenantIDs []string) ([]*model.TenantServices, error)
 	GetServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error)
+	GetStartServicesAllInfoByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServicesInfoByAppID(appID string, page, pageSize int) ([]*model.TenantServices, int64, error)
 	CountServiceByAppID(appID string) (int64, error)
 	GetServiceIDsByAppID(appID string) (re []model.ServiceID)
@@ -166,6 +167,7 @@ type TenantServiceDao interface {
 	GetAllServicesID() ([]*model.TenantServices, error)
 	UpdateDeployVersion(serviceID, deployversion string) error
 	UpdateSafety(serviceID string, safety bool) error
+	UpdateComponentStatusModel(serviceID string, status bool) error
 	ListThirdPartyServices() ([]*model.TenantServices, error)
 	ListServicesByTenantID(tenantID string) ([]*model.TenantServices, error)
 	GetServiceTypeByID(serviceID string) (*model.TenantServices, error)
