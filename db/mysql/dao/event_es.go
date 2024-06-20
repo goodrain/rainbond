@@ -13,11 +13,11 @@ import (
 	"time"
 )
 
-type EventDaoImpl struct {
+type EventDaoESImpl struct {
 }
 
 // AddModel AddModel
-func (c *EventDaoImpl) AddModel(mo model.Interface) error {
+func (c *EventDaoESImpl) AddModel(mo model.Interface) error {
 	result := mo.(*model.ServiceEvent)
 	body, _ := json.Marshal(result)
 	_, err := es.Default().POST(fmt.Sprintf("/appstore_tenant_services_event/_doc/%s", result.EventID), string(body))
@@ -28,7 +28,7 @@ func (c *EventDaoImpl) AddModel(mo model.Interface) error {
 }
 
 // UpdateModel UpdateModel
-func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
+func (c *EventDaoESImpl) UpdateModel(mo model.Interface) error {
 	update := mo.(*model.ServiceEvent)
 	body, _ := json.Marshal(update)
 	_, err := es.Default().PUT(fmt.Sprintf("/appstore_tenant_services_event/_doc/%s", update.EventID), string(body))
@@ -36,13 +36,13 @@ func (c *EventDaoImpl) UpdateModel(mo model.Interface) error {
 }
 
 // DeleteModel DeleteModel
-func (c *EventDaoImpl) DeleteModel(id string, args ...interface{}) error {
+func (c *EventDaoESImpl) DeleteModel(id string, args ...interface{}) error {
 	_, err := es.Default().DELETE(fmt.Sprintf("/appstore_tenant_services_event/_doc/%s", id))
 	return err
 }
 
 // CreateEventsInBatch creates events in batch.
-func (c *EventDaoImpl) CreateEventsInBatch(events []*model.ServiceEvent) error {
+func (c *EventDaoESImpl) CreateEventsInBatch(events []*model.ServiceEvent) error {
 	for _, event := range events {
 		_ = c.AddModel(event)
 	}
@@ -50,7 +50,7 @@ func (c *EventDaoImpl) CreateEventsInBatch(events []*model.ServiceEvent) error {
 }
 
 // DeleteEvents delete event
-func (c *EventDaoImpl) DeleteEvents(eventIDs []string) error {
+func (c *EventDaoESImpl) DeleteEvents(eventIDs []string) error {
 	eventIds, _ := json.Marshal(eventIDs)
 	query := fmt.Sprintf(`
     {
@@ -65,7 +65,7 @@ func (c *EventDaoImpl) DeleteEvents(eventIDs []string) error {
 }
 
 // UpdateReason update reasion.
-func (c *EventDaoImpl) UpdateReason(eventID string, reason string) error {
+func (c *EventDaoESImpl) UpdateReason(eventID string, reason string) error {
 	body := fmt.Sprintf(`{
     "script": {
         "source": "ctx._source.reason = params.reason",
@@ -84,7 +84,7 @@ func (c *EventDaoImpl) UpdateReason(eventID string, reason string) error {
 }
 
 // GetEventByEventID get event log message
-func (c *EventDaoImpl) GetEventByEventID(eventID string) (*model.ServiceEvent, error) {
+func (c *EventDaoESImpl) GetEventByEventID(eventID string) (*model.ServiceEvent, error) {
 	var result model.ServiceEvent
 
 	get, err := es.Default().GET(fmt.Sprintf("/appstore_tenant_services_event/_doc/%s", eventID))
@@ -99,7 +99,7 @@ func (c *EventDaoImpl) GetEventByEventID(eventID string) (*model.ServiceEvent, e
 }
 
 // GetEventByEventIDs get event info
-func (c *EventDaoImpl) GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEvent, error) {
+func (c *EventDaoESImpl) GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEvent, error) {
 	eventIds, _ := json.Marshal(eventIDs)
 	query := fmt.Sprintf(`
 {
@@ -112,7 +112,7 @@ func (c *EventDaoImpl) GetEventByEventIDs(eventIDs []string) ([]*model.ServiceEv
 	return c.array(query)
 }
 
-func (c *EventDaoImpl) array(query string) ([]*model.ServiceEvent, error) {
+func (c *EventDaoESImpl) array(query string) ([]*model.ServiceEvent, error) {
 	get, err := es.Default().POST("/appstore_tenant_services_event/_search", query)
 	if err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func (c *EventDaoImpl) array(query string) ([]*model.ServiceEvent, error) {
 }
 
 // UpdateInBatch -
-func (c *EventDaoImpl) UpdateInBatch(events []*model.ServiceEvent) error {
+func (c *EventDaoESImpl) UpdateInBatch(events []*model.ServiceEvent) error {
 	for i := range events {
 		_ = c.UpdateModel(events[i])
 	}
@@ -134,7 +134,7 @@ func (c *EventDaoImpl) UpdateInBatch(events []*model.ServiceEvent) error {
 }
 
 // GetEventByServiceID get event log message
-func (c *EventDaoImpl) GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error) {
+func (c *EventDaoESImpl) GetEventByServiceID(serviceID string) ([]*model.ServiceEvent, error) {
 	body := fmt.Sprintf(`{
   "query": {
     "match": {
@@ -153,7 +153,7 @@ func (c *EventDaoImpl) GetEventByServiceID(serviceID string) ([]*model.ServiceEv
 }
 
 // DelEventByServiceID delete event log
-func (c *EventDaoImpl) DelEventByServiceID(serviceID string) error {
+func (c *EventDaoESImpl) DelEventByServiceID(serviceID string) error {
 	query := fmt.Sprintf(`
     {
       "query": {
@@ -167,7 +167,7 @@ func (c *EventDaoImpl) DelEventByServiceID(serviceID string) error {
 }
 
 // ListByTargetID -
-func (c *EventDaoImpl) ListByTargetID(targetID string) ([]*model.ServiceEvent, error) {
+func (c *EventDaoESImpl) ListByTargetID(targetID string) ([]*model.ServiceEvent, error) {
 	query := fmt.Sprintf(`
     {
       "query": {
@@ -180,7 +180,7 @@ func (c *EventDaoImpl) ListByTargetID(targetID string) ([]*model.ServiceEvent, e
 }
 
 // GetEventsByTarget get event by target with page
-func (c *EventDaoImpl) GetEventsByTarget(target, targetID string, offset, limit int) ([]*model.ServiceEvent, int, error) {
+func (c *EventDaoESImpl) GetEventsByTarget(target, targetID string, offset, limit int) ([]*model.ServiceEvent, int, error) {
 	body := fmt.Sprintf(`{
   "query": {
     "bool": {
@@ -209,7 +209,7 @@ func (c *EventDaoImpl) GetEventsByTarget(target, targetID string, offset, limit 
 }
 
 // GetEventsByTenantID get event by tenantID
-func (c *EventDaoImpl) GetEventsByTenantID(tenantID string, offset, limit int) ([]*model.ServiceEvent, int, error) {
+func (c *EventDaoESImpl) GetEventsByTenantID(tenantID string, offset, limit int) ([]*model.ServiceEvent, int, error) {
 	query := fmt.Sprintf(`
     {
            "query": {
@@ -236,7 +236,7 @@ func (c *EventDaoImpl) GetEventsByTenantID(tenantID string, offset, limit int) (
 }
 
 // GetEventsByTenantIDs get my teams all event by tenantIDs
-func (c *EventDaoImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit int) ([]*model.EventAndBuild, error) {
+func (c *EventDaoESImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit int) ([]*model.EventAndBuild, error) {
 	tenants, _ := json.Marshal(tenantIDs)
 	body := fmt.Sprintf(`{
   "sort": [
@@ -261,39 +261,13 @@ func (c *EventDaoImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit in
     }
   }
 }`, offset, limit, string(tenants))
-
-	//ops, _ := json.Marshal(tenantIDs)
-	//// 使用原生 SQL 查询，并进行连接优化
-	//query := `
-	//	SELECT
-	//		a.ID, a.create_time, a.tenant_id, a.target, a.target_id, a.user_name,
-	//		a.start_time, a.end_time, a.opt_type, a.syn_type, a.status, a.final_status,
-	//		a.message, a.reason, b.build_version, b.kind, b.delivered_type, b.delivered_path,
-	//		b.image_name, b.cmd, b.repo_url, b.code_version, b.code_branch, b.code_commit_msg,
-	//		b.code_commit_author, b.plan_version
-	//	FROM
-	//		region.tenant_services_event AS a
-	//	LEFT JOIN
-	//		region.tenant_service_version AS b
-	//	ON
-	//		a.target_id = b.service_id AND a.event_id = b.event_id
-	//	WHERE
-	//		a.target = 'service'
-	//	AND a.tenant_id IN (?)
-	//	ORDER BY
-	//		a.ID DESC
-	//	LIMIT ?, ?;
-	//`
-	//if err := c.DB.Debug().Raw(query, tenantIDs, offset, limit).Scan(&events).Error; err != nil {
-	//	return nil, err
-	//}
-
 	array, err := c.array(body)
 	if err != nil {
 		return nil, err
 	}
 	res := make([]*model.EventAndBuild, 0)
 	for _, item := range array {
+
 		version, err := db.GetManager().VersionInfoDao().GetVersionByEventID(item.EventID)
 		if err != nil {
 			e := &model.EventAndBuild{
@@ -347,7 +321,7 @@ func (c *EventDaoImpl) GetEventsByTenantIDs(tenantIDs []string, offset, limit in
 }
 
 // GetLastASyncEvent get last sync event
-func (c *EventDaoImpl) GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error) {
+func (c *EventDaoESImpl) GetLastASyncEvent(target, targetID string) (*model.ServiceEvent, error) {
 
 	body := fmt.Sprintf(`{
   "query": {
@@ -372,7 +346,7 @@ func (c *EventDaoImpl) GetLastASyncEvent(target, targetID string) (*model.Servic
 }
 
 // UnfinishedEvents returns unfinished events.
-func (c *EventDaoImpl) UnfinishedEvents(target, targetID string, optTypes ...string) ([]*model.ServiceEvent, error) {
+func (c *EventDaoESImpl) UnfinishedEvents(target, targetID string, optTypes ...string) ([]*model.ServiceEvent, error) {
 	op, _ := json.Marshal(optTypes)
 	body := fmt.Sprintf(`{
   "query": {
@@ -392,7 +366,7 @@ func (c *EventDaoImpl) UnfinishedEvents(target, targetID string, optTypes ...str
 }
 
 // LatestFailurePodEvent returns the latest failure pod event.
-func (c *EventDaoImpl) LatestFailurePodEvent(podName string) (*model.ServiceEvent, error) {
+func (c *EventDaoESImpl) LatestFailurePodEvent(podName string) (*model.ServiceEvent, error) {
 	body := fmt.Sprintf(`{
   "query": {
     "bool": {
@@ -420,7 +394,7 @@ func (c *EventDaoImpl) LatestFailurePodEvent(podName string) (*model.ServiceEven
 }
 
 // GetAppointEvent get event log message
-func (c *EventDaoImpl) GetAppointEvent(serviceID, status, Opt string) (*model.ServiceEvent, error) {
+func (c *EventDaoESImpl) GetAppointEvent(serviceID, status, Opt string) (*model.ServiceEvent, error) {
 	body := fmt.Sprintf(`{
   "query": {
     "bool": {
@@ -444,7 +418,7 @@ func (c *EventDaoImpl) GetAppointEvent(serviceID, status, Opt string) (*model.Se
 }
 
 // AbnormalEvent Abnormal event in components.
-func (c *EventDaoImpl) AbnormalEvent(serviceID, Opt string) (*model.ServiceEvent, error) {
+func (c *EventDaoESImpl) AbnormalEvent(serviceID, Opt string) (*model.ServiceEvent, error) {
 	body := fmt.Sprintf(`{
   "query": {
     "bool": {
@@ -469,7 +443,7 @@ func (c *EventDaoImpl) AbnormalEvent(serviceID, Opt string) (*model.ServiceEvent
 }
 
 // DelAbnormalEvent delete Abnormal event in components.
-func (c *EventDaoImpl) DelAbnormalEvent(serviceID, Opt string) error {
+func (c *EventDaoESImpl) DelAbnormalEvent(serviceID, Opt string) error {
 	body := fmt.Sprintf(`{
   "query": {
     "bool": {
@@ -490,7 +464,7 @@ func (c *EventDaoImpl) DelAbnormalEvent(serviceID, Opt string) error {
 }
 
 // DelAllAbnormalEvent delete all Abnormal event in components when stop.
-func (c *EventDaoImpl) DelAllAbnormalEvent(serviceID string, Opts []string) error {
+func (c *EventDaoESImpl) DelAllAbnormalEvent(serviceID string, Opts []string) error {
 	optsJson, _ := json.Marshal(Opts)
 	body := fmt.Sprintf(`{
   "query": {
@@ -512,7 +486,7 @@ func (c *EventDaoImpl) DelAllAbnormalEvent(serviceID string, Opts []string) erro
 }
 
 // SetEventStatus -
-func (c *EventDaoImpl) SetEventStatus(ctx context.Context, status model.EventStatus) error {
+func (c *EventDaoESImpl) SetEventStatus(ctx context.Context, status model.EventStatus) error {
 	event, _ := ctx.Value(ctxutil.ContextKey("event")).(*model.ServiceEvent)
 	if event != nil {
 		event.FinalStatus = "complete"
@@ -523,7 +497,7 @@ func (c *EventDaoImpl) SetEventStatus(ctx context.Context, status model.EventSta
 }
 
 // GetExceptionEventsByTime -
-func (c *EventDaoImpl) GetExceptionEventsByTime(eventTypes []string, createTime time.Time) ([]*model.ServiceEvent, error) {
+func (c *EventDaoESImpl) GetExceptionEventsByTime(eventTypes []string, createTime time.Time) ([]*model.ServiceEvent, error) {
 	eventTypesJson, _ := json.Marshal(eventTypes)
 	body := fmt.Sprintf(`{
   "query": {
@@ -539,7 +513,7 @@ func (c *EventDaoImpl) GetExceptionEventsByTime(eventTypes []string, createTime 
 }
 
 // CountEvents -
-func (c *EventDaoImpl) CountEvents(tenantID, serviceID, eventType string) int64 {
+func (c *EventDaoESImpl) CountEvents(tenantID, serviceID, eventType string) int64 {
 	body := fmt.Sprintf(`{
   "query": {
     "bool": {
